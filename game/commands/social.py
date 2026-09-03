@@ -441,6 +441,11 @@ class SocialCmds(CommandBase):
         # 与『组队甲』同规则：剥掉"队伍"前缀（『队伍』= 查看面板，空参同义）。
         if target.startswith("队伍"):
             target = target[2:].strip()
+        # v173.3 意见#157：『组队 @某人』参数 At 标记剥离（At 在指令后不在开头，
+        # _strip_cmd 只剥开头 At）——"[At:12345]" → "12345" 才能按 qq 号找人。
+        _at_m = re.search(r"\[At:(\d+)\]", target)
+        if _at_m:
+            target = _at_m.group(1)
         members = db.party_members(group_id, qq_id)
         if not target:
             if members:
