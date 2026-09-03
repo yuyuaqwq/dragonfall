@@ -77,7 +77,7 @@ async def main():
     check("推进到 q5_6", qq["main_quest"] == "q5_6", str(qq["main_quest"]))
     check("q5_5 入完成列表", "q5_5" in qq["completed_main"], str(qq["completed_main"]))
     check("圣光百合被扣除", db.count_item("g1", "p1", "圣光百合") == 0, str(db.count_item("g1", "p1", "圣光百合")))
-    check("奖励金币入账", db.get_player("g1", "p1")["gold"] == gold0 + 600, str(db.get_player("g1", "p1")["gold"] - gold0))
+    check("奖励金币入账", db.get_player("g1", "p1")["gold"] == gold0 + 1110, str(db.get_player("g1", "p1")["gold"] - gold0))  # v169.2 金币校直 q5_5 600→1110
     # 『交付任务』指令路径（ready 态直接交）
     make_player("g1", "p2", "罗兰", "战士")
     db.update_player("g1", "p2", cur_map="dawn_city", cur_subarea="dawn_city_3")
@@ -127,8 +127,8 @@ async def main():
     qq = get_q("g3", "p4")
     check("active 到达目标图完成推进", qq["main_quest"] == "q1_6" and "q1_5" in qq["completed_main"],
           str(qq["main_quest"]))
-    check("active 发奖", db.get_player("g3", "p4")["gold"] == gold0 + 40 and any("达成" in l for l in lines),
-          f"gold+{db.get_player('g3','p4')['gold']-gold0} lines={lines}")
+    check("active 发奖", db.get_player("g3", "p4")["gold"] == gold0 + 410 and any("达成" in l for l in lines),
+          f"gold+{db.get_player('g3','p4')['gold']-gold0} lines={lines}")  # v169.2 金币校直 q1_5 40→410
 
     # ============ 4. 支线接取 min_level ============
     print("\n[4] 支线接取 min_level（Lv.1 拒接 Lv.40）")

@@ -10,7 +10,10 @@ from ..data import (
 """奥兰迪亚·余烬纪年数据层 - stats.py"""
 # v56.2 怪物等级段曲线（鱼鱼拍板调数值，根治"后期大招乱秒"）
 # hp：16 级起渐入放大（30 级 ×2.2 / 60 级 ×3.4 / 90 级 ×4.3），≤15 级完全不变
-# atk：31 级起放缓（60 级 ×0.85 / 90 级 ×0.73），避免后期怪攻击成长超过玩家防御
+# v169.3 承伤修复（2026-09-03 鱼鱼拍板，承伤审计 A1/A2）：atk 取消 31 级后负斜率——
+#   原 31 级起每级 -0.5%、61 级起每级 -0.4% 会让怪攻击"越高级越弱"（30→100 级
+#   怪 atk 只 +2.2 倍，满装玩家 def +5.7 倍）。改为 31+ 平缓正增长（每级 +0.4%，
+#   100 级 ×1.28，怪攻击成长不再滞后玩家防御；配合 MONSTER_ROLE_GROWTH atk 上调）
 def hp_stage_mult(lv: int) -> float:
     # v131 收缓（2026-08-27）：16-30 段 8%→5%（30 级 1.75）、31-60 段 4%→3%（60 级 2.65）、61+ 3%→2%（100 级 3.45）
     # 原：≤15=1.0；16-30: 1+(lv-15)*0.08；31-60: 2.2+(lv-30)*0.04；61+: 3.4+(lv-60)*0.03
@@ -24,11 +27,25 @@ def hp_stage_mult(lv: int) -> float:
 
 
 def atk_stage_mult(lv: int) -> float:
+    # v169.3：31 级起每级 +0.4%（原 -0.5% 负斜率让怪 atk 越高级越弱，已废除）——
+    # 数值意图：怪物攻击跟随玩家防御成长（配 MONSTER_ROLE_GROWTH atk 上调，攻防比 r 目标 1.0~1.6）。
+    # ≤30 级保持 1.0（新手期裸装口径）；31 级起线性微增，100 级 ×1.28，无负斜率。
+    # ⚠️ 消费侧：仅普通怪（tank/dps/caster/speedster/healer）与精英乘本函数；boss 走
+    #   独立 _boss_atk_stage（旧减速曲线 + 下限 clamp），避免 boss 双重段乘区爆表。
+    if lv <= 30:
+        return 1.0
+    return 1.0 + (lv - 30) * 0.004
+
+
+def _boss_atk_stage(lv: int) -> float:
+    """v169.3 boss 专用 atk 等级曲线（保留 v169.2 减速曲线，数值完全一致）：
+    31-60 级每级 -0.5%、61+ 每级 -0.4% 并夹 max(0.2, …) 防未来等级上限提升出现负 atk。
+    boss 后期 atk 成长由 BOSS_ATK_STAGE_MULT（stat_templates v156 段乘区）承担，
+    本曲线只为维持 boss 级内面板与旧版一致（BOSS_ATK_STAGE_MULT 门禁 8~12% 口径不动）。"""
     if lv <= 30:
         return 1.0
     if lv <= 60:
         return 1.0 - (lv - 30) * 0.005
-    # 防御性下限，防未来提高等级上限时出现负 atk（当前 ≤100 级不生效）
     return max(0.2, 0.85 - (lv - 60) * 0.004)
 
 
@@ -92,7 +109,12 @@ def monster_stats(lv: int, role: str, area: str | None = None) -> dict:
         stats["mdef"] = int(stats["mdef"] * 1.15)
     # v56.2：全角色模板吃等级段曲线
     stats["hp"] = int(stats["hp"] * hp_stage_mult(lv))
-    stats["atk"] = int(stats["atk"] * atk_stage_mult(lv))
+    # v169.3 承伤修复：atk_stage_mult 正斜率（31 级起 +0.4%/级）只对普通怪+精英生效——
+    #   boss 不吃（boss 已有独立 BOSS_ATK_STAGE_MULT 段乘区做后期成长，再叠正斜率会双重
+    #   段乘区爆表——60 级单发占 HP 35%+ 超 12% 上限）；boss atk 保持原曲线（下方 boss 分支
+    #   用 _boss_atk_stage 旧减速曲线，数值与原版完全一致，门禁口径不动）。
+    if role != "boss":
+        stats["atk"] = int(stats["atk"] * atk_stage_mult(lv))
     # v156 阶段 6 怪物数值修复（2026-09-01 鱼鱼拍板：裸装 4~6 轮只约束前期新手）：
     #   普通怪 HP × NORMAL_HP_STAGE_MULT（tank/dps/caster/speedster/healer）——
     #   中后期怪 HP 上调（满装击杀 1.5~2.6 轮 → 4~6 轮），前期 ≤15 恒 1.0（新手裸装 5.8 轮达标）。
@@ -102,7 +124,11 @@ def monster_stats(lv: int, role: str, area: str | None = None) -> dict:
     if role in ("tank", "dps", "caster", "speedster", "healer"):
         stats["hp"] = int(stats["hp"] * _stage_mult(NORMAL_HP_STAGE_MULT, lv))
     elif role == "boss" and area != "instance":
-        stats["atk"] = int(stats["atk"] * _stage_mult(BOSS_ATK_STAGE_MULT, lv))
+        # v169.3 boss 分支：先乘旧 atk 减速曲线（数值与 v169.2 完全一致，不改 boss 强度），
+        # 再乘 BOSS_ATK_STAGE_MULT 段乘区（_boss_atk_stage 含下限 clamp 防未来等级上限提升出负 atk）。
+        # ⚠️ 保持与原实现相同的逐级 int（int(atk×_boss_atk_stage) 后再 ×段乘区 int），
+        # 两级截断与合并一次乘差 ±1，会让 monster_curve 门禁 60 级 boss atk 1217↔1218 红。
+        stats["atk"] = int(int(stats["atk"] * _boss_atk_stage(lv)) * _stage_mult(BOSS_ATK_STAGE_MULT, lv))
     # 重构图契约 §4.1：dot_res 异常抗性（结算时乘 (1-dot_res)）——
     # boss/elite 设置抗性，普通怪不设键（缺失=0）。cap 0.95 由结算端约束。
     if role == "boss":

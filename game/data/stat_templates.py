@@ -20,15 +20,30 @@ MONSTER_ROLE_BASE = {
 MONSTER_ROLE_GROWTH = {
     # v131 数值重设计（2026-08-27 鱼鱼拍板）：怪 HP×2 / 防御×2~4.5 / 攻击×1.4，
     # 攻防比收敛 r≈1.6~2.0（防御重新有意义），跨5级裸装全胜→必败；boss 血量×2.5（副本长盘化）。
-    "tank":       {"hp": 36,  "atk": 3.5, "def": 4.0, "matk": 0.8, "mdef": 2.8, "spd": 0.3, "dodge": 0.0},
-    "dps":        {"hp": 30,  "atk": 5.0, "def": 5.0, "matk": 1.0, "mdef": 2.4, "spd": 1.0, "dodge": 0.0},
-    "caster":     {"hp": 22,  "atk": 1.8, "def": 3.5, "matk": 5.0, "mdef": 4.0, "spd": 0.9, "dodge": 0.0},
-    "speedster":  {"hp": 22,  "atk": 3.5, "def": 4.5, "matk": 1.0, "mdef": 2.0, "spd": 1.8, "dodge": 0.0},
-    "healer":     {"hp": 20,  "atk": 1.5, "def": 3.0, "matk": 4.0, "mdef": 3.0, "spd": 0.8, "dodge": 0.0},
+    # v169.3 承伤修复（2026-09-03 鱼鱼拍板，承伤审计 A1/A2）：各 role atk 成长上调——
+    #   满装玩家 def 是同级怪 atk 2~3.5 倍（r 恒 0.28~0.49，目标 1.6~2.0 从未达成），
+    #   同级怪单发仅占满装 HP 1~2%。本次按 role 定位上调 atk growth（dps 5.0→9.0、
+    #   elite 6.5→11.0、boss 7.5→10.0 等），配合 atk_stage_mult 取消 31 级后负斜率，
+    #   目标：满装同级怪单发占 HP 5~12%（物理系战士口径）；远程脆皮承伤更高属定位。
+    #   注意：只上调 atk，def/hp/matk 不动——玩家打怪侧仅"怪血不变但玩家承伤上升"，不破坏击杀轮口径。
+    #   boss hp_mult(≤×3.0)+BOSS_ATK_STAGE_MULT 已叠很高，boss atk growth 只微调 7.5→10.0，
+    #   不拉狠（避免 P2 起野外 Boss 单发超 12% 上限）。
+    "tank":       {"hp": 36,  "atk": 4.6, "def": 4.0, "matk": 0.8, "mdef": 2.8, "spd": 0.3, "dodge": 0.0},
+    "dps":        {"hp": 30,  "atk": 9.0, "def": 5.0, "matk": 1.0, "mdef": 2.4, "spd": 1.0, "dodge": 0.0},
+    "caster":     {"hp": 22,  "atk": 2.6, "def": 3.5, "matk": 9.0, "mdef": 4.0, "spd": 0.9, "dodge": 0.0},
+    "speedster":  {"hp": 22,  "atk": 6.0, "def": 4.5, "matk": 1.0, "mdef": 2.0, "spd": 1.8, "dodge": 0.0},
+    "healer":     {"hp": 20,  "atk": 2.2, "def": 3.0, "matk": 6.0, "mdef": 3.0, "spd": 0.8, "dodge": 0.0},
     # v57 精英上调：hp 32→40、atk 5.5→6.5（鱼鱼反馈前期精英太弱，2级全力量战士无脑碾压4级精英）
     # v131 精英 hp 40→70、def 2.8→5.5（配合 FIELD_TIER_MULT 分档 → 蓝+5 单刷 20~35 轮）
-    "elite":      {"hp": 70,  "atk": 6.5, "def": 5.5, "matk": 5.0, "mdef": 4.5, "spd": 1.5, "dodge": 0.0},
+    # v169.3 精英 atk 6.5→8.2（承伤修复）：保持"精英必须弱于 Boss"（monster_scan 口径下
+    #   elite 攻强×1.2 vs boss ×1.35；P1 蓝装玩家对精英单发须 < boss 单发）。growth 9.0 时
+    #   P1 精英 9.89% 仍反超 boss 9.74% → 调 8.2（P1 ≈8.9% < boss 9.74%）；P2+ 精英 5~6%，
+    #   与 dps 相当、低于 boss——精英定位"小怪群头目"（比普通怪略硬略痛），Boss 才是承伤上限。
+    "elite":      {"hp": 70,  "atk": 8.2, "def": 5.5, "matk": 5.0, "mdef": 4.5, "spd": 1.5, "dodge": 0.0},
     # v131 boss hp 58→145（副本 Boss 保底大几十轮策略长盘；配合实例 hp_mult 表 → 4人 100~150 轮）
+    # v169.3 boss atk growth 保持 7.5（不改）：boss 已吃 BOSS_ATK_STAGE_MULT 段乘区做后期成长，
+    #   growth 再上调会让野外 Boss 单发爆 12% 上限（60 级 35%+）；boss 攻击上调走等级压制方向
+    #   与 BOSS_ATK_STAGE_MULT，本表只调普通怪/精英。
     "boss":       {"hp": 145, "atk": 7.5, "def": 3.8, "matk": 6.0, "mdef": 3.4, "spd": 1.8, "dodge": 0.0},
 }
 # 怪物经验/金币基数（v28/v56.2 校准，公式在 core/stats.py）

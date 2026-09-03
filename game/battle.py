@@ -4969,6 +4969,24 @@ class Battle:
         self._pending_dmg_lines.append(f"【{e['name']}】追加攻击，造成 {xtra} 点伤害！")
         return xtra
 
+    # v169.3 等级压制增伤（怪打玩家方向，2026-09-03 鱼鱼拍板落实审计 §六.3）：
+    #   怪等级 > 玩家等级 → 玩家承伤 ×(1 + 0.02×等级差)，每级 +2%（温和版：玩家打怪方向
+    #   是 1.02^diff 指数、封顶 ×2.69@50 级，这里线性 +2%/级、封顶 ×3.0@100 级，避免越级怪
+    #   一发出殡）；怪 ≤ 玩家等级不削（保持现状——低怪打高玩家不惩罚，反向无趣）。
+    #   PVP 排除（敌方玩家快照无 lv 压制语义）；_damage_player 全链路（普攻/技能/蓄力/反扑）都吃。
+    def _enemy_lv_pressure(self, player: dict, e: dict) -> float:
+        try:
+            if self.btype == "pvp":
+                return 1.0
+            _elv = int((e or {}).get("lv", 0) or 0)
+            _plv = int((player or {}).get("level", 0) or 0)
+            _diff = _elv - _plv
+            if _diff > 0:
+                return min(1.0 + 0.02 * _diff, 3.0)
+        except Exception:
+            pass
+        return 1.0
+
     def _enemy_cast_done(self, player: dict, unit: dict, ev: dict) -> tuple:
         """v154 敌方对称读条：敌方出招读条结束（cast_done 事件触发）→ 结算伤害。
         返回 (日志列表, 对玩家伤害)。
@@ -4995,6 +5013,8 @@ class Battle:
             if not sinfo:
                 _kind = "atk"
             else:
+                # v169.3 等级压制增伤：怪高玩家 N 级 → 本技能段伤害 ×(1+0.02N)（cap ×3）
+                _lpm = self._enemy_lv_pressure(player, e)
                 sname = sinfo.get("name", ev.get("skill", "?"))
                 kind = sinfo.get("kind")
                 power = float(ev.get("power_mult", sinfo.get("power", 1.0)))
@@ -5010,6 +5030,7 @@ class Battle:
                         pene_phys=_pp, pene_magi=_pp_m,
                         pene_flat_phys=_pf, pene_flat_magi=_pf_m,
                     )
+                    dmg = max(1, int(dmg * _lpm))
                     # v157 修复：formula 分支同样走物理/魔法免伤结算（此前直接返回，
                     # 魔法免伤(magic_reduce)/鲁莽之心(mr<0) 对带 formula 的怪物技能失效——
                     # v157 怪物全量配 formula 后暴露。与下方非 formula 分支同款逻辑。
@@ -5038,6 +5059,7 @@ class Battle:
                     _pp, _pf = self._pene_vals(est)
                     dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf,
                                         dmg_type="phys")
+                    dmg = max(1, int(dmg * _lpm))
                     _pst_pr = self._player_stats(player)
                     pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
                     if pr > 0:
@@ -5048,6 +5070,7 @@ class Battle:
                     _pp, _pf = self._pene_vals(est, magic=True)
                     dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit, pene_pct=_pp, pene_flat=_pf,
                                         dmg_type="magi")
+                    dmg = max(1, int(dmg * _lpm))
                     if kind != "物理":
                         _pst_mr = self._player_stats(player)
                         mr = float(_pst_mr.get("magic_reduce", 0) or 0)
@@ -5098,9 +5121,12 @@ class Battle:
                 dmg += self._reactive_extra_attack(e, pst, logs)
                 return logs, dmg
         # 敌方普攻（_kind == "atk" 或技能查表失败）
+        # v169.3 等级压制增伤：怪高玩家 N 级 → 普攻 ×(1+0.02N)（cap ×3，同技能方向）
+        _lpm = self._enemy_lv_pressure(player, e)
         is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
         _pp, _pf = self._pene_vals(est)
         dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
+        dmg = max(1, int(dmg * _lpm))
         _pst_pr = self._player_stats(player)
         pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
         if pr > 0:
@@ -5278,6 +5304,9 @@ class Battle:
             _pp, _pf = self._pene_vals(est, magic=True)
             dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit, pene_pct=_pp, pene_flat=_pf,
                                 dmg_type="magi")
+        # v169.3 等级压制增伤：蓄力释放（践踏/野猪王等大技能）同样吃怪高玩家等级压制 ×(1+0.02N)
+        _lpm = self._enemy_lv_pressure(player, e)
+        dmg = max(1, int(dmg * _lpm))
         # v167.3 修：蓄力释放必须真正扣玩家血（旧版只写 pending 日志+return dmg，从不调
         # _damage_player → 践踏"轰然落下"提示后无伤害）。与敌方普攻 cast_done 分支同构：
         # 先暂存伤害文案，再由 _damage_player 消费（闪避/格挡/挡刀正确交互）。
@@ -5307,6 +5336,8 @@ class Battle:
         is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
         _pp, _pf = self._pene_vals(est)
         dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
+        # v169.3：PVP 不打等级压制（_enemy_lv_pressure 对 btype=pvp 恒返 1.0；此处仅普攻路径，
+        # 与 _enemy_cast_done 同构保险——PVP 敌方玩家快照等级差异不应放大承伤）
         # v106.4 物理免伤统一属性结算（PVP 同口径）
         _pst_pr = self._player_stats(player)
         pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)

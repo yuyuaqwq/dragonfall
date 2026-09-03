@@ -37,7 +37,7 @@ def main():
     else:
         check("portal_cost 可访问", False, "未暴露")
 
-    print("【v56.2 怪物等级段曲线（乱秒修复）+ v131 新模板】")
+    print("【v56.2 怪物等级段曲线（乱秒修复）+ v131 新模板 + v169.3 承伤修复】")
     ms = getattr(C, "monster_stats", None)
     if ms:
         m1 = ms(10, "dps")
@@ -51,9 +51,12 @@ def main():
         # Lv30 hp = int((45+30×29) × hp_stage_mult 1.75) × 3.175 = 5083
         check("30级怪 hp 放大(5083)", 4900 < m30["hp"] < 5300, "hp=%s" % m30["hp"])
         check("60级怪 hp 继续放大", m60["hp"] > m30["hp"] * 2, "%s vs %s" % (m60["hp"], m30["hp"]))
-        # v131：dps atk 成长 3.5→5.0/级，30 级线性取整 = 12+5.0×29=157
-        check("30级怪 atk 线性(157)", ms(30, "dps")["atk"] == int(12 + 5.0 * 29), "atk=%s" % ms(30, "dps")["atk"])
-        check("60级怪 atk 放缓(<线性)", ms(60, "dps")["atk"] < 12 + 5.0 * 59, "atk=%s" % ms(60, "dps")["atk"])
+        # v169.3 承伤修复（2026-09-03 鱼鱼拍板）：dps atk growth 5.0→9.0/级、
+        # atk_stage_mult 31+ 负斜率改正斜率（+0.4%/级，取消"越高级越弱"）
+        #   Lv30（≤30 段 atk_stage=1.0）atk = int(12+9.0×29) = 273
+        #   Lv60 atk = int(12+9.0×59) × atk_stage_mult(60)=1.12 = 608 ≥ 线性（不再放缓）
+        check("30级怪 atk 线性(273)", ms(30, "dps")["atk"] == int(12 + 9.0 * 29), "atk=%s" % ms(30, "dps")["atk"])
+        check("60级怪 atk 正斜率(608, ≥线性)", ms(60, "dps")["atk"] >= 12 + 9.0 * 59, "atk=%s" % ms(60, "dps")["atk"])
         e1 = getattr(C, "monster_exp", None)
         if e1:
             check("30级怪经验补偿", e1(30, "dps") > 9 * 28 * 1.5, "exp=%s" % e1(30, "dps"))

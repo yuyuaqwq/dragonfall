@@ -71,7 +71,10 @@ def main():
     m = NS.monster_of("dps", 11)
     ehp = m.get("max_hp", 0)
     wins, avg_round = NS.class_battle_matrix("战士", 11, {"str": 39}, {}, "dps", 11, seeds=20)
-    check("战士 11v11 胜率高（引擎 sanity）", wins >= 15, f"wins={wins}/20")
+    # v169.3 怪攻上调（dps atk growth 5.0→9.0）：裸装战士 11v11 从 20/20 碾压降到 ~5/20 势均力敌
+    # （满装蓝+0/+5 仍 8/8）→ sanity 阈值从 ≥15 放宽为 ≥3（防战士裸装同级完全打不过的回归；设计上
+    # 怪攻上调就是要裸装同级有压力，满装玩家不受影响——见 test_numeric_battle_matrix v169.3 注释）
+    check("战士 11v11 胜率 sanity（v169.3 怪攻上调后裸装势均力敌）", wins >= 3, f"wins={wins}/20")
     # 每行动实际伤害：完整玩家构造（照抄 numeric_sim），总伤害 = 胜利场 × 怪HP（满伤精确）
     # v152：玩家行动带行为耗时（普攻 0.5×cost），'击杀回合' 口径改用行动次数——avg_acts = 引擎实测
     # 总行动次数/场（与模型 per_action_dmg 的'每行动伤害'同口径，消除溢出与回合换算偏差）

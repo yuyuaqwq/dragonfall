@@ -124,6 +124,13 @@ async def main():
     # 输出乙攻击（拉伤害仇恨）
     st["boss"]["atk"] = 5
     st["boss"]["matk"] = 5
+    # v169.3 怪攻上调（dps/普通怪 atk growth +80%、atk_stage 取消负斜率）：副本骷髅兵
+    # （40 级普通怪 atk 377）两连击 235+226 直接把 40 级法系玩家打残——本测试意图是仇恨机制，
+    # 不是承伤验证。把敌人阵列（含爪牙）atk/matk 一并压低到 5，防测试中玩家被怪打死（ended=defeat）
+    # 导致后续 defend 拉仇恨步骤落在死亡玩家上（threat4['f5']==0 假红）。
+    for _eu in (st.get("enemies") or []):
+        _eu["atk"] = 5
+        _eu["matk"] = 5
     # v121 CTB：法师 f5 比战士 f4 快（members 按 spd 排序 f5 在前）——CTB 下 f5 先手
     # 且可能连动，队长 f4 的攻击会被拦（仇恨拉不到）。把队长 ct 设为全场最小确保先手，
     # 维持测试意图（输出乙抢回合被拦 → 队长攻击拉仇恨）

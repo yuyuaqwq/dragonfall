@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from conftest import C  # noqa: E402
 from data.plugins.dragonfall.game.core.stats import (  # noqa: E402
-    monster_stats, hp_stage_mult, atk_stage_mult, _stage_mult,
+    monster_stats, hp_stage_mult, atk_stage_mult, _stage_mult, _boss_atk_stage,
 )
 
 passed = failed = 0
@@ -44,16 +44,21 @@ LVS = [1, 11, 22, 30, 60]
 LOCK = {
     # v131 重标定（2026-08-27）：怪 HP×2/防御×2~4.5/攻击×1.4；boss 血量成长 58→145
     # v156 阶段 6 重标定（2026-09-01）：普通怪 hp ×NORMAL_HP_STAGE_MULT（P2+ 上调）、boss atk ×BOSS_ATK_STAGE_MULT（后期上调）
-    "tank":      {1: (60, 8, 7, 6), 11: (420, 43, 47, 9), 22: (2218, 81, 91, 12),
-                  30: (6134, 109, 123, 14), 60: (19241, 181, 243, 23)},
-    "dps":       {1: (45, 12, 4, 10), 11: (345, 62, 54, 20), 22: (1835, 117, 109, 31),
-                  30: (5083, 157, 149, 39), 60: (15989, 260, 299, 69)},
-    "caster":    {1: (40, 5, 3, 9), 11: (260, 23, 38, 18), 22: (1364, 42, 76, 27),
-                  30: (3765, 57, 104, 35), 60: (11787, 94, 209, 62)},
-    "speedster": {1: (35, 9, 3, 16), 11: (255, 44, 48, 34), 22: (1350, 82, 97, 53),
-                  30: (3736, 110, 133, 68), 60: (11743, 182, 268, 122)},
-    "elite":     {1: (98, 14, 9, 11), 11: (1144, 79, 72, 26), 22: (3971, 150, 141, 42),
-                  30: (8181, 202, 192, 54), 60: (33588, 337, 381, 99)},
+    # v169.3 承伤修复重标定（2026-09-03，鱼鱼拍板）：普通怪 atk growth 上调
+    #   （tank 3.5→4.6 / dps 5.0→9.0 / caster 1.8→2.6 / speedster 3.5→6.0 / healer 1.5→2.2 /
+    #    elite 6.5→8.2）+ atk_stage_mult 31 级起 -0.5%/级 → +0.4%/级（取消负斜率），
+    #   精英/普通怪吃正斜率、boss 不吃（走 _boss_atk_stage 旧减速曲线 + BOSS_ATK_STAGE_MULT）——
+    #   boss 行与 v169.2 完全一致。此表按改后实测重锁。
+    "tank":      {1: (60, 8, 7, 6), 11: (420, 54, 47, 9), 22: (2218, 104, 91, 12),
+                  30: (6134, 141, 123, 14), 60: (19241, 312, 243, 23)},
+    "dps":       {1: (45, 12, 4, 10), 11: (345, 102, 54, 20), 22: (1835, 201, 109, 31),
+                  30: (5083, 273, 149, 39), 60: (15989, 608, 299, 69)},
+    "caster":    {1: (40, 5, 3, 9), 11: (260, 31, 38, 18), 22: (1364, 59, 76, 27),
+                  30: (3765, 80, 104, 35), 60: (11787, 176, 209, 62)},
+    "speedster": {1: (35, 9, 3, 16), 11: (255, 69, 48, 34), 22: (1350, 135, 97, 53),
+                  30: (3736, 183, 133, 68), 60: (11743, 406, 268, 122)},
+    "elite":     {1: (98, 14, 9, 11), 11: (1144, 96, 72, 26), 22: (3971, 186, 141, 42),
+                  30: (8181, 251, 192, 54), 60: (33588, 556, 381, 99)},
     "boss":      {1: (169, 16, 12, 10), 11: (2672, 91, 60, 28), 22: (10037, 211, 111, 47),
                   30: (21388, 344, 150, 62), 60: (69284, 1217, 292, 116)},
 }
@@ -68,12 +73,17 @@ def expect_stats(lv, role):
     elif role == "elite":
         hp = int(hp * min(1 + lv * 0.04, 3.0))
     hp = int(hp * hp_stage_mult(lv))
-    atk = int(int(base["atk"] + growth["atk"] * (lv - 1)) * atk_stage_mult(lv))
+    # v169.3：普通怪+精英乘 atk_stage_mult（31+ 正斜率）；boss 不乘（走下方 _boss_atk_stage）
+    if role == "boss":
+        atk = int(base["atk"] + growth["atk"] * (lv - 1))
+    else:
+        atk = int(int(base["atk"] + growth["atk"] * (lv - 1)) * atk_stage_mult(lv))
     # v156 阶段 6：普通怪 hp ×NORMAL_HP_STAGE_MULT、boss atk ×BOSS_ATK_STAGE_MULT
     if role in ("tank", "dps", "caster", "speedster", "healer"):
         hp = int(hp * _stage_mult(C.NORMAL_HP_STAGE_MULT, lv))
     elif role == "boss":
-        atk = int(atk * _stage_mult(C.BOSS_ATK_STAGE_MULT, lv))
+        # v169.3 boss 分支与实现同构：int(线性 × _boss_atk_stage) 后再乘段乘区（两级 int）
+        atk = int(int(atk * _boss_atk_stage(lv)) * _stage_mult(C.BOSS_ATK_STAGE_MULT, lv))
     df = int(base["def"] + growth["def"] * (lv - 1))
     if role == "boss":
         df = int(df * 1.25)
@@ -95,9 +105,9 @@ def main():
             check(f"{tag} 实测 == 锁定 {got}", got == exp, f"lock={exp}")
             check(f"{tag} 实测 == 公式 {got}", got == fmt, f"formula={fmt}")
             print(f"    {tag:16s} hp={s['hp']:6d} atk={s['atk']:5d} def={s['def']:4d} spd={s['spd']:4d}")
-    print("\n【模板一致性复核：对照 base + growth×(lv-1) 线性部分】")
+    print("【模板一致性复核：对照 base + growth×(lv-1) 线性部分】")
     print("  def：elite ×1.15 / boss ×1.25；spd：无修正 == 线性；"
-          "hp：段修正 ≥ 线性；atk：lv≤30 == 线性，lv>30 放缓 < 线性")
+          "hp：段修正 ≥ 线性；atk：lv≤30 == 线性（精英/普通怪），lv>30 ≥ 线性（v169.3 正斜率），boss 全段 == 线性")
     for role in ROLES:
         base = C.MONSTER_ROLE_BASE[role]
         growth = C.MONSTER_ROLE_GROWTH[role]
@@ -115,16 +125,18 @@ def main():
             check(f"{role} lv{lv} hp ≥ 线性值（段修正放大）",
                   got[0] >= lin_hp, f"got={got[0]} lin={lin_hp}")
             if role == "boss":
-                # v156 阶段 6：boss atk 吃 BOSS_ATK_STAGE_MULT（后期放大），不再"≤ 线性"
-                cond = got[1] >= lin_atk
-                msg = f"got={got[1]} lin={lin_atk}（BOSS_ATK_STAGE_MULT 放大）"
+                # v169.3：boss 走 _boss_atk_stage 旧减速曲线（v169.2 数值），锁表即实测
+                cond = got[1] == LOCK[role][lv][1]
+                msg = f"got={got[1]}（boss 保持 v169.2 曲线，见注释）"
             elif lv <= 30:
                 cond = got[1] == lin_atk
                 msg = f"got={got[1]} lin={lin_atk}"
             else:
-                cond = got[1] < lin_atk
-                msg = f"got={got[1]} lin={lin_atk}（31级起放缓 ×1-(lv-30)×0.005）"
-            check(f"{role} lv{lv} atk {'== 线性值' if lv <= 30 and role != 'boss' else '≥ 线性值（boss放大）' if role == 'boss' else '< 线性值（后期放缓）'}", cond, msg)
+                # v169.3：atk_stage_mult 31+ 正斜率 → atk ≥ 线性（取消负斜率，怪攻击不再越高级越弱）
+                cond = got[1] >= lin_atk
+                msg = f"got={got[1]} lin={lin_atk}（31级起 +0.4%/级 正斜率）"
+            check(f"{role} lv{lv} atk {'== 线性值' if lv <= 30 and role != 'boss' else '== 锁定值（boss 保持原曲线）' if role == 'boss' else '≥ 线性值（31+ 正斜率）'}",
+                  cond, msg)
 
     print(f"\n===== 结果：通过 {passed} / 断言 {passed + failed} =====")
     return failed == 0
