@@ -4419,6 +4419,9 @@ class EconomyCmds(CommandBase):
             if any(k in raw for k in ("收藏", "收藏品", "纪念")):
                 yield event.plain_result(self._collect_items_bestiary(group_id, qq_id))
                 return
+            if any(k in raw for k in ("宠物", "伙伴")):
+                yield event.plain_result(self._pet_dex_view(group_id, qq_id))
+                return
             if any(k in raw for k in ("垂钓", "钓鱼", "鱼")):
                 yield event.plain_result(self._collect_fish_bestiary(group_id, qq_id))
                 return
@@ -4492,6 +4495,9 @@ class EconomyCmds(CommandBase):
             except Exception:
                 pass
             _kill = sum(r["kills"] for r in best)
+            # v173.3 意见#125：宠物维度（pet_dex 孵化记录）
+            _pet_dex = db.pet_dex_get(qq_id)
+            _pet_total = len(C.PET_POOL)
             lines = [
                 "📖 【冒险手册】",
                 "━━━━━━━━━━━━",
@@ -4499,8 +4505,9 @@ class EconomyCmds(CommandBase):
                 f"👹 怪物 {len(best)}/{best_total} 种 · 累计击杀 {_kill}",
                 f"🎒 物品 {poss} 种曾拥有 · 当前持有 {len(inv_keys)} 种",
                 f"🎣 收藏 鱼 {fish_n}/{len(C.FISH_COLLECT)} ｜ 收藏品 {0}/{_defs}",
+                f"🐾 宠物 {len(_pet_dex)}/{_pet_total} 种（孵过）",
                 "━━━━━━━━━━━━",
-                "💡 『足迹』区域 ｜ 『冒险手册 怪物/物品/收藏/垂钓』看明细",
+                "💡 『足迹』区域 ｜ 『冒险手册 怪物/物品/收藏/垂钓/宠物』看明细",
             ]
             return "\n".join(lines)
         except Exception as e:
@@ -4810,6 +4817,34 @@ class EconomyCmds(CommandBase):
                 lines.append("  ❌ ??? （垂钓时有极低概率邂逅）")
         lines.append("💡 彩蛋收藏鱼钓到自动收进图鉴；对应成就见『成就 隐藏』")
         return "\n".join(lines)
+
+    def _pet_dex_view(self, group_id, qq_id) -> str:
+        """v173.3 意见#125：『冒险手册 宠物』——孵过的宠物图鉴。
+
+        pet_dex 记录孵化历史（含放生后仍保留），当前宠物（db.pet_get）标注'在队'。
+        未孵过的宠物灰色占位展示（玩家知道还有哪些可收集）。
+        """
+        try:
+            dex = db.pet_dex_get(qq_id)
+            cur_pet = db.pet_get(qq_id)
+            cur_key = (cur_pet or {}).get("key") if isinstance(cur_pet, dict) else None
+            q_map = C.QUALITY
+            rows = []
+            for pd in C.PET_POOL:
+                key = pd.get("key") or ""
+                owned = key in dex
+                q = q_map.get(pd.get("quality", ""), {})
+                tag = "🐾在队" if key == cur_key else ("✅孵过" if owned else "❌未得")
+                rows.append((owned, f"{q.get('color', '')}{pd.get('icon', '')}{pd.get('name', key)}{q.get('name', '')} · {tag}"))
+            # 已孵过排前
+            rows.sort(key=lambda x: (not x[0]))
+            lines = [f"🐾 【宠物图鉴】({len(dex)}/{len(C.PET_POOL)})", "━━━━━━━━━━━━"]
+            lines += [f"  {r[1]}" for r in rows]
+            lines.append("━━━━━━━━━━━━")
+            lines.append("💡 宠物蛋『使用』孵化即收录；放生后仍留图鉴；当前跟随标🐾")
+            return "\n".join(lines)
+        except Exception as e:
+            return f"🐾 宠物图鉴加载失败（{e}），请联系管理～"
 
     def _collect_items_bestiary(self, group_id, qq_id):
         """v134.1 意见#41：『图鉴 收藏』特殊收藏品一览——type=收藏 的物品（不含彩蛋收藏鱼，
