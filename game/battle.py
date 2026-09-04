@@ -4965,6 +4965,16 @@ class Battle:
                 _boss_dmg = _real
                 if _real != total:
                     total = _real
+            # v173.3 意见#112：总伤害汇总日志提前到吸血结算前——原顺序吸血日志
+            # 先输出、'你施展造成N伤害'后输出（玩家看到吸血在伤害前，观感颠倒）。
+            if multi > 1:
+                logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
+            else:
+                # v127.3 多怪时日志带目标名（a1 指定/自动选择都显示打了谁；单怪保持原文案）
+                _alive_n2 = sum(1 for u in self.enemies if u.get("hp", 0) > 0)
+                _tg_d2 = getattr(self, "_active_target", None) or self.enemy
+                _tgtxt2 = f"对【{_tg_d2.get('name', '敌人')}】" if _alive_n2 > 1 and _tg_d2 else ""
+                logs.append(f"你施展【{skill_name}】，{_tgtxt2}造成 {total} 点伤害！")
             # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
             # v106.4：魔法技能走法术吸血（lifesteal_magi），物理技能走物理吸血（lifesteal_phys）
             # v107：真伤不吸血（dmg_type="true" 直接跳过）
@@ -4977,14 +4987,6 @@ class Battle:
             else:
                 self._settle_lifesteal(player, _boss_dmg, logs, magic=(kind == "魔法"),
                                        dmg_type={"物理": "phys", "魔法": "magi", "真伤": "true"}.get(kind, "phys"))
-        if multi > 1:
-            logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
-        else:
-            # v127.3 多怪时日志带目标名（a1 指定/自动选择都显示打了谁；单怪保持原文案）
-            _alive_n = sum(1 for u in self.enemies if u.get("hp", 0) > 0)
-            _tg_d = getattr(self, "_active_target", None) or self.enemy
-            _tgtxt = f"对【{_tg_d.get('name', '敌人')}】" if _alive_n > 1 and _tg_d else ""
-            logs.append(f"你施展【{skill_name}】，{_tgtxt}造成 {total} 点伤害！")
         # v107 吸MP（虚空行者）：魔法伤害的 mp_steal% 回复自身魔力（打空敌人蓝条的反向续航）
         if info.get("mp_steal") and total > 0:
             gain = int(total * float(info["mp_steal"]))
