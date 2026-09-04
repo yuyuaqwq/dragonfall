@@ -152,6 +152,18 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
         skill_cd[skill_name] = float((info or {}).get("cd", 0) or 0)
     cd_skills = [s for s in rotation if skill_cd.get(s, 0) > 0]
     filler_skills = [s for s in rotation if skill_cd.get(s, 0) <= 0]
+
+    # v175e 策略层：技能 cond 感知（player_mech_stacks 等"攒层大招"）——
+    # 引擎 cond = 条件倍率非施放门槛（随时可放但低层伤害低），真人会憋到满层再打；
+    # AI 模拟也要等层数够再放，否则大招全在低层白放（奥术流 DPS 假性崩盘）。
+    def _cond_wait_skill(b, skill_name: str) -> bool:
+        """技能有 player_mech_stacks 条件但当前不满足 → True（等层，不现在放）。"""
+        info = E.skill_info(cls_id, skill_name)
+        cond = (info or {}).get("cond")
+        if not cond or cond.get("type") != "player_mech_stacks":
+            return False
+        return not b._cond_active(info, player)  # 层数未达标 → 等
+
     for seed in range(seeds):
         random.seed(seed)  # 固定种子序列 seed 0..N-1，可复现（与 numeric_sim 同款）
         # 每场重建敌方与玩家：boss 每场重新展开（build_monster 全新实例，防串场）；
@@ -162,10 +174,14 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
         turns = 0
         while b.result is None and turns < max_turns:
             acted = False
-            # 施放顺序（v175b）：先试 CD 技（CD 好了就用，rotation 内顺序），
-            # 再试 0CD 填充技（轮换避免死磕第一个），全拦 → 普攻
+            # 施放顺序（v175b + v175e cond 策略）：
+            #  1) CD 技：层数达标（非攒层大招）优先；攒层大招若层数够也放；
+            #  2) 攒层大招层数不够 → 等（跳过，先放攒层技/填充技）
+            #  3) 0CD 填充技（轮换避免死磕第一个），全拦 → 普攻
             try_order = cd_skills + filler_skills
             for skill_name in try_order:
+                if _cond_wait_skill(b, skill_name):
+                    continue   # 攒层大招层数未满 → 本轮不放（等层）
                 prev_acts = b._p_acts
                 b.player_turn("skill", skill_name, player)
                 if b._p_acts != prev_acts:
