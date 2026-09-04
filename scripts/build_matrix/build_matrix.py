@@ -168,8 +168,13 @@ def _dmg_of(info: dict, st: dict, skill_lv: int, target: dict) -> float:
     （治疗技 heal_formula 的 skill_expr_preview 返回治疗量，误当伤害会让
     牧师神谕治疗流"13轮击杀"假象——v175 修复）。
     v175b：真伤（kind=真伤，穿防 0 防御 calc_damage(pierce=True)）纳入——
-    战争化身/龙息之怒/腐蚀之刃/万毒噬心 是真伤高价值技，此前算 0 严重低估。"""
+    战争化身/龙息之怒/腐蚀之刃/万毒噬心 是真伤高价值技，此前算 0 严重低估。
+    v175d：召唤技折算召唤物期望 DPS 当量（对齐 SUMMONS 模板：atk_ratio×玩家atk×频率）。
+    """
     kind = str(info.get("kind", ""))
+    # 召唤技：折算召唤物持续伤害（atk_ratio × 玩家 atk，按 attack_interval 频率）
+    if kind == "召唤":
+        return _summon_dmg_of(info, st, target)
     if not (kind.startswith("物理") or kind.startswith("魔法") or kind == "真伤"):
         return 0.0
     phys = kind.startswith("物理")
@@ -187,6 +192,47 @@ def _dmg_of(info: dict, st: dict, skill_lv: int, target: dict) -> float:
         defv = int(target.get("def", 0)) if phys else int(target.get("mdef", 0))
         base = E.calc_damage(int(raw), defv, dmg_type=dmg_type, variance=0.0)
     return base * int(info.get("hits", 1) or 1)
+
+
+def _summon_dmg_of(info: dict, st: dict, target: dict) -> float:
+    """召唤技单发期望 = 召唤物在其存活/召唤 CD 周期内的总伤害贡献。
+
+    对齐 SUMMONS 模板（game/data/summons.py）：
+      - atk_ratio：召唤物攻击 = 玩家 atk × ratio（法师/牧师用 matk 若 dmg_type=magi）
+      - attack_interval：攻击频率（刻/次，默认 1.0）
+      - dmg_type：phys/magi（过对应防御）
+    贡献周期 ≈ 召唤 CD（cd 秒内召唤物持续攻击）——放一次召唤 = 获得 cd 秒的召唤物火力。
+    挡刀/光环（treant aura 等）为生存向，期望引擎不折算（A2 真引擎覆盖）。
+    """
+    from data.plugins.dragonfall.game.data.summons import SUMMONS
+    tid = str(info.get("summon", "") or "")
+    tmpl = SUMMONS.get(tid)
+    if not tmpl:
+        return 0.0
+    atk_ratio = float(tmpl.get("atk_ratio", 0.0) or 0.0)
+    if atk_ratio <= 0:
+        # 纯挡刀召唤（藤蔓守卫 atk=0）无伤害贡献
+        return 0.0
+    dmg_type = tmpl.get("dmg_type", "phys")
+    interval = float(tmpl.get("attack_interval", 1.0) or 1.0)
+    # 召唤物攻击力 = 玩家主攻 × ratio
+    if dmg_type == "magi":
+        atk = float(st.get("matk", 0) or 0)
+        defv = int(target.get("mdef", 0))
+    else:
+        atk = float(st.get("atk", 0) or 0)
+        defv = int(target.get("def", 0))
+    from data.plugins.dragonfall.game import engine as E
+    per_hit = E.calc_damage(int(atk * atk_ratio), defv, variance=0.0, dmg_type=dmg_type)
+    # 贡献周期 = 召唤 CD（cd 秒内召唤物持续攻击）；期望引擎"一次施放"折算为 CD 周期总伤
+    cd = float(info.get("cd", 16) or 16)
+    hits = max(1.0, cd / max(interval, 0.5))
+    # 多只（亡魂大军 3 骷髅）按 summon_count 或 limit 折算（骷髅海可叠 3）
+    n = 1
+    # 粗略：desc 带"3 只"之类 → 模板 limit 上限（骷髅 limit=3）
+    if tid == "skeleton":
+        n = 3  # 亡魂大军/骷髅海叠 3
+    return per_hit * hits * n * 0.5  # 保守 0.5：召唤物不是全程满编（会死/挡刀消耗）
 
 
 def _cond_ok(cond: str, state: dict) -> bool:
