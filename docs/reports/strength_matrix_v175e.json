@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-05 02:46",
+ "generated": "2026-09-05 02:53",
  "seeds": 6,
  "method": "真引擎 battle_rotation，Boss 裸面板（不叠hp_mult），玩家=Boss lv+5",
  "stages": {
@@ -659,70 +659,15 @@
    "boss_lv": 87,
    "rows": [
     {
-     "class": "战士",
-     "cid": "cls_zhan_shi",
-     "build": "狂战流",
-     "role": "dps",
-     "affix": "crit",
-     "win_rate": 1.0,
-     "avg_rounds": 6.0,
-     "avg_survive": 0.0,
-     "usable": "6/6"
-    },
-    {
      "class": "刺客",
      "cid": "cls_ci_ke",
      "build": "影舞连段流",
      "role": "dps",
      "affix": "crit",
      "win_rate": 1.0,
-     "avg_rounds": 6.33,
+     "avg_rounds": 4.67,
      "avg_survive": 0.0,
-     "usable": "5/6"
-    },
-    {
-     "class": "吟游诗人",
-     "cid": "cls_shi_ren",
-     "build": "咏叹鼓舞流",
-     "role": "support",
-     "affix": "reduce",
-     "win_rate": 1.0,
-     "avg_rounds": 7.17,
-     "avg_survive": 0.0,
-     "usable": "5/6"
-    },
-    {
-     "class": "拳师",
-     "cid": "cls_wu_seng",
-     "build": "破绽连打流",
-     "role": "dps",
-     "affix": "crit",
-     "win_rate": 1.0,
-     "avg_rounds": 7.33,
-     "avg_survive": 0.0,
-     "usable": "5/6"
-    },
-    {
-     "class": "刺客",
-     "cid": "cls_ci_ke",
-     "build": "影遁收割流",
-     "role": "dps",
-     "affix": "crit",
-     "win_rate": 1.0,
-     "avg_rounds": 7.67,
-     "avg_survive": 0.0,
-     "usable": "5/6"
-    },
-    {
-     "class": "战士",
-     "cid": "cls_zhan_shi",
-     "build": "血怒流",
-     "role": "dps",
-     "affix": "crit",
-     "win_rate": 1.0,
-     "avg_rounds": 8.17,
-     "avg_survive": 0.0,
-     "usable": "5/6"
+     "usable": "6/6"
     },
     {
      "class": "游侠",
@@ -731,9 +676,42 @@
      "role": "dps",
      "affix": "elem",
      "win_rate": 1.0,
-     "avg_rounds": 8.17,
+     "avg_rounds": 4.83,
      "avg_survive": 0.0,
-     "usable": "5/6"
+     "usable": "6/6"
+    },
+    {
+     "class": "吟游诗人",
+     "cid": "cls_shi_ren",
+     "build": "咏叹鼓舞流",
+     "role": "support",
+     "affix": "reduce",
+     "win_rate": 1.0,
+     "avg_rounds": 4.83,
+     "avg_survive": 0.0,
+     "usable": "6/6"
+    },
+    {
+     "class": "刺客",
+     "cid": "cls_ci_ke",
+     "build": "影遁收割流",
+     "role": "dps",
+     "affix": "crit",
+     "win_rate": 1.0,
+     "avg_rounds": 5.17,
+     "avg_survive": 0.0,
+     "usable": "6/6"
+    },
+    {
+     "class": "战士",
+     "cid": "cls_zhan_shi",
+     "build": "狂战流",
+     "role": "dps",
+     "affix": "crit",
+     "win_rate": 1.0,
+     "avg_rounds": 5.5,
+     "avg_survive": 0.0,
+     "usable": "6/6"
     },
     {
      "class": "拳师",
@@ -742,9 +720,20 @@
      "role": "dps",
      "affix": "crit",
      "win_rate": 1.0,
-     "avg_rounds": 8.17,
+     "avg_rounds": 6.0,
      "avg_survive": 0.0,
-     "usable": "5/6"
+     "usable": "6/6"
+    },
+    {
+     "class": "拳师",
+     "cid": "cls_wu_seng",
+     "build": "破绽连打流",
+     "role": "dps",
+     "affix": "crit",
+     "win_rate": 1.0,
+     "avg_rounds": 6.33,
+     "avg_survive": 0.0,
+     "usable": "6/6"
     },
     {
      "class": "吟游诗人",
@@ -753,7 +742,18 @@
      "role": "support",
      "affix": "reduce",
      "win_rate": 1.0,
-     "avg_rounds": 8.83,
+     "avg_rounds": 6.5,
+     "avg_survive": 0.0,
+     "usable": "6/6"
+    },
+    {
+     "class": "战士",
+     "cid": "cls_zhan_shi",
+     "build": "血怒流",
+     "role": "dps",
+     "affix": "crit",
+     "win_rate": 1.0,
+     "avg_rounds": 7.33,
      "avg_survive": 0.0,
      "usable": "6/6"
     },
@@ -764,7 +764,29 @@
      "role": "dps",
      "affix": "crit",
      "win_rate": 1.0,
-     "avg_rounds": 9.5,
+     "avg_rounds": 7.5,
+     "avg_survive": 0.0,
+     "usable": "6/6"
+    },
+    {
+     "class": "法师",
+     "cid": "cls_fa_shi",
+     "build": "元素迸发流",
+     "role": "dps",
+     "affix": "crit",
+     "win_rate": 1.0,
+     "avg_rounds": 7.67,
+     "avg_survive": 0.0,
+     "usable": "6/6"
+    },
+    {
+     "class": "刺客",
+     "cid": "cls_ci_ke",
+     "build": "毒刃腐蚀流",
+     "role": "dps",
+     "affix": "spd",
+     "win_rate": 1.0,
+     "avg_rounds": 8.33,
      "avg_survive": 0.0,
      "usable": "6/6"
     },
@@ -775,9 +797,31 @@
      "role": "control",
      "affix": "thorns",
      "win_rate": 1.0,
-     "avg_rounds": 13.17,
+     "avg_rounds": 9.0,
      "avg_survive": 0.0,
-     "usable": "5/6"
+     "usable": "6/6"
+    },
+    {
+     "class": "游侠",
+     "cid": "cls_you_xia",
+     "build": "森语猎印流",
+     "role": "dps",
+     "affix": "spd",
+     "win_rate": 1.0,
+     "avg_rounds": 9.33,
+     "avg_survive": 0.0,
+     "usable": "6/6"
+    },
+    {
+     "class": "游侠",
+     "cid": "cls_you_xia",
+     "build": "自然召唤流",
+     "role": "support",
+     "affix": "dodge",
+     "win_rate": 1.0,
+     "avg_rounds": 11.0,
+     "avg_survive": 0.0,
+     "usable": "6/6"
     },
     {
      "class": "拳师",
@@ -786,9 +830,9 @@
      "role": "tank",
      "affix": "dodge",
      "win_rate": 1.0,
-     "avg_rounds": 32.5,
+     "avg_rounds": 30.67,
      "avg_survive": 0.0,
-     "usable": "5/6"
+     "usable": "6/6"
     },
     {
      "class": "牧师",
@@ -797,20 +841,9 @@
      "role": "support",
      "affix": "reduce",
      "win_rate": 1.0,
-     "avg_rounds": 34.33,
+     "avg_rounds": 33.67,
      "avg_survive": 0.0,
-     "usable": "7/8"
-    },
-    {
-     "class": "牧师",
-     "cid": "cls_mu_shi",
-     "build": "神谕治疗流",
-     "role": "heal",
-     "affix": "lifesteal",
-     "win_rate": 1.0,
-     "avg_rounds": 57.5,
-     "avg_survive": 0.0,
-     "usable": "8/9"
+     "usable": "8/8"
     },
     {
      "class": "战士",
@@ -819,53 +852,20 @@
      "role": "tank",
      "affix": "block",
      "win_rate": 1.0,
-     "avg_rounds": 60.33,
+     "avg_rounds": 38.67,
      "avg_survive": 0.0,
-     "usable": "5/6"
+     "usable": "6/6"
     },
     {
-     "class": "法师",
-     "cid": "cls_fa_shi",
-     "build": "元素迸发流",
-     "role": "dps",
-     "affix": "crit",
-     "win_rate": 0.83,
-     "avg_rounds": 11.6,
-     "avg_survive": 9.0,
-     "usable": "5/6"
-    },
-    {
-     "class": "游侠",
-     "cid": "cls_you_xia",
-     "build": "自然召唤流",
-     "role": "support",
-     "affix": "dodge",
-     "win_rate": 0.83,
-     "avg_rounds": 22.4,
-     "avg_survive": 17.0,
-     "usable": "5/6"
-    },
-    {
-     "class": "刺客",
-     "cid": "cls_ci_ke",
-     "build": "毒刃腐蚀流",
-     "role": "dps",
-     "affix": "spd",
-     "win_rate": 0.67,
-     "avg_rounds": 13.0,
-     "avg_survive": 10.5,
-     "usable": "5/6"
-    },
-    {
-     "class": "游侠",
-     "cid": "cls_you_xia",
-     "build": "森语猎印流",
-     "role": "dps",
-     "affix": "spd",
-     "win_rate": 0.17,
-     "avg_rounds": 20.0,
-     "avg_survive": 16.4,
-     "usable": "5/6"
+     "class": "牧师",
+     "cid": "cls_mu_shi",
+     "build": "神谕治疗流",
+     "role": "heal",
+     "affix": "lifesteal",
+     "win_rate": 1.0,
+     "avg_rounds": 53.33,
+     "avg_survive": 0.0,
+     "usable": "9/9"
     },
     {
      "class": "法师",
@@ -873,10 +873,10 @@
      "build": "奥术精算流",
      "role": "dps",
      "affix": "spd",
-     "win_rate": 0.0,
-     "avg_rounds": null,
-     "avg_survive": 13.33,
-     "usable": "6/7"
+     "win_rate": 0.67,
+     "avg_rounds": 17.5,
+     "avg_survive": 11.5,
+     "usable": "7/7"
     },
     {
      "class": "牧师",
@@ -884,10 +884,10 @@
      "build": "死灵骷髅流",
      "role": "dps",
      "affix": "crit",
-     "win_rate": 0.0,
-     "avg_rounds": null,
-     "avg_survive": 15.83,
-     "usable": "8/9"
+     "win_rate": 0.5,
+     "avg_rounds": 12.67,
+     "avg_survive": 16.33,
+     "usable": "9/9"
     }
    ]
   }
@@ -951,10 +951,10 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 6.0,
+       "avg_rounds": 5.5,
        "avg_survive": 0.0,
        "win_rate": 1.0,
        "usable_skills": "6/6",
@@ -1017,13 +1017,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 60.33,
+       "avg_rounds": 38.67,
        "avg_survive": 0.0,
        "win_rate": 1.0,
-       "usable_skills": "5/6",
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -1083,13 +1083,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 8.17,
+       "avg_rounds": 7.33,
        "avg_survive": 0.0,
        "win_rate": 1.0,
-       "usable_skills": "5/6",
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -1154,10 +1154,10 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 9.5,
+       "avg_rounds": 7.5,
        "avg_survive": 0.0,
        "win_rate": 1.0,
        "usable_skills": "6/6",
@@ -1220,13 +1220,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
-       "wins": 5,
+       "player_lv": 98,
+       "wins": 6,
        "seeds": 6,
-       "avg_rounds": 11.6,
-       "avg_survive": 9.0,
-       "win_rate": 0.83,
-       "usable_skills": "5/6",
+       "avg_rounds": 7.67,
+       "avg_survive": 0.0,
+       "win_rate": 1.0,
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -1286,13 +1286,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
-       "wins": 0,
+       "player_lv": 98,
+       "wins": 4,
        "seeds": 6,
-       "avg_rounds": null,
-       "avg_survive": 13.33,
-       "win_rate": 0.0,
-       "usable_skills": "6/7",
+       "avg_rounds": 17.5,
+       "avg_survive": 11.5,
+       "win_rate": 0.67,
+       "usable_skills": "7/7",
        "formed": true
       }
      }
@@ -1357,13 +1357,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
-       "wins": 1,
+       "player_lv": 98,
+       "wins": 6,
        "seeds": 6,
-       "avg_rounds": 20.0,
-       "avg_survive": 16.4,
-       "win_rate": 0.17,
-       "usable_skills": "5/6",
+       "avg_rounds": 9.33,
+       "avg_survive": 0.0,
+       "win_rate": 1.0,
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -1423,13 +1423,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 8.17,
+       "avg_rounds": 4.83,
        "avg_survive": 0.0,
        "win_rate": 1.0,
-       "usable_skills": "5/6",
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -1489,13 +1489,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
-       "wins": 5,
+       "player_lv": 98,
+       "wins": 6,
        "seeds": 6,
-       "avg_rounds": 22.4,
-       "avg_survive": 17.0,
-       "win_rate": 0.83,
-       "usable_skills": "5/6",
+       "avg_rounds": 11.0,
+       "avg_survive": 0.0,
+       "win_rate": 1.0,
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -1560,13 +1560,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 57.5,
+       "avg_rounds": 53.33,
        "avg_survive": 0.0,
        "win_rate": 1.0,
-       "usable_skills": "8/9",
+       "usable_skills": "9/9",
        "formed": true
       }
      }
@@ -1626,13 +1626,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 34.33,
+       "avg_rounds": 33.67,
        "avg_survive": 0.0,
        "win_rate": 1.0,
-       "usable_skills": "7/8",
+       "usable_skills": "8/8",
        "formed": true
       }
      }
@@ -1692,13 +1692,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
-       "wins": 0,
+       "player_lv": 98,
+       "wins": 3,
        "seeds": 6,
-       "avg_rounds": null,
-       "avg_survive": 15.83,
-       "win_rate": 0.0,
-       "usable_skills": "8/9",
+       "avg_rounds": 12.67,
+       "avg_survive": 16.33,
+       "win_rate": 0.5,
+       "usable_skills": "9/9",
        "formed": true
       }
      }
@@ -1763,13 +1763,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 6.33,
+       "avg_rounds": 4.67,
        "avg_survive": 0.0,
        "win_rate": 1.0,
-       "usable_skills": "5/6",
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -1829,13 +1829,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
-       "wins": 4,
+       "player_lv": 98,
+       "wins": 6,
        "seeds": 6,
-       "avg_rounds": 13.0,
-       "avg_survive": 10.5,
-       "win_rate": 0.67,
-       "usable_skills": "5/6",
+       "avg_rounds": 8.33,
+       "avg_survive": 0.0,
+       "win_rate": 1.0,
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -1895,13 +1895,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 7.67,
+       "avg_rounds": 5.17,
        "avg_survive": 0.0,
        "win_rate": 1.0,
-       "usable_skills": "5/6",
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -1966,13 +1966,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 7.33,
+       "avg_rounds": 6.33,
        "avg_survive": 0.0,
        "win_rate": 1.0,
-       "usable_skills": "5/6",
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -2032,13 +2032,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 32.5,
+       "avg_rounds": 30.67,
        "avg_survive": 0.0,
        "win_rate": 1.0,
-       "usable_skills": "5/6",
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -2098,13 +2098,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 8.17,
+       "avg_rounds": 6.0,
        "avg_survive": 0.0,
        "win_rate": 1.0,
-       "usable_skills": "5/6",
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -2169,13 +2169,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 7.17,
+       "avg_rounds": 4.83,
        "avg_survive": 0.0,
        "win_rate": 1.0,
-       "usable_skills": "5/6",
+       "usable_skills": "6/6",
        "formed": true
       }
      }
@@ -2235,10 +2235,10 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 8.83,
+       "avg_rounds": 6.5,
        "avg_survive": 0.0,
        "win_rate": 1.0,
        "usable_skills": "6/6",
@@ -2301,13 +2301,13 @@
       "P5": {
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
-       "player_lv": 92,
+       "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 13.17,
+       "avg_rounds": 9.0,
        "avg_survive": 0.0,
        "win_rate": 1.0,
-       "usable_skills": "5/6",
+       "usable_skills": "6/6",
        "formed": true
       }
      }

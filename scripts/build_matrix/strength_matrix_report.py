@@ -31,14 +31,14 @@ from data.plugins.dragonfall.game import engine as E                    # noqa: 
 from build_matrix.boss_matrix import boss_def_of                      # noqa: E402
 from build_matrix.schema import KNOWN_CLASSES                          # noqa: E402
 
-# 阶段代表 Boss（单人本）：Boss lv → 玩家 lv = boss_lv + 5（碾压 5 级）
-# 装备档按阶段：P1/P2 solo_mid，P3/P4 team_purple9，P5 team_orange9
+# 阶段代表 Boss（单人本）：玩家等级按真实刷本节奏
+# v175e 修正：P5 用 98 满级（98 级终极技流派才能完全体测试——奥术湮灭 lv98 等）
 STAGE_TARGET = [
-    ("P1", "inst_goblin_camp",    20, "solo_mid"),       # 哥布林 Lv20
-    ("P2", "inst_sea_cave",       27, "solo_mid"),       # 海盗王 Lv27
-    ("P3", "inst_old_king_tomb",  40, "team_purple9"),   # 古王 Lv40
-    ("P4", "inst_elven_ruins",    63, "team_purple9"),   # 精灵王 Lv63
-    ("P5", "inst_ash_temple",     87, "team_orange9"),   # 恶魔祭司 Lv87
+    ("P1", "inst_goblin_camp",    20, "solo_mid",      25),   # 哥布林 Lv20，玩家 Lv25
+    ("P2", "inst_sea_cave",       27, "solo_mid",      32),   # 海盗王 Lv27，玩家 Lv32
+    ("P3", "inst_old_king_tomb",  40, "team_purple9",  45),   # 古王 Lv40，玩家 Lv45
+    ("P4", "inst_elven_ruins",    63, "team_purple9",  68),   # 精灵王 Lv63，玩家 Lv68
+    ("P5", "inst_ash_temple",     87, "team_orange9",  98),   # 烬山 Lv87，玩家 Lv98（满级测最终形态）
 ]
 
 
@@ -85,8 +85,7 @@ def main():
             if not attr_rec:
                 attr_rec = {MAIN_ATTR[cid]: "all"}
             bres = {"role": role, "affix_preset": affix, "stages": {}}
-            for stage, iid, boss_lv, loadout in STAGE_TARGET:
-                plv = boss_lv + 5
+            for stage, iid, boss_lv, loadout, plv in STAGE_TARGET:
                 attr = {}
                 for k, v in attr_rec.items():
                     attr[k] = attr_pts_total(plv) if v in ("all", "full") else int(v)
@@ -112,7 +111,7 @@ def main():
             report["classes"][cid]["builds"][bname] = bres
 
     # 阶段汇总排序
-    for stage, iid, boss_lv, loadout in STAGE_TARGET:
+    for stage, iid, boss_lv, loadout, plv in STAGE_TARGET:
         boss_def = boss_def_of(iid)
         rows = []
         for cid, cinfo in report["classes"].items():
@@ -134,9 +133,9 @@ def main():
 
     # 控制台输出
     print(f"===== 全职业流派强度矩阵（seeds={seeds}，耗时 {time.time()-t0:.0f}s）=====", flush=True)
-    for stage, iid, boss_lv, loadout in STAGE_TARGET:
+    for stage, iid, boss_lv, loadout, plv in STAGE_TARGET:
         st = report["stages"][stage]
-        print(f"\n【{stage}】{st['boss']} Lv{boss_lv}（玩家 Lv{boss_lv+5} {loadout}）", flush=True)
+        print(f"\n【{stage}】{st['boss']} Lv{boss_lv}（玩家 Lv{plv} {loadout}）", flush=True)
         # 未成型流派单独列（标注等级门槛不足，不参与排行）
         for cid, cinfo in report["classes"].items():
             for bname, binfo in cinfo["builds"].items():
