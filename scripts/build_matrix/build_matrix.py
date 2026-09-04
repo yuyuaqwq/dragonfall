@@ -311,9 +311,14 @@ def _cond_ok(cond: str, state: dict) -> bool:
     if cond == "cd_ready":
         return True  # cd_ready 表示"轮到自己且CD好"，由循环层保证
     if cond.startswith("rage>=") or cond.startswith("cp>=") or cond.startswith("chi>=") \
-       or cond.startswith("faith>=") or cond.startswith("energy>=") or cond.startswith("resonance>="):
+       or cond.startswith("faith>=") or cond.startswith("energy>=") or cond.startswith("resonance>=") \
+       or cond.startswith("arcane>=") or cond.startswith("zhan_yi>=") or cond.startswith("hunt_mark>=") \
+       or cond.startswith("poison>="):
         res = cond.split(">=")[0]
         need = float(cond.split(">=")[1])
+        # v175e mech 层数（arcane 等）走 state.mech_stacks 子表
+        if res in ("arcane", "zhan_yi", "hunt_mark", "poison"):
+            return float((state.get("mech_stacks") or {}).get(res, 0) or 0) >= need
         return state.get(res, 0) >= need
     if cond.startswith("rage==") or cond.startswith("cp==") or cond.startswith("chi=="):
         res = cond.split("==")[0]
@@ -455,6 +460,7 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
     state["_resource_key"] = res_key
     state["_resource_max"] = res_max
     state["enemy_hp_pct"] = 100.0
+    state["mech_stacks"] = {}   # v175e mech 层数（arcane/zhan_yi/hunt_mark/poison 等攒层流派）
     cd_left = {}   # skill name -> tick left（绝对时刻制：存"下次可用时刻"）
     skill_hits = {}
     mp = float(st.get("max_mp", 0) or 0)
@@ -549,6 +555,14 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
             gain = _res_gain_of(sk["info"])
             if res_key and gain and not _is_finisher(sk["info"]):
                 state[res_key] = min(res_max, state.get(res_key, 0) + gain)
+            # v175e mech 层数获取（奥术弹幕/飞弹 → arcane+1、猎印射击 → hunt_mark 等）：
+            # mech 字段层数由技能数据 mech_val 决定；期望模型近似线性累加（真机制 A2 仲裁）
+            _mk = str(sk["info"].get("mech", "") or "")
+            _mv = float(sk["info"].get("mech_val", 0) or 0)
+            if _mk and _mv and not _is_finisher(sk["info"]) \
+                    and _mk in ("arcane", "zhan_yi", "hunt_mark", "poison", "thunder", "ice", "fire"):
+                _ms = state["mech_stacks"]
+                _ms[_mk] = min(10, _ms.get(_mk, 0) + _mv)
             # CD（绝对时刻制；v175e 冷却缩减：面板 cdr 键，cd ×(1-cdr)，cap 对齐引擎 0.4）
             if sk["cd"] > 0:
                 _cd = sk["cd"]

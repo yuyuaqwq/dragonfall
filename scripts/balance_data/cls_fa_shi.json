@@ -106,13 +106,13 @@
       "rotation": [
         {
           "skill": "奥术湮灭",
-          "cond": "resource_full",
+          "cond": "arcane>=5",
           "prio": 0,
           "note": "终结：充能满 5 时×1.4 且本次不耗蓝，叠满立刻打"
         },
         {
           "skill": "奥术洪流",
-          "cond": "resource_full",
+          "cond": "arcane>=5",
           "prio": 1,
           "note": "燃尽充能每层+15%，满 5 层×1.75（充能满时先洪流再湮灭吃满收益）"
         },

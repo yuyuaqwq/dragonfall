@@ -49,6 +49,29 @@ except ImportError:  # 直接 python 跑本文件（无父包）→ scripts/ 已
 
 _MAX_TURNS = 500  # 单场回合护栏（numeric_sim._MAX_TURNS 同款；正常对局远低于此）
 
+# v175e 全职业被动技能表（battle2 补被动进 learned_skills 用）：
+# 从 skills 数据收集 kind=被动 的技能（基础 + 分支全表），按职业聚合。
+try:  # noqa: E402
+    from data.plugins.dragonfall.game.data import skills as _SK  # noqa: E402
+
+    _SK_ALL_PASSIVES_BY_CLASS = {}
+    for _cid, _cdata in _SK.PLAYER_SKILLS.items():
+        _acc = {}
+        for _sid, _sk in (_cdata.get("skills") or {}).items():
+            if (_sk or {}).get("kind") == "被动":
+                _acc[_sid] = _sk
+        _SK_ALL_PASSIVES_BY_CLASS[_cid] = _acc
+    for _cid, _cdata in _SK.BRANCH_SKILLS.items():
+        _acc = _SK_ALL_PASSIVES_BY_CLASS.setdefault(_cid, {})
+        for _lb, _branches in (_cdata.get("branches") or {}).items():
+            for _bname, _sks in (_branches or {}).items():
+                for _sid, _sk in (_sks or {}).items():
+                    if (_sk or {}).get("kind") == "被动":
+                        _acc[_sid] = _sk
+    SK_ALL_PASSIVES_BY_CLASS = _SK_ALL_PASSIVES_BY_CLASS
+except Exception:  # 导入失败 → 空表（补被动功能降级为无）
+    SK_ALL_PASSIVES_BY_CLASS = {}
+
 
 def tier_path_of(lv: int) -> tuple[int, int]:
     """玩家转职档位（照任务卡）：lv>=90→tier3, >=60→tier2, >=30→tier1, else 0；evolve_path=1（攻线）。"""
@@ -100,12 +123,17 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
                     rotation: list[str], boss_def: tuple, boss_lv: int | None = None,
                     seeds: int = 8, max_turns: int = 500,
                     iid: str | None = None, n_players: int = 1,
-                    affix_type: str = "atk") -> dict:
+                    affix_type: str = "atk",
+                    rules: list[dict] | None = None) -> dict:
     """真实引擎多技能循环 vs Boss：返回 {wins, avg_rounds, avg_survive}
 
     - cls_id: 'cls_zhan_shi' 等；loadout: 'solo_mid'/'team_purple9' 等（gear_loadout）；
     - attr: 加点 dict {'str': 全部分配...}（数值=该等级自由点，见下）；
     - rotation: 技能名列表（按施放优先级排序，玩家按此顺序尝试，都不可用→普攻）；
+    - rules: balance_data rotation 完整定义（含 cond/prio）——v175e 策略升级：
+      有 cond 门槛（rage>=6 / resource_full / cd_ready 等）时，真引擎 AI 在资源不满足时
+      跳过该技能（模拟真人"攒够资源再放终结/爆发技"，防止血怒 0 怒放终焉、奥术 0 充能
+      放洪流这类白放）。缺省 None = 旧行为（CD 好就放）。
     - boss_def: instances.py boss 6 元组 (id, 名, role, lv, [技能], [掉落]) 或 C.INSTANCES[iid]['boss']；
     - iid: 副本 id；给定则 Boss 血量叠实例 hp_mult（与 team_matrix 同口径，鱼鱼 v175 拍板）
     - n_players: 打本次数（单人=1）
@@ -128,12 +156,27 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
     else:
         equip = gear_loadout(int(lv), loadout)
     st = E.player_final_stats(cls_id, int(lv), equip, tier, dict(attr or {}), evolve_path=path)
+    # v175e 被动补齐：真实玩家会把该等级可学的被动都学了（被动 stat/proc 才生效）。
+    # rotation 只是主动施放循环；learned_skills = rotation 主动技 + 该职业 level≤lv 被动。
+    # （施放循环仍只用 rotation——被动不施放，只挂在 learned_skills 供 _passive_map 消费）
+    _passives = []
+    try:
+        _all = E.skill_info  # noqa
+        # 收集该职业所有技能（基础 + 分支）kind=被动 且 lv≤玩家等级
+        for _sid, _sk in SK_ALL_PASSIVES_BY_CLASS.get(cls_id, {}).items():
+            _nm = _sk.get("name", "")
+            _need = int(_sk.get("lv", 999) or 999)
+            if _nm and _need <= int(lv):
+                _passives.append(_nm)
+    except Exception:
+        _passives = []
+    learned_skills = list(rotation) + _passives
     # 玩家基础信息（每场重建副本，模板不动——v175b 修复：
     # 原实现 player 在循环外建一次，循环内 player_turn 直接改模板 player，
     # 第一场打赢后第二场从残血红蓝开始 → 多场胜率系统性偏低/0 胜假象）
     player_base = {
         "class_name": cls_id, "level": int(lv), "class_tier": tier, "evolve_path": path,
-        "equipment": equip, "attributes": dict(attr or {}), "learned_skills": list(rotation),
+        "equipment": equip, "attributes": dict(attr or {}), "learned_skills": learned_skills,
         "hp": st["max_hp"], "mp": st["max_mp"], "max_hp": st["max_hp"], "max_mp": st["max_mp"],
         "race": "human", "title_bonus": None,
     }
@@ -152,6 +195,50 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
         skill_cd[skill_name] = float((info or {}).get("cd", 0) or 0)
     cd_skills = [s for s in rotation if skill_cd.get(s, 0) > 0]
     filler_skills = [s for s in rotation if skill_cd.get(s, 0) <= 0]
+
+    # v175e 策略升级：rules（balance_data rotation 完整定义）→ 技能资源门槛
+    # cond 语义（与期望引擎 build_matrix._cond_ok 同源）：
+    #   rage>=N / cp>=N / chi>=N / faith>=N / energy>=N / resonance>=N → 资源攒够才放
+    #   resource_full / resource_low → 资源满/低判定（读职业核心资源 b.resources）
+    #   cd_ready / always / 无 → 不设门槛（循环层已保证 CD 好才试）
+    rule_map = {}
+    for _r in (rules or []):
+        if isinstance(_r, dict) and _r.get("skill"):
+            rule_map[_r["skill"]] = _r.get("cond") or ""
+
+    def _rule_ok(b, skill_name: str) -> bool:
+        """balance_data 规则门槛：资源不满足 → False（跳过，等资源）。"""
+        cond = rule_map.get(skill_name, "")
+        if not cond or cond in ("always", "cd_ready"):
+            return True
+        # mech 层数门槛（v175e：arcane 奥术充能等——查 b.mech_stacks，非 resources）
+        for _mk in ("arcane", "zhan_yi", "hunt_mark", "poison", "thunder", "ice", "fire"):
+            if cond.startswith(f"{_mk}>="):
+                need = float(cond.split(">=")[1])
+                cur = float((b.mech_stacks or {}).get(_mk, 0) or 0)
+                return cur >= need
+        # 资源阈值 rage>=N / energy>=N ...
+        for _res in ("rage", "cp", "chi", "faith", "energy", "resonance", "element"):
+            if cond.startswith(f"{_res}>="):
+                need = float(cond.split(">=")[1])
+                cur = float((b.resources or {}).get(_res, 0) or 0)
+                return cur >= need
+        if cond == "resource_full":
+            rd = E.core_resource_def(cls_id) or {}
+            rk = rd.get("key", "")
+            cur = float((b.resources or {}).get(rk, 0) or 0)
+            mx = float((b.resources or {}).get(f"{rk}_max", rd.get("max", 0)) or 0)
+            if mx <= 0:
+                return True  # 资源信息不可得 → 不拦（防卡循环）
+            return cur >= mx
+        if cond == "resource_low":
+            rd = E.core_resource_def(cls_id) or {}
+            rk = rd.get("key", "")
+            cur = float((b.resources or {}).get(rk, 0) or 0)
+            mx = float((b.resources or {}).get(f"{rk}_max", rd.get("max", 0)) or 0)
+            return cur < mx * 0.5 if mx > 0 else True
+        # 未知 cond 保守放行（宁用不卡循环）
+        return True
 
     # v175e 策略层：技能 cond 感知（player_mech_stacks 等"攒层大招"）——
     # 引擎 cond = 条件倍率非施放门槛（随时可放但低层伤害低），真人会憋到满层再打；
@@ -180,6 +267,8 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
             #  3) 0CD 填充技（轮换避免死磕第一个），全拦 → 普攻
             try_order = cd_skills + filler_skills
             for skill_name in try_order:
+                if not _rule_ok(b, skill_name):
+                    continue   # balance 规则门槛未达（怒/能量/资源未够）→ 等资源
                 if _cond_wait_skill(b, skill_name):
                     continue   # 攒层大招层数未满 → 本轮不放（等层）
                 prev_acts = b._p_acts

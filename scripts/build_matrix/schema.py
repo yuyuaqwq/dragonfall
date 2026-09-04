@@ -37,7 +37,9 @@ ROLES = ("dps", "tank", "heal", "support", "control")
 # cond 支持语法（前缀匹配即可；期望引擎解释）
 COND_PREFIXES = ("always", "cd_ready", "rage>=", "rage==", "cp>=", "cp==", "chi>=", "faith>=",
                  "energy>=", "resource_full", "resource_low", "enemy_hp_pct<", "buff_active:",
-                 "combo_ready", "always_after:")
+                 "combo_ready", "always_after:",
+                 # v175e mech 层数门槛（arcane 奥术充能 / zhan_yi 战意 / hunt_mark / poison 等）
+                 "arcane>=", "zhan_yi>=", "hunt_mark>=", "poison>=", "thunder>=", "ice>=", "fire>=")
 # 转职线名（tier1 分支，BUILDS 内技能同线）
 BRANCH_LINES = {
     "cls_zhan_shi": ["狂战士", "盾卫士"],
