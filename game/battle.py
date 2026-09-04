@@ -1352,11 +1352,6 @@ class Battle:
                         break
                 except Exception:
                     pass
-            # v130.2c 时之领主 2 件：时停领域 冷却 -1（cdr_set on=time_freeze，最低 1）
-            if skill_name == "时停领域":
-                _ce = self._set_eff(self.player, "cdr_set", 2, on="time_freeze")
-                if _ce:
-                    cd = max(1, cd + int(_ce.get("value", -1) or -1))
             self.cooldown[skill_name] = self._now + cd * (ACT_TICK or 2.0)
 
     def _tick_cooldowns(self):
