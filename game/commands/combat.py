@@ -1949,8 +1949,21 @@ class CombatCmds(CommandBase):
 
         # v140 装备掉落（鱼鱼拍板：打破 v93 铁律，精英/Boss 掉装备；普通怪仍不掉）
         # 精英=蓝/紫、Boss=紫/橙；与图纸 10% 独立判定共存
+        # v174 修复（精英专属死数据）：role=elite 且怪名命中 ELITE_EQUIP_DROP →
+        # 走专属判定（专属紫装，15% 基础率，与旧精英掉率一致）；未命中走原通用池
         if drop_equip is None and monster.get("role") in ("elite", "boss"):
-            drop_equip = C.roll_drop_equip(monster.get("lv", 0), monster.get("role"))
+            _elite_rid = None
+            if monster.get("role") == "elite":
+                _elite_rid = C.ELITE_EQUIP_DROP.get(monster.get("name", ""))
+            if _elite_rid:
+                # 专属判定：15% 基础率（与 roll_drop_equip elite 档一致，不吃幸运防叠加膨胀）
+                if random.random() < C.ELITE_EQ_DROP_CHANCE:
+                    try:
+                        drop_equip = C.generate_roster_equip(_elite_rid)
+                    except Exception:
+                        drop_equip = None
+            if drop_equip is None:
+                drop_equip = C.roll_drop_equip(monster.get("lv", 0), monster.get("role"))
         if drop_equip:
             import uuid as _uuid2
             eq_key = f"eq_{_uuid2.uuid4().hex[:8]}"

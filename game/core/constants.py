@@ -46,6 +46,9 @@ BOSS_BP_DROP_CHANCE = 0.10    # drops.py:69 Boss 图纸惊喜掉率（v135：5% 
 TRADER_DEAL_CHANCE = 0.5       # event_templates.py:253 流浪商人成交概率
 CHEST_BP_CHANCE = 0.85         # item_templates.py:611 探索宝箱图纸概率（v135：50% → 85%）
 INSTANCE_BP_CHANCE = 0.10      # instance.py:2390 副本通关全员图纸小概率（v135：每名存活成员独立判定）
+# v174 精英专属掉落率（combat.py 击杀精英：名册 ELITE_EQUIP_DROP 命中专属的判定率，
+# 与 drops.roll_drop_equip 的 elite 档 15% 一致，防双池叠加膨胀）
+ELITE_EQ_DROP_CHANCE = 0.15
 
 # 配方副业等级阶梯（economy.py _craft_prof_need：装备等级 → 副业门槛）
 RECIPE_LV_TIERS = (10, 30, 50, 70, 90)

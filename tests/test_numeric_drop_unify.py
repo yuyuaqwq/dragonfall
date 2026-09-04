@@ -94,6 +94,21 @@ def main():
     r = _resolve_item_ref("gold:10:50", _SimpleCtx())
     check("gold: 区间解析", r and r["type"] == "gold" and 10 <= r["count"] <= 50, f"{r}")
 
+    print("【drop_unify：精英专属接线（ELITE_EQUIP_DROP 全接线）】")
+    # 每个 ELITE_EQUIP_DROP 登记的精英 → elite: 池存在（数据同步）
+    from game.content import ELITE_EQUIP_DROP
+    for name, rid in list(ELITE_EQUIP_DROP.items())[:5]:
+        check(f"elite:{name} 池存在且引用正确", f"elite:{name}" in DROP_POOLS, f"{rid}")
+    # 登记数 = elite: 池数（全 18 接线）
+    elite_pool_n = len([k for k in DROP_POOLS if k.startswith("elite:")])
+    check("ELITE_EQUIP_DROP 全登记到 elite: 池", len(ELITE_EQUIP_DROP) == elite_pool_n,
+          f"登记{len(ELITE_EQUIP_DROP)} 池{elite_pool_n}")
+    # 每个登记的 rid 可生成（名册有效）
+    all_gen = all(C.EQUIP_ROSTER.get(rid) for rid in ELITE_EQUIP_DROP.values())
+    check("专属装备全部名册有效", all_gen)
+    # 掉率常量已导出
+    check("ELITE_EQ_DROP_CHANCE 已导出", hasattr(C, "ELITE_EQ_DROP_CHANCE") and C.ELITE_EQ_DROP_CHANCE > 0)
+
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0
 
