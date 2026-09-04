@@ -60,12 +60,11 @@ def player_dps(cls: str, lv: int, gear: dict, edef: int, mdef: int,
                target_max_hp: float = 0.0, target_role: str = "dps") -> float:
     """单职业可持续 DPS（v161 口径：出手频率 × 单发 × 资源折算 × 机制期望 + DOT）。
 
-    诗人走终章爆发折算（纯辅助职业，不参与输出排名）。
+    v174：诗人取消纯辅特判（_poet_dps 终章折算拍脑袋）——v174 块 C/D 给诗人补了
+    真实输出轴（锁音/破音/共振/音刃 + 咏叹/挽歌分支拉高），诗人走正常 sustained_dps
+    读 ROTATIONS，让 DPS 门禁反映真实战斗力。
     """
     opts = opts or PlayerOptions()
-    if _is_poet(cls_id(cls)):
-        st = build_player(cls_id(cls), lv, gear, opts, potion=0.0)
-        return _poet_dps(st, mdef)
     return sustained_dps(cls_id(cls), lv, gear, edef, mdef, opts, potion_on=True,
                          target_max_hp=target_max_hp, target_role=target_role)
 

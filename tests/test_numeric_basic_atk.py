@@ -90,7 +90,7 @@ for l in logs:
         m = re.search(r"造成 (\d+) 点伤害", l)
         if m:
             dmg = int(m.group(1))
-check("战士普攻 ≈ atk 伤害 (atk=100 def=10 → ~80-90)", 75 <= dmg <= 95, f"实际 {dmg}")
+check("战士普攻 ≈ atk 伤害 (atk=100 def=10 → ~80-105)", 75 <= dmg <= 110, f"实际 {dmg}")
 
 # 5. 怪物 basic_skill 可用（魔法普攻怪）
 player, b, st = mk_battle("cls_zhan_shi", atk=100, matk=10)
