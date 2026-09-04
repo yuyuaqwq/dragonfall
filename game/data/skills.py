@@ -682,6 +682,40 @@ PLAYER_SKILLS = {
     "cls_shi_ren": {
         "name": "吟游诗人",
         "skills": {
+            "sk_suo_yin": {
+             'lv': 1,
+             'mp': 4,
+             'power': 0.6,
+             'kind': '魔法',
+             'exprs': ['matk*0.6 + 8 + player_lv*2.2 + skill_lv*6'],
+             'cast': 0.4,
+             'cd': 0,
+             'name': '锁音',
+             'desc': '指尖勾弦弹出短促清音——造成 60% 魔法攻击 + 8 固定魔法伤害（成长）的快速音弹（无冷却填充技）'
+            },
+            "sk_po_yin": {
+             'lv': 4,
+             'mp': 8,
+             'power': 1.1,
+             'kind': '魔法',
+             'exprs': ['matk*1.1 + 15 + player_lv*3.8 + skill_lv*10'],
+             'cast': 0.6,
+             'cd': 6,
+             'name': '破音',
+             'desc': '弦音陡然拔高，震裂耳膜——造成 110% 魔法攻击 + 15 固定魔法伤害（成长）的音爆'
+            },
+            "sk_gong_zhen": {
+             'lv': 8,
+             'mp': 12,
+             'power': 0.8,
+             'kind': '魔法',
+             'aoe': 'all',
+             'exprs': ['matk*0.6 + 12 + player_lv*3.0 + skill_lv*8'],
+             'cast': 0.7,
+             'cd': 10,
+             'name': '共振',
+             'desc': '琴身共鸣如钟，音浪扫过整片战场——对全体造成 60% 魔法攻击 + 12 固定魔法伤害（成长）'
+            },
             "sk_zhan_ge": {
              'lv': 1,
              'mp': 6,
