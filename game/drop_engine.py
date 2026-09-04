@@ -355,6 +355,42 @@ def roll(pool_key: str, ctx: Any = None, **kw) -> list[dict]:
         return []
 
 
+def expand_pool(pool_key: str) -> list:
+    """返回池的带权展开候选 ID 列表（weighted 池按权重展开；fixed 池返回全部）。
+
+    用途：命令层需要"候选池 + 自己多次 choice"的旧语义时（如采集按副业等级选 N 份），
+    数据源统一走 DROP_POOLS。池不存在返回 []（调用方走兜底）。
+    """
+    pools = _get_pools()
+    pool = pools.get(pool_key)
+    if not pool:
+        return []
+    ptype = pool.get("type", "weighted")
+    if ptype == "fixed":
+        return [e.get("item", "") for e in pool.get("entries", []) if e.get("item")]
+    if ptype == "table":
+        out = []
+        for rc in pool.get("rolls") or []:
+            sub = rc.get("pool", "")
+            if sub in pools:
+                out.extend(expand_pool(sub))
+            elif sub.startswith(("equip:", "item:", "gold:")):
+                out.append(sub)
+        return out
+    # weighted / fish：按权重展开（等价旧实现 [m for m,_w in pool for _ in range(_w)]）
+    entries = pool.get("entries", [])
+    out = []
+    for e in entries:
+        w = int(e.get("w", 1) or 1)
+        it = e.get("item", "")
+        if not it:
+            continue
+        # 展开上限保护：w 异常巨大（>1000）时按 1 处理（防内存爆炸）
+        w = min(w, 1000)
+        out.extend([it] * w)
+    return out
+
+
 class _SimpleCtx:
     """极简上下文：无 Attr 报错，属性缺失返回 None/0。"""
 

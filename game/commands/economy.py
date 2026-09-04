@@ -681,12 +681,16 @@ class EconomyCmds(CommandBase):
     # 格式：地图ID → [(材料ID, 权重), ...]；未配置的地图回退下方价格区间逻辑
 
     def _gather_roll(self, level: int, prof_lv: int = 1, cur_map: str = "") -> list:
-        """按等级采集材料：地图绑定池优先（19 章 §2.1）；未配置地图按地图等级价格区间兜底；副业等级提高产出数量与稀有度"""
+        """按等级采集材料：地图绑定池优先（19 章 §2.1）；未配置地图按地图等级价格区间兜底；副业等级提高产出数量与稀有度
+
+        v174 统一抽象：有地图池时走 drop_engine（数据源 DROP_POOLS）；无池走价格带兜底。
+        """
         import random as _rnd
-        pool = C.GATHER_MAP_POOLS.get(cur_map or "")
-        if pool:
-            mats = [m for m, _w in pool for _ in range(_w)]
-            cand = mats
+        cand = []
+        from game.drop_engine import expand_pool as _expand
+        _expanded = _expand(f"gather:{cur_map or ''}")
+        if _expanded:
+            cand = list(_expanded)
         else:
             # v97.2 兜底：按地图等级映射价格区间（修复原逻辑 Lv50+ 采不到 500+ 材料的问题）
             # v104 R3 M14 P1-2：兜底池排除强化石类消耗品（i_stone_* 是炼金/商店独占，禁止采集白嫖）
@@ -707,14 +711,14 @@ class EconomyCmds(CommandBase):
         # v102.3 限定采集物（时机钩子）：当前时段/季节/天气命中 → 低权重追加
         special = self._gather_cond_roll(cur_map or "")
         if special:
-            cand = cand + [special]
+            cand = cand + [special] if special not in cand else cand
         # 副业等级加成：Lv.3+ 概率采到 2 份材料；Lv.6+ 概率 3 份
         n = _rnd.randint(1, 2)
         if prof_lv >= 3 and _rnd.random() < 0.3:
             n += 1
         if prof_lv >= 6 and _rnd.random() < 0.25:
             n += 1
-        return [_rnd.choice(cand) for _ in range(n)]
+        return [_rnd.choice(cand) for _ in range(n)] if cand else []
 
     def _gather_cond_roll(self, cur_map: str) -> str | None:
         """v102.3 限定采集物判定：返回命中的材料 ID（未命中返回 None）。
@@ -1339,16 +1343,18 @@ class EconomyCmds(CommandBase):
         # 无存储（旧状态）才回退当前地图
         cur_map = st.get("spot_map") or player.get("cur_map", "")
         # v102.3 深矿池优先：矿洞类地图（山丘矿洞/深隧/海蚀洞窟）按权重出专属矿
-        deep = getattr(C, "MINING_DEEP_POOLS", {}).get(cur_map)
-        if deep:
-            ores = [m for m, _w in deep for _ in range(_w)]
+        # v174 统一抽象：数据源走 drop_engine（mine:{map} / gather:{map}）
+        from game.drop_engine import expand_pool as _expand_pool
+        deep_ores = _expand_pool(f"mine:{cur_map}")
+        if deep_ores:
+            ores = deep_ores
         else:
             # v101.28k 地图矿石池优先：复用该地图采集池里的矿石类材料（矿场图=矿池，
             # 植物图无矿则按地图等级价格区间兜底）→ 不同地图挖到不同档次的矿
-            pool = C.GATHER_MAP_POOLS.get(cur_map)
-            if pool:
-                ores = [m for m, _w in pool for _ in range(_w)
-                        if any(k in C.MATERIALS.get(m, {}).get("name", "") for k in C.MINING_KEYWORDS)]
+            gather_ores = [m for m in _expand_pool(f"gather:{cur_map}")
+                           if any(k in C.MATERIALS.get(m, {}).get("name", "") for k in C.MINING_KEYWORDS)]
+            if gather_ores:
+                ores = gather_ores
             else:
                 ores = []
             if not ores:
