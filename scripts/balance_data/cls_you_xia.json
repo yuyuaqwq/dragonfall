@@ -143,7 +143,8 @@
       ],
       "fight_len": 60,
       "self_heal": false,
-      "desc": "召唤藤蔓/古树守卫挡刀 → 藤蔓缠绕控制 → 猎杀时刻集火标记目标"
+      "desc": "召唤藤蔓/古树守卫挡刀 → 藤蔓缠绕控制 → 猎杀时刻集火标记目标",
+      "affix_preset": "dodge"
     }
   },
   "attr_presets": {
