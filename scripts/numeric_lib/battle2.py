@@ -27,6 +27,7 @@
 import os
 import random
 import sys
+import copy  # noqa: E402  (v175b：boss 每场 deepcopy 防嵌套 buffs/stacks 串场)
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))          # scripts/numeric_lib/
 _SCRIPTS_DIR = os.path.dirname(_SCRIPT_DIR)                       # scripts/
@@ -116,9 +117,10 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
     tier, path = tier_path_of(int(lv))
     equip = gear_loadout(int(lv), loadout)
     st = E.player_final_stats(cls_id, int(lv), equip, tier, dict(attr or {}), evolve_path=path)
-
-    # 玩家 dict 完全对齐 numeric_sim.class_battle_matrix 模板
-    player = {
+    # 玩家基础信息（每场重建副本，模板不动——v175b 修复：
+    # 原实现 player 在循环外建一次，循环内 player_turn 直接改模板 player，
+    # 第一场打赢后第二场从残血红蓝开始 → 多场胜率系统性偏低/0 胜假象）
+    player_base = {
         "class_name": cls_id, "level": int(lv), "class_tier": tier, "evolve_path": path,
         "equipment": equip, "attributes": dict(attr or {}), "learned_skills": list(rotation),
         "hp": st["max_hp"], "mp": st["max_mp"], "max_hp": st["max_hp"], "max_mp": st["max_mp"],
@@ -141,8 +143,11 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
     filler_skills = [s for s in rotation if skill_cd.get(s, 0) <= 0]
     for seed in range(seeds):
         random.seed(seed)  # 固定种子序列 seed 0..N-1，可复现（与 numeric_sim 同款）
-        # 每场重建敌方与玩家副本（战斗内 hp/mp 会被改；模板保持一致）
-        b = BT.Battle(btype="monster", enemy=dict(boss), player=dict(player))
+        # 每场重建敌方与玩家：boss 每场重新展开（build_monster 全新实例，防串场）；
+        # player 每场浅拷贝模板（战斗内改的是副本）
+        player = dict(player_base)
+        b = BT.Battle(btype="monster", enemy=boss_of(boss_def, iid=iid, n_players=n_players),
+                      player=dict(player))
         turns = 0
         while b.result is None and turns < max_turns:
             acted = False
