@@ -1156,10 +1156,12 @@ def _sb_dodge_buff(battle, skill_name, info, player, lv, logs):
 @register(SKILL_BUFF_EFFECTS, "crit_hit_buff")
 def _sb_crit_hit_buff(battle, skill_name, info, player, lv, logs):
     """v169.7 effect 补全：鹰眼锁定 desc「暴击 +20%、命中 +15%」。
-    暴击写 crit_up（BUFF_MULT +20%）；命中：引擎无玩家命中乘区（敌方闪避判定吃我方精准
-    precise，无 buff 通道），命中维度降级为精准等价物暂不接入（_player_stats precise 无技能 buff 来源）。"""
+    v173.3 意见#95（鱼鱼拍板 B 方案）：命中维度真实落地——crit_up（暴击 +20%）+
+    hit_up（精准 +15%，_monster_dodge_check 消费为敌方闪避抵消率，cap 60% 与词条同源）。
+    """
     turns = _sb_pb_set_turns(battle, "crit_up", lv, info)
-    logs.append(f"🎯 暴击提升 +20%（crit_up 持续 {turns} 刻；命中维度引擎暂未建模）")
+    _sb_pb_set_turns(battle, "hit_up", lv, info)
+    logs.append(f"🎯 暴击提升 +20%、命中 +15%（持续 {turns} 刻）")
 
 
 @register(SKILL_BUFF_EFFECTS, "vuln")

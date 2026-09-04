@@ -68,6 +68,9 @@ BUFF_MULT = {
     "def_up":         ("def", 1.45),
     "spd_up":         ("spd", 1.40),
     "crit_up":        ("crit", 0.20),      # 暴击率 +20%
+    # v173.3 意见#95（鱼鱼拍板 B 方案）：命中 buff——鹰眼锁定 desc「命中 +15%」落地
+    # precise 是敌方闪避抵消率（_monster_dodge_check my_hit），加法并入词条精准
+    "hit_up":         ("precise", 0.15),
     # v101.28f 药水强度分档（名字不同效果不同的真实落地：战吼/龙力 +40%、蛮力 +20%、风灵 +20%、致命 +30%、锐目 +15%）
     "atk_up_big":     ("atk", 1.40),
     "atk_up_small":   ("atk", 1.20),
@@ -5940,6 +5943,9 @@ class Battle:
                 if attr == "crit":
                     # v110 §三：暴击率上限统一 0.5（原 min(1.0) 可到 100%，与设计 50% 上限不符）
                     st["crit"] = min(C.PCT_CAPS.get("crit", 0.5), st.get("crit", 0) + val)
+                elif attr == "precise":
+                    # v173.3 意见#95：命中 buff 加法并入精准（PCT 百分比，cap 60% 与词条同源）
+                    st["precise"] = min(C.PCT_CAPS.get("precise", 0.6), float(st.get("precise", 0) or 0) + val)
                 else:
                     st[attr] = int(st.get(attr, 0) * val)
         return st
