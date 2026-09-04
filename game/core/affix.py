@@ -100,8 +100,15 @@ def roll_affixes(slot: str, lv: int, quality: str) -> list:
 
 
 def fixed_affixes(name: str) -> list:
-    """名册装备固定词条(20 章 3.x 系列主题，无随机)"""
-    return list(SERIES_FIXED_AFFIX.get(name, []))
+    """名册装备固定词条(20 章 3.x 系列主题，无随机)
+
+    v173.3 意见#171-A（鱼鱼拍板）：固定词条最多保留 1 条（系列主题锚点），
+    第 2/3 条释放回随机池——随机空间放大（原 307 件 2 固定=蓝装 0 随机/紫橙仅 1
+    随机；现蓝 1 随机/紫 2 随机/橙 2-3 随机），总词条数不变，数值强度不受影响。
+    数据层 SERIES_FIXED_AFFIX 保持完整（供回退/参考），此处只截断消费端。
+    """
+    affs = list(SERIES_FIXED_AFFIX.get(name, []))
+    return affs[:1]
 
 
 def stat_affix_stats(affix_ids: list, slot: str, lv: int) -> dict:

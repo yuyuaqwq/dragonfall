@@ -99,13 +99,13 @@ def test_roster_gen():
     check("铁剑新手无需求", e["req"] == {}, str(e["req"]))
     e2 = C.generate_roster_equip("eq_jin_gou_wan_dao")
     check("金钩弯刀橙装 3-4 词条", len(e2.get("affixes", [])) in (3, 4), str(e2.get("affixes")))  # v104 M07 P2: 橙装 20% 概率 4 词条
-    check("金钩弯刀固定词条在列", "crit_up" in e2["affixes"] and "lifesteal" in e2["affixes"], str(e2["affixes"]))
+    check("金钩弯刀固定词条在列", "crit_up" in e2["affixes"], str(e2["affixes"]))  # v173.3 #171-A: 固定≤1条(锚点crit_up), lifesteal已释放随机
     check("金钩弯刀专属", e2.get("legendary") == "gold_hook")
     check("金钩弯刀套装", e2.get("set") == "海风套", str(e2.get("set")))
     check("金钩弯刀需求", e2["req"] == {"agi": 25}, str(e2["req"]))
     e3 = C.generate_roster_equip("eq_long_yu_sheng_jian")
     check("龙语圣剑专属", e3.get("legendary") == "dragon_tongue")
-    check("龙语圣剑固定词条", "dragon_aw" in e3["affixes"] and "execute" in e3["affixes"], str(e3["affixes"]))
+    check("龙语圣剑固定词条", "dragon_aw" in e3["affixes"], str(e3["affixes"]))  # v173.3 #171-A: 固定≤1条(锚点dragon_aw), execute已释放随机
     # 苍穹之枪武器类型
     e4 = C.generate_roster_equip("eq_cang_qiong_zhi_qiang")
     check("苍穹之枪类型枪", e4.get("weapon_type") == "spear")
