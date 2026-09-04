@@ -1,0 +1,483 @@
+{
+ "战士·狂战流": {
+  "current": "crit",
+  "best": "atk",
+  "best_cn": "攻击",
+  "results": {
+   "攻击": {
+    "wins": 4,
+    "avg_rounds": 5.5,
+    "avg_survive": 0.0
+   },
+   "暴击": {
+    "wins": 4,
+    "avg_rounds": 5.75,
+    "avg_survive": 0.0
+   },
+   "急速": {
+    "wins": 4,
+    "avg_rounds": 6.0,
+    "avg_survive": 0.0
+   },
+   "减CD": {
+    "wins": 4,
+    "avg_rounds": 5.75,
+    "avg_survive": 0.0
+   },
+   "元素": {
+    "wins": 4,
+    "avg_rounds": 5.75,
+    "avg_survive": 0.0
+   },
+   "穿透": {
+    "wins": 4,
+    "avg_rounds": 5.5,
+    "avg_survive": 0.0
+   }
+  }
+ },
+ "战士·血怒流": {
+  "current": "crit",
+  "best": "spd",
+  "best_cn": "急速",
+  "results": {
+   "攻击": {
+    "wins": 4,
+    "avg_rounds": 7.5,
+    "avg_survive": 0.0
+   },
+   "暴击": {
+    "wins": 4,
+    "avg_rounds": 7.75,
+    "avg_survive": 0.0
+   },
+   "急速": {
+    "wins": 4,
+    "avg_rounds": 7.25,
+    "avg_survive": 0.0
+   },
+   "减CD": {
+    "wins": 4,
+    "avg_rounds": 7.75,
+    "avg_survive": 0.0
+   },
+   "元素": {
+    "wins": 4,
+    "avg_rounds": 7.75,
+    "avg_survive": 0.0
+   },
+   "穿透": {
+    "wins": 4,
+    "avg_rounds": 7.5,
+    "avg_survive": 0.0
+   }
+  }
+ },
+ "法师·元素爆发流": {
+  "current": "crit",
+  "best": "spd",
+  "best_cn": "急速",
+  "results": {
+   "攻击": {
+    "wins": 4,
+    "avg_rounds": 8.5,
+    "avg_survive": 0.0
+   },
+   "暴击": {
+    "wins": 4,
+    "avg_rounds": 8.25,
+    "avg_survive": 0.0
+   },
+   "急速": {
+    "wins": 4,
+    "avg_rounds": 7.5,
+    "avg_survive": 0.0
+   },
+   "减CD": {
+    "wins": 4,
+    "avg_rounds": 8.0,
+    "avg_survive": 0.0
+   },
+   "元素": {
+    "wins": 4,
+    "avg_rounds": 8.0,
+    "avg_survive": 0.0
+   },
+   "穿透": {
+    "wins": 4,
+    "avg_rounds": 8.5,
+    "avg_survive": 0.0
+   }
+  }
+ },
+ "法师·元素迸发流": {
+  "current": "crit",
+  "best": "spd",
+  "best_cn": "急速",
+  "results": {
+   "攻击": {
+    "wins": 4,
+    "avg_rounds": 7.75,
+    "avg_survive": 0.0
+   },
+   "暴击": {
+    "wins": 4,
+    "avg_rounds": 7.75,
+    "avg_survive": 0.0
+   },
+   "急速": {
+    "wins": 4,
+    "avg_rounds": 6.5,
+    "avg_survive": 0.0
+   },
+   "减CD": {
+    "wins": 4,
+    "avg_rounds": 8.5,
+    "avg_survive": 0.0
+   },
+   "元素": {
+    "wins": 4,
+    "avg_rounds": 8.5,
+    "avg_survive": 0.0
+   },
+   "穿透": {
+    "wins": 4,
+    "avg_rounds": 8.25,
+    "avg_survive": 0.0
+   }
+  }
+ },
+ "法师·奥术精算流": {
+  "current": "cdr",
+  "best": "cdr",
+  "best_cn": "减CD",
+  "results": {
+   "攻击": {
+    "wins": 3,
+    "avg_rounds": 13.67,
+    "avg_survive": 17.0
+   },
+   "暴击": {
+    "wins": 3,
+    "avg_rounds": 16.33,
+    "avg_survive": 9.0
+   },
+   "急速": {
+    "wins": 3,
+    "avg_rounds": 17.33,
+    "avg_survive": 11.0
+   },
+   "减CD": {
+    "wins": 4,
+    "avg_rounds": 10.75,
+    "avg_survive": 0.0
+   },
+   "元素": {
+    "wins": 3,
+    "avg_rounds": 16.0,
+    "avg_survive": 17.0
+   },
+   "穿透": {
+    "wins": 3,
+    "avg_rounds": 13.67,
+    "avg_survive": 17.0
+   }
+  }
+ },
+ "游侠·森语猎印流": {
+  "current": "spd",
+  "best": "crit",
+  "best_cn": "暴击",
+  "results": {
+   "攻击": {
+    "wins": 4,
+    "avg_rounds": 11.5,
+    "avg_survive": 0.0
+   },
+   "暴击": {
+    "wins": 4,
+    "avg_rounds": 9.25,
+    "avg_survive": 0.0
+   },
+   "急速": {
+    "wins": 4,
+    "avg_rounds": 9.5,
+    "avg_survive": 0.0
+   },
+   "减CD": {
+    "wins": 4,
+    "avg_rounds": 11.25,
+    "avg_survive": 0.0
+   },
+   "元素": {
+    "wins": 4,
+    "avg_rounds": 11.75,
+    "avg_survive": 0.0
+   },
+   "穿透": {
+    "wins": 4,
+    "avg_rounds": 11.5,
+    "avg_survive": 0.0
+   }
+  }
+ },
+ "游侠·疾风连射流": {
+  "current": "elem",
+  "best": "crit",
+  "best_cn": "暴击",
+  "results": {
+   "攻击": {
+    "wins": 4,
+    "avg_rounds": 4.75,
+    "avg_survive": 0.0
+   },
+   "暴击": {
+    "wins": 4,
+    "avg_rounds": 4.25,
+    "avg_survive": 0.0
+   },
+   "急速": {
+    "wins": 4,
+    "avg_rounds": 4.5,
+    "avg_survive": 0.0
+   },
+   "减CD": {
+    "wins": 4,
+    "avg_rounds": 5.0,
+    "avg_survive": 0.0
+   },
+   "元素": {
+    "wins": 4,
+    "avg_rounds": 5.0,
+    "avg_survive": 0.0
+   },
+   "穿透": {
+    "wins": 4,
+    "avg_rounds": 4.5,
+    "avg_survive": 0.0
+   }
+  }
+ },
+ "牧师·死灵骷髅流": {
+  "current": "crit",
+  "best": "pene",
+  "best_cn": "穿透",
+  "results": {
+   "攻击": {
+    "wins": 3,
+    "avg_rounds": 18.0,
+    "avg_survive": 10.0
+   },
+   "暴击": {
+    "wins": 1,
+    "avg_rounds": 16.0,
+    "avg_survive": 16.33
+   },
+   "急速": {
+    "wins": 2,
+    "avg_rounds": 10.5,
+    "avg_survive": 16.0
+   },
+   "减CD": {
+    "wins": 3,
+    "avg_rounds": 14.0,
+    "avg_survive": 17.0
+   },
+   "元素": {
+    "wins": 2,
+    "avg_rounds": 15.5,
+    "avg_survive": 12.5
+   },
+   "穿透": {
+    "wins": 4,
+    "avg_rounds": 16.0,
+    "avg_survive": 0.0
+   }
+  }
+ },
+ "刺客·影舞连段流": {
+  "current": "crit",
+  "best": "crit",
+  "best_cn": "暴击",
+  "results": {
+   "攻击": {
+    "wins": 4,
+    "avg_rounds": 5.0,
+    "avg_survive": 0.0
+   },
+   "暴击": {
+    "wins": 4,
+    "avg_rounds": 4.75,
+    "avg_survive": 0.0
+   },
+   "急速": {
+    "wins": 4,
+    "avg_rounds": 5.0,
+    "avg_survive": 0.0
+   },
+   "减CD": {
+    "wins": 4,
+    "avg_rounds": 5.25,
+    "avg_survive": 0.0
+   },
+   "元素": {
+    "wins": 4,
+    "avg_rounds": 5.25,
+    "avg_survive": 0.0
+   },
+   "穿透": {
+    "wins": 4,
+    "avg_rounds": 5.0,
+    "avg_survive": 0.0
+   }
+  }
+ },
+ "刺客·毒刃腐蚀流": {
+  "current": "spd",
+  "best": "spd",
+  "best_cn": "急速",
+  "results": {
+   "攻击": {
+    "wins": 4,
+    "avg_rounds": 9.75,
+    "avg_survive": 0.0
+   },
+   "暴击": {
+    "wins": 4,
+    "avg_rounds": 9.0,
+    "avg_survive": 0.0
+   },
+   "急速": {
+    "wins": 4,
+    "avg_rounds": 8.75,
+    "avg_survive": 0.0
+   },
+   "减CD": {
+    "wins": 4,
+    "avg_rounds": 9.25,
+    "avg_survive": 0.0
+   },
+   "元素": {
+    "wins": 4,
+    "avg_rounds": 10.5,
+    "avg_survive": 0.0
+   },
+   "穿透": {
+    "wins": 4,
+    "avg_rounds": 10.25,
+    "avg_survive": 0.0
+   }
+  }
+ },
+ "刺客·影遁收割流": {
+  "current": "crit",
+  "best": "crit",
+  "best_cn": "暴击",
+  "results": {
+   "攻击": {
+    "wins": 4,
+    "avg_rounds": 5.5,
+    "avg_survive": 0.0
+   },
+   "暴击": {
+    "wins": 4,
+    "avg_rounds": 5.25,
+    "avg_survive": 0.0
+   },
+   "急速": {
+    "wins": 4,
+    "avg_rounds": 5.25,
+    "avg_survive": 0.0
+   },
+   "减CD": {
+    "wins": 4,
+    "avg_rounds": 5.5,
+    "avg_survive": 0.0
+   },
+   "元素": {
+    "wins": 4,
+    "avg_rounds": 5.5,
+    "avg_survive": 0.0
+   },
+   "穿透": {
+    "wins": 4,
+    "avg_rounds": 5.5,
+    "avg_survive": 0.0
+   }
+  }
+ },
+ "拳师·破绽连打流": {
+  "current": "crit",
+  "best": "spd",
+  "best_cn": "急速",
+  "results": {
+   "攻击": {
+    "wins": 4,
+    "avg_rounds": 7.0,
+    "avg_survive": 0.0
+   },
+   "暴击": {
+    "wins": 4,
+    "avg_rounds": 6.75,
+    "avg_survive": 0.0
+   },
+   "急速": {
+    "wins": 4,
+    "avg_rounds": 6.25,
+    "avg_survive": 0.0
+   },
+   "减CD": {
+    "wins": 4,
+    "avg_rounds": 7.5,
+    "avg_survive": 0.0
+   },
+   "元素": {
+    "wins": 4,
+    "avg_rounds": 7.5,
+    "avg_survive": 0.0
+   },
+   "穿透": {
+    "wins": 4,
+    "avg_rounds": 6.75,
+    "avg_survive": 0.0
+   }
+  }
+ },
+ "拳师·气力爆发流": {
+  "current": "crit",
+  "best": "spd",
+  "best_cn": "急速",
+  "results": {
+   "攻击": {
+    "wins": 4,
+    "avg_rounds": 6.75,
+    "avg_survive": 0.0
+   },
+   "暴击": {
+    "wins": 4,
+    "avg_rounds": 5.75,
+    "avg_survive": 0.0
+   },
+   "急速": {
+    "wins": 4,
+    "avg_rounds": 5.5,
+    "avg_survive": 0.0
+   },
+   "减CD": {
+    "wins": 4,
+    "avg_rounds": 6.75,
+    "avg_survive": 0.0
+   },
+   "元素": {
+    "wins": 4,
+    "avg_rounds": 6.75,
+    "avg_survive": 0.0
+   },
+   "穿透": {
+    "wins": 4,
+    "avg_rounds": 6.75,
+    "avg_survive": 0.0
+   }
+  }
+ }
+}

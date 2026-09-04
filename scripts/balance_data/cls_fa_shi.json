@@ -97,7 +97,7 @@
       "fight_len": 60,
       "self_heal": false,
       "desc": "骤雨弹幕叠雷印 → 元素迸发按层结算 → 元素湮灭满印增伤 → 万象天雷顶点",
-      "affix_preset": "crit"
+      "affix_preset": "spd"
     },
     "奥术精算流": {
       "line": "奥术学者",
@@ -150,7 +150,7 @@
       "fight_len": 60,
       "self_heal": false,
       "desc": "奥术弹幕/飞弹攒充能 → 深度冥想架设蓄能 → 奥术洪流燃尽爆发 → 奥术湮灭顶点",
-      "affix_preset": "spd"
+      "affix_preset": "cdr"
     }
   },
   "attr_presets": {
