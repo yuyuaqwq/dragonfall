@@ -3851,7 +3851,8 @@ class WorldCmds(CommandBase):
         opts = C.visible_options(dlg, node, ctx)
         # v173.3：自动补任务入口——节点无任何任务类选项 & NPC 有可接支线时展开
         if not any((o.get("side_menu") is not None) or (o.get("action") or {}).get("side_offer")
-                   or (o.get("action") or {}).get("side_take") or (o.get("action") or {}).get("quest_take")
+                   or (o.get("action") or {}).get("side_take") or (o.get("action") or {}).get("side_take_one")
+                   or (o.get("action") or {}).get("quest_take")
                    for o in opts):
             try:
                 npc_id = ctx.get("npc_id") or ""
