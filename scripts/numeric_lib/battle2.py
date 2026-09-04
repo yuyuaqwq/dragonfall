@@ -130,6 +130,15 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
     rounds_sum = 0.0
     survive_sum = 0.0
     loses = 0
+    # 预取技能 CD 信息（决定施放优先级：CD 技 CD 好了优先用，0CD 填充技垫档）
+    # v175b 修复：原实现每轮从 rotation[0] 开始试，第一个 always 成功的技能占满所有轮次，
+    # 导致 CD 终结技永远轮不到（30 轮只放刺击）——真实玩家是 CD 技好了就用、填充技垫档。
+    skill_cd = {}
+    for skill_name in rotation:
+        info = E.skill_info(cls_id, skill_name)
+        skill_cd[skill_name] = float((info or {}).get("cd", 0) or 0)
+    cd_skills = [s for s in rotation if skill_cd.get(s, 0) > 0]
+    filler_skills = [s for s in rotation if skill_cd.get(s, 0) <= 0]
     for seed in range(seeds):
         random.seed(seed)  # 固定种子序列 seed 0..N-1，可复现（与 numeric_sim 同款）
         # 每场重建敌方与玩家副本（战斗内 hp/mp 会被改；模板保持一致）
@@ -137,8 +146,10 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
         turns = 0
         while b.result is None and turns < max_turns:
             acted = False
-            # 按 rotation 顺序逐个试技能：被拦截（_p_acts 不变 & result 空）→ 试下一个
-            for skill_name in rotation:
+            # 施放顺序（v175b）：先试 CD 技（CD 好了就用，rotation 内顺序），
+            # 再试 0CD 填充技（轮换避免死磕第一个），全拦 → 普攻
+            try_order = cd_skills + filler_skills
+            for skill_name in try_order:
                 prev_acts = b._p_acts
                 b.player_turn("skill", skill_name, player)
                 if b._p_acts != prev_acts:
