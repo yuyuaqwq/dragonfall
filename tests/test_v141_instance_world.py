@@ -6,7 +6,7 @@
    resolve_map（主大陆→MAP_BY_ID / 副本→克隆大陆）/ resolve_subareas / as_mainland
 2. create/destroy 大陆实例：inst: 前缀 / get_instance_world / resolve_map_for 副本克隆
 3. 开本→大陆：玩家 world_id=inst:<uuid>、大陆实例存在、st 挂在大陆、battle_state 镜像
-4. 撤退→大陆保留：可自由行动（_instance_battle_for=None），大陆实例仍存在（进度保留）
+4. 撤退→放弃进度：二次确认后清 battle + world_id 回 mainland + 大陆销毁（v173.3 #87）
 5. 离开→大陆销毁：大陆实例销毁、玩家 world_id 回 mainland
 6. 退队→world_id 回滚：队员退队后 world_id 回 mainland（大陆保留）
 7. 多队并发隔离：两队各自 inst:<uuid>、大陆独立、互不干扰
@@ -240,32 +240,33 @@ async def check_start_world(m):
 # ============================================================
 
 async def check_retreat_keep(m):
-    print("【4. 撤退→大陆保留】")
+    """v173.3 意见#87（鱼鱼拍板）：撤退=放弃进度（二次确认），不再保留可恢复层进度。
+
+    旧语义（v141）：撤退保留层进度+大陆实例，再次开本从原层恢复。
+    新语义：第一次『撤退』弹确认（进度保留等待确认）；『确认撤退』清 battle +
+    world_id 回 mainland + 销毁大陆实例（放弃本局，重新开本从头打）。
+    通关后（cleared）撤退=等同『离开副本』（保留战利品）。
+    """
+    print("【4. 撤退→放弃进度（二次确认）】")
     prep_player(m, "g1", "q1", "战士", "战士", level=20)
     goto_goblin_entry("g1", "q1")  # F2：开本需站在副本入口
     await cmd(m, "instance_cmd", "g1", "q1", "副本 哥布林营地")
     wid = db.get_player("g1", "q1").get("world_id", "")
     out = await cmd(m, "instance_retreat", "g1", "q1", "撤退")
-    check("撤退输出进度保留", "进度已保留" in out, out[:200])
+    check("撤退输出弹确认", "确认撤退" in out, out[:200])
+    # 第一次撤退后：未确认前 battle/大陆仍在（防误触）
     p = db.get_player("g1", "q1")
-    check("撤退后 world_id 仍是 inst:（大陆保留）", str(p.get("world_id", "")).startswith("inst:"), p.get("world_id"))
+    check("确认前 world_id 仍是 inst:（未真正放弃）", str(p.get("world_id", "")).startswith("inst:"), p.get("world_id"))
     inst = C.get_instance_world(wid)
-    check("撤退后大陆实例仍存在", inst is not None, "")
-    check("撤退后大陆 retreated=True", inst is not None and (inst.get("st") or {}).get("retreated") is True,
-          (inst or {}).get("st", {}).get("retreated"))
-    check("撤退后可自由行动(_instance_battle_for=None)", m._instance_battle_for("g1", "q1") is None, "")
-    # 自由行动验证：移动副本内房间
-    out = await cmd(m, "move", "g1", "q1", "移动 篝火营地")
+    check("确认前大陆实例仍存在", inst is not None, "")
+    check("确认前 battle 仍活跃", m._instance_battle_for("g1", "q1") is not None, "")
+    # 确认撤退 → 真正放弃
+    out = await cmd(m, "instance_retreat_confirm", "g1", "q1", "确认撤退")
+    check("确认撤退输出放弃", "放弃" in out, out[:200])
     p = db.get_player("g1", "q1")
-    check("撤退后可移动（自由行动）", p.get("cur_subarea") == "goblin_camp_2", f"{out[:100]} | {p.get('cur_subarea')}")
-    check("移动后大陆仍在", C.get_instance_world(wid) is not None, "")
-    # 重新开本恢复进度（v141：撤退后大陆保留，再次『副本 <名>』走恢复路径）
-    out = await cmd(m, "instance_cmd", "g1", "q1", "副本 哥布林营地")
-    check("再次开本恢复进度", "副本开启" in out or "回到副本深处" in out or "副本" in out, out[:150])
-    check("恢复后 _instance_battle_for 活跃", m._instance_battle_for("g1", "q1") is not None, "")
-    st = (C.get_instance_world(wid) or {}).get("st") or {}
-    check("恢复后大陆 retreated=False", (st or {}).get("retreated") is False, st.get("retreated"))
-    _cleanup_instance(m, "g1", st)
+    check("world_id 回 mainland", p.get("world_id") == "mainland", p.get("world_id"))
+    check("大陆实例已销毁（进度放弃）", C.get_instance_world(wid) is None, "")
+    check("battle 镜像已清", db.get_battle("g1", "q1") is None, "")
 
 
 # ============================================================

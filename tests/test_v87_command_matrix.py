@@ -103,7 +103,7 @@ REPRESENTATIVES = {
     "game_tip": "游戏提示",
     # instance.py
     "instance_cmd": "副本", "instance_advance": "深入", "instance_map_view_cmd": "副本地图",
-    "instance_investigate": "调查 房间", "instance_retreat": "撤退", "instance_leave": "离开副本",
+    "instance_investigate": "调查 房间", "instance_retreat": "撤退", "instance_retreat_confirm": "确认撤退", "instance_leave": "离开副本",
     "join_battle": "加入战斗",  # v137 副本『加入战斗』（队友并入战斗）
     # world.py
     "deed_view": "地契", "deed_buy": "买房", "deed_sell": "卖房", "go_home": "回家",

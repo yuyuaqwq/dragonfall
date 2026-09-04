@@ -215,6 +215,8 @@ COMMAND_REGEX = {
     # v104 M24 P2-4：『调查』空参数无响应（help 写『调查』但正则强制参数）→ 空参也命中，handler 内给格式提示
     "instance_investigate": r'^(?:\[At:\d+\]\s*)?调查(?:\s+(.+?))?\s*$',
     "instance_retreat": r'^(?:\[At:\d+\]\s*)?撤退\s*$',
+    # v173.3 意见#87：撤退二次确认（放弃副本进度）
+    "instance_retreat_confirm": r'^(?:\[At:\d+\]\s*)?确认撤退(?:\s*|$)',
     "instance_leave": r'^(?:\[At:\d+\]\s*)?离开副本\s*$',
     "races": r'^(?:\[At:\d+\]\s*)?种族(?:\s*|$)',
     "build_view": r'^(?:\[At:\d+\]\s*)?流派(?:[\s\S]*)$',

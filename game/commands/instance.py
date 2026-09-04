@@ -605,7 +605,15 @@ class InstanceCmds(CommandBase):
     @no_prof_waiting()
 
     async def instance_retreat(self, event: AstrMessageEvent):
-        """退出副本：解锁战斗，保留层进度与 POI 状态(29 章 13.6)"""
+        """v173.3 意见#87（鱼鱼拍板）：撤退 = 放弃进度（不可恢复）+ 二次确认。
+
+        旧行为（v87.2）：撤退保留层进度（retreated=True），下次开本从原层继续。
+        新行为：副本中途想走 = 清空本局进度（战利品/层数全弃），回入口可重新开本。
+        防误触：第一次『撤退』只弹确认，回复『确认撤退』才真正放弃。
+        通关后的离开请用『离开副本』（保留通关战利品，仅清战斗状态）。
+        """
+        import json as _json
+        import time as _time
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         inst_row = self._instance_battle_for(group_id, qq_id)
@@ -620,25 +628,88 @@ class InstanceCmds(CommandBase):
             else:
                 yield event.plain_result("战斗中无法撤退！先击败眼前的敌人再说！")
             return
-        st["retreated"] = True
-        # v137 副本地图化：撤退保留 rooms/resources_pool（下次恢复继续），
-        # 同时把全队 cur_map + cur_subarea 复位到入口房间（下次『副本 <名>』恢复路径同步）
+        # 通关后（cleared）撤退 = 等同于离开（保留战利品），不需要确认放弃
+        if st.get("cleared"):
+            async for _r in self.instance_leave(event):
+                yield _r
+            return
+        # 第一次撤退：弹二次确认（不真正放弃）
+        _ck = f"retreat_confirm_{qq_id}"
+        _pending = db.get_event_state(_ck)
+        if not _pending:
+            inst = C.INSTANCES.get(st["inst_id"], {})
+            db.set_event_state(_ck, _json.dumps({"ts": int(_time.time()), "inst": st.get("inst_id", "")}, ensure_ascii=False))
+            yield event.plain_result(
+                f"🏳️ 你要从【{inst.get('name', '副本')}】撤退吗？\n"
+                f"⚠️ 撤退 = 放弃当前进度（已拿的战利品保留，但层数/机关进度清空，重新开本从头打）！\n"
+                f"💡 确认请回复『确认撤退』；反悔就继续冒险吧～"
+            )
+            return
+        # 有挂起确认 → 提示用『确认撤退』（防把重复撤退当确认）
+        try:
+            _pd = _json.loads(_pending) if _pending else {}
+        except Exception:
+            _pd = {}
+        if _pd.get("inst") != st.get("inst_id", ""):
+            db.set_event_state(_ck, "")
+        yield event.plain_result("已弹过确认啦～ 回复『确认撤退』放弃进度，或继续冒险！")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?确认撤退(?:\s*|$)")
+    @require_player()
+    @no_prof_waiting()
+
+    async def instance_retreat_confirm(self, event: AstrMessageEvent):
+        """v173.3 意见#87：确认撤退 = 真正放弃副本进度（不可恢复）。
+
+        前置：玩家发过『撤退』弹了确认（retreat_confirm_{qq_id} 挂起）。
+        执行：清 battle 状态 + 全员 world_id 回 mainlan + cur_map/cur_subarea 复位
+        副本入口 + 销毁实例大陆（与 instance_leave 同款清理，但语义=放弃本局进度）。
+        """
+        import json as _json
+        group_id, qq_id = self._uid(event)
+        inst_row = self._instance_battle_for(group_id, qq_id)
+        if not inst_row:
+            yield event.plain_result("你当前不在副本中！")
+            return
+        st = inst_row["state"]
+        _ck = f"retreat_confirm_{qq_id}"
+        _pending = db.get_event_state(_ck)
+        if not _pending:
+            yield event.plain_result("还没有待确认的撤退～ 副本中发『撤退』会先弹确认。")
+            return
+        try:
+            _pd = _json.loads(_pending) if _pending else {}
+        except Exception:
+            _pd = {}
+        if _pd.get("inst") != st.get("inst_id", ""):
+            db.set_event_state(_ck, "")
+            yield event.plain_result("确认已过期（副本状态变化）～ 重新发『撤退』看看吧。")
+            return
+        inst = C.INSTANCES.get(st["inst_id"], {})
+        cur = self._instance_current_members(group_id, st)
+        # 清战斗锁 + battle 行
+        for m in st["members"]:
+            if str(m) in cur:
+                self._unlock_battle(group_id, m)
+                db.clear_battle(group_id, m)
+        # 复位 cur_map/cur_subarea 到副本入口 + world_id 回 mainland + 销毁大陆实例
         if st.get("rooms"):
             _mid = (st.get("inst_id") or "").removeprefix("inst_")
             _entry_sa = C.map_entry_subarea(_mid)
             if _entry_sa:
-                for _m in st["members"]:
-                    db.update_player(group_id, _m, cur_map=_mid, cur_subarea=_entry_sa)
-        self._instance_save(group_id, st)
-        for m in st["members"]:
-            self._unlock_battle(group_id, m)
-        inst = C.INSTANCES.get(st["inst_id"], {})
-        stages = st.get("inst_stages") or []
-        sidx = st.get("stage_idx", 0)
-        sname = stages[sidx]["name"] if sidx < len(stages) else ""
+                for m in st["members"]:
+                    if str(m) in cur:
+                        db.update_player(group_id, m, cur_map=_mid, cur_subarea=_entry_sa)
+        _wid = st.get("world_id") or ""
+        if _wid.startswith("inst:"):
+            for m in st["members"]:
+                if str(m) in cur:
+                    db.update_player(group_id, m, world_id="mainland")
+            C.destroy_instance_world(_wid)
+        db.set_event_state(_ck, "")
         yield event.plain_result(
-            f"🏳️ 你们决定撤退……副本进度已保留。\n"
-            f"📌 下次『副本 {inst.get('name', '')}』将从【第 {sidx + 1} 层 · {sname}】继续！"
+            f"🏳️ 你们放弃了【{inst.get('name', '副本')}】的进度，回到了入口。\n"
+            f"📌 已拿到的战利品保留在背包；想再挑战就重新『副本 {inst.get('name', '')}』从头开始吧！"
         )
 
     # ---------------- 离开副本（v101.27 #390） ----------------
