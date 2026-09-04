@@ -165,7 +165,9 @@ ENERGY_HIGH = {"threshold": 80, "crit_bonus": 0.10, "max_cost": 25}
 #   combo cap：命中 +1 / 受击或落空归零；终结技（res_cost cp）combo≥finish_min 起每层 +per_layer，
 #   上限 max_bonus（8 层 × 5% = 40%）
 # ============================================================
-COMBO_CFG = {"cap": 10, "finish_min": 3, "per_layer": 0.05, "max_bonus": 0.40}
+COMBO_CFG = {"cap": 10, "finish_min": 3, "per_layer": 0.05, "max_bonus": 0.40,
+             # v176: 连段机制归属数据化（原 _combo_active 职业特判 cls_ci_ke+攻线）
+             "class_id": "cls_ci_ke", "path": 1}
 # 攻线·影舞者 on_crit 暴击命中额外 +n 连击点
 ASSASSIN_ON_CRIT_GAIN = 1
 # 攻线·影舞者 受击回退 -1（高风险高回报：受击丢 1 点并 combo 归零）

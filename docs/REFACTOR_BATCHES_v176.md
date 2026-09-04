@@ -52,3 +52,13 @@
 
 ## 红线
 - 行为等价迁移，最后统一跑 36 门禁 + refactor_regression（4fab93c9433b）+ git commit
+
+## 深夜推进记录（v176 实际执行）
+- ✅ B2 纯清理：删死函数×3/_zen/allies冗余/elegy死分支 + ACT_TICK噪音 + BUFF_MULT下沉
+- ✅ B3 数据字段化：基础法师无资源(override 0)/游侠start_full/overflow_ratio/元素枚举keys
+- ✅ B4a 元素法师收口：_is_element_mage/_is_element_skill helper 收口 7 处 cls_fa_shi + 元素技能解耦
+- ⏸️ B4b 拳师气力判定(1172/3700)暂缓：实测拳师技能数据无 res_cost.chi/consume_all 标记，
+      "气力技"在数据层无区分字段，is_chi_skill(info) 方案不成立——
+      需先给拳师物理技能加 chi 标记(skills 数据改造)才能解耦，留待独立批次
+- ⏸️ B6 敌方 AI 数据化：未开始（怪物 ai 字段）
+- ⏸️ B7 F级架构拆分：未开始（事件序列化/声明式状态/拆类）

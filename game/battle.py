@@ -1395,8 +1395,10 @@ class Battle:
     # ---------------- v130.2 新机制挂点（资源即身份：转职分支独占，基础无） ----------------
     # —— 刺客攻线·影舞者：连段计数 combo（连了才涨、断了重来；仅攻线结算）——
     def _combo_active(self, player: dict) -> bool:
-        """连段计数是否活跃（仅攻线·影舞者；基础/毒线/影步线均不读 combo）"""
-        return player.get("class_name", "") == "cls_ci_ke" and self._is_path(player, 1)
+        """连段计数是否活跃（仅攻线·影舞者；基础/毒线/影步线均不读 combo）
+        v176: 归属读 COMBO_CFG.class_id/path 数据（原职业特判）。"""
+        return bool(player.get("class_name", "") == COMBO_CFG.get("class_id")
+                    and self._is_path(player, int(COMBO_CFG.get("path", 1))))
 
     def _combo_add(self, player: dict) -> int:
         """命中 +1 连段（上限 cap=10）。"""
@@ -1471,9 +1473,9 @@ class Battle:
 
     # —— 拳师攻线·格斗士：蓄势 Momentum（每 1 气持有 物理伤害 +3%，满 +30%）——
     def _momentum_mult(self, player: dict) -> float:
-        """蓄势持有加伤倍率。仅攻线·格斗士（monk evolve_path=1）吃到；气耗尽自然归 0。"""
-        cls = player.get("class_name", "")
-        if not (cls == "cls_wu_seng" and self._is_path(player, 1)):
+        """蓄势持有加伤倍率。仅攻线·格斗士（monk evolve_path=1）吃到；气耗尽自然归 0。
+        v176: 判据从职业名改为 chi 资源激活 + 攻线（只有拳师有 chi 资源键，等价且可扩展）。"""
+        if not self._is_path(player, 1) or "chi" not in (self.resources or {}):
             return 1.0
         chi = int(self.resources.get("chi", 0) or 0)
         cap = int(MOMENTUM_CFG.get("cap_chi", 10) or 10)
@@ -1496,7 +1498,7 @@ class Battle:
         v130.2：满弦烈酒 p_buffs["full_tension"] = 阈值视为已满足（立即满弦，handler 已做守线专属判定）。"""
         if self.p_buffs.get("full_tension"):
             return True
-        if player.get("class_name", "") != "cls_you_xia" or not self._is_path(player, 2):
+        if "energy" not in (self.resources or {}) or not self._is_path(player, 2):  # v176: 职业名→资源键+线
             return False
         # v130.2 P1-4：读「施放前」精力（_do_player_skill 已快照）；直接调用/非技能链回落当前值。
         _pres = getattr(self, "_pre_cost_res", None)
@@ -1576,7 +1578,7 @@ class Battle:
     def _echo_add(self, player: dict, logs: list, amount: int = 1) -> int:
         """回声叠层（上限 max_layers）。v130.2 收尾：echo 生产收敛为 res_gain 单通道，
         按技能数据 res_gain['echo'] 数值叠加（原 kind 钩子无条件 +1 已删，防双源双倍速）。"""
-        if player.get("class_name", "") != "cls_mu_shi" or not self._is_branch_of(player, *BARD_BRANCHES):
+        if "echo" not in self._branch_keys(player):  # v176: 回声所有权查分支资源键（原 cls_mu_shi+BARD_BRANCHES 特判）
             return 0
         cur = self._echo_layers()
         cap = int(ECHO_CFG.get("max_layers", 3) or 3)
@@ -3465,7 +3467,7 @@ class Battle:
             self.resources[k] = E.core_resource_gain(cls, self.resources, gain)
             proc_ok = True
         # 刺客攻线·影舞者：on_crit 额外 +1 连击点（叠于 on_attack/on_skill）
-        elif cls == "cls_ci_ke" and self._is_path(player, 1):
+        elif self._combo_active(player):  # v176: combo归属已数据化COMBO_CFG
             self.resources[k] = E.core_resource_gain(cls, self.resources, ASSASSIN_ON_CRIT_GAIN)
             proc_ok = True
         # v151 隐藏职业删除：星语猎印暴击额外（crit_mark）已移除
@@ -8003,7 +8005,7 @@ class Battle:
             gain = int(rd["on_hit"])
             # v130.2 战士血债怒火（攻线·狂战士 T1）：受击回怒 = 1 + ⌊缺失HP%×4⌋，封顶 5
             #   （warrior_转职 下放签名：卖血换怒——满血+1、缺25%血+2、缺一半+3、濒死+5）
-            if cls == "cls_zhan_shi" and self._is_path(player, 1):
+            if k == "rage" and self._is_path(player, 1):  # v176: 资源键判（原 cls_zhan_shi 特判）
                 _max = max(1, player.get("max_hp", 1) or 1)
                 _missing = max(0.0, min(1.0, 1.0 - (float(player.get("hp", 0) or 0) / _max)))
                 gain = int(RAGE_GAIN_HP_SCALE.get("base", 1) or 1)
@@ -8018,7 +8020,7 @@ class Battle:
         self._affix_res_proc(player, "on_taken", logs)
         # v151 隐藏职业删除：暮影影步受击清空（原 cls_shadow_blade 专属）已移除
         # v130.2 刺客攻线·影舞者：受击回退 -1 连击点 + 连段归零（高风险高回报，assassin_转职 §1.0）
-        if cls == "cls_ci_ke" and self._is_path(player, 1):
+        if self._combo_active(player):  # v176: combo归属已数据化COMBO_CFG
             _pen = int(ASSASSIN_ON_TAKE_HIT_PENALTY or 0)
             cur_cp = int(self.resources.get("cp", 0) or 0)
             if cur_cp > 0 and _pen < 0:
