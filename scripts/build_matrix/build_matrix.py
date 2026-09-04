@@ -238,14 +238,29 @@ def _res_gain_of(info: dict) -> float:
     return 0.0
 
 
+def _is_finisher(info: dict) -> bool:
+    """终结技判定（v175b）：mech=finisher/poison_burst_finisher 或带 consume_all =
+    引擎 _m_finisher 结算后资源归零（对齐真引擎：终结读层数增伤后清零）。
+    """
+    mech = str(info.get("mech", ""))
+    if "finisher" in mech:
+        return True
+    if info.get("consume_all"):
+        return True
+    return False
+
+
 def _res_cost_of(info: dict, res_key: str) -> float:
-    """技能资源消耗：res_cost dict → 对应键值；否则 0。"""
+    """技能资源消耗：res_cost dict → 对应键值；否则 0。
+    v175b：终结技（mech 含 finisher / consume_all）→ 视为耗光当前资源（期望模型近似，
+    对齐真引擎 _m_finisher 结算后归零）。"""
     rc = info.get("res_cost") or {}
     if isinstance(rc, dict):
         for k, v in rc.items():
             if k == res_key and isinstance(v, (int, float)):
                 return float(v)
-        return 0.0
+    if _is_finisher(info):
+        return -1.0  # 哨兵：调用方按"清零"处理
     return 0.0
 
 
@@ -360,19 +375,42 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
             if mp < sk["mp"] - 1e-9:
                 continue
             cost = _res_cost_of(sk["info"], res_key)
-            if res_key and cost > state.get(res_key, 0) + 1e-9:
+            if cost < 0:
+                # 终结技：至少需 1 点资源（对齐真引擎 consume_all「至少需 1 点」）
+                if res_key and state.get(res_key, 0) < 1.0:
+                    continue
+            elif res_key and cost > state.get(res_key, 0) + 1e-9:
                 continue
             available.append(sk)
-        # 梯队分离：always+0cd = 填充梯队（轮换）；其余按 prio 严格
-        filler = [sk for sk in available
-                  if sk["cond"] == "always" and sk["cd"] <= 0]
-        prio_skills = [sk for sk in available if sk not in filler]
+        # 梯队分离（v175b 修正）：选技策略对齐真实玩家资源循环——
+        #   1. 终结技/资源消耗技（prio 0-1，cond 资源阈值满足时）最高优先
+        #   2. 资源不足时：优先放「攒点技」（带 mech gain 的 always/0CD 技）让资源转起来，
+        #      而不是被无资源收益的 CD 技（影袭/潜行等）饿死攒点技 → 终结永远放不出
+        #   3. CD 爆发技（无资源收益但有伤害）次之
+        #   4. 纯填充普攻最后
+        def _gain_of_sk(sk):
+            return _res_gain_of(sk["info"]) if not _is_finisher(sk["info"]) else 0.0
+
+        finishers = [sk for sk in available if _is_finisher(sk["info"])]
+        gainers = [sk for sk in available if _gain_of_sk(sk) > 0]
+        cd_burst = [sk for sk in available
+                    if not _is_finisher(sk["info"]) and sk["cd"] > 0 and _gain_of_sk(sk) == 0]
+        fillers = [sk for sk in available if sk not in finishers and sk not in gainers
+                   and sk not in cd_burst]
         chosen = None
-        if prio_skills:
-            chosen = min(prio_skills, key=lambda x: x["prio"])
-        elif filler:
-            # 填充梯队轮换：从上一次选的后面开始（round-robin，模拟玩家技能循环）
-            filler_sorted = sorted(filler, key=lambda x: x["prio"])
+        if finishers:
+            # 终结技就绪（cond 资源阈值已满足才会在 available）→ 最高优先
+            chosen = min(finishers, key=lambda x: x["prio"])
+        elif gainers:
+            # 攒点技：资源没满时优先放（保证资源循环），轮换避免死磕一个
+            gainer_sorted = sorted(gainers, key=lambda x: x["prio"])
+            idx = state.get("_filler_idx", 0) % max(len(gainer_sorted), 1)
+            chosen = gainer_sorted[idx]
+            state["_filler_idx"] = (idx + 1) % max(len(gainer_sorted), 1)
+        elif cd_burst:
+            chosen = min(cd_burst, key=lambda x: x["prio"])
+        elif fillers:
+            filler_sorted = sorted(fillers, key=lambda x: x["prio"])
             idx = state.get("_filler_idx", 0) % max(len(filler_sorted), 1)
             chosen = filler_sorted[idx]
             state["_filler_idx"] = (idx + 1) % max(len(filler_sorted), 1)
@@ -381,13 +419,18 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
             # 施放
             mp -= sk["mp"]
             if res_key:
-                state[res_key] = max(0.0, state.get(res_key, 0) - _res_cost_of(sk["info"], res_key))
+                cost = _res_cost_of(sk["info"], res_key)
+                if cost < 0:
+                    # 终结技（哨兵 -1）：清零资源（对齐真引擎 _m_finisher 结算后归零）
+                    state[res_key] = 0.0
+                elif cost > 0:
+                    state[res_key] = max(0.0, state.get(res_key, 0) - cost)
             dmg = _dmg_of(sk["info"], st, sk["skill_lv"], target)
             total_dmg += dmg
             skill_hits[sk["name"]] = skill_hits.get(sk["name"], 0) + 1
-            # 资源获取
+            # 资源获取（终结技不放获取——它是消耗端；攒点技才 +）
             gain = _res_gain_of(sk["info"])
-            if res_key and gain:
+            if res_key and gain and not _is_finisher(sk["info"]):
                 state[res_key] = min(res_max, state.get(res_key, 0) + gain)
             # CD（绝对时刻制）
             if sk["cd"] > 0:
