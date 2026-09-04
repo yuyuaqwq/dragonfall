@@ -68,7 +68,7 @@ def pet_battle_status_note(pet: dict | None) -> str:
         if lv >= 10 and sat <= 0:
             return (f"🐾 {name} 饿得没力气战斗了……『喂养 <食物>』（肉/鱼/草药）恢复饱食度！")
         if lv < 10:
-            return f"🐾 {name} 还小（Lv.{lv}/10），Lv.10 解锁战斗技能！"
+            return f"🐾 {name} 还小（Lv.{lv}），Lv.10 解锁战斗技能！"
     except Exception:
         pass
     return ""
@@ -1788,16 +1788,25 @@ class CombatCmds(CommandBase):
         # （enemies=[] 只有 enemy 兼容键 → _origin_enemy 缺 exp/gold）——.get 兜底防 KeyError
         exp = monster.get("exp", 0)
         gold = monster.get("gold", 0)
-        # v28 等级差惩罚：打高太多/低太多的怪经验衰减，杜绝一天40级刷法
+        # v28→v173.2 经验等级差非线性曲线（2026-09-04 鱼鱼拍板，32 章 11.6 同步）
+        # v173.2a 压制（鱼鱼：给太慷慨）：系数 0.02→0.015，封顶 ×2.0(+100%)
+        #   diff > 0（越级打高级怪）→ 指数奖励 mult = 1 + 0.015×diff²，封顶 ×2.0
+        #   diff ∈ [-3, 0]（同级±3 正常练级）→ 无惩罚
+        #   diff < -3（打低级怪）→ 指数衰减 mult = 0.85^(-diff-3)，最低 15%（杜绝刷低级）
+        # 防无脑越级刷怪不靠经验惩罚：越级伤害压制(低打高 ×0.95/×0.90 削伤)仍在，
+        # 高 11+ 级怪打不动自然刷不了；+100% 封顶防极端。
         diff = monster["lv"] - player["level"]
-        if diff > 5:
-            # 越级打怪：每高 1 级 -15%，最低剩 10%（等级差≥11 时几乎无收益）
-            mult = max(0.10, 1.0 - (diff - 5) * 0.15)
+        _exp_note = ""
+        if diff > 0:
+            mult = 1.0 + 0.015 * diff * diff
+            if mult > 2.0:
+                mult = 2.0
             exp = int(exp * mult)
-        elif diff < -5:
-            # 低等级怪：碾压无收益，每低 1 级 -20%，最低剩 10%
-            mult = max(0.10, 1.0 - (-diff - 5) * 0.20)
+            _exp_note = f"⚔️ 越级挑战：经验 ×{mult:.2f}"
+        elif diff < -3:
+            mult = max(0.15, 0.85 ** (-diff - 3))
             exp = int(exp * mult)
+            _exp_note = f"📉 碾压低阶怪：经验 ×{mult:.2f}"
         # 组队经验 +10%（队长队员同样生效，design 29 章 2.1 表）
         # v95.29 #270：队伍行按 (group_id, leader) 记，队员反查必须同一 group_id——
         # 曾误写成全局查导致"群聊组队后私聊也吃加成"（#52 关联反馈）；同群组队本就有群内限制。
@@ -1835,17 +1844,20 @@ class CombatCmds(CommandBase):
             # 但当前为对玩家的宽容设计——败北已有金币惩罚+回城，逃跑无惩罚，不再叠加扣粮；改动需策划拍板
             db.pet_update(qq_id, satiety=max(0, pet["satiety"] - 2), last_sat_time=pet["last_sat_time"])
             # 宠物分得经验（24 章四：击杀怪宠物分得经验，取怪物基础经验 20%）
-            p_gain = max(1, int(monster["exp"] * 0.2))
+            # v173.2：加等级差乘区（宠物 vs 怪，复用玩家非线性曲线），封顶 Lv.50
+            p_gain = max(1, int(monster["exp"] * 0.2 * C.pet_exp_mult(int(pet.get("level", 1) or 1), monster["lv"])))
             p_exp = pet["exp"] + p_gain
             p_lv = pet["level"]
             p_lvup = False
-            while p_exp >= C.pet_exp_need(p_lv):
+            while p_lv < C.PET_MAX_LEVEL and p_exp >= C.pet_exp_need(p_lv):
                 p_exp -= C.pet_exp_need(p_lv)
                 p_lv += 1
                 p_lvup = True
+            if p_lv >= C.PET_MAX_LEVEL:
+                p_exp = min(p_exp, C.pet_exp_need(C.PET_MAX_LEVEL) - 1)  # 封顶溢出封存
             db.pet_update(qq_id, exp=p_exp, level=p_lv)
             if p_lvup:
-                pet_bonus.append(f"🎉 宠物升到 Lv.{p_lv}！(Lv.10 解锁宠物技能)" if p_lv >= 10 else f"🎉 宠物升到 Lv.{p_lv}！")
+                pet_bonus.append(f"🎉 宠物升到 Lv.{p_lv}！(Lv.10 解锁宠物技能)" if p_lv == 10 else (f"🎉 宠物升到 Lv.{p_lv}！(已满级)" if p_lv >= C.PET_MAX_LEVEL else f"🎉 宠物升到 Lv.{p_lv}！"))
         # v101.13 坐骑 exp_mult：骑乘加成类坐骑战斗经验加成（幽灵马/狮鹫/炎蹄战马）
         mount_bonus = []
         meff = C.mount_effects(player)
@@ -2155,6 +2167,8 @@ class CombatCmds(CommandBase):
         lines = [result, f"🎉 你击败了【{monster['name']}】！",
                  f"✨ 经验 +{exp}",
                  f"📈 经验进度 {player['exp']}/{need} ({exp_pct}%)"]
+        if _exp_note:
+            lines.insert(3, _exp_note)
         if lucky_line:
             lines.append(lucky_line.strip())
         if exp_bonus_line:

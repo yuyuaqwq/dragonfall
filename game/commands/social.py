@@ -1035,7 +1035,7 @@ class SocialCmds(CommandBase):
         lines = [
             f"{icon} 【宠物 · {pdef['name'] if pdef else pet['name']}】",
             f"━━━━━━━━━━━━",
-            f"名字：{pet['name']} | Lv.{pet['level']}",
+            f"名字：{pet['name']} | Lv.{pet['level']}/{C.PET_MAX_LEVEL}",
         ]
         # v101.14 品质/出处展示
         if pdef:
@@ -1195,9 +1195,11 @@ class SocialCmds(CommandBase):
                 _bond = min(100, pet["bond"] + 5)
                 _exp = pet["exp"] + 10
                 _lv = pet["level"]
-                while _exp >= C.pet_exp_need(_lv):
+                while _lv < C.PET_MAX_LEVEL and _exp >= C.pet_exp_need(_lv):
                     _exp -= C.pet_exp_need(_lv)
                     _lv += 1
+                if _lv >= C.PET_MAX_LEVEL:
+                    _exp = min(_exp, C.pet_exp_need(C.PET_MAX_LEVEL) - 1)
                 db.pet_update(qq_id, satiety=_sat, bond=_bond, exp=_exp, level=_lv)
                 pet = {**pet, "satiety": _sat, "bond": _bond, "exp": _exp, "level": _lv}
                 _lv_end = _lv
@@ -1216,9 +1218,11 @@ class SocialCmds(CommandBase):
         bond = min(100, pet["bond"] + 5)
         exp = pet["exp"] + 10
         lv = pet["level"]
-        while exp >= C.pet_exp_need(lv):
+        while lv < C.PET_MAX_LEVEL and exp >= C.pet_exp_need(lv):
             exp -= C.pet_exp_need(lv)
             lv += 1
+        if lv >= C.PET_MAX_LEVEL:
+            exp = min(exp, C.pet_exp_need(C.PET_MAX_LEVEL) - 1)
         db.pet_update(qq_id, satiety=sat, bond=bond, exp=exp, level=lv)
         lv_str = f"\n🎉 宠物升级到 Lv.{lv}！" if lv > pet["level"] else ""
         yield event.plain_result(f"🍖 你喂了【{pet['name']}】一份{target['data']['name']}！\n😋 饱食度 +30 ｜ 💕 亲密度 +5 ｜ ✨ 经验 +10{lv_str}")

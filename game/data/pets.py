@@ -184,20 +184,29 @@ def pet_skill_label(pet_key):
 # v133.2 宠物经验加成品质分级（鱼鱼拍板 2026-08-28）：
 #   加成 = min(等级 × 每级加成, 上限)，10 级满档；饱食度=0 减半逻辑在战斗结算/面板处。
 #   品质越高每级越多（等差），上限越高——高品质宠物值得养，白宠保底成长线。
+# v173.2 鱼鱼拍板（2026-09-04）：宠物封顶 Lv.30（先做 30，以后需要再扩展）——
+#   per_lv 按 30 级满 cap 配；配合 pet_exp_need 非线性拉长升级节奏。
+#   Lv.10 解锁宠物技能（保留）。
+PET_MAX_LEVEL = 30
+
 PET_EXP_GRADE = {
-    "white":  {"per_lv": 0.005, "cap": 0.05},   # ⚪ 白：每级 +0.5%，上限 5%（10级满）
-    "green":  {"per_lv": 0.010, "cap": 0.10},   # 🟢 绿：每级 +1.0%，上限 10%（10级满）
-    "blue":   {"per_lv": 0.015, "cap": 0.15},   # 🔵 蓝：每级 +1.5%，上限 15%（10级满）
-    "purple": {"per_lv": 0.020, "cap": 0.20},   # 🟣 紫：每级 +2.0%，上限 20%（10级满）
-    "orange": {"per_lv": 0.030, "cap": 0.30},   # 🟠 橙：每级 +3.0%，上限 30%（10级满）
+    "white":  {"per_lv": 0.05 / 30, "cap": 0.05},   # ⚪ 白：30级满 5%
+    "green":  {"per_lv": 0.10 / 30, "cap": 0.10},   # 🟢 绿：30级满 10%
+    "blue":   {"per_lv": 0.15 / 30, "cap": 0.15},   # 🔵 蓝：30级满 15%
+    "purple": {"per_lv": 0.20 / 30, "cap": 0.20},   # 🟣 紫：30级满 20%
+    "orange": {"per_lv": 0.30 / 30, "cap": 0.30},   # 🟠 橙：30级满 30%
 }
 
 
 def pet_exp_bonus(pet) -> float:
-    """宠物等级经验加成系数（0~0.3）；按品质查表，未知品质按白。"""
+    """宠物等级经验加成系数（0~0.3）；按品质查表，未知品质按白。
+    v133.2：per_lv 品质分级（每级加成 × 等级，cap 封顶）。
+    v173.2 fix：去掉 int() 截断——per_lv 是小数系数(0.001~0.01)，
+    int(level×per_lv) 恒为 0（v133.2 起宠物经验加成实际从未生效的 bug）；
+    改 float 精确累加，30 级满品质 cap。"""
     p = next((x for x in PET_POOL if x["key"] == (pet or {}).get("pet_key")), None)
     g = PET_EXP_GRADE.get((p or {}).get("quality", "white"), PET_EXP_GRADE["white"])
-    return min(max(int((pet or {}).get("level", 0) or 0) * g["per_lv"], 0.0), g["cap"])
+    return min(max(float((pet or {}).get("level", 0) or 0) * g["per_lv"], 0.0), g["cap"])
 
 
 def pct_str(x: float) -> str:
@@ -217,5 +226,25 @@ def pet_line(pet_key):
 
 
 def pet_exp_need(level):
-    """升级所需经验：level * 50(1→10 累计 2750，50×55)。"""
-    return level * 50
+    """升级所需经验（v173.2 非线性拉长，封顶 Lv.30 配套）：
+    lv × 35 × (1 + lv/30)——1→10 累计约 1900（略慢于旧的 2750 的直觉，但 10 级前逐级 35-45
+    很轻松），30 级满累计约 2.7 万 ≈ 主人打 250~460 只 30+ 级怪（约主人 45-50 级自然满）。
+    旧（v118）：level×50 线性，40-80 只怪就 10 级满，宠物节奏远快于主人。"""
+    return int(level * 35 * (1 + level / 30))
+
+
+def pet_exp_mult(pet_lv: int, monster_lv: int) -> float:
+    """宠物获得经验的等级差乘区（v173.2 鱼鱼拍板：复用玩家同款非线性曲线）。
+    宠物等级 vs 怪等级差 diff = 怪lv - 宠lv：
+      diff > 0（宠越级打高级怪）→ 奖励 1 + 0.015×diff²，封顶 ×2.0
+      diff ∈ [-3, 0]（同级±3）→ 无惩罚 ×1.0
+      diff < -3（宠碾压低级怪）→ 衰减 0.85^(-diff-3)，最低 15%
+    与 combat.py 玩家经验曲线同一公式（v173.2a 压制同步 0.02→0.015/2.5→2.0），防两套口径。"""
+    diff = monster_lv - pet_lv
+    if diff > 0:
+        mult = 1.0 + 0.015 * diff * diff
+        return mult if mult < 2.0 else 2.0
+    if diff < -3:
+        mult = 0.85 ** (-diff - 3)
+        return mult if mult > 0.15 else 0.15
+    return 1.0
