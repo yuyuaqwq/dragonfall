@@ -3940,45 +3940,27 @@ class InstanceCmds(CommandBase):
                     else:
                         db.add_item(group_id, m, f"bp_{uuid.uuid4().hex[:8]}", bp2)
                         lines.append(f"  📜 {p['name']} 拾取图纸：{bp2['name']}")
-            # v168 Boss 装备掉落池化（鱼鱼 2026-09-03 拍板：主题装常见/专属稀有）：
-            # 两档独立判定（各只吃 1 次 random.random()，不影响副本其余随机序列）——
-            # ① 主题装档：pool 非空且 random.random() < pool_rate → 从 pool 随机取 1 件
-            #   名册装备入包（⚔️ 拾取 Boss 珍藏，高概率常见）；
-            # ② 主专属档：random.random() < boss_rate → Boss 身份专属装备入包
-            #   （👑 从Boss身上拾取稀有专属，低概率稀有）。一杀可能双出（惊喜）或双不出。
-            # 数据 C.INSTANCE_BOSS_EQUIP_DROP 正由并行子 agent 改造成 {inst_id: {boss_equip,
-            # boss_rate, pool, pool_rate}}（键名可能带/不带 boss_ 前缀、可能保留 equip/rate
-            # 兼容键）——读 key 一律 .get 多键兜底 + getattr 容错，缺失/生成失败优雅跳过。
+            # v174 统一抽象：Boss 装备掉落判定走 drop_engine table 池（boss:{inst_id}）
+            # 产出 equip 类型（主题装/专属）由本层入包；材料档保持原逻辑下方处理。
             try:
+                from game.drop_engine import roll as _boss_roll, _SimpleCtx as _BossCtx
+                _bctx = _BossCtx(inst_id=st.get("inst_id"), monster_lv=boss.get("lv", 1) or 1,
+                                 player_level=boss.get("lv", 1) or 1)
+                # 当前实例专属 rid（区分展示文案：👑专属 vs ⚔️珍藏）
                 _boss_cfg = (getattr(C, "INSTANCE_BOSS_EQUIP_DROP", None) or {}).get(st.get("inst_id")) or {}
-            except Exception:
-                _boss_cfg = {}
-            if _boss_cfg:
-                # ① 主题装档（常见）：仅当 pool 非空才吃 1 次 random（新手本无 pool → 跳过）
-                _pool_ids = _boss_cfg.get("pool") or []
-                _pool_rate = float(_boss_cfg.get("pool_rate") or 0)
-                if _pool_ids and _pool_rate > 0 and random.random() < _pool_rate:
-                    try:
-                        _tp_eq = C.generate_roster_equip(random.choice(_pool_ids))
-                    except Exception:
-                        _tp_eq = None
-                    if _tp_eq:
-                        db.add_item(group_id, m, f"eq_{uuid.uuid4().hex[:8]}", _tp_eq)
-                        lines.append(f"  ⚔️ {p['name']} 拾取 Boss 珍藏：【{_tp_eq['name']}】！")
-                # ② 主专属档（稀有）：boss_equip/equip 兼容读取，独立吃 1 次 random
-                _be_rid = _boss_cfg.get("boss_equip") or _boss_cfg.get("equip")
-                _be_rate = _boss_cfg.get("boss_rate")
-                if _be_rate is None:
-                    _be_rate = _boss_cfg.get("rate")  # v140 旧键兼容
-                _be_rate = float(_be_rate or 0)
-                if _be_rid and _be_rate > 0 and random.random() < _be_rate:
-                    try:
-                        _be_eq = C.generate_roster_equip(_be_rid)
-                    except Exception:
-                        _be_eq = None
-                    if _be_eq:
-                        db.add_item(group_id, m, f"eq_{uuid.uuid4().hex[:8]}", _be_eq)
+                _excl_rid = _boss_cfg.get("boss_equip") or _boss_cfg.get("equip")
+                _eq_results = [x for x in _boss_roll(f"boss:{st.get('inst_id')}", _bctx)
+                               if x.get("type") == "equip" and x.get("data")]
+                for _r in _eq_results:
+                    _be_eq = _r["data"]
+                    db.add_item(group_id, m, f"eq_{uuid.uuid4().hex[:8]}", _be_eq)
+                    _is_excl = bool(_excl_rid) and _be_eq.get("name") == C.EQUIP_ROSTER.get(_excl_rid, {}).get("name")
+                    if _is_excl:
                         lines.append(f"  👑 {p['name']} 从Boss身上拾取稀有专属：【{_be_eq['name']}】！")
+                    else:
+                        lines.append(f"  ⚔️ {p['name']} 拾取 Boss 珍藏：【{_be_eq['name']}】！")
+            except Exception:
+                pass
             # 专属材料
             mats = inst.get("materials", [])
             for _ in range(inst.get("mat_count", 1)):
