@@ -71,7 +71,9 @@ for f in D.FISH_POOL:
         "quality": f.get("quality"),
         "w": int(f.get("weight", 1)),
     }
-    for k in ("spots", "season", "season_boost", "size_range", "weight_range", "price", "type"):
+    # 保留全部元数据字段（desc/价格/尺寸/季节/水域——展示与过滤都需要）
+    for k in ("spots", "season", "season_boost", "size_range", "weight_range",
+              "price", "type", "desc", "weight", "id", "mat_id"):
         if f.get(k) is not None:
             entry[k] = f[k]
     spots = f.get("spots") or list(D.FISHING_SPOTS.keys())
@@ -90,9 +92,10 @@ for spot_id, spot_cfg in D.FISHING_SPOTS.items():
 if getattr(D, "FISH_COLLECT", None):
     DROP["fish_collect"] = {
         "type": "weighted",
-        "entries": [{"item": to_id(cf.get("name") or cf.get("mat_id")),
-                     "w": int(max(1, 100 - float(cf.get("chance", 0.01)) * 10000)) if cf.get("chance") else 1,
-                     "chance": cf.get("chance"), "spots": cf.get("spots"), "time": cf.get("time")}
+        "entries": [{"item": to_id(cf.get("id") or cf.get("name") or cf.get("mat_id")),
+                     "name": cf.get("name"), "desc": cf.get("desc"),
+                     "chance": cf.get("chance"), "spots": cf.get("spots"), "time": cf.get("time"),
+                     "w": 1}
                     for cf in D.FISH_COLLECT],
     }
 
