@@ -94,8 +94,68 @@ def title_bonus(group_id, qq_id, player=None) -> dict:
                         continue  # v104.2 M13：全知全能副业经验倍率由 add_prof_exp 结算，非面板属性
                     if k != "atk" or v != 0:  # 占位字段跳过
                         bonus[k] = bonus.get(k, 0) + v
+        # v174 收藏册满套 bonus 实装（此前数据登记但从不生效，死数据）：
+        # 集齐 = 册条目 key/name 命中「曾拥有 possessed」或「图鉴击杀怪名」（与 collection.py
+        # _book_progress 同口径，但读 possessed 而非当前背包——卖掉/用掉仍算收集过）
+        _book_bonus = _collection_completed_bonus(qq_id, player)
+        for k, v in _book_bonus.items():
+            bonus[k] = bonus.get(k, 0) + v
     except Exception:
         import logging
         logging.getLogger("astrbot").warning("[dragonfall] title_bonus 计算异常，称号加成降级为空", exc_info=True)
+        pass
+    return bonus
+
+
+def _collection_completed_bonus(qq_id: str, player: dict) -> dict:
+    """收藏册已集齐册的永久属性汇总（v174 实装）。
+
+    读 possessed（曾拥有 key）+ ITEMS/MATERIALS 名映射 + bestiary（击杀图鉴怪 key/名）
+    判断条目收集；集齐册的 reward.bonus 累加。失败安全返回 {}（不影响其他加成）。
+    """
+    bonus = {}
+    try:
+        from .. import content as _C
+        from .. import db
+        books = list(getattr(_C, "COLLECTION_BOOKS", None) or [])
+        if not books:
+            return bonus
+        poss = set()
+        # 曾拥有物品 key（possessed 表）
+        try:
+            poss |= set(db.get_possessed(qq_id) or set())
+        except Exception:
+            pass
+        # key → 显示名映射（收藏册条目常用中文名，把曾拥有 key 的中文名也纳入）
+        try:
+            for _ik in list(poss):
+                if _ik in _C.ITEMS:
+                    poss.add(str(_C.ITEMS[_ik].get("name", "")))
+                elif _ik in _C.MATERIALS:
+                    poss.add(str(_C.MATERIALS[_ik].get("name", "")))
+        except Exception:
+            pass
+        # 图鉴击杀怪名（key + display 名）
+        try:
+            for r in db.get_bestiary("", qq_id) or []:
+                _mk = str(r.get("monster") or "")
+                poss.add(_mk)
+                try:
+                    poss.add(str(_C.display("monsters", _mk)))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        for b in books:
+            entries = b.get("entries") or []
+            if not entries:
+                continue
+            got = sum(1 for e in entries
+                      if (e.get("key") and str(e["key"]) in poss)
+                      or (e.get("name") and str(e["name"]) in poss))
+            if got == len(entries) and b.get("reward", {}).get("bonus"):
+                for k, v in b["reward"]["bonus"].items():
+                    bonus[k] = bonus.get(k, 0) + float(v)
+    except Exception:
         pass
     return bonus

@@ -83,6 +83,28 @@ async def main():
     p5 = db.get_player("gr", "wr")
     check("缺失物品不阻塞金币", p5["gold"] == before + 10, f"gold{p5['gold']}")
 
+    print("【reward_unify：收藏册 bonus 实装（曾死数据）】")
+    # 注册两个玩家，一个集齐"溪流鱼谱"（曾拥有条目），一个不集齐
+    await cmd(m, "register", "gcb", "wcb", "注册 战士 收测1 男")
+    await cmd(m, "register", "gcb", "wcb2", "注册 战士 收测2 男")
+    b0 = C.COLLECTION_BOOKS[0]
+    from game.store.inventory import record_possessed
+    for e in b0.get("entries", []):
+        try:
+            record_possessed("gcb", "wcb", e.get("key") or e.get("name"))
+        except Exception:
+            pass
+    from game.core.title_bonus import title_bonus as _tb
+    tb_ok = _tb("gcb", "wcb", db.get_player("gcb", "wcb"))
+    tb_no = _tb("gcb", "wcb2", db.get_player("gcb", "wcb2"))
+    has_bonus = bool(b0.get("reward", {}).get("bonus"))
+    if has_bonus:
+        check("集齐册 title_bonus 出加成", bool(tb_ok), f"{tb_ok}")
+        check("未集齐无加成", not tb_no, f"{tb_no}")
+    else:
+        check("首册无 bonus 配置(跳过)", True)
+    check("收藏册 reward.bonus 数据存在", has_bonus, f"{b0.get('reward')}")
+
     print("【reward_unify：空奖励安全】")
     lines = grant_reward({}, "gr", "wr")
     check("空奖励返回空", lines == [], str(lines))
