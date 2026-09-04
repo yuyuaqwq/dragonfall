@@ -5728,11 +5728,24 @@ class Battle:
         # 玩家实抓野猪王【践踏】"蓄力完成，轰然落下"后无伤害）
         if e.get("charging"):
             return self._enemy_charge_tick(e, pst, est, logs, ename, player=player)
-        # 30% 概率使用技能（v63：沉默时只能普攻）
+        # 敌方 AI 决策（v176: 读怪数据 ai.skill_chance/weights，缺省回落全局常量——零行为变化）
+        #   monsters 条目可配 {"ai": {"skill_chance": 0.5, "weights": {"ms_heal": 2, ...}, "first_move": "ms_x"}}
+        _ai = (e or {}).get("ai") or {}
+        _skill_chance = float(_ai.get("skill_chance", C.MON_SKILL_CHANCE) or C.MON_SKILL_CHANCE)
         skill = None
         silenced = "silence" in eb
-        if e.get("skills") and random.random() < C.MON_SKILL_CHANCE and not silenced:
-            skill = random.choice(e["skills"])
+        if e.get("skills") and random.random() < _skill_chance and not silenced:
+            # 权重轮盘（缺省均匀抽）
+            _weights = _ai.get("weights")
+            if _weights and isinstance(_weights, dict):
+                _pool = [s for s in e["skills"] if s in _weights]
+                if _pool:
+                    _wlist = [max(0, float(_weights.get(s, 1) or 1)) for s in _pool]
+                    skill = random.choices(_pool, weights=_wlist, k=1)[0]
+                else:
+                    skill = random.choice(e["skills"])
+            else:
+                skill = random.choice(e["skills"])
             sinfo = C.MONSTER_SKILLS.get(skill)
             if sinfo:
                 sname = sinfo.get("name", skill)  # 显示中文名
