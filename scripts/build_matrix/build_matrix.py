@@ -138,8 +138,11 @@ def class_skill_pool(cls_id: str, lv: int) -> dict:
     return pool
 
 
-def skill_lv_at(info: dict, player_lv: int) -> int:
-    """技能等级：未解锁 0；学得时 1；此后每 4 级 +1，封顶 SKILL_UP.max。"""
+def skill_lv_at(info: dict | None, player_lv: int) -> int:
+    """技能等级：未解锁 0；学得时 1；此后每 4 级 +1，封顶 SKILL_UP.max。
+    info=None/空（技能不在当前池/未配置）→ 返回 0（不可学）。"""
+    if not info:
+        return 0
     learn_lv = int(info.get("lv", 1) or 1)
     if player_lv < learn_lv:
         return 0
@@ -339,8 +342,14 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
         if res_key and regen > 0:
             state[res_key] = min(res_max, state.get(res_key, 0) + regen * 1.0)
         # 找本行动可施放的技能（按 prio 排序）
+        # v175 轮换修正：多个 cond=always 且 cd=0 的填充技并存时，若永远选 prio 最高的
+        # （如法师 火球 always prio3 > 冰锥 always prio4 > 雷击 always prio5），
+        # 低 prio 永远饿死 0 出场（"死技能"假象）。真实玩家会按循环轮换铺印。
+        # 修正：cond=always 的 0CD 技视为同一"填充梯队"，在它们之间轮换；
+        # CD/资源技仍严格按 prio 优先（好了就用）。
         acted = False
-        for sk in sorted(rot_skills, key=lambda x: x["prio"]):
+        available = []      # (排序键, 技能) 可施放的技能
+        for sk in rot_skills:
             if next_avail.get(sk["name"], 0) > t + 1e-9:
                 continue
             if not _cond_ok(sk["cond"], state):
@@ -350,10 +359,26 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
             cost = _res_cost_of(sk["info"], res_key)
             if res_key and cost > state.get(res_key, 0) + 1e-9:
                 continue
+            available.append(sk)
+        # 梯队分离：always+0cd = 填充梯队（轮换）；其余按 prio 严格
+        filler = [sk for sk in available
+                  if sk["cond"] == "always" and sk["cd"] <= 0]
+        prio_skills = [sk for sk in available if sk not in filler]
+        chosen = None
+        if prio_skills:
+            chosen = min(prio_skills, key=lambda x: x["prio"])
+        elif filler:
+            # 填充梯队轮换：从上一次选的后面开始（round-robin，模拟玩家技能循环）
+            filler_sorted = sorted(filler, key=lambda x: x["prio"])
+            idx = state.get("_filler_idx", 0) % max(len(filler_sorted), 1)
+            chosen = filler_sorted[idx]
+            state["_filler_idx"] = (idx + 1) % max(len(filler_sorted), 1)
+        if chosen:
+            sk = chosen
             # 施放
             mp -= sk["mp"]
             if res_key:
-                state[res_key] = max(0.0, state.get(res_key, 0) - cost)
+                state[res_key] = max(0.0, state.get(res_key, 0) - _res_cost_of(sk["info"], res_key))
             dmg = _dmg_of(sk["info"], st, sk["skill_lv"], target)
             total_dmg += dmg
             skill_hits[sk["name"]] = skill_hits.get(sk["name"], 0) + 1
@@ -368,7 +393,6 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
             act_t = _interval(sk["cast"], spd)
             t += act_t
             acted = True
-            break
         if not acted:
             # 全技能不可用 → 普攻
             total_dmg += basic_dmg
