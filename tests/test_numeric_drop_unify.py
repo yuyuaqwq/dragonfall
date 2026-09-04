@@ -141,6 +141,17 @@ def main():
     total_rolls = sum(dc.values())
     check("暗格5档覆盖且≈2000", total_rolls >= 1800 and len(dc) >= 4, f"{dict(dc)} total{total_rolls}")
 
+    print("【drop_unify：野王宝箱 collect 死数据修复】")
+    # chest:low 池含 collect 子池（铁牌徽章），且消费端 _roll_chest_rewards 走引擎后能发 collect
+    import game.core.wild_king as _WK  # noqa: E402
+    from game.content import WILD_KING_CHEST_TIERS
+    king = {"lv": 20, "chest_tier": "low", "drops": ["兽肉"]}
+    lines, _bc = _WK._roll_chest_rewards("gr", "wr", king, WILD_KING_CHEST_TIERS["low"], is_loot=False)
+    check("公共箱发 collect(铁牌徽章)", any("徽章" in l for l in lines), str(lines))
+    # 战利箱必出图纸
+    lines2, _bc2 = _WK._roll_chest_rewards("gr", "wr", king, WILD_KING_CHEST_TIERS["low"], is_loot=True)
+    check("战利箱必出图纸", any("图纸" in l or "残页" in l for l in lines2), str(lines2))
+
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0
 

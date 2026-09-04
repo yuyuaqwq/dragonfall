@@ -493,22 +493,86 @@ def _roll_chest_rewards(group_id: str, qq_id: str, king: dict, tier: dict,
     """宝箱奖励 roll：图纸保底（战利箱 100% / 公共箱 50%）+ 原石 + 装备 + 符文 + 材料 + 金币。
 
     返回 (展示行列表, 是否需广播)。
+
+    v174 统一抽象：核心 8 档概率走 drop_engine roll('chest:{tier}')——数据源
+    DROP_POOLS（gold/bp/gem/equip_drop/rune/stone/mats/collect 统一配置可审计），
+    本层只做入包 + 文案 + 广播。战利箱(is_loot) bp 必出 与 图纸残页 20% 是动态特例保留。
     """
     from .. import db  # noqa: E402
     from .. import content as C  # noqa: E402
+    from game.drop_engine import roll as _drop_roll, _SimpleCtx as _DropCtx  # noqa: E402
     import uuid
     player = db.get_player(group_id, qq_id) or {}
     lv = int(king.get("lv", 30) or 30)
     lines = []
     need_bc = False
-    # 1. 金币
-    gold = random.randint(*tier["gold_range"])
-    db.update_player(group_id, qq_id, gold=player.get("gold", 0) + gold)
-    lines.append(f"💰 金币 +{gold}")
-    # 2. 图纸（战利箱保底 100%，公共箱按概率）
-    bp_chance = 1.0 if is_loot else float(tier.get("bp_chance", 0.5))
-    bp = None
-    if random.random() < bp_chance:
+
+    # 引擎核心档：chest:{tier}（tier key 由 king.chest_tier 指定，数据源 WILD_KING_CHEST_TIERS）
+    _tier_key = king.get("chest_tier") or "low"
+    if _tier_key not in ("low", "mid", "high"):
+        _tier_key = "low"
+    _dctx = _DropCtx(player_level=lv, monster_lv=lv, qty=1)
+    _results = _drop_roll(f"chest:{_tier_key}", _dctx)
+
+    got_bp = False
+    for r in _results:
+        t = r.get("type")
+        if t == "gold":
+            gold = int(r.get("count", 0))
+            db.update_player(group_id, qq_id, gold=player.get("gold", 0) + gold)
+            lines.append(f"💰 金币 +{gold}")
+        elif t == "bp" and r.get("data"):
+            got_bp = True
+            bp = r["data"]
+            learned = player.get("learned_blueprints") or []
+            if bp.get("blueprint_for") in learned:
+                pages = {"white": 1, "green": 1, "blue": 2, "purple": 4, "orange": 6}.get(
+                    bp.get("quality", "white"), 1)
+                db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye",
+                            {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
+                            count=pages)
+                lines.append(f"📜 图纸已学会，化作 {pages} 张图纸残页")
+            else:
+                db.add_item(group_id, qq_id, f"bp_{uuid.uuid4().hex[:8]}", bp)
+                lines.append(f"📜 掉出图纸：{bp['name']}！")
+        elif t == "gem" and r.get("data"):
+            gem = r["data"]
+            db.add_item(group_id, qq_id, f"gem_{uuid.uuid4().hex[:8]}", gem)
+            lines.append(f"💎 获得幸运宝石：{gem['name']}！")
+        elif t == "equip" and r.get("data"):
+            eq = r["data"]
+            db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", eq)
+            qn = {"green": "🟢", "blue": "🔵", "purple": "✨🟣", "orange": "🌟🟠"}.get(
+                eq.get("quality", ""), "")
+            lines.append(f"{qn} 装备：【{eq['name']}】！")
+            if eq.get("quality") in ("purple", "orange"):
+                need_bc = True
+        elif t == "rune" and r.get("data"):
+            rune_data = r["data"]
+            db.add_item(group_id, qq_id,
+                        f"rune_{rune_data.get('effect', '')}_{rune_data.get('lvl', 1)}", rune_data)
+            lines.append(f"✨ 符文【{rune_data['name']}】！")
+        elif t == "item" and r.get("item_id") == "mat_gao_ji_qiang_hua_shi":
+            stone_n = int(r.get("count", 1))
+            db.add_item(group_id, qq_id, "mat_gao_ji_qiang_hua_shi",
+                        {"name": "高级强化石", "type": "材料", "stackable": True, "price": 80},
+                        count=stone_n)
+            lines.append(f"🪨 高级强化石 ×{stone_n}")
+        elif t == "item" and r.get("item_id") == "mat_tu_zhi_can_ye":
+            pages = int(r.get("count", 1))
+            db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye",
+                        {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
+                        count=pages)
+            lines.append(f"📄 图纸残页 ×{pages}")
+        elif t == "item" and r.get("item_id"):
+            # 材料档 / 收藏品档（collect：铁牌徽章等曾配置但旧代码不消费的死数据）
+            mid = r["item_id"]
+            _idata = C.ITEMS.get(mid) or C.MATERIALS.get(mid)
+            if _idata:
+                db.add_item(group_id, qq_id, mid, dict(_idata))
+                lines.append(f"🎒 {_idata.get('name', mid)} ×1")
+    # 战利箱 bp 必出（引擎公共箱概率可能没 roll 到 → 补一次必出）
+    if is_loot and not got_bp:
         bp = C.roll_blueprint(max(1, lv))
         if bp:
             learned = player.get("learned_blueprints") or []
@@ -522,50 +586,7 @@ def _roll_chest_rewards(group_id: str, qq_id: str, king: dict, tier: dict,
             else:
                 db.add_item(group_id, qq_id, f"bp_{uuid.uuid4().hex[:8]}", bp)
                 lines.append(f"📜 掉出图纸：{bp['name']}！")
-    # 3. 原石 20%
-    if random.random() < float(tier.get("gem_chance", 0.2)):
-        mon = {"lv": lv, "is_boss": True, "map_area": "field"}
-        gem = C.roll_gem_drop(mon, boss_fixed={})
-        if gem:
-            db.add_item(group_id, qq_id, f"gem_{uuid.uuid4().hex[:8]}", gem)
-            lines.append(f"💎 获得幸运宝石：{gem['name']}！")
-    # 4. 装备 25%
-    if random.random() < float(tier.get("equip_chance", 0.1)):
-        eq = C.roll_drop_equip(lv, "boss")
-        if eq:
-            db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", eq)
-            qn = {"green": "🟢", "blue": "🔵", "purple": "✨🟣", "orange": "🌟🟠"}.get(
-                eq.get("quality", ""), "")
-            lines.append(f"{qn} 装备：【{eq['name']}】！")
-            if eq.get("quality") in ("purple", "orange"):
-                need_bc = True
-    # 5. 符文
-    if random.random() < float(tier.get("rune_chance", 0.15)):
-        pool = [k for k, r in C.RUNES.items() if (r.get("quality") or "") in ("blue", "purple")]
-        if pool:
-            rk = random.choice(pool)
-            r_def = C.RUNES[rk]
-            rune_data = C.rune_item(r_def["effect"], random.randint(1, 2))
-            if rune_data:
-                db.add_item(group_id, qq_id, f"rune_{r_def['effect']}_{rune_data['lvl']}", rune_data)
-                lines.append(f"✨ 符文【{rune_data['name']}】！")
-    # 6. 高级强化石
-    stone_n = random.randint(*tier["stone_range"])
-    db.add_item(group_id, qq_id, "mat_gao_ji_qiang_hua_shi",
-                {"name": "高级强化石", "type": "材料", "stackable": True, "price": 80},
-                count=stone_n)
-    lines.append(f"🪨 高级强化石 ×{stone_n}")
-    # 7. 材料（保底）
-    mats = tier.get("mats") or king.get("drops") or []
-    if mats:
-        mat_name = random.choice(mats)
-        mid = C.resolve("materials", mat_name) if mat_name else None
-        if mid and mid in C.MATERIALS:
-            db.add_item(group_id, qq_id, mid,
-                        {"name": C.display("materials", mid), "type": C.MATERIALS[mid].get("type", "材料"),
-                         "stackable": True, "price": C.MATERIALS[mid]["price"]})
-            lines.append(f"🎒 材料：{C.display('materials', mid)} ×1")
-    # 8. 图纸残页（低概率额外）
+    # 图纸残页 20% 额外（动态特例保留）
     if random.random() < 0.20:
         pages = random.randint(*tier["pages_range"])
         db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye",
