@@ -388,6 +388,7 @@ SETS = {
         "quality": "purple", "icon": "🔥", "name": "余烬军团徽章", "line": "战士·攻线",
         "bonus_2": {},
         "bonus_4": {"effect": "full_rage_pursuit", "power": 0.50, "rage_cost_reduce": 1,
+                    "params": {"type": "proc_full_rage_pursuit", "power": 0.50},
                     "desc": "满怒时 普攻二段追击 威力 30% → 50%；满怒大招 怒气消耗 -1 (最低消耗 1)"},
     },
     "set_yuan_su_shi_tu": {  # 法师·基础/转职通用（传说套装，团本/世界 Boss 掉落）

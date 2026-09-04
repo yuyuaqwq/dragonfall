@@ -272,6 +272,8 @@ implemented = {
     "xing_chen_starstrike", "xue_tu_surge", "fu_wen_annihilate", "mi_fa_condense",
     # S1-D 吸血族 on_hit
     "hei_zhao_erode", "xing_zhe_flow", "xing_zhe_hunt",
+    # v174.1 沸血二段（余烬军团徽章 4 件）——攻击命中满怒追击，改走 SET_PROC_EFFECTS 注册
+    "full_rage_pursuit",
 }
 # v142：检查每个 effect 在套装数据里有 params（数据驱动消费）；SET_PROC_EFFECTS 旧注册表已废弃（handler 已删）
 _missing_params = {e for e in implemented if not _set_eff_params(e)}

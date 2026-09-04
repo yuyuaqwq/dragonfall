@@ -377,6 +377,24 @@ def _ts_energy_tide(battle, player, logs):
 # elif 分发：eff 互斥匹配（同 eff 只进一个分支）；按 eff key 查表
 
 SET_PROC_EFFECTS = {}
+
+
+def _set_full_rage_pursuit(battle, player, dmg, logs, params: dict):
+    """v174.1 余烬军团徽章 4 件（full_rage_pursuit）：满怒时攻击命中 → 二段追击。
+
+    数据驱动 type 执行器：满怒即触发（无概率），params.power（0.50）= 二段追击威力。
+    旧版在 _player_attack 硬编码普攻特判；普攻技能化后改为通用套装特效——
+    _set_attack_proc（技能/普攻命中统一调用）→ _execute_set_proc 分发至此。
+    """
+    try:
+        if not battle._rage_full(player):
+            return
+        power = float((params or {}).get("power", 0.50) or 0.50)
+        pd = max(1, int(dmg * power))
+        battle._damage_enemy(pd, logs)
+        logs.append(f"🔥 沸血二段：满怒追击追加 {pd} 点伤害！")
+    except Exception:
+        pass
 SET_PROC_TYPES = {}  # 数据驱动 type → 通用执行器（v142 重构）
 
 
@@ -911,6 +929,8 @@ SET_PROC_TYPES.update({
     "proc_mp_on_dmg": _sp_mp_on_dmg,
     "proc_erode": _sp_erode,
     "proc_thunder_burst": _sp_thunder_burst,
+    # v174.1 沸血二段（余烬军团徽章 4 件）：满怒攻击命中二段追击（params.power=0.50）
+    "proc_full_rage_pursuit": _set_full_rage_pursuit,
 })
 
 

@@ -3319,206 +3319,26 @@ class Battle:
             return False
 
     def _player_attack(self, st: dict, player: dict) -> list:
-        """普攻(含标记加成 + v10 套装攻击特效 + v34 符文效果)"""
-        logs = []
-        # v130.2f2（T11 P2）：潜行出手标记每次出手前复位——普攻不消费潜行（v104 遗留口径），
-        # 置 False 防上次技能潜行出手的标记串场到本次普攻暴击结算（_on_crit_resource 读标记）。
-        self._stealth_atk = False
-        est = self._enemy_stats()
-        effs = self._enchant_effects(player)
-        # v34 破甲：无视 x% 防御（按等级）
-        ap_lvl = self._enchant_lvl(effs, "armor_pierce")
-        if ap_lvl:
-            est = dict(est)
-            est["def"] = int(est["def"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
-        # v109.2 P1-1 运势：幸运转化为暴击补充（luck → crit，上限 +12%）；PVP 对方韧性对称生效
-        # v130.2c 巡林长披风：命中带标记目标 暴击率 +5%（crit_on_marked）
-        # v169.7 狂热 zhan_yi_crit：战意 ≥8 时暴击 +15%（条件被动消费，见 _passive_crit_bonus）
-        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * 0.3, 0.12)
-                                     + self._set_crit_bonus(player)
-                                     + self._passive_crit_bonus(player, info=None)) * self._tenacity_mult(est)
-        # v109.2 P1-1 运势：暴击命中后 30% 概率追加 50% 伤害（幸运一击）
-        # v133 收敛：追加倍率 1.5→1.3（LUCKY_CRIT_MULT 数据表）
-        lucky = is_crit and random.random() < LUCKY_CRIT_CHANCE
-        # v106 穿透：玩家物穿/固定物穿削减怪物有效防御
-        # v174 普攻技能槽化（鱼鱼拍板 2026-09-04）：每职业 basic_skill（CLASSES[cls].basic_skill）
-        # = 该职业普攻技（100% AD/AP 公式，无消耗无 CD）。普攻伤害数值来源 → 读 basic_skill：
-        #   物理职业（kind 物理/atk 公式）→ 物理段吃 def
-        #   法系职业（kind 魔法/matk 公式）→ 魔法段吃 mdef/魔免（修复法系普攻吃 atk 刮痧，#75）
-        # 未配 basic_skill 的职业回退旧逻辑（calc_damage(atk)）
-        _bs = (C.CLASSES.get(player.get("class_name", ""), {}) or {}).get("basic_skill")
-        _bs_expr = None
-        _bs_kind = None
-        if isinstance(_bs, dict):
-            _bs_expr = (_bs.get("exprs") or [None])[0]
-            _bs_kind = _bs.get("kind", "物理")
-        _magi_part = 0
-        if _bs_expr and _bs_kind and str(_bs_kind).startswith("魔法"):
-            # 法系普攻：魔法段（吃 mdef），100% AP
-            _pp_magi, _pf_magi = self._pene_vals(st, magic=True)
-            _bs_stats = dict(st)
-            _bs_stats["_player_lv"] = int(player.get("level", 1) or 1)
-            _bs_stats["_skill_lv"] = 0
-            _mseg_dmg, _mseg_magi = E.resolve_formula(
-                [{"expr": _bs_expr, "type": "magi"}], _bs_stats, est.get("def", 0), est.get("mdef", 0),
-                is_crit=is_crit, pene_magi=_pp_magi, pene_flat_magi=_pf_magi,
-                mult=1.0, variance=0.0,
-            )
-            dmg = int(_mseg_dmg)
-            _magi_part = _mseg_magi
-        else:
-            # 物理普攻（含未配 basic_skill 回退）：吃 def
-            _pp, _pf = self._pene_vals(st)
-            dmg = E.calc_damage(st["atk"], est["def"], is_crit, pene_pct=_pp, pene_flat=_pf, dmg_type="phys")
-            if _bs_expr and _bs_kind and str(_bs_kind).startswith("物理"):
-                # 物理职业普攻技公式（100% AD）：用 atk×ratio 替代裸 atk（保底一致故 = atk）
-                pass  # atk*1.0 与 calc_damage(atk) 等价，此处保持旧逻辑防回归
-        if lucky:
-            dmg = int(dmg * LUCKY_CRIT_MULT)
-            logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
-        # v109.2 P3-4：魔能涌动对普攻生效（魔剑士附魔普攻→magi 段；原只在技能端消费，普攻浪费 buff）
-        if self.p_buffs.get("spellblade_surge"):
-            _pp_magi, _pf_magi = self._pene_vals(st, magic=True)
-            surge_dmg = E.calc_damage(int(st["matk"] * 0.80), est["mdef"], is_crit,
-                                      pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
-            dmg += surge_dmg
-            _magi_part = surge_dmg  # v110 P1-3：魔涌魔段记入（敌方魔免消费用）
-            del self.p_buffs["spellblade_surge"]
-            logs.append(f"🔮 魔能涌动：普攻附带 {surge_dmg} 点魔法伤害！")
-        else:
-            _magi_part = _magi_part
-        # v156 玩家侧公共乘区统一组装（词条/狼嚎/蓄势/禅意/物理药水/种族）——
-        # 与技能共用 _player_dmg_mult（一处修改，普攻/技能同时生效）
-        affix_mult, affix_tags = self._player_dmg_mult(player, "物理")
-        dmg = int(dmg * affix_mult)
-        # v140 S1 直连消费：蓄势待发（surge_ready）——战斗开始后第一次攻击 +15%（一次性）
-        if (self.p_eff or {}).get("surge_ready"):
-            dmg = int(dmg * 1.15)
-            self.p_eff.pop("surge_ready", None)
-            affix_tags = list(affix_tags) + ["💪蓄势x1.15"]
-        # v140 S1 直连消费：血誓回响（blood_oath_echo atk_up）——本次攻击 +10%（一次性）
-        if (self.p_eff or {}).get("atk_up"):
-            dmg = int(dmg * 1.10)
-            self.p_eff.pop("atk_up", None)
-            affix_tags = list(affix_tags) + ["🩸血誓x1.1"]
-        # v140 波3.1：特效装备被动增伤（暮光处决/弑星/岁月流转/三相/破岳/咒誓/反击/暮裂/雷纹等）
+        """v174.1 普攻行动 = 释放职业 basic_skill（玩家敲"攻击"即施放该技能）。
+
+        代码层不做任何普攻特判计算——basic_skill 是数据配置的普通技能
+        （exprs 公式 / res_gain 资源 / 无 CD 无消耗），一切乘区/资源/命中
+        效果均由 _player_skill 统一技能管道结算。旧版手抄 ~200 行普攻乘区
+        已删除（v174.1，鱼鱼拍板：保留一套技能代码，配置做不到=设计问题）。
+        """
+        bs = None
         try:
-            from .core.weapon_effects import proc as _we_proc
-            _wectx = {"mult": 1.0, "tags": [], "attack": True, "is_crit": is_crit,
-                      "crit_dmg": float(st.get("crit_dmg", 0) or 0)}
-            _we_proc(self, player, "passive", _wectx, logs)
-            # v140 波3.2：弱点击破石——目标负面越多增伤越高（vuln 标记）
-            _vuln = (self.p_eff or {}).get("vuln")
-            if _vuln and int(_vuln.get("turns_left", 0) or 0) > 0:
-                _vb = float(_vuln.get("bonus", 0) or 0)
-                if _vb > 0:
-                    _wectx["mult"] = _wectx.get("mult", 1.0) * (1 + _vb)
-                    _wectx["tags"] = _wectx.get("tags", []) + [f"🎯弱点x{1 + _vb:.2f}"]
-            if _wectx.get("mult", 1.0) != 1.0:
-                dmg = int(dmg * _wectx["mult"])
-                affix_tags = list(affix_tags) + _wectx.get("tags", [])
-            if _wectx.get("crit_dmg", 0) > 0 and is_crit:
-                cdmg = float(st.get("crit_dmg", 0) or 0)
-                dmg = int(dmg * (1 + _wectx["crit_dmg"] / max(1e-9, (1 + cdmg))))
-                affix_tags = list(affix_tags) + [f"🌙暴伤x{1 + _wectx['crit_dmg']:.2f}"]
+            _cid = C.resolve("classes", player.get("class_name", ""))
+            bs = ((C.CLASSES.get(_cid, {}) or {}).get("basic_skill")) or {}
         except Exception:
-            pass
-        # v140 波4：新手特效 星火连击（novice_spark_followup）——释放技能后，下次普攻伤害 +10%
-        if self.mech_stacks.get("novice_spark"):
-            dmg = int(dmg * 1.10)
-            del self.mech_stacks["novice_spark"]
-            affix_tags = list(affix_tags) + ["✨星火x1.1"]
-        # v34 残忍：暴击伤害 +x%（按等级，符文特效）
-        brutal_lvl = self._enchant_lvl(effs, "brutal")
-        if brutal_lvl and is_crit:
-            dmg = int(dmg * (1 + C.rune_value("brutal", brutal_lvl)))
-        # v106.3 暴击伤害属性（crit_dmg 面板化：词条折算 + 种族 + 被动 + 药水）
-        cdmg = float(st.get("crit_dmg", 0) or 0)
-        # v169.7 暗影步·极 shadow_dance_bonus：影舞态中暴击伤害 +20%（暴伤加算）
-        cdmg += self._passive_crit_dmg_mult(player)
-        if self.p_buffs.get("crit_dmg_pot"):
-            cdmg = 1 - (1 - cdmg) * (1 - 0.25)  # 狂暴药剂 +25% 暴伤（乘算并入）
-        if is_crit and cdmg > 0:
-            dmg = int(dmg * (1 + cdmg))
-        # v140 S1 直连消费：鹰眼锐视（eagle_vision）——本次暴击伤害 +30%（一次性消费）
-        if is_crit and (self.p_eff or {}).get("eagle_vision"):
-            dmg = int(dmg * 1.30)
-            self.p_eff.pop("eagle_vision", None)
-            affix_tags = list(affix_tags) + ["🦅鹰眼锐视"]
-        # v169.7 battle_mech effect 乘区键（猎杀时刻/星轨锁定）——普攻同样吃团队标记/锁定增伤
-        try:
-            _v169m, _v169t = self._consume_v169_buff_dmg(kind="物理", skill_name="普攻")
-            if _v169m != 1.0:
-                dmg = int(dmg * _v169m)
-                affix_tags = list(affix_tags) + _v169t
-        except Exception:
-            pass
-        dmg = self._apply_mark(dmg)
-        dmg = self._boss_dmg_filter(dmg, player, logs)
-        # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
-        dmg, _magi_part = self._enemy_mitigate(dmg, _magi_part, None, logs, kind="物理")
-        # v105 怪物闪避：闪避成功跳过本次伤害结算/符文特效/词条触发/资源获取
-        if not self._monster_dodge_check(logs):
-            self._damage_enemy(dmg, logs)
-            tag = " 💥暴击" if is_crit else ""
-            if affix_tags:
-                tag += " " + "·".join(affix_tags)
-            logs.append(f"你{_basic_attack_verb(player)}，造成 {dmg} 点伤害！{tag}")
-            # v130.2c 余烬军团徽章 4 件：满怒时 普攻二段追击（威力 30% → 50%；v130 无沸血二段机制，最小实现）
-            _pse = self._set_eff(player, "full_rage_pursuit", 4)
-            if _pse and self._rage_full(player):
-                _pd = max(1, int(dmg * float(_pse.get("power", 0.50) or 0.50)))
-                self._damage_enemy(_pd, logs)
-                logs.append(f"🔥 沸血二段：满怒追击追加 {_pd} 点伤害！")
-            # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
-            # v110 审计修复：普攻魔涌（魔能涌动附魔）魔段拆分结算——物段走物吸、魔段走法吸，
-            # 与 v109 P2-4 技能端分账（_player_skill）同款，补普攻端漏网
-            _phys_part = dmg - _magi_part
-            if _phys_part > 0:
-                self._settle_lifesteal(player, _phys_part, logs)
-            if _magi_part > 0:
-                self._settle_lifesteal(player, _magi_part, logs, magic=True)
-            # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱/破魔）
-            self._apply_enchant_attack(effs, dmg, st, player, logs)
-            # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）
-            self._affix_on_hit(player, dmg, logs)
-            self._food_on_hit(player, dmg, logs)
-            self._set_attack_proc(player, dmg, logs, is_crit=is_crit)
-            # v140 波3.1：特效装备攻击命中（风痕/破绽/裂伤/霜环/败血/裂风矢/圣裁/雷纹/幻影/海妖/破败/穿星等）
-            try:
-                from .core.weapon_effects import proc as _we_proc
-                _we_proc(self, player, "hit", {"dmg": dmg, "is_crit": is_crit}, logs)
-            except Exception:
-                pass
-            # v140 波3.2：连携增幅墨——命中使目标毒/灼烧/流血层数 +1（dot_amp 标记）
-            _dam = (self.p_eff or {}).get("dot_amp")
-            if _dam and int(_dam.get("turns_left", 0) or 0) > 0:
-                _per = max(1, int(_dam.get("layer_per_hit", 1) or 1))
-                _deb = self.enemy.setdefault("debuffs", {})
-                for _dk in ("poison", "burn", "bleed"):
-                    if _deb.get(_dk, {}).get("n", 0):
-                        _d = _deb.setdefault(_dk, {"n": 0, "mult": 1.0})
-                        _d["n"] = int(_d.get("n", 0) or 0) + _per
-                logs.append(f"🎨 连携增幅墨：异常层数 +{_per}！")
-            # v130.2：刺客攻线·影舞者 连段计数——命中 +1（上限 10）
-            if self._combo_active(player):
-                new_combo = self._combo_add(player)
-                logs.append(f"🌪️ 连段 {new_combo}/{COMBO_CFG['cap']}")
-            # v2.0 核心资源：普攻获取（战士怒气/刺客连击点/拳师气）
-            self._resource_on_attack(player, is_crit=is_crit)
-            # v130.2c 资源词条：普攻命中（战意 on_attack / 残血灼薪 血量条件）+ 暴击命中（暴击蓄能/暴击回点）
-            self._affix_res_proc(player, "on_attack", logs)
-            if is_crit:
-                self._affix_res_proc(player, "on_crit", logs)
-            # v130.2 资源增幅：普攻出手命中（影袭药水 hits 制额外 +1 连击点等，P0-1 消费端）
-            _amp_hit = self._amp_resource(player, "on_land_hit")
-            if _amp_hit:
-                logs.append(f"⚡ 影袭药剂：出手命中额外资源 +{_amp_hit}！")
-        else:
-            # v130.2：刺客攻线 落空 → 连段归零（断了重来）
-            if self._combo_active(player):
-                self._combo_break(player)
-        return logs
+            bs = {}
+        if not isinstance(bs, dict) or not bs.get("name") or not (bs.get("exprs") or bs.get("formula")):
+            # 无 basic_skill 的职业回退：纯物理普攻技能（atk×1.0 物理段）
+            bs = {"name": "攻击", "kind": "物理", "exprs": ["atk*1.0"]}
+        info = dict(bs)
+        # basic 技能无 CD/无蓝耗/无需学习等级（skill_levels 无此技能 → lv=0，
+        # expr 公式内嵌全部数值、无需技能成长）；资源获取由 res_gain / on_skill 数据驱动
+        return self._player_skill(st, info["name"], info, player, target=None)
 
     def _settle_lifesteal(self, player: dict, dmg: int, logs: list, magic: bool = False, dmg_type: str = "phys"):
         """v106.3 吸血统一结算（属性面板化）：heal = dmg × 吸血率
@@ -5062,6 +4882,12 @@ class Battle:
                 logs.append(f"⚡ 感电连击！追加 {_combo_dmg} 点伤害！")
         # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
         total, _magi_part = self._enemy_mitigate(total, _magi_part, element, logs, kind=kind)
+        # v174.1 星火（novice_spark_followup 星火法杖）：basic 普攻技命中消费星火标记（+10% 后清）。
+        # 原语义"释放技能后下次普攻+10%"——basic_skill 即普攻，仅 basic 技触发，普通技能不消费。
+        if info.get("basic") and self.mech_stacks.get("novice_spark"):
+            total = int(total * 1.10)
+            del self.mech_stacks["novice_spark"]
+            logs.append("✨ 星火x1.1：普攻伤害 +10%！")
         # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
         if self._monster_dodge_check(logs):
             total = 0
@@ -5082,14 +4908,19 @@ class Battle:
                     total = _real
             # v173.3 意见#112：总伤害汇总日志提前到吸血结算前——原顺序吸血日志
             # 先输出、'你施展造成N伤害'后输出（玩家看到吸血在伤害前，观感颠倒）。
+            # v174.1：技能 info 配 cast_verb（如 basic_skill "挥剑斩击"）→ 日志用动作语
+            # "你挥剑斩击，造成 N 点伤害"；无 cast_verb 保持"你施展【技能】，造成 N 点伤害"。
+            _verb = info.get("cast_verb")
             if multi > 1:
-                logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
+                logs.append((f"你{_verb}" if _verb else f"你施展【{skill_name}】")
+                            + f"，连击 {multi} 次，共造成 {total} 点伤害！")
             else:
                 # v127.3 多怪时日志带目标名（a1 指定/自动选择都显示打了谁；单怪保持原文案）
                 _alive_n2 = sum(1 for u in self.enemies if u.get("hp", 0) > 0)
                 _tg_d2 = getattr(self, "_active_target", None) or self.enemy
                 _tgtxt2 = f"对【{_tg_d2.get('name', '敌人')}】" if _alive_n2 > 1 and _tg_d2 else ""
-                logs.append(f"你施展【{skill_name}】，{_tgtxt2}造成 {total} 点伤害！")
+                logs.append((f"你{_verb}" if _verb else f"你施展【{skill_name}】")
+                            + f"，{_tgtxt2}造成 {total} 点伤害！")
             # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
             # v106.4：魔法技能走法术吸血（lifesteal_magi），物理技能走物理吸血（lifesteal_phys）
             # v107：真伤不吸血（dmg_type="true" 直接跳过）
@@ -5310,14 +5141,20 @@ class Battle:
         # v2.0 破防（pierce 数据字段）：直接给敌方降防
         if info.get("pierce") and self.enemy.get("hp", 0) > 0:
             self.e_buffs["def_down"] = E.skill_buff_turns(lv)
-        # v2.0 核心资源：攻击技能获取（战士怒气/刺客连击点/拳师气，res_gain 覆盖默认）
+        # v2.0 核心资源：攻击命中获取（战士怒气/刺客连击点/拳师气，res_gain 覆盖默认）
+        # v174.1 普攻技能化语义：basic 技（basic_skill，普攻）命中走"攻击"事件（on_attack），
+        # 非 basic 技能走 on_skill——保证"释放技能才触发"的被动/词条不会因普攻被误触。
+        _is_basic = bool(info.get("basic") or info.get("is_basic"))
         self._resource_on_skill(player, info, logs)
-        # v130.2c 资源词条：技能命中（战意 on_skill / 充能汲引 on_cast 元素奥术技 / 连段回收 combo_skill）
-        self._affix_res_proc(player, "on_skill", logs)
-        if player.get("class_name", "") == "cls_fa_shi" and (info.get("element") or (info.get("res_gain") or {}).get("element")):
-            self._affix_res_proc(player, "on_cast", logs)
-        if info.get("combo"):
-            self._affix_res_proc(player, "combo_skill", logs)
+        # v130.2c 资源词条：攻击命中（basic）走 on_attack；技能命中走 on_skill/on_cast/combo_skill
+        if _is_basic:
+            self._affix_res_proc(player, "on_attack", logs)
+        else:
+            self._affix_res_proc(player, "on_skill", logs)
+            if player.get("class_name", "") == "cls_fa_shi" and (info.get("element") or (info.get("res_gain") or {}).get("element")):
+                self._affix_res_proc(player, "on_cast", logs)
+            if info.get("combo"):
+                self._affix_res_proc(player, "combo_skill", logs)
         # v130.2 资源增幅：技能出手命中（影袭药水 hits 制额外 +1 连击点等，仅命中；P0-1 消费端）
         if total > 0:
             _amp_hit = self._amp_resource(player, "on_land_hit")
@@ -5339,6 +5176,15 @@ class Battle:
         # ---- v10 套装攻击特效 ----
         if total > 0:
             self._set_attack_proc(player, total, logs, is_crit=is_crit)
+        # v174.1 武器效果 hit 事件：技能 info 配 trigger_hit（如 basic_skill 普攻技）→
+        # 命中时额外发 "hit" 事件（风痕/猎影等注册在 hit 的武器特效本为普攻命中触发，
+        # 普攻技能化后靠此字段兼容；普通技能不触发，不会误触普攻专属武器效果）。
+        if total > 0 and info.get("trigger_hit"):
+            try:
+                from .core.weapon_effects import proc as _we_proc
+                _we_proc(self, player, "hit", {"dmg": total, "is_crit": is_crit}, logs)
+            except Exception:
+                pass
         return logs
 
     # ---------------- v29 分支机制 ----------------
@@ -5817,28 +5663,29 @@ class Battle:
                 return logs, dmg
         # 敌方普攻（_kind == "atk" 或技能查表失败）
         # v169.3 等级压制增伤：怪高玩家 N 级 → 普攻 ×(1+0.02N)（cap ×3，同技能方向）
-        # v174 普攻技能槽化：怪物 e 可配 basic_skill（数据驱动；默认无 = 物理普攻 atk×1.0）
+        # v174/v174.1 普攻技能化统一：怪物普攻 = 释放普攻技（默认 atk×1.0 物理；e.basic_skill
+        # 可配自定义如魔法普攻怪 matk×1.0 magi 段吃 mdef），统一走 resolve_formula 管道
         _lpm = self._enemy_lv_pressure(player, e)
         is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
         _pp, _pf = self._pene_vals(est)
         _mbs = (e or {}).get("basic_skill")
-        if isinstance(_mbs, dict) and (_mbs.get("exprs") or _mbs.get("formula")):
-            # 怪物自定义普攻技（如魔法普攻怪 matk×1.0 magi 段吃 mdef）
-            _mk = _mbs.get("kind", "物理")
-            _mt = "phys" if str(_mk).startswith("物理") else ("true" if str(_mk) == "真伤" else "magi")
+        _mexpr = None
+        _mkind = "物理"
+        if isinstance(_mbs, dict):
             _mexpr = (_mbs.get("exprs") or [None])[0]
-            if _mexpr:
-                _mst = dict(est)
-                _d0, _mm0 = E.resolve_formula(
-                    [{"expr": _mexpr, "type": _mt}], _mst, pst.get("def", 0), pst.get("mdef", 0),
-                    is_crit=is_crit, pene_phys=_pp, pene_magi=_pf,
-                    mult=1.0, variance=0.0,
-                )
-                dmg = int(_d0)
-            else:
-                dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
-        else:
-            dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
+            _mkind = _mbs.get("kind", "物理")
+        if not _mexpr:
+            # 默认普攻：物理 atk×1.0（与旧 calc_damage(atk) 等价，走统一公式管道）
+            _mexpr = "atk*1.0"
+            _mkind = "物理"
+        _mt = "phys" if str(_mkind).startswith("物理") else ("true" if str(_mkind) == "真伤" else "magi")
+        _mst = dict(est)
+        _d0, _mm0 = E.resolve_formula(
+            [{"expr": _mexpr, "type": _mt}], _mst, pst.get("def", 0), pst.get("mdef", 0),
+            is_crit=is_crit, pene_phys=_pp, pene_magi=_pf,
+            mult=1.0, variance=0.0,
+        )
+        dmg = int(_d0)
         dmg = max(1, int(dmg * _lpm))
         _pst_pr = self._player_stats(player)
         pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)

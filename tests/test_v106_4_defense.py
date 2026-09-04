@@ -149,10 +149,12 @@ async def main():
     p6 = mk_player(["thirst_magi"], cls="法师", skills=["火球术"])
     b6 = BT.Battle("怪物", mk_enemy(), {}, p6)
     st6 = b6._player_stats(p6)
-    check("法吸不作用于普攻", st6.get("lifesteal_magi") == 0.08)
+    check("法吸面板 8%", abs(st6.get("lifesteal_magi") - 0.08) < 1e-9, str(st6.get("lifesteal_magi")))
     random.seed(42)
     logs6 = b6._player_attack(st6, p6)
-    check("法吸普攻不触发", not any("吸血" in l for l in logs6), str([l for l in logs6 if "吸血" in l]))
+    # v174.1 普攻技能化：法师普攻改 matk（魔法段）→ 法吸应触发（旧断言"法吸不作用于普攻"
+    # 基于法师普攻是物理 atk 的旧基线，已随 #75 修复失效）
+    check("法吸魔法普攻触发", any("吸血" in l for l in logs6), str([l for l in logs6 if "吸血" in l]))
     found6 = False
     for seed in range(60):
         random.seed(seed)

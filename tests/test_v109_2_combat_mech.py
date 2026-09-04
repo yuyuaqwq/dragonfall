@@ -60,8 +60,10 @@ async def main():
         logs = b._player_attack(st, p)
         dealt = 10**9 - b.enemy["hp"]
         a = atk or st["atk"]
-        is_crit = dealt > a * 1.2          # 暴击（非暴 ≤1.15a）
-        is_lucky = dealt > a * 1.8         # 幸运一击（暴击≤1.725a，幸运≥1.9125a）
+        # v174.1：普攻走技能管道后非暴伤害含 variance 上浮（可 >atk×1.2），
+        # 改用日志暴击标签判定（原 dealt>a×1.2 阈值会把 variance 高值误判暴击）
+        is_crit = any("暴击" in l for l in logs)
+        is_lucky = any("幸运一击" in l for l in logs)
         return logs, dealt, is_crit, is_lucky
 
     print("===== 1. pierce 魔法分支修复（P1-6）=====\n")
