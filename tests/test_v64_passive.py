@@ -180,12 +180,14 @@ async def test_no_upgrade():
 def test_data_integrity():
     print("\n== 10. 数据完整性：被动不污染主动技能表 ==")
     # v153：基础职业技能表每职业 8 个（纯主动 + 被动混合）+ 分支表含被动
+    # v174 块C：诗人 +3 输出技（锁音/破音/共振）→ 11（鱼鱼拍板诗人病根=无战斗力）
     for cls, cname in [("cls_zhan_shi", "战士"), ("cls_fa_shi", "法师"),
                        ("cls_you_xia", "游侠"), ("cls_mu_shi", "牧师"),
                        ("cls_ci_ke", "刺客"), ("cls_wu_seng", "拳师"),
                        ("cls_shi_ren", "吟游诗人")]:
         n = len(C.PLAYER_SKILLS[cls]["skills"])
-        check(f"{cname} 基础技能总数 {n} (v153 8 技能)", n == 8, f"实际 {n}")
+        expect_n = 11 if cls == "cls_shi_ren" else 8
+        check(f"{cname} 基础技能总数 {n} (v153 8 技能/v174 诗人11)", n == expect_n, f"实际 {n}")
         base_passives = [v for v in C.PLAYER_SKILLS[cls]["skills"].values() if v.get("kind") == "被动"]
         check(f"{cname} 基础表无被动", len(base_passives) == 0, f"{len(base_passives)} 个")
 

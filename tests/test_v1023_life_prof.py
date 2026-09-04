@@ -11,6 +11,8 @@
 """
 import sys, os, sqlite3, time, json, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# v174：独立私有测试库（防全量并行时与共享 test_game_data.db 的 clean_db 互清假失败）
+os.environ["GWEN_GAME_DB"] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_v1023_private.db")
 from conftest import C, E, db, clean_db, Main, FakeEvent, run, make_player
 
 passed = failed = 0
