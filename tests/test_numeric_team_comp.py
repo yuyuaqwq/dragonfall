@@ -183,8 +183,9 @@ def main():
           f"lv90={lv90} lv60={lv60}")
     build_player = __import__("numeric_lib.player", fromlist=["build_player"]).build_player
     st20 = build_player("cls_mu_shi", 20, gear_loadout(20, "team_mid"))
-    expect20 = st20["matk"] * 2.0 * 1.0 * (1 + min(st20.get("heal_power", 0) or 0, 0.5))
-    check(f"公式自洽（matk×2.0×1.0×(1+heal_power)，Lv20={expect20:.1f}）",
+    from numeric_lib.team import HEAL_POWER_MULT
+    expect20 = st20["matk"] * HEAL_POWER_MULT * 1.0 * (1 + min(st20.get("heal_power", 0) or 0, 0.5))
+    check(f"公式自洽（matk×{HEAL_POWER_MULT}×1.0×(1+heal_power)，Lv20={expect20:.1f}）",
           abs(lv20 - expect20) < 1e-6, f"got={lv20} expect={expect20}")
 
     print("【⑥ legacy 对照锚点（v173 副本血量重标后同步）】")

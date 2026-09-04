@@ -77,33 +77,44 @@ heal_skills = [nm for nm, s in S.items() if s.get("kind") == "治疗" and nm != 
 missing = [nm for nm in heal_skills if not (S[nm].get("heal_formula") or S[nm].get("heal_expr"))]
 check("全治疗技 heal_formula 覆盖率 100%", not missing, f"缺失: {missing}")
 
-# 2. 治愈术公式曲线（牧师裸 matk=16+2.6(lv-1), hp=100+12(lv-1)）
+# 2. 治愈术公式曲线（真实档位模型：numeric_lib build_player 含装备+加点+tier）
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
+from numeric_lib.player import build_player, PlayerOptions
+from numeric_lib.gear import gear_loadout
+
 zy = S["治愈术"].get("heal_formula")
 if zy:
-    for lv, exp_range in [(30, (0.38, 0.52)), (60, (0.35, 0.48)), (90, (0.33, 0.46))]:
-        matk = 16 + 2.6 * (lv - 1)
-        hp = 100 + 12 * (lv - 1)
+    for lv, loadout, exp_range in [(45, "team_purple9", (0.35, 0.50)),
+                                   (75, "team_purple9", (0.33, 0.48)),
+                                   (95, "team_orange9", (0.33, 0.48))]:
+        gear = gear_loadout(lv, loadout)
+        st = build_player("cls_mu_shi", lv, gear, PlayerOptions(), potion=0.0)
+        matk, hp = st["matk"], st["max_hp"]
         heal = calc_formula(zy, matk, lv, 5, max_hp=hp)
         ratio = heal / hp
         check(f"治愈术 Lv{lv} 满级 ≈ 目标HP%", exp_range[0] <= ratio <= exp_range[1],
               f"heal={heal:.0f} HP={hp} ratio={ratio:.2f}")
 
-# 3. 转职不倒退
-zy_l30 = calc_formula(S["治愈术"]["heal_formula"], 16 + 2.6 * 29, 30, 5, max_hp=100 + 12 * 29)
+# 3. 转职不倒退（真实档位属性）
+gear30 = gear_loadout(30, "solo_mid")
+st30 = build_player("cls_mu_shi", 30, gear30, PlayerOptions(), potion=0.0)
+zy_l30 = calc_formula(S["治愈术"]["heal_formula"], st30["matk"], 30, 5, max_hp=st30["max_hp"])
 sy = S["圣言术"].get("heal_formula")
 if sy:
-    sy_l32 = calc_formula(sy, 16 + 2.6 * 31, 32, 1, max_hp=100 + 12 * 31)
+    # 圣言术 Lv32 技能（1转玩家同档装备）；为公平对比用同 Lv30 档属性
+    sy_l32 = calc_formula(sy, st30["matk"], 32, 1, max_hp=st30["max_hp"])
     check("转职不倒退: 圣言术(Lv32技能1) ≥ 治愈术(Lv30满)×0.95", sy_l32 >= zy_l30 * 0.95,
           f"圣言术={sy_l32:.0f} vs 治愈术满={zy_l30:.0f}")
 
-# 4. 分支大奶 > 基础
+# 4. 分支大奶 > 基础（真实档位）
 for big in ["神圣恩典", "曙光"]:
     f = S[big].get("heal_formula")
     if f:
-        # 神圣恩典 Lv62 / 曙光 Lv98（技能低等级看 ratio 主导）
-        lv = 62 if big == "神圣恩典" else 90
-        h = calc_formula(f, 16 + 2.6 * (lv - 1), lv, 1, max_hp=100 + 12 * (lv - 1))
-        zy_at_lv = calc_formula(zy, 16 + 2.6 * (lv - 1), lv, 5, max_hp=100 + 12 * (lv - 1))
+        # 神圣恩典 Lv62 / 曙光 Lv98 → 用 95 毕业档对比（两技高等级可用）
+        gear = gear_loadout(95, "team_orange9")
+        stb = build_player("cls_mu_shi", 95, gear, PlayerOptions(), potion=0.0)
+        h = calc_formula(f, stb["matk"], 95, 1, max_hp=stb["max_hp"])
+        zy_at_lv = calc_formula(zy, stb["matk"], 95, 5, max_hp=stb["max_hp"])
         check(f"{big} > 治愈术同等级", h > zy_at_lv * 1.05, f"{big}={h:.0f} vs 治愈满={zy_at_lv:.0f}")
 
 # 5. power<1 不再隐式 HP%（除非 hp_pct）
@@ -113,8 +124,8 @@ for nm in ["治愈术", "群体治愈", "安神曲"]:
           "仍无公式/无 hp_pct")
 
 # 6. desc ratio 一致（desc 首百分比 = formula ratio×100 或含成长文案）
-zy_desc_ok = "50% 魔攻" in S["治愈术"].get("desc", "")
-check("治愈术 desc 含 50% 魔攻", zy_desc_ok, S["治愈术"].get("desc", ""))
+zy_desc_ok = "300% 魔攻" in S["治愈术"].get("desc", "")
+check("治愈术 desc 含 300% 魔攻", zy_desc_ok, S["治愈术"].get("desc", ""))
 
 print()
 print(f"===== 结果：PASS {PASS} / FAIL {FAIL} =====")

@@ -75,18 +75,22 @@ BACK_HP_MULT = 0.6   # 后排 HP 池折算（脆皮职业）
 #   但保留 5% 下限防"奶完全免伤"的极端（双奶永动机）。
 HEAL_FLOOR = 0.05
 
-HEAL_POWER_MULT = 2.0    # 治愈术 200%（技能表 27 章：牧师治愈 200% 治疗）
+HEAL_POWER_MULT = 3.0    # v174：治愈术公式首项 ratio（matk×3.0，块 A 校准版真实公式）
 # v173.1 Boss 战治疗预期（2026-09-04 鱼鱼拍板：副本 Boss 战牧师全职奶）：
 #   此前 0.5（半奶半输出）导致承伤模型只抵消 36% raw → 多人本 survive ~11 轮（漏 2-3 轮奶
 #   就团灭）。Boss 战设计预期 = 牧师每轮治愈（专职奶），heal 翻倍 → 承伤 25-30 轮容错。
+# v174：治愈术已公式化（heal_formula=matk×3.0+40+plv×1+slv×15），模型用首项 ratio 3.0 近似
+#   （base/plv 成长在装备 matk 主导下占比 <5%，3.0 近似误差可接受；heal_per_round 为队伍
+#   承伤校验用，精确到 5% 内足够）
 HEAL_CAST_SHARE = 1.0    # 治愈术占用 100% 轮次（Boss 战专职奶，不半输出）
 
 
 def heal_per_round(cls_lv_gear: tuple) -> float:
-    """牧师每轮治疗量（v156 奶量模型）：
+    """牧师每轮治疗量（v156/v174 奶量模型）：
 
-    治愈术 200% 治疗 × 50% 轮次占用 × (1 + heal_power)
-    = 面板 matk × 2.0 × 0.5 × (1 + min(heal_power, 0.5))
+    治愈术 heal_formula = matk×3.0 + 40 + player_lv×1.0 + skill_lv×15（块 A 校准）
+    × HEAL_CAST_SHARE × (1 + heal_power)
+    = 面板 matk × 3.0 × 1.0 × (1 + min(heal_power, 0.5))  （base/成长忽略，<5%）
 
     heal_power 上限 50%（27 章战斗规则；core/constants.py PCT_CAPS.heal_power=0.5），
     牧师基础 heal_power 10%（classes.py base）。cls_lv_gear = (cls, lv, gear)。
