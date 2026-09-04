@@ -3337,6 +3337,13 @@ class WorldCmds(CommandBase):
             yield event.plain_result("\n".join(lines))
             self._stop_event_safe(event)
             return
+        # v173.3 意见#103：武器自选礼包挂起——回复数字领取对应武器
+        _wp = self._weapon_pick_active(group_id, qq_id)
+        if _wp:
+            result = self._weapon_pick_choose(group_id, qq_id, num)
+            yield event.plain_result(result)
+            self._stop_event_safe(event)
+            return
         # O99 修复：与 talk_choice/move 同源判定（_talk_active 清除损坏残留键）
         st = self._talk_active(group_id, qq_id)
         if st:
@@ -3853,6 +3860,73 @@ class WorldCmds(CommandBase):
             if sq.get("status") == "ready" and sq.get("branch_wait"):
                 return sid
         return None
+
+    def _weapon_pick_active(self, group_id, qq_id) -> bool:
+        """v173.3 意见#103：是否有武器自选礼包挂起选择未完成。"""
+        import json as _j
+        try:
+            st = _j.loads(db.get_event_state(f"weapon_pick_{qq_id}") or "{}")
+        except (ValueError, TypeError):
+            st = {}
+        return bool(st.get("active"))
+
+    def _weapon_pick_choose(self, group_id, qq_id, num) -> str:
+        """v173.3 意见#103：回复数字领取自选武器；0=收起下次再选。"""
+        import json as _j
+        import uuid as _uuid
+        key = f"weapon_pick_{qq_id}"
+        try:
+            st = _j.loads(db.get_event_state(key) or "{}")
+        except (ValueError, TypeError):
+            st = {}
+        if not st.get("active"):
+            return ""
+        opts = st.get("opts") or []
+        item_name = st.get("item") or "礼包"
+        # 0 = 收起（保留道具，下次可再选）
+        if num.strip() == "0":
+            db.set_event_state(key, "{}")
+            return f"你合上了【{item_name}】，下次想好了再开～（道具保留在背包）"
+        if not num.isdigit():
+            return f"回复数字 1-{len(opts)} 选择武器；回复 0 收起来～"
+        idx = int(num)
+        if idx < 1 or idx > len(opts):
+            return f"没有第 {idx} 项可选～回复 1-{len(opts)} 选择武器；回复 0 收起来"
+        opt = opts[idx - 1]
+        eq_name = opt.get("equip") or opt.get("name", "")
+        rid = opt.get("rid", "")
+        # 生成装备入包（rid 优先名册；否则 fallback 名册按名查）
+        try:
+            from .. import content as _C
+            rid_list = _C.EQUIP_ROSTER_BY_NAME.get(eq_name, []) if eq_name else []
+            if rid:
+                rid_list = [rid]
+            if not rid_list:
+                return f"【{opt.get('name', eq_name)}】数据缺失，无法发放……(可回复 0 收起来)"
+            eq = _C.generate_roster_equip(rid_list[0])
+            db.add_item(group_id, qq_id, rid_list[0], eq)
+        except Exception:
+            return f"发放【{opt.get('name', eq_name)}】时出错了……(可回复 0 收起来)"
+        # 扣除礼包道具（战斗中使用的兜底：此处按事件状态找到礼包名，从背包删 1 个）
+        self._remove_one_by_name(group_id, qq_id, item_name)
+        # 清挂起
+        db.set_event_state(key, "{}")
+        return f"🎉 你选择了【{eq.get('name', opt.get('name', eq_name))}】！已放入背包，『装备 <名称>』穿上它开始冒险吧～"
+
+    def _remove_one_by_name(self, group_id, qq_id, item_name) -> bool:
+        """按名称从背包移除 1 个同名物品（礼包领取后扣道具用）。
+
+        get_inventory 返回条目含 key（inventory.item_key）——remove_item 按 key 删，
+        不能传 name（v46 起 key 是 ID/uuid）。匹配礼包名（事件状态里存的礼包名）。
+        """
+        items = db.get_inventory(group_id, qq_id)
+        for it in items:
+            d = it["data"]
+            dname = d.get("name", "")
+            if dname and (dname == item_name or (item_name and item_name in dname)):
+                db.remove_item(group_id, qq_id, it["key"], 1)
+                return True
+        return False
 
     def _update_use_quests(self, group_id, qq_id, item_name):
         """v124 use 目标支线：使用指定物品后支线置 ready（如 递麦酒/用月鳞/交信物）。

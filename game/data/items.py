@@ -3089,6 +3089,30 @@ ITEMS.update({
                        "desc": "染着暗红墨迹的薄册——刺客一脉皆可参悟，斩杀残血"},
 })
 
+# ================= v173.3 意见#103（鱼鱼拍板自选礼包）：新手武器自选礼包 =================
+# q1_6 主线『第一杯麦酒』奖励替换：不再固定发法杖，改为自选礼包（使用→弹6职业选项→发数字领取）
+# pick_options 每项: name=展示名(同装备名), rid=名册ID, desc=展示行
+ITEMS.update({
+    "i_novice_weapon_pack": {
+        "name": "新手武器自选礼包", "price": 0, "type": "消耗品", "weapon_pick": True,
+        "desc": "镇长送的行礼——打开后可自选一件新手武器（战士/法师/游侠/牧师/刺客/拳师）",
+        "pick_options": [
+            {"name": "誓约长剑·初心", "rid": "eq_shi_yue_chang_jian_chu_xin",
+             "desc": "⚔️【誓约长剑·初心】誓约铁剑——战士的剑（力量系）"},
+            {"name": "誓约之杖·初芽", "rid": "eq_shi_yue_zhi_zhang_chu_ya",
+             "desc": "🔮【誓约之杖·初芽】新手法杖——法师/诗人的杖（智力系）"},
+            {"name": "誓约长弓·新绿", "rid": "eq_shi_yue_zhang_gong_xin_lv",
+             "desc": "🏹【誓约长弓·新绿】柘木猎弓——游侠的弓（敏捷系）"},
+            {"name": "誓约权杖·初沐", "rid": "eq_shi_yue_quan_zhang_chu_mu",
+             "desc": "✨【誓约权杖·初沐】圣堂权杖——牧师的杖（智力系）"},
+            {"name": "誓约匕首·初影", "rid": "eq_shi_yue_bi_shou_chu_ying",
+             "desc": "🗡️【誓约匕首·初影】夜行短刃——刺客的匕首（敏捷系）"},
+            {"name": "誓约拳套·初锋", "rid": "eq_shi_yue_quan_tao_chu_feng",
+             "desc": "👊【誓约拳套·初锋】缠布拳套——拳师的拳套（力量系）"},
+        ],
+    },
+})
+
 # ================= 21 份支线设计稿新增奖励物品：消耗品/纪念品（2026-08-16 批量登记） =================
 # 消耗品字段复用 item_templates.py 既有模板（heal/mana 百分比、effect 战斗 buff 键）；
 # 纪念品/收藏品无使用逻辑，type=收藏品 仅展示（desc 注明设计效果，待对应系统落地）。

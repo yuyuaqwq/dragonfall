@@ -985,6 +985,14 @@ EQUIP_ROSTER.update({
     'eq_chen_guang_fa_zhang': {'name': '辰光法杖', 'slot': 'weapon', 'weapon_type': 'staff', 'quality': 'purple', 'lv': 98, 'series': '苍穹', 'req': {'int': 92}, 'weapon_effect': 'divine_execution', 'source': '精英专属', 'special': '辰光：施法暴击时追加 30% 光属性伤害', 'desc': '星龙·辰光的鳞片镶成的法杖，杖头凝着一颗永不落下的晨星。辰光：施法暴击时追加 30% 光属性伤害。'},
     # ===== v140 任务专属装备（6件，波3.4：q1_6/q3_6/q5_6/q7_6/q9_6/q12_6 奖励，quests.py 以 eq: 中文名引用）=====
     'eq_shi_yue_zhi_zhang_chu_ya': {'name': '誓约之杖·初芽', 'slot': 'weapon', 'weapon_type': 'staff', 'quality': 'blue', 'lv': 5, 'series': '誓约', 'source': '任务', 'desc': '新手法杖：橡木镇教会老神父送的行礼法杖，杖头嫩芽象征冒险的开始。'},
+    # v173.3 意见#103（鱼鱼拍板自选礼包）：q1_6 主线奖励改新手武器自选礼包——
+    # 6 把同级(Lv.5 blue)武器对应可转职 6 职业，玩家使用礼包后发数字自选。
+    # 誓约之杖·初芽=法系档（法师/诗人共用 staff），补剑/弓/权杖/匕首/拳套 5 档。
+    'eq_shi_yue_chang_jian_chu_xin': {'name': '誓约长剑·初心', 'slot': 'weapon', 'weapon_type': 'sword', 'quality': 'blue', 'lv': 5, 'series': '誓约', 'source': '任务', 'desc': '新手佩剑：老铁亲手打的铁剑，剑鞘系着祝福红绳。战士的第一把剑。'},
+    'eq_shi_yue_zhang_gong_xin_lv': {'name': '誓约长弓·新绿', 'slot': 'weapon', 'weapon_type': 'bow', 'quality': 'blue', 'lv': 5, 'series': '誓约', 'source': '任务', 'desc': '新手猎弓：白鹿森林的柔韧柘木弯成，弓弦是新捻的麻线。游侠的第一把弓。'},
+    'eq_shi_yue_quan_zhang_chu_mu': {'name': '誓约权杖·初沐', 'slot': 'weapon', 'weapon_type': 'mace', 'quality': 'blue', 'lv': 5, 'series': '誓约', 'source': '任务', 'desc': '新手圣杖：圣堂祝圣过的橡木权杖，杖首嵌着温润的月光石。牧师的第一把权杖。'},
+    'eq_shi_yue_bi_shou_chu_ying': {'name': '誓约匕首·初影', 'slot': 'weapon', 'weapon_type': 'dagger', 'quality': 'blue', 'lv': 5, 'series': '誓约', 'source': '任务', 'desc': '新手匕首：铁匠铺边角料磨成的短刃，裹着夜行用的黑布条。刺客的第一把匕首。'},
+    'eq_shi_yue_quan_tao_chu_feng': {'name': '誓约拳套·初锋', 'slot': 'weapon', 'weapon_type': 'fist', 'quality': 'blue', 'lv': 5, 'series': '誓约', 'source': '任务', 'desc': '新手拳套：浸过桐油的厚布缠腕，指节处缝着铁片。拳师的第一副拳套。'},
     'eq_mai_jiu_de_zhu_fu': {'name': '麦酒的祝福', 'slot': 'necklace', 'quality': 'blue', 'lv': 18, 'series': '麦酒', 'source': '任务', 'desc': '金槌酒馆老板娘的祖传项链，据说戴过的人酿酒都特别香。'},
     'eq_sheng_nv_de_yi_zeng': {'name': '圣女的遗赠', 'slot': 'necklace', 'quality': 'purple', 'lv': 35, 'series': '圣女', 'source': '任务', 'desc': '圣堂圣女罗兰临终托付的项链，坠着一枚温润的圣辉石。'},
     'eq_yue_guan_de_shou_wang': {'name': '月冠的守望', 'slot': 'armor', 'quality': 'purple', 'lv': 55, 'series': '月冠', 'source': '任务', 'desc': '精灵长老以月桂树枝编成的护甲，月光下会泛起银辉。'},

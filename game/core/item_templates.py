@@ -91,6 +91,9 @@ def infer_template(data):
     if data.get("learn_skill"):
         # v112 P1：隐藏技能书（learn_skill + require_class 数据驱动，优先于通用 effect）
         return "skill_tome"
+    if data.get("weapon_pick"):
+        # v173.3 意见#103：新手武器自选礼包（使用 → 弹职业选项 → 玩家发数字领取）
+        return "weapon_pick"
     if data.get("hot") or data.get("hot_mana"):
         # v101.28 食物持续恢复：有 hot 字段 = 食物 → food 模板
         # （战斗内=持续恢复，战斗外=即时回复+体力；药水无 hot 字段走原逻辑）
@@ -813,6 +816,40 @@ def tpl_skill_tome(ctx):
     ctx.hook("remove_item")  # 战斗外路径模板自行扣除（与 tpl_heal 同款）
     return ItemResult(
         text=f"📖 你参悟了技能书，学会了隐藏技能『{sname}』！\n「{info['desc']}」")
+
+
+@register("weapon_pick")
+def tpl_weapon_pick(ctx):
+    """v173.3 意见#103（鱼鱼拍板自选礼包）：新手武器自选礼包。
+
+    使用后不立即发武器——弹 6 职业武器选项，写 event_state 挂起
+    (weapon_pick_{qq_id})，玩家回复 1-6 数字领取对应武器（裸数字消费链在
+    npc_quick_dialog 先查本状态）。道具不消耗，选完才扣。
+    """
+    import json as _json
+    d = ctx.data
+    opts = d.get("pick_options") or []
+    if len(opts) < 2:
+        return ItemResult(text=f"【{d.get('name', '礼包')}】内容配置缺失……", consume=False)
+    db = ctx._db()
+    # 防重入：已有挂起选择未完成 → 提示先回数字
+    key = f"weapon_pick_{ctx.qq_id}"
+    try:
+        existing = _json.loads(db.get_event_state(key) or "{}")
+    except (ValueError, TypeError):
+        existing = {}
+    if existing.get("active"):
+        lines = [f"🎁 你正捧着【{d.get('name', '礼包')}】还没选好："]
+        lines += [f"  {i}. {o['name']}" for i, o in enumerate(opts, 1)]
+        lines.append("💡 回复对应数字领取；回复 0 收起来")
+        return ItemResult(text="\n".join(lines), consume=False)
+    # 写挂起状态（不扣道具，玩家选完才扣）
+    db.set_event_state(key, _json.dumps({"active": True, "opts": opts, "item": d.get("name", "")}, ensure_ascii=False))
+    lines = [f"🎁 你打开了【{d.get('name', '礼包')}】，里面是几件新手武器——挑一件顺手的：", "━━━━━━━━━━━━"]
+    lines += [f"  {i}. {o['desc']}" for i, o in enumerate(opts, 1)]
+    lines.append("━━━━━━━━━━━━")
+    lines.append("💡 回复对应数字领取（如回复 1）；回复 0 收起来下次再选")
+    return ItemResult(text="\n".join(lines), consume=False)
 
 
 @register("none")

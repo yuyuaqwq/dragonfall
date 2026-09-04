@@ -72,8 +72,9 @@ MAIN_QUESTS = [
         "objective": {"talk": "npc_mayor"},
         "reward_exp": 2315,
         "reward_gold": 160,
-        # v140 任务奖励丰富化（资源获取渠道）
-        "reward_item": "eq:誓约之杖·初芽",
+        # v173.3 意见#103（鱼鱼拍板自选礼包）：固定发法杖不分职业 → 改发新手武器自选礼包
+        # （使用后弹 6 职业选项，玩家发数字自选；礼包物品见 items.py i_novice_weapon_pack）
+        "reward_item": "新手武器自选礼包",
         "title": "iron_adventurer",  # v140 波3.6：铁牌冒险者称号（title_conds 条件=完成 q1_6）
         "next": "q2_1",
         "story": "镇长：『孩子，橡木镇太小了。我年轻时也像你一样，想去看看外面的世界……去白鹿城吧，那里有更大的舞台。』",
