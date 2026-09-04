@@ -60,18 +60,13 @@ def _save_week_state(qq_id, st):
 
 
 def _grant_rewards(inst, group_id, qq_id, exp, gold):
-    """周常达标发奖单点（与 world._settle_daily_quest 同款结算：exp/gold + 升级）。"""
+    """周常达标发奖单点（与 world._settle_daily_quest 同款结算：exp/gold + 升级）。
+
+    v174 统一抽象：走 game.reward.grant_reward（含升级结算，返回更新后 player）。
+    """
+    from game.reward import grant_reward
+    lines = grant_reward({"exp": int(exp), "gold": int(gold)}, group_id, qq_id)
     player = inst._player(group_id, qq_id)
-    player["exp"] = int(player.get("exp", 0) or 0) + int(exp)
-    player["gold"] = int(player.get("gold", 0) or 0) + int(gold)
-    player["_title_bonus"] = inst._title_bonus(group_id, qq_id)
-    lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
-    db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"],
-                     level=player["level"], hp=player["hp"], mp=player["mp"],
-                     max_hp=player["max_hp"], max_mp=player["max_mp"],
-                     skills=player["skills"], attr_pts=player.get("attr_pts", 0),
-                     skill_points=player.get("skill_points", 0),
-                     learned_skills=player.get("learned_skills", []))
     return player
 
 
