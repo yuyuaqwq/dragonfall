@@ -620,13 +620,15 @@ def boss_instance_panel(iid: str, n_players: int = 1, boss_lv: int | None = None
 
 def build_vs_boss(cls_id: str, lv: int, loadout: str, attr: dict,
                   rotation: list, boss: dict, boss_lv: int = None,
-                  iid: str | None = None, n_players: int = 1) -> dict:
+                  iid: str | None = None, n_players: int = 1,
+                  affix_type: str = "atk") -> dict:
     """流派 vs Boss：期望击杀轮 + 生存轮。
 
     boss: boss_def（instances.py 6元组）或已展开 dict（含 max_hp/def/mdef/atk/matk/spd）
     boss_lv: 覆盖 boss_def[3]（玩家跨级打高本时用）
     iid: 若给副本 id，用 team 口径叠 hp_mult/atk_mult（推荐）；否则当裸模板处理
     n_players: 打本次数（单人=1）
+    affix_type: v175e 词条乘区流派（含生存向 dodge/block/lifesteal/reduce/thorns）
     返回 {kill_rounds, survive_rounds, verdict}
     """
     # 展开 Boss 面板 —— 优先实例完整口径（与 battle2/team_matrix 对齐）
@@ -653,11 +655,11 @@ def build_vs_boss(cls_id: str, lv: int, loadout: str, attr: dict,
     mdef = int(boss_panel.get("mdef", 0))
     target = {"role": "boss", "lv": boss_lv or 20, "max_hp": hp,
               "def": edef, "mdef": mdef, "hp": hp}
-    r = rotation_dps(cls_id, lv, loadout, attr, rotation, fight_len=60.0, target=target)
+    r = rotation_dps(cls_id, lv, loadout, attr, rotation, fight_len=60.0, target=target, affix_type=affix_type)
     kill = r["kill_rounds"]
     # 承伤侧：复用 team 口径 —— Boss 单发 = _boss_hit(boss_def, m, def, mdef, atk_mult)
     # （物理/魔法取高 × atk_mult × 1.35 enraged 保守）
-    st = build_panel(cls_id, lv, loadout, attr)
+    st = build_panel(cls_id, lv, loadout, attr, affix_type=affix_type)
     from data.plugins.dragonfall.game import engine as E
     boss_atk = float(boss_panel.get("atk", 0)) * atk_mult * 1.35
     boss_matk = float(boss_panel.get("matk", 0)) * atk_mult * 1.35
@@ -665,6 +667,13 @@ def build_vs_boss(cls_id: str, lv: int, loadout: str, attr: dict,
     d_magi = E.calc_damage(int(boss_matk), int(st.get("mdef", 0)), variance=0.0, dmg_type="magi")
     boss_hit = max(d_phys, d_magi)
     player_hp = float(st.get("max_hp", 1000))
+    # v175e 生存乘区（闪避战士/格挡坦/吸血续航建模）：
+    # 引擎口径（battle.py _damage_player）：闪避先判（全额免，cap40%，PVE 无精准削），
+    # 命中后格挡判（减半，cap40%）→ 期望承伤因子 = (1-dodge) × (1-block/2)
+    dodge = min(float(st.get("dodge", 0) or 0), 0.40)
+    block = min(float(st.get("block", 0) or 0), 0.40)
+    mit = (1.0 - dodge) * (1.0 - block / 2.0)
+    ls = float(st.get("lifesteal", 0) or 0)
     # 单刷吃药水近似（team_matrix 单刷口径：防御药水 def×1.45 + 治疗药水每3轮回50%血）
     if int(boss_panel.get("_n_players", n_players)) <= 1 and loadout not in ("naked",):
         pdef_b = int(st.get("def", 0) * 1.45)
@@ -673,10 +682,20 @@ def build_vs_boss(cls_id: str, lv: int, loadout: str, attr: dict,
         d_magi_b = E.calc_damage(int(boss_matk), pmdef_b, variance=0.0, dmg_type="magi")
         boss_hit = max(d_phys_b, d_magi_b)
         heal_per_round = player_hp * 0.50 / 3.0
-        net = max(boss_hit - heal_per_round, boss_hit * 0.2)
+        # 闪避/格挡削减 boss_hit 后，治疗药水回复才有意义（期望口径）
+        net_hit = boss_hit * mit
+        # 吸血续航（近似）：lifesteal × 每轮输出。每轮输出 = 击杀血量/击杀轮数
+        # 注：期望模型不模拟 Boss 行动，吸血精确结算走真引擎 battle_rotation（这里粗近似）
+        ls_heal = 0.0
+        if ls > 0 and kill and kill > 0:
+            ls_heal = (hp / kill) * ls
+        net = max(net_hit - heal_per_round - ls_heal, net_hit * 0.2)
         survive = player_hp / max(net, 1.0)
     else:
-        survive = player_hp / max(boss_hit, 1.0) if boss_hit > 0 else 999.0
+        # 无药水分支：净承伤 = 单发 × 闪避/格挡减免（期望）
+        net_hit = boss_hit * mit
+        net = net_hit if net_hit > 0 else 1.0
+        survive = player_hp / max(net, 1.0) if net > 0 else 999.0
     verdict = ""
     if kill is None:
         verdict = "🔴 杀不死"

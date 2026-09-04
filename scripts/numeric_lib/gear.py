@@ -73,6 +73,14 @@ def make_gear(level: int, quality: str = "blue", enhance: int = 0,
         "lifesteal": {"lifesteal": 0.15},                # 15% 吸血（生存向）
         "elem": {"dmg_mult": 0.12},                      # +12% 全伤（与其它乘区等价水平）
         "cdr": {"cdr": 0.20},                            # +20% 冷却缩减（引擎 cap 40%；CD8→6.4/12→9.6）
+        # v175e 生存乘区（鱼鱼拍板全加）：闪避战士/格挡坦/吸血续航/减伤/反伤/幸运/处决
+        # 生存词条是防御向配装（换防御属性），输出收益为负但提高 survive——与输出乘区互斥选择
+        "dodge": {"dodge": 0.20},                        # +20% 闪避（引擎 cap 40%；期望承伤 ×0.80）
+        "block": {"block": 0.25},                        # +25% 格挡（cap 40%；格挡减半 → 期望 ×(1-0.25/2)=0.875）
+        "reduce": {"dmg_reduce": 0.20},                  # +20% 减伤（reduce_all 减伤 cap90%）
+        "thorns": {"thorns": 0.30},                      # +30% 反伤（受击反弹 30% 伤害给攻击者）
+        "luck": {"luck": 0.15},                          # +15% 幸运（暴击后 30% 概率 ×1.3 → 额外 ~0.09 期望）
+        "execute": {"execute_threshold": 0.30},          # 30% 斩杀线（目标血量 <30% ×1.5）
     }
     # 词条类型 → 应用方式（面板键多数直接进 stats 由引擎消费；_pct 后缀 = 百分比乘攻击）
     affix_vals = AFFIX_BY_TYPE.get(affix_type, {})
