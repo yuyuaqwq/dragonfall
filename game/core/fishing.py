@@ -40,8 +40,27 @@ def roll_fish(prof_lv: int = 1, spot_id: str | None = None, bait: str | None = N
     spot_id: 钓点地图 ID（FISHING_SPOTS 的 key）；钓点禁出档位权重清零，
              品种限定水域（spots 字段）不满足时跳过。
     bait: v102.3 鱼饵加成（glow=紫橙×2 / dough=绿蓝×1.5 / blood=稀有鱼种×3）
+
+    v174 统一抽象：内部走 drop_engine.roll("fish:{spot}")，数据源 DROP_POOLS。
+    返回形态不变（FISH_POOL 条目 dict：name/quality/type/price/size_range/...）。
+    """
+    if spot_id:
+        from game.drop_engine import roll as _roll, _SimpleCtx
+        # 季节显式传入：让测试能 mock fishing.current_season（drop_engine 不自算）
+        ctx = _SimpleCtx(map_id=spot_id, prof_lv=prof_lv, bait=bait, qty=1,
+                         season=current_season())
+        res = _roll(f"fish:{spot_id}", ctx)
+        if res and res[0].get("type") == "fish":
+            return res[0]["data"]
+        # 池不存在/抽空 → 回退老逻辑（数据兜底，保持行为）
+    return _roll_fish_legacy(prof_lv, spot_id, bait)
+
+
+def _roll_fish_legacy(prof_lv: int = 1, spot_id: str | None = None, bait: str | None = None):
+    """旧垂钓逻辑（v174 前）：drop_engine 池缺失时的行为兜底。
+
     v116 季节限定：season 硬限定鱼的季节不匹配时跳过；season_boost 偏好的季节权重 ×1.5。
-           若某档位在当前季节被硬限定过滤空，则放宽为「不限定季节」重试，避免钓空。
+    若某档位在当前季节被硬限定过滤空，则放宽为「不限定季节」重试，避免钓空。
     """
     spot = FISHING_SPOTS.get(spot_id) if spot_id else None
     ban = set(spot.get("ban_quality", [])) if spot else set()

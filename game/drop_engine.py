@@ -163,6 +163,23 @@ def _roll_weighted(pool: dict, ctx: Any) -> list[dict]:
     return out
 
 
+def _quality_weights_inline(prof_lv: int, weights_table: dict) -> list:
+    """垂钓等级 → 五档权重（内联实现，等价 core/fishing._quality_weights，防循环 import）。"""
+    lv = max(1, min(9, int(prof_lv)))
+    keys = sorted(weights_table)
+    if lv <= keys[0]:
+        return list(weights_table[keys[0]])
+    if lv >= keys[-1]:
+        return list(weights_table[keys[-1]])
+    for a, b in zip(keys, keys[1:]):
+        if a <= lv <= b:
+            wa = weights_table[a]
+            wb = weights_table[b]
+            t = (lv - a) / (b - a)
+            return [wa[i] + (wb[i] - wa[i]) * t for i in range(len(wa))]
+    return list(weights_table[keys[0]])
+
+
 def _roll_fish(pool: dict, ctx: Any) -> list[dict]:
     """垂钓：先按钓点禁档/鱼饵/等级定质量档，再从该档品种按权重摸 1 条。
 
@@ -173,7 +190,7 @@ def _roll_fish(pool: dict, ctx: Any) -> list[dict]:
     """
     import game.content as C  # noqa: E402
     FISH_QUALITY_ORDER = C.FISH_QUALITY_ORDER
-    from game.core.fishing import _quality_weights  # noqa: E402
+    FISH_QUALITY_WEIGHTS = C.FISH_QUALITY_WEIGHTS
     spot_cfg = pool.get("spot_cfg") or {}
     ban = set(spot_cfg.get("ban_quality", []))
     prof_lv = int(getattr(ctx, "prof_lv", 1) or 1)
@@ -181,13 +198,18 @@ def _roll_fish(pool: dict, ctx: Any) -> list[dict]:
     spot_id = getattr(ctx, "map_id", None)
     season = getattr(ctx, "season", None)
     if not season:
+        # 内联季节计算（等价 core.time_weather.current_season，纯 datetime 防循环 import）
         try:
-            from game.core.fishing import current_season  # noqa: E402
-            season = current_season()
+            import datetime
+            _m = datetime.datetime.now().month
+            season = {3: "spring", 4: "spring", 5: "spring",
+                      6: "summer", 7: "summer", 8: "summer",
+                      9: "autumn", 10: "autumn", 11: "autumn",
+                      12: "winter", 1: "winter", 2: "winter"}.get(_m, "spring")
         except Exception:
             season = None
 
-    weights = list(_quality_weights(prof_lv))
+    weights = list(_quality_weights_inline(prof_lv, FISH_QUALITY_WEIGHTS))
     for i, q in enumerate(FISH_QUALITY_ORDER):
         if q in ban:
             weights[i] = 0.0
