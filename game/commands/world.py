@@ -4578,50 +4578,33 @@ class WorldCmds(CommandBase):
                 lines.append("")
             lines += lv_logs
         # v104 M20 P1：列表型奖励（如 s17 随机符文）→ 随机抽一个发放
+        # v174 统一抽象：item/eq/pet/mount/title 发放走 game.reward.grant_reward
+        # （只传物品类，exp/gold 已在上方原逻辑结算且要 return 更新后 player）
         ri = qdef.get("reward_item")
+        _reward_items = []
         if ri:
             if isinstance(ri, list):
                 ri = random.choice(ri)
-            # v104 M20 P1：eq: 前缀 = 装备奖励（s3 汉斯的手工武器）——名册精确生成入包
-            if isinstance(ri, str) and ri.startswith("eq:"):
-                eq_name = ri[3:]
-                eq_ids = C.EQUIP_ROSTER_BY_NAME.get(eq_name, [])
-                if eq_ids:
-                    eq = C.generate_roster_equip(eq_ids[0])
-                    db.add_item(group_id, qq_id, eq_ids[0], eq)
-                    lines.append(f"  🎁 获得装备：{eq.get('name', eq_name)}")
-                else:
-                    print(f"[dragonfall][v104] 任务『{qdef.get('name', '')}』奖励装备缺失：{eq_name}（名册未收录），已跳过")
-            else:
-                # v104 M20 P3：先 items 后 materials（同名跨表实体发对表，如 s4「麦酒」）
-                _iid = C.resolve("items", ri)
-                if _iid in C.ITEMS:
-                    _idata = C.ITEMS[_iid]
-                    db.add_item(group_id, qq_id, _iid, _idata)
-                    lines.append(f"  🎁 获得特殊道具：{ri}")
-                else:
-                    rimid = C.resolve("materials", ri)
-                    if rimid in C.MATERIALS:
-                        db.add_item(group_id, qq_id, rimid,
-                                    {"name": C.display("materials", rimid),
-                                     "type": C.MATERIALS[rimid].get("type", "材料"),
-                                     "stackable": True, "price": C.MATERIALS[rimid]["price"]})
-                        lines.append(f"  🎁 获得特殊道具：{ri}")
-                    else:
-                        # v104 M20 P1：奖励实体缺失时记录（此前静默不发，缺失项无从发现）
-                        print(f"[dragonfall][v104] 任务『{qdef.get('name', '')}』奖励道具缺失：{ri}（未收录），已跳过")
-        # v124 宠物蛋（reward_pet，如橡木镇新手任务铁壳龟蛋）入包——蛋入包后『使用 宠物蛋』孵化
+            # eq: 前缀保留（grant_reward 支持 eq:rid 按名册名解析）
+            _reward_items.append({"item": ri, "n": 1})
+        _rew = {}
+        if _reward_items:
+            _rew["items"] = _reward_items
         rp = qdef.get("reward_pet")
         if rp:
-            _egg = C.make_pet_egg(rp)
-            db.add_item(group_id, qq_id, f"petegg_{rp}", _egg)
-            lines.append(f"  🥚 获得道具：{_egg['name']}！『使用 宠物蛋』孵化！")
-        # v124 坐骑缰绳（reward_mount，如 hq7_3 雾羽候鸟）——『使用 缰绳』驯服解锁
+            _rew["pets"] = [rp] if isinstance(rp, str) else list(rp)
         rm = qdef.get("reward_mount")
         if rm:
-            _rein = C.make_mount_rein(rm)
-            db.add_item(group_id, qq_id, f"mountrein_{rm}", _rein)
-            lines.append(f"  🐾 获得道具：{_rein['name']}！『使用 缰绳』驯服坐骑！")
+            _rew["mounts"] = [rm] if isinstance(rm, str) else list(rm)
+        _tid = qdef.get("title")
+        if _tid:
+            _rew["title"] = _tid
+        if _rew:
+            try:
+                from game.reward import grant_reward
+                grant_reward(_rew, group_id, qq_id, player=player, lines=lines)
+            except Exception:
+                pass
         # v87 隐藏职业：交任务解锁（unlock_class 写入 hidden_class_unlock）
         uc = qdef.get("unlock_class")
         if uc:

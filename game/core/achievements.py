@@ -265,26 +265,19 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
         exp_gain = sum((a.get("reward") or {}).get("exp", 0) for a in claimable)
         gold_gain = sum((a.get("reward") or {}).get("gold", 0) for a in claimable)
         # v140 波2：物品奖励统一收集 → 发放（失败静默跳过，不阻塞经验/金币/升级）
+        # v174 统一抽象：物品发放走 game.reward.grant_items_batch（与任务/对话/收藏同一实现）
         item_lines = []
         _reward_ok = True
-        try:
-            from ..store.inventory import _key_to_id
-        except Exception:
-            _key_to_id = None
+        _all_items = {}
         for a in claimable:
             for ik, ic in ((a.get("reward") or {}).get("items") or {}).items():
-                try:
-                    if _key_to_id is not None:
-                        ik = _key_to_id(ik)
-                    _idata = C.ITEMS.get(ik) or C.MATERIALS.get(ik)
-                    if _idata is None:
-                        # 兜底：给个最小数据让 add_item 有 name 可显示
-                        _idata = {"name": ik, "type": "材料", "stackable": True, "price": 0}
-                    db.add_item(group_id, qq_id, ik, _idata, count=int(ic))
-                    _disp = _idata.get("name", ik)
-                    item_lines.append(f"  🎒 {_disp} ×{ic}")
-                except Exception:
-                    _reward_ok = False
+                _all_items[ik] = int(_all_items.get(ik, 0)) + int(ic)
+        if _all_items:
+            try:
+                from game.reward import grant_items_batch
+                item_lines, _reward_ok = grant_items_batch(group_id, qq_id, _all_items, lines=item_lines)
+            except Exception:
+                _reward_ok = False
         player["exp"] = player.get("exp", 0) + exp_gain
         player["gold"] = player.get("gold", 0) + gold_gain
         lv_logs, player = check_player_level_up(group_id, qq_id, player)

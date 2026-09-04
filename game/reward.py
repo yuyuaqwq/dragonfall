@@ -124,6 +124,21 @@ def _grant_bonus(group_id, qq_id, bonus, lines, db):
         lines.append(f"  ✨ 永久属性：{'、'.join(parts)}（已自动生效）")
 
 
+def grant_items_batch(group_id, qq_id, items_dict, lines=None) -> tuple:
+    """批量物品发放辅助（成就等多条奖励合并物品时用）。
+
+    items_dict: {item_key: count}（成就 reward.items 原生形态，兼容中文名）
+    lines: 可选文案列表（追加物品行）
+    返回 (lines, 是否全部成功)。物品缺失静默跳过不阻塞。
+    """
+    from game import db  # noqa: E402
+    if lines is None:
+        lines = []
+    items = [{"item": k, "n": v} for k, v in (items_dict or {}).items()]
+    _fail = _grant_items(group_id, qq_id, items, lines, db)
+    return lines, _fail == 0
+
+
 def grant_reward(reward: dict, group_id, qq_id, *, player=None, lines=None) -> list:
     """统一奖励发放入口。
 
