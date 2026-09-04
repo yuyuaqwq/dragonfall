@@ -647,6 +647,45 @@ class Battle:
             "pending_player_cast": getattr(self, "_pending_player_cast", None),
         }
 
+    def _load_player_state(self, qq_id) -> dict | None:
+        """v173.6 重构：从副本 st 载入指定玩家状态到 battle 单套字段（_focus_player）。
+        副本玩家状态本就 per-player 存于 st（p_buffs/resources/cooldown/...按 qq_id 分 key），
+        旧架构每次玩家行动/受击都重新 from_state 构造 Battle 载入单套字段——无法在一次
+        敌方行动里切换目标（点名/打后排/AOE 多目标）。
+
+        本方法把"载入某玩家状态"从构造中抽出：敌方行动选目标后调用即可切换结算对象。
+        返回该玩家快照 dict；找不到/已死返回 None。野外（无 _st）无操作返回 None。
+        """
+        if not self._st:
+            return None
+        try:
+            st = self._st
+            key = str(qq_id)
+            snap = (st.get("players") or {}).get(key)
+            if not snap or not (st.get("alive") or {}).get(key, True):
+                return None
+            # 载入该玩家单套状态字段（与 from_state 同口径，从 per-player dict 取）
+            self.p_buffs = dict((st.get("p_buffs") or {}).get(key, {}))
+            self._p_buff_hits = dict((st.get("p_buff_hits") or {}).get(key, {}))
+            self._reduce_all_left = int((st.get("reduce_all_left") or {}).get(key, 0) or 0)
+            self._reduce_left = int((st.get("reduce_left") or {}).get(key, 0) or 0)
+            self.poi_buff = (st.get("poi_buff") or {}).get(key)
+            self.p_hot = (st.get("p_hot") or {}).get(key, {}) or {}
+            self.p_food_effects = (st.get("p_food_effects") or {}).get(key, []) or []
+            self.p_shields = (st.get("p_shields") or {}).get(key, {}) or {}
+            self.charging = (st.get("charging") or {}).get(key)
+            self.p_defending = bool((st.get("p_defending") or {}).get(key, False))
+            self.mech_stacks = (st.get("mech_stacks") or {}).get(key, {}) or {}
+            self.resources = (st.get("resources") or {}).get(key, {}) or {}
+            self.cooldown = (st.get("cooldown") or {}).get(key, {}) or {}
+            self.combo_seq = (st.get("combo_seq") or {}).get(key, []) or []
+            self.summons = (st.get("summons") or {}).get(key, []) or []
+            self._pending_player_cast = None
+            self._player_casting = False
+            return snap
+        except Exception:
+            return None
+
     @classmethod
     def from_state(cls, st: dict):
         # v2：有完整阵列用阵列；只有单怪 enemy → 包成单怪阵列（旧存档容错）

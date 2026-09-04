@@ -406,8 +406,10 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
     is_elite = role == "elite"
     # v27b 多对多站位引擎：按 role 推导站位层/射程（§9.3 数据层规格）
     # v2 审计（P2）：boss 也计入后排——caster/healer/boss → rank 2，其余（普通/精英物理近战）→ 1
-    rank = 2 if role in ("caster", "healer", "boss") else 1
-    reach = rank
+    # v173.6 站位数据化（鱼鱼拍板 2026-09-04）：monster_mods 可配 rank/reach 覆盖
+    #   role 推导（如近战 Boss 站前排、远程小怪站后排、长射程弓手）——不改 6 元组格式。
+    rank = int(mod.get("rank", 2 if role in ("caster", "healer", "boss") else 1))
+    reach = int(mod.get("reach", rank))  # 缺省 reach = rank
     return {
         "id": mid,
         "uid": "e_{}-{}".format(mid, lv),  # 确定性 uid（名字+序号，不引入随机）

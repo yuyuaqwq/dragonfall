@@ -119,6 +119,45 @@ def select_aoe_targets(attacker, units, scope) -> list:
     return [u for u in in_range if int(u.get("rank", 1) or 1) == mr]
 
 
+def pick_by_policy(policy: str | None, units, threat=None, fallback=None):
+    """v173.6 目标策略共享解析（玩家/怪物同一套语义，数据驱动）。
+    从存活 units 按 policy 选 1 个目标；policy 缺省/未知 → fallback 结果。
+
+    policy ∈:
+      "hate_top"  → 全层仇恨最高（点名 OT 者，无视站位/射程）
+      "random"    → 随机存活（无视仇恨/站位）
+      "weakest"   → 血量百分比最低（压血线/处决）
+      "backline"  → rank 最大（后排）存活；同 rank 随机
+      "front"     → 最前排（默认，等同 select_target front 语义）
+    返回 Unit | None。threat: {uid: 仇恨值}（hate_top 用）。
+    """
+    alive = alive_units(units)
+    if not alive:
+        return None
+    policy = (policy or "").lower()
+    if policy == "hate_top":
+        if threat:
+            _mx = max(float(threat.get(u.get("uid"), 0) or 0) for u in alive)
+            _c = [u for u in alive if float(threat.get(u.get("uid"), 0) or 0) >= _mx]
+            return random.choice(_c)
+        # 无仇恨表 → 随机
+        return random.choice(alive)
+    if policy == "random":
+        return random.choice(alive)
+    if policy == "weakest":
+        return min(alive, key=lambda u: (u.get("hp", 0) or 0) / max(1, u.get("max_hp", 1) or 1))
+    if policy == "backline":
+        _mxr = max(int(u.get("rank", 1) or 1) for u in alive)
+        _c = [u for u in alive if int(u.get("rank", 1) or 1) == _mxr]
+        return random.choice(_c)
+    if policy == "front":
+        _mnr = min(int(u.get("rank", 1) or 1) for u in alive)
+        _c = [u for u in alive if int(u.get("rank", 1) or 1) == _mnr]
+        return random.choice(_c)
+    # 缺省/未知 → fallback（调用方传入的默认选择函数结果）
+    return fallback
+
+
 def compact(units) -> list:
     """原地阵型压缩（§2.1）：存活单位按当前 rank 升序重排、rank 重编号为 1..K
     （同层内保持原有顺序）；死亡单位移除。

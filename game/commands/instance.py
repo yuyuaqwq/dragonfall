@@ -3341,8 +3341,22 @@ class InstanceCmds(CommandBase):
         if target is None:
             # v173.5 全层仇恨（鱼鱼拍板 2026-09-04）：Boss 级敌人全层按仇恨最高选目标
             # （后排输出/治疗高仇恨会被点名 → OT 模型）；精英/普通怪保持前排优先（front）。
-            _tmode = "all" if str(unit.get("role", "")) == "boss" else "front"
-            target = FM.select_target(unit, player_units, threat=threat_by_uid, threat_mode=_tmode)
+            # v173.6 目标策略数据化：monster_mods 配 target_policy（hate_top/random/weakest/
+            #   backline/front）→ 走共享 pick_by_policy（与玩家侧同语义）；未配 → 默认规则。
+            _tpol = ""
+            try:
+                _tpol = str((C.MONSTER_MODS.get(unit.get("id") or "", {}) or {}).get("target_policy", "") or "")
+            except Exception:
+                _tpol = ""
+            if _tpol:
+                _fb = None
+                # fallback = 原规则（boss 全层仇恨 / 其他前排）
+                _tmode = "all" if str(unit.get("role", "")) == "boss" else "front"
+                _fb = FM.select_target(unit, player_units, threat=threat_by_uid, threat_mode=_tmode)
+                target = FM.pick_by_policy(_tpol, player_units, threat=threat_by_uid, fallback=_fb)
+            else:
+                _tmode = "all" if str(unit.get("role", "")) == "boss" else "front"
+                target = FM.select_target(unit, player_units, threat=threat_by_uid, threat_mode=_tmode)
         if target is None:
             return logs
         tkey = str(target.get("qq_id") or target.get("uid", ""))
