@@ -838,10 +838,8 @@ class Battle:
         tier = int(player.get("class_tier", 0) or 0)
         ov = BRANCH_RESOURCE_OVERRIDE.get((cls, path))
         if ov is not None:
+            # v176: (cls, 0) 空元组 = 基础态无资源（原 842 行 cls_fa_shi 特判数据化）
             return list(ov)
-        if cls == "cls_fa_shi" and not (path and tier):
-            # v130.2（鱼鱼拍板）：基础法师无核心资源——纯蓝施法者，充能条是转职首获
-            return []
         rd = E.core_resource_def(cls)
         return [rd["key"]] if rd else []
 
@@ -869,6 +867,18 @@ class Battle:
             player["v139_modes"] = self._v139_modes
             player["v139_charge"] = self._v139_charge
         return int(player.get("evolve_path", 0) or 0) == int(path or 0)
+
+    def _is_element_mage(self, player: dict) -> bool:
+        """元素法师（法师·攻线）判定——v176 单点收口（原 7 处 cls_fa_shi+_is_path(1) 散落特判）。"""
+        return bool(player.get("class_name", "") == "cls_fa_shi" and self._is_path(player, 1))
+
+    @staticmethod
+    def _is_element_skill(info: dict) -> bool:
+        """元素/奥术技能判定——技能带 element 字段或 res_gain element（v176 解耦：
+        原 1145/5092 处额外判 cls_fa_shi——但 element 技能天然只有法师拥有，职业判断冗余删除）。"""
+        if not info:
+            return False
+        return bool(info.get("element") or (info.get("res_gain") or {}).get("element"))
 
     def _elem_charge(self) -> int:
         """法师充能条当前值（v130.2：element 资源数值化 0-5；resources['element'] 保留当前系字符串，兼容旧消费点）"""
@@ -950,7 +960,7 @@ class Battle:
         new = min(mx, cur + amount)
         if rd.get("overflow_shield") and overflow > 0:
             if not getattr(self, "_overflow_shield_cd", False):
-                shield = int(overflow * 5)
+                shield = int(overflow * float(rd.get("overflow_ratio", 5) or 5))  # v176: 系数读数据
                 self._add_shield("overflow_shield", shield, 1)
                 self._overflow_shield_cd = True
                 if logs is not None:
@@ -1137,10 +1147,9 @@ class Battle:
         if mp <= 0:
             return 0
         reduce = 0
-        cls = player.get("class_name", "")
-        # 凝神塑能：元素/奥术技能 = 带 element 字段或 res_gain element 的法师技能
+        # 凝神塑能：元素/奥术技能 = 带 element 字段或 res_gain element（v176: 删 cls 特判，技能自带 element 即天然法师技）
         eff, tier = self._affix_eff_tiered(player, "arcane_focus")
-        if eff and cls == "cls_fa_shi" and (info.get("element") or (info.get("res_gain") or {}).get("element")):
+        if eff and self._is_element_skill(info):
             pct = float(tier if tier is not None else eff.get("mp_cost_reduce", 0.10) or 0.10)
             reduce += int(mp * pct)
         # 圣徽之佑：神迹技（消耗信仰/悼咏）
@@ -1193,7 +1202,12 @@ class Battle:
                 self.mech_stacks.setdefault("echo", 0)
             elif k == "energy":
                 # 游侠精力：唯一自然回资源，战斗开始满额 100（ranger.md 设计稿 + E1 回归修复）
-                self.resources[k] = int((C.CORE_RESOURCES.get("cls_you_xia") or {}).get("max", 100) or 100)
+                # v176: 读 core_resources start_full 字段（原 cls_you_xia 特判数据化）
+                _rd_e = E.core_resource_def(player.get("class_name", ""))
+                if _rd_e and _rd_e.get("start_full"):
+                    self.resources[k] = int(_rd_e.get("max", 100) or 100)
+                else:
+                    self.resources[k] = 0
             else:
                 self.resources[k] = 0
         # v110.3 P1-11：致命预谋被动——战斗开始 +1 连击点（数据驱动 battle_start_cp，替代名字硬匹配）
@@ -1512,7 +1526,7 @@ class Battle:
                          player: dict | None = None) -> int:
         """施法命中叠加目标元素印记（每系上限 ELEMENT_MARKS_MAX=3；印记铭刻词条 +1 → 4）。
         返回该系新层数。"""
-        if element not in ("fire", "ice", "thunder"):
+        if element not in E.ELEMENT_MARKS:  # v176: 元素枚举读数据表 keys（原硬编码 fire/ice/thunder）
             return 0
         marks = self._elem_marks(target)
         cur = int(marks.get(element, 0) or 0)
@@ -1525,7 +1539,7 @@ class Battle:
         元素法师 cls_fa_shi 攻线转职后生效，cond=element_mage）。player 缺省取本场 self.player。"""
         pl = player or self.player or {}
         bonus = 0
-        if pl.get("class_name", "") == "cls_fa_shi" and self._is_path(pl, 1):
+        if self._is_element_mage(pl):
             for eff, tier in self._affix_effs(pl, "sigil_engrave"):
                 if not eff:
                     continue
@@ -1551,9 +1565,7 @@ class Battle:
         if not last or last != element:
             return False
         # 元素凝聚被动：同系连发第二次施放额外 +1 充能（攻线·元素法师）
-        if (player.get("class_name", "") == "cls_fa_shi"
-                and self._is_path(player, 1)
-                and ELEMENT_SAME_CAST_EXTRA_CHARGE):
+        if self._is_element_mage(player) and ELEMENT_SAME_CAST_EXTRA_CHARGE:
             self._res_gain(player, "element", ELEMENT_SAME_CAST_EXTRA_CHARGE)
         return True
 
@@ -1591,7 +1603,7 @@ class Battle:
         返回 (reaction_mult, 反应日志, chain_flag) 或 None（目标无对应印记系）。
         aoe/freeze 在函数内结算；chain 返回 flag 由调用方 multi+1。结算后清除被反应消费的目标印记系。
         """
-        if element not in ("fire", "ice", "thunder"):
+        if element not in E.ELEMENT_MARKS:  # v176: 元素枚举读数据表 keys
             return None
         marks = self._elem_marks()
         target_el = None
@@ -1629,7 +1641,7 @@ class Battle:
 
     def _reaction_catalyst_mult(self, player: dict) -> float:
         """v130.2d 反应催化：元素反应伤害倍率（effect.reaction_dmg=0.15；元素法师攻线转职后生效）。"""
-        if not (player.get("class_name", "") == "cls_fa_shi" and self._is_path(player, 1)):
+        if not (self._is_element_mage(player)):
             return 1.0
         bonus = 0.0
         for eff, tier in self._affix_effs(player, "reaction_catalyst"):
@@ -4934,10 +4946,11 @@ class Battle:
             # v130.2 目标侧 element_marks 登记（每系上限 3；仅命中叠加——mage_转职.md §1.0①）
             if total > 0:
                 new_marks = self._elem_mark_apply(element, layers=extra_layers, player=player)
-                if player.get("class_name", "") == "cls_fa_shi" and self._is_path(player, 1):
+                if self._is_element_mage(player):
                     logs.append(f"✦ 元素印记：目标{ {'fire': '火', 'ice': '冰', 'thunder': '雷'} [element]}印 {new_marks}/{self._elem_mark_max(player)}")
                 # v130.2 last_element 同系连发：记录上次元素，同系第二次施放额外 +1 充能（元素凝聚）
-                if player.get("class_name", "") == "cls_fa_shi":
+                # v176: 解耦——玩家激活元素体系（resources 含 element 键）即记录，不再判职业名
+                if "element" in (self.resources or {}):
                     self._last_element_set(player, element)
             # v104 R3 P1-1：寒霜亲和——冰系技能命中附带减速 2 刻
             if element == "ice":
@@ -5084,7 +5097,7 @@ class Battle:
             self._affix_res_proc(player, "on_attack", logs)
         else:
             self._affix_res_proc(player, "on_skill", logs)
-            if player.get("class_name", "") == "cls_fa_shi" and (info.get("element") or (info.get("res_gain") or {}).get("element")):
+            if self._is_element_skill(info):  # v176: 元素技能命中触发 on_cast 资源词条（原 5092 额外判 cls_fa_shi）
                 self._affix_res_proc(player, "on_cast", logs)
             if info.get("combo"):
                 self._affix_res_proc(player, "combo_skill", logs)

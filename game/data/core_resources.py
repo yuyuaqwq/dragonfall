@@ -33,7 +33,7 @@ CORE_RESOURCES = {
         # v130.2.1：满溢转盾（overflow_shield）开放——满 10 后受击溢出转 5 护盾（「把血当钱花」，同悼咏先例 CR:101-108）
         "key": "rage", "name": "怒气", "max": 10, "regen": 0,
         "desc": "通用基座：普攻/技能/受击三路攒怒，满 10 掷背水一战，满溢转盾(overflow_shield)兜底；血债/沸血/壁垒等血线玩法下放转职线",
-        "on_attack": 1, "on_hit": 1, "on_skill": 2, "overflow_shield": True,
+        "on_attack": 1, "on_hit": 1, "on_skill": 2, "overflow_shield": True, "overflow_ratio": 5,  # v176: ×5 系数数据化
         # ===== v139（参考_云海猎团职业融合_v139_狂战士样板.md §2.2）：攻线狂战士双形态·狂暴 =====
         # 满怒入狂暴（免费切换不占行动）→ 双段普攻 + 维持 -1 → <4 强制回斧（无惩罚）
         "dual_form": {
@@ -78,6 +78,7 @@ CORE_RESOURCES = {
         # v130.2/v130.1（总纲 §7.2 游侠行）：基础只留 自然回 + 三档预算循环 + 简单 1 层标记(林语印记 -40/+10，不叠不爆)；
         # 满弦状态(≥80) → 守线风行者；猎手印记叠层/标记引爆 → 攻线林语者（转职解锁）
         "key": "energy", "name": "精力", "max": 100, "regen": 18,
+        "start_full": True,             # v176: 游侠精力开局满额（原 battle.py 1194 cls_you_xia 特判数据化）
         "desc": "专注流量制：每刻 +18 持续充能，技能消耗专注；结余 ≥40 时凝神暴击；满弦/叠标/引爆下放转职线",
         "on_attack": 0, "on_hit": 0, "on_skill": 0,
         # v153 专注流量制：废弃 v139 凝神屏息（vent 自动排气），专注是持续流量非攒满爆发
@@ -120,7 +121,7 @@ CORE_RESOURCES = {
         # v130.2.1：满溢转盾（overflow_shield）开放——满 10 后溢出转 5 护盾（配合守线磐石护壁主题，同悼咏先例 CR:101-108）
         "key": "chi", "name": "气", "max": 10, "regen": 0,
         "desc": "通用基底：出招攒气(连段技额外多给)，3 气崩拳/10 气破岳拳双档，满溢转盾(overflow_shield)兜底；蓄势/受击换气下放转职线",
-        "on_attack": 1, "on_hit": 0, "on_skill": 1, "overflow_shield": True,
+        "on_attack": 1, "on_hit": 0, "on_skill": 1, "overflow_shield": True, "overflow_ratio": 5,  # v176: ×5 系数数据化
     },
     # ================= v130.2 牧师攻线·歌者双资源（共鸣 + 回声）【需引擎批次 2 启用】 =================
     # 架构落位结论（读 battle.py/engine.py core_resource_def 后裁定，供主 agent 评估）：
