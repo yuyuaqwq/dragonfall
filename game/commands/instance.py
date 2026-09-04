@@ -3362,22 +3362,23 @@ class InstanceCmds(CommandBase):
         tkey = str(target.get("qq_id") or target.get("uid", ""))
         snap = st["players"].get(tkey) or target
         tname = snap.get("name", tkey)
+        # v173.6 多目标重构：Battle 直传完整 st 引用 + 全存活玩家 allies——
+        # battle 侧自行按 target_policy 选目标（_pick_enemy_target）并 _load_player_state
+        # 载入对应玩家状态结算（点名/打后排/AOE 多目标）。snap 仅作兜底首目标。
         # 构造单怪 Battle：enemies=[该单位]（自身含 buffs/stacks/defending/charging）
-        b = BT.Battle.from_state({
-            "type": "instance",
-            "enemy": unit,
-            "enemies": [unit],
-            "p_buffs": st["p_buffs"].get(tkey, {}),
-            "e_buffs": unit.get("buffs") or {},
-            "round": st.get("round", 0),
-            "now": st.get("now", 0.0) or 0.0,
-            "e_minions": st.get("e_minions", []),
-            "resources": st.get("resources", {}).get(tkey, {}),
-            "cooldown": st.get("cooldown", {}).get(tkey, {}),
-            "combo_seq": st.get("combo_seq", {}).get(tkey, []),
-            "p_ct": st.get("players", {}).get(tkey, {}).get("ct", 0.0),
-            "player_hit": st.get("player_hit", {}).get(tkey, False),
-        })
+        b = BT.Battle(
+            btype="instance", enemy=unit, enemies=[unit], st=st,
+            allies=[p for k, p in (st.get("players") or {}).items()
+                    if (st.get("alive") or {}).get(str(k), True)],
+        )
+        # 载入初始目标玩家状态（若无则 battle 自行 _pick_enemy_target）
+        b._load_player_state(tkey)
+        # 若 _pick_enemy_target 因目标死亡/策略选了别人 → snap 更新为实际目标
+        _focused = getattr(b, "_last_focused_qid", None)
+        if _focused and str(_focused) != tkey:
+            tkey = str(_focused)
+            snap = st["players"].get(tkey) or snap
+            tname = snap.get("name", tkey)
         mlogs, dmg = b._enemy_turn(snap, unit)
         # O116：受击伤害文案暂存 pending，本层不走 _damage_player 需手动取出拼进日志
         try:

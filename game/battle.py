@@ -682,7 +682,50 @@ class Battle:
             self.summons = (st.get("summons") or {}).get(key, []) or []
             self._pending_player_cast = None
             self._player_casting = False
+            self._last_focused_qid = key  # v173.6 当前结算目标记录（instance 读回实际目标）
             return snap
+        except Exception:
+            return None
+
+    def _pick_enemy_target(self, unit: dict) -> dict | None:
+        """v173.6 副本敌方行动选目标（battle 侧，多目标重构）。
+        从 allies（全存活玩家快照）按 monster_mods target_policy 选目标：
+          hate_top（点名仇恨最高）/ random / weakest / backline（后排）/ front（前排，默认）
+        并 _load_player_state 载入该玩家状态到单套字段（结算用）。
+        返回目标玩家快照；无可用目标返回 None。"""
+        try:
+            if not self._st or not self.allies:
+                return None
+            from .core import formation as FM
+            alive = [p for p in self.allies
+                     if (self._st.get("alive") or {}).get(str(p.get("qq_id") or ""), True)]
+            if not alive:
+                return None
+            # 嘲讽强制优先
+            taunt_key = str(self._st.get("taunt_target", ""))
+            if taunt_key:
+                for p in alive:
+                    if str(p.get("qq_id")) == taunt_key:
+                        self._load_player_state(taunt_key)
+                        return p
+            # 仇恨表（uid → threat）
+            _threat = {}
+            for p in alive:
+                _q = str(p.get("qq_id") or "")
+                _threat[str(p.get("uid") or f"p_{_q}")] = (self._st.get("threat") or {}).get(_q, 0)
+            # target_policy（monster_mods 数据）
+            _tpol = ""
+            try:
+                _tpol = str((C.MONSTER_MODS.get(unit.get("id") or "", {}) or {}).get("target_policy", "") or "")
+            except Exception:
+                _tpol = ""
+            # 默认：boss 全层仇恨（all）/ 其他 front
+            if not _tpol:
+                _tpol = "hate_top" if str(unit.get("role", "")) == "boss" else "front"
+            picked = FM.pick_by_policy(_tpol, alive, threat=_threat)
+            if picked is not None:
+                self._load_player_state(str(picked.get("qq_id") or ""))
+            return picked
         except Exception:
             return None
 
@@ -5771,6 +5814,22 @@ class Battle:
         eb = e.setdefault("buffs", {})
         ename = e.get("name", "怪物")
         logs = []
+        # v173.6 副本多目标重构：battle 带 _st + allies（全存活玩家快照引用）时，
+        # 敌方本次行动的目标玩家由 battle 自行决策（读 monster_mods target_policy：
+        #   hate_top 点名仇恨最高 / random / weakest / backline 打后排 / front 前排），
+        # 不再依赖 instance 预选单目标——为点名/打后排/AOE 多目标结算铺路。
+        # 野外/单人无 _st/allies → player 原样（传入即目标）。
+        if self._st and self.allies and player:
+            _q_src = str(player.get("qq_id") or "")
+            if _q_src and not (self._st.get("alive") or {}).get(_q_src, True):
+                # 原目标已死（instance 旧逻辑可能传已倒玩家）→ 重新选
+                player = None
+            if self._st.get("_enemy_pick_target", True):
+                # 副本默认由 battle 按策略重选目标（_pick_enemy_target 内部读 target_policy；
+                # 若 instance 显式指定目标（如 Boss 点名技能预选）可置 _enemy_pick_target=False）
+                _picked = self._pick_enemy_target(e)
+                if _picked is not None:
+                    player = _picked
         # v2：本次敌方行动目标 = 该单位（_enemy_stats 默认按 _active_target 解析单位属性；
         # 兼容测试 monkeypatch 的 1 参 _enemy_stats）
         self._active_target = e
