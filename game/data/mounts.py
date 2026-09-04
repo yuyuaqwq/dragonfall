@@ -52,7 +52,7 @@ MOUNT_POOL = [
     {"key": "mount_fogbird", "name": "雾羽候鸟", "icon": "🕊️", "quality": "purple", "lv": 50, "price": 0,
      "discount": 0.30, "elite_bonus": 0.05, "stamina_reduce": 0.20, "sell_bonus": 0.0,
      "collect_bonus": 0.0, "fish_bonus": 0.0, "exp_mult": 0.05,
-     "desc": "翅羽如雾的候鸟之王，日行千里。传送费－30%，探索/移动 20% 概率不耗体力，精英率＋5%，经验＋5%(v124 隐藏线·候鸟的信 hq7_3 奖励『雾羽候鸟缰绳』)"},
+     "desc": "翅羽如雾的候鸟之王，日行千里。传送费－30%，探索/移动 20% 概率不耗体力，精英率＋5%，经验＋5%（隐藏线·候鸟的信 hq7_3 奖励『雾羽候鸟缰绳』）"},
     # ---------- 🟠 传说 ----------
     {"key": "mount_griffin", "name": "狮鹫", "icon": "🦅", "quality": "orange", "lv": 60, "price": 0,
      "discount": 0.40, "elite_bonus": 0.10, "stamina_reduce": 0.20, "sell_bonus": 0.10,

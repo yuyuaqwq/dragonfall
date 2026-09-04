@@ -41,7 +41,7 @@ AFFIXES = {
     "lifesteal": {
         "name": "吸血", "kind": "attack", "trigger": "stat",
         "effect": {"lifesteal": 0.08},
-        "desc": "吸血 +8%（v106.3 属性化：伤害回血，面板可见）",
+        "desc": "吸血 +8%（伤害回血，面板可见）",
     },
     "crit_up": {
         "name": "暴击强化", "kind": "attack", "trigger": "stat",
@@ -81,22 +81,22 @@ AFFIXES = {
     "pene_phys": {
         "name": "穿甲", "kind": "attack", "trigger": "stat",
         "effect": {"pene_phys": 0.05},
-        "desc": "物穿＋5%（无视物理防御，v106）",
+        "desc": "物穿＋5%（无视物理防御）",
     },
     "pene_magi": {
         "name": "法穿", "kind": "attack", "trigger": "stat",
         "effect": {"pene_magi": 0.05},
-        "desc": "法穿＋5%（无视魔法防御，v106）",
+        "desc": "法穿＋5%（无视魔法防御）",
     },
     "pene_flat": {
         "name": "破甲刃", "kind": "attack", "trigger": "stat",
         "effect": {"pene_flat": 0.5},
-        "desc": "固定物穿 2+装备等级×0.5 点（v106）",
+        "desc": "固定物穿 2+装备等级×0.5 点",
     },
     "pene_mflat": {
         "name": "破法刃", "kind": "attack", "trigger": "stat",
         "effect": {"pene_mflat": 0.5},
-        "desc": "固定法穿 2+装备等级×0.5 点（v106）",
+        "desc": "固定法穿 2+装备等级×0.5 点",
     },
     "hunt": {
         "name": "追猎", "kind": "attack", "trigger": "passive",
@@ -132,12 +132,12 @@ AFFIXES = {
     "block": {
         "name": "格挡", "kind": "defense", "trigger": "stat",
         "effect": {"block": 0.15},
-        "desc": "格挡率 +15%（格挡时减伤 50%，v106.3 属性化）",
+        "desc": "格挡率 +15%（格挡时减伤 50%）",
     },
     "thorns": {
         "name": "反伤", "kind": "defense", "trigger": "stat",
         "effect": {"thorns": 0.10},
-        "desc": "反伤 +10%（v106.4 属性化：受击反弹伤害，面板可见）",
+        "desc": "反伤 +10%（受击反弹伤害，面板可见）",
     },
     "dmg_reduce": {
         "name": "减伤", "kind": "defense", "trigger": "stat",
@@ -147,22 +147,22 @@ AFFIXES = {
     "phys_ward": {
         "name": "铁壁", "kind": "defense", "trigger": "stat",
         "effect": {"phys_reduce": 0.05},
-        "desc": "物理免伤 +5%（v106.4）",
+        "desc": "物理免伤 +5%",
     },
     "magic_ward": {
         "name": "魔抗", "kind": "defense", "trigger": "stat",
         "effect": {"magic_reduce": 0.05},
-        "desc": "魔法免伤 +5%（v106.4）",
+        "desc": "魔法免伤 +5%",
     },
     "thirst_phys": {  # v106.4 攻击类被动词条（kind=attack），按吸血主题排在防具区便于阅读
         "name": "渴血", "kind": "attack", "trigger": "stat",
         "effect": {"lifesteal_phys": 0.08},
-        "desc": "物理吸血 +8%（v106.4：仅物理攻击回血）",
+        "desc": "物理吸血 +8%（仅物理攻击回血）",
     },
     "thirst_magi": {
         "name": "吸魂", "kind": "attack", "trigger": "stat",
         "effect": {"lifesteal_magi": 0.08},
-        "desc": "法术吸血 +8%（v106.4：仅魔法攻击回血）",
+        "desc": "法术吸血 +8%（仅魔法攻击回血）",
     },
     "shield": {
         "name": "护盾", "kind": "defense", "trigger": "battle_start",
@@ -215,37 +215,37 @@ AFFIXES = {
     "tenacity": {
         "name": "韧性", "kind": "defense", "trigger": "stat",
         "effect": {"tenacity": 0.05},
-        "desc": "被暴击率－5%（v106）",
+        "desc": "被暴击率－5%",
     },
     "luck": {
         "name": "幸运", "kind": "defense", "trigger": "stat",
         "effect": {"luck": 0.05},
-        "desc": "掉落收益＋5%（v106）",
+        "desc": "掉落收益＋5%",
     },
     "cdr": {
         "name": "轻灵", "kind": "defense", "trigger": "stat",
         "effect": {"cdr": 0.05},
-        "desc": "冷却缩减＋5%（v106.1）",
+        "desc": "冷却缩减＋5%",
     },
     "exp_bonus": {
         "name": "求知", "kind": "defense", "trigger": "stat",
         "effect": {"exp_bonus": 0.05},
-        "desc": "战斗经验＋5%（v106.1）",
+        "desc": "战斗经验＋5%",
     },
     "gold_bonus": {
         "name": "聚宝", "kind": "defense", "trigger": "stat",
         "effect": {"gold_bonus": 0.05},
-        "desc": "金币收益＋5%（v106.1）",
+        "desc": "金币收益＋5%",
     },
     "heal_power": {
         "name": "圣愈", "kind": "defense", "trigger": "stat",
         "effect": {"heal_power": 0.05},
-        "desc": "治疗强度＋5%（v106.2）",
+        "desc": "治疗强度＋5%",
     },
     "shield_power": {
         "name": "坚盾", "kind": "defense", "trigger": "stat",
         "effect": {"shield_power": 0.05},
-        "desc": "护盾强度＋5%（v106.2）",
+        "desc": "护盾强度＋5%",
     },
     # ================= v130.2 装备-资源联动词条（六职业线，设计稿 §6 落地） =================
     # 说明：字段与既有 affix 结构对齐（name/kind/trigger/effect/desc/chance），

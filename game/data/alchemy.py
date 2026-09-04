@@ -177,7 +177,7 @@ ALCHEMY_RECIPES = {
         },
         "min_lv": 1,
         "purify": True,
-        "desc": "狼皮粗鞣为粗制革（白→绿），v167 皮革系锻造底料",
+        "desc": "狼皮粗鞣为粗制革（白→绿），皮革系锻造底料",
         "name": "狼皮提纯"
     },
     "al_purify_yue_lang_mao_pi": {
