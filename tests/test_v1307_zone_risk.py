@@ -50,17 +50,26 @@ def _ambush(m, level, rnd):
 
 
 async def _explore(m, qid, level, rnd, map_id="gold_plain"):
-    """完整探索流程：玩家落在 map_id 地图，random.random 钉死为 rnd，返回输出文本。"""
+    """完整探索流程：玩家落在 map_id 地图，random.random 钉死为 rnd，返回输出文本。
+
+    v173.3：patch explore_king 返回 None——野王按日期+时段哈希 spawn（金穗平原可能
+    被选中），探索会优先撞野王导致测试断言普通探索事件失败。本测试只关心等级差事件率，
+    屏蔽野王保证确定性。
+    """
+    from data.plugins.dragonfall.game.commands import combat as _combat_mod
     clean_db()
     make_player(G, qid, "越级测试", "战士", level=level)
     db.update_player(G, qid, cur_map=map_id)  # cur_subarea 自动补首个子区域
     orig = random.random
+    _orig_ek = _combat_mod.explore_king
+    _combat_mod.explore_king = lambda g, q, cm: None  # 屏蔽野王
     try:
         random.random = lambda: rnd
         ev = FakeEvent(G, qid, "探索")
         out = await run(m.explore, ev)
     finally:
         random.random = orig
+        _combat_mod.explore_king = _orig_ek
     return "".join(str(x) for x in out)
 
 

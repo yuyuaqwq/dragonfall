@@ -55,12 +55,19 @@ def with_randint(val, fn):
 
 async def explore(level, map_id, rint_val):
     """完整探索：random.random 钉 0.99（跳过事件/空探索/精英/Boss/隐藏怪 →
-    必走普通怪分支），random.randint 钉 rint_val（build_monster 等级波动）。"""
+    必走普通怪分支），random.randint 钉 rint_val（build_monster 等级波动）。
+
+    v173.3：屏蔽野王——野王按日期+时段哈希 spawn，探索会优先撞野王（金穗领主）
+    导致断言普通怪失败。本测试只关心等级波动，屏蔽野王保证确定性。
+    """
+    from data.plugins.dragonfall.game.commands import combat as _combat_mod
     clean_db()
     make_player(G, "p1", "等级波动", "战士", level=level)
     db.update_player(G, "p1", cur_map=map_id)
     m = Main(None)
     orig_r, orig_i = random.random, random.randint
+    _orig_ek = _combat_mod.explore_king
+    _combat_mod.explore_king = lambda g, q, cm: None  # 屏蔽野王
     try:
         random.random = lambda: 0.99
         random.randint = lambda a, b: rint_val
@@ -68,6 +75,7 @@ async def explore(level, map_id, rint_val):
         out = await run(m.explore, ev)
     finally:
         random.random, random.randint = orig_r, orig_i
+        _combat_mod.explore_king = _orig_ek
     return "".join(str(x) for x in out)
 
 
