@@ -649,3 +649,47 @@ ASSASSIN_FINISHER_THRESHOLD = {
     "default": "满刃",
     "desc": "战前终结阈值 DSL——A快刀(cp≥3 即终结)/B满刃(cp=5 满档)/C残血(敌HP<40%+cp≥3)/D满段(链值≥8，攻线专属)",
 }
+
+# ============================================================
+# v176 从 battle.py 下沉的增益倍率映射表（原硬编码在战斗引擎）
+#   效果 effect → (修正属性, 倍率/加成)；加新 buff = 加一行，零改引擎
+# ============================================================
+# 增益倍率映射：effect -> (修正属性, 倍率/加成)
+BUFF_MULT = {
+    "atk_up":         ("atk", 1.30),
+    "atk_up_strong":  ("atk", 1.75),
+    "echo_bless":     ("atk", 1.05),   # v97.4 回音洞穴祝福：本场攻击 +5%（一次性，探索事件写入）
+    "matk_up":        ("matk", 1.50),   # #244a：与技能描述 matk+50% 对齐（原 1.35 与 desc 不符）
+    "matk_up_strong": ("matk", 1.80),
+    "matk_up_pot":    ("matk", 1.30),   # 9.3 鲛人之泪：本刻魔攻 +30%
+    "def_up":         ("def", 1.45),
+    "spd_up":         ("spd", 1.40),
+    "crit_up":        ("crit", 0.20),      # 暴击率 +20%
+    # v173.3 意见#95（鱼鱼拍板 B 方案）：命中 buff——鹰眼锁定 desc「命中 +15%」落地
+    # precise 是敌方闪避抵消率（_monster_dodge_check my_hit），加法并入词条精准
+    "hit_up":         ("precise", 0.15),
+    # v101.28f 药水强度分档（名字不同效果不同的真实落地：战吼/龙力 +40%、蛮力 +20%、风灵 +20%、致命 +30%、锐目 +15%）
+    "atk_up_big":     ("atk", 1.40),
+    "atk_up_small":   ("atk", 1.20),
+    "spd_up_small":   ("spd", 1.20),
+    "crit_up_small":  ("crit", 0.15),
+    "crit_up_big":    ("crit", 0.30),
+    # v101.28b 食物增益（战斗料理线：数值约为药水 1/3，价格低+带战斗外恢复）
+    "food_atk_up":    ("atk", 1.10),
+    "food_def_up":    ("def", 1.15),
+    "food_spd_up":    ("spd", 1.12),
+    "food_crit_up":   ("crit", 0.08),
+    "food_matk_up":   ("matk", 1.10),
+    "food_spd_up_small": ("spd", 1.10),  # v105 M16 精灵果酱：战斗中本场速度+10%（策划 19:129）
+    "mon_atk_up":     ("atk", 1.30),
+    "mon_atk_up_strong": ("atk", 1.70),
+    "mon_def_up":     ("def", 1.40),
+    "mon_atk_down":   ("atk", 0.70),   # v51 挫志怒吼：敌方攻击 -30%
+}
+
+# v104 M02 P1-4：团队增益 effect=xx_all → 施放者自身有效 buff 键（与 instance.py buff_effects 同口径）
+TEAM_BUFF_KEYS = {
+    "def_all": "def_up", "atk_all": "atk_up",
+    "matk_all": "matk_up_strong", "crit_all": "crit_up", "spd_all": "spd_up",
+}
+
