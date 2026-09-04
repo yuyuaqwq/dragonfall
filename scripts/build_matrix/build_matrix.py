@@ -159,8 +159,15 @@ def _interval(cast: float, spd: float) -> float:
 
 
 def _dmg_of(info: dict, st: dict, skill_lv: int, target: dict) -> float:
-    """单发期望伤害（skill_expr_preview + calc_damage 过防）。目标 dict 含 def/mdef。"""
-    phys = str(info.get("kind", "")).startswith("物理")
+    """单发期望伤害（skill_expr_preview + calc_damage 过防）。目标 dict 含 def/mdef。
+
+    ⚠️ 只对 kind=物理/魔法 的输出技算伤害；治疗/增益/召唤/被动 = 0
+    （治疗技 heal_formula 的 skill_expr_preview 返回治疗量，误当伤害会让
+    牧师神谕治疗流"13轮击杀"假象——v175 修复）。"""
+    kind = str(info.get("kind", ""))
+    if not (kind.startswith("物理") or kind.startswith("魔法")):
+        return 0.0
+    phys = kind.startswith("物理")
     _st = dict(st)
     _st["_player_lv"] = int(st.get("level", st.get("_player_lv", 1)) or 1)
     _st["_skill_lv"] = max(1, skill_lv)

@@ -61,6 +61,6 @@
     "haste": {"int": 0.7, "agi": 0.3},
     "tanky": {"int": 0.6, "vit": 0.4}
   },
-  "notes": "法师 v175 平衡数据。基础 8 技能（纯蓝施法）→ 元素使/奥术学者两线转职后才有 element 充能条（max=5）；技能表当前无 res_gain/res_cost 字段（充能由引擎 mech arcane/fire_mark 等与被动 arcane_intuition/元素亲和隐式给点，期望引擎按近似：基础挂印技无充能增益，奥术系靠 arcane mech 攒充能）。3 流派全 dps，rotation 只声明循环意图（cond 引擎按 CD/蓝拦截），不确定处保守写 always+低 prio。已核实：BUILDS 三流派技能名与 skills.py 精确一致；元素爆发流/迸发流同属元素使线（BUILDS 设计如此）。元素裁决 CD20×1.2×三印、万象天雷 350%+125（成长）满雷印、奥术湮灭 275%+92（成长）满充能×1.4 为三线终结峰值；爆发流以织焰 177% 高倍率单发为核心填充。奥术精算流循环依赖充能条满 5（cond=resource_full 由期望引擎以 JSON resource=element/max=5 判定）。",
+  "notes": "法师 v175 平衡数据。基础 8 技能（纯蓝施法）→ 元素使/奥术学者两线转职（学Lv≥32）后才有 element 充能条（max=5）。3 流派全 dps，rotation 声明循环意图（技能名与 BUILDS/skills.py 精确一致），技能未解锁/CD/蓝不足由引擎拦截填充。⚠️ 引擎近似缺口（供 A1/A2 仲裁，非 JSON 缺陷）：(1) 技能表无 res_gain/res_cost 字段，充能由引擎 mech（arcane/fire_mark…）与被动隐式给点——build_matrix._res_gain_of 只认 zhan_yi/lian_duan/melody 等，法师 mech 不产生资源入账 → cond=resource_full（奥术湮灭/奥术洪流/元素裁决满充能终结）在 A1 永不满足、该步被安全跳过；A2 真引擎按充能条仲裁。(2) 转职线顶点技学Lv偏高：元素裁决 90/万象天雷 98/奥术湮灭 98，P1(10)/P2(24) 无转职技能、P3(45)/P4(75) 无 tier3 顶点 → 期望引擎按技能池过滤，低阶段流派自动退化为可用基础技填充（奥术精算流 P1/P2 近乎纯普攻 dps~13 为转职前真实态）。(3) 深度冥想/熔炉冥想等架设开启技按普通技能 CD 周期施放，无架设态模拟。L95 全加点敏感性实测：主属性 full_int vs 次优 tanky 偏差 ≤7%（门禁 ≤15% 红线内）。",
   "agent_note": "产出文件为纯数据，仅写 scripts/balance_data/cls_fa_shi.json；数据源只读未改。"
 }
