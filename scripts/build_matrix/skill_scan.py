@@ -129,9 +129,12 @@ def skill_efficiency_row(cls: str, skid: str, info: dict, st: dict,
         dmg = 0.0
     hits = int(info.get("hits", 1) or 1)
     dmg *= hits
-    cast = float(info.get("cast", 0) or 0)
-    cd = float(info.get("cd", 0) or 0)
-    mp = float(info.get("mp", 0) or 0)
+    _cast_raw = info.get("cast")
+    _cd_raw = info.get("cd")
+    _mp_raw = info.get("mp")
+    cast = float(_cast_raw) if _cast_raw not in (None, "", "None") else 1.0
+    cd = float(_cd_raw) if _cd_raw not in (None, "", "None") else 0.0
+    mp = float(_mp_raw) if _mp_raw not in (None, "", "None") else 0.0
     spd = float(st.get("spd", 50) or 50)
     interval = max((cast + 0.0) * spd_factor(spd), 0.001)
     # 单发效率 / DPS（cd=0 技能按 interval，cd>0 按 cd 周期给理论 DPS 上限）
