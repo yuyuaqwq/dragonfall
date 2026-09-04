@@ -3705,22 +3705,32 @@ class InstanceCmds(CommandBase):
     def _instance_loot_pile(self, group_id, qq_id, player, st) -> str:
         """战利品堆（必出，保底搜刮）：金币 = 通关奖金×30% + 专属材料×1
         通胀核算：Lv.25 怪金≈253，海蚀洞窟 gold=220 → 66 金 ≈ 0.26 只怪/人，
-        远低于普通刷怪收益，仅作通关仪式感，不构成金币水源。"""
+        远低于普通刷怪收益，仅作通关仪式感，不构成金币水源。
+
+        v174 统一抽象：掉落走 drop_engine roll('loot_pile:{inst_id}')。
+        """
         inst = C.INSTANCES[st["inst_id"]]
-        gold = max(10, int(inst.get("gold", 100) * 0.30))
-        db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-        lines = [f"🎁 你搜刮了战利品堆：金币 +{gold}"]
-        mats = inst.get("materials", [])
-        if mats:
-            mat = random.choice(mats)
-            mat_id = C.resolve("materials", mat) if mat else None
-            if mat_id and mat_id in C.MATERIALS:
-                mname = C.display("materials", mat_id)
-                db.add_item(group_id, qq_id, mat_id, {
-                    "name": mname, "type": C.MATERIALS[mat_id].get("type", "材料"), "stackable": True,
-                    "price": C.MATERIALS[mat_id]["price"],
-                })
-                lines.append(f"🎒 拾取：{mname} ×1")
+        from game.drop_engine import roll as _drop_roll, _SimpleCtx as _DropCtx
+        ctx = _DropCtx(inst_id=st["inst_id"], monster_lv=int(inst.get("lv", 0) or 0),
+                       player_level=int(inst.get("lv", 0) or 0),
+                       gold_base=int(inst.get("gold", 100) or 100))
+        lines = []
+        for r in _drop_roll(f"loot_pile:{st['inst_id']}", ctx):
+            if r.get("type") == "gold":
+                gold = r.get("count", 0)
+                db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+                lines.append(f"🎁 你搜刮了战利品堆：金币 +{gold}")
+            elif r.get("type") == "item":
+                mat_id = r["item_id"]
+                if mat_id and mat_id in C.MATERIALS:
+                    mname = C.display("materials", mat_id)
+                    db.add_item(group_id, qq_id, mat_id, {
+                        "name": mname, "type": C.MATERIALS[mat_id].get("type", "材料"), "stackable": True,
+                        "price": C.MATERIALS[mat_id]["price"],
+                    })
+                    lines.append(f"🎒 拾取：{mname} ×1")
+        if not lines:  # 引擎兜底（数据异常时保底不给空）
+            lines.append("🎁 你搜刮了战利品堆，但里面空空的……")
         st["loot_pile"] = False
         self._instance_save(group_id, st)
         return "\n".join(lines)
@@ -3771,73 +3781,52 @@ class InstanceCmds(CommandBase):
         专属材料 15%→10%、星灵蝶蛋 5% 不动——合计恒 100%，档位无重叠无缝隙。
         装备品质天然以紫/橙为主（Boss 池），混合 Elite 池（蓝为主）后蓝紫橙皆有；
         双池全 None 才兜底专属材料——40% 装备档永不空开。
+
+        v174 统一抽象：掉落判定走 drop_engine roll('secret_chest:{inst_id}')（table_choice
+        互斥档策略，5 档 cutoff 与旧 elif 语义精确一致）；本层只负责入包与展示文案。
         """
-        roll = random.random()
         inst = C.INSTANCES[st["inst_id"]]
-        inst_lv = int(inst.get("lv", 0) or 0)
-        # v104 M17 P2-4：实装星灵蝶蛋渠道（pets.py source『传说级垂钓稀有产出/神秘宝箱』后半句）
-        if roll >= 0.95:
-            egg = C.make_pet_egg("pet_starbutterfly")
-            db.add_item(group_id, qq_id, "petegg_pet_starbutterfly", egg)
-            text = f"🦋 宝箱深处泛着星光——是【{egg['name']}】！『使用 宠物蛋』孵化！"
-        elif roll < 0.25:
-            pages = random.randint(2, 4)
-            db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye",
-                        {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
-                        count=pages)
-            text = f"📜 宝箱里是泛黄的纸张——图纸残页 ×{pages}！"
-        elif roll < 0.65:
-            # v140 波2：装备档 40%（鱼鱼拍板：宝箱掉装备必须压过图纸，宝箱不掉装备被玩家吐槽）——
-            # 池选择照抄 wild_king.py _roll_chest_rewards 成熟做法：直接调 C.roll_drop_equip。
-            # 先 60% 概率挑 Boss 池（35% 基础、紫装 70%/橙装 30%）、40% 挑 Elite 池（12% 基础、
-            # 蓝装 90%/紫装 10%）；所选池返回 None（未roll中基础掉率）则换另一池重掷，仍 None
-            # （两池基础掉率都没中）才兜底专属材料——40% 装备档永不空开、蓝紫橙品质皆有。
-            if random.random() < 0.60:
-                _eq = C.roll_drop_equip(inst_lv, "boss")
-                if not _eq:
-                    _eq = C.roll_drop_equip(inst_lv, "elite")
-            else:
-                _eq = C.roll_drop_equip(inst_lv, "elite")
-                if not _eq:
-                    _eq = C.roll_drop_equip(inst_lv, "boss")
-            if _eq:
-                _eq_key = f"eq_{uuid.uuid4().hex[:8]}"
-                db.add_item(group_id, qq_id, _eq_key, _eq)
+        from game.drop_engine import roll as _drop_roll, _SimpleCtx as _DropCtx
+        ctx = _DropCtx(inst_id=st["inst_id"], monster_lv=int(inst.get("lv", 0) or 0),
+                       player_level=int(inst.get("lv", 0) or 0))
+        results = _drop_roll(f"secret_chest:{st['inst_id']}", ctx)
+        text = ""
+        for r in results:
+            t = r.get("type")
+            if t == "petegg" and r.get("data"):
+                egg = r["data"]
+                db.add_item(group_id, qq_id, "petegg_pet_starbutterfly", egg)
+                text = f"🦋 宝箱深处泛着星光——是【{egg['name']}】！『使用 宠物蛋』孵化！"
+            elif t == "item" and r.get("item_id") == "mat_tu_zhi_can_ye":
+                pages = r.get("count", 3)
+                db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye",
+                            {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
+                            count=pages)
+                text = f"📜 宝箱里是泛黄的纸张——图纸残页 ×{pages}！"
+            elif t == "equip" and r.get("data"):
+                eq = r["data"]
+                eq_key = f"eq_{uuid.uuid4().hex[:8]}"
+                db.add_item(group_id, qq_id, eq_key, eq)
                 _qmark = {"green": "🟢", "blue": "🔵", "purple": "✨🟣", "orange": "🌟🟠"}.get(
-                    _eq.get("quality", ""), "")
-                text = f"{_qmark} 宝箱深处静静躺着一件装备——【{_eq['name']}】！"
-            else:
-                mat = random.choice(inst.get("materials", ["兽肉"]))
-                mat_id = C.resolve("materials", mat)
-                db.add_item(group_id, qq_id, mat_id, {
-                    "name": C.display("materials", mat_id), "type": "材料",
-                    "stackable": True, "price": C.MATERIALS[mat_id]["price"],
-                }, count=2)
-                text = f"🎒 宝箱里是稀有材料——{C.display('materials', mat_id)} ×2！"
-        elif roll < 0.85:
-            # 稀有符文池（blue 品质符文，v101.25i6 品质统一后 quality=blue）
-            blue_runes = [k for k, r in C.RUNES.items() if (r.get("quality") or "") == "blue"]
-            if blue_runes:
-                # v105 M11 P1：改用 C.rune_item 构造——补 effect/lvl 字段（否则背包
-                # 『附魔』刻印时 economy.py:2035/2059 读 rd["effect"] 必 KeyError 崩溃），
-                # 顺带修复 desc 带字面 {v} 占位符 / 售价恒 50（战斗掉落版 cost//2=400）/
-                # 名字无品质前缀与等级（掉落版"稀有符文·灼热 I"）三个倒挂
-                rk = random.choice(blue_runes)
-                r_def = C.RUNES[rk]
-                rune_data = C.rune_item(r_def["effect"], random.randint(1, 2))
-                if rune_data:
-                    # key 与战斗掉落一致（rune_<effect>_<lvl>，同键可叠加）
-                    db.add_item(group_id, qq_id, f"rune_{r_def['effect']}_{rune_data['lvl']}", rune_data)
-                    text = f"✨ 宝箱里泛起微光——符文【{rune_data['name']}】！"
-                else:
-                    mat = random.choice(inst.get("materials", ["兽肉"]))
-                    mat_id = C.resolve("materials", mat)
+                    eq.get("quality", ""), "")
+                text = f"{_qmark} 宝箱深处静静躺着一件装备——【{eq['name']}】！"
+            elif t == "rune" and r.get("data"):
+                rune_data = r["data"]
+                # 引擎已构造 rune_item（带 effect/lvl），key 与战斗掉落一致可叠加
+                db.add_item(group_id, qq_id,
+                            f"rune_{rune_data.get('effect', '')}_{rune_data.get('lvl', 1)}",
+                            rune_data)
+                text = f"✨ 宝箱里泛起微光——符文【{rune_data['name']}】！"
+            elif t == "item" and r.get("item_id") and r["item_id"] != "mat_tu_zhi_can_ye":
+                mat_id = r["item_id"]
+                if mat_id in C.MATERIALS:
+                    n = r.get("count", 2)
                     db.add_item(group_id, qq_id, mat_id, {
                         "name": C.display("materials", mat_id), "type": "材料",
                         "stackable": True, "price": C.MATERIALS[mat_id]["price"],
-                    }, count=2)
-                    text = f"🎒 宝箱里是稀有材料——{C.display('materials', mat_id)} ×2！"
-        else:
+                    }, count=n)
+                    text = f"🎒 宝箱里是稀有材料——{C.display('materials', mat_id)} ×{n}！"
+        if not text:  # 引擎空结果兜底（数据异常不吞奖励）
             mat = random.choice(inst.get("materials", ["兽肉"]))
             mat_id = C.resolve("materials", mat)
             db.add_item(group_id, qq_id, mat_id, {

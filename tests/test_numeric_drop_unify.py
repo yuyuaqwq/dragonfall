@@ -109,6 +109,38 @@ def main():
     # 掉率常量已导出
     check("ELITE_EQ_DROP_CHANCE 已导出", hasattr(C, "ELITE_EQ_DROP_CHANCE") and C.ELITE_EQ_DROP_CHANCE > 0)
 
+    print("【drop_unify：副本搜刮（战利品堆/暗格宝箱）】")
+    # 22 副本都应有 loot_pile / secret_chest 池
+    from game.content import INSTANCES
+    inst_ids = [iid for iid in INSTANCES if INSTANCES[iid].get("stages")]
+    loot_ok = all(f"loot_pile:{iid}" in DROP_POOLS for iid in inst_ids)
+    chest_ok = all(f"secret_chest:{iid}" in DROP_POOLS for iid in inst_ids)
+    check(f"全部副本有 loot_pile 池 ({len(inst_ids)}个)", loot_ok)
+    check(f"全部副本有 secret_chest 池 ({len(inst_ids)}个)", chest_ok)
+    # 战利品堆必出金币（gold_base 折算）
+    r = roll("loot_pile:inst_goblin_camp", _SimpleCtx(inst_id="inst_goblin_camp", monster_lv=20,
+                                                      player_level=20, gold_base=220))
+    check("战利品堆必出金币(220×30%=66)", any(x["type"] == "gold" and x["count"] == 66 for x in r), f"{r}")
+    # 暗格宝箱 5 档互斥分布（2000 次每档都出现且无 2 档同时出）
+    from collections import Counter
+    dc = Counter()
+    double = 0
+    for _ in range(2000):
+        res = roll("secret_chest:inst_goblin_camp",
+                   _SimpleCtx(inst_id="inst_goblin_camp", monster_lv=20, player_level=20))
+        if len(res) > 1:
+            double += 1
+        for x in res:
+            t = x.get("type")
+            if t == "petegg": dc["蛋"] += 1
+            elif t == "equip": dc["装备"] += 1
+            elif t == "rune": dc["符文"] += 1
+            elif x.get("item_id") == "mat_tu_zhi_can_ye": dc["图纸残页"] += 1
+            elif t == "item": dc["材料"] += 1
+    check("暗格互斥无双出", double == 0, f"双出{double}")
+    total_rolls = sum(dc.values())
+    check("暗格5档覆盖且≈2000", total_rolls >= 1800 and len(dc) >= 4, f"{dict(dc)} total{total_rolls}")
+
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0
 

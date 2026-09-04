@@ -126,6 +126,32 @@ for inst_id, cfg in D.INSTANCE_BOSS_EQUIP_DROP.items():
         rolls.append({"pool": sub_key, "chance": 1.0, "n": inst.get("mat_count", 1)})
     DROP[f"boss:{inst_id}"] = {"type": "table", "rolls": rolls}
 
+    # ============ 副本搜刮：战利品堆 + 暗格宝箱 ============
+    # v174：instance.py 通关后搜刮掉落数据化（原 _instance_loot_pile / _instance_secret_chest 手写）
+    # 战利品堆（必出）：金币=副本gold×30% + 专属材料×1
+    mats = inst.get("materials") or []
+    loot_pile_rolls = [{"pool": "gold_pct:30", "chance": 1.0}]
+    if mats:
+        sub_key = f"inst_mats:{inst_id}"
+        if sub_key not in DROP:
+            DROP[sub_key] = {"type": "weighted", "entries": [{"item": to_id(m), "w": 1} for m in mats]}
+        loot_pile_rolls.append({"pool": sub_key, "chance": 1.0, "n": 1})
+    DROP[f"loot_pile:{inst_id}"] = {"type": "table", "rolls": loot_pile_rolls}
+    # 暗格宝箱（5 档互斥）：图纸残页25% / 装备40%(boss60-elite40混合) / 蓝符20% / 材料10% / 星灵蝶蛋5%
+    # 装备档特殊：boss 池优先 60%、失败切 elite，再失败兜底材料——用 equip_drop_mix 特殊引用
+    DROP[f"secret_chest:{inst_id}"] = {
+        "type": "table_choice",
+        "rolls": [
+            {"pool": "item:mat_tu_zhi_can_ye", "cutoff": 0.25, "n": [2, 4]},
+            {"pool": "equip_drop_mix", "cutoff": 0.40,
+             "fallback": f"inst_mats:{inst_id}" if mats else "item:mat_shou_rou", "fallback_n": 2},
+            {"pool": "rune:blue", "cutoff": 0.20},
+            {"pool": f"inst_mats:{inst_id}" if mats else "item:mat_shou_rou",
+             "cutoff": 0.10, "n": 2},
+            {"pool": "petegg:pet_starbutterfly", "cutoff": 0.05},
+        ],
+    }
+
 # ============ 8. 野王宝箱 ============
 # WILD_KING_CHEST_TIERS: tier -> {gold_range, bp_chance, gem_chance, equip_chance, rune_chance,
 #                                 stone_range, pages_range, mats[], collect[]}

@@ -79,6 +79,35 @@ def _resolve_item_ref(ref: str, ctx: Any) -> dict | None:
         parts = ref.split(":")
         a, b = int(parts[1]), int(parts[2]) if len(parts) > 2 else int(parts[1])
         return {"type": "gold", "count": _randint(a, b)}
+    if ref.startswith("gold_pct:"):
+        # gold_pct:30 = ctx.gold_base × 30%（战利品堆金币=通关奖金×30%）
+        pct = float(ref.split(":", 1)[1])
+        base = int(getattr(ctx, "gold_base", 0) or 0)
+        return {"type": "gold", "count": max(10, int(base * pct / 100.0))}
+    if ref.startswith("rune:"):
+        # rune:blue / rune:purple（指定品质符文）；rune = 蓝紫混合
+        q = ref.split(":", 1)[1] if ":" in ref else None
+        pool = [k for k, r in C.RUNES.items()
+                if (r.get("quality") or "") == q] if q else \
+               [k for k, r in C.RUNES.items() if (r.get("quality") or "") in ("blue", "purple")]
+        if not pool:
+            return None
+        rk = random.choice(pool)
+        r_def = C.RUNES[rk]
+        rune_data = C.rune_item(r_def["effect"], random.randint(1, 2))
+        return {"type": "rune", "data": rune_data} if rune_data else None
+    if ref == "equip_drop_mix":
+        # 混合装备：60% boss 池 / 40% elite 池；所选池 None → 换另一池；仍 None → None
+        # （暗格宝箱语义：40% 装备档永不空开——双池都失败由调用方兜底材料）
+        lv = int(getattr(ctx, "monster_lv", None) or getattr(ctx, "player_level", 1) or 1)
+        first_role = "boss" if random.random() < 0.60 else "elite"
+        second_role = "elite" if first_role == "boss" else "boss"
+        eq = C.roll_drop_equip(lv, first_role)
+        if eq is None:
+            eq = C.roll_drop_equip(lv, second_role)
+        if eq:
+            return {"type": "equip", "data": eq}
+        return None
     if ref.startswith("equip:"):
         rid = ref.split(":", 1)[1]
         try:
@@ -101,6 +130,14 @@ def _resolve_item_ref(ref: str, ctx: Any) -> dict | None:
             slot = random.choice(["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"])
             eq = C.generate_equip(slot, lv + random.randint(-3, 3), "purple")
         return {"type": "equip", "data": eq} if eq else None
+    if ref.startswith("petegg:"):
+        # 宠物蛋：petegg:pet_xxx（C.make_pet_egg 构造）
+        pet_id = ref.split(":", 1)[1]
+        try:
+            egg = C.make_pet_egg(pet_id)
+            return {"type": "petegg", "data": egg} if egg else None
+        except Exception:
+            return None
     if ref.startswith("item:"):
         iid = ref.split(":", 1)[1]
         return {"type": "item", "item_id": iid}
@@ -291,6 +328,79 @@ def _roll_table(pool: dict, ctx: Any) -> list[dict]:
     return out
 
 
+def _roll_table_choice(pool: dict, ctx: Any) -> list[dict]:
+    """互斥档（一次 roll 只进一档）：暗格宝箱/战利品堆类。
+
+    两种表达（数据二选一）：
+    A. cutoff 累计概率：rolls = [{"pool": ..., "cutoff": 0.25}, {"pool":..., "cutoff": 0.65}, ...]
+       最后档 cutoff 必须=1.0（不足自动补）。roll < cutoff 进第一档，roll < 第二 cutoff 进第二档……
+       （等价旧实现 `if roll >= 0.95: ... elif roll < 0.25: ... elif roll < 0.65: ...`）
+    B. chance 独立档位：rolls = [{"pool":..., "chance": 0.5}, ...]——所有档各按 chance 判定
+       但仅命中**最高优先级的**一档（按顺序首个命中），互斥不叠加。
+    推荐 A（与旧暗格宝箱逐档 elif 语义精确一致）。
+
+    pool.rolls: [{"pool": 子池key/内联引用, "cutoff": 0-1 或 "chance": 0-1, "n": [a,b]|int}]
+    """
+    rolls = pool.get("rolls", [])
+    # A. cutoff 模式：取首个带 cutoff 的判定
+    if any("cutoff" in rc for rc in rolls):
+        total = random.random()
+        acc = 0.0
+        for i, rc in enumerate(rolls):
+            c = float(rc.get("cutoff", 0))
+            acc += c
+            if total < acc:
+                return _roll_sub_ref(rc, ctx)
+            if i == len(rolls) - 1:
+                # 最后档 cutoff 未到 1.0 时容错兜底（数据小瑕疵不吞奖励）
+                return _roll_sub_ref(rc, ctx)
+        return []
+    # B. chance 模式：按顺序首个命中（互斥）
+    for rc in rolls:
+        if float(rc.get("chance", 0)) > 0 and random.random() < float(rc.get("chance", 0)):
+            return _roll_sub_ref(rc, ctx)
+    return []
+
+
+def _roll_sub_ref(roll_cfg: dict, ctx: Any) -> list[dict]:
+    """抽取单个 roll 配置指向的子池/引用（table_choice 用）。
+
+    支持 fallback 字段：主池/引用抽空（返回 None/[]）时自动尝试 fallback 引用
+    （暗格宝箱装备档双池失败 → 兜底材料，等价旧代码 if 双池 None: 给材料）。
+    """
+    sub = roll_cfg.get("pool", "")
+    n = roll_cfg.get("n")
+    if isinstance(n, (list, tuple)) and len(n) >= 2:
+        qty = _randint(int(n[0]), int(n[1]))
+    elif isinstance(n, int):
+        qty = n
+    else:
+        qty = 1
+    sub_ctx = _sub_ctx(ctx, qty)
+    res: list = []
+    if sub and sub in (_get_pools()):
+        sub_pool = _get_pools()[sub]
+        res = POOL_STRATEGIES.get(sub_pool.get("type"), _roll_weighted)(sub_pool, sub_ctx)
+    elif sub:
+        r = _resolve_item_ref(sub, ctx)
+        if r:
+            r["count"] = r.get("count", 1) * qty
+            res = [r]
+    # 主池空 → fallback
+    if not res and roll_cfg.get("fallback"):
+        fb = roll_cfg["fallback"]
+        fb_qty = roll_cfg.get("fallback_n", qty)
+        fb_ctx = _sub_ctx(ctx, fb_qty)
+        if fb in (_get_pools()):
+            fb_pool = _get_pools()[fb]
+            return POOL_STRATEGIES.get(fb_pool.get("type"), _roll_weighted)(fb_pool, fb_ctx)
+        r = _resolve_item_ref(fb, ctx)
+        if r:
+            r["count"] = r.get("count", 1) * fb_qty
+            return [r]
+    return res
+
+
 def _roll_fixed(pool: dict, ctx: Any) -> list[dict]:
     """固定掉落：entries 全给（必掉清单）。"""
     out = []
@@ -306,6 +416,7 @@ POOL_STRATEGIES = {
     "weighted": _roll_weighted,
     "fish": _roll_fish,
     "table": _roll_table,
+    "table_choice": _roll_table_choice,
     "fixed": _roll_fixed,
 }
 
@@ -428,7 +539,7 @@ def audit_all() -> dict:
             if not ref:
                 issues.append(("断链", pool_key, f"条目无 item: {e}"))
                 continue
-            if ref in special_refs or ref.startswith(("gold:", "item:", "special:", "equip_drop:")):
+            if ref in special_refs or ref.startswith(("gold:", "gold_pct:", "item:", "special:", "equip_drop:", "petegg:", "rune:", "equip_drop_mix")):
                 continue
             if ref.startswith("equip:"):
                 rid = ref.split(":", 1)[1]
@@ -456,7 +567,7 @@ def audit_all() -> dict:
                     # 内联引用直接指向 DROP_POOLS 中的 key（允许前缀）
                     if key not in pools and not any(k.endswith(key) for k in pools):
                         issues.append(("断链", pool_key, f"table 子池缺失: {sub}"))
-                elif sub.startswith(("gold:", "item:", "special:", "equip:", "equip_drop:")):
+                elif sub.startswith(("gold:", "gold_pct:", "item:", "special:", "equip:", "equip_drop:", "petegg:", "rune:", "equip_drop_mix")):
                     pass  # 内联直接解析
                 elif sub not in pools and sub not in special_refs and sub not in C.EQUIP_ROSTER:
                     issues.append(("断链", pool_key, f"table 子池未知: {sub}"))
