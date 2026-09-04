@@ -993,6 +993,23 @@ def branch_skill_owner(class_name: str, skill_name: str):
             if skill_name in skills:
                 return tier, bname
     return None
+
+
+def branch_path_index(class_name: str, tier: int, branch_key: str):
+    """分支 key 在该 tier 分支组内的 index（0/1）；找不到返回 None。
+
+    v174：显示层用——BRANCH_SKILLS 分支 key 保持 B1 名（系统约定，如牧师 B2 key 仍
+    "神谕者"），需按 tier 内位置映射到 classes.evolve_branches 的档位名（大主教/圣光先知等）。
+    """
+    try:
+        branches = _br_table(class_name)
+        blist = list((branches.get(int(tier)) or {}).keys())
+        for i, bk in enumerate(blist):
+            if bk == branch_key:
+                return i
+    except Exception:
+        return None
+    return None
 # ============================================================
 # 战斗
 # ============================================================

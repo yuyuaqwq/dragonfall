@@ -1405,7 +1405,20 @@ class PlayerCmds(CommandBase):
         owner = E.branch_skill_owner(player["class_name"], skill_name)
         if owner:
             # v130.2f.2 苦修改名收尾：专属归属分支 key → 展示名（武僧→淬势者、大地武僧→锻势行者）
-            lines.append(f"专属：{_BRANCH_KEY_DISPLAY.get(owner[1], owner[1])}(Lv.{C.EVOLVE_LEVELS[owner[0]]} 转职解锁)")
+            # v174 精确化：牧师/诗人档位名按 tier 从 classes.evolve_branches 取（大主教/圣光先知/
+            # 晨曦歌者/天籁颂者等），避免 60 级"大主教"却看到技能标"神谕者专属"
+            _own_tier, _own_key = owner[0], owner[1]
+            _disp_branch = _own_key
+            try:
+                _eb_paths = C.CLASSES.get(player["class_name"], {}).get("evolve_branches", {})
+                _eb_list = _eb_paths.get(_own_tier, [])
+                # owner key 是该 tier 分支表 key（如"神谕者"），定位其在分支组的位置 → 取同 index 档位名
+                _cand_path = E.branch_path_index(player["class_name"], _own_tier, _own_key)
+                if _cand_path is not None and 0 <= _cand_path < len(_eb_list):
+                    _disp_branch = _BRANCH_KEY_DISPLAY.get(_eb_list[_cand_path], _eb_list[_cand_path])
+            except Exception:
+                pass
+            lines.append(f"专属：{_disp_branch}(Lv.{C.EVOLVE_LEVELS[_own_tier]} 转职解锁)")
         if info.get("multi"):
             lines.append(f"连击：x{info['multi']}")
         if info.get("pierce"):
