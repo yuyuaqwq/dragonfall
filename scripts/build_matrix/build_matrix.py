@@ -395,24 +395,68 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
     }
 
 
+def boss_instance_panel(iid: str, n_players: int = 1, boss_lv: int | None = None) -> dict:
+    """实例 Boss 完整面板（与 team_matrix 同口径）：
+    - 基础面板：C.build_monster（裸模板 × MONSTER_MODS 个体修正）
+    - 血量：叠实例 hp_mult + 人数缩放（team.boss_hp 公式）
+    - 攻击：保留 atk_mult 供承伤侧用（_boss_hit 里 ×atk_mult×1.35）
+    返回 dict（含 max_hp/def/mdef/atk/matk/spd + _hp_mult/_atk_mult/_n_players）
+    """
+    from data.plugins.dragonfall.game import content as C
+    from numeric_lib.team import boss_hp
+    inst = C.INSTANCES.get(iid)
+    if not inst:
+        raise KeyError(f"未知副本: {iid}")
+    boss_def = inst.get("boss") or (inst.get("stages") or [])[-1].get("boss")
+    if not boss_def:
+        raise KeyError(f"副本 {iid} 无 Boss")
+    mn = inst.get("min_players", 1)
+    n_eff = max(int(n_players or 1), mn)  # 进不去按最少可进人数
+    lv = boss_lv or int(boss_def[3])
+    m = C.build_monster(boss_def, {"id": boss_def[0], "name": boss_def[1],
+                                   "area": "instance", "lv": lv})
+    hp_tot = boss_hp(m.get("max_hp", 0), n_eff, mn, inst.get("hp_mult"))
+    m = dict(m)
+    m["max_hp"] = hp_tot
+    m["hp"] = hp_tot
+    m["_hp_mult"] = inst.get("hp_mult")
+    m["_atk_mult"] = inst.get("atk_mult", 1.0)
+    m["_n_players"] = n_eff
+    m["_min_players"] = mn
+    m["_boss_def"] = boss_def
+    return m
+
+
 def build_vs_boss(cls_id: str, lv: int, loadout: str, attr: dict,
-                  rotation: list, boss: dict, boss_lv: int) -> dict:
+                  rotation: list, boss: dict, boss_lv: int = None,
+                  iid: str | None = None, n_players: int = 1) -> dict:
     """流派 vs Boss：期望击杀轮 + 生存轮。
 
     boss: boss_def（instances.py 6元组）或已展开 dict（含 max_hp/def/mdef/atk/matk/spd）
     boss_lv: 覆盖 boss_def[3]（玩家跨级打高本时用）
+    iid: 若给副本 id，用 team 口径叠 hp_mult/atk_mult（推荐）；否则当裸模板处理
+    n_players: 打本次数（单人=1）
     返回 {kill_rounds, survive_rounds, verdict}
     """
-    # 展开 Boss 面板
-    if isinstance(boss, (tuple, list)):
-        # (id, 名, role, lv, [技能], [掉落])
-        from numeric_lib.monster import build as _mb
-        boss_panel = _mb("boss", boss_lv or int(boss[3]))
+    # 展开 Boss 面板 —— 优先实例完整口径（与 battle2/team_matrix 对齐）
+    if iid:
+        from data.plugins.dragonfall.game import content as C
+        boss_panel = boss_instance_panel(iid, n_players, boss_lv)
+        atk_mult = boss_panel.get("_atk_mult", 1.0)
+    elif isinstance(boss, (tuple, list)):
+        # (id, 名, role, lv, [技能], [掉落]) → C.build_monster（同 battle2.boss_of）
+        bd = tuple(boss)
+        from data.plugins.dragonfall.game import content as C
+        boss_panel = C.build_monster(
+            bd, {"id": bd[0], "name": bd[1], "area": "instance", "lv": bd[3]})
+        atk_mult = 1.0
     elif isinstance(boss, dict) and "max_hp" in boss:
         boss_panel = boss
+        atk_mult = 1.0
     else:
         from numeric_lib.monster import build as _mb
         boss_panel = _mb("boss", boss_lv or 20)
+        atk_mult = 1.0
     hp = float(boss_panel.get("max_hp", boss_panel.get("hp", 1000)))
     edef = int(boss_panel.get("def", 0))
     mdef = int(boss_panel.get("mdef", 0))
@@ -420,16 +464,28 @@ def build_vs_boss(cls_id: str, lv: int, loadout: str, attr: dict,
               "def": edef, "mdef": mdef, "hp": hp}
     r = rotation_dps(cls_id, lv, loadout, attr, rotation, fight_len=60.0, target=target)
     kill = r["kill_rounds"]
-    # 承伤侧：Boss 单发期望 × enraged 1.35（team.py BOSS_ATK_MULT 同款保守）
+    # 承伤侧：复用 team 口径 —— Boss 单发 = _boss_hit(boss_def, m, def, mdef, atk_mult)
+    # （物理/魔法取高 × atk_mult × 1.35 enraged 保守）
     st = build_panel(cls_id, lv, loadout, attr)
-    boss_atk = float(boss_panel.get("atk", 0)) * 1.35
-    boss_matk = float(boss_panel.get("matk", 0)) * 1.35
+    from data.plugins.dragonfall.game import engine as E
+    boss_atk = float(boss_panel.get("atk", 0)) * atk_mult * 1.35
+    boss_matk = float(boss_panel.get("matk", 0)) * atk_mult * 1.35
     d_phys = E.calc_damage(int(boss_atk), int(st.get("def", 0)), variance=0.0, dmg_type="phys")
     d_magi = E.calc_damage(int(boss_matk), int(st.get("mdef", 0)), variance=0.0, dmg_type="magi")
     boss_hit = max(d_phys, d_magi)
     player_hp = float(st.get("max_hp", 1000))
-    # 自愈近似：heal 类技能从 dps 里扣减承伤（暂简化：只有 rotation 里治疗技才减）
-    survive = player_hp / max(boss_hit, 1.0) if boss_hit > 0 else 999.0
+    # 单刷吃药水近似（team_matrix 单刷口径：防御药水 def×1.45 + 治疗药水每3轮回50%血）
+    if int(boss_panel.get("_n_players", n_players)) <= 1 and loadout not in ("naked",):
+        pdef_b = int(st.get("def", 0) * 1.45)
+        pmdef_b = int(st.get("mdef", 0) * 1.45)
+        d_phys_b = E.calc_damage(int(boss_atk), pdef_b, variance=0.0, dmg_type="phys")
+        d_magi_b = E.calc_damage(int(boss_matk), pmdef_b, variance=0.0, dmg_type="magi")
+        boss_hit = max(d_phys_b, d_magi_b)
+        heal_per_round = player_hp * 0.50 / 3.0
+        net = max(boss_hit - heal_per_round, boss_hit * 0.2)
+        survive = player_hp / max(net, 1.0)
+    else:
+        survive = player_hp / max(boss_hit, 1.0) if boss_hit > 0 else 999.0
     verdict = ""
     if kill is None:
         verdict = "🔴 杀不死"

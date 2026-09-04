@@ -59,17 +59,34 @@ def attr_pts_total(lv: int) -> int:
     return C.DEFAULT_ATTR_PTS + (lv - 1) * 3
 
 
-def boss_of(boss_def: tuple, warn: bool = True) -> dict:
+def boss_of(boss_def: tuple, warn: bool = True, iid: str | None = None,
+            n_players: int = 1) -> dict:
     """boss 6 元组 (id, 名, role, lv, [技能ID], [掉落]) → C.build_monster 展开成怪 dict。
 
     地图 obj 带 area='instance'（副本口径：instance Boss atk 段乘区生效）。
     展开失败（个别 Boss 需特殊 map 对象）→ fallback numeric_sim.monster_of('boss', lv)。
+
+    v175 口径对齐（鱼鱼拍板）：iid 给定且实例有 hp_mult 时，Boss 血量叠
+    team.boss_hp 人数缩放（与 team_matrix / 期望引擎 build_vs_boss 同口径）。
+    默认 n_players=1（单人流派矩阵）；多人本传对应人数。
     """
     try:
         bd = tuple(boss_def)
         if len(bd) < 6:
             raise ValueError("boss_def 需要 6 元组 (id, 名, role, lv, [技能], [掉落])，实际长度 %d" % len(bd))
-        return C.build_monster(bd, {"id": bd[0], "name": bd[1], "area": "instance", "lv": bd[3]})
+        m = C.build_monster(bd, {"id": bd[0], "name": bd[1], "area": "instance", "lv": bd[3]})
+        # v175：叠实例 hp_mult（team.boss_hp 公式）——若调用方给 iid
+        if iid:
+            from .team import boss_hp as _bh
+            inst = C.INSTANCES.get(iid)
+            if inst:
+                mn = inst.get("min_players", 1)
+                n_eff = max(int(n_players or 1), mn)
+                hp_tot = _bh(m.get("max_hp", 0), n_eff, mn, inst.get("hp_mult"))
+                m = dict(m)
+                m["max_hp"] = hp_tot
+                m["hp"] = hp_tot
+        return m
     except Exception as exc:  # noqa: BLE001 —— 展开失败 fallback，保持与 numeric_sim 同源可跑
         if warn:
             print("[battle2][警告] boss_def 展开失败(%s)，fallback numeric_sim.monster_of('boss', lv=%s)"
@@ -80,13 +97,16 @@ def boss_of(boss_def: tuple, warn: bool = True) -> dict:
 
 def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
                     rotation: list[str], boss_def: tuple, boss_lv: int | None = None,
-                    seeds: int = 8, max_turns: int = 500) -> dict:
+                    seeds: int = 8, max_turns: int = 500,
+                    iid: str | None = None, n_players: int = 1) -> dict:
     """真实引擎多技能循环 vs Boss：返回 {wins, avg_rounds, avg_survive}
 
     - cls_id: 'cls_zhan_shi' 等；loadout: 'solo_mid'/'team_purple9' 等（gear_loadout）；
     - attr: 加点 dict {'str': 全部分配...}（数值=该等级自由点，见下）；
     - rotation: 技能名列表（按施放优先级排序，玩家按此顺序尝试，都不可用→普攻）；
     - boss_def: instances.py boss 6 元组 (id, 名, role, lv, [技能], [掉落]) 或 C.INSTANCES[iid]['boss']；
+    - iid: 副本 id；给定则 Boss 血量叠实例 hp_mult（与 team_matrix 同口径，鱼鱼 v175 拍板）
+    - n_players: 打本次数（单人=1）
     - 玩家 class_tier/evolve_path 按 lv 算：lv>=90→tier3, >=60→tier2, >=30→tier1, else 0；
       evolve_path=1（攻线）
     - wins: seeds 场中胜利场数；avg_rounds: 胜利场平均击杀轮；avg_survive: 失败场平均存活轮
@@ -104,7 +124,7 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
         "hp": st["max_hp"], "mp": st["max_mp"], "max_hp": st["max_hp"], "max_mp": st["max_mp"],
         "race": "human", "title_bonus": None,
     }
-    boss = boss_of(boss_def)
+    boss = boss_of(boss_def, iid=iid, n_players=n_players)
 
     wins = 0
     rounds_sum = 0.0
