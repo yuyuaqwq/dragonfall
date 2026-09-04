@@ -27,6 +27,7 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.join(_TESTS, "test_game_data.db"))
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
 from numeric_lib.battle2 import battle_rotation, attr_pts_total      # noqa: E402
+from data.plugins.dragonfall.game import engine as E                    # noqa: E402
 from build_matrix.boss_matrix import boss_def_of                      # noqa: E402
 from build_matrix.schema import KNOWN_CLASSES                          # noqa: E402
 
@@ -39,6 +40,16 @@ STAGE_TARGET = [
     ("P4", "inst_elven_ruins",    63, "team_purple9"),   # 精灵王 Lv63
     ("P5", "inst_ash_temple",     87, "team_orange9"),   # 恶魔祭司 Lv87
 ]
+
+
+# v175e 成型判定：流派在玩家等级可用技能数（lv≤玩家等级的 rotation 技能）
+def usable_skills(cid: str, rotation_skills: list[str], plv: int) -> int:
+    n = 0
+    for sn in rotation_skills:
+        info = E.skill_info(cid, sn) or {}
+        if int(info.get("lv", 0) or 0) <= plv:
+            n += 1
+    return n
 
 MAIN_ATTR = {"cls_zhan_shi": "str", "cls_fa_shi": "int", "cls_you_xia": "agi",
              "cls_mu_shi": "int", "cls_ci_ke": "agi", "cls_wu_seng": "str",
@@ -80,15 +91,21 @@ def main():
                 for k, v in attr_rec.items():
                     attr[k] = attr_pts_total(plv) if v in ("all", "full") else int(v)
                 boss_def = boss_def_of(iid)
+                _rules = bdef.get("rotation", [])
+                _usable = usable_skills(cid, rotation, plv)
+                _total = len(rotation)
                 try:
                     r = battle_rotation(cid, plv, loadout, attr, rotation, boss_def,
-                                        seeds=seeds, n_players=1, affix_type=affix)
+                                        seeds=seeds, n_players=1, affix_type=affix,
+                                        rules=_rules)
                     bres["stages"][stage] = {
                         "boss": boss_def[1], "boss_lv": boss_lv, "player_lv": plv,
                         "wins": r["wins"], "seeds": seeds,
                         "avg_rounds": r["avg_rounds"] if r["wins"] else None,
                         "avg_survive": r["avg_survive"],
                         "win_rate": round(r["wins"] / seeds, 2),
+                        "usable_skills": f"{_usable}/{_total}",
+                        "formed": _usable >= max(2, _total * 0.5),  # 可用过半才算出成型
                     }
                 except Exception as ex:
                     bres["stages"][stage] = {"error": str(ex)[:80]}
@@ -103,11 +120,14 @@ def main():
                 s = binfo.get("stages", {}).get(stage, {})
                 if "win_rate" not in s:
                     continue
+                if not s.get("formed", True):
+                    continue  # 未成型流派不参与本阶段排行（等级门槛不足）
                 rows.append({
                     "class": cinfo["name"], "cid": cid, "build": bname,
                     "role": binfo["role"], "affix": binfo["affix_preset"],
                     "win_rate": s["win_rate"], "avg_rounds": s["avg_rounds"],
                     "avg_survive": s["avg_survive"],
+                    "usable": s.get("usable_skills", "?/?")
                 })
         rows.sort(key=lambda x: (-x["win_rate"], x["avg_rounds"] if x["avg_rounds"] else 999))
         report["stages"][stage] = {"boss": boss_def[1], "boss_lv": boss_lv, "rows": rows}
@@ -117,13 +137,19 @@ def main():
     for stage, iid, boss_lv, loadout in STAGE_TARGET:
         st = report["stages"][stage]
         print(f"\n【{stage}】{st['boss']} Lv{boss_lv}（玩家 Lv{boss_lv+5} {loadout}）", flush=True)
+        # 未成型流派单独列（标注等级门槛不足，不参与排行）
+        for cid, cinfo in report["classes"].items():
+            for bname, binfo in cinfo["builds"].items():
+                s = binfo.get("stages", {}).get(stage, {})
+                if "win_rate" in s and not s.get("formed", True):
+                    print(f"  ⚠️  {cinfo['name']}·{bname:<7} [未成型 可用{s.get('usable_skills','?')}]", flush=True)
         for row in st["rows"]:
             if row["avg_rounds"]:
                 kr = f"{row['avg_rounds']:.1f}轮"
             else:
                 kr = f"存活{row['avg_survive']:.1f}"
             print(f"  {row['class']}·{row['build']:<7} [{row['role']:<4}] "
-                  f"{row['win_rate']:.0%} {kr}", flush=True)
+                  f"{row['win_rate']:.0%} {kr} (可用{row['usable']})", flush=True)
 
     json_out = None
     if "--json" in sys.argv:
