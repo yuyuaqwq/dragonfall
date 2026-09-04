@@ -10,44 +10,136 @@
       "role": "dps",
       "attr_preset": "full_agi",
       "rotation": [
-        {"skill": "猎印射击", "cond": "always", "prio": 4, "note": "挂猎印+稳定输出（精力30），基础攒印"},
-        {"skill": "森语印记", "cond": "energy>=25", "prio": 3, "note": "叠猎印2层（精力25），为追猎/爆发铺垫"},
-        {"skill": "追猎", "cond": "energy>=30", "prio": 2, "note": "标记特攻（精力30），有印时伤害高"},
-        {"skill": "淬毒箭", "cond": "energy>=30", "prio": 5, "note": "叠毒层（精力30），毒磨血"},
-        {"skill": "荆棘爆", "cond": "cd_ready", "prio": 1, "note": "引爆毒层爆发（精力40），毒层越高越痛"},
-        {"skill": "死神之箭", "cond": "energy>=60", "prio": 0, "note": "斩杀终结（精力60），高倍率收尾"}
+        {
+          "skill": "猎印射击",
+          "cond": "always",
+          "prio": 4,
+          "note": "挂猎印+稳定输出（精力30），基础攒印"
+        },
+        {
+          "skill": "森语印记",
+          "cond": "energy>=25",
+          "prio": 3,
+          "note": "叠猎印2层（精力25），为追猎/爆发铺垫"
+        },
+        {
+          "skill": "追猎",
+          "cond": "energy>=30",
+          "prio": 2,
+          "note": "标记特攻（精力30），有印时伤害高"
+        },
+        {
+          "skill": "淬毒箭",
+          "cond": "energy>=30",
+          "prio": 5,
+          "note": "叠毒层（精力30），毒磨血"
+        },
+        {
+          "skill": "荆棘爆",
+          "cond": "cd_ready",
+          "prio": 1,
+          "note": "引爆毒层爆发（精力40），毒层越高越痛"
+        },
+        {
+          "skill": "死神之箭",
+          "cond": "energy>=60",
+          "prio": 0,
+          "note": "斩杀终结（精力60），高倍率收尾"
+        }
       ],
       "fight_len": 60,
       "self_heal": false,
-      "desc": "猎印射击挂印+淬毒叠毒 → 森语印记叠层 → 追猎标记特攻 → 荆棘爆引爆毒层 → 死神之箭斩杀"
+      "desc": "猎印射击挂印+淬毒叠毒 → 森语印记叠层 → 追猎标记特攻 → 荆棘爆引爆毒层 → 死神之箭斩杀",
+      "affix_preset": "spd"
     },
     "疾风连射流": {
       "line": "风行者",
       "role": "dps",
       "attr_preset": "full_agi",
       "rotation": [
-        {"skill": "连射", "cond": "always", "prio": 5, "note": "零CD高频（精力22），输出主轴"},
-        {"skill": "疾风射击", "cond": "energy>=25", "prio": 3, "note": "快射提速（精力25），叠加攻速节奏"},
-        {"skill": "双重射击", "cond": "cd_ready", "prio": 4, "note": "双箭齐发（精力35），CD好即打"},
-        {"skill": "风之疾走", "cond": "cd_ready", "prio": 2, "note": "提速buff（精力20），行动加速"},
-        {"skill": "急速射击", "cond": "cd_ready", "prio": 1, "note": "高频连发（精力30），CD好即打"},
-        {"skill": "贯日箭", "cond": "energy>=70", "prio": 0, "note": "必中必暴终结（精力70），大招收尾"}
+        {
+          "skill": "连射",
+          "cond": "always",
+          "prio": 5,
+          "note": "零CD高频（精力22），输出主轴"
+        },
+        {
+          "skill": "疾风射击",
+          "cond": "energy>=25",
+          "prio": 3,
+          "note": "快射提速（精力25），叠加攻速节奏"
+        },
+        {
+          "skill": "双重射击",
+          "cond": "cd_ready",
+          "prio": 4,
+          "note": "双箭齐发（精力35），CD好即打"
+        },
+        {
+          "skill": "风之疾走",
+          "cond": "cd_ready",
+          "prio": 2,
+          "note": "提速buff（精力20），行动加速"
+        },
+        {
+          "skill": "急速射击",
+          "cond": "cd_ready",
+          "prio": 1,
+          "note": "高频连发（精力30），CD好即打"
+        },
+        {
+          "skill": "贯日箭",
+          "cond": "energy>=70",
+          "prio": 0,
+          "note": "必中必暴终结（精力70），大招收尾"
+        }
       ],
       "fight_len": 60,
       "self_heal": false,
-      "desc": "连射高频输出 → 疾风射击/双重射击叠节奏 → 风之疾走提速 → 贯日箭必中必暴终结"
+      "desc": "连射高频输出 → 疾风射击/双重射击叠节奏 → 风之疾走提速 → 贯日箭必中必暴终结",
+      "affix_preset": "elem"
     },
     "自然召唤流": {
       "line": "森语者",
       "role": "support",
       "attr_preset": "balanced",
       "rotation": [
-        {"skill": "猎印射击", "cond": "always", "prio": 4, "note": "基础输出+挂印"},
-        {"skill": "藤蔓缠绕", "cond": "cd_ready", "prio": 3, "note": "缠绕控制+持续伤害（精力40），拖住敌人"},
-        {"skill": "召唤藤蔓守卫", "cond": "cd_ready", "prio": 2, "note": "召唤守卫挡刀（精力45），稳定前排"},
-        {"skill": "追猎", "cond": "energy>=30", "prio": 5, "note": "标记输出，补充伤害"},
-        {"skill": "召唤古树守卫", "cond": "cd_ready", "prio": 1, "note": "古树光环（精力60），全队增益"},
-        {"skill": "猎杀时刻", "cond": "cd_ready", "prio": 0, "note": "集火标记目标（精力50），斩杀窗口"}
+        {
+          "skill": "猎印射击",
+          "cond": "always",
+          "prio": 4,
+          "note": "基础输出+挂印"
+        },
+        {
+          "skill": "藤蔓缠绕",
+          "cond": "cd_ready",
+          "prio": 3,
+          "note": "缠绕控制+持续伤害（精力40），拖住敌人"
+        },
+        {
+          "skill": "召唤藤蔓守卫",
+          "cond": "cd_ready",
+          "prio": 2,
+          "note": "召唤守卫挡刀（精力45），稳定前排"
+        },
+        {
+          "skill": "追猎",
+          "cond": "energy>=30",
+          "prio": 5,
+          "note": "标记输出，补充伤害"
+        },
+        {
+          "skill": "召唤古树守卫",
+          "cond": "cd_ready",
+          "prio": 1,
+          "note": "古树光环（精力60），全队增益"
+        },
+        {
+          "skill": "猎杀时刻",
+          "cond": "cd_ready",
+          "prio": 0,
+          "note": "集火标记目标（精力50），斩杀窗口"
+        }
       ],
       "fight_len": 60,
       "self_heal": false,
@@ -55,10 +147,21 @@
     }
   },
   "attr_presets": {
-    "full_agi": {"agi": "all"},
-    "full_str": {"str": "all"},
-    "balanced": {"agi": 0.5, "str": 0.3, "vit": 0.2},
-    "crit": {"agi": 0.7, "str": 0.3}
+    "full_agi": {
+      "agi": "all"
+    },
+    "full_str": {
+      "str": "all"
+    },
+    "balanced": {
+      "agi": 0.5,
+      "str": 0.3,
+      "vit": 0.2
+    },
+    "crit": {
+      "agi": 0.7,
+      "str": 0.3
+    }
   },
   "notes": "游侠 精力 energy max=100 regen=18/刻（全职业唯一自然回）。基础技能无 mp 全靠精力（res_cost.energy 22-70）。精力三档预算：低耗连射22、中耗印记/追猎25-35、终结50-70（死神之箭/贯日箭）。全敏agi→spd+crit走攻速暴击，全str→atk走单发爆发——两套加点玩法差异明显，门禁验证中间档。"
 }
