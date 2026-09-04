@@ -1,0 +1,55 @@
+{
+ "digest": "4fab93c9433b",
+ "data": {
+  "cls_zhan_shi::狂战流@25:inst_goblin_camp": {
+   "wins": 0,
+   "avg_rounds": 0.0,
+   "avg_survive": 38.75
+  },
+  "cls_zhan_shi::血怒流@98:inst_ash_temple": {
+   "wins": 4,
+   "avg_rounds": 13.75,
+   "avg_survive": 0.0
+  },
+  "cls_fa_shi::元素爆发流@25:inst_goblin_camp": {
+   "wins": 0,
+   "avg_rounds": 0.0,
+   "avg_survive": 17.5
+  },
+  "cls_fa_shi::奥术精算流@98:inst_ash_temple": {
+   "wins": 0,
+   "avg_rounds": 0.0,
+   "avg_survive": 18.0
+  },
+  "cls_you_xia::疾风连射流@68:inst_elven_ruins": {
+   "wins": 0,
+   "avg_rounds": 0.0,
+   "avg_survive": 13.0
+  },
+  "cls_you_xia::森语猎印流@98:inst_ash_temple": {
+   "wins": 3,
+   "avg_rounds": 16.0,
+   "avg_survive": 16.0
+  },
+  "cls_ci_ke::影舞连段流@25:inst_goblin_camp": {
+   "wins": 0,
+   "avg_rounds": 0.0,
+   "avg_survive": 18.75
+  },
+  "cls_mu_shi::死灵骷髅流@98:inst_ash_temple": {
+   "wins": 0,
+   "avg_rounds": 0.0,
+   "avg_survive": 17.75
+  },
+  "cls_wu_seng::破绽连打流@45:inst_old_king_tomb": {
+   "wins": 0,
+   "avg_rounds": 0.0,
+   "avg_survive": 35.5
+  },
+  "cls_shi_ren::挽歌瓦解流@45:inst_old_king_tomb": {
+   "wins": 0,
+   "avg_rounds": 0.0,
+   "avg_survive": 54.75
+  }
+ }
+}
