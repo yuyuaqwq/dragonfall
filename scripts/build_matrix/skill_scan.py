@@ -82,7 +82,7 @@ def skill_class(info: dict) -> str:
     - 带 cond/控制/减伤 effect → control/guard
     """
     kind = str(info.get("kind", ""))
-    if kind.startswith("物理") or kind.startswith("魔法"):
+    if kind.startswith("物理") or kind.startswith("魔法") or kind == "真伤":
         return "damage"
     if kind == "治疗":
         return "heal"
@@ -121,7 +121,7 @@ def skill_efficiency_row(cls: str, skid: str, info: dict, st: dict,
     except Exception:
         base = int(raw or 0)
     if base > 0 and skill_class(info) == "damage":
-        if info.get("pierce"):
+        if info.get("pierce") or kind == "真伤":
             dmg = E.calc_damage(base, 0, pierce=True, dmg_type=dmg_type, variance=0.0)
         else:
             dmg = E.calc_damage(base, int(defv), variance=0.0, dmg_type=dmg_type)

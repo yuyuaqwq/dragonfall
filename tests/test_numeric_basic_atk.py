@@ -66,7 +66,9 @@ for cls, name in [("cls_fa_shi", "法师"), ("cls_mu_shi", "牧师"), ("cls_shi_
           and bs.get("exprs", [""])[0].startswith("matk"),
           f"kind={bs.get('kind')} expr={bs.get('exprs')}")
 
-# 3. 法系普攻伤害 = matk 段（matk=100, mdef=10 → ~90）
+# 3. 法系普攻伤害 = matk 段（matk=100, mdef=10 → ~90，引擎伤害有 ±15% 浮动）
+# ⚠️ 断言放宽到 ≥75：引擎 _player_attack 走通用攻击段 variance=0.15，
+# 90×(1-0.15)=76.5，曾偶发 78/79 红（非回归，是随机浮动）——与战士口径对齐
 for cls in ["cls_fa_shi", "cls_mu_shi", "cls_shi_ren"]:
     player, b, st = mk_battle(cls, atk=30, matk=100)
     logs = b._player_attack(st, player)
@@ -78,7 +80,7 @@ for cls in ["cls_fa_shi", "cls_mu_shi", "cls_shi_ren"]:
             if m:
                 dmg = int(m.group(1))
     check(f"{CLASSES[cls]['name']} 普攻 ≈ matk 伤害 (atk=30/matk=100 → ~90)",
-          dmg >= 80, f"实际 {dmg}")
+          dmg >= 75, f"实际 {dmg}")
 
 # 4. 物理普攻不回归（atk=100 → 与旧 calc_damage 一致）
 player, b, st = mk_battle("cls_zhan_shi", atk=100, matk=10)

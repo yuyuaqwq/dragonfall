@@ -164,11 +164,13 @@ def _interval(cast: float, spd: float) -> float:
 def _dmg_of(info: dict, st: dict, skill_lv: int, target: dict) -> float:
     """单发期望伤害（skill_expr_preview + calc_damage 过防）。目标 dict 含 def/mdef。
 
-    ⚠️ 只对 kind=物理/魔法 的输出技算伤害；治疗/增益/召唤/被动 = 0
+    ⚠️ 只对 kind=物理/魔法/真伤 的输出技算伤害；治疗/增益/召唤/被动 = 0
     （治疗技 heal_formula 的 skill_expr_preview 返回治疗量，误当伤害会让
-    牧师神谕治疗流"13轮击杀"假象——v175 修复）。"""
+    牧师神谕治疗流"13轮击杀"假象——v175 修复）。
+    v175b：真伤（kind=真伤，穿防 0 防御 calc_damage(pierce=True)）纳入——
+    战争化身/龙息之怒/腐蚀之刃/万毒噬心 是真伤高价值技，此前算 0 严重低估。"""
     kind = str(info.get("kind", ""))
-    if not (kind.startswith("物理") or kind.startswith("魔法")):
+    if not (kind.startswith("物理") or kind.startswith("魔法") or kind == "真伤"):
         return 0.0
     phys = kind.startswith("物理")
     _st = dict(st)
@@ -178,7 +180,8 @@ def _dmg_of(info: dict, st: dict, skill_lv: int, target: dict) -> float:
     if raw <= 0:
         return 0.0
     dmg_type = "phys" if phys else "magi"
-    if info.get("pierce"):
+    if info.get("pierce") or kind == "真伤":
+        # 真伤/穿防：无视防御（calc_damage pierce=True）
         base = E.calc_damage(int(raw), 0, pierce=True, dmg_type=dmg_type, variance=0.0)
     else:
         defv = int(target.get("def", 0)) if phys else int(target.get("mdef", 0))
