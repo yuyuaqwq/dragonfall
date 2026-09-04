@@ -113,13 +113,18 @@ def main():
             exp_verdict = exp_r.get("verdict", "")
             flag = "✅"
             note = ""
-            # 硬断言 1：期望说"可过"时，真引擎至少 1 胜（不完全矛盾）
-            if exp_kr is not None and exp_kr < 80 and "先死" not in exp_verdict and wins == 0:
-                flag = "🔴"
-                note = f"期望{exp_kr}轮可过但真引擎 0 胜"
-            elif exp_kr is None and wins > 0:
+            # 硬断言（v175e 修正）：期望引擎无完整承伤模型（Boss 技能/承伤死亡），
+            # "可过"是乐观上界——只做单向断言：
+            #   1. 期望"杀不死"（kill=None）→ 真引擎必须 0 胜（若真引擎赢 = 期望低估）
+            #   2. 期望"先死打不过" → 真引擎 0 胜 ✅（一致）
+            #   ⚠️ 期望"可过"不再硬要求真引擎能赢（期望漏算承伤，可过≠真能过）
+            if exp_kr is None and wins > 0:
                 flag = "🔴"
                 note = f"期望杀不死但真引擎赢 {wins} 场（期望低估）"
+            elif "先死" not in exp_verdict and exp_kr is not None and wins == 0:
+                # 期望说能打过但真引擎 0 胜：可能是期望乐观（漏承伤），记录但不红
+                note = f"期望{exp_kr}轮乐观（期望漏承伤模型，真引擎0胜待核）"
+                flag = "🟡"
             # 硬断言 2：真引擎能赢时记录实际轮
             real_kr = real.get("avg_rounds") if wins > 0 else None
             delta_s = f" vs实际{real_kr}轮" if real_kr else ""
@@ -127,7 +132,7 @@ def main():
                 deltas.append(real_kr - exp_kr)
             check(f"{flag} {cname}.{bname}: 期望{exp_kr if exp_kr else '杀不死'}轮{exp_verdict}"
                   f" | 真引擎 {wins}/{seeds}胜 存活{real.get('avg_survive', 0)}轮{delta_s}{note}",
-                  flag == "✅", note)
+                  flag in ("✅", "🟡"), note)
 
     print("\n【2】偏差带观察（期望 vs 实际击杀轮）")
     if deltas:

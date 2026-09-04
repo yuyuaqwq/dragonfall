@@ -34,8 +34,9 @@ def _apply_mult(s: dict, mult: float) -> dict:
 
 
 def make_gear(level: int, quality: str = "blue", enhance: int = 0,
-              upgrade: int = 0, gem_tier: int = 0, set_bonus: bool = False) -> dict:
-    """全部部位基础装备：equip_stats × 强化 × 升级 + 幸运宝石 + 套装。
+              upgrade: int = 0, gem_tier: int = 0, set_bonus: bool = False,
+              affix_type: str = "atk") -> dict:
+    """全部部位基础装备：equip_stats × 强化 × 升级 + 幸运宝石 + 套装 + 词条乘区。
 
     返回 {slot: {"stats": {...}, "enhance": n, "upgrade": n, "gem_tier": n,
                  "set_bonus": bool, "sockets": {...}?, "set": str?}}
@@ -46,7 +47,26 @@ def make_gear(level: int, quality: str = "blue", enhance: int = 0,
     - set_bonus: 套装 2 件同套激活 → 主属性 +SET_BONUS_PCT（简化 8%）。
                 橙装双槽（weapon+ring 攻击向 / helm+armor 防御向）套烈焰套/铁皮套，
                 引擎 set_bonus_2 按 class 折扣消费（本职业 100%）。
+    - affix_type: v175e 词条乘区流派（暴击法师/急速游侠等玩法建模）：
+        atk       攻击词条（默认，×AFFIX_MULT 攻击 1.20）
+        crit      暴击流：暴击率 +CRIT_AFFIX_CRIT，暴伤 +CRIT_AFFIX_CDMG
+        spd       急速流：速度 +SPD_AFFIX_SPD
+        pene      穿透流：物/魔穿透 +PENE_AFFIX
+        lifesteal 吸血续航流：吸血 +LS_AFFIX
+        elem      元素增伤流：对应元素增伤 +ELEM_AFFIX_DMG
+      各流派总等价收益 ≈ AFFIX_MULT(1.20) 量级（同强度不同分配，公平比较）。
+      词条乘区以面板键写入 stats（crit/crit_dmg/spd/pene_phys/pene_magi/lifesteal/
+      elem_dmg_*），由引擎/期望引擎消费。
     """
+    # v175e 词条乘区基准（蓝装 2 词条总收益 ≈ ×1.20 等价）
+    AFFIX_BY_TYPE = {
+        # 面板键 → 加成值（加法键直接加面板；比例键按面板比例）
+        "crit": {"crit": 0.10, "crit_dmg": 0.30},      # +10% 暴击率 +30% 爆伤
+        "spd": {"spd": 60},                              # +60 速度（≈2倍速 → 频率×1.41）
+        "pene": {"pene_phys": 0.20, "pene_magi": 0.20}, # 20% 穿透
+        "lifesteal": {"lifesteal": 0.15},                # 15% 吸血（输出等价 ~0.3）
+        "elem": {"dmg_mult": 0.20},                      # +20% 全伤（元素增伤近似）
+    }
     gear = {}
     mult = C.ENHANCE_TABLE.get(enhance, {}).get("mult", 1.0)
     # v172 真等级化：升级 = 装备 lv +upgrade（属性随 equip_stats 重算，无倍率乘区）
@@ -56,11 +76,23 @@ def make_gear(level: int, quality: str = "blue", enhance: int = 0,
     if gem_tier > 0:
         # 固定种子：与 numeric_sim 同源可复现（seed = level % 7 + slot hash）
         gem_stat = GEM_STAT_POOL[(level + 1) % len(GEM_STAT_POOL)]
+    # v175e：词条乘区总量拆分到 4 个槽位（武器/戒指 攻击向 + 头盔/胸甲 半攻击向），
+    # 每槽 1/4，累加后 ≈ 基准总值；防御槽（腿/靴）不叠输出词条（真实配装逻辑）
+    affix_vals = AFFIX_BY_TYPE.get(affix_type, {})
+    affix_slots = ("weapon", "ring", "helm", "armor")
     for slot in C.EQUIP_SLOT_BASE:
         s = ST.equip_stats(slot, equip_lv, quality)
         s = _apply_mult(s, mult)
         entry = {"stats": s, "enhance": enhance, "upgrade": upgrade,
                  "gem_tier": gem_tier, "set_bonus": set_bonus}
+        # v175e 词条乘区：只往攻击向槽位叠（每槽 1/4 总值）
+        if affix_type != "atk" and affix_vals and slot in affix_slots:
+            for k, v in affix_vals.items():
+                # 比例键转面板小数；速度等整数键直接加
+                if k == "spd":
+                    entry["stats"][k] = int(entry["stats"].get(k, 0) or 0) + int(v / len(affix_slots))
+                else:
+                    entry["stats"][k] = round((entry["stats"].get(k, 0.0) or 0.0) + v / len(affix_slots), 4)
         if gem_stat:
             entry["sockets"] = {"S1": {"stats": {gem_stat: round(gem_mult, 6)}}}
         if set_bonus:

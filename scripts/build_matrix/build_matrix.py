@@ -151,14 +151,61 @@ def skill_lv_at(info: dict | None, player_lv: int) -> int:
     return min(grow, max_lv)
 
 
-def build_panel(cls_id: str, lv: int, loadout: str, attr: dict) -> dict:
-    """真实面板（build_player 封装）。attr 已是最终点数 dict。"""
-    gear = gear_loadout(lv, loadout) if loadout and loadout != "naked" else {}
-    return build_player(cls_id, lv, gear, PlayerOptions(), attr=attr)
+def _gear_of(lv: int, loadout: str, affix_type: str = "atk") -> dict:
+    """取装备（支持 v175e 词条乘区 affix_type；naked 返回 {}）。"""
+    if not loadout or loadout == "naked":
+        return {}
+    from numeric_lib.gear import gear_loadout as _gl
+    if affix_type and affix_type != "atk":
+        # 词条乘区流：手动 make_gear（gear_loadout 不带 affix_type）
+        from numeric_lib.gear import make_gear
+        from numeric_lib.constants import LOADOUTS
+        cfg = LOADOUTS.get(loadout, {})
+        return make_gear(lv, cfg.get("quality", "blue"), cfg.get("enhance", 0),
+                         cfg.get("upgrade", 0), cfg.get("gem_tier", 0),
+                         cfg.get("set_bonus", False), affix_type=affix_type)
+    return _gl(lv, loadout)
+
+
+def build_panel(cls_id: str, lv: int, loadout: str, attr: dict,
+                affix_type: str = "atk") -> dict:
+    """真实面板（build_player 封装）。attr 已是最终点数 dict。
+    affix_type: v175e 词条乘区（atk/crit/spd/pene/lifesteal/elem）。"""
+    gear = _gear_of(lv, loadout, affix_type)
+    st = build_player(cls_id, lv, gear, PlayerOptions(), attr=attr)
+    # v175e：词条乘区里不进引擎面板的键（dmg_mult 全伤）由期望引擎手动读入
+    _dm = 0.0
+    for slot, entry in gear.items():
+        if isinstance(entry, dict):
+            _dm += float((entry.get("stats") or {}).get("dmg_mult", 0.0) or 0.0)
+    if _dm > 0:
+        st["_affix_dmg_mult"] = _dm
+    return st
 
 
 def _interval(cast: float, spd: float) -> float:
     return float(cast or 0) * math.sqrt(SPD_REF / max(float(spd or 0), 1.0))
+
+
+def _crit_mult_of(st: dict, multi: int = 1) -> float:
+    """暴击期望倍率（v175e 对齐引擎）：crit 率 cap 0.5，暴击 ×(0.5+crit_dmg)，
+    幸运一击 1.3；多段仅首段暴击（multi≥2 时按 1/multi 折算）——与 numeric_lib.player._crit_mult 同口径。
+    暴击率来源：面板 crit（含职业 base + 属性 agi 转化 + 装备词条）。"""
+    crit = min(float(st.get("crit", 0) or 0), 0.5)
+    if crit <= 0:
+        return 1.0
+    crit_dmg = float(st.get("crit_dmg", 0) or 0)
+    first = 1.0 / max(1, int(multi or 1))
+    return 1.0 + crit * (0.5 + crit_dmg) * first + crit * 0.3 * 0.3 * first
+
+
+def _pene_mult_of(st: dict, phys: bool, target: dict) -> float:
+    """穿透期望（v175e）：pene_phys/pene_magi 按百分比无视防御。
+    简化：穿透率 p 等效伤害倍率 = 1/(1 - p×def_mit_ratio) 过重——
+    直接近似：伤害加成 ≈ p×0.5（50% 防御无视约等于 30-50% 增伤，取中）。
+    ⚠️ 精确口径靠真引擎；期望引擎只做排序粗筛。"""
+    pene = float(st.get("pene_phys", 0) if phys else st.get("pene_magi", 0) or 0)
+    return 1.0 + pene * 0.5 if pene > 0 else 1.0
 
 
 def _dmg_of(info: dict, st: dict, skill_lv: int, target: dict) -> float:
@@ -170,6 +217,7 @@ def _dmg_of(info: dict, st: dict, skill_lv: int, target: dict) -> float:
     v175b：真伤（kind=真伤，穿防 0 防御 calc_damage(pierce=True)）纳入——
     战争化身/龙息之怒/腐蚀之刃/万毒噬心 是真伤高价值技，此前算 0 严重低估。
     v175d：召唤技折算召唤物期望 DPS 当量（对齐 SUMMONS 模板：atk_ratio×玩家atk×频率）。
+    v175e：全乘区期望——暴击(crit×crit_dmg×幸运) / 穿透(pene) 折入单发期望。
     """
     kind = str(info.get("kind", ""))
     # 召唤技：折算召唤物持续伤害（atk_ratio × 玩家 atk，按 attack_interval 频率）
@@ -190,8 +238,21 @@ def _dmg_of(info: dict, st: dict, skill_lv: int, target: dict) -> float:
         base = E.calc_damage(int(raw), 0, pierce=True, dmg_type=dmg_type, variance=0.0)
     else:
         defv = int(target.get("def", 0)) if phys else int(target.get("mdef", 0))
+        # 穿透：扣防前先按 pene 打折防御（等效防御降低）
+        pene = float(st.get("pene_phys", 0) if phys else st.get("pene_magi", 0) or 0)
+        if pene > 0:
+            defv = int(defv * (1 - min(pene, 0.6)))
         base = E.calc_damage(int(raw), defv, dmg_type=dmg_type, variance=0.0)
-    return base * int(info.get("hits", 1) or 1)
+    multi = int(info.get("hits", 1) or 1)
+    dmg = base * multi
+    # 暴击期望（非真伤——真伤不暴击，引擎语义）
+    if kind != "真伤":
+        dmg *= _crit_mult_of(st, multi=multi)
+    # v175e 全伤乘区（elem 词条 dmg_mult，不进引擎面板由期望引擎手动读）
+    _adm = float(st.get("_affix_dmg_mult", 0.0) or 0.0)
+    if _adm > 0:
+        dmg *= (1 + _adm)
+    return dmg
 
 
 def _summon_dmg_of(info: dict, st: dict, target: dict) -> float:
@@ -312,15 +373,17 @@ def _res_cost_of(info: dict, res_key: str) -> float:
 
 def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
                  rotation: list, fight_len: float = 60.0,
-                 target: dict | None = None) -> dict:
+                 target: dict | None = None,
+                 affix_type: str = "atk") -> dict:
     """期望循环模拟核心。
 
     rotation: [{"skill": 名, "cond": "...", "prio": n}, ...]（prio 0=最高优先级）
     target: {role, lv, max_hp, def, mdef, hp}（build_monster 展开）；None = 自动同级 dps 怪
+    affix_type: v175e 词条乘区流派（atk/crit/spd/pene/lifesteal/elem）
     返回 {dps, kill_rounds, total_dmg, empty_mp_rounds, skill_hits: {技能名: 次数}}
     """
     from numeric_lib.monster import build as _mb
-    st = build_panel(cls_id, lv, loadout, attr)
+    st = build_panel(cls_id, lv, loadout, attr, affix_type=affix_type)
     pool = class_skill_pool(cls_id, lv)
     res_key = None
     res_max = 0
