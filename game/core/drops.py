@@ -439,6 +439,8 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
         "is_elite": is_elite,
         "mech": mod.get("mech", ""),
         "mod": mod.get("desc", ""),
+        # v176 敌方 AI 配置（MONSTER_MODS 可配 ai: {skill_chance/weights}；无则引擎回落全局——见 _enemy_turn）
+        "ai": mod.get("ai") if mod.get("ai") else None,
     }
 
 # ============ v27b 多对多站位引擎 —— 怪物队伍构建（§8.1 / §9.3 数据层）============
