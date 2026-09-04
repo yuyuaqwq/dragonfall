@@ -25,8 +25,8 @@ os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 from build_matrix.build_matrix import rotation_dps, resolve_attr, boss_instance_panel
 from build_matrix.schema import KNOWN_CLASSES
 
-AFFIXES = ("atk", "crit", "spd", "pene", "elem")
-AFFIX_LABEL = {"atk": "攻击", "crit": "暴击", "spd": "急速", "pene": "穿透", "elem": "元素"}
+AFFIXES = ("atk", "crit", "spd", "pene", "elem", "cdr")
+AFFIX_LABEL = {"atk": "攻击", "crit": "暴击", "spd": "急速", "pene": "穿透", "elem": "元素", "cdr": "减CD"}
 # 注：lifesteal 吸血是生存向（不加输出），单独评估不在此输出对比
 LV = 75
 LOADOUT = "team_purple9"

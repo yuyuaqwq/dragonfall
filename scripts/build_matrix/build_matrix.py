@@ -188,15 +188,23 @@ def _interval(cast: float, spd: float) -> float:
 
 
 def _crit_mult_of(st: dict, multi: int = 1) -> float:
-    """暴击期望倍率（v175e 对齐引擎）：crit 率 cap 0.5，暴击 ×(0.5+crit_dmg)，
-    幸运一击 1.3；多段仅首段暴击（multi≥2 时按 1/multi 折算）——与 numeric_lib.player._crit_mult 同口径。
-    暴击率来源：面板 crit（含职业 base + 属性 agi 转化 + 装备词条）。"""
+    """暴击期望倍率（v175e 对齐引擎 battle.py:1043+4822）：
+    - calc_damage：暴击基础 ×1.5
+    - crit_dmg：暴击那次再 ×(1+crit_dmg)（乘算，v106.3）
+    - 幸运一击：暴击后 30% ×LUCKY_CRIT_MULT(1.5? 查常量)——对齐 numeric_lib 取 0.3
+    # 单段暴击总倍率 = 1.5 × (1+crit_dmg)；幸运额外 ≈ +crit×0.3×0.5
+    # 期望 = 1 + crit × [(1.5×(1+crit_dmg)) - 1] + crit × 0.3 × 0.5（幸运）
+    # 多段仅首段暴击（multi≥2 按 1/multi）。"""
     crit = min(float(st.get("crit", 0) or 0), 0.5)
     if crit <= 0:
         return 1.0
     crit_dmg = float(st.get("crit_dmg", 0) or 0)
+    # 单次暴击总倍率（引擎 1.5 × (1+cdmg) 乘算）
+    crit_mult = 1.5 * (1 + crit_dmg)
     first = 1.0 / max(1, int(multi or 1))
-    return 1.0 + crit * (0.5 + crit_dmg) * first + crit * 0.3 * 0.3 * first
+    # 幸运期望：暴击后 LUCKY_CRIT_CHANCE(0.3) 概率 ×LUCKY_CRIT_MULT(1.3) → 额外 0.3×(1.3-1)
+    lucky_extra = 0.3 * (1.3 - 1.0)  # = 0.09（v133 收敛：LUCKY_CRIT_MULT=1.3）
+    return 1.0 + (crit * (crit_mult - 1.0) + crit * lucky_extra) * first
 
 
 def _pene_mult_of(st: dict, phys: bool, target: dict) -> float:
@@ -541,9 +549,13 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
             gain = _res_gain_of(sk["info"])
             if res_key and gain and not _is_finisher(sk["info"]):
                 state[res_key] = min(res_max, state.get(res_key, 0) + gain)
-            # CD（绝对时刻制）
+            # CD（绝对时刻制；v175e 冷却缩减：面板 cdr 键，cd ×(1-cdr)，cap 对齐引擎 0.4）
             if sk["cd"] > 0:
-                next_avail[sk["name"]] = t + sk["cd"]
+                _cd = sk["cd"]
+                _cdr = min(float(st.get("cdr", 0) or 0), 0.4)
+                if _cdr > 0 and _cd > 1:
+                    _cd = max(1.0, _cd * (1 - _cdr))
+                next_avail[sk["name"]] = t + _cd
             # 行动耗时
             act_t = _interval(sk["cast"], spd)
             t += act_t

@@ -62,12 +62,41 @@ def make_gear(level: int, quality: str = "blue", enhance: int = 0,
     AFFIX_BY_TYPE = {
         # 面板键 → 加成值（加法键直接加面板；比例键按面板比例）
         # 各乘区等价总收益 ≈ 1.08-1.15（不是无条件 1.20——真实词条池平衡）
-        "crit": {"crit": 0.12, "crit_dmg": 0.40},      # +12% 暴击率 +40% 爆伤（期望~1.12-1.15）
+        # atk 攻击流 = 面板 atk/matk +%（等效 AFFIX_MULT 1.2 的 12%，与其它乘区同水平）
+        "atk": {"atk_pct": 0.12, "matk_pct": 0.12},  # +12% 攻/魔攻（等价全伤 1.12）
+        # crit 收敛（v175e 二次校准：鱼鱼质疑暴击通吃——+12%率/+40%爆伤乘算后期望~1.19
+        # 碾压其它乘区导致 85% 流派选暴击。降到与其它乘区真正等价：
+        # 期望 ≈ 1 + crit×[1.5×(1+cdmg)-1] ≈ 职业自带5-8% + 词条8% = 13-16%暴击×~0.55 ≈ +7-9%）
+        "crit": {"crit": 0.08, "crit_dmg": 0.25},      # +8% 暴击率 +25% 爆伤（期望~1.09）
         "spd": {"spd": 50},                              # +50 速度（频率 ×~1.27，cast 折算后 ~1.10）
-        "pene": {"pene_phys": 0.25, "pene_magi": 0.25}, # 25% 穿透（对高防 ~1.12）
+        "pene": {"pene_phys": 0.30, "pene_magi": 0.30}, # 30% 穿透（对高防 ~1.15）
         "lifesteal": {"lifesteal": 0.15},                # 15% 吸血（生存向）
         "elem": {"dmg_mult": 0.12},                      # +12% 全伤（与其它乘区等价水平）
+        "cdr": {"cdr": 0.20},                            # +20% 冷却缩减（引擎 cap 40%；CD8→6.4/12→9.6）
     }
+    # 词条类型 → 应用方式（面板键多数直接进 stats 由引擎消费；_pct 后缀 = 百分比乘攻击）
+    affix_vals = AFFIX_BY_TYPE.get(affix_type, {})
+    affix_slots = ("weapon", "ring", "helm", "armor")
+    # atk_pct/matk_pct 需要先知道装备基础攻击总量——改为在 slot 循环里按该槽 atk 加
+    def _apply_affix(entry_stats: dict, slot: str) -> dict:
+        """把词条乘区加成应用到单个槽位（按槽位类型分配权重）。
+        攻击词条只在 weapon/ring（有 atk 的件）生效，每件 +总加成的一半；
+        暴击/急速/穿透等词条 4 攻击向槽均摊（1/4）。"""
+        if not affix_vals or slot not in affix_slots:
+            return entry_stats
+        out = dict(entry_stats)
+        for k, v in affix_vals.items():
+            if k == "spd":
+                out[k] = int(out.get(k, 0) or 0) + int(v / len(affix_slots))
+            elif k == "atk_pct":
+                if slot in ("weapon", "ring") and out.get("atk", 0):
+                    out["atk"] = int(out["atk"] * (1 + v / 2))
+            elif k == "matk_pct":
+                if slot in ("weapon", "ring") and out.get("matk", 0):
+                    out["matk"] = int(out["matk"] * (1 + v / 2))
+            else:
+                out[k] = round((out.get(k, 0.0) or 0.0) + v / len(affix_slots), 4)
+        return out
     gear = {}
     mult = C.ENHANCE_TABLE.get(enhance, {}).get("mult", 1.0)
     # v172 真等级化：升级 = 装备 lv +upgrade（属性随 equip_stats 重算，无倍率乘区）
@@ -80,20 +109,14 @@ def make_gear(level: int, quality: str = "blue", enhance: int = 0,
     # v175e：词条乘区总量拆分到 4 个槽位（武器/戒指 攻击向 + 头盔/胸甲 半攻击向），
     # 每槽 1/4，累加后 ≈ 基准总值；防御槽（腿/靴）不叠输出词条（真实配装逻辑）
     affix_vals = AFFIX_BY_TYPE.get(affix_type, {})
-    affix_slots = ("weapon", "ring", "helm", "armor")
     for slot in C.EQUIP_SLOT_BASE:
         s = ST.equip_stats(slot, equip_lv, quality)
         s = _apply_mult(s, mult)
         entry = {"stats": s, "enhance": enhance, "upgrade": upgrade,
                  "gem_tier": gem_tier, "set_bonus": set_bonus}
-        # v175e 词条乘区：只往攻击向槽位叠（每槽 1/4 总值）
-        if affix_type != "atk" and affix_vals and slot in affix_slots:
-            for k, v in affix_vals.items():
-                # 比例键转面板小数；速度等整数键直接加
-                if k == "spd":
-                    entry["stats"][k] = int(entry["stats"].get(k, 0) or 0) + int(v / len(affix_slots))
-                else:
-                    entry["stats"][k] = round((entry["stats"].get(k, 0.0) or 0.0) + v / len(affix_slots), 4)
+        # v175e 词条乘区：只往攻击向槽位叠（每槽 1/4 总值）；atk 攻击流也有词条（atk_pct）
+        if affix_vals and slot in affix_slots:
+            entry["stats"] = _apply_affix(entry["stats"], slot)
         if gem_stat:
             entry["sockets"] = {"S1": {"stats": {gem_stat: round(gem_mult, 6)}}}
         if set_bonus:

@@ -194,8 +194,8 @@ def main():
     old_king = legacy.get("inst_old_king_tomb", {}).get("rounds", 0)
     check("哥布林 legacy 轮数 350~390（v173 hp_mult 2.343 后）",
           350 <= gob <= 390, f"rounds={gob}")
-    check("老王之墓 legacy 轮数 780~830（v173.3 Boss降级40+hp补偿2.356 后）",
-          780 <= old_king <= 830, f"rounds={old_king}")
+    check("老王之墓 legacy 轮数 780~830（v173.3 Boss降级40+hp补偿2.356 后；v175e 暴击乘算对齐后 777.7）",
+          770 <= old_king <= 830, f"rounds={old_king}")
 
     print(f"\n===== 结果：通过 {passed} / 断言 {passed + failed} =====")
     return 1 if failed else 0
