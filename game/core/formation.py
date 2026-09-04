@@ -31,12 +31,17 @@ def reachable_units(attacker, units) -> list:
     return [u for u in units if u.get("hp", 0) > 0 and int(u.get("rank", 1) or 1) <= reach]
 
 
-def select_target(attacker, units, threat=None, exclude_uid=None):
+def select_target(attacker, units, threat=None, exclude_uid=None, threat_mode="front"):
     """选择攻击目标。
 
     规则（§4.1）：射程内 → 最前排(最小 rank) → 同层随机（有 threat 表时同层按
     threat 最高，平局随机）。射程内无目标 → 兜底取最前排存活单位。exclude_uid
     排除指定单位（如已死的源单位）。
+
+    threat_mode（v173.5 全层仇恨，鱼鱼拍板 2026-09-04）：
+      "front"（默认）：先射程/前排过滤，同层才比仇恨——旧行为，野外/普通怪
+      "all"：全层直接按仇恨最高选（跨层 OT 模型）——副本 Boss 用，
+        后排输出/治疗高仇恨会被点名；坦克靠嘲讽/防御挑衅/仇恨技能维持。
 
     返回 Unit|None。threat: {uid: 仇恨值}。
     """
@@ -48,6 +53,13 @@ def select_target(attacker, units, threat=None, exclude_uid=None):
         alive = [u for u in alive if u.get("uid") != exclude_uid]
     if not alive:
         return None
+    # 全层仇恨模式：忽略站位，直接全场按仇恨最高选（OT 模型）
+    if threat_mode == "all" and threat:
+        max_th = max(float(threat.get(u.get("uid"), 0) or 0) for u in alive)
+        contenders = [u for u in alive if float(threat.get(u.get("uid"), 0) or 0) >= max_th]
+        if len(contenders) == 1:
+            return contenders[0]
+        return random.choice(contenders)
     # 射程内目标
     in_range = [u for u in alive if int(u.get("rank", 1) or 1) <= reach]
     pool = in_range if in_range else alive  # 兜底：最前排

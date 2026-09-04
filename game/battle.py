@@ -4527,7 +4527,8 @@ class Battle:
             self._apply_mech_gain("rage", 1, p_mech, logs, skill_name)
             logs.append(f"📢 你大声挑衅【{self.enemy.get('name', '敌人')}】！敌人恼羞成怒，攻击力下降！")
             if info.get("team"):
-                self.team_effects.append({"kind": "taunt", "lv": lv})
+                # v173.5 全层仇恨：team taunt 事件带技能配置（hate_taunt_mult/hate_lock_turns 数据驱动）
+                self.team_effects.append({"kind": "taunt", "lv": lv, "cfg": info})
                 logs.append(f"🌟【团队】{info.get('name', skill_name)}：Boss 的注意力被牢牢锁定！")
             return logs
 
@@ -7071,6 +7072,21 @@ class Battle:
         """v114 旧 AOE 入口（兼容）：全阵 AOE，返回对主目标伤害。"""
         return self._aoe_damage(dmg, logs, "all", None)
 
+    def _add_hate(self, player: dict, amount: int) -> None:
+        """v173.5 全层仇恨：battle 内部产生的伤害（如守护姿态盾牌反击）累计进副本仇恨表。
+        副本战（from_state 注入 _st 含 threat）才生效；野外/单人 _st 无 threat 空转。"""
+        if not amount or not self._st:
+            return
+        try:
+            _thr = self._st.get("threat")
+            if not isinstance(_thr, dict):
+                return
+            _q = str(player.get("qq_id") or player.get("uid") or "")
+            if _q:
+                _thr[_q] = int(_thr.get(_q, 0) or 0) + int(amount)
+        except Exception:
+            pass
+
     def _damage_enemy(self, dmg: int, logs: list, wake_sleep: bool = True, target=None, source=None) -> int:
         """对敌方单位造成伤害（§3.2）。返回实际对目标造成（或其 HP 被扣）的伤害。
 
@@ -7829,6 +7845,9 @@ class Battle:
                 cd = E.calc_damage(int(pst2["atk"] * 1.2), est2.get("def", 0))
                 self._damage_enemy(cd, logs)
                 logs.append(f"🛡️ 盾牌反击！对【{self.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
+                # v173.5 全层仇恨：守护姿态受击反击的伤害也累计仇恨（坦克被打 → 反击
+                # 产生仇恨，数值模型 guard_hate 落地：反击伤害全额进仇恨）
+                self._add_hate(player, cd)
         # v169.7 以守为攻 counter_chance / 反击之王 counter_up：受击反击被动族——
         # 统一挂点（与既有 counter_attack 消费点 battle.py:6990 同段）：以守为攻给基础
         # 35% 概率×80% 普攻；反击之王在学了以守为攻时 +25% 概率 & +50% 伤害

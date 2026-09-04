@@ -876,13 +876,14 @@ BRANCH_SKILLS = {
                         'power': 0.97,
                         'kind': '物理',
              'exprs': ['atk*0.4 + 102 + player_lv*5.0 + skill_lv*12'],
-             
-             
+            
+            
                         'cast': 0.45,
                         'cd': 8,
                         'mech': 'stun',
                         'mech_val': 2.0,
                         'mech_chance': 0.4,
+                        'hate_mult': 4,   # v173.5 全层仇恨：盾卫士仇恨技（伤害×4）
                         'name': '盾击·誓',
                         'desc': '重盾悍然撞出，誓约之力灌注其上——造成 40% 物理攻击 + 102 固定物理伤害（成长），40% 概率眩晕 1 刻（守护姿态中伤害 +20%）'
                     },
@@ -917,11 +918,12 @@ BRANCH_SKILLS = {
                         'power': 0.91,
                         'kind': '物理',
              'exprs': ['atk*0.35 + 98 + player_lv*5.0 + skill_lv*11'],
-             
-             
+            
+            
                         'cast': 0.4,
                         'cd': 8,
                         'auto': 'taunt_fail',
+                        'hate_mult': 4,   # v173.5 全层仇恨：仇恨技倍率（伤害×4，数值模型 H_du=4）
                         'name': '顿足',
                         'desc': '重重顿足，大地为之震颤——造成 35% 物理攻击 + 98 固定物理伤害（成长），嘲讽失效时自动衔接（不占行动）'
                     },
@@ -946,6 +948,8 @@ BRANCH_SKILLS = {
                         'cast': 0.5,
                         'cd': 12,
                         'effect': 'taunt',
+                        'hate_taunt_mult': 3,   # v173.5 全层仇恨：嘲讽仇恨 = 当前最高×3+100（数值模型）
+                        'hate_lock_turns': 3,   # v173.5 强制锁 3 刻
                         'name': '嘲讽',
                         'desc': '一声暴喝响彻战场，仇恨尽归吾身——强制敌人攻击自己，持续 8 刻'
                     },

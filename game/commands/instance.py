@@ -2698,6 +2698,21 @@ class InstanceCmds(CommandBase):
         threat = st.setdefault("threat", {})
         if dealt > 0:
             threat[cur_key] = threat.get(cur_key, 0) + dealt
+        # v173.5 全层仇恨·仇恨技倍率（数据驱动）：技能定义配 hate_mult 字段的
+        # （如盾卫士顿足/盾击·誓 hate_mult=4）→ 技能伤害仇恨额外 ×(hate_mult-1)；
+        # 未配字段 = 普通技能，仇恨=伤害（×1）。
+        # 守护姿态受击反击仇恨 ×0.5 在敌方行动段（_instance_enemy_one_act）处理。
+        if action == "skill" and skill_name and dealt > 0:
+            _hm = 1.0
+            try:
+                _sk = self._find_skill_cfg(snap, str(skill_name))
+                if _sk:
+                    _hm = float(_sk.get("hate_mult", 1) or 1)
+            except Exception:
+                _hm = 1.0
+            if _hm > 1:
+                threat[cur_key] = threat.get(cur_key, 0) + int(dealt * (_hm - 1))
+                logs.append(f"🛡️ 仇恨技！Boss 的注意力被你牢牢吸住！")
         hp_after = sum(st["players"][m]["hp"] for m in members if st["alive"].get(str(m), True))
         heal = max(0, hp_after - hp_before)
         if heal > 0:
@@ -2734,11 +2749,16 @@ class InstanceCmds(CommandBase):
         team_effects = getattr(b, "team_effects", None) or []
         for te in team_effects:
             if te.get("kind") == "taunt":
-                # v51 嘲讽：仇恨拉满 + Boss 强制打嘲讽者 2 刻
+                # v51 嘲讽：仇恨拉满 + Boss 强制打嘲讽者
+                # v173.5 全层仇恨参数（鱼鱼拍板 2026-09-04，数值模型验证）——数据驱动：
+                #   嘲讽仇恨倍率 hate_taunt_mult（技能数据，默认 3）、强制锁定刻数 hate_lock_turns（默认 3）
+                _tcfg = te.get("cfg") or {}
+                _tm = float(_tcfg.get("hate_taunt_mult", 3) or 3)
+                _tl = int(_tcfg.get("hate_lock_turns", 3) or 3)
                 top = max(threat.values()) if threat else 0
-                threat[cur_key] = max(threat.get(cur_key, 0), int(top * 2) + 100)
+                threat[cur_key] = max(threat.get(cur_key, 0), int(top * _tm) + 100)
                 st["taunt_target"] = cur_key
-                st["taunt_turns"] = 2
+                st["taunt_turns"] = _tl
                 logs.append(f"📢 {snap.get('name', cur_key)} 大声挑衅，Boss 的仇恨被牢牢锁定！")
             else:
                 logs += self._apply_team_effect(st, cur_key, te)
@@ -3236,6 +3256,49 @@ class InstanceCmds(CommandBase):
             key = str(fallback_key) if fallback_key else str(st.get("members", [None])[0])
         return (st.get("players", {}).get(key, {}) or {}).get("name", key)
 
+    def _find_skill_cfg(self, player: dict, skill_name: str) -> dict | None:
+        """v173.5 按技能名查技能配置（数据驱动：读 hate_mult 等字段）。
+        遍历 PLAYER_SKILLS 基础表 + BRANCH_SKILLS 分支表 + TUTOR_SKILLS 导师表，
+        递归拍平找 name==skill_name 或 key==skill_name 的技能 cfg。
+        找不到返回 None。"""
+        if not skill_name:
+            return None
+        cls = (player or {}).get("class_name", "")
+        _want = str(skill_name)
+        try:
+            def _scan(node):
+                """递归找技能 cfg：dict 值若含 'name'/'lv'/'desc' 视为技能条目，
+                否则继续下钻。返回首个匹配技能名或 key 的 cfg。"""
+                if not isinstance(node, dict):
+                    return None
+                # 本层 key 直接命中（技能名或 ID）
+                for k, v in node.items():
+                    if str(k) == _want and isinstance(v, dict) and "name" in v:
+                        return v
+                    if isinstance(v, dict):
+                        nm = str(v.get("name", ""))
+                        if nm == _want:
+                            return v
+                # 下钻
+                for v in node.values():
+                    if isinstance(v, dict):
+                        r = _scan(v)
+                        if r is not None:
+                            return r
+                return None
+            # 依次扫三张表
+            for tb in (C.PLAYER_SKILLS, C.BRANCH_SKILLS, C.TUTOR_SKILLS or {}):
+                if not isinstance(tb, dict):
+                    continue
+                sub = tb.get(cls)
+                if isinstance(sub, dict):
+                    r = _scan(sub)
+                    if r is not None:
+                        return r
+        except Exception:
+            return None
+        return None
+
     def _instance_enemy_one_act(self, st: dict, group_id: int, unit: dict) -> list:
         """v2：敌方阵列单个单位行动一次（目标 = 射程内前排 + 仇恨/嘲讽）。
         防御/格挡/闪避/减伤对目标玩家逐次结算（沿用旧 _instance_boss_one_turn 骨架）。"""
@@ -3276,7 +3339,10 @@ class InstanceCmds(CommandBase):
                 if taunt_key:
                     st.pop("taunt_target", None)
         if target is None:
-            target = FM.select_target(unit, player_units, threat=threat_by_uid)
+            # v173.5 全层仇恨（鱼鱼拍板 2026-09-04）：Boss 级敌人全层按仇恨最高选目标
+            # （后排输出/治疗高仇恨会被点名 → OT 模型）；精英/普通怪保持前排优先（front）。
+            _tmode = "all" if str(unit.get("role", "")) == "boss" else "front"
+            target = FM.select_target(unit, player_units, threat=threat_by_uid, threat_mode=_tmode)
         if target is None:
             return logs
         tkey = str(target.get("qq_id") or target.get("uid", ""))
