@@ -99,7 +99,8 @@ def boss_of(boss_def: tuple, warn: bool = True, iid: str | None = None,
 def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
                     rotation: list[str], boss_def: tuple, boss_lv: int | None = None,
                     seeds: int = 8, max_turns: int = 500,
-                    iid: str | None = None, n_players: int = 1) -> dict:
+                    iid: str | None = None, n_players: int = 1,
+                    affix_type: str = "atk") -> dict:
     """真实引擎多技能循环 vs Boss：返回 {wins, avg_rounds, avg_survive}
 
     - cls_id: 'cls_zhan_shi' 等；loadout: 'solo_mid'/'team_purple9' 等（gear_loadout）；
@@ -108,6 +109,7 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
     - boss_def: instances.py boss 6 元组 (id, 名, role, lv, [技能], [掉落]) 或 C.INSTANCES[iid]['boss']；
     - iid: 副本 id；给定则 Boss 血量叠实例 hp_mult（与 team_matrix 同口径，鱼鱼 v175 拍板）
     - n_players: 打本次数（单人=1）
+    - affix_type: v175e 词条乘区流派（atk/crit/spd/pene/lifesteal/elem）
     - 玩家 class_tier/evolve_path 按 lv 算：lv>=90→tier3, >=60→tier2, >=30→tier1, else 0；
       evolve_path=1（攻线）
     - wins: seeds 场中胜利场数；avg_rounds: 胜利场平均击杀轮；avg_survive: 失败场平均存活轮
@@ -115,7 +117,16 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
     seeds = max(1, int(seeds or 8))
     max_turns = int(max_turns or _MAX_TURNS)
     tier, path = tier_path_of(int(lv))
-    equip = gear_loadout(int(lv), loadout)
+    if affix_type and affix_type != "atk":
+        # v175e 词条乘区装备（与 build_matrix._gear_of 同源，保证期望/真引擎同面板）
+        from .constants import LOADOUTS
+        from .gear import make_gear
+        cfg = LOADOUTS.get(loadout, {})
+        equip = make_gear(int(lv), cfg.get("quality", "blue"), cfg.get("enhance", 0),
+                          cfg.get("upgrade", 0), cfg.get("gem_tier", 0),
+                          cfg.get("set_bonus", False), affix_type=affix_type)
+    else:
+        equip = gear_loadout(int(lv), loadout)
     st = E.player_final_stats(cls_id, int(lv), equip, tier, dict(attr or {}), evolve_path=path)
     # 玩家基础信息（每场重建副本，模板不动——v175b 修复：
     # 原实现 player 在循环外建一次，循环内 player_turn 直接改模板 player，
