@@ -3808,6 +3808,7 @@ class WorldCmds(CommandBase):
         player = self._player(group_id, qq_id) or {}
         return {
             "player": player,
+            "_gid": group_id, "_qid": qq_id,   # v173.3：渲染层自动补任务入口需要
             "quests": db.get_quests(group_id, qq_id),
             "flags": db.get_talk_flags(group_id, qq_id, npc_id),
             "apprentices": player.get("apprentices", []),
@@ -3841,10 +3842,26 @@ class WorldCmds(CommandBase):
 
     def _render_talk_node(self, npc, dlg, node, ctx) -> list:
         """渲染一个对话节点：头像 + 台词 + 可见选项
-        v101.23：台词走 C.node_text——支持 texts 条件变体（随主线进度切换）"""
+        v101.23：台词走 C.node_text——支持 texts 条件变体（随主线进度切换）
+        v173.3 意见#113/#163/#164（鱼鱼拍板）：NPC 对话树自动补任务入口——
+        当 NPC 名下有可接支线且当前节点选项没任务入口时，自动展开『📜 有委托可接』
+        （复用 side_menu 动态子选项），新手不再"找不到任务"。"""
         lines = [f"{npc['icon']}【{npc['name']}】{npc['title']}",
                  f"“{C.node_text(node, ctx)}”"]
         opts = C.visible_options(dlg, node, ctx)
+        # v173.3：自动补任务入口——节点无任何任务类选项 & NPC 有可接支线时展开
+        if not any((o.get("side_menu") is not None) or (o.get("action") or {}).get("side_offer")
+                   or (o.get("action") or {}).get("side_take") or (o.get("action") or {}).get("quest_take")
+                   for o in opts):
+            try:
+                npc_id = ctx.get("npc_id") or ""
+                _auto_opt = {"text": "📜 有活儿要交给我吗？", "next": "__end__",
+                             "need": {"side_available": True}, "side_menu": {"after": "welcome"}}
+                _expanded = self._side_menu_expand(ctx.get("_gid") or "", ctx.get("_qid") or "", npc_id, _auto_opt)
+                if _expanded:
+                    opts = list(opts) + _expanded
+            except Exception:
+                pass
         if opts:
             lines.append("━━━━━━━━━━━━")
             for i, opt in enumerate(opts, 1):
