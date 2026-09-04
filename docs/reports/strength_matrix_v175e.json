@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-05 02:53",
+ "generated": "2026-09-05 03:04",
  "seeds": 6,
  "method": "真引擎 battle_rotation，Boss 裸面板（不叠hp_mult），玩家=Boss lv+5",
  "stages": {
@@ -299,10 +299,10 @@
      "cid": "cls_fa_shi",
      "build": "元素迸发流",
      "role": "dps",
-     "affix": "crit",
-     "win_rate": 0.33,
-     "avg_rounds": 16.0,
-     "avg_survive": 11.0,
+     "affix": "spd",
+     "win_rate": 0.17,
+     "avg_rounds": 15.0,
+     "avg_survive": 13.2,
      "usable": "3/6"
     },
     {
@@ -510,6 +510,17 @@
      "usable": "4/6"
     },
     {
+     "class": "法师",
+     "cid": "cls_fa_shi",
+     "build": "元素迸发流",
+     "role": "dps",
+     "affix": "spd",
+     "win_rate": 0.83,
+     "avg_rounds": 9.4,
+     "avg_survive": 8.0,
+     "usable": "5/6"
+    },
+    {
      "class": "拳师",
      "cid": "cls_wu_seng",
      "build": "破绽连打流",
@@ -518,17 +529,6 @@
      "win_rate": 0.83,
      "avg_rounds": 11.4,
      "avg_survive": 23.0,
-     "usable": "5/6"
-    },
-    {
-     "class": "法师",
-     "cid": "cls_fa_shi",
-     "build": "元素迸发流",
-     "role": "dps",
-     "affix": "crit",
-     "win_rate": 0.83,
-     "avg_rounds": 11.8,
-     "avg_survive": 11.0,
      "usable": "5/6"
     },
     {
@@ -613,10 +613,10 @@
      "cid": "cls_fa_shi",
      "build": "奥术精算流",
      "role": "dps",
-     "affix": "spd",
+     "affix": "cdr",
      "win_rate": 0.0,
      "avg_rounds": null,
-     "avg_survive": 17.0,
+     "avg_survive": 17.17,
      "usable": "6/7"
     },
     {
@@ -635,10 +635,10 @@
      "cid": "cls_mu_shi",
      "build": "死灵骷髅流",
      "role": "dps",
-     "affix": "crit",
+     "affix": "cdr",
      "win_rate": 0.0,
      "avg_rounds": null,
-     "avg_survive": 16.17,
+     "avg_survive": 17.83,
      "usable": "6/9"
     },
     {
@@ -747,6 +747,17 @@
      "usable": "6/6"
     },
     {
+     "class": "法师",
+     "cid": "cls_fa_shi",
+     "build": "元素迸发流",
+     "role": "dps",
+     "affix": "spd",
+     "win_rate": 1.0,
+     "avg_rounds": 7.0,
+     "avg_survive": 0.0,
+     "usable": "6/6"
+    },
+    {
      "class": "战士",
      "cid": "cls_zhan_shi",
      "build": "血怒流",
@@ -765,17 +776,6 @@
      "affix": "crit",
      "win_rate": 1.0,
      "avg_rounds": 7.5,
-     "avg_survive": 0.0,
-     "usable": "6/6"
-    },
-    {
-     "class": "法师",
-     "cid": "cls_fa_shi",
-     "build": "元素迸发流",
-     "role": "dps",
-     "affix": "crit",
-     "win_rate": 1.0,
-     "avg_rounds": 7.67,
      "avg_survive": 0.0,
      "usable": "6/6"
     },
@@ -872,10 +872,10 @@
      "cid": "cls_fa_shi",
      "build": "奥术精算流",
      "role": "dps",
-     "affix": "spd",
-     "win_rate": 0.67,
-     "avg_rounds": 17.5,
-     "avg_survive": 11.5,
+     "affix": "cdr",
+     "win_rate": 0.83,
+     "avg_rounds": 12.2,
+     "avg_survive": 19.0,
      "usable": "7/7"
     },
     {
@@ -883,10 +883,10 @@
      "cid": "cls_mu_shi",
      "build": "死灵骷髅流",
      "role": "dps",
-     "affix": "crit",
-     "win_rate": 0.5,
-     "avg_rounds": 12.67,
-     "avg_survive": 16.33,
+     "affix": "cdr",
+     "win_rate": 0.67,
+     "avg_rounds": 15.0,
+     "avg_survive": 16.5,
      "usable": "9/9"
     }
    ]
@@ -1167,7 +1167,7 @@
     },
     "元素迸发流": {
      "role": "dps",
-     "affix_preset": "crit",
+     "affix_preset": "spd",
      "stages": {
       "P1": {
        "boss": "哥布林酋长·咕噜",
@@ -1175,7 +1175,7 @@
        "player_lv": 25,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 11.17,
+       "avg_rounds": 7.67,
        "avg_survive": 0.0,
        "win_rate": 1.0,
        "usable_skills": "2/6",
@@ -1185,11 +1185,11 @@
        "boss": "海盗王·独眼杰克",
        "boss_lv": 27,
        "player_lv": 32,
-       "wins": 0,
+       "wins": 5,
        "seeds": 6,
-       "avg_rounds": null,
-       "avg_survive": 8.5,
-       "win_rate": 0.0,
+       "avg_rounds": 9.2,
+       "avg_survive": 10.0,
+       "win_rate": 0.83,
        "usable_skills": "2/6",
        "formed": false
       },
@@ -1197,11 +1197,11 @@
        "boss": "古王·奥德里克",
        "boss_lv": 40,
        "player_lv": 45,
-       "wins": 2,
+       "wins": 1,
        "seeds": 6,
-       "avg_rounds": 16.0,
-       "avg_survive": 11.0,
-       "win_rate": 0.33,
+       "avg_rounds": 15.0,
+       "avg_survive": 13.2,
+       "win_rate": 0.17,
        "usable_skills": "3/6",
        "formed": true
       },
@@ -1211,8 +1211,8 @@
        "player_lv": 68,
        "wins": 5,
        "seeds": 6,
-       "avg_rounds": 11.8,
-       "avg_survive": 11.0,
+       "avg_rounds": 9.4,
+       "avg_survive": 8.0,
        "win_rate": 0.83,
        "usable_skills": "5/6",
        "formed": true
@@ -1223,7 +1223,7 @@
        "player_lv": 98,
        "wins": 6,
        "seeds": 6,
-       "avg_rounds": 7.67,
+       "avg_rounds": 7.0,
        "avg_survive": 0.0,
        "win_rate": 1.0,
        "usable_skills": "6/6",
@@ -1233,7 +1233,7 @@
     },
     "奥术精算流": {
      "role": "dps",
-     "affix_preset": "spd",
+     "affix_preset": "cdr",
      "stages": {
       "P1": {
        "boss": "哥布林酋长·咕噜",
@@ -1242,7 +1242,7 @@
        "wins": 0,
        "seeds": 6,
        "avg_rounds": null,
-       "avg_survive": 16.17,
+       "avg_survive": 22.17,
        "win_rate": 0.0,
        "usable_skills": "0/7",
        "formed": false
@@ -1254,7 +1254,7 @@
        "wins": 0,
        "seeds": 6,
        "avg_rounds": null,
-       "avg_survive": 10.0,
+       "avg_survive": 11.5,
        "win_rate": 0.0,
        "usable_skills": "1/7",
        "formed": false
@@ -1266,7 +1266,7 @@
        "wins": 0,
        "seeds": 6,
        "avg_rounds": null,
-       "avg_survive": 17.67,
+       "avg_survive": 17.5,
        "win_rate": 0.0,
        "usable_skills": "2/7",
        "formed": false
@@ -1278,7 +1278,7 @@
        "wins": 0,
        "seeds": 6,
        "avg_rounds": null,
-       "avg_survive": 17.0,
+       "avg_survive": 17.17,
        "win_rate": 0.0,
        "usable_skills": "6/7",
        "formed": true
@@ -1287,11 +1287,11 @@
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
        "player_lv": 98,
-       "wins": 4,
+       "wins": 5,
        "seeds": 6,
-       "avg_rounds": 17.5,
-       "avg_survive": 11.5,
-       "win_rate": 0.67,
+       "avg_rounds": 12.2,
+       "avg_survive": 19.0,
+       "win_rate": 0.83,
        "usable_skills": "7/7",
        "formed": true
       }
@@ -1639,7 +1639,7 @@
     },
     "死灵骷髅流": {
      "role": "dps",
-     "affix_preset": "crit",
+     "affix_preset": "cdr",
      "stages": {
       "P1": {
        "boss": "哥布林酋长·咕噜",
@@ -1648,7 +1648,7 @@
        "wins": 0,
        "seeds": 6,
        "avg_rounds": null,
-       "avg_survive": 16.33,
+       "avg_survive": 16.5,
        "win_rate": 0.0,
        "usable_skills": "1/9",
        "formed": false
@@ -1660,7 +1660,7 @@
        "wins": 0,
        "seeds": 6,
        "avg_rounds": null,
-       "avg_survive": 20.33,
+       "avg_survive": 18.5,
        "win_rate": 0.0,
        "usable_skills": "2/9",
        "formed": false
@@ -1672,7 +1672,7 @@
        "wins": 0,
        "seeds": 6,
        "avg_rounds": null,
-       "avg_survive": 22.83,
+       "avg_survive": 22.5,
        "win_rate": 0.0,
        "usable_skills": "4/9",
        "formed": false
@@ -1684,7 +1684,7 @@
        "wins": 0,
        "seeds": 6,
        "avg_rounds": null,
-       "avg_survive": 16.17,
+       "avg_survive": 17.83,
        "win_rate": 0.0,
        "usable_skills": "6/9",
        "formed": true
@@ -1693,11 +1693,11 @@
        "boss": "恶魔祭司·赫尔加",
        "boss_lv": 87,
        "player_lv": 98,
-       "wins": 3,
+       "wins": 4,
        "seeds": 6,
-       "avg_rounds": 12.67,
-       "avg_survive": 16.33,
-       "win_rate": 0.5,
+       "avg_rounds": 15.0,
+       "avg_survive": 16.5,
+       "win_rate": 0.67,
        "usable_skills": "9/9",
        "formed": true
       }
