@@ -3736,7 +3736,7 @@ class Battle:
         暗夜圣典 4 件（满档安魂曲/献祭暗焰 伤害 +20%）、势不可挡 4 件（气力技/终结技 物理伤害 +15%）。"""
         mult = 1.0
         eff4 = self._set_eff(player, "elegy_dmg", 4)
-        if eff4 and skill_name in ("安魂曲", "献祭暗焰"):
+        if eff4 and skill_name == "安魂曲":  # v176: 献祭暗焰(v151隐藏职业退役)死引用已移除
             # v130.2 R1：暗夜圣典「满档」判定——数据 effect.cond=canticle_full 时需悼咏满档才加成（R2 配；缺省无条件）
             if eff4.get("cond") != "canticle_full" or self._res_read("canticle") >= self._res_max(player, "canticle"):
                 mult *= 1.0 + float(eff4.get("value", 0.20) or 0.20)
