@@ -1419,8 +1419,9 @@ class PlayerCmds(CommandBase):
             except Exception:
                 pass
             lines.append(f"专属：{_disp_branch}(Lv.{C.EVOLVE_LEVELS[_own_tier]} 转职解锁)")
-        if info.get("multi"):
-            lines.append(f"连击：x{info['multi']}")
+        _multi_disp = int(info.get("multi") or info.get("hits") or 0)
+        if _multi_disp > 1:
+            lines.append(f"连击：x{_multi_disp}")
         if info.get("pierce"):
             lines.append("特性：无视防御")
         if info.get("effect"):

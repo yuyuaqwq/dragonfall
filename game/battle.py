@@ -4519,7 +4519,9 @@ class Battle:
         cond_mult = self._cond_mult(info, player, lv)
         # v104 R3 P2-18：条件满足即显示标签（含 mult=1.0 的纯条件技）
         cond_label = info.get("cond", {}).get("label", "") if self._cond_active(info, player) else ""
-        multi = info.get("multi", 1)
+        # 段数：技能数据统一用 hits 键（v175e 修复——原只读 multi 导致 22 个多段技能
+        # 全当单段打，疾风/血怒/奥术弹幕等多段流伤害只有设计的 1/N；multi 为旧别名兼容）
+        multi = int(info.get("multi") or info.get("hits") or 1)
         # 机制：风印 → 连击次数增加（查表 MECH_COMBO_STACKS，v125.2 B1）
         if mech in MECH_COMBO_STACKS:
             multi += p_mech.get(mech, 0)
