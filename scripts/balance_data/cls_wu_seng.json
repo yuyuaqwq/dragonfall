@@ -1,0 +1,64 @@
+{
+  "class_id": "cls_wu_seng",
+  "class_name": "拳师",
+  "resource": "chi",
+  "resource_max": 10,
+  "resource_regen_per_tick": 0,
+  "builds": {
+    "破绽连打流": {
+      "line": "格斗士",
+      "role": "dps",
+      "attr_preset": {"str": "full"},
+      "rotation": [
+        {"skill": "直拳", "cond": "always", "prio": 2, "note": "低费常驻推破绽，技能命中攒气（无CD）"},
+        {"skill": "连招三连", "cond": "cd_ready", "prio": 3, "note": "三连推破绽+叠气（出招/命中各攒气）"},
+        {"skill": "钢拳", "cond": "cd_ready", "prio": 4, "note": "钢拳直接使目标破防，放大后续破防特攻"},
+        {"skill": "侧踢", "cond": "cd_ready", "prio": 5, "note": "破防目标伤害×1.3，破防后补刀"},
+        {"skill": "碎颅势", "cond": "buff_active:broken", "prio": 1, "note": "对破防目标×1.45，核心爆发"},
+        {"skill": "撼岳·终焉", "cond": "chi>=3", "prio": 0, "note": "175%大倍率终结，破防时眩晕2刻"}
+      ],
+      "fight_len": 60,
+      "self_heal": false,
+      "desc": "直拳/连招三连推破绽条→钢拳击破防→碎颅势破防特攻×1.45→撼岳·终焉终结（破防眩晕）。技能命中攒气，3气后撼岳·终焉衔接爆发"
+    },
+    "磐核守御流": {
+      "line": "磐石行者",
+      "role": "tank",
+      "attr_preset": {"vit": "full"},
+      "rotation": [
+        {"skill": "铜墙", "cond": "always", "prio": 1, "note": "自身减伤45%持续8刻，生存核心"},
+        {"skill": "守御姿态", "cond": "always", "prio": 2, "note": "受伤−25%，受击攒磐核/未受击保底攒核"},
+        {"skill": "铁壁拳", "cond": "cd_ready", "prio": 3, "note": "推破绽并获得推条值×1.5%最大生命护盾"},
+        {"skill": "磐岩释能", "cond": "always", "prio": 4, "note": "每枚磐核伤害+70%，磐核出伤窗口（可常放）"},
+        {"skill": "磐核爆发", "cond": "resource_full", "prio": 0, "note": "消耗全部磐核每枚+70%的终结倾泻"},
+        {"skill": "大地守护", "cond": "cd_ready", "prio": 5, "note": "全队减伤30-50%并护盾，团队保排（cd_ready时仍可能被更高prio磐核爆发抢占）"}
+      ],
+      "fight_len": 60,
+      "self_heal": false,
+      "desc": "铜墙+守御姿态减伤（受击攒磐核）→铁壁拳自盾→磐岩释能按核数出伤→磐核爆发满核倾泻→大地守护全队减伤。磐核满5自动免疫控制减伤+20%（磐石之躯）"
+    },
+    "气力爆发流": {
+      "line": "格斗士",
+      "role": "dps",
+      "attr_preset": {"str": "full"},
+      "rotation": [
+        {"skill": "直拳", "cond": "always", "prio": 2, "note": "低费攒气+推破绽"},
+        {"skill": "冲拳", "cond": "cd_ready", "prio": 4, "note": "110%高倍推破绽，位移前排"},
+        {"skill": "震地击", "cond": "cd_ready", "prio": 5, "note": "40%概率眩晕2刻，控场"},
+        {"skill": "气力爆发", "cond": "chi>=3", "prio": 1, "note": "破绽每50点伤害+80%，对高破绽目标爆发"},
+        {"skill": "气力裂空", "cond": "buff_active:broken", "prio": 3, "note": "对破防目标×1.5，破防后主攻"},
+        {"skill": "崩山", "cond": "chi>=10", "prio": 0, "note": "对破防目标×1.9的大终结，满气优先"}
+      ],
+      "fight_len": 60,
+      "self_heal": false,
+      "desc": "直拳/冲拳推破绽并攒气→气力爆发按破绽加成爆发（气3档）→钢拳未入循环时靠气力裂空/崩山破防特攻；崩山需10气满气档，模拟中气常被3档气力爆发消耗，崩山多在末段登场"
+    }
+  },
+  "attr_presets": {
+    "full_str": {"str": "all"},
+    "full_vit": {"vit": "all"},
+    "balanced": {"str": 0.4, "vit": 0.3, "agi": 0.3},
+    "攻守均衡": {"str": 0.5, "vit": 0.5}
+  },
+  "notes": "拳师 chi max=10：出招攒气（on_attack+1/on_skill+1，连段技额外多给），满10溢转盾（overflow_shield）。攻线格斗士=推敌身破绽条（shaken max50 衰减4/刻，触发敌方跳过行动）→ 破防特攻×1.3~1.9；守线磐石行者=挨打/保底攒磐核（guard_core max5），磐岩释能线性倍率、磐核爆发/气力万法倾泻。\n\nrotations 全部技能名与 BUILDS['cls_wu_seng'] 及 dump 精确一致；cond 只用 always/cd_ready/chi>=N/resource_full/buff_active:broken（schema 前缀集内）。拳师引擎无自带护盾技能但守线有 铁壁拳(自盾)/大地守护(全队盾+减伤)，纯承伤抗压。\n\n技能缺口观察（skill_scan Lv45 + dump 审阅，无超模单发；DPE 较高者均为破防特攻档）：\n1. 崩拳(160% cd10)不在任何 BUILDS 流派内——与 崩山(破防×1.9) 词面近似易误配；流派=BUILDS 定稿，未纳入 rotation（仅在 notes 提醒）。\n2. 守线坦向无 taunt（嘲讽）类技能——拳师坦仅靠 铜墙/守御姿态 减伤与 磐核护盾 承伤，拉不住仇恨，团本建议当副T或靠伤害面（磐核爆发）建立仇恨。\n3. 格斗士攻线无吸血/自疗（冥想为减益清除+回蓝），单刷续航依赖直拳高频低费+敌方破绽跳过行动窗口。\n4. 攻线技能自研未跑（数值模型口径以 skill_scan 为基准）：撼岳·终焉 mp40 高耗、崩山 mp45 cd24 是气力爆发流末期终结，fight_len 60 内约2-3发，MP 管理需直拳/普攻填充。\n5. 职业级 mech 无 combo_ready（连击点），故 cond 未使用 combo_ready。"
+}

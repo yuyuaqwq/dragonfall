@@ -1,0 +1,66 @@
+{
+  "class_id": "cls_fa_shi",
+  "class_name": "法师",
+  "resource": "element",
+  "resource_max": 5,
+  "resource_regen_per_tick": 0,
+  "builds": {
+    "元素爆发流": {
+      "line": "元素使",
+      "role": "dps",
+      "attr_preset": "full_int",
+      "rotation": [
+        {"skill": "元素裁决", "cond": "always", "prio": 0, "note": "三印终结：结算火/冰/雷三系印记，每系×1.2（CD 好即打，配合裁决前挂印铺垫）"},
+        {"skill": "火球术", "cond": "always", "prio": 3, "note": "挂火印 1 层（同系连发触发元素亲和下次挂印+1）"},
+        {"skill": "冰锥", "cond": "always", "prio": 4, "note": "挂冰印+减速，为裁决攒齐三系印记"},
+        {"skill": "雷击", "cond": "always", "prio": 5, "note": "挂雷印+高单发，CD 8 轮好即用"},
+        {"skill": "织焰", "cond": "cd_ready", "prio": 1, "note": "叠火印主技：CD 8 高倍率 177%，裁决前叠满 3 层火印吃元素之核暴击"},
+        {"skill": "元素引爆", "cond": "cd_ready", "prio": 2, "note": "提前结算印记打反应（蒸发/超载/冻结），引爆后元素亲和使下次挂印+1"}
+      ],
+      "fight_len": 60,
+      "self_heal": false,
+      "desc": "火/冰/雷挂印 → 元素引爆结算反应 → 织焰叠火印 → 元素裁决三印爆发"
+    },
+    "元素迸发流": {
+      "line": "元素使",
+      "role": "dps",
+      "attr_preset": "full_int",
+      "rotation": [
+        {"skill": "万象天雷", "cond": "always", "prio": 0, "note": "顶点终结：雷印满 3 层伤害×1.1（350%+125 成长），CD 好即打"},
+        {"skill": "骤雨弹幕", "cond": "cd_ready", "prio": 1, "note": "叠雷印主技：3 段各挂 1 层雷印，一轮叠满 3 层触发万象天雷满印增伤"},
+        {"skill": "元素湮灭", "cond": "always", "prio": 2, "note": "印记总层数≥4 伤害×1.35（需敌人身上已叠雷印）"},
+        {"skill": "元素迸发", "cond": "always", "prio": 3, "note": "结算目标全部印记、每层+12% 伤害，吃掉叠层前再补一轮"},
+        {"skill": "双系连珠", "cond": "cd_ready", "prio": 4, "note": "2 段各挂不同系印记，填充并补印记层数"},
+        {"skill": "火球术", "cond": "always", "prio": 5, "note": "纯蓝填充，顺带挂火印凑印记总层数"}
+      ],
+      "fight_len": 60,
+      "self_heal": false,
+      "desc": "骤雨弹幕叠雷印 → 元素迸发按层结算 → 元素湮灭满印增伤 → 万象天雷顶点"
+    },
+    "奥术精算流": {
+      "line": "奥术学者",
+      "role": "dps",
+      "attr_preset": "full_int",
+      "rotation": [
+        {"skill": "奥术湮灭", "cond": "resource_full", "prio": 0, "note": "终结：充能满 5 时×1.4 且本次不耗蓝，叠满立刻打"},
+        {"skill": "奥术洪流", "cond": "resource_full", "prio": 1, "note": "燃尽充能每层+15%，满 5 层×1.75（充能满时先洪流再湮灭吃满收益）"},
+        {"skill": "奥术脉冲", "cond": "always", "prio": 2, "note": "燃尽全部充能每层+15%：深度冥想架设中只烧一半，收益最大化"},
+        {"skill": "奥术弹幕", "cond": "always", "prio": 3, "note": "攒充能主技：3 段各+1 充能，充能≥2 伤害×1.15"},
+        {"skill": "奥术飞弹", "cond": "cd_ready", "prio": 4, "note": "充能+1，CD 4 轮高频率稳定回充能，架设中额外+1"},
+        {"skill": "深度冥想", "cond": "cd_ready", "prio": 6, "note": "守线架设开启技：架设中魔法+40%/每刻充能+1（CD 12 好即续；期望引擎按开启技计一次行动）"},
+        {"skill": "奥术爆破", "cond": "always", "prio": 5, "note": "充能+2 高效叠层，充能≥4 伤害×1.25"}
+      ],
+      "fight_len": 60,
+      "self_heal": false,
+      "desc": "奥术弹幕/飞弹攒充能 → 深度冥想架设蓄能 → 奥术洪流燃尽爆发 → 奥术湮灭顶点"
+    }
+  },
+  "attr_presets": {
+    "full_int": {"int": "all"},
+    "balanced": {"int": 0.6, "agi": 0.25, "vit": 0.15},
+    "haste": {"int": 0.7, "agi": 0.3},
+    "tanky": {"int": 0.6, "vit": 0.4}
+  },
+  "notes": "法师 v175 平衡数据。基础 8 技能（纯蓝施法）→ 元素使/奥术学者两线转职后才有 element 充能条（max=5）；技能表当前无 res_gain/res_cost 字段（充能由引擎 mech arcane/fire_mark 等与被动 arcane_intuition/元素亲和隐式给点，期望引擎按近似：基础挂印技无充能增益，奥术系靠 arcane mech 攒充能）。3 流派全 dps，rotation 只声明循环意图（cond 引擎按 CD/蓝拦截），不确定处保守写 always+低 prio。已核实：BUILDS 三流派技能名与 skills.py 精确一致；元素爆发流/迸发流同属元素使线（BUILDS 设计如此）。元素裁决 CD20×1.2×三印、万象天雷 350%+125（成长）满雷印、奥术湮灭 275%+92（成长）满充能×1.4 为三线终结峰值；爆发流以织焰 177% 高倍率单发为核心填充。奥术精算流循环依赖充能条满 5（cond=resource_full 由期望引擎以 JSON resource=element/max=5 判定）。",
+  "agent_note": "产出文件为纯数据，仅写 scripts/balance_data/cls_fa_shi.json；数据源只读未改。"
+}

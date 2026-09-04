@@ -106,7 +106,8 @@ def validate(path: str) -> list[str]:
             continue
         if bdef.get("role") not in ROLES:
             errs.append(f"builds.{bname}.role 应为 {ROLES} 之一，实={bdef.get('role')}")
-        # line 校验：BUILDS 该流派技能同线
+        # 检查同技能重复定义（会导致期望引擎规则冲突）
+        seen_skills = {}
         for i, step in enumerate(bdef.get("rotation", [])):
             if not isinstance(step, dict) or "skill" not in step:
                 errs.append(f"builds.{bname}.rotation[{i}] 需含 skill")
@@ -119,8 +120,10 @@ def validate(path: str) -> list[str]:
                 errs.append(f"builds.{bname}.rotation[{i}] cond 语法不支持: {cond}")
             if "prio" not in step:
                 errs.append(f"builds.{bname}.rotation[{i}] 缺 prio")
-        if "fight_len" in bdef and bdef["fight_len"] <= 0:
-            errs.append(f"builds.{bname}.fight_len 应>0")
+            if sk in seen_skills:
+                errs.append(f"builds.{bname}.rotation[{i}] 技能 '{sk}' 重复定义"
+                            f"（首次在 rotation[{seen_skills[sk]}]）——同一技能多规则请合并为一条 cond 用 or 语义")
+            seen_skills[sk] = i
     # 加点预设
     attr_presets = data.get("attr_presets", {})
     if not isinstance(attr_presets, dict) or len(attr_presets) < 2:

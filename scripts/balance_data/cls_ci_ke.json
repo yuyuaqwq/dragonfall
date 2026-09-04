@@ -1,0 +1,183 @@
+{
+  "class_id": "cls_ci_ke",
+  "class_name": "刺客",
+  "resource": "cp",
+  "resource_max": 5,
+  "resource_regen_per_tick": 0,
+  "builds": {
+    "影舞连段流": {
+      "line": "影舞者",
+      "role": "dps",
+      "attr_preset": "full_agi",
+      "rotation": [
+        {
+          "skill": "刺击",
+          "cond": "always",
+          "prio": 6,
+          "note": "基础连段积攒点（命中+1段）"
+        },
+        {
+          "skill": "双刃乱舞",
+          "cond": "cd_ready",
+          "prio": 5,
+          "note": "2段命中×2段连击快速攒点"
+        },
+        {
+          "skill": "影袭",
+          "cond": "cd_ready",
+          "prio": 4,
+          "note": "命中+1段，背击×1.3"
+        },
+        {
+          "skill": "幻影连刺",
+          "cond": "cp>=3",
+          "prio": 3,
+          "note": "3段连击爆发+高额攒点"
+        },
+        {
+          "skill": "潜行",
+          "cond": "cd_ready",
+          "prio": 2,
+          "note": "必暴增益，为终结铺垫"
+        },
+        {
+          "skill": "终结·暗影绞杀",
+          "cond": "cp>=5",
+          "prio": 0,
+          "note": "满连段斩杀终结，每段+16%"
+        },
+        {
+          "skill": "终结·割喉",
+          "cond": "cp>=3",
+          "prio": 1,
+          "note": "基础线终结备用，防终结空转"
+        }
+      ],
+      "fight_len": 60,
+      "self_heal": false,
+      "desc": "刺击/双刃乱舞/影袭攒连段 → 幻影连刺多段攒点 → 潜行必暴 → 终结·暗影绞杀满段斩杀"
+    },
+    "毒刃腐蚀流": {
+      "line": "毒刃者",
+      "role": "dps",
+      "attr_preset": "full_str",
+      "rotation": [
+        {
+          "skill": "割裂",
+          "cond": "always",
+          "prio": 6,
+          "note": "叠流血+命中攒点"
+        },
+        {
+          "skill": "双毒刃",
+          "cond": "cd_ready",
+          "prio": 5,
+          "note": "2段×2层毒快速叠毒"
+        },
+        {
+          "skill": "毒刃",
+          "cond": "cp>=2",
+          "prio": 4,
+          "note": "叠毒+连段≥3额外+1层"
+        },
+        {
+          "skill": "淬毒之刃",
+          "cond": "cd_ready",
+          "prio": 3,
+          "note": "3层毒+破防"
+        },
+        {
+          "skill": "毒爆",
+          "cond": "cd_ready",
+          "prio": 2,
+          "note": "引爆毒层爆发，转真伤窗口"
+        },
+        {
+          "skill": "万毒噬心",
+          "cond": "cd_ready",
+          "prio": 0,
+          "note": "真伤终结"
+        },
+        {
+          "skill": "刺击",
+          "cond": "resource_low",
+          "prio": 8,
+          "note": "毒层空窗期连段填充"
+        }
+      ],
+      "fight_len": 60,
+      "self_heal": false,
+      "desc": "割裂/毒刃/双毒刃叠毒叠段 → 淬毒之刃破防 → 毒爆引爆毒层 → 万毒噬心真伤终结"
+    },
+    "影遁收割流": {
+      "line": "影舞者",
+      "role": "dps",
+      "attr_preset": "full_agi",
+      "rotation": [
+        {
+          "skill": "刺击",
+          "cond": "always",
+          "prio": 7,
+          "note": "基础攒点"
+        },
+        {
+          "skill": "疾影",
+          "cond": "cd_ready",
+          "prio": 6,
+          "note": "提速+40%行动加速"
+        },
+        {
+          "skill": "潜行",
+          "cond": "cd_ready",
+          "prio": 5,
+          "note": "必暴，为收割铺垫"
+        },
+        {
+          "skill": "收割",
+          "cond": "cd_ready",
+          "prio": 4,
+          "note": "CD好即用压血线"
+        },
+        {
+          "skill": "万影归一",
+          "cond": "cp>=5",
+          "prio": 0,
+          "note": "满连段×1.5终结爆发"
+        },
+        {
+          "skill": "影遁",
+          "cond": "cp>=5",
+          "prio": 2,
+          "note": "保命/进入强制潜行"
+        },
+        {
+          "skill": "终结·割喉",
+          "cond": "cp>=3",
+          "prio": 3,
+          "note": "3段终结减员防溢出"
+        }
+      ],
+      "fight_len": 60,
+      "self_heal": false,
+      "desc": "疾影提速 → 刺击/潜行蓄势 → 收割残血×1.45斩杀 → 万影归一满段×1.5爆发"
+    }
+  },
+  "attr_presets": {
+    "full_agi": {
+      "agi": "all"
+    },
+    "full_str": {
+      "str": "all"
+    },
+    "balanced": {
+      "agi": 0.5,
+      "str": 0.3,
+      "vit": 0.2
+    },
+    "crit": {
+      "agi": 0.6,
+      "str": 0.4
+    }
+  },
+  "notes": "刺客 cp（连击点）max=5，普攻/技能命中+1，无自然回复。全敏agi→spd×0.8+crit，spd快先手/多出手；全str→atk+1，爆发高但慢——两套加点玩法相反，各流派输出在中间档验证。"
+}

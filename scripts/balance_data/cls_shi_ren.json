@@ -1,0 +1,64 @@
+{
+  "class_id": "cls_shi_ren",
+  "class_name": "吟游诗人",
+  "resource": "resonance",
+  "resource_max": 10,
+  "resource_regen_per_tick": 0,
+  "builds": {
+    "咏叹鼓舞流": {
+      "line": "咏叹者",
+      "role": "support",
+      "attr_preset": {"int": "all"},
+      "rotation": [
+        {"skill": "战歌", "cond": "always", "prio": 3, "note": "起手开驻留：全队攻击+12%（主旋律 atk，旋律强度决定增幅）"},
+        {"skill": "激昂战歌", "cond": "buff_active:战歌", "prio": 4, "note": "攻击光环强化：全队攻击+20%（v174 与战歌同级驻留可叠用/替换补强度）"},
+        {"skill": "英雄赞歌", "cond": "cd_ready", "prio": 5, "note": "攻击+魔攻+16%驻留强化（终章全队暴击+25%）"},
+        {"skill": "拨弦", "cond": "always", "prio": 2, "note": "吟唱：当前旋律强度+1（战歌/激昂战歌光环的核心叠层，二重唱被动翻倍）"},
+        {"skill": "咏叹调", "cond": "buff_active:战歌", "prio": 6, "note": "旋律增益系时伤害×1.3，单体音刃输出"},
+        {"skill": "天籁", "cond": "resource_full", "prio": 0, "note": "共鸣满10的音刃顶点终结（强度层≥4时×1.3），咏叹线主输出终结"}
+      ],
+      "fight_len": 60,
+      "self_heal": false,
+      "desc": "战歌/激昂战歌开攻击驻留光环 → 拨弦叠旋律强度（共鸣随技能+1）→ 咏叹调吃增益系×1.3 输出 → 共鸣攒满天籁音刃终结"
+    },
+    "咏叹圣咏流": {
+      "line": "咏叹者",
+      "role": "support",
+      "attr_preset": {"int": "all"},
+      "rotation": [
+        {"skill": "战歌", "cond": "always", "prio": 3, "note": "主旋律：全队攻击+12%驻留（旋律强度随层数放大）"},
+        {"skill": "守歌", "cond": "always", "prio": 4, "note": "副旋律：全队减伤+10%驻留（与战歌双驻留并存）"},
+        {"skill": "和声", "cond": "cd_ready", "prio": 5, "note": "当前旋律效果翻倍+强度+1，持续6刻（双驻留核心放大器）"},
+        {"skill": "咏叹·愈", "cond": "always", "prio": 2, "note": "全队治疗200%魔攻+全队攻+15%续8刻（治疗赛诗类：共鸣+2）"},
+        {"skill": "英雄叙事诗", "cond": "cd_ready", "prio": 6, "note": "全队四维+12%驻留，终章全队免疫1次控制（保排）"},
+        {"skill": "终章·黎明颂歌", "cond": "resource_full", "prio": 0, "note": "共鸣满10爆发：全队全属性+25%驻留/终章+50%续10刻（顶点旋律）"}
+      ],
+      "fight_len": 60,
+      "self_heal": true,
+      "desc": "战歌+守歌双驻留 → 和声强度+翻倍（6刻）→ 咏叹·愈全队回血+群体加攻 → 共鸣满终章·黎明颂歌全属性爆发"
+    },
+    "挽歌瓦解流": {
+      "line": "挽歌者",
+      "role": "control",
+      "attr_preset": {"int": "all"},
+      "rotation": [
+        {"skill": "哀歌", "cond": "always", "prio": 3, "note": "输出+目标攻击-20%续8刻（叠负面的基础技）"},
+        {"skill": "镇魂歌", "cond": "always", "prio": 4, "note": "敌方全体速度-15%驻留（挽歌系主旋律，配合挽歌·沉/终焉）"},
+        {"skill": "挽歌", "cond": "always", "prio": 5, "note": "敌方全体攻击-18%驻留（双驻留瓦解敌方攻速）"},
+        {"skill": "安眠曲", "cond": "cd_ready", "prio": 6, "note": "单体睡眠定身3.0刻（首领1.5刻）控场填充"},
+        {"skill": "沉默之歌", "cond": "cd_ready", "prio": 2, "note": "驻留封印敌方技能（每4刻至多1次）"},
+        {"skill": "终末安魂", "cond": "resource_full", "prio": 0, "note": "共鸣满：敌方全体定身4.0刻+全属性-30%续10刻（全控终结）"}
+      ],
+      "fight_len": 60,
+      "self_heal": false,
+      "desc": "哀歌/挽歌+镇魂歌驻留削弱敌方攻速 → 安眠曲睡眠控场 → 沉默之歌封印技能 → 共鸣满终末安魂敌方全体定身4刻"
+    }
+  },
+  "attr_presets": {
+    "full_int": {"int": "all"},
+    "balanced": {"int": 0.6, "vit": 0.4},
+    "swift": {"int": 0.6, "agi": 0.4},
+    "support": {"int": 0.5, "vit": 0.5}
+  },
+  "notes": "诗人双资源（core_resources.py）：主条 resonance 共鸣 max=10（歌类/咏叹技 +1，治疗赛诗 +2），resource 填 resonance；次条 echo 回声 max=3（歌类技 +1，长驻留叠层）不入 schema 主键。三流派均以 BUILDS 技能为骨架：1) 咏叹鼓舞流=咏叹者攻线辅助（战歌/激昂战歌/英雄赞歌驻留光环+拨弦叠旋律强度→咏叹调×1.3/天籁音刃终结）；2) 咏叹圣咏流=咏叹者变奏奶辅（战歌+守歌双驻留+和声翻倍→咏叹·愈群疗→终章·黎明颂歌全属性爆发）；3) 挽歌瓦解流=挽歌者控制（哀歌/挽歌+镇魂歌削弱驻留+安眠曲/沉默之歌控制→终末安魂全控）。v174 刚补输出轴：基础输出技锁音(cd0填充)/破音/音刃、群伤共振、治疗安神曲、增益疾走音(全体速+20%续6)/疾歌(速驻留)不在 BUILDS 六技内的填充技按引擎循环近似规则由期望引擎以 always+低 prio 兜底普攻/填充。cond 用 melody/共鸣相关：天籁/终末安魂等终结技 resource_full（共鸣满10）；咏叹调 buff_active:战歌（增益旋律触发×1.3）；拨弦/和声吟唱旋律无资源门槛 always。加点：诗人法系主属性 int（每点 matk+1.2/魔力+1.5），全 int 为输出/治疗/驻留增幅最大化；均衡(6:4 vit)与辅助(5:5 vit)供咏叹圣咏流/生存向；急速 int+agi(6:4，每点 agi spd+0.8/暴击0.4%)供堆出手频率。疑问/缺口：1) resonance 消耗侧 desc 注明(终章·黎明颂歌 -5 共鸣等)但 dump 内 res_cost 全 null，引擎批次 2 未落地前 resource_full 终结判定需真引擎验证；2) echo 次条 3 层未入 schema（增益续时+回声层数刻、每层刻一始全队恢复6体力未在技能 desc 体现，期望引擎只能按主条 resonance 近似）；3) 挽歌线技能多为驻留/削弱/控制，输出集中于哀歌/破碎和音/亡者挽歌/死寂等音刃技，天籁(咏叹线)是唯一大倍率终结，挽歌线期望 DPS 天然低于咏叹线但控制价值高（期望引擎需区分 dps/控制型循环）；4) 诗人的旋律强度层数(强度层≥3 共鸣被动全队+10%全属性/满5 万籁和鸣+15%)由拨弦/和声/二重唱驱动，期望引擎若模拟需读 mech_stacks 语义。"
+}
