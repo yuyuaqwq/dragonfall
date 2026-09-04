@@ -4351,8 +4351,11 @@ class Battle:
                 heal = int(_hv * cond_mult)
             except Exception:
                 heal = 0
-        elif info.get("power", 0) < 1:
-            heal = int(player.get("max_hp", 0) * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
+        elif info.get("hp_pct"):
+            # v174（鱼鱼拍板）：HP% 治疗改为显式字段 hp_pct（如拳师气息调息 15% HP）。
+            # 旧逻辑 power<1 隐式按 HP% 结算已废弃——power 现统一为 LOL 式倍率（伤害/治疗共用），
+            # 不再承载"<1 就是 HP%"的语义炸弹（v161 曾致治愈术被误按 87% 生命结算）。
+            heal = int(player.get("max_hp", 0) * float(info.get("hp_pct", 0)) * E.skill_power_mult(lv, info) * cond_mult)
         else:
             heal = int(st["matk"] * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
         # v153 §4（C-18）：牧师信念负载档位乘区（清醒×1.0 / 专注×1.25 / 透支×1.5）

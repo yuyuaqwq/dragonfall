@@ -57,8 +57,9 @@ def main():
     old_king = by_id.get("inst_old_king_tomb", {}).get("rounds")
     # v155 单刷放开（2026-09-01）：老王之墓 min_players 2→1，legacy 对照口径从 2 人变单刷
     # v173 副本血量重标：旧王陵 hp_mult 2.9→1.952，legacy 轮数再同步
-    check("老王之墓 legacy 轮数 830~880（v173 hp_mult 1.952 后）",
-          830 <= old_king <= 880, f"rounds={old_king}")
+    # v173.3 Boss 降级 45→40 + hp 补偿 2.356（交接文档 780-830；实测 802）
+    check("老王之墓 legacy 轮数 780~830（v173.3 Boss降级40 后）",
+          780 <= old_king <= 830, f"rounds={old_king}")
 
     print("【1b/6 legacy+comp=None 与旧行为逐项一致（v156 向后兼容）】")
     rows_old = team_matrix(loadout="legacy", comp=None)

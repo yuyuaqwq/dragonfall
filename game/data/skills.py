@@ -354,7 +354,8 @@ PLAYER_SKILLS = {
              'cast': 0.5,
              'faith': 0,
              'name': '治愈术',
-             'desc': '高举圣徽，圣光如甘霖洒落——治疗单体 87% 魔攻'
+             'heal_formula': 'matk*0.5 + 30 + player_lv*3.0 + skill_lv*8',
+             'desc': '高举圣徽，圣光如甘霖洒落——治疗单体 50% 魔攻 + 固定治疗量（成长）'
             },
             "sk_qun_ti_zhi_yu": {
              'lv': 4,
@@ -365,7 +366,8 @@ PLAYER_SKILLS = {
              'cd': 12,
              'faith': 0,
              'name': '群体治愈',
-             'desc': '圣光化作细雨笼罩全场——治疗全体 97% 魔攻（全体小治疗）'
+             'heal_formula': 'matk*0.5 + 18 + player_lv*2.2 + skill_lv*6',
+             'desc': '圣光化作细雨笼罩全场——治疗全队 50% 魔攻 + 固定治疗量（成长）'
             },
             "sk_sheng_guang_qu_san": {
              'lv': 8,
@@ -377,7 +379,8 @@ PLAYER_SKILLS = {
              'faith': 0,
              'effect': 'cleanse',
              'name': '圣光驱散',
-             'desc': '指尖迸发净化之光，浊气如雾消融——驱散单体 1 个减益'
+             'heal_formula': 'matk*0.35 + 20 + player_lv*2.5 + skill_lv*8',
+             'desc': '指尖迸发净化之光，浊气如雾消融——驱散单体 1 个减益，附带回血（35% 魔攻+成长）'
             },
             "sk_sheng_guang_hu_dun": {
              'lv': 12,
@@ -429,7 +432,8 @@ PLAYER_SKILLS = {
              'mech_val': 3,
              'faith': 0,
              'name': '卸负',
-             'desc': '将沉重信念交还圣光，卸下心头重负——卸除 3 点信念，自身回血 15%'
+             'heal_formula': 'matk*0.15 + 15 + player_lv*2.0 + skill_lv*8',
+             'desc': '将沉重信念交还圣光，卸下心头重负——卸除 3 点信念，自身回血（15% 魔攻+成长）'
             },
             "sk_sheng_you": {
              'lv': 28,
@@ -747,7 +751,8 @@ PLAYER_SKILLS = {
              'cast': 0.6,
              'cd': 12,
              'name': '安神曲',
-             'desc': '吟唱安神曲调，柔光随旋律抚愈众人——治疗全队 97% 生命'
+             'heal_formula': 'matk*0.45 + 15 + player_lv*2.0 + skill_lv*6',
+             'desc': '吟唱安神曲调，柔光随旋律抚愈众人——治疗全队 45% 魔攻 + 固定治疗量（成长）'
             },
             "sk_ji_zou_yin": {
              'lv': 24,
@@ -2212,7 +2217,8 @@ BRANCH_SKILLS = {
                         'cd': 8,
                         'faith': 0,
                         'name': '圣言术',
-                        'desc': '口诵圣言，言出法随——治疗单体 114% 魔攻，信念 <5 时额外 +20%'
+                        'heal_formula': 'matk*0.6 + 40 + player_lv*3.2 + skill_lv*8',
+                        'desc': '口诵圣言，言出法随——治疗单体 60% 魔攻 + 固定治疗量（成长），信念 <5 时额外 +20%'
                     },
                     "圣光祈祷": {
                         'lv': 38,
@@ -2223,7 +2229,8 @@ BRANCH_SKILLS = {
                         'cd': 12,
                         'faith': 0,
                         'name': '圣光祈祷',
-                        'desc': '双手合十，圣光随祈祷蔓延全场——治疗全体 102% 魔攻'
+                        'heal_formula': 'matk*0.52 + 25 + player_lv*2.3 + skill_lv*6',
+                        'desc': '双手合十，圣光随祈祷蔓延全场——治疗全队 52% 魔攻 + 固定治疗量（成长）'
                     },
                     "神恩降临": {
                         'lv': 44,
@@ -2234,7 +2241,8 @@ BRANCH_SKILLS = {
                         'cd': 16,
                         'faith': 0,
                         'name': '神恩降临',
-                        'desc': '天穹裂开一线，神恩倾泻而下——治疗单体 125% 魔攻，目标生命越低效果越高'
+                        'heal_formula': 'matk*0.7 + 50 + player_lv*3.4 + skill_lv*8',
+                        'desc': '天穹裂开一线，神恩倾泻而下——治疗单体 70% 魔攻 + 固定治疗量（成长），目标生命越低效果越高'
                     },
                     "圣辉涤净": {
                         'lv': 50,
@@ -2246,7 +2254,8 @@ BRANCH_SKILLS = {
                         'faith': 0,
                         'effect': 'cleanse_all',
                         'name': '圣辉涤净',
-                        'desc': '圣辉如潮水漫过战场——全体净化减益并解除控制'
+                        'heal_formula': 'matk*0.2 + 10 + player_lv*1.5 + skill_lv*6',
+                        'desc': '圣辉如潮水漫过战场——全体净化减益并解除控制，附带回血（20% 魔攻+成长）'
                     },
                     "圣光回响": {
                         'lv': 54,
@@ -2267,7 +2276,8 @@ BRANCH_SKILLS = {
                         'cd': 8,
                         'faith': 0,
                         'name': '光愈',
-                        'desc': '柔光缠绕伤口，缓缓愈合——治疗 114% 魔攻，8 刻内每 2 刻恢复一次'
+                        'heal_formula': 'matk*0.45 + 30 + player_lv*2.6 + skill_lv*6',
+                        'desc': '柔光缠绕伤口，缓缓愈合——治疗单体 45% 魔攻 + 固定治疗量（成长），8 刻内每 2 刻恢复一次'
                     },
                 },
                 "死灵祭司": {
@@ -2370,7 +2380,8 @@ BRANCH_SKILLS = {
                         'cd': 16,
                         'faith': 0,
                         'name': '神圣恩典',
-                        'desc': '沐浴神恩，万物复苏——治疗单体 144% 魔攻（单体超大治疗）'
+                        'heal_formula': 'matk*0.85 + 60 + player_lv*3.6 + skill_lv*8',
+                        'desc': '沐浴神恩，万物复苏——治疗单体 85% 魔攻 + 固定治疗量（成长）'
                     },
                     "生命之泉": {
                         'lv': 68,
@@ -2381,7 +2392,8 @@ BRANCH_SKILLS = {
                         'cd': 20,
                         'faith': 0,
                         'name': '生命之泉',
-                        'desc': '脚下涌出汩汩生命之泉——全体回血 118% 魔攻，12 刻内每 2 刻恢复一次'
+                        'heal_formula': 'matk*0.55 + 30 + player_lv*2.4 + skill_lv*6',
+                        'desc': '脚下涌出汩汩生命之泉——治疗全队 55% 魔攻 + 固定治疗量（成长），12 刻内每 2 刻恢复一次'
                     },
                     "圣光庇护": {
                         'lv': 74,
@@ -2405,7 +2417,8 @@ BRANCH_SKILLS = {
                         'cd': 20,
                         'faith': 0,
                         'name': '神迹',
-                        'desc': '神迹显现，圣光席卷八方——治疗全体 157% 魔攻（重技）'
+                        'heal_formula': 'matk*0.7 + 45 + player_lv*2.8 + skill_lv*6',
+                        'desc': '神迹显现，圣光席卷八方——治疗全队 70% 魔攻 + 固定治疗量（成长）'
                     },
                     "圣光祝福": {
                         'lv': 85,
@@ -2522,7 +2535,8 @@ BRANCH_SKILLS = {
                         'faith': 0,
                         'effect': 'cleanse_all',
                         'name': '生命圣域',
-                        'desc': '圣域展开，生命之力涤荡阴翳——治疗全体 204% 魔攻，并驱散全部减益'
+                        'heal_formula': 'matk*0.85 + 55 + player_lv*3.0 + skill_lv*6',
+                        'desc': '圣域展开，生命之力涤荡阴翳——治疗全队 85% 魔攻 + 固定治疗量（成长），驱散全部减益'
                     },
                     "神迹·重生": {
                         'lv': 93,
@@ -2533,6 +2547,7 @@ BRANCH_SKILLS = {
                         'cd': 24,
                         'faith': 0,
                         'name': '神迹·重生',
+                        'heal_formula': 'max_hp*0.40',
                         'desc': '神迹再现，亡者于圣光中睁眼——复活倒地队友，回复其 40% 生命'
                     },
                     "圣光赞歌": {
@@ -2568,7 +2583,8 @@ BRANCH_SKILLS = {
                         'cd': 24,
                         'faith': 0,
                         'name': '曙光',
-                        'desc': '第一缕曙光刺破永夜——治疗全体 241% 魔攻，全队免疫 1 次致命伤，持续 8 刻'
+                        'heal_formula': 'matk*0.95 + 65 + player_lv*3.4 + skill_lv*6',
+                        'desc': '第一缕曙光刺破永夜——治疗全队 95% 魔攻 + 固定治疗量（成长），全队免疫 1 次致命伤 8 刻'
                     },
                 },
                 "死灵祭司": {
@@ -3643,7 +3659,8 @@ BRANCH_SKILLS = {
                         'cd': 16,
                         'effect': 'atk_all',
                         'name': '咏叹·愈',
-                        'desc': '咏叹带光，治愈与鼓舞同声落下——治疗全队 114% 生命，全队攻击 +15%，持续 8 刻'
+                        'heal_formula': 'matk*0.55 + 28 + player_lv*2.3 + skill_lv*6',
+                        'desc': '咏叹带光，治愈与鼓舞同声落下——治疗全队 55% 魔攻 + 固定治疗量（成长），全队攻击 +15% 持续 8 刻'
                     },
                 },
                 "挽歌者": {
@@ -3795,7 +3812,8 @@ BRANCH_SKILLS = {
                         'cast': 0.6,
                         'cd': 16,
                         'name': '咏叹·圣咏',
-                        'desc': '圣咏庄严回荡，圣光如瀑倾泻而下——治疗全队 131% 生命'
+                        'heal_formula': 'matk*0.65 + 40 + player_lv*2.6 + skill_lv*6',
+                        'desc': '圣咏庄严回荡，圣光如瀑倾泻而下——治疗全队 65% 魔攻 + 固定治疗量（成长）'
                     },
                 },
                 "挽歌者": {
@@ -4041,7 +4059,8 @@ TUTOR_SKILLS = {
         "sk_jiu_shu_zhi_guang": {
             "lv": 10, "mp": 15, "power": 1.5, "kind": "治疗",
             "cd": 2, "team": "heal_all",
-            "desc": "高举圣徽，救赎之光洒遍全队——治疗全队 150% 生命（团队技能，冒险中全队共享，CD 2）",
+            "heal_formula": "matk*0.4 + 20 + player_lv*2.0 + skill_lv*6",
+            "desc": "高举圣徽，救赎之光洒遍全队——治疗全队 40% 魔攻 + 固定治疗量（成长）（团队技能，冒险中全队共享，CD 2）",
             "name": "救赎之光",
         },
     },
