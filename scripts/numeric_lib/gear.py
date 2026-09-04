@@ -61,11 +61,12 @@ def make_gear(level: int, quality: str = "blue", enhance: int = 0,
     # v175e 词条乘区基准（蓝装 2 词条总收益 ≈ ×1.20 等价）
     AFFIX_BY_TYPE = {
         # 面板键 → 加成值（加法键直接加面板；比例键按面板比例）
-        "crit": {"crit": 0.10, "crit_dmg": 0.30},      # +10% 暴击率 +30% 爆伤
-        "spd": {"spd": 60},                              # +60 速度（≈2倍速 → 频率×1.41）
-        "pene": {"pene_phys": 0.20, "pene_magi": 0.20}, # 20% 穿透
-        "lifesteal": {"lifesteal": 0.15},                # 15% 吸血（输出等价 ~0.3）
-        "elem": {"dmg_mult": 0.20},                      # +20% 全伤（元素增伤近似）
+        # 各乘区等价总收益 ≈ 1.08-1.15（不是无条件 1.20——真实词条池平衡）
+        "crit": {"crit": 0.12, "crit_dmg": 0.40},      # +12% 暴击率 +40% 爆伤（期望~1.12-1.15）
+        "spd": {"spd": 50},                              # +50 速度（频率 ×~1.27，cast 折算后 ~1.10）
+        "pene": {"pene_phys": 0.25, "pene_magi": 0.25}, # 25% 穿透（对高防 ~1.12）
+        "lifesteal": {"lifesteal": 0.15},                # 15% 吸血（生存向）
+        "elem": {"dmg_mult": 0.12},                      # +12% 全伤（与其它乘区等价水平）
     }
     gear = {}
     mult = C.ENHANCE_TABLE.get(enhance, {}).get("mult", 1.0)
