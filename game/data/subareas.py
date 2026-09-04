@@ -1387,7 +1387,7 @@ SUBAREAS = {
                     "b_jack_pirate",
                     "海盗王·独眼杰克",
                     "boss",
-                    28,
+                    27,
                     ["ms_wan_dao", "ms_huo_qiang", "ms_zhao_huan_shui_gui"],
                     ["杰克的金钩碎片"]
                 ],
@@ -1772,7 +1772,7 @@ SUBAREAS = {
                     "b_fort_ghost",
                     "要塞幽灵",
                     "boss",
-                    24,
+                    23,
                     ["ms_ai_hao", "ms_chuan_shen", "ms_zhao_huan_ku_lou"],
                     ["要塞残片"]
                 ],
@@ -2611,7 +2611,7 @@ SUBAREAS = {
                     "b_king_odric",
                     "古王·奥德里克",
                     "boss",
-                    45,
+                    40,
                     ["ms_jian_ji", "ms_wang_wei", "ms_zhao_huan_ku_lou"],
                     ["古王剑碎片"]
                 ],
@@ -2918,7 +2918,7 @@ SUBAREAS = {
                     "b_marcus",
                     "审判长·马尔库斯",
                     "boss",
-                    52,
+                    47,
                     ["ms_an_ying_dan", "ms_suo_lian", "ms_shen_pan_zhi_yan"],
                     ["马尔库斯的法冠残片"]
                 ],
@@ -3212,7 +3212,7 @@ SUBAREAS = {
                     "b_trial_knight",
                     "试炼骑士长",
                     "boss",
-                    46,
+                    41,
                     ["ms_sheng_guang_dan", "ms_jian_ji", "ms_zhao_huan"],
                     ["试炼徽记"]
                 ],
@@ -4034,7 +4034,7 @@ SUBAREAS = {
                     "b_dawn_elf",
                     "远古精灵王·晨曦",
                     "boss",
-                    66,
+                    63,
                     ["ms_yue_guang_zhan", "ms_zhao_huan_shu_ren", "ms_zhi_yu"],
                     ["晨曦之冠碎片"]
                 ],
@@ -4516,7 +4516,7 @@ SUBAREAS = {
                     "b_moon_guard",
                     "月神守卫",
                     "boss",
-                    68,
+                    65,
                     ["ms_yue_guang_zhan", "ms_zhi_yu", "ms_zhao_huan"],
                     ["月辉碎片"]
                 ],
@@ -5502,7 +5502,7 @@ SUBAREAS = {
                     "b_helga",
                     "恶魔祭司·赫尔加",
                     "boss",
-                    92,
+                    87,
                     [
                         "ms_an_ying_dan",
                         "ms_zhao_huan_e_mo",
@@ -5729,7 +5729,7 @@ SUBAREAS = {
                     "b_eter",
                     "蚀夜(真相形态)",
                     "boss",
-                    100,
+                    95,
                     [
                         "ms_an_ying_zhan",
                         "ms_shen_yuan_zhi_nu",
@@ -6157,7 +6157,7 @@ SUBAREAS = {
                     "b_frost_lord",
                     "冰霜领主",
                     "boss",
-                    84,
+                    79,
                     [
                         "ms_bing_xi",
                         "ms_dong_jie",
@@ -7052,7 +7052,7 @@ SUBAREAS = {
                     "b_om_shadow",
                     "古龙·奥姆之影",
                     "boss",
-                    100,
+                    95,
                     [
                         "ms_long_xi",
                         "ms_long_zhao",
@@ -7510,7 +7510,7 @@ SUBAREAS = {
                     "b_storm_king",
                     "雷霆君主",
                     "boss",
-                    100,
+                    95,
                     [
                         "ms_lei_bao",
                         "ms_feng_bao_zhi_yan",
@@ -8380,7 +8380,7 @@ SUBAREAS = {
                     "b_ghost_captain",
                     "幽灵船长·克罗",
                     "boss",
-                    48,
+                    43,
                     ["ms_wan_dao", "ms_zhao_huan_you_ling", "ms_zu_zhou"],
                     ["克罗的罗盘碎片"]
                 ],
@@ -8458,7 +8458,7 @@ SUBAREAS = {
                     "b_siren_queen",
                     "海妖女王·蓝歌",
                     "boss",
-                    60,
+                    57,
                     ["ms_mei_huo_zhi_ge", "ms_ju_lang", "ms_zhao_huan_chu_shou"],
                     ["蓝歌之冠残片"]
                 ],
@@ -9180,7 +9180,7 @@ SUBAREAS = {
                     "b_lange",
                     "海神祭司·澜歌",
                     "boss",
-                    72,
+                    69,
                     [
                         "ms_hai_chao",
                         "ms_zhao_huan_sha_yu",
@@ -9271,7 +9271,7 @@ SUBAREAS = {
                     "b_aolan",
                     "深海龙王·敖澜",
                     "boss",
-                    78,
+                    75,
                     ["ms_shui_xi", "ms_long_wei", "ms_zhao_huan_hai_shou"],
                     ["敖澜之珠碎片"]
                 ],
@@ -9907,7 +9907,7 @@ SUBAREAS = {
                     "b_gray_lord",
                     "灰矮人领主·石炉",
                     "boss",
-                    84,
+                    79,
                     [
                         "ms_zhan_chui",
                         "ms_zhao_huan_gong_cheng_shou"
@@ -10042,7 +10042,7 @@ SUBAREAS = {
                     "b_under_dragon",
                     "地底古龙·黑渊",
                     "boss",
-                    92,
+                    89,
                     [
                         "ms_suan_xi",
                         "ms_tun_shi",
@@ -10540,7 +10540,7 @@ SUBAREAS = {
                     "b_moro",
                     "深渊领主·摩罗",
                     "boss",
-                    98,
+                    95,
                     [
                         "ms_shen_yuan_zhi_nu",
                         "ms_zhao_huan_e_mo",
@@ -11014,7 +11014,7 @@ SUBAREAS = {
                     "b_storm_master",
                     "风暴之主·云怒",
                     "boss",
-                    100,
+                    97,
                     [
                         "ms_lei_bao",
                         "ms_feng_bao_zhi_yan",
@@ -11433,7 +11433,7 @@ SUBAREAS = {
                     "b_ola",
                     "云中圣者·奥拉",
                     "boss",
-                    100,
+                    99,
                     [
                         "ms_sheng_guang",
                         "ms_feng_bao",

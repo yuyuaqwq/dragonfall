@@ -160,7 +160,7 @@ INSTANCES = {
         "intro": "铁港码头下的礁石缝隙里，潮声裹着若有若无的金币脆响。独眼杰克的老巢就在洞中暗湾——铁港的船主们，已经很久不敢起锚了。",
         "boss_line": "『老子纵横七海三十年，还没见过敢摸进杰克宝库的耗子！』独眼杰克的金钩在火光里一晃：『留下你们的船，或者留下命！』",
         "outro": "金钩从杰克手中脱落，暗湾里终于只剩下潮水的呼吸。铁港的船主们可以重新起锚了，而你从战利品里翻出的那张旧海图，似乎指向更深的水域。",
-        "boss": ["b_jack_pirate", "海盗王·独眼杰克", "boss", 28,
+        "boss": ["b_jack_pirate", "海盗王·独眼杰克", "boss", 27,
                  ["ms_wan_dao", "ms_huo_qiang", "ms_zhao_huan_shui_gui"],
                  ["杰克的金钩碎片"]],
         "minions": [{"name": "海盗喽啰", "monster": ["m_sea_slime", "海史莱姆", "tank", 22,
@@ -234,7 +234,7 @@ INSTANCES = {
                     "b_jack_pirate",
                     "海盗王·独眼杰克",
                     "boss",
-                    28,
+                    27,
                     [
                         "ms_wan_dao",
                         "ms_huo_qiang",
@@ -247,8 +247,8 @@ INSTANCES = {
             }
         ],
 "mech": "phase",
-        "hp_mult": 1.88,  # v155 单刷档（原 3.6 多人标定）
-        "atk_mult": 0.859,  # v155 单刷档（原 1.15）
+        "hp_mult": 2.0563,  # v173.3 Boss降级hp补偿 ×1.094
+        "atk_mult": 0.908,  # v173.3 Boss降级atk补偿 ×1.057
         "gold": 385,
         "exp": 6465,
         "materials": ["杰克的金钩碎片"],
@@ -267,7 +267,7 @@ INSTANCES = {
         "intro": "陵门在王陵钥匙的转动下缓缓开启，积尘的石壁后传来低沉的亡灵呓语。圣战前的历代君王长眠于此，而其中一位——古王·奥德里克——已经不再安眠。",
         "boss_line": "『孤在位时，圣战尚未燃起。』奥德里克拄剑起身，王座厅的烛火齐齐亮起：『来者报上名来，让孤看看三百年后的晨曦城，还记不记得忠骨。』",
         "outro": "古王的剑重归尘土，王陵重归寂静。奥德里克消散前望向北方的那一眼，让你想起他未说完的话——圣战的真相，似乎比棺椁里的陪葬品埋得更深。",
-        "boss": ["b_king_odric", "古王·奥德里克", "boss", 45,
+        "boss": ["b_king_odric", "古王·奥德里克", "boss", 40,
                  ["ms_jian_ji", "ms_wang_wei", "ms_zhao_huan_ku_lou"],
                  ["古王剑碎片"]],
                 "stages":         [
@@ -338,7 +338,7 @@ INSTANCES = {
                     "b_king_odric",
                     "古王·奥德里克",
                     "boss",
-                    45,
+                    40,
                     [
                         "ms_jian_ji",
                         "ms_wang_wei",
@@ -353,8 +353,8 @@ INSTANCES = {
         "key_item": "王陵钥匙",
         "key_source": "白鹿城铁匠铺购买(500 金)",
 "mech": "enrage,summon",
-        "hp_mult": 1.952,  # v155 单刷档（保持原 1.5，本就是单刷档量级）
-        "atk_mult": 1.1619,  # v155 单刷档（原 1.2）
+        "hp_mult": 2.356,  # v173.3 Boss降级hp补偿 ×1.207
+        "atk_mult": 1.3861,  # v173.3 Boss降级atk补偿 ×1.193
         "gold": 709,
         "exp": 12835,
         "materials": ["古王剑碎片"],
@@ -372,7 +372,7 @@ INSTANCES = {
         "intro": "地窖的烛火只够照亮三步以内的路，墙上的壁画被白布遮得严严实实。教会最深的秘密就在回廊尽头，而看守它的锁链声，已经在你前方响起。",
         "boss_line": "『奉命看守此门者，不问门后是什么，只问来者为何。』马尔库斯的锁链在手中绷直：『审判长·马尔库斯在此——退去，或领受审判。』",
         "outro": "马尔库斯的法冠滚落在地，锁链垂到他脚边，不再作响。你掀开一角白布，壁画上的图案让所有人沉默——教会掩埋的阴影，比这间地窖更深、更古老。",
-        "boss": ["b_marcus", "审判长·马尔库斯", "boss", 52,
+        "boss": ["b_marcus", "审判长·马尔库斯", "boss", 47,
                  ["ms_an_ying_dan", "ms_suo_lian", "ms_shen_pan_zhi_yan"],
                  ["马尔库斯的法冠残片"]],
                 "stages":         [
@@ -429,7 +429,7 @@ INSTANCES = {
                     "b_marcus",
                     "审判长·马尔库斯",
                     "boss",
-                    52,
+                    47,
                     [
                         "ms_an_ying_dan",
                         "ms_suo_lian",
@@ -444,9 +444,9 @@ INSTANCES = {
         "key_item": "圣堂信物",
         "key_source": "晨曦城大教堂购买(300 金)",
 "mech": "shield,enrage",
-        "hp_mult": 10.537,
+        "hp_mult": 12.429,  # v173.3 Boss降级hp补偿 ×1.180
 
-        "atk_mult": 1.1707,
+        "atk_mult": 1.3537,  # v173.3 Boss降级atk补偿 ×1.156
         "gold": 890,
         "exp": 16489,
         "materials": ["马尔库斯的法冠残片"],
@@ -464,7 +464,7 @@ INSTANCES = {
         "intro": "坍塌的穹顶漏不进半点月光，银月林海的夜风却在断柱间呜咽，像谁在唱一首没唱完的歌。这座月神眷顾过的失落王城，如今只剩亡灵精灵的吟唱，引你走向王座。",
         "boss_line": "『月神弃我们而去的那一夜，这座城就死了。』晨曦从王座上起身，冠冕下的目光像月光一样冷：『可死去的王，也还记得如何守土。』",
         "outro": "晨曦之冠落回王座，废墟中的吟唱终于停歇。你抬头看见穹顶的裂缝里漏进一线月光——月神或许从未离开，只是等了太久。",
-        "boss": ["b_dawn_elf", "远古精灵王·晨曦", "boss", 66,
+        "boss": ["b_dawn_elf", "远古精灵王·晨曦", "boss", 63,
                  ["ms_yue_guang_zhan", "ms_zhao_huan_shu_ren", "ms_zhi_yu"],
                  ["晨曦之冠碎片"]],
                 "stages":         [
@@ -522,7 +522,7 @@ INSTANCES = {
                     "b_dawn_elf",
                     "远古精灵王·晨曦",
                     "boss",
-                    66,
+                    63,
                     [
                         "ms_yue_guang_zhan",
                         "ms_zhao_huan_shu_ren",
@@ -537,8 +537,8 @@ INSTANCES = {
         "key_item": "精灵遗印",
         "key_source": "翡翠森林精英·狼王·灰影掉落",
 "mech": "heal,shield",
-        "hp_mult": 2.269,  # v155 单刷档（原 3.1 多人标定）
-        "atk_mult": 1.1751,  # v155 单刷档（原 1.25）
+        "hp_mult": 2.4295,  # v173.3 Boss降级hp补偿 ×1.071
+        "atk_mult": 1.2275,  # v173.3 Boss降级atk补偿 ×1.045
         "gold": 1347,
         "exp": 26098,
         "materials": ["晨曦之冠碎片"],
@@ -556,7 +556,7 @@ INSTANCES = {
         "intro": "烬山之巅的焦土下，还埋着三百年前圣战的断剑。祭坛上的黑焰正在成形，恶魔祭司·赫尔加的低吟顺着风传来——她手中的仪式，正撼动着那道古老的封印。",
         "boss_line": "『三百年前，你们的英雄王在这里流尽了血。』赫尔加抚过祭坛上的刻痕，声音里带着虔诚的狂热：『今夜，我要把那份封印，连本带利地讨回来。』",
         "outro": "祭器碎裂，黑焰熄灭，烬山第一次安静得只剩下风声。你站在英雄王当年战斗过的地方，忽然明白那道封印守护着什么——而北方裂隙的低语，似乎又近了一些。",
-        "boss": ["b_helga", "恶魔祭司·赫尔加", "boss", 92,
+        "boss": ["b_helga", "恶魔祭司·赫尔加", "boss", 87,
                  ["ms_an_ying_dan", "ms_zhao_huan_e_mo", "ms_hei_an_yi_shi"],
                  ["赫尔加的祭器碎片"]],
                 "stages":         [
@@ -614,7 +614,7 @@ INSTANCES = {
                     "b_helga",
                     "恶魔祭司·赫尔加",
                     "boss",
-                    92,
+                    87,
                     [
                         "ms_an_ying_dan",
                         "ms_zhao_huan_e_mo",
@@ -629,8 +629,8 @@ INSTANCES = {
         "key_item": "烬火令",
         "key_source": "烬山精英·恶魔战士掉落",
 "mech": "summon,phase",
-        "hp_mult": 1.444,  # v155 单刷档（原 3.2 多人标定）
-        "atk_mult": 1.3026,  # v155 单刷档（原 1.3）
+        "hp_mult": 1.5747,  # v173.3 Boss降级hp补偿 ×1.091
+        "atk_mult": 1.3657,  # v173.3 Boss降级atk补偿 ×1.048
         "gold": 2064,
         "exp": 41521,
         "materials": ["赫尔加的祭器碎片"],
@@ -648,7 +648,7 @@ INSTANCES = {
         "intro": "裂隙的裂口横亘在天地之间，像一道三百年未曾愈合的伤。那个被唤作魔王的身影仍守在封印之核旁——这一次，你不是来讨伐他，而是来听他说完真相。",
         "boss_line": "『……你来了。』蚀夜抬起头，封印的光在他身上明灭：『裂痕在扩大，我已撑了三百年。若这真是最后一战，就让我看看，人类是否已准备好接过守夜。』",
         "outro": "封印之核重归平静，裂隙的轰鸣缓缓止息，守夜者终于可以歇一歇了。黎明之光碎片在你掌心里微微发烫，仿佛在说——下一个守夜人，已经站在这里。",
-        "boss": ["b_eter", "蚀夜(真相形态)", "boss", 100,
+        "boss": ["b_eter", "蚀夜(真相形态)", "boss", 95,
                  ["ms_an_ying_zhan", "ms_shen_yuan_zhi_nu", "ms_zhao_huan_shen_yuan"],
                  ["黎明之光碎片"]],
                 "stages":         [
@@ -721,7 +721,7 @@ INSTANCES = {
                     "b_eter",
                     "蚀夜(真相形态)",
                     "boss",
-                    100,
+                    95,
                     [
                         "ms_an_ying_zhan",
                         "ms_shen_yuan_zhi_nu",
@@ -743,8 +743,8 @@ INSTANCES = {
             {"min": 30, "add_skills": ["ms_shen_yuan_zhi_nu"],
              "script": {"name": "深渊之怒倾泻", "icon": "💀"}},
         ],
-        "hp_mult": 1.014,  # v155 单刷档（原 2.8 多人标定）
-        "atk_mult": 1.1343,  # v155 单刷档（原 1.35）
+        "hp_mult": 1.0992,  # v173.3 Boss降级hp补偿 ×1.084
+        "atk_mult": 1.1848,  # v173.3 Boss降级atk补偿 ×1.045
         "gold": 2319,
         "exp": 47154,
         "materials": ["黎明之光碎片"],
@@ -762,7 +762,7 @@ INSTANCES = {
         "intro": "龙骨山脉深处，巨大的龙骨横陈如一片白色森林。古龙·奥姆之影盘踞在传承之核上方，龙语的低吟穿过骨骸间的风——它在等一个配得上这份传承的人。",
         "boss_line": "『凡人，你的脚步惊醒了沉睡的龙骨。』奥姆之影缓缓睁眼，龙语如雷：『龙族的传承只托付给勇士——证明给吾看，你的心配得上这份重量。』",
         "outro": "龙语传承落入你手中，骨骸间的风忽然变得温柔，像一声长长的叹息。奥姆之影最后望了你一眼，缓缓沉入墓穴深处——古龙的守望结束了，而你的路才刚刚开始。",
-        "boss": ["b_om_shadow", "古龙·奥姆之影", "boss", 100,
+        "boss": ["b_om_shadow", "古龙·奥姆之影", "boss", 95,
                  ["ms_long_xi", "ms_long_zhao", "ms_gu_long_wei_ya"],
                  ["龙语传承"]],
                 "stages":         [
@@ -821,7 +821,7 @@ INSTANCES = {
                     "b_om_shadow",
                     "古龙·奥姆之影",
                     "boss",
-                    100,
+                    95,
                     [
                         "ms_long_xi",
                         "ms_long_zhao",
@@ -836,9 +836,9 @@ INSTANCES = {
         "key_item": "龙牙信物",
         "key_source": "龙脊山脉·石龙掉落",
 "mech": "reflect,heal",
-        "hp_mult": 6.211,
+        "hp_mult": 6.7327,  # v173.3 Boss降级hp补偿 ×1.084
 
-        "atk_mult": 1.1706,
+        "atk_mult": 1.2227,  # v173.3 Boss降级atk补偿 ×1.045
         "gold": 2319,
         "exp": 47154,
         "materials": ["龙语传承"],
@@ -857,7 +857,7 @@ INSTANCES = {
         "intro": "白鹿城的号角在风中呜咽，北境防线最前沿的要塞已沉寂百年。踏过焦黑的城门，城墙上游荡的幽灵仍在列队巡行，仿佛战火从未熄灭。找回那面失落的军旗，让要塞的英魂得以安息。",
         "boss_line": "军旗……那面军旗在哪里？没有它，我该如何向死去的弟兄们复命！",
         "outro": "军旗碎片在月光下拼合成完整的旗帜，要塞幽灵单膝跪地，向旗帜行了一个百年未竟的军礼。晨光穿透破败的穹顶，英魂化作点点微光消散——北境的防线，终于有人替他们守住了。",
-        "boss": ["b_fort_ghost", "要塞幽灵", "boss", 24,
+        "boss": ["b_fort_ghost", "要塞幽灵", "boss", 23,
                  ["ms_ai_hao", "ms_chuan_shen", "ms_zhao_huan_ku_lou"],
                  ["要塞残片"]],
         "stages": [
@@ -881,7 +881,7 @@ INSTANCES = {
                 "name": "主厅",
                 "monsters": [],
                 "elite": None,
-                "boss": ["b_fort_ghost", "要塞幽灵", "boss", 24,
+                "boss": ["b_fort_ghost", "要塞幽灵", "boss", 23,
                          ["ms_ai_hao", "ms_chuan_shen", "ms_zhao_huan_ku_lou"],
                          ["要塞残片"]],
             },
@@ -892,9 +892,9 @@ INSTANCES = {
         # 产 mat_jun_qi_sui_pian；改后入口按名校验与背包材料匹配，钥匙链恢复）
         "key_source": "古战场/旧战场遗迹采集",
 "mech": "enrage,summon",
-        "hp_mult": 2.318,
+        "hp_mult": 2.5676,  # v173.3 Boss降级hp补偿 ×1.108
 
-        "atk_mult": 1.0,
+        "atk_mult": 1.103,  # v173.3 Boss降级atk补偿 ×1.103
 
         "gold": 295,
         "exp": 4779,
@@ -914,7 +914,7 @@ INSTANCES = {
         "intro": "铁盾镇的钟声敲响三下，圣光骑士团的试炼之门缓缓开启。每一道回廊都刻着历代骑士的誓言，而通往认可的路只有一条。持试炼令而入者，须以剑与信念，走到骑士长面前。",
         "boss_line": "举起你的剑，挑战者！圣光不认可软弱的祈祷——让骑士团看看，你配不配这枚徽记。",
         "outro": "试炼骑士长收剑入鞘，将圣光徽记郑重地别在你胸前：「从今日起，你便是骑士团认可的战士。」回廊尽头，晨光如剑，劈开长夜。",
-        "boss": ["b_trial_knight", "试炼骑士长", "boss", 46,
+        "boss": ["b_trial_knight", "试炼骑士长", "boss", 41,
                  ["ms_sheng_guang_dan", "ms_jian_ji", "ms_zhao_huan"],
                  ["试炼徽记"]],
         "stages": [
@@ -938,7 +938,7 @@ INSTANCES = {
                 "name": "圣光试炼场",
                 "monsters": [],
                 "elite": None,
-                "boss": ["b_trial_knight", "试炼骑士长", "boss", 46,
+                "boss": ["b_trial_knight", "试炼骑士长", "boss", 41,
                          ["ms_sheng_guang_dan", "ms_jian_ji", "ms_zhao_huan"],
                          ["试炼徽记"]],
             },
@@ -946,9 +946,9 @@ INSTANCES = {
                 "key_item": "试炼令",
         "key_source": "铁盾镇军械铺购买(400 金)",
 "mech": "shield,enrage",
-        "hp_mult": 2.603,
+        "hp_mult": 3.1302,  # v173.3 Boss降级hp补偿 ×1.203
 
-        "atk_mult": 1.2008,
+        "atk_mult": 1.4189,  # v173.3 Boss降级atk补偿 ×1.182
 
         "gold": 734,
         "exp": 13333,
@@ -967,7 +967,7 @@ INSTANCES = {
         "intro": "月冠王庭的夜色最深处，月光如银瀑自穹顶倾泻，照出神殿千年的轮廓。月神守卫静立月门之前，银甲上流转着不灭的月华。唯有被月神认可之人，才能穿过这片月光，抵达试炼的核心。",
         "boss_line": "月神的目光从未离开过你，凡世之人。若你的心与剑同样皎洁，便穿过我的银甲；若否，就留在月光之下。",
         "outro": "月神守卫的身形在月华中渐渐淡去，只留下一声低语：「月神已记住你的名字。」穹顶的月光第一次为你铺成道路，掌心的月辉碎片微微发烫，如同回应。",
-        "boss": ["b_moon_guard", "月神守卫", "boss", 68,
+        "boss": ["b_moon_guard", "月神守卫", "boss", 65,
                  ["ms_yue_guang_zhan", "ms_zhi_yu", "ms_zhao_huan"],
                  ["月辉碎片"]],
         "stages": [
@@ -991,7 +991,7 @@ INSTANCES = {
                 "name": "月神圣殿",
                 "monsters": [],
                 "elite": None,
-                "boss": ["b_moon_guard", "月神守卫", "boss", 68,
+                "boss": ["b_moon_guard", "月神守卫", "boss", 65,
                          ["ms_yue_guang_zhan", "ms_zhi_yu", "ms_zhao_huan"],
                          ["月辉碎片"]],
             },
@@ -999,9 +999,9 @@ INSTANCES = {
                 "key_item": "月辉钥匙",
         "key_source": "月冠王庭购买(3000 金)",
 "mech": "shield,phase",
-        "hp_mult": 2.324,
+        "hp_mult": 2.4841,  # v173.3 Boss降级hp补偿 ×1.069
 
-        "atk_mult": 1.1959,
+        "atk_mult": 1.2477,  # v173.3 Boss降级atk补偿 ×1.043
 
         "gold": 1409,
         "exp": 27417,
@@ -1020,7 +1020,7 @@ INSTANCES = {
         "intro": "永冻冰原的寒风如刀，割开皮肉与呼吸，冰霜王座就矗立在风暴尽头。三百年间，无数挑战者被冻成王座前的冰雕，成为领主沉默的陈列。你带着寒冰令而来——是成为下一座冰雕，还是让王座解冻？",
         "boss_line": "三百年了……我的冰封国度终于等来一个敢踏上王座的活人。来吧，让我看看你的热血，能在我的寒冬里撑过几息。",
         "outro": "冰霜领主连同王座一同碎裂，化作漫天冰尘，被北风卷向天际。永冻冰原的暴雪第一次停歇，阳光落上三百年未见天日的冻土。你呵出的白气里，春天正从裂缝中苏醒。",
-        "boss": ["b_frost_lord", "冰霜领主", "boss", 84,
+        "boss": ["b_frost_lord", "冰霜领主", "boss", 79,
                  ["ms_bing_xi", "ms_dong_jie", "ms_zhao_huan"],
                  ["永冻之核"]],
         "stages": [
@@ -1044,7 +1044,7 @@ INSTANCES = {
                 "name": "冰霜王座",
                 "monsters": [],
                 "elite": None,
-                "boss": ["b_frost_lord", "冰霜领主", "boss", 84,
+                "boss": ["b_frost_lord", "冰霜领主", "boss", 79,
                          ["ms_bing_xi", "ms_dong_jie", "ms_zhao_huan"],
                          ["永冻之核"]],
             },
@@ -1052,9 +1052,9 @@ INSTANCES = {
                 "key_item": "寒冰令",
         "key_source": "永冻冰原精英·冰原猛犸·雪岭掉落",
 "mech": "stacks,enrage",
-        "hp_mult": 6.415,
+        "hp_mult": 7.0456,  # v173.3 Boss降级hp补偿 ×1.098
 
-        "atk_mult": 1.1972,
+        "atk_mult": 1.2654,  # v173.3 Boss降级atk补偿 ×1.057
         "gold": 1818,
         "exp": 36153,
         "materials": ["永冻之核"],
@@ -1072,7 +1072,7 @@ INSTANCES = {
         "intro": "龙脊山脉之巅，雷云终年不散，风暴王座藏于雷鸣的最深处。雷霆为冠、狂风为座的君主俯瞰着风暴群岛，拒绝一切凡俗的觐见。握紧雷光令，踏上雷霆回廊——风暴只臣服于敢于直面的勇者。",
         "boss_line": "雷霆为我加冕，狂风为我铺座——凡人之躯，也敢觊觎风暴的王座？那就让雷云见证你的成色！",
         "outro": "雷霆君主的身躯化作最后一道闪电，劈开漫天雷云。风暴群岛的天气第一次放晴，阳光穿透云层，洒在王座残骸之上。你接过风暴之核，群山之巅的风，第一次为你而安静。",
-        "boss": ["b_storm_king", "雷霆君主", "boss", 98,
+        "boss": ["b_storm_king", "雷霆君主", "boss", 95,
                  ["ms_lei_bao", "ms_feng_bao_zhi_yan", "ms_zhao_huan_lei_niao"],
                  ["风暴之核"]],
         "stages": [
@@ -1096,7 +1096,7 @@ INSTANCES = {
                 "name": "风暴王座",
                 "monsters": [],
                 "elite": None,
-                "boss": ["b_storm_king", "雷霆君主", "boss", 98,
+                "boss": ["b_storm_king", "雷霆君主", "boss", 95,
                          ["ms_lei_bao", "ms_feng_bao_zhi_yan", "ms_zhao_huan_lei_niao"],
                          ["风暴之核"]],
             },
@@ -1104,9 +1104,9 @@ INSTANCES = {
                 "key_item": "雷光令",
         "key_source": "风暴崖精英·风暴崖主·雷鸣掉落",
 "mech": "phase,phase",
-        "hp_mult": 7.171,
+        "hp_mult": 7.5297,  # v173.3 Boss降级hp补偿 ×1.050
 
-        "atk_mult": 1.5628,
+        "atk_mult": 1.6038,  # v173.3 Boss降级atk补偿 ×1.026
         "gold": 2319,
         "exp": 47154,
         "materials": ["风暴之核"],
@@ -1126,7 +1126,7 @@ INSTANCES = {
         "intro": "翡翠海深处，断裂的桅杆如墓碑般立在幽绿的水光里。沉船湾的每一块甲板都浸着旧日的航线——幽灵船长·克罗的旗舰，已在这里等了很久。",
         "boss_line": "「活人的气息……把我的罗盘还回来，那是我唯一记得的归途。」",
         "outro": "罗盘在你掌心轻轻转动，指向一座早已沉没的旧港。克罗的残魂随潮水远去，沉船湾的迷雾第一次散开，露出通往海面的光。",
-        "boss": ["b_ghost_captain", "幽灵船长·克罗", "boss", 48,
+        "boss": ["b_ghost_captain", "幽灵船长·克罗", "boss", 43,
                  ["ms_wan_dao", "ms_zhao_huan_you_ling", "ms_zu_zhou"],
                  ["克罗的罗盘碎片"]],
                 "stages":         [
@@ -1184,7 +1184,7 @@ INSTANCES = {
                     "b_ghost_captain",
                     "幽灵船长·克罗",
                     "boss",
-                    48,
+                    43,
                     [
                         "ms_wan_dao",
                         "ms_zhao_huan_you_ling",
@@ -1201,9 +1201,9 @@ INSTANCES = {
         # shipwreck_graveyard 产 mat_you_ling_chuan_piao，材料 desc 明示"可作钥匙进入沉船湾"）
         "key_source": "沉船湾墓地采集",
 "mech": "summon,heal",
-        "hp_mult": 2.553,
+        "hp_mult": 3.0488,  # v173.3 Boss降级hp补偿 ×1.194
 
-        "atk_mult": 1.1894,
+        "atk_mult": 1.3931,  # v173.3 Boss降级atk补偿 ×1.171
 
         "gold": 785,
         "exp": 14358,
@@ -1222,7 +1222,7 @@ INSTANCES = {
         "intro": "珊瑚丛深处传来若有若无的歌声，像月光落在水面上。海妖女王·蓝歌坐在珍珠王座间，用歌声为迷途的水手编织归乡的幻梦——也编织他们的葬身之处。",
         "boss_line": "「留下来吧，旅人——我的歌里，有你想回的家。」",
         "outro": "蓝歌的歌声戛然而止，巢穴恢复了海底本来的寂静。那些被歌声骗来的灵魂挣脱幻梦，化作点点荧光，随洋流游向海面。",
-        "boss": ["b_siren_queen", "海妖女王·蓝歌", "boss", 60,
+        "boss": ["b_siren_queen", "海妖女王·蓝歌", "boss", 57,
                  ["ms_mei_huo_zhi_ge", "ms_ju_lang", "ms_zhao_huan_chu_shou"],
                  ["蓝歌之冠残片"]],
                 "stages":         [
@@ -1280,7 +1280,7 @@ INSTANCES = {
                     "b_siren_queen",
                     "海妖女王·蓝歌",
                     "boss",
-                    60,
+                    57,
                     [
                         "ms_mei_huo_zhi_ge",
                         "ms_ju_lang",
@@ -1295,9 +1295,9 @@ INSTANCES = {
         "key_item": "海妖鳞片信物",
         "key_source": "海妖湾精英·海妖领主·潮汐掉落",
 "mech": "phase,heal",
-        "hp_mult": 9.635,
+        "hp_mult": 10.4977,  # v173.3 Boss降级hp补偿 ×1.090
 
-        "atk_mult": 1.1643,
+        "atk_mult": 1.2503,  # v173.3 Boss降级atk补偿 ×1.074
         "gold": 1169,
         "exp": 22296,
         "materials": ["蓝歌之冠残片"],
@@ -1315,7 +1315,7 @@ INSTANCES = {
         "intro": "海神神殿的廊柱间，潮汐违背常理地向上倒流，仿佛整座大海都在朝圣。海神祭司·澜歌立于祭坛前，圣物的光辉映着她平静而决绝的眼眸。",
         "boss_line": "「海神正注视着你，凡人——跪下，或者被潮水带走。」",
         "outro": "祭坛上的圣物重归沉寂，倒流的潮水缓缓落回海底。澜歌的身影化作一缕水光消散，神殿深处传来海神古老的叹息，像是认可，又像是告别。",
-        "boss": ["b_lange", "海神祭司·澜歌", "boss", 72,
+        "boss": ["b_lange", "海神祭司·澜歌", "boss", 69,
                  ["ms_hai_chao", "ms_zhao_huan_sha_yu", "ms_jing_hua_zhi_chao"],
                  ["澜歌之泪残片"]],
                 "stages":         [
@@ -1387,7 +1387,7 @@ INSTANCES = {
                     "b_lange",
                     "海神祭司·澜歌",
                     "boss",
-                    72,
+                    69,
                     [
                         "ms_hai_chao",
                         "ms_zhao_huan_sha_yu",
@@ -1403,9 +1403,9 @@ INSTANCES = {
         # v110 审计修复：key_item 回退材料名（v110.11 消歧误改为消耗品名）
         "key_source": "无名港港务厅购买",
 "mech": "shield,phase",
-        "hp_mult": 8.195,
+        "hp_mult": 8.7321,  # v173.3 Boss降级hp补偿 ×1.066
 
-        "atk_mult": 1.2016,
+        "atk_mult": 1.2494,  # v173.3 Boss降级atk补偿 ×1.040
         "gold": 1523,
         "exp": 29825,
         "materials": ["澜歌之泪残片"],
@@ -1423,7 +1423,7 @@ INSTANCES = {
         "intro": "水晶宫墙在深海的黑暗中泛着冷光，沉睡的龙王每一声呼吸都让珊瑚海轻轻震颤。深海龙王·敖澜睁开一只眼，金色的竖瞳里映出闯入者的倒影。",
         "boss_line": "「是谁吵醒了万年的沉眠？龙宫的规矩，要用水晶来偿。」",
         "outro": "敖澜重新阖上双眼，龙宫的潮水恢复了亘古的平稳。你带着敖澜之珠离去时，整座水晶宫亮起送别的微光——龙王记住了你的名字。",
-        "boss": ["b_aolan", "深海龙王·敖澜", "boss", 78,
+        "boss": ["b_aolan", "深海龙王·敖澜", "boss", 75,
                  ["ms_shui_xi", "ms_long_wei", "ms_zhao_huan_hai_shou"],
                  ["敖澜之珠碎片"]],
                 "stages":         [
@@ -1495,7 +1495,7 @@ INSTANCES = {
                     "b_aolan",
                     "深海龙王·敖澜",
                     "boss",
-                    78,
+                    75,
                     [
                         "ms_shui_xi",
                         "ms_long_wei",
@@ -1512,9 +1512,9 @@ INSTANCES = {
         # F3 P1-1 修复：掉落源补全——龙鲸海域精英·龙鲸王·涛声掉落（原仅副本内掉落=死锁）
         "key_source": "龙鲸海域精英·龙鲸王·涛声掉落",
 "mech": "reflect,stacks",
-        "hp_mult": 9.056,
+        "hp_mult": 9.6093,  # v173.3 Boss降级hp补偿 ×1.061
 
-        "atk_mult": 1.2108,
+        "atk_mult": 1.2541,  # v173.3 Boss降级atk补偿 ×1.036
         "gold": 1698,
         "exp": 33569,
         "materials": ["敖澜之珠碎片"],
@@ -1532,7 +1532,7 @@ INSTANCES = {
         "intro": "幽暗地域的岩壁之间，铁砧的轰鸣昼夜不息，震得整座要塞嗡嗡作响。灰矮人领主·石炉抡起巨锤，火星溅落处，恶魔的骨头正被锻成崭新的甲片。",
         "boss_line": "「地底只认锤子说话的规矩——你的骨头，够硬吗？」",
         "outro": "石炉的巨锤终于垂下，要塞的炉火黯淡了几分。他盯着你的背影哼了一声，转身继续锻打——仿佛这场战斗，只是漫长锤音里的一段插曲。",
-        "boss": ["b_gray_lord", "灰矮人领主·石炉", "boss", 84,
+        "boss": ["b_gray_lord", "灰矮人领主·石炉", "boss", 79,
                  ["ms_zhan_chui", "ms_zhao_huan_gong_cheng_shou"],
                  ["石炉之锤"]],
                 "stages":         [
@@ -1590,7 +1590,7 @@ INSTANCES = {
                     "b_gray_lord",
                     "灰矮人领主·石炉",
                     "boss",
-                    84,
+                    79,
                     [
                         "ms_zhan_chui",
                         "ms_zhao_huan_gong_cheng_shou"
@@ -1604,9 +1604,9 @@ INSTANCES = {
         "key_item": "灰矮人通行令",
         "key_source": "地底集市购买(2800 金)",
 "mech": "shield,stacks",
-        "hp_mult": 6.415,
+        "hp_mult": 7.0456,  # v173.3 Boss降级hp补偿 ×1.098
 
-        "atk_mult": 1.1972,
+        "atk_mult": 1.2654,  # v173.3 Boss降级atk补偿 ×1.057
         "gold": 1818,
         "exp": 36153,
         "materials": ["石炉之锤"],
@@ -1625,7 +1625,7 @@ INSTANCES = {
         "intro": "熔火深渊的光从地缝中涌上来，照亮龙巢里堆积如山的白骨。地底古龙·黑渊盘踞在岩浆湖中央，古老的竖瞳缓缓睁开——它已经很久没有闻到活物的气味了。",
         "boss_line": "「幽暗地域最古老的掠食者，不挑食。」",
         "outro": "黑渊的咆哮在岩壁间回荡许久才平息，岩浆湖重归暗红。它沉入湖底前看了你一眼，那目光仿佛在说：地底记住了你的味道。",
-        "boss": ["b_under_dragon", "地底古龙·黑渊", "boss", 92,
+        "boss": ["b_under_dragon", "地底古龙·黑渊", "boss", 89,
                  ["ms_suan_xi", "ms_tun_shi", "ms_zhao_huan_you_long"],
                  ["黑渊之眼残片"]],
                 "stages":         [
@@ -1683,7 +1683,7 @@ INSTANCES = {
                     "b_under_dragon",
                     "地底古龙·黑渊",
                     "boss",
-                    92,
+                    89,
                     [
                         "ms_suan_xi",
                         "ms_tun_shi",
@@ -1698,9 +1698,9 @@ INSTANCES = {
         "key_item": "龙鳞钥匙",
         "key_source": "熔火深渊精英·熔火领主·烬核掉落",
 "mech": "reflect,enrage",
-        "hp_mult": 8.716,
+        "hp_mult": 9.1768,  # v173.3 Boss降级hp补偿 ×1.053
 
-        "atk_mult": 1.5011,
+        "atk_mult": 1.5414,  # v173.3 Boss降级atk补偿 ×1.027
         "gold": 2127,
         "exp": 42904,
         "materials": ["黑渊之眼残片"],
@@ -1720,7 +1720,7 @@ INSTANCES = {
         "intro": "雷暴高原的风眼异象百年一现：万道雷霆倒悬天穹，汇聚成一只凝视大地的巨瞳。穿过云巅之门与风暴回廊，元素军团在狂风中列阵——天空的尽头，正为来客缓缓睁开。",
         "boss_line": "风暴之主·云怒立于雷云之巅，号令万雷齐鸣：『竟敢踏入天空的尽头？就让风暴，为你们送葬！』",
         "outro": "雷云散尽，风眼归于沉寂，天空的尽头重归湛蓝。云怒之核落入掌心，那是苍穹赐予胜者的徽记——从今往后，风暴也记住了你们的名字。",
-        "boss": ["b_storm_master", "风暴之主·云怒", "boss", 100,
+        "boss": ["b_storm_master", "风暴之主·云怒", "boss", 97,
                  ["ms_lei_bao", "ms_feng_bao_zhi_yan", "ms_zhao_huan_lei_niao"],
                  ["云怒之核碎片"]],
                 "stages":         [
@@ -1778,7 +1778,7 @@ INSTANCES = {
                     "b_storm_master",
                     "风暴之主·云怒",
                     "boss",
-                    100,
+                    97,
                     [
                         "ms_lei_bao",
                         "ms_feng_bao_zhi_yan",
@@ -1793,9 +1793,9 @@ INSTANCES = {
         "key_item": "雷核钥匙",
         "key_source": "雷暴高原·雷元素掉落",
 "mech": "phase,phase",
-        "hp_mult": 14.707,
+        "hp_mult": 15.4298,  # v173.3 Boss降级hp补偿 ×1.049
 
-        "atk_mult": 1.5681,
+        "atk_mult": 1.6091,  # v173.3 Boss降级atk补偿 ×1.026
         "gold": 2384,
         "exp": 48602,
         "materials": ["云怒之核碎片"],
@@ -1813,7 +1813,7 @@ INSTANCES = {
         "intro": "深渊祭坛的最深处，王座静候了三百年。恶魔军团在黑暗中列队低吼，火把映出摩罗的冠冕——地底世界的主人，早已等得不耐烦了。踏入深渊入口的那一刻，你们便再无退路。",
         "boss_line": "深渊领主·摩罗自王座上起身，狱火般的目光扫过众人：『三百年了，终于有人敢来献上头颅！』",
         "outro": "摩罗之冠坠地，深渊军团如潮水般退去，王座上的阴影就此消散。三百年的恩怨，在这一战中画上句点——而勇者的名字，将被刻入祭坛的碑文，永镇深渊。",
-        "boss": ["b_moro", "深渊领主·摩罗", "boss", 98,
+        "boss": ["b_moro", "深渊领主·摩罗", "boss", 95,
                  ["ms_shen_yuan_zhi_nu", "ms_zhao_huan_e_mo", "ms_fu_shi_ling_yu"],
                  ["摩罗之冠碎片"]],
                 "stages":         [
@@ -1871,7 +1871,7 @@ INSTANCES = {
                     "b_moro",
                     "深渊领主·摩罗",
                     "boss",
-                    98,
+                    95,
                     [
                         "ms_shen_yuan_zhi_nu",
                         "ms_zhao_huan_e_mo",
@@ -1886,9 +1886,9 @@ INSTANCES = {
         "key_item": "深渊圣印",
         "key_source": "深渊祭坛精英·祭坛守卫·魔眼掉落",
 "mech": "stacks,summon",
-        "hp_mult": 6.94,
+        "hp_mult": 7.2871,  # v173.3 Boss降级hp补偿 ×1.050
 
-        "atk_mult": 1.2679,
+        "atk_mult": 1.3012,  # v173.3 Boss降级atk补偿 ×1.026
         "gold": 2319,
         "exp": 47154,
         "materials": ["摩罗之冠碎片"],
@@ -1906,7 +1906,7 @@ INSTANCES = {
         "intro": "风翼群岛之巅，云中圣殿在圣光中若隐若现——天空的传承封存于此，静候最后的试炼。穿过云门与圣殿回廊，圣光与风暴在廊柱间交织，每一级阶梯都通向云端之上。能走到殿心的，唯有最强的冒险者。",
         "boss_line": "云中圣者·奥拉张开圣光之翼，声音响彻云端：『传承只授予配得上天空之人——证明你们的勇气吧！』",
         "outro": "圣光敛去，奥拉将天空的传承交付于胜者之手，云中圣殿重归安详。风翼群岛的传说翻开新的一页，云端之上，圣印的微光将永远为勇者长明。",
-        "boss": ["b_ola", "云中圣者·奥拉", "boss", 100,
+        "boss": ["b_ola", "云中圣者·奥拉", "boss", 99,
                  ["ms_sheng_guang", "ms_feng_bao", "ms_zhao_huan_yun_wei"],
                  ["奥拉圣印碎片"]],
                 "stages":         [
@@ -1964,7 +1964,7 @@ INSTANCES = {
                     "b_ola",
                     "云中圣者·奥拉",
                     "boss",
-                    100,
+                    99,
                     [
                         "ms_sheng_guang",
                         "ms_feng_bao",
@@ -1979,9 +1979,9 @@ INSTANCES = {
         "key_item": "云玺",
         "key_source": "星辉台精英·星龙掉落",
 "mech": "shield,phase",
-        "hp_mult": 15.04,
+        "hp_mult": 15.2803,  # v173.3 Boss降级hp补偿 ×1.016
 
-        "atk_mult": 1.605,
+        "atk_mult": 1.6179,  # v173.3 Boss降级atk补偿 ×1.008
         "gold": 2451,
         "exp": 50069,
         "materials": ["奥拉圣印碎片"],
