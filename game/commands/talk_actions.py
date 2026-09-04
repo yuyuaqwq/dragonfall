@@ -122,26 +122,23 @@ def action_set_flag(world, group_id, qq_id, player, npc_id, action):
 
 @register("give_gold")
 def action_give_gold(world, group_id, qq_id, player, npc_id, action):
+    # v174 统一抽象：走 grant_reward（保持加金币语义）
     gold = int(action["give_gold"])
-    db.update_player(group_id, qq_id, gold=(player.get("gold", 0) or 0) + gold)
-    return [f"💰 获得金币 ×{gold}"]
+    from game.reward import grant_reward
+    lines = grant_reward({"gold": gold}, group_id, qq_id, player=player)
+    return lines or [f"💰 获得金币 ×{gold}"]
 
 
 @register("give_exp")
 def action_give_exp(world, group_id, qq_id, player, npc_id, action):
     # v105 M21 P2：补升级结算——此前只写 exp 不触发 check_player_level_up，
     # 数据一旦使用会跳过升级（潜在雷）；与成就奖励领取同源结算（achievements.py:195-203）
+    # v174 统一抽象：走 grant_reward（自动含升级结算）
     exp = int(action["give_exp"])
-    p = dict(player)
-    p["exp"] = (p.get("exp", 0) or 0) + exp
-    lv_logs, p = E.check_player_level_up(group_id, qq_id, p)
-    db.update_player(group_id, qq_id,
-                     exp=p["exp"], level=p["level"], hp=p["hp"], mp=p["mp"],
-                     max_hp=p["max_hp"], max_mp=p["max_mp"], skills=p["skills"],
-                     attr_pts=p.get("attr_pts", 0), skill_points=p.get("skill_points", 0),
-                     learned_skills=p.get("learned_skills", []))
-    lines = [f"✨ 获得经验 +{exp}"]
-    lines += lv_logs
+    from game.reward import grant_reward
+    lines = grant_reward({"exp": exp}, group_id, qq_id, player=player)
+    if not lines:
+        lines = [f"✨ 获得经验 +{exp}"]
     return lines
 
 
@@ -161,19 +158,12 @@ def action_give_item(world, group_id, qq_id, player, npc_id, action):
     count = int(item.get("count", 1))
     if not key:
         return []
-    # v105 M11 P2：赠礼补全物品 data（此前空 {} → get_inventory 名字兜底只认 mat_ 前缀，
-    # i_stone_upgrade 等直接显示英文 key，克拉拉入门礼强化石在背包显示为 i_stone_upgrade）
-    data = {"name": key, "type": "材料", "stackable": True}
-    try:
-        mid = C.resolve("materials", key)
-        if mid in C.MATERIALS:
-            m = C.MATERIALS[mid]
-            data = {"name": m.get("name", key), "type": m.get("type", "材料"),
-                    "stackable": True, "price": m.get("price", 0), "desc": m.get("desc", "")}
-    except Exception:
-        pass
-    db.add_item(group_id, qq_id, key, data, count)
-    return [f"🎒 获得 {data['name']} ×{count}"]
+    # v174 统一抽象：走 grant_reward 物品发放（含 data 补全）
+    from game.reward import grant_reward
+    lines = grant_reward({"items": [{"item": key, "n": count}]}, group_id, qq_id, player=player)
+    if lines:
+        return lines
+    return [f"🎒 获得 {key} ×{count}"]
 
 
 @register("open_shop")

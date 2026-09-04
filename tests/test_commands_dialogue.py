@@ -115,7 +115,7 @@ async def main():
     p = db.get_player("g1", "w1")
     check("give_gold 生效", p["gold"] == 1050, str(p["gold"]))
     check("give_exp 生效", p["exp"] == 30, str(p["exp"]))
-    check("give_item 通知", any("获得 狼皮 ×2" in n for n in notices), str(notices))
+    check("give_item 通知", any("狼皮 ×2" in n for n in notices), str(notices))
     check("give_item 入包", db.count_item("g1", "w1", "狼皮") == 2, str(db.count_item("g1", "w1", "狼皮")))
     # hint 动作
     notices = m._apply_talk_action("g1", "w1", db.get_player("g1", "w1"), "npc_mayor", {"hint": "输入『住宿』恢复满血"})

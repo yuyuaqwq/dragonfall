@@ -164,8 +164,9 @@ def grant_reward(reward: dict, group_id, qq_id, *, player=None, lines=None) -> l
     exp = int(reward.get("exp") or 0)
     gold = int(reward.get("gold") or 0)
     if exp or gold:
-        if player is None:
-            player = db.get_player(group_id, qq_id)
+        # 重新读 DB 最新 player（不信任调用方传入的旧引用——多动作连发时
+        # 前一动作已把 exp/gold 写库，旧 player 里还是旧值，直接整段 update 会覆盖）
+        player = db.get_player(group_id, qq_id)
         if player:
             player = dict(player)
             player["qq_id"] = player.get("qq_id") or qq_id
