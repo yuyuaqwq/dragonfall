@@ -346,6 +346,30 @@ PLAYER_SKILLS = {
     "cls_mu_shi": {
         "name": "牧师",
         "skills": {
+            "sk_sheng_guang_dan": {
+             'lv': 1,
+             'mp': 4,
+             'power': 0.6,
+             'kind': '魔法',
+             'exprs': ['matk*0.6 + 10 + player_lv*2.0 + skill_lv*6'],
+             'cast': 0.4,
+             'cd': 0,
+             'faith': 0,
+             'name': '圣光弹',
+             'desc': '指尖凝出一缕圣光掷向敌人——造成 60% 魔法攻击 + 10 固定魔法伤害（成长）的圣光弹（无冷却填充技）'
+            },
+            "sk_sheng_guang_cheng_ji": {
+             'lv': 8,
+             'mp': 10,
+             'power': 1.1,
+             'kind': '魔法',
+             'exprs': ['matk*1.3 + 18 + player_lv*4.0 + skill_lv*11'],
+             'cast': 0.5,
+             'cd': 6,
+             'faith': 0,
+             'name': '圣光惩击',
+             'desc': '圣光凝成惩戒光柱轰然落下——造成 130% 魔法攻击 + 18 固定魔法伤害（成长），对暗影生物额外克制'
+            },
             "sk_zhi_yu_shu": {
              'lv': 1,
              'mp': 8,
@@ -2252,6 +2276,7 @@ BRANCH_SKILLS = {
                         'faith': 0,
                         'name': '圣言术',
                         'heal_formula': 'matk*3.4 + 50 + player_lv*1.2 + skill_lv*17',
+                        'cond': {'type': 'faith_lt', 'stacks': 5, 'mult': 1.2},
                         'desc': '口诵圣言，言出法随——治疗单体 340% 魔攻 + 固定治疗量（成长），信念 <5 时额外 +20%',
                     },
                     "圣光祈祷": {
@@ -2276,6 +2301,7 @@ BRANCH_SKILLS = {
                         'faith': 0,
                         'name': '神恩降临',
                         'heal_formula': 'matk*4.2 + 60 + player_lv*1.4 + skill_lv*20',
+                        'cond': {'type': 'enemy_hp_low', 'hp_pct': 0.5, 'mult': 1.3},
                         'desc': '天穹裂开一线，神恩倾泻而下——治疗单体 420% 魔攻 + 固定治疗量（成长），目标生命越低效果越高',
                     },
                     "圣辉涤净": {

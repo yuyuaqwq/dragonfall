@@ -307,6 +307,13 @@ def _c_faith_full(battle, player, cond):
     return float(battle.resources.get("faith", 0) or 0) >= cond.get("stacks", 10)
 
 
+@register("faith_lt", label=lambda c: f"信念<{c.get('stacks', 5)}")
+def _c_faith_lt(battle, player, cond):
+    """v174.2 信念低于阈值（牧师核心资源 faith；圣言术 desc"信念<5 额外+20%"）。
+    与 _c_faith_full 互补——低信念时新手牧师治疗加成（鼓励先奶别攒）。"""
+    return float(battle.resources.get("faith", 0) or 0) < cond.get("stacks", 5)
+
+
 @register("enemy_broken", label=lambda c: "敌方被破防")
 def _c_enemy_broken(battle, player, cond):
     """敌方被破防/震慑中（破绽条触发态）：shaken 条 trigger_count>0 且免疫期内。
