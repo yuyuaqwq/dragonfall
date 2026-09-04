@@ -36,6 +36,7 @@ CLASSES = {
         "icon": "🧭",
         "role": "见习",
         "attack_text": "挥剑攻击",
+        "basic_skill": {"name": "挥拳", "kind": "物理", "exprs": ["atk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True},
         "base": {
             "hp": 110,
             "mp": 50,
@@ -89,6 +90,7 @@ CLASSES = {
             "hit_cost_cap": 1, "force_return": 4, "return_penalty": "none", "form": "fury",
         },
         "attack_text": "挥剑斩击",
+        "basic_skill": {"name": "挥剑斩击", "kind": "物理", "exprs": ["atk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True},
         "tutor": ("老兵·格里姆", "白鹿城·白鹿广场"),
         "base": {
             "hp": 150,
@@ -151,6 +153,7 @@ CLASSES = {
             "blocked": ["attack", "skill", "swap"],
         },
         "attack_text": "凝聚魔力轰出法球",
+        "basic_skill": {"name": "法球", "kind": "魔法", "exprs": ["matk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True},
         "tutor": ("大法师·艾德琳", "白鹿城·白鹿广场"),
         "base": {
             "hp": 90,
@@ -215,6 +218,7 @@ CLASSES = {
             "release_extra": {"pierce": True, "reach": 3},
         },
         "attack_text": "弯弓搭箭",
+        "basic_skill": {"name": "疾射", "kind": "物理", "exprs": ["atk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True},
         "tutor": ("猎手·柯恩", "铁港城·港口广场"),
         "base": {
             "hp": 110,
@@ -275,6 +279,7 @@ CLASSES = {
             "type": "post_action",  # 主行动结算后触发（随附）
         },
         "attack_text": "圣光冲击",
+        "basic_skill": {"name": "圣光冲击", "kind": "魔法", "exprs": ["matk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True},
         "tutor": ("圣殿执事·莉亚", "白鹿城·白鹿广场"),
         "base": {
             "hp": 100,
@@ -336,6 +341,7 @@ CLASSES = {
             "inject_at": 8, "spin_lock": 8,
         },
         "attack_text": "匕首突刺",
+        "basic_skill": {"name": "暗刺", "kind": "物理", "exprs": ["atk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True},
         "tutor": ("暗影渡鸦", "铁港城·港口广场"),
         "base": {
             "hp": 95,
@@ -401,6 +407,7 @@ CLASSES = {
             "discharge_base": 1.0, "discharge_per_core": 0.7,
         },
         "attack_text": "挥拳轰击",
+        "basic_skill": {"name": "直拳", "kind": "物理", "exprs": ["atk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True},
         "tutor": ("船帮武师·老陈", "铁港城·港口广场"),
         "base": {
             "hp": 135,
@@ -446,6 +453,7 @@ CLASSES = {
             3: ["天籁颂者", "镇魂挽者"],
         },
         "attack_text": "拨弦攻击",
+        "basic_skill": {"name": "拨弦", "kind": "魔法", "exprs": ["matk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True},
         "tutor": ("流浪乐师·阿莱克斯", "白鹿城·酒馆"),
         "base": {
             "hp": 95,

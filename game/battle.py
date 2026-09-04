@@ -3341,9 +3341,38 @@ class Battle:
         # v133 收敛：追加倍率 1.5→1.3（LUCKY_CRIT_MULT 数据表）
         lucky = is_crit and random.random() < LUCKY_CRIT_CHANCE
         # v106 穿透：玩家物穿/固定物穿削减怪物有效防御
-        _pp, _pf = self._pene_vals(st)
-        # v107 伤害类型四层架构：普攻显式声明 phys（物理段，吃 def/物免/格挡/物吸）
-        dmg = E.calc_damage(st["atk"], est["def"], is_crit, pene_pct=_pp, pene_flat=_pf, dmg_type="phys")
+        # v174 普攻技能槽化（鱼鱼拍板 2026-09-04）：每职业 basic_skill（CLASSES[cls].basic_skill）
+        # = 该职业普攻技（100% AD/AP 公式，无消耗无 CD）。普攻伤害数值来源 → 读 basic_skill：
+        #   物理职业（kind 物理/atk 公式）→ 物理段吃 def
+        #   法系职业（kind 魔法/matk 公式）→ 魔法段吃 mdef/魔免（修复法系普攻吃 atk 刮痧，#75）
+        # 未配 basic_skill 的职业回退旧逻辑（calc_damage(atk)）
+        _bs = (C.CLASSES.get(player.get("class_name", ""), {}) or {}).get("basic_skill")
+        _bs_expr = None
+        _bs_kind = None
+        if isinstance(_bs, dict):
+            _bs_expr = (_bs.get("exprs") or [None])[0]
+            _bs_kind = _bs.get("kind", "物理")
+        _magi_part = 0
+        if _bs_expr and _bs_kind and str(_bs_kind).startswith("魔法"):
+            # 法系普攻：魔法段（吃 mdef），100% AP
+            _pp_magi, _pf_magi = self._pene_vals(st, magic=True)
+            _bs_stats = dict(st)
+            _bs_stats["_player_lv"] = int(player.get("level", 1) or 1)
+            _bs_stats["_skill_lv"] = 0
+            _mseg_dmg, _mseg_magi = E.resolve_formula(
+                [{"expr": _bs_expr, "type": "magi"}], _bs_stats, est.get("def", 0), est.get("mdef", 0),
+                is_crit=is_crit, pene_magi=_pp_magi, pene_flat_magi=_pf_magi,
+                mult=1.0, variance=0.0,
+            )
+            dmg = int(_mseg_dmg)
+            _magi_part = _mseg_magi
+        else:
+            # 物理普攻（含未配 basic_skill 回退）：吃 def
+            _pp, _pf = self._pene_vals(st)
+            dmg = E.calc_damage(st["atk"], est["def"], is_crit, pene_pct=_pp, pene_flat=_pf, dmg_type="phys")
+            if _bs_expr and _bs_kind and str(_bs_kind).startswith("物理"):
+                # 物理职业普攻技公式（100% AD）：用 atk×ratio 替代裸 atk（保底一致故 = atk）
+                pass  # atk*1.0 与 calc_damage(atk) 等价，此处保持旧逻辑防回归
         if lucky:
             dmg = int(dmg * LUCKY_CRIT_MULT)
             logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
@@ -3357,7 +3386,7 @@ class Battle:
             del self.p_buffs["spellblade_surge"]
             logs.append(f"🔮 魔能涌动：普攻附带 {surge_dmg} 点魔法伤害！")
         else:
-            _magi_part = 0
+            _magi_part = _magi_part
         # v156 玩家侧公共乘区统一组装（词条/狼嚎/蓄势/禅意/物理药水/种族）——
         # 与技能共用 _player_dmg_mult（一处修改，普攻/技能同时生效）
         affix_mult, affix_tags = self._player_dmg_mult(player, "物理")
@@ -5788,10 +5817,28 @@ class Battle:
                 return logs, dmg
         # 敌方普攻（_kind == "atk" 或技能查表失败）
         # v169.3 等级压制增伤：怪高玩家 N 级 → 普攻 ×(1+0.02N)（cap ×3，同技能方向）
+        # v174 普攻技能槽化：怪物 e 可配 basic_skill（数据驱动；默认无 = 物理普攻 atk×1.0）
         _lpm = self._enemy_lv_pressure(player, e)
         is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
         _pp, _pf = self._pene_vals(est)
-        dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
+        _mbs = (e or {}).get("basic_skill")
+        if isinstance(_mbs, dict) and (_mbs.get("exprs") or _mbs.get("formula")):
+            # 怪物自定义普攻技（如魔法普攻怪 matk×1.0 magi 段吃 mdef）
+            _mk = _mbs.get("kind", "物理")
+            _mt = "phys" if str(_mk).startswith("物理") else ("true" if str(_mk) == "真伤" else "magi")
+            _mexpr = (_mbs.get("exprs") or [None])[0]
+            if _mexpr:
+                _mst = dict(est)
+                _d0, _mm0 = E.resolve_formula(
+                    [{"expr": _mexpr, "type": _mt}], _mst, pst.get("def", 0), pst.get("mdef", 0),
+                    is_crit=is_crit, pene_phys=_pp, pene_magi=_pf,
+                    mult=1.0, variance=0.0,
+                )
+                dmg = int(_d0)
+            else:
+                dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
+        else:
+            dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
         dmg = max(1, int(dmg * _lpm))
         _pst_pr = self._player_stats(player)
         pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
