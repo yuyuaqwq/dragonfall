@@ -171,6 +171,16 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
     except Exception:
         _passives = []
     learned_skills = list(rotation) + _passives
+    # v175e 技能等级门槛过滤：真实玩家 Lv.N 学不到 lv>N 的技能（技能学习等级限制），
+    # battle2 模拟玩家同样受限——learned_skills 只保留 lv≤玩家等级的主动技 + 被动。
+    # （此前直接放行高等级技能 → 25 级玩家拿 95 级大招打本，矩阵 P1 阶段失真）
+    _filtered = []
+    for _sn in learned_skills:
+        _info = E.skill_info(cls_id, _sn) or {}
+        _need = int(_info.get("lv", 0) or 0)
+        if _need <= int(lv):
+            _filtered.append(_sn)
+    learned_skills = _filtered
     # 玩家基础信息（每场重建副本，模板不动——v175b 修复：
     # 原实现 player 在循环外建一次，循环内 player_turn 直接改模板 player，
     # 第一场打赢后第二场从残血红蓝开始 → 多场胜率系统性偏低/0 胜假象）
@@ -193,8 +203,10 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
     for skill_name in rotation:
         info = E.skill_info(cls_id, skill_name)
         skill_cd[skill_name] = float((info or {}).get("cd", 0) or 0)
-    cd_skills = [s for s in rotation if skill_cd.get(s, 0) > 0]
-    filler_skills = [s for s in rotation if skill_cd.get(s, 0) <= 0]
+    # v175e：只施放玩家等级已学会的技能（learned_skills 已过滤 lv≤玩家等级）
+    castable = [s for s in rotation if s in learned_skills]
+    cd_skills = [s for s in castable if skill_cd.get(s, 0) > 0]
+    filler_skills = [s for s in castable if skill_cd.get(s, 0) <= 0]
 
     # v175e 策略升级：rules（balance_data rotation 完整定义）→ 技能资源门槛
     # cond 语义（与期望引擎 build_matrix._cond_ok 同源）：
