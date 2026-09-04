@@ -18,6 +18,8 @@ from .. import db
 from .. import engine as E
 from .. import battle as BT
 from ..battle import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）
+from ..core.skill_kinds import K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_PASSIVE, K_TAUNT  # v176 去魔法字符串
+
 from ..core.formation import formation_view  # v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle
 from .world import _DAILY_META_KEYS, _settle_daily_quest  # v125.1 P0/P2：每日元数据键 + 达标结算单点（与 world 收敛）
@@ -1040,7 +1042,7 @@ class CombatCmds(CommandBase):
             # v101.25 #300：治疗类技能脱战可直接施放（回复生命），不再误导"找敌人"。
             # 战斗外治疗不要求技能栏配置（技能栏是战斗配置），但必须已学会。
             info = E.skill_info(player["class_name"], skill_name)
-            if info and info.get("kind") == "治疗" and E.is_skill_learned(
+            if info and info.get("kind") == K_HEAL and E.is_skill_learned(
                 player["class_name"], player["level"], skill_name, player.get("learned_skills", [])
             ):
                 # v104 R3 P1-3 修复：脱战治疗必须校验核心资源——res_cost 技能（神恩降临 faith10/
@@ -1121,7 +1123,7 @@ class CombatCmds(CommandBase):
                 )
             return
         # v64 被动技能：无需施放，学习后战斗自动生效
-        if info.get("kind") == "被动":
+        if info.get("kind") == K_PASSIVE:
             yield event.plain_result(
                 f"⚙️ 『{skill_name}』是被动技能，学会后战斗自动生效，无需施放！\n"
                 f"『技能列表』查看效果，『技能详情 {skill_name}』看说明～"
@@ -1292,7 +1294,7 @@ class CombatCmds(CommandBase):
 
     def _skill_tag(self, info: dict) -> str:
         """功能标签：被动优先，其次 effect/mech/cond"""
-        if info.get("kind") == "被动":
+        if info.get("kind") == K_PASSIVE:
             return "被动"
         if info.get("effect"):
             return self._EFFECT_CN.get(info["effect"], info["effect"])
@@ -1322,9 +1324,9 @@ class CombatCmds(CommandBase):
         parts = []
         kind = info.get("kind", "")
         if info.get("power"):
-            label = "治疗" if kind == "治疗" else "伤害"
+            label = "治疗" if kind == K_HEAL else "伤害"
             parts.append(f"{label} {int(info['power'] * E.skill_power_mult(lv, info) * 100)}%")
-        if kind in ("增益", "嘲讽"):
+        if kind in (K_BUFF, K_TAUNT):
             parts.append(f"持续 {E.skill_buff_turns(lv)} 刻")
         if info.get("cond"):
             parts.append(f"条件 ×{E.skill_cond_mult(info['cond'], lv, info):g}")
@@ -1342,12 +1344,12 @@ class CombatCmds(CommandBase):
         parts = []
         kind = info.get("kind", "")
         if info.get("power"):
-            label = "治疗" if kind == "治疗" else "伤害"
+            label = "治疗" if kind == K_HEAL else "伤害"
             vals = _curve_vals(
                 lambda lv: int(info["power"] * E.skill_power_mult(lv, info) * 100), cur, mx)
             if len(vals) > 1:
                 parts.append(f"{label} {'/'.join(f'{v}%' for v in vals)}")
-        if kind in ("增益", "嘲讽"):
+        if kind in (K_BUFF, K_TAUNT):
             vals = _curve_vals(lambda lv: E.skill_buff_turns(lv), cur, mx)
             if len(vals) > 1:
                 parts.append(f"持续 {'/'.join(f'{v}刻' for v in vals)}")
@@ -2574,7 +2576,7 @@ class CombatCmds(CommandBase):
         # 第一次进入：创建世界BOSS战斗（Boss 没技能则按等级配 2 个攻击技能）
         import random as _rnd
         if not b.get("skills"):
-            cand = [s for s, si in C.MONSTER_SKILLS.items() if si.get("kind") in ("物理", "魔法")]
+            cand = [s for s, si in C.MONSTER_SKILLS.items() if si.get("kind") in (K_PHYS, K_MAGI)]
             b["skills"] = _rnd.sample(cand, min(2, len(cand)))
         # v2 多对多：世界 Boss 经 build_monster_group 生成敌方阵列（Boss+2 爪牙）。
         # 全局数据升级为 {"enemies": [...]}（首元素=主目标），旧 hp/max_hp/name 保留作主目标汇总兼容。

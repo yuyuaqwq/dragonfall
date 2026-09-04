@@ -4,6 +4,8 @@ import random
 
 from . import content as C
 from .data.battle_config import ELEMENT_REACTIONS  # v125.2 B1：元素反应表下沉数据层（对外接口不变）
+from .core.skill_kinds import K_PASSIVE  # v176 去魔法字符串
+
 
 
 # ============================================================
@@ -302,7 +304,7 @@ def player_passive_stats(class_name: str, learned_skills: list | None = None) ->
     learned = [C.display("skills", s) for s in (learned_skills or []) if s]
     for name in learned:
         info = skill_info(class_name, name)
-        if not info or info.get("kind") != "被动":
+        if not info or info.get("kind") != K_PASSIVE:
             continue
         ps = info.get("passive") or {}
         rule = _PASSIVE_STAT_APPLY.get(ps.get("stat"))
@@ -376,7 +378,7 @@ def passive_skills_learned(class_name: str, learned_skills: list | None = None) 
     out = []
     for name in learned:
         info = skill_info(class_name, name)
-        if info and info.get("kind") == "被动":
+        if info and info.get("kind") == K_PASSIVE:
             out.append(name)
     return out
 

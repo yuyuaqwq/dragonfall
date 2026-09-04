@@ -35,6 +35,10 @@ from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径
         LUCKY_CRIT_CHANCE, LUCKY_CRIT_MULT, MULTI_HIT_CRIT_FIRST_ONLY,  # v133 峰值红线
     )
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
+from .core.skill_kinds import (  # v176 去魔法字符串：类型常量替代散落中文比较
+    K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_TRUE, K_TAUNT,
+    is_damage_kind, seg_of,
+)
 from .core.constants import (  # v130.7 意见#28：逃跑成功率修正常量（core/__init__ 未导出清单，直连避免动聚合层）
     FLEE_CHANCE, FLEE_LEVEL_STEP, FLEE_SPD_STEP, FLEE_MIN, FLEE_MAX,
     # v138.2 异常体系五律：阈值递增/每场上限+饱和/跨阶段保留/饱和收敛（真伤走 DOT_DEFS true_dmg）
@@ -1191,7 +1195,7 @@ class Battle:
         if not self._equip_affix_ids(player):
             return 1.0
         mult = 1.0
-        if kind == "物理" and player.get("class_name", "") == "cls_wu_seng":  # 拳师（v130.2c 修正 class id）
+        if kind == K_PHYS and player.get("class_name", "") == "cls_wu_seng":  # 拳师（v130.2c 修正 class id）
             for eff, tier in self._affix_effs(player, "burst_break"):
                 if not eff:
                     continue
@@ -2036,7 +2040,7 @@ class Battle:
             _is_heal = False
             if action == "skill" and skill_name:
                 _info0 = E.skill_info(player.get("class_name", ""), skill_name)
-                _is_heal = bool(_info0 and _info0.get("kind") == "治疗")
+                _is_heal = bool(_info0 and _info0.get("kind") == K_HEAL)
             if _is_heal:
                 self._active_target = None
             else:
@@ -2753,7 +2757,7 @@ class Battle:
                 self._assassin_finisher_refund(player, logs)
         # v122 治疗指定队友：指定的队友不存在 → 拦截（不扣资源、不消耗刻）；
         # 单人战斗（无 allies）忽略目标，按治疗自己处理
-        if info.get("kind") == "治疗" and target and self.allies:
+        if info.get("kind") == K_HEAL and target and self.allies:
             if self._resolve_ally_target(target) is None:
                 logs.append(f"队伍里没有『{target}』～(副本中『技能 <名称> <队友名>』可指定治疗目标)")
                 return logs
@@ -3446,7 +3450,7 @@ class Battle:
         # v130.2 P1-2（on_heal 消费端修复）：治疗技能按 rd['on_heal'] 给职业主资源（牧师/悼咏 +2）。
         # 仅主资源位持有者生效——歌者分支被覆盖为双资源（resonance+echo）时 faith 不在激活集合 → 不重复给
         # （歌者治疗走分支挂载 res_gain，见 v130.2 双资源口径；engine 不得给歌者双计数）。
-        if info and info.get("kind") == "治疗" and rd.get("on_heal") and k in act_keys:
+        if info and info.get("kind") == K_HEAL and rd.get("on_heal") and k in act_keys:
             # v153 §4（C-18）：力竭中信念不增加（过载后 6 刻）
             if not self.p_buffs.get("faith_exhausted"):
                 gain += int(rd["on_heal"])
@@ -3741,7 +3745,7 @@ class Battle:
             if eff4.get("cond") != "canticle_full" or self._res_read("canticle") >= self._res_max(player, "canticle"):
                 mult *= 1.0 + float(eff4.get("value", 0.20) or 0.20)
         effs = self._set_eff(player, "chi_skill_phys", 4)
-        if effs and kind == "物理":
+        if effs and kind == K_PHYS:
             # v130.2 R1：势不可挡收窄为 chi 资源相关（res_cost.chi / consume_all key==chi / 拳师），与 burst_break 口径一致
             _rc = info.get("res_cost") or {}
             _ca = info.get("consume_all") or {}
@@ -3862,7 +3866,7 @@ class Battle:
             if e.get("role") in ("caster", "healer"):
                 return True
             sk = e.get("skills") or []
-            if sk and any((C.MONSTER_SKILLS.get(s) or {}).get("kind") == "魔法" for s in sk):
+            if sk and any((C.MONSTER_SKILLS.get(s) or {}).get("kind") == K_MAGI for s in sk):
                 return True
             return False
         return e.get("role") == role
@@ -3877,7 +3881,7 @@ class Battle:
         mk = (e.get("debuffs") or {}).get("mark") or {}
         return int(mk.get("n", 0) or 0) > 0
 
-    def _player_dmg_mult(self, player: dict, kind: str = "物理") -> tuple:
+    def _player_dmg_mult(self, player: dict, kind: str = K_PHYS) -> tuple:
         """v156 玩家侧公共乘区统一组装——普攻/技能共用（一处修改，两边生效）。
 
         收拢两边重复的组装逻辑：
@@ -3895,16 +3899,16 @@ class Battle:
             tags = list(tags) + ["🐺狼嚎x1.1"]
         # v130.2 拳师蓄势 Momentum（攻线·格斗士）：物理伤害吃「每 1 气 +3%」持有加伤
         _mom = self._momentum_mult(player)
-        if kind == "物理" and _mom != 1.0:
+        if kind == K_PHYS and _mom != 1.0:
             mult *= _mom
             tags = list(tags) + [f"🔥蓄势x{round(_mom, 2)}"]
         # v130.2f2 苦修禅意（武僧线）：物理伤害吃「每 1 禅意 +4%」持有加伤
         _zen = self._zen_hold_mult(player)
-        if kind == "物理" and _zen != 1.0:
+        if kind == K_PHYS and _zen != 1.0:
             mult *= _zen
             tags = list(tags) + [f"🧘禅意x{round(_zen, 2)}"]
         # v130.2 澎湃烈酒（phys_up）/ 引气精华（buff_phys_next）：物理伤害 +pct%
-        if kind == "物理" and (self.p_buffs.get("phys_up") or self.p_buffs.get("buff_phys_next")):
+        if kind == K_PHYS and (self.p_buffs.get("phys_up") or self.p_buffs.get("buff_phys_next")):
             _pu = float((self.p_eff or {}).get("phys_up", 0) or 0)
             _bpn = float((self.p_eff or {}).get("buff_phys_next", 0) or 0)
             if _pu > 0:
@@ -3966,7 +3970,7 @@ class Battle:
             mult *= 1 + float(_dt.get("mark_pct", 0.02)) * dm
         return mult, tags
 
-    def _consume_v169_buff_dmg(self, kind: str = "物理", element: str = "", skill_name: str = "") -> tuple:
+    def _consume_v169_buff_dmg(self, kind: str = K_PHYS, element: str = "", skill_name: str = "") -> tuple:
         """v169.7 battle_mech §4.6/4.7 effect handler 写入的乘区键消费（普攻/技能伤害统一挂点）。
 
         battle_mech 写端遵循 phys_up 模式：p_buffs 存 int 时长（_advance_time 按刻到期），
@@ -3997,13 +4001,13 @@ class Battle:
                 mult *= 1.0 + pct
                 tags.append("🌟锁定")
         # 奥术矩阵：魔法/奥术伤害
-        if self.p_buffs.get("arcane_matrix") and kind == "魔法":
+        if self.p_buffs.get("arcane_matrix") and kind == K_MAGI:
             pct = float((self.p_eff or {}).get("arcane_matrix", 0) or 0)
             if pct > 0:
                 mult *= 1.0 + pct
                 tags.append("🔮奥术")
         # 奥术力场·利刃：下次奥术技（魔法）伤害 ×1.3 一次性
-        if self.p_buffs.get("arcane_field") and kind == "魔法":
+        if self.p_buffs.get("arcane_field") and kind == K_MAGI:
             pct = float((self.p_eff or {}).get("arcane_field", 0) or 0)
             if pct > 0:
                 mult *= 1.0 + (pct - 1.0)  # p_eff 存 1.30 完整倍率 → 折算成增量
@@ -4431,7 +4435,7 @@ class Battle:
         except Exception:
             pass
         # v122 治疗指定队友：解析目标（allies 空=单人战斗 → None=奶自己）
-        target_ally = self._resolve_ally_target(target) if kind == "治疗" else None
+        target_ally = self._resolve_ally_target(target) if kind == K_HEAL else None
         # v107 召唤：技能带 summon 字段 → 生成召唤物实体（治疗/增益/攻击技能均可带，先召唤再结算技能）
         if info.get("summon"):
             self._summon_entity(info["summon"], player, logs)
@@ -4446,11 +4450,11 @@ class Battle:
         mval = E.skill_mech_val(info, lv)
         # 分支专属状态层（玩家侧：狂暴/圣盾/风印/影袭/气力/神恩/毒层）
         p_mech = self.mech_stacks
-        if kind == "治疗":
+        if kind == K_HEAL:
             return self._skill_heal(st, skill_name, info, player, lv, mech, mval, p_mech, logs, target_ally=target_ally)
-        if kind == "增益":
+        if kind == K_BUFF:
             return self._skill_buff(st, skill_name, info, player, lv, mech, mval, p_mech, logs)
-        if kind == "嘲讽":
+        if kind == K_TAUNT:
             # v51 挑衅怒吼：嘲讽（单人=敌方降攻+叠狂暴；副本=instance 层拉仇恨）
             self.e_buffs["mon_atk_down"] = E.skill_buff_turns(lv)
             self._apply_mech_gain("rage", 1, p_mech, logs, skill_name)
@@ -4522,7 +4526,7 @@ class Battle:
             multi += p_mech.get(mech, 0)
         # v34 破魔：魔法伤害 +x%
         mb_lvl = self._enchant_lvl(effs, "magic_break")
-        magic_bonus = (1 + C.rune_value("magic_break", mb_lvl)) if mb_lvl and kind == "魔法" else 1.0
+        magic_bonus = (1 + C.rune_value("magic_break", mb_lvl)) if mb_lvl and kind == K_MAGI else 1.0
         # v109.2 P2-9：半死字段数据驱动化（原按技能名硬编码，改名即失效）——
         # 破甲本能(proc pierce)/烈焰亲和(proc fire_bonus)/双修精通(stat cond=dual_stat)
         _pm = self._passive_map(player)
@@ -4538,7 +4542,7 @@ class Battle:
                 passive_bonus *= float(_ps.get("mult", 1.1))
         # 烈焰亲和：火系魔法伤害 +10%（proc fire_bonus，原 stat=fire+技能名硬编码；mult 为增量语义）
         for _pn, _ps in _procs.get("fire_bonus", []):
-            if element == "fire" and kind == "魔法":
+            if element == "fire" and kind == K_MAGI:
                 passive_bonus *= (1 + float(_ps.get("mult", 0.10)))
         # 双修精通：力量/智力同时增加时攻击 +5%（stat cond=dual_stat，v1.x 查 PASSIVE_COND_CHECKS）
         for _pn, _ps in _pm["stat"]:
@@ -4669,7 +4673,7 @@ class Battle:
         # v130.2 拳师蓄势 Momentum（攻线·格斗士）：物理技能吃「每 1 气 +3%」持有加伤
         # v156：蓄势已由 _player_dmg_mult 统一乘入（普攻/技能共用），此处只记录标签
         _mom_mult = self._momentum_mult(player)
-        if kind == "物理" and _mom_mult != 1.0:
+        if kind == K_PHYS and _mom_mult != 1.0:
             self._mom_mult = _mom_mult
         else:
             self._mom_mult = 1.0
@@ -4747,7 +4751,7 @@ class Battle:
             #      外层 mult 需剔除技能成长项（pmult 含 skill_power_mult），避免双重成长
             _skill_expr = E.skill_formula_expr(info, lv)
             if _skill_expr:
-                _seg_type = "true" if kind == "真伤" else ("phys" if kind == "物理" else "magi")
+                _seg_type = "true" if kind == K_TRUE else ("phys" if kind == K_PHYS else "magi")
                 st["_player_lv"] = int(player.get("level", 1) or 1)
                 st["_skill_lv"] = lv
                 _pmult_expr = pmult / E.skill_power_mult(lv, info) if E.skill_power_mult(lv, info) else pmult
@@ -4776,9 +4780,9 @@ class Battle:
                     mult=pmult, variance=0.15,
                 )
                 _magi_part += _mseg
-            elif kind == "真伤":
+            elif kind == K_TRUE:
                 dmg_i = E.calc_damage(int((st["atk"] * info["power"] + _skill_flat) * pmult), 0, _seg_crit, dmg_type="true")
-            elif kind == "物理":
+            elif kind == K_PHYS:
                 if info.get("pierce"):
                     dmg_i = E.calc_damage(int((st["atk"] * info["power"] + _skill_flat) * pmult), 0, _seg_crit, pierce=True,
                                           dmg_type="phys")
@@ -4825,7 +4829,7 @@ class Battle:
             total += dmg_i
         if lucky:
             logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
-        total = self._boss_dmg_filter(total, player, logs, dmg_type={"物理": "phys", "魔法": "magi", "真伤": "true"}.get(kind, "phys"))
+        total = self._boss_dmg_filter(total, player, logs, dmg_type=seg_of(kind))
         # v140 波3.1：特效装备技能被动增伤（奥术苍穹/岁月流转/永恒契约/铭文/秘典/雷纹/三相/破岳/咒誓/暮裂）
         try:
             from .core.weapon_effects import proc as _we_proc
@@ -4928,8 +4932,8 @@ class Battle:
                     self._settle_lifesteal(player, _boss_dmg - _magi_part, logs, magic=False, dmg_type="phys")
                 self._settle_lifesteal(player, _magi_part, logs, magic=True, dmg_type="magi")
             else:
-                self._settle_lifesteal(player, _boss_dmg, logs, magic=(kind == "魔法"),
-                                       dmg_type={"物理": "phys", "魔法": "magi", "真伤": "true"}.get(kind, "phys"))
+                self._settle_lifesteal(player, _boss_dmg, logs, magic=(kind == K_MAGI),
+                                       dmg_type=seg_of(kind))
         # v107 吸MP（虚空行者）：魔法伤害的 mp_steal% 回复自身魔力（打空敌人蓝条的反向续航）
         if info.get("mp_steal") and total > 0:
             gain = int(total * float(info["mp_steal"]))
@@ -5572,7 +5576,7 @@ class Battle:
                     # v157 修复：formula 分支同样走物理/魔法免伤结算（此前直接返回，
                     # 魔法免伤(magic_reduce)/鲁莽之心(mr<0) 对带 formula 的怪物技能失效——
                     # v157 怪物全量配 formula 后暴露。与下方非 formula 分支同款逻辑。
-                    if kind == "物理":
+                    if kind == K_PHYS:
                         _pst_pr = self._player_stats(player)
                         pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
                         if pr > 0:
@@ -5593,7 +5597,7 @@ class Battle:
                             red = max(1, int(dmg * -mr))
                             dmg = dmg + red
                             logs.append(f"🔥 鲁莽之心，额外受到 {red} 点伤害！")
-                elif kind == "物理":
+                elif kind == K_PHYS:
                     _pp, _pf = self._pene_vals(est)
                     dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf,
                                         dmg_type="phys")
@@ -5609,7 +5613,7 @@ class Battle:
                     dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit, pene_pct=_pp, pene_flat=_pf,
                                         dmg_type="magi")
                     dmg = max(1, int(dmg * _lpm))
-                    if kind != "物理":
+                    if kind != K_PHYS:
                         _pst_mr = self._player_stats(player)
                         mr = float(_pst_mr.get("magic_reduce", 0) or 0)
                         if self.p_buffs.get("magic_resist"):
@@ -5667,15 +5671,15 @@ class Battle:
         _pp, _pf = self._pene_vals(est)
         _mbs = (e or {}).get("basic_skill")
         _mexpr = None
-        _mkind = "物理"
+        _mkind = K_PHYS
         if isinstance(_mbs, dict):
             _mexpr = (_mbs.get("exprs") or [None])[0]
-            _mkind = _mbs.get("kind", "物理")
+            _mkind = _mbs.get("kind", K_PHYS)
         if not _mexpr:
             # 默认普攻：物理 atk×1.0（与旧 calc_damage(atk) 等价，走统一公式管道）
             _mexpr = "atk*1.0"
-            _mkind = "物理"
-        _mt = "phys" if str(_mkind).startswith("物理") else ("true" if str(_mkind) == "真伤" else "magi")
+            _mkind = K_PHYS
+        _mt = seg_of(_mkind)
         _mst = dict(est)
         _d0, _mm0 = E.resolve_formula(
             [{"expr": _mexpr, "type": _mt}], _mst, pst.get("def", 0), pst.get("mdef", 0),
@@ -5795,7 +5799,7 @@ class Battle:
                         f"⚠️ 【意图】{ename} 正在蓄力【{sname}】！下刻将造成大伤害——"
                         f"可『防御』减半或『打断技』赌它读条失败！")
                     return logs, 0
-                if kind == "增益":
+                if kind == K_BUFF:
                     from .core.battle_mech import MON_BUFF_EFFECTS
                     eff = sinfo.get("effect")
                     eff_fn = MON_BUFF_EFFECTS.get(eff)
@@ -5863,13 +5867,13 @@ class Battle:
         power = sinfo.get("power", 1.0)
         is_crit = random.random() < est.get("crit", C.MON_SKILL_CRIT) * self._tenacity_mult(pst)
         sname = sinfo.get("name", skill_name)
-        if kind == "增益":
+        if kind == K_BUFF:
             from .core.battle_mech import MON_BUFF_EFFECTS
             eff_fn = MON_BUFF_EFFECTS.get(sinfo.get("effect"))
             if eff_fn:
                 eff_fn(self, logs, sname)
             return logs, 0
-        if kind == "物理":
+        if kind == K_PHYS:
             _pp, _pf = self._pene_vals(est)
             dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf,
                                 dmg_type="phys")
@@ -6027,17 +6031,17 @@ class Battle:
             est["mdef"] = int(est["mdef"] * (1 - _erode))
         return est
 
-    def _enemy_mitigate(self, dmg: int, magi_part: int, element: str | None, logs: list, kind: str = "物理",
+    def _enemy_mitigate(self, dmg: int, magi_part: int, element: str | None, logs: list, kind: str = K_PHYS,
                         dot: bool = False) -> tuple:
         """v110 P1-3：玩家攻击端消费敌方防守属性（与 _pvp_enemy_turn 玩家受击口径对称）。
         物理段吃敌方物免(≤40%)+格挡(≤40%，命中物段减半)；魔法段吃敌方魔免(≤40%)+元素抗(≤40%，按元素)。
         真伤绕过全部减伤（四层架构）；dot=True 时跳过格挡 roll（持续伤害不触发格挡事件）。
         PVE 标准怪无这些键(=0) → 伤害不变。
         返回 (削减后伤害, 削减后魔段)（魔段回传供吸血分账）。"""
-        if kind == "真伤":
+        if kind == K_TRUE:
             return dmg, magi_part
         est = self._enemy_stats()
-        if kind == "魔法":
+        if kind == K_MAGI:
             phys, magi = 0, dmg
         else:
             phys, magi = max(0, dmg - magi_part), magi_part
@@ -6386,13 +6390,13 @@ class Battle:
                 # 伤害段：灼烧=magi 走火元素抗；毒=magi 不吃元素抗；流血=phys 吃物理物免
                 if k == "burn":
                     dt = "magi"
-                    p, _ = self._enemy_mitigate(p, p, "fire", logs, kind="魔法", dot=True)
+                    p, _ = self._enemy_mitigate(p, p, "fire", logs, kind=K_MAGI, dot=True)
                 elif k == "poison":
                     dt = "magi"
-                    p, _ = self._enemy_mitigate(p, p, None, logs, kind="魔法", dot=True)
+                    p, _ = self._enemy_mitigate(p, p, None, logs, kind=K_MAGI, dot=True)
                 else:
                     dt = "phys"
-                    p, _ = self._enemy_mitigate(p, 0, None, logs, kind="物理", dot=True)
+                    p, _ = self._enemy_mitigate(p, 0, None, logs, kind=K_PHYS, dot=True)
                 # v83 Boss 护盾过滤：盾/吸收对 dot 生效（护盾 -50%）；dot 不触发反射反伤
                 p = self._boss_dmg_filter(p, player, logs, dmg_type=dt, dot=True)
             # v1.1 放血：目标当前生命 <30%（处决线）时流血伤害 ×2（处决/斩杀联动）
