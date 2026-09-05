@@ -5608,6 +5608,16 @@ class Battle:
                 logs.append(f"⚡ 感电连击！追加 {_combo_dmg} 点伤害！")
         # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
         total, _magi_part = self._enemy_mitigate(total, _magi_part, element, logs, kind=kind)
+        # v180 等级压制 actor 化：怪打玩家（管线 _tgt_is_player）时，伤害段 ×怪高玩家级差压制
+        # （原在 _enemy_cast_done 手动乘 _lpm；管线收编后统一在落地前消费。玩家打怪仍走
+        # _damage_enemy 内 v136 双向曲线，不受影响；PVP btype 由 _enemy_lv_pressure 内部返回 1.0）
+        if self._tgt_is_player() and self._cast_ctx is not None:
+            try:
+                _lpm_pipe = self._enemy_lv_pressure(self._tgt(), self._cast_ctx)
+                if _lpm_pipe != 1.0:
+                    total = max(1, int(total * _lpm_pipe))
+            except Exception:
+                pass
         # v174.1 星火（novice_spark_followup 星火法杖）：basic 普攻技命中消费星火标记（+10% 后清）。
         # 原语义"释放技能后下次普攻+10%"——basic_skill 即普攻，仅 basic 技触发，普通技能不消费。
         if info.get("basic") and self._cast_stacks().get("novice_spark"):
@@ -5797,7 +5807,11 @@ class Battle:
         if getattr(self, "_sk_af_mult", 1.0) > 1.0:
             affix_tags = list(affix_tags) + [f"⚔️套装技x{round(self._sk_af_mult, 2)}"]
         elem_mult = self._affix_element_dmg(player, element)
-        pmult = (E.skill_power_mult(lv, info) * frozen_bonus * stealth_mult * stack_bonus * cond_mult
+        # v180 怪物自身技能：formula/power 已含最终强度，不吃玩家技能成长 skill_power_mult
+        # （成长曲线是玩家投入"练技能"的回报；怪技能数据无养成语义。怪放玩家技能不受影响——
+        #  _mon_own_skill 仅当技能 key 在 MONSTER_SKILLS 才置 True）
+        _spm = 1.0 if getattr(self, "_mon_own_skill", False) else E.skill_power_mult(lv, info)
+        pmult = (_spm * frozen_bonus * stealth_mult * stack_bonus * cond_mult
                  * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult
                  * self._v139_dmg_mult(player, info))
         # vF3 P1 连乘封顶：技能伤害倍率连乘（技能×冻结×潜行×叠层×条件×魔法×被动×反应×词缀×元素×种族×v139形态/专注）
@@ -6067,6 +6081,12 @@ class Battle:
         lv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名（战斗内等级此前恒 Lv.1）
         kind = info["kind"]
         mech = info.get("mech", "")
+        # v180 怪自身技能标记：施法者是怪（_cast_ctx 无 class_name）且技能 key 属 MONSTER_SKILLS
+        # （怪物天生技能 data 的 formula/power 已是最终强度——不吃玩家技能成长 skill_power_mult；
+        #  玩家技能/怪放玩家技能仍走成长曲线。见 _skill_assemble_mults pmult）
+        self._mon_own_skill = bool(
+            (not self._cast_is_player()) and skill_name
+            and C.MONSTER_SKILLS.get(skill_name))
         # v140 波3.1：特效装备技能释放即叠层（铭文/秘典/永恒契约——含治疗/增益）
         try:
             from .core.weapon_effects import proc as _we_proc
@@ -6112,7 +6132,12 @@ class Battle:
                 logs.append(f"🌟【团队】{info.get('name', skill_name)}：Boss 的注意力被牢牢锁定！")
             return logs
 
-        est = self._enemy_stats()
+        # v180 actor 化：est = 被打目标面板（原硬编码 self.enemy=主怪；怪施法打玩家时
+        # 错误用怪自己 def/mdef/韧性当玩家防御 → 伤害虚高。_tgt() 玩家施法=怪、怪施法=玩家）
+        if self._tgt_is_player():
+            est = self._player_stats(self._tgt())
+        else:
+            est = self._enemy_stats()
         # v176: 暴击判定抽 _skill_crit_roll（原 42 行内联）
         is_crit, _stealth_hit, lucky, stealth_mult, est, effs = self._skill_crit_roll(
             st, est, player, info, mech, skill_name, logs)
@@ -6134,7 +6159,10 @@ class Battle:
         _pp_magi, _pf_magi = self._pene_vals(st, magic=True)
         # v156 技能基础值（保底伤害）：flat = BASE + 玩家等级×PER_LV + 技能等级×PER_SKILL_LV
         # 鱼鱼拍板：技能 = 基础值 + n%AD/AP（低攻不刮痧，高攻百分比主导）
-        _skill_flat = E.skill_flat_value(int(player.get("level", 1) or 1), lv, info)
+        # v180 怪自身技能：无玩家技能"低攻保底"语义（skill_flat 是玩家技能 v156 防刮痧设计）——
+        # 怪技能 formula/power 已是最终强度，注入基础值会虚增伤害（深水压强 power=0 类 1→8）
+        _skill_flat = 0 if getattr(self, "_mon_own_skill", False) else E.skill_flat_value(
+            int(player.get("level", 1) or 1), lv, info)
         for seg in range(multi):
             # v133 峰值红线：多段仅首段吃暴击/幸运（MULTI_HIT_CRIT_FIRST_ONLY，
             # 避免"多段共享单次暴击判定"整段连锁暴击的峰值爆炸）
@@ -7449,28 +7477,34 @@ class Battle:
         物理段吃敌方物免(≤40%)+格挡(≤40%，命中物段减半)；魔法段吃敌方魔免(≤40%)+元素抗(≤40%，按元素)。
         真伤绕过全部减伤（四层架构）；dot=True 时跳过格挡 roll（持续伤害不触发格挡事件）。
         PVE 标准怪无这些键(=0) → 伤害不变。
-        返回 (削减后伤害, 削减后魔段)（魔段回传供吸血分账）。"""
+        v180 actor 化：目标=怪（玩家施法）读 self.enemy 防守；目标=玩家（怪物施法玩家技能/怪物技能）
+        读玩家 actor 防守（phys_reduce/magic_reduce/elem_res/abyss_res 百分比免伤；格挡/闪避由
+        _deal_hit 内 _damage_actor 承伤链处理）。返回 (削减后伤害, 削减后魔段)（魔段回传供吸血分账）。"""
         if kind == K_TRUE:
             return dmg, magi_part
-        est = self._enemy_stats()
+        tgt = self._tgt()
+        if self._tgt_is_player():
+            tst = self._player_stats(tgt)
+        else:
+            tst = self._enemy_stats()
         if kind == K_MAGI:
             phys, magi = 0, dmg
         else:
             phys, magi = max(0, dmg - magi_part), magi_part
         reduced = 0
-        pr = min(float(est.get("phys_reduce", 0) or 0), 0.4)
+        pr = min(float(tst.get("phys_reduce", 0) or 0), 0.4)
         if pr > 0 and phys > 0:
             red = max(1, int(phys * pr))
             phys -= red
             reduced += red
         if not dot:
-            bc = min(float(est.get("block", 0) or 0), 0.4)
+            bc = min(float(tst.get("block", 0) or 0), 0.4)
             if bc > 0 and phys > 0 and random.random() < bc:
                 red = max(1, int(phys * 0.5))
                 phys -= red
                 reduced += red
                 logs.append("🛡️ 敌人格挡了攻击！")
-        mr = min(float(est.get("magic_reduce", 0) or 0), 0.4)
+        mr = min(float(tst.get("magic_reduce", 0) or 0), 0.4)
         if mr > 0 and magi > 0:
             red = max(1, int(magi * mr))
             magi -= red
@@ -7481,16 +7515,16 @@ class Battle:
             # v178 E5：元素免疫/弱点表（数据驱动，蚀夜三形态/奥拉等 Boss 需要）
             #   怪物 dict: "element_immune": ["fire","ice"]（免疫元素 → 伤害归 0）
             #             "element_weak": {"ice": 1.5}（弱点元素 → 伤害 × 倍率）
-            _imm = list((self.enemy or {}).get("element_immune") or [])
+            _imm = list((tgt or {}).get("element_immune") or [])
             if element in _imm:
-                logs.append(f"💠 免疫！【{self.enemy.get('name', '敌人')}】免疫{element}伤害！")
+                logs.append(f"💠 免疫！【{tgt.get('name', '敌人')}】免疫{element}伤害！")
                 return 0, 0
-            er = min(float(est.get("elem_res", 0) or 0), 0.5)
+            er = min(float(tst.get("elem_res", 0) or 0), 0.5)
             if er > 0 and magi > 0:
                 red = max(1, int(magi * er))
                 magi -= red
                 reduced += red
-            _weak = (self.enemy or {}).get("element_weak") or {}
+            _weak = (tgt or {}).get("element_weak") or {}
             if isinstance(_weak, dict) and element in _weak:
                 try:
                     _wm = float(_weak[element] or 1.0)
@@ -7498,7 +7532,7 @@ class Battle:
                         _add = max(1, int((phys + magi) * (_wm - 1.0)))
                         magi += _add
                         reduced -= _add  # 负的 reduced = 增伤（日志合并）
-                        logs.append(f"⚡ 弱点！【{self.enemy.get('name', '敌人')}】弱{element}，受到额外伤害！")
+                        logs.append(f"⚡ 弱点！【{tgt.get('name', '敌人')}】弱{element}，受到额外伤害！")
                 except Exception:
                     pass
         if reduced > 0:
