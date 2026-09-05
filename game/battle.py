@@ -2521,7 +2521,19 @@ class Battle:
                             # v163：敌方读条结算完成 → 清单位读条状态（防 from_state 重复补排）
                             e_unit.pop("_cast", None)
                             if defend and dmg > 0:
-                                dmg = max(1, int(dmg * DEFEND_REDUCE))
+                                # v178 E6：方向性防御——技能数据配 defend_reduce 覆盖默认 0.5
+                                # （如云怒风眼技 defend_reduce=0.8 防御挡 80%；缺省 0.5=旧行为）
+                                _dr = DEFEND_REDUCE
+                                try:
+                                    _evk = ev.get("skill") or (pc or {}).get("skill_name")
+                                    if _evk:
+                                        _evi = self._lookup_skill_info(str(_evk))
+                                        _evdr = _evi.get("defend_reduce")
+                                        if isinstance(_evdr, (int, float)) and 0 <= float(_evdr) <= 0.95:
+                                            _dr = float(_evdr)
+                                except Exception:
+                                    pass
+                                dmg = max(1, int(round(dmg * (1.0 - _dr))))
                                 self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
                             self._damage_player(player, dmg, logs, source=e_unit.get("name", "敌人"))
                             # v154 打断：玩家读条中受到控制（眩晕/冻结/沉默）→ 打断读条
@@ -6357,6 +6369,8 @@ class Battle:
                     pass
                 sname = sinfo.get("name", skill)  # 显示中文名
                 kind = sinfo.get("kind")
+                # v178 E6：记录本刻施放的技能 key（方向性防御读 defend_reduce 用）
+                e["_last_skill_key"] = skill
                 # v116 敌方蓄力接线：抽中带 charge 的技能且敌方未在蓄力 → 进入蓄力
                 # （本刻不结算伤害，先给意图预告，之后刻由 _enemy_charge_tick 结算）
                 charge_n = int(sinfo.get("charge", 0) or 0)

@@ -3421,11 +3421,23 @@ class InstanceCmds(CommandBase):
         st.get("players", {}).get(tkey, {})["ct"] = b.p_ct
         st.setdefault("player_hit", {})[tkey] = b._player_hit
         if st["p_defending"].get(tkey):
-            dmg = max(1, int(dmg * 0.5))
+            # v178 E6：方向性防御——读攻击单位最近施放技能的 defend_reduce（引擎 _enemy_turn
+            # 施放时写 unit._last_skill_key），缺省 0.5 = 旧行为
+            _dr6 = 0.5
+            try:
+                _lsk = (unit or {}).get("_last_skill_key")
+                if _lsk:
+                    _linfo6 = b._lookup_skill_info(str(_lsk))
+                    _ldr6 = _linfo6.get("defend_reduce")
+                    if isinstance(_ldr6, (int, float)) and 0 <= float(_ldr6) <= 0.95:
+                        _dr6 = float(_ldr6)
+            except Exception:
+                pass
+            dmg = max(1, int(round(dmg * (1.0 - _dr6))))
             # v101.25 #345：防御减伤后日志同步修正（伤害数字与实际扣血一致）
             import re as _re
             mlogs = [_re.sub(r"造成 (\d+) 点伤害",
-                             lambda m: f"造成 {max(1, int(int(m.group(1)) * 0.5))} 点伤害(格挡)",
+                             lambda m: f"造成 {max(1, int(round(int(m.group(1)) * (1.0 - _dr6))))} 点伤害(格挡)",
                              x) for x in mlogs]
             logs.append(f"🛡️ {tname} 举盾格挡！")
         logs += mlogs
