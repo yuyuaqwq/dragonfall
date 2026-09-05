@@ -47,6 +47,7 @@ from .core.constants import (  # v130.7 意见#28：逃跑成功率修正常量�
     DOT_THRESHOLD_MULT, DOT_THRESHOLD_CAP, DOT_MAX_TRIGGER,
     DOT_PRESERVE_PCT, DOT_PRESERVE_THRESHOLD_BONUS, DOT_SATURATE_MULT,
 )
+from .core.tick_effects import TICK_HANDLERS as _TICK_HANDLERS  # v179 通用 tick 效果注册表（数据驱动）
 
 # v95.4 普攻文案按职业区分（玩家反馈：全职业"你挥剑攻击"违和）
 # v112 数据驱动收敛（D5）：文案下沉 CLASSES[职业]["attack_text"]，逻辑层只读数据
@@ -309,6 +310,8 @@ class Battle:
         self._p_buff_hits: dict = {}       # v151 时刻制：防御型 buff 受击计数 {effect: 剩余受击次数}——防御/减伤/受击类按"敌方出手次数"计时而非玩家刻
         self.poi_buff: dict | None = None  # v104 M23 神龛祝福：{stat,mult,name}，持久 5 次战斗，battle 开始时消费 1 次
         self.p_hot: dict = {}              # v101.28 食物持续恢复 {"heal": 比例, "mana": 比例, "turns": 剩余刻}
+        # v179 通用 tick 效果条目池：周期/持续效果统一挂这里（数据驱动，见 core/tick_effects.py）
+        self.tick_effects: list = []       # [{uid,kind,actor,interval,next_at,expire_at,data,source}]
         self.p_food_effects: list = []     # v101.28e 食物效果（战斗中吃料理获得，本场有效；独立于装备词条体系）
         self.p_shields: dict = {}          # v101.28d 护盾 buff 化：来源 → {"value": 盾值, "turns": 剩余刻}，同源可叠厚，异源并存
         self.e_minions: list = []          # v101.28l #438 真召唤：敌方援军实体 [{name,hp,max_hp,atk,matk}]
@@ -626,6 +629,20 @@ class Battle:
             # v154 读条命中制：玩家读条状态随战斗持久化（断线恢复不丢读条）
             "player_casting": getattr(self, "_player_casting", False),
             "pending_player_cast": getattr(self, "_pending_player_cast", None),
+            # v179 通用 tick 效果：条目随战斗序列化（actor 存引用——"player" 或敌人 uid 索引，
+            # from_state 恢复时重绑；data 里不能有 actor dict 引用，纯数据）
+            "tick_effects": [
+                {
+                    "uid": e.get("uid"), "kind": e.get("kind"),
+                    "interval": e.get("interval"), "next_at": e.get("next_at"),
+                    "expire_at": e.get("expire_at"), "data": e.get("data") or {},
+                    "source": e.get("source", ""),
+                    "actor_ref": ("player" if (e.get("actor") is self.player)
+                                  else next((str(u.get("uid", "")) for u in self.enemies
+                                             if u is e.get("actor")), "")),
+                }
+                for e in getattr(self, "tick_effects", [])
+            ],
         }
 
     def _load_player_state(self, qq_id) -> dict | None:
@@ -851,6 +868,32 @@ class Battle:
                                        "kind": _cst.get("kind", "atk"),
                                        "skill": _cst.get("skill"),
                                        "power_mult": _cst.get("power_mult", 1.0)})
+        # v179 通用 tick 效果恢复：actor_ref 重绑（"player"→b.player（调用方后续绑定真实玩家，
+        # 此刻可能是空 dict——效果 actor 若为玩家，恢复时 actor 先用 b.player 占位，命令层绑定
+        # 真实玩家后同一引用即生效）；敌人 uid → enemies 里对应单位）。
+        try:
+            _te_st = st.get("tick_effects") or []
+            for _e_st in _te_st:
+                _actor = None
+                _ref = _e_st.get("actor_ref", "")
+                if _ref == "player":
+                    _actor = b.player
+                else:
+                    for _u in b.enemies:
+                        if str(_u.get("uid", "")) == str(_ref):
+                            _actor = _u
+                            break
+                if _actor is None:
+                    continue  # 找不到 actor → 丢弃（目标已死/不存在）
+                b.tick_effects.append({
+                    "uid": _e_st.get("uid"), "kind": _e_st.get("kind"),
+                    "actor": _actor, "interval": float(_e_st.get("interval", 1) or 1),
+                    "next_at": float(_e_st.get("next_at", b._now) or b._now),
+                    "expire_at": _e_st.get("expire_at"),
+                    "data": _e_st.get("data") or {}, "source": _e_st.get("source", ""),
+                })
+        except Exception:
+            pass
         return b
 
     # ---------------- 核心资源（v2.0 / v130.2 分支级 resource_override） ----------------
@@ -2471,6 +2514,82 @@ class Battle:
         ev = {"type": "cast_done", **payload}
         self._schedule(t, ev)
 
+    # ---------------- v179 通用 tick 效果框架 ----------------
+    def add_tick_effect(self, kind: str, actor: dict, interval: float,
+                        data: dict | None = None, expire_at: float | None = None,
+                        uid: str | None = None, source: str = "", now: float | None = None):
+        """挂一个周期/持续效果条目到通用 tick 池。
+
+        参数同 core/tick_effects.make_effect（actor 可为玩家或怪，actor-agnostic）。
+        重复 uid 不叠加（幂等，调用方自行保证/覆盖）。
+        """
+        from .core.tick_effects import make_effect
+        _now = self._now if now is None else float(now)
+        eff = make_effect(kind, actor, interval, _now, data=data,
+                          expire_at=expire_at, uid=uid, source=source)
+        # uid 幂等：同 uid 已存在 → 替换（刷新）
+        if uid:
+            self.tick_effects = [e for e in self.tick_effects if e.get("uid") != uid]
+        self.tick_effects.append(eff)
+        return eff
+
+    def remove_tick_effect(self, uid: str | None = None, kind: str | None = None,
+                           actor: dict | None = None) -> int:
+        """移除 tick 效果条目。按 uid / kind / actor 过滤。返回移除数。"""
+        _before = len(self.tick_effects)
+        self.tick_effects = [
+            e for e in self.tick_effects
+            if not ((uid and e.get("uid") == uid)
+                    or (kind and e.get("kind") == kind and (actor is None or e.get("actor") is actor)))
+        ]
+        return _before - len(self.tick_effects)
+
+    def _tick_effects_due(self, now: float) -> list:
+        """弹出所有 next_at <= now 的到期条目（按 next_at 升序）。"""
+        due = [e for e in self.tick_effects if float(e.get("next_at", 0)) <= float(now)]
+        if due:
+            due.sort(key=lambda e: float(e.get("next_at", 0)))
+            self.tick_effects = [e for e in self.tick_effects if e not in due]
+        return due
+
+    def _process_tick_effects(self, logs: list, player: dict) -> list:
+        """v179 通用 tick 调度器：处理所有已到期效果条目。
+
+        每个条目按 kind 查 _TICK_HANDLERS 分发处理。handler 返回 (logs 列表, 是否续排)。
+        续排 → next_at += interval（若 actor 仍存活/未到期）；否则条目移除。
+        expire_at 已过 → 不再续排（自然结束）。
+        战斗结束/玩家死亡 → 全部停止。
+        """
+        if self.result in ("victory", "defeat") or self._player_dead(player):
+            self.tick_effects = []
+            return logs
+        due = self._tick_effects_due(self._now)
+        for eff in due:
+            kind = eff.get("kind", "")
+            handler = _TICK_HANDLERS.get(kind)
+            if not handler:
+                # 未注册 handler → 直接丢弃（防坏条目卡池）
+                continue
+            try:
+                _actor = eff.get("actor") or player
+                if _actor.get("hp", 1) <= 0:
+                    continue  # actor 已死，不结算
+                h_logs, _keep = handler(self, _actor, eff, logs)
+                if h_logs:
+                    logs += h_logs
+                # 续排判定：handler 返回 keep=True 且未到期且 actor 存活
+                # 且 interval > 0（一次性条目 interval<=0 触发即移除，不续排）
+                _exp = eff.get("expire_at")
+                _iv = float(eff.get("interval", 0) or 0)
+                if (_keep and not self.result and _iv > 0
+                        and _actor.get("hp", 1) > 0
+                        and (_exp is None or float(self._now) < float(_exp))):
+                    eff["next_at"] = float(self._now) + max(_iv, 0.001)
+                    self.tick_effects.append(eff)
+            except Exception as _ex:
+                logs.append(f"(tick 效果异常 {kind}: {_ex})")
+        return logs
+
     def _process_until(self, until_t: float, logs: list, player: dict, defend: bool = False,
                        skip_enemy: bool = False):
         """处理所有 t <= until_t 的事件。这是 v152 事件队列核心调度。
@@ -2490,6 +2609,13 @@ class Battle:
             self._heapq.heappop(self._events)
             self._now = max(self._now, float(t))
             _guard += 1
+            # v179 通用 tick 效果：每次时间推进后处理到期的周期/持续效果条目
+            # （回血/充能/毒/宠物/召唤/食物HOT等——凡注册进 tick_effects 的统一走这里）
+            if self.tick_effects:
+                try:
+                    self._process_tick_effects(logs, player)
+                except Exception:
+                    pass
             evt = ev.get("type", "")
             try:
                 # 早停：战斗已有结局（victory/defeat）→ 不再触发后续事件
@@ -8037,6 +8163,14 @@ class Battle:
         # v130.2f2 满溢转盾冷却：时刻制下按冷却时间重置（简化：每次推进后允许再次转盾，
         # 真正的"每刻限 1 次"语义由 _overflow_shield_cd 在转盾瞬间置位并靠 CD 控制频率）
         self._overflow_shield_cd = False
+        # v179 通用 tick 效果：纯时间推进（无事件）也会到期的周期/持续效果条目
+        # （防御/等待/收招等 dt 推进路径——不进 _process_until 事件循环，这里补处理）
+        if self.tick_effects:
+            try:
+                _pl_now = self.player or {}
+                self._process_tick_effects([], _pl_now)
+            except Exception:
+                pass
 
     def _attacker_precise(self) -> float:
         """攻击方精准（v105 精准体系）：PVP 时攻击方是对方玩家快照（用 _player_stats 计算装备/词条精准），
