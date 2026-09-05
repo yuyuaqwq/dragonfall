@@ -6135,6 +6135,16 @@ class Battle:
                             self._res_gain(e, _rk_s, int(_rv_s or 0), logs)
                 except Exception:
                     pass
+                # v178 E4：怪物技能带 pdot（给玩家挂持续伤害：毒/灼烧/流血/腐蚀）
+                # 数据格式：{"pdot": {"type": "burn", "n": 2, "mult": 1.0, "atk_mult": 1.5}}
+                #   type ∈ DOT_DEFS 键（poison/burn/bleed/corros）；n=层数（每层每刻结算）；
+                #   mult=全局倍率；atk_mult=可选：用敌方 atk/matk × atk_mult 作强度（缺省 1.0）
+                try:
+                    _pdot = sinfo.get("pdot") or (sinfo.get("effect") or {}).get("pdot")
+                    if _pdot and isinstance(_pdot, dict) and not self.p_buffs.get("cc_immune"):
+                        _pdt = self._apply_player_dot(player, e, _pdot, logs)
+                except Exception:
+                    pass
                 dmg += self._reactive_extra_attack(e, pst, logs)
                 return logs, dmg
         # 敌方普攻（_kind == "atk" 或技能查表失败）
@@ -6832,6 +6842,119 @@ class Battle:
             return 0
         return dmg
 
+    # ---------------- v178 E4 玩家侧持续伤害（敌方给玩家挂 dot） ----------------
+    def _apply_player_dot(self, player: dict, attacker: dict, pdot: dict, logs: list) -> None:
+        """怪物技能命中给玩家挂持续伤害（pdot 字段数据驱动）。
+        容器：player["debuffs"][type] = {"n": 层数, "mult": 全局倍率, "atk_mult": 强度倍率,
+              "atk": 施法者强度快照, "matk": 施法者魔强快照, "hit_at": 挂上时刻}
+        与敌方 debuffs 同构（层数/倍率语义一致）。层数叠加（n 累加，cap 10 防失控）。
+        净化 _sb_cleanse_p 白名单后续接入（清玩家 debuffs）。"""
+        try:
+            if not player or not pdot:
+                return
+            _type = str(pdot.get("type") or "burn").strip()
+            if _type not in ("poison", "burn", "bleed", "corros"):
+                return
+            _atk_mult = float(pdot.get("atk_mult", 1.0) or 1.0)
+            _n = max(1, min(10, int(pdot.get("n", 1) or 1)))
+            _mult = float(pdot.get("mult", 1.0) or 1.0)
+            # 强度快照：以施法者当前面板为基准（乘 atk_mult；dot 强度与施法者成长绑定）
+            try:
+                _est = self._enemy_stats(attacker) if attacker else {}
+            except Exception:
+                _est = attacker or {}
+            _deb = player.setdefault("debuffs", {})
+            _old = _deb.get(_type)
+            if isinstance(_old, dict):
+                # 已有同型 dot → 层数累加、强度取新（新挂覆盖旧的强度，避免旧档低攻 Boss 永久弱 dot）
+                _n = min(10, int(_old.get("n", 1) or 1) + _n)
+            _deb[_type] = {
+                "n": _n, "mult": _mult,
+                "atk_mult": _atk_mult,
+                "atk": int((_est or {}).get("atk", 0) or 0),
+                "matk": int((_est or {}).get("matk", 0) or 0),
+                "hit_at": self._now,
+            }
+            _icon_map = {"poison": "☠️", "burn": "🔥", "bleed": "🩸", "corros": "🧪"}
+            _kname = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}.get(_type, _type)
+            logs.append(f"{_icon_map.get(_type, '💥')} 你中了【{_kname}】（{_n} 层）！")
+        except Exception:
+            pass
+
+    def _tick_player_dots(self, player: dict, logs: list) -> list:
+        """v178 E4：玩家侧 dot 结算（每刻开始，_turn_start 调用）。
+        公式复用 DOT_DEFS（与敌方 _tick_dots 同构）：
+          poison = atk_snapshot × DEF.atk × n × mult   （flat 型）
+          burn   = matk_snapshot × DEF.matk + max_hp×DEF.hp% × n × mult
+          bleed  = atk_snapshot × DEF.atk + max_hp×DEF.hp% × n × mult
+          corros = 同 bleed 但走真伤（无视防御）
+        伤害经玩家承伤链（防御/减伤/护盾）结算——用 _damage_actor 玩家模式落伤害。
+        结算后 n-1，归零消散。"""
+        try:
+            if not player:
+                return logs
+            _deb = player.get("debuffs") or {}
+            if not _deb:
+                return logs
+            from .data.battle_config import DOT_DEFS, DOT_PCT_CAP
+            from .core.skill_kinds import K_TRUE
+            _pst = self._player_stats(player)
+            _max_hp = int(player.get("max_hp", 1) or 1)
+            _icon_map = {"poison": "☠️", "burn": "🔥", "bleed": "🩸", "corros": "🧪"}
+            _kname = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}
+            for _k in list(_deb):
+                _d = _deb[_k]
+                if not isinstance(_d, dict):
+                    _deb.pop(_k, None)
+                    continue
+                _def = DOT_DEFS.get(_k)
+                if not _def:
+                    _deb.pop(_k, None)
+                    continue
+                _n = int(_d.get("n", 1) or 1)
+                _mult = float(_d.get("mult", 1.0) or 1.0)
+                _atk_mult = float(_d.get("atk_mult", 1.0) or 1.0)
+                _atk = int(_d.get("atk", 0) or 0)
+                _matk = int(_d.get("matk", 0) or 0)
+                _atk = int(_atk * _atk_mult)
+                _matk = int(_matk * _atk_mult)
+                # 伤害计算（复用 DOT_DEFS 公式）
+                _flat = int(_atk * float(_def.get("atk", 0) or 0) + _matk * float(_def.get("matk", 0) or 0))
+                _hp_pct = float(_def.get("hp", 0) or 0)
+                _hp_part = int(_max_hp * _hp_pct * _n)
+                # 百分比部分单层上限（防极端叠层爆炸，同敌方侧）
+                _hp_part = min(_hp_part, int(_max_hp * DOT_PCT_CAP * _n * 100))
+                _p = int((_flat * _n + _hp_part) * _mult)
+                _p = max(1, _p)
+                # 腐蚀真伤（无视防御）；其余走魔法/物理承伤链
+                if _def.get("true_dmg"):
+                    _dmg_type = "true"
+                elif _k == "bleed":
+                    _dmg_type = "phys"
+                else:
+                    _dmg_type = "magi"
+                # 玩家闪避不适用 dot（持续伤害不可闪避）；经 _damage_actor 承伤链落地
+                # （_damage_actor 内部对玩家走 _mitigate_chain 减伤链：def/mdef 折算在
+                #  _player_stats 已含，dot 为持续伤害不再单独 roll 防御。真伤语义由
+                #  calc 侧 _flat/_hp_part 天然体现——这里统一走玩家承伤）
+                try:
+                    _real = self._damage_actor(player, _p, logs, source="dot")
+                except Exception:
+                    try:
+                        _real = self._damage_player(player, _p, logs, source="dot")
+                    except Exception:
+                        _real = _p
+                logs.append(f"{_icon_map.get(_k, '💥')} {_kname.get(_k, _k)}发作，损失 {_real} 点生命！(剩余 {_n - 1} 层)")
+                _n -= 1
+                if _n <= 0:
+                    _deb.pop(_k, None)
+                    logs.append(f"💨 你身上的{_kname.get(_k, _k)}消散了！")
+                else:
+                    _d["n"] = _n
+            return logs
+        except Exception:
+            return logs
+
     def _tick_dots(self, player: dict, logs: list, force: bool = False) -> list:
         """DOT 重构（契约 §2.2 + §10.1 + §11.1）+ v138.2 异常五律：敌方持续减益统一结算。
 
@@ -7203,6 +7326,12 @@ class Battle:
             self._dot_pending = True
         # 原地追加（_tick_dots 向传入 logs 追加文案并返回同一列表，勿用 += 以免二次自拼接）
         self._tick_dots(player, logs)
+        # v178 E4：玩家侧 dot 结算（敌方给玩家挂的毒/灼烧/流血/腐蚀——每刻开始发作）
+        try:
+            if player.get("debuffs"):
+                self._tick_player_dots(player, logs)
+        except Exception:
+            pass
         # v151 破绽断链修复（引擎差距报告 P0）：turn_start_bars 此前从未被调用——
         # 拳师破绽条（shaken）的每刻衰减 4/免疫期递减实际不跑。刻开始统一衰减+触发检查。
         try:

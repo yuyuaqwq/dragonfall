@@ -1136,6 +1136,24 @@ def _sb_cleanse_p(battle, player, logs, scope="single"):
                 continue
             removed.append(k)
             del battle._cast_buffs()[k]
+    # v178 E4：净化同时清玩家持续伤害（debuffs 容器——Boss 挂的毒/灼烧/流血/腐蚀
+    # 属于减益，可被驱散技能解除；single 清一层、all 全清）
+    try:
+        _target = battle._cast_ctx or battle.player
+        _pdeb = (_target or {}).get("debuffs")
+        if _pdeb:
+            _kname = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}
+            if scope == "single":
+                for _dk in list(_pdeb):
+                    _pdeb.pop(_dk, None)
+                    removed.append(_kname.get(_dk, _dk))
+                    break
+            else:
+                for _dk in list(_pdeb):
+                    _pdeb.pop(_dk, None)
+                    removed.append(_kname.get(_dk, _dk))
+    except Exception:
+        pass
     # 净化攻击/减速类 p_buffs 减益（spd_down/atk_down 等）
     if removed:
         logs.append(f"✨ 净化！驱散了 {'、'.join(removed)}")
