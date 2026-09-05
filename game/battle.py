@@ -4368,6 +4368,110 @@ class Battle:
         self._affix_res_proc(player, "buff_skill", logs)
 
         return logs
+    def _skill_passive_dmg_bonus(self, st: dict, est: dict, player: dict, info: dict,
+                                  mech: str, kind: str) -> tuple:
+        """v176 拆分：攻击技能被动伤害乘区装配（原 _player_skill 94 行内联）。
+
+        累乘来源：破甲/烈焰亲和/双修/元素伤害/毒/标记/奥术/元素起源/武技/速度/审判/复仇/斩杀/血魔法。
+        返回 (passive_bonus, execute_tag, element, _procs)。副作用：复仇 buff 消费、_elem_reaction_boost 预置。
+        """
+        _pm = self._passive_map(player)
+        _procs = _pm["proc"]
+        passive_bonus = 1.0
+        # 技能元素（"current"=当前元素亲和系）——提前解析供 proc 型被动判定
+        element = info.get("element", "")
+        if element == "current":
+            element = self.resources.get("element", "fire")
+        # 破甲本能：破防技能伤害 +10%（proc pierce，原硬编码技能名）
+        for _pn, _ps in _procs.get("pierce", []):
+            if info.get("pierce"):
+                passive_bonus *= float(_ps.get("mult", 1.1))
+        # 烈焰亲和：火系魔法伤害 +10%（proc fire_bonus，原 stat=fire+技能名硬编码；mult 为增量语义）
+        for _pn, _ps in _procs.get("fire_bonus", []):
+            if element == "fire" and kind == K_MAGI:
+                passive_bonus *= (1 + float(_ps.get("mult", 0.10)))
+        # 双修精通：力量/智力同时增加时攻击 +5%（stat cond=dual_stat，v1.x 查 PASSIVE_COND_CHECKS）
+        for _pn, _ps in _pm["stat"]:
+            if _ps.get("cond") == "dual_stat" and passive_cond_ok(self, player, _ps):
+                passive_bonus *= (1 + float(_ps.get("mult", 0.05)))
+        # v104 R3 P1-1：分支/基础 proc 型被动伤害挂点（数据驱动：万象亲和/元素之心/毒师/淬毒之心/
+        # 追猎者/猎魔之眼/奥术之心/武技/疾驰/审判之心/暗影之心/暗影之舞/元素共鸣）
+        # 元素伤害类（元素系技能）
+        for _pn, _ps in _procs.get("element_dmg", []):
+            if element and E.ELEMENT_MARKS.get(element):
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # v110.3 P2-9：毒系技能伤害（mech 判定，废弃"名字含毒"子串；毒爆术 mech=poison_burst 一并覆盖）
+        # v125.2 B1：mech 归属查表 MECH_PROC_GROUPS
+        for _pn, _ps in _procs.get("poison_dmg", []):
+            if mech in MECH_PROC_GROUPS.get("poison_dmg", ()):
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # 对标记目标伤害（追猎者/猎魔之眼：e_buffs["mark"] 为目标易伤标记）
+        for _pn, _ps in _procs.get("mark_dmg", []):
+            if "mark" in self.e_buffs:
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # 奥术系伤害（奥术之心）——v125.2 B1：mech 归属查表 MECH_PROC_GROUPS
+        for _pn, _ps in _procs.get("arcane_dmg", []):
+            if mech in MECH_PROC_GROUPS.get("arcane_dmg", ()):
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # v169.7 奥术共鸣 arcane_resonance：奥术技能伤害 +15%（与奥术之心同 mech 口径叠加）
+        for _pn, _ps in _procs.get("arcane_resonance", []):
+            if mech in MECH_PROC_GROUPS.get("arcane_dmg", ()):
+                passive_bonus *= (1 + float(_ps.get("mult", 0.15) or 0.15))
+        # v169.7 元素起源 element_origin：三系印记同时 ≥2 层时 结算伤害 +20%（加算乘区）
+        for _pn, _ps in _procs.get("element_origin", []):
+            try:
+                _mk_origin = self._elem_marks()
+                if _mk_origin and all(int(_mk_origin.get(_ek, 0) or 0) >= int(_ps.get("layers", 2) or 2)
+                                      for _ek in ("fire", "ice", "thunder")):
+                    passive_bonus *= (1 + float(_ps.get("mult", 0.20) or 0.20))
+            except Exception:
+                pass
+            break
+        # v169.7 元素同调 element_sync：连续两次同系施法，第二次挂印 +1 层（置 _elem_sync_bonus
+        # 标记，命中挂印分支消费；读 _last_element 判定连续同系）
+        for _pn, _ps in _procs.get("element_sync", []):
+            if element and E.ELEMENT_MARKS.get(element):
+                try:
+                    if getattr(self, "_last_element", None) == element:
+                        self._elem_sync_bonus = True
+                except Exception:
+                    pass
+            break
+        # 连招技能伤害（武技）
+        for _pn, _ps in _procs.get("combo_dmg", []):
+            if info.get("combo"):
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # 速度优势增伤（疾驰）
+        for _pn, _ps in _procs.get("speed_dmg", []):
+            if st.get("spd", 0) > est.get("spd", 0):
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # 机制型 stat 被动（审判之心 judge / 暗影之心 shadow）：对应 mech 技能伤害加成
+        # v125.2 B1：mech 归属查表 MECH_STAT_PASSIVES
+        for _pn, _ps in _pm["stat"]:
+            _sstat = _ps.get("stat")
+            if _sstat in MECH_STAT_PASSIVES and mech == MECH_STAT_PASSIVES[_sstat]:
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+            elif _sstat == "stealth_crit_dmg" and (self.p_buffs.get("stealth") or getattr(self, "_stealth_atk", False)):
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # v104 R3 P1-1：复仇被动消费——受击后下次攻击 +30%（挨打反打，一次后清除）
+        if self.p_buffs.get("revenge_atk"):
+            for _pn, _ps in _procs.get("counter", []):
+                passive_bonus *= float(_ps.get("mult", 1.3))
+            del self.p_buffs["revenge_atk"]
+        # v107 斩杀（影武者）：目标 HP<30% 时伤害加成（cond_hp 斩杀线 / mult 加成）
+        _execute_tag = ""
+        if self.enemy.get("hp", 0) > 0 and self.enemy.get("max_hp", 1) > 0:
+            _hp_ratio = self.enemy["hp"] / self.enemy["max_hp"]
+            for _pn, _ps in _procs.get("execute", []):
+                if _hp_ratio < float(_ps.get("cond_hp", 0.30)):
+                    passive_bonus *= (1 + float(_ps.get("mult", 0.40)))
+                    _execute_tag = f"⚔️斩杀x{round(1 + float(_ps.get('mult', 0.40)), 2)}"
+                    break
+        # v107 血魔法（猩红学者）：hp_cost 换 +30% 伤害
+        if self._hp_cost_bonus:
+            passive_bonus *= (1 + self._hp_cost_bonus)
+        return passive_bonus, _execute_tag, element, _procs
+
     def _skill_crit_roll(self, st: dict, est: dict, player: dict, info: dict,
                           mech: str, skill_name: str, logs: list) -> tuple:
         """v176 拆分：攻击技能暴击判定（原 _player_skill 42 行内联）。
@@ -4577,101 +4681,9 @@ class Battle:
         magic_bonus = (1 + C.rune_value("magic_break", mb_lvl)) if mb_lvl and kind == K_MAGI else 1.0
         # v109.2 P2-9：半死字段数据驱动化（原按技能名硬编码，改名即失效）——
         # 破甲本能(proc pierce)/烈焰亲和(proc fire_bonus)/双修精通(stat cond=dual_stat)
-        _pm = self._passive_map(player)
-        _procs = _pm["proc"]
-        passive_bonus = 1.0
-        # 技能元素（"current"=当前元素亲和系）——提前解析供 proc 型被动判定
-        element = info.get("element", "")
-        if element == "current":
-            element = self.resources.get("element", "fire")
-        # 破甲本能：破防技能伤害 +10%（proc pierce，原硬编码技能名）
-        for _pn, _ps in _procs.get("pierce", []):
-            if info.get("pierce"):
-                passive_bonus *= float(_ps.get("mult", 1.1))
-        # 烈焰亲和：火系魔法伤害 +10%（proc fire_bonus，原 stat=fire+技能名硬编码；mult 为增量语义）
-        for _pn, _ps in _procs.get("fire_bonus", []):
-            if element == "fire" and kind == K_MAGI:
-                passive_bonus *= (1 + float(_ps.get("mult", 0.10)))
-        # 双修精通：力量/智力同时增加时攻击 +5%（stat cond=dual_stat，v1.x 查 PASSIVE_COND_CHECKS）
-        for _pn, _ps in _pm["stat"]:
-            if _ps.get("cond") == "dual_stat" and passive_cond_ok(self, player, _ps):
-                passive_bonus *= (1 + float(_ps.get("mult", 0.05)))
-        # v104 R3 P1-1：分支/基础 proc 型被动伤害挂点（数据驱动：万象亲和/元素之心/毒师/淬毒之心/
-        # 追猎者/猎魔之眼/奥术之心/武技/疾驰/审判之心/暗影之心/暗影之舞/元素共鸣）
-        # 元素伤害类（元素系技能）
-        for _pn, _ps in _procs.get("element_dmg", []):
-            if element and E.ELEMENT_MARKS.get(element):
-                passive_bonus *= (1 + float(_ps.get("mult", 0)))
-        # v110.3 P2-9：毒系技能伤害（mech 判定，废弃"名字含毒"子串；毒爆术 mech=poison_burst 一并覆盖）
-        # v125.2 B1：mech 归属查表 MECH_PROC_GROUPS
-        for _pn, _ps in _procs.get("poison_dmg", []):
-            if mech in MECH_PROC_GROUPS.get("poison_dmg", ()):
-                passive_bonus *= (1 + float(_ps.get("mult", 0)))
-        # 对标记目标伤害（追猎者/猎魔之眼：e_buffs["mark"] 为目标易伤标记）
-        for _pn, _ps in _procs.get("mark_dmg", []):
-            if "mark" in self.e_buffs:
-                passive_bonus *= (1 + float(_ps.get("mult", 0)))
-        # 奥术系伤害（奥术之心）——v125.2 B1：mech 归属查表 MECH_PROC_GROUPS
-        for _pn, _ps in _procs.get("arcane_dmg", []):
-            if mech in MECH_PROC_GROUPS.get("arcane_dmg", ()):
-                passive_bonus *= (1 + float(_ps.get("mult", 0)))
-        # v169.7 奥术共鸣 arcane_resonance：奥术技能伤害 +15%（与奥术之心同 mech 口径叠加）
-        for _pn, _ps in _procs.get("arcane_resonance", []):
-            if mech in MECH_PROC_GROUPS.get("arcane_dmg", ()):
-                passive_bonus *= (1 + float(_ps.get("mult", 0.15) or 0.15))
-        # v169.7 元素起源 element_origin：三系印记同时 ≥2 层时 结算伤害 +20%（加算乘区）
-        for _pn, _ps in _procs.get("element_origin", []):
-            try:
-                _mk_origin = self._elem_marks()
-                if _mk_origin and all(int(_mk_origin.get(_ek, 0) or 0) >= int(_ps.get("layers", 2) or 2)
-                                      for _ek in ("fire", "ice", "thunder")):
-                    passive_bonus *= (1 + float(_ps.get("mult", 0.20) or 0.20))
-            except Exception:
-                pass
-            break
-        # v169.7 元素同调 element_sync：连续两次同系施法，第二次挂印 +1 层（置 _elem_sync_bonus
-        # 标记，命中挂印分支消费；读 _last_element 判定连续同系）
-        for _pn, _ps in _procs.get("element_sync", []):
-            if element and E.ELEMENT_MARKS.get(element):
-                try:
-                    if getattr(self, "_last_element", None) == element:
-                        self._elem_sync_bonus = True
-                except Exception:
-                    pass
-            break
-        # 连招技能伤害（武技）
-        for _pn, _ps in _procs.get("combo_dmg", []):
-            if info.get("combo"):
-                passive_bonus *= (1 + float(_ps.get("mult", 0)))
-        # 速度优势增伤（疾驰）
-        for _pn, _ps in _procs.get("speed_dmg", []):
-            if st.get("spd", 0) > est.get("spd", 0):
-                passive_bonus *= (1 + float(_ps.get("mult", 0)))
-        # 机制型 stat 被动（审判之心 judge / 暗影之心 shadow）：对应 mech 技能伤害加成
-        # v125.2 B1：mech 归属查表 MECH_STAT_PASSIVES
-        for _pn, _ps in _pm["stat"]:
-            _sstat = _ps.get("stat")
-            if _sstat in MECH_STAT_PASSIVES and mech == MECH_STAT_PASSIVES[_sstat]:
-                passive_bonus *= (1 + float(_ps.get("mult", 0)))
-            elif _sstat == "stealth_crit_dmg" and (self.p_buffs.get("stealth") or getattr(self, "_stealth_atk", False)):
-                passive_bonus *= (1 + float(_ps.get("mult", 0)))
-        # v104 R3 P1-1：复仇被动消费——受击后下次攻击 +30%（挨打反打，一次后清除）
-        if self.p_buffs.get("revenge_atk"):
-            for _pn, _ps in _procs.get("counter", []):
-                passive_bonus *= float(_ps.get("mult", 1.3))
-            del self.p_buffs["revenge_atk"]
-        # v107 斩杀（影武者）：目标 HP<30% 时伤害加成（cond_hp 斩杀线 / mult 加成）
-        _execute_tag = ""
-        if self.enemy.get("hp", 0) > 0 and self.enemy.get("max_hp", 1) > 0:
-            _hp_ratio = self.enemy["hp"] / self.enemy["max_hp"]
-            for _pn, _ps in _procs.get("execute", []):
-                if _hp_ratio < float(_ps.get("cond_hp", 0.30)):
-                    passive_bonus *= (1 + float(_ps.get("mult", 0.40)))
-                    _execute_tag = f"⚔️斩杀x{round(1 + float(_ps.get('mult', 0.40)), 2)}"
-                    break
-        # v107 血魔法（猩红学者）：hp_cost 换 +30% 伤害
-        if self._hp_cost_bonus:
-            passive_bonus *= (1 + self._hp_cost_bonus)
+        # v176: 被动伤害乘区抽 _skill_passive_dmg_bonus（原 94 行内联）
+        passive_bonus, _execute_tag, element, _procs = self._skill_passive_dmg_bonus(
+            st, est, player, info, mech, kind)
         # 元素反应增伤（元素共鸣：触发反应时 +15%）
         for _pn, _ps in _procs.get("reaction", []):
             self._elem_reaction_boost = float(_ps.get("mult", 1.15))
