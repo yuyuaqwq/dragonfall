@@ -115,53 +115,50 @@ HIT_EFFECTS = {}
 def _h_bleed(battle, player, dmg, logs):
     """流血：20% 使目标流血（每刻 5% 生命，3 刻）"""
     if "bleed" in battle._equip_affix_ids(player) and random.random() < _affix_chance("bleed", 0.20):
+        from .effect_actions import action_dot
         # 目标级减益：血层挂到 enemy["debuffs"]["bleed"]（攻击命中后 enemy 必在）
         stacks = int(_affix_effect("bleed").get("stacks", 3))  # 每次触发叠层数（兼作上限）
-        deb = battle.enemy.setdefault("debuffs", {})
-        cur = deb.get("bleed") or {"n": 0, "mult": 1.0}
-        cur["n"] = min(stacks, int(cur.get("n", 0) or 0) + stacks)
-        deb["bleed"] = cur
-        logs.append("🩸 流血！敌人伤口裂开，将持续失血！")
+        action_dot(battle, logs, key="bleed", stacks=stacks, max_n=stacks)
 
 
 @register(HIT_EFFECTS, "armor_break")
 def _h_armor_break(battle, player, dmg, logs):
     """破甲：25% 降低目标防御 15%（2 刻）"""
     if "armor_break" in battle._equip_affix_ids(player) and random.random() < _affix_chance("armor_break", 0.25):
+        from .effect_actions import action_def_down
         eff = _affix_effect("armor_break")
-        battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(eff.get("turns", 2)))
-        battle.e_buffs["_armor_break_pct"] = float(eff.get("pct", 0.15))
-        logs.append("🛡️ 破甲！敌人防御下降 15%！")
+        action_def_down(battle, logs, turns=int(eff.get("turns", 2)), pct=float(eff.get("pct", 0.15)))
 
 
 @register(HIT_EFFECTS, "combo")
 def _h_combo(battle, player, dmg, logs):
     """连击：15% 追加一次 50% 伤害"""
     if "combo" in battle._equip_affix_ids(player) and random.random() < _affix_chance("combo", 0.15):
-        cd = int(dmg * float(_affix_effect("combo").get("extra_atk", 0.50)))
-        battle._damage_enemy(cd, logs)
-        logs.append(f"⚡ 连击！追加 {cd} 点伤害！")
+        from .effect_actions import action_bonus_pct
+        action_bonus_pct(battle, player, dmg, logs,
+                         pct=float(_affix_effect("combo").get("extra_atk", 0.50)),
+                         tag="⚡", name="连击")
 
 
 @register(HIT_EFFECTS, "element_fire")
 def _h_element_fire(battle, player, dmg, logs):
     """元素附加·火：5% 属性伤害"""
     if "element_fire" in battle._equip_affix_ids(player):
-        ed = max(1, int(dmg * float(_affix_effect("element_fire").get("pct", 0.05))))
-        battle._damage_enemy(ed, logs)
-        logs.append(f"🔥 fire属性附加 {ed} 点伤害！")
+        from .effect_actions import action_element_dmg
+        action_element_dmg(battle, player, dmg, logs,
+                           pct=float(_affix_effect("element_fire").get("pct", 0.05)),
+                           tag="🔥", name="火焰附加")
 
 
 @register(HIT_EFFECTS, "element_ice")
 def _h_element_ice(battle, player, dmg, logs):
     """元素附加·冰：5% 属性伤害 + 减速"""
     if "element_ice" in battle._equip_affix_ids(player):
-        ed = max(1, int(dmg * float(_affix_effect("element_ice").get("pct", 0.05))))
-        battle._damage_enemy(ed, logs)
-        logs.append(f"❄️ ice属性附加 {ed} 点伤害！")
-        battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0),
-                                         int(_affix_effect("element_ice").get("slow_turns", 2)))
-        logs.append("❄️ 减速！")
+        from .effect_actions import action_element_dmg
+        action_element_dmg(battle, player, dmg, logs,
+                           pct=float(_affix_effect("element_ice").get("pct", 0.05)),
+                           tag="❄️", name="冰霜附加",
+                           slow_turns=int(_affix_effect("element_ice").get("slow_turns", 2)))
 
 
 @register(HIT_EFFECTS, "element_thunder")
@@ -203,22 +200,20 @@ def _h_chu_huo(battle, player, dmg, logs):
 @register(HIT_EFFECTS, "pierce")
 def _h_pierce(battle, player, dmg, logs):
     """贯穿：20% 无视防御追加伤害"""
-    from ..engine import calc_damage
     if "pierce" in battle._equip_affix_ids(player) and random.random() < _affix_chance("pierce", 0.20):
-        pst = battle._player_stats(player)
-        pd = calc_damage(int(pst.get("atk", 0) * float(_affix_effect("pierce").get("atk_pct", 0.60))), 0)
-        if pd > 0:
-            battle._damage_enemy(pd, logs)
-            logs.append(f"🏹 贯穿！无视防御 {pd} 点伤害！")
+        from .effect_actions import action_pierce_dmg
+        action_pierce_dmg(battle, player, logs,
+                          atk_pct=float(_affix_effect("pierce").get("atk_pct", 0.60)))
 
 
 @register(HIT_EFFECTS, "charge")
 def _h_charge(battle, player, dmg, logs):
     """蓄力：10% 造成 150% 伤害（追加 50%）"""
     if "charge" in battle._equip_affix_ids(player) and random.random() < _affix_chance("charge", 0.10):
-        cd = int(dmg * float(_affix_effect("charge").get("dmg_pct", 0.50)))
-        battle._damage_enemy(cd, logs)
-        logs.append(f"💪 蓄力爆发！追加 {cd} 点伤害！")
+        from .effect_actions import action_bonus_pct
+        action_bonus_pct(battle, player, dmg, logs,
+                         pct=float(_affix_effect("charge").get("dmg_pct", 0.50)),
+                         tag="💪", name="蓄力爆发")
 
 
 @register(HIT_EFFECTS, "purify")
@@ -253,9 +248,9 @@ def _h_purify(battle, player, dmg, logs):
 def _h_dragon_tongue(battle, player, dmg, logs):
     """龙语印记：攻击叠印记（每层 +2% 伤害，上限 5）"""
     if "dragon_tongue" in battle._equip_affix_ids(player):
+        from .effect_actions import action_mark
         max_mark = int(_affix_effect("dragon_tongue").get("max_mark", 5))
-        player.setdefault('stacks', {})["dragon_mark"] = min(max_mark, int(player.setdefault('stacks', {}).get("dragon_mark", 0) or 0) + 1)
-        logs.append(f"🐉 龙语印记叠加！({player.setdefault('stacks', {})['dragon_mark']} 层，每层＋2% 伤害)")
+        action_mark(battle, player, logs, key="dragon_mark", max_n=max_mark, mark_pct=0.02)
 
 
 # ================= 2. 受击词条（_affix_on_taken） =================
@@ -299,14 +294,10 @@ def _t_tenacity(battle, player, ctx, logs):
 @register(TAKEN_EFFECTS, "counter")
 def _t_counter(battle, player, ctx, logs):
     """反击：20% 反击 60% 伤害"""
-    from ..engine import calc_damage
     if "counter" in battle._equip_affix_ids(player) and random.random() < _affix_chance("counter", 0.20) and battle.enemy.get("hp", 0) > 0:
-        pst2 = battle._player_stats(player)
-        est2 = battle._enemy_stats()
-        cd = calc_damage(int(pst2.get("atk", 0) * float(_affix_effect("counter").get("pct", 0.60))), est2.get("def", 0))
-        if cd > 0:
-            battle._damage_enemy(cd, logs)
-            logs.append(f"⚔️ 反击！对【{battle.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
+        from .effect_actions import action_counter
+        action_counter(battle, player, logs,
+                       atk_pct=float(_affix_effect("counter").get("pct", 0.60)))
 
 
 @register(TAKEN_EFFECTS, "ember_ward")
@@ -336,25 +327,25 @@ TURN_START_EFFECTS = {}
 @register(TURN_START_EFFECTS, "regen")
 def _ts_regen(battle, player, logs):
     """回春(1% 生命)/晨曦祝福(2% 生命)：叠加后统一回复"""
+    from .effect_actions import action_regen_hp
     ids = battle._equip_affix_ids(player)
     regen_pct = 0.0
     if "regen" in ids:
         regen_pct += float(_affix_effect("regen").get("pct", 0.01))
     if "dawn_crown" in ids:
         regen_pct += float(_affix_effect("dawn_crown").get("pct", 0.02))
-    if regen_pct and player.get("hp", 0) < player.get("max_hp", 1):
-        heal = int(player.get("max_hp", player.get("hp", 1)) * regen_pct)
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-        logs.append(f"🌿 回春生效，回复 {heal} 点生命！")
+    if regen_pct:
+        action_regen_hp(battle, player, logs, pct=regen_pct, label="回春")
 
 
 @register(TURN_START_EFFECTS, "meditate")
 def _ts_meditate(battle, player, logs):
     """冥想：1% 魔力回复"""
-    if "meditate" in battle._equip_affix_ids(player) and player.get("mp", 0) < player.get("max_mp", 1):
-        heal = int(player.get("max_mp", player.get("mp", 1)) * float(_affix_effect("meditate").get("pct", 0.01)))
-        player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + heal)
-        logs.append(f"🧘 冥想生效，回复 {heal} 点魔力！")
+    if "meditate" in battle._equip_affix_ids(player):
+        from .effect_actions import action_regen_mp
+        action_regen_mp(battle, player, logs,
+                        pct=float(_affix_effect("meditate").get("pct", 0.01)),
+                        label="冥想")
 
 
 @register(TURN_START_EFFECTS, "energy_tide")

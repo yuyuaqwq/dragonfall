@@ -159,7 +159,7 @@ b = make_battle()
 b._equip_affix_ids = lambda p: ["element_ice"]
 logs = []
 b._affix_on_hit(player, 100, logs)
-check("element_ice 单独触发（附加伤害+减速）", "ice属性附加" in logs[0] and b.e_buffs.get("spd_down") == 2)
+check("element_ice 单独触发（附加伤害+减速）", "冰霜附加" in logs[0] and b.e_buffs.get("spd_down") == 2)
 # 净化：judgment_chain 在时 purify 不触发（if-elif 互斥）
 b = make_battle(e_buffs={"mon_atk_up": 3})
 b._equip_affix_ids = lambda p: ["purify", "judgment_chain"]

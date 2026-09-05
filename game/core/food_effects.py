@@ -15,6 +15,11 @@ v101.28c 词条料理借用装备词条机制（affix 字段 + _equip_affix_ids 
 
 伤害倍率类（execute/precise/龙语印记层数）由 battle._affix_dmg_mult 的
 p_food_effects 分支消费；护盾类（shield）由 _do_use_item 特判走 _add_shield。
+
+v180-D P2（2026-09-06 鱼鱼拍板效果系统统一）：与装备词条同语义的效果（bleed/
+armor_break/combo/charge/element_fire/element_ice/pierce/counter/regen/meditate）
+动作收敛到 core/effect_actions.py 共享执行器——本文件只保留"触发判断 + 数值"，
+不再复制动作实现。效果动作 = 唯一一份代码，任何来源可复用。
 """
 import random
 
@@ -38,91 +43,70 @@ FOOD_TURN_START_EFFECTS = {}
 def _f_h_lifesteal(battle, player, dmg, logs):
     """蛇羹：每次攻击回复伤害 8% 生命"""
     if dmg > 0:
-        heal = int(dmg * 0.08)
-        player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
-        logs.append(f"🩸 吸血：回复 {heal} 点生命！")
+        from .effect_actions import action_lifesteal
+        action_lifesteal(battle, player, dmg, logs, heal_pct=0.08, label="吸血")
 
 
 @register(FOOD_HIT_EFFECTS, "bleed")
 def _f_h_bleed(battle, player, dmg, logs):
     """烬火辣椒：20% 使目标流血（每刻 5% 生命，3 刻）"""
     if random.random() < 0.20:
-        # 目标级减益：血层挂到 enemy["debuffs"]["bleed"]（攻击命中后 enemy 必在）
-        deb = battle.enemy.setdefault("debuffs", {})
-        cur = deb.get("bleed") or {"n": 0, "mult": 1.0}
-        cur["n"] = min(3, int(cur.get("n", 0) or 0) + 3)  # 烬火辣椒 3 层
-        deb["bleed"] = cur
-        logs.append("🩸 流血！敌人伤口裂开，将持续失血！")
+        from .effect_actions import action_dot
+        action_dot(battle, logs, key="bleed", stacks=3, max_n=3)  # 烬火辣椒 3 层
 
 
 @register(FOOD_HIT_EFFECTS, "armor_break")
 def _f_h_armor_break(battle, player, dmg, logs):
     """蘑菇汤：25% 降低目标防御 15%（2 刻）"""
     if random.random() < 0.25:
-        battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), 2)
-        battle.e_buffs["_armor_break_pct"] = 0.15
-        logs.append("🛡️ 破甲！敌人防御下降 15%！")
+        from .effect_actions import action_def_down
+        action_def_down(battle, logs, turns=2, pct=0.15)
 
 
 @register(FOOD_HIT_EFFECTS, "combo")
 def _f_h_combo(battle, player, dmg, logs):
     """鹰蛋：15% 追加一次 50% 伤害"""
     if random.random() < 0.15:
-        cd = int(dmg * 0.50)
-        # v104 M02 P1-5：食物附加伤害统一走 Boss 护盾过滤 → 援军挡刀结算
-        cd = battle._boss_dmg_filter(cd, player, logs)
-        battle._damage_enemy(cd, logs)
-        logs.append(f"⚡ 连击！追加 {cd} 点伤害！")
+        from .effect_actions import action_bonus_pct
+        action_bonus_pct(battle, player, dmg, logs, pct=0.50, tag="⚡", name="连击")
 
 
 @register(FOOD_HIT_EFFECTS, "dragon_tongue")
 def _f_h_dragon_tongue(battle, player, dmg, logs):
     """龙蛋煎饼：攻击叠龙语印记（每层 +2% 伤害，上限 5）"""
-    player.setdefault('stacks', {})["dragon_mark"] = min(5, int(player.setdefault('stacks', {}).get("dragon_mark", 0) or 0) + 1)
-    logs.append(f"🐉 龙语印记叠加！({player.setdefault('stacks', {})['dragon_mark']} 层，每层＋2% 伤害)")
+    from .effect_actions import action_mark
+    action_mark(battle, player, logs, key="dragon_mark", max_n=5, mark_pct=0.02)
 
 
 @register(FOOD_HIT_EFFECTS, "element_fire")
 def _f_h_element_fire(battle, player, dmg, logs):
     """灰烬烤饼：攻击附加 5% 火属性伤害"""
-    ed = max(1, int(dmg * 0.05))
-    ed = battle._boss_dmg_filter(ed, player, logs)  # v104 M02 P1-5：附加伤害走主结算路径
-    battle._damage_enemy(ed, logs)
-    logs.append(f"🔥 火焰附加 {ed} 点伤害！")
+    from .effect_actions import action_element_dmg
+    action_element_dmg(battle, player, dmg, logs, pct=0.05, tag="🔥", name="火焰附加")
 
 
 @register(FOOD_HIT_EFFECTS, "element_ice")
 def _f_h_element_ice(battle, player, dmg, logs):
     """冰霜浆果：攻击附加 5% 冰属性伤害 + 减速"""
-    ed = max(1, int(dmg * 0.05))
-    ed = battle._boss_dmg_filter(ed, player, logs)  # v104 M02 P1-5：附加伤害走主结算路径
-    battle._damage_enemy(ed, logs)
-    logs.append(f"❄️ 冰霜附加 {ed} 点伤害！")
-    battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), 2)
-    logs.append("❄️ 减速！")
+    from .effect_actions import action_element_dmg
+    action_element_dmg(battle, player, dmg, logs, pct=0.05, tag="❄️", name="冰霜附加",
+                       slow_turns=2)
 
 
 @register(FOOD_HIT_EFFECTS, "pierce")
 def _f_h_pierce(battle, player, dmg, logs):
     """雪狼肉排：20% 无视防御追加伤害（60% 攻击）"""
     if random.random() < 0.20:
-        from ..engine import calc_damage
-        pst = battle._player_stats(player)
-        pd = calc_damage(int(pst.get("atk", 0) * 0.6), 0)
-        if pd > 0:
-            pd = battle._boss_dmg_filter(pd, player, logs)  # v104 M02 P1-5：附加伤害走主结算路径
-            battle._damage_enemy(pd, logs)
-            logs.append(f"🏹 贯穿！无视防御 {pd} 点伤害！")
+        from .effect_actions import action_pierce_dmg
+        action_pierce_dmg(battle, player, logs, atk_pct=0.60)
 
 
 @register(FOOD_HIT_EFFECTS, "charge")
 def _f_h_charge(battle, player, dmg, logs):
     """皇家烤肉：10% 造成 150% 伤害（追加 50%）"""
     if random.random() < 0.10:
-        cd = int(dmg * 0.50)
-        cd = battle._boss_dmg_filter(cd, player, logs)  # v104 M02 P1-5：附加伤害走主结算路径
-        battle._damage_enemy(cd, logs)
-        logs.append(f"💪 蓄力爆发！追加 {cd} 点伤害！")
+        from .effect_actions import action_bonus_pct
+        action_bonus_pct(battle, player, dmg, logs, pct=0.50, tag="💪", name="蓄力爆发")
 
 
 @register(FOOD_HIT_EFFECTS, "static")
@@ -139,14 +123,8 @@ def _f_h_static(battle, player, dmg, logs):
 def _f_t_counter(battle, player, ctx, logs):
     """狼肉干：20% 反击 60% 伤害"""
     if random.random() < 0.20 and battle.enemy.get("hp", 0) > 0:
-        from ..engine import calc_damage
-        pst2 = battle._player_stats(player)
-        est2 = battle._enemy_stats()
-        cd = calc_damage(int(pst2.get("atk", 0) * 0.6), est2.get("def", 0))
-        if cd > 0:
-            cd = battle._boss_dmg_filter(cd, player, logs)  # v104 M02 P1-5：反伤走主结算路径
-            battle._damage_enemy(cd, logs)
-            logs.append(f"⚔️ 反击！对【{battle.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
+        from .effect_actions import action_counter
+        action_counter(battle, player, logs, atk_pct=0.60)
 
 
 @register(FOOD_TAKEN_EFFECTS, "thorns")
@@ -173,28 +151,22 @@ def _f_t_aurora_guard(battle, player, ctx, logs):
 @register(FOOD_TURN_START_EFFECTS, "regen")
 def _f_ts_regen(battle, player, logs):
     """树蜜糖：每刻回复 1% 生命"""
-    if player.get("hp", 0) < player.get("max_hp", 1):
-        heal = int(player.get("max_hp", player.get("hp", 1)) * 0.01)
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-        logs.append(f"🌿 回春生效，回复 {heal} 点生命！")
+    from .effect_actions import action_regen_hp
+    action_regen_hp(battle, player, logs, pct=0.01, label="回春")
 
 
 @register(FOOD_TURN_START_EFFECTS, "meditate")
 def _f_ts_meditate(battle, player, logs):
     """月光饼：每刻回复 1% 魔力"""
-    if player.get("mp", 0) < player.get("max_mp", 1):
-        heal = int(player.get("max_mp", player.get("mp", 1)) * 0.01)
-        player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + heal)
-        logs.append(f"🧘 冥想生效，回复 {heal} 点魔力！")
+    from .effect_actions import action_regen_mp
+    action_regen_mp(battle, player, logs, pct=0.01, label="冥想")
 
 
 @register(FOOD_TURN_START_EFFECTS, "dawn_crown")
 def _f_ts_dawn_crown(battle, player, logs):
     """御膳汤：每刻回复 2% 生命"""
-    if player.get("hp", 0) < player.get("max_hp", 1):
-        heal = int(player.get("max_hp", player.get("hp", 1)) * 0.02)
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-        logs.append(f"🌅 晨曦祝福生效，回复 {heal} 点生命！")
+    from .effect_actions import action_regen_hp
+    action_regen_hp(battle, player, logs, pct=0.02, label="晨曦祝福")
 
 
 # ================= 效果显示名（吃下播报/物品详情用） =================
