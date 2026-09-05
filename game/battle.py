@@ -4369,6 +4369,94 @@ class Battle:
         self._affix_res_proc(player, "buff_skill", logs)
 
         return logs
+    def _skill_apply_tags_marks(self, st: dict, player: dict, info: dict, mech: str,
+                                is_crit: bool, total: int, element: str,
+                                frozen_bonus: float, stealth_mult: float, stack_bonus: float,
+                                cond_mult: float, cond_label: str, magic_bonus: float, mb_lvl: int,
+                                _execute_tag: str, affix_tags: list, elem_mult: float,
+                                reaction_log: str,
+                                _procs: dict, logs: list, _v169_tags: list) -> None:
+        """v176 拆分：攻击技能标签组装 + 元素印记命中（原 _player_skill 74 行内联）。
+
+        把暴击/碎冰/潜行/增幅/条件/破魔/斩杀/词条/元素 标签拼到伤害日志；
+        带 element 技能命中给目标挂印记 + 法师切系 + 元素被动消费。
+        副作用：改 logs[-1]、e_buffs 印记、_last_element_set。返回 None。
+        """
+        tags = []
+        if is_crit:
+            tags.append("💥暴击")
+        if mech in MECH_FULL_HP_CRIT and self.enemy.get("hp", 0) >= self.enemy.get("max_hp", 1):
+            tags.append("满血影袭必暴")
+        if frozen_bonus > 1.0:
+            tags.append("❄️碎冰增伤")
+        if stealth_mult > 1.0:
+            tags.append(f"🌙潜行x{round(stealth_mult, 2)}")
+        if stack_bonus > 1.0:
+            tags.append(f"⚡增幅x{round(stack_bonus, 2)}")
+        if cond_mult > 1.0 and cond_label:
+            tags.append(f"⚔️{cond_label}x{round(cond_mult, 2)}")
+        elif cond_mult == 1.0 and cond_label:
+            # v104 R3 P2-18：mult=1.0 的纯条件技（如符文护体"魔能≥3"）条件满足时也提示
+            tags.append(f"⚔️{cond_label}")
+        if mb_lvl:
+            tags.append(f"🔮破魔x{round(magic_bonus, 2)}")
+        # v107 斩杀标签（影武者）
+        if _execute_tag:
+            tags.append(_execute_tag)
+        # v107 血魔法标签（猩红学者）
+        if self._hp_cost_bonus:
+            tags.append("🧛血祭x1.3")
+        # 阶段八：词条伤害标签（处决/追猎/精准等）
+        if affix_tags:
+            tags.extend(affix_tags)
+        # v169.7 effect 乘区键标签（猎杀时刻/星轨锁定/奥术矩阵/奥术力场）
+        if locals().get("_v169_tags"):
+            tags.extend(_v169_tags)
+        if elem_mult > 1.0:
+            tags.append(f"✨元素x{round(elem_mult, 2)}")
+        if tags:
+            logs[-1] += " " + "·".join(tags)
+        # v169.7 修 #123：疾风之心凝神触发提示（_passive_crit_bonus 置位，技能结算后消费一行）
+        if (self.p_eff or {}).pop("focus_surplus_proc", None):
+            logs.append("🎯 凝神屏息！结余 ≥40，本次技能暴击 +20%")
+        if reaction_log:
+            logs.append(reaction_log)
+        # v2.0 元素印记：施放带 element 的技能后给目标挂印记 + 法师切换当前系
+        if element and E.ELEMENT_MARKS.get(element):
+            extra_layers = 1
+            # v104 R3 P1-1：追踪印记——30% 概率额外叠 1 印记（游侠基础被动）
+            for _pn, _ps in _procs.get("mark_extra", []):
+                if random.random() < float(_ps.get("chance", 0.3)):
+                    extra_layers += 1
+            # v169.7 元素亲和 element_affinity：引爆后下次挂印 +1 层（_elem_affinity_next 由引爆结算置位）
+            if getattr(self, "_elem_affinity_next", False):
+                self._elem_affinity_next = False
+                extra_layers += 1
+                logs.append("✨ 元素亲和：引爆余韵，挂印 +1 层！")
+            # v169.7 元素同调 element_sync：连续两次同系施法第二次挂印 +1 层（_player_skill 前置判定置位）
+            if getattr(self, "_elem_sync_bonus", False):
+                self._elem_sync_bonus = False
+                extra_layers += 1
+                logs.append("✨ 元素同调：同系连发，挂印 +1 层！")
+            E.element_mark_apply(self.e_buffs, element, extra_layers)
+            # v130.2 目标侧 element_marks 登记（每系上限 3；仅命中叠加——mage_转职.md §1.0①）
+            if total > 0:
+                new_marks = self._elem_mark_apply(element, layers=extra_layers, player=player)
+                if self._is_element_mage(player):
+                    logs.append(f"✦ 元素印记：目标{ {'fire': '火', 'ice': '冰', 'thunder': '雷'} [element]}印 {new_marks}/{self._elem_mark_max(player)}")
+                # v130.2 last_element 同系连发：记录上次元素，同系第二次施放额外 +1 充能（元素凝聚）
+                # v176: 解耦——玩家激活元素体系（resources 含 element 键）即记录，不再判职业名
+                if "element" in (self.resources or {}):
+                    self._last_element_set(player, element)
+            # v104 R3 P1-1：寒霜亲和——冰系技能命中附带减速 2 刻
+            if element == "ice":
+                for _pn, _ps in _procs.get("ice_slow", []):
+                    self.e_buffs["spd_down"] = max(self.e_buffs.get("spd_down", 0), 2)
+                    logs.append("❄️ 寒霜亲和：敌人被减速！")
+            if self.resources.get("element") is not None:
+                self.resources["element"] = element
+
+
     def _skill_finalize_damage(self, st: dict, player: dict, info: dict, kind: str,
                                element: str, skill_name: str, multi: int,
                                is_crit: bool, total: int, _magi_part: int,
@@ -4982,80 +5070,12 @@ class Battle:
         total, _magi_part, info, _v169_tags = self._skill_finalize_damage(
             st, player, info, kind, element, skill_name, multi,
             is_crit, total, _magi_part, logs)        # 特效合并成紧凑标签（避免一行堆满长后缀）
-        tags = []
-        if is_crit:
-            tags.append("💥暴击")
-        if mech in MECH_FULL_HP_CRIT and self.enemy.get("hp", 0) >= self.enemy.get("max_hp", 1):
-            tags.append("满血影袭必暴")
-        if frozen_bonus > 1.0:
-            tags.append("❄️碎冰增伤")
-        if stealth_mult > 1.0:
-            tags.append(f"🌙潜行x{round(stealth_mult, 2)}")
-        if stack_bonus > 1.0:
-            tags.append(f"⚡增幅x{round(stack_bonus, 2)}")
-        if cond_mult > 1.0 and cond_label:
-            tags.append(f"⚔️{cond_label}x{round(cond_mult, 2)}")
-        elif cond_mult == 1.0 and cond_label:
-            # v104 R3 P2-18：mult=1.0 的纯条件技（如符文护体"魔能≥3"）条件满足时也提示
-            tags.append(f"⚔️{cond_label}")
-        if mb_lvl:
-            tags.append(f"🔮破魔x{round(magic_bonus, 2)}")
-        # v107 斩杀标签（影武者）
-        if _execute_tag:
-            tags.append(_execute_tag)
-        # v107 血魔法标签（猩红学者）
-        if self._hp_cost_bonus:
-            tags.append("🧛血祭x1.3")
-        # 阶段八：词条伤害标签（处决/追猎/精准等）
-        if affix_tags:
-            tags.extend(affix_tags)
-        # v169.7 effect 乘区键标签（猎杀时刻/星轨锁定/奥术矩阵/奥术力场）
-        if locals().get("_v169_tags"):
-            tags.extend(_v169_tags)
-        if elem_mult > 1.0:
-            tags.append(f"✨元素x{round(elem_mult, 2)}")
-        if tags:
-            logs[-1] += " " + "·".join(tags)
-        # v169.7 修 #123：疾风之心凝神触发提示（_passive_crit_bonus 置位，技能结算后消费一行）
-        if (self.p_eff or {}).pop("focus_surplus_proc", None):
-            logs.append("🎯 凝神屏息！结余 ≥40，本次技能暴击 +20%")
-        if reaction_log:
-            logs.append(reaction_log)
-        # v2.0 元素印记：施放带 element 的技能后给目标挂印记 + 法师切换当前系
-        if element and E.ELEMENT_MARKS.get(element):
-            extra_layers = 1
-            # v104 R3 P1-1：追踪印记——30% 概率额外叠 1 印记（游侠基础被动）
-            for _pn, _ps in _procs.get("mark_extra", []):
-                if random.random() < float(_ps.get("chance", 0.3)):
-                    extra_layers += 1
-            # v169.7 元素亲和 element_affinity：引爆后下次挂印 +1 层（_elem_affinity_next 由引爆结算置位）
-            if getattr(self, "_elem_affinity_next", False):
-                self._elem_affinity_next = False
-                extra_layers += 1
-                logs.append("✨ 元素亲和：引爆余韵，挂印 +1 层！")
-            # v169.7 元素同调 element_sync：连续两次同系施法第二次挂印 +1 层（_player_skill 前置判定置位）
-            if getattr(self, "_elem_sync_bonus", False):
-                self._elem_sync_bonus = False
-                extra_layers += 1
-                logs.append("✨ 元素同调：同系连发，挂印 +1 层！")
-            E.element_mark_apply(self.e_buffs, element, extra_layers)
-            # v130.2 目标侧 element_marks 登记（每系上限 3；仅命中叠加——mage_转职.md §1.0①）
-            if total > 0:
-                new_marks = self._elem_mark_apply(element, layers=extra_layers, player=player)
-                if self._is_element_mage(player):
-                    logs.append(f"✦ 元素印记：目标{ {'fire': '火', 'ice': '冰', 'thunder': '雷'} [element]}印 {new_marks}/{self._elem_mark_max(player)}")
-                # v130.2 last_element 同系连发：记录上次元素，同系第二次施放额外 +1 充能（元素凝聚）
-                # v176: 解耦——玩家激活元素体系（resources 含 element 键）即记录，不再判职业名
-                if "element" in (self.resources or {}):
-                    self._last_element_set(player, element)
-            # v104 R3 P1-1：寒霜亲和——冰系技能命中附带减速 2 刻
-            if element == "ice":
-                for _pn, _ps in _procs.get("ice_slow", []):
-                    self.e_buffs["spd_down"] = max(self.e_buffs.get("spd_down", 0), 2)
-                    logs.append("❄️ 寒霜亲和：敌人被减速！")
-            if self.resources.get("element") is not None:
-                self.resources["element"] = element
-        # v2.0 连招序列：拳师 combo 字段推进（拳→踢→掌 三连触发额外效果）
+        # v176: 标签+印记抽 _skill_apply_tags_marks（原 74 行内联）
+        self._skill_apply_tags_marks(
+            st, player, info, mech, is_crit, total, element,
+            frozen_bonus, stealth_mult, stack_bonus, cond_mult, cond_label,
+            magic_bonus, mb_lvl, _execute_tag, affix_tags, elem_mult,
+            reaction_log, _procs, logs, _v169_tags)        # v2.0 连招序列：拳师 combo 字段推进（拳→踢→掌 三连触发额外效果）
         combo_tag = info.get("combo", "")
         if combo_tag:
             combo_full = self._combo_push(combo_tag)
