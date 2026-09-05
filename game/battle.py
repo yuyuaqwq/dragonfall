@@ -586,6 +586,57 @@ def _th_actor_dot(battle, actor, eff, logs):
 _TICK_HANDLERS["actor_dot"] = _th_actor_dot
 
 
+def _th_food_hot(battle, actor, eff, logs):
+    """v179 P3 食物持续恢复（p_hot → 通用 tick 卡）：每秒结算回血/回蓝 + turns 递减。
+
+    数据存 eff.data：{heal: 比例, mana: 比例, turns: 剩余刻}。每次触发结算一次并 turns-1，
+    turns<=0 → keep=False 卡自动移除（效果结束）。
+    语义变化（v178.2 铁律一致）：原"每玩家行动触发"→ 改"每秒触发"，N 刻 = N 秒。
+    """
+    try:
+        d = eff.get("data") or {}
+        _turns = int(d.get("turns", 0) or 0)
+        if _turns <= 0:
+            return [], False  # 效果耗尽 → 卡移除
+        out = []
+        _hpct = float(d.get("heal", 0) or 0)
+        _mpct = float(d.get("mana", 0) or 0)
+        _mx_hp = actor.get("max_hp", actor.get("hp", 1))
+        _mx_mp = actor.get("max_mp", actor.get("mp", 1))
+        if _hpct > 0 and actor.get("hp", 0) < _mx_hp:
+            gain = int(_mx_hp * _hpct)
+            if gain > 0:
+                before = actor.get("hp", 0)
+                actor["hp"] = min(_mx_hp, before + gain)
+                out.append(f"🍲 持续恢复生效，恢复 {actor['hp'] - before} 点生命！({actor['hp']}/{_mx_hp})")
+        if _mpct > 0 and actor.get("mp", 0) < _mx_mp:
+            gain = int(_mx_mp * _mpct)
+            if gain > 0:
+                before = actor.get("mp", 0)
+                actor["mp"] = min(_mx_mp, before + gain)
+                out.append(f"🍲 持续恢复生效，恢复 {actor['mp'] - before} 点魔力！({actor['mp']}/{_mx_mp})")
+        # turns 递减（同步 p_hot 权威状态 + 卡 data，两者一致）
+        _new_turns = _turns - 1
+        d["turns"] = _new_turns
+        try:
+            _ph = battle.p_hot or {}
+            if _ph:
+                _ph["turns"] = _new_turns
+                if _new_turns <= 0:
+                    battle.p_hot = {}
+        except Exception:
+            pass
+        if _new_turns > 0:
+            out.append(f"（剩余 {_new_turns} 刻）")
+            return out, True
+        return out, False  # 耗尽 → 移除
+    except Exception:
+        return [], False
+
+
+_TICK_HANDLERS["food_hot"] = _th_food_hot
+
+
 class Battle:
     def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None, allies: list | None = None, st: dict | None = None, active_keys: list | None = None):
         self.btype = btype                 # monster | worldboss | pvp | instance（瞬态 Battle 结算器）
@@ -2600,9 +2651,21 @@ class Battle:
         # v2 蓄力：刻开始结算——归零自动释放技能（§6.2）
         self._player_charge_release(player, logs)
         logs += self._turn_start(player)
-        # v101.28 食物持续恢复：正常刻开始结算 hot（每刻一次，含眩晕/冻结刻）
-        if self.p_hot and self.p_hot.get("turns", 0) > 0:
-            logs += self._apply_hot(player)
+        # v101.28 食物持续恢复（v179 P3 升级通用 tick 卡）：每秒由 food_hot 卡结算。
+        # 此处兜底：老档恢复有 p_hot 但没卡 → 挂卡（幂等）；不再每行动直接 _apply_hot
+        # （防与通用调度双份结算）。
+        try:
+            if self.p_hot and int(self.p_hot.get("turns", 0) or 0) > 0:
+                _has_hot = any(e.get("uid") == "p_hot_card" for e in self.tick_effects)
+                if not _has_hot:
+                    self.add_tick_effect(
+                        "food_hot", player, ACT_TICK,
+                        data={"heal": self.p_hot.get("heal", 0) or 0,
+                              "mana": self.p_hot.get("mana", 0) or 0,
+                              "turns": int(self.p_hot.get("turns", 0) or 0)},
+                        uid="p_hot_card", source="food")
+        except Exception:
+            pass
         # v154 宠物独立速度读条：宠物技能由 pet_tick 事件驱动（_process_until 内触发），
         # 不再跟随玩家行动（玩家行动时宠物可能正在读条，节奏由宠物自身 spd 决定）。
         # v63 玩家被控：眩晕/冻结 → 跳过本刻行动（CTB 下行动浪费，玩家 ct 照走，随后敌方行动段）
@@ -3228,6 +3291,8 @@ class Battle:
             self.p_hot = {"heal": max(hpct, float(_cur_hot.get("heal", 0) or 0)),
                           "mana": max(mpct, float(_cur_hot.get("mana", 0) or 0)),
                           "turns": max(turns, int(_cur_hot.get("turns", 0) or 0))}
+            # v179 P3：food_hot 卡由下次行动开头兜底挂载（吃食物当回合不结算——
+            # 与旧语义「吃+结算不同回合」一致；卡每秒结算并同步 p_hot turns 递减）
             _desc = []
             if hpct > 0:
                 _desc.append(f"每刻恢复 {int(hpct * 100)}% 生命")
