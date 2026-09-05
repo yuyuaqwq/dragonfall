@@ -5681,6 +5681,13 @@ class Battle:
         _dtm = float((self.enemy or {}).get("_dmg_taken_mult", 1.0) or 1.0)
         if _dtm != 1.0:
             dmg = max(1, int(dmg * _dtm))
+        # v178 E3c：阶段退出 exit_dmg 累计（仅当阶段配了 exit_dmg 才记——_phase_exit 存在且 dmg 非空）
+        try:
+            _px = (self.enemy or {}).get("_phase_exit")
+            if _px and _px.get("dmg") is not None:
+                _px["_acc_dmg"] = int(_px.get("_acc_dmg", 0) or 0) + max(0, dmg)
+        except Exception:
+            pass
         mech = self.enemy.get("mech")
         if self.btype == "pvp":
             return dmg
@@ -5777,20 +5784,43 @@ class Battle:
     def _boss_cfg(self, e: dict) -> dict:
         """v116.1：按 enemy id 从数据层解析 Boss 条件/剧本配置。
         优先取 enemy dict 自带的 scripts（数据层已直写），否则按 id 在 INSTANCES /
-        MONSTER_MODS 找条目读 opening/triggers/phases/chains 字段。返回含缺省 key 的 dict。"""
+        MONSTER_MODS 找条目读 opening/triggers/phases/chains 字段。返回含缺省 key 的 dict。
+
+        v178 E1：副本 Boss 的 enemy dict 带 _inst_id（instance.py _enter_stage_combat 写入），
+        按它查 INSTANCES[inst_id]——旧逻辑按 e.id=b_xxx 查 INSTANCES 命中不了，
+        导致副本 phases/opening/triggers 是死数据。多怪阵列（爪牙）无 _inst_id → 只查自身 id。"""
         if not e:
             return {"opening": None, "triggers": {}, "phases": [], "chains": []}
         cfg = dict(e.get("scripts") or {})
         if not cfg:
-            mid = (e.get("id") or "").strip()
+            mid = (e.get("_inst_id") or e.get("id") or "").strip()
             if mid:
                 try:
                     from .data.monster_mods import MONSTER_MODS
                     from .data.instances import INSTANCES
-                    src = INSTANCES.get(mid) or MONSTER_MODS.get(mid) or {}
-                    for k in ("opening", "triggers", "phases", "chains"):
-                        if src.get(k) is not None and (e.get("mech") or ""):
-                            cfg[k] = src[k]
+                    # 副本 Boss：优先按 _inst_id 查副本条目（含 inst 内联 phases/opening/triggers），
+                    # 再叠 monster_mods b_* 条目的剧本（两者可互补：inst 配副本专属，mods 配共用）
+                    src = {}
+                    if e.get("_inst_id"):
+                        _ii = str(e["_inst_id"]).strip()
+                        if _ii in INSTANCES:
+                            src.update({k: INSTANCES[_ii].get(k) for k in
+                                        ("opening", "triggers", "phases", "chains")
+                                        if INSTANCES[_ii].get(k) is not None})
+                        # 怪物 id（b_xxx）在 MONSTER_MODS 的剧本也合并进来
+                        _bid = (e.get("id") or "").strip()
+                        if _bid in MONSTER_MODS:
+                            for k in ("opening", "triggers", "phases", "chains"):
+                                if MONSTER_MODS[_bid].get(k) is not None:
+                                    src[k] = MONSTER_MODS[_bid][k]
+                    else:
+                        src = INSTANCES.get(mid) or MONSTER_MODS.get(mid) or {}
+                    # mech 前提：只在单位声明了机制时才读剧本（v116.1 语义保留——
+                    # 副本 Boss 由 instance mech 注入保证非空；无 mech 的普通单位不读）
+                    if src and (e.get("mech") or e.get("_inst_id")):
+                        for k in ("opening", "triggers", "phases", "chains"):
+                            if src.get(k) is not None:
+                                cfg[k] = src[k]
                 except Exception:
                     cfg = {}
         cfg.setdefault("opening", None)
@@ -6181,6 +6211,35 @@ class Battle:
         # v116.1 反制/追击瞬态标记：每刻开头清空，仅本刻触发的刻生效
         self._clear_reactive_flags(e)
         self._boss_mech(logs, e)
+        # v178 E3c：阶段退出条件轮询（exit_turns/exit_dmg 达标 → 退出当前阶段回到上一段，
+        # 清 _phase_mod/_phase_ult_every/_phase_freq_mult/_phase_counter 让 Boss 恢复常态）
+        _pe = e.get("_phase_exit")
+        if _pe and not getattr(self, "_phase_skip_act", False):
+            try:
+                _entered = int(_pe.get("entered_at", 0) or 0)
+                _turns = _pe.get("turns")
+                _dmg = _pe.get("dmg")
+                _now_r = self._tick_no()
+                _do_exit = False
+                if _turns is not None and _now_r - _entered >= int(_turns or 0):
+                    _do_exit = True
+                if not _do_exit and _dmg is not None and int(_pe.get("_acc_dmg", 0) or 0) >= int(_dmg or 0):
+                    _do_exit = True
+                if _do_exit:
+                    e.pop("_phase_mod", None)
+                    e.pop("_phase_exit", None)
+                    e.pop("_phase_ult_every", None)
+                    e.pop("_phase_ult_skills", None)
+                    e.pop("_phase_freq_mult", None)
+                    e.pop("_phase_counter", None)
+                    e.pop("_dmg_taken_mult", None)
+                    if e.get("phase_count", 0) > 0:
+                        e["phase_count"] = max(0, int(e["phase_count"]) - 1)
+                    logs.append(f"🌊 【{ename}】招式用老，气息回落，破绽收敛——")
+                    self._after_actor_ct("e", e, cast_mult=CAST_ATK * self._ct_cost(est.get("spd", 0)))
+                    return logs, 0
+            except Exception:
+                pass
         # v116.1 阶段演出刻：_b_phase 触发进入新阶段时设 battle._phase_skip_act，
         # 本刻 Boss 不行动（给玩家呼吸点），消费后立即复位避免影响后续刻/单位。
         if getattr(self, "_phase_skip_act", False):
@@ -6226,27 +6285,44 @@ class Battle:
         # 玩家实抓野猪王【践踏】"蓄力完成，轰然落下"后无伤害）
         if e.get("charging"):
             return self._enemy_charge_tick(e, pst, est, logs, ename, player=player)
+        # v178 E3b：阶段大招 ult_every 消费（每 N 刻强制施放 ult_skills 池中技能，无视 skill_chance）
+        silenced = "silence" in eb
+        _ult_skill = None
+        _ult_every = e.get("_phase_ult_every")
+        _ult_pool = e.get("_phase_ult_skills") or []
+        if _ult_every and _ult_pool and not silenced and not e.get("charging"):
+            try:
+                _ure = int(_ult_every or 0)
+                if _ure > 0 and self._tick_no() % _ure == 0:
+                    _cand = [s for s in _ult_pool if s in (e.get("skills") or [])]
+                    if _cand:
+                        _ult_skill = random.choice(_cand)
+            except Exception:
+                _ult_skill = None
         # 敌方 AI 决策（v176: 读怪数据 ai.skill_chance/weights，缺省回落全局常量——零行为变化）
         #   monsters 条目可配 {"ai": {"skill_chance": 0.5, "weights": {"ms_heal": 2, ...}, "first_move": "ms_x"}}
         _ai = (e or {}).get("ai") or {}
         _skill_chance = float(_ai.get("skill_chance", C.MON_SKILL_CHANCE) or C.MON_SKILL_CHANCE)
-        skill = None
-        silenced = "silence" in eb
-        if e.get("skills") and random.random() < _skill_chance and not silenced:
-            # 权重轮盘（缺省均匀抽）
-            _weights = _ai.get("weights")
-            if _weights and isinstance(_weights, dict):
-                _pool = [s for s in e["skills"] if s in _weights]
-                if _pool:
-                    _wlist = [max(0, float(_weights.get(s, 1) or 1)) for s in _pool]
-                    skill = random.choices(_pool, weights=_wlist, k=1)[0]
+        # v178 E3b：ult_every 已强制指定 skill（_ult_skill）→ 直接进技能施放块；
+        # 否则按原 AI 轮盘（skill_chance 概率）抽
+        skill = _ult_skill  # 初始化为大招（若触发）；None 则走下面轮盘
+        if skill is not None or (e.get("skills") and random.random() < _skill_chance and not silenced):
+            # skill 已由 ult_every 指定时跳过轮盘；否则权重轮盘（缺省均匀抽）
+            if skill is None:
+                _weights = _ai.get("weights")
+                if _weights and isinstance(_weights, dict):
+                    _pool = [s for s in e["skills"] if s in _weights]
+                    if _pool:
+                        _wlist = [max(0, float(_weights.get(s, 1) or 1)) for s in _pool]
+                        skill = random.choices(_pool, weights=_wlist, k=1)[0]
+                    else:
+                        skill = random.choice(e["skills"])
                 else:
                     skill = random.choice(e["skills"])
-            else:
-                skill = random.choice(e["skills"])
             # v177 actor 资源门槛：抽中技能 res_cost 不足 → 技能不可用，回落普攻（不重抽，保持 random 序列）
             # 注意：只在技能声明 res_cost 且资源不足时拦截——旧技能无 res_cost → 零行为变化
-            if skill is not None:
+            # （ult_every 强制大招不过资源门槛——它代表 Boss 拼死一搏，资源语义不拦）
+            if skill is not None and _ult_skill is None:
                 try:
                     _sfo_rc = self._lookup_skill_info(skill)
                     _rc_needed = _sfo_rc.get("res_cost")
@@ -6519,6 +6595,12 @@ class Battle:
             est["mdef"] = max(0, int(est["mdef"]) + int(_pm.get("def_add", 0) or 0))
             est["spd"] = max(1, int(est["spd"]) + int(_pm.get("spd_add", 0) or 0))
             e["_dmg_taken_mult"] = float(_pm.get("dmg_taken_mult", 1.0) or 1.0)
+            # v178 E3a：阶段行动频率倍率 freq_mult 折入速度（freq=0.5 → spd×2 慢一倍行动；
+            # freq=2.0 → spd×0.5 快一倍——CTB 速度高=行动间隔短，频率语义对齐）。
+            # 只对带 _phase_freq_mult 的阶段生效（旧阶段无此字段=零行为变化）
+            _fq = float(e.get("_phase_freq_mult", 1.0) or 1.0)
+            if _fq != 1.0 and _fq > 0:
+                est["spd"] = max(1, int(est["spd"] / _fq))
         # v116.1 条件触发反制：玩家低血追击(+25%) / 玩家大招反扑(+30%)——仅受击当刻生效
         if e.get("_low_hp_active"):
             est["atk"] = int(est["atk"] * BOSS_ATTACK_MULTS["low_hp"])
@@ -7065,6 +7147,8 @@ class Battle:
             if s and s not in e.get("skills", []):
                 e["skills"] = list(e.get("skills", [])) + [s]
         e["_phase_ult_every"] = phase_cfg.get("ult_every")          # 每 N 刻大招（None=无）
+        # v178 E3b：阶段大招技能池（ult_every 触发时从这抽，需 ult_skills 配置才有效）
+        e["_phase_ult_skills"] = list(phase_cfg.get("ult_skills") or [])
         e["_phase_freq_mult"] = float(phase_cfg.get("freq_mult", 1.0) or 1.0)  # 行动频率倍率
         # ---- 退出条件 ----
         e["_phase_exit"] = {

@@ -934,8 +934,21 @@ class InstanceCmds(CommandBase):
         st["boss"] = C.build_monster(mon_def, {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
         if mon_def[2] == "boss":
             inst2 = C.INSTANCES[st["inst_id"]]
+            # v178 E1：副本 Boss 带 inst_id 上下文（供 _boss_cfg 按副本条目解析
+            # phases/opening/triggers——旧逻辑按 b_xxx id 查 INSTANCES 命中不了）
+            st["boss"]["_inst_id"] = st["inst_id"]
+            # v178 E2：副本 mech 与 monster_mods mech 合并（去重，非覆盖）——
+            # 旧逻辑整体覆盖把 MONSTER_MODS 配的 phase_open/player_low/summon 等剧本
+            # token 吞掉（实测 5 例：b_om_shadow/b_moro/b_eter/b_goblin_chief/b_king_odric）
             if inst2.get("mech"):
-                st["boss"]["mech"] = inst2["mech"]
+                _mods_mech = (st["boss"].get("mech") or "").strip()
+                _inst_mech = inst2["mech"].strip()
+                if _mods_mech and _inst_mech:
+                    _merged = ",".join(dict.fromkeys(
+                        [x.strip() for x in (_mods_mech + "," + _inst_mech).split(",") if x.strip()]))
+                    st["boss"]["mech"] = _merged
+                else:
+                    st["boss"]["mech"] = _inst_mech or _mods_mech
             hp_mult = inst2["hp_mult"] + 0.65 * (len(st["members"]) - inst2.get("min_players", 1))
             st["boss"]["max_hp"] = int(st["boss"]["max_hp"] * hp_mult)
             st["boss"]["hp"] = st["boss"]["max_hp"]
