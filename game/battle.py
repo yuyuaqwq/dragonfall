@@ -637,6 +637,37 @@ def _th_food_hot(battle, actor, eff, logs):
 _TICK_HANDLERS["food_hot"] = _th_food_hot
 
 
+def _th_pet_act(battle, actor, eff, logs):
+    """v179 P4 宠物出手通用 tick：替换 pet_tick 专用事件。
+
+    触发时：若宠物存活且未限频 → 出手（_pet_skill_turn 结算）；然后动态更新
+    eff["interval"] = 宠物下次读条周期（按 spd 折算），由通用调度按新周期续排。
+    宠物死亡/战斗结束 → keep=False 卡移除。
+    """
+    try:
+        if not battle.pet or battle._enemy_dead():
+            return [], False  # 无宠物/敌方全灭 → 通道关闭
+        out = []
+        if not battle._player_dead(battle._last_player or battle.player):
+            if battle._pet_should_hit():
+                _ml = battle._pet_skill_turn(battle._last_player or battle.player, out)
+                if _ml:
+                    out += _ml
+                battle._pet_mark_hit()
+        # 动态更新下次周期（原 _reschedule_pet_tick：now + 读条周期）——通用调度续排用
+        try:
+            _pt = CAST_PET_SKILL * battle._ct_cost(battle._pet_spd())
+            eff["interval"] = max(float(_pt), 0.001)
+        except Exception:
+            eff["interval"] = 0.8  # 兜底默认 0.8s
+        return out, True  # 宠物活着就续排
+    except Exception:
+        return [], False
+
+
+_TICK_HANDLERS["pet_act"] = _th_pet_act
+
+
 class Battle:
     def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None, allies: list | None = None, st: dict | None = None, active_keys: list | None = None):
         self.btype = btype                 # monster | worldboss | pvp | instance（瞬态 Battle 结算器）
@@ -871,16 +902,20 @@ class Battle:
         # 按敌方 ct 补排（v158），本段只负责宠物初始 pet_tick——v167.3 起不再按 btype 排除，
         # 副本带宠物（野外/副本同一套，鱼鱼拍板）：只要 Battle 带 pet 就排初始 pet_tick。
         try:
-            # v154 宠物独立速度读条：开战排第一个 pet_tick（宠物初始等待 = 出招时间，
-            # 按宠物自身 spd 折算）。pet_tick 触发 = 宠物出手（决定技能 + 排 cast_done），
-            # 出招跑完 = 技能生效，随后重排下次 pet_tick（周期 = 出招 + 收招）。
-            # v167.3：instance 的 from_state 也会经 __init__（带 pet 参数）——但 from_state
-            # 恢复的 _now 可能 >0，若在此排初始 pet_tick 会与真实时间轴错位，故恢复路径
-            # 不依赖本段（见 from_state 末尾按 _now 补排）；本段只服务新开战斗（_now=0）。
+            # v154 宠物独立速度读条（v179 P4 升级通用 tick 卡）：开战挂第一张 pet_act 卡
+            # （初始等待 = 出招时间按宠物 spd 折算）。pet_act 触发 = 宠物出手，动态更新
+            # interval 续排（周期 = 出招 + 收招）。v167.3：instance 的 from_state 也会经
+            # __init__（带 pet 参数）——但 from_state 恢复的 _now 可能 >0，若在此挂初始
+            # 卡会与真实时间轴错位，故恢复路径不依赖本段（见 from_state 末尾按 _now 补挂）；
+            # 本段只服务新开战斗（_now=0）。
             if self.pet and int(self.pet.get("level", 0) or 0) >= 10 and float(getattr(self, "_now", 0.0) or 0.0) <= 0:
-                _pet_spd = self._pet_spd()
-                _pt = CAST_PET_SKILL * self._ct_cost(_pet_spd)
-                self._schedule(_pt, {"type": "pet_tick"})
+                try:
+                    _pet_spd = self._pet_spd()
+                    _pt = CAST_PET_SKILL * self._ct_cost(_pet_spd)
+                    self.add_tick_effect("pet_act", self.pet, _pt, uid="pet_act",
+                                         source="pet")
+                except Exception:
+                    pass
             # v178.2 regen_tick（v179 升级为通用 tick 卡）：玩家带 A 类每刻效果
             # （套装回血/符文治愈/食物HOT/被动充能/资源regen/状态机维护）→ _ensure_regen_effects
             # 挂通用 tick 条件卡（regen_<kind>），由 _process_until/_advance_time 通用调度处理。
@@ -1245,16 +1280,16 @@ class Battle:
                     if _init_t <= 0:
                         _init_t = _ct_initial_wait(_u.get("spd", 0))
                     b._schedule(_init_t, {"type": "enemy_act", "unit": _u})
-        # v167.3 副本带宠物：from_state 恢复后按当前时刻补排宠物 pet_tick——
-        # 事件队列本身不随存档序列化，若不补排副本/野外断线恢复后宠物永不再出手。
-        # 只在带宠（Lv≥10）且堆里还没有 pet_tick 时补（防重复堆积）；
-        # 首次出手时刻 = 当前时刻 + 宠物一个读条周期（与开战排程同语义，不抢时间轴）。
+        # v167.3 副本带宠物（v179 P4 升级通用卡）：from_state 恢复后按当前时刻补挂 pet_act 卡
+        # ——tick_effects 已随 to_state/from_state 序列化恢复，此处兜底老档（无卡时补）。
+        # 只在带宠（Lv≥10）且池里还没有 pet_act 卡时补（防重复堆积）。
         if b.pet and int(b.pet.get("level", 0) or 0) >= 10 and not b._enemy_dead():
-            _has_pet_tick = any(_e.get("type") == "pet_tick" for _, _, _e in b._events)
+            _has_pet_tick = any(e.get("uid") == "pet_act" for e in b.tick_effects)
             if not _has_pet_tick:
                 try:
                     _pt = CAST_PET_SKILL * b._ct_cost(b._pet_spd())
-                    b._schedule(b._now + _pt, {"type": "pet_tick"})
+                    b.add_tick_effect("pet_act", b.pet, max(_pt, 0.001),
+                                      uid="pet_act", source="pet")
                 except Exception:
                     pass
         # v178.2 regen_tick（v179 升级通用卡）：tick_effects 已随 to_state/from_state 序列化恢复
@@ -3080,24 +3115,16 @@ class Battle:
                         break
                 # v154：DOT/宠物/Boss 定时/词条回血不排独立事件（由玩家行动 _turn_start / 敌方行动 _boss_mech 触发）
                 elif evt == "pet_tick":
-                    # v154 宠物独立速度读条：pet_tick = 宠物出手（技能立即决定 + 结算，
-                    # 出招跑完 = 生效；宠物技能无命中目标概念——攻击类打主目标、辅助类给玩家）。
-                    # 简化：宠物技能在出手时刻直接结算（读条只做节奏展示，不引入宠物命中/打断）。
-                    # v167.3 宠物连打修复（2026-09-03 玩家实抓 A2 层血蝠一次行动内连打 5-6 次）：
-                    # 根因 = 引擎按真实秒数推进时间，宠物读条周期 (0.76s@spd55) 远短于玩家出手
-                    # (1.56s@spd50)——玩家一次行动会跨过多个 pet_tick 到期点，旧代码把窗口内
-                    # 全部 pet_tick 连续结算 → 宠物密集连打。修复：宠物按自身 skill_interval
-                    # （面板几刻就几刻）限频——_pet_next_at 窗口内只出手一次，后续到期点跳过
-                    # （读条继续走，重排节奏不变），野外/副本同一套逻辑。
-                    if self.pet and not self._enemy_dead():
-                        if self._pet_should_hit():
-                            logs += self._pet_skill_turn(player, logs)
-                            self._pet_mark_hit()
-                            if self.result == "victory":
-                                break
-                    # 重排下次 pet_tick（周期 = 出招 + 收招，按宠物 spd 折算）——
-                    # 即使本次被限频跳过也照常重排，读条节奏不丢
-                    self._reschedule_pet_tick()
+                    # v154 宠物独立速度读条（v179 P4 退役：宠物出手已由通用 pet_act 卡处理）。
+                    # 本分支仅兜底老事件/老档：触发时确保 pet_act 卡存在（幂等），
+                    # 不再直接出手（防与通用调度双份），事件不重排 → 自然消亡。
+                    try:
+                        if self.pet and not self._enemy_dead():
+                            _has = any(e.get("uid") == "pet_act" for e in self.tick_effects)
+                            if not _has:
+                                self._reschedule_pet_tick()
+                    except Exception:
+                        pass
                 elif evt == "regen_tick":
                     # v178.2 regen_tick（v179 退役：周期效果已由通用 tick 卡处理，见
                     # tick_effects + _ensure_regen_effects）。本分支仅兜底老事件/老档：
@@ -7569,11 +7596,20 @@ class Battle:
         return logs
 
     def _reschedule_pet_tick(self):
-        """v154 宠物独立读条：重排下次 pet_tick（周期 = 出招 + 收招，按宠物 spd 折算）。"""
+        """v154 宠物独立读条（v179 P4 升级通用卡）：确保 pet_act 卡存在并刷新下次周期。
+
+        周期 = 出招 + 收招，按宠物 spd 折算。旧实现排 pet_tick 事件；现在 pet_act 卡
+        由 _th_pet_act handler 每次触发后动态更新 interval，通用调度按新周期续排——
+        本方法仅幂等兜底（老调用点/老档补卡）。
+        """
         try:
             _pet_spd = self._pet_spd()
             _pt = CAST_PET_SKILL * self._ct_cost(_pet_spd)
-            self._schedule(self._now + _pt, {"type": "pet_tick"})
+            if self.pet:
+                _has = any(e.get("uid") == "pet_act" for e in self.tick_effects)
+                if not _has:
+                    self.add_tick_effect("pet_act", self.pet, max(_pt, 0.001),
+                                         uid="pet_act", source="pet")
         except Exception:
             pass
 
