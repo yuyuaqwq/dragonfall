@@ -640,26 +640,27 @@ _TICK_HANDLERS["food_hot"] = _th_food_hot
 def _th_pet_act(battle, actor, eff, logs):
     """v179 P4 宠物出手通用 tick：替换 pet_tick 专用事件。
 
-    触发时：若宠物存活且未限频 → 出手（_pet_skill_turn 结算）；然后动态更新
-    eff["interval"] = 宠物下次读条周期（按 spd 折算），由通用调度按新周期续排。
-    宠物死亡/战斗结束 → keep=False 卡移除。
+    v179 修正（鱼鱼 2026-09-06 审计）：宠物面板 skill_interval 定死"每 N 刻一次"
+    （数据 3-4 刻 = 3-4 秒），这就是唯一出手节奏——spd 只影响形象读条不影响出手
+    频率。旧实现"读条周期(0.65-1.03s)排事件 + _pet_should_hit 限频压回 N 秒"是
+    双周期打架的冗余（读条比面板快 3-5 倍才需要限频）——已废弃，卡 interval
+    直接用 skill_interval，出手即出手（不需要限频保护，调度器保证节奏）。
     """
     try:
         if not battle.pet or battle._enemy_dead():
             return [], False  # 无宠物/敌方全灭 → 通道关闭
         out = []
         if not battle._player_dead(battle._last_player or battle.player):
-            if battle._pet_should_hit():
-                _ml = battle._pet_skill_turn(battle._last_player or battle.player, out)
-                if _ml:
-                    out += _ml
-                battle._pet_mark_hit()
-        # 动态更新下次周期（原 _reschedule_pet_tick：now + 读条周期）——通用调度续排用
+            _ml = battle._pet_skill_turn(battle._last_player or battle.player, out)
+            if _ml:
+                out += _ml
+        # interval 固定 = 面板 skill_interval（每 N 刻一次，N×ACT_TICK 秒）——
+        # 不随 spd 变、不需要限频（卡节奏由通用调度保证）
         try:
-            _pt = CAST_PET_SKILL * battle._ct_cost(battle._pet_spd())
-            eff["interval"] = max(float(_pt), 0.001)
+            _iv = battle._pet_interval_sec()  # = skill_interval × ACT_TICK
+            eff["interval"] = max(float(_iv), 0.001)
         except Exception:
-            eff["interval"] = 0.8  # 兜底默认 0.8s
+            eff["interval"] = 3.0  # 兜底默认 3 刻
         return out, True  # 宠物活着就续排
     except Exception:
         return [], False
@@ -910,9 +911,9 @@ class Battle:
             # 本段只服务新开战斗（_now=0）。
             if self.pet and int(self.pet.get("level", 0) or 0) >= 10 and float(getattr(self, "_now", 0.0) or 0.0) <= 0:
                 try:
-                    _pet_spd = self._pet_spd()
-                    _pt = CAST_PET_SKILL * self._ct_cost(_pet_spd)
-                    self.add_tick_effect("pet_act", self.pet, _pt, uid="pet_act",
+                    # v179 修正：初始周期 = 面板 skill_interval（每 N 刻一次），非读条
+                    _pt = self._pet_interval_sec()
+                    self.add_tick_effect("pet_act", self.pet, max(_pt, 0.001), uid="pet_act",
                                          source="pet")
                 except Exception:
                     pass
@@ -1287,7 +1288,8 @@ class Battle:
             _has_pet_tick = any(e.get("uid") == "pet_act" for e in b.tick_effects)
             if not _has_pet_tick:
                 try:
-                    _pt = CAST_PET_SKILL * b._ct_cost(b._pet_spd())
+                    # v179 修正：初始周期 = 面板 skill_interval（每 N 刻一次），非读条
+                    _pt = b._pet_interval_sec()
                     b.add_tick_effect("pet_act", b.pet, max(_pt, 0.001),
                                       uid="pet_act", source="pet")
                 except Exception:
@@ -3079,7 +3081,7 @@ class Battle:
                 # 早停：战斗已有结局（victory/defeat）→ 不再触发后续事件
                 # （旧实现只在特定事件分支 break，战利品/宠物击杀把 result 置 victory 后
                 #   同批后续事件仍可能触发——副本打怪后残留 pet_tick 下回合再出手也源于此）
-                if self.result in ("victory", "defeat") and evt in ("enemy_act", "pet_tick", "cast_done", "dot_tick"):
+                if self.result in ("victory", "defeat") and evt in ("enemy_act", "cast_done"):
                     break
                 if evt == "enemy_act":
                     # v157：skip_enemy=True（副本/PVP 外部驱动敌方）→ 跳过敌方行动，
@@ -3113,45 +3115,6 @@ class Battle:
                     if self._player_dead(player):
                         self.result = "defeat"
                         break
-                # v154：DOT/宠物/Boss 定时/词条回血不排独立事件（由玩家行动 _turn_start / 敌方行动 _boss_mech 触发）
-                elif evt == "pet_tick":
-                    # v154 宠物独立速度读条（v179 P4 退役：宠物出手已由通用 pet_act 卡处理）。
-                    # 本分支仅兜底老事件/老档：触发时确保 pet_act 卡存在（幂等），
-                    # 不再直接出手（防与通用调度双份），事件不重排 → 自然消亡。
-                    try:
-                        if self.pet and not self._enemy_dead():
-                            _has = any(e.get("uid") == "pet_act" for e in self.tick_effects)
-                            if not _has:
-                                self._reschedule_pet_tick()
-                    except Exception:
-                        pass
-                elif evt == "regen_tick":
-                    # v178.2 regen_tick（v179 退役：周期效果已由通用 tick 卡处理，见
-                    # tick_effects + _ensure_regen_effects）。本分支仅兜底老事件/老档：
-                    # 触发时确保挂卡（幂等），不再直接结算（防与通用调度双份结算），
-                    # 事件不重排 → 自然消亡。新战斗不再排本事件。
-                    if not self.result and not self._player_dead(player):
-                        try:
-                            self._ensure_regen_effects(player)
-                        except Exception:
-                            pass
-                elif evt == "dot_tick":
-                    # v178.1 事件驱动 DOT（v179 P2 退役：dot 已由通用 actor_dot 卡处理）。
-                    # 本分支仅兜底老事件/老档：触发时确保该 actor 有 actor_dot 卡（幂等），
-                    # 不再直接结算（防与通用调度双份），事件不重排 → 自然消亡。
-                    _dt_actor = ev.get("unit") if ev.get("side") == "e" else player
-                    if _dt_actor is not None and not self.result:
-                        try:
-                            _deb = _dt_actor.get("debuffs") or {}
-                            if any(_k in DOT_DEFS for _k in _deb):
-                                _is_pl = bool(_dt_actor.get("class_name"))
-                                _uid = f"dot_{'p' if _is_pl else 'e'}_{id(_dt_actor)}"
-                                _has = any(e.get("uid") == _uid for e in self.tick_effects)
-                                if not _has:
-                                    self.add_tick_effect("actor_dot", _dt_actor, ACT_TICK,
-                                                         uid=_uid, source="dot")
-                        except Exception:
-                            pass
                 elif evt == "cast_done":
                     # v154 读条命中制：出招读条结束 = 命中时刻 → 结算（用命中时刻实时状态）
                     side = ev.get("side", "p")
@@ -7603,8 +7566,8 @@ class Battle:
         本方法仅幂等兜底（老调用点/老档补卡）。
         """
         try:
-            _pet_spd = self._pet_spd()
-            _pt = CAST_PET_SKILL * self._ct_cost(_pet_spd)
+            # v179 修正：周期 = 面板 skill_interval（每 N 刻一次），非读条
+            _pt = self._pet_interval_sec()
             if self.pet:
                 _has = any(e.get("uid") == "pet_act" for e in self.tick_effects)
                 if not _has:
