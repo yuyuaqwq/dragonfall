@@ -2896,7 +2896,7 @@ INSTANCES = {
     ],
     "mech": "phase,enrage",
     "hp_mult": 5.2,
-    "atk_mult": 1.18,
+    "atk_mult": 0.75,
     "gold": 458,
     "exp": 7865,
     "materials": [
@@ -3064,8 +3064,8 @@ INSTANCES = {
         },
     ],
     "mech": "phase,phase_open,summon",
-    "hp_mult": 3.1,
-    "atk_mult": 1.36,
+    "hp_mult": 1.57,
+    "atk_mult": 0.79,
     "gold": 561,
     "exp": 9900,
     "materials": [
@@ -3611,7 +3611,7 @@ INSTANCES = {
     ],
     "mech": "phase,summon,phase_open",
     "hp_mult": 8.9,
-    "atk_mult": 1.3,
+    "atk_mult": 0.98,
     "gold": 1111,
     "exp": 21081,
     "materials": [
@@ -3697,4 +3697,9 @@ INSTANCE_BOSS_EQUIP_DROP = {
     "inst_eye_of_storm":    {"boss_equip": "eq_yun_nu_zhi_he", "boss_rate": 0.12, "pool": ["eq_shi_zhi_ling_zhu_shi_jie", "eq_shi_zhi_ling_zhu_mi_yi"], "pool_rate": 0.35, "pity": 12},
     "inst_cloud_sanctum":   {"boss_equip": "eq_sheng_yu_quan_zhang", "boss_rate": 0.1, "pool": ["eq_da_xian_zhe_mi_dian", "eq_tai_tan_hu_tui", "eq_xu_kong_xing_zhe_zhi_xue", "eq_sheng_hui_xiong_jia", "eq_bu_mie_yi_zhi", "eq_xing_hui_zhi_guan", "eq_sheng_yu_quan_zhang"], "pool_rate": 0.35, "pity": 12},
     "inst_abyss_throne":    {"boss_equip": "eq_sui_xing_quan_tao", "boss_rate": 0.1, "pool": ["eq_yuan_su_shi_tu_zhi_guan", "eq_yuan_su_shi_tu_chang_pao", "eq_yuan_su_shi_tu_fa_zhang", "eq_yuan_su_shi_tu_zhui_shi", "eq_sui_xing_quan_tao", "eq_an_xing_quan_tao"], "pool_rate": 0.35, "pity": 12},
+    "inst_rust_dock":       {"pool": ["eq_jin_gou_wan_dao", "eq_qi_shi_chang_xue", "eq_mi_wu_xiang_lian"], "pool_rate": 0.35, "boss_rate": 0.0},
+    "inst_candle_crypt":    {"pool": ["eq_sheng_guang_chang_jian", "eq_sheng_guang_zhan_kui", "eq_sheng_dian_zhan_chui"], "pool_rate": 0.35, "boss_rate": 0.0},
+    "inst_thunder_mine":    {"pool": ["eq_lie_zong_liao_ya", "eq_qi_shi_chang_xue", "eq_sheng_guang_chang_jian"], "pool_rate": 0.35, "boss_rate": 0.0},
+    "inst_whirl_arena":     {"pool": ["eq_xu_shi_quan_tao", "eq_mao_yan_shi_xiong_zhen", "eq_sheng_guang_zhan_tui"], "pool_rate": 0.35, "boss_rate": 0.0},
+    "inst_blacktide_opera": {"pool": ["eq_jing_ling_lian_jia", "eq_hai_shen_chang_xue", "eq_xing_yu_xiang_lian"], "pool_rate": 0.35, "boss_rate": 0.0},
 }
