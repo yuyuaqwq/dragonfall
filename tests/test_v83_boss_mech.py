@@ -37,20 +37,21 @@ async def main():
     clean_db()
     m = Main(None)
 
-    # ---- 1. 护盾 shield ----
+    # ---- 1. 护盾 shield（v177 actor 化：盾存 enemy["shields"]["boss"]={value,halve}）----
     b = mk_boss("shield")
-    b["boss_shield"] = int(b["max_hp"] * 0.20)
+    b.setdefault("shields", {})["boss"] = {"value": int(b["max_hp"] * 0.20), "halve": True}
     bt = BT.Battle("monster", b, {}, player=mk_player())
-    bt.e_buffs = {}
     dmg = bt._boss_dmg_filter(100, mk_player(), [])
     check("护盾期受伤减半", dmg == 50, str(dmg))
-    check("护盾被吸收", bt.enemy["boss_shield"] == 200 - 50, str(bt.enemy.get("boss_shield")))
+    _sb = bt.enemy.get("shields", {}).get("boss") or {}
+    check("护盾被吸收", _sb.get("value") == 200 - 50, str(bt.enemy.get("shields")))
     # 破盾
     bt2 = BT.Battle("monster", mk_boss("shield"), {}, player=mk_player())
-    bt2.enemy["boss_shield"] = 30
+    bt2.enemy.setdefault("shields", {})["boss"] = {"value": 30, "halve": True}
     logs = []
     dmg2 = bt2._boss_dmg_filter(100, mk_player(), logs)
-    check("破盾后移除", "boss_shield" not in bt2.enemy and dmg2 == 50, f"dmg={dmg2} shield={bt2.enemy.get('boss_shield')}")
+    check("破盾后移除", not bt2.enemy.get("shields") and dmg2 == 50,
+          f"dmg={dmg2} shields={bt2.enemy.get('shields')}")
     check("破盾提示", any("护盾破碎" in x for x in logs), str(logs))
     # 护盾没了恢复全额伤害
     dmg3 = bt2._boss_dmg_filter(100, mk_player(), [])
@@ -133,7 +134,9 @@ async def main():
           f"{logs3} summoned_round={bt.enemy.get('summoned_round')}")
 
     # ---- 6. instances 数据完整性：22 副本 mech 全合法 ----
-    legal = {"enrage", "summon", "heal", "shield", "phase", "stacks", "reflect"}
+    # v180：reflect 是被动（不在 BOSS_MECHS 注册表）；v116+ 新增 phase_open/player_low/pv_broken
+    legal = {"enrage", "summon", "heal", "shield", "phase", "stacks", "reflect",
+             "phase_open", "player_low", "pv_broken"}
     bad = []
     for iid, inst in C.INSTANCES.items():
         mc = inst.get("mech", "")

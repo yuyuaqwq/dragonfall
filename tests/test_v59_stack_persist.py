@@ -27,7 +27,8 @@ def test_serialize_roundtrip():
 
 def test_two_rounds_stack_persist():
     print("【跨回合叠层持久化（核心 bug 修复）】")
-    player = {"hp": 1000, "max_hp": 1000, "mp": 500, "max_mp": 500,
+    player = {"class_name": "cls_zhan_shi", "qq_id": "p_test",  # v180-B：玩家 actor 需身份标识
+              "hp": 1000, "max_hp": 1000, "mp": 500, "max_mp": 500,
               "atk": 100, "def": 50, "matk": 80, "mdef": 50, "spd": 10, "crit": 0.05,
               "equipment": {}, "skills": [], "skill_levels": {}, "learned_skills": []}
     enemy = {"name": "靶子", "lv": 10, "hp": 99999, "max_hp": 99999,
@@ -45,7 +46,8 @@ def test_two_rounds_stack_persist():
 
 def test_shield_persist_and_absorb():
     print("【护盾跨回合 + 吸收】")
-    player = {"hp": 1000, "max_hp": 1000, "mp": 500, "max_mp": 500,
+    player = {"class_name": "cls_zhan_shi", "qq_id": "p_shield_test",  # v180-B：玩家 actor 需身份标识
+              "hp": 1000, "max_hp": 1000, "mp": 500, "max_mp": 500,
               "atk": 100, "def": 50, "matk": 80, "mdef": 50, "spd": 10, "crit": 0.05,
               "equipment": {}, "skills": [], "skill_levels": {}, "learned_skills": []}
     enemy = {"name": "靶子", "lv": 10, "hp": 99999, "max_hp": 99999,
