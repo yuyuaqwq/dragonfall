@@ -9607,15 +9607,18 @@ class Battle:
                                    actor.get("mp", 0) + (spent + 1) // 2)
                 logs.append(f"✨ 返还了 {(spent + 1) // 2} 点魔力。")
         # 24 章宠物技能·影袭：替主人挡一次攻击（主动保护优先于自身闪避，拦截后直接结束本次伤害）
-        dmg = self._pet_block_check(dmg, logs)
-        if dmg <= 0:
-            # O116 还原原顺序：先报攻击伤害，再报挡刀
-            _pl = self._drain_pending_dmg()
-            if _pl:
-                logs[:] = _pl + logs
-            return 0
-        # v107 召唤物挡刀：概率由召唤物承受（拦截优先于玩家闪避/格挡）
-        dmg = self._summon_block_check(actor, dmg, logs)
+        # v180-B：宠物/召唤物挡刀只服务主人（玩家受击）——怪受击也调 _damage_actor 后
+        # 此段曾对怪触发（召唤技能打怪→怪受击→玩家召唤物挡刀自杀，v177 actor 化回归）
+        if _is_player:
+            dmg = self._pet_block_check(dmg, logs)
+            if dmg <= 0:
+                # O116 还原原顺序：先报攻击伤害，再报挡刀
+                _pl = self._drain_pending_dmg()
+                if _pl:
+                    logs[:] = _pl + logs
+                return 0
+            # v107 召唤物挡刀：概率由召唤物承受（拦截优先于玩家闪避/格挡）
+            dmg = self._summon_block_check(actor, dmg, logs)
         if dmg <= 0:
             # O116 还原原顺序：先报攻击伤害，再报挡刀
             _pl = self._drain_pending_dmg()
