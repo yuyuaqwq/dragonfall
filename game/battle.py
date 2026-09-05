@@ -38,7 +38,7 @@ from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
 from .core.skill_pipeline import _AttackCast  # v176 技能攻击结算管线（逐步迁入 _player_skill 攻击分支）
 from .core.skill_kinds import (  # v176 去魔法字符串：类型常量替代散落中文比较
-    K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_TRUE, K_TAUNT,
+    K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_TRUE, K_TAUNT, K_SUMMON,
     is_damage_kind, seg_of,
 )
 from .core.constants import (  # v130.7 意见#28：逃跑成功率修正常量（core/__init__ 未导出清单，直连避免动聚合层）
@@ -323,6 +323,7 @@ class Battle:
         # 随战斗序列化，同 mech_stacks 机制；阶段五引擎先挂载，技能数据落地后消费
         self.resources: dict = {}          # v2.0 核心资源（怒气/元素亲和/精力/信仰/连击点/气），随战斗序列化
         self._cast_ctx: dict | None = None       # v177 施法者 actor 上下文（None=玩家；怪施法=unit——管线状态路由）
+        self._target_ctx: dict | None = None     # v177 技能管线目标 actor（None=当前敌人；怪施法玩家技能=玩家）
 
         self.cooldown: dict = {}           # v2.0 技能冷却（技能名 → 剩余刻数），随战斗序列化；刻结束递减
         self.combo_seq: list = []          # v2.0 拳师连招序列（拳/踢/掌 tag 记录，满 3 触发三连）
@@ -896,6 +897,35 @@ class Battle:
     # ---------------- v177 施法者状态路由（玩家技能管线 actor 化） ----------------
     # 管线内 self.p_buffs/self.resources/self.mech_stacks 是"当前施法者"状态：
     # 玩家施法 → 焦点字段（原语义）；怪物施法（_cast_ctx=unit）→ unit 自身字段。
+    def _tgt(self) -> dict:
+        """v177 技能管线目标 actor：玩家施法=当前敌人；怪物施法玩家技能=玩家（_target_ctx 设置）。"""
+        u = self._target_ctx
+        if u is not None:
+            return u
+        return self.enemy
+
+    def _tgt_buffs(self) -> dict:
+        """v177 技能管线目标 buffs（同 _tgt，buff actor 化——目标 buffs 在目标 dict 上）。"""
+        return self._tgt().setdefault("buffs", {})
+
+    def _tgt_is_player(self) -> bool:
+        """v177 管线目标是否为玩家（怪物施法玩家技能时 _target_ctx=玩家 → True）。"""
+        u = self._target_ctx
+        return u is not None and bool(u.get("class_name"))
+
+    def _deal_hit(self, dmg: int, logs: list, wake_sleep: bool = True, source=None) -> int:
+        """v177 技能管线伤害落点（双向）：玩家施法 → 打敌人（原 _damage_enemy 全语义）；
+        怪物施法玩家技能（_target_ctx=玩家）→ 打玩家（走 _damage_actor 玩家承伤链）。
+        返回实际扣血。"""
+        if dmg <= 0:
+            return 0
+        try:
+            if self._tgt_is_player():
+                return self._damage_actor(self._tgt(), dmg, logs, source=str(source or "敌人"))
+            return self._damage_enemy(dmg, logs, wake_sleep=wake_sleep, source=source)
+        except Exception:
+            return dmg
+
     def _cast_buffs(self) -> dict:
         u = self._cast_ctx
         if u is not None:
@@ -4370,11 +4400,11 @@ class Battle:
         # v151 刻制审计：禁疗/重伤消费端修复——敌方 heal_down（层数×10%）/ _anti_heal_pct（百分比）
         # 此前 weapon_effects/affix_effects 只写入不消费（死数据，禁疗无效）
         try:
-            _ehd = int((self.e_buffs or {}).get("heal_down", 0) or 0)
+            _ehd = int((self._tgt_buffs() or {}).get("heal_down", 0) or 0)
             if _ehd > 0:
                 heal = max(0, int(heal * (1 - min(_ehd * 0.10, 0.50))))
                 logs.append(f"🩸 敌方禁疗：治疗量 -{min(_ehd * 10, 50)}%！")
-            _aheal = float((self.e_buffs or {}).get("_anti_heal_pct", 0) or 0)
+            _aheal = float((self._tgt_buffs() or {}).get("_anti_heal_pct", 0) or 0)
             if _aheal > 0:
                 heal = max(0, int(heal * (1 - min(_aheal, 0.80))))
                 logs.append(f"🩸 敌方重伤：治疗量 -{int(min(_aheal, 0.80) * 100)}%！")
@@ -4576,7 +4606,7 @@ class Battle:
         _dam = (self._cast_eff() or {}).get("dot_amp")
         if _dam and int(_dam.get("turns_left", 0) or 0) > 0 and total > 0:
             _per = max(1, int(_dam.get("layer_per_hit", 1) or 1))
-            _deb = self.enemy.setdefault("debuffs", {})
+            _deb = self._tgt().setdefault("debuffs", {})
             for _dk in ("poison", "burn", "bleed"):
                 if _deb.get(_dk, {}).get("n", 0):
                     _d = _deb.setdefault(_dk, {"n": 0, "mult": 1.0})
@@ -4625,7 +4655,7 @@ class Battle:
                 _apply_any_ctrl = True
             if _apply_any_ctrl:
                 for _pn_dg, _ps_dg in self._proc_pm(player)["proc"].get("dirge_ctrl_up", []):
-                    _eb_dg = self.e_buffs
+                    _eb_dg = self._tgt_buffs()
                     for _ck_dg in _ctrl_keys_dg:
                         if _eb_dg.get(_ck_dg):
                             _eb_dg[_ck_dg] = int(_eb_dg[_ck_dg]) + int(_ps_dg.get("add", 1) or 1)
@@ -4641,7 +4671,7 @@ class Battle:
         if _shaken_gain:
             try:
                 from .core.battle_bars import bar_gain, bar_should_trigger, bar_trigger
-                _tgt = getattr(self, "_active_target", None) or self.enemy
+                _tgt = getattr(self, "_active_target", None) or self._tgt()
                 _sg = int(_shaken_gain)
                 bar_gain(_tgt, "shaken", _sg, logs)
                 if bar_should_trigger(_tgt, "shaken"):
@@ -4670,8 +4700,8 @@ class Battle:
             player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
             logs.append(f"💉 『{skill_name}』汲取了 {heal} 点生命！")
         # v2.0 破防（pierce 数据字段）：直接给敌方降防
-        if info.get("pierce") and self.enemy.get("hp", 0) > 0:
-            self.e_buffs["def_down"] = E.skill_buff_turns(lv)
+        if info.get("pierce") and self._tgt().get("hp", 0) > 0:
+            self._tgt_buffs()["def_down"] = E.skill_buff_turns(lv)
         # v2.0 核心资源：攻击命中获取（战士怒气/刺客连击点/拳师气，res_gain 覆盖默认）
         # v174.1 普攻技能化语义：basic 技（basic_skill，普攻）命中走"攻击"事件（on_attack），
         # 非 basic 技能走 on_skill——保证"释放技能才触发"的被动/词条不会因普攻被误触。
@@ -4734,7 +4764,7 @@ class Battle:
         tags = []
         if is_crit:
             tags.append("💥暴击")
-        if mech in MECH_FULL_HP_CRIT and self.enemy.get("hp", 0) >= self.enemy.get("max_hp", 1):
+        if mech in MECH_FULL_HP_CRIT and self._tgt().get("hp", 0) >= self._tgt().get("max_hp", 1):
             tags.append("满血影袭必暴")
         if frozen_bonus > 1.0:
             tags.append("❄️碎冰增伤")
@@ -4787,7 +4817,7 @@ class Battle:
                 self._elem_sync_bonus = False
                 extra_layers += 1
                 logs.append("✨ 元素同调：同系连发，挂印 +1 层！")
-            E.element_mark_apply(self.e_buffs, element, extra_layers)
+            E.element_mark_apply(self._tgt_buffs(), element, extra_layers)
             # v130.2 目标侧 element_marks 登记（每系上限 3；仅命中叠加——mage_转职.md §1.0①）
             if total > 0:
                 new_marks = self._elem_mark_apply(element, layers=extra_layers, player=player)
@@ -4800,7 +4830,7 @@ class Battle:
             # v104 R3 P1-1：寒霜亲和——冰系技能命中附带减速 2 刻
             if element == "ice":
                 for _pn, _ps in _procs.get("ice_slow", []):
-                    self.e_buffs["spd_down"] = max(self.e_buffs.get("spd_down", 0), 2)
+                    self._tgt_buffs()["spd_down"] = max(self._tgt_buffs().get("spd_down", 0), 2)
                     logs.append("❄️ 寒霜亲和：敌人被减速！")
             if self._cast_res().get("element") is not None:
                 self._cast_res()["element"] = element
@@ -4877,11 +4907,12 @@ class Battle:
             del self._cast_stacks()["novice_spark"]
             logs.append("✨ 星火x1.1：普攻伤害 +10%！")
         # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
-        if self._monster_dodge_check(logs):
+        # v177 双向：玩家施法=怪闪避（_monster_dodge_check）；怪施法玩家技能=目标玩家闪避由 _deal_hit 内 _damage_actor 处理
+        if not self._tgt_is_player() and self._monster_dodge_check(logs):
             total = 0
         else:
             aoe = info.get("aoe")
-            if aoe:
+            if aoe and not self._tgt_is_player():
                 # v114/v2 AOE：结构语义化 scope（True→"all"），技能 reach 覆盖职业 reach，falloff 衰减
                 scope = "all" if aoe is True else str(aoe)
                 self._aoe_reach = int(info.get("reach") or 3)
@@ -4890,7 +4921,8 @@ class Battle:
             else:
                 # v136 等级压制：_damage_enemy 内部按等级差压制实际伤害，返回值=真实扣血，
                 # 回写 total 让后续日志/吸血/结算都反映压制后的值（原 total 未回写→日志虚高）
-                _real = self._damage_enemy(total, logs)
+                # v177 双向：_deal_hit 按目标 actor 分发（怪施法打玩家）
+                _real = self._deal_hit(total, logs, source=skill_name)
                 _boss_dmg = _real
                 if _real != total:
                     total = _real
@@ -4905,7 +4937,7 @@ class Battle:
             else:
                 # v127.3 多怪时日志带目标名（a1 指定/自动选择都显示打了谁；单怪保持原文案）
                 _alive_n2 = sum(1 for u in self.enemies if u.get("hp", 0) > 0)
-                _tg_d2 = getattr(self, "_active_target", None) or self.enemy
+                _tg_d2 = getattr(self, "_active_target", None) or self._tgt()
                 _tgtxt2 = f"对【{_tg_d2.get('name', '敌人')}】" if _alive_n2 > 1 and _tg_d2 else ""
                 logs.append((f"你{_verb}" if _verb else f"你施展【{skill_name}】")
                             + f"，{_tgtxt2}造成 {total} 点伤害！")
@@ -4943,7 +4975,7 @@ class Battle:
         """
         # 机制：冰霜（冻结目标碎冰增伤）——查表 MECH_FROZEN_MULT（v125.2 B1）
         frozen_bonus = 1.0
-        if mech in MECH_FROZEN_MULT and "freeze" in self.e_buffs:
+        if mech in MECH_FROZEN_MULT and "freeze" in self._tgt_buffs():
             frozen_bonus = MECH_FROZEN_MULT[mech]
         # 机制：圣光/毒/影/气/审判/狂暴 层数加成
         stack_bonus = self._mech_stack_bonus(mech, p_mech, info)
@@ -4972,7 +5004,7 @@ class Battle:
         reaction_mult = 1.0
         reaction_log = ""
         if element and E.ELEMENT_MARKS.get(element):
-            marks = {k: v for k, v in self.e_buffs.items() if k in E.ELEMENT_MARKS.values()}
+            marks = {k: v for k, v in self._tgt_buffs().items() if k in E.ELEMENT_MARKS.values()}
             r = E.element_reaction(element, marks)
             if r:
                 reaction_mult = r["mult"]
@@ -4988,7 +5020,7 @@ class Battle:
                     reaction_log = f"💥超载爆发！额外 {aoe_dmg} 点全体伤害！"
                 # 冻结：目标冻结 1 刻
                 elif r["extra"] == "freeze":
-                    self.e_buffs["freeze"] = 1
+                    self._tgt_buffs()["freeze"] = 1
                     reaction_log = "❄️冻结！目标被冰封 1 刻！"
                 # 感电：连击 +1（追加一次伤害）
                 elif r["extra"] == "chain":
@@ -4997,7 +5029,7 @@ class Battle:
                 # 清除印记（感电保留）
                 if r["clear"]:
                     for mk in E.ELEMENT_MARKS.values():
-                        self.e_buffs.pop(mk, None)
+                        self._tgt_buffs().pop(mk, None)
         # v130.2 攻线·元素：引爆技反应表（cond type='reaction'，消耗充能时按引爆系+目标印记结算）。
         # 独立于旧 e_buffs 反应体系，读目标侧 element_marks（mage_转职.md §1.0②）
         if info.get("cond", {}).get("type") == "reaction" and element:
@@ -5198,7 +5230,7 @@ class Battle:
         if self._energy_high_crit(player, info):
             is_crit = is_crit or random.random() < float(ENERGY_HIGH.get("crit_bonus", 0.10) or 0.10)
         # v104 R3 P1-1：猎手本能——对标记目标暴击 +10%（e_buffs["mark"] 为目标易伤标记）
-        if "mark" in self.e_buffs:
+        if "mark" in self._tgt_buffs():
             for _pn, _ps in self._passive_map(player)["stat"]:
                 if _ps.get("stat") == "crit_mark" and random.random() < float(_ps.get("mult", 0.1)):
                     is_crit = True
@@ -5221,7 +5253,7 @@ class Battle:
             est["def"] = int(est["def"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
             est["mdef"] = int(est["mdef"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
         # 机制：影袭（满血必暴）——查表 MECH_FULL_HP_CRIT（v125.2 B1）
-        if mech in MECH_FULL_HP_CRIT and self.enemy.get("hp", 0) >= self.enemy.get("max_hp", 1):
+        if mech in MECH_FULL_HP_CRIT and self._tgt().get("hp", 0) >= self._tgt().get("max_hp", 1):
             is_crit = True
         # v130.2f2 暮影潜行乘区：潜行出手时 终结·破影一击 ×1.5 / 幽影刃 ×1.25（数据驱动
         #   SHADOW_STEALTH_DMG_MULT，assassin.md §5.2；非潜行/非表内技能恒 1.0，不影响其他职业）
@@ -5355,9 +5387,9 @@ class Battle:
             return self._skill_buff(st, skill_name, info, player, lv, mech, mval, p_mech, logs)
         if kind == K_TAUNT:
             # v51 挑衅怒吼：嘲讽（单人=敌方降攻+叠狂暴；副本=instance 层拉仇恨）
-            self.e_buffs["mon_atk_down"] = E.skill_buff_turns(lv)
+            self._tgt_buffs()["mon_atk_down"] = E.skill_buff_turns(lv)
             self._apply_mech_gain("rage", 1, p_mech, logs, skill_name)
-            logs.append(f"📢 你大声挑衅【{self.enemy.get('name', '敌人')}】！敌人恼羞成怒，攻击力下降！")
+            logs.append(f"📢 你大声挑衅【{self._tgt().get('name', '敌人')}】！敌人恼羞成怒，攻击力下降！")
             if info.get("team"):
                 # v173.5 全层仇恨：team taunt 事件带技能配置（hate_taunt_mult/hate_lock_turns 数据驱动）
                 self.team_effects.append({"kind": "taunt", "lv": lv, "cfg": info})
@@ -5809,6 +5841,50 @@ class Battle:
                 s = None
         return s or {}
 
+    def _monster_cast_playerskill(self, unit: dict, skill_name: str, target_player: dict, ev: dict) -> tuple:
+        """v177 怪物施放玩家技能 → 完整玩家技能管线（双向 actor：攻方=怪/目标=玩家）。
+        玩家技能全语义一次获得（exprs/cond/多段/mech/吸血/暴击/元素/标记等——不再逐项补）。
+        返回 (logs, 对玩家总伤害)。增益/治疗目标=施法者自身（怪），伤害目标=玩家。"""
+        info = self._lookup_skill_info(skill_name)
+        logs = []
+        if not info:
+            return logs, 0
+        ename = unit.get("name", "怪物")
+        _saved_ctx = self._cast_ctx
+        _saved_tgt = self._target_ctx
+        self._cast_ctx = unit
+        self._target_ctx = target_player
+        try:
+            # 怪面板 + 技能等级（玩家 exprs 里 skill_lv/player_lv 成长用怪等级折算）
+            st = self._enemy_stats(unit)
+            st = dict(st)
+            _slv = max(1, min(20, int(unit.get("lv", 1) or 1) // 2))
+            st["_skill_lv"] = _slv
+            st["_player_lv"] = int(unit.get("lv", 1) or 1)
+            # 攻击方临时技能等级（管线 E.skill_level_of 读 player.skill_levels——怪没有，管线内 lv 会=1；
+            # 这里把折算等级写 unit 临时字段供管线 skill_level_of 读取）
+            _had_skl = unit.get("skill_levels")
+            unit["skill_levels"] = {skill_name: _slv}
+            # 管线造成的玩家伤害已经 _deal_hit 落 _damage_actor(player)——从玩家 hp 变化反推
+            _hp0 = int(target_player.get("hp", 0) or 0)  # 管线前快照（扣血基准）
+            try:
+                # target=None → 治疗/增益目标=施法者自己（管线 _resolve_ally_target(None) 单人=自己）
+                plogs = self._player_skill(st, skill_name, info, unit, target=None)
+            finally:
+                if _had_skl is None:
+                    unit.pop("skill_levels", None)
+                else:
+                    unit["skill_levels"] = _had_skl
+            logs += plogs
+            # 玩家 hp 变化由 _damage_actor 落地（承伤链可能回血——粗略取扣血）
+            _dmg_total = max(0, _hp0 - int(target_player.get("hp", 0) or 0))
+            return logs, _dmg_total
+        except Exception:
+            return logs, 0
+        finally:
+            self._cast_ctx = _saved_ctx
+            self._target_ctx = _saved_tgt
+
     def _enemy_cast_done(self, player: dict, unit: dict, ev: dict) -> tuple:
         """v154 敌方对称读条：敌方出招读条结束（cast_done 事件触发）→ 结算伤害。
         返回 (日志列表, 对玩家伤害)。
@@ -5835,6 +5911,13 @@ class Battle:
             if not sinfo:
                 _kind = "atk"
             else:
+                # v177 怪物施放玩家技能（技能 key 属于玩家全表）→ 完整玩家技能管线
+                # （exprs/cond/多段/mech/治疗/增益/召唤全语义——不再走下方简化结算）
+                try:
+                    if E.skill_owner_cls(ev.get("skill") or ""):
+                        return self._monster_cast_playerskill(e, ev.get("skill"), player, ev)
+                except Exception:
+                    pass
                 # v169.3 等级压制增伤：怪高玩家 N 级 → 本技能段伤害 ×(1+0.02N)（cap ×3）
                 _lpm = self._enemy_lv_pressure(player, e)
                 sname = sinfo.get("name", ev.get("skill", "?"))
@@ -5858,6 +5941,17 @@ class Battle:
                             _hl = int(e.get("max_hp", 1) * 0.10)
                             e["hp"] = min(e.get("max_hp", e.get("hp", 0)), e.get("hp", 0) + _hl)
                             logs.append(f"💚 【{ename}】使用了【{sname}】，回复 {_hl} 点生命！")
+                    except Exception:
+                        pass
+                    return logs, 0
+                # v177 召唤技能（玩家技能 kind=召唤 + summon 字段）→ 怪物召唤援军（敌方阵列 +1）
+                if kind == K_SUMMON and sinfo.get("summon"):
+                    try:
+                        _mins = self._summon_minions(1)
+                        if _mins:
+                            logs.append(f"🜲 【{ename}】使用了【{sname}】，召唤了援军【{_mins[0].get('name', '爪牙')}】！")
+                        else:
+                            logs.append(f"⚠️ 【{ename}】使用了【{sname}】，但援军已达上限！")
                     except Exception:
                         pass
                     return logs, 0
@@ -5973,11 +6067,28 @@ class Battle:
                 # v63 怪物技能控制（读条结束命中时施加）
                 mmech = sinfo.get("mech")
                 if mmech:
-                    from .core.battle_mech import MON_CTRL_EFFECTS
+                    from .core.battle_mech import MON_CTRL_EFFECTS, MECH_EFFECTS
                     ctrl_fn = MON_CTRL_EFFECTS.get(mmech)
                     if ctrl_fn:
                         mval = int(sinfo.get("mech_val", 1) or 1)
                         ctrl_fn(self, player, logs, mval)
+                    else:
+                        # v177 玩家技能 mech 接线：怪物施放带 mech 的玩家技能 → 走玩家机制注册表
+                        # （MECH_EFFECTS handler 写 p_mech 参数 = 怪 stacks；_cast_ctx=e 路由自身 buffs/资源）
+                        try:
+                            _mh_fn = MECH_EFFECTS.get(mmech)
+                            if _mh_fn:
+                                _mval_m = int(sinfo.get("mech_val", 1) or 1)
+                                _pmech_m = e.setdefault("stacks", {})
+                                _saved_ctx2 = self._cast_ctx
+                                self._cast_ctx = e
+                                try:
+                                    _mh_fn(self, _mval_m, _pmech_m, dmg, logs,
+                                           sname, is_crit, sinfo)
+                                finally:
+                                    self._cast_ctx = _saved_ctx2
+                        except Exception:
+                            pass
                 # v177 actor 资源：怪物技能带 res_gain（如狂暴 Boss 攒怒技）→ 命中给怪物 actor 攒资源
                 try:
                     _rg_s = sinfo.get("res_gain")

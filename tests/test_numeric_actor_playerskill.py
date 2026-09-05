@@ -71,14 +71,16 @@ check("_lookup_skill_info 查玩家技能", s.get("name") == "挥砍", str(s.get
 s_old = b._lookup_skill_info("ms_ai_hao")
 check("_lookup_skill_info 查怪物技能(旧表)", s_old.get("name") == "哀嚎", str(s_old.get("name")))
 
-# 3. 怪物施放玩家伤害技能 → 有伤害
+# 3. 怪物施放玩家伤害技能 → 有伤害（完整管线：伤害+mech+日志）
 print("\n-- 怪物放玩家伤害技 --")
 mon["hp"] = 8000
 player["hp"] = 5000
 random.seed(2)
 logs, dmg = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": "sk_hui_kan"})
 check("挥砍造成伤害>0", dmg > 100, f"dmg={dmg}")
-check("挥砍有伤害日志", any("挥砍" in l for l in logs) or dmg > 0)
+check("玩家被打掉血", player["hp"] < 5000, f"玩家hp={player['hp']}")
+check("战意叠层(完整管线)", int((mon.get("stacks") or {}).get("zhan_yi", 0)) > 0, str(mon.get("stacks")))
+check("伤害日志", any("伤害" in l for l in logs), str(logs[:2]))
 
 # 4. 怪物施放玩家治疗技能 → 自疗
 print("\n-- 怪物放玩家治疗技 --")
@@ -97,7 +99,7 @@ if heal_key:
     logs2, dmg2 = b2._enemy_cast_done(player, priest, {"kind": "skill", "skill": heal_key})
     check("牧师怪治疗回血", priest["hp"] > 1000, f"hp={priest['hp']}")
     check("治疗无伤害", dmg2 == 0, f"dmg={dmg2}")
-    check("治疗日志", any("回复" in l for l in logs2), str(logs2[:1]))
+    check("治疗日志", any("治愈" in l or "回复" in l or "治疗" in l for l in logs2), str(logs2[:1]))
 
 print(f"\n结果: {PASS} 通过 / {FAIL} 失败")
 sys.exit(1 if FAIL else 0)
