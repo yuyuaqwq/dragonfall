@@ -1260,7 +1260,8 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -2250,7 +2251,8 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -8135,7 +8137,8 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -12048,7 +12051,8 @@ SUBAREAS = {
         ],
         "boss": None,
         "funcs": [
-          "explore"
+          "explore",
+          "instance"
         ],
         "shop": False,
         "healer": False
@@ -12739,5 +12743,456 @@ SUBAREAS = {
         "shop": False,
         "healer": False
       }
-    ]
+    ],
+    "rust_dock": [
+        {
+            "id": "rust_dock_1",
+            "name": "闸门水道",
+            "icon": "🚪",
+            "desc": "铁港码头货仓区下的锈死闸门，推开后是一条半淹的水道，锈壳蟹攀在闸壁上，水鬼从水面下探出半个头。远处船坞深处传来钳甲碰撞的闷响。",
+            "type": "副本",
+            "lv": 25,
+            "npcs": [],
+            "monsters": [
+                [
+                    "m_rust_crab",
+                    "锈壳蟹",
+                    "tank",
+                    25,
+                    ["ms_qian_ji", "ms_ying_hua"],
+                    ["锈潮蟹甲"]
+                ],
+                [
+                    "m_water_ghost",
+                    "水鬼",
+                    "dps",
+                    27,
+                    ["ms_zhao_ji", "ms_chan_rao"],
+                    ["锈潮蟹甲"]
+                ],
+            ],
+            "elite": None,
+            "boss": None,
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "rust_dock_2",
+            "name": "沉船坞池",
+            "icon": "⚓",
+            "desc": "旧船坞最大的干坞池，池底沉着几十条烂船的龙骨。海盗水手在龙骨间翻找值钱的东西，一条锈迹斑斑的水手鬼在桅杆残骸间飘荡，哼着走调的水手歌。",
+            "type": "副本",
+            "lv": 28,
+            "npcs": [],
+            "monsters": [
+                [
+                    "m_pirate",
+                    "海盗水手",
+                    "dps",
+                    28,
+                    ["ms_wan_dao"],
+                    ["锈潮蟹甲"]
+                ],
+            ],
+            "elite": [
+                "e_rust_rigger",
+                "锈潮水手鬼",
+                "elite",
+                30,
+                ["ms_xiu_jian", "ms_ai_hao"],
+                ["锈潮蟹甲"]
+            ],
+            "boss": None,
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "rust_dock_3",
+            "name": "蟹王船底",
+            "icon": "🦀",
+            "desc": "最深处一条倾覆的三桅大船船底朝天搁在淤泥里，巨钳蟹王·锈钳把船底当成了巢穴。它的双钳上挂满沉船船牌，锈甲在幽绿的水光里泛着金属的冷光。",
+            "type": "副本",
+            "lv": 31,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": [
+                "b_rust_crab",
+                "巨钳蟹王·锈钳",
+                "boss",
+                31,
+                [],   # 技能占位：副本战斗实际用 inst.boss（Boss 数据片段合入后生效）
+                ["锈潮蟹甲"]
+            ],
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "candle_crypt": [
+        {
+            "id": "candle_crypt_1",
+            "name": "蜡封廊道",
+            "icon": "🕯️",
+            "desc": "大圣堂地下的封存廊道，地面烛油凝成厚壳，踩上去发黏。烛台的火苗无风自动，烛魂在火光间聚散，暗影教徒的祈祷声从墙缝里渗出来。",
+            "type": "副本",
+            "lv": 29,
+            "npcs": [],
+            "monsters": [
+                [
+                    "m_candle_wraith",
+                    "烛魂",
+                    "caster",
+                    29,
+                    ["ms_zhuo_shao", "ms_you_ling"],
+                    ["烛影烛泪"]
+                ],
+                [
+                    "m_cultist",
+                    "暗影教徒",
+                    "dps",
+                    30,
+                    ["ms_an_ying_dan", "ms_an_ying_zhao"],
+                    ["烛影烛泪"]
+                ],
+            ],
+            "elite": None,
+            "boss": None,
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "candle_crypt_2",
+            "name": "涂目圣像厅",
+            "icon": "⛪",
+            "desc": "穹顶绘满圣像的礼拜厅，所有圣像的眼睛都被蜡封住。墓窟祭司站在圣坛前低声诵经，烛卫举着熄灭的烛台守在两侧——这里的光，只够照亮死者的路。",
+            "type": "副本",
+            "lv": 33,
+            "npcs": [],
+            "monsters": [
+                [
+                    "m_grave_priest",
+                    "墓窟祭司",
+                    "healer",
+                    33,
+                    ["ms_hei_an_zhi_liao", "ms_an_ying_dan"],
+                    ["烛影烛泪"]
+                ],
+            ],
+            "elite": [
+                "e_candle_guard",
+                "烛卫",
+                "elite",
+                34,
+                ["ms_sheng_guang_dan", "ms_dun_ji"],
+                ["烛影烛泪"]
+            ],
+            "boss": None,
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "candle_crypt_3",
+            "name": "烛影礼拜堂",
+            "icon": "🕯️",
+            "desc": "墓窟最深处的小礼拜堂，一圈圈烛台围成同心圆，烛影主教·赫尔嘉站在圆心。她身后的讲经台上摊着一本没有字的圣典，封皮烫着两只被涂掉的眼睛。",
+            "type": "副本",
+            "lv": 35,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": [
+                "b_candle_bishop",
+                "烛影主教·赫尔嘉",
+                "boss",
+                35,
+                [],   # 技能占位：副本战斗实际用 inst.boss（Boss 数据片段合入后生效）
+                ["烛影烛泪"]
+            ],
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "thunder_mine": [
+        {
+            "id": "thunder_mine_1",
+            "name": "雷光巷道",
+            "icon": "⛏️",
+            "desc": "矿道两侧嵌满幽蓝雷晶，轨道上趴着雷晶蜥，被雷劈疯的地精矿工还在机械地刨着矿壁。每走一步，鞋底都传来细小的静电噼啪声。",
+            "type": "副本",
+            "lv": 30,
+            "npcs": [],
+            "monsters": [
+                [
+                    "m_goblin_miner",
+                    "地精矿工",
+                    "dps",
+                    30,
+                    ["ms_gao_ji"],
+                    ["雷晶矿核"]
+                ],
+                [
+                    "m_crystal_gecko",
+                    "雷晶蜥",
+                    "speedster",
+                    32,
+                    ["ms_lei_ji", "ms_ji_pao"],
+                    ["雷晶矿核"]
+                ],
+            ],
+            "elite": None,
+            "boss": None,
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "thunder_mine_2",
+            "name": "矿脉心脏前厅",
+            "icon": "💎",
+            "desc": "矿脉在这里收束成一条发光的晶廊，矿道雷灵在晶壁间流窜，把整条矿脉的电光搅成忽明忽暗的网。雷晶蜥王盘在晶廊尽头，尾巴一下下敲着地面。",
+            "type": "副本",
+            "lv": 34,
+            "npcs": [],
+            "monsters": [
+                [
+                    "m_mine_sprite",
+                    "矿道雷灵",
+                    "caster",
+                    34,
+                    ["ms_shan_dian_lian", "ms_lei_jian"],
+                    ["雷晶矿核"]
+                ],
+            ],
+            "elite": [
+                "e_thunder_lizard",
+                "雷晶蜥王",
+                "elite",
+                36,
+                ["ms_lei_ji", "ms_yao_sui"],
+                ["雷晶矿核"]
+            ],
+            "boss": None,
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "thunder_mine_3",
+            "name": "雷晶巨像穴",
+            "icon": "⚡",
+            "desc": "矿脉最深处被雷晶撑成一座穹顶巨穴，雷晶巨像·轰鸣半跪在矿脉心脏上，胸腔的雷晶核像一颗蓝色太阳。它每一次呼吸，整座矿洞就跟着震一次。",
+            "type": "副本",
+            "lv": 37,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": [
+                "b_thunder_golem",
+                "雷晶巨像·轰鸣",
+                "boss",
+                37,
+                [],   # 技能占位：副本战斗实际用 inst.boss（Boss 数据片段合入后生效）
+                ["雷晶矿核"]
+            ],
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "whirl_arena": [
+        {
+            "id": "whirl_arena_1",
+            "name": "潮间礁台",
+            "icon": "🌊",
+            "desc": "环形礁台的外圈，潮水每刻都在涨落，漩涡精灵在浪尖上若隐若现。鲛人战士举着三叉戟守在礁台入口，身后是绞着碎船板的旋涡内环。",
+            "type": "副本",
+            "lv": 46,
+            "npcs": [],
+            "monsters": [
+                [
+                    "m_whirlpool_spirit",
+                    "漩涡精灵",
+                    "healer",
+                    46,
+                    ["ms_shui_dan", "ms_xuan_wo"],
+                    ["磐涡龟甲"]
+                ],
+                [
+                    "m_merrow",
+                    "鲛人战士",
+                    "dps",
+                    47,
+                    ["ms_san_cha_ji", "ms_shui_dan"],
+                    ["磐涡龟甲"]
+                ],
+            ],
+            "elite": None,
+            "boss": None,
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "whirl_arena_2",
+            "name": "漩涡内环",
+            "icon": "🌀",
+            "desc": "礁台中央的旋涡内环，水流快得能绞断锚链。漩涡鲛兵在激流里游弋，竞技鲨贴着水底盘旋，等着被旋涡卷进来的猎物。",
+            "type": "副本",
+            "lv": 49,
+            "npcs": [],
+            "monsters": [
+                [
+                    "m_whirl_merrow",
+                    "漩涡鲛兵",
+                    "dps",
+                    49,
+                    ["ms_san_cha_ji", "ms_xuan_wo"],
+                    ["磐涡龟甲"]
+                ],
+                [
+                    "m_arena_shark",
+                    "竞技鲨",
+                    "dps",
+                    50,
+                    ["ms_si_yao", "ms_jiao_sha"],
+                    ["磐涡龟甲"]
+                ],
+            ],
+            "elite": [
+                "e_whirl_guard",
+                "漩涡卫士",
+                "elite",
+                51,
+                ["ms_shui_xi", "ms_dun_ji"],
+                ["磐涡龟甲"]
+            ],
+            "boss": None,
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "whirl_arena_3",
+            "name": "磐涡角斗场",
+            "icon": "🐢",
+            "desc": "旋涡正中的一块白石礁台，石壳龟·磐涡趴在台上。它的背壳刻满挑战者的名字与划痕，旋涡在它身周缓缓旋转，像一座活着的角斗场在看台。",
+            "type": "副本",
+            "lv": 52,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": [
+                "b_whirl_turtle",
+                "石壳龟·磐涡",
+                "boss",
+                52,
+                [],   # 技能占位：副本战斗实际用 inst.boss（Boss 数据片段合入后生效）
+                ["磐涡龟甲"]
+            ],
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "blacktide_opera": [
+        {
+            "id": "blacktide_opera_1",
+            "name": "淹没门厅",
+            "icon": "🎭",
+            "desc": "歌剧院的售票门厅泡在齐腰的海水里，墙上还贴着三百年前的剧目海报。和声海妖在楼梯口清嗓，海妖斥候从包厢帘幕后面探出半张脸。",
+            "type": "副本",
+            "lv": 50,
+            "npcs": [],
+            "monsters": [
+                [
+                    "m_choir_siren",
+                    "和声海妖",
+                    "healer",
+                    50,
+                    ["ms_mei_huo_zhi_ge", "ms_zhi_yu"],
+                    ["咏叹谱残页"]
+                ],
+                [
+                    "m_siren_scout",
+                    "海妖斥候",
+                    "speedster",
+                    51,
+                    ["ms_mei_huo_zhi_ge"],
+                    ["咏叹谱残页"]
+                ],
+            ],
+            "elite": None,
+            "boss": None,
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "blacktide_opera_2",
+            "name": "包厢回廊",
+            "icon": "🪑",
+            "desc": "环绕主舞台的包厢回廊，天鹅绒座椅上长满海藻，溺亡唱诗班在暗处跟着水流打拍子。剧场护卫举着缠藻的长戟站在回廊转角，像一尊尊溺水的雕像。",
+            "type": "副本",
+            "lv": 52,
+            "npcs": [],
+            "monsters": [
+                [
+                    "m_drowned_chorister",
+                    "溺亡唱诗班",
+                    "dps",
+                    53,
+                    ["ms_chen_mo_jian_xiao", "ms_you_ling"],
+                    ["咏叹谱残页"]
+                ],
+                [
+                    "m_merrow",
+                    "鲛人战士",
+                    "dps",
+                    52,
+                    ["ms_san_cha_ji", "ms_shui_dan"],
+                    ["咏叹谱残页"]
+                ],
+            ],
+            "elite": [
+                "e_opera_guard",
+                "剧场护卫",
+                "elite",
+                54,
+                ["ms_ju_lang", "ms_dun_ji"],
+                ["咏叹谱残页"]
+            ],
+            "boss": None,
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "blacktide_opera_3",
+            "name": "主舞台",
+            "icon": "🎼",
+            "desc": "歌剧院的主舞台，穹顶破了个大洞，一束天光像追光一样落下来。首席海妖·歌澜站在光圈中央，珍珠缀成的裙摆随水流飘动——她的身后，溺亡的合唱团正在缓缓就位。",
+            "type": "副本",
+            "lv": 56,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": [
+                "b_opera_siren",
+                "首席海妖·歌澜",
+                "boss",
+                56,
+                [],   # 技能占位：副本战斗实际用 inst.boss（Boss 数据片段合入后生效）
+                ["咏叹谱残页"]
+            ],
+            "funcs": ["instance"],
+            "shop": False,
+            "healer": False
+        }
+    ],
 }

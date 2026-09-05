@@ -297,7 +297,7 @@ EXTRA_SUBAREAS = {
             ],
             "elite": None,
             "boss": None,
-            "funcs": ["explore"],
+            "funcs": ["explore", "instance"],
             "shop": False,
             "healer": False,
             "hidden": False,

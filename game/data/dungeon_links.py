@@ -156,4 +156,29 @@ SUBAREA_LINKS = {
         "cloud_sanctum_5": ["cloud_sanctum_4", "cloud_sanctum_6"],
         "cloud_sanctum_6": ["cloud_sanctum_5"],  # Boss-云中圣殿
     },
+    "rust_dock": {
+        "rust_dock_1": ["rust_dock_2"],
+        "rust_dock_2": ["rust_dock_1", "rust_dock_3"],
+        "rust_dock_3": ["rust_dock_2"],  # Boss房
+    },
+    "candle_crypt": {
+        "candle_crypt_1": ["candle_crypt_2"],
+        "candle_crypt_2": ["candle_crypt_1", "candle_crypt_3"],
+        "candle_crypt_3": ["candle_crypt_2"],  # Boss房
+    },
+    "thunder_mine": {
+        "thunder_mine_1": ["thunder_mine_2"],
+        "thunder_mine_2": ["thunder_mine_1", "thunder_mine_3"],
+        "thunder_mine_3": ["thunder_mine_2"],  # Boss房
+    },
+    "whirl_arena": {
+        "whirl_arena_1": ["whirl_arena_2"],
+        "whirl_arena_2": ["whirl_arena_1", "whirl_arena_3"],
+        "whirl_arena_3": ["whirl_arena_2"],  # Boss房
+    },
+    "blacktide_opera": {
+        "blacktide_opera_1": ["blacktide_opera_2"],
+        "blacktide_opera_2": ["blacktide_opera_1", "blacktide_opera_3"],
+        "blacktide_opera_3": ["blacktide_opera_2"],  # Boss房
+    }
 }
