@@ -320,6 +320,8 @@ class Battle:
         # v2.0 核心资源（12 章 1.2：怒气/元素亲和/精力/信仰/连击点/气）
         # 随战斗序列化，同 mech_stacks 机制；阶段五引擎先挂载，技能数据落地后消费
         self.resources: dict = {}          # v2.0 核心资源（怒气/元素亲和/精力/信仰/连击点/气），随战斗序列化
+        self._cast_ctx: dict | None = None       # v177 施法者 actor 上下文（None=玩家；怪施法=unit——管线状态路由）
+
         self.cooldown: dict = {}           # v2.0 技能冷却（技能名 → 剩余刻数），随战斗序列化；刻结束递减
         self.combo_seq: list = []          # v2.0 拳师连招序列（拳/踢/掌 tag 记录，满 3 触发三连）
         self.last_combo_tag: str | None = None  # v130.6 变招：上一招连招 tag（三连清空后仍记忆）
@@ -884,6 +886,42 @@ class Battle:
     def _elem_charge(self) -> int:
         """法师充能条当前值（v130.2：element 资源数值化 0-5；resources['element'] 保留当前系字符串，兼容旧消费点）"""
         return int(self.resources.get("element_charge", 0) or 0)
+
+    # ---------------- v177 施法者状态路由（玩家技能管线 actor 化） ----------------
+    # 管线内 self.p_buffs/self.resources/self.mech_stacks 是"当前施法者"状态：
+    # 玩家施法 → 焦点字段（原语义）；怪物施法（_cast_ctx=unit）→ unit 自身字段。
+    def _cast_buffs(self) -> dict:
+        u = self._cast_ctx
+        if u is not None:
+            return u.setdefault("buffs", {})
+        return self.p_buffs
+
+    def _cast_eff(self) -> dict:
+        u = self._cast_ctx
+        if u is not None:
+            return u.get("eff") or {}
+        return self.p_eff
+
+    def _cast_res(self) -> dict:
+        u = self._cast_ctx
+        if u is not None:
+            return u.setdefault("resources", {})
+        return self.resources
+
+    def _cast_stacks(self) -> dict:
+        u = self._cast_ctx
+        if u is not None:
+            return u.setdefault("stacks", {})
+        return self.mech_stacks
+
+    def _cast_stats(self) -> dict:
+        u = self._cast_ctx
+        if u is not None:
+            return self._enemy_stats(u)
+        return self._player_stats(self.player)
+
+    def _cast_is_player(self) -> bool:
+        return self._cast_ctx is None
 
     def _res_def_of(self, actor: dict) -> dict:
         """v177 actor 资源定义：actor 带 resource_def（怪物/自定义）→ 用它；
@@ -4214,7 +4252,7 @@ class Battle:
         # v153 §4（C-18）：牧师信念负载档位——治疗量 × 档位乘区（0-3 清醒×1.0 / 4-7 专注×1.25 / 8-9 透支×1.5）
         _crd_faith = E.core_resource_def(player.get("class_name", ""))
         if _crd_faith and _crd_faith.get("key") == "faith" and _crd_faith.get("load_tiers"):
-            _faith_now = float(self.resources.get("faith", 0) or 0)
+            _faith_now = float(self._cast_res().get("faith", 0) or 0)
             _tier_heal = 1.0
             for _t in _crd_faith["load_tiers"]:
                 if _faith_now <= float(_t.get("max", 0)):
@@ -4301,7 +4339,7 @@ class Battle:
         if E.has_set(player.get("equipment", {}), "圣光套"):
             heal = int(heal * 1.10)
         # v101.28f 圣光药剂：治疗技能效果 +20%（3 刻）
-        if self.p_buffs.get("heal_up"):
+        if self._cast_buffs().get("heal_up"):
             heal = int(heal * 1.20)
         # v106.2 治疗强度：heal_power 属性 ×(1+heal_power)（cap 50%，职业/词条/套装多来源）
         try:
@@ -4317,10 +4355,10 @@ class Battle:
             heal = max(1, int(heal * (1 + hr)))
             logs.append(f"🐉 孤傲之血：治疗效果 -{int(-hr*100)}%！")
         # v130.2 信仰结晶副效果（next_heal_up，P0-3 消费端）：下一次治疗技能效果 +pct%（一次性，随即清 p_eff）
-        _nhu = float((self.p_eff or {}).get("next_heal_up", 0) or 0)
+        _nhu = float((self._cast_eff() or {}).get("next_heal_up", 0) or 0)
         if _nhu > 0:
             heal = int(heal * (1 + _nhu))
-            del self.p_eff["next_heal_up"]
+            del self._cast_eff()["next_heal_up"]
             logs.append(f"✨ 信仰结晶：治疗技能效果 +{int(_nhu * 100)}%！")
         hp_before = target_unit.get("hp", 0)
         # v151 刻制审计：禁疗/重伤消费端修复——敌方 heal_down（层数×10%）/ _anti_heal_pct（百分比）
@@ -4465,7 +4503,7 @@ class Battle:
                 # v130.2 歌者回声：增益技持续 + 回声层数 刻（priest_转职.md §3.0）
                 if self._is_bard_skill(player, info):
                     base_turns += int(ECHO_CFG.get("buff_extend_per_layer", 1) or 1) * self._echo_layers()
-                self.p_buffs[key] = max(self.p_buffs.get(key, 0), base_turns)
+                self._cast_buffs()[key] = max(self._cast_buffs().get(key, 0), base_turns)
         # v1.x：原 burn_burst/rage_burst/bless_shield 三分支（v29 effect 型引爆/转化）
         # 全库无数据 producer（skills.py 无 effect=burn_burst/rage_burst/bless_shield 条目）
         # → 死代码删除；其专属 cond_mult/cond_label 计算一并移除。
@@ -4473,7 +4511,7 @@ class Battle:
         # v169.7 守护姿态（战士守线 增益技带 stance 字段）——置位 stance_guard 守护态标记
         # （守护姿态数据无 effect，仅 info.stance='counter'；铁誓·不动 stance_immortal 消费该标记）
         if info.get("stance"):
-            self.p_buffs["stance_guard"] = max(int(self.p_buffs.get("stance_guard", 0) or 0), 999)
+            self._cast_buffs()["stance_guard"] = max(int(self._cast_buffs().get("stance_guard", 0) or 0), 999)
             logs.append("🛡️ 进入守护姿态！（铁誓·不动守护被动就绪）")
         logs.append(f"你施展【{skill_name}】！")
         if eff == "element_shift" and getattr(self, "_shifted_element", None):
@@ -4512,7 +4550,7 @@ class Battle:
                     break
                 self._damage_enemy(combo_bonus, logs)
                 logs.append(f"🥊 三连击破！拳-踢-掌完美连招，追加 {combo_bonus} 点伤害！(下次气力技+20%)")
-                self.resources["combo_ready"] = 1
+                self._cast_res()["combo_ready"] = 1
             else:
                 logs.append(f"🥊 连招 {self._combo_label()}")
         # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱）
@@ -4529,7 +4567,7 @@ class Battle:
         except Exception:
             pass
         # v140 波3.2：连携增幅墨——技能命中使目标毒/灼烧/流血层数 +1（dot_amp 标记）
-        _dam = (self.p_eff or {}).get("dot_amp")
+        _dam = (self._cast_eff() or {}).get("dot_amp")
         if _dam and int(_dam.get("turns_left", 0) or 0) > 0 and total > 0:
             _per = max(1, int(_dam.get("layer_per_hit", 1) or 1))
             _deb = self.enemy.setdefault("debuffs", {})
@@ -4621,7 +4659,7 @@ class Battle:
         # 全表无技能带此 effect → 嗜血斩 lifesteal:0.25 实机 0 吸血）；数值由 skill_lifesteal_pct 读字段
         if info.get("lifesteal"):
             heal = int(total * E.skill_lifesteal_pct(info, lv))
-            if self.p_buffs.get("mortal_wound"):  # v1.3 重伤：技能吸血减半
+            if self._cast_buffs().get("mortal_wound"):  # v1.3 重伤：技能吸血减半
                 heal = int(heal * 0.5)
             player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
             logs.append(f"💉 『{skill_name}』汲取了 {heal} 点生命！")
@@ -4722,7 +4760,7 @@ class Battle:
         if tags:
             logs[-1] += " " + "·".join(tags)
         # v169.7 修 #123：疾风之心凝神触发提示（_passive_crit_bonus 置位，技能结算后消费一行）
-        if (self.p_eff or {}).pop("focus_surplus_proc", None):
+        if (self._cast_eff() or {}).pop("focus_surplus_proc", None):
             logs.append("🎯 凝神屏息！结余 ≥40，本次技能暴击 +20%")
         if reaction_log:
             logs.append(reaction_log)
@@ -4751,15 +4789,15 @@ class Battle:
                     logs.append(f"✦ 元素印记：目标{ {'fire': '火', 'ice': '冰', 'thunder': '雷'} [element]}印 {new_marks}/{self._elem_mark_max(player)}")
                 # v130.2 last_element 同系连发：记录上次元素，同系第二次施放额外 +1 充能（元素凝聚）
                 # v176: 解耦——玩家激活元素体系（resources 含 element 键）即记录，不再判职业名
-                if "element" in (self.resources or {}):
+                if "element" in (self._cast_res() or {}):
                     self._last_element_set(player, element)
             # v104 R3 P1-1：寒霜亲和——冰系技能命中附带减速 2 刻
             if element == "ice":
                 for _pn, _ps in _procs.get("ice_slow", []):
                     self.e_buffs["spd_down"] = max(self.e_buffs.get("spd_down", 0), 2)
                     logs.append("❄️ 寒霜亲和：敌人被减速！")
-            if self.resources.get("element") is not None:
-                self.resources["element"] = element
+            if self._cast_res().get("element") is not None:
+                self._cast_res()["element"] = element
 
 
     def _skill_finalize_damage(self, st: dict, player: dict, info: dict, kind: str,
@@ -4770,7 +4808,7 @@ class Battle:
 
         boss filter → 武器被动增伤 → v153 乘区 → v169 乘区 → 感电 → 敌方抗性 → 闪避/AOE →
         伤害落地(_damage_enemy) → 吸血/吸魔。返回 (total, magi_part, info)。
-        副作用：改 self.p_buffs/e_buffs、打伤害、回血回蓝（经 self + logs 传出）。
+        副作用：改 self._cast_buffs()/e_buffs、打伤害、回血回蓝（经 self + logs 传出）。
         """
         total = self._boss_dmg_filter(total, player, logs, dmg_type=seg_of(kind))
         # v140 波3.1：特效装备技能被动增伤（奥术苍穹/岁月流转/永恒契约/铭文/秘典/雷纹/三相/破岳/咒誓/暮裂）
@@ -4779,7 +4817,7 @@ class Battle:
             _wectx = {"mult": 1.0, "tags": [], "is_crit": is_crit, "kind": kind, "skill": skill_name}
             _we_proc(self, player, "passive", _wectx, logs)
             # v140 波3.2：弱点击破石——目标负面越多增伤越高（vuln 标记）
-            _vuln = (self.p_eff or {}).get("vuln")
+            _vuln = (self._cast_eff() or {}).get("vuln")
             if _vuln and int(_vuln.get("turns_left", 0) or 0) > 0:
                 _vb = float(_vuln.get("bonus", 0) or 0)
                 if _vb > 0:
@@ -4790,20 +4828,20 @@ class Battle:
             pass
         # v153 §2/§6：元素印记结算倍率 / 磐核爆发倍率消费（battle_mech handler 写入 p_buffs）
         _v153_mult = 1.0
-        if self.p_buffs.get("element_burst_mult"):
-            _v153_mult *= float(self.p_buffs.pop("element_burst_mult"))
+        if self._cast_buffs().get("element_burst_mult"):
+            _v153_mult *= float(self._cast_buffs().pop("element_burst_mult"))
             logs.append(f"🔥 元素结算增伤 ×{_v153_mult:.2f}")
-        if self.p_buffs.get("guard_core_burst_mult"):
-            _v153_mult *= float(self.p_buffs.pop("guard_core_burst_mult"))
-        if self.p_buffs.get("finisher_mult"):
-            _v153_mult *= float(self.p_buffs.pop("finisher_mult"))
-        if self.p_buffs.get("bone_rush_mult"):
-            _v153_mult *= float(self.p_buffs.pop("bone_rush_mult"))
-        if self.p_buffs.get("element_overload_aoe"):
+        if self._cast_buffs().get("guard_core_burst_mult"):
+            _v153_mult *= float(self._cast_buffs().pop("guard_core_burst_mult"))
+        if self._cast_buffs().get("finisher_mult"):
+            _v153_mult *= float(self._cast_buffs().pop("finisher_mult"))
+        if self._cast_buffs().get("bone_rush_mult"):
+            _v153_mult *= float(self._cast_buffs().pop("bone_rush_mult"))
+        if self._cast_buffs().get("element_overload_aoe"):
             # 超载反应：本次技能转全体 AOE
             info = dict(info)
             info["aoe"] = "all"
-            self.p_buffs.pop("element_overload_aoe", None)
+            self._cast_buffs().pop("element_overload_aoe", None)
         if _v153_mult != 1.0:
             total = int(total * _v153_mult)
         # v169.7 battle_mech effect 乘区键（猎杀时刻/星轨锁定/奥术矩阵/奥术力场）——技能伤害统一挂点
@@ -4817,9 +4855,9 @@ class Battle:
         except Exception:
             _v169_tags = []
         # v153 §2：感电连击（雷印满 3 层结算时连击 +1/+2）——多段追加
-        _ele_combo = int(self.p_buffs.get("element_thunder_combo", 0) or 0)
+        _ele_combo = int(self._cast_buffs().get("element_thunder_combo", 0) or 0)
         if _ele_combo:
-            self.p_buffs.pop("element_thunder_combo", None)
+            self._cast_buffs().pop("element_thunder_combo", None)
             _combo_dmg = int(total / max(1, int(info.get("hits", 1) or 1)))
             for _ci in range(_ele_combo):
                 total += _combo_dmg
@@ -4828,9 +4866,9 @@ class Battle:
         total, _magi_part = self._enemy_mitigate(total, _magi_part, element, logs, kind=kind)
         # v174.1 星火（novice_spark_followup 星火法杖）：basic 普攻技命中消费星火标记（+10% 后清）。
         # 原语义"释放技能后下次普攻+10%"——basic_skill 即普攻，仅 basic 技触发，普通技能不消费。
-        if info.get("basic") and self.mech_stacks.get("novice_spark"):
+        if info.get("basic") and self._cast_stacks().get("novice_spark"):
             total = int(total * 1.10)
-            del self.mech_stacks["novice_spark"]
+            del self._cast_stacks()["novice_spark"]
             logs.append("✨ 星火x1.1：普攻伤害 +10%！")
         # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
         if self._monster_dodge_check(logs):
@@ -4984,12 +5022,12 @@ class Battle:
         # v130.6 三连击破回馈实装（combo_ready 消费端，原只写不读的死标记）：
         # 三连后下一次气力技（res_cost 耗气 / consume_all 耗气技能）伤害 +20%，
         # 一次性消费；文案与连招三连 desc 统一为 +20%（钢拳「三连准备」设计意图）
-        if self.resources.get("combo_ready"):
+        if self._cast_res().get("combo_ready"):
             _is_chi_skill = ("chi" in (info.get("res_cost") or {})) or \
                 ((info.get("consume_all") or {}).get("key") == "chi")
             if _is_chi_skill:
                 passive_bonus *= 1.20
-                self.resources["combo_ready"] = 0
+                self._cast_res()["combo_ready"] = 0
                 self._combo_ready_used = True
             else:
                 self._combo_ready_used = False
@@ -5163,11 +5201,11 @@ class Battle:
         #   判定与下方必暴共享同一字段 p_buffs["stealth"]：攻击时消费即视为潜行出手）
         _stealth_hit = False
         self._stealth_atk = False  # v130.2f2（T11 P2）：潜行出手标记每次出手前复位
-        if self.p_buffs.get("stealth"):
+        if self._cast_buffs().get("stealth"):
             is_crit = True
             _stealth_hit = True
             self._stealth_atk = True  # 潜行出手标记——供 _on_crit_resource（潜行出手额外+1 影步）与暗影之舞暴伤被动读取
-            del self.p_buffs["stealth"]
+            del self._cast_buffs()["stealth"]
             logs.append("🌙 潜行生效！本次攻击必定暴击！")
         # v34 符文：装备效果（破甲/暴伤/破魔/攻击特效）
         effs = self._enchant_effects(player)
@@ -5304,7 +5342,7 @@ class Battle:
         # v56：叠层随技能等级成长（每 2 级 +1 层）
         mval = E.skill_mech_val(info, lv)
         # 分支专属状态层（玩家侧：狂暴/圣盾/风印/影袭/气力/神恩/毒层）
-        p_mech = self.mech_stacks
+        p_mech = self._cast_stacks()
         if kind == K_HEAL:
             return self._skill_heal(st, skill_name, info, player, lv, mech, mval, p_mech, logs, target_ally=target_ally)
         if kind == K_BUFF:
@@ -6116,11 +6154,28 @@ class Battle:
                         f"可『防御』减半或『打断技』赌它读条失败！")
                     return logs, 0
                 if kind == K_BUFF:
-                    from .core.battle_mech import MON_BUFF_EFFECTS
+                    from .core.battle_mech import MON_BUFF_EFFECTS, SKILL_BUFF_EFFECTS
                     eff = sinfo.get("effect")
                     eff_fn = MON_BUFF_EFFECTS.get(eff)
+                    if not eff_fn:
+                        # v177 玩家增益技能（effect 在玩家 buff 注册表 SKILL_BUFF_EFFECTS）→
+                        # 怪物也能施放：注册表 handler 内写 _cast_buffs()（设 _cast_ctx=e → 怪自身 buffs）
+                        eff_fn = SKILL_BUFF_EFFECTS.get(eff)
                     if eff_fn:
-                        eff_fn(self, logs, sname)
+                        try:
+                            if eff in MON_BUFF_EFFECTS:
+                                eff_fn(self, logs, sname)
+                            else:
+                                # 玩家 buff handler 签名 fn(battle, skill_name, info, player, lv, logs)
+                                _plv_b = max(1, min(20, int(e.get("lv", 1) or 1) // 2))
+                                _saved_ctx = self._cast_ctx
+                                self._cast_ctx = e  # 玩家 buff 写 _cast_buffs() → 怪自身 buffs
+                                try:
+                                    eff_fn(self, skill, sinfo, e, _plv_b, logs)
+                                finally:
+                                    self._cast_ctx = _saved_ctx
+                        except Exception:
+                            pass
                     # v154：增益立即生效，但敌方行动也要消耗 ct（读条 + 收招）
                     self._after_actor_ct("e", e, cast_mult=CAST_SKILL * self._ct_cost(est.get("spd", 0)))
                     return logs, 0
@@ -7877,13 +7932,22 @@ class Battle:
         """v177 命中后减伤链（actor 通用）：圣典免伤/铁壁格挡(免疫中断)/reduce_all/单人减伤/格挡+反击/
         复仇/套装受击/词条料理/被动减伤族。返回 (处理后的 dmg, interrupted)；interrupted=True = 免疫本次伤害。
         怪物 actor 无这些数据源 → 空转。副作用全在 self + logs。"""
-        if not actor or not actor.get("class_name"):
+        if not actor or not (actor.get("class_name") or actor.get("equipment") or actor.get("learned_skills")
+                              or actor.get("buffs") or actor.get("shields") or actor.get("resources")):
             return dmg, False
-        B = self.p_buffs
-        EFF = self.p_eff
-        RES = self.resources
-        MS = self.mech_stacks
-        HITS = self._p_buff_hits
+        # v177 受击方状态路由：玩家 actor → 焦点字段；怪物 actor → 自身 dict（同 _damage_actor）
+        if actor.get("class_name"):
+            B = self.p_buffs
+            EFF = self.p_eff
+            RES = self.resources
+            MS = self.mech_stacks
+            HITS = self._p_buff_hits
+        else:
+            B = actor.setdefault("buffs", {})
+            EFF = actor.get("eff") or {}
+            RES = actor.setdefault("resources", {})
+            MS = actor.setdefault("stacks", {})
+            HITS = {}
         # v130.2c 圣典·日冕 4 件：满信仰状态下首次受击免伤（每战 1 次，随战斗序列化）
         if (not getattr(self, "_set_immune_used", False)
                 and self._set_eff(actor, "first_hit_immune", 4)
@@ -8139,7 +8203,8 @@ class Battle:
         返回 (处理后的 dmg, interrupted)；interrupted=True = 本次承伤被免疫中断（次元门扉），调用方 return。
         回击目标 = attacker（攻击者，玩家被打=怪 / 怪被打=玩家），缺省回退 self.enemy。
         actor 无养成数据源（装备/被动/职业）→ 空转。副作用全在 self + logs。"""
-        if not actor or not (actor.get("class_name") or actor.get("equipment") or actor.get("learned_skills")):
+        if not actor or not (actor.get("class_name") or actor.get("equipment") or actor.get("learned_skills")
+                              or actor.get("buffs") or actor.get("shields") or actor.get("resources")):
             return dmg, False
         # 反击/反伤目标：攻击者优先；玩家被打场景（attacker=None）回退敌人
         _rtgt = attacker if attacker is not None else self.enemy
