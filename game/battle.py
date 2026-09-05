@@ -2399,6 +2399,33 @@ class Battle:
         else:
             self.p_shields[key] = {"value": value, "expire_at": _exp}
 
+    def _absorb_shields(self, shields: dict, dmg: int, logs: list, label: str = "✨") -> int:
+        """v177 护盾吸收核心（actor-agnostic）：多源护盾 dict 逐个扣，同源叠厚异源并存。
+        玩家 p_shields / 怪物 shields（统一 dict 格式）共用。返回剩余伤害（扣完盾后的 dmg）。
+        - shields: {来源: {"value": N, "expire_at": T}}（异源并存，同源在 _add_shield 已叠厚）
+        - 盾吸收完删除该源；dmg 归零提前停。
+        """
+        if not shields or dmg <= 0:
+            return dmg
+        absorb_total = 0
+        for key in list(shields):
+            s = shields[key]
+            if not isinstance(s, dict) or not s.get("value"):
+                shields.pop(key, None)
+                continue
+            absorb = min(int(s["value"]), dmg)
+            s["value"] -= absorb
+            dmg -= absorb
+            absorb_total += absorb
+            if int(s.get("value", 0)) <= 0:
+                del shields[key]
+            if dmg <= 0:
+                break
+        if absorb_total > 0:
+            left = sum(int(s.get("value", 0)) for s in shields.values())
+            logs.append(f"{label} 护盾吸收 {absorb_total} 点伤害(剩余 {left})")
+        return dmg
+
     def _do_use_item(self, payload: str, player: dict) -> list:
         """战斗中使用消耗品：恢复/增益(v61 抽公共，普通刻与额外行动共用)"""
         logs = []
@@ -5480,31 +5507,54 @@ class Battle:
             return dmg
         mechs = [x.strip() for x in (mech or "").split(",") if x.strip()]
         e = self.enemy
-        # v1.x：护盾双源——boss_shield（mech=shield，BOSS_MECHS 写入）与
-        # e_buffs["shield"]（怪物增益技 effect=shield，MON_BUFF_EFFECTS 写入，如珊瑚护盾/铁壁/云盾）
-        if "shield" in mechs or self.e_buffs.get("shield"):
-            sh = e.get("boss_shield", 0)
-            src = "boss_shield"
-            if not sh:
-                sh = int(self.e_buffs.get("shield", 0) or 0)
-                src = "shield"
-            if sh > 0:
+        # v177 actor 护盾统一：护盾存 e["shields"] dict {来源: {value, halve}}（halve=True 受伤减半语义），
+        # 由 BOSS_MECHS shield / MON_BUFF_EFFECTS shield 写入；兼容旧 boss_shield/e_buffs int 单源（旧存档/旧写入兜底）
+        _shd = e.get("shields") or {}
+        if not _shd:
+            _legacy_sh = e.get("boss_shield", 0) or int(self.e_buffs.get("shield", 0) or 0)
+            if _legacy_sh > 0:
+                _shd = {"legacy": {"value": int(_legacy_sh), "halve": True}}
+                e["shields"] = _shd
+        if ("shield" in mechs or _shd) and _shd:
+            # 逐源吸收（多源并存：boss 盾 + buff 盾 各自独立扣）
+            _dmg_left = dmg
+            _absorbed_all = 0
+            for _sk in list(_shd):
+                _s = _shd[_sk]
+                if not isinstance(_s, dict):
+                    continue
+                _sv = int(_s.get("value", 0) or 0)
+                if _sv <= 0:
+                    _shd.pop(_sk, None)
+                    continue
                 if dmg_type == "true":
-                    absorbed = min(sh, dmg)  # 真伤不 -50%，护盾层仍吸收
-                    sh -= absorbed
+                    # 真伤不 -50%，护盾层仍吸收（v110 四层架构）
+                    _ab = min(_sv, _dmg_left)
+                    _sv -= _ab
+                    _dmg_left -= _ab
+                    _absorbed_all += _ab
                 else:
-                    real = int(dmg * 0.5)
-                    absorbed = min(sh, real)
-                    sh -= absorbed
-                    dmg = real
-                if sh <= 0:
-                    e.pop("boss_shield", None)
-                    self.e_buffs.pop("shield", None)
+                    _real = int(_dmg_left * 0.5)
+                    _ab = min(_sv, _real)
+                    _sv -= _ab
+                    _dmg_left = _real
+                    _absorbed_all += _ab
+                if _sv <= 0:
+                    _shd.pop(_sk, None)
+                    _s["value"] = 0
+                else:
+                    _s["value"] = _sv
+                if _dmg_left <= 0:
+                    break
+            if _absorbed_all > 0:
+                dmg = max(0, _dmg_left)
+                if not _shd:
                     logs.append("💥 护盾破碎！")
-                elif src == "boss_shield":
-                    e["boss_shield"] = sh
-                else:
-                    self.e_buffs["shield"] = sh
+            elif _shd:
+                dmg = max(0, _dmg_left)
+        # 旧键清理（已迁 shields dict）
+        e.pop("boss_shield", None)
+        self.e_buffs.pop("shield", None)
         if "reflect" in mechs:
             if not dot:  # v1.3 dot 只走护盾减半/吸收，不触发反射反伤
                 ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
@@ -7318,12 +7368,12 @@ class Battle:
                             _bd["_atk_up_val"] = max(float(_bd.get("_atk_up_val", 0) or 0), _aup)
                         _bd["_atk_up_until"] = max(int(_bd.get("_atk_up_until", 0) or 0), _until)
                         logs.append(f"🔥 【{_tn}】受击激怒！攻击提升 {int(_aup * 100)}%（{_turns} 刻）")
-                    # 受击转盾（荆棘/石肤：受击获得 max_hp×pct 护盾，存 e_buffs["shield"] 由 _boss_dmg_filter 消费）
+                    # 受击转盾（荆棘/石肤：受击获得 max_hp×pct 护盾，存 target["shields"] dict 由 _boss_dmg_filter 消费）
                     _sh = _ot.get("shield") or {}
                     _shp = float(_sh.get("pct", 0) or 0)
-                    if _shp > 0 and not target.get("buffs", {}).get("shield"):
+                    if _shp > 0 and not target.get("shields"):
                         _sv = max(1, int(target.get("max_hp", 1) * _shp))
-                        target.setdefault("buffs", {})["shield"] = int(target.get("buffs", {}).get("shield", 0) or 0) + _sv
+                        target.setdefault("shields", {})["on_taken"] = {"value": _sv, "halve": True}
                         logs.append(f"🛡️ 【{_tn}】受击凝甲！护盾 +{_sv}")
             except Exception:
                 pass

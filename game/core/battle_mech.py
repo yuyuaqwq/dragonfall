@@ -602,8 +602,11 @@ def _b_heal(battle, logs, e, r):
 @register(BOSS_MECHS, "shield")
 def _b_shield(battle, logs, e, r):
     """护盾：首刻出现 20% 护盾（受伤减半）"""
-    if r == 1 and not e.get("boss_shield"):
-        e["boss_shield"] = int(e.get("max_hp", 1) * 0.20)
+    if r == 1 and not e.get("shields"):
+        # v177 actor 护盾统一：e["shields"] dict（halve=True 保留受伤减半语义，兼容旧 boss_shield 单源）
+        _val = int(e.get("max_hp", 1) * 0.20)
+        _shd = e.setdefault("shields", {})
+        _shd["boss"] = {"value": _val, "halve": True}
         logs.append(f"🛡️【{e['name']}】周身浮现一层护盾(受伤减半)！")
 
 
@@ -856,10 +859,12 @@ def _mb_summon(battle, logs, sname):
 @register(MON_BUFF_EFFECTS, "shield")
 def _mb_shield(battle, logs, sname):
     """怪物护盾（v1.x 补注册：珊瑚护盾/铁壁/云盾 等 effect=shield 此前静默空转）。
-    参考 BOSS_MECHS shield handler 逻辑移植：e_buffs["shield"] 存护盾值
+    v177 actor 护盾统一：写 battle.enemy["shields"] dict（halve=True 受伤减半），
     （技能数据无数值字段，按 BOSS 口径 = 20% 最大生命），玩家伤害经
     battle._boss_dmg_filter 扣减（受伤减半 + 先扣盾再扣血），破盾即消失。"""
-    battle.e_buffs["shield"] = int(battle.enemy.get("max_hp", 1) * 0.20)
+    _val = int(battle.enemy.get("max_hp", 1) * 0.20)
+    _shd = battle.enemy.setdefault("shields", {})
+    _shd["buff"] = {"value": _val, "halve": True}
     logs.append(f"🛡️ 【{battle.enemy['name']}】使用了【{sname}】，周身浮现一层护盾(受伤减半)！")
 
 

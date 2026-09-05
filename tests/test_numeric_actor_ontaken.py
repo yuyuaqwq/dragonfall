@@ -113,7 +113,7 @@ b.player = player
 logs = []
 b._damage_enemy(100, logs)
 check("受击凝甲日志", any("凝甲" in l or "护盾" in l for l in logs), str(logs))
-check("e_buffs shield 已设", (b.e_buffs.get("shield") or 0) > 0, str(b.e_buffs.get("shield")))
+check("target shields dict 已设", (mon.get("shields") or {}).get("on_taken", {}).get("value", 0) > 0, str(mon.get("shields")))
 
 # 5. 不配 on_taken = 零变化（不报错不触发）
 print("\n-- 无 on_taken 回归 --")
