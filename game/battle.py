@@ -9069,12 +9069,6 @@ class Battle:
                 logs.append(f"💀 {c.get('name', '随从')} 倒下了！")
                 self.companions.remove(c)
 
-    def _summons_act(self, player: dict, logs: list) -> list:
-        """v107 召唤物自动攻击（v180-C S2 兼容壳：转调通用随从触发点）。
-        保留旧名——外部 2 调用点仍用；行为 = _companions_trigger('player_act')。"""
-        self._companions_trigger("player_act", logs)
-        return logs
-
     def _pick_summon_target(self, s: dict) -> dict | None:
         """v2：召唤物按自身 reach 选敌方目标（§7.3——射程内最前排）。"""
         from .core.formation import alive_units, select_target

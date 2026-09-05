@@ -404,8 +404,8 @@ _SUMMON_FACES = {
 @register("summon")
 def eff_summon(battle, player, value):
     """v140 召唤类消耗品（烬灵香炉/圣徽替身像/荆棘傀儡种/战地医者魔偶）：
-    按 effect_data 比例生成召唤物实体入 battle.summons（_summons_act 自动攻击 +
-    _summon_block_check 挡刀复用 v107 机制）；附带的 thorns/heal_pct/taunt 等
+    按 effect_data 比例生成召唤物实体入 battle.companions（auto_act 自动攻击 +
+    guard 挡刀走 v180-C 通用随从机制）；附带的 thorns/heal_pct/taunt 等
     辅助效果走既有 buff 槽（荆棘药剂 thorns_pot / 食物 hot / 治疗增强 heal_up）。"""
     v = _resolve(value, "summon")
     tid = v.get("tid", "")
