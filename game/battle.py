@@ -827,17 +827,18 @@ class Battle:
                     b._schedule(b._now + _pt, {"type": "pet_tick"})
                 except Exception:
                     pass
-        # v178.2 regen_tick 补排：事件队列不随存档序列化，恢复后若玩家带 A 类每刻效果
-        # 且堆里没有 regen_tick → 补排（照 pet_tick 先例）。玩家死亡/战斗结束不补。
-        if not b._enemy_dead():
-            try:
-                _pl_r = b.player or {}
-                if b._regen_needed(_pl_r):
-                    _has_regen = any(_e.get("type") == "regen_tick" for _, _, _e in b._events)
-                    if not _has_regen:
-                        b._schedule(b._now + ACT_TICK, {"type": "regen_tick"})
-            except Exception:
-                pass
+        # v178.2 regen_tick 补排：事件队列不随存档序列化。注意 from_state 恢复的
+        # b.player 是空 dict（真实玩家由调用方后续绑定），无法在此判 _regen_needed——
+        # 恢复后首次玩家行动由 _turn_start 的 regen 保险丝补排（玩家真实可用）。
+        # 此处仅当 player 已可用（调用方先绑定再 from_state 的场景）且堆里没有时兜底补。
+        try:
+            _pl_r = b.player or {}
+            if _pl_r.get("class_name") and not b._enemy_dead() and b._regen_needed(_pl_r):
+                _has_regen = any(_e.get("type") == "regen_tick" for _, _, _e in b._events)
+                if not _has_regen:
+                    b._schedule(b._now + ACT_TICK, {"type": "regen_tick"})
+        except Exception:
+            pass
         # v163 敌方读条持久化：恢复读条中的敌方 cast_done（_enemy_turn 出手时写 e["_cast"]，
         # 随 enemies 序列化；野外/副本统一）。此前事件队列不序列化，读条伤害跨消息即丢
         # （repro_enemy_cast_loss.py 复现：野外单怪挥爪后存档恢复，伤害蒸发为 0）。
@@ -7858,6 +7859,15 @@ class Battle:
                     else:
                         self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "e",
                                                                "unit": _dt_cand})
+        except Exception:
+            pass
+        # v178.2 regen 保险丝：玩家行动开头若带 A 类每刻效果但堆里没有 regen_tick
+        # （断线恢复/副本 act 重建 Battle 后事件队列丢失/老档）→ 补排。照 dot 保险丝幂等模式。
+        try:
+            if player and not self._enemy_dead() and self._regen_needed(player):
+                _has_regen = any(_e.get("type") == "regen_tick" for _, _, _e in self._events)
+                if not _has_regen:
+                    self._schedule(self._now + ACT_TICK, {"type": "regen_tick"})
         except Exception:
             pass
         # v151 破绽断链修复（引擎差距报告 P0）：turn_start_bars 此前从未被调用——
