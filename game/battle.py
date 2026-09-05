@@ -225,6 +225,329 @@ def _ct_initial_wait(spd) -> float:
     return CAST_ATK * _m.sqrt(SPD_REF / eff)
 
 
+# ============================================================
+# v179 通用 tick handler（周期效果族，数据驱动）
+# 签名统一：(battle, actor, eff, logs) -> (log_list, keep)
+#   keep = 本效果族通道是否仍应存在（False → 移除卡片不再续排）
+#   条件语义：卡片代表"这类效果可能发生"，handler 每次判生效条件（血满跳过等）
+# ============================================================
+def _th_set_heal(battle, actor, eff, logs):
+    """圣光/永恒套装每刻回血（regen 5% / regen_strong 8%）。条件：有该套装 4 件效果 + 掉血。"""
+    try:
+        _s4 = E.set_bonus_4(actor.get("equipment", {}))
+        if not any(e in _s4 for e in ("regen", "regen_strong")):
+            return [], False  # 套装换下 → 通道关闭
+        eff_name = next((e for e in ("regen", "regen_strong") if e in _s4), "regen")
+        pct = 0.05 if eff_name == "regen" else 0.08
+        if actor.get("hp", 0) < actor.get("max_hp", 1):
+            heal = int(actor.get("max_hp", actor.get("hp", 1)) * pct)
+            actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + heal)
+            return [f"✨ 套装祝福生效，你回复了 {heal} 点生命！"], True
+        return [], True
+    except Exception:
+        return [], False
+
+
+def _th_rune_regen(battle, actor, eff, logs):
+    """符文·治愈每刻回血 x%。条件：附魔 regen 存在 + 掉血。"""
+    try:
+        regen_lvl = battle._enchant_lvl(battle._enchant_effects(actor), "regen")
+        if not regen_lvl:
+            return [], False  # 附魔消失 → 通道关闭
+        if actor.get("hp", 0) < actor.get("max_hp", 1):
+            heal = int(actor.get("max_hp", actor.get("hp", 1)) * C.rune_value("regen", regen_lvl))
+            actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + heal)
+            return [f"✨ 符文治愈生效，你回复了 {heal} 点生命！"], True
+        return [], True
+    except Exception:
+        return [], False
+
+
+def _th_stardust_mana(battle, actor, eff, logs):
+    """星尘 5 件夜间每刻回蓝 5%。条件：星尘 5 件 + 夜间(19-06) + 掉蓝。"""
+    try:
+        _s5 = battle._set_bonus_5(actor)
+        if "星尘" not in "|".join(_s5):
+            return [], False  # 套装换下 → 通道关闭
+        _hour = time.localtime().tm_hour
+        if not (_hour >= 19 or _hour < 6):
+            return [], True  # 白天不触发（通道仍存在，夜间恢复）
+        if actor.get("mp", 0) < actor.get("max_mp", 1):
+            gain = int(actor.get("max_mp", actor.get("mp", 1)) * 0.05)
+            actor["mp"] = min(actor.get("max_mp", actor.get("mp", 1)), actor.get("mp", 0) + gain)
+            return [f"🌙 星尘祝福：夜风拂过，你回复了 {gain} 点魔力！({actor['mp']}/{actor.get('max_mp', '?')})"], True
+        return [], True
+    except Exception:
+        return [], False
+
+
+# v179 P1a 注册：自包含回血/回蓝族（_TICK_HANDLERS 与 core/tick_effects 同表）
+for _th_kind, _th_fn in (("set_heal", _th_set_heal),
+                         ("rune_regen", _th_rune_regen),
+                         ("stardust_mana", _th_stardust_mana)):
+    _TICK_HANDLERS[_th_kind] = _th_fn
+
+
+def _th_set_holy(battle, actor, eff, logs):
+    """圣堂领域/神恩爆发/壁立千仞（套装 4 件直连效果）。条件：对应套装 4 件效果存在。"""
+    try:
+        _s4 = E.set_bonus_4(actor.get("equipment", {}))
+        if not any(k in _s4 for k in ("holy_field_heal", "divine_grace_burst", "hu_xiao_barrier")):
+            return [], False  # 套装换下 → 通道关闭
+        _mx = actor.get("max_hp", actor.get("hp", 1))
+        out = []
+        if "holy_field_heal" in _s4:
+            _hfh = (battle._set_eff(actor, "holy_field_heal", 4) or {})
+            _hfh_p = (_hfh or {}).get("params") or {}
+            _low = float(_hfh_p.get("cond_hp_lt", _hfh.get("low_pct", 0.50)) or 0.50)
+            _hl = float(_hfh_p.get("heal_low_pct", _hfh.get("heal_low", 0.06)) or 0.06)
+            _hh = float(_hfh_p.get("heal_high_pct", _hfh.get("heal_high", 0.03)) or 0.03)
+            if actor.get("hp", 0) < _mx:
+                _pct = _hl if actor.get("hp", 0) / max(1, _mx) < _low else _hh
+                _hf_heal = int(_mx * _pct)
+                actor["hp"] = min(_mx, actor.get("hp", 0) + _hf_heal)
+                out.append(f"⛪ 圣堂领域：圣光庇护，你回复了 {_hf_heal} 点生命！")
+        if "divine_grace_burst" in _s4:
+            _dgb = (battle._set_eff(actor, "divine_grace_burst", 4) or {})
+            _dgb_p = (_dgb or {}).get("params") or {}
+            _dg_heal = int(_mx * float(_dgb_p.get("heal_pct", 0.05)))
+            if actor.get("hp", 0) < _mx:
+                actor["hp"] = min(_mx, actor.get("hp", 0) + _dg_heal)
+                out.append(f"☀️ 神恩爆发：神恩涌动，你回复了 {_dg_heal} 点生命！")
+            if not (battle.p_eff or {}).get("divine_burst_used") and actor.get("hp", 0) / max(1, _mx) < float(_dgb_p.get("low_hp_lt", 0.30)):
+                _dg_extra = int(_mx * float(_dgb_p.get("low_extra_pct", 0.15)))
+                actor["hp"] = min(_mx, actor.get("hp", 0) + _dg_extra)
+                battle.p_eff["divine_burst_used"] = True
+                out.append(f"☀️ 神恩爆发·濒危：圣辉倾泻，额外回复 {_dg_extra} 点生命！（每场 1 次）")
+        if "hu_xiao_barrier" in _s4:
+            _hxb = (battle._set_eff(actor, "hu_xiao_barrier", 4) or {})
+            _hxb_p = (_hxb or {}).get("params") or {}
+            battle._add_shield("hu_xiao_barrier", int(actor.get("max_hp", 1) * float(_hxb_p.get("shield_pct", 0.03))), int(_hxb_p.get("shield_turns", 1)))
+            out.append("🧱 壁立千仞：千仞壁垒立于身前！")
+        return out, True
+    except Exception:
+        return [], False
+
+
+def _th_passive_heal(battle, actor, eff, logs):
+    """被动回复族：气力调和(turn_heal)/生命之泉(team_regen)/森之共鸣(focus_regen_summon)。条件：对应被动存在。"""
+    try:
+        _pm = battle._passive_map(actor)["proc"]
+        out = []
+        _alive_ok = True
+        _th = _pm.get("turn_heal") or []
+        for _pn, _ps in _th:
+            if actor.get("hp", 0) < actor.get("max_hp", 1):
+                heal = int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("pct", 0.02)))
+                actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + heal)
+                out.append(f"🍃 {_pn}生效，你回复了 {heal} 点生命！")
+            break
+        _tr = _pm.get("team_regen") or []
+        for _pn, _ps in _tr:
+            if actor.get("hp", 0) < actor.get("max_hp", 1):
+                heal = int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("mult", 0.05)))
+                actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + heal)
+                out.append(f"💧 {_pn}：生命之泉涌动，你回复了 {heal} 点生命！")
+            break
+        try:
+            if battle.summons:
+                for _pn, _ps in _pm.get("focus_regen_summon", []):
+                    _sr_gain = int(_ps.get("gain", 5) or 5)
+                    _sr_old = int(battle.resources.get("energy", 0) or 0)
+                    _sr_new = battle._res_gain(actor, "energy", _sr_gain)
+                    if _sr_new > _sr_old:
+                        out.append(f"🌳 {_pn}：召唤物在场，专注充能 +{_sr_gain}（{_sr_new}）")
+                    break
+        except Exception:
+            pass
+        # 无任何被动 → 通道关闭
+        if not (_th or _tr or _pm.get("focus_regen_summon")):
+            return [], False
+        return out, True
+    except Exception:
+        return [], False
+
+
+def _th_mech_charge(battle, actor, eff, logs):
+    """奥术/魔剑充能族：arcane_regen/arcane_intuition/spellblade_regen。条件：对应被动存在。"""
+    try:
+        _pm = battle._passive_map(actor)
+        out = []
+        _alive = False
+        for _pn, _ps in _pm["proc"].get("arcane_regen", []):
+            _mech = _ps.get("mech") or "arcane"
+            battle.mech_stacks[_mech] = E.mech_stack_gain(_mech, battle.mech_stacks, 1)
+            out.append(f"📖 {_pn}：充能自动+1(当前 {battle.mech_stacks[_mech]} 层)")
+            _alive = True
+            break
+        for _pn, _ps in _pm["proc"].get("arcane_intuition", []):
+            _mech2 = _ps.get("mech") or "arcane"
+            _gain2 = int(_ps.get("gain", 1) or 1)
+            try:
+                from .core.battle_modes import focus_active as _fa169
+                if _fa169(actor):
+                    _gain2 += int(_ps.get("focus_gain", 1) or 1)
+            except Exception:
+                pass
+            _before2 = int(battle.mech_stacks.get(_mech2, 0) or 0)
+            battle.mech_stacks[_mech2] = E.mech_stack_gain(_mech2, battle.mech_stacks, _gain2)
+            if int(battle.mech_stacks.get(_mech2, 0) or 0) > _before2:
+                out.append(f"📖 {_pn}：每刻充能自动+{_gain2}(当前 {battle.mech_stacks[_mech2]} 层)")
+            _alive = True
+            break
+        for _pn, _ps in _pm["stat"]:
+            if _ps.get("stat") == "spellblade_regen":
+                _mech = _ps.get("mech") or "spellblade"
+                battle.mech_stacks[_mech] = E.mech_stack_gain(_mech, battle.mech_stacks, 1)
+                out.append(f"⚔️ {_pn}：魔能自动+1(当前 {battle.mech_stacks[_mech]} 层)")
+                _alive = True
+                break
+        if not _alive:
+            return [], False
+        return out, True
+    except Exception:
+        return [], False
+
+
+def _th_core_regen(battle, actor, eff, logs):
+    """核心资源刻回复 + 疾风余韵 + 迅捷之核增幅。条件：职业带资源 regen。"""
+    try:
+        cls = actor.get("class_name", "")
+        rd = E.core_resource_def(cls)
+        if not rd or not (float(rd.get("regen", 0) or 0) > 0):
+            return [], False  # 无自然回资源 → 通道关闭
+        out = []
+        k = rd["key"]
+        old = int(battle.resources.get(k, 0) or 0)
+        new = battle._res_gain(actor, k, int(rd.get("regen", 0) or 0))
+        if new > old:
+            out.append(f"🍃 {rd['name']}回复 {new - old} 点({new}/{battle._res_max(actor, k)})")
+        if k == "energy":
+            _tw_bonus = battle._tailwind_regen_bonus(actor)
+            if _tw_bonus > 0:
+                _old2 = int(battle.resources.get(k, 0) or 0)
+                _new2 = battle._res_gain(actor, k, _tw_bonus)
+                if _new2 > _old2:
+                    out.append(f"🌈 疾风余韵：上刻精力满弦，本刻回复 +{_new2 - _old2} 点{rd['name']}！")
+        _amp_pt = battle._amp_resource(actor, "regen")
+        if _amp_pt:
+            out.append(f"⚡ 迅捷之核：自然回复额外资源 +{_amp_pt}！")
+        return out, True
+    except Exception:
+        return [], False
+
+
+def _th_faith_decay(battle, actor, eff, logs):
+    """牧师信念衰减/亡灵祭仪/过载状态机。条件：职业核心资源是 faith 且带 decay。"""
+    try:
+        _crd_f = E.core_resource_def(actor.get("class_name", ""))
+        if not (_crd_f and _crd_f.get("key") == "faith"):
+            return [], False  # 非信念职业 → 通道关闭
+        out = []
+        # 亡灵祭仪（先产后衰）
+        try:
+            if _crd_f.get("key") == "faith":
+                for _pn, _ps in battle._passive_map(actor)["proc"].get("undead_faith", []):
+                    _uf_n = battle._undead_count()
+                    if _uf_n > 0 and not battle.p_buffs.get("faith_exhausted"):
+                        _uf_gain = float(_ps.get("per_undead", 0.15) or 0.15) * _uf_n
+                        _f0 = float(battle.resources.get("faith", 0) or 0)
+                        battle.resources["faith"] = min(float(_crd_f.get("max", 10) or 10), _f0 + _uf_gain)
+                        out.append(f"🕯️ {_pn}：{_uf_n} 只亡灵在场，信念 +{_uf_gain:.2f}（{battle.resources['faith']:.2f}）")
+                    break
+        except Exception:
+            pass
+        if _crd_f.get("decay_per_tick"):
+            _f_before = float(battle.resources.get("faith", 0) or 0)
+            if _f_before >= float(_crd_f.get("max", 10)):
+                _ov_pct = float(_crd_f.get("overload_heal_pct", 0.015) or 0.015)
+                _ov_heal = int(actor.get("max_hp", 1) * _ov_pct * _f_before)
+                battle.resources["faith"] = 0
+                _foheal = False
+                try:
+                    for _pn_fh, _ps_fh in battle._proc_pm(actor)["proc"].get("faith_overload_heal", []):
+                        _ov_heal = int(_ov_heal * (1.0 + float(_ps_fh.get("heal_up", 0.30) or 0.30)))
+                        _foheal = True
+                        break
+                except Exception:
+                    pass
+                out.append(f"⚡ 信念过载！信仰之力迸发，全队回复 {_ov_heal} 点生命！")
+                if not _foheal:
+                    battle.p_buffs["faith_exhausted"] = 6
+                else:
+                    out.append("✨ 信念·圣化：信念过载化为圣辉，无力竭反噬！")
+                if actor.get("hp", 0) < actor.get("max_hp", 1):
+                    actor["hp"] = min(actor.get("max_hp", 1), actor.get("hp", 0) + _ov_heal)
+                    out.append(f"✨ 过载回响：你回复了 {_ov_heal} 点生命！")
+            elif _f_before > 0:
+                _f_decay = float(_crd_f.get("decay_per_tick", 0.7) or 0.7)
+                battle.resources["faith"] = max(0.0, _f_before - _f_decay)
+                if float(battle.resources["faith"]) < _f_before:
+                    out.append(f"🕯️ 信念衰减：{_f_before:.1f} → {float(battle.resources['faith']):.1f}")
+            if battle.p_buffs.get("faith_exhausted"):
+                battle.p_buffs["faith_exhausted"] = int(battle.p_buffs["faith_exhausted"]) - 1
+        return out, True
+    except Exception:
+        return [], False
+
+
+def _th_echo_heal(battle, actor, eff, logs):
+    """歌者回声驻留每层回体力。条件：回声层数 > 0。"""
+    try:
+        from .data.battle_config import ECHO_CFG as _ECHO_CFG
+        echo_n = battle._echo_layers()
+        if echo_n <= 0:
+            return [], False  # 无回声层 → 通道关闭
+        _heal_e = int(_ECHO_CFG.get("heal_per_layer", 6) or 6) * echo_n
+        if echo_n >= int(_ECHO_CFG.get("max_layers", 3) or 3):
+            _heal_e *= 2
+        out = []
+        if actor.get("hp", 0) < actor.get("max_hp", 1):
+            actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + _heal_e)
+            out.append(f"🎵 回声余韵：全队恢复 {_heal_e} 点体力({echo_n} 层)")
+        for _ally in (battle.allies or []):
+            if isinstance(_ally, dict) and _ally.get("hp", 0) < _ally.get("max_hp", 1):
+                _ally["hp"] = min(_ally.get("max_hp", _ally.get("hp", 1)), _ally.get("hp", 0) + _heal_e)
+        return out, True
+    except Exception:
+        return [], False
+
+
+def _th_affix_food_we(battle, actor, eff, logs):
+    """词条刻开始(_affix_turn_start) + 食物foodfx(_food_turn_start) + 武器特效 turn_start。
+    条件：三者任一存在（保守常驻，内部判空转）。"""
+    try:
+        out = []
+        try:
+            if battle._affix_effs(actor, "__any__") or True:
+                battle._affix_turn_start(actor, out)
+        except Exception:
+            pass
+        try:
+            battle._food_turn_start(actor, out)
+        except Exception:
+            pass
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _we_proc(battle, actor, "turn_start", {}, out)
+        except Exception:
+            pass
+        return out, True
+    except Exception:
+        return [], False
+
+
+# v179 P1b-e 注册：套装直连/被动/充能/核心资源/信念/回声/词条食物武器族
+for _th_kind, _th_fn in (("set_holy", _th_set_holy),
+                         ("passive_heal", _th_passive_heal),
+                         ("mech_charge", _th_mech_charge),
+                         ("core_regen", _th_core_regen),
+                         ("faith_decay", _th_faith_decay),
+                         ("echo_heal", _th_echo_heal),
+                         ("affix_food_we", _th_affix_food_we)):
+    _TICK_HANDLERS[_th_kind] = _th_fn
+
+
 class Battle:
     def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None, allies: list | None = None, st: dict | None = None, active_keys: list | None = None):
         self.btype = btype                 # monster | worldboss | pvp | instance（瞬态 Battle 结算器）
@@ -7720,240 +8043,35 @@ class Battle:
             return False
 
     def _tick_regen(self, player: dict, logs: list) -> list:
-        """v178.2 每刻效果结算器：regen_tick 事件触发时跑 A 类效果。
+        """v179 P1：每刻效果结算器（兼容壳）——依次调通用 tick handler。
 
-        迁移来源：原 _turn_start 的 A 类（时间语义）段——词条刻开始/食物持续/特效装备/
-        套装回血/符文治愈/被动充能/核心资源 regen/疾风余韵/资源增幅/森之共鸣/悼咏/
-        信念衰减/歌者回声。**逐字搬入，不改数值语义**；触发时机从"玩家每次行动开头"
-        改为"每秒 regen_tick"（鱼鱼铁律：每刻=每秒，行动频率不干扰回复效率）。
-        B 类（破绽条/蓄力/条件触发）留在 _turn_start。
+        原 v178.2 A 类硬编码逻辑已全拆为 _TICK_HANDLERS 注册的效果族 handler
+        （set_heal/set_holy/rune_regen/stardust_mana/passive_heal/mech_charge/
+        core_regen/faith_decay/echo_heal/affix_food_we），本方法保留签名：
+        直接调 _tick_regen 的旧测试（stage5_resources/v1302c/regen_tick 等）零改动。
+        每个 handler 返回 (logs, keep)；此处忽略 keep（常驻调用，由 _ensure_regen_effects
+        管理卡片生命周期）。
         """
         try:
             if not player:
                 return logs
         except Exception:
             return logs
-        # ---- A 类迁移段（原 _turn_start 7660-7878，逐字搬入）----
-        # 阶段八：词条刻开始回复（回春/冥想/晨曦祝福）
-        self._affix_turn_start(player, logs)
-        self._food_turn_start(player, logs)
-        # v140 波3.1：特效装备刻开始（铁卫意志/晨曦微光/不灭微光/死亡之舞缓伤/岁月流转）
-        try:
-            from .core.weapon_effects import proc as _we_proc
-            _we_proc(self, player, "turn_start", {}, logs)
-        except Exception:
-            pass
-        # v130.2c 暗夜圣典 2 件：场上亡灵≥1 时 悼咏积攒 +1（刻开始）
-        self._set_res_proc(player, "undead_on_field", logs)
-        # v130.2f 亡灵祭仪（暗影神谕·悼咏线）：场上每只存活亡灵 刻初 悼咏 +1
-        # （core_resources.py cls_hymn 注释承诺「最多 2 只生效」；上限 10/满溢转盾由 _res_gain_class 处理）
-        _crd = E.core_resource_def(player.get("class_name", ""))
-        if _crd and _crd.get("key") == "canticle":
-            _ud_n = self._undead_count()
-            if _ud_n > 0:
-                _ud_g = min(_ud_n, 2)
-                _ud_before = int(self.resources.get("canticle", 0) or 0)
-                _ud_now = self._res_gain_class(player.get("class_name", ""), "canticle", _ud_g)
-                if _ud_now > _ud_before:  # 真实增量判定（满资源不再误报，同 _set_res_proc 口径）
-                    logs.append(f"🕯️ 亡灵祭仪：{_ud_n} 只亡灵在场，悼咏 +{_ud_g}（当前 {_ud_now}/10）")
-        # 圣光/永恒套：每刻开始回复生命
-        for eff in E.set_bonus_4(player.get("equipment", {})):
-            if eff in ("regen", "regen_strong") and player.get("hp", 0) < player.get("max_hp", 1):
-                pct = 0.05 if eff == "regen" else 0.08
-                heal = int(player.get("max_hp", player.get("hp", 1)) * pct)
-                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-                logs.append(f"✨ 套装祝福生效，你回复了 {heal} 点生命！")
-                break
-        # v140 S1 直连消费：圣堂领域（holy_field_heal）/ 神恩爆发（divine_grace_burst）/ 壁立千仞（hu_xiao_barrier）
-        _s4 = E.set_bonus_4(player.get("equipment", {}))
-        if "holy_field_heal" in _s4:
-            _hfh = (self._set_eff(player, "holy_field_heal", 4) or {})
-            _hfh_p = (_hfh or {}).get("params") or {}
-            _low = float(_hfh_p.get("cond_hp_lt", _hfh.get("low_pct", 0.50)) or 0.50)
-            _hl = float(_hfh_p.get("heal_low_pct", _hfh.get("heal_low", 0.06)) or 0.06)
-            _hh = float(_hfh_p.get("heal_high_pct", _hfh.get("heal_high", 0.03)) or 0.03)
-            _mx_hp = player.get("max_hp", player.get("hp", 1))
-            if player.get("hp", 0) < _mx_hp:
-                _pct = _hl if player.get("hp", 0) / max(1, _mx_hp) < _low else _hh
-                _hf_heal = int(_mx_hp * _pct)
-                player["hp"] = min(_mx_hp, player.get("hp", 0) + _hf_heal)
-                logs.append(f"⛪ 圣堂领域：圣光庇护，你回复了 {_hf_heal} 点生命！")
-        if "divine_grace_burst" in _s4:
-            _dgb_eff = (self._set_eff(player, "divine_grace_burst", 4) or {})
-            _dgb_p = (_dgb_eff or {}).get("params") or {}
-            _mx_hp2 = player.get("max_hp", player.get("hp", 1))
-            _dg_heal = int(_mx_hp2 * float(_dgb_p.get("heal_pct", 0.05)))
-            if player.get("hp", 0) < _mx_hp2:
-                player["hp"] = min(_mx_hp2, player.get("hp", 0) + _dg_heal)
-                logs.append(f"☀️ 神恩爆发：神恩涌动，你回复了 {_dg_heal} 点生命！")
-            if not (self.p_eff or {}).get("divine_burst_used") and player.get("hp", 0) / max(1, _mx_hp2) < float(_dgb_p.get("low_hp_lt", 0.30)):
-                _dg_extra = int(_mx_hp2 * float(_dgb_p.get("low_extra_pct", 0.15)))
-                player["hp"] = min(_mx_hp2, player.get("hp", 0) + _dg_extra)
-                self.p_eff["divine_burst_used"] = True
-                logs.append(f"☀️ 神恩爆发·濒危：圣辉倾泻，额外回复 {_dg_extra} 点生命！（每场 1 次）")
-        if "hu_xiao_barrier" in _s4:
-            _hxb_eff = (self._set_eff(player, "hu_xiao_barrier", 4) or {})
-            _hxb_p = (_hxb_eff or {}).get("params") or {}
-            self._add_shield("hu_xiao_barrier", int(player.get("max_hp", player.get("hp", 1)) * float(_hxb_p.get("shield_pct", 0.03))), int(_hxb_p.get("shield_turns", 1)))
-            logs.append("🧱 壁立千仞：千仞壁垒立于身前！")
-        # v104 M07 修复 P1：星尘套 5 件——夜间每刻回蓝 5%（10 章五节；夜间 = 19:00-06:00 服务器本地时间）
-        if "星尘" in "|".join(self._set_bonus_5(player)) and player.get("mp", 0) < player.get("max_mp", 1):
-            _hour = time.localtime().tm_hour
-            if _hour >= 19 or _hour < 6:
-                gain = int(player.get("max_mp", player.get("mp", 1)) * 0.05)
-                player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + gain)
-                logs.append(f"🌙 星尘祝福：夜风拂过，你回复了 {gain} 点魔力！({player['mp']}/{player.get('max_mp', '?')})")
-        # v34 符文·治愈：每刻回复 x% 生命
-        regen_lvl = self._enchant_lvl(self._enchant_effects(player), "regen")
-        if regen_lvl and player.get("hp", 0) < player.get("max_hp", 1):
-            heal = int(player.get("max_hp", player.get("hp", 1)) * C.rune_value("regen", regen_lvl))
-            player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-            logs.append(f"✨ 符文治愈生效，你回复了 {heal} 点生命！")
-        # v109.2 P2-9：气力调和每刻回血 2%（proc turn_heal，原按技能名硬编码——v109.1 改名即断链事故源）
-        for _pn, _ps in self._passive_map(player)["proc"].get("turn_heal", []):
-            if player.get("hp", 0) < player.get("max_hp", 1):
-                heal = int(player.get("max_hp", player.get("hp", 1)) * float(_ps.get("pct", 0.02)))
-                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-                logs.append(f"🍃 {_pn}生效，你回复了 {heal} 点生命！")
-            break
-        # v104 R3 P1-1：生命之泉——全队每刻回血 5%（单人战斗=自身，副本由 instance 广播）
-        for _pn, _ps in self._passive_map(player)["proc"].get("team_regen", []):
-            if player.get("hp", 0) < player.get("max_hp", 1):
-                heal = int(player.get("max_hp", player.get("hp", 1)) * float(_ps.get("mult", 0.05)))
-                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-                logs.append(f"💧 {_pn}：生命之泉涌动，你回复了 {heal} 点生命！")
-            break
-        # v109.2 P2-9：奥术直觉/符文刻印 每刻自动充能（proc arcane_regen / stat spellblade_regen，
-        # 原按技能名硬编码——改名即失效风险同款）
-        # v125.1 P2-3：mech 键读被动数据 mech 字段（skills.py 奥术直觉 passive.mech="arcane"），
-        # 不再按 proc 名写死 mech_stacks 键
-        for _pn, _ps in self._passive_map(player)["proc"].get("arcane_regen", []):
-            _mech = _ps.get("mech") or "arcane"  # 兜底保旧行为
-            self.mech_stacks[_mech] = E.mech_stack_gain(_mech, self.mech_stacks, 1)
-            logs.append(f"📖 {_pn}：充能自动+1(当前 {self.mech_stacks[_mech]} 层)")
-            break
-        # v169.7 奥术直觉 arcane_intuition（奥术学者）：每刻自动 +1 奥术充能（冥想中 +2）——
-        # 与 arcane_regen 旧被动同存储（mech_stacks[_mech]）；focus 专注/冥想激活时 +2
-        for _pn, _ps in self._passive_map(player)["proc"].get("arcane_intuition", []):
-            _mech2 = _ps.get("mech") or "arcane"
-            _gain2 = int(_ps.get("gain", 1) or 1)
+        _log_out = []
+        # 按注册顺序跑全部周期效果族 handler（数据驱动：kind 查表，无硬编码分支）
+        for _kind in ("set_heal", "set_holy", "rune_regen", "stardust_mana",
+                      "passive_heal", "mech_charge", "core_regen",
+                      "faith_decay", "echo_heal", "affix_food_we"):
+            _fn = _TICK_HANDLERS.get(_kind)
+            if not _fn:
+                continue
             try:
-                from .core.battle_modes import focus_active as _fa169
-                if _fa169(player):
-                    _gain2 += int(_ps.get("focus_gain", 1) or 1)  # 冥想中额外 +1 → 共 +2
+                _h_logs, _ = _fn(self, player, {"kind": _kind, "data": {}}, _log_out)
+                if _h_logs:
+                    _log_out += _h_logs
             except Exception:
-                pass
-            _before2 = int(self.mech_stacks.get(_mech2, 0) or 0)
-            self.mech_stacks[_mech2] = E.mech_stack_gain(_mech2, self.mech_stacks, _gain2)
-            if int(self.mech_stacks.get(_mech2, 0) or 0) > _before2:
-                logs.append(f"📖 {_pn}：每刻充能自动+{_gain2}(当前 {self.mech_stacks[_mech2]} 层)")
-            break
-        for _pn, _ps in self._passive_map(player)["stat"]:
-            # v113 魔剑士流派已删：spellblade_regen 无数据（保留兼容分支，mech 键同样读数据字段）
-            if _ps.get("stat") == "spellblade_regen":
-                _mech = _ps.get("mech") or "spellblade"  # 兜底保旧行为
-                self.mech_stacks[_mech] = E.mech_stack_gain(_mech, self.mech_stacks, 1)
-                logs.append(f"⚔️ {_pn}：魔能自动+1(当前 {self.mech_stacks[_mech]} 层)")
-                break
-        # v2.0 核心资源：刻回复（游侠精力 +25/刻）
-        cls = player.get("class_name", "")
-        rd = E.core_resource_def(cls)
-        if rd and rd.get("regen", 0) > 0:
-            k = rd["key"]
-            old = int(self.resources.get(k, 0) or 0)
-            # v130.2c 词条上限：自然回走 _res_gain（盈满背囊上限 +10/20 生效，行为与旧路径零差异）
-            new = self._res_gain(player, k, int(rd.get("regen", 0) or 0))
-            if new > old:
-                logs.append(f"🍃 {rd['name']}回复 {new - old} 点({new}/{self._res_max(player, k)})")
-            # v130.2d 疾风余韵：上刻结束时精力 ≥80 → 本刻自然回复 +10（读词条 effect.regen）
-            if k == "energy":
-                _tw_bonus = self._tailwind_regen_bonus(player)
-                if _tw_bonus > 0:
-                    _old2 = int(self.resources.get(k, 0) or 0)
-                    _new2 = self._res_gain(player, k, _tw_bonus)
-                    if _new2 > _old2:
-                        logs.append(f"🌈 疾风余韵：上刻精力满弦，本刻回复 +{_new2 - _old2} 点{rd['name']}！")
-        # v130.2 资源增幅：自然回触发（迅捷之核 本刻精力额外 +30，P0-1 消费端）
-        _amp_pt = self._amp_resource(player, "regen")
-        if _amp_pt:
-            logs.append(f"⚡ 迅捷之核：自然回复额外资源 +{_amp_pt}！")
-        # v169.7 森之共鸣 focus_regen_summon（游侠攻线·森语者）：召唤物存活时 专注(精力)充能 +5/刻
-        # （与 rd.regen 主渠道叠加；存活判定 = 玩家侧召唤物 alive）
-        try:
-            if self.summons:
-                for _pn, _ps in self._passive_map(player)["proc"].get("focus_regen_summon", []):
-                    _sr_gain = int(_ps.get("gain", 5) or 5)
-                    _sr_old = int(self.resources.get("energy", 0) or 0)
-                    _sr_new = self._res_gain(player, "energy", _sr_gain)
-                    if _sr_new > _sr_old:
-                        logs.append(f"🌳 {_pn}：召唤物在场，专注充能 +{_sr_gain}（{_sr_new}）")
-                    break
-        except Exception:
-            pass
-        # v153 §4（C-18）：牧师信念负载——每刻 −0.7 衰减 + 过载触发（满 10 清零→全队回复 + 力竭）
-        _crd_f = E.core_resource_def(player.get("class_name", ""))
-        # v169.7 亡灵祭仪 undead_faith（牧师死灵线）：场上每只亡灵每刻 +0.15 信念——
-        # 在信念衰减前结算（先产后衰）；亡灵计数 = _undead_count（玩家骷髅/敌方亡灵同名关键词）
-        try:
-            if _crd_f and _crd_f.get("key") == "faith":
-                for _pn, _ps in self._passive_map(player)["proc"].get("undead_faith", []):
-                    _uf_n = self._undead_count()
-                    if _uf_n > 0 and not self.p_buffs.get("faith_exhausted"):
-                        _uf_gain = float(_ps.get("per_undead", 0.15) or 0.15) * _uf_n
-                        _f0 = float(self.resources.get("faith", 0) or 0)
-                        self.resources["faith"] = min(float(_crd_f.get("max", 10) or 10), _f0 + _uf_gain)
-                        logs.append(f"🕯️ {_pn}：{_uf_n} 只亡灵在场，信念 +{_uf_gain:.2f}（{self.resources['faith']:.2f}）")
-                    break
-        except Exception:
-            pass
-        if _crd_f and _crd_f.get("key") == "faith" and _crd_f.get("decay_per_tick"):
-            _f_before = float(self.resources.get("faith", 0) or 0)
-            if _f_before >= float(_crd_f.get("max", 10)):
-                # 过载触发：清零 → 全队回复
-                _ov_pct = float(_crd_f.get("overload_heal_pct", 0.015) or 0.015)
-                _ov_heal = int(self.player.get("max_hp", 1) * _ov_pct * _f_before)
-                self.resources["faith"] = 0
-                # v169.7 信念·圣化 faith_overload_heal（牧师死灵线）：过载时不再力竭，
-                # 改为回血提升 30%（过载回响 _ov_heal ×1.3，且不清力竭 buff）
-                _foheal = False
-                try:
-                    for _pn_fh, _ps_fh in self._proc_pm(player)["proc"].get("faith_overload_heal", []):
-                        _ov_heal = int(_ov_heal * (1.0 + float(_ps_fh.get("heal_up", 0.30) or 0.30)))
-                        _foheal = True
-                        break
-                except Exception:
-                    pass
-                logs.append(f"⚡ 信念过载！信仰之力迸发，全队回复 {_ov_heal} 点生命！")
-                if not _foheal:
-                    # 力竭：后续治疗 ×0.5，信念不再增加（6 刻）
-                    self.p_buffs["faith_exhausted"] = 6
-                else:
-                    logs.append("✨ 信念·圣化：信念过载化为圣辉，无力竭反噬！")
-                if self.player.get("hp", 0) < self.player.get("max_hp", 1):
-                    self.player["hp"] = min(self.player.get("max_hp", 1), self.player.get("hp", 0) + _ov_heal)
-                    logs.append(f"✨ 过载回响：你回复了 {_ov_heal} 点生命！")
-            elif _f_before > 0:
-                _f_decay = float(_crd_f.get("decay_per_tick", 0.7) or 0.7)
-                # 力竭中信念不增加（但仍衰减）
-                self.resources["faith"] = max(0.0, _f_before - _f_decay)
-                if float(self.resources["faith"]) < _f_before:
-                    logs.append(f"🕯️ 信念衰减：{_f_before:.1f} → {float(self.resources['faith']):.1f}")
-            # 力竭计数递减
-            if self.p_buffs.get("faith_exhausted"):
-                self.p_buffs["faith_exhausted"] = int(self.p_buffs["faith_exhausted"]) - 1
-        # v130.2 歌者回声驻留：每层刻初始全队恢复 6 体力（priest_转职.md §3.0）
-        echo_n = self._echo_layers()
-        if echo_n > 0:
-            _heal_e = int(ECHO_CFG.get("heal_per_layer", 6) or 6) * echo_n
-            if echo_n >= int(ECHO_CFG.get("max_layers", 3) or 3):
-                _heal_e *= 2  # 策划案 12 章 5.1.1：回声满层时每层恢复翻倍（3 层=36/刻）
-            if player.get("hp", 0) < player.get("max_hp", 1):
-                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + _heal_e)
-                logs.append(f"🎵 回声余韵：全队恢复 {_heal_e} 点体力({echo_n} 层)")
-            for _ally in (self.allies or []):
-                if isinstance(_ally, dict) and _ally.get("hp", 0) < _ally.get("max_hp", 1):
-                    _ally["hp"] = min(_ally.get("max_hp", _ally.get("hp", 1)), _ally.get("hp", 0) + _heal_e)
-        return logs
+                continue
+        return _log_out
 
     def _turn_start(self, player: dict) -> list:
         """刻开始：v10 套装每刻回复 + 破绽条衰减（v151）。DOT 已事件驱动（v178.1），不在此结算。"""
