@@ -3800,8 +3800,11 @@ class Battle:
         return int(effs.get(effect, 0) or 0)
 
     def _player_stats(self, player: dict) -> dict:
+        # v180-B：equipment 可能缺失（怪配 class_name 但无装备字段）→ 兜底空。
+        # 注意：不传 learned_skills（面板并入被动由 engine 做——战斗侧被动经 _passive_map
+        # 动态处理，此处传了会双算。怪要被动走 _passive_map 同玩家路径）
         st = E.player_final_stats(player.get("class_name", "战士"), player.get("level", 1),
-                                  player.get("equipment", {}),
+                                  player.get("equipment") or {},
                                   player.get("class_tier", 0),
                                   player.get("attributes"),
                                   player.get("evolve_path", 0),

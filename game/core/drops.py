@@ -457,6 +457,16 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
         "element_immune": list(mod.get("element_immune") or []),
         "element_weak": dict(mod.get("element_weak") or {}),
         "dmg_taken_mult": float(mod.get("dmg_taken_mult", 1.0) or 1.0),
+        # v180-B actor 化（怪扮职业/新 actor 扩展）：MONSTER_MODS 可配
+        #   class_name（职业 id，如 cls_mu_shi——面板走玩家全公式，吃被动/资源/装备）
+        #   equipment（装备 dict）、learned_skills（被动技能名列表）、race、skill_levels
+        #   side（默认 enemy；玩家侧 actor 用 player）
+        "class_name": mod.get("class_name"),
+        "equipment": mod.get("equipment") or {},
+        "learned_skills": mod.get("learned_skills"),
+        "race": mod.get("race"),
+        "skill_levels": mod.get("skill_levels"),
+        "side": mod.get("side", "enemy"),
     }
 
 # ============ v27b 多对多站位引擎 —— 怪物队伍构建（§8.1 / §9.3 数据层）============
