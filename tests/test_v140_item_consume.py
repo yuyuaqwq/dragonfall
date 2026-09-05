@@ -43,7 +43,7 @@ def test_phoenix():
     msg = eff_phoenix(b, p, {"revive_hp": 0.30, "dmg_reduce": 0.20, "turns": 3})
     b._damage_player(p, 99999, [], source="测试")
     check("phoenix 复活", p["hp"] > 0, f"hp={p['hp']}")
-    check("phoenix 减伤 buff", "reduce_all" in b.p_buffs, str(b.p_buffs))
+    check("phoenix 减伤 buff", "reduce_all" in b._p_buffs_bag(), str(b._p_buffs_bag()))
 
 def test_invuln():
     print("【2. 次元门扉符无敌】")
@@ -91,8 +91,8 @@ def test_vuln():
     b.enemy.setdefault("debuffs", {})["poison"] = {"n": 1, "mult": 1.0}
     from game.core.potion_effects import eff_vuln
     msg = eff_vuln(b, p, {"turns": 3, "per_debuff": 0.12, "max_debuff": 3, "max_bonus": 0.36})
-    check("vuln 标记 bonus>0", float(b.p_eff.get("vuln", {}).get("bonus", 0) or 0) > 0,
-          str(b.p_eff.get("vuln")))
+    check("vuln 标记 bonus>0", float(b._p_eff().get("vuln", {}).get("bonus", 0) or 0) > 0,
+          str(b._p_eff().get("vuln")))
     b._player_stats = lambda pl: {"atk": 100, "matk": 80, "def": 50, "mdef": 50,
                                   "spd": 10, "crit": 0.05, "max_hp": 9999, "max_mp": 999}
     orig_dmg = b._damage_enemy

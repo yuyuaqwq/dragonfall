@@ -118,7 +118,7 @@ def test_consume_all_formula():
     # ---- 引擎黑盒：施放不消耗充能（v153 语义：元素湮灭吃 cond 不吃充能条）----
     try:
         b, p = new_battle("cls_fa_shi", 1, 1, learned=["元素湮灭"])
-        b.resources["element_charge"] = 5
+        b._p_res()["element_charge"] = 5
         cap, logs = cast_capture(b, "元素湮灭", p)
         check_float("元素湮灭 折算 power 保持 1.71（无 consume_all 放大）", cap.get("power", 0), 1.71)
         check("元素湮灭 施放后充能不变（仍 5）", b._elem_charge() == 5,
@@ -133,7 +133,7 @@ def test_overcap_regression():
     try:
         # 持 2 充能施放元素湮灭（v153 无 consume_all → 不校验充能，直接施放）
         b, p = new_battle("cls_fa_shi", 1, 1, learned=["元素湮灭"])
-        b.resources["element_charge"] = 2
+        b._p_res()["element_charge"] = 2
         logs, blocked = b._skill_cast_blocked("元素湮灭", p)
         check("持 2 充能预检不拦截", blocked is False, f"{logs}")
         logs, _ = b.player_turn("skill", "元素湮灭", p, enemy_act=False)
@@ -147,7 +147,7 @@ def test_overcap_regression():
     try:
         # 拳师守线磐岩释能（res_cost guard_core）门槛 ≥1 即可
         b, p = new_battle("cls_wu_seng", 1, 2, learned=["磐岩释能"])
-        b.resources["guard_core"] = 1
+        b._p_res()["guard_core"] = 1
         logs, blocked = b._skill_cast_blocked("磐岩释能", p)
         check("持 1 磐核预检不拦截（res_cost 门槛 ≥1 即可）", blocked is False, f"{logs}")
     except (AttributeError, TypeError) as ex:
@@ -176,7 +176,7 @@ def test_bard_echo_loop():
             pp = dict(p2)
             pp["hp"] = hp
             bb = BT.Battle("monster", make_enemy(), player=pp)
-            bb.resources["faith"] = faith
+            bb._p_res()["faith"] = faith
             lg, _ = bb.player_turn("skill", "治愈术", pp, enemy_act=False)
             # v154 读条命中制：治疗读条结束（cast_done）才结算——推进后生效
             bb._process_until(float(getattr(bb, "p_ct", 0) or 0) + 0.001, lg, pp)
@@ -227,30 +227,30 @@ def test_six_affixes():
         b._end_round()  # 记录上回合精力快照 = 100（开局满精）
         check("疾风余韵：上回合精力 100 ≥80 → 额外回复 10", b._tailwind_regen_bonus(p) == 10,
               f"bonus={b._tailwind_regen_bonus(p)}")
-        b.resources["energy"] = 60
+        b._p_res()["energy"] = 60
         # v178.2：核心资源刻回复 + 疾风余韵迁到 _tick_regen（每秒 tick）——测新结算器
         b._tick_regen(p, [])
         # v153 精力自然回 18（v151 起 30→18 专注流量制）+ 疾风余韵 10 = 60+28=88
-        check("回合开始：自然回 18 + 疾风余韵 10 = 88", b.resources["energy"] == 88,
-              f"energy={b.resources['energy']}")
+        check("回合开始：自然回 18 + 疾风余韵 10 = 88", b._p_res()["energy"] == 88,
+              f"energy={b._p_res()['energy']}")
         b2, p2 = new_battle("cls_you_xia", 1, 2, equipment=mk_eq(mk_piece(["swift_tailwind"])))
-        b2._tailwind_prev_energy = 70
+        b2._p_set_tailwind_prev_energy(70)
         check("疾风余韵：上回合精力 70 <80 → 不触发", b2._tailwind_regen_bonus(p2) == 0,
               f"bonus={b2._tailwind_regen_bonus(p2)}")
-        b2.resources["energy"] = 60
+        b2._p_res()["energy"] = 60
         b2._tick_regen(p2, [])
-        check("无余韵加成：60 + 18 = 78", b2.resources["energy"] == 78,
-              f"energy={b2.resources['energy']}")
+        check("无余韵加成：60 + 18 = 78", b2._p_res()["energy"] == 78,
+              f"energy={b2._p_res()['energy']}")
         # 满 100 排气：v153 已废弃凝神屏息（vent trigger=999 永不到达，专注流量制）
         b3, p3 = new_battle("cls_you_xia", 1, 2, equipment=mk_eq(mk_piece(["swift_tailwind"])))
         check("v153 vent trigger=999（凝神屏息已废弃，专注流量制）",
               int((p3.get("vent") or {}).get("trigger", 0)) == 999,
               str(p3.get("vent")))
-        b3.resources["energy"] = 100
-        b3._tailwind_prev_energy = 100
+        b3._p_res()["energy"] = 100
+        b3._p_set_tailwind_prev_energy(100)
         b3._tick_regen(p3, [])
-        check("满 100 + 余韵 10 封顶 100（v153 无排气，专注流量制）", b3.resources["energy"] == 100,
-              f"energy={b3.resources['energy']}")
+        check("满 100 + 余韵 10 封顶 100（v153 无排气，专注流量制）", b3._p_res()["energy"] == 100,
+              f"energy={b3._p_res()['energy']}")
     except (AttributeError, TypeError) as ex:
         skip("引擎：疾风余韵", str(ex))
     try:
@@ -258,33 +258,33 @@ def test_six_affixes():
         b, p = new_battle("cls_ci_ke", 1, 1,
                           equipment=mk_eq(mk_piece(["combo_ward"], quality="purple")))
         check_float("连段护持保留概率 0.15（紫）", b._combo_keep_chance(p), 0.15)
-        b.mech_stacks["combo"] = 5
+        b._p_stacks()["combo"] = 5
         with mock.patch.object(BT.random, "random", return_value=0.0):
             b._combo_break(p, b._combo_keep_chance(p))
-        check("roll 0.0 < 0.15 → 连段保留", b.mech_stacks.get("combo") == 5,
-              f"combo={b.mech_stacks.get('combo')}")
+        check("roll 0.0 < 0.15 → 连段保留", b._p_stacks().get("combo") == 5,
+              f"combo={b._p_stacks().get('combo')}")
         with mock.patch.object(BT.random, "random", return_value=0.5):
             b._combo_break(p, b._combo_keep_chance(p))
-        check("roll 0.5 ≥ 0.15 → 连段击碎", b.mech_stacks.get("combo") is None,
-              f"combo={b.mech_stacks.get('combo')}")
+        check("roll 0.5 ≥ 0.15 → 连段击碎", b._p_stacks().get("combo") is None,
+              f"combo={b._p_stacks().get('combo')}")
         # 受击生产链路接线（_damage_player → _combo_break(keep_chance)）
         b2, p2 = new_battle("cls_ci_ke", 1, 1,
                             equipment=mk_eq(mk_piece(["combo_ward"], quality="purple")))
-        b2.mech_stacks["combo"] = 5
+        b2._p_stacks()["combo"] = 5
         with mock.patch.object(BT.random, "random", return_value=0.0):
             b2._damage_player(p2, 50, [])
-        check("受击链路：连段护持生效（连段保留）", b2.mech_stacks.get("combo") == 5,
-              f"combo={b2.mech_stacks.get('combo')}")
+        check("受击链路：连段护持生效（连段保留）", b2._p_stacks().get("combo") == 5,
+              f"combo={b2._p_stacks().get('combo')}")
     except (AttributeError, TypeError) as ex:
         skip("引擎：连段护持", str(ex))
     try:
         # 4e. 连段之锋：生效阈值 3 → 2
         b, p = new_battle("cls_ci_ke", 1, 1, equipment=mk_eq(mk_piece(["combo_edge"])))
         check("连段之锋阈值 3 → 2", b._combo_finish_min(p) == 2, f"min={b._combo_finish_min(p)}")
-        b.mech_stacks["combo"] = 2
+        b._p_stacks()["combo"] = 2
         check_float("combo2 增伤 ×1.10（阈值 2 生效）", b._combo_dmg_mult(p), 1.10)
         b2, p2 = new_battle("cls_ci_ke", 1, 1)
-        b2.mech_stacks["combo"] = 2
+        b2._p_stacks()["combo"] = 2
         check("无词条 combo2 不达阈值 → 无增伤 ×1.0", b2._combo_dmg_mult(p2) == 1.0,
               f"mult={b2._combo_dmg_mult(p2)}")
     except (AttributeError, TypeError) as ex:
@@ -292,10 +292,10 @@ def test_six_affixes():
     try:
         # 4f. 蓄势精通：攻线每 1 气 +3% → +4%
         b, p = new_battle("cls_wu_seng", 1, 1, equipment=mk_eq(mk_piece(["momentum_mastery"])))
-        b.resources["chi"] = 5
+        b._p_res()["chi"] = 5
         check_float("蓄势精通 5 气 → ×1.20", b._momentum_mult(p), 1.20)
         b2, p2 = new_battle("cls_wu_seng", 1, 1)
-        b2.resources["chi"] = 5
+        b2._p_res()["chi"] = 5
         check_float("无词条 5 气 → ×1.15（基础蓄势）", b2._momentum_mult(p2), 1.15)
     except (AttributeError, TypeError) as ex:
         skip("引擎：蓄势精通", str(ex))
@@ -324,8 +324,8 @@ def test_sets_sample():
         eq = mk_eq(mk_piece(set_id="set_ye_mu_he_qi_ying_sha"), mk_piece(set_id="set_ye_mu_he_qi_ying_sha"),
                    mk_piece(set_id="set_ye_mu_he_qi_ying_sha"), mk_piece(set_id="set_ye_mu_he_qi_ying_sha"))
         b, p = new_battle("cls_ci_ke", 1, 1, equipment=eq)
-        check("夜幕合契·影纱 2 件：战斗开始 +1 连击点", b.resources.get("cp", 0) == 1,
-              f"cp={b.resources.get('cp')}")
+        check("夜幕合契·影纱 2 件：战斗开始 +1 连击点", b._p_res().get("cp", 0) == 1,
+              f"cp={b._p_res().get('cp')}")
         # v151（2026-08-31）：刺客不再有 cp 消耗终结技（连段 lian_duan 取代连击点），
         # finisher_crit 触发条件（res_cost.cp/consume_all cp）在 v151 数据下无命中——
         # 断言套装 4 件配置存在 + 触发条件语义保留（引擎 _set_crit_bonus 读 finisher_crit）。
@@ -340,7 +340,7 @@ def test_sets_sample():
         eq = mk_eq(mk_piece(set_id="set_sheng_dian_ri_mian"), mk_piece(set_id="set_sheng_dian_ri_mian"),
                    mk_piece(set_id="set_sheng_dian_ri_mian"), mk_piece(set_id="set_sheng_dian_ri_mian"))
         b, p = new_battle("cls_mu_shi", 0, 0, equipment=eq)
-        b.resources["faith"] = 10
+        b._p_res()["faith"] = 10
         logs = []
         with mock.patch.object(BT.random, "random", return_value=0.99):
             b._damage_player(p, 50, logs)
@@ -352,7 +352,7 @@ def test_sets_sample():
             b._damage_player(p, 50, [])
         check("每战 1 次：第二击正常掉血", p["hp"] < 400, f"hp={p['hp']}")
         b2, p2 = new_battle("cls_mu_shi", 0, 0, equipment=eq)
-        b2.resources["faith"] = 5
+        b2._p_res()["faith"] = 5
         with mock.patch.object(BT.random, "random", return_value=0.99):
             b2._damage_player(p2, 50, [])
         check("不满信仰不触发免伤（cond=faith_full）",
@@ -364,13 +364,13 @@ def test_sets_sample():
         eq = mk_eq(mk_piece(set_id="set_yu_jin_jun_tuan_hui_zhang"), mk_piece(set_id="set_yu_jin_jun_tuan_hui_zhang"),
                    mk_piece(set_id="set_yu_jin_jun_tuan_hui_zhang"), mk_piece(set_id="set_yu_jin_jun_tuan_hui_zhang"))
         b, p = new_battle("cls_zhan_shi", 0, 0, equipment=eq)
-        b.resources["rage"] = 10
-        check("满怒判定 _rage_full = True", b._rage_full(p) is True, f"rage={b.resources.get('rage')}")
+        b._p_res()["rage"] = 10
+        check("满怒判定 _rage_full = True", b._rage_full(p) is True, f"rage={b._p_res().get('rage')}")
         # v151（2026-08-31）：战士无 consume_all 怒气技能（旧无畏冲击已删），
         # 「满怒大招怒气消耗 -1」无数据命中——保留满怒判定 + 满怒普攻二段追击断言。
         b2, p2 = new_battle("cls_zhan_shi", 0, 0, equipment=eq)
         b2.player = p2
-        b2.resources["rage"] = 10
+        b2._p_res()["rage"] = 10
         st = b2._player_stats(p2)
         enemy_hp0 = b2.enemy["hp"]
         logs2 = []

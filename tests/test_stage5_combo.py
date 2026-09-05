@@ -25,20 +25,20 @@ def mkmon(name='木桩', hp=99999):
 
 print("【连招：基础推进】")
 b = BT.Battle('monster', mkmon(), player=mk())
-check("初始空序列", b.combo_seq == [], str(b.combo_seq))
-check("拳 → 未三连", b._combo_push("拳") is False and b.combo_seq == ["拳"], str(b.combo_seq))
-check("拳→踢", b._combo_push("踢") is False and b.combo_seq == ["拳", "踢"], str(b.combo_seq))
-check("拳→踢→掌 三连触发", b._combo_push("掌") is True, str(b.combo_seq))
-check("三连后清空", b.combo_seq == [], str(b.combo_seq))
+check("初始空序列", b._p_combo_seq() == [], str(b._p_combo_seq()))
+check("拳 → 未三连", b._combo_push("拳") is False and b._p_combo_seq() == ["拳"], str(b._p_combo_seq()))
+check("拳→踢", b._combo_push("踢") is False and b._p_combo_seq() == ["拳", "踢"], str(b._p_combo_seq()))
+check("拳→踢→掌 三连触发", b._combo_push("掌") is True, str(b._p_combo_seq()))
+check("三连后清空", b._p_combo_seq() == [], str(b._p_combo_seq()))
 
 print("【连招：顺序错乱重置】")
 b2 = BT.Battle('monster', mkmon(), player=mk())
 b2._combo_push("拳")
-check("拳→拳 重置为拳", b2._combo_push("拳") is False and b2.combo_seq == ["拳"], str(b2.combo_seq))
+check("拳→拳 重置为拳", b2._combo_push("拳") is False and b2._p_combo_seq() == ["拳"], str(b2._p_combo_seq()))
 b2._combo_push("掌")
-check("拳→掌 顺序错清空", b2.combo_seq == [], str(b2.combo_seq))
+check("拳→掌 顺序错清空", b2._p_combo_seq() == [], str(b2._p_combo_seq()))
 b2._combo_push("踢")
-check("踢起手不进序列", b2.combo_seq == [], str(b2.combo_seq))
+check("踢起手不进序列", b2._p_combo_seq() == [], str(b2._p_combo_seq()))
 b2._combo_push("拳")
 b2._combo_push("踢")
 check("进度标签", b2._combo_label() == "拳→踢→_", b2._combo_label())
@@ -48,13 +48,15 @@ b3 = BT.Battle('monster', mkmon(), player=mk())
 b3._combo_push("拳")
 b3._combo_push("踢")
 b3._combo_push("")  # 非连招技能
-check("非连招不清空", b3.combo_seq == ["拳", "踢"], str(b3.combo_seq))
+check("非连招不清空", b3._p_combo_seq() == ["拳", "踢"], str(b3._p_combo_seq()))
 
 print("【连招：序列化往返】")
 b3._combo_push("掌")
 st = b3.to_state()
 b4 = BT.Battle.from_state(st)
-check("combo_seq 序列化", b4.combo_seq == b3.combo_seq, str((b4.combo_seq, b3.combo_seq)))
+b4.player = mk()  # v180-B ①：from_state 后绑定玩家 actor dict，再灌入恢复状态
+b4._apply_restore_pstate()
+check("combo_seq 序列化", b4._p_combo_seq() == b3._p_combo_seq(), str((b4._p_combo_seq(), b3._p_combo_seq())))
 
 print("【连招：战斗内三连触发】")
 sk = C.PLAYER_SKILLS["cls_wu_seng"]["skills"]
@@ -73,7 +75,7 @@ hp0 = b5.enemy["hp"]
 logs, _ = b5.player_turn("skill", name, p, enemy_act=False)
 # v154 读条命中制：出招读条结束（cast_done）才结算命中（连招推进/伤害）——推进后生效
 b5._process_until(float(getattr(b5, "p_ct", 0) or 0) + 0.001, logs, p)
-check("拳施放记录连招", b5.combo_seq == ["拳"], str(b5.combo_seq))
+check("拳施放记录连招", b5._p_combo_seq() == ["拳"], str(b5._p_combo_seq()))
 check("连招进度日志", any("连招" in x for x in logs), str(logs)[:200])
 
 # 直接手动推进到三连（模拟踢+掌）
@@ -84,7 +86,7 @@ logs2, _ = b5.player_turn("skill", name, p, enemy_act=False)
 b5._process_until(float(getattr(b5, "p_ct", 0) or 0) + 0.001, logs2, p)
 check("三连触发日志", any("三连" in x for x in logs2), str(logs2)[:200])
 check("三连追加伤害", b5.enemy["hp"] < hp1, f"{b5.enemy['hp']} vs {hp1}")
-check("combo_ready 标记", b5.resources.get("combo_ready") == 1, str(b5.resources))
+check("combo_ready 标记", b5._p_res().get("combo_ready") == 1, str(b5._p_res()))
 
 # 还原
 sk[test_skill].pop("combo", None)

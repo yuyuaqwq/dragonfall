@@ -69,18 +69,21 @@ def new_battle(cls, tier, path, **pw):
 
 
 def _init_res(b):
-    b.resources = {"rage": 0, "element": "fire", "energy": 100, "faith": 0, "cp": 0, "chi": 0}
+    # v180-B：resources 权威在 player actor dict——REBIND 整袋先 clear 后 update（同迁移指南）
+    b._p_res().clear()
+    b._p_res().update({"rage": 0, "element": "fire", "energy": 100, "faith": 0, "cp": 0, "chi": 0})
 
 
 def _dmg_run(b, p, skill=None, stealth=False, chi=None):
     """确定性伤害跑法：random → 0.99（不自然暴击/不幸运/不闪避）+
     random.uniform → 0.0（calc_damage ±15% 波动归零）。
     stealth=True 手动挂潜行 buff；chi 非 None 则预置气。返回 (伤害值, 日志)。
-    v154 读条命中制：施放走 player_turn（排 cast_done），推进到命中时刻才结算。"""
+    v154 读条命中制：施放走 player_turn（排 cast_done），推进到命中时刻才结算。
+    v180-B：p_buffs/resources 经 _p_buffs_bag()/_p_res() 读玩家 actor dict。"""
     if stealth:
-        b.p_buffs["stealth"] = 1
+        b._p_buffs_bag()["stealth"] = 1
     if chi is not None:
-        b.resources["chi"] = chi
+        b._p_res()["chi"] = chi
     before = b.enemy.get("hp", 0)
     with mock.patch.object(BT.random, "random", return_value=0.99), \
             mock.patch.object(BT.random, "uniform", return_value=0.0):
@@ -124,7 +127,7 @@ def test_shadow_stealth_mult():
         check("非潜行日志无潜行生效",
               not any("潜行生效" in str(l) for l in logs_ns), f"{logs_ns[:2]}")
         check("潜行 buff 攻击后已消耗（一次性语义）",
-              b2.p_buffs.get("stealth") is None, f"p_buffs={b2.p_buffs}")
+              b2._p_buffs_bag().get("stealth") is None, f"p_buffs={b2._p_buffs_bag()}")
         # 潜行技能本体（v151 基础 潜行）：施放挂潜行 buff
         b3, p3 = new_battle("cls_ci_ke", 0, 0, learned=["潜行"])
         _init_res(b3)
@@ -132,8 +135,8 @@ def test_shadow_stealth_mult():
             logs3, _ = b3.player_turn("skill", "潜行", p3, enemy_act=False)
             # v154 读条命中制：增益类技能也走读条——推进后生效
             b3._process_until(float(getattr(b3, "p_ct", 0) or 0) + 0.001, logs3, p3)
-        check("施放【潜行】→ 挂 stealth buff", (b3.p_buffs or {}).get("stealth") == 1,
-              f"p_buffs={b3.p_buffs} logs={logs3}")
+        check("施放【潜行】→ 挂 stealth buff", (b3._p_buffs_bag() or {}).get("stealth") == 1,
+              f"p_buffs={b3._p_buffs_bag()} logs={logs3}")
     except (AttributeError, TypeError) as ex:
         skip("引擎：潜行 必暴/消耗", str(ex))
 
@@ -152,21 +155,21 @@ def test_zen_hold_bonus():
     # ---- 单元：_momentum_mult 线性/封顶/线别门（攻线限定）----
     try:
         b, p = new_battle("cls_wu_seng", 1, 1, level=95)
-        b.resources["chi"] = 10
+        b._p_res()["chi"] = 10
         check_float("攻线·格斗士 气 10 → ×1.30（满 +30%）", b._momentum_mult(p), 1.30)
-        b.resources["chi"] = 5
+        b._p_res()["chi"] = 5
         check_float("攻线·格斗士 气 5 → ×1.15（+15%）", b._momentum_mult(p), 1.15)
-        b.resources["chi"] = 0
+        b._p_res()["chi"] = 0
         check_float("攻线·格斗士 气 0 → ×1.0（无持有无加成）", b._momentum_mult(p), 1.0)
-        b.resources["chi"] = 12
+        b._p_res()["chi"] = 12
         check_float("攻线·格斗士 气 12 → 封顶仍 ×1.30", b._momentum_mult(p), 1.30)
         b2, p2 = new_battle("cls_wu_seng", 1, 2, level=95)   # 守线（磐石行者）不吃
-        b2.resources["chi"] = 10
+        b2._p_res()["chi"] = 10
         check_float("负例：守线（磐石行者）不吃持有加伤 ×1.0", b2._momentum_mult(p2), 1.0)
         # v176 判据改资源键+攻线：战士对照须 evolve_path=0（攻线=1 即使塞 chi 也会命中蓄势——
         # 旧测试给战士设 path=1 又塞 chi 自相矛盾，v176 后穿帮）
         b3, p3 = new_battle("cls_zhan_shi", 1, 0, level=95)  # 战士（无攻线）不吃
-        b3.resources["chi"] = 10
+        b3._p_res()["chi"] = 10
         check_float("负例：战士 不吃拳师蓄势 ×1.0", b3._momentum_mult(p3), 1.0)
     except (AttributeError, TypeError) as ex:
         skip("引擎：_momentum_mult 单元", str(ex))

@@ -187,8 +187,9 @@ def _c_element_marks(battle, player, cond):
 @register("player_shield", label=lambda c: "自身有护盾")
 def _c_player_shield(battle, player, cond):
     """自身有护盾（v104 修复：v101.28d 护盾 buff 化后 battle.shield 已移除，
-    改判 p_shields（来源 → {"value": 盾值, "turns": 剩余刻}）任一项盾值 > 0）"""
-    shields = getattr(battle, "p_shields", None) or {}
+    改判 shields（来源 → {"value": 盾值, "turns": 剩余刻}）任一项盾值 > 0）
+    v180-B ①：状态权威在 actor dict——读 player 参数的 shields"""
+    shields = player.setdefault("shields", {}) if player else {}
     return sum(s.get("value", 0) for s in shields.values()) > 0
 
 
@@ -250,11 +251,12 @@ def _c_player_combo(battle, player, cond):
     """连招上下文判定（v130.6 变招/派生通用条件）：
     last=<tag>：上一招连招 tag 为指定值（拳/踢/掌；三连触发清空序列后仍记忆）
     无参数：当前连招进行中（combo_seq 非空，如格斗术「连招期间」类判定）
+    v180-B：连招状态权威在玩家 actor dict（_p_last_combo_tag/_p_combo_seq 收口）。
     """
     last = cond.get("last")
     if last:
-        return getattr(battle, "last_combo_tag", None) == last
-    return bool(getattr(battle, "combo_seq", None))
+        return battle._p_last_combo_tag() == last
+    return bool(battle._p_combo_seq())
 
 # ================= 速度类条件 =================
 

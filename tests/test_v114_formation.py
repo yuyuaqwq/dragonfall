@@ -125,14 +125,14 @@ def test_melee_target_out_of_range():
     bm = BT.Battle("monster", None, {}, player=pm, enemies=[front, back])
     hp_b = hp_of(bm, "狼巫")
     player_hp0 = pm["hp"]
-    cd0 = dict(bm.cooldown)
+    cd0 = dict(bm._p_cooldown())
     random.seed(2)
     logs, ended = bm.player_turn("attack", None, pm, target="狼巫", enemy_act=True)
     check("近战指定后排被拒（后端未掉血）", hp_of(bm, "狼巫") == hp_b, f"{hp_b}->{hp_of(bm, '狼巫')}")
     check("返回『够不着/攻击范围外』提示",
           any(("够不着" in x or "攻击范围之外" in x or "射程" in x) for x in logs), str(logs[:3]))
     check("被拒回合未结算敌方行动（玩家不掉血）", pm["hp"] == player_hp0, f"hp {player_hp0}->{pm['hp']}")
-    check("被拒回合未进入敌方阶段（冷却未递减）", dict(bm.cooldown) == cd0, str(bm.cooldown))
+    check("被拒回合未进入敌方阶段（冷却未递减）", dict(bm._p_cooldown()) == cd0, str(bm._p_cooldown()))
     check("未进入结束/胜利", ended is False, str(ended))
 
 
@@ -276,7 +276,7 @@ def test_charge_cast():
     b = BT.Battle("monster", e, {}, player=p)
     mp0 = p["mp"]
     logs, _ = b.player_turn("skill", "蓄力射击", p, enemy_act=False)
-    check("施放进入蓄力(剩1)", b.charging and b.charging["left"] == 1, str(b.charging))
+    check("施放进入蓄力(剩1)", b._p_charging() and b._p_charging()["left"] == 1, str(b._p_charging()))
     check("蓄力施放扣MP(14)", p["mp"] == mp0 - 14, f"{mp0}->{p['mp']}")
     check("施放回合不结算（靶子不掉血）", e["hp"] == 99999, f"hp={e['hp']}")
 
@@ -287,10 +287,10 @@ def test_charge_blocks_attack():
     p = mk_player(cls="cls_you_xia", learned=["蓄力射击"], mp=100, spd=0)
     e = mk_unit("靶子", hp=99999, atk=0)
     b = BT.Battle("monster", e, {}, player=p)
-    b.charging = {"skill": "蓄力射击", "left": 2, "name": "蓄力射击", "mp_spent": 14}
+    b._p_set_charging({"skill": "蓄力射击", "left": 2, "name": "蓄力射击", "mp_spent": 14})
     logs, _ = b.player_turn("attack", None, p, enemy_act=False)
     check("蓄力中普攻被拦截（提示正在蓄力）", any("正在蓄力" in x for x in logs), str(logs[:3]))
-    check("蓄力中普攻未泄力（charging 仍在）", b.charging is not None, str(b.charging))
+    check("蓄力中普攻未泄力（charging 仍在）", b._p_charging() is not None, str(b._p_charging()))
 
 
 def test_charge_release_damage():
@@ -300,14 +300,14 @@ def test_charge_release_damage():
     e = mk_unit("靶子", hp=99999, atk=0)
     b = BT.Battle("monster", e, {}, player=p)
     p["mp"] = 86  # 模拟施放已扣 14
-    b.charging = {"skill": "蓄力射击", "left": 1, "name": "蓄力射击", "mp_spent": 14}
-    b.cooldown.pop("蓄力射击", None)  # 清 CD：隔离"释放路径能结算"（G4 是 CD 阻塞问题）
+    b._p_set_charging({"skill": "蓄力射击", "left": 1, "name": "蓄力射击", "mp_spent": 14})
+    b._p_cooldown().pop("蓄力射击", None)  # 清 CD：隔离"释放路径能结算"（G4 是 CD 阻塞问题）
     mp1 = p["mp"]
     logs = []
     released = b._player_charge_release(p, logs)
     check("蓄力回合开始触发释放", released, f"released={released}")
     check("释放技能效果造成伤害（清CD后生效）", e["hp"] < 99999, f"靶子 hp={e['hp']}")
-    check("释放清空蓄力", not b.charging, str(b.charging))
+    check("释放清空蓄力", not b._p_charging(), str(b._p_charging()))
     check("释放不重复扣MP", p["mp"] == mp1, f"{mp1}->{p['mp']}")
     if p["mp"] != mp1:
         KNOWN_BUGS.append("G5：蓄力释放 _do_player_skill 再次扣MP（§6.2 应不重复扣）")
@@ -332,7 +332,7 @@ def test_charge_interrupt():
     p = mk_player(learned=["蓄力斩"], mp=100, spd=0)
     e = mk_unit("怪", hp=10 ** 9, atk=0)
     b = BT.Battle("monster", e, {}, player=p)
-    b.charging = {"skill": "蓄力斩", "left": 2, "name": "蓄力斩", "mp_spent": 16}
+    b._p_set_charging({"skill": "蓄力斩", "left": 2, "name": "蓄力斩", "mp_spent": 16})
     mp_before = p["mp"]
     # 屏蔽随机闪避，保证受击断言确定性（蓄力打断精确断言）
     _orig_ps = b._player_stats
@@ -343,7 +343,7 @@ def test_charge_interrupt():
     b._player_stats = _ps_nododge
     logs = []
     b._damage_player(p, 50, logs, source="怪")  # 玩家受击 → 打断 + 返还 50%MP
-    check("玩家受击打断蓄力", not b.charging, str(b.charging))
+    check("玩家受击打断蓄力", not b._p_charging(), str(b._p_charging()))
     check("打断返还50%已扣MP(16→8)", p["mp"] == mp_before + 8, f"{mp_before}->{p['mp']}")
     check("打断日志", any("打断" in x for x in logs), str(logs))
     e2 = mk_unit("蓄力怪", hp=1000, charging={"skill": "ms_charge", "left": 2, "name": "蓄力猛击"})

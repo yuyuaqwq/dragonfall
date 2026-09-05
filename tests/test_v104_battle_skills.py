@@ -138,13 +138,13 @@ def test_dodge_effective():
 # ============ 3. 龙语印记无词条也结算 ============
 def test_dragon_mark_no_affix():
     print("【3. 龙语印记无词条也结算（v104 移入 _extra_dmg_mult）】")
-    b = BT.Battle("monster", make_monster(hp=1000))
-    b.mech_stacks["dragon_mark"] = 5
-    mult, tags = b._affix_dmg_mult({})
+    b = BT.Battle("monster", make_monster(hp=1000), player=make_player("战士", 10))
+    b._p_stacks()["dragon_mark"] = 5
+    mult, tags = b._affix_dmg_mult(b.player)
     check("无词条 + 5 层印记 → 倍率 1.10", abs(mult - 1.10) < 1e-9,
           f"mult={mult} tags={tags}")
-    b2 = BT.Battle("monster", make_monster(hp=1000))
-    mult2, _ = b2._affix_dmg_mult({})
+    b2 = BT.Battle("monster", make_monster(hp=1000), player=make_player("战士", 10))
+    mult2, _ = b2._affix_dmg_mult(b2.player)
     check("无印记 → 倍率 1.0", abs(mult2 - 1.0) < 1e-9, f"mult={mult2}")
 
 
@@ -157,8 +157,8 @@ def test_poi_buff():
     p["qq_id"] = "q2"
     base_atk = E.player_final_stats("战士", 10, {}, 0, {}, 1)["atk"]
     b = BT.Battle("monster", make_monster(), player=p)
-    check("战斗开始读取神龛 buff", b.poi_buff == {"stat": "atk", "mult": 1.10, "name": "攻击"},
-          str(b.poi_buff))
+    check("战斗开始读取神龛 buff", b._p_poi_buff() == {"stat": "atk", "mult": 1.10, "name": "攻击"},
+          str(b._p_poi_buff()))
     left = json.loads(db.get_event_state("poi_buff_q2"))["left"]
     check("left 3→2（战斗消费 1 次）", left == 2, f"left={left}")
     atk = b._player_stats(p)["atk"]

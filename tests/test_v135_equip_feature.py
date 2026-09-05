@@ -139,14 +139,14 @@ for s in range(80):
     p2 = make_player(eq([], ["tenacity_cc"]))
     b2 = make_battle({"name": "野狼", "role": "dps", "hp": 1000, "max_hp": 1000,
                       "atk": 20, "matk": 5, "def": 5, "mdef": 5, "spd": 10, "skills": [], "debuffs": {}}, p2)
-    b2.p_buffs["spd_down"] = 2
+    b2._p_buffs_bag()["spd_down"] = 2
     hp0 = p2["hp"]
     b2._affix_on_taken(p2, 50, [])
     if p2["hp"] > hp0:
         found_ten = True
         _heal_amt = p2["hp"] - hp0
         check("坚韧免疫成功 → 回复 3% 最大生命", abs(_heal_amt - int(p2["max_hp"] * 0.03)) <= 1)
-        check("坚韧免疫后负面被清除", "spd_down" not in b2.p_buffs)
+        check("坚韧免疫后负面被清除", "spd_down" not in b2._p_buffs_bag())
         break
 if not found_ten:
     check("坚韧免疫成功 → 回复 3% 生命", False)

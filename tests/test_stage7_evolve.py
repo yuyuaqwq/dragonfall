@@ -252,7 +252,7 @@ def test_new_conds():
     b6 = make_battle(p)
     cond6 = {"type": "player_buffed", "mult": 1.15, "label": "神圣狂热"}
     check("无增益不触发", abs(b6._cond_mult({"cond": cond6}, p) - 1.0) < 1e-9, "")
-    b6.p_buffs["atk_up"] = 2
+    b6._p_buffs_bag()["atk_up"] = 2
     check("有增益触发", abs(b6._cond_mult({"cond": cond6}, p) - 1.15) < 1e-9, "")
 
 
@@ -277,18 +277,17 @@ def test_mage_mechanics():
     if info:
         lv = 1
         mval = E.skill_mech_val(info, lv)
-        p_mech = b.mech_stacks
         # 奥术弹幕 mech=arcane：施放叠奥术充能层
         b._player_skill(b._player_stats(p), "奥术弹幕", info, dict(p))
-        check("奥术弹幕叠奥术充能", b.mech_stacks.get("arcane", 0) >= 1, str(b.mech_stacks.get("arcane")))
+        check("奥术弹幕叠奥术充能", b._p_stacks().get("arcane", 0) >= 1, str(b._p_stacks().get("arcane")))
 
     print("【元素/奥术机制：元素跃迁切系（element_shift，法师系）】")
     pf = {"class_name": "cls_fa_shi", "level": 60, "equipment": {}, "attributes": {}, "hp": 1000, "max_hp": 1000}
     b2 = make_battle(pf)
     # v130.2：资源下放分支后基础法师（tier0）不再附带元素资源 → 初始无元素态（None）；
     # 元素系技能挂载在攻线·元素使分支，切系机制仍可动态挂 element 键（下方校验）
-    check("基础法师无资源（初始无元素态）", b2.resources.get("element") is None,
-          str(b2.resources.get("element")))
+    check("基础法师无资源（初始无元素态）", b2._p_res().get("element") is None,
+          str(b2._p_res().get("element")))
     info2 = E.skill_info("法师", "元素湮灭")
     check("元素湮灭可查到", bool(info2), str(info2))
     if info2:
@@ -303,7 +302,7 @@ def test_mage_mechanics():
         # v164.1 flake 修复：木桩血 1000 会被织焰(60级 ~911+)随机波动一击秒杀，
         # 怪死后挂的火印随移除丢失 → 随机失败。加大血量确保存活。
         b3 = make_battle(pf, {"name": "木桩", "hp": 99999, "max_hp": 99999, "atk": 10, "def": 10, "spd": 5})
-        b3.resources["element"] = "fire"
+        b3._p_res()["element"] = "fire"
         logs = b3._player_skill(b3._player_stats(pf), "织焰", info3, dict(pf))
         _fire_marks = ((b3.enemy.get("debuffs") or {}).get("element_marks") or {}).get("fire", 0)
         check("织焰挂火印", _fire_marks >= 1, str(b3.enemy.get("debuffs")))
@@ -325,7 +324,7 @@ def test_mage_mechanics():
     b5 = make_battle(p)
     cond = {"type": "player_mech_stacks", "mech": "arcane", "stacks": 3, "mult": 1.3, "label": "共鸣"}
     check("充能不足不触发", abs(b5._cond_mult({"cond": cond}, p) - 1.0) < 1e-9, "")
-    b5.mech_stacks["arcane"] = 3
+    b5._p_stacks()["arcane"] = 3
     check("充能≥3 触发", abs(b5._cond_mult({"cond": cond}, p) - 1.3) < 1e-9, "")
 
     print("【元素/奥术机制：element_marks any 任意系】")

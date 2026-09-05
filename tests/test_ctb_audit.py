@@ -106,7 +106,7 @@ def test_3_stun_skip_time_flow():
     BT.Battle._enemy_stats = patched_e_stats
     _SPD["p"], _SPD["e"] = 20, 10
     b = BT.Battle("monster", make_enemy(10), player=make_player())
-    b.p_buffs["stun"] = 1
+    b._p_buffs_bag()["stun"] = 1
     e_ct0 = b.enemy["ct"]
     p = make_player()
     logs, ended = b.player_turn("attack", None, p)

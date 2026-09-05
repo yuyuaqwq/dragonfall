@@ -30,9 +30,9 @@ def make_bt(player_dodge=0.0, pot=False, veil=False, silent=False, enemy_dodge=0
     enemy = {"name": "测试怪", "hp": 1000, "max_hp": 1000, "atk": 30, "def": 10, "matk": 5, "mdef": 5, "spd": 5,
              "dodge": enemy_dodge, "crit": 0.05}
     b = BT.Battle("pvp" if pvp else "wild", enemy=enemy, title_bonus=lambda q: None, player=player, pet=None)
-    b.p_buffs = {}
-    if pot: b.p_buffs["dodge_pot"] = 3
-    if veil: b.p_buffs["dodge_up"] = 3
+    b._p_buffs_bag().clear()
+    if pot: b._p_buffs_bag()["dodge_pot"] = 3
+    if veil: b._p_buffs_bag()["dodge_up"] = 3
     # 模拟 _player_stats 的 dodge/precise（直接打桩 _player_stats 返回值）
     stats = {"dodge": player_dodge, "precise": my_hit}
     b._player_stats = lambda p: stats

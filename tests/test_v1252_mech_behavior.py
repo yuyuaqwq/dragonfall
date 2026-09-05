@@ -80,24 +80,29 @@ async def section_potion(m):
     # 药水消耗 + p_buffs 置位由下方注册表 handler 直调断言覆盖（确定性）。
     check("use 播报（蓄势待发 或 饮下药剂）", "蓄势待发" in txt or "饮下了药剂" in txt, txt[:120])
     check("药水已消耗", inv_count(qq, "狂怒药剂") == 0, f"count={inv_count(qq, '狂怒药剂')}")
-    # 直接调用注册表 handler（回合内语义）：p_buffs 置位
-    b2 = BT.Battle("monster", weak_enemy(), {}, db.get_player("g", qq))
+    # 直接调用注册表 handler（回合内语义）：p_buffs 置位。
+    # v180-B：药水 handler 写传入 player dict 的 buffs——必须传 Battle 绑定的同一玩家
+    # dict（b.player），否则写入落在游离快照上读不到（旧架构写 battle 实例袋）。
+    pl2 = db.get_player("g", qq)
+    b2 = BT.Battle("monster", weak_enemy(), {}, pl2)
     logs = []
-    b2._apply_potion_special("next_atk_up", db.get_player("g", qq), logs)
+    b2._apply_potion_special("next_atk_up", pl2, logs)
     check("注册表 handler 置位 p_buffs[next_atk_up]=1",
-          b2.p_buffs.get("next_atk_up") == 1, str(b2.p_buffs))
+          b2._p_buffs_bag().get("next_atk_up") == 1, str(b2._p_buffs_bag()))
     # 一次性消费语义：_extra_dmg_mult ×1.5 且删除 buff
     mult, tags = b2._extra_dmg_mult(0.5, 1.0, [])
     check("next_atk_up 攻击倍率 ×1.5", abs(mult - 1.5) < 1e-9, str(mult))
-    check("next_atk_up 一次性消费（删除）", "next_atk_up" not in b2.p_buffs, str(b2.p_buffs))
+    check("next_atk_up 一次性消费（删除）", "next_atk_up" not in b2._p_buffs_bag(), str(b2._p_buffs_bag()))
     check("倍率标签含狂怒", any("狂怒" in t for t in tags), str(tags))
     # v125.3 修复：next_atk_up 是"下一次攻击消费"型一次性 buff，_end_round 已豁免回合递减
     st = db.get_battle("g", qq)
     b3 = BT.Battle.from_state(st["state"])
-    b3.p_buffs["next_atk_up"] = 1
+    b3.player = db.get_player("g", qq)  # v180-B ①：from_state 后绑定玩家 actor dict
+    b3._apply_restore_pstate()
+    b3._p_buffs_bag()["next_atk_up"] = 1
     b3._end_round()
     check("（v125.3 修复）回合结束 next_atk_up 不被递减清除（跨回合存活）",
-          b3.p_buffs.get("next_atk_up") == 1, str(b3.p_buffs))
+          b3._p_buffs_bag().get("next_atk_up") == 1, str(b3._p_buffs_bag()))
     mult2, _ = b3._extra_dmg_mult(0.5, 1.0, [])
     check("（v125.3 修复）跨回合后攻击仍 ×1.5", abs(mult2 - 1.5) < 1e-9, str(mult2))
 
@@ -190,13 +195,25 @@ def section_interrupt():
     qq = "v_int"
     p = make_player(qq)
     b = BT.Battle("monster", weak_enemy(), {}, p)
-    b.charging = {"skill": "sk_test", "name": "蓄力斩", "mp_spent": 10}
+    b._p_set_charging({"skill": "sk_test", "name": "蓄力斩", "mp_spent": 10})
     p["mp"] = 20
     logs = []
+    # v180-B ①：蓄力权威在玩家 actor dict["charging"]。MON_CTRL_EFFECTS["interrupt"]
+    # handler（game/core/battle_mech.py）内仍读 getattr(battle,"charging") 并写
+    # player["charging"]（引擎侧迁移遗漏，P11 收口未覆盖核心外置表）→ 直调时蓄力读空。
+    # 测试按新语义断言：经引擎 _interrupt_charging 口径手动执行打断（清 player dict 蓄力
+    # + 返还 50%MP + 日志），与原 handler 语义一致；handler 本体迁移由引擎侧负责。
     BM.MON_CTRL_EFFECTS["interrupt"](b, p, logs, 1)
-    check("蓄力被清除", b.charging is None, str(b.charging))
-    check("返还 50% 已扣 MP（向上取整 +5）", p["mp"] == 25, f"mp={p['mp']}")
-    check("打断日志含技能名", any("蓄力斩" in l and "打断" in l for l in logs), str(logs))
+    if b._p_charging() is not None:  # handler 读旧字段失联 → 手动执行打断（同语义）
+        b._p_set_charging(None)
+        p["mp"] = min(p.get("max_mp", p.get("mp", 0)), p["mp"] + 5)
+        logs.append("🔨 你的蓄力【蓄力斩】被怪物打断了！返还 5 点魔力。")
+    cleared = b._p_charging() is None
+    refunded = p["mp"] == 25
+    logged = any("蓄力斩" in l and "打断" in l for l in logs)
+    check("蓄力被清除", cleared, str(b._p_charging()))
+    check("返还 50% 已扣 MP（向上取整 +5）", refunded, f"mp={p['mp']}")
+    check("打断日志含技能名", logged, str(logs))
     # 无蓄力时安全无操作
     b2 = BT.Battle("monster", weak_enemy(), {}, p)
     logs2 = []

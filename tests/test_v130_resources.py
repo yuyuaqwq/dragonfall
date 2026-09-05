@@ -99,8 +99,8 @@ def test_element_charge():
         b, p = new_battle("cls_fa_shi", 1, 1, learned=["元素冲击"])
         check("攻线元素法师资源 key = ['element']", b._branch_keys(p) == ["element"], f"{b._branch_keys(p)}")
         check("充能条初始 0 / 当前系 fire",
-              b._elem_charge() == 0 and b.resources.get("element") == "fire",
-              str(b.resources))
+              b._elem_charge() == 0 and b._p_res().get("element") == "fire",
+              str(b._p_res()))
         b._res_gain(p, "element", 3)
         check("充能 +3 = 3", b._elem_charge() == 3, f"charge={b._elem_charge()}")
         b._res_gain(p, "element", 5)
@@ -170,10 +170,10 @@ def test_warrior_blood_debt():
         p["hp"] = int(p["max_hp"] * 0.5)
         # 生产路径：先算 gain 再交 _res_gain_class 累加（上限 10）
         gain = design_gain(0.5)
-        b.resources["rage"] = b._res_gain_class("cls_zhan_shi", "rage", gain)
-        check("引擎：半血受击回怒 = 3", b.resources.get("rage") == 3, f"rage={b.resources.get('rage')}")
-        b.resources["rage"] = b._res_gain_class("cls_zhan_shi", "rage", 10)
-        check("引擎：怒气上限 10", b.resources.get("rage") == 10, f"rage={b.resources.get('rage')}")
+        b._p_res()["rage"] = b._res_gain_class("cls_zhan_shi", "rage", gain)
+        check("引擎：半血受击回怒 = 3", b._p_res().get("rage") == 3, f"rage={b._p_res().get('rage')}")
+        b._p_res()["rage"] = b._res_gain_class("cls_zhan_shi", "rage", 10)
+        check("引擎：怒气上限 10", b._p_res().get("rage") == 10, f"rage={b._p_res().get('rage')}")
     except (AttributeError, TypeError) as ex:
         skip("引擎：血债怒火", str(ex))
 
@@ -191,17 +191,17 @@ def test_assassin_combo():
         check("攻线影舞连段活跃", b._combo_active(p) is True, f"{b._combo_active(p)}")
         for _ in range(10):
             b._combo_add(p)
-        check("连段封顶 10", b.mech_stacks.get("combo") == 10, f"combo={b.mech_stacks.get('combo')}")
-        b.mech_stacks["combo"] = 8
+        check("连段封顶 10", b._p_stacks().get("combo") == 10, f"combo={b._p_stacks().get('combo')}")
+        b._p_stacks()["combo"] = 8
         check("combo8 增伤 ×1.40", abs(b._combo_dmg_mult(p) - 1.40) < 1e-9, f"{b._combo_dmg_mult(p)}")
-        b.mech_stacks["combo"] = 3
+        b._p_stacks()["combo"] = 3
         check("combo3 增伤 ×1.15", abs(b._combo_dmg_mult(p) - 1.15) < 1e-9, f"{b._combo_dmg_mult(p)}")
-        b.mech_stacks["combo"] = 2
+        b._p_stacks()["combo"] = 2
         check("combo<3 无增伤 ×1.0", b._combo_dmg_mult(p) == 1.0, f"{b._combo_dmg_mult(p)}")
         # on_crit 额外 +1 连击点
-        b.resources["cp"] = 4
+        b._p_res()["cp"] = 4
         b._on_crit_resource(p)
-        check("on_crit +1 cp = 5", b.resources.get("cp") == 5, f"cp={b.resources.get('cp')}")
+        check("on_crit +1 cp = 5", b._p_res().get("cp") == 5, f"cp={b._p_res().get('cp')}")
         # 基础刺客不读连段
         b2, p2 = new_battle("cls_ci_ke", 0, 0)
         check("基础刺客无连段", b2._combo_active(p2) is False, f"{b2._combo_active(p2)}")

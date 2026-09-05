@@ -191,7 +191,8 @@ def test_damage_skill_target_enemy():
     e2 = {"uid": "e2", "name": "后排怪", "hp": 500, "max_hp": 500, "rank": 2, "reach": 1,
           "atk": 10, "def": 10, "matk": 0, "mdef": 5, "spd": 5, "lv": 8}
     b = BT.Battle("monster", e1, player=warrior, enemies=[e1, e2], allies=[ally1])
-    b.resources = {"rage": 10}  # 裂地斩消耗 3 怒气
+    b._p_res().clear()
+    b._p_res()["rage"] = 10  # 裂地斩消耗 3 怒气
     logs, ended = b.player_turn("skill", "裂地斩", warrior, enemy_act=False, target="后排怪")
     text = "\n".join(logs)
     # 战士 reach=1 打不到 rank2 → 射程拒绝（v2 既有行为，v122 不破坏）

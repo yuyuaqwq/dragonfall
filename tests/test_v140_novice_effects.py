@@ -72,7 +72,7 @@ def test_first_turn_guard():
     # battle_start 挂标记
     logs = []
     we_proc(b, p, "battle_start", {}, logs)
-    check("守御标记生效", b.p_eff.get("novice_guard_active") is True, str(b.p_eff))
+    check("守御标记生效", b._p_eff().get("novice_guard_active") is True, str(b._p_eff()))
     # 首回合受击减伤（init 后重设大血量，确保 900 伤害完整体现）
     p["max_hp"] = 9999
     p["hp"] = 9999
@@ -89,15 +89,15 @@ def test_spark_followup():
     # 技能后挂标记
     logs = []
     we_proc(b, p, "skill_cast", {"skill": "测试", "kind": "物理"}, logs)
-    check("星火标记挂上", b.mech_stacks.get("novice_spark") is True, str(b.mech_stacks))
+    check("星火标记挂上", b._p_stacks().get("novice_spark") is True, str(b._p_stacks()))
     # 下次普攻（这里直接验证 _player_attack 消费：伤害应比无标记时高）
     st = b._player_stats(p)
     # 先打一次无标记的
     b2 = BT.Battle("monster", mk_enemy(), player=mk_player(["novice_spark_followup"], atk=100))
-    b2.mech_stacks["novice_spark"] = True  # 模拟已挂标记
+    b2._p_stacks()["novice_spark"] = True  # 模拟已挂标记
     # 对比：伤害计算内部逻辑，直接检查 _player_attack 是否清掉标记
     logs2 = b2._player_attack(b2._player_stats(p), p)
-    check("普攻消费并清除星火标记", not b2.mech_stacks.get("novice_spark"), str(b2.mech_stacks))
+    check("普攻消费并清除星火标记", not b2._p_stacks().get("novice_spark"), str(b2._p_stacks()))
 
 def test_regen_heal():
     print("【4. 旅人皮甲 受治疗 +10%】")
@@ -119,7 +119,7 @@ def test_wind_spd():
     base_spd = b0._player_stats(p0)["spd"]
     logs = []
     we_proc(b, p, "hit", {"dmg": 100, "is_crit": False}, logs)
-    check("翠风 buff 挂上（2 回合）", b.p_buffs.get("novice_wind_spd") == 2, str(b.p_buffs))
+    check("翠风 buff 挂上（2 回合）", b._p_buffs_bag().get("novice_wind_spd") == 2, str(b._p_buffs_bag()))
     # _player_stats 速度加成
     st = b._player_stats(p)
     check("速度 +5%", st["spd"] == int(base_spd * 1.05), f"spd={st['spd']} base={base_spd}")
@@ -131,7 +131,7 @@ def test_first_turn_dodge():
     b = BT.Battle("monster", e, player=p)
     logs = []
     we_proc(b, p, "battle_start", {}, logs)
-    check("闪避标记生效", b.p_eff.get("novice_dodge_active") is True, str(b.p_eff))
+    check("闪避标记生效", b._p_eff().get("novice_dodge_active") is True, str(b._p_eff()))
 
 def test_dawn_mana():
     print("【7. 晨星吊坠 首次技能回蓝】")

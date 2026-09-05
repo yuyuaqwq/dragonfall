@@ -67,7 +67,9 @@ def new_battle(cls, tier, path, **pw):
 
 
 def _init_res(b):
-    b.resources = {"rage": 0, "element": "fire", "energy": 100, "faith": 0, "cp": 0, "chi": 0}
+    # v180-B：resources 权威在玩家 actor dict——REBIND 先 clear 后 update
+    b._p_res().clear()
+    b._p_res().update({"rage": 0, "element": "fire", "energy": 100, "faith": 0, "cp": 0, "chi": 0})
 
 
 def _capture_calc(cap):
@@ -104,10 +106,10 @@ def test_shadow_ambush_flow():
         # v154 读条命中制：潜行（增益）也走读条——推进到命中时刻才挂 buff
         b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs_a, p)
     check("潜行真实施放（player_turn 技能全链）：挂 stealth buff",
-          (b.p_buffs or {}).get("stealth") == 1, f"p_buffs={b.p_buffs} logs={logs_a[:2]}")
+          (b._p_buffs_bag() or {}).get("stealth") == 1, f"p_buffs={b._p_buffs_bag()} logs={logs_a[:2]}")
     b._end_round()
     check("经历 _end_round（跨回合）：潜行保留",
-          (b.p_buffs or {}).get("stealth") == 1, f"p_buffs={b.p_buffs}")
+          (b._p_buffs_bag() or {}).get("stealth") == 1, f"p_buffs={b._p_buffs_bag()}")
 
     cap_s = {}
     with mock.patch.object(E, "calc_damage", side_effect=_capture_calc(cap_s)):
@@ -118,7 +120,7 @@ def test_shadow_ambush_flow():
     check("潜行必暴：潜行生效日志（🌙 潜行生效）",
           any("潜行生效" in l for l in logs_s), f"{logs_s[:3]}")
     check("潜行出手后 buff 消费（stealth 已删除，一次性语义）",
-          (b.p_buffs or {}).get("stealth") is None, f"p_buffs={b.p_buffs}")
+          (b._p_buffs_bag() or {}).get("stealth") is None, f"p_buffs={b._p_buffs_bag()}")
 
     # ---- 真实回合流 B（对照）：无潜行普攻/技能无必暴 ----
     b2, p2 = new_battle("cls_ci_ke", 0, 0, learned=["刺击"], level=60)
@@ -149,21 +151,21 @@ def test_guard_stance_res_gain():
         # v154 读条命中制：技能读条结束（cast_done）才命中结算（怒气 +2）——推进后触发
         b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs_s, p)
     check("技能施放（挥砍）命中 → 怒气 +2（on_skill 战意渠道）",
-          b.resources.get("rage") == 2, f"rage={b.resources.get('rage')} logs={logs_s[:2]}")
+          b._p_res().get("rage") == 2, f"rage={b._p_res().get('rage')} logs={logs_s[:2]}")
     # 受击渠道：v153 守护姿态无被动加成 → 仅 on_hit +1（与无姿态一致，被动缺口已报告）
-    b.resources["rage"] = 0
+    b._p_res()["rage"] = 0
     b2, p2 = new_battle("cls_zhan_shi", 1, 2, learned=["守护姿态"])
     _init_res(b2)
     with mock.patch.object(BT.random, "random", return_value=0.99):
         b2._damage_player(p2, 50, [])
-    check("受击（仅 on_hit +1，v153 无 dmg_taken 被动）", b2.resources.get("rage") == 1,
-          f"rage={b2.resources.get('rage')}")
+    check("受击（仅 on_hit +1，v153 无 dmg_taken 被动）", b2._p_res().get("rage") == 1,
+          f"rage={b2._p_res().get('rage')}")
     b3, p3 = new_battle("cls_zhan_shi", 1, 2)
     _init_res(b3)
     with mock.patch.object(BT.random, "random", return_value=0.99):
         b3._damage_player(p3, 50, [])
-    check("对照：无守护姿态 受击 → 怒气 +1（仅 on_hit）", b3.resources.get("rage") == 1,
-          f"rage={b3.resources.get('rage')}")
+    check("对照：无守护姿态 受击 → 怒气 +1（仅 on_hit）", b3._p_res().get("rage") == 1,
+          f"rage={b3._p_res().get('rage')}")
 
 
 # ================= 3. 游侠猎印路径（v153 森语印记 mech=hunt_mark，引擎缺口已报告） =================
@@ -188,7 +190,7 @@ def test_hawk_eye_mark_path():
     # mech 走 _apply_mech_gain（非 MECH_EFFECTS）→ 猎印不生效 = 真 bug（buff 分支 mech 分发缺口）。
     b, p = new_battle("cls_you_xia", 2, 1, learned=["森语印记"], level=70)
     _init_res(b)
-    b.resources["energy"] = 41
+    b._p_res()["energy"] = 41
     with mock.patch.object(BT.random, "random", side_effect=[0.99, 0.0]):
         logs_m, _ = b.player_turn("skill", "森语印记", p, enemy_act=False)
         # v154 读条命中制：增益技能也走读条——推进到命中时刻（此处验证 buff 分支 mech 缺口）
@@ -219,7 +221,7 @@ def test_combo_finisher():
                 _lg, _ = b.player_turn("skill", "刺击", p, enemy_act=False)
                 # v154 读条命中制：每段刺击读条结束（cast_done）才叠段——推进后触发
                 b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, _lg, p)
-        combo = b.mech_stacks.get("lian_duan", 0)
+        combo = b._p_stacks().get("lian_duan", 0)
         check("5 段连段叠加（lian_duan ≥5）", combo >= 5, f"lian_duan={combo}")
         cap = {}
         with mock.patch.object(E, "calc_damage", side_effect=_capture_calc(cap)):
@@ -243,33 +245,33 @@ def test_overflow_cooldown():
           str({k: rd_war.get(k) for k in ("key", "max", "overflow_shield")}))
     b, p = new_battle("cls_zhan_shi", 0, 0)
     _init_res(b)
-    b.resources["rage"] = 10  # 直接设资源：满怒受击前置（溢出点=受击渠道 on_hit +1）
+    b._p_res()["rage"] = 10  # 直接设资源：满怒受击前置（溢出点=受击渠道 on_hit +1）
     with mock.patch.object(BT.random, "random", return_value=0.99):
         b._damage_player(p, 30, [])
-    sh1 = b.p_shields.get("overflow_shield") or {}
+    sh1 = b._p_shields_bag().get("overflow_shield") or {}
     check("满怒受击 #1 → 溢出 1 点转盾 5（v152 时刻制：expire_at = now + 1×1.0 = 1.0）",
-          b.resources.get("rage") == 10 and int(sh1.get("value", 0)) == 5
+          b._p_res().get("rage") == 10 and int(sh1.get("value", 0)) == 5
           and abs(float(sh1.get("expire_at", 0)) - 1.0) < 1e-9,
-          f"rage={b.resources.get('rage')} shields={b.p_shields}")
+          f"rage={b._p_res().get('rage')} shields={b._p_shields_bag()}")
     hp_after1 = p["hp"]
     with mock.patch.object(BT.random, "random", return_value=0.99):
         b._damage_player(p, 30, [])
-    sh2 = b.p_shields.get("overflow_shield") or {}
+    sh2 = b._p_shields_bag().get("overflow_shield") or {}
     check("同回合受击 #2 → #1 的盾被 5 点吸收（掉血 25 而非 30）+ 冷却生效：不再补新盾",
-          p["hp"] == hp_after1 - 25 and not sh2 and (b.p_shields or {}).get("overflow_shield") is None,
-          f"hp={p['hp']} (before={hp_after1}) shields={b.p_shields}")
+          p["hp"] == hp_after1 - 25 and not sh2 and (b._p_shields_bag() or {}).get("overflow_shield") is None,
+          f"hp={p['hp']} (before={hp_after1}) shields={b._p_shields_bag()}")
     b._end_round()  # 回合末：推进时刻 → 盾到期消失 + overflow 冷却重置（v152 绝对时刻到期）
     check("回合末（_end_round 推进时刻）：盾 expire_at 到期消失 + 冷却复位",
-          not b.p_shields.get("overflow_shield"), f"shields={b.p_shields}")
+          not b._p_shields_bag().get("overflow_shield"), f"shields={b._p_shields_bag()}")
     b._advance_time(1.0)  # 跨刻（v152：推进 1 个 ACT_TICK 使冷却 ready_at 到期）
     hp_after2 = p["hp"]
     with mock.patch.object(BT.random, "random", return_value=0.99):
         b._damage_player(p, 30, [])
-    sh3 = b.p_shields.get("overflow_shield") or {}
+    sh3 = b._p_shields_bag().get("overflow_shield") or {}
     check("跨刻受击 #3 → 冷却重置后再转盾 5（新盾 expire_at = 当前时刻+1.0，且本击未被盾吸收）",
           int(sh3.get("value", 0)) == 5 and abs(float(sh3.get("expire_at", 0)) - (b._now + 1.0)) < 1e-9
           and p["hp"] == hp_after2 - 30,
-          f"shields={b.p_shields} now={b._now}")
+          f"shields={b._p_shields_bag()} now={b._now}")
 
 
 # ================= 6-9. 数据收敛组（desc / EQ 帽 / roster_id） =================

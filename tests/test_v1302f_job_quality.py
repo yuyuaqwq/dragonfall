@@ -73,7 +73,8 @@ def new_battle(cls, tier, path, **pw):
 
 
 def _init_res(b):
-    b.resources = {"rage": 0, "element": "fire", "energy": 100, "faith": 0, "cp": 0, "chi": 0}
+    b._p_res().clear()
+    b._p_res().update({"rage": 0, "element": "fire", "energy": 100, "faith": 0, "cp": 0, "chi": 0})
 
 
 def cast_capture(b, skill_name, p):
@@ -117,11 +118,11 @@ def test_overflow_conds():
     try:
         b, p = new_battle("cls_zhan_shi", 1, 1, learned=["怒斩"])
         _init_res(b)
-        b.mech_stacks["zhan_yi"] = 3
+        b._p_stacks()["zhan_yi"] = 3
         check("行为：战意 3 → _cond_active(怒斩) False（v153 无 cond）",
               b._cond_active(nz, p) is False, f"active={b._cond_active(nz, p)}")
         # 战意叠层引擎挂点：怒斩命中积攒 1 战意
-        b.mech_stacks = {}
+        b._p_stacks().clear()
         b.enemy["hp"] = 10 ** 9
         import random
         random.seed(5)
@@ -129,8 +130,8 @@ def test_overflow_conds():
         # v154 读条命中制：命中叠层在出招读条结束（cast_done）时结算——推进后触发
         b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
         check("行为：怒斩施放 → 战意 +1（mech 叠层引擎挂点）",
-              int(b.mech_stacks.get("zhan_yi", 0) or 0) == 1,
-              f"zhan_yi={b.mech_stacks.get('zhan_yi')} logs={logs[:2]}")
+              int(b._p_stacks().get("zhan_yi", 0) or 0) == 1,
+              f"zhan_yi={b._p_stacks().get('zhan_yi')} logs={logs[:2]}")
     except (AttributeError, TypeError) as ex:
         skip("引擎：怒斩 mech 行为", str(ex))
     # ---- 2. 裂地斩：cond zhan_yi{6,×1.0}（v153 附加流血）----
@@ -140,10 +141,10 @@ def test_overflow_conds():
     try:
         b, p = new_battle("cls_zhan_shi", 1, 1, learned=["裂地斩"])
         _init_res(b)
-        b.mech_stacks["zhan_yi"] = 6
+        b._p_stacks()["zhan_yi"] = 6
         check("行为：战意 6/10 → 裂地斩 cond 激活",
               b._cond_active(ld, p) is True, f"active={b._cond_active(ld, p)}")
-        b.mech_stacks["zhan_yi"] = 5
+        b._p_stacks()["zhan_yi"] = 5
         check("行为：战意 5/10 → 裂地斩 cond 不激活",
               b._cond_active(ld, p) is False, f"active={b._cond_active(ld, p)}")
     except (AttributeError, TypeError) as ex:
@@ -156,11 +157,11 @@ def test_overflow_conds():
     try:
         b, p = new_battle("cls_ci_ke", 1, 1, learned=["影刃"])
         _init_res(b)
-        b.mech_stacks["lian_duan"] = 5
+        b._p_stacks()["lian_duan"] = 5
         check("行为：连段 5 → _cond_active(影刃) False（v153 无 cond）",
               b._cond_active(yr, p) is False, f"active={b._cond_active(yr, p)}")
         # 连段叠层引擎挂点：影刃命中 +1 段
-        b.mech_stacks = {}
+        b._p_stacks().clear()
         b.enemy["hp"] = 10 ** 9
         import random as _r2
         _r2.seed(6)
@@ -168,8 +169,8 @@ def test_overflow_conds():
         # v154 读条命中制：命中叠段在出招读条结束（cast_done）时结算——推进后触发
         b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
         check("行为：影刃施放 → 连段 +1（mech 叠段引擎挂点）",
-              int(b.mech_stacks.get("lian_duan", 0) or 0) == 1,
-              f"lian_duan={b.mech_stacks.get('lian_duan')} logs={logs[:2]}")
+              int(b._p_stacks().get("lian_duan", 0) or 0) == 1,
+              f"lian_duan={b._p_stacks().get('lian_duan')} logs={logs[:2]}")
     except (AttributeError, TypeError) as ex:
         skip("引擎：影刃 mech 行为", str(ex))
     # ---- 4. 元素湮灭：v153 cond=enemy_marks（无 consume_all）----
@@ -234,32 +235,32 @@ def test_engine_hooks():
               rd_monk.get("overflow_shield") is True, str({k: rd_monk.get(k) for k in ("key", "max", "overflow_shield")}))
         b, p = new_battle("cls_zhan_shi", 0, 0)
         _init_res(b)
-        b.resources["rage"] = 10
+        b._p_res()["rage"] = 10
         now = b._res_gain_class("cls_zhan_shi", "rage", 3)
-        shield_sum = sum(int(v.get("value", 0) or 0) for v in (b.p_shields or {}).values())
+        shield_sum = sum(int(v.get("value", 0) or 0) for v in (b._p_shields_bag() or {}).values())
         check("满怒再溢 3 点 → 怒气封顶 10 + 护盾 15（3×5）",
-              now == 10 and shield_sum == 15, f"rage={now} shield={shield_sum} p_shields={b.p_shields}")
+              now == 10 and shield_sum == 15, f"rage={now} shield={shield_sum} p_shields={b._p_shields_bag()}")
         b2, p2 = new_battle("cls_zhan_shi", 0, 0)
         _init_res(b2)
-        b2.resources["rage"] = 10
+        b2._p_res()["rage"] = 10
         with mock.patch.object(BT.random, "random", return_value=0.99):
             b2._damage_player(p2, 50, [])
-        s2 = sum(int(v.get("value", 0) or 0) for v in (b2.p_shields or {}).values())
+        s2 = sum(int(v.get("value", 0) or 0) for v in (b2._p_shields_bag() or {}).values())
         check("满怒受击：受击 on_hit 怒 +1 溢出 → 出盾 5（怒气仍 10）",
-              b2.resources.get("rage") == 10 and s2 == 5,
-              f"rage={b2.resources.get('rage')} shield={s2} p_shields={b2.p_shields}")
+              b2._p_res().get("rage") == 10 and s2 == 5,
+              f"rage={b2._p_res().get('rage')} shield={s2} p_shields={b2._p_shields_bag()}")
         b3, p3 = new_battle("cls_wu_seng", 0, 0)
         _init_res(b3)
-        b3.resources["chi"] = 10
+        b3._p_res()["chi"] = 10
         now3 = b3._res_gain_class("cls_wu_seng", "chi", 2)
-        s3 = sum(int(v.get("value", 0) or 0) for v in (b3.p_shields or {}).values())
+        s3 = sum(int(v.get("value", 0) or 0) for v in (b3._p_shields_bag() or {}).values())
         check("满气再溢 2 点 → 气封顶 10 + 护盾 10（2×5）",
-              now3 == 10 and s3 == 10, f"chi={now3} shield={s3} p_shields={b3.p_shields}")
+              now3 == 10 and s3 == 10, f"chi={now3} shield={s3} p_shields={b3._p_shields_bag()}")
         b4, p4 = new_battle("cls_ci_ke", 0, 0)
         _init_res(b4)
-        b4.resources["cp"] = 5
+        b4._p_res()["cp"] = 5
         now4 = b4._res_gain_class("cls_ci_ke", "cp", 3)
-        s4 = sum(int(v.get("value", 0) or 0) for v in (b4.p_shields or {}).values())
+        s4 = sum(int(v.get("value", 0) or 0) for v in (b4._p_shields_bag() or {}).values())
         check("对照：无 overflow_shield 线（刺客）溢出不转盾",
               now4 == 5 and s4 == 0, f"cp={now4} shield={s4}")
     except (AttributeError, TypeError) as ex:

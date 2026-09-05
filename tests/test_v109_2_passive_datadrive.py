@@ -118,8 +118,8 @@ async def main():
     # v154 读条命中制：出招读条结束（cast_done）才结算命中（战意叠层）——推进后生效
     b4._process_until(float(getattr(b4, "p_ct", 0) or 0) + 0.001, logs4, p4)
     check("怒斩施放 → 战意叠层（mech_zhan_yi 引擎挂点）",
-          int(b4.mech_stacks.get("zhan_yi", 0) or 0) >= 1,
-          f"zhan_yi={b4.mech_stacks.get('zhan_yi')} logs={logs4[:2]}")
+          int(b4._p_stacks().get("zhan_yi", 0) or 0) >= 1,
+          f"zhan_yi={b4._p_stacks().get('zhan_yi')} logs={logs4[:2]}")
     check("战意日志", any("战意" in l for l in logs4), str(logs4))
 
     print(f"\n===== 结果: {passed} passed, {failed} failed =====")

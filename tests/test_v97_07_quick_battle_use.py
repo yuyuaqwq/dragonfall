@@ -52,10 +52,11 @@ async def main():
     # 3 回合 atk_up 已到期清除——引擎正确行为。断言改为：日志播报（3 回合 buff 生效）即通过，
     # 并把战斗内 buff 落地验证改为直接构造 Battle 验证 _do_use_item 路径（now=0 时 buff 挂载）。
     check("战斗内buff日志", "大幅提升" in out, out[:120])
-    bv = BT.Battle("monster", {"name": "怪", "hp": 9999, "max_hp": 9999, "atk": 1, "spd": 1})
-    bv._do_use_item("buff:atk_up", db.get_player("g1", "w1"))
+    pl = db.get_player("g1", "w1")
+    bv = BT.Battle("monster", {"name": "怪", "hp": 9999, "max_hp": 9999, "atk": 1, "spd": 1}, player=pl)
+    bv._do_use_item("buff:atk_up", pl)
     check("战斗内buff挂p_buffs（v152：_do_use_item 即时挂载 3 回合）",
-          bv.p_buffs.get("atk_up", 0) >= 3, str(bv.p_buffs))
+          bv._p_buffs_bag().get("atk_up", 0) >= 3, str(bv._p_buffs_bag()))
 
     # 3. 战斗内 mana 药水（只回蓝不回血）
     p = db.get_player("g1", "w1")

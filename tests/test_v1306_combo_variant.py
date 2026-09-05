@@ -67,7 +67,7 @@ def cast(sk_name, setup=None, chi=10):
     p["evolve_path"] = 2
     p["learned_skills"] = [sk_name]
     b = BT.Battle("monster", mkmon(), player=p)
-    b.resources["guard_core"] = chi
+    b._p_res()["guard_core"] = chi  # v180-B：resources 在 player actor dict
     if setup:
         setup(b)
     logs, _ = b.player_turn("skill", sk_name, p, enemy_act=False)
@@ -82,18 +82,18 @@ def main():
     # v151：拳师资源改为 guard_core（磐核），combo_ready 消费端 `_is_chi_skill` 只认 res_cost chi——
     # v151 无 chi 资源技能，该机制已随旧资源体系废弃。保留验证：combo_ready 标记对非 chi 技不消费
     # （对应旧②语义），并直接验证 guard_core 资源技（磐岩释能）正常施放
-    bA, logsA = cast(_CHI_SKILL, lambda b: b.resources.__setitem__("combo_ready", 1))
+    bA, logsA = cast(_CHI_SKILL, lambda b: b._p_res().__setitem__("combo_ready", 1))
     check("① 磐岩释能正常施放（guard_core 资源技）", bA.enemy["hp"] < 99999, str(logsA)[:200])
     check("① 非 chi 资源技不消费 combo_ready（v151 旧机制废弃）",
-          bA.resources.get("combo_ready") == 1 and not getattr(bA, "_combo_ready_used", False),
-          str(bA.resources))
+          bA._p_res().get("combo_ready") == 1 and not getattr(bA, "_combo_ready_used", False),
+          str(bA._p_res()))
     check("① 无三连余劲日志（v151 无 chi 技）", not any("余劲" in x for x in logsA), str(logsA)[:250])
     # 伤害均值对比（战斗有幸运一击 ±50% 随机，8 次均值消除噪声）——v151 无 chi 消耗差异，改为施放正常性冒烟
     import random
     dmg_with = []
     random.seed(20260828)
     for _ in range(8):
-        b, logs = cast(_CHI_SKILL, lambda b: b.resources.__setitem__("combo_ready", 1))
+        b, logs = cast(_CHI_SKILL, lambda b: b._p_res().__setitem__("combo_ready", 1))
         dmg_with.append(99999 - b.enemy["hp"])
     dmg_wo = []
     random.seed(20260828)
@@ -107,8 +107,8 @@ def main():
           f"with={dmg_with} wo={dmg_wo}")
 
     print("【② combo_ready 非气力技不消费】")
-    bC, logsC = cast(_PLAIN_SKILL, lambda b: b.resources.__setitem__("combo_ready", 1))
-    check("② 普通技不消费标记", bC.resources.get("combo_ready") == 1, str(bC.resources))
+    bC, logsC = cast(_PLAIN_SKILL, lambda b: b._p_res().__setitem__("combo_ready", 1))
+    check("② 普通技不消费标记", bC._p_res().get("combo_ready") == 1, str(bC._p_res()))
     check("② 无消费标志", not getattr(bC, "_combo_ready_used", False), str(logsC)[:200])
     check("② 普通技无余劲日志", not any("余劲" in x for x in logsC), str(logsC)[:250])
 
@@ -117,10 +117,10 @@ def main():
     bE._combo_push("拳")
     bE._combo_push("踢")
     bE._combo_push("掌")
-    check("③ 三连后序列清空", bE.combo_seq == [], str(bE.combo_seq))
-    check("③ 上一招记忆=掌", bE.last_combo_tag == "掌", str(bE.last_combo_tag))
+    check("③ 三连后序列清空", bE._p_combo_seq() == [], str(bE._p_combo_seq()))
+    check("③ 上一招记忆=掌", bE._p_last_combo_tag() == "掌", str(bE._p_last_combo_tag()))
     bE._combo_push("拳")
-    check("③ 新序列更新记忆=拳", bE.last_combo_tag == "拳", str(bE.last_combo_tag))
+    check("③ 新序列更新记忆=拳", bE._p_last_combo_tag() == "拳", str(bE._p_last_combo_tag()))
 
     print("【④ 侧踢变招：上一招拳 → +10%（_cond_mult 确定性断言）】")
     p = mk(lv=30)
@@ -150,8 +150,10 @@ def main():
     bJ._combo_push("踢")
     st = bJ.to_state()
     bK = BT.Battle.from_state(st)
-    check("⑤ combo_seq 保留", bK.combo_seq == ["拳", "踢"], str(bK.combo_seq))
-    check("⑤ last_combo_tag 保留", bK.last_combo_tag == "踢", str(bK.last_combo_tag))
+    bK.player = mk()  # v180-B ①：from_state 后绑定玩家 actor dict
+    bK._apply_restore_pstate()
+    check("⑤ combo_seq 保留", bK._p_combo_seq() == ["拳", "踢"], str(bK._p_combo_seq()))
+    check("⑤ last_combo_tag 保留", bK._p_last_combo_tag() == "踢", str(bK._p_last_combo_tag()))
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     sys.exit(1 if failed else 0)

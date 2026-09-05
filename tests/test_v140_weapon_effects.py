@@ -49,8 +49,8 @@ def test_battle_start():
     p = mk_player(["starlight_bulwark", "gale_step"])
     e = mk_enemy()
     b = BT.Battle("monster", e, player=p)
-    check("星辉壁垒开战获得护盾", "we_starlight" in b.p_shields, str(b.p_shields))
-    check("疾风步开战获得 buff", "gale_step" in b.p_buffs, str(b.p_buffs))
+    check("星辉壁垒开战获得护盾", "we_starlight" in b._p_shields_bag(), str(b._p_shields_bag()))
+    check("疾风步开战获得 buff", "gale_step" in b._p_buffs_bag(), str(b._p_buffs_bag()))
 
 def test_hit_stack():
     print("【2. 攻击命中特效（风痕叠层）】")
@@ -61,7 +61,7 @@ def test_hit_stack():
         b.player_turn("attack", None, p)
         # v154 读条命中制：出招读条结束（cast_done）才结算命中叠层
         b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
-    check("风痕叠层 3 层", b.mech_stacks.get("wind_mark", 0) == 3, str(b.mech_stacks))
+    check("风痕叠层 3 层", b._p_stacks().get("wind_mark", 0) == 3, str(b._p_stacks()))
 
 def test_skill_hit():
     print("【3. 技能命中特效（余波溅射）】")
@@ -135,7 +135,7 @@ def test_threshold():
     p["max_hp"] = 9999
     p["hp"] = 2000
     b._damage_player(p, 500, [], source="测试")
-    check("磐石守护护盾触发", "we_bedrock" in b.p_shields, str(b.p_shields))
+    check("磐石守护护盾触发", "we_bedrock" in b._p_shields_bag(), str(b._p_shields_bag()))
 
 def test_kill():
     print("【9. 击杀特效（暮裂潜行）】")
@@ -143,7 +143,7 @@ def test_kill():
     e = mk_enemy(hp=50)
     b = BT.Battle("monster", e, player=p)
     b._damage_enemy(100, [])
-    check("暮裂潜行击杀后潜行", "stealth" in b.p_buffs, str(b.p_buffs))
+    check("暮裂潜行击杀后潜行", "stealth" in b._p_buffs_bag(), str(b._p_buffs_bag()))
 
 def test_panel():
     print("【10. 常驻面板属性（奥术苍穹魔攻+15%）】")

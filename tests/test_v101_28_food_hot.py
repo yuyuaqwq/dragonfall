@@ -77,7 +77,7 @@ player = {"hp": 50, "max_hp": 100, "mp": 20, "max_mp": 100, "class_name": "cls_z
 logs, ended = b.player_turn("use_item", "hot:0.05,0.06,3", player)
 joined = "\n".join(logs)
 check("吃下播报", "🍲 你吃下了食物" in joined and "每刻恢复 5% 生命" in joined, joined[:120])
-check("p_hot 已设置", b.p_hot == {"heal": 0.05, "mana": 0.06, "turns": 3}, str(b.p_hot))
+check("p_hot 已设置", b._p_hot() == {"heal": 0.05, "mana": 0.06, "turns": 3}, str(b._p_hot()))
 hp0, mp0 = player["hp"], player["mp"]
 
 # 下回合（普攻）：hot 结算
@@ -86,12 +86,12 @@ j2 = "\n".join(logs2)
 check("回合开始 hot 回血", "持续恢复生效" in j2 and player["hp"] > hp0, f"{j2[:100]} hp={player['hp']}")
 check("hot 回蓝", player["mp"] > mp0, f"mp={player['mp']}")
 check("剩余回合提示", "剩余 2 刻" in j2, j2[:100])
-check("turns 递减", b.p_hot["turns"] == 2, str(b.p_hot))
+check("turns 递减", b._p_hot()["turns"] == 2, str(b._p_hot()))
 
 # 再两回合 → hot 结束
 b.player_turn("attack", "", player)
 logs4, _ = b.player_turn("attack", "", player)
-check("hot 结束清理", b.p_hot == {}, str(b.p_hot))
+check("hot 结束清理", b._p_hot() == {}, str(b._p_hot()))
 
 # 吃食物当回合不结算（吃+结算不能同回合重复）
 b2 = Battle("monster", enemy, {})
@@ -201,7 +201,7 @@ p2 = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan
 l2, _ = b2.player_turn("use_item", "buff:food_def_up", p2)
 check("料理播报(非'饮下战斗药水')", "吃下了料理" in "\n".join(l2), "\n".join(l2))
 check("food_def_up 生效 def×1.15",
-      b2._apply_buffs(b2._player_stats(p2), b2.p_buffs).get("def") == int(b2._player_stats(p2).get("def", 0) * 1.15))
+      b2._apply_buffs(b2._player_stats(p2), b2._p_buffs_bag()).get("def") == int(b2._player_stats(p2).get("def", 0) * 1.15))
 
 # ---- 7. food_effect 效果料理 ----
 print("== 7. food_effect 效果料理 ==")
@@ -229,15 +229,15 @@ ro2 = IT.TEMPLATES["food_effect"](AffCtx(battle=False))
 check("蛇羹战斗外恢复", "恢复 20 点生命" in ro2.text, ro2.text)
 
 # 战斗内吃蛇羹 → 获得吸血效果 + 攻击触发吸血
-b3 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
-                        "matk": 0, "mdef": 0, "spd": 1000}, {})
 p3 = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
       "level": 1, "learned_skills": [], "race": "human", "attributes": {},
       "equipment": {}}
+b3 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
+                        "matk": 0, "mdef": 0, "spd": 1000}, {}, player=p3)
 l3, _ = b3.player_turn("use_item", "foodfx:lifesteal", p3)
 j3 = "\n".join(l3)
 check("吃下播报【吸血】", "获得【吸血】效果" in j3, j3)
-check("p_food_effects 已设置", b3.p_food_effects == ["lifesteal"], str(b3.p_food_effects))
+check("p_food_effects 已设置", b3._p_food_effects() == ["lifesteal"], str(b3._p_food_effects()))
 check("食物效果不进装备词条", "lifesteal" not in b3._equip_affix_ids(p3), str(b3._equip_affix_ids(p3)))
 # 攻击命中触发吸血（直接调挂点验证）
 hp_b3 = p3["hp"]
@@ -248,22 +248,24 @@ check("吸血播报", any("吸血" in l for l in hit_logs), str(hit_logs))
 
 # 护盾料理特判（直接调 _do_use_item 避开敌方行动消耗）
 bread = C.ITEMS["i_sacred_bread"]
-b4 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
-                        "matk": 0, "mdef": 0, "spd": 1000}, {})
 p4 = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
       "level": 1, "learned_skills": [], "race": "human", "attributes": {}, "equipment": {}}
+b4 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
+                        "matk": 0, "mdef": 0, "spd": 1000}, {}, player=p4)
 b4._do_use_item("foodfx:shield", p4)
 # v152 时刻制：护盾存 {value, expire_at}（expire_at = now + 3×ACT_TICK = 6.0）
-check("护盾料理获得 10% 护盾(3回合)", b4.p_shields.get("food_shield", {}).get("value") == int(p4["max_hp"] * 0.10)
-      and abs(float(b4.p_shields.get("food_shield", {}).get("expire_at", 0)) - 3.0) < 1e-9,
-      str(b4.p_shields))  # v152 ACT_TICK=1.0：3 刻 = 3.0 秒
+# v180-B：Battle 带 player 播种 + 实时重算 max_hp（战士 lv1 = 150，shield_power 0.05）
+# → 盾值 = 150×10%×1.05 = 15.75 → 15
+check("护盾料理获得 10% 护盾(3回合)", b4._p_shields_bag().get("food_shield", {}).get("value") == 15
+      and abs(float(b4._p_shields_bag().get("food_shield", {}).get("expire_at", 0)) - 3.0) < 1e-9,
+      str(b4._p_shields_bag()))  # v152 ACT_TICK=1.0：3 刻 = 3.0 秒
 
 # 回春料理：回合开始回血（直接调 food 挂点验证）
-b5 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
-                        "matk": 0, "mdef": 0, "spd": 1000}, {})
 p5 = {"hp": 80, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
       "level": 1, "learned_skills": [], "race": "human", "attributes": {}, "equipment": {}}
-b5.p_food_effects = ["regen"]
+b5 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
+                        "matk": 0, "mdef": 0, "spd": 1000}, {}, player=p5)
+b5._p_food_effects().append("regen")
 hp_before = p5["hp"]
 ts_logs = []
 b5._food_turn_start(p5, ts_logs)

@@ -243,7 +243,7 @@ def test_player_control():
     clean_db()
     set_spd(20, 10)
     b = BT.Battle("monster", make_enemy(10), player=make_player())
-    b.p_buffs["stun"] = 1
+    b._p_buffs_bag()["stun"] = 1
     p = make_player()
     before = b.p_ct
     before_acts = b._p_acts

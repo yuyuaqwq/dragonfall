@@ -191,7 +191,8 @@ async def test_downstream_skills_combat(m):
     no_err = True
     try:
         b = BT.Battle("怪物", mk_be(hp=30000), {}, p)
-        b.resources = {"rage": 0, "element": "fire", "energy": 100, "faith": 0, "cp": 0, "chi": 0}
+        b._p_res().clear()
+        b._p_res().update({"rage": 0, "element": "fire", "energy": 100, "faith": 0, "cp": 0, "chi": 0})
         b._last_player = p
         # 绕开引擎被动结算崩点：临时剥掉字符串被动（战斗内该被动本就不注册 proc）
         p2 = dict(p)
@@ -266,7 +267,8 @@ def test_plant_summons(m):
         return p
 
     def _init_res(b):
-        b.resources = {"rage": 0, "element": "fire", "energy": 100, "faith": 0, "cp": 0, "chi": 0}
+        b._p_res().clear()
+        b._p_res().update({"rage": 0, "element": "fire", "energy": 100, "faith": 0, "cp": 0, "chi": 0})
 
     # 4.1 40 级林语者：真实召唤藤蔓守卫（t1 林语者，限 2）
     p1 = mk_you(50, ["召唤藤蔓守卫"])

@@ -63,15 +63,15 @@ async def main():
     check("穿甲药剂存在", any(v.get("effect") == "pene_pot" for v in ITEMS.values()))
     check("破法药剂存在", any(v.get("effect") == "pene_magi_pot" for v in ITEMS.values()))
     b, p = btl("cls_zhan_shi", ["破甲精通"])  # 5% 基础
-    b.p_buffs["pene_pot"] = 3
+    b._p_buffs_bag()["pene_pot"] = 3
     pp, _pf = b._pene_vals({"pene_phys": 0.05})
     expect = 1 - 0.95 * 0.85
     check(f"药水+15% 与属性乘算 ={expect:.4f}", abs(pp - expect) < 1e-6, f"got {pp}")
-    b.p_buffs = {}
+    b._p_buffs_bag().clear()
     pp2, _ = b._pene_vals({"pene_phys": 0.05})
     check("无药水 → 5%", abs(pp2 - 0.05) < 1e-6)
     # 药水 cap：60% + 药水 → 仍 ≤60%
-    b.p_buffs["pene_pot"] = 3
+    b._p_buffs_bag()["pene_pot"] = 3
     pp3, _ = b._pene_vals({"pene_phys": 0.60})
     check("药水叠加 cap 60%", pp3 <= 0.6 + 1e-9, str(pp3))
 
@@ -121,19 +121,25 @@ async def main():
            "equipment": {}, "attributes": {}, "learned_skills": []}
     b = BT.Battle("wild", enemy=enemy, title_bonus=None, player=p_z, pet=None)
     b._add_shield("test", 100, 3)
-    check("100 盾 × 战士盾强5% = 105", b.p_shields.get("test", {}).get("value") == 105, str(b.p_shields))
+    check("100 盾 × 战士盾强5% = 105", b._p_shields_bag().get("test", {}).get("value") == 105, str(b._p_shields_bag()))
     # 无盾强职业
     p_n = {"qq_id": "w", "name": "T", "level": 30, "class_name": "cls_fa_shi",
            "hp": 500, "max_hp": 500, "mp": 100, "max_mp": 100,
            "equipment": {}, "attributes": {}, "learned_skills": []}
     b2 = BT.Battle("wild", enemy=enemy, title_bonus=None, player=p_n, pet=None)
     b2._add_shield("test", 100, 3)
-    check("法师无盾强 → 100 不变", b2.p_shields.get("test", {}).get("value") == 100, str(b2.p_shields))
-    # cap：50% 封顶
-    b3 = BT.Battle("wild", enemy=enemy, title_bonus=None, player=p_z, pet=None)
+    check("法师无盾强 → 100 不变", b2._p_shields_bag().get("test", {}).get("value") == 100, str(b2._p_shields_bag()))
+    # cap：50% 封顶（v180-B ①：战斗状态在 player dict——p_z 已被上战 _add_shield 写入盾，需全新 player）
+    p_z2 = {"qq_id": "w", "name": "T", "level": 30, "class_name": "cls_zhan_shi",
+            "hp": 500, "max_hp": 500, "mp": 100, "max_mp": 100,
+            "equipment": {}, "attributes": {}, "learned_skills": []}
+    b3 = BT.Battle("wild", enemy=enemy, title_bonus=None, player=p_z2, pet=None)
     b3._player_stats = lambda p: {"shield_power": 0.99}
     b3._add_shield("test", 100, 3)
-    check("盾强 99% cap 50% → 150", b3.p_shields.get("test", {}).get("value") == 150, str(b3.p_shields))
+    check("盾强 99% cap 50% → 150", b3._p_shields_bag().get("test", {}).get("value") == 150, str(b3._p_shields_bag()))
+    # 同源叠加（同 key 再挂）：_add_shield 同源累加（第二次仍吃盾强 → 150+150=300）+ 刷新时长
+    b3._add_shield("test", 100, 3)
+    check("同源叠加 150+150=300", b3._p_shields_bag().get("test", {}).get("value") == 300, str(b3._p_shields_bag()))
 
     # ============ 7. 面板 ============
     print("【7. 面板】")

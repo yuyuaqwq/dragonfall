@@ -129,13 +129,13 @@ async def main():
     m_def = cur_map["subareas"][0]["monsters"][0]
     monster = C.build_monster(m_def, cur_map)
     b = BT.Battle("monster", monster, None, player=p)
-    check("Battle 注入 echo_bless", b.p_buffs.get("echo_bless") == 1, b.p_buffs)
+    check("Battle 注入 echo_bless", b._p_buffs_bag().get("echo_bless") == 1, b._p_buffs_bag())
     raw2 = db.get_event_state("bless_q1")
     check("bless 状态一次性消耗", not raw2, raw2)
 
     # 第二次战斗不再有 echo_bless
     b2 = BT.Battle("monster", monster, None, player=db.get_player("g1", "q1"))
-    check("第二次战斗无 echo_bless", not b2.p_buffs.get("echo_bless"), b2.p_buffs)
+    check("第二次战斗无 echo_bless", not b2._p_buffs_bag().get("echo_bless"), b2._p_buffs_bag())
 
     # atk +5% 生效验证
     st0 = b2._player_stats(db.get_player("g1", "q1"))

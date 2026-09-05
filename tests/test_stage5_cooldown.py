@@ -25,26 +25,28 @@ def mkmon(name='野猪'):
 
 print("【冷却：基础方法】")
 b = BT.Battle('monster', mkmon(), player=mk('法师'))
-check("初始无冷却", not b._skill_on_cd("火球术"), str(b.cooldown))
+check("初始无冷却", not b._skill_on_cd("火球术"), str(b._p_cooldown()))
 b._set_skill_cd("火球术", 3)
-check("设置后冷却中", b._skill_on_cd("火球术"), str(b.cooldown))
+check("设置后冷却中", b._skill_on_cd("火球术"), str(b._p_cooldown()))
 # v152 时刻制：cooldown 存 ready_at 绝对时刻（now + cd×ACT_TICK = 3.0）。剩余回合 = ceil((ready_at-now)/ACT_TICK)。
 # now=0 → 剩余 3（_skill_cd_left 折算：int((3-0)/1)+1 = 4？实测 4——见引擎差距报告：ceil 语义偏差）
-check("剩余 3 回合（折算约 3~4）", b._skill_cd_left("火球术") in (3, 4), f"left={b._skill_cd_left('火球术')} {str(b.cooldown)}")
+check("剩余 3 回合（折算约 3~4）", b._skill_cd_left("火球术") in (3, 4), f"left={b._skill_cd_left('火球术')} {str(b._p_cooldown())}")
 # v152 时刻制：_tick_cooldowns 惰性清除到期项；未推进时刻（_now 不变）时剩余不变。
 b._tick_cooldowns()
-check("未推进时刻剩余不变（绝对时刻制，不因调用递减）", b._skill_cd_left("火球术") in (3, 4), str(b.cooldown))
+check("未推进时刻剩余不变（绝对时刻制，不因调用递减）", b._skill_cd_left("火球术") in (3, 4), str(b._p_cooldown()))
 b._end_round()  # 推进 ACT_TICK=1.0 → ready_at(3) - now(1) = 2 → 折算 3
 check("推进 1 回合后剩余 3", b._skill_cd_left("火球术") == 3, f"left={b._skill_cd_left('火球术')}")
 b._end_round()
 b._end_round()
-check("归零清除", not b._skill_on_cd("火球术") and "火球术" not in b.cooldown, str(b.cooldown))
+check("归零清除", not b._skill_on_cd("火球术") and "火球术" not in b._p_cooldown(), str(b._p_cooldown()))
 
 print("【冷却：序列化往返】")
 b._set_skill_cd("冰锥", 2)
 st = b.to_state()
 b2 = BT.Battle.from_state(st)
-check("cooldown 序列化", b2.cooldown == b.cooldown, str((b2.cooldown, b.cooldown)))
+b2.player = mk('法师')  # v180-B ①：from_state 后绑定玩家 actor dict，再灌入恢复状态
+b2._apply_restore_pstate()
+check("cooldown 序列化", b2._p_cooldown() == b._p_cooldown(), str((b2._p_cooldown(), b._p_cooldown())))
 
 print("【冷却：施放拦截】")
 # 给技能表临时挂一个带 cd 的技能（直接改 content 表，测完还原）
@@ -127,7 +129,7 @@ if old_skill:
     logs4, done4 = b4.player_turn('skill', old_skill, p2, enemy_act=False)
     # v154 读条命中制：出招读条结束（cast_done）才结算——推进后生效
     b4._process_until(float(getattr(b4, "p_ct", 0) or 0) + 0.001, logs4, p2)
-    check("无 cd 技能不设冷却", not b4._skill_on_cd(old_skill), str(b4.cooldown))
+    check("无 cd 技能不设冷却", not b4._skill_on_cd(old_skill), str(b4._p_cooldown()))
 
 print(f"\n结果: {passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

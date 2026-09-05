@@ -98,24 +98,24 @@ async def main():
     # 打桩 _player_stats 返回 cdr 40%
     b._player_stats = lambda p: {"cdr": 0.40}
     b._set_skill_cd("测试技", 5)
-    check("cd5 + 40%cdr → ready_at = now + 3×1.0 = 3.0", abs(float(b.cooldown.get("测试技", 0)) - 3.0) < 1e-9,
-          str(b.cooldown.get("测试技")))
+    check("cd5 + 40%cdr → ready_at = now + 3×1.0 = 3.0", abs(float(b._p_cooldown().get("测试技", 0)) - 3.0) < 1e-9,
+          str(b._p_cooldown().get("测试技")))
     b._set_skill_cd("测试技2", 2)
-    check("cd2 + 40%cdr → 保底 1 → ready_at = 1.0", abs(float(b.cooldown.get("测试技2", 0)) - 1.0) < 1e-9,
-          str(b.cooldown.get("测试技2")))
+    check("cd2 + 40%cdr → 保底 1 → ready_at = 1.0", abs(float(b._p_cooldown().get("测试技2", 0)) - 1.0) < 1e-9,
+          str(b._p_cooldown().get("测试技2")))
     b._set_skill_cd("测试技3", 1)
-    check("cd1 不受 cdr 影响 → ready_at = 1.0", abs(float(b.cooldown.get("测试技3", 0)) - 1.0) < 1e-9,
-          str(b.cooldown.get("测试技3")))
+    check("cd1 不受 cdr 影响 → ready_at = 1.0", abs(float(b._p_cooldown().get("测试技3", 0)) - 1.0) < 1e-9,
+          str(b._p_cooldown().get("测试技3")))
     # 无 cdr
     b._player_stats = lambda p: {}
     b._set_skill_cd("测试技4", 5)
-    check("无 cdr → cd5 → ready_at = 5.0", abs(float(b.cooldown.get("测试技4", 0)) - 5.0) < 1e-9,
-          str(b.cooldown.get("测试技4")))
+    check("无 cdr → cd5 → ready_at = 5.0", abs(float(b._p_cooldown().get("测试技4", 0)) - 5.0) < 1e-9,
+          str(b._p_cooldown().get("测试技4")))
     # 99% cdr 被 cap 40%
     b._player_stats = lambda p: {"cdr": 0.99}
     b._set_skill_cd("测试技5", 5)
-    check("99% cdr cap 40% → cd3 → ready_at = 3.0", abs(float(b.cooldown.get("测试技5", 0)) - 3.0) < 1e-9,
-          str(b.cooldown.get("测试技5")))
+    check("99% cdr cap 40% → cd3 → ready_at = 3.0", abs(float(b._p_cooldown().get("测试技5", 0)) - 3.0) < 1e-9,
+          str(b._p_cooldown().get("测试技5")))
     # 折算剩余：_skill_cd_left 用 ready_at - now 折算展示（int +1 向上取整）
     check("剩余折算：ready_at 3.0 / now 0 → 剩余 3~4", b._skill_cd_left("测试技") in (3, 4),
           f"left={b._skill_cd_left('测试技')}")

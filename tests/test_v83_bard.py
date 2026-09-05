@@ -86,9 +86,10 @@ async def main():
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     mel2 = getattr(b, "_melody", None) or {}
     check("拨弦吟唱 → 强度 +1（stack=2）", mel2.get("stack") == 2, f"melody={mel2}")
-    # 拨弦 CD=4：连续吟唱需清冷却（v152 时刻制 CD 由 cooldown dict 记 ready_at）
+    # 拨弦 CD=4：连续吟唱需清冷却（v152 时刻制 CD 由 cooldown dict 记 ready_at；
+    # v180-B：cooldown 权威在 player actor dict——经 _p_cooldown() 清）
     for _i in range(3):
-        b.cooldown.pop("拨弦", None)
+        b._p_cooldown().pop("拨弦", None)
         b.player_turn("skill", "拨弦", p)
         b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     mel5 = getattr(b, "_melody", None) or {}

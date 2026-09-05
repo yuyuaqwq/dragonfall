@@ -107,14 +107,14 @@ def test_adapt():
     b = BT.Battle("monster", mk_enemy(hp=100000))
     b._last_player = p
     for _ in range(3):
-        BM.MECH_EFFECTS["poison"](b, 2, b.mech_stacks, 100, [], "淬毒", False)
+        BM.MECH_EFFECTS["poison"](b, 2, b._p_stacks(), 100, [], "淬毒", False)
     check("叠毒 3 次 adapt = 0.12", abs(b.enemy["adapt"]["poison"] - 0.12) < 1e-9,
           str(b.enemy["adapt"]))
     # v152：last_round → last_tick（行动轮次 _tick_no() 记录）
     check("last_tick 已记录", b.enemy["debuffs"]["poison"].get("last_tick", 0) >= 1,
           str(b.enemy["debuffs"]["poison"]))
     for _ in range(5):
-        BM.MECH_EFFECTS["poison"](b, 1, b.mech_stacks, 100, [], "淬毒", False)
+        BM.MECH_EFFECTS["poison"](b, 1, b._p_stacks(), 100, [], "淬毒", False)
     check("适应 cap 0.20", abs(b.enemy["adapt"]["poison"] - 0.20) < 1e-9, str(b.enemy["adapt"]))
     # 总抗：dot_res 0.9 + adapt 0.2 → cap 0.95
     b2 = BT.Battle("monster", mk_enemy(hp=1000, dot_res=0.9, adapt={"poison": 0.2}))
@@ -136,7 +136,7 @@ def test_immune():
     b = BT.Battle("monster", mk_enemy(hp=1000, immune_dots=["poison"]))
     b._last_player = p
     logs = []
-    BM.MECH_EFFECTS["poison"](b, 2, b.mech_stacks, 100, logs, "淬毒", False)
+    BM.MECH_EFFECTS["poison"](b, 2, b._p_stacks(), 100, logs, "淬毒", False)
     check("免疫时叠毒失败", "poison" not in b.enemy.get("debuffs", {}), str(b.enemy.get("debuffs")))
     check("免疫提示", any("免疫中毒" in l for l in logs), str(logs))
     b2 = BT.Battle("monster", mk_enemy(hp=1000, immune_dots=["poison"]))
@@ -190,7 +190,7 @@ def test_bursts():
     b._last_player = p
     b.enemy.setdefault("debuffs", {})["poison"] = {"n": 3, "mult": 1.0}
     logs = []
-    BM.MECH_EFFECTS["poison_burst"](b, 1, b.mech_stacks, 100, logs, "毒爆术", False)
+    BM.MECH_EFFECTS["poison_burst"](b, 1, b._p_stacks(), 100, logs, "毒爆术", False)
     check("毒爆造成伤害", b.enemy["hp"] < 1000, f"{b.enemy['hp']}")
     check("毒爆物理段", any("物理伤害" in l for l in logs), str(logs))
     check("毒爆清层", "poison" not in b.enemy.get("debuffs", {}), str(b.enemy.get("debuffs")))
@@ -198,7 +198,7 @@ def test_bursts():
     b2._last_player = p
     b2.enemy.setdefault("debuffs", {})["burn"] = {"n": 5, "mult": 1.0}
     logs2 = []
-    BM.MECH_EFFECTS["burn_burst"](b2, 1, b2.mech_stacks, 100, logs2, "灼烧引爆", False)
+    BM.MECH_EFFECTS["burn_burst"](b2, 1, b2._p_stacks(), 100, logs2, "灼烧引爆", False)
     check("灼爆易燃 5 层 ×1.3", any("易燃" in l for l in logs2), str(logs2))
     check("灼爆清层", "burn" not in b2.enemy.get("debuffs", {}), str(b2.enemy.get("debuffs")))
     # v1.3 毒爆附虚弱：3 层 -15%（提前爆价值）、5 层 -25%（无重伤——重伤仅 Boss『重创』施加）
@@ -206,37 +206,36 @@ def test_bursts():
     b3._last_player = p
     b3.enemy.setdefault("debuffs", {})["poison"] = {"n": 3, "mult": 1.0}
     logs3 = []
-    BM.MECH_EFFECTS["poison_burst"](b3, 1, b3.mech_stacks, 100, logs3, "毒爆术", False)
+    BM.MECH_EFFECTS["poison_burst"](b3, 1, b3._p_stacks(), 100, logs3, "毒爆术", False)
     check("毒爆 3 层附虚弱 -15%", abs(b3.e_buffs.get("_weaken_val", 0) - 0.15) < 1e-9
           and b3.e_buffs.get("mon_atk_down", 0) >= 1, str(b3.e_buffs))
     b4 = BT.Battle("monster", mk_enemy(**{"def": 0}))
     b4._last_player = p
     b4.enemy.setdefault("debuffs", {})["poison"] = {"n": 5, "mult": 1.0}
     logs4 = []
-    BM.MECH_EFFECTS["poison_burst"](b4, 1, b4.mech_stacks, 100, logs4, "毒爆术", False)
+    BM.MECH_EFFECTS["poison_burst"](b4, 1, b4._p_stacks(), 100, logs4, "毒爆术", False)
     check("毒爆 5 层附虚弱 -25%", abs(b4.e_buffs.get("_weaken_val", 0) - 0.25) < 1e-9, str(b4.e_buffs))
     check("毒爆不附重伤", not b4.e_buffs.get("mortal_wound"), str(b4.e_buffs))
     # v1.3 重伤：仅 Boss『重创』施加，玩家吸血减半
     p_st = {"lifesteal": 0.30}
-    b5 = BT.Battle("monster", mk_enemy())
+    b5 = BT.Battle("monster", mk_enemy(), player=p)
     b5._player_stats = lambda pl: p_st
-    b5.p_buffs = {}
     hl = []
     b5._settle_lifesteal(p, 1000, hl)
     check("无重伤吸血 300", "回复 300" in str(hl), str(hl))
-    b6 = BT.Battle("monster", mk_enemy())
+    b6 = BT.Battle("monster", mk_enemy(), player=p)
     b6._player_stats = lambda pl: p_st
-    b6.p_buffs = {"mortal_wound": 2}
+    b6._p_buffs_bag()["mortal_wound"] = 2
     hl2 = []
     b6._settle_lifesteal(p, 1000, hl2)
     check("重伤吸血减半 150", "回复 150" in str(hl2), str(hl2))
     # Boss『重创』开场技（v152：r=1 触发首回合开场技）
     b7 = BT.Battle("monster", mk_enemy(id="b_cardinal", role="boss", is_boss=True,
-                                       mech="heal,phase_open"))
+                                       mech="heal,phase_open"), player=p)
     b7._now = 0.0  # 首回合（_tick_no()=1）
     hl3 = []
     BM.BOSS_MECHS["phase_open"](b7, hl3, b7.enemy, 1)
-    check("Boss 重创开场挂玩家重伤", b7.p_buffs.get("mortal_wound") == 2, str(b7.p_buffs))
+    check("Boss 重创开场挂玩家重伤", b7._p_buffs_bag().get("mortal_wound") == 2, str(b7._p_buffs_bag()))
 
 def test_instance_flow():
     print("【9. 副本 dot_pending + poison_all 共享】")
@@ -275,8 +274,11 @@ def test_legacy_migration():
     b = BT.Battle.from_state(st)
     check("poison 迁入 enemy debuffs", b.enemy["debuffs"]["poison"]["n"] == 3,
           str(b.enemy.get("debuffs")))
-    check("玩家资源保留", b.mech_stacks.get("rage") == 2, str(b.mech_stacks))
-    check("mech_stacks 无 poison", "poison" not in b.mech_stacks, str(b.mech_stacks))
+    # v180-B ①：from_state 恢复的玩家战斗状态暂存 _restore_pstate，需绑玩家 + _apply_restore_pstate 灌入
+    b.player = mk_player()
+    b._apply_restore_pstate()
+    check("玩家资源保留", b._p_stacks().get("rage") == 2, str(b._p_stacks()))
+    check("mech_stacks 无 poison", "poison" not in b._p_stacks(), str(b._p_stacks()))
 
 def test_fix_regressions():
     print("【11. 审计修复回归】")
@@ -298,7 +300,7 @@ def test_fix_regressions():
     b3 = BT.Battle("monster", mk_enemy(hp=1000, immune_dots=["burn"]))
     b3._last_player = p
     lg = []
-    BM.MECH_EFFECTS["burn"](b3, 2, b3.mech_stacks, 100, lg, "灼烧", False)
+    BM.MECH_EFFECTS["burn"](b3, 2, b3._p_stacks(), 100, lg, "灼烧", False)
     check("灼烧免疫不叠层", "burn" not in b3.enemy.get("debuffs", {}), str(b3.enemy.get("debuffs")))
     # adapt 对灼烧回落（v152：b._now = 5×ACT_TICK，last_tick=2）
     b4 = BT.Battle("monster", mk_enemy(hp=100000, adapt={"burn": 0.12}))
@@ -307,15 +309,15 @@ def test_fix_regressions():
     tick(b4, p)
     check("灼烧适应回落 0.12→0.08", abs(b4.enemy["adapt"]["burn"] - 0.08) < 1e-9, str(b4.enemy["adapt"]))
     # 重伤对技能吸血减半
-    b5 = BT.Battle("monster", mk_enemy(hp=100000))
-    b5.p_buffs = {"mortal_wound": 2}
+    b5 = BT.Battle("monster", mk_enemy(hp=100000), player=p)
+    b5._p_buffs_bag()["mortal_wound"] = 2
     info = {"lifesteal": 0.25}
     hp0 = p["hp"]
     b5._player_skill(b5._player_stats(p), "嗜血斩", info, p) if False else None
     # 直接验证 skill_lifesteal 路径：模拟 _player_skill 的吸血块（重伤 ×0.5）
     from game import engine as EG
     heal = int(1000 * EG.skill_lifesteal_pct(info, 10))
-    if b5.p_buffs.get("mortal_wound"):
+    if b5._p_buffs_bag().get("mortal_wound"):
         heal = int(heal * 0.5)
     check("重伤技能吸血减半（25%→12.5%）", heal == 125, f"heal={heal}")
     # Boss phase 清减益/适应 → v138.2 律三进度遗产：保留 50% 层数（不再全清）

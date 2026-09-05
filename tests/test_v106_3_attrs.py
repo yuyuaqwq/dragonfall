@@ -162,16 +162,16 @@ async def main():
     print("— 药水 —")
     b8 = BT.Battle("怪物", mk_enemy(), {}, mk_player())
     logs8 = []
-    b8._apply_potion_special("lifesteal_pot", mk_player(), logs8)
-    check("嗜血药剂 buff 生效", b8.p_buffs.get("lifesteal_pot") == 3, str(logs8))
+    b8._apply_potion_special("lifesteal_pot", b8.player, logs8)
+    check("嗜血药剂 buff 生效", b8._p_buffs_bag().get("lifesteal_pot") == 3, str(logs8))
     b9 = BT.Battle("怪物", mk_enemy(), {}, mk_player())
     logs9 = []
-    b9._apply_potion_special("crit_dmg_pot", mk_player(), logs9)
-    check("狂暴药剂 buff 生效", b9.p_buffs.get("crit_dmg_pot") == 3, str(logs9))
+    b9._apply_potion_special("crit_dmg_pot", b9.player, logs9)
+    check("狂暴药剂 buff 生效", b9._p_buffs_bag().get("crit_dmg_pot") == 3, str(logs9))
     b10 = BT.Battle("怪物", mk_enemy(), {}, mk_player())
     logs10 = []
-    b10._apply_potion_special("block_pot", mk_player(), logs10)
-    check("岩壁药剂 buff 生效", b10.p_buffs.get("block_pot") == 3, str(logs10))
+    b10._apply_potion_special("block_pot", b10.player, logs10)
+    check("岩壁药剂 buff 生效", b10._p_buffs_bag().get("block_pot") == 3, str(logs10))
 
     check("嗜血药剂物品数据", "i_lifesteal_pot" in ITEMS, "missing")
     check("狂暴药剂物品数据", "i_crit_dmg_pot" in ITEMS, "missing")

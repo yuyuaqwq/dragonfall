@@ -49,10 +49,12 @@ def make_battle(**kw):
     b = Battle(btype="monster", enemy=enemy, player={"class_name": "cls_zhan_shi"})
     b.round = kw.pop("round", 1)
     b.e_buffs = kw.pop("e_buffs", {})
-    b.p_buffs = kw.pop("p_buffs", {})
-    b.mech_stacks = kw.pop("mech_stacks", {})
-    b.shield = kw.pop("shield", 0)
-    b.resources = kw.pop("resources", {})
+    # v180-B：玩家战斗可变状态权威 = player actor dict 的对应袋。原 REBIND 整袋到
+    # Battle 实例属性（p_buffs/mech_stacks/shield/resources）已删除——改为直接写入
+    # player dict 对应键（Battle 构造时已播种空袋）。
+    for _pk, _bag in (("resources", "resources"), ("p_buffs", "buffs"), ("mech_stacks", "stacks")):
+        if _pk in kw:
+            b.player[_bag] = kw.pop(_pk) or {}
     b._last_player = kw.pop("last_player", None)
     return b
 

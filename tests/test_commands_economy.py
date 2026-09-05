@@ -170,7 +170,7 @@ async def main():
     enemy = C.build_monster(["m_test", "测试怪", "dps", 3, ["ms_si_yao"], ["mat_lang_pi"]], {"id": "x", "name": "x", "area": "x"})
     b = BT.Battle.from_state({"type": "pvp", "enemy": enemy, "p_buffs": {}, "e_buffs": {}, "p_defending": False, "e_defending": False})
     logs, _ended = b.player_turn("use_item", "buff:atk_up", pl)
-    check("攻击药水挂 atk_up", b.p_buffs.get("atk_up", 0) >= 2, str(b.p_buffs))
+    check("攻击药水挂 atk_up", b._p_buffs_bag().get("atk_up", 0) >= 2, str(b._p_buffs_bag()))
     check("战斗药水日志", "攻击" in "".join(logs) or "大幅提升" in "".join(logs), "".join(logs)[:200])
     # 幸运护符使用（非战斗）
     db.add_item("g1", "e1", "lucky1", {"name": "幸运护符", "type": "消耗品", "effect": "lucky", "stackable": True, "price": 150})

@@ -56,7 +56,7 @@ async def main():
     b2 = BT.Battle.from_state(b.to_state())
     check("type 保留", b2.btype == "monster")
     check("enemy hp 保留", b2.enemy["hp"] == 100)
-    check("buffs 保留", b2.p_buffs == {} and b2.e_buffs == {})
+    check("buffs 保留", b2._p_buffs_bag() == {} and b2.e_buffs == {})
 
     print("【战斗：普攻】")
     random.seed(1)
@@ -87,7 +87,7 @@ async def main():
     m2 = make_monster(hp=100000, defense=50)
     b2 = BT.Battle("pvp", m2)
     b2.player_turn("skill", "战吼", p2)
-    check("战吼 p_buffs 挂 atk_up=3（PVP 不推进时刻）", b2.p_buffs.get("atk_up", 0) == 3, str(b2.p_buffs))
+    check("战吼 p_buffs 挂 atk_up=3（PVP 不推进时刻）", b2._p_buffs_bag().get("atk_up", 0) == 3, str(b2._p_buffs_bag()))
     b2.player_turn("attack", None, p2)
     dmg_buffed = 100000 - m2["hp"]
     random.seed(3)
@@ -132,7 +132,7 @@ async def main():
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], make_player("战士", 10, mp=100))
     # v151→技能全鉴 P1 修复：破甲斩 desc"破防"与数据对齐（恢复 pierce:True，命中后挂 def_down 破防减益）
     # ——断言改为验证战意积攒 + 破防减益（不再是无减益异常）
-    check("破甲斩积攒战意", (b.mech_stacks or {}).get("zhan_yi", 0) > 0, str(b.mech_stacks))
+    check("破甲斩积攒战意", (b._p_stacks() or {}).get("zhan_yi", 0) > 0, str(b._p_stacks()))
     check("破甲斩施加破防（def_down）", (b.e_buffs or {}).get("def_down", 0) > 0, str(b.e_buffs))
 
     print("【战斗：中毒持续伤害】")

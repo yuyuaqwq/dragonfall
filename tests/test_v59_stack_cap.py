@@ -13,6 +13,18 @@ def check(name, cond, detail=""):
     passed += 1
     print(f"  ✓ {name}")
 
+def _mk_battle(enemy=None):
+    """v180-B ①：状态权威在玩家 actor dict——构造后绑玩家快照。"""
+    b = BT.Battle("monster", enemy or {"name": "靶子", "lv": 10, "hp": 99999, "max_hp": 99999,
+                                       "atk": 1, "def": 1, "matk": 1, "mdef": 1, "spd": 1})
+    b.player = {
+        "class_name": "zhan_shi", "level": 30, "max_hp": 1000, "hp": 1000,
+        "max_mp": 500, "mp": 500, "atk": 100, "def": 50, "matk": 80, "mdef": 50,
+        "spd": 10, "crit": 0.05, "equipment": {},
+        "skills": [], "skill_levels": {}, "learned_skills": [],
+    }
+    return b
+
 def test_stack_cap():
     print("【机制：叠层上限】")
     m = {}
@@ -38,16 +50,8 @@ def test_stack_cap():
 
 def test_battle_cap():
     print("【机制：战斗内叠层封顶】")
-    player = {
-        "class_name": "zhan_shi", "level": 30, "max_hp": 1000, "hp": 1000,
-        "max_mp": 500, "mp": 500, "atk": 100, "def": 50, "matk": 80, "mdef": 50,
-        "spd": 10, "crit": 0.05, "mech_stacks": {}, "equipment": {},
-        "skills": [], "skill_levels": {}, "learned_skills": [],
-    }
-    enemy = {"name": "靶子", "lv": 10, "hp": 99999, "max_hp": 99999,
-             "atk": 1, "def": 1, "matk": 1, "mdef": 1, "spd": 1}
-    b = BT.Battle("monster", enemy)
-    p_mech = b.mech_stacks
+    b = _mk_battle()
+    p_mech = b._p_stacks()  # v180-B：玩家侧叠层权威 = player actor dict["stacks"]
     for _ in range(7):
         b._apply_mech_effect("rage", 1, p_mech, 100, [], "狂暴打击")
     check("狂暴叠 7 次封顶 5", p_mech.get("rage") == 5, str(p_mech.get("rage")))
@@ -66,8 +70,6 @@ def test_battle_cap():
 
 def test_poison_all_cap():
     print("【机制：副本全队淬毒封顶】")
-    st = {"players": {"1": {"mech_stacks": {}}, "2": {"mech_stacks": {}}},
-          "alive": {"1": True, "2": True}, "members": [1, 2]}
     from game.commands import instance as inst
     # 直接测 helper 语义（淬毒 +2，叠 3 次到 5 封顶）
     ms = {}

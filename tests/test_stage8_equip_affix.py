@@ -209,8 +209,8 @@ def test_battle_affix():
     p = mk_player(["shield"])
     b = BT.Battle("monster", mk_enemy(), {}, p)
     # v152 时刻制：护盾存 {value, expire_at}（expire_at = now + turns×ACT_TICK = 3×2.0 = 6.0）
-    check("护盾词条战斗开始", b.p_shields.get("affix_shield", {}).get("value") == int(int(p["max_hp"] * 0.10) * 1.05)
-          and abs(float(b.p_shields.get("affix_shield", {}).get("expire_at", 0)) - 3.0) < 1e-9, str(b.p_shields))  # v106.2 战士盾强 5%；v152 ACT_TICK=1.0：3 刻 = 3.0
+    check("护盾词条战斗开始", b._p_shields_bag().get("affix_shield", {}).get("value") == int(int(p["max_hp"] * 0.10) * 1.05)
+          and abs(float(b._p_shields_bag().get("affix_shield", {}).get("expire_at", 0)) - 3.0) < 1e-9, str(b._p_shields_bag()))  # v106.2 战士盾强 5%；v152 ACT_TICK=1.0：3 刻 = 3.0
     # 6.2 处决低血增伤（血 20% 触发）
     p2 = mk_player(["execute"])
     b2 = BT.Battle("monster", mk_enemy(hp=200, max_hp=1000), {}, p2)
@@ -271,7 +271,7 @@ def test_battle_affix():
     p6 = mk_player([], "dragon_tongue")
     b6 = BT.Battle("monster", mk_enemy(), {}, p6)
     b6._player_attack(b6._player_stats(p6), p6)
-    check("龙语印记叠层", b6.mech_stacks.get("dragon_mark") == 1, str(b6.mech_stacks))
+    check("龙语印记叠层", b6._p_stacks().get("dragon_mark") == 1, str(b6._p_stacks()))
     # 6.7 元素伤害专属（澜歌之泪 冰 +20%）
     p7 = mk_player(["element_ice"], "lang_tear")
     b7 = BT.Battle("monster", mk_enemy(), {}, p7)
@@ -481,7 +481,7 @@ def test_set5_and_resist():
             found_im = True
             break
     check("霜狼套免疫减速", found_im)
-    check("霜狼套无 spd_down", bts.p_buffs.get("spd_down", 0) == 0)
+    check("霜狼套无 spd_down", bts._p_buffs_bag().get("spd_down", 0) == 0)
 
 
 async def main():

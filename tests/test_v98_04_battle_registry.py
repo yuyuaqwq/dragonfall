@@ -41,11 +41,20 @@ def make_battle(**kw):
     b = Battle(btype="monster", enemy=enemy, player={"class_name": "cls_zhan_shi"})
     b.round = kw.pop("round", 1)
     b.e_buffs = kw.pop("e_buffs", {})
-    b.p_buffs = kw.pop("p_buffs", {})
-    b.mech_stacks = kw.pop("mech_stacks", {})
+    # v180-B ①：玩家状态权威在 b.player actor dict——注入到对应袋
+    _pb = b.player.setdefault("buffs", {})
+    _pb.clear()
+    _pb.update(kw.pop("p_buffs", {}) or {})
+    _ps = b.player.setdefault("stacks", {})
+    _ps.clear()
+    _ps.update(kw.pop("mech_stacks", {}) or {})
     b.shield = kw.pop("shield", 0)
-    b.p_shields = kw.pop("p_shields", {})  # v101.28d 护盾 buff 化（v104 审计修复对齐）
-    b.resources = kw.pop("resources", {})
+    _psh = b.player.setdefault("shields", {})
+    _psh.clear()
+    _psh.update(kw.pop("p_shields", {}) or {})  # v101.28d 护盾 buff 化（v104 审计修复对齐）
+    _pr = b.player.setdefault("resources", {})
+    _pr.clear()
+    _pr.update(kw.pop("resources", {}) or {})
     b._player_hit = kw.pop("player_hit", False)
     b._last_player = kw.pop("last_player", None)
     return b
@@ -94,11 +103,12 @@ b = make_battle(enemy={"name": "野狼", "hp": 100, "max_hp": 100, "atk": 20, "m
                        "debuffs": {"poison": {"n": 2, "mult": 1.0}}})
 check("enemy_poison_stacks（2<3）不命中", b._cond_mult({"cond": {"type": "enemy_poison_stacks", "mult": 1.4}}, player, 1) == 1.0)
 b = make_battle(shield=10, p_shields={"shield_test": {"value": 10, "turns": 3}})
-check("player_shield 命中", b._cond_mult({"cond": {"type": "player_shield", "mult": 1.3}}, player, 1) == 1.3)
+# v180-B：条件求值的 player = battle 绑定玩家（b.player）——状态权威在 b.player dict
+check("player_shield 命中", b._cond_mult({"cond": {"type": "player_shield", "mult": 1.3}}, b.player, 1) == 1.3)
 b = make_battle(resources={"rage": 5})
-check("player_res_stacks（rage 5≥3）命中", b._cond_mult({"cond": {"type": "player_res_stacks", "res_key": "rage", "stacks": 3, "mult": 1.5}}, player, 1) == 1.5)
+check("player_res_stacks（rage 5≥3）命中", b._cond_mult({"cond": {"type": "player_res_stacks", "res_key": "rage", "stacks": 3, "mult": 1.5}}, b.player, 1) == 1.5)
 b = make_battle(p_buffs={"spd_up": 1})
-check("player_spd_up 命中", b._cond_mult({"cond": {"type": "player_spd_up", "mult": 1.2}}, player, 1) == 1.2)
+check("player_spd_up 命中", b._cond_mult({"cond": {"type": "player_spd_up", "mult": 1.2}}, b.player, 1) == 1.2)
 b = make_battle(player_hit=True)
 check("player_untouched（已受击）不命中", b._cond_mult({"cond": {"type": "player_untouched", "mult": 1.8}}, player, 1) == 1.0)
 
@@ -215,11 +225,11 @@ b = make_battle()
 logs = []
 random.seed(1)
 BM.MON_CTRL_EFFECTS["silence"](b, player, logs, 1)
-check("怪物 silence 稳定 2 回合", b.p_buffs.get("silence") == 2)
+check("怪物 silence 稳定 2 回合", b._p_buffs_bag().get("silence") == 2)
 b = make_battle()
 logs = []
 BM.MON_CTRL_EFFECTS["slow"](b, player, logs, 1)
-check("怪物 slow 减速", b.p_buffs.get("spd_down") == 2)
+check("怪物 slow 减速", b._p_buffs_bag().get("spd_down") == 2)
 
 # ============ 9. 全覆盖：数据 key 全部有注册 ============
 print("【9. 数据覆盖检查】")

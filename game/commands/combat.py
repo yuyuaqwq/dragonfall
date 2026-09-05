@@ -332,7 +332,7 @@ class CombatCmds(CommandBase):
             db.save_battle(group_id, qq_id, b.to_state())
             self._lock_battle(group_id, qq_id)
             bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b._p_buffs_bag().get("echo_bless") else ""
-            _pb = getattr(b, "poi_buff", None)
+            _pb = b._p_poi_buff()
             if _pb:
                 bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}+10%！\n"
             # O121 Boss 战隐藏『逃跑』选项（引擎/命令层均禁逃，防误导）
@@ -1639,7 +1639,8 @@ class CombatCmds(CommandBase):
         # 旧 {turns} 兼容值只在过期迁移前存在。turns<999 拼接 (N刻) 在 turns=0（无刻数语义
         # 来源/已过期迁移中）时显示 (0刻) 很怪——改为：只对**真正剩余时刻 > 0** 的护盾换算
         # 剩余刻数显示（expire_at - now 折算 ACT_TICK；无 expire_at 的旧档不显示刻数）。
-        shields = getattr(b, "p_shields", {}) or {}
+        # v180-B：护盾权威在玩家 actor dict["shields"]（getattr 兼容壳已失效）——读 _p_shields_bag
+        shields = b._p_shields_bag() or {}
         _now_t = float(getattr(b, "_now", 0.0) or 0.0)
         for sname, s in shields.items():
             if (s or {}).get("value", 0) > 0:
@@ -1708,7 +1709,7 @@ class CombatCmds(CommandBase):
         rd = E.core_resource_def(player["class_name"])
         if not rd:
             return ""
-        res = getattr(b, "resources", {}) or {}
+        res = b._p_res() or {}
         key = rd["key"]
         name = rd.get("name", key)
         if rd.get("type") == "switch":

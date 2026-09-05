@@ -40,11 +40,11 @@ def cast(b, p, skill):
 print("【战士：战意攒取与终结技】")
 p = learn_all(mk("战士"), "cls_zhan_shi")
 b = BT.Battle("monster", mkmon(), player=p)
-check("战意初始 0", b.mech_stacks.get("zhan_yi", 0) == 0, str(b.mech_stacks))
+check("战意初始 0", b._p_stacks().get("zhan_yi", 0) == 0, str(b._p_stacks()))
 logs = cast(b, p, "挥砍")
 # v151：挥砍 mech=zhan_yi（叠层不消耗），怒气 rage 由 core_resource on_skill=2 攒取
-check("挥砍战意+1", b.mech_stacks.get("zhan_yi", 0) == 1, str(b.mech_stacks))
-check("挥砍怒气+2", b.resources.get("rage", 0) == 2, str(b.resources))
+check("挥砍战意+1", b._p_stacks().get("zhan_yi", 0) == 1, str(b._p_stacks()))
+check("挥砍怒气+2", b._p_res().get("rage", 0) == 2, str(b._p_res()))
 check("挥砍造成伤害", any("造成" in x for x in logs), str(logs)[:120])
 # v153：裂地斩 → 狂战士分支 Lv.44 mech=bleed（战意≥6 层条件技已随 v153 移除，
 # 现为流血挂层；分支技能需 lv≥45 + 已学才可施放）。用 lv=50 且显式学习裂地斩的玩家验证
@@ -54,16 +54,18 @@ b2 = BT.Battle("monster", mkmon(), player=p50)
 logs2 = cast(b2, p50, "裂地斩")
 check("裂地斩战意不足无增伤", not any("战意裂地" in x for x in logs2), str(logs2)[:120])
 # 战意攒够 6 层 → 裂地斩流血触发（v153 mech=bleed，不再有"战意"文案）
-b2b = BT.Battle("monster", mkmon(), player=p50)
-b2b.mech_stacks["zhan_yi"] = 6
-logs3 = cast(b2b, p50, "裂地斩")
+b2b = BT.Battle("monster", mkmon(), player=learn_all(mk("战士", lv=50), "cls_zhan_shi"))
+b2b._p_stacks()["zhan_yi"] = 6
+_p2b = b2b.player
+_p2b["learned_skills"] = list(_p2b["learned_skills"]) + ["裂地斩"]
+logs3 = cast(b2b, _p2b, "裂地斩")
 check("裂地斩战意≥6 增伤", any("流血" in x or "战意" in x for x in logs3), str(logs3)[:120])
 check("裂地斩造成伤害", any("造成" in x for x in logs3), str(logs3)[:120])
 
 print("【法师：元素系与元素反应】")
 p = learn_all(mk("法师"), "cls_fa_shi")
 b3 = BT.Battle("monster", mkmon(), player=p)
-check("法师默认火系", b3.resources.get("element") == "fire", str(b3.resources))
+check("法师默认火系", b3._p_res().get("element") == "fire", str(b3._p_res()))
 # v151：基础元素技能（火球术/冰锥）不再挂元素印记——印记体系下沉到分支
 # （元素法师 element=current 技能），基础层纯蓝施法（core_resource element on_skill=0）。
 # 验证基础火球术不挂 fire_mark（v151 设计：印记在分支）
@@ -90,21 +92,21 @@ print("【游侠：精力消耗不耗魔】")
 # v139 凝神屏息：精力=100 回合开始自动排气归零——初始 100 会被排空，改 80 测「不满 100 正常消耗」
 p = learn_all(mk("游侠"), "cls_you_xia")
 b5 = BT.Battle("monster", mkmon(), player=p)
-check("精力初始满 100", b5.resources.get("energy", 0) == 100, str(b5.resources))
+check("精力初始满 100", b5._p_res().get("energy", 0) == 100, str(b5._p_res()))
 # v153：疾风连射 → 连射（lv1，res_cost energy 22，hits=2）
 logs = cast(b5, p, "连射")
 # v153 废弃凝神屏息：vent trigger=999 永不到达（专注流量制），满精力不排气，直接正常消耗
-check("精力满 100 正常消耗连射", b5.resources.get("energy", 0) == 78, str(b5.resources))
+check("精力满 100 正常消耗连射", b5._p_res().get("energy", 0) == 78, str(b5._p_res()))
 # 不满 100 正常消耗：重置精力到 50（50+回合回18=68 不满 100 不排气），连射耗 22 → 46
-b5.resources["energy"] = 50
+b5._p_res()["energy"] = 50
 logs = cast(b5, p, "连射")
-check("连射耗 22 精力", b5.resources.get("energy", 0) == 46, str(b5.resources))
+check("连射耗 22 精力", b5._p_res().get("energy", 0) == 46, str(b5._p_res()))
 # v163 修正：游侠不耗魔力（策划案 12 章 §4.1「游侠不耗魔力，全技能纯精力消耗」）——v153 时连射误带 mp=6
 # 的错误断言（当时把 bug 当正确数据锁进测试）。游侠 mp 字段已清除。
 check("连射不耗魔（游侠纯精力消耗）", p["mp"] == 500, f"mp={p['mp']}")
 # 精力不足拦截（回合开始回 18：4→22 < 55 致命狙击）
 b6 = BT.Battle("monster", mkmon(), player=p)
-b6.resources["energy"] = 4
+b6._p_res()["energy"] = 4
 logs6 = cast(b6, p, "致命狙击")
 check("精力不足拦截", any("不足" in x for x in logs6), str(logs6)[:120])
 
@@ -114,20 +116,20 @@ b7 = BT.Battle("monster", mkmon(), player=p)
 p["hp"] = 100
 logs7 = cast(b7, p, "治愈术")
 check("治愈术回血", p["hp"] > 100, f"hp={p['hp']}")
-check("治愈术信仰+2", b7.resources.get("faith", 0) == 2, str(b7.resources))
+check("治愈术信仰+2", b7._p_res().get("faith", 0) == 2, str(b7._p_res()))
 
 print("【刺客：连击点】")
 p = learn_all(mk("刺客"), "cls_ci_ke")
 b8 = BT.Battle("monster", mkmon(), player=p)
 cast(b8, p, "刺击")
-check("刺击连击点+1", b8.resources.get("cp", 0) == 1, str(b8.resources))
+check("刺击连击点+1", b8._p_res().get("cp", 0) == 1, str(b8._p_res()))
 cast(b8, p, "刺击")
 cast(b8, p, "刺击")
-check("攒 3 连击点", b8.resources.get("cp", 0) == 3, str(b8.resources))
+check("攒 3 连击点", b8._p_res().get("cp", 0) == 3, str(b8._p_res()))
 # v153：暗杀删除 → 基础连击终结技 = 终结·割喉（lv28，mech=finisher，无 res_cost，cd12）。
 # 连击点攒满 3 后施放终结·割喉（不消耗 cp；cp 留给分支终结·处刑 cp5）
 logs8 = cast(b8, p, "终结·割喉")
-check("终结·割喉不耗连击点", b8.resources.get("cp", 0) == 4, str(b8.resources))
+check("终结·割喉不耗连击点", b8._p_res().get("cp", 0) == 4, str(b8._p_res()))
 check("终结·割喉造成伤害", any("造成" in x for x in logs8), str(logs8)[:120])
 # 分支终结技消费连击点：终结·处刑 res_cost cp5（暗杀 cp 攒到 5 → 处刑清零）
 finisher = None
@@ -139,9 +141,9 @@ for _t, _br in C.BRANCH_SKILLS["cls_ci_ke"]["branches"].items():
 if finisher:
     p2 = learn_all(mk("刺客"), "cls_ci_ke")
     b8b = BT.Battle("monster", mkmon(), player=p2)
-    b8b.resources["cp"] = 5
+    b8b._p_res()["cp"] = 5
     logs8b = cast(b8b, p2, finisher)
-    check(f"终结·处刑消耗 5 连击点", b8b.resources.get("cp", 0) == 0, str(b8b.resources))
+    check(f"终结·处刑消耗 5 连击点", b8b._p_res().get("cp", 0) == 0, str(b8b._p_res()))
     check(f"终结·处刑造成伤害", any("造成" in x for x in logs8b), str(logs8b)[:120])
 
 print("【拳师：连招与气】")
@@ -150,11 +152,11 @@ print("【拳师：连招与气】")
 p = learn_all(mk("拳师"), "cls_wu_seng")
 b9 = BT.Battle("monster", mkmon(), player=p)
 cast(b9, p, "直拳")
-check("直拳气+1", b9.resources.get("chi", 0) == 1, str(b9.resources))
+check("直拳气+1", b9._p_res().get("chi", 0) == 1, str(b9._p_res()))
 cast(b9, p, "侧踢")
-check("侧踢气+1", b9.resources.get("chi", 0) == 2, str(b9.resources))
+check("侧踢气+1", b9._p_res().get("chi", 0) == 2, str(b9._p_res()))
 cast(b9, p, "钢拳")
-check("钢拳气+1（三招攒 3 气）", b9.resources.get("chi", 0) == 3, str(b9.resources))
+check("钢拳气+1（三招攒 3 气）", b9._p_res().get("chi", 0) == 3, str(b9._p_res()))
 
 print("【CD 冷却：盾击】")
 # v153：盾击 → 盾击·誓（盾卫士分支 Lv.32，cd 8），基础表无盾击。
@@ -163,12 +165,12 @@ p["learned_skills"] = list(p["learned_skills"]) + ["盾击·誓"]
 b10 = BT.Battle("monster", mkmon(), player=p)
 # v152 绝对时刻制：CD 拦截/到期逻辑由手动置 CD 路径覆盖（确定性）：_set_skill_cd(3) → 拦截 → 推进 3×ACT_TICK → 放行。
 b10._set_skill_cd("盾击·誓", 3)
-check("盾击·誓进入 CD（手动置 CD 3）", b10._skill_on_cd("盾击·誓"), str(b10.cooldown))
+check("盾击·誓进入 CD（手动置 CD 3）", b10._skill_on_cd("盾击·誓"), str(b10._p_cooldown()))
 logs10 = cast(b10, p, "盾击·誓")
 check("CD 中拦截", any("冷却" in x for x in logs10), str(logs10)[:120])
 # v152 时刻制：推进 3 回合（3×ACT_TICK=3.0）使 ready_at 到期
 b10._end_round(); b10._end_round(); b10._end_round()
-check("CD 结束可再放", not b10._skill_on_cd("盾击·誓"), str(b10.cooldown))
+check("CD 结束可再放", not b10._skill_on_cd("盾击·誓"), str(b10._p_cooldown()))
 
 print("【被动保留】")
 # v153：战士分支被动 = 淬血/狂热/坚韧/血怒·不灭/坚城之姿/铁誓·不动（狂战士+盾卫士 6 个）
