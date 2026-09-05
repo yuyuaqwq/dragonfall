@@ -3806,6 +3806,57 @@ class Battle:
                 n += 1
         return n
 
+    def _minion_count(self, boss: dict | None = None) -> int:
+        """v178 E8a：场上存活爪牙（is_minion）计数——Boss 机制条件用
+        （月神守卫存活机关数/歌澜和声数/奥姆骷髅龙数等）。
+        boss 参数缺省时数全场 minion；传 boss 时数 boss 队伍内（同 enemies 阵列）的 minion。"""
+        n = 0
+        for u in self.enemies:
+            if u.get("hp", 0) > 0 and u.get("is_minion"):
+                n += 1
+        return n
+
+    def _on_minion_died_tick(self, e: dict, logs: list) -> bool:
+        """v178 E8b：消费 Boss 配的爪牙死亡联动（数据驱动）。
+        Boss dict 配 "on_minion_died": {"effect": "<effect_id>", "value": N} →
+        场上任一爪牙死亡当刻触发一次。effect_id 现支持：
+          - "stacks_clear": 清空 Boss 叠层（轰鸣碎晶核放能）
+          - "shield": 给 Boss 套盾（月神守卫机关被击后自保）
+          - "heal_pct": 回 value% 血（奥姆吸骷髅龙魂）
+          - "atk_up": 加攻 value 刻（赫尔加吃怪变强）
+        返回是否触发。"""
+        if not e or not e.pop("_minion_died_this_act", False):
+            return False
+        try:
+            cfg = e.get("on_minion_died") or {}
+            eff = cfg.get("effect")
+            if not eff:
+                return False
+            if eff == "stacks_clear":
+                e["stacks"] = {}
+                e.pop("mech_stacks_n", None)
+                logs.append(f"⚡ 【{e.get('name', 'Boss')}】积蓄被击散，层数清零！")
+                return True
+            if eff == "shield":
+                _val = int(e.get("max_hp", 1) * 0.20)
+                e.setdefault("shields", {})["on_minion"] = {"value": _val, "halve": True}
+                logs.append(f"🛡️ 【{e.get('name', 'Boss')}】失去爪牙后竖起护盾！")
+                return True
+            if eff == "heal_pct":
+                _pct = float(cfg.get("value", 0.05) or 0.05)
+                _heal = int(e.get("max_hp", 1) * _pct)
+                e["hp"] = min(e.get("max_hp", 1), e.get("hp", 0) + _heal)
+                logs.append(f"💚 【{e.get('name', 'Boss')}】吸取爪牙残魂，回复 {_heal} 点生命！")
+                return True
+            if eff == "atk_up":
+                _turns = int(cfg.get("value", 2) or 2)
+                e.setdefault("buffs", {})["mon_atk_up"] = max(e.get("buffs", {}).get("mon_atk_up", 0), _turns)
+                logs.append(f"🔥 【{e.get('name', 'Boss')}】吞噬爪牙之力，攻击提升！")
+                return True
+        except Exception:
+            pass
+        return False
+
     def _undead_on_field(self) -> bool:
         """场上是否存在亡灵单位（v130.2f 改读 _undead_count 统一口径）。"""
         return self._undead_count() > 0
@@ -5775,6 +5826,13 @@ class Battle:
         v116.1：新增条件反制机制开开场技(phase_open)/低血追击(player_low)/反扑(pv_broken)，
         phases 剧本化交给 _b_phase（换招/演出刻/阈值预告）。"""
         e = unit or self.enemy
+        # v178 E8b：爪牙死亡联动消费（独立于 mech——配 on_minion_died 字段即生效；
+        # 瞬态标记由 _on_minion_died_tick 内部 pop 消费）
+        try:
+            if not self.btype == "pvp" and (e or {}).get("on_minion_died"):
+                self._on_minion_died_tick(e, logs)
+        except Exception:
+            pass
         mech = e.get("mech")
         if not mech or self.btype == "pvp":
             return
@@ -8230,6 +8288,18 @@ class Battle:
         from .core.formation import compact
         removed = []
         if side == "enemy":
+            # v178 E8b：爪牙死亡回调——死亡的是场上 minion 时，给 Boss 记一笔
+            # （数据机制读 e["_minion_died_count"] 或 e["_minion_died_this_act"] 做条件——
+            #  月神守卫机关击碎/雷晶轰鸣晶核击碎/歌澜和声清场等联动）
+            if unit.get("is_minion"):
+                try:
+                    _boss_u = next((u for u in self.enemies
+                                    if u.get("is_boss") and not u.get("is_minion")), None) or self.enemy
+                    if _boss_u:
+                        _boss_u["_minion_died_count"] = int(_boss_u.get("_minion_died_count", 0) or 0) + 1
+                        _boss_u["_minion_died_this_act"] = True  # 瞬态标记（当刻消费，行动后清）
+                except Exception:
+                    pass
             if unit in self.enemies:
                 self.enemies.remove(unit)
                 removed = compact(self.enemies)
