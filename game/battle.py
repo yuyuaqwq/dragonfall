@@ -4369,6 +4369,131 @@ class Battle:
         self._affix_res_proc(player, "buff_skill", logs)
 
         return logs
+    def _skill_finalize_damage(self, st: dict, player: dict, info: dict, kind: str,
+                               element: str, skill_name: str, multi: int,
+                               is_crit: bool, total: int, _magi_part: int,
+                               logs: list) -> tuple:
+        """v176 拆分：攻击总伤后处理（原 _player_skill 113 行内联）。
+
+        boss filter → 武器被动增伤 → v153 乘区 → v169 乘区 → 感电 → 敌方抗性 → 闪避/AOE →
+        伤害落地(_damage_enemy) → 吸血/吸魔。返回 (total, magi_part, info)。
+        副作用：改 self.p_buffs/e_buffs、打伤害、回血回蓝（经 self + logs 传出）。
+        """
+        total = self._boss_dmg_filter(total, player, logs, dmg_type=seg_of(kind))
+        # v140 波3.1：特效装备技能被动增伤（奥术苍穹/岁月流转/永恒契约/铭文/秘典/雷纹/三相/破岳/咒誓/暮裂）
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _wectx = {"mult": 1.0, "tags": [], "is_crit": is_crit, "kind": kind, "skill": skill_name}
+            _we_proc(self, player, "passive", _wectx, logs)
+            # v140 波3.2：弱点击破石——目标负面越多增伤越高（vuln 标记）
+            _vuln = (self.p_eff or {}).get("vuln")
+            if _vuln and int(_vuln.get("turns_left", 0) or 0) > 0:
+                _vb = float(_vuln.get("bonus", 0) or 0)
+                if _vb > 0:
+                    _wectx["mult"] = _wectx.get("mult", 1.0) * (1 + _vb)
+            if _wectx.get("mult", 1.0) != 1.0:
+                total = int(total * _wectx["mult"])
+        except Exception:
+            pass
+        # v153 §2/§6：元素印记结算倍率 / 磐核爆发倍率消费（battle_mech handler 写入 p_buffs）
+        _v153_mult = 1.0
+        if self.p_buffs.get("element_burst_mult"):
+            _v153_mult *= float(self.p_buffs.pop("element_burst_mult"))
+            logs.append(f"🔥 元素结算增伤 ×{_v153_mult:.2f}")
+        if self.p_buffs.get("guard_core_burst_mult"):
+            _v153_mult *= float(self.p_buffs.pop("guard_core_burst_mult"))
+        if self.p_buffs.get("finisher_mult"):
+            _v153_mult *= float(self.p_buffs.pop("finisher_mult"))
+        if self.p_buffs.get("bone_rush_mult"):
+            _v153_mult *= float(self.p_buffs.pop("bone_rush_mult"))
+        if self.p_buffs.get("element_overload_aoe"):
+            # 超载反应：本次技能转全体 AOE
+            info = dict(info)
+            info["aoe"] = "all"
+            self.p_buffs.pop("element_overload_aoe", None)
+        if _v153_mult != 1.0:
+            total = int(total * _v153_mult)
+        # v169.7 battle_mech effect 乘区键（猎杀时刻/星轨锁定/奥术矩阵/奥术力场）——技能伤害统一挂点
+        try:
+            _v169m, _v169t = self._consume_v169_buff_dmg(kind=kind, element=element or "", skill_name=skill_name)
+            if _v169m != 1.0:
+                total = int(total * _v169m)
+                _v169_tags = _v169t
+            else:
+                _v169_tags = []
+        except Exception:
+            _v169_tags = []
+        # v153 §2：感电连击（雷印满 3 层结算时连击 +1/+2）——多段追加
+        _ele_combo = int(self.p_buffs.get("element_thunder_combo", 0) or 0)
+        if _ele_combo:
+            self.p_buffs.pop("element_thunder_combo", None)
+            _combo_dmg = int(total / max(1, int(info.get("hits", 1) or 1)))
+            for _ci in range(_ele_combo):
+                total += _combo_dmg
+                logs.append(f"⚡ 感电连击！追加 {_combo_dmg} 点伤害！")
+        # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
+        total, _magi_part = self._enemy_mitigate(total, _magi_part, element, logs, kind=kind)
+        # v174.1 星火（novice_spark_followup 星火法杖）：basic 普攻技命中消费星火标记（+10% 后清）。
+        # 原语义"释放技能后下次普攻+10%"——basic_skill 即普攻，仅 basic 技触发，普通技能不消费。
+        if info.get("basic") and self.mech_stacks.get("novice_spark"):
+            total = int(total * 1.10)
+            del self.mech_stacks["novice_spark"]
+            logs.append("✨ 星火x1.1：普攻伤害 +10%！")
+        # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
+        if self._monster_dodge_check(logs):
+            total = 0
+        else:
+            aoe = info.get("aoe")
+            if aoe:
+                # v114/v2 AOE：结构语义化 scope（True→"all"），技能 reach 覆盖职业 reach，falloff 衰减
+                scope = "all" if aoe is True else str(aoe)
+                self._aoe_reach = int(info.get("reach") or 3)
+                self._aoe_falloff = float(info.get("aoe_falloff", 1.0) or 1.0)
+                _boss_dmg = self._aoe_damage(total, logs, scope, source=skill_name)
+            else:
+                # v136 等级压制：_damage_enemy 内部按等级差压制实际伤害，返回值=真实扣血，
+                # 回写 total 让后续日志/吸血/结算都反映压制后的值（原 total 未回写→日志虚高）
+                _real = self._damage_enemy(total, logs)
+                _boss_dmg = _real
+                if _real != total:
+                    total = _real
+            # v173.3 意见#112：总伤害汇总日志提前到吸血结算前——原顺序吸血日志
+            # 先输出、'你施展造成N伤害'后输出（玩家看到吸血在伤害前，观感颠倒）。
+            # v174.1：技能 info 配 cast_verb（如 basic_skill "挥剑斩击"）→ 日志用动作语
+            # "你挥剑斩击，造成 N 点伤害"；无 cast_verb 保持"你施展【技能】，造成 N 点伤害"。
+            _verb = info.get("cast_verb")
+            if multi > 1:
+                logs.append((f"你{_verb}" if _verb else f"你施展【{skill_name}】")
+                            + f"，连击 {multi} 次，共造成 {total} 点伤害！")
+            else:
+                # v127.3 多怪时日志带目标名（a1 指定/自动选择都显示打了谁；单怪保持原文案）
+                _alive_n2 = sum(1 for u in self.enemies if u.get("hp", 0) > 0)
+                _tg_d2 = getattr(self, "_active_target", None) or self.enemy
+                _tgtxt2 = f"对【{_tg_d2.get('name', '敌人')}】" if _alive_n2 > 1 and _tg_d2 else ""
+                logs.append((f"你{_verb}" if _verb else f"你施展【{skill_name}】")
+                            + f"，{_tgtxt2}造成 {total} 点伤害！")
+            # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
+            # v106.4：魔法技能走法术吸血（lifesteal_magi），物理技能走物理吸血（lifesteal_phys）
+            # v107：真伤不吸血（dmg_type="true" 直接跳过）
+            # v109.2 P2-4：混合段分账——物理技能带魔法段（魔能斩/魔能涌动）时，
+            # 物段走物理吸血、魔段走法术吸血（原整体按 phys 结算）
+            if _magi_part > 0:
+                if _boss_dmg - _magi_part > 0:
+                    self._settle_lifesteal(player, _boss_dmg - _magi_part, logs, magic=False, dmg_type="phys")
+                self._settle_lifesteal(player, _magi_part, logs, magic=True, dmg_type="magi")
+            else:
+                self._settle_lifesteal(player, _boss_dmg, logs, magic=(kind == K_MAGI),
+                                       dmg_type=seg_of(kind))
+        # v107 吸MP（虚空行者）：魔法伤害的 mp_steal% 回复自身魔力（打空敌人蓝条的反向续航）
+        if info.get("mp_steal") and total > 0:
+            gain = int(total * float(info["mp_steal"]))
+            if gain > 0:
+                player["mp"] = min(player.get("max_mp", C.DEFAULT_MAX_MP),
+                                   player.get("mp", 0) + gain)
+                logs.append(f"🌑 虚空汲取：回复 {gain} 点魔力！")
+
+        return total, _magi_part, info
+
     def _skill_assemble_mults(self, st: dict, est: dict, player: dict, info: dict,
                               mech: str, kind: str, lv: int, skill_name: str,
                               p_mech: dict, logs: list, effs: dict,
@@ -4853,119 +4978,10 @@ class Battle:
             total += dmg_i
         if lucky:
             logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
-        total = self._boss_dmg_filter(total, player, logs, dmg_type=seg_of(kind))
-        # v140 波3.1：特效装备技能被动增伤（奥术苍穹/岁月流转/永恒契约/铭文/秘典/雷纹/三相/破岳/咒誓/暮裂）
-        try:
-            from .core.weapon_effects import proc as _we_proc
-            _wectx = {"mult": 1.0, "tags": [], "is_crit": is_crit, "kind": kind, "skill": skill_name}
-            _we_proc(self, player, "passive", _wectx, logs)
-            # v140 波3.2：弱点击破石——目标负面越多增伤越高（vuln 标记）
-            _vuln = (self.p_eff or {}).get("vuln")
-            if _vuln and int(_vuln.get("turns_left", 0) or 0) > 0:
-                _vb = float(_vuln.get("bonus", 0) or 0)
-                if _vb > 0:
-                    _wectx["mult"] = _wectx.get("mult", 1.0) * (1 + _vb)
-            if _wectx.get("mult", 1.0) != 1.0:
-                total = int(total * _wectx["mult"])
-        except Exception:
-            pass
-        # v153 §2/§6：元素印记结算倍率 / 磐核爆发倍率消费（battle_mech handler 写入 p_buffs）
-        _v153_mult = 1.0
-        if self.p_buffs.get("element_burst_mult"):
-            _v153_mult *= float(self.p_buffs.pop("element_burst_mult"))
-            logs.append(f"🔥 元素结算增伤 ×{_v153_mult:.2f}")
-        if self.p_buffs.get("guard_core_burst_mult"):
-            _v153_mult *= float(self.p_buffs.pop("guard_core_burst_mult"))
-        if self.p_buffs.get("finisher_mult"):
-            _v153_mult *= float(self.p_buffs.pop("finisher_mult"))
-        if self.p_buffs.get("bone_rush_mult"):
-            _v153_mult *= float(self.p_buffs.pop("bone_rush_mult"))
-        if self.p_buffs.get("element_overload_aoe"):
-            # 超载反应：本次技能转全体 AOE
-            info = dict(info)
-            info["aoe"] = "all"
-            self.p_buffs.pop("element_overload_aoe", None)
-        if _v153_mult != 1.0:
-            total = int(total * _v153_mult)
-        # v169.7 battle_mech effect 乘区键（猎杀时刻/星轨锁定/奥术矩阵/奥术力场）——技能伤害统一挂点
-        try:
-            _v169m, _v169t = self._consume_v169_buff_dmg(kind=kind, element=element or "", skill_name=skill_name)
-            if _v169m != 1.0:
-                total = int(total * _v169m)
-                _v169_tags = _v169t
-            else:
-                _v169_tags = []
-        except Exception:
-            _v169_tags = []
-        # v153 §2：感电连击（雷印满 3 层结算时连击 +1/+2）——多段追加
-        _ele_combo = int(self.p_buffs.get("element_thunder_combo", 0) or 0)
-        if _ele_combo:
-            self.p_buffs.pop("element_thunder_combo", None)
-            _combo_dmg = int(total / max(1, int(info.get("hits", 1) or 1)))
-            for _ci in range(_ele_combo):
-                total += _combo_dmg
-                logs.append(f"⚡ 感电连击！追加 {_combo_dmg} 点伤害！")
-        # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
-        total, _magi_part = self._enemy_mitigate(total, _magi_part, element, logs, kind=kind)
-        # v174.1 星火（novice_spark_followup 星火法杖）：basic 普攻技命中消费星火标记（+10% 后清）。
-        # 原语义"释放技能后下次普攻+10%"——basic_skill 即普攻，仅 basic 技触发，普通技能不消费。
-        if info.get("basic") and self.mech_stacks.get("novice_spark"):
-            total = int(total * 1.10)
-            del self.mech_stacks["novice_spark"]
-            logs.append("✨ 星火x1.1：普攻伤害 +10%！")
-        # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
-        if self._monster_dodge_check(logs):
-            total = 0
-        else:
-            aoe = info.get("aoe")
-            if aoe:
-                # v114/v2 AOE：结构语义化 scope（True→"all"），技能 reach 覆盖职业 reach，falloff 衰减
-                scope = "all" if aoe is True else str(aoe)
-                self._aoe_reach = int(info.get("reach") or 3)
-                self._aoe_falloff = float(info.get("aoe_falloff", 1.0) or 1.0)
-                _boss_dmg = self._aoe_damage(total, logs, scope, source=skill_name)
-            else:
-                # v136 等级压制：_damage_enemy 内部按等级差压制实际伤害，返回值=真实扣血，
-                # 回写 total 让后续日志/吸血/结算都反映压制后的值（原 total 未回写→日志虚高）
-                _real = self._damage_enemy(total, logs)
-                _boss_dmg = _real
-                if _real != total:
-                    total = _real
-            # v173.3 意见#112：总伤害汇总日志提前到吸血结算前——原顺序吸血日志
-            # 先输出、'你施展造成N伤害'后输出（玩家看到吸血在伤害前，观感颠倒）。
-            # v174.1：技能 info 配 cast_verb（如 basic_skill "挥剑斩击"）→ 日志用动作语
-            # "你挥剑斩击，造成 N 点伤害"；无 cast_verb 保持"你施展【技能】，造成 N 点伤害"。
-            _verb = info.get("cast_verb")
-            if multi > 1:
-                logs.append((f"你{_verb}" if _verb else f"你施展【{skill_name}】")
-                            + f"，连击 {multi} 次，共造成 {total} 点伤害！")
-            else:
-                # v127.3 多怪时日志带目标名（a1 指定/自动选择都显示打了谁；单怪保持原文案）
-                _alive_n2 = sum(1 for u in self.enemies if u.get("hp", 0) > 0)
-                _tg_d2 = getattr(self, "_active_target", None) or self.enemy
-                _tgtxt2 = f"对【{_tg_d2.get('name', '敌人')}】" if _alive_n2 > 1 and _tg_d2 else ""
-                logs.append((f"你{_verb}" if _verb else f"你施展【{skill_name}】")
-                            + f"，{_tgtxt2}造成 {total} 点伤害！")
-            # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
-            # v106.4：魔法技能走法术吸血（lifesteal_magi），物理技能走物理吸血（lifesteal_phys）
-            # v107：真伤不吸血（dmg_type="true" 直接跳过）
-            # v109.2 P2-4：混合段分账——物理技能带魔法段（魔能斩/魔能涌动）时，
-            # 物段走物理吸血、魔段走法术吸血（原整体按 phys 结算）
-            if _magi_part > 0:
-                if _boss_dmg - _magi_part > 0:
-                    self._settle_lifesteal(player, _boss_dmg - _magi_part, logs, magic=False, dmg_type="phys")
-                self._settle_lifesteal(player, _magi_part, logs, magic=True, dmg_type="magi")
-            else:
-                self._settle_lifesteal(player, _boss_dmg, logs, magic=(kind == K_MAGI),
-                                       dmg_type=seg_of(kind))
-        # v107 吸MP（虚空行者）：魔法伤害的 mp_steal% 回复自身魔力（打空敌人蓝条的反向续航）
-        if info.get("mp_steal") and total > 0:
-            gain = int(total * float(info["mp_steal"]))
-            if gain > 0:
-                player["mp"] = min(player.get("max_mp", C.DEFAULT_MAX_MP),
-                                   player.get("mp", 0) + gain)
-                logs.append(f"🌑 虚空汲取：回复 {gain} 点魔力！")
-        # 特效合并成紧凑标签（避免一行堆满长后缀）
+        # v176: 总伤后处理抽 _skill_finalize_damage（原 113 行内联）
+        total, _magi_part, info = self._skill_finalize_damage(
+            st, player, info, kind, element, skill_name, multi,
+            is_crit, total, _magi_part, logs)        # 特效合并成紧凑标签（避免一行堆满长后缀）
         tags = []
         if is_crit:
             tags.append("💥暴击")
