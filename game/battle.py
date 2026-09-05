@@ -4368,6 +4368,95 @@ class Battle:
         self._affix_res_proc(player, "buff_skill", logs)
 
         return logs
+    def _skill_seg_damage(self, st: dict, est: dict, info: dict, kind: str, lv: int,
+                          pmult: float, _seg_crit: bool, _lucky_seg: bool,
+                          _pp_phys: float, _pf_phys: int, _pp_magi: float, _pf_magi: int,
+                          _skill_flat: int, effs: dict, player: dict) -> tuple:
+        """v176 拆分：单段伤害计算（原 _player_skill 段循环内 76 行内联）。
+
+        输入段级状态（暴击/穿透/技能基础值/乘区/符文），返回 (dmg_i, magi_add)。
+        副作用：消耗 spellblade_surge buff、_apply_mark 标记。
+        """
+        magi_add = 0
+        _skill_expr = E.skill_formula_expr(info, lv)
+        if _skill_expr:
+            _seg_type = "true" if kind == K_TRUE else ("phys" if kind == K_PHYS else "magi")
+            st["_player_lv"] = int(player.get("level", 1) or 1)
+            st["_skill_lv"] = lv
+            _pmult_expr = pmult / E.skill_power_mult(lv, info) if E.skill_power_mult(lv, info) else pmult
+            _dmg0, _mseg0 = E.resolve_formula(
+                [{"expr": _skill_expr, "type": _seg_type}], st, est["def"], est["mdef"],
+                is_crit=_seg_crit, pene_phys=_pp_phys, pene_magi=_pp_magi,
+                pene_flat_phys=_pf_phys, pene_flat_magi=_pf_magi,
+                mult=_pmult_expr, variance=0.15,
+            )
+            dmg_i = _dmg0
+            magi_add += _mseg0
+        elif info.get("formula"):
+            _fml = []
+            for _seg in info["formula"]:
+                _seg = dict(_seg)
+                if _seg.pop("skill_flat", False):
+                    _seg["flat"] = int(round((int(_seg.get("flat", 0) or 0) + _skill_flat) * pmult))
+                _fml.append(_seg)
+            # v159 表达式变量：注入玩家/技能等级供 build_vars 读取（expr 段用）
+            st["_player_lv"] = int(player.get("level", 1) or 1)
+            st["_skill_lv"] = lv
+            dmg_i, _mseg = E.resolve_formula(
+                _fml, st, est["def"], est["mdef"], is_crit=_seg_crit,
+                pene_phys=_pp_phys, pene_magi=_pp_magi,
+                pene_flat_phys=_pf_phys, pene_flat_magi=_pf_magi,
+                mult=pmult, variance=0.15,
+            )
+            magi_add += _mseg
+        elif kind == K_TRUE:
+            dmg_i = E.calc_damage(int((st["atk"] * info["power"] + _skill_flat) * pmult), 0, _seg_crit, dmg_type="true")
+        elif kind == K_PHYS:
+            if info.get("pierce"):
+                dmg_i = E.calc_damage(int((st["atk"] * info["power"] + _skill_flat) * pmult), 0, _seg_crit, pierce=True,
+                                      dmg_type="phys")
+            else:
+                dmg_i = E.calc_damage(int((st["atk"] * info["power"] + _skill_flat) * pmult), est["def"], _seg_crit,
+                                      pene_pct=_pp_phys, pene_flat=_pf_phys, dmg_type="phys")
+            # v87 魔剑士·混合伤害：magic_add 追加魔法段（魔能斩 130% 物 + 30% 魔）
+            if info.get("magic_add"):
+                dmg_m = E.calc_damage(int(st["matk"] * info["magic_add"] * pmult), est["mdef"], _seg_crit,
+                                      pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
+                dmg_i += dmg_m
+                magi_add += dmg_m
+        else:
+            # v109.2 P1-6：pierce 魔法分支修复——审判之剑等魔法 pierce 技能此前被结算链忽略
+            if info.get("pierce"):
+                dmg_i = E.calc_damage(int((st["matk"] * info["power"] + _skill_flat) * pmult), 0, _seg_crit, pierce=True,
+                                      dmg_type="magi")
+            else:
+                dmg_i = E.calc_damage(int((st["matk"] * info["power"] + _skill_flat) * pmult), est["mdef"], _seg_crit,
+                                      pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
+        # v87 魔剑士·魔力涌动：消耗 buff，本次攻击追加 80% 魔法伤害
+        if self.p_buffs.get("spellblade_surge"):
+            surge_dmg = E.calc_damage(int(st["matk"] * 0.80 * pmult), est["mdef"], _seg_crit,
+                                      pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
+            dmg_i += surge_dmg
+            magi_add += surge_dmg
+            del self.p_buffs["spellblade_surge"]
+        # v34 残忍：暴击伤害 +x%（按等级，符文特效）
+        brutal_lvl = self._enchant_lvl(effs, "brutal")
+        if brutal_lvl and _seg_crit:
+            dmg_i = int(dmg_i * (1 + C.rune_value("brutal", brutal_lvl)))
+        # v106.3 暴击伤害属性（crit_dmg 面板化：词条折算 + 种族 + 被动 + 药水）
+        cdmg = float(st.get("crit_dmg", 0) or 0)
+        # v169.7 暗影步·极 shadow_dance_bonus：影舞态中暴击伤害 +20%（暴伤加算）
+        cdmg += self._passive_crit_dmg_mult(player)
+        if self.p_buffs.get("crit_dmg_pot"):
+            cdmg = 1 - (1 - cdmg) * (1 - 0.25)  # 狂暴药剂 +25% 暴伤（乘算并入）
+        if _seg_crit and cdmg > 0:
+            dmg_i = int(dmg_i * (1 + cdmg))
+        # v109.2 P1-1 运势：幸运一击——暴击后 30% 概率追加 50% 伤害
+        if _lucky_seg:
+            dmg_i = int(dmg_i * LUCKY_CRIT_MULT)
+        dmg_i = self._apply_mark(dmg_i)
+        return dmg_i, magi_add
+
     def _player_skill(self, st: dict, skill_name: str, info: dict, player: dict, target=None) -> list:
         """施放技能：治疗/增益/攻击 + 特效全部落地(v27 技能等级 + v29 分支机制)"""
         logs = []
@@ -4695,83 +4784,11 @@ class Battle:
             #   type 由 kind 推导（物理→phys、真伤→true、其余 magi），与旧 formula 自动生成一致
             #   ⚠️ 表达式已内嵌技能等级成长（skill_lv 变量/逐级公式），不再叠加 skill_power_mult——
             #      外层 mult 需剔除技能成长项（pmult 含 skill_power_mult），避免双重成长
-            _skill_expr = E.skill_formula_expr(info, lv)
-            if _skill_expr:
-                _seg_type = "true" if kind == K_TRUE else ("phys" if kind == K_PHYS else "magi")
-                st["_player_lv"] = int(player.get("level", 1) or 1)
-                st["_skill_lv"] = lv
-                _pmult_expr = pmult / E.skill_power_mult(lv, info) if E.skill_power_mult(lv, info) else pmult
-                _dmg0, _mseg0 = E.resolve_formula(
-                    [{"expr": _skill_expr, "type": _seg_type}], st, est["def"], est["mdef"],
-                    is_crit=_seg_crit, pene_phys=_pp_phys, pene_magi=_pp_magi,
-                    pene_flat_phys=_pf_phys, pene_flat_magi=_pf_magi,
-                    mult=_pmult_expr, variance=0.15,
-                )
-                dmg_i = _dmg0
-                _magi_part += _mseg0
-            elif info.get("formula"):
-                _fml = []
-                for _seg in info["formula"]:
-                    _seg = dict(_seg)
-                    if _seg.pop("skill_flat", False):
-                        _seg["flat"] = int(round((int(_seg.get("flat", 0) or 0) + _skill_flat) * pmult))
-                    _fml.append(_seg)
-                # v159 表达式变量：注入玩家/技能等级供 build_vars 读取（expr 段用）
-                st["_player_lv"] = int(player.get("level", 1) or 1)
-                st["_skill_lv"] = lv
-                dmg_i, _mseg = E.resolve_formula(
-                    _fml, st, est["def"], est["mdef"], is_crit=_seg_crit,
-                    pene_phys=_pp_phys, pene_magi=_pp_magi,
-                    pene_flat_phys=_pf_phys, pene_flat_magi=_pf_magi,
-                    mult=pmult, variance=0.15,
-                )
-                _magi_part += _mseg
-            elif kind == K_TRUE:
-                dmg_i = E.calc_damage(int((st["atk"] * info["power"] + _skill_flat) * pmult), 0, _seg_crit, dmg_type="true")
-            elif kind == K_PHYS:
-                if info.get("pierce"):
-                    dmg_i = E.calc_damage(int((st["atk"] * info["power"] + _skill_flat) * pmult), 0, _seg_crit, pierce=True,
-                                          dmg_type="phys")
-                else:
-                    dmg_i = E.calc_damage(int((st["atk"] * info["power"] + _skill_flat) * pmult), est["def"], _seg_crit,
-                                          pene_pct=_pp_phys, pene_flat=_pf_phys, dmg_type="phys")
-                # v87 魔剑士·混合伤害：magic_add 追加魔法段（魔能斩 130% 物 + 30% 魔）
-                if info.get("magic_add"):
-                    dmg_m = E.calc_damage(int(st["matk"] * info["magic_add"] * pmult), est["mdef"], _seg_crit,
-                                          pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
-                    dmg_i += dmg_m
-                    _magi_part += dmg_m
-            else:
-                # v109.2 P1-6：pierce 魔法分支修复——审判之剑等魔法 pierce 技能此前被结算链忽略
-                if info.get("pierce"):
-                    dmg_i = E.calc_damage(int((st["matk"] * info["power"] + _skill_flat) * pmult), 0, _seg_crit, pierce=True,
-                                          dmg_type="magi")
-                else:
-                    dmg_i = E.calc_damage(int((st["matk"] * info["power"] + _skill_flat) * pmult), est["mdef"], _seg_crit,
-                                          pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
-            # v87 魔剑士·魔力涌动：消耗 buff，本次攻击追加 80% 魔法伤害
-            if self.p_buffs.get("spellblade_surge"):
-                surge_dmg = E.calc_damage(int(st["matk"] * 0.80 * pmult), est["mdef"], _seg_crit,
-                                          pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
-                dmg_i += surge_dmg
-                _magi_part += surge_dmg
-                del self.p_buffs["spellblade_surge"]
-            # v34 残忍：暴击伤害 +x%（按等级，符文特效）
-            brutal_lvl = self._enchant_lvl(effs, "brutal")
-            if brutal_lvl and _seg_crit:
-                dmg_i = int(dmg_i * (1 + C.rune_value("brutal", brutal_lvl)))
-            # v106.3 暴击伤害属性（crit_dmg 面板化：词条折算 + 种族 + 被动 + 药水）
-            cdmg = float(st.get("crit_dmg", 0) or 0)
-            # v169.7 暗影步·极 shadow_dance_bonus：影舞态中暴击伤害 +20%（暴伤加算）
-            cdmg += self._passive_crit_dmg_mult(player)
-            if self.p_buffs.get("crit_dmg_pot"):
-                cdmg = 1 - (1 - cdmg) * (1 - 0.25)  # 狂暴药剂 +25% 暴伤（乘算并入）
-            if _seg_crit and cdmg > 0:
-                dmg_i = int(dmg_i * (1 + cdmg))
-            # v109.2 P1-1 运势：幸运一击——暴击后 30% 概率追加 50% 伤害
-            if _lucky_seg:
-                dmg_i = int(dmg_i * LUCKY_CRIT_MULT)
-            dmg_i = self._apply_mark(dmg_i)
+            # v176: 单段伤害计算抽 _skill_seg_damage（原 76 行内联）
+            dmg_i, _mseg_i = self._skill_seg_damage(
+                st, est, info, kind, lv, pmult, _seg_crit, _lucky_seg,
+                _pp_phys, _pf_phys, _pp_magi, _pf_magi, _skill_flat, effs, player)
+            _magi_part += _mseg_i
             total += dmg_i
         if lucky:
             logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
