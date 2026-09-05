@@ -219,6 +219,61 @@ def _m_silence(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None
     logs.append("🤐 敌人被沉默，2 刻内无法使用技能！")
 
 
+@register(MECH_EFFECTS, "slow")
+def _m_slow(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """减速（怪技能 slow 词汇 → 玩家 spd_down 语义；v180 actor 统一）：
+    目标速度下降（SPD_DOWN_MULT 0.5）。与 _m_spd_down 同语义——怪技能 mech=slow
+    直接复用玩家减速通道，无需 MON_CTRL_EFFECTS 专用表。怪数据缺省 mech_val → 2 刻
+    （MON_CTRL slow 旧硬编码 2 刻；显式 mech_val 时按刻数）。"""
+    if not mval:
+        return
+    dur = max(int(mval or 0), 1)
+    battle._tgt_buffs()["spd_down"] = max(battle._tgt_buffs().get("spd_down", 0), dur)
+    logs.append(f"🧊 目标被减速 {dur} 刻，速度下降！")
+
+
+@register(MECH_EFFECTS, "interrupt")
+def _m_interrupt(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """打断（v180 actor 统一）：目标正在蓄力/读条则打断。
+    目标=玩家（_tgt_is_player）→ 清玩家蓄力（self.charging，返 50% MP）或读条
+    （self._pending_player_cast → _interrupt_player_cast）；目标=怪 → 清 actor["charging"]。
+    v125.1 P2 原 MON_CTRL interrupt 只打蓄力（battle.charging）；v180 扩展读条。"""
+    tgt = getattr(battle, "_tgt", lambda: None)()
+    if tgt is None:
+        return
+    if tgt.get("class_name"):
+        # 目标是玩家：蓄力（self.charging）优先，其次读条（_pending_player_cast）
+        ch = getattr(battle, "charging", None)
+        if ch and ch.get("skill"):
+            cname = ch.get("name", ch.get("skill", "?"))
+            spent = int(ch.get("mp_spent", 0) or 0)
+            battle.charging = None
+            if spent > 0:
+                tgt["mp"] = min(tgt.get("max_mp", tgt.get("mp", 0)),
+                                tgt.get("mp", 0) + (spent + 1) // 2)
+                logs.append(f"🔨 你的蓄力【{cname}】被怪物打断了！返还 {(spent + 1) // 2} 点魔力。")
+            else:
+                logs.append(f"🔨 你的蓄力【{cname}】被怪物打断了！")
+            return
+        # 读条中（普通技能出手）：调 _interrupt_player_cast
+        if getattr(battle, "_pending_player_cast", None):
+            try:
+                battle._interrupt_player_cast(logs)
+            except Exception:
+                pass
+    else:
+        # 目标是怪：actor 蓄力
+        ch = tgt.get("charging")
+        if ch and ch.get("skill"):
+            cname = ch.get("name", ch.get("skill", "?"))
+            spent = int(ch.get("mp_spent", 0) or 0)
+            tgt["charging"] = None
+            if spent > 0:
+                tgt["mp"] = min(tgt.get("max_mp", tgt.get("mp", 0)),
+                                tgt.get("mp", 0) + (spent + 1) // 2)
+            logs.append(f"🔨 【{tgt.get('name', '目标')}】的蓄力【{cname}】被打破了！")
+
+
 @register(MECH_EFFECTS, "cleanse")
 def _m_cleanse(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """净化：清除敌方增益（v63 mon_atk_up/mon_def_up/狂暴/召唤）
