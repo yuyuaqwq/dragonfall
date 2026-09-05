@@ -3166,6 +3166,13 @@ class Battle:
             for a in aids:
                 if a not in self.p_food_effects:
                     self.p_food_effects.append(a)
+            # v179 补挂卡：食物 foodfx 可能含 turn_start 周期效果（回春/冥想等）→ 确保
+            # affix_food_we 卡已挂（_ensure_regen_effects 幂等）
+            try:
+                if player and not self._player_dead(player):
+                    self._ensure_regen_effects(player)
+            except Exception:
+                pass
             # 护盾效果特判：立即获得 10% 生命护盾（3 刻）
             if "shield" in aids:
                 self._add_shield("food_shield", int(player.get("max_hp", 100) * 0.10), 3)
