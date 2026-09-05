@@ -792,15 +792,16 @@ class Battle:
                 _pet_spd = self._pet_spd()
                 _pt = CAST_PET_SKILL * self._ct_cost(_pet_spd)
                 self._schedule(_pt, {"type": "pet_tick"})
-            # v178.2 regen_tick：玩家带"每刻效果"（A 类：套装回血/符文治愈/食物 HOT/被动充能/资源 regen/
-            # 状态机维护）才排每秒 regen_tick——条件排入照 pet_tick 先例：无 A 类效果不排不空转
-            # （CTB 频率测试玩家 equipment={} 无效果 → 无 regen_tick → 调度零干扰）。
-            # 仅新建战斗在此排（_now<=0）；恢复战斗由 from_state 末尾补排（事件队列不序列化）。
+            # v178.2 regen_tick（v179 升级为通用 tick 卡）：玩家带 A 类每刻效果
+            # （套装回血/符文治愈/食物HOT/被动充能/资源regen/状态机维护）→ _ensure_regen_effects
+            # 挂通用 tick 条件卡（regen_<kind>），由 _process_until/_advance_time 通用调度处理。
+            # 条件挂卡照 pet_tick 先例：无 A 类效果不挂不空转（CTB 测试玩家 equipment={} 零影响）。
+            # 仅新建战斗在此挂（_now<=0）；恢复战斗由 from_state/_turn_start 保险丝兜底。
             if not self._enemy_dead() and float(getattr(self, "_now", 0.0) or 0.0) <= 0:
                 try:
                     _pl0 = self.player or {}
-                    if self._regen_needed(_pl0):
-                        self._schedule(self._now + ACT_TICK, {"type": "regen_tick"})
+                    if _pl0 and not self._player_dead(_pl0):
+                        self._ensure_regen_effects(_pl0)
                 except Exception:
                     pass
             # 开战敌方初始 enemy_act：仅非副本（instance 的 enemy_act 由 from_state 分支补排，
@@ -1167,16 +1168,14 @@ class Battle:
                     b._schedule(b._now + _pt, {"type": "pet_tick"})
                 except Exception:
                     pass
-        # v178.2 regen_tick 补排：事件队列不随存档序列化。注意 from_state 恢复的
-        # b.player 是空 dict（真实玩家由调用方后续绑定），无法在此判 _regen_needed——
-        # 恢复后首次玩家行动由 _turn_start 的 regen 保险丝补排（玩家真实可用）。
-        # 此处仅当 player 已可用（调用方先绑定再 from_state 的场景）且堆里没有时兜底补。
+        # v178.2 regen_tick（v179 升级通用卡）：tick_effects 已随 to_state/from_state 序列化恢复
+        # （P0），此处兜底：老档无 tick_effects 字段 + player 已可用（调用方先绑定）→ 挂卡。
+        # 注意 from_state 恢复的 b.player 默认空 dict（真实玩家由调用方后续绑定），
+        # 恢复后首次玩家行动由 _turn_start 保险丝兜底挂卡（玩家真实可用）。
         try:
             _pl_r = b.player or {}
-            if _pl_r.get("class_name") and not b._enemy_dead() and b._regen_needed(_pl_r):
-                _has_regen = any(_e.get("type") == "regen_tick" for _, _, _e in b._events)
-                if not _has_regen:
-                    b._schedule(b._now + ACT_TICK, {"type": "regen_tick"})
+            if _pl_r.get("class_name") and not b._enemy_dead():
+                b._ensure_regen_effects(_pl_r)
         except Exception:
             pass
         # v163 敌方读条持久化：恢复读条中的敌方 cast_done（_enemy_turn 出手时写 e["_cast"]，
@@ -2999,22 +2998,13 @@ class Battle:
                     # 即使本次被限频跳过也照常重排，读条节奏不丢
                     self._reschedule_pet_tick()
                 elif evt == "regen_tick":
-                    # v178.2 每刻效果事件驱动：玩家侧全局每秒 1 个 regen_tick，到点结算
-                    # A 类每刻效果（套装回血/符文治愈/被动充能/资源 regen/状态机维护等）。
-                    # 条件排入照 pet_tick 先例：只有玩家带 A 类效果才排；结算后若战斗未结束
-                    # 且玩家存活且仍带效果 → 重排下次（周期 ACT_TICK=1 刻）。玩家死亡 →
-                    # result=defeat 由 _tick_regen 内死亡检测置位 → 不重排（战斗结束）。
-                    if not self.result:
-                        try:
-                            if not self._player_dead(player):
-                                logs += self._tick_regen(player, logs)
-                        except Exception as _rex:
-                            logs.append(f"(regen_tick 异常: {_rex})")
-                    # 重排条件：战斗未结束 + 玩家存活 + 仍需要 A 类效果
+                    # v178.2 regen_tick（v179 退役：周期效果已由通用 tick 卡处理，见
+                    # tick_effects + _ensure_regen_effects）。本分支仅兜底老事件/老档：
+                    # 触发时确保挂卡（幂等），不再直接结算（防与通用调度双份结算），
+                    # 事件不重排 → 自然消亡。新战斗不再排本事件。
                     if not self.result and not self._player_dead(player):
                         try:
-                            if self._regen_needed(player):
-                                self._schedule(self._now + ACT_TICK, {"type": "regen_tick"})
+                            self._ensure_regen_effects(player)
                         except Exception:
                             pass
                 elif evt == "dot_tick":
@@ -8042,6 +8032,95 @@ class Battle:
         except Exception:
             return False
 
+    def _ensure_regen_effects(self, player: dict):
+        """v179 P1f：扫描玩家周期效果源 → 挂/收通用 tick 条件卡（幂等）。
+
+        每个效果源 → 对应 handler kind 的常驻卡（uid 固定 "regen_<kind>"）：
+          set_heal/set_holy   ← 套装 4 件回血/圣堂/神恩/壁立
+          stardust_mana       ← 星尘 5 件
+          rune_regen          ← 符文·治愈
+          passive_heal        ← 被动 turn_heal/team_regen/focus_regen_summon
+          mech_charge         ← 奥术/魔剑充能被动
+          core_regen          ← 职业核心资源 regen
+          faith_decay         ← 牧师信念
+          echo_heal           ← 歌者回声层
+          affix_food_we       ← 词条/食物foodfx/武器特效（保守常驻，内部判空转）
+        效果源消失 → 卡不续（handler keep=False 自动移除）；本方法幂等，可反复调。
+        """
+        try:
+            if not player or self.result or self._player_dead(player):
+                return
+        except Exception:
+            return
+        _want: set = set()
+        try:
+            _s4 = E.set_bonus_4(player.get("equipment", {}))
+            if _s4:
+                for _eff in ("regen", "regen_strong"):
+                    if _eff in _s4:
+                        _want.add("set_heal")
+                for _eff in ("holy_field_heal", "divine_grace_burst", "hu_xiao_barrier"):
+                    if _eff in _s4:
+                        _want.add("set_holy")
+        except Exception:
+            pass
+        try:
+            if "星尘" in "|".join(self._set_bonus_5(player)):
+                _want.add("stardust_mana")
+        except Exception:
+            pass
+        try:
+            if self._enchant_lvl(self._enchant_effects(player), "regen"):
+                _want.add("rune_regen")
+        except Exception:
+            pass
+        try:
+            _pm = self._passive_map(player)["proc"]
+            if _pm.get("turn_heal") or _pm.get("team_regen") or _pm.get("focus_regen_summon"):
+                _want.add("passive_heal")
+            if _pm.get("arcane_regen") or _pm.get("arcane_intuition"):
+                _want.add("mech_charge")
+            for _pn2, _ps2 in self._passive_map(player)["stat"]:
+                if _ps2.get("stat") == "spellblade_regen":
+                    _want.add("mech_charge")
+        except Exception:
+            pass
+        try:
+            _crd = E.core_resource_def(player.get("class_name", ""))
+            if _crd and float(_crd.get("regen", 0) or 0) > 0:
+                _want.add("core_regen")
+            if _crd and _crd.get("key") == "faith":
+                _want.add("faith_decay")
+        except Exception:
+            pass
+        try:
+            if self._echo_layers() > 0:
+                _want.add("echo_heal")
+        except Exception:
+            pass
+        # 词条/食物/武器特效：保守常驻（原 _regen_needed 对这些也是"有任一即排"）
+        try:
+            _has_affix = False
+            try:
+                _has_affix = bool(self._affix_effs(player, "__any_turn_start__"))
+            except Exception:
+                _has_affix = False
+            if _has_affix or self.p_food_effects:
+                _want.add("affix_food_we")
+        except Exception:
+            pass
+        # 挂卡（幂等：已存在跳过）——间隔 ACT_TICK=1s，周期效果统一 1 秒一跳
+        for _kind in _want:
+            _uid = f"regen_{_kind}"
+            _has = any(e.get("uid") == _uid for e in self.tick_effects)
+            if not _has:
+                self.add_tick_effect(_kind, player, ACT_TICK, uid=_uid, source="regen")
+        # 收卡：已挂但玩家不再需要（保底，正常由 handler keep=False 移除）
+        _keep_uids = {f"regen_{_k}" for _k in _want}
+        for _e in list(self.tick_effects):
+            if _e.get("source") == "regen" and _e.get("uid") not in _keep_uids:
+                self.tick_effects.remove(_e)
+
     def _tick_regen(self, player: dict, logs: list) -> list:
         """v179 P1：每刻效果结算器（兼容壳）——依次调通用 tick handler。
 
@@ -8105,13 +8184,12 @@ class Battle:
                                                                "unit": _dt_cand})
         except Exception:
             pass
-        # v178.2 regen 保险丝：玩家行动开头若带 A 类每刻效果但堆里没有 regen_tick
-        # （断线恢复/副本 act 重建 Battle 后事件队列丢失/老档）→ 补排。照 dot 保险丝幂等模式。
+        # v178.2 regen 保险丝（v179 升级为通用 tick 卡）：玩家行动开头扫描 A 类每刻效果源，
+        # 挂/收通用 tick 条件卡（regen_<kind>）。断线恢复/副本 act 重建 Battle 后首次行动
+        # 触发挂卡；效果源消失 → 卡由 handler keep=False 自动移除。幂等可反复调。
         try:
-            if player and not self._enemy_dead() and self._regen_needed(player):
-                _has_regen = any(_e.get("type") == "regen_tick" for _, _, _e in self._events)
-                if not _has_regen:
-                    self._schedule(self._now + ACT_TICK, {"type": "regen_tick"})
+            if player and not self._enemy_dead() and not self._player_dead(player):
+                self._ensure_regen_effects(player)
         except Exception:
             pass
         # v151 破绽断链修复（引擎差距报告 P0）：turn_start_bars 此前从未被调用——

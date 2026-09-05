@@ -108,25 +108,27 @@ def main():
     check("满血 tick：不回复不误报", p3["hp"] == p3["max_hp"] and not any("套装祝福" in str(x) for x in logs3),
           str(logs3)[:80])
 
-    # 场景④：regen_tick 事件驱动链——Battle 初始化后堆里有 regen_tick，跑一轮时间推进后它触发
+    # 场景④：v179 通用 tick 卡——Battle 初始化后 tick_effects 池里有 regen_set_heal 卡
     p4 = mk_player("cls_zhan_shi", 11, None, set_items="set_chen_guang_jiao_hui")
     b4 = BT.Battle("monster", mk_monster("m_rg_4", "dps", 1), player=p4)
     b4.enemy["atk"] = 5
     b4.enemy["matk"] = 5
     p4["hp"] = int(p4["max_hp"] * 0.5)
-    has_regen = any(e.get("type") == "regen_tick" for _, _, e in b4._events)
-    check("开战排入 regen_tick（带 A 类效果）", has_regen,
-          str([(round(float(t), 1), e.get("type")) for t, s, e in b4._events[:4]]))
+    has_regen = any(e.get("kind") == "set_heal" and e.get("uid") == "regen_set_heal"
+                    for e in b4.tick_effects)
+    check("开战挂入 regen_set_heal 通用 tick 卡（带 A 类效果）", has_regen,
+          f"pool={[(e.get('kind'), e.get('uid')) for e in b4.tick_effects]}")
 
-    # 场景⑤：无 A 类效果玩家不排 regen_tick（CTB 测试同款玩家 equipment={}）
+    # 场景⑤：无 A 类效果玩家不挂卡（CTB 测试同款玩家 equipment={}）
     p5 = mk_player("cls_ci_ke", 11, {"agi": 39})  # 无装备
     b5 = BT.Battle("monster", mk_monster("m_rg_5", "dps", 22), player=p5)
-    has_regen5 = any(e.get("type") == "regen_tick" for _, _, e in b5._events)
-    check("无 A 类效果：不排 regen_tick（零干扰）", not has_regen5,
-          str([(round(float(t), 1), e.get("type")) for t, s, e in b5._events[:4]]))
+    has_regen5 = any(e.get("uid", "").startswith("regen_") for e in b5.tick_effects)
+    check("无 A 类效果：不挂 regen 卡（零干扰）", not has_regen5,
+          f"pool={[(e.get('kind'), e.get('uid')) for e in b5.tick_effects]}")
 
-    # 场景⑥：断线恢复/副本 act 重建后 regen_tick 由 _turn_start 保险丝补排
-    # （from_state 恢复时 b.player 空 dict 无法判 _regen_needed——首次玩家行动保险丝兜底）
+    # 场景⑥：断线恢复/副本 act 重建后 regen 卡随 tick_effects 序列化恢复
+    # （from_state 恢复时 b.player 空 dict——但卡片 actor 已重绑 b.player 占位，
+    #  真实玩家绑定后同一引用即生效；_turn_start 保险丝再兜底确保挂卡幂等）
     p6 = mk_player("cls_zhan_shi", 11, None, set_items="set_chen_guang_jiao_hui")
     b6 = BT.Battle("monster", mk_monster("m_rg_6", "dps", 1), player=p6)
     b6.enemy["atk"] = 5
@@ -135,16 +137,16 @@ def main():
     random.seed(0)
     st = b6.to_state()
     b6b = BT.Battle.from_state(st)
-    # from_state 恢复后无 regen_tick（player 空判不了）
-    has_regen6_before = any(e.get("type") == "regen_tick" for _, _, e in b6b._events)
-    # 模拟命令层绑定真实玩家后首次行动 → _turn_start 保险丝补排
+    # from_state 恢复后：tick_effects 卡随序列化恢复（st 里有 tick_effects 字段时）
+    has_regen6_before = any(e.get("uid", "").startswith("regen_") for e in b6b.tick_effects)
+    # 模拟命令层绑定真实玩家后首次行动 → _turn_start 保险丝确保挂卡（幂等）
     b6b.player = p6
     b6b._turn_start(p6)
-    has_regen6_after = any(e.get("type") == "regen_tick" for _, _, e in b6b._events)
-    check("from_state 恢复后首次行动由保险丝补排 regen_tick",
-          (not has_regen6_before) and has_regen6_after,
+    has_regen6_after = any(e.get("uid", "").startswith("regen_") for e in b6b.tick_effects)
+    check("from_state 恢复后首次行动保险丝确保 regen 卡存在",
+          has_regen6_after,
           f"before={has_regen6_before} after={has_regen6_after} "
-          f"events={[(round(float(t),1),e.get('type')) for t,s,e in b6b._events[:4]]}")
+          f"pool={[(e.get('kind'), e.get('uid')) for e in b6b.tick_effects]}")
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     sys.exit(1 if failed else 0)
