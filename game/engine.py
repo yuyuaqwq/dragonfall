@@ -819,7 +819,8 @@ def skill_learn_cost_for(player: dict, need_lv: int) -> int:
 
 # ---------------- 技能升级（v27） ----------------
 SKILL_MAX_LEVEL = 5          # 技能等级上限
-SKILL_POWER_PER_LV = 0.10    # 攻击/治疗每级 power +10%（未单独配置时的默认值）
+# v180：SKILL_POWER_PER_LV 不再作 skill_power_mult 默认兜底（鱼鱼：没配 p=无成长）。
+# 保留常量仅作参考值/历史兼容——技能成长一律按 SKILL_UP 的 p 显式配置。
 
 
 
@@ -935,9 +936,10 @@ def skill_expr_preview(info: dict | None, level: int, stats: dict | None = None)
 
 
 def skill_power_mult(level: int, info: dict | None = None) -> float:
-    """技能等级对 power 的倍率。info 给定且配了 p 时按该技能成长，否则默认每级＋10%"""
+    """技能等级对 power 的倍率（v180 鱼鱼：没配 p = 无成长，删默认兜底——默认每级+10% 曾
+    误伤无 SKILL_UP 配置的怪物技能：按折算等级白吃成长 ×1.4。现配了 p 才成长，没配恒 1.0）"""
     lv = max(1, min(level, skill_max_level(info)))
-    p = _skill_up(info).get("p", SKILL_POWER_PER_LV * 100)
+    p = int(_skill_up(info).get("p", 0) or 0)
     return 1.0 + (p / 100) * (lv - 1)
 
 

@@ -5807,11 +5807,9 @@ class Battle:
         if getattr(self, "_sk_af_mult", 1.0) > 1.0:
             affix_tags = list(affix_tags) + [f"⚔️套装技x{round(self._sk_af_mult, 2)}"]
         elem_mult = self._affix_element_dmg(player, element)
-        # v180 怪物自身技能：formula/power 已含最终强度，不吃玩家技能成长 skill_power_mult
-        # （成长曲线是玩家投入"练技能"的回报；怪技能数据无养成语义。怪放玩家技能不受影响——
-        #  _mon_own_skill 仅当技能 key 在 MONSTER_SKILLS 才置 True）
-        _spm = 1.0 if getattr(self, "_mon_own_skill", False) else E.skill_power_mult(lv, info)
-        pmult = (_spm * frozen_bonus * stealth_mult * stack_bonus * cond_mult
+        # v180 删默认成长后：怪自身技能无 SKILL_UP 配置 → skill_power_mult 恒 1.0，天然不吃成长
+        # （原 _mon_own_skill 特判已删——没配 p 就是没成长，不再需要按施法者身份区分）
+        pmult = (E.skill_power_mult(lv, info) * frozen_bonus * stealth_mult * stack_bonus * cond_mult
                  * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult
                  * self._v139_dmg_mult(player, info))
         # vF3 P1 连乘封顶：技能伤害倍率连乘（技能×冻结×潜行×叠层×条件×魔法×被动×反应×词缀×元素×种族×v139形态/专注）
@@ -6081,12 +6079,7 @@ class Battle:
         lv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名（战斗内等级此前恒 Lv.1）
         kind = info["kind"]
         mech = info.get("mech", "")
-        # v180 怪自身技能标记：施法者是怪（_cast_ctx 无 class_name）且技能 key 属 MONSTER_SKILLS
-        # （怪物天生技能 data 的 formula/power 已是最终强度——不吃玩家技能成长 skill_power_mult；
-        #  玩家技能/怪放玩家技能仍走成长曲线。见 _skill_assemble_mults pmult）
-        self._mon_own_skill = bool(
-            (not self._cast_is_player()) and skill_name
-            and C.MONSTER_SKILLS.get(skill_name))
+
         # v140 波3.1：特效装备技能释放即叠层（铭文/秘典/永恒契约——含治疗/增益）
         try:
             from .core.weapon_effects import proc as _we_proc
@@ -6159,10 +6152,7 @@ class Battle:
         _pp_magi, _pf_magi = self._pene_vals(st, magic=True)
         # v156 技能基础值（保底伤害）：flat = BASE + 玩家等级×PER_LV + 技能等级×PER_SKILL_LV
         # 鱼鱼拍板：技能 = 基础值 + n%AD/AP（低攻不刮痧，高攻百分比主导）
-        # v180 怪自身技能：无玩家技能"低攻保底"语义（skill_flat 是玩家技能 v156 防刮痧设计）——
-        # 怪技能 formula/power 已是最终强度，注入基础值会虚增伤害（深水压强 power=0 类 1→8）
-        _skill_flat = 0 if getattr(self, "_mon_own_skill", False) else E.skill_flat_value(
-            int(player.get("level", 1) or 1), lv, info)
+        _skill_flat = E.skill_flat_value(int(player.get("level", 1) or 1), lv, info)
         for seg in range(multi):
             # v133 峰值红线：多段仅首段吃暴击/幸运（MULTI_HIT_CRIT_FIRST_ONLY，
             # 避免"多段共享单次暴击判定"整段连锁暴击的峰值爆炸）
