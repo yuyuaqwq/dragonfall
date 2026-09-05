@@ -885,6 +885,86 @@ class Battle:
         """法师充能条当前值（v130.2：element 资源数值化 0-5；resources['element'] 保留当前系字符串，兼容旧消费点）"""
         return int(self.resources.get("element_charge", 0) or 0)
 
+    def _res_def_of(self, actor: dict) -> dict:
+        """v177 actor 资源定义：actor 带 resource_def（怪物/自定义）→ 用它；
+        否则回退玩家职业定义（CORE_RESOURCES by class_name）。"""
+        if not actor:
+            return {}
+        rd = actor.get("resource_def")
+        if isinstance(rd, str):
+            # 引用 CORE_RESOURCES key（怪物复用玩家资源条目，如 resource_def: "rage"）
+            _by_key = E.core_resource_def_by_key(rd) or {}
+            if _by_key:
+                return _by_key
+            # 兜底：CORE_RESOURCES 条目以 key 字段注册（rage 在 cls_zhan_shi 内），按 key 值扫描匹配
+            try:
+                from .data.core_resources import CORE_RESOURCES
+                for _cid, _crd in CORE_RESOURCES.items():
+                    if _crd.get("key") == rd:
+                        return dict(_crd)
+            except Exception:
+                pass
+            return {}
+        if isinstance(rd, dict):
+            return rd
+        return E.core_resource_def(actor.get("class_name", ""))
+
+    def _res_bag_of(self, actor: dict) -> dict:
+        """v177 actor 资源存储：玩家 = battle 焦点 resources；怪物 = actor["resources"]（惰性建）。"""
+        if actor and actor.get("id") and not actor.get("class_name"):
+            return actor.setdefault("resources", {})
+        return self.resources
+
+    def _res_read_actor(self, actor: dict, key: str) -> int:
+        """v177 actor 资源读取（玩家/怪物通用）：element → 充能条；其余直读 actor 资源 dict。"""
+        bag = self._res_bag_of(actor)
+        if key == "element":
+            if bag is self.resources:
+                return self._elem_charge()
+            return int(bag.get("element_charge", 0) or 0)
+        return int(bag.get(key, 0) or 0)
+
+    def _res_gain_actor(self, actor: dict, key: str, amount: int, logs: list | None = None) -> int:
+        """v177 actor 资源增加（玩家/怪物通用）：按 actor 资源定义上限封顶。
+        玩家（无 resource_def）→ 回退旧 _res_gain（职业/词条/套装全渠道）。
+        怪物（resource_def）→ actor 资源 dict + 定义 max；满溢转盾（overflow_shield）同玩家。"""
+        rd = self._res_def_of(actor)
+        bag = self._res_bag_of(actor)
+        if not rd or bag is self.resources:
+            # 玩家路径（或未配定义）→ 旧逻辑
+            if actor.get("class_name"):
+                return self._res_gain(actor, key, int(amount or 0), logs)
+            return int(bag.get(key, 0) or 0)
+        cap = int(rd.get("max", 99) or 99)
+        cur = int(bag.get(key, 0) or 0)
+        amount = int(amount or 0)
+        new = min(cap, cur + amount)
+        if rd.get("overflow_shield") and cur + amount > cap and actor.get("hp", 0) > 0:
+            try:
+                self._add_shield(f"res_overflow_{key}", int((cur + amount - cap) * float(rd.get("overflow_ratio", 5) or 5)), 1)
+            except Exception:
+                pass
+        bag[key] = new
+        return new
+
+    def _res_spend_actor(self, actor: dict, key: str, amount: int) -> bool:
+        """v177 actor 资源消耗：足够则扣返回 True；不足不扣返回 False。element → 充能条。"""
+        bag = self._res_bag_of(actor)
+        if key == "element":
+            cur = int(bag.get("element_charge", 0) or 0) if bag is not self.resources else self._elem_charge()
+            if cur < int(amount or 0):
+                return False
+            if bag is self.resources:
+                self.resources["element_charge"] = cur - int(amount or 0)
+            else:
+                bag["element_charge"] = cur - int(amount or 0)
+            return True
+        cur = int(bag.get(key, 0) or 0)
+        if cur < int(amount or 0):
+            return False
+        bag[key] = cur - int(amount or 0)
+        return True
+
     def _res_read(self, key: str) -> int:
         """读取资源值（element → 充能条 element_charge；其余直读 resources[key]）"""
         if key == "element":
