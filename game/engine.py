@@ -737,6 +737,52 @@ def _br_table(class_name: str) -> dict:
         return t["branches"]
     return t
 
+# v177 怪物引用玩家技能：技能 key 全局唯一 → 扫全表缓存 {sk_id: (cls_id, info)}
+_SKILL_KEY_INDEX: dict | None = None
+
+
+def _build_skill_key_index() -> dict:
+    """全量玩家技能索引：{sk_id: (所属职业, info)}——覆盖基础职业 + 分支 + 导师。
+    供怪物技能引用玩家技能（存储分离、解析一套）与全局技能 key 反查。"""
+    idx = {}
+    for cls_id, cls in (C.PLAYER_SKILLS or {}).items():
+        if not isinstance(cls, dict):
+            continue
+        for sk, info in (cls.get("skills") or {}).items():
+            if sk not in idx:
+                idx[sk] = (cls_id, info)
+    for cls_id, brs in (C.BRANCH_SKILLS or {}).items():
+        if not isinstance(brs, dict):
+            continue
+        for tier, branches in (brs.get("branches") or {}).items():
+            for bname, skills in (branches or {}).items():
+                for sk, info in (skills or {}).items():
+                    if sk not in idx:
+                        idx[sk] = (cls_id, info)
+    for cls_id, t_skills in (C.TUTOR_SKILLS or {}).items():
+        for sk, info in (t_skills or {}).items():
+            if sk not in idx:
+                idx[sk] = (cls_id, info)
+    return idx
+
+
+def skill_by_key(key: str) -> dict | None:
+    """v177 按技能 key 全局查玩家技能（怪物引用玩家技能用）。查不到返回 None。"""
+    global _SKILL_KEY_INDEX
+    if _SKILL_KEY_INDEX is None:
+        _SKILL_KEY_INDEX = _build_skill_key_index()
+    hit = _SKILL_KEY_INDEX.get(key)
+    return hit[1] if hit else None
+
+
+def skill_owner_cls(key: str) -> str | None:
+    """v177 技能 key 所属职业（怪物引用需知道怪物有没有该技能时用）。"""
+    global _SKILL_KEY_INDEX
+    if _SKILL_KEY_INDEX is None:
+        _SKILL_KEY_INDEX = _build_skill_key_index()
+    hit = _SKILL_KEY_INDEX.get(key)
+    return hit[0] if hit else None
+
 
 def skills_for_level(class_name: str, level: int) -> list[str]:
     """返回该职业当前等级已解锁的技能 id"""

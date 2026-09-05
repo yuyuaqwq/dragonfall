@@ -3939,7 +3939,7 @@ class Battle:
             if e.get("role") in ("caster", "healer"):
                 return True
             sk = e.get("skills") or []
-            if sk and any((C.MONSTER_SKILLS.get(s) or {}).get("kind") == K_MAGI for s in sk):
+            if sk and any((self._lookup_skill_info(s) or {}).get("kind") == K_MAGI for s in sk):
                 return True
             return False
         return e.get("role") == role
@@ -5751,6 +5751,20 @@ class Battle:
             pass
         return 1.0
 
+    def _lookup_skill_info(self, skill_key: str) -> dict:
+        """v177 技能查表统一入口：先查怪物技能表 MONSTER_SKILLS，查不到查玩家技能全表
+        （E.skill_by_key——怪物技能可引用玩家技能 key，存储分离、解析一套）。
+        返回技能 dict（可能含玩家技能字段：exprs/kind/heal_formula 等）；查不到返回 {}。"""
+        if not skill_key:
+            return {}
+        s = C.MONSTER_SKILLS.get(skill_key)
+        if s is None:
+            try:
+                s = E.skill_by_key(skill_key)
+            except Exception:
+                s = None
+        return s or {}
+
     def _enemy_cast_done(self, player: dict, unit: dict, ev: dict) -> tuple:
         """v154 敌方对称读条：敌方出招读条结束（cast_done 事件触发）→ 结算伤害。
         返回 (日志列表, 对玩家伤害)。
@@ -5773,7 +5787,7 @@ class Battle:
         if _kind == "skill" and "silence" in eb:
             _kind = "atk"
         if _kind == "skill":
-            sinfo = C.MONSTER_SKILLS.get(ev.get("skill") or "") or {}
+            sinfo = self._lookup_skill_info(ev.get("skill") or "")
             if not sinfo:
                 _kind = "atk"
             else:
@@ -5785,7 +5799,23 @@ class Battle:
                 is_crit = random.random() < est.get("crit", C.MON_SKILL_CRIT) * self._tenacity_mult(pst)
                 # v156 通用公式：敌方技能带 formula 字段走数据驱动公式（任意 atk/matk/max_hp/混伤），
                 # 否则从 power/kind 自动生成 formula（向后兼容）
+                # v177 玩家技能引用：玩家技能无 formula，用 exprs 表达式数组（skill_lv 按怪等级折算）
                 _fml = sinfo.get("formula")
+                if not _fml and sinfo.get("exprs"):
+                    try:
+                        _es = sinfo["exprs"]
+                        if isinstance(_es, str):
+                            _es = [_es]
+                        _e_type = seg_of(kind)
+                        _es_slv = max(1, min(20, int(e.get("lv", 1) or 1) // 2))  # skill_lv ≈ lv/2 折算
+                        _est2 = dict(est)
+                        _est2["_skill_lv"] = _es_slv
+                        _est2["_player_lv"] = int(e.get("lv", 1) or 1)
+                        _fml = [{"expr": x, "type": _e_type} for x in _es]
+                        # 替换 est 引用（resolve_formula 读传入 stats）
+                        est = _est2
+                    except Exception:
+                        _fml = None
                 if _fml:
                     _pp, _pf = self._pene_vals(est)
                     _pp_m, _pf_m = self._pene_vals(est, magic=True)
@@ -6033,7 +6063,7 @@ class Battle:
             # 注意：只在技能声明 res_cost 且资源不足时拦截——旧技能无 res_cost → 零行为变化
             if skill is not None:
                 try:
-                    _sfo_rc = C.MONSTER_SKILLS.get(skill) or {}
+                    _sfo_rc = self._lookup_skill_info(skill)
                     _rc_needed = _sfo_rc.get("res_cost")
                     if _rc_needed and isinstance(_rc_needed, dict):
                         for _rk_n, _rv_n in _rc_needed.items():
@@ -6042,7 +6072,7 @@ class Battle:
                                 break
                 except Exception:
                     pass
-            sinfo = C.MONSTER_SKILLS.get(skill) if skill else None
+            sinfo = self._lookup_skill_info(skill) if skill else None
             if sinfo:
                 # v177 资源消耗：施放带 res_cost 的技能 → 出手扣资源（读条前扣——出手即付出，命中与否都消耗）
                 try:
@@ -6124,7 +6154,7 @@ class Battle:
                               player: dict | None = None) -> tuple:
         """敌方蓄力释放：按 MONSTER_SKILLS 里的技能结算伤害（对整个玩家方）。
         返回 (logs, 对玩家伤害)。"""
-        sinfo = C.MONSTER_SKILLS.get(skill_name) or {}
+        sinfo = self._lookup_skill_info(skill_name)
         if not sinfo:
             return logs, 0
         kind = sinfo.get("kind")
