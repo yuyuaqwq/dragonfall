@@ -787,7 +787,10 @@ class Battle:
         self.tick_effects: list = []       # v179 通用 tick 效果条目池
         self.team_effects: list = []       # v50 团队技能效果广播
         self.e_minions: list = []          # 敌方援军实体
-        self.summons: list = []            # 玩家召唤物实体
+        # v180-C S1：我方随从 actor 阵列（召唤物/宠物统一容器）。任何"我方非玩家实体"
+        # 都是 companions 一员（带 side=player + kind），引擎按字段（guard/auto_act/
+        # untargetable/hidden）走通用逻辑。self.summons 是兼容视图 property（召唤物过滤）。
+        self.companions: list = []
         self.killed_enemies: list = []
         self.result = None                 # None | victory | defeat | fled
         self.title_bonus = title_bonus or {}
@@ -1009,6 +1012,30 @@ class Battle:
     @e_defending.setter
     def e_defending(self, val: bool):
         self.enemy["defending"] = bool(val)
+
+    @property
+    def summons(self) -> list:
+        """v180-C S1 兼容视图：我方召唤物 = companions 里 kind=='summon' 的子集。
+        纯读兼容（旧代码遍历/序列化用）；召唤物增删一律直接操作 companions。
+        setter 整袋替换：保留同引用（外部写回 st 场景）。"""
+        return [c for c in getattr(self, "companions", []) if c.get("kind") == "summon"]
+
+    @summons.setter
+    def summons(self, val: list):
+        # 整袋设置：保留非 summon 随从，追加 summon 实体
+        try:
+            _comp = getattr(self, "companions", None)
+            if _comp is None:
+                self.companions = list(val or [])
+                return
+            keep = [c for c in _comp if c.get("kind") != "summon"]
+            self.companions = keep + [dict(c) for c in (val or [])]
+            for c in self.companions:
+                c.setdefault("kind", "summon")
+                c.setdefault("side", "player")
+                c.setdefault("buffs", {})
+        except Exception:
+            self.companions = list(val or [])
 
     # v180-B P2：原 mech_stacks property（落 _mech_stacks 实例槽）已删除——
     # 玩家叠层权威改存 player["stacks"]（actor dict 与怪同构），__init__ 播种为实例引用。
@@ -3062,9 +3089,10 @@ class Battle:
         # v154：玩家下次可行动点已由 _after_actor_ct 设为命中时刻 + 收招（PVP 已即时结算）
         # 注意：非 PVP 下 cast_done 事件会在 _enemy_phase 推进时触发结算
 
-        # v107 召唤物自动攻击：玩家正常行动结束后、敌方行动前（每刻一次）
-        if self.summons:
-            logs = self._summons_act(player, logs)
+        # v180-C S2 随从自动行为：玩家正常行动结束后触发（player_act trigger 的随从
+        # ——召唤物旧语义；通用触发点，扫 companions 带 auto_act.trigger=player_act 的）
+        if self.companions:
+            self._companions_trigger("player_act", logs)
             if self._enemy_dead():
                 self.result = "victory"
                 self._end_round()
@@ -8946,15 +8974,25 @@ class Battle:
         hp = max(20, int(st.get("max_hp", 200) * float(tmpl["hp_ratio"]) * (1 + sp)))
         atk = max(0, int(st.get("atk", 50) * float(tmpl.get("atk_ratio", 0) or 0) * (1 + sp)))
         df = max(2, int(st.get("def", 20) * float(tmpl["def_ratio"]) * (1 + sp)))
-        self.summons.append({"tid": tid, "name": tmpl["name"], "icon": tmpl.get("icon", ""),
+        self.companions.append({"tid": tid, "name": tmpl["name"], "icon": tmpl.get("icon", ""),
                              "hp": hp, "max_hp": hp, "atk": atk, "def": df,
                              "dmg_type": tmpl.get("dmg_type", "phys"),
                              "rank": int(tmpl.get("rank", 1) or 1),
                              "reach": int(tmpl.get("reach", 1) or 1),
+                             # v180-C S1 actor 雏形：随从统一进 companions（side/kind 标识 +
+                             # buffs 容器就位——字段即能力，可被增益/减益/引擎通用逻辑处理）
+                             "side": "player", "kind": "summon",
+                             "buffs": {},
                              # v151 召唤物语义：纯挡刀吸收一次 / 全队攻击光环 / 吃 AOE
                              "absorb_once": bool(tmpl.get("absorb_once", False)),
                              "aura_atk_all": float(tmpl.get("aura_atk_all", 0) or 0),
                              "eats_aoe": bool(tmpl.get("eats_aoe", False)),
+                             # v180-C S2 auto_act 数据驱动：玩家行动后自动普攻（旧 _summons_act
+                             # 语义数据化——行为/触发全配置，引擎通用触发点驱动）
+                             "auto_act": {
+                                 "trigger": "player_act",
+                                 "act": {"type": "basic_atk"},
+                             } if float(tmpl.get("atk_ratio", 0) or 0) > 0 else None,
                              # v180-B ② guard 数据化：模板 bodyguard/absorb_once 转统一挡刀配置
                              # （任何随从 actor 带 guard 即生效，引擎不再按身份/列表特判）
                              "guard": {
@@ -8971,38 +9009,70 @@ class Battle:
         logs.append(f"{tmpl.get('icon', '')} {tmpl['name']} 加入战斗！(HP {hp} / 攻击 {atk} / 站位{self.summons[-1]['rank']}层)")
         return True
 
+    def _companion_act(self, actor: dict, logs: list) -> bool:
+        """v180-C S2 通用随从自动行为结算：读 actor['auto_act'] 数据执行。
+        返回是否出手（出手=消费本次触发）。
+
+        数据驱动（鱼鱼 2026-09-06：语义不固定，全配置）：
+        - trigger=player_act：玩家行动后触发（召唤物旧语义，player_turn 尾部扫）
+        - act.type=basic_atk：普攻（用自身 atk/dmg_type/reach 选目标，等价旧 _summons_act 单只）
+        - act.type=heal_owner：回复 owner max_hp×heal_pct（未来宠物月光祝福）
+        扩展：加新随从行为 = 加 act.type 分支或复用玩家技能管线（act.skill），零新 hook。
+        """
+        try:
+            if not actor or actor.get("hp", 0) <= 0 or self._enemy_dead():
+                return False
+            aa = actor.get("auto_act") or {}
+            act = aa.get("act") or {}
+            atype = act.get("type", "")
+            if atype == "basic_atk":
+                if int(actor.get("atk", 0) or 0) <= 0:
+                    return False  # 纯挡刀随从（atk=0）不普攻
+                target = self._pick_summon_target(actor)
+                if target is None:
+                    return False
+                dmg_type = actor.get("dmg_type", "phys")
+                if dmg_type == "true":
+                    dmg = max(1, int(actor.get("atk", 0) * (1 + random.uniform(-0.15, 0.15))))
+                else:
+                    est = self._enemy_stats(target)
+                    dmg = E.calc_damage(actor.get("atk", 0), est.get("def", 0), dmg_type=dmg_type)
+                dmg = max(1, dmg)
+                self._damage_enemy(dmg, logs, target=target, source=actor.get("name", "随从"),
+                                   true_dmg=(dmg_type == "true"))
+                logs.append(f"{actor.get('icon', '')} {actor.get('name', '随从')} 攻击，造成 {dmg} 点伤害！")
+                return True
+            # 未来 act.type 分支（heal_owner/buff_owner/引用玩家技能）在此扩展
+            return False
+        except Exception:
+            return False
+
+    def _companions_trigger(self, trigger: str, logs: list) -> None:
+        """v180-C S2 通用随从触发点：扫我方随从阵列（companions）带 auto_act.trigger==trigger
+        的 actor，逐个结算。替代旧 _summons_act（player_act 专用循环）。
+        触发后清理死亡随从。"""
+        if not getattr(self, "companions", None):
+            return
+        for c in list(self.companions):
+            if c.get("hp", 0) <= 0:
+                continue
+            aa = c.get("auto_act") or {}
+            if aa.get("trigger") != trigger:
+                continue
+            try:
+                self._companion_act(c, logs)
+            except Exception:
+                pass
+        # 清理死亡随从
+        for c in list(self.companions):
+            if c.get("hp", 0) <= 0:
+                logs.append(f"💀 {c.get('name', '随从')} 倒下了！")
+                self.companions.remove(c)
+
     def _summons_act(self, player: dict, logs: list) -> list:
-        """v107 召唤物自动攻击：每个存活召唤物攻击一次（玩家行动后、敌方行动前）。
-        真伤召唤物（影狼）走 dmg_type=true 绕过全减伤；按自身 reach 选目标（§7）。"""
-        if not self.summons:
-            return logs
-        for s in list(self.summons):
-            if s.get("hp", 0) <= 0 or self._enemy_dead():
-                continue
-            # v151：纯挡刀召唤物（atk=0，如藤蔓守卫）不普攻
-            if int(s.get("atk", 0) or 0) <= 0:
-                continue
-            # v2：召唤物按自身 reach 选目标（射程内最前排）
-            target = self._pick_summon_target(s)
-            if target is None:
-                continue
-            if s["dmg_type"] == "true":
-                dmg = max(1, int(s["atk"] * (1 + random.uniform(-0.15, 0.15))))
-            else:
-                est = self._enemy_stats(target)
-                # 非真伤：按召唤物自身 dmg_type（phys/magi）传给 calc_damage，
-                # 不再硬编码 phys（当前三模板均 phys 故行为不变，属防回归）。
-                dmg = E.calc_damage(s["atk"], est.get("def", 0), dmg_type=s.get("dmg_type", "phys"))
-            dmg = max(1, dmg)
-            # v180-B：真伤召唤物传 true_dmg=True（否则被当物理打高防=0——测试 v107_summon 回归）
-            self._damage_enemy(dmg, logs, target=target, source=s.get("name", "召唤物"),
-                               true_dmg=(s.get("dmg_type") == "true"))
-            logs.append(f"{s.get('icon', '')} {s['name']} 攻击，造成 {dmg} 点伤害！")
-        # 清理死亡召唤物
-        for s in list(self.summons):
-            if s.get("hp", 0) <= 0:
-                logs.append(f"💀 {s['name']} 倒下了！")
-                self.summons.remove(s)
+        """v107 召唤物自动攻击（v180-C S2 兼容壳：转调通用随从触发点）。
+        保留旧名——外部 2 调用点仍用；行为 = _companions_trigger('player_act')。"""
+        self._companions_trigger("player_act", logs)
         return logs
 
     def _pick_summon_target(self, s: dict) -> dict | None:
@@ -9114,11 +9184,11 @@ class Battle:
         # v151：纯挡刀随从（absorb_once）吸收 1 次单体后消失（v151 §7 藤蔓守卫）
         if s["guard"].get("absorb_once"):
             logs.append(f"🌿 {s['name']} 完成守护，化作碎屑消散……")
-            self.summons.remove(s)
+            self.companions.remove(s)
             return 0
         if s["hp"] <= 0:
             logs.append(f"💀 {s['name']} 在保护你时倒下了！")
-            self.summons.remove(s)
+            self.companions.remove(s)
         return 0
 
     def _drain_pending_dmg(self) -> list:
@@ -9670,7 +9740,7 @@ class Battle:
         if actor["hp"] <= 0 and self.summons and not self._death_pact_used:
             for _pn, _ps in self._passive_map(actor)["proc"].get("death_pact", []):
                 self._death_pact_used = True
-                fallen = self.summons.pop()
+                fallen = self.companions.pop()
                 actor["hp"] = max(1, int(actor.get("max_hp", actor["hp"]) * 0.20))
                 logs.append(f"💀 死亡契约！{fallen.get('name', '亡灵')} 替你承受了致命一击，你以 {actor['hp']} HP 站起！")
                 break
@@ -9688,7 +9758,7 @@ class Battle:
                         continue
                     self._death_pact_used = True
                     fallen = _skels.pop()
-                    self.summons.remove(fallen)
+                    self.companions.remove(fallen)
                     actor["hp"] = max(1, int(actor.get("max_hp", actor["hp"]) * float(_ps.get("hp_pct", 0.20) or 0.20)))
                     logs.append(f"💀 死亡契约：信念 {_faith_v:.0f} 引动契约，{fallen.get('name', '骷髅')} 代受致命伤，你以 {actor['hp']} HP 站起！")
                     break

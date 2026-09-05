@@ -107,9 +107,11 @@ async def main():
     print("\n— 真伤召唤物 —")
     p4 = mk_player()
     b4 = BT.Battle("怪物", mk_enemy(def_=5000, hp=50000), {}, p4)
-    b4.summons.append({"tid": "synthetic_true", "name": "真伤灵", "icon": "✨",
-                       "hp": 500, "max_hp": 500, "atk": 100, "def": 0,
-                       "dmg_type": "true"})
+    # v180-C S1：随从进 companions（summons 是兼容读视图）
+    b4.companions.append({"tid": "synthetic_true", "name": "真伤灵", "icon": "✨",
+                          "hp": 500, "max_hp": 500, "atk": 100, "def": 0,
+                          "dmg_type": "true", "kind": "summon", "side": "player", "buffs": {},
+                          "auto_act": {"trigger": "player_act", "act": {"type": "basic_atk"}}})
     hp4 = b4.enemy["hp"]
     logs4 = b4._summons_act(p4, [])
     dealt4 = hp4 - b4.enemy["hp"]

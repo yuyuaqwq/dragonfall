@@ -37,11 +37,12 @@ def test_guard_summon_redirect():
     p = mk_player()
     b = BT.Battle("monster", mk_enemy(), player=p)
     # 造一个带 guard 的随从实体（模拟 _summon_entity 生成结果）——def 高保证挡 100 后存活
-    b.summons.append({"tid": "vine_guard", "name": "藤蔓守卫", "icon": "🌿",
-                      "hp": 1000, "max_hp": 1000, "atk": 0, "def": 500,
-                      "dmg_type": "phys", "rank": 1, "reach": 1,
-                      "absorb_once": False, "aura_atk_all": 0, "eats_aoe": False,
-                      "guard": {"chance": 1.0, "mode": "redirect", "absorb_once": False}})
+    b.companions.append({"tid": "vine_guard", "name": "藤蔓守卫", "icon": "🌿",
+                         "hp": 1000, "max_hp": 1000, "atk": 0, "def": 500,
+                         "dmg_type": "phys", "rank": 1, "reach": 1, "kind": "summon",
+                         "side": "player", "buffs": {},
+                         "absorb_once": False, "aura_atk_all": 0, "eats_aoe": False,
+                         "guard": {"chance": 1.0, "mode": "redirect", "absorb_once": False}})
     random.seed(1)
     logs = []
     dmg = b._guard_redirect_check(100, logs)
@@ -49,12 +50,13 @@ def test_guard_summon_redirect():
     check("随从承受伤害（hp 减少）", b.summons[0]["hp"] < 1000, str(b.summons[0]["hp"]))
     check("有挡刀日志", any("挡下" in l for l in logs), str(logs))
     # absorb_once 随从：挡 1 次消失（先移除普通随从，只剩 absorb_once 在场）
-    b.summons = [s for s in b.summons if s.get("tid") != "vine_guard"]
-    b.summons.append({"tid": "vine2", "name": "藤蔓守卫·吸收", "icon": "🌿",
-                      "hp": 1000, "max_hp": 1000, "atk": 0, "def": 500,
-                      "dmg_type": "phys", "rank": 1, "reach": 1,
-                      "absorb_once": False, "aura_atk_all": 0, "eats_aoe": False,
-                      "guard": {"chance": 1.0, "mode": "redirect", "absorb_once": True}})
+    b.companions = [c for c in b.companions if c.get("tid") != "vine_guard"]
+    b.companions.append({"tid": "vine2", "name": "藤蔓守卫·吸收", "icon": "🌿",
+                         "hp": 1000, "max_hp": 1000, "atk": 0, "def": 500,
+                         "dmg_type": "phys", "rank": 1, "reach": 1, "kind": "summon",
+                         "side": "player", "buffs": {},
+                         "absorb_once": False, "aura_atk_all": 0, "eats_aoe": False,
+                         "guard": {"chance": 1.0, "mode": "redirect", "absorb_once": True}})
     n_before = len(b.summons)
     random.seed(2)
     dmg2 = b._guard_redirect_check(50, [])

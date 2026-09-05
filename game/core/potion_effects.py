@@ -422,9 +422,14 @@ def eff_summon(battle, player, value):
     hp = max(20, int(st.get("max_hp", 200) * float(v.get("hp_ratio", 0.30))))
     atk = max(5, int(st.get("atk", 50) * float(v.get("atk_ratio", 0.35))))
     df = max(2, int(st.get("def", 20) * float(v.get("def_ratio", 0.30))))
-    battle.summons.append({"tid": tid, "name": face[0], "icon": face[1],
-                           "hp": hp, "max_hp": hp, "atk": atk, "def": df,
-                           "dmg_type": "phys", "rank": 1, "reach": 1})
+    battle.companions.append({"tid": tid, "name": face[0], "icon": face[1],
+                              "hp": hp, "max_hp": hp, "atk": atk, "def": df,
+                              "dmg_type": "phys", "rank": 1, "reach": 1,
+                              # v180-C S1 actor 雏形：统一进 companions（kind/side/buffs 容器）
+                              "kind": "summon", "side": "player", "buffs": {},
+                              # v180-C S2 auto_act 数据驱动（atk>0 才自动普攻）
+                              "auto_act": {"trigger": "player_act",
+                                           "act": {"type": "basic_atk"}} if atk > 0 else None})
     used.append(tid)
     msgs = [f"{face[1]} {face[0]} 加入战斗！(HP {hp} / 攻击 {atk})"]
     if float(v.get("thorns", 0) or 0) > 0:
