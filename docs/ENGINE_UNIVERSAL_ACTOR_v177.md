@@ -152,11 +152,25 @@ _damage_target(target, dmg, ...)   # 谁都能被打
 - 攒资源挂点抽通用 `_actor_res_gain_event(actor, event, logs)`：玩家/怪物技能命中、受击都走它
 - 怪物 `resources` 挂 enemy dict（与玩家 per-player 存储同构，随战斗序列化）
 
-## 8. 落地批次
-- **Batch 1（怪物防御能力补齐）**：`_enemy_mitigate` 加 dodge 消费；怪物承伤加 on_taken 钩子（资源 on_hit/反伤/回血注册表）→ 验证"闪避 Boss/护盾 Boss/受击回怒 Boss"纯配置
-- **Batch 2（资源通用化）**：资源方法 actor 化 + 怪物 resource_def + 攒资源挂点通用 → 验证"狂暴 Boss"（on_hit 攒怒 → res_cost 大招）
-- **Batch 3（schema 对齐）**：怪物技能开放玩家字段（exprs/cond/mech2/res_gain/res_cost/consume_all）——旧 205 技能缺省不启用零改动
-- **Batch 4（回归）**：36 门禁 + 行为回归 + 数值扫描全绿 + 示例 Boss 实测
+## 8. 落地批次（已全部完成 2026-09-05/06）
+- **Batch 1 ✅**：build_monster 透传 dodge/block/phys_reduce 等 + 怪物 on_taken 钩子（受击回血/激怒/凝甲）——字段即能力验证
+- **Batch 2a ✅**：护盾格式统一 `enemy["shields"]` dict（BOSS_MECHS/MON_BUFF_EFFECTS/on_taken 写入 + _boss_dmg_filter 消费全迁，兼容旧格式）
+- **Batch 2b ✅**：承伤核心统一 `_damage_actor`——玩家/怪物共用同一份受击结算（原 _damage_player 624 行 actor 化）
+- **Batch 3 ✅**：资源系统一套化——`_res_gain/_res_spend` 统一 actor 路由（删净分叉函数），`_res_cap_of` 含词条/套装加成 + 副资源 key 回退
+- **Batch 4 ✅**：怪物技能 res_gain/res_cost 接线（AI 门槛不重抽保 random 流）
+- **Batch 5 ✅**：承伤回调化 `_damage_actor` 712→114 行——抽 6 个回调方法（_roll_dodge/_mitigate_chain/_retaliations_and_buffs/_monster_on_taken/_post_hp_lethal/_on_taken_rewards），核心只剩编排骨架
+
+**最终形态（_damage_actor 114 行编排骨架）**：
+```
+_damage_actor(actor, dmg, ...)
+  ① 状态容器路由（玩家=焦点字段/怪=actor dict）
+  ② 蓄力打断 + 宠物/召唤挡刀
+  ③ _roll_dodge 闪避 → ④ 命中日志 → ⑤ _mitigate_chain 减伤链
+  ⑥ _retaliations_and_buffs 反击后效 → ⑦ 护盾吸收
+  ⑧ 扣血 + 怪物死亡移除 + _monster_on_taken
+  ⑨ _post_hp_lethal 复活链 + _on_taken_rewards 受击奖励
+  ⑩ 返回实际扣血
+```
 
 ## 9. 风险与兼容
 - 旧 205 怪物技能零改动（新字段缺省不启用）
