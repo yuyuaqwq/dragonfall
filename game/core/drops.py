@@ -452,6 +452,11 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
         "on_taken": mod.get("on_taken"),
         # v177 actor 资源（Boss 改造）：怪物可配 resource_def（内联定义或引用 CORE_RESOURCES key）
         "resource_def": mod.get("resource_def"),
+        # v178 E5/E10：元素免疫/弱点表 + 阶段承伤乘区静态配置透传（引擎 _enemy_mitigate /
+        # _boss_dmg_filter 已支持读 enemy dict 字段——此前不透传导致 MONSTER_MODS 配了不生效）
+        "element_immune": list(mod.get("element_immune") or []),
+        "element_weak": dict(mod.get("element_weak") or {}),
+        "dmg_taken_mult": float(mod.get("dmg_taken_mult", 1.0) or 1.0),
     }
 
 # ============ v27b 多对多站位引擎 —— 怪物队伍构建（§8.1 / §9.3 数据层）============

@@ -5678,7 +5678,9 @@ class Battle:
                 dmg = 1
         # v138.1 阶段四件套：承伤倍率 dmg_taken_mult（>1=更脆，对应「疲态核心件外露」易伤+0.40）——
         # 由 _phase_apply 写入 e._dmg_taken_mult，_enemy_stats 聚合时从 _phase_mod 刷新
-        _dtm = float((self.enemy or {}).get("_dmg_taken_mult", 1.0) or 1.0)
+        # v178 E10：静态字段 dmg_taken_mult（build_monster 透传）作为兜底（动态 _dmg_taken_mult 优先）
+        _dtm = float((self.enemy or {}).get("_dmg_taken_mult",
+                     (self.enemy or {}).get("dmg_taken_mult", 1.0)) or 1.0)
         if _dtm != 1.0:
             dmg = max(1, int(dmg * _dtm))
         # v178 E3c：阶段退出 exit_dmg 累计（仅当阶段配了 exit_dmg 才记——_phase_exit 存在且 dmg 非空）
@@ -6701,11 +6703,29 @@ class Battle:
         if element and E.ELEMENT_MARKS.get(element):
             # v110 审计修复：cap 0.4 → 0.5（对齐防御端 _enemy_turn / PCT_CAPS["elem_res"]=0.5 /
             # 设计 §三「元素抗上限 50%」；此前 PVP 敌方元素抗 40%~50% 段在玩家攻击端被截断）
+            # v178 E5：元素免疫/弱点表（数据驱动，蚀夜三形态/奥拉等 Boss 需要）
+            #   怪物 dict: "element_immune": ["fire","ice"]（免疫元素 → 伤害归 0）
+            #             "element_weak": {"ice": 1.5}（弱点元素 → 伤害 × 倍率）
+            _imm = list((self.enemy or {}).get("element_immune") or [])
+            if element in _imm:
+                logs.append(f"💠 免疫！【{self.enemy.get('name', '敌人')}】免疫{element}伤害！")
+                return 0, 0
             er = min(float(est.get("elem_res", 0) or 0), 0.5)
             if er > 0 and magi > 0:
                 red = max(1, int(magi * er))
                 magi -= red
                 reduced += red
+            _weak = (self.enemy or {}).get("element_weak") or {}
+            if isinstance(_weak, dict) and element in _weak:
+                try:
+                    _wm = float(_weak[element] or 1.0)
+                    if _wm > 1.0:
+                        _add = max(1, int((phys + magi) * (_wm - 1.0)))
+                        magi += _add
+                        reduced -= _add  # 负的 reduced = 增伤（日志合并）
+                        logs.append(f"⚡ 弱点！【{self.enemy.get('name', '敌人')}】弱{element}，受到额外伤害！")
+                except Exception:
+                    pass
         if reduced > 0:
             logs.append(f"🛡️ 敌方防守削减 {reduced} 点伤害！")
         return max(0, phys + magi), magi
