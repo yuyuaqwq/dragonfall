@@ -6029,8 +6029,29 @@ class Battle:
                     skill = random.choice(e["skills"])
             else:
                 skill = random.choice(e["skills"])
-            sinfo = C.MONSTER_SKILLS.get(skill)
+            # v177 actor 资源门槛：抽中技能 res_cost 不足 → 技能不可用，回落普攻（不重抽，保持 random 序列）
+            # 注意：只在技能声明 res_cost 且资源不足时拦截——旧技能无 res_cost → 零行为变化
+            if skill is not None:
+                try:
+                    _sfo_rc = C.MONSTER_SKILLS.get(skill) or {}
+                    _rc_needed = _sfo_rc.get("res_cost")
+                    if _rc_needed and isinstance(_rc_needed, dict):
+                        for _rk_n, _rv_n in _rc_needed.items():
+                            if self._res_read_actor(e, _rk_n) < int(_rv_n or 0):
+                                skill = None  # 资源不足 → 普攻
+                                break
+                except Exception:
+                    pass
+            sinfo = C.MONSTER_SKILLS.get(skill) if skill else None
             if sinfo:
+                # v177 资源消耗：施放带 res_cost 的技能 → 出手扣资源（读条前扣——出手即付出，命中与否都消耗）
+                try:
+                    _rc_pay = sinfo.get("res_cost")
+                    if _rc_pay and isinstance(_rc_pay, dict):
+                        for _rk_p, _rv_p in _rc_pay.items():
+                            self._res_spend(_rk_p, int(_rv_p or 0), actor=e)
+                except Exception:
+                    pass
                 sname = sinfo.get("name", skill)  # 显示中文名
                 kind = sinfo.get("kind")
                 # v116 敌方蓄力接线：抽中带 charge 的技能且敌方未在蓄力 → 进入蓄力
