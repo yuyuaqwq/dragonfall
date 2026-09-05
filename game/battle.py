@@ -9613,7 +9613,7 @@ class Battle:
             _pl = self._drain_pending_dmg()
             if _pl:
                 logs[:] = _pl + logs
-            return
+            return 0
         # v107 召唤物挡刀：概率由召唤物承受（拦截优先于玩家闪避/格挡）
         dmg = self._summon_block_check(actor, dmg, logs)
         if dmg <= 0:
@@ -9621,7 +9621,7 @@ class Battle:
             _pl = self._drain_pending_dmg()
             if _pl:
                 logs[:] = _pl + logs
-            return
+            return 0
         if self._roll_dodge(actor, logs):
             return 0
         # O116 命中：此刻才输出"造成 X 点伤害"日志（此前由 _enemy_turn 延迟暂存）
@@ -9644,7 +9644,7 @@ class Battle:
                 if _pre and not shields:
                     logs.append("💥 护盾破碎！")
                 if dmg <= 0:
-                    return
+                    return 0
             else:
                 # 玩家盾（或怪物无 halve 盾 / 真伤）：全额吸收（真伤盾层全额扣，剩余穿透）
                 _pre = sum(int(s.get("value", 0)) for s in shields.values()) if shields else 0
@@ -9652,7 +9652,7 @@ class Battle:
                 if _pre and not shields:
                     pass  # 玩家盾破不额外报（_absorb_shields 已报吸收量）
                 if dmg <= 0:
-                    return
+                    return 0
         # v142 数据驱动：S1 受击直连已迁至 _set_taken_proc（ferry_repel/tie_pi_bulwark/tie_pi_harden/shou_wang_ward/tie_shou_blood）
         actor["hp"] = max(0, actor.get("hp", 0) - dmg)
         # v177 actor 统一：怪物死亡即时移除单位（玩家死亡走下方复活链）
