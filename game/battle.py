@@ -2052,6 +2052,15 @@ class Battle:
         ustr = unit.get("name") or "目标"
         unit["charging"] = None
         logs.append(f"🔨 【{ustr}】的蓄力被{source}打断了！")
+        # v178 E9：敌方被蓄力打断 → 数据驱动奖励/惩罚窗口（歌澜破音虚脱/赫尔加烛火反噬/
+        # 轰鸣断过载层回3）——玩家侧（side=ally）走下方 MP 返还，不触发 Boss 反噬
+        if not unit.get("side") == "ally":
+            try:
+                _oi = unit.get("on_interrupt") or {}
+                if _oi:
+                    self._on_interrupt_effect(unit, _oi, logs)
+            except Exception:
+                pass
         # 玩家侧返还 50% 已扣 MP（§6.2规则4；敌方不返还）
         if unit.get("side") == "ally":
             # 蓄力花费记录在 charging 上（施放时已扣，打断按 half 返还）
@@ -2060,6 +2069,51 @@ class Battle:
                 unit["mp"] = min(unit.get("max_mp", unit.get("mp", 0)),
                                  unit.get("mp", 0) + (spent + 1) // 2)
                 logs.append(f"✨ 返还了 {(spent + 1) // 2} 点魔力。")
+
+    def _on_interrupt_effect(self, e: dict, cfg: dict, logs: list) -> bool:
+        """v178 E9：敌方蓄力被打断后的数据驱动反噬/虚脱效果。
+        单位 dict 配 "on_interrupt": {"effect": "<id>", "value": N, "turns": N}
+          - "vulnerable": 承伤 ×value（写 _dmg_taken_mult）+ 虚弱 turns 刻（低攻/低防）
+            对应歌澜破音虚脱（承伤×1.4 2刻）/赫尔加烛火反噬（承伤×1.3）
+          - "stacks_set": 层数置 value（轰鸣断过载 → 充能层回 3，配 stacks 键）
+          - "freeze_self": 自我冻结 value 刻（咕噜号令打断后 1 刻不能动）
+          - "atk_down": 攻击降低 value 刻（打断惩罚）
+        返回是否触发。"""
+        try:
+            if not e or not cfg:
+                return False
+            eff = cfg.get("effect")
+            _val = float(cfg.get("value", 0) or 0)
+            _turns = int(cfg.get("turns", 1) or 1)
+            _nm = e.get("name", "Boss")
+            if eff == "vulnerable":
+                _mult = _val if _val > 1.0 else 1.4  # 承伤倍率（>1=更脆）
+                e["_dmg_taken_mult"] = _mult
+                # 虚弱：低攻降防（用 buffs 键——spd_down 减速近似行动变慢）
+                eb = e.setdefault("buffs", {})
+                eb["mon_atk_down"] = max(eb.get("mon_atk_down", 0), _turns)
+                logs.append(f"💢 【{_nm}】被打断后露出破绽，承伤 ×{_mult}！({_turns} 刻)")
+                return True
+            if eff == "stacks_set":
+                _skey = str(cfg.get("key", "charge") or "charge")
+                _sv = max(0, int(_val))
+                e.setdefault("stacks", {})[_skey] = _sv
+                e["mech_stacks_n"] = _sv
+                logs.append(f"⚡ 【{_nm}】能量失控散逸，{_skey} 层降至 {_sv}！")
+                return True
+            if eff == "freeze_self":
+                eb = e.setdefault("buffs", {})
+                eb["freeze"] = max(eb.get("freeze", 0), _turns)
+                logs.append(f"❄️ 【{_nm}】反噬自身，陷入僵直！")
+                return True
+            if eff == "atk_down":
+                eb = e.setdefault("buffs", {})
+                eb["mon_atk_down"] = max(eb.get("mon_atk_down", 0), _turns)
+                logs.append(f"📉 【{_nm}】气息紊乱，攻击降低！({_turns} 刻)")
+                return True
+        except Exception:
+            pass
+        return False
 
     # ---------------- 玩家行动入口 ----------------
     def player_turn(self, action: str, skill_name: str | None, player: dict, enemy_act: bool = True, target=None) -> tuple:
