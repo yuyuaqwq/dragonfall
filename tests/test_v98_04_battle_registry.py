@@ -183,16 +183,18 @@ check("spellblade_meteor 消耗 5 层", p_mech["spellblade"] == 0)
 print("【7. Boss 机制】")
 b = make_battle(enemy={"name": "暗影魔王", "hp": 50, "max_hp": 100, "atk": 20, "matk": 15, "def": 5, "mdef": 5, "spd": 10, "mech": "enrage,shield"})
 logs = []
-b.round = 1
-b._boss_mech(logs)
+b._boss_mech(logs)  # v152：round 删除，r=_tick_no()（新战斗 _now=0 → 1 = 首回合）
 check("enrage（50/100 不狂暴）不触发", not b.enemy.get("enraged"))
-check("shield 首回合触发", b.enemy.get("boss_shield") == 20 and "护盾" in logs[0])
+# v177 护盾 actor 化：shield 写 enemy["shields"]["boss"]={value,halve}（非旧 boss_shield 标量）
+_sh_boss = b.enemy.get("shields", {}).get("boss") or {}
+check("shield 首回合触发", _sh_boss.get("value") == 20 and "护盾" in logs[0])
 b.enemy["hp"] = 20
-b.round = 2
+b._now = 200  # 推进到第 2 轮（ACT_TICK 间隔后），非首回合
 logs = []
 b._boss_mech(logs)
 check("enrage（20/100 < 30%）触发", b.enemy.get("enraged") is True and "狂暴" in logs[0])
-check("shield 非首回合不重复", b.enemy.get("boss_shield") == 20)
+_sh_boss2 = b.enemy.get("shields", {}).get("boss") or {}
+check("shield 非首回合不重复", _sh_boss2.get("value") == 20)
 # 未知 boss mech 安全跳过
 b = make_battle(enemy={"name": "怪", "hp": 100, "max_hp": 100, "atk": 20, "matk": 15, "def": 5, "mdef": 5, "spd": 10, "mech": "not_a_mech"})
 logs = []

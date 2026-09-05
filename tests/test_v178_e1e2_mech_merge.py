@@ -38,11 +38,13 @@ def merge_mech(mods_mech, inst_mech):
     return mods_mech
 
 mods_m = MONSTER_MODS.get("b_moro", {}).get("mech", "")
-check("b_moro mods mech = enrage,phase_open", mods_m == "enrage,phase_open", mods_m)
+# v178 E1 后 b_moro 机制全量：enrage,phase_open,summon,stacks,phase,heal（旧断言只 enrage,phase_open 过时）
+EXPECT_MORO = "enrage,phase_open,summon,stacks,phase,heal"
+check("b_moro mods mech = 全量", mods_m == EXPECT_MORO, mods_m)
 merged = merge_mech(mods_m, "stacks,summon")
-check("合并去重 = enrage,phase_open,stacks,summon", merged == "enrage,phase_open,stacks,summon", merged)
+check("合并去重（重复 token 合并）", merged == EXPECT_MORO, merged)
 merged2 = merge_mech(mods_m, "enrage")
-check("重复 token 去重 = enrage,phase_open", merged2 == "enrage,phase_open", merged2)
+check("重复 token 去重（inst 含已有）", merged2 == EXPECT_MORO, merged2)
 check("mods 空 inst 有 → 取 inst", merge_mech("", "phase") == "phase")
 check("inst 空 mods 有 → 取 mods", merge_mech("heal", "") == "heal")
 
@@ -74,8 +76,12 @@ eter["mech"] = merge_mech(eter.get("mech"), "phase,phase,phase")
 b3 = BT.Battle("instance", eter, st={"inst_id": "inst_abyss_gate"})
 cfg3 = b3._boss_cfg(eter)
 inst_phases = INSTANCES["inst_abyss_gate"].get("phases") or []
-check("abyss_gate inst phases 现在能被 _boss_cfg 读到", len(cfg3.get("phases") or []) == len(inst_phases) and len(inst_phases) >= 1,
-      f"cfg={len(cfg3.get('phases') or [])} inst={len(inst_phases)}")
+# _boss_cfg：_inst_id 命中 inst phases + MONSTER_MODS[b_xxx] phases 覆盖（mods 优先）。
+# b_eter（蚀夜真相形态）mods 配了全量阶段 → cfg 数 = b_eter mods phases 数（≥ inst，含真相形态扩展）。
+_beter_cfg_phases = len((MONSTER_MODS.get("b_eter") or {}).get("phases") or [])
+check("abyss_gate 经 _boss_cfg 能读到 phases（mods 覆盖 inst）",
+      len(cfg3.get("phases") or []) >= 1 and len(cfg3.get("phases") or []) >= len(inst_phases),
+      f"cfg={len(cfg3.get('phases') or [])} inst={len(inst_phases)} mods_b_eter={_beter_cfg_phases}")
 
 print(f"\n结果: {PASS} 通过 / {FAIL} 失败")
 sys.exit(1 if FAIL else 0)
