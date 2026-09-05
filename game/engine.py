@@ -825,8 +825,13 @@ SKILL_MAX_LEVEL = 5          # 技能等级上限
 
 
 def _skill_up(info: dict | None) -> dict:
-    """按技能 info 查升级配置(key 用中文名)"""
+    """按技能 info 查升级配置(key 用中文名)。
+    v180 隔离：仅玩家可升级技能（带 lv 学习等级字段）参与 SKILL_UP 查表——
+    怪技能（MONSTER_SKILLS，无 lv）即使 name 与玩家技能撞名（圣光弹/雷击/龙爪等 14 个）
+    也不会误配玩家成长曲线（v180 P4 删默认成长后，撞名怪技能曾吃到玩家同名配置 p=10~12）"""
     if not info:
+        return {}
+    if info.get("lv") is None:
         return {}
     return C.SKILL_UP.get(info.get("name", "")) or {}
 
