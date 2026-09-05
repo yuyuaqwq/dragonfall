@@ -47,7 +47,8 @@ deb_p = player.get("debuffs") or {}
 check("通用 _apply_dot 给玩家挂毒", deb_p.get("poison", {}).get("n") == 2, str(deb_p))
 check("强度快照=怪的 atk", deb_p.get("poison", {}).get("atk") == 300, str(deb_p.get("poison")))
 check("日志说'你'", any("你中了" in l for l in logs), str(logs))
-check("挂毒排了 dot_tick 事件", any(e.get("type") == "dot_tick" for _, _, e in b._events), str(b._events))
+check("挂毒挂了 actor_dot 通用卡", any(e.get("kind") == "actor_dot" for e in b.tick_effects),
+      str([(e.get("kind"), e.get("uid")) for e in b.tick_effects]))
 
 # 2. 同一个 _apply_dot 给怪挂（玩家毒技打怪——source=玩家）
 player2 = mk_player()
@@ -102,8 +103,8 @@ b6._apply_dot(player6, mon6, {"type": "burn", "n": 2}, logs6)
 b6._apply_dot(player6, mon6, {"type": "burn", "n": 1}, logs6)
 check("同型 dot 层数累加 n=3", (player6.get("debuffs") or {}).get("burn", {}).get("n") == 3,
       str(player6.get("debuffs")))
-n_ev6 = sum(1 for _, _, e in b6._events if e.get("type") == "dot_tick")
-check("层数叠加不重复排事件(仍 1 个)", n_ev6 == 1, f"{n_ev6} 个 dot_tick")
+n_ev6 = sum(1 for e in b6.tick_effects if e.get("kind") == "actor_dot")
+check("层数叠加不重复挂卡(仍 1 张)", n_ev6 == 1, f"{n_ev6} 张 actor_dot 卡")
 
 # 7. 非法类型拒绝
 logs7 = []
@@ -120,14 +121,14 @@ b8._apply_dot(player8, mon8, {"type": "poison", "n": 3}, logs8)
 hp_before8 = player8["hp"]
 # 推进 3 刻（每次 1 刻，触发 3 次 dot_tick：3 层毒 → 3 次结算 3 次重排，最后 0 层停止）
 for _ in range(4):
-    _evs = [e for _, _, e in b8._events if e.get("type") == "dot_tick"]
+    _evs = [e for e in b8.tick_effects if e.get("kind") == "actor_dot"]
     if not _evs:
         break
-    b8._process_until(b8._now + 1.1, logs8, player8)
+    b8._advance_time(1.1)  # v179 P2：卡由通用调度处理（_advance_time 内触发）
 check("事件驱动毒自动发作扣血", player8["hp"] < hp_before8, f"{hp_before8}→{player8['hp']}")
 check("事件驱动后 dot 消散", not (player8.get("debuffs") or {}), str(player8.get("debuffs")))
-n_ev8 = sum(1 for _, _, e in b8._events if e.get("type") == "dot_tick")
-check("dot 清空后不再重排", n_ev8 == 0, f"{n_ev8} 个 dot_tick")
+n_ev8 = sum(1 for e in b8.tick_effects if e.get("kind") == "actor_dot")
+check("dot 清空后卡自动移除", n_ev8 == 0, f"{n_ev8} 张 actor_dot 卡")
 
 # 9. 事件驱动：玩家毒怪 → 结算扣怪血（同一事件机制，actor 无关）
 player9 = mk_player()
@@ -140,10 +141,10 @@ player9["atk"] = 200
 b9._apply_dot(mon9, player9, {"type": "poison", "n": 2}, logs9)
 hp_before9 = mon9["hp"]
 for _ in range(3):
-    _evs = [e for _, _, e in b9._events if e.get("type") == "dot_tick"]
+    _evs = [e for e in b9.tick_effects if e.get("kind") == "actor_dot"]
     if not _evs:
         break
-    b9._process_until(b9._now + 1.1, logs9, player9)
+    b9._advance_time(1.1)  # v179 P2：卡由通用调度处理
 check("事件驱动怪毒发作扣血", mon9["hp"] < hp_before9, f"{hp_before9}→{mon9['hp']}")
 
 # 10. 净化：清掉 dot 后 dot_tick 不再重排（净化 = 对任意 actor debuffs 操作）
@@ -164,12 +165,12 @@ check("净化 all 清空玩家 dot", not (player10.get("debuffs") or {}), str(pl
 check("净化日志", any("净化" in l for l in logs10), str(logs10))
 # 清空后事件不重排（手动推一格，若事件触发但无 debuffs → 不再排）
 for _ in range(2):
-    _evs = [e for _, _, e in b10._events if e.get("type") == "dot_tick"]
+    _evs = [e for e in b10.tick_effects if e.get("kind") == "actor_dot"]
     if not _evs:
         break
-    b10._process_until(b10._now + 1.1, logs10, player10)
-n_ev10 = sum(1 for _, _, e in b10._events if e.get("type") == "dot_tick")
-check("净化后 dot_tick 不再排", n_ev10 == 0, f"{n_ev10} 个 dot_tick")
+    b10._advance_time(1.1)  # v179 P2：卡由通用调度处理（净化后无 debuffs → keep=False 移除）
+n_ev10 = sum(1 for e in b10.tick_effects if e.get("kind") == "actor_dot")
+check("净化后 dot_tick 不再排", n_ev10 == 0, f"{n_ev10} 张 actor_dot 卡")
 
 # 11. 完整链路：MONSTER_SKILLS 配 pdot 的技能经 _enemy_cast_done 命中给玩家挂毒
 from game.data.monsters import MONSTER_SKILLS

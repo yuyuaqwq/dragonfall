@@ -47,9 +47,10 @@ b._apply_dot(player, mon, {"type": "burn", "n": 1}, [])
 b._apply_dot(mon, player, {"type": "bleed", "n": 1}, [])
 check("玩家挂 2 毒", len((player.get("debuffs") or {})) == 2, str(player.get("debuffs")))
 check("怪挂 1 毒", len((mon.get("debuffs") or {})) == 1, str(mon.get("debuffs")))
-n_ev_p = sum(1 for _, _, e in b._events if e.get("type") == "dot_tick" and e.get("side") == "p")
-n_ev_e = sum(1 for _, _, e in b._events if e.get("type") == "dot_tick" and e.get("side") == "e")
-check("双方各排 1 个自己的 dot_tick(per-actor)", n_ev_p == 1 and n_ev_e == 1, f"p={n_ev_p} e={n_ev_e}")
+# v179 P2：dot 由通用 actor_dot 卡驱动（uid 按 actor 区分 p/e）
+n_ev_p = sum(1 for e in b.tick_effects if e.get("kind") == "actor_dot" and e.get("uid", "").startswith("dot_p"))
+n_ev_e = sum(1 for e in b.tick_effects if e.get("kind") == "actor_dot" and e.get("uid", "").startswith("dot_e"))
+check("双方各挂 1 张自己的 actor_dot 卡(per-actor)", n_ev_p == 1 and n_ev_e == 1, f"p={n_ev_p} e={n_ev_e}")
 
 # 2. 结算：同一结算器对玩家/怪都工作
 # 先给玩家结算（burn 发作扣血）
@@ -82,12 +83,12 @@ b4.player = player4
 player4["atk"] = 200
 b4._apply_dot(player4, mon4, {"type": "poison", "n": 2}, [])   # 怪毒玩家
 b4._apply_dot(mon4, player4, {"type": "burn", "n": 2}, [])     # 玩家毒怪
-# 推进到两个事件都触发
+# 推进到两个事件都触发（v179 P2：卡由 _advance_time/_process_until 通用调度处理）
 for _ in range(6):
-    _evs = [e for _, _, e in b4._events if e.get("type") == "dot_tick"]
+    _evs = [e for e in b4.tick_effects if e.get("kind") == "actor_dot"]
     if not _evs:
         break
-    b4._process_until(b4._now + 1.1, [], player4)
+    b4._advance_time(1.1)  # 纯时间推进 → _process_tick_effects 处理到期卡
 # 至少发生了一次双方结算（hp 都降了）
 check("事件推进后玩家被毒扣血", player4["hp"] < 9999, f"玩家hp={player4['hp']}")
 check("事件推进后怪被毒扣血", mon4["hp"] < 8000, f"怪hp={mon4['hp']}")

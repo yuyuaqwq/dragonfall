@@ -548,6 +548,44 @@ for _th_kind, _th_fn in (("set_holy", _th_set_holy),
     _TICK_HANDLERS[_th_kind] = _th_fn
 
 
+def _th_actor_dot(battle, actor, eff, logs):
+    """v179 P2 DOT 通用 tick：结算一个 actor 身上的全部 debuffs（actor-agnostic）。
+
+    条件：actor.debuffs 非空才结算；结算完无 debuffs → keep=False（卡自然移除）。
+    与旧 dot_tick 事件等价：_tick_actor_dots 统一结算器（玩家/怪同一套）。
+    """
+    try:
+        if not actor:
+            return [], False
+        _deb = actor.get("debuffs") or {}
+        # 过滤出还在 DOT_DEFS 里的有效 dot 类型（debuffs 可能含非 dot 键）
+        _has_dot = any(_k in DOT_DEFS for _k in _deb)
+        if not _has_dot:
+            return [], False  # 无有效 dot → 通道关闭（毒消失/被净化）
+        out = []
+        try:
+            _ml = battle._tick_actor_dots(actor, logs, force=True)
+            if _ml:
+                out += _ml
+        except Exception as _dex:
+            out.append(f"(dot 结算异常: {_dex})")
+        # 玩家被毒死 → defeat 置位（旧 dot_tick 事件分支语义）
+        try:
+            if battle._player_dead(battle._last_player or battle.player):
+                battle.result = "defeat"
+        except Exception:
+            pass
+        # 结算后仍有效 dot → keep=True 续排；无 → False 停
+        _deb2 = actor.get("debuffs") or {}
+        _still = any(_k in DOT_DEFS for _k in _deb2)
+        return out, _still
+    except Exception:
+        return [], False
+
+
+_TICK_HANDLERS["actor_dot"] = _th_actor_dot
+
+
 class Battle:
     def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None, allies: list | None = None, st: dict | None = None, active_keys: list | None = None):
         self.btype = btype                 # monster | worldboss | pvp | instance（瞬态 Battle 结算器）
@@ -3008,24 +3046,22 @@ class Battle:
                         except Exception:
                             pass
                 elif evt == "dot_tick":
-                    # v178.1 事件驱动 DOT：挂 dot（_apply_dot）时排本事件，到点结算该 actor
-                    # 身上的全部 debuffs——玩家/怪同一结算器 _tick_actor_dots（actor 无关）。
-                    # 结算后若仍有 debuffs → 重排下次（周期 ACT_TICK，dot 按真实时间 1 刻跳一次）；
-                    # 已无 dot → 不再重排（自然停止）。玩家被毒死 → defeat 置位 break。
+                    # v178.1 事件驱动 DOT（v179 P2 退役：dot 已由通用 actor_dot 卡处理）。
+                    # 本分支仅兜底老事件/老档：触发时确保该 actor 有 actor_dot 卡（幂等），
+                    # 不再直接结算（防与通用调度双份），事件不重排 → 自然消亡。
                     _dt_actor = ev.get("unit") if ev.get("side") == "e" else player
                     if _dt_actor is not None and not self.result:
-                        _dt_had = bool((_dt_actor.get("debuffs") or {}))
-                        if _dt_had:
-                            logs += self._tick_actor_dots(_dt_actor, logs, force=True)
-                            if self._player_dead(player):
-                                self.result = "defeat"
-                                break
-                            # 结算后仍有 debuffs → 重排（周期 ACT_TICK=1 刻一跳）
-                            if (_dt_actor.get("debuffs") or {}):
-                                self._schedule(self._now + ACT_TICK,
-                                               {"type": "dot_tick",
-                                                "side": "p" if _dt_actor.get("class_name") else "e",
-                                                "unit": None if _dt_actor.get("class_name") else _dt_actor})
+                        try:
+                            _deb = _dt_actor.get("debuffs") or {}
+                            if any(_k in DOT_DEFS for _k in _deb):
+                                _is_pl = bool(_dt_actor.get("class_name"))
+                                _uid = f"dot_{'p' if _is_pl else 'e'}_{id(_dt_actor)}"
+                                _has = any(e.get("uid") == _uid for e in self.tick_effects)
+                                if not _has:
+                                    self.add_tick_effect("actor_dot", _dt_actor, ACT_TICK,
+                                                         uid=_uid, source="dot")
+                        except Exception:
+                            pass
                 elif evt == "cast_done":
                     # v154 读条命中制：出招读条结束 = 命中时刻 → 结算（用命中时刻实时状态）
                     side = ev.get("side", "p")
@@ -7587,23 +7623,16 @@ class Battle:
             _kname = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}.get(_type, _type)
             _who = ("你" if _is_pl else f"【{target.get('name', '目标')}】")
             logs.append(f"{_icon_map.get(_type, '💥')} {_who}中了【{_kname}】（{_n} 层）！")
-            # v178.1 事件驱动：目标首次带 dot → 排一个**该 actor 自己的** dot_tick 事件
-            # （照 pet_tick 先例）。玩家/怪各有各的 dot_tick——玩家和怪同时中毒时两个事件
-            # 各自结算，互不干扰（actor 无关）。已有该 actor 的 dot_tick（层数叠加）不重复排。
-            # 玩家 actor 用 side=p 标记（触发时取当前焦点玩家）；怪用 unit 引用。
+            # v178.1 事件驱动（v179 P2 升级通用 tick 卡）：目标首次带 dot → 给该 actor 挂
+            # 一张 actor_dot 卡（uid = dot_<side>_<actor标识>，照 pet_tick 先例，幂等）。
+            # 玩家/怪各有各的卡——同时中毒两张卡各自结算互不干扰（actor 无关）。
+            # 结算后无 debuffs → handler keep=False → 卡自动移除（毒消失即停）。
             try:
-                if _is_pl:
-                    _mine = any(_e.get("type") == "dot_tick" and _e.get("side") == "p"
-                                for _, _, _e in self._events)
-                    if not _mine:
-                        self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "p"})
-                else:
-                    _mine = any(_e.get("type") == "dot_tick" and _e.get("side") == "e"
-                                and _e.get("unit") is target
-                                for _, _, _e in self._events)
-                    if not _mine:
-                        self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "e",
-                                                               "unit": target})
+                _uid = f"dot_{'p' if _is_pl else 'e'}_{id(target)}"
+                _has = any(e.get("uid") == _uid for e in self.tick_effects)
+                if not _has:
+                    self.add_tick_effect("actor_dot", target, ACT_TICK, uid=_uid,
+                                         source="dot")
             except Exception:
                 pass
         except Exception:
@@ -8169,9 +8198,9 @@ class Battle:
                 self._last_player = player
             except Exception:
                 pass
-        # v178.1 事件驱动保险丝：玩家行动开头扫描带 debuffs 的 actor（玩家/当前主敌），
-        # 若已挂 dot 但没有对应 dot_tick 事件（直接写 debuffs 的旧路径/老档/新挂载漏排）→ 补排。
-        # 幂等：已有该 actor 的 dot_tick 事件则跳过，不重复排。
+        # v178.1 事件驱动保险丝（v179 P2 升级通用卡）：玩家行动开头扫描带 debuffs 的
+        # actor（玩家/当前主敌），若已挂 dot 但没有对应 actor_dot 卡（直接写 debuffs 的
+        # 旧路径/老档/新挂载漏排）→ 补挂卡。幂等：已有该 actor 的卡则跳过。
         try:
             for _dt_cand in (player, self.enemy or {}):
                 if not _dt_cand or not (_dt_cand.get("debuffs") or {}):
@@ -8180,15 +8209,11 @@ class Battle:
                 if not _dt_dots:
                     continue
                 _is_pl = bool(_dt_cand.get("class_name"))
-                _has_ev = any(_e.get("type") == "dot_tick"
-                              and (_e.get("side") == "p" if _is_pl else _e.get("side") == "e" and _e.get("unit") is _dt_cand)
-                              for _, _, _e in self._events)
+                _uid = f"dot_{'p' if _is_pl else 'e'}_{id(_dt_cand)}"
+                _has_ev = any(e.get("uid") == _uid for e in self.tick_effects)
                 if not _has_ev:
-                    if _is_pl:
-                        self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "p"})
-                    else:
-                        self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "e",
-                                                               "unit": _dt_cand})
+                    self.add_tick_effect("actor_dot", _dt_cand, ACT_TICK, uid=_uid,
+                                         source="dot")
         except Exception:
             pass
         # v178.2 regen 保险丝（v179 升级为通用 tick 卡）：玩家行动开头扫描 A 类每刻效果源，
