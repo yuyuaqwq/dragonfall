@@ -7479,7 +7479,7 @@ class Battle:
                 "matk": int((_st or {}).get("matk", 0) or 0),
                 "hit_at": self._now,
             }
-            _is_pl = bool(target.get("class_name"))
+            _is_pl = self._is_focus_player(target)
             _icon_map = {"poison": "☠️", "burn": "🔥", "bleed": "🩸", "corros": "🧪"}
             _kname = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}.get(_type, _type)
             _who = ("你" if _is_pl else f"【{target.get('name', '目标')}】")
@@ -7521,13 +7521,13 @@ class Battle:
         """
         e = actor if actor is not None else (self.enemy or {})
         # v178.1 actor 无关：目标玩家 = actor 有 class_name（无则怪路径）
-        _tgt_is_player = bool(e.get("class_name"))
+        _tgt_is_player = self._is_focus_player(e)
         # caster 解析：传入优先；玩家毒怪回落当前行动玩家（_last_player 优先，再 self.player）
         # ——dot_tick 事件触发时可能无传入 caster，用最近行动玩家提供强度面板。
         if caster is None and not _tgt_is_player:
             _act_pl = getattr(self, "_last_player", None) or self.player
             caster = _act_pl if not self.btype == "pvp" else None
-        _caster_is_player = bool((caster or {}).get("class_name")) if caster is not None else False
+        _caster_is_player = self._is_focus_player(caster) if caster is not None else False
         _tgt_name = "你" if _tgt_is_player else f"【{e.get('name', '目标')}】"
         deb = e.get("debuffs") or {}
         # v138.2 律二（控制侧）：e_buffs 里的控制效果达上限后直接失效（防 Boss 被无限控死）。
@@ -8069,7 +8069,7 @@ class Battle:
                 _dt_dots = {_k for _k in _dt_cand["debuffs"] if _k in DOT_DEFS}
                 if not _dt_dots:
                     continue
-                _is_pl = bool(_dt_cand.get("class_name"))
+                _is_pl = self._is_focus_player(_dt_cand)
                 _uid = f"dot_{'p' if _is_pl else 'e'}_{id(_dt_cand)}"
                 _has_ev = any(e.get("uid") == _uid for e in self.tick_effects)
                 if not _has_ev:
