@@ -7743,8 +7743,11 @@ class Battle:
         return lines
 
     def _roll_dodge(self, actor: dict, logs: list) -> bool:
-        """v177 闪避判定（actor 通用）：dodge 乘算合成(上限40%) → roll。闪避成功返回 True（调用方中断本次承伤）。
-        闪避成功副作用：丢弃延迟伤害日志 + on_dodge_success 攒资源（玩家 actor 数据源；怪物无 → 空转）。"""
+        """v177 闪避判定（玩家 actor 承伤）：dodge 乘算合成(上限40%) → roll。闪避成功返回 True（调用方中断本次承伤）。
+        闪避成功副作用：丢弃延迟伤害日志 + on_dodge_success 攒资源。
+        怪物 actor 不走此函数——怪物被打的闪避由 _monster_dodge_check 前置处理（避免双重 roll）。"""
+        if not actor or not actor.get("class_name"):
+            return False
         B = self.p_buffs
         EFF = self.p_eff
         RES = self.resources
