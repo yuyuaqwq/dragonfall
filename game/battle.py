@@ -7742,6 +7742,190 @@ class Battle:
         self._pending_dmg_lines = []
         return lines
 
+    def _roll_dodge(self, actor: dict, logs: list) -> bool:
+        """v177 闪避判定（actor 通用）：dodge 乘算合成(上限40%) → roll。闪避成功返回 True（调用方中断本次承伤）。
+        闪避成功副作用：丢弃延迟伤害日志 + on_dodge_success 攒资源（玩家 actor 数据源；怪物无 → 空转）。"""
+        B = self.p_buffs
+        EFF = self.p_eff
+        RES = self.resources
+        # v105 闪避体系（鱼鱼拍板"闪避改乘算"）：全部来源乘算合成 1-Π(1-dᵢ)，统一 40% 总上限
+        # 攻击方精准削减：有效闪避 = 闪避 × (1 - 攻击方精准)，精准上限 60%（PVP 互殴生效，PVE 怪物无精准）
+        dodge = min(float(self._actor_stats_of(actor).get("dodge", 0) or 0), 0.40)
+        # 伪装帷幕（effect=dodge_up 闪避率 +40%）：乘算并入
+        if B.get("dodge_up"):
+            dodge = 1 - (1 - dodge) * (1 - 0.40)
+        # 无声被动——闪避率＋30%：乘算并入
+        for _pn, _ps in self._passive_map(actor)["proc"].get("dodge_up", []):
+            dodge = 1 - (1 - dodge) * (1 - float(_ps.get("mult", 0.3)))
+        # 影步药剂 15%：并入乘算（不再独立判定——旧实现独立判定绕过 40% 上限，基础 40%+药水可达 49.7%）
+        if B.get("dodge_pot"):
+            dodge = 1 - (1 - dodge) * (1 - 0.15)
+        # v140 波4：新手特效 远行（novice_first_turn_dodge）——每场战斗首刻闪避率 +5%
+        if (EFF or {}).get("novice_dodge_active") and self._tick_no() <= 1:
+            dodge = 1 - (1 - dodge) * (1 - 0.05)
+        # 攻击方精准削减（PVP：对方玩家精准；PVE：怪物无精准=0 不削减）
+        atk_hit = self._attacker_precise()
+        if atk_hit > 0:
+            dodge = dodge * (1 - min(atk_hit, 0.60))
+        dodge = min(dodge, 0.40)
+        if dodge > 0 and random.random() < dodge:
+            # O116 闪避成功：丢弃延迟的伤害日志，只报闪避（命中/闪避二选一）
+            self._pending_dmg_lines = []
+            logs.append("💨 你闪避了攻击！")
+            # v130.2 暮影影步：闪避成功 on_dodge_success 攒步（core_resources on_dodge_success>0）
+            _rd = E.core_resource_def(actor.get("class_name", ""))
+            if _rd and _rd.get("on_dodge_success"):
+                _rk = _rd["key"]
+                RES[_rk] = self._res_gain_class(actor.get("class_name", ""), _rk, int(_rd["on_dodge_success"]))
+                logs.append(f"🫧 影步积攒 +{_rd['on_dodge_success']}({RES.get(_rk, 0)}/{_rd['max']})")
+            return True
+
+        return False
+    def _post_hp_lethal(self, actor: dict, dmg: int, logs: list) -> None:
+        """v177 扣血后处理（玩家 actor：特效装备阈值/复活链——不死鸟/死亡契约/血怒·不灭/铁誓·不动）。
+        怪物 actor 无这些数据源 → 空转（死亡已在 _damage_actor 前置移除）。副作用全在 self + actor + logs。"""
+        if not actor or not actor.get("class_name"):
+            return
+        B = self.p_buffs
+        EFF = self.p_eff
+        RES = self.resources
+        MS = self.mech_stacks
+        # v140 波3.1：特效装备生命阈值（时光凝滞/磐石守护/苍穹庇护/石像鬼之心/不灭意志）
+        # + 不灭意志免疫致死（本刻免疫致死伤害，扣血后回拉）
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _we_proc(self, actor, "threshold", {"dmg": dmg}, logs)
+            if battle_p_eff_undying := getattr(self, "p_eff", {}).get("we_undying_immune"):
+                if actor.get("hp", 0) <= 0:
+                    actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * 0.10))
+                    logs.append("✨ 不灭意志：你撑住了致命一击！")
+                EFF.pop("we_undying_immune", None)
+            # 死亡之舞：受击伤害 35% 转为缓伤池（刻开始结算 10%）
+            if getattr(self, "p_eff", {}).get("we_death_pool") is not None:
+                EFF["we_death_pool"] = float(EFF.get("we_death_pool", 0) or 0) + dmg * 0.35
+        except Exception:
+            pass
+        # v140 波3.2：不死鸟之羽复活——致死时以 revive_hp% 生命复活 1 次（+ 减伤 buff）
+        if actor["hp"] <= 0 and (EFF or {}).get("phoenix_revive") and not (EFF or {}).get("phoenix_consumed"):
+            _pr = EFF.get("phoenix_revive") or {}
+            EFF["phoenix_consumed"] = True
+            actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * float(_pr.get("hp", 0.30) or 0.30)))
+            _prt = max(1, int(_pr.get("turns", 3) or 3))
+            B["reduce_all"] = max(float(B.get("reduce_all", 0) or 0),
+                                             float(_pr.get("dmg_reduce", 0.20) or 0.20))
+            self._reduce_all_left = max(int(getattr(self, "_reduce_all_left", 0) or 0), _prt)
+            logs.append(f"🪶 不死鸟之羽燃尽！你以 {actor['hp']} HP 复活，获得减伤！")
+        # v107 死亡契约（暗影祭司）：致死时牺牲一个召唤物以 20% HP 存活（每场 1 次）
+        if actor["hp"] <= 0 and self.summons and not self._death_pact_used:
+            for _pn, _ps in self._passive_map(actor)["proc"].get("death_pact", []):
+                self._death_pact_used = True
+                fallen = self.summons.pop()
+                actor["hp"] = max(1, int(actor.get("max_hp", actor["hp"]) * 0.20))
+                logs.append(f"💀 死亡契约！{fallen.get('name', '亡灵')} 替你承受了致命一击，你以 {actor['hp']} HP 站起！")
+                break
+        # v169.7 死亡契约（牧师死灵线数据化：proc death_contract 信念≥5 + 骷髅在场）——
+        # 与上方 v107 暗影祭司旧死亡契约（proc death_pact 无条件）并存；两条链都消费致死钩子
+        if actor["hp"] <= 0 and not self._death_pact_used:
+            try:
+                _faith_v = float(RES.get("faith", 0) or 0)
+                _skels = [s for s in self.summons if s.get("tid") == "skeleton" and s.get("hp", 0) > 0]
+                for _pn, _ps in self._passive_map(actor)["proc"].get("death_contract", []):
+                    if _faith_v < float(_ps.get("faith_req", 5) or 5):
+                        continue
+                    if not _skels:
+                        logs.append("💀 死亡契约：信念已足但没有骷髅代受致命一击！")
+                        continue
+                    self._death_pact_used = True
+                    fallen = _skels.pop()
+                    self.summons.remove(fallen)
+                    actor["hp"] = max(1, int(actor.get("max_hp", actor["hp"]) * float(_ps.get("hp_pct", 0.20) or 0.20)))
+                    logs.append(f"💀 死亡契约：信念 {_faith_v:.0f} 引动契约，{fallen.get('name', '骷髅')} 代受致命伤，你以 {actor['hp']} HP 站起！")
+                    break
+            except Exception:
+                pass
+        # v169.7 血怒·不灭（战士攻线·狂暴）：狂暴中首次致死 → 清空战意复活 30% 生命（每场 1 次）
+        if actor["hp"] <= 0 and not getattr(self, "_berserk_revive_used", False):
+            try:
+                from .core.battle_modes import dual_form_active as _dfa169
+                if _dfa169(actor):
+                    for _pn, _ps in self._passive_map(actor)["proc"].get("berserk_revive", []):
+                        self._berserk_revive_used = True
+                        # 清空战意（血怒·不灭承诺「清空战意复活」）
+                        MS["zhan_yi"] = 0
+                        actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("hp_pct", 0.30) or 0.30)))
+                        logs.append(f"🔥 血怒·不灭！狂暴意志撑住了致命一击，你以 {actor['hp']} HP 站起（战意已清空）！")
+                        break
+            except Exception:
+                pass
+        # v169.7 铁誓·不动（战士守线·守护姿态）：守护姿态下首次致命伤害免疫，随后清空全部战意
+        if actor["hp"] <= 0 and not getattr(self, "_stance_immortal_used", False) \
+                and B.get("stance_guard"):
+            try:
+                for _pn, _ps in self._passive_map(actor)["proc"].get("stance_immortal", []):
+                    self._stance_immortal_used = True
+                    B.pop("stance_guard", None)
+                    MS["zhan_yi"] = 0
+                    actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("hp_pct", 1.0) or 1.0)))
+                    logs.append(f"🛡️ 铁誓·不动！守护姿态替你挡下致命一击（战意已清空）！")
+                    break
+            except Exception:
+                pass
+
+    def _on_taken_rewards(self, actor: dict, logs: list) -> None:
+        """v177 受击后奖励结算（玩家 actor：受击资源/词条/连击惩罚/回血；怪物 actor 无 class → 空转）。
+        由 _damage_actor 扣血后调用（存活才触发）。副作用全在 self + logs。"""
+        if not actor or not actor.get("class_name"):
+            return
+        B = self.p_buffs
+        EFF = self.p_eff
+        RES = self.resources
+        MS = self.mech_stacks
+        # v2.0 核心资源：受击获取（战士怒气/牧师信仰/拳师气）
+        cls = actor.get("class_name", "")
+        rd = E.core_resource_def(cls)
+        # v151 隐藏职业删除：星语猎印 on_hit 双语义解耦白名单已移除（受击按 on_hit 正常读）
+        if rd and rd.get("on_hit"):
+            k = rd["key"]
+            gain = int(rd["on_hit"])
+            # v130.2 战士血债怒火（攻线·狂战士 T1）：受击回怒 = 1 + ⌊缺失HP%×4⌋，封顶 5
+            #   （warrior_转职 下放签名：卖血换怒——满血+1、缺25%血+2、缺一半+3、濒死+5）
+            if k == "rage" and self._is_path(actor, 1):  # v176: 资源键判（原 cls_zhan_shi 特判）
+                _max = max(1, actor.get("max_hp", 1) or 1)
+                _missing = max(0.0, min(1.0, 1.0 - (float(actor.get("hp", 0) or 0) / _max)))
+                gain = int(RAGE_GAIN_HP_SCALE.get("base", 1) or 1)
+                gain += int(_missing * float(RAGE_GAIN_HP_SCALE.get("coef", 4.0) or 4.0))
+                gain = min(int(RAGE_GAIN_HP_SCALE.get("cap", 5) or 5), gain)
+            RES[k] = self._res_gain_class(cls, k, gain)
+        # v130.2 资源增幅：受击触发（沸腾战血 3 刻内受击额外 +2 怒，P0-1 消费端；持续时长制 turns 衰减）
+        _amp_th = self._amp_resource(actor, "on_hit_taken")
+        if _amp_th:
+            logs.append(f"⚡ 沸腾战血：受击额外资源 +{_amp_th}！")
+        # v130.2c 资源词条：受击（浴血 怒气/虔诚护符 信仰/磐息 气 +1；残血灼薪 血量条件判定）
+        self._affix_res_proc(actor, "on_taken", logs)
+        # v151 隐藏职业删除：暮影影步受击清空（原 cls_shadow_blade 专属）已移除
+        # v130.2 刺客攻线·影舞者：受击回退 -1 连击点 + 连段归零（高风险高回报，assassin_转职 §1.0）
+        if self._combo_active(actor):  # v176: combo归属已数据化COMBO_CFG
+            _pen = int(ASSASSIN_ON_TAKE_HIT_PENALTY or 0)
+            cur_cp = int(RES.get("cp", 0) or 0)
+            if cur_cp > 0 and _pen < 0:
+                penalty = min(cur_cp, -_pen)
+                RES["cp"] = cur_cp - penalty
+                logs.append(f"🗡️ 受击！连击点 -{penalty}({RES['cp']}/{rd['max'] if rd else 5})")
+            self._combo_break(actor, self._combo_keep_chance(actor))
+        # v140 S1 直连消费：拳心回流（tie_shou_blood）——受击 30% 概率回复 3% 最大生命
+        if self._set_eff(actor, "tie_shou_blood", 4) and actor.get("hp", 0) > 0:
+            if random.random() < 0.30:
+                _ts_heal = int(actor.get("max_hp", actor.get("hp", 1)) * 0.03)
+                actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + _ts_heal)
+                logs.append(f"🩸 拳心回流：气血奔涌，回复 {_ts_heal} 点生命！")
+        # v110.3 P2-9：被动·神圣坚韧——受击后按 chance 概率回复 pct 生命（数据驱动 dmg_taken_heal，替代名字硬匹配）
+        if actor["hp"] > 0:
+            for _pn, _ps in self._passive_map(actor)["proc"].get("dmg_taken_heal", []):
+                if random.random() < float(_ps.get("chance", 0.2)):
+                    heal = int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("pct", 0.05)))
+                    actor["hp"] = min(actor.get("max_hp", actor["hp"]), actor["hp"] + heal)
+                    logs.append(f"✨ {_pn}：回复 {heal} 点生命！")
+
     def _actor_stats_of(self, actor: dict) -> dict:
         """v177 actor 面板聚合：玩家 → 职业/装备/被动全量公式；怪物 → 怪物 stats+buffs。
         （数据路由：面板来源不同是数据事实，结算逻辑不分身份）"""
@@ -7821,37 +8005,8 @@ class Battle:
             if _pl:
                 logs[:] = _pl + logs
             return
-        # v105 闪避体系（鱼鱼拍板"闪避改乘算"）：全部来源乘算合成 1-Π(1-dᵢ)，统一 40% 总上限
-        # 攻击方精准削减：有效闪避 = 闪避 × (1 - 攻击方精准)，精准上限 60%（PVP 互殴生效，PVE 怪物无精准）
-        dodge = min(float(self._actor_stats_of(actor).get("dodge", 0) or 0), 0.40)
-        # 伪装帷幕（effect=dodge_up 闪避率 +40%）：乘算并入
-        if B.get("dodge_up"):
-            dodge = 1 - (1 - dodge) * (1 - 0.40)
-        # 无声被动——闪避率＋30%：乘算并入
-        for _pn, _ps in self._passive_map(actor)["proc"].get("dodge_up", []):
-            dodge = 1 - (1 - dodge) * (1 - float(_ps.get("mult", 0.3)))
-        # 影步药剂 15%：并入乘算（不再独立判定——旧实现独立判定绕过 40% 上限，基础 40%+药水可达 49.7%）
-        if B.get("dodge_pot"):
-            dodge = 1 - (1 - dodge) * (1 - 0.15)
-        # v140 波4：新手特效 远行（novice_first_turn_dodge）——每场战斗首刻闪避率 +5%
-        if (EFF or {}).get("novice_dodge_active") and self._tick_no() <= 1:
-            dodge = 1 - (1 - dodge) * (1 - 0.05)
-        # 攻击方精准削减（PVP：对方玩家精准；PVE：怪物无精准=0 不削减）
-        atk_hit = self._attacker_precise()
-        if atk_hit > 0:
-            dodge = dodge * (1 - min(atk_hit, 0.60))
-        dodge = min(dodge, 0.40)
-        if dodge > 0 and random.random() < dodge:
-            # O116 闪避成功：丢弃延迟的伤害日志，只报闪避（命中/闪避二选一）
-            self._pending_dmg_lines = []
-            logs.append("💨 你闪避了攻击！")
-            # v130.2 暮影影步：闪避成功 on_dodge_success 攒步（core_resources on_dodge_success>0）
-            _rd = E.core_resource_def(actor.get("class_name", ""))
-            if _rd and _rd.get("on_dodge_success"):
-                _rk = _rd["key"]
-                RES[_rk] = self._res_gain_class(actor.get("class_name", ""), _rk, int(_rd["on_dodge_success"]))
-                logs.append(f"🫧 影步积攒 +{_rd['on_dodge_success']}({RES.get(_rk, 0)}/{_rd['max']})")
-            return
+        if self._roll_dodge(actor, logs):
+            return 0
         # O116 命中：此刻才输出"造成 X 点伤害"日志（此前由 _enemy_turn 延迟暂存）
         logs += self._drain_pending_dmg()
         # v130.2c 圣典·日冕 4 件：满信仰状态下首次受击免伤（每战 1 次，随战斗序列化）
@@ -8334,131 +8489,9 @@ class Battle:
                         logs.append(f"🛡️ 【{_tn}】受击凝甲！护盾 +{_sv}")
             except Exception:
                 pass
-        # v140 波3.1：特效装备生命阈值（时光凝滞/磐石守护/苍穹庇护/石像鬼之心/不灭意志）
-        # + 不灭意志免疫致死（本刻免疫致死伤害，扣血后回拉）
-        try:
-            from .core.weapon_effects import proc as _we_proc
-            _we_proc(self, actor, "threshold", {"dmg": dmg}, logs)
-            if battle_p_eff_undying := getattr(self, "p_eff", {}).get("we_undying_immune"):
-                if actor.get("hp", 0) <= 0:
-                    actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * 0.10))
-                    logs.append("✨ 不灭意志：你撑住了致命一击！")
-                EFF.pop("we_undying_immune", None)
-            # 死亡之舞：受击伤害 35% 转为缓伤池（刻开始结算 10%）
-            if getattr(self, "p_eff", {}).get("we_death_pool") is not None:
-                EFF["we_death_pool"] = float(EFF.get("we_death_pool", 0) or 0) + dmg * 0.35
-        except Exception:
-            pass
-        # v140 波3.2：不死鸟之羽复活——致死时以 revive_hp% 生命复活 1 次（+ 减伤 buff）
-        if actor["hp"] <= 0 and (EFF or {}).get("phoenix_revive") and not (EFF or {}).get("phoenix_consumed"):
-            _pr = EFF.get("phoenix_revive") or {}
-            EFF["phoenix_consumed"] = True
-            actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * float(_pr.get("hp", 0.30) or 0.30)))
-            _prt = max(1, int(_pr.get("turns", 3) or 3))
-            B["reduce_all"] = max(float(B.get("reduce_all", 0) or 0),
-                                             float(_pr.get("dmg_reduce", 0.20) or 0.20))
-            self._reduce_all_left = max(int(getattr(self, "_reduce_all_left", 0) or 0), _prt)
-            logs.append(f"🪶 不死鸟之羽燃尽！你以 {actor['hp']} HP 复活，获得减伤！")
-        # v107 死亡契约（暗影祭司）：致死时牺牲一个召唤物以 20% HP 存活（每场 1 次）
-        if actor["hp"] <= 0 and self.summons and not self._death_pact_used:
-            for _pn, _ps in self._passive_map(actor)["proc"].get("death_pact", []):
-                self._death_pact_used = True
-                fallen = self.summons.pop()
-                actor["hp"] = max(1, int(actor.get("max_hp", actor["hp"]) * 0.20))
-                logs.append(f"💀 死亡契约！{fallen.get('name', '亡灵')} 替你承受了致命一击，你以 {actor['hp']} HP 站起！")
-                break
-        # v169.7 死亡契约（牧师死灵线数据化：proc death_contract 信念≥5 + 骷髅在场）——
-        # 与上方 v107 暗影祭司旧死亡契约（proc death_pact 无条件）并存；两条链都消费致死钩子
-        if actor["hp"] <= 0 and not self._death_pact_used:
-            try:
-                _faith_v = float(RES.get("faith", 0) or 0)
-                _skels = [s for s in self.summons if s.get("tid") == "skeleton" and s.get("hp", 0) > 0]
-                for _pn, _ps in self._passive_map(actor)["proc"].get("death_contract", []):
-                    if _faith_v < float(_ps.get("faith_req", 5) or 5):
-                        continue
-                    if not _skels:
-                        logs.append("💀 死亡契约：信念已足但没有骷髅代受致命一击！")
-                        continue
-                    self._death_pact_used = True
-                    fallen = _skels.pop()
-                    self.summons.remove(fallen)
-                    actor["hp"] = max(1, int(actor.get("max_hp", actor["hp"]) * float(_ps.get("hp_pct", 0.20) or 0.20)))
-                    logs.append(f"💀 死亡契约：信念 {_faith_v:.0f} 引动契约，{fallen.get('name', '骷髅')} 代受致命伤，你以 {actor['hp']} HP 站起！")
-                    break
-            except Exception:
-                pass
-        # v169.7 血怒·不灭（战士攻线·狂暴）：狂暴中首次致死 → 清空战意复活 30% 生命（每场 1 次）
-        if actor["hp"] <= 0 and not getattr(self, "_berserk_revive_used", False):
-            try:
-                from .core.battle_modes import dual_form_active as _dfa169
-                if _dfa169(actor):
-                    for _pn, _ps in self._passive_map(actor)["proc"].get("berserk_revive", []):
-                        self._berserk_revive_used = True
-                        # 清空战意（血怒·不灭承诺「清空战意复活」）
-                        MS["zhan_yi"] = 0
-                        actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("hp_pct", 0.30) or 0.30)))
-                        logs.append(f"🔥 血怒·不灭！狂暴意志撑住了致命一击，你以 {actor['hp']} HP 站起（战意已清空）！")
-                        break
-            except Exception:
-                pass
-        # v169.7 铁誓·不动（战士守线·守护姿态）：守护姿态下首次致命伤害免疫，随后清空全部战意
-        if actor["hp"] <= 0 and not getattr(self, "_stance_immortal_used", False) \
-                and B.get("stance_guard"):
-            try:
-                for _pn, _ps in self._passive_map(actor)["proc"].get("stance_immortal", []):
-                    self._stance_immortal_used = True
-                    B.pop("stance_guard", None)
-                    MS["zhan_yi"] = 0
-                    actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("hp_pct", 1.0) or 1.0)))
-                    logs.append(f"🛡️ 铁誓·不动！守护姿态替你挡下致命一击（战意已清空）！")
-                    break
-            except Exception:
-                pass
-        # v2.0 核心资源：受击获取（战士怒气/牧师信仰/拳师气）
-        cls = actor.get("class_name", "")
-        rd = E.core_resource_def(cls)
-        # v151 隐藏职业删除：星语猎印 on_hit 双语义解耦白名单已移除（受击按 on_hit 正常读）
-        if rd and rd.get("on_hit"):
-            k = rd["key"]
-            gain = int(rd["on_hit"])
-            # v130.2 战士血债怒火（攻线·狂战士 T1）：受击回怒 = 1 + ⌊缺失HP%×4⌋，封顶 5
-            #   （warrior_转职 下放签名：卖血换怒——满血+1、缺25%血+2、缺一半+3、濒死+5）
-            if k == "rage" and self._is_path(actor, 1):  # v176: 资源键判（原 cls_zhan_shi 特判）
-                _max = max(1, actor.get("max_hp", 1) or 1)
-                _missing = max(0.0, min(1.0, 1.0 - (float(actor.get("hp", 0) or 0) / _max)))
-                gain = int(RAGE_GAIN_HP_SCALE.get("base", 1) or 1)
-                gain += int(_missing * float(RAGE_GAIN_HP_SCALE.get("coef", 4.0) or 4.0))
-                gain = min(int(RAGE_GAIN_HP_SCALE.get("cap", 5) or 5), gain)
-            RES[k] = self._res_gain_class(cls, k, gain)
-        # v130.2 资源增幅：受击触发（沸腾战血 3 刻内受击额外 +2 怒，P0-1 消费端；持续时长制 turns 衰减）
-        _amp_th = self._amp_resource(actor, "on_hit_taken")
-        if _amp_th:
-            logs.append(f"⚡ 沸腾战血：受击额外资源 +{_amp_th}！")
-        # v130.2c 资源词条：受击（浴血 怒气/虔诚护符 信仰/磐息 气 +1；残血灼薪 血量条件判定）
-        self._affix_res_proc(actor, "on_taken", logs)
-        # v151 隐藏职业删除：暮影影步受击清空（原 cls_shadow_blade 专属）已移除
-        # v130.2 刺客攻线·影舞者：受击回退 -1 连击点 + 连段归零（高风险高回报，assassin_转职 §1.0）
-        if self._combo_active(actor):  # v176: combo归属已数据化COMBO_CFG
-            _pen = int(ASSASSIN_ON_TAKE_HIT_PENALTY or 0)
-            cur_cp = int(RES.get("cp", 0) or 0)
-            if cur_cp > 0 and _pen < 0:
-                penalty = min(cur_cp, -_pen)
-                RES["cp"] = cur_cp - penalty
-                logs.append(f"🗡️ 受击！连击点 -{penalty}({RES['cp']}/{rd['max'] if rd else 5})")
-            self._combo_break(actor, self._combo_keep_chance(actor))
-        # v140 S1 直连消费：拳心回流（tie_shou_blood）——受击 30% 概率回复 3% 最大生命
-        if self._set_eff(actor, "tie_shou_blood", 4) and actor.get("hp", 0) > 0:
-            if random.random() < 0.30:
-                _ts_heal = int(actor.get("max_hp", actor.get("hp", 1)) * 0.03)
-                actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + _ts_heal)
-                logs.append(f"🩸 拳心回流：气血奔涌，回复 {_ts_heal} 点生命！")
-        # v110.3 P2-9：被动·神圣坚韧——受击后按 chance 概率回复 pct 生命（数据驱动 dmg_taken_heal，替代名字硬匹配）
-        if actor["hp"] > 0:
-            for _pn, _ps in self._passive_map(actor)["proc"].get("dmg_taken_heal", []):
-                if random.random() < float(_ps.get("chance", 0.2)):
-                    heal = int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("pct", 0.05)))
-                    actor["hp"] = min(actor.get("max_hp", actor["hp"]), actor["hp"] + heal)
-                    logs.append(f"✨ {_pn}：回复 {heal} 点生命！")
+        self._post_hp_lethal(actor, dmg, logs)
+        self._on_taken_rewards(actor, logs)
+
         # v177 actor 统一：返回实际扣血量（扣血基准 = 进入函数时的 hp - 最终 hp，含后续回血取扣血前）
         return max(0, _hp_before - actor.get("hp", 0))
 
