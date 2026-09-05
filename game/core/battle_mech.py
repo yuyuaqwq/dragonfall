@@ -231,13 +231,14 @@ def _m_slow(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     if not mval:
         mval = 2
     _tgt = battle._tgt()
-    if _tgt is not None and _tgt.get("class_name"):
-        # 目标是玩家 actor：查 cc_immune / 霜狼套免疫（对齐旧 MON_CTRL slow）
-        if battle._cast_buffs().get("cc_immune"):
+    if _tgt is not None and battle._is_focus_player(_tgt):
+        # 目标是玩家 actor：查目标自身 cc_immune（v180-B 修：原查施法者 buffs 错对象）/
+        # 5 件套控制免疫（数据化，替代霜狼字符串特判）
+        if (_tgt.setdefault("buffs", {}) or {}).get("cc_immune"):
             logs.append("🗿 不动如山！免疫了减速！")
             return
         try:
-            if "霜狼" in "|".join(battle._set_bonus_5(_tgt)):
+            if "slow" in battle._set_bonus_5_ctrl_immune(_tgt):
                 logs.append("🧊 抗寒生效！霜狼套免疫了减速！")
                 return
         except Exception:
@@ -256,8 +257,9 @@ def _m_interrupt(battle, mval, p_mech, total, logs, skill_name, is_crit, info=No
     tgt = getattr(battle, "_tgt", lambda: None)()
     if tgt is None:
         return
-    if tgt.get("class_name"):
-        # 目标是玩家：蓄力（actor dict charging）优先，其次读条（_pending_player_cast）
+    if battle._is_focus_player(tgt):
+        # 目标是玩家（v180-B：_is_focus_player side/引用判定，怪扮职业不误判）：
+        # 蓄力（actor dict charging）优先，其次读条（_pending_player_cast）
         # v180-B ①：蓄力状态权威在玩家 actor dict
         ch = tgt.get("charging")
         if ch and ch.get("skill"):
@@ -957,32 +959,35 @@ MON_CTRL_EFFECTS = {}
 
 @register(MON_CTRL_EFFECTS, "freeze")
 def _mc_freeze(battle, player, logs, mval):
-    """冻结玩家（概率，1 刻）"""
-    if battle._cast_buffs().get("cc_immune"):
+    """冻结玩家（概率，1 刻）。v180-B ②：读写被打玩家 actor dict（player 参数即目标）。"""
+    _pl = player or battle.player or {}
+    if (_pl.setdefault("buffs", {}) or {}).get("cc_immune"):
         logs.append("🗿 不动如山！免疫了冻结！")
         return
     chance = min(0.75, 0.25 + mval * 0.15)
     if random.random() < chance:
-        battle._cast_buffs()["freeze"] = 1
+        _pl.setdefault("buffs", {})["freeze"] = 1
         logs.append("❄️ 你被冻结，下刻无法行动！")
 
 
 @register(MON_CTRL_EFFECTS, "stun")
 def _mc_stun(battle, player, logs, mval):
-    """眩晕玩家（概率，1 刻）"""
-    if battle._cast_buffs().get("cc_immune"):
+    """眩晕玩家（概率，1 刻）。v180-B ②：读写被打玩家 actor dict（player 参数即目标）。"""
+    _pl = player or battle.player or {}
+    if (_pl.setdefault("buffs", {}) or {}).get("cc_immune"):
         logs.append("🗿 不动如山！免疫了眩晕！")
         return
     chance = min(0.60, 0.20 + mval * 0.15)
     if random.random() < chance:
-        battle._cast_buffs()["stun"] = 1
+        _pl.setdefault("buffs", {})["stun"] = 1
         logs.append("🌀 你被眩晕，下刻无法行动！")
 
 
 @register(MON_CTRL_EFFECTS, "silence")
 def _mc_silence(battle, player, logs, mval):
-    """沉默玩家（稳定，2 刻）"""
-    battle._cast_buffs()["silence"] = 2
+    """沉默玩家（稳定，2 刻）。v180-B ②：读写被打玩家 actor dict（player 参数即目标）。"""
+    _pl = player or battle.player or {}
+    _pl.setdefault("buffs", {})["silence"] = 2
     logs.append("🤐 你被沉默，2 刻内无法使用技能！")
 
 
@@ -1010,13 +1015,14 @@ def _mc_interrupt(battle, player, logs, mval):
 
 @register(MON_CTRL_EFFECTS, "slow")
 def _mc_slow(battle, player, logs, mval):
-    """减速玩家（霜狼套 5 件免疫；v101.28f 不动药剂免疫）"""
-    if battle._cast_buffs().get("cc_immune"):
+    """减速玩家（v180-B ②：5 件套控制免疫数据化 + cc_immune 免控；v101.28f 不动药剂免疫）"""
+    _pl = player or battle.player or {}
+    if (_pl.setdefault("buffs", {}) or {}).get("cc_immune"):
         logs.append("🗿 不动如山！免疫了减速！")
-    elif "霜狼" in "|".join(battle._set_bonus_5(player)):
+    elif "slow" in battle._set_bonus_5_ctrl_immune(_pl):
         logs.append("🧊 抗寒生效！霜狼套免疫了减速！")
     else:
-        battle._cast_buffs()["spd_down"] = max(battle._cast_buffs().get("spd_down", 0), 2)
+        _pl.setdefault("buffs", {})["spd_down"] = max(_pl.setdefault("buffs", {}).get("spd_down", 0), 2)
         logs.append("🧊 你被减速，2 刻内速度下降！")
 
 

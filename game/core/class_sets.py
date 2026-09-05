@@ -54,6 +54,8 @@ _SERIES_SET_BONUS = {
         "bonus_2": {"def": 0.10},
         "bonus_4_stats": {"atk": 0.08},
         "bonus_5": {"desc": "抗寒：免疫减速"},
+        # v180-B ②：5 件套控制免疫数据化（替代引擎 '霜狼' 字符串特判——任意套装声明即生效）
+        "bonus_5_ctrl_immune": ["slow"],
     },
     "龙脊": {
         "icon": "🐉", "quality": "purple",
@@ -179,6 +181,9 @@ def _build_class_sets():
             entry["bonus_3_stats"] = dict(b["bonus_3_stats"])
         if b.get("bonus_5"):
             entry["bonus_5"] = dict(b["bonus_5"])
+        if b.get("bonus_5_ctrl_immune"):
+            # v180-B ②：5 件套控制免疫（霜狼抗寒等）随套装注册数据化
+            entry["bonus_5_ctrl_immune"] = list(b["bonus_5_ctrl_immune"])
         if b.get("bonus_5_cond"):
             # v126 数值下沉：5 件战斗条件（enemy_contains/player_hp_below/dmg_mult/tag）随套装注册
             entry["bonus_5_cond"] = dict(b["bonus_5_cond"])

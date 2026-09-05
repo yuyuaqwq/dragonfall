@@ -221,14 +221,16 @@ b = make_battle(enemy={"name": "狼王", "hp": 50, "max_hp": 100, "atk": 20, "ma
 logs = []
 BM.MON_BUFF_EFFECTS["heal_self"](b, logs, "疗愈")
 check("怪物 heal_self 恢复 15%", b.enemy["hp"] == 65 and "15 点" in logs[0])
+# v180-B ②：MON_CTRL handler 读写"被打玩家"=battle.player——测试传 b.player（游离
+# player dict 只是面板快照，真实战斗 MON_CTRL 的 player 参数即 battle.player）
 b = make_battle()
 logs = []
 random.seed(1)
-BM.MON_CTRL_EFFECTS["silence"](b, player, logs, 1)
+BM.MON_CTRL_EFFECTS["silence"](b, b.player, logs, 1)
 check("怪物 silence 稳定 2 回合", b._p_buffs_bag().get("silence") == 2)
 b = make_battle()
 logs = []
-BM.MON_CTRL_EFFECTS["slow"](b, player, logs, 1)
+BM.MON_CTRL_EFFECTS["slow"](b, b.player, logs, 1)
 check("怪物 slow 减速", b._p_buffs_bag().get("spd_down") == 2)
 
 # ============ 9. 全覆盖：数据 key 全部有注册 ============

@@ -916,6 +916,7 @@ class Battle:
             # 本段只服务新开战斗（_now=0）。
             if self.pet and int(self.pet.get("level", 0) or 0) >= 10 and float(getattr(self, "_now", 0.0) or 0.0) <= 0:
                 try:
+                    self._pet_ensure_guard()  # v180-B ②：block 宠物转配 guard 数据化挡刀
                     # v179 修正：初始周期 = 面板 skill_interval（每 N 刻一次），非读条
                     _pt = self._pet_interval_sec()
                     self.add_tick_effect("pet_act", self.pet, max(_pt, 0.001), uid="pet_act",
@@ -1374,6 +1375,7 @@ class Battle:
             _has_pet_tick = any(e.get("uid") == "pet_act" for e in b.tick_effects)
             if not _has_pet_tick:
                 try:
+                    b._pet_ensure_guard()  # v180-B ②：恢复路径也补 guard（老档 pet 无 guard）
                     # v179 修正：初始周期 = 面板 skill_interval（每 N 刻一次），非读条
                     _pt = b._pet_interval_sec()
                     b.add_tick_effect("pet_act", b.pet, max(_pt, 0.001),
@@ -1504,9 +1506,13 @@ class Battle:
         return self._tgt().setdefault("buffs", {})
 
     def _tgt_is_player(self) -> bool:
-        """v177 管线目标是否为玩家（怪物施法玩家技能时 _target_ctx=玩家 → True）。"""
+        """v177 管线目标是否为玩家（怪物施法玩家技能时 _target_ctx=玩家 → True）。
+        v180-B：身份判定用 _is_focus_player（side/引用/我方），不用 class_name——
+        怪扮职业（配 class_name 的怪）不会被误判成玩家。"""
         u = self._target_ctx
-        return u is not None and bool(u.get("class_name"))
+        if u is None:
+            return False
+        return self._is_focus_player(u)
 
     def _deal_hit(self, dmg: int, logs: list, wake_sleep: bool = True, source=None) -> int:
         """v177 技能管线伤害落点（双向）：玩家施法 → 打敌人（原 _damage_enemy 全语义）；
@@ -4829,6 +4835,28 @@ class Battle:
         return [sname for sname, cnt in E.active_sets(player.get("equipment") or {}).items()
                 if cnt >= 5]
 
+    def _set_bonus_5_ctrl_immune(self, player: dict) -> list:
+        """v180-B ② 套装 5 件控制免疫数据化：已激活 5 件套声明 bonus_5_ctrl_immune 的
+        控制类型列表（如霜狼套 ["slow"]）。数据源 class_sets.py 套装定义（经 _build_class_sets
+        注册进 C.SETS），替代引擎内 '霜狼' 字符串特判——任意套装声明即生效，任意 actor 可配。"""
+        try:
+            out = []
+            for sname in self._set_bonus_5(player):
+                _sd = None
+                _sets = getattr(C, "SETS", {}) or {}
+                if sname in _sets:
+                    _sd = _sets[sname]
+                else:
+                    for _info in _sets.values():
+                        if _info.get("name") == sname:
+                            _sd = _info
+                            break
+                if _sd:
+                    out.extend(list(_sd.get("bonus_5_ctrl_immune") or []))
+            return out
+        except Exception:
+            return []
+
     def _race_bonus(self, player: dict) -> dict:
         """种族天赋表(08 章，battle 消费战斗型天赋)"""
         return E.race_stats(player.get("race"))
@@ -7599,6 +7627,29 @@ class Battle:
             pass
         return 50.0
 
+    def _pet_ensure_guard(self):
+        """v180-B ②：block 型宠物参战时转配 guard（mode=absorb 数据化挡刀配置）。
+
+        宠物 dict 带 guard 后 _pet_block_check 直接读配置（chance/cooldown/文案），
+        不再依赖 PET_POOL skill_type=='block' 查表特判。非 block 型宠物不配 guard。
+        幂等：已有 guard 不重复写。"""
+        try:
+            pet = self.pet or {}
+            if not pet or pet.get("guard"):
+                return
+            pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
+            if not pdef or pdef.get("skill_type") != "block":
+                return
+            pet["guard"] = {
+                "mode": "absorb",
+                "chance": float(pdef.get("skill_value", 0.25) or 0.25),
+                "cooldown": float(int(pdef.get("skill_interval", 3) or 3)),
+                "name": pdef.get("name", pet.get("name", "宠物")),
+                "skill_name": pdef.get("skill_name", "守护"),
+            }
+        except Exception:
+            pass
+
     def _pet_skill_turn(self, player: dict, logs: list) -> list:
         """24 章宠物技能：由 pet_tick 事件驱动（v154 宠物独立速度读条）。
 
@@ -7634,11 +7685,12 @@ class Battle:
         本方法仅幂等兜底（老调用点/老档补卡）。
         """
         try:
-            # v179 修正：周期 = 面板 skill_interval（每 N 刻一次），非读条
-            _pt = self._pet_interval_sec()
             if self.pet:
+                self._pet_ensure_guard()  # v180-B ②：幂等补 guard
                 _has = any(e.get("uid") == "pet_act" for e in self.tick_effects)
                 if not _has:
+                    # v179 修正：周期 = 面板 skill_interval（每 N 刻一次），非读条
+                    _pt = self._pet_interval_sec()
                     self.add_tick_effect("pet_act", self.pet, max(_pt, 0.001),
                                          uid="pet_act", source="pet")
         except Exception:
@@ -7662,7 +7714,14 @@ class Battle:
         return CAST_PET_SKILL * self._ct_cost(self._pet_spd())
 
     def _pet_block_check(self, dmg: int, logs: list) -> int:
-        """24 章宠物技能·影袭：每 N 刻 value 概率替主人挡一次攻击(敌方伤害结算前)。"""
+        """24 章宠物技能·影袭（v180-B ② guard 数据化）：替主人挡一次攻击(敌方伤害结算前)。
+
+        挡刀配置数据化：pet dict 带 guard（mode=absorb，来自 PET_POOL block 型转配）
+        即生效——chance=挡刀概率、cooldown=间隔秒、name/skill_name 供文案。
+        兼容旧路径：pet dict 无 guard 时按 PET_POOL skill_type=='block' 兜底查表
+        （老档/未转配宠物），行为零变化。冷却状态存 pet['_guard_last_at']（随战斗
+        序列化，替代旧 Battle 级 _pet_block_last_at）。
+        """
         if dmg <= 0:
             return dmg
         pet = self.pet or {}
@@ -7672,21 +7731,32 @@ class Battle:
             return dmg
         if int(pet.get("satiety", 0)) <= 0:
             return dmg
-        pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
-        if not pdef or pdef.get("skill_type") != "block":
-            return dmg
-        interval = int(pdef.get("skill_interval", 0) or 0)
+        # guard 配置：pet dict 显式配 guard 优先（数据驱动入口）
+        gd = pet.get("guard")
+        if isinstance(gd, dict) and gd.get("mode") == "absorb":
+            interval = float(gd.get("cooldown", 0) or 0)
+            chance = float(gd.get("chance", 0.25) or 0.25)
+            pname = pet.get("name") or gd.get("name", "宠物")
+            sname = gd.get("skill_name", "守护")
+        else:
+            # 兼容旧路径：PET_POOL block 型查表转读（未配 guard 的老档/旧数据）
+            pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
+            if not pdef or pdef.get("skill_type") != "block":
+                return dmg
+            interval = int(pdef.get("skill_interval", 0) or 0)
+            chance = float(pdef.get("skill_value", 0.25) or 0.25)
+            pname = pet.get("name") or pdef["name"]
+            sname = pdef["skill_name"]
         # v154 读条制：影袭是被动拦截（受击时概率挡刀），按时间冷却制——
-        # 开战 interval 秒后才可用，之后每 interval 秒最多一次（原 _tick_no() 时刻折算在读条下失真）。
-        _last = getattr(self, "_pet_block_last_at", None)
+        # 开战 interval 秒后才可用，之后每 interval 秒最多一次。
+        _last = pet.get("_guard_last_at")
         if _last is None:
             _last = 0.0  # 开战时刻：前 interval 秒为冷却期
         if interval <= 0 or self._now - _last < interval:
             return dmg
-        if random.random() < pdef.get("skill_value", 0):
-            self._pet_block_last_at = self._now
-            pname = pet.get("name") or pdef["name"]
-            logs.append(f"🐾 {pname}的【{pdef['skill_name']}】替你挡下了这次攻击！")
+        if random.random() < chance:
+            pet["_guard_last_at"] = self._now
+            logs.append(f"🐾 {pname}的【{sname}】替你挡下了这次攻击！")
             return 0
         return dmg
 
@@ -8872,7 +8942,14 @@ class Battle:
                              # v151 召唤物语义：纯挡刀吸收一次 / 全队攻击光环 / 吃 AOE
                              "absorb_once": bool(tmpl.get("absorb_once", False)),
                              "aura_atk_all": float(tmpl.get("aura_atk_all", 0) or 0),
-                             "eats_aoe": bool(tmpl.get("eats_aoe", False))})
+                             "eats_aoe": bool(tmpl.get("eats_aoe", False)),
+                             # v180-B ② guard 数据化：模板 bodyguard/absorb_once 转统一挡刀配置
+                             # （任何随从 actor 带 guard 即生效，引擎不再按身份/列表特判）
+                             "guard": {
+                                 "chance": float(tmpl.get("bodyguard", 0) or 0),
+                                 "mode": "redirect",
+                                 "absorb_once": bool(tmpl.get("absorb_once", False)),
+                             } if float(tmpl.get("bodyguard", 0) or 0) > 0 else None})
         # v151 古树光环：常驻全队攻击 +30%（生成时挂 p_buffs，直到召唤物死亡）
         _aura = float(tmpl.get("aura_atk_all", 0) or 0)
         if _aura > 0 and self.player:
@@ -8986,35 +9063,44 @@ class Battle:
             removed += compact(self.allies)
         return removed
 
-    def _summon_block_check(self, player: dict, dmg: int, logs: list) -> int:
-        """v107 召唤物挡刀：敌人攻击时按模板 bodyguard 概率由随机存活召唤物承受伤害。
-        v109.2 P2-1：伤害按召唤物 def 结算（原全额转移——皮厚召唤物挡刀更久）；
-        P2-2：summon_power 强化挡刀率（×1+sp，上限 85%）。
-        触发后本次伤害不再结算到玩家（拦截优先于闪避/格挡）。"""
-        alive = [s for s in self.summons if s.get("hp", 0) > 0]
-        if not alive:
+    def _guard_redirect_check(self, dmg: int, logs: list) -> int:
+        """v180-B ② 统一挡刀（redirect 型）：扫我方随从实体（召唤物/未来随从 actor）中
+        带 guard 配置（mode=redirect）的，按 guard.chance 概率由随从承受伤害。
+
+        数据驱动：任何随从实体带 guard 字段即生效（生成时从 SUMMONS 模板 bodyguard/
+        absorb_once 转成 guard，_summon_entity）；不再按 tid/模板查表/身份特判。
+
+        v107 语义保留：伤害按随从 def 结算（原 v109.2 P2-1 全转移改随从防御结算）；
+        v109.2 P2-2 summon_power 强化挡刀率（×1+sp，上限 85%）；absorb_once 吸收 1 次后消失。
+        触发后本次伤害不再结算到玩家（拦截优先于闪避/格挡）。
+        """
+        guard_actors = [s for s in (self.summons or [])
+                        if s.get("hp", 0) > 0 and isinstance(s.get("guard"), dict)
+                        and s["guard"].get("mode") == "redirect"
+                        and float(s["guard"].get("chance", 0) or 0) > 0]
+        if not guard_actors:
             return dmg
         try:
-            from .data.summons import SUMMONS
+            _owner = self.player or {}
+            sp = float(self._player_stats(_owner).get("summon_power", 0) or 0) if _owner else 0
         except Exception:
-            return dmg
-        s = random.choice(alive)
-        tmpl = SUMMONS.get(s.get("tid", ""), {})
-        sp = float(self._player_stats(player).get("summon_power", 0) or 0)
-        chance = min(float(tmpl.get("bodyguard", 0.40)) * (1 + sp), 0.85)
+            sp = 0
+        s = random.choice(guard_actors)
+        chance = min(float(s["guard"].get("chance", 0.40)) * (1 + sp), 0.85)
         if random.random() >= chance:
             return dmg
-        # P2-1：按召唤物 def 结算——从对玩家伤害反推攻击方等效 atk，再套召唤物防御公式
+        # 按随从 def 结算——从对玩家伤害反推攻击方等效 atk，再套随从防御公式
         try:
-            _pdef = max(0, int(self._player_stats(player).get("def", 0) or 0))
+            _owner2 = self.player or {}
+            _pdef = max(0, int(self._player_stats(_owner2).get("def", 0) or 0)) if _owner2 else 0
             _atk = (dmg + int((dmg * dmg + 4 * dmg * _pdef) ** 0.5)) // 2
             taken = max(1, int(E.calc_damage(_atk, max(0, int(s.get("def", 0) or 0)), variance=0)))
         except Exception:
             taken = max(1, int(dmg))
         s["hp"] -= taken
         logs.append(f"{s.get('icon', '')} {s['name']} 为你挡下 {taken} 点伤害！")
-        # v151：纯挡刀召唤物（absorb_once）吸收 1 次单体后消失（v151 §7 藤蔓守卫）
-        if s.get("absorb_once"):
+        # v151：纯挡刀随从（absorb_once）吸收 1 次单体后消失（v151 §7 藤蔓守卫）
+        if s["guard"].get("absorb_once"):
             logs.append(f"🌿 {s['name']} 完成守护，化作碎屑消散……")
             self.summons.remove(s)
             return 0
@@ -9833,8 +9919,8 @@ class Battle:
                 if _pl:
                     logs[:] = _pl + logs
                 return 0
-            # v107 召唤物挡刀：概率由召唤物承受（拦截优先于玩家闪避/格挡）
-            dmg = self._summon_block_check(actor, dmg, logs)
+            # v180-B ② 统一随从挡刀：redirect 型随从（召唤物带 guard 配置）转移承受
+            dmg = self._guard_redirect_check(dmg, logs)
         if dmg <= 0:
             # O116 还原原顺序：先报攻击伤害，再报挡刀
             _pl = self._drain_pending_dmg()
