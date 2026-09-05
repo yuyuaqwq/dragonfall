@@ -188,6 +188,8 @@ def pet_skill_label(pet_key):
 #   per_lv 按 30 级满 cap 配；配合 pet_exp_need 非线性拉长升级节奏。
 #   Lv.10 解锁宠物技能（保留）。
 PET_MAX_LEVEL = 30
+# v180-C S3：宠物技能解锁等级数据化（原代码多处硬编码 >=10/<10，收敛单一数据源）
+PET_SKILL_UNLOCK_LV = 10
 
 PET_EXP_GRADE = {
     "white":  {"per_lv": 0.05 / 30, "cap": 0.05},   # ⚪ 白：30级满 5%

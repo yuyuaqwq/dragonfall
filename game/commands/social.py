@@ -1029,7 +1029,7 @@ class SocialCmds(CommandBase):
         bonus = C.pct_str(_pb)
         skill_line = ""
         if pdef:
-            skill_line = f"\n🎯 技能：{C.pet_skill_label(pet['pet_key'])}(Lv.10 解锁)"
+            skill_line = f"\n🎯 技能：{C.pet_skill_label(pet['pet_key'])} (Lv.{int(C.PET_SKILL_UNLOCK_LV)} 解锁)"
         if sat <= 0:
             skill_line = "\n😵 技能失效(饱食度归零)"
         lines = [

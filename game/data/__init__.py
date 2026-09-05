@@ -97,7 +97,7 @@ from .props import PROPS, SUBAREA_PROPS  # noqa: F401
 from .hidden_monsters import HIDDEN_MONSTERS  # noqa: F401
 from .titles import TITLES  # noqa: F401
 from .world import WORLD_EVENT_POOL, AUCTION_POOL, WORLD_BOSS_POOL  # noqa: F401
-from .pets import PET_POOL, PET_EGG_ROLL  # noqa: F401
+from .pets import PET_POOL, PET_EGG_ROLL, PET_SKILL_UNLOCK_LV  # noqa: F401
 from .mounts import (  # noqa: F401
     MOUNT_POOL, MOUNT_BY_KEY, MOUNT_DROP_ELITE, MOUNT_DROP_BOSS,
 )

@@ -135,7 +135,7 @@ def _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs, magic=False):
         dmg = E.calc_damage(int(st["matk"] * pdef["skill_value"]), est.get("mdef", 0))
     else:
         dmg = E.calc_damage(int(st["atk"] * pdef["skill_value"]), est.get("def", 0))
-    real = battle._damage_enemy(dmg, logs)
+    real = battle._damage_enemy(dmg, logs, attacker=battle.pet or None)
     logs.append(f"🐾 {pname}的【{sname}】造成 {real} 点伤害！" + (f"「{line}」" if line else ""))
     return real
 
@@ -917,8 +917,9 @@ class Battle:
             # __init__（带 pet 参数）——但 from_state 恢复的 _now 可能 >0，若在此挂初始
             # 卡会与真实时间轴错位，故恢复路径不依赖本段（见 from_state 末尾按 _now 补挂）；
             # 本段只服务新开战斗（_now=0）。
-            if self.pet and int(self.pet.get("level", 0) or 0) >= 10 and float(getattr(self, "_now", 0.0) or 0.0) <= 0:
+            if self.pet and int(self.pet.get("level", 0) or 0) >= int(C.PET_SKILL_UNLOCK_LV) and float(getattr(self, "_now", 0.0) or 0.0) <= 0:
                 try:
+                    self._pet_ensure_actor()  # v180-C S3：宠物 actor 化（hidden+untargetable 进 companions）
                     self._pet_ensure_guard()  # v180-B ②：block 宠物转配 guard 数据化挡刀
                     # v179 修正：初始周期 = 面板 skill_interval（每 N 刻一次），非读条
                     _pt = self._pet_interval_sec()
@@ -1398,10 +1399,11 @@ class Battle:
         # v167.3 副本带宠物（v179 P4 升级通用卡）：from_state 恢复后按当前时刻补挂 pet_act 卡
         # ——tick_effects 已随 to_state/from_state 序列化恢复，此处兜底老档（无卡时补）。
         # 只在带宠（Lv≥10）且池里还没有 pet_act 卡时补（防重复堆积）。
-        if b.pet and int(b.pet.get("level", 0) or 0) >= 10 and not b._enemy_dead():
+        if b.pet and int(b.pet.get("level", 0) or 0) >= int(C.PET_SKILL_UNLOCK_LV) and not b._enemy_dead():
             _has_pet_tick = any(e.get("uid") == "pet_act" for e in b.tick_effects)
             if not _has_pet_tick:
                 try:
+                    b._pet_ensure_actor()  # v180-C S3：宠物 actor 化（恢复路径也补 actor 字段）
                     b._pet_ensure_guard()  # v180-B ②：恢复路径也补 guard（老档 pet 无 guard）
                     # v179 修正：初始周期 = 面板 skill_interval（每 N 刻一次），非读条
                     _pt = b._pet_interval_sec()
@@ -7667,6 +7669,32 @@ class Battle:
             pass
         return 50.0
 
+    def _pet_ensure_actor(self):
+        """v180-C S3：宠物参战时补 actor 字段（随从 actor 化——宠物 = companions 一员）。
+
+        宠物作为"不在战场显示的 actor"（hidden + untargetable）进 companions：
+        - side=player / kind=pet：引擎按字段走通用逻辑（治疗广播/增益等自然覆盖）
+        - hidden：不进战场显示/状态面板（命令层读点按需跳过）
+        - untargetable：敌人选目标跳过它（宠物不被攻击）
+        - buffs 容器就位：可被增益/减益（未来扩展）
+        与 self.pet 同 dict（就地补字段）→ 全部现有读点（_pet_skill_turn/_pet_block_check
+        /_th_pet_act）零改动继续工作；伤害带 attacker=宠物 actor → 乘区读宠物自身被动。
+        幂等：已在 companions 不重复加。"""
+        try:
+            pet = self.pet or {}
+            if not pet:
+                return
+            if any(c is pet for c in getattr(self, "companions", [])):
+                return  # 已 actor 化（同引用）
+            pet.setdefault("side", "player")
+            pet.setdefault("kind", "pet")
+            pet.setdefault("buffs", {})
+            pet["hidden"] = True
+            pet["untargetable"] = True
+            self.companions.append(pet)
+        except Exception:
+            pass
+
     def _pet_ensure_guard(self):
         """v180-B ②：block 型宠物参战时转配 guard（mode=absorb 数据化挡刀配置）。
 
@@ -7700,7 +7728,7 @@ class Battle:
         pet = self.pet or {}
         if not pet:
             return logs
-        if int(pet.get("level", 0)) < 10:
+        if int(pet.get("level", 0)) < int(C.PET_SKILL_UNLOCK_LV):
             return logs
         if int(pet.get("satiety", 0)) <= 0:
             return logs
@@ -7726,6 +7754,7 @@ class Battle:
         """
         try:
             if self.pet:
+                self._pet_ensure_actor()  # v180-C S3：幂等补 actor 字段
                 self._pet_ensure_guard()  # v180-B ②：幂等补 guard
                 _has = any(e.get("uid") == "pet_act" for e in self.tick_effects)
                 if not _has:
@@ -7767,7 +7796,7 @@ class Battle:
         pet = self.pet or {}
         if not pet:
             return dmg
-        if int(pet.get("level", 0)) < 10:
+        if int(pet.get("level", 0)) < int(C.PET_SKILL_UNLOCK_LV):
             return dmg
         if int(pet.get("satiety", 0)) <= 0:
             return dmg
@@ -8739,10 +8768,14 @@ class Battle:
             pass
 
     def _damage_enemy(self, dmg: int, logs: list, wake_sleep: bool = True, target=None, source=None,
-                      true_dmg: bool = False) -> int:
+                      true_dmg: bool = False, attacker: dict | None = None) -> int:
         """对敌方单位造成伤害（§3.2）。返回实际对目标造成（或其 HP 被扣）的伤害。
 
         - target：目标单位 dict；None=当前玩家活跃目标(_active_target)或主目标(self.enemy)。
+        - attacker：本次伤害的来源 actor（v180-C S3 actor 化——谁攻击吃谁的被动）。
+          None = 玩家本人（兼容全部现有调用点：技能/普攻/AOE/反伤默认玩家攻击）。
+          宠物 actor/随从 actor 攻击时传自己 → 乘区读宠物自身被动（无被动=无加成），
+          不再白嫖玩家猎印/魂标/破绽/挽歌（v169.7 乘区）。
         - 删除旧"援军挡刀吸收"逻辑（站位天然承担）：每单位独立扣血。
         - 主动伤害>0 且目标蓄力中 → 打断（打断钩子，返还 50%MP 见 _interrupt_charging）。
         - wake_sleep：dot 传 False（持续伤害不打醒睡眠、也不打断蓄力）。
@@ -8752,15 +8785,15 @@ class Battle:
         if dmg <= 0:
             return 0
         # ---- v169.7 通用伤害乘区（读敌方标记/破绽 + 已学被动；只影响带机制/已学被动玩家）----
-        # 猎印 hunt_mark（每层基础 +8%，游侠自然之眼 hunt_mark_up 额外 +6%/层——mech 日志承诺层，消费端在此落地）
-        # 灵魂标记 soul_mark（每层基础 +6%，牧师灵魂锁链 soul_mark_cap 额外 +8%/层 并提升上限）
-        # 破绽感知 shaken_awareness：敌方破绽 ≥15 → 伤害 +20%
-        # 挽歌·极 dirge_debuff_dmg：敌方每 1 负面 +4%（上限 +40%）
+        # v180-C S3 actor 化：乘区读"来源 actor"（attacker）的被动——宠物/随从 actor
+        # 攻击时读它们自身被动（宠物无被动 → 无乘区），不再无条件吃 self.player。
+        # 缺省 attacker=None = 玩家攻击（全部旧调用点行为不变）。
+        _atk_actor = attacker if attacker is not None else (self.player or {})
         try:
             _db_t = target.get("debuffs") or {}
             _mult_pas = 1.0
             _tags_pas = []
-            _pl_d = self.player or {}
+            _pl_d = _atk_actor
             _pm_d = self._proc_pm(_pl_d) if _pl_d else {"proc": {}}
             # 猎印
             _hm = int(_db_t.get("hunt_mark", 0) or 0)

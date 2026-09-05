@@ -67,10 +67,10 @@ def pet_battle_status_note(pet: dict | None) -> str:
         lv = int(pet.get("level", 0) or 0)
         sat = int(pet.get("satiety", 0) or 0)
         name = pet.get("name") or "宠物"
-        if lv >= 10 and sat <= 0:
+        if lv >= int(C.PET_SKILL_UNLOCK_LV) and sat <= 0:
             return (f"🐾 {name} 饿得没力气战斗了……『喂养 <食物>』（肉/鱼/草药）恢复饱食度！")
-        if lv < 10:
-            return f"🐾 {name} 还小（Lv.{lv}），Lv.10 解锁战斗技能！"
+        if lv < int(C.PET_SKILL_UNLOCK_LV):
+            return f"🐾 {name} 还小（Lv.{lv}），Lv.{int(C.PET_SKILL_UNLOCK_LV)} 解锁战斗技能！"
     except Exception:
         pass
     return ""
@@ -1860,7 +1860,7 @@ class CombatCmds(CommandBase):
                 p_exp = min(p_exp, C.pet_exp_need(C.PET_MAX_LEVEL) - 1)  # 封顶溢出封存
             db.pet_update(qq_id, exp=p_exp, level=p_lv)
             if p_lvup:
-                pet_bonus.append(f"🎉 宠物升到 Lv.{p_lv}！(Lv.10 解锁宠物技能)" if p_lv == 10 else (f"🎉 宠物升到 Lv.{p_lv}！(已满级)" if p_lv >= C.PET_MAX_LEVEL else f"🎉 宠物升到 Lv.{p_lv}！"))
+                pet_bonus.append(f"🎉 宠物升到 Lv.{p_lv}！(Lv.{int(C.PET_SKILL_UNLOCK_LV)} 解锁宠物技能)" if p_lv == int(C.PET_SKILL_UNLOCK_LV) else (f"🎉 宠物升到 Lv.{p_lv}！(已满级)" if p_lv >= C.PET_MAX_LEVEL else f"🎉 宠物升到 Lv.{p_lv}！"))
         # v101.13 坐骑 exp_mult：骑乘加成类坐骑战斗经验加成（幽灵马/狮鹫/炎蹄战马）
         mount_bonus = []
         meff = C.mount_effects(player)
