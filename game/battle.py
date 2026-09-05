@@ -7781,6 +7781,267 @@ class Battle:
             return True
 
         return False
+    def _mitigate_chain(self, actor: dict, dmg: int, logs: list) -> tuple:
+        """v177 命中后减伤链（actor 通用）：圣典免伤/铁壁格挡(免疫中断)/reduce_all/单人减伤/格挡+反击/
+        复仇/套装受击/词条料理/被动减伤族。返回 (处理后的 dmg, interrupted)；interrupted=True = 免疫本次伤害。
+        怪物 actor 无这些数据源 → 空转。副作用全在 self + logs。"""
+        if not actor or not actor.get("class_name"):
+            return dmg, False
+        B = self.p_buffs
+        EFF = self.p_eff
+        RES = self.resources
+        MS = self.mech_stacks
+        HITS = self._p_buff_hits
+        # v130.2c 圣典·日冕 4 件：满信仰状态下首次受击免伤（每战 1 次，随战斗序列化）
+        if (not getattr(self, "_set_immune_used", False)
+                and self._set_eff(actor, "first_hit_immune", 4)
+                and self._res_read("faith") >= self._res_max(actor, "faith")):
+            self._set_immune_used = True
+            logs.append("☀️ 圣典·日冕：满信仰免伤结界抵挡了这次攻击！")
+            return dmg, True
+        # v142 数据驱动：铁壁格挡（anvil_parry）——受击 20% 概率免疫本次伤害（每场 3 次，数值读 params）
+        _ap_eff = self._set_eff(actor, "anvil_parry", 4)
+        if _ap_eff:
+            _ap_params = (_ap_eff or {}).get("params") or {}
+            _apl = int((EFF or {}).get("anvil_parry_left", _ap_params.get("per_battle", 3)) or 3)
+            if _apl > 0 and random.random() < float(_ap_params.get("chance", 0.20)):
+                EFF["anvil_parry_left"] = _apl - 1
+                logs.append(f"🛡️ 铁壁格挡！千锤百炼的拳套挡下了攻击！（剩余 {_apl - 1} 次）")
+                return dmg, True
+        # v113.1：团队技能 reduce_all 真·百分比减伤（此前误映射 def_up 防御提升）——
+        # p_buffs["reduce_all"] 存减伤百分比，刻数由 RL_ALL 单独计时。
+        # 单机侧在此按比例减伤；副本广播侧（instance.py 消费 team_effects["reduce_all"]）另口径。
+        _rd_pct = float(B.get("reduce_all") or 0)
+        if _rd_pct > 0:
+            _rd = int(dmg * min(_rd_pct, 0.9))
+            if _rd > 0:
+                dmg = max(1, dmg - _rd)
+                logs.append(f"🕸️ 团队屏障减伤 {_rd} 点！")
+        elif _rd_pct < 0:
+            # v130.2 P0-4：熔核之心战损——全减伤负值 = 受伤加重（-20% → 受击 +20%）。
+            # 原实现只处理 >0 把负值整个跳过，熔核变成白嫖满怒无代价；此处补 <0 分支，不覆盖正向 reduce_all。
+            _pen_rd = int(dmg * -_rd_pct)
+            if _pen_rd > 0:
+                dmg += _pen_rd
+                logs.append(f"🔥 熔核代价：全减伤惩罚·受伤加重 {_pen_rd} 点！")
+        # v162：单人减伤（effect=reduce，铁壁/铜墙/亡魂护甲/磐岩甲）——p_buffs["reduce"] 存百分比，
+        # 受击次数由 _p_buff_hits 计时（_apply_dmg_to_target 尾部递减）。百分比减伤在此消费。
+        _sg_rd = float(B.get("reduce") or 0)
+        if _sg_rd > 0:
+            _sr = int(dmg * min(_sg_rd, 0.9))
+            if _sr > 0:
+                dmg = max(1, dmg - _sr)
+                logs.append(f"🛡️ 减伤护体吸收 {_sr} 点伤害！")
+        # v106.3 格挡属性统一结算（词条折算/种族岩壁格挡/被动/药水 → st["block"]）
+        # 圣盾被动 stat=block mult=0.1 已并入被动加成（_PASSIVE_STAT_APPLY block → block_add）
+        block_chance = float(self._actor_stats_of(actor).get("block", 0) or 0)
+        if B.get("block_pot"):
+            block_chance = 1 - (1 - block_chance) * (1 - 0.15)  # 岩壁药剂 +15% 格挡（乘算并入）
+        # v169.7 battle_mech effect：铁壁·誓/铁山靠 block_up（格挡率 30%/50%，数值存 p_eff block_up_val）
+        if B.get("block_up"):
+            _bu = float(EFF.get("block_up_val", 0.30) or 0.30)
+            block_chance = 1 - (1 - block_chance) * (1 - min(_bu, 0.5))
+        block_chance = min(block_chance, 0.40)
+        if block_chance > 0 and random.random() < block_chance:
+            block_reduce = max(1, int(dmg * 0.5))
+            dmg = max(1, dmg - block_reduce)
+            logs.append(f"🛡️ 格挡！减免 {block_reduce} 点伤害！")
+            # v142 数据驱动：壁槌反震（bi_chui_wall）——格挡成功必反弹 30% 原始伤害（数值读 params）
+            _bw_eff = self._set_eff(actor, "bi_chui_wall", 4)
+            if _bw_eff and self.enemy.get("hp", 0) > 0:
+                _bw_params = (_bw_eff or {}).get("params") or {}
+                _bw = max(1, int(dmg * float(_bw_params.get("reflect_pct", 0.30))))
+                _bw = self._boss_dmg_filter(_bw, actor, logs)
+                self._damage_enemy(_bw, logs)
+                logs.append(f"🧱 壁槌反震！格挡余劲反弹 {_bw} 点伤害！")
+            # v107 格挡反击（圣殿骑士）：格挡成功后按 chance 反伤（物理段，mult 为反伤系数）
+            # v110.3 P2-1：多个格挡反击被动逐个独立 roll，命中即停；此前 break 在 for 末尾无条件退出，只 roll 第一个被动
+            for _pn, _ps in self._passive_map(actor)["proc"].get("block_counter", []):
+                if self.enemy.get("hp", 0) > 0 and random.random() < float(_ps.get("chance", 0.5)):
+                    rd = max(1, int(dmg * float(_ps.get("mult", 0.5))))
+                    rd = self._boss_dmg_filter(rd, actor, logs)
+                    self._damage_enemy(rd, logs)
+                    logs.append(f"🛡️ {_pn}：格挡反击！反弹 {rd} 点伤害！")
+                    break  # 命中即停（一次格挡最多一次反击）
+        self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）
+        # ---- v151 时刻制：防御型 buff 受击计数递减（鱼鱼拍板：防御药水"3 刻"应按敌方出手次数计）----
+        # 铁壁药剂/岩壁药剂/影步药剂/荆棘药剂/技能铁壁 等防御/受击类 buff 不再按玩家刻递减，
+        # 改为"实际受击 N 次后消失"——防的是敌方出手，就按敌方出手数计时，不受速度差影响。
+        if getattr(self, "_p_buff_hits", None):
+            for _hk in [k for k in list(HITS) if int(HITS.get(k, 0) or 0) > 0]:
+                _nh = int(HITS.get(_hk, 0) or 0) - 1
+                if _nh <= 0:
+                    HITS.pop(_hk, None)
+                    # 受击次数耗尽 → 移除对应 buff（若 p_buffs 里还有刻数残留也清掉）
+                    if _hk in B:
+                        B.pop(_hk, None)
+                        logs.append(f"🕛 【{_hk}】效果随受击消耗殆尽！")
+                else:
+                    HITS[_hk] = _nh
+        # ---- v139 职业融合：受击处理（dual_form 扣资源 / focus 打断 / charge 打断 -1 阶）----
+        from .core.battle_modes import dual_form_def, dual_form_state, dual_form_hit, dual_form_force_return, dual_form_exit, dual_form_active, focus_def, focus_state, focus_on_hit, vent_def, vent_relief
+        from .core.battle_bars import charge_state, charge_on_hit
+        # dual_form：狂暴/龙焰形态受击 -N（P3 不清零、单刻封顶，由 dual_form_hit 返回应扣量）
+        if dual_form_active(actor):
+            _dfd = dual_form_def(actor)
+            _df_hc = dual_form_hit(actor)
+            if _df_hc > 0:
+                _df_key = _dfd.get("key", "rage")
+                _df_cur = int(RES.get(_df_key, 0) or 0)
+                RES[_df_key] = max(0, _df_cur - _df_hc)
+                logs.append(f"⚡【{_dfd.get('form', '形态')}】受击，形态值 -{_df_hc}（{RES.get(_df_key, 0)}）")
+                # 强制回基础形态检查（资源 < force_return）
+                if dual_form_force_return(actor, int(RES.get(_df_key, 0) or 0)):
+                    dual_form_exit(actor, logs)
+                    logs.append("⚠️ 力量不支，被迫回到常态！")
+        # focus：专注中受击打断判定（interrupt_rate 概率，资源保留）
+        if focus_state(actor).get("active"):
+            focus_on_hit(actor, logs)
+        # charge：蓄力中受击 -1 阶（不清零）
+        _ch_st = charge_state(actor)
+        if int(_ch_st.get("stages", 0) or 0) > 0:
+            charge_on_hit(actor, {"name": _ch_st.get("skill", "蓄力")}, logs)
+        # vent：闪避已在上方 return（闪避成功走 vent_relief），这里命中时不泄压
+        # v104 R3 P1-1：复仇被动——受击后下次攻击 +30%（挨打反打）
+        for _pn, _ps in self._passive_map(actor)["proc"].get("counter", []):
+            B["revenge_atk"] = max(B.get("revenge_atk", 0), 1)
+            break
+        # 阶段八：受击词条（减伤/格挡/反击/反伤/腐蚀/坚韧）
+        dmg = self._affix_on_taken(actor, dmg, logs)
+        dmg = self._food_on_taken(actor, dmg, logs)
+        # v142 数据驱动：套装受击特效（taken_* 型，读 params.type 调通用执行器）
+        dmg = self._set_taken_proc(actor, dmg, logs)
+        # v140 波3.1：特效装备受击（哨兵壁垒/铁壁回响/寒霜凝视/荆棘/卫士/深岩/龙脊/复仇环/烬火/石像/泰坦/巡林）
+        # 亡舞战铠常驻 -8% 减伤一并在此消费（passive taken 分发）
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _wetaken = {"dmg": dmg, "taken": dmg}
+            _we_proc(self, actor, "taken", _wetaken, logs)
+            _we_proc(self, actor, "passive", {"taken": _wetaken.get("taken", dmg)}, logs)
+            dmg = max(1, int(_wetaken.get("taken", dmg)))
+        except Exception:
+            pass
+        # v140 波4：新手特效 守御（novice_first_turn_guard）——每场战斗首刻受击伤害 -10%
+        if (EFF or {}).get("novice_guard_active") and self._tick_no() <= 1:
+            dmg = max(1, int(dmg * 0.90))
+            logs.append("🛡️ 守御：首刻受击伤害 -10%！")
+        # v130.2c 套装受击回资源：血誓战团（受击回怒 +1）/ 圣徽·誓约（受击回信仰 +1）
+        self._set_res_proc(actor, "on_taken", logs)
+        # v64/v104 被动 proc 结算（按 passive 字段查 learned_skills，替换名字硬匹配）：
+        #   dmg_taken → 减伤（铁壁之心/磐石体/磐石之心/磐石之躯/守护姿态）；reflect → 反伤（反震）
+        ps_names = E.passive_skills_learned(actor.get("class_name", ""), actor.get("learned_skills", []))
+        reduce_total = 0
+        for ps_name in ps_names:
+            info = E.skill_info(actor.get("class_name", ""), ps_name)
+            ps = (info or {}).get("passive") or {}
+            proc = ps.get("proc")
+            if proc == "dmg_taken":
+                rpct = float(ps.get("reduce") or 0)
+                if rpct <= 0:
+                    continue
+                # v1.x：条件判定改查 PASSIVE_COND_CHECKS（原 hp_low_30 if 硬编码；
+                # 条件不满足 → 跳过本次减伤，语义与旧 `cond==hp_low_30 and hp>=30% → continue` 一致）
+                if not passive_cond_ok(self, actor, ps):
+                    continue
+                reduce_total += int(dmg * rpct)
+                # v113.1：守护姿态 passive 带 res_gain（受击怒气+2 承诺）——此前本分支只减伤
+                # 不结算 res_gain，承诺落空。消费到职业核心资源（战士怒气等）。
+                _rg = int(ps.get("res_gain") or 0)
+                if _rg > 0:
+                    _rcls = actor.get("class_name", "")
+                    _rdef = E.core_resource_def(_rcls)
+                    if _rdef:
+                        _rk = _rdef["key"]
+                        # v130.2f2（T7 P2-1）：受击被动 res_gain（磐石体/墓穴护甲/守护姿态）改走
+                        # _res_gain_class——与 on_hit 基础受击渠道同口径：上限含词条/套装加成，
+                        # 满资源溢出转盾（不再直调 E.core_resource_gain 平顶蒸发）；满值时
+                        # 真实增量判定防误报（转盾由 _res_gain_class 日志单独反馈）。
+                        _rg_before = int(RES.get(_rk, 0) or 0)
+                        RES[_rk] = self._res_gain_class(_rcls, _rk, _rg)
+                        if int(RES.get(_rk, 0) or 0) > _rg_before:
+                            logs.append(f"⚡ {ps_name}：受击获取 {_rg} 点资源（{_rk} {RES[_rk]}）")
+            elif proc == "reflect" and self.enemy.get("hp", 0) > 0:
+                # v113.1：反震——按 chance 概率反伤（缺省 100%：无条件反伤，保持旧行为）
+                if "chance" in ps and random.random() >= float(ps.get("chance") or 0):
+                    continue
+                rd = int(dmg * float(ps.get("mult") or 0))
+                if rd > 0:
+                    # v104 M02 P1-5：反伤走 Boss 护盾过滤（扣盾减半/反伤），再结算援军挡刀
+                    rd = self._boss_dmg_filter(rd, actor, logs)
+                    self._damage_enemy(rd, logs)
+                    logs.append(f"🪨 {ps_name}：反弹 {rd} 点伤害！")
+        # v142 数据驱动：磐石不动（pan_shi_steady）——常驻 5% 减伤并入汇总（数值读 params）
+        _ps_eff = self._set_eff(actor, "pan_shi_steady", 4)
+        if _ps_eff:
+            _ps_params = (_ps_eff or {}).get("params") or {}
+            reduce_total += int(dmg * float(_ps_params.get("reduce_pct", 0.05)))
+            logs.append("⛰️ 磐石不动：巍然不动，减伤 5%！")
+        # v169.7 不动如山 core_last_stand：生命 <30% 时获得 3 枚磐核并减伤 40%（每场 1 次）——
+        # 触发点（磐核生产缺口见 技能引擎缺口全量清单 §3.2 磐核族：引擎无磐核生产渠道，此处
+        # 首触发只补 3 磐核并置位；40% 减伤随 hp<30% 每次受击生效（用满整场仍 1 次生产））
+        try:
+            if not getattr(self, "_core_last_stand_used", False):
+                _hp_ratio = actor.get("hp", 0) / max(1, actor.get("max_hp", 1) or 1)
+                if _hp_ratio < float((self._proc_pm(actor)["proc"].get("core_last_stand", [{}])[0][1]).get("hp_lt", 0.30)) if self._proc_pm(actor)["proc"].get("core_last_stand") else False:
+                    for _pn_cls, _ps_cls in self._proc_pm(actor)["proc"].get("core_last_stand", []):
+                        self._core_last_stand_used = True
+                        RES["guard_core"] = max(self._guard_core_n(), int(_ps_cls.get("cores", 3) or 3))
+                        logs.append(f"⛰️ 不动如山：绝境不屈，获得 {int(_ps_cls.get('cores', 3) or 3)} 枚磐核！（每场 1 次）")
+                        break
+        except Exception:
+            pass
+        # 圣堂壁垒（holy_bastion_def）——常驻 5% 减伤（数值读 params）
+        _hb_eff = self._set_eff(actor, "holy_bastion_def", 4)
+        if _hb_eff:
+            _hb_params = (_hb_eff or {}).get("params") or {}
+            reduce_total += int(dmg * float(_hb_params.get("reduce_pct", 0.05)))
+            logs.append("⛪ 圣堂壁垒：受击减伤 5%！")
+        # ---- v169.7 条件减伤被动族（磐核/战意 持有档位） ----
+        # 坚城之姿 zhan_yi_full_reduce（战士守线）：战意满 10 减伤 +10%
+        # 磐石之躯 core_full（拳师守线）：磐核满 5 减伤 +20%（免疫控制部分在 _apply_mech_effect 消费）
+        # 大地之肤 core_reduce（拳师守线）：每枚磐核额外减伤 +2%（与基础 +3% 叠加）
+        # 不动如山 core_last_stand（拳师守线）：生命 <30% 减伤 40%（每场 1 次，触发时同时给 3 磐核）
+        # 磐石之心 core_overflow（拳师守线）：磐核 ≥3 受击溢出伤害转护盾
+        try:
+            _pm_dr = self._proc_pm(actor)
+            _dr_pct = 0.0
+            # 坚城之姿
+            for _pn2, _ps2 in _pm_dr["proc"].get("zhan_yi_full_reduce", []):
+                if self._zhan_yi_n() >= int(_ps2.get("stacks", 10) or 10):
+                    _dr_pct += float(_ps2.get("reduce", 0.10) or 0.10)
+                break
+            # 磐石之躯 / 大地之肤（磐核档）
+            for _pn2, _ps2 in _pm_dr["proc"].get("core_full", []):
+                if self._guard_core_n() >= int(_ps2.get("stacks", 5) or 5):
+                    _dr_pct += float(_ps2.get("reduce", 0.20) or 0.20)
+                break
+            for _pn2, _ps2 in _pm_dr["proc"].get("core_reduce", []):
+                _gn = self._guard_core_n()
+                if _gn > 0:
+                    _dr_pct += float(_ps2.get("per_core", 0.02) or 0.02) * _gn
+                break
+            # 不动如山：已触发后（hp<30%）减伤 40% 持续生效
+            if getattr(self, "_core_last_stand_used", False):
+                for _pn2, _ps2 in _pm_dr["proc"].get("core_last_stand", []):
+                    _dr_pct += float(_ps2.get("reduce", 0.40) or 0.40)
+                    break
+            # 磐石之心：磐核 ≥3 → 溢出承伤转护盾（护盾 = 超过 hp 上限部分的伤害额 80%，3 刻）
+            for _pn2, _ps2 in _pm_dr["proc"].get("core_overflow", []):
+                if self._guard_core_n() >= int(_ps2.get("stacks", 3) or 3):
+                    _ov_sh = int(dmg * float(_ps2.get("shield_pct", 0.80) or 0.80))
+                    if _ov_sh > 0:
+                        self._add_shield("core_overflow", _ov_sh, int(_ps2.get("turns", 3) or 3))
+                        logs.append(f"🪨 磐石之心：磐核 {self._guard_core_n()} 枚，承伤转化 {_ov_sh} 点护盾！")
+                break
+            if _dr_pct > 0:
+                reduce_total += int(dmg * min(_dr_pct, 0.9))
+        except Exception:
+            pass
+        if reduce_total:
+            dmg = max(1, dmg - reduce_total)
+            logs.append(f"🛡️ 被动减伤 {reduce_total} 点")
+
+        return dmg, False
     def _retaliations_and_buffs(self, actor: dict, dmg: int, logs: list) -> tuple:
         """v177 受击后效（玩家 actor）：反伤/反击/金身/符文壁垒/次元门扉/圣辉等——打回敌人或改自身状态。
         返回 (处理后的 dmg, interrupted)；interrupted=True = 本次承伤被免疫中断（次元门扉），调用方 return。
@@ -8111,6 +8372,55 @@ class Battle:
             return self._player_stats(actor)
         return self._enemy_stats(actor)
 
+    def _monster_on_taken(self, actor: dict, logs: list) -> None:
+        """v177 怪物受击钩子（actor.on_taken dict → 受击回血/激怒/凝甲）。玩家 actor 无 on_taken → 空转。
+        由 _damage_actor 扣血后调用（存活才触发）。副作用全在 actor + logs。"""
+        if not actor or actor.get("class_name"):
+            return
+        try:
+            # v177 actor on_taken 受击钩子（怪物 actor 配置 on_taken → 受击触发；玩家 actor 无此字段空转）
+            # 主动伤害才触发（DOT wake_sleep=False 已由 _damage_enemy 前置过滤——此处 _ot_wake 参数控制）
+            if actor.get("hp", 0) > 0:
+                try:
+                    _ot = actor.get("on_taken") or {}
+                    if _ot:
+                        _tn = actor.get("name", "怪物")
+                        # 受击回血（cd 刻内不重复）
+                        _ot_h = _ot.get("heal") if isinstance(_ot.get("heal"), dict) else {}
+                        _hp = float(_ot_h.get("pct", 0) or 0)
+                        if _hp > 0:
+                            _last_hl = actor.get("_ot_heal_tick")
+                            _cd_hl = int(_ot_h.get("cd", 2) or 2)
+                            if _last_hl is None or self._tick_no() - int(_last_hl or 0) >= _cd_hl:
+                                _hl = max(1, int(actor.get("max_hp", 1) * _hp))
+                                actor["hp"] = min(actor.get("max_hp", actor.get("hp", 0)), actor.get("hp", 0) + _hl)
+                                actor["_ot_heal_tick"] = self._tick_no()
+                                logs.append(f"🩹 【{_tn}】受击回血 +{_hl}！")
+                        # 受击加攻（复仇：atk/matk +pct，turns 刻，绝对 tick 自管理）
+                        _au = _ot.get("atk_up") if isinstance(_ot.get("atk_up"), dict) else {}
+                        _aup = float(_au.get("pct", 0) or 0)
+                        if _aup > 0:
+                            _turns = max(1, int(_au.get("turns", 2) or 2))
+                            _bd = actor.setdefault("buffs", {})
+                            _until = self._tick_no() + _turns
+                            if int(_bd.get("_atk_up_until", 0) or 0) < self._tick_no():
+                                _bd["_atk_up_val"] = _aup
+                            else:
+                                _bd["_atk_up_val"] = max(float(_bd.get("_atk_up_val", 0) or 0), _aup)
+                            _bd["_atk_up_until"] = max(int(_bd.get("_atk_up_until", 0) or 0), _until)
+                            logs.append(f"🔥 【{_tn}】受击激怒！攻击提升 {int(_aup * 100)}%（{_turns} 刻）")
+                        # 受击转盾（存 actor["shields"] dict）
+                        _sh = _ot.get("shield") if isinstance(_ot.get("shield"), dict) else {}
+                        _shp = float(_sh.get("pct", 0) or 0)
+                        if _shp > 0 and not actor.get("shields"):
+                            _sv = max(1, int(actor.get("max_hp", 1) * _shp))
+                            actor.setdefault("shields", {})["on_taken"] = {"value": _sv, "halve": True}
+                            logs.append(f"🛡️ 【{_tn}】受击凝甲！护盾 +{_sv}")
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
     def _damage_actor(self, actor: dict, dmg: int, logs: list, source: str = "伤害",
                       attacker: dict | None = None) -> int:
         """v177 统一承伤核心（actor-agnostic）：玩家/怪物共用同一份受击结算。
@@ -8187,254 +8497,9 @@ class Battle:
             return 0
         # O116 命中：此刻才输出"造成 X 点伤害"日志（此前由 _enemy_turn 延迟暂存）
         logs += self._drain_pending_dmg()
-        # v130.2c 圣典·日冕 4 件：满信仰状态下首次受击免伤（每战 1 次，随战斗序列化）
-        if (not getattr(self, "_set_immune_used", False)
-                and self._set_eff(actor, "first_hit_immune", 4)
-                and self._res_read("faith") >= self._res_max(actor, "faith")):
-            self._set_immune_used = True
-            logs.append("☀️ 圣典·日冕：满信仰免伤结界抵挡了这次攻击！")
-            return
-        # v142 数据驱动：铁壁格挡（anvil_parry）——受击 20% 概率免疫本次伤害（每场 3 次，数值读 params）
-        _ap_eff = self._set_eff(actor, "anvil_parry", 4)
-        if _ap_eff:
-            _ap_params = (_ap_eff or {}).get("params") or {}
-            _apl = int((EFF or {}).get("anvil_parry_left", _ap_params.get("per_battle", 3)) or 3)
-            if _apl > 0 and random.random() < float(_ap_params.get("chance", 0.20)):
-                EFF["anvil_parry_left"] = _apl - 1
-                logs.append(f"🛡️ 铁壁格挡！千锤百炼的拳套挡下了攻击！（剩余 {_apl - 1} 次）")
-                return
-        # v113.1：团队技能 reduce_all 真·百分比减伤（此前误映射 def_up 防御提升）——
-        # p_buffs["reduce_all"] 存减伤百分比，刻数由 RL_ALL 单独计时。
-        # 单机侧在此按比例减伤；副本广播侧（instance.py 消费 team_effects["reduce_all"]）另口径。
-        _rd_pct = float(B.get("reduce_all") or 0)
-        if _rd_pct > 0:
-            _rd = int(dmg * min(_rd_pct, 0.9))
-            if _rd > 0:
-                dmg = max(1, dmg - _rd)
-                logs.append(f"🕸️ 团队屏障减伤 {_rd} 点！")
-        elif _rd_pct < 0:
-            # v130.2 P0-4：熔核之心战损——全减伤负值 = 受伤加重（-20% → 受击 +20%）。
-            # 原实现只处理 >0 把负值整个跳过，熔核变成白嫖满怒无代价；此处补 <0 分支，不覆盖正向 reduce_all。
-            _pen_rd = int(dmg * -_rd_pct)
-            if _pen_rd > 0:
-                dmg += _pen_rd
-                logs.append(f"🔥 熔核代价：全减伤惩罚·受伤加重 {_pen_rd} 点！")
-        # v162：单人减伤（effect=reduce，铁壁/铜墙/亡魂护甲/磐岩甲）——p_buffs["reduce"] 存百分比，
-        # 受击次数由 _p_buff_hits 计时（_apply_dmg_to_target 尾部递减）。百分比减伤在此消费。
-        _sg_rd = float(B.get("reduce") or 0)
-        if _sg_rd > 0:
-            _sr = int(dmg * min(_sg_rd, 0.9))
-            if _sr > 0:
-                dmg = max(1, dmg - _sr)
-                logs.append(f"🛡️ 减伤护体吸收 {_sr} 点伤害！")
-        # v106.3 格挡属性统一结算（词条折算/种族岩壁格挡/被动/药水 → st["block"]）
-        # 圣盾被动 stat=block mult=0.1 已并入被动加成（_PASSIVE_STAT_APPLY block → block_add）
-        block_chance = float(self._actor_stats_of(actor).get("block", 0) or 0)
-        if B.get("block_pot"):
-            block_chance = 1 - (1 - block_chance) * (1 - 0.15)  # 岩壁药剂 +15% 格挡（乘算并入）
-        # v169.7 battle_mech effect：铁壁·誓/铁山靠 block_up（格挡率 30%/50%，数值存 p_eff block_up_val）
-        if B.get("block_up"):
-            _bu = float(EFF.get("block_up_val", 0.30) or 0.30)
-            block_chance = 1 - (1 - block_chance) * (1 - min(_bu, 0.5))
-        block_chance = min(block_chance, 0.40)
-        if block_chance > 0 and random.random() < block_chance:
-            block_reduce = max(1, int(dmg * 0.5))
-            dmg = max(1, dmg - block_reduce)
-            logs.append(f"🛡️ 格挡！减免 {block_reduce} 点伤害！")
-            # v142 数据驱动：壁槌反震（bi_chui_wall）——格挡成功必反弹 30% 原始伤害（数值读 params）
-            _bw_eff = self._set_eff(actor, "bi_chui_wall", 4)
-            if _bw_eff and self.enemy.get("hp", 0) > 0:
-                _bw_params = (_bw_eff or {}).get("params") or {}
-                _bw = max(1, int(dmg * float(_bw_params.get("reflect_pct", 0.30))))
-                _bw = self._boss_dmg_filter(_bw, actor, logs)
-                self._damage_enemy(_bw, logs)
-                logs.append(f"🧱 壁槌反震！格挡余劲反弹 {_bw} 点伤害！")
-            # v107 格挡反击（圣殿骑士）：格挡成功后按 chance 反伤（物理段，mult 为反伤系数）
-            # v110.3 P2-1：多个格挡反击被动逐个独立 roll，命中即停；此前 break 在 for 末尾无条件退出，只 roll 第一个被动
-            for _pn, _ps in self._passive_map(actor)["proc"].get("block_counter", []):
-                if self.enemy.get("hp", 0) > 0 and random.random() < float(_ps.get("chance", 0.5)):
-                    rd = max(1, int(dmg * float(_ps.get("mult", 0.5))))
-                    rd = self._boss_dmg_filter(rd, actor, logs)
-                    self._damage_enemy(rd, logs)
-                    logs.append(f"🛡️ {_pn}：格挡反击！反弹 {rd} 点伤害！")
-                    break  # 命中即停（一次格挡最多一次反击）
-        self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）
-        # ---- v151 时刻制：防御型 buff 受击计数递减（鱼鱼拍板：防御药水"3 刻"应按敌方出手次数计）----
-        # 铁壁药剂/岩壁药剂/影步药剂/荆棘药剂/技能铁壁 等防御/受击类 buff 不再按玩家刻递减，
-        # 改为"实际受击 N 次后消失"——防的是敌方出手，就按敌方出手数计时，不受速度差影响。
-        if getattr(self, "_p_buff_hits", None):
-            for _hk in [k for k in list(HITS) if int(HITS.get(k, 0) or 0) > 0]:
-                _nh = int(HITS.get(_hk, 0) or 0) - 1
-                if _nh <= 0:
-                    HITS.pop(_hk, None)
-                    # 受击次数耗尽 → 移除对应 buff（若 p_buffs 里还有刻数残留也清掉）
-                    if _hk in B:
-                        B.pop(_hk, None)
-                        logs.append(f"🕛 【{_hk}】效果随受击消耗殆尽！")
-                else:
-                    HITS[_hk] = _nh
-        # ---- v139 职业融合：受击处理（dual_form 扣资源 / focus 打断 / charge 打断 -1 阶）----
-        from .core.battle_modes import dual_form_def, dual_form_state, dual_form_hit, dual_form_force_return, dual_form_exit, dual_form_active, focus_def, focus_state, focus_on_hit, vent_def, vent_relief
-        from .core.battle_bars import charge_state, charge_on_hit
-        # dual_form：狂暴/龙焰形态受击 -N（P3 不清零、单刻封顶，由 dual_form_hit 返回应扣量）
-        if dual_form_active(actor):
-            _dfd = dual_form_def(actor)
-            _df_hc = dual_form_hit(actor)
-            if _df_hc > 0:
-                _df_key = _dfd.get("key", "rage")
-                _df_cur = int(RES.get(_df_key, 0) or 0)
-                RES[_df_key] = max(0, _df_cur - _df_hc)
-                logs.append(f"⚡【{_dfd.get('form', '形态')}】受击，形态值 -{_df_hc}（{RES.get(_df_key, 0)}）")
-                # 强制回基础形态检查（资源 < force_return）
-                if dual_form_force_return(actor, int(RES.get(_df_key, 0) or 0)):
-                    dual_form_exit(actor, logs)
-                    logs.append("⚠️ 力量不支，被迫回到常态！")
-        # focus：专注中受击打断判定（interrupt_rate 概率，资源保留）
-        if focus_state(actor).get("active"):
-            focus_on_hit(actor, logs)
-        # charge：蓄力中受击 -1 阶（不清零）
-        _ch_st = charge_state(actor)
-        if int(_ch_st.get("stages", 0) or 0) > 0:
-            charge_on_hit(actor, {"name": _ch_st.get("skill", "蓄力")}, logs)
-        # vent：闪避已在上方 return（闪避成功走 vent_relief），这里命中时不泄压
-        # v104 R3 P1-1：复仇被动——受击后下次攻击 +30%（挨打反打）
-        for _pn, _ps in self._passive_map(actor)["proc"].get("counter", []):
-            B["revenge_atk"] = max(B.get("revenge_atk", 0), 1)
-            break
-        # 阶段八：受击词条（减伤/格挡/反击/反伤/腐蚀/坚韧）
-        dmg = self._affix_on_taken(actor, dmg, logs)
-        dmg = self._food_on_taken(actor, dmg, logs)
-        # v142 数据驱动：套装受击特效（taken_* 型，读 params.type 调通用执行器）
-        dmg = self._set_taken_proc(actor, dmg, logs)
-        # v140 波3.1：特效装备受击（哨兵壁垒/铁壁回响/寒霜凝视/荆棘/卫士/深岩/龙脊/复仇环/烬火/石像/泰坦/巡林）
-        # 亡舞战铠常驻 -8% 减伤一并在此消费（passive taken 分发）
-        try:
-            from .core.weapon_effects import proc as _we_proc
-            _wetaken = {"dmg": dmg, "taken": dmg}
-            _we_proc(self, actor, "taken", _wetaken, logs)
-            _we_proc(self, actor, "passive", {"taken": _wetaken.get("taken", dmg)}, logs)
-            dmg = max(1, int(_wetaken.get("taken", dmg)))
-        except Exception:
-            pass
-        # v140 波4：新手特效 守御（novice_first_turn_guard）——每场战斗首刻受击伤害 -10%
-        if (EFF or {}).get("novice_guard_active") and self._tick_no() <= 1:
-            dmg = max(1, int(dmg * 0.90))
-            logs.append("🛡️ 守御：首刻受击伤害 -10%！")
-        # v130.2c 套装受击回资源：血誓战团（受击回怒 +1）/ 圣徽·誓约（受击回信仰 +1）
-        self._set_res_proc(actor, "on_taken", logs)
-        # v64/v104 被动 proc 结算（按 passive 字段查 learned_skills，替换名字硬匹配）：
-        #   dmg_taken → 减伤（铁壁之心/磐石体/磐石之心/磐石之躯/守护姿态）；reflect → 反伤（反震）
-        ps_names = E.passive_skills_learned(actor.get("class_name", ""), actor.get("learned_skills", []))
-        reduce_total = 0
-        for ps_name in ps_names:
-            info = E.skill_info(actor.get("class_name", ""), ps_name)
-            ps = (info or {}).get("passive") or {}
-            proc = ps.get("proc")
-            if proc == "dmg_taken":
-                rpct = float(ps.get("reduce") or 0)
-                if rpct <= 0:
-                    continue
-                # v1.x：条件判定改查 PASSIVE_COND_CHECKS（原 hp_low_30 if 硬编码；
-                # 条件不满足 → 跳过本次减伤，语义与旧 `cond==hp_low_30 and hp>=30% → continue` 一致）
-                if not passive_cond_ok(self, actor, ps):
-                    continue
-                reduce_total += int(dmg * rpct)
-                # v113.1：守护姿态 passive 带 res_gain（受击怒气+2 承诺）——此前本分支只减伤
-                # 不结算 res_gain，承诺落空。消费到职业核心资源（战士怒气等）。
-                _rg = int(ps.get("res_gain") or 0)
-                if _rg > 0:
-                    _rcls = actor.get("class_name", "")
-                    _rdef = E.core_resource_def(_rcls)
-                    if _rdef:
-                        _rk = _rdef["key"]
-                        # v130.2f2（T7 P2-1）：受击被动 res_gain（磐石体/墓穴护甲/守护姿态）改走
-                        # _res_gain_class——与 on_hit 基础受击渠道同口径：上限含词条/套装加成，
-                        # 满资源溢出转盾（不再直调 E.core_resource_gain 平顶蒸发）；满值时
-                        # 真实增量判定防误报（转盾由 _res_gain_class 日志单独反馈）。
-                        _rg_before = int(RES.get(_rk, 0) or 0)
-                        RES[_rk] = self._res_gain_class(_rcls, _rk, _rg)
-                        if int(RES.get(_rk, 0) or 0) > _rg_before:
-                            logs.append(f"⚡ {ps_name}：受击获取 {_rg} 点资源（{_rk} {RES[_rk]}）")
-            elif proc == "reflect" and self.enemy.get("hp", 0) > 0:
-                # v113.1：反震——按 chance 概率反伤（缺省 100%：无条件反伤，保持旧行为）
-                if "chance" in ps and random.random() >= float(ps.get("chance") or 0):
-                    continue
-                rd = int(dmg * float(ps.get("mult") or 0))
-                if rd > 0:
-                    # v104 M02 P1-5：反伤走 Boss 护盾过滤（扣盾减半/反伤），再结算援军挡刀
-                    rd = self._boss_dmg_filter(rd, actor, logs)
-                    self._damage_enemy(rd, logs)
-                    logs.append(f"🪨 {ps_name}：反弹 {rd} 点伤害！")
-        # v142 数据驱动：磐石不动（pan_shi_steady）——常驻 5% 减伤并入汇总（数值读 params）
-        _ps_eff = self._set_eff(actor, "pan_shi_steady", 4)
-        if _ps_eff:
-            _ps_params = (_ps_eff or {}).get("params") or {}
-            reduce_total += int(dmg * float(_ps_params.get("reduce_pct", 0.05)))
-            logs.append("⛰️ 磐石不动：巍然不动，减伤 5%！")
-        # v169.7 不动如山 core_last_stand：生命 <30% 时获得 3 枚磐核并减伤 40%（每场 1 次）——
-        # 触发点（磐核生产缺口见 技能引擎缺口全量清单 §3.2 磐核族：引擎无磐核生产渠道，此处
-        # 首触发只补 3 磐核并置位；40% 减伤随 hp<30% 每次受击生效（用满整场仍 1 次生产））
-        try:
-            if not getattr(self, "_core_last_stand_used", False):
-                _hp_ratio = actor.get("hp", 0) / max(1, actor.get("max_hp", 1) or 1)
-                if _hp_ratio < float((self._proc_pm(actor)["proc"].get("core_last_stand", [{}])[0][1]).get("hp_lt", 0.30)) if self._proc_pm(actor)["proc"].get("core_last_stand") else False:
-                    for _pn_cls, _ps_cls in self._proc_pm(actor)["proc"].get("core_last_stand", []):
-                        self._core_last_stand_used = True
-                        RES["guard_core"] = max(self._guard_core_n(), int(_ps_cls.get("cores", 3) or 3))
-                        logs.append(f"⛰️ 不动如山：绝境不屈，获得 {int(_ps_cls.get('cores', 3) or 3)} 枚磐核！（每场 1 次）")
-                        break
-        except Exception:
-            pass
-        # 圣堂壁垒（holy_bastion_def）——常驻 5% 减伤（数值读 params）
-        _hb_eff = self._set_eff(actor, "holy_bastion_def", 4)
-        if _hb_eff:
-            _hb_params = (_hb_eff or {}).get("params") or {}
-            reduce_total += int(dmg * float(_hb_params.get("reduce_pct", 0.05)))
-            logs.append("⛪ 圣堂壁垒：受击减伤 5%！")
-        # ---- v169.7 条件减伤被动族（磐核/战意 持有档位） ----
-        # 坚城之姿 zhan_yi_full_reduce（战士守线）：战意满 10 减伤 +10%
-        # 磐石之躯 core_full（拳师守线）：磐核满 5 减伤 +20%（免疫控制部分在 _apply_mech_effect 消费）
-        # 大地之肤 core_reduce（拳师守线）：每枚磐核额外减伤 +2%（与基础 +3% 叠加）
-        # 不动如山 core_last_stand（拳师守线）：生命 <30% 减伤 40%（每场 1 次，触发时同时给 3 磐核）
-        # 磐石之心 core_overflow（拳师守线）：磐核 ≥3 受击溢出伤害转护盾
-        try:
-            _pm_dr = self._proc_pm(actor)
-            _dr_pct = 0.0
-            # 坚城之姿
-            for _pn2, _ps2 in _pm_dr["proc"].get("zhan_yi_full_reduce", []):
-                if self._zhan_yi_n() >= int(_ps2.get("stacks", 10) or 10):
-                    _dr_pct += float(_ps2.get("reduce", 0.10) or 0.10)
-                break
-            # 磐石之躯 / 大地之肤（磐核档）
-            for _pn2, _ps2 in _pm_dr["proc"].get("core_full", []):
-                if self._guard_core_n() >= int(_ps2.get("stacks", 5) or 5):
-                    _dr_pct += float(_ps2.get("reduce", 0.20) or 0.20)
-                break
-            for _pn2, _ps2 in _pm_dr["proc"].get("core_reduce", []):
-                _gn = self._guard_core_n()
-                if _gn > 0:
-                    _dr_pct += float(_ps2.get("per_core", 0.02) or 0.02) * _gn
-                break
-            # 不动如山：已触发后（hp<30%）减伤 40% 持续生效
-            if getattr(self, "_core_last_stand_used", False):
-                for _pn2, _ps2 in _pm_dr["proc"].get("core_last_stand", []):
-                    _dr_pct += float(_ps2.get("reduce", 0.40) or 0.40)
-                    break
-            # 磐石之心：磐核 ≥3 → 溢出承伤转护盾（护盾 = 超过 hp 上限部分的伤害额 80%，3 刻）
-            for _pn2, _ps2 in _pm_dr["proc"].get("core_overflow", []):
-                if self._guard_core_n() >= int(_ps2.get("stacks", 3) or 3):
-                    _ov_sh = int(dmg * float(_ps2.get("shield_pct", 0.80) or 0.80))
-                    if _ov_sh > 0:
-                        self._add_shield("core_overflow", _ov_sh, int(_ps2.get("turns", 3) or 3))
-                        logs.append(f"🪨 磐石之心：磐核 {self._guard_core_n()} 枚，承伤转化 {_ov_sh} 点护盾！")
-                break
-            if _dr_pct > 0:
-                reduce_total += int(dmg * min(_dr_pct, 0.9))
-        except Exception:
-            pass
-        if reduce_total:
-            dmg = max(1, dmg - reduce_total)
-            logs.append(f"🛡️ 被动减伤 {reduce_total} 点")
+        dmg, _interrupted_m = self._mitigate_chain(actor, dmg, logs)
+        if _interrupted_m:
+            return 0
         dmg, _interrupted = self._retaliations_and_buffs(actor, dmg, logs)
         if _interrupted:
             return 0
@@ -8464,46 +8529,7 @@ class Battle:
             if any(u is actor or u.get("uid") == actor.get("uid") for u in self.enemies):
                 self._remove_unit("enemy", actor)
             return max(0, _hp_before - int(actor.get("hp", 0) or 0))
-        # v177 actor on_taken 受击钩子（怪物 actor 配置 on_taken → 受击触发；玩家 actor 无此字段空转）
-        # 主动伤害才触发（DOT wake_sleep=False 已由 _damage_enemy 前置过滤——此处 _ot_wake 参数控制）
-        if not _is_player and actor.get("hp", 0) > 0:
-            try:
-                _ot = actor.get("on_taken") or {}
-                if _ot:
-                    _tn = actor.get("name", "怪物")
-                    # 受击回血（cd 刻内不重复）
-                    _ot_h = _ot.get("heal") if isinstance(_ot.get("heal"), dict) else {}
-                    _hp = float(_ot_h.get("pct", 0) or 0)
-                    if _hp > 0:
-                        _last_hl = actor.get("_ot_heal_tick")
-                        _cd_hl = int(_ot_h.get("cd", 2) or 2)
-                        if _last_hl is None or self._tick_no() - int(_last_hl or 0) >= _cd_hl:
-                            _hl = max(1, int(actor.get("max_hp", 1) * _hp))
-                            actor["hp"] = min(actor.get("max_hp", actor.get("hp", 0)), actor.get("hp", 0) + _hl)
-                            actor["_ot_heal_tick"] = self._tick_no()
-                            logs.append(f"🩹 【{_tn}】受击回血 +{_hl}！")
-                    # 受击加攻（复仇：atk/matk +pct，turns 刻，绝对 tick 自管理）
-                    _au = _ot.get("atk_up") if isinstance(_ot.get("atk_up"), dict) else {}
-                    _aup = float(_au.get("pct", 0) or 0)
-                    if _aup > 0:
-                        _turns = max(1, int(_au.get("turns", 2) or 2))
-                        _bd = actor.setdefault("buffs", {})
-                        _until = self._tick_no() + _turns
-                        if int(_bd.get("_atk_up_until", 0) or 0) < self._tick_no():
-                            _bd["_atk_up_val"] = _aup
-                        else:
-                            _bd["_atk_up_val"] = max(float(_bd.get("_atk_up_val", 0) or 0), _aup)
-                        _bd["_atk_up_until"] = max(int(_bd.get("_atk_up_until", 0) or 0), _until)
-                        logs.append(f"🔥 【{_tn}】受击激怒！攻击提升 {int(_aup * 100)}%（{_turns} 刻）")
-                    # 受击转盾（存 actor["shields"] dict）
-                    _sh = _ot.get("shield") if isinstance(_ot.get("shield"), dict) else {}
-                    _shp = float(_sh.get("pct", 0) or 0)
-                    if _shp > 0 and not actor.get("shields"):
-                        _sv = max(1, int(actor.get("max_hp", 1) * _shp))
-                        actor.setdefault("shields", {})["on_taken"] = {"value": _sv, "halve": True}
-                        logs.append(f"🛡️ 【{_tn}】受击凝甲！护盾 +{_sv}")
-            except Exception:
-                pass
+        self._monster_on_taken(actor, logs)
         self._post_hp_lethal(actor, dmg, logs)
         self._on_taken_rewards(actor, logs)
 
