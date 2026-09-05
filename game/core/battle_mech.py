@@ -933,6 +933,7 @@ def _mb_spd_up(battle, logs, sname):
     logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，速度提升了！")
 
 
+
 # ================= 4. 怪物控制机制（_enemy_turn 技能 mech） =================
 
 MON_CTRL_EFFECTS = {}
@@ -1031,6 +1032,18 @@ def _burst_damage(battle, bonus, logs):
 # battle.py 改查表；TEAM_BUFF_KEYS（effect=xx_all 团队增益）保留原逻辑。
 # SKILL_BUFF_EFFECTS 签名：fn(battle, skill_name, info, player, lv, logs) -> None
 SKILL_BUFF_EFFECTS = {}
+
+
+@register(SKILL_BUFF_EFFECTS, "shield")
+def _sb_mon_shield(battle, skill_name, info, player, lv, logs):
+    """怪护盾 effect=shield（v180 收编管线后玩家 buff 表统一入口）：
+    写施法者 actor.shields（halve=True 受伤减半）——怪被 _damage_actor 怪分支消费。
+    盾值 = max_hp×20%（旧 MON_BUFF shield 同款；技能可配 shield_pct 覆盖）。"""
+    _pct = float(info.get("shield_pct", 0.20) or 0.20)
+    _val = int((player or battle.enemy).get("max_hp", 1) * _pct)
+    _shd = player.setdefault("shields", {})
+    _shd["buff"] = {"value": _val, "halve": True}
+    logs.append(f"🛡️ 【{player.get('name', '怪物')}】使用了【{skill_name}】，周身浮现一层护盾(受伤减半)！")
 
 
 @register(SKILL_BUFF_EFFECTS, "mon_atk_down")

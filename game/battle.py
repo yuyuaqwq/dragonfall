@@ -5243,7 +5243,12 @@ class Battle:
                 # v104 M02 P1-4：团队增益 effect=xx_all 映射为施放者自身有效键（def_all→def_up 等）
                 key = TEAM_BUFF_KEYS.get(eff, eff)
                 # v104 M02 P2-11：同 effect 不同技能 buff 覆盖取高（与药水路径一致）
-                base_turns = E.skill_buff_turns(lv)
+                # v180：怪物施法（_cast_ctx 非玩家 actor）buff 刻数固定读 info.buff_turns（缺省 3）
+                # ——怪 buff 无"技能等级养成"，对齐旧 MON_BUFF BUFF_TURNS=3（不叠加折算等级成长）
+                if not self._cast_is_player():
+                    base_turns = int(info.get("buff_turns", 3) or 3)
+                else:
+                    base_turns = E.skill_buff_turns(lv)
                 # v130.2 歌者回声：增益技持续 + 回声层数 刻（priest_转职.md §3.0）
                 if self._is_bard_skill(player, info):
                     base_turns += int(ECHO_CFG.get("buff_extend_per_layer", 1) or 1) * self._echo_layers()
@@ -7170,29 +7175,15 @@ class Battle:
                         f"⚠️ 【意图】{ename} 正在蓄力【{sname}】！下刻将造成大伤害——"
                         f"可『防御』减半或『打断技』赌它读条失败！")
                     return logs, 0
-                if kind == K_BUFF:
-                    from .core.battle_mech import MON_BUFF_EFFECTS, SKILL_BUFF_EFFECTS
-                    eff = sinfo.get("effect")
-                    eff_fn = MON_BUFF_EFFECTS.get(eff)
-                    if not eff_fn:
-                        # v177 玩家增益技能（effect 在玩家 buff 注册表 SKILL_BUFF_EFFECTS）→
-                        # 怪物也能施放：注册表 handler 内写 _cast_buffs()（设 _cast_ctx=e → 怪自身 buffs）
-                        eff_fn = SKILL_BUFF_EFFECTS.get(eff)
-                    if eff_fn:
-                        try:
-                            if eff in MON_BUFF_EFFECTS:
-                                eff_fn(self, logs, sname)
-                            else:
-                                # 玩家 buff handler 签名 fn(battle, skill_name, info, player, lv, logs)
-                                _plv_b = max(1, min(20, int(e.get("lv", 1) or 1) // 2))
-                                _saved_ctx = self._cast_ctx
-                                self._cast_ctx = e  # 玩家 buff 写 _cast_buffs() → 怪自身 buffs
-                                try:
-                                    eff_fn(self, skill, sinfo, e, _plv_b, logs)
-                                finally:
-                                    self._cast_ctx = _saved_ctx
-                        except Exception:
-                            pass
+                if kind == K_BUFF or kind == K_HEAL:
+                    # v180 增益/治疗即时分支统一走管线（原 MON_BUFF_EFFECTS/SKILL_BUFF_EFFECTS
+                    # 双表分派为两套代码残余）：_monster_cast_playerskill 按 kind 分流——
+                    # 增益(_skill_buff: atk_up/def_up/spd_up 兜底写怪 buffs)、治疗(_skill_heal:
+                    # hp_pct/heal_formula)、召唤(summon:1 分支 _summon_minions)。即时生效语义保留
+                    # （增益出手即上身，不排读条）。
+                    _logs_b, _dmg_b = self._monster_cast_playerskill(e, skill, player,
+                                                                  {"kind": "skill", "skill": skill})
+                    logs += _logs_b
                     # v154：增益立即生效，但敌方行动也要消耗 ct（读条 + 收招）
                     self._after_actor_ct("e", e, cast_mult=CAST_SKILL * self._ct_cost(est.get("spd", 0)))
                     return logs, 0
