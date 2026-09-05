@@ -4492,7 +4492,7 @@ class Battle:
                                    player.get("mp", 0) + gain)
                 logs.append(f"🌑 虚空汲取：回复 {gain} 点魔力！")
 
-        return total, _magi_part, info
+        return total, _magi_part, info, _v169_tags
 
     def _skill_assemble_mults(self, st: dict, est: dict, player: dict, info: dict,
                               mech: str, kind: str, lv: int, skill_name: str,
@@ -4979,7 +4979,7 @@ class Battle:
         if lucky:
             logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
         # v176: 总伤后处理抽 _skill_finalize_damage（原 113 行内联）
-        total, _magi_part, info = self._skill_finalize_damage(
+        total, _magi_part, info, _v169_tags = self._skill_finalize_damage(
             st, player, info, kind, element, skill_name, multi,
             is_crit, total, _magi_part, logs)        # 特效合并成紧凑标签（避免一行堆满长后缀）
         tags = []
