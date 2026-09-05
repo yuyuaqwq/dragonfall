@@ -6327,11 +6327,67 @@ class Battle:
         #   monsters 条目可配 {"ai": {"skill_chance": 0.5, "weights": {"ms_heal": 2, ...}, "first_move": "ms_x"}}
         _ai = (e or {}).get("ai") or {}
         _skill_chance = float(_ai.get("skill_chance", C.MON_SKILL_CHANCE) or C.MON_SKILL_CHANCE)
+        # v178 E7：固定连招链 chains 消费（数据驱动——试炼骑士长固定 4 招循环等）
+        #   Boss dict/scripts 配 "chains": [{"seq": ["sk1","sk2",...], "cd": N, "break": 0.1}, ...]
+        #   seq=连招技能序列（按序推进，到头回绕）；cd=整链间隔（打完等 N 刻再起下轮，
+        #   0=无缝循环）；break=断链概率（<1 时每步概率中断回随机池，缺省 0=必中链）
+        #   引擎状态存 e._chain_cfg/_chain_pos/_chain_until（随战斗序列化）
+        _chain_skill = None
+        _chains_cfg = e.get("_chain_cfg")
+        if _chains_cfg is None:
+            try:
+                _ccfg0 = self._boss_cfg(e).get("chains") or []
+                if _ccfg0 and e.get("mech") or e.get("_inst_id"):
+                    e["_chain_cfg"] = _ccfg0
+                    _chains_cfg = _ccfg0
+            except Exception:
+                _chains_cfg = None
+        if _ult_skill is None and _chains_cfg and not silenced and not e.get("charging"):
+            try:
+                _pos = int(e.get("_chain_pos", 0) or 0)
+                _until = int(e.get("_chain_until", 0) or 0)
+                _r_now = self._tick_no()
+                # 冷却中（整链打完等 cd）→ 不推进链，回落随机
+                if _r_now < _until:
+                    _chain_skill = None
+                else:
+                    # 选当前链（可多链轮换：按 _chain_idx 取模）
+                    _carr = _chains_cfg if isinstance(_chains_cfg, list) else []
+                    if _carr:
+                        _cidx = int(e.get("_chain_idx", 0) or 0) % len(_carr)
+                        _chain = _carr[_cidx]
+                        if isinstance(_chain, dict):
+                            _seq = _chain.get("seq") or []
+                            _brk = float(_chain.get("break", 0.0) or 0.0)
+                            if _seq:
+                                if _pos >= len(_seq):
+                                    _pos = 0
+                                    e["_chain_idx"] = _cidx + 1  # 链轮换
+                                    _cidx2 = int(e.get("_chain_idx", 0) or 0) % len(_carr)
+                                    _chain = _carr[_cidx2]
+                                    _seq = _chain.get("seq") or []
+                                    _brk = float(_chain.get("break", 0.0) or 0.0)
+                                # 断链判定（break>0 时概率中断，中断=链状态清空回随机池）
+                                if _brk > 0 and random.random() < _brk:
+                                    e.pop("_chain_pos", None)
+                                    e.pop("_chain_until", None)
+                                    _chain_skill = None
+                                else:
+                                    _s = _seq[_pos] if _pos < len(_seq) else None
+                                    if _s:
+                                        _chain_skill = _s
+                                        # 推进指针 + 链尾设置冷却
+                                        e["_chain_pos"] = _pos + 1
+                                        if _pos + 1 >= len(_seq):
+                                            _cd = int(_chain.get("cd", 0) or 0)
+                                            e["_chain_until"] = _r_now + _cd
+            except Exception:
+                _chain_skill = None
         # v178 E3b：ult_every 已强制指定 skill（_ult_skill）→ 直接进技能施放块；
-        # 否则按原 AI 轮盘（skill_chance 概率）抽
-        skill = _ult_skill  # 初始化为大招（若触发）；None 则走下面轮盘
+        # 否则按原 AI 轮盘（skill_chance 概率）抽；E7 链命中则按链出招（无视 skill_chance）
+        skill = _ult_skill or _chain_skill  # 大招 > 连招链 > 随机
         if skill is not None or (e.get("skills") and random.random() < _skill_chance and not silenced):
-            # skill 已由 ult_every 指定时跳过轮盘；否则权重轮盘（缺省均匀抽）
+            # skill 已指定（ult/chain）时跳过轮盘；否则权重轮盘（缺省均匀抽）
             if skill is None:
                 _weights = _ai.get("weights")
                 if _weights and isinstance(_weights, dict):
@@ -6345,7 +6401,8 @@ class Battle:
                     skill = random.choice(e["skills"])
             # v177 actor 资源门槛：抽中技能 res_cost 不足 → 技能不可用，回落普攻（不重抽，保持 random 序列）
             # 注意：只在技能声明 res_cost 且资源不足时拦截——旧技能无 res_cost → 零行为变化
-            # （ult_every 强制大招不过资源门槛——它代表 Boss 拼死一搏，资源语义不拦）
+            # （ult_every 强制大招不过资源门槛——它代表 Boss 拼死一搏，资源语义不拦；
+            #  chain/随机技能正常查资源门槛）
             if skill is not None and _ult_skill is None:
                 try:
                     _sfo_rc = self._lookup_skill_info(skill)
