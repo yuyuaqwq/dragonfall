@@ -7248,41 +7248,15 @@ class Battle:
                               player: dict | None = None) -> tuple:
         """敌方蓄力释放：按 MONSTER_SKILLS 里的技能结算伤害（对整个玩家方）。
         返回 (logs, 对玩家伤害)。"""
-        sinfo = self._lookup_skill_info(skill_name)
-        if not sinfo:
-            return logs, 0
-        kind = sinfo.get("kind")
-        power = sinfo.get("power", 1.0)
-        is_crit = random.random() < est.get("crit", C.MON_SKILL_CRIT) * self._tenacity_mult(pst)
-        sname = sinfo.get("name", skill_name)
-        if kind == K_BUFF:
-            from .core.battle_mech import MON_BUFF_EFFECTS
-            eff_fn = MON_BUFF_EFFECTS.get(sinfo.get("effect"))
-            if eff_fn:
-                eff_fn(self, logs, sname)
-            return logs, 0
-        if kind == K_PHYS:
-            _pp, _pf = self._pene_vals(est)
-            dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf,
-                                dmg_type="phys")
-        else:
-            _pp, _pf = self._pene_vals(est, magic=True)
-            dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit, pene_pct=_pp, pene_flat=_pf,
-                                dmg_type="magi")
-        # v169.3 等级压制增伤：蓄力释放（践踏/野猪王等大技能）同样吃怪高玩家等级压制 ×(1+0.02N)
-        _lpm = self._enemy_lv_pressure(player, e)
-        dmg = max(1, int(dmg * _lpm))
-        # v167.3 修：蓄力释放必须真正扣玩家血（旧版只写 pending 日志+return dmg，从不调
-        # _damage_player → 践踏"轰然落下"提示后无伤害）。与敌方普攻 cast_done 分支同构：
-        # 先暂存伤害文案，再由 _damage_player 消费（闪避/格挡/挡刀正确交互）。
-        self._pending_dmg_lines.append(
-            f"【{ename}】的【{sname}】对你造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
-        if player is not None:
-            _dd = max(1, int(dmg)) if dmg > 0 else 0
-            if _dd > 0:
-                self._damage_player(player, _dd, logs, source=ename)
-            else:
-                self._pending_dmg_lines = []
+        # v180 蓄力释放统一走管线（同 _enemy_cast_done 收编）：_monster_cast_playerskill
+        # 双向 actor（_cast_ctx=e 蓄力怪 / _target_ctx=player），_player_skill 按 kind 分流——
+        # 物理/魔法伤害、治疗(hp_pct)、增益、召唤、pdot、mech 控制全语义一次获得。
+        # 原简化结算（MON_BUFF_EFFECTS 增益 / calc_damage 手动伤害）为两套代码残余，已废弃。
+        # ⚠️ 参数：_monster_cast_playerskill(unit, skill_name, target_player, ev)——第 4 参 ev 占位；
+        # 返回的新 logs 要追加到本函数 logs（保留 charge_tick 已加的"蓄力完成，轰然落下"预告）
+        _logs_r, _dmg_r = self._monster_cast_playerskill(e, skill_name, player, {"kind": "skill", "skill": skill_name})
+        logs += _logs_r
+        dmg = _dmg_r
         # v154：蓄力释放后敌方重排下次行动（读条 + 收招）
         self._after_actor_ct("e", e, cast_mult=CAST_SKILL * self._ct_cost(est.get("spd", 0)))
         return logs, max(0, dmg)
