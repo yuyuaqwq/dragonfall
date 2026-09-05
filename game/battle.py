@@ -909,75 +909,53 @@ class Battle:
             return rd
         return E.core_resource_def(actor.get("class_name", ""))
 
-    def _res_bag_of(self, actor: dict) -> dict:
-        """v177 actor 资源存储：玩家 = battle 焦点 resources；怪物 = actor["resources"]（惰性建）。"""
-        if actor and actor.get("id") and not actor.get("class_name"):
-            return actor.setdefault("resources", {})
-        return self.resources
-
-    def _res_read_actor(self, actor: dict, key: str) -> int:
-        """v177 actor 资源读取（玩家/怪物通用）：element → 充能条；其余直读 actor 资源 dict。"""
-        bag = self._res_bag_of(actor)
-        if key == "element":
-            if bag is self.resources:
-                return self._elem_charge()
-            return int(bag.get("element_charge", 0) or 0)
-        return int(bag.get(key, 0) or 0)
-
-    def _res_gain_actor(self, actor: dict, key: str, amount: int, logs: list | None = None) -> int:
-        """v177 actor 资源增加（玩家/怪物通用）：按 actor 资源定义上限封顶。
-        玩家（无 resource_def）→ 回退旧 _res_gain（职业/词条/套装全渠道）。
-        怪物（resource_def）→ actor 资源 dict + 定义 max；满溢转盾（overflow_shield）同玩家。"""
-        rd = self._res_def_of(actor)
-        bag = self._res_bag_of(actor)
-        if not rd or bag is self.resources:
-            # 玩家路径（或未配定义）→ 旧逻辑
-            if actor.get("class_name"):
-                return self._res_gain(actor, key, int(amount or 0), logs)
-            return int(bag.get(key, 0) or 0)
-        cap = int(rd.get("max", 99) or 99)
-        cur = int(bag.get(key, 0) or 0)
-        amount = int(amount or 0)
-        new = min(cap, cur + amount)
-        if rd.get("overflow_shield") and cur + amount > cap and actor.get("hp", 0) > 0:
-            try:
-                self._add_shield(f"res_overflow_{key}", int((cur + amount - cap) * float(rd.get("overflow_ratio", 5) or 5)), 1)
-            except Exception:
-                pass
-        bag[key] = new
-        return new
-
-    def _res_spend_actor(self, actor: dict, key: str, amount: int) -> bool:
-        """v177 actor 资源消耗：足够则扣返回 True；不足不扣返回 False。element → 充能条。"""
-        bag = self._res_bag_of(actor)
-        if key == "element":
-            cur = int(bag.get("element_charge", 0) or 0) if bag is not self.resources else self._elem_charge()
-            if cur < int(amount or 0):
-                return False
-            if bag is self.resources:
-                self.resources["element_charge"] = cur - int(amount or 0)
-            else:
-                bag["element_charge"] = cur - int(amount or 0)
-            return True
-        cur = int(bag.get(key, 0) or 0)
-        if cur < int(amount or 0):
-            return False
-        bag[key] = cur - int(amount or 0)
-        return True
-
     def _res_read(self, key: str) -> int:
-        """读取资源值（element → 充能条 element_charge；其余直读 resources[key]）"""
+        """读取当前焦点 actor 资源值（element → 充能条 element_charge；其余直读 resources[key]）"""
         if key == "element":
             return self._elem_charge()
         return int(self.resources.get(key, 0) or 0)
 
-    def _res_gain(self, player: dict, key: str, amount: int, logs: list | None = None) -> int:
-        """资源增加（带上限）。element → 充能条（CORE_RESOURCES element max=5）；
-        副资源（resonance 等按 key 注册）→ core_resource_gain_key；其余按 class 定义。
-        v130.2 P1-3 修复：基础 key（rage/cp/energy/faith/dragon_might/zen 等，非按 key 注册的副资源）
-        旧实现只返回新值不写回 self.resources[k] → restore_resource 药水/战前预充/隐藏线 res_gain 全静默失效；
-        现统一写回（调用方丢弃返回值也落库正确，无双重累加风险——各调用方均不以返回值为累加基准）。
+    def _res_read_actor(self, actor: dict, key: str) -> int:
+        """v177 读取指定 actor 资源值（玩家/怪物同一套——只路由存储袋，不分叉逻辑）。"""
+        if not actor:
+            return self._res_read(key)
+        if actor.get("class_name"):
+            return self._res_read(key)
+        bag = actor.setdefault("resources", {})
+        if key == "element":
+            return int(bag.get("element_charge", 0) or 0)
+        return int(bag.get(key, 0) or 0)
+
+    def _res_gain(self, actor: dict, key: str, amount: int, logs: list | None = None) -> int:
+        """资源增加（带上限）。v177 actor 统一：玩家/怪物同一套逻辑，仅存储袋与定义来源路由。
+        - 玩家 actor（有 class_name）→ 焦点 resources + CORE_RESOURCES 职业定义（词条/套装上限加成）
+        - 怪物/自定义 actor（无 class_name，带 resource_def 或裸资源袋）→ actor["resources"] + resource_def
+        element → 充能条；echo → 驻留叠层；按 key 注册副资源 → core_resource_gain_key。
+        v130.2 P1-3 修复：写回不静默（调用方丢弃返回值也落库正确）。
         v130.2 R1：logs 可选透传——echo 分支经 _echo_add 产出「🎵 回声驻留 +N」反馈（歌者施放可见）。"""
+        if not actor:
+            return 0
+        # ---- 怪物/自定义 actor（无职业定义链）：走 actor 资源袋 + resource_def 上限 ----
+        if not actor.get("class_name"):
+            rd = self._res_def_of(actor)
+            bag = actor.setdefault("resources", {})
+            if key == "element":
+                bag["element_charge"] = min(int(rd.get("max", 5) or 5),
+                                            int(bag.get("element_charge", 0) or 0) + int(amount or 0))
+                return bag["element_charge"]
+            cap = int(rd.get("max", 99) or 99) if rd else 99
+            cur = int(bag.get(key, 0) or 0)
+            new = min(cap, cur + int(amount or 0))
+            # 满溢转盾（怪物 resource_def 也可配 overflow_shield）
+            if rd.get("overflow_shield") and cur + int(amount or 0) > cap and actor.get("hp", 0) and not getattr(self, "_overflow_shield_cd", False):
+                try:
+                    self._add_shield(f"res_overflow_{key}", int((cur + int(amount or 0) - cap) * float(rd.get("overflow_ratio", 5) or 5)), 1)
+                except Exception:
+                    pass
+            bag[key] = new
+            return new
+        # ---- 玩家 actor：原完整逻辑（职业/词条/套装/副资源/echo）----
+        player = actor
         if key == "element":
             # v130.2c 元素使徒 2 件：充能条上限 +1（5 → 6）——走 _res_max 统一上限
             mx = self._res_max(player, key)
@@ -1004,8 +982,24 @@ class Battle:
         self.resources[key] = new
         return new
 
-    def _res_spend(self, key: str, amount: int) -> bool:
-        """资源消耗（足够则扣除返回 True；不足不扣返回 False）。element → 充能条。"""
+    def _res_spend(self, key: str, amount: int, actor: dict | None = None) -> bool:
+        """资源消耗（足够则扣除返回 True；不足不扣返回 False）。v177 actor 统一：玩家/怪物同一套。
+        actor 缺省 = 当前焦点玩家（兼容旧 2 参调用）；传怪物 actor = 扣怪物资源袋。"""
+        if actor is not None and not actor.get("class_name"):
+            # 怪物/自定义 actor：actor["resources"] 袋
+            bag = actor.setdefault("resources", {})
+            if key == "element":
+                cur = int(bag.get("element_charge", 0) or 0)
+                if cur < int(amount or 0):
+                    return False
+                bag["element_charge"] = cur - int(amount or 0)
+                return True
+            cur = int(bag.get(key, 0) or 0)
+            if cur < int(amount or 0):
+                return False
+            bag[key] = cur - int(amount or 0)
+            return True
+        # 玩家 actor：焦点 resources
         if key == "element":
             cur = self._elem_charge()
             if cur < int(amount or 0):
@@ -5867,6 +5861,14 @@ class Battle:
                     if ctrl_fn:
                         mval = int(sinfo.get("mech_val", 1) or 1)
                         ctrl_fn(self, player, logs, mval)
+                # v177 actor 资源：怪物技能带 res_gain（如狂暴 Boss 攒怒技）→ 命中给怪物 actor 攒资源
+                try:
+                    _rg_s = sinfo.get("res_gain")
+                    if _rg_s and isinstance(_rg_s, dict):
+                        for _rk_s, _rv_s in _rg_s.items():
+                            self._res_gain(e, _rk_s, int(_rv_s or 0), logs)
+                except Exception:
+                    pass
                 dmg += self._reactive_extra_attack(e, pst, logs)
                 return logs, dmg
         # 敌方普攻（_kind == "atk" 或技能查表失败）
@@ -5995,55 +5997,81 @@ class Battle:
         skill = None
         silenced = "silence" in eb
         if e.get("skills") and random.random() < _skill_chance and not silenced:
-            # 权重轮盘（缺省均匀抽）
-            _weights = _ai.get("weights")
+            # 权重轮盘（缺省均匀抽）；v177 加 res_cost 门槛——资源不足的技能跳过（回落其他/普攻）
+            def _skill_usable(sk: str) -> bool:
+                try:
+                    _sfo = C.MONSTER_SKILLS.get(sk) or {}
+                    _rc = _sfo.get("res_cost")
+                    if _rc and isinstance(_rc, dict):
+                        for _rk_c, _rv_c in _rc.items():
+                            if self._res_read_actor(e, _rk_c) < int(_rv_c or 0):
+                                return False
+                    return True
+                except Exception:
+                    return True
+            _usable_pool = [s for s in e["skills"] if _skill_usable(s)]
+            skill = None
             if _weights and isinstance(_weights, dict):
-                _pool = [s for s in e["skills"] if s in _weights]
+                _pool = [s for s in _usable_pool if s in _weights]
                 if _pool:
                     _wlist = [max(0, float(_weights.get(s, 1) or 1)) for s in _pool]
                     skill = random.choices(_pool, weights=_wlist, k=1)[0]
-                else:
-                    skill = random.choice(e["skills"])
+                elif _usable_pool:
+                    skill = random.choice(_usable_pool)
             else:
-                skill = random.choice(e["skills"])
-            sinfo = C.MONSTER_SKILLS.get(skill)
-            if sinfo:
-                sname = sinfo.get("name", skill)  # 显示中文名
-                kind = sinfo.get("kind")
-                # v116 敌方蓄力接线：抽中带 charge 的技能且敌方未在蓄力 → 进入蓄力
-                # （本刻不结算伤害，先给意图预告，之后刻由 _enemy_charge_tick 结算）
-                charge_n = int(sinfo.get("charge", 0) or 0)
-                if charge_n > 0 and not e.get("charging"):
-                    e["charging"] = {"skill": skill, "left": charge_n, "name": sname}
-                    logs.append(
-                        f"⚠️ 【意图】{ename} 正在蓄力【{sname}】！下刻将造成大伤害——"
-                        f"可『防御』减半或『打断技』赌它读条失败！")
+                if _usable_pool:
+                    skill = random.choice(_usable_pool)
+            if skill is None:
+                # 技能全在资源门槛外 → 回落普攻（skill 保持 None，走普攻分支）
+                pass
+            if skill is not None:
+                sinfo = C.MONSTER_SKILLS.get(skill)
+                if sinfo:
+                    # v177 资源消耗：施放 res_cost 技能 → 出手时扣资源（读条前扣，命中与否都消耗——出手即付出）
+                    try:
+                        _rc_s = sinfo.get("res_cost")
+                        if _rc_s and isinstance(_rc_s, dict):
+                            for _rk_s2, _rv_s2 in _rc_s.items():
+                                self._res_spend(_rk_s2, int(_rv_s2 or 0), actor=e)
+                    except Exception:
+                        pass
+                if sinfo:
+                    sname = sinfo.get("name", skill)  # 显示中文名
+                    kind = sinfo.get("kind")
+                    # v116 敌方蓄力接线：抽中带 charge 的技能且敌方未在蓄力 → 进入蓄力
+                    # （本刻不结算伤害，先给意图预告，之后刻由 _enemy_charge_tick 结算）
+                    charge_n = int(sinfo.get("charge", 0) or 0)
+                    if charge_n > 0 and not e.get("charging"):
+                        e["charging"] = {"skill": skill, "left": charge_n, "name": sname}
+                        logs.append(
+                            f"⚠️ 【意图】{ename} 正在蓄力【{sname}】！下刻将造成大伤害——"
+                            f"可『防御』减半或『打断技』赌它读条失败！")
+                        return logs, 0
+                    if kind == K_BUFF:
+                        from .core.battle_mech import MON_BUFF_EFFECTS
+                        eff = sinfo.get("effect")
+                        eff_fn = MON_BUFF_EFFECTS.get(eff)
+                        if eff_fn:
+                            eff_fn(self, logs, sname)
+                        # v154：增益立即生效，但敌方行动也要消耗 ct（读条 + 收招）
+                        self._after_actor_ct("e", e, cast_mult=CAST_SKILL * self._ct_cost(est.get("spd", 0)))
+                        return logs, 0
+                    power = sinfo.get("power", 1.0)
+                    # v154 敌方对称读条：技能出招 → 排 cast_done（出招读条结束才命中结算）
+                    # 出招读条时长 = 技能 cast（缺省 CAST_SKILL），速度折算
+                    _cast_t, _rec_t = self._action_times("skill", skill=sinfo, spd=est.get("spd", 0))
+                    _cast_t = _cast_t or (CAST_SKILL * self._ct_cost(est.get("spd", 0)))
+                    self._schedule_cast_done(self._now + _cast_t,
+                                             {"side": "e", "unit": e, "kind": "skill",
+                                              "skill": skill, "power_mult": power})
+                    logs.append(f"⚔️ 【{ename}】正在施展【{sname}】！(出招 {_cast_t:.1f}s)")
+                    # v163 敌方读条持久化：命中参数写入单位 dict（随 enemies 序列化），
+                    # from_state 恢复时补排 cast_done——野外/副本一套代码，读条伤害跨消息不丢。
+                    e["_cast"] = {"hit_at": self._now + _cast_t, "kind": "skill",
+                                  "skill": skill, "power_mult": power}
+                    # 敌方读条后收招：ct = 命中时刻 + 收招（= 出手 + 总耗时）
+                    self._after_actor_ct("e", e, cast_mult=_cast_t + _rec_t)
                     return logs, 0
-                if kind == K_BUFF:
-                    from .core.battle_mech import MON_BUFF_EFFECTS
-                    eff = sinfo.get("effect")
-                    eff_fn = MON_BUFF_EFFECTS.get(eff)
-                    if eff_fn:
-                        eff_fn(self, logs, sname)
-                    # v154：增益立即生效，但敌方行动也要消耗 ct（读条 + 收招）
-                    self._after_actor_ct("e", e, cast_mult=CAST_SKILL * self._ct_cost(est.get("spd", 0)))
-                    return logs, 0
-                power = sinfo.get("power", 1.0)
-                # v154 敌方对称读条：技能出招 → 排 cast_done（出招读条结束才命中结算）
-                # 出招读条时长 = 技能 cast（缺省 CAST_SKILL），速度折算
-                _cast_t, _rec_t = self._action_times("skill", skill=sinfo, spd=est.get("spd", 0))
-                _cast_t = _cast_t or (CAST_SKILL * self._ct_cost(est.get("spd", 0)))
-                self._schedule_cast_done(self._now + _cast_t,
-                                         {"side": "e", "unit": e, "kind": "skill",
-                                          "skill": skill, "power_mult": power})
-                logs.append(f"⚔️ 【{ename}】正在施展【{sname}】！(出招 {_cast_t:.1f}s)")
-                # v163 敌方读条持久化：命中参数写入单位 dict（随 enemies 序列化），
-                # from_state 恢复时补排 cast_done——野外/副本一套代码，读条伤害跨消息不丢。
-                e["_cast"] = {"hit_at": self._now + _cast_t, "kind": "skill",
-                              "skill": skill, "power_mult": power}
-                # 敌方读条后收招：ct = 命中时刻 + 收招（= 出手 + 总耗时）
-                self._after_actor_ct("e", e, cast_mult=_cast_t + _rec_t)
-                return logs, 0
         # v154 敌方对称读条：敌方普攻出招 → 排 cast_done（出招读条结束才命中结算）
         # 出招读条时长 = 普攻 cast（缺省 CAST_ATK），速度折算
         _cast_t, _rec_t = self._action_times("atk", spd=est.get("spd", 0))
