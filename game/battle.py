@@ -9480,16 +9480,31 @@ class Battle:
     def _is_focus_player(self, actor: dict) -> bool:
         """v180-B actor 状态容器路由判定：actor 是否当前焦点玩家（状态在 Battle 单套焦点
         字段 p_buffs/resources/...）。玩家本体/副本当前操作玩家 → True（焦点字段）；
-        怪（含配 class_name 扮职业的）/PVP 敌方快照/宠物/召唤物 → False（actor 自身 dict）。
-        引用相等判定（actor is self.player）——副本切焦点时 self.player 换绑。"""
+        怪（含配 class_name 扮职业的，side=enemy）/PVP 敌方快照 → False（actor 自身 dict）。
+        判定：① side 显式 player/enemy 优先（v180-B actor 化字段）；② 引用相等
+        （actor is self.player / allies 内——副本切焦点换绑）；③ 兼容兜底：带 class_name
+        且无 side=enemy 且非"显然敌方"（有 id 无 qq_id 的怪模板）视为玩家侧。"""
         if not actor:
             return False
+        _side = actor.get("side")
+        if _side is not None:
+            return _side == "player"
         try:
             if actor is self.player:
                 return True
-            # 副本 allies 快照若指向同一 dict 也算（_load_player_state 载入焦点时引用一致）
             for _al in (self.allies or []):
                 if _al is actor:
+                    return True
+            # 兜底：带 class_name 的玩家侧——无 side 老玩家 dict / 测试玩家（可能无 qq_id）。
+            # 排除：在 enemies 阵列（怪/PVP 敌方快照，即使带 class_name 也是被打目标）；
+            # 正规怪扮职业 build_monster 已设 side=enemy 由 ① 拦截。
+            if actor.get("class_name"):
+                try:
+                    if any(u is actor or u.get("uid") == actor.get("uid") for u in (self.enemies or [])):
+                        return False
+                except Exception:
+                    pass
+                if actor.get("side") in (None, "player"):
                     return True
         except Exception:
             pass
