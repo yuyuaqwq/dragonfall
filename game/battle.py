@@ -4838,19 +4838,31 @@ class Battle:
     def _set_bonus_5_ctrl_immune(self, player: dict) -> list:
         """v180-B ② 套装 5 件控制免疫数据化：已激活 5 件套声明 bonus_5_ctrl_immune 的
         控制类型列表（如霜狼套 ["slow"]）。数据源 class_sets.py 套装定义（经 _build_class_sets
-        注册进 C.SETS），替代引擎内 '霜狼' 字符串特判——任意套装声明即生效，任意 actor 可配。"""
+        注册进 C.SETS），替代引擎内 '霜狼' 字符串特判——任意套装声明即生效，任意 actor 可配。
+
+        注意：active_sets 返回装备 set 字段的系列名（"霜狼"），C.SETS 条目 name 是
+        主题名（"霜狼套"）——查表需经 SERIES_SETS 系列映射或 name 匹配。"""
         try:
             out = []
+            _sets = getattr(C, "SETS", {}) or {}
             for sname in self._set_bonus_5(player):
-                _sd = None
-                _sets = getattr(C, "SETS", {}) or {}
-                if sname in _sets:
-                    _sd = _sets[sname]
-                else:
+                _sd = _sets.get(sname)  # 直接命中（set 字段即 SETS key 的情况）
+                if _sd is None:
                     for _info in _sets.values():
                         if _info.get("name") == sname:
                             _sd = _info
                             break
+                if _sd is None:
+                    # 系列名 → 主题名（SERIES_SETS: "霜狼"→"霜狼套"）
+                    try:
+                        from .data.equip_roster import SERIES_SETS as _SS
+                        _theme = (_SS or {}).get(sname, sname)
+                        for _info in _sets.values():
+                            if _info.get("name") == _theme:
+                                _sd = _info
+                                break
+                    except Exception:
+                        pass
                 if _sd:
                     out.extend(list(_sd.get("bonus_5_ctrl_immune") or []))
             return out
@@ -9809,9 +9821,10 @@ class Battle:
         return False
 
     def _monster_on_taken(self, actor: dict, logs: list) -> None:
-        """v177 怪物受击钩子（actor.on_taken dict → 受击回血/激怒/凝甲）。玩家 actor 无 on_taken → 空转。
-        由 _damage_actor 扣血后调用（存活才触发）。副作用全在 actor + logs。"""
-        if not actor or actor.get("class_name"):
+        """受击钩子（actor.on_taken dict → 受击回血/激怒/凝甲）。字段即能力——
+        v180-B：不看 class_name（怪扮职业仍保留钩子；玩家配 on_taken 也能触发），
+        只按 actor 是否声明 on_taken。由 _damage_actor 扣血后调用（存活才触发）。"""
+        if not actor or not actor.get("on_taken"):
             return
         try:
             # v177 actor on_taken 受击钩子（怪物 actor 配置 on_taken → 受击触发；玩家 actor 无此字段空转）
