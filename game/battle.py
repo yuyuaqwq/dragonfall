@@ -5368,8 +5368,16 @@ class Battle:
         # v122 治疗指定队友：解析目标（allies 空=单人战斗 → None=奶自己）
         target_ally = self._resolve_ally_target(target) if kind == K_HEAL else None
         # v107 召唤：技能带 summon 字段 → 生成召唤物实体（治疗/增益/攻击技能均可带，先召唤再结算技能）
+        # v177 双向：施法者是怪（_cast_ctx 无 class_name）→ 召唤敌方援军帮自己；玩家 → 原玩家侧召唤物
         if info.get("summon"):
-            self._summon_entity(info["summon"], player, logs)
+            if not self._cast_is_player():
+                try:
+                    self._summon_minions(1)
+                    logs.append(f"🜲 【{player.get('name', '怪物')}】召唤了援军！")
+                except Exception:
+                    pass
+            else:
+                self._summon_entity(info["summon"], player, logs)
         # v107 血魔法（猩红学者）：消耗当前 HP % 换伤害加成（hp_cost 字段，0.10 = 扣 10% 当前生命）
         self._hp_cost_bonus = 0.0
         if info.get("hp_cost") and player.get("hp", 0) > 0:
