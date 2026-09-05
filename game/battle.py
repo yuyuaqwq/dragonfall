@@ -5410,6 +5410,15 @@ class Battle:
         # v2.0 破防（pierce 数据字段）：直接给敌方降防
         if info.get("pierce") and self._tgt().get("hp", 0) > 0:
             self._tgt_buffs()["def_down"] = E.skill_buff_turns(lv)
+        # v180 pdot 管线化：技能带 pdot（持续伤害：毒/灼烧/流血/腐蚀）→ 命中挂目标
+        # （v178 E4 怪技能 pdot 原在 _enemy_cast_done 简化段处理；收编管线后在命中结算统一挂——
+        #  玩家/怪技能同入口 _apply_dot(target=被打目标, source=施法者)。cc_immune 免疫不挂）
+        try:
+            _pdot_p = info.get("pdot") or (info.get("effect") or {}).get("pdot")
+            if _pdot_p and isinstance(_pdot_p, dict) and not self._tgt_buffs().get("cc_immune"):
+                self._apply_dot(self._tgt(), self._cast_ctx or player, _pdot_p, logs)
+        except Exception:
+            pass
         # v2.0 核心资源：攻击命中获取（战士怒气/刺客连击点/拳师气，res_gain 覆盖默认）
         # v174.1 普攻技能化语义：basic 技（basic_skill，普攻）命中走"攻击"事件（on_attack），
         # 非 basic 技能走 on_skill——保证"释放技能才触发"的被动/词条不会因普攻被误触。
@@ -6684,11 +6693,13 @@ class Battle:
             if not sinfo:
                 _kind = "atk"
             else:
-                # v177 怪物施放玩家技能（技能 key 属于玩家全表）→ 完整玩家技能管线
-                # （exprs/cond/多段/mech/治疗/增益/召唤全语义——不再走下方简化结算）
+                # v180 所有技能统一走管线（玩家技能 key + 怪自身技能 ms_*）：
+                # _monster_cast_playerskill 已双向 actor（_cast_ctx=怪/_target_ctx=玩家），
+                # _player_skill 按 kind 分流（治疗 hp_pct/heal_formula/增益/召唤/物理魔法伤害），
+                # 怪自身技能数据已归一（heal_self→kind=治疗+hp_pct、无 formula 已补等效段）。
+                # 原 v177 只对玩家技能 key 走管线、怪自身技能落下方 260 行简化结算（两套代码根）。
                 try:
-                    if E.skill_owner_cls(ev.get("skill") or ""):
-                        return self._monster_cast_playerskill(e, ev.get("skill"), player, ev)
+                    return self._monster_cast_playerskill(e, ev.get("skill"), player, ev)
                 except Exception:
                     pass
                 # v169.3 等级压制增伤：怪高玩家 N 级 → 本技能段伤害 ×(1+0.02N)（cap ×3）
@@ -7494,11 +7505,22 @@ class Battle:
                 phys -= red
                 reduced += red
                 logs.append("🛡️ 敌人格挡了攻击！")
-        mr = min(float(tst.get("magic_reduce", 0) or 0), 0.4)
+        mr_raw = float(tst.get("magic_reduce", 0) or 0)
+        # 鲁莽之心（magic_reduce<0，兽人种族天赋）：魔法免伤负值 = 受伤加重
+        if mr_raw < 0 and magi > 0:
+            _pen_mr = max(1, int(magi * min(-mr_raw, 0.4)))
+            magi += _pen_mr
+            reduced -= _pen_mr
+            logs.append(f"🔥 鲁莽之心，额外受到 {_pen_mr} 点伤害！")
+        mr = min(mr_raw, 0.4)
         if mr > 0 and magi > 0:
             red = max(1, int(magi * mr))
             magi -= red
             reduced += red
+            # v180 文案：怪打玩家走管线时输出专门"魔法免伤"（旧 _enemy_cast_done 手动段文案，
+            # test_stage9_race 龙鳞/鲁莽断言依赖；玩家打怪仍合并进"敌方防守削减"）
+            if self._tgt_is_player():
+                logs.append(f"🛡️ 魔法免伤，减免 {red} 点伤害！")
         if element and E.ELEMENT_MARKS.get(element):
             # v110 审计修复：cap 0.4 → 0.5（对齐防御端 _enemy_turn / PCT_CAPS["elem_res"]=0.5 /
             # 设计 §三「元素抗上限 50%」；此前 PVP 敌方元素抗 40%~50% 段在玩家攻击端被截断）
