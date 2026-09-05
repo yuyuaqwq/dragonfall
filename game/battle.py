@@ -886,11 +886,14 @@ class Battle:
         return int(self.resources.get("element_charge", 0) or 0)
 
     def _res_def_of(self, actor: dict) -> dict:
-        """v177 actor 资源定义：actor 带 resource_def（怪物/自定义）→ 用它；
-        否则回退玩家职业定义（CORE_RESOURCES by class_name）。"""
+        """v177 actor 资源定义：任何 actor 的资源定义都解析为同构 dict。
+        优先级：actor.resource_def（dict 内联 / str 引用 CORE_RESOURCES key）
+        → 玩家职业定义（class_name → CORE_RESOURCES）→ {}。"""
         if not actor:
             return {}
         rd = actor.get("resource_def")
+        if isinstance(rd, dict):
+            return rd
         if isinstance(rd, str):
             # 引用 CORE_RESOURCES key（怪物复用玩家资源条目，如 resource_def: "rage"）
             _by_key = E.core_resource_def_by_key(rd) or {}
@@ -905,9 +908,33 @@ class Battle:
             except Exception:
                 pass
             return {}
-        if isinstance(rd, dict):
-            return rd
         return E.core_resource_def(actor.get("class_name", ""))
+
+    def _res_bag_of(self, actor: dict) -> dict:
+        """v177 actor 资源存储袋：玩家 = battle 焦点 resources；怪物/自定义 = actor["resources"]（惰性建）。
+        只路由"存在哪"，不分叉计算。"""
+        if actor and actor.get("id") and not actor.get("class_name"):
+            return actor.setdefault("resources", {})
+        return self.resources
+
+    def _res_cap_of(self, actor: dict, key: str) -> int:
+        """v177 actor 资源上限（统一口径）：定义 max + 装备词条/套装加成。
+        玩家 actor 有 equipment → 词条(怒火熔铸等)/套装加成生效；
+        怪物 actor 无 equipment → _equip_affix_ids 空 → 加成 0 → 纯定义 max。同一份逻辑，无身份 if。
+        副资源（resonance/echo 按 key 注册）→ actor 定义查不到时回退 core_resource_def_by_key。"""
+        rd = self._res_def_of(actor)
+        if not rd or not rd.get("max"):
+            # 副资源/按 key 注册（resonance 等）：直接查注册表
+            _rk = E.core_resource_def_by_key(key)
+            if _rk:
+                rd = _rk
+        mx = int(rd.get("max", 99) or 99)
+        # 玩家特有加成链（怪无装备 → 内部返回 0，安全）
+        try:
+            mx += self._res_affix_max_bonus(actor, key) + self._set_res_max_bonus(actor, key)
+        except Exception:
+            pass
+        return mx
 
     def _res_read(self, key: str) -> int:
         """读取当前焦点 actor 资源值（element → 充能条 element_charge；其余直读 resources[key]）"""
@@ -916,100 +943,77 @@ class Battle:
         return int(self.resources.get(key, 0) or 0)
 
     def _res_read_actor(self, actor: dict, key: str) -> int:
-        """v177 读取指定 actor 资源值（玩家/怪物同一套——只路由存储袋，不分叉逻辑）。"""
+        """v177 读取指定 actor 资源值（统一：只路由存储袋，计算不分叉）。"""
         if not actor:
             return self._res_read(key)
-        if actor.get("class_name"):
-            return self._res_read(key)
-        bag = actor.setdefault("resources", {})
+        bag = self._res_bag_of(actor)
         if key == "element":
+            if bag is self.resources:
+                return self._elem_charge()
             return int(bag.get("element_charge", 0) or 0)
         return int(bag.get(key, 0) or 0)
 
     def _res_gain(self, actor: dict, key: str, amount: int, logs: list | None = None) -> int:
-        """资源增加（带上限）。v177 actor 统一：玩家/怪物同一套逻辑，仅存储袋与定义来源路由。
-        - 玩家 actor（有 class_name）→ 焦点 resources + CORE_RESOURCES 职业定义（词条/套装上限加成）
-        - 怪物/自定义 actor（无 class_name，带 resource_def 或裸资源袋）→ actor["resources"] + resource_def
-        element → 充能条；echo → 驻留叠层；按 key 注册副资源 → core_resource_gain_key。
-        v130.2 P1-3 修复：写回不静默（调用方丢弃返回值也落库正确）。
-        v130.2 R1：logs 可选透传——echo 分支经 _echo_add 产出「🎵 回声驻留 +N」反馈（歌者施放可见）。"""
+        """资源增加（带上限）。v177 统一：任何 actor 同一份计算，只按 actor 数据路由（定义/袋/加成）。
+        - key == element → 充能条（上限 = actor 资源定义 max，同 _res_cap_of 口径）
+        - key == echo（歌者驻留叠层）→ _echo_add（mech_stacks 槽，战斗内不清零）
+        - 其余 → actor 资源袋 + _res_cap_of 上限；满溢按 overflow_shield 转盾
+        v130.2 P1-3：写回不静默（调用方丢弃返回值也落库正确）。"""
         if not actor:
             return 0
-        # ---- 怪物/自定义 actor（无职业定义链）：走 actor 资源袋 + resource_def 上限 ----
-        if not actor.get("class_name"):
-            rd = self._res_def_of(actor)
-            bag = actor.setdefault("resources", {})
-            if key == "element":
-                bag["element_charge"] = min(int(rd.get("max", 5) or 5),
-                                            int(bag.get("element_charge", 0) or 0) + int(amount or 0))
-                return bag["element_charge"]
-            cap = int(rd.get("max", 99) or 99) if rd else 99
-            cur = int(bag.get(key, 0) or 0)
-            new = min(cap, cur + int(amount or 0))
-            # 满溢转盾（怪物 resource_def 也可配 overflow_shield）
-            if rd.get("overflow_shield") and cur + int(amount or 0) > cap and actor.get("hp", 0) and not getattr(self, "_overflow_shield_cd", False):
-                try:
-                    self._add_shield(f"res_overflow_{key}", int((cur + int(amount or 0) - cap) * float(rd.get("overflow_ratio", 5) or 5)), 1)
-                except Exception:
-                    pass
-            bag[key] = new
-            return new
-        # ---- 玩家 actor：原完整逻辑（职业/词条/套装/副资源/echo）----
-        player = actor
+        bag = self._res_bag_of(actor)
+        rd = self._res_def_of(actor)
+        amount = int(amount or 0)
         if key == "element":
-            # v130.2c 元素使徒 2 件：充能条上限 +1（5 → 6）——走 _res_max 统一上限
-            mx = self._res_max(player, key)
-            self.resources["element_charge"] = min(mx, self._elem_charge() + int(amount or 0))
-            return self.resources["element_charge"]
+            mx = self._res_cap_of(actor, key)
+            if bag is self.resources:
+                self.resources["element_charge"] = min(mx, self._elem_charge() + amount)
+                return self.resources["element_charge"]
+            bag["element_charge"] = min(mx, int(bag.get("element_charge", 0) or 0) + amount)
+            return bag["element_charge"]
         if key == "echo":
-            # v130.2 收尾：echo 驻留叠层存 mech_stacks（战斗内不清零），不走 resources 影子槽
-            return self._echo_add(player, logs if logs is not None else [], int(amount or 0))
-        # v130.2f2（T6 P1-2/P1-3）：渠道统一——词条/套装/药水/战前预充等渠道的类主资源增益
-        # 统一走 _res_gain_class：上限含词条/套装加成（不再按裸 rd.max 封顶被回退），
-        # 且满溢量按 overflow_shield 转盾（满资源不再静默蒸发）。副资源（resonance/echo 等）
-        # 与键≠类主资源的情况仍走下方按 key 注册路径，行为不变。
-        _crd_route = E.core_resource_def(player.get("class_name", ""))
-        if _crd_route and key == _crd_route.get("key"):
-            return self._res_gain_class(player.get("class_name", ""), key, int(amount or 0), logs)
-        if E.core_resource_def_by_key(key):
-            new = E.core_resource_gain_key(key, self.resources, int(amount or 0))
-            self.resources[key] = new
-            return new
-        rd = E.core_resource_def(player.get("class_name", ""))
-        if not rd:
-            return self.resources.get(key, 0)
-        new = min(self._res_max(player, key), int(self.resources.get(key, 0) or 0) + int(amount or 0))
-        self.resources[key] = new
+            # 歌者双资源·回声驻留叠层（mech_stacks 槽）——只有带歌者定义的 actor 消费，无定义空转
+            return self._echo_add(actor, logs if logs is not None else [], amount)
+        cap = self._res_cap_of(actor, key)
+        cur = int(bag.get(key, 0) or 0)
+        new = min(cap, cur + amount)
+        # 满溢转盾（rd.overflow_shield 由任意 actor 定义声明；冷却全局每刻 1 次）
+        if rd.get("overflow_shield") and cur + amount > cap and actor.get("hp", 0) \
+                and not getattr(self, "_overflow_shield_cd", False):
+            try:
+                _ov = int((cur + amount - cap) * float(rd.get("overflow_ratio", 5) or 5))
+                if _ov > 0:
+                    self._add_shield(f"res_overflow_{key}", _ov, 1)
+                    self._overflow_shield_cd = True
+                    if logs is not None:
+                        logs.append(f"🛡️ 满溢转化：{rd.get('name', key)}溢出 {cur + amount - cap} 点 → 护盾 +{_ov}（每刻限 1 次转盾）")
+            except Exception:
+                pass
+        bag[key] = new
         return new
 
     def _res_spend(self, key: str, amount: int, actor: dict | None = None) -> bool:
-        """资源消耗（足够则扣除返回 True；不足不扣返回 False）。v177 actor 统一：玩家/怪物同一套。
-        actor 缺省 = 当前焦点玩家（兼容旧 2 参调用）；传怪物 actor = 扣怪物资源袋。"""
-        if actor is not None and not actor.get("class_name"):
-            # 怪物/自定义 actor：actor["resources"] 袋
-            bag = actor.setdefault("resources", {})
-            if key == "element":
-                cur = int(bag.get("element_charge", 0) or 0)
+        """资源消耗（足够则扣除返回 True；不足不扣返回 False）。v177 统一：任何 actor 同一份。
+        actor 缺省 = 当前焦点玩家（兼容旧 2 参调用）。element → 充能条。"""
+        if actor is None:
+            actor = getattr(self, "_res_focus_actor", None) or self.player or {}
+        bag = self._res_bag_of(actor)
+        if key == "element":
+            if bag is self.resources:
+                cur = self._elem_charge()
                 if cur < int(amount or 0):
                     return False
-                bag["element_charge"] = cur - int(amount or 0)
+                self.resources["element_charge"] = cur - int(amount or 0)
                 return True
-            cur = int(bag.get(key, 0) or 0)
+            cur = int(bag.get("element_charge", 0) or 0)
             if cur < int(amount or 0):
                 return False
-            bag[key] = cur - int(amount or 0)
+            bag["element_charge"] = cur - int(amount or 0)
             return True
-        # 玩家 actor：焦点 resources
-        if key == "element":
-            cur = self._elem_charge()
-            if cur < int(amount or 0):
-                return False
-            self.resources["element_charge"] = cur - int(amount or 0)
-            return True
-        cur = int(self.resources.get(key, 0) or 0)
+        cur = int(bag.get(key, 0) or 0)
         if cur < int(amount or 0):
             return False
-        self.resources[key] = cur - int(amount or 0)
+        bag[key] = cur - int(amount or 0)
         return True
 
     def _res_gain_class(self, cls: str, k: str, amount: int, logs: list | None = None) -> int:
