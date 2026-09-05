@@ -5795,6 +5795,28 @@ class Battle:
                 _lpm = self._enemy_lv_pressure(player, e)
                 sname = sinfo.get("name", ev.get("skill", "?"))
                 kind = sinfo.get("kind")
+                # v177 治疗技能（玩家技能 kind=治疗 + heal_formula 表达式）→ 怪物自疗，无伤害
+                if kind == K_HEAL:
+                    try:
+                        _hf = sinfo.get("heal_formula")
+                        if isinstance(_hf, str):
+                            _est_h = dict(est)
+                            _est_h["_skill_lv"] = max(1, min(20, int(e.get("lv", 1) or 1) // 2))
+                            _est_h["_player_lv"] = int(e.get("lv", 1) or 1)
+                            _hl, _ = E.resolve_formula([{"expr": _hf, "type": "heal"}], _est_h,
+                                                      pst.get("def", 0), pst.get("mdef", 0),
+                                                      is_crit=False, mult=1.0, variance=0.0)
+                            _hl = max(1, int(_hl))
+                            e["hp"] = min(e.get("max_hp", e.get("hp", 0)), e.get("hp", 0) + _hl)
+                            logs.append(f"💚 【{ename}】使用了【{sname}】，回复 {_hl} 点生命！")
+                        else:
+                            # 怪物自带 heal 语义（heal_self effect 已走 MON_BUFF_EFFECTS，此处兜底无公式回 10%）
+                            _hl = int(e.get("max_hp", 1) * 0.10)
+                            e["hp"] = min(e.get("max_hp", e.get("hp", 0)), e.get("hp", 0) + _hl)
+                            logs.append(f"💚 【{ename}】使用了【{sname}】，回复 {_hl} 点生命！")
+                    except Exception:
+                        pass
+                    return logs, 0
                 power = float(ev.get("power_mult", sinfo.get("power", 1.0)))
                 is_crit = random.random() < est.get("crit", C.MON_SKILL_CRIT) * self._tenacity_mult(pst)
                 # v156 通用公式：敌方技能带 formula 字段走数据驱动公式（任意 atk/matk/max_hp/混伤），
