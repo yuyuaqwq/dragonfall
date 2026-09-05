@@ -7781,6 +7781,184 @@ class Battle:
             return True
 
         return False
+    def _retaliations_and_buffs(self, actor: dict, dmg: int, logs: list) -> tuple:
+        """v177 受击后效（玩家 actor）：反伤/反击/金身/符文壁垒/次元门扉/圣辉等——打回敌人或改自身状态。
+        返回 (处理后的 dmg, interrupted)；interrupted=True = 本次承伤被免疫中断（次元门扉），调用方 return。
+        怪物 actor 无这些数据源 → 空转。副作用全在 self + enemy + logs。"""
+        if not actor or not actor.get("class_name"):
+            return dmg, False
+        B = self.p_buffs
+        EFF = self.p_eff
+        RES = self.resources
+        MS = self.mech_stacks
+        # v106.4 反伤属性统一结算（词条折算/种族/被动/药水 → st["thorns"]）
+        _pst_th = self._actor_stats_of(actor)
+        th = float(_pst_th.get("thorns", 0) or 0)
+        if B.get("thorns_pot"):
+            th = 1 - (1 - th) * (1 - 0.30)  # 荆棘药剂 +30% 反伤（乘算并入）
+        th = min(th, 0.5)
+        # v169.7 battle_mech effect：铁山靠/守护誓言/铁壁·誓——技能反伤数值（40%/50%，p_eff 通道）
+        # block_up 存在时叠加技能反伤，cap 抬到 0.6（desc 承诺值可达 40-50%，与 thorns 并存防膨胀）
+        _brv = float((EFF or {}).get("block_reflect_val", 0) or 0)
+        if _brv > 0 and B.get("block_up"):
+            th = min(th + _brv, 0.6)
+        if th > 0 and self.enemy.get("hp", 0) > 0:
+            rd = int(dmg * th)
+            if rd > 0:
+                rd = self._boss_dmg_filter(rd, actor, logs)
+                self._damage_enemy(rd, logs)
+                logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
+        # v107 反击（苦修士）：受击后按 chance 概率立即普攻反击（物理段，吃暴击）
+        # v109 P0-3：多个反击被动（以守为攻+反击之王）逐个独立 roll，命中即停；此前 break 在
+        # for 末尾无条件退出，只 roll 第一个被动 → 反击之王(lv70)被废
+        # v142 数据驱动：石拳反打（shi_quan_retort）——受击 15% 概率以 30% 攻击反击（数值读 params）
+        _sq_eff = self._set_eff(actor, "shi_quan_retort", 4)
+        if _sq_eff and self.enemy.get("hp", 0) > 0:
+            _sq_params = (_sq_eff or {}).get("params") or {}
+            if random.random() < float(_sq_params.get("chance", 0.15)):
+                _sq_st = self._actor_stats_of(actor)
+                _sq_est = self._enemy_stats()
+                _sq_dmg = E.calc_damage(int(_sq_st["atk"] * float(_sq_params.get("atk_pct", 0.30))), _sq_est.get("def", 0), dmg_type="phys")
+                _sq_dmg = self._boss_dmg_filter(_sq_dmg, actor, logs)
+                self._damage_enemy(_sq_dmg, logs)
+                logs.append(f"🥊 石拳反打！铁拳回敬 {_sq_dmg} 点伤害！")
+        if self.enemy.get("hp", 0) > 0:
+            for _pn, _ps in self._passive_map(actor)["proc"].get("counter_attack", []):
+                if random.random() < float(_ps.get("chance", 0.20)):
+                    _st_ca = self._actor_stats_of(actor)
+                    _est_ca = self._enemy_stats()
+                    _ca_crit = random.random() < float(_st_ca.get("crit", 0) or 0)
+                    ca_dmg = E.calc_damage(_st_ca["atk"], _est_ca.get("def", 0), _ca_crit,
+                                           dmg_type="phys")
+                    ca_dmg = self._boss_dmg_filter(ca_dmg, actor, logs)
+                    self._damage_enemy(ca_dmg, logs)
+                    logs.append(f"🥊 反击！你立刻回击造成 {ca_dmg} 点伤害！"
+                                + (" 💥暴击" if _ca_crit else ""))
+                    # v130.2f 反击回气承诺落地（monk.md §3.1「受击换气/反震回气」）：
+                    # 以守为攻/反击之王 反击命中后 气 +2（走 _res_gain_class 类资源上限管线）
+                    _cr_cls = actor.get("class_name", "")
+                    _cr_rd = E.core_resource_def(_cr_cls)
+                    if _cr_rd and _cr_rd.get("key") == "chi":
+                        _chi_now = self._res_gain_class(_cr_cls, "chi", 2)
+                        logs.append(f"🥊 反击回气 +2（气 {_chi_now}）")
+                    break  # 命中即停（一次受击最多一次反击）
+        # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害
+        if B.get("counter", 0) > 0 and self.enemy.get("hp", 0) > 0:
+            if random.random() < C.SHIELD_COUNTER_CHANCE:
+                pst2 = self._actor_stats_of(actor)
+                est2 = self._enemy_stats()
+                cd = E.calc_damage(int(pst2["atk"] * 1.2), est2.get("def", 0))
+                self._damage_enemy(cd, logs)
+                logs.append(f"🛡️ 盾牌反击！对【{self.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
+                # v173.5 全层仇恨：守护姿态受击反击的伤害也累计仇恨（坦克被打 → 反击
+                # 产生仇恨，数值模型 guard_hate 落地：反击伤害全额进仇恨）
+                self._add_hate(actor, cd)
+        # v169.7 以守为攻 counter_chance / 反击之王 counter_up：受击反击被动族——
+        # 统一挂点（与既有 counter_attack 消费点 battle.py:6990 同段）：以守为攻给基础
+        # 35% 概率×80% 普攻；反击之王在学了以守为攻时 +25% 概率 & +50% 伤害
+        # （两被动皆学 = 60% 概率 ×120% 普攻——combine，见下方聚合）
+        if self.enemy.get("hp", 0) > 0:
+            _cc_list = self._proc_pm(actor)["proc"].get("counter_chance", [])
+            _cu_list = self._proc_pm(actor)["proc"].get("counter_up", [])
+            if _cc_list or _cu_list:
+                _chance = 0.0
+                _mult = 1.0
+                for _pn, _ps in _cc_list:
+                    _chance = max(_chance, float(_ps.get("chance", 0.35) or 0.35))
+                    _mult = min(_mult, float(_ps.get("mult", 0.80) or 0.80))  # 以守为攻 80% 普攻
+                if _cu_list:  # 反击之王：+25% 概率、反击伤害 +50%
+                    for _pn, _ps in _cu_list:
+                        _chance += float(_ps.get("chance_add", 0.25) or 0.25)
+                        _mult *= 1.0 + float(_ps.get("dmg_add", 0.50) or 0.50)
+                        break
+                _chance = min(_chance, 0.9)
+                if random.random() < _chance:
+                    _st_c2 = self._actor_stats_of(actor)
+                    _est_c2 = self._enemy_stats()
+                    _c2_crit = random.random() < float(_st_c2.get("crit", 0) or 0)
+                    _c2_dmg = E.calc_damage(int(_st_c2["atk"] * _mult), _est_c2.get("def", 0), _c2_crit,
+                                            dmg_type="phys")
+                    _c2_dmg = self._boss_dmg_filter(_c2_dmg, actor, logs)
+                    self._damage_enemy(_c2_dmg, logs)
+                    logs.append(f"🥊 反击！你立刻回击造成 {_c2_dmg} 点伤害！"
+                                + (" 💥暴击" if _c2_crit else ""))
+                    # 反击回气（同既有 counter_attack 消费点）：命中后 气 +2
+                    _cr2_cls = actor.get("class_name", "")
+                    _cr2_rd = E.core_resource_def(_cr2_cls)
+                    if _cr2_rd and _cr2_rd.get("key") == "chi":
+                        self._res_gain_class(_cr2_cls, "chi", 2)
+        # 龙鳞套：被攻击时 25% 概率反弹 25% 伤害
+        if "reflect" in E.set_bonus_4(actor.get("equipment", {})) and self.enemy.get("hp", 0) > 0:
+            if random.random() < C.REFLECT_CHANCE:
+                rd = int(dmg * 0.25)
+                rd = self._boss_dmg_filter(rd, actor, logs)  # v104 M02 P1-5：反伤走 Boss 护盾过滤
+                self._damage_enemy(rd, logs)
+                logs.append(f"🐉 龙鳞反震！反弹 {rd} 点伤害！")
+        # v29 金身：每层减伤 4%
+        mech = MS
+        iron = int(mech.get("iron", 0) or 0)
+        if iron > 0:
+            reduce = int(dmg * 0.04 * iron)
+            dmg = max(1, dmg - reduce)
+            logs.append(f"🪷 金身减伤 {reduce} 点({iron} 层)")
+        # v34 符文·壁垒：受击时 x% 概率获得护盾（y% 生命值）；荆棘：受击反弹 x% 伤害
+        effs = self._enchant_effects(actor)
+        barrier_lvl = self._enchant_lvl(effs, "barrier")
+        if barrier_lvl:
+            prob, pct = C.rune_value("barrier", barrier_lvl)
+            # 契约断言：data/runes.py barrier lvl 返回 [prob, pct] 二元素列表，防未来改单值静默错位
+            assert isinstance(prob, (int, float)) and isinstance(pct, (int, float)), \
+                f"rune barrier lvl={barrier_lvl} 应返回 [prob, pct]，实得 {C.rune_value('barrier', barrier_lvl)!r}"
+            if random.random() < prob:
+                shield_gain = int(actor.get("max_hp", actor.get("hp", 1)) * pct)
+                self._add_shield("rune_barrier", shield_gain, 2)
+                logs.append(f"🛡️ 符文壁垒：获得 {shield_gain} 点护盾！")
+        thorns_lvl = self._enchant_lvl(effs, "thorns")
+        if thorns_lvl and self.enemy.get("hp", 0) > 0:
+            rd = int(dmg * C.rune_value("thorns", thorns_lvl))
+            rd = self._boss_dmg_filter(rd, actor, logs)  # v104 M02 P1-5：反伤走 Boss 护盾过滤
+            self._damage_enemy(rd, logs)
+            logs.append(f"🌵 符文荆棘：反弹 {rd} 点伤害！")
+        # v106.4 反伤属性统一结算在 _damage_player 段（thorns_pot 已乘算并入 thorns，
+        # 此段删除 v101.28f 旧独立反弹——否则双重结算，2026-08-13 回归抓包）
+        # v140 波3.2：次元门扉符无敌——本刻免疫一切伤害（p_eff invuln，用后清 + 记录僵直）
+        _inv = (EFF or {}).get("invuln")
+        if _inv and int(_inv.get("turns", 1) or 1) > 0:
+            _inv["turns"] = int(_inv.get("turns", 1) or 1) - 1
+            if int(_inv.get("turns", 0) or 0) <= 0:
+                EFF.pop("invuln", None)
+                _sa = int(_inv.get("stun_after", 1) or 1)
+                if _sa > 0:
+                    B["stun"] = max(int(B.get("stun", 0) or 0), _sa)
+                    logs.append("🌀 次元门扉关闭，你陷入短暂僵直！")
+            logs.append("🌀 次元门扉：免疫了这次伤害！")
+            return dmg, True
+        # v140 波3.2：龙血变身药剂——受击伤害 +15%（morph_dmg_taken）
+        _morph = float((EFF or {}).get("morph_dmg_taken", 0) or 0)
+        if _morph > 0:
+            dmg = max(1, int(dmg * (1 + _morph)))
+            logs.append(f"🐉 龙人形态：额外承受 {int(dmg * _morph)} 点伤害！")
+        # v142 数据驱动：圣徽守护（bless_ward_shield）——受击 25% 概率获得 8% 最大生命护盾（3 刻，数值读 params）
+        _bws_eff = self._set_eff(actor, "bless_ward_shield", 4)
+        if _bws_eff:
+            _bws_params = (_bws_eff or {}).get("params") or {}
+            if random.random() < float(_bws_params.get("chance", 0.25)):
+                _bw_sh = int(actor.get("max_hp", actor.get("hp", 1)) * float(_bws_params.get("shield_pct", 0.08)))
+                self._add_shield("bless_ward", _bw_sh, int(_bws_params.get("shield_turns", 3)))
+                logs.append(f"✨ 圣徽守护！获得 {_bw_sh} 点护盾！")
+        # v142 数据驱动：圣辉圣环（holy_halo_shield）——受击后 10% 伤害转护盾（每刻最多 1 次，数值读 params）
+        _hh_eff = self._set_eff(actor, "holy_halo_shield", 4)
+        if _hh_eff and int(dmg) > 0:
+            _hh_params = (_hh_eff or {}).get("params") or {}
+            _hh_turn = self._tick_no()
+            if (EFF or {}).get("holy_halo_used") != _hh_turn:
+                _hh_sh = int(dmg * float(_hh_params.get("shield_pct", 0.10)))
+                if _hh_sh > 0:
+                    self._add_shield("holy_halo", _hh_sh, 2)
+                    EFF["holy_halo_used"] = _hh_turn
+                    logs.append(f"✨ 圣辉圣环：{_hh_sh} 点伤害化为护盾！")
+
+        return dmg, False
     def _post_hp_lethal(self, actor: dict, dmg: int, logs: list) -> None:
         """v177 扣血后处理（玩家 actor：特效装备阈值/复活链——不死鸟/死亡契约/血怒·不灭/铁誓·不动）。
         怪物 actor 无这些数据源 → 空转（死亡已在 _damage_actor 前置移除）。副作用全在 self + actor + logs。"""
@@ -8257,172 +8435,9 @@ class Battle:
         if reduce_total:
             dmg = max(1, dmg - reduce_total)
             logs.append(f"🛡️ 被动减伤 {reduce_total} 点")
-        # v106.4 反伤属性统一结算（词条折算/种族/被动/药水 → st["thorns"]）
-        _pst_th = self._actor_stats_of(actor)
-        th = float(_pst_th.get("thorns", 0) or 0)
-        if B.get("thorns_pot"):
-            th = 1 - (1 - th) * (1 - 0.30)  # 荆棘药剂 +30% 反伤（乘算并入）
-        th = min(th, 0.5)
-        # v169.7 battle_mech effect：铁山靠/守护誓言/铁壁·誓——技能反伤数值（40%/50%，p_eff 通道）
-        # block_up 存在时叠加技能反伤，cap 抬到 0.6（desc 承诺值可达 40-50%，与 thorns 并存防膨胀）
-        _brv = float((EFF or {}).get("block_reflect_val", 0) or 0)
-        if _brv > 0 and B.get("block_up"):
-            th = min(th + _brv, 0.6)
-        if th > 0 and self.enemy.get("hp", 0) > 0:
-            rd = int(dmg * th)
-            if rd > 0:
-                rd = self._boss_dmg_filter(rd, actor, logs)
-                self._damage_enemy(rd, logs)
-                logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
-        # v107 反击（苦修士）：受击后按 chance 概率立即普攻反击（物理段，吃暴击）
-        # v109 P0-3：多个反击被动（以守为攻+反击之王）逐个独立 roll，命中即停；此前 break 在
-        # for 末尾无条件退出，只 roll 第一个被动 → 反击之王(lv70)被废
-        # v142 数据驱动：石拳反打（shi_quan_retort）——受击 15% 概率以 30% 攻击反击（数值读 params）
-        _sq_eff = self._set_eff(actor, "shi_quan_retort", 4)
-        if _sq_eff and self.enemy.get("hp", 0) > 0:
-            _sq_params = (_sq_eff or {}).get("params") or {}
-            if random.random() < float(_sq_params.get("chance", 0.15)):
-                _sq_st = self._actor_stats_of(actor)
-                _sq_est = self._enemy_stats()
-                _sq_dmg = E.calc_damage(int(_sq_st["atk"] * float(_sq_params.get("atk_pct", 0.30))), _sq_est.get("def", 0), dmg_type="phys")
-                _sq_dmg = self._boss_dmg_filter(_sq_dmg, actor, logs)
-                self._damage_enemy(_sq_dmg, logs)
-                logs.append(f"🥊 石拳反打！铁拳回敬 {_sq_dmg} 点伤害！")
-        if self.enemy.get("hp", 0) > 0:
-            for _pn, _ps in self._passive_map(actor)["proc"].get("counter_attack", []):
-                if random.random() < float(_ps.get("chance", 0.20)):
-                    _st_ca = self._actor_stats_of(actor)
-                    _est_ca = self._enemy_stats()
-                    _ca_crit = random.random() < float(_st_ca.get("crit", 0) or 0)
-                    ca_dmg = E.calc_damage(_st_ca["atk"], _est_ca.get("def", 0), _ca_crit,
-                                           dmg_type="phys")
-                    ca_dmg = self._boss_dmg_filter(ca_dmg, actor, logs)
-                    self._damage_enemy(ca_dmg, logs)
-                    logs.append(f"🥊 反击！你立刻回击造成 {ca_dmg} 点伤害！"
-                                + (" 💥暴击" if _ca_crit else ""))
-                    # v130.2f 反击回气承诺落地（monk.md §3.1「受击换气/反震回气」）：
-                    # 以守为攻/反击之王 反击命中后 气 +2（走 _res_gain_class 类资源上限管线）
-                    _cr_cls = actor.get("class_name", "")
-                    _cr_rd = E.core_resource_def(_cr_cls)
-                    if _cr_rd and _cr_rd.get("key") == "chi":
-                        _chi_now = self._res_gain_class(_cr_cls, "chi", 2)
-                        logs.append(f"🥊 反击回气 +2（气 {_chi_now}）")
-                    break  # 命中即停（一次受击最多一次反击）
-        # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害
-        if B.get("counter", 0) > 0 and self.enemy.get("hp", 0) > 0:
-            if random.random() < C.SHIELD_COUNTER_CHANCE:
-                pst2 = self._actor_stats_of(actor)
-                est2 = self._enemy_stats()
-                cd = E.calc_damage(int(pst2["atk"] * 1.2), est2.get("def", 0))
-                self._damage_enemy(cd, logs)
-                logs.append(f"🛡️ 盾牌反击！对【{self.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
-                # v173.5 全层仇恨：守护姿态受击反击的伤害也累计仇恨（坦克被打 → 反击
-                # 产生仇恨，数值模型 guard_hate 落地：反击伤害全额进仇恨）
-                self._add_hate(actor, cd)
-        # v169.7 以守为攻 counter_chance / 反击之王 counter_up：受击反击被动族——
-        # 统一挂点（与既有 counter_attack 消费点 battle.py:6990 同段）：以守为攻给基础
-        # 35% 概率×80% 普攻；反击之王在学了以守为攻时 +25% 概率 & +50% 伤害
-        # （两被动皆学 = 60% 概率 ×120% 普攻——combine，见下方聚合）
-        if self.enemy.get("hp", 0) > 0:
-            _cc_list = self._proc_pm(actor)["proc"].get("counter_chance", [])
-            _cu_list = self._proc_pm(actor)["proc"].get("counter_up", [])
-            if _cc_list or _cu_list:
-                _chance = 0.0
-                _mult = 1.0
-                for _pn, _ps in _cc_list:
-                    _chance = max(_chance, float(_ps.get("chance", 0.35) or 0.35))
-                    _mult = min(_mult, float(_ps.get("mult", 0.80) or 0.80))  # 以守为攻 80% 普攻
-                if _cu_list:  # 反击之王：+25% 概率、反击伤害 +50%
-                    for _pn, _ps in _cu_list:
-                        _chance += float(_ps.get("chance_add", 0.25) or 0.25)
-                        _mult *= 1.0 + float(_ps.get("dmg_add", 0.50) or 0.50)
-                        break
-                _chance = min(_chance, 0.9)
-                if random.random() < _chance:
-                    _st_c2 = self._actor_stats_of(actor)
-                    _est_c2 = self._enemy_stats()
-                    _c2_crit = random.random() < float(_st_c2.get("crit", 0) or 0)
-                    _c2_dmg = E.calc_damage(int(_st_c2["atk"] * _mult), _est_c2.get("def", 0), _c2_crit,
-                                            dmg_type="phys")
-                    _c2_dmg = self._boss_dmg_filter(_c2_dmg, actor, logs)
-                    self._damage_enemy(_c2_dmg, logs)
-                    logs.append(f"🥊 反击！你立刻回击造成 {_c2_dmg} 点伤害！"
-                                + (" 💥暴击" if _c2_crit else ""))
-                    # 反击回气（同既有 counter_attack 消费点）：命中后 气 +2
-                    _cr2_cls = actor.get("class_name", "")
-                    _cr2_rd = E.core_resource_def(_cr2_cls)
-                    if _cr2_rd and _cr2_rd.get("key") == "chi":
-                        self._res_gain_class(_cr2_cls, "chi", 2)
-        # 龙鳞套：被攻击时 25% 概率反弹 25% 伤害
-        if "reflect" in E.set_bonus_4(actor.get("equipment", {})) and self.enemy.get("hp", 0) > 0:
-            if random.random() < C.REFLECT_CHANCE:
-                rd = int(dmg * 0.25)
-                rd = self._boss_dmg_filter(rd, actor, logs)  # v104 M02 P1-5：反伤走 Boss 护盾过滤
-                self._damage_enemy(rd, logs)
-                logs.append(f"🐉 龙鳞反震！反弹 {rd} 点伤害！")
-        # v29 金身：每层减伤 4%
-        mech = MS
-        iron = int(mech.get("iron", 0) or 0)
-        if iron > 0:
-            reduce = int(dmg * 0.04 * iron)
-            dmg = max(1, dmg - reduce)
-            logs.append(f"🪷 金身减伤 {reduce} 点({iron} 层)")
-        # v34 符文·壁垒：受击时 x% 概率获得护盾（y% 生命值）；荆棘：受击反弹 x% 伤害
-        effs = self._enchant_effects(actor)
-        barrier_lvl = self._enchant_lvl(effs, "barrier")
-        if barrier_lvl:
-            prob, pct = C.rune_value("barrier", barrier_lvl)
-            # 契约断言：data/runes.py barrier lvl 返回 [prob, pct] 二元素列表，防未来改单值静默错位
-            assert isinstance(prob, (int, float)) and isinstance(pct, (int, float)), \
-                f"rune barrier lvl={barrier_lvl} 应返回 [prob, pct]，实得 {C.rune_value('barrier', barrier_lvl)!r}"
-            if random.random() < prob:
-                shield_gain = int(actor.get("max_hp", actor.get("hp", 1)) * pct)
-                self._add_shield("rune_barrier", shield_gain, 2)
-                logs.append(f"🛡️ 符文壁垒：获得 {shield_gain} 点护盾！")
-        thorns_lvl = self._enchant_lvl(effs, "thorns")
-        if thorns_lvl and self.enemy.get("hp", 0) > 0:
-            rd = int(dmg * C.rune_value("thorns", thorns_lvl))
-            rd = self._boss_dmg_filter(rd, actor, logs)  # v104 M02 P1-5：反伤走 Boss 护盾过滤
-            self._damage_enemy(rd, logs)
-            logs.append(f"🌵 符文荆棘：反弹 {rd} 点伤害！")
-        # v106.4 反伤属性统一结算在 _damage_player 段（thorns_pot 已乘算并入 thorns，
-        # 此段删除 v101.28f 旧独立反弹——否则双重结算，2026-08-13 回归抓包）
-        # v140 波3.2：次元门扉符无敌——本刻免疫一切伤害（p_eff invuln，用后清 + 记录僵直）
-        _inv = (EFF or {}).get("invuln")
-        if _inv and int(_inv.get("turns", 1) or 1) > 0:
-            _inv["turns"] = int(_inv.get("turns", 1) or 1) - 1
-            if int(_inv.get("turns", 0) or 0) <= 0:
-                EFF.pop("invuln", None)
-                _sa = int(_inv.get("stun_after", 1) or 1)
-                if _sa > 0:
-                    B["stun"] = max(int(B.get("stun", 0) or 0), _sa)
-                    logs.append("🌀 次元门扉关闭，你陷入短暂僵直！")
-            logs.append("🌀 次元门扉：免疫了这次伤害！")
-            return
-        # v140 波3.2：龙血变身药剂——受击伤害 +15%（morph_dmg_taken）
-        _morph = float((EFF or {}).get("morph_dmg_taken", 0) or 0)
-        if _morph > 0:
-            dmg = max(1, int(dmg * (1 + _morph)))
-            logs.append(f"🐉 龙人形态：额外承受 {int(dmg * _morph)} 点伤害！")
-        # v142 数据驱动：圣徽守护（bless_ward_shield）——受击 25% 概率获得 8% 最大生命护盾（3 刻，数值读 params）
-        _bws_eff = self._set_eff(actor, "bless_ward_shield", 4)
-        if _bws_eff:
-            _bws_params = (_bws_eff or {}).get("params") or {}
-            if random.random() < float(_bws_params.get("chance", 0.25)):
-                _bw_sh = int(actor.get("max_hp", actor.get("hp", 1)) * float(_bws_params.get("shield_pct", 0.08)))
-                self._add_shield("bless_ward", _bw_sh, int(_bws_params.get("shield_turns", 3)))
-                logs.append(f"✨ 圣徽守护！获得 {_bw_sh} 点护盾！")
-        # v142 数据驱动：圣辉圣环（holy_halo_shield）——受击后 10% 伤害转护盾（每刻最多 1 次，数值读 params）
-        _hh_eff = self._set_eff(actor, "holy_halo_shield", 4)
-        if _hh_eff and int(dmg) > 0:
-            _hh_params = (_hh_eff or {}).get("params") or {}
-            _hh_turn = self._tick_no()
-            if (EFF or {}).get("holy_halo_used") != _hh_turn:
-                _hh_sh = int(dmg * float(_hh_params.get("shield_pct", 0.10)))
-                if _hh_sh > 0:
-                    self._add_shield("holy_halo", _hh_sh, 2)
-                    EFF["holy_halo_used"] = _hh_turn
-                    logs.append(f"✨ 圣辉圣环：{_hh_sh} 点伤害化为护盾！")
+        dmg, _interrupted = self._retaliations_and_buffs(actor, dmg, logs)
+        if _interrupted:
+            return 0
         # v177 actor 护盾吸收：玩家盾全额吸收；怪物盾 halve=True（受伤减半先扣盾，Boss 语义）
         shields = SH
         if shields:
