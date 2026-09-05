@@ -260,9 +260,11 @@ def test_battle_affix():
     else:
         check("受击词条", False, "300 seed 无触发")
     # 6.5 回春/冥想回合开始（max_hp 500 但当前 400 → 触发回复）
+    # v178.2：A 类每刻效果从 _turn_start 迁到 _tick_regen（regen_tick 每秒结算）——
+    # 直接测新结算器，语义不变（扣血后 tick 一次应回复）
     p5 = mk_player(["regen", "meditate"], hp=400, mp=50, max_hp=500, max_mp=100)
     b5 = BT.Battle("monster", mk_enemy(), {}, p5)
-    logs = b5._turn_start(p5)
+    logs = b5._tick_regen(p5, [])
     check("回春回合回复", "回春" in "".join(logs) and p5["hp"] > 400, f"hp={p5['hp']}")
     check("冥想回合回复", "冥想" in "".join(logs) and p5["mp"] > 50, f"mp={p5['mp']}")
     # 6.6 龙语印记叠层

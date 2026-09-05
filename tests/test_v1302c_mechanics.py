@@ -228,7 +228,8 @@ def test_six_affixes():
         check("疾风余韵：上回合精力 100 ≥80 → 额外回复 10", b._tailwind_regen_bonus(p) == 10,
               f"bonus={b._tailwind_regen_bonus(p)}")
         b.resources["energy"] = 60
-        b._turn_start(p)
+        # v178.2：核心资源刻回复 + 疾风余韵迁到 _tick_regen（每秒 tick）——测新结算器
+        b._tick_regen(p, [])
         # v153 精力自然回 18（v151 起 30→18 专注流量制）+ 疾风余韵 10 = 60+28=88
         check("回合开始：自然回 18 + 疾风余韵 10 = 88", b.resources["energy"] == 88,
               f"energy={b.resources['energy']}")
@@ -237,7 +238,7 @@ def test_six_affixes():
         check("疾风余韵：上回合精力 70 <80 → 不触发", b2._tailwind_regen_bonus(p2) == 0,
               f"bonus={b2._tailwind_regen_bonus(p2)}")
         b2.resources["energy"] = 60
-        b2._turn_start(p2)
+        b2._tick_regen(p2, [])
         check("无余韵加成：60 + 18 = 78", b2.resources["energy"] == 78,
               f"energy={b2.resources['energy']}")
         # 满 100 排气：v153 已废弃凝神屏息（vent trigger=999 永不到达，专注流量制）
@@ -247,7 +248,7 @@ def test_six_affixes():
               str(p3.get("vent")))
         b3.resources["energy"] = 100
         b3._tailwind_prev_energy = 100
-        b3._turn_start(p3)
+        b3._tick_regen(p3, [])
         check("满 100 + 余韵 10 封顶 100（v153 无排气，专注流量制）", b3.resources["energy"] == 100,
               f"energy={b3.resources['energy']}")
     except (AttributeError, TypeError) as ex:

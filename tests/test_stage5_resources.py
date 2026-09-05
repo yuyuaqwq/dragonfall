@@ -64,13 +64,14 @@ check("resources 序列化往返", b2.resources == by.resources, str((b2.resourc
 print("【核心资源：回合回复】")
 # v153 专注流量制：游侠 energy regen 30→18/刻（core_resources.py cls_you_xia.regen=18）
 # v153 废弃凝神屏息（trigger 999）：满 100 不再排气，专注保持满槽
+# v178.2：核心资源刻回复从 _turn_start 迁到 _tick_regen（每秒 regen_tick）——直接测新结算器
 b2.resources['energy'] = 82
-logs = b2._turn_start(py)
+logs = b2._tick_regen(py, [])
 check("精力 82 回 18 → 满 100（不排气，v153 专注流量制）", b2.resources.get('energy') == 100, str(b2.resources))
 py2 = mk('游侠')
 by2 = BT.Battle('monster', mkmon(), player=py2)
 by2.resources['energy'] = 50
-logs = by2._turn_start(py2)
+logs = by2._tick_regen(py2, [])
 check("精力每回合 +18", by2.resources.get('energy') == 68, str(by2.resources))
 check("回复日志", any("精力回复" in x for x in logs), str(logs))
 

@@ -108,7 +108,8 @@ def test_turn_start():
     e = mk_enemy()
     b = BT.Battle("monster", e, player=p)
     p["hp"] = p["max_hp"] // 2
-    b._turn_start(p)
+    # v178.2：特效装备 turn_start（晨曦微光等）迁到 _tick_regen（每秒 regen_tick）——测新结算器
+    b._tick_regen(p, [])
     check("晨曦微光回合回复", p["hp"] > p["max_hp"] // 2, f"hp={p['hp']}")
 
 def test_passive():

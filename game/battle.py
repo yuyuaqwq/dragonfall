@@ -466,6 +466,17 @@ class Battle:
                 _pet_spd = self._pet_spd()
                 _pt = CAST_PET_SKILL * self._ct_cost(_pet_spd)
                 self._schedule(_pt, {"type": "pet_tick"})
+            # v178.2 regen_tick：玩家带"每刻效果"（A 类：套装回血/符文治愈/食物 HOT/被动充能/资源 regen/
+            # 状态机维护）才排每秒 regen_tick——条件排入照 pet_tick 先例：无 A 类效果不排不空转
+            # （CTB 频率测试玩家 equipment={} 无效果 → 无 regen_tick → 调度零干扰）。
+            # 仅新建战斗在此排（_now<=0）；恢复战斗由 from_state 末尾补排（事件队列不序列化）。
+            if not self._enemy_dead() and float(getattr(self, "_now", 0.0) or 0.0) <= 0:
+                try:
+                    _pl0 = self.player or {}
+                    if self._regen_needed(_pl0):
+                        self._schedule(self._now + ACT_TICK, {"type": "regen_tick"})
+                except Exception:
+                    pass
             # 开战敌方初始 enemy_act：仅非副本（instance 的 enemy_act 由 from_state 分支补排，
             # 避免新建时排一次 + from_state 恢复再排一次导致敌方双重行动）
             if self.btype != "instance":
@@ -816,6 +827,17 @@ class Battle:
                     b._schedule(b._now + _pt, {"type": "pet_tick"})
                 except Exception:
                     pass
+        # v178.2 regen_tick 补排：事件队列不随存档序列化，恢复后若玩家带 A 类每刻效果
+        # 且堆里没有 regen_tick → 补排（照 pet_tick 先例）。玩家死亡/战斗结束不补。
+        if not b._enemy_dead():
+            try:
+                _pl_r = b.player or {}
+                if b._regen_needed(_pl_r):
+                    _has_regen = any(_e.get("type") == "regen_tick" for _, _, _e in b._events)
+                    if not _has_regen:
+                        b._schedule(b._now + ACT_TICK, {"type": "regen_tick"})
+            except Exception:
+                pass
         # v163 敌方读条持久化：恢复读条中的敌方 cast_done（_enemy_turn 出手时写 e["_cast"]，
         # 随 enemies 序列化；野外/副本统一）。此前事件队列不序列化，读条伤害跨消息即丢
         # （repro_enemy_cast_loss.py 复现：野外单怪挥爪后存档恢复，伤害蒸发为 0）。
@@ -2526,6 +2548,25 @@ class Battle:
                     # 重排下次 pet_tick（周期 = 出招 + 收招，按宠物 spd 折算）——
                     # 即使本次被限频跳过也照常重排，读条节奏不丢
                     self._reschedule_pet_tick()
+                elif evt == "regen_tick":
+                    # v178.2 每刻效果事件驱动：玩家侧全局每秒 1 个 regen_tick，到点结算
+                    # A 类每刻效果（套装回血/符文治愈/被动充能/资源 regen/状态机维护等）。
+                    # 条件排入照 pet_tick 先例：只有玩家带 A 类效果才排；结算后若战斗未结束
+                    # 且玩家存活且仍带效果 → 重排下次（周期 ACT_TICK=1 刻）。玩家死亡 →
+                    # result=defeat 由 _tick_regen 内死亡检测置位 → 不重排（战斗结束）。
+                    if not self.result:
+                        try:
+                            if not self._player_dead(player):
+                                logs += self._tick_regen(player, logs)
+                        except Exception as _rex:
+                            logs.append(f"(regen_tick 异常: {_rex})")
+                    # 重排条件：战斗未结束 + 玩家存活 + 仍需要 A 类效果
+                    if not self.result and not self._player_dead(player):
+                        try:
+                            if self._regen_needed(player):
+                                self._schedule(self._now + ACT_TICK, {"type": "regen_tick"})
+                        except Exception:
+                            pass
                 elif evt == "dot_tick":
                     # v178.1 事件驱动 DOT：挂 dot（_apply_dot）时排本事件，到点结算该 actor
                     # 身上的全部 debuffs——玩家/怪同一结算器 _tick_actor_dots（actor 无关）。
@@ -7456,63 +7497,116 @@ class Battle:
                 bonus += v
         return bonus
 
-    def _turn_start(self, player: dict) -> list:
-        """刻开始：v10 套装每刻回复 + 破绽条衰减（v151）。DOT 已事件驱动（v178.1），不在此结算。"""
-        logs = []
-        # v178.1：_turn_start 收到实际行动玩家 → 缓存为 _last_player（dot_tick 事件结算强度用；
-        # 否则事件在 player_turn 设 _last_player 之前触发，毒伤按空面板算=0）
-        if player:
+    def _regen_needed(self, player: dict) -> bool:
+        """v178.2 regen_tick 条件排入判定：玩家当前是否带"每刻效果"（A 类）。
+
+        覆盖 _turn_start 原 A 类清单的**数据存在性**判定（不结算，只看有没有）：
+        - 套装 4 件（圣光/永恒 regen、圣堂领域、神恩爆发、壁立千仞、双形态等）
+        - 食物 HOT / 词条刻开始 / 特效装备 turn_start
+        - 附魔 符文·治愈 / 被动 proc（turn_heal/team_regen/arcane_regen/arcane_intuition/…）
+        - 核心资源 regen（游侠精力 +25/刻 等）/ 疾风余韵 / 迅捷之核增幅
+        - 牧师信念衰减 / 歌者回声 / 亡灵祭仪
+        无任何 A 类效果 → False → 不排 regen_tick（CTB 测试玩家 equipment={} 恒 False）。
+        """
+        try:
+            if not player:
+                return False
+            # 套装 4 件/5 件效果（只认"每刻回血/充能/盾"类，攻击特效套装不需要 regen_tick）
+            _s4 = E.set_bonus_4(player.get("equipment", {}))
+            if _s4:
+                for _eff in ("regen", "regen_strong", "holy_field_heal",
+                             "divine_grace_burst", "hu_xiao_barrier"):
+                    if _eff in _s4:
+                        return True
+            # 星尘 5 件（夜间回蓝）
             try:
-                self._last_player = player
+                if "星尘" in "|".join(self._set_bonus_5(player)):
+                    return True
             except Exception:
                 pass
-        # v178.1 事件驱动保险丝：玩家行动开头扫描带 debuffs 的 actor（玩家/当前主敌），
-        # 若已挂 dot 但没有对应 dot_tick 事件（直接写 debuffs 的旧路径/老档/新挂载漏排）→ 补排。
-        # 幂等：已有该 actor 的 dot_tick 事件则跳过，不重复排。
-        try:
-            for _dt_cand in (player, self.enemy or {}):
-                if not _dt_cand or not (_dt_cand.get("debuffs") or {}):
-                    continue
-                _dt_dots = {_k for _k in _dt_cand["debuffs"] if _k in DOT_DEFS}
-                if not _dt_dots:
-                    continue
-                _is_pl = bool(_dt_cand.get("class_name"))
-                _has_ev = any(_e.get("type") == "dot_tick"
-                              and (_e.get("side") == "p" if _is_pl else _e.get("side") == "e" and _e.get("unit") is _dt_cand)
-                              for _, _, _e in self._events)
-                if not _has_ev:
-                    if _is_pl:
-                        self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "p"})
-                    else:
-                        self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "e",
-                                                               "unit": _dt_cand})
-        except Exception:
-            pass
-        # v151 破绽断链修复（引擎差距报告 P0）：turn_start_bars 此前从未被调用——
-        # 拳师破绽条（shaken）的每刻衰减 4/免疫期递减实际不跑。刻开始统一衰减+触发检查。
-        try:
-            from .core.battle_bars import turn_start_bars
-            _trig = turn_start_bars(self.enemy, logs) or []
-            for _bk in _trig:
-                # 触发效果：skip_turn → 敌方跳过下刻行动（由 _enemy_turn 消费 immune_turns）
-                _bd = None
-                from .core.battle_bars import bar_def
-                _bd = bar_def(_bk) or {}
-                if (_bd.get("trigger_effect") or "") == "skip_turn":
-                    logs.append(f"💢 破绽触发！敌方即将失去行动！")
-            # v169.7 破绽感知 shaken_decay_half（拳师攻线）：破绽衰减减半（−1.7/s → −0.85/s）——
-            # turn_start_bars 已按配置衰减 1.7，这里把半衰量回补（净效果 −0.85）
+            # 词条刻开始（回春/冥想/晨曦祝福 等）
             try:
-                for _pn_dh, _ps_dh in self._proc_pm(player)["proc"].get("shaken_decay_half", []):
-                    _eb_sh = self.e_buffs.get("shaken")
-                    if isinstance(_eb_sh, dict):
-                        _decay_full = float((_bd or {}).get("decay_per_turn", 0) or 0) or 1.7
-                        _eb_sh["val"] = int(_eb_sh.get("val", 0) or 0) + int(_decay_full / 2)
-                    break
+                if self._affix_effs(player, "__any_turn_start__"):
+                    return True
             except Exception:
                 pass
+            # 食物持续效果
+            try:
+                if self.p_food_effects:
+                    return True
+            except Exception:
+                pass
+            # 符文·治愈
+            try:
+                if self._enchant_lvl(self._enchant_effects(player), "regen"):
+                    return True
+            except Exception:
+                pass
+            # 被动 proc 族（turn_heal/team_regen/arcane_regen/arcane_intuition/
+            # focus_regen_summon/undead_faith/faith_overload_heal/shaken_decay_half…）
+            try:
+                _pm = self._passive_map(player)["proc"]
+                for _pk in ("turn_heal", "team_regen", "arcane_regen", "arcane_intuition",
+                            "focus_regen_summon", "undead_faith", "faith_overload_heal"):
+                    if _pm.get(_pk):
+                        return True
+                for _pn2, _ps2 in self._passive_map(player)["stat"]:
+                    if _ps2.get("stat") == "spellblade_regen":
+                        return True
+            except Exception:
+                pass
+            # 核心资源刻回复（rd.regen > 0）
+            try:
+                _crd = E.core_resource_def(player.get("class_name", ""))
+                if _crd and (float(_crd.get("regen", 0) or 0) > 0
+                             or float(_crd.get("decay_per_tick", 0) or 0) > 0):
+                    return True
+            except Exception:
+                pass
+            # 疾风余韵词条（swift_tailwind，上刻精力≥80 → 本刻 +10）
+            try:
+                if "swift_tailwind" in self._equip_affix_ids(player):
+                    return True
+            except Exception:
+                pass
+            # 资源增幅（迅捷之核 natural 回额外）
+            try:
+                if self._amp_resource(player, "regen"):
+                    return True
+            except Exception:
+                pass
+            # 歌者回声层数 / 双形态活跃（状态机维护成本）
+            try:
+                if self._echo_layers() > 0:
+                    return True
+            except Exception:
+                pass
+            try:
+                from .core.battle_modes import dual_form_active
+                if dual_form_active(player):
+                    return True
+            except Exception:
+                pass
+            # vent/focus 状态机在行动语义（B 类）里保留，不进 regen_tick
+            return False
         except Exception:
-            pass
+            return False
+
+    def _tick_regen(self, player: dict, logs: list) -> list:
+        """v178.2 每刻效果结算器：regen_tick 事件触发时跑 A 类效果。
+
+        迁移来源：原 _turn_start 的 A 类（时间语义）段——词条刻开始/食物持续/特效装备/
+        套装回血/符文治愈/被动充能/核心资源 regen/疾风余韵/资源增幅/森之共鸣/悼咏/
+        信念衰减/歌者回声。**逐字搬入，不改数值语义**；触发时机从"玩家每次行动开头"
+        改为"每秒 regen_tick"（鱼鱼铁律：每刻=每秒，行动频率不干扰回复效率）。
+        B 类（破绽条/蓄力/条件触发）留在 _turn_start。
+        """
+        try:
+            if not player:
+                return logs
+        except Exception:
+            return logs
+        # ---- A 类迁移段（原 _turn_start 7660-7878，逐字搬入）----
         # 阶段八：词条刻开始回复（回春/冥想/晨曦祝福）
         self._affix_turn_start(player, logs)
         self._food_turn_start(player, logs)
@@ -7732,6 +7826,65 @@ class Battle:
             for _ally in (self.allies or []):
                 if isinstance(_ally, dict) and _ally.get("hp", 0) < _ally.get("max_hp", 1):
                     _ally["hp"] = min(_ally.get("max_hp", _ally.get("hp", 1)), _ally.get("hp", 0) + _heal_e)
+        return logs
+
+    def _turn_start(self, player: dict) -> list:
+        """刻开始：v10 套装每刻回复 + 破绽条衰减（v151）。DOT 已事件驱动（v178.1），不在此结算。"""
+        logs = []
+        # v178.1：_turn_start 收到实际行动玩家 → 缓存为 _last_player（dot_tick 事件结算强度用；
+        # 否则事件在 player_turn 设 _last_player 之前触发，毒伤按空面板算=0）
+        if player:
+            try:
+                self._last_player = player
+            except Exception:
+                pass
+        # v178.1 事件驱动保险丝：玩家行动开头扫描带 debuffs 的 actor（玩家/当前主敌），
+        # 若已挂 dot 但没有对应 dot_tick 事件（直接写 debuffs 的旧路径/老档/新挂载漏排）→ 补排。
+        # 幂等：已有该 actor 的 dot_tick 事件则跳过，不重复排。
+        try:
+            for _dt_cand in (player, self.enemy or {}):
+                if not _dt_cand or not (_dt_cand.get("debuffs") or {}):
+                    continue
+                _dt_dots = {_k for _k in _dt_cand["debuffs"] if _k in DOT_DEFS}
+                if not _dt_dots:
+                    continue
+                _is_pl = bool(_dt_cand.get("class_name"))
+                _has_ev = any(_e.get("type") == "dot_tick"
+                              and (_e.get("side") == "p" if _is_pl else _e.get("side") == "e" and _e.get("unit") is _dt_cand)
+                              for _, _, _e in self._events)
+                if not _has_ev:
+                    if _is_pl:
+                        self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "p"})
+                    else:
+                        self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "e",
+                                                               "unit": _dt_cand})
+        except Exception:
+            pass
+        # v151 破绽断链修复（引擎差距报告 P0）：turn_start_bars 此前从未被调用——
+        # 拳师破绽条（shaken）的每刻衰减 4/免疫期递减实际不跑。刻开始统一衰减+触发检查。
+        try:
+            from .core.battle_bars import turn_start_bars
+            _trig = turn_start_bars(self.enemy, logs) or []
+            for _bk in _trig:
+                # 触发效果：skip_turn → 敌方跳过下刻行动（由 _enemy_turn 消费 immune_turns）
+                _bd = None
+                from .core.battle_bars import bar_def
+                _bd = bar_def(_bk) or {}
+                if (_bd.get("trigger_effect") or "") == "skip_turn":
+                    logs.append(f"💢 破绽触发！敌方即将失去行动！")
+            # v169.7 破绽感知 shaken_decay_half（拳师攻线）：破绽衰减减半（−1.7/s → −0.85/s）——
+            # turn_start_bars 已按配置衰减 1.7，这里把半衰量回补（净效果 −0.85）
+            try:
+                for _pn_dh, _ps_dh in self._proc_pm(player)["proc"].get("shaken_decay_half", []):
+                    _eb_sh = self.e_buffs.get("shaken")
+                    if isinstance(_eb_sh, dict):
+                        _decay_full = float((_bd or {}).get("decay_per_turn", 0) or 0) or 1.7
+                        _eb_sh["val"] = int(_eb_sh.get("val", 0) or 0) + int(_decay_full / 2)
+                    break
+            except Exception:
+                pass
+        except Exception:
+            pass
         # ---- v139 职业融合：刻开始状态机（dual_form 维护 / vent 排气 / focus 计时）----
         from .core.battle_modes import (
             dual_form_def, dual_form_state, dual_form_active, dual_form_tick,
