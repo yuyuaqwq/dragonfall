@@ -257,12 +257,13 @@ def _m_interrupt(battle, mval, p_mech, total, logs, skill_name, is_crit, info=No
     if tgt is None:
         return
     if tgt.get("class_name"):
-        # 目标是玩家：蓄力（self.charging）优先，其次读条（_pending_player_cast）
-        ch = getattr(battle, "charging", None)
+        # 目标是玩家：蓄力（actor dict charging）优先，其次读条（_pending_player_cast）
+        # v180-B ①：蓄力状态权威在玩家 actor dict
+        ch = tgt.get("charging")
         if ch and ch.get("skill"):
             cname = ch.get("name", ch.get("skill", "?"))
             spent = int(ch.get("mp_spent", 0) or 0)
-            player['charging'] = None
+            tgt["charging"] = None
             if spent > 0:
                 tgt["mp"] = min(tgt.get("max_mp", tgt.get("mp", 0)),
                                 tgt.get("mp", 0) + (spent + 1) // 2)
@@ -989,17 +990,19 @@ def _mc_silence(battle, player, logs, mval):
 def _mc_interrupt(battle, player, logs, mval):
     """打断玩家蓄力（v125.1 P2 消费端：ms_an_ying_dan 等带 mech=interrupt 的怪物技能）。
     原怪物技能 interrupt:True 为死字段（_enemy_turn 不读 interrupt）——改经 mech 接线本表：
-    命中时若玩家正在蓄力（player.get('charging')，蓄力状态在 Battle 对象而非 player dict），
-    打断并返还 50% 已扣 MP（向上取整，对齐 battle._interrupt_charging 玩家侧口径）。"""
-    ch = getattr(battle, "charging", None)
+    命中时若玩家正在蓄力，打断并返还 50% 已扣 MP（向上取整，对齐 battle._interrupt_charging
+    玩家侧口径）。v180-B ①：蓄力状态权威在玩家 actor dict（battle.player["charging"]）。"""
+    # 蓄力读焦点玩家 actor dict（player 参数即被打断玩家）
+    _pl = player or battle.player or {}
+    ch = _pl.get("charging")
     if not ch or not ch.get("skill"):
         return
     cname = ch.get("name", ch.get("skill", "?"))
     spent = int(ch.get("mp_spent", 0) or 0)
-    player['charging'] = None
-    if spent > 0 and player is not None:
-        player["mp"] = min(player.get("max_mp", player.get("mp", 0)),
-                           player.get("mp", 0) + (spent + 1) // 2)
+    _pl["charging"] = None
+    if spent > 0 and _pl is not None:
+        _pl["mp"] = min(_pl.get("max_mp", _pl.get("mp", 0)),
+                        _pl.get("mp", 0) + (spent + 1) // 2)
         logs.append(f"🔨 你的蓄力【{cname}】被怪物打断了！返还 {(spent + 1) // 2} 点魔力。")
     else:
         logs.append(f"🔨 你的蓄力【{cname}】被怪物打断了！")
@@ -1137,7 +1140,7 @@ def _sb_reduce_all(battle, skill_name, info, player, lv, logs):
         pct = (mv / 100.0) if mv > 1 else (mv if 0 < mv <= 1 else 0.20)
     turns = skill_buff_turns(lv, info=info)
     battle._cast_buffs()["reduce_all"] = pct
-    player['reduce_all_left'] = max(getattr(battle, "_reduce_all_left", 0), turns)
+    player['reduce_all_left'] = max(player.get("reduce_all_left", 0), turns)
     logs.append(f"🛡️ 全队减伤 {int(pct*100)}%（持续 {player.setdefault('reduce_all_left', 0)} 刻）")
 
 
@@ -1155,7 +1158,7 @@ def _sb_reduce(battle, skill_name, info, player, lv, logs):
     rp = min(max(rp, 0.0), 0.9)
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["reduce"] = rp
-    player['reduce_left'] = max(getattr(battle, "_reduce_left", 0), turns)
+    player['reduce_left'] = max(player.get("reduce_left", 0), turns)
     logs.append(f"🛡️ 减伤 {int(rp*100)}%（持续 {player.setdefault('reduce_left', 0)} 刻）")
 
 
@@ -1406,7 +1409,7 @@ def _sb_protect(battle, skill_name, info, player, lv, logs):
     rp = 0.30 if "30" in str((info or {}).get("desc", "")) else 0.50
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["reduce"] = max(float(battle._cast_buffs().get("reduce", 0) or 0), rp)
-    player['reduce_left'] = max(int(getattr(battle, "_reduce_left", 0) or 0), int(turns))
+    player['reduce_left'] = max(int(player.get("reduce_left", 0) or 0), int(turns))
     # 反伤 rp 走 block_reflect_val（随 block_up/受击反伤段生效），不写 thorns_pot 防与荆棘药剂双算
     player.setdefault('eff', {})["block_reflect_val"] = max(float(player.setdefault('eff', {}).get("block_reflect_val", 0) or 0), rp)
     battle._cast_buffs()["block_up"] = max(int(battle._cast_buffs().get("block_up", 0) or 0), int(turns))
@@ -1428,7 +1431,7 @@ def _sb_dodge_reduce_all(battle, skill_name, info, player, lv, logs):
     _sb_dodge_buff(battle, skill_name, info, player, lv, logs)
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["reduce_all"] = max(float(battle._cast_buffs().get("reduce_all", 0) or 0), 0.10)
-    player['reduce_all_left'] = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
+    player['reduce_all_left'] = max(int(player.get("reduce_all_left", 0) or 0), int(turns))
     logs.append(f"🍃 自然护佑：全队减伤 10%（{turns} 刻）")
 
 
@@ -1464,7 +1467,7 @@ def _sb_reduce_shield_all(battle, skill_name, info, player, lv, logs):
     rp = 0.50 if cores >= 3 else 0.30
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["reduce_all"] = max(float(battle._cast_buffs().get("reduce_all", 0) or 0), rp)
-    player['reduce_all_left'] = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
+    player['reduce_all_left'] = max(int(player.get("reduce_all_left", 0) or 0), int(turns))
     _sb_shield_all(battle, skill_name, info, player, lv, logs)
     logs.append(f"🪨 大地守护：全队减伤 {int(rp * 100)}%（磐核 {cores}）")
 
@@ -1480,7 +1483,7 @@ def _sb_shield_all_reduce(battle, skill_name, info, player, lv, logs):
         return
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["reduce_all"] = max(float(battle._cast_buffs().get("reduce_all", 0) or 0), 0.30)
-    player['reduce_all_left'] = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
+    player['reduce_all_left'] = max(int(player.get("reduce_all_left", 0) or 0), int(turns))
     _sb_shield_all(battle, skill_name, info, player, lv, logs)
     logs.append(f"🛡️ 守护圣域：全队护盾 + 减伤 30%（{turns} 刻）")
 
@@ -1589,7 +1592,7 @@ def _melody_apply_p_buffs(battle, mel, turns):
         # 守歌「全队减伤 +10%」→ reduce_all 减伤键（10%）——reduce_all 存百分比 float 且独立计时，
         # 不能进 keys（下方通用循环会把它当 int 刻覆盖），单独写后不再 append
         pb["reduce_all"] = max(float(pb.get("reduce_all", 0) or 0), 0.10)
-        player['reduce_all_left'] = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
+        player['reduce_all_left'] = max(int(player.get("reduce_all_left", 0) or 0), int(turns))
     elif kind == "spd":
         keys.append("spd_up")
     elif kind == "atk_matk":
