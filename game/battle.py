@@ -8945,6 +8945,66 @@ class Battle:
         return created
 
     # ---------------- v107 召唤物系统 ----------------
+    def _spawn_companion(self, cfg: dict, player: dict, logs: list) -> dict | None:
+        """v180-C S2 装配统一：随从 actor 单一装配函数（设计文档 §3.4）。
+
+        技能召唤（_summon_entity）与药水召唤（potion_effects.eff_summon）共用本函数，
+        消除两份手写实体装配。cfg 字段（数据驱动，全部可选带默认）：
+          tid/name/icon           —— 实体标识（tid 必填）
+          hp_ratio/atk_ratio/def_ratio —— 相对玩家 max_hp/atk/def 的比例（生成时算一次）
+          dmg_type/rank/reach     —— 伤害类型/站位/射程
+          bodyguard/absorb_once   —— 挡刀（bodyguard>0 → guard 配置；absorb_once 1 次后消失）
+          aura_atk_all            —— 常驻全队攻击光环（挂 p_buffs）
+          eats_aoe                —— 吃 AOE（特性字段保留）
+          summon_power            —— 是否吃 summon_power 强化（技能召唤 True；药水 False，默认 False）
+        """
+        tid = cfg.get("tid", "")
+        if not tid:
+            return None
+        st = self._player_stats(player)
+        sp = float(cfg.get("summon_power", False) and st.get("summon_power", 0) or 0)
+        mul = (1 + sp)
+        hp = max(20, int(st.get("max_hp", 200) * float(cfg.get("hp_ratio", 0) or 0) * mul))
+        atk = max(0, int(st.get("atk", 50) * float(cfg.get("atk_ratio", 0) or 0) * mul))
+        df = max(2, int(st.get("def", 20) * float(cfg.get("def_ratio", 0) or 0) * mul))
+        guard = None
+        _bg = float(cfg.get("bodyguard", 0) or 0)
+        if _bg > 0:
+            guard = {
+                "chance": _bg,
+                "mode": "redirect",
+                "absorb_once": bool(cfg.get("absorb_once", False)),
+            }
+        actor = {"tid": tid, "name": cfg.get("name", tid), "icon": cfg.get("icon", ""),
+                 "hp": hp, "max_hp": hp, "atk": atk, "def": df,
+                 "dmg_type": cfg.get("dmg_type", "phys"),
+                 "rank": int(cfg.get("rank", 1) or 1),
+                 "reach": int(cfg.get("reach", 1) or 1),
+                 # v180-C S1 actor 雏形：随从统一进 companions（side/kind 标识 +
+                 # buffs 容器就位——字段即能力，可被增益/减益/引擎通用逻辑处理）
+                 "side": "player", "kind": "summon",
+                 "buffs": {},
+                 # v151 召唤物语义：纯挡刀吸收一次 / 全队攻击光环 / 吃 AOE
+                 "absorb_once": bool(cfg.get("absorb_once", False)),
+                 "aura_atk_all": float(cfg.get("aura_atk_all", 0) or 0),
+                 "eats_aoe": bool(cfg.get("eats_aoe", False)),
+                 # v180-C S2 auto_act 数据驱动：玩家行动后自动普攻（行为/触发全配置）
+                 "auto_act": {
+                     "trigger": "player_act",
+                     "act": {"type": "basic_atk"},
+                 } if atk > 0 else None,
+                 # v180-B ② guard 数据化：bodyguard/absorb_once → 统一挡刀配置
+                 "guard": guard}
+        self.companions.append(actor)
+        # v151 古树光环：常驻全队攻击 +30%（生成时挂 p_buffs，直到召唤物死亡）
+        _aura = float(cfg.get("aura_atk_all", 0) or 0)
+        if _aura > 0 and self.player:
+            _cur = float(self._p_buffs_bag().get("atk_up_all", 0) or 0)
+            self._p_buffs_bag()["atk_up_all"] = max(_cur, _aura)
+            logs.append(f"🌳 {actor['name']}：全队攻击＋{int(_aura * 100)}%！")
+        logs.append(f"{actor['icon']} {actor['name']} 加入战斗！(HP {hp} / 攻击 {atk} / 站位{actor['rank']}层)")
+        return actor
+
     def _summon_entity(self, tid: str, player: dict, logs: list) -> bool:
         """v107 召唤：按模板生成召唤物实体（属性按玩家实时属性比例缩放，吃 summon_power）。
         同类型达到 limit 上限时不重复召唤（骷髅海可叠 3，单宠 1）。"""
@@ -8969,44 +9029,23 @@ class Battle:
         if len(cur) >= _summon_limit:
             logs.append(f"⛔ 已有 {len(cur)} 个{tmpl['name']}（上限 {_summon_limit}）！")
             return False
-        st = self._player_stats(player)
-        sp = float(st.get("summon_power", 0) or 0)  # 隐藏职业专属强化（亡灵/兽王）
-        hp = max(20, int(st.get("max_hp", 200) * float(tmpl["hp_ratio"]) * (1 + sp)))
-        atk = max(0, int(st.get("atk", 50) * float(tmpl.get("atk_ratio", 0) or 0) * (1 + sp)))
-        df = max(2, int(st.get("def", 20) * float(tmpl["def_ratio"]) * (1 + sp)))
-        self.companions.append({"tid": tid, "name": tmpl["name"], "icon": tmpl.get("icon", ""),
-                             "hp": hp, "max_hp": hp, "atk": atk, "def": df,
-                             "dmg_type": tmpl.get("dmg_type", "phys"),
-                             "rank": int(tmpl.get("rank", 1) or 1),
-                             "reach": int(tmpl.get("reach", 1) or 1),
-                             # v180-C S1 actor 雏形：随从统一进 companions（side/kind 标识 +
-                             # buffs 容器就位——字段即能力，可被增益/减益/引擎通用逻辑处理）
-                             "side": "player", "kind": "summon",
-                             "buffs": {},
-                             # v151 召唤物语义：纯挡刀吸收一次 / 全队攻击光环 / 吃 AOE
-                             "absorb_once": bool(tmpl.get("absorb_once", False)),
-                             "aura_atk_all": float(tmpl.get("aura_atk_all", 0) or 0),
-                             "eats_aoe": bool(tmpl.get("eats_aoe", False)),
-                             # v180-C S2 auto_act 数据驱动：玩家行动后自动普攻（旧 _summons_act
-                             # 语义数据化——行为/触发全配置，引擎通用触发点驱动）
-                             "auto_act": {
-                                 "trigger": "player_act",
-                                 "act": {"type": "basic_atk"},
-                             } if float(tmpl.get("atk_ratio", 0) or 0) > 0 else None,
-                             # v180-B ② guard 数据化：模板 bodyguard/absorb_once 转统一挡刀配置
-                             # （任何随从 actor 带 guard 即生效，引擎不再按身份/列表特判）
-                             "guard": {
-                                 "chance": float(tmpl.get("bodyguard", 0) or 0),
-                                 "mode": "redirect",
-                                 "absorb_once": bool(tmpl.get("absorb_once", False)),
-                             } if float(tmpl.get("bodyguard", 0) or 0) > 0 else None})
-        # v151 古树光环：常驻全队攻击 +30%（生成时挂 p_buffs，直到召唤物死亡）
-        _aura = float(tmpl.get("aura_atk_all", 0) or 0)
-        if _aura > 0 and self.player:
-            _cur = float(self._p_buffs_bag().get("atk_up_all", 0) or 0)
-            self._p_buffs_bag()["atk_up_all"] = max(_cur, _aura)
-            logs.append(f"🌳 古树光环：全队攻击＋{int(_aura * 100)}%！")
-        logs.append(f"{tmpl.get('icon', '')} {tmpl['name']} 加入战斗！(HP {hp} / 攻击 {atk} / 站位{self.summons[-1]['rank']}层)")
+        # v180-C S2 装配统一：实体由 _spawn_companion 装配（技能召唤吃 summon_power）
+        _actor = self._spawn_companion({
+            "tid": tid, "name": tmpl["name"], "icon": tmpl.get("icon", ""),
+            "hp_ratio": float(tmpl["hp_ratio"]),
+            "atk_ratio": float(tmpl.get("atk_ratio", 0) or 0),
+            "def_ratio": float(tmpl["def_ratio"]),
+            "dmg_type": tmpl.get("dmg_type", "phys"),
+            "rank": int(tmpl.get("rank", 1) or 1),
+            "reach": int(tmpl.get("reach", 1) or 1),
+            "bodyguard": float(tmpl.get("bodyguard", 0) or 0),
+            "absorb_once": bool(tmpl.get("absorb_once", False)),
+            "aura_atk_all": float(tmpl.get("aura_atk_all", 0) or 0),
+            "eats_aoe": bool(tmpl.get("eats_aoe", False)),
+            "summon_power": True,
+        }, player, logs)
+        if _actor is None:
+            return False
         return True
 
     def _companion_act(self, actor: dict, logs: list) -> bool:

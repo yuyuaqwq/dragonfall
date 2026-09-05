@@ -417,21 +417,24 @@ def eff_summon(battle, player, value):
     used = player.setdefault('eff', {}).setdefault("summon_used", [])
     if len([s for s in battle.summons if s.get("tid") == tid]) >= limit or tid in used:
         return "⛔ 该召唤物每场战斗只能使用 1 次，已经用过了！"
-    st = battle._player_stats(player)
     face = _SUMMON_FACES.get(tid, (tid, "👥"))
-    hp = max(20, int(st.get("max_hp", 200) * float(v.get("hp_ratio", 0.30))))
-    atk = max(5, int(st.get("atk", 50) * float(v.get("atk_ratio", 0.35))))
-    df = max(2, int(st.get("def", 20) * float(v.get("def_ratio", 0.30))))
-    battle.companions.append({"tid": tid, "name": face[0], "icon": face[1],
-                              "hp": hp, "max_hp": hp, "atk": atk, "def": df,
-                              "dmg_type": "phys", "rank": 1, "reach": 1,
-                              # v180-C S1 actor 雏形：统一进 companions（kind/side/buffs 容器）
-                              "kind": "summon", "side": "player", "buffs": {},
-                              # v180-C S2 auto_act 数据驱动（atk>0 才自动普攻）
-                              "auto_act": {"trigger": "player_act",
-                                           "act": {"type": "basic_atk"}} if atk > 0 else None})
+    # v180-C S2 装配统一：实体由 battle._spawn_companion 装配（药水召唤不吃 summon_power）。
+    # v180-B ② guard 数据化后，挡刀只扫带 guard 字段的随从——药水 bodyguard 在此转 guard
+    # （烬灵香炉 bodyguard=0.30：P14 前走 SUMMONS 查表默认 0.40 误触发；现在按配置精确生效）
+    _actor = battle._spawn_companion({
+        "tid": tid, "name": face[0], "icon": face[1],
+        "hp_ratio": float(v.get("hp_ratio", 0)),
+        "atk_ratio": float(v.get("atk_ratio", 0) or 0),
+        "def_ratio": float(v.get("def_ratio", 0)),
+        "dmg_type": "phys", "rank": 1, "reach": 1,
+        "bodyguard": float(v.get("bodyguard", 0) or 0),
+        "absorb_once": bool(v.get("absorb_once", False)),
+        "summon_power": False,
+    }, player, [])
+    if _actor is None:
+        return "🧪 召唤物配置异常，没有生效！"
     used.append(tid)
-    msgs = [f"{face[1]} {face[0]} 加入战斗！(HP {hp} / 攻击 {atk})"]
+    msgs = [f"{face[1]} {face[0]} 加入战斗！(HP {_actor['hp']} / 攻击 {_actor['atk']})"]
     if float(v.get("thorns", 0) or 0) > 0:
         player.setdefault('buffs', {})["thorns_pot"] = max(int(player.setdefault('buffs', {}).get("thorns_pot", 0) or 0), turns)
         msgs.append(f"受击反弹 {int(float(v['thorns']) * 100)}% 伤害")
