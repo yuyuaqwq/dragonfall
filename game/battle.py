@@ -36,6 +36,7 @@ from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径
         BUFF_MULT, TEAM_BUFF_KEYS,  # v176 增益映射表下沉 data/battle_config.py
     )
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
+from .core.skill_pipeline import _AttackCast  # v176 技能攻击结算管线（逐步迁入 _player_skill 攻击分支）
 from .core.skill_kinds import (  # v176 去魔法字符串：类型常量替代散落中文比较
     K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_TRUE, K_TAUNT,
     is_damage_kind, seg_of,
@@ -4368,6 +4369,151 @@ class Battle:
         self._affix_res_proc(player, "buff_skill", logs)
 
         return logs
+    def _skill_assemble_mults(self, st: dict, est: dict, player: dict, info: dict,
+                              mech: str, kind: str, lv: int, skill_name: str,
+                              p_mech: dict, logs: list, effs: dict,
+                              is_crit: bool, _stealth_hit: bool,
+                              lucky: bool, stealth_mult: float) -> dict:
+        """v176 拆分：攻击技能乘区装配（原 _player_skill 123 行内联）。
+
+        计算 frozen/stack/cond/passive/reaction/蓄势/终结/词条/套装 各乘区 → pmult（cap 后）。
+        返回 ctx dict（段循环/标签/命中效果需要的全部中间量）。
+        """
+        # 机制：冰霜（冻结目标碎冰增伤）——查表 MECH_FROZEN_MULT（v125.2 B1）
+        frozen_bonus = 1.0
+        if mech in MECH_FROZEN_MULT and "freeze" in self.e_buffs:
+            frozen_bonus = MECH_FROZEN_MULT[mech]
+        # 机制：圣光/毒/影/气/审判/狂暴 层数加成
+        stack_bonus = self._mech_stack_bonus(mech, p_mech, info)
+        # v30 条件转化：按战场状态变形态（残血斩杀/背水一战）
+        cond_mult = self._cond_mult(info, player, lv)
+        # v104 R3 P2-18：条件满足即显示标签（含 mult=1.0 的纯条件技）
+        cond_label = info.get("cond", {}).get("label", "") if self._cond_active(info, player) else ""
+        # 段数：技能数据统一用 hits 键（v175e 修复——原只读 multi 导致 22 个多段技能
+        # 全当单段打，疾风/血怒/奥术弹幕等多段流伤害只有设计的 1/N；multi 为旧别名兼容）
+        multi = int(info.get("multi") or info.get("hits") or 1)
+        # 机制：风印 → 连击次数增加（查表 MECH_COMBO_STACKS，v125.2 B1）
+        if mech in MECH_COMBO_STACKS:
+            multi += p_mech.get(mech, 0)
+        # v34 破魔：魔法伤害 +x%
+        mb_lvl = self._enchant_lvl(effs, "magic_break")
+        magic_bonus = (1 + C.rune_value("magic_break", mb_lvl)) if mb_lvl and kind == K_MAGI else 1.0
+        # v109.2 P2-9：半死字段数据驱动化（原按技能名硬编码，改名即失效）——
+        # 破甲本能(proc pierce)/烈焰亲和(proc fire_bonus)/双修精通(stat cond=dual_stat)
+        # v176: 被动伤害乘区抽 _skill_passive_dmg_bonus（原 94 行内联）
+        passive_bonus, _execute_tag, element, _procs = self._skill_passive_dmg_bonus(
+            st, est, player, info, mech, kind)
+        # 元素反应增伤（元素共鸣：触发反应时 +15%）
+        for _pn, _ps in _procs.get("reaction", []):
+            self._elem_reaction_boost = float(_ps.get("mult", 1.15))
+        # 元素反应：当前系 × 目标印记（技能带 element 字段时判定；"current"=当前元素亲和系）
+        reaction_mult = 1.0
+        reaction_log = ""
+        if element and E.ELEMENT_MARKS.get(element):
+            marks = {k: v for k, v in self.e_buffs.items() if k in E.ELEMENT_MARKS.values()}
+            r = E.element_reaction(element, marks)
+            if r:
+                reaction_mult = r["mult"]
+                # v104 R3 P1-1：元素共鸣被动——元素反应伤害 +15%（在基础反应倍率上叠加）
+                if getattr(self, "_elem_reaction_boost", 1.0) > 1.0:
+                    reaction_mult *= self._elem_reaction_boost
+                    self._elem_reaction_boost = 1.0
+                reaction_log = f"💥{r['name']}！"
+                # 超载：额外全体伤害（v114 真 AOE：Boss+全部援军各吃全额，不走挡刀）
+                if r["extra"] == "aoe":
+                    aoe_dmg = int(st["matk"] * 1.2 * reaction_mult)
+                    self._aoe_damage_enemy(aoe_dmg, logs)
+                    reaction_log = f"💥超载爆发！额外 {aoe_dmg} 点全体伤害！"
+                # 冻结：目标冻结 1 刻
+                elif r["extra"] == "freeze":
+                    self.e_buffs["freeze"] = 1
+                    reaction_log = "❄️冻结！目标被冰封 1 刻！"
+                # 感电：连击 +1（追加一次伤害）
+                elif r["extra"] == "chain":
+                    multi += 1
+                    reaction_log = "⚡感电连锁！追加一次攻击！"
+                # 清除印记（感电保留）
+                if r["clear"]:
+                    for mk in E.ELEMENT_MARKS.values():
+                        self.e_buffs.pop(mk, None)
+        # v130.2 攻线·元素：引爆技反应表（cond type='reaction'，消耗充能时按引爆系+目标印记结算）。
+        # 独立于旧 e_buffs 反应体系，读目标侧 element_marks（mage_转职.md §1.0②）
+        if info.get("cond", {}).get("type") == "reaction" and element:
+            rr = self._reaction_table_resolve(player, element, st, logs)
+            if rr is not None:
+                rmult, rlog, chain_flag = rr
+                reaction_mult *= rmult
+                if reaction_log:
+                    reaction_log += rlog
+                else:
+                    reaction_log = rlog
+                if chain_flag:
+                    multi += 1
+        # v130.2 拳师蓄势 Momentum（攻线·格斗士）：物理技能吃「每 1 气 +3%」持有加伤
+        # v156：蓄势已由 _player_dmg_mult 统一乘入（普攻/技能共用），此处只记录标签
+        _mom_mult = self._momentum_mult(player)
+        if kind == K_PHYS and _mom_mult != 1.0:
+            self._mom_mult = _mom_mult
+        else:
+            self._mom_mult = 1.0
+        # v130.2 刺客攻线·影舞者：终结技（res_cost cp）连段增伤（combo≥3 每层 +5%，上限 +40%）
+        _combo_mult = 1.0
+        if self._combo_active(player) and (info.get("res_cost") or {}).get("cp"):
+            _combo_mult = self._combo_dmg_mult(player)
+            if _combo_mult != 1.0:
+                passive_bonus *= _combo_mult
+        self._combo_mult = _combo_mult
+        # v130.6 三连击破回馈实装（combo_ready 消费端，原只写不读的死标记）：
+        # 三连后下一次气力技（res_cost 耗气 / consume_all 耗气技能）伤害 +20%，
+        # 一次性消费；文案与连招三连 desc 统一为 +20%（钢拳「三连准备」设计意图）
+        if self.resources.get("combo_ready"):
+            _is_chi_skill = ("chi" in (info.get("res_cost") or {})) or \
+                ((info.get("consume_all") or {}).get("key") == "chi")
+            if _is_chi_skill:
+                passive_bonus *= 1.20
+                self.resources["combo_ready"] = 0
+                self._combo_ready_used = True
+            else:
+                self._combo_ready_used = False
+        # v130.2c 伤害倍率词条：爆发贯体（气力技物理 +10%）/ 终结之技（终结技 +10%~20%，tier 取档）
+        # v130.2c 套装伤害倍率：暗夜圣典 4 件（安魂曲/献祭暗焰 +20%）/ 势不可挡 4 件（气力技/终结技物理 +15%）
+        _sk_af = self._affix_skill_dmg_mult(player, info, kind) * self._set_skill_dmg_mult(player, info, kind, skill_name)
+        if _sk_af != 1.0:
+            passive_bonus *= _sk_af
+        self._sk_af_mult = _sk_af
+        total = 0
+        _magi_part = 0  # v109.2 P2-4：混合伤害魔法段累计（吸血分账用）
+        # v156 玩家侧公共乘区统一组装（词条/狼嚎/蓄势/禅意/物理药水/种族）——
+        # 与普攻共用 _player_dmg_mult（一处修改，普攻/技能同时生效）
+        affix_mult, affix_tags = self._player_dmg_mult(player, kind)
+        if self._mom_mult != 1.0:
+            affix_tags = list(affix_tags) + [f"🔥蓄势x{round(self._mom_mult, 2)}"]
+        if self._combo_mult != 1.0:
+            affix_tags = list(affix_tags) + [f"🌪️连段x{round(self._combo_mult, 2)}"]
+        if getattr(self, "_combo_ready_used", False):
+            affix_tags = list(affix_tags) + ["🥊三连余劲x1.20"]
+        if getattr(self, "_sk_af_mult", 1.0) > 1.0:
+            affix_tags = list(affix_tags) + [f"⚔️套装技x{round(self._sk_af_mult, 2)}"]
+        elem_mult = self._affix_element_dmg(player, element)
+        pmult = (E.skill_power_mult(lv, info) * frozen_bonus * stealth_mult * stack_bonus * cond_mult
+                 * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult
+                 * self._v139_dmg_mult(player, info))
+        # vF3 P1 连乘封顶：技能伤害倍率连乘（技能×冻结×潜行×叠层×条件×魔法×被动×反应×词缀×元素×种族×v139形态/专注）
+        # 只 clamp 技能伤害倍率段；暴击(×1.5)/暴伤(crit_dmg)/幸运一击(×1.5) 为独立乘区，在下方另行施加不受此限。
+        if pmult > C.SKILL_PMULT_CAP:
+            pmult = C.SKILL_PMULT_CAP
+        return {
+            "multi": multi, "pmult": pmult,
+            "reaction_log": reaction_log, "element": element,
+            "_procs": _procs, "_execute_tag": _execute_tag,
+            "frozen_bonus": frozen_bonus, "stack_bonus": stack_bonus,
+            "cond_mult": cond_mult, "cond_label": cond_label,
+            "magic_bonus": magic_bonus, "mb_lvl": mb_lvl,
+            "stealth_mult": stealth_mult, "elem_mult": elem_mult,
+            "affix_tags": affix_tags,
+            "total": total, "magi_part": _magi_part,
+        }
+
     def _skill_passive_dmg_bonus(self, st: dict, est: dict, player: dict, info: dict,
                                   mech: str, kind: str) -> tuple:
         """v176 拆分：攻击技能被动伤害乘区装配（原 _player_skill 94 行内联）。
@@ -4660,129 +4806,19 @@ class Battle:
         # v176: 暴击判定抽 _skill_crit_roll（原 42 行内联）
         is_crit, _stealth_hit, lucky, stealth_mult, est, effs = self._skill_crit_roll(
             st, est, player, info, mech, skill_name, logs)
-        # 机制：冰霜（冻结目标碎冰增伤）——查表 MECH_FROZEN_MULT（v125.2 B1）
-        frozen_bonus = 1.0
-        if mech in MECH_FROZEN_MULT and "freeze" in self.e_buffs:
-            frozen_bonus = MECH_FROZEN_MULT[mech]
-        # 机制：圣光/毒/影/气/审判/狂暴 层数加成
-        stack_bonus = self._mech_stack_bonus(mech, p_mech, info)
-        # v30 条件转化：按战场状态变形态（残血斩杀/背水一战）
-        cond_mult = self._cond_mult(info, player, lv)
-        # v104 R3 P2-18：条件满足即显示标签（含 mult=1.0 的纯条件技）
-        cond_label = info.get("cond", {}).get("label", "") if self._cond_active(info, player) else ""
-        # 段数：技能数据统一用 hits 键（v175e 修复——原只读 multi 导致 22 个多段技能
-        # 全当单段打，疾风/血怒/奥术弹幕等多段流伤害只有设计的 1/N；multi 为旧别名兼容）
-        multi = int(info.get("multi") or info.get("hits") or 1)
-        # 机制：风印 → 连击次数增加（查表 MECH_COMBO_STACKS，v125.2 B1）
-        if mech in MECH_COMBO_STACKS:
-            multi += p_mech.get(mech, 0)
-        # v34 破魔：魔法伤害 +x%
-        mb_lvl = self._enchant_lvl(effs, "magic_break")
-        magic_bonus = (1 + C.rune_value("magic_break", mb_lvl)) if mb_lvl and kind == K_MAGI else 1.0
-        # v109.2 P2-9：半死字段数据驱动化（原按技能名硬编码，改名即失效）——
-        # 破甲本能(proc pierce)/烈焰亲和(proc fire_bonus)/双修精通(stat cond=dual_stat)
-        # v176: 被动伤害乘区抽 _skill_passive_dmg_bonus（原 94 行内联）
-        passive_bonus, _execute_tag, element, _procs = self._skill_passive_dmg_bonus(
-            st, est, player, info, mech, kind)
-        # 元素反应增伤（元素共鸣：触发反应时 +15%）
-        for _pn, _ps in _procs.get("reaction", []):
-            self._elem_reaction_boost = float(_ps.get("mult", 1.15))
-        # 元素反应：当前系 × 目标印记（技能带 element 字段时判定；"current"=当前元素亲和系）
-        reaction_mult = 1.0
-        reaction_log = ""
-        if element and E.ELEMENT_MARKS.get(element):
-            marks = {k: v for k, v in self.e_buffs.items() if k in E.ELEMENT_MARKS.values()}
-            r = E.element_reaction(element, marks)
-            if r:
-                reaction_mult = r["mult"]
-                # v104 R3 P1-1：元素共鸣被动——元素反应伤害 +15%（在基础反应倍率上叠加）
-                if getattr(self, "_elem_reaction_boost", 1.0) > 1.0:
-                    reaction_mult *= self._elem_reaction_boost
-                    self._elem_reaction_boost = 1.0
-                reaction_log = f"💥{r['name']}！"
-                # 超载：额外全体伤害（v114 真 AOE：Boss+全部援军各吃全额，不走挡刀）
-                if r["extra"] == "aoe":
-                    aoe_dmg = int(st["matk"] * 1.2 * reaction_mult)
-                    self._aoe_damage_enemy(aoe_dmg, logs)
-                    reaction_log = f"💥超载爆发！额外 {aoe_dmg} 点全体伤害！"
-                # 冻结：目标冻结 1 刻
-                elif r["extra"] == "freeze":
-                    self.e_buffs["freeze"] = 1
-                    reaction_log = "❄️冻结！目标被冰封 1 刻！"
-                # 感电：连击 +1（追加一次伤害）
-                elif r["extra"] == "chain":
-                    multi += 1
-                    reaction_log = "⚡感电连锁！追加一次攻击！"
-                # 清除印记（感电保留）
-                if r["clear"]:
-                    for mk in E.ELEMENT_MARKS.values():
-                        self.e_buffs.pop(mk, None)
-        # v130.2 攻线·元素：引爆技反应表（cond type='reaction'，消耗充能时按引爆系+目标印记结算）。
-        # 独立于旧 e_buffs 反应体系，读目标侧 element_marks（mage_转职.md §1.0②）
-        if info.get("cond", {}).get("type") == "reaction" and element:
-            rr = self._reaction_table_resolve(player, element, st, logs)
-            if rr is not None:
-                rmult, rlog, chain_flag = rr
-                reaction_mult *= rmult
-                if reaction_log:
-                    reaction_log += rlog
-                else:
-                    reaction_log = rlog
-                if chain_flag:
-                    multi += 1
-        # v130.2 拳师蓄势 Momentum（攻线·格斗士）：物理技能吃「每 1 气 +3%」持有加伤
-        # v156：蓄势已由 _player_dmg_mult 统一乘入（普攻/技能共用），此处只记录标签
-        _mom_mult = self._momentum_mult(player)
-        if kind == K_PHYS and _mom_mult != 1.0:
-            self._mom_mult = _mom_mult
-        else:
-            self._mom_mult = 1.0
-        # v130.2 刺客攻线·影舞者：终结技（res_cost cp）连段增伤（combo≥3 每层 +5%，上限 +40%）
-        _combo_mult = 1.0
-        if self._combo_active(player) and (info.get("res_cost") or {}).get("cp"):
-            _combo_mult = self._combo_dmg_mult(player)
-            if _combo_mult != 1.0:
-                passive_bonus *= _combo_mult
-        self._combo_mult = _combo_mult
-        # v130.6 三连击破回馈实装（combo_ready 消费端，原只写不读的死标记）：
-        # 三连后下一次气力技（res_cost 耗气 / consume_all 耗气技能）伤害 +20%，
-        # 一次性消费；文案与连招三连 desc 统一为 +20%（钢拳「三连准备」设计意图）
-        if self.resources.get("combo_ready"):
-            _is_chi_skill = ("chi" in (info.get("res_cost") or {})) or \
-                ((info.get("consume_all") or {}).get("key") == "chi")
-            if _is_chi_skill:
-                passive_bonus *= 1.20
-                self.resources["combo_ready"] = 0
-                self._combo_ready_used = True
-            else:
-                self._combo_ready_used = False
-        # v130.2c 伤害倍率词条：爆发贯体（气力技物理 +10%）/ 终结之技（终结技 +10%~20%，tier 取档）
-        # v130.2c 套装伤害倍率：暗夜圣典 4 件（安魂曲/献祭暗焰 +20%）/ 势不可挡 4 件（气力技/终结技物理 +15%）
-        _sk_af = self._affix_skill_dmg_mult(player, info, kind) * self._set_skill_dmg_mult(player, info, kind, skill_name)
-        if _sk_af != 1.0:
-            passive_bonus *= _sk_af
-        self._sk_af_mult = _sk_af
-        total = 0
-        _magi_part = 0  # v109.2 P2-4：混合伤害魔法段累计（吸血分账用）
-        # v156 玩家侧公共乘区统一组装（词条/狼嚎/蓄势/禅意/物理药水/种族）——
-        # 与普攻共用 _player_dmg_mult（一处修改，普攻/技能同时生效）
-        affix_mult, affix_tags = self._player_dmg_mult(player, kind)
-        if self._mom_mult != 1.0:
-            affix_tags = list(affix_tags) + [f"🔥蓄势x{round(self._mom_mult, 2)}"]
-        if self._combo_mult != 1.0:
-            affix_tags = list(affix_tags) + [f"🌪️连段x{round(self._combo_mult, 2)}"]
-        if getattr(self, "_combo_ready_used", False):
-            affix_tags = list(affix_tags) + ["🥊三连余劲x1.20"]
-        if getattr(self, "_sk_af_mult", 1.0) > 1.0:
-            affix_tags = list(affix_tags) + [f"⚔️套装技x{round(self._sk_af_mult, 2)}"]
-        elem_mult = self._affix_element_dmg(player, element)
-        pmult = (E.skill_power_mult(lv, info) * frozen_bonus * stealth_mult * stack_bonus * cond_mult
-                 * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult
-                 * self._v139_dmg_mult(player, info))
-        # vF3 P1 连乘封顶：技能伤害倍率连乘（技能×冻结×潜行×叠层×条件×魔法×被动×反应×词缀×元素×种族×v139形态/专注）
-        # 只 clamp 技能伤害倍率段；暴击(×1.5)/暴伤(crit_dmg)/幸运一击(×1.5) 为独立乘区，在下方另行施加不受此限。
-        if pmult > C.SKILL_PMULT_CAP:
-            pmult = C.SKILL_PMULT_CAP
+        # v176: 乘区装配抽 _skill_assemble_mults（原 123 行内联）
+        _mc = self._skill_assemble_mults(
+            st, est, player, info, mech, kind, lv, skill_name, p_mech, logs, effs,
+            is_crit, _stealth_hit, lucky, stealth_mult)
+        multi = _mc["multi"]; pmult = _mc["pmult"]
+        reaction_log = _mc["reaction_log"]; element = _mc["element"]
+        _procs = _mc["_procs"]; _execute_tag = _mc["_execute_tag"]
+        frozen_bonus = _mc["frozen_bonus"]; stack_bonus = _mc["stack_bonus"]
+        cond_mult = _mc["cond_mult"]; cond_label = _mc["cond_label"]
+        magic_bonus = _mc["magic_bonus"]; mb_lvl = _mc["mb_lvl"]
+        stealth_mult = _mc["stealth_mult"]; elem_mult = _mc["elem_mult"]
+        affix_tags = _mc["affix_tags"]
+        total = _mc["total"]; _magi_part = _mc["magi_part"]
         # v106 穿透：物理技能用物穿/固定物穿，魔法技能用法穿/固定法穿
         _pp_phys, _pf_phys = self._pene_vals(st, magic=False)
         _pp_magi, _pf_magi = self._pene_vals(st, magic=True)
