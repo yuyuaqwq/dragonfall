@@ -4369,6 +4369,189 @@ class Battle:
         self._affix_res_proc(player, "buff_skill", logs)
 
         return logs
+    def _skill_hit_settle(self, st: dict, player: dict, info: dict, mech: str,
+                           mval: int, p_mech: dict, effs: dict,
+                           is_crit: bool, total: int, lv: int,
+                           skill_name: str, kind: str, _procs: dict, logs: list) -> None:
+        """v176 拆分：攻击命中后结算（原 _player_skill 172 行内联）。
+
+        连招/符文/词条/料理/武器hit → mech效果/mech2/cc/控制延长/shaken →
+        技能吸血/破防 → 资源/词条/连段/暴击 → 套装特效。
+        副作用全在 self + logs。返回 None。
+        """
+        combo_tag = info.get("combo", "")
+        if combo_tag:
+            combo_full = self._combo_push(combo_tag)
+            if combo_full:
+                combo_bonus = int(total * 0.30)
+                # v109.2 P1-2：连招精通——三连击破追加伤害提升至 50%（0.30 → 0.50，武圣连击强化设计落地）
+                for _pn, _ps in _procs.get("combo_boost", []):
+                    combo_bonus = int(total * 0.50)
+                    break
+                self._damage_enemy(combo_bonus, logs)
+                logs.append(f"🥊 三连击破！拳-踢-掌完美连招，追加 {combo_bonus} 点伤害！(下次气力技+20%)")
+                self.resources["combo_ready"] = 1
+            else:
+                logs.append(f"🥊 连招 {self._combo_label()}")
+        # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱）
+        self._apply_enchant_attack(effs, total, st, player, logs)
+        # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）
+        self._affix_on_hit(player, total, logs)
+        # v101.28e 攻击命中后料理效果触发
+        self._food_on_hit(player, total, logs)
+        # v140 波3.1：特效装备技能命中（余波/咒刃/湮灭回响/烬燃/永冻/永霜禁锢/无尽辉光/无尽锋芒等）
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _we_proc(self, player, "skill_hit",
+                     {"dmg": total, "is_crit": is_crit, "skill": skill_name, "kind": kind}, logs)
+        except Exception:
+            pass
+        # v140 波3.2：连携增幅墨——技能命中使目标毒/灼烧/流血层数 +1（dot_amp 标记）
+        _dam = (self.p_eff or {}).get("dot_amp")
+        if _dam and int(_dam.get("turns_left", 0) or 0) > 0 and total > 0:
+            _per = max(1, int(_dam.get("layer_per_hit", 1) or 1))
+            _deb = self.enemy.setdefault("debuffs", {})
+            for _dk in ("poison", "burn", "bleed"):
+                if _deb.get(_dk, {}).get("n", 0):
+                    _d = _deb.setdefault(_dk, {"n": 0, "mult": 1.0})
+                    _d["n"] = int(_d.get("n", 0) or 0) + _per
+            logs.append(f"🎨 连携增幅墨：异常层数 +{_per}！")
+
+        # ---- 分支机制结算（v29） ----
+        self._last_player = player
+        self._apply_mech_effect(mech, mval, p_mech, total, logs, skill_name, is_crit, info)
+        # v169.7 元素亲和 element_affinity：元素引爆（mech=element_burst* 清印记结算）后置位
+        # 下次挂印 +1 标记（命中挂印分支消费）；已学被动才置位
+        if mech and mech.startswith("element_burst"):
+            try:
+                for _pn_ea, _ps_ea in self._proc_pm(player)["proc"].get("element_affinity", []):
+                    self._elem_affinity_next = True
+                    break
+            except Exception:
+                pass
+        # v169.7 蚀骨 poison_burst_up / 毒刃·共鸣 poison_spread TODO（依赖 battle_mech agent 的
+        # _m_poison_burst 乘区与击杀扩散接线——毒爆结算在 battle_mech.py handler 内，battle.py
+        # 无法在不改 battle_mech 的前提下插入其内部伤害/扩散；待 battle_mech agent 在 handler
+        # 内补读 battle._proc_pm(battle._last_player)["proc"]["poison_burst_up"]/["poison_spread"]）
+        # v169.7 链舞 finisher_up TODO（数据缺陷，见 技能引擎缺口全量清单 §四.4）：finisher_up proc
+        # 挂在 kind=物理 主动技「链舞」上而非被动技能 → E.passive_skills_learned 按 kind=被动 过滤，
+        # _passive_map 聚合不到该 proc，终结技 mech=finisher 的 per_stack（10%→16%）无法按被动接线；
+        # 待 skills agent 修数据（链舞改 kind=被动 或移除 passive 字段并另立被动条目）。
+        # 若数据修正后仍需引擎支持：在 _apply_mech_effect mech=="finisher" 分支读
+        # _proc_pm(battle._last_player)["proc"]["finisher_up"] 提升 per（battle.py 侧可接）。
+        # v153：mech2 第二机制（如冰锥 mech=ice_mark + mech2=spd_down 减速）——独立结算
+        _mech2 = info.get("mech2")
+        if _mech2:
+            _m2val = int(info.get("mech2_val", 0) or 0) or 1
+            self._apply_mech_effect(_mech2, _m2val, p_mech, total, logs, skill_name, is_crit, info)
+        # v63 额外控制效果（cc 字段，独立于 mech 叠层）：眩晕/沉默/净化
+        # v125.2 B1：cc 白名单查表 SKILL_CC_WHITELIST
+        cc = info.get("cc")
+        if cc and cc in SKILL_CC_WHITELIST:
+            self._apply_mech_effect(cc, 1, p_mech, total, logs, skill_name, is_crit, info)
+        # v169.7 镇魂安魂 dirge_ctrl_up（诗人挽歌线）：挽歌系控制时长 +1.5 刻——
+        # 本技能对敌施加的控制（mech/cc 走 MECH_EFFECTS 写入 e_buffs 后）延长 1 刻（1.5 向下取整；
+        # 小数半刻引擎不支持，见 技能引擎缺口全量清单 §四.5）
+        try:
+            _ctrl_keys_dg = ("stun", "freeze", "silence", "sleep", "spd_down")
+            _apply_any_ctrl = False
+            if mech in _ctrl_keys_dg or cc in _ctrl_keys_dg or _mech2 in _ctrl_keys_dg:
+                _apply_any_ctrl = True
+            if _apply_any_ctrl:
+                for _pn_dg, _ps_dg in self._proc_pm(player)["proc"].get("dirge_ctrl_up", []):
+                    _eb_dg = self.e_buffs
+                    for _ck_dg in _ctrl_keys_dg:
+                        if _eb_dg.get(_ck_dg):
+                            _eb_dg[_ck_dg] = int(_eb_dg[_ck_dg]) + int(_ps_dg.get("add", 1) or 1)
+                            logs.append(f"🎵 {_pn_dg}：挽歌延长【{_ck_dg}】控制 +1 刻！")
+                            break
+                    break
+        except Exception:
+            pass
+        # ---- v139 enemy_bar 挂敌身条：技能命中注入 shaken（拳师破绽/淬势撼岳）----
+        # 数据源：技能 info.shaken_gain（三连击破+15/碎颅势+15/旋风踢+5每目标/无影连打每段+3）
+        # 触发：阈值满 → 敌方跳过刻（skip_turn）；触发后免疫窗口 + 阈值递增（防无限控）
+        _shaken_gain = info.get("shaken_gain")
+        if _shaken_gain:
+            try:
+                from .core.battle_bars import bar_gain, bar_should_trigger, bar_trigger
+                _tgt = getattr(self, "_active_target", None) or self.enemy
+                _sg = int(_shaken_gain)
+                bar_gain(_tgt, "shaken", _sg, logs)
+                if bar_should_trigger(_tgt, "shaken"):
+                    if bar_trigger(_tgt, "shaken", logs):
+                        _tgt_buffs = _tgt.get("buffs", {})
+                        _bs = _tgt_buffs.get("shaken", {})
+                        # v169.7 破绽·极 broken_extend（拳师攻线）：破防持续 +1.5 刻（免疫窗口 +1，半刻不支持向下取整）
+                        try:
+                            for _pn_be, _ps_be in self._proc_pm(player)["proc"].get("broken_extend", []):
+                                _bs["immune_turns"] = int(_bs.get("immune_turns", 0) or 0) + int(_ps_be.get("extend", 1) or 1)
+                                break
+                        except Exception:
+                            pass
+                        logs.append(f"💢 破绽值满！敌人被震慑，下刻无法行动！(阈值提升至 {_bs.get('threshold', '?')})")
+            except Exception:
+                pass
+
+        # ---- 技能特效（v9 落地）----
+        # v2.0：技能名硬编码特效已废弃（12 章技能全数据驱动，mech/effect/cond 在 _apply_mech_effect 覆盖）
+        # v104 R3 P2-10 修复：吸血改按 lifesteal 数据字段触发（原只认 effect=="lifesteal"，
+        # 全表无技能带此 effect → 嗜血斩 lifesteal:0.25 实机 0 吸血）；数值由 skill_lifesteal_pct 读字段
+        if info.get("lifesteal"):
+            heal = int(total * E.skill_lifesteal_pct(info, lv))
+            if self.p_buffs.get("mortal_wound"):  # v1.3 重伤：技能吸血减半
+                heal = int(heal * 0.5)
+            player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
+            logs.append(f"💉 『{skill_name}』汲取了 {heal} 点生命！")
+        # v2.0 破防（pierce 数据字段）：直接给敌方降防
+        if info.get("pierce") and self.enemy.get("hp", 0) > 0:
+            self.e_buffs["def_down"] = E.skill_buff_turns(lv)
+        # v2.0 核心资源：攻击命中获取（战士怒气/刺客连击点/拳师气，res_gain 覆盖默认）
+        # v174.1 普攻技能化语义：basic 技（basic_skill，普攻）命中走"攻击"事件（on_attack），
+        # 非 basic 技能走 on_skill——保证"释放技能才触发"的被动/词条不会因普攻被误触。
+        _is_basic = bool(info.get("basic") or info.get("is_basic"))
+        self._resource_on_skill(player, info, logs)
+        # v130.2c 资源词条：攻击命中（basic）走 on_attack；技能命中走 on_skill/on_cast/combo_skill
+        if _is_basic:
+            self._affix_res_proc(player, "on_attack", logs)
+        else:
+            self._affix_res_proc(player, "on_skill", logs)
+            if self._is_element_skill(info):  # v176: 元素技能命中触发 on_cast 资源词条（原 5092 额外判 cls_fa_shi）
+                self._affix_res_proc(player, "on_cast", logs)
+            if info.get("combo"):
+                self._affix_res_proc(player, "combo_skill", logs)
+        # v130.2 资源增幅：技能出手命中（影袭药水 hits 制额外 +1 连击点等，仅命中；P0-1 消费端）
+        if total > 0:
+            _amp_hit = self._amp_resource(player, "on_land_hit")
+            if _amp_hit:
+                logs.append(f"⚡ 影袭药剂：出手命中额外资源 +{_amp_hit}！")
+        # v130.2 刺客攻线·影舞者：技能命中 +1 连段 / 落空归零（断了重来）
+        if self._combo_active(player):
+            if total > 0:
+                new_combo = self._combo_add(player)
+                logs.append(f"🌪️ 连段 {new_combo}/{COMBO_CFG['cap']}")
+            else:
+                self._combo_break(player)
+        # v130.2 暴击命中结算（on_crit：暮影影步/刺客攻线/星语猎印暴击额外）
+        if total > 0 and is_crit:
+            self._on_crit_resource(player)
+            # v130.2c 资源词条：技能暴击命中（暴击蓄能 精力 +3 / 暴击回点 连击点概率 +1）
+            self._affix_res_proc(player, "on_crit", logs)
+
+        # ---- v10 套装攻击特效 ----
+        if total > 0:
+            self._set_attack_proc(player, total, logs, is_crit=is_crit)
+        # v174.1 武器效果 hit 事件：技能 info 配 trigger_hit（如 basic_skill 普攻技）→
+        # 命中时额外发 "hit" 事件（风痕/猎影等注册在 hit 的武器特效本为普攻命中触发，
+        # 普攻技能化后靠此字段兼容；普通技能不触发，不会误触普攻专属武器效果）。
+        if total > 0 and info.get("trigger_hit"):
+            try:
+                from .core.weapon_effects import proc as _we_proc
+                _we_proc(self, player, "hit", {"dmg": total, "is_crit": is_crit}, logs)
+            except Exception:
+                pass
+
+
     def _skill_apply_tags_marks(self, st: dict, player: dict, info: dict, mech: str,
                                 is_crit: bool, total: int, element: str,
                                 frozen_bonus: float, stealth_mult: float, stack_bonus: float,
@@ -5076,177 +5259,10 @@ class Battle:
             frozen_bonus, stealth_mult, stack_bonus, cond_mult, cond_label,
             magic_bonus, mb_lvl, _execute_tag, affix_tags, elem_mult,
             reaction_log, _procs, logs, _v169_tags)        # v2.0 连招序列：拳师 combo 字段推进（拳→踢→掌 三连触发额外效果）
-        combo_tag = info.get("combo", "")
-        if combo_tag:
-            combo_full = self._combo_push(combo_tag)
-            if combo_full:
-                combo_bonus = int(total * 0.30)
-                # v109.2 P1-2：连招精通——三连击破追加伤害提升至 50%（0.30 → 0.50，武圣连击强化设计落地）
-                for _pn, _ps in _procs.get("combo_boost", []):
-                    combo_bonus = int(total * 0.50)
-                    break
-                self._damage_enemy(combo_bonus, logs)
-                logs.append(f"🥊 三连击破！拳-踢-掌完美连招，追加 {combo_bonus} 点伤害！(下次气力技+20%)")
-                self.resources["combo_ready"] = 1
-            else:
-                logs.append(f"🥊 连招 {self._combo_label()}")
-        # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱）
-        self._apply_enchant_attack(effs, total, st, player, logs)
-        # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）
-        self._affix_on_hit(player, total, logs)
-        # v101.28e 攻击命中后料理效果触发
-        self._food_on_hit(player, total, logs)
-        # v140 波3.1：特效装备技能命中（余波/咒刃/湮灭回响/烬燃/永冻/永霜禁锢/无尽辉光/无尽锋芒等）
-        try:
-            from .core.weapon_effects import proc as _we_proc
-            _we_proc(self, player, "skill_hit",
-                     {"dmg": total, "is_crit": is_crit, "skill": skill_name, "kind": kind}, logs)
-        except Exception:
-            pass
-        # v140 波3.2：连携增幅墨——技能命中使目标毒/灼烧/流血层数 +1（dot_amp 标记）
-        _dam = (self.p_eff or {}).get("dot_amp")
-        if _dam and int(_dam.get("turns_left", 0) or 0) > 0 and total > 0:
-            _per = max(1, int(_dam.get("layer_per_hit", 1) or 1))
-            _deb = self.enemy.setdefault("debuffs", {})
-            for _dk in ("poison", "burn", "bleed"):
-                if _deb.get(_dk, {}).get("n", 0):
-                    _d = _deb.setdefault(_dk, {"n": 0, "mult": 1.0})
-                    _d["n"] = int(_d.get("n", 0) or 0) + _per
-            logs.append(f"🎨 连携增幅墨：异常层数 +{_per}！")
-
-        # ---- 分支机制结算（v29） ----
-        self._last_player = player
-        self._apply_mech_effect(mech, mval, p_mech, total, logs, skill_name, is_crit, info)
-        # v169.7 元素亲和 element_affinity：元素引爆（mech=element_burst* 清印记结算）后置位
-        # 下次挂印 +1 标记（命中挂印分支消费）；已学被动才置位
-        if mech and mech.startswith("element_burst"):
-            try:
-                for _pn_ea, _ps_ea in self._proc_pm(player)["proc"].get("element_affinity", []):
-                    self._elem_affinity_next = True
-                    break
-            except Exception:
-                pass
-        # v169.7 蚀骨 poison_burst_up / 毒刃·共鸣 poison_spread TODO（依赖 battle_mech agent 的
-        # _m_poison_burst 乘区与击杀扩散接线——毒爆结算在 battle_mech.py handler 内，battle.py
-        # 无法在不改 battle_mech 的前提下插入其内部伤害/扩散；待 battle_mech agent 在 handler
-        # 内补读 battle._proc_pm(battle._last_player)["proc"]["poison_burst_up"]/["poison_spread"]）
-        # v169.7 链舞 finisher_up TODO（数据缺陷，见 技能引擎缺口全量清单 §四.4）：finisher_up proc
-        # 挂在 kind=物理 主动技「链舞」上而非被动技能 → E.passive_skills_learned 按 kind=被动 过滤，
-        # _passive_map 聚合不到该 proc，终结技 mech=finisher 的 per_stack（10%→16%）无法按被动接线；
-        # 待 skills agent 修数据（链舞改 kind=被动 或移除 passive 字段并另立被动条目）。
-        # 若数据修正后仍需引擎支持：在 _apply_mech_effect mech=="finisher" 分支读
-        # _proc_pm(battle._last_player)["proc"]["finisher_up"] 提升 per（battle.py 侧可接）。
-        # v153：mech2 第二机制（如冰锥 mech=ice_mark + mech2=spd_down 减速）——独立结算
-        _mech2 = info.get("mech2")
-        if _mech2:
-            _m2val = int(info.get("mech2_val", 0) or 0) or 1
-            self._apply_mech_effect(_mech2, _m2val, p_mech, total, logs, skill_name, is_crit, info)
-        # v63 额外控制效果（cc 字段，独立于 mech 叠层）：眩晕/沉默/净化
-        # v125.2 B1：cc 白名单查表 SKILL_CC_WHITELIST
-        cc = info.get("cc")
-        if cc and cc in SKILL_CC_WHITELIST:
-            self._apply_mech_effect(cc, 1, p_mech, total, logs, skill_name, is_crit, info)
-        # v169.7 镇魂安魂 dirge_ctrl_up（诗人挽歌线）：挽歌系控制时长 +1.5 刻——
-        # 本技能对敌施加的控制（mech/cc 走 MECH_EFFECTS 写入 e_buffs 后）延长 1 刻（1.5 向下取整；
-        # 小数半刻引擎不支持，见 技能引擎缺口全量清单 §四.5）
-        try:
-            _ctrl_keys_dg = ("stun", "freeze", "silence", "sleep", "spd_down")
-            _apply_any_ctrl = False
-            if mech in _ctrl_keys_dg or cc in _ctrl_keys_dg or _mech2 in _ctrl_keys_dg:
-                _apply_any_ctrl = True
-            if _apply_any_ctrl:
-                for _pn_dg, _ps_dg in self._proc_pm(player)["proc"].get("dirge_ctrl_up", []):
-                    _eb_dg = self.e_buffs
-                    for _ck_dg in _ctrl_keys_dg:
-                        if _eb_dg.get(_ck_dg):
-                            _eb_dg[_ck_dg] = int(_eb_dg[_ck_dg]) + int(_ps_dg.get("add", 1) or 1)
-                            logs.append(f"🎵 {_pn_dg}：挽歌延长【{_ck_dg}】控制 +1 刻！")
-                            break
-                    break
-        except Exception:
-            pass
-        # ---- v139 enemy_bar 挂敌身条：技能命中注入 shaken（拳师破绽/淬势撼岳）----
-        # 数据源：技能 info.shaken_gain（三连击破+15/碎颅势+15/旋风踢+5每目标/无影连打每段+3）
-        # 触发：阈值满 → 敌方跳过刻（skip_turn）；触发后免疫窗口 + 阈值递增（防无限控）
-        _shaken_gain = info.get("shaken_gain")
-        if _shaken_gain:
-            try:
-                from .core.battle_bars import bar_gain, bar_should_trigger, bar_trigger
-                _tgt = getattr(self, "_active_target", None) or self.enemy
-                _sg = int(_shaken_gain)
-                bar_gain(_tgt, "shaken", _sg, logs)
-                if bar_should_trigger(_tgt, "shaken"):
-                    if bar_trigger(_tgt, "shaken", logs):
-                        _tgt_buffs = _tgt.get("buffs", {})
-                        _bs = _tgt_buffs.get("shaken", {})
-                        # v169.7 破绽·极 broken_extend（拳师攻线）：破防持续 +1.5 刻（免疫窗口 +1，半刻不支持向下取整）
-                        try:
-                            for _pn_be, _ps_be in self._proc_pm(player)["proc"].get("broken_extend", []):
-                                _bs["immune_turns"] = int(_bs.get("immune_turns", 0) or 0) + int(_ps_be.get("extend", 1) or 1)
-                                break
-                        except Exception:
-                            pass
-                        logs.append(f"💢 破绽值满！敌人被震慑，下刻无法行动！(阈值提升至 {_bs.get('threshold', '?')})")
-            except Exception:
-                pass
-
-        # ---- 技能特效（v9 落地）----
-        # v2.0：技能名硬编码特效已废弃（12 章技能全数据驱动，mech/effect/cond 在 _apply_mech_effect 覆盖）
-        # v104 R3 P2-10 修复：吸血改按 lifesteal 数据字段触发（原只认 effect=="lifesteal"，
-        # 全表无技能带此 effect → 嗜血斩 lifesteal:0.25 实机 0 吸血）；数值由 skill_lifesteal_pct 读字段
-        if info.get("lifesteal"):
-            heal = int(total * E.skill_lifesteal_pct(info, lv))
-            if self.p_buffs.get("mortal_wound"):  # v1.3 重伤：技能吸血减半
-                heal = int(heal * 0.5)
-            player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
-            logs.append(f"💉 『{skill_name}』汲取了 {heal} 点生命！")
-        # v2.0 破防（pierce 数据字段）：直接给敌方降防
-        if info.get("pierce") and self.enemy.get("hp", 0) > 0:
-            self.e_buffs["def_down"] = E.skill_buff_turns(lv)
-        # v2.0 核心资源：攻击命中获取（战士怒气/刺客连击点/拳师气，res_gain 覆盖默认）
-        # v174.1 普攻技能化语义：basic 技（basic_skill，普攻）命中走"攻击"事件（on_attack），
-        # 非 basic 技能走 on_skill——保证"释放技能才触发"的被动/词条不会因普攻被误触。
-        _is_basic = bool(info.get("basic") or info.get("is_basic"))
-        self._resource_on_skill(player, info, logs)
-        # v130.2c 资源词条：攻击命中（basic）走 on_attack；技能命中走 on_skill/on_cast/combo_skill
-        if _is_basic:
-            self._affix_res_proc(player, "on_attack", logs)
-        else:
-            self._affix_res_proc(player, "on_skill", logs)
-            if self._is_element_skill(info):  # v176: 元素技能命中触发 on_cast 资源词条（原 5092 额外判 cls_fa_shi）
-                self._affix_res_proc(player, "on_cast", logs)
-            if info.get("combo"):
-                self._affix_res_proc(player, "combo_skill", logs)
-        # v130.2 资源增幅：技能出手命中（影袭药水 hits 制额外 +1 连击点等，仅命中；P0-1 消费端）
-        if total > 0:
-            _amp_hit = self._amp_resource(player, "on_land_hit")
-            if _amp_hit:
-                logs.append(f"⚡ 影袭药剂：出手命中额外资源 +{_amp_hit}！")
-        # v130.2 刺客攻线·影舞者：技能命中 +1 连段 / 落空归零（断了重来）
-        if self._combo_active(player):
-            if total > 0:
-                new_combo = self._combo_add(player)
-                logs.append(f"🌪️ 连段 {new_combo}/{COMBO_CFG['cap']}")
-            else:
-                self._combo_break(player)
-        # v130.2 暴击命中结算（on_crit：暮影影步/刺客攻线/星语猎印暴击额外）
-        if total > 0 and is_crit:
-            self._on_crit_resource(player)
-            # v130.2c 资源词条：技能暴击命中（暴击蓄能 精力 +3 / 暴击回点 连击点概率 +1）
-            self._affix_res_proc(player, "on_crit", logs)
-
-        # ---- v10 套装攻击特效 ----
-        if total > 0:
-            self._set_attack_proc(player, total, logs, is_crit=is_crit)
-        # v174.1 武器效果 hit 事件：技能 info 配 trigger_hit（如 basic_skill 普攻技）→
-        # 命中时额外发 "hit" 事件（风痕/猎影等注册在 hit 的武器特效本为普攻命中触发，
-        # 普攻技能化后靠此字段兼容；普通技能不触发，不会误触普攻专属武器效果）。
-        if total > 0 and info.get("trigger_hit"):
-            try:
-                from .core.weapon_effects import proc as _we_proc
-                _we_proc(self, player, "hit", {"dmg": total, "is_crit": is_crit}, logs)
-            except Exception:
-                pass
+        # v176: 命中后结算抽 _skill_hit_settle（原 172 行内联）
+        self._skill_hit_settle(
+            st, player, info, mech, mval, p_mech, effs,
+            is_crit, total, lv, skill_name, kind, _procs, logs)
         return logs
 
     # ---------------- v29 分支机制 ----------------
