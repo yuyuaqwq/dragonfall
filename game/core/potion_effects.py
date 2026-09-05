@@ -125,12 +125,17 @@ def eff_execute_pot(battle, player, value):
 
 @register("def_down")
 def eff_def_down(battle, player, value):
-    """破甲药剂：敌人防御下降 15%（2 刻，_armor_break_pct 供防御结算）。"""
+    """破甲药剂：敌人防御下降 15%（2 刻，_armor_break_pct 供防御结算）。
+
+    v180-D P3：动作收敛到共享 effect_actions.action_def_down（原 potion 自写一份
+    与 affix/food 同语义实现——统一一套效果动作代码）。
+    """
     v = _resolve(value, "def_down")
     pct = float(v.get("pct", 0.15))
     turns = int(v.get("turns", 2))
-    battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), turns)
-    battle.e_buffs["_armor_break_pct"] = pct
+    from .effect_actions import action_def_down
+    _scratch = []
+    action_def_down(battle, _scratch, turns=turns, pct=pct)
     return f"🛡️ 破甲！敌人防御下降 {int(pct * 100)}%！({turns} 刻)"
 
 
