@@ -787,6 +787,38 @@ class Battle:
         self._v139_modes: dict = {}
         self._v139_charge: dict = {}
         if player:
+            # ================= v180-B P1a：玩家 actor dict 战斗状态播种 =================
+            # 目标：玩家 actor dict 与怪 dict 完全同构（buffs/resources/stacks/eff/charging/
+            # shields/defending + 玩家独有键）。P1a 只播种空键（引擎读点仍走 self.xxx 焦点
+            # 字段——见 P2 迁移），副本 allies 快照（729-739）与 instance._instance_ensure_player_fields
+            # 已播种部分站位键，此处补全战斗可变状态键。战斗状态不落 DB（update_player 白名单）。
+            try:
+                player.setdefault("resources", {})
+                player.setdefault("stacks", {})          # 原 self.mech_stacks
+                player.setdefault("eff", {})             # 原 self.p_eff
+                player.setdefault("shields", {})         # 原 self.p_shields
+                player.setdefault("cooldown", {})
+                player.setdefault("combo_seq", [])
+                player.setdefault("last_combo_tag", None)
+                player.setdefault("hot", {})             # 原 self.p_hot
+                player.setdefault("food_effects", [])    # 原 self.p_food_effects
+                player.setdefault("poi_buff", None)
+                player.setdefault("buff_hits", {})       # 原 self._p_buff_hits
+                player.setdefault("reduce_all_left", 0)  # 原 self._reduce_all_left
+                player.setdefault("reduce_left", 0)      # 原 self._reduce_left
+                player.setdefault("last_element", None)  # 原 self._last_element
+                player.setdefault("tailwind_prev_energy", None)
+                player.setdefault("v139_modes", {})      # 原 self._v139_modes
+                player.setdefault("v139_charge", {})     # 原 self._v139_charge
+                player.setdefault("overflow_shield_cd", False)
+                player.setdefault("stealth_atk", False)
+                # defending/buffs/charging/ct 已在 allies 快照播种（729-739）；单机 player
+                # 由下方 _ensure_player_state_keys 统一补（defending/buffs/charging 兜底）
+                player.setdefault("buffs", {})
+                player.setdefault("defending", False)
+                player.setdefault("charging", None)
+            except Exception:
+                pass
             # v95.19: 战斗内属性统一用实时计算值——DB max_hp/max_mp 是注册/升级快照，换装备后过时，
             # 会导致战斗内血量上限/治疗 clamp/护盾与『角色』面板不一致（装备 HP 加成战斗内不生效）
             try:
