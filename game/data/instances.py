@@ -138,7 +138,7 @@ INSTANCES = {
                 ]
             }
         ],
-"mech": "summon,stacks",
+        "mech": "enrage,phase_open,player_low,phase,summon,stacks",
         "hp_mult": 2.343,
 
         "atk_mult": 1.1324,
@@ -246,7 +246,7 @@ INSTANCES = {
                 ]
             }
         ],
-"mech": "phase",
+        "mech": "phase,summon,phase_open",
         "hp_mult": 2.0563,  # v173.3 Boss降级hp补偿 ×1.094
         "atk_mult": 0.908,  # v173.3 Boss降级atk补偿 ×1.057
         "gold": 385,
@@ -352,7 +352,70 @@ INSTANCES = {
         ],
         "key_item": "王陵钥匙",
         "key_source": "白鹿城铁匠铺购买(500 金)",
-"mech": "enrage,summon",
+        "mech": "phase,summon,enrage",
+        "minions": [
+        {
+            "name": "王冠核心",
+            "count": 1,
+            "monster": [
+                "m_skeleton",
+                "骷髅兵",
+                "dps",
+                35,
+                [
+                    "ms_jian_ji",
+                ],
+                [
+                    "碎骨",
+                ],
+            ],
+        },
+        {
+            "name": "骷髅卫兵",
+            "count": 0,
+            "monster": [
+                "m_skeleton",
+                "骷髅兵",
+                "dps",
+                37,
+                [
+                    "ms_jian_ji",
+                ],
+                [
+                    "碎骨",
+                ],
+            ],
+        },
+    ],
+        "phases": [
+        {
+            "min": 60,
+            "phase_id": "normal",
+            "add_skills": [
+                "ms_zhao_ku_lou_mi",
+            ],
+            "script": {"name": "王冠威临", "icon": "👑", "enter_line": "👑 王冠核心在场：本体受伤减半、召唤加速——先拆冠！"},
+            "counter": "💡 先打王冠核心——它的王冠在维持减伤与召唤！",
+        },
+        {
+            "min": 30,
+            "phase_id": "enrage",
+            "atk_mult": 1.25,
+            "add_skills": [
+                "ms_wang_zhe_zhi_nu",
+                "ms_wang_yu_huan_hun",
+            ],
+            "script": {"name": "王座之怒", "icon": "⚔️", "warn_line": "王者之怒开始蓄力！读条意图可见——打断或提前防御减半！"},
+            "counter": "失冕 5 刻是唯一安心输出窗；窗口结束前清掉骷髅防『亡语唤魂』立即拉回！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "script": {"name": "亡者终末", "icon": "💀", "warn_line": "狂暴×1.35！30% 以下召唤更密——王冠必须优先处理！"},
+            "counter": "末段：失冕窗口 5 刻打桩，破冠永远第一优先级！",
+        },
+    ],
         "hp_mult": 2.356,  # v173.3 Boss降级hp补偿 ×1.207
         "atk_mult": 1.3861,  # v173.3 Boss降级atk补偿 ×1.193
         "gold": 709,
@@ -443,7 +506,52 @@ INSTANCES = {
         ],
         "key_item": "圣堂信物",
         "key_source": "晨曦城大教堂购买(300 金)",
-"mech": "shield,enrage",
+        "mech": "phase,enrage",
+        "minions": [
+        {
+            "name": "审判猎犬",
+            "count": 0,
+            "monster": [
+                "m_inquisitor_hound",
+                "审判猎犬",
+                "speedster",
+                45,
+                [
+                    "ms_si_yao",
+                ],
+                [
+                    "猎犬项圈",
+                ],
+            ],
+        },
+    ],
+        "phases": [
+        {
+            "min": 60,
+            "phase_id": "normal",
+            "add_skills": [],
+            "script": {"name": "预审", "icon": "⚖️", "enter_line": "『奉命看守此门者……退去，或领受审判。』锁链扬起——定罪将至！"},
+            "counter": "看到锁链 → 留净化/免控；处刑宣读读条 2 刻——打断技只留给它！",
+        },
+        {
+            "min": 30,
+            "phase_id": "enrage",
+            "atk_mult": 1.2,
+            "freq_mult": 0.85,
+            "add_skills": [
+                "ms_chi_re_bu_dao",
+            ],
+            "script": {"name": "狂热公审", "icon": "🔥", "warn_line": "布道开始——自身攻击大幅提升！定罪 6→4 刻，打断资源要省着用！"},
+            "counter": "优先清他身上 atk_up（净化/驱散），别硬吃布道后的连招！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "script": {"name": "末日审判", "icon": "⚖️", "warn_line": "终审姿态：定罪+处刑连招更密！读条=唯一生机，防定罪=少挨一刀！"},
+            "counter": "处刑被打断 = 判决流产 1 刻空窗 → 全队爆发；阶段 3 也照此节奏打！",
+        },
+    ],
         "hp_mult": 12.429,  # v173.3 Boss降级hp补偿 ×1.180
 
         "atk_mult": 1.3537,  # v173.3 Boss降级atk补偿 ×1.156
@@ -536,7 +644,52 @@ INSTANCES = {
         ],
         "key_item": "精灵遗印",
         "key_source": "翡翠森林精英·狼王·灰影掉落",
-"mech": "heal,shield",
+        "mech": "phase,summon,heal",
+        "minions": [
+        {
+            "name": "树人",
+            "count": 0,
+            "monster": [
+                "m_ancient_golem",
+                "远古魔像",
+                "tank",
+                62,
+                [
+                    "ms_zhong_ji",
+                    "ms_fu_wen_chong_ji",
+                ],
+                [
+                    "远古符文石",
+                ],
+            ],
+        },
+    ],
+        "phases": [
+        {
+            "min": 60,
+            "add_skills": [
+                "ms_yue_shi_jiang_lin",
+            ],
+            "phase_id": "normal",
+            "script": {"name": "月相轮转·教学", "icon": "🌕", "enter_line": "🌕盈月：它在蓄力——开减伤！🌑新月：树人在回血——清林！🌒月蚀：打断读条！"},
+            "counter": "盈月龟缩；新月清林（AOE 断回血+断月蚀增幅）；月蚀读条必断！",
+        },
+        {
+            "min": 30,
+            "add_skills": [],
+            "phase_id": "enrage",
+            "atk_mult": 1.15,
+            "script": {"name": "月辉灼烧", "icon": "🌒", "warn_line": "新月召唤提速、月蚀读条更紧——清林节奏跟不上=回血+增幅双压力！"},
+            "counter": "树人每只=他每刻回 2%+月蚀 +25%——AOE 一轮清空最赚！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "script": {"name": "月陨终局", "icon": "💀", "warn_line": "狂暴！月蚀打断窗口只剩第 1 刻——漏一次=3.5× 团伤+一轮回血！"},
+            "counter": "末段纪律：清林+断唱双重考验，别被拖进下一轮新月！",
+        },
+    ],
         "hp_mult": 2.4295,  # v173.3 Boss降级hp补偿 ×1.071
         "atk_mult": 1.2275,  # v173.3 Boss降级atk补偿 ×1.045
         "gold": 1347,
@@ -628,7 +781,56 @@ INSTANCES = {
         ],
         "key_item": "烬火令",
         "key_source": "烬山精英·恶魔战士掉落",
-"mech": "summon,phase",
+        "mech": "phase,summon",
+        "minions": [
+        {
+            "name": "恶魔",
+            "count": 1,
+            "monster": [
+                "m_demon_priest",
+                "恶魔祭司",
+                "healer",
+                85,
+                [
+                    "ms_an_ying_dan",
+                    "ms_hei_an_zhi_liao",
+                ],
+                [
+                    "染血祭器",
+                ],
+            ],
+        },
+    ],
+        "phases": [
+        {
+            "min": 50,
+            "add_skills": [
+                "ms_hei_an_yi_shi_helga",
+                "ms_zhao_huan_e_mo_helga",
+            ],
+            "phase_id": "normal",
+            "script": {"name": "黑暗祭礼", "icon": "🕯️", "enter_line": "🕯️ 恶魔低语环绕祭坛——赫尔加开始诵念黑暗仪式！打断它，别让她吃怪！"},
+            "counter": "仪式读条 2 刻必断；恶魔优先清——没饲料她就没法献祭！",
+        },
+        {
+            "min": 30,
+            "add_skills": [
+                "ms_shen_yuan_zhi_yan",
+            ],
+            "phase_id": "enrage",
+            "atk_mult": 1.15,
+            "freq_mult": 0.85,
+            "script": {"name": "暴食", "icon": "😈", "warn_line": "恶魔越召越快、仪式越念越急——打断窗口收紧，清怪别停！"},
+            "counter": "打断技留给仪式；恶魔死光=断粮真空期，全力爆发！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "script": {"name": "魔化", "icon": "💀", "warn_line": "魔化！已吃恶魔的永久增伤叠高——控好仪式+清怪把伤害压住！"},
+            "counter": "一次仪式都别放：漏=回血+永久增伤慢性死亡！",
+        },
+    ],
         "hp_mult": 1.5747,  # v173.3 Boss降级hp补偿 ×1.091
         "atk_mult": 1.3657,  # v173.3 Boss降级atk补偿 ×1.048
         "gold": 2064,
@@ -735,7 +937,31 @@ INSTANCES = {
         ],
         "key_item": "深渊钥匙",
         "key_source": "深渊骑士掉落",
-"mech": "phase,phase,phase",
+        "mech": "phase,phase,phase,enrage",
+        "phases": [
+        {
+            "min": 75,
+            "add_skills": [
+                "ms_f6_an_ying_jian_yu",
+            ],
+            "script": {"name": "暗影形态·轻响", "icon": "🌑"},
+        },
+        {
+            "min": 50,
+            "add_skills": [
+                "ms_f6_fen_shen_huo_lang",
+            ],
+            "script": {"name": "烈焰形态·怒燃", "icon": "🔥"},
+        },
+        {
+            "min": 25,
+            "add_skills": [
+                "ms_f6_shen_han",
+                "ms_han_bing_tu_xi",
+            ],
+            "script": {"name": "寒冰形态·霜语", "icon": "❄️"},
+        },
+    ],
         # v116.1 剧本化示范：三阶段换招（追加技能）/演出文案/阈值预告（可选字段，不配置则旧行为）
         "phases": [
             {"min": 60, "add_skills": ["ms_zhao_huan_shen_yuan"],
@@ -835,7 +1061,25 @@ INSTANCES = {
         ],
         "key_item": "龙牙信物",
         "key_source": "龙脊山脉·石龙掉落",
-"mech": "reflect,heal",
+        "mech": "reflect,heal,summon,phase,player_low",
+        "phases": [
+        {
+            "min": 50,
+            "add_skills": [
+                "ms_f6_ling_hun_bo_li",
+            ],
+            "script": {"name": "灵魂窃取开始", "icon": "💀"},
+        },
+        {
+            "min": 40,
+            "add_skills": [
+                "ms_f6_zhao_huan_ku_long",
+                "ms_f6_chuan_cheng_he_fu_huo",
+            ],
+            "phase_id": "enrage",
+            "script": {"name": "传承之核·亮起", "icon": "🔮"},
+        },
+    ],
         "hp_mult": 6.7327,  # v173.3 Boss降级hp补偿 ×1.084
 
         "atk_mult": 1.2227,  # v173.3 Boss降级atk补偿 ×1.045
@@ -891,7 +1135,8 @@ INSTANCES = {
         # items.py:1565 desc 明示"可作钥匙进入鹿角要塞"，采集池 ancient/old_battlefield
         # 产 mat_jun_qi_sui_pian；改后入口按名校验与背包材料匹配，钥匙链恢复）
         "key_source": "古战场/旧战场遗迹采集",
-"mech": "enrage,summon",
+        "mech": "phase,summon,phase_open,enrage",
+        "phys_reduce": 0.5,
         "hp_mult": 2.5676,  # v173.3 Boss降级hp补偿 ×1.108
 
         "atk_mult": 1.103,  # v173.3 Boss降级atk补偿 ×1.103
@@ -945,7 +1190,40 @@ INSTANCES = {
         ],
                 "key_item": "试炼令",
         "key_source": "铁盾镇军械铺购买(400 金)",
-"mech": "shield,enrage",
+        "mech": "phase,phase_open,player_low,enrage",
+        "phases": [
+        {
+            "min": 70,
+            "phase_id": "normal",
+            "add_skills": [
+                "ms_dun_ji_shi_lian",
+                "ms_shi_zi_zhan",
+            ],
+            "script": {"name": "入门考核", "icon": "⚔️", "enter_line": "⚠️ 意图：骑士长正在蓄力【十字斩】！——用『防御』接下它，骑士团会认可你的胆识！"},
+            "counter": "看见【蓄力十字斩】读条就『防御』——防反成功 = 全额格挡 + 破绽爆发窗！",
+        },
+        {
+            "min": 35,
+            "phase_id": "enrage",
+            "atk_mult": 1.2,
+            "freq_mult": 0.85,
+            "add_skills": [
+                "ms_sheng_guang_qi_yuan",
+            ],
+            "script": {"name": "进阶考核", "icon": "🏹", "warn_line": "圣光弹后可能连发——双连读条可见，布甲脆皮记得提前防御！"},
+            "counter": "盾击·试炼带沉默：中了就放不出打断——法系看见盾击前摇预先防御！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "add_skills": [
+                "ms_sheng_guang_cai_jue",
+            ],
+            "script": {"name": "终考·骑士之誓", "icon": "🏅", "warn_line": "追加第 5 招【圣光裁决】！圣光笼罩全场——读条防御依然是最稳答案！"},
+            "counter": "稳定防反 = 在破绽窗口内快速压血——防反打桩的正确姿势！",
+        },
+    ],
         "hp_mult": 3.1302,  # v173.3 Boss降级hp补偿 ×1.203
 
         "atk_mult": 1.4189,  # v173.3 Boss降级atk补偿 ×1.182
@@ -998,7 +1276,73 @@ INSTANCES = {
         ],
                 "key_item": "月辉钥匙",
         "key_source": "月冠王庭购买(3000 金)",
-"mech": "shield,phase",
+        "mech": "phase,summon,shield",
+        "minions": [
+        {
+            "name": "光柱圣像",
+            "count": 0,
+            "monster": [
+                "m_moon_knight",
+                "月骑士",
+                "dps",
+                64,
+                [
+                    "ms_yue_guang_zhan",
+                    "ms_dun_ji",
+                ],
+                [
+                    "月辉碎片",
+                ],
+            ],
+        },
+        {
+            "name": "镜面圣像",
+            "count": 0,
+            "monster": [
+                "m_moon_priest",
+                "月神侍僧",
+                "dps",
+                60,
+                [
+                    "ms_yue_guang_zhan",
+                ],
+                [
+                    "月辉碎片",
+                ],
+            ],
+        },
+    ],
+        "phases": [
+        {
+            "min": 60,
+            "add_skills": [
+                "ms_ji_huo_guang_zhu",
+                "ms_ji_huo_jing_mian",
+            ],
+            "phase_id": "normal",
+            "script": {"name": "朝圣之礼", "icon": "🏛️", "enter_line": "🏛️ 圣像低鸣——守卫正在激活【光柱圣像】！打断可封印它！"},
+            "counter": "断>光柱>圣盾>镜面；光柱在场先碎（还叠攻）；镜面让坦克转火碎！",
+        },
+        {
+            "min": 30,
+            "add_skills": [
+                "ms_ji_huo_sheng_dun",
+                "ms_yue_guang_cai_jue",
+            ],
+            "phase_id": "enrage",
+            "atk_mult": 1.15,
+            "freq_mult": 0.9,
+            "script": {"name": "试炼加严", "icon": "⚔️", "warn_line": "圣盾苏醒：守卫获得 30% 护盾+读条免疫打断——先破盾再断唱！"},
+            "counter": "盾碎=2 刻崩解爆发窗；机关留 2 座=共鸣审判（1.6×全队+裁决+50%）！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "script": {"name": "神威降临", "icon": "🌙", "warn_line": "机关顺序反转：圣盾→镜面→光柱——优先级跟着反过来！"},
+            "counter": "终局：断一个碎一个；断不干净=共鸣审判+裁决连招！",
+        },
+    ],
         "hp_mult": 2.4841,  # v173.3 Boss降级hp补偿 ×1.069
 
         "atk_mult": 1.2477,  # v173.3 Boss降级atk补偿 ×1.043
@@ -1051,7 +1395,56 @@ INSTANCES = {
         ],
                 "key_item": "寒冰令",
         "key_source": "永冻冰原精英·冰原猛犸·雪岭掉落",
-"mech": "stacks,enrage",
+        "mech": "phase,phase_open",
+        "minions": [
+        {
+            "name": "冰元素",
+            "count": 0,
+            "monster": [
+                "m_frost_guard",
+                "寒冰守卫",
+                "dps",
+                74,
+                [
+                    "ms_bing_xi",
+                    "ms_bing_dan",
+                ],
+                [
+                    "永冻之核",
+                ],
+            ],
+        },
+    ],
+        "phases": [
+        {
+            "min": 50,
+            "add_skills": [
+                "ms_bing_feng_li_zhao",
+            ],
+            "phase_id": "normal",
+            "script": {"name": "凛冬王座", "icon": "❄️", "enter_line": "❄️ 冰霜领主抬手凝霜——挨冰越多越接近冻僵，4 层停手清层！"},
+            "counter": "冰息叠层、冻结技引爆——净化/暖身是清层工具，别贪读条！",
+        },
+        {
+            "min": 30,
+            "add_skills": [
+                "ms_ji_han_feng_bao",
+                "ms_zhao_bing_yuan_su_lord",
+            ],
+            "phase_id": "enrage",
+            "atk_mult": 1.15,
+            "freq_mult": 0.85,
+            "script": {"name": "严寒", "icon": "🌨️", "warn_line": "极寒风暴！全队冻结威胁+冰元素叠层——清层节奏被迫提速！"},
+            "counter": "AOE 清冰元素（防层数爆炸）；极寒风暴出现=全队准备净化！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "script": {"name": "永冻", "icon": "🧊", "warn_line": "永冻领域展开——冻住=大概率团灭，极限清层时刻！"},
+            "counter": "4 层必清层；防御姿态减冰伤（冰息可防 80%）；火系爆发！",
+        },
+    ],
         "hp_mult": 7.0456,  # v173.3 Boss降级hp补偿 ×1.098
 
         "atk_mult": 1.2654,  # v173.3 Boss降级atk补偿 ×1.057
@@ -1103,7 +1496,25 @@ INSTANCES = {
         ],
                 "key_item": "雷光令",
         "key_source": "风暴崖精英·风暴崖主·雷鸣掉落",
-"mech": "phase,phase",
+        "mech": "phase,phase,summon",
+        "phases": [
+        {
+            "min": 60,
+            "add_skills": [
+                "ms_f6_lian_lei",
+            ],
+            "script": {"name": "雷云激化", "icon": "⚡"},
+        },
+        {
+            "min": 30,
+            "add_skills": [
+                "ms_f6_lian_lei",
+                "ms_f6_jing_dian_jie_dian",
+            ],
+            "phase_id": "enrage",
+            "script": {"name": "审判风暴", "icon": "🌩️"},
+        },
+    ],
         "hp_mult": 7.5297,  # v173.3 Boss降级hp补偿 ×1.050
 
         "atk_mult": 1.6038,  # v173.3 Boss降级atk补偿 ×1.026
@@ -1200,7 +1611,57 @@ INSTANCES = {
         # v110 审计修复：key_item 回退材料名（v110.11 消歧误改为消耗品名——采集池
         # shipwreck_graveyard 产 mat_you_ling_chuan_piao，材料 desc 明示"可作钥匙进入沉船湾"）
         "key_source": "沉船湾墓地采集",
-"mech": "summon,heal",
+        "mech": "phase,summon,enrage",
+        "minions": [
+        {
+            "name": "幽灵水手",
+            "count": 0,
+            "monster": [
+                "m_ghost_sailor",
+                "幽灵水手",
+                "dps",
+                38,
+                [
+                    "ms_xiu_jian",
+                    "ms_ai_hao",
+                ],
+                [
+                    "幽灵帆布",
+                ],
+            ],
+        },
+    ],
+        "phases": [
+        {
+            "min": 60,
+            "phase_id": "normal",
+            "add_skills": [
+                "ms_wang_chao_zu_zhou",
+            ],
+            "script": {"name": "起雾", "icon": "🌫️", "enter_line": "🌊 亡潮诅咒叠至 1 层：幽灵伤害 +12%×N！层越高越痛！"},
+            "counter": "诅咒叠层不是即死是增伤——治疗够就硬吃，DPS 越快越划算！",
+        },
+        {
+            "min": 30,
+            "phase_id": "enrage",
+            "atk_mult": 1.15,
+            "freq_mult": 0.85,
+            "add_skills": [
+                "ms_wan_dao_an_ying",
+                "ms_chen_chuan_mei_ying",
+            ],
+            "script": {"name": "涨潮", "icon": "🌊", "warn_line": "诅咒 3 层后追加【沉船魅影】（蓄力 2.2 单体）——中招者治疗压力陡增！"},
+            "counter": "清层优先清 T；沉船魅影读条必断或防御减半；别把主力输出从克罗身上挪走太久！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "freq_mult": 0.7,
+            "script": {"name": "风暴眼", "icon": "⛈️", "warn_line": "狂暴×1.35！诅咒叠层更快、幽灵补位更快——DPS 慢就清层保命！"},
+            "counter": "末段=治疗资源规划+击杀节奏；牧师圣辉涤净可一次压掉诅咒+哀嚎双压力！",
+        },
+    ],
         "hp_mult": 3.0488,  # v173.3 Boss降级hp补偿 ×1.194
 
         "atk_mult": 1.3931,  # v173.3 Boss降级atk补偿 ×1.171
@@ -1294,7 +1755,46 @@ INSTANCES = {
         ],
         "key_item": "海妖鳞片信物",
         "key_source": "海妖湾精英·海妖领主·潮汐掉落",
-"mech": "phase,heal",
+        "mech": "phase,summon,heal",
+        "minions": [
+        {
+            "name": "触手",
+            "count": 0,
+            "monster": [
+                "m_kraken_tentacle",
+                "海妖触手",
+                "tank",
+                54,
+                [
+                    "ms_jiao_sha",
+                    "ms_shui_xi",
+                ],
+                [
+                    "触手皮",
+                ],
+            ],
+        },
+    ],
+        "phases": [
+        {
+            "min": 60,
+            "add_skills": [
+                "ms_chao_yong_ling_yu",
+            ],
+            "phase_id": "normal",
+            "freq_mult": 0.8,
+            "script": {"name": "重唱·潮鸣渐起", "icon": "🎶", "warn_line": "召唤越来越密……触手满 3 只时女王会进入潮鸣姿态（本体加攻）！"},
+            "counter": "清触手 > 打 Boss：触手压到 0 = 幽蓝回响只剩减速！",
+        },
+        {
+            "min": 30,
+            "phase_id": "enrage",
+            "atk_mult": 1.3,
+            "freq_mult": 0.85,
+            "script": {"name": "谢幕·葬歌", "icon": "🖤", "warn_line": "召唤与歌声开始同拍——被歌声+缠绕同时控制=团灭点！"},
+            "counter": "终局：看见召唤立刻清，绝不让触手和歌同刻生效！",
+        },
+    ],
         "hp_mult": 10.4977,  # v173.3 Boss降级hp补偿 ×1.090
 
         "atk_mult": 1.2503,  # v173.3 Boss降级atk补偿 ×1.074
@@ -1402,7 +1902,57 @@ INSTANCES = {
         "key_item": "海神祷文",
         # v110 审计修复：key_item 回退材料名（v110.11 消歧误改为消耗品名）
         "key_source": "无名港港务厅购买",
-"mech": "shield,phase",
+        "mech": "phase,summon,heal",
+        "minions": [
+        {
+            "name": "鲨鱼",
+            "count": 0,
+            "monster": [
+                "m_shell_warrior",
+                "甲壳战士",
+                "dps",
+                68,
+                [
+                    "ms_qian_ji",
+                    "ms_ying_hua",
+                ],
+                [
+                    "甲壳残片",
+                ],
+            ],
+        },
+    ],
+        "phases": [
+        {
+            "min": 65,
+            "add_skills": [
+                "ms_chao_xi_yi_shi",
+                "ms_yin_chao_hui_chun",
+            ],
+            "phase_id": "normal",
+            "script": {"name": "潮信初至", "icon": "🌊", "enter_line": "🌊 潮落（引潮回春/清鲨鱼窗）→ 潮起（怒浪 dot）→ ⚠️ 仪式读条必断！"},
+            "counter": "潮落清鲨鱼补状态；潮起扛浪；仪式读条打断=免团伤+2 刻反噬爆发窗！",
+        },
+        {
+            "min": 35,
+            "add_skills": [
+                "ms_lang_yong_pai_ji",
+                "ms_lang_chao_dot",
+            ],
+            "phase_id": "enrage",
+            "atk_mult": 1.1,
+            "freq_mult": 0.85,
+            "script": {"name": "怒潮渐急", "icon": "🌊", "warn_line": "周期 8→6 刻！仪式咏唱与潮起几乎无缝——打断窗口变紧！"},
+            "counter": "读条 2 刻抢断；浪潮 dot 0.55/刻——群疗铺潮起期！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "script": {"name": "海神之怒", "icon": "⛈️", "warn_line": "狂暴！浪潮 dot 0.7/刻；漏断 2 次=怒海化身常驻！"},
+            "counter": "一次都别漏：反噬窗 1.5 刻变薄——爆发质量定胜负！",
+        },
+    ],
         "hp_mult": 8.7321,  # v173.3 Boss降级hp补偿 ×1.066
 
         "atk_mult": 1.2494,  # v173.3 Boss降级atk补偿 ×1.040
@@ -1511,7 +2061,33 @@ INSTANCES = {
         # v110 审计修复：key_item 回退材料名（v110.11 消歧误改为消耗品名）
         # F3 P1-1 修复：掉落源补全——龙鲸海域精英·龙鲸王·涛声掉落（原仅副本内掉落=死锁）
         "key_source": "龙鲸海域精英·龙鲸王·涛声掉落",
-"mech": "reflect,stacks",
+        "mech": "phase,stacks,phase_open",
+        "phases": [
+        {
+            "min": 50,
+            "add_skills": [
+                "ms_long_wei_ji_tui",
+            ],
+            "phase_id": "normal",
+            "script": {"name": "水压积累", "icon": "🌊", "enter_line": "🌊 深水压强启动：每刻压力递增，全队承伤加重——防御/群奶轮转扛压！"},
+            "counter": "龙威读条每 6 刻一次：打断=压力回落+输出窗！",
+        },
+        {
+            "min": 30,
+            "phase_id": "enrage",
+            "atk_mult": 1.15,
+            "freq_mult": 0.85,
+            "script": {"name": "高压深渊", "icon": "🌊", "warn_line": "水压叠满！龙威读条更频繁+低血追击——高压斩杀段！"},
+            "counter": "层数别叠太高；打断资源全留给龙威读条！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "script": {"name": "深渊龙威", "icon": "🐲", "warn_line": "深渊水压碾来——必须靠打断龙威读条压压力，否则团灭！"},
+            "counter": "终局：每次龙威读条=稳定打断点，断=压力回落+全队爆发！",
+        },
+    ],
         "hp_mult": 9.6093,  # v173.3 Boss降级hp补偿 ×1.061
 
         "atk_mult": 1.2541,  # v173.3 Boss降级atk补偿 ×1.036
@@ -1603,7 +2179,94 @@ INSTANCES = {
         ],
         "key_item": "灰矮人通行令",
         "key_source": "地底集市购买(2800 金)",
-"mech": "shield,stacks",
+        "mech": "phase,summon",
+        "minions": [
+        {
+            "name": "自爆傀儡",
+            "count": 1,
+            "monster": [
+                "m_gray_engineer",
+                "灰矮人技师",
+                "healer",
+                76,
+                [
+                    "ms_bao_dan",
+                    "ms_xiu_li",
+                ],
+                [
+                    "机械零件",
+                ],
+            ],
+        },
+        {
+            "name": "修理傀儡",
+            "count": 1,
+            "monster": [
+                "m_gray_engineer",
+                "灰矮人技师",
+                "healer",
+                76,
+                [
+                    "ms_xiu_li",
+                    "ms_bao_dan",
+                ],
+                [
+                    "机械零件",
+                ],
+            ],
+        },
+        {
+            "name": "激振炉",
+            "count": 0,
+            "monster": [
+                "m_gray_dwarf",
+                "灰矮人战士",
+                "dps",
+                74,
+                [
+                    "ms_zhan_chui",
+                    "ms_kuang_bao",
+                ],
+                [
+                    "灰矮人徽记",
+                ],
+            ],
+        },
+    ],
+        "phases": [
+        {
+            "min": 50,
+            "add_skills": [
+                "ms_zhao_zi_bao_kui_lei",
+                "ms_zhao_xiu_li_kui_lei",
+                "ms_zhao_ji_zhen_kui_lei",
+            ],
+            "phase_id": "normal",
+            "script": {"name": "锻造台轰鸣", "icon": "⛏️", "enter_line": "⛏️ 三台傀儡挡在石炉身前——自爆的会团灭、修理的在回血、激振的在加攻！"},
+            "counter": "清除顺序：自爆>修理>激振——修理工不杀=白打！",
+        },
+        {
+            "min": 30,
+            "add_skills": [
+                "ms_rong_lu_bao_fa",
+            ],
+            "phase_id": "enrage",
+            "atk_mult": 1.15,
+            "freq_mult": 0.85,
+            "script": {"name": "锻炉过热", "icon": "🔥", "warn_line": "炉膛发红！傀儡越造越快+熔炉爆发 AOE——清傀儡节奏提速！"},
+            "counter": "AOE 一次清多傀儡；打断召唤=阻止造新傀儡！",
+        },
+        {
+            "min": 0,
+            "add_skills": [
+                "ms_zhong_chui_lian_da",
+            ],
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "script": {"name": "狂暴锻打", "icon": "🔨", "warn_line": "狂暴锻打！激振炉还在加攻——先拆激振炉，清完本体暴露！"},
+            "counter": "终局：清完傀儡=本体暴露爆发窗，集火秒本体！",
+        },
+    ],
         "hp_mult": 7.0456,  # v173.3 Boss降级hp补偿 ×1.098
 
         "atk_mult": 1.2654,  # v173.3 Boss降级atk补偿 ×1.057
@@ -1697,7 +2360,57 @@ INSTANCES = {
         ],
         "key_item": "龙鳞钥匙",
         "key_source": "熔火深渊精英·熔火领主·烬核掉落",
-"mech": "reflect,enrage",
+        "mech": "phase,summon",
+        "minions": [
+        {
+            "name": "幼龙",
+            "count": 1,
+            "monster": [
+                "m_under_drake",
+                "地底幼龙",
+                "dps",
+                84,
+                [
+                    "ms_suan_xi",
+                    "ms_long_zhao",
+                ],
+                [
+                    "地底龙鳞",
+                ],
+            ],
+        },
+    ],
+        "phases": [
+        {
+            "min": 60,
+            "add_skills": [
+                "ms_suan_xi_under",
+                "ms_di_di_li_zhao",
+            ],
+            "phase_id": "normal",
+            "script": {"name": "蚀骨之地", "icon": "🐍", "enter_line": "🐍 黑渊盘踞岩浆湖中央——看到『正在施展酸息』就打断或准备净化！"},
+            "counter": "腐蚀 3 层前净化掉；酸息读条=免费输出窗；幼龙 AOE 清掉！",
+        },
+        {
+            "min": 30,
+            "add_skills": [
+                "ms_fu_shi_tu_xi_heng_sao",
+                "ms_zhao_you_long_under",
+            ],
+            "phase_id": "enrage",
+            "atk_mult": 1.15,
+            "freq_mult": 0.85,
+            "script": {"name": "溶骨", "icon": "🧪", "warn_line": "鳞甲泛起酸泡——横扫吐息让全队都叠腐蚀，净化按人分配！"},
+            "counter": "横扫=全队 1 层腐蚀；幼龙第二腐蚀来源，AOE 一轮清空最赚！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.2,
+            "script": {"name": "噬骸", "icon": "☠️", "warn_line": "酸血沸腾——黑渊越战越凶，噬骨深吞 2 刻读条=必断点！"},
+            "counter": "终局：层数 3+ 必清（引爆真伤）；吞噬读条打断=虚脱爆发窗！",
+        },
+    ],
         "hp_mult": 9.1768,  # v173.3 Boss降级hp补偿 ×1.053
 
         "atk_mult": 1.5414,  # v173.3 Boss降级atk补偿 ×1.027
@@ -1792,7 +2505,35 @@ INSTANCES = {
         ],
         "key_item": "雷核钥匙",
         "key_source": "雷暴高原·雷元素掉落",
-"mech": "phase,phase",
+        "mech": "phase,phase,summon",
+        "chains": [
+        {
+            "seq": [
+                "ms_f6_lei_bao_feng_yan",
+                "ms_lei_bao",
+                "ms_f6_feng_bao_feng_yan",
+            ],
+            "cd": 1,
+            "break": 0.1,
+        },
+    ],
+        "phases": [
+        {
+            "min": 60,
+            "add_skills": [
+                "ms_f6_lei_ting_shen_pan",
+            ],
+            "script": {"name": "疾风·短条", "icon": "🌪️"},
+        },
+        {
+            "min": 30,
+            "add_skills": [
+                "ms_f6_lei_ting_shen_pan",
+            ],
+            "phase_id": "enrage",
+            "script": {"name": "风暴之怒", "icon": "🌀"},
+        },
+    ],
         "hp_mult": 15.4298,  # v173.3 Boss降级hp补偿 ×1.049
 
         "atk_mult": 1.6091,  # v173.3 Boss降级atk补偿 ×1.026
@@ -1885,7 +2626,24 @@ INSTANCES = {
         ],
         "key_item": "深渊圣印",
         "key_source": "深渊祭坛精英·祭坛守卫·魔眼掉落",
-"mech": "stacks,summon",
+        "mech": "stacks,summon,phase,enrage",
+        "phases": [
+        {
+            "min": 60,
+            "add_skills": [
+                "ms_f6_fu_shi_wa_di",
+            ],
+            "script": {"name": "腐化领域扩张", "icon": "🌑"},
+        },
+        {
+            "min": 30,
+            "add_skills": [
+                "ms_f6_fu_shi_wa_di",
+                "ms_f6_mo_yu_kong_xi",
+            ],
+            "script": {"name": "恶魔军势·魔焰扩散", "icon": "👹"},
+        },
+    ],
         "hp_mult": 7.2871,  # v173.3 Boss降级hp补偿 ×1.050
 
         "atk_mult": 1.3012,  # v173.3 Boss降级atk补偿 ×1.026
@@ -1978,7 +2736,32 @@ INSTANCES = {
         ],
         "key_item": "云玺",
         "key_source": "星辉台精英·星龙掉落",
-"mech": "shield,phase",
+        "mech": "shield,phase,summon,phase_open",
+        "opening": {"name": "天象轮替·预读开始", "effect": "atk_up", "power": 1},
+        "phases": [
+        {
+            "min": 60,
+            "add_skills": [
+                "ms_f6_sheng_guang_ling_yu",
+                "ms_f6_sheng_guang_tan",
+                "ms_f6_lei_bao_tian_xiang",
+                "ms_f6_lei_ji_tian_xiang",
+                "ms_f6_sheng_yu",
+                "ms_f6_yu_wei_zhao_huan",
+            ],
+            "script": {"name": "晴→雷→雨→云", "icon": "☁️"},
+        },
+        {
+            "min": 30,
+            "add_skills": [
+                "ms_f6_sheng_guang_ling_yu",
+                "ms_f6_lei_bao_tian_xiang",
+                "ms_f6_sheng_yu",
+            ],
+            "phase_id": "enrage",
+            "script": {"name": "天象归一", "icon": "🌟"},
+        },
+    ],
         "hp_mult": 15.2803,  # v173.3 Boss降级hp补偿 ×1.016
 
         "atk_mult": 1.6179,  # v173.3 Boss降级atk补偿 ×1.008
@@ -1988,6 +2771,896 @@ INSTANCES = {
         "mat_count": 5,
         "blueprint": True,
     },
+
+    # ================= v178 新副本（补等级缺口，2026-09-05） =================
+    "inst_rust_dock": {
+    "entry": {"map": "harbor_docks", "subarea": "harbor_docks_2"},
+    "name": "锈潮船坞",
+    "icon": "🦀",
+    "lv": 25,
+    "min_players": 2,
+    "max_players": 3,
+    "desc": "铁港码头废弃船坞下的锈蚀水道，潮水把整座旧船坞泡成了螃蟹的乐园。巨钳蟹王·锈钳盘踞船底，钳上还挂着一百艘沉船的船牌。(海港支线)",
+    "intro": "码头货仓区尽头有道锈死的闸门，推开时潮声裹着铁锈味扑面而来——废弃船坞的水道里，锈壳蟹窸窣爬行，深处时不时传来钳甲碰撞的闷响。铁港的老水手说，蟹王·锈钳的巢就在最深的船底，它钳上的船牌，还在等船主们来认领。",
+    "boss_line": "『咔——』锈钳的双钳缓缓张开，每片甲壳上都嵌着一枚沉船的船牌：『又是来讨船牌的活人？老子在这船坞底下活了三百年，连龙王都懒得收我！』",
+    "outro": "蟹王的锈壳裂成满地碎片，沉船船牌叮叮当当散了一地。潮水漫过船底，锈潮第一次有了退去的迹象——铁港的船主们，终于能把自己的船牌挂回桅杆上了。",
+    "boss": [
+        "b_rust_crab",
+        "巨钳蟹王·锈钳",
+        "boss",
+        31,
+        ["ms_zhong_qian_xiu", "ms_heng_sao_xiu", "ms_qian_jia_lie_shi", "ms_xiu_qiao"],
+        [
+            "锈潮蟹甲",
+        ],
+    ],
+    "minions": [
+        {
+            "name": "锈壳蟹",
+            "count": 0,
+            "monster": [
+                "m_rust_crab",
+                "锈壳蟹",
+                "tank",
+                27,
+                [
+                    "ms_qian_ji",
+                    "ms_ying_hua",
+                ],
+                [
+                    "锈潮蟹甲",
+                ],
+            ],
+        },
+    ],
+    "stages": [
+        {
+            "name": "闸门水道",
+            "monsters": [
+                [
+                    "m_rust_crab",
+                    "锈壳蟹",
+                    "tank",
+                    25,
+                    [
+                        "ms_qian_ji",
+                        "ms_ying_hua",
+                    ],
+                    [
+                        "锈潮蟹甲",
+                    ],
+                ],
+                [
+                    "m_water_ghost",
+                    "水鬼",
+                    "dps",
+                    27,
+                    [
+                        "ms_zhao_ji",
+                        "ms_chan_rao",
+                    ],
+                    [
+                        "锈潮蟹甲",
+                    ],
+                ],
+            ],
+            "elite": None,
+            "boss": None,
+        },
+        {
+            "name": "沉船坞池",
+            "monsters": [
+                [
+                    "m_pirate",
+                    "海盗水手",
+                    "dps",
+                    28,
+                    [
+                        "ms_wan_dao",
+                    ],
+                    [
+                        "锈潮蟹甲",
+                    ],
+                ],
+            ],
+            "elite": [
+                "e_rust_rigger",
+                "锈潮水手鬼",
+                "elite",
+                30,
+                [
+                    "ms_xiu_jian",
+                    "ms_ai_hao",
+                ],
+                [
+                    "锈潮蟹甲",
+                ],
+            ],
+            "boss": None,
+        },
+        {
+            "name": "蟹王船底",
+            "monsters": [],
+            "elite": None,
+            "boss": [
+                "b_rust_crab",
+                "巨钳蟹王·锈钳",
+                "boss",
+                31,
+                [],
+                [
+                    "锈潮蟹甲",
+                ],
+            ],
+        },
+    ],
+    "mech": "phase,enrage",
+    "hp_mult": 5.2,
+    "atk_mult": 1.18,
+    "gold": 458,
+    "exp": 7865,
+    "materials": [
+        "锈潮蟹甲",
+    ],
+    "mat_count": 2,
+    "blueprint": True,
+    "装备": [
+        "锈潮蟹甲",
+    ],
+    "phases": [
+        {
+            "min": 60,
+            "phase_id": "normal",
+            "add_skills": [
+                "ms_xiu_qiao",
+                "ms_qian_jia_lie_shi",
+            ],
+            "script": {"name": "锈蚀外壳", "icon": "🦀", "enter_line": "🦀 蟹王船底：锈钳的双钳嵌满沉船船牌——锈壳减伤 40%，先把它打到 60% 震碎外壳！"},
+            "counter": "硬打锈壳是白耗！压血到 60% 破壳；看见【钳夹猎食】读条=它要夹人，打断救队友！",
+        },
+        {
+            "min": 30,
+            "phase_id": "exhaust",
+            "dmg_taken_mult": 1.4,
+            "add_skills": [
+                "ms_heng_sao_xiu",
+            ],
+            "exit_turns": 8,
+            "script": {"name": "外壳破碎", "icon": "💥", "enter_line": "💥 蟹壳震碎、船牌散落一地！破甲窗 8 刻承伤 ×1.4——蟹王的软肋露出来了！"},
+            "counter": "破壳窗 8 刻：大招全砸！看到【修壳】读条（破壳窗尾声）立刻打断=窗口续期！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "dmg_taken_mult": 0.8,
+            "freq_mult": 0.85,
+            "add_skills": [],
+            "script": {"name": "锈壳再生", "icon": "⚔️", "warn_line": "狂暴！锈壳再生但更脆（减伤 20%）——钳夹与横扫更密，打断【修壳】的手不能停！"},
+            "counter": "终局：破壳窗短而珍贵——每次【修壳】读条都是最后一次续期机会，必断！",
+        },
+    ],
+},
+    "inst_candle_crypt": {
+    "entry": {"map": "dawn_cathedral", "subarea": "dawn_cathedral_1"},
+    "name": "烛影墓窟",
+    "icon": "🕯️",
+    "lv": 29,
+    "min_players": 1,
+    "max_players": 2,
+    "desc": "大圣堂地下被封死的古墓廊道，数百年的烛油在地面凝成厚壳。烛影主教·赫尔嘉在此布道——给死人布道，也给误入者布道。(教会地下支线)",
+    "intro": "圣堂侧廊的祭衣间后有一扇被蜡封死的门，撬开时，一股混合着烛油与尘土的气味涌出。墓窟廊道两侧的烛台明明灭灭，墙上手绘的圣像全被涂去了眼睛——赫尔嘉的声音从廊道尽头传来，像在诵经，又像在等你走近。",
+    "boss_line": "『光明太吵了。』赫尔嘉抬手拂过一排烛火，火苗齐齐矮了半截：『让它们熄灭一会儿，好让我听见死者真正的声音——你们，也是来听布道的吗？』",
+    "outro": "最后一盏烛火在赫尔嘉指尖熄灭，墓窟彻底沉入黑暗——随即，廊道尽头的天窗透进一线晨光。那些被涂掉眼睛的圣像在光里重新显出轮廓，仿佛终于可以安息。",
+    "boss": [
+        "b_candle_bishop",
+        "烛影主教·赫尔嘉",
+        "boss",
+        35,
+        ["ms_zhu_huo_zhu", "ms_xi_deng", "ms_zhao_zhu_hun", "ms_an_ying_qin_shi"],
+        [
+            "烛影烛泪",
+        ],
+    ],
+    "minions": [
+        {
+            "name": "烛魂",
+            "count": 1,
+            "monster": [
+                "m_candle_wraith",
+                "烛魂",
+                "caster",
+                32,
+                [
+                    "ms_zhuo_shao",
+                    "ms_you_ling",
+                ],
+                [
+                    "烛影烛泪",
+                ],
+            ],
+        },
+    ],
+    "stages": [
+        {
+            "name": "蜡封廊道",
+            "monsters": [
+                [
+                    "m_candle_wraith",
+                    "烛魂",
+                    "caster",
+                    29,
+                    [
+                        "ms_zhuo_shao",
+                        "ms_you_ling",
+                    ],
+                    [
+                        "烛影烛泪",
+                    ],
+                ],
+                [
+                    "m_cultist",
+                    "暗影教徒",
+                    "dps",
+                    30,
+                    [
+                        "ms_an_ying_dan",
+                        "ms_an_ying_zhao",
+                    ],
+                    [
+                        "烛影烛泪",
+                    ],
+                ],
+            ],
+            "elite": None,
+            "boss": None,
+        },
+        {
+            "name": "涂目圣像厅",
+            "monsters": [
+                [
+                    "m_grave_priest",
+                    "墓窟祭司",
+                    "healer",
+                    33,
+                    [
+                        "ms_hei_an_zhi_liao",
+                        "ms_an_ying_dan",
+                    ],
+                    [
+                        "烛影烛泪",
+                    ],
+                ],
+            ],
+            "elite": [
+                "e_candle_guard",
+                "烛卫",
+                "elite",
+                34,
+                [
+                    "ms_sheng_guang_dan",
+                    "ms_dun_ji",
+                ],
+                [
+                    "烛影烛泪",
+                ],
+            ],
+            "boss": None,
+        },
+        {
+            "name": "烛影礼拜堂",
+            "monsters": [],
+            "elite": None,
+            "boss": [
+                "b_candle_bishop",
+                "烛影主教·赫尔嘉",
+                "boss",
+                35,
+                [],
+                [
+                    "烛影烛泪",
+                ],
+            ],
+        },
+    ],
+    "mech": "phase,phase_open,summon",
+    "hp_mult": 3.1,
+    "atk_mult": 1.36,
+    "gold": 561,
+    "exp": 9900,
+    "materials": [
+        "烛影烛泪",
+    ],
+    "mat_count": 2,
+    "blueprint": True,
+    "装备": [
+        "烛影烛泪",
+    ],
+    "phases": [
+        {
+            "min": 60,
+            "phase_id": "normal",
+            "exit_turns": 6,
+            "add_skills": [
+                "ms_xi_deng",
+                "ms_zhao_zhu_hun",
+            ],
+            "script": {"name": "烛光摇曳", "icon": "🕯️", "enter_line": "🕯️ 礼拜堂烛火通明——烛光态！她在烛光里布道，读条【熄灯】时打断她=全场继续亮着打！"},
+            "counter": "看见【熄灯】（读条 2 刻）立刻打断；被黑进熄灭态就清烛魂+防御拖 4 刻复燃！",
+        },
+        {
+            "min": 0,
+            "phase_id": "exhaust",
+            "dmg_taken_mult": 1.3,
+            "def_add": 60,
+            "freq_mult": 1.5,
+            "exit_turns": 4,
+            "add_skills": [
+                "ms_an_ying_qin_shi",
+            ],
+            "script": {
+                "name": "烛影幢幢",
+                "icon": "🌑",
+                "enter_line": "🌑 赫尔嘉吹熄了烛火——大殿陷入黑暗 4 刻（暗影庇护）！她的影子每刻都在侵蚀你们！",
+                "warn_line": "⚠️ 熄灭态：优先清掉烛魂（黑暗中 +50%！）——全队防御+治疗拖过 4 刻，烛火会自动复燃！",
+            },
+            "counter": "黑暗里别硬拼：清烛魂 > 保血线；复燃瞬间 2 刻是安全爆发窗！",
+        },
+    ],
+    "on_interrupt": {"effect": "vulnerable", "value": 1.3, "turns": 1},
+},
+    "inst_thunder_mine": {
+    "entry": {"map": "hill_mine", "subarea": "hill_mine_4"},
+    "name": "雷鸣矿道",
+    "icon": "⚡",
+    "lv": 32,
+    "min_players": 1,
+    "max_players": 2,
+    "desc": "山丘矿洞最深处被雷晶矿脉炸开的巷道，矿车轨道上趴着雷晶蜥，雷灵在电线般的矿脉间流窜。雷晶巨像·轰鸣守着整条矿脉的心脏。(矿务支线)",
+    "intro": "塌方矿厅尽头传出一声闷雷，脚下每一颗碎石都在跟着震。矿道里嵌满幽蓝的雷晶，空气里静电扎得人汗毛直立——老矿工说，这条矿脉是活的，而轰鸣，就是矿脉长出来的心脏。",
+    "boss_line": "『轰——！』巨像胸口的雷晶核骤然亮起，整条矿道的雷晶跟着共鸣：『矿脉……是我的……心跳……也是你们的……葬歌！』",
+    "outro": "巨像轰然跪倒，胸口的雷晶核黯淡成一块死石。矿道的雷光第一次安静下来，采空的矿脉深处，传来矿工们试探的脚步声——这条矿道，终于能重新点灯了。",
+    "boss": [
+        "b_thunder_golem",
+        "雷晶巨像·轰鸣",
+        "boss",
+        37,
+        ["ms_lei_jing_zhong_chui", "ms_dian_hu_jian_she", "ms_lei_ting_zha_lie", "ms_lei_jing_ning_ju", "ms_lei_jing_sui_xie"],
+        [
+            "雷晶矿核",
+        ],
+    ],
+    "minions": [
+        {
+            "name": "雷晶核",
+            "count": 2,
+            "monster": [
+                "m_crystal_core",
+                "雷晶核",
+                "tank",
+                34,
+                [
+                    "ms_ying_hua",
+                ],
+                [
+                    "雷晶矿核",
+                ],
+            ],
+        },
+    ],
+    "stages": [
+        {
+            "name": "雷光巷道",
+            "monsters": [
+                [
+                    "m_goblin_miner",
+                    "地精矿工",
+                    "dps",
+                    30,
+                    [
+                        "ms_gao_ji",
+                    ],
+                    [
+                        "雷晶矿核",
+                    ],
+                ],
+                [
+                    "m_crystal_gecko",
+                    "雷晶蜥",
+                    "speedster",
+                    32,
+                    [
+                        "ms_lei_ji",
+                        "ms_ji_pao",
+                    ],
+                    [
+                        "雷晶矿核",
+                    ],
+                ],
+            ],
+            "elite": None,
+            "boss": None,
+        },
+        {
+            "name": "矿脉心脏前厅",
+            "monsters": [
+                [
+                    "m_mine_sprite",
+                    "矿道雷灵",
+                    "caster",
+                    34,
+                    [
+                        "ms_shan_dian_lian",
+                        "ms_lei_jian",
+                    ],
+                    [
+                        "雷晶矿核",
+                    ],
+                ],
+            ],
+            "elite": [
+                "e_thunder_lizard",
+                "雷晶蜥王",
+                "elite",
+                36,
+                [
+                    "ms_lei_ji",
+                    "ms_yao_sui",
+                ],
+                [
+                    "雷晶矿核",
+                ],
+            ],
+            "boss": None,
+        },
+        {
+            "name": "雷晶巨像穴",
+            "monsters": [],
+            "elite": None,
+            "boss": [
+                "b_thunder_golem",
+                "雷晶巨像·轰鸣",
+                "boss",
+                37,
+                [],
+                [
+                    "雷晶矿核",
+                ],
+            ],
+        },
+    ],
+    "mech": "phase,stacks,summon,phase_open",
+    "hp_mult": 3.35,
+    "atk_mult": 1.38,
+    "gold": 635,
+    "exp": 11373,
+    "materials": [
+        "雷晶矿核",
+    ],
+    "mat_count": 2,
+    "blueprint": True,
+    "装备": [
+        "雷晶矿核",
+    ],
+    "phases": [
+        {
+            "min": 65,
+            "phase_id": "normal",
+            "add_skills": [
+                "ms_lei_ting_zha_lie",
+                "ms_lei_jing_ning_ju",
+            ],
+            "script": {
+                "name": "初触雷晶",
+                "icon": "⚡",
+                "enter_line": "⚡ 巨像穴：轰鸣胸口雷晶亮起——⚡ 已充能 0/5！你打它=给它充能，碎雷晶核放能！",
+                "warn_line": "⚠️ 口诀：充能记账、满前泄压、溢出必断！雷晶核=它的泄压阀！",
+            },
+            "counter": "层数到 3 就碎晶核（清层+短路 2 刻爆发窗）；满 5 无核可碎=打断【雷霆炸裂】！",
+        },
+        {
+            "min": 35,
+            "phase_id": "enrage",
+            "atk_mult": 1.15,
+            "freq_mult": 0.85,
+            "add_skills": [
+                "ms_lei_jing_sui_xie",
+            ],
+            "script": {"name": "矿脉共振", "icon": "💠", "warn_line": "矿脉共振！充能叠得更快、电弧更凶、碎屑震晕——碎晶节奏必须跟上！"},
+            "counter": "别把晶核当杂兵清光——留 1 颗应急泄压阀；爆发技排在碎晶之后！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "freq_mult": 0.85,
+            "add_skills": [
+                "ms_lei_ting_jian_ta",
+            ],
+            "script": {"name": "过载核心", "icon": "🌩️", "warn_line": "过载核心！狂暴叠在充能上、雷霆践踏震落矿道落石——把碎晶排进输出循环当第 5 个技能！"},
+            "counter": "终局：满层失守=断【雷霆炸裂】保命；碎晶=2 刻 ×1.3 承伤爆发窗，白嫖！",
+        },
+    ],
+    "on_minion_died": {"effect": "stacks_clear", "value": 1},
+    "on_interrupt": {"effect": "stacks_set", "key": "charge", "value": 3},
+},
+    "inst_whirl_arena": {
+    "entry": {"map": "storm_strait", "subarea": "storm_strait_1"},
+    "name": "旋涡竞技场",
+    "icon": "🐢",
+    "lv": 46,
+    "min_players": 2,
+    "max_players": 3,
+    "desc": "风暴海峡中央一座随潮汐沉浮的环形礁台，潮水在礁台四周绞成永不停歇的旋涡。石壳龟·磐涡把这里当成了它的角斗场——打赢它，才能从旋涡眼里游出去。(群岛支线)",
+    "intro": "海峡口的水面下有一座环形的白石礁台，潮汐把它托起又吞没。礁台四周的旋涡绞着碎船板与鱼骨，而磐涡就趴在礁台中央——它背上刻满了挑战者的名字，每一道划痕，都是一场没打完的角斗。",
+    "boss_line": "『石壳一缩，潮水听话。』磐涡慢悠悠探出龟首，旋涡在它身后轰然加速：『三百年来，还没人能在我的潮汐里站满六个数。你——要来试试吗？』",
+    "outro": "磐涡的壳裂开一道缝，旋涡缓缓平息，礁台第一次完整地浮出水面。你把名字刻上它的背壳，又在后面补了一行小字——『打赢了』。海峡的潮声，像在鼓掌。",
+    "boss": [
+        "b_whirl_turtle",
+        "石壳龟·磐涡",
+        "boss",
+        52,
+        ["ms_ju_qian_heng_sao", "ms_xuan_wo_la_che", "ms_shui_dan_chong_ji", "ms_luo_shi_po_qiao", "ms_suo_qiao_xi"],
+        [
+            "磐涡龟甲",
+        ],
+    ],
+    "minions": [
+        {
+            "name": "漩涡鲛兵",
+            "count": 0,
+            "monster": [
+                "m_whirl_merrow",
+                "漩涡鲛兵",
+                "dps",
+                48,
+                [
+                    "ms_san_cha_ji",
+                    "ms_xuan_wo",
+                ],
+                [
+                    "磐涡龟甲",
+                ],
+            ],
+        },
+    ],
+    "stages": [
+        {
+            "name": "潮间礁台",
+            "monsters": [
+                [
+                    "m_whirlpool_spirit",
+                    "漩涡精灵",
+                    "healer",
+                    46,
+                    [
+                        "ms_shui_dan",
+                        "ms_xuan_wo",
+                    ],
+                    [
+                        "磐涡龟甲",
+                    ],
+                ],
+                [
+                    "m_merrow",
+                    "鲛人战士",
+                    "dps",
+                    47,
+                    [
+                        "ms_san_cha_ji",
+                        "ms_shui_dan",
+                    ],
+                    [
+                        "磐涡龟甲",
+                    ],
+                ],
+            ],
+            "elite": None,
+            "boss": None,
+        },
+        {
+            "name": "漩涡内环",
+            "monsters": [
+                [
+                    "m_whirl_merrow",
+                    "漩涡鲛兵",
+                    "dps",
+                    49,
+                    [
+                        "ms_san_cha_ji",
+                        "ms_xuan_wo",
+                    ],
+                    [
+                        "磐涡龟甲",
+                    ],
+                ],
+                [
+                    "m_arena_shark",
+                    "竞技鲨",
+                    "dps",
+                    50,
+                    [
+                        "ms_si_yao",
+                        "ms_jiao_sha",
+                    ],
+                    [
+                        "磐涡龟甲",
+                    ],
+                ],
+            ],
+            "elite": [
+                "e_whirl_guard",
+                "漩涡卫士",
+                "elite",
+                51,
+                [
+                    "ms_shui_xi",
+                    "ms_dun_ji",
+                ],
+                [
+                    "磐涡龟甲",
+                ],
+            ],
+            "boss": None,
+        },
+        {
+            "name": "磐涡角斗场",
+            "monsters": [],
+            "elite": None,
+            "boss": [
+                "b_whirl_turtle",
+                "石壳龟·磐涡",
+                "boss",
+                52,
+                [],
+                [
+                    "磐涡龟甲",
+                ],
+            ],
+        },
+    ],
+    "mech": "phase,enrage",
+    "hp_mult": 8.4,
+    "atk_mult": 1.27,
+    "gold": 998,
+    "exp": 18729,
+    "materials": [
+        "磐涡龟甲",
+    ],
+    "mat_count": 3,
+    "blueprint": True,
+    "装备": [
+        "磐涡龟甲",
+    ],
+    "phases": [
+        {
+            "min": 65,
+            "phase_id": "normal",
+            "exit_turns": 3,
+            "add_skills": [
+                "ms_ju_qian_heng_sao",
+                "ms_xuan_wo_la_che",
+                "ms_shui_dan_chong_ji",
+                "ms_luo_shi_po_qiao",
+                "ms_suo_qiao_xi",
+            ],
+            "script": {
+                "name": "初识潮汐",
+                "icon": "🌪️",
+                "enter_line": "🌪️ 角斗场四周旋涡绞起——潮汐涌动：3 刻拉扯期（缩壳挨打）→ 3 刻破壳期（爆发窗）循环！",
+                "warn_line": "⚠️ 拉扯期少输出稳血线；破壳期（承伤 +25%）把所有大招砸进去！",
+            },
+            "counter": "拉扯期=防御/用药/群疗；破壳期第 1 刻起手读大招；【落石破壳】读条必断！",
+        },
+        {
+            "min": 30,
+            "phase_id": "enrage",
+            "atk_mult": 1.15,
+            "freq_mult": 0.9,
+            "exit_turns": 2,
+            "add_skills": [],
+            "script": {"name": "涡流加剧", "icon": "🌀", "warn_line": "旋涡绞得更急！拉扯期压到 2 刻、退潮更快——被拖到中心的话落石 ×1.5 专砸你！"},
+            "counter": "被拖住（减速标记）立刻防御+治疗预读；打断【落石破壳】永远优先！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "freq_mult": 0.85,
+            "exit_turns": 4,
+            "add_skills": [],
+            "script": {"name": "怒涛核心", "icon": "⛈️", "warn_line": "怒涛核心！拉扯期拉长到 4 刻、破壳期只剩 2 刻——DPS 不足会永远在拉扯期挨打！"},
+            "counter": "终局=斩杀节奏：破壳 2 刻打满爆发，拉扯期绝不贪刀——血线就是你的 DPS！",
+        },
+    ],
+    "on_interrupt": {"effect": "vulnerable", "value": 1.15, "turns": 1},
+},
+    "inst_blacktide_opera": {
+    "entry": {"map": "mist_tide_passage", "subarea": "mist_tide_passage_3"},
+    "name": "黑潮歌剧院",
+    "icon": "🎭",
+    "lv": 50,
+    "min_players": 2,
+    "max_players": 4,
+    "desc": "黑潮海峡底下沉没的旧歌剧厅，潮水在包厢与舞台之间来回涨落。首席海妖·歌澜每晚都在这里开唱——观众席上坐满溺亡的乐迷，而她们，已经不会鼓掌了。(深海支线)",
+    "intro": "雾潮航道尽头的灯塔下，一条缠满海藻的石阶直通海底。推开锈蚀的剧场大门，海水从穹顶的破洞泻下，像一束追光打在舞台上——歌澜就站在光柱里调音，她身后，溺亡的合唱团正缓缓浮出水面，等着今晚的开幕。",
+    "boss_line": "『欢迎光临黑潮歌剧院。』歌澜捻了捻喉间的珍珠，声音穿过海水依旧清亮：『今晚的曲目是《溺亡者的谢幕》——请安静欣赏，不要……打断我的高音。』",
+    "outro": "歌澜最后一个音符沉入海底，剧场的追光缓缓熄灭。溺亡的合唱团化作泡沫浮向海面，歌澜摘下胸前的歌谱别针，轻轻放在你手心——这座歌剧院终于散场了，而它的曲谱，换了一位新的保管人。",
+    "boss": [
+        "b_opera_siren",
+        "首席海妖·歌澜",
+        "boss",
+        56,
+        ["ms_yong_tan_lang_yong", "ms_gao_yin_gong_ming", "ms_he_sheng_zhao_huan", "ms_xie_mu_qu", "ms_di_yin_wei_mu"],
+        [
+            "咏叹谱残页",
+        ],
+    ],
+    "minions": [
+        {
+            "name": "和声海妖",
+            "count": 1,
+            "monster": [
+                "m_choir_siren",
+                "和声海妖",
+                "healer",
+                52,
+                [
+                    "ms_mei_huo_zhi_ge",
+                    "ms_zhi_yu",
+                ],
+                [
+                    "咏叹谱残页",
+                ],
+            ],
+        },
+    ],
+    "stages": [
+        {
+            "name": "淹没门厅",
+            "monsters": [
+                [
+                    "m_choir_siren",
+                    "和声海妖",
+                    "healer",
+                    50,
+                    [
+                        "ms_mei_huo_zhi_ge",
+                        "ms_zhi_yu",
+                    ],
+                    [
+                        "咏叹谱残页",
+                    ],
+                ],
+                [
+                    "m_siren_scout",
+                    "海妖斥候",
+                    "speedster",
+                    51,
+                    [
+                        "ms_mei_huo_zhi_ge",
+                    ],
+                    [
+                        "咏叹谱残页",
+                    ],
+                ],
+            ],
+            "elite": None,
+            "boss": None,
+        },
+        {
+            "name": "包厢回廊",
+            "monsters": [
+                [
+                    "m_drowned_chorister",
+                    "溺亡唱诗班",
+                    "dps",
+                    53,
+                    [
+                        "ms_chen_mo_jian_xiao",
+                        "ms_you_ling",
+                    ],
+                    [
+                        "咏叹谱残页",
+                    ],
+                ],
+                [
+                    "m_merrow",
+                    "鲛人战士",
+                    "dps",
+                    52,
+                    [
+                        "ms_san_cha_ji",
+                        "ms_shui_dan",
+                    ],
+                    [
+                        "咏叹谱残页",
+                    ],
+                ],
+            ],
+            "elite": [
+                "e_opera_guard",
+                "剧场护卫",
+                "elite",
+                54,
+                [
+                    "ms_ju_lang",
+                    "ms_dun_ji",
+                ],
+                [
+                    "咏叹谱残页",
+                ],
+            ],
+            "boss": None,
+        },
+        {
+            "name": "主舞台",
+            "monsters": [],
+            "elite": None,
+            "boss": [
+                "b_opera_siren",
+                "首席海妖·歌澜",
+                "boss",
+                56,
+                [],
+                [
+                    "咏叹谱残页",
+                ],
+            ],
+        },
+    ],
+    "mech": "phase,summon,phase_open",
+    "hp_mult": 8.9,
+    "atk_mult": 1.3,
+    "gold": 1111,
+    "exp": 21081,
+    "materials": [
+        "咏叹谱残页",
+    ],
+    "mat_count": 3,
+    "blueprint": True,
+    "装备": [
+        "咏叹谱残页",
+    ],
+    "phases": [
+        {
+            "min": 60,
+            "phase_id": "normal",
+            "add_skills": [
+                "ms_xie_mu_qu",
+                "ms_he_sheng_zhao_huan",
+            ],
+            "script": {
+                "name": "序曲",
+                "icon": "🎭",
+                "enter_line": "🎭 主舞台的追光打在歌澜身上——她开始咏唱【谢幕曲】！3 刻读条，全队都能抢断！",
+                "warn_line": "⚠️ 断唱=2 刻破音虚脱（承伤 ×1.4）爆发窗；咏唱间隙 AOE 清和声海妖！",
+            },
+            "counter": "咏唱第 1-2 刻立刻打断 → ×1.4 虚脱窗全队爆发；整场目标=谢幕曲 0 成功！",
+        },
+        {
+            "min": 30,
+            "phase_id": "enrage",
+            "atk_mult": 1.15,
+            "freq_mult": 0.9,
+            "add_skills": [
+                "ms_di_yin_wei_mu",
+            ],
+            "script": {"name": "咏叹调", "icon": "🎶", "warn_line": "咏唱前她会先开【低音帷幕】护盾——不破盾断不了唱；和声召唤 4→3 刻，放大器越堆越多！"},
+            "counter": "先破盾（20% 血）再断唱；清和声 > 贪本体——3 只满和声 = 3.84× 核弹！",
+        },
+        {
+            "min": 0,
+            "phase_id": "rampage",
+            "atk_mult": 1.3,
+            "freq_mult": 0.8,
+            "add_skills": [],
+            "script": {"name": "终曲·安可", "icon": "🎼", "warn_line": "终幕高音！谢幕曲一轮接一轮——高音共鸣的震晕专骗打断资源，被晕=断不了唱=团灭点！"},
+            "counter": "免疫控制/净化硬吃高音共鸣；打断永远只留给谢幕曲；虚脱窗打满收尾！",
+        },
+    ],
+    "on_interrupt": {"effect": "vulnerable", "value": 1.4, "turns": 2},
+},
 }
 
 # ================= v168 副本 Boss 装备掉落池表（22 条，由 v140 单件表升级） =================
