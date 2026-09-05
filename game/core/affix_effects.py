@@ -254,8 +254,8 @@ def _h_dragon_tongue(battle, player, dmg, logs):
     """龙语印记：攻击叠印记（每层 +2% 伤害，上限 5）"""
     if "dragon_tongue" in battle._equip_affix_ids(player):
         max_mark = int(_affix_effect("dragon_tongue").get("max_mark", 5))
-        battle.mech_stacks["dragon_mark"] = min(max_mark, int(battle.mech_stacks.get("dragon_mark", 0) or 0) + 1)
-        logs.append(f"🐉 龙语印记叠加！({battle.mech_stacks['dragon_mark']} 层，每层＋2% 伤害)")
+        player.setdefault('stacks', {})["dragon_mark"] = min(max_mark, int(player.setdefault('stacks', {}).get("dragon_mark", 0) or 0) + 1)
+        logs.append(f"🐉 龙语印记叠加！({player.setdefault('stacks', {})['dragon_mark']} 层，每层＋2% 伤害)")
 
 
 # ================= 2. 受击词条（_affix_on_taken） =================
@@ -287,9 +287,9 @@ def _t_tenacity(battle, player, ctx, logs):
     """坚韧：20% 免疫/清除自身负面（减速/降攻）——v110 审计修复：注册键随数据层拆分
     由 tenacity → tenacity_cc（原键被 v106「韧性」stat 词条占用，双机制隐性叠加）"""
     if "tenacity_cc" in battle._equip_affix_ids(player) and random.random() < _affix_chance("tenacity_cc", 0.20):
-        neg = [k for k in battle.p_buffs if k in ("spd_down", "atk_down", "def_down")]
+        neg = [k for k in player.setdefault('buffs', {}) if k in ("spd_down", "atk_down", "def_down")]
         if neg:
-            del battle.p_buffs[random.choice(neg)]
+            del player.setdefault('buffs', {})[random.choice(neg)]
             # v135 哑词条激活·坚韧增强：免疫负面成功后 回复 3% 最大生命（铁壁意志）
             _heal = max(1, int(player.get("max_hp", 1) * float(_affix_effect("tenacity_cc").get("heal_pct", 0.03))))
             player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + _heal)
@@ -452,7 +452,7 @@ def _sp_flat_dmg(battle, player, dmg, logs, params: dict):
     # 每刻 1 次限制（qi_shi_charge）。v152 时刻制：round → _tick_no() 行动轮次
     if params.get("once_per_round"):
         _turn = battle._tick_no()
-        if (battle.p_eff or {}).get("proc_used") == _turn:
+        if (player.setdefault('eff', {}) or {}).get("proc_used") == _turn:
             return
     pct = float(params.get("pct", 0.50))
     if params.get("cond_hp_lt") is not None:
@@ -481,7 +481,7 @@ def _sp_flat_dmg(battle, player, dmg, logs, params: dict):
     if cd > 0:
         battle._damage_enemy(cd, logs)
         if params.get("once_per_round"):
-            battle.p_eff["proc_used"] = battle._tick_no()
+            player.setdefault('eff', {})["proc_used"] = battle._tick_no()
         tag = params.get("tag", "⚔️")
         logs.append(f"{tag} {params.get('name', '追加伤害')}！追加 {cd} 点伤害！")
 
@@ -552,13 +552,13 @@ def _sp_buff(battle, player, dmg, logs, params: dict):
     key = params.get("buff_key")
     val = params.get("buff_val")
     if params.get("buff_mode") == "stack":
-        lv = battle.p_eff.get(key, 0)
+        lv = player.setdefault('eff', {}).get(key, 0)
         if lv < int(params.get("buff_max", 10)):
-            battle.p_eff[key] = lv + 1
+            player.setdefault('eff', {})[key] = lv + 1
             tag = params.get("tag", "🔨")
             logs.append(f"{tag} {params.get('name', '叠加')}！（当前 {lv+1} 层）")
     else:
-        battle.p_eff[key] = val
+        player.setdefault('eff', {})[key] = val
         tag = params.get("tag", "✨")
         logs.append(f"{tag} {params.get('name', 'Buff')}！")
 
@@ -637,9 +637,9 @@ def _sp_freeze(battle, player, dmg, logs, params: dict):
 def _sp_purify_heal(battle, player, dmg, logs, params: dict):
     """proc_purify_heal：概率净化减益 + 回血
     params: chance, heal_pct"""
-    neg = [k for k in battle.p_buffs if k in ("spd_down", "poison", "mortal_wound", "atk_down", "def_down", "burn", "weak")]
+    neg = [k for k in player.setdefault('buffs', {}) if k in ("spd_down", "poison", "mortal_wound", "atk_down", "def_down", "burn", "weak")]
     if neg:
-        del battle.p_buffs[neg[0]]
+        del player.setdefault('buffs', {})[neg[0]]
         tag = params.get("tag", "⚖️")
         logs.append(f"{tag} {params.get('name', '净化')}！净化 1 个负面效果！")
     heal = int(player.get("max_hp", 1) * float(params.get("heal_pct", 0.04)))
@@ -690,10 +690,10 @@ def _sp_def_up_stack(battle, player, dmg, logs, params: dict):
     """proc_def_up_stack：受击概率叠防御 buff（层数上限）
     params: chance, def_pct, turns, max_stacks, stack_key"""
     key = params.get("stack_key", "tie_pi_def_lv")
-    lv = battle.p_buffs.get(key, 0)
+    lv = player.setdefault('buffs', {}).get(key, 0)
     if lv < int(params.get("max_stacks", 2)):
-        battle.p_buffs[key] = lv + 1
-        battle.p_buffs[params.get("turns_key", "tie_pi_def_turns")] = int(params.get("turns", 2))
+        player.setdefault('buffs', {})[key] = lv + 1
+        player.setdefault('buffs', {})[params.get("turns_key", "tie_pi_def_turns")] = int(params.get("turns", 2))
     tag = params.get("tag", "🛡️")
     logs.append(f"{tag} {params.get('name', '防御叠加')}！防御 +{int(params.get('def_pct', 0.15)*100)}%！")
 
@@ -714,9 +714,9 @@ def _sp_counter(battle, player, dmg, logs, params: dict):
         return
     if params.get("once_per_round"):
         _turn = battle._tick_no()
-        if (battle.p_eff or {}).get("counter_used") == _turn:
+        if (player.setdefault('eff', {}) or {}).get("counter_used") == _turn:
             return
-        battle.p_eff["counter_used"] = _turn
+        player.setdefault('eff', {})["counter_used"] = _turn
     from ..engine import calc_damage
     pst = battle._player_stats(player)
     est = battle._enemy_stats()
@@ -740,7 +740,7 @@ def _sp_stealth(battle, player, dmg, logs, params: dict):
     params: hp_lt, chance, buff_key"""
     ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
     if ratio < float(params.get("hp_lt", 0.30)):
-        battle.p_buffs[params.get("buff_key", "stealth")] = 1
+        player.setdefault('buffs', {})[params.get("buff_key", "stealth")] = 1
         tag = params.get("tag", "🌙")
         logs.append(f"{tag} {params.get('name', '隐身')}！下一次攻击必定暴击！")
 
@@ -835,10 +835,10 @@ def _taken_shield(battle, player, dmg, logs, params: dict):
 def _taken_def_up_stack(battle, player, dmg, logs, params: dict):
     """taken_def_up_stack：受击概率叠防御 buff（tie_pi_harden）"""
     key = params.get("stack_key", "tie_pi_def_lv")
-    lv = battle.p_buffs.get(key, 0)
+    lv = player.setdefault('buffs', {}).get(key, 0)
     if lv < int(params.get("max_stacks", 2)):
-        battle.p_buffs[key] = lv + 1
-        battle.p_buffs[params.get("turns_key", "tie_pi_def_turns")] = int(params.get("turns", 2))
+        player.setdefault('buffs', {})[key] = lv + 1
+        player.setdefault('buffs', {})[params.get("turns_key", "tie_pi_def_turns")] = int(params.get("turns", 2))
     tag = params.get("tag", "🛡️")
     logs.append(f"{tag} {params.get('name', '防御叠加')}！防御 +{int(params.get('def_pct', 0.15)*100)}%！")
 
@@ -859,9 +859,9 @@ def _taken_counter(battle, player, dmg, logs, params: dict):
         return
     if params.get("once_per_round"):
         _turn = battle._tick_no()
-        if (battle.p_eff or {}).get("counter_used") == _turn:
+        if (player.setdefault('eff', {}) or {}).get("counter_used") == _turn:
             return
-        battle.p_eff["counter_used"] = _turn
+        player.setdefault('eff', {})["counter_used"] = _turn
     from ..engine import calc_damage
     pst = battle._player_stats(player)
     est = battle._enemy_stats()
@@ -1045,7 +1045,7 @@ def _t_blood_oath_echo(battle, player, ctx, logs):
         eff = _affix_effect("blood_oath_echo")
         heal = int(player.get("max_hp", 1) * float(eff.get("heal_pct", 0.02)))
         player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-        battle.p_eff["atk_up"] = float(eff.get("atk_up", 0.10))
+        player.setdefault('eff', {})["atk_up"] = float(eff.get("atk_up", 0.10))
         logs.append(f"🩸 血誓回响！回复 {heal} 点生命，下次攻击 +10%！")
 
 
@@ -1106,7 +1106,7 @@ def _t_steady_core(battle, player, ctx, logs):
     if "steady_core" in battle._equip_affix_ids(player) and random.random() < _affix_chance("steady_core", 0.15):
         eff = _affix_effect("steady_core")
         for k in ("stun", "freeze", "spd_down"):
-            battle.p_buffs.pop(k, None)
+            player.setdefault('buffs', {}).pop(k, None)
         heal = int(player.get("max_hp", 1) * float(eff.get("heal_pct", 0.03)))
         player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
         logs.append(f"⛰️ 磐石之心！免疫控制，回复 {heal} 点生命！")
@@ -1181,7 +1181,7 @@ def _h_memory_tear(battle, player, dmg, logs):
 def _h_arcane_echo(battle, player, dmg, logs):
     """秘法回响（D2）：攻击 15% 概率使下次技能伤害 +15%"""
     if "arcane_echo" in battle._equip_affix_ids(player) and random.random() < _affix_chance("arcane_echo", 0.15):
-        battle.p_eff["arcane_echo_next"] = 1.15
+        player.setdefault('eff', {})["arcane_echo_next"] = 1.15
         logs.append("🔮 秘法回响！下一次技能伤害 +15%！")
 
 
@@ -1245,7 +1245,7 @@ def _h_dark_star_gauntlet(battle, player, dmg, logs):
     """暗星连打（暗星拳甲）：攻击命中叠 1 层暗星（上限 4 层）；每层使本次攻击伤害 +3%
     （mark_pct×层数，随命中实时追加），叠满后下一次攻击额外 +20% 并清空（next_atk_mult
     1.20 = 额外 +20%；equip_roster desc 写 +120% 为文案笔误，任务口径 +20%）。
-    层数记 battle.mech_stacks['dark_star']（随战斗 to_state 持久化）。"""
+    层数记 player.setdefault('stacks', {})['dark_star']（随战斗 to_state 持久化）。"""
     if "dark_star_gauntlet" not in battle._equip_affix_ids(player):
         return
     eff = _affix_effect("dark_star_gauntlet")
@@ -1253,10 +1253,10 @@ def _h_dark_star_gauntlet(battle, player, dmg, logs):
     per = float(eff.get("mark_pct", 0.03))
     burst_mult = float(eff.get("next_atk_mult", 1.20))
     tag = eff.get("tag", "🌑暗星连打")
-    cur = int(battle.mech_stacks.get("dark_star", 0) or 0)
+    cur = int(player.setdefault('stacks', {}).get("dark_star", 0) or 0)
     if cur >= max_mark:
         # 满层后的下一次攻击：额外 +20% 爆发并清空（本轮爆发替代常驻叠层增伤）
-        battle.mech_stacks["dark_star"] = 0
+        player.setdefault('stacks', {})["dark_star"] = 0
         burst = max(1, int(dmg * (burst_mult - 1.0)))
         if battle.enemy.get("hp", 0) > 0:
             battle._damage_enemy(burst, logs)
@@ -1267,7 +1267,7 @@ def _h_dark_star_gauntlet(battle, player, dmg, logs):
         ramp = max(1, int(dmg * per * cur))
         battle._damage_enemy(ramp, logs)
         logs.append(f"{tag}：暗星之力（{cur} 层）追加 {ramp} 点伤害！")
-    battle.mech_stacks["dark_star"] = min(max_mark, cur + 1)
+    player.setdefault('stacks', {})["dark_star"] = min(max_mark, cur + 1)
     if cur + 1 >= max_mark:
         logs.append(f"{tag}：暗星满层（{max_mark}）！下一次攻击将爆发 +{round((burst_mult-1)*100)}%！")
     else:

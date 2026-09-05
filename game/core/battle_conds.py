@@ -120,13 +120,13 @@ def _c_player_rage_form(battle, player, cond):
 @register("player_stance", label=lambda c: "守护姿态生效")
 def _c_player_stance(battle, player, cond):
     """v139 盾卫士：是否处于守护姿态（p_buffs 姿态标记或已学守护姿态）。"""
-    return bool(battle.p_buffs.get("stance") or battle.p_buffs.get("guard_stance"))
+    return bool(player.setdefault('buffs', {}).get("stance") or player.setdefault('buffs', {}).get("guard_stance"))
 
 
 @register("player_combo_stacks", label=lambda c: f"链值≥{c.get('stacks', 3)}")
 def _c_player_combo_stacks(battle, player, cond):
     """v139 刺客攻线：链值（combo mech_stacks）≥ stacks（默认 3）。"""
-    return int(battle.mech_stacks.get("combo", 0) or 0) >= cond.get("stacks", 3)
+    return int(player.setdefault('stacks', {}).get("combo", 0) or 0) >= cond.get("stacks", 3)
 
 
 @register("enemy_marked", label=lambda c: "敌方被标记")
@@ -195,20 +195,20 @@ def _c_player_shield(battle, player, cond):
 @register("player_spd_up", label=lambda c: "自身加速中")
 def _c_player_spd_up(battle, player, cond):
     """自身有加速增益"""
-    return "spd_up" in battle.p_buffs
+    return "spd_up" in player.setdefault('buffs', {})
 
 
 @register("player_chi_stacks", label=lambda c: f"自身气力≥{c.get('stacks',0)}点")
 def _c_player_chi_stacks(battle, player, cond):
     """自身气力 ≥ stacks（默认 3）"""
-    return battle.mech_stacks.get("chi", 0) >= cond.get("stacks", 3)
+    return player.setdefault('stacks', {}).get("chi", 0) >= cond.get("stacks", 3)
 
 
 @register("player_res_stacks", label=lambda c: f"自身{c.get('res_key','')}≥{c.get('stacks',0)}")
 def _c_player_res_stacks(battle, player, cond):
     """核心资源 ≥ stacks（v2.0：怒气≥5 / 连击点≥3 / 信仰≥5 / 气≥3）
 
-    v104 修复：res_key='element' 是 switch 字符串资源（battle.resources["element"]="fire"），
+    v104 修复：res_key='element' 是 switch 字符串资源（player.setdefault('resources', {})["element"]="fire"），
     不能与 int stacks 做 >= 比较（TypeError）→ 字符串资源存在非空值即视为满足
     （元素风暴「元素过载」stacks=1）；rage/cp/faith/chi/energy 等 int 叠层保持原逻辑。
     """
@@ -218,7 +218,7 @@ def _c_player_res_stacks(battle, player, cond):
     # 既有先例裂地斩 rage≥8/圣光惩击 faith≥8/疾风拳 chi≥5 一并修复）。施放前快照 _pre_cost_res 由
     # _cast_player_skill 在扣费前写入（battle.py:1849）；非施放语境（外部直接调 cond）回落当前值。
     pres = getattr(battle, "_pre_cost_res", None)
-    val = pres.get(rk) if pres is not None else battle.resources.get(rk, 0)
+    val = pres.get(rk) if pres is not None else player.setdefault('resources', {}).get(rk, 0)
     if isinstance(val, str):
         return bool(val)
     if not isinstance(val, (int, float)):
@@ -229,13 +229,13 @@ def _c_player_res_stacks(battle, player, cond):
 @register("player_mech_stacks", label=lambda c: f"自身{c.get('mech','')}层≥{c.get('stacks',0)}")
 def _c_player_mech_stacks(battle, player, cond):
     """自身机制层数 ≥ stacks（v2.1：奥术充能 / 狂暴等）"""
-    return battle.mech_stacks.get(cond.get("mech", "arcane"), 0) >= cond.get("stacks", 3)
+    return player.setdefault('stacks', {}).get(cond.get("mech", "arcane"), 0) >= cond.get("stacks", 3)
 
 
 @register("player_buffed", label=lambda c: "自身有增益")
 def _c_player_buffed(battle, player, cond):
     """自身有任意增益（v2.1：神圣狂热 / 风速）"""
-    return bool(battle.p_buffs)
+    return bool(player.setdefault('buffs', {}))
 
 
 @register("player_untouched", label=lambda c: "本场未受击")
@@ -302,16 +302,16 @@ def _c_enemy_cursed(battle, player, cond):
 
 @register("faith_full", label=lambda c: f"信念满{c.get('stacks', 10)}")
 def _c_faith_full(battle, player, cond):
-    """信念满值（牧师 class 核心资源 battle.resources["faith"]，max=10；
+    """信念满值（牧师 class 核心资源 player.setdefault('resources', {})["faith"]，max=10；
     cond.stacks 默认 10；亡魂主宰 stacks=10）。"""
-    return float(battle.resources.get("faith", 0) or 0) >= cond.get("stacks", 10)
+    return float(player.setdefault('resources', {}).get("faith", 0) or 0) >= cond.get("stacks", 10)
 
 
 @register("faith_lt", label=lambda c: f"信念<{c.get('stacks', 5)}")
 def _c_faith_lt(battle, player, cond):
     """v174.2 信念低于阈值（牧师核心资源 faith；圣言术 desc"信念<5 额外+20%"）。
     与 _c_faith_full 互补——低信念时新手牧师治疗加成（鼓励先奶别攒）。"""
-    return float(battle.resources.get("faith", 0) or 0) < cond.get("stacks", 5)
+    return float(player.setdefault('resources', {}).get("faith", 0) or 0) < cond.get("stacks", 5)
 
 
 @register("enemy_broken", label=lambda c: "敌方被破防")
@@ -356,10 +356,10 @@ def _c_enemy_shaken_scale(battle, player, cond):
 
 @register("guard_core", label=lambda c: "持有磐核")
 def _c_guard_core(battle, player, cond):
-    """持有磐核 ≥1（battle.resources["guard_core"]，int 0-5，_m_guard_core_burst 消耗）。
+    """持有磐核 ≥1（player.setdefault('resources', {})["guard_core"]，int 0-5，_m_guard_core_burst 消耗）。
     磐岩释能 per_core=0.7：每枚 +70% 的线性乘区同 shaken_ratio——布尔判定满足后
     由调用方/数据侧按 n 扩展（置 cond["_guard_core_n"] 供读取，见 TODO 3）。"""
-    n = int((battle.resources or {}).get("guard_core", 0) or 0)
+    n = int((player.setdefault('resources', {}) or {}).get("guard_core", 0) or 0)
     cond["_guard_core_n"] = n
     return n >= 1
 
@@ -441,15 +441,15 @@ def _c_revenge(battle, player, cond):
             return float(battle._dmg_taken or 0) > 0
         except Exception:
             pass
-    return bool(battle.p_buffs.get("revenge_atk"))
+    return bool(player.setdefault('buffs', {}).get("revenge_atk"))
 
 
 @register("stealth", label=lambda c: "潜行中")
 def _c_stealth(battle, player, cond):
     """潜行中（暗影突袭 desc「潜行中伤害 ×1.4」）。
-    判定 p_buffs["stealth"]（潜行态，出手消费置 _stealth_atk）或 battle._stealth_atk
+    判定 p_buffs["stealth"]（潜行态，出手消费置 _stealth_atk）或 player.setdefault('stealth_atk', False)
     （v130.2f2 出手标记——cond 求值在攻击消费后也能命中，与 SHADOW_STEALTH_DMG_MULT 同款消费方式）。"""
-    return bool(battle.p_buffs.get("stealth") or getattr(battle, "_stealth_atk", False))
+    return bool(player.setdefault('buffs', {}).get("stealth") or getattr(battle, "_stealth_atk", False))
 
 
 # ================= 被动条件注册表（v1.x：PASSIVE_COND_CHECKS） =================
@@ -489,7 +489,7 @@ def passive_cond_ok(battle, player, ps, default=True):
 @register_passive_cond("rage>=5")
 def _pc_rage_ge5(battle, player, ps):
     """怒气 ≥ 5（战意高涨）"""
-    return (battle.resources.get("rage", 0) or 0) >= 5
+    return (player.setdefault('resources', {}).get("rage", 0) or 0) >= 5
 
 
 @register_passive_cond("hp_low_50")

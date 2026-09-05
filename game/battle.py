@@ -166,7 +166,7 @@ def _psk_lifesteal(battle, player, pdef, pname, sname, line, logs):
     """吸血撕咬：攻击 × value 伤害，并回复伤害 50% 生命（重伤减半）。"""
     dmg = _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs)
     heal = max(1, int(dmg * 0.5))
-    if battle.p_buffs.get("mortal_wound"):  # v1.3 重伤：宠物吸血减半
+    if player.setdefault("buffs", {}).get("mortal_wound"):  # v1.3 重伤：宠物吸血减半
         heal = int(heal * 0.5)
     player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
     logs.append(f"🩸 {pname}汲取了 {heal} 点生命归还给你！")
@@ -194,7 +194,8 @@ def _psk_heal_pct(battle, player, pdef, pname, sname, line, logs):
 @_pet_skill_register("buff_atk")
 def _psk_buff_atk(battle, player, pdef, pname, sname, line, logs):
     """雷鸣鼓舞：攻击强化（数值实读 skill_value，_apply_buffs 用 _pet_buff_vals 覆盖常量）。"""
-    battle.p_buffs["atk_up"] = max(int(battle.p_buffs.get("atk_up", 0) or 0), 2)
+    _pb = player.setdefault("buffs", {})
+    _pb["atk_up"] = max(int(_pb.get("atk_up", 0) or 0), 2)
     _pbv = getattr(battle, "_pet_buff_vals", {})
     _pbv["atk"] = max(float(_pbv.get("atk", 0.0) or 0.0), float(pdef["skill_value"]))
     battle._pet_buff_vals = _pbv
@@ -204,7 +205,8 @@ def _psk_buff_atk(battle, player, pdef, pname, sname, line, logs):
 @_pet_skill_register("crit_up")
 def _psk_crit_up(battle, player, pdef, pname, sname, line, logs):
     """狩猎之眼/星羽疾风：暴击提升（数值实读 skill_value）。"""
-    battle.p_buffs["crit_up"] = max(int(battle.p_buffs.get("crit_up", 0) or 0), 2)
+    _pb2 = player.setdefault("buffs", {})
+    _pb2["crit_up"] = max(int(_pb2.get("crit_up", 0) or 0), 2)
     _pbv = getattr(battle, "_pet_buff_vals", {})
     _pbv["crit"] = max(float(_pbv.get("crit", 0.0) or 0.0), float(pdef["skill_value"]))
     battle._pet_buff_vals = _pbv
@@ -314,10 +316,10 @@ def _th_set_holy(battle, actor, eff, logs):
             if actor.get("hp", 0) < _mx:
                 actor["hp"] = min(_mx, actor.get("hp", 0) + _dg_heal)
                 out.append(f"☀️ 神恩爆发：神恩涌动，你回复了 {_dg_heal} 点生命！")
-            if not (battle.p_eff or {}).get("divine_burst_used") and actor.get("hp", 0) / max(1, _mx) < float(_dgb_p.get("low_hp_lt", 0.30)):
+            if not (actor.setdefault('eff', {}) or {}).get("divine_burst_used") and actor.get("hp", 0) / max(1, _mx) < float(_dgb_p.get("low_hp_lt", 0.30)):
                 _dg_extra = int(_mx * float(_dgb_p.get("low_extra_pct", 0.15)))
                 actor["hp"] = min(_mx, actor.get("hp", 0) + _dg_extra)
-                battle.p_eff["divine_burst_used"] = True
+                actor.setdefault('eff', {})["divine_burst_used"] = True
                 out.append(f"☀️ 神恩爆发·濒危：圣辉倾泻，额外回复 {_dg_extra} 点生命！（每场 1 次）")
         if "hu_xiao_barrier" in _s4:
             _hxb = (battle._set_eff(actor, "hu_xiao_barrier", 4) or {})
@@ -353,7 +355,7 @@ def _th_passive_heal(battle, actor, eff, logs):
             if battle.summons:
                 for _pn, _ps in _pm.get("focus_regen_summon", []):
                     _sr_gain = int(_ps.get("gain", 5) or 5)
-                    _sr_old = int(battle.resources.get("energy", 0) or 0)
+                    _sr_old = int(actor.setdefault('resources', {}).get("energy", 0) or 0)
                     _sr_new = battle._res_gain(actor, "energy", _sr_gain)
                     if _sr_new > _sr_old:
                         out.append(f"🌳 {_pn}：召唤物在场，专注充能 +{_sr_gain}（{_sr_new}）")
@@ -376,8 +378,8 @@ def _th_mech_charge(battle, actor, eff, logs):
         _alive = False
         for _pn, _ps in _pm["proc"].get("arcane_regen", []):
             _mech = _ps.get("mech") or "arcane"
-            battle.mech_stacks[_mech] = E.mech_stack_gain(_mech, battle.mech_stacks, 1)
-            out.append(f"📖 {_pn}：充能自动+1(当前 {battle.mech_stacks[_mech]} 层)")
+            actor.setdefault('stacks', {})[_mech] = E.mech_stack_gain(_mech, actor.setdefault('stacks', {}), 1)
+            out.append(f"📖 {_pn}：充能自动+1(当前 {actor.setdefault('stacks', {})[_mech]} 层)")
             _alive = True
             break
         for _pn, _ps in _pm["proc"].get("arcane_intuition", []):
@@ -389,17 +391,17 @@ def _th_mech_charge(battle, actor, eff, logs):
                     _gain2 += int(_ps.get("focus_gain", 1) or 1)
             except Exception:
                 pass
-            _before2 = int(battle.mech_stacks.get(_mech2, 0) or 0)
-            battle.mech_stacks[_mech2] = E.mech_stack_gain(_mech2, battle.mech_stacks, _gain2)
-            if int(battle.mech_stacks.get(_mech2, 0) or 0) > _before2:
-                out.append(f"📖 {_pn}：每刻充能自动+{_gain2}(当前 {battle.mech_stacks[_mech2]} 层)")
+            _before2 = int(actor.setdefault('stacks', {}).get(_mech2, 0) or 0)
+            actor.setdefault('stacks', {})[_mech2] = E.mech_stack_gain(_mech2, actor.setdefault('stacks', {}), _gain2)
+            if int(actor.setdefault('stacks', {}).get(_mech2, 0) or 0) > _before2:
+                out.append(f"📖 {_pn}：每刻充能自动+{_gain2}(当前 {actor.setdefault('stacks', {})[_mech2]} 层)")
             _alive = True
             break
         for _pn, _ps in _pm["stat"]:
             if _ps.get("stat") == "spellblade_regen":
                 _mech = _ps.get("mech") or "spellblade"
-                battle.mech_stacks[_mech] = E.mech_stack_gain(_mech, battle.mech_stacks, 1)
-                out.append(f"⚔️ {_pn}：魔能自动+1(当前 {battle.mech_stacks[_mech]} 层)")
+                actor.setdefault('stacks', {})[_mech] = E.mech_stack_gain(_mech, actor.setdefault('stacks', {}), 1)
+                out.append(f"⚔️ {_pn}：魔能自动+1(当前 {actor.setdefault('stacks', {})[_mech]} 层)")
                 _alive = True
                 break
         if not _alive:
@@ -418,14 +420,14 @@ def _th_core_regen(battle, actor, eff, logs):
             return [], False  # 无自然回资源 → 通道关闭
         out = []
         k = rd["key"]
-        old = int(battle.resources.get(k, 0) or 0)
+        old = int(actor.setdefault('resources', {}).get(k, 0) or 0)
         new = battle._res_gain(actor, k, int(rd.get("regen", 0) or 0))
         if new > old:
             out.append(f"🍃 {rd['name']}回复 {new - old} 点({new}/{battle._res_max(actor, k)})")
         if k == "energy":
             _tw_bonus = battle._tailwind_regen_bonus(actor)
             if _tw_bonus > 0:
-                _old2 = int(battle.resources.get(k, 0) or 0)
+                _old2 = int(actor.setdefault('resources', {}).get(k, 0) or 0)
                 _new2 = battle._res_gain(actor, k, _tw_bonus)
                 if _new2 > _old2:
                     out.append(f"🌈 疾风余韵：上刻精力满弦，本刻回复 +{_new2 - _old2} 点{rd['name']}！")
@@ -449,20 +451,20 @@ def _th_faith_decay(battle, actor, eff, logs):
             if _crd_f.get("key") == "faith":
                 for _pn, _ps in battle._passive_map(actor)["proc"].get("undead_faith", []):
                     _uf_n = battle._undead_count()
-                    if _uf_n > 0 and not battle.p_buffs.get("faith_exhausted"):
+                    if _uf_n > 0 and not actor.setdefault('buffs', {}).get("faith_exhausted"):
                         _uf_gain = float(_ps.get("per_undead", 0.15) or 0.15) * _uf_n
-                        _f0 = float(battle.resources.get("faith", 0) or 0)
-                        battle.resources["faith"] = min(float(_crd_f.get("max", 10) or 10), _f0 + _uf_gain)
-                        out.append(f"🕯️ {_pn}：{_uf_n} 只亡灵在场，信念 +{_uf_gain:.2f}（{battle.resources['faith']:.2f}）")
+                        _f0 = float(actor.setdefault('resources', {}).get("faith", 0) or 0)
+                        actor.setdefault('resources', {})["faith"] = min(float(_crd_f.get("max", 10) or 10), _f0 + _uf_gain)
+                        out.append(f"🕯️ {_pn}：{_uf_n} 只亡灵在场，信念 +{_uf_gain:.2f}（{actor.setdefault('resources', {})['faith']:.2f}）")
                     break
         except Exception:
             pass
         if _crd_f.get("decay_per_tick"):
-            _f_before = float(battle.resources.get("faith", 0) or 0)
+            _f_before = float(actor.setdefault('resources', {}).get("faith", 0) or 0)
             if _f_before >= float(_crd_f.get("max", 10)):
                 _ov_pct = float(_crd_f.get("overload_heal_pct", 0.015) or 0.015)
                 _ov_heal = int(actor.get("max_hp", 1) * _ov_pct * _f_before)
-                battle.resources["faith"] = 0
+                actor.setdefault('resources', {})["faith"] = 0
                 _foheal = False
                 try:
                     for _pn_fh, _ps_fh in battle._proc_pm(actor)["proc"].get("faith_overload_heal", []):
@@ -473,7 +475,7 @@ def _th_faith_decay(battle, actor, eff, logs):
                     pass
                 out.append(f"⚡ 信念过载！信仰之力迸发，全队回复 {_ov_heal} 点生命！")
                 if not _foheal:
-                    battle.p_buffs["faith_exhausted"] = 6
+                    actor.setdefault('buffs', {})["faith_exhausted"] = 6
                 else:
                     out.append("✨ 信念·圣化：信念过载化为圣辉，无力竭反噬！")
                 if actor.get("hp", 0) < actor.get("max_hp", 1):
@@ -481,11 +483,11 @@ def _th_faith_decay(battle, actor, eff, logs):
                     out.append(f"✨ 过载回响：你回复了 {_ov_heal} 点生命！")
             elif _f_before > 0:
                 _f_decay = float(_crd_f.get("decay_per_tick", 0.7) or 0.7)
-                battle.resources["faith"] = max(0.0, _f_before - _f_decay)
-                if float(battle.resources["faith"]) < _f_before:
-                    out.append(f"🕯️ 信念衰减：{_f_before:.1f} → {float(battle.resources['faith']):.1f}")
-            if battle.p_buffs.get("faith_exhausted"):
-                battle.p_buffs["faith_exhausted"] = int(battle.p_buffs["faith_exhausted"]) - 1
+                actor.setdefault('resources', {})["faith"] = max(0.0, _f_before - _f_decay)
+                if float(actor.setdefault('resources', {})["faith"]) < _f_before:
+                    out.append(f"🕯️ 信念衰减：{_f_before:.1f} → {float(actor.setdefault('resources', {})['faith']):.1f}")
+            if actor.setdefault('buffs', {}).get("faith_exhausted"):
+                actor.setdefault('buffs', {})["faith_exhausted"] = int(actor.setdefault('buffs', {})["faith_exhausted"]) - 1
         return out, True
     except Exception:
         return [], False
@@ -619,11 +621,11 @@ def _th_food_hot(battle, actor, eff, logs):
         _new_turns = _turns - 1
         d["turns"] = _new_turns
         try:
-            _ph = battle.p_hot or {}
+            _ph = actor.setdefault('hot', {}) or {}
             if _ph:
                 _ph["turns"] = _new_turns
                 if _new_turns <= 0:
-                    battle.p_hot = {}
+                    _ph.clear()
         except Exception:
             pass
         if _new_turns > 0:
@@ -746,79 +748,50 @@ class Battle:
         self.killed_enemies: list = []
         self.allies: list = allies or []   # v122 我方阵列（治疗指定队友：副本传存活玩家快照引用）
         self.player = player or {}         # v105 攻击方属性读取（_monster_dodge_check 需要玩家精准）
-        # v177 buff actor 化：玩家 buffs 权威存 player["buffs"]，p_buffs = 其引用（与怪物 buffs 同构）
-        # 副本多玩家切焦点（_load_player_state）时 p_buffs 重指向新玩家 buffs——代码 84 处引用零改动
-        self.p_buffs: dict = player.setdefault("buffs", {}) if player else {}   # 玩家增益 {effect: turns}
-        self._reduce_all_left: int = 0     # v113.1 团队减伤 reduce_all 剩余刻（百分比存 p_buffs["reduce_all"]）
-        self._reduce_left: int = 0         # v162 单人减伤 reduce 剩余刻（铁壁/铜墙等，百分比存 p_buffs["reduce"]）
-        self._p_buff_hits: dict = {}       # v151 时刻制：防御型 buff 受击计数 {effect: 剩余受击次数}——防御/减伤/受击类按"敌方出手次数"计时而非玩家刻
-        self.poi_buff: dict | None = None  # v104 M23 神龛祝福：{stat,mult,name}，持久 5 次战斗，battle 开始时消费 1 次
-        self.p_hot: dict = {}              # v101.28 食物持续恢复 {"heal": 比例, "mana": 比例, "turns": 剩余刻}
-        # v179 通用 tick 效果条目池：周期/持续效果统一挂这里（数据驱动，见 core/tick_effects.py）
-        self.tick_effects: list = []       # [{uid,kind,actor,interval,next_at,expire_at,data,source}]
-        self.p_food_effects: list = []     # v101.28e 食物效果（战斗中吃料理获得，本场有效；独立于装备词条体系）
-        self.p_shields: dict = {}          # v101.28d 护盾 buff 化：来源 → {"value": 盾值, "turns": 剩余刻}，同源可叠厚，异源并存
-        self.e_minions: list = []          # v101.28l #438 真召唤：敌方援军实体 [{name,hp,max_hp,atk,matk}]
-        self.summons: list = []            # v107 召唤物：玩家侧独立实体 [{tid,name,icon,hp,max_hp,atk,def,dmg_type}]
-        self.p_defending = False           # 玩家本刻是否防御
-        self.charging: dict | None = None  # v2 玩家侧蓄力状态 {"skill","left","name"}（§6）
+        # ================= v180-B P1a/P2：玩家 actor dict 播种 =================
+        # 玩家战斗可变状态权威 = 玩家 actor dict（与怪 dict 完全同构）。此处播种全部
+        # 战斗可变状态键；副本 allies 快照（729-739）已播种站位键，instance._instance_
+        # ensure_player_fields 会兜底老档。战斗状态不落 DB（update_player 白名单）。
+        # self.player 为空（from_state 先构造后绑 player）时用 _seed 空 dict 兜底，
+        # 调用方绑定真实玩家后 from_state/to_state 负责把存档状态灌入。
+        _seed = player if player else {}
+        _seed.setdefault("resources", {})
+        _seed.setdefault("stacks", {})
+        _seed.setdefault("eff", {})
+        _seed.setdefault("shields", {})
+        _seed.setdefault("cooldown", {})
+        _seed.setdefault("combo_seq", [])
+        _seed.setdefault("last_combo_tag", None)
+        _seed.setdefault("hot", {})
+        _seed.setdefault("food_effects", [])
+        _seed.setdefault("poi_buff", None)
+        _seed.setdefault("buff_hits", {})
+        _seed.setdefault("reduce_all_left", 0)
+        _seed.setdefault("reduce_left", 0)
+        _seed.setdefault("last_element", None)
+        _seed.setdefault("tailwind_prev_energy", None)
+        _seed.setdefault("v139_modes", {})
+        _seed.setdefault("v139_charge", {})
+        _seed.setdefault("overflow_shield_cd", False)
+        _seed.setdefault("stealth_atk", False)
+        _seed.setdefault("buffs", {})
+        _seed.setdefault("defending", False)
+        _seed.setdefault("charging", None)
+        # v180-B P2：玩家战斗可变状态权威 = player actor dict。
+        # 引擎内读点统一走 _p_* helper（每次动态读 self.player，换绑/切焦点自动跟随），
+        # Battle 实例不再持有玩家焦点字段的独立引用（原 self.p_buffs/self.resources/...
+        # 实例属性已删除——避免换绑 self.player 后旧引用失联）。
+        # v177 双上下文路由（保留 Battle 级——瞬时管线上下文非玩家状态）
+        self._cast_ctx: dict | None = None
+        self._target_ctx: dict | None = None
+        self.tick_effects: list = []       # v179 通用 tick 效果条目池
+        self.team_effects: list = []       # v50 团队技能效果广播
+        self.e_minions: list = []          # 敌方援军实体
+        self.summons: list = []            # 玩家召唤物实体
+        self.killed_enemies: list = []
         self.result = None                 # None | victory | defeat | fled
-        self.title_bonus = title_bonus or {}  # 副业大师称号属性加成
-        self.team_effects: list = []         # v50 团队技能效果（副本全队广播用）
-        self.mech_stacks: dict = {}          # v59 分支机制叠层（随战斗持久化，不再挂 player 避免每刻丢失）
-        # v2.0 核心资源（12 章 1.2：怒气/元素亲和/精力/信仰/连击点/气）
-        # 随战斗序列化，同 mech_stacks 机制；阶段五引擎先挂载，技能数据落地后消费
-        self.resources: dict = {}          # v2.0 核心资源（怒气/元素亲和/精力/信仰/连击点/气），随战斗序列化
-        self._cast_ctx: dict | None = None       # v177 施法者 actor 上下文（None=玩家；怪施法=unit——管线状态路由）
-        self._target_ctx: dict | None = None     # v177 技能管线目标 actor（None=当前敌人；怪施法玩家技能=玩家）
-
-        self.cooldown: dict = {}           # v2.0 技能冷却（技能名 → 剩余刻数），随战斗序列化；刻结束递减
-        self.combo_seq: list = []          # v2.0 拳师连招序列（拳/踢/掌 tag 记录，满 3 触发三连）
-        self.last_combo_tag: str | None = None  # v130.6 变招：上一招连招 tag（三连清空后仍记忆）
-        self._last_element = None           # v130.2 法师攻线·元素：上次施放元素（同系连发判定）
-        self._tailwind_prev_energy = None   # v130.2d 疾风余韵：上刻结束时精力快照（跨刻态，随战斗序列化）
-        self.p_eff: dict = {}              # v130.2 物品效果持久数据（resource_amp / mana_cost_down / buff_phys_next / phys_up / battle_start 预充标记），随战斗序列化
-        # v130.2f2：满溢转盾冷却（每刻限 1 次转盾，刻末 _end_round 重置，随战斗序列化）
-        #            + 潜行出手标记（本次出手是否潜行，供暴击结算读；出手时置位/复位，瞬时态不序列化）
-        self._overflow_shield_cd: bool = False
-        self._stealth_atk: bool = False
-        # v139 职业融合：模式状态机（dual_form/focus/vent + charge 电荷），随战斗序列化
-        # 状态统一存 self（同 mech_stacks 惯例），通过 _v139_sync 桥接到 player dict
-        self._v139_modes: dict = {}
-        self._v139_charge: dict = {}
+        self.title_bonus = title_bonus or {}
         if player:
-            # ================= v180-B P1a：玩家 actor dict 战斗状态播种 =================
-            # 目标：玩家 actor dict 与怪 dict 完全同构（buffs/resources/stacks/eff/charging/
-            # shields/defending + 玩家独有键）。P1a 只播种空键（引擎读点仍走 self.xxx 焦点
-            # 字段——见 P2 迁移），副本 allies 快照（729-739）与 instance._instance_ensure_player_fields
-            # 已播种部分站位键，此处补全战斗可变状态键。战斗状态不落 DB（update_player 白名单）。
-            try:
-                player.setdefault("resources", {})
-                player.setdefault("stacks", {})          # 原 self.mech_stacks
-                player.setdefault("eff", {})             # 原 self.p_eff
-                player.setdefault("shields", {})         # 原 self.p_shields
-                player.setdefault("cooldown", {})
-                player.setdefault("combo_seq", [])
-                player.setdefault("last_combo_tag", None)
-                player.setdefault("hot", {})             # 原 self.p_hot
-                player.setdefault("food_effects", [])    # 原 self.p_food_effects
-                player.setdefault("poi_buff", None)
-                player.setdefault("buff_hits", {})       # 原 self._p_buff_hits
-                player.setdefault("reduce_all_left", 0)  # 原 self._reduce_all_left
-                player.setdefault("reduce_left", 0)      # 原 self._reduce_left
-                player.setdefault("last_element", None)  # 原 self._last_element
-                player.setdefault("tailwind_prev_energy", None)
-                player.setdefault("v139_modes", {})      # 原 self._v139_modes
-                player.setdefault("v139_charge", {})     # 原 self._v139_charge
-                player.setdefault("overflow_shield_cd", False)
-                player.setdefault("stealth_atk", False)
-                # defending/buffs/charging/ct 已在 allies 快照播种（729-739）；单机 player
-                # 由下方 _ensure_player_state_keys 统一补（defending/buffs/charging 兜底）
-                player.setdefault("buffs", {})
-                player.setdefault("defending", False)
-                player.setdefault("charging", None)
-            except Exception:
-                pass
             # v95.19: 战斗内属性统一用实时计算值——DB max_hp/max_mp 是注册/升级快照，换装备后过时，
             # 会导致战斗内血量上限/治疗 clamp/护盾与『角色』面板不一致（装备 HP 加成战斗内不生效）
             try:
@@ -839,21 +812,21 @@ class Battle:
             except Exception:
                 pass
             # v97.4 回音洞穴祝福：探索事件写入 event_state bless_{qid}（玩家级，players 表全局无 group_id），本场攻击 +5%，一次性
-            if player.get("qq_id") and not self.p_buffs.get("echo_bless"):
+            if player.get("qq_id") and not player.setdefault("buffs", {}).get("echo_bless"):
                 try:
                     import json as _json
                     from . import db as _db
                     _key = f"bless_{player['qq_id']}"
                     _raw = _db.get_event_state(_key)
                     if _raw:
-                        self.p_buffs["echo_bless"] = 1
+                        player.setdefault("buffs", {})["echo_bless"] = 1
                         _db.set_event_state(_key, "")
                 except Exception:
                     pass
             # v104 M23 神龛祝福（探索 POI 写入，玩家级键 poi_buff_{qq_id}——battle 无 group_id
             # 上下文，与 echo_bless bless_{qq_id} 同款全局键）：战斗开始时读取 → 本场对应属性
             # ×1.10，left-1；用完删除 key（flee 也算消耗 1 次，按文案「持续 5 次战斗」计）
-            if player.get("qq_id") and not getattr(self, "poi_buff", None):
+            if player.get("qq_id") and not player.get("poi_buff"):
                 try:
                     import json as _json
                     from . import db as _db
@@ -863,9 +836,9 @@ class Battle:
                         _pb = _json.loads(_raw)
                         if isinstance(_pb, dict) and _pb.get("stat") in ("atk", "def", "spd") \
                                 and int(_pb.get("left", 0) or 0) > 0:
-                            self.poi_buff = {"stat": _pb["stat"],
-                                             "mult": float(_pb.get("mult", 1.10)),
-                                             "name": _pb.get("name", _pb["stat"])}
+                            player["poi_buff"] = {"stat": _pb["stat"],
+                                                  "mult": float(_pb.get("mult", 1.10)),
+                                                  "name": _pb.get("name", _pb["stat"])}
                             _pb["left"] = int(_pb["left"]) - 1
                             if _pb["left"] <= 0:
                                 _db.delete_event_state(_key)
@@ -885,10 +858,10 @@ class Battle:
         if player:
             _bs_ids = set(self._equip_affix_ids(player))
             if "wolf_howl" in _bs_ids:
-                self.p_eff["wolf_howl_mult"] = 1.10
+                player.setdefault("eff", {})["wolf_howl_mult"] = 1.10
                 self._startup_logs = list(getattr(self, "_startup_logs", []) or []) + ["🐺 狼嚎！本场伤害+10%"]
             if "surge_ready" in _bs_ids:
-                self.p_eff["surge_ready"] = True
+                player.setdefault("eff", {})["surge_ready"] = True
                 self._startup_logs = list(getattr(self, "_startup_logs", []) or []) + ["💪 蓄势待发：下一次攻击伤害 +15%！"]
             if "arcane_ward" in _bs_ids:
                 self._add_shield("arcane_ward", int(player.get("max_hp", 100) * 0.15), 3)
@@ -1036,19 +1009,22 @@ class Battle:
     def e_defending(self, val: bool):
         self.enemy["defending"] = bool(val)
 
-    @property
-    def mech_stacks(self) -> dict:
-        """玩家侧叠层保留原语义（battle 实例字段）；敌方叠层在 enemy["stacks"]。"""
-        if not hasattr(self, "_mech_stacks"):
-            self._mech_stacks = {}
-        return self._mech_stacks
-
-    @mech_stacks.setter
-    def mech_stacks(self, val: dict):
-        self._mech_stacks = val or {}
+    # v180-B P2：原 mech_stacks property（落 _mech_stacks 实例槽）已删除——
+    # 玩家叠层权威改存 player["stacks"]（actor dict 与怪同构），__init__ 播种为实例引用。
+    # 外置 battle.mech_stacks 读点在 P4 迁移到 actor 读。
 
     # ---------------- 序列化 ----------------
     def to_state(self) -> dict:
+        _pl = self.player or {}
+        _p_res = _pl.setdefault("resources", {})
+        _p_stacks = _pl.setdefault("stacks", {})
+        _p_eff = _pl.setdefault("eff", {})
+        _p_shields = _pl.setdefault("shields", {})
+        _p_hot = _pl.setdefault("hot", {})
+        _p_food = _pl.setdefault("food_effects", [])
+        _p_cooldown = _pl.setdefault("cooldown", {})
+        _p_combo = _pl.setdefault("combo_seq", [])
+        _p_buffs = _pl.setdefault("buffs", {})
         return {
             "type": self.btype,
             # v152：round 概念删除，改 _now（绝对时刻）+ _p_acts（玩家行动计数，展示用）
@@ -1058,34 +1034,36 @@ class Battle:
             "enemy": self.enemy,
             "enemies": self.enemies,
             "killed_enemies": getattr(self, "killed_enemies", []),  # v130.7 意见#17 击杀记录随战斗持久化（跨消息续战胜利不丢）
-            "charging": self.charging,
+            # v180-B：玩家战斗状态已存 player actor dict——序列化输出沿用旧顶层键结构
+            #（老档兼容读），值从 player dict 读
+            "charging": _pl.get("charging"),
             "pet": self.pet,
-            "p_buffs": self.p_buffs,
+            "p_buffs": _p_buffs,
             # v151 时刻制：防御型 buff 受击计数（随战斗序列化，跨消息续战不丢）
-            "p_buff_hits": getattr(self, "_p_buff_hits", {}) or {},
+            "p_buff_hits": _pl.get("buff_hits") or {},
             # v113.1 团队减伤 reduce_all 剩余刻：percent 存 p_buffs、刻数独立计时，
             # 必须随存档持久化，否则恢复后 __init__=0 被下刻立即弹掉 reduce_all。
-            "reduce_all_left": self._reduce_all_left,
+            "reduce_all_left": _pl.get("reduce_all_left", 0) or 0,
             # v162 单人减伤 reduce 剩余刻（铁壁/铜墙）
-            "reduce_left": getattr(self, "_reduce_left", 0),
-            "poi_buff": getattr(self, "poi_buff", None),
-            "p_hot": self.p_hot,
-            "p_food_effects": self.p_food_effects,
-            "p_shields": self.p_shields,
+            "reduce_left": _pl.get("reduce_left", 0) or 0,
+            "poi_buff": _pl.get("poi_buff"),
+            "p_hot": _p_hot,
+            "p_food_effects": _p_food,
+            "p_shields": _p_shields,
             # v101.28l 旧观兼容键保留（= 敌方阵列中 summon 型援军副本，命令层写回用）
             "e_minions": self.e_minions,
             "summons": self.summons,
             "e_buffs": self.e_buffs,
-            "p_defending": self.p_defending,
+            "p_defending": bool(_pl.get("defending", False)),
             "e_defending": self.e_defending,
             "title_bonus": self.title_bonus,
-            "mech_stacks": self.mech_stacks,
-            "resources": self.resources,
+            "mech_stacks": _p_stacks,
+            "resources": _p_res,
             # v130.2 物品效果持久数据（resource_amp/mana_cost_down/buff_phys_next/phys_up/战前预充标记）
-            "eff_data": getattr(self, "p_eff", {}),
-            "cooldown": self.cooldown,
-            "combo_seq": self.combo_seq,
-            "last_combo_tag": self.last_combo_tag,
+            "eff_data": _p_eff,
+            "cooldown": _p_cooldown,
+            "combo_seq": _p_combo,
+            "last_combo_tag": _pl.get("last_combo_tag"),
             "p_ct": self.p_ct,
             "player_hit": self._player_hit,
             "first_attack_done": self.first_attack_done,
@@ -1102,11 +1080,11 @@ class Battle:
             # 元素跃迁日志依赖 _last_player/_shifted_element，必须随战斗状态持久化
             "last_player": getattr(self, "_last_player", None),
             "shifted_element": getattr(self, "_shifted_element", None),
-            "tailwind_prev_energy": getattr(self, "_tailwind_prev_energy", None),  # v130.2d 疾风余韵跨刻状态
-            "overflow_shield_cd": getattr(self, "_overflow_shield_cd", False),  # v130.2f2 满溢转盾冷却（断线恢复不重置冷却）
+            "tailwind_prev_energy": _pl.get("tailwind_prev_energy"),  # v130.2d 疾风余韵跨刻状态
+            "overflow_shield_cd": bool(_pl.get("overflow_shield_cd", False)),  # v130.2f2 满溢转盾冷却（断线恢复不重置冷却）
             # v139 职业融合：模式状态机随战斗序列化（dual_form/focus/vent + charge 电荷）
-            "v139_modes": getattr(self, "_v139_modes", {}),
-            "v139_charge": getattr(self, "_v139_charge", {}),
+            "v139_modes": _pl.get("v139_modes") or {},
+            "v139_charge": _pl.get("v139_charge") or {},
             # v154 读条命中制：玩家读条状态随战斗持久化（断线恢复不丢读条）
             "player_casting": getattr(self, "_player_casting", False),
             "pending_player_cast": getattr(self, "_pending_player_cast", None),
@@ -1127,12 +1105,13 @@ class Battle:
         }
 
     def _load_player_state(self, qq_id) -> dict | None:
-        """v173.6 重构：从副本 st 载入指定玩家状态到 battle 单套字段（_focus_player）。
-        副本玩家状态本就 per-player 存于 st（p_buffs/resources/cooldown/...按 qq_id 分 key），
-        旧架构每次玩家行动/受击都重新 from_state 构造 Battle 载入单套字段——无法在一次
-        敌方行动里切换目标（点名/打后排/AOE 多目标）。
+        """v173.6 重构（v180-B ①更新）：副本敌方行动选目标后切换结算焦点。
 
-        本方法把"载入某玩家状态"从构造中抽出：敌方行动选目标后调用即可切换结算对象。
+        副本玩家状态权威 = 玩家快照 dict（actor dict，含 buffs/resources/stacks/...）。
+        旧架构把状态载入 Battle 单套焦点字段；v180-B 后 Battle.player 直接指向目标玩家
+        快照，并把 st 顶层 per-player 旁路键（p_buffs/resources/cooldown/...）合并进快照
+        （P3 双轨折叠前的兼容读取；instance.py 后续迁移后 st 顶层键不再写）。
+
         返回该玩家快照 dict；找不到/已死返回 None。野外（无 _st）无操作返回 None。
         """
         if not self._st:
@@ -1143,25 +1122,57 @@ class Battle:
             snap = (st.get("players") or {}).get(key)
             if not snap or not (st.get("alive") or {}).get(key, True):
                 return None
-            # 载入该玩家单套状态字段（与 from_state 同口径，从 per-player dict 取）
-            # v177 buff actor 化：buffs 权威放玩家快照 buffs，p_buffs 指向它（与怪物 buffs 同构）
-            snap.setdefault("buffs", {})
-            self.p_buffs = snap["buffs"] if snap.get("buffs") is not None else snap.setdefault("buffs", {})
-            self.p_buffs.clear()
-            self.p_buffs.update((st.get("p_buffs") or {}).get(key, {}))
-            self._p_buff_hits = dict((st.get("p_buff_hits") or {}).get(key, {}))
-            self._reduce_all_left = int((st.get("reduce_all_left") or {}).get(key, 0) or 0)
-            self._reduce_left = int((st.get("reduce_left") or {}).get(key, 0) or 0)
-            self.poi_buff = (st.get("poi_buff") or {}).get(key)
-            self.p_hot = (st.get("p_hot") or {}).get(key, {}) or {}
-            self.p_food_effects = (st.get("p_food_effects") or {}).get(key, []) or []
-            self.p_shields = (st.get("p_shields") or {}).get(key, {}) or {}
-            self.charging = (st.get("charging") or {}).get(key)
-            self.p_defending = bool((st.get("p_defending") or {}).get(key, False))
-            self.mech_stacks = (st.get("mech_stacks") or {}).get(key, {}) or {}
-            self.resources = (st.get("resources") or {}).get(key, {}) or {}
-            self.cooldown = (st.get("cooldown") or {}).get(key, {}) or {}
-            self.combo_seq = (st.get("combo_seq") or {}).get(key, []) or []
+            # 目标玩家快照即 actor dict——切焦点 = self.player 指向它
+            self.player = snap
+            # 播种快照 actor 键（老档/旧开本可能缺）
+            _ = snap.setdefault("buffs", {})
+            snap.setdefault("resources", {})
+            snap.setdefault("stacks", {})
+            snap.setdefault("eff", {})
+            snap.setdefault("shields", {})
+            snap.setdefault("cooldown", {})
+            snap.setdefault("combo_seq", [])
+            snap.setdefault("hot", {})
+            snap.setdefault("food_effects", [])
+            snap.setdefault("buff_hits", {})
+            snap.setdefault("defending", False)
+            snap.setdefault("charging", None)
+            snap.setdefault("last_combo_tag", None)
+            snap.setdefault("poi_buff", None)
+            snap.setdefault("reduce_all_left", 0)
+            snap.setdefault("reduce_left", 0)
+            # 从 st 顶层 per-player 旁路键合并（P3 前双轨兼容；快照自身键优先）
+            snap["buffs"].clear()
+            snap["buffs"].update((st.get("p_buffs") or {}).get(key, {}))
+            snap["buff_hits"] = dict((st.get("p_buff_hits") or {}).get(key, {}))
+            snap["reduce_all_left"] = int((st.get("reduce_all_left") or {}).get(key, snap.get("reduce_all_left", 0) or 0) or 0)
+            snap["reduce_left"] = int((st.get("reduce_left") or {}).get(key, snap.get("reduce_left", 0) or 0) or 0)
+            if (st.get("poi_buff") or {}).get(key) is not None:
+                snap["poi_buff"] = (st.get("poi_buff") or {}).get(key)
+            _h = (st.get("p_hot") or {}).get(key)
+            if _h is not None:
+                snap["hot"] = _h
+            _fe = (st.get("p_food_effects") or {}).get(key)
+            if _fe is not None:
+                snap["food_effects"] = _fe
+            _sh = (st.get("p_shields") or {}).get(key)
+            if _sh is not None:
+                snap["shields"] = _sh
+            if (st.get("charging") or {}).get(key) is not None:
+                snap["charging"] = (st.get("charging") or {}).get(key)
+            snap["defending"] = bool((st.get("p_defending") or {}).get(key, snap.get("defending", False)))
+            _ms = (st.get("mech_stacks") or {}).get(key)
+            if _ms is not None:
+                snap["stacks"] = dict(_ms) or {}
+            _rs = (st.get("resources") or {}).get(key)
+            if _rs is not None:
+                snap["resources"] = dict(_rs) or {}
+            _cd = (st.get("cooldown") or {}).get(key)
+            if _cd is not None:
+                snap["cooldown"] = dict(_cd) or {}
+            _cq = (st.get("combo_seq") or {}).get(key)
+            if _cq is not None:
+                snap["combo_seq"] = list(_cq) or []
             self.summons = (st.get("summons") or {}).get(key, []) or []
             self._pending_player_cast = None
             self._player_casting = False
@@ -1169,6 +1180,41 @@ class Battle:
             return snap
         except Exception:
             return None
+
+    def _apply_restore_pstate(self):
+        """v180-B ①：把 from_state 暂存的玩家战斗状态（_restore_pstate）灌入当前绑定的
+        玩家 actor dict。仅灌一次（灌后清空 _restore_pstate）。player_turn 入口自动调用；
+        测试/命令层 from_state 后直接操作前可手动调（先绑 b.player=玩家快照）。"""
+        if not getattr(self, "_restore_pstate", None):
+            return
+        _plb = self.player
+        if not _plb:
+            return  # player 未绑定（空 dict）→ 保留暂存等真绑（player_turn 绑定后再灌）
+        try:
+            _rst = self._restore_pstate
+            _plb = self.player
+            for _k, _v in _rst.items():
+                if _k == "stacks":
+                    _plb.setdefault("stacks", {}).update(_v or {})
+                elif _k == "resources":
+                    _plb.setdefault("resources", {}).update(_v or {})
+                elif _k == "eff":
+                    _plb.setdefault("eff", {}).update(_v or {})
+                elif _k == "buffs":
+                    _plb.setdefault("buffs", {}).update(_v or {})
+                elif _k == "hot":
+                    _plb.setdefault("hot", {}).update(_v or {})
+                elif _k == "food_effects":
+                    _plb["food_effects"] = list(_v or [])
+                elif _k == "cooldown":
+                    _plb.setdefault("cooldown", {}).update(_v or {})
+                elif _k == "combo_seq":
+                    _plb["combo_seq"] = list(_v or [])
+                else:
+                    _plb[_k] = _v
+        except Exception:
+            pass
+        self._restore_pstate = None
 
     def _pick_enemy_target(self, unit: dict) -> dict | None:
         """v173.6 副本敌方行动选目标（battle 侧，多目标重构）。
@@ -1235,26 +1281,37 @@ class Battle:
         # v158 副本合并：from_state 透传副本回调钩子（instance 注入 st["_cb"]）
         b._inst_cb = st.get("_cb") if isinstance(st, dict) else None
         b.allies = st.get("allies") or []   # v122 治疗指定队友（副本传存活玩家快照引用）
-        b.p_buffs = dict(st.get("p_buffs") or {})
-        b._p_buff_hits = dict(st.get("p_buff_hits") or {})  # v151 时刻制：防御型 buff 受击计数
-        b._reduce_all_left = int(st.get("reduce_all_left", 0) or 0)  # v113.1 恢复减伤剩余刻
-        b._reduce_left = int(st.get("reduce_left", 0) or 0)  # v162 恢复单人减伤剩余刻
-        b.poi_buff = st.get("poi_buff")
-        b.p_hot = st.get("p_hot", {}) or {}
-        b.p_food_effects = st.get("p_food_effects", []) or st.get("p_food_affixes", []) or []
-        b.p_shields = st.get("p_shields", {}) or {}
+        # v180-B：玩家战斗状态权威 = player actor dict。from_state 构造时 player 可能未绑定
+        #（命令层后绑 b.player = 真实玩家），恢复的玩家战斗状态先暂存 b._restore_pstate，
+        # 命令层绑 player 后经 _bind_player/_restore_player_state 灌入（见 player_turn 收口）。
+        b._restore_pstate = {
+            "buffs": dict(st.get("p_buffs") or {}),
+            "buff_hits": dict(st.get("p_buff_hits") or {}),
+            "reduce_all_left": int(st.get("reduce_all_left", 0) or 0),
+            "reduce_left": int(st.get("reduce_left", 0) or 0),
+            "poi_buff": st.get("poi_buff"),
+            "hot": st.get("p_hot", {}) or {},
+            "food_effects": st.get("p_food_effects", []) or st.get("p_food_affixes", []) or [],
+            "shields": st.get("p_shields", {}) or {},
+            "charging": st.get("charging"),
+            "defending": st.get("p_defending", False),
+            "stacks": st.get("mech_stacks", {}) or {},
+            "resources": st.get("resources", {}) or {},
+            "eff": st.get("eff_data", {}) or {},
+            "cooldown": st.get("cooldown", {}) or {},
+            "combo_seq": st.get("combo_seq", []) or [],
+            "last_combo_tag": st.get("last_combo_tag") or None,
+            "last_element": None,
+            "tailwind_prev_energy": st.get("tailwind_prev_energy"),
+            "v139_modes": st.get("v139_modes", {}) or {},
+            "v139_charge": st.get("v139_charge", {}) or {},
+            "overflow_shield_cd": bool(st.get("overflow_shield_cd", False)),
+            "stealth_atk": False,
+        }
         b.e_minions = st.get("e_minions", []) or []
         b.killed_enemies = [dict(u) for u in (st.get("killed_enemies") or [])]  # v130.7 意见#17 击杀记录恢复
         b.summons = st.get("summons", []) or []
-        b.charging = st.get("charging")
-        b.p_defending = st.get("p_defending", False)
         b.e_defending = st.get("e_defending", False)
-        b.mech_stacks = st.get("mech_stacks", {}) or {}
-        b.resources = st.get("resources", {}) or {}
-        b.p_eff = st.get("eff_data", {}) or {}  # v130.2 物品效果持久数据
-        b.cooldown = st.get("cooldown", {}) or {}
-        b.combo_seq = st.get("combo_seq", []) or []
-        b.last_combo_tag = st.get("last_combo_tag") or None
         b.team_effects = []
         # v121 CTB：玩家 ct 读取（老存档兜底 0）；敌方单位 ct 兜底 -spd
         # v130.10 绝对时刻：p_ct<0（旧相对时钟存档）重置 0；怪 ct 缺失或<=0（旧 -spd 语义）重置为初始等待
@@ -1274,8 +1331,6 @@ class Battle:
         b._stance_immortal_used = bool(st.get("stance_immortal_used", False))
         b._core_last_stand_used = bool(st.get("core_last_stand_used", False))
         b._assassin_refund_used = bool(st.get("assassin_refund_used", False))  # v130.2f 致命预谋返还标记
-        b._v139_modes = st.get("v139_modes", {}) or {}   # v139 职业融合：模式状态机恢复
-        b._v139_charge = st.get("v139_charge", {}) or {}  # v139 charge 电荷恢复
         # v154 读条命中制：恢复玩家读条状态（断线恢复不丢读条）
         b._player_casting = bool(st.get("player_casting", False))
         b._pending_player_cast = st.get("pending_player_cast")
@@ -1285,8 +1340,7 @@ class Battle:
         if _lp:
             b._last_player = _lp
         b._shifted_element = st.get("shifted_element")
-        b._tailwind_prev_energy = st.get("tailwind_prev_energy")  # v130.2d 疾风余韵跨刻状态
-        b._overflow_shield_cd = bool(st.get("overflow_shield_cd", False))  # v130.2f2 满溢转盾冷却随战斗序列化
+        # v139/v130.2d/v130.2f2 状态已收进 _restore_pstate（v180-B）——此处不再设实例属性
         # DOT 重构（契约 §2.3）：老档案迁移——敌方持续减益迁为目标级 enemy["debuffs"]。
         # 旧档 mech_stacks 里的 poison/burn/mark（敌方减益）迁移为 debuffs 结构后清键；
         # 玩家侧键（dragon_mark/rage/shadow/chi 等）与 e_buffs 标记不受影响。
@@ -1298,7 +1352,7 @@ class Battle:
                     _v = int(_old_m[_k] or 0)
                     if _v > 0:
                         _new_deb[_k] = {"n": _v, "mult": 1.0}
-                    b.mech_stacks.pop(_k, None)
+                    b._restore_pstate["stacks"].pop(_k, None)
             if _new_deb:
                 b.enemy["debuffs"] = _new_deb
         # v158 副本合并：instance 类型恢复时按敌方 ct 排 enemy_act 事件——事件队列驱动
@@ -1410,11 +1464,11 @@ class Battle:
         """玩家转职分支线判定（攻线=1 / 守线=2；evolve_path 恒为所选线，跨 tier 进化改名仍命中；
         基础/无分支 evolve_path=0 不命中）。v130.2 P1-1：修复 8 处挂点只认 tier1 分支名（狂战士/
         影舞者/格斗士/风行者/元素法师等），60/90 级进化改名后机制全档断档的系统性问题。"""
-        # v139 桥接：把 self._v139_modes/_v139_charge 挂到 player dict 上，
+        # v139 桥接：把 self._p_v139_modes()/_v139_charge 挂到 player dict 上，
         # 让 battle_modes/battle_bars 纯函数读写正确的状态源（状态统一存 self）
         if player is not None:
-            player["v139_modes"] = self._v139_modes
-            player["v139_charge"] = self._v139_charge
+            player["v139_modes"] = self._p_v139_modes()
+            player["v139_charge"] = self._p_v139_charge()
         return int(player.get("evolve_path", 0) or 0) == int(path or 0)
 
     def _is_element_mage(self, player: dict) -> bool:
@@ -1430,11 +1484,13 @@ class Battle:
         return bool(info.get("element") or (info.get("res_gain") or {}).get("element"))
 
     def _elem_charge(self) -> int:
-        """法师充能条当前值（v130.2：element 资源数值化 0-5；resources['element'] 保留当前系字符串，兼容旧消费点）"""
-        return int(self.resources.get("element_charge", 0) or 0)
+        """法师充能条当前值（v130.2：element 资源数值化 0-5；resources['element'] 保留当前系字符串，兼容旧消费点）
+        v180-B：读焦点玩家 actor dict（与怪 actor 同构）。"""
+        _pl = self.player or {}
+        return int(_pl.setdefault("resources", {}).get("element_charge", 0) or 0)
 
     # ---------------- v177 施法者状态路由（玩家技能管线 actor 化） ----------------
-    # 管线内 self.p_buffs/self.resources/self.mech_stacks 是"当前施法者"状态：
+    # 管线内 self._p_buffs_bag()/self._p_res()/self._p_stacks() 是"当前施法者"状态：
     # 玩家施法 → 焦点字段（原语义）；怪物施法（_cast_ctx=unit）→ unit 自身字段。
     def _tgt(self) -> dict:
         """v177 技能管线目标 actor：玩家施法=当前敌人；怪物施法玩家技能=玩家（_target_ctx 设置）。"""
@@ -1469,25 +1525,25 @@ class Battle:
         u = self._cast_ctx
         if u is not None:
             return u.setdefault("buffs", {})
-        return self.p_buffs
+        return self._p_buffs_bag()
 
     def _cast_eff(self) -> dict:
         u = self._cast_ctx
         if u is not None:
             return u.get("eff") or {}
-        return self.p_eff
+        return self._p_eff()
 
     def _cast_res(self) -> dict:
         u = self._cast_ctx
         if u is not None:
             return u.setdefault("resources", {})
-        return self.resources
+        return self._p_res()
 
     def _cast_stacks(self) -> dict:
         u = self._cast_ctx
         if u is not None:
             return u.setdefault("stacks", {})
-        return self.mech_stacks
+        return self._p_stacks()
 
     def _cast_stats(self) -> dict:
         u = self._cast_ctx
@@ -1497,6 +1553,108 @@ class Battle:
 
     def _cast_is_player(self) -> bool:
         return self._cast_ctx is None
+
+    # ---------------- v180-B P2：焦点玩家 actor 取袋 helper ----------------
+    # 迁移后 Battle 不再持有"玩家焦点状态字段"——玩家战斗可变状态权威在
+    # self.player（当前行动玩家）actor dict 上。以下 helper 是"读当前玩家 actor
+    # 某状态袋"的语义口（与怪 actor dict 同构），所有原 self.xxx 读点经它们收口。
+    # setdefault 惰性建袋：self.player 未绑定/测试空 dict 时安全返回空袋。
+    def _p_res(self) -> dict:
+        return (self.player or {}).setdefault("resources", {})
+
+    def _p_stacks(self) -> dict:
+        return (self.player or {}).setdefault("stacks", {})
+
+    def _p_eff(self) -> dict:
+        return (self.player or {}).setdefault("eff", {})
+
+    def _p_shields_bag(self) -> dict:
+        return (self.player or {}).setdefault("shields", {})
+
+    def _p_buffs_bag(self) -> dict:
+        return (self.player or {}).setdefault("buffs", {})
+
+    # ---- v180-B P2：玩家 actor 标量/列表袋 helper（原 Battle 焦点字段迁移） ----
+    def _p_charging(self):
+        return (self.player or {}).get("charging")
+
+    def _p_set_charging(self, val):
+        (self.player or {})["charging"] = val
+
+    def _p_cooldown(self) -> dict:
+        return (self.player or {}).setdefault("cooldown", {})
+
+    def _p_combo_seq(self) -> list:
+        return (self.player or {}).setdefault("combo_seq", [])
+
+    def _p_last_combo_tag(self):
+        return (self.player or {}).get("last_combo_tag")
+
+    def _p_set_last_combo_tag(self, val):
+        (self.player or {})["last_combo_tag"] = val
+
+    def _p_hot(self) -> dict:
+        return (self.player or {}).setdefault("hot", {})
+
+    def _p_food_effects(self) -> list:
+        return (self.player or {}).setdefault("food_effects", [])
+
+    def _p_defending(self) -> bool:
+        return bool((self.player or {}).get("defending", False))
+
+    def _p_set_defending(self, val: bool):
+        (self.player or {})["defending"] = bool(val)
+
+    def _p_buff_hits(self) -> dict:
+        return (self.player or {}).setdefault("buff_hits", {})
+
+    def _p_reduce_all_left(self) -> int:
+        return int((self.player or {}).get("reduce_all_left", 0) or 0)
+
+    def _p_set_reduce_all_left(self, val: int):
+        (self.player or {})["reduce_all_left"] = int(val or 0)
+
+    def _p_reduce_left(self) -> int:
+        return int((self.player or {}).get("reduce_left", 0) or 0)
+
+    def _p_set_reduce_left(self, val: int):
+        (self.player or {})["reduce_left"] = int(val or 0)
+
+    def _p_poi_buff(self):
+        return (self.player or {}).get("poi_buff")
+
+    def _p_set_poi_buff(self, val):
+        (self.player or {})["poi_buff"] = val
+
+    def _p_last_element(self):
+        return (self.player or {}).get("last_element")
+
+    def _p_set_last_element(self, val):
+        (self.player or {})["last_element"] = val
+
+    def _p_tailwind_prev_energy(self):
+        return (self.player or {}).get("tailwind_prev_energy")
+
+    def _p_set_tailwind_prev_energy(self, val):
+        (self.player or {})["tailwind_prev_energy"] = val
+
+    def _p_v139_modes(self) -> dict:
+        return (self.player or {}).setdefault("v139_modes", {})
+
+    def _p_v139_charge(self) -> dict:
+        return (self.player or {}).setdefault("v139_charge", {})
+
+    def _p_overflow_shield_cd(self) -> bool:
+        return bool((self.player or {}).get("overflow_shield_cd", False))
+
+    def _p_set_overflow_shield_cd(self, val: bool):
+        (self.player or {})["overflow_shield_cd"] = bool(val)
+
+    def _p_stealth_atk(self) -> bool:
+        return bool((self.player or {}).get("stealth_atk", False))
+
+    def _p_set_stealth_atk(self, val: bool):
+        (self.player or {})["stealth_atk"] = bool(val)
 
     def _res_def_of(self, actor: dict) -> dict:
         """v177 actor 资源定义：actor 带 resource_def（怪物/自定义）→ 用它；
@@ -1526,7 +1684,7 @@ class Battle:
         """读取当前焦点 actor 资源值（element → 充能条 element_charge；其余直读 resources[key]）"""
         if key == "element":
             return self._elem_charge()
-        return int(self.resources.get(key, 0) or 0)
+        return int(self._p_res().get(key, 0) or 0)
 
     def _res_read_actor(self, actor: dict, key: str) -> int:
         """v177 读取指定 actor 资源值（玩家/怪物同一套——只路由存储袋，不分叉逻辑）。"""
@@ -1560,7 +1718,7 @@ class Battle:
             cur = int(bag.get(key, 0) or 0)
             new = min(cap, cur + int(amount or 0))
             # 满溢转盾（怪物 resource_def 也可配 overflow_shield）
-            if rd.get("overflow_shield") and cur + int(amount or 0) > cap and actor.get("hp", 0) and not getattr(self, "_overflow_shield_cd", False):
+            if rd.get("overflow_shield") and cur + int(amount or 0) > cap and actor.get("hp", 0) and not self._p_overflow_shield_cd():
                 try:
                     self._add_shield(f"res_overflow_{key}", int((cur + int(amount or 0) - cap) * float(rd.get("overflow_ratio", 5) or 5)), 1)
                 except Exception:
@@ -1572,8 +1730,8 @@ class Battle:
         if key == "element":
             # v130.2c 元素使徒 2 件：充能条上限 +1（5 → 6）——走 _res_max 统一上限
             mx = self._res_max(player, key)
-            self.resources["element_charge"] = min(mx, self._elem_charge() + int(amount or 0))
-            return self.resources["element_charge"]
+            self._p_res()["element_charge"] = min(mx, self._elem_charge() + int(amount or 0))
+            return self._p_res()["element_charge"]
         if key == "echo":
             # 歌者双资源·回声驻留叠层（mech_stacks 槽）——只有带歌者定义的 actor 消费，无定义空转
             return self._echo_add(actor, logs if logs is not None else [], amount)
@@ -1587,15 +1745,15 @@ class Battle:
                 # 副资源（resonance/echo 等按 key 注册）：上限 = 注册表 max（无词条/套装加成，旧语义）
                 _rk_gk = E.core_resource_def_by_key(key)
                 _cap_gk = int(_rk_gk.get("max", 99) or 99)
-                new = min(_cap_gk, int(self.resources.get(key, 0) or 0) + amount)
-                self.resources[key] = new
+                new = min(_cap_gk, int(self._p_res().get(key, 0) or 0) + amount)
+                self._p_res()[key] = new
                 return new
             _rd_p = E.core_resource_def(player.get("class_name", ""))
             if not _rd_p:
                 # 无定义资源 key：不累加（旧语义：未配置上限/未定义的资源不限制也不写）
-                return self.resources.get(key, 0)
-            new = min(self._res_max(player, key), int(self.resources.get(key, 0) or 0) + amount)
-            self.resources[key] = new
+                return self._p_res().get(key, 0)
+            new = min(self._res_max(player, key), int(self._p_res().get(key, 0) or 0) + amount)
+            self._p_res()[key] = new
             return new
         # ---- 怪物/自定义 actor（无职业链路）：统一 actor 资源袋 + resource_def 上限 ----
         cap = self._res_cap_of(actor, key)
@@ -1603,12 +1761,12 @@ class Battle:
         new = min(cap, cur + amount)
         # 满溢转盾（rd.overflow_shield 由任意 actor 定义声明；冷却全局每刻 1 次）
         if rd.get("overflow_shield") and cur + amount > cap and actor.get("hp", 0) \
-                and not getattr(self, "_overflow_shield_cd", False):
+                and not self._p_overflow_shield_cd():
             try:
                 _ov = int((cur + amount - cap) * float(rd.get("overflow_ratio", 5) or 5))
                 if _ov > 0:
                     self._add_shield(f"res_overflow_{key}", _ov, 1)
-                    self._overflow_shield_cd = True
+                    self._p_set_overflow_shield_cd(True)
                     if logs is not None:
                         logs.append(f"🛡️ 满溢转化：{rd.get('name', key)}溢出 {cur + amount - cap} 点 → 护盾 +{_ov}（每刻限 1 次转盾）")
             except Exception:
@@ -1638,12 +1796,12 @@ class Battle:
             cur = self._elem_charge()
             if cur < int(amount or 0):
                 return False
-            self.resources["element_charge"] = cur - int(amount or 0)
+            self._p_res()["element_charge"] = cur - int(amount or 0)
             return True
-        cur = int(self.resources.get(key, 0) or 0)
+        cur = int(self._p_res().get(key, 0) or 0)
         if cur < int(amount or 0):
             return False
-        self.resources[key] = cur - int(amount or 0)
+        self._p_res()[key] = cur - int(amount or 0)
         return True
 
     def _res_gain_class(self, cls: str, k: str, amount: int, logs: list | None = None) -> int:
@@ -1656,27 +1814,27 @@ class Battle:
         战士/拳师转盾也顶悼咏键名，现统一 overflow_shield 同源叠加）。"""
         rd = E.core_resource_def(cls)
         if not rd:
-            return self.resources.get(k, 0)
+            return self._p_res().get(k, 0)
         # v130.2 R1：上限口径与 _res_max 统一（词条 max_bonus + 套装 res_max）；无 player 参数取本场玩家；
         # self.player 为 None（from_state 恢复等）时按空 dict 守卫，套装/词条加成归 0
         _pl = self.player or {}
         mx = int(rd.get("max", 99) or 99) + self._res_affix_max_bonus(_pl, k) + self._set_res_max_bonus(_pl, k)
-        cur = int(self.resources.get(k, 0) or 0)
+        cur = int(self._p_res().get(k, 0) or 0)
         amount = int(amount or 0)
         overflow = 0
         if amount > 0 and cur + amount > mx:
             overflow = cur + amount - mx
         new = min(mx, cur + amount)
         if rd.get("overflow_shield") and overflow > 0:
-            if not getattr(self, "_overflow_shield_cd", False):
+            if not self._p_overflow_shield_cd():
                 shield = int(overflow * float(rd.get("overflow_ratio", 5) or 5))  # v176: 系数读数据
                 self._add_shield("overflow_shield", shield, 1)
-                self._overflow_shield_cd = True
+                self._p_set_overflow_shield_cd(True)
                 if logs is not None:
                     logs.append(f"🛡️ 满溢转化：{rd.get('name', k)}溢出 {overflow} 点 → 护盾 +{shield}（每刻限 1 次转盾）")
             elif logs is not None:
                 logs.append(f"🛡️ 满溢转化：{rd.get('name', k)}溢出 {overflow} 点（本刻已转盾，冷却中）")
-        self.resources[k] = new
+        self._p_res()[k] = new
         return new
 
     def _amp_resource(self, player: dict, trigger: str) -> int:
@@ -1685,7 +1843,7 @@ class Battle:
         trigger ∈ {on_hit_taken 受击 / on_land_hit 出手命中 / on_heal 治疗 / regen 自然回复}。
         on_hit 双语义（沸腾战血=受击/影袭=出手命中）由 hits_left 区分：>0 → 出手命中逐次递减；
         ≤0 → 持续时长制（turns 在 _end_round 递减）。返回本次额外增加总量。"""
-        amps = (self.p_eff or {}).get("amps")
+        amps = (self._p_eff() or {}).get("amps")
         if not amps:
             return 0
         extra = 0
@@ -1715,7 +1873,7 @@ class Battle:
                 if amp["hits_left"] <= 0 and int(amp.get("turns_left", 0) or 0) <= 0:
                     del amps[key]
         if not amps:
-            self.p_eff.pop("amps", None)
+            self._p_eff().pop("amps", None)
         return extra
 
     # ---------------- v130.2c 装备-资源词条接线（31 词条接线：统一读取器 + 各挂点） ----------------
@@ -1798,7 +1956,7 @@ class Battle:
 
     def _rage_full(self, player: dict) -> bool:
         """沸血浇筑条件：怒气全满（rage ≥ 上限，含怒火熔铸上限加成；上限读 battle_config 系 core_resources max=10）。"""
-        return int(self.resources.get("rage", 0) or 0) >= self._res_max(player, "rage")
+        return int(self._p_res().get("rage", 0) or 0) >= self._res_max(player, "rage")
 
     def _affix_res_proc(self, player: dict, event: str, logs: list):
         """v130.2c 资源词条统一读取器：在事件点结算 gain 类词条 effect 的 res/gain/on/cond。
@@ -1904,24 +2062,24 @@ class Battle:
         for k in keys:
             if k == "element":
                 # resources['element'] 保持当前系字符串（代码多处按字符串读）；充能数值走 element_charge
-                self.resources["element"] = "fire"
-                self.resources["element_charge"] = 0
+                self._p_res()["element"] = "fire"
+                self._p_res()["element_charge"] = 0
             elif k == "echo":
                 # 回声 = mech_stacks 驻留叠层（战斗内不清零），不占 resources 数值位
-                self.mech_stacks.setdefault("echo", 0)
+                self._p_stacks().setdefault("echo", 0)
             elif k == "energy":
                 # 游侠精力：唯一自然回资源，战斗开始满额 100（ranger.md 设计稿 + E1 回归修复）
                 # v176: 读 core_resources start_full 字段（原 cls_you_xia 特判数据化）
                 _rd_e = E.core_resource_def(player.get("class_name", ""))
                 if _rd_e and _rd_e.get("start_full"):
-                    self.resources[k] = int(_rd_e.get("max", 100) or 100)
+                    self._p_res()[k] = int(_rd_e.get("max", 100) or 100)
                 else:
-                    self.resources[k] = 0
+                    self._p_res()[k] = 0
             else:
-                self.resources[k] = 0
+                self._p_res()[k] = 0
         # v110.3 P1-11：致命预谋被动——战斗开始 +1 连击点（数据驱动 battle_start_cp，替代名字硬匹配）
         if "cp" in keys and self._passive_map(player)["proc"].get("battle_start_cp", []):
-            self.resources["cp"] = 1
+            self._p_res()["cp"] = 1
 
     def _apply_pending_prebattle(self, player: dict):
         """v130.2 战前待用效果注入（物品消费端战场前挂载）。
@@ -1961,10 +2119,10 @@ class Battle:
                 if isinstance(_bf, dict) and _bf.get("kind") == "phys_up":
                     _pct = float(_bf.get("pct", 0.05) or 0)
                     _t = int(_bf.get("turns", 3) or 3)
-                    self.p_buffs["phys_up"] = max(int(self.p_buffs.get("phys_up", 0) or 0), _t)
-                    self.p_eff["phys_up"] = max(float(self.p_eff.get("phys_up", 0) or 0), _pct)
+                    self._p_buffs_bag()["phys_up"] = max(int(self._p_buffs_bag().get("phys_up", 0) or 0), _t)
+                    self._p_eff()["phys_up"] = max(float(self._p_eff().get("phys_up", 0) or 0), _pct)
             elif _pe.get("type") == "resource_amp":
-                amps = self.p_eff.setdefault("amps", {})
+                amps = self._p_eff().setdefault("amps", {})
                 _prev = amps.get(_rk) or {}
                 amps[_rk] = {
                     "key": _rk, "amount": int(_pe.get("amount", 0) or 0),
@@ -1983,7 +2141,7 @@ class Battle:
         parts = []
         for k in keys:
             if k == "echo":
-                v = int(self.mech_stacks.get("echo", 0) or 0)
+                v = int(self._p_stacks().get("echo", 0) or 0)
                 parts.append(f"✦ 回声 {v}/{ECHO_CFG['max_layers']}")
             elif k == "element":
                 v = self._elem_charge()
@@ -2003,7 +2161,7 @@ class Battle:
                     rd = rd2 or rd
                 if not rd:
                     continue
-                v = int(self.resources.get(k, 0) or 0)
+                v = int(self._p_res().get(k, 0) or 0)
                 mx = self._res_max(player, k)
                 parts.append(f"✦ {rd['name']} {v}/{mx}")
         return " ".join(parts)
@@ -2012,12 +2170,12 @@ class Battle:
     def _skill_cd_left(self, skill_name: str) -> int:
         """技能剩余冷却（按时刻：ready_at - now，折算成'约 N 刻'展示用；0 = 可用）。
         v152：cooldown 存 ready_at 绝对时刻（不再存剩余刻数）。"""
-        ra = self.cooldown.get(skill_name)
+        ra = self._p_cooldown().get(skill_name)
         if not ra:
             return 0
         if self._now >= float(ra):
             # 到期即清（惰性清理，避免依赖 _tick 时机）
-            del self.cooldown[skill_name]
+            del self._p_cooldown()[skill_name]
             return 0
         return max(1, int((float(ra) - self._now) / ACT_TICK) + 1)
 
@@ -2036,7 +2194,7 @@ class Battle:
             if cdr > 0 and cd > 1:
                 cd = max(1, int(cd * (1 - cdr)))
             # v169.7 影舞·无间 shadow_dance_cd：影舞态中所有技能冷却 −20%（乘算叠加在既有 cdr 后）
-            if cd > 1 and self.p_buffs.get("shadow_dance"):
+            if cd > 1 and self._p_buffs_bag().get("shadow_dance"):
                 try:
                     _pl_sd = self.player or {}
                     for _pn_sd, _ps_sd in self._proc_pm(_pl_sd)["proc"].get("shadow_dance_cd", []):
@@ -2044,18 +2202,18 @@ class Battle:
                         break
                 except Exception:
                     pass
-            self.cooldown[skill_name] = self._now + cd * ACT_TICK
+            self._p_cooldown()[skill_name] = self._now + cd * ACT_TICK
 
     def _tick_cooldowns(self):
         """v152 时刻制：冷却到期检查（惰性清除，非递减）。保留函数名兼容外部调用。"""
         _now = self._now
-        for k in list(self.cooldown):
-            if _now >= float(self.cooldown[k]):
-                del self.cooldown[k]
+        for k in list(self._p_cooldown()):
+            if _now >= float(self._p_cooldown()[k]):
+                del self._p_cooldown()[k]
         # v151 修复（特效冷却审计 P1-1）：特效装备冷却（we_*_cd）此前只写不递减——
         # 永冻领域/无尽辉光/哨兵壁垒/深岩壁垒等"冷却 N 刻"实际永久生效。
         # v152：p_eff 中 we_*_cd 存 ready_at 绝对时刻（写入点 weapon_effects.py 已换算），到期惰性清除。
-        _pe = self.p_eff
+        _pe = self._p_eff()
         if isinstance(_pe, dict):
             for _k in [k for k in list(_pe) if k.startswith("we_") and k.endswith("_cd")]:
                 if _now >= float(_pe.get(_k, 0) or 0):
@@ -2080,23 +2238,24 @@ class Battle:
         非连招 tag 不清空序列（只有非连招技能打断不重置）。"""
         if tag not in self.COMBO_ORDER:
             return False
-        expect = self.COMBO_ORDER[len(self.combo_seq)]
+        seq = self._p_combo_seq()
+        expect = self.COMBO_ORDER[len(seq)]
         if tag == expect:
-            self.combo_seq.append(tag)
+            seq.append(tag)
         else:
             # 顺序不对：从该 tag 重新开始（如果 tag 是起手拳则开始新序列）
-            self.combo_seq = [tag] if tag == self.COMBO_ORDER[0] else []
-        self.last_combo_tag = tag  # v130.6：无论推进/重置/触发都记忆上一招
-        if len(self.combo_seq) == len(self.COMBO_ORDER):
-            self.combo_seq = []
+            seq[:] = [tag] if tag == self.COMBO_ORDER[0] else []
+        self._p_set_last_combo_tag(tag)  # v130.6：无论推进/重置/触发都记忆上一招
+        if len(self._p_combo_seq()) == len(self.COMBO_ORDER):
+            self._p_combo_seq()[:] = []
             return True
         return False
 
     def _combo_label(self) -> str:
         """当前连招进度显示(如 拳→踢→_)。"""
-        if not self.combo_seq:
+        if not self._p_combo_seq():
             return ""
-        parts = list(self.combo_seq)
+        parts = list(self._p_combo_seq())
         while len(parts) < len(self.COMBO_ORDER):
             parts.append("_")
         return "→".join(parts)
@@ -2111,9 +2270,9 @@ class Battle:
 
     def _combo_add(self, player: dict) -> int:
         """命中 +1 连段（上限 cap=10）。"""
-        combo = int(self.mech_stacks.get("combo", 0) or 0)
+        combo = int(self._p_stacks().get("combo", 0) or 0)
         combo = min(int(COMBO_CFG.get("cap", 10) or 10), combo + 1)
-        self.mech_stacks["combo"] = combo
+        self._p_stacks()["combo"] = combo
         return combo
 
     def _combo_break(self, player: dict, keep_chance: float = 0.0) -> None:
@@ -2124,18 +2283,18 @@ class Battle:
         if keep_chance > 0 and random.random() < keep_chance:
             return
         # 影舞态：受击不清连段（暗影步 effect=shadow_dance desc「受击不再清除连段」）
-        if self.p_buffs.get("shadow_dance"):
+        if self._p_buffs_bag().get("shadow_dance"):
             return
         try:
             for _pn, _ps in self._proc_pm(player)["proc"].get("lian_duan_soft", []):
-                cur = int(self.mech_stacks.get("combo", 0) or 0)
+                cur = int(self._p_stacks().get("combo", 0) or 0)
                 if cur > 0:
-                    self.mech_stacks["combo"] = max(0, cur - 1)
+                    self._p_stacks()["combo"] = max(0, cur - 1)
                     return
                 break
         except Exception:
             pass
-        self.mech_stacks.pop("combo", None)
+        self._p_stacks().pop("combo", None)
 
     def _combo_keep_chance(self, player: dict) -> float:
         """v130.2d 连段护持：受击连段保留概率（读 effect.combo_keep_chance，tier 覆盖；攻线限定）。"""
@@ -2168,7 +2327,7 @@ class Battle:
         v130.2c 夜幕合契·影纱 5 件：每层 5% → 8%，8 层封顶 +64%（per_layer 读套装 effect）。"""
         if not self._combo_active(player):
             return 1.0
-        combo = int(self.mech_stacks.get("combo", 0) or 0)
+        combo = int(self._p_stacks().get("combo", 0) or 0)
         if combo < self._combo_finish_min(player):
             return 1.0
         per = float(COMBO_CFG.get("per_layer", 0.05) or 0.05)
@@ -2184,9 +2343,9 @@ class Battle:
     def _momentum_mult(self, player: dict) -> float:
         """蓄势持有加伤倍率。仅攻线·格斗士（monk evolve_path=1）吃到；气耗尽自然归 0。
         v176: 判据从职业名改为 chi 资源激活 + 攻线（只有拳师有 chi 资源键，等价且可扩展）。"""
-        if not self._is_path(player, 1) or "chi" not in (self.resources or {}):
+        if not self._is_path(player, 1) or "chi" not in (self._p_res() or {}):
             return 1.0
-        chi = int(self.resources.get("chi", 0) or 0)
+        chi = int(self._p_res().get("chi", 0) or 0)
         cap = int(MOMENTUM_CFG.get("cap_chi", 10) or 10)
         per = float(MOMENTUM_CFG.get("per_chi", 0.03) or 0.03)
         # v130.2d 蓄势精通：攻线每 1 气物理伤害 +3% → +4%（词条 effect.momentum_per_chi 覆盖常量；
@@ -2205,14 +2364,14 @@ class Battle:
     def _energy_high_crit(self, player: dict, info: dict | None = None) -> bool:
         """满弦状态判定：守线·风行者（you_xia evolve_path=2）且精力 ≥80 且技能处于低耗/连射档。
         v130.2：满弦烈酒 p_buffs["full_tension"] = 阈值视为已满足（立即满弦，handler 已做守线专属判定）。"""
-        if self.p_buffs.get("full_tension"):
+        if self._p_buffs_bag().get("full_tension"):
             return True
-        if "energy" not in (self.resources or {}) or not self._is_path(player, 2):  # v176: 职业名→资源键+线
+        if "energy" not in (self._p_res() or {}) or not self._is_path(player, 2):  # v176: 职业名→资源键+线
             return False
         # v130.2 P1-4：读「施放前」精力（_do_player_skill 已快照）；直接调用/非技能链回落当前值。
         _pres = getattr(self, "_pre_cost_res", None)
         energy_val = int(_pres.get("energy", 0) or 0) if isinstance(_pres, dict) \
-            else int(self.resources.get("energy", 0) or 0)
+            else int(self._p_res().get("energy", 0) or 0)
         if energy_val < int(ENERGY_HIGH.get("threshold", 80) or 80):
             return False
         if info is not None:
@@ -2271,8 +2430,8 @@ class Battle:
     # —— 法师攻线·元素：last_element 同系连发（被动「元素凝聚」：连续两次同系施放，第二次 +1 充能）——
     def _last_element_set(self, player: dict, element: str) -> bool:
         """记录上次施放元素。返回本次是否「同系连发」（与上次同系 → True）。"""
-        last = self._last_element if hasattr(self, "_last_element") else None
-        self._last_element = element
+        last = self._p_last_element()
+        self._p_set_last_element(element)
         if not last or last != element:
             return False
         # 元素凝聚被动：同系连发第二次施放额外 +1 充能（攻线·元素法师）
@@ -2282,7 +2441,7 @@ class Battle:
 
     # —— 牧师攻线·歌者：回声驻留叠层（echo 存 mech_stacks，战斗内不清零，上限 max_layers）——
     def _echo_layers(self) -> int:
-        return int(self.mech_stacks.get("echo", 0) or 0)
+        return int(self._p_stacks().get("echo", 0) or 0)
 
     def _echo_add(self, player: dict, logs: list, amount: int = 1) -> int:
         """回声叠层（上限 max_layers）。v130.2 收尾：echo 生产收敛为 res_gain 单通道，
@@ -2294,7 +2453,7 @@ class Battle:
         if cur >= cap:
             return cur
         cur = min(cap, cur + int(amount or 0))
-        self.mech_stacks["echo"] = cur
+        self._p_stacks()["echo"] = cur
         logs.append(f"🎵 回声驻留 +{int(amount or 0)}：全队刻恢复随回声层数(当前 {cur}/{cap})")
         return cur
 
@@ -2550,17 +2709,17 @@ class Battle:
 
     def _player_charge_release(self, player: dict, logs: list) -> bool:
         """蓄力刻开始结算：left 递增计时，归零自动释放技能。返回是否已释放。"""
-        if not self.charging or not self.charging.get("skill"):
-            self.charging = None
+        if not self._p_charging() or not self._p_charging().get("skill"):
+            self._p_set_charging(None)
             return False
-        left = int(self.charging.get("left", 1) or 1)
-        cname = self.charging.get("name", self.charging.get("skill", "?"))
+        left = int(self._p_charging().get("left", 1) or 1)
+        cname = self._p_charging().get("name", self._p_charging().get("skill", "?"))
         if left > 0:
-            self.charging["left"] = max(0, left - 1)
-            if self.charging["left"] == 0:
+            self._p_charging()["left"] = max(0, left - 1)
+            if self._p_charging()["left"] == 0:
                 # 归零 → 自动结算技能效果（不重复扣 MP/资源）
-                skill_name = self.charging["skill"]
-                self.charging = None
+                skill_name = self._p_charging()["skill"]
+                self._p_set_charging(None)
                 logs.append(f"✨ 【{cname}】蓄力完成，轰然落下！")
                 self._releasing_charge = True
                 try:
@@ -2569,17 +2728,17 @@ class Battle:
                     self._releasing_charge = False
                 return True
             else:
-                logs.append(f"⏳ 你正在蓄力【{cname}】(剩 {self.charging['left']} 刻)，本刻无法普攻/技能！")
+                logs.append(f"⏳ 你正在蓄力【{cname}】(剩 {self._p_charging()['left']} 刻)，本刻无法普攻/技能！")
         return False
 
     def _player_charging_blocked(self, logs: list, action: str) -> bool:
         """蓄力期间非防御/道具行动 → 拦截（提示剩余刻），返回是否被拦截。"""
-        if not (self.charging and self.charging.get("skill")):
+        if not (self._p_charging() and self._p_charging().get("skill")):
             return False
         if action in ("defend", "use_item", "flee"):
             return False
-        cname = self.charging.get("name", self.charging.get("skill", "?"))
-        left = int(self.charging.get("left", 1) or 1)
+        cname = self._p_charging().get("name", self._p_charging().get("skill", "?"))
+        left = int(self._p_charging().get("left", 1) or 1)
         logs.append(f"⏳ 你正在蓄力【{cname}】(剩 {left} 刻)！可『防御』或『使用 <道具>』")
         return True
 
@@ -2666,6 +2825,25 @@ class Battle:
         不再有额外行动 / 先手概念，快 = 更频繁轮到行动。
         """
         logs = []
+        # v180-B ① actor 化：行动者即焦点玩家。self.player 权威 = 构造时绑定的玩家
+        # dict（含播种的战斗状态 resources/buffs/...）。player_turn 传入的 player 参数
+        # 真实代码与 self.player 是同一引用（combat 先绑 b.player=player 再 player_turn）；
+        # 模拟器/测试若传不同副本（battle_rotation dict(player) 模式），以 self.player 为准
+        # ——只有 self.player 为空/未绑时才绑定传入 player（测试直调兜底）。
+        # from_state 恢复的玩家战斗状态（_restore_pstate）在此灌入玩家 actor dict
+        #（仅灌一次：首次真实 player 绑定后清空，避免切焦点/重复行动覆盖战斗内已变更状态）
+        if not self.player:
+            self.player = player or {}
+        self._apply_restore_pstate()
+        # 若传入 player 与 self.player 不同 dict（模拟器浅拷贝模式），把传入 player 的
+        # 可观察面板字段同步到 self.player（避免引擎读 self.player 得到空面板）
+        if player is not None and player is not self.player:
+            try:
+                for _pk in ("hp", "mp", "max_hp", "max_mp"):
+                    if _pk in player and player[_pk] is not None:
+                        self.player[_pk] = player[_pk]
+            except Exception:
+                pass
         # v95.19: 战斗内上限统一实时值——覆盖 from_state 恢复的战斗（恢复时不传 player，
         # __init__ 刷新不到；DB max_hp/max_mp 换装备后过时，会导致战斗内上限与面板不一致）
         try:
@@ -2682,13 +2860,13 @@ class Battle:
             for _mk139b in ("dual_form", "focus", "vent"):
                 if _crd139b.get(_mk139b) and not player.get(_mk139b):
                     player[_mk139b] = _crd139b[_mk139b]
-            player["v139_modes"] = self._v139_modes
-            player["v139_charge"] = self._v139_charge
+            player["v139_modes"] = self._p_v139_modes()
+            player["v139_charge"] = self._p_v139_charge()
         except Exception:
             pass
         # v63 玩家被沉默：技能类行动先被拦截转普攻（置于 O118 校验前，避免未学习技能
         # 在沉默下先被拦截而无法转普攻）；后续沉默状态下只能普攻/防御/道具
-        if "silence" in self.p_buffs and action == "skill":
+        if "silence" in self._p_buffs_bag() and action == "skill":
             logs.append("🤐 你被沉默，无法使用技能！(只能普攻/防御/道具)")
             action = "attack"
 
@@ -2713,7 +2891,7 @@ class Battle:
                     _hp_r = player.get("hp", 0) / max(1, player.get("max_hp", 1) or 1)
                     if _hp_r < float((_cl_pm[0][1]).get("hp_lt", 0.30) or 0.30):
                         self._core_last_stand_used = True
-                        self.resources["guard_core"] = max(self._guard_core_n(), int((_cl_pm[0][1]).get("cores", 3) or 3))
+                        self._p_res()["guard_core"] = max(self._guard_core_n(), int((_cl_pm[0][1]).get("cores", 3) or 3))
                         logs.append(f"⛰️ 不动如山：绝境不屈，获得 {int((_cl_pm[0][1]).get('cores', 3) or 3)} 枚磐核！（每场 1 次）")
         except Exception:
             pass
@@ -2724,14 +2902,14 @@ class Battle:
         # 此处兜底：老档恢复有 p_hot 但没卡 → 挂卡（幂等）；不再每行动直接 _apply_hot
         # （防与通用调度双份结算）。
         try:
-            if self.p_hot and int(self.p_hot.get("turns", 0) or 0) > 0:
+            if self._p_hot() and int(self._p_hot().get("turns", 0) or 0) > 0:
                 _has_hot = any(e.get("uid") == "p_hot_card" for e in self.tick_effects)
                 if not _has_hot:
                     self.add_tick_effect(
                         "food_hot", player, ACT_TICK,
-                        data={"heal": self.p_hot.get("heal", 0) or 0,
-                              "mana": self.p_hot.get("mana", 0) or 0,
-                              "turns": int(self.p_hot.get("turns", 0) or 0)},
+                        data={"heal": self._p_hot().get("heal", 0) or 0,
+                              "mana": self._p_hot().get("mana", 0) or 0,
+                              "turns": int(self._p_hot().get("turns", 0) or 0)},
                         uid="p_hot_card", source="food")
         except Exception:
             pass
@@ -2742,16 +2920,16 @@ class Battle:
         # 敌方应同步时间流逝（与蓄力等待/防御等路径一致），避免被控方反而配速占优
         # v169.7 坚韧 tenacity：被控时消耗 2 层战意跳过（每场 3 次）——先于被控跳过判定，
         # 满足条件则本次行动不浪费（消耗战意 → 照常行动，敌方时间仍流逝）
-        if ("stun" in self.p_buffs or "freeze" in self.p_buffs) and self._tenacity_try_break(player, logs):
+        if ("stun" in self._p_buffs_bag() or "freeze" in self._p_buffs_bag()) and self._tenacity_try_break(player, logs):
             # 战意挡控成功：控解除、本刻照常行动（不断言走下方被控跳过分支）
-            self.p_buffs.pop("stun", None)
-            self.p_buffs.pop("freeze", None)
+            self._p_buffs_bag().pop("stun", None)
+            self._p_buffs_bag().pop("freeze", None)
         # v169.7 坚城之姿 zhan_yi_full_reduce：战意满 10 免疫眩晕——被眩晕刻自动解除（无消耗）
-        if "stun" in self.p_buffs:
+        if "stun" in self._p_buffs_bag():
             try:
                 for _pn_zy, _ps_zy in self._proc_pm(player)["proc"].get("zhan_yi_full_reduce", []):
                     if self._zhan_yi_n() >= int(_ps_zy.get("stacks", 10) or 10):
-                        self.p_buffs.pop("stun", None)
+                        self._p_buffs_bag().pop("stun", None)
                         logs.append(f"🛡️ {_pn_zy}：战意圆满，眩晕不侵！")
                     break
             except Exception:
@@ -2760,19 +2938,19 @@ class Battle:
         try:
             for _pn_cf, _ps_cf in self._proc_pm(player)["proc"].get("core_full", []):
                 if self._guard_core_n() >= int(_ps_cf.get("stacks", 5) or 5):
-                    self.p_buffs["cc_immune"] = max(int(self.p_buffs.get("cc_immune", 0) or 0), 1)
+                    self._p_buffs_bag()["cc_immune"] = max(int(self._p_buffs_bag().get("cc_immune", 0) or 0), 1)
                 break
         except Exception:
             pass
-        if "stun" in self.p_buffs:
+        if "stun" in self._p_buffs_bag():
             logs.append("🌀 你被眩晕，无法行动！")
-            self.p_buffs.pop("stun", None)
+            self._p_buffs_bag().pop("stun", None)
             if self.btype != "pvp":
                 self._after_actor_ct("p", player=player)
             return self._enemy_phase(player, logs, enemy_act)
-        if "freeze" in self.p_buffs:
+        if "freeze" in self._p_buffs_bag():
             logs.append("❄️ 你被冻结，无法行动！")
-            self.p_buffs.pop("freeze", None)
+            self._p_buffs_bag().pop("freeze", None)
             if self.btype != "pvp":
                 self._after_actor_ct("p", player=player)
             return self._enemy_phase(player, logs, enemy_act)
@@ -3206,7 +3384,7 @@ class Battle:
                             self._damage_player(player, dmg, logs, source=e_unit.get("name", "敌人"))
                             # v154 打断：玩家读条中受到控制（眩晕/冻结/沉默）→ 打断读条
                             if self._player_casting and dmg > 0:
-                                _ctrl = any(k in self.p_buffs for k in ("stun", "freeze", "silence"))
+                                _ctrl = any(k in self._p_buffs_bag() for k in ("stun", "freeze", "silence"))
                                 if _ctrl:
                                     self._interrupt_player_cast(logs)
                     # v155 修复（2026-09-01 玩家实战抓包）：v154 读条命中制下玩家 cast_done 结算
@@ -3237,7 +3415,7 @@ class Battle:
         except Exception:
             pass
         _exp = self._now + max(1, int(turns or 1)) * ACT_TICK
-        cur = self.p_shields.get(key)
+        cur = self._p_shields_bag().get(key)
         if cur:
             cur["value"] += value
             # 兼容旧存档 {"value","turns"} → 转 expire_at
@@ -3246,7 +3424,7 @@ class Battle:
                 cur.pop("turns", None)
             cur["expire_at"] = max(float(cur.get("expire_at", _exp)), _exp)
         else:
-            self.p_shields[key] = {"value": value, "expire_at": _exp}
+            self._p_shields_bag()[key] = {"value": value, "expire_at": _exp}
 
     def _absorb_shields(self, shields: dict, dmg: int, logs: list, label: str = "✨") -> int:
         """v177 护盾吸收核心（actor-agnostic）：多源护盾 dict 逐个扣，同源叠厚异源并存。
@@ -3285,8 +3463,8 @@ class Battle:
             # v101.28e 食物效果：foodfx:效果ID,效果ID（本场战斗有效，独立于装备词条）
             aids = [a for a in payload[7:].split(",") if a]
             for a in aids:
-                if a not in self.p_food_effects:
-                    self.p_food_effects.append(a)
+                if a not in self._p_food_effects():
+                    self._p_food_effects().append(a)
             # v179 补挂卡：食物 foodfx 可能含 turn_start 周期效果（回春/冥想等）→ 确保
             # affix_food_we 卡已挂（_ensure_regen_effects 幂等）
             try:
@@ -3309,10 +3487,12 @@ class Battle:
             turns = int(_p[2]) if len(_p) > 2 and _p[2] else 3
             # v110 审计修复：hot 重复食用改「不叠加取高」（原后写覆盖——低值食物
             # 会顶掉高值恢复，与设计「不叠加取高」不符）
-            _cur_hot = self.p_hot or {}
-            self.p_hot = {"heal": max(hpct, float(_cur_hot.get("heal", 0) or 0)),
-                          "mana": max(mpct, float(_cur_hot.get("mana", 0) or 0)),
-                          "turns": max(turns, int(_cur_hot.get("turns", 0) or 0))}
+            _cur_hot = self._p_hot() or {}
+            _new_hot = {"heal": max(hpct, float(_cur_hot.get("heal", 0) or 0)),
+                        "mana": max(mpct, float(_cur_hot.get("mana", 0) or 0)),
+                        "turns": max(turns, int(_cur_hot.get("turns", 0) or 0))}
+            self._p_hot().clear()
+            self._p_hot().update(_new_hot)
             # v179 P3：food_hot 卡由下次行动开头兜底挂载（吃食物当回合不结算——
             # 与旧语义「吃+结算不同回合」一致；卡每秒结算并同步 p_hot turns 递减）
             _desc = []
@@ -3377,7 +3557,7 @@ class Battle:
                    "crit_up_small": "暴击", "crit_up_big": "暴击",
                    "matk_up": "魔攻", "matk_up_strong": "魔攻"}
             for _k in kind.split(","):
-                self.p_buffs[_k] = max(self.p_buffs.get(_k, 0), 3)
+                self._p_buffs_bag()[_k] = max(self._p_buffs_bag().get(_k, 0), 3)
             # v151 时刻制（鱼鱼拍板）：防御/受击类 buff 改"受击计数"——铁壁/岩壁/影步/荆棘等
             # 防的是敌方出手，按敌方出手次数计时（3 次受击）而非玩家刻，不受速度差影响。
             # 注：food_def_up 保持持续时长制（食物是持续小加成，非爆发防御，语义不同）
@@ -3385,7 +3565,7 @@ class Battle:
                          "mdef_up", "dodge_pot", "block_pot", "thorns_pot", "magic_resist"}
             for _k in kind.split(","):
                 if _k in _def_keys:
-                    self._p_buff_hits[_k] = 3
+                    self._p_buff_hits()[_k] = 3
             _names = '、'.join(_cn.get(k, k) for k in kind.split(','))
             # v101.28b 食物 buff（food_ 前缀键）播报区分：料理 vs 药水
             if any(k.startswith("food_") for k in kind.split(",")):
@@ -3427,7 +3607,7 @@ class Battle:
 
     def _apply_hot(self, player: dict) -> list:
         """v101.28 食物持续恢复：每刻开始结算（回血/回蓝，刻数递减）。"""
-        h = self.p_hot
+        h = self._p_hot()
         logs = []
         max_hp = player.get("max_hp", player.get("hp", 100))
         max_mp = player.get("max_mp", player.get("mp", 100))
@@ -3445,7 +3625,7 @@ class Battle:
                 logs.append(f"🍲 持续恢复生效，恢复 {player['mp'] - before} 点魔力！({player['mp']}/{max_mp})")
         h["turns"] -= 1
         if h["turns"] <= 0:
-            self.p_hot = {}
+            h.clear()
         else:
             logs.append(f"（剩余 {h['turns']} 刻）")
         return logs
@@ -3539,7 +3719,7 @@ class Battle:
         # v130.2 P1-4：施放前核心资源快照（满弦判定 / 隐藏线每层加成读「施放时持有值」而非扣费后值）——
         # 满弦语义=「施放时精力≥80」，扣费后精力永低于满档导致高耗档永不触发；龙力/禅意每层加成因
         # 消耗型金技扣费后归 0 无法按层放大的同病。后续消费点读 self._pre_cost_res（未命中回落当前值）。
-        self._pre_cost_res = dict(self.resources)
+        self._pre_cost_res = dict(self._p_res())
         # v104 R3 P1-6：『消耗全部』终结技（consume_all）动态结算——资源不满也可施放，扣光该资源。
         # v130.2 统一公式：动态威力 = 数据表 power × (1 + per×当前持有值)——满资源时恰为策划案 EQ 基准
         # （破晓之拳 2.4×(1+0.1×10)=4.8、元素湮灭 2.4×(1+0.2×5)=4.8；per=0 则威力恒为数据表 power，
@@ -3570,9 +3750,9 @@ class Battle:
                 if _frp:
                     _left = int(_frp.get("value", _frp.get("rage_cost_reduce", 1)) or 1)
             if ck == "element":
-                self.resources["element_charge"] = _left
+                self._p_res()["element_charge"] = _left
             else:
-                self.resources[ck] = _left
+                self._p_res()[ck] = _left
             # v130.2f 致命预谋：本场首次 消耗连击点的终结技 结算后 返还 1 连击点（保底节奏）
             if ck == "cp":
                 self._assassin_finisher_refund(player, logs)
@@ -3607,8 +3787,8 @@ class Battle:
         if mana_lvl:
             mp_cost = max(1, int(mp_cost * (1 - C.rune_value("mana_flow", mana_lvl))))
         # v130.2 元素亲和药剂（mana_cost_down）：技能魔力消耗 ×(1-pct)（与符文乘算叠加）
-        if self.p_buffs.get("mana_cost_down"):
-            _mcd = float((self.p_eff or {}).get("mana_cost_down", 0) or 0)
+        if self._p_buffs_bag().get("mana_cost_down"):
+            _mcd = float((self._p_eff() or {}).get("mana_cost_down", 0) or 0)
             if _mcd > 0:
                 mp_cost = max(1, int(mp_cost * (1 - _mcd)))
         # v130.2c 消耗减免词条：凝神塑能（元素/奥术技能蓝耗 -10%）/ 圣徽之佑（神迹技蓝耗 -5/史诗 -10）
@@ -3697,8 +3877,8 @@ class Battle:
         # v2 蓄力技能（§6）：施放扣 MP/资源 → 进入蓄力，本刻不结算技能效果
         if not getattr(self, "_releasing_charge", False) and int(info.get("charge", 0) or 0) >= 1:
             cname = info.get("name") or skill_name
-            self.charging = {"skill": skill_name, "left": int(info["charge"]),
-                             "name": cname, "mp_spent": mp_cost}
+            self._p_set_charging({"skill": skill_name, "left": int(info["charge"]),
+                             "name": cname, "mp_spent": mp_cost})
             logs.append(f"✨ 你开始蓄力【{cname}】，需要 {int(info['charge'])} 刻！")
             # 冷却照常进入（§6.2 施放即冷却）
             cd = info.get("cd", 0)
@@ -3767,7 +3947,7 @@ class Battle:
 
     def _do_defend(self, player: dict, logs: list, enemy_act: bool = True, cast_mult: float = 1.0) -> tuple:
         logs.append("🛡️ 你架起防御姿态，受到的伤害减半！")
-        self.p_defending = True
+        self._p_set_defending(True)
         # v152：防御也是玩家行为，有行为时长（快动作 cast_mult=CAST_DEFEND）。
         # 防御期间敌方可行动（_process_until 处理到玩家 next_act_at），伤害减半由 defend=True 生效。
         if enemy_act and self.btype != "pvp":
@@ -3842,17 +4022,17 @@ class Battle:
                                   player.get("evolve_path", 0),
                                   getattr(self, "title_bonus", None) or {},
                                   player.get("race"))
-        st = self._apply_buffs(st, self.p_buffs)
+        st = self._apply_buffs(st, self._p_buffs_bag())
         # v104 M23 神龛祝福：持久 buff（stat ×1.10，5 次战斗），战斗开始时已消费 1 次
-        _pb = getattr(self, "poi_buff", None)
+        _pb = self._p_poi_buff()
         if _pb and _pb.get("stat") in st:
             st[_pb["stat"]] = int(st.get(_pb["stat"], 0) * float(_pb.get("mult", 1.10)))
         # #245: 玩家减速生效（与 _enemy_stats 的 spd_down 处理对称）——此前 p_buffs["spd_down"]
         # 只被挂载从未应用，减速玩家仍按原速度先手/触发速度优势
-        if "spd_down" in self.p_buffs:
+        if "spd_down" in self._p_buffs_bag():
             st["spd"] = int(st.get("spd", 0) * SPD_DOWN_MULT)
         # v169.7 暗影步·极 shadow_dance_bonus：影舞态中自身速度 +25%
-        if self.p_buffs.get("shadow_dance"):
+        if self._p_buffs_bag().get("shadow_dance"):
             try:
                 for _pn_sb, _ps_sb in self._proc_pm(player)["proc"].get("shadow_dance_bonus", []):
                     st["spd"] = int(st.get("spd", 0) * (1.0 + float(_ps_sb.get("spd_add", 0.25) or 0.25)))
@@ -3957,22 +4137,22 @@ class Battle:
             _weids = set(_we_ids(self, player))
             if "arcane_firmament" in _weids:
                 st["matk"] = int(st.get("matk", 0) * 1.15)
-            _gale_pct = float((self.p_eff or {}).get("gale_step_pct", 0) or 0)
-            if _gale_pct > 0 and self.p_buffs.get("gale_step"):
+            _gale_pct = float((self._p_eff() or {}).get("gale_step_pct", 0) or 0)
+            if _gale_pct > 0 and self._p_buffs_bag().get("gale_step"):
                 st["spd"] = int(st.get("spd", 0) * (1 + _gale_pct))
             if "star_slayer_edge" in _weids:
                 st["crit_dmg"] = float(st.get("crit_dmg", 0) or 0) + 0.30
             if "endless_radiance" in _weids:
                 st["crit_dmg"] = float(st.get("crit_dmg", 0) or 0) + 0.25
             # 风痕（风行短弓）：每层速度 +2%
-            _wm = int((self.mech_stacks or {}).get("wind_mark", 0) or 0)
+            _wm = int((self._p_stacks() or {}).get("wind_mark", 0) or 0)
             if _wm > 0:
                 st["spd"] = int(st.get("spd", 0) * (1 + 0.02 * _wm))
             # v140 波4：新手特效 翠风（novice_wind_spd）——命中后自身速度 +5%（2 刻）
-            if self.p_buffs.get("novice_wind_spd"):
+            if self._p_buffs_bag().get("novice_wind_spd"):
                 st["spd"] = int(st.get("spd", 0) * 1.05)
             # 雷纹连打（雷纹拳甲）：每层速度 +2%、攻击 +1%
-            _tw = int((self.mech_stacks or {}).get("thunder_weave", 0) or 0)
+            _tw = int((self._p_stacks() or {}).get("thunder_weave", 0) or 0)
             if _tw > 0:
                 st["spd"] = int(st.get("spd", 0) * (1 + 0.02 * _tw))
                 st["atk"] = int(st.get("atk", 0) * (1 + 0.01 * _tw))
@@ -4004,11 +4184,11 @@ class Battle:
 
     def _zhan_yi_n(self) -> int:
         """战士战意叠层（mech_stacks.zhan_yi 0-10，battle_mech _m_zhan_yi 写入）。"""
-        return int((self.mech_stacks or {}).get("zhan_yi", 0) or 0)
+        return int((self._p_stacks() or {}).get("zhan_yi", 0) or 0)
 
     def _guard_core_n(self) -> int:
         """拳师磐核数（resources.guard_core，GUARD_CORE_CFG max=5）。"""
-        return int((self.resources or {}).get("guard_core", 0) or 0)
+        return int((self._p_res() or {}).get("guard_core", 0) or 0)
 
     def _poison_cap(self, player: dict) -> int:
         """毒层上限：基础 5（MECH_STACK_MAX poison=5 / battle_mech 叠层 min(5, ...)）+ 被动提升。
@@ -4024,7 +4204,7 @@ class Battle:
     def _shadow_dance(self, player: dict) -> bool:
         """影舞态（v169.7 battle.py 侧接线）：暗影步 effect=shadow_dance 施放时置位
         p_buffs.shadow_dance（see _skill_buff 消费点）；后续在 _combo_break / _set_skill_cd 消费。"""
-        return bool(self.p_buffs.get("shadow_dance"))
+        return bool(self._p_buffs_bag().get("shadow_dance"))
 
     def _melody_state(self) -> dict:
         """诗人旋律状态（battle_mech._melody_state 同结构：{name, stack, finale_ready}）。"""
@@ -4079,10 +4259,10 @@ class Battle:
             for _pn, _ps in pm["proc"].get("arcane_wisdom", []):
                 _full = False
                 try:
-                    if self.resources.get("element_charge") is not None:
+                    if self._p_res().get("element_charge") is not None:
                         _full = self._elem_charge() >= self._res_max(player, "element")
                     else:
-                        _full = int((self.mech_stacks or {}).get("arcane", 0) or 0) >= 5
+                        _full = int((self._p_stacks() or {}).get("arcane", 0) or 0) >= 5
                 except Exception:
                     _full = False
                 if _full:
@@ -4096,18 +4276,18 @@ class Battle:
                 for _pn, _ps in pm["proc"].get("focus_surplus_crit", []):
                     _pres = getattr(self, "_pre_cost_res", None)
                     _eng = int(_pres.get("energy", 0) or 0) if isinstance(_pres, dict) \
-                        else int(self.resources.get("energy", 0) or 0)
+                        else int(self._p_res().get("energy", 0) or 0)
                     if _eng >= int(_ps.get("surplus", 40) or 40):
                         bonus += float(_ps.get("add", 0.20) or 0.20)
                         # 提示玩家凝神已触发（意见 #123 反馈「没看到提示文本」）
-                        self.p_eff["focus_surplus_proc"] = True
+                        self._p_eff()["focus_surplus_proc"] = True
                         break
             # 元素之核（法师元素攻线：单系印记满 _ps.layers（默认 3）时该系结算暴击 +20%）
             if info is not None:
                 for _pn, _ps in pm["proc"].get("element_core", []):
                     _el = info.get("element", "")
                     if _el == "current":
-                        _el = self.resources.get("element", "fire")
+                        _el = self._p_res().get("element", "fire")
                     if _el:
                         _mk = self._elem_marks()
                         if int(_mk.get(_el, 0) or 0) >= int(_ps.get("layers", 3) or 3):
@@ -4152,7 +4332,7 @@ class Battle:
             if self._tenacity_left() <= 0:
                 return False
             # 消耗战意 + 次数
-            self.mech_stacks["zhan_yi"] = max(0, self._zhan_yi_n() - cost)
+            self._p_stacks()["zhan_yi"] = max(0, self._zhan_yi_n() - cost)
             self._tenacity_left_n = self._tenacity_left() - 1
             _pn = _pm["proc"]["tenacity"][0][0]
             logs.append(f"🛡️ {_pn}：消耗 {cost} 层战意挣脱控制！（剩余 {self._tenacity_left()} 次）")
@@ -4201,7 +4381,7 @@ class Battle:
         sub = float(st.get(sub_key, 0) or 0)
         if sub > 0:
             rate = 1 - (1 - rate) * (1 - sub)
-        if self.p_buffs.get("lifesteal_pot"):
+        if self._p_buffs_bag().get("lifesteal_pot"):
             rate = 1 - (1 - rate) * (1 - 0.15)  # 嗜血药剂 +15% 吸血（乘算并入）
         # v169.7 淬血（战士攻线）：每层战意 +1.5% 吸血（数据驱动 proc zhan_yi_lifesteal）
         try:
@@ -4214,7 +4394,7 @@ class Battle:
             pass
         rate = min(rate, 0.30)
         # v1.3 重伤（mortal_wound）：目标被重创后吸血效果减半（Boss『重创』类技能施加）
-        if self.p_buffs.get("mortal_wound"):
+        if self._p_buffs_bag().get("mortal_wound"):
             rate *= 0.5
         if rate <= 0:
             return
@@ -4248,7 +4428,7 @@ class Battle:
                 gain += int(_ps.get("gain", 0))
         # v151 隐藏职业删除：星语猎印 on_hit 追加逻辑已移除
         if gain:
-            self.resources[k] = self._res_gain_class(cls, k, gain)
+            self._p_res()[k] = self._res_gain_class(cls, k, gain)
         # v130.2 暴击命中结算挂点（on_crit：暮影影步 / 刺客攻线连击点 / 星语猎印暴击额外）
         if is_crit:
             self._on_crit_resource(player)
@@ -4295,7 +4475,7 @@ class Battle:
         # （歌者治疗走分支挂载 res_gain，见 v130.2 双资源口径；engine 不得给歌者双计数）。
         if info and info.get("kind") == K_HEAL and rd.get("on_heal") and k in act_keys:
             # v153 §4（C-18）：力竭中信念不增加（过载后 6 刻）
-            if not self.p_buffs.get("faith_exhausted"):
+            if not self._p_buffs_bag().get("faith_exhausted"):
                 gain += int(rd["on_heal"])
         # v151 隐藏职业删除：星语猎印技能命中追加逻辑已移除（on_skill_extra 恒 0）
         on_skill_extra = 0
@@ -4320,7 +4500,7 @@ class Battle:
             if k == "element":
                 self._res_gain(player, "element", gain + on_skill_extra, logs)
             else:
-                self.resources[k] = self._res_gain_class(cls, k, gain + on_skill_extra)
+                self._p_res()[k] = self._res_gain_class(cls, k, gain + on_skill_extra)
         # v139 双形态进入检查：技能结算后资源已更新，若满足入形态条件（狂战士满 10 怒 / 龙裔龙力≥8）自动进入
         # （auto 技能显式声明 或 资源达 enter_requirement 均可触发；免费切换不占行动）
         try:
@@ -4328,7 +4508,7 @@ class Battle:
             _df_cfg = _dfd139(player)
             if _df_cfg:
                 _df_key = _df_cfg.get("key", k)
-                _df_val = int(self.resources.get(_df_key, 0) or 0)
+                _df_val = int(self._p_res().get(_df_key, 0) or 0)
                 _df_auto = (info or {}).get("auto", "")
                 _df_want = _df_auto in ("rage_form_enter", "dragon_form_enter") or _dfce139(player, _df_val)
                 if _df_want and not _dfs139(player).get("form") == "alt":
@@ -4351,13 +4531,13 @@ class Battle:
             gain = int(rd["on_crit"])
             # v130.2f2（T11 P2）：潜行已于出手处置 True 标记（消费点 3030-3034 先删 buff）——
             # 此处读标记而非二次查 buff，「潜行出手额外 +1 影步」不再空转
-            if self.p_buffs.get("stealth") or getattr(self, "_stealth_atk", False):
+            if self._p_buffs_bag().get("stealth") or self._p_stealth_atk():
                 gain += int(SHADOW_STEP_CFG.get("stealth_extra", 1) or 0)
-            self.resources[k] = E.core_resource_gain(cls, self.resources, gain)
+            self._p_res()[k] = E.core_resource_gain(cls, self._p_res(), gain)
             proc_ok = True
         # 刺客攻线·影舞者：on_crit 额外 +1 连击点（叠于 on_attack/on_skill）
         elif self._combo_active(player):  # v176: combo归属已数据化COMBO_CFG
-            self.resources[k] = E.core_resource_gain(cls, self.resources, ASSASSIN_ON_CRIT_GAIN)
+            self._p_res()[k] = E.core_resource_gain(cls, self._p_res(), ASSASSIN_ON_CRIT_GAIN)
             proc_ok = True
         # v151 隐藏职业删除：星语猎印暴击额外（crit_mark）已移除
         return proc_ok
@@ -4373,7 +4553,7 @@ class Battle:
             return
         self._assassin_refund_used = True
         _cls = player.get("class_name", "")
-        _before = int(self.resources.get("cp", 0) or 0)
+        _before = int(self._p_res().get("cp", 0) or 0)
         _now = self._res_gain_class(_cls, "cp", 1)
         if _now > _before:  # 真实增量判定（连击点已满时不误报返还）
             logs.append(f"🗡️ 致命预谋：首次终结返还 1 连击点（当前 {_now}）")
@@ -4382,7 +4562,7 @@ class Battle:
         """v34：攻击后符文效果结算(灼烧/冻结/吸血/连锁/虚弱/破魔)"""
         if not effs:
             return
-        p_mech = self.mech_stacks
+        p_mech = self._p_stacks()
         # 灼热：攻击附带灼烧 n 层（DOT 重构：敌方灼烧为目标级 enemy["debuffs"]，不再写 p_mech）
         burn_lvl = self._enchant_lvl(effs, "burn")
         if burn_lvl:
@@ -4784,8 +4964,8 @@ class Battle:
         """
         mult, tags = self._affix_dmg_mult(player)
         # v140 S1 直连消费：狼嚎（wolf_howl）——本场伤害 +10%（战斗开始置位，命中即乘）
-        if (self.p_eff or {}).get("wolf_howl_mult"):
-            mult = mult * float(self.p_eff.get("wolf_howl_mult", 1.10))
+        if (self._p_eff() or {}).get("wolf_howl_mult"):
+            mult = mult * float(self._p_eff().get("wolf_howl_mult", 1.10))
             tags = list(tags) + ["🐺狼嚎x1.1"]
         # v130.2 拳师蓄势 Momentum（攻线·格斗士）：物理伤害吃「每 1 气 +3%」持有加伤
         _mom = self._momentum_mult(player)
@@ -4794,15 +4974,15 @@ class Battle:
             tags = list(tags) + [f"🔥蓄势x{round(_mom, 2)}"]
         # v130.2f2 苦修禅意（武僧线）：物理伤害吃「每 1 禅意 +4%」持有加伤
         # v130.2 澎湃烈酒（phys_up）/ 引气精华（buff_phys_next）：物理伤害 +pct%
-        if kind == K_PHYS and (self.p_buffs.get("phys_up") or self.p_buffs.get("buff_phys_next")):
-            _pu = float((self.p_eff or {}).get("phys_up", 0) or 0)
-            _bpn = float((self.p_eff or {}).get("buff_phys_next", 0) or 0)
+        if kind == K_PHYS and (self._p_buffs_bag().get("phys_up") or self._p_buffs_bag().get("buff_phys_next")):
+            _pu = float((self._p_eff() or {}).get("phys_up", 0) or 0)
+            _bpn = float((self._p_eff() or {}).get("buff_phys_next", 0) or 0)
             if _pu > 0:
                 mult *= (1 + _pu)
             if _bpn > 0:
                 mult *= (1 + _bpn)
-                del self.p_buffs["buff_phys_next"]
-                self.p_eff.pop("buff_phys_next", None)
+                del self._p_buffs_bag()["buff_phys_next"]
+                self._p_eff().pop("buff_phys_next", None)
             _tags_pu = ([f"🍺物理x{round(1 + _pu, 2)}"] if _pu > 0 else []) + \
                        ([f"🥊引气x{round(1 + _bpn, 2)}"] if _bpn > 0 else [])
             if _tags_pu:
@@ -4833,7 +5013,7 @@ class Battle:
         龙语印记：每层 +2% 伤害（v104 移入此处——此前 _affix_dmg_mult 在无词条时提前
         return 会漏结算该倍率，有词条路径在调用后单独结算，两路径行为不一致）。
         """
-        foods = getattr(self, "p_food_effects", []) or []
+        foods = self._p_food_effects() or []
         # v110 审计修复：处决阈值 0.35 → 0.30（v109 拍板「斩杀线以 30% 为准」，
         # 与文案/设计 <30% 及 execute 被动 cond_hp=0.30 统一）
         if "execute" in foods and hp_ratio < 0.30:
@@ -4842,14 +5022,14 @@ class Battle:
         if "precise" in foods:
             mult *= 1.10
             tags.append("🎯精准")
-        if self.p_buffs.get("execute_pot") and hp_ratio < 0.30:
+        if self._p_buffs_bag().get("execute_pot") and hp_ratio < 0.30:
             mult *= 1.30
             tags.append("💀处决")
-        if self.p_buffs.get("next_atk_up"):
+        if self._p_buffs_bag().get("next_atk_up"):
             mult *= 1.50
-            del self.p_buffs["next_atk_up"]
+            del self._p_buffs_bag()["next_atk_up"]
             tags.append("⚔️狂怒")
-        dm = int(self.mech_stacks.get("dragon_mark", 0) or 0)
+        dm = int(self._p_stacks().get("dragon_mark", 0) or 0)
         if dm:
             # v126 数值下沉：每层增伤读龙语印记数据 mark_pct（缺省 2%）
             _dt = (C.AFFIXES.get("dragon_tongue") or {}).get("effect") or {}
@@ -4869,37 +5049,37 @@ class Battle:
         """
         mult = 1.0
         tags = []
-        if not (self.p_buffs or {}).get("hunt_team_dmg") and not (self.p_buffs or {}).get("star_lock") \
-                and not (self.p_buffs or {}).get("arcane_matrix") and not (self.p_buffs or {}).get("arcane_field"):
+        if not (self._p_buffs_bag() or {}).get("hunt_team_dmg") and not (self._p_buffs_bag() or {}).get("star_lock") \
+                and not (self._p_buffs_bag() or {}).get("arcane_matrix") and not (self._p_buffs_bag() or {}).get("arcane_field"):
             return mult, tags
         # 猎杀时刻：对带猎印目标增伤
-        if self.p_buffs.get("hunt_team_dmg"):
+        if self._p_buffs_bag().get("hunt_team_dmg"):
             _hm = int(((self.enemy or {}).get("debuffs") or {}).get("hunt_mark", 0) or 0)
             if _hm > 0:
-                pct = float((self.p_eff or {}).get("hunt_team_dmg", 0) or 0)
+                pct = float((self._p_eff() or {}).get("hunt_team_dmg", 0) or 0)
                 if pct > 0:
                     mult *= 1.0 + pct
                     tags.append("🎯猎杀")
         # 星轨锁定：对当前主目标增伤
-        if self.p_buffs.get("star_lock"):
-            pct = float((self.p_eff or {}).get("star_lock", 0) or 0)
+        if self._p_buffs_bag().get("star_lock"):
+            pct = float((self._p_eff() or {}).get("star_lock", 0) or 0)
             if pct > 0:
                 mult *= 1.0 + pct
                 tags.append("🌟锁定")
         # 奥术矩阵：魔法/奥术伤害
-        if self.p_buffs.get("arcane_matrix") and kind == K_MAGI:
-            pct = float((self.p_eff or {}).get("arcane_matrix", 0) or 0)
+        if self._p_buffs_bag().get("arcane_matrix") and kind == K_MAGI:
+            pct = float((self._p_eff() or {}).get("arcane_matrix", 0) or 0)
             if pct > 0:
                 mult *= 1.0 + pct
                 tags.append("🔮奥术")
         # 奥术力场·利刃：下次奥术技（魔法）伤害 ×1.3 一次性
-        if self.p_buffs.get("arcane_field") and kind == K_MAGI:
-            pct = float((self.p_eff or {}).get("arcane_field", 0) or 0)
+        if self._p_buffs_bag().get("arcane_field") and kind == K_MAGI:
+            pct = float((self._p_eff() or {}).get("arcane_field", 0) or 0)
             if pct > 0:
                 mult *= 1.0 + (pct - 1.0)  # p_eff 存 1.30 完整倍率 → 折算成增量
                 tags.append("📖力场")
-            del self.p_buffs["arcane_field"]
-            self.p_eff.pop("arcane_field", None)
+            del self._p_buffs_bag()["arcane_field"]
+            self._p_eff().pop("arcane_field", None)
         return mult, tags
 
     def _affix_element_dmg(self, player: dict, element: str) -> float:
@@ -4989,21 +5169,21 @@ class Battle:
     # ---------------- v101.28e 食物效果挂点（独立于装备词条） ----------------
     def _food_on_hit(self, player: dict, dmg: int, logs: list):
         """攻击命中后料理效果触发（吸血/流血/破甲/连击/龙语印记/元素/贯穿/蓄力）。"""
-        if not self.p_food_effects or self.enemy.get("hp", 0) <= 0:
+        if not self._p_food_effects() or self.enemy.get("hp", 0) <= 0:
             return
         from .core.food_effects import FOOD_HIT_EFFECTS
-        for key in self.p_food_effects:
+        for key in self._p_food_effects():
             fn = FOOD_HIT_EFFECTS.get(key)
             if fn:
                 fn(self, player, dmg, logs)
 
     def _food_on_taken(self, player: dict, dmg: int, logs: list) -> int:
         """受击料理效果（反击/反伤）。返回结算后伤害（当前食物效果不改减伤，透传）。"""
-        if not self.p_food_effects:
+        if not self._p_food_effects():
             return dmg
         from .core.food_effects import FOOD_TAKEN_EFFECTS
         ctx = {"dmg": dmg, "out": dmg}
-        for key in self.p_food_effects:
+        for key in self._p_food_effects():
             fn = FOOD_TAKEN_EFFECTS.get(key)
             if fn:
                 fn(self, player, ctx, logs)
@@ -5011,10 +5191,10 @@ class Battle:
 
     def _food_turn_start(self, player: dict, logs: list):
         """刻开始料理效果（回春/冥想/晨曦祝福）。"""
-        if not self.p_food_effects:
+        if not self._p_food_effects():
             return
         from .core.food_effects import FOOD_TURN_START_EFFECTS
-        for key in self.p_food_effects:
+        for key in self._p_food_effects():
             fn = FOOD_TURN_START_EFFECTS.get(key)
             if fn:
                 fn(self, player, logs)
@@ -5890,7 +6070,7 @@ class Battle:
         # 技能元素（"current"=当前元素亲和系）——提前解析供 proc 型被动判定
         element = info.get("element", "")
         if element == "current":
-            element = self.resources.get("element", "fire")
+            element = self._p_res().get("element", "fire")
         # 破甲本能：破防技能伤害 +10%（proc pierce，原硬编码技能名）
         for _pn, _ps in _procs.get("pierce", []):
             if info.get("pierce"):
@@ -5941,7 +6121,7 @@ class Battle:
         for _pn, _ps in _procs.get("element_sync", []):
             if element and E.ELEMENT_MARKS.get(element):
                 try:
-                    if getattr(self, "_last_element", None) == element:
+                    if self._p_last_element() == element:
                         self._elem_sync_bonus = True
                 except Exception:
                     pass
@@ -5960,13 +6140,13 @@ class Battle:
             _sstat = _ps.get("stat")
             if _sstat in MECH_STAT_PASSIVES and mech == MECH_STAT_PASSIVES[_sstat]:
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
-            elif _sstat == "stealth_crit_dmg" and (self.p_buffs.get("stealth") or getattr(self, "_stealth_atk", False)):
+            elif _sstat == "stealth_crit_dmg" and (self._p_buffs_bag().get("stealth") or self._p_stealth_atk()):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # v104 R3 P1-1：复仇被动消费——受击后下次攻击 +30%（挨打反打，一次后清除）
-        if self.p_buffs.get("revenge_atk"):
+        if self._p_buffs_bag().get("revenge_atk"):
             for _pn, _ps in _procs.get("counter", []):
                 passive_bonus *= float(_ps.get("mult", 1.3))
-            del self.p_buffs["revenge_atk"]
+            del self._p_buffs_bag()["revenge_atk"]
         # v107 斩杀（影武者）：目标 HP<30% 时伤害加成（cond_hp 斩杀线 / mult 加成）
         _execute_tag = ""
         if self.enemy.get("hp", 0) > 0 and self.enemy.get("max_hp", 1) > 0:
@@ -6007,11 +6187,11 @@ class Battle:
         # v130.2f2：顺带记录本次攻击出手时处于潜行（供暮影潜行乘区 破影一击×1.5/幽影刃×1.25 消费，
         #   判定与下方必暴共享同一字段 p_buffs["stealth"]：攻击时消费即视为潜行出手）
         _stealth_hit = False
-        self._stealth_atk = False  # v130.2f2（T11 P2）：潜行出手标记每次出手前复位
+        self._p_set_stealth_atk(False)# v130.2f2（T11 P2）：潜行出手标记每次出手前复位
         if self._cast_buffs().get("stealth"):
             is_crit = True
             _stealth_hit = True
-            self._stealth_atk = True  # 潜行出手标记——供 _on_crit_resource（潜行出手额外+1 影步）与暗影之舞暴伤被动读取
+            self._p_set_stealth_atk(True)# 潜行出手标记——供 _on_crit_resource（潜行出手额外+1 影步）与暗影之舞暴伤被动读取
             del self._cast_buffs()["stealth"]
             logs.append("🌙 潜行生效！本次攻击必定暴击！")
         # v34 符文：装备效果（破甲/暴伤/破魔/攻击特效）
@@ -6098,12 +6278,12 @@ class Battle:
                 dmg_i = E.calc_damage(int((st["matk"] * info["power"] + _skill_flat) * pmult), est["mdef"], _seg_crit,
                                       pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
         # v87 魔剑士·魔力涌动：消耗 buff，本次攻击追加 80% 魔法伤害
-        if self.p_buffs.get("spellblade_surge"):
+        if self._p_buffs_bag().get("spellblade_surge"):
             surge_dmg = E.calc_damage(int(st["matk"] * 0.80 * pmult), est["mdef"], _seg_crit,
                                       pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
             dmg_i += surge_dmg
             magi_add += surge_dmg
-            del self.p_buffs["spellblade_surge"]
+            del self._p_buffs_bag()["spellblade_surge"]
         # v34 残忍：暴击伤害 +x%（按等级，符文特效）
         brutal_lvl = self._enchant_lvl(effs, "brutal")
         if brutal_lvl and _seg_crit:
@@ -6112,7 +6292,7 @@ class Battle:
         cdmg = float(st.get("crit_dmg", 0) or 0)
         # v169.7 暗影步·极 shadow_dance_bonus：影舞态中暴击伤害 +20%（暴伤加算）
         cdmg += self._passive_crit_dmg_mult(player)
-        if self.p_buffs.get("crit_dmg_pot"):
+        if self._p_buffs_bag().get("crit_dmg_pot"):
             cdmg = 1 - (1 - cdmg) * (1 - 0.25)  # 狂暴药剂 +25% 暴伤（乘算并入）
         if _seg_crit and cdmg > 0:
             dmg_i = int(dmg_i * (1 + cdmg))
@@ -6269,7 +6449,7 @@ class Battle:
                     continue
                 if int(rc.get(_k, 0) or 0) <= 0:
                     continue
-                n = int(_pres.get(_k, 0) or 0) if _pres else int(self.resources.get(_k, 0) or 0)
+                n = int(_pres.get(_k, 0) or 0) if _pres else int(self._p_res().get(_k, 0) or 0)
                 if n > 0:
                     return 1.0 + n * _step
         return 1.0
@@ -6284,8 +6464,8 @@ class Battle:
             return 1.0
         try:
             # 桥接状态源（若 _is_path 未被调用过，主动挂载）
-            player.setdefault("v139_modes", self._v139_modes)
-            player.setdefault("v139_charge", self._v139_charge)
+            player.setdefault("v139_modes", self._p_v139_modes())
+            player.setdefault("v139_charge", self._p_v139_charge())
             from .core.battle_modes import dual_form_active, dual_form_mult, focus_active, focus_mult
             m = 1.0
             if dual_form_active(player):
@@ -7887,7 +8067,7 @@ class Battle:
     def _tailwind_regen_bonus(self, player: dict) -> int:
         """v130.2d 疾风余韵：上刻结束时精力 ≥80 → 本刻精力自然回复 +10（词条 effect.regen）。
         跨刻状态由 _end_round 记录 _tailwind_prev_energy（每战初始化 None，随战斗序列化）。"""
-        _prev = getattr(self, "_tailwind_prev_energy", None)
+        _prev = self._p_tailwind_prev_energy()
         if _prev is None or int(_prev or 0) < int(ENERGY_HIGH.get("threshold", 80) or 80):
             return 0
         if "swift_tailwind" not in self._equip_affix_ids(player):
@@ -7936,7 +8116,7 @@ class Battle:
                 pass
             # 食物持续效果
             try:
-                if self.p_food_effects:
+                if self._p_food_effects():
                     return True
             except Exception:
                 pass
@@ -8069,7 +8249,7 @@ class Battle:
                 _has_affix = bool(self._affix_effs(player, "__any_turn_start__"))
             except Exception:
                 _has_affix = False
-            if _has_affix or self.p_food_effects:
+            if _has_affix or self._p_food_effects():
                 _want.add("affix_food_we")
         except Exception:
             pass
@@ -8191,22 +8371,22 @@ class Battle:
                 if isinstance(_item, dict) and "maintain_cost" in _item:
                     _df_key = _dfd.get("key", "rage")
                     _mc = float(_item["maintain_cost"])  # v153：支持浮点维持（狂暴每刻 −0.6）
-                    _cur = float(self.resources.get(_df_key, 0) or 0)
+                    _cur = float(self._p_res().get(_df_key, 0) or 0)
                     if _cur >= _mc:
-                        self.resources[_df_key] = _cur - _mc
-                        logs.append(f"⚡【{_dfd.get('form', '形态')}】维持消耗 {_mc}（{self.resources.get(_df_key, 0)}）")
+                        self._p_res()[_df_key] = _cur - _mc
+                        logs.append(f"⚡【{_dfd.get('form', '形态')}】维持消耗 {_mc}（{self._p_res().get(_df_key, 0)}）")
                     # 强制回基础形态
-                    if dual_form_force_return(player, int(self.resources.get(_df_key, 0) or 0)):
+                    if dual_form_force_return(player, int(self._p_res().get(_df_key, 0) or 0)):
                         dual_form_exit(player, logs)
                         logs.append("⚠️ 力量不支，被迫回到常态！")
         # vent：满值强制排气（游侠精力 100 / 星语者猎印 5）
         _vd = vent_def(player)
         if _vd:
             _v_key = _vd.get("key", "energy")
-            _v_cur = int(self.resources.get(_v_key, 0) or 0)
+            _v_cur = int(self._p_res().get(_v_key, 0) or 0)
             if vent_should_trigger(player, _v_cur):
                 _vr = vent_apply(player, logs)
-                self.resources[_v_key] = int(_vr.get("reset_to", 0) or 0)
+                self._p_res()[_v_key] = int(_vr.get("reset_to", 0) or 0)
                 logs.append(f"💨 气息满溢，自动排气！(重置为 {_vr.get('reset_to', 0)})")
         # focus：专注计时（额外资源 + 超时退出）
         _fd = focus_def(player)
@@ -8216,10 +8396,10 @@ class Battle:
                 _f_key = _fd.get("key", "element")
                 _f_gain = int(_ft["gain"])
                 # 专注额外资源（走 _res_gain 带上限）
-                _f_before = int(self.resources.get(_f_key, 0) or 0)
-                self.resources[_f_key] = self._res_gain(player, _f_key, _f_gain)
-                if int(self.resources.get(_f_key, 0) or 0) > _f_before:
-                    logs.append(f"🧘 专注积累 +{_f_gain}（{self.resources.get(_f_key, 0)}）")
+                _f_before = int(self._p_res().get(_f_key, 0) or 0)
+                self._p_res()[_f_key] = self._res_gain(player, _f_key, _f_gain)
+                if int(self._p_res().get(_f_key, 0) or 0) > _f_before:
+                    logs.append(f"🧘 专注积累 +{_f_gain}（{self._p_res().get(_f_key, 0)}）")
         return logs
 
     def _end_round(self, dt: float | None = None):
@@ -8240,7 +8420,7 @@ class Battle:
         _now = self._now
         self._now = _now + float(dt)
         # ---- buff 到期检查（p_buffs / e_buffs）----
-        for tbl in (self.p_buffs, self.e_buffs):
+        for tbl in (self._p_buffs_bag(), self.e_buffs):
             for k in list(tbl):
                 v = tbl[k]
                 # 控制类 buff：行动级消费，不在时刻递减（与旧语义一致）
@@ -8259,7 +8439,7 @@ class Battle:
                 if isinstance(v, dict):
                     continue
                 # 防御型 buff（受击计数）：由 _damage_player 受击递减
-                if tbl is self.p_buffs and k in (getattr(self, "_p_buff_hits", {}) or {}):
+                if tbl is self._p_buffs_bag() and k in (self._p_buff_hits() or {}):
                     continue
                 # v152：buff 值兼容三种形态——expire_at(时刻)、turns(刻 int)、原始 int(视为剩余刻)
                 if isinstance(v, dict) and "expire_at" in v:
@@ -8275,24 +8455,24 @@ class Battle:
                     if self._now >= float(v) * ACT_TICK:
                         del tbl[k]
         # v113.1：团队减伤 buff 独立计时（reduce_all 的到期）
-        if self.p_buffs.get("reduce_all") is not None and self._now >= float(getattr(self, "_reduce_all_left", 1) or 1) * ACT_TICK:
-            self.p_buffs.pop("reduce_all", None)
-            self._reduce_all_left = 0
+        if self._p_buffs_bag().get("reduce_all") is not None and self._now >= float(self._p_reduce_all_left() or 1) * ACT_TICK:
+            self._p_buffs_bag().pop("reduce_all", None)
+            self._p_set_reduce_all_left(0)
         # v162：单人减伤 reduce 独立计时（铁壁/铜墙等，百分比存 p_buffs["reduce"]）
-        if self.p_buffs.get("reduce") is not None and self._now >= float(getattr(self, "_reduce_left", 1) or 1) * ACT_TICK:
-            self.p_buffs.pop("reduce", None)
-            self._reduce_left = 0
+        if self._p_buffs_bag().get("reduce") is not None and self._now >= float(self._p_reduce_left() or 1) * ACT_TICK:
+            self._p_buffs_bag().pop("reduce", None)
+            self._p_set_reduce_left(0)
         # v101.28d 护盾到期：各来源独立 expire_at
-        for key in list(self.p_shields):
-            sh = self.p_shields[key]
+        for key in list(self._p_shields_bag()):
+            sh = self._p_shields_bag()[key]
             # 兼容旧 {"turns"} → expire_at
             if "turns" in sh and "expire_at" not in sh:
                 sh["expire_at"] = self._now + max(1, int(sh.get("turns", 1))) * ACT_TICK
                 sh.pop("turns", None)
             if self._now >= float(sh.get("expire_at", 0) or 0):
-                del self.p_shields[key]
+                del self._p_shields_bag()[key]
         # v130.2 资源增幅 turns_left 衰减（hits 制由 _amp_resource 出手命中逐次扣）→ 到期清
-        _amp_m = (self.p_eff or {}).get("amps")
+        _amp_m = (self._p_eff() or {}).get("amps")
         if _amp_m:
             for _ak in list(_amp_m):
                 _a = _amp_m[_ak]
@@ -8305,20 +8485,20 @@ class Battle:
                 if int(_a.get("turns_left", 0) or 0) <= 0 and int(_a.get("hits_left", 0) or 0) <= 0:
                     del _amp_m[_ak]
             if not _amp_m:
-                self.p_eff.pop("amps", None)
+                self._p_eff().pop("amps", None)
         # v140 波3.2：弱点击破/连携增幅 时刻到期
         for _pkey in ("vuln", "dot_amp"):
-            _pe = (self.p_eff or {}).get(_pkey)
+            _pe = (self._p_eff() or {}).get(_pkey)
             if isinstance(_pe, dict) and int(_pe.get("turns_left", 0) or 0) > 0:
                 if self._now >= float(_pe.get("turns_left", 0)) * ACT_TICK:
-                    self.p_eff.pop(_pkey, None)
+                    self._p_eff().pop(_pkey, None)
         # CD / 特效 CD / 星辉壁垒（惰性清除）
         self._tick_cooldowns()
         # v130.2d 疾风余韵：时刻推进后记录精力（供下一次判定自然回复）
-        self._tailwind_prev_energy = int(self.resources.get("energy", 0) or 0)
+        self._p_set_tailwind_prev_energy(int(self._p_res().get("energy", 0) or 0))
         # v130.2f2 满溢转盾冷却：时刻制下按冷却时间重置（简化：每次推进后允许再次转盾，
         # 真正的"每刻限 1 次"语义由 _overflow_shield_cd 在转盾瞬间置位并靠 CD 控制频率）
-        self._overflow_shield_cd = False
+        self._p_set_overflow_shield_cd(False)
         # v179 通用 tick 效果：纯时间推进（无事件）也会到期的周期/持续效果条目
         # （防御/等待/收招等 dt 推进路径——不进 _process_until 事件循环，这里补处理）
         if self.tick_effects:
@@ -8349,12 +8529,12 @@ class Battle:
             if magic:
                 pct = min(float(st.get("pene_magi", 0) or 0), 0.6)
                 flat = max(int(st.get("pene_mflat", 0) or 0), 0)
-                if self.p_buffs.get("pene_magi_pot"):
+                if self._p_buffs_bag().get("pene_magi_pot"):
                     pct = min(1 - (1 - pct) * 0.85, 0.6)
                 return pct, flat
             pct = min(float(st.get("pene_phys", 0) or 0), 0.6)
             flat = max(int(st.get("pene_flat", 0) or 0), 0)
-            if self.p_buffs.get("pene_pot"):
+            if self._p_buffs_bag().get("pene_pot"):
                 pct = min(1 - (1 - pct) * 0.85, 0.6)
             return pct, flat
         except Exception:
@@ -8696,8 +8876,8 @@ class Battle:
         # v151 古树光环：常驻全队攻击 +30%（生成时挂 p_buffs，直到召唤物死亡）
         _aura = float(tmpl.get("aura_atk_all", 0) or 0)
         if _aura > 0 and self.player:
-            _cur = float(self.p_buffs.get("atk_up_all", 0) or 0)
-            self.p_buffs["atk_up_all"] = max(_cur, _aura)
+            _cur = float(self._p_buffs_bag().get("atk_up_all", 0) or 0)
+            self._p_buffs_bag()["atk_up_all"] = max(_cur, _aura)
             logs.append(f"🌳 古树光环：全队攻击＋{int(_aura * 100)}%！")
         logs.append(f"{tmpl.get('icon', '')} {tmpl['name']} 加入战斗！(HP {hp} / 攻击 {atk} / 站位{self.summons[-1]['rank']}层)")
         return True
@@ -8783,10 +8963,10 @@ class Battle:
                 # v169.7 追风 focus_full_on_kill（游侠）：击杀目标后 专注(精力)立即回满
                 try:
                     for _pn_k, _ps_k in self._proc_pm(self.player)["proc"].get("focus_full_on_kill", []):
-                        if self.resources.get("energy") is not None:
+                        if self._p_res().get("energy") is not None:
                             _max_e = self._res_max(self.player, "energy")
-                            _old_e = int(self.resources.get("energy", 0) or 0)
-                            self.resources["energy"] = _max_e
+                            _old_e = int(self._p_res().get("energy", 0) or 0)
+                            self._p_res()["energy"] = _max_e
                             logs.append(f"💨 {_pn_k}：击杀！专注回满（{_old_e} → {_max_e}）")
                         break
                 except Exception:
@@ -8855,9 +9035,9 @@ class Battle:
         怪物 actor 不走此函数——怪物被打的闪避由 _monster_dodge_check 前置处理（避免双重 roll）。"""
         if not actor or not actor.get("class_name"):
             return False
-        B = self.p_buffs
-        EFF = self.p_eff
-        RES = self.resources
+        B = self._p_buffs_bag()
+        EFF = self._p_eff()
+        RES = self._p_res()
         # v105 闪避体系（鱼鱼拍板"闪避改乘算"）：全部来源乘算合成 1-Π(1-dᵢ)，统一 40% 总上限
         # 攻击方精准削减：有效闪避 = 闪避 × (1 - 攻击方精准)，精准上限 60%（PVP 互殴生效，PVE 怪物无精准）
         dodge = min(float(self._actor_stats_of(actor).get("dodge", 0) or 0), 0.40)
@@ -8900,11 +9080,11 @@ class Battle:
             return dmg, False
         # v177 受击方状态路由：玩家 actor → 焦点字段；怪物 actor → 自身 dict（同 _damage_actor）
         if actor.get("class_name"):
-            B = self.p_buffs
-            EFF = self.p_eff
-            RES = self.resources
-            MS = self.mech_stacks
-            HITS = self._p_buff_hits
+            B = self._p_buffs_bag()
+            EFF = self._p_eff()
+            RES = self._p_res()
+            MS = self._p_stacks()
+            HITS = self._p_buff_hits()
         else:
             B = actor.setdefault("buffs", {})
             EFF = actor.get("eff") or {}
@@ -8986,7 +9166,7 @@ class Battle:
         # ---- v151 时刻制：防御型 buff 受击计数递减（鱼鱼拍板：防御药水"3 刻"应按敌方出手次数计）----
         # 铁壁药剂/岩壁药剂/影步药剂/荆棘药剂/技能铁壁 等防御/受击类 buff 不再按玩家刻递减，
         # 改为"实际受击 N 次后消失"——防的是敌方出手，就按敌方出手数计时，不受速度差影响。
-        if getattr(self, "_p_buff_hits", None):
+        if self._p_buff_hits():
             for _hk in [k for k in list(HITS) if int(HITS.get(k, 0) or 0) > 0]:
                 _nh = int(HITS.get(_hk, 0) or 0) - 1
                 if _nh <= 0:
@@ -9182,10 +9362,10 @@ class Battle:
                                    source=str(actor.get("name", "敌人") or "敌人") or "反伤")
             except Exception:
                 pass
-        B = self.p_buffs
-        EFF = self.p_eff
-        RES = self.resources
-        MS = self.mech_stacks
+        B = self._p_buffs_bag()
+        EFF = self._p_eff()
+        RES = self._p_res()
+        MS = self._p_stacks()
         # v106.4 反伤属性统一结算（词条折算/种族/被动/药水 → st["thorns"]）
         _pst_th = self._actor_stats_of(actor)
         th = float(_pst_th.get("thorns", 0) or 0)
@@ -9359,22 +9539,22 @@ class Battle:
         怪物 actor 无这些数据源 → 空转（死亡已在 _damage_actor 前置移除）。副作用全在 self + actor + logs。"""
         if not actor or not actor.get("class_name"):
             return
-        B = self.p_buffs
-        EFF = self.p_eff
-        RES = self.resources
-        MS = self.mech_stacks
+        B = self._p_buffs_bag()
+        EFF = self._p_eff()
+        RES = self._p_res()
+        MS = self._p_stacks()
         # v140 波3.1：特效装备生命阈值（时光凝滞/磐石守护/苍穹庇护/石像鬼之心/不灭意志）
         # + 不灭意志免疫致死（本刻免疫致死伤害，扣血后回拉）
         try:
             from .core.weapon_effects import proc as _we_proc
             _we_proc(self, actor, "threshold", {"dmg": dmg}, logs)
-            if battle_p_eff_undying := getattr(self, "p_eff", {}).get("we_undying_immune"):
+            if battle_p_eff_undying := self._p_eff().get("we_undying_immune"):
                 if actor.get("hp", 0) <= 0:
                     actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * 0.10))
                     logs.append("✨ 不灭意志：你撑住了致命一击！")
                 EFF.pop("we_undying_immune", None)
             # 死亡之舞：受击伤害 35% 转为缓伤池（刻开始结算 10%）
-            if getattr(self, "p_eff", {}).get("we_death_pool") is not None:
+            if self._p_eff().get("we_death_pool") is not None:
                 EFF["we_death_pool"] = float(EFF.get("we_death_pool", 0) or 0) + dmg * 0.35
         except Exception:
             pass
@@ -9386,7 +9566,7 @@ class Battle:
             _prt = max(1, int(_pr.get("turns", 3) or 3))
             B["reduce_all"] = max(float(B.get("reduce_all", 0) or 0),
                                              float(_pr.get("dmg_reduce", 0.20) or 0.20))
-            self._reduce_all_left = max(int(getattr(self, "_reduce_all_left", 0) or 0), _prt)
+            self._p_set_reduce_all_left(max(int(self._p_reduce_all_left() or 0), _prt))
             logs.append(f"🪶 不死鸟之羽燃尽！你以 {actor['hp']} HP 复活，获得减伤！")
         # v107 死亡契约（暗影祭司）：致死时牺牲一个召唤物以 20% HP 存活（每场 1 次）
         if actor["hp"] <= 0 and self.summons and not self._death_pact_used:
@@ -9449,10 +9629,10 @@ class Battle:
         由 _damage_actor 扣血后调用（存活才触发）。副作用全在 self + logs。"""
         if not actor or not actor.get("class_name"):
             return
-        B = self.p_buffs
-        EFF = self.p_eff
-        RES = self.resources
-        MS = self.mech_stacks
+        B = self._p_buffs_bag()
+        EFF = self._p_eff()
+        RES = self._p_res()
+        MS = self._p_stacks()
         # v2.0 核心资源：受击获取（战士怒气/牧师信仰/拳师气）
         cls = actor.get("class_name", "")
         rd = E.core_resource_def(cls)
@@ -9604,34 +9784,23 @@ class Battle:
 
         返回实际扣血（玩家死亡由上层处理；怪物死亡即时移除单位）。
         """
-        # ---- v177 actor 状态容器路由（数据路由，非结算逻辑分支）----
-        # v180-B：容器路由看"是否焦点玩家"（状态在 Battle 焦点字段），不看 class_name——
-        # 怪配 class_name 扮职业（actor_cfg）状态仍在自身 dict，误走玩家容器会读错 buffs/resources
+        # ---- v180-B actor 状态容器（玩家/怪/新 actor 同构，一律读 actor dict）----
+        # v177 曾按 _is_focus_player 分叉（玩家→Battle 焦点字段/怪→actor dict）；
+        # v180-B ①后玩家战斗可变状态权威已迁入玩家 actor dict（__init__ 播种），
+        # 分叉退化——B/EFF/RES/MS/CH/HITS/SH/RL 全部读 actor 自身字段。
+        # 唯一保留的语义判定：玩家被打时反击/反伤目标 = 当前敌人（TARGET）。
+        B = actor.setdefault("buffs", {})
+        EFF = actor.get("eff") or {}
+        RES = actor.setdefault("resources", {})
+        MS = actor.setdefault("stacks", {})
+        CH = actor.get("charging")
+        HITS = actor.get("buff_hits") or {}
+        SH = actor.setdefault("shields", {})
+        RL_ALL = int(actor.get("reduce_all_left", 0) or 0)
+        RL = int(actor.get("reduce_left", 0) or 0)
         _is_player = self._is_focus_player(actor)
-        if _is_player:
-            B = self.p_buffs
-            EFF = self.p_eff
-            RES = self.resources
-            MS = self.mech_stacks
-            CH = self.charging
-            HITS = self._p_buff_hits
-            SH = self.p_shields
-            TARGET = self.enemy  # 玩家被打时，反击/反伤目标是敌人
-            TARGET_STATS = self._enemy_stats
-            RL_ALL = self._reduce_all_left
-            RL = self._reduce_left
-        else:
-            B = actor.setdefault("buffs", {})
-            EFF = actor.get("eff") or {}
-            RES = actor.setdefault("resources", {})
-            MS = actor.setdefault("stacks", {})
-            CH = actor.get("charging")
-            HITS = {}
-            SH = actor.setdefault("shields", {})
-            TARGET = None  # 怪物被打，反击目标由上层/后续决定
-            TARGET_STATS = None
-            RL_ALL = 0
-            RL = 0
+        TARGET = self.enemy if _is_player else None
+        TARGET_STATS = self._enemy_stats if _is_player else None
         if dmg <= 0:
             self._pending_dmg_lines = []
             return 0
@@ -9643,9 +9812,9 @@ class Battle:
             pname = actor.get("name", "你")
             cname = CH.get("name", CH.get("skill", "?"))
             spent = int(CH.get("mp_spent", 0) or 0)
-            # v177 actor 化：局部别名赋值无效，真清状态容器（玩家 self.charging / 怪物 actor["charging"]）
+            # v177 actor 化：局部别名赋值无效，真清状态容器（玩家 self._p_charging() / 怪物 actor["charging"]）
             if _is_player:
-                self.charging = None
+                self._p_set_charging(None)
             else:
                 actor["charging"] = None
             logs.append(f"🔨 【{pname}】的蓄力被{source}打断了！")

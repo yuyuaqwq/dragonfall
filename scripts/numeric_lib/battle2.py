@@ -211,7 +211,7 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
     # v175e 策略升级：rules（balance_data rotation 完整定义）→ 技能资源门槛
     # cond 语义（与期望引擎 build_matrix._cond_ok 同源）：
     #   rage>=N / cp>=N / chi>=N / faith>=N / energy>=N / resonance>=N → 资源攒够才放
-    #   resource_full / resource_low → 资源满/低判定（读职业核心资源 b.resources）
+    #   resource_full / resource_low → 资源满/低判定（读职业核心资源 b._p_res()）
     #   cd_ready / always / 无 → 不设门槛（循环层已保证 CD 好才试）
     rule_map = {}
     for _r in (rules or []):
@@ -223,31 +223,31 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
         cond = rule_map.get(skill_name, "")
         if not cond or cond in ("always", "cd_ready"):
             return True
-        # mech 层数门槛（v175e：arcane 奥术充能等——查 b.mech_stacks，非 resources）
+        # mech 层数门槛（v175e：arcane 奥术充能等——查 b._p_stacks()，非 resources）
         for _mk in ("arcane", "zhan_yi", "hunt_mark", "poison", "thunder", "ice", "fire"):
             if cond.startswith(f"{_mk}>="):
                 need = float(cond.split(">=")[1])
-                cur = float((b.mech_stacks or {}).get(_mk, 0) or 0)
+                cur = float((b._p_stacks() or {}).get(_mk, 0) or 0)
                 return cur >= need
         # 资源阈值 rage>=N / energy>=N ...
         for _res in ("rage", "cp", "chi", "faith", "energy", "resonance", "element"):
             if cond.startswith(f"{_res}>="):
                 need = float(cond.split(">=")[1])
-                cur = float((b.resources or {}).get(_res, 0) or 0)
+                cur = float((b._p_res() or {}).get(_res, 0) or 0)
                 return cur >= need
         if cond == "resource_full":
             rd = E.core_resource_def(cls_id) or {}
             rk = rd.get("key", "")
-            cur = float((b.resources or {}).get(rk, 0) or 0)
-            mx = float((b.resources or {}).get(f"{rk}_max", rd.get("max", 0)) or 0)
+            cur = float((b._p_res() or {}).get(rk, 0) or 0)
+            mx = float((b._p_res() or {}).get(f"{rk}_max", rd.get("max", 0)) or 0)
             if mx <= 0:
                 return True  # 资源信息不可得 → 不拦（防卡循环）
             return cur >= mx
         if cond == "resource_low":
             rd = E.core_resource_def(cls_id) or {}
             rk = rd.get("key", "")
-            cur = float((b.resources or {}).get(rk, 0) or 0)
-            mx = float((b.resources or {}).get(f"{rk}_max", rd.get("max", 0)) or 0)
+            cur = float((b._p_res() or {}).get(rk, 0) or 0)
+            mx = float((b._p_res() or {}).get(f"{rk}_max", rd.get("max", 0)) or 0)
             return cur < mx * 0.5 if mx > 0 else True
         # 未知 cond 保守放行（宁用不卡循环）
         return True

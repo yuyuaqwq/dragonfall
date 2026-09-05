@@ -217,7 +217,7 @@ def _we_starlight_bulwark(battle, player, ctx, logs):
         return
     battle._add_shield("we_starlight", int(player.get("max_hp", 100) * 0.10), 3)
     # v152 时刻制：we_starlight_next 存 ready_at（now + 5×ACT_TICK）
-    battle.p_eff["we_starlight_next"] = battle._now + 5 * ACT_TICK
+    player.setdefault('eff', {})["we_starlight_next"] = battle._now + 5 * ACT_TICK
     logs.append("✨ 星辉壁垒：战斗开始获得 10% 最大生命护盾！")
 
 
@@ -226,8 +226,8 @@ def _we_gale_step(battle, player, ctx, logs):
     """疾风步（疾风轻靴）：开战获得 1 层疾风（速度+15%，3 刻）。"""
     if not has_effect(battle, player, "gale_step"):
         return
-    battle.p_buffs["gale_step"] = max(battle.p_buffs.get("gale_step", 0), 3)
-    battle.p_eff["gale_step_pct"] = max(float(battle.p_eff.get("gale_step_pct", 0) or 0), 0.15)
+    player.setdefault('buffs', {})["gale_step"] = max(player.setdefault('buffs', {}).get("gale_step", 0), 3)
+    player.setdefault('eff', {})["gale_step_pct"] = max(float(player.setdefault('eff', {}).get("gale_step_pct", 0) or 0), 0.15)
     logs.append("🌪️ 疾风步：速度 +15%（3 刻）！")
 
 
@@ -236,8 +236,8 @@ def _we_swift_boots(battle, player, ctx, logs):
     """迅捷如风（迅捷战靴）：开战获得 1 层疾风（速度+20%，3 刻）。"""
     if not has_effect(battle, player, "swift_boots"):
         return
-    battle.p_buffs["gale_step"] = max(battle.p_buffs.get("gale_step", 0), 3)
-    battle.p_eff["gale_step_pct"] = max(float(battle.p_eff.get("gale_step_pct", 0) or 0), 0.20)
+    player.setdefault('buffs', {})["gale_step"] = max(player.setdefault('buffs', {}).get("gale_step", 0), 3)
+    player.setdefault('eff', {})["gale_step_pct"] = max(float(player.setdefault('eff', {}).get("gale_step_pct", 0) or 0), 0.20)
     logs.append("🌪️ 迅捷如风：速度 +20%（3 刻）！")
 
 
@@ -257,8 +257,8 @@ def _we_deadman_stride(battle, player, ctx, logs):
     """亡者疾行（亡者战靴）：开战获得 2 层疾风（速度+15%，4 刻）。"""
     if not has_effect(battle, player, "deadman_stride"):
         return
-    battle.p_buffs["gale_step"] = max(battle.p_buffs.get("gale_step", 0), 4)
-    battle.p_eff["gale_step_pct"] = max(float(battle.p_eff.get("gale_step_pct", 0) or 0), 0.15)
+    player.setdefault('buffs', {})["gale_step"] = max(player.setdefault('buffs', {}).get("gale_step", 0), 4)
+    player.setdefault('eff', {})["gale_step_pct"] = max(float(player.setdefault('eff', {}).get("gale_step_pct", 0) or 0), 0.15)
     logs.append("🌪️ 亡者疾行：速度 +15%（4 刻）！")
 
 
@@ -267,8 +267,8 @@ def _we_temple_stride(battle, player, ctx, logs):
     """圣殿疾行（圣殿战靴）：开战获得 2 层疾风（速度+20%，4 刻）。"""
     if not has_effect(battle, player, "temple_stride"):
         return
-    battle.p_buffs["gale_step"] = max(battle.p_buffs.get("gale_step", 0), 4)
-    battle.p_eff["gale_step_pct"] = max(float(battle.p_eff.get("gale_step_pct", 0) or 0), 0.20)
+    player.setdefault('buffs', {})["gale_step"] = max(player.setdefault('buffs', {}).get("gale_step", 0), 4)
+    player.setdefault('eff', {})["gale_step_pct"] = max(float(player.setdefault('eff', {}).get("gale_step_pct", 0) or 0), 0.20)
     logs.append("🌪️ 圣殿疾行：速度 +20%（4 刻）！")
 
 
@@ -277,8 +277,8 @@ def _we_void_stride(battle, player, ctx, logs):
     """虚空疾行（虚空行者之靴）：开战获得 2 层疾风（速度+25%，4 刻）。"""
     if not has_effect(battle, player, "void_stride"):
         return
-    battle.p_buffs["gale_step"] = max(battle.p_buffs.get("gale_step", 0), 4)
-    battle.p_eff["gale_step_pct"] = max(float(battle.p_eff.get("gale_step_pct", 0) or 0), 0.25)
+    player.setdefault('buffs', {})["gale_step"] = max(player.setdefault('buffs', {}).get("gale_step", 0), 4)
+    player.setdefault('eff', {})["gale_step_pct"] = max(float(player.setdefault('eff', {}).get("gale_step_pct", 0) or 0), 0.25)
     logs.append("🌪️ 虚空疾行：速度 +25%（4 刻）！")
 
 
@@ -288,7 +288,7 @@ def _we_eclipse_crown(battle, player, ctx, logs):
     if not has_effect(battle, player, "eclipse_crown"):
         return
     battle._add_shield("we_eclipse", int(player.get("max_hp", 100) * 0.15), 99)
-    battle.p_eff["we_eclipse_active"] = True
+    player.setdefault('eff', {})["we_eclipse_active"] = True
     logs.append("🌒 蚀月之蚀：获得 15% 最大生命护盾！")
 
 
@@ -297,7 +297,7 @@ def _we_arcane_firmament(battle, player, ctx, logs):
     """奥术苍穹（奥术苍穹之冠）：魔攻+15%，技能伤害+10%（常驻被动，开战挂标记）。"""
     if not has_effect(battle, player, "arcane_firmament"):
         return
-    battle.p_eff["we_arcane_firmament"] = True  # 被动增伤由 passive 分发消费
+    player.setdefault('eff', {})["we_arcane_firmament"] = True  # 被动增伤由 passive 分发消费
     logs.append("✨ 奥术苍穹：魔攻 +15%，技能伤害 +10%！")
 
 
@@ -307,7 +307,7 @@ def _we_undying_will(battle, player, ctx, logs):
     开战仅登记可用标记，阈值触发在 threshold 分发。"""
     if not has_effect(battle, player, "undying_will"):
         return
-    battle.p_eff["we_undying_used"] = False
+    player.setdefault('eff', {})["we_undying_used"] = False
 
 
 # ================================================================
@@ -319,8 +319,8 @@ def _we_wind_mark(battle, player, ctx, logs):
     """风痕（风行短弓）：每次命中 +1 层（上限 4），每层速度 +2%。"""
     if not has_effect(battle, player, "wind_mark"):
         return
-    n = min(4, int(battle.mech_stacks.get("wind_mark", 0) or 0) + 1)
-    battle.mech_stacks["wind_mark"] = n
+    n = min(4, int(player.setdefault('stacks', {}).get("wind_mark", 0) or 0) + 1)
+    player.setdefault('stacks', {})["wind_mark"] = n
     logs.append(f"🌬️ 风痕叠加！({n}/4 层，每层速度 +2%)")
 
 
@@ -329,10 +329,10 @@ def _we_hunter_open(battle, player, ctx, logs):
     """破绽（猎户铁匕）：每 3 次攻击后，下一次攻击附带 12% 攻击力真伤。"""
     if not has_effect(battle, player, "hunter_open"):
         return
-    n = int(battle.mech_stacks.get("hunter_cnt", 0) or 0) + 1
-    battle.mech_stacks["hunter_cnt"] = n
+    n = int(player.setdefault('stacks', {}).get("hunter_cnt", 0) or 0) + 1
+    player.setdefault('stacks', {})["hunter_cnt"] = n
     if n >= 3:
-        battle.mech_stacks["hunter_cnt"] = 0
+        player.setdefault('stacks', {})["hunter_cnt"] = 0
         st = _pstats(battle, player)
         _true_dmg(battle, st.get("atk", 0) * 0.12, logs, source="🗡️ 破绽")
 
@@ -403,12 +403,12 @@ def _we_thunder_weave(battle, player, ctx, logs):
     """雷纹连打（雷纹拳甲）：命中 +1 层雷纹（上限 5），每层 +2% 速度 +1% 攻击力，满层下次技能 +20%。"""
     if not has_effect(battle, player, "thunder_weave"):
         return
-    n = min(5, int(battle.mech_stacks.get("thunder_weave", 0) or 0) + 1)
-    battle.mech_stacks["thunder_weave"] = n
+    n = min(5, int(player.setdefault('stacks', {}).get("thunder_weave", 0) or 0) + 1)
+    player.setdefault('stacks', {})["thunder_weave"] = n
     logs.append(f"⚡ 雷纹连打！({n}/5 层，每层速度+2% 攻击+1%)")
     if n >= 5:
-        battle.mech_stacks["thunder_weave"] = 0
-        battle.p_eff["we_thunder_charge"] = 0.20  # 下一次技能 +20%
+        player.setdefault('stacks', {})["thunder_weave"] = 0
+        player.setdefault('eff', {})["we_thunder_charge"] = 0.20  # 下一次技能 +20%
 
 
 @register("hit")
@@ -416,10 +416,10 @@ def _we_phantom_barrage(battle, player, ctx, logs):
     """幻影连射（幻影长弓）：命中 20% 追加 30% 攻击力幻影矢（无视 50% 防御），每 5 次攻击必触发。"""
     if not has_effect(battle, player, "phantom_barrage"):
         return
-    n = int(battle.mech_stacks.get("phantom_cnt", 0) or 0) + 1
-    battle.mech_stacks["phantom_cnt"] = n
+    n = int(player.setdefault('stacks', {}).get("phantom_cnt", 0) or 0) + 1
+    player.setdefault('stacks', {})["phantom_cnt"] = n
     if random.random() < 0.20 or n >= 5:
-        battle.mech_stacks["phantom_cnt"] = 0
+        player.setdefault('stacks', {})["phantom_cnt"] = 0
         st = _pstats(battle, player)
         est = _estats(battle)
         from ..engine import calc_damage
@@ -433,10 +433,10 @@ def _we_siren_fang(battle, player, ctx, logs):
     """海妖猎杀（海妖之牙）：每第 3 次攻击额外造成 40% 攻击力的无视防御伤害。"""
     if not has_effect(battle, player, "siren_fang"):
         return
-    n = int(battle.mech_stacks.get("siren_cnt", 0) or 0) + 1
-    battle.mech_stacks["siren_cnt"] = n
+    n = int(player.setdefault('stacks', {}).get("siren_cnt", 0) or 0) + 1
+    player.setdefault('stacks', {})["siren_cnt"] = n
     if n >= 3:
-        battle.mech_stacks["siren_cnt"] = 0
+        player.setdefault('stacks', {})["siren_cnt"] = 0
         st = _pstats(battle, player)
         _true_dmg(battle, st.get("atk", 0) * 0.40, logs, source="🧜 海妖猎杀")
 
@@ -461,10 +461,10 @@ def _we_star_pierce(battle, player, ctx, logs):
     """穿星（星陨长弓）：每 4 次攻击后，下一次攻击附带真伤=20% 攻击力+目标已损生命 3%（上限 5%）。"""
     if not has_effect(battle, player, "star_pierce"):
         return
-    n = int(battle.mech_stacks.get("star_cnt", 0) or 0) + 1
-    battle.mech_stacks["star_cnt"] = n
+    n = int(player.setdefault('stacks', {}).get("star_cnt", 0) or 0) + 1
+    player.setdefault('stacks', {})["star_cnt"] = n
     if n >= 4:
-        battle.mech_stacks["star_cnt"] = 0
+        player.setdefault('stacks', {})["star_cnt"] = 0
         st = _pstats(battle, player)
         e = battle.enemy or {}
         base = int(st.get("atk", 0) * 0.20)
@@ -480,7 +480,7 @@ def _we_combo_end(battle, player, ctx, logs):
     if not has_effect(battle, player, "combo_end"):
         return
     if battle._combo_active(player):
-        battle.p_eff["we_combo_end"] = 0.40
+        player.setdefault('eff', {})["we_combo_end"] = 0.40
 
 
 # ================================================================
@@ -525,13 +525,13 @@ def _we_everfrost_domain(battle, player, ctx, logs):
     """永冻领域（永霜秘杖）：冰系技能后 30% 使目标冻结 1 刻（Boss 减速 2 刻），冷却 3 刻。"""
     if not has_effect(battle, player, "everfrost_domain"):
         return
-    if float(battle.p_eff.get("we_everfrost_cd", 0) or 0) > battle._now:
+    if float(player.setdefault('eff', {}).get("we_everfrost_cd", 0) or 0) > battle._now:
         return
     if random.random() >= 0.30:
         return
     _freeze_enemy(battle, logs, turns=1, boss_slow=2, source="🧊 永冻领域")
     # v152 时刻制：CD 存 ready_at 绝对时刻（now + cd×ACT_TICK）
-    battle.p_eff["we_everfrost_cd"] = battle._now + 3 * ACT_TICK
+    player.setdefault('eff', {})["we_everfrost_cd"] = battle._now + 3 * ACT_TICK
 
 
 @register("skill_hit")
@@ -547,8 +547,8 @@ def _we_trinity_rhythm(battle, player, ctx, logs):
     """三相律动（奔雷大剑）：技能后下一次普攻 +30% 伤害并附 15% 攻击力雷伤。"""
     if not has_effect(battle, player, "trinity_rhythm"):
         return
-    battle.p_eff["we_trinity"] = 0.30
-    battle.p_eff["we_trinity_thunder"] = 0.15
+    player.setdefault('eff', {})["we_trinity"] = 0.30
+    player.setdefault('eff', {})["we_trinity_thunder"] = 0.15
 
 
 @register("skill_hit")
@@ -556,7 +556,7 @@ def _we_mountain_break(battle, player, ctx, logs):
     """破岳（破岳巨剑）：技能后下一次普攻 +25% 伤害，并附带 10% 攻击力物理溅射伤害。"""
     if not has_effect(battle, player, "mountain_break"):
         return
-    battle.p_eff["we_mountain"] = 0.25
+    player.setdefault('eff', {})["we_mountain"] = 0.25
 
 
 @register("skill_hit")
@@ -564,7 +564,7 @@ def _we_oath_blade(battle, player, ctx, logs):
     """咒刃之誓（咒刃之誓）：释放技能后，下一次攻击伤害 +25%（每刻限 1 次）。"""
     if not has_effect(battle, player, "oath_blade"):
         return
-    battle.p_eff["we_oath"] = 0.25
+    player.setdefault('eff', {})["we_oath"] = 0.25
 
 
 @register("skill_hit")
@@ -572,10 +572,10 @@ def _we_endless_radiance(battle, player, ctx, logs):
     """无尽辉光（奥拉圣剑）：暴伤+25%（常驻），暴击时获得 5% 最大生命护盾（2 刻，冷却 3 刻）。"""
     if not has_effect(battle, player, "endless_radiance"):
         return
-    if ctx.get("is_crit") and float(battle.p_eff.get("we_radiance_cd", 0) or 0) <= battle._now:
+    if ctx.get("is_crit") and float(player.setdefault('eff', {}).get("we_radiance_cd", 0) or 0) <= battle._now:
         battle._add_shield("we_radiance", int(player.get("max_hp", 100) * 0.05), 2)
         # v152 时刻制：CD 存 ready_at 绝对时刻
-        battle.p_eff["we_radiance_cd"] = battle._now + 3 * ACT_TICK
+        player.setdefault('eff', {})["we_radiance_cd"] = battle._now + 3 * ACT_TICK
         logs.append("🌟 无尽辉光：暴击获得 5% 最大生命护盾！")
 
 
@@ -584,9 +584,9 @@ def _we_endless_blade(battle, player, ctx, logs):
     """无尽锋芒（无终之刃）：暴击后追加一次 20% 伤害的追击（每刻限 1 次）。"""
     if not has_effect(battle, player, "endless_blade"):
         return
-    if not ctx.get("is_crit") or battle.p_eff.get("we_blade_used"):
+    if not ctx.get("is_crit") or player.setdefault('eff', {}).get("we_blade_used"):
         return
-    battle.p_eff["we_blade_used"] = True
+    player.setdefault('eff', {})["we_blade_used"] = True
     _extra_phys(battle, 0.20, logs, source="⚔️ 无尽锋芒")
 
 
@@ -599,8 +599,8 @@ def _we_rune_amp_cast(battle, player, ctx, logs):
     """铭文增幅：技能释放即叠层（含治疗/增益技能）。"""
     if not has_effect(battle, player, "rune_amp"):
         return
-    n = min(5, int(battle.mech_stacks.get("rune_amp", 0) or 0) + 1)
-    battle.mech_stacks["rune_amp"] = n
+    n = min(5, int(player.setdefault('stacks', {}).get("rune_amp", 0) or 0) + 1)
+    player.setdefault('stacks', {})["rune_amp"] = n
     logs.append(f"📜 铭文增幅！({n}/5 层，下一技能 +{int(n * 0.02 * 100)}%)")
 
 
@@ -609,11 +609,11 @@ def _we_sage_amp_cast(battle, player, ctx, logs):
     """秘典增幅：技能释放即计数（含治疗/增益技能）。"""
     if not has_effect(battle, player, "sage_amp"):
         return
-    n = int(battle.mech_stacks.get("sage_amp", 0) or 0) + 1
-    battle.mech_stacks["sage_amp"] = n
+    n = int(player.setdefault('stacks', {}).get("sage_amp", 0) or 0) + 1
+    player.setdefault('stacks', {})["sage_amp"] = n
     if n >= 2:
-        battle.mech_stacks["sage_amp"] = 0
-        battle.p_eff["we_sage_charge"] = 0.25
+        player.setdefault('stacks', {})["sage_amp"] = 0
+        player.setdefault('eff', {})["we_sage_charge"] = 0.25
 
 
 @register("eternal_codex", "skill_cast")
@@ -621,8 +621,8 @@ def _we_eternal_codex_cast(battle, player, ctx, logs):
     """永恒契约：每次施法积 1 层永恒（上限 8）。"""
     if not has_effect(battle, player, "eternal_codex"):
         return
-    n = min(8, int(battle.mech_stacks.get("eternal_codex", 0) or 0) + 1)
-    battle.mech_stacks["eternal_codex"] = n
+    n = min(8, int(player.setdefault('stacks', {}).get("eternal_codex", 0) or 0) + 1)
+    player.setdefault('stacks', {})["eternal_codex"] = n
     logs.append(f"📖 永恒契约！({n}/8 层，每层技能伤害 +1.5%)")
 
 
@@ -635,7 +635,7 @@ def _we_sentinel_aegis(battle, player, ctx, logs):
     """哨兵壁垒（哨兵胸甲）：受击 15% 获得护盾（吸收 6+0.5×Lv 点伤害，3 刻），冷却 1 刻。"""
     if not has_effect(battle, player, "sentinel_aegis"):
         return
-    if float(battle.p_eff.get("we_sentinel_cd", 0) or 0) > battle._now:
+    if float(player.setdefault('eff', {}).get("we_sentinel_cd", 0) or 0) > battle._now:
         return
     if random.random() >= 0.15:
         return
@@ -643,7 +643,7 @@ def _we_sentinel_aegis(battle, player, ctx, logs):
     shield = int(6 + 0.5 * lv)
     battle._add_shield("we_sentinel", shield, 3)
     # v152 时刻制：CD 存 ready_at 绝对时刻
-    battle.p_eff["we_sentinel_cd"] = battle._now + 1 * ACT_TICK
+    player.setdefault('eff', {})["we_sentinel_cd"] = battle._now + 1 * ACT_TICK
     logs.append(f"🛡️ 哨兵壁垒：获得 {shield} 点护盾！（3 刻）")
 
 
@@ -663,11 +663,11 @@ def _we_frost_crown(battle, player, ctx, logs):
     """寒霜凝视（寒霜之冠）：受击 10% 使敌人冻结 1 刻（每场最多 2 次）。"""
     if not has_effect(battle, player, "frost_crown"):
         return
-    if int(battle.p_eff.get("we_frost_crown_cnt", 0) or 0) >= 2:
+    if int(player.setdefault('eff', {}).get("we_frost_crown_cnt", 0) or 0) >= 2:
         return
     if random.random() >= 0.10:
         return
-    battle.p_eff["we_frost_crown_cnt"] = int(battle.p_eff.get("we_frost_crown_cnt", 0) or 0) + 1
+    player.setdefault('eff', {})["we_frost_crown_cnt"] = int(player.setdefault('eff', {}).get("we_frost_crown_cnt", 0) or 0) + 1
     _freeze_enemy(battle, logs, turns=1, boss_slow=2, source="🧊 寒霜凝视")
 
 
@@ -698,13 +698,13 @@ def _we_deeprock_aegis(battle, player, ctx, logs):
     """深岩壁垒（深岩战盔）：受击 10% 获得护盾（吸收 8% 最大生命），冷却 2 刻。"""
     if not has_effect(battle, player, "deeprock_aegis"):
         return
-    if float(battle.p_eff.get("we_deeprock_cd", 0) or 0) > battle._now:
+    if float(player.setdefault('eff', {}).get("we_deeprock_cd", 0) or 0) > battle._now:
         return
     if random.random() >= 0.10:
         return
     battle._add_shield("we_deeprock", int(player.get("max_hp", 100) * 0.08), 3)
     # v152 时刻制：CD 存 ready_at 绝对时刻
-    battle.p_eff["we_deeprock_cd"] = battle._now + 2 * ACT_TICK
+    player.setdefault('eff', {})["we_deeprock_cd"] = battle._now + 2 * ACT_TICK
     logs.append("🪨 深岩壁垒：获得护盾！（吸收 8% 最大生命）")
 
 
@@ -713,7 +713,7 @@ def _we_gargoyle_retort(battle, player, ctx, logs):
     """石像反击（石像鬼胫甲）：受击后下一次攻击伤害 +30%（1 次）。"""
     if not has_effect(battle, player, "gargoyle_retort"):
         return
-    battle.p_eff["we_retort"] = max(float(battle.p_eff.get("we_retort", 0) or 0), 0.30)
+    player.setdefault('eff', {})["we_retort"] = max(float(player.setdefault('eff', {}).get("we_retort", 0) or 0), 0.30)
 
 
 @register("taken")
@@ -746,9 +746,9 @@ def _we_ember_bulwark(battle, player, ctx, logs):
     """烬火燎原（烬火壁垒）：受击时对攻击者造成自身 5% 最大生命的伤害，并叠加 1 层灼烧（每刻限 1 次）。"""
     if not has_effect(battle, player, "ember_bulwark"):
         return
-    if battle.p_eff.get("we_ember_bulwark_used"):
+    if player.setdefault('eff', {}).get("we_ember_bulwark_used"):
         return
-    battle.p_eff["we_ember_bulwark_used"] = True
+    player.setdefault('eff', {})["we_ember_bulwark_used"] = True
     dmg = max(1, int(player.get("max_hp", 100) * 0.05))
     if battle.enemy.get("hp", 0) > 0:
         battle._damage_enemy(dmg, logs)
@@ -765,7 +765,7 @@ def _we_titan_retort(battle, player, ctx, logs):
     """泰坦之怒（泰坦护腿）：受击后下一次攻击伤害 +40%（1 次）。"""
     if not has_effect(battle, player, "titan_retort"):
         return
-    battle.p_eff["we_retort"] = max(float(battle.p_eff.get("we_retort", 0) or 0), 0.40)
+    player.setdefault('eff', {})["we_retort"] = max(float(player.setdefault('eff', {}).get("we_retort", 0) or 0), 0.40)
 
 
 @register("taken")
@@ -773,7 +773,7 @@ def _we_ranger_retort(battle, player, ctx, logs):
     """巡林反击（巡林者护腿）：受击后下一次攻击伤害 +20%（1 次）。"""
     if not has_effect(battle, player, "ranger_retort"):
         return
-    battle.p_eff["we_retort"] = max(float(battle.p_eff.get("we_retort", 0) or 0), 0.20)
+    player.setdefault('eff', {})["we_retort"] = max(float(player.setdefault('eff', {}).get("we_retort", 0) or 0), 0.20)
 
 
 # ================================================================
@@ -840,7 +840,7 @@ def _we_atonement_shield(battle, player, ctx, logs):
     shield = min(cap, overflow)
     if shield > 0:
         battle._add_shield("we_atonement", shield, 3)
-        battle.p_eff["we_atonement_active"] = True
+        player.setdefault('eff', {})["we_atonement_active"] = True
         logs.append(f"⚖️ 赎罪之盾：治疗溢出转化为 {shield} 点护盾！")
 
 
@@ -897,7 +897,7 @@ def _we_death_dance_start(battle, player, ctx, logs):
     """死亡之舞（死亡之舞）：开战初始化缓伤池。"""
     if not has_effect(battle, player, "death_dance"):
         return
-    battle.p_eff["we_death_pool"] = float(battle.p_eff.get("we_death_pool", 0) or 0)
+    player.setdefault('eff', {})["we_death_pool"] = float(player.setdefault('eff', {}).get("we_death_pool", 0) or 0)
 
 
 @register("turn_start")
@@ -905,13 +905,13 @@ def _we_death_dance(battle, player, ctx, logs):
     """死亡之舞（死亡之舞）：受击伤害的 35% 转为缓伤，每刻开始结算已积累缓伤的 10%（上限 10 刻）。"""
     if not has_effect(battle, player, "death_dance"):
         return
-    pool = float(battle.p_eff.get("we_death_pool", 0) or 0)
+    pool = float(player.setdefault('eff', {}).get("we_death_pool", 0) or 0)
     if pool <= 0:
         return
     pay = max(1, int(pool * 0.10))
     player["hp"] = max(0, player.get("hp", 0) - pay)
-    battle.p_eff["we_death_pool"] = max(0.0, pool - pay)
-    logs.append(f"💀 死亡之舞：缓伤池结算，损失 {pay} 点生命！（剩余 {battle.p_eff['we_death_pool']:.0f}）")
+    player.setdefault('eff', {})["we_death_pool"] = max(0.0, pool - pay)
+    logs.append(f"💀 死亡之舞：缓伤池结算，损失 {pay} 点生命！（剩余 {player.setdefault('eff', {})['we_death_pool']:.0f}）")
 
 
 @register("turn_start")
@@ -919,8 +919,8 @@ def _we_time_staff(battle, player, ctx, logs):
     """岁月流转（岁月之杖）：每刻结束攻击 +1.5%、回复 1.5% 生命（上限 10 层 = +15%）。"""
     if not has_effect(battle, player, "time_staff"):
         return
-    n = min(10, int(battle.mech_stacks.get("time_staff", 0) or 0) + 1)
-    battle.mech_stacks["time_staff"] = n
+    n = min(10, int(player.setdefault('stacks', {}).get("time_staff", 0) or 0) + 1)
+    player.setdefault('stacks', {})["time_staff"] = n
     if player.get("hp", 0) < player.get("max_hp", 1):
         heal = max(1, int(player.get("max_hp", 1) * 0.015))
         _heal_player(battle, player, heal, logs, source="⏳ 岁月流转")
@@ -963,12 +963,12 @@ def _we_time_freeze(battle, player, ctx, logs):
     """时光凝滞（时光沙漏）：每场 1 次，生命降至 30% 以下时触发，跳过敌人下一次行动。"""
     if not has_effect(battle, player, "time_freeze"):
         return
-    if battle.p_eff.get("we_time_freeze_used"):
+    if player.setdefault('eff', {}).get("we_time_freeze_used"):
         return
     ratio = float(player.get("hp", 0)) / max(1, player.get("max_hp", 1) or 1)
     if ratio >= 0.30:
         return
-    battle.p_eff["we_time_freeze_used"] = True
+    player.setdefault('eff', {})["we_time_freeze_used"] = True
     battle.e_buffs["stun"] = max(battle.e_buffs.get("stun", 0), 1)
     logs.append("⏳ 时光凝滞！敌人被定身，跳过一次行动！")
 
@@ -978,12 +978,12 @@ def _we_bedrock_crown(battle, player, ctx, logs):
     """磐石守护（磐石王冠）：每场 1 次，生命低于 25% 时获得护盾（吸收 20% 最大生命，4 刻）。"""
     if not has_effect(battle, player, "bedrock_crown"):
         return
-    if battle.p_eff.get("we_bedrock_used"):
+    if player.setdefault('eff', {}).get("we_bedrock_used"):
         return
     ratio = float(player.get("hp", 0)) / max(1, player.get("max_hp", 1) or 1)
     if ratio >= 0.25:
         return
-    battle.p_eff["we_bedrock_used"] = True
+    player.setdefault('eff', {})["we_bedrock_used"] = True
     shield = int(player.get("max_hp", 100) * 0.20)
     battle._add_shield("we_bedrock", shield, 4)
     logs.append(f"🪨 磐石守护：生命垂危，获得 {shield} 点护盾！（4 刻）")
@@ -994,15 +994,15 @@ def _we_firmament_crown(battle, player, ctx, logs):
     """苍穹庇护（苍穹之冠）：每场 2 次，生命低于 30% 时获得护盾（吸收 12% 最大生命，3 刻）。"""
     if not has_effect(battle, player, "firmament_crown"):
         return
-    if int(battle.p_eff.get("we_firmament_cnt", 0) or 0) >= 2:
+    if int(player.setdefault('eff', {}).get("we_firmament_cnt", 0) or 0) >= 2:
         return
     ratio = float(player.get("hp", 0)) / max(1, player.get("max_hp", 1) or 1)
     if ratio >= 0.30:
         return
-    battle.p_eff["we_firmament_cnt"] = int(battle.p_eff.get("we_firmament_cnt", 0) or 0) + 1
+    player.setdefault('eff', {})["we_firmament_cnt"] = int(player.setdefault('eff', {}).get("we_firmament_cnt", 0) or 0) + 1
     shield = int(player.get("max_hp", 100) * 0.12)
     battle._add_shield("we_firmament", shield, 3)
-    logs.append(f"🌌 苍穹庇护：获得 {shield} 点护盾！（{battle.p_eff['we_firmament_cnt']}/2 次）")
+    logs.append(f"🌌 苍穹庇护：获得 {shield} 点护盾！（{player.setdefault('eff', {})['we_firmament_cnt']}/2 次）")
 
 
 @register("threshold")
@@ -1010,12 +1010,12 @@ def _we_gargoyle_heart(battle, player, ctx, logs):
     """石像鬼之心（石像鬼之心）：每场 1 次，生命低于 30% 时获得护盾（吸收 25% 最大生命）并回复。"""
     if not has_effect(battle, player, "gargoyle_heart"):
         return
-    if battle.p_eff.get("we_gargoyle_used"):
+    if player.setdefault('eff', {}).get("we_gargoyle_used"):
         return
     ratio = float(player.get("hp", 0)) / max(1, player.get("max_hp", 1) or 1)
     if ratio >= 0.30:
         return
-    battle.p_eff["we_gargoyle_used"] = True
+    player.setdefault('eff', {})["we_gargoyle_used"] = True
     shield = int(player.get("max_hp", 100) * 0.25)
     battle._add_shield("we_gargoyle", shield, 4)
     heal = int(player.get("max_hp", 100) * 0.10)
@@ -1028,13 +1028,13 @@ def _we_undying_will_t(battle, player, ctx, logs):
     """不灭意志（不灭意志）：每场 1 次，生命低于 20% 时触发，本刻免疫致死伤害并回复 10% 生命。"""
     if not has_effect(battle, player, "undying_will"):
         return
-    if battle.p_eff.get("we_undying_used"):
+    if player.setdefault('eff', {}).get("we_undying_used"):
         return
     ratio = float(player.get("hp", 0)) / max(1, player.get("max_hp", 1) or 1)
     if ratio >= 0.20:
         return
-    battle.p_eff["we_undying_used"] = True
-    battle.p_eff["we_undying_immune"] = True  # 本刻免疫致死（_damage_player 消费）
+    player.setdefault('eff', {})["we_undying_used"] = True
+    player.setdefault('eff', {})["we_undying_immune"] = True  # 本刻免疫致死（_damage_player 消费）
     heal = int(player.get("max_hp", 100) * 0.10)
     _heal_player(battle, player, heal, logs, source="✨ 不灭意志")
     logs.append("✨ 不灭意志：免疫致死伤害！")
@@ -1049,11 +1049,11 @@ def _we_dusk_blade(battle, player, ctx, logs):
     """暮裂潜行（暮裂之刃）：击杀目标后进入潜行，下一次攻击伤害 +30% 且无视闪避（每场 1 次）。"""
     if not has_effect(battle, player, "dusk_blade"):
         return
-    if battle.p_eff.get("we_dusk_used"):
+    if player.setdefault('eff', {}).get("we_dusk_used"):
         return
-    battle.p_eff["we_dusk_used"] = True
-    battle.p_buffs["stealth"] = max(battle.p_buffs.get("stealth", 0), 1)
-    battle.p_eff["we_dusk_dmg"] = 0.30
+    player.setdefault('eff', {})["we_dusk_used"] = True
+    player.setdefault('buffs', {})["stealth"] = max(player.setdefault('buffs', {}).get("stealth", 0), 1)
+    player.setdefault('eff', {})["we_dusk_dmg"] = 0.30
     logs.append("🌒 暮裂潜行：击杀后遁入暗影，下一次攻击 +30% 且无视闪避！")
 
 
@@ -1105,7 +1105,7 @@ def _we_time_staff_p(battle, player, ctx, logs):
     """岁月流转（岁月之杖）：攻击 +1.5%/层（上限 10 层 = +15%）。"""
     if not has_effect(battle, player, "time_staff"):
         return
-    n = int(battle.mech_stacks.get("time_staff", 0) or 0)
+    n = int(player.setdefault('stacks', {}).get("time_staff", 0) or 0)
     if n > 0:
         ctx["mult"] = ctx.get("mult", 1.0) * (1 + 0.015 * n)
         ctx["tags"] = ctx.get("tags", []) + [f"⏳岁月x{1 + 0.015 * n:.2f}"]
@@ -1116,7 +1116,7 @@ def _we_eternal_codex_p(battle, player, ctx, logs):
     """永恒契约（永契法典）：每层永恒技能伤害 +1.5%（上限 8 层 = +12%）。"""
     if not has_effect(battle, player, "eternal_codex"):
         return
-    n = int(battle.mech_stacks.get("eternal_codex", 0) or 0)
+    n = int(player.setdefault('stacks', {}).get("eternal_codex", 0) or 0)
     if n > 0:
         ctx["mult"] = ctx.get("mult", 1.0) * (1 + 0.015 * n)
         ctx["tags"] = ctx.get("tags", []) + [f"📖永恒x{1 + 0.015 * n:.2f}"]
@@ -1127,11 +1127,11 @@ def _we_rune_amp_p(battle, player, ctx, logs):
     """铭文增幅（秘法典籍之杖）：下一技能伤害 +2%/层（叠层消费后清空）。"""
     if not has_effect(battle, player, "rune_amp"):
         return
-    n = int(battle.mech_stacks.get("rune_amp", 0) or 0)
+    n = int(player.setdefault('stacks', {}).get("rune_amp", 0) or 0)
     if n > 0:
         ctx["mult"] = ctx.get("mult", 1.0) * (1 + 0.02 * n)
         ctx["tags"] = ctx.get("tags", []) + [f"📜铭文x{1 + 0.02 * n:.2f}"]
-        battle.mech_stacks["rune_amp"] = 0
+        player.setdefault('stacks', {})["rune_amp"] = 0
 
 
 @register("sage_amp", "passive")
@@ -1139,10 +1139,10 @@ def _we_sage_amp_p(battle, player, ctx, logs):
     """秘典增幅（大贤者秘典）：每 2 次技能后下一次技能伤害 +25%。"""
     if not has_effect(battle, player, "sage_amp"):
         return
-    if battle.p_eff.get("we_sage_charge"):
-        ctx["mult"] = ctx.get("mult", 1.0) * float(battle.p_eff.get("we_sage_charge", 0.25))
+    if player.setdefault('eff', {}).get("we_sage_charge"):
+        ctx["mult"] = ctx.get("mult", 1.0) * float(player.setdefault('eff', {}).get("we_sage_charge", 0.25))
         ctx["tags"] = ctx.get("tags", []) + ["📚秘典x1.25"]
-        battle.p_eff.pop("we_sage_charge", None)
+        player.setdefault('eff', {}).pop("we_sage_charge", None)
 
 
 @register("thunder_weave", "passive")
@@ -1150,10 +1150,10 @@ def _we_thunder_weave_p(battle, player, ctx, logs):
     """雷纹连打（雷纹拳甲）：满层时下一次技能 +20%（叠层被动消费）。"""
     if not has_effect(battle, player, "thunder_weave"):
         return
-    if battle.p_eff.get("we_thunder_charge"):
-        ctx["mult"] = ctx.get("mult", 1.0) * float(battle.p_eff.get("we_thunder_charge", 0.20))
+    if player.setdefault('eff', {}).get("we_thunder_charge"):
+        ctx["mult"] = ctx.get("mult", 1.0) * float(player.setdefault('eff', {}).get("we_thunder_charge", 0.20))
         ctx["tags"] = ctx.get("tags", []) + ["⚡雷纹x1.20"]
-        battle.p_eff.pop("we_thunder_charge", None)
+        player.setdefault('eff', {}).pop("we_thunder_charge", None)
 
 
 @register("trinity_rhythm", "passive")
@@ -1161,10 +1161,10 @@ def _we_trinity_p(battle, player, ctx, logs):
     """三相律动（奔雷大剑）：下一次普攻 +30% 伤害（普攻时消费）。"""
     if not has_effect(battle, player, "trinity_rhythm"):
         return
-    if ctx.get("attack") and battle.p_eff.get("we_trinity"):
-        ctx["mult"] = ctx.get("mult", 1.0) * float(battle.p_eff.get("we_trinity", 0.30))
+    if ctx.get("attack") and player.setdefault('eff', {}).get("we_trinity"):
+        ctx["mult"] = ctx.get("mult", 1.0) * float(player.setdefault('eff', {}).get("we_trinity", 0.30))
         ctx["tags"] = ctx.get("tags", []) + ["⚡三相x1.30"]
-        battle.p_eff.pop("we_trinity", None)
+        player.setdefault('eff', {}).pop("we_trinity", None)
 
 
 @register("mountain_break", "passive")
@@ -1172,10 +1172,10 @@ def _we_mountain_p(battle, player, ctx, logs):
     """破岳（破岳巨剑）：下一次普攻 +25% 伤害（普攻时消费）。"""
     if not has_effect(battle, player, "mountain_break"):
         return
-    if ctx.get("attack") and battle.p_eff.get("we_mountain"):
-        ctx["mult"] = ctx.get("mult", 1.0) * float(battle.p_eff.get("we_mountain", 0.25))
+    if ctx.get("attack") and player.setdefault('eff', {}).get("we_mountain"):
+        ctx["mult"] = ctx.get("mult", 1.0) * float(player.setdefault('eff', {}).get("we_mountain", 0.25))
         ctx["tags"] = ctx.get("tags", []) + ["⛰️破岳x1.25"]
-        battle.p_eff.pop("we_mountain", None)
+        player.setdefault('eff', {}).pop("we_mountain", None)
 
 
 @register("oath_blade", "passive")
@@ -1183,10 +1183,10 @@ def _we_oath_p(battle, player, ctx, logs):
     """咒刃之誓（咒刃之誓）：下一次攻击伤害 +25%（每刻限 1 次）。"""
     if not has_effect(battle, player, "oath_blade"):
         return
-    if battle.p_eff.get("we_oath"):
-        ctx["mult"] = ctx.get("mult", 1.0) * float(battle.p_eff.get("we_oath", 0.25))
+    if player.setdefault('eff', {}).get("we_oath"):
+        ctx["mult"] = ctx.get("mult", 1.0) * float(player.setdefault('eff', {}).get("we_oath", 0.25))
         ctx["tags"] = ctx.get("tags", []) + ["⚔️咒誓x1.25"]
-        battle.p_eff.pop("we_oath", None)
+        player.setdefault('eff', {}).pop("we_oath", None)
 
 
 @register("gargoyle_retort", "passive")
@@ -1197,11 +1197,11 @@ def _we_retort_p(battle, player, ctx, logs):
     if not has_effect(battle, player, "gargoyle_retort") and not has_effect(battle, player, "titan_retort") \
             and not has_effect(battle, player, "ranger_retort"):
         return
-    if ctx.get("attack") and battle.p_eff.get("we_retort"):
-        mult = float(battle.p_eff.get("we_retort", 0.20))
+    if ctx.get("attack") and player.setdefault('eff', {}).get("we_retort"):
+        mult = float(player.setdefault('eff', {}).get("we_retort", 0.20))
         ctx["mult"] = ctx.get("mult", 1.0) * (1 + mult)
         ctx["tags"] = ctx.get("tags", []) + [f"🛡️反击x{1 + mult:.2f}"]
-        battle.p_eff.pop("we_retort", None)
+        player.setdefault('eff', {}).pop("we_retort", None)
 
 
 @register("dusk_blade", "passive")
@@ -1209,10 +1209,10 @@ def _we_dusk_p(battle, player, ctx, logs):
     """暮裂潜行（暮裂之刃）：潜行中下一次攻击 +30% 且无视闪避。"""
     if not has_effect(battle, player, "dusk_blade"):
         return
-    if battle.p_eff.get("we_dusk_dmg"):
-        ctx["mult"] = ctx.get("mult", 1.0) * float(battle.p_eff.get("we_dusk_dmg", 0.30))
+    if player.setdefault('eff', {}).get("we_dusk_dmg"):
+        ctx["mult"] = ctx.get("mult", 1.0) * float(player.setdefault('eff', {}).get("we_dusk_dmg", 0.30))
         ctx["tags"] = ctx.get("tags", []) + ["🌒暮裂x1.30"]
-        battle.p_eff.pop("we_dusk_dmg", None)
+        player.setdefault('eff', {}).pop("we_dusk_dmg", None)
 
 
 @register("combo_end", "passive")
@@ -1220,9 +1220,9 @@ def _we_combo_end_p(battle, player, ctx, logs):
     """连击终点（夜枭双匕）：连段≥3 时本次攻击暴伤 +40%。"""
     if not has_effect(battle, player, "combo_end"):
         return
-    if ctx.get("is_crit") and battle.p_eff.get("we_combo_end"):
+    if ctx.get("is_crit") and player.setdefault('eff', {}).get("we_combo_end"):
         ctx["crit_dmg"] = ctx.get("crit_dmg", 0) + 0.40
-        battle.p_eff.pop("we_combo_end", None)
+        player.setdefault('eff', {}).pop("we_combo_end", None)
 
 
 # ================================================================
@@ -1255,7 +1255,7 @@ def _we_novice_first_turn_guard(battle, player, ctx, logs):
     仅 battle_start 挂标记，减伤由 _damage_player 消费（round≤1 时 ×0.90）。"""
     if not has_effect(battle, player, "novice_first_turn_guard"):
         return
-    battle.p_eff["novice_guard_active"] = True
+    player.setdefault('eff', {})["novice_guard_active"] = True
     logs.append("🛡️ 守御：首刻受击伤害 -10%！")
 
 
@@ -1265,7 +1265,7 @@ def _we_novice_spark_followup(battle, player, ctx, logs):
     仅挂 mech_stacks 标记，由 _player_attack 消费（+10% 后清除）。"""
     if not has_effect(battle, player, "novice_spark_followup"):
         return
-    battle.mech_stacks["novice_spark"] = True
+    player.setdefault('stacks', {})["novice_spark"] = True
     logs.append("✨ 星火：下次普攻伤害 +10%！")
 
 
@@ -1277,8 +1277,8 @@ def _we_novice_hunt_combo(battle, player, ctx, logs):
         return
     if not ctx.get("is_crit"):
         return
-    n = min(5, int(battle.mech_stacks.get("novice_combo", 0) or 0) + 1)
-    battle.mech_stacks["novice_combo"] = n
+    n = min(5, int(player.setdefault('stacks', {}).get("novice_combo", 0) or 0) + 1)
+    player.setdefault('stacks', {})["novice_combo"] = n
     logs.append(f"🎯 猎影：暴击叠层！（{n}/5 层，每层连击率 +8%）")
 
 
@@ -1300,7 +1300,7 @@ def _we_novice_wind_spd(battle, player, ctx, logs):
     hit 事件挂 p_buffs 计时，由 _player_stats 消费（spd×1.05）。"""
     if not has_effect(battle, player, "novice_wind_spd"):
         return
-    battle.p_buffs["novice_wind_spd"] = max(int(battle.p_buffs.get("novice_wind_spd", 0) or 0), 2)
+    player.setdefault('buffs', {})["novice_wind_spd"] = max(int(player.setdefault('buffs', {}).get("novice_wind_spd", 0) or 0), 2)
     logs.append("🌪️ 翠风：自身速度 +5%（2 刻）！")
 
 
@@ -1310,7 +1310,7 @@ def _we_novice_first_turn_dodge(battle, player, ctx, logs):
     仅 battle_start 挂标记，闪避加成由闪避判定消费（round≤1 时乘算 +5%）。"""
     if not has_effect(battle, player, "novice_first_turn_dodge"):
         return
-    battle.p_eff["novice_dodge_active"] = True
+    player.setdefault('eff', {})["novice_dodge_active"] = True
     logs.append("💨 远行：首刻闪避率 +5%！")
 
 
@@ -1320,9 +1320,9 @@ def _we_novice_dawn_mana(battle, player, ctx, logs):
     skill_cast 事件：novice_mana_used 标记防重复，mp clamp 到 max_mp。"""
     if not has_effect(battle, player, "novice_dawn_mana"):
         return
-    if battle.p_eff.get("novice_mana_used"):
+    if player.setdefault('eff', {}).get("novice_mana_used"):
         return
-    battle.p_eff["novice_mana_used"] = True
+    player.setdefault('eff', {})["novice_mana_used"] = True
     player["mp"] = min(player.get("max_mp", 999), player.get("mp", 0) + 10)
     logs.append("🌅 晨星：回复 10 点魔力！")
 

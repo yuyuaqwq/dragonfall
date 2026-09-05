@@ -252,7 +252,7 @@ def _m_interrupt(battle, mval, p_mech, total, logs, skill_name, is_crit, info=No
     """打断（v180 actor 统一）：目标正在蓄力/读条则打断。
     目标=玩家（_tgt_is_player）→ 清玩家蓄力（self.charging，返 50% MP）或读条
     （self._pending_player_cast → _interrupt_player_cast）；目标=怪 → 清 actor["charging"]。
-    v125.1 P2 原 MON_CTRL interrupt 只打蓄力（battle.charging）；v180 扩展读条。"""
+    v125.1 P2 原 MON_CTRL interrupt 只打蓄力（player.get('charging')）；v180 扩展读条。"""
     tgt = getattr(battle, "_tgt", lambda: None)()
     if tgt is None:
         return
@@ -262,7 +262,7 @@ def _m_interrupt(battle, mval, p_mech, total, logs, skill_name, is_crit, info=No
         if ch and ch.get("skill"):
             cname = ch.get("name", ch.get("skill", "?"))
             spent = int(ch.get("mp_spent", 0) or 0)
-            battle.charging = None
+            player['charging'] = None
             if spent > 0:
                 tgt["mp"] = min(tgt.get("max_mp", tgt.get("mp", 0)),
                                 tgt.get("mp", 0) + (spent + 1) // 2)
@@ -989,14 +989,14 @@ def _mc_silence(battle, player, logs, mval):
 def _mc_interrupt(battle, player, logs, mval):
     """打断玩家蓄力（v125.1 P2 消费端：ms_an_ying_dan 等带 mech=interrupt 的怪物技能）。
     原怪物技能 interrupt:True 为死字段（_enemy_turn 不读 interrupt）——改经 mech 接线本表：
-    命中时若玩家正在蓄力（battle.charging，蓄力状态在 Battle 对象而非 player dict），
+    命中时若玩家正在蓄力（player.get('charging')，蓄力状态在 Battle 对象而非 player dict），
     打断并返还 50% 已扣 MP（向上取整，对齐 battle._interrupt_charging 玩家侧口径）。"""
     ch = getattr(battle, "charging", None)
     if not ch or not ch.get("skill"):
         return
     cname = ch.get("name", ch.get("skill", "?"))
     spent = int(ch.get("mp_spent", 0) or 0)
-    battle.charging = None
+    player['charging'] = None
     if spent > 0 and player is not None:
         player["mp"] = min(player.get("max_mp", player.get("mp", 0)),
                            player.get("mp", 0) + (spent + 1) // 2)
@@ -1072,9 +1072,9 @@ def _sb_mon_atk_down(battle, skill_name, info, player, lv, logs):
 def _sb_element_shift(battle, skill_name, info, player, lv, logs):
     """v2.1 元素跃迁：切换当前元素亲和系（火→冰→雷→火），下次元素技能伤害 +20%"""
     from ..engine import skill_buff_turns
-    cur = battle.resources.get("element", "fire")
+    cur = player.setdefault('resources', {}).get("element", "fire")
     nxt = {"fire": "ice", "ice": "thunder", "thunder": "fire"}.get(cur, "fire")
-    battle.resources["element"] = nxt
+    player.setdefault('resources', {})["element"] = nxt
     battle._cast_buffs()["matk_up"] = skill_buff_turns(lv)
     battle._shifted_element = nxt  # 由 battle.py _skill_buff 元素跃迁展示块消费
 
@@ -1126,7 +1126,7 @@ def _sb_shield_all(battle, skill_name, info, player, lv, logs):
 @register(SKILL_BUFF_EFFECTS, "reduce_all")
 def _sb_reduce_all(battle, skill_name, info, player, lv, logs):
     """v113.1：团队减伤改真·百分比减伤（此前映射 def_up 防御提升，与"减伤 x%"不符）。
-    p_buffs["reduce_all"] 存减伤百分比；刻数记 battle._reduce_all_left（_end_round 单独递减）。
+    p_buffs["reduce_all"] 存减伤百分比；刻数记 player.setdefault('reduce_all_left', 0)（_end_round 单独递减）。
     v1.x：数值下沉 skills.py reduce_all 字段（原 battle.py REDUCE_ALL_PCT 中文名硬编码已删）。
     v162：技能未配 reduce_all 字段时回落 desc/mech_val（战吼·守 desc 20% 但无字段）"""
     from ..engine import skill_buff_turns
@@ -1137,15 +1137,15 @@ def _sb_reduce_all(battle, skill_name, info, player, lv, logs):
         pct = (mv / 100.0) if mv > 1 else (mv if 0 < mv <= 1 else 0.20)
     turns = skill_buff_turns(lv, info=info)
     battle._cast_buffs()["reduce_all"] = pct
-    battle._reduce_all_left = max(getattr(battle, "_reduce_all_left", 0), turns)
-    logs.append(f"🛡️ 全队减伤 {int(pct*100)}%（持续 {battle._reduce_all_left} 刻）")
+    player['reduce_all_left'] = max(getattr(battle, "_reduce_all_left", 0), turns)
+    logs.append(f"🛡️ 全队减伤 {int(pct*100)}%（持续 {player.setdefault('reduce_all_left', 0)} 刻）")
 
 
 @register(SKILL_BUFF_EFFECTS, "reduce")
 def _sb_reduce(battle, skill_name, info, player, lv, logs):
     """v162：单人减伤实现（铁壁/铜墙/亡魂护甲/磐岩甲等 effect=reduce 此前零效果）。
     时间制（与 reduce_all 一致，desc '持续 8 刻' 真实生效）：
-    p_buffs["reduce"] 存减伤百分比，剩余刻记 battle._reduce_left（_end_round 递减）。
+    p_buffs["reduce"] 存减伤百分比，剩余刻记 player.setdefault('reduce_left', 0)（_end_round 递减）。
     减伤值：优先技能 reduce_pct 字段（0.45），回落 mech_val（45=45% 或 0.45），默认 0.20。"""
     from ..engine import skill_buff_turns
     rp = float((info or {}).get("reduce_pct") or 0)
@@ -1155,8 +1155,8 @@ def _sb_reduce(battle, skill_name, info, player, lv, logs):
     rp = min(max(rp, 0.0), 0.9)
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["reduce"] = rp
-    battle._reduce_left = max(getattr(battle, "_reduce_left", 0), turns)
-    logs.append(f"🛡️ 减伤 {int(rp*100)}%（持续 {battle._reduce_left} 刻）")
+    player['reduce_left'] = max(getattr(battle, "_reduce_left", 0), turns)
+    logs.append(f"🛡️ 减伤 {int(rp*100)}%（持续 {player.setdefault('reduce_left', 0)} 刻）")
 
 
 # ================= 4.6 技能 effect 缺口补全（v169.7 技能全鉴：26 种空转 effect） =================
@@ -1295,8 +1295,8 @@ def _sb_cleanse(battle, skill_name, info, player, lv, logs):
     _sb_cleanse_p(battle, player, logs, scope="single")
     # 冥想（武僧 增益）：desc「每刻回蓝 2% 持续 6 刻」——p_hot mana 通道（食物同款）
     if (info or {}).get("name") == "冥想" and player.get("max_mp", 0):
-        _hot = battle.p_hot
-        battle.p_hot = {"heal": max(0.0, float(_hot.get("heal", 0) or 0)),
+        _hot = player.setdefault('hot', {})
+        player['hot'] = {"heal": max(0.0, float(_hot.get("heal", 0) or 0)),
                         "mana": max(0.02, float(_hot.get("mana", 0) or 0)),
                         "turns": max(int(_hot.get("turns", 0) or 0), 6)}
         logs.append("🧘 冥想：自身每刻回蓝 2%（6 刻）")
@@ -1376,9 +1376,9 @@ def _sb_shield_block(battle, skill_name, info, player, lv, logs):
     pct = float((info or {}).get("shield_val") or 0.20)
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._add_shield("shield_block", int(base * pct), int(turns))
-    # 格挡率：写 battle._p_buff_hits 专用键（受击计数 1 次 = 格挡 1 次语义，与铁山靠同款）
+    # 格挡率：写 player.setdefault('buff_hits', {}) 专用键（受击计数 1 次 = 格挡 1 次语义，与铁山靠同款）
     battle._cast_buffs()["block_up"] = max(int(battle._cast_buffs().get("block_up", 0) or 0), int(turns))
-    battle.p_eff["block_up_val"] = max(float(battle.p_eff.get("block_up_val", 0) or 0), 0.30)  # 数值通道（受击格挡结算读）
+    player.setdefault('eff', {})["block_up_val"] = max(float(player.setdefault('eff', {}).get("block_up_val", 0) or 0), 0.30)  # 数值通道（受击格挡结算读）
     logs.append(f"🛡️ 获得护盾并格挡率 +30%！（{turns} 刻）")
 
 
@@ -1388,12 +1388,12 @@ def _sb_block_reflect(battle, skill_name, info, player, lv, logs):
     """v169.7 effect 补全：铁山靠 desc「格挡 1 次攻击并反伤 40% 8 刻」。
     引擎既有消费点：受击格挡判定（battle.py:6817 并入 st[\"block\"]，格挡成功减半）+ 反伤。
     写 p_buffs block_up（格挡触发标记）+ thorns_pot（反伤乘算并入 30% 上限——40% 超上限，
-    记 battle.p_eff 数值，battle.py 反伤段已存在 thorns 汇总）。"""
+    记 player.setdefault('eff', {}) 数值，battle.py 反伤段已存在 thorns 汇总）。"""
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["block_up"] = max(int(battle._cast_buffs().get("block_up", 0) or 0), int(turns))
-    battle.p_eff["block_up_val"] = max(float(battle.p_eff.get("block_up_val", 0) or 0), 0.50)  # 引擎格挡减伤档（格挡成功减半）
+    player.setdefault('eff', {})["block_up_val"] = max(float(player.setdefault('eff', {}).get("block_up_val", 0) or 0), 0.50)  # 引擎格挡减伤档（格挡成功减半）
     # 反伤 40% 走 block_reflect_val（battle.py 反伤段随 block_up 生效），不写 thorns_pot 防与荆棘药剂双算
-    battle.p_eff["block_reflect_val"] = max(float(battle.p_eff.get("block_reflect_val", 0) or 0), 0.40)
+    player.setdefault('eff', {})["block_reflect_val"] = max(float(player.setdefault('eff', {}).get("block_reflect_val", 0) or 0), 0.40)
     logs.append(f"🛡️ 格挡并反伤 40%！（{turns} 刻）")
 
 
@@ -1406,9 +1406,9 @@ def _sb_protect(battle, skill_name, info, player, lv, logs):
     rp = 0.30 if "30" in str((info or {}).get("desc", "")) else 0.50
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["reduce"] = max(float(battle._cast_buffs().get("reduce", 0) or 0), rp)
-    battle._reduce_left = max(int(getattr(battle, "_reduce_left", 0) or 0), int(turns))
+    player['reduce_left'] = max(int(getattr(battle, "_reduce_left", 0) or 0), int(turns))
     # 反伤 rp 走 block_reflect_val（随 block_up/受击反伤段生效），不写 thorns_pot 防与荆棘药剂双算
-    battle.p_eff["block_reflect_val"] = max(float(battle.p_eff.get("block_reflect_val", 0) or 0), rp)
+    player.setdefault('eff', {})["block_reflect_val"] = max(float(player.setdefault('eff', {}).get("block_reflect_val", 0) or 0), rp)
     battle._cast_buffs()["block_up"] = max(int(battle._cast_buffs().get("block_up", 0) or 0), int(turns))
     logs.append(f"🛡️ 誓约守护：减伤 {int(rp * 100)}% 并反伤！（{turns} 刻；副本挡刀由 instance 广播）")
 
@@ -1428,7 +1428,7 @@ def _sb_dodge_reduce_all(battle, skill_name, info, player, lv, logs):
     _sb_dodge_buff(battle, skill_name, info, player, lv, logs)
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["reduce_all"] = max(float(battle._cast_buffs().get("reduce_all", 0) or 0), 0.10)
-    battle._reduce_all_left = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
+    player['reduce_all_left'] = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
     logs.append(f"🍃 自然护佑：全队减伤 10%（{turns} 刻）")
 
 
@@ -1440,7 +1440,7 @@ def _sb_hunt_team_dmg(battle, skill_name, info, player, lv, logs):
     turns = max(1, skill_buff_turns(lv, info=info))
     # 乘区键：p_buffs 只存 int 时长（_advance_time 按刻到期），数值存 p_eff float（battle.py 伤害乘区读）
     battle._cast_buffs()["hunt_team_dmg"] = max(int(battle._cast_buffs().get("hunt_team_dmg", 0) or 0), int(turns))
-    battle.p_eff["hunt_team_dmg"] = max(float(battle.p_eff.get("hunt_team_dmg", 0) or 0), 0.30)
+    player.setdefault('eff', {})["hunt_team_dmg"] = max(float(player.setdefault('eff', {}).get("hunt_team_dmg", 0) or 0), 0.30)
     logs.append(f"🎯 猎杀时刻：全队对猎印目标增伤 +30%（{turns} 刻）")
 
 
@@ -1451,7 +1451,7 @@ def _sb_star_lock(battle, skill_name, info, player, lv, logs):
     单人无站位概念；等效 = 对当前敌增伤 12%（star_lock_mult 键伤害乘区，battle.py 读）。"""
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["star_lock"] = max(int(battle._cast_buffs().get("star_lock", 0) or 0), int(turns))
-    battle.p_eff["star_lock"] = max(float(battle.p_eff.get("star_lock", 0) or 0), 0.12)
+    player.setdefault('eff', {})["star_lock"] = max(float(player.setdefault('eff', {}).get("star_lock", 0) or 0), 0.12)
     logs.append(f"🌟 星轨锁定：全队对目标伤害 +12%（{turns} 刻）")
 
 
@@ -1459,12 +1459,12 @@ def _sb_star_lock(battle, skill_name, info, player, lv, logs):
 def _sb_reduce_shield_all(battle, skill_name, info, player, lv, logs):
     from ..engine import skill_buff_turns
     """v169.7 effect 补全：大地守护 desc「全队减伤 30-50%（按磐核数）+护盾 12 刻」（复合）。
-    磐核数 battle.resources.guard_core（0-5）：核数 ≥3 → 50%，否则 30%；护盾走 shield_all。"""
-    cores = int((battle.resources or {}).get("guard_core", 0) or 0)
+    磐核数 player.setdefault('resources', {}).guard_core（0-5）：核数 ≥3 → 50%，否则 30%；护盾走 shield_all。"""
+    cores = int((player.setdefault('resources', {}) or {}).get("guard_core", 0) or 0)
     rp = 0.50 if cores >= 3 else 0.30
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["reduce_all"] = max(float(battle._cast_buffs().get("reduce_all", 0) or 0), rp)
-    battle._reduce_all_left = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
+    player['reduce_all_left'] = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
     _sb_shield_all(battle, skill_name, info, player, lv, logs)
     logs.append(f"🪨 大地守护：全队减伤 {int(rp * 100)}%（磐核 {cores}）")
 
@@ -1474,13 +1474,13 @@ def _sb_shield_all_reduce(battle, skill_name, info, player, lv, logs):
     from ..engine import skill_buff_turns
     """v169.7 effect 补全：守护圣域 desc「花满 10 层战意：全队护盾+减伤 30% 12 刻」（复合+门槛）。
     战意 mech_stacks.zhan_yi ≥10 才施放（数据 mp=0 CD24；不足时提示不放——desc 门槛语义）。"""
-    zy = int((battle.mech_stacks or {}).get("zhan_yi", 0) or 0)
+    zy = int((player.setdefault('stacks', {}) or {}).get("zhan_yi", 0) or 0)
     if zy < 10:
         logs.append("⚔️ 战意不足（需满 10 层），守护圣域无法展开！")
         return
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["reduce_all"] = max(float(battle._cast_buffs().get("reduce_all", 0) or 0), 0.30)
-    battle._reduce_all_left = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
+    player['reduce_all_left'] = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
     _sb_shield_all(battle, skill_name, info, player, lv, logs)
     logs.append(f"🛡️ 守护圣域：全队护盾 + 减伤 30%（{turns} 刻）")
 
@@ -1490,7 +1490,7 @@ def _sb_shadow_dance(battle, skill_name, info, player, lv, logs):
     """v169.7 effect 补全：暗影步 desc「连段满 5 进影舞态：技能 CD −20%、受击不清连段」。
     battle.py 已有 _shadow_dance() 读 p_buffs[\"shadow_dance\"] 消费点（v169.7 接线：暗影步
     施放时置位）；连段门槛校验（combo/连段 ≥5 才进影舞态）。CD 减成/受击保护由 battle.py 消费。"""
-    combo = int((battle.mech_stacks or {}).get("combo", 0) or 0)
+    combo = int((player.setdefault('stacks', {}) or {}).get("combo", 0) or 0)
     if combo < 5:
         logs.append(f"🌑 连段不足（{combo}/5），影舞态无法开启！")
         return
@@ -1520,8 +1520,8 @@ def _sb_taunt(battle, skill_name, info, player, lv, logs):
 @register(SKILL_BUFF_EFFECTS, "arcane_shield")
 def _sb_arcane_shield(battle, skill_name, info, player, lv, logs):
     """v169.7 effect 补全：相位偏折 desc「张开力场护盾，消耗全部充能，每层 8% 魔攻护盾」。
-    充能 battle.resources[\"arcane\"]（法师攻线）；护盾 3 刻（参考 _sb_shield_all 口径）。"""
-    n = int((battle.resources or {}).get("arcane", 0) or 0)
+    充能 player.setdefault('resources', {})[\"arcane\"]（法师攻线）；护盾 3 刻（参考 _sb_shield_all 口径）。"""
+    n = int((player.setdefault('resources', {}) or {}).get("arcane", 0) or 0)
     if n <= 0:
         logs.append("📖 没有奥术充能，相位偏折无法展开！")
         return
@@ -1529,7 +1529,7 @@ def _sb_arcane_shield(battle, skill_name, info, player, lv, logs):
     base = (st2 or {}).get("matk") or 0
     val = int(base * 0.08 * n)
     battle._add_shield("arcane_shield", val, 3)
-    battle.resources["arcane"] = 0
+    player.setdefault('resources', {})["arcane"] = 0
     logs.append(f"📖 相位偏折！消耗 {n} 层充能，张开 {val} 点力场护盾！")
 
 
@@ -1540,7 +1540,7 @@ def _sb_arcane_matrix(battle, skill_name, info, player, lv, logs):
     写魔法增伤乘区键 arcane_matrix（battle.py 魔法伤害结算读 p_buffs，×(1+pct)）。"""
     turns = max(1, skill_buff_turns(lv, info=info))
     battle._cast_buffs()["arcane_matrix"] = max(int(battle._cast_buffs().get("arcane_matrix", 0) or 0), int(turns))
-    battle.p_eff["arcane_matrix"] = max(float(battle.p_eff.get("arcane_matrix", 0) or 0), 0.20)
+    player.setdefault('eff', {})["arcane_matrix"] = max(float(player.setdefault('eff', {}).get("arcane_matrix", 0) or 0), 0.20)
     logs.append(f"🔮 奥术矩阵：奥术/魔法伤害 +20%（{turns} 刻）")
 
 
@@ -1549,13 +1549,13 @@ def _sb_arcane_field(battle, skill_name, info, player, lv, logs):
     """v169.7 effect 补全：奥术力场 desc「消耗 2 点充能，选择护盾或利刃（下次奥术技 ×1.3）」。
     引擎无战斗中二选一交互先例 → 默认利刃（攻击向，desc 数值可表达）：耗 2 充能 + 下次奥术技 ×1.3。
     （护盾档无数值字段——设计裁定走利刃；记录日志说明。）"""
-    n = int((battle.resources or {}).get("arcane", 0) or 0)
+    n = int((player.setdefault('resources', {}) or {}).get("arcane", 0) or 0)
     if n < 2:
         logs.append("📖 奥术充能不足（需 2 点），力场无法塑形！")
         return
-    battle.resources["arcane"] = n - 2
+    player.setdefault('resources', {})["arcane"] = n - 2
     battle._cast_buffs()["arcane_field"] = max(int(battle._cast_buffs().get("arcane_field", 0) or 0), 1)
-    battle.p_eff["arcane_field"] = max(float(battle.p_eff.get("arcane_field", 0) or 0), 1.30)
+    player.setdefault('eff', {})["arcane_field"] = max(float(player.setdefault('eff', {}).get("arcane_field", 0) or 0), 1.30)
     logs.append("📖 奥术力场·利刃！下次奥术技伤害 ×1.3（自动选择利刃档——引擎无战斗中二选一）")
 
 
@@ -1589,7 +1589,7 @@ def _melody_apply_p_buffs(battle, mel, turns):
         # 守歌「全队减伤 +10%」→ reduce_all 减伤键（10%）——reduce_all 存百分比 float 且独立计时，
         # 不能进 keys（下方通用循环会把它当 int 刻覆盖），单独写后不再 append
         pb["reduce_all"] = max(float(pb.get("reduce_all", 0) or 0), 0.10)
-        battle._reduce_all_left = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
+        player['reduce_all_left'] = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
     elif kind == "spd":
         keys.append("spd_up")
     elif kind == "atk_matk":
@@ -1937,13 +1937,13 @@ def _melody_state(battle):
 @register(MECH_EFFECTS, "guard_core_burst")
 def _m_guard_core_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """v153 磐核爆发：消耗全部磐核，×(1 + 0.7 × 核数)"""
-    cores = int((battle.resources or {}).get("guard_core", 0) or 0)
+    cores = int((player.setdefault('resources', {}) or {}).get("guard_core", 0) or 0)
     if cores <= 0:
         logs.append("🪨 磐核为空，爆发落空！")
         return
     mult = 1.0 + 0.7 * cores
     battle._cast_buffs()["guard_core_burst_mult"] = mult
-    battle.resources["guard_core"] = 0
+    player.setdefault('resources', {})["guard_core"] = 0
     logs.append(f"🪨 磐核爆发！消耗 {cores} 核，伤害 ×{mult}")
 
 
@@ -1993,11 +1993,11 @@ def _m_faith_unload(battle, mval, p_mech, total, logs, skill_name, is_crit, info
     """v153 牧师卸负：主动卸除 3 点信念，自身回血 15%"""
     if not mval:
         return
-    faith = float(battle.resources.get("faith", 0) or 0)
+    faith = float(player.setdefault('resources', {}).get("faith", 0) or 0)
     if faith < mval:
         logs.append("🕯️ 信念不足，卸负失效！")
         return
-    battle.resources["faith"] = faith - mval
+    player.setdefault('resources', {})["faith"] = faith - mval
     player = getattr(battle, "_last_player", None) or battle.player or {}
     heal = int(player.get("max_hp", 1) * 0.15)
     player["hp"] = min(player.get("max_hp", 1), player.get("hp", 0) + heal)

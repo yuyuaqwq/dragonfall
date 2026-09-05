@@ -2634,11 +2634,13 @@ class InstanceCmds(CommandBase):
         except Exception:
             pass
         st["players"][cur_key] = snap
-        st["p_buffs"][cur_key] = b.p_buffs
-        st.setdefault("p_hot", {})[cur_key] = b.p_hot
-        st.setdefault("p_food_effects", {})[cur_key] = b.p_food_effects
+        # v180-B ①：玩家状态权威在玩家快照（b.player is snap）actor dict——写回从
+        # player dict 读；st 顶层 per-player 键保留老格式供 from_state 兼容读取
+        st["p_buffs"][cur_key] = b.player.get("buffs") or {}
+        st.setdefault("p_hot", {})[cur_key] = b.player.get("hot") or {}
+        st.setdefault("p_food_effects", {})[cur_key] = b.player.get("food_effects") or []
         st["e_buffs"] = b.e_buffs
-        st["mech_stacks"][cur_key] = b.mech_stacks
+        st["mech_stacks"][cur_key] = b.player.get("stacks") or {}
         # v2：敌方阵列写回（逐单位 hp/buffs/stacks/defending/charging）→ 压缩死亡单位
         # v141 审计：b.enemies 与 st["enemies"] 是同一列表引用（from_state 直接传入），
         # _damage_enemy 死亡单位即时 _remove_unit 移除；此处直接同步，无需再压缩。
@@ -2650,9 +2652,9 @@ class InstanceCmds(CommandBase):
         # v152 时刻制：round 删除，st["round"] 改为展示用行动轮次（_tick_no()）
         st["round"] = b._tick_no()
         st["e_minions"] = b.e_minions
-        st.setdefault("resources", {})[cur_key] = b.resources
-        st.setdefault("cooldown", {})[cur_key] = b.cooldown
-        st.setdefault("combo_seq", {})[cur_key] = b.combo_seq
+        st.setdefault("resources", {})[cur_key] = b.player.get("resources") or {}
+        st.setdefault("cooldown", {})[cur_key] = b.player.get("cooldown") or {}
+        st.setdefault("combo_seq", {})[cur_key] = b.player.get("combo_seq") or []
         # v167.3 副本带宠物：战斗宠物状态（读条限频窗口 _last_hit_at 等）写回 st["pets"]，
         # 下次该成员行动重建 Battle 时沿用——跨行动/跨怪/切层节奏不重置（野外/副本同一套）
         try:
@@ -2676,10 +2678,10 @@ class InstanceCmds(CommandBase):
         st.setdefault("player_hit", {})[cur_key] = b._player_hit
         # v101.25 #323：防御状态必须写回——否则 Boss 反击时读 st["p_defending"] 永远是 False，
         # 副本防御减半完全不生效（playtest round67 影刃实测 93→75 仅约 -19%）
-        st["p_defending"][cur_key] = bool(getattr(b, "p_defending", False))
+        st["p_defending"][cur_key] = bool(b.player.get("defending", False))
         # v2 副本玩家蓄力持久化：写回（含 None 表示蓄力已结束/未蓄力）
-        st.setdefault("charging", {})[cur_key] = b.charging
-        snap["p_shields"] = b.p_shields
+        st.setdefault("charging", {})[cur_key] = b.player.get("charging")
+        snap["p_shields"] = b.player.get("shields") or {}
         # v2：敌方阵列写回（逐单位 hp/buffs/stacks/defending/charging）→ 压缩死亡单位
         st["enemies"] = b.enemies
         # v110 P0（#110 海盗王任务卡死）：battle._remove_unit 击杀即从 enemies 阵列移除
@@ -3413,9 +3415,9 @@ class InstanceCmds(CommandBase):
                     st.setdefault("enemies", []).append(u2)
         # 敌方援军镜像同步（旧兼容字段 e_minions 并入 enemies 后保留 is_minion 引用）
         st["e_minions"] = [u for u in st.get("enemies") or [] if u.get("is_minion")]
-        st.setdefault("resources", {})[tkey] = b.resources
-        st.setdefault("cooldown", {})[tkey] = b.cooldown
-        st.setdefault("combo_seq", {})[tkey] = b.combo_seq
+        st.setdefault("resources", {})[tkey] = b.player.get("resources") or {}
+        st.setdefault("cooldown", {})[tkey] = b.player.get("cooldown") or {}
+        st.setdefault("combo_seq", {})[tkey] = b.player.get("combo_seq") or []
         # v121 CTB：敌方行动不改变玩家 ct（时间流逝由 _instance_apply_enemy_act_ct 另行结算），
         # 此处仅保持既有值（_enemy_turn 不触碰 p_ct）
         st.get("players", {}).get(tkey, {})["ct"] = b.p_ct

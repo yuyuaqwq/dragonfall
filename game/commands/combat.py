@@ -331,7 +331,7 @@ class CombatCmds(CommandBase):
             b = BT.Battle("monster", None, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=group)
             db.save_battle(group_id, qq_id, b.to_state())
             self._lock_battle(group_id, qq_id)
-            bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
+            bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b._p_buffs_bag().get("echo_bless") else ""
             _pb = getattr(b, "poi_buff", None)
             if _pb:
                 bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}+10%！\n"
@@ -400,7 +400,7 @@ class CombatCmds(CommandBase):
         b = BT.Battle("monster", None, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=group)
         db.save_battle(group_id, qq_id, b.to_state())
         self._lock_battle(group_id, qq_id)
-        bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
+        bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b._p_buffs_bag().get("echo_bless") else ""
         _pb = getattr(b, "poi_buff", None)
         if _pb:
             bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}+10%！\n"
@@ -929,7 +929,7 @@ class CombatCmds(CommandBase):
         if ended:
             # v130.3 意见#9 体验增强：胜利/结束时若残存潜行（技能/防御击杀场景潜行未被攻击消费），
             # 显式提示消散，避免玩家误解"战斗结束了暴击还在"
-            if b.p_buffs.get("stealth"):
+            if b._p_buffs_bag().get("stealth"):
                 logs.append("🌫️ 潜行的影子在战局结束后消散了……")
             if b.result == "victory":
                 # v126.7 胜利结算用原主怪引用（打死怪后 _remove_unit 清空 enemies，
@@ -1625,12 +1625,12 @@ class CombatCmds(CommandBase):
         parts = []
         # 玩家 buff（p_buffs 刻数 >0）
         pbuf = []
-        for k, v in (b.p_buffs or {}).items():
+        for k, v in (b._p_buffs_bag() or {}).items():
             if v and v > 0 and k in self._P_BUFF_NAMES:
                 pbuf.append(f"{self._P_BUFF_NAMES[k]}(剩{v}刻)")  # #244c: ×N 是刻数，标注避免误读倍率
         # 玩家叠层（v59：叠层随战斗持久化，读 b.mech_stacks）
         # O96：burn/poison/mark 是敌方减益叠层，不在玩家栏显示
-        stacks = (b.mech_stacks or {})
+        stacks = (b._p_stacks() or {})
         for k, v in stacks.items():
             if v and v > 0 and k in self._STACK_NAMES and k not in self._ENEMY_MECH_STACKS:
                 pbuf.append(f"{self._STACK_NAMES[k]}×{v}")
@@ -3067,10 +3067,13 @@ class CombatCmds(CommandBase):
         # 重建 Battle：我是 player，对方是 enemy 快照（PVP 不自动反击）。
         # v2 多对多：per 快照已含 rank/reach/buffs/stacks/defending/charging 站位字段 → enemies=[快照]
         b = BT.Battle("pvp", enemy=None, title_bonus=self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=[dict(opp, **_opp_extra)])
-        b.p_buffs = dict(state.get(f"{my_key[0]}_buffs", {}))
+        # v180-B ①：玩家状态权威在 player actor dict——从 player dict 恢复/写回 buffs/charging
+        _pl_buffs = b.player.setdefault("buffs", {})
+        _pl_buffs.clear()
+        _pl_buffs.update(dict(state.get(f"{my_key[0]}_buffs", {})))
         b.e_buffs = dict(state.get(f"{opp_key[0]}_buffs", {}))
         # PVP 蓄力持久化：跨刻恢复玩家侧 charging（蓄力技 PVP 中跨刻生效）
-        b.charging = state.get("charging")
+        b.player["charging"] = state.get("charging")
         if action == "skill":
             info = E.skill_info(player["class_name"], skill_name)
             if not info:
@@ -3108,10 +3111,10 @@ class CombatCmds(CommandBase):
             opp.pop("adapt", None)
         state[my_key]["hp"] = player["hp"]
         state[my_key]["mp"] = player["mp"]
-        state[f"{my_key[0]}_buffs"] = b.p_buffs
+        state[f"{my_key[0]}_buffs"] = b.player.get("buffs") or {}
         state[f"{opp_key[0]}_buffs"] = b.e_buffs
         # PVP 蓄力持久化：写回（含 None 表示蓄力已结束/未蓄力）
-        state["charging"] = b.charging
+        state["charging"] = b.player.get("charging")
         db.save_battle(group_id, qq_id, state)
         db.save_battle(group_id, opp["qq_id"], state)
         if ended and b.result == "victory":

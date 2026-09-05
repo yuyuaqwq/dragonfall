@@ -78,8 +78,8 @@ def _f_h_combo(battle, player, dmg, logs):
 @register(FOOD_HIT_EFFECTS, "dragon_tongue")
 def _f_h_dragon_tongue(battle, player, dmg, logs):
     """龙蛋煎饼：攻击叠龙语印记（每层 +2% 伤害，上限 5）"""
-    battle.mech_stacks["dragon_mark"] = min(5, int(battle.mech_stacks.get("dragon_mark", 0) or 0) + 1)
-    logs.append(f"🐉 龙语印记叠加！({battle.mech_stacks['dragon_mark']} 层，每层＋2% 伤害)")
+    player.setdefault('stacks', {})["dragon_mark"] = min(5, int(player.setdefault('stacks', {}).get("dragon_mark", 0) or 0) + 1)
+    logs.append(f"🐉 龙语印记叠加！({player.setdefault('stacks', {})['dragon_mark']} 层，每层＋2% 伤害)")
 
 
 @register(FOOD_HIT_EFFECTS, "element_fire")

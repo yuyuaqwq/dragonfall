@@ -121,14 +121,14 @@ def peak_of(cls, lv, loadout, diff, seeds=25, branch=False):
             cc = info.get('consume_all') or {}
             for rk, rv in list(rc.items()) + [(cc.get('key'), 1)]:
                 if rk:
-                    b.resources[rk] = RES_MAX.get(rk, 5)
+                    b._p_res()[rk] = RES_MAX.get(rk, 5)
             if cls == 'cls_ci_ke' and name != '潜行' and name not in _own_crit:
                 # 先潜行（必暴窗口）
                 # v151 修正：自带"满血必暴"窗口的技能（cond.type=enemy_full_hp，如 v151 暗杀）
                 # 不再额外叠潜行必暴——潜行必暴 + 满血必暴是双必暴窗口（实战中潜行会被
                 # 其他攻击先消耗，暗杀只能享受其自身窗口），叠两层会得到假峰值。
                 # 仅对无自带必暴窗口的技能维持潜行采样（v133 刺客口径）。
-                b.p_buffs['stealth'] = 1
+                b._p_buffs_bag()['stealth'] = 1
             if cls == 'cls_wu_seng' and name == '碎骨拳':
                 # 攒 3 气：普攻 3 次
                 for _ in range(3):

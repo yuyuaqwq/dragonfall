@@ -65,7 +65,7 @@ def eff_next_atk_up(battle, player, value):
     """狂怒药剂/月露精华/彩虹药剂/黑羽箭：下一次攻击 +50%（一次性，普攻/技能消费）。"""
     v = _resolve(value, "next_atk_up")
     pct = float(v.get("pct", 0.5))
-    battle.p_buffs["next_atk_up"] = int(v.get("turns", 1))
+    player.setdefault('buffs', {})["next_atk_up"] = int(v.get("turns", 1))
     return f"⚔️ 你蓄势待发！下一次攻击+{int(pct * 100)}%！"
 
 
@@ -74,7 +74,7 @@ def eff_heal_up(battle, player, value):
     """圣光药剂：治疗技能效果 +20%（3 刻）。"""
     v = _resolve(value, "heal_up")
     pct = float(v.get("pct", 0.2))
-    battle.p_buffs["heal_up"] = int(v.get("turns", 3))
+    player.setdefault('buffs', {})["heal_up"] = int(v.get("turns", 3))
     return f"✨ 治疗增幅！治疗技能效果+{int(pct * 100)}%！(3 刻)"
 
 
@@ -83,7 +83,7 @@ def eff_magic_resist(battle, player, value):
     """龙鳞药剂/深渊药剂：受到魔法伤害 －15%（3 刻）。"""
     v = _resolve(value, "magic_resist")
     pct = float(v.get("pct", 0.15))
-    battle.p_buffs["magic_resist"] = int(v.get("turns", 3))
+    player.setdefault('buffs', {})["magic_resist"] = int(v.get("turns", 3))
     return f"🛡️ 魔鳞护体！受到魔法伤害－{int(pct * 100)}%！(3 刻)"
 
 
@@ -92,7 +92,7 @@ def eff_thorns_pot(battle, player, value):
     """荆棘药剂：受击反弹 30% 伤害（3 刻）。"""
     v = _resolve(value, "thorns_pot")
     pct = float(v.get("pct", 0.30))
-    battle.p_buffs["thorns_pot"] = int(v.get("turns", 3))
+    player.setdefault('buffs', {})["thorns_pot"] = int(v.get("turns", 3))
     return f"🌵 荆棘附体！受击反弹 {int(pct * 100)}% 伤害！(3 刻)"
 
 
@@ -101,7 +101,7 @@ def eff_dodge_pot(battle, player, value):
     """影步药剂：15% 概率闪避攻击（3 刻，乘算并入闪避结算）。"""
     v = _resolve(value, "dodge_pot")
     pct = float(v.get("pct", 0.15))
-    battle.p_buffs["dodge_pot"] = int(v.get("turns", 3))
+    player.setdefault('buffs', {})["dodge_pot"] = int(v.get("turns", 3))
     return f"💨 身法飘忽！{int(pct * 100)}% 概率闪避攻击！(3 刻)"
 
 
@@ -109,7 +109,7 @@ def eff_dodge_pot(battle, player, value):
 def eff_cc_immune(battle, player, value):
     """不动药剂：免疫眩晕/冻结/减速（3 刻）。"""
     v = _resolve(value, "cc_immune")
-    battle.p_buffs["cc_immune"] = int(v.get("turns", 3))
+    player.setdefault('buffs', {})["cc_immune"] = int(v.get("turns", 3))
     return "🗿 不动如山！免疫眩晕/冻结/减速！(3 刻)"
 
 
@@ -119,7 +119,7 @@ def eff_execute_pot(battle, player, value):
     v = _resolve(value, "execute_pot")
     pct = float(v.get("pct", 0.30))
     th = float(v.get("hp_threshold", 0.30))
-    battle.p_buffs["execute_pot"] = int(v.get("turns", 3))
+    player.setdefault('buffs', {})["execute_pot"] = int(v.get("turns", 3))
     return f"💀 死神凝视！对生命<{int(th * 100)}%的敌人+{int(pct * 100)}%伤害！(3 刻)"
 
 
@@ -139,7 +139,7 @@ def eff_pene_pot(battle, player, value):
     """穿甲药剂：物穿 +15%（3 刻，与属性乘算）。"""
     v = _resolve(value, "pene_pot")
     pct = float(v.get("pct", 0.15))
-    battle.p_buffs["pene_pot"] = int(v.get("turns", 3))
+    player.setdefault('buffs', {})["pene_pot"] = int(v.get("turns", 3))
     return f"🗡️ 穿甲附刃！物穿 +{int(pct * 100)}%！(3 刻)"
 
 
@@ -148,7 +148,7 @@ def eff_pene_magi_pot(battle, player, value):
     """破法药剂：法穿 +15%（3 刻，与属性乘算）。"""
     v = _resolve(value, "pene_magi_pot")
     pct = float(v.get("pct", 0.15))
-    battle.p_buffs["pene_magi_pot"] = int(v.get("turns", 3))
+    player.setdefault('buffs', {})["pene_magi_pot"] = int(v.get("turns", 3))
     return f"🔮 破法附魔！法穿 +{int(pct * 100)}%！(3 刻)"
 
 
@@ -157,7 +157,7 @@ def eff_lifesteal_pot(battle, player, value):
     """嗜血药剂：吸血 +15%（3 刻，乘算并入 _settle_lifesteal）。"""
     v = _resolve(value, "lifesteal_pot")
     pct = float(v.get("pct", 0.15))
-    battle.p_buffs["lifesteal_pot"] = int(v.get("turns", 3))
+    player.setdefault('buffs', {})["lifesteal_pot"] = int(v.get("turns", 3))
     return f"🩸 嗜血药剂！吸血 +{int(pct * 100)}%！(3 刻)"
 
 
@@ -166,7 +166,7 @@ def eff_crit_dmg_pot(battle, player, value):
     """狂暴药剂：暴击伤害 +25%（3 刻，乘算并入暴击结算）。"""
     v = _resolve(value, "crit_dmg_pot")
     pct = float(v.get("pct", 0.25))
-    battle.p_buffs["crit_dmg_pot"] = int(v.get("turns", 3))
+    player.setdefault('buffs', {})["crit_dmg_pot"] = int(v.get("turns", 3))
     return f"💥 狂暴药剂！暴击伤害 +{int(pct * 100)}%！(3 刻)"
 
 
@@ -175,7 +175,7 @@ def eff_block_pot(battle, player, value):
     """岩壁药剂：格挡 +15%（3 刻，乘算并入受击格挡）。"""
     v = _resolve(value, "block_pot")
     pct = float(v.get("pct", 0.15))
-    battle.p_buffs["block_pot"] = int(v.get("turns", 3))
+    player.setdefault('buffs', {})["block_pot"] = int(v.get("turns", 3))
     return f"🛡️ 岩壁药剂！格挡 +{int(pct * 100)}%！(3 刻)"
 
 
@@ -235,25 +235,25 @@ def eff_restore_resource(battle, player, value):
     # once_per_battle：每场限 1 次（战斗内资源 key 作标记，key 唯一性保证不重复）
     once = bool(v.get("once_per_battle"))
     if once:
-        _used = battle.p_eff.setdefault("once_restore", [])
+        _used = player.setdefault('eff', {}).setdefault("once_restore", [])
         if key in _used:
             return "⏳ 这瓶药剂每场战斗只能使用 1 次，已经用过了！"
     # cooldown：叠加冷却（同资源位独占）
     cd = int(v.get("cooldown", 0) or 0)
     _cdk = "item_cd_" + key
-    if cd > 0 and int(battle.cooldown.get(_cdk, 0) or 0) > 0:
-        return f"⏳ 药剂还在冷却中(剩余 {int(battle.cooldown.get(_cdk, 0) or 0)} 刻)！"
+    if cd > 0 and int(player.setdefault('cooldown', {}).get(_cdk, 0) or 0) > 0:
+        return f"⏳ 药剂还在冷却中(剩余 {int(player.setdefault('cooldown', {}).get(_cdk, 0) or 0)} 刻)！"
     rd = _item_res_def(key)
     new = battle._res_gain(player, key, amount)
     if once:
-        battle.p_eff.setdefault("once_restore", []).append(key)
+        player.setdefault('eff', {}).setdefault("once_restore", []).append(key)
     if cd > 0:
-        battle.cooldown[_cdk] = cd
+        player.setdefault('cooldown', {})[_cdk] = cd
     msg = f"⚡ 你使用药剂，{rd.get('name', key)} +{amount}({new}/{rd.get('max', '?')})！"
     nh = v.get("next_heal_pct")
     if nh:
         pn = float(nh)
-        battle.p_eff["next_heal_up"] = pn
+        player.setdefault('eff', {})["next_heal_up"] = pn
         msg += f" 下一次治疗技能效果 +{int(pn * 100)}%！"
     return msg
 
@@ -273,8 +273,8 @@ def eff_restore_resource_full(battle, player, value):
     turns = max(1, int(v.get("penalty_turns", v.get("turns", 2)) or 2))
     if penalty > 0:
         # 战损交易：全减伤 -penalty%（负值 reduce_all → _damage_player 受击 +X%）
-        battle.p_buffs["reduce_all"] = -penalty
-        battle._reduce_all_left = turns
+        player.setdefault('buffs', {})["reduce_all"] = -penalty
+        player['reduce_all_left'] = turns
         return (f"🔥 熔核之心爆发！{rd.get('name', key)}充满({cap}/{cap})！"
                 f"代价：{turns} 刻内 全减伤 -{int(penalty * 100)}%（受损加重）")
     return f"🔥 {rd.get('name', key)} 瞬间充满！({cap}/{cap})"
@@ -298,7 +298,7 @@ def eff_resource_amp(battle, player, value):
         return "🧪 药剂效果配置异常，没有生效！"
     if not _res_mine(battle, player, key):
         return "🧪 这瓶药剂对你的职业没有效果！"
-    amps = battle.p_eff.setdefault("amps", {})
+    amps = player.setdefault('eff', {}).setdefault("amps", {})
     prev = amps.get(key) or {}
     amps[key] = {
         "key": key, "amount": amount, "trigger": trigger,
@@ -321,8 +321,8 @@ def eff_mana_cost_down(battle, player, value):
     turns = int(v.get("turns", 3) or 3)
     if pct <= 0:
         return "🧪 药剂效果配置异常，没有生效！"
-    battle.p_buffs["mana_cost_down"] = max(int(battle.p_buffs.get("mana_cost_down", 0) or 0), turns)
-    battle.p_eff["mana_cost_down"] = pct
+    player.setdefault('buffs', {})["mana_cost_down"] = max(int(player.setdefault('buffs', {}).get("mana_cost_down", 0) or 0), turns)
+    player.setdefault('eff', {})["mana_cost_down"] = pct
     return f"🔮 元素亲和！技能魔力消耗 -{int(pct * 100)}%！({turns} 刻)"
 
 
@@ -334,8 +334,8 @@ def eff_buff_phys_next(battle, player, value):
     pct = float(v.get("pct", 0.0) or 0)
     if pct <= 0:
         return "🧪 药剂效果配置异常，没有生效！"
-    battle.p_buffs["buff_phys_next"] = 1
-    battle.p_eff["buff_phys_next"] = pct
+    player.setdefault('buffs', {})["buff_phys_next"] = 1
+    player.setdefault('eff', {})["buff_phys_next"] = pct
     return f"🥊 引气入体！下一次物理/气力技伤害 +{int(pct * 100)}%！"
 
 
@@ -348,7 +348,7 @@ def eff_full_tension(battle, player, value):
     turns = int(v.get("turns", 1) or 1)
     if not battle._is_branch_of(player, "风行者", "疾风射手", "疾风猎手"):
         return "🏹 满弦是守线·风行者专属状态，这瓶烈酒没有生效！"
-    battle.p_buffs["full_tension"] = max(int(battle.p_buffs.get("full_tension", 0) or 0), turns)
+    player.setdefault('buffs', {})["full_tension"] = max(int(player.setdefault('buffs', {}).get("full_tension", 0) or 0), turns)
     return f"🏹 满弦烈酒入喉，弓弦绷满！进入满弦状态 {turns} 刻！"
 
 
@@ -374,8 +374,8 @@ def eff_battle_start_resource(battle, player, value):
     if isinstance(bf, dict) and bf.get("kind") == "phys_up":
         _pct = float(bf.get("pct", 0.05) or 0)
         _t = int(bf.get("turns", 3) or 3)
-        battle.p_buffs["phys_up"] = max(int(battle.p_buffs.get("phys_up", 0) or 0), _t)
-        battle.p_eff["phys_up"] = max(float(battle.p_eff.get("phys_up", 0) or 0), _pct)
+        player.setdefault('buffs', {})["phys_up"] = max(int(player.setdefault('buffs', {}).get("phys_up", 0) or 0), _t)
+        player.setdefault('eff', {})["phys_up"] = max(float(player.setdefault('eff', {}).get("phys_up", 0) or 0), _pct)
         msgs.append(f"物理伤害 +{int(_pct * 100)}%({_t} 刻)")
     if not msgs:
         return "🧪 效果未触发！"
@@ -414,7 +414,7 @@ def eff_summon(battle, player, value):
         return "🧪 召唤物配置异常，没有生效！"
     # 每场限 1 只：同 tid 已在场/已用过 → 无效无消耗
     limit = int(v.get("limit", 1) or 1)
-    used = battle.p_eff.setdefault("summon_used", [])
+    used = player.setdefault('eff', {}).setdefault("summon_used", [])
     if len([s for s in battle.summons if s.get("tid") == tid]) >= limit or tid in used:
         return "⛔ 该召唤物每场战斗只能使用 1 次，已经用过了！"
     st = battle._player_stats(player)
@@ -428,13 +428,13 @@ def eff_summon(battle, player, value):
     used.append(tid)
     msgs = [f"{face[1]} {face[0]} 加入战斗！(HP {hp} / 攻击 {atk})"]
     if float(v.get("thorns", 0) or 0) > 0:
-        battle.p_buffs["thorns_pot"] = max(int(battle.p_buffs.get("thorns_pot", 0) or 0), turns)
+        player.setdefault('buffs', {})["thorns_pot"] = max(int(player.setdefault('buffs', {}).get("thorns_pot", 0) or 0), turns)
         msgs.append(f"受击反弹 {int(float(v['thorns']) * 100)}% 伤害")
     if float(v.get("heal_pct", 0) or 0) > 0:
-        battle.p_hot = {"heal": float(v["heal_pct"]), "mana": 0.0, "turns": turns}
+        player['hot'] = {"heal": float(v["heal_pct"]), "mana": 0.0, "turns": turns}
         msgs.append(f"每刻回复 {int(float(v['heal_pct']) * 100)}% 最大生命")
     if float(v.get("heal_bonus", 0) or 0) > 0:
-        battle.p_buffs["heal_up"] = max(int(battle.p_buffs.get("heal_up", 0) or 0), turns)
+        player.setdefault('buffs', {})["heal_up"] = max(int(player.setdefault('buffs', {}).get("heal_up", 0) or 0), turns)
         msgs.append("治疗技能效果提升")
     return "✨ 召唤成功！" + "、".join(msgs) + f"！(持续 {turns} 刻)"
 
@@ -498,8 +498,8 @@ def eff_mana_restore(battle, player, value):
     cr = float(v.get("cost_reduce", 0) or 0)
     if cr > 0:
         turns = max(1, int(v.get("turns", 2) or 2))
-        battle.p_buffs["mana_cost_down"] = max(int(battle.p_buffs.get("mana_cost_down", 0) or 0), turns)
-        battle.p_eff["mana_cost_down"] = max(float(battle.p_eff.get("mana_cost_down", 0) or 0), cr)
+        player.setdefault('buffs', {})["mana_cost_down"] = max(int(player.setdefault('buffs', {}).get("mana_cost_down", 0) or 0), turns)
+        player.setdefault('eff', {})["mana_cost_down"] = max(float(player.setdefault('eff', {}).get("mana_cost_down", 0) or 0), cr)
         msgs.append(f"技能消耗 -{int(cr * 100)}%（{turns} 刻）")
     return "💙 " + "，".join(msgs)
 
@@ -518,9 +518,9 @@ def eff_resource_charge(battle, player, value):
         key = rd["key"]
         new = battle._res_gain(player, key, gain)
         msgs.append(f"{rd['name']} +{gain}({new}/{rd.get('max', '?')})")
-    if cd > 0 and battle.cooldown:
-        for k in list(battle.cooldown):
-            battle.cooldown[k] = max(0, int(battle.cooldown[k] or 0) - cd)
+    if cd > 0 and player.setdefault('cooldown', {}):
+        for k in list(player.setdefault('cooldown', {})):
+            player.setdefault('cooldown', {})[k] = max(0, int(player.setdefault('cooldown', {})[k] or 0) - cd)
         msgs.append(f"全部技能冷却 -{cd} 刻")
     if not msgs:
         return "🧪 你的职业没有核心资源，充能没有生效！"
@@ -542,7 +542,7 @@ def eff_steal_buff(battle, player, value):
     k = cand[0]
     turns = max(1, int(v.get("turns", 2) or 2))
     t = eb.pop(k)
-    battle.p_buffs[k] = max(int(battle.p_buffs.get(k, 0) or 0), int(t or turns))
+    player.setdefault('buffs', {})[k] = max(int(player.setdefault('buffs', {}).get(k, 0) or 0), int(t or turns))
     return f"🕳️ 你偷取了敌方的增益【{k}】转给自己 {int(t or turns)} 刻！"
 
 
@@ -553,10 +553,10 @@ def eff_buff_extend(battle, player, value):
     v = _resolve(value, "buff_extend")
     ext = max(1, int(v.get("extend_turns", 2) or 2))
     n = 0
-    for k in list(battle.p_buffs):
+    for k in list(player.setdefault('buffs', {})):
         if k in ("next_atk_up", "buff_phys_next", "stealth", "reduce_all", "stun", "freeze"):
             continue
-        battle.p_buffs[k] = int(battle.p_buffs.get(k, 0) or 0) + ext
+        player.setdefault('buffs', {})[k] = int(player.setdefault('buffs', {}).get(k, 0) or 0) + ext
         n += 1
     return f"⏳ 时之延香燃尽，你身上的 {n} 个增益延长 {ext} 刻！"
 
@@ -567,10 +567,10 @@ def eff_phoenix(battle, player, value):
     复活后 turns 刻减伤 dmg_reduce%——标记存 p_eff 由战斗引擎死亡结算消费；
     本版按 v140 收口先挂标记，消费端接线属引擎批次）。"""
     v = _resolve(value, "phoenix")
-    if battle.p_eff.get("phoenix_used"):
+    if player.setdefault('eff', {}).get("phoenix_used"):
         return "⛔ 不死鸟之羽每场战斗只能使用 1 次，已经用过了！"
-    battle.p_eff["phoenix_used"] = True
-    battle.p_eff["phoenix_revive"] = {
+    player.setdefault('eff', {})["phoenix_used"] = True
+    player.setdefault('eff', {})["phoenix_revive"] = {
         "hp": float(v.get("revive_hp", 0.30) or 0.30),
         "dmg_reduce": float(v.get("dmg_reduce", 0.20) or 0.20),
         "turns": max(1, int(v.get("turns", 3) or 3)),
@@ -586,12 +586,12 @@ def eff_purify_immune(battle, player, value):
     turns = max(1, int(v.get("turns", 3) or 3))
     neg = ("stun", "freeze", "silence", "spd_down", "atk_down", "def_down",
            "matk_down", "mdef_down", "reduce_all")
-    cleared = [k for k in neg if k in battle.p_buffs]
+    cleared = [k for k in neg if k in player.setdefault('buffs', {})]
     for k in cleared:
-        battle.p_buffs.pop(k, None)
+        player.setdefault('buffs', {}).pop(k, None)
     if "reduce_all" in cleared:
-        battle._reduce_all_left = 0
-    battle.p_buffs["cc_immune"] = max(int(battle.p_buffs.get("cc_immune", 0) or 0), turns)
+        player['reduce_all_left'] = 0
+    player.setdefault('buffs', {})["cc_immune"] = max(int(player.setdefault('buffs', {}).get("cc_immune", 0) or 0), turns)
     msg = "✨ 圣光涤荡，" + ("、".join(cleared) + " 已净化！" if cleared else "身上没有负面状态～")
     return msg + f"({turns} 刻免疫沉默/眩晕)"
 
@@ -602,12 +602,12 @@ def eff_morph(battle, player, value):
     受击伤害 +15%（dmg_taken_up 标记存 p_eff，引擎受击结算消费）。"""
     v = _resolve(value, "morph")
     turns = max(1, int(v.get("turns", 3) or 3))
-    if battle.p_eff.get("morph_used"):
+    if player.setdefault('eff', {}).get("morph_used"):
         return "⛔ 变身药剂每场战斗只能使用 1 次，已经用过了！"
-    battle.p_eff["morph_used"] = True
-    battle.p_buffs["atk_up"] = max(int(battle.p_buffs.get("atk_up", 0) or 0), turns)
-    battle.p_buffs["matk_up_pot"] = max(int(battle.p_buffs.get("matk_up_pot", 0) or 0), turns)
-    battle.p_eff["morph_dmg_taken"] = float(v.get("dmg_taken_up", 0.15) or 0.15)
+    player.setdefault('eff', {})["morph_used"] = True
+    player.setdefault('buffs', {})["atk_up"] = max(int(player.setdefault('buffs', {}).get("atk_up", 0) or 0), turns)
+    player.setdefault('buffs', {})["matk_up_pot"] = max(int(player.setdefault('buffs', {}).get("matk_up_pot", 0) or 0), turns)
+    player.setdefault('eff', {})["morph_dmg_taken"] = float(v.get("dmg_taken_up", 0.15) or 0.15)
     return f"🐉 龙血沸腾，你进入龙人形态 {turns} 刻！攻击/魔攻+30%，但受击伤害+{int(float(v.get('dmg_taken_up', 0.15)) * 100)}%！"
 
 
@@ -616,10 +616,10 @@ def eff_invuln(battle, player, value):
     """v140 次元门扉符：无敌 1 刻免疫一切伤害（invuln 标记存 p_eff，引擎受击结算消费；
     下刻无法行动僵直 stun_after 一并登记）。"""
     v = _resolve(value, "invuln")
-    if battle.p_eff.get("invuln_used"):
+    if player.setdefault('eff', {}).get("invuln_used"):
         return "⛔ 次元门扉符每场战斗只能使用 1 次，已经用过了！"
-    battle.p_eff["invuln_used"] = True
-    battle.p_eff["invuln"] = {"turns": max(1, int(v.get("turns", 1) or 1)),
+    player.setdefault('eff', {})["invuln_used"] = True
+    player.setdefault('eff', {})["invuln"] = {"turns": max(1, int(v.get("turns", 1) or 1)),
                               "stun_after": int(v.get("stun_after", 1) or 1)}
     return "🌀 次元门扉展开，你遁入虚数空间——本刻免疫一切伤害！(下刻将僵直)"
 
@@ -652,7 +652,7 @@ def eff_dot_amp(battle, player, value):
     v = _resolve(value, "dot_amp")
     turns = max(1, int(v.get("turns", 2) or 2))
     per = max(1, int(v.get("layer_per_hit", 1) or 1))
-    battle.p_eff["dot_amp"] = {"turns_left": turns, "layer_per_hit": per}
+    player.setdefault('eff', {})["dot_amp"] = {"turns_left": turns, "layer_per_hit": per}
     e = battle.enemy or {}
     deb = e.setdefault("debuffs", {})
     n = 0
@@ -716,7 +716,7 @@ def eff_vuln(battle, player, value):
             neg += 1
     cnt = min(neg, mdb)
     bonus = min(cap, per * cnt)
-    battle.p_eff["vuln"] = {"per_debuff": per, "count": cnt, "bonus": bonus, "turns_left": turns}
-    battle.p_buffs["vuln"] = max(int(battle.p_buffs.get("vuln", 0) or 0), turns)
+    player.setdefault('eff', {})["vuln"] = {"per_debuff": per, "count": cnt, "bonus": bonus, "turns_left": turns}
+    player.setdefault('buffs', {})["vuln"] = max(int(player.setdefault('buffs', {}).get("vuln", 0) or 0), turns)
     return f"🎯 弱点击破！目标当前 {neg} 种负面状态，你对其伤害 +{int(bonus * 100)}%({turns} 刻)！"
 
