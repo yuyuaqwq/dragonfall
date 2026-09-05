@@ -8847,9 +8847,17 @@ class Battle:
         # 多目标阵列每怪等级不同也能正确压制）。双向曲线（鱼鱼拍板：增伤不封顶，曲线自然延伸）：
         #   低打高：低 1-3 级 ×0.95/级，低 4+ 级 ×0.90/级（指数曲线，封顶 ×0.30 防归零）
         #   高打低：每高 1 级 ×1.02 连乘（指数曲线，不封顶——等级越高碾压越强）
-        if self.btype != "pvp" and self.player and target.get("lv"):
+        # v180-C S3 fix（审计）：压制基准用攻击者（attacker）自身等级——宠物 actor 有
+        # level 用宠物级；无 level 的随从（召唤物按玩家属性生成）回落玩家等级（原行为）。
+        # 守卫保留"有可用攻击者等级才压制"（原 self.player 条件语义：测试/DOT 无玩家不压）。
+        _atk_lv = None
+        if attacker is not None:
+            _atk_lv = attacker.get("level")
+        if _atk_lv is None:
+            _atk_lv = (self.player or {}).get("level")
+        if self.btype != "pvp" and _atk_lv and target.get("lv"):
             try:
-                _plv = int(self.player.get("level", 0) or 0)
+                _plv = int(_atk_lv or 0)
                 _diff = int(target.get("lv", 0) or 0) - _plv
                 if _diff > 0:
                     _mult = 1.0
@@ -9105,7 +9113,9 @@ class Battle:
                     return False
                 dmg_type = actor.get("dmg_type", "phys")
                 if dmg_type == "true":
-                    dmg = max(1, int(actor.get("atk", 0) * (1 + random.uniform(-0.15, 0.15))))
+                    # v180-C S3 fix（审计）：统一走 calc_damage（true=atk 直伤+统一波动/下限），
+                    # 不再自写"atk×(1+U(-0.15,0.15))"（原与 calc_damage true 分支边界语义漂移）
+                    dmg = max(1, E.calc_damage(actor.get("atk", 0), 0, dmg_type="true"))
                 else:
                     est = self._enemy_stats(target)
                     dmg = E.calc_damage(actor.get("atk", 0), est.get("def", 0), dmg_type=dmg_type)
