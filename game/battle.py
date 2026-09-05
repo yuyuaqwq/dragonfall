@@ -1093,6 +1093,8 @@ class Battle:
             "cooldown": _p_cooldown,
             "combo_seq": _p_combo,
             "last_combo_tag": _pl.get("last_combo_tag"),
+            # v180 审计：last_element 补序列化（元素法师同系连发跨行动记忆，断线续战不丢）
+            "last_element": _pl.get("last_element"),
             "p_ct": self.p_ct,
             "player_hit": self._player_hit,
             "first_attack_done": self.first_attack_done,
@@ -1168,6 +1170,9 @@ class Battle:
             snap.setdefault("charging", None)
             snap.setdefault("last_combo_tag", None)
             snap.setdefault("poi_buff", None)
+            # v180 审计：last_element 快照缺失时从 st 顶层读（老档/断线续战不丢同系连发记忆）
+            if snap.get("last_element") is None and st.get("last_element") is not None:
+                snap["last_element"] = st.get("last_element")
             snap.setdefault("reduce_all_left", 0)
             snap.setdefault("reduce_left", 0)
             # 从 st 顶层 per-player 旁路键合并（P3 前双轨兼容；快照自身键优先）
@@ -1330,7 +1335,7 @@ class Battle:
             "cooldown": st.get("cooldown", {}) or {},
             "combo_seq": st.get("combo_seq", []) or [],
             "last_combo_tag": st.get("last_combo_tag") or None,
-            "last_element": None,
+            "last_element": st.get("last_element"),
             "tailwind_prev_energy": st.get("tailwind_prev_energy"),
             "v139_modes": st.get("v139_modes", {}) or {},
             "v139_charge": st.get("v139_charge", {}) or {},
