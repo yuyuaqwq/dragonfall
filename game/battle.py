@@ -4368,6 +4368,58 @@ class Battle:
         self._affix_res_proc(player, "buff_skill", logs)
 
         return logs
+    def _skill_crit_roll(self, st: dict, est: dict, player: dict, info: dict,
+                          mech: str, skill_name: str, logs: list) -> tuple:
+        """v176 拆分：攻击技能暴击判定（原 _player_skill 42 行内联）。
+
+        暴击来源：面板 crit + 幸运转化 + 套装 + 条件被动 + 满弦 + 标记 + 潜行必暴 + 满血必暴。
+        返回 (is_crit, _stealth_hit, lucky, stealth_mult, est, effs)。
+        副作用：潜行 buff 消费、_stealth_atk 标记、破甲符文改写 est 副本。
+        """
+        # v109.2 P1-1 运势：幸运转化为暴击补充（luck → crit，上限 +12%）；PVP 对方韧性对称生效
+        # v130.2c 套装暴击：巡林长披风（带标记 +5%）/ 夜幕合契·影纱 4 件（终结技 +15%）
+        # v169.7 条件被动暴击族（狂热/真知/疾风之心/元素之核/影舞·极）：统一走 _passive_crit_bonus 消费
+        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * 0.3, 0.12)
+                                     + self._set_crit_bonus(player, info)
+                                     + self._passive_crit_bonus(player, info=info)) * self._tenacity_mult(est)
+        # v130.2 游侠满弦状态（守线·风行者）：精力 ≥80 且低耗/连射技能 暴击率 +10%
+        if self._energy_high_crit(player, info):
+            is_crit = is_crit or random.random() < float(ENERGY_HIGH.get("crit_bonus", 0.10) or 0.10)
+        # v104 R3 P1-1：猎手本能——对标记目标暴击 +10%（e_buffs["mark"] 为目标易伤标记）
+        if "mark" in self.e_buffs:
+            for _pn, _ps in self._passive_map(player)["stat"]:
+                if _ps.get("stat") == "crit_mark" and random.random() < float(_ps.get("mult", 0.1)):
+                    is_crit = True
+        # v104 R3 P1-10：潜行状态（stealth）——下次攻击必暴，攻击后消耗
+        # v130.2f2：顺带记录本次攻击出手时处于潜行（供暮影潜行乘区 破影一击×1.5/幽影刃×1.25 消费，
+        #   判定与下方必暴共享同一字段 p_buffs["stealth"]：攻击时消费即视为潜行出手）
+        _stealth_hit = False
+        self._stealth_atk = False  # v130.2f2（T11 P2）：潜行出手标记每次出手前复位
+        if self.p_buffs.get("stealth"):
+            is_crit = True
+            _stealth_hit = True
+            self._stealth_atk = True  # 潜行出手标记——供 _on_crit_resource（潜行出手额外+1 影步）与暗影之舞暴伤被动读取
+            del self.p_buffs["stealth"]
+            logs.append("🌙 潜行生效！本次攻击必定暴击！")
+        # v34 符文：装备效果（破甲/暴伤/破魔/攻击特效）
+        effs = self._enchant_effects(player)
+        ap_lvl = self._enchant_lvl(effs, "armor_pierce")
+        if ap_lvl:
+            est = dict(est)
+            est["def"] = int(est["def"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
+            est["mdef"] = int(est["mdef"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
+        # 机制：影袭（满血必暴）——查表 MECH_FULL_HP_CRIT（v125.2 B1）
+        if mech in MECH_FULL_HP_CRIT and self.enemy.get("hp", 0) >= self.enemy.get("max_hp", 1):
+            is_crit = True
+        # v130.2f2 暮影潜行乘区：潜行出手时 终结·破影一击 ×1.5 / 幽影刃 ×1.25（数据驱动
+        #   SHADOW_STEALTH_DMG_MULT，assassin.md §5.2；非潜行/非表内技能恒 1.0，不影响其他职业）
+        stealth_mult = 1.0
+        if _stealth_hit and skill_name in SHADOW_STEALTH_DMG_MULT:
+            stealth_mult = float(SHADOW_STEALTH_DMG_MULT[skill_name])
+        # v109.2 P1-1 运势：暴击命中后 30% 概率追加 50% 伤害（幸运一击，含必暴机制）
+        lucky = is_crit and random.random() < LUCKY_CRIT_CHANCE
+        return is_crit, _stealth_hit, lucky, stealth_mult, est, effs
+
     def _skill_seg_damage(self, st: dict, est: dict, info: dict, kind: str, lv: int,
                           pmult: float, _seg_crit: bool, _lucky_seg: bool,
                           _pp_phys: float, _pf_phys: int, _pp_magi: float, _pf_magi: int,
@@ -4501,48 +4553,9 @@ class Battle:
             return logs
 
         est = self._enemy_stats()
-        # v109.2 P1-1 运势：幸运转化为暴击补充（luck → crit，上限 +12%）；PVP 对方韧性对称生效
-        # v130.2c 套装暴击：巡林长披风（带标记 +5%）/ 夜幕合契·影纱 4 件（终结技 +15%）
-        # v169.7 条件被动暴击族（狂热/真知/疾风之心/元素之核/影舞·极）：统一走 _passive_crit_bonus 消费
-        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * 0.3, 0.12)
-                                     + self._set_crit_bonus(player, info)
-                                     + self._passive_crit_bonus(player, info=info)) * self._tenacity_mult(est)
-        # v130.2 游侠满弦状态（守线·风行者）：精力 ≥80 且低耗/连射技能 暴击率 +10%
-        if self._energy_high_crit(player, info):
-            is_crit = is_crit or random.random() < float(ENERGY_HIGH.get("crit_bonus", 0.10) or 0.10)
-        # v104 R3 P1-1：猎手本能——对标记目标暴击 +10%（e_buffs["mark"] 为目标易伤标记）
-        if "mark" in self.e_buffs:
-            for _pn, _ps in self._passive_map(player)["stat"]:
-                if _ps.get("stat") == "crit_mark" and random.random() < float(_ps.get("mult", 0.1)):
-                    is_crit = True
-        # v104 R3 P1-10：潜行状态（stealth）——下次攻击必暴，攻击后消耗
-        # v130.2f2：顺带记录本次攻击出手时处于潜行（供暮影潜行乘区 破影一击×1.5/幽影刃×1.25 消费，
-        #   判定与下方必暴共享同一字段 p_buffs["stealth"]：攻击时消费即视为潜行出手）
-        _stealth_hit = False
-        self._stealth_atk = False  # v130.2f2（T11 P2）：潜行出手标记每次出手前复位
-        if self.p_buffs.get("stealth"):
-            is_crit = True
-            _stealth_hit = True
-            self._stealth_atk = True  # 潜行出手标记——供 _on_crit_resource（潜行出手额外+1 影步）与暗影之舞暴伤被动读取
-            del self.p_buffs["stealth"]
-            logs.append("🌙 潜行生效！本次攻击必定暴击！")
-        # v34 符文：装备效果（破甲/暴伤/破魔/攻击特效）
-        effs = self._enchant_effects(player)
-        ap_lvl = self._enchant_lvl(effs, "armor_pierce")
-        if ap_lvl:
-            est = dict(est)
-            est["def"] = int(est["def"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
-            est["mdef"] = int(est["mdef"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
-        # 机制：影袭（满血必暴）——查表 MECH_FULL_HP_CRIT（v125.2 B1）
-        if mech in MECH_FULL_HP_CRIT and self.enemy.get("hp", 0) >= self.enemy.get("max_hp", 1):
-            is_crit = True
-        # v130.2f2 暮影潜行乘区：潜行出手时 终结·破影一击 ×1.5 / 幽影刃 ×1.25（数据驱动
-        #   SHADOW_STEALTH_DMG_MULT，assassin.md §5.2；非潜行/非表内技能恒 1.0，不影响其他职业）
-        stealth_mult = 1.0
-        if _stealth_hit and skill_name in SHADOW_STEALTH_DMG_MULT:
-            stealth_mult = float(SHADOW_STEALTH_DMG_MULT[skill_name])
-        # v109.2 P1-1 运势：暴击命中后 30% 概率追加 50% 伤害（幸运一击，含必暴机制）
-        lucky = is_crit and random.random() < LUCKY_CRIT_CHANCE
+        # v176: 暴击判定抽 _skill_crit_roll（原 42 行内联）
+        is_crit, _stealth_hit, lucky, stealth_mult, est, effs = self._skill_crit_roll(
+            st, est, player, info, mech, skill_name, logs)
         # 机制：冰霜（冻结目标碎冰增伤）——查表 MECH_FROZEN_MULT（v125.2 B1）
         frozen_bonus = 1.0
         if mech in MECH_FROZEN_MULT and "freeze" in self.e_buffs:
