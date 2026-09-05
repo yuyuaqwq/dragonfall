@@ -7593,30 +7593,6 @@ class Battle:
             pass
         return CAST_PET_SKILL * self._ct_cost(self._pet_spd())
 
-    def _pet_should_hit(self) -> bool:
-        """v167.3 宠物限频：当前 pet_tick 是否允许出手（距上次出手 >= skill_interval 秒）。
-
-        上次出手时刻存 self.pet["_last_hit_at"]（pet dict 随 to_state/st["pets"] 持久化——
-        副本每 act 重建 Battle、野外断线恢复都要跨实例保留窗口，否则窗口重置每 act 开头都打）。
-        """
-        try:
-            _iv = self._pet_interval_sec()
-            pet = self.pet or {}
-            _last = pet.get("_last_hit_at")
-            if _last is None:
-                return True  # 首次到期即可出手
-            return self._now - float(_last) >= _iv - 1e-9
-        except Exception:
-            return True
-
-    def _pet_mark_hit(self):
-        """v167.3 记录本次出手时刻（限频窗口起点；写入 pet dict 随战斗状态持久化）。"""
-        try:
-            self.pet["_last_hit_at"] = self._now
-            self._pet_last_hit_at = self._now
-        except Exception:
-            pass
-
     def _pet_block_check(self, dmg: int, logs: list) -> int:
         """24 章宠物技能·影袭：每 N 刻 value 概率替主人挡一次攻击(敌方伤害结算前)。"""
         if dmg <= 0:
