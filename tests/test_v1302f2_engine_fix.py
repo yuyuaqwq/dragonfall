@@ -163,7 +163,9 @@ def test_zen_hold_bonus():
         b2, p2 = new_battle("cls_wu_seng", 1, 2, level=95)   # 守线（磐石行者）不吃
         b2.resources["chi"] = 10
         check_float("负例：守线（磐石行者）不吃持有加伤 ×1.0", b2._momentum_mult(p2), 1.0)
-        b3, p3 = new_battle("cls_zhan_shi", 1, 1, level=95)  # 战士（对照）不吃
+        # v176 判据改资源键+攻线：战士对照须 evolve_path=0（攻线=1 即使塞 chi 也会命中蓄势——
+        # 旧测试给战士设 path=1 又塞 chi 自相矛盾，v176 后穿帮）
+        b3, p3 = new_battle("cls_zhan_shi", 1, 0, level=95)  # 战士（无攻线）不吃
         b3.resources["chi"] = 10
         check_float("负例：战士 不吃拳师蓄势 ×1.0", b3._momentum_mult(p3), 1.0)
     except (AttributeError, TypeError) as ex:

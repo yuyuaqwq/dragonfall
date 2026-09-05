@@ -154,7 +154,8 @@ async def main():
         esrc = f.read()
     check("calc_damage 有 dmg_type 参数", "dmg_type" in esrc)
     check("真伤判断 dmg_type == \"true\"", 'dmg_type == "true"' in esrc)
-    check("技能真伤 kind 分支", 'if kind == "真伤"' in bsrc)
+    # v176 去魔法字符串：真伤用 K_TRUE 常量（skill_kinds.py）替代中文"真伤"字面量
+    check("技能真伤 kind 分支(K_TRUE)", 'kind == K_TRUE' in bsrc or 'kind == "真伤"' in bsrc)
     check("技能真伤传参 true", 'dmg_type="true"' in bsrc)
     check("技能物理显式 phys", 'dmg_type="phys"' in bsrc)
     check("技能魔法显式 magi", 'dmg_type="magi"' in bsrc)

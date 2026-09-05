@@ -118,8 +118,11 @@ async def main():
     check("战力有返回", len(out) > 3, out[:120])
 
     print("【技能升级 v56.1：每技能单独策划 + 无空格序号 + 中文名显示】")
-    # 1) 默认成长数值函数（未配 info 时）
-    check("伤害倍率默认 Lv.5=140%", abs(E.skill_power_mult(5) - 1.4) < 1e-9, str(E.skill_power_mult(5)))
+    # 1) 成长数值函数（v180：未配 p = 无成长——鱼鱼拍板删默认每级+10% 兜底，怪技能不被误伤）
+    check("无配置不成长 Lv.5=100%", abs(E.skill_power_mult(5) - 1.0) < 1e-9, str(E.skill_power_mult(5)))
+    # 真实玩家技能 dict（带 lv 字段——_skill_up v180 按 lv 隔离怪技能，纯 name 无 lv 会被当怪技能跳过）
+    check("配 p=12 Lv.5=148%", abs(E.skill_power_mult(5, {"name": "挥砍", "lv": 1}) - 1.48) < 1e-9,
+          str(E.skill_power_mult(5, {"name": "挥砍", "lv": 1})))
     check("增益回合 Lv.5=7", E.skill_buff_turns(5) == 7, str(E.skill_buff_turns(5)))
     check("条件倍率默认随等级成长", abs(E.skill_cond_mult({"mult": 1.4}, 5) - 1.6) < 1e-9, str(E.skill_cond_mult({"mult": 1.4}, 5)))
     # 2) 每技能单独策划（SKILL_UP 差异化）：按名字取 info

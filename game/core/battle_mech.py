@@ -224,9 +224,24 @@ def _m_slow(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """减速（怪技能 slow 词汇 → 玩家 spd_down 语义；v180 actor 统一）：
     目标速度下降（SPD_DOWN_MULT 0.5）。与 _m_spd_down 同语义——怪技能 mech=slow
     直接复用玩家减速通道，无需 MON_CTRL_EFFECTS 专用表。怪数据缺省 mech_val → 2 刻
-    （MON_CTRL slow 旧硬编码 2 刻；显式 mech_val 时按刻数）。"""
+    （MON_CTRL slow 旧硬编码 2 刻；显式 mech_val 时按刻数）。
+    v180 免疫保留：目标玩家 cc_immune（不动如山药剂）免疫；霜狼套 5 件免疫（抗寒）——
+    旧 MON_CTRL slow 语义，目标=怪无套装概念直接减速。"""
+    # v180：怪 slow 缺省 mech_val（22 个 slow 技能大多无 mech_val）→ 默认 2 刻（旧 MON_CTRL 固定）
     if not mval:
-        return
+        mval = 2
+    _tgt = battle._tgt()
+    if _tgt is not None and _tgt.get("class_name"):
+        # 目标是玩家 actor：查 cc_immune / 霜狼套免疫（对齐旧 MON_CTRL slow）
+        if battle._cast_buffs().get("cc_immune"):
+            logs.append("🗿 不动如山！免疫了减速！")
+            return
+        try:
+            if "霜狼" in "|".join(battle._set_bonus_5(_tgt)):
+                logs.append("🧊 抗寒生效！霜狼套免疫了减速！")
+                return
+        except Exception:
+            pass
     dur = max(int(mval or 0), 1)
     battle._tgt_buffs()["spd_down"] = max(battle._tgt_buffs().get("spd_down", 0), dur)
     logs.append(f"🧊 目标被减速 {dur} 刻，速度下降！")

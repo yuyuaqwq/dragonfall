@@ -102,7 +102,7 @@ async def test_commands():
     # 总览
     out = await cmd(m, "adventure_book", "g1", "e1", "冒险手册")
     check("总览有足迹", "足迹" in out and "1/" in out, out[:200])
-    check("总览有怪物", "怪物" in out and "绿史莱姆" not in out and "1/326" in out, out[:200])
+    check("总览有怪物", "怪物" in out and "绿史莱姆" not in out and "1/345" in out, out[:200])
     check("总览有物品", "曾拥有" in out and "2 种" in out, out[:200])
     # 足迹
     out = await cmd(m, "footprint", "g1", "e1", "足迹")

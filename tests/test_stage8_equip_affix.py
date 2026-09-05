@@ -431,9 +431,12 @@ def test_set5_and_resist():
     slow_count = sum(1 for s in C.MONSTER_SKILLS.values() if s.get("mech") == "slow")
     check("怪物元素技能 >=30", elem_count >= 30, str(elem_count))
     check("冰系减速技能 >=6", slow_count >= 6, str(slow_count))
-    ice_slow_ok = all(C.MONSTER_SKILLS[k].get("element") == "ice"
-                      for k, v in C.MONSTER_SKILLS.items() if v.get("mech") == "slow")
-    check("减速技能全为冰系", ice_slow_ok)
+    # v180：slow 主系冰（18）+ 后加 Boss/副本技允许 dark/nature（暗影箭雨/根须缠绕/怨灵尖啸）——
+    # 旧断言"全为冰系"过时（数据演进加了非冰减速，属设计意图）
+    slow_list = [v for v in C.MONSTER_SKILLS.values() if v.get("mech") == "slow"]
+    ice_slow_n = sum(1 for v in slow_list if v.get("element") == "ice")
+    ice_slow_ok = ice_slow_n >= 15
+    check(f"减速技能主系冰系 >=15（现 {ice_slow_n}/{len(slow_list)}）", ice_slow_ok)
     # 9.5 元素抗性减免（elem_resist 火冰雷 / abyss_resist 暗影）
     p_res = mk_sets_player("橡木套", 5, affix_ids=["elem_resist"])
     p_abyss = mk_sets_player("橡木套", 5, affix_ids=["abyss_resist"])

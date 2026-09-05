@@ -7299,6 +7299,32 @@ class Battle:
             # test_stage9_race 龙鳞/鲁莽断言依赖；玩家打怪仍合并进"敌方防守削减"）
             if self._tgt_is_player():
                 logs.append(f"🛡️ 魔法免伤，减免 {red} 点伤害！")
+        # v180 元素抗性词条保底（旧 _enemy_cast_done 6810-6815 语义）：装备带
+        # elem_resist/abyss_resist 词条时，面板抗性不足保底值按保底算（战斗内动态读词条 id，
+        # 不依赖面板折算——手工/旧装备词条可能未折算进 stats）。目标=玩家才查玩家装备。
+        _pids_r = []
+        if self._tgt_is_player():
+            try:
+                _pids_r = self._equip_affix_ids(self._tgt())
+            except Exception:
+                _pids_r = []
+        # v180 暗影抗性（abyss_res）：dark 元素走深渊抗（旧 _enemy_cast_done melem==dark 分支）。
+        # ⚠️ dark ∉ ELEMENT_MARKS（只有 fire/ice/thunder）——暗影抗必须在此独立处理，不能放块内
+        if element == "dark":
+            _imm_d = list((tgt or {}).get("element_immune") or [])
+            if "dark" in _imm_d:
+                logs.append(f"💠 免疫！【{tgt.get('name', '敌人')}】免疫暗影伤害！")
+                return 0, 0
+            ar_raw = float(tst.get("abyss_res", 0) or 0)
+            if "abyss_resist" in _pids_r and ar_raw < 0.10:
+                ar_raw = 0.10
+            ar = min(ar_raw, 0.5)
+            if ar > 0 and magi > 0:
+                red = max(1, int(magi * ar))
+                magi -= red
+                reduced += red
+                if self._tgt_is_player():
+                    logs.append(f"🛡️ 元素抗性减免 {red} 点伤害！")
         if element and E.ELEMENT_MARKS.get(element):
             # v110 审计修复：cap 0.4 → 0.5（对齐防御端 _enemy_turn / PCT_CAPS["elem_res"]=0.5 /
             # 设计 §三「元素抗上限 50%」；此前 PVP 敌方元素抗 40%~50% 段在玩家攻击端被截断）
@@ -7310,10 +7336,16 @@ class Battle:
                 logs.append(f"💠 免疫！【{tgt.get('name', '敌人')}】免疫{element}伤害！")
                 return 0, 0
             er = min(float(tst.get("elem_res", 0) or 0), 0.5)
+            if "elem_resist" in _pids_r and er < 0.08:
+                er = min(0.08, 0.5)
             if er > 0 and magi > 0:
                 red = max(1, int(magi * er))
                 magi -= red
                 reduced += red
+                # v180 文案：怪打玩家走管线时输出"元素抗性减免"（旧 _enemy_cast_done 手动段文案，
+                # test_stage8_equip_affix elem_resist/abyss_resist 断言依赖）
+                if self._tgt_is_player():
+                    logs.append(f"🛡️ 元素抗性减免 {red} 点伤害！")
             _weak = (tgt or {}).get("element_weak") or {}
             if isinstance(_weak, dict) and element in _weak:
                 try:
@@ -8485,7 +8517,7 @@ class Battle:
         # v177 actor 统一：怪物扣血/死亡/on_taken 全走 _damage_actor（怪物模式）
         # 前置（乘区/等级压制/defending/sleep/打断）已在此函数上方完成，此处只做落地
         _real_dmg = self._damage_actor(target, dmg, logs, source=str(source or "玩家"),
-                                       true_dmg=true_dmg)
+                                       true_dmg=true_dmg, wake_sleep=wake_sleep)
         return _real_dmg
 
 
@@ -8661,7 +8693,9 @@ class Battle:
                 # 不再硬编码 phys（当前三模板均 phys 故行为不变，属防回归）。
                 dmg = E.calc_damage(s["atk"], est.get("def", 0), dmg_type=s.get("dmg_type", "phys"))
             dmg = max(1, dmg)
-            self._damage_enemy(dmg, logs, target=target, source=s.get("name", "召唤物"))
+            # v180-B：真伤召唤物传 true_dmg=True（否则被当物理打高防=0——测试 v107_summon 回归）
+            self._damage_enemy(dmg, logs, target=target, source=s.get("name", "召唤物"),
+                               true_dmg=(s.get("dmg_type") == "true"))
             logs.append(f"{s.get('icon', '')} {s['name']} 攻击，造成 {dmg} 点伤害！")
         # 清理死亡召唤物
         for s in list(self.summons):
@@ -9105,15 +9139,15 @@ class Battle:
             return dmg, False
         # 反击/反伤目标：攻击者优先；玩家被打场景（attacker=None）回退敌人
         _rtgt = attacker if attacker is not None else self.enemy
-        # 回击落点：目标是玩家 → _damage_actor(玩家)；目标是怪/无 → _damage_enemy
+        # 回击落点：v177 actor 统一——玩家/怪都走 _damage_actor（状态容器按 _is_focus_player 路由）。
+        # 修复：旧 else 分支 _hit_back(rd_val) 无限自调（RecursionError 被吞 → 反伤静默丢失，
+        # 荆棘/格挡反震等对怪回击全失效）；现统一 _damage_actor 目标即正确扣血/移除。
         def _hit_back(rd_val: int) -> None:
             if not _rtgt:
                 return
             try:
-                if _rtgt.get("class_name"):
-                    self._damage_actor(_rtgt, rd_val, logs, source=str(actor.get("name", "敌人") or "敌人"))
-                else:
-                    _hit_back(rd_val)
+                self._damage_actor(_rtgt, rd_val, logs,
+                                   source=str(actor.get("name", "敌人") or "敌人") or "反伤")
             except Exception:
                 pass
         B = self.p_buffs
@@ -9511,7 +9545,8 @@ class Battle:
             pass
 
     def _damage_actor(self, actor: dict, dmg: int, logs: list, source: str = "伤害",
-                      attacker: dict | None = None, true_dmg: bool = False) -> int:
+                      attacker: dict | None = None, true_dmg: bool = False,
+                      wake_sleep: bool = True) -> int:
         """v177 统一承伤核心（actor-agnostic）：玩家/怪物共用同一份受击结算。
 
         结算逻辑不再区分身份——只按 actor 声明的字段走：
@@ -9555,7 +9590,9 @@ class Battle:
             return 0
         _hp_before = int(actor.get("hp", 0) or 0)  # v177 实际扣血基准（返回用）
         # v2 蓄力打断：蓄力中受到主动伤害>0 → 打断并返还 50% MP（§6.2规则4）
-        if CH and CH.get("skill"):
+        # v180-B：wake_sleep=False（DOT）不打断蓄力——原 v177 后此判断丢 wake_sleep 过滤，
+        # DOT 也会打断怪蓄力（test_v114 DOT 不打断蓄力回归）
+        if wake_sleep and CH and CH.get("skill"):
             pname = actor.get("name", "你")
             cname = CH.get("name", CH.get("skill", "?"))
             spent = int(CH.get("mp_spent", 0) or 0)
