@@ -301,7 +301,9 @@ class Battle:
         self.killed_enemies: list = []
         self.allies: list = allies or []   # v122 我方阵列（治疗指定队友：副本传存活玩家快照引用）
         self.player = player or {}         # v105 攻击方属性读取（_monster_dodge_check 需要玩家精准）
-        self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
+        # v177 buff actor 化：玩家 buffs 权威存 player["buffs"]，p_buffs = 其引用（与怪物 buffs 同构）
+        # 副本多玩家切焦点（_load_player_state）时 p_buffs 重指向新玩家 buffs——代码 84 处引用零改动
+        self.p_buffs: dict = player.setdefault("buffs", {}) if player else {}   # 玩家增益 {effect: turns}
         self._reduce_all_left: int = 0     # v113.1 团队减伤 reduce_all 剩余刻（百分比存 p_buffs["reduce_all"]）
         self._reduce_left: int = 0         # v162 单人减伤 reduce 剩余刻（铁壁/铜墙等，百分比存 p_buffs["reduce"]）
         self._p_buff_hits: dict = {}       # v151 时刻制：防御型 buff 受击计数 {effect: 剩余受击次数}——防御/减伤/受击类按"敌方出手次数"计时而非玩家刻
@@ -637,7 +639,11 @@ class Battle:
             if not snap or not (st.get("alive") or {}).get(key, True):
                 return None
             # 载入该玩家单套状态字段（与 from_state 同口径，从 per-player dict 取）
-            self.p_buffs = dict((st.get("p_buffs") or {}).get(key, {}))
+            # v177 buff actor 化：buffs 权威放玩家快照 buffs，p_buffs 指向它（与怪物 buffs 同构）
+            snap.setdefault("buffs", {})
+            self.p_buffs = snap["buffs"] if snap.get("buffs") is not None else snap.setdefault("buffs", {})
+            self.p_buffs.clear()
+            self.p_buffs.update((st.get("p_buffs") or {}).get(key, {}))
             self._p_buff_hits = dict((st.get("p_buff_hits") or {}).get(key, {}))
             self._reduce_all_left = int((st.get("reduce_all_left") or {}).get(key, 0) or 0)
             self._reduce_left = int((st.get("reduce_left") or {}).get(key, 0) or 0)
