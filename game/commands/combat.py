@@ -2693,9 +2693,9 @@ class CombatCmds(CommandBase):
         # 后续 hp 写回全局也一并包含。
         gboss["dot_act"] = int(gboss.get("dot_act", 0) or 0) + 1
         if int(gboss["dot_act"]) % WORLD_BOSS_DOT_INTERVAL == 0:
-            # 契约 §2.2 实际实现：_tick_dots 原地向传入的 logs 追加文案并返刻并后同一列表，
+            # 契约 §2.2 实际实现：_tick_actor_dots 原地向传入的 logs 追加文案并返回同一列表，
             # 故用 logs = 覆盖而非 logs +=，避免同一列表二次自拼接导致 dot 行重复显示。
-            logs = b._tick_dots(player, logs, force=True)  # force 结算的 dot 文案并入
+            logs = b._tick_actor_dots(b.enemy, logs, force=True, caster=player)  # force 结算的 dot 文案并入
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         after = sum(max(0, u.get("hp", 0)) for u in b.enemies)
         dealt = max(0, before - after)  # 全阵列伤害合计

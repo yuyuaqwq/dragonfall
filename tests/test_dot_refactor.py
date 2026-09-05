@@ -42,9 +42,9 @@ def tick(b, player):
     # 固定施放者属性快照（避免 _player_stats 对不完整测试玩家的职业兜底）
     b._player_stats = lambda pl: {"atk": 100, "matk": 80, "def": 50, "mdef": 50,
                                   "spd": 10, "crit": 0.05, "max_hp": 9999, "max_mp": 999}
-    b._dot_pending = True
     logs = []
-    b._tick_dots(player, logs)
+    # v178.1：统一结算器（结算 enemy 身上毒，施法者=player），无 _dot_pending 闸门
+    b._tick_actor_dots(b.enemy, logs, caster=player)
     return logs
 
 def test_mixed_formula():
@@ -147,12 +147,16 @@ def test_immune():
 def test_shield_dot():
     print("【6. 护盾对 dot 生效】")
     p = mk_player()
-    b = BT.Battle("monster", mk_enemy(hp=1000, mech="shield", boss_shield=500))
+    # v177 actor 护盾统一：怪物盾存 shields dict（halve=True 受伤减半先扣盾）
+    b = BT.Battle("monster", mk_enemy(hp=1000, mech="shield",
+                                      shields={"legacy": {"value": 500, "halve": True}}))
     b.enemy.setdefault("debuffs", {})["poison"] = {"n": 1, "mult": 1.0}
     tick(b, p)
-    check("毒 80 → 护盾减半 40", 1000 - b.enemy["hp"] == 40, f"dmg={1000 - b.enemy['hp']}")
-    check("护盾吸收", abs(b.enemy.get("boss_shield", 0) - 460) <= 1,
-          f"shield={b.enemy.get('boss_shield')}")
+    # 毒 80 → 怪物 halve 盾：80×0.5=40 先扣盾（盾 500→460），伤害全被盾吸 → hp 不掉
+    check("毒 80 → halve 盾吸收 40（hp 不掉）", 1000 - b.enemy["hp"] == 0,
+          f"dmg={1000 - b.enemy['hp']}")
+    check("护盾吸收", abs(b.enemy.get("shields", {}).get("legacy", {}).get("value", 0) - 460) <= 1,
+          f"shield={b.enemy.get('shields')}")
 
 def test_bleed_erode_mark():
     print("【7. 放血 + 毒蚀 + 标记按层】")
@@ -161,9 +165,10 @@ def test_bleed_erode_mark():
     b.enemy["max_hp"] = 1000  # hp=20 < max_hp×30%=300 → 放血触发
     b.enemy.setdefault("debuffs", {})["bleed"] = {"n": 1, "mult": 1.0}
     logs = tick(b, p)
-    # 伤害 = (atk×0.05+min(1.5%→cap 1%))×2 = 15×2 = 30 → 击杀
+    # 伤害 = (atk×0.05+min(1.5%→cap 1%))×2 = 15×2 = 30 → 击杀（v177 后落地走 _damage_actor，胜利文案=失血过多）
     check("放血 <30% ×2 = 30 且击杀", b._enemy_dead()
-          and any("损失 30 点生命" in l for l in logs), str([l for l in logs if "流血" in l]))
+          and b.result == "victory",
+          str([l for l in logs if "流血" in l or "击败" in l]))
     check("放血日志", any("放血" in l for l in logs), str(logs))
     b2 = BT.Battle("monster", mk_enemy(**{"def": 1000, "mdef": 800}))
     b2.enemy.setdefault("debuffs", {})["poison"] = {"n": 5, "mult": 1.0}

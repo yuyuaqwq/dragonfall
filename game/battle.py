@@ -450,9 +450,6 @@ class Battle:
         self._player_casting: bool = False
         # v2 受击伤害来源（打断判定用）：最近一次对敌方造成伤害的来源名（默认玩家）
         self._last_hitter: str = "你"
-        # DOT 重构（契约 §2.1）：持续减益结算闸门——单机每玩家行动结算一次（现状频率）；
-        # 副本由 instance 层 set False；世界 Boss 由 combat 层 force=True 触发
-        self._dot_pending: bool = True
         # v152：开战初始化事件队列——每个敌方排初始 enemy_act 事件；DOT/宠物/Boss 机制排初始 tick。
         # 注意：from_state 恢复的战斗不在此重排（由 from_state 末尾按存档事件恢复），
         # 仅新建战斗在此初始化。副本（instance）的 enemy_act 由 from_state 的 instance 分支
@@ -476,8 +473,8 @@ class Battle:
                     if _u.get("hp", 0) > 0:
                         _init_t = float(_u.get("ct", 0) or _ct_initial_wait(_u.get("spd", 0)))
                         self._schedule(_init_t, {"type": "enemy_act", "unit": _u})
-            # DOT 由 player_turn 开头 _turn_start 结算（_tick_dots + _dot_pending 闸门），
-            # 不排独立 dot_tick 事件（避免重复结算）。
+            # v178.1 DOT 事件驱动：挂 dot（_apply_dot）时排 dot_tick，到点结算该 actor
+            # 的 debuffs（玩家/怪同结算器 _tick_actor_dots），结算后仍有 dot 则重排。
             # Boss 定时机制由 _enemy_turn 内 _boss_mech 触发（每次敌方行动时按 r % interval 判定），
             # 不排独立 mech_tick 事件（避免双重触发）。
             # 注：词条/套装回血（regen）不排独立事件——由 player_turn 开头的 _turn_start
@@ -610,8 +607,6 @@ class Battle:
             # 元素跃迁日志依赖 _last_player/_shifted_element，必须随战斗状态持久化
             "last_player": getattr(self, "_last_player", None),
             "shifted_element": getattr(self, "_shifted_element", None),
-            # DOT 重构（契约 §2.1）：持续减益结算闸门状态随战斗序列化
-            "dot_pending": getattr(self, "_dot_pending", True),
             "tailwind_prev_energy": getattr(self, "_tailwind_prev_energy", None),  # v130.2d 疾风余韵跨刻状态
             "overflow_shield_cd": getattr(self, "_overflow_shield_cd", False),  # v130.2f2 满溢转盾冷却（断线恢复不重置冷却）
             # v139 职业融合：模式状态机随战斗序列化（dual_form/focus/vent + charge 电荷）
@@ -781,8 +776,6 @@ class Battle:
         if _lp:
             b._last_player = _lp
         b._shifted_element = st.get("shifted_element")
-        # DOT 重构（契约 §2.1）：恢复持续减益结算闸门（老档案缺失默认 True=每玩家行动结算一次）
-        b._dot_pending = bool(st.get("dot_pending", True))
         b._tailwind_prev_energy = st.get("tailwind_prev_energy")  # v130.2d 疾风余韵跨刻状态
         b._overflow_shield_cd = bool(st.get("overflow_shield_cd", False))  # v130.2f2 满溢转盾冷却随战斗序列化
         # DOT 重构（契约 §2.3）：老档案迁移——敌方持续减益迁为目标级 enemy["debuffs"]。
@@ -2479,7 +2472,7 @@ class Battle:
                 # 早停：战斗已有结局（victory/defeat）→ 不再触发后续事件
                 # （旧实现只在特定事件分支 break，战利品/宠物击杀把 result 置 victory 后
                 #   同批后续事件仍可能触发——副本打怪后残留 pet_tick 下回合再出手也源于此）
-                if self.result in ("victory", "defeat") and evt in ("enemy_act", "pet_tick", "cast_done"):
+                if self.result in ("victory", "defeat") and evt in ("enemy_act", "pet_tick", "cast_done", "dot_tick"):
                     break
                 if evt == "enemy_act":
                     # v157：skip_enemy=True（副本/PVP 外部驱动敌方）→ 跳过敌方行动，
@@ -2533,6 +2526,25 @@ class Battle:
                     # 重排下次 pet_tick（周期 = 出招 + 收招，按宠物 spd 折算）——
                     # 即使本次被限频跳过也照常重排，读条节奏不丢
                     self._reschedule_pet_tick()
+                elif evt == "dot_tick":
+                    # v178.1 事件驱动 DOT：挂 dot（_apply_dot）时排本事件，到点结算该 actor
+                    # 身上的全部 debuffs——玩家/怪同一结算器 _tick_actor_dots（actor 无关）。
+                    # 结算后若仍有 debuffs → 重排下次（周期 ACT_TICK，dot 按真实时间 1 刻跳一次）；
+                    # 已无 dot → 不再重排（自然停止）。玩家被毒死 → defeat 置位 break。
+                    _dt_actor = ev.get("unit") if ev.get("side") == "e" else player
+                    if _dt_actor is not None and not self.result:
+                        _dt_had = bool((_dt_actor.get("debuffs") or {}))
+                        if _dt_had:
+                            logs += self._tick_actor_dots(_dt_actor, logs, force=True)
+                            if self._player_dead(player):
+                                self.result = "defeat"
+                                break
+                            # 结算后仍有 debuffs → 重排（周期 ACT_TICK=1 刻一跳）
+                            if (_dt_actor.get("debuffs") or {}):
+                                self._schedule(self._now + ACT_TICK,
+                                               {"type": "dot_tick",
+                                                "side": "p" if _dt_actor.get("class_name") else "e",
+                                                "unit": None if _dt_actor.get("class_name") else _dt_actor})
                 elif evt == "cast_done":
                     # v154 读条命中制：出招读条结束 = 命中时刻 → 结算（用命中时刻实时状态）
                     side = ev.get("side", "p")
@@ -7087,190 +7099,96 @@ class Battle:
             _kname = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}.get(_type, _type)
             _who = ("你" if _is_pl else f"【{target.get('name', '目标')}】")
             logs.append(f"{_icon_map.get(_type, '💥')} {_who}中了【{_kname}】（{_n} 层）！")
+            # v178.1 事件驱动：目标首次带 dot → 排一个**该 actor 自己的** dot_tick 事件
+            # （照 pet_tick 先例）。玩家/怪各有各的 dot_tick——玩家和怪同时中毒时两个事件
+            # 各自结算，互不干扰（actor 无关）。已有该 actor 的 dot_tick（层数叠加）不重复排。
+            # 玩家 actor 用 side=p 标记（触发时取当前焦点玩家）；怪用 unit 引用。
+            try:
+                if _is_pl:
+                    _mine = any(_e.get("type") == "dot_tick" and _e.get("side") == "p"
+                                for _, _, _e in self._events)
+                    if not _mine:
+                        self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "p"})
+                else:
+                    _mine = any(_e.get("type") == "dot_tick" and _e.get("side") == "e"
+                                and _e.get("unit") is target
+                                for _, _, _e in self._events)
+                    if not _mine:
+                        self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "e",
+                                                               "unit": target})
+            except Exception:
+                pass
         except Exception:
             pass
 
-    def _tick_dots_of(self, actor: dict, logs: list) -> list:
-        """v178 E4 重构：结算任意 actor 身上的 debuffs（玩家/怪通用）。
-        伤害公式与敌方 _tick_dots 同构（DOT_DEFS 系数）：
-          poison = atk_snapshot × DEF.atk × n × mult   （flat 型）
-          burn   = matk_snapshot × DEF.matk + max_hp×DEF.hp% × n × mult
-          bleed  = atk_snapshot × DEF.atk + max_hp×DEF.hp% × n × mult
-          corros = 同 bleed 但走真伤（无视防御）
-        强度快照 = debuffs 条目里挂载时存的施法者 atk/matk（谁挂的 dot 按谁的面板长）。
-        落地：目标=玩家 → _damage_actor（玩家承伤链：def/mdef/减伤/护盾）；
-              目标=怪物 → _damage_enemy（dot 不打醒睡眠、不打断蓄力）。
-        结算后 n-1，归零消散。目标自身免疫字段（immune_dots）→ 直接消散。
-        判定只依赖 actor 字段（class_name），无对象特判分支。"""
-        try:
-            if not actor:
-                return logs
-            _deb = actor.get("debuffs") or {}
-            if not _deb:
-                return logs
-            from .data.battle_config import DOT_DEFS, DOT_PCT_CAP, DOT_BLEED_DOUBLE_HP_PCT
-            _is_pl = bool(actor.get("class_name"))
-            _name = "你" if _is_pl else f"【{actor.get('name', '目标')}】"
-            _max_hp = int(actor.get("max_hp", 1) or 1)
-            _icon_map = {"poison": "☠️", "burn": "🔥", "bleed": "🩸", "corros": "🧪"}
-            _kname = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}
-            _immune = list(actor.get("immune_dots") or [])
-            for _k in list(_deb):
-                _d = _deb[_k]
-                if not isinstance(_d, dict):
-                    _deb.pop(_k, None)
-                    continue
-                _def = DOT_DEFS.get(_k)
-                if not _def:
-                    _deb.pop(_k, None)
-                    continue
-                # 免疫：命中该类型直接消散（玩家一般无 immune_dots 字段=0 无感；Boss/怪可配）
-                if _k in _immune:
-                    _deb.pop(_k, None)
-                    logs.append(f"🛡️ {_name}免疫{_kname.get(_k, _k)}，减益消散了！")
-                    continue
-                _n = int(_d.get("n", 1) or 1)
-                _mult = float(_d.get("mult", 1.0) or 1.0)
-                _atk_mult = float(_d.get("atk_mult", 1.0) or 1.0)
-                _atk = int((_d.get("atk", 0) or 0) * _atk_mult)
-                _matk = int((_d.get("matk", 0) or 0) * _atk_mult)
-                # 伤害计算（复用 DOT_DEFS 公式：atk/matk 系数 + 生命百分比）
-                _flat = int(_atk * float(_def.get("atk", 0) or 0) + _matk * float(_def.get("matk", 0) or 0))
-                _hp_pct = float(_def.get("hp", 0) or 0)
-                _hp_part = int(_max_hp * _hp_pct * _n)
-                # 百分比部分单层上限（防极端叠层爆炸，同敌方侧）
-                _hp_part = min(_hp_part, int(_max_hp * DOT_PCT_CAP * _n * 100))
-                _p = int((_flat * _n + _hp_part) * _mult)
-                _p = max(1, _p)
-                # 放血（目标当前生命 <30% 流血 ×2，处决线——玩家怪通用）
-                if _k == "bleed" and int(actor.get("hp", 0) or 0) < _max_hp * DOT_BLEED_DOUBLE_HP_PCT:
-                    _p *= 2
-                # 落地：玩家走 _damage_actor 承伤链；怪物走 _damage_enemy（dot 不打醒、不打断）
-                try:
-                    if _is_pl:
-                        _real = self._damage_actor(actor, _p, logs, source="dot")
-                    else:
-                        _real = self._damage_enemy(_p, logs, wake_sleep=False,
-                                                   target=actor if actor is not self.enemy else None)
-                except Exception:
-                    _real = _p
-                _suffix = f" 损失 {_real} 点生命"
-                if _k == "bleed" and _real >= _p:
-                    _suffix = f"(放血) 损失 {_real} 点生命"
-                logs.append(f"{_icon_map.get(_k, '💥')} {_name}{_kname.get(_k, _k)}发作，{_suffix}！(剩余 {_n - 1} 层)")
-                _n -= 1
-                if _n <= 0:
-                    _deb.pop(_k, None)
-                    logs.append(f"💨 {_name}的{_kname.get(_k, _k)}消散了！")
-                else:
-                    _d["n"] = _n
-            return logs
-        except Exception:
-            return logs
+    def _tick_actor_dots(self, actor: dict, logs: list, force: bool = False,
+                         caster: dict | None = None) -> list:
+        """v178.1 统一 DOT 结算：结算任意 actor（玩家/怪）身上的 debuffs——actor 无关。
 
-    def _apply_player_dot(self, player: dict, attacker: dict, pdot: dict, logs: list) -> None:
-        """(v178 兼容壳) 旧名 → 通用 _apply_dot（玩家/怪对称，参数语义不变）。
-        调用方后续迁移到 _apply_dot；本壳保留防漏改调用崩。"""
-        return self._apply_dot(player, attacker, pdot, logs)
-
-    def _tick_player_dots(self, player: dict, logs: list) -> list:
-        """(v178 兼容壳) 旧名 → 通用 _tick_dots_of（玩家/怪对称，参数语义不变）。
-        调用方后续迁移到 _tick_dots_of；本壳保留防漏改调用崩。"""
-        return self._tick_dots_of(player, logs)
-
-    def _tick_dots(self, player: dict, logs: list, force: bool = False) -> list:
-        """DOT 重构（契约 §2.2 + §10.1 + §11.1）+ v138.2 异常五律：敌方持续减益统一结算。
-
-        每次结算（每层每刻混合公式）：
-          poison = (atk×0.5 + max_hp×1.5%) × n × mult
-          burn   = (matk×0.4 + max_hp×1.0%) × n × mult
-          bleed  = (atk×0.6 + max_hp×1.5%) × n × mult（目标当前生命 <30% 时 ×2，放血）
-        随后经 敌方防守削减(_enemy_mitigate) → Boss 护盾过滤(_boss_dmg_filter)；
-        结算后层数 n-1，归零消散。总抗 = min(0.95, dot_res + 适应adapt[k])；
-        poison/burn 最近 2 刻未再叠层时适应 -4%（耐受消退）。
-        免疫列表 immune_dots 命中类型直接移除不结算。
+        actor = 身上挂着 debuffs 的目标（玩家或怪物同一套逻辑）；
+        caster = 施法者（提供强度面板/玩家被动乘区）。缺省时：
+          - actor 是怪（class_name 空）→ caster 回落 self.player（玩家毒怪，现状语义）
+          - actor 是玩家（有 class_name）→ 强度走 debuffs 快照（挂 dot 时存的施法者 atk/matk）
+        五律按 actor 字段消费：怪/Boss 有 dot_res/adapt/immune_dots/is_boss → 抗性生效；
+        玩家无这些字段 → 纯公式。落地按 actor 字段路由：玩家走 _damage_actor 承伤链，
+        怪走 _enemy_mitigate + _boss_dmg_filter + _damage_enemy。
 
         v138.2 五律（docs/COMBAT_ENRICH_v138.md §二）：
-          律一 阈值递增：debuffs[k].threshold 记录该类型已累积触发阈值，每次触发后
-               threshold = min(threshold ×DOT_THRESHOLD_MULT, DOT_THRESHOLD_CAP)（封顶 3.0）——
-               防同一构筑「无限复读同一异常」；threshold 为内部调节参数，不直接减伤。
-          律二 每场上限+饱和：debuffs[k].trigger_count 累计触发次数，达 DOT_MAX_TRIGGER[k]
-               置 saturated=True；饱和后控制类（freeze/stun/sleep）不再结算（Boss 永不被
-               无限控死），伤害类（poison/burn/bleed/corros）照常结算（异常仍是输出轴）。
-          律三 跨阶段保留：_preserve_debuffs 保留 50% 层数 + 阈值 +15%，供 _b_phase 转换时调用。
-          律四 真伤独立结算：DOT_DEFS 带 true_dmg 的类型（腐蚀 corros）绕过 _enemy_mitigate
-               的 def/mdef 削减，直走 _boss_dmg_filter（护盾层吸收）→ _damage_enemy，
-               仍走免疫检查——异常流成为第二条独立输出轴。
-          律五 饱和阈值收敛：饱和后 saturate_mult 逐次 ×DOT_SATURATE_MULT（0.8^t），
-               叠入结算乘区防极端构筑把异常乘区叠爆（对应 v133 峰值红线精神）。
+          律一 阈值递增 / 律二 每场上限+饱和 / 律三 跨阶段保留(_preserve_debuffs) /
+          律四 真伤独立 / 律五 饱和阈值收敛。
         旧 debuffs 无 threshold/trigger_count/saturate_mult 字段 → 默认 0/1.0，不崩。
 
         - 伤害类型：毒/灼烧=magi，流血=phys；腐蚀=true（真伤）
-        - 灼烧走 fire 元素抗、毒不吃元素抗、流血吃物理物免
-        - 结算频率：单机每玩家行动一次（_dot_pending 闸门）；副本/世界 Boss 由命令层控制
-        - force=True（世界 Boss 全局多行动一次）时跳过闸门
-        文案按类型区分：毒发身亡 / 灼烧致死 / 失血过多 / 腐蚀崩解；死亡后 break。
+        - force 参数兼容世界 Boss 显式结算入口（combat 层调用），无闸门语义
         """
-        if not force:
-            if not getattr(self, "_dot_pending", True):
-                return logs
-            self._dot_pending = False
-        e = self.enemy or {}
+        e = actor if actor is not None else (self.enemy or {})
+        # v178.1 actor 无关：目标玩家 = actor 有 class_name（无则怪路径）
+        _tgt_is_player = bool(e.get("class_name"))
+        # caster 解析：传入优先；玩家毒怪回落当前行动玩家（_last_player 优先，再 self.player）
+        # ——dot_tick 事件触发时可能无传入 caster，用最近行动玩家提供强度面板。
+        if caster is None and not _tgt_is_player:
+            _act_pl = getattr(self, "_last_player", None) or self.player
+            caster = _act_pl if not self.btype == "pvp" else None
+        _caster_is_player = bool((caster or {}).get("class_name")) if caster is not None else False
+        _tgt_name = "你" if _tgt_is_player else f"【{e.get('name', '目标')}】"
         deb = e.get("debuffs") or {}
         # v138.2 律二（控制侧）：e_buffs 里的控制效果达上限后直接失效（防 Boss 被无限控死）。
-        # 独立于 DOT 循环执行（控制类由 eb 驱动、非 debuffs；且 deb 可能为空/已消散，
-        # 但控制饱和判定必须每刻都跑——放在 deb 空检查之前）。
         _iname_map = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}
-        _eb = e.get("buffs") or {}
-        _eb2 = _eb
+        _eb2 = e.get("buffs") or {}
         for _ck in ("freeze", "stun", "sleep"):
             _cm = DOT_MAX_TRIGGER.get(_ck)
             if _cm is None or not _eb2.get(_ck):
                 continue
             _cc = int(_eb2.get(f"{_ck}_trigger_count", 0) or 0)
             if _cc >= _cm:
-                _eb2.pop(_ck, None)  # 达上限：控制效果直接消散
-                _cn = _iname_map.get(_ck, _ck)
-                logs.append(f"🛡️ 【{e.get('name', '敌人')}】对{_cn}产生了饱和抗性，控制不再生效！")
+                _eb2.pop(_ck, None)
+                logs.append(f"🛡️ {_tgt_name}对{_iname_map.get(_ck, _ck)}产生了饱和抗性，控制不再生效！")
         if not deb:
             return logs
         max_hp = int(e.get("max_hp", 1) or 1)
-        # v140 S1 直连消费：暗蚀（erode，hei_zhao_erode 挂）——每刻扣 1% 敌方最大生命暗伤，全额回血
-        _er = deb.get("erode")
-        if _er:
-            _er_n = int(_er.get("n", 0) or 0)
-            if _er_n > 0 and e.get("hp", 0) > 0:
-                _er_dmg = max(1, int(max_hp * 0.01))
-                _er_dmg = self._boss_dmg_filter(_er_dmg, player, logs, dmg_type="true", dot=True)
-                self._damage_enemy(_er_dmg, logs, wake_sleep=False, target=e)
-                _er_heal = _er_dmg
-                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + _er_heal)
-                logs.append(f"🌑 暗蚀：蚀骨之力侵蚀【{e.get('name', '敌人')}】，损失 {_er_dmg} 点生命，你回复 {_er_heal} 点生命！")
-                _er_n -= 1
-                if _er_n <= 0:
-                    deb.pop("erode", None)
-                else:
-                    _er["n"] = _er_n
-        immune = e.get("immune_dots") or []
-        # v1.1 混合公式：施放者攻击快照（防御性取数，失败按 0 处理只留生命部分）
-        try:
-            _st = self._player_stats(player)
-            _atk = max(0, int(_st.get("atk", 0) or 0))
-            _matk = max(0, int(_st.get("matk", 0) or 0))
-        except Exception:
-            _atk = _matk = 0
+        # v178.1 施法者强度：优先取目标 debuffs 里的施法者快照（挂 dot 时存的 atk/matk）——
+        # 伤害跟"挂毒的人"，不跟"当前谁在结算"，玩家/怪同一语义（actor 无关核心）。
+        # 快照缺失（老档/直接构造的 debuffs）→ 回落 caster 面板（玩家毒怪实时）。
+        _atk = _matk = 0
+        # 各类型层内快照（同类型不同层施法者不同时取最新挂的一层）
+        for _dk in DOT_DEFS:
+            _dd = (deb.get(_dk) or {})
+            if _dd.get("atk") is not None:
+                _atk = max(_atk, int(_dd.get("atk", 0) or 0))
+                _matk = max(_matk, int(_dd.get("matk", 0) or 0))
+        if _atk == 0 and _matk == 0 and caster is not None:
+            try:
+                _st = self._actor_stats_of(caster)
+                _atk = max(0, int(_st.get("atk", 0) or 0))
+                _matk = max(0, int(_st.get("matk", 0) or 0))
+            except Exception:
+                _atk = _matk = 0
         # 每层每刻混合公式：poison=atk×0.5+max_hp×1.5% / burn=matk×0.4+max_hp×1% / bleed=atk×0.6+max_hp×1.5%
-        # v125.2 B1：系数下沉 data/battle_config.py DOT_DEFS（纯数据）
         _atk_parts = {_k: _v["atk"] for _k, _v in DOT_DEFS.items()}
         _matk_parts = {_k: _v["matk"] for _k, _v in DOT_DEFS.items()}
         _hp_parts = {_k: _v["hp"] for _k, _v in DOT_DEFS.items()}
         _true_parts = {_k: bool(_v.get("true_dmg", False)) for _k, _v in DOT_DEFS.items()}
-        # 律二：控制类集合（饱和后不再结算）——冻结/眩晕/睡眠
-        # 注意：控制类由 eb（e_buffs）刻递减驱动，非 DOT_DEFS 类型；此处只按 DOT_MAX_TRIGGER
-        # 白名单做饱和判定（控制类达上限后不再结算其 eb 效果，层数仍保留供计数）。
-        # 控制侧饱和已在函数开头（deb 空检查前）执行，此处 _ctrl 仅用于伤害类/控制类文案分流。
         _ctrl = ("freeze", "stun", "sleep")
-        _iname_map = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}
         _kname_map = {"poison": "毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}
         _icon_map = {"poison": "☠️", "burn": "🔥", "bleed": "🩸", "corros": "🧪"}
         for k in DOT_DEFS:
@@ -7282,154 +7200,155 @@ class Battle:
                 deb.pop(k, None)
                 continue
             _iname = _iname_map.get(k, k)
-            # 免疫：命中该类型时直接移除该层并提示免疫，不结算伤害
-            if k in immune:
+            # 免疫：命中该类型直接移除（玩家可配 immune_dots=0 无感）
+            if k in (e.get("immune_dots") or []):
                 deb.pop(k, None)
-                logs.append(f"🛡️ 【{e.get('name', '敌人')}】免疫{_iname}，减益消散了！")
+                logs.append(f"🛡️ {_tgt_name}免疫{_iname}，减益消散了！")
                 continue
-            # v138.2 律二：饱和检查——控制类达上限后不再结算（伤害类照常）
+            # v138.2 律二：饱和检查（目标有 DOT_MAX_TRIGGER 才生效——Boss 防无限控）
             _max_trig = DOT_MAX_TRIGGER.get(k)
             _saturated = bool(d.get("saturated", False)) or (
                 _max_trig is not None and int(d.get("trigger_count", 0) or 0) >= _max_trig)
             if _saturated and k in _ctrl:
                 if not d.get("saturated"):
                     d["saturated"] = True
-                    logs.append(f"🛡️ 【{e.get('name', '敌人')}】对{_iname}产生了饱和抗性，控制不再生效！")
+                    logs.append(f"🛡️ {_tgt_name}对{_iname}产生了饱和抗性，控制不再生效！")
                 continue
             if _saturated and not d.get("saturated"):
                 d["saturated"] = True
-                logs.append(f"⚗️ 【{e.get('name', '敌人')}】对{'腐蚀' if k == 'corros' else _iname}的异常积累已饱和，威力逐渐衰减！")
+                logs.append(f"⚗️ {_tgt_name}对{'腐蚀' if k == 'corros' else _iname}的异常积累已饱和，威力逐渐衰减！")
             mult = float(d.get("mult", 1.0) or 1.0)
-            # v138.2 律五：饱和阈值收敛——饱和后 saturate_mult 逐次 ×0.8（0.8^t 指数衰减）
             _sat_mult = float(d.get("saturate_mult", 1.0) or 1.0)
             if _saturated and _sat_mult < 1.0:
                 mult *= _sat_mult
                 _sat_tag = f"(饱和×{_sat_mult:.2f})"
             else:
                 _sat_tag = ""
-            # v1.2 总抗：基础抗性 + 减益适应（cap 0.95）；真伤分支（律四）不吃总抗
+            # v1.2 总抗：基础抗性 + 减益适应（目标侧字段，玩家无 → 0）
             base_res = float(e.get("dot_res", 0) or 0)
             adapt_v = float((e.get("adapt") or {}).get(k, 0.0) or 0.0)
             res = min(DOT_RESIST_CAP, base_res + adapt_v)
-            # v1.1 混合公式：每层 = (攻击系数 + 最大生命小百分比) × 层数 × 被动倍率 × (1 - 总抗)
-            # v156 分类重构：DOT_DEFS 带 type（flat/pct/hybrid）——
-            #   pct/hybrid 的 hp（百分比）部分在 Boss/精英战 × DOT_BOSS_PCT_MULT（0.5），
-            #   且单层每刻 ≤ max_hp × DOT_PCT_CAP（1%）——防"百分比 DOT 无脑过 Boss"。
+            # 混合公式 + Boss/精英百分比打折（目标侧 is_boss/is_elite）
             atk_part = _atk * _atk_parts[k] + _matk * _matk_parts[k]
             _dot_type = (DOT_DEFS.get(k) or {}).get("type", "flat")
             _hp_part = max_hp * _hp_parts[k]
             if _hp_part > 0 and _dot_type in ("pct", "hybrid"):
-                # Boss/精英：百分比部分打折（防无脑过 Boss）
                 if e.get("is_boss") or e.get("role") == "boss" or e.get("is_elite"):
                     _hp_part *= DOT_BOSS_PCT_MULT
-                # 单层每刻上限（防极端叠层；对普通怪也生效——上限本身就是 1%）
-                _cap_v = max_hp * DOT_PCT_CAP
-                _hp_part = min(_hp_part, _cap_v)
+                _hp_part = min(_hp_part, max_hp * DOT_PCT_CAP)
             hp_part = _hp_part
-            # v169.7 万毒归宗 poison_all_up（刺客毒线）：所有毒层伤害 +35%（毒 DOT 乘区）
+            # v169.7 万毒归宗 poison_all_up（刺客毒线，caster 是玩家才查被动）
             _poison_all_mult = 1.0
-            if k == "poison":
+            if k == "poison" and _caster_is_player:
                 try:
-                    for _pn_pa, _ps_pa in self._proc_pm(player)["proc"].get("poison_all_up", []):
+                    for _pn_pa, _ps_pa in self._proc_pm(caster)["proc"].get("poison_all_up", []):
                         _poison_all_mult *= 1.0 + float(_ps_pa.get("mult", 0.35) or 0.35)
                         break
                 except Exception:
                     pass
             p = int((atk_part + hp_part) * n * mult * _poison_all_mult * (1 - res))
-            # v169.7 剧毒之触 poison_weaken（刺客毒线）：目标毒层 ≥5 时减速 30%、降防 20%——
-            # 在 DOT tick（毒层在身）检查施加（e_buffs 写 spd_down/def_down；_enemy_stats 消费）
-            if k == "poison":
+            # v169.7 剧毒之触 poison_weaken（caster 玩家毒怪 → 怪减速降防）
+            if k == "poison" and _caster_is_player and not _tgt_is_player:
                 try:
-                    _pw_list = self._proc_pm(player)["proc"].get("poison_weaken", [])
+                    _pw_list = self._proc_pm(caster)["proc"].get("poison_weaken", [])
                     if _pw_list and n >= int((_pw_list[0][1]).get("layers", 5) or 5):
                         for _pn_pw, _ps_pw in _pw_list:
-                            self.e_buffs["spd_down"] = max(int(self.e_buffs.get("spd_down", 0) or 0), int(_ps_pw.get("spd_down", 2) or 2))
-                            self.e_buffs["def_down"] = max(int(self.e_buffs.get("def_down", 0) or 0), int(_ps_pw.get("def_down", 2) or 2))
-                            self.e_buffs["_weaken_spd_pct"] = max(float(self.e_buffs.get("_weaken_spd_pct", 0) or 0), 0.30)
-                            self.e_buffs["_weaken_def_pct"] = max(float(self.e_buffs.get("_weaken_def_pct", 0) or 0), 0.20)
+                            _tgt_b = e.setdefault("buffs", {})
+                            _tgt_b["spd_down"] = max(int(_tgt_b.get("spd_down", 0) or 0), int(_ps_pw.get("spd_down", 2) or 2))
+                            _tgt_b["def_down"] = max(int(_tgt_b.get("def_down", 0) or 0), int(_ps_pw.get("def_down", 2) or 2))
+                            _tgt_b["_weaken_spd_pct"] = max(float(_tgt_b.get("_weaken_spd_pct", 0) or 0), 0.30)
+                            _tgt_b["_weaken_def_pct"] = max(float(_tgt_b.get("_weaken_def_pct", 0) or 0), 0.20)
                             logs.append("☠️ 剧毒之触：毒层 ≥5，敌人减速降防！")
                             break
                 except Exception:
                     pass
-            # v138.2 律四：真伤分支——绕过 _enemy_mitigate 的 def/mdef 削减，仍走免疫检查 +
-            # Boss 护盾过滤（护盾层吸收）→ _damage_enemy。腐蚀类 = 独立第二条输出轴。
-            # 注意：总抗（dot_res/适应）仍参与公式——真伤只豁免防御削减，不豁免目标异常抗性。
-            if _true_parts.get(k):
-                dt = "true"
-                p = self._boss_dmg_filter(p, player, logs, dmg_type="true", dot=True)
-            else:
-                # 伤害段：灼烧=magi 走火元素抗；毒=magi 不吃元素抗；流血=phys 吃物理物免
-                if k == "burn":
-                    dt = "magi"
-                    p, _ = self._enemy_mitigate(p, p, "fire", logs, kind=K_MAGI, dot=True)
-                elif k == "poison":
-                    dt = "magi"
-                    p, _ = self._enemy_mitigate(p, p, None, logs, kind=K_MAGI, dot=True)
-                else:
-                    dt = "phys"
-                    p, _ = self._enemy_mitigate(p, 0, None, logs, kind=K_PHYS, dot=True)
-                # v83 Boss 护盾过滤：盾/吸收对 dot 生效（护盾 -50%）；dot 不触发反射反伤
-                p = self._boss_dmg_filter(p, player, logs, dmg_type=dt, dot=True)
-            # v1.1 放血：目标当前生命 <30%（处决线）时流血伤害 ×2（处决/斩杀联动）
-            # v125.2 B1：阈值查表 DOT_BLEED_DOUBLE_HP_PCT
+            # v1.1 放血：目标当前生命 <30%（处决线）流血 ×2——必须在落地前翻倍
             _bleed_tag = ""
-            if k == "bleed" and e.get("hp", 0) < max_hp * DOT_BLEED_DOUBLE_HP_PCT:
-                p *= 2
+            if k == "bleed" and int(e.get("hp", 0) or 0) < max_hp * DOT_BLEED_DOUBLE_HP_PCT:
+                p = int(p * 2)
                 _bleed_tag = "(放血)"
-            if p > 0:
-                self._damage_enemy(p, logs, wake_sleep=False, target=e)  # dot 不打醒睡眠、不打断蓄力
+            # v138.2 律四：真伤分支——绕过 _enemy_mitigate 的 def/mdef 削减，直走落地。
+            # v177 actor 统一：怪物扣血/护盾吸收(halve)/死亡全由 _damage_enemy→_damage_actor
+            # 处理——不再先走 _boss_dmg_filter（其护盾逻辑 v177 已迁 _damage_actor，双吸）。
+            if _true_parts.get(k):
+                if _tgt_is_player:
+                    try:
+                        p = self._damage_actor(e, p, logs, source="dot", true_dmg=True)
+                    except Exception:
+                        pass
+                else:
+                    if p > 0:
+                        self._damage_enemy(p, logs, wake_sleep=False, target=e, true_dmg=True)
+            else:
+                # 伤害段：灼烧=magi 火抗 / 毒=magi / 流血=phys
+                if _tgt_is_player:
+                    # 玩家承伤：走 _damage_actor 完整减伤链
+                    try:
+                        p = self._damage_actor(e, p, logs, source="dot")
+                    except Exception:
+                        pass
+                else:
+                    if k == "burn":
+                        dt = "magi"
+                        p, _ = self._enemy_mitigate(p, p, "fire", logs, kind=K_MAGI, dot=True)
+                    elif k == "poison":
+                        dt = "magi"
+                        p, _ = self._enemy_mitigate(p, p, None, logs, kind=K_MAGI, dot=True)
+                    else:
+                        dt = "phys"
+                        p, _ = self._enemy_mitigate(p, 0, None, logs, kind=K_PHYS, dot=True)
+                    if p > 0:
+                        self._damage_enemy(p, logs, wake_sleep=False, target=e)
             # v138.2 律一：阈值递增——每次触发后 threshold ×1.3（封顶 3.0），防无限复读
             _thr = float(d.get("threshold", 0.0) or 0.0)
             if _thr <= 0.0:
                 _thr = 1.0  # 首触基准
             _thr = min(DOT_THRESHOLD_CAP, _thr * DOT_THRESHOLD_MULT)
             d["threshold"] = _thr
-            # v138.2 律二：触发计数 +1，达上限置饱和标记
+            # v138.2 律二：触发计数 +1，达上限置饱和标记（控制类不再结算已在上方处理）
             d["trigger_count"] = int(d.get("trigger_count", 0) or 0) + 1
             _tc = d["trigger_count"]
             if _max_trig is not None and _tc >= _max_trig:
                 d["saturated"] = True
                 if k not in _ctrl:
-                    logs.append(f"⚗️ 【{e.get('name', '敌人')}】的{'腐蚀' if k == 'corros' else _iname}积累已达上限，进入饱和！")
-            kname = _kname_map.get(k, k)
-            _mult_tag = f"(强化×{mult:.1f})" if mult != 1.0 else ""
-            _icon = _icon_map.get(k, "💥")
-            logs.append(f"{_icon} 【{e.get('name', '敌人')}】{kname}发作，损失 {p} 点生命！(剩余 {n - 1} 层){_mult_tag}{_bleed_tag}{_sat_tag}")
+                    logs.append(f"⚗️ {_tgt_name}的{_iname}积累已达上限，进入饱和！")
+            _mk_tag = ""
+            _sat_tag2 = _sat_tag
+            logs.append(f"{_icon_map.get(k, '💥')} {_tgt_name}{_kname_map.get(k, k)}发作！(剩余 {n - 1} 层){_mk_tag}{_bleed_tag}{_sat_tag2}")
             n -= 1
             if n <= 0:
                 deb.pop(k, None)
-                logs.append(f"💨 【{e.get('name', '敌人')}】的{kname}消散了！")
+                logs.append(f"💨 {_tgt_name}的{_kname_map.get(k, k)}消散了！")
             else:
                 d["n"] = n
-            # v138.2 律五：饱和阈值收敛——饱和标记置位后，后续触发逐次 ×0.8（0.8^t 指数衰减，
-            # 防极端构筑把异常乘区叠爆；对应 v133 峰值红线精神）。置位当次不衰减（饱和前已结算），
-            # 从下一次触发起逐次收敛。
+            # v138.2 律五：饱和收敛
             if d.get("saturated") and k not in _ctrl:
                 _sm = float(d.get("saturate_mult", 1.0) or 1.0)
                 d["saturate_mult"] = _sm * DOT_SATURATE_MULT
-            # v1.2 适应回落：poison/burn 最近 2 个行动轮次未再叠层 → 该类型适应 -4%（耐受消退）
-            # v125.2 B1：步长查表 DOT_ADAPT_DECAY_STEP
-            # v152 时刻制：last_round → last_tick（行动轮次 _tick_no()）
-            if k in ("poison", "burn"):
+            # v1.2 适应回落（目标侧 adapt 字段）
+            if k in ("poison", "burn") and not _tgt_is_player:
                 _last = int(d.get("last_tick", d.get("last_round", 0)) or 0)
                 if _last > 0 and self._tick_no() - _last >= 2:
                     _am = e.setdefault("adapt", {})
                     _am[k] = max(0.0, float(_am.get(k, 0.0) or 0.0) - DOT_ADAPT_DECAY_STEP)
-            if self._enemy_dead():
+            # 目标=怪 且被毒死 → 胜利（玩家被毒死不触发）
+            if not _tgt_is_player and self._enemy_dead():
                 self.result = "victory"
                 death_text = ("毒发身亡" if k == "poison" else "灼烧致死" if k == "burn"
                               else "失血过多" if k == "bleed" else "腐蚀崩解")
                 logs.append(f"🎉 你击败了【{e.get('name', '敌人')}】！({death_text})")
                 break
-        # v1.3 标记层与 dot 同生命周期：每刻结算后 n-1，归零移除（与 e_buffs["mark"] 2 刻计时同步）
-        _mk = deb.get("mark")
-        if _mk:
-            _mn = int(_mk.get("n", 0) or 0) - 1
-            if _mn <= 0:
-                deb.pop("mark", None)
-            else:
-                _mk["n"] = _mn
+        # v1.3 标记层与 dot 同生命周期（仅怪目标有 mark 语义）
+        if not _tgt_is_player:
+            _mk = deb.get("mark")
+            if _mk:
+                _mn = int(_mk.get("n", 0) or 0) - 1
+                if _mn <= 0:
+                    deb.pop("mark", None)
+                else:
+                    _mk["n"] = _mn
         return logs
+
 
     def _preserve_debuffs(self, logs: list) -> None:
         """v138.2 律三：跨阶段保留（进度遗产）——阶段转换时保留一半异常进度。
@@ -7538,22 +7457,35 @@ class Battle:
         return bonus
 
     def _turn_start(self, player: dict) -> list:
-        """刻开始：持续伤害结算 + v10 套装每刻回复"""
+        """刻开始：v10 套装每刻回复 + 破绽条衰减（v151）。DOT 已事件驱动（v178.1），不在此结算。"""
         logs = []
-        # DOT 重构（契约 §2.1/§2.2）：敌方持续减益（毒/灼烧/流血）统一由 _tick_dots 结算。
-        # _tick_dots 内部持有 _dot_pending 闸门——单机探索怪（btype=monster）与 PVP 每次玩家行动=一刻，
-        # 刻开始复位闸门 → 每行动结算一次（与现状频率一致）；副本（instance）每轮结算一次的
-        # 闸门由 from_state 按 st["dot_pending"] 恢复，世界 Boss（worldboss）由 combat 层 force 结算，
-        # 故此两模式不在此复位。
-        if self.btype in ("monster", "pvp"):
-            self._dot_pending = True
-        # 原地追加（_tick_dots 向传入 logs 追加文案并返回同一列表，勿用 += 以免二次自拼接）
-        self._tick_dots(player, logs)
-        # v178 E4：玩家侧 dot 结算（敌方给玩家挂的毒/灼烧/流血/腐蚀——每刻开始发作）
-        # ⚠️ v178 重构：结算玩家身上的 debuffs 走通用 _tick_dots_of（与怪同入口）
+        # v178.1：_turn_start 收到实际行动玩家 → 缓存为 _last_player（dot_tick 事件结算强度用；
+        # 否则事件在 player_turn 设 _last_player 之前触发，毒伤按空面板算=0）
+        if player:
+            try:
+                self._last_player = player
+            except Exception:
+                pass
+        # v178.1 事件驱动保险丝：玩家行动开头扫描带 debuffs 的 actor（玩家/当前主敌），
+        # 若已挂 dot 但没有对应 dot_tick 事件（直接写 debuffs 的旧路径/老档/新挂载漏排）→ 补排。
+        # 幂等：已有该 actor 的 dot_tick 事件则跳过，不重复排。
         try:
-            if player.get("debuffs"):
-                self._tick_dots_of(player, logs)
+            for _dt_cand in (player, self.enemy or {}):
+                if not _dt_cand or not (_dt_cand.get("debuffs") or {}):
+                    continue
+                _dt_dots = {_k for _k in _dt_cand["debuffs"] if _k in DOT_DEFS}
+                if not _dt_dots:
+                    continue
+                _is_pl = bool(_dt_cand.get("class_name"))
+                _has_ev = any(_e.get("type") == "dot_tick"
+                              and (_e.get("side") == "p" if _is_pl else _e.get("side") == "e" and _e.get("unit") is _dt_cand)
+                              for _, _, _e in self._events)
+                if not _has_ev:
+                    if _is_pl:
+                        self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "p"})
+                    else:
+                        self._schedule(self._now + ACT_TICK, {"type": "dot_tick", "side": "e",
+                                                               "unit": _dt_cand})
         except Exception:
             pass
         # v151 破绽断链修复（引擎差距报告 P0）：turn_start_bars 此前从未被调用——
@@ -8063,7 +7995,8 @@ class Battle:
         except Exception:
             pass
 
-    def _damage_enemy(self, dmg: int, logs: list, wake_sleep: bool = True, target=None, source=None) -> int:
+    def _damage_enemy(self, dmg: int, logs: list, wake_sleep: bool = True, target=None, source=None,
+                      true_dmg: bool = False) -> int:
         """对敌方单位造成伤害（§3.2）。返回实际对目标造成（或其 HP 被扣）的伤害。
 
         - target：目标单位 dict；None=当前玩家活跃目标(_active_target)或主目标(self.enemy)。
@@ -8162,7 +8095,8 @@ class Battle:
             self._interrupt_charging(target, logs, source=source or self._last_hitter)
         # v177 actor 统一：怪物扣血/死亡/on_taken 全走 _damage_actor（怪物模式）
         # 前置（乘区/等级压制/defending/sleep/打断）已在此函数上方完成，此处只做落地
-        _real_dmg = self._damage_actor(target, dmg, logs, source=str(source or "玩家"))
+        _real_dmg = self._damage_actor(target, dmg, logs, source=str(source or "玩家"),
+                                       true_dmg=true_dmg)
         return _real_dmg
 
 
@@ -9167,13 +9101,14 @@ class Battle:
             pass
 
     def _damage_actor(self, actor: dict, dmg: int, logs: list, source: str = "伤害",
-                      attacker: dict | None = None) -> int:
+                      attacker: dict | None = None, true_dmg: bool = False) -> int:
         """v177 统一承伤核心（actor-agnostic）：玩家/怪物共用同一份受击结算。
 
         结算逻辑不再区分身份——只按 actor 声明的字段走：
           - 挡刀(召唤侧) / 闪避(dodge) / 格挡(block) / 减伤(reduce*) / 护盾(shields) / 扣血
           - 受击反应：玩家 actor 查玩家数据源(被动/套装/词条/职业模式)；怪物 actor 查 on_taken dict
-        状态容器按 actor 类型路由：玩家 = battle 焦点字段(self.p_buffs/...)，怪物 = actor dict。
+        true_dmg=True（v178.1 真伤/腐蚀）：怪物 halve 盾不减半——盾层全额吸收后剩余穿透
+        （v110 真伤口径：真伤不被打折，护盾层仍吸收）。
 
         返回实际扣血（玩家死亡由上层处理；怪物死亡即时移除单位）。
         """
@@ -9249,9 +9184,11 @@ class Battle:
         if _interrupted:
             return 0
         # v177 actor 护盾吸收：玩家盾全额吸收；怪物盾 halve=True（受伤减半先扣盾，Boss 语义）
+        # v178.1 true_dmg：真伤不减半——盾层全额吸收后剩余穿透（v110 真伤口径）
         shields = SH
         if shields:
-            if not _is_player and any(isinstance(s, dict) and s.get("halve") for s in shields.values()):
+            if not _is_player and any(isinstance(s, dict) and s.get("halve") for s in shields.values()) \
+                    and not true_dmg:
                 # 怪物 halve 盾：受伤减半后由盾吸收（与旧 _boss_dmg_filter 同款：real=dmg*0.5 先扣盾）
                 _pre = sum(int(s.get("value", 0)) for s in shields.values())
                 dmg = self._absorb_shields(shields, int(dmg * 0.5), logs, label="✨")
@@ -9260,7 +9197,7 @@ class Battle:
                 if dmg <= 0:
                     return
             else:
-                # 玩家盾（或怪物无 halve 盾）：全额吸收
+                # 玩家盾（或怪物无 halve 盾 / 真伤）：全额吸收（真伤盾层全额扣，剩余穿透）
                 _pre = sum(int(s.get("value", 0)) for s in shields.values()) if shields else 0
                 dmg = self._absorb_shields(shields, dmg, logs, label="✨")
                 if _pre and not shields:

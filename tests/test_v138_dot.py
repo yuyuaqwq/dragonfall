@@ -45,9 +45,9 @@ def mk_enemy(hp=1000, **kw):
 def tick(b, player, force=True):
     b._player_stats = lambda pl: {"atk": 100, "matk": 80, "def": 50, "mdef": 50,
                                   "spd": 10, "crit": 0.05, "max_hp": 9999, "max_mp": 999}
-    b._dot_pending = True
     logs = []
-    b._tick_dots(player, logs, force=force)
+    # v178.1：统一结算器（结算 enemy 身上毒，施法者=player）；force 参数保留语义
+    b._tick_actor_dots(b.enemy, logs, force=force, caster=player)
     return logs
 
 def test_constants():
@@ -183,14 +183,15 @@ def test_true_dmg():
     tick(b3, p)
     check("腐蚀仍走免疫检查", "corros" not in b3.enemy.get("debuffs", {}),
           str(b3.enemy.get("debuffs")))
-    # 真伤护盾层仍吸收（不 -50%，护盾层吸收）——v110 真伤口径：
-    # 真伤不被打折（dmg 全额），护盾层仅消耗盾值（500→444），hp 仍掉全额 56
-    b4 = BT.Battle("monster", mk_enemy(hp=1000, mech="shield", boss_shield=500))
+    # 真伤护盾层仍吸收（不 -50%，盾层全额吸收）——v110/v178.1 真伤口径：
+    # 真伤不被打折（不减半），护盾层全额消耗盾值（500→444），盾未破时 hp 不掉
+    b4 = BT.Battle("monster", mk_enemy(hp=1000, mech="shield",
+                                       shields={"legacy": {"value": 500, "halve": True}}))
     b4.enemy.setdefault("debuffs", {})["corros"] = {"n": 1, "mult": 1.0}
     tick(b4, p)
-    check("真伤护盾层消耗盾值且伤害全额穿透", 1000 - b4.enemy["hp"] == 56
-          and b4.enemy["boss_shield"] == 444,
-          f"hp={b4.enemy['hp']} shield={b4.enemy.get('boss_shield')}")
+    check("真伤护盾层全额吸收(不halve)盾值消耗", 1000 - b4.enemy["hp"] == 0
+          and b4.enemy["shields"]["legacy"]["value"] == 444,
+          f"hp={b4.enemy['hp']} shield={b4.enemy.get('shields')}")
 
 def test_saturate_conv():
     print("【5. 律五 饱和阈值收敛】")

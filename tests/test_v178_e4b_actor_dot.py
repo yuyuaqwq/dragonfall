@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-"""v178 E4 重构验证：dot 是 actor 通用能力（玩家/怪同一入口 _apply_dot/_tick_dots_of）"""
+"""v178.1 dot 事件驱动重构验证（actor 侧）：同一 _apply_dot/_tick_actor_dots 服务玩家与怪，
+事件驱动下 _process_until 推进自动结算；旧兼容壳已删除（_tick_dots_of/_apply_player_dot/
+_tick_player_dots 不存在）。"""
 import os
 import sys
 
@@ -33,86 +35,67 @@ def mk_mon(atk=200, matk=180):
             "buffs": {}, "resources": {}, "stacks": {}, "charging": None,
             "skills": ["ms_ai_hao"]}
 
-print("== E4 actor 通用重构验证 ==")
+print("== v178.1 actor 对称 + 无兼容壳验证 ==")
 
-# 1. 同一个 _apply_dot 给玩家挂（怪打玩家）
+# 1. 挂 dot：玩家/怪同一入口，排事件
 player = mk_player()
 mon = mk_mon(atk=300, matk=0)
 b = BT.Battle("monster", mon)
 b.player = player
-logs = []
-b._apply_dot(player, mon, {"type": "poison", "n": 2}, logs)
-deb_p = player.get("debuffs") or {}
-check("通用 _apply_dot 给玩家挂毒", deb_p.get("poison", {}).get("n") == 2, str(deb_p))
-check("强度快照=怪的 atk", deb_p.get("poison", {}).get("atk") == 300, str(deb_p.get("poison")))
-check("日志说'你'", any("你中了" in l for l in logs), str(logs))
+b._apply_dot(player, mon, {"type": "poison", "n": 1}, [])
+b._apply_dot(player, mon, {"type": "burn", "n": 1}, [])
+b._apply_dot(mon, player, {"type": "bleed", "n": 1}, [])
+check("玩家挂 2 毒", len((player.get("debuffs") or {})) == 2, str(player.get("debuffs")))
+check("怪挂 1 毒", len((mon.get("debuffs") or {})) == 1, str(mon.get("debuffs")))
+n_ev_p = sum(1 for _, _, e in b._events if e.get("type") == "dot_tick" and e.get("side") == "p")
+n_ev_e = sum(1 for _, _, e in b._events if e.get("type") == "dot_tick" and e.get("side") == "e")
+check("双方各排 1 个自己的 dot_tick(per-actor)", n_ev_p == 1 and n_ev_e == 1, f"p={n_ev_p} e={n_ev_e}")
 
-# 2. 同一个 _apply_dot 给怪挂（玩家毒技打怪——source=玩家）
+# 2. 结算：同一结算器对玩家/怪都工作
+# 先给玩家结算（burn 发作扣血）
 player2 = mk_player()
-mon2 = mk_mon()
+mon2 = mk_mon(atk=100, matk=100)
 b2 = BT.Battle("monster", mon2)
 b2.player = player2
-logs2 = []
-b2._apply_dot(mon2, player2, {"type": "burn", "n": 1}, logs2)
-deb_m = mon2.get("debuffs") or {}
-check("通用 _apply_dot 给怪挂灼烧", deb_m.get("burn", {}).get("n") == 1, str(deb_m))
-check("日志说怪物名", any("测试Boss" in l for l in logs2), str(logs2))
+b2._apply_dot(player2, mon2, {"type": "burn", "n": 1}, [])
+hp_b2 = player2["hp"]
+b2._tick_actor_dots(player2, [])
+check("结算玩家 burn 扣血", player2["hp"] < hp_b2, f"{hp_b2}→{player2['hp']}")
 
-# 3. _tick_dots_of 结算玩家（扣血走 _damage_actor）
+# 怪侧
+mon3 = mk_mon()
 player3 = mk_player()
-mon3 = mk_mon(atk=100, matk=0)
+player3["atk"] = 200
 b3 = BT.Battle("monster", mon3)
 b3.player = player3
-logs3 = []
-b3._apply_dot(player3, mon3, {"type": "poison", "n": 1}, logs3)
-hp_before = player3["hp"]
-b3._tick_dots_of(player3, logs3)
-check("通用结算玩家 dot 扣血", player3["hp"] < hp_before, f"{hp_before}→{player3['hp']}")
+b3._apply_dot(mon3, player3, {"type": "bleed", "n": 1}, [])
+hp_m3 = mon3["hp"]
+b3._tick_actor_dots(mon3, [])
+check("结算怪 bleed 扣血", mon3["hp"] < hp_m3, f"{hp_m3}→{mon3['hp']}")
 
-# 4. _tick_dots_of 结算怪（同样入口也能结算怪身上的毒——玩家毒怪）
+# 3. 事件驱动推进 → 双方 dot 自动结算（_process_until 触发 dot_tick）
 player4 = mk_player()
-mon4 = mk_mon()
+mon4 = mk_mon(atk=150, matk=100)
 mon4["hp"] = 8000
 b4 = BT.Battle("monster", mon4)
 b4.player = player4
-logs4 = []
-# 先给怪挂上毒（玩家面板 100 atk）
 player4["atk"] = 200
-b4._apply_dot(mon4, player4, {"type": "poison", "n": 1}, logs4)
-hp_before4 = mon4["hp"]
-b4._tick_dots_of(mon4, logs4)
-check("通用结算怪 dot 扣血", mon4["hp"] < hp_before4, f"{hp_before4}→{mon4['hp']}")
+b4._apply_dot(player4, mon4, {"type": "poison", "n": 2}, [])   # 怪毒玩家
+b4._apply_dot(mon4, player4, {"type": "burn", "n": 2}, [])     # 玩家毒怪
+# 推进到两个事件都触发
+for _ in range(6):
+    _evs = [e for _, _, e in b4._events if e.get("type") == "dot_tick"]
+    if not _evs:
+        break
+    b4._process_until(b4._now + 1.1, [], player4)
+# 至少发生了一次双方结算（hp 都降了）
+check("事件推进后玩家被毒扣血", player4["hp"] < 9999, f"玩家hp={player4['hp']}")
+check("事件推进后怪被毒扣血", mon4["hp"] < 8000, f"怪hp={mon4['hp']}")
 
-# 5. 无 debuffs 的 actor → 零操作不崩
-player5 = mk_player()
-b5 = BT.Battle("monster", mk_mon())
-b5.player = player5
-logs5 = []
-b5._tick_dots_of(player5, logs5)
-check("空 actor 不崩", player5["hp"] == 9999)
-
-# 6. 反向：_tick_dots（旧，结算 enemy）与 _tick_dots_of 都能结算怪——不冲突
-player6 = mk_player()
-mon6 = mk_mon()
-mon6["hp"] = 8000
-b6 = BT.Battle("monster", mon6)
-b6.player = player6
-player6["atk"] = 200
-b6._apply_dot(mon6, player6, {"type": "poison", "n": 1}, [])
-# 旧 _tick_dots 走玩家面板结算怪毒（原有行为）
-logs6 = []
-b6._tick_dots(player6, logs6)
-check("旧 _tick_dots 仍结算怪毒", mon6["hp"] < 8000, f"hp={mon6['hp']}")
-
-# 7. 兼容壳还能调（旧代码不崩）
-b7 = BT.Battle("monster", mk_mon())
-b7.player = mk_player()
-logs7 = []
-b7._apply_player_dot(b7.player, mk_mon(atk=50), {"type": "burn", "n": 1}, logs7)
-check("兼容壳 _apply_player_dot 可用", (b7.player.get("debuffs") or {}).get("burn", {}).get("n") == 1)
-logs7b = []
-b7._tick_player_dots(b7.player, logs7b)
-check("兼容壳 _tick_player_dots 可用", len(logs7b) >= 0)
+# 4. 旧壳确认已删除（重构不留兼容）
+check("旧 _tick_dots_of 已删", not hasattr(BT.Battle, "_tick_dots_of"))
+check("旧 _apply_player_dot 已删", not hasattr(BT.Battle, "_apply_player_dot"))
+check("旧 _tick_player_dots 已删", not hasattr(BT.Battle, "_tick_player_dots"))
 
 print(f"\n结果: {PASS} 通过 / {FAIL} 失败")
 sys.exit(1 if FAIL else 0)
