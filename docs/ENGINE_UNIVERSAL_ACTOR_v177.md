@@ -124,8 +124,9 @@ actor 声明了什么防御/资源字段，结算就消费什么；没声明 = �
 怪物承伤**已经数据驱动**：
 - `_enemy_mitigate(dmg, magi_part, element, logs)` —— 玩家打怪消费敌方防守属性：物免(≤40%)/魔免(≤40%)/格挡(≤40%)/元素抗(≤50%)，怪没配=0 无感 ✓
 - `_boss_dmg_filter` —— 怪物护盾（boss_shield / e_buffs["shield"]）+ 反伤（reflect）✓
-- **缺口1**：`_enemy_mitigate` 没消费 dodge（怪物配 dodge 不生效，闪避型 Boss 做不了）
-- **缺口2**：怪物承伤后没有 on_taken 钩子（受击回资源/受击反击/受击减伤 buff 触发）
+- **缺口1（已证伪）**：~~`_enemy_mitigate` 没消费 dodge~~ —— 实际上怪物 dodge 已由 `_monster_dodge_check` 消费（怪物 dict 声明 dodge → 玩家攻击概率 miss，上限 30%，v105 已有）✓
+- **缺口2（真实）**：怪物承伤后没有 on_taken 钩子（受击回资源/受击反击/受击触发减伤/回血）——做"受击回怒 Boss/荆棘 Boss/复仇 Boss"缺的
+- 怪物受击能力现状盘点：dodge ✓ / block+物免+魔免+元素抗 ✓（_enemy_mitigate）/ 护盾 ✓（_boss_dmg_filter）/ 反伤 ✓（reflect）/ **on_taken ✗**
 
 玩家承伤 `_damage_player` 630 行 = 事实上的"完整承伤链"，但入口 if 了玩家系统
 （从 self.p_buffs/p_shields/装备/被动/套装读——这些恰好是玩家字段，怪物没有就不触发，**天然兼容**）。

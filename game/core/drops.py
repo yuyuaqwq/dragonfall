@@ -441,6 +441,17 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
         "mod": mod.get("desc", ""),
         # v176 敌方 AI 配置（MONSTER_MODS 可配 ai: {skill_chance/weights}；无则引擎回落全局——见 _enemy_turn）
         "ai": mod.get("ai") if mod.get("ai") else None,
+        # v177 actor-agnostic：怪物防御/承伤扩展字段透传（引擎 _enemy_mitigate/_monster_dodge_check 已支持读，
+        # 此前 build_monster 未透传导致 MONSTER_MODS 配了不生效；on_taken 为受击钩子，见 _damage_enemy）
+        "dodge": float(mod.get("dodge", 0) or 0),
+        "block": float(mod.get("block", 0) or 0),
+        "phys_reduce": float(mod.get("phys_reduce", 0) or 0),
+        "magic_reduce": float(mod.get("magic_reduce", 0) or 0),
+        "elem_res": float(mod.get("elem_res", 0) or 0),
+        "abyss_res": float(mod.get("abyss_res", 0) or 0),
+        "on_taken": mod.get("on_taken"),
+        # v177 actor 资源（Boss 改造）：怪物可配 resource_def（内联定义或引用 CORE_RESOURCES key）
+        "resource_def": mod.get("resource_def"),
     }
 
 # ============ v27b 多对多站位引擎 —— 怪物队伍构建（§8.1 / §9.3 数据层）============

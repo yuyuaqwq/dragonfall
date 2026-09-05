@@ -6104,6 +6104,16 @@ class Battle:
             wv = float(eb.get("_weaken_val", 0.15) or 0.15)
             est["atk"] = int(est["atk"] * (1 - wv))
             est["matk"] = int(est["matk"] * (1 - wv))
+        # v177 on_taken 受击加攻（复仇：_atk_up_val/_atk_up_until 由 _damage_enemy on_taken 钩子写入；
+        # _atk_up_until 为绝对 tick，过期则忽略并清理）
+        _au_v = float(eb.get("_atk_up_val", 0) or 0)
+        if _au_v > 0:
+            if int(eb.get("_atk_up_until", 0) or 0) >= self._tick_no():
+                est["atk"] = int(est["atk"] * (1 + min(_au_v, 0.5)))
+                est["matk"] = int(est["matk"] * (1 + min(_au_v, 0.5)))
+            else:
+                eb.pop("_atk_up_val", None)
+                eb.pop("_atk_up_until", None)
         # v120 审计修复 q5：敌方攻强总帽——enrage/phase/stacks/low_hp/pv_broken/atk_up 等
         # 乘区叠加后不得突破 3.0×该单位基础 atk/matk，防满配置 BOSS 一击秒杀。
         # 帽值 3.0 的道理：狂暴1.35×阶段(如×1.4)×叠层(如×1.24)×低血1.25 等真实可同时叠加的
@@ -7275,6 +7285,48 @@ class Battle:
         if target["hp"] <= 0:
             # v2 阵型压缩（§4.3）：单位死亡即时移除 + 后排前移补位（审计 P1 修复）
             self._remove_unit("enemy", target)
+        # v177 actor-agnostic on_taken 受击钩子：怪物配置 on_taken 字段 → 受击触发
+        # （主动伤害才触发；DOT wake_sleep=False 不刷——防 DOT 每跳都触发受击回血/加攻无限叠加）
+        # 支持: heal 受击回血 / atk_up 受击加攻(复仇) / shield 受击转盾 / res_gain 受击攒资源(Batch2)
+        if wake_sleep and target.get("hp", 0) > 0:
+            try:
+                _ot = target.get("on_taken") or {}
+                if _ot and not getattr(self, "_dot_pending_check", False):
+                    _tn = target.get("name", "怪物")
+                    # 受击回血（每次受击回 max_hp×pct，冷却 _ot_cd 刻内不重复）
+                    _hp = float(_ot.get("heal", {}).get("pct", 0) or 0) if isinstance(_ot.get("heal"), dict) else 0
+                    if _hp > 0:
+                        _last_hl = target.get("_ot_heal_tick")
+                        _cd_hl = int((_ot.get("heal") or {}).get("cd", 2) or 2)
+                        if _last_hl is None or self._tick_no() - int(_last_hl or 0) >= _cd_hl:
+                            _hl = max(1, int(target.get("max_hp", 1) * _hp))
+                            target["hp"] = min(target.get("max_hp", target.get("hp", 0)), target.get("hp", 0) + _hl)
+                            target["_ot_heal_tick"] = self._tick_no()
+                            logs.append(f"🩹 【{_tn}】受击回血 +{_hl}！")
+                    # 受击加攻（复仇：atk/matk +pct，turns 刻）——存 _atk_up_val/_atk_up_until(绝对tick)
+                    # 到期判断在 _enemy_stats 消费端（_atk_up_until < 当前 tick 则忽略）；不再依赖 _advance_time
+                    # （target 可能非主目标，e_buffs 递减不覆盖；用绝对 tick 自管理）
+                    _au = _ot.get("atk_up") or {}
+                    _aup = float(_au.get("pct", 0) or 0)
+                    if _aup > 0:
+                        _turns = max(1, int(_au.get("turns", 2) or 2))
+                        _bd = target.setdefault("buffs", {})
+                        _until = self._tick_no() + _turns
+                        if int(_bd.get("_atk_up_until", 0) or 0) < self._tick_no():
+                            _bd["_atk_up_val"] = _aup  # 过期则重置为新值
+                        else:
+                            _bd["_atk_up_val"] = max(float(_bd.get("_atk_up_val", 0) or 0), _aup)
+                        _bd["_atk_up_until"] = max(int(_bd.get("_atk_up_until", 0) or 0), _until)
+                        logs.append(f"🔥 【{_tn}】受击激怒！攻击提升 {int(_aup * 100)}%（{_turns} 刻）")
+                    # 受击转盾（荆棘/石肤：受击获得 max_hp×pct 护盾，存 e_buffs["shield"] 由 _boss_dmg_filter 消费）
+                    _sh = _ot.get("shield") or {}
+                    _shp = float(_sh.get("pct", 0) or 0)
+                    if _shp > 0 and not target.get("buffs", {}).get("shield"):
+                        _sv = max(1, int(target.get("max_hp", 1) * _shp))
+                        target.setdefault("buffs", {})["shield"] = int(target.get("buffs", {}).get("shield", 0) or 0) + _sv
+                        logs.append(f"🛡️ 【{_tn}】受击凝甲！护盾 +{_sv}")
+            except Exception:
+                pass
         return dmg
 
 
