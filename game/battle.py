@@ -9432,10 +9432,31 @@ class Battle:
 
     def _actor_stats_of(self, actor: dict) -> dict:
         """v177 actor 面板聚合：玩家 → 职业/装备/被动全量公式；怪物 → 怪物 stats+buffs。
-        （数据路由：面板来源不同是数据事实，结算逻辑不分身份）"""
+        （数据路由：面板来源不同是数据事实，结算逻辑不分身份）
+        v180-B：带 class_name 的怪（actor_cfg 配置职业）也走玩家公式——面板同构。
+        注意：身份判定不依赖 class_name（怪可配 class_name 扮职业仍属敌方），
+        状态容器路由看 _is_focus_player（见 _damage_actor）。"""
         if actor.get("class_name"):
             return self._player_stats(actor)
         return self._enemy_stats(actor)
+
+    def _is_focus_player(self, actor: dict) -> bool:
+        """v180-B actor 状态容器路由判定：actor 是否当前焦点玩家（状态在 Battle 单套焦点
+        字段 p_buffs/resources/...）。玩家本体/副本当前操作玩家 → True（焦点字段）；
+        怪（含配 class_name 扮职业的）/PVP 敌方快照/宠物/召唤物 → False（actor 自身 dict）。
+        引用相等判定（actor is self.player）——副本切焦点时 self.player 换绑。"""
+        if not actor:
+            return False
+        try:
+            if actor is self.player:
+                return True
+            # 副本 allies 快照若指向同一 dict 也算（_load_player_state 载入焦点时引用一致）
+            for _al in (self.allies or []):
+                if _al is actor:
+                    return True
+        except Exception:
+            pass
+        return False
 
     def _monster_on_taken(self, actor: dict, logs: list) -> None:
         """v177 怪物受击钩子（actor.on_taken dict → 受击回血/激怒/凝甲）。玩家 actor 无 on_taken → 空转。
@@ -9499,7 +9520,9 @@ class Battle:
         返回实际扣血（玩家死亡由上层处理；怪物死亡即时移除单位）。
         """
         # ---- v177 actor 状态容器路由（数据路由，非结算逻辑分支）----
-        _is_player = bool(actor.get("class_name"))  # 玩家 actor 有 class_name；怪物有 id
+        # v180-B：容器路由看"是否焦点玩家"（状态在 Battle 焦点字段），不看 class_name——
+        # 怪配 class_name 扮职业（actor_cfg）状态仍在自身 dict，误走玩家容器会读错 buffs/resources
+        _is_player = self._is_focus_player(actor)
         if _is_player:
             B = self.p_buffs
             EFF = self.p_eff
