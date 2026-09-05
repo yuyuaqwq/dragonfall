@@ -181,7 +181,7 @@ def _m_freeze(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None)
     if not mval and not use_mc:
         return
     if random.random() < chance:
-        battle.e_buffs["freeze"] = 1
+        battle._tgt_buffs()["freeze"] = 1
         logs.append("❄️ 敌人被冻结，跳过下刻！")
 
 
@@ -194,7 +194,7 @@ def _m_spd_down(battle, mval, p_mech, total, logs, skill_name, is_crit, info=Non
     if use_mc and random.random() >= chance:
         return
     dur = max(int(mval or 0), 1)  # v113.1：mech_chance 技能不依赖 mval 成长，保证至少 1 刻
-    battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), dur)
+    battle._tgt_buffs()["spd_down"] = max(battle._tgt_buffs().get("spd_down", 0), dur)
     logs.append(f"🧊 敌人被减速 {dur} 刻，速度下降！")
 
 
@@ -206,7 +206,7 @@ def _m_stun(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     if not mval and not use_mc:
         return
     if random.random() < chance:
-        battle.e_buffs["stun"] = 1
+        battle._tgt_buffs()["stun"] = 1
         logs.append("🌀 敌人被眩晕，跳过下刻！")
 
 
@@ -215,7 +215,7 @@ def _m_silence(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None
     """沉默：稳定沉默 2 刻（v63 禁技能）"""
     if not mval:
         return
-    battle.e_buffs["silence"] = 2
+    battle._tgt_buffs()["silence"] = 2
     logs.append("🤐 敌人被沉默，2 刻内无法使用技能！")
 
 
