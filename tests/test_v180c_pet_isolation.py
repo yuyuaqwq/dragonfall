@@ -126,6 +126,44 @@ async def main():
     b4._pet_skill_turn(p4, logs4)
     check("宠物撕咬造成伤害", hp4 - b4.enemy["hp"] > 0, f"dealt {hp4 - b4.enemy['hp']}")
 
+    # 5. 宠物 actor 不被 _companions_trigger 死亡清理误删（v180-C S3 bug 回归）
+    print("\n— 宠物不被误删 —")
+    p5 = mk_player()
+    b5 = BT.Battle("怪物", mk_enemy(), {}, p5)
+    b5.pet = {"pet_key": "pet_wolf", "name": "狼崽", "level": 30, "satiety": 100}
+    b5._pet_ensure_actor()
+    check("宠物 actor 已入 companions", any(c is b5.pet for c in b5.companions),
+          f"n={len(b5.companions)}")
+    b5._companions_trigger("player_act", [])
+    check("触发后宠物仍存活（未被死亡清理误删）", any(c is b5.pet for c in b5.companions),
+          f"n={len(b5.companions)}")
+
+    # 6. 死亡契约不牺牲宠物（只牺牲 kind=summon）
+    print("\n— 死亡契约不牺牲宠物 —")
+    p6 = mk_player(hp=10)
+    b6 = BT.Battle("怪物", mk_enemy(), {}, p6)
+    b6.pet = {"pet_key": "pet_wolf", "name": "狼崽", "level": 30, "satiety": 100}
+    b6._pet_ensure_actor()
+    # 塞一个真召唤物
+    b6._summon_entity("skeleton", mk_player(), [])
+    check("宠物 + 召唤物都在", len(b6.companions) == 2, f"n={len(b6.companions)}")
+    # 手动模拟死亡契约触发：致死 + 有 death_pact 被动（调 _post_hp_lethal 致死钩子）
+    b6._death_pact_used = False
+    try:
+        p6["hp"] = -1  # 致死
+        orig_pm = b6._passive_map
+        b6._passive_map = lambda a: {"proc": {"death_pact": [("测试契约", {})]}}
+        try:
+            b6._post_hp_lethal(p6, 5, [])
+        finally:
+            b6._passive_map = orig_pm
+    except Exception:
+        pass
+    check("宠物未被死亡契约牺牲", any(c is b6.pet for c in b6.companions),
+          f"kind={[c.get('kind') for c in b6.companions]}")
+    check("死亡契约已消耗（有召唤物可牺牲）", b6._death_pact_used is True,
+          f"used={b6._death_pact_used}")
+
     print()
     print(f"===== v180-C S3 随从 actor 伤害归属: {passed} passed, {failed} failed =====")
     if failed:

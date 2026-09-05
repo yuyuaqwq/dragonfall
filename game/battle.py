@@ -9135,8 +9135,11 @@ class Battle:
                 self._companion_act(c, logs)
             except Exception:
                 pass
-        # 清理死亡随从
+        # 清理死亡随从（v180-C S3 修正：只清"有 hp 的战斗实体"——宠物 actor 无 hp
+        # 字段（hidden+untargetable，非受击单位），不能被误判死亡移除）
         for c in list(self.companions):
+            if c.get("kind") == "pet" or "hp" not in c:
+                continue
             if c.get("hp", 0) <= 0:
                 logs.append(f"💀 {c.get('name', '随从')} 倒下了！")
                 self.companions.remove(c)
@@ -9803,10 +9806,17 @@ class Battle:
             self._p_set_reduce_all_left(max(int(self._p_reduce_all_left() or 0), _prt))
             logs.append(f"🪶 不死鸟之羽燃尽！你以 {actor['hp']} HP 复活，获得减伤！")
         # v107 死亡契约（暗影祭司）：致死时牺牲一个召唤物以 20% HP 存活（每场 1 次）
+        # v180-C S3 修正：只牺牲"召唤物"（kind=summon）——宠物 actor 不是可牺牲祭品
         if actor["hp"] <= 0 and self.summons and not self._death_pact_used:
             for _pn, _ps in self._passive_map(actor)["proc"].get("death_pact", []):
                 self._death_pact_used = True
-                fallen = self.companions.pop()
+                # 只从 kind=summon 里选祭品（优先尾部，等价旧 pop 语义但跳过宠物）
+                _sacrifice_pool = [c for c in self.companions if c.get("kind") == "summon"]
+                fallen = _sacrifice_pool.pop() if _sacrifice_pool else None
+                if fallen is None:
+                    self._death_pact_used = False  # 无召唤物可牺牲 → 不消耗契约
+                    break
+                self.companions.remove(fallen)
                 actor["hp"] = max(1, int(actor.get("max_hp", actor["hp"]) * 0.20))
                 logs.append(f"💀 死亡契约！{fallen.get('name', '亡灵')} 替你承受了致命一击，你以 {actor['hp']} HP 站起！")
                 break
