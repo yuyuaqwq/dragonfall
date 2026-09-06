@@ -9028,6 +9028,46 @@ class Battle:
         v152 彻底化：不再有"每刻 -1"，一切按绝对时刻 expire_at/ready_at 到期。"""
         self._advance_time(dt if dt is not None else ACT_TICK)
 
+    def _decay_buff_table(self, tbl: dict, is_player_bag: bool):
+        """v180G B5：单 buff 表按 _now 时刻衰减（_advance_time 对全场 actor 表调用）。
+
+        is_player_bag=True 时跳过防御型受击计数 buff（由 _damage_actor 受击递减）。
+        控制类/一次性/元素印记/dict bar 各有语义不在时刻递减。
+        """
+        for k in list(tbl):
+            v = tbl[k]
+            # 控制类 buff：行动级消费，不在时刻递减（与旧语义一致）
+            if k in ("stun", "freeze"):
+                continue
+            # 元素印记：层数标记，触发反应清除
+            if k in ("fire_mark", "ice_mark", "thunder_mark"):
+                continue
+            # 一次性 buff：攻击消费，不在时刻递减
+            if k in ("next_atk_up", "buff_phys_next", "stealth", "arcane_echo", "oath_blade_next", "we_oath"):
+                continue
+            # reduce_all/shield：特殊语义，不按 int 递减
+            if k in ("reduce_all", "reduce", "shield"):
+                continue
+            # bar 状态（dict）：由 battle_bars 自行衰减
+            if isinstance(v, dict):
+                continue
+            # 防御型 buff（受击计数）：由 _damage_actor 受击递减
+            if is_player_bag and k in (self._p_buff_hits() or {}):
+                continue
+            # v152：buff 值兼容三种形态——expire_at(时刻)、turns(刻 int)、原始 int(视为剩余刻)
+            if isinstance(v, dict) and "expire_at" in v:
+                if self._now >= float(v["expire_at"]):
+                    del tbl[k]
+                continue
+            if isinstance(v, dict) and "turns" in v:
+                if self._now >= float(v["turns"]) * ACT_TICK:
+                    del tbl[k]
+                continue
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                # 旧 int = 剩余刻数 → 换算时刻到期
+                if self._now >= float(v) * ACT_TICK:
+                    del tbl[k]
+
     def _advance_time(self, dt: float):
         """v152 核心：推进战斗时刻 dt（正数），处理期间到期的所有计时项。
         - buff（int 刻值 → 兼容旧档转 expire_at；dict bar 由 battle_bars 自行衰减）
@@ -9038,46 +9078,22 @@ class Battle:
             return
         _now = self._now
         self._now = _now + float(dt)
-        # ---- buff 到期检查（焦点玩家 + 全部敌方单位各自 dict）----
-        # v180G B4：原只扫 (self._p_buffs_bag(), self.e_buffs)——e_buffs 是主怪别名，
-        # 后排怪/副怪挂的 buff（减速/破甲等）从不时刻衰减 = 单焦点残留。现扫全场
-        # enemies 每只的 buffs。allies（副本非焦点玩家）不扫：副本是"焦点轮换"语义。
+        # ---- buff 到期检查：同时间轴全场 actor（焦点玩家 + 副本全体玩家权威 buffs + 敌方各自 dict）----
+        # v180G B4 修正：原只扫 (p_buffs, e_buffs)——e_buffs 是主怪别名，副怪 buffs 不衰减；
+        # v180G B5 修正（鱼鱼纠正）：副本共享同一时间轴（挂机全体等、超时自动防御），
+        # 全体参战玩家的 buffs 必须一起按 _now 衰减——非焦点玩家 buff 不能"冻结"，
+        # 否则敌方打他时读到过期 buff 仍生效。
         _pbag = self._p_buffs_bag()
         _tbls = [_pbag] + [u.setdefault("buffs", {}) for u in (self.enemies or [])]
+        # 副本权威层 st["p_buffs"]（每玩家一份；野外无 _st 跳过）
+        try:
+            _pb_st = (self._st or {}).get("p_buffs")
+            if isinstance(_pb_st, dict):
+                _tbls += [v for v in _pb_st.values() if isinstance(v, dict)]
+        except Exception:
+            pass
         for tbl in _tbls:
-            for k in list(tbl):
-                v = tbl[k]
-                # 控制类 buff：行动级消费，不在时刻递减（与旧语义一致）
-                if k in ("stun", "freeze"):
-                    continue
-                # 元素印记：层数标记，触发反应清除
-                if k in ("fire_mark", "ice_mark", "thunder_mark"):
-                    continue
-                # 一次性 buff：攻击消费，不在时刻递减
-                if k in ("next_atk_up", "buff_phys_next", "stealth", "arcane_echo", "oath_blade_next", "we_oath"):
-                    continue
-                # reduce_all/shield：特殊语义，不按 int 递减
-                if k in ("reduce_all", "reduce", "shield"):
-                    continue
-                # bar 状态（dict）：由 battle_bars 自行衰减
-                if isinstance(v, dict):
-                    continue
-                # 防御型 buff（受击计数）：由 _damage_actor 受击递减
-                if tbl is self._p_buffs_bag() and k in (self._p_buff_hits() or {}):
-                    continue
-                # v152：buff 值兼容三种形态——expire_at(时刻)、turns(刻 int)、原始 int(视为剩余刻)
-                if isinstance(v, dict) and "expire_at" in v:
-                    if self._now >= float(v["expire_at"]):
-                        del tbl[k]
-                    continue
-                if isinstance(v, dict) and "turns" in v:
-                    if self._now >= float(v["turns"]) * ACT_TICK:
-                        del tbl[k]
-                    continue
-                if isinstance(v, (int, float)) and not isinstance(v, bool):
-                    # 旧 int = 剩余刻数 → 换算时刻到期
-                    if self._now >= float(v) * ACT_TICK:
-                        del tbl[k]
+            self._decay_buff_table(tbl, tbl is _pbag)
         # v113.1：团队减伤 buff 独立计时（reduce_all 的到期）
         if self._p_buffs_bag().get("reduce_all") is not None and self._now >= float(self._p_reduce_all_left() or 1) * ACT_TICK:
             self._p_buffs_bag().pop("reduce_all", None)
