@@ -6710,7 +6710,8 @@ class Battle:
         if self._tgt_is_player():
             est = self._player_stats(self._tgt())
         else:
-            est = self._enemy_stats()
+            # v180F 修复：显式传目标怪（_enemy_stats() 无参读 _active_target 多怪时漂移）
+            est = self._enemy_stats(self._tgt())
         # v176: 暴击判定抽 _skill_crit_roll（原 42 行内联）
         is_crit, _stealth_hit, lucky, stealth_mult, est, effs = self._skill_crit_roll(
             st, est, player, info, mech, skill_name, logs)
@@ -7261,7 +7262,9 @@ class Battle:
             pst = self._enemy_stats(player)
         else:
             pst = self._player_stats(player)
-        est = self._enemy_stats()
+        # v180F B5 修复：攻击方面板必须显式传攻击单位 e——_enemy_stats() 无参会读
+        # _active_target（=被打目标），导致怪vs怪时攻击方属性错用目标面板（伤害≈0）
+        est = self._enemy_stats(e)
         dmg = 0
         _kind = ev.get("kind", "atk")
         # v63 沉默：敌方技能被沉默 → 读条结束时转为普攻（与出手瞬间判定一致）
