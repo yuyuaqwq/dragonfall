@@ -32,7 +32,7 @@ from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径
     MOMENTUM_CFG, SHADOW_STEP_CFG, SHADOW_STEALTH_DMG_MULT,
         ECHO_CFG, BARD_BRANCHES,
         BRANCH_RESOURCE_OVERRIDE,
-        LUCKY_CRIT_CHANCE, LUCKY_CRIT_MULT, MULTI_HIT_CRIT_FIRST_ONLY,  # v133 峰值红线
+        LUCKY_CRIT_CHANCE, LUCKY_CRIT_MULT, LUCK_CRIT_CONV, MULTI_HIT_CRIT_FIRST_ONLY,  # v133 峰值红线
         BUFF_MULT, TEAM_BUFF_KEYS,  # v176 增益映射表下沉 data/battle_config.py
     )
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
@@ -4820,8 +4820,9 @@ class Battle:
             pm = self._proc_pm(player)
             # 狂热
             for _pn, _ps in pm["proc"].get("zhan_yi_crit", []):
-                if self._zhan_yi_n() >= int(_ps.get("stacks", 8) or 8):
-                    bonus += float(_ps.get("add", 0.15) or 0.15)
+                # v181.C: 门槛/加成读 skills.py 被动数据（狂热 passive stacks/add），缺字段=无此行为
+                if self._zhan_yi_n() >= int(_ps.get("stacks", 0) or 0):
+                    bonus += float(_ps.get("add", 0.0) or 0.0)
                     break
             # 真知（守线·奥秘法师充能条 / 攻线 arcane 叠层）
             for _pn, _ps in pm["proc"].get("arcane_wisdom", []):
@@ -4830,11 +4831,12 @@ class Battle:
                     if self._p_res().get("element_charge") is not None:
                         _full = self._elem_charge() >= self._res_max(player, "element")
                     else:
-                        _full = int((self._p_stacks() or {}).get("arcane", 0) or 0) >= 5
+                        # v181.C: 攻线满层门槛读被动数据 stacks（原本地写死 5）
+                        _full = int((self._p_stacks() or {}).get("arcane", 0) or 0) >= int(_ps.get("stacks", 0) or 0)
                 except Exception:
                     _full = False
                 if _full:
-                    bonus += float(_ps.get("add", 0.20) or 0.20)
+                    bonus += float(_ps.get("add", 0.0) or 0.0)
                     break
             # 疾风之心（游侠：专注结余 = 精力当前值，≥40 时本技能暴击 +20% 一次性）
             # v169.7 修 #123：读「施放前」精力快照（_pre_cost_res）——技能 res_cost 扣费后才结算暴击，
@@ -4845,8 +4847,8 @@ class Battle:
                     _pres = getattr(self, "_pre_cost_res", None)
                     _eng = int(_pres.get("energy", 0) or 0) if isinstance(_pres, dict) \
                         else int(self._p_res().get("energy", 0) or 0)
-                    if _eng >= int(_ps.get("surplus", 40) or 40):
-                        bonus += float(_ps.get("add", 0.20) or 0.20)
+                    if _eng >= int(_ps.get("surplus", 0) or 0):
+                        bonus += float(_ps.get("add", 0.0) or 0.0)
                         # 提示玩家凝神已触发（意见 #123 反馈「没看到提示文本」）
                         self._p_eff()["focus_surplus_proc"] = True
                         break
@@ -4858,8 +4860,8 @@ class Battle:
                         _el = self._p_res().get("element", "fire")
                     if _el:
                         _mk = self._elem_marks()
-                        if int(_mk.get(_el, 0) or 0) >= int(_ps.get("layers", 3) or 3):
-                            bonus += float(_ps.get("add", 0.20) or 0.20)
+                        if int(_mk.get(_el, 0) or 0) >= int(_ps.get("layers", 0) or 0):
+                            bonus += float(_ps.get("add", 0.0) or 0.0)
                     break
         except Exception as _sw_e:
             _battle_warn('_passive_crit_bonus', _sw_e)
@@ -4874,7 +4876,7 @@ class Battle:
         try:
             if self._shadow_dance(player):
                 for _pn, _ps in self._proc_pm(player)["proc"].get("shadow_dance_bonus", []):
-                    extra += float(_ps.get("crit_dmg", 0.20) or 0.20)
+                    extra += float(_ps.get("crit_dmg", 0.0) or 0.0)
                     break
         except Exception as _sw_e:
             _battle_warn('_passive_crit_dmg_mult', _sw_e)
@@ -6849,16 +6851,18 @@ class Battle:
             if mech in MECH_PROC_GROUPS.get("arcane_dmg", ()):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # v169.7 奥术共鸣 arcane_resonance：奥术技能伤害 +15%（与奥术之心同 mech 口径叠加）
+        # v181.C: mult 读 skills.py 奥术共鸣 passive（缺字段=无此行为）
         for _pn, _ps in _procs.get("arcane_resonance", []):
             if mech in MECH_PROC_GROUPS.get("arcane_dmg", ()):
-                passive_bonus *= (1 + float(_ps.get("mult", 0.15) or 0.15))
+                passive_bonus *= (1 + float(_ps.get("mult", 0.0) or 0.0))
         # v169.7 元素起源 element_origin：三系印记同时 ≥2 层时 结算伤害 +20%（加算乘区）
+        # v181.C: layers/mult 读 skills.py 元素起源 passive（缺字段=无此行为）
         for _pn, _ps in _procs.get("element_origin", []):
             try:
                 _mk_origin = self._elem_marks()
-                if _mk_origin and all(int(_mk_origin.get(_ek, 0) or 0) >= int(_ps.get("layers", 2) or 2)
+                if _mk_origin and all(int(_mk_origin.get(_ek, 0) or 0) >= int(_ps.get("layers", 0) or 0)
                                       for _ek in ("fire", "ice", "thunder")):
-                    passive_bonus *= (1 + float(_ps.get("mult", 0.20) or 0.20))
+                    passive_bonus *= (1 + float(_ps.get("mult", 0.0) or 0.0))
             except Exception as _sw_e:
                 _battle_warn('_skill_passive_dmg_bonus', _sw_e)
                 pass
@@ -6917,10 +6921,11 @@ class Battle:
         返回 (is_crit, _stealth_hit, lucky, stealth_mult, est, effs)。
         副作用：潜行 buff 消费、_stealth_atk 标记、破甲符文改写 est 副本。
         """
-        # v109.2 P1-1 运势：幸运转化为暴击补充（luck → crit，上限 +12%）；PVP 对方韧性对称生效
+        # v109.2 P1-1 运势：幸运转化为暴击补充（luck → crit，转化 0.3/cap 0.12 → LUCK_CRIT_CONV）；
         # v130.2c 套装暴击：巡林长披风（带标记 +5%）/ 夜幕合契·影纱 4 件（终结技 +15%）
         # v169.7 条件被动暴击族（狂热/真知/疾风之心/元素之核/影舞·极）：统一走 _passive_crit_bonus 消费
-        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * 0.3, 0.12)
+        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * LUCK_CRIT_CONV["per_luck"],
+                                                      LUCK_CRIT_CONV["cap"])
                                      + self._set_crit_bonus(player, info)
                                      + self._passive_crit_bonus(player, info=info)) * self._tenacity_mult(est)
         # v130.2 游侠满弦状态（守线·风行者）：精力 ≥80 且低耗/连射技能 暴击率 +10%

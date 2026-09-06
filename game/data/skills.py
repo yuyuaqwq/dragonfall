@@ -1101,7 +1101,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "zhan_yi_crit"},
+                        'passive': {"proc": "zhan_yi_crit", "stacks": 8, "add": 0.15},
                         'name': '狂热',
                         'desc': '战意沸腾至顶点的战士，目光如炬——战意 ≥8 时暴击 +15%'
                     },
@@ -1544,7 +1544,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "element_core"},
+                        'passive': {"proc": "element_core", "layers": 3, "add": 0.20},
                         'name': '元素之核',
                         'desc': '元素在体内凝成核心，三系印记交相辉映——单系印记满 3 层时，该系结算暴击 +20%'
                     },
@@ -1596,7 +1596,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "arcane_resonance"},
+                        'passive': {"proc": "arcane_resonance", "mult": 0.15},
                         'name': '奥术共鸣',
                         'desc': '体内奥术脉络与外界能量同频共振——奥术技能伤害 +15%'
                     },
@@ -1673,7 +1673,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "element_origin"},
+                        'passive': {"proc": "element_origin", "layers": 2, "mult": 0.20},
                         'name': '元素起源',
                         'desc': '溯源元素本初之力，三系共鸣浑然一体——三系印记同时 ≥2 层时，结算伤害 +20%（加算）'
                     },
@@ -1740,7 +1740,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "arcane_wisdom"},
+                        'passive': {"proc": "arcane_wisdom", "stacks": 5, "add": 0.20},
                         'name': '真知',
                         'desc': '窥见能量流转的最终真谛，明澈无碍——充能满 5 时，奥术暴击 +20%'
                     },
@@ -2040,7 +2040,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "focus_surplus_crit"},
+                        'passive': {"proc": "focus_surplus_crit", "surplus": 40, "add": 0.20},
                         'name': '疾风之心',
                         'desc': '疾风在血脉中奔涌不息——结余 ≥40 时，下次技能暴击 +20%'
                     },
@@ -2963,7 +2963,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "shadow_dance_bonus"},
+                        'passive': {"proc": "shadow_dance_bonus", "spd_add": 0.25, "crit_dmg": 0.20},
                         'name': '暗影步·极',
                         'desc': '将暗影步修至极境，身随意动——影舞态中自身速度 +25%、暴击伤害 +20%'
                     },
