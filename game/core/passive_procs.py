@@ -26,6 +26,10 @@
     stack_cap_add    叠层上限放宽（基础 + Σadd，封顶挂点保留）  poison_cap_up / poison_cap（挂点17 _poison_cap）
     summon_cap_add   召唤同模板上限放宽（min(cap, base+add)）  skeleton_cap（挂点21 _summon_entity）
     on_kill_refill   击杀回满资源（energy/精力）               focus_full_on_kill（挂点22 _remove_unit）
+
+P2-D2a 新增族（4 proc / 1 族，挂点1 _passive_crit_bonus 条件暴击）：
+    crit_cond_add    资源/印记满层 → 暴击率 +add                zhan_yi_crit / arcane_wisdom /
+                                                               focus_surplus_crit / element_core
 """
 from __future__ import annotations
 
@@ -257,7 +261,106 @@ def _h_on_kill_refill(battle, ctx: dict, ps: dict, ps_name: str):
 
 
 # ============================================================
-# 4. proc → 族 声明（P2-D1 试点 5 proc；其余 52 内 proc 由 P2-D2~D7 批次按序声明）
+# 4. crit_cond_add（P2-D2a：挂点1 _passive_crit_bonus 条件暴击 4 proc）
+#    资源/印记满层 → 暴击率 +add（缺字段 = 无此行为，零默认值铁律）。
+#    同族多 proc 参数化：ctx["res_kind"] 分派条件谓词（战意/奥术充能/精力快照/元素印记），
+#    阈值与加成读 _ps（stacks/surplus/layers/add）——不新写 handler（方案 §4.2/§1.1 判定 2）。
+# ============================================================
+@register("crit_cond_add")
+def _h_crit_cond_add(battle, ctx: dict, ps: dict, ps_name: str):
+    """资源/印记满层 → 暴击率 +add（条件暴击族；逐字直搬 _passive_crit_bonus 原 4 for 循环体）。
+
+    ctx 分派（res_kind ∈ zhan_yi/arcane/focus/element_mark）：
+    - zhan_yi      战意层数 ≥ ps.stacks → +add（读 battle._zhan_yi_n()）
+    - arcane       element_charge 满条（charge ≥ 资源上限）或 stacks.arcane ≥ ps.stacks → +add
+                  （攻线满层门槛读数据 stacks——v181.C 原写死 5）
+    - focus        施放前精力快照 _pre_cost_res ≥ ps.surplus → +add + 置位提示标记（需 ctx["info"]）
+    - element_mark info.element 对应印记层 ≥ ps.layers → +add（需 ctx["info"]）
+    数值读 _ps：stacks（zhan_yi/arcane）/ surplus（focus）/ layers（element_mark）+ add；
+    缺字段（阈值或 add ≤ 0）= 无此行为（零默认值铁律；D0 已回填 8/0.15、5/0.20、40/0.20、3/0.20）。
+    命中 → ctx["crit_add"] 累加并返回 add；未命中/缺条件返回 None。
+    info 门槛等价：focus/element_mark 无 info 时直接返回 None（原挂点 `if info is not None:` 守卫
+    包裹两循环——调用侧守卫保留 + 此处兜底，双保险）；zhan_yi/arcane 无 info 依赖。
+    副作用保留：focus 命中置 battle._p_eff()["focus_surplus_proc"] = True
+    （v169.7 修 #123 提示标记，_cast_eff() 6536 行消费提示行）。
+    """
+    _add = float(ps.get("add", 0.0) or 0.0)
+    if _add <= 0:
+        return None  # 缺字段 = 无此行为（零默认值铁律）
+    _kind = ctx.get("res_kind")
+    _hit = False
+    if _kind == "zhan_yi":
+        _need = int(ps.get("stacks", 0) or 0)
+        if _need <= 0:
+            return None
+        try:
+            _zy = battle._zhan_yi_n() if hasattr(battle, "_zhan_yi_n") else int(ctx.get("zhan_yi_n") or 0)
+            _hit = int(_zy or 0) >= _need
+        except Exception:
+            _hit = False
+    elif _kind == "arcane":
+        _need = int(ps.get("stacks", 0) or 0)
+        if _need <= 0:
+            return None
+        try:
+            _res = battle._p_res() if hasattr(battle, "_p_res") else {}
+            if (_res or {}).get("element_charge") is not None:
+                # 守线·奥秘法师充能条：charge ≥ 该资源当前上限
+                _hit = battle._elem_charge() >= battle._res_max(ctx.get("player") or battle.player or {}, "element")
+            else:
+                # 攻线 arcane 叠层 ≥ 满层门槛（读数据 stacks）
+                _stk = battle._p_stacks() if hasattr(battle, "_p_stacks") else {}
+                _hit = int((_stk or {}).get("arcane", 0) or 0) >= _need
+        except Exception:
+            _hit = False
+    elif _kind == "focus":
+        if ctx.get("info") is None:
+            return None  # 非技能链直接调用（info 缺省 None）→ 不触发（原 `if info is not None:` 门槛）
+        _need = int(ps.get("surplus", 0) or 0)
+        if _need <= 0:
+            return None
+        try:
+            _pres = getattr(battle, "_pre_cost_res", None)
+            if isinstance(_pres, dict):
+                _eng = int(_pres.get("energy", 0) or 0)
+            else:
+                _eng = int((battle._p_res() if hasattr(battle, "_p_res") else {}).get("energy", 0) or 0)
+        except Exception:
+            _eng = 0
+        _hit = _eng >= _need
+    elif _kind == "element_mark":
+        if ctx.get("info") is None:
+            return None  # 非技能链直接调用（info 缺省 None）→ 不触发（原 `if info is not None:` 门槛）
+        _need = int(ps.get("layers", 0) or 0)
+        if _need <= 0:
+            return None
+        try:
+            _info = ctx.get("info") or {}
+            _el = _info.get("element", "")
+            if _el == "current":
+                _el = (battle._p_res() if hasattr(battle, "_p_res") else {}).get("element", "fire")
+            if _el:
+                _mk = battle._elem_marks() if hasattr(battle, "_elem_marks") else {}
+                _hit = int((_mk or {}).get(_el, 0) or 0) >= _need
+        except Exception:
+            _hit = False
+    else:
+        return None  # 未知 res_kind = 不触发（调用侧未配置该 proc 的条件谓词）
+    if _hit:
+        ctx["crit_add"] = ctx.get("crit_add", 0.0) + _add
+        if _kind == "focus":
+            # v169.7 修 #123 提示（意见 #123「没看到提示文本」）：置位后由 _cast_eff() 6536 行消费
+            try:
+                battle._p_eff()["focus_surplus_proc"] = True
+            except Exception:
+                pass
+        return _add
+    return None
+
+
+# ============================================================
+# 5. proc → 族 声明（P2-D1 试点 5 proc + P2-D2a crit_cond_add 4 proc；
+#    其余 52 内 proc 由 P2-D2b~D7 批次按序声明）
 # ============================================================
 declare_proc("speed_ratio_dmg", "dmg_mult_cond")
 declare_proc("zhan_yi_lifesteal", "lifesteal_add")
@@ -265,3 +368,7 @@ declare_proc("poison_cap_up", "stack_cap_add")
 declare_proc("poison_cap", "stack_cap_add")
 declare_proc("skeleton_cap", "summon_cap_add")
 declare_proc("focus_full_on_kill", "on_kill_refill")
+declare_proc("zhan_yi_crit", "crit_cond_add")
+declare_proc("arcane_wisdom", "crit_cond_add")
+declare_proc("focus_surplus_crit", "crit_cond_add")
+declare_proc("element_core", "crit_cond_add")
