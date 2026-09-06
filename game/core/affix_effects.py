@@ -116,9 +116,9 @@ def _h_bleed(battle, player, dmg, logs):
     """流血：20% 使目标流血（每刻 5% 生命，3 刻）"""
     if "bleed" in battle._equip_affix_ids(player) and random.random() < _affix_chance("bleed", 0.20):
         from .effect_actions import action_dot
-        # 目标级减益：血层挂到 enemy["debuffs"]["bleed"]（攻击命中后 enemy 必在）
+        # 目标级减益：血层挂到目标 debuffs["bleed"]（攻击命中后主敌必在；显式传 target）
         stacks = int(_affix_effect("bleed").get("stacks", 3))  # 每次触发叠层数（兼作上限）
-        action_dot(battle, logs, key="bleed", stacks=stacks, max_n=stacks)
+        action_dot(battle, logs, key="bleed", stacks=stacks, max_n=stacks, target=battle.enemy)
 
 
 @register(HIT_EFFECTS, "armor_break")
@@ -127,7 +127,7 @@ def _h_armor_break(battle, player, dmg, logs):
     if "armor_break" in battle._equip_affix_ids(player) and random.random() < _affix_chance("armor_break", 0.25):
         from .effect_actions import action_def_down
         eff = _affix_effect("armor_break")
-        action_def_down(battle, logs, turns=int(eff.get("turns", 2)), pct=float(eff.get("pct", 0.15)))
+        action_def_down(battle, logs, turns=int(eff.get("turns", 2)), pct=float(eff.get("pct", 0.15)), target=battle.enemy)
 
 
 @register(HIT_EFFECTS, "combo")
@@ -137,7 +137,7 @@ def _h_combo(battle, player, dmg, logs):
         from .effect_actions import action_bonus_pct
         action_bonus_pct(battle, player, dmg, logs,
                          pct=float(_affix_effect("combo").get("extra_atk", 0.50)),
-                         tag="⚡", name="连击")
+                         tag="⚡", name="连击", target=battle.enemy)
 
 
 @register(HIT_EFFECTS, "element_fire")
@@ -147,7 +147,7 @@ def _h_element_fire(battle, player, dmg, logs):
         from .effect_actions import action_element_dmg
         action_element_dmg(battle, player, dmg, logs,
                            pct=float(_affix_effect("element_fire").get("pct", 0.05)),
-                           tag="🔥", name="火焰附加")
+                           tag="🔥", name="火焰附加", target=battle.enemy)
 
 
 @register(HIT_EFFECTS, "element_ice")
@@ -158,7 +158,8 @@ def _h_element_ice(battle, player, dmg, logs):
         action_element_dmg(battle, player, dmg, logs,
                            pct=float(_affix_effect("element_ice").get("pct", 0.05)),
                            tag="❄️", name="冰霜附加",
-                           slow_turns=int(_affix_effect("element_ice").get("slow_turns", 2)))
+                           slow_turns=int(_affix_effect("element_ice").get("slow_turns", 2)),
+                           target=battle.enemy)
 
 
 @register(HIT_EFFECTS, "element_thunder")
@@ -216,7 +217,8 @@ def _h_pierce(battle, player, dmg, logs):
     if "pierce" in battle._equip_affix_ids(player) and random.random() < _affix_chance("pierce", 0.20):
         from .effect_actions import action_pierce_dmg
         action_pierce_dmg(battle, player, logs,
-                          atk_pct=float(_affix_effect("pierce").get("atk_pct", 0.60)))
+                          atk_pct=float(_affix_effect("pierce").get("atk_pct", 0.60)),
+                          target=battle.enemy)
 
 
 @register(HIT_EFFECTS, "charge")
@@ -226,7 +228,7 @@ def _h_charge(battle, player, dmg, logs):
         from .effect_actions import action_bonus_pct
         action_bonus_pct(battle, player, dmg, logs,
                          pct=float(_affix_effect("charge").get("dmg_pct", 0.50)),
-                         tag="💪", name="蓄力爆发")
+                         tag="💪", name="蓄力爆发", target=battle.enemy)
 
 
 @register(HIT_EFFECTS, "purify")
@@ -310,7 +312,8 @@ def _t_counter(battle, player, ctx, logs):
     if "counter" in battle._equip_affix_ids(player) and random.random() < _affix_chance("counter", 0.20) and battle.enemy.get("hp", 0) > 0:
         from .effect_actions import action_counter
         action_counter(battle, player, logs,
-                       atk_pct=float(_affix_effect("counter").get("pct", 0.60)))
+                       atk_pct=float(_affix_effect("counter").get("pct", 0.60)),
+                       target=battle.enemy)
 
 
 @register(TAKEN_EFFECTS, "ember_ward")

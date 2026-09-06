@@ -63,7 +63,7 @@ def _f_h_bleed(battle, player, dmg, logs):
     """烬火辣椒：20% 使目标流血（每刻 5% 生命，3 刻）"""
     if random.random() < float(_fp("bleed", "chance", 0.20)):
         from .effect_actions import action_dot
-        action_dot(battle, logs, key="bleed", stacks=int(_fp("bleed", "stacks", 3)), max_n=int(_fp("bleed", "max_n", 3)))  # 烬火辣椒 3 层
+        action_dot(battle, logs, key="bleed", stacks=int(_fp("bleed", "stacks", 3)), max_n=int(_fp("bleed", "max_n", 3)), target=battle.enemy)  # 烬火辣椒 3 层
 
 
 @register(FOOD_HIT_EFFECTS, "armor_break")
@@ -71,7 +71,7 @@ def _f_h_armor_break(battle, player, dmg, logs):
     """蘑菇汤：25% 降低目标防御 15%（2 刻）"""
     if random.random() < float(_fp("armor_break", "chance", 0.25)):
         from .effect_actions import action_def_down
-        action_def_down(battle, logs, turns=int(_fp("armor_break", "turns", 2)), pct=float(_fp("armor_break", "pct", 0.15)))
+        action_def_down(battle, logs, turns=int(_fp("armor_break", "turns", 2)), pct=float(_fp("armor_break", "pct", 0.15)), target=battle.enemy)
 
 
 @register(FOOD_HIT_EFFECTS, "combo")
@@ -79,7 +79,7 @@ def _f_h_combo(battle, player, dmg, logs):
     """鹰蛋：15% 追加一次 50% 伤害"""
     if random.random() < float(_fp("combo", "chance", 0.15)):
         from .effect_actions import action_bonus_pct
-        action_bonus_pct(battle, player, dmg, logs, pct=float(_fp("combo", "pct", 0.50)), tag="⚡", name="连击")
+        action_bonus_pct(battle, player, dmg, logs, pct=float(_fp("combo", "pct", 0.50)), tag="⚡", name="连击", target=battle.enemy)
 
 
 @register(FOOD_HIT_EFFECTS, "dragon_tongue")
@@ -93,7 +93,7 @@ def _f_h_dragon_tongue(battle, player, dmg, logs):
 def _f_h_element_fire(battle, player, dmg, logs):
     """灰烬烤饼：攻击附加 5% 火属性伤害"""
     from .effect_actions import action_element_dmg
-    action_element_dmg(battle, player, dmg, logs, pct=float(_fp("element_fire", "pct", 0.05)), tag="🔥", name="火焰附加")
+    action_element_dmg(battle, player, dmg, logs, pct=float(_fp("element_fire", "pct", 0.05)), tag="🔥", name="火焰附加", target=battle.enemy)
 
 
 @register(FOOD_HIT_EFFECTS, "element_ice")
@@ -101,7 +101,7 @@ def _f_h_element_ice(battle, player, dmg, logs):
     """冰霜浆果：攻击附加 5% 冰属性伤害 + 减速"""
     from .effect_actions import action_element_dmg
     action_element_dmg(battle, player, dmg, logs, pct=float(_fp("element_ice", "pct", 0.05)), tag="❄️", name="冰霜附加",
-                       slow_turns=int(_fp("element_ice", "slow_turns", 2)))
+                       slow_turns=int(_fp("element_ice", "slow_turns", 2)), target=battle.enemy)
 
 
 @register(FOOD_HIT_EFFECTS, "pierce")
@@ -109,7 +109,7 @@ def _f_h_pierce(battle, player, dmg, logs):
     """雪狼肉排：20% 无视防御追加伤害（60% 攻击）"""
     if random.random() < float(_fp("pierce", "chance", 0.20)):
         from .effect_actions import action_pierce_dmg
-        action_pierce_dmg(battle, player, logs, atk_pct=float(_fp("pierce", "atk_pct", 0.60)))
+        action_pierce_dmg(battle, player, logs, atk_pct=float(_fp("pierce", "atk_pct", 0.60)), target=battle.enemy)
 
 
 @register(FOOD_HIT_EFFECTS, "charge")
@@ -117,7 +117,7 @@ def _f_h_charge(battle, player, dmg, logs):
     """皇家烤肉：10% 造成 150% 伤害（追加 50%）"""
     if random.random() < float(_fp("charge", "chance", 0.10)):
         from .effect_actions import action_bonus_pct
-        action_bonus_pct(battle, player, dmg, logs, pct=float(_fp("charge", "pct", 0.50)), tag="💪", name="蓄力爆发")
+        action_bonus_pct(battle, player, dmg, logs, pct=float(_fp("charge", "pct", 0.50)), tag="💪", name="蓄力爆发", target=battle.enemy)
 
 
 @register(FOOD_HIT_EFFECTS, "static")
@@ -135,7 +135,7 @@ def _f_t_counter(battle, player, ctx, logs):
     """狼肉干：20% 反击 60% 伤害"""
     if random.random() < float(_fp("counter", "chance", 0.20)) and battle.enemy.get("hp", 0) > 0:
         from .effect_actions import action_counter
-        action_counter(battle, player, logs, atk_pct=float(_fp("counter", "atk_pct", 0.60)))
+        action_counter(battle, player, logs, atk_pct=float(_fp("counter", "atk_pct", 0.60)), target=battle.enemy)
 
 
 @register(FOOD_TAKEN_EFFECTS, "thorns")

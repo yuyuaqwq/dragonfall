@@ -135,7 +135,7 @@ def eff_def_down(battle, player, value):
     turns = int(v.get("turns", 2))
     from .effect_actions import action_def_down
     _scratch = []
-    action_def_down(battle, _scratch, turns=turns, pct=pct)
+    action_def_down(battle, _scratch, turns=turns, pct=pct, target=battle.enemy)
     return f"🛡️ 破甲！敌人防御下降 {int(pct * 100)}%！({turns} 刻)"
 
 
