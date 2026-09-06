@@ -17,7 +17,7 @@
 本测试开发过程中曾通过用例暴露并记录了以下引擎缺口；审计（T6）修复已落地到 game/battle.py
 （"审计 P1 修复"等），对应用例现按修复后正确行为断言并通过：
   - G1〔A3〕指定目标超出射程未拒绝（_resolve_player_target 已加射程校验，battle.py:477）
-  - G2〔A3/A5〕战斗内敌方死亡未即时压缩（_damage_enemy 死亡即 _remove_unit+compact，battle.py:3054）
+  - G2〔A3/A5〕战斗内敌方死亡未即时压缩（_deal_damage 死亡即 _remove_unit+compact，battle.py:3054）
   - G3〔A5〕AOE 逐目标不消费各自防御（_aoe_damage 已并入逐目标减伤）
   - G4〔A6〕蓄力释放被自身冷却阻塞（释放路径已绕过 CD 重复校验）
   - G5〔A6〕蓄力释放重复扣 MP（释放路径已不重复扣）
@@ -159,7 +159,7 @@ def test_compact_on_death():
     back = mk_unit("狼巫", hp=3000, atk=0, rank=2, reach=2)
     p = mk_player(reach=1, spd=0, atk=10 ** 6)
     b = BT.Battle("monster", None, {}, player=p, enemies=[front, back])
-    b._damage_enemy(10 ** 9, [], target=b.enemies[0])  # 打死前排
+    b._deal_damage(10 ** 9, [], target=b.enemies[0])  # 打死前排
     check("前排死亡被移除（enemies 仅剩存活）", [u["name"] for u in b.enemies] == ["狼巫"],
           str([(u["name"], u["hp"]) for u in b.enemies]))
     check("存活后排 rank 重编号为 1", all(u["rank"] == 1 for u in b.enemies),
@@ -342,7 +342,7 @@ def test_charge_interrupt():
         return s
     b._player_stats = _ps_nododge
     logs = []
-    b._damage_player(p, 50, logs, source="怪")  # 玩家受击 → 打断 + 返还 50%MP
+    b._damage_actor(p, 50, logs, source="怪")  # 玩家受击 → 打断 + 返还 50%MP
     check("玩家受击打断蓄力", not b._p_charging(), str(b._p_charging()))
     check("打断返还50%已扣MP(16→8)", p["mp"] == mp_before + 8, f"{mp_before}->{p['mp']}")
     check("打断日志", any("打断" in x for x in logs), str(logs))
@@ -359,7 +359,7 @@ def test_charge_interrupt():
     check("控制打断敌方蓄力", not e3["charging"], str(e3.get("charging")))
     b4 = BT.Battle("monster", None, {}, player=mk_player(reach=1, spd=0),
                    enemies=[mk_unit("毒怪", hp=1000, rank=1, charging={"skill": "x", "left": 2, "name": "聚气"})])
-    b4._damage_enemy(10, [], wake_sleep=False, target=b4.enemies[0])
+    b4._deal_damage(10, [], wake_sleep=False, target=b4.enemies[0])
     check("DOT(wake_sleep=False) 不打断敌方蓄力", b4.enemies[0]["charging"] is not None,
           str(b4.enemies[0].get("charging")))
 
@@ -394,7 +394,7 @@ def test_summon_entity():
     for seed in range(40):
         random.seed(seed)
         logs_ = []
-        b._damage_player(p, 100, logs_)
+        b._damage_actor(p, 100, logs_)
         if any("挡下" in x or "倒下了" in x for x in logs_):
             hit = True
             break

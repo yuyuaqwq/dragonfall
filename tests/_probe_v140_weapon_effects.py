@@ -128,7 +128,7 @@ p["hp"] = p["max_hp"] // 3  # Battle 初始化后设低血（低于 25% 阈值�
 p["max_hp"] = 9999  # 模拟真实大血量玩家（阈值按比例算）
 p["hp"] = 2000
 logs8 = []
-b._damage_player(p, 500, logs8, source="测试")
+b._damage_actor(p, 500, logs8, source="测试")
 check("磐石守护护盾触发", "we_bedrock" in b.p_shields, str(b.p_shields))
 check("磐石守护标记", b.p_eff.get("we_bedrock_used") is True)
 
@@ -136,7 +136,7 @@ print("【9. 击杀特效（暮裂潜行）】")
 p = mk_player(["dusk_blade"])
 e = mk_enemy(hp=50)
 b = BT.Battle("monster", e, player=p)
-b._damage_enemy(100, [])
+b._deal_damage(100, [])
 check("暮裂潜行击杀后潜行", "stealth" in b.p_buffs, str(b.p_buffs))
 
 print("【10. 常驻面板属性（奥术苍穹魔攻+15%）】")

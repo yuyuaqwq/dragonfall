@@ -111,7 +111,7 @@ def test_dmg_reduce():
     b._player_stats = _ps_nododge
     logs = []
     before = pl["hp"]
-    b._damage_player(pl, 100, logs)
+    b._damage_actor(pl, 100, logs)
     check("无被动受击扣全额 100", pl["hp"] == before - 100, f"hp={pl['hp']} before={before}")
     check("磐石之心可查到（v153 str passive）", bool(E.skill_info("cls_wu_seng", "磐石之心")),
           str(E.skill_info("cls_wu_seng", "磐石之心")))

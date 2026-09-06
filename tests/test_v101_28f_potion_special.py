@@ -103,7 +103,7 @@ def _ps_nododge(p_):
     s["dodge"] = 0.0
     return s
 b3._player_stats = _ps_nododge
-b3._damage_player(p3, 50, [])
+b3._damage_actor(p3, 50, [])
 check("荆棘反弹 30% 伤害(15)", b3.enemy["hp"] == eh - 15, f"{eh}→{b3.enemy['hp']}")
 
 # 破甲：敌人防御 -15% 2 回合

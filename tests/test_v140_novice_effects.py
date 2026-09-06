@@ -77,7 +77,7 @@ def test_first_turn_guard():
     p["max_hp"] = 9999
     p["hp"] = 9999
     hp_before = p["hp"]
-    b._damage_player(p, 1000, [], source="测试")
+    b._damage_actor(p, 1000, [], source="测试")
     dmg_taken = hp_before - p["hp"]
     check("首回合受击 -10%（900）", dmg_taken == 900, f"dmg={dmg_taken}")
 

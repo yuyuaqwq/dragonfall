@@ -87,7 +87,7 @@ def test_shield_persist_and_absorb():
         return s
     b2._player_stats = _ps_nododge
     logs = []
-    b2._damage_player(player, 30, logs)
+    b2._damage_actor(player, 30, logs)
     check("吸收后剩 70", b2._p_shields_bag().get("test_shield", {}).get("value") == 70, str(b2._p_shields_bag()))
     check("玩家未掉血", player["hp"] == 1000, str(player["hp"]))
 

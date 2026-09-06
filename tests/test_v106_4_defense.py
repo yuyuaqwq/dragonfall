@@ -107,7 +107,7 @@ async def main():
             return s
         b2._player_stats = _ps_nododge
         logs = []
-        b2._damage_player(p2, 100, logs)
+        b2._damage_actor(p2, 100, logs)
         if any("反伤" in l for l in logs):
             found = True
             check(f"反伤反弹（seed {seed}）", any("反弹" in l for l in logs), str(logs))

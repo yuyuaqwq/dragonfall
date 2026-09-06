@@ -3087,7 +3087,7 @@ class CombatCmds(CommandBase):
                 yield event.plain_result("💙 魔力不足！")
                 return
         # F1 P1-4（report_09）：PVP『防御』生效——对手防御姿态中时，本次行动对其造成的
-        # 伤害减半（b.e_defending → _damage_enemy 统一消费，普攻/技能/召唤物全路径覆盖）
+        # 伤害减半（b.e_defending → _deal_damage 统一消费，普攻/技能/召唤物全路径覆盖）
         if str(state.get("defending_qq", "")) == str(opp["qq_id"]):
             b.e_defending = True
         if action == "defend":

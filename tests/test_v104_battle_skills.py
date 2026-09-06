@@ -129,7 +129,7 @@ def test_dodge_effective():
     dodges = 0
     for _ in range(100):
         logs = []
-        b3._damage_player(p3, 50, logs)
+        b3._damage_actor(p3, 50, logs)
         if any("闪避" in l for l in logs):
             dodges += 1
     check(f"100 次受击闪避 {dodges} 次（显著>0）", dodges >= 10, f"dodges={dodges}")
@@ -224,7 +224,7 @@ def test_pet_block_before_dodge():
     _orig = random.random
     random.random = lambda: 0.01
     try:
-        b0._damage_player(p, 50, logs0)
+        b0._damage_actor(p, 50, logs0)
     finally:
         random.random = _orig
     check("对照组 random=0.01 触发闪避", any("闪避" in l for l in logs0), str(logs0))
@@ -237,7 +237,7 @@ def test_pet_block_before_dodge():
     logs = []
     random.random = lambda: 0.01
     try:
-        b._damage_player(p, 50, logs)
+        b._damage_actor(p, 50, logs)
     finally:
         random.random = _orig
     check("影袭挡下攻击（优先于闪避）", any("挡下了" in l for l in logs), str(logs))
@@ -250,7 +250,7 @@ def test_pet_block_before_dodge():
     logs2 = []
     random.random = lambda: 0.01
     try:
-        b2._damage_player(p, 50, logs2)
+        b2._damage_actor(p, 50, logs2)
     finally:
         random.random = _orig
     check("非触发回合影袭不拦（闪避接管）", any("闪避" in l for l in logs2)

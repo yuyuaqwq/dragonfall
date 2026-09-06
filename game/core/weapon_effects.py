@@ -27,7 +27,7 @@
 - handler 内部自查 weapon_effect_ids（并列 if 语义，多个特效可同时触发）
 - 数值全部读数据 special 字段解析或代码内默认值（部分特效数值写在 special 文案，
   为可控实现，数值以本文档 handler 内 DEFAULT 为准——special 仅作展示）
-- 每个 handler ~5-20 行，全部走 battle._damage_enemy / _add_shield / _heal_player 等既有通道
+- 每个 handler ~5-20 行，全部走 battle._deal_damage / _add_shield / _heal_player 等既有通道
 - 战斗开始类特效在 Battle.__init__ 末尾调用 proc(battle, player, "battle_start", {}, [])
 """
 
@@ -110,7 +110,7 @@ def _estats(battle) -> dict:
 def _true_dmg(battle, base: int, logs, source: str = "✨"):
     """真实伤害（无视防御），直接扣血，不打醒睡眠。"""
     dmg = max(1, int(base))
-    battle._damage_enemy(dmg, logs, wake_sleep=False)
+    battle._deal_damage(dmg, logs, wake_sleep=False)
     logs.append(f"{source} 造成 {dmg} 点真实伤害！")
     return dmg
 
@@ -126,7 +126,7 @@ def _extra_phys(battle, atk_pct: float, logs, ignore_def: bool = False, source: 
         from ..engine import calc_damage
         dmg = max(1, calc_damage(int(atk * atk_pct), est.get("def", 0)))
     if dmg > 0:
-        battle._damage_enemy(dmg, logs)
+        battle._deal_damage(dmg, logs)
         logs.append(f"{source} 追加 {dmg} 点伤害！")
     return dmg
 
@@ -139,7 +139,7 @@ def _extra_magi(battle, matk_pct: float, logs, source: str = "🔮") -> int:
     from ..engine import calc_damage
     dmg = max(1, calc_damage(int(matk * matk_pct), est.get("mdef", 0)))
     if dmg > 0:
-        battle._damage_enemy(dmg, logs)
+        battle._deal_damage(dmg, logs)
         logs.append(f"{source} 溅射 {dmg} 点奥术伤害！")
     return dmg
 
@@ -479,7 +479,7 @@ def _we_phantom_barrage(battle, player, ctx, logs):
         est = _estats(battle)
         from ..engine import calc_damage
         dmg = max(1, calc_damage(int(st.get("atk", 0) * float(wd.get("atk_pct", 0.30))), int(est.get("def", 0) * (1 - float(wd.get("pene_pct", 0.50))))))
-        battle._damage_enemy(dmg, logs)
+        battle._deal_damage(dmg, logs)
         logs.append(f"🌪️ 幻影连射！无视 50% 防御造成 {dmg} 点伤害！")
 
 
@@ -508,7 +508,7 @@ def _we_soul_eater(battle, player, ctx, logs):
     cap = max(1, int(st.get("atk", 0) or 0))
     bonus = min(cap, max(1, int(e.get("hp", 0) * float(wd.get("cur_hp_pct", 0.02)))))
     if bonus > 0:
-        battle._damage_enemy(bonus, logs, wake_sleep=False)
+        battle._deal_damage(bonus, logs, wake_sleep=False)
         healed = _heal_player(battle, player, bonus, logs, source="💜 破败之吻")
         logs.append(f"💜 破败之吻：额外 {bonus} 点伤害，回复 {healed} 点生命！")
 
@@ -757,7 +757,7 @@ def _we_thorn_armor(battle, player, ctx, logs):
     dmg = int(ctx.get("dmg", 0) or 0)
     rd = max(1, int(dmg * float(wd.get("reflect_pct", 0.15))))
     if battle.enemy.get("hp", 0) > 0 and rd > 0:
-        battle._damage_enemy(rd, logs)
+        battle._deal_damage(rd, logs)
         logs.append(f"🌵 荆棘缠绕：反弹 {rd} 点伤害！")
 
 
@@ -806,7 +806,7 @@ def _we_dragon_spine_mail(battle, player, ctx, logs):
     dmg = int(ctx.get("dmg", 0) or 0)
     rd = max(1, int(dmg * float(wd.get("reflect_pct", 0.25))))
     if battle.enemy.get("hp", 0) > 0 and rd > 0:
-        battle._damage_enemy(rd, logs)
+        battle._deal_damage(rd, logs)
         battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), int(wd.get("heal_down", 2)))
         logs.append(f"🐉 龙脊反噬：反弹 {rd} 点伤害，并施加重伤！")
 
@@ -820,7 +820,7 @@ def _we_retribution_ring(battle, player, ctx, logs):
     dmg = int(ctx.get("dmg", 0) or 0)
     rd = max(1, int(dmg * float(wd.get("reflect_pct", 0.30))))
     if battle.enemy.get("hp", 0) > 0 and rd > 0:
-        battle._damage_enemy(rd, logs)
+        battle._deal_damage(rd, logs)
         logs.append(f"⚔️ 复仇之环：反弹 {rd} 点伤害！")
 
 
@@ -835,7 +835,7 @@ def _we_ember_bulwark(battle, player, ctx, logs):
     player.setdefault('eff', {})["we_ember_bulwark_used"] = True
     dmg = max(1, int(player.get("max_hp", 100) * float(wd.get("max_hp_pct", 0.05))))
     if battle.enemy.get("hp", 0) > 0:
-        battle._damage_enemy(dmg, logs)
+        battle._deal_damage(dmg, logs)
         deb = battle.enemy.setdefault("debuffs", {})
         cur = deb.get("burn") or {"n": 0, "mult": 1.0}
         cur["n"] = min(int(wd.get("burn_cap", 5)), int(cur.get("n", 0) or 0) + int(wd.get("burn_stack", 1)))
@@ -1142,7 +1142,7 @@ def _we_undying_will_t(battle, player, ctx, logs):
     if ratio >= float(wd.get("threshold", 0.20)):
         return
     player.setdefault('eff', {})["we_undying_used"] = True
-    player.setdefault('eff', {})["we_undying_immune"] = True  # 本刻免疫致死（_damage_player 消费）
+    player.setdefault('eff', {})["we_undying_immune"] = True  # 本刻免疫致死（_damage_actor 消费）
     heal = int(player.get("max_hp", 100) * float(wd.get("heal_pct", 0.10)))
     _heal_player(battle, player, heal, logs, source="✨ 不灭意志")
     logs.append("✨ 不灭意志：免疫致死伤害！")
@@ -1355,7 +1355,7 @@ def _we_combo_end_p(battle, player, ctx, logs):
 # 语义见 SA-1 任务卡 v140_sa1_novice_handlers.md；各消费点由主 agent 在 battle.py 接线：
 #   - novice_spark_followup   → _player_attack 消费 mech_stacks["novice_spark"]（+10% 后清）
 #   - novice_wind_spd         → _player_stats 消费 p_buffs["novice_wind_spd"]（spd×1.05）
-#   - novice_first_turn_guard → _damage_player 消费 p_eff["novice_guard_active"]（round≤1 ×0.90）
+#   - novice_first_turn_guard → _damage_actor 消费 p_eff["novice_guard_active"]（round≤1 ×0.90）
 #   - novice_first_turn_dodge → 闪避判定消费 p_eff["novice_dodge_active"]（round≤1 闪避乘算 +5%）
 # ================================================================
 
@@ -1377,7 +1377,7 @@ def _we_novice_lifesteal(battle, player, ctx, logs):
 @register("battle_start")
 def _we_novice_first_turn_guard(battle, player, ctx, logs):
     """守御（旅人之盾）：每场战斗首刻受击伤害 -10%。
-    仅 battle_start 挂标记，减伤由 _damage_player 消费（round≤1 时 ×0.90）。"""
+    仅 battle_start 挂标记，减伤由 _damage_actor 消费（round≤1 时 ×0.90）。"""
     wd = effect_data(battle, player, "novice_first_turn_guard")
     if not has_effect(battle, player, "novice_first_turn_guard"):
         return

@@ -195,7 +195,7 @@ def main():
     p6 = mk_player(reach=1, learned=["旋风斩"])
     b6 = BT.Battle("monster", None, {}, p6,
                    enemies=[mk_enemy("A", rank=1, hp=10), mk_enemy("B", rank=2, hp=10 ** 9)])
-    b6._damage_enemy(10 ** 6, [], target=b6.enemies[0])  # 打死前排 A（即时压缩）
+    b6._deal_damage(10 ** 6, [], target=b6.enemies[0])  # 打死前排 A（即时压缩）
     check("引擎打死后 enemies 移除死亡单位", [u["name"] for u in b6.enemies] == ["B"],
           str([(u["name"], u["hp"]) for u in b6.enemies]))
     check("存活后排前移为 rank1（压缩后近战可及）", all(u["rank"] == 1 for u in b6.enemies),

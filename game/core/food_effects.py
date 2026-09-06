@@ -144,7 +144,7 @@ def _f_t_thorns(battle, player, ctx, logs):
     if random.random() < float(_fp("thorns", "chance", 0.10)) and battle.enemy.get("hp", 0) > 0:
         rd = int(ctx["dmg"] * float(_fp("thorns", "pct", 0.30)))
         rd = battle._boss_dmg_filter(rd, player, logs)  # v104 M02 P1-5：反伤走主结算路径
-        battle._damage_enemy(rd, logs)
+        battle._deal_damage(rd, logs)
         logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
 
 

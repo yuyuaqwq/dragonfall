@@ -198,7 +198,7 @@ async def test_downstream_skills_combat(m):
         p2 = dict(p)
         p2["learned_skills"] = [s for s in p.get("learned_skills", []) if s != "以守为攻"]
         logs = []
-        b._damage_player(p2, 100, logs)
+        b._damage_actor(p2, 100, logs)
         check("拳师·以守为攻 受击流程不报错（绕过字符串被动崩点）", True,
               f"hp {p2['hp']} enemy {b.enemy['hp']}/30000")
     except Exception as ex:
@@ -320,7 +320,7 @@ def test_plant_summons(m):
             return s
         b5._player_stats = _ps_nododge
         logs = []
-        b5._damage_player(p5, 100, logs)
+        b5._damage_actor(p5, 100, logs)
         if any("挡" in l for l in logs):
             found = True
             check(f"植物召唤受击挡刀触发（seed {seed}）", p5["hp"] == hp0, f"hp {p5['hp']}")

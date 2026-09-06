@@ -134,7 +134,7 @@ def test_threshold():
     b = BT.Battle("monster", e, player=p)
     p["max_hp"] = 9999
     p["hp"] = 2000
-    b._damage_player(p, 500, [], source="测试")
+    b._damage_actor(p, 500, [], source="测试")
     check("磐石守护护盾触发", "we_bedrock" in b._p_shields_bag(), str(b._p_shields_bag()))
 
 def test_kill():
@@ -142,7 +142,7 @@ def test_kill():
     p = mk_player(["dusk_blade"])
     e = mk_enemy(hp=50)
     b = BT.Battle("monster", e, player=p)
-    b._damage_enemy(100, [])
+    b._deal_damage(100, [])
     check("暮裂潜行击杀后潜行", "stealth" in b._p_buffs_bag(), str(b._p_buffs_bag()))
 
 def test_panel():

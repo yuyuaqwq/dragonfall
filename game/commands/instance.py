@@ -2607,7 +2607,7 @@ class InstanceCmds(CommandBase):
                        if st.get("alive", {}).get(str(m), True)],
             # v158 副本合并：注入副本回调——battle 事件队列驱动敌方行动后同步副本状态。
             # 敌方伤害直接打到玩家快照（allies 引用），这里只需处理：死亡压缩/仇恨/贡献。
-            # （battle 的 _enemy_turn 用 _damage_player 扣血，allies 引用会同步；回调补副本层账务）
+            # （battle 的 _enemy_turn 用 _damage_actor 扣血，allies 引用会同步；回调补副本层账务）
             "_cb": self._instance_battle_cb,
             # v158：回调需要访问真实副本 st 的 alive/players（构造 dict 只有子集）
             "players": st.get("players") or {},
@@ -2646,7 +2646,7 @@ class InstanceCmds(CommandBase):
         st["mech_stacks"][cur_key] = b.player.get("stacks") or {}
         # v2：敌方阵列写回（逐单位 hp/buffs/stacks/defending/charging）→ 压缩死亡单位
         # v141 审计：b.enemies 与 st["enemies"] 是同一列表引用（from_state 直接传入），
-        # _damage_enemy 死亡单位即时 _remove_unit 移除；此处直接同步，无需再压缩。
+        # _deal_damage 死亡单位即时 _remove_unit 移除；此处直接同步，无需再压缩。
         st["enemies"] = b.enemies
         # δ副本层：DOT 结算闸门——v152 时刻制下每个玩家行动 = 时刻推进一次，
         # 该行动者的 Battle 结算其 DOT（from_state 读 dot_pending=True）；不等待全员轮转。
@@ -3426,7 +3426,7 @@ class InstanceCmds(CommandBase):
             snap = st["players"].get(tkey) or snap
             tname = snap.get("name", tkey)
         mlogs, dmg = b._enemy_turn(snap, unit)
-        # O116：受击伤害文案暂存 pending，本层不走 _damage_player 需手动取出拼进日志
+        # O116：受击伤害文案暂存 pending，本层不走 _damage_actor 需手动取出拼进日志
         try:
             _pend = b._drain_pending_dmg()
             if _pend:

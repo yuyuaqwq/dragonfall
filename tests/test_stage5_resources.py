@@ -49,7 +49,7 @@ def _ps_nododge(p_):
     s["dodge"] = 0.0
     return s
 b3._player_stats = _ps_nododge
-b3._damage_player(p, 10, [])
+b3._damage_actor(p, 10, [])
 check("战士受击 +1 怒气", b3._p_res().get('rage') == 1, str(b3._p_res()))
 b4 = BT.Battle('monster', mkmon(), player=mk('战士'))
 for _ in range(15):

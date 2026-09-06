@@ -252,7 +252,7 @@ def test_battle_affix():
             return s
         b4._player_stats = _ps_nododge
         logs = []
-        b4._damage_player(p4, 100, logs)
+        b4._damage_actor(p4, 100, logs)
         joined = "".join(logs)
         if "格挡" in joined or "反击" in joined or "反伤" in joined:
             check(f"受击词条（seed {seed}）", True, joined)

@@ -120,7 +120,7 @@ async def main():
     try:
         logs3 = []
         # v180F B4：挡刀按 owner 归属——受击者必须是宠物 owner 同引用（b3.player）
-        b3._damage_player(b3.player or db.get_player("g1", "w1"), 50, logs3)
+        b3._damage_actor(b3.player or db.get_player("g1", "w1"), 50, logs3)
     finally:
         _r.random = orig_random
     pet_log3 = "\n".join(logs3)

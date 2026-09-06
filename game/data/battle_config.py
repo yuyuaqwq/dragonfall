@@ -304,7 +304,7 @@ FOCUS_CFG = {
     "enter_gain": 1,            # 进入时资源 +N（预装，G1）
     "gain_per_turn": 1,         # 专注中每刻额外 +N 资源（G2，主来源完全自主）
     "dmg_bonus": 0.40,          # 专注中技能伤害 +40%（乘区挂 pmult，受 SKILL_PMULT_CAP=6.0 封顶）
-    "taken_bonus": 0.20,        # 专注中受击 +20%（走 _damage_player 惩罚分支）
+    "taken_bonus": 0.20,        # 专注中受击 +20%（走 _damage_actor 惩罚分支）
     "interrupt_rate": 0.30,     # 受击打断概率（P3：打断不清零，资源保留）
     "max_turns": 3,             # 维持刻上限，第 max_turns+1 刻自动解除（时间过载）
     "blocked": ("attack", "skill", "swap"),  # 专注中禁止的行动（可防御/道具/逃跑）

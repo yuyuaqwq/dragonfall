@@ -41,7 +41,7 @@ def test_phoenix():
     b = BT.Battle("monster", e, player=p)
     from game.core.potion_effects import eff_phoenix
     msg = eff_phoenix(b, p, {"revive_hp": 0.30, "dmg_reduce": 0.20, "turns": 3})
-    b._damage_player(p, 99999, [], source="测试")
+    b._damage_actor(p, 99999, [], source="测试")
     check("phoenix 复活", p["hp"] > 0, f"hp={p['hp']}")
     check("phoenix 减伤 buff", "reduce_all" in b._p_buffs_bag(), str(b._p_buffs_bag()))
 
@@ -53,7 +53,7 @@ def test_invuln():
     from game.core.potion_effects import eff_invuln
     msg = eff_invuln(b, p, {"turns": 1, "stun_after": 1})
     hp_before = p["hp"]
-    b._damage_player(p, 5000, [], source="测试")
+    b._damage_actor(p, 5000, [], source="测试")
     check("invuln 免疫伤害", p["hp"] == hp_before, f"hp={p['hp']}")
 
 def test_morph():
@@ -64,7 +64,7 @@ def test_morph():
     from game.core.potion_effects import eff_morph
     msg = eff_morph(b, p, {"turns": 3, "dmg_taken_up": 0.15})
     hp_before = p["hp"]
-    b._damage_player(p, 1000, [], source="测试")
+    b._damage_actor(p, 1000, [], source="测试")
     check("morph 受击加成生效", p["hp"] < hp_before - 1000, f"hp={p['hp']} before={hp_before}")
 
 def test_dot_amp():
@@ -95,12 +95,12 @@ def test_vuln():
           str(b._p_eff().get("vuln")))
     b._player_stats = lambda pl: {"atk": 100, "matk": 80, "def": 50, "mdef": 50,
                                   "spd": 10, "crit": 0.05, "max_hp": 9999, "max_mp": 999}
-    orig_dmg = b._damage_enemy
+    orig_dmg = b._deal_damage
     captured = []
     def spy(d, l, wake_sleep=True, target=None, source=None):
         captured.append(d)
         return orig_dmg(d, l, wake_sleep, target, source)
-    b._damage_enemy = spy
+    b._deal_damage = spy
     import random as _rnd2; _rnd2.seed(11)
     st = b._player_stats(p)
     b._player_attack(st, p)

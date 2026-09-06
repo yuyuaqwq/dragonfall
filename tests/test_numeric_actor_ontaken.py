@@ -81,7 +81,7 @@ mon["max_hp"] = 5000
 b = BT.Battle("monster", mon)
 b.player = player
 logs = []
-b._damage_enemy(1000, logs)
+b._deal_damage(1000, logs)
 # 回 10% = 500 → hp = 4000 + 500 = 4500（先扣 1000 再回 500）
 check("受击回血 +500", mon["hp"] == 4500, f"hp={mon['hp']}")
 check("受击回血有日志", any("受击回血" in l for l in logs), str(logs))
@@ -97,7 +97,7 @@ mon["matk"] = 100
 b = BT.Battle("monster", mon)
 b.player = player
 logs = []
-b._damage_enemy(100, logs)
+b._deal_damage(100, logs)
 check("受击激怒日志", any("激怒" in l for l in logs), str(logs))
 est = b._enemy_stats()
 check("加攻生效 atk=120", est["atk"] == 120, f"atk={est['atk']}")
@@ -111,7 +111,7 @@ mon["max_hp"] = 5000
 b = BT.Battle("monster", mon)
 b.player = player
 logs = []
-b._damage_enemy(100, logs)
+b._deal_damage(100, logs)
 check("受击凝甲日志", any("凝甲" in l or "护盾" in l for l in logs), str(logs))
 check("target shields dict 已设", (mon.get("shields") or {}).get("on_taken", {}).get("value", 0) > 0, str(mon.get("shields")))
 
@@ -125,7 +125,7 @@ plain = {
 b = BT.Battle("monster", plain)
 b.player = player
 logs = []
-r = b._damage_enemy(100, logs)
+r = b._deal_damage(100, logs)
 check("普通怪正常扣血", r == 100 and plain["hp"] == 900, f"r={r} hp={plain['hp']}")
 check("无 on_taken 不误报", not any("受击回血" in l or "激怒" in l or "凝甲" in l for l in logs), str(logs))
 

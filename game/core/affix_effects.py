@@ -101,7 +101,7 @@ def run_affix_formula(battle, player, dmg, logs, trigger="on_hit"):
             pene_flat_phys=pene_f, pene_flat_magi=pene_fm,
         )
         if bonus > 0:
-            battle._damage_enemy(bonus, logs)
+            battle._deal_damage(bonus, logs)
             logs.append(f"💥 {info.get('name', aid)}：追加 {bonus} 点伤害！")
 
 
@@ -165,14 +165,14 @@ def _h_element_ice(battle, player, dmg, logs):
 def _h_element_thunder(battle, player, dmg, logs):
     """元素附加·雷：5% 属性伤害
     v135 哑词条激活·雷系增强：15% 概率追加一次 20% 雷伤小爆（感电连跳，玩家可感知）
-    v180E 修复：附加段走 _boss_dmg_filter（原直接 _damage_enemy 绕过 Boss 护盾）。"""
+    v180E 修复：附加段走 _boss_dmg_filter（原直接 _deal_damage 绕过 Boss 护盾）。"""
     if "element_thunder" in battle._equip_affix_ids(player):
         ed = max(1, int(dmg * float(_affix_effect("element_thunder").get("pct", 0.05))))
         try:
             ed = battle._boss_dmg_filter(ed, player, logs)
         except Exception:
             pass
-        battle._damage_enemy(ed, logs)
+        battle._deal_damage(ed, logs)
         logs.append(f"⚡ thunder属性附加 {ed} 点伤害！")
         if random.random() < _affix_chance("element_thunder", 0.15):
             sd = max(1, int(dmg * float(_affix_effect("element_thunder").get("thunder_bonus", 0.20))))
@@ -180,7 +180,7 @@ def _h_element_thunder(battle, player, dmg, logs):
                 sd = battle._boss_dmg_filter(sd, player, logs)
             except Exception:
                 pass
-            battle._damage_enemy(sd, logs)
+            battle._deal_damage(sd, logs)
             logs.append(f"⚡⚡ 感电连跳！追加 {sd} 点雷系伤害！")
 
 
@@ -197,7 +197,7 @@ def _h_chu_huo(battle, player, dmg, logs):
         ed = battle._boss_dmg_filter(ed, player, logs)  # v180E 绕盾修复
     except Exception:
         pass
-    battle._damage_enemy(ed, logs)
+    battle._deal_damage(ed, logs)
     logs.append(f"🔥 初火余烬：火属性附加 {ed} 点伤害！")
     if random.random() < _affix_chance("chu_huo", 0.20):
         pct_dot = 0.01 if (battle.enemy or {}).get("role") == "boss" else 0.015
@@ -318,7 +318,7 @@ def _t_ember_ward(battle, player, ctx, logs):
     """灰烬壁垒（灰烬守卫套专属）：20% 反弹 50% 伤害（基于原始 dmg）"""
     if "ember_ward" in battle._equip_affix_ids(player) and random.random() < _affix_chance("ember_ward", 0.20) and battle.enemy.get("hp", 0) > 0:
         rd = int(ctx["dmg"] * float(_affix_effect("ember_ward").get("pct", 0.50)))
-        battle._damage_enemy(rd, logs)
+        battle._deal_damage(rd, logs)
         logs.append(f"🔥 灰烬壁垒！反弹 {rd} 点伤害！")
 
 
@@ -395,7 +395,7 @@ def _set_full_rage_pursuit(battle, player, dmg, logs, params: dict):
             return
         power = float((params or {}).get("power", 0.50) or 0.50)
         pd = max(1, int(dmg * power))
-        battle._damage_enemy(pd, logs)
+        battle._deal_damage(pd, logs)
         logs.append(f"🔥 沸血二段：满怒追击追加 {pd} 点伤害！")
     except Exception:
         pass
@@ -483,7 +483,7 @@ def _sp_flat_dmg(battle, player, dmg, logs, params: dict):
     dmg_type = params.get("dmg_type", "phys" if stat == "atk" else "magic")
     cd = calc_damage(int(atk * pct), int(edef), dmg_type=dmg_type)
     if cd > 0:
-        battle._damage_enemy(cd, logs)
+        battle._deal_damage(cd, logs)
         if params.get("once_per_round"):
             player.setdefault('eff', {})["proc_used"] = battle._tick_no()
         tag = params.get("tag", "⚔️")
@@ -574,7 +574,7 @@ def _sp_execute(battle, player, dmg, logs, params: dict):
     ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
     # 满血分支（night_backstab）：满血直接 +25% 本次伤害
     if params.get("hp_full") and ratio >= 0.999:
-        battle._damage_enemy(int(dmg * float(params.get("pct", 0.25))), logs)
+        battle._deal_damage(int(dmg * float(params.get("pct", 0.25))), logs)
         tag = params.get("tag", "🌙")
         logs.append(f"{tag} {params.get('name', '满血增伤')}！满血目标追加 {int(dmg*float(params.get('pct', 0.25)))} 点伤害！")
         return
@@ -582,7 +582,7 @@ def _sp_execute(battle, player, dmg, logs, params: dict):
     if ratio < float(params.get("hp_lt", 0.30)):
         if params.get("pct_of_dmg"):
             bonus = int(dmg * float(params.get("pct", 0.25)))
-            battle._damage_enemy(bonus, logs)
+            battle._deal_damage(bonus, logs)
             tag = params.get("tag", "💀")
             logs.append(f"{tag} {params.get('name', '处决')}！处决追加 {bonus} 点伤害！")
             return
@@ -592,7 +592,7 @@ def _sp_execute(battle, player, dmg, logs, params: dict):
         edef = 0 if dmg_type == "true" else int(_sp_enemy_def(battle, params.get("edef", "def" if stat == "atk" else "mdef")))
         cd = calc_damage(int(atk * float(params.get("pct", 0.50))), edef, dmg_type=dmg_type)
         if cd > 0:
-            battle._damage_enemy(cd, logs)
+            battle._deal_damage(cd, logs)
             tag = params.get("tag", "💀")
             logs.append(f"{tag} {params.get('name', '处决')}！追加 {cd} 点伤害！")
     # 非满血非低血，但有 hp_pct_dmg（night_backstab 的 20% 5%max_hp 真伤，chance 已由外层检查）
@@ -600,7 +600,7 @@ def _sp_execute(battle, player, dmg, logs, params: dict):
         pst = battle._player_stats(player)
         cd = calc_damage(int(battle.enemy.get("max_hp", 1) * float(params.get("pct2", 0.05))), 0)
         if cd > 0:
-            battle._damage_enemy(cd, logs)
+            battle._deal_damage(cd, logs)
             tag = params.get("tag", "🌙")
             logs.append(f"{tag} {params.get('name', '真伤')}！追加 {cd} 点真伤！")
 
@@ -661,7 +661,7 @@ def _sp_armor_break(battle, player, dmg, logs, params: dict):
         est = battle._enemy_stats()
         cd = calc_damage(int(pst.get("atk", 0) * float(params["bonus_atk_pct"])), est.get("def", 0))
         if cd > 0:
-            battle._damage_enemy(cd, logs)
+            battle._deal_damage(cd, logs)
             tag = params.get("tag", "🐎")
             logs.append(f"{tag} {params.get('name', '破甲追加')}！追加 {cd} 点伤害！")
     else:
@@ -726,7 +726,7 @@ def _sp_counter(battle, player, dmg, logs, params: dict):
     est = battle._enemy_stats()
     cd = calc_damage(int(pst.get("atk", 0) * float(params.get("atk_pct", 0.40))), est.get("def", 0), dmg_type="phys")
     cd = battle._boss_dmg_filter(cd, player, logs)
-    battle._damage_enemy(cd, logs)
+    battle._deal_damage(cd, logs)
     tag = params.get("tag", "🌊")
     logs.append(f"{tag} {params.get('name', '反击')}！反击 {cd} 点伤害！")
 
@@ -759,7 +759,7 @@ def _sp_mp_on_dmg(battle, player, dmg, logs, params: dict):
     dmg_type = params.get("dmg_type", "magic" if stat == "matk" else "phys")
     cd = calc_damage(int(atk * float(params.get("pct", 0.40))), int(edef), dmg_type=dmg_type)
     if cd > 0:
-        battle._damage_enemy(cd, logs)
+        battle._deal_damage(cd, logs)
         mp = int(cd * float(params.get("mp_pct", 0.15)))
         player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + mp)
         tag = params.get("tag", "✨")
@@ -790,7 +790,7 @@ def _sp_thunder_burst(battle, player, dmg, logs, params: dict):
         edef = _sp_enemy_def(battle, params.get("edef", "mdef"))
         cd = calc_damage(int(atk * float(params.get("burst_pct", 0.90))), int(edef), dmg_type="magic")
         if cd > 0:
-            battle._damage_enemy(cd, logs)
+            battle._deal_damage(cd, logs)
         mk["thunder"] = 0
         tag = params.get("tag", "📜")
         logs.append(f"{tag} {params.get('name', '引爆')}！引爆 {cd} 点雷伤！")
@@ -816,7 +816,7 @@ def _sp_mark_or_dmg(battle, player, dmg, logs, params: dict):
     from ..engine import calc_damage
     mk = (battle.enemy.get("debuffs") or {}).get("mark") or {}
     if int(mk.get("n", 0) or 0) > 0:
-        battle._damage_enemy(int(dmg * float(params.get("dmg_pct", 0.15))), logs)
+        battle._deal_damage(int(dmg * float(params.get("dmg_pct", 0.15))), logs)
         tag = params.get("tag", "🏹")
         logs.append(f"{tag} {params.get('name', '标记增伤')}！标记目标追加 {int(dmg*float(params.get('dmg_pct', 0.15)))} 点伤害！")
     else:
@@ -871,7 +871,7 @@ def _taken_counter(battle, player, dmg, logs, params: dict):
     est = battle._enemy_stats()
     cd = calc_damage(int(pst.get("atk", 0) * float(params.get("atk_pct", 0.40))), est.get("def", 0), dmg_type="phys")
     cd = battle._boss_dmg_filter(cd, player, logs)
-    battle._damage_enemy(cd, logs)
+    battle._deal_damage(cd, logs)
     tag = params.get("tag", "🌊")
     logs.append(f"{tag} {params.get('name', '反击')}！反击 {cd} 点伤害！")
 
@@ -1001,7 +1001,7 @@ def _h_blazing_sun(battle, player, dmg, logs):
             ed = battle._boss_dmg_filter(ed, player, logs)  # v180E 绕盾修复
         except Exception:
             pass
-        battle._damage_enemy(ed, logs)
+        battle._deal_damage(ed, logs)
         logs.append(f"🔥 烈日灼烧：火属性附加 {ed} 点伤害！")
         if random.random() < _affix_chance("blazing_sun", 0.15):
             deb = battle.enemy.setdefault("debuffs", {})
@@ -1023,7 +1023,7 @@ def _h_deep_frost(battle, player, dmg, logs):
             ed = battle._boss_dmg_filter(ed, player, logs)  # v180E 绕盾修复
         except Exception:
             pass
-        battle._damage_enemy(ed, logs)
+        battle._deal_damage(ed, logs)
         logs.append(f"❄️ 深寒：冰属性附加 {ed} 点伤害！")
         if random.random() < _affix_chance("deep_frost", 0.20):
             battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), int(eff.get("slow_turns", 2)))
@@ -1162,7 +1162,7 @@ def _h_sun_blaze(battle, player, dmg, logs):
             ed = battle._boss_dmg_filter(ed, player, logs)
         except Exception:
             pass
-        battle._damage_enemy(ed, logs)
+        battle._deal_damage(ed, logs)
         logs.append(f"☀️ 烈日迸发！追加 {ed} 点火属性伤害！")
 
 
@@ -1179,7 +1179,7 @@ def _h_chain_overload(battle, player, dmg, logs):
                 cd = battle._boss_dmg_filter(cd, player, logs)
             except Exception:
                 pass
-            battle._damage_enemy(cd, logs)
+            battle._deal_damage(cd, logs)
             logs.append(f"⚡ 连锁过载！追加 {cd} 点雷击伤害！")
 
 
@@ -1244,7 +1244,7 @@ def _h_summon_pact(battle, player, dmg, logs):
         est = battle._enemy_stats()
         cd = calc_damage(int(pst.get("atk", 0) * 0.30), est.get("def", 0))
         if cd > 0:
-            battle._damage_enemy(cd, logs)
+            battle._deal_damage(cd, logs)
             logs.append(f"📜 召唤契约！召唤援军造成 {cd} 点伤害！")
 
 
@@ -1274,7 +1274,7 @@ def _h_star_shatter(battle, player, dmg, logs):
     edef = max(0, int(est.get("def", 0) * (1 - float(eff.get("ignore_def", 0.30)))))
     cd = calc_damage(punch, edef)
     if cd > 0:
-        battle._damage_enemy(cd, logs)
+        battle._deal_damage(cd, logs)
     logs.append(f"{eff.get('tag', '💥碎星拳劲')}！破甲重拳造成 {cd} 点伤害！（无视 30% 防御）")
     battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(eff.get("turns", 2)))
     battle.e_buffs["_armor_break_pct"] = float(eff.get("pct", 0.15))
@@ -1300,13 +1300,13 @@ def _h_dark_star_gauntlet(battle, player, dmg, logs):
         player.setdefault('stacks', {})["dark_star"] = 0
         burst = max(1, int(dmg * (burst_mult - 1.0)))
         if battle.enemy.get("hp", 0) > 0:
-            battle._damage_enemy(burst, logs)
+            battle._deal_damage(burst, logs)
         logs.append(f"{tag}：暗星爆发！追加 {burst} 点伤害！（暗星层数清零）")
         return
     # 常驻叠层增伤：本击按已有层数每层 +3% 追加（叠层当刻生效、下一击起全额成长）
     if cur > 0 and battle.enemy.get("hp", 0) > 0:
         ramp = max(1, int(dmg * per * cur))
-        battle._damage_enemy(ramp, logs)
+        battle._deal_damage(ramp, logs)
         logs.append(f"{tag}：暗星之力（{cur} 层）追加 {ramp} 点伤害！")
     player.setdefault('stacks', {})["dark_star"] = min(max_mark, cur + 1)
     if cur + 1 >= max_mark:
@@ -1341,7 +1341,7 @@ def _h_gale_dirge(battle, player, dmg, logs):
     est_t = battle._enemy_stats(target)
     cd = calc_damage(int(pst.get("atk", 0) * float(eff.get("extra_atk", 0.50))), est_t.get("def", 0))
     if cd > 0:
-        battle._damage_enemy(cd, logs, target=target)
+        battle._deal_damage(cd, logs, target=target)
         logs.append(f"{eff.get('tag', '🌪️挽歌连矢')}！对【{target.get('name', '敌人')}】追加疾风矢 {cd} 点伤害！")
 
 
@@ -1361,7 +1361,7 @@ def _h_shadow_raid(battle, player, dmg, logs):
     tag = eff.get("tag", "🗡️影袭连刺")
     if battle.enemy.get("hp", 0) > 0:
         cd = max(1, int(dmg * float(eff.get("extra_atk", 0.40))))
-        battle._damage_enemy(cd, logs)
+        battle._deal_damage(cd, logs)
         logs.append(f"{tag}！追击 {cd} 点伤害！")
     heal = int(player.get("max_hp", player.get("hp", 1)) * float(eff.get("lifesteal", 0.02)))
     if heal > 0:

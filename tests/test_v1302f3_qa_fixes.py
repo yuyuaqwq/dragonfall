@@ -157,13 +157,13 @@ def test_guard_stance_res_gain():
     b2, p2 = new_battle("cls_zhan_shi", 1, 2, learned=["守护姿态"])
     _init_res(b2)
     with mock.patch.object(BT.random, "random", return_value=0.99):
-        b2._damage_player(p2, 50, [])
+        b2._damage_actor(p2, 50, [])
     check("受击（仅 on_hit +1，v153 无 dmg_taken 被动）", b2._p_res().get("rage") == 1,
           f"rage={b2._p_res().get('rage')}")
     b3, p3 = new_battle("cls_zhan_shi", 1, 2)
     _init_res(b3)
     with mock.patch.object(BT.random, "random", return_value=0.99):
-        b3._damage_player(p3, 50, [])
+        b3._damage_actor(p3, 50, [])
     check("对照：无守护姿态 受击 → 怒气 +1（仅 on_hit）", b3._p_res().get("rage") == 1,
           f"rage={b3._p_res().get('rage')}")
 
@@ -247,7 +247,7 @@ def test_overflow_cooldown():
     _init_res(b)
     b._p_res()["rage"] = 10  # 直接设资源：满怒受击前置（溢出点=受击渠道 on_hit +1）
     with mock.patch.object(BT.random, "random", return_value=0.99):
-        b._damage_player(p, 30, [])
+        b._damage_actor(p, 30, [])
     sh1 = b._p_shields_bag().get("overflow_shield") or {}
     check("满怒受击 #1 → 溢出 1 点转盾 5（v152 时刻制：expire_at = now + 1×1.0 = 1.0）",
           b._p_res().get("rage") == 10 and int(sh1.get("value", 0)) == 5
@@ -255,7 +255,7 @@ def test_overflow_cooldown():
           f"rage={b._p_res().get('rage')} shields={b._p_shields_bag()}")
     hp_after1 = p["hp"]
     with mock.patch.object(BT.random, "random", return_value=0.99):
-        b._damage_player(p, 30, [])
+        b._damage_actor(p, 30, [])
     sh2 = b._p_shields_bag().get("overflow_shield") or {}
     check("同回合受击 #2 → #1 的盾被 5 点吸收（掉血 25 而非 30）+ 冷却生效：不再补新盾",
           p["hp"] == hp_after1 - 25 and not sh2 and (b._p_shields_bag() or {}).get("overflow_shield") is None,
@@ -266,7 +266,7 @@ def test_overflow_cooldown():
     b._advance_time(1.0)  # 跨刻（v152：推进 1 个 ACT_TICK 使冷却 ready_at 到期）
     hp_after2 = p["hp"]
     with mock.patch.object(BT.random, "random", return_value=0.99):
-        b._damage_player(p, 30, [])
+        b._damage_actor(p, 30, [])
     sh3 = b._p_shields_bag().get("overflow_shield") or {}
     check("跨刻受击 #3 → 冷却重置后再转盾 5（新盾 expire_at = 当前时刻+1.0，且本击未被盾吸收）",
           int(sh3.get("value", 0)) == 5 and abs(float(sh3.get("expire_at", 0)) - (b._now + 1.0)) < 1e-9

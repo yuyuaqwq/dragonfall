@@ -142,7 +142,7 @@ async def main():
         b4._player_stats = _ps_nododge
         e_hp4 = b4.enemy["hp"]
         logs4 = []
-        b4._damage_player(p4, 100, logs4)
+        b4._damage_actor(p4, 100, logs4)
         if any("格挡反击" in l for l in logs4):
             found4 = True
             check(f"格挡反击反伤（seed {seed}）", b4.enemy["hp"] < e_hp4,
@@ -166,7 +166,7 @@ async def main():
         b5._player_stats = _ps_nododge
         e_hp5 = b5.enemy["hp"]
         logs5 = []
-        b5._damage_player(p5, 100, logs5)
+        b5._damage_actor(p5, 100, logs5)
         if any("反击" in l for l in logs5):
             found5 = True
             check(f"受击反击（seed {seed}）", b5.enemy["hp"] < e_hp5,
@@ -206,14 +206,14 @@ async def main():
         return s
     b7._player_stats = _ps_nododge
     logs7 = []
-    b7._damage_player(p7, 500, logs7)
+    b7._damage_actor(p7, 500, logs7)
     check("致死被契约救回", 0 < p7["hp"] <= p7["max_hp"] * 0.21, f"hp {p7['hp']} max {p7['max_hp']}")
     check("牺牲一个召唤物", len(b7.summons) == 1, f"summons {len(b7.summons)}")
     check("契约日志", any("死亡契约" in l for l in logs7), str(logs7))
     # 每场 1 次：第二次致死不再触发
     b7._summon_entity("skeleton", p7, [])
     logs7b = []
-    b7._damage_player(p7, 500, logs7b)
+    b7._damage_actor(p7, 500, logs7b)
     check("契约每场仅 1 次", p7["hp"] == 0, f"hp {p7['hp']}")
     check("第二次无契约日志", not any("死亡契约" in l for l in logs7b), str(logs7b))
 

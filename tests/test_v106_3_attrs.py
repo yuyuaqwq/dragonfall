@@ -143,7 +143,7 @@ async def main():
             return s
         b7._player_stats = _ps_nododge
         logs7 = []
-        b7._damage_player(p7, 100, logs7)
+        b7._damage_actor(p7, 100, logs7)
         g = [l for l in logs7 if "格挡" in l]
         if g:
             block_found = True

@@ -183,7 +183,7 @@ def test_affix_formula():
     b._player_stats = lambda p: mk_stats()
     b._enemy_stats = lambda: {"def": 20, "mdef": 20, "hp": 100000, "max_hp": 100000}
     b._pene_vals = lambda st, magic=False: (0, 0)
-    b._damage_enemy = lambda dmg, logs, **kw: (logs.append(f"💥 追加 {dmg} 点伤害！"), dmg)[1]
+    b._deal_damage = lambda dmg, logs, **kw: (logs.append(f"💥 追加 {dmg} 点伤害！"), dmg)[1]
     logs = []
     run_affix_formula(b, player, 100, logs)
     check("词条 formula 触发", any("追加" in str(l) for l in logs), f"logs={logs[:3]}")

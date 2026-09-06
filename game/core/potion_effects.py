@@ -277,7 +277,7 @@ def eff_restore_resource_full(battle, player, value):
     penalty = float(v.get("penalty_pct", 0.0) or 0)
     turns = max(1, int(v.get("penalty_turns", v.get("turns", 2)) or 2))
     if penalty > 0:
-        # 战损交易：全减伤 -penalty%（负值 reduce_all → _damage_player 受击 +X%）
+        # 战损交易：全减伤 -penalty%（负值 reduce_all → _damage_actor 受击 +X%）
         player.setdefault('buffs', {})["reduce_all"] = -penalty
         player['reduce_all_left'] = turns
         return (f"🔥 熔核之心爆发！{rd.get('name', key)}充满({cap}/{cap})！"
@@ -684,7 +684,7 @@ def eff_dot_amp(battle, player, value):
 def eff_reaction(battle, player, value):
     """v140 元素共鸣石：直接引爆目标印记触发元素反应（遍历目标 element_marks，
     按 REACTION_TABLE 任一组可反应组合结算——蒸发/超载/冻结/感电，含倍率/清印/特效）；
-    无印记则造成 fallback_matk% 魔攻伤害（_damage_enemy 直接结算）。"""
+    无印记则造成 fallback_matk% 魔攻伤害（_deal_damage 直接结算）。"""
     v = _resolve(value, "reaction")
     marks = battle._elem_marks()
     hit = None
@@ -703,7 +703,7 @@ def eff_reaction(battle, player, value):
     fb = float(v.get("fallback_matk", 0.90) or 0.90)
     st = battle._player_stats(player)
     dmg = max(1, int(st.get("matk", 0) * fb))
-    battle._damage_enemy(dmg, [])
+    battle._deal_damage(dmg, [])
     return f"⚡ 目标没有可引爆的印记，共鸣石化为 {int(fb * 100)}% 魔攻冲击，造成 {dmg} 点伤害！"
 
 

@@ -603,7 +603,7 @@ def _m_chi_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=No
 
 @register(MECH_EFFECTS, "iron")
 def _m_iron(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """金身：叠层（减伤，在 _damage_player 生效）"""
+    """金身：叠层（减伤，在 _damage_actor 生效）"""
     if not mval:
         return
     p_mech["iron"] = _stack(battle, "iron", p_mech, mval)
@@ -1038,15 +1038,15 @@ def _burst_damage(battle, bonus, logs):
     """v104 M02 P2：burst 附加伤害统一走结算主路径（Boss 护盾减半 + 援军挡刀）。
 
     此前 burst 类机制直接 battle.enemy["hp"] -= bonus，绕过 _boss_dmg_filter
-    （护盾受伤减半/反伤）与 _damage_enemy（e_minions 援军挡刀）→ 打盾 Boss 不减半、
+    （护盾受伤减半/反伤）与 _deal_damage（e_minions 援军挡刀）→ 打盾 Boss 不减半、
     有援军不挡刀。修复：参照普通伤害路径（battle.py _skill_use 的
-    `_boss_dmg_filter → _damage_enemy`）逐段结算，不双杀（total 主伤害已结算，本函数只结算附加段）。"""
+    `_boss_dmg_filter → _deal_damage`）逐段结算，不双杀（total 主伤害已结算，本函数只结算附加段）。"""
     if bonus <= 0:
         return
     player = getattr(battle, "_last_player", None)
     if player is not None:
         bonus = battle._boss_dmg_filter(bonus, player, logs)
-    battle._damage_enemy(bonus, logs)
+    battle._deal_damage(bonus, logs)
 
 
 # ================= 4.5 玩家增益技能效果（_skill_buff effect 分支注册表） =================

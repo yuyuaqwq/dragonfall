@@ -68,7 +68,7 @@ CORE_RESOURCES = {
         "focus": {
             "enter_turn": 1,            # 进入占 1 刻（施放「元素聚焦/深度冥想」开启技，当刻不出伤）
             "dmg_bonus": 0.40,          # 架设中魔法技能伤害 +40%（乘区挂 pmult 连乘，受 SKILL_PMULT_CAP=6.0 封顶）
-            "taken_bonus": 0.20,        # 架设中受击伤害 +20%（走 _damage_player 惩罚分支，同熔核之心 reduce_all<0 先例）
+            "taken_bonus": 0.20,        # 架设中受击伤害 +20%（走 _damage_actor 惩罚分支，同熔核之心 reduce_all<0 先例）
             "max_turns": 3,             # 维持上限 3 刻（时间过载自动解除）
             "free_exit": True,          # 主动解除免费、无损、不占行动（同狂战士「免费切换」承重墙）
             "no_burst_skills": True,    # 架设中不能普攻/技能/换系（元素跃迁视为换系被拦）；可「防御」「使用 <道具>」

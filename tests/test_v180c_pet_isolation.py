@@ -70,7 +70,7 @@ async def main():
             b.enemy.setdefault("debuffs", {})["hunt_mark"] = 5
         st = b._player_stats(p)
         dmg = BT.E.calc_damage(int(st["atk"] * 1.0), b._enemy_stats().get("def", 0))
-        b._damage_enemy(dmg, [], attacker=p)
+        b._deal_damage(dmg, [], attacker=p)
         return 999999 - b.enemy["hp"]
 
     N = 40

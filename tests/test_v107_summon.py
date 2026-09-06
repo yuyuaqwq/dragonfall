@@ -147,7 +147,7 @@ async def main():
         hp5 = p5["hp"]
         b5.summons[0]["hp"] = 500
         logs5 = []
-        b5._damage_player(p5, 100, logs5)
+        b5._damage_actor(p5, 100, logs5)
         if any("挡下" in l for l in logs5):
             found = True
             check(f"挡刀生效（seed {seed}）", p5["hp"] == hp5, f"player hp {p5['hp']}")
@@ -178,7 +178,7 @@ async def main():
     for i in range(50):  # 反复打直到挡刀触发
         random.seed(10 + i)
         logs6 = []
-        b6._damage_player(p6, 100, logs6)
+        b6._damage_actor(p6, 100, logs6)
         if not b6.summons:
             break
     check("挡刀致死移除", len(b6.summons) == 0, f"summons {len(b6.summons)}")

@@ -75,7 +75,7 @@ def _bonus_dmg_apply(battle, player, cd, logs, tag, name):
         cd = battle._boss_dmg_filter(cd, player, logs)
     except Exception:
         pass
-    battle._damage_enemy(cd, logs)
+    battle._deal_damage(cd, logs)
     logs.append(f"{tag} {name}！追加 {cd} 点伤害！")
     return cd
 
@@ -137,7 +137,7 @@ def action_counter(battle, player, logs, *, atk_pct=0.60, tag="⚔️", name="�
         cd = battle._boss_dmg_filter(cd, player, logs)
     except Exception:
         pass
-    battle._damage_enemy(cd, logs)
+    battle._deal_damage(cd, logs)
     logs.append(f"{tag} {name}！对【{battle.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
     return cd
 

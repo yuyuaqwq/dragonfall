@@ -244,7 +244,7 @@ def test_engine_hooks():
         _init_res(b2)
         b2._p_res()["rage"] = 10
         with mock.patch.object(BT.random, "random", return_value=0.99):
-            b2._damage_player(p2, 50, [])
+            b2._damage_actor(p2, 50, [])
         s2 = sum(int(v.get("value", 0) or 0) for v in (b2._p_shields_bag() or {}).values())
         check("满怒受击：受击 on_hit 怒 +1 溢出 → 出盾 5（怒气仍 10）",
               b2._p_res().get("rage") == 10 and s2 == 5,

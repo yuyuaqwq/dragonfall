@@ -435,7 +435,7 @@ def smoke_wild_hunter():
     p["hp"] = p["max_hp"]
     b.resources["hunt_mark"] = 0
     logs = []
-    b._damage_player(p, 100, logs)
+    b._damage_actor(p, 100, logs)
     check("星语猎手受击不再 +1 猎印", b.resources.get("hunt_mark", 0) == 0, f"{b.resources.get('hunt_mark')}")
     # 命中渠道保留（普攻命中攒印）
     b, p = new_battle("cls_wild_hunter", 0, 0)
@@ -447,7 +447,7 @@ def smoke_wild_hunter():
     p["hp"] = p["max_hp"]
     b.resources["rage"] = 0
     logs = []
-    b._damage_player(p, 50, logs)
+    b._damage_actor(p, 50, logs)
     check("战士受击回怒保持 +1", b.resources.get("rage", 0) >= 1, f"rage={b.resources.get('rage')}")
 
 
@@ -472,7 +472,7 @@ def smoke_item_consumers():
     b._reduce_all_left = 2
     logs = []
     hp_before = p["hp"]
-    b._damage_player(p, 100, logs)
+    b._damage_actor(p, 100, logs)
     lost = hp_before - p["hp"]
     check("熔核负值减伤：受损 +20%(120)", lost >= 115, f"lost={lost} hp={p['hp']} logs={logs}")
     # 正向 reduce_all 不被覆盖（团队技能减伤 ×0.9 保持）
@@ -482,7 +482,7 @@ def smoke_item_consumers():
     b.p_buffs["reduce_all"] = 0.5
     b._reduce_all_left = 2
     logs = []
-    b._damage_player(p, 100, logs)
+    b._damage_actor(p, 100, logs)
     lost = p["max_hp"] - p["hp"]
     check("正向 reduce_all 仍减伤(50%→50)", lost <= 55 and lost > 0, f"lost={lost}")
     # 澎湃烈酒 phys_up：物理伤害 +5%，回合制持续 buff 普攻后仍在

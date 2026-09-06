@@ -459,7 +459,7 @@ def _c_stealth(battle, player, cond):
 # 被动技能 passive.cond 判定统一走本注册表（原 battle.py 三处 if/elif 硬编码）：
 #   - _player_stats 属性被动（rage>=5 / hp_low_50 / hp_high_70 / battle_start）
 #   - _player_skill 伤害倍率被动（dual_stat）
-#   - _damage_player 减伤被动（hp_low_30：条件不满足则跳过减伤）
+#   - _damage_actor 减伤被动（hp_low_30：条件不满足则跳过减伤）
 # 签名：fn(battle, player, ps) -> bool（ps=被动 dict，含 cond/stat/mult/reduce 等），
 # 返回该条件是否满足。新增被动条件 = 一处注册 + skills.py 数据声明，battle.py 零改动。
 PASSIVE_COND_CHECKS = {}
@@ -530,7 +530,7 @@ def _pc_dual_stat(battle, player, ps):
 
 # 属性被动（_player_stats stat 加成）可消费的条件键白名单：
 # dual_stat（伤害倍率被动，_player_skill 消费）与 hp_low_30（受击减伤被动，
-# _damage_player 消费）由各自站点消费，不在 _player_stats 的 stat 循环内判定
+# _damage_actor 消费）由各自站点消费，不在 _player_stats 的 stat 循环内判定
 # （dual_stat 的 handler 内部会再调 _player_stats，若在此循环内求值将无限递归）。
 PASSIVE_COND_STAT_KEYS = frozenset(("rage>=5", "hp_low_50", "hp_high_70", "battle_start"))
 

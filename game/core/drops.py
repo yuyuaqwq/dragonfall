@@ -448,7 +448,7 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
         # v176 敌方 AI 配置（MONSTER_MODS 可配 ai: {skill_chance/weights}；无则引擎回落全局——见 _enemy_turn）
         "ai": mod.get("ai") if mod.get("ai") else None,
         # v177 actor-agnostic：怪物防御/承伤扩展字段透传（引擎 _enemy_mitigate/_monster_dodge_check 已支持读，
-        # 此前 build_monster 未透传导致 MONSTER_MODS 配了不生效；on_taken 为受击钩子，见 _damage_enemy）
+        # 此前 build_monster 未透传导致 MONSTER_MODS 配了不生效；on_taken 为受击钩子，见 _deal_damage）
         "dodge": float(mod.get("dodge", 0) or 0),
         "block": float(mod.get("block", 0) or 0),
         "phys_reduce": float(mod.get("phys_reduce", 0) or 0),

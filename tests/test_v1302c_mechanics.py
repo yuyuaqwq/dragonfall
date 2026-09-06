@@ -272,7 +272,7 @@ def test_six_affixes():
                             equipment=mk_eq(mk_piece(["combo_ward"], quality="purple")))
         b2._p_stacks()["combo"] = 5
         with mock.patch.object(BT.random, "random", return_value=0.0):
-            b2._damage_player(p2, 50, [])
+            b2._damage_actor(p2, 50, [])
         check("受击链路：连段护持生效（连段保留）", b2._p_stacks().get("combo") == 5,
               f"combo={b2._p_stacks().get('combo')}")
     except (AttributeError, TypeError) as ex:
@@ -343,18 +343,18 @@ def test_sets_sample():
         b._p_res()["faith"] = 10
         logs = []
         with mock.patch.object(BT.random, "random", return_value=0.99):
-            b._damage_player(p, 50, logs)
+            b._damage_actor(p, 50, logs)
         check("满信仰首次受击免伤（hp 不变）", p["hp"] == 400 and b._set_immune_used is True,
               f"hp={p['hp']} immune={b._set_immune_used}")
         check("免伤日志（圣典·日冕结界）",
               any("免伤" in l or "圣典" in l for l in logs), f"{logs}")
         with mock.patch.object(BT.random, "random", return_value=0.99):
-            b._damage_player(p, 50, [])
+            b._damage_actor(p, 50, [])
         check("每战 1 次：第二击正常掉血", p["hp"] < 400, f"hp={p['hp']}")
         b2, p2 = new_battle("cls_mu_shi", 0, 0, equipment=eq)
         b2._p_res()["faith"] = 5
         with mock.patch.object(BT.random, "random", return_value=0.99):
-            b2._damage_player(p2, 50, [])
+            b2._damage_actor(p2, 50, [])
         check("不满信仰不触发免伤（cond=faith_full）",
               p2["hp"] < 400 and b2._set_immune_used is False, f"hp={p2['hp']}")
     except (AttributeError, TypeError) as ex:

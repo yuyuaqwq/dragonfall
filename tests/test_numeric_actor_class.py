@@ -68,7 +68,7 @@ def test_class_actor_panel_and_identity():
     m["max_hp"] = 500
     m.setdefault("buffs", {})["mon_atk_up"] = 5
     logs = []
-    r = b._damage_enemy(100, logs)
+    r = b._deal_damage(100, logs)
     check("怪被打扣血 >0", r > 0, f"r={r}")
     # 怪自身 buffs 仍在自己容器（没被玩家 atk_up=99 污染）
     check("怪 buffs 保留自身", m.get("buffs", {}).get("mon_atk_up") == 5, str(m.get("buffs")))
