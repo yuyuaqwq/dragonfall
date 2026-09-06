@@ -5,6 +5,7 @@ from ..data import (
     MONSTER_ROLE_BASE, MONSTER_ROLE_GROWTH, QUALITY,
     NORMAL_HP_STAGE_MULT, BOSS_ATK_STAGE_MULT,   # v156 阶段 6 怪物数值修复
     INSTANCE_BOSS_ATK_STAGE_MULT,  # v173.1 副本 Boss atk 段乘区（area=instance）
+    FORMULA_SKELETON,  # P2F-1 底层公式骨架参数（exp_to_next 兜底 / monster_exp / monster_gold）
 )  # v102.5 模板表下沉 data/stat_templates.py
 
 
@@ -249,22 +250,28 @@ _EXP_TABLE = {
 
 def exp_to_next(level: int) -> int:
     """升到下一级所需经验（v169.1 成长模型：5 级锚点指数插值全表驱动，查表 O(1)。
-    中活跃度玩家约 9~10 个月满级；超出 100 级兜底旧公式不崩）"""
-    return _EXP_TABLE.get(level, int(60 * max(level, 0) ** 1.45 + 50))
+    中活跃度玩家约 9~10 个月满级；超出 100 级兜底旧公式不崩）
+    P2F-1：兜底幂函数系数进 data/formula_skeleton.py（FORMULA_SKELETON["exp_fallback"]）"""
+    _fb = FORMULA_SKELETON["exp_fallback"]
+    return _EXP_TABLE.get(level, int(_fb["base"] * max(level, 0) ** _fb["power"] + _fb["add"]))
 
 def monster_exp(lv: int, role: str) -> int:
     """怪物经验公式（v28 校准：base 下调，配合等级差惩罚）
     v56.2：怪 hp 变肉后经验同步补偿（×hp_mult^0.7，30 级约 ×1.8）
-    v131：战斗拉长补偿 ×1.5（2026-08-27 拍板，27 章附章七同步）"""
+    v131：战斗拉长补偿 ×1.5（2026-08-27 拍板，27 章附章七同步）
+    P2F-1：0.9/1.5/0.7 斜率系数进 data/formula_skeleton.py（FORMULA_SKELETON["monster_exp"]）"""
+    _me = FORMULA_SKELETON["monster_exp"]
     base = MONSTER_EXP_BASE[role]
-    exp = int(base * (1 + lv * 0.9))
-    return int(exp * 1.5 * (hp_stage_mult(lv) ** 0.7))
+    exp = int(base * (1 + lv * _me["linear_slope"]))
+    return int(exp * _me["combat_len_mult"] * (hp_stage_mult(lv) ** _me["hp_pow"]))
 
 
 def monster_gold(lv: int, role: str) -> int:
     """怪物金币公式(v56.2：同步补偿 ×hp_mult^0.5)
-    v131：战斗拉长补偿 ×1.3（2026-08-27 拍板，27 章附章七同步）"""
+    v131：战斗拉长补偿 ×1.3（2026-08-27 拍板，27 章附章七同步）
+    P2F-1：0.6/1.3/0.5 斜率系数进 data/formula_skeleton.py（FORMULA_SKELETON["monster_gold"]）"""
+    _mg = FORMULA_SKELETON["monster_gold"]
     base = MONSTER_GOLD_BASE[role]
-    gold = int(base * (1 + lv * 0.6))
-    return int(gold * 1.3 * (hp_stage_mult(lv) ** 0.5))
+    gold = int(base * (1 + lv * _mg["linear_slope"]))
+    return int(gold * _mg["combat_len_mult"] * (hp_stage_mult(lv) ** _mg["hp_pow"]))
 

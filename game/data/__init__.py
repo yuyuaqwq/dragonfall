@@ -232,6 +232,7 @@ from .stat_templates import (  # noqa: F401  (v102.5 从 core/stats.py 下沉)
     NORMAL_HP_STAGE_MULT, BOSS_ATK_STAGE_MULT,  # v156 阶段 6 怪物/Boss 数值修复
     INSTANCE_BOSS_ATK_STAGE_MULT,  # v173.1 副本 Boss atk 段乘区（area=instance 消费）
 )
+from .formula_skeleton import FORMULA_SKELETON  # noqa: F401  (P2F-1 底层公式骨架参数：F2/F3/F4/F7/F9/F15/F16)
 
 # 依赖顺序：maps 依赖 classes 等 → 在最后装配派生表/索引
 from . import _assembly  # noqa: F401,E402  (执行 build_index 等)
