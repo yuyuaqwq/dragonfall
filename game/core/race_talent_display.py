@@ -89,17 +89,19 @@ def _d_heal_received(v, name):
 
 @register("berserk_hp")
 def _d_berserk_hp(v, name):
-    # v105 P3(M01)：倍率取自 battle.RACE_BERSERK_MULT（原硬编码 +20%，调 battle 倍率会文案失配）
-    from ..battle import RACE_BERSERK_MULT
-    pct = round((RACE_BERSERK_MULT - 1) * 100)
+    # v181.D（P1-D）：倍率读 data/races.py RACE_ATTACK_MULT（原从 battle 反向 import，
+    # 随 battle 常量下沉改读数据单源；调值只改 races.py，本展示与 battle 结算自动同步）
+    from ..data.races import RACE_ATTACK_MULT
+    pct = round((RACE_ATTACK_MULT["berserk"] - 1) * 100)
     return f"{name} 残血攻＋{pct}%"
 
 
 @register("timid_hp")
 def _d_timid_hp(v, name):
-    # v105 P3(M01)：倍率取自 battle.RACE_TIMID_MULT（原硬编码 -10%，调 battle 倍率会文案失配）
-    from ..battle import RACE_TIMID_MULT
-    pct = round((1 - RACE_TIMID_MULT) * 100)
+    # v181.D（P1-D）：倍率读 data/races.py RACE_ATTACK_MULT（原从 battle 反向 import，
+    # 随 battle 常量下沉改读数据单源；调值只改 races.py，本展示与 battle 结算自动同步）
+    from ..data.races import RACE_ATTACK_MULT
+    pct = round((1 - RACE_ATTACK_MULT["timid"]) * 100)
     return f"🔻{name} 残血攻－{pct}%"
 
 
@@ -172,3 +174,22 @@ def _d_craft_bonus(v, name):
 @register("explore_item")
 def _d_explore_item(v, name):
     return f"{name} 探索物品+{int(v*100)}%"
+
+
+# ============ v181.D 引擎结算标签键（不参与玩家可见天赋展示） ============
+# 以下键为 battle._race_attack_mult 结算标签用（数据驱动），非玩家天赋：注册返回 None
+# 使其在『种族』/面板展示中静默隐藏（format_talent 未知键会打告警日志，需显式注册占位）。
+
+@register("berserk_tag")
+def _d_berserk_tag(v, name):
+    return None
+
+
+@register("timid_tag")
+def _d_timid_tag(v, name):
+    return None
+
+
+@register("first_hit_tag")
+def _d_first_hit_tag(v, name):
+    return None
