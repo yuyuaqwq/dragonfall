@@ -287,7 +287,7 @@ def _t_tenacity(battle, player, ctx, logs):
             del player.setdefault('buffs', {})[random.choice(neg)]
             # v135 哑词条激活·坚韧增强：免疫负面成功后 回复 3% 最大生命（铁壁意志）
             _heal = max(1, int(player.get("max_hp", 1) * float(_affix_effect("tenacity_cc").get("heal_pct", 0.03))))
-            player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + _heal)
+            battle._heal_actor(player, _heal, logs)  # v180E 统一落地
             logs.append(f"💪 坚韧！免疫了负面效果，回复 {_heal} 点生命")
 
 
@@ -513,7 +513,7 @@ def _sp_heal_hp(battle, player, dmg, logs, params: dict):
     """proc_heal_hp：概率回血 %max_hp
     params: chance, heal_pct"""
     heal = int(player.get("max_hp", 1) * float(params.get("heal_pct", 0.05)))
-    player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+    battle._heal_actor(player, heal, logs)  # v180E 统一落地
     tag = params.get("tag", "🌳")
     logs.append(f"{tag} {params.get('name', '回血')}！回复 {heal} 点生命！")
 
@@ -532,7 +532,7 @@ def _sp_lifesteal(battle, player, dmg, logs, params: dict):
     params: chance, lifesteal_pct"""
     heal = int(dmg * float(params.get("lifesteal_pct", 0.15)))
     if heal > 0:
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        battle._heal_actor(player, heal, logs)  # v180E 统一落地
         tag = params.get("tag", "🌑")
         logs.append(f"{tag} {params.get('name', '吸血')}！汲取 {heal} 点生命！")
 
@@ -634,7 +634,7 @@ def _sp_purify_heal(battle, player, dmg, logs, params: dict):
         tag = params.get("tag", "⚖️")
         logs.append(f"{tag} {params.get('name', '净化')}！净化 1 个负面效果！")
     heal = int(player.get("max_hp", 1) * float(params.get("heal_pct", 0.04)))
-    player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+    battle._heal_actor(player, heal, logs)  # v180E 统一落地
     tag = params.get("tag", "⚖️")
     logs.append(f"{tag} {params.get('name', '净化')}！回复 {heal} 点生命！")
 
@@ -866,7 +866,7 @@ def _taken_counter(battle, player, dmg, logs, params: dict):
 def _taken_heal(battle, player, dmg, logs, params: dict):
     """taken_heal：受击概率回血（tie_shou_blood）"""
     heal = int(player.get("max_hp", 1) * float(params.get("heal_pct", 0.03)))
-    player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+    battle._heal_actor(player, heal, logs)  # v180E 统一落地
     tag = params.get("tag", "🩸")
     logs.append(f"{tag} {params.get('name', '受击回血')}！回复 {heal} 点生命！")
 
@@ -947,7 +947,7 @@ def _h_oath_sword(battle, player, dmg, logs):
     if "oath_sword" in battle._equip_affix_ids(player):
         if getattr(battle, "_last_crit", False):
             heal = int(player.get("max_hp", 1) * float(_affix_effect("oath_sword").get("heal_pct", 0.02)))
-            player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+            battle._heal_actor(player, heal, logs)  # v180E 统一落地
             logs.append(f"🗡️ 誓约之刃！暴击回复 {heal} 点生命！")
 
 
@@ -1023,7 +1023,7 @@ def _h_soul_devourer(battle, player, dmg, logs):
     """噬魂者：15% 将 6% 伤害转生命"""
     if "soul_devourer" in battle._equip_affix_ids(player) and random.random() < _affix_chance("soul_devourer", 0.15):
         heal = int(dmg * float(_affix_effect("soul_devourer").get("heal_pct", 0.06)))
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        battle._heal_actor(player, heal, logs)  # v180E 统一落地
         logs.append(f"👻 噬魂者！汲取 {heal} 点生命！")
 
 
@@ -1035,7 +1035,7 @@ def _t_blood_oath_echo(battle, player, ctx, logs):
     if "blood_oath_echo" in battle._equip_affix_ids(player) and random.random() < _affix_chance("blood_oath_echo", 0.20):
         eff = _affix_effect("blood_oath_echo")
         heal = int(player.get("max_hp", 1) * float(eff.get("heal_pct", 0.02)))
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        battle._heal_actor(player, heal, logs)  # v180E 统一落地
         player.setdefault('eff', {})["atk_up"] = float(eff.get("atk_up", 0.10))
         logs.append(f"🩸 血誓回响！回复 {heal} 点生命，下次攻击 +10%！")
 
@@ -1045,7 +1045,7 @@ def _t_night_watch(battle, player, ctx, logs):
     """长夜守望（长夜徽记）：受击 5% 回复 1% 最大生命"""
     if "night_watch" in battle._equip_affix_ids(player) and random.random() < _affix_chance("night_watch", 0.05):
         heal = int(player.get("max_hp", 1) * float(_affix_effect("night_watch").get("heal_pct", 0.01)))
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        battle._heal_actor(player, heal, logs)  # v180E 统一落地
         logs.append(f"🌙 长夜守望！回复 {heal} 点生命！")
 
 
@@ -1065,7 +1065,7 @@ def _ts_night_prayer(battle, player, logs):
     """夜祷（夜祷兜帽）：每刻回复 3% 最大生命"""
     if "night_prayer" in battle._equip_affix_ids(player) and player.get("hp", 0) < player.get("max_hp", 1):
         heal = int(player.get("max_hp", player.get("hp", 1)) * float(_affix_effect("night_prayer").get("pct", 0.03)))
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        battle._heal_actor(player, heal, logs)  # v180E 统一落地
         logs.append(f"🙏 夜祷！回复 {heal} 点生命！")
 
 
@@ -1099,7 +1099,7 @@ def _t_steady_core(battle, player, ctx, logs):
         for k in ("stun", "freeze", "spd_down"):
             player.setdefault('buffs', {}).pop(k, None)
         heal = int(player.get("max_hp", 1) * float(eff.get("heal_pct", 0.03)))
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        battle._heal_actor(player, heal, logs)  # v180E 统一落地
         logs.append(f"⛰️ 磐石之心！免疫控制，回复 {heal} 点生命！")
 
 
@@ -1122,7 +1122,7 @@ def _ts_life_spring(battle, player, logs):
     """生命泉涌（D2）：每刻回 3% 最大生命"""
     if "life_spring" in battle._equip_affix_ids(player) and player.get("hp", 0) < player.get("max_hp", 1):
         heal = int(player.get("max_hp", player.get("hp", 1)) * float(_affix_effect("life_spring").get("pct", 0.03)))
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        battle._heal_actor(player, heal, logs)  # v180E 统一落地
         logs.append(f"🌊 生命泉涌！回复 {heal} 点生命！")
 
 
@@ -1181,7 +1181,7 @@ def _h_siphon(battle, player, dmg, logs):
     """汲力（D2）：攻击 20% 概率回复 5% 最大生命"""
     if "siphon" in battle._equip_affix_ids(player) and random.random() < _affix_chance("siphon", 0.20):
         heal = int(player.get("max_hp", 1) * 0.05)
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        battle._heal_actor(player, heal, logs)  # v180E 统一落地
         logs.append(f"🌀 汲力！回复 {heal} 点生命！")
 
 
@@ -1315,7 +1315,7 @@ def _h_shadow_raid(battle, player, dmg, logs):
         logs.append(f"{tag}！追击 {cd} 点伤害！")
     heal = int(player.get("max_hp", player.get("hp", 1)) * float(eff.get("lifesteal", 0.02)))
     if heal > 0:
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        battle._heal_actor(player, heal, logs)  # v180E 统一落地
         logs.append(f"{tag}：回复 {heal} 点生命！")
 
 

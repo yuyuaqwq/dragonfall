@@ -17,7 +17,7 @@ def action_regen_hp(battle, player, logs, *, pct=0.01, label="回春"):
     """回复 玩家 max_hp × pct 生命（原 affix regen / food 树蜜糖）。"""
     if player.get("hp", 0) < player.get("max_hp", 1):
         heal = int(player.get("max_hp", player.get("hp", 1)) * float(pct))
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        battle._heal_actor(player, heal, logs)  # v180E 统一落地
         logs.append(f"🌿 {label}生效，回复 {heal} 点生命！")
 
 
@@ -147,6 +147,6 @@ def action_lifesteal(battle, player, dmg, logs, *, heal_pct=0.08, label="吸血"
     if dmg <= 0:
         return 0
     heal = max(1, int(dmg * float(heal_pct)))
-    player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+    battle._heal_actor(player, heal, logs)  # v180E 统一落地
     logs.append(f"🩸 {label}：回复 {heal} 点生命！")
     return heal

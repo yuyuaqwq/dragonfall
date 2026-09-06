@@ -243,8 +243,9 @@ def _th_set_heal(battle, actor, eff, logs):
         pct = 0.05 if eff_name == "regen" else 0.08
         if actor.get("hp", 0) < actor.get("max_hp", 1):
             heal = int(actor.get("max_hp", actor.get("hp", 1)) * pct)
-            actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + heal)
-            return [f"✨ 套装祝福生效，你回复了 {heal} 点生命！"], True
+            _hlog = []
+            battle._heal_actor(actor, heal, _hlog)  # v180E 统一落地（禁疗/受疗日志进 _hlog）
+            return [f"✨ 套装祝福生效，你回复了 {heal} 点生命！"] + _hlog, True
         return [], True
     except Exception:
         return [], False
@@ -258,8 +259,9 @@ def _th_rune_regen(battle, actor, eff, logs):
             return [], False  # 附魔消失 → 通道关闭
         if actor.get("hp", 0) < actor.get("max_hp", 1):
             heal = int(actor.get("max_hp", actor.get("hp", 1)) * C.rune_value("regen", regen_lvl))
-            actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + heal)
-            return [f"✨ 符文治愈生效，你回复了 {heal} 点生命！"], True
+            _hlog = []
+            battle._heal_actor(actor, heal, _hlog)  # v180E 统一落地
+            return [f"✨ 符文治愈生效，你回复了 {heal} 点生命！"] + _hlog, True
         return [], True
     except Exception:
         return [], False
@@ -341,14 +343,14 @@ def _th_passive_heal(battle, actor, eff, logs):
         for _pn, _ps in _th:
             if actor.get("hp", 0) < actor.get("max_hp", 1):
                 heal = int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("pct", 0.02)))
-                actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + heal)
+                battle._heal_actor(actor, heal, out)  # v180E 统一落地
                 out.append(f"🍃 {_pn}生效，你回复了 {heal} 点生命！")
             break
         _tr = _pm.get("team_regen") or []
         for _pn, _ps in _tr:
             if actor.get("hp", 0) < actor.get("max_hp", 1):
                 heal = int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("mult", 0.05)))
-                actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + heal)
+                battle._heal_actor(actor, heal, out)  # v180E 统一落地
                 out.append(f"💧 {_pn}：生命之泉涌动，你回复了 {heal} 点生命！")
             break
         try:
@@ -479,7 +481,7 @@ def _th_faith_decay(battle, actor, eff, logs):
                 else:
                     out.append("✨ 信念·圣化：信念过载化为圣辉，无力竭反噬！")
                 if actor.get("hp", 0) < actor.get("max_hp", 1):
-                    actor["hp"] = min(actor.get("max_hp", 1), actor.get("hp", 0) + _ov_heal)
+                    battle._heal_actor(actor, _ov_heal, out)  # v180E 统一落地
                     out.append(f"✨ 过载回响：你回复了 {_ov_heal} 点生命！")
             elif _f_before > 0:
                 _f_decay = float(_crd_f.get("decay_per_tick", 0.7) or 0.7)
@@ -505,11 +507,11 @@ def _th_echo_heal(battle, actor, eff, logs):
             _heal_e *= 2
         out = []
         if actor.get("hp", 0) < actor.get("max_hp", 1):
-            actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + _heal_e)
+            battle._heal_actor(actor, _heal_e, out)  # v180E 统一落地
             out.append(f"🎵 回声余韵：全队恢复 {_heal_e} 点体力({echo_n} 层)")
         for _ally in (battle.allies or []):
             if isinstance(_ally, dict) and _ally.get("hp", 0) < _ally.get("max_hp", 1):
-                _ally["hp"] = min(_ally.get("max_hp", _ally.get("hp", 1)), _ally.get("hp", 0) + _heal_e)
+                battle._heal_actor(_ally, _heal_e, out)  # v180E 统一落地
         return out, True
     except Exception:
         return [], False
@@ -609,7 +611,7 @@ def _th_food_hot(battle, actor, eff, logs):
             gain = int(_mx_hp * _hpct)
             if gain > 0:
                 before = actor.get("hp", 0)
-                actor["hp"] = min(_mx_hp, before + gain)
+                battle._heal_actor(actor, gain, out)  # v180E 统一落地
                 out.append(f"🍲 持续恢复生效，恢复 {actor['hp'] - before} 点生命！({actor['hp']}/{_mx_hp})")
         if _mpct > 0 and actor.get("mp", 0) < _mx_mp:
             gain = int(_mx_mp * _mpct)
@@ -3558,7 +3560,7 @@ class Battle:
             msgs = []
             if hv > 0:
                 before = player["hp"]
-                player["hp"] = min(player.get("max_hp", player["hp"]), player["hp"] + hv)
+                self._heal_actor(player, hv, logs)  # v180E 统一落地
                 msgs.append(f"恢复 {player['hp'] - before} 点生命")
             if mv > 0:
                 before = player["mp"]
@@ -3621,7 +3623,7 @@ class Battle:
                 heal = max(1, int(heal * (1 + rr)))
             if heal > 0:
                 before = player["hp"]
-                player["hp"] = min(player.get("max_hp", player["hp"]), player["hp"] + heal)
+                self._heal_actor(player, heal, logs)  # v180E 统一落地
                 logs.append(f"💊 你使用了战斗道具，恢复 {player['hp'] - before} 点生命！({player['hp']}/{player['max_hp']})")
             else:
                 logs.append("💊 你使用了战斗道具！")
@@ -3656,7 +3658,7 @@ class Battle:
             gain = int(max_hp * h["heal"])
             if gain > 0:
                 before = player.get("hp", 0)
-                player["hp"] = min(max_hp, before + gain)
+                self._heal_actor(player, gain, logs)  # v180E 统一落地
                 logs.append(f"🍲 持续恢复生效，恢复 {player['hp'] - before} 点生命！({player['hp']}/{max_hp})")
         if h.get("mana"):
             gain = int(max_mp * h["mana"])
@@ -4442,7 +4444,7 @@ class Battle:
         heal = int(dmg * rate)
         if heal <= 0:
             return
-        player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
+        self._heal_actor(player, heal, logs)  # v180E 统一落地
         logs.append(f"🩸 吸血：回复 {heal} 点生命！")
 
     def _resource_on_attack(self, player: dict, is_crit: bool = False):
@@ -4623,7 +4625,7 @@ class Battle:
         ls_lvl = self._enchant_lvl(effs, "lifesteal")
         if ls_lvl and dmg > 0:
             heal = int(dmg * C.rune_value("lifesteal", ls_lvl))
-            player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
+            self._heal_actor(player, heal, logs)  # v180E 统一落地
             logs.append(f"🩸 符文吸血：回复 {heal} 点生命！")
         # 连锁：x% 概率额外雷击 y% 攻击伤害
         chain_lvl = self._enchant_lvl(effs, "chain")
@@ -4746,7 +4748,7 @@ class Battle:
             if eff == "heal_pct":
                 _pct = float(cfg.get("value", 0.05) or 0.05)
                 _heal = int(e.get("max_hp", 1) * _pct)
-                e["hp"] = min(e.get("max_hp", 1), e.get("hp", 0) + _heal)
+                self._heal_actor(e, _heal, logs)  # v180E 统一落地
                 logs.append(f"💚 【{e.get('name', 'Boss')}】吸取爪牙残魂，回复 {_heal} 点生命！")
                 return True
             if eff == "atk_up":
@@ -4844,10 +4846,10 @@ class Battle:
             return
         hp = int(eff.get("hp", 30) or 30)
         if player.get("hp", 0) < player.get("max_hp", 1):
-            player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + hp)
+            self._heal_actor(player, hp, logs)  # v180E 统一落地
         for _ally in (self.allies or []):
             if isinstance(_ally, dict) and _ally.get("hp", 0) < _ally.get("max_hp", 1):
-                _ally["hp"] = min(_ally.get("max_hp", _ally.get("hp", 1)), _ally.get("hp", 0) + hp)
+                self._heal_actor(_ally, hp, logs)  # v180E 统一落地
         logs.append(f"🌞 圣典·日冕：神迹余晖笼罩全队，恢复 {hp} 点体力！")
 
     def _set_skill_dmg_mult(self, player: dict, info: dict, kind: str, skill_name: str) -> float:
@@ -5760,7 +5762,7 @@ class Battle:
             heal = int(total * E.skill_lifesteal_pct(info, lv))
             if self._cast_buffs().get("mortal_wound"):  # v1.3 重伤：技能吸血减半
                 heal = int(heal * 0.5)
-            player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
+            self._heal_actor(player, heal, logs)  # v180E 统一落地
             logs.append(f"💉 『{skill_name}』汲取了 {heal} 点生命！")
         # v2.0 破防（pierce 数据字段）：直接给敌方降防
         if info.get("pierce") and self._tgt().get("hp", 0) > 0:
@@ -9988,14 +9990,14 @@ class Battle:
         if self._set_eff(actor, "tie_shou_blood", 4) and actor.get("hp", 0) > 0:
             if random.random() < 0.30:
                 _ts_heal = int(actor.get("max_hp", actor.get("hp", 1)) * 0.03)
-                actor["hp"] = min(actor.get("max_hp", actor.get("hp", 1)), actor.get("hp", 0) + _ts_heal)
+                self._heal_actor(actor, _ts_heal, logs)  # v180E 统一落地
                 logs.append(f"🩸 拳心回流：气血奔涌，回复 {_ts_heal} 点生命！")
         # v110.3 P2-9：被动·神圣坚韧——受击后按 chance 概率回复 pct 生命（数据驱动 dmg_taken_heal，替代名字硬匹配）
         if actor["hp"] > 0:
             for _pn, _ps in self._passive_map(actor)["proc"].get("dmg_taken_heal", []):
                 if random.random() < float(_ps.get("chance", 0.2)):
                     heal = int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("pct", 0.05)))
-                    actor["hp"] = min(actor.get("max_hp", actor["hp"]), actor["hp"] + heal)
+                    self._heal_actor(actor, heal, logs)  # v180E 统一落地
                     logs.append(f"✨ {_pn}：回复 {heal} 点生命！")
 
     def _actor_stats_of(self, actor: dict) -> dict:
@@ -10063,7 +10065,7 @@ class Battle:
                             _cd_hl = int(_ot_h.get("cd", 2) or 2)
                             if _last_hl is None or self._tick_no() - int(_last_hl or 0) >= _cd_hl:
                                 _hl = max(1, int(actor.get("max_hp", 1) * _hp))
-                                actor["hp"] = min(actor.get("max_hp", actor.get("hp", 0)), actor.get("hp", 0) + _hl)
+                                self._heal_actor(actor, _hl, logs)  # v180E 统一落地
                                 actor["_ot_heal_tick"] = self._tick_no()
                                 logs.append(f"🩹 【{_tn}】受击回血 +{_hl}！")
                         # 受击加攻（复仇：atk/matk +pct，turns 刻，绝对 tick 自管理）

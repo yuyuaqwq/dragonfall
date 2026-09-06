@@ -668,7 +668,7 @@ def _b_heal(battle, logs, e, r):
     if r > 1 and r % 4 == 0 and e.get("healed_round") != r:
         e["healed_round"] = r
         heal = int(e.get("max_hp", 1) * 0.08)
-        e["hp"] = min(e.get("max_hp", 1), e.get("hp", 0) + heal)
+        battle._heal_actor(e, heal, logs)  # v180E 统一落地
         logs.append(f"💚【{e['name']}】汲取力量，恢复了 {heal} 点生命！")
 
 
@@ -917,7 +917,7 @@ def _mb_def_up(battle, logs, sname):
 def _mb_heal_self(battle, logs, sname):
     """自我恢复 15% 生命"""
     heal = int(battle.enemy.get("max_hp", 1) * 0.15)
-    battle.enemy["hp"] = min(battle.enemy.get("max_hp", 1), battle.enemy.get("hp", 0) + heal)
+    battle._heal_actor(battle.enemy, heal, logs)  # v180E 统一落地
     logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，恢复了 {heal} 点生命！")
 
 
@@ -1972,7 +1972,7 @@ def _m_zhan_yi_cash(battle, mval, p_mech, total, logs, skill_name, is_crit, info
     p_mech["zhan_yi"] = stacks - mval
     player = getattr(battle, "_last_player", None) or battle.player or {}
     heal = int(player.get("max_hp", 1) * 0.20)
-    player["hp"] = min(player.get("max_hp", 1), player.get("hp", 0) + heal)
+    battle._heal_actor(player, heal, logs)  # v180E 统一落地
     logs.append(f"🧘 冷静！消耗 {mval} 层战意，回复 {heal} 点生命！")
     for k in list(battle._cast_buffs().keys()):
         if k not in ("atk_up", "def_up", "spd_up"):
@@ -2009,7 +2009,7 @@ def _m_faith_unload(battle, mval, p_mech, total, logs, skill_name, is_crit, info
     player.setdefault('resources', {})["faith"] = faith - mval
     player = getattr(battle, "_last_player", None) or battle.player or {}
     heal = int(player.get("max_hp", 1) * 0.15)
-    player["hp"] = min(player.get("max_hp", 1), player.get("hp", 0) + heal)
+    battle._heal_actor(player, heal, logs)  # v180E 统一落地
     logs.append(f"🕊️ 卸负！信念 -{mval}，回复 {heal} 点生命！")
 
 

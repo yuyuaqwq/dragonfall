@@ -141,11 +141,11 @@ def _apply_dot(battle, key: str, stacks: int, pct: float, turns: int, logs, sour
 
 
 def _heal_player(battle, player, amount: int, logs, source: str = "💚"):
-    """治疗玩家（clamp 到 max_hp）。"""
+    """治疗玩家（clamp 到 max_hp，v180E 统一走 _heal_actor——吃 target 禁疗/受疗）。"""
     if amount <= 0:
         return 0
     before = player.get("hp", 0)
-    player["hp"] = min(player.get("max_hp", player.get("hp", 1)), before + amount)
+    battle._heal_actor(player, amount, logs)
     healed = player["hp"] - before
     if healed > 0:
         logs.append(f"{source} 回复 {healed} 点生命！")
