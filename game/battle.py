@@ -52,6 +52,8 @@ from .core.constants import (  # v130.7 意见#28：逃跑成功率修正常量�
     CAST_ATK, CAST_SKILL, CAST_ITEM, CAST_FOOD, CAST_DEFEND, CAST_FLEE, CAST_PET_SKILL,
 )
 from .core.tick_effects import TICK_HANDLERS as _TICK_HANDLERS  # v179 通用 tick 效果注册表（数据驱动）
+# v181.P2D-D1 被动 proc 注册表（proc → 机制族 handler + 分发；无注册 = 不触发）
+from .core.passive_procs import run_proc_family as _run_proc_family  # noqa: F401
 from .data.races import (  # v181.D P1-D 种族机制数据下沉（原模块级常量/标签内联 → data 单源）
     RACE_ATTACK_MULT as _RACE_ATTACK_MULT,
     UNDEAD_KEYWORDS as _UNDEAD_KEYWORDS,
@@ -4807,13 +4809,18 @@ class Battle:
 
     def _poison_cap(self, player: dict) -> int:
         """毒层上限：基础 5（MECH_STACK_MAX poison=5 / battle_mech 叠层 min(5, ...)）+ 被动提升。
-        剧毒之心（游侠 poison_cap_up +3）/ 淬毒之心（刺客 poison_cap +3，最高 8）。"""
+        剧毒之心（游侠 poison_cap_up +3）/ 淬毒之心（刺客 poison_cap +3，最高 8）。
+        v181.P2D-D1：被动提升读注册表族 stack_cap_add（cap 基础 5 累加，封顶/下限保留原语义）。"""
         cap = 5
         pm = self._proc_pm(player)
         for _pn, _ps in pm["proc"].get("poison_cap_up", []):
-            cap += int(_ps.get("add", 3) or 3)
+            _ctx_cap = {"player": player, "ps": _ps, "ps_name": _pn, "cap": cap}
+            _run_proc_family(self, "poison_cap_up", _ctx_cap)
+            cap = _ctx_cap.get("cap", cap)  # handler 数值槽改写读回（cap int 不可变）
         for _pn, _ps in pm["proc"].get("poison_cap", []):
-            cap += int(_ps.get("add", 3) or 3)
+            _ctx_cap2 = {"player": player, "ps": _ps, "ps_name": _pn, "cap": cap}
+            _run_proc_family(self, "poison_cap", _ctx_cap2)
+            cap = _ctx_cap2.get("cap", cap)
         return max(5, min(cap, 8))
 
     def _shadow_dance(self, player: dict) -> bool:
@@ -5005,11 +5012,17 @@ class Battle:
         if self._p_buffs_bag().get("lifesteal_pot"):
             rate = 1 - (1 - rate) * (1 - 0.15)  # 嗜血药剂 +15% 吸血（乘算并入）
         # v169.7 淬血（战士攻线）：每层战意 +1.5% 吸血（数据驱动 proc zhan_yi_lifesteal）
+        # v181.P2D-D1：proc 消费迁移注册表族 lifesteal_add（读 _ps per_layer，行为零变化）
         try:
             _zy = self._zhan_yi_n()
             if _zy > 0:
                 for _pn, _ps in self._passive_map(player)["proc"].get("zhan_yi_lifesteal", []):
-                    rate = rate + float(_ps.get("per_layer", 0.015) or 0.015) * _zy
+                    _ctx_zy = {
+                        "player": player, "ps": _ps, "ps_name": _pn,
+                        "zhan_yi_n": _zy, "rate": rate,
+                    }
+                    _run_proc_family(self, "zhan_yi_lifesteal", _ctx_zy)
+                    rate = _ctx_zy.get("rate", rate)  # handler 数值槽改写读回（rate float 不可变）
                     break
         except Exception as _sw_e:
             _battle_warn('_settle_lifesteal', _sw_e)
@@ -5671,13 +5684,18 @@ class Battle:
             tags = list(tags) + race_tags
         # v169.7 疾风·极 speed_ratio_dmg（游侠）：速度比 ≥2.0 时所有伤害 ×1.2
         # （读实时敌方速度；敌方无速度键时按 0 防御性跳过，不误触）
+        # v181.P2D-D1：proc 消费迁移注册表族 dmg_mult_cond（读 _ps ratio/dmg_add，行为零变化）
         try:
             _pst_spd = max(0.001, float((self._player_stats(player) or {}).get("spd", 0) or 0))
             _est_spd = float((self._enemy_stats() or {}).get("spd", 0) or 0)
             for _pn_sr, _ps_sr in self._proc_pm(player)["proc"].get("speed_ratio_dmg", []):
-                if _est_spd > 0 and _pst_spd / _est_spd >= float(_ps_sr.get("ratio", 2.0) or 2.0):
-                    mult *= 1.0 + float(_ps_sr.get("dmg_add", 0.20) or 0.20)
-                    tags = list(tags) + [f"💨疾风x{round(1 + float(_ps_sr.get('dmg_add', 0.20) or 0.20), 2)}"]
+                _ctx_sr = {
+                    "player": player, "ps": _ps_sr, "ps_name": _pn_sr,
+                    "pst_spd": _pst_spd, "est_spd": _est_spd, "mult": mult, "tags": tags,
+                }
+                _run_proc_family(self, "speed_ratio_dmg", _ctx_sr)
+                mult = _ctx_sr.get("mult", mult)   # handler 数值槽改写读回（mult float 不可变）
+                tags = _ctx_sr.get("tags", tags)
                 break
         except Exception as _sw_e:
             _battle_warn('_player_dmg_mult', _sw_e)
@@ -9895,12 +9913,17 @@ class Battle:
             return False
         cur = [s for s in self.summons if s.get("tid") == tid]
         # v169.7 骷髅海 skeleton_cap（牧师死灵线）：骷髅上限 +2（至 5 只）——同模板召唤上限提升
+        # v181.P2D-D1：proc 消费迁移注册表族 summon_cap_add（读 _ps cap/add，行为零变化）
         _summon_limit = int(tmpl.get("limit", 3))
         try:
             if tid == "skeleton":
                 for _pn_sk, _ps_sk in self._proc_pm(player)["proc"].get("skeleton_cap", []):
-                    _summon_limit = min(int(_ps_sk.get("cap", 5) or 5),
-                                        _summon_limit + int(_ps_sk.get("add", 2) or 2))
+                    _ctx_sk = {
+                        "player": player, "ps": _ps_sk, "ps_name": _pn_sk,
+                        "limit": _summon_limit,
+                    }
+                    _run_proc_family(self, "skeleton_cap", _ctx_sk)
+                    _summon_limit = _ctx_sk.get("limit", _summon_limit)  # handler 数值槽改写读回
                     break
         except Exception as _sw_e:
             _battle_warn('_summon_entity', _sw_e)
@@ -10126,17 +10149,17 @@ class Battle:
                     _battle_warn('_remove_unit', _sw_e)
                     pass
                 # v169.7 追风 focus_full_on_kill（游侠）：击杀目标后 专注(精力)立即回满
+                # v181.P2D-D1：proc 消费迁移注册表族 on_kill_refill（行为零变化）
                 try:
                     for _pn_k, _ps_k in self._proc_pm(self.player)["proc"].get("focus_full_on_kill", []):
                         if self._p_res().get("energy") is not None:
-                            _max_e = self._res_max(self.player, "energy")
-                            _old_e = int(self._p_res().get("energy", 0) or 0)
-                            self._p_res()["energy"] = _max_e
-                            # v180G B7-fix：logs 未定义导致整段被吞（原回满逻辑在 append 前已执行，
-                            # 但日志丢失）——改为追加到 _pending_dmg_lines（战斗日志池，存在才追加）
-                            _kl = getattr(self, "_pending_dmg_lines", None)
-                            if isinstance(_kl, list):
-                                _kl.append(f"💨 {_pn_k}：击杀！专注回满（{_old_e} → {_max_e}）")
+                            _ctx_k = {
+                                "player": self.player, "ps": _ps_k, "ps_name": _pn_k,
+                                "res": self._p_res(), "res_key": "energy",
+                                "res_max": self._res_max(self.player, "energy"),
+                                "pending_dmg_lines": getattr(self, "_pending_dmg_lines", None),
+                            }
+                            _run_proc_family(self, "focus_full_on_kill", _ctx_k)
                         break
                 except Exception as _sw_e:
                     _battle_warn('_remove_unit', _sw_e)
