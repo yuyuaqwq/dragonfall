@@ -10,10 +10,9 @@
 - limit：同类型并存上限（亡灵骷髅海可叠 3，植物藤蔓守卫 2）
 - bodyguard：挡刀概率（敌人攻击时由召唤物承受的概率）
 
-v180E 审计（低危 B2）：eats_aoe 字段当前语义静默——玩家/敌方 AOE 均直接结算目标
-本体（玩家 AOE 打敌阵 `_aoe_damage`→select_aoe_targets；敌方 AOE 打玩家
-`_damage_actor`→_guard_check 只拦单体），召唤物面对 AOE 不额外承担伤害。字段保留
-（v151 意图：未来 AOE 分摊系统用），勿误以为当前生效。
+v180F 清3（2026-09-07）：eats_aoe 已接线——敌方 AOE 技能（地狱火等 aoe=all）现在
+对目标 side 全体结算，_player_side_aoe_pool 把 eats_aoe=True 的随从（前排挡刀型）纳入
+AOE 目标池（v151 意图落地：藤蔓守卫/古树守卫吃 AOE）；hidden/untargetable 宠物不吃。
 
 v113 调整：游侠攻线改为自然系「林语者」后，召唤下放基础职业——
 兽群流（幼狼→狼王→影狼进化链）随隐藏线收敛删除，新增植物召唤（数量流）：

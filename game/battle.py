@@ -6233,12 +6233,33 @@ class Battle:
             total = 0
         else:
             aoe = info.get("aoe")
-            if aoe and not self._tgt_is_player():
-                # v114/v2 AOE：结构语义化 scope（True→"all"），技能 reach 覆盖职业 reach，falloff 衰减
+            if aoe:
+                # v180F 清3 设计修正：AOE = 选目标（front/all）+ 逐目标结算，方向由
+                # 施法目标决定（不再写死 not _tgt_is_player——怪施法 AOE 打玩家侧也走这里）
                 scope = "all" if aoe is True else str(aoe)
                 self._aoe_reach = int(info.get("reach") or 3)
                 self._aoe_falloff = float(info.get("aoe_falloff", 1.0) or 1.0)
-                _boss_dmg = self._aoe_damage(total, logs, scope, source=skill_name)
+                if self._tgt_is_player():
+                    # 怪 AOE 打玩家侧：对玩家 side 全体存活 actor（player + allies）逐目标
+                    # 走 _deal_hit（复用玩家承伤链；野外单玩家 = 单目标无差）
+                    _pl_pool = self._player_side_aoe_pool()
+                    if len(_pl_pool) <= 1:
+                        _boss_dmg = self._deal_hit(total, logs, source=skill_name)
+                    else:
+                        _acc = 0
+                        _saved_tgt = self._target_ctx
+                        for _t in _pl_pool:
+                            if not _t or _t.get("hp", 0) <= 0:
+                                continue
+                            self._target_ctx = _t
+                            try:
+                                _acc += int(self._deal_hit(total, logs, source=skill_name) or 0)
+                            except Exception:
+                                continue
+                        self._target_ctx = _saved_tgt
+                        _boss_dmg = _acc
+                else:
+                    _boss_dmg = self._aoe_damage(total, logs, scope, source=skill_name)
             else:
                 # v136 等级压制：_damage_enemy 内部按等级差压制实际伤害，返回值=真实扣血，
                 # 回写 total 让后续日志/吸血/结算都反映压制后的值（原 total 未回写→日志虚高）
@@ -9033,6 +9054,28 @@ class Battle:
         except Exception:
             pass
         return False
+
+    def _player_side_aoe_pool(self) -> list:
+        """v180F 清3：玩家侧 AOE 目标池——敌方 AOE 打玩家时选谁。
+
+        野外 = [self.player]（单目标）；副本 = player + allies 存活（与 _pick_enemy_target
+        目标池一致）。随从：hidden/untargetable（隐身宠物/纯挡刀）不进池；eats_aoe=True 的
+        随从（藤蔓守卫/古树守卫等前排挡刀）进池（v151 设计意图：它们吃 AOE）。
+        """
+        pool = []
+        _pl = getattr(self, "player", None) or {}
+        if _pl.get("hp", 0) > 0 and (_pl.get("class_name") or _pl.get("qq_id") or _pl.get("name")):
+            pool.append(_pl)
+        for _a in (getattr(self, "allies", None) or []):
+            if _a is _pl:
+                continue  # 焦点已在上面
+            if _a.get("hp", 0) > 0:
+                pool.append(_a)
+        # eats_aoe 随从（前排挡刀型召唤物吃 AOE；hidden/untargetable 宠物不吃）
+        for _c in (getattr(self, "companions", None) or []):
+            if _c.get("hp", 0) > 0 and _c.get("eats_aoe") and not _c.get("hidden") and not _c.get("untargetable"):
+                pool.append(_c)
+        return pool or ([_pl] if _pl else [])
 
     def _aoe_damage(self, dmg: int, logs: list, scope: str = "all", source=None) -> int:
         """v2 AOE 多目标结算（§5）：对 select_aoe_targets 每个目标独立走完整伤害链。

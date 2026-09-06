@@ -138,6 +138,26 @@ async def main():
     check("命令层读写同步到 sides（同引用）", _sp.get("hp") == 4321,
           f"sides player hp={_sp.get('hp')}")
 
+    # 7. 敌方 AOE（清3）：地狱火（aoe=all）打玩家侧多人 → 对全员结算（允许目标闪避）
+    boss = {"name": "炎魔", "hp": 20000, "max_hp": 20000, "atk": 100, "matk": 300,
+            "def": 80, "mdef": 60, "spd": 10, "lv": 50, "role": "boss",
+            "buffs": {}, "debuffs": {}, "skills": ["ms_di_yu_huo"], "skill_chance": 1.0}
+    pA = dict(p); pA["qq_id"] = "A"; pA["name"] = "战士A"
+    pB = dict(p); pB["qq_id"] = "B"; pB["name"] = "法师B"
+    # 屏蔽闪避（monkeypatch 固定不闪）→ 验证 AOE 打两人都结算扣血
+    _orig_dodge = _BT.Battle._roll_dodge
+    _BT.Battle._roll_dodge = lambda self, actor, logs: False
+    b8 = _BT.Battle("monster", dict(boss), player=pA, allies=[pB])
+    b8._now = 0.1
+    import random as _r8
+    _r8.seed(3)
+    b8._enemy_turn(pA, b8.enemies[0])
+    b8._process_until(b8._now + 5, [], pA)
+    _BT.Battle._roll_dodge = _orig_dodge
+    check("敌方 AOE 打多人（全员结算扣血）",
+          pA.get("hp", 8000) < 8000 and pB.get("hp", 8000) < 8000,
+          f"A={pA.get('hp')} B={pB.get('hp')}")
+
     print(f"\n===== 结果: {passed} 通过, {failed} 失败 =====")
     return 0 if failed == 0 else 1
 

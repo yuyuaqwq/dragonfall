@@ -201,8 +201,8 @@ MONSTER_SKILLS = {
         "kind": "魔法",
         "formula": [{'stat': 'matk', 'mult': 2.2, 'type': 'magi'}],
         "power": 2.2,
-        # v125.1 P2 TODO：aoe 字段在敌方技能路径无消费端（_enemy_turn 单目标结算不读 aoe），
-        # 待 battle.py 侧接线 AOE 结算后方可承诺"全场"；desc 暂不承诺。
+        # v180F 清3（原 v125.1 TODO）：aoe 字段已由 _player_skill 管线消费——敌方 AOE 技能
+        # 对目标 side 全体存活 actor 结算（野外单玩家=单目标；副本/怪vs怪=打全阵营）。
         "aoe": "all",
         "desc": "地狱火，地狱烈焰灼烧敌人",
         "name": "地狱火",
@@ -452,8 +452,8 @@ MONSTER_SKILLS = {
         "kind": "魔法",
         "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
-        # v125.1 P2 TODO：aoe 字段在敌方技能路径无消费端（_enemy_turn 单目标结算不读 aoe），
-        # 待 battle.py 侧接线 AOE 结算后方可承诺"全场"；desc 暂不承诺。
+        # v180F 清3（原 v125.1 TODO）：aoe 字段已由 _player_skill 管线消费——敌方 AOE 技能
+        # 对目标 side 全体存活 actor 结算（野外单玩家=单目标；副本/怪vs怪=打全阵营）。
         "aoe": "all",
         "desc": "火炮，轰击敌人",
         "name": "火炮",
@@ -470,8 +470,8 @@ MONSTER_SKILLS = {
         "kind": "魔法",
         "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
-        # v125.1 P2 TODO：aoe 字段在敌方技能路径无消费端（_enemy_turn 单目标结算不读 aoe），
-        # 待 battle.py 侧接线 AOE 结算后方可承诺"全场"；desc 暂不承诺。
+        # v180F 清3（原 v125.1 TODO）：aoe 字段已由 _player_skill 管线消费——敌方 AOE 技能
+        # 对目标 side 全体存活 actor 结算（野外单玩家=单目标；副本/怪vs怪=打全阵营）。
         "aoe": "all",
         "desc": "火焰，烈焰灼烧敌人",
         "name": "火焰",
