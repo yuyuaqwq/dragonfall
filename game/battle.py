@@ -3426,7 +3426,10 @@ class Battle:
                         # v154 敌方对称读条：敌方出招读条结束 → 命中结算
                         e_unit = ev.get("unit") or {}
                         if e_unit.get("hp", 0) > 0:
-                            mlogs, dmg = self._enemy_cast_done(player, e_unit, ev)
+                            # v180F B5：结算目标 = 排程时选定的 target（怪vs怪打敌对怪），
+                            # 无 target（旧战斗/兼容路径）回落 player 参数
+                            _tgt = ev.get("target") or player
+                            mlogs, dmg = self._enemy_cast_done(_tgt, e_unit, ev)
                             logs += mlogs
                             # v163：敌方读条结算完成 → 清单位读条状态（防 from_state 重复补排）
                             e_unit.pop("_cast", None)
@@ -3445,7 +3448,12 @@ class Battle:
                                     pass
                                 dmg = max(1, int(round(dmg * (1.0 - _dr))))
                                 self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
-                            self._damage_player(player, dmg, logs, source=e_unit.get("name", "敌人"))
+                            # v180F B5：目标 actor 化扣血——目标是玩家走 _damage_player，
+                            # 目标是怪/随从走 _damage_actor（怪vs怪伤害真正落目标）
+                            if _tgt and _tgt is not player and self.side_of(_tgt) and self.side_of(_tgt) != "player":
+                                self._damage_actor(_tgt, dmg, logs, source=e_unit.get("name", "敌人"))
+                            else:
+                                self._damage_player(_tgt or player, dmg, logs, source=e_unit.get("name", "敌人"))
                             # v154 打断：玩家读条中受到控制（眩晕/冻结/沉默）→ 打断读条
                             if self._player_casting and dmg > 0:
                                 _ctrl = any(k in self._p_buffs_bag() for k in ("stun", "freeze", "silence"))
@@ -7097,7 +7105,15 @@ class Battle:
         logs = []
         # v116.1 反制/追击瞬态标记
         self._clear_reactive_flags(e)
-        pst = self._player_stats(player)
+        # v180F B5：目标面板按 side 路由——目标是玩家走 _player_stats，怪/随从走 _enemy_stats
+        try:
+            _tgt_side = self.side_of(player)
+        except Exception:
+            _tgt_side = "player" if (player or {}).get("class_name") else "enemy"
+        if _tgt_side and _tgt_side != "player":
+            pst = self._enemy_stats(player)
+        else:
+            pst = self._player_stats(player)
         est = self._enemy_stats()
         dmg = 0
         _kind = ev.get("kind", "atk")
@@ -7146,16 +7162,52 @@ class Battle:
         )
         dmg = int(_d0)
         dmg = max(1, int(dmg * _lpm))
-        _pst_pr = self._player_stats(player)
+        # v180F B5：目标 actor 化——目标面板按 side 路由（玩家走 _player_stats，怪走 _enemy_stats）
+        try:
+            _tgt_side = self.side_of(player)
+        except Exception:
+            _tgt_side = "player" if (player or {}).get("class_name") else "enemy"
+        if _tgt_side and _tgt_side != "player":
+            _pst_pr = self._enemy_stats(player)
+        else:
+            _pst_pr = self._player_stats(player)
         pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
         if pr > 0:
             red = max(1, int(dmg * pr))
             dmg = max(1, dmg - red)
             logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
+        # v180F B5：文案用目标名（怪vs怪不再错误显示"攻击你"）
+        _tgt_disp = (player or {}).get("name", "") if (player or {}).get("name") else ""
         self._pending_dmg_lines.append(
-            f"【{ename}】攻击你，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
+            f"【{ename}】攻击{_tgt_disp or '你'}，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
         dmg += self._reactive_extra_attack(e, pst, logs)
         return logs, dmg
+
+    def _pick_hostile_target(self, unit: dict) -> dict | None:
+        """v180F B5：通用敌对目标选择——从 unit 的敌对阵营选一个存活 actor。
+
+        规则：取 unit.side 的敌对 side 列表；优先选第一个有存活 actor 的敌对 side
+        的存活目标（按 rank 前排优先）。无玩家战斗（怪vs怪）时敌对 = 另一阵营。
+        副本/野外（unit 在 enemy side）→ 敌对 = player side（玩家/队友）。
+        返回目标 actor dict；无可用目标返回 None。
+        """
+        try:
+            _side = self.side_of(unit) or "enemy"
+            _hostile = self.hostile_sides(_side)
+            if not _hostile:
+                # 兜底：没有 side 体系（旧战斗）→ 玩家侧为目标
+                return getattr(self, "player", None) or {}
+            for _hs in _hostile:
+                _pool = (self.sides or {}).get(_hs) or []
+                # 前排优先：rank 小者先；存活过滤
+                _alive = [a for a in _pool if a.get("hp", 0) > 0]
+                if not _alive:
+                    continue
+                _alive.sort(key=lambda a: int(a.get("rank", 1) or 1))
+                return _alive[0]
+            return None
+        except Exception:
+            return getattr(self, "player", None) or {}
 
     def _enemy_turn(self, player: dict, unit=None) -> tuple:
         """敌方单个单位行动。返回 (日志列表, 对玩家伤害)。
@@ -7173,12 +7225,21 @@ class Battle:
         eb = e.setdefault("buffs", {})
         ename = e.get("name", "怪物")
         logs = []
-        # v173.6 副本多目标重构：battle 带 _st + allies（全存活玩家快照引用）时，
-        # 敌方本次行动的目标玩家由 battle 自行决策（读 monster_mods target_policy：
-        #   hate_top 点名仇恨最高 / random / weakest / backline 打后排 / front 前排），
-        # 不再依赖 instance 预选单目标——为点名/打后排/AOE 多目标结算铺路。
-        # 野外/单人无 _st/allies → player 原样（传入即目标）。
-        if self._st and self.allies and player:
+        # v173.6 副本多目标重构 + v180F B5 通用敌对目标：目标 actor 决策。
+        # 优先级：
+        #  ① 自定义 side（怪vs怪等无玩家战斗）→ _pick_hostile_target 从敌对阵营选
+        #  ② 副本（battle 带 _st + allies）→ 按 target_policy 从 allies 选（原逻辑）
+        #  ③ 野外/单人 → player 原样（传入即目标）
+        _e_side = self.side_of(e)
+        if _e_side and _e_side != "player" and _e_side != "enemy":
+            # 自定义敌对阵营（怪vs怪/多阵营混战）：从敌对 side 选目标
+            _t = self._pick_hostile_target(e)
+            if _t is not None and _t.get("hp", 0) > 0:
+                player = _t
+            else:
+                # 敌对全灭 → 无目标（应由战斗流程层判胜利）
+                return logs, 0
+        elif self._st and self.allies and player:
             _q_src = str(player.get("qq_id") or "")
             if _q_src and not (self._st.get("alive") or {}).get(_q_src, True):
                 # 原目标已死（instance 旧逻辑可能传已倒玩家）→ 重新选
@@ -7189,6 +7250,11 @@ class Battle:
                 _picked = self._pick_enemy_target(e)
                 if _picked is not None:
                     player = _picked
+        elif _e_side == "enemy" and not player:
+            # 敌方无玩家目标（野外构造异常/测试）→ 敌对 player side 若有成员则选
+            _t = self._pick_hostile_target(e)
+            if _t is not None and _t.get("hp", 0) > 0:
+                player = _t
         # v2：本次敌方行动目标 = 该单位（_enemy_stats 默认按 _active_target 解析单位属性；
         # 兼容测试 monkeypatch 的 1 参 _enemy_stats）
         self._active_target = e
@@ -7418,12 +7484,14 @@ class Battle:
                 _cast_t = _cast_t or (CAST_SKILL * self._ct_cost(est.get("spd", 0)))
                 self._schedule_cast_done(self._now + _cast_t,
                                          {"side": "e", "unit": e, "kind": "skill",
-                                          "skill": skill, "power_mult": power})
+                                          "skill": skill, "power_mult": power,
+                                          "target": player})
                 logs.append(f"⚔️ 【{ename}】正在施展【{sname}】！(出招 {_cast_t:.1f}s)")
                 # v163 敌方读条持久化：命中参数写入单位 dict（随 enemies 序列化），
                 # from_state 恢复时补排 cast_done——野外/副本一套代码，读条伤害跨消息不丢。
+                # v180F B5：目标 actor 一并写入（怪vs怪打敌对目标结算用）
                 e["_cast"] = {"hit_at": self._now + _cast_t, "kind": "skill",
-                              "skill": skill, "power_mult": power}
+                              "skill": skill, "power_mult": power, "target": player}
                 # 敌方读条后收招：ct = 命中时刻 + 收招（= 出手 + 总耗时）
                 self._after_actor_ct("e", e, cast_mult=_cast_t + _rec_t)
                 return logs, 0
@@ -7431,11 +7499,13 @@ class Battle:
         # 出招读条时长 = 普攻 cast（缺省 CAST_ATK），速度折算
         _cast_t, _rec_t = self._action_times("atk", spd=est.get("spd", 0))
         # v163 敌方读条持久化（同技能分支：普攻命中参数也随单位序列化）
-        e["_cast"] = {"hit_at": self._now + _cast_t, "kind": "atk"}
+        # v180F B5：目标 actor 一并写入（怪vs怪打敌对目标结算用）
+        e["_cast"] = {"hit_at": self._now + _cast_t, "kind": "atk", "target": player}
         _cast_t = _cast_t or (CAST_ATK * self._ct_cost(est.get("spd", 0)))
         self._schedule_cast_done(self._now + _cast_t,
-                                 {"side": "e", "unit": e, "kind": "atk"})
-        logs.append(f"⚔️ 【{ename}】挥爪扑向你！(出招 {_cast_t:.1f}s)")
+                                 {"side": "e", "unit": e, "kind": "atk", "target": player})
+        _tname = player.get("name", "你") if player else "你"
+        logs.append(f"⚔️ 【{ename}】挥爪扑向{_tname}！(出招 {_cast_t:.1f}s)")
         # 敌方读条后收招：ct = 命中时刻 + 收招（= 出手 + 总耗时）
         self._after_actor_ct("e", e, cast_mult=_cast_t + _rec_t)
         return logs, 0
