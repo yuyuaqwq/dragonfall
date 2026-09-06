@@ -468,6 +468,65 @@ class PlayerCmds(CommandBase):
             f"冒险者，你的故事开始了！"
         )
 
+    # v2026-09-07 QQ官方 bot 迁移：老玩家身份认领（openid ↔ QQ号 绑定）
+    # 官方 bot 只给 openid；老玩家在旧 bot(NapCat)用 QQ 号注册过角色。
+    # 『绑定身份 <QQ号> <角色名>』——校验角色名匹配该 QQ 号的老角色后，
+    # 把当前发送者 openid 绑到该 QQ 号，此后以老 QQ 身份游玩（等级/装备/金币全续接）。
+    # 防冒领：必须 QQ号+角色名 双对上；GM 可 gm_绑身份 直接绑。
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?绑定身份(?:[\s\S]*)$")
+    async def bind_identity(self, event: AstrMessageEvent):
+        from . import _identity
+        raw_sender = event.get_sender_id() or ""
+        # 已经是 QQ 号（旧平台或已映射）→ 无需绑定
+        if not _identity.is_openid(raw_sender):
+            group_id, qq_id = self._uid(event)
+            yield event.plain_result(
+                f"✅ 你当前的平台身份 {raw_sender} 已是 QQ 号，无需绑定～"
+                if _identity.is_qq_id(raw_sender)
+                else "⚠️ 当前消息没有识别到 openid，请确认是在新的官方 bot 上发送。"
+            )
+            return
+        args = self._strip_cmd(event, "绑定身份").split(maxsplit=2)
+        if len(args) < 2:
+            yield event.plain_result(
+                "📎 老玩家身份认领：『绑定身份 <QQ号> <角色名>』\n"
+                "例：『绑定身份 1454832774 鱼冻不冻阿』\n"
+                "绑定后你的等级/装备/金币会以老角色继续～\n"
+                "（需 QQ号+角色名 匹配验证，防冒领；不确定角色名可先问 GM）"
+            )
+            return
+        qq_target, name_target = args[0].strip(), args[1].strip()
+        if not _identity.is_qq_id(qq_target):
+            yield event.plain_result(f"❌ {qq_target} 不是合法 QQ 号～")
+            return
+        # 校验：该 QQ 号下的角色名是否匹配
+        hit = db.find_player_by_name(name_target)
+        if not hit:
+            yield event.plain_result(
+                f"❌ 没找到叫『{name_target}』的冒险者。\n"
+                f"检查角色名是否一致（含符号/空格）；若确实没有老角色，直接『注册』开新号即可。"
+            )
+            return
+        if str(hit.get("qq_id")) != qq_target:
+            yield event.plain_result(
+                f"❌ 『{name_target}』不是 QQ {qq_target} 的角色，绑定失败（防冒领）。\n"
+                f"确认你的老 QQ 号和角色名是否记错；仍无法绑定可找 GM 用 gm_绑身份 处理。"
+            )
+            return
+        # 双重校验：若目标 QQ 已有其他 openid 绑定，提示先解绑（避免一人多号混淆）
+        old_oid = _identity.qq_to_openid(qq_target)
+        if old_oid and old_oid != raw_sender:
+            yield event.plain_result(
+                f"⚠️ QQ {qq_target} 已被另一个 openid（{old_oid[:8]}…）绑定。\n"
+                f"如果你就是本人（换设备/重复绑定），找 GM 确认后处理，防止误绑。"
+            )
+            return
+        _identity.bind(raw_sender, qq_target)
+        yield event.plain_result(
+            f"✅ 绑定成功！你将以 QQ {qq_target} 的身份继续冒险～\n"
+            f"角色『{hit.get('name')}』的数据（等级/装备/金币/任务）已续接，输入『角色』查看！"
+        )
+
     # v105 M24 P3-2：『角色扮演』前缀误触 → 负向断言收窄（同源修复：角色卡/角色图等不误触）
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:角色|我的角色)(?!扮演)(?:\s*|$)")
     @require_player()
