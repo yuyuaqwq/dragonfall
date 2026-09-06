@@ -81,6 +81,39 @@ COMBO_REFLOW_*/BONE_RUSH_CFG/SHAKEN_CFG/CURSE_CFG/GUARD_CORE_CFG/ZEN_HOLD_CFG/MA
 ### P1-E 战斗入口/模式注册表化侦察（只读，不派）
 审计 25：btype 39+31 硬分派无注册表——改动面大，先只读侦察输出方案，不直接改（避免并行踩雷）。
 
+## P2 注册表收编（第二批，第一批 merge 后才开）
+
+### P2-A class_sets 表下沉 data（纯搬移零逻辑，风险最低，先做）
+现状（审计报告 1 §六）：core/class_sets.py `_SERIES_SET_BONUS` L20-157 = **9 系列+16 套具体套装全部数值与敌人关键词表**（橡木/铁港/圣光/霜狼/铁皮/精铁/百炼/学徒/符文/秘法/布衣/祝福/圣堂/猎手/风行/暗夜/轻影/夜行/行者/石拳/壁槌/护林/渡口/巡林/霜猎/龙裔 等），含 `class: cls_*` 职业绑定——这是整套 data/sets.py 同构的具体配置躺在 core。
+方案：
+1. 建 `game/data/set_bonus_data.py` 纯数据表（原值搬移）
+2. core/class_sets.py 删 `_SERIES_SET_BONUS` 内联表，从 data import；`_build_class_sets()` 装配器保留 core（或下沉 _assembly）
+3. 门禁 + commit：`v181.P2A class_sets 套装表下沉 data/set_bonus_data.py（纯搬移）`
+
+### P2-B battle.py 引擎常量 → core/constants.py（消除 core→battle 反向引用）
+现状（审计报告 1 §四/五）：weapon_effects.py L37 **顶层** `from ..battle import ACT_TICK` + battle_mech.py 六处函数内 `from ..battle import DEBUFF_TURNS/BUFF_TURNS`（L329/814/895/903/911/949）+ race_talent_display L93/101 取 RACE_*_MULT —— core → battle 反向 import 5+ 处。
+方案：
+1. ACT_TICK/SPD_CT_CAP/BASE_DELAY/BUFF_TURNS/DEBUFF_TURNS/RACE_*_MULT 等引擎刻度常量收进 core/constants.py
+2. weapon_effects.py L37 顶层反向引用删除（改从 constants import）——优先级最高
+3. battle.py 保留对外名字（`from .core.constants import ...`），battle 内引用不变
+4. 门禁 + commit
+
+### P2-C weapon_effects 79 key → 通用执行器 + 数值读表（weapon_effect_data 已建权威表）
+现状（审计报告 1 §三/六）：weapon_effects.py 1463 行 ~96 个 handler 全是具体特效装备名；docstring L25-29 自认"部分特效数值写在 special 文案，为可控实现，数值以本文档 handler 内 DEFAULT 为准"——**绕开数据层**。数值权威表 weapon_effect_data.py（130 行）已存在但未全接。
+⚠️ 此任务改动面大（1463 行文件重构），且直接触碰战斗特效行为——**单线做**，侦察产出"数值表 vs handler DEFAULT 差异清单"后逐族改。行为零变化铁律（数值有差异时以现状 handler 为准写进数据表，不改变行为）。
+
+### P2-D 被动 proc 反射化注册表（消灭 34 处散点 if）
+现状（审计报告 6 §七）：52 个 passive proc 中 34 个有引擎消费点，消费点**散在 battle.py 各挂点手工 if**（_passive_crit_bonus/_skill_passive_dmg_bonus/_deal_damage 等），12 个 proc 无消费点空转；加新被动类型须人工逐个接线。
+方案（仿 MECH_EFFECTS/affix formula 注册表模式）：
+1. core 建 `passive_procs.py` 注册表：proc 名 → handler（参数化：读 player 被动数据 + actor 上下文）
+2. battle.py 各挂点改为查注册表（消灭散点 if），无注册 = 不触发（"配置缺字段=无此行为"）
+3. 先出"52 proc → 34 消费点 → 12 空转"全量映射清单，逐个核对 handler 与原逻辑等价
+⚠️ 与 P1-C（被动乘区本地兜底）改动面重叠——**必须等 P1-C merge 后才开**。高风险，需配套行为快照测试（先黑盒后重构，见审计 21 建议）。
+
+### P2-E battle_config 职业命名 CFG → MECH_CFG 单表（消灭双源与死表）
+现状（审计报告 2 §四）：battle_config ~40 常量以职业/流派命名（BARD_BRANCHES 硬编码中文分支名、SHADOW_STEP_CFG、ECHO_CFG、COMBO_CFG 带 class_id 等）；~30 个零消费死表（AST 扫描 90 常量仅 7 被 import）；同一机制字段 classes.py/core_resources/battle_config 三处并存无双源权威。
+⚠️ 需先 AST 扫描核对"零消费"（数值可能以技能字段/注释硬编码在 skills.py/battle.py）。出清单给人确认再删。**侦察先行，改动单线**。
+
 ## 分批派工（文件所有权互斥）
 
 | 批次 | 子任务 | 所有权文件 | 风险 |
