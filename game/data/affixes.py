@@ -758,10 +758,10 @@ LEGENDARY_EFFECTS = {
         "effect": {"dmg_mult": 1.15, "enemy_role": "elite", "tag": "🏹猎首者"},
         "desc": "对精英敌人＋15% 伤害",
     },
-    "mortal_wound": {  # D2 致伤重击：攻击20%使目标受治疗-30%
+    "mortal_wound": {  # D2 致伤重击：攻击20%使目标受治疗-30%（heal_down 层=10%/刻，3层=30%）
         "name": "致伤重击", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
-        "effect": {"heal_down": 2},
-        "desc": "攻击 20% 使目标重伤：受治疗－30%（2 刻）",
+        "effect": {"heal_down": 3},
+        "desc": "攻击 20% 使目标重伤：受治疗－30%（3 刻）",
     },
     "arcane_echo": {  # D2 秘法回响：施放技能15%下次技能伤害+15%
         "name": "秘法回响", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
@@ -820,9 +820,9 @@ LEGENDARY_EFFECTS = {
         "effect": {"heal_pct": 0.02, "atk_up": 0.10},
         "desc": "受击 20%：回复 2% 最大生命，下次攻击＋10%",
     },
-    "sanctum_light": {  # D3-B 圣殿战锤：命中15%敌人攻击-8%（1 刻）
+    "sanctum_light": {  # D3-B 圣殿战锤：命中15%敌人攻击-8%（v180E 字段改引擎标准键 mon_atk_down）
         "name": "圣殿辉光", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
-        "effect": {"enemy_atk_down": 0.08, "turns": 1},
+        "effect": {"mon_atk_down_pct": 0.08, "turns": 1},
         "desc": "攻击命中 15%：敌人攻击－8%（1 刻）",
     },
     "ember_furnace": {  # D3-B 熔岩护手：命中20%灼烧1%×2 刻

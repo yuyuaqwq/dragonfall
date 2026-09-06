@@ -5093,6 +5093,14 @@ class Battle:
                 tags.append("📖力场")
             del self._p_buffs_bag()["arcane_field"]
             self._p_eff().pop("arcane_field", None)
+        # v180E 秘法回响（arcane_echo 词条）：下次技能伤害 +X%（一次性，任何 kind 技能消费）
+        if self._p_buffs_bag().get("arcane_echo"):
+            pct = float((self._p_eff() or {}).get("arcane_echo", 0) or 0)
+            if pct > 0:
+                mult *= 1.0 + pct
+                tags.append("🔮回响")
+            del self._p_buffs_bag()["arcane_echo"]
+            self._p_eff().pop("arcane_echo", None)
         return mult, tags
 
     def _affix_element_dmg(self, player: dict, element: str) -> float:
@@ -7964,7 +7972,13 @@ class Battle:
             # 混合公式 + Boss/精英百分比打折（目标侧 is_boss/is_elite）
             atk_part = _atk * _atk_parts[k] + _matk * _matk_parts[k]
             _dot_type = (DOT_DEFS.get(k) or {}).get("type", "flat")
-            _hp_part = max_hp * _hp_parts[k]
+            # v180E：支持 per-debuff pct 覆盖——handler 显式写 d.pct 时用它替代 DOT_DEFS
+            # 的 hp 系数（如词条"灼烧每刻 1.5%"真实生效）；未写则回落 DOT_DEFS 权威值。
+            _dpct = d.get("pct")
+            if _dpct is not None:
+                _hp_part = max_hp * float(_dpct)
+            else:
+                _hp_part = max_hp * _hp_parts[k]
             if _hp_part > 0 and _dot_type in ("pct", "hybrid"):
                 if e.get("is_boss") or e.get("role") == "boss" or e.get("is_elite"):
                     _hp_part *= DOT_BOSS_PCT_MULT
@@ -8538,7 +8552,7 @@ class Battle:
                 if k in ("fire_mark", "ice_mark", "thunder_mark"):
                     continue
                 # 一次性 buff：攻击消费，不在时刻递减
-                if k in ("next_atk_up", "buff_phys_next", "stealth"):
+                if k in ("next_atk_up", "buff_phys_next", "stealth", "arcane_echo", "oath_blade_next", "we_oath"):
                     continue
                 # reduce_all/shield：特殊语义，不按 int 递减
                 if k in ("reduce_all", "reduce", "shield"):

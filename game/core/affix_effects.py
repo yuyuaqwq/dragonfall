@@ -164,13 +164,22 @@ def _h_element_ice(battle, player, dmg, logs):
 @register(HIT_EFFECTS, "element_thunder")
 def _h_element_thunder(battle, player, dmg, logs):
     """元素附加·雷：5% 属性伤害
-    v135 哑词条激活·雷系增强：15% 概率追加一次 20% 雷伤小爆（感电连跳，玩家可感知）"""
+    v135 哑词条激活·雷系增强：15% 概率追加一次 20% 雷伤小爆（感电连跳，玩家可感知）
+    v180E 修复：附加段走 _boss_dmg_filter（原直接 _damage_enemy 绕过 Boss 护盾）。"""
     if "element_thunder" in battle._equip_affix_ids(player):
         ed = max(1, int(dmg * float(_affix_effect("element_thunder").get("pct", 0.05))))
+        try:
+            ed = battle._boss_dmg_filter(ed, player, logs)
+        except Exception:
+            pass
         battle._damage_enemy(ed, logs)
         logs.append(f"⚡ thunder属性附加 {ed} 点伤害！")
         if random.random() < _affix_chance("element_thunder", 0.15):
             sd = max(1, int(dmg * float(_affix_effect("element_thunder").get("thunder_bonus", 0.20))))
+            try:
+                sd = battle._boss_dmg_filter(sd, player, logs)
+            except Exception:
+                pass
             battle._damage_enemy(sd, logs)
             logs.append(f"⚡⚡ 感电连跳！追加 {sd} 点雷系伤害！")
 
@@ -184,6 +193,10 @@ def _h_chu_huo(battle, player, dmg, logs):
     eff = _affix_effect("chu_huo")
     pct = float(eff.get("pct", 0.08))
     ed = max(1, int(dmg * pct))
+    try:
+        ed = battle._boss_dmg_filter(ed, player, logs)  # v180E 绕盾修复
+    except Exception:
+        pass
     battle._damage_enemy(ed, logs)
     logs.append(f"🔥 初火余烬：火属性附加 {ed} 点伤害！")
     if random.random() < _affix_chance("chu_huo", 0.20):
@@ -953,11 +966,14 @@ def _h_oath_sword(battle, player, dmg, logs):
 
 @register(HIT_EFFECTS, "sanctum_light")
 def _h_sanctum_light(battle, player, dmg, logs):
-    """圣殿辉光（圣殿战锤）：15% 敌人攻击 -8%（1 刻）"""
+    """圣殿辉光（圣殿战锤）：15% 敌人攻击 -8%（1 刻）
+    v180E 修复：原写 enemy_atk_down/_enemy_atk_down_pct（引擎 0 消费）→ 改标准键
+    mon_atk_down/_weaken_val（_enemy_stats 消费，效果真实生效）。"""
     if "sanctum_light" in battle._equip_affix_ids(player) and random.random() < _affix_chance("sanctum_light", 0.15):
         eff = _affix_effect("sanctum_light")
-        battle.e_buffs["enemy_atk_down"] = max(battle.e_buffs.get("enemy_atk_down", 0), int(eff.get("turns", 1)))
-        battle.e_buffs["_enemy_atk_down_pct"] = float(eff.get("enemy_atk_down", 0.08))
+        battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), int(eff.get("turns", 1)))
+        battle.e_buffs["_weaken_val"] = max(float(battle.e_buffs.get("_weaken_val", 0) or 0),
+                                            float(eff.get("mon_atk_down_pct", 0.08)))
         logs.append("✨ 圣殿辉光！敌人攻击下降 8%！")
 
 
@@ -981,6 +997,10 @@ def _h_blazing_sun(battle, player, dmg, logs):
     if "blazing_sun" in battle._equip_affix_ids(player):
         eff = _affix_effect("blazing_sun")
         ed = max(1, int(dmg * float(eff.get("pct", 0.08))))
+        try:
+            ed = battle._boss_dmg_filter(ed, player, logs)  # v180E 绕盾修复
+        except Exception:
+            pass
         battle._damage_enemy(ed, logs)
         logs.append(f"🔥 烈日灼烧：火属性附加 {ed} 点伤害！")
         if random.random() < _affix_chance("blazing_sun", 0.15):
@@ -999,6 +1019,10 @@ def _h_deep_frost(battle, player, dmg, logs):
     if "deep_frost" in battle._equip_affix_ids(player):
         eff = _affix_effect("deep_frost")
         ed = max(1, int(dmg * float(eff.get("pct", 0.08))))
+        try:
+            ed = battle._boss_dmg_filter(ed, player, logs)  # v180E 绕盾修复
+        except Exception:
+            pass
         battle._damage_enemy(ed, logs)
         logs.append(f"❄️ 深寒：冰属性附加 {ed} 点伤害！")
         if random.random() < _affix_chance("deep_frost", 0.20):
@@ -1130,59 +1154,85 @@ def _ts_life_spring(battle, player, logs):
 
 @register(HIT_EFFECTS, "sun_blaze")
 def _h_sun_blaze(battle, player, dmg, logs):
-    """烈日迸发（D2）：攻击 15% 概率造成 80% 额外火伤"""
+    """烈日迸发（D2）：攻击 15% 概率造成 80% 额外火伤（v180E 绕盾修复）"""
     if "sun_blaze" in battle._equip_affix_ids(player) and random.random() < _affix_chance("sun_blaze", 0.15):
-        ed = max(1, int(dmg * 0.80))
+        eff = _affix_effect("sun_blaze")
+        ed = max(1, int(dmg * float(eff.get("pct", 0.80))))
+        try:
+            ed = battle._boss_dmg_filter(ed, player, logs)
+        except Exception:
+            pass
         battle._damage_enemy(ed, logs)
         logs.append(f"☀️ 烈日迸发！追加 {ed} 点火属性伤害！")
 
 
 @register(HIT_EFFECTS, "chain_overload")
 def _h_chain_overload(battle, player, dmg, logs):
-    """连锁过载（D2）：攻击 15% 概率追加 60% 魔攻雷击"""
+    """连锁过载（D2）：攻击 15% 概率追加 60% 魔攻雷击（v180E 绕盾修复）"""
     from ..engine import calc_damage
     if "chain_overload" in battle._equip_affix_ids(player) and random.random() < _affix_chance("chain_overload", 0.15):
         pst = battle._player_stats(player)
         est = battle._enemy_stats()
         cd = calc_damage(int(pst.get("matk", 0) * 0.60), est.get("mdef", est.get("def", 0)))
         if cd > 0:
+            try:
+                cd = battle._boss_dmg_filter(cd, player, logs)
+            except Exception:
+                pass
             battle._damage_enemy(cd, logs)
             logs.append(f"⚡ 连锁过载！追加 {cd} 点雷击伤害！")
 
 
 @register(HIT_EFFECTS, "mortal_wound")
 def _h_mortal_wound(battle, player, dmg, logs):
-    """致伤重击（D2）：攻击 20% 概率使目标受疗效果 -50%（2 刻）"""
+    """致伤重击（D2）：攻击 20% 概率使目标受疗 -30%（3 刻，v180E 对齐数据 desc：
+    原写 _anti_heal_pct=0.50 超出 desc 且无正确计时——heal_down 层×10% 引擎正确计时）。"""
     if "mortal_wound" in battle._equip_affix_ids(player) and random.random() < _affix_chance("mortal_wound", 0.20):
-        battle.e_buffs["_anti_heal_pct"] = 0.50
-        battle.e_buffs["anti_heal_turns"] = max(battle.e_buffs.get("anti_heal_turns", 0), 2)
-        logs.append("💢 致伤重击！目标受疗效果 -50%！")
+        eff = _affix_effect("mortal_wound")
+        battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), int(eff.get("heal_down", 3)))
+        logs.append("💢 致伤重击！目标受疗效果 -30%（3 刻）！")
 
 
 @register(HIT_EFFECTS, "memory_tear")
 def _h_memory_tear(battle, player, dmg, logs):
-    """记忆撕裂（D2）：攻击 15% 概率使敌人攻击 -15%（2 刻）"""
+    """记忆撕裂（D2）：攻击 15% 概率使敌人沉默 1 刻（v180E 对齐数据 desc：原误做降攻）。"""
     if "memory_tear" in battle._equip_affix_ids(player) and random.random() < _affix_chance("memory_tear", 0.15):
-        battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 2)
-        battle.e_buffs["_weaken_val"] = 0.15
-        logs.append("🧠 记忆撕裂！敌人攻击下降 15%！")
+        eff = _affix_effect("memory_tear")
+        battle.e_buffs["silence"] = max(battle.e_buffs.get("silence", 0), int(eff.get("silence", 1)))
+        logs.append("🧠 记忆撕裂！敌人被沉默，无法使用技能！")
 
 
 @register(HIT_EFFECTS, "arcane_echo")
 def _h_arcane_echo(battle, player, dmg, logs):
-    """秘法回响（D2）：攻击 15% 概率使下次技能伤害 +15%"""
+    """秘法回响（D2）：攻击 15% 概率使下次技能伤害 +15%
+    v180E 修复：原写 eff["arcane_echo_next"]=1.15（引擎 0 消费）→ 改标准一次性
+    增伤机制（p_buffs 标记 + p_eff 存增量，_consume_v169_buff_dmg 消费）。"""
     if "arcane_echo" in battle._equip_affix_ids(player) and random.random() < _affix_chance("arcane_echo", 0.15):
-        player.setdefault('eff', {})["arcane_echo_next"] = 1.15
+        eff = _affix_effect("arcane_echo")
+        _pb = battle._p_buffs_bag()
+        _pe = battle._p_eff()
+        _pb["arcane_echo"] = 1  # 时长标记（下次技能消费后清）
+        _pe["arcane_echo"] = max(float(_pe.get("arcane_echo", 0) or 0),
+                                 float(eff.get("next_skill_dmg", 0.15)))
         logs.append("🔮 秘法回响！下一次技能伤害 +15%！")
 
 
 @register(HIT_EFFECTS, "siphon")
 def _h_siphon(battle, player, dmg, logs):
-    """汲力（D2）：攻击 20% 概率回复 5% 最大生命"""
+    """汲魂（D2）：攻击 20% 概率驱散目标 1 层增益并回复 3% 最大生命
+    （v180E 对齐数据：原只回 5% 且没做驱散）。"""
     if "siphon" in battle._equip_affix_ids(player) and random.random() < _affix_chance("siphon", 0.20):
-        heal = int(player.get("max_hp", 1) * 0.05)
+        eff = _affix_effect("siphon")
+        # 驱散 1 层敌方增益（buff 优先清可驱散的正向 buff）
+        _eb = battle.e_buffs
+        for _pk in ("atk_up", "def_up", "spd_up", "matk_up", "mon_atk_up", "mon_def_up", "reduce_all", "shield"):
+            if _eb.get(_pk):
+                _eb.pop(_pk, None)
+                logs.append(f"🌀 汲魂！驱散了敌人的增益【{_pk}】！")
+                break
+        heal = int(player.get("max_hp", 1) * float(eff.get("heal_pct", 0.03)))
         battle._heal_actor(player, heal, logs)  # v180E 统一落地
-        logs.append(f"🌀 汲力！回复 {heal} 点生命！")
+        logs.append(f"🌀 汲魂！回复 {heal} 点生命！")
 
 
 @register(HIT_EFFECTS, "summon_pact")
