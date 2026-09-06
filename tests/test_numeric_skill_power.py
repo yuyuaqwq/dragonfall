@@ -68,8 +68,11 @@ def main():
                 check(f"{cid}({cn}) {tag} 存在", False, "PLAYER_SKILLS 无技能条目")
                 continue
             name = sel[1]
+            # v181 P0B-C：SKILL_UP key 已改稳定 id → p 从条目 name 匹配取值（语义不变）
+            _up_cfg = next((v for v in C.SKILL_UP.values()
+                            if isinstance(v, dict) and v.get("name") == name), {})
             got = (name, sel[0], sel[2].get("power", 0), sel[2].get("mp", 0),
-                   C.SKILL_UP.get(name, {}).get("p", 0))
+                   _up_cfg.get("p", 0))
             check(f"{cid}({cn}) {tag}『{name}』lv={exp[1]} power={exp[2]} mp={exp[3]} p={exp[4]}",
                   got == exp, f"got={got}")
             print(f"    {cn:6s} {tag}『{name}』 lv={got[1]} power={got[2]} mp={got[3]} p={got[4]}")

@@ -765,16 +765,47 @@ SKILL_MAX_LEVEL = 5          # 技能等级上限
 
 
 
+# v181 P0B-C：SKILL_UP key 已改稳定 id（见 game/data/skill_up.py 头注）。中文名→id 反查索引，
+# 懒构建缓存（SKILL_UP 条目 name 字段 = 技能中文名，构建期自检保证全局唯一）。
+_SKILL_UP_NAME_INDEX: dict | None = None
+
+
+def _skill_up_name_index() -> dict:
+    global _SKILL_UP_NAME_INDEX
+    if _SKILL_UP_NAME_INDEX is None:
+        _idx = {}
+        for _sid, _cfg in (C.SKILL_UP or {}).items():
+            _nm = _cfg.get("name") if isinstance(_cfg, dict) else None
+            if _nm and _nm not in _idx:  # 首个赢（自检已保证 name 唯一，防御性 setdefault）
+                _idx[_nm] = _sid
+        _SKILL_UP_NAME_INDEX = _idx
+    return _SKILL_UP_NAME_INDEX
+
+
 def _skill_up(info: dict | None) -> dict:
-    """按技能 info 查升级配置(key 用中文名)。
+    """按技能 info 查升级配置（v181 P0B-C：key 用稳定 id，不再用中文显示名）。
+
     v180 隔离：仅玩家可升级技能（带 lv 学习等级字段）参与 SKILL_UP 查表——
     怪技能（MONSTER_SKILLS，无 lv）即使 name 与玩家技能撞名（圣光弹/雷击/龙爪等 14 个）
-    也不会误配玩家成长曲线（v180 P4 删默认成长后，撞名怪技能曾吃到玩家同名配置 p=10~12）"""
+    也不会误配玩家成长曲线（v180 P4 删默认成长后，撞名怪技能曾吃到玩家同名配置 p=10~12）。
+
+    v181 P0B-C（方案 C，docs/REFACTOR_P0B_skill_up_dedup.md §4 Step2）：
+    SKILL_UP key 已从中文名改为稳定 id（基础/导师 = 技能表现存 sk_id；分支 = sk_br_<pinyin>），
+    每条条目带 name=中文名。skill_info 返回的 info 不带 id 字段（三表查询链只给 info dict），
+    故在此用 info['name'] 经『中文名→id』索引反查稳定 id 后按 id 查表；查不到（无配置/防御）
+    再回落 SKILL_UP.get(name)——data 层当前无中文 key，此处为兼容历史语义（将来若有人
+    把旧中文名当 key 塞回 SKILL_UP 不至于静默失效）。"""
     if not info:
         return {}
     if info.get("lv") is None:
         return {}
-    return C.SKILL_UP.get(info.get("name", "")) or {}
+    _name = info.get("name", "")
+    _sid = _skill_up_name_index().get(_name)
+    if _sid:
+        _hit = C.SKILL_UP.get(_sid)
+        if _hit is not None:
+            return _hit
+    return C.SKILL_UP.get(_name) or {}
 
 
 def skill_upgrade_cost(cur_lv: int, info: dict | None = None) -> int:
