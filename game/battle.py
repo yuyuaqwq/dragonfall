@@ -582,12 +582,34 @@ _TICK_HANDLERS["pet_act"] = _th_pet_act
 
 
 class Battle:
-    def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None, allies: list | None = None, st: dict | None = None, active_keys: list | None = None):
+    def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None, allies: list | None = None, st: dict | None = None, active_keys: list | None = None, sides: dict | None = None):
         self.btype = btype                 # monster | worldboss | pvp | instance（瞬态 Battle 结算器）
         self._st = st or {}                # v137 副本内聚状态引用（players/alive/p_defending/threat/taunt_*）
         # v158 副本合并：_inst_cb 副本回调钩子（instance 注入），敌方行动后/玩家行动后通知
         # 命令层同步血量/仇恨/贡献/房间状态。野外（不传 cb）为 None，零影响。
         self._inst_cb = (st or {}).get("_cb") if isinstance(st, dict) else None
+        # v180F v2.0 通用阵营入口：sides={"阵营名": [actor, ...]}。
+        # 提供时把 sides 映射到旧引擎容器（兼容中间态，最终引擎全走 sides）：
+        #   - sides 含 "player" → 第一个 actor 作 player 焦点，其余进 allies
+        #   - sides 其余阵营（任意名）→ 全进 enemies（各自带 side 字段保留阵营身份）
+        # 无 "player" key（怪vs怪等）→ 不设 player（None → 空 dict 占位）
+        if sides is not None:
+            _p_side = [dict(a) for a in (sides.get("player") or [])]
+            _others = []
+            for _sn, _acts in sides.items():
+                if _sn == "player":
+                    continue
+                for _a in _acts:
+                    _a = dict(_a)
+                    _a.setdefault("side", _sn)
+                    _a.setdefault("kind", "monster")
+                    _others.append(_a)
+            if _p_side:
+                player = player or _p_side[0]
+                if len(_p_side) > 1:
+                    allies = list(allies or []) + _p_side[1:]
+            if _others:
+                enemies = enemies or _others
         # v137 副本：btype="instance" 的 Battle 仅是命令层（instance.py）驱动的"瞬态结算器"——
         # 玩家行动 player_turn(enemy_act=False) + 序列化 type + allies ct 广播（_after_actor_ct 1393-1436）。
         # 副本战斗主循环（谁行动/敌方阶段/超时/换层）由命令层 instance.py 驱动，不在本引擎内调度。
@@ -866,6 +888,86 @@ class Battle:
             # 在玩家每次行动时结算（与旧时刻制"每玩家行动结算一次"一致），避免 DOT 重复结算。
         except Exception:
             pass
+        # v180F v2.0 通用阵营：播种 self.sides（sides 数据源 + 每 actor side 字段）。
+        # 现有引擎仍读 player/enemies/companions 容器（兼容中间态），sides 是权威阵营视图；
+        # 后续改造逐步把读点迁到 sides/actor.side。
+        self._seed_sides()
+
+    # ---------------- v180F v2.0 通用阵营（sides） ----------------
+    def _seed_sides(self) -> dict:
+        """把现有玩家侧/敌方侧容器映射为通用阵营视图 self.sides。
+
+        - player side：self.player（焦点）+ self.allies + companions（随从）
+        - enemy side：self.enemies（含多 side 时各自保留 side 名）
+        - 每 actor 播种 side 字段（缺失时按所属容器补默认）
+        - sides 值是**同引用**（非拷贝）——引擎改动 actor 直接反映，序列化据此落档。
+
+        返回 self.sides（dict[str, list[actor]]）。无玩家的战斗（sides 入口怪vs怪）：
+        player 可能为空 dict，player side 仍建立（空列表或占位）。
+        """
+        _player_side = []
+        _p = getattr(self, "player", None) or {}
+        # 焦点玩家 actor 若无 side 字段 → 补 "player"
+        if _p:
+            _p.setdefault("side", "player")
+            _p.setdefault("kind", "player")
+            # 空 dict 占位不算成员（无玩家战斗时 self.player={}）
+            if _p.get("class_name") or _p.get("name") or _p.get("qq_id"):
+                _player_side.append(_p)
+        for _a in (getattr(self, "allies", None) or []):
+            if _a is _p:
+                continue  # 焦点已在上面（allies 可能含焦点本人）
+            _a.setdefault("side", "player")
+            _a.setdefault("kind", "player")
+            _player_side.append(_a)
+        for _c in (getattr(self, "companions", None) or []):
+            _c.setdefault("side", "player")
+            _player_side.append(_c)
+        # enemy side：enemies 各自已有 side 则保留（多敌对阵营），否则补 "enemy"
+        _enemy_groups: dict[str, list] = {}
+        for _e in (getattr(self, "enemies", None) or []):
+            _sn = str(_e.get("side") or "enemy")
+            _e.setdefault("side", _sn)
+            _e.setdefault("kind", "monster")
+            _enemy_groups.setdefault(_sn, []).append(_e)
+        sides = {}
+        if _player_side:
+            sides["player"] = _player_side
+        elif _p:
+            # 无玩家成员但有 player 占位（sides 入口怪vs怪场景：player 空 dict 不代表真玩家）
+            pass
+        sides.update(_enemy_groups)
+        self.sides = sides
+        self._side_names = list(sides.keys())
+        return sides
+
+    def side_of(self, actor: dict | None) -> str | None:
+        """v180F：返回 actor 所属阵营名（无 actor / 找不到 → None）。"""
+        if not actor:
+            return None
+        _s = actor.get("side")
+        if _s:
+            return str(_s)
+        # 兜底按容器归属判定（side 字段缺失的老 actor）
+        if actor is getattr(self, "player", None):
+            return "player"
+        for _a in (getattr(self, "allies", None) or []):
+            if _a is actor:
+                return "player"
+        for _c in (getattr(self, "companions", None) or []):
+            if _c is actor:
+                return "player"
+        for _e in (getattr(self, "enemies", None) or []):
+            if _e is actor or _e.get("uid") == actor.get("uid"):
+                return str(_e.get("side") or "enemy")
+        return None
+
+    def hostile_sides(self, side: str) -> list:
+        """v180F：与某阵营敌对的阵营名列表。
+
+        通用规则：非自身阵营即敌对（混战可多敌对）。引擎不写死"player vs enemy"。
+        """
+        return [s for s in self._side_names if s != side]
 
     # ---------------- v2 阵列兼容代理（§3.2） ----------------
     @staticmethod
