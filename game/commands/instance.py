@@ -2501,12 +2501,10 @@ class InstanceCmds(CommandBase):
         logs = []
         self._instance_ensure_player_fields(st)
 
-        # 1. v121 CTB 行动轴推进：敌我按 ct 最小者行动。
-        #    v158 副本合并：敌方行动不再由本层手动管（_instance_enemy_ct_acts 已废弃），
-        #    玩家行动 player_turn(enemy_act=True) 时 battle 事件队列 _process_until 自动驱动
-        #    敌方（含 cast_done/宠物/DOT），回调 _cb 同步血量/仇恨/贡献。本循环只负责：
-        #    a) 确认下一个行动玩家（存活玩家 ct 最小者）
-        #    b) 超时自动防御
+        # 1. CTB 行动轴推进：敌我按 ct 最小者行动。
+        #    v180G B7 统一 CTB：player_act = 出手登记 + advance_until_next_decision 统一推进，
+        #    敌方行动（含 cast_done/宠物/DOT）由 battle 事件队列驱动，回调 _cb 同步血量/仇恨/贡献。
+        #    本循环只负责：a) 确认下一个行动玩家（存活玩家 ct 最小者）b) 超时自动防御
         #    c) 无可行动玩家 → 失败结算
         while True:
             # 无可行动存活玩家（全灭/全退队）→ 直接失败结算
@@ -2748,7 +2746,7 @@ class InstanceCmds(CommandBase):
         # v173.5 全层仇恨·仇恨技倍率（数据驱动）：技能定义配 hate_mult 字段的
         # （如盾卫士顿足/盾击·誓 hate_mult=4）→ 技能伤害仇恨额外 ×(hate_mult-1)；
         # 未配字段 = 普通技能，仇恨=伤害（×1）。
-        # 守护姿态受击反击仇恨 ×0.5 在敌方行动段（_instance_enemy_one_act）处理。
+        # 守护姿态受击反击仇恨 ×0.5 在 battle 敌方行动段（_damage_actor 承伤链/回调）处理。
         if action == "skill" and skill_name and dealt > 0:
             _hm = 1.0
             try:
@@ -3065,10 +3063,8 @@ class InstanceCmds(CommandBase):
                 yield _r
             return
 
-        # 5. v163：敌方行动已由 player_turn(enemy_act=True) 内 battle 事件队列 _process_until
-        # 统一驱动（含读条 cast_done/召唤/DOT），血量经 _inst_cb 回调/引用同步——此处
-        # 不再跑旧 _instance_enemy_ct_acts 轮转（v158 合并残留，导致敌方双重行动 +
-        # 旧瞬态 Battle 读条伤害蒸发 = 副本怪物 0 伤害）。本段只做玩家侧收尾：
+        # 5. v180G B7：敌方行动已由 player_act 内 advance_until_next_decision 统一驱动
+        # （含读条 cast_done/召唤/DOT），血量经 _inst_cb 回调/引用同步——此处只做玩家侧收尾：
         # 倒地失败检测（battle 队列可能打死玩家）+ 下一行动玩家 = 存活玩家 ct 最小者。
         if not self._instance_living_player_cts(st, group_id):
             st["over"] = True
@@ -3210,56 +3206,6 @@ class InstanceCmds(CommandBase):
         k = min(cts, key=lambda kk: cts[kk]) if cts else None
         return ("p", k) if k else ("none", None)
 
-    def _instance_apply_enemy_act_ct(self, st: dict, group_id: int, unit: dict) -> None:
-        """v152 真·绝对时刻：敌方单位行动后 next_act_at = 当前基准 + cost。
-        与 battle._after_actor_ct("e") 语义一致（绝对时刻制，行动者重排，其他单位不互相减）。
-        副本无全局 _now，用"当前行动参考点"= 该单位当前 ct（= 它本次行动的绝对时刻）。
-        行动者 ct = 参考点 + cost（下次可行动）；其他单位不动（各自已是绝对时刻）。
-        v121 审计修复：cost 用 buffed spd（_enemy_stats 应用 spd_down 等，与 battle 一致）；
-        玩家遍历按存活+在场（退队者不参与）过滤。"""
-        try:
-            _btmp = BT.Battle("instance", unit, enemies=[unit])
-            _espd = _btmp._enemy_stats().get("spd", 0)
-        except Exception:
-            _espd = unit.get("spd", 0)
-        cost = BT.Battle()._ct_cost(_espd)
-        unit.setdefault("ct", float(unit.get("spd", 0) or 0) * 0.0)  # 兜底 0 基准
-        unit["ct"] = float(unit.get("ct", 0) or 0) + cost
-        self._sync_enemy_unit(st, unit)
-        # 绝对时刻制：其他单位（敌/玩家）next_act_at 已是绝对值，不因本单位行动而变。
-        # 注：旧 v121 相对语义"其他 -cost"等价于绝对时刻下的时间流逝，但绝对时刻下
-        # 各单位 ct 是独立绝对值（= 各自下次行动时刻），无需广播调整。
-
-    def _instance_enemy_ct_acts(self, st: dict, group_id: int) -> tuple:
-        """v121 CTB 副本敌方行动段（取代 v57 _instance_boss_turn 的多动逻辑）：
-        while 敌方存活单位中最小 ct < 玩家侧最小 ct → 该单位 _instance_enemy_one_act →
-        结算其 ct（_instance_apply_enemy_act_ct）→ 循环。
-        已死亡的敌方单位即时移出候选（alive 判定）；玩家全灭则提前终止。
-        硬上限 8 动防极端配速死循环。
-        返回 (logs, ok)：ok=True 敌方段正常消解（敌全灭或玩家更先）；ok=False 打满上限（仍有敌方领先）。"""
-        logs = []
-        self._instance_ensure_player_fields(st)
-        _guard = 0
-        while _guard < 8:
-            me = self._instance_min_enemy_ct(st)
-            if me is None:
-                break
-            mp = self._instance_min_player_ct(st, group_id)
-            if mp is not None and me >= mp:
-                break
-            unit = min(self._instance_enemy_units(st),
-                       key=lambda u: float(u.get("ct", 0) or 0))
-            logs += self._instance_enemy_one_act(st, group_id, unit)
-            self._instance_apply_enemy_act_ct(st, group_id, unit)
-            if not self._instance_living_player_cts(st, group_id):
-                # 玩家全灭（含同归于尽）→ 敌方段提前终止
-                break
-            _guard += 1
-        self._instance_enemies_compact(st)
-        me = self._instance_min_enemy_ct(st)
-        mp = self._instance_min_player_ct(st, group_id)
-        ok = not (me is not None and (mp is None or me < mp))
-        return logs, ok
 
     def _instance_auto_defend_player(self, st: dict, group_id: int, key: str) -> list:
         """CTB 超时自动防御：走现有自动防御路径（置 p_defending 防御），并结算一次 defend
@@ -3346,148 +3292,6 @@ class InstanceCmds(CommandBase):
             return None
         return None
 
-    def _instance_enemy_one_act(self, st: dict, group_id: int, unit: dict) -> list:
-        """v2：敌方阵列单个单位行动一次（目标 = 射程内前排 + 仇恨/嘲讽）。
-        防御/格挡/闪避/减伤对目标玩家逐次结算（沿用旧 _instance_boss_one_turn 骨架）。"""
-        from ..core import formation as FM
-        logs = []
-        members = st["members"]
-        cur = self._instance_current_members(group_id, st)
-        alive = [m for m in members if str(m) in cur and st["alive"].get(str(m), True)]
-        if not alive or unit.get("hp", 0) <= 0:
-            return logs
-        ename = unit.get("name", "怪物")
-        # 敌方单位蓄力由引擎处理：_enemy_turn(player, unit) 内部 left-1 / 归零释放（§6）
-        # 我方存活玩家阵列（含站位字段）
-        self._instance_ensure_player_fields(st)
-        player_units = [snap for key, snap in (st["players"] or {}).items()
-                        if st.get("alive", {}).get(str(key), True)]
-        threat_by_uid = {}
-        for snap in player_units:
-            _q = str(snap.get("qq_id") or snap.get("uid", ""))
-            threat_by_uid[str(snap.get("uid", ""))] = st.get("threat", {}).get(_q, 0)
-        # 嘲讽优先：嘲讽目标存活且在射程内 → 强制选它（否则正常仇恨/射程选择）
-        taunt_key = str(st.get("taunt_target", ""))
-        target = None
-        if taunt_key and st.get("taunt_turns", 0) > 0 and st["alive"].get(taunt_key, False) \
-                and taunt_key in cur:
-            for snap in player_units:
-                if str(snap.get("qq_id")) == taunt_key \
-                        and int(snap.get("rank", 1) or 1) <= int(unit.get("reach", 1) or 1):
-                    target = snap
-                    break
-            if target is not None:
-                st["taunt_turns"] = max(0, int(st.get("taunt_turns", 0)) - 1)
-                logs.append(f"📢 嘲讽生效！{ename} 怒视着 {target.get('name', taunt_key)}！")
-                if st["taunt_turns"] <= 0:
-                    st.pop("taunt_target", None)
-            else:
-                # 嘲讽目标已死/不在射程 → 视为无效，走正常选择
-                if taunt_key:
-                    st.pop("taunt_target", None)
-        if target is None:
-            # v173.5 全层仇恨（鱼鱼拍板 2026-09-04）：Boss 级敌人全层按仇恨最高选目标
-            # （后排输出/治疗高仇恨会被点名 → OT 模型）；精英/普通怪保持前排优先（front）。
-            # v173.6 目标策略数据化：monster_mods 配 target_policy（hate_top/random/weakest/
-            #   backline/front）→ 走共享 pick_by_policy（与玩家侧同语义）；未配 → 默认规则。
-            _tpol = ""
-            try:
-                _tpol = str((C.MONSTER_MODS.get(unit.get("id") or "", {}) or {}).get("target_policy", "") or "")
-            except Exception:
-                _tpol = ""
-            if _tpol:
-                _fb = None
-                # fallback = 原规则（boss 全层仇恨 / 其他前排）
-                _tmode = "all" if str(unit.get("role", "")) == "boss" else "front"
-                _fb = FM.select_target(unit, player_units, threat=threat_by_uid, threat_mode=_tmode)
-                target = FM.pick_by_policy(_tpol, player_units, threat=threat_by_uid, fallback=_fb)
-            else:
-                _tmode = "all" if str(unit.get("role", "")) == "boss" else "front"
-                target = FM.select_target(unit, player_units, threat=threat_by_uid, threat_mode=_tmode)
-        if target is None:
-            return logs
-        tkey = str(target.get("qq_id") or target.get("uid", ""))
-        snap = st["players"].get(tkey) or target
-        tname = snap.get("name", tkey)
-        # v173.6 多目标重构：Battle 直传完整 st 引用 + 全存活玩家 allies——
-        # battle 侧自行按 target_policy 选目标（_pick_enemy_target）并 _load_player_state
-        # 载入对应玩家状态结算（点名/打后排/AOE 多目标）。snap 仅作兜底首目标。
-        # 构造单怪 Battle：enemies=[该单位]（自身含 buffs/stacks/defending/charging）
-        b = BT.Battle(
-            btype="instance", enemy=unit, enemies=[unit], st=st,
-            allies=[p for k, p in (st.get("players") or {}).items()
-                    if (st.get("alive") or {}).get(str(k), True)],
-        )
-        # 载入初始目标玩家状态（若无则 battle 自行 _pick_enemy_target）
-        b._load_player_state(tkey)
-        # 若 _pick_enemy_target 因目标死亡/策略选了别人 → snap 更新为实际目标
-        _focused = getattr(b, "_last_focused_qid", None)
-        if _focused and str(_focused) != tkey:
-            tkey = str(_focused)
-            snap = st["players"].get(tkey) or snap
-            tname = snap.get("name", tkey)
-        mlogs, dmg = b._enemy_turn(snap, unit)
-        # O116：受击伤害文案暂存 pending，本层不走 _damage_actor 需手动取出拼进日志
-        try:
-            _pend = b._drain_pending_dmg()
-            if _pend:
-                mlogs = mlogs + _pend
-        except Exception:
-            pass
-        # 敌方单位状态写回 st["enemies"]（按 uid 定位原单位；unit 本身即 st 对象，兜底同步）
-        self._sync_enemy_unit(st, unit)
-        st["e_buffs"] = unit.get("buffs") or {}
-        # v152 时刻制：round 删除，st["round"] 改为展示用行动轮次（_tick_no()）
-        st["round"] = b._tick_no()
-        # 引擎可能召唤援军入 b.enemies（多怪整体 Battle 才生效；单怪 Battle 不产生）
-        if b.enemies and any(str(u2.get("uid")) != str(unit.get("uid")) for u2 in b.enemies):
-            exist = {str(u2.get("uid")) for u2 in st.get("enemies") or []}
-            for u2 in b.enemies:
-                if str(u2.get("uid")) != str(unit.get("uid")) and str(u2.get("uid")) not in exist:
-                    st.setdefault("enemies", []).append(u2)
-        # 敌方援军镜像同步（旧兼容字段 e_minions 并入 enemies 后保留 is_minion 引用）
-        st["e_minions"] = [u for u in st.get("enemies") or [] if u.get("is_minion")]
-        st.setdefault("resources", {})[tkey] = b.player.get("resources") or {}
-        st.setdefault("cooldown", {})[tkey] = b.player.get("cooldown") or {}
-        st.setdefault("combo_seq", {})[tkey] = b.player.get("combo_seq") or []
-        # v121 CTB：敌方行动不改变玩家 ct（时间流逝由 _instance_apply_enemy_act_ct 另行结算），
-        # 此处仅保持既有值（_enemy_turn 不触碰 p_ct）
-        st.get("players", {}).get(tkey, {})["ct"] = b.p_ct
-        st.setdefault("player_hit", {})[tkey] = b._player_hit
-        if st["p_defending"].get(tkey):
-            # v178 E6：方向性防御——读攻击单位最近施放技能的 defend_reduce（引擎 _enemy_turn
-            # 施放时写 unit._last_skill_key），缺省 0.5 = 旧行为
-            _dr6 = 0.5
-            try:
-                _lsk = (unit or {}).get("_last_skill_key")
-                if _lsk:
-                    _linfo6 = b._lookup_skill_info(str(_lsk))
-                    _ldr6 = _linfo6.get("defend_reduce")
-                    if isinstance(_ldr6, (int, float)) and 0 <= float(_ldr6) <= 0.95:
-                        _dr6 = float(_ldr6)
-            except Exception:
-                pass
-            dmg = max(1, int(round(dmg * (1.0 - _dr6))))
-            # v101.25 #345：防御减伤后日志同步修正（伤害数字与实际扣血一致）
-            import re as _re
-            mlogs = [_re.sub(r"造成 (\d+) 点伤害",
-                             lambda m: f"造成 {max(1, int(round(int(m.group(1)) * (1.0 - _dr6))))} 点伤害(格挡)",
-                             x) for x in mlogs]
-            logs.append(f"🛡️ {tname} 举盾格挡！")
-        logs += mlogs
-        if dmg > 0:
-            snap["hp"] = max(0, snap["hp"] - dmg)
-            snap["took_dmg"] = True  # v105 M18 P1：无伤通关(ach_flawless)受损标记
-            logs.append(f"❤️ {tname} 剩余 {snap['hp']}/{snap['max_hp']}")
-        if snap["hp"] <= 0:
-            st["alive"][tkey] = False
-            st.setdefault("threat", {})[tkey] = 0
-            # O105：Boss 行动后死亡同样明确提示"你已倒下，等待队友…"
-            logs.append(f"💀 {tname} 倒下了！你已倒下，等待队友…")
-        # v121 审计修复：防御状态不在此重置——防御应覆盖"防御后到该玩家下次行动前"
-        # 的全部敌方行动（与单机 _enemy_phase defend=True 每次行动减半一致）；
-        # 过期点 = 该玩家下次行动开始时（_instance_act 玩家行动段重置）
-        return logs
 
     def _sync_enemy_unit(self, st: dict, unit: dict) -> None:
         """v2：把单怪 Battle 结算后的单位状态写回 st["enemies"] 原单位（按 uid 定位）。
