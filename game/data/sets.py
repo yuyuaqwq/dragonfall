@@ -83,6 +83,8 @@ SETS = {
         },
         "bonus_4": {
             "effect": "reflect",
+            # v181-A1：龙鳞反震数值数据声明（替代 battle 兜底 C.REFLECT_CHANCE/0.25——数值一致 25%/25%）
+            "params": {"chance": 0.25, "reflect_pct": 0.25},
             "desc": "被攻击时 25% 概率反弹 25% 伤害"
         },
         "name": "龙鳞"
@@ -119,7 +121,7 @@ SETS = {
             "abyss_res": 0.05,   # v106.1 圣徽庇护：深渊抗性
             "heal_power": 0.05   # v106.2 圣徽圣愈：治疗强度
         },
-        "bonus_4": {"effect": "holy_halo_shield", "params": {"type": "taken_shield_convert", "shield_pct": 0.10, "once_per_round": True, "tag": "✨", "name": "圣辉护盾"}, "desc": "被攻击命中后将本次伤害 10% 转化为护盾（每刻最多 1 次）"},
+        "bonus_4": {"effect": "holy_halo_shield", "params": {"type": "taken_shield_convert", "shield_pct": 0.10, "shield_turns": 2, "once_per_round": True, "tag": "✨", "name": "圣辉护盾"}, "desc": "被攻击命中后将本次伤害 10% 转化为护盾（每刻最多 1 次）"},
         "name": "圣徽"
     },
     "set_bai_yin_qi_shi": {
@@ -150,6 +152,7 @@ SETS = {
         },
         "bonus_4": {
             "effect": "regen_strong",
+            "params": {"heal_pct": 0.08},  # v181-A1：每刻回血比例数据声明（battle _th_set_heal 读 params 替代本地 0.08 兜底）
             "desc": "每刻开始回复 8% 生命"
         },
         "name": "晨光教会"
