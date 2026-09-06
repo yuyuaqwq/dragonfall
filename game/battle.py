@@ -168,7 +168,7 @@ def _psk_lifesteal(battle, player, pdef, pname, sname, line, logs):
     heal = max(1, int(dmg * 0.5))
     if player.setdefault("buffs", {}).get("mortal_wound"):  # v1.3 重伤：宠物吸血减半
         heal = int(heal * 0.5)
-    player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+    battle._heal_actor(player, heal, logs)  # v180E 统一落地（clamp；player 自身禁疗/受疗语义）
     logs.append(f"🩸 {pname}汲取了 {heal} 点生命归还给你！")
     _pet_skill_victory(battle, logs)
 
@@ -187,7 +187,7 @@ def _psk_heal_pct(battle, player, pdef, pname, sname, line, logs):
     """月光祝福/圣光羽翼/星辉治愈/月华低语：回复 max_hp × value 生命。"""
     if player.get("hp", 0) < player.get("max_hp", 1):
         heal = int(player.get("max_hp", player.get("hp", 1)) * pdef["skill_value"])
-        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        battle._heal_actor(player, heal, logs)  # v180E 统一落地
         logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！" + (f"「{line}」" if line else ""))
 
 
@@ -307,18 +307,18 @@ def _th_set_holy(battle, actor, eff, logs):
             if actor.get("hp", 0) < _mx:
                 _pct = _hl if actor.get("hp", 0) / max(1, _mx) < _low else _hh
                 _hf_heal = int(_mx * _pct)
-                actor["hp"] = min(_mx, actor.get("hp", 0) + _hf_heal)
+                battle._heal_actor(actor, _hf_heal, out)  # v180E 统一落地
                 out.append(f"⛪ 圣堂领域：圣光庇护，你回复了 {_hf_heal} 点生命！")
         if "divine_grace_burst" in _s4:
             _dgb = (battle._set_eff(actor, "divine_grace_burst", 4) or {})
             _dgb_p = (_dgb or {}).get("params") or {}
             _dg_heal = int(_mx * float(_dgb_p.get("heal_pct", 0.05)))
             if actor.get("hp", 0) < _mx:
-                actor["hp"] = min(_mx, actor.get("hp", 0) + _dg_heal)
+                battle._heal_actor(actor, _dg_heal, out)  # v180E 统一落地
                 out.append(f"☀️ 神恩爆发：神恩涌动，你回复了 {_dg_heal} 点生命！")
             if not (actor.setdefault('eff', {}) or {}).get("divine_burst_used") and actor.get("hp", 0) / max(1, _mx) < float(_dgb_p.get("low_hp_lt", 0.30)):
                 _dg_extra = int(_mx * float(_dgb_p.get("low_extra_pct", 0.15)))
-                actor["hp"] = min(_mx, actor.get("hp", 0) + _dg_extra)
+                battle._heal_actor(actor, _dg_extra, out)  # v180E 统一落地
                 actor.setdefault('eff', {})["divine_burst_used"] = True
                 out.append(f"☀️ 神恩爆发·濒危：圣辉倾泻，额外回复 {_dg_extra} 点生命！（每场 1 次）")
         if "hu_xiao_barrier" in _s4:
@@ -5275,6 +5275,75 @@ class Battle:
                 fn(self, player, logs)
 
 
+    def _heal_actor(self, target: dict, amount: int, logs: list, *,
+                    source: dict | None = None, label: str = "") -> int:
+        """v180E 统一治疗落地核心（actor-agnostic）：给任意 actor 回血。
+
+        clamp + 受疗天赋（target 自身 race heal_received）+ 禁疗/重伤（target 自身 buffs
+        heal_down / _anti_heal_pct）统一收口在这里——全引擎 20+ 处 hp=min(max_hp,hp+heal)
+        直写点应改调本方法，获得一致的禁疗/重伤/受疗语义。
+
+        - target: 任意 actor dict（玩家/怪物/随从/队友快照）
+        - amount: 计划治疗量（调用方已完成加成计算——玩家被动在调用方 _skill_heal 等处理，
+          本核心不读施法者被动；target 是怪则不吃玩家 heal_power/圣光套/神恩）
+        - source: 施法者 actor（可选，用于日志）
+        - label: 日志前缀（可选）
+        返回实际回血量（clamp 后）。需要\"禁疗修正后、clamp 前\"量做溢出计算的主路径
+        （_skill_heal）请用 _apply_heal_mods + _heal_land 两层组合。
+        """
+        if target is None or amount is None:
+            return 0
+        if target.get("hp") is None:
+            return 0  # 无 hp 容器（宠物 actor hidden/untargetable）不可被治疗落地
+        heal2 = self._apply_heal_mods(target, amount, logs)
+        return self._heal_land(target, heal2, logs)
+
+    def _apply_heal_mods(self, target: dict, amount: int, logs: list) -> int:
+        """受疗/禁疗修正层（供 _heal_actor 与需溢出计算的主路径共用）：
+        受疗天赋按 target 自身 race heal_received；禁疗/重伤按 target 自身 buffs
+        heal_down（层×10% cap50%）/_anti_heal_pct（cap80%）。返回修正后治疗量（未 clamp）。"""
+        if target is None or amount is None:
+            return 0
+        heal = max(0, int(amount))
+        if heal <= 0:
+            return 0
+        try:
+            _hr = self._race_bonus(target).get("heal_received", 0) or 0
+            if _hr:
+                heal = max(1, int(heal * (1 + _hr)))
+                logs.append(f"🐉 孤傲之血：治疗效果 -{int(-_hr * 100)}%！")
+        except Exception:
+            pass
+        try:
+            tb = target.setdefault("buffs", {})
+            _ehd = int(tb.get("heal_down", 0) or 0)
+            if _ehd > 0:
+                _cut = min(_ehd * 0.10, 0.50)
+                heal = max(0, int(heal * (1 - _cut)))
+                logs.append(f"🩸 禁疗：治疗量 -{int(_cut * 100)}%！")
+            _aheal = float(tb.get("_anti_heal_pct", 0) or 0)
+            if _aheal > 0:
+                _cut2 = min(_aheal, 0.80)
+                heal = max(0, int(heal * (1 - _cut2)))
+                logs.append(f"🩸 重伤：治疗量 -{int(_cut2 * 100)}%！")
+        except Exception:
+            pass
+        return max(0, heal)
+
+    def _heal_land(self, target: dict, heal2: int, logs: list) -> int:
+        """落地层：clamp 写 hp，返回实际回血量。heal2 = 已受疗/禁疗修正的治疗量。"""
+        if target is None or heal2 is None:
+            return 0
+        if target.get("hp") is None:
+            return 0
+        heal2 = max(0, int(heal2))
+        if heal2 <= 0:
+            return 0
+        _mx = target.get("max_hp", target.get("hp", 1)) or 1
+        _before = target.get("hp", 0) or 0
+        target["hp"] = min(_mx, _before + heal2)
+        return int(target["hp"]) - _before
+
     def _skill_heal(self, st, skill_name, info, player, lv, mech, mval, p_mech, logs, target_ally=None):
         """治疗分支（v103.6 从 _player_skill 拆出；v122 支持指定队友目标 target_ally）"""
         # v122 治疗目标单位：指定队友 → 队友快照（引用）；None → 施法者自己
@@ -5395,19 +5464,10 @@ class Battle:
             del self._cast_eff()["next_heal_up"]
             logs.append(f"✨ 信仰结晶：治疗技能效果 +{int(_nhu * 100)}%！")
         hp_before = target_unit.get("hp", 0)
-        # v151 刻制审计：禁疗/重伤消费端修复——敌方 heal_down（层数×10%）/ _anti_heal_pct（百分比）
-        # 此前 weapon_effects/affix_effects 只写入不消费（死数据，禁疗无效）
-        try:
-            _ehd = int((self._tgt_buffs() or {}).get("heal_down", 0) or 0)
-            if _ehd > 0:
-                heal = max(0, int(heal * (1 - min(_ehd * 0.10, 0.50))))
-                logs.append(f"🩸 敌方禁疗：治疗量 -{min(_ehd * 10, 50)}%！")
-            _aheal = float((self._tgt_buffs() or {}).get("_anti_heal_pct", 0) or 0)
-            if _aheal > 0:
-                heal = max(0, int(heal * (1 - min(_aheal, 0.80))))
-                logs.append(f"🩸 敌方重伤：治疗量 -{int(min(_aheal, 0.80) * 100)}%！")
-        except Exception:
-            pass
+        # v180E：禁疗/重伤/受疗消费统一收口到 _apply_heal_mods（target 自身 buffs/race）——
+        # 与全引擎其他治疗落地同语义。heal 保持"修正后未 clamp"的量，供后续溢出转盾
+        # （圣愈不浪费/庇护之光/圣光回响）算真实溢出——落地单独 _heal_land 做，不覆盖 heal。
+        heal = self._apply_heal_mods(target_unit, heal, logs)
         # v140 波3.1：特效装备治疗加成（坚毅祝福+15%/圣辉涌动+20%/回响祝福+25%）+ 溢出转盾（圣木/赎罪）
         try:
             from .core.weapon_effects import proc as _we_proc
@@ -5417,7 +5477,7 @@ class Battle:
             _we_proc(self, player, "passive", {"heal": heal}, logs)
         except Exception:
             pass
-        target_unit["hp"] = min(target_unit.get("max_hp", target_unit.get("hp", 0)), hp_before + heal)
+        self._heal_land(target_unit, heal, logs)
         # v140 S1 直连消费：圣愈不浪费（cloth_heal_overflow）——治疗溢出量 50% 转护盾
         if self._set_eff(player, "cloth_heal_overflow", 4):
             _cho_ov = hp_before + heal - target_unit.get("max_hp", target_unit.get("hp", 0))
