@@ -76,8 +76,11 @@ print("\n-- 怪物放玩家伤害技 --")
 mon["hp"] = 8000
 player["hp"] = 5000
 random.seed(2)
+hp0 = player["hp"]
 logs, dmg = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": "sk_hui_kan"})
-check("挥砍造成伤害>0", dmg > 100, f"dmg={dmg}")
+dealt = hp0 - player["hp"]
+# v180F：管线内部扣血返回 dmg=0——伤害断言改看真实 hp 扣减
+check("挥砍造成伤害>0", dealt > 100, f"dealt={dealt}")
 check("玩家被打掉血", player["hp"] < 5000, f"玩家hp={player['hp']}")
 check("战意叠层(完整管线)", int((mon.get("stacks") or {}).get("zhan_yi", 0)) > 0, str(mon.get("stacks")))
 check("伤害日志", any("伤害" in l for l in logs), str(logs[:2]))

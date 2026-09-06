@@ -80,8 +80,12 @@ def test_charge_start_and_release():
     check("日志含【意图】", any("【意图】" in l and "正在蓄力" in l for l in logs1), str(logs1))
 
     # 第 2 回合：蓄力完成释放 -> 结算伤害
+    # v180F：蓄力释放走 _monster_cast_playerskill 管线内部扣血（返回 dmg=0 防外部双扣）——
+    # 断言改看玩家真实 hp 扣减（伤害确实发生）
+    hp_before = p.get("hp", 0)
     logs2, dmg2 = b._enemy_turn(p)
-    check("第2回合蓄力释放造成伤害（dmg>0）", dmg2 > 0, f"dmg2={dmg2}")
+    dealt = hp_before - p.get("hp", 0)
+    check("第2回合蓄力释放造成伤害（dealt>0）", dealt > 0, f"dealt={dealt} dmg2={dmg2}")
     check("释放含『蓄力完成，轰然落下』", any("蓄力完成" in l for l in logs2), str(logs2))
     check("释放后 charging 清空", not e.get("charging"), str(e.get("charging")))
 

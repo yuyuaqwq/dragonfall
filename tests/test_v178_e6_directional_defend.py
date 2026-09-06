@@ -48,8 +48,13 @@ def run_evasion(skill_key):
     mon = mk_mon()
     b = BT.Battle("monster", mon)
     b.player = player
+    # v180F 防御格挡下沉承伤链：_enemy_cast_done 管线分支内部扣血（返回 dmg=0），
+    # 格挡在 _damage_actor 按 player.defending 消费。旧断言"返回 dmg>0"已不适用——
+    # 改为设 defending 标志，断言真实 hp 扣减比例（格挡前后对比）。
+    hp0 = player.get("hp", 0)
     logs, dmg = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": skill_key})
-    return dmg
+    dealt = hp0 - player.get("hp", 0)
+    return dmg, dealt
 
 try:
     # 1. defend_reduce 数据被 _lookup_skill_info 读到
@@ -57,28 +62,43 @@ try:
     check("技能 defend_reduce 可读", info.get("defend_reduce") == 0.8, str(info))
 
     # 2. 直接验证折算逻辑（手动模拟 2523 消费点）
-    dmg_normal = run_evasion("ms_test_normal")
-    dmg_eye = run_evasion("ms_test_eye")
-    # 无 defend_reduce → 防御减半 (×0.5)；defend_reduce=0.8 → 防御挡 80% (×0.2)
-    # 伤害本身接近（atk×1.0 vs matk×1.0 但吃不同防御），分别验证减免后比例
-    check("普通技防御减半 (×0.5)", dmg_normal > 0, f"dmg={dmg_normal}")
-    check("风眼技防御挡 80% (×0.2)", dmg_eye > 0, f"dmg={dmg_eye}")
+    dmg_normal, dealt_normal = run_evasion("ms_test_normal")
+    dmg_eye, dealt_eye = run_evasion("ms_test_eye")
+    # v180F 新语义：skill 分支管线内部已扣血 → 返回 dmg=0（防 double dip），
+    # 未防御时实际扣血 > 0
+    check("普通技管线内部扣血 (返回0防双扣)", dmg_normal == 0, f"dmg={dmg_normal}")
+    check("普通技实际扣血>0", dealt_normal > 0, f"dealt={dealt_normal}")
+    check("风眼技实际扣血>0", dealt_eye > 0, f"dealt={dealt_eye}")
 
-    # 3. 精确验证：两技能同面板同减免语义——用 _process_until 真实路径太复杂，
-    # 改为直接构造断言：defend_reduce 折算函数正确性
-    # (模拟 2523: dmg = max(1, dmg * (1 - _dr)))
+    # 3. 防御格挡真实验证：player defending=True → _damage_actor 承伤链格挡
+    def run_defend(skill_key):
+        player = mk_player()
+        mon = mk_mon()
+        b = BT.Battle("monster", mon)
+        b.player = player
+        player["defending"] = True
+        hp0 = player.get("hp", 0)
+        logs, dmg = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": skill_key})
+        return hp0 - player.get("hp", 0)
+    dealt_n_def = run_defend("ms_test_normal")   # 默认 0.5
+    dealt_e_def = run_defend("ms_test_eye")      # 0.8
+    # 未防御基线
+    _, dealt_n_plain = run_evasion("ms_test_normal")
+    _, dealt_e_plain = run_evasion("ms_test_eye")
+    check("普通技防御减半生效 (dealt≈0.5×plain)",
+          abs(dealt_n_def - dealt_n_plain * 0.5) <= max(2, dealt_n_plain * 0.1),
+          f"def={dealt_n_def} plain={dealt_n_plain}")
+    check("风眼技防御挡 80% (dealt≈0.2×plain)",
+          abs(dealt_e_def - dealt_e_plain * 0.2) <= max(2, dealt_e_plain * 0.1),
+          f"def={dealt_e_def} plain={dealt_e_plain}")
+
+    # 4. 折算函数正确性（纯数学断言保留）
     base = 1000
     check("默认 0.5 → 剩 500", max(1, int(round(base * (1 - 0.5)))) == 500)
     check("0.8 → 剩 200", max(1, int(round(base * (1 - 0.8)))) == 200)
     check("0.9 → 剩 100", max(1, int(round(base * (1 - 0.9)))) == 100)
     check("边界 0.95 → 剩 50", max(1, int(round(base * (1 - 0.95)))) == 50)
 
-    # 4. 无技能（普攻路径）默认 0.5（_enemy_cast_done atk 分支→返回普攻伤害，消费点 A 兜底）
-    player4 = mk_player()
-    b4 = BT.Battle("monster", mk_mon())
-    b4.player = player4
-    logs4, dmg4 = b4._enemy_cast_done(player4, mk_mon(), {"kind": "atk"})
-    check("普攻无 defend_reduce → 兜底 0.5", dmg4 > 0, f"dmg={dmg4}")
 finally:
     MONSTER_SKILLS.pop("ms_test_normal", None)
     MONSTER_SKILLS.pop("ms_test_eye", None)

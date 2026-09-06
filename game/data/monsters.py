@@ -1,6 +1,21 @@
 # -*- coding: utf-8 -*-
 """奥兰迪亚·余烬纪年 数据层 - monsters.py(阶段一生成，2026－08－06)"""
 MONSTER_SKILLS = {
+    # v180F 敌方普攻收编管线：默认普攻技（技能轮盘没触发/无技能时释放，走完整管线——
+    # 原 _enemy_cast_done 手写 resolve_formula 双轨删除）。怪物可配 basic_skill 自定义
+    # 普攻技（如魔法普攻怪 matk×1.0 magi），缺省本技能。
+    "ms_basic_attack": {
+        "kind": "物理",
+        "formula": [{"stat": "atk", "mult": 1.0, "type": "phys"}],
+        "power": 1.0,
+        "name": "攻击",
+        "basic": True,
+        # v180F 普攻耗时 = 普攻基准（CAST_ATK 1.0，非技能 CAST_SKILL 1.6）——收编管线后
+        # _action_times 按技能 cast 读，必须显式声明，否则怪行动频率变慢（CTB 失衡）
+        "cast": 1.0,
+        "recovery": 0.0,
+        "desc": "普攻，基础物理攻击",
+    },
     "ms_ai_hao": {
         "kind": "魔法",
         "formula": [{'stat': 'matk', 'mult': 1.3, 'type': 'magi'}],

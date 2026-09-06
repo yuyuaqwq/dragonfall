@@ -56,20 +56,24 @@ def test_all_skills_pipeline():
             b = BT.Battle("monster", m, player=p)
             p["dodge"] = 0.0
             # 直接读条命中结算（等同 cast_done 事件触发）
+            # v180F：管线分支内部扣血（返回 dmg=0 防外部双扣）——伤害判定改看 hp 扣减
+            hp0 = p.get("hp", 0)
             logs, dmg = b._enemy_cast_done(p, m, {"kind": "skill", "skill": skey})
+            dealt = hp0 - p.get("hp", 0)
             # 分类验证
             kind = sinfo.get("kind", "")
             eff = sinfo.get("effect", "")
             if kind in ("物理", "魔法") and sinfo.get("formula"):
-                if dmg <= 0:
+                if dealt <= 0:
                     # 可能是闪避/格挡/真免疫——重试一次（消除承伤链随机）
                     p2 = mk_player()
                     m2 = mk_monster(f"m_{abs(hash(skey)) % 100000}b", "dps", 22, skills=[skey])
                     b2 = BT.Battle("monster", m2, player=p2)
                     p2["dodge"] = 0.0
+                    hp0_2 = p2.get("hp", 0)
                     logs2, dmg2 = b2._enemy_cast_done(p2, m2, {"kind": "skill", "skill": skey})
-                    dmg = dmg2
-                if dmg <= 0:
+                    dealt = hp0_2 - p2.get("hp", 0)
+                if dealt <= 0:
                     errs.append((skey, sinfo.get("name", "?"), "伤害型没打出伤害"))
                 else:
                     dmg_count += 1
