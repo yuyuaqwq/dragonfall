@@ -31,7 +31,7 @@ battle_config 的 **95 个常量按"消费面"分三类**：
 
 ### 1.2 收编范围（95 个常量全量）
 
-- **收编进 MECH_CFG（机制单表）**：52 个被消费常量中**仍以"职业名"命名**的 CFG/标量（约 24 个，§4.3 映射表），加上 17 个**已是机制键的通用表**（直接作为 MECH_CFG 顶层键迁移，键名不变）。
+- **收编进 MECH_CFG（机制单表）**：52 个被消费常量中**仍以"职业名"命名**的 CFG/标量（§3.4/§4.2 B 组 12 个职业化命名收编 + A 组 29 个已是机制键的通用表直接收编，键名不变）。
 - **留在 battle_config 或迁 core/constants**：引擎刻度/公式参数（本文件目前无 BASE_DELAY/ACT_TICK/SPD_REF——那些在 battle.py 模块级，属 P2-B 范围；本文件内的引擎固有参数实为 DOT_BOSS_PCT_MULT/DOT_PCT_CAP/DOT_RESIST_CAP/QUALITY_* 等"横向全局数值"——归 `ENGINE_CFG` 段或按机制进 MECH_CFG，见 §4.3 尾注）。
 - **删除候选（先清单后确认）**：41 死表 + 2 注释-only（§2.3/§3.3），分风险级。
 
@@ -174,7 +174,7 @@ battle_config 的 **95 个常量按"消费面"分三类**：
 - **T4 机制已删除留档**：ZEN_HOLD_CFG（v151 苦修士）、HUNT_MARK_CRIT_EXTRA（v151 星语）、ASTRO_SHIELD_CFG/STARSTEP_CFG/STAR_LOCK_CFG（v151 隐藏职业族删除后 battle.py 注释明确"已移除"）、DIRGE_CFG（暗影神谕 cls_hymn 职业入口 v151 删除，机制代码保留但死歌三调无实装）。
 - **T5 中文分支/内容名残留**：BARD_BRANCHES。
 
-### 3.4 已消费但命名职业化的常量 → MECH_CFG 建议键（24 个）
+### 3.4 已消费但命名职业化的常量 → MECH_CFG 建议键（12 个；其余已机制键化的直接归 §4.2 A 组）
 
 | 现常量 | 建议 MECH_CFG 机制键 | 字段备注 |
 |---|---|---|
@@ -193,7 +193,6 @@ battle_config 的 **95 个常量按"消费面"分三类**：
 | BRANCH_RESOURCE_OVERRIDE | `branch_resources`（分支资源所有权） | (class,path)→keys |
 
 > 其余"职业名常量但字段即机制键"的直接映射如 §2.1 表内"机制归属"列（dot/buff/crit/mech_*/boss/element 等本就是机制键表，搬进 MECH_CFG 键名不变，消费点改 `MECH_CFG["dot"]` 即可，改动面=import 行 + 读点字符串）。
-
 ---
 
 ## 4. MECH_CFG 单表结构草案
