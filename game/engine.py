@@ -3,7 +3,7 @@
 import random
 
 from . import content as C
-from .data.battle_config import ELEMENT_REACTIONS  # v125.2 B1：元素反应表下沉数据层（对外接口不变）
+from .data.battle_config import ELEMENT_REACTIONS, TIER_GROWTH, BRANCH_BONUS, BRANCH_BONUS_BY_CLASS, MECH_STACK_MAX  # v125.2 B1 元素反应表 + v181 P0-A 三表下沉数据层（对外接口不变）
 from .core.skill_kinds import K_PASSIVE  # v176 去魔法字符串
 
 
@@ -12,46 +12,6 @@ from .core.skill_kinds import K_PASSIVE  # v176 去魔法字符串
 # 角色属性
 # ============================================================
 # 转职成长加成（tier 0-3 → 0/15%/30%/50%）
-TIER_GROWTH = {0: 1.0, 1: 1.15, 2: 1.30, 3: 1.50}
-# v25 转职分支属性倾向（左=攻击/速度，右=防御/生命）
-# v156 职业×分支差异化（计划 §3）：每职业攻线/守线独立加成；
-# 旧结构 {1:..., 2:...} 作为默认回退（未配置职业用通用档，向后兼容）
-BRANCH_BONUS = {
-    1: {"atk": 1.06, "spd": 1.04},   # 左：进攻路线（默认回退）
-    2: {"def": 1.08, "hp": 1.06},    # 右：防御路线（默认回退）
-}
-# v156 职业×分支差异化表（计划 §3 权威）：class_name → {evolve_path: {属性: 倍率}}
-# key 用职业 ID（cls_zhan_shi 等，与 C.CLASSES 一致）；中文名会在查询处 resolve 成 ID
-BRANCH_BONUS_BY_CLASS = {
-    "cls_zhan_shi": {
-        1: {"atk": 1.10, "spd": 1.04, "hp": 0.95},   # 狂战士：攻高但血少
-        2: {"def": 1.14, "hp": 1.10, "atk": 0.95},   # 盾卫士：防高但攻低
-    },
-    "cls_fa_shi": {
-        1: {"matk": 1.12, "hp": 0.92},   # 元素使：魔攻高但脆
-        2: {"matk": 1.08, "mp": 1.10},   # 奥术学者：魔攻+蓝量
-    },
-    "cls_you_xia": {
-        1: {"atk": 1.10, "spd": 1.06},   # 森语者
-        2: {"spd": 1.12, "atk": 1.06},   # 风行者
-    },
-    "cls_mu_shi": {
-        1: {"matk": 1.12, "hp": 0.95},   # 死灵祭司
-        2: {"matk": 1.06, "mdef": 1.10}, # 神谕者
-    },
-    "cls_ci_ke": {
-        1: {"atk": 1.12, "crit": 0.04},  # 影舞者
-        2: {"atk": 1.08, "hp": 1.04},    # 毒刃者
-    },
-    "cls_wu_seng": {
-        1: {"atk": 1.10, "spd": 1.04},   # 格斗士
-        2: {"def": 1.12, "hp": 1.10, "atk": 0.95},  # 磐石行者
-    },
-    "cls_shi_ren": {
-        1: {"matk": 1.08, "mp": 1.10},   # 咏叹者
-        2: {"matk": 1.08, "hp": 1.06},   # 挽歌者
-    },
-}
 
 
 # 元素亲和可切换的系（法师）
@@ -149,28 +109,6 @@ def core_resource_regen(class_name: str, resources: dict) -> int:
     if regen <= 0:
         return resources.get(k, 0)
     return min(rd["max"], resources.get(k, 0) + regen)
-
-# ============================================================
-# v59 叠层上限（防数值爆炸：一场战斗叠 25 层金身=无敌、灼烧 10 层=烧死 Boss）
-# 层数封顶后依然能用爆发技能一次性清空，只是限制无限滚雪球。
-# ============================================================
-MECH_STACK_MAX = {
-    "burn": 5,     # 灼烧：5 层 = 每刻 15% 生命（结算后逐层衰减消散）
-    "poison": 5,   # 毒层：5 层 = 每刻 25% 生命（结算后逐层衰减消散）
-    "rage": 5,     # 狂暴：5 层 = +60% 伤害
-    "shadow": 5,   # 影袭：5 层 = +60% 伤害
-    "chi": 5,      # 气力：5 点 = +60% 伤害
-    "judge": 5,    # 审判：5 层 = +75% 伤害
-    "mark": 5,     # 标记：5 层 = +100% 伤害
-    "wind": 3,     # 风印：3 层 = 4 连击（再多连击刷屏）
-    "iron": 5,     # 金身：5 层 = 减伤 20%
-    "shield": 5,   # 圣盾：5 层减伤
-    "bless": 10,   # 神恩：10 层护盾
-    "arcane": 5,   # 奥术充能：5 层（共鸣爆发前置，叠满 5 层=每层 +15% 爆发）
-    "spellblade": 5,  # v87 魔剑士·魔能：5 层（叠层→爆发节奏）
-    "zhan_yi": 10,    # v151 战士战意：0-10 叠层（持有即生效，从不消耗）
-    "lian_duan": 10,  # v151 刺客连段：0-10 命中计数（miss/闪避归零）
-}
 
 
 def mech_stack_gain(mech: str, p_mech: dict, mval: int) -> int:
