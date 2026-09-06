@@ -246,6 +246,9 @@ COMMAND_REGEX = {
     "gm_help": r'^(?:\[At:\d+\]\s*)?gm_帮助(?:[\s\S]*)$',
     "gm_boss_dmg": r'^(?:\[At:\d+\]\s*)?gm_伤害(?:[\s\S]*)$',
     "gm_spy": r'^(?:\[At:\d+\]\s*)?gm_窥探(?:[\s\S]*)$',
+    # v2026-09-07 QQ官方迁移：身份映射 GM 指令
+    "gm_bind_identity": r'^(?:\[At:\d+\]\s*)?gm_绑身份(?:[\s\S]*)$',
+    "gm_identity_table": r'^(?:\[At:\d+\]\s*)?gm_身份表(?:[\s\S]*)$',
     # v139 战前指令（职业融合：双形态预设/终结阈值/查看）——存 player.battle_prefs
     "battle_prefs_form": r'^(?:\[At:\d+\]\s*)?战前形态(?:[ 　]*(.+))?$',
     "battle_prefs_finisher": r'^(?:\[At:\d+\]\s*)?战前阈值(?:[ 　]*(.+))?$',

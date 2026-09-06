@@ -286,6 +286,19 @@ CREATE TABLE IF NOT EXISTS professions (
                 explore_wandering INTEGER DEFAULT 0
             );"""
 
+# ================= 平台身份映射（2026-09-07 QQ官方 bot 迁移）=================
+# 场景：AstrBot 从 NapCat(OneBot/QQ号体系) 切到 QQ 官方 API(botpy/openid 体系)。
+# 官方 API 只给 openid，不给 QQ 号 → dragonfall 玩家表仍以 QQ 号为主键，
+# 建 openid ↔ qq_id 双向映射，命令层拿到 openid 时翻译回 QQ 号（改库/改命令皆不用动）。
+_SQL_IDENTITY_TABLES = """
+CREATE TABLE IF NOT EXISTS identity_map (
+                openid TEXT PRIMARY KEY,
+                qq_id TEXT NOT NULL,
+                platform TEXT DEFAULT 'qq_official',
+                bind_time INTEGER DEFAULT 0
+            );
+CREATE INDEX IF NOT EXISTS idx_identity_qq ON identity_map(qq_id);"""
+
 
 def init_db():
     """建表(全局 qq_id 主键)"""
@@ -295,6 +308,7 @@ def init_db():
             conn.executescript(_SQL_CORE_TABLES)
             conn.executescript(_SQL_SOCIAL_TABLES)
             conn.executescript(_SQL_PROF_TABLES)
+            conn.executescript(_SQL_IDENTITY_TABLES)
             _ensure_legacy_columns(conn)
             conn.commit()
         finally:

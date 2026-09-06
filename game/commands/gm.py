@@ -689,7 +689,18 @@ class GmCmds(CommandBase):
         # v101.28u：每子 agent 一张合并转发卡（鱼鱼要求）——循环发送，间隔防风控
         cards = _spy_to_role_cards(content, os.path.basename(path), event.get_self_id())
         # v101.29b：只发私聊（鱼鱼 2026-08-12 要求"群聊别发了，只私聊"）——撤销 v101.29a 双发
-        target = "{}:GroupMessage:{}".format(_PLATFORM_PREFIX, _OWNER_GROUP) if to_group else "{}:FriendMessage:{}".format(_PLATFORM_PREFIX, GM_OWNER_QQ)
+        # v2026-09-07 QQ官方迁移：私聊目标是 QQ 号 → 需翻成 openid 才能投递
+        if to_group:
+            target = "{}:GroupMessage:{}".format(_PLATFORM_PREFIX, _OWNER_GROUP)
+        else:
+            from . import _identity
+            _owner_openid = _identity.qq_to_openid(GM_OWNER_QQ)
+            if _owner_openid:
+                target = "{}:FriendMessage:{}".format(_PLATFORM_PREFIX, _owner_openid)
+            else:
+                # 未绑定 openid 时退回 QQ 号（NapCat 旧平台语义；官方 bot 下会静默失败，
+                # 但至少不报错——绑定后即恢复）
+                target = "{}:FriendMessage:{}".format(_PLATFORM_PREFIX, GM_OWNER_QQ)
         sent_ok, sent_fail = 0, 0
         for _name, _nodes in cards:
             try:
@@ -725,6 +736,63 @@ class GmCmds(CommandBase):
                 "投递到游戏群 1095961596" if to_group else "私聊投递到鱼鱼 QQ",
             )
         )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_绑身份(?:[\s\S]*)$")
+    async def gm_bind_identity(self, event: AstrMessageEvent):
+        """把当前发送者(官方 bot openid) 绑定到指定 QQ 号，续接老角色。"""
+        group_id, qq_id = self._uid(event)
+        ok, err = self._gm_auth(event, group_id, qq_id)
+        if not ok:
+            yield event.plain_result(err)
+            return
+        from . import _identity
+        raw = self._strip_cmd(event, "gm_绑身份").strip()
+        if not raw:
+            yield event.plain_result(
+                "格式：gm_绑身份 <QQ号>\n"
+                "说明：把当前私聊/群内发送者的 openid 绑定到指定 QQ 号，\n"
+                "绑定后该玩家在新 bot 上报到老 QQ 号，老角色/GM 权限直接续接。"
+            )
+            return
+        qq_target = raw.split()[0].strip()
+        if not _identity.is_qq_id(qq_target):
+            yield event.plain_result(f"❌ {qq_target} 不是合法 QQ 号～")
+            return
+        openid = event.get_sender_id() or ""
+        if not openid or not _identity.is_openid(openid):
+            # 非官方平台（如测试/旧链）没有 openid，直接提示无法绑定
+            yield event.plain_result(f"⚠️ 当前事件 sender={openid!r} 不是 openid，可能不在官方 bot 平台。\n"
+                                     "请在官方 bot 的会话里执行本指令。")
+            return
+        _identity.bind(openid, qq_target)
+        old = _identity.openid_to_qq(openid)
+        yield event.plain_result(
+            f"✅ 已把 openid {openid[:8]}…{openid[-6:]} 绑定到 QQ {qq_target}。\n"
+            f"该玩家现在会以 QQ {qq_target} 的身份游玩（老角色自动续接）～"
+            + (f"\n(原绑定 QQ {old} 已覆盖)" if old and old != qq_target else "")
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_身份表(?:[\s\S]*)$")
+    async def gm_identity_table(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        ok, err = self._gm_auth(event, group_id, qq_id)
+        if not ok:
+            yield event.plain_result(err)
+            return
+        try:
+            from . import _identity as _idm
+            rows = _idm.query_all()
+        except Exception:
+            yield event.plain_result("⚠️ identity_map 查询失败（表可能未初始化）")
+            return
+        if not rows:
+            yield event.plain_result("📋 当前无任何 openid 绑定。")
+            return
+        lines = [f"📋 身份映射表（共 {len(rows)} 条）："]
+        for r in rows[:30]:
+            oid = r.get("openid", "")
+            lines.append(f"{oid[:8]}…{oid[-6:]} → QQ {r.get('qq_id')} ({r.get('platform')})")
+        yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_帮助(?:[\s\S]*)$")
     async def gm_help(self, event: AstrMessageEvent):

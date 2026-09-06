@@ -198,6 +198,7 @@ REPRESENTATIVES = {
     "gm_set_level": "gm_设等级", "gm_teleport": "gm_传送", "gm_stamina": "gm_体力",
     "gm_rename": "gm_改名", "gm_add_gm": "gm_加GM", "gm_del_gm": "gm_删GM",
     "gm_play": "gm_play", "gm_spy": "gm_窥探", "gm_help": "gm_帮助", "gm_boss_dmg": "gm_伤害",
+    "gm_bind_identity": "gm_绑身份 1454832774", "gm_identity_table": "gm_身份表",
     # v139 战前指令（职业融合）
     "battle_prefs_form": "战前形态 狂暴",
     "battle_prefs_finisher": "战前阈值 快刀",

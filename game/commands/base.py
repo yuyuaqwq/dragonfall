@@ -575,9 +575,16 @@ class CommandBase:
                 logging.getLogger("astrbot").warning(f"[dragonfall] 广播到群 {gid} 失败: {e}")
 
     def _uid(self, event: AstrMessageEvent) -> tuple:
-        """返回 (group_id, qq_id)"""
+        """返回 (group_id, qq_id)
+
+        v2026-09-07 QQ官方迁移：sender 若是 openid（官方 bot 只给 openid），
+        经 identity_map 映射回玩家原本的 QQ 号——DB/命令全不用改。
+        """
         group_id = event.get_group_id() or "private"
         sender_id = event.get_sender_id() or "unknown"
+        # 平台身份映射：openid → qq_id（未绑定则原样返回，行为与旧平台一致）
+        from . import _identity
+        sender_id = _identity.resolve_uid(sender_id)
         return group_id, sender_id
 
     def _player(self, group_id, qq_id):
