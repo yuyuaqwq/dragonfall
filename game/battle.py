@@ -47,19 +47,17 @@ from .core.constants import (  # v130.7 意见#28：逃跑成功率修正常量�
     DOT_PRESERVE_PCT, DOT_PRESERVE_THRESHOLD_BONUS, DOT_SATURATE_MULT,
 )
 from .core.tick_effects import TICK_HANDLERS as _TICK_HANDLERS  # v179 通用 tick 效果注册表（数据驱动）
+from .data.races import (  # v181.D P1-D 种族机制数据下沉（原模块级常量/标签内联 → data 单源）
+    RACE_ATTACK_MULT as _RACE_ATTACK_MULT,
+    UNDEAD_KEYWORDS as _UNDEAD_KEYWORDS,
+)
 
 # v95.4 普攻文案按职业区分（玩家反馈：全职业"你挥剑攻击"违和）
 # v112 数据驱动收敛（D5）：文案下沉 CLASSES[职业]["attack_text"]，逻辑层只读数据
 
-
-# v105 P3(M01)：种族残血攻倍率常量——battle 结算与 race_talent_display 展示共用，
-# 调数值只改这里（此前两处各自硬编码 1.20/0.90，调值会文案失配）
-RACE_BERSERK_MULT = 1.20   # 无畏：HP 低于 berserk_hp 阈值时攻击 ×1.20（展示文案 +20%）
-RACE_TIMID_MULT = 0.90     # 怯战：HP 低于 timid_hp 阈值时攻击 ×0.90（展示文案 -10%）
-
-# v180E 低危 B1：亡灵系关键词收口（原散落硬编码）——成就 亡灵使者 kills_type
-# 同源：game/data/achievements.py ach_undead100 cond.keywords（改词需双处同步）
-UNDEAD_KEYWORDS = ("亡灵", "骷髅", "僵尸", "幽灵")
+# v181.D（P1-D）：模块级种族常量已下沉 game/data/races.py（RACE_ATTACK_MULT/UNDEAD_KEYWORDS），
+# battle 顶部 import 读表（下划线别名 _RACE_ATTACK_MULT/_UNDEAD_KEYWORDS），本文件不再声明常量。
+# 对外旧引用兼容：见 race_talent_display.py（已改读 data 单源，不再反向 import battle）。
 
 # v180G B1-2 吞错留痕：结算管线 except 静默吞错计数 + 首次详情落 warning
 # 只做可观测化（不改变吞错行为本身——战斗结算容错是历史设计，贸然抛错会崩整场）；
@@ -5236,7 +5234,7 @@ class Battle:
             if s.get("hp", 0) > 0 and s.get("tid") == "skeleton":
                 n += 1
         for u in self.enemies:
-            if u.get("hp", 0) > 0 and any(k in str(u.get("name", "")) for k in UNDEAD_KEYWORDS):
+            if u.get("hp", 0) > 0 and any(k in str(u.get("name", "")) for k in _UNDEAD_KEYWORDS):
                 n += 1
         return n
 
@@ -5454,16 +5452,21 @@ class Battle:
         ratio = player.get("hp", 0) / max(1, player.get("max_hp", 1))
         bz = rt.get("berserk_hp")
         if bz and ratio < bz:
-            mult *= RACE_BERSERK_MULT
-            tags.append("🔥无畏")
+            # v181.D（P1-D）：数值/标签读 data/races.py（RACE_ATTACK_MULT + races 表展示键）
+            mult *= _RACE_ATTACK_MULT["berserk"]
+            tags.append(rt.get("berserk_tag") or "🔥无畏")
         tm = rt.get("timid_hp")
         if tm and ratio < tm:
-            mult *= RACE_TIMID_MULT
-            tags.append("😰怯战")
+            mult *= _RACE_ATTACK_MULT["timid"]
+            tags.append(rt.get("timid_tag") or "😰怯战")
         fh = rt.get("first_hit")
         if fh and not self.first_attack_done:
             mult *= 1 + fh
-            tags.append(f"🐲龙之吐息x{round(1 + fh, 2)}")
+            _fh_tag = rt.get("first_hit_tag")
+            if _fh_tag:
+                tags.append(_fh_tag.format(mult=round(1 + fh, 2)))
+            else:
+                tags.append(f"🐲龙之吐息x{round(1 + fh, 2)}")
             self.first_attack_done = True
         return mult, tags
 

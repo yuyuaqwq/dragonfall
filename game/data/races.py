@@ -21,6 +21,18 @@
     gold_bonus     金币掉落 +x（幸运儿 0.15）
     item_effect    消耗品效果 +x（灵巧双手 0.10）
     explore_item   探索获得物品概率 +x（森林之友 0.10）
+
+v181.D 种族机制数据下沉（P1-D，battle.py 后门清除）：
+- RACE_ATTACK_MULT：种族残血攻/首击倍率表（原 battle.py 模块级 RACE_BERSERK_MULT=1.20 /
+  RACE_TIMID_MULT=0.90 硬编码；展示侧 race_talent_display 曾从 battle 反向 import，现一并改读本表）
+- RACES[race].talents 新增展示用键（battle._race_attack_mult 只读 talent 值 + 本表数值/标签，
+  不再内联任何数值）：
+    berserk_tag   无畏残血攻标签（"🔥无畏"）
+    timid_tag     怯战残血攻标签（"😰怯战"）
+    first_hit_tag 龙之吐息首击标签（"🐲龙之吐息x{mult}"，mult 由 battle 按 1+first_hit 现算，
+                  展示名与引擎标签同源本表）
+- UNDEAD_KEYWORDS：亡灵系关键词单源（原 battle.py 模块常量，注释自认与 achievements.py
+  ach_undead100 cond.keywords 双处同步——现统一由本文件声明，battle._undead_count 读本表）
 """
 RACES = {
     "human": {
@@ -66,6 +78,7 @@ RACES = {
         "desc": "力量·耐力。活着就是战斗，战斗就是荣耀。",
         "talents": {
             "berserk_hp": 0.30,        # 无畏：HP<30% 攻击 +20%
+            "berserk_tag": "🔥无畏",   # v181.D 引擎结算标签（原 battle.py 内联 → 本表）
             "lifesteal": 0.05,         # v106.3 嗜血本能：吸血 +5%（战血即食粮）
             "hp_mult": 1.08,           # 坚韧体魄：最大 HP +8%
             "magic_reduce": -0.05,     # 🔻 鲁莽之心：受魔法伤害 +5%
@@ -79,6 +92,7 @@ RACES = {
             "luck": 0.10,              # v106.2 幸运儿：掉落收益 +10%（替换原金币+15%，幸运覆盖面更广）
             "item_effect": 0.10,       # 灵巧双手：消耗品效果 +10%
             "timid_hp": 0.30,          # 🔻 怯战：HP<30% 攻击 -10%
+            "timid_tag": "😰怯战",     # v181.D 引擎结算标签（原 battle.py 内联 → 本表）
         },
         "talent_names": {"luck": "幸运儿", "item_effect": "灵巧双手", "timid_hp": "怯战"},
     },
@@ -88,8 +102,22 @@ RACES = {
         "talents": {
             "magic_reduce": 0.10,      # 龙鳞：受魔法伤害 -10%
             "first_hit": 0.15,         # 龙之吐息：每场首击 +15%
+            "first_hit_tag": "🐲龙之吐息x{mult}",   # v181.D 引擎结算标签（原 battle.py 内联 → 本表；{mult} 由引擎按 1+first_hit 现算）
             "heal_received": -0.10,    # 🔻 孤傲之血：受疗 -10%
         },
         "talent_names": {"magic_reduce": "龙鳞", "first_hit": "龙之吐息", "heal_received": "孤傲之血"},
     },
 }
+
+# v181.D 种族残血攻/首击倍率表（原 battle.py L57-58 RACE_BERSERK_MULT/RACE_TIMID_MULT 硬编码，
+# 展示侧 core/race_talent_display.py 亦从 battle 反向 import —— 现统一下沉本文件单源）。
+# 行为零变化：1.20 / 0.90 原样迁移；battle._race_attack_mult 与展示侧均只读本表。
+RACE_ATTACK_MULT = {
+    "berserk": 1.20,   # 无畏：HP 低于 berserk_hp 阈值时攻击 ×1.20（展示文案 +20%）
+    "timid": 0.90,     # 怯战：HP 低于 timid_hp 阈值时攻击 ×0.90（展示文案 -10%）
+}
+
+# v181.D 亡灵系关键词单源（原 battle.py L62 UNDEAD_KEYWORDS 模块常量；注释自认与
+# achievements.py ach_undead100 cond.keywords 双处同步——改词需同步两处）。
+# 消费端：battle._undead_count 敌方名匹配（引擎只读本表，不再内联）。
+UNDEAD_KEYWORDS = ("亡灵", "骷髅", "僵尸", "幽灵")
