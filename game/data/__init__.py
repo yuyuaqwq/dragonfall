@@ -34,6 +34,8 @@ from .affixes import (  # noqa: F401
 from .equip_roster import (  # noqa: F401
     EQUIP_ROSTER, EQUIP_ROSTER_BY_NAME, SERIES_SETS,
 )
+# v181-P2A：10 章名册套装效果表（自 core/class_sets.py 下沉，纯数据）
+from .set_bonus_data import SERIES_SET_BONUS  # noqa: F401
 # v180E 阶段4：武器特效参数表（数值权威默认，装备行 we_data 为覆盖层）
 from .weapon_effect_data import WEAPON_EFFECT_DATA  # noqa: F401
 from .items import ITEMS, MATERIALS, MATERIALS_BY_NAME  # noqa: F401
