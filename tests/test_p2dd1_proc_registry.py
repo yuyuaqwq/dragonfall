@@ -63,10 +63,14 @@ def mk_enemy(def_=20, mdef=20, hp=100000, spd=10):
 # ============================================================
 def test_registry_static():
     print("\n== 1. 注册表静态结构 ==")
-    # P2-D2b：stat_mult_cond 4 proc 声明并入本表 → 总数 14（6 试点 + 4 条件暴击 + 4 stat_mult）
-    check("PROC_FAMILIES 含 14 声明", len(PP.PROC_FAMILIES) == 14, str(PP.PROC_FAMILIES))
+    # P2-D3a：dmg_mult_cond 扩展 2（arcane_resonance/element_origin）+ flag_set_cond 1
+    # （element_sync）→ 总数 17（6 试点 + 4 条件暴击 + 4 stat_mult + 3 P2-D3a）
+    check("PROC_FAMILIES 含 17 声明", len(PP.PROC_FAMILIES) == 17, str(PP.PROC_FAMILIES))
     expect_map = {
         "speed_ratio_dmg": "dmg_mult_cond",
+        "arcane_resonance": "dmg_mult_cond",
+        "element_origin": "dmg_mult_cond",
+        "element_sync": "flag_set_cond",
         "zhan_yi_lifesteal": "lifesteal_add",
         "poison_cap_up": "stack_cap_add",
         "poison_cap": "stack_cap_add",
