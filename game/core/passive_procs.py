@@ -30,6 +30,12 @@
 P2-D2a 新增族（4 proc / 1 族，挂点1 _passive_crit_bonus 条件暴击）：
     crit_cond_add    资源/印记满层 → 暴击率 +add                zhan_yi_crit / arcane_wisdom /
                                                                focus_surplus_crit / element_core
+
+P2-D2b 新增族（4 proc / 1 族 stat_mult_cond，挂点2 _passive_crit_dmg_mult + 挂点3 _player_stats）：
+    stat_mult_cond   条件 → 面板数值 加/乘（影舞态暴伤加算 + 影舞态速度乘算 + 旋律 3 光环聚合）
+                     shadow_dance_bonus（crit_dmg 段 = 挂点2 / spd 段 = 挂点3，双消费点由
+                     ctx[\"stat_kind\"] 参数化区分）/ melody_resonance / melody_full / melody_master
+                     （后 3 段挂点先聚合再统一乘——handler 返回贡献值，不直接改写 st）
 """
 from __future__ import annotations
 
@@ -359,8 +365,51 @@ def _h_crit_cond_add(battle, ctx: dict, ps: dict, ps_name: str):
 
 
 # ============================================================
-# 5. proc → 族 声明（P2-D1 试点 5 proc + P2-D2a crit_cond_add 4 proc；
-#    其余 52 内 proc 由 P2-D2b~D7 批次按序声明）
+# 5. stat_mult_cond（P2-D2b：挂点2 _passive_crit_dmg_mult + 挂点3 _player_stats）
+#    条件 → 面板数值 加/乘。本批 4 proc 一个族，ctx[\"stat_kind\"] 参数化分派：
+#    - crit_dmg（挂点2）：影舞态 → crit_dmg 加法增量（返回数值，挂点加算并入 cdmg）
+#    - spd（挂点3）：影舞态 → spd ×(1+spd_add)（返回增量比例，挂点读回后乘；int 截断在挂点）
+#    - melody（挂点3）：旋律 3 光环聚合——3 段各返回贡献（共振 ≥stacks / 满层 ≥stacks /
+#      每层 per_stack×n），挂点先累加 _mel_pct 再统一乘（保原"3 段聚合再统一乘"语义）
+#    双消费点：shadow_dance_bonus 属 stat_kind=crit_dmg（挂点2）+ stat_kind=spd（挂点3），
+#    族内参数化（proc 名同、ctx stat_kind 异）——参考 crit_cond_add 的 ctx res_kind 分派模式。
+#    零默认值：spd_add/crit_dmg/mult/per_stack/stacks 缺字段 → 返回 None（不触发）。
+# ============================================================
+@register("stat_mult_cond")
+def _h_stat_mult_cond(battle, ctx: dict, ps: dict, ps_name: str):
+    """条件 → 面板数值 加/乘（逐字直搬 _player_stats 影舞 spd 段 / _passive_crit_dmg_mult
+    原循环体 + 旋律 3 光环原 for 循环体；缺字段 = 无此行为，零默认值铁律）。"""
+    _kind = ctx.get("stat_kind")
+    if _kind == "crit_dmg":
+        # 挂点2：影舞态 → 暴伤加法增量（读 _ps.crit_dmg）
+        _add = float(ps.get("crit_dmg", 0.0) or 0.0)
+        if _add <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.20）
+        return _add
+    if _kind == "spd":
+        # 挂点3 影舞 spd 段：影舞态（ctx[\"shadow_dance\"]=True 守卫由挂点保留）→ +spd_add 比例
+        _add = float(ps.get("spd_add", 0.0) or 0.0)
+        if _add <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.25）
+        return _add
+    if _kind == "melody":
+        # 挂点3 旋律 3 光环段：3 段聚合语义由挂点保留——本 handler 按 proc 各返回贡献
+        # （共振/满层各自 stacks 门槛判定；咏叹·极 每层 per_stack×n），挂点累加后统一乘。
+        _n = int(ctx.get("melody_n") or 0)  # 旋律强度层（挂点已守卫 name 非空且 n>0）
+        _stk = int(ps.get("stacks", 0) or 0)
+        _mult = float(ps.get("mult", 0.0) or 0.0)
+        if _stk > 0 and _mult > 0 and _n >= _stk:
+            return _mult  # 共鸣 stacks=3/mult=0.10；万籁和鸣 stacks=5/mult=0.15
+        _per = float(ps.get("per_stack", 0.0) or 0.0)
+        if _per > 0 and _n > 0:
+            return _per * _n  # 咏叹·极 per_stack=0.05 × n
+        return None  # 缺 stacks/mult/per_stack 或不达标 = 无此行为
+    return None  # 未知 stat_kind = 不触发
+
+
+# ============================================================
+# 6. proc → 族 声明（P2-D1 试点 5 proc + P2-D2a crit_cond_add 4 proc +
+#    P2-D2b stat_mult_cond 4 proc；其余 52 内 proc 由 P2-D2c~D7 批次按序声明）
 # ============================================================
 declare_proc("speed_ratio_dmg", "dmg_mult_cond")
 declare_proc("zhan_yi_lifesteal", "lifesteal_add")
@@ -372,3 +421,7 @@ declare_proc("zhan_yi_crit", "crit_cond_add")
 declare_proc("arcane_wisdom", "crit_cond_add")
 declare_proc("focus_surplus_crit", "crit_cond_add")
 declare_proc("element_core", "crit_cond_add")
+declare_proc("shadow_dance_bonus", "stat_mult_cond")
+declare_proc("melody_resonance", "stat_mult_cond")
+declare_proc("melody_full", "stat_mult_cond")
+declare_proc("melody_master", "stat_mult_cond")

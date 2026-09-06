@@ -4625,10 +4625,15 @@ class Battle:
         if "spd_down" in _pbuffs:
             st["spd"] = int(st.get("spd", 0) * SPD_DOWN_MULT)
         # v169.7 暗影步·极 shadow_dance_bonus：影舞态中自身速度 +25%
+        # v181.P2D-D2b：消费迁注册表族 stat_mult_cond（stat_kind='spd' 段；影舞态守卫
+        # 保留原 if 骨架——spd 消费点，与挂点2 crit_dmg 段同 proc 双消费点参数化）
         if _pbuffs.get("shadow_dance"):
             try:
                 for _pn_sb, _ps_sb in self._proc_pm(player)["proc"].get("shadow_dance_bonus", []):
-                    st["spd"] = int(st.get("spd", 0) * (1.0 + float(_ps_sb.get("spd_add", 0.25) or 0.25)))
+                    _ctx_sb = {"player": player, "ps": _ps_sb, "ps_name": _pn_sb, "stat_kind": "spd"}
+                    _rv_sb = _run_proc_family(self, "shadow_dance_bonus", _ctx_sb)
+                    if _rv_sb:
+                        st["spd"] = int(st.get("spd", 0) * (1.0 + float(_rv_sb[0])))
                     break
             except Exception as _sw_e:
                 _battle_warn('_player_stats', _sw_e)
@@ -4703,6 +4708,8 @@ class Battle:
         # 咏叹·极 melody_master：每强度层 +5% 旋律效果（与上面两光环线性加叠）
         # ⚠️ TODO（依赖 battle_mech agent 的旋律实现）：若旋律光环本体未实现，本段只加“额外”档；
         #   已学被动玩家在有旋律时获得上述加成；无旋律（_melody.name=None）不生效
+        # v181.P2D-D2b：3 段消费迁注册表族 stat_mult_cond（stat_kind='melody' 段）；
+        # 挂点保留"3 段聚合 _mel_pct 再统一乘"顺序——handler 各返回贡献值，循环骨架/顺序/break 逐字保留
         try:
             _mel169 = self._melody_state()
             _pm_mel = self._proc_pm(player)["proc"]
@@ -4710,15 +4717,25 @@ class Battle:
             _mel_n = int(_mel169.get("stack", 0) or 0)
             if _mel169.get("name") and _mel_n > 0:
                 for _pn_rs, _ps_rs in _pm_mel.get("melody_resonance", []):
-                    if _mel_n >= int(_ps_rs.get("stacks", 3) or 3):
-                        _mel_pct += float(_ps_rs.get("mult", 0.10) or 0.10)
+                    _ctx_rs = {"player": player, "ps": _ps_rs, "ps_name": _pn_rs,
+                               "stat_kind": "melody", "melody_n": _mel_n}
+                    _rv_rs = _run_proc_family(self, "melody_resonance", _ctx_rs)
+                    if _rv_rs:
+                        _mel_pct += float(_rv_rs[0])
                     break
                 for _pn_mf, _ps_mf in _pm_mel.get("melody_full", []):
-                    if _mel_n >= int(_ps_mf.get("stacks", 5) or 5):
-                        _mel_pct += float(_ps_mf.get("mult", 0.15) or 0.15)
+                    _ctx_mf = {"player": player, "ps": _ps_mf, "ps_name": _pn_mf,
+                               "stat_kind": "melody", "melody_n": _mel_n}
+                    _rv_mf = _run_proc_family(self, "melody_full", _ctx_mf)
+                    if _rv_mf:
+                        _mel_pct += float(_rv_mf[0])
                     break
                 for _pn_mm, _ps_mm in _pm_mel.get("melody_master", []):
-                    _mel_pct += float(_ps_mm.get("per_stack", 0.05) or 0.05) * _mel_n
+                    _ctx_mm = {"player": player, "ps": _ps_mm, "ps_name": _pn_mm,
+                               "stat_kind": "melody", "melody_n": _mel_n}
+                    _rv_mm = _run_proc_family(self, "melody_master", _ctx_mm)
+                    if _rv_mm:
+                        _mel_pct += float(_rv_mm[0])
                     break
             if _mel_pct > 0:
                 for _mk_s in ("atk", "def", "matk", "mdef", "spd"):
@@ -4919,12 +4936,17 @@ class Battle:
     def _passive_crit_dmg_mult(self, player: dict) -> float:
         """v169.7 暴伤乘区被动：
         - 暗影步·极 shadow_dance_bonus：影舞态中暴击伤害 +20%（暴伤属性加算并入 cdmg）
-        返回加法增量（0~1）。"""
+        返回加法增量（0~1）。
+        v181.P2D-D2b：消费迁注册表族 stat_mult_cond（ctx stat_kind='crit_dmg' 段；影舞态守卫
+        保留原 `if self._shadow_dance(player):` 骨架），循环骨架/顺序/break 语义逐字保留。"""
         extra = 0.0
         try:
             if self._shadow_dance(player):
                 for _pn, _ps in self._proc_pm(player)["proc"].get("shadow_dance_bonus", []):
-                    extra += float(_ps.get("crit_dmg", 0.0) or 0.0)
+                    _ctx_cd = {"player": player, "ps": _ps, "ps_name": _pn, "stat_kind": "crit_dmg"}
+                    _rv = _run_proc_family(self, "shadow_dance_bonus", _ctx_cd)
+                    if _rv:
+                        extra += float(_rv[0])  # 返回值 = 暴伤加法增量（读 _ps.crit_dmg）
                     break
         except Exception as _sw_e:
             _battle_warn('_passive_crit_dmg_mult', _sw_e)
