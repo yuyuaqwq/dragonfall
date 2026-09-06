@@ -4079,30 +4079,51 @@ class Battle:
         except Exception:
             pass
         # v140 波3.1：特效装备常驻面板属性（奥术苍穹魔攻+15%/疾风步速度+/弑星·无尽辉光暴伤+）
+        # v180E 阶段4：数值全从武器特效参数表读（WEAPON_EFFECT_DATA）
         try:
             from .core.weapon_effects import weapon_effect_ids as _we_ids
+            from .core.weapon_effects import effect_data as _we_edp
             _weids = set(_we_ids(self, player))
             if "arcane_firmament" in _weids:
-                st["matk"] = int(st.get("matk", 0) * 1.15)
+                _af_pct = float(_we_edp(self, player, "arcane_firmament").get("matk_pct", 0.15) or 0.15)
+                st["matk"] = int(st.get("matk", 0) * (1 + _af_pct))
             _gale_pct = float((self._p_eff() or {}).get("gale_step_pct", 0) or 0)
             if _gale_pct > 0 and self._p_buffs_bag().get("gale_step"):
                 st["spd"] = int(st.get("spd", 0) * (1 + _gale_pct))
             if "star_slayer_edge" in _weids:
-                st["crit_dmg"] = float(st.get("crit_dmg", 0) or 0) + 0.30
+                _sse_cd = float(_we_edp(self, player, "star_slayer_edge").get("crit_dmg", 0.30) or 0.30)
+                st["crit_dmg"] = float(st.get("crit_dmg", 0) or 0) + _sse_cd
             if "endless_radiance" in _weids:
-                st["crit_dmg"] = float(st.get("crit_dmg", 0) or 0) + 0.25
-            # 风痕（风行短弓）：每层速度 +2%
+                _er_cd = float(_we_edp(self, player, "endless_radiance").get("crit_dmg_pct", 0.25) or 0.25)
+                st["crit_dmg"] = float(st.get("crit_dmg", 0) or 0) + _er_cd
+            # 风痕（风行短弓）：每层速度 +X%
             _wm = int((self._p_stacks() or {}).get("wind_mark", 0) or 0)
             if _wm > 0:
-                st["spd"] = int(st.get("spd", 0) * (1 + 0.02 * _wm))
+                try:
+                    from .core.weapon_effects import effect_data as _we_edw
+                    _wm_pct = float(_we_edw(self, self.player, "wind_mark").get("spd_pct_per", 0.02) or 0.02)
+                except Exception:
+                    _wm_pct = 0.02
+                st["spd"] = int(st.get("spd", 0) * (1 + _wm_pct * _wm))
             # v140 波4：新手特效 翠风（novice_wind_spd）——命中后自身速度 +5%（2 刻）
             if self._p_buffs_bag().get("novice_wind_spd"):
-                st["spd"] = int(st.get("spd", 0) * 1.05)
-            # 雷纹连打（雷纹拳甲）：每层速度 +2%、攻击 +1%
+                try:
+                    from .core.weapon_effects import effect_data as _we_ed2
+                    _nws_pct = float(_we_ed2(self, self.player, "novice_wind_spd").get("spd_pct", 0.05) or 0.05)
+                except Exception:
+                    _nws_pct = 0.05
+                st["spd"] = int(st.get("spd", 0) * (1 + _nws_pct))
+            # 雷纹连打（雷纹拳甲）：每层速度 +X%、攻击 +X%
             _tw = int((self._p_stacks() or {}).get("thunder_weave", 0) or 0)
             if _tw > 0:
-                st["spd"] = int(st.get("spd", 0) * (1 + 0.02 * _tw))
-                st["atk"] = int(st.get("atk", 0) * (1 + 0.01 * _tw))
+                try:
+                    from .core.weapon_effects import effect_data as _we_edt
+                    _tw_spd = float(_we_edt(self, self.player, "thunder_weave").get("spd_pct_per", 0.02) or 0.02)
+                    _tw_atk = float(_we_edt(self, self.player, "thunder_weave").get("atk_pct_per", 0.01) or 0.01)
+                except Exception:
+                    _tw_spd, _tw_atk = 0.02, 0.01
+                st["spd"] = int(st.get("spd", 0) * (1 + _tw_spd * _tw))
+                st["atk"] = int(st.get("atk", 0) * (1 + _tw_atk * _tw))
         except Exception:
             pass
         return st
@@ -5888,12 +5909,18 @@ class Battle:
                     total = max(1, int(total * _lpm_pipe))
             except Exception:
                 pass
-        # v174.1 星火（novice_spark_followup 星火法杖）：basic 普攻技命中消费星火标记（+10% 后清）。
+        # v174.1 星火（novice_spark_followup 星火法杖）：basic 普攻技命中消费星火标记（+X% 后清）。
         # 原语义"释放技能后下次普攻+10%"——basic_skill 即普攻，仅 basic 技触发，普通技能不消费。
+        # v180E 阶段4：数值从武器特效参数表读（novice_spark_followup.atk_pct）
         if info.get("basic") and self._cast_stacks().get("novice_spark"):
-            total = int(total * 1.10)
+            try:
+                from .core.weapon_effects import effect_data as _we_ed
+                _spark_pct = float(_we_ed(self, player, "novice_spark_followup").get("atk_pct", 0.10) or 0.10)
+            except Exception:
+                _spark_pct = 0.10
+            total = int(total * (1 + _spark_pct))
             del self._cast_stacks()["novice_spark"]
-            logs.append("✨ 星火x1.1：普攻伤害 +10%！")
+            logs.append(f"✨ 星火x{1 + _spark_pct:.1f}：普攻伤害 +{int(_spark_pct * 100)}%！")
         # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
         # v177 双向：玩家施法=怪闪避（_monster_dodge_check）；怪施法玩家技能=目标玩家闪避由 _deal_hit 内 _damage_actor 处理
         if not self._tgt_is_player() and self._monster_dodge_check(logs):
@@ -9342,7 +9369,12 @@ class Battle:
             dodge = 1 - (1 - dodge) * (1 - 0.15)
         # v140 波4：新手特效 远行（novice_first_turn_dodge）——每场战斗首刻闪避率 +5%
         if (EFF or {}).get("novice_dodge_active") and self._tick_no() <= 1:
-            dodge = 1 - (1 - dodge) * (1 - 0.05)
+            try:
+                from .core.weapon_effects import effect_data as _we_ed3
+                _nfd_pct = float(_we_ed3(self, self.player, "novice_first_turn_dodge").get("dodge_pct", 0.05) or 0.05)
+            except Exception:
+                _nfd_pct = 0.05
+            dodge = 1 - (1 - dodge) * (1 - _nfd_pct)
         # 攻击方精准削减（PVP：对方玩家精准；PVE：怪物无精准=0 不削减）
         atk_hit = self._attacker_precise()
         if atk_hit > 0:
@@ -9512,8 +9544,13 @@ class Battle:
             pass
         # v140 波4：新手特效 守御（novice_first_turn_guard）——每场战斗首刻受击伤害 -10%
         if (EFF or {}).get("novice_guard_active") and self._tick_no() <= 1:
-            dmg = max(1, int(dmg * 0.90))
-            logs.append("🛡️ 守御：首刻受击伤害 -10%！")
+            try:
+                from .core.weapon_effects import effect_data as _we_ed4
+                _nfg_pct = float(_we_ed4(self, self.player, "novice_first_turn_guard").get("reduce_pct", 0.10) or 0.10)
+            except Exception:
+                _nfg_pct = 0.10
+            dmg = max(1, int(dmg * (1 - _nfg_pct)))
+            logs.append(f"🛡️ 守御：首刻受击伤害 -{int(_nfg_pct * 100)}%！")
         # v130.2c 套装受击回资源：血誓战团（受击回怒 +1）/ 圣徽·誓约（受击回信仰 +1）
         self._set_res_proc(actor, "on_taken", logs)
         # v64/v104 被动 proc 结算（按 passive 字段查 learned_skills，替换名字硬匹配）：

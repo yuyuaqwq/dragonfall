@@ -34,6 +34,8 @@ from .affixes import (  # noqa: F401
 from .equip_roster import (  # noqa: F401
     EQUIP_ROSTER, EQUIP_ROSTER_BY_NAME, SERIES_SETS,
 )
+# v180E 阶段4：武器特效参数表（数值权威默认，装备行 we_data 为覆盖层）
+from .weapon_effect_data import WEAPON_EFFECT_DATA  # noqa: F401
 from .items import ITEMS, MATERIALS, MATERIALS_BY_NAME  # noqa: F401
 from .npcs import NPCS  # noqa: F401
 from .dialogues import DIALOGUES  # noqa: F401

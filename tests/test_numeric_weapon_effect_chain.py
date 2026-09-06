@@ -86,7 +86,7 @@ async def main():
         we_proc(b, p, "hit", {"dmg": 500}, [])
     check("穿星 4 次攻击触发（真伤 >0）", e["hp"] < hp_before, f"dmg={hp_before - e['hp']}")
 
-    # 5. 无 we_data 旧装备（手工塞 key）→ effect_data 空 → 行为不崩（回归锚）
+    # 5. 无 we_data 旧装备（手工塞 key）→ effect_data 回退参数表权威默认（v180E 阶段4）
     p2 = {
         "class_name": "战士", "level": 85, "hp": 9999, "max_hp": 9999,
         "equipment": {"weapon": {"name": "旧特效", "weapon_effect": "wind_split",
@@ -94,7 +94,8 @@ async def main():
         "buffs": {}, "attributes": {"str": 90}, "learned_skills": [], "race": "human",
     }
     wd = effect_data(None, p2, "wind_split")
-    check("无 we_data 旧装备 → effect_data 空 dict", wd == {}, f"wd={wd}")
+    check("无 we_data 旧装备 → effect_data 回退参数表默认", abs(float(wd.get("chance", 0)) - 0.25) < 1e-9,
+          f"wd={wd} (应含 chance=0.25 表默认)")
     check("旧装备 has_effect 仍 True（key 在就识别）", has_effect(None, p2, "wind_split"))
 
     print(f"\n===== 结果: {passed} 通过, {failed} 失败 =====")
