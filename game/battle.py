@@ -1586,6 +1586,23 @@ class Battle:
                                        "skill": _cst.get("skill"),
                                        "power_mult": _cst.get("power_mult", 1.0),
                                        "target": _tgt})
+        # v180G B6 玩家出手挂起恢复（同敌方 _cast 样板）：扫 allies（副本玩家快照引用）
+        # 的 _cast——多人 CTB 下 A 出手挂起的命中事件在 B 的 Battle 恢复补排，按 hit_at
+        # 绝对时刻触发（谁先命中谁先结算）。野外/单人 allies 空/无 _cast → 无影响。
+        for _pa in (b.allies or []):
+            _pcs = _pa.get("_cast")
+            if _pcs and _pa.get("hp", 0) > 0:
+                _phit = float(_pcs.get("hit_at", 0) or 0)
+                if _phit > b._now:
+                    _ptu = _pcs.get("_target_uid") or ""
+                    _ptgt = None
+                    if _ptu:
+                        for _u2 in b.enemies:
+                            if str(_u2.get("qq_id") or _u2.get("uid") or _u2.get("name") or "") == _ptu:
+                                _ptgt = _u2
+                                break
+                    b._schedule(_phit, {"type": "cast_done", "side": "p", "kind": _pcs.get("kind", "atk"),
+                                        "skill": _pcs.get("skill"), "player_ref": _pa, "target": _ptgt})
         # v179 通用 tick 效果恢复：actor_ref 重绑（"player"→b.player（调用方后续绑定真实玩家，
         # 此刻可能是空 dict——效果 actor 若为玩家，恢复时 actor 先用 b.player 占位，命令层绑定
         # 真实玩家后同一引用即生效）；"pet"→b.pet（v180E 阶段6：宠物 actor 卡不再丢）；
@@ -3304,6 +3321,15 @@ class Battle:
                 # 保证 _process_until 推进到 p_ct 时 cast_done 已触发（cast_done < p_ct）
                 self._after_actor_ct("p", player=player, cast_mult=_cast_t + _recover_t)
                 self._player_casting = True
+                # v180G B6：出手挂起登记（同普攻）——技能命中参数写玩家 actor dict
+                _pca = getattr(self, "_pending_player_cast", None) or {}
+                _ht_a = _pca.get("_hit_target")
+                player["_cast"] = {
+                    "hit_at": self._now + _cast_t,
+                    "kind": "skill",
+                    "skill": skill_name,
+                    "_target_uid": str(_ht_a.get("uid") or _ht_a.get("qq_id") or _ht_a.get("name") or "") if _ht_a and _ht_a.get("hp", 0) > 0 else "",
+                }
             else:
                 # PVP 不介入：立即结算（保持真人轮流；_do_player_skill 内部 PVP 走立即路径）
                 self._after_actor_ct("p", player=player, cast_mult=_cast_t + _recover_t)
@@ -3326,6 +3352,16 @@ class Battle:
                 # 玩家下次可行动 = 命中时刻 + 收招耗时（= 出手 + 总耗时），保证 cast_done 先触发
                 self._after_actor_ct("p", player=player, cast_mult=_cast_t + _recover_t)
                 self._player_casting = True
+                # v180G B6：出手挂起登记——命中参数写玩家 actor dict（与怪 e["_cast"] 同构），
+                # 供副本跨 Battle 恢复补排（多人 CTB：A 出手挂起，B 的 Battle 也能触发 A 命中）
+                _atk_tgt_a2 = getattr(self, "_active_target", None)
+                if _atk_tgt_a2 is None:
+                    _atk_tgt_a2 = self.enemy if getattr(self, "enemy", None) else (self.enemies[0] if self.enemies else None)
+                player["_cast"] = {
+                    "hit_at": self._now + _cast_t,
+                    "kind": "atk",
+                    "_target_uid": str(_atk_tgt_a2.get("uid") or _atk_tgt_a2.get("qq_id") or _atk_tgt_a2.get("name") or "") if _atk_tgt_a2 and _atk_tgt_a2.get("hp", 0) > 0 else "",
+                }
             else:
                 self._after_actor_ct("p", player=player, cast_mult=_cast_t + _recover_t)
             _cast_mult = _cast_t + _recover_t
@@ -3622,7 +3658,19 @@ class Battle:
                     side = ev.get("side", "p")
                     if side == "p":
                         self._player_casting = False
+                        # v180G B6：跨 Battle 恢复的玩家命中（player_ref 指向 allies 快照）——
+                        # 命中者可能不是当前焦点（副本 B 的 Battle 触发 A 的挂起命中）
+                        _hit_player = ev.get("player_ref") or player
                         pc = self._pending_player_cast or {}
+                        # 非焦点命中：pending 在源 Battle 不在当前实例 → 从 ev 恢复
+                        if not pc and ev.get("player_ref") is not None:
+                            _pkind = ev.get("kind", "atk")
+                            if _pkind == "skill" and ev.get("skill"):
+                                _pinf = self._lookup_skill_info(str(ev.get("skill"))) or {}
+                                pc = {"skill_name": ev.get("skill"), "info": _pinf,
+                                      "st": None, "target": ev.get("target")}
+                            else:
+                                pc = {"kind": "atk", "st": None, "target": ev.get("target")}
                         self._pending_player_cast = None
                         # v169.7 修 #132：恢复施放时快照的目标（_enemy_phase 尾部已清 _active_target）
                         # ——目标仍存活 → 设回 _active_target（伤害结算打到指定 a2/a3 而非主目标 a1）；
@@ -3637,18 +3685,21 @@ class Battle:
                         if not self._enemy_dead():
                             _kind = pc.get("kind", ev.get("kind", ""))
                             if _kind == "atk":
-                                logs += self._player_attack(pc.get("st") or self._player_stats(player), player)
+                                logs += self._player_attack(pc.get("st") or self._player_stats(_hit_player), _hit_player)
                             elif _kind == "skill":
                                 _sn = pc.get("skill_name") or ev.get("skill")
                                 _inf = pc.get("info") or {}
                                 if _sn and _inf:
-                                    logs += self._player_skill(pc.get("st") or self._player_stats(player),
-                                                               _sn, _inf, player, target=pc.get("target") or ev.get("target"))
+                                    logs += self._player_skill(pc.get("st") or self._player_stats(_hit_player),
+                                                               _sn, _inf, _hit_player, target=pc.get("target") or ev.get("target"))
                             elif _kind == "item":
                                 # 道具无读条命中（即时生效，v152 行为保留）——这里只是兜底
                                 pass
                         else:
                             logs.append("（你的攻击落空了——目标已倒下！）")
+                        # v180G B6：命中结算完成 → 清玩家挂起登记（防 from_state 重复补排；同敌方 e["_cast"] 语义）
+                        if ev.get("player_ref") is not None:
+                            _hit_player.pop("_cast", None)
                         # 命中后玩家收招已完成（p_ct 已在出手时设为命中时刻+收招），无需再排
                     elif side == "e":
                         # v154 敌方对称读条：敌方出招读条结束 → 命中结算
