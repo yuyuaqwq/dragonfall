@@ -93,6 +93,12 @@ async def main():
     alive3_sides = set(alive3.keys())
     check("魔法怪 vs 怪能跑完", len(alive3_sides) == 1, f"alive={alive3_sides} turn={turn3}")
 
+    # 3b. 结局判定（B7）：怪vs怪跑完 result 记胜利阵营
+    check("怪vs怪 result = 胜利阵营", b3.result in ("side_c", "side_d"),
+          f"result={b3.result} winner_side={getattr(b3, 'winner_side', None)}")
+    check("winner_side 与存活阵营一致", getattr(b3, "winner_side", None) in alive3_sides,
+          f"winner={getattr(b3, 'winner_side', None)} alive={alive3_sides}")
+
     # 4. 常规玩家战斗不受影响（回归：野外 player vs enemy 仍正常）
     from data.plugins.dragonfall.game import battle as _BT
     p = {"class_name": "战士", "level": 50, "hp": 8000, "max_hp": 8000, "mp": 200, "max_mp": 200,

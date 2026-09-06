@@ -725,6 +725,7 @@ class Battle:
         self.companions: list = []
         self.killed_enemies: list = []
         self.result = None                 # None | victory | defeat | fled
+        self.winner_side = None            # v180F B7：无玩家战斗（怪vs怪）胜利阵营名
         self.title_bonus = title_bonus or {}
         if player:
             # v95.19: 战斗内属性统一用实时计算值——DB max_hp/max_mp 是注册/升级快照，换装备后过时，
@@ -3024,6 +3025,17 @@ class Battle:
         if not self.player:
             self.player = player or {}
         self._apply_restore_pstate()
+        # v180F B7：player 后绑（测试/命令层 Battle 构造未传 player）→ 补 sides player 阵营，
+        # 否则 _check_side_end 误判"玩家侧已灭"（sides 无 player key 时只剩 enemy）
+        if self.player:
+            _pl_r = self.player
+            if _pl_r.get("class_name") or _pl_r.get("name") or _pl_r.get("qq_id"):
+                _sides = getattr(self, "sides", None)
+                if _sides is not None and "player" not in _sides:
+                    _pl_r.setdefault("side", "player")
+                    _pl_r.setdefault("kind", "player")
+                    _sides["player"] = [_pl_r]
+                    self._side_names = list(_sides.keys())
         # 若传入 player 与 self.player 不同 dict（模拟器浅拷贝模式），把传入 player 的
         # 可观察面板字段同步到 self.player（避免引擎读 self.player 得到空面板）
         if player is not None and player is not self.player:
@@ -3596,6 +3608,15 @@ class Battle:
                     if self._player_dead(player):
                         self.result = "defeat"
                         break
+                    # v180F B7：通用 side 全灭判定（怪vs怪等无玩家战斗——某自定义
+                    # 阵营全灭 → 结束）。常规战斗此判定与上方兼容（player/enemy 二选一）。
+                    try:
+                        if self._alive_side_names() and len(self._alive_side_names()) <= 1:
+                            _chk = self._check_side_end(logs)
+                            if _chk is not None:
+                                break
+                    except Exception:
+                        pass
             except Exception as _ex:
                 # 单个事件异常不阻塞队列（防御性，避免一个坏事件死循环）
                 logs.append(f"(事件处理异常: {_ex})")
@@ -10564,6 +10585,68 @@ class Battle:
         # v2：敌方阵列无存活（§3.2）——同时压缩移除死亡单位
         from .core.formation import alive_units
         return not alive_units(self.enemies)
+
+    def _alive_side_names(self) -> list:
+        """v180F B7：存活阵营名列表（通用 actor 引擎——任意 side 结构）。
+
+        玩家侧 = sides 里 side=player 的成员（玩家/队友/随从）；敌方侧 = 各 side 组。
+        无 sides（旧战斗）→ 按 player/enemies 传统判定。
+        """
+        sides = getattr(self, "sides", None)
+        if not sides:
+            # 旧战斗：玩家存活 → player；enemies 存活 → enemy
+            out = []
+            _pl = getattr(self, "player", None) or {}
+            if _pl.get("hp", 0) > 0 or _pl.get("class_name") or _pl.get("name") or _pl.get("qq_id"):
+                if _pl.get("hp", 1) > 0:
+                    out.append("player")
+            if any(u.get("hp", 0) > 0 for u in (self.enemies or [])):
+                out.append("enemy")
+            return out
+        alive = []
+        for _sn, _acts in sides.items():
+            if not _acts:
+                # 空阵营：player side 未绑成员但 self.player 已有真玩家（测试/命令层后绑）
+                # → 按 self.player 存活计；其它空阵营忽略
+                if _sn == "player":
+                    _pl = getattr(self, "player", None) or {}
+                    if _pl.get("class_name") or _pl.get("name") or _pl.get("qq_id"):
+                        if _pl.get("hp", 1) > 0:
+                            alive.append("player")
+                continue
+            if any(a.get("hp", 0) > 0 for a in _acts):
+                alive.append(_sn)
+        return alive
+
+    def _check_side_end(self, logs: list) -> str | None:
+        """v180F B7：通用战斗结束判定——存活阵营 ≤1 即结束。
+
+        返回胜利阵营名（无玩家战斗怪vs怪 → 剩哪个 side 哪个赢）；
+        常规战斗（player vs enemy）兼容旧 result 语义（victory/defeat）。
+        未结束返回 None。
+        """
+        alive = self._alive_side_names()
+        if len(alive) > 1:
+            return None
+        if len(alive) == 0:
+            # 全灭（同归于尽）→ 视玩家是否存活定结果
+            return "draw"
+        winner = alive[0]
+        if "player" in self._side_names_all() and winner == "player":
+            self.result = "victory"
+        elif "player" in self._side_names_all() and "player" not in alive:
+            self.result = "defeat"
+        else:
+            # 无玩家战斗：result 记胜利阵营（命令层可读 winner_side）
+            self.result = winner
+            self.winner_side = winner
+        return winner
+
+    def _side_names_all(self) -> list:
+        sides = getattr(self, "sides", None)
+        if sides:
+            return list(sides.keys())
+        return ["player", "enemy"]
 
     def _player_dead(self, player: dict) -> bool:
         return player.get("hp", 1) <= 0
