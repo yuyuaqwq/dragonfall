@@ -105,6 +105,24 @@ async def main():
     logs4, ended = b4.player_turn("attack", None, p)
     check("常规玩家战斗仍正常", logs4 is not None, str(logs4[:1] if logs4 else "no logs"))
 
+    # 5. 序列化往返（B6）：怪vs怪中途存档 → 恢复 → 继续打完
+    import json
+    mon_e1 = mk_mon("骷髅A", 800, 90, 25, 15, side="s_a")
+    mon_e2 = mk_mon("史莱姆B", 600, 70, 15, 12, side="s_b")
+    b5 = _BT.Battle("monster", sides={"s_a": [dict(mon_e1)], "s_b": [dict(mon_e2)]})
+    b5._process_until(2.0, [], b5.player or {})  # 打 2 秒（中途）
+    _hp1 = [e for e in b5.enemies if e.get("side") == "s_a"][0].get("hp", 0)
+    try:
+        js5 = json.dumps(b5.to_state(), ensure_ascii=False, default=str)
+        b6 = _BT.Battle.from_state(json.loads(js5))
+        _hp1r = [e for e in b6.enemies if e.get("side") == "s_a"][0].get("hp", 0)
+        check("序列化往返：无循环引用 + hp 恢复", len(js5) > 0 and _hp1r == _hp1,
+              f"len={len(js5)} hp={_hp1}→{_hp1r}")
+        check("序列化往返：sides 阵营重建", set(b6.sides.keys()) == {"s_a", "s_b"},
+              str(list(b6.sides.keys())))
+    except Exception as _ex5:
+        check("序列化往返：无循环引用 + hp 恢复", False, f"异常 {_ex5}")
+
     print(f"\n===== 结果: {passed} 通过, {failed} 失败 =====")
     return 0 if failed == 0 else 1
 

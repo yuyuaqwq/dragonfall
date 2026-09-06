@@ -1052,11 +1052,71 @@ class Battle:
         except Exception:
             self.companions = list(val or [])
 
+    def _summons_serializable(self) -> list:
+        """v180F B6：summons 可序列化快照——深拷贝召唤物 actor，owner 引用 → owner_uid。
+
+        companions 的 owner 字段是内存 actor 引用（B4），直接 json 序列化会循环引用。
+        输出用 _owner_uid（qq_id/uid 字符串）替代，恢复后归属靠 _last_player/uid 匹配兜底。
+        """
+        import copy as _copy
+        out = []
+        for c in (self.summons or []):
+            try:
+                cc = _copy.deepcopy(c)
+            except Exception:
+                cc = dict(c)
+            # owner actor dict → _owner_uid 字符串
+            try:
+                _o = c.get("owner")
+                if _o is not None:
+                    _ouid = str(_o.get("qq_id") or _o.get("uid") or _o.get("name") or "")
+                    if _ouid:
+                        cc["_owner_uid"] = _ouid
+                cc.pop("owner", None)  # 去掉循环引用
+            except Exception:
+                cc.pop("owner", None)
+            out.append(cc)
+        return out
+
     # v180-B P2：原 mech_stacks property（落 _mech_stacks 实例槽）已删除——
     # 玩家叠层权威改存 player["stacks"]（actor dict 与怪同构），__init__ 播种为实例引用。
     # 外置 battle.mech_stacks 读点在 P4 迁移到 actor 读。
 
     # ---------------- 序列化 ----------------
+    @staticmethod
+    def _strip_actor_refs(actor: dict) -> dict:
+        """v180F B6：序列化前剥离 actor 内循环引用（_cast.target / owner）。
+
+        战斗中怪 _cast.target 指向另一 actor（B5 目标记录），双方可能互相指向 → json
+        循环引用。序列化输出把 _cast.target 转 _target_uid 字符串、owner 转 _owner_uid。
+        不修改原 actor（返回新 dict）。
+        """
+        import copy as _copy
+        try:
+            a = _copy.deepcopy(actor)
+        except Exception:
+            a = dict(actor)
+        try:
+            _cst = a.get("_cast")
+            if isinstance(_cst, dict) and _cst.get("target") is not None:
+                _t = _cst.pop("target", None)
+                if isinstance(_t, dict):
+                    _tu = str(_t.get("qq_id") or _t.get("uid") or _t.get("name") or "")
+                    if _tu:
+                        _cst["_target_uid"] = _tu
+        except Exception:
+            pass
+        try:
+            _o = a.get("owner")
+            if _o is not None:
+                _ou = str(_o.get("qq_id") or _o.get("uid") or _o.get("name") or "")
+                if _ou:
+                    a["_owner_uid"] = _ou
+                a.pop("owner", None)
+        except Exception:
+            a.pop("owner", None)
+        return a
+
     def to_state(self) -> dict:
         _pl = self.player or {}
         _p_res = _pl.setdefault("resources", {})
@@ -1074,8 +1134,9 @@ class Battle:
             "now": self._now,
             "p_acts": self._p_acts,
             # v2：敌方完整阵列（核心）；enemy 保留为兼容键（= 主目标引用）
-            "enemy": self.enemy,
-            "enemies": self.enemies,
+            # v180F B6：序列化前剥离 actor 循环引用（_cast.target/owner → uid）
+            "enemy": self._strip_actor_refs(self.enemy),
+            "enemies": [self._strip_actor_refs(u) for u in self.enemies],
             "killed_enemies": getattr(self, "killed_enemies", []),  # v130.7 意见#17 击杀记录随战斗持久化（跨消息续战胜利不丢）
             # v180-B：玩家战斗状态已存 player actor dict——序列化输出沿用旧顶层键结构
             #（老档兼容读），值从 player dict 读
@@ -1095,7 +1156,9 @@ class Battle:
             "p_shields": _p_shields,
             # v101.28l 旧观兼容键保留（= 敌方阵列中 summon 型援军副本，命令层写回用）
             "e_minions": self.e_minions,
-            "summons": self.summons,
+            # v180F B6：序列化时 summons 清洗 owner 循环引用——owner actor dict 引用 → owner_uid
+            # 字符串（uuid/qq_id），防 json 序列化循环引用；恢复后靠 _last_player 兜底归属
+            "summons": self._summons_serializable(),
             "e_buffs": self.e_buffs,
             "p_defending": bool(_pl.get("defending", False)),
             "e_defending": self.e_defending,
@@ -1148,7 +1211,28 @@ class Battle:
                 }
                 for e in getattr(self, "tick_effects", [])
             ],
+            # v180F B6：sides 阵营完整快照（通用 actor 引擎落档——怪vs怪等无玩家战斗
+            # 靠它恢复阵营结构；玩家战斗冗余但无害）。深拷贝 + owner 清洗防循环引用。
+            "sides_snapshot": self._sides_snapshot(),
         }
+
+    def _sides_snapshot(self) -> dict:
+        """v180F B6：sides 可序列化快照——每阵营 actor 深拷贝，owner/_cast.target → uid。
+
+        仅当战斗有非标准阵营（自定义 side 名 / 无玩家）时输出完整 sides；常规玩家 vs
+        enemy 战斗 sides 可退化（players 侧由命令层快照承载，不重复落档）。
+        """
+        sides = getattr(self, "sides", None) or {}
+        # 判断是否需要完整 sides 快照：存在非 player/enemy 的阵营 = 通用 actor 战斗
+        _custom = [s for s in sides if s not in ("player", "enemy")]
+        if not _custom:
+            # 常规战斗：仅记录 player side 成员 uid 列表 + enemy side 已在 enemies 落档
+            return {"_custom": False}
+        out = {}
+        for _sn, _acts in sides.items():
+            out[_sn] = [self._strip_actor_refs(a) for a in _acts]
+        out["_custom"] = True
+        return out
 
     def _load_player_state(self, qq_id) -> dict | None:
         """v173.6 重构（v180-B ①更新）：副本敌方行动选目标后切换结算焦点。
@@ -1440,10 +1524,20 @@ class Battle:
             if _cst and _u.get("hp", 0) > 0:
                 _hit = float(_cst.get("hit_at", 0) or 0)
                 if _hit > b._now:
+                    # v180F B6：恢复目标 actor（_target_uid → enemies/sides 里解析；
+                    # 怪vs怪读条续战不丢目标）
+                    _tgt = None
+                    _tu = _cst.get("_target_uid") or ""
+                    if _tu:
+                        for _u2 in b.enemies:
+                            if str(_u2.get("qq_id") or _u2.get("uid") or _u2.get("name") or "") == _tu:
+                                _tgt = _u2
+                                break
                     b._schedule(_hit, {"type": "cast_done", "side": "e", "unit": _u,
                                        "kind": _cst.get("kind", "atk"),
                                        "skill": _cst.get("skill"),
-                                       "power_mult": _cst.get("power_mult", 1.0)})
+                                       "power_mult": _cst.get("power_mult", 1.0),
+                                       "target": _tgt})
         # v179 通用 tick 效果恢复：actor_ref 重绑（"player"→b.player（调用方后续绑定真实玩家，
         # 此刻可能是空 dict——效果 actor 若为玩家，恢复时 actor 先用 b.player 占位，命令层绑定
         # 真实玩家后同一引用即生效）；"pet"→b.pet（v180E 阶段6：宠物 actor 卡不再丢）；
@@ -1487,6 +1581,38 @@ class Battle:
                                       uid="pet_act", source="pet")
                 except Exception:
                     pass
+        # v180F B6：sides_snapshot 恢复——通用 actor 战斗（怪vs怪/自定义阵营）落档后重建。
+        # 快照含每阵营 actor 深拷贝；enemies 在构造时已从 st["enemies"] 载入（含全部非 player
+        # side actor），此处仅重播种 side 字段 + 重建 self.sides 权威视图。
+        try:
+            _snap = st.get("sides_snapshot") or {}
+            if _snap.get("_custom"):
+                _rebuilt = {}
+                for _sn, _acts in _snap.items():
+                    if _sn == "_custom":
+                        continue
+                    # 从快照恢复 actor（enemies 里已有同 uid 的 → 用现有的保持引用一致；
+                    # 找不到 → 用快照 dict）
+                    _arr = []
+                    for _sa in _acts:
+                        _uid = str(_sa.get("uid", ""))
+                        _found = None
+                        for _u in b.enemies:
+                            if str(_u.get("uid", "")) == _uid:
+                                _found = _u
+                                break
+                        if _found is None:
+                            _found = dict(_sa)
+                            _found.pop("_owner_uid", None)
+                            b.enemies.append(_found)
+                        _found.setdefault("side", _sn)
+                        _arr.append(_found)
+                    _rebuilt[_sn] = _arr
+                if _rebuilt:
+                    b.sides = _rebuilt
+                    b._side_names = list(_rebuilt.keys())
+        except Exception:
+            pass
         return b
 
     # ---------------- 核心资源（v2.0 / v130.2 分支级 resource_override） ----------------
