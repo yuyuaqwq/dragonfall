@@ -23,21 +23,22 @@
 
 | worktree/分支 | 任务 | 状态 |
 |---|---|---|
-| w2 wt_p2b | P2B 引擎刻度常量收 core/constants（消 core→battle 反向 import）| 改码中（battle.py/battle_mech.py/constants.py/weapon_effects.py 4 文件）|
-| w4 wt_p2f | P2F 底层公式骨架公式化侦察（calc_damage/exp/monster_exp/equip_stats…）| 侦察中，将出 REFACTOR_P2F_formula_skeleton.md |
-| w5 wt_p2c | P2C weapon_effects 96→~10 执行器侦察 | 侦察中，将出 REFACTOR_P2C_weapon_executors.md |
-| w6 wt_p2e | P2E battle_config CFG→MECH_CFG 单表侦察 | 侦察中，将出 REFACTOR_P2E_mech_cfg.md |
+| w8 wt_p0b_impl | P0B-B 止血实施（SKILL_UP 628→468 去重+删 163 孤儿）| 运行中 |
+| w9 wt_p2f1 | P2F-1 公式参数化实施（新建 formula_skeleton.py）| 运行中 |
 
-## 队列（等侦察方案回来 → 主 agent 审 → 派实施）
+## 方案文档全齐（已合并 master，待实施）
 
-- P2D 实施：被动 proc 反射化注册表（按 ff1c843 方案；前置=45 无参 proc 数值回填 skills.py）
-- P2F 实施：公式骨架参数化/表达式化（方案回来鱼鱼审或主 agent 按北极星执行）
-- P2C 实施：weapon 96→~10 族执行器
-- P2E 实施：CFG 收敛 MECH_CFG 单表（死表清理需谨慎）
-- P0-B：skill_up.py 中文 key 消重（160 组同名，112 组冲突——高风险数据迁移）
-- P3：玩家状态容器收尾（p_meta 槽收纳，需先行为快照测试）
-- P4：命令层抽 services（BattleSettlement/Quest/Shop/Crafting/Profession…）
-- P5：battle 拆类（最后，需白盒黑盒化）
+| 方案 | 文档 | 核心 |
+|---|---|---|
+| P0B skill_up | REFACTOR_P0B_skill_up_dedup.md (9d9148b) | 628→468；B止血(已实施中)→C根治(id key) |
+| P2C weapon | REFACTOR_P2C_weapon_executors.md (43b0075) | 79 key→15族→10执行器；C1-C10 十批 |
+| P2D 被动 proc | REFACTOR_P2D_passive_proc_registry.md (ff1c843) | 52 proc→~20族；D1-D7 七批 |
+| P2E CFG | REFACTOR_P2E_mech_cfg.md (7083dbe) | 95常量：52消费/41死表；MECH_CFG A29+B14+C7+D45；消费点~150-200行净-400 |
+| P2F 公式 | REFACTOR_P2F_formula_skeleton.md (056354a) | 18公式；P2F-1低(实施中)/P2F-2中/P2F-3高；calc_damage 专项 |
+
+⚠️ P2E 关键发现：审计"90 常量仅 7 被 import"是**误判**（只数了 data/__init__ 聚合层，漏直连
+import）；实际 95 常量 52 真消费/41 死表。教训：AST 扫"被 import"要看全仓直连，不能只看聚合层。
+
 
 ## 关键环境/路径（踩过的坑）
 
