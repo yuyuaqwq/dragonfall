@@ -10,6 +10,11 @@
 - limit：同类型并存上限（亡灵骷髅海可叠 3，植物藤蔓守卫 2）
 - bodyguard：挡刀概率（敌人攻击时由召唤物承受的概率）
 
+v180E 审计（低危 B2）：eats_aoe 字段当前语义静默——玩家/敌方 AOE 均直接结算目标
+本体（玩家 AOE 打敌阵 `_aoe_damage`→select_aoe_targets；敌方 AOE 打玩家
+`_damage_actor`→_guard_check 只拦单体），召唤物面对 AOE 不额外承担伤害。字段保留
+（v151 意图：未来 AOE 分摊系统用），勿误以为当前生效。
+
 v113 调整：游侠攻线改为自然系「林语者」后，召唤下放基础职业——
 兽群流（幼狼→狼王→影狼进化链）随隐藏线收敛删除，新增植物召唤（数量流）：
 藤蔓守卫（基础攻线召唤）→ 古树守卫（T3 强化召唤）。
@@ -28,7 +33,7 @@ SUMMONS = {
         "atk_ratio": 0.0, "hp_ratio": 0.25, "def_ratio": 0.35,
         "dmg_type": "phys", "limit": 2, "bodyguard": 1.0,
         "absorb_once": True,  # v151：纯挡刀，吸收 1 次单体后消失
-        "eats_aoe": True,     # v151：吃 AOE
+        "eats_aoe": True,     # v151：吃 AOE（v180E 审计：当前 AOE 直打本体，见顶部说明）
         "rank": 1, "reach": 1,
     },
     # v151 万木之灵·古树守卫：重装单只，挡刀 + 全队攻击 +30% 光环，吃 AOE
@@ -37,7 +42,7 @@ SUMMONS = {
         "atk_ratio": 0.30, "hp_ratio": 0.50, "def_ratio": 0.60,
         "dmg_type": "phys", "limit": 1, "bodyguard": 0.50,
         "aura_atk_all": 0.30,  # v151：全队攻击 +30% 光环（常驻）
-        "eats_aoe": True,      # v151：吃 AOE
+        "eats_aoe": True,      # v151：吃 AOE（v180E 审计：当前 AOE 直打本体，见顶部说明）
         "rank": 1, "reach": 1,
     },
     # v153 §8 法师 A 线：唤火——火元素（每 3 刻喷火，挂火印 1 层）

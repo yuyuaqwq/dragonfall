@@ -58,6 +58,10 @@ from .core.tick_effects import TICK_HANDLERS as _TICK_HANDLERS  # v179 通用 ti
 RACE_BERSERK_MULT = 1.20   # 无畏：HP 低于 berserk_hp 阈值时攻击 ×1.20（展示文案 +20%）
 RACE_TIMID_MULT = 0.90     # 怯战：HP 低于 timid_hp 阈值时攻击 ×0.90（展示文案 -10%）
 
+# v180E 低危 B1：亡灵系关键词收口（原散落硬编码）——成就 亡灵使者 kills_type
+# 同源：game/data/achievements.py ach_undead100 cond.keywords（改词需双处同步）
+UNDEAD_KEYWORDS = ("亡灵", "骷髅", "僵尸", "幽灵")
+
 
 def _basic_attack_verb(player: dict) -> str:
     """普攻动作文案（按职业；未知职业 fallback 挥剑攻击）"""
@@ -4634,14 +4638,14 @@ class Battle:
         return None
 
     def _undead_count(self) -> int:
-        """场上存活亡灵单位计数：玩家召唤骷髅（skeleton tid/名含骷髅）或敌方名称含亡灵系关键词。
-        关键词与成就 亡灵使者 kills_type 同源（亡灵/骷髅/僵尸/幽灵）。"""
+        """场上存活亡灵单位计数：玩家召唤骷髅（skeleton tid）或敌方名含亡灵系关键词。
+        关键词与成就 亡灵使者 kills_type 同源（game/data/achievements.py ach_undead100）。"""
         n = 0
         for s in self.summons:
-            if s.get("hp", 0) > 0 and (s.get("tid") == "skeleton" or "骷髅" in str(s.get("name", ""))):
+            if s.get("hp", 0) > 0 and s.get("tid") == "skeleton":
                 n += 1
         for u in self.enemies:
-            if u.get("hp", 0) > 0 and any(k in str(u.get("name", "")) for k in ("亡灵", "骷髅", "僵尸", "幽灵")):
+            if u.get("hp", 0) > 0 and any(k in str(u.get("name", "")) for k in UNDEAD_KEYWORDS):
                 n += 1
         return n
 
@@ -7056,7 +7060,10 @@ class Battle:
         特例：被控跳过（眩晕/冻结/睡眠）、增益/蓄力直接返回（无出招读条）。
         """
         if self.btype == "pvp":
-            return self._pvp_enemy_turn(player)
+            # v180E 低危 B3：删除僵尸 _pvp_enemy_turn——PVP 战斗 enemy_act 恒 False
+            # （battle 刻由双方真人轮流操作），_enemy_phase 首行 `enemy_act and btype != "pvp"`
+            # 已挡死本分支。保留 raise 防未来误直调（真实 PVP AI 需用事件系统重写）。
+            raise RuntimeError("PVP 敌方 AI 未实现（不可达：PVP enemy_act 恒 False）")
         e = unit or self.enemy
         eb = e.setdefault("buffs", {})
         ename = e.get("name", "怪物")
@@ -7363,34 +7370,6 @@ class Battle:
         # v154：蓄力释放后敌方重排下次行动（读条 + 收招）
         self._after_actor_ct("e", e, cast_mult=CAST_SKILL * self._ct_cost(est.get("spd", 0)))
         return logs, max(0, dmg)
-
-    def _pvp_enemy_turn(self, player: dict) -> tuple:
-        """PVP：敌方玩家行动(v9.2 启用；先实现 AI 普攻)。
-
-        ⚠️ v110 审计标注（D20）：真实 PVP 中不可达——PVP 战斗 `enemy_act` 恒 False
-        （battle 刻由双方玩家轮流操作，无 AI 刻），本函数仅经 _enemy_turn 的
-        `if enemy_act:` 分支挂接，属僵尸分支（保留以防未来 PVP 挂机 AI 使用）。
-        """
-        est = self._enemy_stats()
-        pst = self._player_stats(player)
-        logs = []
-        # v106 韧性：被暴击率 × (1 - 玩家韧性)；穿透：PVP 敌方玩家快照的物穿生效（双向）
-        is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
-        _pp, _pf = self._pene_vals(est)
-        dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
-        # v169.3：PVP 不打等级压制（_enemy_lv_pressure 对 btype=pvp 恒返 1.0；此处仅普攻路径，
-        # 与 _enemy_cast_done 同构保险——PVP 敌方玩家快照等级差异不应放大承伤）
-        # v106.4 物理免伤统一属性结算（PVP 同口径）
-        _pst_pr = self._player_stats(player)
-        pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
-        if pr > 0:
-            red = max(1, int(dmg * pr))
-            dmg = max(1, dmg - red)
-            logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
-        # O116 伤害文案延迟输出（闪避判定后），避免"造成伤害"与"闪避"同显
-        self._pending_dmg_lines.append(
-            f"【{self.enemy['name']}】向你发起攻击，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
-        return logs, dmg
 
     # ---------------- 状态修正 ----------------
     def _apply_buffs(self, st: dict, buffs: dict) -> dict:
