@@ -23,15 +23,18 @@
 | 1795508+merge | docs: REFACTOR_P2E_mech_cfg.md（CFG 收敛方案 391 行）|
 | 6b56e8a+merge | v181.P0B-B skill_up 止血（628→305，删 323 行，等价探针+346 断言全绿）|
 | 8e10477+merge | v181.P2F1 公式骨架参数化（新建 formula_skeleton.py，F2/F3/F4/F7/F9/F15/F16，372行探针0diff）|
+| ff708d8+merge | v181.P2D-D0 被动proc数值回填（37 proc 回填 skills.py，数据=唯一权威）|
+| 623f4dc+merge | v181.P0B-C skill_up key 改稳定id+归属根治（305条，0撞车）→ P0B 整个完成 |
+| 906fa61+merge | v181.P2D-D1 被动proc注册表基建（passive_procs.py 两层注册表）+ 试点5proc |
+| 97cffe9+merge | v181.P2C-C1 weapon_effect_data 表补齐（13族79key标注+缺字段+aux并入，92→79行）|
 
 ## 进行中（子 agent 并行，各占 worktree，等合并）
 
-> 🛑 **2026-09-07 夜停点**：鱼鱼换 key，本轮到此暂停。P0B-B 与 P2F-1 已合并收官（numeric 51/51）。
-> 后续队列见下节，换 key 后从 P0B-C 继续。
+> 2026-09-07 夜续跑中（鱼鱼换 key 后续）。当前批次见下，每批 numeric 51/51 守护。
 
 | worktree/分支 | 任务 | 状态 |
 |---|---|---|
-| （全部 worktree 已清，等下一轮重建）| — | — |
+| w5 wt_p2dd2 | P2D-D2 暴击/暴伤/面板族迁注册表 | 运行中 |
 
 ## 方案文档全齐（已合并 master，待实施）
 
