@@ -1207,8 +1207,10 @@ class Battle:
                     "source": e.get("source", ""),
                     "actor_ref": ("player" if (e.get("actor") is self.player)
                                   else ("pet" if (e.get("actor") is self.pet)
-                                        else next((str(u.get("uid", "")) for u in self.enemies
-                                                   if u is e.get("actor")), ""))),
+                                        else ("comp:" + str((e.get("actor") or {}).get("uid", "") or (e.get("actor") or {}).get("name", ""))
+                                              if any(c is e.get("actor") for c in (getattr(self, "companions", None) or []))
+                                              else next((str(u.get("uid", "")) for u in self.enemies
+                                                         if u is e.get("actor")), "")))),
                 }
                 for e in getattr(self, "tick_effects", [])
             ],
@@ -1552,6 +1554,13 @@ class Battle:
                     _actor = b.player
                 elif _ref == "pet" and b.pet:
                     _actor = b.pet
+                elif _ref.startswith("comp:"):
+                    # v180F 清2d：companion actor tick 卡恢复（原序列化空引用 → 恢复丢卡）
+                    _cu = _ref[5:]
+                    for _c in (getattr(b, "companions", None) or []):
+                        if str(_c.get("uid", "") or _c.get("name", "")) == _cu:
+                            _actor = _c
+                            break
                 else:
                     for _u in b.enemies:
                         if str(_u.get("uid", "")) == str(_ref):
@@ -1917,11 +1926,14 @@ class Battle:
             return new
         # ---- 玩家 actor：原完整逻辑（职业/词条/套装/副资源/echo）----
         player = actor
+        # v180F 清2c：资源读写入参 actor 自身袋（原 _p_res() 焦点袋——非焦点玩家/怪扮
+        # 职业会读写错 actor 资源）
+        _pres = actor.setdefault("resources", {})
         if key == "element":
             # v130.2c 元素使徒 2 件：充能条上限 +1（5 → 6）——走 _res_max 统一上限
             mx = self._res_max(player, key)
-            self._p_res()["element_charge"] = min(mx, self._elem_charge() + int(amount or 0))
-            return self._p_res()["element_charge"]
+            _pres["element_charge"] = min(mx, int(_pres.get("element_charge", 0) or 0) + int(amount or 0))
+            return _pres["element_charge"]
         if key == "echo":
             # 歌者双资源·回声驻留叠层（mech_stacks 槽）——只有带歌者定义的 actor 消费，无定义空转
             return self._echo_add(actor, logs if logs is not None else [], amount)
@@ -1935,15 +1947,15 @@ class Battle:
                 # 副资源（resonance/echo 等按 key 注册）：上限 = 注册表 max（无词条/套装加成，旧语义）
                 _rk_gk = E.core_resource_def_by_key(key)
                 _cap_gk = int(_rk_gk.get("max", 99) or 99)
-                new = min(_cap_gk, int(self._p_res().get(key, 0) or 0) + amount)
-                self._p_res()[key] = new
+                new = min(_cap_gk, int(_pres.get(key, 0) or 0) + amount)
+                _pres[key] = new
                 return new
             _rd_p = E.core_resource_def(player.get("class_name", ""))
             if not _rd_p:
                 # 无定义资源 key：不累加（旧语义：未配置上限/未定义的资源不限制也不写）
-                return self._p_res().get(key, 0)
-            new = min(self._res_max(player, key), int(self._p_res().get(key, 0) or 0) + amount)
-            self._p_res()[key] = new
+                return _pres.get(key, 0)
+            new = min(self._res_max(player, key), int(_pres.get(key, 0) or 0) + amount)
+            _pres[key] = new
             return new
         # ---- 怪物/自定义 actor（无职业链路）：统一 actor 资源袋 + resource_def 上限 ----
         cap = self._res_cap_of(actor, key)
@@ -3691,9 +3703,13 @@ class Battle:
                     self._ensure_regen_effects(player)
             except Exception:
                 pass
-            # 护盾效果特判：立即获得 10% 生命护盾（3 刻）
+            # 护盾效果：立即获得护盾（v180F 清2b：数值读数据表 food_effect_data.py，原硬编码 0.10）
             if "shield" in aids:
-                self._add_shield("food_shield", int(player.get("max_hp", 100) * 0.10), 3)
+                from .data.food_effect_data import FOOD_EFFECT_PARAMS as _FEP
+                _sh = (_FEP.get("shield") or {})
+                _sh_pct = float(_sh.get("pct", 0.10) or 0.10)
+                _sh_turns = int(_sh.get("turns", 3) or 3)
+                self._add_shield("food_shield", int(player.get("max_hp", 100) * _sh_pct), _sh_turns)
             from .core.food_effects import FOOD_EFFECT_NAMES
             names = [FOOD_EFFECT_NAMES.get(a, a) for a in aids]
             logs.append(f"🍲 你吃下了料理，获得【{'、'.join(names)}】效果！(本场战斗)")
@@ -5293,11 +5309,18 @@ class Battle:
         foods = self._p_food_effects() or []
         # v110 审计修复：处决阈值 0.35 → 0.30（v109 拍板「斩杀线以 30% 为准」，
         # 与文案/设计 <30% 及 execute 被动 cond_hp=0.30 统一）
-        if "execute" in foods and hp_ratio < 0.30:
-            mult *= 1.30
+        # v180F 清2b：数值读数据表 food_effect_data.py（原硬编码 0.30/1.30/1.10）
+        from .data.food_effect_data import FOOD_EFFECT_PARAMS as _FEP2
+        _exe = _FEP2.get("execute") or {}
+        _pre = _FEP2.get("precise") or {}
+        _exe_hp = float(_exe.get("hp_ratio", 0.30) or 0.30)
+        _exe_m = float(_exe.get("mult", 1.30) or 1.30)
+        _pre_m = float(_pre.get("mult", 1.10) or 1.10)
+        if "execute" in foods and hp_ratio < _exe_hp:
+            mult *= _exe_m
             tags.append("💀处决")
         if "precise" in foods:
-            mult *= 1.10
+            mult *= _pre_m
             tags.append("🎯精准")
         if self._p_buffs_bag().get("execute_pot") and hp_ratio < 0.30:
             mult *= 1.30
@@ -7326,6 +7349,15 @@ class Battle:
             red = max(1, int(dmg * pr))
             dmg = max(1, dmg - red)
             logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
+        # v180F 清2a：魔法免伤缺失修复——怪魔法普攻打玩家时 magic_reduce stat（含
+        # magic_resist 药剂）此前零消费。魔法段（magi/true 混合的 magi 部分）按目标
+        # magic_reduce 减免（cap 40%，与 _enemy_mitigate 玩家打怪侧同口径）
+        if _mt == "magi" or "magi" in str(_mkind):
+            _mpr = min(float(_pst_pr.get("magic_reduce", 0) or 0), 0.4)
+            if _mpr > 0:
+                red = max(1, int(dmg * _mpr))
+                dmg = max(1, dmg - red)
+                logs.append(f"🛡️ 魔法抗性，减免 {red} 点魔法伤害！")
         # v180F B5：文案用目标名（怪vs怪不再错误显示"攻击你"）
         _tgt_disp = (player or {}).get("name", "") if (player or {}).get("name") else ""
         self._pending_dmg_lines.append(
@@ -7716,6 +7748,9 @@ class Battle:
                 elif attr == "precise":
                     # v173.3 意见#95：命中 buff 加法并入精准（PCT 百分比，cap 60% 与词条同源）
                     st["precise"] = min(C.PCT_CAPS.get("precise", 0.6), float(st.get("precise", 0) or 0) + val)
+                elif attr == "magic_reduce":
+                    # v180F 清2a：magic_resist 药剂魔法免伤（加法，cap 40% 与引擎 _enemy_mitigate 一致）
+                    st["magic_reduce"] = min(0.4, float(st.get("magic_reduce", 0) or 0) + val)
                 else:
                     st[attr] = int(st.get(attr, 0) * val)
         return st
@@ -10024,17 +10059,24 @@ class Battle:
             return max(1, int(dmg or 0))
 
     def _phys_retort(self, actor: dict, atk_mult: float, logs: list,
-                     is_crit: bool = False, variance: float = 0.15, roll_crit: bool = False) -> int:
+                     is_crit: bool = False, variance: float = 0.15, roll_crit: bool = False,
+                     target: dict | None = None) -> int:
         """v180E 阶段5：统一物理反击伤害结算（石拳反打/反击被动/盾牌反击/以守为攻等共用）。
 
-        模式 = actor 面板 atk × mult 对主敌 def 结算物理伤害（calc_damage 封装），
+        模式 = actor 面板 atk × mult 对目标 def 结算物理伤害（calc_damage 封装），
         返回 (经 _boss_dmg_filter 的实际伤害, 是否暴击)。
         roll_crit=True 时自行 roll 暴击（反击被动/以守为攻原语义）；False 保持无暴击
         （石拳反打原语义无暴击判定）。调用方可传 is_crit 精确指定。
+        v180F 审查修复：target = 反击目标（=攻击者 _rtgt）。原 _enemy_stats() 无参读
+        _active_target，多怪/事件队列里可能漂移成别的怪 → 反击打错目标面板。缺省 None
+        回落旧行为（兼容外部直接调 _phys_retort 的点）。
         """
         try:
             _st = self._actor_stats_of(actor)
-            _est = self._enemy_stats()
+            if target is not None:
+                _est = self._enemy_stats(target)
+            else:
+                _est = self._enemy_stats()
             if is_crit or roll_crit:
                 _crit = is_crit or (random.random() < float(_st.get("crit", 0) or 0))
             else:
@@ -10096,13 +10138,13 @@ class Battle:
         if _sq_eff and _rtgt and _rtgt.get("hp", 0) > 0:
             _sq_params = (_sq_eff or {}).get("params") or {}
             if random.random() < float(_sq_params.get("chance", 0.15)):
-                _sq_dmg, _sq_crit = self._phys_retort(actor, float(_sq_params.get("atk_pct", 0.30)), logs)  # v180E 统一反击
+                _sq_dmg, _sq_crit = self._phys_retort(actor, float(_sq_params.get("atk_pct", 0.30)), logs, target=_rtgt)  # v180E 统一反击
                 _hit_back(_sq_dmg)
                 logs.append(f"🥊 石拳反打！铁拳回敬 {_sq_dmg} 点伤害！")
         if _rtgt and _rtgt.get("hp", 0) > 0:
             for _pn, _ps in self._passive_map(actor)["proc"].get("counter_attack", []):
                 if random.random() < float(_ps.get("chance", 0.20)):
-                    ca_dmg, _ca_crit = self._phys_retort(actor, 1.0, logs, roll_crit=True)  # v180E 统一反击(原 roll 暴击)
+                    ca_dmg, _ca_crit = self._phys_retort(actor, 1.0, logs, roll_crit=True, target=_rtgt)  # v180E 统一反击(原 roll 暴击)
                     _hit_back(ca_dmg)
                     logs.append(f"🥊 反击！你立刻回击造成 {ca_dmg} 点伤害！"
                                 + (" 💥暴击" if _ca_crit else ""))
@@ -10118,7 +10160,8 @@ class Battle:
         if B.get("counter", 0) > 0 and _rtgt and _rtgt.get("hp", 0) > 0:
             if random.random() < C.SHIELD_COUNTER_CHANCE:
                 pst2 = self._actor_stats_of(actor)
-                est2 = self._enemy_stats()
+                # v180F 审查修复：盾牌反击打 _rtgt（攻击者），显式传目标防 _active_target 漂移
+                est2 = self._enemy_stats(_rtgt)
                 cd = E.calc_damage(int(pst2["atk"] * 1.2), est2.get("def", 0))
                 _hit_back(cd)
                 logs.append(f"🛡️ 盾牌反击！对【{_rtgt.get('name', '敌人')}】造成 {cd} 点伤害！")
@@ -10145,7 +10188,7 @@ class Battle:
                         break
                 _chance = min(_chance, 0.9)
                 if random.random() < _chance:
-                    _c2_dmg, _c2_crit = self._phys_retort(actor, _mult, logs, roll_crit=True)  # v180E 统一反击(以守为攻)
+                    _c2_dmg, _c2_crit = self._phys_retort(actor, _mult, logs, roll_crit=True, target=_rtgt)  # v180E 统一反击(以守为攻)
                     _hit_back(_c2_dmg)
                     logs.append(f"🥊 反击！你立刻回击造成 {_c2_dmg} 点伤害！"
                                 + (" 💥暴击" if _c2_crit else ""))

@@ -2616,6 +2616,9 @@ class InstanceCmds(CommandBase):
             # 野外/副本同一套——pet_tick 由 battle 事件队列驱动，读条命中/技能节奏/伤害跟
             # buffs/装备全走与野外 Battle 相同代码（Battle.__init__ 不再按 btype 排除排程）。
             "pet": (st.get("pets") or {}).get(cur_key) or (db.pet_get(cur_key) or {}),
+            # v180F 清2e：副本 tick 卡跨行动传递（行动后写回 st["tick_effects"]，此处读回
+            # 由 from_state 恢复段重绑 actor——敌方 DOT/宠物卡跨行动不丢）
+            "tick_effects": st.get("tick_effects") or [],
         })
         # v121 CTB：副本 Battle 由 from_state 构造未设 self.player，而 _after_actor_ct("p")
         # 按 self.player 的 _player_stats(spd) 结算玩家 ct——必须指向行动者快照，否则恒取 cost=100
@@ -2655,6 +2658,34 @@ class InstanceCmds(CommandBase):
         st.setdefault("resources", {})[cur_key] = b.player.get("resources") or {}
         st.setdefault("cooldown", {})[cur_key] = b.player.get("cooldown") or {}
         st.setdefault("combo_seq", {})[cur_key] = b.player.get("combo_seq") or []
+        # v180F 清2e：副本每行动重建 Battle——通用 tick 卡（DOT/宠物/武器特效周期）此前
+        # 不写回 st → 下次重建全丢（敌方 DOT 跨行动不跳）。写回序列化格式（actor_ref），
+        # 下次 from_state 由 battle 恢复段重绑。
+        try:
+            _te_ser = []
+            for _e in (getattr(b, "tick_effects", None) or []):
+                _actor = _e.get("actor")
+                _ref = ""
+                if _actor is b.player:
+                    _ref = "player"
+                elif _actor is b.pet:
+                    _ref = "pet"
+                elif any(c is _actor for c in (getattr(b, "companions", None) or [])):
+                    _ref = "comp:" + str(_actor.get("uid", "") or _actor.get("name", ""))
+                else:
+                    for _u in b.enemies:
+                        if _u is _actor:
+                            _ref = str(_u.get("uid", ""))
+                            break
+                _te_ser.append({
+                    "uid": _e.get("uid"), "kind": _e.get("kind"),
+                    "interval": _e.get("interval"), "next_at": _e.get("next_at"),
+                    "expire_at": _e.get("expire_at"), "data": _e.get("data") or {},
+                    "source": _e.get("source", ""), "actor_ref": _ref,
+                })
+            st["tick_effects"] = _te_ser
+        except Exception:
+            pass
         # v167.3 副本带宠物：战斗宠物状态（读条限频窗口 _last_hit_at 等）写回 st["pets"]，
         # 下次该成员行动重建 Battle 时沿用——跨行动/跨怪/切层节奏不重置（野外/副本同一套）
         try:

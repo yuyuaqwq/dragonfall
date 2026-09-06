@@ -379,6 +379,10 @@ _BUFF_KEYS = {"buff_atk": "atk_up", "buff_def": "def_up", "buff_spd": "spd_up",
               # v125.3 收口审计 P1 修复：穿甲/破法药剂缺映射 → 战斗中使用走 none 被拒（有 handler 有数据无通路）
               "pene_pot": "special:pene_pot", "pene_magi_pot": "special:pene_magi_pot",
               "rock_shield": "special:shield_small", "holy_shield": "special:shield_big",
+              # v180F 清2a：铁壁药膏 effect=shield_big 此前无 _BUFF_KEYS 映射 → infer_template
+              # 返回 "none" → 战斗中使用无效（废药）。补映射 + 数值随 payload 传（见
+              # _V130_ITEM_EFFECTS）——铁壁 pct=0.30 不再被 DEFAULTS(圣盾 0.15) 吞
+              "shield_big": "special:shield_big",
               # v130.2 资源联动消耗品（战斗内特殊分发；effect_data 数值随 payload 传递，见 _make_buff_tpl）
               "restore_resource": "special:restore_resource",
               "restore_resource_full": "special:restore_resource_full",
@@ -411,7 +415,11 @@ _V130_ITEM_EFFECTS = {"restore_resource", "restore_resource_full", "resource_amp
                       # v140：14 种战斗机制道具数值各异的 effect_data 同样随 payload 传递
                       "summon", "trap", "mana_restore", "resource_charge", "steal_buff",
                       "buff_extend", "phoenix", "purify_immune", "morph", "invuln",
-                      "apply_mark", "dot_amp", "reaction", "vuln"}
+                      "apply_mark", "dot_amp", "reaction", "vuln",
+                      # v180F 清2a：护盾药数值各异须随 payload 传（圣盾 holy_shield→shield_big
+                      # pct=0.15 vs 铁壁 shield_big pct=0.30——同注册键不同数值，共用 DEFAULTS
+                      # 会让后扫者被先扫者覆盖吞值）
+                      "holy_shield", "shield_big"}
 
 
 def _make_buff_tpl(key):

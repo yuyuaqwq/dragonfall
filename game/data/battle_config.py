@@ -688,6 +688,9 @@ BUFF_MULT = {
     "mon_atk_up_strong": ("atk", 1.70),
     "mon_def_up":     ("def", 1.40),
     "mon_atk_down":   ("atk", 0.70),   # v51 挫志怒吼：敌方攻击 -30%
+    # v180F 清2a：magic_resist 药剂（龙鳞/深渊）此前挂 buff 无消费端（引擎魔免读 magic_reduce
+    # stat）→ 空转。挂 magic_reduce 加法（cap 由 _apply_buffs PCT_CAPS 管）
+    "magic_resist":   ("magic_reduce", 0.15),
 }
 
 # v104 M02 P1-4：团队增益 effect=xx_all → 施放者自身有效 buff 键（与 instance.py buff_effects 同口径）
