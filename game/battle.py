@@ -4086,17 +4086,20 @@ class Battle:
                                   player.get("evolve_path", 0),
                                   getattr(self, "title_bonus", None) or {},
                                   player.get("race"))
-        st = self._apply_buffs(st, self._p_buffs_bag())
+        # v180F B2 (A1)：面板聚合读**入参 player 自身** buffs（伪 actor 化修复——
+        # 原读 self._p_buffs_bag() 焦点袋，非焦点 actor 算面板会拿错 buffs）
+        _pbuffs = player.setdefault("buffs", {})
+        st = self._apply_buffs(st, _pbuffs)
         # v104 M23 神龛祝福：持久 buff（stat ×1.10，5 次战斗），战斗开始时已消费 1 次
-        _pb = self._p_poi_buff()
+        _pb = player.get("poi_buff")
         if _pb and _pb.get("stat") in st:
             st[_pb["stat"]] = int(st.get(_pb["stat"], 0) * float(_pb.get("mult", 1.10)))
         # #245: 玩家减速生效（与 _enemy_stats 的 spd_down 处理对称）——此前 p_buffs["spd_down"]
         # 只被挂载从未应用，减速玩家仍按原速度先手/触发速度优势
-        if "spd_down" in self._p_buffs_bag():
+        if "spd_down" in _pbuffs:
             st["spd"] = int(st.get("spd", 0) * SPD_DOWN_MULT)
         # v169.7 暗影步·极 shadow_dance_bonus：影舞态中自身速度 +25%
-        if self._p_buffs_bag().get("shadow_dance"):
+        if _pbuffs.get("shadow_dance"):
             try:
                 for _pn_sb, _ps_sb in self._proc_pm(player)["proc"].get("shadow_dance_bonus", []):
                     st["spd"] = int(st.get("spd", 0) * (1.0 + float(_ps_sb.get("spd_add", 0.25) or 0.25)))
