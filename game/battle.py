@@ -7760,53 +7760,6 @@ class Battle:
             pass
         return CAST_PET_SKILL * self._ct_cost(self._pet_spd())
 
-    def _pet_block_check(self, dmg: int, logs: list) -> int:
-        """24 章宠物技能·影袭（v180-B ② guard 数据化）：替主人挡一次攻击(敌方伤害结算前)。
-
-        挡刀配置数据化：pet dict 带 guard（mode=absorb，来自 PET_POOL block 型转配）
-        即生效——chance=挡刀概率、cooldown=间隔秒、name/skill_name 供文案。
-        兼容旧路径：pet dict 无 guard 时按 PET_POOL skill_type=='block' 兜底查表
-        （老档/未转配宠物），行为零变化。冷却状态存 pet['_guard_last_at']（随战斗
-        序列化，替代旧 Battle 级 _pet_block_last_at）。
-        """
-        if dmg <= 0:
-            return dmg
-        pet = self.pet or {}
-        if not pet:
-            return dmg
-        if int(pet.get("level", 0)) < int(C.PET_SKILL_UNLOCK_LV):
-            return dmg
-        if int(pet.get("satiety", 0)) <= 0:
-            return dmg
-        # guard 配置：pet dict 显式配 guard 优先（数据驱动入口）
-        gd = pet.get("guard")
-        if isinstance(gd, dict) and gd.get("mode") == "absorb":
-            interval = float(gd.get("cooldown", 0) or 0)
-            chance = float(gd.get("chance", 0.25) or 0.25)
-            pname = pet.get("name") or gd.get("name", "宠物")
-            sname = gd.get("skill_name", "守护")
-        else:
-            # 兼容旧路径：PET_POOL block 型查表转读（未配 guard 的老档/旧数据）
-            pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
-            if not pdef or pdef.get("skill_type") != "block":
-                return dmg
-            interval = int(pdef.get("skill_interval", 0) or 0)
-            chance = float(pdef.get("skill_value", 0.25) or 0.25)
-            pname = pet.get("name") or pdef["name"]
-            sname = pdef["skill_name"]
-        # v154 读条制：影袭是被动拦截（受击时概率挡刀），按时间冷却制——
-        # 开战 interval 秒后才可用，之后每 interval 秒最多一次。
-        _last = pet.get("_guard_last_at")
-        if _last is None:
-            _last = 0.0  # 开战时刻：前 interval 秒为冷却期
-        if interval <= 0 or self._now - _last < interval:
-            return dmg
-        if random.random() < chance:
-            pet["_guard_last_at"] = self._now
-            logs.append(f"🐾 {pname}的【{sname}】替你挡下了这次攻击！")
-            return 0
-        return dmg
-
     # ---------------- v178 E4 玩家侧持续伤害（敌方给玩家挂 dot） ----------------
     # ⚠️ v178 重构（鱼鱼指正）：dot 是 actor 能力，不是 player 特判。玩家/怪物都是
     # actor——身上有 debuffs 字段就挂/结算，没有就跳过（字段即能力，无身份 if）。
@@ -9280,51 +9233,85 @@ class Battle:
             removed += compact(self.allies)
         return removed
 
-    def _guard_redirect_check(self, dmg: int, logs: list) -> int:
-        """v180-B ② 统一挡刀（redirect 型）：扫我方随从实体（召唤物/未来随从 actor）中
-        带 guard 配置（mode=redirect）的，按 guard.chance 概率由随从承受伤害。
+    def _guard_check(self, dmg: int, logs: list) -> int:
+        """v180E 阶段3 统一挡刀核心（absorb + redirect 双模式合一，扫 companions）。
 
-        数据驱动：任何随从实体带 guard 字段即生效（生成时从 SUMMONS 模板 bodyguard/
-        absorb_once 转成 guard，_summon_entity）；不再按 tid/模板查表/身份特判。
-
-        v107 语义保留：伤害按随从 def 结算（原 v109.2 P2-1 全转移改随从防御结算）；
-        v109.2 P2-2 summon_power 强化挡刀率（×1+sp，上限 85%）；absorb_once 吸收 1 次后消失。
-        触发后本次伤害不再结算到玩家（拦截优先于闪避/格挡）。
+        任何我方随从 actor（companions 里 side=player）带 guard 配置即按字段生效——
+        - mode=absorb：整伤拦截 → 0（宠物影袭/铁壁缩壳，冷却制 `_guard_last_at`）
+        - mode=redirect：按随从 def 结算、随从扣血/可能死亡（召唤物，概率制 + summon_power
+          强化 + absorb_once 吸收 1 次消散）
+        不再区分 pet/summons 专用容器/专用函数（原 _pet_block_check + _guard_redirect_check
+        双轨合一）。触发后本次伤害不再结算到玩家（拦截优先于闪避/格挡）。
         """
-        guard_actors = [s for s in (self.summons or [])
-                        if s.get("hp", 0) > 0 and isinstance(s.get("guard"), dict)
-                        and s["guard"].get("mode") == "redirect"
-                        and float(s["guard"].get("chance", 0) or 0) > 0]
+        if dmg <= 0:
+            return dmg
+        guard_actors = [s for s in (self.companions or [])
+                        if isinstance(s.get("guard"), dict)
+                        and s.get("guard").get("mode") in ("absorb", "redirect")]
         if not guard_actors:
             return dmg
-        try:
-            _owner = self.player or {}
-            sp = float(self._player_stats(_owner).get("summon_power", 0) or 0) if _owner else 0
-        except Exception:
-            sp = 0
-        s = random.choice(guard_actors)
-        chance = min(float(s["guard"].get("chance", 0.40)) * (1 + sp), 0.85)
-        if random.random() >= chance:
+        # 召唤物 redirect 池带 hp 才可挡（死了/纯效果发生器除外）；absorb 宠物无 hp 也挡
+        _absorb_pool = [s for s in guard_actors if s.get("guard", {}).get("mode") == "absorb"]
+        _redirect_pool = [s for s in guard_actors
+                          if s.get("guard", {}).get("mode") == "redirect" and s.get("hp", 0) > 0
+                          and float(s.get("guard", {}).get("chance", 0) or 0) > 0]
+        if not _absorb_pool and not _redirect_pool:
             return dmg
-        # 按随从 def 结算——从对玩家伤害反推攻击方等效 atk，再套随从防御公式
-        try:
-            _owner2 = self.player or {}
-            _pdef = max(0, int(self._player_stats(_owner2).get("def", 0) or 0)) if _owner2 else 0
-            _atk = (dmg + int((dmg * dmg + 4 * dmg * _pdef) ** 0.5)) // 2
-            taken = max(1, int(E.calc_damage(_atk, max(0, int(s.get("def", 0) or 0)), variance=0)))
-        except Exception:
-            taken = max(1, int(dmg))
-        s["hp"] -= taken
-        logs.append(f"{s.get('icon', '')} {s['name']} 为你挡下 {taken} 点伤害！")
-        # v151：纯挡刀随从（absorb_once）吸收 1 次单体后消失（v151 §7 藤蔓守卫）
-        if s["guard"].get("absorb_once"):
-            logs.append(f"🌿 {s['name']} 完成守护，化作碎屑消散……")
-            self.companions.remove(s)
-            return 0
-        if s["hp"] <= 0:
-            logs.append(f"💀 {s['name']} 在保护你时倒下了！")
-            self.companions.remove(s)
-        return 0
+        # redirect 池优先于 absorb（召唤物概率挡刀先判定，命中则承担；miss 才轮到宠物冷却挡）
+        if _redirect_pool:
+            try:
+                _owner = self.player or {}
+                sp = float(self._player_stats(_owner).get("summon_power", 0) or 0) if _owner else 0
+            except Exception:
+                sp = 0
+            s = random.choice(_redirect_pool)
+            chance = min(float(s["guard"].get("chance", 0.40)) * (1 + sp), 0.85)
+            if random.random() < chance:
+                # 按随从 def 结算——从对玩家伤害反推攻击方等效 atk，再套随从防御公式
+                try:
+                    _owner2 = self.player or {}
+                    _pdef = max(0, int(self._player_stats(_owner2).get("def", 0) or 0)) if _owner2 else 0
+                    _atk = (dmg + int((dmg * dmg + 4 * dmg * _pdef) ** 0.5)) // 2
+                    taken = max(1, int(E.calc_damage(_atk, max(0, int(s.get("def", 0) or 0)), variance=0)))
+                except Exception:
+                    taken = max(1, int(dmg))
+                s["hp"] -= taken
+                logs.append(f"{s.get('icon', '')} {s['name']} 为你挡下 {taken} 点伤害！")
+                # v151：纯挡刀随从（absorb_once）吸收 1 次单体后消失（v151 §7 藤蔓守卫）
+                if s["guard"].get("absorb_once"):
+                    logs.append(f"🌿 {s['name']} 完成守护，化作碎屑消散……")
+                    self.companions.remove(s)
+                    return 0
+                if s.get("hp", 0) <= 0:
+                    logs.append(f"💀 {s['name']} 在保护你时倒下了！")
+                    self.companions.remove(s)
+                return 0
+        # absorb 池：冷却制整伤拦截（宠物影袭）——每 cooldown 秒最多一次
+        if _absorb_pool:
+            for s in _absorb_pool:
+                gd = s.get("guard") or {}
+                # 宠物挡刀需宠物解锁/饱食度 gate（原 _pet_block_check 守卫）
+                if s.get("kind") == "pet":
+                    if int(s.get("level", 0) or 0) < int(C.PET_SKILL_UNLOCK_LV):
+                        continue
+                    if int(s.get("satiety", 0) or 0) <= 0:
+                        continue
+                interval = float(gd.get("cooldown", 0) or 0)
+                chance = float(gd.get("chance", 0.25) or 0.25)
+                if interval <= 0:
+                    continue
+                _last = s.get("_guard_last_at")
+                if _last is None:
+                    _last = 0.0  # 开战时刻：前 interval 秒为冷却期
+                if self._now - _last < interval:
+                    continue
+                if random.random() < chance:
+                    s["_guard_last_at"] = self._now
+                    pname = s.get("name") or gd.get("name", "宠物")
+                    sname = gd.get("skill_name", "守护")
+                    logs.append(f"🐾 {pname}的【{sname}】替你挡下了这次攻击！")
+                    return 0
+        return dmg
 
     def _drain_pending_dmg(self) -> list:
         """O116：取出并清空延迟的受击伤害日志（命中后由 _damage_player 输出）。"""
@@ -10136,16 +10123,9 @@ class Battle:
         # 24 章宠物技能·影袭：替主人挡一次攻击（主动保护优先于自身闪避，拦截后直接结束本次伤害）
         # v180-B：宠物/召唤物挡刀只服务主人（玩家受击）——怪受击也调 _damage_actor 后
         # 此段曾对怪触发（召唤技能打怪→怪受击→玩家召唤物挡刀自杀，v177 actor 化回归）
+        # v180E 阶段3：absorb(宠物影袭) + redirect(召唤物) 双模式合一 _guard_check
         if _is_player:
-            dmg = self._pet_block_check(dmg, logs)
-            if dmg <= 0:
-                # O116 还原原顺序：先报攻击伤害，再报挡刀
-                _pl = self._drain_pending_dmg()
-                if _pl:
-                    logs[:] = _pl + logs
-                return 0
-            # v180-B ② 统一随从挡刀：redirect 型随从（召唤物带 guard 配置）转移承受
-            dmg = self._guard_redirect_check(dmg, logs)
+            dmg = self._guard_check(dmg, logs)
         if dmg <= 0:
             # O116 还原原顺序：先报攻击伤害，再报挡刀
             _pl = self._drain_pending_dmg()

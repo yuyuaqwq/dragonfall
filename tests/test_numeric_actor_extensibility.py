@@ -45,7 +45,7 @@ def test_guard_summon_redirect():
                          "guard": {"chance": 1.0, "mode": "redirect", "absorb_once": False}})
     random.seed(1)
     logs = []
-    dmg = b._guard_redirect_check(100, logs)
+    dmg = b._guard_check(100, logs)  # v180E 阶段3：统一挡刀核心
     check("guard 概率命中（chance=1.0）挡下", dmg == 0, f"dmg={dmg}")
     check("随从承受伤害（hp 减少）", b.summons[0]["hp"] < 1000, str(b.summons[0]["hp"]))
     check("有挡刀日志", any("挡下" in l for l in logs), str(logs))
@@ -59,7 +59,7 @@ def test_guard_summon_redirect():
                          "guard": {"chance": 1.0, "mode": "redirect", "absorb_once": True}})
     n_before = len(b.summons)
     random.seed(2)
-    dmg2 = b._guard_redirect_check(50, [])
+    dmg2 = b._guard_check(50, [])
     check("absorb_once 挡后消失", len(b.summons) == n_before - 1, f"{len(b.summons)} vs {n_before-1}")
     check("absorb_once 挡下伤害", dmg2 == 0, f"dmg2={dmg2}")
 
@@ -80,7 +80,7 @@ def test_guard_absorb_pet_data():
     b._now = 4.0
     random.seed(3)
     logs = []
-    dmg = b._pet_block_check(100, logs)
+    dmg = b._guard_check(100, logs)  # v180E 阶段3：宠物在 companions 带 guard → 统一核心 absorb 池
     check("guard absorb 挡下（25% 概率固定种子命中）", dmg == 0, f"dmg={dmg} logs={logs}")
 
 
