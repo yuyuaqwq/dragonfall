@@ -475,8 +475,10 @@ def _th_actor_dot(battle, actor, eff, logs):
         except Exception as _dex:
             out.append(f"(dot 结算异常: {_dex})")
         # 玩家被毒死 → defeat 置位（旧 dot_tick 事件分支语义）
+        # v180F A7：死亡判定针对被结算 dot 的 actor 本身（actor 就是中毒目标），
+        # 不再用 _last_player or player 猜"当前玩家"——玩家侧 actor 死 → defeat。
         try:
-            if battle._player_dead(battle._last_player or battle.player):
+            if battle._is_focus_player(actor) and battle._player_dead(actor):
                 battle.result = "defeat"
         except Exception:
             pass
@@ -560,10 +562,13 @@ def _th_pet_act(battle, actor, eff, logs):
         if int(battle.pet.get("satiety", 0) or 0) <= 0:
             return [], True  # 饿肚 → 通道仍存在（喂食后恢复），不触发
         out = []
-        if not battle._player_dead(battle._last_player or battle.player):
+        # v180F A7：宠物出手守卫针对宠物归属的 owner（actor.owner 优先，B4 随从 owner 化），
+        # 不再用 _last_player or player 猜——owner 玩家死则宠物停手。
+        _powner = battle._resolve_owner(battle.pet)
+        if _powner is None or not battle._player_dead(_powner):
             # v180E 阶段2：宠物行为已数据化进 auto_act（_pet_ensure_actor 翻译）——
             # pet_act tick 只负责节奏（每 N 刻触发），执行走通用 _companion_act
-            # （读宠物 actor auto_act，owner=_last_player or player）。
+            # （读宠物 actor auto_act，owner 解析见 _resolve_owner）。
             if battle.pet.get("auto_act"):
                 battle._companion_act(battle.pet, out)
         # interval 固定 = 面板 skill_interval（每 N 刻一次，N×ACT_TICK 秒）——
@@ -1748,9 +1753,12 @@ class Battle:
         return self._p_stacks()
 
     def _cast_stats(self) -> dict:
+        """v180F A3：施法者面板按 actor 身份路由（_actor_stats_of 玩家公式/怪公式通用）。
+        原实现 `_cast_ctx 非空 → _enemy_stats(u)` 写死怪公式——若施法者是玩家侧
+        非焦点 actor（随从/召唤物扮职业等）面板会错读。现在任意 actor 走 _actor_stats_of。"""
         u = self._cast_ctx
         if u is not None:
-            return self._enemy_stats(u)
+            return self._actor_stats_of(u)
         return self._player_stats(self.player)
 
     def _cast_is_player(self) -> bool:
@@ -5917,7 +5925,7 @@ class Battle:
 
         # ---- 分支机制结算（v29） ----
         self._last_player = player
-        self._apply_mech_effect(mech, mval, p_mech, total, logs, skill_name, is_crit, info)
+        self._apply_mech_effect(mech, mval, p_mech, total, logs, skill_name, is_crit, info, caster=player)
         # v169.7 元素亲和 element_affinity：元素引爆（mech=element_burst* 清印记结算）后置位
         # 下次挂印 +1 标记（命中挂印分支消费）；已学被动才置位
         if mech and mech.startswith("element_burst"):
@@ -5941,12 +5949,12 @@ class Battle:
         _mech2 = info.get("mech2")
         if _mech2:
             _m2val = int(info.get("mech2_val", 0) or 0) or 1
-            self._apply_mech_effect(_mech2, _m2val, p_mech, total, logs, skill_name, is_crit, info)
+            self._apply_mech_effect(_mech2, _m2val, p_mech, total, logs, skill_name, is_crit, info, caster=player)
         # v63 额外控制效果（cc 字段，独立于 mech 叠层）：眩晕/沉默/净化
         # v125.2 B1：cc 白名单查表 SKILL_CC_WHITELIST
         cc = info.get("cc")
         if cc and cc in SKILL_CC_WHITELIST:
-            self._apply_mech_effect(cc, 1, p_mech, total, logs, skill_name, is_crit, info)
+            self._apply_mech_effect(cc, 1, p_mech, total, logs, skill_name, is_crit, info, caster=player)
         # v169.7 镇魂安魂 dirge_ctrl_up（诗人挽歌线）：挽歌系控制时长 +1.5 刻——
         # 本技能对敌施加的控制（mech/cc 走 MECH_EFFECTS 写入 e_buffs 后）延长 1 刻（1.5 向下取整；
         # 小数半刻引擎不支持，见 技能引擎缺口全量清单 §四.5）
@@ -6928,7 +6936,7 @@ class Battle:
             return val
         return max(1, int(val) // 2)
 
-    def _apply_mech_effect(self, mech: str, mval: int, p_mech: dict, total: int, logs: list, skill_name: str, is_crit: bool = False, info: dict | None = None):
+    def _apply_mech_effect(self, mech: str, mval: int, p_mech: dict, total: int, logs: list, skill_name: str, is_crit: bool = False, info: dict | None = None, caster: dict | None = None):
         """攻击技能施放后的机制结算（v98.4：数据化 → core/battle_mech.py MECH_EFFECTS）
         v113.1：info（技能 dict）下传，handler 可读技能自带 mech_chance 固定概率。"""
         from .core.battle_mech import MECH_EFFECTS
@@ -6937,7 +6945,7 @@ class Battle:
         # handler 按默认 cap（3/5）叠完后再把“被 cap 吞掉”的应叠层补到被动上限
         _cap_pre = {}
         try:
-            _pl_cap = getattr(self, "_last_player", None) or self.player or {}
+            _pl_cap = caster or {}
             _tgt_cap0 = getattr(self, "_active_target", None) or self.enemy
             _deb_cap0 = (_tgt_cap0.get("debuffs") or {})
             if mech == "hunt_mark":
@@ -6952,7 +6960,7 @@ class Battle:
             handler(self, mval, p_mech, total, logs, skill_name, is_crit, info)
         # ---- v169.7 被动叠层上限放宽（术后补层，只对命中当次生效；mval=叠层量）----
         try:
-            _pl_cap = getattr(self, "_last_player", None) or self.player or {}
+            _pl_cap = caster or {}
             _pm_cap = self._proc_pm(_pl_cap)
             _tgt_cap = getattr(self, "_active_target", None) or self.enemy
             _deb_cap = _tgt_cap.setdefault("debuffs", {})
@@ -6988,7 +6996,7 @@ class Battle:
         # 额外层经同源 handler 叠加进目标 debuffs.mark（cap 5）。此前消费点只在 element 印记分支，
         # 全库 element 技能仅法师系持有，游侠/星语猎手标记被动（追踪印记 30%/鹰眼 15%）零触发=死被动。
         if mech == "mark":
-            _pl_mark = getattr(self, "_last_player", None) or self.player or {}
+            _pl_mark = caster or {}
             _extra_mark = 0
             _trig_mark = []
             for _pn_m, _ps_m in self._passive_map(_pl_mark)["proc"].get("mark_extra", []):
@@ -8282,11 +8290,9 @@ class Battle:
         e = actor if actor is not None else (self.enemy or {})
         # v178.1 actor 无关：目标玩家 = actor 有 class_name（无则怪路径）
         _tgt_is_player = self._is_focus_player(e)
-        # caster 解析：传入优先；玩家毒怪回落当前行动玩家（_last_player 优先，再 self.player）
-        # ——dot_tick 事件触发时可能无传入 caster，用最近行动玩家提供强度面板。
-        if caster is None and not _tgt_is_player:
-            _act_pl = getattr(self, "_last_player", None) or self.player
-            caster = _act_pl if not self.btype == "pvp" else None
+        # v180F A7：不猜 caster——dot 强度以挂毒时存的施法者快照为准（_apply_dot 8246-8247），
+        # 快照缺失（老档/直接构造）不回落 _last_player 猜当前玩家（可能是错的人——多人副本
+        # 毒是 A 挂的、B 行动时结算），缺失即 0 强度只吃 max_hp 部分，随毒自然过期。
         _caster_is_player = self._is_focus_player(caster) if caster is not None else False
         _tgt_name = "你" if _tgt_is_player else f"【{e.get('name', '目标')}】"
         deb = e.get("debuffs") or {}
@@ -9494,6 +9500,14 @@ class Battle:
             return False
         return True
 
+    def _resolve_owner(self, actor: dict | None) -> dict | None:
+        """v180F A7：随从/宠物归属解析——直接读 actor.owner（创建路径统一设：召唤
+        _spawn_companion 9451、宠物 _pet_ensure_actor 8120），无 owner 返回 None。
+        消灭 _last_player 隐式归属猜测——随从行为目标就是它自己的 owner。"""
+        if not actor:
+            return None
+        return actor.get("owner") or None
+
     def _companion_act(self, actor: dict, logs: list) -> bool:
         """v180-C S2 通用随从自动行为结算：读 actor['auto_act'] 数据执行。
         返回是否出手（出手=消费本次触发）。
@@ -9542,7 +9556,7 @@ class Battle:
             # 伤害类宠物技能数值照旧用 owner 面板（v180-C 定论：宠物伤害=主人面板×系数，
             # 归属 attacker=宠物 actor → 被动读宠物自身），与旧 _psk_* 逐字等价。
             if atype in ("dmg_owner_atk", "matk_pct", "lifesteal", "pierce"):
-                owner = actor.get("owner") or getattr(self, "_last_player", None) or self.player or {}
+                owner = self._resolve_owner(actor) or {}
                 if not owner:
                     return False
                 target = self._pick_summon_target(actor)
@@ -9576,7 +9590,7 @@ class Battle:
                     logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！(宠物击杀)")
                 return True
             if atype == "heal_owner":
-                owner = actor.get("owner") or getattr(self, "_last_player", None) or self.player or {}
+                owner = self._resolve_owner(actor) or {}
                 if not owner:
                     return False
                 if owner.get("hp", 0) < owner.get("max_hp", 1):
@@ -9587,7 +9601,7 @@ class Battle:
                     logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！" + (f"「{act.get('line', '')}」" if act.get("line") else ""))
                 return True
             if atype == "buff_owner":
-                owner = actor.get("owner") or getattr(self, "_last_player", None) or self.player or {}
+                owner = self._resolve_owner(actor) or {}
                 if not owner:
                     return False
                 bkey = act.get("buff", "")

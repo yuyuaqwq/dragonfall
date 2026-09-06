@@ -138,7 +138,11 @@ async def main():
     print("【战斗：中毒持续伤害】")
     p = make_player("战士", 10, hp=9999)
     b = BT.Battle("monster", make_monster(hp=1000))
-    b.enemy.setdefault("debuffs", {})["poison"] = {"n": 2, "mult": 1.0}
+    # v180F A7：毒强度快照由施法者挂载时写入（_apply_dot 8246-8247），结算不再回落
+    # _last_player 猜——直接构造缺快照的 debuff = 无强度（只吃 max_hp 部分）。测试补快照
+    # 对齐真实产物：战士 10 级面板 atk≈59
+    b.enemy.setdefault("debuffs", {})["poison"] = {"n": 2, "mult": 1.0,
+                                                    "atk": 59, "matk": 0}
     logs, ended = b.player_turn("attack", None, p)
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     # 毒 2 层（混合公式 atk×0.5+max_hp×1.5% 每层）+ 普攻
