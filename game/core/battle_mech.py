@@ -326,7 +326,7 @@ def _m_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """标记：叠层（层数供 mark_burst 消费，同时挂 e_buffs 供 _apply_mark 增伤）
     重构图契约 §3.1：敌方标记迁为 enemy["debuffs"]["mark"]（cap 5），
     并**保留** battle.e_buffs["mark"]=DEBUFF_TURNS（+30% 易伤计时不变）。"""
-    from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
+    from .constants import DEBUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     if not mval:
         return
     enemy = battle.enemy or {}
@@ -811,7 +811,7 @@ def _b_opening(battle, logs, e, r):
     logs.append(f"🌪️【{e['name']}】发出震天【{name}】！气势瞬间拉满！")
     effect = (op.get("effect") or "atk_up").lower()
     power = float(op.get("power", 2.0) or 2.0)
-    from ..battle import BUFF_TURNS  # 延迟引用，避免模块循环
+    from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     if effect == "atk_up":
         battle.e_buffs["mon_atk_up"] = max(battle.e_buffs.get("mon_atk_up", 0), int(power))
         logs.append(f"⚡【{e['name']}】的{name}让攻击力提升了！")
@@ -892,7 +892,7 @@ MON_BUFF_EFFECTS = {}
 @register(MON_BUFF_EFFECTS, "atk_up")
 def _mb_atk_up(battle, logs, sname):
     """攻击提升"""
-    from ..battle import BUFF_TURNS  # 延迟引用，避免模块循环
+    from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     battle.e_buffs["mon_atk_up"] = BUFF_TURNS
     logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，攻击力提升了！")
 
@@ -900,7 +900,7 @@ def _mb_atk_up(battle, logs, sname):
 @register(MON_BUFF_EFFECTS, "atk_up_strong")
 def _mb_atk_up_strong(battle, logs, sname):
     """攻击大幅提升"""
-    from ..battle import BUFF_TURNS  # 延迟引用，避免模块循环
+    from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     battle.e_buffs["mon_atk_up_strong"] = BUFF_TURNS
     logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，攻击力大幅提升了！")
 
@@ -908,7 +908,7 @@ def _mb_atk_up_strong(battle, logs, sname):
 @register(MON_BUFF_EFFECTS, "def_up")
 def _mb_def_up(battle, logs, sname):
     """防御提升"""
-    from ..battle import BUFF_TURNS  # 延迟引用，避免模块循环
+    from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     battle.e_buffs["mon_def_up"] = BUFF_TURNS
     logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，防御提升了！")
 
@@ -946,7 +946,7 @@ def _mb_spd_up(battle, logs, sname):
     """怪物加速（v1.x 补注册：疾驰/疾跑/闪烁 等 effect=spd_up 此前静默空转）。
     参考 BUFF_MULT spd_up 模式：e_buffs["spd_up"] = BUFF_TURNS，
     _enemy_stats → _apply_buffs 读 BUFF_MULT["spd_up"]=(spd, 1.40) 实际生效。"""
-    from ..battle import BUFF_TURNS  # 延迟引用，避免模块循环
+    from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     battle.e_buffs["spd_up"] = BUFF_TURNS
     logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，速度提升了！")
 

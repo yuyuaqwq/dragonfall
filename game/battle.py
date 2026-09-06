@@ -45,6 +45,11 @@ from .core.constants import (  # v130.7 意见#28：逃跑成功率修正常量�
     # v138.2 异常体系五律：阈值递增/每场上限+饱和/跨阶段保留/饱和收敛（真伤走 DOT_DEFS true_dmg）
     DOT_THRESHOLD_MULT, DOT_THRESHOLD_CAP, DOT_MAX_TRIGGER,
     DOT_PRESERVE_PCT, DOT_PRESERVE_THRESHOLD_BONUS, DOT_SATURATE_MULT,
+    # v181.P2B 引擎刻度常量收 core/constants.py 权威单源（原本文件模块级定义 →
+    # core/constants import；core 模块改从 constants import，消除 core→battle 反向 import）
+    BUFF_TURNS, DEBUFF_TURNS,
+    BASE_DELAY, SPD_CT_CAP, SPD_REF, ACT_TICK,
+    CAST_ATK, CAST_SKILL, CAST_ITEM, CAST_FOOD, CAST_DEFEND, CAST_FLEE, CAST_PET_SKILL,
 )
 from .core.tick_effects import TICK_HANDLERS as _TICK_HANDLERS  # v179 通用 tick 效果注册表（数据驱动）
 from .data.races import (  # v181.D P1-D 种族机制数据下沉（原模块级常量/标签内联 → data 单源）
@@ -103,33 +108,22 @@ POISON_PCT = 0.05     # 毒：每层每刻 5% 敌方最大生命（保留旧名�
 BURN_PCT = 0.03       # 灼烧：每层每刻 3% 敌方最大生命
 BLEED_PCT = 0.05      # 流血：每刻 5% 敌方最大生命（词条 2~3 刻）
 DEFEND_REDUCE = 0.5   # 防御：敌方伤害减半
-BUFF_TURNS = 3        # 增益默认持续刻
-DEBUFF_TURNS = 2      # 减益默认持续刻
+
+# v181.P2B：引擎刻度常量（BUFF_TURNS/DEBUFF_TURNS/BASE_DELAY/SPD_CT_CAP/SPD_REF/ACT_TICK/
+# CAST_*) 已收 game/core/constants.py 作权威单源（消除 core→battle 反向 import），
+# 本文件顶部 from .core.constants import（名字不变），此处不再重复定义。
 
 # v121 CTB 行动时间轴：全局行动消耗常量
 # v152 鱼鱼拍板：总耗时 = 行动间隔（BASE_DELAY/spd）+ 固定动作耗时。
 # BASE_DELAY=40 经 sim 标定：普通怪战斗 ~49s（60s 内），紧凑不拖沓。
 # （旧 100 在新模型下战斗拖到 113s 太长；40 平衡节奏与速度差稀释）
-BASE_DELAY = 40.0     # 行动间隔基数（v152 标定：40 保持战斗节奏）
-SPD_CT_CAP = 80.0     # 参与 ct 计算的 spd 软上限（min(spd, cap)）
-# v154 鱼鱼拍板：速度影响自己的出招(cast)和收招(recovery)，出招跑完=命中。
-# 恢复间隔取消——总行动周期 = 出招 + 收招，速度收益全部收敛到动作快慢。
-# SPD_REF = 基准速度：速度 50 时动作耗时 = 数据基础值；>50 变快，<50 变慢。
-SPD_REF = 50.0        # v154 基准速度（= v152 参考档）
-# v152 CTB 彻底化：刻 → 时刻。ACT_TICK = 1 刻对应的全局时刻数。
-# 鱼鱼拍板（2026-08-31）：1 刻 = 1 游戏秒（对齐秒，玩家直观）。
-# 所有"持续 N 刻 / CD N 刻"换算为 N × ACT_TICK = N 时刻 = N 游戏秒。
-# 引擎内部无"刻"概念，只有全局绝对时刻 _now；"刻"是玩家可见的换算单位（1 刻 = 1 秒）。
-ACT_TICK = 1.0        # 1 刻 = 1.0 时刻 = 1 游戏秒（鱼鱼拍板对齐秒）
-# v154：CAST_* 语义从"固定动作耗时"改为"基准耗时"（速度 50 时 = 该值）。
-# 实际耗时 = 基准耗时 × (SPD_REF / 实际速度)；速度 50 时 = 基准值。
-CAST_ATK = 1.0        # 普攻基准耗时（1 秒 @spd50）
-CAST_SKILL = 1.6      # 技能基准耗时（1.6 秒 @spd50，出手更慢）
-CAST_ITEM = 1.0       # 道具基准耗时（1 秒 @spd50）
-CAST_FOOD = 1.0       # 食物基准耗时（1 秒 @spd50）
-CAST_DEFEND = 0.6     # 防御基准耗时（0.6 秒 @spd50，快动作）
-CAST_FLEE = 2.0       # 逃跑基准耗时（2 秒 @spd50，慢，易被打断）
-CAST_PET_SKILL = 0.8  # 宠物技能基准耗时（0.8 秒 @spd50，出手快）——v154 宠物独立读条
+# 注：BASE_DELAY/SPD_CT_CAP/SPD_REF 等常量定义见 core/constants.py（v181.P2B 权威单源）。
+def _ct_cost(spd) -> float:
+    """v154 CTB：一次行动的时间成本 = 基准耗时（出招+收招一拍完成）折算到时刻。
+    实际耗时按 (SPD_REF / spd) 速度折算；引擎刻度常量（CAST_* 基准耗时/BASE_DELAY/
+    SPD_REF 等）权威定义见 core/constants.py（v181.P2B 收 core 单源）。
+    """
+    return 1.0
 
 
 def _ct_initial_wait(spd) -> float:
