@@ -407,12 +407,13 @@ def _we_rong_lu_yu_wen(battle, player, ctx, logs):
 @register("hit")
 def _we_frost_ring(battle, player, ctx, logs):
     """霜环（碎冰长弓）：命中 25% 减速 2 刻（速度-40%），已减速则冻结 1 刻。"""
-    if not has_effect(battle, player, "frost_ring") or random.random() >= 0.25:
+    wd = effect_data(battle, player, "frost_ring")
+    if not has_effect(battle, player, "frost_ring") or random.random() >= float(wd.get("chance", 0.25)):
         return
     if battle.e_buffs.get("spd_down"):
-        _freeze_enemy(battle, logs, turns=1, boss_slow=2, source="🧊 霜环")
+        _freeze_enemy(battle, logs, turns=int(wd.get("freeze_turns", 1)), boss_slow=int(wd.get("boss_slow", 2)), source="🧊 霜环")
     else:
-        _slow_enemy(battle, 2, 0.40, logs)
+        _slow_enemy(battle, int(wd.get("slow_turns", 2)), float(wd.get("slow_pct", 0.40)), logs)
 
 
 @register("hit")
@@ -499,12 +500,13 @@ def _we_siren_fang(battle, player, ctx, logs):
 @register("hit")
 def _we_soul_eater(battle, player, ctx, logs):
     """破败之吻（噬魂短刃）：攻击附加目标当前生命 2% 伤害（上限=攻击力 100%），并回复等量生命。"""
+    wd = effect_data(battle, player, "soul_eater")
     if not has_effect(battle, player, "soul_eater"):
         return
     e = battle.enemy or {}
     st = _pstats(battle, player)
     cap = max(1, int(st.get("atk", 0) or 0))
-    bonus = min(cap, max(1, int(e.get("hp", 0) * 0.02)))
+    bonus = min(cap, max(1, int(e.get("hp", 0) * float(wd.get("cur_hp_pct", 0.02)))))
     if bonus > 0:
         battle._damage_enemy(bonus, logs, wake_sleep=False)
         healed = _heal_player(battle, player, bonus, logs, source="💜 破败之吻")
@@ -533,10 +535,11 @@ def _we_star_pierce(battle, player, ctx, logs):
 @register("hit")
 def _we_combo_end(battle, player, ctx, logs):
     """连击终点（夜枭双匕）：本刻连段≥3 时，本次攻击暴伤 +40%（被动判定）。"""
+    wd = effect_data(battle, player, "combo_end")
     if not has_effect(battle, player, "combo_end"):
         return
     if battle._combo_active(player):
-        player.setdefault('eff', {})["we_combo_end"] = 0.40
+        player.setdefault('eff', {})["we_combo_end"] = float(wd.get("crit_dmg", 0.40))
 
 
 # ================================================================
@@ -688,11 +691,13 @@ def _we_sage_amp_cast(battle, player, ctx, logs):
 @register("eternal_codex", "skill_cast")
 def _we_eternal_codex_cast(battle, player, ctx, logs):
     """永恒契约：每次施法积 1 层永恒（上限 8）。"""
+    wd = effect_data(battle, player, "eternal_codex")
     if not has_effect(battle, player, "eternal_codex"):
         return
-    n = min(8, int(player.setdefault('stacks', {}).get("eternal_codex", 0) or 0) + 1)
+    _cap8 = int(wd.get("max_stack", 8))
+    n = min(_cap8, int(player.setdefault('stacks', {}).get("eternal_codex", 0) or 0) + 1)
     player.setdefault('stacks', {})["eternal_codex"] = n
-    logs.append(f"📖 永恒契约！({n}/8 层，每层技能伤害 +1.5%)")
+    logs.append(f"📖 永恒契约！({n}/{_cap8} 层，每层技能伤害 +{float(wd.get('dmg_pct_per', 0.015)) * 100:.1f}%)")
 
 
 # ================================================================
@@ -786,9 +791,10 @@ def _we_deeprock_aegis(battle, player, ctx, logs):
 @register("taken")
 def _we_gargoyle_retort(battle, player, ctx, logs):
     """石像反击（石像鬼胫甲）：受击后下一次攻击伤害 +30%（1 次）。"""
+    wd = effect_data(battle, player, "gargoyle_retort")
     if not has_effect(battle, player, "gargoyle_retort"):
         return
-    player.setdefault('eff', {})["we_retort"] = max(float(player.setdefault('eff', {}).get("we_retort", 0) or 0), 0.30)
+    player.setdefault('eff', {})["we_retort"] = max(float(player.setdefault('eff', {}).get("we_retort", 0) or 0), float(wd.get("next_atk_pct", 0.30)))
 
 
 @register("taken")
@@ -1149,13 +1155,14 @@ def _we_undying_will_t(battle, player, ctx, logs):
 @register("kill")
 def _we_dusk_blade(battle, player, ctx, logs):
     """暮裂潜行（暮裂之刃）：击杀目标后进入潜行，下一次攻击伤害 +30% 且无视闪避（每场 1 次）。"""
+    wd = effect_data(battle, player, "dusk_blade")
     if not has_effect(battle, player, "dusk_blade"):
         return
     if player.setdefault('eff', {}).get("we_dusk_used"):
         return
     player.setdefault('eff', {})["we_dusk_used"] = True
     player.setdefault('buffs', {})["stealth"] = max(player.setdefault('buffs', {}).get("stealth", 0), 1)
-    player.setdefault('eff', {})["we_dusk_dmg"] = 0.30
+    player.setdefault('eff', {})["we_dusk_dmg"] = float(wd.get("next_atk_pct", 0.30))
     logs.append("🌒 暮裂潜行：击杀后遁入暗影，下一次攻击 +30% 且无视闪避！")
 
 

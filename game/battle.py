@@ -36,7 +36,6 @@ from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径
         BUFF_MULT, TEAM_BUFF_KEYS,  # v176 增益映射表下沉 data/battle_config.py
     )
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
-from .core.skill_pipeline import _AttackCast  # v176 技能攻击结算管线（逐步迁入 _player_skill 攻击分支）
 from .core.skill_kinds import (  # v176 去魔法字符串：类型常量替代散落中文比较
     K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_TRUE, K_TAUNT, K_SUMMON,
     is_damage_kind, seg_of,
@@ -61,6 +60,27 @@ RACE_TIMID_MULT = 0.90     # 怯战：HP 低于 timid_hp 阈值时攻击 ×0.90�
 # v180E 低危 B1：亡灵系关键词收口（原散落硬编码）——成就 亡灵使者 kills_type
 # 同源：game/data/achievements.py ach_undead100 cond.keywords（改词需双处同步）
 UNDEAD_KEYWORDS = ("亡灵", "骷髅", "僵尸", "幽灵")
+
+# v180G B1-2 吞错留痕：结算管线 except 静默吞错计数 + 首次详情落 warning
+# 只做可观测化（不改变吞错行为本身——战斗结算容错是历史设计，贸然抛错会崩整场）；
+# 全量回归跑测试时 warning 可见，定位"哪条管线在静默失败"不再靠考古。
+_import_logging = None
+
+
+def _battle_warn(site: str, exc: BaseException | None = None, detail: str = ""):
+    """结算管线 except 留痕：stdout 首次 + logging 全量（不抛错、不改行为）。"""
+    global _import_logging
+    try:
+        if _import_logging is None:
+            import logging as _lg
+            _import_logging = _lg
+        _logger = _import_logging.getLogger("dragonfall.battle")
+        if exc is not None:
+            _logger.warning("[battle-swallow] %s: %r %s", site, exc, detail)
+        else:
+            _logger.warning("[battle-swallow] %s %s", site, detail)
+    except Exception:
+        pass  # 日志设施自身失败绝不反噬战斗
 
 
 def _basic_attack_verb(player: dict) -> str:
@@ -263,7 +283,8 @@ def _th_passive_heal(battle, actor, eff, logs):
                     if _sr_new > _sr_old:
                         out.append(f"🌳 {_pn}：召唤物在场，专注充能 +{_sr_gain}（{_sr_new}）")
                     break
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_th_passive_heal', _sw_e)
             pass
         # 无任何被动 → 通道关闭
         if not (_th or _tr or _pm.get("focus_regen_summon")):
@@ -292,7 +313,8 @@ def _th_mech_charge(battle, actor, eff, logs):
                 from .core.battle_modes import focus_active as _fa169
                 if _fa169(actor):
                     _gain2 += int(_ps.get("focus_gain", 1) or 1)
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_th_mech_charge', _sw_e)
                 pass
             _before2 = int(actor.setdefault('stacks', {}).get(_mech2, 0) or 0)
             actor.setdefault('stacks', {})[_mech2] = E.mech_stack_gain(_mech2, actor.setdefault('stacks', {}), _gain2)
@@ -360,7 +382,8 @@ def _th_faith_decay(battle, actor, eff, logs):
                         actor.setdefault('resources', {})["faith"] = min(float(_crd_f.get("max", 10) or 10), _f0 + _uf_gain)
                         out.append(f"🕯️ {_pn}：{_uf_n} 只亡灵在场，信念 +{_uf_gain:.2f}（{actor.setdefault('resources', {})['faith']:.2f}）")
                     break
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_th_faith_decay', _sw_e)
             pass
         if _crd_f.get("decay_per_tick"):
             _f_before = float(actor.setdefault('resources', {}).get("faith", 0) or 0)
@@ -374,7 +397,8 @@ def _th_faith_decay(battle, actor, eff, logs):
                         _ov_heal = int(_ov_heal * (1.0 + float(_ps_fh.get("heal_up", 0.30) or 0.30)))
                         _foheal = True
                         break
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_th_faith_decay', _sw_e)
                     pass
                 out.append(f"⚡ 信念过载！信仰之力迸发，全队回复 {_ov_heal} 点生命！")
                 if not _foheal:
@@ -426,16 +450,19 @@ def _th_affix_food_we(battle, actor, eff, logs):
         try:
             if battle._affix_effs(actor, "__any__") or True:
                 battle._affix_turn_start(actor, out)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_th_affix_food_we', _sw_e)
             pass
         try:
             battle._food_turn_start(actor, out)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_th_affix_food_we', _sw_e)
             pass
         try:
             from .core.weapon_effects import proc as _we_proc
             _we_proc(battle, actor, "turn_start", {}, out)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_th_affix_food_we', _sw_e)
             pass
         return out, True
     except Exception:
@@ -480,7 +507,8 @@ def _th_actor_dot(battle, actor, eff, logs):
         try:
             if battle._is_focus_player(actor) and battle._player_dead(actor):
                 battle.result = "defeat"
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_th_actor_dot', _sw_e)
             pass
         # 结算后仍有效 dot → keep=True 续排；无 → False 停
         _deb2 = actor.get("debuffs") or {}
@@ -531,7 +559,8 @@ def _th_food_hot(battle, actor, eff, logs):
                 _ph["turns"] = _new_turns
                 if _new_turns <= 0:
                     _ph.clear()
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_th_food_hot', _sw_e)
             pass
         if _new_turns > 0:
             out.append(f"（剩余 {_new_turns} 刻）")
@@ -739,7 +768,8 @@ class Battle:
                 _st = self._player_stats(player)
                 player["max_hp"] = int(_st.get("max_hp", player.get("max_hp", 100)))
                 player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", C.DEFAULT_MAX_MP)))
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('__init__', _sw_e)
                 pass
             # v139 配置注入：core_resources 的 dual_form/focus/vent 定义挂到 player dict
             # （battle_modes/battle_bars 纯函数读 player["dual_form"]/["focus"]/["vent"]；
@@ -750,7 +780,8 @@ class Battle:
                 for _mk139 in ("dual_form", "focus", "vent"):
                     if _crd139.get(_mk139) and not player.get(_mk139):
                         player[_mk139] = _crd139[_mk139]
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('__init__', _sw_e)
                 pass
             # v97.4 回音洞穴祝福：探索事件写入 event_state bless_{qid}（玩家级，players 表全局无 group_id），本场攻击 +5%，一次性
             if player.get("qq_id") and not player.setdefault("buffs", {}).get("echo_bless"):
@@ -762,7 +793,8 @@ class Battle:
                     if _raw:
                         player.setdefault("buffs", {})["echo_bless"] = 1
                         _db.set_event_state(_key, "")
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('__init__', _sw_e)
                     pass
             # v104 M23 神龛祝福（探索 POI 写入，玩家级键 poi_buff_{qq_id}——battle 无 group_id
             # 上下文，与 echo_bless bless_{qq_id} 同款全局键）：战斗开始时读取 → 本场对应属性
@@ -785,7 +817,8 @@ class Battle:
                                 _db.delete_event_state(_key)
                             else:
                                 _db.set_event_state(_key, _json.dumps(_pb, ensure_ascii=False))
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('__init__', _sw_e)
                     pass
             self._init_resources(player)
         # 阶段八：战斗开始词条——护盾（10% 生命护盾/3 刻，数值读 affixes 数据 shield_hp_pct/turns；
@@ -824,7 +857,8 @@ class Battle:
             try:
                 from .core.weapon_effects import proc as _we_proc
                 _we_proc(self, player, "battle_start", {}, [])
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('__init__', _sw_e)
                 pass
         # v121 CTB 行动时间轴：玩家 ct（越小越先行动），开局 = -spd（快者先手）
         # v130.10 绝对时刻 CTB：玩家时钟从 0 起（时刻制外壳第一刻必动，行动后 +cost）。
@@ -865,7 +899,8 @@ class Battle:
                     _pt = self._pet_interval_sec()
                     self.add_tick_effect("pet_act", self.pet, max(_pt, 0.001), uid="pet_act",
                                          source="pet")
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('__init__', _sw_e)
                     pass
             # v178.2 regen_tick（v179 升级为通用 tick 卡）：玩家带 A 类每刻效果
             # （套装回血/符文治愈/食物HOT/被动充能/资源regen/状态机维护）→ _ensure_regen_effects
@@ -877,7 +912,8 @@ class Battle:
                     _pl0 = self.player or {}
                     if _pl0 and not self._player_dead(_pl0):
                         self._ensure_regen_effects(_pl0)
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('__init__', _sw_e)
                     pass
             # 开战敌方初始 enemy_act：仅非副本（instance 的 enemy_act 由 from_state 分支补排，
             # 避免新建时排一次 + from_state 恢复再排一次导致敌方双重行动）
@@ -892,7 +928,8 @@ class Battle:
             # 不排独立 mech_tick 事件（避免双重触发）。
             # 注：词条/套装回血（regen）不排独立事件——由 player_turn 开头的 _turn_start
             # 在玩家每次行动时结算（与旧时刻制"每玩家行动结算一次"一致），避免 DOT 重复结算。
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('__init__', _sw_e)
             pass
         # v180F v2.0 通用阵营：播种 self.sides（sides 数据源 + 每 actor side 字段）。
         # 现有引擎仍读 player/enemies/companions 容器（兼容中间态），sides 是权威阵营视图；
@@ -1110,7 +1147,8 @@ class Battle:
                     _tu = str(_t.get("qq_id") or _t.get("uid") or _t.get("name") or "")
                     if _tu:
                         _cst["_target_uid"] = _tu
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_strip_actor_refs', _sw_e)
             pass
         try:
             _o = a.get("owner")
@@ -1353,7 +1391,8 @@ class Battle:
                     _plb["combo_seq"] = list(_v or [])
                 else:
                     _plb[_k] = _v
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_apply_restore_pstate', _sw_e)
             pass
         self._restore_pstate = None
 
@@ -1522,7 +1561,8 @@ class Battle:
             _pl_r = b.player or {}
             if _pl_r.get("class_name") and not b._enemy_dead():
                 b._ensure_regen_effects(_pl_r)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('from_state', _sw_e)
             pass
         # v163 敌方读条持久化：恢复读条中的敌方 cast_done（_enemy_turn 出手时写 e["_cast"]，
         # 随 enemies 序列化；野外/副本统一）。此前事件队列不序列化，读条伤害跨消息即丢
@@ -1580,7 +1620,8 @@ class Battle:
                     "expire_at": _e_st.get("expire_at"),
                     "data": _e_st.get("data") or {}, "source": _e_st.get("source", ""),
                 })
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('from_state', _sw_e)
             pass
         # v167.3 副本带宠物（v179 P4 升级通用卡）：pet_act 卡兜底补挂（在 tick 恢复段之后——
         # v180E 阶段6：序列化卡先恢复 actor_ref="pet" 直接重绑；无卡时此处补挂老档/旧版存档）
@@ -1594,7 +1635,8 @@ class Battle:
                     _pt = b._pet_interval_sec()
                     b.add_tick_effect("pet_act", b.pet, max(_pt, 0.001),
                                       uid="pet_act", source="pet")
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('from_state', _sw_e)
                     pass
         # v180F B6：sides_snapshot 恢复——通用 actor 战斗（怪vs怪/自定义阵营）落档后重建。
         # 快照含每阵营 actor 深拷贝；enemies 在构造时已从 st["enemies"] 载入（含全部非 player
@@ -1626,7 +1668,8 @@ class Battle:
                 if _rebuilt:
                     b.sides = _rebuilt
                     b._side_names = list(_rebuilt.keys())
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('from_state', _sw_e)
             pass
         return b
 
@@ -1883,7 +1926,8 @@ class Battle:
                 for _cid, _crd in CORE_RESOURCES.items():
                     if _crd.get("key") == rd:
                         return dict(_crd)
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_res_def_of', _sw_e)
                 pass
             return {}
         if isinstance(rd, dict):
@@ -1931,7 +1975,8 @@ class Battle:
             if rd.get("overflow_shield") and cur + int(amount or 0) > cap and actor.get("hp", 0) and not self._p_overflow_shield_cd():
                 try:
                     self._add_shield(f"res_overflow_{key}", int((cur + int(amount or 0) - cap) * float(rd.get("overflow_ratio", 5) or 5)), 1)
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_res_gain', _sw_e)
                     pass
             bag[key] = new
             return new
@@ -1982,7 +2027,8 @@ class Battle:
                     self._p_set_overflow_shield_cd(True)
                     if logs is not None:
                         logs.append(f"🛡️ 满溢转化：{rd.get('name', key)}溢出 {cur + amount - cap} 点 → 护盾 +{_ov}（每刻限 1 次转盾）")
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_res_gain', _sw_e)
                 pass
         bag[key] = new
         return new
@@ -2413,7 +2459,8 @@ class Battle:
                     for _pn_sd, _ps_sd in self._proc_pm(_pl_sd)["proc"].get("shadow_dance_cd", []):
                         cd = max(1, int(cd * (1.0 - float(_ps_sd.get("cdr", 0.20) or 0.20))))
                         break
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_set_skill_cd', _sw_e)
                     pass
             self._p_cooldown()[skill_name] = self._now + cd * ACT_TICK
 
@@ -2439,7 +2486,8 @@ class Battle:
                 try:
                     from .core.weapon_effects import proc as _we_proc
                     _we_proc(self, self.player, "battle_start", {}, [])
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_tick_cooldowns', _sw_e)
                     pass
 
     # ---------------- 连招序列（v2.0，拳师） ----------------
@@ -2505,7 +2553,8 @@ class Battle:
                     self._p_stacks()["combo"] = max(0, cur - 1)
                     return
                 break
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_combo_break', _sw_e)
             pass
         self._p_stacks().pop("combo", None)
 
@@ -2970,7 +3019,8 @@ class Battle:
                 _oi = unit.get("on_interrupt") or {}
                 if _oi:
                     self._on_interrupt_effect(unit, _oi, logs)
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_interrupt_charging', _sw_e)
                 pass
         # 玩家侧返还 50% 已扣 MP（§6.2规则4；敌方不返还）
         if unit.get("side") == "ally":
@@ -3022,7 +3072,8 @@ class Battle:
                 eb["mon_atk_down"] = max(eb.get("mon_atk_down", 0), _turns)
                 logs.append(f"📉 【{_nm}】气息紊乱，攻击降低！({_turns} 刻)")
                 return True
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_on_interrupt_effect', _sw_e)
             pass
         return False
 
@@ -3066,7 +3117,8 @@ class Battle:
                 for _pk in ("hp", "mp", "max_hp", "max_mp"):
                     if _pk in player and player[_pk] is not None:
                         self.player[_pk] = player[_pk]
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('player_turn', _sw_e)
                 pass
         # v95.19: 战斗内上限统一实时值——覆盖 from_state 恢复的战斗（恢复时不传 player，
         # __init__ 刷新不到；DB max_hp/max_mp 换装备后过时，会导致战斗内上限与面板不一致）
@@ -3074,7 +3126,8 @@ class Battle:
             _st = self._player_stats(player)
             player["max_hp"] = int(_st.get("max_hp", player.get("max_hp", 100)))
             player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", C.DEFAULT_MAX_MP)))
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('player_turn', _sw_e)
             pass
         # v139 配置注入（player 传入时补一次）：core_resources 的 dual_form/focus/vent 定义挂到 player dict
         # （from_state 恢复的战斗 __init__ 不传 player 刷新不到，此处补注入；battle_modes/battle_bars 纯函数读这些字段）
@@ -3086,7 +3139,8 @@ class Battle:
                     player[_mk139b] = _crd139b[_mk139b]
             player["v139_modes"] = self._p_v139_modes()
             player["v139_charge"] = self._p_v139_charge()
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('player_turn', _sw_e)
             pass
         # v63 玩家被沉默：技能类行动先被拦截转普攻（置于 O118 校验前，避免未学习技能
         # 在沉默下先被拦截而无法转普攻）；后续沉默状态下只能普攻/防御/道具
@@ -3117,7 +3171,8 @@ class Battle:
                         self._core_last_stand_used = True
                         self._p_res()["guard_core"] = max(self._guard_core_n(), int((_cl_pm[0][1]).get("cores", 3) or 3))
                         logs.append(f"⛰️ 不动如山：绝境不屈，获得 {int((_cl_pm[0][1]).get('cores', 3) or 3)} 枚磐核！（每场 1 次）")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('player_turn', _sw_e)
             pass
         # v2 蓄力：刻开始结算——归零自动释放技能（§6.2）
         self._player_charge_release(player, logs)
@@ -3135,7 +3190,8 @@ class Battle:
                               "mana": self._p_hot().get("mana", 0) or 0,
                               "turns": int(self._p_hot().get("turns", 0) or 0)},
                         uid="p_hot_card", source="food")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('player_turn', _sw_e)
             pass
         # v154 宠物独立速度读条：宠物技能由 pet_tick 事件驱动（_process_until 内触发），
         # 不再跟随玩家行动（玩家行动时宠物可能正在读条，节奏由宠物自身 spd 决定）。
@@ -3156,7 +3212,8 @@ class Battle:
                         self._p_buffs_bag().pop("stun", None)
                         logs.append(f"🛡️ {_pn_zy}：战意圆满，眩晕不侵！")
                     break
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('player_turn', _sw_e)
                 pass
         # v169.7 磐石之躯 core_full：磐核满 5 免控（刻开始兜底刷新免疫窗口，等效持续免控）
         try:
@@ -3164,7 +3221,8 @@ class Battle:
                 if self._guard_core_n() >= int(_ps_cf.get("stacks", 5) or 5):
                     self._p_buffs_bag()["cc_immune"] = max(int(self._p_buffs_bag().get("cc_immune", 0) or 0), 1)
                 break
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('player_turn', _sw_e)
             pass
         if "stun" in self._p_buffs_bag():
             logs.append("🌀 你被眩晕，无法行动！")
@@ -3343,7 +3401,8 @@ class Battle:
                                     if self._player_dead(player):
                                         self.result = "defeat"
                                     self._heapq.heappop(self._events)
-                            except Exception:
+                            except Exception as _sw_e:
+                                _battle_warn('_enemy_phase', _sw_e)
                                 pass
             # v158 副本合并：instance 玩家行动后只补结算一次"读条命中"事件（cast_done）——
             # 敌方出招读条结束的伤害要在本次行动内结算（否则 from_state 不恢复事件队列，
@@ -3359,7 +3418,8 @@ class Battle:
             try:
                 from .core.weapon_effects import proc as _we_proc
                 _we_proc(self, player, "enemy_act", {}, logs)
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_enemy_phase', _sw_e)
                 pass
             self._active_target = None  # 敌方行动结束后重置玩家下次目标
         else:
@@ -3512,7 +3572,8 @@ class Battle:
             if self.tick_effects:
                 try:
                     self._process_tick_effects(logs, player)
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_process_until', _sw_e)
                     pass
             evt = ev.get("type", "")
             try:
@@ -3543,7 +3604,8 @@ class Battle:
                         try:
                             self._inst_cb("enemy_acted", {"unit": unit, "logs": mlogs,
                                                           "dmg": dmg, "battle": self})
-                        except Exception:
+                        except Exception as _sw_e:
+                            _battle_warn('_process_until', _sw_e)
                             pass
                     # v154 敌方对称读条：_enemy_turn 已排 cast_done（出招读条结束才命中结算），
                     # dmg 恒 0（读条期间不直接打玩家）；敌方下次行动时刻已由 _enemy_turn 内部
@@ -3608,7 +3670,8 @@ class Battle:
                                         _evdr = _evi.get("defend_reduce")
                                         if isinstance(_evdr, (int, float)) and 0 <= float(_evdr) <= 0.95:
                                             _dr = float(_evdr)
-                                except Exception:
+                                except Exception as _sw_e:
+                                    _battle_warn('_process_until', _sw_e)
                                     pass
                                 dmg = max(1, int(round(dmg * (1.0 - _dr))))
                                 self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
@@ -3641,7 +3704,8 @@ class Battle:
                             _chk = self._check_side_end(logs)
                             if _chk is not None:
                                 break
-                    except Exception:
+                    except Exception as _sw_e:
+                        _battle_warn('_process_until', _sw_e)
                         pass
             except Exception as _ex:
                 # 单个事件异常不阻塞队列（防御性，避免一个坏事件死循环）
@@ -3657,7 +3721,8 @@ class Battle:
             _spv = min(float(self._player_stats(self.player).get("shield_power", 0) or 0), 0.5)
             if _spv > 0:
                 value = int(value * (1 + _spv))
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_add_shield', _sw_e)
             pass
         _exp = self._now + max(1, int(turns or 1)) * ACT_TICK
         cur = self._p_shields_bag().get(key)
@@ -3715,7 +3780,8 @@ class Battle:
             try:
                 if player and not self._player_dead(player):
                     self._ensure_regen_effects(player)
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_do_use_item', _sw_e)
                 pass
             # 护盾效果：立即获得护盾（v180F 清2b：数值读数据表 food_effect_data.py，原硬编码 0.10）
             if "shield" in aids:
@@ -3789,7 +3855,8 @@ class Battle:
                     if isinstance(_d, dict) and _d:
                         value = _d
                         kind = _k
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_do_use_item', _sw_e)
                     pass
             return self._apply_potion_special(kind, player, logs, value)
         if payload.startswith("buff:"):
@@ -4055,7 +4122,8 @@ class Battle:
                     mp_cost = max(1, int(mp_cost * float(_ps_ac.get("mp_mult", 0.50) or 0.50)))
                     logs.append(f"📖 {_pn_ac}：奥术恒常，耗蓝减半！")
                     break
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_do_player_skill', _sw_e)
             pass
         if not _releasing:  # 蓄力释放跳过 MP 扣减（施放时已扣，§6.2）
             player["mp"] -= mp_cost
@@ -4289,7 +4357,8 @@ class Battle:
                 for _pn_sb, _ps_sb in self._proc_pm(player)["proc"].get("shadow_dance_bonus", []):
                     st["spd"] = int(st.get("spd", 0) * (1.0 + float(_ps_sb.get("spd_add", 0.25) or 0.25)))
                     break
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_player_stats', _sw_e)
                 pass
         # v33/v34 符文属性：疾风(速度+) / 铁壁(防御+)
         effs = self._enchant_effects(player)
@@ -4381,7 +4450,8 @@ class Battle:
             if _mel_pct > 0:
                 for _mk_s in ("atk", "def", "matk", "mdef", "spd"):
                     st[_mk_s] = int(st.get(_mk_s, 0) * (1.0 + _mel_pct))
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_player_stats', _sw_e)
             pass
         # v140 波3.1：特效装备常驻面板属性（奥术苍穹魔攻+15%/疾风步速度+/弑星·无尽辉光暴伤+）
         # v180E 阶段4：数值全从武器特效参数表读（WEAPON_EFFECT_DATA）
@@ -4429,7 +4499,8 @@ class Battle:
                     _tw_spd, _tw_atk = 0.02, 0.01
                 st["spd"] = int(st.get("spd", 0) * (1 + _tw_spd * _tw))
                 st["atk"] = int(st.get("atk", 0) * (1 + _tw_atk * _tw))
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_player_stats', _sw_e)
             pass
         return st
 
@@ -4501,14 +4572,16 @@ class Battle:
                     continue
                 if int(d.get("n", 0) or 0) > 0 or int(d.get("turns", 0) or 0) > 0:
                     n += 1
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_enemy_debuff_kind_count', _sw_e)
             pass
         try:
             eb = e.get("buffs") or {}
             for k in ("stun", "freeze", "silence", "sleep", "spd_down", "def_down", "mon_atk_down", "mon_spd_down", "atk_down"):
                 if eb.get(k):
                     n += 1
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_enemy_debuff_kind_count', _sw_e)
             pass
         return n
 
@@ -4566,7 +4639,8 @@ class Battle:
                         if int(_mk.get(_el, 0) or 0) >= int(_ps.get("layers", 3) or 3):
                             bonus += float(_ps.get("add", 0.20) or 0.20)
                     break
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_passive_crit_bonus', _sw_e)
             pass
         return bonus
 
@@ -4580,7 +4654,8 @@ class Battle:
                 for _pn, _ps in self._proc_pm(player)["proc"].get("shadow_dance_bonus", []):
                     extra += float(_ps.get("crit_dmg", 0.20) or 0.20)
                     break
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_passive_crit_dmg_mult', _sw_e)
             pass
         return extra
 
@@ -4663,7 +4738,8 @@ class Battle:
                 for _pn, _ps in self._passive_map(player)["proc"].get("zhan_yi_lifesteal", []):
                     rate = rate + float(_ps.get("per_layer", 0.015) or 0.015) * _zy
                     break
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_settle_lifesteal', _sw_e)
             pass
         rate = min(rate, 0.30)
         # v1.3 重伤（mortal_wound）：目标被重创后吸血效果减半（Boss『重创』类技能施加）
@@ -4787,7 +4863,8 @@ class Battle:
                 if _df_want and not _dfs139(player).get("form") == "alt":
                     if _dfe139(player, logs):
                         logs.append(f"⚡【{_df_cfg.get('form', '形态')}】觉醒！(资源 {_df_val})")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_resource_on_skill', _sw_e)
             pass
 
     def _on_crit_resource(self, player: dict):
@@ -4986,7 +5063,8 @@ class Battle:
                 e.setdefault("buffs", {})["mon_atk_up"] = max(e.get("buffs", {}).get("mon_atk_up", 0), _turns)
                 logs.append(f"🔥 【{e.get('name', 'Boss')}】吞噬爪牙之力，攻击提升！")
                 return True
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_on_minion_died_tick', _sw_e)
             pass
         return False
 
@@ -5128,7 +5206,8 @@ class Battle:
                             if _info.get("name") == _theme:
                                 _sd = _info
                                 break
-                    except Exception:
+                    except Exception as _sw_e:
+                        _battle_warn('_set_bonus_5_ctrl_immune', _sw_e)
                         pass
                 if _sd:
                     out.extend(list(_sd.get("bonus_5_ctrl_immune") or []))
@@ -5308,7 +5387,8 @@ class Battle:
                     mult *= 1.0 + float(_ps_sr.get("dmg_add", 0.20) or 0.20)
                     tags = list(tags) + [f"💨疾风x{round(1 + float(_ps_sr.get('dmg_add', 0.20) or 0.20), 2)}"]
                 break
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_player_dmg_mult', _sw_e)
             pass
         return mult * race_mult, tags
 
@@ -5559,7 +5639,8 @@ class Battle:
             if _hr:
                 heal = max(1, int(heal * (1 + _hr)))
                 logs.append(f"🐉 孤傲之血：治疗效果 -{int(-_hr * 100)}%！")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_apply_heal_mods', _sw_e)
             pass
         try:
             tb = target.setdefault("buffs", {})
@@ -5573,7 +5654,8 @@ class Battle:
                 _cut2 = min(_aheal, 0.80)
                 heal = max(0, int(heal * (1 - _cut2)))
                 logs.append(f"🩸 重伤：治疗量 -{int(_cut2 * 100)}%！")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_apply_heal_mods', _sw_e)
             pass
         return max(0, heal)
 
@@ -5696,7 +5778,8 @@ class Battle:
             _hpv = min(float(self._player_stats(player).get("heal_power", 0) or 0), 0.5)
             if _hpv > 0:
                 heal = int(heal * (1 + _hpv))
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_skill_heal', _sw_e)
             pass
         # 阶段九：种族受疗天赋（目前仅龙裔孤傲之血 -10%；人类 v106.2 已移除圣光亲和改 exp_bonus）
         # v122：受疗天赋按被治疗者结算（奶队友时队友是龙裔同样 -10%）
@@ -5722,7 +5805,8 @@ class Battle:
             _we_proc(self, player, "heal", _wectx, logs)
             heal = max(1, int(_wectx.get("heal", heal)))
             _we_proc(self, player, "passive", {"heal": heal}, logs)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_skill_heal', _sw_e)
             pass
         self._heal_land(target_unit, heal, logs)
         # v140 S1 直连消费：圣愈不浪费（cloth_heal_overflow）——治疗溢出量 50% 转护盾
@@ -5748,7 +5832,8 @@ class Battle:
             if _real_overflow > 0:
                 from .core.weapon_effects import proc as _we_proc2
                 _we_proc2(self, player, "heal", {"heal": heal, "overflow": _real_overflow}, logs)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_skill_heal', _sw_e)
             pass
         # v110.3 P2-4：庇护之光按“真实治疗溢出量”结算（数据驱动 proc="heal_shield"，替代名字硬匹配）
         # 此前 clamp 后按 hp-(max_hp-hp) 计算，任意治疗补满都误给 ≈20% max_hp 护盾
@@ -5814,7 +5899,8 @@ class Battle:
                 _mh = MECH_EFFECTS.get(mech or "melody")
                 if _mh:
                     _mh(self, mval or 1, p_mech, 0, logs, skill_name, False, info)
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_skill_buff', _sw_e)
                 pass
             # v169.7 二重唱 melody_duet：吟唱时旋律强度额外 +1（_m_melody_chant 叠完后补一层）
             if mech == "melody_chant":
@@ -5827,7 +5913,8 @@ class Battle:
                                                    int(_mel_md.get("stack", 0) or 0) + 1)
                             logs.append(f"🎶 {_pn_md}：二重唱，旋律强度额外 +1！（{_mel_md['stack']}/5）")
                         break
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_skill_buff', _sw_e)
                     pass
         if eff:
             # v1.x：mon_atk_down/element_shift/stealth/mark/sleep/shield_all/reduce_all
@@ -5910,7 +5997,8 @@ class Battle:
             from .core.weapon_effects import proc as _we_proc
             _we_proc(self, player, "skill_hit",
                      {"dmg": total, "is_crit": is_crit, "skill": skill_name, "kind": kind}, logs)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_skill_hit_settle', _sw_e)
             pass
         # v140 波3.2：连携增幅墨——技能命中使目标毒/灼烧/流血层数 +1（dot_amp 标记）
         _dam = (self._cast_eff() or {}).get("dot_amp")
@@ -5933,7 +6021,8 @@ class Battle:
                 for _pn_ea, _ps_ea in self._proc_pm(player)["proc"].get("element_affinity", []):
                     self._elem_affinity_next = True
                     break
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_skill_hit_settle', _sw_e)
                 pass
         # v169.7 蚀骨 poison_burst_up / 毒刃·共鸣 poison_spread TODO（依赖 battle_mech agent 的
         # _m_poison_burst 乘区与击杀扩散接线——毒爆结算在 battle_mech.py handler 内，battle.py
@@ -5972,7 +6061,8 @@ class Battle:
                             logs.append(f"🎵 {_pn_dg}：挽歌延长【{_ck_dg}】控制 +1 刻！")
                             break
                     break
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_skill_hit_settle', _sw_e)
             pass
         # ---- v139 enemy_bar 挂敌身条：技能命中注入 shaken（拳师破绽/淬势撼岳）----
         # 数据源：技能 info.shaken_gain（三连击破+15/碎颅势+15/旋风踢+5每目标/无影连打每段+3）
@@ -5993,10 +6083,12 @@ class Battle:
                             for _pn_be, _ps_be in self._proc_pm(player)["proc"].get("broken_extend", []):
                                 _bs["immune_turns"] = int(_bs.get("immune_turns", 0) or 0) + int(_ps_be.get("extend", 1) or 1)
                                 break
-                        except Exception:
+                        except Exception as _sw_e:
+                            _battle_warn('_skill_hit_settle', _sw_e)
                             pass
                         logs.append(f"💢 破绽值满！敌人被震慑，下刻无法行动！(阈值提升至 {_bs.get('threshold', '?')})")
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_skill_hit_settle', _sw_e)
                 pass
 
         # ---- 技能特效（v9 落地）----
@@ -6019,7 +6111,8 @@ class Battle:
             _pdot_p = info.get("pdot") or (info.get("effect") or {}).get("pdot")
             if _pdot_p and isinstance(_pdot_p, dict) and not self._tgt_buffs().get("cc_immune"):
                 self._apply_dot(self._tgt(), self._cast_ctx or player, _pdot_p, logs)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_skill_hit_settle', _sw_e)
             pass
         # v2.0 核心资源：攻击命中获取（战士怒气/刺客连击点/拳师气，res_gain 覆盖默认）
         # v174.1 普攻技能化语义：basic 技（basic_skill，普攻）命中走"攻击"事件（on_attack），
@@ -6063,7 +6156,8 @@ class Battle:
             try:
                 from .core.weapon_effects import proc as _we_proc
                 _we_proc(self, player, "hit", {"dmg": total, "is_crit": is_crit}, logs)
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_skill_hit_settle', _sw_e)
                 pass
 
 
@@ -6181,7 +6275,8 @@ class Battle:
                     _wectx["mult"] = _wectx.get("mult", 1.0) * (1 + _vb)
             if _wectx.get("mult", 1.0) != 1.0:
                 total = int(total * _wectx["mult"])
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_skill_finalize_damage', _sw_e)
             pass
         # v153 §2/§6：元素印记结算倍率 / 磐核爆发倍率消费（battle_mech handler 写入 p_buffs）
         _v153_mult = 1.0
@@ -6229,7 +6324,8 @@ class Battle:
                 _lpm_pipe = self._enemy_lv_pressure(self._tgt(), self._cast_ctx)
                 if _lpm_pipe != 1.0:
                     total = max(1, int(total * _lpm_pipe))
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_skill_finalize_damage', _sw_e)
                 pass
         # v174.1 星火（novice_spark_followup 星火法杖）：basic 普攻技命中消费星火标记（+X% 后清）。
         # 原语义"释放技能后下次普攻+10%"——basic_skill 即普攻，仅 basic 技触发，普通技能不消费。
@@ -6531,7 +6627,8 @@ class Battle:
                 if _mk_origin and all(int(_mk_origin.get(_ek, 0) or 0) >= int(_ps.get("layers", 2) or 2)
                                       for _ek in ("fire", "ice", "thunder")):
                     passive_bonus *= (1 + float(_ps.get("mult", 0.20) or 0.20))
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_skill_passive_dmg_bonus', _sw_e)
                 pass
             break
         # v169.7 元素同调 element_sync：连续两次同系施法，第二次挂印 +1 层（置 _elem_sync_bonus
@@ -6541,7 +6638,8 @@ class Battle:
                 try:
                     if self._p_last_element() == element:
                         self._elem_sync_bonus = True
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_skill_passive_dmg_bonus', _sw_e)
                     pass
             break
         # 连招技能伤害（武技）
@@ -6731,7 +6829,8 @@ class Battle:
         try:
             from .core.weapon_effects import proc as _we_proc
             _we_proc(self, player, "skill_cast", {"skill": skill_name, "kind": kind}, logs)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_player_skill', _sw_e)
             pass
         # v122 治疗指定队友：解析目标（allies 空=单人战斗 → None=奶自己）
         target_ally = self._resolve_ally_target(target) if kind == K_HEAL else None
@@ -6742,7 +6841,8 @@ class Battle:
                 try:
                     self._summon_minions(1)
                     logs.append(f"🜲 【{player.get('name', '怪物')}】召唤了援军！")
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_player_skill', _sw_e)
                     pass
             else:
                 self._summon_entity(info["summon"], player, logs)
@@ -6989,7 +7089,8 @@ class Battle:
                 _now_p = int((_deb_cap.get("poison") or {}).get("n", 0) or 0)
                 if _old_p + _mv > _now_p and _cap_pois > 5:
                     _deb_cap.setdefault("poison", {})["n"] = min(_cap_pois, _old_p + _mv)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_apply_mech_effect', _sw_e)
             pass
         # v130.2f2（T7 P1-1）：鹰眼 mark_extra 在游侠标记路径（mech=mark：林语印记/猎杀标记类技能）
         # 也独立 roll——与法师元素印记路径（_player_skill 3388-3390）同语义：每个被动独立 chance，
@@ -7062,7 +7163,8 @@ class Battle:
             _px = (self.enemy or {}).get("_phase_exit")
             if _px and _px.get("dmg") is not None:
                 _px["_acc_dmg"] = int(_px.get("_acc_dmg", 0) or 0) + max(0, dmg)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_boss_dmg_filter', _sw_e)
             pass
         mech = self.enemy.get("mech")
         if self.btype == "pvp":
@@ -7142,7 +7244,8 @@ class Battle:
         try:
             if not self.btype == "pvp" and (e or {}).get("on_minion_died"):
                 self._on_minion_died_tick(e, logs)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_boss_mech', _sw_e)
             pass
         mech = e.get("mech")
         if not mech or self.btype == "pvp":
@@ -7244,7 +7347,8 @@ class Battle:
             _diff = _elv - _plv
             if _diff > 0:
                 return min(1.05 ** min(_diff, 50), 3.0)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_enemy_lv_pressure', _sw_e)
             pass
         return 1.0
 
@@ -7360,7 +7464,8 @@ class Battle:
                 # 原 v177 只对玩家技能 key 走管线、怪自身技能落下方 260 行简化结算（两套代码根）。
                 try:
                     return self._monster_cast_playerskill(e, ev.get("skill"), player, ev)
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_enemy_cast_done', _sw_e)
                     pass
                 # v180：管线异常兜底回落普攻（简化结算死代码已删——正常全部走 _monster_cast_playerskill）
                 _kind = "atk"
@@ -7527,7 +7632,8 @@ class Battle:
                     logs.append(f"🌊 【{ename}】招式用老，气息回落，破绽收敛——")
                     self._after_actor_ct("e", e, cast_mult=CAST_ATK * self._ct_cost(est.get("spd", 0)))
                     return logs, 0
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_enemy_turn', _sw_e)
                 pass
         # v116.1 阶段演出刻：_b_phase 触发进入新阶段时设 battle._phase_skip_act，
         # 本刻 Boss 不行动（给玩家呼吸点），消费后立即复位避免影响后续刻/单位。
@@ -7677,7 +7783,8 @@ class Battle:
                             if self._res_read_actor(e, _rk_n) < int(_rv_n or 0):
                                 skill = None  # 资源不足 → 普攻
                                 break
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_enemy_turn', _sw_e)
                     pass
             sinfo = self._lookup_skill_info(skill) if skill else None
             if sinfo:
@@ -7687,7 +7794,8 @@ class Battle:
                     if _rc_pay and isinstance(_rc_pay, dict):
                         for _rk_p, _rv_p in _rc_pay.items():
                             self._res_spend(_rk_p, int(_rv_p or 0), actor=e)
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_enemy_turn', _sw_e)
                     pass
                 sname = sinfo.get("name", skill)  # 显示中文名
                 kind = sinfo.get("kind")
@@ -7848,7 +7956,8 @@ class Battle:
                             st[k] = min(1 - (1 - float(st.get(k, 0) or 0)) * (1 - float(v or 0)), cap)
                         else:
                             st[k] = min(float(st.get(k, 0) or 0) + float(v or 0), cap)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_apply_equip_affix_stats', _sw_e)
             pass
         return st
 
@@ -8058,7 +8167,8 @@ class Battle:
                         magi += _add
                         reduced -= _add  # 负的 reduced = 增伤（日志合并）
                         logs.append(f"⚡ 弱点！【{tgt.get('name', '敌人')}】弱{element}，受到额外伤害！")
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_enemy_mitigate', _sw_e)
                     pass
         if reduced > 0:
             logs.append(f"🛡️ 敌方防守削减 {reduced} 点伤害！")
@@ -8086,7 +8196,8 @@ class Battle:
             pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
             if pdef and pdef.get("spd"):
                 return float(pdef["spd"])
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_pet_spd', _sw_e)
             pass
         return 50.0
 
@@ -8148,7 +8259,8 @@ class Battle:
                             "act": _act,
                         }
             self.companions.append(pet)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_pet_ensure_actor', _sw_e)
             pass
 
     def _pet_ensure_guard(self):
@@ -8171,7 +8283,8 @@ class Battle:
                 "name": pdef.get("name", pet.get("name", "宠物")),
                 "skill_name": pdef.get("skill_name", "守护"),
             }
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_pet_ensure_guard', _sw_e)
             pass
 
     def _reschedule_pet_tick(self):
@@ -8191,7 +8304,8 @@ class Battle:
                     _pt = self._pet_interval_sec()
                     self.add_tick_effect("pet_act", self.pet, max(_pt, 0.001),
                                          uid="pet_act", source="pet")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_reschedule_pet_tick', _sw_e)
             pass
 
     def _pet_interval_sec(self) -> float:
@@ -8207,7 +8321,8 @@ class Battle:
             iv = int((_pdef or {}).get("skill_interval", 0) or 0)
             if iv > 0:
                 return max(float(iv) * (ACT_TICK or 1.0), 0.001)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_pet_interval_sec', _sw_e)
             pass
         return CAST_PET_SKILL * self._ct_cost(self._pet_spd())
 
@@ -8262,9 +8377,11 @@ class Battle:
                 if not _has:
                     self.add_tick_effect("actor_dot", target, ACT_TICK, uid=_uid,
                                          source="dot")
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_apply_dot', _sw_e)
                 pass
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_apply_dot', _sw_e)
             pass
 
     def _tick_actor_dots(self, actor: dict, logs: list, force: bool = False,
@@ -8394,7 +8511,8 @@ class Battle:
                     for _pn_pa, _ps_pa in self._proc_pm(caster)["proc"].get("poison_all_up", []):
                         _poison_all_mult *= 1.0 + float(_ps_pa.get("mult", 0.35) or 0.35)
                         break
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_tick_actor_dots', _sw_e)
                     pass
             p = int((atk_part + hp_part) * n * mult * _poison_all_mult * (1 - res))
             # v169.7 剧毒之触 poison_weaken（caster 玩家毒怪 → 怪减速降防）
@@ -8410,7 +8528,8 @@ class Battle:
                             _tgt_b["_weaken_def_pct"] = max(float(_tgt_b.get("_weaken_def_pct", 0) or 0), 0.20)
                             logs.append("☠️ 剧毒之触：毒层 ≥5，敌人减速降防！")
                             break
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_tick_actor_dots', _sw_e)
                     pass
             # v1.1 放血：目标当前生命 <30%（处决线）流血 ×2——必须在落地前翻倍
             _bleed_tag = ""
@@ -8424,7 +8543,8 @@ class Battle:
                 if _tgt_is_player:
                     try:
                         p = self._damage_actor(e, p, logs, source="dot", true_dmg=True)
-                    except Exception:
+                    except Exception as _sw_e:
+                        _battle_warn('_tick_actor_dots', _sw_e)
                         pass
                 else:
                     if p > 0:
@@ -8435,7 +8555,8 @@ class Battle:
                     # 玩家承伤：走 _damage_actor 完整减伤链
                     try:
                         p = self._damage_actor(e, p, logs, source="dot")
-                    except Exception:
+                    except Exception as _sw_e:
+                        _battle_warn('_tick_actor_dots', _sw_e)
                         pass
                 else:
                     if k == "burn":
@@ -8631,25 +8752,29 @@ class Battle:
             try:
                 if "星尘" in "|".join(self._set_bonus_5(player)):
                     return True
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_regen_needed', _sw_e)
                 pass
             # 词条刻开始（回春/冥想/晨曦祝福 等）
             try:
                 if self._affix_effs(player, "__any_turn_start__"):
                     return True
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_regen_needed', _sw_e)
                 pass
             # 食物持续效果
             try:
                 if self._p_food_effects():
                     return True
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_regen_needed', _sw_e)
                 pass
             # 符文·治愈
             try:
                 if self._enchant_lvl(self._enchant_effects(player), "regen"):
                     return True
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_regen_needed', _sw_e)
                 pass
             # 被动 proc 族（turn_heal/team_regen/arcane_regen/arcane_intuition/
             # focus_regen_summon/undead_faith/faith_overload_heal/shaken_decay_half…）
@@ -8662,7 +8787,8 @@ class Battle:
                 for _pn2, _ps2 in self._passive_map(player)["stat"]:
                     if _ps2.get("stat") == "spellblade_regen":
                         return True
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_regen_needed', _sw_e)
                 pass
             # 核心资源刻回复（rd.regen > 0）
             try:
@@ -8670,31 +8796,36 @@ class Battle:
                 if _crd and (float(_crd.get("regen", 0) or 0) > 0
                              or float(_crd.get("decay_per_tick", 0) or 0) > 0):
                     return True
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_regen_needed', _sw_e)
                 pass
             # 疾风余韵词条（swift_tailwind，上刻精力≥80 → 本刻 +10）
             try:
                 if "swift_tailwind" in self._equip_affix_ids(player):
                     return True
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_regen_needed', _sw_e)
                 pass
             # 资源增幅（迅捷之核 natural 回额外）
             try:
                 if self._amp_resource(player, "regen"):
                     return True
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_regen_needed', _sw_e)
                 pass
             # 歌者回声层数 / 双形态活跃（状态机维护成本）
             try:
                 if self._echo_layers() > 0:
                     return True
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_regen_needed', _sw_e)
                 pass
             try:
                 from .core.battle_modes import dual_form_active
                 if dual_form_active(player):
                     return True
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_regen_needed', _sw_e)
                 pass
             # vent/focus 状态机在行动语义（B 类）里保留，不进 regen_tick
             return False
@@ -8731,17 +8862,20 @@ class Battle:
                 for _eff in ("holy_field_heal", "divine_grace_burst", "hu_xiao_barrier"):
                     if _eff in _s4:
                         _want.add("set_holy")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_ensure_regen_effects', _sw_e)
             pass
         try:
             if "星尘" in "|".join(self._set_bonus_5(player)):
                 _want.add("stardust_mana")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_ensure_regen_effects', _sw_e)
             pass
         try:
             if self._enchant_lvl(self._enchant_effects(player), "regen"):
                 _want.add("rune_regen")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_ensure_regen_effects', _sw_e)
             pass
         try:
             _pm = self._passive_map(player)["proc"]
@@ -8752,7 +8886,8 @@ class Battle:
             for _pn2, _ps2 in self._passive_map(player)["stat"]:
                 if _ps2.get("stat") == "spellblade_regen":
                     _want.add("mech_charge")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_ensure_regen_effects', _sw_e)
             pass
         try:
             _crd = E.core_resource_def(player.get("class_name", ""))
@@ -8760,12 +8895,14 @@ class Battle:
                 _want.add("core_regen")
             if _crd and _crd.get("key") == "faith":
                 _want.add("faith_decay")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_ensure_regen_effects', _sw_e)
             pass
         try:
             if self._echo_layers() > 0:
                 _want.add("echo_heal")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_ensure_regen_effects', _sw_e)
             pass
         # 词条/食物/武器特效：保守常驻（原 _regen_needed 对这些也是"有任一即排"）
         try:
@@ -8776,7 +8913,8 @@ class Battle:
                 _has_affix = False
             if _has_affix or self._p_food_effects():
                 _want.add("affix_food_we")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_ensure_regen_effects', _sw_e)
             pass
         # 挂卡（幂等：已存在跳过）——间隔 ACT_TICK=1s，周期效果统一 1 秒一跳
         for _kind in _want:
@@ -8829,7 +8967,8 @@ class Battle:
         if player:
             try:
                 self._last_player = player
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_turn_start', _sw_e)
                 pass
         # v178.1 事件驱动保险丝（v179 P2 升级通用卡）：玩家行动开头扫描带 debuffs 的
         # actor（玩家/当前主敌），若已挂 dot 但没有对应 actor_dot 卡（直接写 debuffs 的
@@ -8847,7 +8986,8 @@ class Battle:
                 if not _has_ev:
                     self.add_tick_effect("actor_dot", _dt_cand, ACT_TICK, uid=_uid,
                                          source="dot")
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_turn_start', _sw_e)
             pass
         # v178.2 regen 保险丝（v179 升级为通用 tick 卡）：玩家行动开头扫描 A 类每刻效果源，
         # 挂/收通用 tick 条件卡（regen_<kind>）。断线恢复/副本 act 重建 Battle 后首次行动
@@ -8855,7 +8995,8 @@ class Battle:
         try:
             if player and not self._enemy_dead() and not self._player_dead(player):
                 self._ensure_regen_effects(player)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_turn_start', _sw_e)
             pass
         # v151 破绽断链修复（引擎差距报告 P0）：turn_start_bars 此前从未被调用——
         # 拳师破绽条（shaken）的每刻衰减 4/免疫期递减实际不跑。刻开始统一衰减+触发检查。
@@ -8878,9 +9019,11 @@ class Battle:
                         _decay_full = float((_bd or {}).get("decay_per_turn", 0) or 0) or 1.7
                         _eb_sh["val"] = int(_eb_sh.get("val", 0) or 0) + int(_decay_full / 2)
                     break
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_turn_start', _sw_e)
                 pass
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_turn_start', _sw_e)
             pass
         # ---- v139 职业融合：刻开始状态机（dual_form 维护 / vent 排气 / focus 计时）----
         from .core.battle_modes import (
@@ -9030,7 +9173,8 @@ class Battle:
             try:
                 _pl_now = self.player or {}
                 self._process_tick_effects([], _pl_now)
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_advance_time', _sw_e)
                 pass
 
     def _attacker_precise(self) -> float:
@@ -9091,7 +9235,8 @@ class Battle:
             if eff > 0 and random.random() < eff:
                 logs.append(f"💨 {_mob.get('name', '怪物')} 闪避了攻击！")
                 return True
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_monster_dodge_check', _sw_e)
             pass
         return False
 
@@ -9147,7 +9292,8 @@ class Battle:
                 try:
                     _atk = self._infer_atk(t_dmg, _tdef)  # v180E 统一反推
                     t_dmg = max(1, int(E.calc_damage(_atk, _tdef, variance=0)))
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_aoe_damage', _sw_e)
                     pass
             # 击杀结算当前目标（打断钩子 + 防御过滤）
             dealt = self._damage_enemy(t_dmg, logs, target=t, source=source or self._last_hitter)
@@ -9172,7 +9318,8 @@ class Battle:
             _q = str(player.get("qq_id") or player.get("uid") or "")
             if _q:
                 _thr[_q] = int(_thr.get(_q, 0) or 0) + int(amount)
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_add_hate', _sw_e)
             pass
 
     def _damage_enemy(self, dmg: int, logs: list, wake_sleep: bool = True, target=None, source=None,
@@ -9249,7 +9396,8 @@ class Battle:
                 dmg = max(1, int(dmg * _mult_pas))
                 if _tags_pas:
                     logs.append("·".join(_tags_pas))
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_damage_enemy', _sw_e)
             pass
         # v136 等级压制：玩家 vs 怪物等级差伤害修正（PVE 生效，PVP 不压；按目标自身等级实时算，
         # 多目标阵列每怪等级不同也能正确压制）。双向曲线（鱼鱼拍板：增伤不封顶，曲线自然延伸）：
@@ -9274,7 +9422,8 @@ class Battle:
                     dmg = max(1, int(dmg * max(0.30, _mult)))
                 elif _diff < 0:
                     dmg = max(1, int(dmg * (1.02 ** min(-_diff, 50))))
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_damage_enemy', _sw_e)
                 pass
         if target.get("defending"):
             dmg = max(1, int(dmg * DEFEND_REDUCE))
@@ -9342,7 +9491,8 @@ class Battle:
                 if _mcfg and _mcfg[0].get("monster") and isinstance(_mcfg[0]["monster"], (list, tuple)) and len(_mcfg[0]["monster"]) >= 6:
                     _tpl = _mcfg[0]["monster"]
                     _tpl_name = _mcfg[0].get("name", _mcfg[0]["monster"][1] if len(_mcfg[0]["monster"]) > 1 else "爪牙")
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_summon_minions', _sw_e)
                 pass
         for i in range(n):
             m = None  # v163 修复：非模板路径下 m 未定义 → UnboundLocalError（test_v83_boss_mech 抓包）
@@ -9476,7 +9626,8 @@ class Battle:
                     _summon_limit = min(int(_ps_sk.get("cap", 5) or 5),
                                         _summon_limit + int(_ps_sk.get("add", 2) or 2))
                     break
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_summon_entity', _sw_e)
             pass
         if len(cur) >= _summon_limit:
             logs.append(f"⛔ 已有 {len(cur)} 个{tmpl['name']}（上限 {_summon_limit}）！")
@@ -9640,7 +9791,8 @@ class Battle:
                 continue
             try:
                 self._companion_act(c, logs)
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_companions_trigger', _sw_e)
                 pass
         # 清理死亡随从（v180-C S3 修正：只清"有 hp 的战斗实体"——宠物 actor 无 hp
         # 字段（hidden+untargetable，非受击单位），不能被误判死亡移除）
@@ -9677,7 +9829,8 @@ class Battle:
                     if _boss_u:
                         _boss_u["_minion_died_count"] = int(_boss_u.get("_minion_died_count", 0) or 0) + 1
                         _boss_u["_minion_died_this_act"] = True  # 瞬态标记（当刻消费，行动后清）
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_remove_unit', _sw_e)
                     pass
             if unit in self.enemies:
                 self.enemies.remove(unit)
@@ -9693,7 +9846,8 @@ class Battle:
                 try:
                     from .core.weapon_effects import proc as _we_proc
                     _we_proc(self, self.player, "kill", {}, getattr(self, "_pending_dmg_lines", None) or [])
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_remove_unit', _sw_e)
                     pass
                 # v169.7 追风 focus_full_on_kill（游侠）：击杀目标后 专注(精力)立即回满
                 try:
@@ -9704,7 +9858,8 @@ class Battle:
                             self._p_res()["energy"] = _max_e
                             logs.append(f"💨 {_pn_k}：击杀！专注回满（{_old_e} → {_max_e}）")
                         break
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_remove_unit', _sw_e)
                     pass
             # 同步 e_minions 旧字段（镜像同对象）
             if unit in self.e_minions:
@@ -10006,7 +10161,8 @@ class Battle:
             _we_proc(self, actor, "taken", _wetaken, logs)
             _we_proc(self, actor, "passive", {"taken": _wetaken.get("taken", dmg)}, logs)
             dmg = max(1, int(_wetaken.get("taken", dmg)))
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_mitigate_chain', _sw_e)
             pass
         # v140 波4：新手特效 守御（novice_first_turn_guard）——每场战斗首刻受击伤害 -10%
         if (EFF or {}).get("novice_guard_active") and self._tick_no() <= 1:
@@ -10080,7 +10236,8 @@ class Battle:
                         RES["guard_core"] = max(self._guard_core_n(), int(_ps_cls.get("cores", 3) or 3))
                         logs.append(f"⛰️ 不动如山：绝境不屈，获得 {int(_ps_cls.get('cores', 3) or 3)} 枚磐核！（每场 1 次）")
                         break
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_mitigate_chain', _sw_e)
             pass
         # 圣堂壁垒（holy_bastion_def）——常驻 5% 减伤（数值读 params）
         _hb_eff = self._set_eff(actor, "holy_bastion_def", 4)
@@ -10127,7 +10284,8 @@ class Battle:
                 break
             if _dr_pct > 0:
                 reduce_total += int(dmg * min(_dr_pct, 0.9))
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_mitigate_chain', _sw_e)
             pass
         if reduce_total:
             dmg = max(1, dmg - reduce_total)
@@ -10198,7 +10356,8 @@ class Battle:
             try:
                 self._damage_actor(_rtgt, rd_val, logs,
                                    source=str(actor.get("name", "敌人") or "敌人") or "反伤")
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_hit_back', _sw_e)
                 pass
         B = actor.setdefault("buffs", {})
         EFF = actor.setdefault("eff", {})
@@ -10382,7 +10541,8 @@ class Battle:
             # 死亡之舞：受击伤害 35% 转为缓伤池（刻开始结算 10%）
             if EFF.get("we_death_pool") is not None:
                 EFF["we_death_pool"] = float(EFF.get("we_death_pool", 0) or 0) + dmg * 0.35
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_post_hp_lethal', _sw_e)
             pass
         # v140 波3.2：不死鸟之羽复活——致死时以 revive_hp% 生命复活 1 次（+ 减伤 buff）
         if actor["hp"] <= 0 and (EFF or {}).get("phoenix_revive") and not (EFF or {}).get("phoenix_consumed"):
@@ -10427,7 +10587,8 @@ class Battle:
                     actor["hp"] = max(1, int(actor.get("max_hp", actor["hp"]) * float(_ps.get("hp_pct", 0.20) or 0.20)))
                     logs.append(f"💀 死亡契约：信念 {_faith_v:.0f} 引动契约，{fallen.get('name', '骷髅')} 代受致命伤，你以 {actor['hp']} HP 站起！")
                     break
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_post_hp_lethal', _sw_e)
                 pass
         # v169.7 血怒·不灭（战士攻线·狂暴）：狂暴中首次致死 → 清空战意复活 30% 生命（每场 1 次）
         if actor["hp"] <= 0 and not getattr(self, "_berserk_revive_used", False):
@@ -10441,7 +10602,8 @@ class Battle:
                         actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("hp_pct", 0.30) or 0.30)))
                         logs.append(f"🔥 血怒·不灭！狂暴意志撑住了致命一击，你以 {actor['hp']} HP 站起（战意已清空）！")
                         break
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_post_hp_lethal', _sw_e)
                 pass
         # v169.7 铁誓·不动（战士守线·守护姿态）：守护姿态下首次致命伤害免疫，随后清空全部战意
         if actor["hp"] <= 0 and not getattr(self, "_stance_immortal_used", False) \
@@ -10454,7 +10616,8 @@ class Battle:
                     actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("hp_pct", 1.0) or 1.0)))
                     logs.append(f"🛡️ 铁誓·不动！守护姿态替你挡下致命一击（战意已清空）！")
                     break
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_post_hp_lethal', _sw_e)
                 pass
 
     def _on_taken_rewards(self, actor: dict, logs: list) -> None:
@@ -10547,11 +10710,13 @@ class Battle:
                 try:
                     if any(u is actor or u.get("uid") == actor.get("uid") for u in (self.enemies or [])):
                         return False
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_is_focus_player', _sw_e)
                     pass
                 if actor.get("side") in (None, "player"):
                     return True
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_is_focus_player', _sw_e)
             pass
         return False
 
@@ -10600,9 +10765,11 @@ class Battle:
                             _sv = max(1, int(actor.get("max_hp", 1) * _shp))
                             actor.setdefault("shields", {})["on_taken"] = {"value": _sv, "halve": True}
                             logs.append(f"🛡️ 【{_tn}】受击凝甲！护盾 +{_sv}")
-                except Exception:
+                except Exception as _sw_e:
+                    _battle_warn('_monster_on_taken', _sw_e)
                     pass
-        except Exception:
+        except Exception as _sw_e:
+            _battle_warn('_monster_on_taken', _sw_e)
             pass
 
     def _damage_actor(self, actor: dict, dmg: int, logs: list, source: str = "伤害",
@@ -10692,7 +10859,8 @@ class Battle:
                     if isinstance(_evdr, (int, float)) and 0 <= float(_evdr) <= 0.95:
                         _dr = float(_evdr)
                 dmg = max(1, int(round(dmg * (1.0 - _dr))))
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_damage_actor', _sw_e)
                 pass
         # v180F 收编敌方普攻配套：玩家受击百分比免伤统一在此消费（phys_reduce/magic_reduce）。
         # 原只在敌方普攻手写段实现（管线/技能/AOE 打玩家不吃 = 隐藏 bug）；现按 dmg_kind
@@ -10713,7 +10881,8 @@ class Battle:
                         red = max(1, int(dmg * _mpr))
                         dmg = max(1, dmg - red)
                         logs.append(f"🛡️ 魔法抗性，减免 {red} 点魔法伤害！")
-            except Exception:
+            except Exception as _sw_e:
+                _battle_warn('_damage_actor', _sw_e)
                 pass
         dmg, _interrupted_m = self._mitigate_chain(actor, dmg, logs)
         if _interrupted_m:
