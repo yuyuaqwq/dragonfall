@@ -1272,7 +1272,7 @@ def _sb_dodge_buff(battle, skill_name, info, player, lv, logs):
 def _sb_crit_hit_buff(battle, skill_name, info, player, lv, logs):
     """v169.7 effect 补全：鹰眼锁定 desc「暴击 +20%、命中 +15%」。
     v173.3 意见#95（鱼鱼拍板 B 方案）：命中维度真实落地——crit_up（暴击 +20%）+
-    hit_up（精准 +15%，_monster_dodge_check 消费为敌方闪避抵消率，cap 60% 与词条同源）。
+    hit_up（精准 +15%，_target_dodge_check 消费为敌方闪避抵消率，cap 60% 与词条同源）。
     """
     turns = _sb_pb_set_turns(battle, "crit_up", lv, info)
     _sb_pb_set_turns(battle, "hit_up", lv, info)

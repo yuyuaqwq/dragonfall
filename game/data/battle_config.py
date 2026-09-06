@@ -669,7 +669,7 @@ BUFF_MULT = {
     "spd_up":         ("spd", 1.40),
     "crit_up":        ("crit", 0.20),      # 暴击率 +20%
     # v173.3 意见#95（鱼鱼拍板 B 方案）：命中 buff——鹰眼锁定 desc「命中 +15%」落地
-    # precise 是敌方闪避抵消率（_monster_dodge_check my_hit），加法并入词条精准
+    # precise 是敌方闪避抵消率（_target_dodge_check my_hit），加法并入词条精准
     "hit_up":         ("precise", 0.15),
     # v101.28f 药水强度分档（名字不同效果不同的真实落地：战吼/龙力 +40%、蛮力 +20%、风灵 +20%、致命 +30%、锐目 +15%）
     "atk_up_big":     ("atk", 1.40),

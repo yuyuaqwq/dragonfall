@@ -81,12 +81,12 @@ async def main():
     # 4.1 怪物闪避判定函数
     b = make_bt(enemy_dodge=0.08)
     random.seed(1)
-    hits = sum(1 for _ in range(200) if b._monster_dodge_check([]))
+    hits = sum(1 for _ in range(200) if b._target_dodge_check([]))
     check("speedster 8% 闪避采样 ≈8%（2%-16% 容差）", 0.02 <= hits/200 <= 0.16, f"{hits}/200")
     # 4.2 精准削减怪物闪避：60% 精准 → 3.2%
     random.seed(1)
     b2 = make_bt(enemy_dodge=0.08, my_hit=0.60)
-    hits2 = sum(1 for _ in range(200) if b2._monster_dodge_check([]))
+    hits2 = sum(1 for _ in range(200) if b2._target_dodge_check([]))
     check("60% 精准后怪物闪避采样显著下降（≤10%）", hits2/200 <= 0.10, f"{hits2}/200 vs {hits}/200")
     # 4.3 玩家被攻击侧：乘算 cap（基础 40% + 药水，长采样应 ≈40% 且不超）
     b3 = make_bt(player_dodge=0.40, pot=True)

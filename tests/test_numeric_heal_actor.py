@@ -101,7 +101,7 @@ async def main():
     b4._cast_ctx = m
     b4._target_ctx = p4
     try:
-        logs4, _ = b4._monster_cast_playerskill(m, "ms_zai_sheng", p4, {"kind": "skill", "skill": "ms_zai_sheng"})
+        logs4, _ = b4._actor_skill_cast(m, "ms_zai_sheng", p4, {"kind": "skill", "skill": "ms_zai_sheng"})
     finally:
         b4._cast_ctx = None
         b4._target_ctx = None
@@ -122,7 +122,7 @@ async def main():
     b5._cast_ctx = m2
     b5._target_ctx = p5
     try:
-        logs5, _ = b5._monster_cast_playerskill(m2, "ms_zai_sheng", p5, {"kind": "skill", "skill": "ms_zai_sheng"})
+        logs5, _ = b5._actor_skill_cast(m2, "ms_zai_sheng", p5, {"kind": "skill", "skill": "ms_zai_sheng"})
     finally:
         b5._cast_ctx = None
         b5._target_ctx = None
@@ -142,7 +142,7 @@ async def main():
     b6._cast_ctx = m3
     b6._target_ctx = p6
     try:
-        logs6, _ = b6._monster_cast_playerskill(m3, "ms_zai_sheng", p6, {"kind": "skill", "skill": "ms_zai_sheng"})
+        logs6, _ = b6._actor_skill_cast(m3, "ms_zai_sheng", p6, {"kind": "skill", "skill": "ms_zai_sheng"})
     finally:
         b6._cast_ctx = None
         b6._target_ctx = None

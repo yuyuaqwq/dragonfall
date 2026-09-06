@@ -2413,7 +2413,7 @@ class InstanceCmds(CommandBase):
         battle 的 _process_until 驱动敌方行动后调用。由于副本 enemies/allies 是引用
         传递（battle 改 hp 直接写回 st），这里只需处理副本层账务：
         - 敌方死亡压缩（battle 已 _remove_unit 清空 enemies，这里补 st 同步）
-        - 玩家倒地标记（battle _damage_player 扣血后，检查 alive 标记）
+        - 玩家倒地标记（battle _damage_actor 扣血后，检查 alive 标记）
         - 仇恨/贡献（伤害 dealt 累加——由 _instance_act 主流程在玩家行动后统一算，
           这里不重复；回调只处理 battle 内部驱动的敌方行动带来的即时状态）
         """

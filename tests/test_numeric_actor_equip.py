@@ -6,7 +6,7 @@
   2. 怪物 thorns 词条受击反伤 → 打回攻击者（玩家掉血）
   3. 玩家 thorns 被打反伤 → 打回怪（原行为不回归）
   4. 无装备怪 → 面板零变化（旧行为）
-  5. 怪物 dodge 词条 → _monster_dodge_check 生效
+  5. 怪物 dodge 词条 → _target_dodge_check 生效
 
 独立运行：python tests/test_numeric_actor_equip.py
 """

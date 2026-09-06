@@ -2,7 +2,7 @@
 """v180 怪物技能管线化收编门禁（test_numeric_monster_skill_pipeline）
 
 背景：v180 P1-P9 把 329 个 MONSTER_SKILLS 全量收编进玩家技能管线（_player_skill）：
-- _enemy_cast_done / _enemy_release_charge / _enemy_turn 增益即时分支全部走 _monster_cast_playerskill
+- _enemy_cast_done / _enemy_release_charge / _enemy_turn 增益即时分支全部走 _actor_skill_cast
 - _enemy_cast_done 260 行简化结算已删（P9）
 - 怪技能数据归一：heal_self→kind=治疗+hp_pct、summon 加 summon:1、无 formula 补等效段
 

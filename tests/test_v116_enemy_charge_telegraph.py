@@ -80,7 +80,7 @@ def test_charge_start_and_release():
     check("日志含【意图】", any("【意图】" in l and "正在蓄力" in l for l in logs1), str(logs1))
 
     # 第 2 回合：蓄力完成释放 -> 结算伤害
-    # v180F：蓄力释放走 _monster_cast_playerskill 管线内部扣血（返回 dmg=0 防外部双扣）——
+    # v180F：蓄力释放走 _actor_skill_cast 管线内部扣血（返回 dmg=0 防外部双扣）——
     # 断言改看玩家真实 hp 扣减（伤害确实发生）
     hp_before = p.get("hp", 0)
     logs2, dmg2 = b._enemy_turn(p)

@@ -713,7 +713,7 @@ class Battle:
         # （_remove_unit 敌方死亡时记录；胜利结算按全部击杀逐个计任务进度）
         self.killed_enemies: list = []
         self.allies: list = allies or []   # v122 我方阵列（治疗指定队友：副本传存活玩家快照引用）
-        self.player = player or {}         # v105 攻击方属性读取（_monster_dodge_check 需要玩家精准）
+        self.player = player or {}         # v105 攻击方属性读取（_target_dodge_check 需要玩家精准）
         # ================= v180-B P1a/P2：玩家 actor dict 播种 =================
         # 玩家战斗可变状态权威 = 玩家 actor dict（与怪 dict 完全同构）。此处播种全部
         # 战斗可变状态键；副本 allies 快照（729-739）已播种站位键，instance._instance_
@@ -2758,7 +2758,7 @@ class Battle:
         extra = r.get("extra", "")
         if extra == "aoe":
             aoe_dmg = int((st or {}).get("matk", 0) * 1.2 * rmult)
-            self._aoe_deal_damage(aoe_dmg, logs)
+            self._aoe_damage(aoe_dmg, logs)
             log = f"💥超载爆发！额外 {aoe_dmg} 点全体伤害！"
         elif extra == "freeze":
             self.e_buffs["freeze"] = 1
@@ -5533,7 +5533,7 @@ class Battle:
             _ae = _ai.get("effect") or {}
             if _ae.get("aoe") and random.random() < float(_ai.get("chance", 0.10)):
                 ad = int(dmg * float(_ae.get("mult", 2.0)))
-                self._aoe_deal_damage(ad, logs)
+                self._aoe_damage(ad, logs)
                 logs.append(f"☄️ {_ai.get('name', '星陨')}！全体造成 {ad} 点伤害！")
 
     def _affix_on_taken(self, player: dict, dmg: int, logs: list) -> int:
@@ -6346,8 +6346,8 @@ class Battle:
             del self._cast_stacks()["novice_spark"]
             logs.append(f"✨ 星火x{1 + _spark_pct:.1f}：普攻伤害 +{int(_spark_pct * 100)}%！")
         # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
-        # v177 双向：玩家施法=怪闪避（_monster_dodge_check）；怪施法玩家技能=目标玩家闪避由 _deal_hit 内 _damage_actor 处理
-        if not self._tgt_is_player() and self._monster_dodge_check(logs):
+        # v177 双向：玩家施法=怪闪避（_target_dodge_check）；怪施法玩家技能=目标玩家闪避由 _deal_hit 内 _damage_actor 处理
+        if not self._tgt_is_player() and self._target_dodge_check(logs):
             total = 0
         else:
             aoe = info.get("aoe")
@@ -6483,7 +6483,7 @@ class Battle:
                 # 超载：额外全体伤害（v114 真 AOE：Boss+全部援军各吃全额，不走挡刀）
                 if r["extra"] == "aoe":
                     aoe_dmg = int(st["matk"] * 1.2 * reaction_mult)
-                    self._aoe_deal_damage(aoe_dmg, logs)
+                    self._aoe_damage(aoe_dmg, logs)
                     reaction_log = f"💥超载爆发！额外 {aoe_dmg} 点全体伤害！"
                 # 冻结：目标冻结 1 刻
                 elif r["extra"] == "freeze":
@@ -7330,44 +7330,47 @@ class Battle:
                 s = None
         return s or {}
 
-    def _monster_cast_playerskill(self, unit: dict, skill_name: str, target_player: dict, ev: dict) -> tuple:
-        """v177 怪物施放玩家技能 → 完整玩家技能管线（双向 actor：攻方=怪/目标=玩家）。
-        玩家技能全语义一次获得（exprs/cond/多段/mech/吸血/暴击/元素/标记等——不再逐项补）。
-        返回 (logs, 对玩家总伤害)。增益/治疗目标=施法者自身（怪），伤害目标=玩家。"""
+    def _actor_skill_cast(self, caster: dict, skill_name: str, target: dict, ev: dict) -> tuple:
+        """v180G B3-改名：任意 actor（caster）施放任意技能 → 统一玩家技能管线结算。
+        原 _actor_skill_cast（v177 引入时只让怪放玩家技能）——现已双向 actor：
+        caster=任意攻击方（怪/随从/玩家侧 actor），target=任意被击目标。
+        技能全语义一次获得（exprs/cond/多段/mech/吸血/暴击/元素/标记等——不再逐项补）。
+        返回 (logs, 对 target 总伤害)——管线已内部经 _deal_hit/_damage_actor 真实扣血，
+        返回 dmg 恒 0（防调用处双扣，v180F 修复）。
+        增益/治疗目标=施法者自身（caster），伤害目标=target。"""
         info = self._lookup_skill_info(skill_name)
         logs = []
         if not info:
             return logs, 0
-        ename = unit.get("name", "怪物")
         _saved_ctx = self._cast_ctx
         _saved_tgt = self._target_ctx
-        self._cast_ctx = unit
-        self._target_ctx = target_player
+        self._cast_ctx = caster
+        self._target_ctx = target
         # v180F：格挡 defend_reduce 需要技能名（_damage_actor 承伤链按当前施法技能查表）——
-        # _cast_ctx=怪身上没有 _cast.skill（cast_done 已清），临时挂 _cast_skill 供查
-        _saved_ck = unit.get("_cast_skill")
-        unit["_cast_skill"] = skill_name
+        # _cast_ctx=施法者身上没有 _cast.skill（cast_done 已清），临时挂 _cast_skill 供查
+        _saved_ck = caster.get("_cast_skill")
+        caster["_cast_skill"] = skill_name
         try:
-            # 怪面板 + 技能等级（玩家 exprs 里 skill_lv/player_lv 成长用怪等级折算）
-            st = self._enemy_stats(unit)
+            # 施法者面板 + 技能等级（玩家 exprs 里 skill_lv/player_lv 成长用施法者等级折算）
+            st = self._enemy_stats(caster)
             st = dict(st)
-            _slv = max(1, min(20, int(unit.get("lv", 1) or 1) // 2))
+            _slv = max(1, min(20, int(caster.get("lv", 1) or 1) // 2))
             st["_skill_lv"] = _slv
-            st["_player_lv"] = int(unit.get("lv", 1) or 1)
-            # 攻击方临时技能等级（管线 E.skill_level_of 读 player.skill_levels——怪没有，管线内 lv 会=1；
-            # 这里把折算等级写 unit 临时字段供管线 skill_level_of 读取）
-            _had_skl = unit.get("skill_levels")
-            unit["skill_levels"] = {skill_name: _slv}
-            # 管线造成的玩家伤害已经 _deal_hit 落 _damage_actor(player)——从玩家 hp 变化反推
-            _hp0 = int(target_player.get("hp", 0) or 0)  # 管线前快照（扣血基准）
+            st["_player_lv"] = int(caster.get("lv", 1) or 1)
+            # 攻击方临时技能等级（管线 E.skill_level_of 读 caster.skill_levels——怪没有，管线内 lv 会=1；
+            # 这里把折算等级写 caster 临时字段供管线 skill_level_of 读取）
+            _had_skl = caster.get("skill_levels")
+            caster["skill_levels"] = {skill_name: _slv}
+            # 管线造成的 target 伤害已经 _deal_hit 落 _damage_actor(target)——从 target hp 变化反推
+            _hp0 = int(target.get("hp", 0) or 0)  # 管线前快照（扣血基准）
             try:
                 # target=None → 治疗/增益目标=施法者自己（管线 _resolve_ally_target(None) 单人=自己）
-                plogs = self._player_skill(st, skill_name, info, unit, target=None)
+                plogs = self._player_skill(st, skill_name, info, caster, target=None)
             finally:
                 if _had_skl is None:
-                    unit.pop("skill_levels", None)
+                    caster.pop("skill_levels", None)
                 else:
-                    unit["skill_levels"] = _had_skl
+                    caster["skill_levels"] = _had_skl
             logs += plogs
             # v180F 修复 double dip：管线已通过 _deal_hit/_damage_actor 把伤害真实扣到目标
             # hp（含承伤链免伤/格挡/护盾），这里不再返回伤害值让调用处二次 _damage_actor 扣血
@@ -7381,9 +7384,9 @@ class Battle:
             self._cast_ctx = _saved_ctx
             self._target_ctx = _saved_tgt
             if _saved_ck is None:
-                unit.pop("_cast_skill", None)
+                caster.pop("_cast_skill", None)
             else:
-                unit["_cast_skill"] = _saved_ck
+                caster["_cast_skill"] = _saved_ck
 
     def _enemy_cast_done(self, player: dict, unit: dict, ev: dict) -> tuple:
         """v154 敌方对称读条：敌方出招读条结束（cast_done 事件触发）→ 结算伤害。
@@ -7425,17 +7428,17 @@ class Battle:
                 _kind = "atk"
             else:
                 # v180 所有技能统一走管线（玩家技能 key + 怪自身技能 ms_*）：
-                # _monster_cast_playerskill 已双向 actor（_cast_ctx=怪/_target_ctx=玩家），
+                # _actor_skill_cast 已双向 actor（_cast_ctx=怪/_target_ctx=玩家），
                 # _player_skill 按 kind 分流（治疗 hp_pct/heal_formula/增益/召唤/物理魔法伤害），
                 # 怪自身技能数据已归一（heal_self→kind=治疗+hp_pct、无 formula 已补等效段）。
                 # 原 v177 只对玩家技能 key 走管线、怪自身技能落下方 260 行简化结算（两套代码根）。
                 try:
-                    _ml_s, _dg_s = self._monster_cast_playerskill(e, ev.get("skill"), player, ev)
+                    _ml_s, _dg_s = self._actor_skill_cast(e, ev.get("skill"), player, ev)
                     return _ml_s, _dg_s, None  # v180G B2-2：管线已内部落地，dmg_kind=None
                 except Exception as _sw_e:
                     _battle_warn('_enemy_cast_done', _sw_e)
                     pass
-                # v180：管线异常兜底回落普攻（简化结算死代码已删——正常全部走 _monster_cast_playerskill）
+                # v180：管线异常兜底回落普攻（简化结算死代码已删——正常全部走 _actor_skill_cast）
                 _kind = "atk"
         # 敌方普攻（_kind == "atk" 或技能查表失败）
         # v169.3 等级压制增伤：怪高玩家 N 级 → 普攻 ×(1+0.02N)（cap ×3，同技能方向）
@@ -7760,11 +7763,11 @@ class Battle:
                     return logs, 0
                 if kind == K_BUFF or kind == K_HEAL:
                     # v180 增益/治疗即时分支统一走管线（原 MON_BUFF_EFFECTS/SKILL_BUFF_EFFECTS
-                    # 双表分派为两套代码残余）：_monster_cast_playerskill 按 kind 分流——
+                    # 双表分派为两套代码残余）：_actor_skill_cast 按 kind 分流——
                     # 增益(_skill_buff: atk_up/def_up/spd_up 兜底写怪 buffs)、治疗(_skill_heal:
                     # hp_pct/heal_formula)、召唤(summon:1 分支 _summon_minions)。即时生效语义保留
                     # （增益出手即上身，不排读条）。
-                    _logs_b, _dmg_b = self._monster_cast_playerskill(e, skill, player,
+                    _logs_b, _dmg_b = self._actor_skill_cast(e, skill, player,
                                                                   {"kind": "skill", "skill": skill})
                     logs += _logs_b
                     # v154：增益立即生效，但敌方行动也要消耗 ct（读条 + 收招）
@@ -7834,13 +7837,13 @@ class Battle:
                               player: dict | None = None) -> tuple:
         """敌方蓄力释放：按 MONSTER_SKILLS 里的技能结算伤害（对整个玩家方）。
         返回 (logs, 对玩家伤害)。"""
-        # v180 蓄力释放统一走管线（同 _enemy_cast_done 收编）：_monster_cast_playerskill
+        # v180 蓄力释放统一走管线（同 _enemy_cast_done 收编）：_actor_skill_cast
         # 双向 actor（_cast_ctx=e 蓄力怪 / _target_ctx=player），_player_skill 按 kind 分流——
         # 物理/魔法伤害、治疗(hp_pct)、增益、召唤、pdot、mech 控制全语义一次获得。
         # 原简化结算（MON_BUFF_EFFECTS 增益 / calc_damage 手动伤害）为两套代码残余，已废弃。
-        # ⚠️ 参数：_monster_cast_playerskill(unit, skill_name, target_player, ev)——第 4 参 ev 占位；
+        # ⚠️ 参数：_actor_skill_cast(unit, skill_name, target_player, ev)——第 4 参 ev 占位；
         # 返回的新 logs 要追加到本函数 logs（保留 charge_tick 已加的"蓄力完成，轰然落下"预告）
-        _logs_r, _dmg_r = self._monster_cast_playerskill(e, skill_name, player, {"kind": "skill", "skill": skill_name})
+        _logs_r, _dmg_r = self._actor_skill_cast(e, skill_name, player, {"kind": "skill", "skill": skill_name})
         logs += _logs_r
         dmg = _dmg_r
         # v154：蓄力释放后敌方重排下次行动（读条 + 收招）
@@ -9165,7 +9168,7 @@ class Battle:
         except Exception:
             return 1.0
 
-    def _monster_dodge_check(self, logs: list) -> bool:
+    def _target_dodge_check(self, logs: list) -> bool:
         """v105 怪物闪避判定：怪物闪避率 × (1 - 我方精准)（精准上限 60%），闪避率上限 30%。
         命中判定成功追加闪避日志并返回 True（调用方跳过本次伤害结算）。
         v169.7 修 #132：判定目标用 _active_target（指定打 a2 时判 a2 闪避），无活跃目标回退主目标。"""
@@ -9184,7 +9187,7 @@ class Battle:
                 logs.append(f"💨 {_mob.get('name', '怪物')} 闪避了攻击！")
                 return True
         except Exception as _sw_e:
-            _battle_warn('_monster_dodge_check', _sw_e)
+            _battle_warn('_target_dodge_check', _sw_e)
             pass
         return False
 
@@ -9249,10 +9252,6 @@ class Battle:
             if dealt > 0 and t is main:
                 main_hit = dealt
         return main_hit
-
-    def _aoe_deal_damage(self, dmg: int, logs: list) -> int:
-        """v114 旧 AOE 入口（兼容）：全阵 AOE，返回对主目标伤害。"""
-        return self._aoe_damage(dmg, logs, "all", None)
 
     def _add_hate(self, player: dict, amount: int) -> None:
         """v173.5 全层仇恨：battle 内部产生的伤害（如守护姿态盾牌反击）累计进副本仇恨表。
@@ -9922,7 +9921,7 @@ class Battle:
     def _roll_dodge(self, actor: dict, logs: list) -> bool:
         """v177 闪避判定（actor 承伤）：dodge 乘算合成(上限40%) → roll。闪避成功返回 True（调用方中断本次承伤）。
         闪避成功副作用：丢弃延迟伤害日志 + on_dodge_success 攒资源。
-        怪物 actor 的闪避由 _monster_dodge_check 前置处理（避免双重 roll）——但本函数已
+        怪物 actor 的闪避由 _target_dodge_check 前置处理（避免双重 roll）——但本函数已
         actor 化（v180F B3）：一律读入参 actor 自身袋，不读焦点。"""
         if not actor or not actor.get("class_name"):
             return False
@@ -10667,7 +10666,7 @@ class Battle:
             pass
         return False
 
-    def _monster_on_taken(self, actor: dict, logs: list) -> None:
+    def _actor_on_taken(self, actor: dict, logs: list) -> None:
         """受击钩子（actor.on_taken dict → 受击回血/激怒/凝甲）。字段即能力——
         v180-B：不看 class_name（怪扮职业仍保留钩子；玩家配 on_taken 也能触发），
         只按 actor 是否声明 on_taken。由 _damage_actor 扣血后调用（存活才触发）。"""
@@ -10713,10 +10712,10 @@ class Battle:
                             actor.setdefault("shields", {})["on_taken"] = {"value": _sv, "halve": True}
                             logs.append(f"🛡️ 【{_tn}】受击凝甲！护盾 +{_sv}")
                 except Exception as _sw_e:
-                    _battle_warn('_monster_on_taken', _sw_e)
+                    _battle_warn('_actor_on_taken', _sw_e)
                     pass
         except Exception as _sw_e:
-            _battle_warn('_monster_on_taken', _sw_e)
+            _battle_warn('_actor_on_taken', _sw_e)
             pass
 
     def _damage_actor(self, actor: dict, dmg: int, logs: list, source: str = "伤害",
@@ -10865,7 +10864,7 @@ class Battle:
             if any(u is actor or u.get("uid") == actor.get("uid") for u in self.enemies):
                 self._remove_unit("enemy", actor)
             return max(0, _hp_before - int(actor.get("hp", 0) or 0))
-        self._monster_on_taken(actor, logs)
+        self._actor_on_taken(actor, logs)
         self._post_hp_lethal(actor, dmg, logs)
         self._on_taken_rewards(actor, logs)
 
