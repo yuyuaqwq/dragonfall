@@ -6609,11 +6609,16 @@ class Battle:
             # v174.1：技能 info 配 cast_verb（如 basic_skill "挥剑斩击"）→ 日志用动作语
             # "你挥剑斩击，造成 N 点伤害"；无 cast_verb 保持"你施展【技能】，造成 N 点伤害"。
             _verb = info.get("cast_verb")
-            # v180F 收编敌方普攻：日志主语按施法者——玩家（_cast_ctx 空）"你施展"；
-            # 怪施法（_cast_ctx 非空）显示怪名（v180 收编怪技能后此文案一直错显"你"）。
-            # 技能显示名用 info.name（怪普攻显示"攻击"而非 key ms_basic_attack）。
+            # v180G B7：日志主语 = 攻击者视角。攻击者(player 参数)是当前行为驱动者
+            # (self.player) → "你"；攻击者是他人（副本跨玩家命中：B 的 Battle 触发 A 的
+            # 挂起命中）→ 显示攻击者名；怪施法（_cast_ctx 非空）→ 显示怪名。
             _caster = self._cast_ctx
-            _subject = "你" if _caster is None else str((_caster or {}).get("name", "敌人"))
+            if _caster is not None:
+                _subject = str((_caster or {}).get("name", "敌人"))
+            elif player is self.player or self.player is None or player is None:
+                _subject = "你"
+            else:
+                _subject = str(player.get("name") or "队友")
             _disp_name = str(info.get("name") or skill_name)
             _subj_verb = (f"{_subject}{_verb}" if _verb else f"{_subject}施展【{_disp_name}】")
             if multi > 1:
