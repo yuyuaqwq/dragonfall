@@ -50,6 +50,22 @@ def weapon_effect_ids(battle, player) -> list:
     return out
 
 
+def effect_data(battle, player, key: str) -> dict:
+    """v180E 阶段4：已装备特效 key 的 we_data 参数（随装备实例从名册 we_data 拷入）。
+
+    数据驱动铁律：特效数值权威 = 装备行 we_data（equip_roster.py）。handler 读参，
+    不再硬编码。we_data 缺失（老档/未迁移）回退空 dict——handler 用自己的缺省兜底。
+    """
+    for item in (player.get("equipment") or {}).values():
+        if not item:
+            continue
+        if item.get("weapon_effect") == key:
+            wd = item.get("we_data")
+            if isinstance(wd, dict):
+                return wd
+    return {}
+
+
 def has_effect(battle, player, key: str) -> bool:
     """当前玩家是否装备了指定特效（单查）。"""
     return key in weapon_effect_ids(battle, player)
@@ -244,9 +260,10 @@ def _we_swift_boots(battle, player, ctx, logs):
 @register("battle_start")
 def _we_abyss_barrier(battle, player, ctx, logs):
     """深渊屏障（深渊胸甲）：开战获得深渊屏障，最大生命+8%（持续整场）。"""
+    wd = effect_data(battle, player, "abyss_barrier")
     if not has_effect(battle, player, "abyss_barrier"):
         return
-    bonus = int(player.get("max_hp", 100) * 0.08)
+    bonus = int(player.get("max_hp", 100) * float(wd.get("max_hp_pct", 0.08)))
     player["max_hp"] = player.get("max_hp", 100) + bonus
     player["hp"] = min(player["max_hp"], player.get("hp", 0) + bonus)
     logs.append(f"🌑 深渊屏障：最大生命 +{bonus}！（持续整场）")
@@ -327,14 +344,15 @@ def _we_wind_mark(battle, player, ctx, logs):
 @register("hit")
 def _we_hunter_open(battle, player, ctx, logs):
     """破绽（猎户铁匕）：每 3 次攻击后，下一次攻击附带 12% 攻击力真伤。"""
+    wd = effect_data(battle, player, "hunter_open")
     if not has_effect(battle, player, "hunter_open"):
         return
     n = int(player.setdefault('stacks', {}).get("hunter_cnt", 0) or 0) + 1
     player.setdefault('stacks', {})["hunter_cnt"] = n
-    if n >= 3:
+    if n >= int(wd.get("count", 3)):
         player.setdefault('stacks', {})["hunter_cnt"] = 0
         st = _pstats(battle, player)
-        _true_dmg(battle, st.get("atk", 0) * 0.12, logs, source="🗡️ 破绽")
+        _true_dmg(battle, st.get("atk", 0) * float(wd.get("atk_pct", 0.12)), logs, source="🗡️ 破绽")
 
 
 @register("hit")
@@ -369,13 +387,14 @@ def _we_frost_ring(battle, player, ctx, logs):
 @register("hit")
 def _we_blood_trace(battle, player, ctx, logs):
     """败血（血痕双刺）：命中 25% 使目标 4 刻每刻损 2% 当前生命（Boss 1.5%）。"""
-    if not has_effect(battle, player, "blood_trace") or random.random() >= 0.25:
+    wd = effect_data(battle, player, "blood_trace")
+    if not has_effect(battle, player, "blood_trace") or random.random() >= float(wd.get("chance", 0.25)):
         return
     deb = battle.enemy.setdefault("debuffs", {})
     cur = deb.get("blood_trace") or {"n": 0, "mult": 1.0}
     cur["n"] = min(int(cur.get("n", 0) or 0) + 1, 1)
-    cur["pct"] = 0.015 if _boss_enemy(battle.enemy or {}) else 0.02
-    cur["turns"] = 4
+    cur["pct"] = float(wd.get("pct_boss", 0.015)) if _boss_enemy(battle.enemy or {}) else float(wd.get("pct", 0.02))
+    cur["turns"] = int(wd.get("turns", 4))
     deb["blood_trace"] = cur
     logs.append("🩸 败血：目标 4 刻内每刻损失当前生命！（对败血目标 +10% 伤害）")
 
@@ -383,9 +402,10 @@ def _we_blood_trace(battle, player, ctx, logs):
 @register("hit")
 def _we_wind_split(battle, player, ctx, logs):
     """裂风矢（裂风长弓）：命中 25% 追加一次 50% 攻击力的攻击，优先攻击召唤物。"""
-    if not has_effect(battle, player, "wind_split") or random.random() >= 0.25:
+    wd = effect_data(battle, player, "wind_split")
+    if not has_effect(battle, player, "wind_split") or random.random() >= float(wd.get("chance", 0.25)):
         return
-    _extra_phys(battle, 0.50, logs, source="🌪️ 裂风矢")
+    _extra_phys(battle, float(wd.get("atk_pct", 0.50)), logs, source="🌪️ 裂风矢")
 
 
 @register("hit")
@@ -459,17 +479,18 @@ def _we_soul_eater(battle, player, ctx, logs):
 @register("hit")
 def _we_star_pierce(battle, player, ctx, logs):
     """穿星（星陨长弓）：每 4 次攻击后，下一次攻击附带真伤=20% 攻击力+目标已损生命 3%（上限 5%）。"""
+    wd = effect_data(battle, player, "star_pierce")
     if not has_effect(battle, player, "star_pierce"):
         return
     n = int(player.setdefault('stacks', {}).get("star_cnt", 0) or 0) + 1
     player.setdefault('stacks', {})["star_cnt"] = n
-    if n >= 4:
+    if n >= int(wd.get("count", 4)):
         player.setdefault('stacks', {})["star_cnt"] = 0
         st = _pstats(battle, player)
         e = battle.enemy or {}
-        base = int(st.get("atk", 0) * 0.20)
-        lost = int((e.get("max_hp", 0) - e.get("hp", 0)) * 0.03)
-        cap = int(e.get("max_hp", 1) * 0.05)
+        base = int(st.get("atk", 0) * float(wd.get("atk_pct", 0.20)))
+        lost = int((e.get("max_hp", 0) - e.get("hp", 0)) * float(wd.get("lost_hp_pct", 0.03)))
+        cap = int(e.get("max_hp", 1) * float(wd.get("cap_pct", 0.05)))
         bonus = base + min(lost, cap)
         _true_dmg(battle, bonus, logs, source="☄️ 穿星")
 
@@ -686,25 +707,27 @@ def _we_thorn_armor(battle, player, ctx, logs):
 @register("taken")
 def _we_guardian_will(battle, player, ctx, logs):
     """卫士信念（圣堂卫士护腿）：受击 8% 使敌人下一次攻击伤害 -25%。"""
-    if not has_effect(battle, player, "guardian_will") or random.random() >= 0.08:
+    wd = effect_data(battle, player, "guardian_will")
+    if not has_effect(battle, player, "guardian_will") or random.random() >= float(wd.get("chance", 0.08)):
         return
     battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 1)
-    battle.e_buffs["_weaken_val"] = max(float(battle.e_buffs.get("_weaken_val", 0) or 0), 0.25)
+    battle.e_buffs["_weaken_val"] = max(float(battle.e_buffs.get("_weaken_val", 0) or 0), float(wd.get("weaken", 0.25)))
     logs.append("🛡️ 卫士信念：敌人下一次攻击伤害 -25%！")
 
 
 @register("taken")
 def _we_deeprock_aegis(battle, player, ctx, logs):
     """深岩壁垒（深岩战盔）：受击 10% 获得护盾（吸收 8% 最大生命），冷却 2 刻。"""
+    wd = effect_data(battle, player, "deeprock_aegis")
     if not has_effect(battle, player, "deeprock_aegis"):
         return
     if float(player.setdefault('eff', {}).get("we_deeprock_cd", 0) or 0) > battle._now:
         return
-    if random.random() >= 0.10:
+    if random.random() >= float(wd.get("chance", 0.10)):
         return
-    battle._add_shield("we_deeprock", int(player.get("max_hp", 100) * 0.08), 3)
+    battle._add_shield("we_deeprock", int(player.get("max_hp", 100) * float(wd.get("shield_pct", 0.08))), 3)
     # v152 时刻制：CD 存 ready_at 绝对时刻
-    player.setdefault('eff', {})["we_deeprock_cd"] = battle._now + 2 * ACT_TICK
+    player.setdefault('eff', {})["we_deeprock_cd"] = battle._now + int(wd.get("cd", 2)) * ACT_TICK
     logs.append("🪨 深岩壁垒：获得护盾！（吸收 8% 最大生命）")
 
 
@@ -719,13 +742,14 @@ def _we_gargoyle_retort(battle, player, ctx, logs):
 @register("taken")
 def _we_dragon_spine_mail(battle, player, ctx, logs):
     """龙脊反噬（龙脊鳞甲）：受击 15% 反弹 25% 伤害，并使其重伤（受治疗 -30%，2 刻）。"""
-    if not has_effect(battle, player, "dragon_spine_mail") or random.random() >= 0.15:
+    wd = effect_data(battle, player, "dragon_spine_mail")
+    if not has_effect(battle, player, "dragon_spine_mail") or random.random() >= float(wd.get("chance", 0.15)):
         return
     dmg = int(ctx.get("dmg", 0) or 0)
-    rd = max(1, int(dmg * 0.25))
+    rd = max(1, int(dmg * float(wd.get("reflect_pct", 0.25))))
     if battle.enemy.get("hp", 0) > 0 and rd > 0:
         battle._damage_enemy(rd, logs)
-        battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), 2)
+        battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), int(wd.get("heal_down", 2)))
         logs.append(f"🐉 龙脊反噬：反弹 {rd} 点伤害，并施加重伤！")
 
 
@@ -934,13 +958,16 @@ def _we_time_staff(battle, player, ctx, logs):
 @register("enemy_act")
 def _we_randuin_weary(battle, player, ctx, logs):
     """兰顿倦意（兰顿之戒）：敌人每次行动后，其速度 -6%（最多叠加 3 层）。"""
+    wd = effect_data(battle, player, "randuin_weary")
     if not has_effect(battle, player, "randuin_weary"):
         return
-    n = min(3, int(battle.e_buffs.get("_randuin_stack", 0) or 0) + 1)
+    _ms = int(wd.get("max_stack", 3))
+    _sp = float(wd.get("spd_down_pct", 0.06))
+    n = min(_ms, int(battle.e_buffs.get("_randuin_stack", 0) or 0) + 1)
     battle.e_buffs["_randuin_stack"] = n
     # 速度-6%/层：乘算并入敌方速度面板（_enemy_stats 消费）
-    battle.e_buffs["_spd_down_pct"] = max(float(battle.e_buffs.get("_spd_down_pct", 0) or 0), 0.06 * n)
-    logs.append(f"🛡️ 兰顿倦意：敌人速度 -{int(6 * n)}%（{n}/3 层）！")
+    battle.e_buffs["_spd_down_pct"] = max(float(battle.e_buffs.get("_spd_down_pct", 0) or 0), _sp * n)
+    logs.append(f"🛡️ 兰顿倦意：敌人速度 -{int(_sp * 100 * n)}%（{n}/{_ms} 层）！")
 
 
 @register("enemy_act")

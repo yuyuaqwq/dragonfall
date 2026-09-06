@@ -106,13 +106,13 @@ EQUIP_ROSTER = {
     "eq_he_er_jia_de_ji_qi": {"name": "赫尔加的祭器", "slot": "necklace", "quality": "orange", "lv": 72, "series": "霜狼", "req": {"str": 68}, "legendary": "helga_relic", "source": "boss"},
     "eq_da_di_zhi_xin":   {"name": "符文战锤·大地之心", "slot": "weapon", "weapon_type": "mace", "quality": "orange", "lv": 78, "series": "霜狼", "req": {"str": 75}, "legendary": "earth_heart", "source": "legend"},
     # ================= 东境·龙脊系列（Lv.80-100，龙裔风） =================
-    "eq_long_ji_da_jian": {"name": "龙脊大剑", "slot": "weapon", "weapon_type": "sword", "quality": "purple", "lv": 85, "series": "龙脊", "req": {"str": 85}, "weapon_effect": "star_pierce", "source": "图纸"},
+    "eq_long_ji_da_jian": {"name": "龙脊大剑", "slot": "weapon", "weapon_type": "sword", "quality": "purple", "lv": 85, "series": "龙脊", "req": {"str": 85}, "weapon_effect": "star_pierce", "source": "图纸", "we_data": {'count': 4, 'atk_pct': 0.2, 'lost_hp_pct': 0.03, 'cap_pct': 0.05}},
     "eq_long_yu_fa_zhang": {"name": "龙语法杖", "slot": "weapon", "weapon_type": "staff", "quality": "purple", "lv": 85, "series": "龙脊", "req": {"int": 85}, "source": "图纸"},
-    "eq_long_lin_tou_kui": {"name": "龙鳞头盔", "slot": "helm", "quality": "purple", "lv": 80, "series": "龙脊", "req": {"str": 80}, "weapon_effect": "dragon_spine_mail", "source": "图纸"},
+    "eq_long_lin_tou_kui": {"name": "龙鳞头盔", "slot": "helm", "quality": "purple", "lv": 80, "series": "龙脊", "req": {"str": 80}, "weapon_effect": "dragon_spine_mail", "source": "图纸", "we_data": {'chance': 0.15, 'reflect_pct': 0.25, 'heal_down': 2}},
     "eq_long_lin_xiong_jia": {"name": "龙鳞胸甲", "slot": "armor", "quality": "purple", "lv": 85, "series": "龙脊", "req": {"str": 85}, "source": "图纸"},
     "eq_long_lin_hu_tui": {"name": "龙鳞护腿", "slot": "legs", "quality": "purple", "lv": 82, "series": "龙脊", "req": {"str": 82}, "source": "图纸"},
-    "eq_long_zhao_shou_tao": {"name": "龙爪手套", "slot": "weapon", "weapon_type": "fist", "quality": "purple", "lv": 82, "series": "龙脊", "req": {"str": 75}, "weapon_effect": "hunter_open", "source": "图纸"},
-    "eq_long_yan_xiang_lian": {"name": "龙眼项链", "slot": "necklace", "quality": "purple", "lv": 80, "series": "龙脊", "req": {"str": 80}, "weapon_effect": "randuin_weary", "source": "图纸"},
+    "eq_long_zhao_shou_tao": {"name": "龙爪手套", "slot": "weapon", "weapon_type": "fist", "quality": "purple", "lv": 82, "series": "龙脊", "req": {"str": 75}, "weapon_effect": "hunter_open", "source": "图纸", "we_data": {'count': 3, 'atk_pct': 0.12}},
+    "eq_long_yan_xiang_lian": {"name": "龙眼项链", "slot": "necklace", "quality": "purple", "lv": 80, "series": "龙脊", "req": {"str": 80}, "weapon_effect": "randuin_weary", "source": "图纸", "we_data": {'max_stack': 3, 'spd_down_pct': 0.06}},
     "eq_long_yu_sheng_jian": {"name": "龙语圣剑", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 92, "series": "龙脊", "req": {"str": 95}, "legendary": "dragon_tongue", "source": "boss"},
     "eq_li_ming_zhi_guang": {"name": "黎明之光", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 98, "series": "龙脊", "req": {"str": 90, "int": 90}, "legendary": "dawn_light", "source": "legend"},
     # ================= 外域·无尽海·海神系列（Lv.55-78，海风套进阶） =================
@@ -127,16 +127,16 @@ EQUIP_ROSTER = {
     "eq_lang_ge_zhi_lei": {"name": "澜歌之泪", "slot": "necklace", "quality": "orange", "lv": 68, "series": "海神", "req": {"int": 70}, "legendary": "lang_tear", "source": "boss"},
     "eq_ao_lan_zhi_zhu":  {"name": "敖澜之珠", "slot": "ring", "quality": "orange", "lv": 72, "series": "海神", "req": {"agi": 68}, "legendary": "ao_lan_pearl", "source": "boss"},
     # ================= 外域·幽暗地域·地底系列（Lv.65-90，地底套） =================
-    "eq_shen_yuan_zhan_ren": {"name": "深渊战刃", "slot": "weapon", "weapon_type": "sword", "quality": "purple", "lv": 75, "series": "地底", "req": {"str": 75}, "weapon_effect": "blood_trace", "source": "图纸"},
+    "eq_shen_yuan_zhan_ren": {"name": "深渊战刃", "slot": "weapon", "weapon_type": "sword", "quality": "purple", "lv": 75, "series": "地底", "req": {"str": 75}, "weapon_effect": "blood_trace", "source": "图纸", "we_data": {'chance': 0.25, 'turns': 4, 'pct_boss': 0.015, 'pct': 0.02}},
     "eq_rong_yan_fa_zhang": {"name": "熔岩法杖", "slot": "weapon", "weapon_type": "staff", "quality": "purple", "lv": 72, "series": "地底", "req": {"int": 72}, "source": "图纸"},
-    "eq_shen_yuan_tou_kui": {"name": "深渊头盔", "slot": "helm", "quality": "purple", "lv": 70, "series": "地底", "req": {"str": 70}, "weapon_effect": "abyss_barrier", "source": "图纸"},
-    "eq_hei_yao_xiong_jia": {"name": "黑曜胸甲", "slot": "armor", "quality": "purple", "lv": 78, "series": "地底", "req": {"str": 78}, "weapon_effect": "deeprock_aegis", "source": "图纸"},
+    "eq_shen_yuan_tou_kui": {"name": "深渊头盔", "slot": "helm", "quality": "purple", "lv": 70, "series": "地底", "req": {"str": 70}, "weapon_effect": "abyss_barrier", "source": "图纸", "we_data": {'max_hp_pct': 0.08}},
+    "eq_hei_yao_xiong_jia": {"name": "黑曜胸甲", "slot": "armor", "quality": "purple", "lv": 78, "series": "地底", "req": {"str": 78}, "weapon_effect": "deeprock_aegis", "source": "图纸", "we_data": {'chance': 0.1, 'shield_pct': 0.08, 'cd': 2}},
     "eq_di_di_chang_xue": {"name": "地底长靴", "slot": "boots", "quality": "purple", "lv": 70, "series": "地底", "req": {"str": 70}, "source": "图纸"},
     "eq_hei_yao_hu_tui":  {"name": "黑曜护腿", "slot": "legs", "quality": "purple", "lv": 75, "series": "地底", "req": {"str": 75}, "source": "图纸"},
     "eq_shen_yuan_xiang_lian": {"name": "深渊项链", "slot": "necklace", "quality": "purple", "lv": 75, "series": "地底", "req": {"str": 72}, "source": "图纸"},
     "eq_mo_luo_zhi_guan": {"name": "摩罗之冠", "slot": "helm", "quality": "orange", "lv": 85, "series": "地底", "req": {"str": 90}, "legendary": "moro_crown", "source": "boss"},
     # ================= 外域·风翼群岛·苍穹系列（Lv.85-100，苍穹套） =================
-    "eq_cang_qiong_zhi_qiang": {"name": "苍穹之枪", "slot": "weapon", "weapon_type": "spear", "quality": "purple", "lv": 88, "series": "苍穹", "req": {"str": 88}, "weapon_effect": "wind_split", "source": "图纸"},
+    "eq_cang_qiong_zhi_qiang": {"name": "苍穹之枪", "slot": "weapon", "weapon_type": "spear", "quality": "purple", "lv": 88, "series": "苍穹", "req": {"str": 88}, "weapon_effect": "wind_split", "source": "图纸", "we_data": {'chance': 0.25, 'atk_pct': 0.5}},
     "eq_xing_guang_fa_zhang": {"name": "星光法杖", "slot": "weapon", "weapon_type": "staff", "quality": "purple", "lv": 88, "series": "苍穹", "req": {"int": 88}, "source": "图纸"},
     "eq_cang_qiong_tou_kui": {"name": "苍穹头盔", "slot": "helm", "quality": "purple", "lv": 85, "series": "苍穹", "req": {"agi": 85}, "source": "图纸"},
     "eq_yun_wen_xiong_jia": {"name": "云纹胸甲", "slot": "armor", "quality": "purple", "lv": 88, "series": "苍穹", "req": {"agi": 88}, "source": "图纸"},
@@ -250,7 +250,7 @@ EQUIP_ROSTER = {
     # 垂钓线终奖 → 传说钓竿·银铃之竿（橙·传说，银铃河畔主题；series 保留银铃——入银铃套计数为设计意图）
     "eq_chuan_shuo_diao_gan": {"name": "传说钓竿·银铃之竿", "slot": "weapon", "weapon_type": "staff", "quality": "orange", "lv": 55, "series": "银铃", "req": {"agi": 40}, "legendary": "silver_bell_rod", "source": "legend"},
     # s84 老兵不死 → 守夜者徽章（守夜者金焰烙印徽章，老兵不屈）
-    "eq_shou_ye_zhe_hui_zhang": {"name": "守夜者徽章", "slot": "necklace", "quality": "purple", "lv": 70, "series": "守夜", "req": {"str": 55}, "weapon_effect": "guardian_will", "source": "支线"},
+    "eq_shou_ye_zhe_hui_zhang": {"name": "守夜者徽章", "slot": "necklace", "quality": "purple", "lv": 70, "series": "守夜", "req": {"str": 55}, "weapon_effect": "guardian_will", "source": "支线", "we_data": {'chance': 0.08, 'weaken': 0.25}},
     # s121 北境散支线 → 松木护符（守林人亡妻遗物，收藏向饰品）
     "eq_song_mu_hu_fu": {"name": "松木护符", "slot": "necklace", "quality": "green", "lv": 30, "series": "松木", "source": "支线"},
     # s78 侦探线（义气线分支）→ 猫眼石胸针（影子猫之母遗物，速度+5%）

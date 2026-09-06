@@ -359,6 +359,12 @@ def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
         "req": dict(r.get("req") or {}),
         "series": r["series"],
     }
+    # v180E 阶段4 fix：weapon_effect/we_data 从名册带进装备实例（此前丢失导致
+    # 特效装备实际不触发——generate_roster_equip 只带 legendary/set/desc 漏了武器特效）
+    if r.get("weapon_effect"):
+        equip["weapon_effect"] = r["weapon_effect"]
+        if r.get("we_data"):
+            equip["we_data"] = dict(r["we_data"])
     if flavor_stats:
         equip["flavor"] = flavor_stats
     if affix_ids:
