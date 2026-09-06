@@ -52,7 +52,7 @@ def _fx_label(effects: dict) -> str:
 class EventMenuCmds(CommandBase):
     """今日事件：地图随机事件总览 / 单图深查"""
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:今日事件|事件\s+.+|领取补给箱)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:今日事件|事件\s+.+|领取补给箱)$")
     @require_player()
     async def event_menu(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)

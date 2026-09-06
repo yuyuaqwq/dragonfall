@@ -117,8 +117,8 @@ async def main():
 
     # ---- 9. 正则互斥 ----
     import re as _re
-    hr = _re.compile(r"^(?:\[At:\d+\]\s*)?赶路(?:[\s\S]*)$")
-    mv = _re.compile(r"^(?:\[At:\d+\]\s*)?(?:前往|移动)(?!开始|结束)(?:\s*|$)")
+    hr = _re.compile(r"^(?:\[At:[^\]]+\]\s*)?赶路(?:[\s\S]*)$")
+    mv = _re.compile(r"^(?:\[At:[^\]]+\]\s*)?(?:前往|移动)(?!开始|结束)(?:\s*|$)")
     check("『赶路 NPC』匹配 hurry_view", bool(hr.match("赶路 NPC")), "")
     check("『赶路』不匹配 move", not mv.match("赶路"), "move 误吞赶路")
     check("『前往 5』仍匹配 move", bool(mv.match("前往 5")), "")

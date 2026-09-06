@@ -155,7 +155,7 @@ def tower_guard_on_kill(inst, group_id, qq_id, monster) -> list:
 class TowerCmds(CommandBase):
     """修炼爬塔：Lv70+ 单人守关挑战"""
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?爬塔(?:\s+(\d+))?\s*$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?爬塔(?:\s+(\d+))?\s*$")
     @require_player()
     async def tower_cmd(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)

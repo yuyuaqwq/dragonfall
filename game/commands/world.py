@@ -300,7 +300,7 @@ class WorldCmds(CommandBase):
     def _home_map_id(self, qq_id):
         return f"home_{qq_id}"
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?地契(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?地契(?:[\s\S]*)$")
     @require_player()
     async def deed_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -335,7 +335,7 @@ class WorldCmds(CommandBase):
             lines.append(self._tip("house"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?买房(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?买房(?:[\s\S]*)$")
     @require_player()
     async def deed_buy(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -369,7 +369,7 @@ class WorldCmds(CommandBase):
             f"『回家』入住，『地契』查看详情，『仓库』管理家当～"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?卖房(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?卖房(?:[\s\S]*)$")
     @require_player()
     async def deed_sell(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -431,7 +431,7 @@ class WorldCmds(CommandBase):
             + (f" ｜ 铺面挂机位 +{hl['stall_slots']}" if hl["stall_slots"] else "")
             + (f"\n💡 满级宅邸解锁专属传送点(『回家』可直达)" if dlv + 1 >= C.HOUSE_MAX_LEVEL else ""))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?回家(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?回家(?:[\s\S]*)$")
     @require_player()
     @no_prof_waiting()
     async def go_home(self, event: AstrMessageEvent):
@@ -454,7 +454,7 @@ class WorldCmds(CommandBase):
             f"🏠 你回到了自己的家({hl['name']})，炭火噼啪作响，安心～\n"
             f"💚 恢复至 {new_hp}/{player.get('max_hp', 1)} HP ｜ 💙 {new_mp}/{player.get('max_mp', 1)} MP")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?出门(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?出门(?:[\s\S]*)$")
     @require_player()
     @no_prof_waiting()
     async def go_out(self, event: AstrMessageEvent):
@@ -473,7 +473,7 @@ class WorldCmds(CommandBase):
                          cur_subarea=first_sa["id"] if first_sa else "")
         yield event.plain_result(f"🚪 你走出家门，回到了{C.MAP_BY_ID.get(target, {}).get('name', '城镇')}。")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?拜访(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?拜访(?:[\s\S]*)$")
     @require_player()
     @no_prof_waiting()
     async def visit_home(self, event: AstrMessageEvent):
@@ -514,7 +514,7 @@ class WorldCmds(CommandBase):
     def _home_storage_save(self, group_id, qq_id, lst):
         db.set_event_state(self._home_storage_key(group_id, qq_id), json.dumps(lst, ensure_ascii=False))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?仓库(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?仓库(?:[\s\S]*)$")
     @require_player()
     async def home_storage(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -561,7 +561,7 @@ class WorldCmds(CommandBase):
         lines.append(self._tip("storage"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?取出(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?取出(?:[\s\S]*)$")
     @require_player()
     async def home_storage_take(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -584,7 +584,7 @@ class WorldCmds(CommandBase):
             return
         yield event.plain_result(f"📦 取出【{it['data'].get('name', '?')}】，放入背包！")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:地图|周围)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:地图|周围)(?:\s*|$)")
     @require_player()
 
     async def map_view(self, event: AstrMessageEvent):
@@ -664,7 +664,7 @@ class WorldCmds(CommandBase):
 
     # v167.1 『区域』指令：当前区域可前往总览（鱼鱼排版：▼标题(LV) + ○/●/□/⊕ 符号清单）。
     # 数据源=现有地图结构（子区域 type/name/lv + 地图级城镇标记 + MAP_CONNECTIONS），不硬编码。
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?区域(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?区域(?:\s*|$)")
     @require_player()
 
     async def region_view(self, event: AstrMessageEvent):
@@ -1006,7 +1006,7 @@ class WorldCmds(CommandBase):
                 lines.append("  💡 🔚=尽头（此路到头，需原路返回）")
         return lines
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?位置(?:\s*0)?(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?位置(?:\s*0)?(?:\s*|$)")
     @require_player()
     async def location_view(self, event: AstrMessageEvent):
         """v128.2 位置精简面板：当前位置 + 可前往列表 + 赶路入口提示。
@@ -1154,7 +1154,7 @@ class WorldCmds(CommandBase):
         lines.append("💡 赶路模式中：回复序号直接赶路，回复 0 结束")
         return "\n".join(lines)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?赶路(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?赶路(?:[\s\S]*)$")
     @require_player()
     @no_prof_waiting()
     async def hurry_view(self, event: AstrMessageEvent):
@@ -1229,7 +1229,7 @@ class WorldCmds(CommandBase):
     # 旧指令『前往开始』『前往结束』仍不让 move 当目的地名吞掉
     # O74 『返回 <地名>』空回复修复（playtest 第 7 次复现，v101.25i 已删 move_back 但旧指令
     # 仍被玩家使用 → 注册提示 handler，不再只回标题零回复）：指引改用『前往』/『传送』
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?返回(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?返回(?:[\s\S]*)$")
     @require_player()
     async def back_cmd(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -1244,7 +1244,7 @@ class WorldCmds(CommandBase):
     # O115 『问路 <地名>』空回复修复：只回标题零内容（格温/血牙实测复现）——
     # 补路线指引：同图子区域直达提示 / 跨图按 MAP_CONNECTIONS 算最短路径
     # v167.1：加『寻路』别名（意见#42 自动寻路 = 问路同一 BFS）；输出带每段 Lv + 起止标记
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:问路|寻路)(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:问路|寻路)(?:[\s\S]*)$")
     @require_player()
     async def ask_way(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -1370,7 +1370,7 @@ class WorldCmds(CommandBase):
         return (f"🔒 此处为【{inst_name}】入口，需接取相应任务（或持有钥匙）才能进入。\n"
                 f"{self._tip('instance')}；或先完成任务、收集所需钥匙～")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:前往|移动)(?!开始|结束)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:前往|移动)(?!开始|结束)(?:\s*|$)")
     @require_player()
     @no_prof_waiting()
 
@@ -1955,7 +1955,7 @@ class WorldCmds(CommandBase):
         return C.build_monster(random.choice(monsters), target_map, lv_jitter=1)
 
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:祭坛|方碑)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:祭坛|方碑)(?:\s*|$)")
     @require_player()
 
     async def portal_view(self, event: AstrMessageEvent):
@@ -2000,7 +2000,7 @@ class WorldCmds(CommandBase):
         lines.append(self._tip("portal"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:激活祭坛|激活)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:激活祭坛|激活)(?:\s*|$)")
     @require_player()
 
     async def portal_activate(self, event: AstrMessageEvent):
@@ -2033,7 +2033,7 @@ class WorldCmds(CommandBase):
             f"💡 输入『方碑』查看全部已激活方碑，『传送 {p['name']}』即可直达！"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?传送(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?传送(?:\s*|$)")
     @require_player()
     @no_prof_waiting()
 
@@ -2170,7 +2170,7 @@ class WorldCmds(CommandBase):
             db.save_quests(group_id, qq_id, quests)
         return lines
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:任务|主线)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:任务|主线)(?:\s*|$)")
     @require_player()
 
     async def quest_view(self, event: AstrMessageEvent):
@@ -2361,7 +2361,7 @@ class WorldCmds(CommandBase):
         lines.append(self._tip("quest"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?接取(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?接取(?:\s*|$)")
     @require_player()
 
     async def quest_accept(self, event: AstrMessageEvent):
@@ -2595,7 +2595,7 @@ class WorldCmds(CommandBase):
 
 
     # v116 §3.4：放弃进行中的支线/每日任务（释放接取位）。主线不可放弃。
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?放弃(?:\s*(\d+))?\s*$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?放弃(?:\s*(\d+))?\s*$")
 
     async def quest_abandon(self, event: AstrMessageEvent):
         """『放弃 <序号>』——放弃进行中的支线/每日任务；主线走『任务』面板提示不可弃。
@@ -2649,7 +2649,7 @@ class WorldCmds(CommandBase):
 
 
     # v104 M24 P2-1：『每日副业』前缀误触『每日』面板——负向断言收窄（别名注册到 daily_prof）
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?每日(?!副业)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?每日(?!副业)(?:\s*|$)")
     @require_player()
 
     async def daily(self, event: AstrMessageEvent):
@@ -3257,7 +3257,7 @@ class WorldCmds(CommandBase):
             labels.append("🔓 需解锁")
         return "，".join(labels) if labels else "随时可能出现"
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?时间(?:指令)?(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?时间(?:指令)?(?:\s*|$)")
     @require_player()
 
     async def time_cmd(self, event: AstrMessageEvent):
@@ -3282,7 +3282,7 @@ class WorldCmds(CommandBase):
             lines.append("🍃 附近没有特别的气息……")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?见闻录(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?见闻录(?:\s*|$)")
     @require_player()
 
     async def wild_notes(self, event: AstrMessageEvent):
@@ -3306,7 +3306,7 @@ class WorldCmds(CommandBase):
         lines.append("💡 集齐见闻是冒险者的浪漫——见过的人会记住你。")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d?$", priority=100)
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?[0-9０-９]\d?$", priority=100)
     async def npc_quick_dialog(self, event: AstrMessageEvent):
         """裸数字消费链：对话树选项 > 物品查看 > 移动模式 > 放行快捷指令。
 
@@ -3614,7 +3614,7 @@ class WorldCmds(CommandBase):
 
     # ---------------- v87.9 场景元素交互 ----------------
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?交互(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?交互(?:\s*|$)")
     @require_player()
     @no_prof_waiting()
 
@@ -4178,7 +4178,7 @@ class WorldCmds(CommandBase):
             lines += self._talk_tail
         return lines
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:对话|继续|结束对话|再见|告辞)(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:对话|继续|结束对话|再见|告辞)(?:[\s\S]*)$")
     @require_player()
     async def talk_choice(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -4451,7 +4451,7 @@ class WorldCmds(CommandBase):
         return lines
 
     # v104 M24 P2-2：『交任务』无命中（策划案 23 章:182 主指令）→ 补别名
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:交付任务|交任务)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:交付任务|交任务)(?:\s*|$)")
     @require_player()
 
     async def turn_in(self, event: AstrMessageEvent):
@@ -4724,7 +4724,7 @@ class WorldCmds(CommandBase):
             lines.append(f"  {_rule_txt}")
         return lines
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?休息(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?休息(?:\s*|$)")
     @require_player()
 
     async def rest_camp(self, event: AstrMessageEvent):
@@ -4775,7 +4775,7 @@ class WorldCmds(CommandBase):
             f"💡 营地只能恢复一半伤势，重伤请回旅店『住宿』～"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?住宿(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?住宿(?:\s*|$)")
     @require_player()
 
     async def rest(self, event: AstrMessageEvent):
@@ -4826,7 +4826,7 @@ class WorldCmds(CommandBase):
             f"花费 {cost} 金币，当前余额：{player['gold'] - cost}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?声望(?!商店)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?声望(?!商店)(?:\s*|$)")
     @require_player()
 
     async def reputation(self, event: AstrMessageEvent):
@@ -4845,7 +4845,7 @@ class WorldCmds(CommandBase):
         lines.append(self._tip("rep_shop"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?声望商店(?:\s+\S+)?$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?声望商店(?:\s+\S+)?$")
     @require_player()
 
     async def rep_shop(self, event: AstrMessageEvent):
@@ -4980,7 +4980,7 @@ class WorldCmds(CommandBase):
     def _camp_save(self, group_id, qq_id, data: dict):
         db.set_event_state(f"faction_camp_{group_id}_{qq_id}", json.dumps(data, ensure_ascii=False))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?加入阵营(?:\s+\S+)?$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?加入阵营(?:\s+\S+)?$")
     @require_player()
 
     async def camp_join(self, event: AstrMessageEvent):
@@ -5065,7 +5065,7 @@ class WorldCmds(CommandBase):
             f"{c['buff_text']}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?阵营任务(?:\s+\S+)?$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?阵营任务(?:\s+\S+)?$")
     @require_player()
 
     async def camp_task(self, event: AstrMessageEvent):
@@ -5156,7 +5156,7 @@ class WorldCmds(CommandBase):
             f"🎖️ 本日完成 {data['done_today']}/{FACTION_CAMP_DAILY_LIMIT}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?阵营商店(?:\s+\S+)?$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?阵营商店(?:\s+\S+)?$")
     @require_player()
 
     async def camp_shop(self, event: AstrMessageEvent):
@@ -5226,7 +5226,7 @@ class WorldCmds(CommandBase):
             f"📦 已收入背包，剩余贡献：{data['contrib']}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?阵营排行(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?阵营排行(?:\s*|$)")
     @require_player()
 
     async def camp_rank(self, event: AstrMessageEvent):
@@ -5264,7 +5264,7 @@ class WorldCmds(CommandBase):
         lines.append(self._tip("faction"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?编年史(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?编年史(?:\s*|$)")
     @require_player()
 
     async def chronicle(self, event: AstrMessageEvent):

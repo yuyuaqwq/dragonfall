@@ -16,7 +16,7 @@ SEP = "━━━━━━━━━━━━━━"
 class ExplorationCmds(CommandBase):
     """v115 探索见闻：『探索进度』指令"""
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?探索进度(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?探索进度(?:[\s\S]*)$")
     @require_player()
     async def explore_progress(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)

@@ -24,7 +24,7 @@ from ..commands.base import CommandBase, require_player
 class CollectionCmds(CommandBase):
     """收藏册：冒险者收藏集展示/满套领奖"""
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?收藏册(?:\s*(.+))?$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?收藏册(?:\s*(.+))?$")
     @require_player()
 
     async def collection(self, event: AstrMessageEvent):

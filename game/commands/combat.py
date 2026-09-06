@@ -90,7 +90,7 @@ WORLD_BOSS_DROPS = {
 
 class CombatCmds(CommandBase):
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?探索(?!进度)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?探索(?!进度)(?:\s*|$)")
     @require_player()
     @no_prof_waiting()
 
@@ -424,7 +424,7 @@ class CombatCmds(CommandBase):
             + f"{hint}{stam_warn}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?摸(?:战利箱|宝箱)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?摸(?:战利箱|宝箱)(?:\s*|$)")
     @require_player()
 
     async def wild_king_chest(self, event: AstrMessageEvent):
@@ -569,7 +569,7 @@ class CombatCmds(CommandBase):
             return monster, hdef.get("tag", "✨ 隐藏"), hdef.get("flavor", "")
         return None
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?许愿(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?许愿(?:[\s\S]*)$")
     @require_player()
 
     async def wish(self, event: AstrMessageEvent):
@@ -623,7 +623,7 @@ class CombatCmds(CommandBase):
         C.check_achievements(group_id, qq_id, player, {"wish_met": True})
         yield event.plain_result(f"🌠 【许愿成真】{msg}")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:确认购买|拒绝)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:确认购买|拒绝)(?:\s*|$)")
     @require_player()
 
     async def trader_confirm(self, event: AstrMessageEvent):
@@ -666,7 +666,7 @@ class CombatCmds(CommandBase):
         qtxt = q.get("color", "")
         yield event.plain_result(f"🛒 你花 {price} 金币买下了 {qtxt}【{equip.get('name', '装备')}】")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:使用复活羽毛|放弃复活)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:使用复活羽毛|放弃复活)(?:\s*|$)")
     @require_player()
 
     async def revive_confirm(self, event: AstrMessageEvent):
@@ -870,7 +870,7 @@ class CombatCmds(CommandBase):
         pname = poi.get("name", "探索点")
         return f"{icon} 【{pname}】你打量了一下{ctx.loc}的{poi.get('desc', '这处探索点')}，似乎没什么特别的。"
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?攻击(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?攻击(?:\s*|$)")
     @require_player()
 
     async def attack(self, event: AstrMessageEvent):
@@ -958,7 +958,7 @@ class CombatCmds(CommandBase):
             f"{self._battle_footer(player, b, monster)}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?技能(?!详情|学习|升级|洗点|栏)(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?技能(?!详情|学习|升级|洗点|栏)(?:[\s\S]*)$")
     @require_player()
 
     async def skill(self, event: AstrMessageEvent):
@@ -1471,7 +1471,7 @@ class CombatCmds(CommandBase):
         self._record_list_state(player.get("qq_id"), "技能列表", page, pages)
         return "\n".join(lines)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?防御(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?防御(?:\s*|$)")
     @require_player()
     @require_battle()
 
@@ -1514,7 +1514,7 @@ class CombatCmds(CommandBase):
             f"{self._battle_footer(player, b, monster)}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?逃跑(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?逃跑(?:\s*|$)")
     @require_player()
     @require_battle()
 
@@ -2515,7 +2515,7 @@ class CombatCmds(CommandBase):
             pass
         return lines
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?讨伐(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?讨伐(?:\s*|$)")
     @require_player()
     @no_prof_waiting()
 
@@ -2910,7 +2910,7 @@ class CombatCmds(CommandBase):
 
     # ---------------- v84 荣誉商店（26 章 3.3；v99.4 数据化 → data/honor_shop.py） ----------------
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?荣誉(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?荣誉(?:[\s\S]*)$")
     @require_player()
     async def honor_shop(self, event: AstrMessageEvent):
         """荣誉商店：『荣誉』查看，『荣誉 兑换 <编号>』兑换"""
@@ -3225,7 +3225,7 @@ class CombatCmds(CommandBase):
     # 刺客终结阈值四档（classes.py finisher_threshold.options）
     _FINISHER139_OPTIONS = ("快刀", "满刃", "残血", "满段")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?战前形态(?:[ 　]*(.+))?$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?战前形态(?:[ 　]*(.+))?$")
     @require_player()
     async def battle_prefs_form(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -3257,7 +3257,7 @@ class CombatCmds(CommandBase):
         lines.append("入战将自动启用该形态（免费切换，不占行动）。")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?战前阈值(?:[ 　]*(.+))?$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?战前阈值(?:[ 　]*(.+))?$")
     @require_player()
     async def battle_prefs_finisher(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -3286,7 +3286,7 @@ class CombatCmds(CommandBase):
         lines.append("战斗中达到对应条件即触发终结技（与四档 DSL 一致）。")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?战前指令(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?战前指令(?:\s*|$)")
     @require_player()
     async def battle_prefs_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)

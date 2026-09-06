@@ -112,7 +112,7 @@ async def main():
 
     # ---- 9. v101.18 回归：裸数字 regex 必须匹配 1-9（曾用全角连字符 [0－9] 只匹配 0/9） ----
     import re as _re2
-    num_re = _re2.compile(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d?$")
+    num_re = _re2.compile(r"^(?:\[At:[^\]]+\]\s*)?[0-9０-９]\d?$")
     check("regex 匹配 1", bool(num_re.match("1")), "数字1匹配失败")
     check("regex 匹配 2", bool(num_re.match("2")), "数字2匹配失败")
     check("regex 匹配 8", bool(num_re.match("8")), "数字8匹配失败")

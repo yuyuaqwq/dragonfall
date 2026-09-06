@@ -110,10 +110,10 @@ async def main():
 
     # ---- 8. 正则矩阵：『位置/位置0』命中 location_view，『位置』≠『地图』，旧『前往开始』不让 move 吞 ----
     import re as _re
-    loc_re = _re.compile(r"^(?:\[At:\d+\]\s*)?位置(?:\s*0)?(?:\s*|$)")
-    mv_re = _re.compile(r"^(?:\[At:\d+\]\s*)?(?:地图|周围)(?:\s*|$)")
-    mm_re = _re.compile(r"^(?:\[At:\d+\]\s*)?(?:前往|移动)(?!开始|结束)(?:\s*|$)")
-    nq_re = _re.compile(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d?$")
+    loc_re = _re.compile(r"^(?:\[At:[^\]]+\]\s*)?位置(?:\s*0)?(?:\s*|$)")
+    mv_re = _re.compile(r"^(?:\[At:[^\]]+\]\s*)?(?:地图|周围)(?:\s*|$)")
+    mm_re = _re.compile(r"^(?:\[At:[^\]]+\]\s*)?(?:前往|移动)(?!开始|结束)(?:\s*|$)")
+    nq_re = _re.compile(r"^(?:\[At:[^\]]+\]\s*)?[0-9０-９]\d?$")
     check("『位置』匹配 location_view", bool(loc_re.match("位置")), "")
     check("『位置 0』匹配 location_view", bool(loc_re.match("位置 0")), "")
     check("『位置0』匹配 location_view", bool(loc_re.match("位置0")), "")

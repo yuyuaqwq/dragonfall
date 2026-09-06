@@ -28,7 +28,7 @@ from ..store.inventory import _snapshot_one  # noqa: F401  v126.4 单件回流�
 
 class SocialCmds(CommandBase):
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?市场(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?市场(?:\s*|$)")
     @require_player()
 
     async def market(self, event: AstrMessageEvent):
@@ -57,7 +57,7 @@ class SocialCmds(CommandBase):
         self._record_list_state(qq_id, "市场", page, pages)
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?上架(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?上架(?:\s*|$)")
     @require_player()
 
     async def market_sell(self, event: AstrMessageEvent):
@@ -90,7 +90,7 @@ class SocialCmds(CommandBase):
             return
         yield event.plain_result(f"📦 已上架【{data['name']}】，定价 {price} 金币！\n『市场』查看，『下架 <编号>』撤回")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?下架(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?下架(?:\s*|$)")
     @require_player()
 
     async def market_unsell(self, event: AstrMessageEvent):
@@ -114,7 +114,7 @@ class SocialCmds(CommandBase):
         db.add_item(group_id, qq_id, it["item_key"], _snapshot_one(it["item_data"]), count=1)
         yield event.plain_result(f"↩️ 已下架【{it['item_data'].get('name','?')}】，物品退回背包")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?购入(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?购入(?:\s*|$)")
     @require_player()
 
     async def market_buy(self, event: AstrMessageEvent):
@@ -163,7 +163,7 @@ class SocialCmds(CommandBase):
     # 现在卖/换动作词分开，参数互不冲突；物品支持背包全局序号（『背包』看到的序号）
     # 或名称；同名多件按名会列出候选。老『摆摊』仅作引导提示（v167.1 意见：不静默消失）。
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?摆摊(?:[\s\S]*)$", priority=5)
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?摆摊(?:[\s\S]*)$", priority=5)
     @require_player()
     async def stall_deprecated(self, event: AstrMessageEvent):
         yield event.plain_result("『摆摊』已拆成两条指令啦：\n"
@@ -274,7 +274,7 @@ class SocialCmds(CommandBase):
         cnt_s = f" ×{count}" if count > 1 else ""
         return True, (item_nm, cnt_s, map_name, tip)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?摆卖(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?摆卖(?:[\s\S]*)$")
     @require_player()
     async def stall_sell(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -297,7 +297,7 @@ class SocialCmds(CommandBase):
         tail = "『收摊』收摊，『摊位』看看本地谁在摆摊"
         yield event.plain_result(head + tail)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?摆换(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?摆换(?:[\s\S]*)$")
     @require_player()
     async def stall_exchange_pawn(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -318,7 +318,7 @@ class SocialCmds(CommandBase):
         yield event.plain_result(head + tail)
 
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?收摊(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?收摊(?:[\s\S]*)$")
     @require_player()
     async def stall_close(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -339,7 +339,7 @@ class SocialCmds(CommandBase):
         price = s.get("price") or 0
         return f"{price} 金币" if price > 0 else "🔄 换"
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?摊位(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?摊位(?:[\s\S]*)$")
     @require_player()
     async def stall_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -380,7 +380,7 @@ class SocialCmds(CommandBase):
         lines.append("💡 标 🔄 的是换摊：『换 <编号> <物品名>』当面交换；其他『购入 <编号>』，『摊位 <玩家名>』看指定摊位")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?换(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?换(?:[\s\S]*)$")
     @require_player()
     async def stall_exchange(self, event: AstrMessageEvent):
         """以物换物：『换 <摊位编号> <物品名>』——对方摆摊不带价格(换摊)时，用背包物品当面交换"""
@@ -429,7 +429,7 @@ class SocialCmds(CommandBase):
             f"对方的东西已放进你背包，你的【{give['data']['name']}】已送到对方背包～"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:组队|队伍)(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:组队|队伍)(?:[\s\S]*)$")
     @require_player()
 
     async def party(self, event: AstrMessageEvent):
@@ -540,7 +540,7 @@ class SocialCmds(CommandBase):
         C.check_achievements(group_id, target_qq)
         yield event.plain_result(f"🤝 组队成功！你和 {tname_str} 成为队友\n💡 组队打怪经验＋10%！『组队 <名字>』可再拉人(上限 4 人)")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?退队(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?退队(?:\s*|$)")
     @require_player()
 
     async def party_leave(self, event: AstrMessageEvent):
@@ -587,7 +587,7 @@ class SocialCmds(CommandBase):
         else:
             yield event.plain_result("你还没有队伍～")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?创建公会(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?创建公会(?:\s*|$)")
     @require_player()
 
     async def guild_create_cmd(self, event: AstrMessageEvent):
@@ -621,7 +621,7 @@ class SocialCmds(CommandBase):
             f"{self._tip('guild')}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?加入公会(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?加入公会(?:\s*|$)")
     @require_player()
 
     async def guild_join_cmd(self, event: AstrMessageEvent):
@@ -643,7 +643,7 @@ class SocialCmds(CommandBase):
         C.check_achievements(group_id, qq_id)
         yield event.plain_result(f"🏰 欢迎加入公会【{g['name']}】！\n{self._tip('guild')}")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?退出公会(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?退出公会(?:\s*|$)")
     @require_player()
 
     async def guild_leave_cmd(self, event: AstrMessageEvent):
@@ -660,7 +660,7 @@ class SocialCmds(CommandBase):
         db.guild_leave(g["gid"], qq_id)
         yield event.plain_result(f"👋 你已退出公会【{g['name']}】。江湖再见！")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?解散公会(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?解散公会(?:\s*|$)")
     @require_player()
 
     async def guild_disband_cmd(self, event: AstrMessageEvent):
@@ -673,7 +673,7 @@ class SocialCmds(CommandBase):
         db.guild_leave(g["gid"], qq_id)  # leader 离开即解散
         yield event.plain_result(f"🏚️ 公会【{g['name']}】已解散……")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会(?!签到|任务|捐献|排行|创建|加入|退出|解散|商店|技能|任命|免职)(?:\s*.*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会(?!签到|任务|捐献|排行|创建|加入|退出|解散|商店|技能|任命|免职)(?:\s*.*|$)")
     @require_player()
 
     async def guild_info(self, event: AstrMessageEvent):
@@ -710,7 +710,7 @@ class SocialCmds(CommandBase):
         self._record_list_state(qq_id, "公会", page, pages)
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会签到(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会签到(?:\s*|$)")
     @require_player()
 
     async def guild_sign(self, event: AstrMessageEvent):
@@ -735,7 +735,7 @@ class SocialCmds(CommandBase):
             f"💰 金币 +{cfg['sign_gold']}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会任务(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会任务(?:\s*|$)")
     @require_player()
 
     async def guild_task(self, event: AstrMessageEvent):
@@ -759,7 +759,7 @@ class SocialCmds(CommandBase):
             f"💡 击杀会自动结算奖励！"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会捐献(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会捐献(?:\s*|$)")
     @require_player()
 
     async def guild_donate_cmd(self, event: AstrMessageEvent):
@@ -811,7 +811,7 @@ class SocialCmds(CommandBase):
             f"💰 金币 +{cfg['task_gold']}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会排行(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会排行(?:\s*|$)")
 
     async def guild_rank(self, event: AstrMessageEvent):
         tops = db.guild_top(10)
@@ -825,7 +825,7 @@ class SocialCmds(CommandBase):
 
     # ---------------- v116 公会成长纵深：公会商店 / 公会技能 / 职位体系 ----------------
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会商店(?:\s*.*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会商店(?:\s*.*|$)")
     @require_player()
 
     async def guild_shop(self, event: AstrMessageEvent):
@@ -900,7 +900,7 @@ class SocialCmds(CommandBase):
             f"{it.get('msg', '')}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会技能(?:\s*.*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会技能(?:\s*.*|$)")
     @require_player()
 
     async def guild_skill_view(self, event: AstrMessageEvent):
@@ -923,7 +923,7 @@ class SocialCmds(CommandBase):
         lines.append("💡 技能经会长安排后逐步开放；战斗加成的挂接正在开发中～")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会任命(?:\s*.*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会任命(?:\s*.*|$)")
     @require_player()
 
     async def guild_appoint(self, event: AstrMessageEvent):
@@ -969,7 +969,7 @@ class SocialCmds(CommandBase):
         _label, _icon = _G.GUILD_ROLES[role]
         yield event.plain_result(f"{_icon} 任命成功！『{target['name']}』已晋升为公会【{_label}】！")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会免职(?:\s*.*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会免职(?:\s*.*|$)")
     @require_player()
 
     async def guild_demote(self, event: AstrMessageEvent):
@@ -999,7 +999,7 @@ class SocialCmds(CommandBase):
         guild_set_role(g["gid"], target_id, "member")
         yield event.plain_result(f"📉 已免去『{target['name']}』的职位，降回普通成员～")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?宠物(?!改名)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?宠物(?!改名)(?:\s*|$)")
     @require_player()
 
     async def pet_view(self, event: AstrMessageEvent):
@@ -1058,7 +1058,7 @@ class SocialCmds(CommandBase):
         lines.append(self._tip("pet"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?宠物改名(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?宠物改名(?:\s*|$)")
     @require_player()
 
     async def pet_rename(self, event: AstrMessageEvent):
@@ -1075,7 +1075,7 @@ class SocialCmds(CommandBase):
         db.pet_update(qq_id, name=new_name)
         yield event.plain_result(f"🐾 你的宠物改名为【{new_name}】！")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?喂养(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?喂养(?:\s*|$)")
     @require_player()
 
     async def pet_feed(self, event: AstrMessageEvent):
@@ -1227,7 +1227,7 @@ class SocialCmds(CommandBase):
         lv_str = f"\n🎉 宠物升级到 Lv.{lv}！" if lv > pet["level"] else ""
         yield event.plain_result(f"🍖 你喂了【{pet['name']}】一份{target['data']['name']}！\n😋 饱食度 +30 ｜ 💕 亲密度 +5 ｜ ✨ 经验 +10{lv_str}")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?放生(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?放生(?:\s*|$)")
     @require_player()
 
     async def pet_release(self, event: AstrMessageEvent):
@@ -1241,7 +1241,7 @@ class SocialCmds(CommandBase):
         # 图鉴记录保留（24 章三：放生后宠物蛋可重新掉落，图鉴记录保留）
         yield event.plain_result(f"🕊️ 你放生了【{pet['name']}】……它会记得你的。\n📖 图鉴记录已保留，之后还有机会遇到它！")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:坐骑|骑乘|下马)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:坐骑|骑乘|下马)(?:\s*|$)")
     @require_player()
 
     async def mount_cmd(self, event: AstrMessageEvent):
@@ -1360,7 +1360,7 @@ class SocialCmds(CommandBase):
         db.set_event_state("last_event_end", str(ends))
         return f"\n🌍 【世界事件】{evt['icon']} {evt['name']}！\n{evt['desc']}"
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?事件(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?事件(?:\s*|$)")
     @require_player()
 
     async def world_event(self, event: AstrMessageEvent):
@@ -1395,7 +1395,7 @@ class SocialCmds(CommandBase):
         lines.append(notice)
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?拍卖(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?拍卖(?:\s*|$)")
     @require_player()
 
     async def auction(self, event: AstrMessageEvent):
@@ -1472,7 +1472,7 @@ class SocialCmds(CommandBase):
             lines.append("💰 落槌价已由拍卖行收讫(系统回收)，未成交者的出价已全额退还。")
         return "\n".join(lines)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?竞拍(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?竞拍(?:\s*|$)")
     @require_player()
 
     async def bid(self, event: AstrMessageEvent):

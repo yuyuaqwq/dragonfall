@@ -42,7 +42,7 @@ _BRANCH_KEY_DISPLAY = {
 
 class PlayerCmds(CommandBase):
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:快捷绑定|快捷列表|快捷删除|快捷清除|快捷)(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:快捷绑定|快捷列表|快捷删除|快捷清除|快捷)(?:[\s\S]*)$")
     @require_player()
 
     async def shortcut(self, event: AstrMessageEvent):
@@ -134,7 +134,7 @@ class PlayerCmds(CommandBase):
     # 字母开头前缀匹配+后缀透传（绑『n 前往』发『n3』=前往 3）；
     # 单字符符号键前缀匹配+后缀透传（绑『. 攻击』发『.3』=攻击 3；中文汉字键不支持，避免匹配全部中文指令）。
     # 负向前瞻排除：内置英文指令（gm_ / help）+ 翻页快捷键（+－-=＝）+ At/引用前缀（@[/）。
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?!gm_)(?!help(?:\s|$))(?![+＋\-－＝=@\[/])(?:[0-9０-９]\d*|[a-zA-Z][a-zA-Z0-9]*|[^\s0-9０-９a-zA-Z\u4e00-\u9fff])[\s\S]*$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?!gm_)(?!help(?:\s|$))(?![+＋\-－＝=@\[/])(?:[0-9０-９]\d*|[a-zA-Z][a-zA-Z0-9]*|[^\s0-9０-９a-zA-Z\u4e00-\u9fff])[\s\S]*$")
 
     async def shortcut_trigger(self, event: AstrMessageEvent):
         """数字/字母开头消息：查玩家的快捷绑定并转发执行（v123b 数字全量/字母前缀）"""
@@ -191,7 +191,7 @@ class PlayerCmds(CommandBase):
 
     # v123 列表翻页快捷键：+ / ＋ 下一页、- / － 上一页、=n / ＝n 跳页（读 last_list_{qq_id} 状态）
     # 单正则三符号（全角 ＋－＝ 一并匹配，手机输入法）；'=' 无数字时给用法提示；各列表渲染尾部由 _record_list_state 记录状态
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?[+＋\-－＝=][0-9０-９]*\s*$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?[+＋\-－＝=][0-9０-９]*\s*$")
 
     async def page_flip(self, event: AstrMessageEvent):
         """v123 翻页快捷键：+ 下一页 / - 上一页 / =n 跳页（转发重建指令执行，零侵入渲染）
@@ -241,7 +241,7 @@ class PlayerCmds(CommandBase):
         self._stop_event_safe(event)
 
     # v105 M24 P3-2：『注册表』前缀误触（(?:\s*|$) 空匹配语义）→ 负向断言收窄
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?注册(?!表)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?注册(?!表)(?:\s*|$)")
 
     async def register(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -469,7 +469,7 @@ class PlayerCmds(CommandBase):
         )
 
     # v105 M24 P3-2：『角色扮演』前缀误触 → 负向断言收窄（同源修复：角色卡/角色图等不误触）
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:角色|我的角色)(?!扮演)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:角色|我的角色)(?!扮演)(?:\s*|$)")
     @require_player()
 
     async def profile(self, event: AstrMessageEvent):
@@ -566,7 +566,7 @@ class PlayerCmds(CommandBase):
         lines.append(f"装备：\n{eq_str}")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?排行(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?排行(?:[\s\S]*)$")
 
     async def leaderboard(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -620,7 +620,7 @@ class PlayerCmds(CommandBase):
         lines.append(self._tip("rank"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?种族(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?种族(?:\s*|$)")
 
     async def races(self, event: AstrMessageEvent):
         """阶段九：种族一览(08 章，注册前查看 6 族天赋)"""
@@ -642,7 +642,7 @@ class PlayerCmds(CommandBase):
         lines.append("💡 种族天赋 = 有得有失，负面已配正面补偿(净强度≈不变)，选取舍不选碾压！")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?转职(?!重置)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?转职(?!重置)(?:\s*|$)")
     @require_player()
 
     async def evolve(self, event: AstrMessageEvent):
@@ -956,7 +956,7 @@ class PlayerCmds(CommandBase):
         """职业进阶称号(v25：按分支返回)"""
         return f"{C.CLASSES.get(class_name, {}).get('icon', '')} {self._branch_title(class_name, tier, evolve_path)}"
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?属性(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?属性(?:\s*|$)")
     @require_player()
 
     async def attributes(self, event: AstrMessageEvent):
@@ -1053,7 +1053,7 @@ class PlayerCmds(CommandBase):
         lines.append(self._tip("attr"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?加点(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?加点(?:\s*|$)")
     @require_player()
 
     async def add_attr(self, event: AstrMessageEvent):
@@ -1083,7 +1083,7 @@ class PlayerCmds(CommandBase):
         names = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
         yield event.plain_result(f"✅ 加点成功！{names[key]} +{n}，剩余属性点 {pts - n}\n『属性』查看效果～")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?技能洗点(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?技能洗点(?:\s*|$)")
     @require_player()
 
     async def reset_skill(self, event: AstrMessageEvent):
@@ -1115,7 +1115,7 @@ class PlayerCmds(CommandBase):
             f"已学技能清空(保留初始技能：{'、'.join(init_skills) or '无'})，技能等级已重置，『技能学习』重新规划 build 吧～"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?转职重置(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?转职重置(?:[\s\S]*)$")
     @require_player()
 
     async def evolve_reset(self, event: AstrMessageEvent):
@@ -1211,7 +1211,7 @@ class PlayerCmds(CommandBase):
             f"💡 到 30/60/90 级可重新『转职』选择新分支！"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?洗点(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?洗点(?:\s*|$)")
     @require_player()
 
     async def reset_attr(self, event: AstrMessageEvent):
@@ -1280,7 +1280,7 @@ class PlayerCmds(CommandBase):
             _drop_txt = f"\n⚔️ 属性不足，以下装备自动卸下回背包：{_dnames}\n（『加点』后可用『装备 <名称>』重新穿上）"
         yield event.plain_result(f"🔄 洗点成功！返还 {used} 点属性点(花费 {cost} 金币){_drop_txt}\n『加点』重新分配～")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?战力(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?战力(?:\s*|$)")
     @require_player()
 
     async def power(self, event: AstrMessageEvent):
@@ -1299,7 +1299,7 @@ class PlayerCmds(CommandBase):
             f"💡 升级、装备、转职、加点都能提升战力！"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?技能详情(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?技能详情(?:[\s\S]*)$")
     @require_player()
 
     async def skill_detail(self, event: AstrMessageEvent):
@@ -1461,7 +1461,7 @@ class PlayerCmds(CommandBase):
                 lines.append("✨ 已满级！")
         return "\n".join(lines)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?技能学习(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?技能学习(?:[\s\S]*)$")
     @require_player()
 
     async def skill_learn(self, event: AstrMessageEvent):
@@ -1638,7 +1638,7 @@ class PlayerCmds(CommandBase):
             parts.append(f"吸血 {int(E.skill_lifesteal_pct(info, lv) * 100)}%")
         return parts
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?技能升级(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?技能升级(?:[\s\S]*)$")
     @require_player()
 
     async def skill_upgrade(self, event: AstrMessageEvent):
@@ -1706,7 +1706,7 @@ class PlayerCmds(CommandBase):
             f"⬆️ 『{display_name}』升级到 Lv.{cur_lv + 1}({desc})！消耗 {cost} 技能点，剩余 {pts - cost + refund} 点{refund_txt}{tail}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?技能栏(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?技能栏(?:\s*|$)")
     @require_player()
 
     async def skill_bar_view(self, event: AstrMessageEvent):
@@ -1726,7 +1726,7 @@ class PlayerCmds(CommandBase):
         lines.append(self._tip("skill"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?设置技能(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?设置技能(?:\s*|$)")
     @require_player()
 
     async def skill_bar_set(self, event: AstrMessageEvent):
@@ -1756,7 +1756,7 @@ class PlayerCmds(CommandBase):
         db.set_skill_bar(qq_id, bar)
         yield event.plain_result(f"✅ 技能栏 {slot} 号位 → 『{sname}』！战斗中『技能 {slot}』即可施放～")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?流派(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?流派(?:[\s\S]*)$")
     @require_player()
 
     async def build_view(self, event: AstrMessageEvent):
@@ -1809,7 +1809,7 @@ class PlayerCmds(CommandBase):
         lines.append(f"💡 打法：{info['desc']}")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?注销(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?注销(?:[\s\S]*)$")
     @require_player()
 
     async def delete_account(self, event: AstrMessageEvent):

@@ -190,7 +190,7 @@ class CommandBase:
         except Exception:
             return ""
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:\[At:全体成员\]\s*)?(?:\[引用消息[^\]]*\]\s*)?", priority=100)
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:\[At:全体成员\]\s*)?(?:\[引用消息[^\]]*\]\s*)?", priority=100)
     @filter.custom_filter(_GameCmdFilter, priority=100)
     async def _maint_gate(self, event: AstrMessageEvent):
         """v96 停服维护拦截：停服时非 GM 的游戏指令一律拦下并停止传播。
@@ -226,7 +226,7 @@ class CommandBase:
         if self._server_down():
             # v134.7：停服时『意见』指令放行（玩家反馈渠道不能断，维护期也要能提意见）
             _text = event.get_message_str().strip()
-            if re.match(r"^(?:\[At:\d+\]\s*)?意见", _text):
+            if re.match(r"^(?:\[At:[^\]]+\]\s*)?意见", _text):
                 return
             # v134.7：停服其他指令直接无视（不回复维护提示，静默 stop 不产出结果）
             event.stop_event()

@@ -1434,7 +1434,7 @@ class EconomyCmds(CommandBase):
         head = f"{settle_text}\n" if settle_text else ""
         return f"{head}{begin_text}{wait} 秒后完成，自动入包～", True
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?采集(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?采集(?:\s*|$)")
     @require_player()
 
     async def gather(self, event: AstrMessageEvent):
@@ -1498,7 +1498,7 @@ class EconomyCmds(CommandBase):
             return
         yield event.plain_result(act_msg + text)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?挖掘(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?挖掘(?:\s*|$)")
     @require_player()
 
     async def mining(self, event: AstrMessageEvent):
@@ -1548,7 +1548,7 @@ class EconomyCmds(CommandBase):
             return
         yield event.plain_result(act_msg + text)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?炼金(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?炼金(?:[\s\S]*)$")
     @require_player()
 
     async def alchemy(self, event: AstrMessageEvent):
@@ -1591,7 +1591,7 @@ class EconomyCmds(CommandBase):
         lines.append(self._tip("alchemy"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?合成(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?合成(?:\s*|$)")
     @require_player()
 
     async def alchemy_craft(self, event: AstrMessageEvent):
@@ -1717,7 +1717,7 @@ class EconomyCmds(CommandBase):
         yield event.plain_result(act_msg + success_head + "\n" + "\n".join(lines) + lv_msg
                                  + (f"\n{_rule_txt}" if _rule_txt else ""))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?烹饪列表(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?烹饪列表(?:[\s\S]*)$")
     @require_player()
 
     async def cooking_list(self, event: AstrMessageEvent):
@@ -1750,7 +1750,7 @@ class EconomyCmds(CommandBase):
         lines.append("💡 烹饪等级：采集植物 + 垂钓 → 料理，成功制作＋1 经验")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?烹饪(?!列表)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?烹饪(?!列表)(?:\s*|$)")
     @require_player()
 
     async def cooking(self, event: AstrMessageEvent):
@@ -1907,7 +1907,7 @@ class EconomyCmds(CommandBase):
             + (f"\n{_rule_txt}" if _rule_txt else "")
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?图纸合成(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?图纸合成(?:[\s\S]*)$")
     @require_player()
 
     async def bp_craft(self, event: AstrMessageEvent):
@@ -2032,7 +2032,7 @@ class EconomyCmds(CommandBase):
         new_lst = db.get_activated_profs(group_id, qq_id)
         return True, f"\n🔓 你选择了「{db.PROF_FIELDS.get(key, key)}」作为副业(当前已激活 {len(new_lst)} 条)！"
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?副业(?!任务)(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?副业(?!任务)(?:[\s\S]*)$")
     @require_player()
 
     async def profession_view(self, event: AstrMessageEvent):
@@ -2073,7 +2073,7 @@ class EconomyCmds(CommandBase):
         lines.append(self._tip("profession"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?遗忘副业(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?遗忘副业(?:[\s\S]*)$")
     @require_player()
     async def prof_forget(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -2190,7 +2190,7 @@ class EconomyCmds(CommandBase):
         return False, ""
 
     # v104 M24 P2-1：『每日副业/今日副业』别名（19 章旧称呼，策划案 §六统一为『副业任务』）
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:副业任务|每日副业|今日副业)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:副业任务|每日副业|今日副业)(?:\s*|$)")
     @require_player()
 
     async def daily_prof(self, event: AstrMessageEvent):
@@ -2213,7 +2213,7 @@ class EconomyCmds(CommandBase):
             lines.append("✨ 今日任务已完成，明天再来～")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?垂钓(?:选择|点)?(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?垂钓(?:选择|点)?(?:\s*|$)")
     @require_player()
 
     async def fishing(self, event: AstrMessageEvent):
@@ -2295,7 +2295,7 @@ class EconomyCmds(CommandBase):
 
     # O80 修复：v82『打造』改名『锻造』后旧指令无别名 → 零回复（playtest 洛洛/血牙复现）。
     # 注册『打造』为『锻造』别名（23 章指令表兼容旧称呼），handler 内双前缀剥离
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:锻造|打造)(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:锻造|打造)(?:[\s\S]*)$")
     @require_player()
 
     async def craft(self, event: AstrMessageEvent):
@@ -2578,7 +2578,7 @@ class EconomyCmds(CommandBase):
         )
         yield event.plain_result("".join(_msg_parts))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?代工(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?代工(?:[\s\S]*)$")
     @require_player()
     async def craft_commission(self, event: AstrMessageEvent):
         """铁匠代工：材料＋3倍金币 → 装备(v166 去图纸化；v67 单人补偿，不受锻造等级限制)"""
@@ -2663,7 +2663,7 @@ class EconomyCmds(CommandBase):
             f"💰 代工费 {cost} 金币(锻造价×3)，装备已放入背包！"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?学习(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?学习(?:[\s\S]*)$")
     @require_player()
 
     async def learn(self, event: AstrMessageEvent):
@@ -2979,7 +2979,7 @@ class EconomyCmds(CommandBase):
         lines.append(self._tip("forge"))
         return "\n".join(lines)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:配方|图纸列表)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:配方|图纸列表)(?:\s*|$)")
     @require_player()
 
     async def recipe_list(self, event: AstrMessageEvent):
@@ -3019,7 +3019,7 @@ class EconomyCmds(CommandBase):
             return
         yield event.plain_result(self._recipe_detail(rec_name))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?强化(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?强化(?:\s*|$)")
     @require_player()
 
     async def enhance(self, event: AstrMessageEvent):
@@ -3180,7 +3180,7 @@ class EconomyCmds(CommandBase):
                 # O93 修复：失败(保级)文案补金币消耗显示
                 yield event.plain_result(f"💥 强化失败！好在【{d['name']}】保住了等级(+{new_enh})。再试一次？(消耗 {info['cost']} 金币)")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?升级(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?升级(?:[\s\S]*)$")
     @require_player()
 
     async def equip_upgrade(self, event: AstrMessageEvent):
@@ -3339,7 +3339,7 @@ class EconomyCmds(CommandBase):
                 return it, ""
         return None, f"背包里没有『{raw}』！『原石』查看背包里的幸运宝石～"
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?打孔(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?打孔(?:[\s\S]*)$")
     @require_player()
 
     async def gem_drill(self, event: AstrMessageEvent):
@@ -3409,7 +3409,7 @@ class EconomyCmds(CommandBase):
             f"🔨 打孔成功！【{d['name']}】现在有 {count} 个孔位({names})！"
             f"『镶嵌 {d['name']} <原石>』放入幸运宝石～")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?镶嵌(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?镶嵌(?:[\s\S]*)$")
     @require_player()
 
     async def gem_socket(self, event: AstrMessageEvent):
@@ -3493,7 +3493,7 @@ class EconomyCmds(CommandBase):
             f"💎 镶嵌成功！【{d['name']}】{target_slot} 镶入 {gd['name']}！"
             f"『原石』查看背包剩余幸运宝石～")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?拆卸(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?拆卸(?:[\s\S]*)$")
     @require_player()
 
     async def gem_remove(self, event: AstrMessageEvent):
@@ -3545,7 +3545,7 @@ class EconomyCmds(CommandBase):
             f"🔧 拆卸成功！取回 {gd['name']}，花费 {cost} 金币"
             f"(已放回背包，『原石』查看～)")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?原石合成(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?原石合成(?:[\s\S]*)$")
     @require_player()
 
     async def gem_combine(self, event: AstrMessageEvent):
@@ -3617,7 +3617,7 @@ class EconomyCmds(CommandBase):
             f"✨ 三颗 {gd['name']} 光芒交织，合成了更纯粹的幸运宝石！\n"
             f"✅ 合成成功！获得 {new_gem['name']}(消耗 3 颗，无失败)")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?原石(?!合成)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?原石(?!合成)(?:\s*|$)")
     @require_player()
 
     async def gem_view(self, event: AstrMessageEvent):
@@ -3663,7 +3663,7 @@ class EconomyCmds(CommandBase):
                      "(符文碎片=拆卸符文回收，隐藏怪「符文魔像」也掉落)")
         return "\n".join(lines)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?符文制作(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?符文制作(?:\s*|$)")
     @require_player()
 
     async def rune_craft(self, event: AstrMessageEvent):
@@ -3756,7 +3756,7 @@ class EconomyCmds(CommandBase):
             f"(消耗 {mname}×{cfg['count']}+符文碎片×{shards}+{fee}金币)\n"
             f"💡 『附魔 <装备> {rune_data['name']}』刻印到装备上！{_lv_msg}")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?符文拆卸(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?符文拆卸(?:\s*|$)")
     @require_player()
 
     async def rune_remove(self, event: AstrMessageEvent):
@@ -3856,7 +3856,7 @@ class EconomyCmds(CommandBase):
             f"花费 {cost} 金币\n"
             f"🎒 回收 符文碎片×{lvl}（『附魔 <装备> <符文>』可重新刻印）")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?装备重锻(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?装备重锻(?:[\s\S]*)$")
     @require_player()
 
     async def refine_equip(self, event: AstrMessageEvent):
@@ -3989,7 +3989,7 @@ class EconomyCmds(CommandBase):
             f"🎯 {_inh_str}——旧装备的强化/升级投资不沉没！\n"
             f"💰 消耗 {rec['gold']} 金币 + 稀有素材")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?炼成(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?炼成(?:[\s\S]*)$")
     @require_player()
 
     async def calamity_forge(self, event: AstrMessageEvent):
@@ -4055,7 +4055,7 @@ class EconomyCmds(CommandBase):
             f"({d.get('calamity_count', 1)}/{C.CALAMITY_MAX} 次)\n"
             f"💰 消耗 {C.CALAMITY_COST['gold']} 金币 + 稀有素材")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?附魔(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?附魔(?:\s*|$)")
     @require_player()
 
     async def enchant(self, event: AstrMessageEvent):
@@ -4309,7 +4309,7 @@ class EconomyCmds(CommandBase):
             f"(消耗 {mat_name} x1 + {rec['cost']} 金币；已用 {len(enchanted)}/{slots} 槽){_lv_msg}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?套装(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?套装(?:\s*|$)")
     @require_player()
 
     async def set_view(self, event: AstrMessageEvent):
@@ -4372,7 +4372,7 @@ class EconomyCmds(CommandBase):
         lines.append("💡 套装部件：名册装备/商店/锻造获得的装备自带系列套装(如『橡木』『圣光』『银铃』)，穿 2 件起生效")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?怪物(?:\s+(\S+))?\s*$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?怪物(?:\s+(\S+))?\s*$")
     @require_player()
 
     async def monster(self, event: AstrMessageEvent):
@@ -4401,7 +4401,7 @@ class EconomyCmds(CommandBase):
         lines.append("💡 前往对应地图后按区域探索/战斗即有机会遭遇；首领/精英带稀有掉落~")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?冒险手册(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?冒险手册(?:\s*|$)")
     @require_player()
 
     async def adventure_book(self, event: AstrMessageEvent):
@@ -4439,7 +4439,7 @@ class EconomyCmds(CommandBase):
         # 总览
         yield event.plain_result(self._adventure_overview(group_id, qq_id))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?足迹(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?足迹(?:\s*|$)")
     @require_player()
 
     async def footprint(self, event: AstrMessageEvent):
@@ -4770,7 +4770,7 @@ class EconomyCmds(CommandBase):
         except Exception:
             return k
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?图鉴(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?图鉴(?:[\s\S]*)$")
     @require_player()
 
     async def bestiary(self, event: AstrMessageEvent):
@@ -4885,7 +4885,7 @@ class EconomyCmds(CommandBase):
         lines.append("💡 收藏品来自支线/隐藏任务奖励与纪念品，『图鉴 垂钓』看彩蛋收藏鱼，『图鉴』看怪物")
         return "\n".join(lines)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?百科(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?百科(?:\s*|$)")
     @require_player()
 
     async def encyclopedia(self, event: AstrMessageEvent):
@@ -5721,7 +5721,7 @@ class EconomyCmds(CommandBase):
                     return True
         return False
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?称号(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?称号(?:\s*|$)")
     @require_player()
 
     async def titles(self, event: AstrMessageEvent):
@@ -5819,7 +5819,7 @@ class EconomyCmds(CommandBase):
                     page = int(text)
         return category, page
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:背包|物品)(?!详情|筛选)(?:\s*.*)?$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:背包|物品)(?!详情|筛选)(?:\s*.*)?$")
     @require_player()
 
     async def inventory(self, event: AstrMessageEvent):
@@ -5829,7 +5829,7 @@ class EconomyCmds(CommandBase):
         result = self._bag_view(group_id, qq_id, raw)
         yield event.plain_result(result)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?背包筛选(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?背包筛选(?:[\s\S]*)$")
     @require_player()
 
     async def bag_filter(self, event: AstrMessageEvent):
@@ -5928,7 +5928,7 @@ class EconomyCmds(CommandBase):
             lines.append("💡 筛选视图序号与全局背包不同，『出售 <序号>』按全局序号——出售/装备请用物品名称（#234）")
         return "\n".join(lines)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?物品详情(?:开始|结束)(?:\s*|$)", priority=50)
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?物品详情(?:开始|结束)(?:\s*|$)", priority=50)
     @require_player()
 
     async def item_view_mode_cmd(self, event: AstrMessageEvent):
@@ -5948,7 +5948,7 @@ class EconomyCmds(CommandBase):
         )
         self._stop_event_safe(event)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:物品详情|查看(?!地图|任务|背包|技能|图鉴|百科|成就|称号|宠物|副本|排行|帮助|列表|商店|位置|声望|荣誉|套装|坐骑|队伍|摊位|市场|仓库|事件|许愿|种族|流派|签到|战力|职业|配方|烹饪|副业|锻造|炼金|合成|钓鱼|采集|挖掘|学习|洗点|装备|卸下|喂养|放生|传送|祭坛|赶路|深入|调查|撤退|离开|注册|意见|怪物|咨询|状态|属性|详情|信息))(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:物品详情|查看(?!地图|任务|背包|技能|图鉴|百科|成就|称号|宠物|副本|排行|帮助|列表|商店|位置|声望|荣誉|套装|坐骑|队伍|摊位|市场|仓库|事件|许愿|种族|流派|签到|战力|职业|配方|烹饪|副业|锻造|炼金|合成|钓鱼|采集|挖掘|学习|洗点|装备|卸下|喂养|放生|传送|祭坛|赶路|深入|调查|撤退|离开|注册|意见|怪物|咨询|状态|属性|详情|信息))(?:[\s\S]*)$")
     @require_player()
 
     async def item_detail(self, event: AstrMessageEvent):
@@ -6235,7 +6235,7 @@ class EconomyCmds(CommandBase):
         eq["desc"] = _eq_random_desc(wname, "weapon", wtype)
         return eq
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?我的装备(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?我的装备(?:\s*|$)")
     @require_player()
 
     async def my_equipment(self, event: AstrMessageEvent):
@@ -6245,7 +6245,7 @@ class EconomyCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         yield event.plain_result(self._my_equipment_view(group_id, qq_id, self._player(group_id, qq_id)))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?装备(?!重锻|我的)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?装备(?!重锻|我的)(?:\s*|$)")
     @require_player()
 
     async def equip(self, event: AstrMessageEvent):
@@ -6361,7 +6361,7 @@ class EconomyCmds(CommandBase):
             lines.append("  · (无变化)")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?卸下(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?卸下(?:\s*|$)")
     @require_player()
 
     async def unequip(self, event: AstrMessageEvent):
@@ -6423,7 +6423,7 @@ class EconomyCmds(CommandBase):
             lines.append("  · (无变化)")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?使用(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?使用(?:\s*|$)")
     @require_player()
 
     async def use(self, event: AstrMessageEvent):
@@ -6895,7 +6895,7 @@ class EconomyCmds(CommandBase):
                 mats[ac.get("item", "")] = int(ac.get("count", 1))
         return mats
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?出售(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?出售(?:\s*|$)")
     @require_player()
 
     async def sell(self, event: AstrMessageEvent):
@@ -7114,7 +7114,7 @@ class EconomyCmds(CommandBase):
         tip = f"（回收价 {int(rate * 100)}%）"
         yield event.plain_result(f"💰 你出售了 {name} ×{cnt}，获得 {gold} 金币！{tip}")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?商店(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?商店(?:\s*|$)")
     @require_player()
 
     async def shop(self, event: AstrMessageEvent):
@@ -7278,7 +7278,7 @@ class EconomyCmds(CommandBase):
         lines.append(self._tip("shop"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?购买(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?购买(?:\s*|$)")
     @require_player()
 
     async def buy(self, event: AstrMessageEvent):

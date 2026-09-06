@@ -36,7 +36,7 @@ src = "\n".join(SRC_ALL)
 handler_pat = re.compile(r'^    @filter\.regex\(r"([^"]+)"\)(?:\s*\n\s*@[A-Za-z_]\w*(?:\([^)]*\))?)*\s*\n\s*async def (\w+)', re.M)
 handlers = [(m.group(1), m.group(2)) for m in handler_pat.finditer(src)]
 comps = [re.compile(p) for p, _ in handlers]
-CMD_PREFIX = r"^(?:\[At:\d+\]\s*)?"
+CMD_PREFIX = r"^(?:\[At:[^\]]+\]\s*)?"
 
 
 def body(pat):
@@ -45,8 +45,8 @@ def body(pat):
         p = p[1:]
     if p.startswith("(?:\\[At:\\d+\\]\\s*)?"):
         p = p[len("(?:\\[At:\\d+\\]\\s*)?"):]
-    elif p.startswith(r"(?:\[At:\d+\]\s*)?"):
-        p = p[len(r"(?:\[At:\d+\]\s*)?"):]
+    elif p.startswith(r"(?:\[At:[^\]]+\]\s*)?"):
+        p = p[len(r"(?:\[At:[^\]]+\]\s*)?"):]
     return p
 
 

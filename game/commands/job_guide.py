@@ -22,7 +22,7 @@ from ..commands.base import CommandBase
 class JobGuideCmds(CommandBase):
     """『职业』速查：12 职业一览 + 单职业详情（玩家意见 #1）"""
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?职业(?:\s+(\S+))?\s*$")
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?职业(?:\s+(\S+))?\s*$")
     async def job_guide(self, event: AstrMessageEvent):
         raw = self._strip_cmd(event, "职业").strip()
         if not raw:

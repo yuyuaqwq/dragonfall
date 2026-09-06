@@ -70,8 +70,8 @@ async def main():
     check("『物品详情 <名称>』查看", "草药茶" in r5, r5[:100])
 
     # ---- 6. regex 互斥 ----
-    sw_re = re.compile(r"^(?:\[At:\d+\]\s*)?物品详情(?:开始|结束)(?:\s*|$)")
-    dt_re = re.compile(r"^(?:\[At:\d+\]\s*)?物品详情(?:[\s\S]*)$")
+    sw_re = re.compile(r"^(?:\[At:[^\]]+\]\s*)?物品详情(?:开始|结束)(?:\s*|$)")
+    dt_re = re.compile(r"^(?:\[At:[^\]]+\]\s*)?物品详情(?:[\s\S]*)$")
     check("『物品详情开始』匹配开关", bool(sw_re.match("物品详情开始")), "开关 regex 未匹配")
     check("『物品详情 铁剑』不匹配开关", not sw_re.match("物品详情 铁剑"), "开关 regex 误吞查看指令")
     check("『物品详情 铁剑』匹配详情", bool(dt_re.match("物品详情 铁剑")), "详情 regex 未匹配")
