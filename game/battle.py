@@ -1773,8 +1773,13 @@ class Battle:
         return int(player.get("evolve_path", 0) or 0) == int(path or 0)
 
     def _is_element_mage(self, player: dict) -> bool:
-        """元素法师（法师·攻线）判定——v176 单点收口（原 7 处 cls_fa_shi+_is_path(1) 散落特判）。"""
-        return bool(player.get("class_name", "") == "cls_fa_shi" and self._is_path(player, 1))
+        """元素法师（法师·攻线）判定——v181 收口：归属读分支资源表 BRANCH_RESOURCE_OVERRIDE
+        （(cls_fa_shi,1)/(cls_fa_shi,2) 声明 element 充能资源）+ 攻线 path=1；
+        v176 单点收口（原 7 处 cls_fa_shi+_is_path(1) 散落特判 → 数据表驱动）。"""
+        cls = player.get("class_name", "")
+        if not self._is_path(player, 1):
+            return False
+        return "element" in (BRANCH_RESOURCE_OVERRIDE.get((cls, 1)) or ())
 
     @staticmethod
     def _is_element_skill(info: dict) -> bool:
@@ -2353,7 +2358,7 @@ class Battle:
         if not self._equip_affix_ids(player):
             return 1.0
         mult = 1.0
-        if kind == K_PHYS and player.get("class_name", "") == "cls_wu_seng":  # 拳师（v130.2c 修正 class id）
+        if kind == K_PHYS and "chi" in self._branch_keys(player):  # 拳师（v130.2c 修正 class id；v181: 职业字面量 → chi 资源所有权，全库仅 cls_wu_seng 持有 chi）
             for eff, tier in self._affix_effs(player, "burst_break"):
                 if not eff:
                     continue
@@ -2778,12 +2783,19 @@ class Battle:
         return cur
 
     def _is_bard_skill(self, player: dict, info: dict | None = None) -> bool:
-        """技能是否歌者分支技能（歌类技 → 施放叠回声 + 增益续时）。"""
-        if player.get("class_name", "") != "cls_mu_shi" or not self._is_branch_of(player, *BARD_BRANCHES):
+        """技能是否歌者分支技能（歌类技 → 施放叠回声 + 增益续时）。v181 收口：
+        歌者=「牧师分支资源表声明 echo 所有权」(BRANCH_RESOURCE_OVERRIDE((cls_mu_shi,1))→echo) +
+        技能归属分支即资源分支（branch_skill_owner 数据查 cls 自身，不再写死职业 id）。
+        数据现状：BARD_BRANCHES(吟游诗人/灵魂歌者/黎明颂者) 为 v153 前的旧分支名，现数据无任何
+        牧师分支叫此名 → 本判定对现网恒 False（歌类技回声在 v153 后由 _res_gain echo 单通道 +
+        _branch_keys 资源所有权驱动），此处仅保接口与旧行为等价，防误激活回声续时/伴奏。"""
+        if not self._is_branch_of(player, *BARD_BRANCHES):
+            return False
+        if "echo" not in self._branch_keys(player):
             return False
         if info is None:
             return True
-        owner = E.branch_skill_owner("cls_mu_shi", info.get("name", ""))
+        owner = E.branch_skill_owner(player.get("class_name", ""), info.get("name", ""))
         return bool(owner and owner[1] in BARD_BRANCHES)
 
     # —— 法师攻线·元素：引爆技反应表结算（cond type='reaction'，读目标 element_marks）——
@@ -5437,7 +5449,7 @@ class Battle:
             # v130.2 R1：势不可挡收窄为 chi 资源相关（res_cost.chi / consume_all key==chi / 拳师），与 burst_break 口径一致
             _rc = info.get("res_cost") or {}
             _ca = info.get("consume_all") or {}
-            is_chi_fin = player.get("class_name", "") == "cls_wu_seng" or bool(_rc.get("chi")) or _ca.get("key") == "chi"
+            is_chi_fin = "chi" in self._branch_keys(player) or bool(_rc.get("chi")) or _ca.get("key") == "chi"
             if is_chi_fin:
                 mult *= 1.0 + float(effs.get("value", 0.15) or 0.15)
         return mult
