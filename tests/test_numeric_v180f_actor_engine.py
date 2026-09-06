@@ -129,6 +129,15 @@ async def main():
     except Exception as _ex5:
         check("序列化往返：无循环引用 + hp 恢复", False, f"异常 {_ex5}")
 
+    # 6. 命令层兼容（B8）：旧入口 Battle(player=, enemy=) 构造 → sides 派生正确 + 同引用
+    b7 = _BT.Battle("monster", dict(mon_e), player=dict(p))
+    check("命令层旧入口 → sides 双阵营", set(b7.sides.keys()) == {"player", "enemy"},
+          str(list(b7.sides.keys())))
+    _sp = (b7.sides.get("player") or [{}])[0]
+    b7.player["hp"] = 4321
+    check("命令层读写同步到 sides（同引用）", _sp.get("hp") == 4321,
+          f"sides player hp={_sp.get('hp')}")
+
     print(f"\n===== 结果: {passed} 通过, {failed} 失败 =====")
     return 0 if failed == 0 else 1
 
