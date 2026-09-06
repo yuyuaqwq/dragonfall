@@ -18,13 +18,16 @@
 | b8435b3 | docs: 目标态补扩展门槛指南 |
 | 36b34e9+merge | v181.P2A class_sets 套装表下沉 data/set_bonus_data.py（纯搬移，SETS sha256 一致）|
 | ff1c843+merge | docs: REFACTOR_P2D_passive_proc_registry.md（被动 proc 注册表方案 428 行）|
+| 8ad06fc+merge | v181.P2B 引擎刻度常量收 core/constants（13 常量，消 7 处 core→battle 反向 import）|
+| 724598e+merge | docs: REFACTOR_P2F_formula_skeleton.md（公式骨架方案 241 行）|
+| 1795508+merge | docs: REFACTOR_P2E_mech_cfg.md（CFG 收敛方案 391 行）|
+| 6b56e8a+merge | v181.P0B-B skill_up 止血（628→305，删 323 行，等价探针+346 断言全绿）|
 
 ## 进行中（子 agent 并行，各占 worktree，等合并）
 
 | worktree/分支 | 任务 | 状态 |
 |---|---|---|
-| w8 wt_p0b_impl | P0B-B 止血实施（SKILL_UP 628→468 去重+删 163 孤儿）| 运行中 |
-| w9 wt_p2f1 | P2F-1 公式参数化实施（新建 formula_skeleton.py）| 运行中 |
+| w9 wt_p2f1 | P2F-1 公式参数化实施（新建 formula_skeleton.py）| 运行中（P0B-B 已完成合并 3fdd7a4）|
 
 ## 方案文档全齐（已合并 master，待实施）
 
