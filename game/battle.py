@@ -9653,6 +9653,10 @@ class Battle:
         # v180-C S3 actor 化：乘区读"来源 actor"（attacker）的被动——宠物/随从 actor
         # 攻击时读它们自身被动（宠物无被动 → 无乘区），不再无条件吃 self.player。
         # 缺省 attacker=None = 玩家攻击（全部旧调用点行为不变）。
+        # v181.P2D-D3b：5 段消费迁注册表族 dmg_mult_cond（ctx mult_kind 分派 hunt_mark/
+        # soul_mark/shaken_bar/broken_break/dirge_debuffs；循环骨架/顺序/break 语义逐字保留——
+        # 各段原 break 在循环尾且 max=1 数据下，run_proc_family_pm 逐条执行等价；soul_mark_cap
+        # /broken_extend 双消费点只迁本挂点乘区段，cap/延长段在挂点16/18 后续批次收）
         _atk_actor = attacker if attacker is not None else (self.player or {})
         try:
             _db_t = target.get("debuffs") or {}
@@ -9660,47 +9664,62 @@ class Battle:
             _tags_pas = []
             _pl_d = _atk_actor
             _pm_d = self._proc_pm(_pl_d) if _pl_d else {"proc": {}}
-            # 猎印
+            # 猎印 hunt_mark_up（自然之眼）：目标带猎印 → 每层 基础 0.08 + 被动额外 per_layer
+            # v180-C S3「标记基础谁打都吃」：基础 0.08/层 是无被动的固有标记乘区（挂点保留）；
+            # 被动额外段（自然之眼 per_layer）读 attacker 被动经注册表——宠物无被动 → 不吃额外
             _hm = int(_db_t.get("hunt_mark", 0) or 0)
+            _hm_pct = 0.08
             if _hm > 0:
-                _hm_pct = 0.08
                 for _pn, _ps in _pm_d["proc"].get("hunt_mark_up", []):
-                    _hm_pct += float(_ps.get("per_layer", 0.06) or 0.06)
+                    _ctx_hm = {"player": _pl_d, "ps": _ps, "ps_name": _pn,
+                               "mult_kind": "hunt_mark"}
+                    _rv_hm = _run_proc_family(self, "hunt_mark_up", _ctx_hm)
+                    if _rv_hm:
+                        _hm_pct += float(_rv_hm[0])  # 返回值 = per_layer 额外增量
                     break
                 _mult_pas *= 1.0 + _hm_pct * _hm
                 _tags_pas.append(f"🎯猎印x{round(1 + _hm_pct * _hm, 2)}")
-            # 灵魂标记
+            # 灵魂标记 soul_mark_cap（灵魂锁链）：目标带魂标 → 每层 基础 0.06 + 被动额外 per_layer
+            # （cap 放宽段在挂点16 _apply_mech_effect；v180-C S3 同口径：基础谁打都吃）
             _sm = int(_db_t.get("soul_mark", 0) or 0)
+            _sm_pct = 0.06
             if _sm > 0:
-                _sm_pct = 0.06
                 for _pn, _ps in _pm_d["proc"].get("soul_mark_cap", []):
-                    _sm_pct += float(_ps.get("per_layer", 0.08) or 0.08)
+                    _ctx_sm = {"player": _pl_d, "ps": _ps, "ps_name": _pn,
+                               "mult_kind": "soul_mark"}
+                    _rv_sm = _run_proc_family(self, "soul_mark_cap", _ctx_sm)
+                    if _rv_sm:
+                        _sm_pct += float(_rv_sm[0])  # 返回值 = per_layer 额外增量
                     break
                 _mult_pas *= 1.0 + _sm_pct * _sm
                 _tags_pas.append(f"💀魂标x{round(1 + _sm_pct * _sm, 2)}")
-            # 气力之心（敌方破绽条 ≥15）
+            # 气力之心 shaken_awareness（敌破绽条 ≥_ps.bar_at 15）
             _sb_sh = (target.get("buffs") or {}).get("shaken")
             if isinstance(_sb_sh, dict):
                 for _pn, _ps in _pm_d["proc"].get("shaken_awareness", []):
-                    if int(_sb_sh.get("val", 0) or 0) >= int(_ps.get("bar_at", 15) or 15):
-                        _mult_pas *= 1.0 + float(_ps.get("mult", 0.20) or 0.20)
-                        _tags_pas.append("🧠破绽x1.2")
+                    _ctx_sa = {"player": _pl_d, "ps": _ps, "ps_name": _pn,
+                               "mult_kind": "shaken_bar", "shaken": _sb_sh,
+                               "mult": _mult_pas, "tags": _tags_pas}
+                    _run_proc_family(self, "shaken_awareness", _ctx_sa)
+                    _mult_pas = _ctx_sa.get("mult", _mult_pas)
                     break
-            # 破绽·极 broken_extend：破防（被震慑免疫期）时 全队增伤 +50%
+            # 破绽·极 broken_extend：破防（被震慑免疫期）时 全队增伤 +50%（乘区段）
             if isinstance(_sb_sh, dict) and int(_sb_sh.get("trigger_count", 0) or 0) > 0 \
                     and int(_sb_sh.get("immune_turns", 0) or 0) > 0:
                 for _pn_be2, _ps_be2 in _pm_d["proc"].get("broken_extend", []):
-                    _mult_pas *= 1.0 + float(_ps_be2.get("broken_mult", 0.50) or 0.50)
-                    _tags_pas.append(f"💢破防x{round(1 + float(_ps_be2.get('broken_mult', 0.50) or 0.50), 2)}")
+                    _ctx_be = {"player": _pl_d, "ps": _ps_be2, "ps_name": _pn_be2,
+                               "mult_kind": "broken_break", "shaken": _sb_sh,
+                               "mult": _mult_pas, "tags": _tags_pas}
+                    _run_proc_family(self, "broken_extend", _ctx_be)
+                    _mult_pas = _ctx_be.get("mult", _mult_pas)
                     break
-            # 挽歌·极（敌方负面种数）
+            # 挽歌·极 dirge_debuff_dmg（敌方负面种数；读 self.enemy——原循环体直读口径）
             for _pn, _ps in _pm_d["proc"].get("dirge_debuff_dmg", []):
-                _kinds = self._enemy_debuff_kind_count()
-                _pct_e = min(float(_ps.get("per_debuff", 0.04) or 0.04) * _kinds,
-                             float(_ps.get("cap", 0.40) or 0.40))
-                if _pct_e > 0:
-                    _mult_pas *= 1.0 + _pct_e
-                    _tags_pas.append(f"🎵挽歌x{round(1 + _pct_e, 2)}")
+                _ctx_dg = {"player": _pl_d, "ps": _ps, "ps_name": _pn,
+                           "mult_kind": "dirge_debuffs",
+                           "mult": _mult_pas, "tags": _tags_pas}
+                _run_proc_family(self, "dirge_debuff_dmg", _ctx_dg)
+                _mult_pas = _ctx_dg.get("mult", _mult_pas)
                 break
             if _mult_pas != 1.0:
                 dmg = max(1, int(dmg * _mult_pas))

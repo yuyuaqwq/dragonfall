@@ -63,14 +63,20 @@ def mk_enemy(def_=20, mdef=20, hp=100000, spd=10):
 # ============================================================
 def test_registry_static():
     print("\n== 1. 注册表静态结构 ==")
-    # P2-D3a：dmg_mult_cond 扩展 2（arcane_resonance/element_origin）+ flag_set_cond 1
-    # （element_sync）→ 总数 17（6 试点 + 4 条件暴击 + 4 stat_mult + 3 P2-D3a）
-    check("PROC_FAMILIES 含 17 声明", len(PP.PROC_FAMILIES) == 17, str(PP.PROC_FAMILIES))
+    # P2-D3b：挂点14 5 proc（hunt_mark_up/soul_mark_cap/shaken_awareness/
+    # broken_extend/dirge_debuff_dmg）并入 → 总数 22（6 试点 + 4 条件暴击 +
+    # 4 stat_mult + 3 P2-D3a + 5 P2-D3b）
+    check("PROC_FAMILIES 含 22 声明", len(PP.PROC_FAMILIES) == 22, str(PP.PROC_FAMILIES))
     expect_map = {
         "speed_ratio_dmg": "dmg_mult_cond",
         "arcane_resonance": "dmg_mult_cond",
         "element_origin": "dmg_mult_cond",
         "element_sync": "flag_set_cond",
+        "hunt_mark_up": "dmg_mult_cond",
+        "soul_mark_cap": "dmg_mult_cond",
+        "shaken_awareness": "dmg_mult_cond",
+        "broken_extend": "dmg_mult_cond",
+        "dirge_debuff_dmg": "dmg_mult_cond",
         "zhan_yi_lifesteal": "lifesteal_add",
         "poison_cap_up": "stack_cap_add",
         "poison_cap": "stack_cap_add",
