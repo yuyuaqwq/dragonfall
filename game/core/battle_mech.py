@@ -1598,7 +1598,10 @@ def _melody_apply_p_buffs(battle, mel, turns):
         # 守歌「全队减伤 +10%」→ reduce_all 减伤键（10%）——reduce_all 存百分比 float 且独立计时，
         # 不能进 keys（下方通用循环会把它当 int 刻覆盖），单独写后不再 append
         pb["reduce_all"] = max(float(pb.get("reduce_all", 0) or 0), 0.10)
-        player['reduce_all_left'] = max(int(player.get("reduce_all_left", 0) or 0), int(turns))
+        # v180G B7-fix：原 L1601 `player['reduce_all_left']=...` 引用不存在变量 player
+        # （函数参数 battle/mel/turns），守歌一放就 NameError 被吞 → 减伤生效但 reduce_all_left
+        # 永不写。reduce_all 已 float 化独立计时（expire 走 _advance_time），reduce_all_left 是
+        # 废弃 int 字段，此行删除——守歌减伤由 pb["reduce_all"] + 到期检查完整覆盖。
     elif kind == "spd":
         keys.append("spd_up")
     elif kind == "atk_matk":

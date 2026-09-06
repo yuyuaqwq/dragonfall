@@ -9175,12 +9175,11 @@ class Battle:
         # v151 破绽断链修复（引擎差距报告 P0）：turn_start_bars 此前从未被调用——
         # 拳师破绽条（shaken）的每刻衰减 4/免疫期递减实际不跑。刻开始统一衰减+触发检查。
         try:
-            from .core.battle_bars import turn_start_bars
+            from .core.battle_bars import turn_start_bars, bar_def
+            _bd = None
             _trig = turn_start_bars(self.enemy, logs) or []
             for _bk in _trig:
                 # 触发效果：skip_turn → 敌方跳过下刻行动（由 _enemy_turn 消费 immune_turns）
-                _bd = None
-                from .core.battle_bars import bar_def
                 _bd = bar_def(_bk) or {}
                 if (_bd.get("trigger_effect") or "") == "skip_turn":
                     logs.append(f"💢 破绽触发！敌方即将失去行动！")
@@ -10047,7 +10046,11 @@ class Battle:
                             _max_e = self._res_max(self.player, "energy")
                             _old_e = int(self._p_res().get("energy", 0) or 0)
                             self._p_res()["energy"] = _max_e
-                            logs.append(f"💨 {_pn_k}：击杀！专注回满（{_old_e} → {_max_e}）")
+                            # v180G B7-fix：logs 未定义导致整段被吞（原回满逻辑在 append 前已执行，
+                            # 但日志丢失）——改为追加到 _pending_dmg_lines（战斗日志池，存在才追加）
+                            _kl = getattr(self, "_pending_dmg_lines", None)
+                            if isinstance(_kl, list):
+                                _kl.append(f"💨 {_pn_k}：击杀！专注回满（{_old_e} → {_max_e}）")
                         break
                 except Exception as _sw_e:
                     _battle_warn('_remove_unit', _sw_e)
