@@ -8695,7 +8695,7 @@ class Battle:
             _tdef = max(0, int(t.get("def", 0) or 0))
             if _tdef > 0:
                 try:
-                    _atk = (t_dmg + int((t_dmg * t_dmg + 4 * t_dmg * _tdef) ** 0.5)) // 2
+                    _atk = self._infer_atk(t_dmg, _tdef)  # v180E 统一反推
                     t_dmg = max(1, int(E.calc_damage(_atk, _tdef, variance=0)))
                 except Exception:
                     pass
@@ -9298,7 +9298,7 @@ class Battle:
                 try:
                     _owner2 = self.player or {}
                     _pdef = max(0, int(self._player_stats(_owner2).get("def", 0) or 0)) if _owner2 else 0
-                    _atk = (dmg + int((dmg * dmg + 4 * dmg * _pdef) ** 0.5)) // 2
+                    _atk = self._infer_atk(dmg, _pdef)  # v180E 统一反推
                     taken = max(1, int(E.calc_damage(_atk, max(0, int(s.get("def", 0) or 0)), variance=0)))
                 except Exception:
                     taken = max(1, int(dmg))
@@ -9668,6 +9668,44 @@ class Battle:
             logs.append(f"🛡️ 被动减伤 {reduce_total} 点")
 
         return dmg, False
+    def _infer_atk(self, dmg: int, target_def: int) -> int:
+        """v180E 阶段5：从\"已按某防御算好的伤害\"反推攻击方等效 atk。
+
+        公式来源：dmg = atk²/(atk+def) → atk² - dmg·atk - dmg·def = 0
+        → atk = (dmg + √(dmg² + 4·dmg·def)) / 2
+        AOE 逐目标重算（_aoe_damage）与随从挡刀按 def 结算（_guard_check）共用。
+        """
+        try:
+            _td = max(0, int(target_def or 0))
+            if _td <= 0:
+                return max(1, int(dmg or 0))
+            return max(1, (int(dmg or 0) + int((int(dmg or 0) * int(dmg or 0) + 4 * int(dmg or 0) * _td) ** 0.5)) // 2)
+        except Exception:
+            return max(1, int(dmg or 0))
+
+    def _phys_retort(self, actor: dict, atk_mult: float, logs: list,
+                     is_crit: bool = False, variance: float = 0.15, roll_crit: bool = False) -> int:
+        """v180E 阶段5：统一物理反击伤害结算（石拳反打/反击被动/盾牌反击/以守为攻等共用）。
+
+        模式 = actor 面板 atk × mult 对主敌 def 结算物理伤害（calc_damage 封装），
+        返回 (经 _boss_dmg_filter 的实际伤害, 是否暴击)。
+        roll_crit=True 时自行 roll 暴击（反击被动/以守为攻原语义）；False 保持无暴击
+        （石拳反打原语义无暴击判定）。调用方可传 is_crit 精确指定。
+        """
+        try:
+            _st = self._actor_stats_of(actor)
+            _est = self._enemy_stats()
+            if is_crit or roll_crit:
+                _crit = is_crit or (random.random() < float(_st.get("crit", 0) or 0))
+            else:
+                _crit = False
+            _d = E.calc_damage(int(_st.get("atk", 0) * float(atk_mult or 1.0)),
+                               _est.get("def", 0), _crit, variance=variance, dmg_type="phys")
+            _d = self._boss_dmg_filter(_d, actor, logs)
+            return max(1, _d), _crit
+        except Exception:
+            return max(1, int(E.calc_damage(1, 0, dmg_type="phys"))), False
+
     def _retaliations_and_buffs(self, actor: dict, dmg: int, logs: list, attacker: dict | None = None) -> tuple:
         """v177 受击后效（任意 actor）：反伤/反击/金身/符文壁垒/次元门扉/圣辉等——回击攻击者或改自身状态。
         返回 (处理后的 dmg, interrupted)；interrupted=True = 本次承伤被免疫中断（次元门扉），调用方 return。
@@ -9718,21 +9756,13 @@ class Battle:
         if _sq_eff and _rtgt and _rtgt.get("hp", 0) > 0:
             _sq_params = (_sq_eff or {}).get("params") or {}
             if random.random() < float(_sq_params.get("chance", 0.15)):
-                _sq_st = self._actor_stats_of(actor)
-                _sq_est = self._enemy_stats()
-                _sq_dmg = E.calc_damage(int(_sq_st["atk"] * float(_sq_params.get("atk_pct", 0.30))), _sq_est.get("def", 0), dmg_type="phys")
-                _sq_dmg = self._boss_dmg_filter(_sq_dmg, actor, logs)
+                _sq_dmg, _sq_crit = self._phys_retort(actor, float(_sq_params.get("atk_pct", 0.30)), logs)  # v180E 统一反击
                 _hit_back(_sq_dmg)
                 logs.append(f"🥊 石拳反打！铁拳回敬 {_sq_dmg} 点伤害！")
         if _rtgt and _rtgt.get("hp", 0) > 0:
             for _pn, _ps in self._passive_map(actor)["proc"].get("counter_attack", []):
                 if random.random() < float(_ps.get("chance", 0.20)):
-                    _st_ca = self._actor_stats_of(actor)
-                    _est_ca = self._enemy_stats()
-                    _ca_crit = random.random() < float(_st_ca.get("crit", 0) or 0)
-                    ca_dmg = E.calc_damage(_st_ca["atk"], _est_ca.get("def", 0), _ca_crit,
-                                           dmg_type="phys")
-                    ca_dmg = self._boss_dmg_filter(ca_dmg, actor, logs)
+                    ca_dmg, _ca_crit = self._phys_retort(actor, 1.0, logs, roll_crit=True)  # v180E 统一反击(原 roll 暴击)
                     _hit_back(ca_dmg)
                     logs.append(f"🥊 反击！你立刻回击造成 {ca_dmg} 点伤害！"
                                 + (" 💥暴击" if _ca_crit else ""))
@@ -9744,7 +9774,7 @@ class Battle:
                         _chi_now = self._res_gain_class(_cr_cls, "chi", 2)
                         logs.append(f"🥊 反击回气 +2（气 {_chi_now}）")
                     break  # 命中即停（一次受击最多一次反击）
-        # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害
+        # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害（原语义无 boss filter，保持）
         if B.get("counter", 0) > 0 and _rtgt and _rtgt.get("hp", 0) > 0:
             if random.random() < C.SHIELD_COUNTER_CHANCE:
                 pst2 = self._actor_stats_of(actor)
@@ -9775,12 +9805,7 @@ class Battle:
                         break
                 _chance = min(_chance, 0.9)
                 if random.random() < _chance:
-                    _st_c2 = self._actor_stats_of(actor)
-                    _est_c2 = self._enemy_stats()
-                    _c2_crit = random.random() < float(_st_c2.get("crit", 0) or 0)
-                    _c2_dmg = E.calc_damage(int(_st_c2["atk"] * _mult), _est_c2.get("def", 0), _c2_crit,
-                                            dmg_type="phys")
-                    _c2_dmg = self._boss_dmg_filter(_c2_dmg, actor, logs)
+                    _c2_dmg, _c2_crit = self._phys_retort(actor, _mult, logs, roll_crit=True)  # v180E 统一反击(以守为攻)
                     _hit_back(_c2_dmg)
                     logs.append(f"🥊 反击！你立刻回击造成 {_c2_dmg} 点伤害！"
                                 + (" 💥暴击" if _c2_crit else ""))
