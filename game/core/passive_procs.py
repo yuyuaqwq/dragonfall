@@ -48,6 +48,17 @@ P2-D3a 新增族（3 proc / 2 族，挂点6 _skill_passive_dmg_bonus 技能被�
                      与 element_affinity/broken_extend 等 D5 段同族，本批先收 element_sync）
                      element_sync（元素系技能 + 连续同系 → 置 _elem_sync_bonus；供挂印分支消费）
                      无返回值（纯副作用）；ps 空 dict（无参数置位型，学到即生效）
+
+P2-D3b 扩展族（5 proc / 0 新族，挂点14 _deal_damage 对敌标记/破绽/挽歌乘区，方案 §6.2/§2.3 挂点14）：
+    dmg_mult_cond    ctx["mult_kind"] 再扩 5 谓词（读 attacker 被动 → 对 target 增伤乘区）：
+                     hunt_mark（猎印 0.08 基础 + per_layer）/ soul_mark（魂标 0.06 基础 +
+                     per_layer）/ shaken_bar（敌破绽条 val≥bar_at → ×(1+mult)）/
+                     broken_break（破防免疫期 trigger_count/immune_turns>0 → ×(1+broken_mult)）/
+                     dirge_debuffs（敌负面种数 min(per_debuff×n, cap)）
+                     语义 = 原 5 段循环体逐字直搬；ctx 带 target 快照状态（debuffs 层数 /
+                     shaken dict）+ tags 引用槽；命中 break 语义由挂点 run_proc_family 单条循环保留。
+                     soul_mark_cap/broken_extend 双消费点：本批只收挂点14 乘区段（挂点16 cap 段 /
+                     挂点18 延长段后续批次收，届时同 handler 同族 ctx 参数化分派）。
 """
 from __future__ import annotations
 
@@ -232,6 +243,84 @@ def _h_dmg_mult_cond(battle, ctx: dict, ps: dict, ps_name: str):
             _swallow(battle, "passive_procs.element_origin", _sw_e)
             pass
         return None
+    if _kind == "hunt_mark":
+        # 挂点14 猎印 hunt_mark_up（自然之眼）——只负责被动额外加成段：
+        # 原循环体 `_hm_pct += per_layer; break`（基础 0.08/层 乘区是无被动的固有
+        # 标记语义，由挂点保留在 if _hm>0 块外——v180-C S3「标记基础谁打都吃」）。
+        # 返回 per_layer 增量（调用侧并入基础）；首条 break 由挂点循环保留。
+        _per = float(ps.get("per_layer", 0.0) or 0.0)
+        if _per <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.06）
+        return _per
+    if _kind == "soul_mark":
+        # 挂点14 魂标 soul_mark_cap（灵魂锁链）乘区段——同猎印：只加被动额外 per_layer
+        # （基础 0.06/层 由挂点保留）；cap 放宽段在挂点16 _apply_mech_effect（D4 收）
+        _per = float(ps.get("per_layer", 0.0) or 0.0)
+        if _per <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.08）
+        return _per
+    if _kind == "shaken_bar":
+        # 挂点14 气力之心 shaken_awareness：目标 buffs.shaken dict 且 val≥_ps.bar_at →
+        # ×(1+_ps.mult)；标签固定 🧠破绽x1.2；首条 break（即使不满足也 break——只判首条）。
+        # 守卫：shaken dict 存在性由调用侧 ctx["shaken"] 快照判（原 isinstance 外 if）
+        _bar = int(ps.get("bar_at", 0) or 0)
+        _mult = float(ps.get("mult", 0.0) or 0.0)
+        if _bar <= 0 or _mult <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 15/0.20）
+        _sh = ctx.get("shaken")
+        if not isinstance(_sh, dict):
+            return None
+        if int(_sh.get("val", 0) or 0) >= _bar:
+            _nv = ctx["mult"] * (1.0 + _mult)
+            ctx["mult"] = _nv
+            _tags = ctx.setdefault("tags", [])
+            if isinstance(_tags, list):
+                _tags.append("🧠破绽x1.2")
+            return _nv
+        return None
+    if _kind == "broken_break":
+        # 挂点14 破绽·极 broken_extend 乘区段：目标 shaken dict 且 trigger_count>0 且
+        # immune_turns>0（破防免疫期）→ ×(1+_ps.broken_mult)；标签 💢破防x…；首条 break。
+        # 守卫（trigger_count/immune_turns>0）由调用侧 ctx["shaken"] 快照（原外层 if）——
+        # handler 内再判一遍防御（调用侧守卫保留 + 此处兜底，双保险）
+        _bm = float(ps.get("broken_mult", 0.0) or 0.0)
+        if _bm <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.50）
+        _sh = ctx.get("shaken")
+        if not isinstance(_sh, dict):
+            return None
+        if int(_sh.get("trigger_count", 0) or 0) > 0 and int(_sh.get("immune_turns", 0) or 0) > 0:
+            _nv = ctx["mult"] * (1.0 + _bm)
+            ctx["mult"] = _nv
+            _tags = ctx.setdefault("tags", [])
+            if isinstance(_tags, list):
+                _tags.append(f"💢破防x{round(1 + _bm, 2)}")
+            return _nv
+        return None
+    if _kind == "dirge_debuffs":
+        # 挂点14 挽歌·极 dirge_debuff_dmg：读 battle._enemy_debuff_kind_count()（self.enemy
+        # 口径——原循环体直读，非 target）→ pct=min(_ps.per_debuff×种数, _ps.cap)；pct>0 →
+        # ×(1+pct)；标签 🎵挽歌x…；首条 break（无条件——只判首条）
+        _per = float(ps.get("per_debuff", 0.0) or 0.0)
+        _cap = float(ps.get("cap", 0.0) or 0.0)
+        if _per <= 0 or _cap <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.04/0.40）
+        _kinds = 0
+        try:
+            if hasattr(battle, "_enemy_debuff_kind_count"):
+                _kinds = int(battle._enemy_debuff_kind_count() or 0)
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.dirge_debuff_dmg", _sw_e)
+            pass
+        _pct_e = min(_per * _kinds, _cap)
+        if _pct_e > 0:
+            _nv = ctx["mult"] * (1.0 + _pct_e)
+            ctx["mult"] = _nv
+            _tags = ctx.setdefault("tags", [])
+            if isinstance(_tags, list):
+                _tags.append(f"🎵挽歌x{round(1 + _pct_e, 2)}")
+            return _nv
+        return None
     # ---- 挂点4 疾风·极 speed_ratio_dmg（缺省 mult_kind）----
     _ratio = float(ps.get("ratio", 0) or 0)
     _add = float(ps.get("dmg_add", 0) or 0)
@@ -248,7 +337,6 @@ def _h_dmg_mult_cond(battle, ctx: dict, ps: dict, ps_name: str):
     if isinstance(_tags, list):
         _tags.append(f"💨疾风x{round(1 + _add, 2)}")
     return ctx["mult"]
-
 
 # ---- 3.2 lifesteal_add（淬血 zhan_yi_lifesteal：挂点5 _settle_lifesteal）----
 @register("lifesteal_add")
@@ -500,6 +588,14 @@ declare_proc("speed_ratio_dmg", "dmg_mult_cond")
 declare_proc("arcane_resonance", "dmg_mult_cond")
 declare_proc("element_origin", "dmg_mult_cond")
 declare_proc("element_sync", "flag_set_cond")
+# P2-D3b：挂点14 _deal_damage 对敌标记/破绽/挽歌 5 proc（dmg_mult_cond ctx mult_kind 分派
+# hunt_mark/soul_mark/shaken_bar/broken_break/dirge_debuffs；乘区段语义直搬）——
+# soul_mark_cap/broken_extend 的双消费点（挂点16 cap 段 / 挂点18 延长段）由后续批次收
+declare_proc("hunt_mark_up", "dmg_mult_cond")
+declare_proc("soul_mark_cap", "dmg_mult_cond")
+declare_proc("shaken_awareness", "dmg_mult_cond")
+declare_proc("broken_extend", "dmg_mult_cond")
+declare_proc("dirge_debuff_dmg", "dmg_mult_cond")
 declare_proc("zhan_yi_lifesteal", "lifesteal_add")
 declare_proc("poison_cap_up", "stack_cap_add")
 declare_proc("poison_cap", "stack_cap_add")

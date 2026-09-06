@@ -46,13 +46,14 @@ def main():
     check("挂点6 无 3 proc 旧直读残留（mult/layers）", not old_reads, str(old_reads))
     check("挂点6 无 3 proc 旧 `passive_bonus *= (1 + float` 残留",
           "passive_bonus *= (1 + float(_ps.get(\"mult\", 0.0) or 0.0))" not in d3a_region)
-    # 挂点14 _deal_damage（D3b 收）未被误碰：5 段 for 直读仍在
-    check("挂点14 _deal_damage 5 段未迁移（D3b 待办）",
-          'get("hunt_mark_up"' in battle and 'get("shaken_awareness"' in battle
-          and 'get("dirge_debuff_dmg"' in battle and 'get("broken_extend"' in battle
-          and 'get("soul_mark_cap"' in battle)
-    check("挂点14 无 run_proc_family 新消费",
-          battle.count('_run_proc_family(self, "hunt_mark_up"') == 0)
+    # 挂点14 _deal_damage（D3b 收）已迁移：5 段走 run_proc_family（mult_kind 分派）
+    check("挂点14 5 proc 段消费注册表 mult_kind",
+          all(f'mult_kind": "{mk}"' in battle
+              for mk in ("hunt_mark", "soul_mark", "shaken_bar",
+                         "broken_break", "dirge_debuffs")))
+    check("挂点14 5 proc 有 run_proc_family 消费",
+          battle.count('_run_proc_family(self, "hunt_mark_up"') > 0
+          and battle.count('_run_proc_family(self, "dirge_debuff_dmg"') > 0)
     # 注册表
     check("passive_procs 声明 3 proc",
           all(f'declare_proc("{p}", "{f}")' in procs
