@@ -7797,6 +7797,9 @@ class Battle:
             pet.setdefault("buffs", {})
             pet["hidden"] = True
             pet["untargetable"] = True
+            # v180F B4：宠物归属 owner = 焦点玩家（与召唤物同语义，挡刀/治疗归属读 owner）
+            if not pet.get("owner") and self.player:
+                pet["owner"] = self.player
             # v180E 阶段2：skill_type → auto_act（block 除外——挡刀走 guard）
             if not pet.get("auto_act"):
                 pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
@@ -9102,7 +9105,10 @@ class Battle:
                      "act": {"type": "basic_atk"},
                  } if atk > 0 else None,
                  # v180-B ② guard 数据化：bodyguard/absorb_once → 统一挡刀配置
-                 "guard": guard}
+                 "guard": guard,
+                 # v180F B4：随从归属显式 owner（召唤者 actor 引用）——挡刀/宠物行为/
+                 # 治疗归属读 owner，不再靠 _last_player 猜（多人副本歧义消除）
+                 "owner": player}
         self.companions.append(actor)
         # v151 古树光环：常驻全队攻击 +30%（生成时挂 p_buffs，直到召唤物死亡）
         _aura = float(cfg.get("aura_atk_all", 0) or 0)
@@ -9204,7 +9210,7 @@ class Battle:
             # 伤害类宠物技能数值照旧用 owner 面板（v180-C 定论：宠物伤害=主人面板×系数，
             # 归属 attacker=宠物 actor → 被动读宠物自身），与旧 _psk_* 逐字等价。
             if atype in ("dmg_owner_atk", "matk_pct", "lifesteal", "pierce"):
-                owner = getattr(self, "_last_player", None) or self.player or {}
+                owner = actor.get("owner") or getattr(self, "_last_player", None) or self.player or {}
                 if not owner:
                     return False
                 target = self._pick_summon_target(actor)
@@ -9238,7 +9244,7 @@ class Battle:
                     logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！(宠物击杀)")
                 return True
             if atype == "heal_owner":
-                owner = getattr(self, "_last_player", None) or self.player or {}
+                owner = actor.get("owner") or getattr(self, "_last_player", None) or self.player or {}
                 if not owner:
                     return False
                 if owner.get("hp", 0) < owner.get("max_hp", 1):
@@ -9249,7 +9255,7 @@ class Battle:
                     logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！" + (f"「{act.get('line', '')}」" if act.get("line") else ""))
                 return True
             if atype == "buff_owner":
-                owner = getattr(self, "_last_player", None) or self.player or {}
+                owner = actor.get("owner") or getattr(self, "_last_player", None) or self.player or {}
                 if not owner:
                     return False
                 bkey = act.get("buff", "")
@@ -9369,7 +9375,7 @@ class Battle:
             removed += compact(self.allies)
         return removed
 
-    def _guard_check(self, dmg: int, logs: list) -> int:
+    def _guard_check(self, dmg: int, logs: list, victim: dict | None = None) -> int:
         """v180E 阶段3 统一挡刀核心（absorb + redirect 双模式合一，扫 companions）。
 
         任何我方随从 actor（companions 里 side=player）带 guard 配置即按字段生效——
@@ -9378,12 +9384,19 @@ class Battle:
           强化 + absorb_once 吸收 1 次消散）
         不再区分 pet/summons 专用容器/专用函数（原 _pet_block_check + _guard_redirect_check
         双轨合一）。触发后本次伤害不再结算到玩家（拦截优先于闪避/格挡）。
+        v180F B4：victim = 受击者 actor（缺省 = 焦点玩家）。挡刀池按随从 owner 归属过滤——
+        只挡自己主人的刀（多人副本 A 的随从不挡 B 的刀）。
         """
         if dmg <= 0:
             return dmg
+        _victim = victim or getattr(self, "player", None) or {}
         guard_actors = [s for s in (self.companions or [])
                         if isinstance(s.get("guard"), dict)
-                        and s.get("guard").get("mode") in ("absorb", "redirect")]
+                        and s.get("guard").get("mode") in ("absorb", "redirect")
+                        # v180F B4：归属过滤——随从 owner 是受击者（或未带 owner 的旧随从
+                        # 兜底 = 焦点玩家场景不误挡他人）
+                        and (s.get("owner") is _victim
+                             or (not s.get("owner") and _victim is getattr(self, "player", None)))]
         if not guard_actors:
             return dmg
         # 召唤物 redirect 池带 hp 才可挡（死了/纯效果发生器除外）；absorb 宠物无 hp 也挡
@@ -9396,7 +9409,7 @@ class Battle:
         # redirect 池优先于 absorb（召唤物概率挡刀先判定，命中则承担；miss 才轮到宠物冷却挡）
         if _redirect_pool:
             try:
-                _owner = self.player or {}
+                _owner = _victim or {}
                 sp = float(self._player_stats(_owner).get("summon_power", 0) or 0) if _owner else 0
             except Exception:
                 sp = 0
@@ -9405,14 +9418,15 @@ class Battle:
             if random.random() < chance:
                 # 按随从 def 结算——从对玩家伤害反推攻击方等效 atk，再套随从防御公式
                 try:
-                    _owner2 = self.player or {}
+                    _owner2 = _victim or {}
                     _pdef = max(0, int(self._player_stats(_owner2).get("def", 0) or 0)) if _owner2 else 0
                     _atk = self._infer_atk(dmg, _pdef)  # v180E 统一反推
                     taken = max(1, int(E.calc_damage(_atk, max(0, int(s.get("def", 0) or 0)), variance=0)))
                 except Exception:
                     taken = max(1, int(dmg))
                 s["hp"] -= taken
-                logs.append(f"{s.get('icon', '')} {s['name']} 为你挡下 {taken} 点伤害！")
+                _vname = _victim.get("name", "你") if _victim else "你"
+                logs.append(f"{s.get('icon', '')} {s['name']} 为{_vname}挡下 {taken} 点伤害！")
                 # v151：纯挡刀随从（absorb_once）吸收 1 次单体后消失（v151 §7 藤蔓守卫）
                 if s["guard"].get("absorb_once"):
                     logs.append(f"🌿 {s['name']} 完成守护，化作碎屑消散……")
@@ -9445,7 +9459,8 @@ class Battle:
                     s["_guard_last_at"] = self._now
                     pname = s.get("name") or gd.get("name", "宠物")
                     sname = gd.get("skill_name", "守护")
-                    logs.append(f"🐾 {pname}的【{sname}】替你挡下了这次攻击！")
+                    _vname = _victim.get("name", "你") if _victim else "你"
+                    logs.append(f"🐾 {pname}的【{sname}】替{_vname}挡下了这次攻击！")
                     return 0
         return dmg
 
@@ -10291,8 +10306,9 @@ class Battle:
         # v180-B：宠物/召唤物挡刀只服务主人（玩家受击）——怪受击也调 _damage_actor 后
         # 此段曾对怪触发（召唤技能打怪→怪受击→玩家召唤物挡刀自杀，v177 actor 化回归）
         # v180E 阶段3：absorb(宠物影袭) + redirect(召唤物) 双模式合一 _guard_check
+        # v180F B4：挡刀服务**受击者本人**（任意玩家侧 actor）——随从按 owner 归属挡自己主人的刀
         if _is_player:
-            dmg = self._guard_check(dmg, logs)
+            dmg = self._guard_check(dmg, logs, actor)
         if dmg <= 0:
             # O116 还原原顺序：先报攻击伤害，再报挡刀
             _pl = self._drain_pending_dmg()

@@ -229,8 +229,9 @@ def test_pet_block_before_dodge():
         random.random = _orig
     check("对照组 random=0.01 触发闪避", any("闪避" in l for l in logs0), str(logs0))
     # 实验组：黑猫(影袭 interval=3 value=0.25, round=3)，random=0.01 → 影袭拦截在闪避前
+    # v180F B4：随从 owner = 构造 player（挡刀按归属）——p 必须作为焦点玩家传入
     hp_before = p["hp"]
-    b = BT.Battle("monster", make_monster(),
+    b = BT.Battle("monster", make_monster(), player=p,
                   pet={"pet_key": "pet_cat", "name": "黑猫", "level": 10, "satiety": 100})
     b._now = 3.0  # v154 时间冷却制：开战 3 秒后影袭可用（interval=3 命中）
     logs = []
@@ -239,11 +240,11 @@ def test_pet_block_before_dodge():
         b._damage_player(p, 50, logs)
     finally:
         random.random = _orig
-    check("影袭挡下攻击（优先于闪避）", any("替你挡下了" in l for l in logs), str(logs))
+    check("影袭挡下攻击（优先于闪避）", any("挡下了" in l for l in logs), str(logs))
     check("拦截后无闪避日志（未进入闪避判定）", not any("闪避" in l for l in logs), str(logs))
     check("玩家未掉血", p["hp"] == hp_before, f"hp={p['hp']}")
     # 非触发时刻（开战 3 秒内）→ 影袭不拦，正常走闪避
-    b2 = BT.Battle("monster", make_monster(),
+    b2 = BT.Battle("monster", make_monster(), player=p,
                    pet={"pet_key": "pet_cat", "name": "黑猫", "level": 10, "satiety": 100})
     b2._now = 1.0  # v154 时间冷却制：开战 1 秒 < interval=3 → 冷却中
     logs2 = []
