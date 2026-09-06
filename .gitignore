@@ -53,3 +53,6 @@ game/data/t2i_templates/
 design/
 
 scripts/.spy_*_state.json
+
+# 历史工作产物归档（2026-09-07 鱼鱼拍板：无用文件统一归档但 git 忽略）
+_archive_unused/
