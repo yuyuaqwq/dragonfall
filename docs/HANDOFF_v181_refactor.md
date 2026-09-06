@@ -22,12 +22,16 @@
 | 724598e+merge | docs: REFACTOR_P2F_formula_skeleton.md（公式骨架方案 241 行）|
 | 1795508+merge | docs: REFACTOR_P2E_mech_cfg.md（CFG 收敛方案 391 行）|
 | 6b56e8a+merge | v181.P0B-B skill_up 止血（628→305，删 323 行，等价探针+346 断言全绿）|
+| 8e10477+merge | v181.P2F1 公式骨架参数化（新建 formula_skeleton.py，F2/F3/F4/F7/F9/F15/F16，372行探针0diff）|
 
 ## 进行中（子 agent 并行，各占 worktree，等合并）
 
+> 🛑 **2026-09-07 夜停点**：鱼鱼换 key，本轮到此暂停。P0B-B 与 P2F-1 已合并收官（numeric 51/51）。
+> 后续队列见下节，换 key 后从 P0B-C 继续。
+
 | worktree/分支 | 任务 | 状态 |
 |---|---|---|
-| w9 wt_p2f1 | P2F-1 公式参数化实施（新建 formula_skeleton.py）| 运行中（P0B-B 已完成合并 3fdd7a4）|
+| （全部 worktree 已清，等下一轮重建）| — | — |
 
 ## 方案文档全齐（已合并 master，待实施）
 
