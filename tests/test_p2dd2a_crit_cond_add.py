@@ -239,7 +239,8 @@ def test_registry_and_multi():
         check(f"{proc} → crit_cond_add", PP.PROC_FAMILIES.get(proc) == "crit_cond_add",
               str(PP.PROC_FAMILIES.get(proc)))
     check("crit_cond_add 执行器已注册", "crit_cond_add" in PP.FAMILY_HANDLERS)
-    check("FAMILY_HANDLERS 共 6 族", len(PP.FAMILY_HANDLERS) == 6, str(list(PP.FAMILY_HANDLERS)))
+    # P2-D2b：stat_mult_cond 并入 → 共 7 族（6 + stat_mult_cond）
+    check("FAMILY_HANDLERS 共 7 族", len(PP.FAMILY_HANDLERS) == 7, str(list(PP.FAMILY_HANDLERS)))
     # 零默认值：_ps 空 dict / 缺 add → 不触发（缺字段 = 无此行为）
     for kind in ("zhan_yi", "arcane", "focus", "element_mark"):
         ctx = {"player": {}, "info": {"element": "fire"}, "res_kind": kind,
