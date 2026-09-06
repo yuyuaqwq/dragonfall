@@ -77,9 +77,10 @@ po = FE.eval_expr(FE.compile_expr("matk*1.1 + 15 + player_lv*3.8 + skill_lv*10")
 net_round = 250 / max((suo + po) * 0.85, 1)  # 两技轮换打 250HP 怪
 check(f"Lv10 锁音+破音轮换 {net_round:.1f} 轮杀怪（≤5）", net_round <= 5, f"{net_round:.1f}")
 
-# 4. SKILL_UP 配置
+# 4. SKILL_UP 配置（v181 P0B-C：key 已改稳定 id → 按条目 name 断言）
+_up_names = {v.get("name") for v in SKILL_UP.values() if isinstance(v, dict)}
 for nm in ["锁音", "破音", "共振"]:
-    check(f"{nm} SKILL_UP 已配", nm in SKILL_UP, "")
+    check(f"{nm} SKILL_UP 已配", nm in _up_names, "")
 
 # 5. 普攻 basic_skill matk
 bs = CLASSES["cls_shi_ren"]["basic_skill"]

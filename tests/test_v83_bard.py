@@ -146,9 +146,12 @@ async def main():
     for _t in _BR.values():
         for _bn in _t.values():
             all_names |= {v.get("name") for v in _bn.values()}
+    # v181 P0B-C：SKILL_UP key 已改稳定 id → 覆盖断言从『中文名 in SKILL_UP』改为
+    # 『中文名 ∈ SKILL_UP 条目 name 字段』（E.C.SKILL_UP.values() 的 name）；语义不变。
     # 已知缺口白名单（v153 新增技能暂无 SKILL_UP 配置 = 数据缺陷，非断言过时）
     _KNOWN_GAP = {"安眠曲", "和声", "疾走音", "拨弦", "音刃"}
-    miss = [n for n in sorted(all_names) if n not in E.C.SKILL_UP and n not in _KNOWN_GAP]
+    _up_names = {v.get("name") for v in E.C.SKILL_UP.values() if isinstance(v, dict)}
+    miss = [n for n in sorted(all_names) if n not in _up_names and n not in _KNOWN_GAP]
     check("诗人全部技能在 SKILL_UP（白名单除外）", not miss, f"missing={miss}")
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
