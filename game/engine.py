@@ -4,6 +4,7 @@ import random
 
 from . import content as C
 from .data.battle_config import ELEMENT_REACTIONS, TIER_GROWTH, BRANCH_BONUS, BRANCH_BONUS_BY_CLASS, MECH_STACK_MAX  # v125.2 B1 元素反应表 + v181 P0-A 三表下沉数据层（对外接口不变）
+from .data.formula_skeleton import FORMULA_SKELETON  # P2F-1 底层公式骨架参数（技能成长默认/F7/F9/F15）
 from .core.skill_kinds import K_PASSIVE  # v176 去魔法字符串
 
 
@@ -740,8 +741,10 @@ def is_skill_learned(class_name: str, level: int, skill_name: str, learned_skill
 
 def skill_learn_cost(need_lv: int) -> int:
     """学习技能消耗的技能点(v12：按技能等级定价，等级越高越贵)
-    v104 R3 P2-17：删除未使用的 level 死参数（原签名 level, need_lv 但成本只与 need_lv 挂钩）"""
-    return need_lv // 6 + 2
+    v104 R3 P2-17：删除未使用的 level 死参数（原签名 level, need_lv 但成本只与 need_lv 挂钩）
+    P2F-1：定价参数进 data/formula_skeleton.py（FORMULA_SKELETON["skill_learn_cost"]，//6+2）"""
+    _c = FORMULA_SKELETON["skill_learn_cost"]
+    return need_lv // _c["divisor"] + _c["base"]
 
 
 def skill_learn_cost_for(player: dict, need_lv: int) -> int:
@@ -880,10 +883,11 @@ def skill_expr_preview(info: dict | None, level: int, stats: dict | None = None)
 
 def skill_power_mult(level: int, info: dict | None = None) -> float:
     """技能等级对 power 的倍率（v180 鱼鱼：没配 p = 无成长，删默认兜底——默认每级+10% 曾
-    误伤无 SKILL_UP 配置的怪物技能：按折算等级白吃成长 ×1.4。现配了 p 才成长，没配恒 1.0）"""
+    误伤无 SKILL_UP 配置的怪物技能：按折算等级白吃成长 ×1.4。现配了 p 才成长，没配恒 1.0）
+    P2F-1：/100 系数进 data/formula_skeleton.py（FORMULA_SKELETON["skill_growth"]["power_per_lv_divisor"]）"""
     lv = max(1, min(level, skill_max_level(info)))
     p = int(_skill_up(info).get("p", 0) or 0)
-    return 1.0 + (p / 100) * (lv - 1)
+    return 1.0 + (p / FORMULA_SKELETON["skill_growth"]["power_per_lv_divisor"]) * (lv - 1)
 
 
 def skill_flat_value(player_lv: int, skill_lv: int, info: dict | None = None) -> int:
@@ -912,38 +916,47 @@ def skill_buff_turns(level: int, base: int = 3, info: dict | None = None) -> int
     """增益技能升级：每级持续刻＋1。
 
     v162：info 配了 buff_turns 时用它做 base（每个增益技能 desc 的持续各不相同——
-    铁壁 8 / 战吼 10 / 冥想 6），否则默认 3（Lv.1=3，Lv.5=7）。"""
+    铁壁 8 / 战吼 10 / 冥想 6），否则默认 3（Lv.1=3，Lv.5=7）。
+    P2F-1：默认 base/每级成长进 data/formula_skeleton.py（FORMULA_SKELETON["skill_growth"]）"""
+    _sg = FORMULA_SKELETON["skill_growth"]
+    if base is None or base == 3:
+        base = int(_sg["buff_turns_base"])
     lv = max(1, min(level, skill_max_level(info)))
     if info is not None:
         _bt = info.get("buff_turns")
         if _bt:
             base = int(_bt)
-    return base + (lv - 1)
+    return base + (lv - 1) * int(_sg["buff_turns_per_lv"])
 
 
 def skill_cond_mult(cond: dict | None, level: int, info: dict | None = None) -> float:
-    """条件转化倍率随等级成长。info 配了 c 时按该技能成长，否则默认每级＋0.05"""
+    """条件转化倍率随等级成长。info 配了 c 时按该技能成长，否则默认每级＋0.05
+    P2F-1：默认每级成长进 data/formula_skeleton.py（FORMULA_SKELETON["skill_growth"]["cond_default"]）"""
     if not cond:
         return 1.0
     lv = max(1, min(level, skill_max_level(info)))
-    c = _skill_up(info).get("c", 0.05)
+    c = _skill_up(info).get("c", FORMULA_SKELETON["skill_growth"]["cond_default"])
     return cond.get("mult", 1.0) + c * (lv - 1)
 
 
 def skill_mech_val(info: dict, level: int) -> int:
-    """机制叠层随等级成长。info 配了 m 时按该技能间隔，否则默认每 2 级＋1 层"""
+    """机制叠层随等级成长。info 配了 m 时按该技能间隔，否则默认每 2 级＋1 层
+    P2F-1：默认间隔进 data/formula_skeleton.py（FORMULA_SKELETON["skill_growth"]["mech_default_div"]）"""
+    _sg = FORMULA_SKELETON["skill_growth"]
     base = int(info.get("mech_val", 0) or 0)
     lv = max(1, min(level, skill_max_level(info)))
-    m = max(1, int(_skill_up(info).get("m", 2) or 0))  # v109.2 防御：m≤0 时按默认 2（防除零）
+    m = max(1, int(_skill_up(info).get("m", _sg["mech_default_div"]) or 0))  # v109.2 防御：m≤0 时按默认 2（防除零）
     return base + (lv - 1) // m
 
 
 def skill_lifesteal_pct(info: dict | None, level: int) -> float:
     """吸血比例随等级成长：基础读技能 lifesteal 字段（如嗜血斩 0.25），未配置默认 20%；配了 l 时每级＋2%
-    v104 R3 P2-10 修复：原固定 0.20 基础不读 lifesteal 字段 → 嗜血斩 desc 承诺 25% 实机 20%"""
+    v104 R3 P2-10 修复：原固定 0.20 基础不读 lifesteal 字段 → 嗜血斩 desc 承诺 25% 实机 20%
+    P2F-1：默认 base/每级除数进 data/formula_skeleton.py（FORMULA_SKELETON["skill_growth"]）"""
+    _sg = FORMULA_SKELETON["skill_growth"]
     lv = max(1, min(level, skill_max_level(info)))
-    base = float((info or {}).get("lifesteal", 0) or 0) or 0.20
-    return base + _skill_up(info).get("l", 0) / 100 * (lv - 1)
+    base = float((info or {}).get("lifesteal", 0) or 0) or _sg["lifesteal_default"]
+    return base + _skill_up(info).get("l", 0) / _sg["lifesteal_per_lv_divisor"] * (lv - 1)
 
 
 def skill_level_of(player: dict, skill_name: str) -> int:

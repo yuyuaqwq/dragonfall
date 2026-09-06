@@ -192,6 +192,9 @@ DOT_SATURATE_MULT = 0.8                    # 律五：饱和后乘区收敛倍�
 def prof_exp_need(lv):
     """副业升级经验需求（v105 平衡曲线）：need(lv) = 5*lv² + 15*lv
 
+    P2F-1：系数 a/b 进 data/formula_skeleton.py（FORMULA_SKELETON["prof_exp_need"]，默认 a=5/b=15）。
+    函数本体留在 core/constants.py（全文件唯一函数待后续清理批）；延迟导入防装配期循环
+    （data._assembly → core.maps → 本模块 时 game.data 尚未完成初始化，同 skill_flat_value 式函数内导入）
     设计意图（2026-08-13 鱼鱼拍板"无脑 x20 不合适"）：
     - 累计 2100 满级（原线性累计 900，无脑 x20 前期过快后期无爬升感）
     - 前期快：Lv.1→2 仅 20（新手第一天解锁基础配方），拜师礼 50 可跳 Lv.2
@@ -200,4 +203,6 @@ def prof_exp_need(lv):
     - 满级周期估算：等待型（可挂机）约 1 个月，制造型（体力限制）约 2-3 个月
     - 存量玩家兼容：exp 按级内进度存储，曲线变更只影响后续升级需求，已满级不受影响
     """
-    return 5 * lv * lv + 15 * lv
+    from ..data import FORMULA_SKELETON  # P2F-1 延迟导入（运行期调用时 data 必已装配完成）
+    _p = FORMULA_SKELETON["prof_exp_need"]
+    return _p["a"] * lv * lv + _p["b"] * lv
