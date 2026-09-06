@@ -90,6 +90,8 @@ b3._now = b3._now + 4 * _act + 0.1  # 推进超过 cd=3 刻的绝对时刻
 b3._process_until(b3._now, logs2, p)
 p["mp"] = 999
 logs2c, done2c = b3.player_turn('skill', target_name, p, enemy_act=False)
+# v180G B7 统一 CTB：出手登记后推进到命中结算（cast_done 在 p_ct 前触发）
+b3._process_until(float(getattr(b3, "p_ct", 0) or 0) + 0.001, logs2c, p)
 check("CD 到期后放行", any("造成" in x for x in logs2c) and not any("冷却" in x for x in logs2c),
       str(logs2c)[:150])
 # 过 3 回合后再施放成功（v152 时刻制：推进 3×ACT_TICK 使 ready_at 到期）

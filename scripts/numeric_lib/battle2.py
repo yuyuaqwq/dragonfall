@@ -265,11 +265,11 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
 
     for seed in range(seeds):
         random.seed(seed)  # 固定种子序列 seed 0..N-1，可复现（与 numeric_sim 同款）
-        # 每场重建敌方与玩家：boss 每场重新展开（build_monster 全新实例，防串场）；
-        # player 每场浅拷贝模板（战斗内改的是副本）
-        player = dict(player_base)
+        # 每场重建敌方与玩家：boss 每场重新展开（build_monster 全新实例，防串场）
         b = BT.Battle(btype="monster", enemy=boss_of(boss_def, iid=iid, n_players=n_players),
-                      player=dict(player))
+                      player=dict(player_base))
+        # v180G B7：循环与 Battle 共用同一 player 对象——b.player 是权威（出手/承伤/存活判定）
+        player = b.player
         turns = 0
         while b.result is None and turns < max_turns:
             acted = False
@@ -285,6 +285,8 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
                     continue   # 攒层大招层数未满 → 本轮不放（等层）
                 prev_acts = b._p_acts
                 b.player_turn("skill", skill_name, player)
+                # v180G B7 统一 CTB：出手登记后推进到下一个决策点（命中/怪行动结算）
+                b.advance_until_next_decision([])
                 if b._p_acts != prev_acts:
                     acted = True     # 施放成功 → 本回合结束
                     break
@@ -293,6 +295,7 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
             else:
                 # 全部技能被拦截 → 普攻（numeric_sim 121-124 行同款转普攻逻辑）
                 b.player_turn("attack", None, player)
+                b.advance_until_next_decision([])
                 acted = True
             if b.result is not None:
                 break

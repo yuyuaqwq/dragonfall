@@ -118,9 +118,12 @@ def class_battle_matrix(cls: str, lv: int, attr: dict, equip: dict | None,
             # v152：round 已删除 → 用 _p_acts（玩家行动次数）判定技能拦截（未消耗行动则不变）
             prev_acts = b._p_acts
             b.player_turn("skill" if use_skill else "attack", skill_name, player)
+            # v180G B7 统一 CTB：出手登记后推进到下一个决策点（命中/怪行动结算）
+            b.advance_until_next_decision([])
             # 技能施放被拦截：player_turn 不消耗行动（_p_acts 不变、result 仍空）→ 转普攻
             if use_skill and b._p_acts == prev_acts and b.result is None:
                 b.player_turn("attack", None, player)
+                b.advance_until_next_decision([])
             turns += 1
         if b.result == "victory":
             wins += 1

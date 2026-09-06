@@ -2894,6 +2894,10 @@ class Battle:
             _p = player or self.player or {}
             # v154：总耗时 = 动作耗时（出招+收招，已含速度折算），无恢复间隔
             self.p_ct = _now + float(cast_mult or 1.0)
+            # v180G B6/B7 统一 CTB：出手者 actor 自己的 next_act_at 也落快照 ct 字段
+            # （allies 非焦点玩家决策表读各自 ct；焦点玩家 p_ct 与 ct 同步）
+            if isinstance(_p, dict) and _p.get("class_name"):
+                _p["ct"] = self.p_ct
             # 敌方：绝对时刻制下无需互相调整（next_act_at 已是绝对值）。兜底初始化。
             for u in self.enemies:
                 if "ct" not in u or float(u.get("ct", 0) or 0) <= 0:
@@ -3246,20 +3250,23 @@ class Battle:
             self._p_buffs_bag().pop("stun", None)
             if self.btype != "pvp":
                 self._after_actor_ct("p", player=player)
-            return self._enemy_phase(player, logs, enemy_act)
+            # v180G B7 统一 CTB：出手登记后不推进，事件推进由命令层 advance_until_next_decision 统一完成
+            return logs, self.result is not None
         if "freeze" in self._p_buffs_bag():
             logs.append("❄️ 你被冻结，无法行动！")
             self._p_buffs_bag().pop("freeze", None)
             if self.btype != "pvp":
                 self._after_actor_ct("p", player=player)
-            return self._enemy_phase(player, logs, enemy_act)
+            # v180G B7 统一 CTB：出手登记后不推进
+            return logs, self.result is not None
 
         # v2 蓄力期间：普攻/技能被拦截（可防御/道具），敌方照常行动
         if self._player_charging_blocked(logs, action):
             # v121 CTB：蓄力等待也是玩家行动 → 玩家 ct 照走（PVP 不介入）
             if self.btype != "pvp":
                 self._after_actor_ct("p", player=player)
-            return self._enemy_phase(player, logs, enemy_act, defend=(action == "defend"))
+            # v180G B7 统一 CTB：出手登记后不推进
+            return logs, self.result is not None
 
         # v2 目标解析（攻击/技能指定的目标；其余行动重置为主目标）
         if action in ("attack", "skill"):
@@ -3303,7 +3310,8 @@ class Battle:
             _cast_mult = self._item_payload_cast(skill_name or "")
             if self.btype != "pvp":
                 self._after_actor_ct("p", player=player, cast_mult=_cast_mult)
-            return self._enemy_phase(player, logs, enemy_act)
+            # v180G B7 统一 CTB：出手登记后不推进
+            return logs, self.result is not None
 
         st = self._player_stats(player)
         # v154 读条命中制：技能/普攻出手瞬间 → 排 cast_done 事件（出招读条结束 = 命中时刻结算）
@@ -3383,8 +3391,9 @@ class Battle:
                 self._end_round()
                 return logs, True
 
-        # 敌方行动段
-        return self._enemy_phase(player, logs, enemy_act)
+        # v180G B7 统一 CTB：出手登记后不推进——事件推进由命令层
+        # advance_until_next_decision 统一完成（单人=多人同一套代码）。
+        return logs, self.result is not None
 
     def _enemy_phase(self, player: dict, logs: list, enemy_act: bool, defend: bool = False) -> tuple:
         """v152 真·事件队列：推进战斗时刻到玩家下次可行动点，期间处理所有事件（敌方行动/DOT/机制）。
@@ -3590,7 +3599,8 @@ class Battle:
                        skip_enemy: bool = False):
         """处理所有 t <= until_t 的事件。这是 v152 事件队列核心调度。
         skip_enemy: True 时跳过 enemy_act 事件（副本/PVP 外部驱动敌方，v157 防双重行动）"""
-        if until_t <= self._now:
+        # v180G B7：允许 until == now（同刻事件未处理完时推进器会再调）——严格 < 才跳过
+        if until_t < self._now:
             return
         _guard = 0
         from .core.formation import alive_units
@@ -3767,6 +3777,158 @@ class Battle:
             except Exception as _ex:
                 # 单个事件异常不阻塞队列（防御性，避免一个坏事件死循环）
                 logs.append(f"(事件处理异常: {_ex})")
+
+    # ============================================================
+    # v180G B6/B7 统一 CTB 推进器（一套代码：单人=副本=世界Boss=PVP）
+    # 唯一"事件推进"入口——所有命令层驱动战斗都调它，不各自手写窗口推进。
+    # ============================================================
+    def player_act(self, action: str, skill_name: str | None, player: dict, target=None, enemy_act: bool = True) -> tuple:
+        """v180G B7 统一 CTB 行动接口（命令层唯一入口）：
+        1) 玩家出手登记（player_turn 纯登记：扣资源/排事件/更新行动点）
+        2) 推进到下一个真人决策点（advance_until_next_decision：事件自动结算）
+
+        返回 (logs, ended, who)：
+        - logs：出手日志 + 推进期间事件日志
+        - ended：战斗是否结束（result 已置）
+        - who：下一个该决策的玩家 dict（多人副本可能不是出手者）；ended 时为 None
+
+        单人：who == 出手者自己（或 None if ended）；多人：按行动点交错返回下一个真人。
+        """
+        logs, ended = self.player_turn(action, skill_name, player, enemy_act=enemy_act, target=target)
+        if not ended:
+            _act, _who = self.advance_until_next_decision(logs)
+            if _act == "over" or self.result:
+                ended = True
+                _who = None
+        else:
+            _who = None
+        return logs, ended, _who
+    def _player_next_act_times(self) -> list:
+        """所有存活真人玩家的下次可行动绝对时刻列表。焦点玩家 p_ct；副本 allies 各 ct。
+        时刻 <= now 视为"已到点"（该玩家应立即决策）——返回 now 使其最先被选出。"""
+        _pl0 = self.player or {}
+        times = []
+        if _pl0.get("class_name") and (_pl0.get("hp", 1) > 0):
+            _pt = float(getattr(self, "p_ct", 0) or 0)
+            times.append(_pt if _pt > self._now else self._now)
+        for _a in (self.allies or []):
+            if _a is _pl0:
+                continue
+            if _a.get("class_name") and _a.get("hp", 1) > 0:
+                _at = float(_a.get("ct", 0) or 0)
+                times.append(_at if _at > self._now else self._now)
+        return times
+
+    def _player_who_at(self, t: float):
+        """t 时刻该行动的真人玩家。玩家行动点 <= t（已到点）时返回该玩家。"""
+        _pl0 = self.player or {}
+        _pt = float(getattr(self, "p_ct", 0) or 0)
+        if _pl0.get("class_name") and _pl0.get("hp", 1) > 0 and _pt <= t + 1e-9:
+            return _pl0
+        for _a in (self.allies or []):
+            if _a is _pl0:
+                continue
+            if _a.get("class_name") and _a.get("hp", 1) > 0 and float(_a.get("ct", 0) or 0) <= t + 1e-9:
+                return _a
+        # 焦点玩家行动点 > t 但 allies 都未到？找行动点最小的存活玩家兜底
+        best = None
+        best_t = None
+        for _cand in [(_pl0, _pt)] + [(_a, float(_a.get("ct", 0) or 0)) for _a in (self.allies or []) if _a is not _pl0]:
+            if _cand[0].get("class_name") and _cand[0].get("hp", 1) > 0:
+                if best_t is None or _cand[1] < best_t:
+                    best_t = _cand[1]
+                    best = _cand[0]
+        return best
+
+    def advance_until_next_decision(self, logs, defend: bool = False):
+        """v180G B6/B7 统一推进：结算所有到点事件，停在下一个真人玩家决策点。
+
+        返回 ("player", 玩家dict) 轮到该玩家决策 | ("over", None) 战斗结束。
+
+        语义（鱼鱼拍板标准 CTB）：
+        - 事件堆按绝对时刻排（怪 enemy_act / cast_done 命中 / tick 系）
+        - 循环：下一事件 vs 下一玩家行动点，谁先到处理谁
+          · 事件先到 → 自动结算（怪 AI 出手、命中落定、dot 跳）→ 继续
+          · 玩家行动点先到 → 推进到该时刻（期间结算 <= 它的事件）→ 返回该玩家
+        - 无存活真人（怪vs怪）→ 事件跑完到结束
+        命令层每次玩家出手后调本方法推进到下一个决策边界。
+        """
+        _guard = 0
+        while self.result not in ("victory", "defeat") and _guard < 128:
+            _guard += 1
+            # 注：不用 _check_side_end 做提前结束判定——instance/命令层后绑玩家场景下
+            # sides 可能只有 enemy（player 后绑不在 sides），存活阵营 ≤1 误判提前结束。
+            # 战斗结束统一由事件处理（_enemy_dead/_actor_dead 置 result）与下方决策点判定完成。
+            _ptimes = self._player_next_act_times()
+            _dt = min(_ptimes) if _ptimes else None
+            _et = self._events[0][0] if self._events else None
+            if _dt is None and _et is None:
+                return ("over", None)
+            if _et is not None and (_dt is None or _et <= _dt + 1e-9):
+                # 事件先到 → 结算该事件（推进到事件时刻，_process_until 处理堆顶及同刻）
+                # v180G B7：事件时刻 == now（同刻恢复/浮点）也调 _process_until——它内部
+                # 处理堆顶 t <= until 的事件并把 now 推到事件时刻（严格 < 才跳过）。
+                self._process_until(max(_et, self._now), logs, self.player or {}, defend=defend)
+                if self.result:
+                    return ("over", None)
+                continue
+            # 玩家行动点先到 → 推进到它（期间结算 <= 它的事件），返回该玩家
+            if _dt is not None:
+                if _dt > self._now:
+                    self._process_until(_dt, logs, self.player or {}, defend=defend)
+                    # v180G B7：_process_until 只把 now 推到<=_dt 的最新事件时刻；
+                    # 补推进到玩家决策点（buff/CD/DOT 用绝对时刻到期，与旧 _enemy_phase 同语义）
+                    _gap = _dt - self._now
+                    if _gap > 0:
+                        self._advance_time(_gap)
+                if self.result:
+                    return ("over", None)
+                # v167.3 补结算语义收编：决策点右边界越界的敌方读条命中不丢失——
+                # 直接结算（复刻 _process_until cast_done(side=e) 分支伤害落地）。
+                self._settle_cross_boundary_hits(logs, player=self.player or {}, until=_dt, defend=defend)
+                if self.result:
+                    return ("over", None)
+                _who = self._player_who_at(_dt)
+                return ("player", _who) if _who else ("over", None)
+        return ("over", None)
+
+    def _settle_cross_boundary_hits(self, logs, player=None, until=None, defend=False):
+        """v167.3 补结算（收编自 _enemy_phase）：推进到决策点(until)后，若敌方已出招
+        （动画已播）但命中时刻略超决策点右边界，直接把伤害结算掉，避免命中丢失。
+        只处理队首越界 cast_done（不 while 追新：敌方新出招留给下次推进，防一次
+        行动内敌方多次结算）。instance 模式由命令层补结算，此处跳过。"""
+        if self.btype == "instance":
+            return
+        try:
+            if not self._events:
+                return
+            _peek0 = self._events[0]
+            if _peek0[2].get("type") != "cast_done" or _peek0[2].get("side") != "e":
+                return
+            _until = float(until) if until is not None else float(getattr(self, "p_ct", 0) or 0)
+            _hit0 = float(_peek0[0])
+            if _hit0 > _until + (ACT_TICK or 1.0) * 2 + 1e-9:
+                return
+            try:
+                _e0 = _peek0[2].get("unit") or {}
+                if _e0.get("hp", 0) > 0:
+                    _pl = player if player is not None else (self.player or {})
+                    _ml, _dg, _dk = self._enemy_cast_done(_pl, _e0, _peek0[2])
+                    logs += _ml
+                    _e0.pop("_cast", None)
+                    if _dg > 0:
+                        self._damage_actor(_pl, _dg, logs,
+                                           source=_e0.get("name", "敌人"),
+                                           dmg_kind=_dk or "")
+                    if self._actor_dead(_pl):
+                        self.result = "defeat"
+                    self._heapq.heappop(self._events)
+            except Exception as _sw_e:
+                _battle_warn('_settle_cross_boundary_hits', _sw_e)
+                pass
+        except Exception as _sw_e:
+            _battle_warn('_settle_cross_boundary_hits', _sw_e)
+            pass
 
     def _add_shield(self, key: str, value: int, turns: int = 3):
         """v101.28d 护盾 buff 化：同源叠加盾值 + 刷新时长（取 max），异源并存各计各的时长。
@@ -4323,10 +4485,11 @@ class Battle:
         logs.append("🛡️ 你架起防御姿态，受到的伤害减半！")
         self._p_set_defending(True)
         # v152：防御也是玩家行为，有行为时长（快动作 cast_mult=CAST_DEFEND）。
-        # 防御期间敌方可行动（_process_until 处理到玩家 next_act_at），伤害减半由 defend=True 生效。
+        # v180G B7 统一 CTB：defending 标志已 actor 化（_damage_actor 承伤链统一减免），
+        # 出手登记后不推进——事件推进由命令层 advance_until_next_decision 统一完成。
         if enemy_act and self.btype != "pvp":
             self._after_actor_ct("p", player=player, cast_mult=cast_mult)
-            return self._enemy_phase(player, logs, enemy_act, defend=True)
+            return logs, self.result is not None
         self._end_round()
         return logs, self.result is not None
 
@@ -4336,9 +4499,10 @@ class Battle:
             if self.btype == "pvp":
                 # PVP：不触发 AI 反击，等对方真人行动
                 return logs, False
-            # v152：逃跑失败也被敌方追击 → 玩家 ct 照走（慢动作 cast_mult=CAST_FLEE），敌方段按事件队列判定
+            # v180G B7 统一 CTB：逃跑失败也被敌方追击 → 玩家 ct 照走（慢动作），
+            # 事件推进由命令层 advance_until_next_decision 统一完成
             self._after_actor_ct("p", player=player, cast_mult=cast_mult)
-            return self._enemy_phase(player, logs, True)
+            return logs, self.result is not None
         # v130.7 意见#28：逃跑成功率 = 基础 FLEE_CHANCE ± 等级差×FLEE_LEVEL_STEP
         # ± 速度差×FLEE_SPD_STEP，clamp 到 [FLEE_MIN, FLEE_MAX]——高打低/快打慢更好跑，
         # 越级进高级区更难脱身（玩家等级/速度取战斗实时值）
@@ -4363,10 +4527,11 @@ class Battle:
         elif spd_diff < 0:
             flee_reason = f"敌方比你快 {-spd_diff} 点，几乎逃不脱；"
         logs.append(f"💨 逃跑失败！被追上了！({flee_reason}可以再『逃跑』，或『防御』『用药』撑住)")
-        # v152：逃跑也是玩家行为，有行为时长（慢动作 cast_mult=CAST_FLEE），PVP 不介入
+        # v180G B7 统一 CTB：逃跑失败被追击 → 玩家 ct 照走（慢动作），
+        # 事件推进由命令层 advance_until_next_decision 统一完成
         if self.btype != "pvp":
             self._after_actor_ct("p", player=player, cast_mult=cast_mult)
-        return self._enemy_phase(player, logs, True)
+        return logs, self.result is not None
 
     # ---------------- 玩家行动结算 ----------------
     def _enchant_effects(self, player: dict) -> dict:

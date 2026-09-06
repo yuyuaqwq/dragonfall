@@ -2624,9 +2624,10 @@ class InstanceCmds(CommandBase):
         # 按 self.player 的 _player_stats(spd) 结算玩家 ct——必须指向行动者快照，否则恒取 cost=100
         b.player = snap
         _pct_before = float(getattr(b, "p_ct", 0.0) or 0.0)
-        # v158 副本合并：enemy_act=True——玩家行动后 battle 事件队列 _process_until 自动
-        # 驱动敌方（含 cast_done/宠物/DOT），与野外同一套时间轴。回调 _cb 同步副本状态。
-        act_logs, ended = b.player_turn(action, skill_name, snap, enemy_act=True, target=target)
+        # v180G B7 统一 CTB：player_act = 出手登记 + advance 推进到下一个真人决策点。
+        # 与野外同一套代码（advance_until_next_decision 统一事件推进：怪行动/命中/dot）。
+        # 返回 who = 下一个该行动的玩家（可能不是当前行动者——多玩家 CTB 交错）。
+        act_logs, ended, _who_next = b.player_act(action, skill_name, snap, enemy_act=True, target=target)
         # v157 DEBUG：玩家行动后诊断（确认是否真的执行了 player_turn 且日志拼接）
         try:
             print(f"[DBG_instance_act] 行动后: action={action} skill={skill_name!r} ended={ended} "

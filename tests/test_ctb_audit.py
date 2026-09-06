@@ -58,6 +58,8 @@ def test_1_spd_down_enemy_frequency():
     # 无减速：敌方 cost = 100/40 = 2.5
     b = BT.Battle("monster", make_enemy(40), player=make_player())
     logs, ended = b.player_turn("attack", None, make_player())
+    # v180G B7 统一 CTB：出手登记后推进到下一个决策点
+    b.advance_until_next_decision([])
     # 有减速（spd_down → 敌方有效 20 → cost 5）：同窗口内敌方行动次数应减少
     b2 = BT.Battle("monster", make_enemy(40), player=make_player())
     b2.e_buffs["spd_down"] = 2
@@ -69,6 +71,8 @@ def test_1_spd_down_enemy_frequency():
         return orig(self, side, unit, player, cast_mult)
     BT.Battle._after_actor_ct = wrap
     logs2, ended2 = b2.player_turn("attack", None, make_player())
+    # v180G B7 统一 CTB：出手登记后推进到下一个决策点
+    b.advance_until_next_decision([])
     BT.Battle._after_actor_ct = orig
     check("减速后敌方当段行动次数减少", cnt[0] <= 3, f"enemy_acts={cnt[0]}（未减速对比需 >3）")
     # 直接验证 cost 计算：减速后 e_cost 变大
@@ -90,6 +94,8 @@ def test_2_sleep_round_decay():
     # 防御一回合（不打醒；敌方连动多次）——v152 事件队列：防御窗口内敌方可能多次行动，
     # 但睡眠是行动级消费（每次被选中行动消耗 1 次），不是回合级递减。
     logs, ended = b.player_turn("defend", None, make_player())
+    # v180G B7 统一 CTB：出手登记后推进到下一个决策点
+    b.advance_until_next_decision([])
     # v152：_advance_time 会按绝对时刻到期 buff。sleep 是 int 值（非 expire_at 形态）——
     # _advance_time 对 int buff 的到期换算 = now >= int×2.0 才清除。防御耗时 = CAST_DEFEND×cost
     # （0.3×cost），推进量小；但敌方 40 spd 快 → 防御窗口内敌方多次行动消费 sleep（行动级 -1/次）。
@@ -110,6 +116,8 @@ def test_3_stun_skip_time_flow():
     e_ct0 = b.enemy["ct"]
     p = make_player()
     logs, ended = b.player_turn("attack", None, p)
+    # v180G B7 统一 CTB：出手登记后推进到下一个决策点
+    b.advance_until_next_decision([])
     # v152 绝对时刻：敌方 ct 是下次可行动绝对时刻（单调递增），玩家被控跳过后
     # 战斗时刻推进（_enemy_phase 内 _process_until 到 p_ct），敌方事件按需触发。
     # 断言：玩家行动确实被控跳过（日志含眩晕）且战斗时刻推进（_now > 0）。
@@ -142,6 +150,8 @@ def test_5_defend_chain_reduce():
     b = BT.Battle("monster", make_enemy(40, atk=100), player=make_player())
     p = make_player(999999)
     logs, ended = b.player_turn("defend", None, p)
+    # v180G B7 统一 CTB：出手登记后推进到下一个决策点
+    b.advance_until_next_decision([])
     # 若每次行动都减半，总伤害应显著小于未减半连动
     dmg = 999999 - p["hp"]
     # 未减半理论：8 连动 × ~80+ = 640+；减半后 ≤ 320

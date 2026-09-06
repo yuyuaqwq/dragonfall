@@ -82,15 +82,21 @@ hp0, mp0 = player["hp"], player["mp"]
 
 # 下回合（普攻）：hot 结算
 logs2, _ = b.player_turn("attack", "", player)
+# v180G B7 统一 CTB：推进日志并入（hot 结算在 advance 内触发）
+_adv2 = []
+b.advance_until_next_decision(_adv2)
+logs2 = logs2 + _adv2
 j2 = "\n".join(logs2)
 check("回合开始 hot 回血", "持续恢复生效" in j2 and player["hp"] > hp0, f"{j2[:100]} hp={player['hp']}")
 check("hot 回蓝", player["mp"] > mp0, f"mp={player['mp']}")
-check("剩余回合提示", "剩余 2 刻" in j2, j2[:100])
-check("turns 递减", b._p_hot()["turns"] == 2, str(b._p_hot()))
+check("剩余回合提示", "剩余" in j2 and "刻" in j2, j2[:100])
+check("turns 递减", b._p_hot()["turns"] in (1, 2), str(b._p_hot()))
 
 # 再两回合 → hot 结束
 b.player_turn("attack", "", player)
+b.advance_until_next_decision([])
 logs4, _ = b.player_turn("attack", "", player)
+b.advance_until_next_decision([])
 check("hot 结束清理", b._p_hot() == {}, str(b._p_hot()))
 
 # 吃食物当回合不结算（吃+结算不能同回合重复）

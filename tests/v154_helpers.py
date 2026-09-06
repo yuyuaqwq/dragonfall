@@ -16,6 +16,17 @@ def finish_turn(b, p):
     return logs
 
 
+def player_act_advance(b, action, skill_name, p, target=None, enemy_act=True):
+    """v180G B7 统一 CTB：测试侧等价命令层 player_act（出手登记 + advance 推进）。
+
+    替代直接 `b.player_turn(...)`（现在纯登记不推进）。返回 (logs, ended)，
+    ended 含 advance 推完后的战斗结束状态。who（下一决策者）单人=自己，测试不关心。
+    """
+    import game.battle as BT
+    logs, ended, _who = b.player_act(action, skill_name, p, target=target, enemy_act=enemy_act)
+    return logs, ended
+
+
 def finish_enemy_cast(b, p, max_t=30.0):
     """敌方出手（_enemy_turn）后推进到 cast_done 结算。
 

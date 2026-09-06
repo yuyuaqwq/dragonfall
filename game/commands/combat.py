@@ -924,7 +924,7 @@ class CombatCmds(CommandBase):
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "attack", None, target=_target):
                 yield _r
             return
-        logs, ended = b.player_turn("attack", None, player, target=_target)
+        logs, ended, _who = b.player_act("attack", None, player, target=_target)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             # v130.3 意见#9 体验增强：胜利/结束时若残存潜行（技能/防御击杀场景潜行未被攻击消费），
@@ -1169,7 +1169,7 @@ class CombatCmds(CommandBase):
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "skill", skill_name, target=_skill_target):
                 yield _r
             return
-        logs, ended = b.player_turn("skill", skill_name, player, target=_skill_target)
+        logs, ended, _who = b.player_act("skill", skill_name, player, target=_skill_target)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "victory":
@@ -1500,7 +1500,7 @@ class CombatCmds(CommandBase):
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "defend", None):
                 yield _r
             return
-        logs, ended = b.player_turn("defend", None, player)
+        logs, ended, _who = b.player_act("defend", None, player)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended and b.result == "defeat":
             for _r in self._handle_defeat(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
@@ -2687,7 +2687,7 @@ class CombatCmds(CommandBase):
         # v1.2（契约 §11.3）：行动前把全局共享减益适应同步到本地主目标（与 debuffs 同步同处）。
         b.enemy["adapt"] = dict(gboss.get("adapt") or {"poison": 0.0, "burn": 0.0})
         before = sum(max(0, u.get("hp", 0)) for u in b.enemies)
-        logs, ended = b.player_turn(action, skill_name, player, target=target)
+        logs, ended, _who = b.player_act(action, skill_name, player, target=target)
         # DOT/减益重构（契约 §6）：行动后累加全局 dot 结算计数，每 WORLD_BOSS_DOT_INTERVAL
         # 次玩家行动强制结算一次 dot（force=True 直接扣 b.enemies hp，忽略 _dot_pending 闸门，
         # 模拟"一队一轮"）。结算必须在 after/dealt 计算**之前**调用，这样 dealt 已含 dot 伤害、

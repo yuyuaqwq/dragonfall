@@ -111,6 +111,8 @@ def test_openers():
         return _o3(self, player, unit)
     BT.Battle._enemy_turn = _w3
     b3.player_turn("attack", None, make_player())
+    # v180G B7 统一 CTB：出手登记后推进（怪先手插队在 advance 事件推进内发生）
+    b3.advance_until_next_decision([])
     BT.Battle._enemy_turn = _o3
     check("敌方更快时第1回合敌方段即行动（先手插队）", cnt3[0] >= 1, f"e_acts={cnt3[0]}")
 
@@ -184,6 +186,8 @@ def test_enemy_chained():
         return orig(self, player, unit)
     BT.Battle._enemy_turn = wrap
     logs, ended = b.player_turn("attack", None, make_player())
+    # v180G B7 统一 CTB：出手登记后推进到下一个决策点（敌方连动在 advance 事件推进内发生）
+    b.advance_until_next_decision([])
     BT.Battle._enemy_turn = orig
     check("速度碾压单段多个敌方行动", cnt[0] >= 2, f"enemy_acts_in_one={cnt[0]}")
     check("连动后回合正常结束", ended is False, f"ended={ended}")
@@ -205,6 +209,7 @@ def test_enemy_chained():
         _p = make_player()
         for _ in range(10):
             bm.player_turn("attack", None, _p)  # 长程 10 个玩家回合（v130.10 线性频率）
+            bm.advance_until_next_decision([])  # v180G B7 统一 CTB：出手后推进
     finally:
         BT.Battle._enemy_stats = patched_e_stats
     BT.Battle._enemy_turn = orig

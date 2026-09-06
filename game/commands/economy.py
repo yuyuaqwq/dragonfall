@@ -6617,7 +6617,7 @@ class EconomyCmds(CommandBase):
             _it_cast = d.get("cast")
             if _it_cast:
                 payload = f"{payload};cast:{_it_cast}" if payload else f"cast:{_it_cast}"
-            logs, ended = b.player_turn("use_item", payload, player)
+            logs, ended, _who = b.player_act("use_item", payload, player)
             db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"],
                              max_hp=player["max_hp"], max_mp=player["max_mp"])
             if ended:

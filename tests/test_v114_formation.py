@@ -189,6 +189,10 @@ def test_multi_enemy_turns():
     total = 0
     for _ in range(10):
         logs, ended = b.player_turn("attack", None, p, enemy_act=True)
+        # v180G B7 统一 CTB：出手登记后推进到下一个决策点（敌方行动在 advance 内发生）
+        _adv_logs = []
+        b.advance_until_next_decision(_adv_logs)
+        logs = logs + _adv_logs
         for x in logs:
             for nm in ("怪甲", "怪乙", "怪丙"):
                 if nm in x and "攻击" in x:
