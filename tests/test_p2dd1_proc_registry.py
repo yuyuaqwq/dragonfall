@@ -63,7 +63,8 @@ def mk_enemy(def_=20, mdef=20, hp=100000, spd=10):
 # ============================================================
 def test_registry_static():
     print("\n== 1. 注册表静态结构 ==")
-    check("PROC_FAMILIES 含 6 声明", len(PP.PROC_FAMILIES) == 6, str(PP.PROC_FAMILIES))
+    # P2-D2a：crit_cond_add 4 proc 声明并入本表 → 总数 10（6 试点 + 4 条件暴击）
+    check("PROC_FAMILIES 含 10 声明", len(PP.PROC_FAMILIES) == 10, str(PP.PROC_FAMILIES))
     expect_map = {
         "speed_ratio_dmg": "dmg_mult_cond",
         "zhan_yi_lifesteal": "lifesteal_add",
@@ -82,9 +83,9 @@ def test_registry_static():
     declared = set(PP.PROC_FAMILIES)
     check("声明集 ∩ KNOWN_GAPS = ∅", not (declared & PP.KNOWN_GAPS),
           str(declared & PP.KNOWN_GAPS))
-    # 无注册 = 不触发：未声明 proc（如 zhan_yi_crit）run 无副作用
+    # 无注册 = 不触发：未声明 proc（如 tenacity）run 无副作用
     ctx = {"player": {}, "ps": {}, "ps_name": "x", "cap": 5, "mult": 1.0, "rate": 0.0}
-    out = PP.run_proc_family(None, ["zhan_yi_crit"], ctx)
+    out = PP.run_proc_family(None, ["tenacity"], ctx)
     check("无注册 proc → 不触发返回空", out == [] and ctx["cap"] == 5 and ctx["mult"] == 1.0, str(out))
 
 

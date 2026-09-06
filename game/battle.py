@@ -4870,29 +4870,27 @@ class Battle:
         - 疾风之心 focus_surplus_crit（游侠攻线）：专注结余 ≥40 时下次技能暴击 +20%（一次性消费）
         - 元素之核 element_core（法师元素）：单系印记满 3 结算暴击 +20%（充能引爆类结算技）
         - 暗影步·极 shadow_dance_bonus：影舞态中暴击伤害 +20%（暴伤加成走 _passive_crit_dmg_mult）
-        返回暴击率增量（0~1）。"""
+        返回暴击率增量（0~1）。
+        v181.P2D-D2a：4 个条件暴击 proc 消费迁注册表族 crit_cond_add（ctx res_kind 分派条件谓词：
+        zhan_yi 战意 / arcane 奥术充能 / focus 精力快照 / element_mark 元素印记）；循环骨架、
+        顺序、break 语义逐字保留（zy/arcane/focus 命中即 break；element_core 无条件 break——
+        max=1 数据下等价，多条目防御保留原"只判首条"语义）。"""
         bonus = 0.0
         try:
             pm = self._proc_pm(player)
-            # 狂热
+            # 狂热（战意层 ≥ stacks → +add）
             for _pn, _ps in pm["proc"].get("zhan_yi_crit", []):
-                # v181.C: 门槛/加成读 skills.py 被动数据（狂热 passive stacks/add），缺字段=无此行为
-                if self._zhan_yi_n() >= int(_ps.get("stacks", 0) or 0):
-                    bonus += float(_ps.get("add", 0.0) or 0.0)
+                _ctx_zy = {"player": player, "ps": _ps, "ps_name": _pn,
+                           "res_kind": "zhan_yi", "crit_add": bonus, "info": info}
+                if _run_proc_family(self, "zhan_yi_crit", _ctx_zy):
+                    bonus = _ctx_zy.get("crit_add", bonus)  # handler 数值槽改写读回
                     break
-            # 真知（守线·奥秘法师充能条 / 攻线 arcane 叠层）
+            # 真知（守线·奥秘法师充能条 / 攻线 arcane 叠层；满层门槛读数据 stacks）
             for _pn, _ps in pm["proc"].get("arcane_wisdom", []):
-                _full = False
-                try:
-                    if self._p_res().get("element_charge") is not None:
-                        _full = self._elem_charge() >= self._res_max(player, "element")
-                    else:
-                        # v181.C: 攻线满层门槛读被动数据 stacks（原本地写死 5）
-                        _full = int((self._p_stacks() or {}).get("arcane", 0) or 0) >= int(_ps.get("stacks", 0) or 0)
-                except Exception:
-                    _full = False
-                if _full:
-                    bonus += float(_ps.get("add", 0.0) or 0.0)
+                _ctx_aw = {"player": player, "ps": _ps, "ps_name": _pn,
+                           "res_kind": "arcane", "crit_add": bonus, "info": info}
+                if _run_proc_family(self, "arcane_wisdom", _ctx_aw):
+                    bonus = _ctx_aw.get("crit_add", bonus)
                     break
             # 疾风之心（游侠：专注结余 = 精力当前值，≥40 时本技能暴击 +20% 一次性）
             # v169.7 修 #123：读「施放前」精力快照（_pre_cost_res）——技能 res_cost 扣费后才结算暴击，
@@ -4900,25 +4898,19 @@ class Battle:
             # 见 _energy_high_crit）。快照缺失（直接调用非技能链）回落当前值。
             if info is not None:
                 for _pn, _ps in pm["proc"].get("focus_surplus_crit", []):
-                    _pres = getattr(self, "_pre_cost_res", None)
-                    _eng = int(_pres.get("energy", 0) or 0) if isinstance(_pres, dict) \
-                        else int(self._p_res().get("energy", 0) or 0)
-                    if _eng >= int(_ps.get("surplus", 0) or 0):
-                        bonus += float(_ps.get("add", 0.0) or 0.0)
-                        # 提示玩家凝神已触发（意见 #123 反馈「没看到提示文本」）
-                        self._p_eff()["focus_surplus_proc"] = True
+                    _ctx_fc = {"player": player, "ps": _ps, "ps_name": _pn,
+                               "res_kind": "focus", "crit_add": bonus, "info": info}
+                    if _run_proc_family(self, "focus_surplus_crit", _ctx_fc):
+                        bonus = _ctx_fc.get("crit_add", bonus)
                         break
             # 元素之核（法师元素攻线：单系印记满 _ps.layers（默认 3）时该系结算暴击 +20%）
             if info is not None:
                 for _pn, _ps in pm["proc"].get("element_core", []):
-                    _el = info.get("element", "")
-                    if _el == "current":
-                        _el = self._p_res().get("element", "fire")
-                    if _el:
-                        _mk = self._elem_marks()
-                        if int(_mk.get(_el, 0) or 0) >= int(_ps.get("layers", 0) or 0):
-                            bonus += float(_ps.get("add", 0.0) or 0.0)
-                    break
+                    _ctx_ec = {"player": player, "ps": _ps, "ps_name": _pn,
+                               "res_kind": "element_mark", "crit_add": bonus, "info": info}
+                    if _run_proc_family(self, "element_core", _ctx_ec):
+                        bonus = _ctx_ec.get("crit_add", bonus)
+                    break  # 原无条件 break（印记不足也 break——多条目下只判首条）
         except Exception as _sw_e:
             _battle_warn('_passive_crit_bonus', _sw_e)
             pass
