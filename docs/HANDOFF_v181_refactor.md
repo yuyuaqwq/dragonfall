@@ -40,6 +40,18 @@
 import）；实际 95 常量 52 真消费/41 死表。教训：AST 扫"被 import"要看全仓直连，不能只看聚合层。
 
 
+## 实施队列（方案全齐，按序推进）
+
+- P0B-C：SKILL_UP key 改稳定 id 根治（B 止血后）
+- P2C 实施：C1（weapon 表补齐）→ C2-C5（低风险族）→ C6-C9（高险 battle 直读）→ C10 收尾
+- P2D 实施：D1（建 passive_procs.py）→ D2-D6 族迁移 → D7 收尾（52 proc→~20 族）
+- P2E 实施：MECH_CFG 落位 A29+B14+C7+D45（消费点改 ~150-200 行，与 battle.py 撞文件需串行）
+- P2F-2：分段曲线表驱动（hp/atk/boss_atk_stage）；P2F-3：player_base_stats/monster_stats 声明化
+- P3：玩家状态容器收尾（p_meta 槽收纳，需先行为快照测试）
+- P4：命令层抽 services（BattleSettlement/Quest/Shop/Crafting/Profession…）
+- P5：battle 拆类（最后，需白盒黑盒化）
+- **P6（最后做，鱼鱼 2026-09-07 夜拍板）：可视化配置编辑器**——直接编辑游戏配置的可视化编辑器（data/ 各表已 dict/表驱动，编辑器直接读写）。排在 P0~P5 全部完成后，别提前做。
+
 ## 关键环境/路径（踩过的坑）
 
 - worktree 真实物理路径 = `/c/c/c/Users/yuyu/AppData/Local/Temp/df_wt_v181b/w<N>`（三层 c，MSYS 嵌套映射）
