@@ -317,15 +317,25 @@ def section_potion():
           str(C.ITEMS["i_fury_potion"].get("effect_data")))
 
 
-# ================= 9. 宠物 skill_type → PET_SKILL_EFFECTS =================
+# ================= 9. 宠物 skill_type → auto_act 翻译（v180E 阶段2） =================
 def section_pet():
-    print("【9. 宠物 skill_type → PET_SKILL_EFFECTS】")
+    print("【9. 宠物 skill_type → auto_act（v180E 阶段2 收编 _companion_act）】")
+    # 旧 PET_SKILL_EFFECTS 注册表已删——宠物行为数据化进 auto_act（_pet_ensure_actor 翻译），
+    # _companion_act 是通用执行器。block 走 guard（_pet_ensure_guard），无 auto_act。
+    _TYPE_MAP = {
+        "atk_pct": "dmg_owner_atk",
+        "matk_pct": "matk_pct",
+        "heal_pct": "heal_owner",
+        "lifesteal": "lifesteal",
+        "pierce": "pierce",
+        "buff_atk": "buff_owner",
+        "crit_up": "buff_owner",
+    }
     types = {p.get("skill_type") for p in C.PET_POOL}
-    missing = types - set(BT.PET_SKILL_EFFECTS) - {"block"}
-    check("宠物 skill_type 全部有 handler（block 走 _pet_block_check）", not missing,
+    missing = types - set(_TYPE_MAP) - {"block"}
+    check("宠物 skill_type 全部能翻译 auto_act（block 走 guard）", not missing,
           f"missing={sorted(missing)} types={sorted(types)}")
-    check("PET_SKILL_EFFECTS 注册 7 类型", len(BT.PET_SKILL_EFFECTS) == 7,
-          f"reg={sorted(BT.PET_SKILL_EFFECTS)}")
+    check("auto_act 翻译覆盖 7 类型", len(_TYPE_MAP) == 7, f"map={sorted(_TYPE_MAP)}")
     check("heal_pct 类型确实被数据使用（月光兔等）", "heal_pct" in types)
     check("block 类型确实在数据中（影袭/铁壳龟）", "block" in types)
 

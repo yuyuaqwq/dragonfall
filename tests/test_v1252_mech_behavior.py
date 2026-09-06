@@ -120,20 +120,22 @@ def section_pet():
     # 直接构造 _tick_no() % 4 == 0 的时刻：now=3.0 → tick_no=4 → 触发。
     b._now = 3.0  # v152：行动轮次 4（int(3/1)+1=4），4 % 4 == 0 → 触发（1刻=1秒）
     logs = []
-    b._pet_skill_turn(p, logs)
+    b._pet_ensure_actor()  # v180E 阶段2：宠物 actor 化 + auto_act 翻译
+    b._companion_act(b.pet, logs)  # 等价旧 _pet_skill_turn(p, logs)——通用执行器
     expect_heal = int(p["max_hp"] * 0.08)  # Battle 构造时按实时属性重算 max_hp
     check("月光兔 heal_pct 回血 8%（按实时 max_hp）", p["hp"] == 50 + expect_heal,
           f"hp={p['hp']} expect={50 + expect_heal} max_hp={p['max_hp']}")
     check("回血日志含技能名", any("月光祝福" in l for l in logs), str(logs))
     # 未到间隔回合不触发：v154 宠物独立读条——节奏由 pet_tick 事件调度保证，
-    # 直接调 _pet_skill_turn 等价于"宠物出手时刻"，必触发；"未到"由事件队列控制。
-    # 验证：pet_tick 已排程（开战即有），且 _pet_skill_turn 无条件结算。
+    # 直接调 _pet_ensure_actor + _companion_act 等价于"宠物出手时刻"，必触发；
+    # "未到"由事件队列控制。
     b2 = db.get_player("g", qq)
     b2b = BT.Battle("monster", weak_enemy(), {}, b2)
     b2b.pet = {"pet_key": "pet_rabbit", "name": "月光兔", "level": 10, "satiety": 100}
     b2b._now = 4.0
     logs2 = []
-    b2b._pet_skill_turn(b2, logs2)
+    b2b._pet_ensure_actor()
+    b2b._companion_act(b2b.pet, logs2)
     check("pet_tick 驱动下出手即回血", b2["hp"] > 50, f"hp={b2['hp']}")
 
 

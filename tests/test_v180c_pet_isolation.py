@@ -59,7 +59,7 @@ async def main():
         b._pet_ensure_actor()
         hp0 = b.enemy["hp"]
         logs = []
-        b._pet_skill_turn(p, logs)
+        b._companion_act(b.pet, logs)  # v180E 阶段2：宠物技能走通用执行器（auto_act）
         return hp0 - b.enemy["hp"]
 
     def player_atk(with_mark, player_learned):
@@ -123,7 +123,7 @@ async def main():
     b4._pet_ensure_actor()
     hp4 = b4.enemy["hp"]
     logs4 = []
-    b4._pet_skill_turn(p4, logs4)
+    b4._companion_act(b4.pet, logs4)  # v180E 阶段2：宠物技能走通用执行器
     check("宠物撕咬造成伤害", hp4 - b4.enemy["hp"] > 0, f"dealt {hp4 - b4.enemy['hp']}")
 
     # 5. 宠物 actor 不被 _companions_trigger 死亡清理误删（v180-C S3 bug 回归）
@@ -163,6 +163,44 @@ async def main():
           f"kind={[c.get('kind') for c in b6.companions]}")
     check("死亡契约已消耗（有召唤物可牺牲）", b6._death_pact_used is True,
           f"used={b6._death_pact_used}")
+
+    # 7. v180E 阶段2：宠物 buff_atk/crit_up 收编 auto_act——buff 写入 owner + 强度值可序列化
+    print("\n— 宠物 buff_owner 收编（v180E 阶段2）—")
+    p7 = mk_player()
+    b7 = BT.Battle("怪物", mk_enemy(), {}, p7)
+    b7.pet = {"pet_key": "pet_thunderbird", "name": "雷羽鸟", "level": 30, "satiety": 100}
+    b7._pet_ensure_actor()
+    check("buff_atk 宠物翻译 auto_act(trigger=interval)",
+          (b7.pet.get("auto_act") or {}).get("act", {}).get("type") == "buff_owner"
+          and (b7.pet.get("auto_act") or {}).get("act", {}).get("buff") == "atk_up",
+          str(b7.pet.get("auto_act")))
+    logs7 = []
+    r7 = b7._companion_act(b7.pet, logs7)
+    check("buff_owner 执行成功", r7 and p7.get("buffs", {}).get("atk_up", 0) >= 2,
+          f"r={r7} buffs={p7.get('buffs')}")
+    check("buff 强度值存 owner.pet_buff_vals(可序列化)",
+          abs(float((p7.get("pet_buff_vals") or {}).get("atk", 0) or 0) - 0.30) < 1e-9,
+          f"vals={p7.get('pet_buff_vals')}")
+    # 强度值被 _apply_buffs 消费（面板 atk ×1.30 而非 BUFF_MULT 常量 1.30 的近似）
+    p7b = mk_player()
+    b7b = BT.Battle("怪物", mk_enemy(), {}, p7b)
+    b7b.pet = {"pet_key": "pet_thunderbird", "name": "雷羽鸟", "level": 30, "satiety": 100}
+    b7b._pet_ensure_actor()
+    b7b._companion_act(b7b.pet, [])
+    # 换一个 crit_up 宠物验证独立键
+    p7c = mk_player()
+    b7c = BT.Battle("怪物", mk_enemy(), {}, p7c)
+    b7c.pet = {"pet_key": "pet_panther", "name": "影豹", "level": 30, "satiety": 100}
+    b7c._pet_ensure_actor()
+    check("crit_up 宠物翻译 auto_act(buff=crit_up)",
+          (b7c.pet.get("auto_act") or {}).get("act", {}).get("buff") == "crit_up",
+          str(b7c.pet.get("auto_act")))
+    logs7c = []
+    r7c = b7c._companion_act(b7c.pet, logs7c)
+    check("crit_up buff_owner 执行成功",
+          r7c and p7c.get("buffs", {}).get("crit_up", 0) >= 2
+          and abs(float((p7c.get("pet_buff_vals") or {}).get("crit", 0) or 0) - 0.20) < 1e-9,
+          f"r={r7c} buffs={p7c.get('buffs')} vals={p7c.get('pet_buff_vals')}")
 
     print()
     print(f"===== v180-C S3 随从 actor 伤害归属: {passed} passed, {failed} failed =====")

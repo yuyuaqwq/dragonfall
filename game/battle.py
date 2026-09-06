@@ -109,109 +109,6 @@ CAST_DEFEND = 0.6     # 防御基准耗时（0.6 秒 @spd50，快动作）
 CAST_FLEE = 2.0       # 逃跑基准耗时（2 秒 @spd50，慢，易被打断）
 CAST_PET_SKILL = 0.8  # 宠物技能基准耗时（0.8 秒 @spd50，出手快）——v154 宠物独立读条
 
-# v125.1 审计 P2-2：宠物技能类型注册表（数据驱动，替代 _pet_skill_turn 内 if/elif 链）
-# handler 签名 fn(battle, player, pdef, pname, sname, line, logs) -> None（直接改 battle 状态 + 追加日志）
-# 数值全部读 PET_POOL 条目 skill_value/skill_interval（data/pets.py），加新技能类型 = register 一个函数
-PET_SKILL_EFFECTS = {}
-
-
-def _pet_skill_register(stype):
-    """宠物技能类型注册装饰器。"""
-    def deco(fn):
-        PET_SKILL_EFFECTS[stype] = fn
-        return fn
-    return deco
-
-
-def _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs, magic=False):
-    """宠物物理/魔法攻击 × skill_value 伤害（atk_pct/matk_pct/lifesteal/pierce 共用计算）。
-
-    v169.4 修复：返回 _damage_enemy 压制后的真实伤害（原返回未压制 dmg——
-    _psk_lifesteal 按此回血导致宠物吸血无视等级压制，30级在45级区靠宠物站撸）。
-    """
-    st = battle._player_stats(player)
-    est = battle._enemy_stats()
-    if magic:
-        dmg = E.calc_damage(int(st["matk"] * pdef["skill_value"]), est.get("mdef", 0))
-    else:
-        dmg = E.calc_damage(int(st["atk"] * pdef["skill_value"]), est.get("def", 0))
-    real = battle._damage_enemy(dmg, logs, attacker=battle.pet or None)
-    logs.append(f"🐾 {pname}的【{sname}】造成 {real} 点伤害！" + (f"「{line}」" if line else ""))
-    return real
-
-
-def _pet_skill_victory(battle, logs):
-    """宠物击杀判定（与 _pet_skill_turn 原分支行为一致）。"""
-    if battle._enemy_dead():
-        battle.result = "victory"
-        logs.append(f"🎉 你击败了【{battle.enemy.get('name', '敌人')}】！(宠物击杀)")
-
-
-@_pet_skill_register("atk_pct")
-def _psk_atk_pct(battle, player, pdef, pname, sname, line, logs):
-    """撕咬/烈焰尾击/狮鹫俯冲：攻击力 × value 伤害。"""
-    _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs)
-    _pet_skill_victory(battle, logs)
-
-
-@_pet_skill_register("matk_pct")
-def _psk_matk_pct(battle, player, pdef, pname, sname, line, logs):
-    """霜刃/龙息：魔攻 × value 伤害。"""
-    _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs, magic=True)
-    _pet_skill_victory(battle, logs)
-
-
-@_pet_skill_register("lifesteal")
-def _psk_lifesteal(battle, player, pdef, pname, sname, line, logs):
-    """吸血撕咬：攻击 × value 伤害，并回复伤害 50% 生命（重伤减半）。"""
-    dmg = _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs)
-    heal = max(1, int(dmg * 0.5))
-    if player.setdefault("buffs", {}).get("mortal_wound"):  # v1.3 重伤：宠物吸血减半
-        heal = int(heal * 0.5)
-    battle._heal_actor(player, heal, logs)  # v180E 统一落地（clamp；player 自身禁疗/受疗语义）
-    logs.append(f"🩸 {pname}汲取了 {heal} 点生命归还给你！")
-    _pet_skill_victory(battle, logs)
-
-
-@_pet_skill_register("pierce")
-def _psk_pierce(battle, player, pdef, pname, sname, line, logs):
-    """碎岩冲撞：攻击 × value 伤害，并破防（敌方防御减半 2 刻）。"""
-    _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs)
-    battle.e_buffs["def_down"] = max(int(battle.e_buffs.get("def_down", 0) or 0), 2)
-    logs.append(f"🛡️ {pname}的【{sname}】击碎了敌人的护甲！(防御减半 2 刻)")
-    _pet_skill_victory(battle, logs)
-
-
-@_pet_skill_register("heal_pct")
-def _psk_heal_pct(battle, player, pdef, pname, sname, line, logs):
-    """月光祝福/圣光羽翼/星辉治愈/月华低语：回复 max_hp × value 生命。"""
-    if player.get("hp", 0) < player.get("max_hp", 1):
-        heal = int(player.get("max_hp", player.get("hp", 1)) * pdef["skill_value"])
-        battle._heal_actor(player, heal, logs)  # v180E 统一落地
-        logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！" + (f"「{line}」" if line else ""))
-
-
-@_pet_skill_register("buff_atk")
-def _psk_buff_atk(battle, player, pdef, pname, sname, line, logs):
-    """雷鸣鼓舞：攻击强化（数值实读 skill_value，_apply_buffs 用 _pet_buff_vals 覆盖常量）。"""
-    _pb = player.setdefault("buffs", {})
-    _pb["atk_up"] = max(int(_pb.get("atk_up", 0) or 0), 2)
-    _pbv = getattr(battle, "_pet_buff_vals", {})
-    _pbv["atk"] = max(float(_pbv.get("atk", 0.0) or 0.0), float(pdef["skill_value"]))
-    battle._pet_buff_vals = _pbv
-    logs.append(f"🐾 {pname}的【{sname}】为你加持攻击强化！(攻击 +{int(pdef['skill_value'] * 100)}%，2 刻)" + (f"「{line}」" if line else ""))
-
-
-@_pet_skill_register("crit_up")
-def _psk_crit_up(battle, player, pdef, pname, sname, line, logs):
-    """狩猎之眼/星羽疾风：暴击提升（数值实读 skill_value）。"""
-    _pb2 = player.setdefault("buffs", {})
-    _pb2["crit_up"] = max(int(_pb2.get("crit_up", 0) or 0), 2)
-    _pbv = getattr(battle, "_pet_buff_vals", {})
-    _pbv["crit"] = max(float(_pbv.get("crit", 0.0) or 0.0), float(pdef["skill_value"]))
-    battle._pet_buff_vals = _pbv
-    logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 +{int(pdef['skill_value'] * 100)}%，2 刻)" + (f"「{line}」" if line else ""))
-
 
 def _ct_initial_wait(spd) -> float:
     """v154 单位初始行动等待 = 基准普攻耗时 × 速度折算系数（第一刀也按速度快慢出）。
@@ -653,11 +550,18 @@ def _th_pet_act(battle, actor, eff, logs):
     try:
         if not battle.pet or battle._enemy_dead():
             return [], False  # 无宠物/敌方全灭 → 通道关闭
+        # v180E 阶段2（原 _pet_skill_turn 守卫语义保留）：Lv.10 解锁 + 饱食度=0 技能失效
+        if int(battle.pet.get("level", 0) or 0) < int(C.PET_SKILL_UNLOCK_LV):
+            return [], True  # 未解锁 → 通道仍存在（升级后恢复），不触发
+        if int(battle.pet.get("satiety", 0) or 0) <= 0:
+            return [], True  # 饿肚 → 通道仍存在（喂食后恢复），不触发
         out = []
         if not battle._player_dead(battle._last_player or battle.player):
-            _ml = battle._pet_skill_turn(battle._last_player or battle.player, out)
-            if _ml:
-                out += _ml
+            # v180E 阶段2：宠物行为已数据化进 auto_act（_pet_ensure_actor 翻译）——
+            # pet_act tick 只负责节奏（每 N 刻触发），执行走通用 _companion_act
+            # （读宠物 actor auto_act，owner=_last_player or player）。
+            if battle.pet.get("auto_act"):
+                battle._companion_act(battle.pet, out)
         # interval 固定 = 面板 skill_interval（每 N 刻一次，N×ACT_TICK 秒）——
         # 不随 spd 变、不需要限频（卡节奏由通用调度保证）
         try:
@@ -7450,8 +7354,10 @@ class Battle:
                 attr, val = BUFF_MULT[eff]
                 # v104 M17 P2-5：宠物 buff（buff_atk/crit_up）实读 PET_POOL skill_value，
                 # 覆盖 BUFF_MULT 常量（此前日志 25% 实际 30%，数据层承诺"加宠物=加一行"失效）
+                # v180E 阶段2：强度值存 owner actor dict 的 pet_buff_vals（随 actor 序列化，
+                # 替代旧 Battle 级 _pet_buff_vals 旁路——副本/断线恢复不丢）
                 if attr in ("atk", "crit"):
-                    _pv = getattr(self, "_pet_buff_vals", {}).get(attr)
+                    _pv = (self.player or {}).get("pet_buff_vals", {}).get(attr)
                     if _pv is not None:
                         val = 1.0 + _pv if attr == "atk" else _pv
                 if attr == "crit":
@@ -7744,8 +7650,11 @@ class Battle:
         - hidden：不进战场显示/状态面板（命令层读点按需跳过）
         - untargetable：敌人选目标跳过它（宠物不被攻击）
         - buffs 容器就位：可被增益/减益（未来扩展）
-        与 self.pet 同 dict（就地补字段）→ 全部现有读点（_pet_skill_turn/_pet_block_check
-        /_th_pet_act）零改动继续工作；伤害带 attacker=宠物 actor → 乘区读宠物自身被动。
+        - auto_act：v180E 阶段2 把 PET_POOL skill_type/skill_value/skill_interval 翻译成
+          数据驱动行为（trigger=interval 由 pet_act tick 驱动，_companion_act 通用执行）。
+        block 型宠物无 auto_act（挡刀走 guard 配置，_pet_ensure_guard 配）。
+        与 self.pet 同 dict（就地补字段）→ 全部现有读点（_pet_block_check/_th_pet_act）
+        零改动继续工作；伤害带 attacker=宠物 actor → 乘区读宠物自身被动。
         幂等：已在 companions 不重复加。"""
         try:
             pet = self.pet or {}
@@ -7758,6 +7667,35 @@ class Battle:
             pet.setdefault("buffs", {})
             pet["hidden"] = True
             pet["untargetable"] = True
+            # v180E 阶段2：skill_type → auto_act（block 除外——挡刀走 guard）
+            if not pet.get("auto_act"):
+                pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
+                if pdef:
+                    stype = pdef.get("skill_type")
+                    _TYPE_MAP = {
+                        "atk_pct": "dmg_owner_atk",
+                        "matk_pct": "matk_pct",
+                        "heal_pct": "heal_owner",
+                        "lifesteal": "lifesteal",
+                        "pierce": "pierce",
+                        "buff_atk": "buff_owner",
+                        "crit_up": "buff_owner",
+                    }
+                    _act_type = _TYPE_MAP.get(stype)
+                    if _act_type:
+                        _act = {
+                            "type": _act_type,
+                            "value": float(pdef.get("skill_value", 0) or 0),
+                            "skill_name": pdef.get("skill_name", "技能"),
+                            "line": C.pet_line(pdef["key"]) if pdef.get("key") else "",
+                        }
+                        if stype in ("buff_atk", "crit_up"):
+                            _act["buff"] = "atk_up" if stype == "buff_atk" else "crit_up"
+                            _act["turns"] = 2
+                        pet["auto_act"] = {
+                            "trigger": "interval",
+                            "act": _act,
+                        }
             self.companions.append(pet)
         except Exception:
             pass
@@ -7784,33 +7722,6 @@ class Battle:
             }
         except Exception:
             pass
-
-    def _pet_skill_turn(self, player: dict, logs: list) -> list:
-        """24 章宠物技能：由 pet_tick 事件驱动（v154 宠物独立速度读条）。
-
-        撕咬(atk_pct)/龙息(matk_pct)/月光祝福(heal_pct)/影袭(block) 按宠物自身
-        出招/收招节奏触发（出招跑完 = 技能生效，读条命中制）；不占玩家行动、不消耗 MP。
-        Lv.10 解锁；饱食度 =0 时技能失效。
-        """
-        pet = self.pet or {}
-        if not pet:
-            return logs
-        if int(pet.get("level", 0)) < int(C.PET_SKILL_UNLOCK_LV):
-            return logs
-        if int(pet.get("satiety", 0)) <= 0:
-            return logs
-        pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
-        if not pdef:
-            return logs
-        stype = pdef.get("skill_type")
-        pname = pet.get("name") or pdef["name"]
-        sname = pdef["skill_name"]
-        line = C.pet_line(pdef["key"])  # v101.11 宠物战斗台词
-        # v125.1 P2-2：按 PET_SKILL_EFFECTS 注册表分发（原 if/elif 链，数值读 PET_POOL 数据）
-        handler = PET_SKILL_EFFECTS.get(stype)
-        if handler:
-            handler(self, player, pdef, pname, sname, line, logs)
-        return logs
 
     def _reschedule_pet_tick(self):
         """v154 宠物独立读条（v179 P4 升级通用卡）：确保 pet_act 卡存在并刷新下次周期。
@@ -9162,12 +9073,20 @@ class Battle:
 
         数据驱动（鱼鱼 2026-09-06：语义不固定，全配置）：
         - trigger=player_act：玩家行动后触发（召唤物旧语义，player_turn 尾部扫）
+        - trigger=interval：由外部 tick 卡按节奏触发（宠物 pet_act 卡每 N 刻一次）
         - act.type=basic_atk：普攻（用自身 atk/dmg_type/reach 选目标，等价旧 _summons_act 单只）
-        - act.type=heal_owner：回复 owner max_hp×heal_pct（未来宠物月光祝福）
+        - act.type=dmg_owner_atk/matk_pct：以 owner 面板 × value 打敌（宠物撕咬/龙息）
+        - act.type=heal_owner：回复 owner max_hp×value（宠物月光祝福）
+        - act.type=lifesteal：打敌 + 回 owner 伤害 50%（吸血撕咬）
+        - act.type=pierce：打敌 + 破防 2 刻（碎岩冲撞）
+        - act.type=buff_owner：给 owner 加 buff（雷鸣鼓舞 atk_up / 狩猎之眼 crit_up）
         扩展：加新随从行为 = 加 act.type 分支或复用玩家技能管线（act.skill），零新 hook。
         """
         try:
-            if not actor or actor.get("hp", 0) <= 0 or self._enemy_dead():
+            if not actor or self._enemy_dead():
+                return False
+            # 有 hp 容器才检查存活（召唤物/实体）；无 hp 的 hidden actor（宠物）不受此限
+            if "hp" in actor and int(actor.get("hp", 0) or 0) <= 0:
                 return False
             aa = actor.get("auto_act") or {}
             act = aa.get("act") or {}
@@ -9191,7 +9110,77 @@ class Battle:
                                    true_dmg=(dmg_type == "true"))
                 logs.append(f"{actor.get('icon', '')} {actor.get('name', '随从')} 攻击，造成 {dmg} 点伤害！")
                 return True
-            # 未来 act.type 分支（heal_owner/buff_owner/引用玩家技能）在此扩展
+            # v180E 阶段2：宠物技能收编 auto_act——以下分支以 owner（主人）为目标的
+            # 随从行为，数值全读 act.value（来自 PET_POOL skill_value 翻译）。
+            # 伤害类宠物技能数值照旧用 owner 面板（v180-C 定论：宠物伤害=主人面板×系数，
+            # 归属 attacker=宠物 actor → 被动读宠物自身），与旧 _psk_* 逐字等价。
+            if atype in ("dmg_owner_atk", "matk_pct", "lifesteal", "pierce"):
+                owner = getattr(self, "_last_player", None) or self.player or {}
+                if not owner:
+                    return False
+                target = self._pick_summon_target(actor)
+                if target is None:
+                    return False
+                pdef = {"skill_value": float(act.get("value", 0) or 0)}
+                magic = (atype == "matk_pct")
+                ost = self._player_stats(owner)
+                est2 = self._enemy_stats(target)
+                if magic:
+                    dmg = E.calc_damage(int(ost["matk"] * pdef["skill_value"]), est2.get("mdef", 0))
+                else:
+                    dmg = E.calc_damage(int(ost["atk"] * pdef["skill_value"]), est2.get("def", 0))
+                dmg = max(1, dmg)
+                real = self._damage_enemy(dmg, logs, target=target,
+                                          source=actor.get("name", "宠物"), attacker=actor)
+                pname = actor.get("name", "宠物")
+                sname = act.get("skill_name", "技能")
+                logs.append(f"🐾 {pname}的【{sname}】造成 {real} 点伤害！" + (f"「{act.get('line', '')}」" if act.get("line") else ""))
+                if atype == "lifesteal":
+                    heal = max(1, int(real * 0.5))
+                    if owner.setdefault("buffs", {}).get("mortal_wound"):
+                        heal = int(heal * 0.5)
+                    self._heal_actor(owner, heal, logs)
+                    logs.append(f"🩸 {pname}汲取了 {heal} 点生命归还给你！")
+                elif atype == "pierce":
+                    self.e_buffs["def_down"] = max(int(self.e_buffs.get("def_down", 0) or 0), 2)
+                    logs.append(f"🛡️ {pname}的【{sname}】击碎了敌人的护甲！(防御减半 2 刻)")
+                if self._enemy_dead():
+                    self.result = "victory"
+                    logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！(宠物击杀)")
+                return True
+            if atype == "heal_owner":
+                owner = getattr(self, "_last_player", None) or self.player or {}
+                if not owner:
+                    return False
+                if owner.get("hp", 0) < owner.get("max_hp", 1):
+                    heal = int(owner.get("max_hp", owner.get("hp", 1)) * float(act.get("value", 0) or 0))
+                    self._heal_actor(owner, heal, logs)
+                    pname = actor.get("name", "宠物")
+                    sname = act.get("skill_name", "技能")
+                    logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！" + (f"「{act.get('line', '')}」" if act.get("line") else ""))
+                return True
+            if atype == "buff_owner":
+                owner = getattr(self, "_last_player", None) or self.player or {}
+                if not owner:
+                    return False
+                bkey = act.get("buff", "")
+                turns = int(act.get("turns", 2) or 2)
+                val = float(act.get("value", 0) or 0)
+                if bkey == "atk_up":
+                    owner.setdefault("buffs", {})["atk_up"] = max(int(owner.get("buffs", {}).get("atk_up", 0) or 0), turns)
+                    # 强度值存 owner 的 pet_buff_vals（随 actor dict 序列化，替代旧 Battle 级旁路）
+                    owner.setdefault("pet_buff_vals", {})["atk"] = max(float(owner.get("pet_buff_vals", {}).get("atk", 0) or 0), val)
+                    pname = actor.get("name", "宠物")
+                    sname = act.get("skill_name", "技能")
+                    logs.append(f"🐾 {pname}的【{sname}】为你加持攻击强化！(攻击 +{int(val * 100)}%，{turns} 刻)" + (f"「{act.get('line', '')}」" if act.get("line") else ""))
+                elif bkey == "crit_up":
+                    owner.setdefault("buffs", {})["crit_up"] = max(int(owner.get("buffs", {}).get("crit_up", 0) or 0), turns)
+                    owner.setdefault("pet_buff_vals", {})["crit"] = max(float(owner.get("pet_buff_vals", {}).get("crit", 0) or 0), val)
+                    pname = actor.get("name", "宠物")
+                    sname = act.get("skill_name", "技能")
+                    logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 +{int(val * 100)}%，{turns} 刻)" + (f"「{act.get('line', '')}」" if act.get("line") else ""))
+                return True
+            # 未来 act.type 分支（引用玩家技能）在此扩展
             return False
         except Exception:
             return False
