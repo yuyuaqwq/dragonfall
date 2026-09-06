@@ -505,7 +505,7 @@ def _th_actor_dot(battle, actor, eff, logs):
         # v180F A7：死亡判定针对被结算 dot 的 actor 本身（actor 就是中毒目标），
         # 不再用 _last_player or player 猜"当前玩家"——玩家侧 actor 死 → defeat。
         try:
-            if battle._is_focus_player(actor) and battle._actor_dead(actor):
+            if battle._is_player_side(actor) and battle._actor_dead(actor):
                 battle.result = "defeat"
         except Exception as _sw_e:
             _battle_warn('_th_actor_dot', _sw_e)
@@ -1748,12 +1748,12 @@ class Battle:
 
     def _tgt_is_player(self) -> bool:
         """v177 管线目标是否为玩家（怪物施法玩家技能时 _target_ctx=玩家 → True）。
-        v180-B：身份判定用 _is_focus_player（side/引用/我方），不用 class_name——
+        v180-B：身份判定用 _is_player_side（side/引用/我方），不用 class_name——
         怪扮职业（配 class_name 的怪）不会被误判成玩家。"""
         u = self._target_ctx
         if u is None:
             return False
-        return self._is_focus_player(u)
+        return self._is_player_side(u)
 
     def _deal_hit(self, dmg: int, logs: list, wake_sleep: bool = True, source=None,
                   dmg_kind: str = "") -> int:
@@ -8313,7 +8313,7 @@ class Battle:
                 "matk": int((_st or {}).get("matk", 0) or 0),
                 "hit_at": self._now,
             }
-            _is_pl = self._is_focus_player(target)
+            _is_pl = self._is_player_side(target)
             _icon_map = {"poison": "☠️", "burn": "🔥", "bleed": "🩸", "corros": "🧪"}
             _kname = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}.get(_type, _type)
             _who = ("你" if _is_pl else f"【{target.get('name', '目标')}】")
@@ -8357,11 +8357,11 @@ class Battle:
         """
         e = actor if actor is not None else (self.enemy or {})
         # v178.1 actor 无关：目标玩家 = actor 有 class_name（无则怪路径）
-        _tgt_is_player = self._is_focus_player(e)
+        _tgt_is_player = self._is_player_side(e)
         # v180F A7：不猜 caster——dot 强度以挂毒时存的施法者快照为准（_apply_dot 8246-8247），
         # 快照缺失（老档/直接构造）不回落 _last_player 猜当前玩家（可能是错的人——多人副本
         # 毒是 A 挂的、B 行动时结算），缺失即 0 强度只吃 max_hp 部分，随毒自然过期。
-        _caster_is_player = self._is_focus_player(caster) if caster is not None else False
+        _caster_is_player = self._is_player_side(caster) if caster is not None else False
         _tgt_name = "你" if _tgt_is_player else f"【{e.get('name', '目标')}】"
         deb = e.get("debuffs") or {}
         # v138.2 律二（控制侧）：e_buffs 里的控制效果达上限后直接失效（防 Boss 被无限控死）。
@@ -8925,13 +8925,13 @@ class Battle:
         # actor（玩家/当前主敌），若已挂 dot 但没有对应 actor_dot 卡（直接写 debuffs 的
         # 旧路径/老档/新挂载漏排）→ 补挂卡。幂等：已有该 actor 的卡则跳过。
         try:
-            for _dt_cand in (player, self.enemy or {}):
+            for _dt_cand in [player] + list(self.enemies or []):
                 if not _dt_cand or not (_dt_cand.get("debuffs") or {}):
                     continue
                 _dt_dots = {_k for _k in _dt_cand["debuffs"] if _k in DOT_DEFS}
                 if not _dt_dots:
                     continue
-                _is_pl = self._is_focus_player(_dt_cand)
+                _is_pl = self._is_player_side(_dt_cand)
                 _uid = f"dot_{'p' if _is_pl else 'e'}_{id(_dt_cand)}"
                 _has_ev = any(e.get("uid") == _uid for e in self.tick_effects)
                 if not _has_ev:
@@ -9038,8 +9038,13 @@ class Battle:
             return
         _now = self._now
         self._now = _now + float(dt)
-        # ---- buff 到期检查（p_buffs / e_buffs）----
-        for tbl in (self._p_buffs_bag(), self.e_buffs):
+        # ---- buff 到期检查（焦点玩家 + 全部敌方单位各自 dict）----
+        # v180G B4：原只扫 (self._p_buffs_bag(), self.e_buffs)——e_buffs 是主怪别名，
+        # 后排怪/副怪挂的 buff（减速/破甲等）从不时刻衰减 = 单焦点残留。现扫全场
+        # enemies 每只的 buffs。allies（副本非焦点玩家）不扫：副本是"焦点轮换"语义。
+        _pbag = self._p_buffs_bag()
+        _tbls = [_pbag] + [u.setdefault("buffs", {}) for u in (self.enemies or [])]
+        for tbl in _tbls:
             for k in list(tbl):
                 v = tbl[k]
                 # 控制类 buff：行动级消费，不在时刻递减（与旧语义一致）
@@ -10294,7 +10299,7 @@ class Battle:
             return dmg, False
         # 反击/反伤目标：攻击者优先；玩家被打场景（attacker=None）回退敌人
         _rtgt = attacker if attacker is not None else self.enemy
-        # 回击落点：v177 actor 统一——玩家/怪都走 _damage_actor（状态容器按 _is_focus_player 路由）。
+        # 回击落点：v177 actor 统一——玩家/怪都走 _damage_actor（状态容器按 _is_player_side 路由）。
         # 修复：旧 else 分支 _hit_back(rd_val) 无限自调（RecursionError 被吞 → 反伤静默丢失，
         # 荆棘/格挡反震等对怪回击全失效）；现统一 _damage_actor 目标即正确扣血/移除。
         def _hit_back(rd_val: int) -> None:
@@ -10626,12 +10631,12 @@ class Battle:
         （数据路由：面板来源不同是数据事实，结算逻辑不分身份）
         v180-B：带 class_name 的怪（actor_cfg 配置职业）也走玩家公式——面板同构。
         注意：身份判定不依赖 class_name（怪可配 class_name 扮职业仍属敌方），
-        状态容器路由看 _is_focus_player（见 _damage_actor）。"""
+        状态容器路由看 _is_player_side（见 _damage_actor）。"""
         if actor.get("class_name"):
             return self._player_stats(actor)
         return self._enemy_stats(actor)
 
-    def _is_focus_player(self, actor: dict) -> bool:
+    def _is_player_side(self, actor: dict) -> bool:
         """v180-B actor 状态容器路由判定：actor 是否当前焦点玩家（状态在 Battle 单套焦点
         字段 p_buffs/resources/...）。玩家本体/副本当前操作玩家 → True（焦点字段）；
         怪（含配 class_name 扮职业的，side=enemy）/PVP 敌方快照 → False（actor 自身 dict）。
@@ -10657,12 +10662,12 @@ class Battle:
                     if any(u is actor or u.get("uid") == actor.get("uid") for u in (self.enemies or [])):
                         return False
                 except Exception as _sw_e:
-                    _battle_warn('_is_focus_player', _sw_e)
+                    _battle_warn('_is_player_side', _sw_e)
                     pass
                 if actor.get("side") in (None, "player"):
                     return True
         except Exception as _sw_e:
-            _battle_warn('_is_focus_player', _sw_e)
+            _battle_warn('_is_player_side', _sw_e)
             pass
         return False
 
@@ -10735,7 +10740,7 @@ class Battle:
         返回实际扣血（玩家死亡由上层处理；怪物死亡即时移除单位）。
         """
         # ---- v180-B actor 状态容器（玩家/怪/新 actor 同构，一律读 actor dict）----
-        # v177 曾按 _is_focus_player 分叉（玩家→Battle 焦点字段/怪→actor dict）；
+        # v177 曾按 _is_player_side 分叉（玩家→Battle 焦点字段/怪→actor dict）；
         # v180-B ①后玩家战斗可变状态权威已迁入玩家 actor dict（__init__ 播种），
         # 分叉退化——B/EFF/RES/MS/CH/HITS/SH/RL 全部读 actor 自身字段。
         # 唯一保留的语义判定：玩家被打时反击/反伤目标 = 当前敌人（TARGET）。
@@ -10748,9 +10753,6 @@ class Battle:
         SH = actor.setdefault("shields", {})
         RL_ALL = int(actor.get("reduce_all_left", 0) or 0)
         RL = int(actor.get("reduce_left", 0) or 0)
-        _is_player = self._is_focus_player(actor)
-        TARGET = self.enemy if _is_player else None
-        TARGET_STATS = self._enemy_stats if _is_player else None
         if dmg <= 0:
             self._pending_dmg_lines = []
             return 0
@@ -10763,10 +10765,7 @@ class Battle:
             cname = CH.get("name", CH.get("skill", "?"))
             spent = int(CH.get("mp_spent", 0) or 0)
             # v177 actor 化：局部别名赋值无效，真清状态容器（玩家 self._p_charging() / 怪物 actor["charging"]）
-            if _is_player:
-                self._p_set_charging(None)
-            else:
-                actor["charging"] = None
+            actor["charging"] = None
             logs.append(f"🔨 【{pname}】的蓄力被{source}打断了！")
             if spent > 0:
                 actor["mp"] = min(actor.get("max_mp", actor.get("mp", 0)),
@@ -10777,8 +10776,7 @@ class Battle:
         # 此段曾对怪触发（召唤技能打怪→怪受击→玩家召唤物挡刀自杀，v177 actor 化回归）
         # v180E 阶段3：absorb(宠物影袭) + redirect(召唤物) 双模式合一 _guard_check
         # v180F B4：挡刀服务**受击者本人**（任意玩家侧 actor）——随从按 owner 归属挡自己主人的刀
-        if _is_player:
-            dmg = self._guard_check(dmg, logs, actor)
+        dmg = self._guard_check(dmg, logs, actor)
         if dmg <= 0:
             # O116 还原原顺序：先报攻击伤害，再报挡刀
             _pl = self._drain_pending_dmg()
@@ -10792,7 +10790,7 @@ class Battle:
         # v180F 防御格挡下沉承伤链：玩家 defending 时敌方伤害在此减免（原只在 _process_until
         # 主调用处对"返回 dmg"生效——v180 怪技能收编管线后管线内部扣血、主调用处格挡失效，
         # 防御对怪技能/普攻全部失效（double dip 掩盖）。统一在此消费：管线/手写/AOE 全吃格挡。
-        if _is_player and dmg > 0 and self._p_defending():
+        if dmg > 0 and actor.get("defending"):
             try:
                 _dr = DEFEND_REDUCE
                 _cc = self._cast_ctx or {}
@@ -10811,7 +10809,7 @@ class Battle:
         # v180F 收编敌方普攻配套：玩家受击百分比免伤统一在此消费（phys_reduce/magic_reduce）。
         # 原只在敌方普攻手写段实现（管线/技能/AOE 打玩家不吃 = 隐藏 bug）；现按 dmg_kind
         # 减免——含 phys 段减物免、含 magi 段减魔免；true/缺省不减免。
-        if dmg_kind and _is_player and dmg > 0:
+        if dmg_kind and dmg > 0:
             try:
                 _pr_st = self._actor_stats_of(actor)
                 _kd = str(dmg_kind or "")
@@ -10840,7 +10838,7 @@ class Battle:
         # v178.1 true_dmg：真伤不减半——盾层全额吸收后剩余穿透（v110 真伤口径）
         shields = SH
         if shields:
-            if not _is_player and any(isinstance(s, dict) and s.get("halve") for s in shields.values()) \
+            if any(isinstance(s, dict) and s.get("halve") for s in shields.values()) \
                     and not true_dmg:
                 # 怪物 halve 盾：受伤减半后由盾吸收（与旧 _boss_dmg_filter 同款：real=dmg*0.5 先扣盾）
                 _pre = sum(int(s.get("value", 0)) for s in shields.values())
@@ -10860,9 +10858,9 @@ class Battle:
         # v142 数据驱动：S1 受击直连已迁至 _set_taken_proc（ferry_repel/tie_pi_bulwark/tie_pi_harden/shou_wang_ward/tie_shou_blood）
         actor["hp"] = max(0, actor.get("hp", 0) - dmg)
         # v177 actor 统一：怪物死亡即时移除单位（玩家死亡走下方复活链）
-        if not _is_player and actor.get("hp", 0) <= 0:
-            if any(u is actor or u.get("uid") == actor.get("uid") for u in self.enemies):
-                self._remove_unit("enemy", actor)
+        _in_enemies = any(u is actor or u.get("uid") == actor.get("uid") for u in self.enemies)
+        if _in_enemies and actor.get("hp", 0) <= 0:
+            self._remove_unit("enemy", actor)
             return max(0, _hp_before - int(actor.get("hp", 0) or 0))
         self._actor_on_taken(actor, logs)
         self._post_hp_lethal(actor, dmg, logs)

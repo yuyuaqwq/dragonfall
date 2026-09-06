@@ -115,8 +115,8 @@ def test_class_actor_as_focus():
                 "buffs": {"atk_up": 3}, "resources": {"element_charge": 2},
                 "stacks": {}, "eff": {}, "shields": {"test": {"value": 50, "halve": False}},
                 "charging": None, "defending": False}
-    # _is_focus_player: side=player → True（当焦点玩家）
-    check("side=player actor 是焦点玩家", b._is_focus_player(follower), "")
+    # _is_player_side: side=player → True（当焦点玩家）
+    check("side=player actor 属玩家侧", b._is_player_side(follower), "")
     # 容器路由退化后：受击读 actor 自身 buffs（不受 Battle 玩家 buffs 影响）
     b.player["buffs"]["atk_up"] = 99  # 污染 Battle 玩家——follower 受击不应读它
     _hp0 = follower["hp"]

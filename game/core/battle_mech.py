@@ -231,7 +231,7 @@ def _m_slow(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     if not mval:
         mval = 2
     _tgt = battle._tgt()
-    if _tgt is not None and battle._is_focus_player(_tgt):
+    if _tgt is not None and battle._is_player_side(_tgt):
         # 目标是玩家 actor：查目标自身 cc_immune（v180-B 修：原查施法者 buffs 错对象）/
         # 5 件套控制免疫（数据化，替代霜狼字符串特判）
         if (_tgt.setdefault("buffs", {}) or {}).get("cc_immune"):
@@ -257,8 +257,8 @@ def _m_interrupt(battle, mval, p_mech, total, logs, skill_name, is_crit, info=No
     tgt = getattr(battle, "_tgt", lambda: None)()
     if tgt is None:
         return
-    if battle._is_focus_player(tgt):
-        # 目标是玩家（v180-B：_is_focus_player side/引用判定，怪扮职业不误判）：
+    if battle._is_player_side(tgt):
+        # 目标是玩家（v180-B：_is_player_side side/引用判定，怪扮职业不误判）：
         # 蓄力（actor dict charging）优先，其次读条（_pending_player_cast）
         # v180-B ①：蓄力状态权威在玩家 actor dict
         ch = tgt.get("charging")
