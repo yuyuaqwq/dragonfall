@@ -132,6 +132,38 @@ STAMINA_RECOVER_INTERVAL = 60               # 体力自然恢复间隔：60s（1
 SKILL_PMULT_CAP = 6.0                      # 技能伤害倍率连乘上限（battle.py 阶段七 pmult 封顶，防高倍率配置失控；
                                            # 仅 clamp 技能伤害倍率，不影响暴击/暴伤/幸运一击独立乘区）
 
+# ================= v181.P2B 引擎刻度常量（原 battle.py 模块级 → core 权威单源） =================
+# 背景：weapon_effects.py L37 顶层 from ..battle import ACT_TICK + battle_mech.py 六处函数内
+# from ..battle import BUFF_TURNS/DEBUFF_TURNS —— core → battle 反向 import。这些是引擎固有
+# 刻度常量（非内容数值），收进 core/constants.py 作权威定义；battle.py 改从这里 import
+# （保留对外名字），core 各模块也从这里 import——消除 core → battle 反向依赖。
+BUFF_TURNS = 3        # 增益默认持续刻
+DEBUFF_TURNS = 2      # 减益默认持续刻
+# v121 CTB 行动时间轴：全局行动消耗常量
+# v152 鱼鱼拍板：总耗时 = 行动间隔（BASE_DELAY/spd）+ 固定动作耗时。
+# BASE_DELAY=40 经 sim 标定：普通怪战斗 ~49s（60s 内），紧凑不拖沓。
+# （旧 100 在新模型下战斗拖到 113s 太长；40 平衡节奏与速度差稀释）
+BASE_DELAY = 40.0     # 行动间隔基数（v152 标定：40 保持战斗节奏）
+SPD_CT_CAP = 80.0     # 参与 ct 计算的 spd 软上限（min(spd, cap)）
+# v154 鱼鱼拍板：速度影响自己的出招(cast)和收招(recovery)，出招跑完=命中。
+# 恢复间隔取消——总行动周期 = 出招 + 收招，速度收益全部收敛到动作快慢。
+# SPD_REF = 基准速度：速度 50 时动作耗时 = 数据基础值；>50 变快，<50 变慢。
+SPD_REF = 50.0        # v154 基准速度（= v152 参考档）
+# v152 CTB 彻底化：刻 → 时刻。ACT_TICK = 1 刻对应的全局时刻数。
+# 鱼鱼拍板（2026-08-31）：1 刻 = 1 游戏秒（对齐秒，玩家直观）。
+# 所有"持续 N 刻 / CD N 刻"换算为 N × ACT_TICK = N 时刻 = N 游戏秒。
+# 引擎内部无"刻"概念，只有全局绝对时刻 _now；"刻"是玩家可见的换算单位（1 刻 = 1 秒）。
+ACT_TICK = 1.0        # 1 刻 = 1.0 时刻 = 1 游戏秒（鱼鱼拍板对齐秒）
+# v154：CAST_* 语义从"固定动作耗时"改为"基准耗时"（速度 50 时 = 该值）。
+# 实际耗时 = 基准耗时 × (SPD_REF / 实际速度)；速度 50 时 = 基准值。
+CAST_ATK = 1.0        # 普攻基准耗时（1 秒 @spd50）
+CAST_SKILL = 1.6      # 技能基准耗时（1.6 秒 @spd50，出手更慢）
+CAST_ITEM = 1.0       # 道具基准耗时（1 秒 @spd50）
+CAST_FOOD = 1.0       # 食物基准耗时（1 秒 @spd50）
+CAST_DEFEND = 0.6     # 防御基准耗时（0.6 秒 @spd50，快动作）
+CAST_FLEE = 2.0       # 逃跑基准耗时（2 秒 @spd50，慢，易被打断）
+CAST_PET_SKILL = 0.8  # 宠物技能基准耗时（0.8 秒 @spd50，出手快）——v154 宠物独立读条
+
 # ================= v138.2 异常体系五律（docs/COMBAT_ENRICH_v138.md §二） =================
 # 借鉴《云海猎团》04 章 M4.2「九态异常：积蓄-触发-衰减」三律，加固现有毒/灼烧/流血 DOT：
 #   律一 阈值递增：同一异常每次触发后阈值 ×DOT_THRESHOLD_MULT，封顶 DOT_THRESHOLD_CAP 倍基准——

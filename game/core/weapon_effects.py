@@ -32,9 +32,10 @@
 """
 
 import random
-# v152：CD ready_at 换算用 ACT_TICK（battle.py 模块级常量，1 刻 ≈ ACT_TICK 时刻）
-# 注意：battle.py 只在函数内延迟 import 本模块（避免循环导入），此处导入 battle 安全
-from ..battle import ACT_TICK
+
+# v152：CD ready_at 换算用 ACT_TICK（1 刻 ≈ ACT_TICK 时刻；v181.P2B 起权威定义在
+# core/constants.py —— 原顶层 from ..battle import ACT_TICK 系 core→battle 反向 import，已消除）
+from .constants import ACT_TICK
 # v180E 阶段4：武器特效参数权威表（数据层；延迟导入避免 data→core 循环）
 _WE_DATA_TABLE = None
 
