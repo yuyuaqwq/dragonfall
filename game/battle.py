@@ -9456,14 +9456,15 @@ class Battle:
         return lines
 
     def _roll_dodge(self, actor: dict, logs: list) -> bool:
-        """v177 闪避判定（玩家 actor 承伤）：dodge 乘算合成(上限40%) → roll。闪避成功返回 True（调用方中断本次承伤）。
+        """v177 闪避判定（actor 承伤）：dodge 乘算合成(上限40%) → roll。闪避成功返回 True（调用方中断本次承伤）。
         闪避成功副作用：丢弃延迟伤害日志 + on_dodge_success 攒资源。
-        怪物 actor 不走此函数——怪物被打的闪避由 _monster_dodge_check 前置处理（避免双重 roll）。"""
+        怪物 actor 的闪避由 _monster_dodge_check 前置处理（避免双重 roll）——但本函数已
+        actor 化（v180F B3）：一律读入参 actor 自身袋，不读焦点。"""
         if not actor or not actor.get("class_name"):
             return False
-        B = self._p_buffs_bag()
-        EFF = self._p_eff()
-        RES = self._p_res()
+        B = actor.setdefault("buffs", {})
+        EFF = actor.setdefault("eff", {})
+        RES = actor.setdefault("resources", {})
         # v105 闪避体系（鱼鱼拍板"闪避改乘算"）：全部来源乘算合成 1-Π(1-dᵢ)，统一 40% 总上限
         # 攻击方精准削减：有效闪避 = 闪避 × (1 - 攻击方精准)，精准上限 60%（PVP 互殴生效，PVE 怪物无精准）
         dodge = min(float(self._actor_stats_of(actor).get("dodge", 0) or 0), 0.40)
@@ -9480,7 +9481,7 @@ class Battle:
         if (EFF or {}).get("novice_dodge_active") and self._tick_no() <= 1:
             try:
                 from .core.weapon_effects import effect_data as _we_ed3
-                _nfd_pct = float(_we_ed3(self, self.player, "novice_first_turn_dodge").get("dodge_pct", 0.05) or 0.05)
+                _nfd_pct = float(_we_ed3(self, actor, "novice_first_turn_dodge").get("dodge_pct", 0.05) or 0.05)
             except Exception:
                 _nfd_pct = 0.05
             dodge = 1 - (1 - dodge) * (1 - _nfd_pct)
@@ -9509,19 +9510,14 @@ class Battle:
         if not actor or not (actor.get("class_name") or actor.get("equipment") or actor.get("learned_skills")
                               or actor.get("buffs") or actor.get("shields") or actor.get("resources")):
             return dmg, False
-        # v177 受击方状态路由：玩家 actor → 焦点字段；怪物 actor → 自身 dict（同 _damage_actor）
-        if actor.get("class_name"):
-            B = self._p_buffs_bag()
-            EFF = self._p_eff()
-            RES = self._p_res()
-            MS = self._p_stacks()
-            HITS = self._p_buff_hits()
-        else:
-            B = actor.setdefault("buffs", {})
-            EFF = actor.get("eff") or {}
-            RES = actor.setdefault("resources", {})
-            MS = actor.setdefault("stacks", {})
-            HITS = {}
+        # v180F B3：受击方状态一律读入参 actor 自身 dict（伪 actor 化修复——
+        # 原按 class_name 分轨：带 class_name 走焦点袋 _p_*，非焦点玩家/带 class 怪
+        # 受击会吃错被动/套装/资源）
+        B = actor.setdefault("buffs", {})
+        EFF = actor.setdefault("eff", {})
+        RES = actor.setdefault("resources", {})
+        MS = actor.setdefault("stacks", {})
+        HITS = actor.setdefault("buff_hits", {})
         # v130.2c 圣典·日冕 4 件：满信仰状态下首次受击免伤（每战 1 次，随战斗序列化）
         if (not getattr(self, "_set_immune_used", False)
                 and self._set_eff(actor, "first_hit_immune", 4)
@@ -9597,7 +9593,7 @@ class Battle:
         # ---- v151 时刻制：防御型 buff 受击计数递减（鱼鱼拍板：防御药水"3 刻"应按敌方出手次数计）----
         # 铁壁药剂/岩壁药剂/影步药剂/荆棘药剂/技能铁壁 等防御/受击类 buff 不再按玩家刻递减，
         # 改为"实际受击 N 次后消失"——防的是敌方出手，就按敌方出手数计时，不受速度差影响。
-        if self._p_buff_hits():
+        if HITS:
             for _hk in [k for k in list(HITS) if int(HITS.get(k, 0) or 0) > 0]:
                 _nh = int(HITS.get(_hk, 0) or 0) - 1
                 if _nh <= 0:
@@ -9655,7 +9651,7 @@ class Battle:
         if (EFF or {}).get("novice_guard_active") and self._tick_no() <= 1:
             try:
                 from .core.weapon_effects import effect_data as _we_ed4
-                _nfg_pct = float(_we_ed4(self, self.player, "novice_first_turn_guard").get("reduce_pct", 0.10) or 0.10)
+                _nfg_pct = float(_we_ed4(self, actor, "novice_first_turn_guard").get("reduce_pct", 0.10) or 0.10)
             except Exception:
                 _nfg_pct = 0.10
             dmg = max(1, int(dmg * (1 - _nfg_pct)))
@@ -9836,10 +9832,10 @@ class Battle:
                                    source=str(actor.get("name", "敌人") or "敌人") or "反伤")
             except Exception:
                 pass
-        B = self._p_buffs_bag()
-        EFF = self._p_eff()
-        RES = self._p_res()
-        MS = self._p_stacks()
+        B = actor.setdefault("buffs", {})
+        EFF = actor.setdefault("eff", {})
+        RES = actor.setdefault("resources", {})
+        MS = actor.setdefault("stacks", {})
         # v106.4 反伤属性统一结算（词条折算/种族/被动/药水 → st["thorns"]）
         _pst_th = self._actor_stats_of(actor)
         th = float(_pst_th.get("thorns", 0) or 0)
@@ -10000,22 +9996,22 @@ class Battle:
         怪物 actor 无这些数据源 → 空转（死亡已在 _damage_actor 前置移除）。副作用全在 self + actor + logs。"""
         if not actor or not actor.get("class_name"):
             return
-        B = self._p_buffs_bag()
-        EFF = self._p_eff()
-        RES = self._p_res()
-        MS = self._p_stacks()
+        B = actor.setdefault("buffs", {})
+        EFF = actor.setdefault("eff", {})
+        RES = actor.setdefault("resources", {})
+        MS = actor.setdefault("stacks", {})
         # v140 波3.1：特效装备生命阈值（时光凝滞/磐石守护/苍穹庇护/石像鬼之心/不灭意志）
         # + 不灭意志免疫致死（本刻免疫致死伤害，扣血后回拉）
         try:
             from .core.weapon_effects import proc as _we_proc
             _we_proc(self, actor, "threshold", {"dmg": dmg}, logs)
-            if battle_p_eff_undying := self._p_eff().get("we_undying_immune"):
+            if EFF.get("we_undying_immune"):
                 if actor.get("hp", 0) <= 0:
                     actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * 0.10))
                     logs.append("✨ 不灭意志：你撑住了致命一击！")
                 EFF.pop("we_undying_immune", None)
             # 死亡之舞：受击伤害 35% 转为缓伤池（刻开始结算 10%）
-            if self._p_eff().get("we_death_pool") is not None:
+            if EFF.get("we_death_pool") is not None:
                 EFF["we_death_pool"] = float(EFF.get("we_death_pool", 0) or 0) + dmg * 0.35
         except Exception:
             pass
@@ -10027,7 +10023,7 @@ class Battle:
             _prt = max(1, int(_pr.get("turns", 3) or 3))
             B["reduce_all"] = max(float(B.get("reduce_all", 0) or 0),
                                              float(_pr.get("dmg_reduce", 0.20) or 0.20))
-            self._p_set_reduce_all_left(max(int(self._p_reduce_all_left() or 0), _prt))
+            actor["reduce_all_left"] = max(int(actor.get("reduce_all_left", 0) or 0), _prt)
             logs.append(f"🪶 不死鸟之羽燃尽！你以 {actor['hp']} HP 复活，获得减伤！")
         # v107 死亡契约（暗影祭司）：致死时牺牲一个召唤物以 20% HP 存活（每场 1 次）
         # v180-C S3 修正：只牺牲"召唤物"（kind=summon）——宠物 actor 不是可牺牲祭品
@@ -10097,10 +10093,10 @@ class Battle:
         由 _damage_actor 扣血后调用（存活才触发）。副作用全在 self + logs。"""
         if not actor or not actor.get("class_name"):
             return
-        B = self._p_buffs_bag()
-        EFF = self._p_eff()
-        RES = self._p_res()
-        MS = self._p_stacks()
+        B = actor.setdefault("buffs", {})
+        EFF = actor.setdefault("eff", {})
+        RES = actor.setdefault("resources", {})
+        MS = actor.setdefault("stacks", {})
         # v2.0 核心资源：受击获取（战士怒气/牧师信仰/拳师气）
         cls = actor.get("class_name", "")
         rd = E.core_resource_def(cls)
