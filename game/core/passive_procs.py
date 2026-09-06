@@ -34,8 +34,20 @@ P2-D2a 新增族（4 proc / 1 族，挂点1 _passive_crit_bonus 条件暴击）�
 P2-D2b 新增族（4 proc / 1 族 stat_mult_cond，挂点2 _passive_crit_dmg_mult + 挂点3 _player_stats）：
     stat_mult_cond   条件 → 面板数值 加/乘（影舞态暴伤加算 + 影舞态速度乘算 + 旋律 3 光环聚合）
                      shadow_dance_bonus（crit_dmg 段 = 挂点2 / spd 段 = 挂点3，双消费点由
-                     ctx[\"stat_kind\"] 参数化区分）/ melody_resonance / melody_full / melody_master
+                     ctx["stat_kind"] 参数化区分）/ melody_resonance / melody_full / melody_master
                      （后 3 段挂点先聚合再统一乘——handler 返回贡献值，不直接改写 st）
+
+P2-D3a 新增族（3 proc / 2 族，挂点6 _skill_passive_dmg_bonus 技能被动伤害乘区，方案 §6.2/§2.3 挂点6）：
+    dmg_mult_cond    条件 → 伤害乘区 1+mult（扩展原 speed_ratio_dmg 族：ctx["mult_kind"] 参数化
+                     分派 arcane_mech / element_marks 条件谓词——参考 crit_cond_add ctx res_kind 模式）
+                     arcane_resonance（mech ∈ MECH_PROC_GROUPS.arcane_dmg → ×(1+mult)）/
+                     element_origin（三系印记 ≥layers → ×(1+mult)，读 battle._elem_marks）
+                     语义 = 原挂点 for 循环体逐字直搬；mult 连乘进 ctx["mult"] 槽（引用槽改写读回），
+                     返回新 mult（连乘多被动语义由挂点循环 ×= 保留——与迁移前逐段 *= 等价）。
+    flag_set_cond    置位型标记族（新族，element_sync 副作用置 battle._elem_sync_bonus = True；
+                     与 element_affinity/broken_extend 等 D5 段同族，本批先收 element_sync）
+                     element_sync（元素系技能 + 连续同系 → 置 _elem_sync_bonus；供挂印分支消费）
+                     无返回值（纯副作用）；ps 空 dict（无参数置位型，学到即生效）
 """
 from __future__ import annotations
 
@@ -175,12 +187,52 @@ def run_proc_family_pm(battle, player, proc_names, ctx: dict):
 # ---- 3.1 dmg_mult_cond（疾风·极 speed_ratio_dmg：挂点4 _player_dmg_mult）----
 @register("dmg_mult_cond")
 def _h_dmg_mult_cond(battle, ctx: dict, ps: dict, ps_name: str):
-    """速度比 ≥ ratio → 伤害 ×(1+dmg_add)。
+    """速度比 ≥ ratio → 伤害 ×(1+dmg_add)；奥术系/三系印记 → ×(1+mult)（条件伤害乘区族）。
 
-    ctx：pst_spd（玩家速度，≥0.001 现成值）、est_spd（敌方速度，>0 才判）、
-         mult/tags（引用槽；改写调用侧读回）。数值读 _ps：ratio/dmg_add（D0 回填 2.0/0.20）。
-    原挂点语义：敌方无速度键按 0 防御性跳过；标签 💨疾风x… 原样保留。
+    ctx 分派（mult_kind ∈ speed_ratio/arcane_mech/element_marks；缺省 speed_ratio 兼容挂点4）：
+    - speed_ratio    速度比 ≥ ps.ratio → ×(1+ps.dmg_add)（疾风·极；原挂点4 _player_dmg_mult）
+                     读 ctx.pst_spd/est_spd；敌方无速度键按 0 防御性跳过（原语义）；标签 💨疾风x… 原样保留
+    - arcane_mech    mech ∈ MECH_PROC_GROUPS.arcane_dmg → ×(1+ps.mult)（奥术共鸣；原挂点6 循环体）
+                     需 ctx["mech"]；多条目逐条累乘（原 for 无 break——逐条 *=，连乘语义保留）
+    - element_marks  三系印记同时 ≥ps.layers → ×(1+ps.mult)（元素起源；原挂点6 循环体）
+                     读 battle._elem_marks()（目标侧印记；try/except 吞错留痕原样保留）；
+                     无技能元素/系别守卫（原循环体无 element 判定——三系印记齐即对任意结算伤害生效）；
+                     首条命中即 break（原 `break` 无条件在循环尾——max=1 下等价，多条目防御
+                     保留原"只判首条"语义）
+    通用：数值缺字段（ratio/dmg_add/mult/layers ≤ 0）= 无此行为（零默认值铁律）；
+    命中 → ctx["mult"] *= (1+增量)（引用槽改写读回）并返回新 mult；未命中返回 None。
     """
+    _kind = ctx.get("mult_kind") or "speed_ratio"
+    if _kind == "arcane_mech":
+        # 挂点6 奥术共鸣 arcane_resonance：奥术系技能伤害 +15%（与奥术之心同 mech 口径叠加）
+        _mult = float(ps.get("mult", 0.0) or 0.0)
+        if _mult <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.15）
+        _mech = ctx.get("mech")
+        if not _mech or _mech not in ("arcane",):
+            return None  # 非奥术系技能 → 不触发（原 `mech in MECH_PROC_GROUPS.arcane_dmg` 判定）
+        _nv = ctx["mult"] * (1.0 + _mult)
+        ctx["mult"] = _nv
+        return _nv
+    if _kind == "element_marks":
+        # 挂点6 元素起源 element_origin：三系印记同时 ≥layers → 结算伤害 ×(1+mult)（加算乘区）
+        # （原循环体无元素系技能守卫——三系印记齐即乘，对任意结算伤害生效）
+        _layers = int(ps.get("layers", 0) or 0)
+        _mult = float(ps.get("mult", 0.0) or 0.0)
+        if _layers <= 0 or _mult <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 2/0.20）
+        try:
+            _mk_origin = battle._elem_marks()
+            if _mk_origin and all(int(_mk_origin.get(_ek, 0) or 0) >= _layers
+                                  for _ek in ("fire", "ice", "thunder")):
+                _nv = ctx["mult"] * (1.0 + _mult)
+                ctx["mult"] = _nv
+                return _nv
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.element_origin", _sw_e)
+            pass
+        return None
+    # ---- 挂点4 疾风·极 speed_ratio_dmg（缺省 mult_kind）----
     _ratio = float(ps.get("ratio", 0) or 0)
     _add = float(ps.get("dmg_add", 0) or 0)
     if _ratio <= 0 or _add <= 0:
@@ -408,10 +460,46 @@ def _h_stat_mult_cond(battle, ctx: dict, ps: dict, ps_name: str):
 
 
 # ============================================================
+# 5b. flag_set_cond（P2-D3a：挂点6 _skill_passive_dmg_bonus element_sync 置位段）
+#     条件命中 → 置 battle 标记（纯副作用族；后续批次 D5 收 element_affinity/broken_extend 等）
+# ============================================================
+@register("flag_set_cond")
+def _h_flag_set_cond(battle, ctx: dict, ps: dict, ps_name: str):
+    """条件命中 → 置位标记（原挂点6 element_sync 循环体逐字直搬；ps 空 dict = 无参数置位型）。
+
+    ctx 分派（flag_kind）：
+    - elem_sync    元素系技能（ctx["is_elem_skill"]，原 `element and E.ELEMENT_MARKS.get(element)`
+                   前置门槛）且 battle._p_last_element() == ctx["element"]（连续同系）
+                   → 置 battle._elem_sync_bonus = True（副作用；供挂印分支 6567 消费后清零）
+                   读 _p_last_element 的 try/except 吞错留痕原样保留
+    flag_set_cond 无参数族语义：有注册即触发（学到即生效），ps 可为空 dict——
+    但保留零默认值铁律：缺 flag_kind / 条件不成立 = 不触发。
+    """
+    _kind = ctx.get("flag_kind")
+    if _kind == "elem_sync":
+        # 元素同调：连续两次同系施法，第二次挂印 +1 层（置 _elem_sync_bonus 标记）
+        if not ctx.get("is_elem_skill"):
+            return None  # 非元素系技能 → 不触发（原 `element and E.ELEMENT_MARKS.get(element)` 门槛）
+        try:
+            if battle._p_last_element() == ctx.get("element"):
+                battle._elem_sync_bonus = True
+                return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.element_sync", _sw_e)
+            pass
+        return None
+    return None  # 未知 flag_kind = 不触发（调用侧未配置该 proc 的置位谓词）
+
+
+# ============================================================
 # 6. proc → 族 声明（P2-D1 试点 5 proc + P2-D2a crit_cond_add 4 proc +
-#    P2-D2b stat_mult_cond 4 proc；其余 52 内 proc 由 P2-D2c~D7 批次按序声明）
+#    P2-D2b stat_mult_cond 4 proc + P2-D3a dmg_mult_cond 扩展 2 + flag_set_cond 1；
+#    其余 52 内 proc 由 P2-D2c~D7 批次按序声明）
 # ============================================================
 declare_proc("speed_ratio_dmg", "dmg_mult_cond")
+declare_proc("arcane_resonance", "dmg_mult_cond")
+declare_proc("element_origin", "dmg_mult_cond")
+declare_proc("element_sync", "flag_set_cond")
 declare_proc("zhan_yi_lifesteal", "lifesteal_add")
 declare_proc("poison_cap_up", "stack_cap_add")
 declare_proc("poison_cap", "stack_cap_add")
@@ -425,3 +513,4 @@ declare_proc("shadow_dance_bonus", "stat_mult_cond")
 declare_proc("melody_resonance", "stat_mult_cond")
 declare_proc("melody_full", "stat_mult_cond")
 declare_proc("melody_master", "stat_mult_cond")
+

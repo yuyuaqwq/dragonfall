@@ -6961,31 +6961,33 @@ class Battle:
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # v169.7 奥术共鸣 arcane_resonance：奥术技能伤害 +15%（与奥术之心同 mech 口径叠加）
         # v181.C: mult 读 skills.py 奥术共鸣 passive（缺字段=无此行为）
+        # v181.P2D-D3a：消费迁注册表族 dmg_mult_cond（ctx mult_kind='arcane_mech' 段；循环骨架/
+        # 顺序/break 语义逐字保留——原 for 无 break 逐条累乘，多条目连乘语义由逐条 run 保留）
         for _pn, _ps in _procs.get("arcane_resonance", []):
-            if mech in MECH_PROC_GROUPS.get("arcane_dmg", ()):
-                passive_bonus *= (1 + float(_ps.get("mult", 0.0) or 0.0))
+            _ctx_ar = {"player": player, "ps": _ps, "ps_name": _pn,
+                       "mult_kind": "arcane_mech", "mech": mech, "mult": passive_bonus}
+            _run_proc_family(self, "arcane_resonance", _ctx_ar)
+            passive_bonus = _ctx_ar.get("mult", passive_bonus)  # handler 数值槽改写读回（mult float 不可变）
         # v169.7 元素起源 element_origin：三系印记同时 ≥2 层时 结算伤害 +20%（加算乘区）
         # v181.C: layers/mult 读 skills.py 元素起源 passive（缺字段=无此行为）
+        # v181.P2D-D3a：消费迁注册表族 dmg_mult_cond（ctx mult_kind='element_marks' 段；循环骨架/
+        # 顺序/break 语义逐字保留——原无条件 break 在循环尾，max=1 下等价，多条目防御只判首条）
+        _elem_skill = bool(element and E.ELEMENT_MARKS.get(element))
         for _pn, _ps in _procs.get("element_origin", []):
-            try:
-                _mk_origin = self._elem_marks()
-                if _mk_origin and all(int(_mk_origin.get(_ek, 0) or 0) >= int(_ps.get("layers", 0) or 0)
-                                      for _ek in ("fire", "ice", "thunder")):
-                    passive_bonus *= (1 + float(_ps.get("mult", 0.0) or 0.0))
-            except Exception as _sw_e:
-                _battle_warn('_skill_passive_dmg_bonus', _sw_e)
-                pass
+            _ctx_eo = {"player": player, "ps": _ps, "ps_name": _pn,
+                       "mult_kind": "element_marks", "mult": passive_bonus}
+            _run_proc_family(self, "element_origin", _ctx_eo)
+            passive_bonus = _ctx_eo.get("mult", passive_bonus)
             break
         # v169.7 元素同调 element_sync：连续两次同系施法，第二次挂印 +1 层（置 _elem_sync_bonus
         # 标记，命中挂印分支消费；读 _last_element 判定连续同系）
+        # v181.P2D-D3a：消费迁注册表族 flag_set_cond（ctx flag_kind='elem_sync' 段；循环骨架/
+        # 顺序/break 语义逐字保留——原无条件 break 在循环尾，max=1 下等价）
         for _pn, _ps in _procs.get("element_sync", []):
-            if element and E.ELEMENT_MARKS.get(element):
-                try:
-                    if self._p_last_element() == element:
-                        self._elem_sync_bonus = True
-                except Exception as _sw_e:
-                    _battle_warn('_skill_passive_dmg_bonus', _sw_e)
-                    pass
+            _ctx_es = {"player": player, "ps": _ps, "ps_name": _pn,
+                       "flag_kind": "elem_sync", "is_elem_skill": _elem_skill,
+                       "element": element}
+            _run_proc_family(self, "element_sync", _ctx_es)
             break
         # 连招技能伤害（武技）
         for _pn, _ps in _procs.get("combo_dmg", []):
