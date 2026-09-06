@@ -182,7 +182,7 @@ MONSTER_SKILLS["ms_test_poison"] = {"kind": "魔法", "power": 1.0,
                                     "pdot": {"type": "poison", "n": 2},
                                     "desc": "测试毒", "name": "毒雾测试"}
 try:
-    logs11, dmg11 = b11._enemy_cast_done(player11, mon11, {"kind": "skill", "skill": "ms_test_poison"})
+    logs11, dmg11, _ = b11._enemy_cast_done(player11, mon11, {"kind": "skill", "skill": "ms_test_poison"})
     deb11 = player11.get("debuffs") or {}
     check("技能配 pdot 完整链路生效", deb11.get("poison", {}).get("n") == 2, str(deb11))
     check("强度快照=敌方 atk", deb11.get("poison", {}).get("atk") == 200, str(deb11))

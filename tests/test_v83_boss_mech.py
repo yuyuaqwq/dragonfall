@@ -38,23 +38,25 @@ async def main():
     m = Main(None)
 
     # ---- 1. 护盾 shield（v177 actor 化：盾存 enemy["shields"]["boss"]={value,halve}）----
+    # v180G B2-1：护盾吸收收口 _damage_actor（删 _boss_dmg_filter 手写吸收段），
+    # 本测试改走 _damage_actor 直打（等价纯承伤单测，跳过玩家乘区）验证 halve/破盾语义
     b = mk_boss("shield")
     b.setdefault("shields", {})["boss"] = {"value": int(b["max_hp"] * 0.20), "halve": True}
     bt = BT.Battle("monster", b, {}, player=mk_player())
-    dmg = bt._boss_dmg_filter(100, mk_player(), [])
-    check("护盾期受伤减半", dmg == 50, str(dmg))
+    dmg = bt._damage_actor(bt.enemy, 100, [])
+    check("护盾期受伤减半全吸", dmg == 0, str(dmg))
     _sb = bt.enemy.get("shields", {}).get("boss") or {}
     check("护盾被吸收", _sb.get("value") == 200 - 50, str(bt.enemy.get("shields")))
     # 破盾
     bt2 = BT.Battle("monster", mk_boss("shield"), {}, player=mk_player())
     bt2.enemy.setdefault("shields", {})["boss"] = {"value": 30, "halve": True}
     logs = []
-    dmg2 = bt2._boss_dmg_filter(100, mk_player(), logs)
-    check("破盾后移除", not bt2.enemy.get("shields") and dmg2 == 50,
+    dmg2 = bt2._damage_actor(bt2.enemy, 100, logs)
+    check("破盾后移除", not bt2.enemy.get("shields") and dmg2 == 20,
           f"dmg={dmg2} shields={bt2.enemy.get('shields')}")
     check("破盾提示", any("护盾破碎" in x for x in logs), str(logs))
     # 护盾没了恢复全额伤害
-    dmg3 = bt2._boss_dmg_filter(100, mk_player(), [])
+    dmg3 = bt2._damage_actor(bt2.enemy, 100, [])
     check("护盾消失后全额", dmg3 == 100, str(dmg3))
 
     # ---- 2. 多阶段 phase ----

@@ -112,7 +112,7 @@ def t7():
                 b = BT.Battle("monster", mon)
                 b.player = player
                 random.seed(1)
-                logs, dmg = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": sk})
+                logs, dmg, _ = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": sk})
                 return dmg > 0, f"技能={sk} dmg={dmg} logs={logs[:1]}"
     return False, "无 aoe 伤害技能"
 
@@ -131,7 +131,7 @@ def t8():
                         b.player = player
                         n_before = len(b.enemies)
                         random.seed(1)
-                        logs, dmg = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": sk})
+                        logs, dmg, _ = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": sk})
                         return len(b.enemies) > n_before, f"技能={sk} 敌数 {n_before}→{len(b.enemies)}"
     return False, "无召唤技能"
 

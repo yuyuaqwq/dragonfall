@@ -237,15 +237,16 @@ def section_mon_shield():
     check("珊瑚护盾 20% 最大生命（200）", _sh.get("value") == 200, str(b.enemy.get("shields")))
     check("护盾 halve 受伤减半", _sh.get("halve") is True, str(_sh))
     check("护盾日志播报", any("护盾" in l for l in logs), str(logs))
-    dmg = b._boss_dmg_filter(100, p, [])
-    check("带盾受击 100 → 减半 50", dmg == 50, str(dmg))
+    dmg = b._damage_enemy(100, [], target=b.enemy)
+    check("带盾受击 100 → 减半 50 全吸", dmg == 0 and b.enemy.get("hp") == 1000, str(dmg))
     _sh2 = b.enemy.get("shields", {}).get("buff") or {}
     check("护盾扣减 200→150", _sh2.get("value") == 150, str(b.enemy.get("shields")))
-    dmg2 = b._boss_dmg_filter(200, p, [])
-    check("二击 200 → 减半 100", dmg2 == 100, str(dmg2))
-    dmg3 = b._boss_dmg_filter(200, p, [])
+    dmg2 = b._damage_enemy(200, [], target=b.enemy)
+    check("二击 200 → 减半 100 全吸", dmg2 == 0 and _sh2.get("value") == 50,
+          f"dmg={dmg2} shield={_sh2.get('value')}")
+    dmg3 = b._damage_enemy(200, [], target=b.enemy)
     _sh3 = b.enemy.get("shields", {})
-    check("三击破盾后仍减半（护盾 50 吸收后破碎）", dmg3 == 100 and not _sh3,
+    check("三击破盾（200→100 盾吸50 → 穿盾50 扣血）", dmg3 == 50 and not _sh3,
           f"dmg={dmg3} shields={_sh3}")
 
 

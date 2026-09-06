@@ -3383,13 +3383,15 @@ class Battle:
                             try:
                                 _e0 = _peek0[2].get("unit") or {}
                                 if _e0.get("hp", 0) > 0:
-                                    _ml, _dg = self._enemy_cast_done(player, _e0, _peek0[2])
+                                    _ml, _dg, _dk = self._enemy_cast_done(player, _e0, _peek0[2])
                                     logs += _ml
                                     _e0.pop("_cast", None)
                                     # v180F：管线分支已内部扣血（返回 dmg=0），非管线返回 dmg 外部扣
+                                    # v180G B2-2：普攻返回 _dk（phys/magi）→ 落地传 dmg_kind 承伤链统一减免
                                     if _dg > 0:
                                         self._damage_player(player, _dg, logs,
-                                                            source=_e0.get("name", "敌人"))
+                                                            source=_e0.get("name", "敌人"),
+                                                            dmg_kind=_dk or "")
                                     # v173.x 意见#154/#155：补结算直调 _damage_player 缺死亡
                                     # 判定——玩家 hp 归 0 但 result 不置 defeat → 命令层看
                                     # ended=False 只存战斗状态，玩家血 0 不触发死亡/战败结算。
@@ -3655,7 +3657,7 @@ class Battle:
                             # v180F B5：结算目标 = 排程时选定的 target（怪vs怪打敌对怪），
                             # 无 target（旧战斗/兼容路径）回落 player 参数
                             _tgt = ev.get("target") or player
-                            mlogs, dmg = self._enemy_cast_done(_tgt, e_unit, ev)
+                            mlogs, dmg, _dk = self._enemy_cast_done(_tgt, e_unit, ev)
                             logs += mlogs
                             # v163：敌方读条结算完成 → 清单位读条状态（防 from_state 重复补排）
                             e_unit.pop("_cast", None)
@@ -3677,10 +3679,14 @@ class Battle:
                                 self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
                             # v180F B5：目标 actor 化扣血——目标是玩家走 _damage_player，
                             # 目标是怪/随从走 _damage_actor（怪vs怪伤害真正落目标）
+                            # v180G B2-2：普攻 _dk（phys/magi）透传 dmg_kind 统一减免
                             if _tgt and _tgt is not player and self.side_of(_tgt) and self.side_of(_tgt) != "player":
-                                self._damage_actor(_tgt, dmg, logs, source=e_unit.get("name", "敌人"))
+                                self._damage_actor(_tgt, dmg, logs, source=e_unit.get("name", "敌人"),
+                                                   dmg_kind=_dk or "")
                             else:
-                                self._damage_player(_tgt or player, dmg, logs, source=e_unit.get("name", "敌人"))
+                                self._damage_player(_tgt or player, dmg, logs,
+                                                    source=e_unit.get("name", "敌人"),
+                                                    dmg_kind=_dk or "")
                             # v154 打断：玩家读条中受到控制（眩晕/冻结/沉默）→ 打断读条
                             if self._player_casting and dmg > 0:
                                 _ctrl = any(k in self._p_buffs_bag() for k in ("stun", "freeze", "silence"))
@@ -7171,54 +7177,12 @@ class Battle:
             return dmg
         mechs = [x.strip() for x in (mech or "").split(",") if x.strip()]
         e = self.enemy
-        # v177 actor 护盾统一：护盾存 e["shields"] dict {来源: {value, halve}}（halve=True 受伤减半语义），
-        # 由 BOSS_MECHS shield / MON_BUFF_EFFECTS shield 写入；兼容旧 boss_shield/e_buffs int 单源（旧存档/旧写入兜底）
-        _shd = e.get("shields") or {}
-        if not _shd:
-            _legacy_sh = e.get("boss_shield", 0) or int(self.e_buffs.get("shield", 0) or 0)
-            if _legacy_sh > 0:
-                _shd = {"legacy": {"value": int(_legacy_sh), "halve": True}}
-                e["shields"] = _shd
-        if ("shield" in mechs or _shd) and _shd:
-            # 逐源吸收（多源并存：boss 盾 + buff 盾 各自独立扣）
-            _dmg_left = dmg
-            _absorbed_all = 0
-            for _sk in list(_shd):
-                _s = _shd[_sk]
-                if not isinstance(_s, dict):
-                    continue
-                _sv = int(_s.get("value", 0) or 0)
-                if _sv <= 0:
-                    _shd.pop(_sk, None)
-                    continue
-                if dmg_type == "true":
-                    # 真伤不 -50%，护盾层仍吸收（v110 四层架构）
-                    _ab = min(_sv, _dmg_left)
-                    _sv -= _ab
-                    _dmg_left -= _ab
-                    _absorbed_all += _ab
-                else:
-                    _real = int(_dmg_left * 0.5)
-                    _ab = min(_sv, _real)
-                    _sv -= _ab
-                    _dmg_left = _real
-                    _absorbed_all += _ab
-                if _sv <= 0:
-                    _shd.pop(_sk, None)
-                    _s["value"] = 0
-                else:
-                    _s["value"] = _sv
-                if _dmg_left <= 0:
-                    break
-            if _absorbed_all > 0:
-                dmg = max(0, _dmg_left)
-                if not _shd:
-                    logs.append("💥 护盾破碎！")
-            elif _shd:
-                dmg = max(0, _dmg_left)
-        # 旧键清理（已迁 shields dict）
-        e.pop("boss_shield", None)
-        self.e_buffs.pop("shield", None)
+        # v180G B2-1：护盾吸收段删除——护盾（含 halve 语义）统一由 _damage_actor
+        # 承伤链消费（L10853 起完整处理 halve 盾/真伤/破盾后剩余穿透）。此前此处
+        # 与 _damage_actor 各有一份手写吸收 = 结构性重复；dot/附加伤害只走
+        # _damage_actor、主伤害走 filter+actor，两路 halve 次数不一致的历史隐患
+        # 一并消除——现在全伤害路径统一只 halve 一次（v178.1「勿双吸」目标真正落地）。
+        # 全库 boss_shield 旧字段已无读写（v177 迁移 shields dict 时消费端收敛），无兜底负担。
         if "reflect" in mechs:
             if not dot:  # v1.3 dot 只走护盾减半/吸收，不触发反射反伤
                 ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
@@ -7423,7 +7387,10 @@ class Battle:
 
     def _enemy_cast_done(self, player: dict, unit: dict, ev: dict) -> tuple:
         """v154 敌方对称读条：敌方出招读条结束（cast_done 事件触发）→ 结算伤害。
-        返回 (日志列表, 对玩家伤害)。
+        返回 (日志列表, 对玩家伤害, 伤害段类型 or None)。
+        v180G B2-2：第三返回值 dmg_kind —— 普攻 atk 分支不再手写物免/魔免减免，
+        由调用处透传 _damage_actor 的 dmg_kind 统一消费（与技能管线路径同一处减免，
+        消灭手写段 vs 承伤链 dmg_kind 段的双实现）。None = 技能管线已内部落地（dmg 恒 0）。
         ev payload: {"kind": "skill"|"atk", "skill": 技能key, "power_mult": 伤害系数}
         - skill：按 MONSTER_SKILLS 结算（物理/魔法/元素抗性/控制）
         - atk：敌方普攻结算
@@ -7463,7 +7430,8 @@ class Battle:
                 # 怪自身技能数据已归一（heal_self→kind=治疗+hp_pct、无 formula 已补等效段）。
                 # 原 v177 只对玩家技能 key 走管线、怪自身技能落下方 260 行简化结算（两套代码根）。
                 try:
-                    return self._monster_cast_playerskill(e, ev.get("skill"), player, ev)
+                    _ml_s, _dg_s = self._monster_cast_playerskill(e, ev.get("skill"), player, ev)
+                    return _ml_s, _dg_s, None  # v180G B2-2：管线已内部落地，dmg_kind=None
                 except Exception as _sw_e:
                     _battle_warn('_enemy_cast_done', _sw_e)
                     pass
@@ -7495,35 +7463,15 @@ class Battle:
         )
         dmg = int(_d0)
         dmg = max(1, int(dmg * _lpm))
-        # v180F B5：目标 actor 化——目标面板按 side 路由（玩家走 _player_stats，怪走 _enemy_stats）
-        try:
-            _tgt_side = self.side_of(player)
-        except Exception:
-            _tgt_side = "player" if (player or {}).get("class_name") else "enemy"
-        if _tgt_side and _tgt_side != "player":
-            _pst_pr = self._enemy_stats(player)
-        else:
-            _pst_pr = self._player_stats(player)
-        pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
-        if pr > 0:
-            red = max(1, int(dmg * pr))
-            dmg = max(1, dmg - red)
-            logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
-        # v180F 清2a：魔法免伤缺失修复——怪魔法普攻打玩家时 magic_reduce stat（含
-        # magic_resist 药剂）此前零消费。魔法段（magi/true 混合的 magi 部分）按目标
-        # magic_reduce 减免（cap 40%，与 _enemy_mitigate 玩家打怪侧同口径）
-        if _mt == "magi" or "magi" in str(_mkind):
-            _mpr = min(float(_pst_pr.get("magic_reduce", 0) or 0), 0.4)
-            if _mpr > 0:
-                red = max(1, int(dmg * _mpr))
-                dmg = max(1, dmg - red)
-                logs.append(f"🛡️ 魔法抗性，减免 {red} 点魔法伤害！")
+        # v180G B2-2：物理/魔法免伤不再手写——由调用处透传 dmg_kind 到 _damage_actor
+        # 承伤链统一消费（与技能管线路径同一处减免，见 _process_until/enemy_phase 落地）。
+        # 原 v180F 清2a 在此手写物免/魔免（cap 40%）→ 已收口；目标面板 pst 已在 L7440 路由。
         # v180F B5：文案用目标名（怪vs怪不再错误显示"攻击你"）
         _tgt_disp = (player or {}).get("name", "") if (player or {}).get("name") else ""
         self._pending_dmg_lines.append(
             f"【{ename}】攻击{_tgt_disp or '你'}，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
         dmg += self._reactive_extra_attack(e, pst, logs)
-        return logs, dmg
+        return logs, dmg, _mt
 
     def _pick_hostile_target(self, unit: dict) -> dict | None:
         """v180F B5：通用敌对目标选择——从 unit 的敌对阵营选一个存活 actor。
@@ -10407,12 +10355,11 @@ class Battle:
                         logs.append(f"🥊 反击回气 +2（气 {_chi_now}）")
                     break  # 命中即停（一次受击最多一次反击）
         # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害（原语义无 boss filter，保持）
+        # v180G B2-3：收口 _phys_retort（原内联手写 calc_damage——石拳/反击/以守为攻已统一，此独漏）
         if B.get("counter", 0) > 0 and _rtgt and _rtgt.get("hp", 0) > 0:
             if random.random() < C.SHIELD_COUNTER_CHANCE:
-                pst2 = self._actor_stats_of(actor)
                 # v180F 审查修复：盾牌反击打 _rtgt（攻击者），显式传目标防 _active_target 漂移
-                est2 = self._enemy_stats(_rtgt)
-                cd = E.calc_damage(int(pst2["atk"] * 1.2), est2.get("def", 0))
+                cd, _cd_crit = self._phys_retort(actor, 1.2, logs, target=_rtgt)
                 _hit_back(cd)
                 logs.append(f"🛡️ 盾牌反击！对【{_rtgt.get('name', '敌人')}】造成 {cd} 点伤害！")
                 # v173.5 全层仇恨：守护姿态受击反击的伤害也累计仇恨（坦克被打 → 反击
@@ -10925,9 +10872,12 @@ class Battle:
         # v177 actor 统一：返回实际扣血量（扣血基准 = 进入函数时的 hp - 最终 hp，含后续回血取扣血前）
         return max(0, _hp_before - actor.get("hp", 0))
 
-    def _damage_player(self, player: dict, dmg: int, logs: list, source: str = "敌人"):
-        """v177 兼容薄壳：玩家被打 = _damage_actor(玩家 actor)。保留旧名（外部 3 调用点）。"""
-        self._damage_actor(player, dmg, logs, source=source)
+    def _damage_player(self, player: dict, dmg: int, logs: list, source: str = "敌人",
+                       dmg_kind: str = ""):
+        """v177 兼容薄壳：玩家被打 = _damage_actor(玩家 actor)。保留旧名（外部 3 调用点）。
+        v180G B2-2：补 dmg_kind 透传——敌方普攻落地在此传 phys/magi，由 _damage_actor
+        承伤链统一消费百分比免伤（原手写段已删）。"""
+        self._damage_actor(player, dmg, logs, source=source, dmg_kind=dmg_kind)
 
     def _enemy_dead(self) -> bool:
         # v2：敌方阵列无存活（§3.2）——同时压缩移除死亡单位

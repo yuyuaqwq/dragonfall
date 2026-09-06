@@ -77,7 +77,7 @@ mon["hp"] = 8000
 player["hp"] = 5000
 random.seed(2)
 hp0 = player["hp"]
-logs, dmg = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": "sk_hui_kan"})
+logs, dmg, _ = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": "sk_hui_kan"})
 dealt = hp0 - player["hp"]
 # v180F：管线内部扣血返回 dmg=0——伤害断言改看真实 hp 扣减
 check("挥砍造成伤害>0", dealt > 100, f"dealt={dealt}")
@@ -99,7 +99,7 @@ if heal_key:
     b2.player = dict(player)
     priest["hp"] = 1000
     random.seed(3)
-    logs2, dmg2 = b2._enemy_cast_done(player, priest, {"kind": "skill", "skill": heal_key})
+    logs2, dmg2, _ = b2._enemy_cast_done(player, priest, {"kind": "skill", "skill": heal_key})
     check("牧师怪治疗回血", priest["hp"] > 1000, f"hp={priest['hp']}")
     check("治疗无伤害", dmg2 == 0, f"dmg={dmg2}")
     check("治疗日志", any("治愈" in l or "回复" in l or "治疗" in l for l in logs2), str(logs2[:1]))

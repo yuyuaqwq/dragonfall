@@ -54,7 +54,7 @@ def run_evasion(skill_key, seed=0):
     # 格挡在 _damage_actor 按 player.defending 消费。旧断言"返回 dmg>0"已不适用——
     # 改为设 defending 标志，断言真实 hp 扣减比例（格挡前后对比）。
     hp0 = player.get("hp", 0)
-    logs, dmg = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": skill_key})
+    logs, dmg, _ = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": skill_key})
     dealt = hp0 - player.get("hp", 0)
     return dmg, dealt
 
@@ -82,7 +82,7 @@ try:
         b.player = player
         player["defending"] = True
         hp0 = player.get("hp", 0)
-        logs, dmg = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": skill_key})
+        logs, dmg, _ = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": skill_key})
         return hp0 - player.get("hp", 0)
     dealt_n_def = run_defend("ms_test_normal", seed=11)   # 默认 0.5
     dealt_e_def = run_defend("ms_test_eye", seed=12)      # 0.8
