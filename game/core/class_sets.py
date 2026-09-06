@@ -36,7 +36,12 @@ _SERIES_SET_BONUS = {
         # KeyError 崩溃（穿 2 件圣光套必现）。heal_power ∈ PCT_STATS（cap 0.5）且
         # battle.py 治疗段消费（×（1+heal_power））——"治疗+10%"设计经属性体系达成，
         # 与旧 CLASS_SET 圣徽圣愈/晨光圣愈（sets.py 均用 heal_power）同构。
+        # v181-A1：圣光套 1 件即治疗 +10%（历史遗留：E.has_set 语义 = 任意件数 ≥1，
+        # battle.py L5995 原按中文套装名特判）。piece_heal_power 声明该"任意件数持有加成"，
+        # battle 治疗段泛读——任意装备 set 解析到含 piece_heal_power 的套装即 ×(1+值)。
+        # （与 2 件 bonus_2.heal_power 并存：1 件只吃 piece 加成，≥2 件叠加属性体系 = 现状）
         "bonus_2": {"heal_power": 0.10},
+        "piece_heal_power": 0.10,
         "bonus_4_stats": {"def": 0.08},
         "bonus_5": {"desc": "圣光增伤＋10%（对暗影/亡灵系敌人）"},
         # v126 数值下沉：5 件对敌增伤条件（敌方名字关键词）从数据声明，battle 查表消费
@@ -47,7 +52,9 @@ _SERIES_SET_BONUS = {
         "icon": "🌙", "quality": "purple",
         "bonus_2": {"crit": 0.08},
         "bonus_4_stats": {"spd": 0.10},   # 敏捷 +10% ≈ 速度 +10%
-        "bonus_5": {"desc": "冰系增伤＋10%（月语/海神套，冰系技能）"},
+        "bonus_5": {"desc": "冰系增伤＋10%（月语/海神套，冰系技能）",
+                    # v181-A1：5 件元素增伤数据声明（替代 battle 按中文套装名特判——泛读生效）
+                    "element_dmg": {"ice": 0.10}},
     },
     "霜狼": {
         "icon": "🐺", "quality": "purple",
@@ -69,7 +76,9 @@ _SERIES_SET_BONUS = {
         "icon": "🌊", "quality": "purple",
         "bonus_2": {"mdef": 0.10},   # 水抗 +10% ≈ 魔抗 +10%
         "bonus_4_stats": {"atk": 0.08},
-        "bonus_5": {"desc": "冰系增伤＋10%（月语/海神套，冰系技能）"},
+        "bonus_5": {"desc": "冰系增伤＋10%（月语/海神套，冰系技能）",
+                    # v181-A1：5 件元素增伤数据声明
+                    "element_dmg": {"ice": 0.10}},
     },
     "地底": {
         "icon": "🕳️", "quality": "purple",
@@ -83,7 +92,9 @@ _SERIES_SET_BONUS = {
         "icon": "☁️", "quality": "purple",
         "bonus_2": {"mdef": 0.10},   # 风抗 +10% ≈ 魔抗 +10%
         "bonus_4_stats": {"crit": 0.08},
-        "bonus_5": {"desc": "雷系增伤＋10%（雷系技能）"},
+        "bonus_5": {"desc": "雷系增伤＋10%（雷系技能）",
+                    # v181-A1：5 件元素增伤数据声明
+                    "element_dmg": {"thunder": 0.10}},
     },
     # v93 商店装：白鹿绿装套（敏捷/闪避风格）
     "白鹿": {
@@ -118,7 +129,11 @@ _SERIES_SET_BONUS = {
         "icon": "✨", "quality": "purple",
         "bonus_2": {"atk": 0.05, "matk": 0.05, "def": 0.05, "spd": 0.05},
         "bonus_4_stats": {"matk": 0.08},
-        "bonus_5": {"desc": "星尘祝福：夜间(19:00-06:00)每刻回蓝 5%"},
+        # v181-A1：星尘 5 件夜间回蓝数据化（替代 battle 按中文套装名特判）——
+        # effect=night_mp_regen + params：pct=每刻回蓝比例、night_hours=[起,止] 时间窗（含跨越午夜）
+        "bonus_5": {"desc": "星尘祝福：夜间(19:00-06:00)每刻回蓝 5%",
+                    "effect": "night_mp_regen",
+                    "params": {"pct": 0.05, "night_hours": [19, 6]}},
     },
     "灰烬守卫": {
         "icon": "🔥", "quality": "orange",
@@ -136,7 +151,7 @@ _SERIES_SET_BONUS = {
     '学徒': {'class': 'cls_fa_shi', 'icon': '🔮', 'quality': 'blue', 'bonus_2': {'matk': 0.08, 'cdr': 0.05}, 'bonus_4_stats': {'matk': 0.1}, 'bonus_4': {'effect': 'xue_tu_surge', 'params': {'type': "proc_buff", "chance": 1.0, "buff_key": "xue_tu_surge_lv", "buff_mode": "stack", "buff_max": 3, "tag": "⚡", "name": "蓄能"}, 'desc': '每次攻击命中叠 1 层蓄能（下次雷击伤害 +10%，上限 3 层）'}}, 'bonus_5_cond': {'enemy_contains': ["元素", "风灵", "星灵", "幽灵", "幽魂", "怨灵", "灵体"], 'dmg_mult': 1.10, 'tag': '🔮学徒驱灵'},
     '符文': {'class': 'cls_fa_shi', 'icon': '🔮', 'quality': 'blue', 'bonus_2': {'matk': 0.08, 'cdr': 0.05}, 'bonus_4_stats': {'matk': 0.1}, 'bonus_4': {'effect': 'fu_wen_annihilate', 'chance': 0.3, 'params': {'type': "proc_thunder_burst", "chance": 0.3, "stat": "matk", "max_mark": 3, "burst_pct": 0.9, "edef": "mdef", "tag": "📜", "name": "符文爆印"}, 'desc': '攻击命中 30% 概率叠 1 层雷印记；印记 ≥3 时引爆造成 90% 魔攻雷伤并清印'}}, 'bonus_5_cond': {'enemy_contains': ["傀儡", "机械", "石像", "图腾", "机关"], 'dmg_mult': 1.10, 'tag': '📜符文破构'},
     '秘法': {'class': 'cls_fa_shi', 'icon': '✨', 'quality': 'purple', 'bonus_2': {'matk': 0.08, 'cdr': 0.05}, 'bonus_4_stats': {'matk': 0.1}, 'bonus_4': {'effect': 'mi_fa_condense', 'chance': 0.25, 'params': {'type': "proc_mp_on_dmg", "chance": 0.25, "stat": "matk", "pct": 0.4, "mp_pct": 0.15, "edef": "mdef", "dmg_type": "magic", "tag": "✨", "name": "秘术回响"}, 'desc': '攻击命中 25% 概率追加 40% 魔攻雷击并回复该次伤害 15% 的魔力'}}, 'bonus_5_cond': {'enemy_contains': ["恶魔", "堕落", "邪教", "黑暗", "腐朽"], 'dmg_mult': 1.10, 'tag': '✨秘法伏魔'},
-    '布衣': {'class': 'cls_mu_shi', 'icon': '☀️', 'quality': 'blue', 'bonus_2': {'heal_power': 0.08, 'mdef': 0.05, 'hp': 0.05}, 'bonus_4_stats': {'mdef': 0.1}, 'bonus_4': {'effect': 'cloth_heal_overflow', 'desc': '治疗技能治疗量 +8%；治疗溢出时溢出量 50% 转化为护盾'}}, 'bonus_5_cond': {'enemy_contains': ["祭司", "萨满", "巫师", "术士", "法师", "神官"], 'dmg_mult': 1.10, 'tag': '☀️布衣圣言'},
+    '布衣': {'class': 'cls_mu_shi', 'icon': '☀️', 'quality': 'blue', 'bonus_2': {'heal_power': 0.08, 'mdef': 0.05, 'hp': 0.05}, 'bonus_4_stats': {'mdef': 0.1}, 'bonus_4': {'effect': 'cloth_heal_overflow', 'params': {'heal_mult': 1.08, 'overflow_pct': 0.50, 'shield_turns': 2, 'tag': '☀️', 'name': '圣愈不浪费'}, 'desc': '治疗技能治疗量 +8%；治疗溢出时溢出量 50% 转化为护盾'}}, 'bonus_5_cond': {'enemy_contains': ["祭司", "萨满", "巫师", "术士", "法师", "神官"], 'dmg_mult': 1.10, 'tag': '☀️布衣圣言'},
     '祝福': {'class': 'cls_mu_shi', 'icon': '☀️', 'quality': 'blue', 'bonus_2': {'heal_power': 0.10, 'mdef': 0.05}, 'bonus_4_stats': {'mdef': 0.1}, 'bonus_4': {'effect': 'bless_ward_shield', 'chance': 0.25, 'params': {'type': 'taken_shield', 'chance': 0.25, 'shield_pct': 0.08, 'shield_turns': 3, 'tag': '☀️', 'name': '圣徽守护'}, 'desc': '被攻击命中 25% 概率获得 8% 最大生命护盾（3 刻）'}}, 'bonus_5_cond': {'enemy_contains': ["蝙蝠", "蠕虫", "水蛭", "巨蝎", "蜈蚣"], 'dmg_mult': 1.10, 'tag': '☀️祝福护洁'},
     '圣堂': {'class': 'cls_mu_shi', 'icon': '⛪', 'quality': 'purple', 'bonus_2': {'heal_power': 0.08, 'mdef': 0.08}, 'bonus_4_stats': {'mdef': 0.1}, 'bonus_4': {'effect': 'holy_bastion_def', 'params': {'type': 'taken_dmg_reduce_flat', 'reduce_pct': 0.05, 'tag': '⛪', 'name': '圣堂壁垒'}, 'desc': '受击伤害 -5%（圣堂壁垒）'}}, 'bonus_5_cond': {'enemy_contains': ["血祭", "暗影", "腐化", "异端", "亵渎"], 'dmg_mult': 1.10, 'tag': '⛪圣堂裁罪'},
     '猎手': {'class': 'cls_you_xia', 'icon': '🏹', 'quality': 'blue', 'bonus_2': {'spd': 0.06, 'crit': 0.04}, 'bonus_4_stats': {'spd': 0.08}, 'bonus_4': {'effect': 'hunt_pack', 'chance': 0.3, 'params': {'type': "proc_flat_dmg", "chance": 0.3, "stat": "atk", "pct": 0.5, "pct_alt": 0.6, "cond_hp_lt": 0.5, "tag": "🏹", "name": "狩猎本能"}, 'desc': '攻击命中 30% 概率追加 50% 攻击力追击（对生命 <50% 敌人 +20%）'}}, 'bonus_5_cond': {'enemy_contains': ["狼王", "王·", "领主", "酋长", "魔王", "龙王"], 'dmg_mult': 1.10, 'tag': '🏹猎手枭首'},
@@ -171,6 +186,9 @@ def _build_class_sets():
         # v136 Phase6：职业套装归属（本职业 100% / 非本职业 60% 职业折扣）
         if b.get("class"):
             entry["class"] = b["class"]
+        # v181-A1：圣光套任意件数持有加成（piece_heal_power）随套装注册（battle 治疗段泛读）
+        if b.get("piece_heal_power") is not None:
+            entry["piece_heal_power"] = b["piece_heal_power"]
         if b.get("bonus_4_stats"):
             entry["bonus_4_stats"] = dict(b["bonus_4_stats"])
         if b.get("bonus_4"):

@@ -153,13 +153,36 @@ def _ct_initial_wait(spd) -> float:
 #   条件语义：卡片代表"这类效果可能发生"，handler 每次判生效条件（血满跳过等）
 # ============================================================
 def _th_set_heal(battle, actor, eff, logs):
-    """圣光/永恒套装每刻回血（regen 5% / regen_strong 8%）。条件：有该套装 4 件效果 + 掉血。"""
+    """圣光/永恒套装每刻回血（regen 5% / regen_strong 8%）。条件：有该套装 4 件效果 + 掉血。
+
+    v181-A1：回血比例数据化——按激活套装条目 bonus_4.params.heal_pct 读（晨光教会 0.08 /
+    旧牧师主题 0.05 已随条目声明）；条目不可解析（遗留档无 SETS 条目）回落旧兜底 0.05/0.08，
+    数值与改造前完全一致。"""
     try:
         _s4 = E.set_bonus_4(actor.get("equipment", {}))
         if not any(e in _s4 for e in ("regen", "regen_strong")):
             return [], False  # 套装换下 → 通道关闭
         eff_name = next((e for e in ("regen", "regen_strong") if e in _s4), "regen")
         pct = 0.05 if eff_name == "regen" else 0.08
+        # v181-A1：读激活套装声明的 params.heal_pct（覆盖型，声明即生效——任意套装带
+        # regen/regen_strong effect + params.heal_pct 都按数据值回血）
+        try:
+            for sname, cnt in E.active_sets(actor.get("equipment") or {}).items():
+                if cnt < 4:
+                    continue
+                _si = E._set_info(sname)
+                if not _si:
+                    continue
+                for _tier in ("bonus_4", "bonus_3"):
+                    _tb = (_si.get(_tier) or {})
+                    if _tb.get("effect") == eff_name and (_tb.get("params") or {}).get("heal_pct"):
+                        pct = float(_tb["params"]["heal_pct"])
+                        break
+                else:
+                    continue
+                break
+        except Exception:
+            pass
         if actor.get("hp", 0) < actor.get("max_hp", 1):
             heal = int(actor.get("max_hp", actor.get("hp", 1)) * pct)
             _hlog = []
@@ -187,16 +210,33 @@ def _th_rune_regen(battle, actor, eff, logs):
 
 
 def _th_stardust_mana(battle, actor, eff, logs):
-    """星尘 5 件夜间每刻回蓝 5%。条件：星尘 5 件 + 夜间(19-06) + 掉蓝。"""
+    """5 件套夜间每刻回蓝（星尘：5%/刻，时间窗 19:00-06:00）。
+
+    v181-A1：数据化——任意 5 件套声明 bonus_5.effect='night_mp_regen' 即触发，
+    数值/时间窗读 bonus_5.params（pct=回蓝比例、night_hours=[起,止] 含跨午夜）。
+    判定：该效果存在 + 夜间 + 掉蓝。"""
     try:
         _s5 = battle._set_bonus_5(actor)
-        if "星尘" not in "|".join(_s5):
+        _cfg = None
+        for sname in _s5:
+            _b5 = (E._set_info(sname) or {}).get("bonus_5") or {}
+            if _b5.get("effect") == "night_mp_regen":
+                _cfg = (_b5.get("params") or {})
+                break
+        if _cfg is None:
             return [], False  # 套装换下 → 通道关闭
+        _hours = _cfg.get("night_hours") or [19, 6]
+        _h_start = int(_hours[0])
+        _h_end = int(_hours[1])
         _hour = time.localtime().tm_hour
-        if not (_hour >= 19 or _hour < 6):
+        if _h_start <= _h_end:
+            _is_night = (_hour >= _h_start and _hour < _h_end)
+        else:
+            _is_night = (_hour >= _h_start or _hour < _h_end)  # 跨午夜窗
+        if not _is_night:
             return [], True  # 白天不触发（通道仍存在，夜间恢复）
         if actor.get("mp", 0) < actor.get("max_mp", 1):
-            gain = int(actor.get("max_mp", actor.get("mp", 1)) * 0.05)
+            gain = int(actor.get("max_mp", actor.get("mp", 1)) * float(_cfg.get("pct", 0.05)))
             actor["mp"] = min(actor.get("max_mp", actor.get("mp", 1)), actor.get("mp", 0) + gain)
             return [f"🌙 星尘祝福：夜风拂过，你回复了 {gain} 点魔力！({actor['mp']}/{actor.get('max_mp', '?')})"], True
         return [], True
@@ -222,9 +262,10 @@ def _th_set_holy(battle, actor, eff, logs):
         if "holy_field_heal" in _s4:
             _hfh = (battle._set_eff(actor, "holy_field_heal", 4) or {})
             _hfh_p = (_hfh or {}).get("params") or {}
-            _low = float(_hfh_p.get("cond_hp_lt", _hfh.get("low_pct", 0.50)) or 0.50)
-            _hl = float(_hfh_p.get("heal_low_pct", _hfh.get("heal_low", 0.06)) or 0.06)
-            _hh = float(_hfh_p.get("heal_high_pct", _hfh.get("heal_high", 0.03)) or 0.03)
+            # v181-A1：数值全读 params（原本地兜底 0.50/0.06/0.03 与数据重复→删除，数值一致）
+            _low = float(_hfh_p.get("cond_hp_lt", 0.50) or 0.50)
+            _hl = float(_hfh_p.get("heal_low_pct", 0.06) or 0.06)
+            _hh = float(_hfh_p.get("heal_high_pct", 0.03) or 0.03)
             if actor.get("hp", 0) < _mx:
                 _pct = _hl if actor.get("hp", 0) / max(1, _mx) < _low else _hh
                 _hf_heal = int(_mx * _pct)
@@ -233,6 +274,7 @@ def _th_set_holy(battle, actor, eff, logs):
         if "divine_grace_burst" in _s4:
             _dgb = (battle._set_eff(actor, "divine_grace_burst", 4) or {})
             _dgb_p = (_dgb or {}).get("params") or {}
+            # v181-A1：数值全读 params（原本地兜底 0.05/0.15/0.30 与数据重复→删除）
             _dg_heal = int(_mx * float(_dgb_p.get("heal_pct", 0.05)))
             if actor.get("hp", 0) < _mx:
                 battle._heal_actor(actor, _dg_heal, out)  # v180E 统一落地
@@ -245,6 +287,7 @@ def _th_set_holy(battle, actor, eff, logs):
         if "hu_xiao_barrier" in _s4:
             _hxb = (battle._set_eff(actor, "hu_xiao_barrier", 4) or {})
             _hxb_p = (_hxb or {}).get("params") or {}
+            # v181-A1：数值全读 params（原本地兜底 0.03/1 与数据重复→删除）
             battle._add_shield("hu_xiao_barrier", int(actor.get("max_hp", 1) * float(_hxb_p.get("shield_pct", 0.03))), int(_hxb_p.get("shield_turns", 1)))
             out.append("🧱 壁立千仞：千仞壁垒立于身前！")
         return out, True
@@ -5404,6 +5447,20 @@ class Battle:
         return [sname for sname, cnt in E.active_sets(player.get("equipment") or {}).items()
                 if cnt >= 5]
 
+    def _set_bonus_5_has_effect(self, player: dict, effect_name: str) -> bool:
+        """v181-A1 数据驱动：已激活 5 件套中是否任一声明 bonus_5.effect == effect_name。
+
+        替代 battle 内 \"星尘\" 等中文套装名特判——任意套装在 class_sets bonus_5 声明
+        effect 即生效（_th_stardust_mana / _regen_needed / _ensure_regen_effects 共用）。"""
+        try:
+            for sname in self._set_bonus_5(player):
+                _b5 = (E._set_info(sname) or {}).get("bonus_5") or {}
+                if _b5.get("effect") == effect_name:
+                    return True
+        except Exception:
+            pass
+        return False
+
     def _set_bonus_5_ctrl_immune(self, player: dict) -> list:
         """v180-B ② 套装 5 件控制免疫数据化：已激活 5 件套声明 bonus_5_ctrl_immune 的
         控制类型列表（如霜狼套 ["slow"]）。数据源 class_sets.py 套装定义（经 _build_class_sets
@@ -5729,12 +5786,11 @@ class Battle:
                 bonus += eff.get("ice_dmg", 0) or 0
             elif element == "thunder":
                 bonus += eff.get("thunder_dmg", 0) or 0
-        # 套装 5 件元素增伤（月语=寒月冰、海神=水属落地冰、苍穹=雷）
-        s5 = "|".join(self._set_bonus_5(player))
-        if element == "ice" and ("月语" in s5 or "海神" in s5):
-            bonus += 0.10
-        if element == "thunder" and "苍穹" in s5:
-            bonus += 0.10
+        # 套装 5 件元素增伤（v181-A1 数据化：月语/海神 bonus_5.element_dmg.ice=0.10、
+        # 苍穹 bonus_5.element_dmg.thunder=0.10——泛读声明，替代中文套装名特判）
+        for sname in self._set_bonus_5(player):
+            _ed = ((E._set_info(sname) or {}).get("bonus_5") or {}).get("element_dmg") or {}
+            bonus += float(_ed.get(element, 0) or 0)
         return 1.0 + bonus
 
     def _affix_on_hit(self, player: dict, dmg: int, logs: list):
@@ -5994,11 +6050,24 @@ class Battle:
                 heal = int(heal * (1 + float(_ps.get("mult", 0))))
                 logs.append(f"✨ {_pn}：治疗暴击！治疗量提升！")
         # v140 S1 直连消费：圣愈不浪费（cloth_heal_overflow）——治疗 +8%，溢出转护盾
-        if self._set_eff(player, "cloth_heal_overflow", 4):
-            heal = int(heal * 1.08)
-        # 阶段八：圣光套 2 件效果——治疗 +10%
-        if E.has_set(player.get("equipment", {}), "圣光套"):
-            heal = int(heal * 1.10)
+        # v181-A1：×1.08 读 params.heal_mult（数据声明），替代本地 1.08 兜底（数值一致）
+        _cho_eff = self._set_eff(player, "cloth_heal_overflow", 4)
+        if _cho_eff:
+            _cho_p = (_cho_eff or {}).get("params") or {}
+            heal = int(heal * float(_cho_p.get("heal_mult", 1.08) or 1.08))
+        # 阶段八：圣光套效果——治疗 +10%（v181-A1 数据化：任意件数持有即生效——遍历装备
+        # set 解析到声明 piece_heal_power 的套装 → ×(1+piece_heal_power)。
+        # 原 E.has_set(…\"圣光套\") 语义 = 任意 ≥1 件 圣光套 → 数值 0.10 完全一致；
+        # 该字段只声明在圣光套，其余套装（布衣/祝福等 bonus_2.heal_power）不受影响 = 现状保持）
+        _piece_heal = 0.0
+        for _it in (player.get("equipment") or {}).values():
+            if not _it or not _it.get("set"):
+                continue
+            _si = E._set_info(_it["set"])
+            if _si and _si.get("piece_heal_power"):
+                _piece_heal = max(_piece_heal, float(_si["piece_heal_power"]))
+        if _piece_heal > 0:
+            heal = int(heal * (1 + _piece_heal))
         # v101.28f 圣光药剂：治疗技能效果 +20%（3 刻）
         if self._cast_buffs().get("heal_up"):
             heal = int(heal * 1.20)
@@ -6039,21 +6108,23 @@ class Battle:
             pass
         self._heal_land(target_unit, heal, logs)
         # v140 S1 直连消费：圣愈不浪费（cloth_heal_overflow）——治疗溢出量 50% 转护盾
-        if self._set_eff(player, "cloth_heal_overflow", 4):
+        # v181-A1：0.50/2刻 读 params（overflow_pct/shield_turns，数据声明），替代本地兜底
+        if _cho_eff:
             _cho_ov = hp_before + heal - target_unit.get("max_hp", target_unit.get("hp", 0))
             if _cho_ov > 0:
-                _cho_sh = int(_cho_ov * 0.50)
+                _cho_sh = int(_cho_ov * float(_cho_p.get("overflow_pct", 0.50) or 0.50))
+                _cho_tt = int(_cho_p.get("shield_turns", 2) or 2)
                 if target_ally is not None:
                     _sh_t = target_unit.setdefault("p_shields", {})
                     _cur_t = _sh_t.get("cloth_overflow")
                     if _cur_t:
                         _cur_t["value"] = _cur_t.get("value", 0) + _cho_sh
-                        _cur_t["turns"] = max(_cur_t.get("turns", 0), 2)
+                        _cur_t["turns"] = max(_cur_t.get("turns", 0), _cho_tt)
                     else:
-                        _sh_t["cloth_overflow"] = {"value": _cho_sh, "turns": 2}
+                        _sh_t["cloth_overflow"] = {"value": _cho_sh, "turns": _cho_tt}
                     logs.append(f"☀️ 圣愈不浪费：治疗溢出转化 {_cho_sh} 点护盾！")
                 else:
-                    self._add_shield("cloth_overflow", _cho_sh, 2)
+                    self._add_shield("cloth_overflow", _cho_sh, _cho_tt)
                     logs.append(f"☀️ 圣愈不浪费：治疗溢出转化 {_cho_sh} 点护盾！")
         # v140 波3.1：特效装备治疗溢出转盾（回响祝福/赎罪之盾）——clamp 后计算真实溢出
         try:
@@ -8930,9 +9001,9 @@ class Battle:
                              "divine_grace_burst", "hu_xiao_barrier"):
                     if _eff in _s4:
                         return True
-            # 星尘 5 件（夜间回蓝）
+            # 5 件套周期回蓝效果（night_mp_regen：星尘 5 件夜间回蓝等，数据驱动判定）
             try:
-                if "星尘" in "|".join(self._set_bonus_5(player)):
+                if self._set_bonus_5_has_effect(player, "night_mp_regen"):
                     return True
             except Exception as _sw_e:
                 _battle_warn('_regen_needed', _sw_e)
@@ -9048,7 +9119,8 @@ class Battle:
             _battle_warn('_ensure_regen_effects', _sw_e)
             pass
         try:
-            if "星尘" in "|".join(self._set_bonus_5(player)):
+            # 5 件套周期回蓝效果（night_mp_regen：星尘 5 件夜间回蓝，数据驱动判定）
+            if self._set_bonus_5_has_effect(player, "night_mp_regen"):
                 _want.add("stardust_mana")
         except Exception as _sw_e:
             _battle_warn('_ensure_regen_effects', _sw_e)
@@ -10648,13 +10720,27 @@ class Battle:
                     _cr2_rd = E.core_resource_def(_cr2_cls)
                     if _cr2_rd and _cr2_rd.get("key") == "chi":
                         self._res_gain_class(_cr2_cls, "chi", 2)
-        # 龙鳞套：被攻击时 25% 概率反弹 25% 伤害
-        if "reflect" in E.set_bonus_4(actor.get("equipment", {})) and _rtgt and _rtgt.get("hp", 0) > 0:
-            if random.random() < C.REFLECT_CHANCE:
-                rd = int(dmg * 0.25)
+        # 龙鳞套（effect reflect）：被攻击时 25% 概率反弹 25% 伤害
+        # v181-A1：chance/reflect_pct 读套装 params（龙鳞 params 0.25/0.25 与旧
+        # C.REFLECT_CHANCE/0.25 一致）；无 params 的 reflect 套装回落旧常量兜底（数值不变）
+        for _sname_r, _cnt_r in E.active_sets(actor.get("equipment") or {}).items():
+            if _cnt_r < 4:
+                continue
+            _si_r = E._set_info(_sname_r)
+            if not _si_r:
+                continue
+            _b4r = (_si_r.get("bonus_4") or {})
+            if _b4r.get("effect") != "reflect":
+                continue
+            _rp_r = (_b4r.get("params") or {})
+            _r_chance = float(_rp_r.get("chance", C.REFLECT_CHANCE) or C.REFLECT_CHANCE)
+            _r_pct = float(_rp_r.get("reflect_pct", 0.25) or 0.25)
+            if _rtgt and _rtgt.get("hp", 0) > 0 and random.random() < _r_chance:
+                rd = int(dmg * _r_pct)
                 rd = self._boss_dmg_filter(rd, actor, logs)  # v104 M02 P1-5：反伤走 Boss 护盾过滤
                 _hit_back(rd)
                 logs.append(f"🐉 龙鳞反震！反弹 {rd} 点伤害！")
+            break
         # v29 金身：每层减伤 4%
         mech = MS
         iron = int(mech.get("iron", 0) or 0)
@@ -10699,15 +10785,17 @@ class Battle:
         if _morph > 0:
             dmg = max(1, int(dmg * (1 + _morph)))
             logs.append(f"🐉 龙人形态：额外承受 {int(dmg * _morph)} 点伤害！")
-        # v142 数据驱动：圣徽守护（bless_ward_shield）——受击 25% 概率获得 8% 最大生命护盾（3 刻，数值读 params）
+        # v142 数据驱动：圣徽守护（bless_ward_shield）——受击 25% 概率获得 8% 最大生命护盾（3 刻）
+        # v181-A1：兜底默认值删除——数值全读 params（祝福套 params 0.25/0.08/3 = 原兜底）
         _bws_eff = self._set_eff(actor, "bless_ward_shield", 4)
         if _bws_eff:
             _bws_params = (_bws_eff or {}).get("params") or {}
-            if random.random() < float(_bws_params.get("chance", 0.25)):
-                _bw_sh = int(actor.get("max_hp", actor.get("hp", 1)) * float(_bws_params.get("shield_pct", 0.08)))
-                self._add_shield("bless_ward", _bw_sh, int(_bws_params.get("shield_turns", 3)))
+            if random.random() < float(_bws_params["chance"]):
+                _bw_sh = int(actor.get("max_hp", actor.get("hp", 1)) * float(_bws_params["shield_pct"]))
+                self._add_shield("bless_ward", _bw_sh, int(_bws_params["shield_turns"]))
                 logs.append(f"✨ 圣徽守护！获得 {_bw_sh} 点护盾！")
-        # v142 数据驱动：圣辉圣环（holy_halo_shield）——受击后 10% 伤害转护盾（每刻最多 1 次，数值读 params）
+        # v142 数据驱动：圣辉圣环（holy_halo_shield）——受击后 10% 伤害转护盾（每刻最多 1 次）
+        # v181-A1：shield_pct/shield_turns 读 params（圣徽 params 0.10/2 = 原兜底 0.10/2 刻）
         _hh_eff = self._set_eff(actor, "holy_halo_shield", 4)
         if _hh_eff and int(dmg) > 0:
             _hh_params = (_hh_eff or {}).get("params") or {}
@@ -10715,7 +10803,7 @@ class Battle:
             if (EFF or {}).get("holy_halo_used") != _hh_turn:
                 _hh_sh = int(dmg * float(_hh_params.get("shield_pct", 0.10)))
                 if _hh_sh > 0:
-                    self._add_shield("holy_halo", _hh_sh, 2)
+                    self._add_shield("holy_halo", _hh_sh, int(_hh_params.get("shield_turns", 2) or 2))
                     EFF["holy_halo_used"] = _hh_turn
                     logs.append(f"✨ 圣辉圣环：{_hh_sh} 点伤害化为护盾！")
 
