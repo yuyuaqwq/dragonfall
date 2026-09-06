@@ -1546,7 +1546,7 @@ class CombatCmds(CommandBase):
             return
         b = BT.Battle.from_state(battle["state"])
         b.player = player  # v121 审计修复：恢复路径补齐 self.player（盾强度/冷却缩减/精准减免读它）
-        logs, ended = b.player_turn("flee", None, player)
+        logs, ended, _who = b.player_act("flee", None, player)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "fled":
