@@ -899,7 +899,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "zhan_yi_lifesteal"},
+                        'passive': {"proc": "zhan_yi_lifesteal", "per_layer": 0.015},
                         'name': '淬血',
                         'desc': '刀口舔血的战士，伤疤即是勋章——每层战意额外提供 1.5% 吸血'
                     },
@@ -1126,7 +1126,7 @@ BRANCH_SKILLS = {
                         'kind': '被动',
                         'cast': 'None',
                         'mech_val': 2,
-                        'passive': {"proc": "tenacity"},
+                        'passive': {"proc": "tenacity", "cost": 2},
                         'name': '坚韧',
                         'desc': '久经沙场的意志，令控制难以撼动——被控制时消耗 2 层战意跳过（每场 3 次）'
                     },
@@ -1242,7 +1242,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "berserk_revive"},
+                        'passive': {"proc": "berserk_revive", "hp_pct": 0.30},
                         'name': '血怒·不灭',
                         'desc': '只要怒意未熄，战士便不会倒下——狂暴中生命首次归零时，清空战意复活并回复 30% 生命'
                     },
@@ -1293,7 +1293,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "zhan_yi_full_reduce"},
+                        'passive': {"proc": "zhan_yi_full_reduce", "stacks": 10, "reduce": 0.10},
                         'name': '坚城之姿',
                         'desc': '战意圆满时，战士即是移动的坚城——战意满 10 时减伤 +10%，免疫眩晕'
                     },
@@ -1315,7 +1315,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "stance_immortal"},
+                        'passive': {"proc": "stance_immortal", "hp_pct": 1.0},
                         'name': '铁誓·不动',
                         'desc': '铁誓加身，不动如山——守护姿态下首次致命伤害免疫，随后清空全部战意'
                     },
@@ -1427,7 +1427,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "arcane_intuition"},
+                        'passive': {"proc": "arcane_intuition", "gain": 1, "focus_gain": 1},
                         'name': '奥术直觉',
                         'desc': '对能量的感知如呼吸般自然，无须刻意——每刻自动回复 1 点奥术充能（冥想中 +2）'
                     },
@@ -1750,7 +1750,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "arcane_constant"},
+                        'passive': {"proc": "arcane_constant", "mp_mult": 0.50},
                         'name': '奥术恒常',
                         'desc': '能量循环生生不息，法力损耗尽数弥平——奥术技能耗蓝 −50%'
                     },
@@ -1965,7 +1965,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "hunt_mark_up"},
+                        'passive': {"proc": "hunt_mark_up", "per_layer": 0.06},
                         'name': '自然之眼',
                         'desc': '林间万物皆入眼帘，猎印愈发清晰——猎印每层增伤额外 +6%（叠加基础 8%）'
                     },
@@ -1975,7 +1975,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "hunt_mark_cap"},
+                        'passive': {"proc": "hunt_mark_cap", "add": 2},
                         'name': '追猎者',
                         'desc': '猎手与猎物之间，永无距离可言——猎印上限 +2 层（至 5 层）'
                     },
@@ -2000,7 +2000,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "poison_cap_up"},
+                        'passive': {"proc": "poison_cap_up", "add": 3},
                         'name': '剧毒之心',
                         'desc': '剧毒在心口搏动，毒液愈发浓烈——毒层上限 +3，毒爆增伤 +20%'
                     },
@@ -2180,7 +2180,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 0.5,
-                        'passive': {"proc": "focus_regen_summon"},
+                        'passive': {"proc": "focus_regen_summon", "gain": 5},
                         'name': '森之共鸣',
                         'desc': '森林与召唤物同频呼吸，生机奔涌——召唤物存活时，专注充能 +5/s（至 23/s）'
                     },
@@ -2235,7 +2235,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "speed_ratio_dmg"},
+                        'passive': {"proc": "speed_ratio_dmg", "ratio": 2.0, "dmg_add": 0.20},
                         'name': '疾风·极',
                         'desc': '身即疾风，风即锋芒，再无阻滞——速度比 ≥2.0 时，所有伤害 ×1.2'
                     },
@@ -2323,7 +2323,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "heal_overflow_shield"},
+                        'passive': {"proc": "heal_overflow_shield", "pct": 0.5},
                         'name': '圣光回响',
                         'desc': '圣光的余韵久久不散——治疗溢出量的 50% 转为护盾（被动）'
                     },
@@ -2511,7 +2511,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "skeleton_cap"},
+                        'passive': {"proc": "skeleton_cap", "cap": 5, "add": 2},
                         'name': '骷髅海',
                         'desc': '白骨漫过荒原，亡灵如潮涌来——骷髅上限 +2（至 5 只）'
                     },
@@ -2521,7 +2521,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "undead_faith"},
+                        'passive': {"proc": "undead_faith", "per_undead": 0.15},
                         'name': '亡灵祭仪',
                         'desc': '亡灵徘徊之处，信念悄然滋长——场上每只亡灵每刻 +0.15 信念'
                     },
@@ -2531,7 +2531,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "death_contract"},
+                        'passive': {"proc": "death_contract", "faith_req": 5, "hp_pct": 0.20},
                         'name': '死亡契约',
                         'desc': '与死亡立下血之契约——信念 ≥5 时，致命伤由 1 只骷髅代为承受'
                     },
@@ -2630,7 +2630,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "faith_overload_heal"},
+                        'passive': {"proc": "faith_overload_heal", "heal_up": 0.30},
                         'name': '信念·圣化',
                         'desc': '信念满溢化作圣辉而非反噬——过载时不再力竭，改为全队回血 +30%'
                     },
@@ -2682,7 +2682,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "soul_mark_cap"},
+                        'passive': {"proc": "soul_mark_cap", "add": 2, "per_layer": 0.08},
                         'name': '灵魂锁链',
                         'desc': '锁链将灵魂与亡灵紧紧相系——灵魂标记上限 +2（至 5 层），每层伤害 +8%'
                     },
@@ -2899,7 +2899,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "lian_duan_soft"},
+                        'passive': {"proc": "lian_duan_soft", "lose": 1},
                         'name': '暗影之心',
                         'desc': '历经暗影磨砺的坚韧心志——断连时只损失 1 段连击（而非减半）'
                     },
@@ -2975,7 +2975,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "poison_cap"},
+                        'passive': {"proc": "poison_cap", "add": 3},
                         'name': '淬毒之心',
                         'desc': '以毒淬炼心脉，百毒皆可纳之——毒层上限 +3（最高 8 层）'
                     },
@@ -2999,7 +2999,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "poison_weaken"},
+                        'passive': {"proc": "poison_weaken", "layers": 5, "spd_down": 2, "def_down": 2},
                         'name': '剧毒之触',
                         'desc': '剧毒缠身者步履蹒跚、甲胄松动——目标毒层 ≥5 时，减速 30%、降防 20%'
                     },
@@ -3092,7 +3092,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "shadow_dance_cd"},
+                        'passive': {"proc": "shadow_dance_cd", "cdr": 0.20},
                         'name': '影舞·无间',
                         'desc': '身随影动，无间无隙——影舞态中所有技能冷却 −20%'
                     },
@@ -3118,7 +3118,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "poison_all_up"},
+                        'passive': {"proc": "poison_all_up", "mult": 0.35},
                         'name': '万毒归宗',
                         'desc': '万毒同源，归于一宗，噬力倍增——所有毒层造成的伤害 +35%'
                     },
@@ -3330,7 +3330,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "counter_chance"},
+                        'passive': {"proc": "counter_chance", "chance": 0.35, "mult": 0.80},
                         'name': '以守为攻',
                         'desc': '守中藏攻，以静制动——受击时 35% 概率反击（普攻的 80%）'
                     },
@@ -3354,7 +3354,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "shaken_awareness"},
+                        'passive': {"proc": "shaken_awareness", "bar_at": 15, "mult": 0.20},
                         'name': '气力之心',
                         'desc': '心察破绽，气随念动——敌人破绽 ≥15 时，对其伤害 +20%'
                     },
@@ -3436,7 +3436,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "core_overflow"},
+                        'passive': {"proc": "core_overflow", "stacks": 3, "shield_pct": 0.80, "turns": 3},
                         'name': '磐石之心',
                         'desc': '心如磐石，承伤不溃——磐核 ≥3 时，溢出承伤转为护盾'
                     },
@@ -3446,7 +3446,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "counter_up"},
+                        'passive': {"proc": "counter_up", "chance_add": 0.25, "dmg_add": 0.50},
                         'name': '反击之王',
                         'desc': '以彼之道还施彼身——反击概率 +25%，反击伤害 +50%'
                     },
@@ -3483,7 +3483,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "core_reduce"},
+                        'passive': {"proc": "core_reduce", "per_core": 0.02},
                         'name': '大地之肤',
                         'desc': '大地为肤，万击难伤——每枚磐核额外减伤 +2%（与基础 +3% 叠加）'
                     },
@@ -3555,7 +3555,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "broken_extend"},
+                        'passive': {"proc": "broken_extend", "extend": 1, "broken_mult": 0.50},
                         'name': '破绽·极',
                         'desc': '破绽尽收眼底，攻势再无缝隙——破防持续 +1.5 刻，全队增伤 +50%'
                     },
@@ -3581,7 +3581,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "core_full"},
+                        'passive': {"proc": "core_full", "stacks": 5, "reduce": 0.20},
                         'name': '磐石之躯',
                         'desc': '磐石之躯，万法不侵——磐核满 5 枚时，免疫控制并减伤 +20%'
                     },
@@ -3618,7 +3618,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "core_last_stand"},
+                        'passive': {"proc": "core_last_stand", "hp_lt": 0.30, "cores": 3, "reduce": 0.40},
                         'name': '不动如山',
                         'desc': '山岳不移，绝境不倒——生命 <30% 时获得 3 枚磐核并减伤 40%（每场 1 次）'
                     },
@@ -3679,7 +3679,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "melody_duet"},
+                        'passive': {"proc": "melody_duet", "add": 1},
                         'name': '二重唱',
                         'desc': '第二道歌声如影随形，吟唱愈发浑厚——被动：吟唱时旋律强度额外 +1 层'
                     },
@@ -3838,7 +3838,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "melody_resonance"},
+                        'passive': {"proc": "melody_resonance", "stacks": 3, "mult": 0.10},
                         'name': '共鸣',
                         'desc': '万弦同振，共鸣之力汇入每个人的血脉——被动：强度层 ≥3 时，全队额外 +10% 全属性'
                     },
@@ -3924,7 +3924,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "dirge_ctrl_up"},
+                        'passive': {"proc": "dirge_ctrl_up", "add": 1},
                         'name': '镇魂安魂',
                         'desc': '安魂之力沉淀于歌声深处，束缚愈发绵长——被动：挽歌系控制时长 +1.5 刻'
                     },
@@ -3979,7 +3979,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "melody_full"},
+                        'passive': {"proc": "melody_full", "stacks": 5, "mult": 0.15},
                         'name': '万籁和鸣',
                         'desc': '天地万籁应和琴音，共鸣如潮水般漫溢——被动：强度层满 5 时，全队额外 +15% 全属性'
                     },
@@ -3989,7 +3989,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "melody_master"},
+                        'passive': {"proc": "melody_master", "per_stack": 0.05},
                         'name': '咏叹·极',
                         'desc': '咏叹臻至化境，每道旋律都倾注全力——被动：每强度层 +5% 旋律效果（满层 +125%，基础 +100%）'
                     },
@@ -4055,7 +4055,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "dirge_debuff_dmg"},
+                        'passive': {"proc": "dirge_debuff_dmg", "per_debuff": 0.04, "cap": 0.40},
                         'name': '挽歌·极',
                         'desc': '怨曲缠身者，每一道伤痕都化作催命弦音——被动：敌方每携带 1 个负面，受伤害 +4%（上限 +40%）'
                     },
