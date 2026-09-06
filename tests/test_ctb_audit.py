@@ -7,7 +7,8 @@
   3. 玩家被控跳过时敌方同步时间流逝（审计 P2-1：统一 _after_actor_ct("p")）
   4. 召唤援军带 ct=-spd（审计 P2-2：_summon_minions）
   5. 防御连动下每次行动伤害减半（单机 _enemy_phase defend=True）
-  6. 副本 _instance_apply_enemy_act_ct 用 buffed spd（spd_down 单位 cost 变大）
+  6. （v180G B7 删除：副本 _instance_apply_enemy_act_ct 命令层外部驱动怪已废弃，
+     敌方 ct 结算统一由 battle._after_actor_ct(\"e\") buffed spd 处理——见测试 1）
   7. 副本超时自动防御同步队友 ct 时间流逝
   8. 副本切怪/换层重置玩家 ct（_instance_reset_player_cts）
 """
@@ -48,7 +49,6 @@ def make_enemy(spd=40, hp=10_000_000, atk=5):
             "hp": hp, "max_hp": hp, "atk": atk, "def": 2,
             "matk": 0, "mdef": 2, "spd": spd, "crit": 0.05, "skills": [], "drops": []}
 
-
 def test_1_spd_down_enemy_frequency():
     print("【1. 敌方 spd_down 改变行动频率（P1-1 修复）】")
     clean_db()
@@ -82,7 +82,6 @@ def test_1_spd_down_enemy_frequency():
     cost1 = b3._ct_cost(b3._enemy_stats().get("spd", 0))
     check("减速后敌方 cost 变大", cost1 > cost0, f"{cost0} -> {cost1}")
 
-
 def test_2_sleep_round_decay():
     print("【2. 敌方睡眠按回合递减（P1-2 修复）】")
     clean_db()
@@ -103,7 +102,6 @@ def test_2_sleep_round_decay():
     # 敌方正被唤醒）——核心是"不被时刻/连动多重递减一次性清零到异常"。
     check("防御一回合后睡眠按行动级消费（v152 不被多重递减清零）",
           b.e_buffs.get("sleep", 0) >= 0, f"sleep={b.e_buffs.get('sleep')}")
-
 
 def test_3_stun_skip_time_flow():
     print("【3. 玩家被控跳过时敌方时间流逝（P2-1 修复）】")
@@ -126,7 +124,6 @@ def test_3_stun_skip_time_flow():
     check("敌方 ct 仍为下次行动绝对时刻（单调）", b.enemy["ct"] >= e_ct0,
           f"e_ct {e_ct0} -> {b.enemy['ct']}")
 
-
 def test_4_summon_minion_ct():
     print("【4. 召唤援军带 ct=初始行动时刻（v152 绝对时刻）】")
     clean_db()
@@ -139,7 +136,6 @@ def test_4_summon_minion_ct():
     check("援军 ct 已初始化（非 0 兜底）且入阵列",
           all(float(m.get("ct", 0)) < 0 for m in mins) and all(m.get("is_minion") for m in mins),
           str([(m.get("ct"), m.get("is_minion")) for m in mins]))
-
 
 def test_5_defend_chain_reduce():
     print("【5. 防御连动下每次行动减半（单机 defend=True）】")
@@ -157,7 +153,6 @@ def test_5_defend_chain_reduce():
     # 未减半理论：8 连动 × ~80+ = 640+；减半后 ≤ 320
     check("防御连动总伤害减半", dmg <= 400, f"dmg={dmg}（>400 说明连动未逐次减半）")
 
-
 def _st_basic():
     """构造副本状态最小骨架（当前成员 = 全部 members）。"""
     return {
@@ -171,32 +166,6 @@ def _st_basic():
         "p_buffs": {"p1": {}}, "p_hot": {}, "p_food_effects": {"p1": []},
         "e_buffs": {}, "p_defending": {"p1": False}, "leader": "p1",
     }
-
-
-def test_6_inst_apply_enemy_act_ct_buffed_spd():
-    print("【6. 副本敌方 ct 结算用 buffed spd（P1-1 instance 侧）】")
-    clean_db()
-    inst = InstanceCmds()
-    orig_cur = InstanceCmds._instance_current_members
-    InstanceCmds._instance_current_members = lambda s_self, g, st: [str(m) for m in st["members"]]
-    try:
-        st = _st_basic()
-        e1 = st["enemies"][0]
-        e_ct0 = float(e1["ct"])
-        p1_ct0 = float(st["players"]["p1"]["ct"])
-        inst._instance_apply_enemy_act_ct(st, "g1", e1)
-        # v161 速度边际递减曲线：cost = √(50/buffed spd) = √(50/20) = 1.581（v154 线性 50/20=2.5 假设已过时）。
-        # spd_down → 有效 spd 20 → cost 1.581；参考点 = e_ct0（-40）→ 新 ct = -40 + 1.581 = -38.419
-        check("buffed spd cost 生效（行动者 ct = 参考点 + buffed cost，v161 √曲线）",
-              abs(e1["ct"] - (e_ct0 + math.sqrt(50.0 / 20.0))) < 1e-6,
-              f"e_ct={e1['ct']}（期望 {e_ct0}+1.581={e_ct0 + math.sqrt(50.0 / 20.0)}）")
-        # 绝对时刻制：其他单位（玩家）next_act_at 独立，不因敌方行动而变
-        check("玩家 ct 不变（绝对时刻制，其他单位不广播调整）",
-              abs(st["players"]["p1"]["ct"] - p1_ct0) < 1e-6,
-              f"p_ct={st['players']['p1']['ct']}（期望 {p1_ct0}）")
-    finally:
-        InstanceCmds._instance_current_members = orig_cur
-
 
 def test_7_inst_auto_defend_teammate_flow():
     print("【7. 副本超时自动防御同步队友时间流逝】")
@@ -229,7 +198,6 @@ def test_7_inst_auto_defend_teammate_flow():
     finally:
         InstanceCmds._instance_current_members = orig_cur
 
-
 def test_8_inst_reset_player_cts():
     print("【8. 副本换战重置玩家 ct（_instance_reset_player_cts）】")
     clean_db()
@@ -244,7 +212,6 @@ def test_8_inst_reset_player_cts():
           abs(st["players"]["p1"]["ct"] - math.sqrt(50.0 / 10.0)) < 1e-6,
           f"p1 ct={st['players']['p1']['ct']}")
 
-
 def main():
     BT.Battle._player_stats = patched_p_stats
     BT.Battle._enemy_stats = patched_e_stats
@@ -253,12 +220,11 @@ def main():
     test_3_stun_skip_time_flow()
     test_4_summon_minion_ct()
     test_5_defend_chain_reduce()
-    test_6_inst_apply_enemy_act_ct_buffed_spd()
+    # test_6 已删除（v180G B7：_instance_apply_enemy_act_ct 废弃）
     test_7_inst_auto_defend_teammate_flow()
     test_8_inst_reset_player_cts()
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed
-
 
 if __name__ == "__main__":
     sys.exit(main())
