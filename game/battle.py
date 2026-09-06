@@ -3672,8 +3672,10 @@ class Battle:
                         # 命中者可能不是当前焦点（副本 B 的 Battle 触发 A 的挂起命中）
                         _hit_player = ev.get("player_ref") or player
                         pc = self._pending_player_cast or {}
-                        # 非焦点命中：pending 在源 Battle 不在当前实例 → 从 ev 恢复
-                        if not pc and ev.get("player_ref") is not None:
+                        # 非焦点命中（player_ref 存在且不是当前玩家）：pending 属于当前焦点
+                        # 玩家，不能用它结算别人命中 → 从 ev 恢复参数
+                        _is_foreign = ev.get("player_ref") is not None and ev.get("player_ref") is not player
+                        if not pc or _is_foreign:
                             _pkind = ev.get("kind", "atk")
                             if _pkind == "skill" and ev.get("skill"):
                                 _pinf = self._lookup_skill_info(str(ev.get("skill"))) or {}
