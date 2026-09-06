@@ -41,9 +41,11 @@ MONSTER_SKILLS["ms_test_normal"] = {"kind": "物理", "power": 1.0, "desc": "普
 MONSTER_SKILLS["ms_test_eye"] = {"kind": "魔法", "power": 1.0, "defend_reduce": 0.8,
                                  "desc": "风眼测试", "name": "风眼冲击"}
 
-def run_evasion(skill_key):
+def run_evasion(skill_key, seed=0):
     """模拟敌方技能命中 + 玩家防御（走 _process_until 的 defend 分支太复杂，
     直接验证 _enemy_cast_done 伤害 + defend_reduce 折算逻辑）"""
+    import random as _r
+    _r.seed(seed)
     player = mk_player()
     mon = mk_mon()
     b = BT.Battle("monster", mon)
@@ -71,7 +73,9 @@ try:
     check("风眼技实际扣血>0", dealt_eye > 0, f"dealt={dealt_eye}")
 
     # 3. 防御格挡真实验证：player defending=True → _damage_actor 承伤链格挡
-    def run_defend(skill_key):
+    def run_defend(skill_key, seed=0):
+        import random as _r
+        _r.seed(seed)
         player = mk_player()
         mon = mk_mon()
         b = BT.Battle("monster", mon)
@@ -80,11 +84,11 @@ try:
         hp0 = player.get("hp", 0)
         logs, dmg = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": skill_key})
         return hp0 - player.get("hp", 0)
-    dealt_n_def = run_defend("ms_test_normal")   # 默认 0.5
-    dealt_e_def = run_defend("ms_test_eye")      # 0.8
-    # 未防御基线
-    _, dealt_n_plain = run_evasion("ms_test_normal")
-    _, dealt_e_plain = run_evasion("ms_test_eye")
+    dealt_n_def = run_defend("ms_test_normal", seed=11)   # 默认 0.5
+    dealt_e_def = run_defend("ms_test_eye", seed=12)      # 0.8
+    # 未防御基线（同 seed 配对——随机序列一致，只差 defending 标志）
+    _, dealt_n_plain = run_evasion("ms_test_normal", seed=11)
+    _, dealt_e_plain = run_evasion("ms_test_eye", seed=12)
     check("普通技防御减半生效 (dealt≈0.5×plain)",
           abs(dealt_n_def - dealt_n_plain * 0.5) <= max(2, dealt_n_plain * 0.1),
           f"def={dealt_n_def} plain={dealt_n_plain}")
