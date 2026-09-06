@@ -822,8 +822,10 @@ class Battle:
             # interval 续排（周期 = 出招 + 收招）。v167.3：instance 的 from_state 也会经
             # __init__（带 pet 参数）——但 from_state 恢复的 _now 可能 >0，若在此挂初始
             # 卡会与真实时间轴错位，故恢复路径不依赖本段（见 from_state 末尾按 _now 补挂）；
-            # 本段只服务新开战斗（_now=0）。
-            if self.pet and int(self.pet.get("level", 0) or 0) >= int(C.PET_SKILL_UNLOCK_LV) and float(getattr(self, "_now", 0.0) or 0.0) <= 0:
+            # 本段只服务新开战斗（_now=0 且非 from_state 恢复——v180E 阶段6：恢复路径
+            # 由 tick 序列化恢复 + 末尾兜底补挂处理，__init__ 不再重复挂卡）。
+            if self.pet and int(self.pet.get("level", 0) or 0) >= int(C.PET_SKILL_UNLOCK_LV) \
+                    and float(getattr(self, "_now", 0.0) or 0.0) <= 0 and not self._st:
                 try:
                     self._pet_ensure_actor()  # v180-C S3：宠物 actor 化（hidden+untargetable 进 companions）
                     self._pet_ensure_guard()  # v180-B ②：block 宠物转配 guard 数据化挡刀
@@ -1034,8 +1036,9 @@ class Battle:
                     "expire_at": e.get("expire_at"), "data": e.get("data") or {},
                     "source": e.get("source", ""),
                     "actor_ref": ("player" if (e.get("actor") is self.player)
-                                  else next((str(u.get("uid", "")) for u in self.enemies
-                                             if u is e.get("actor")), "")),
+                                  else ("pet" if (e.get("actor") is self.pet)
+                                        else next((str(u.get("uid", "")) for u in self.enemies
+                                                   if u is e.get("actor")), ""))),
                 }
                 for e in getattr(self, "tick_effects", [])
             ],
@@ -1218,6 +1221,12 @@ class Battle:
         # 兼容旧档：读 round 时 _p_acts 兜底；_now 缺省 0。
         b._now = float(st.get("now", 0.0) or 0.0)
         b._p_acts = int(st.get("p_acts", st.get("round", 0)) or 0)
+        # v180E 阶段6：__init__ 在 _now=0 时可能已挂 pet_act 初始卡（恢复路径 _now 由上方
+        # 才设为存档值，__init__ 阶段判断不到）——若存档带序列化 pet_act 卡，先清掉
+        # __init__ 误挂的（恢复段会按存档重绑精确节奏），避免双卡。
+        if st.get("tick_effects") and any(
+                _e.get("uid") == "pet_act" for _e in (st.get("tick_effects") or [])):
+            b.tick_effects = [e for e in b.tick_effects if e.get("uid") != "pet_act"]
         # v158 副本合并：from_state 透传副本回调钩子（instance 注入 st["_cb"]）
         b._inst_cb = st.get("_cb") if isinstance(st, dict) else None
         b.allies = st.get("allies") or []   # v122 治疗指定队友（副本传存活玩家快照引用）
@@ -1307,21 +1316,6 @@ class Battle:
                     if _init_t <= 0:
                         _init_t = _ct_initial_wait(_u.get("spd", 0))
                     b._schedule(_init_t, {"type": "enemy_act", "unit": _u})
-        # v167.3 副本带宠物（v179 P4 升级通用卡）：from_state 恢复后按当前时刻补挂 pet_act 卡
-        # ——tick_effects 已随 to_state/from_state 序列化恢复，此处兜底老档（无卡时补）。
-        # 只在带宠（Lv≥10）且池里还没有 pet_act 卡时补（防重复堆积）。
-        if b.pet and int(b.pet.get("level", 0) or 0) >= int(C.PET_SKILL_UNLOCK_LV) and not b._enemy_dead():
-            _has_pet_tick = any(e.get("uid") == "pet_act" for e in b.tick_effects)
-            if not _has_pet_tick:
-                try:
-                    b._pet_ensure_actor()  # v180-C S3：宠物 actor 化（恢复路径也补 actor 字段）
-                    b._pet_ensure_guard()  # v180-B ②：恢复路径也补 guard（老档 pet 无 guard）
-                    # v179 修正：初始周期 = 面板 skill_interval（每 N 刻一次），非读条
-                    _pt = b._pet_interval_sec()
-                    b.add_tick_effect("pet_act", b.pet, max(_pt, 0.001),
-                                      uid="pet_act", source="pet")
-                except Exception:
-                    pass
         # v178.2 regen_tick（v179 升级通用卡）：tick_effects 已随 to_state/from_state 序列化恢复
         # （P0），此处兜底：老档无 tick_effects 字段 + player 已可用（调用方先绑定）→ 挂卡。
         # 注意 from_state 恢复的 b.player 默认空 dict（真实玩家由调用方后续绑定），
@@ -1346,7 +1340,8 @@ class Battle:
                                        "power_mult": _cst.get("power_mult", 1.0)})
         # v179 通用 tick 效果恢复：actor_ref 重绑（"player"→b.player（调用方后续绑定真实玩家，
         # 此刻可能是空 dict——效果 actor 若为玩家，恢复时 actor 先用 b.player 占位，命令层绑定
-        # 真实玩家后同一引用即生效）；敌人 uid → enemies 里对应单位）。
+        # 真实玩家后同一引用即生效）；"pet"→b.pet（v180E 阶段6：宠物 actor 卡不再丢）；
+        # 敌人 uid → enemies 里对应单位）。
         try:
             _te_st = st.get("tick_effects") or []
             for _e_st in _te_st:
@@ -1354,6 +1349,8 @@ class Battle:
                 _ref = _e_st.get("actor_ref", "")
                 if _ref == "player":
                     _actor = b.player
+                elif _ref == "pet" and b.pet:
+                    _actor = b.pet
                 else:
                     for _u in b.enemies:
                         if str(_u.get("uid", "")) == str(_ref):
@@ -1370,6 +1367,20 @@ class Battle:
                 })
         except Exception:
             pass
+        # v167.3 副本带宠物（v179 P4 升级通用卡）：pet_act 卡兜底补挂（在 tick 恢复段之后——
+        # v180E 阶段6：序列化卡先恢复 actor_ref="pet" 直接重绑；无卡时此处补挂老档/旧版存档）
+        if b.pet and int(b.pet.get("level", 0) or 0) >= int(C.PET_SKILL_UNLOCK_LV) and not b._enemy_dead():
+            _has_pet_tick = any(e.get("uid") == "pet_act" for e in b.tick_effects)
+            if not _has_pet_tick:
+                try:
+                    b._pet_ensure_actor()  # v180-C S3：宠物 actor 化（恢复路径也补 actor 字段）
+                    b._pet_ensure_guard()  # v180-B ②：恢复路径也补 guard（老档 pet 无 guard）
+                    # v179 修正：初始周期 = 面板 skill_interval（每 N 刻一次），非读条
+                    _pt = b._pet_interval_sec()
+                    b.add_tick_effect("pet_act", b.pet, max(_pt, 0.001),
+                                      uid="pet_act", source="pet")
+                except Exception:
+                    pass
         return b
 
     # ---------------- 核心资源（v2.0 / v130.2 分支级 resource_override） ----------------
