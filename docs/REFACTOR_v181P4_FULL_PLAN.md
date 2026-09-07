@@ -205,26 +205,185 @@ actor dict 含 owner 循环引用（召唤物）→ 序列化转 uid 字符串�
 
 ---
 
-## Part 5：分阶段实施计划
+## Part 5：实施路线（鱼鱼拍板：新建独立实现，替换旧引擎）
 
-### Phase 0：文档定稿（本稿）→ 鱼鱼审 → 确认
-### Phase A：handler 显式 caster/target
-  A1: battle.py 结算链改造（act_ctx 引入，_do_skill/_deal_hit 显式 target）
-  A2: MECH_EFFECTS/SKILL_BUFF_EFFECTS handler 加 caster/target（按手册归类）
-  A3: 删死表 MON_BUFF_EFFECTS/MON_CTRL_EFFECTS + 测试直调点改
-### Phase B：效果表合一
-  B1: 建 game/core/effects.py EFFECT_HANDLERS
-  B2: 两表 handler 迁入（统一签名 fn(battle, caster, target, params, logs)）
-  B3: 技能数据 mech/effect → effects 列表迁移（脚本化 145 处）
-### Phase C：容器收口
-  C1: 删 self.enemies/self.allies 实体容器（sides 派生）
-  C2: 删 battle.enemy 过渡属性（命令层/测试改 sides 读）
-  C3: to_state/from_state 换 sides-only（Part 4.2）
-### Phase D：验证
-  D1: 单怪/多怪/副本/PVP/世界Boss/随从 场景测试
-  D2: 全量回归 + numeric 门禁
+> 2026-09-07 鱼鱼决策：按本文档**新建 battle 实现**（不是原地改造旧 battle.py）。
+> 旧引擎保留可跑，新引擎实现完切换 + 删旧。顺带把 P3（玩家状态容器收尾）
+> P5（battle 拆类）做进新设计。
+
+### Phase 0：文档定稿（本稿）→ 鱼鱼审 → 确认后动代码
+
+### Phase N1：新引擎骨架（game/battle2/ 包，见 Part 7）
+- 模型层 actors.py：Actor/Sides/ActCtx + 序列化（纯数据，无逻辑）
+- 先跑通：构造 sides → act(ctx) 普攻 → 伤害落地 → hp 变化
+- 验收：新引擎能完成"玩家普攻打怪扣血"最小闭环（对照旧引擎同场景数值）
+
+### Phase N2：行动链（actions.py）
+- human_act / actor_auto / _do_skill / _deal_hit / _damage_actor / AOE
+- 技能管线：多段/暴击/元素/吸血/冷却（读旧 engine.py 数值函数，不重写公式）
+- 验收：技能/治疗/增益三类 kind 全通 + 数值与旧引擎一致（同场景对拍）
+
+### Phase N3：效果系统（effects.py + 数据迁移）
+- EFFECT_HANDLERS 单表 + handler 从旧 MECH_EFFECTS/SKILL_BUFF_EFFECTS 迁入
+  （统一 fn(battle, caster, target, params, logs)）
+- 死表 MON_BUFF/MON_CTRL 不迁（删）
+- 技能数据 mech/effect → effects 列表（脚本化迁移）
+- 验收：dot/控制/buff/元素反应 效果全通
+
+### Phase N4：CTB 调度 + 状态收尾（schedule.py + P3 内容）
+- 事件队列/时刻推进/自动行动调度
+- 玩家战斗状态全进 actor dict（P3：p_meta 收纳，无 Battle 残留字段）
+- 验收：完整战斗能从头打到结束（胜利/失败/逃跑）
+
+### Phase N5：序列化 + 命令层切换
+- to_state/from_state sides-only（Part 4.2）
+- 命令层 combat/instance/world/tower import 切到 battle2
+- 旧 battle.py 冻结（不再改）
+- 验收：野外/副本/PVP/世界Boss 全场景能玩
+
+### Phase N6：全量回归 + 删旧
+- 全部测试切新引擎跑绿（含 numeric 52 门禁）
+- 删 game/battle.py + 旧 core 效果表（MECH_EFFECTS 等残留清干净）
+- 验收：run_all_tests 全绿、numeric 52/52
 
 ## Part 6：必做收尾承诺（不可跳过）
-- [ ] mech/effect 合并（Phase B）完成前不许认为重构结束
-- [ ] enemy 过渡属性删除（Phase C2）
+- [ ] mech/effect 合并（N3 的 EFFECT_HANDLERS）完成前不许认为重构结束
+- [ ] enemy 过渡属性删除（新引擎天然无，旧引擎删）
 - [ ] 旧档迁移一次性脚本 + 删除持续兼容
+- [ ] 旧 battle.py 最终删除（N6）
+
+---
+
+## Part 7：新引擎落地细节（game/battle2/ 包）
+
+### 7.1 目录结构与模块职责
+```
+game/battle2/
+├── __init__.py        # 导出 Battle（对外唯一入口：from game.battle2 import Battle）
+├── actors.py          # Actor 模型/工厂 + Sides 容器 + ActCtx + actor 序列化
+├── battle.py          # Battle 主类：构造、act/human_act/actor_auto、结果判定
+├── actions.py         # 行动结算：技能/普攻/防御/道具/伤害落地/承伤链/AOE
+├── effects.py         # EFFECT_HANDLERS 单表 + 注册 + 效果执行入口
+├── stats.py           # 面板计算（薄封装 engine.py 数值函数，不重写公式）
+├── schedule.py        # CTB 时间轴：事件队列/时刻推进/行动点/自动调度
+├── serialize.py       # to_state/from_state（sides-only JSON 结构）
+└── data_bridge.py     # 读旧数据层（技能表/词条/怪物模板）的适配层
+```
+
+### 7.2 依赖关系（新引擎只向下依赖，不反向）
+```
+battle2/ 依赖：
+  → game/engine.py      （数值公式：calc_damage/player_final_stats/skill_info…只读）
+  → game/data/          （技能/词条/怪物/套装数据，只读）
+  → game/core/formation.py（站位/AOE 选目标——纯函数，可复用）
+  → game/core/constants.py（数值常量）
+不依赖：
+  → game/battle.py      （旧引擎——绝不 import）
+  → game/core/battle_mech.py 的 handler（迁到 effects.py 后断开）
+```
+
+### 7.3 关键模块接口签名
+
+#### actors.py
+```python
+class ActCtx:
+    caster: dict
+    action: str                 # attack|skill|defend|flee|use_item|auto
+    skill_name: str|None
+    info: dict|None             # 技能配置
+    target: dict|None           # 单目标
+    target_side: str|None       # AOE 范围目标（side 名或 "all"/"front"）
+    scope: str = "single"       # single|all|front|self
+
+def make_actor(uid, name, side, kind, human_controlled=False, **stats) -> dict
+    # 播种全部战斗状态键（buffs/debuffs/stacks/resources/shields/...）
+
+def actor_buffs(actor) -> dict       # 替代旧 _actor_buffs
+def actor_debuffs(actor) -> dict
+def actor_alive(actor) -> bool
+def actor_side_of(battle, actor) -> str|None
+```
+
+#### battle.py
+```python
+class Battle:
+    def __init__(self, btype="monster", sides=None, title_bonus=None,
+                 dmg_mult=1.0, pet=None, st=None):
+        # sides: dict[str, list[actor]] —— 唯一入口，无 player/enemy 参数
+        # 玩家只是 sides["player"] 里的一个 actor（human_controlled=True）
+
+    # —— 行动入口 ——
+    def human_act(self, action, skill_name, actor, target=None,
+                  target_side=None) -> (logs, ended, who)
+    def actor_auto(self, actor, forced_target=None) -> (logs, ended)
+    def act(self, ctx: ActCtx) -> (logs, ended)      # 内部统一执行
+
+    # —— 查询 ——
+    def sides_of(self, side) -> list          # 某阵营 actor 组
+    def hostile_of(self, side) -> list        # 敌对阵营 actors（AI 选目标用）
+    def focus(self) -> dict|None              # human_controlled actor（命令层用）
+    def alive_actors(self) -> list
+```
+
+#### stats.py（复用旧公式，不重写）
+```python
+def actor_stats(battle, actor) -> dict
+    # 内部：actor 有 class_name → engine.player_final_stats(...)
+    #       纯怪（无 class_name）→ 读 actor 字段 + buffs 修正（对齐旧 _enemy_stats）
+def actor_max_hp(actor) / actor_spd(actor) / ...  # 便捷访问
+```
+
+#### effects.py
+```python
+EFFECT_HANDLERS: dict[str, EffectHandler] = {}
+EffectHandler = Callable[[Battle, dict, dict|None, dict, list], None]
+# 签名：fn(battle, caster, target, params, logs)
+#   params = {"stacks": n, "turns": n, "pct": f, "value": n, ...}
+
+def register_effect(key): ...           # 装饰器
+def apply_effects(battle, caster, target, effects, logs):
+    # effects = [{"type": "bleed", "stacks": 2}, ...] 技能数据里的列表
+    # 按 type 查 EFFECT_HANDLERS 执行
+
+# 迁移自旧表（N3 做）：
+#   MECH_EFFECTS 的 A 类（burn/mark/poison/控制/印记）→ target 效果
+#   MECH_EFFECTS 的 B 类（rage/资源）→ caster 效果
+#   SKILL_BUFF_EFFECTS 全部 → caster/target 按语义
+```
+
+#### serialize.py
+```python
+def to_state(battle) -> dict      # Part 4.2 结构（sides-only）
+def from_state(state) -> Battle   # 重建 sides+actors
+def migrate_old_state(state) -> dict  # 旧档（enemy/enemies 键）一次性迁移
+```
+
+### 7.4 数值一致性策略（关键风险）
+- **公式不重写**：所有伤害/面板/技能数值函数从旧 engine.py 复用（import + 薄封装）
+- **对拍测试**：每个 Phase 用"同场景双引擎跑"对比 hp/logs（旧 vs 新），数值差=0
+- **行为快照**：P3/P5 需要的白盒黑盒化——新引擎每 Phase 产出快照对比
+- 命令层逻辑（掉落/经验/胜负结算）在旧 battle.py 外部（combat.py），切引擎时这些不动
+
+### 7.5 切换与删除
+- import 切换：命令层 `from game import battle as BT` → `from game.battle2 import Battle as BT`
+- 切换点：combat/instance/world/tower/economy 用 BT.Battle 的地方
+- 切换前旧引擎冻结；切换后全量回归；绿了才删 game/battle.py
+- 删除清单：game/battle.py、core/battle_mech.py 死表、_we_executors 旧 handler 链
+
+### 7.6 验收里程碑（每 Phase 明确）
+| Phase | 验收 |
+|---|---|
+| N1 | 普攻闭环：同场景新旧引擎伤害一致 |
+| N2 | 技能/治疗/增益/AOE 全通 + 数值一致 |
+| N3 | 效果（dot/控制/buff/元素）全通 + 数值一致 |
+| N4 | 完整战斗可打完（含 CTB 调度/自动行动/胜负） |
+| N5 | 命令层切新引擎，野外/副本/PVP 能玩 |
+| N6 | run_all_tests 全绿 + numeric 52/52 + 旧引擎删除 |
+
+## Part 8：风险与对策
+| 风险 | 对策 |
+|---|---|
+| 数值不一致（新引擎伤害/效果偏差） | 公式全复用 engine.py + 每 Phase 对拍测试 |
+| 技能数据迁移漏（mech/effect 145 处） | 脚本化迁移 + 数据完整性断言（全技能 effects 可解析） |
+| 命令层依赖旧引擎内部方法 | 切换前盘点命令层调用面（b.xxx 方法清单），battle2 提供同语义 API |
+| 大工程周期长 | 每 Phase 独立可用+可验证，不阻塞游戏运行（旧引擎保留） |
