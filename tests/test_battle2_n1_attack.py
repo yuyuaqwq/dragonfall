@@ -25,6 +25,8 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 from game import engine as E          # noqa: E402
 from game import battle as BT_OLD     # noqa: E402
 from game.battle2 import Battle as BT_NEW, make_actor  # noqa: E402
+from game.battle2 import config as _b2config  # noqa: E402
+_b2config.load_game_defaults()  # noqa: E402
 
 PASS = 0
 FAIL = 0

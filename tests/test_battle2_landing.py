@@ -28,7 +28,9 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from game.battle2 import Battle as BT_NEW, make_actor      # noqa: E402
+from game.battle2 import Battle as BT_NEW, make_actor  # noqa: E402
+from game.battle2 import config as _b2config  # noqa: E402
+_b2config.load_game_defaults()  # noqa: E402
 from game.battle2 import landing as L                        # noqa: E402
 
 PASS = 0
