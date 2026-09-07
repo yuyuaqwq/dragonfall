@@ -13,7 +13,8 @@
 8. time_staff：turn_start 叠层 + 半血回血；passive 每层 ×1.015
 9. thunder_weave：5 次 hit 满层 → eff.we_thunder_charge；passive mult ×1.20 后清
 10. wind_mark / novice_hunt_combo：叠层写槽（面板消费点在 battle，C6 收）
-11. 未迁移 key（gale_step family=proc_buff）不进白名单 → 仍走旧 handler（C7 已迁 trinity_rhythm）
+11. 未迁移 key（guard_regen/dawn_regen/undying_band/novice_dawn_mana 系 proc_heal regen 未迁）
+    不进白名单 → 仍走旧 handler（C9 已迁 gale_step/trinity_rhythm 等历史代表，改查未迁 regen 族）
 """
 import sys, os, random
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -194,10 +195,16 @@ def test_wind_hunt():
 def test_unmigrated_old_path():
     print("【11. 未迁移 key 走旧 handler（安全阀）】")
     # trinity_rhythm（C7 已迁 proc_next_atk_mark）→ 从"未族化"样例移除；
-    # 换未迁移代表：gale_step（proc_buff 未迁）skill_hit 无注册事件不触发（proc 安全阀）；
-    # 直接验证未族化 family 路由表不含 gale_step + 新 C7 路由进表
-    check("gale_step family=proc_buff 未进 C8 白名单", _we_family("gale_step") == "proc_buff"
-          and "gale_step" not in _WE_EXEC_KEYS, f"fam={_we_family('gale_step')}")
+    # 换未迁移代表：guard_regen/dawn_regen（proc_heal regen 未迁）/undying_band/novice_dawn_mana
+    # 直接验证未族化 family 路由表不含代表 + 新 C7 路由进表
+    check("guard_regen 未进路由（安全阀）", _we_family("guard_regen") == "proc_heal"
+          and "guard_regen" not in _WE_EXEC_KEYS, f"fam={_we_family('guard_regen')}")
+    check("dawn_regen 未进路由（安全阀）", _we_family("dawn_regen") == "proc_heal"
+          and "dawn_regen" not in _WE_EXEC_KEYS, f"fam={_we_family('dawn_regen')}")
+    check("undying_band 未进路由（安全阀）", _we_family("undying_band") == "proc_heal"
+          and "undying_band" not in _WE_EXEC_KEYS, f"fam={_we_family('undying_band')}")
+    check("novice_dawn_mana 未进路由（安全阀）", _we_family("novice_dawn_mana") == "proc_heal"
+          and "novice_dawn_mana" not in _WE_EXEC_KEYS, f"fam={_we_family('novice_dawn_mana')}")
     check("trinity_rhythm 进 C7 路由", _we_family("trinity_rhythm") == "proc_next_atk_mark"
           and _WE_EXEC_KEYS.get("trinity_rhythm") == "proc_next_atk_mark", "")
     b, p = battle_for("trinity_rhythm")

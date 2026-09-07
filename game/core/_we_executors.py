@@ -816,6 +816,92 @@ def _we_exec_retort_mark(battle, player, ctx, logs, wd, key, event):
     return
 
 
+# ---------------------------------------------------------------- proc_dr_revive（2 key）
+# 保命/复活族：undying_will（battle_start 登记 used=False → threshold 免死+回血 10%）/
+# death_dance_armor（passive taken −8% 减伤）。事件 battle_start/threshold/passive 由分发器
+# 按 key 注册事件集匹配（§2.4 双事件 key 生产-消费配对整体迁移）。⚠️ battle 编排层消费段
+# （_post_hp_lethal 读 we_undying_immune 回拉 hp_pct / death_dance_armor 致死复活链——本文件
+# 无致死复活置位段，docstring 所述复活链在 battle.py 复活链族，非本族执行器）C9 一并改读表。
+# 数值全读 wd（表权威）；行为与旧 handler 逐语句等价（C9 目标：行为零变化）。
+
+def _we_exec_dr_revive(battle, player, ctx, logs, wd, key, event):
+    """保命/复活族执行器：undying_will 双事件 + death_dance_armor passive 减伤。
+
+    覆盖 proc_dr_revive 族 2 key：
+    - undying_will：battle_start 登记 eff[used_key]=False（we_undying_used，每场 1 次门）；
+      threshold 事件在 hp_ratio < threshold（0.20）时置 immune_key 标记 + 回 heal_pct（0.10）
+      ——回拉数值（hp_pct 0.10）由 battle._post_hp_lethal 读表消费（immune 标记置位后
+      致死扣血 → 回 max_hp×hp_pct），本段只置位/回血（与旧 handler 逐字一致）。
+    - death_dance_armor：passive taken（ctx.taken 真值）→ taken ×(1−taken_reduce_pct 0.08)。
+    """
+    eff = player.setdefault("eff", {})
+    if key == "undying_will":
+        if event == "battle_start":
+            eff[wd["used_key"]] = False
+            return
+        if event == "threshold":
+            # 每场 1 次门（battle_start 登记的 used 标记；旧 handler 语义逐字）
+            if eff.get(wd["used_key"]):
+                return
+            ratio = float(player.get("hp", 0)) / max(1, player.get("max_hp", 1) or 1)
+            if ratio >= float(wd["threshold"]):
+                return
+            eff[wd["used_key"]] = True
+            eff[wd["immune_key"]] = True  # 本刻免疫致死（battle _post_hp_lethal 消费回拉 hp_pct）
+            from .weapon_effects import _heal_player
+            heal = int(player.get("max_hp", 100) * float(wd["heal_pct"]))
+            _heal_player(battle, player, heal, logs, source="✨ 不灭意志")
+            logs.append(wd.get("log") or "✨ 不灭意志：免疫致死伤害！")
+            return
+        return  # 其它事件 → 空转
+    if key == "death_dance_armor":
+        if event == "passive" and ctx.get("taken"):
+            ctx["taken"] = max(1, int(ctx.get("taken", 0) * (1 - float(wd["taken_reduce_pct"]))))
+        return
+    return
+
+
+# ---------------------------------------------------------------- proc_special（3 key）
+# 特殊族：death_dance（battle_start 初始化缓伤池 + turn_start 结算 pay_pct 10%）/
+# novice_first_turn_guard + novice_first_turn_dodge（battle_start 置首刻标记——数值消费在
+# battle 编排层 _mitigate_chain/_roll_dodge，C9 改读表 mark_key/reduce_pct/dodge_pct）。
+# ⚠️ death_dance 池填充（dmg×pool_pct 0.35）在 battle._post_hp_lethal 硬编码——C9 改读表
+# pool_pct/pool_key（本执行器只做 battle_start 初始化 + turn_start 结算，与旧 handler 一致）。
+
+def _we_exec_special(battle, player, ctx, logs, wd, key, event):
+    """特殊族执行器：death_dance 缓伤池双事件 + novice 首刻标记 battle_start。
+
+    覆盖 proc_special 族 3 key：
+    - death_dance：battle_start 初始化 eff[pool_key]=float(现值 or 0)（we_death_pool 惰性建键）；
+      turn_start pool>0 → pay = max(1, int(pool×pay_pct 0.10)) 扣血 + pool 递减 + 原文案日志
+      （旧 handler 逐字：hp=max(0,...)、pool=max(0.0, pool−pay)、日志 f-string 复刻）。
+    - novice_first_turn_guard：battle_start 置 eff[mark_key]=True（novice_guard_active）+ 原文案日志。
+    - novice_first_turn_dodge：battle_start 置 eff[mark_key]=True（novice_dodge_active）+ 原文案日志。
+    """
+    eff = player.setdefault("eff", {})
+    if key == "death_dance":
+        if event == "battle_start":
+            eff[wd["pool_key"]] = float(eff.get(wd["pool_key"], 0) or 0)
+            return
+        if event == "turn_start":
+            pool = float(eff.get(wd["pool_key"], 0) or 0)
+            if pool <= 0:
+                return
+            pay = max(1, int(pool * float(wd["pay_pct"])))
+            player["hp"] = max(0, player.get("hp", 0) - pay)
+            eff[wd["pool_key"]] = max(0.0, pool - pay)
+            logs.append(
+                f"💀 死亡之舞：缓伤池结算，损失 {pay} 点生命！（剩余 {eff[wd['pool_key']]:.0f}）")
+            return
+        return  # 其它事件 → 空转
+    if key in ("novice_first_turn_guard", "novice_first_turn_dodge"):
+        if event == "battle_start":
+            eff[wd["mark_key"]] = True
+            logs.append(wd.get("log") or "🛡️ 守御：首刻受击伤害 -10%！")
+        return
+    return
+
+
 # ---------------------------------------------------------------- 注册表
 # 族名 → 执行器。key→族 由数据表 family 字段路由（proc() 分发器读表）。
 WE_EXECUTORS = {
@@ -830,6 +916,8 @@ WE_EXECUTORS = {
     "proc_buff": _we_exec_buff,
     "proc_next_atk_mark": _we_exec_next_atk_mark,
     "proc_retort_mark": _we_exec_retort_mark,
+    "proc_dr_revive": _we_exec_dr_revive,
+    "proc_special": _we_exec_special,
 }
 
 # 族内 key 专属文案/源（dot 触发源 / reflect 日志模板）——数据表未下沉文案时放这
