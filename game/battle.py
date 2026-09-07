@@ -26,11 +26,11 @@ from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径
     BOSS_ATTACK_MULTS, CONTROL_MECHS, SKILL_CC_WHITELIST,
     MECH_FULL_HP_CRIT, MECH_FROZEN_MULT, MECH_COMBO_STACKS,
     MECH_PROC_GROUPS, MECH_STAT_PASSIVES,
-    ELEMENT_MARKS_MAX, REACTION_TABLE, ELEMENT_MARK_GAIN_PER_HIT,
+    ELEMENT_MARKS_MAX, REACTION_TABLE,
     ELEMENT_SAME_CAST_EXTRA_CHARGE, RAGE_GAIN_HP_SCALE, ENERGY_HIGH,
     COMBO_CFG, ASSASSIN_ON_CRIT_GAIN, ASSASSIN_ON_TAKE_HIT_PENALTY,
     MOMENTUM_CFG, SHADOW_STEP_CFG, SHADOW_STEALTH_DMG_MULT,
-        ECHO_CFG, BARD_BRANCHES,
+        ECHO_CFG,
         BRANCH_RESOURCE_OVERRIDE,
         LUCKY_CRIT_CHANCE, LUCKY_CRIT_MULT, LUCK_CRIT_CONV, MULTI_HIT_CRIT_FIRST_ONLY,  # v133 峰值红线
         BUFF_MULT, TEAM_BUFF_KEYS,  # v176 增益映射表下沉 data/battle_config.py
@@ -2805,7 +2805,7 @@ class Battle:
     def _echo_add(self, player: dict, logs: list, amount: int = 1) -> int:
         """回声叠层（上限 max_layers）。v130.2 收尾：echo 生产收敛为 res_gain 单通道，
         按技能数据 res_gain['echo'] 数值叠加（原 kind 钩子无条件 +1 已删，防双源双倍速）。"""
-        if "echo" not in self._branch_keys(player):  # v176: 回声所有权查分支资源键（原 cls_mu_shi+BARD_BRANCHES 特判）
+        if "echo" not in self._branch_keys(player):  # v176: 回声所有权查分支资源键
             return 0
         cur = self._echo_layers()
         cap = int(ECHO_CFG.get("max_layers", 3) or 3)
@@ -2815,22 +2815,6 @@ class Battle:
         self._p_stacks()["echo"] = cur
         logs.append(f"🎵 回声驻留 +{int(amount or 0)}：全队刻恢复随回声层数(当前 {cur}/{cap})")
         return cur
-
-    def _is_bard_skill(self, player: dict, info: dict | None = None) -> bool:
-        """技能是否歌者分支技能（歌类技 → 施放叠回声 + 增益续时）。v181 收口：
-        歌者=「牧师分支资源表声明 echo 所有权」(BRANCH_RESOURCE_OVERRIDE((cls_mu_shi,1))→echo) +
-        技能归属分支即资源分支（branch_skill_owner 数据查 cls 自身，不再写死职业 id）。
-        数据现状：BARD_BRANCHES(吟游诗人/灵魂歌者/黎明颂者) 为 v153 前的旧分支名，现数据无任何
-        牧师分支叫此名 → 本判定对现网恒 False（歌类技回声在 v153 后由 _res_gain echo 单通道 +
-        _branch_keys 资源所有权驱动），此处仅保接口与旧行为等价，防误激活回声续时/伴奏。"""
-        if not self._is_branch_of(player, *BARD_BRANCHES):
-            return False
-        if "echo" not in self._branch_keys(player):
-            return False
-        if info is None:
-            return True
-        owner = E.branch_skill_owner(player.get("class_name", ""), info.get("name", ""))
-        return bool(owner and owner[1] in BARD_BRANCHES)
 
     # —— 法师攻线·元素：引爆技反应表结算（cond type='reaction'，读目标 element_marks）——
     def _reaction_table_resolve(self, player: dict, element: str, st: dict, logs: list) -> tuple | None:
@@ -4545,13 +4529,6 @@ class Battle:
             return logs
         # 非读条路径（PVP / 蓄力释放）：立即结算
         logs += self._player_skill(st, skill_name, info, player, target=target)  # v122：target 传治疗队友目标
-        # v130.2f 歌者伴奏改版（灵魂歌者分支被动）：歌类技施放 20% 概率 回声 +1
-        # （原「暴击+8%」面板加成的扣除在 _player_stats；数据层并行批次将移除其 stat crit 字段，
-        #   届时扣除条件自动失效。歌类技统一标记 = _is_bard_skill（BARD_BRANCHES 分支归属），
-        #   不硬造 tag；回声上限 3 由 _echo_add 天然处理）
-        if E.is_passive_learned(player.get("class_name", ""), "伴奏", player.get("learned_skills", [])) \
-                and self._is_bard_skill(player, info) and random.random() < 0.20:
-            self._res_gain(player, "echo", 1, logs)
         # v130.2c 圣典·日冕 2 件：施放二档以上神迹 → 全体队友额外恢复 30 体力
         self._set_miracle_team_heal(player, info, logs)
         # v2.0 冷却：技能表 cd 字段（刻），施放后进入冷却
@@ -4689,15 +4666,6 @@ class Battle:
             st["def"] = int(st.get("def", 0) * (1 + C.rune_value("ironwall", effs["ironwall"])))
         # v64 被动属性：魔力涌动/风行步/疾影/鹰眼（百分比属性被动）
         pb = E.player_passive_stats(player.get("class_name", "战士"), player.get("learned_skills", []))
-        # v130.2f 歌者伴奏改版（灵魂歌者分支被动）：原「暴击+8%」属性被动 → 「歌类技施放 20% 概率回声+1」。
-        # 数据层并行批次将移除 伴奏 的 stat crit 定义；此处仅在数据仍声明 stat crit 时扣除其面板
-        # 贡献（移除后条件自动失效，零残留）。回声触发挂点在 _do_player_skill 施放结算处。
-        _bz = E.skill_info(player.get("class_name", "战士"), "伴奏") or {}
-        _bz_ps = _bz.get("passive") or {}
-        if _bz_ps.get("stat") == "crit" and E.is_passive_learned(
-                player.get("class_name", "战士"), "伴奏", player.get("learned_skills", [])):
-            pb["crit_add"] = max(0.0, float(pb.get("crit_add", 0.0) or 0.0)
-                                 - float(_bz_ps.get("add", 0.08) or 0.0))
         if pb.get("mp_mult", 1.0) != 1.0:
             st["max_mp"] = int(st.get("max_mp", 0) * pb["mp_mult"])
             st["mp"] = int(st.get("mp", 0) * pb["mp_mult"])
@@ -6306,9 +6274,6 @@ class Battle:
                     base_turns = int(info.get("buff_turns", 3) or 3)
                 else:
                     base_turns = E.skill_buff_turns(lv)
-                # v130.2 歌者回声：增益技持续 + 回声层数 刻（priest_转职.md §3.0）
-                if self._is_bard_skill(player, info):
-                    base_turns += int(ECHO_CFG.get("buff_extend_per_layer", 1) or 1) * self._echo_layers()
                 self._cast_buffs()[key] = max(self._cast_buffs().get(key, 0), base_turns)
         # v1.x：原 burn_burst/rage_burst/bless_shield 三分支（v29 effect 型引爆/转化）
         # 全库无数据 producer（skills.py 无 effect=burn_burst/rage_burst/bless_shield 条目）

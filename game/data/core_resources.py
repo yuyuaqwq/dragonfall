@@ -140,7 +140,10 @@ CORE_RESOURCES = {
     },
     "echo": {
         "key": "echo", "name": "回声", "max": 3, "regen": 0,
-        "desc": "歌者长周期驻留叠层：歌类技 +1、战斗内不清零；每层刻一始全队恢复 6 点体力，增益技续时 +回声层数刻",
+        # max 字段=展示/注册用（叠层上限实际由 battle_config ECHO_CFG.max_layers /
+        #   MECH_CFG['echo'] 管——引擎 _res_gain echo→mech_stacks 不经 core_resource_gain_key 上限注册）。
+        # P2E-P1b 后回声无「歌类技」判定生产者（v153 后=_res_gain echo 单通道按技能数据叠加）。
+        "desc": "歌者长周期驻留叠层：战斗内不清零；每层刻一始全队恢复 6 点体力（v153 后回声仅由带 res_gain.echo 的技能产出）",
         "on_attack": 0, "on_hit": 0, "on_skill": 1,
     },
     # ================= v139（参考_云海猎团职业融合_v139_牧师.md §4.4）：守线·圣律 vow（随附支援燃料条） =================
