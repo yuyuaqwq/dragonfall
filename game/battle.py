@@ -1152,6 +1152,21 @@ class Battle:
     # 玩家叠层权威改存 player["stacks"]（actor dict 与怪同构），__init__ 播种为实例引用。
     # 外置 battle.mech_stacks 读点在 P4 迁移到 actor 读。
 
+    @property
+    def enemy(self) -> dict:
+        """当前敌方 actor 读取口（v181.P4：只读 sides['enemy'] 组首个存活）。
+
+        仅服务测试/命令层"读场上当前怪"的展示与断言；引擎结算不依赖本属性
+        （结算目标一律显式参数/_hit_tgt）。无 enemy 组 → {}。"""
+        try:
+            acts = (self.sides or {}).get("enemy") or []
+            for _u in acts:
+                if _u.get("hp", 0) > 0:
+                    return _u
+            return acts[0] if acts else {}
+        except Exception:
+            return {}
+
     # ---------------- 序列化 ----------------
     @staticmethod
     def _strip_actor_refs(actor: dict) -> dict:
@@ -7452,7 +7467,7 @@ class Battle:
                         _eb_t[k] = self._boss_ctrl_dur(k, _eb_t[k])
         # v2 控制打断蓄力：眩晕/冻结/沉默施加到蓄力目标 → 打断（§6.2规则4）
         if mech in _MC['ctrl']['mechs']:
-            tgt = getattr(self, "_active_target", None)
+            tgt = getattr(self, "_active_target", None) or self._hit_tgt()
             if tgt.get("charging"):
                 self._interrupt_charging(tgt, logs, source=skill_name or self._last_hitter)
 
@@ -10713,8 +10728,8 @@ class Battle:
         if not actor or not (actor.get("class_name") or actor.get("equipment") or actor.get("learned_skills")
                               or actor.get("buffs") or actor.get("shields") or actor.get("resources")):
             return dmg, False
-        # 反击/反伤目标：攻击者优先；玩家被打场景（attacker=None）回退敌人
-        _rtgt = attacker
+        # 反击/反伤目标：攻击者优先；缺省（玩家被打场景 attacker=None）回退当前受击目标
+        _rtgt = attacker if attacker is not None else self._hit_tgt()
         # 回击落点：v177 actor 统一——玩家/怪都走 _damage_actor（状态容器按 _is_player_side 路由）。
         # 修复：旧 else 分支 _hit_back(rd_val) 无限自调（RecursionError 被吞 → 反伤静默丢失，
         # 荆棘/格挡反震等对怪回击全失效）；现统一 _damage_actor 目标即正确扣血/移除。
