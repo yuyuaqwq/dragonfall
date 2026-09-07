@@ -209,6 +209,8 @@ eps  = 总eq / cyc                    # 每刻等效倍率
 | 信念（牧师 `faith`）            | 0-100   | max **10** | **0-10**        |
 | 破绽（拳师 `enemy_bar.shaken`） | 0-50    | max 50     | **0-50** ✅      |
 | 磐核（拳师 `GUARD_CORE_CFG`）   | 0-8     | max **5**  | **0-5**         |
+
+> ⚠️ **P2E 已删常量总注（2026-09-07，commit 095abd4）**：本文档及 CLASS_REDESIGN_FRAMEWORK_v150.md 中作为机制说明引用的以下 battle_config 常量已随 P2E 删除（41 死表 + GUARD_CORE_CFG/RANGER_CHARGE_CFG/BARD_BRANCHES/ZEN_HOLD_CFG），**数值与行为见删除后真实源（battle_mech handler 字面量 / skills.py 技能条目 / core_resources·classes.py 职业字段 / ENEMY_BAR_CFG，逐行证据见 docs/REFACTOR_P2E_task.md 附录 A + docs/REFACTOR_P2E_mech_cfg.md 附录 A）**：`BONE_RUSH_CFG`、`CURSE_CFG`、`SOUL_MARK_CFG`、`SHAKEN_CFG`、`COUNTER_CFG`/`STANCE_COUNTER`、`DRAGON_FORM`、`MAGE_FOCUS_CFG`/`CHRONOMANCER_STASIS_CFG`、`SHADOW_DANCE_CFG`、`ENERGY_VENT`/`VENT_AT`/`VENT_AUTO`/`VENT_MAX_DELAY`/`VENT_RECOVERY_EXTRA`、`TENACITY_CFG`、`GUARD_CORE_CFG`、`VOW_CFG`、`BARD_DAWN_HYMN_POWER`/`BARD_SELF_GAIN_FACTOR`/`DIRGE_CFG`/`BARD_WEAPON_RHYTHM`、`ASSASSIN_HIT_FEED`/`SPIN_LOCK`/`COMBO_REFLOW_*`/`CHAIN_DANCE`/`CORRODE`/`POISON_BURST_CP`、`IDLE_FLOOR_TURNS`、`RANGER_CHARGE_CFG`/`RANGER_SNIPE_REACH`/`BACK_ROW_MULT`/`HUNT_FINALE_POWER`、`ASTRO_SHIELD_CFG`/`STARSTEP_CFG`/`STAR_LOCK_CFG`、`BERSERKER_DUAL_ATTACK`/`ENTRY_STRIKE`/`MASTERY_KEEP`/`RAGE_POTION_GAIN`、`HUNT_MARK_CRIT_EXTRA`、`ASSASSIN_FINISHER_THRESHOLD`、`BARD_BRANCHES`、`ZEN_HOLD_CFG`。本文机制数值/设计语义未变，仅档案常量名失效——不复述设计稿数值语义。
 | 专注（游侠 `energy`→新键）        | 0-100   | max 100    | **0-100**（改流量制） |
 | 元素亲和（法师 `element`）        | 废弃      | max 5      | **废弃**（改印记挂账）   |
 

@@ -61,6 +61,7 @@ battle.py（纯编排，零内容名）
   （第一批 v181.C 已把数值补进 skills.py 数据，正好是 handler 的数据源）。
 - **P2E battle_config 职业命名 CFG → 机制命名单表**：不做"40 个 CFG 搬 data 目录"，
   而是收敛成 `MECH_CFG = {机制名: {数值}}`，消费点按机制名查。
+  > ✅ **P2E 已完成**（commit 095abd4 = P1a-P3a：死表清理 43 删 + 双源归一 + MECH_CFG 建表/非 battle 读点迁移；battle.py 读点迁移 P3b 与测试·docs 收尾 P3c 由 wt_p3c 跟进）。
 - **P3+ 后续**（玩家状态容器/battle 拆类）同样以"内容名不进引擎"为验收线。
 
 ## 红线

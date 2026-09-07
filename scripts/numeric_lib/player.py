@@ -454,12 +454,12 @@ def dot_dps(st: dict, cls: str, edef: int, mdef: int,
 
     引擎公式（battle.py _tick_dots）：每层每刻 = (atk×a + matk×m + max_hp×h) × 层数 × (1-抗)
     对普通怪（stage_scan 口径）：百分比部分不打折；真伤穿防。
-    对 Boss/精英：百分比部分 ×DOT_BOSS_PCT_MULT（0.5），单层 cap max_hp×1%。
+    对 Boss/精英：百分比部分 ×MECH_CFG['dot']['boss_pct_mult']（0.5），单层 cap max_hp×1%（MECH_CFG['dot']['pct_cap']）。
 
     稳态假设（长盘普通怪）：DOT 全程覆盖（每次释放刷新），层数 = mech_val。
     返回当前技能轴技能的 DOT 稳态 DPS 附加（无 DOT = 0）。
     """
-    from data.plugins.dragonfall.game.data.battle_config import DOT_DEFS, DOT_BOSS_PCT_MULT, DOT_PCT_CAP
+    from data.plugins.dragonfall.game.data.battle_config import MECH_CFG
     cid = cls_id(cls)
     if not rotation:
         return 0.0
@@ -480,9 +480,9 @@ def dot_dps(st: dict, cls: str, edef: int, mdef: int,
         return 0.0
     mech = info.get("mech", "")
     stacks = int(info.get("mech_val", 0) or 0)
-    if not mech or mech not in DOT_DEFS or stacks <= 0:
+    if not mech or mech not in MECH_CFG["dot"] or stacks <= 0:
         return 0.0
-    dd = DOT_DEFS[mech]
+    dd = MECH_CFG["dot"][mech]
     atk = float(st.get("atk", 0) or 0)
     matk = float(st.get("matk", 0) or 0)
     # 目标类型：Boss/精英百分比打折。stage_scan 用普通怪（edef/mdef 为 dps 怪）
@@ -494,8 +494,8 @@ def dot_dps(st: dict, cls: str, edef: int, mdef: int,
         hp_part = float(st.get("_target_max_hp", 0) or 0) * dd["hp"]
         if dd.get("type") in ("pct", "hybrid"):
             if is_boss:
-                hp_part *= DOT_BOSS_PCT_MULT
-            cap = float(st.get("_target_max_hp", 0) or 0) * DOT_PCT_CAP
+                hp_part *= MECH_CFG["dot"]["boss_pct_mult"]
+            cap = float(st.get("_target_max_hp", 0) or 0) * MECH_CFG["dot"]["pct_cap"]
             hp_part = min(hp_part, cap)
     per_tick = atk * dd.get("atk", 0) + matk * dd.get("matk", 0) + hp_part
     # 真伤穿防（直接加）；非真伤也按引擎 _tick_dots 免防御处理（DOT 不吃防御，只吃 dot_res）
