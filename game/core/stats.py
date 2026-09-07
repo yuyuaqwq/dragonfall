@@ -5,6 +5,7 @@ from ..data import (
     MONSTER_ROLE_BASE, MONSTER_ROLE_GROWTH, QUALITY,
     NORMAL_HP_STAGE_MULT, BOSS_ATK_STAGE_MULT,   # v156 阶段 6 怪物数值修复
     INSTANCE_BOSS_ATK_STAGE_MULT,  # v173.1 副本 Boss atk 段乘区（area=instance）
+    HP_STAGE_MULT, ATK_STAGE_MULT,  # P2F-2 hp/atk 分段曲线表（v131 收缓/v169.3 正斜率，原函数体数值）
     FORMULA_SKELETON,  # P2F-1 底层公式骨架参数（exp_to_next 兜底 / monster_exp / monster_gold）
     WEAPON_DIST, ARMOR_FAMILY, ARMOR_FAMILY_ALIAS,  # P2F-2 v156 装备分系表下沉（data/equipment.py）
 )  # v102.5 模板表下沉 data/stat_templates.py
@@ -19,14 +20,9 @@ from ..data import (
 #   100 级 ×1.28，怪攻击成长不再滞后玩家防御；配合 MONSTER_ROLE_GROWTH atk 上调）
 def hp_stage_mult(lv: int) -> float:
     # v131 收缓（2026-08-27）：16-30 段 8%→5%（30 级 1.75）、31-60 段 4%→3%（60 级 2.65）、61+ 3%→2%（100 级 3.45）
-    # 原：≤15=1.0；16-30: 1+(lv-15)*0.08；31-60: 2.2+(lv-30)*0.04；61+: 3.4+(lv-60)*0.03
-    if lv <= 15:
-        return 1.0
-    if lv <= 30:
-        return 1.0 + (lv - 15) * 0.05
-    if lv <= 60:
-        return 1.75 + (lv - 30) * 0.03
-    return 2.65 + (lv - 60) * 0.02
+    # P2F-2：分段点/斜率 → data/stat_templates.py HP_STAGE_MULT（_stage_mult 同款表语义，
+    #   首段末值 1.0；逐 lv 1..200 等值探针 tests/test_numeric_p2f2_curve_tables.py 锁）。
+    return _stage_mult(HP_STAGE_MULT, lv)
 
 
 def atk_stage_mult(lv: int) -> float:
@@ -35,9 +31,8 @@ def atk_stage_mult(lv: int) -> float:
     # ≤30 级保持 1.0（新手期裸装口径）；31 级起线性微增，100 级 ×1.28，无负斜率。
     # ⚠️ 消费侧：仅普通怪（tank/dps/caster/speedster/healer）与精英乘本函数；boss 走
     #   独立 _boss_atk_stage（旧减速曲线 + 下限 clamp），避免 boss 双重段乘区爆表。
-    if lv <= 30:
-        return 1.0
-    return 1.0 + (lv - 30) * 0.004
+    # P2F-2：分段点/斜率 → data/stat_templates.py ATK_STAGE_MULT（表驱动，等值探针锁）。
+    return _stage_mult(ATK_STAGE_MULT, lv)
 
 
 def _boss_atk_stage(lv: int) -> float:

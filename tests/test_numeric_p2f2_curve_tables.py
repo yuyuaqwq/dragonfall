@@ -36,9 +36,10 @@ from data.plugins.dragonfall.game.data.stat_templates import (  # noqa: E402
 # P2F-2 新表落点：stat_templates（HP/ATK 曲线）/ equipment（分系）/ formula_skeleton（boss legacy + 参数）
 try:
     from data.plugins.dragonfall.game.data import (  # noqa: E402
-        HP_STAGE_MULT, ATK_STAGE_MULT, BOSS_ATK_STAGE_MULT_LEGACY,
-        WEAPON_DIST, ARMOR_FAMILY, ARMOR_FAMILY_ALIAS,
+        HP_STAGE_MULT, ATK_STAGE_MULT,
+        WEAPON_DIST, ARMOR_FAMILY, ARMOR_FAMILY_ALIAS, FORMULA_SKELETON,
     )
+    BOSS_ATK_STAGE_MULT_LEGACY = FORMULA_SKELETON["boss_atk_legacy"]
     _TABLES_AVAILABLE = True
 except ImportError:  # P2F-2 前（表尚未下沉）：全部置 None，相关检查跳过
     HP_STAGE_MULT = ATK_STAGE_MULT = BOSS_ATK_STAGE_MULT_LEGACY = None
