@@ -4773,7 +4773,7 @@ class Battle:
         # v180E 阶段4：数值全从武器特效参数表读（WEAPON_EFFECT_DATA）
         # v181.P2C-C6：面板数值消费点收口——非本批 5 项（奥术魔攻/弑星暴伤/辉光暴伤）仍直读表；
         # 本批 4 项（gale_step_pct/wind_mark 层/novice_wind_spd/thunder_weave 层）改走执行器
-        # 输出查询 API（_we_panel_spd_mult/_we_panel_atk_mult——读表参数，语义与旧直读逐条等价）。
+        # 输出查询 API（_we_panel_apply——读表参数，语义与旧直读逐条等价）。
         try:
             from .core.weapon_effects import weapon_effect_ids as _we_ids
             from .core.weapon_effects import effect_data as _we_edp
@@ -4794,7 +4794,7 @@ class Battle:
             if "endless_radiance" in _weids:
                 _er_cd = float(_we_edp(self, player, "endless_radiance").get("crit_dmg_pct", 0.25) or 0.25)
                 st["crit_dmg"] = float(st.get("crit_dmg", 0) or 0) + _er_cd
-            # 风痕（风行短弓）：每层速度 +X%（已并入 _we_panel_spd_mult 聚合——C6）
+            # 风痕（风行短弓）：每层速度 +X%（已并入 _we_panel_apply 聚合——C6）
             # v140 波4：新手特效 翠风（novice_wind_spd）——命中后自身速度 +5%（2 刻）（同上）
             # 雷纹连打（雷纹拳甲）：每层速度 +X%、攻击 +X%（同上）
         except Exception as _sw_e:
