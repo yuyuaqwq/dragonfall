@@ -24,6 +24,7 @@ from .equipment import (  # noqa: F401
     WEAPON_FLAVOR, EQUIP_NAME_PREFIX, EQUIP_NAME_SUFFIX, EQUIP_PREFIX_FLAVOR,
     AFFIX_COUNT, AFFIX_FALLBACK,
     QUALITY_CN, WT_CN,
+    WEAPON_DIST, ARMOR_FAMILY, ARMOR_FAMILY_ALIAS,  # P2F-2 v156 装备分系表下沉（自 core/stats.py）
 )
 # v101.25i6 品质统一：垂钓档位 = 装备 QUALITY_ORDER（加品质全服生效）
 FISH_QUALITY_ORDER = QUALITY_ORDER  # noqa: F401
@@ -231,8 +232,9 @@ from .stat_templates import (  # noqa: F401  (v102.5 从 core/stats.py 下沉)
     EQUIP_SLOT_BASE, EQUIP_SLOT_SCALING, FIELD_TIER_MULT,  # v131 野外首领/精英难度分档
     NORMAL_HP_STAGE_MULT, BOSS_ATK_STAGE_MULT,  # v156 阶段 6 怪物/Boss 数值修复
     INSTANCE_BOSS_ATK_STAGE_MULT,  # v173.1 副本 Boss atk 段乘区（area=instance 消费）
+    HP_STAGE_MULT, ATK_STAGE_MULT,  # P2F-2 hp/atk 分段曲线表（core/stats.py 函数体下沉）
 )
-from .formula_skeleton import FORMULA_SKELETON  # noqa: F401  (P2F-1 底层公式骨架参数：F2/F3/F4/F7/F9/F15/F16)
+from .formula_skeleton import FORMULA_SKELETON  # noqa: F401  (P2F-1 底层公式骨架参数：F2/F3/F4/F7/F9/F15/F16 + P2F-2 equip_crit/necklace_mdef/boss_atk_legacy)
 
 # 依赖顺序：maps 依赖 classes 等 → 在最后装配派生表/索引
 from . import _assembly  # noqa: F401,E402  (执行 build_index 等)

@@ -332,3 +332,26 @@ WT_CN = {
     "mace": "权杖", "dagger": "匕首", "fist": "拳套",
     "spear": "枪", "shield": "盾",
 }
+
+# ============ v156 装备分系表（P2F-2 下沉：2026-09-07 自 core/stats.py 迁入，纯 dict 零函数）============
+# 消费端：core/stats.py equip_stats（武器分系重分配 / 防具按需求属性族分系）；
+#         core/drops.py + commands/economy.py 经 core.stats 转发读 ARMOR_FAMILY_ALIAS。
+# 历史注释：武器按 weapon_type 分系（atk/matk 分配），防具按需求属性族分系——
+#   物理武器（剑/匕/拳/弓/枪）atk 为主；法系武器（法杖/锤）matk 为主；盾 防御向；
+#   防具：str/vit（重甲）HP高、agi（皮甲）spd中、int（布甲）mdef高。
+WEAPON_DIST = {
+    "sword":  {"atk": 1.0, "matk": 0.1},
+    "dagger": {"atk": 1.0, "matk": 0.1},
+    "fist":   {"atk": 1.0, "matk": 0.1},
+    "bow":    {"atk": 1.0, "matk": 0.1},
+    "spear":  {"atk": 0.9, "matk": 0.2},
+    "staff":  {"atk": 0.1, "matk": 1.0},
+    "mace":   {"atk": 0.6, "matk": 0.6},
+    "shield": {"atk": 0.3, "matk": 0.3},
+}
+ARMOR_FAMILY = {
+    "heavy":   {"hp_mult": 1.6, "def_mult": 1.4, "mdef_mult": 0.7, "spd_mult": 0.6},  # str/vit 重甲
+    "leather": {"hp_mult": 1.0, "def_mult": 1.0, "mdef_mult": 1.0, "spd_mult": 1.3},  # agi 皮甲
+    "cloth":   {"hp_mult": 0.6, "def_mult": 0.7, "mdef_mult": 1.5, "spd_mult": 0.9},  # int 布甲
+}
+ARMOR_FAMILY_ALIAS = {"str": "heavy", "vit": "heavy", "agi": "leather", "int": "cloth"}
