@@ -5,8 +5,8 @@ v151（2026-08-31）职业体系重构适配版：
   ① 潜行乘区数据表（SHADOW_STEALTH_DMG_MULT）保留（配置兼容），但表中技能
      （终结·破影一击/幽影刃）已随隐藏职业删除——改断言：数据表存在 + 潜行通用行为
      （潜行 buff → 必暴 + 攻击后消耗）在 v151 刺客技能上生效。
-  ② 苦修禅意持有加伤（ZEN_HOLD_CFG）随隐藏职业删除——改断言：v151 拳师蓄势
-     （MOMENTUM_CFG + _momentum_mult）持有加伤生效（攻线·格斗士 path=1）。
+  ② 苦修士 ZEN_HOLD_CFG 随 v151 删除——v151 后由拳师蓄势（MOMENTUM_CFG +
+     _momentum_mult）承担持有加伤（攻线·格斗士 path=1）。
 
 设计原则（对齐 test_v1302f_job_quality.py 脚手架姿势）：
   - 行为断言确定性：random.random → 0.99（不自然暴击/不幸运/不闪避）+

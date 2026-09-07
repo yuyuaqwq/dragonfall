@@ -4846,7 +4846,7 @@ class Battle:
         return int((self._p_stacks() or {}).get("zhan_yi", 0) or 0)
 
     def _guard_core_n(self) -> int:
-        """拳师磐核数（resources.guard_core，GUARD_CORE_CFG max=5）。"""
+        """拳师磐核数（resources.guard_core 0-5，数值=guard_core_burst handler 字面 0.7×核）。"""
         return int((self._p_res() or {}).get("guard_core", 0) or 0)
 
     def _poison_cap(self, player: dict) -> int:

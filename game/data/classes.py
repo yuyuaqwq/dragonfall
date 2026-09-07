@@ -210,7 +210,7 @@ CLASSES = {
             "seg_bonus": 1, "low_cost_max": 25,
             "vent_on_dodge": 15, "vent_on_mobile": 15,
         },
-        # v139（云海弓手蓄力三律翻译）：电荷制蓄力——RANGER_CHARGE_CFG（battle_config.py）
+        # v139（云海弓手蓄力三律翻译）：电荷制蓄力——CHARGE_CFG 引擎默认值（battle_config.py；
         # max 3 / 边攒边打出伤 0.7/1.3/1.9 / 打断-1阶 / 满 3 强制释放 / 狙击 reach=3
         "charge": {
             "max": 3, "gain_per_turn": 1, "dmg_per_stage": [0.7, 1.3, 1.9],
@@ -400,7 +400,7 @@ CLASSES = {
                 "auto_trigger": True, "immune_turns": 1, "trigger_effect": "skip_turn",
             },
         },
-        # v139（云海守卫充能核翻译）：守线磐核 guard_core 0-5——GUARD_CORE_CFG（battle_config.py）
+        # v139（云海守卫充能核翻译）：守线磐核 guard_core 0-5——引擎字面实现
         # 守御姿态受击+1 / 未受击保底+1 / 技能命中+1；磐岩释能 M=1.0+0.7×核（线性刻意，早放高频 vs 攒满峰值）
         "guard_core": {
             "max": 5, "on_defend_hit": 1, "on_defend_idle": 1,
