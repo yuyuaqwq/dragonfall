@@ -87,6 +87,38 @@ P2-D4b 新增族（3 proc / 1 族 revive_cond，挂点12 _post_hp_lethal 致死�
     值铁律）。语义 = 原 3 段循环体逐字直搬：命中（复活成功）→ 返回 True（调用侧 break），
     未命中（信念不足/无骷髅）→ 返回 None（调用侧 continue/循环尾——等价格局下与 max=1 单
     条目原语义等价）。形态判定（dual_form_active 狂暴）与守护姿态 buff 守卫留在 battle 骨架。
+
+P2-D5b 新增族（4 proc / 2 新族 + 1 扩族，挂点15 _tick_actor_dots + 挂点16 _apply_mech_effect
+cap 段，方案 §6.2 P2-D5/§2.3 挂点15/16/§3.2 映射表）：
+    dot_mult_cond    毒 DOT 乘区（挂点15：poison_all_up 万毒归宗 mult 0.35——毒层伤害 ×(1+mult)；
+                     毒 tick 结算只对 k==poison 且 caster 玩家生效——守卫由挂点骨架保留
+                     `if k == \"poison\" and _caster_is_player`，handler 返回新乘数给调用侧
+                     引用槽改写读回；首条 break 语义 = run_proc_family_pm 逐条（max=1）等价）
+    dot_weaken       毒层 → 目标减速降防（挂点15：poison_weaken 剧毒之触 layers 5 /
+                     spd_down 2 / def_down 2——毒层 ≥ps.layers 时给目标 e.buffs 写
+                     spd_down/def_down = max(现值, ps 值) 与 _weaken_spd_pct 0.30 /
+                     _weaken_def_pct 0.20（**写死百分值非零默认值**：0.30/0.20 是减速降防
+                     幅度的固有引擎语义——desc「减速 30%、降防 20%」由这两键消费，引擎侧
+                     无对应 _ps 键可读，属引擎固有常量，非 proc 数值配置；spd_down/def_down
+                     才是被动数值读 _ps） + 固定日志 ☠️剧毒之触：毒层 ≥5，敌人减速降防！
+                     守卫：caster 玩家毒怪（`_caster_is_player and not _tgt_is_player`）+
+                     层数门槛（n ≥ ps.layers 且条目存在才写 buff——原代码先判 list 非空
+                     再判 n ≥ 首条 layers）留在挂点骨架；target buffs dict 由 ctx[\"tgt_buffs\"]
+                     引用槽传入（调用侧 e.setdefault(\"buffs\", {})——与挂点侧逐字等价）
+    dmg_mult_cond    ctx mult_kind 再扩 cap_kind 段（挂点16 _apply_mech_effect cap 段：
+                     hunt_mark_cap/soul_mark_cap **双消费点 cap 段**——同 proc 已有挂点14
+                     乘区段声明，一 proc 一族约束下 cap 段语义进同族新 ctx 分派 cap_kind：
+                     hunt_mark/soul_mark——与 D2b shadow_dance_bonus stat_kind、
+                     D3b soul_mark_cap 乘区段同模式）：
+                     读 _ps.add（D0 回填 2）；add>0 才触发（零默认值铁律——缺字段 = cap
+                     不放宽 = 原 3/5 上限）；**返回 base + add**（调用侧 min(返回, 叠加后
+                     层数)——等价原 `min(3 + _extra_cap, ...)` 语义，base=3 是标记固有上限
+                     （battle_mech 默认 cap 3 经 info.mark_cap 传入），非 proc 数值；
+                     调用侧骨架保留 mech 判定（hunt_mark/soul_mark）+ mval>0 + 层数叠加
+                     条件（_old + _mv > _now 才补层）
+    poison_cap 挂点16 段不重复迁：D1 已把 poison_cap_up/poison_cap 整体迁 stack_cap_add
+    族（挂点17 _poison_cap 本体族化）；挂点16 的 poison 段只调 _poison_cap() 读放宽后的
+    上限（>5 才补层），非独立消费——本批只做 hunt_mark_cap/soul_mark_cap 两 cap 段。
 """
 from __future__ import annotations
 
@@ -349,6 +381,19 @@ def _h_dmg_mult_cond(battle, ctx: dict, ps: dict, ps_name: str):
                 _tags.append(f"🎵挽歌x{round(1 + _pct_e, 2)}")
             return _nv
         return None
+    if _kind == "cap_kind":
+        # 挂点16 _apply_mech_effect cap 段（hunt_mark_cap/soul_mark_cap **双消费点 cap 段**——
+        # 同 proc 挂点14 乘区段已声明；一 proc 一族下 cap 段语义进本族新 ctx 分派 cap_kind
+        # hunt_mark/soul_mark——同 D2b stat_kind/D3b soul_mark cap 段模式）
+        _add = int(ps.get("add", 0) or 0)
+        if _add <= 0:
+            return None  # 缺字段 = cap 不放宽 = 原 3/5 上限（零默认值铁律；D0 回填 2）
+        _kk = ctx.get("cap_kind")
+        if _kk not in ("hunt_mark", "soul_mark"):
+            return None
+        # 返回 base+add（base=3 标记固有上限，非 proc 数值——battle_mech 默认 cap 3 经
+        # info.mark_cap 传入）；调用侧 min(返回, 叠加后层数) = 原 `min(3+_extra_cap,...)`
+        return 3 + _add
     # ---- 挂点4 疾风·极 speed_ratio_dmg（缺省 mult_kind）----
     _ratio = float(ps.get("ratio", 0) or 0)
     _add = float(ps.get("dmg_add", 0) or 0)
@@ -432,6 +477,64 @@ def _h_on_kill_refill(battle, ctx: dict, ps: dict, ps_name: str):
     if isinstance(_kl, list):
         _kl.append(f"💨 {ctx.get('ps_name') or ps_name}：击杀！专注回满（{_old} → {_max_v}）")
     return _old
+
+
+# ============================================================
+# 3b. dot_mult_cond / dot_weaken（P2-D5b：挂点15 _tick_actor_dots 毒 DOT 族）
+#     毒 tick 乘区 + 毒层 → 目标减速降防。守卫（k==poison、caster 玩家、目标非玩家、
+#     层数门槛）由挂点骨架保留；handler 只做数值/副作用。
+# ============================================================
+@register("dot_mult_cond")
+def _h_dot_mult_cond(battle, ctx: dict, ps: dict, ps_name: str):
+    """毒 DOT 伤害 ×(1+mult)（万毒归宗 poison_all_up；原挂点15 循环体逐字直搬）。
+
+    ctx：mult（引用槽——当前 DOT 乘数，改写读回）。数值读 _ps：mult（D0 回填 0.35）；
+    缺字段（mult ≤ 0）= 无此行为（零默认值铁律）。命中 → ctx[\"mult\"] *= 1+mult 并返回
+    新值；首条 break 语义 = run_proc_family_pm 逐条（max=1 数据）等价。守卫
+    （k==\"poison\" and _caster_is_player）由调用侧骨架保留。
+    """
+    _mult = float(ps.get("mult", 0.0) or 0.0)
+    if _mult <= 0:
+        return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.35）
+    _nv = ctx["mult"] * (1.0 + _mult)
+    ctx["mult"] = _nv
+    return _nv
+
+
+@register("dot_weaken")
+def _h_dot_weaken(battle, ctx: dict, ps: dict, ps_name: str):
+    """毒层 ≥ps.layers → 目标减速降防（剧毒之触 poison_weaken；原挂点15 循环体直搬）。
+
+    守卫（_caster_is_player and not _tgt_is_player + 条目存在 + n ≥ 首条 layers）由调用侧
+    骨架保留（原代码先判 list 非空再判 n ≥ 首条 layers——两判全在挂点，handler 不重判）。
+    数值读 _ps：layers/spd_down/def_down（D0 回填 5/2/2）；缺字段（layers ≤0）=
+    无此行为（零默认值铁律）。副作用写 ctx[\"tgt_buffs\"]（调用侧 e.setdefault(\"buffs\",{})
+    引用槽——原 e.setdefault 在循环体内，每条目重取同 dict；调用侧取一次传入等价）：
+    spd_down/def_down = max(现值, ps 值) + _weaken_spd_pct = max(现值, 0.30) /
+    _weaken_def_pct = max(现值, 0.20)（**0.30/0.20 写死非零默认值**：减速降防幅度的引擎
+    固有常量——desc「减速 30%、降防 20%」由这两键消费，无对应 _ps 键可读，非 proc 数值
+    配置；spd_down/def_down 才是被动数值读 _ps）+ 固定日志 ☠️剧毒之触：毒层 ≥5，敌人
+    减速降防！首条 break 语义 = run_proc_family_pm 逐条（max=1）等价。
+    """
+    _layers = int(ps.get("layers", 0) or 0)
+    if _layers <= 0:
+        return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 5）
+    _sd = int(ps.get("spd_down", 0) or 0)
+    _dd = int(ps.get("def_down", 0) or 0)
+    if _sd <= 0 or _dd <= 0:
+        return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 2/2）
+    _tgt_b = ctx.get("tgt_buffs")
+    if not isinstance(_tgt_b, dict):
+        return None
+    _tgt_b["spd_down"] = max(int(_tgt_b.get("spd_down", 0) or 0), _sd)
+    _tgt_b["def_down"] = max(int(_tgt_b.get("def_down", 0) or 0), _dd)
+    # v169.7 写死百分比键：减速 30%/降防 20% 幅度（引擎固有常量，随触发固化——原语义）
+    _tgt_b["_weaken_spd_pct"] = max(float(_tgt_b.get("_weaken_spd_pct", 0) or 0), 0.30)
+    _tgt_b["_weaken_def_pct"] = max(float(_tgt_b.get("_weaken_def_pct", 0) or 0), 0.20)
+    _lg = ctx.get("logs")
+    if isinstance(_lg, list):
+        _lg.append("☠️ 剧毒之触：毒层 ≥5，敌人减速降防！")
+    return True
 
 
 # ============================================================
@@ -942,6 +1045,15 @@ declare_proc("core_overflow", "dr_cond")
 declare_proc("death_contract", "revive_cond")
 declare_proc("berserk_revive", "revive_cond")
 declare_proc("stance_immortal", "revive_cond")
+# P2-D5b：挂点15 _tick_actor_dots 毒 DOT 族 2 proc（poison_all_up 万毒归宗 DOT ×(1+mult) →
+# dot_mult_cond；poison_weaken 剧毒之触 毒层≥5 减速降防 → dot_weaken）+
+# 挂点16 _apply_mech_effect cap 段 2 proc（hunt_mark_cap 追猎者 / soul_mark_cap 灵魂锁链
+# cap 放宽 +add → dmg_mult_cond ctx cap_kind 分派——soul_mark_cap 双消费点：挂点14 乘区段
+# mult_kind=soul_mark 已声明（D3b），cap 段本批同族新 ctx 分派；hunt_mark_cap 单消费点 cap 段）
+declare_proc("poison_all_up", "dot_mult_cond")
+declare_proc("poison_weaken", "dot_weaken")
+declare_proc("hunt_mark_cap", "dmg_mult_cond")
+# soul_mark_cap → dmg_mult_cond 已在 P2-D3b 声明（乘区段）；cap 段同族 ctx cap_kind 分派
 # cc_immune 无独立族声明——zhan_yi_full_reduce/core_full 双消费点（挂点10 免控 + 挂点11
 # 减伤）由同一 dr_cond 族 ctx cc_kind/dr_kind 分派（declare_proc 防重复：一 proc 一族）
 
