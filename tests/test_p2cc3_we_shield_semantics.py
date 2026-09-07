@@ -57,8 +57,10 @@ def test_routing():
     # 未迁移 key（proc_heal regen 族等未迁移）→ 不在路由 → 仍走旧 handler
     # （C4/C8/C6/C7 已迁 wind_split/twilight_execute/gale_step/trinity_rhythm 等 →
     #  从"未族化"清单移除；剩 proc_heal regen 族 guard_regen/dawn_regen 等未迁代表）
+    # v181.P2C-C10：guard_regen/dawn_regen 已迁 proc_aux 收尾族——断言改为进路由
     for k in ("guard_regen", "dawn_regen"):
-        check(f"未族化 {k} 不进路由", k not in _WE_EXEC_KEYS, f"route={_WE_EXEC_KEYS.get(k)}")
+        check(f"C10 {k} 进 proc_aux 路由", _WE_EXEC_KEYS.get(k) == "proc_aux",
+              f"route={_WE_EXEC_KEYS.get(k)}")
     # 其他已迁族不受影响
     for k, f in (("smith_blaze_wound", "proc_dot"), ("thorn_armor", "proc_reflect"),
                  ("vital_band", "proc_heal")):

@@ -23,7 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from game import battle as BT
 from game.store import init_db
 init_db()
-from game.core.weapon_effects import WEAPON_EFFECTS, proc as we_proc, _we_family
+from game.core.weapon_effects import WEAPON_EFFECTS, proc as we_proc, _we_family, _WE_EXEC_KEYS
+import _c10_old_we as _OLDWE
 
 # key → (事件, 场景构造器列表)
 CONTROL_KEYS = [
@@ -113,7 +114,7 @@ def run_pair(key, maker, n_runs=60, extra_ctx=None):
         random.seed(seed)
         b_old, p_old = prep_old(key, ev, maker)
         logs_old = []
-        handler = WEAPON_EFFECTS[key][ev]
+        handler = _OLDWE.old_handler(key, ev)
         ctx_old = dict(ctx_of(ev))
         if extra_ctx is not None:
             ctx_old.update(extra_ctx)

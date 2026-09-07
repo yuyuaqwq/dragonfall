@@ -57,10 +57,11 @@ def test_family_routing():
         check(f"{k} family={f}", _we_family(k) == f and k in _WE_EXEC_KEYS and _WE_EXEC_KEYS[k] == f,
               f"family={_we_family(k)} route={_WE_EXEC_KEYS.get(k)}")
     # 未迁移同族 key（regen/回蓝、带附赠反伤）→ 不进 C2 路由（仍走旧 handler）
+    # v181.P2C-C10：7 key 已全部迁入 proc_aux 收尾族——断言从"不进路由"改为"进 proc_aux 路由"
     for k in ("guard_regen", "dawn_regen", "undying_band", "novice_dawn_mana",
               "iron_echo", "dragon_spine_mail", "ember_bulwark"):
-        check(f"未迁移同族 key {k} 不进路由", _we_family(k) in ("proc_heal", "proc_reflect")
-              and k not in _WE_EXEC_KEYS, f"route={_WE_EXEC_KEYS.get(k)}")
+        check(f"C10 收尾同族 key {k} 进 proc_aux 路由", _we_family(k) in ("proc_heal", "proc_reflect")
+              and _WE_EXEC_KEYS.get(k) == "proc_aux", f"route={_WE_EXEC_KEYS.get(k)}")
     # v181.P2C-C4：star_pierce 直伤追击族 11 key 已整体迁入 proc_extra_dmg 路由——
     # 此处原"未族化 key 不进路由"断言改查仍未迁移的 proc_buff key（gale_step 家族）走旧 handler
     # v181.P2C-C6/C7：gale_step 家族/trinity_rhythm 均已迁——改验证已迁移 key 进路由

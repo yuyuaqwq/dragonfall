@@ -902,6 +902,82 @@ def _we_exec_special(battle, player, ctx, logs, wd, key, event):
     return
 
 
+# ---------------------------------------------------------------- proc_aux（C10 收尾 7 key）
+# v181.P2C-C10：旧 handler 全部删除后，最后 7 个"非族执行器 key"的等价迁移（否则删旧
+# handler 会静默失效）——铁律行为零变化：
+#   guard_regen/dawn_regen/undying_band：turn_start 每刻回复（pct 表权威；_heal_player 共享动作；
+#     guard_regen = 已损生命%，dawn/undying = 最大生命%，missing≤0 空转——逐语句复刻旧 handler）
+#   novice_dawn_mana：skill_cast 首次回蓝（used_key 门 + mp clamp max_mp）
+#   iron_echo/dragon_spine_mail/ember_bulwark：taken 带附赠反伤（proc_reflect 附赠段——
+#     C2 只迁纯反伤 2 key，此 3 key 收尾补齐：iron_echo 反伤+回血 / dragon_spine 反伤+禁疗 /
+#     ember_bulwark maxhp%反伤+叠灼烧首触发置位后整场锁死——原旧 handler 语义）
+# ⚠️ 共享动作（_extra_phys/_heal_player）从 weapon_effects import——唯一实现不复制公式；
+#    RNG 消耗顺序与旧 handler 逐字一致（同 seed 战斗随机流零漂移）。
+
+def _we_exec_aux(battle, player, ctx, logs, wd, key, event):
+    """收尾辅助执行器：regen 回血 / 首次回蓝 / 带附赠反伤。逐语句等价旧 handler。"""
+    from .weapon_effects import _heal_player, _extra_phys
+    if key in ("guard_regen", "dawn_regen", "undying_band"):
+        if event != "turn_start":
+            return
+        missing = player.get("max_hp", 1) - player.get("hp", 0)
+        if missing > 0:
+            if key == "guard_regen":
+                heal = max(1, int(missing * float(wd.get("pct", 0.02))))
+            else:
+                heal = max(1, int(player.get("max_hp", 1) * float(wd.get("pct", 0.02))))
+            _heal_player(battle, player, heal, logs, source=_AUX_SOURCE[key])
+        return
+    if key == "novice_dawn_mana":
+        if event != "skill_cast":
+            return
+        eff = player.setdefault("eff", {})
+        if eff.get("novice_mana_used"):
+            return
+        eff["novice_mana_used"] = True
+        player["mp"] = min(player.get("max_mp", 999), player.get("mp", 0) + int(wd.get("mp", 10)))
+        logs.append(wd.get("log") or "🌅 晨星：回复 10 点魔力！")
+        return
+    # ---- taken 带附赠反伤三 key ----
+    if event != "taken":
+        return
+    eff = player.setdefault("eff", {})
+    if key == "ember_bulwark":
+        # 烬火燎原：旧 handler 首触发置 used 后整场不再触发（无刷新点）→ 复刻原语义
+        if eff.get("we_ember_bulwark_used"):
+            return
+        eff["we_ember_bulwark_used"] = True
+        dmg = max(1, int(player.get("max_hp", 100) * float(wd.get("max_hp_pct", 0.05))))
+        if battle.enemy.get("hp", 0) > 0:
+            battle._deal_damage(dmg, logs)
+            deb = battle.enemy.setdefault("debuffs", {})
+            cur = deb.get("burn") or {"n": 0, "mult": 1.0}
+            cur["n"] = min(int(wd.get("burn_cap", 5)), int(cur.get("n", 0) or 0) + int(wd.get("burn_stack", 1)))
+            cur["last_tick"] = max(1, int(battle._tick_no()))
+            deb["burn"] = cur
+            logs.append((wd.get("log") or "🔥 烬火燎原：反伤 {dmg} 点并叠加灼烧！").format(dmg=dmg))
+        return
+    if key == "iron_echo":
+        if random.random() >= float(wd.get("chance", 0.20)):
+            return
+        if battle.enemy.get("hp", 0) <= 0:
+            return
+        _extra_phys(battle, float(wd.get("reflect_pct", 0.40)), logs, source=_AUX_SOURCE[key])
+        _heal_player(battle, player, int(player.get("max_hp", 100) * float(wd.get("heal_pct", 0.02))), logs, source=_AUX_SOURCE[key])
+        return
+    if key == "dragon_spine_mail":
+        if random.random() >= float(wd.get("chance", 0.15)):
+            return
+        dmg = int(ctx.get("dmg", 0) or 0)
+        rd = max(1, int(dmg * float(wd.get("reflect_pct", 0.25))))
+        if battle.enemy.get("hp", 0) > 0 and rd > 0:
+            battle._deal_damage(rd, logs)
+            battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), int(wd.get("heal_down", 2)))
+            logs.append((wd.get("log") or "🐉 龙脊反噬：反弹 {rd} 点伤害，并施加重伤！").format(rd=rd))
+        return
+    return
+
+
 # ---------------------------------------------------------------- 注册表
 # 族名 → 执行器。key→族 由数据表 family 字段路由（proc() 分发器读表）。
 WE_EXECUTORS = {
@@ -918,6 +994,16 @@ WE_EXECUTORS = {
     "proc_retort_mark": _we_exec_retort_mark,
     "proc_dr_revive": _we_exec_dr_revive,
     "proc_special": _we_exec_special,
+    "proc_aux": _we_exec_aux,
+}
+
+# C10 收尾族 key 专属回血源（旧 handler source 参数原文案）
+_AUX_SOURCE = {
+    "guard_regen": "🛡️ 铁卫意志",
+    "dawn_regen": "🌅 晨曦微光",
+    "undying_band": "✨ 不灭微光",
+    "iron_echo": "🪨 铁壁回响",
+    "dragon_spine_mail": "🐉 龙脊反噬",
 }
 
 # 族内 key 专属文案/源（dot 触发源 / reflect 日志模板）——数据表未下沉文案时放这

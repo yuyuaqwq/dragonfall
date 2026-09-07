@@ -24,6 +24,7 @@ from game import battle as BT
 from game.store import init_db
 init_db()
 from game.core.weapon_effects import WEAPON_EFFECTS, proc as we_proc, _we_family, _WE_EXEC_KEYS
+import _c10_old_we as _OLDWE
 
 PMULT_KEYS = ["twilight_execute", "star_slayer_edge", "arcane_firmament", "combo_end"]
 STACK_KEYS = ["wind_mark", "thunder_weave", "rune_amp", "sage_amp", "eternal_codex",
@@ -90,7 +91,7 @@ def run_pair(key, event, ctx_maker, n_runs=20, player_mut=None, enemy_hp=None):
         b_old = BT.Battle("monster", mk_enemy(*enemy_hp) if enemy_hp else mk_enemy(), player=p_old)
         ctx_old = ctx_maker()
         logs_old = []
-        handler = WEAPON_EFFECTS[key][event]
+        handler = _OLDWE.old_handler(key, event)
         handler(b_old, p_old, ctx_old, logs_old)
         random.seed(seed)
         p_new = mk_player([key])
@@ -222,7 +223,11 @@ def test_three_passive_hookpoints():
                 p_old = mk_player([key]); prep(p_old, key)
                 b_old = BT.Battle("monster", mk_enemy(), player=p_old)
                 ctx_old = dict(ctxbase); logs_old = []
-                fn = WEAPON_EFFECTS[key].get("passive")
+                fn = None
+                try:
+                    fn = _OLDWE.old_handler(key, "passive")
+                except Exception:
+                    fn = None
                 if fn:
                     fn(b_old, p_old, ctx_old, logs_old)
                 random.seed(seed)

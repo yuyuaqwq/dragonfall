@@ -197,14 +197,14 @@ def test_unmigrated_old_path():
     # trinity_rhythm（C7 已迁 proc_next_atk_mark）→ 从"未族化"样例移除；
     # 换未迁移代表：guard_regen/dawn_regen（proc_heal regen 未迁）/undying_band/novice_dawn_mana
     # 直接验证未族化 family 路由表不含代表 + 新 C7 路由进表
-    check("guard_regen 未进路由（安全阀）", _we_family("guard_regen") == "proc_heal"
-          and "guard_regen" not in _WE_EXEC_KEYS, f"fam={_we_family('guard_regen')}")
-    check("dawn_regen 未进路由（安全阀）", _we_family("dawn_regen") == "proc_heal"
-          and "dawn_regen" not in _WE_EXEC_KEYS, f"fam={_we_family('dawn_regen')}")
-    check("undying_band 未进路由（安全阀）", _we_family("undying_band") == "proc_heal"
-          and "undying_band" not in _WE_EXEC_KEYS, f"fam={_we_family('undying_band')}")
-    check("novice_dawn_mana 未进路由（安全阀）", _we_family("novice_dawn_mana") == "proc_heal"
-          and "novice_dawn_mana" not in _WE_EXEC_KEYS, f"fam={_we_family('novice_dawn_mana')}")
+    check("guard_regen C10 进 proc_aux 路由", _we_family("guard_regen") == "proc_heal"
+          and _WE_EXEC_KEYS.get("guard_regen") == "proc_aux", f"fam={_we_family('guard_regen')}")
+    check("dawn_regen C10 进 proc_aux 路由", _we_family("dawn_regen") == "proc_heal"
+          and _WE_EXEC_KEYS.get("dawn_regen") == "proc_aux", f"fam={_we_family('dawn_regen')}")
+    check("undying_band C10 进 proc_aux 路由", _we_family("undying_band") == "proc_heal"
+          and _WE_EXEC_KEYS.get("undying_band") == "proc_aux", f"fam={_we_family('undying_band')}")
+    check("novice_dawn_mana C10 进 proc_aux 路由", _we_family("novice_dawn_mana") == "proc_heal"
+          and _WE_EXEC_KEYS.get("novice_dawn_mana") == "proc_aux", f"fam={_we_family('novice_dawn_mana')}")
     check("trinity_rhythm 进 C7 路由", _we_family("trinity_rhythm") == "proc_next_atk_mark"
           and _WE_EXEC_KEYS.get("trinity_rhythm") == "proc_next_atk_mark", "")
     b, p = battle_for("trinity_rhythm")

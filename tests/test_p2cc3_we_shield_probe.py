@@ -20,7 +20,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from game import battle as BT
 from game.store import init_db
 init_db()
-from game.core.weapon_effects import WEAPON_EFFECTS, proc as we_proc, _we_family
+from game.core.weapon_effects import WEAPON_EFFECTS, proc as we_proc, _we_family, _WE_EXEC_KEYS
+import _c10_old_we as _OLDWE
 
 # key → 触发事件（与旧 handler 注册事件集一致）
 SHIELD_EVENTS = {
@@ -91,7 +92,7 @@ def run_pair(key, event, ctx_maker, player_hp=None, n_runs=25):
         b_old = BT.Battle("monster", e_old, player=p_old)
         ctx_old = ctx_maker()
         logs_old = []
-        handler = WEAPON_EFFECTS[key][event]
+        handler = _OLDWE.old_handler(key, event)
         handler(b_old, p_old, ctx_old, logs_old)
         random.seed(seed)
         p_new = mk_player([key])
@@ -244,7 +245,7 @@ def test_we_data_override():
         p1 = mk_player([]); p1["equipment"] = {"armor": dict(eq)}
         b1 = BT.Battle("monster", mk_enemy(), player=p1)
         l1 = []
-        WEAPON_EFFECTS["deeprock_aegis"]["taken"](b1, p1, {"dmg": 100, "taken": 100}, l1)
+        _OLDWE.old_handler("deeprock_aegis", "taken")(b1, p1, {"dmg": 100, "taken": 100}, l1)
         random.seed(seed)
         p2 = mk_player([]); p2["equipment"] = {"armor": dict(eq)}
         b2 = BT.Battle("monster", mk_enemy(), player=p2)
