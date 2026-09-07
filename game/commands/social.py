@@ -434,164 +434,100 @@ class SocialCmds(CommandBase):
 
     async def party(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        target = self._strip_cmd(event, "组队").strip()
-        # v104 M04 P2：『队伍甲』免空格拉人失效——正则同时接受 组队|队伍 前缀，
-        # 但 _strip_cmd 只剥"组队"，"队伍甲" 被当玩家名查找报"找不到玩家"。
-        # 与『组队甲』同规则：剥掉"队伍"前缀（『队伍』= 查看面板，空参同义）。
-        if target.startswith("队伍"):
-            target = target[2:].strip()
-        # v173.3 意见#157：『组队 @某人』参数 At 标记剥离（At 在指令后不在开头，
-        # _strip_cmd 只剥开头 At）——"[At:12345]" → "12345" 才能按 qq 号找人。
-        _at_m = re.search(r"\[At:(\d+)\]", target)
-        if _at_m:
-            target = _at_m.group(1)
+        raw_target = self._strip_cmd(event, "组队").strip()
+        # P4-6：目标解析/战斗守卫/拉人落库收敛 services.party（resolve_party_target/
+        # target_in_battle/party_join）；本命令只留解析后分派 + 文案壳。
+        from ..services.party import (
+            resolve_party_target, party_in_battle, target_in_battle,
+            party_view_lines, party_join,
+        )
+        target_qq, err = resolve_party_target(group_id, qq_id, raw_target)
         members = db.party_members(group_id, qq_id)
-        if not target:
+        if target_qq is None and err is not None:
+            yield event.plain_result(err)
+            return
+        if target_qq is None:
+            # 面板（无目标）
             if members:
-                lines = [f"🤝 【队伍】({len(members)}人)", "━━━━━━━━━━━━"]
-                # v104 M04 P2：面板补"位置"（模块卡审计点 7：成员/等级/职业/位置）——
-                # v121 CTB 审计修复：CTB 下行动顺序由 ct 动态决定（无固定"出手位"），
-                # 静态"出手位N"排名具有误导性——改为展示速度值（快者 CTB 开局先手、行动更频繁）
-                _order = []
-                for _m in members:
-                    _p = self._player(group_id, _m)
-                    _spd = 0
-                    if _p:
-                        _spd = E.player_final_stats(
-                            _p["class_name"], _p["level"], _p.get("equipment", {}),
-                            _p.get("class_tier", 0), _p.get("attributes"),
-                            _p.get("evolve_path", 0), None, _p.get("race")
-                        ).get("spd", 0) or 0
-                    _order.append((_spd, str(_m)))
-                _spdmap = dict(_order)
-                for i, m in enumerate(members, 1):
-                    p = self._player(group_id, m)
-                    # v104 M04 P2：面板补 等级/职业（对齐『角色』面板写法 C.display('classes', ...)）
-                    cls_str = (
-                        f" Lv.{p.get('level', '?')} {C.display('classes', p.get('class_name') or C.CLASS_NOVICE)}"
-                        if p else ""
-                    )
-                    pos_str = f" · 💨速{_spdmap.get(str(m), '?')}" if len(members) > 1 else ""
-                    lines.append(f"{i}. {p['name'] if p else m}{cls_str}{pos_str}" + ("(队长)" if m == members[0] else ""))
-                lines.append("💡 组队打怪经验＋10%（野外各自为战，仅经验加成；副本内才并肩作战）！队长『组队 <名字>』可再拉人(上限 4 人)；『退队』离开")
+                lines = party_view_lines(group_id, members, get_player=self._player,
+                                         final_stats=E.player_final_stats, display=C.display)
                 yield event.plain_result("\n".join(lines))
             else:
                 yield event.plain_result("你还没有队伍～『组队 <对方名字>』邀请同群玩家组队！\n💡 组队打怪经验＋10%（野外各自为战，仅经验加成，副本内才并肩作战）")
-            return
-        # 找目标玩家
-        all_players = db.get_group_players(group_id)
-        target_qq = None
-        for q, p in all_players.items():
-            if p.get("name") == target or q == target:
-                target_qq = q
-                break
-        if not target_qq:
-            yield event.plain_result(f"找不到玩家『{target}』！确保对方已『注册』角色～")
             return
         if str(target_qq) == str(qq_id):
             yield event.plain_result("不能和自己组队！")
             return
         tname = self._player(group_id, target_qq)
-        tname_str = tname["name"] if tname else target
+        tname_str = tname["name"] if tname else raw_target
         # v104 M04 P1：战斗/副本中禁止组队/拉人——防把副本队长/队员拉走（原队伍解散→副本僵尸化）、
         # 战斗中拉新人（新人未上锁可双线野外战斗）。队员的副本 battle 行存队长名下，
         # 须用 _instance_battle_for 查副本归属；retreated（撤退保留进度）不算战斗中。
-        _lb = db.get_battle(group_id, qq_id)
-        _tb = db.get_battle(group_id, target_qq)
-        if _lb and not (_lb["state"].get("type") == "instance" and _lb["state"].get("retreated")):
+        if party_in_battle(group_id, qq_id):
             yield event.plain_result("⚔️ 你正在战斗中！先打完再组队吧～")
             return
-        if _tb and not (_tb["state"].get("type") == "instance" and _tb["state"].get("retreated")):
-            yield event.plain_result(f"⚔️ {tname_str} 正在战斗中！等 TA 打完再组队吧～")
+        _tb_state = target_in_battle(group_id, target_qq, inst_battle_hook=self._instance_battle_for)
+        if _tb_state:
+            if _tb_state == "instance":
+                yield event.plain_result(f"⚔️ {tname_str} 正在副本战斗中！等 TA 打完再组队吧～")
+            else:
+                yield event.plain_result(f"⚔️ {tname_str} 正在战斗中！等 TA 打完再组队吧～")
             return
-        if self._instance_battle_for(group_id, target_qq):
-            yield event.plain_result(f"⚔️ {tname_str} 正在副本战斗中！等 TA 打完再组队吧～")
-            return
-        # v49：已有队伍时，队长用『组队 <名字>』拉新人（上限 3 人）
+        # v49：已有队伍时，队长用『组队 <名字>』拉新人（上限 4 人）
         if members:
             if str(members[0]) != str(qq_id):
                 yield event.plain_result("你已在队伍中，让队长『组队 <名字>』拉人吧～")
                 return
-            if db.party_add(group_id, qq_id, target_qq):
-                # v104 M04 P2：拉人同样记组队次数（设计 29 章 2.1「组队成功双方各记
-                # party_count」）——此前只 party_create 计数，常玩 3-4 人队成就进度慢
-                db.bump_stats(group_id, qq_id, party_count=1)
-                db.bump_stats(group_id, target_qq, party_count=1)
-                C.check_achievements(group_id, qq_id)
-                C.check_achievements(group_id, target_qq)
-                my_name = self._player(group_id, qq_id)
-                yield event.plain_result(
-                    f"🤝 {tname_str} 加入了你的队伍！(当前 {len(db.party_members(group_id, qq_id))} 人，上限 4 人)\n"
-                    f"💡 组队打怪经验＋10%！\n"
-                    f"🔔 {tname_str}：{my_name['name'] if my_name else qq_id} 将你拉入了队伍！"
-                )
+            ok, lines, _my = party_join(group_id, qq_id, target_qq, tname_str, members,
+                                        check_achievements=C.check_achievements)
+            if ok:
+                for ln in lines:
+                    yield event.plain_result(ln)
             else:
-                # v104 M04 P2：P1-1 吞并修复后此文案名副其实——party_add 拒绝=目标已在队伍/别队/满员
-                yield event.plain_result(f"无法拉入 {tname_str}：TA 已在队伍中(含其他队伍)，或队伍已满(4 人)～")
+                yield event.plain_result(lines[0])
             return
-        if not db.party_create(group_id, qq_id, target_qq):
-            yield event.plain_result(f"无法与 {tname_str} 组队：TA 已有队伍，或正在战斗中～")
-            return
-        # 阶段九：组队次数 + 成就判定（双方）
-        db.bump_stats(group_id, qq_id, party_count=1)
-        db.bump_stats(group_id, target_qq, party_count=1)
-        C.check_achievements(group_id, qq_id)
-        C.check_achievements(group_id, target_qq)
-        yield event.plain_result(f"🤝 组队成功！你和 {tname_str} 成为队友\n💡 组队打怪经验＋10%！『组队 <名字>』可再拉人(上限 4 人)")
+        # 无队伍：创建 2 人队（store.party_create 内做战斗/已有队伍闸）
+        ok, lines, _my = party_join(group_id, qq_id, target_qq, tname_str, members,
+                                    check_achievements=C.check_achievements)
+        if ok:
+            for ln in lines:
+                yield event.plain_result(ln)
+        else:
+            yield event.plain_result(lines[0])
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?退队(?:\s*|$)")
     @require_player()
 
     async def party_leave(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
+        # P4-6：退队守卫/副本成员判定/清理落库收敛 services.party（party_leave_check/
+        # party_leave_inst_member/party_leave_execute）；本命令只留文案壳。
+        from ..services.party import (
+            party_leave_check, party_leave_inst_member, party_leave_execute,
+        )
         # v104 P1：副本进行中禁止退队——副本 battle 只存队长名下，队长退队会删光队伍行，
         # 之后 _instance_current_members 返回 [] → Boss 不再攻击、击杀/通关零奖励（副本僵尸化）。
         # 非队长（队员）不受限：v104 设计允许队员退队，结算自动剔除退队者。
-        b = db.get_battle(group_id, qq_id)
-        if b and b["state"].get("type") == "instance" and not b["state"].get("retreated") \
-                and str(b["state"].get("leader", qq_id)) == str(qq_id):
-            yield event.plain_result("⚔️ 副本进行中不能退队！先『撤退』保留进度，或通关/『离开副本』后再退队～")
+        blocked, msg = party_leave_check(group_id, qq_id)
+        if blocked:
+            yield event.plain_result(msg)
             return
         # v104 P1：退队者若正挂在副本队伍中（战斗记录存队长名下）→ 退队后同步清其战斗锁
         # （内存锁 + 可能残留的 battle 行），防 24h 锁残留（_in_battle 自愈只在下次交互才触发）
-        inst_member = False
-        members = db.party_members(group_id, qq_id)
-        if members and str(members[0]) != str(qq_id):
-            lb = db.get_battle(group_id, members[0])
-            if lb and lb["state"].get("type") == "instance" and not lb["state"].get("retreated") \
-                    and str(qq_id) in [str(m) for m in lb["state"].get("members", [])]:
-                inst_member = True
-        if db.party_leave(group_id, qq_id):
-            if inst_member:
-                self._unlock_battle(group_id, qq_id)
-                db.clear_battle(group_id, qq_id)
-            # v141 大陆隔离：队员退队时若正挂在副本大陆（world_id=inst:），
-            # 回滚 world_id 到主大陆 + 位置回副本入口图（防卡副本图出不去）。
-            # 大陆实例的 members 快照保留（展示用），副本进度不受退队影响。
-            try:
-                _p2 = self._player(group_id, qq_id)
-                _wid2 = (_p2 or {}).get("world_id") or ""
-                if _wid2.startswith("inst:"):
-                    db.update_player(group_id, qq_id, world_id="mainland")
-            except Exception:
-                pass
-            # v104 M04 P2：队长退队=队伍解散，其名下撤退保留的副本进度行一并清理
-            # （队伍已散，进度无法恢复；此前该行驻留到被新开本覆盖，长期占一行数据）
-            if not db.party_members(group_id, qq_id):
-                _lb = db.get_battle(group_id, qq_id)
-                if _lb and _lb["state"].get("type") == "instance" and _lb["state"].get("retreated"):
-                    db.clear_battle(group_id, qq_id)
-            yield event.plain_result("👋 你已退出队伍！(队长退队将解散队伍)")
+        inst_member = party_leave_inst_member(group_id, qq_id)
+        left, ok_lines, err_lines = party_leave_execute(
+            group_id, qq_id, inst_member,
+            unlock_battle_hook=self._unlock_battle, player_hook=self._player,
+        )
+        if left:
+            yield event.plain_result(ok_lines[0])
         else:
-            yield event.plain_result("你还没有队伍～")
+            yield event.plain_result(err_lines[0])
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?创建公会(?:\s*|$)")
     @require_player()
 
     async def guild_create_cmd(self, event: AstrMessageEvent):
-        import datetime
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         name = self._strip_cmd(event, "创建公会").strip()[:8]  # 策划 11 章 3.1：公会名 1-8 字
@@ -601,18 +537,16 @@ class SocialCmds(CommandBase):
         if db.guild_get_by_member(qq_id):
             yield event.plain_result("你已经在一个公会里啦！先『退出公会』再加入新的～")
             return
-        cfg = C.GUILD_CONFIG
-        if player["level"] < cfg["create_level"]:
-            yield event.plain_result(f"创建公会需要 {cfg['create_level']} 级！你才 {player['level']} 级，先去冒险吧～")
+        # P4-6：等级/金币门槛 + 扣款建会收敛 services.guild（guild_create_check/guild_create）
+        from ..services.guild import guild_create_check, guild_create
+        ok, err = guild_create_check(player)
+        if not ok:
+            yield event.plain_result(err)
             return
-        if player["gold"] < cfg["create_cost"]:
-            yield event.plain_result(f"创建公会需要 {cfg['create_cost']} 金币！你只有 {player['gold']} 金币。")
+        ok, gid, err = guild_create(group_id, qq_id, player, name)
+        if not ok:
+            yield event.plain_result(err)
             return
-        gid = db.guild_create(name, qq_id, desc=f"{player['name']} 创立的公会")
-        if not gid:
-            yield event.plain_result(f"公会『{name}』已存在！换个名字吧～")
-            return
-        db.update_player(group_id, qq_id, gold=player["gold"] - cfg["create_cost"])
         # v105 M18 P2：创建公会立即判定成就（ach_guild1「加入公会」无需等下次事件）
         C.check_achievements(group_id, qq_id)
         yield event.plain_result(
@@ -634,11 +568,12 @@ class SocialCmds(CommandBase):
         if db.guild_get_by_member(qq_id):
             yield event.plain_result("你已经在一个公会里啦！")
             return
-        g = db.guild_get_by_name(name)
-        if not g:
-            yield event.plain_result(f"找不到公会『{name}』！输入『公会排行』看看有哪些公会～")
+        # P4-6：按名查会 + 入会收敛 services.guild（guild_join）
+        from ..services.guild import guild_join
+        ok, g, err = guild_join(group_id, qq_id, name)
+        if not ok:
+            yield event.plain_result(err)
             return
-        db.guild_join(g["gid"], qq_id)
         # v105 M18 P2：加入公会立即判定成就（ach_guild1「加入公会」无需等下次事件）
         C.check_achievements(group_id, qq_id)
         yield event.plain_result(f"🏰 欢迎加入公会【{g['name']}】！\n{self._tip('guild')}")
@@ -653,11 +588,13 @@ class SocialCmds(CommandBase):
         if not g:
             yield event.plain_result("你不在任何公会里～")
             return
-        if g["leader"] == qq_id:
-            # v105 M18 P2：全仓无『转让会长』命令，提示只指向真实命令，避免误导
-            yield event.plain_result("你是会长！会长不能直接退会，请『解散公会』（公会随之解散）～")
+        # P4-6：会长守卫 + 退会收敛 services.guild（guild_leave_check/guild_leave）
+        from ..services.guild import guild_leave_check, guild_leave
+        blocked, msg = guild_leave_check(g, qq_id)
+        if blocked:
+            yield event.plain_result(msg)
             return
-        db.guild_leave(g["gid"], qq_id)
+        guild_leave(g, qq_id)
         yield event.plain_result(f"👋 你已退出公会【{g['name']}】。江湖再见！")
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?解散公会(?:\s*|$)")
@@ -670,7 +607,9 @@ class SocialCmds(CommandBase):
         if not g:
             yield event.plain_result("只有会长才能解散公会！")
             return
-        db.guild_leave(g["gid"], qq_id)  # leader 离开即解散
+        # P4-6：解散落库收敛 services.guild（guild_disband：leader 离开即解散）
+        from ..services.guild import guild_disband
+        guild_disband(g, qq_id)
         yield event.plain_result(f"🏚️ 公会【{g['name']}】已解散……")
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会(?!签到|任务|捐献|排行|创建|加入|退出|解散|商店|技能|任命|免职)(?:\s*.*|$)")
@@ -714,50 +653,37 @@ class SocialCmds(CommandBase):
     @require_player()
 
     async def guild_sign(self, event: AstrMessageEvent):
-        import datetime
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         g = db.guild_get_by_member(qq_id)
         if not g:
             yield event.plain_result("你还没有公会！先『加入公会 <名字>』吧～")
             return
-        today = datetime.date.today().isoformat()
-        if db.guild_get_sign(g["gid"], qq_id) == today:
-            yield event.plain_result("今天已经公会签过到啦！明天再来～")
-            return
-        cfg = C.GUILD_CONFIG
-        db.guild_set_sign(g["gid"], qq_id, today)
-        db.guild_add_exp(g["gid"], cfg["sign_exp"], member_qq=qq_id, contribute=cfg["sign_contribute"])
-        db.update_player(group_id, qq_id, gold=player["gold"] + cfg["sign_gold"])
-        yield event.plain_result(
-            f"📅 【公会签到】在【{g['name']}】报到！\n"
-            f"🏰 公会经验 +{cfg['sign_exp']} ｜ 个人贡献 +{cfg['sign_contribute']}\n"
-            f"💰 金币 +{cfg['sign_gold']}"
-        )
+        # P4-6：签到判定/落库收敛 services.guild（guild_sign，含每日一次/数值全走 GUILD_CONFIG）
+        from ..services.guild import guild_sign
+        ok, lines, err = guild_sign(group_id, qq_id, g)
+        if ok:
+            yield event.plain_result(lines[0])
+        else:
+            yield event.plain_result(err)
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会任务(?:\s*|$)")
     @require_player()
 
     async def guild_task(self, event: AstrMessageEvent):
-        import datetime
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         g = db.guild_get_by_member(qq_id)
         if not g:
             yield event.plain_result("你还没有公会！先『加入公会 <名字>』吧～")
             return
-        today = datetime.date.today().isoformat()
-        tdate, tprog = db.guild_get_task(g["gid"], qq_id)
-        if tdate != today:
-            tdate, tprog = today, 0
-        need = C.GUILD_CONFIG["kill_task"]
-        if tprog >= need:
-            yield event.plain_result("今天的公会任务已完成！明天再来～")
-            return
-        yield event.plain_result(
-            f"🎯 【公会任务】击杀 {need} 只怪物(当前 {tprog}/{need})\n"
-            f"💡 击杀会自动结算奖励！"
-        )
+        # P4-6：任务进度（跨天重置）收敛 services.guild（guild_task_view）
+        from ..services.guild import guild_task_view
+        ok, lines, err = guild_task_view(group_id, qq_id, g)
+        if ok:
+            yield event.plain_result(lines[0])
+        else:
+            yield event.plain_result(err)
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会捐献(?:\s*|$)")
     @require_player()
@@ -768,59 +694,34 @@ class SocialCmds(CommandBase):
         策划 11 章 4 种公会任务（讨伐/捐献/金币/副本）→ 简化落地：讨伐（击杀自动推进）+ 捐献（上交 3 份材料）。
         进度用 event_state 单独记录（key=guild_donate:{gid}:{qq_id}，值=日期），不与击杀任务共用 task_progress。
         """
-        import datetime
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         g = db.guild_get_by_member(qq_id)
         if not g:
             yield event.plain_result("你还没有公会！先『加入公会 <名字>』吧～")
             return
-        cfg = C.GUILD_CONFIG
-        need = cfg["donate_items"]
-        today = datetime.date.today().isoformat()
-        key = f"guild_donate:{g['gid']}:{qq_id}"
-        if db.get_event_state(key) == today:
-            yield event.plain_result("今天的公会捐献已完成！明天再来～")
+        # P4-6：捐献判定/扣料/落库收敛 services.guild（guild_donate；不足文案里的
+        # _tip('guild_donate') 是命令层随机提示壳，由本命令补）
+        from ..services.guild import guild_donate
+        ok, lines, err, need, total = guild_donate(group_id, qq_id, g)
+        if ok:
+            yield event.plain_result(lines[0])
             return
-        # 材料 = 背包中 mat_ 前缀物品（v46 起材料统一存 mat_ 拼音/英文 id）
-        # v104R3 P1-3：排除任务道具——隐藏线/主线交付物（烬火信标/星尘沙漏/灰烬之核等）
-        # 也是 mat_ 前缀，误捐后无再获取途径 → 隐藏线断链（与批量出售保护 economy.py 对齐）
-        mats = [it for it in db.get_inventory(group_id, qq_id)
-                if it["key"].startswith("mat_") and it["data"].get("type") != "任务道具"]
-        total = sum(it["count"] for it in mats)
-        if total < need:
-            yield event.plain_result(
-                f"🎯 【公会捐献】需要上交 {need} 份材料(当前 {total}/{need})！\n"
-                f"{self._tip('guild_donate')}"
-            )
+        if total is not None:
+            # 材料不足（need/total 由 service 带回）
+            yield event.plain_result(err + f"{self._tip('guild_donate')}")
             return
-        # 扣材料（从背包靠前的材料开始扣）
-        remain = need
-        for it in mats:
-            if remain <= 0:
-                break
-            take = min(it["count"], remain)
-            db.remove_item(group_id, qq_id, it["key"], take)
-            remain -= take
-        db.guild_add_exp(g["gid"], cfg["task_exp"], member_qq=qq_id, contribute=cfg["task_contribute"])
-        db.update_player(group_id, qq_id, gold=player["gold"] + cfg["task_gold"])
-        db.set_event_state(key, today)
-        yield event.plain_result(
-            f"🎁 【公会捐献完成】上交 {need} 份材料，为公会贡献力量！\n"
-            f"🏰 公会经验 +{cfg['task_exp']} ｜ 个人贡献 +{cfg['task_contribute']}\n"
-            f"💰 金币 +{cfg['task_gold']}"
-        )
+        yield event.plain_result(err)
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会排行(?:\s*|$)")
 
     async def guild_rank(self, event: AstrMessageEvent):
-        tops = db.guild_top(10)
-        if not tops:
+        # P4-6：排行行收敛 services.guild（guild_rank_lines）
+        from ..services.guild import guild_rank_lines
+        lines = guild_rank_lines()
+        if not lines:
             yield event.plain_result("还没有公会成立！『创建公会 <名字>』建立第一个公会吧～")
             return
-        lines = ["🏆 【公会排行榜】", "━━━━━━━━━━━━"]
-        for i, g in enumerate(tops, 1):
-            lines.append(f"{i}. {g['icon']} {g['name']} Lv.{g['level']}({g['members']}人)")
         yield event.plain_result("\n".join(lines))
 
     # ---------------- v116 公会成长纵深：公会商店 / 公会技能 / 职位体系 ----------------
@@ -941,32 +842,31 @@ class SocialCmds(CommandBase):
             yield event.plain_result("格式：公会任命 <成员名> <职位>，职位=副会长/精英")
             return
         name_arg, role_arg = parts
-        role_map = {"副会长": "vice_leader", "精英": "elite"}
-        role = role_map.get(role_arg)
+        # P4-6：role 映射/等级门槛/成员校验/任命落库收敛 services.guild
+        # （guild_appoint_check_role/guild_appoint_level_ok/guild_find_member/guild_appoint）
+        from ..services.guild import (
+            guild_appoint_check_role, guild_appoint_level_ok,
+            guild_find_member, guild_appoint,
+        )
+        role = guild_appoint_check_role(role_arg)
         if not role:
             yield event.plain_result("可任命职位：副会长、精英。成员是默认职，不需任命～")
             return
-        cfg = C.GUILD_CONFIG
-        if role == "vice_leader" and g["level"] < cfg.get("vice_leader_level", 3):
-            yield event.plain_result(f"任命副会长需要公会 Lv.{cfg.get('vice_leader_level', 3)}！本公会才 Lv.{g['level']}～")
+        ok, err = guild_appoint_level_ok(g, role)
+        if not ok:
+            yield event.plain_result(err)
             return
-        target = db.find_player_by_name(name_arg)
-        if not target:
-            yield event.plain_result(f"没找到玩家『{name_arg}』！")
+        tm, target, err = guild_find_member(g, name_arg)
+        if err:
+            yield event.plain_result(err)
             return
-        target_id = target["qq_id"]
-        tm = guild_get_member(g["gid"], target_id)
-        if not tm:
-            yield event.plain_result(f"『{target['name']}』不在本公会里～")
-            return
-        if target_id == qq_id:
+        if target["qq_id"] == qq_id:
             yield event.plain_result("会长不需要任命自己～")
             return
         if tm["role"] == role:
             yield event.plain_result(f"『{target['name']}』已经是{role_arg}了～")
             return
-        guild_set_role(g["gid"], target_id, role)
-        _label, _icon = _G.GUILD_ROLES[role]
+        _label, _icon = guild_appoint(g, target, role)
         yield event.plain_result(f"{_icon} 任命成功！『{target['name']}』已晋升为公会【{_label}】！")
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?公会免职(?:\s*.*|$)")
@@ -984,19 +884,16 @@ class SocialCmds(CommandBase):
         if not name_arg:
             yield event.plain_result("格式：公会免职 <成员名>")
             return
-        target = db.find_player_by_name(name_arg)
-        if not target:
-            yield event.plain_result(f"没找到玩家『{name_arg}』！")
-            return
-        target_id = target["qq_id"]
-        tm = guild_get_member(g["gid"], target_id)
-        if not tm:
-            yield event.plain_result(f"『{target['name']}』不在本公会里～")
+        # P4-6：成员校验/免职落库收敛 services.guild（guild_find_member/guild_demote）
+        from ..services.guild import guild_find_member, guild_demote
+        tm, target, err = guild_find_member(g, name_arg)
+        if err:
+            yield event.plain_result(err)
             return
         if tm["role"] not in ("vice_leader", "elite"):
             yield event.plain_result(f"『{target['name']}』是成员，无需免职～")
             return
-        guild_set_role(g["gid"], target_id, "member")
+        guild_demote(g, target)
         yield event.plain_result(f"📉 已免去『{target['name']}』的职位，降回普通成员～")
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?宠物(?!改名)(?:\s*|$)")
