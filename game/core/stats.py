@@ -6,6 +6,7 @@ from ..data import (
     NORMAL_HP_STAGE_MULT, BOSS_ATK_STAGE_MULT,   # v156 阶段 6 怪物数值修复
     INSTANCE_BOSS_ATK_STAGE_MULT,  # v173.1 副本 Boss atk 段乘区（area=instance）
     HP_STAGE_MULT, ATK_STAGE_MULT,  # P2F-2 hp/atk 分段曲线表（v131 收缓/v169.3 正斜率，原函数体数值）
+    MONSTER_ROLE_MODS,  # P2F-3 F14 monster_stats 角色修正表（boss/elite 硬编码数值下沉）
     FORMULA_SKELETON,  # P2F-1 底层公式骨架参数（exp_to_next 兜底 / monster_exp / monster_gold）
     WEAPON_DIST, ARMOR_FAMILY, ARMOR_FAMILY_ALIAS,  # P2F-2 v156 装备分系表下沉（data/equipment.py）
 )  # v102.5 模板表下沉 data/stat_templates.py
@@ -95,17 +96,19 @@ def monster_stats(lv: int, role: str, area: str | None = None) -> dict:
     # 首领/精英血量系数按等级段放大，保证后期 Boss 有压迫感
     # v118+ 审计（用户拍板）：双层叠加设上限 min(·, 3.0)，抑制高等级 boss 血量 runaway
     # boss 系数达 3.0 于 Lv≥33，elite 系数达 3.0 于 Lv≥50，此后不再随等级增长
+    # P2F-3 F14：数值 → data/stat_templates.py MONSTER_ROLE_MODS（读表替换字面量，结构不变）
     if role == "boss":
-        stats["hp"] = int(stats["hp"] * min(1 + lv * 0.06, 3.0))
+        stats["hp"] = int(stats["hp"] * min(1 + lv * MONSTER_ROLE_MODS["boss"]["hp_per_lv"], MONSTER_ROLE_MODS["boss"]["hp_cap"]))
     if role == "elite":
-        stats["hp"] = int(stats["hp"] * min(1 + lv * 0.04, 3.0))
+        stats["hp"] = int(stats["hp"] * min(1 + lv * MONSTER_ROLE_MODS["elite"]["hp_per_lv"], MONSTER_ROLE_MODS["elite"]["hp_cap"]))
     # v106 穿透体系：Boss 重甲/精英精锐——防御 ×1.25/×1.15（穿透属性的需求端）
+    # P2F-3 F14：数值 → MONSTER_ROLE_MODS
     if role == "boss":
-        stats["def"] = int(stats["def"] * 1.25)
-        stats["mdef"] = int(stats["mdef"] * 1.25)
+        stats["def"] = int(stats["def"] * MONSTER_ROLE_MODS["boss"]["def_mult"])
+        stats["mdef"] = int(stats["mdef"] * MONSTER_ROLE_MODS["boss"]["mdef_mult"])
     if role == "elite":
-        stats["def"] = int(stats["def"] * 1.15)
-        stats["mdef"] = int(stats["mdef"] * 1.15)
+        stats["def"] = int(stats["def"] * MONSTER_ROLE_MODS["elite"]["def_mult"])
+        stats["mdef"] = int(stats["mdef"] * MONSTER_ROLE_MODS["elite"]["mdef_mult"])
     # v56.2：全角色模板吃等级段曲线
     stats["hp"] = int(stats["hp"] * hp_stage_mult(lv))
     # v169.3 承伤修复：atk_stage_mult 正斜率（31 级起 +0.4%/级）只对普通怪+精英生效——
@@ -140,9 +143,9 @@ def monster_stats(lv: int, role: str, area: str | None = None) -> dict:
     # 重构图契约 §4.1：dot_res 异常抗性（结算时乘 (1-dot_res)）——
     # boss/elite 设置抗性，普通怪不设键（缺失=0）。cap 0.95 由结算端约束。
     if role == "boss":
-        stats["dot_res"] = 0.9
+        stats["dot_res"] = MONSTER_ROLE_MODS["boss"]["dot_res"]
     elif role == "elite":
-        stats["dot_res"] = 0.8
+        stats["dot_res"] = MONSTER_ROLE_MODS["elite"]["dot_res"]
     return stats
 
 # v156 装备分系表（P2F-2 下沉 data/equipment.py——纯 dict 零函数；此处仅从 data 聚合再导出，

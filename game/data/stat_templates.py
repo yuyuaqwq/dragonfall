@@ -126,6 +126,17 @@ ATK_STAGE_MULT = (
 )
 MONSTER_GOLD_BASE = {"tank": 5, "dps": 6, "caster": 6, "speedster": 6, "healer": 6, "elite": 20, "boss": 60}
 
+# ============ F14 角色修正表（P2F-3：monster_stats boss/elite 硬编码数值下沉）============
+# 消费端：core/stats.py monster_stats 角色修正段（L98-145）——引擎仍按 role 分支读表，
+# 分支语义保留（boss/elite 各自的 hp/def/mdef/dot_res 修正 + 段乘区链只动数值不动结构）。
+# hp: int(hp × min(1 + lv×hp_per_lv, hp_cap)) —— min cap 语义在引擎（v118+ 上限审计）；
+# def/mdef: int(v × def_mult / mdef_mult)；dot_res: 直接赋值（非乘法）。值 = 重构前字面量，行为零变化。
+# 键可选、只声明"有修正的 role"（普通 5 role 无表项 → 引擎 .get 为 None 整段跳过）。
+MONSTER_ROLE_MODS = {
+    "boss":  {"hp_per_lv": 0.06, "hp_cap": 3.0, "def_mult": 1.25, "mdef_mult": 1.25, "dot_res": 0.9},
+    "elite": {"hp_per_lv": 0.04, "hp_cap": 3.0, "def_mult": 1.15, "mdef_mult": 1.15, "dot_res": 0.8},
+}
+
 # ============ 装备部位属性模板 ============
 # base = 0 级基础值；scaling = 每装备等级成长
 EQUIP_SLOT_BASE = {

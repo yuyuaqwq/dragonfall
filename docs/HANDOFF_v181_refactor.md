@@ -44,7 +44,7 @@
 | P2C weapon | REFACTOR_P2C_weapon_executors.md (43b0075) | 79 key→15族→10执行器；C1-C10 十批 |
 | P2D 被动 proc | REFACTOR_P2D_passive_proc_registry.md (ff1c843) | 52 proc→~20族；D1-D7 七批 |
 | P2E CFG | REFACTOR_P2E_mech_cfg.md (7083dbe) | 95常量：52消费/41死表；MECH_CFG A29+B14+C7+D45；消费点~150-200行净-400 |
-| P2F 公式 | REFACTOR_P2F_formula_skeleton.md (056354a) | 18公式；P2F-1低(实施中)/P2F-2中/P2F-3高；calc_damage 专项 |
+| P2F 公式 | REFACTOR_P2F_formula_skeleton.md (056354a) | 18公式；P2F-1低(✅)/P2F-2中(✅)/P2F-3高(✅ 见下 P2F3a/3b)；calc_damage 专项 |
 
 ⚠️ P2E 关键发现：审计"90 常量仅 7 被 import"是**误判**（只数了 data/__init__ 聚合层，漏直连
 import）；实际 95 常量 52 真消费/41 死表。教训：AST 扫"被 import"要看全仓直连，不能只看聚合层。
@@ -55,7 +55,7 @@ import）；实际 95 常量 52 真消费/41 死表。教训：AST 扫"被 impor
 - P2C 实施：C2 试点→C3-C10（C1 已完成）
 - **P2G 效果动作统一收敛（鱼鱼 2026-09-07 拍板）**：消灭各域重复实现（weapon_effects 97 handler/battle_mech 124/affix 46 内联的 shield/dot/buff/control 逻辑抽成 effect_actions 动作，每动作全项目只写一次）；目标 = 新增效果走单一标准路径：①查 effect_actions 有现成动作→data 声明直接用 ②没有→effect_actions 加一个动作（~15 行全域通用）；触发层保持分域薄壳（触发语义不同），1 动作库 + N 薄触发壳；P2C 完成后做（P2C 先收敛 weapon handler 到族执行器，P2G 再把族执行器里的动作抽共享）
 - P2E 实施：MECH_CFG 落位 A29+B14+C7+D45（消费点改 ~150-200 行，与 battle.py 撞文件需串行）
-- P2F-3：player_base_stats/monster_stats 声明化（F1/F2 已完成）
+- P2F-3：player_base_stats/monster_stats 声明化（✅ b955276 P2F3a F14 MONSTER_ROLE_MODS 表 + 4f705ee P2F3b F6 base_growth.py 声明表；numeric 52/52）
 - P3：玩家状态容器收尾（p_meta 槽收纳，需先行为快照测试）
 - P4：命令层抽 services（BattleSettlement/Quest/Shop/Crafting/Profession…）
 - P5：battle 拆类（最后，需白盒黑盒化）

@@ -5,6 +5,7 @@ import random
 from . import content as C
 from .data.battle_config import ELEMENT_REACTIONS, TIER_GROWTH, BRANCH_BONUS, BRANCH_BONUS_BY_CLASS, MECH_STACK_MAX  # v125.2 B1 元素反应表 + v181 P0-A 三表下沉数据层（对外接口不变）
 from .data.formula_skeleton import FORMULA_SKELETON  # P2F-1 底层公式骨架参数（技能成长默认/F7/F9/F15）
+from .data.base_growth import PLAYER_BASE_GROWTH  # P2F-3 F6 player_base_stats 成长结构声明（循环键集/branch 修正模式/别名）
 from .core.skill_kinds import K_PASSIVE  # v176 去魔法字符串
 
 
@@ -133,20 +134,23 @@ def player_base_stats(class_name: str, level: int, tier: int = 0, evolve_path: i
     mult = TIER_GROWTH.get(tier, 1.0)
     # 阶段九：种族成长倍率（08 章人类凡人之躯 -2%）
     rmult = race_stats(race).get("growth_mult", 1.0) if race else 1.0
-    for k in ("hp", "mp", "atk", "def", "matk", "mdef", "spd"):
+    # P2F-3 F6：7 属性循环键集 → data/base_growth.py PLAYER_BASE_GROWTH["linear_stats"]
+    #   （int(base + growth×(lv-1)×mult×rmult) 一次 int；tier/race 只作用于成长部分，不进 base）
+    for k in PLAYER_BASE_GROWTH["linear_stats"]:
         base[k] = int(base[k] + growth[k] * (level - 1) * mult * rmult)
     # v25 分支属性倾向（选择转职分支后生效）
     # v156 职业×分支差异化：优先用职业表（BRANCH_BONUS_BY_CLASS），未配置职业回退通用档
+    # P2F-3 F6：branch 修正模式 → PLAYER_BASE_GROWTH["branch_bonus_mode"]（mode 枚举：
+    #   "mul" = int(base×v)；"add" = round(base+加值, round)（crit 百分比加法特例））。
+    #   bb 键集权威仍在 BRANCH_BONUS_BY_CLASS/BRANCH_BONUS（声明表只声明"某键若出现怎么修"）。
     if evolve_path:
         bb = BRANCH_BONUS_BY_CLASS.get(class_name, BRANCH_BONUS).get(evolve_path, BRANCH_BONUS.get(evolve_path, {}))
         for k, v in bb.items():
-            if k == "hp":
-                base["hp"] = int(base["hp"] * v)
-            elif k == "mp":
-                base["mp"] = int(base["mp"] * v)
-            elif k == "crit":
-                base["crit"] = round(base.get("crit", 0) + v, 3)  # crit 是加法（百分比）
-            else:
+            _bm = PLAYER_BASE_GROWTH["branch_bonus_mode"]
+            mode = _bm.get(k, _bm["_default"])["mode"]
+            if mode == "add":  # crit 是加法（百分比），round 3 位小数
+                base[k] = round(base.get(k, 0) + v, _bm[k]["round"])
+            else:  # mul：hp/mp 及其余属性 int 乘法
                 base[k] = int(base[k] * v)
     base["max_hp"] = base["hp"]
     base["max_mp"] = base["mp"]
