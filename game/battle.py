@@ -3439,7 +3439,7 @@ class Battle:
         # v180-C S2 随从自动行为：玩家正常行动结束后触发（player_act trigger 的随从
         # ——召唤物旧语义；通用触发点，扫 companions 带 auto_act.trigger=player_act 的）
         if self.companions:
-            self._companions_trigger("player_act", logs)
+            self._companions_trigger("actor_act", logs)
             if self._enemy_dead():
                 self.result = "victory"
                 self._end_round()
@@ -9944,9 +9944,9 @@ class Battle:
                  "absorb_once": bool(cfg.get("absorb_once", False)),
                  "aura_atk_all": float(cfg.get("aura_atk_all", 0) or 0),
                  "eats_aoe": bool(cfg.get("eats_aoe", False)),
-                 # v180-C S2 auto_act 数据驱动：玩家行动后自动普攻（行为/触发全配置）
+                 # v180-C S2 auto_act 数据驱动：actor 行动后自动普攻（行为/触发全配置）
                  "auto_act": {
-                     "trigger": "player_act",
+                     "trigger": "actor_act",
                      "act": {"type": "basic_atk"},
                  } if atk > 0 else None,
                  # v180-B ② guard 数据化：bodyguard/absorb_once → 统一挡刀配置
