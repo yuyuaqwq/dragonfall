@@ -135,8 +135,6 @@ MECH_STAT_PASSIVES = {
 # ============================================================
 # 目标侧三系印记上限（每目标每系独立 0..3；目标 dict 的 element_marks 字段）
 ELEMENT_MARKS_MAX = 3
-# 施法命中按技能 element 字段叠加印记层数
-ELEMENT_MARK_GAIN_PER_HIT = 1
 # 引爆反应表：引爆系 × 目标印记系 → 反应结算（mage_转职.md §1.0②；cond type='reaction' 引爆技接入）
 #   mult  ：伤害倍率（蒸发 1.30，其余 1.00 由 extra 效果体现）
 #   clear ：反应后清除目标哪系印记（"" = 不清除）
@@ -523,3 +521,83 @@ MECH_STACK_MAX = {
     "lian_duan": 10,  # v151 刺客连段：0-10 命中计数（miss/闪避归零）
 }
 
+
+
+# ============================================================
+# v181 P2E（P2E-P3a）：MECH_CFG 机制单表——战斗机制参数按「机制名」聚合
+#   北极星：不做"40 个 CFG 搬 data 目录"，而是收敛成 {机制名: {数值}} 单表，
+#   消费点按机制名查（battle.py/core 状态机/engine 全部改查 MECH_CFG[机制键]）。
+#   数值以现状为准一字不改（P2E 与 P2-C 同款"以现状为准"）；本表只是聚合寻址。
+#   ⚠️ 不入表（各自域原位保留）：
+#     - TIER_GROWTH / BRANCH_BONUS / BRANCH_BONUS_BY_CLASS（属性成长公式段，engine 读）
+#     - QUALITY_UPGRADE_* / MASTERPIECE_CHANCE（economy 锻造域，C. 聚合导出）
+#     - SHADOW_STEALTH_DMG_MULT（技能名→倍率 内容名键表，待迁 skills 条目 stealth_mult 字段，另行 TODO）
+#   顶层旧名保留 = 兼容层（P3b 读点迁移完成后仅 tests/scripts 未同步前防炸；P3c 移除或保留）
+# ============================================================
+MECH_CFG = {
+    # ---- 机制键表（通用表直接收编，键名即机制）----
+    "dot": {
+        **DOT_DEFS,
+        "boss_pct_mult": DOT_BOSS_PCT_MULT,
+        "pct_cap": DOT_PCT_CAP,
+        "bleed_double_hp_pct": DOT_BLEED_DOUBLE_HP_PCT,
+        "adapt_decay_step": DOT_ADAPT_DECAY_STEP,
+        "resist_cap": DOT_RESIST_CAP,
+    },
+    "mech_stack": {
+        "bonus": MECH_STACK_BONUS,
+        "whitelist": MECH_STACK_WHITELIST,
+        "max": MECH_STACK_MAX,
+    },
+    "buff": {
+        "mult": BUFF_MULT,
+        "team_keys": TEAM_BUFF_KEYS,
+    },
+    "element": {
+        "reactions": ELEMENT_REACTIONS,
+        "reaction_table": REACTION_TABLE,
+        "marks_max": ELEMENT_MARKS_MAX,
+        "same_cast_extra_charge": ELEMENT_SAME_CAST_EXTRA_CHARGE,
+        # ELEMENT_MARK_GAIN_PER_HIT 已随 P2E-P3a 删（battle.py 仅 import 死链路，零读点）
+    },
+    "crit": {
+        "lucky_chance": LUCKY_CRIT_CHANCE,
+        "lucky_mult": LUCKY_CRIT_MULT,
+        "luck_conv": LUCK_CRIT_CONV,
+        "multi_hit_first_only": MULTI_HIT_CRIT_FIRST_ONLY,
+        "full_hp_mechs": MECH_FULL_HP_CRIT,
+        "frozen_mult": MECH_FROZEN_MULT,
+        "combo_mechs": MECH_COMBO_STACKS,
+    },
+    "ctrl": {
+        "mechs": CONTROL_MECHS,
+        "skill_cc_whitelist": SKILL_CC_WHITELIST,
+        "proc_groups": MECH_PROC_GROUPS,
+        "stat_passives": MECH_STAT_PASSIVES,
+    },
+    "boss": {
+        "attack_mults": BOSS_ATTACK_MULTS,
+    },
+    "enemy_bar": ENEMY_BAR_CFG,
+    # ---- 机制键（职业化 CFG 收敛后按机制命名；原 dict 值原样搬）----
+    "dual_form": DUAL_FORM_CFG,
+    "focus": FOCUS_CFG,
+    "vent": VENT_CFG,
+    "charge": CHARGE_CFG,
+    "assassin_combo": {
+        **COMBO_CFG,
+        "on_crit_gain": ASSASSIN_ON_CRIT_GAIN,
+        "on_take_hit_penalty": ASSASSIN_ON_TAKE_HIT_PENALTY,
+    },
+    "shadow_step": SHADOW_STEP_CFG,
+    "echo": ECHO_CFG,
+    "full_tension": ENERGY_HIGH,
+    "blood_debt_gain": RAGE_GAIN_HP_SCALE,
+    "branch_resources": BRANCH_RESOURCE_OVERRIDE,
+    "chi_hold_dmg": MOMENTUM_CFG,
+}
+
+
+def mech_cfg(mech: str) -> dict:
+    """MECH_CFG 查表辅助（core 状态机 _battle_cfg 同形态推广）：无配置 = 默认不启用。"""
+    return MECH_CFG.get(mech, {})

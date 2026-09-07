@@ -248,6 +248,7 @@ from ._assembly import (  # noqa: F401
 )
 
 # v125.2 B1：战斗主路径数据表（从 battle.py 伤害段 / engine.py 下沉，纯数据）
+# v181 P2E-P3a：MECH_CFG 机制单表导出（消费点按机制名查表；顶层旧名保 import 兼容）
 from .battle_config import (  # noqa: F401
     MECH_STACK_BONUS, MECH_STACK_WHITELIST, DOT_DEFS,
     DOT_BLEED_DOUBLE_HP_PCT, DOT_ADAPT_DECAY_STEP, DOT_RESIST_CAP,
@@ -258,4 +259,5 @@ from .battle_config import (  # noqa: F401
     # 紫→橙 5%（+2%）、橙装 2% 精良前缀（属性 ×1.15）；提升消耗 精金锭+深海水晶
     QUALITY_UPGRADE_CHANCE, QUALITY_UPGRADE_MASTER_BONUS, MASTERPIECE_CHANCE,
     QUALITY_UPGRADE_COST,
+    MECH_CFG, mech_cfg,  # v181 P2E-P3a
 )

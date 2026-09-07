@@ -21,24 +21,21 @@
 
 
 def _battle_cfg(name: str) -> dict:
-    """延迟读取 battle_config 的 CFG 字典（避免顶层循环导入）。
+    """延迟读取 battle_config MECH_CFG 机制表（避免顶层循环导入）。
 
     支持两种导入路径：正常包上下文（相对导入）与独立加载（绝对导入回退）。
+    v181 P2E-P3a：读点改查 MECH_CFG[机制键]（原直读 DUAL_FORM_CFG/FOCUS_CFG/VENT_CFG 顶层名）。
     """
     import importlib
     try:
-        from ..data.battle_config import (  # noqa: F401
-            DUAL_FORM_CFG, FOCUS_CFG, VENT_CFG,
-        )
-        cfg_map = {"dual_form": DUAL_FORM_CFG, "focus": FOCUS_CFG, "vent": VENT_CFG}
-        return cfg_map.get(name, {}) or {}
+        from ..data.battle_config import MECH_CFG  # noqa: F401
+        return MECH_CFG.get(name, {}) or {}
     except Exception:
         pass
     try:
         # 绝对导入回退（importlib 直接加载模块时相对导入无包上下文）
         bc = importlib.import_module("game.data.battle_config")
-        cfg_map = {"dual_form": bc.DUAL_FORM_CFG, "focus": bc.FOCUS_CFG, "vent": bc.VENT_CFG}
-        return cfg_map.get(name, {}) or {}
+        return bc.MECH_CFG.get(name, {}) or {}
     except Exception:
         return {}
 

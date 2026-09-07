@@ -3,7 +3,7 @@
 import random
 
 from . import content as C
-from .data.battle_config import ELEMENT_REACTIONS, TIER_GROWTH, BRANCH_BONUS, BRANCH_BONUS_BY_CLASS, MECH_STACK_MAX  # v125.2 B1 元素反应表 + v181 P0-A 三表下沉数据层（对外接口不变）
+from .data.battle_config import MECH_CFG, ELEMENT_REACTIONS, TIER_GROWTH, BRANCH_BONUS, BRANCH_BONUS_BY_CLASS, MECH_STACK_MAX  # v125.2 B1 元素反应表 + v181 P0-A 三表下沉 + v181 P2E MECH_CFG 机制单表（对外接口不变；内部读点改查 MECH_CFG）
 from .data.formula_skeleton import FORMULA_SKELETON  # P2F-1 底层公式骨架参数（技能成长默认/F7/F9/F15）
 from .data.base_growth import PLAYER_BASE_GROWTH  # P2F-3 F6 player_base_stats 成长结构声明（循环键集/branch 修正模式/别名）
 from .core.skill_kinds import K_PASSIVE  # v176 去魔法字符串
@@ -37,7 +37,7 @@ def element_reaction(cur_element: str, target_marks: dict) -> dict | None:
     """
     for mark_key, layers in target_marks.items():
         if layers and layers > 0:
-            r = ELEMENT_REACTIONS.get((cur_element, mark_key))
+            r = MECH_CFG["element"]["reactions"].get((cur_element, mark_key))
             if r:
                 return r
     return None
@@ -115,7 +115,7 @@ def core_resource_regen(class_name: str, resources: dict) -> int:
 
 def mech_stack_gain(mech: str, p_mech: dict, mval: int) -> int:
     """叠层(带上限)。返回新层数。未配上限的机制不限制。"""
-    cap = MECH_STACK_MAX.get(mech, 99)
+    cap = MECH_CFG["mech_stack"]["max"].get(mech, 99)
     return min(cap, p_mech.get(mech, 0) + mval)
 
 def player_base_stats(class_name: str, level: int, tier: int = 0, evolve_path: int = 0, race: str = None) -> dict:
