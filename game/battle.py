@@ -8813,6 +8813,7 @@ class Battle:
             # v181.P2D-D5b：毒 DOT 乘区迁注册表族 dot_mult_cond（poison_all_up——守卫
             # k==poison and _caster_is_player 由骨架保留；mult 引用槽改写读回——原 `_poison_all_mult
             # *= 1.0+mult; break` 的 max=1 语义 = run_proc_family_pm 逐条等价）
+            _poison_all_mult = 1.0
             if k == "poison" and _caster_is_player:
                 _ctx_pa = {"player": caster, "ps": {}, "ps_name": "", "mult": _poison_all_mult}
                 _run_proc_family_pm(self, caster, "poison_all_up", _ctx_pa)
