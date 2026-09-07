@@ -34,11 +34,12 @@ def main():
     check("quests 每日任务存取", q2.get("daily", {}).get("d1", {}).get("progress") == 1, str(q2.get("daily"))[:80])
 
     print("【store·进度族：battle_state】")
+    # v181 P3：save_battle 裸怪调用自动包装 enemies 阵列（存档结构 = 完整 battle state）
     db.save_battle("g1", "q1", {"enemy": "野狗", "hp": 50})
     bs = db.get_battle("g1", "q1")
     st = bs.get("state", bs) if isinstance(bs, dict) else {}
-    enemy = st.get("enemy", st) if isinstance(st, dict) else {}
-    check("battle_state 存取", enemy.get("enemy") == "野狗" and enemy.get("hp") == 50, str(bs)[:160])
+    enem0 = ((st.get("enemies") or [{}])[0]) if isinstance(st.get("enemies"), list) else {}
+    check("battle_state 存取", enem0.get("enemy") == "野狗" and enem0.get("hp") == 50, str(bs)[:160])
     db.clear_battle("g1", "q1")
     bs2 = db.get_battle("g1", "q1")
     check("clear_battle 生效", not bs2 or (isinstance(bs2, dict) and not bs2.get("state")), str(bs2)[:80])

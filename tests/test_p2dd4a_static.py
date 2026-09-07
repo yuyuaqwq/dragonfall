@@ -72,16 +72,17 @@ def main():
     check("生产段 RES 补核 + 日志串保留",
           '_p_res()["guard_core"] = max(self._guard_core_n()' in battle
           and "绝境不屈，获得" in battle)
-    # 挂点12 _post_hp_lethal 致死复活族（D4b 收）未碰——三个 revive proc 消费点原样
+    # 挂点12 _post_hp_lethal 致死复活族（D4b 收）——三个 revive proc 已迁 run_proc_family
+    # （_run_proc_family + declare_proc 在 passive_procs，见 L1482-1484；旧 for 消费已删）
     hp12 = battle.split("def _post_hp_lethal")[1] if "def _post_hp_lethal" in battle else ""
     if hp12:
         for nm in ("death_contract", "berserk_revive", "stance_immortal"):
-            check(f"挂点12 {nm} 未迁（保留旧 for 消费）",
-                  f'get("{nm}", []' in hp12 and f'run_proc_family(self, "{nm}"' not in hp12)
+            check(f"挂点12 {nm} 已迁（run_proc_family 消费）",
+                  f'run_proc_family(self, "{nm}"' in hp12 or f'_run_proc_family(self, "{nm}"' in hp12)
     check("挂点12 区存在（_post_hp_lethal 方法未删）", bool(hp12))
-    # 其余 D4b 挂点12 声明未提前（passive_procs 无这 3 proc 声明）
+    # D4b 挂点12 声明已提前（passive_procs 有这 3 proc 声明）
     for nm in ("death_contract", "berserk_revive", "stance_immortal"):
-        check(f"注册表未提前声明 {nm}", f'declare_proc("{nm}"' not in procs)
+        check(f"注册表已声明 {nm}", f'declare_proc("{nm}"' in procs)
     print(f"\n结果: {passed} 通过, {failed} 失败")
     sys.exit(1 if failed else 0)
 

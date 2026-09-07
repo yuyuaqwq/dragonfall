@@ -2235,7 +2235,9 @@ class Battle:
                            "cloth_heal_overflow", "bless_ward_shield", "holy_bastion_def",
                            "shi_quan_retort", "bi_chui_wall", "pan_shi_steady", "anvil_parry",
                            "tie_shou_blood", "hu_xiao_barrier", "ferry_repel",
-                           "tie_pi_bulwark", "shou_wang_ward", "tie_pi_harden")
+                           "tie_pi_bulwark", "shou_wang_ward", "tie_pi_harden",
+                           # v181-A1 数据化后仍直连：龙鳞反震(受击 reflect)/晨光圣愈(每刻回血)按名消费
+                           "reflect", "regen_strong")
 
     def _affix_effs(self, player: dict, aid: str) -> list:
         """已装备词条的全部实例 effect 列表（可跨件叠加；每件 = (effect dict, tier 值或 None)）。

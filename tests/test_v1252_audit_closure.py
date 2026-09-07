@@ -250,7 +250,10 @@ def section_affix():
     # 特殊直连型 type（battle.py 特殊触发位置消费，不注册通用执行器）列入白名单，由下方 battle.py 源码反查保证
     _SPECIAL_DIRECT_TYPES = {"taken_immune", "taken_immune_cond", "taken_block_reflect",
                              "taken_shield_convert", "taken_dmg_reduce_flat", "turn_heal_cond", "turn_shield"}
-    _all_params_types = {(_eff, _p.get("type")) for _eff in no_stats_eff if (_p := _eff_params(_eff))}
+    _all_params_types = {(_eff, _p.get("type")) for _eff in no_stats_eff
+                         if _eff not in set_consumed and (_p := _eff_params(_eff))}
+    # 注：set_consumed（SET_EFFECT_CONSUMED 直连注册表）成员 params.type 允许 None——
+    # battle.py 按 effect 名直连消费，不经 type 通用执行器分发（v181-A1 数据化后仍直连）。
     _known_types = set(AF.SET_PROC_TYPES) | set(AF.TAKEN_TYPES) | _SPECIAL_DIRECT_TYPES
     _unknown = {(e, t) for e, t in _all_params_types if t not in _known_types}
     check("数据驱动：全部 params.type ∈ SET_PROC_TYPES/TAKEN_TYPES/直连白名单", not _unknown,
