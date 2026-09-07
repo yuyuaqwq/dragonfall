@@ -68,7 +68,7 @@ def test_registry_static():
     # 4 stat_mult + 3 P2-D3a + 5 P2-D3b + 6 P2-D4a）
     # P2-D4b：挂点12 致死复活链 3 proc（death_contract/berserk_revive/stance_immortal）
     # 并入 revive_cond → 总数 31
-    check("PROC_FAMILIES 含 31 声明", len(PP.PROC_FAMILIES) == 31, str(PP.PROC_FAMILIES))
+    check("PROC_FAMILIES 含 35 声明", len(PP.PROC_FAMILIES) == 35, str(len(PP.PROC_FAMILIES)))
     expect_map = {
         "speed_ratio_dmg": "dmg_mult_cond",
         "arcane_resonance": "dmg_mult_cond",
@@ -104,6 +104,11 @@ def test_registry_static():
         "death_contract": "revive_cond",
         "berserk_revive": "revive_cond",
         "stance_immortal": "revive_cond",
+        # P2-D6 4 proc（模块级 tick handler 族 → tick_regen/tick_mech_charge/tick_faith）
+        "focus_regen_summon": "tick_regen",
+        "arcane_intuition": "tick_mech_charge",
+        "undead_faith": "tick_faith",
+        "faith_overload_heal": "tick_faith",
     }
     for proc, fam in expect_map.items():
         check(f"{proc} → {fam}", PP.PROC_FAMILIES.get(proc) == fam,
@@ -111,7 +116,7 @@ def test_registry_static():
     for fam in ("dmg_mult_cond", "lifesteal_add", "stack_cap_add",
                 "summon_cap_add", "on_kill_refill", "crit_cond_add",
                 "stat_mult_cond", "flag_set_cond", "cc_break_cost", "dr_cond",
-                "revive_cond"):
+                "revive_cond", "tick_regen", "tick_mech_charge", "tick_faith"):
         check(f"族执行器 {fam} 已注册", fam in PP.FAMILY_HANDLERS)
     # 52 全覆盖校验：除 KNOWN_GAPS + 本批 6 外，其余 52 proc 尚未声明（后续批次）——不静默
     declared = set(PP.PROC_FAMILIES)
@@ -371,12 +376,13 @@ def test_52_coverage():
     check("52 proc 扫描 ≥52", len(proc_set) >= 52, f"实际 {len(proc_set)}")
     declared = set(PP.PROC_FAMILIES)
     gaps = set(PP.KNOWN_GAPS)
-    # 本批声明 6 个全在 52 白名单内（表键 = skills.py proc，禁止表外注册）
+    # P2-D6：声明 35（含 tick 族 4）+ KNOWN_GAPS 4（D 类真空转）——其余显式待办
     check("声明 ⊆ 52 白名单", declared <= proc_set,
           f"表外声明 {declared - proc_set}")
+    check("KNOWN_GAPS ⊆ 52 白名单", gaps <= proc_set, f"表外 gaps {gaps - proc_set}")
     # P2-D1 后遗留 = 52 - 声明 - KNOWN_GAPS → 后续批次显式待办（不静默）
     pending = proc_set - declared - gaps
-    print(f"    （P2-D2~D7 后续批次待声明：{len(pending)} 个）")
+    print(f"    （P2-D7 收尾批次待声明：{len(pending)} 个）")
 
 
 def main():

@@ -87,6 +87,24 @@ P2-D4b 新增族（3 proc / 1 族 revive_cond，挂点12 _post_hp_lethal 致死�
     值铁律）。语义 = 原 3 段循环体逐字直搬：命中（复活成功）→ 返回 True（调用侧 break），
     未命中（信念不足/无骷髅）→ 返回 None（调用侧 continue/循环尾——等价格局下与 max=1 单
     条目原语义等价）。形态判定（dual_form_active 狂暴）与守护姿态 buff 守卫留在 battle 骨架。
+
+P2-D6 新增族（4 proc / 3 族，battle.py 顶部模块级 tick handler 区——_th_passive_heal/
+_th_mech_charge/_th_faith_decay，方案 §6.2 P2-D6/§2.3 挂点24/§3.2 映射表 176-179）：
+    tick_regen        每刻被动回复族（召唤物在场回 energy）     focus_regen_summon
+    tick_mech_charge  每刻奥术充能族（focus 态 +focus_gain）    arcane_intuition
+    tick_faith        信念每刻族（亡灵在场回 faith + 过载回血×） undead_faith /
+                                                               faith_overload_heal
+    模块级 handler（签名 (battle, actor, eff, logs)）不是 Battle 方法：外层 tick 包装
+    （被动回复族 turn_heal/team_regen / 奥术·魔剑充能族 arcane_regen+stat 通道
+    spellblade_regen / 信念衰减状态机）留在 battle.py 骨架原样（非 52 同族不迁移），
+    4 proc 分支 for 循环体直搬进族 handler（ctx faith_kind/mech 分派）；骨架调
+    run_proc_family 逐条执行（max=1 下与原 break 等价）。数值读 _ps：gain（5）/
+    gain+focus_gain（1+1）/ per_undead（0.15）/ heal_up（0.30）——D0 已回填；
+    缺字段 = 无此行为（零默认值铁律）。mech_stack_gain/focus_active 由骨架 ctx 注入
+    （core 层避免直接 import engine/battle_modes——battle.py 顶部已有 import 别名）。
+    名单通道（_regen_needed/_ensure_regen_effects）：proc 名是"卡片存在性"检查键
+    （查 _pm[proc] 非空）——注册表化后 proc 名不变 → 名单不动。
+    KNOWN_GAPS 移除 4 个 E 类成员（tick 族已收编）；剩 D 类 4 个真空转。
 """
 from __future__ import annotations
 
@@ -107,8 +125,8 @@ _FAMILY_PENDING: set = set()
 KNOWN_GAPS: set = {
     # D 类真空转（0 引擎读取，skills.py 声明 + battle.py 注释 TODO）：
     "faith_share", "finisher_up", "poison_burst_up", "poison_spread",
-    # E 类 tick 族成员（行为在模块级 tick handler 名单通道，无独立挂点；P2-D6 收）：
-    "focus_regen_summon", "arcane_intuition", "undead_faith", "faith_overload_heal",
+    # （E 类 tick 族成员 focus_regen_summon/arcane_intuition/undead_faith/
+    #   faith_overload_heal 已由 P2-D6 收编进 tick_regen/tick_mech_charge/tick_faith 族）
 }
 
 _REG_ORDER: list = []
@@ -891,6 +909,154 @@ def _h_revive_cond(battle, ctx: dict, ps: dict, ps_name: str):
 
 
 # ============================================================
+# 7c. tick 族（P2-D6：battle.py 顶部模块级 tick handler 内 4 proc 分支
+#      focus_regen_summon/arcane_intuition/undead_faith/faith_overload_heal）
+#      收敛为 3 个注册表族——tick_regen/tick_mech_charge/tick_faith。
+#      模块级 handler 签名 (battle, actor, eff, logs) 与类方法不同：外层 tick
+#      包装（被动回复族 / 奥术·魔剑充能族 / 信念衰减状态机 + 非 52 同族分支）
+#      留在 battle.py 骨架原样；本族 handler 只做"该 proc 的数值/副作用"——
+#      battle.py 骨架循环体改为：for 循环体直搬进 handler，骨架调
+#      run_proc_family 查本族（与其余 11 族同机制）。
+#      语义 = 原 4 for 循环体逐字直搬（含内层 try/except 吞错留痕）；ctx 带
+#      logs（list，存在才追加）、crd_f（核心资源定义引用槽）；读 battle 现成
+#      helpers（summons/_undead_count/_res_gain/focus_active）；数值读 _ps 零
+#      默认值铁律（缺字段 = 无此行为）：gain（D0 回填 5）、gain/focus_gain
+#      （D0 回填 1/1）、per_undead（D0 回填 0.15）、heal_up（D0 回填 0.30）。
+#      返回值 None（副作用族——挂点不需要读回；原循环返回值未消费）。
+#      注意 faith 段：undead_faith 置位 buffs.faith_exhausted 属后续状态机段
+#      （在骨架）；本 handler 只做亡灵回 faith 与圣化乘算。
+# ============================================================
+@register("tick_regen")
+def _h_tick_regen(battle, ctx: dict, ps: dict, ps_name: str):
+    """每刻被动回复族（森之共鸣 focus_regen_summon：召唤物在场每刻回 energy +gain）。
+
+    语义 = 原 _th_passive_heal 内 focus_regen_summon for 循环体逐字直搬
+    （battle.py 294-332 迁移前副本；外层 try `if battle.summons:` 守卫由骨架保留）。
+    读 _ps：gain；缺字段（gain ≤ 0）= 无此行为（零默认值铁律；D0 回填 5）。
+    ctx：logs（list，存在才追加）；读 battle.summons/battle._res_gain(actor,...)。
+    返回 None（副作用在 actor 资源袋 + ctx logs；原循环返回值未消费）。
+    """
+    _gain = int(ps.get("gain", 0) or 0)
+    if _gain <= 0:
+        return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 5）
+    try:
+        _actor = ctx.get("actor")
+        if not _actor or not battle.summons:
+            return None  # 召唤物不在场 → 不触发（原外层 if 守卫；骨架保留双保险）
+        _sr_old = int(_actor.setdefault('resources', {}).get("energy", 0) or 0)
+        _sr_new = battle._res_gain(_actor, "energy", _gain)
+        _lg = ctx.get("logs")
+        if _sr_new > _sr_old:
+            if isinstance(_lg, list):
+                _lg.append(f"🌳 {ps_name}：召唤物在场，专注充能 +{_gain}（{_sr_new}）")
+        return None
+    except Exception as _sw_e:
+        _swallow(battle, "passive_procs.focus_regen_summon", _sw_e)
+        return None
+
+
+# ---- 7c.2 tick_mech_charge（奥术直觉 arcane_intuition：每刻奥术充能 +gain，focus 时 +focus_gain）----
+@register("tick_mech_charge")
+def _h_tick_mech_charge(battle, ctx: dict, ps: dict, ps_name: str):
+    """每刻充能族（奥术直觉 arcane_intuition：奥术充能每刻 +gain，focus 态 +focus_gain）。
+
+    语义 = 原 _th_mech_charge 内 arcane_intuition for 循环体逐字直搬
+    （battle.py 334-373 迁移前副本；外层 mech 判定/stat 通道/非 52 arcane_regen
+    分支由骨架保留）。读 _ps：gain/focus_gain/mech；缺字段（gain ≤ 0）= 无此行为
+    （零默认值铁律；D0 回填 1/1，mech 缺省 arcane——ps 未显式声明时读 mech or
+    "arcane" 的等价由骨架 ctx["mech"] 默认表达）。ctx：mech（缺省 "arcane"）、
+    logs；读 battle._passive_map 消费经 run_proc_family（调用侧 for 骨架已取条目，
+    handler 不再查表——ps/ps_name 由分发注入）；focus_active 经 ctx["focus_active"]
+    注入（battle_modes 纯函数，骨架预置）。
+    返回 None（副作用在 actor stacks + ctx logs）。
+    """
+    _gain = int(ps.get("gain", 0) or 0)
+    if _gain <= 0:
+        return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 1）
+    try:
+        _actor = ctx.get("actor")
+        _mech = ctx.get("mech") or ps.get("mech") or "arcane"
+        _gain2 = _gain
+        _fa = ctx.get("focus_active")
+        try:
+            if callable(_fa) and _fa(_actor):
+                _gain2 += int(ps.get("focus_gain", 0) or 0)
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.arcane_intuition", _sw_e)
+            pass
+        _before2 = int(_actor.setdefault('stacks', {}).get(_mech, 0) or 0)
+        _actor.setdefault('stacks', {})[_mech] = ctx["mech_stack_gain"](_mech, _actor.setdefault('stacks', {}), _gain2)
+        _lg = ctx.get("logs")
+        if int(_actor.setdefault('stacks', {}).get(_mech, 0) or 0) > _before2:
+            if isinstance(_lg, list):
+                _lg.append(f"📖 {ps_name}：每刻充能自动+{_gain2}(当前 {_actor.setdefault('stacks', {})[_mech]} 层)")
+        return None
+    except Exception as _sw_e:
+        _swallow(battle, "passive_procs.arcane_intuition", _sw_e)
+        return None
+
+
+# ---- 7c.3 tick_faith（亡灵祭仪 undead_faith + 信念·圣化 faith_overload_heal）----
+@register("tick_faith")
+def _h_tick_faith(battle, ctx: dict, ps: dict, ps_name: str):
+    """信念每刻族（亡灵祭仪 undead_faith：亡灵在场每刻回 faith per_undead；
+    信念·圣化 faith_overload_heal：过载回血 ×(1+heal_up)）——ctx faith_kind 双分派。
+
+    语义 = 原 _th_faith_decay 内两 for 循环体逐字直搬（battle.py 404-457 迁移前
+    副本；外层信念职业/decay 通道守卫与先产后衰状态机由骨架保留——本 handler 只
+    做单个 proc 的数值/副作用，顺序链在骨架）。
+    读 _ps：per_undead（D0 回填 0.15）/ heal_up（D0 回填 0.30）；缺字段（≤ 0）=
+    无此行为（零默认值铁律）。
+    ctx 分派：
+    - faith_kind="undead"：battle._undead_count()>0 且 actor buffs 无
+      faith_exhausted → faith += per_undead×n（上限 crd_f.max，ctx["crd_f"] 引用）；
+      日志含 n 与 +gain。
+    - faith_kind="overload"：ov_heal 引用槽 ×(1+heal_up) 改写读回；置 ctx
+      ["foheal"]=True（骨架据 foheal 走圣化免力竭/无力竭分支）——原循环体置
+      _foheal 的副作用等价由 ctx 槽承载。
+    返回 None（副作用在 actor resources/buffs + ctx 槽 + logs）。
+    """
+    _kind = ctx.get("faith_kind")
+    _actor = ctx.get("actor")
+    if not _actor:
+        return None
+    if _kind == "undead":
+        _per = float(ps.get("per_undead", 0.0) or 0.0)
+        if _per <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.15）
+        try:
+            _uf_n = battle._undead_count() if hasattr(battle, "_undead_count") else 0
+            if _uf_n > 0 and not _actor.setdefault('buffs', {}).get("faith_exhausted"):
+                _uf_gain = _per * _uf_n
+                _crd = ctx.get("crd_f") or {}
+                _f0 = float(_actor.setdefault('resources', {}).get("faith", 0) or 0)
+                _actor.setdefault('resources', {})["faith"] = min(
+                    float(_crd.get("max", 10) or 10), _f0 + _uf_gain)
+                _lg = ctx.get("logs")
+                if isinstance(_lg, list):
+                    _lg.append(f"🕯️ {ps_name}：{_uf_n} 只亡灵在场，信念 +{_uf_gain:.2f}"
+                               f"（{_actor.setdefault('resources', {})['faith']:.2f}）")
+            return None
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.undead_faith", _sw_e)
+            return None
+    if _kind == "overload":
+        _up = float(ps.get("heal_up", 0.0) or 0.0)
+        if _up <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.30）
+        try:
+            _ov = int(ctx.get("ov_heal") or 0)
+            _ov = int(_ov * (1.0 + _up))
+            ctx["ov_heal"] = _ov
+            ctx["foheal"] = True
+            return None
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.faith_overload_heal", _sw_e)
+            return None
+    return None  # 未知 faith_kind = 不触发
+
+
+# ============================================================
 # 8. proc → 族 声明（P2-D1 试点 5 proc + P2-D2a crit_cond_add 4 proc +
 #    P2-D2b stat_mult_cond 4 proc + P2-D3a dmg_mult_cond 扩展 2 + flag_set_cond 1 +
 #    P2-D3b 5 proc；P2-D4a 6 proc（tenacity/zhan_yi_full_reduce/core_full/core_reduce/
@@ -942,6 +1108,16 @@ declare_proc("core_overflow", "dr_cond")
 declare_proc("death_contract", "revive_cond")
 declare_proc("berserk_revive", "revive_cond")
 declare_proc("stance_immortal", "revive_cond")
+# P2-D6：挂点24 模块级 tick handler 区 4 proc → tick 族（tick_regen/
+# tick_mech_charge/tick_faith；E 类 KNOWN_GAPS 成员收编，注册表 31 → 35）
+# focus_regen_summon 森之共鸣 召唤物在场每刻回 energy +5（_th_passive_heal 分支）
+# arcane_intuition 奥术直觉 每刻充能 +1 focus 时 +1（_th_mech_charge 分支）
+# undead_faith 亡灵祭仪 亡灵每刻回 faith 0.15×n / faith_overload_heal 信念·圣化
+# 过载回血 ×1.30（_th_faith_decay 两分支——同族 ctx faith_kind 分派）
+declare_proc("focus_regen_summon", "tick_regen")
+declare_proc("arcane_intuition", "tick_mech_charge")
+declare_proc("undead_faith", "tick_faith")
+declare_proc("faith_overload_heal", "tick_faith")
 # cc_immune 无独立族声明——zhan_yi_full_reduce/core_full 双消费点（挂点10 免控 + 挂点11
 # 减伤）由同一 dr_cond 族 ctx cc_kind/dr_kind 分派（declare_proc 防重复：一 proc 一族）
 

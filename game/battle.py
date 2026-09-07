@@ -292,7 +292,12 @@ def _th_set_holy(battle, actor, eff, logs):
 
 
 def _th_passive_heal(battle, actor, eff, logs):
-    """被动回复族：气力调和(turn_heal)/生命之泉(team_regen)/森之共鸣(focus_regen_summon)。条件：对应被动存在。"""
+    """被动回复族：气力调和(turn_heal)/生命之泉(team_regen)/森之共鸣(focus_regen_summon)。条件：对应被动存在。
+
+    v181.P2D-D6：森之共鸣（focus_regen_summon）proc 消费迁注册表族 tick_regen
+    （循环体直搬进族 handler；外层 try `if battle.summons:` 守卫保留——族 handler
+    内再判双保险）。turn_heal/team_regen 非 52 白名单旧段原样保留（不迁移不注册）。
+    """
     try:
         _pm = battle._passive_map(actor)["proc"]
         out = []
@@ -311,15 +316,16 @@ def _th_passive_heal(battle, actor, eff, logs):
                 battle._heal_actor(actor, heal, out)  # v180E 统一落地
                 out.append(f"💧 {_pn}：生命之泉涌动，你回复了 {heal} 点生命！")
             break
+        # v181.P2D-D6：森之共鸣（focus_regen_summon）→ tick_regen 族（外层 if battle.summons
+        # 守卫保留；族 handler 内再判——骨架循环体只剩 run_proc_family 分发）
         try:
             if battle.summons:
-                for _pn, _ps in _pm.get("focus_regen_summon", []):
-                    _sr_gain = int(_ps.get("gain", 5) or 5)
-                    _sr_old = int(actor.setdefault('resources', {}).get("energy", 0) or 0)
-                    _sr_new = battle._res_gain(actor, "energy", _sr_gain)
-                    if _sr_new > _sr_old:
-                        out.append(f"🌳 {_pn}：召唤物在场，专注充能 +{_sr_gain}（{_sr_new}）")
-                    break
+                _ctx_frs = {"actor": actor, "ps": {}, "ps_name": "", "logs": out}
+                for _pn_frs, _ps_frs in _pm.get("focus_regen_summon", []):
+                    _ctx_frs["ps"] = _ps_frs
+                    _ctx_frs["ps_name"] = _pn_frs
+                    _run_proc_family(battle, "focus_regen_summon", _ctx_frs)
+                    break  # 原循环尾 break（max=1：只处理首条 proc 条目）
         except Exception as _sw_e:
             _battle_warn('_th_passive_heal', _sw_e)
             pass
@@ -332,7 +338,12 @@ def _th_passive_heal(battle, actor, eff, logs):
 
 
 def _th_mech_charge(battle, actor, eff, logs):
-    """奥术/魔剑充能族：arcane_regen/arcane_intuition/spellblade_regen。条件：对应被动存在。"""
+    """奥术/魔剑充能族：arcane_regen/arcane_intuition/spellblade_regen。条件：对应被动存在。
+
+    v181.P2D-D6：奥术直觉（arcane_intuition）proc 消费迁注册表族 tick_mech_charge
+    （循环体直搬进族 handler，focus 判定读 ctx focus_active 注入；骨架传 mech 缺省）。
+    arcane_regen/spellblade_regen（stat 通道）非 52 白名单旧段原样保留（不迁移不注册）。
+    """
     try:
         _pm = battle._passive_map(actor)
         out = []
@@ -343,22 +354,22 @@ def _th_mech_charge(battle, actor, eff, logs):
             out.append(f"📖 {_pn}：充能自动+1(当前 {actor.setdefault('stacks', {})[_mech]} 层)")
             _alive = True
             break
-        for _pn, _ps in _pm["proc"].get("arcane_intuition", []):
-            _mech2 = _ps.get("mech") or "arcane"
-            _gain2 = int(_ps.get("gain", 1) or 1)
-            try:
-                from .core.battle_modes import focus_active as _fa169
-                if _fa169(actor):
-                    _gain2 += int(_ps.get("focus_gain", 1) or 1)
-            except Exception as _sw_e:
-                _battle_warn('_th_mech_charge', _sw_e)
-                pass
-            _before2 = int(actor.setdefault('stacks', {}).get(_mech2, 0) or 0)
-            actor.setdefault('stacks', {})[_mech2] = E.mech_stack_gain(_mech2, actor.setdefault('stacks', {}), _gain2)
-            if int(actor.setdefault('stacks', {}).get(_mech2, 0) or 0) > _before2:
-                out.append(f"📖 {_pn}：每刻充能自动+{_gain2}(当前 {actor.setdefault('stacks', {})[_mech2]} 层)")
-            _alive = True
-            break
+        # v181.P2D-D6：奥术直觉（arcane_intuition）→ tick_mech_charge 族（原 for 循环体
+        # 直搬进族 handler；mech 缺省 arcane 由 ctx 携带，focus_active 骨架预置注入）
+        try:
+            from .core.battle_modes import focus_active as _fa_ai
+            for _pn, _ps in _pm["proc"].get("arcane_intuition", []):
+                _ctx_ai = {"actor": actor, "ps": _ps, "ps_name": _pn, "logs": out,
+                           "mech": _ps.get("mech") or "arcane", "focus_active": _fa_ai,
+                           "mech_stack_gain": E.mech_stack_gain}
+                _run_proc_family(battle, "arcane_intuition", _ctx_ai)
+                # 原循环尾 `_alive = True; break`（max=1：学到即常驻 keep=True——
+                # 即使本刻充能已满无增量也保卡续排，与迁移前一致）
+                _alive = True
+                break
+        except Exception as _sw_e:
+            _battle_warn('_th_mech_charge', _sw_e)
+            pass
         for _pn, _ps in _pm["stat"]:
             if _ps.get("stat") == "spellblade_regen":
                 _mech = _ps.get("mech") or "spellblade"
@@ -402,23 +413,25 @@ def _th_core_regen(battle, actor, eff, logs):
 
 
 def _th_faith_decay(battle, actor, eff, logs):
-    """牧师信念衰减/亡灵祭仪/过载状态机。条件：职业核心资源是 faith 且带 decay。"""
+    """牧师信念衰减/亡灵祭仪/过载状态机。条件：职业核心资源是 faith 且带 decay。
+
+    v181.P2D-D6：亡灵祭仪（undead_faith）+ 信念·圣化（faith_overload_heal）proc 消费
+    迁注册表族 tick_faith（ctx faith_kind undead/overload 分派；两 for 循环体直搬进族
+    handler）。外层信念职业/decay 通道守卫 + 先产后衰状态机（含 faith_exhausted 置位/
+    倒计时段——原在 undead 分支判定读、状态机维护）留在骨架原样。
+    """
     try:
         _crd_f = E.core_resource_def(actor.get("class_name", ""))
         if not (_crd_f and _crd_f.get("key") == "faith"):
             return [], False  # 非信念职业 → 通道关闭
         out = []
-        # 亡灵祭仪（先产后衰）
+        # 亡灵祭仪（先产后衰）——v181.P2D-D6：proc 消费迁 tick_faith 族（faith_kind=undead）
         try:
             if _crd_f.get("key") == "faith":
                 for _pn, _ps in battle._passive_map(actor)["proc"].get("undead_faith", []):
-                    _uf_n = battle._undead_count()
-                    if _uf_n > 0 and not actor.setdefault('buffs', {}).get("faith_exhausted"):
-                        _uf_gain = float(_ps.get("per_undead", 0.15) or 0.15) * _uf_n
-                        _f0 = float(actor.setdefault('resources', {}).get("faith", 0) or 0)
-                        actor.setdefault('resources', {})["faith"] = min(float(_crd_f.get("max", 10) or 10), _f0 + _uf_gain)
-                        out.append(f"🕯️ {_pn}：{_uf_n} 只亡灵在场，信念 +{_uf_gain:.2f}（{actor.setdefault('resources', {})['faith']:.2f}）")
-                    break
+                    _ctx_uf = {"actor": actor, "ps": _ps, "ps_name": _pn, "logs": out,
+                               "crd_f": _crd_f, "faith_kind": "undead"}
+                    _run_proc_family(battle, "undead_faith", _ctx_uf)
         except Exception as _sw_e:
             _battle_warn('_th_faith_decay', _sw_e)
             pass
@@ -428,12 +441,19 @@ def _th_faith_decay(battle, actor, eff, logs):
                 _ov_pct = float(_crd_f.get("overload_heal_pct", 0.015) or 0.015)
                 _ov_heal = int(actor.get("max_hp", 1) * _ov_pct * _f_before)
                 actor.setdefault('resources', {})["faith"] = 0
+                # v181.P2D-D6：信念·圣化（faith_overload_heal）→ tick_faith 族
+                # （faith_kind=overload；原循环体置 _foheal + _ov_heal 乘算直搬进族
+                # handler——ctx ov_heal/foheal 引用槽改写读回，等价原 _foheal 副作用）
                 _foheal = False
                 try:
+                    _ctx_fh = {"actor": actor, "ps": {}, "ps_name": "", "logs": out,
+                               "faith_kind": "overload", "ov_heal": _ov_heal, "foheal": False}
                     for _pn_fh, _ps_fh in battle._proc_pm(actor)["proc"].get("faith_overload_heal", []):
-                        _ov_heal = int(_ov_heal * (1.0 + float(_ps_fh.get("heal_up", 0.30) or 0.30)))
-                        _foheal = True
-                        break
+                        _ctx_fh["ps"] = _ps_fh
+                        _ctx_fh["ps_name"] = _pn_fh
+                        _run_proc_family(battle, "faith_overload_heal", _ctx_fh)
+                    _ov_heal = _ctx_fh.get("ov_heal", _ov_heal)
+                    _foheal = _ctx_fh.get("foheal", False)
                 except Exception as _sw_e:
                     _battle_warn('_th_faith_decay', _sw_e)
                     pass
