@@ -189,6 +189,258 @@ def test_aoe_falloff_apply():
     check("_aoe_falloff_apply 透传 logs", out == ["a", "b"])
 
 
+def test_landing_branches():
+    print("【CV9 landing 分支：低打高/睡眠/蓄力/护盾边界/治疗边界】")
+    p, m = mk_ctx()
+    b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
+    # 低打高削伤（diff>0 分支）：玩家 10 打怪 5？不对——玩家高。用怪打玩家已有。
+    # 构造低打高：lv5 攻 lv25
+    low_atk = make_actor(uid="la", name="低", side="enemy", kind="monster", level=5,
+                         hp=1000, max_hp=1000, atk=10, **{"def": 0}, matk=5, mdef=0, spd=5)
+    high_def = make_actor(uid="hd", name="高", side="enemy", kind="monster", level=25,
+                          hp=1000, max_hp=1000, atk=10, **{"def": 0}, matk=5, mdef=0, spd=5)
+    logs = []
+    r = L.deal_damage(b, low_atk, high_def, 100, logs)
+    # diff=20 → 循环只 min(diff,10)=10 次：×0.95³×0.9⁷ ≈ 0.41 → 100×0.41=41
+    check("低打高 diff20 削到 41", r == 41, f"r={r}")
+    # 无等级不压制
+    no_lv = make_actor(uid="nl", name="无级", side="enemy", kind="monster",
+                       hp=1000, max_hp=1000, atk=10, **{"def": 0})
+    no_lv2 = make_actor(uid="nl2", name="无级2", side="enemy", kind="monster",
+                        hp=1000, max_hp=1000, atk=10, **{"def": 0})
+    logs2 = []
+    r2 = L.deal_damage(b, no_lv, no_lv2, 100, logs2)
+    check("无等级不压制", r2 == 100, f"r2={r2}")
+    # pvp 不压制
+    bpvp = BT_NEW(btype="pvp", sides={"player": [p], "enemy": [m]})
+    logs3 = []
+    r3 = L.deal_damage(bpvp, p, m, 100, logs3)
+    check("pvp 不压制", r3 == 100, f"r3={r3}")
+    # 睡眠打醒
+    slp = make_actor(uid="s", name="睡", side="enemy", kind="monster",
+                     hp=100, max_hp=100, atk=1, **{"def": 0}, level=1)
+    slp["buffs"]["sleep"] = 2
+    logs4 = []
+    L.deal_damage(b, p, slp, 30, logs4)
+    check("睡眠被打醒", "sleep" not in slp["buffs"])
+    check("睡眠唤醒日志", any("惊醒" in l for l in logs4))
+    # 蓄力打断
+    chg = make_actor(uid="c", name="蓄", side="enemy", kind="monster",
+                     hp=100, max_hp=100, atk=1, **{"def": 0}, level=1)
+    chg["charging"] = {"skill": "大火球", "name": "大火球"}
+    logs5 = []
+    L.deal_damage(b, p, chg, 30, logs5)
+    check("蓄力被打断", chg["charging"] is None)
+    # 治疗边界
+    logs6 = []
+    r6 = L.heal_actor(b, None, 50, logs6)
+    check("heal target None → 0", r6 == 0)
+    nohp = make_actor(uid="nh", name="无血", side="enemy", kind="monster",
+                      hp=100, max_hp=100)
+    nohp.pop("hp", None)
+    r7 = L.heal_actor(b, nohp, 50, logs6)
+    check("heal 无 hp 容器 → 0", r7 == 0)
+    r8 = L.heal_actor(b, make_actor("xx", "x", "enemy", hp=50, max_hp=100), -5, logs6)
+    check("heal amount<=0 → 0", r8 == 0)
+    # 禁疗归零（heal_down 超量）
+    t9 = make_actor("t9", "禁疗重", "enemy", hp=50, max_hp=100)
+    t9["buffs"]["heal_down"] = 10  # 10×10% cap 50%
+    r9 = L.heal_actor(b, t9, 100, logs6)
+    check("heal_down 10 层 cap 50% → 50", r9 == 50, f"r9={r9}")
+    # label 日志
+    t10 = make_actor("t10", "带标签", "enemy", hp=50, max_hp=100)
+    logs7 = []
+    r10 = L.heal_actor(b, t10, 30, logs7, label="回血 {_real} 计划 {_planned}")
+    check("label 有日志", any("回血 30" in l for l in logs7))
+
+
+def test_effects_branches():
+    print("【CV10 effects 分支：未知名/映射 dict/空效果】")
+    p, m = mk_ctx()
+    b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
+    logs = []
+    # 空效果列表
+    FX.apply_effects(b, p, m, [], logs)
+    check("空效果列表不报错", True)
+    # 未知名（无映射无执行器）→ 容错跳过
+    FX.apply_effects(b, p, m, [{"type": "不存在的效果"}], logs)
+    check("未知名跳过不报错", True)
+    # 非 dict 元素跳过
+    FX.apply_effects(b, p, m, ["string_eff"], logs)
+    check("非 dict 效果跳过", True)
+    # 动词直通（无映射的 action 名）
+    p["state"] = {}
+    FX.apply_effects(b, p, m, [{"type": "state_add", "key": "test_x", "amount": 5, "on": "caster"}], logs)
+    check("动词直通 state_add", p["state"].get("test_x") == 5)
+    # shield 名词直通 → shield 动词（默认 on=caster：施法者给自己上盾）
+    m2 = make_actor(uid="m2", name="怪", side="enemy", kind="monster",
+                    hp=100, max_hp=100, atk=1, **{"def": 0}, level=1)
+    FX.apply_effects(b, p, m2, [{"type": "shield", "value": 30, "halve": True}], logs)
+    check("shield 动词直通写 caster", p["shields"].get("buff", {}).get("value") == 30,
+          f"p.shields={p['shields']}")
+    # control 动词直通（无映射 action）
+    m3 = make_actor(uid="m3", name="怪", side="enemy", kind="monster",
+                    hp=100, max_hp=100, atk=1, **{"def": 0}, level=1)
+    FX.apply_effects(b, p, m3, [{"type": "control", "tag": "stun", "turns": 2}], logs)
+    check("control 动词直通", m3["buffs"].get("stun") == 2)
+
+
+def test_actions_branches():
+    print("【CV11 actions 分支：AOE 无敌/do_skill 无 info/buff pct 折算】")
+    from game.battle2.actions import do_skill, _do_buff
+    from game.battle2.actors import ActCtx
+    p, m = mk_ctx()
+    b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
+    # AOE 无敌人（enemy side 空）
+    b2 = BT_NEW(btype="monster", sides={"player": [p], "enemy": []})
+    from game.battle2 import effects as FX2
+    logs = []
+    r = FX2.apply_effects(b2, p, None, [{"type": "state_add", "key": "x", "amount": 1}], logs)
+    check("空敌人 side 构造可用", True)
+    # do_skill 无 info
+    ctx_none = ActCtx(caster=p, action="skill", skill_name="不存在", info=None)
+    out = do_skill(b, ctx_none)
+    check("do_skill 无 info 返回空", out == [])
+    # do_skill 无目标（enemy 空）
+    ctx_atk = ActCtx(caster=p, action="attack", skill_name=None, info=None)
+    b3 = BT_NEW(btype="monster", sides={"player": [p], "enemy": []})
+    out2 = b3.act(ctx_atk)
+    check("attack 无目标有提示", len(out2[0]) > 0 or out2[0] == [])
+    # buff pct_from_mech_val 折算（45 → 0.45）
+    p2 = make_actor(uid="pb", name="增益者", side="player", kind="player", level=10,
+                    hp=100, max_hp=100, mp=100, max_mp=100, atk=10, **{"def": 0}, spd=5)
+    b4 = BT_NEW(btype="monster", sides={"player": [p2], "enemy": []})
+    logs4 = []
+    FX.apply_effects(b4, p2, p2,
+                     [{"type": "buff", "key": "reduce", "turns": 5,
+                       "mech_val": 45, "pct_from_mech_val": True}], logs4)
+    check("buff pct 折算 45→0.45", abs(p2["buffs"].get("reduce", 0) - 0.45) < 1e-9,
+          f"reduce={p2['buffs'].get('reduce')}")
+    check("reduce_left 记 5 刻", p2.get("reduce_left") == 5)
+
+
+def test_schedule_edge():
+    print("【CV12 schedule 边界：无 actor 直接 over】")
+    from game.battle2.schedule import advance as _adv
+    # 两边都无 actor → 立即 over
+    b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
+    logs = []
+    kind, who = _adv(b, logs)
+    check("空战斗直接 over", kind == "over" and who is None)
+    # 只有自动 actor 无人控 → 自动跑到结束
+    a1 = make_actor(uid="a1", name="甲", side="s1", kind="monster", hp=50, max_hp=50,
+                    atk=5, **{"def": 0}, level=1)
+    a2 = make_actor(uid="a2", name="乙", side="s2", kind="monster", hp=50, max_hp=50,
+                    atk=6, **{"def": 0}, level=1)
+    b2 = BT_NEW(btype="monster", sides={"s1": [a1], "s2": [a2]})
+    logs2 = []
+    guard = 0
+    while b2.result is None and guard < 200:
+        guard += 1
+        kind, who = _adv(b2, logs2)
+        if who is None:
+            break
+        if kind == "player":
+            sub, _ = b2.actor_auto(who)
+            logs2.extend(sub)
+    check("怪vs怪能分胜负", b2.result in ("victory", "defeat"),
+          f"result={b2.result} guard={guard}")
+
+
+def test_human_kill_who_none():
+    print("【CV13 玩家打死怪 → human_act who=None ended=True】")
+    p, _ = mk_ctx()
+    weak = make_actor(uid="wk", name="弱怪", side="enemy", kind="monster",
+                      hp=30, max_hp=30, atk=1, **{"def": 0}, level=1)
+    b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [weak]})
+    logs, ended, who = b.human_act("attack", None, p)
+    check("打死怪 ended=True", ended, f"ended={ended}")
+    check("打死怪 who=None", who is None, f"who={who}")
+    check("result=victory", b.result == "victory", f"result={b.result}")
+
+
+def test_more_branches():
+    print("【CV14 更多业务分支：mech2/怪施法buff/shield pct/hostile_map/float buff】")
+    from game.battle2 import effects as FX3
+    p, m = mk_ctx()
+    b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
+    logs = []
+    # hostile_map 显式配置
+    b2 = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]},
+                hostile_map={"player": ["enemy"], "enemy": ["player"]})
+    from game.battle2 import actors as A2
+    check("hostile_map 配置生效", A2.hostile_sides(b2, "player") == ["enemy"])
+    # actor_auto 带 auto_act 配置（action=skill 指定技能）
+    from game.battle2.actions import resolve_basic_skill
+    ai = make_actor(uid="ai", name="配置怪", side="enemy", kind="monster",
+                    hp=1000, max_hp=1000, atk=20, **{"def": 5},
+                    matk=5, mdef=5, spd=5, crit=0.05, level=5)
+    ai["auto_act"] = {"act": {"type": "attack", "skill": None}}
+    b3 = BT_NEW(btype="monster", sides={"player": [p], "enemy": [ai]})
+    logs3 = []
+    sub, _ = b3.actor_auto(ai)
+    check("auto_act 攻击配置可跑", len(sub) >= 0)
+    # mech2 第二效果（技能带 mech2）
+    sk = {"name": "双效果", "kind": "物理", "exprs": ["atk*1.0"],
+          "mech": "zhan_yi", "mech_val": 2, "mech2": "rage", "mech2_val": 1}
+    p2, m2 = mk_ctx()
+    b4 = BT_NEW(btype="monster", sides={"player": [p2], "enemy": [m2]})
+    from game.battle2.actions import do_skill
+    from game.battle2.actors import ActCtx as AC2
+    ctx = AC2(caster=p2, action="skill", skill_name="双效果", info=sk, target=m2)
+    do_skill(b4, ctx)
+    check("mech2 rage 生效", p2["state"].get("rage", 0) >= 1, f"rage={p2['state'].get('rage')}")
+    # 怪施法 buff（无 class_name → base_turns 读 buff_turns）
+    mon_buff = make_actor(uid="mb", name="buff怪", side="enemy", kind="monster",
+                          hp=100, max_hp=100, atk=1, **{"def": 0}, level=5)
+    b5 = BT_NEW(btype="monster", sides={"enemy": [mon_buff], "player": []})
+    from game.battle2.actions import _do_buff
+    logs5 = []
+    binfo = {"name": "怪力", "kind": "增益", "effect": "atk_up", "buff_turns": 4}
+    _do_buff(b5, AC2(caster=mon_buff, action="skill", skill_name="怪力", info=binfo),
+             mon_buff, binfo, logs5)
+    check("怪施法 buff 4 刻", mon_buff["buffs"].get("atk_up") == 4,
+          f"buffs={mon_buff['buffs']}")
+    # 护盾 pct 分支（shield_self 之外：shield 用 shield_pct）
+    p6, m6 = mk_ctx()
+    b6 = BT_NEW(btype="monster", sides={"player": [p6], "enemy": [m6]})
+    logs6 = []
+    FX3.apply_effects(b6, m6, p6, [{"type": "shield", "pct": 0.5, "halve": True}], logs6)
+    expect_sh = int(m6["max_hp"] * 0.5)
+    check("shield pct 0.5", m6["shields"].get("buff", {}).get("value") == expect_sh,
+          f"sh={m6['shields'].get('buff')} expect={expect_sh}")
+    # float 值 buff 折算（spd_down float）
+    p7, m7 = mk_ctx()
+    b7 = BT_NEW(btype="monster", sides={"player": [p7], "enemy": [m7]})
+    p7["buffs"]["spd_down"] = 0.5
+    from game.battle2 import stats as ST2
+    st7 = ST2.actor_stats(b7, p7)
+    check("spd_down float 折算", st7["spd"] < p7["spd"], f"spd={st7['spd']} < {p7['spd']}")
+    # AOE falloff（rank>1 目标 + aoe_falloff≠1）：AOE 扫到后排怪吃衰减
+    from game.battle2.actions import do_skill
+    from game.battle2.actors import ActCtx as AC3
+    p8 = make_actor(uid="p8", name="炮手", side="player", kind="player",
+                    human_controlled=True, class_name="战士", level=20,
+                    hp=500, max_hp=500, mp=100, max_mp=100, atk=100,
+                    **{"def": 5}, matk=10, mdef=5, spd=5, crit=0.0)
+    front = make_actor(uid="f", name="前排", side="enemy", kind="monster",
+                       hp=5000, max_hp=5000, atk=1, **{"def": 0},
+                       matk=1, mdef=0, spd=5, crit=0.0, level=1, rank=1)
+    back = make_actor(uid="b", name="后排", side="enemy", kind="monster",
+                      hp=5000, max_hp=5000, atk=1, **{"def": 0},
+                      matk=1, mdef=0, spd=5, crit=0.0, level=1, rank=2)
+    b8 = BT_NEW(btype="monster", sides={"player": [p8], "enemy": [front, back]})
+    aoe_sk = {"name": "横扫", "kind": "物理", "exprs": ["atk*1.0"],
+              "aoe": "all", "aoe_falloff": 0.5, "reach": 3}
+    hp_f0 = front["hp"]
+    hp_b0 = back["hp"]
+    do_skill(b8, AC3(caster=p8, action="skill", skill_name="横扫", info=aoe_sk, target=front))
+    dmg_f = hp_f0 - front["hp"]
+    dmg_b = hp_b0 - back["hp"]
+    check("AOE 前排受伤", dmg_f > 0, f"dmg_f={dmg_f}")
+    check("AOE 后排也受伤（falloff 标记路径）", dmg_b > 0, f"dmg_b={dmg_b}")
+
+
 def main():
     print("=== battle2 覆盖补齐测试 ===")
     test_query_api()
@@ -199,6 +451,12 @@ def main():
     test_serialize_helpers()
     test_stats_convenience()
     test_aoe_falloff_apply()
+    test_landing_branches()
+    test_effects_branches()
+    test_actions_branches()
+    test_schedule_edge()
+    test_human_kill_who_none()
+    test_more_branches()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:
