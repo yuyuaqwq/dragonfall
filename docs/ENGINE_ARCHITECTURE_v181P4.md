@@ -140,3 +140,20 @@ core handler（词条/mech/效果）无 target 参数，从 battle 猜作用对�
 > 回来做 Phase B/C 合并，不许遗忘。Phase A 的 handler 签名改造要为 Phase B
 > 预留统一签名（fn(battle, caster, target, params, logs)）方向，避免二次返工。
 
+### 7.5 死代码发现（2026-09-07 读代码确认）
+- **MON_BUFF_EFFECTS 整张表（7 handler）引擎零读取**——只有定义 + register +
+  测试直调（test_v98_04/v1252）。v180 起怪增益统一走 `_actor_skill_cast` 管线
+  （battle.py 注释自证"原 MON_BUFF_EFFECTS/SKILL_BUFF_EFFECTS 双表分派为两套
+  代码残余，已废弃"）。→ Phase B 合并时**直接删**，不并入新表。
+- **MON_CTRL_EFFECTS（5 handler）引擎也零读取**（只有测试直调）→ 同上删。
+- **SKILL_BUFF_EFFECTS（36 handler）只有 battle.py L6228 一处活读取**
+  （_skill_buff 内 `SKILL_BUFF_EFFECTS.get(eff)`）→ 活代码，并入新表。
+- **MECH_EFFECTS（65 handler）** 由 battle.py `_apply_mech_effect` 查表调用
+  （活代码）→ 并入新表。
+- 测试直调死表 handler 的点（v98_04/v1252/v101_28f）需在删除时同步改/删。
+
+### 7.6 合并后的真实规模修正
+- 死表（MON_BUFF/MON_CTRL）删除：-12 handler
+- 活表合并：MECH_EFFECTS(65) + SKILL_BUFF_EFFECTS(36) = 101 handler → EFFECT_HANDLERS
+- handler 统一签名 fn(battle, caster, target, params, logs)，按作用对象归类
+
