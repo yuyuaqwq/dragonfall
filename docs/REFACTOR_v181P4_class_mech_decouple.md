@@ -130,7 +130,63 @@ on_turn_end(actor)           → 战士模块: 连段断连清零
 
 引擎保持零职业知识；加职业 = 新增上层模块 + 数据，引擎零改动。
 
-## 6. 落地清单（battle2）
+## 6. actor 字段契约（引擎白名单 + 外部扩展区）
+
+### 6.1 问题（旧引擎）
+
+旧引擎 actor/玩家 dict 顶层被职业状态占满：`dual_form` / `v139_modes` / `_melody` /
+`tailwind_prev_energy` / `stealth_atk` / `overflow_shield_cd` ... 每个字段都配一段引擎
+消费代码 → 职业越多顶层越脏，字段语义互相踩踏。
+
+### 6.2 契约
+
+actor dict 分两片：
+
+```
+actor = {
+  # ── 引擎白名单（引擎只消费这些；缺字段 = 无此行为）──
+  # ① 身份/标签: uid/name/side/kind/human_controlled
+  # ② 面板: hp/max_hp/mp/max_mp/atk/matk/def/mdef/spd/crit/...（公式 input）
+  # ③ 通用状态容器: buffs/debuffs/stacks/resources/shields/cooldown/hot/
+  #                 charging/defending/ct
+  #   容器内部 key 由数据驱动（stacks["zhan_yi"] 只是数据，引擎不认识"战意"）
+  # ④ 配置: class_name/level/equipment/skills/learned_skills/auto_act
+
+  # ── 外部扩展区（引擎绝不读）──
+  "ext": {
+    # 职业机制层/外部插件自由读写，命名空间自己管
+    # 例: 诗人模块存 {"melody": {...}}；战士模块存 {"fury_state": ...}
+  },
+}
+```
+
+### 6.3 规则
+
+1. **引擎读字段 = 白名单内**；白名单外顶层字段引擎视为不存在（不主动读、不假设）。
+2. **职业/机制自定义状态一律写 `actor["ext"]`**（惰性播种 dict），引擎逻辑零感知。
+3. `ext` 可序列化（随 actor dict 落盘）；跨战斗持久需要时由职业模块自己管理。
+4. 引擎提供通用访问器 `actor_ext(actor)`（惰性建 dict），不暴露其它 ext 知识。
+5. 审计：引擎代码里搜不到职业字段名（dual_form/melody/faith/... 直接读 = 违规），
+   一律经 ext 或数据驱动容器。
+
+### 6.4 对比旧引擎
+
+| 状态 | 旧引擎 | battle2 |
+|---|---|---|
+| 战士狂暴形态 | actor["dual_form"] + 引擎消费 | actor["ext"]["zhan_shi"]["dual_form"] + 职业模块 |
+| 诗人旋律 | battle._melody + 引擎状态机 | actor["ext"]["shi_ren"]["melody"] + 诗人模块 |
+| 牧师信念 | actor.resources["faith"]（引擎特判） | actor.resources["faith"]（数据驱动，引擎无特判） |
+| 通用叠层 | 引擎按 key 特判 handler | stacks[key]（引擎只提供 add_stack/spend_stack） |
+
+## 6.5 落地清单
+
+- [ ] actors.py：make_actor 播种 `"ext": {}`（惰性扩展区）+ `actor_ext(actor)` helper
+- [ ] 序列化：ext 随 actor 一起序列化/恢复
+- [ ] 审计规则：引擎代码不出现职业字段直读
+
+---
+
+## 7. 落地清单（battle2）
 
 - [x] effects.py：通用状态原语（A 类 + 通用叠层/资源）——N3a 已做
 - [ ] effects.py：补通用原语 `set_form` / `aura` / `burst_mult` / `count_summons`（能力面补齐）
