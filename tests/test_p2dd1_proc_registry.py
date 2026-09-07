@@ -66,9 +66,11 @@ def test_registry_static():
     # P2-D4a：挂点10/11 6 proc（tenacity/zhan_yi_full_reduce/core_full/core_reduce/
     # core_last_stand/core_overflow）并入 → 总数 28（6 试点 + 4 条件暴击 +
     # 4 stat_mult + 3 P2-D3a + 5 P2-D3b + 6 P2-D4a）
-    # P2-D4b：挂点12 致死复活链 3 proc（death_contract/berserk_revive/stance_immortal）
-    # 并入 revive_cond → 总数 31
-    check("PROC_FAMILIES 含 31 声明", len(PP.PROC_FAMILIES) == 31, str(PP.PROC_FAMILIES))
+    # P2-D4b：挂点12 致死复活 3 proc（death_contract/berserk_revive/stance_immortal）并入
+    # revive_cond → 总数 31；P2-D5a：挂点13 反击 2 proc（counter_chance/counter_up）并入
+    # counter_cond → 总数 33（6 试点 + 4 条件暴击 + 4 stat_mult + 3 P2-D3a + 5 P2-D3b +
+    # 6 P2-D4a + 3 P2-D4b + 2 P2-D5a）
+    check("PROC_FAMILIES 含 33 声明", len(PP.PROC_FAMILIES) == 33, str(PP.PROC_FAMILIES))
     expect_map = {
         "speed_ratio_dmg": "dmg_mult_cond",
         "arcane_resonance": "dmg_mult_cond",
@@ -104,6 +106,10 @@ def test_registry_static():
         "death_contract": "revive_cond",
         "berserk_revive": "revive_cond",
         "stance_immortal": "revive_cond",
+        # P2-D5a 2 proc（受击反击聚合族 counter_cond；chance max/mult min/
+        # counter_up 加 chance_add×dmg_add——聚合逻辑进 handler，挂点 cap0.9+roll 收口）
+        "counter_chance": "counter_cond",
+        "counter_up": "counter_cond",
     }
     for proc, fam in expect_map.items():
         check(f"{proc} → {fam}", PP.PROC_FAMILIES.get(proc) == fam,
