@@ -189,8 +189,14 @@ actor = {
 ## 7. 落地清单（battle2）
 
 - [x] effects.py：通用状态原语（A 类 + 通用叠层/资源）——N3a 已做
+- [x] actors.py：统一 state 容器（引擎零职业语义；叠层/资源全进 state，
+      删 stacks/resources 旧分类；state_add/spend 通用访问）
+- [x] state_effects.py：状态声明表（cap/stat_scale/dot/on=target，纯数据）
+- [x] stats.py：声明折算入口（stat_scale → 面板 / dmg_mult → 伤害倍率，
+      actions 伤害链消费 _state_dmg_mult）
+- [x] effects.py：职业 handler 收敛为 state_add/state_spend 两个通用 effect；
+      burn/bleed/poison/标记改走 state + 声明表（DOT 规则在表里，N4 结算）
 - [ ] effects.py：补通用原语 `set_form` / `aura` / `burst_mult` / `count_summons`（能力面补齐）
-- [ ] effects.py：`effects_from_skill` 兼容层——mech key → 通用原语映射表（数据驱动，映射在 data 不在代码）
 - [ ] 技能数据逐步迁 effects 列表（脚本化，把 mech 声明转成通用原语组合）
 - [ ] 职业机制层框架（事件总线 + 职业模块注册）——N6 后或独立阶段
 - [ ] 死表清理：旧 battle_mech 的 C 类 handler 不迁（旧引擎保留期间仍可跑，切换后删除）
