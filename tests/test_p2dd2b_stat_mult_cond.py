@@ -252,8 +252,8 @@ def test_registry_and_multi():
         check(f"{proc} → stat_mult_cond", PP.PROC_FAMILIES.get(proc) == "stat_mult_cond",
               str(PP.PROC_FAMILIES.get(proc)))
     check("stat_mult_cond 执行器已注册", "stat_mult_cond" in PP.FAMILY_HANDLERS)
-    # P2-D4a：cc_break_cost/dr_cond 并入 → 共 10 族（8 + cc_break_cost + dr_cond）
-    check("FAMILY_HANDLERS 共 10 族", len(PP.FAMILY_HANDLERS) == 10, str(list(PP.FAMILY_HANDLERS)))
+    # P2-D4a：cc_break_cost/dr_cond 并入 + P2-D5b：dot_mult_cond/dot_weaken 新族 → 共 12 族
+    check("FAMILY_HANDLERS 共 12 族", len(PP.FAMILY_HANDLERS) == 12, str(list(PP.FAMILY_HANDLERS)))
     # 零默认值：_ps 空 / 缺字段 → 不触发
     for kind, pname in (("crit_dmg", "shadow_dance_bonus"), ("spd", "shadow_dance_bonus"),
                         ("melody", "melody_resonance"), ("melody", "melody_master")):

@@ -518,9 +518,11 @@ def test_registry_static():
     for proc, fam in expect_map.items():
         check(f"{proc} → {fam}", PP.PROC_FAMILIES.get(proc) == fam,
               str(PP.PROC_FAMILIES.get(proc)))
-    # P2-D4a：挂点10/11 6 proc 并入（+cc_break_cost +dr_cond 两新族）→ 声明 28 / 族 10
-    check("PROC_FAMILIES 含 28 声明", len(PP.PROC_FAMILIES) == 28, str(sorted(PP.PROC_FAMILIES)))
-    check("FAMILY_HANDLERS 共 10 族", len(PP.FAMILY_HANDLERS) == 10, str(list(PP.FAMILY_HANDLERS)))
+    # P2-D4a：挂点10/11 6 proc 并入（+cc_break_cost +dr_cond 两新族）+ P2-D5b 3 proc
+    # （poison_all_up→dot_mult_cond、poison_weaken→dot_weaken 新族、hunt_mark_cap→
+    # dmg_mult_cond；soul_mark_cap cap 段同族）→ 声明 34 / 族 12
+    check("PROC_FAMILIES 含 34 声明", len(PP.PROC_FAMILIES) == 34, str(sorted(PP.PROC_FAMILIES)))
+    check("FAMILY_HANDLERS 共 12 族", len(PP.FAMILY_HANDLERS) == 12, str(list(PP.FAMILY_HANDLERS)))
     # 零默认值：_ps 空 dict → 5 段全部不触发（mult 不变）
     for mk, pname in (("hunt_mark", "hunt_mark_up"), ("soul_mark", "soul_mark_cap"),
                       ("shaken_bar", "shaken_awareness"), ("broken_break", "broken_extend"),

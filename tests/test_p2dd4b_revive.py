@@ -564,7 +564,7 @@ def test_static():
         check(f"{proc} → {fam}", PP.PROC_FAMILIES.get(proc) == fam,
               f"got {PP.PROC_FAMILIES.get(proc)}")
     check("族执行器 revive_cond 已注册", "revive_cond" in PP.FAMILY_HANDLERS)
-    check("PROC_FAMILIES 含 31 声明", len(PP.PROC_FAMILIES) == 31, str(len(PP.PROC_FAMILIES)))
+    check("PROC_FAMILIES 含 34 声明", len(PP.PROC_FAMILIES) == 34, str(len(PP.PROC_FAMILIES)))
     battle = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "game", "battle.py"),
                   encoding="utf-8").read()
     for rk in ("death_pact_cond", "berserk", "stance"):

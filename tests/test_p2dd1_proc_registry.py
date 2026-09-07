@@ -68,7 +68,10 @@ def test_registry_static():
     # 4 stat_mult + 3 P2-D3a + 5 P2-D3b + 6 P2-D4a）
     # P2-D4b：挂点12 致死复活链 3 proc（death_contract/berserk_revive/stance_immortal）
     # 并入 revive_cond → 总数 31
-    check("PROC_FAMILIES 含 31 声明", len(PP.PROC_FAMILIES) == 31, str(PP.PROC_FAMILIES))
+    # P2-D5b：挂点15/16 4 proc 并入（poison_all_up→dot_mult_cond 新族 + poison_weaken→
+    # dot_weaken 新族 + hunt_mark_cap→dmg_mult_cond + soul_mark_cap cap段同族）→ 总数 34
+    # （soul_mark_cap 已在 D3b 声明——实增 3 声明）
+    check("PROC_FAMILIES 含 34 声明", len(PP.PROC_FAMILIES) == 34, str(PP.PROC_FAMILIES))
     expect_map = {
         "speed_ratio_dmg": "dmg_mult_cond",
         "arcane_resonance": "dmg_mult_cond",
@@ -104,6 +107,12 @@ def test_registry_static():
         "death_contract": "revive_cond",
         "berserk_revive": "revive_cond",
         "stance_immortal": "revive_cond",
+        # P2-D5b 3 proc（挂点15 毒 DOT 2 → dot_mult_cond/dot_weaken 新族 + 挂点16
+        # hunt_mark_cap cap 段 → dmg_mult_cond；soul_mark_cap 已在上 D3b 声明乘区段，
+        # cap 段同族 ctx cap_kind 分派——本批实增 3 声明）
+        "poison_all_up": "dot_mult_cond",
+        "poison_weaken": "dot_weaken",
+        "hunt_mark_cap": "dmg_mult_cond",
     }
     for proc, fam in expect_map.items():
         check(f"{proc} → {fam}", PP.PROC_FAMILIES.get(proc) == fam,
@@ -111,7 +120,7 @@ def test_registry_static():
     for fam in ("dmg_mult_cond", "lifesteal_add", "stack_cap_add",
                 "summon_cap_add", "on_kill_refill", "crit_cond_add",
                 "stat_mult_cond", "flag_set_cond", "cc_break_cost", "dr_cond",
-                "revive_cond"):
+                "revive_cond", "dot_mult_cond", "dot_weaken"):
         check(f"族执行器 {fam} 已注册", fam in PP.FAMILY_HANDLERS)
     # 52 全覆盖校验：除 KNOWN_GAPS + 本批 6 外，其余 52 proc 尚未声明（后续批次）——不静默
     declared = set(PP.PROC_FAMILIES)
