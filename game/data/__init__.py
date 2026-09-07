@@ -235,6 +235,7 @@ from .stat_templates import (  # noqa: F401  (v102.5 从 core/stats.py 下沉)
     HP_STAGE_MULT, ATK_STAGE_MULT,  # P2F-2 hp/atk 分段曲线表（core/stats.py 函数体下沉）
     MONSTER_ROLE_MODS,  # P2F-3 F14 monster_stats 角色修正表（boss/elite 硬编码数值下沉）
 )
+from .base_growth import PLAYER_BASE_GROWTH  # noqa: F401  (P2F-3 F6 player_base_stats 成长结构声明表)
 from .formula_skeleton import FORMULA_SKELETON  # noqa: F401  (P2F-1 底层公式骨架参数：F2/F3/F4/F7/F9/F15/F16 + P2F-2 equip_crit/necklace_mdef/boss_atk_legacy)
 
 # 依赖顺序：maps 依赖 classes 等 → 在最后装配派生表/索引
