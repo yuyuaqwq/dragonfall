@@ -352,6 +352,18 @@ _WE_EXEC_KEYS = {
     "titan_retort": "proc_retort_mark",
     "ranger_retort": "proc_retort_mark",
     "guardian_will": "proc_retort_mark",
+    # C9：proc_dr_revive 保命族 2 key（undying_will battle_start 登记 + threshold 免死回血；
+    # death_dance_armor passive taken 减伤——battle 编排层 _post_hp_lethal 免死回拉 hp_pct
+    # 消费点 C9 同批改读表 hp_pct/immune_key；旧 handler 保留不删 C10 清死代码）
+    "undying_will": "proc_dr_revive",
+    "death_dance_armor": "proc_dr_revive",
+    # C9：proc_special 特殊族 3 key（death_dance battle_start 初始化池 + turn_start 结算 pay_pct——
+    # 池填充 dmg×pool_pct 0.35 在 battle._post_hp_lethal 硬编码，C9 改读表 pool_pct/pool_key；
+    # novice_first_turn_guard/dodge battle_start 置首刻标记——battle _mitigate_chain/_roll_dodge
+    # 消费点 C9 改读表 mark_key/reduce_pct/dodge_pct）
+    "death_dance": "proc_special",
+    "novice_first_turn_guard": "proc_special",
+    "novice_first_turn_dodge": "proc_special",
 }
 # 族默认事件表（key 未显式声明 event 时按族）：proc_dot 主事件 hit/skill_hit，
 # proc_reflect→taken、proc_heal amp→heal。分发器按"key 注册事件集"匹配事件后再调执行器

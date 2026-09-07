@@ -10400,10 +10400,16 @@ class Battle:
         if B.get("dodge_pot"):
             dodge = 1 - (1 - dodge) * (1 - 0.15)
         # v140 波4：新手特效 远行（novice_first_turn_dodge）——每场战斗首刻闪避率 +5%
-        if (EFF or {}).get("novice_dodge_active") and self._tick_no() <= 1:
+        # v181.P2C-C9：标记键改读表 mark_key（novice_dodge_active 表字段权威；dodge_pct 已读表）
+        try:
+            from .core.weapon_effects import effect_data as _we_ed3
+            _nfd_wd = _we_ed3(self, actor, "novice_first_turn_dodge")
+            _nfd_mark = (_nfd_wd or {}).get("mark_key") or "novice_dodge_active"
+        except Exception:
+            _nfd_wd, _nfd_mark = {}, "novice_dodge_active"
+        if (EFF or {}).get(_nfd_mark) and self._tick_no() <= 1:
             try:
-                from .core.weapon_effects import effect_data as _we_ed3
-                _nfd_pct = float(_we_ed3(self, actor, "novice_first_turn_dodge").get("dodge_pct", 0.05) or 0.05)
+                _nfd_pct = float((_nfd_wd or {}).get("dodge_pct") or 0.05)
             except Exception:
                 _nfd_pct = 0.05
             dodge = 1 - (1 - dodge) * (1 - _nfd_pct)
@@ -10571,10 +10577,16 @@ class Battle:
             _battle_warn('_mitigate_chain', _sw_e)
             pass
         # v140 波4：新手特效 守御（novice_first_turn_guard）——每场战斗首刻受击伤害 -10%
-        if (EFF or {}).get("novice_guard_active") and self._tick_no() <= 1:
+        # v181.P2C-C9：标记键改读表 mark_key（novice_guard_active 表字段权威；reduce_pct 已读表）
+        try:
+            from .core.weapon_effects import effect_data as _we_ed4
+            _nfg_wd = _we_ed4(self, actor, "novice_first_turn_guard")
+            _nfg_mark = (_nfg_wd or {}).get("mark_key") or "novice_guard_active"
+        except Exception:
+            _nfg_wd, _nfg_mark = {}, "novice_guard_active"
+        if (EFF or {}).get(_nfg_mark) and self._tick_no() <= 1:
             try:
-                from .core.weapon_effects import effect_data as _we_ed4
-                _nfg_pct = float(_we_ed4(self, actor, "novice_first_turn_guard").get("reduce_pct", 0.10) or 0.10)
+                _nfg_pct = float((_nfg_wd or {}).get("reduce_pct") or 0.10)
             except Exception:
                 _nfg_pct = 0.10
             dmg = max(1, int(dmg * (1 - _nfg_pct)))
@@ -10970,17 +10982,29 @@ class Battle:
         MS = actor.setdefault("stacks", {})
         # v140 波3.1：特效装备生命阈值（时光凝滞/磐石守护/苍穹庇护/石像鬼之心/不灭意志）
         # + 不灭意志免疫致死（本刻免疫致死伤害，扣血后回拉）
+        # v181.P2C-C9：免疫回拉与缓伤池填充改读 weapon_effect_data 表（immune_key/mark_key/
+        # hp_pct/pool_pct/pool_key 表字段权威——编排层零内容名；0.10 回拉 → undying_will.hp_pct
+        # 表读、0.35 填充 → death_dance.pool_pct 表读；行为零变化）
         try:
             from .core.weapon_effects import proc as _we_proc
             _we_proc(self, actor, "threshold", {"dmg": dmg}, logs)
-            if EFF.get("we_undying_immune"):
+            try:
+                from .core.weapon_effects import effect_data as _we_ed9
+                _uw_wd = _we_ed9(self, actor, "undying_will")
+                _dd_wd = _we_ed9(self, actor, "death_dance")
+            except Exception:
+                _uw_wd = _dd_wd = {}
+            _uw_immune_key = (_uw_wd or {}).get("immune_key") or "we_undying_immune"
+            _uw_hp_pct = float((_uw_wd or {}).get("hp_pct") or 0.10)
+            if EFF.get(_uw_immune_key):
                 if actor.get("hp", 0) <= 0:
-                    actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * 0.10))
+                    actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * _uw_hp_pct))
                     logs.append("✨ 不灭意志：你撑住了致命一击！")
-                EFF.pop("we_undying_immune", None)
-            # 死亡之舞：受击伤害 35% 转为缓伤池（刻开始结算 10%）
-            if EFF.get("we_death_pool") is not None:
-                EFF["we_death_pool"] = float(EFF.get("we_death_pool", 0) or 0) + dmg * 0.35
+                EFF.pop(_uw_immune_key, None)
+            # 死亡之舞：受击伤害 35% 转为缓伤池（刻开始结算 10%）——0.35 → death_dance.pool_pct 表读
+            _dd_pool_key = (_dd_wd or {}).get("pool_key") or "we_death_pool"
+            if EFF.get(_dd_pool_key) is not None:
+                EFF[_dd_pool_key] = float(EFF.get(_dd_pool_key, 0) or 0) + dmg * float((_dd_wd or {}).get("pool_pct") or 0.35)
         except Exception as _sw_e:
             _battle_warn('_post_hp_lethal', _sw_e)
             pass
