@@ -20,6 +20,7 @@ from game import battle as BT
 from game.store import init_db
 init_db()
 from game.core.weapon_effects import WEAPON_EFFECTS, proc as we_proc, _we_family, _WE_EXEC_KEYS
+import _c10_old_we as _OLDWE
 
 BUFF_KEYS = ["gale_step", "swift_boots", "deadman_stride", "temple_stride", "void_stride",
              "novice_wind_spd", "abyss_barrier"]
@@ -80,7 +81,7 @@ def run_pair(key, event, ctx_maker, n_runs=10, player_mut=None):
         b_old = BT.Battle("monster", mk_enemy(), player=p_old)
         ctx_old = ctx_maker()
         logs_old = []
-        handler = WEAPON_EFFECTS[key][event]
+        handler = _OLDWE.old_handler(key, event)
         handler(b_old, p_old, ctx_old, logs_old)
         random.seed(seed)
         p_new = mk_player([key])
@@ -122,8 +123,8 @@ def test_gale_shared_key_max():
         random.seed(seed)
         p_old = mk_player(["gale_step", "swift_boots"])
         b_old = BT.Battle("monster", mk_enemy(), player=p_old)
-        WEAPON_EFFECTS["gale_step"]["battle_start"](b_old, p_old, {}, [])
-        WEAPON_EFFECTS["swift_boots"]["battle_start"](b_old, p_old, {}, [])
+        _OLDWE.old_handler("gale_step", "battle_start")(b_old, p_old, {}, [])
+        _OLDWE.old_handler("swift_boots", "battle_start")(b_old, p_old, {}, [])
         random.seed(seed)
         p_new = mk_player(["gale_step", "swift_boots"])
         b_new = BT.Battle("monster", mk_enemy(), player=p_new)
@@ -144,7 +145,7 @@ def test_stack_panel_boundaries():
             p_old = mk_player([key])
             b_old = BT.Battle("monster", mk_enemy(), player=p_old)
             for _ in range(n):
-                WEAPON_EFFECTS[key][ev](b_old, p_old, {"dmg": 100}, [])
+                _OLDWE.old_handler(key, ev)(b_old, p_old, {"dmg": 100}, [])
             random.seed(seed)
             p_new = mk_player([key])
             b_new = BT.Battle("monster", mk_enemy(), player=p_new)
@@ -162,7 +163,7 @@ def test_stack_panel_boundaries():
         p_old = mk_player(["thunder_weave"])
         b_old = BT.Battle("monster", mk_enemy(), player=p_old)
         for _ in range(4):
-            WEAPON_EFFECTS["thunder_weave"]["hit"](b_old, p_old, {"dmg": 100}, [])
+            _OLDWE.old_handler("thunder_weave", "hit")(b_old, p_old, {"dmg": 100}, [])
         p_new = mk_player(["thunder_weave"])
         b_new = BT.Battle("monster", mk_enemy(), player=p_new)
         for _ in range(4):

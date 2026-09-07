@@ -17,7 +17,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from game import battle as BT
 from game.store import init_db
 init_db()
-from game.core.weapon_effects import WEAPON_EFFECTS, proc as we_proc, _we_family
+from game.core.weapon_effects import WEAPON_EFFECTS, proc as we_proc, _we_family, _WE_EXEC_KEYS
+import _c10_old_we as _OLDWE
+from game.core.weapon_effects import _we_family
 
 DOT_KEYS = ["smith_blaze_wound", "rong_lu_yu_wen", "ember_burn", "blood_trace"]
 DOT_EVENTS = {"smith_blaze_wound": "hit", "rong_lu_yu_wen": "hit", "ember_burn": "skill_hit", "blood_trace": "hit"}
@@ -89,7 +91,7 @@ def run_pair(key, event, ctx_maker, n_runs=40, boss=False):
         b_old = BT.Battle("monster", e_old, player=p_old)
         ctx_old = ctx_maker()
         logs_old = []
-        handler = WEAPON_EFFECTS[key][event]
+        handler = _OLDWE.old_handler(key, event)
         handler(b_old, p_old, ctx_old, logs_old)
         # ---- NEW ----
         random.seed(seed)

@@ -1626,10 +1626,30 @@ class CombatCmds(CommandBase):
         """战斗状态行：玩家 buff/叠层 + 敌方状态。无状态返回空串。"""
         parts = []
         # 玩家 buff（p_buffs 刻数 >0）
+        # v181.P2C-C10 显示修复：buff v152 起按绝对时刻到期（_decay_buff_table 整条删不递减，
+        # v = 到期绝对刻号），旧直接"剩{v}刻"永远显示初值不递减 → 按 _now 折算剩余（护盾 v167.3 同款）。
+        _now_t = float(getattr(b, "_now", 0.0) or 0.0)
+        # 特殊键：控制类/元素印记/一次性/减伤盾——不经时刻衰减（_decay_buff_table 语义），原样显示刻数
+        _SPECIAL_NO_DECAY = {"stun", "freeze", "fire_mark", "ice_mark", "thunder_mark",
+                             "next_atk_up", "buff_phys_next", "stealth", "arcane_echo",
+                             "oath_blade_next", "we_oath", "reduce_all", "reduce", "shield"}
         pbuf = []
         for k, v in (b._p_buffs_bag() or {}).items():
-            if v and v > 0 and k in self._P_BUFF_NAMES:
-                pbuf.append(f"{self._P_BUFF_NAMES[k]}(剩{v}刻)")  # #244c: ×N 是刻数，标注避免误读倍率
+            if not v or not (v > 0) or k not in self._P_BUFF_NAMES:
+                continue
+            if isinstance(v, dict):
+                # bar 状态/复杂值：无刻数语义，只显名
+                pbuf.append(f"{self._P_BUFF_NAMES[k]}")
+                continue
+            if k in _SPECIAL_NO_DECAY:
+                pbuf.append(f"{self._P_BUFF_NAMES[k]}(剩{int(v)}刻)")
+                continue
+            # int/float = 绝对到期刻号（_decay_buff_table 语义：_now >= v*ACT_TICK 整删）
+            _left = float(v) * (ACT_TICK or 1.0) - _now_t
+            if _left > 0:
+                pbuf.append(f"{self._P_BUFF_NAMES[k]}(剩{max(1, int(round(_left / (ACT_TICK or 1.0))))}刻)")
+            else:
+                pbuf.append(f"{self._P_BUFF_NAMES[k]}")
         # 玩家叠层（v59：叠层随战斗持久化，读 b.mech_stacks）
         # O96：burn/poison/mark 是敌方减益叠层，不在玩家栏显示
         stacks = (b._p_stacks() or {})
@@ -1675,8 +1695,15 @@ class CombatCmds(CommandBase):
                     ebuf.append(f"{self._E_BUFF_NAMES[k]}{v}")
                 elif k in ("fire_mark", "ice_mark", "thunder_mark"):
                     ebuf.append(f"{self._E_BUFF_NAMES[k]}×{v}")
+                elif k in _SPECIAL_NO_DECAY:
+                    ebuf.append(f"{self._E_BUFF_NAMES[k]}(剩{int(v)}刻)")
                 else:
-                    ebuf.append(f"{self._E_BUFF_NAMES[k]}(剩{v}刻)")  # #244c: 同上，刻数标注
+                    # v181.P2C-C10：e_buffs int = 绝对到期刻号，按 _now 折算剩余刻
+                    _left = float(v) * (ACT_TICK or 1.0) - _now_t
+                    if _left > 0:
+                        ebuf.append(f"{self._E_BUFF_NAMES[k]}(剩{max(1, int(round(_left / (ACT_TICK or 1.0))))}刻)")
+                    else:
+                        ebuf.append(f"{self._E_BUFF_NAMES[k]}")
         # 敌方狂暴（v58 mech）
         if b.enemy.get("enraged"):
             ebuf.append("😡狂暴")

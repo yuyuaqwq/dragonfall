@@ -22,6 +22,7 @@ from game import battle as BT
 from game.store import init_db
 init_db()
 from game.core.weapon_effects import WEAPON_EFFECTS, proc as we_proc, _we_family, _WE_EXEC_KEYS
+import _c10_old_we as _OLDWE
 
 EXTRA_KEYS = [
     "afterglow_splash", "spellblade_echo", "annihilation_echo",     # splash_magi 3
@@ -107,7 +108,7 @@ def run_pair(key, maker, n_runs=40):
         if maker.get("ctx_extra"):
             ctx_old.update(maker["ctx_extra"])
         logs_old = []
-        handler = WEAPON_EFFECTS[key][ev]
+        handler = _OLDWE.old_handler(key, ev)
         handler(b_old, p_old, ctx_old, logs_old)
         # ---- NEW ----
         random.seed(seed)

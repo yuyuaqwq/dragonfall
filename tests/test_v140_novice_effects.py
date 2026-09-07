@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from game import battle as BT
 from game.store import init_db
 init_db()
-from game.core.weapon_effects import WEAPON_EFFECTS, proc as we_proc
+from game.core.weapon_effects import _WE_EXEC_KEYS, proc as we_proc
 
 passed = 0
 def check(name, cond, detail=""):
@@ -46,10 +46,11 @@ def mk_enemy(hp=100000, **kw):
 
 def test_registered():
     print("【0. 8 个新手特效全部注册】")
+    # v181.P2C-C10：旧 handler 删净后 WEAPON_EFFECTS 恒空——"注册"断言改查 _WE_EXEC_KEYS 路由表
     for k in ["novice_lifesteal", "novice_first_turn_guard", "novice_spark_followup",
               "novice_hunt_combo", "novice_regen_heal", "novice_wind_spd",
               "novice_first_turn_dodge", "novice_dawn_mana"]:
-        check(f"{k} 注册", k in WEAPON_EFFECTS, str(WEAPON_EFFECTS.get(k)))
+        check(f"{k} 路由注册", k in _WE_EXEC_KEYS, f"route={_WE_EXEC_KEYS.get(k)}")
 
 def test_lifesteal():
     print("【1. 学徒之血刃 吸血】")

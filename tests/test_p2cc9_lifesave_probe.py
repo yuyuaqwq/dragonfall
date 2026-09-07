@@ -21,6 +21,7 @@ from game import battle as BT
 from game.store import init_db
 init_db()
 from game.core.weapon_effects import WEAPON_EFFECTS, proc as we_proc, _we_family, _WE_EXEC_KEYS
+import _c10_old_we as _OLDWE
 
 DR_KEYS = ["undying_will", "death_dance_armor"]
 SPECIAL_KEYS = ["death_dance", "novice_first_turn_guard", "novice_first_turn_dodge"]
@@ -81,7 +82,7 @@ def run_pair(key, event, ctx_maker, n_runs=20, player_mut=None, enemy_hp=None):
         b_old = BT.Battle("monster", mk_enemy(*enemy_hp) if enemy_hp else mk_enemy(), player=p_old)
         ctx_old = ctx_maker()
         logs_old = []
-        handler = WEAPON_EFFECTS[key][event]
+        handler = _OLDWE.old_handler(key, event)
         handler(b_old, p_old, ctx_old, logs_old)
         random.seed(seed)
         p_new = mk_player([key])
@@ -283,9 +284,10 @@ def test_migrated_route():
     for k in SPECIAL_KEYS:
         check(f"{k} → proc_special", _we_family(k) == "proc_special"
               and _WE_EXEC_KEYS.get(k) == "proc_special", f"fam={_we_family(k)}")
-    # 未迁移代表仍不进路由（安全阀）：guard_regen(proc_heal regen)/dawn_regen/undying_band
+    # v181.P2C-C10：guard_regen/dawn_regen/undying_band/novice_dawn_mana 已迁 proc_aux 收尾族
     for k in ("guard_regen", "dawn_regen", "undying_band", "novice_dawn_mana"):
-        check(f"未族化 {k} 不进路由", k not in _WE_EXEC_KEYS, f"route={_WE_EXEC_KEYS.get(k)}")
+        check(f"C10 {k} 进 proc_aux 路由", _WE_EXEC_KEYS.get(k) == "proc_aux",
+              f"route={_WE_EXEC_KEYS.get(k)}")
 
 if __name__ == "__main__":
     test_dr_revive_undying()

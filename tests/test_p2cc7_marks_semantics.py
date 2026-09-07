@@ -67,8 +67,10 @@ def test_routing():
         check(f"{k} family=proc_retort_mark 且进路由", _we_family(k) == "proc_retort_mark"
               and k in _WE_EXEC_KEYS and _WE_EXEC_KEYS[k] == "proc_retort_mark",
               f"family={_we_family(k)} route={_WE_EXEC_KEYS.get(k)}")
+    # v181.P2C-C10：guard_regen/dawn_regen 已迁 proc_aux 收尾族
     for k in ("guard_regen", "dawn_regen"):
-        check(f"未族化 {k} 不进路由", k not in _WE_EXEC_KEYS, f"route={_WE_EXEC_KEYS.get(k)}")
+        check(f"C10 {k} 进 proc_aux 路由", _WE_EXEC_KEYS.get(k) == "proc_aux",
+              f"route={_WE_EXEC_KEYS.get(k)}")
 
 def test_skill_hit_marks():
     print("【2. skill_hit 置标（三相/破岳/咒誓）】")

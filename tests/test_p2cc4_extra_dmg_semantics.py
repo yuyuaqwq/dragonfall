@@ -95,8 +95,9 @@ def test_route():
               and _WE_EXEC_KEYS.get(k) == "proc_extra_dmg",
               f"fam={_we_family(k)} route={_WE_EXEC_KEYS.get(k)}")
     # 未迁移 key：iron_echo（proc_reflect 带附赠未迁）→ 不进路由仍走旧 handler
-    check("iron_echo 未迁不进路由", _we_family("iron_echo") == "proc_reflect"
-          and "iron_echo" not in _WE_EXEC_KEYS, str(_WE_EXEC_KEYS.get("iron_echo")))
+    # v181.P2C-C10：iron_echo 已迁 proc_aux 收尾族——断言改为进路由
+    check("iron_echo C10 进 proc_aux 路由", _we_family("iron_echo") == "proc_reflect"
+          and _WE_EXEC_KEYS.get("iron_echo") == "proc_aux", str(_WE_EXEC_KEYS.get("iron_echo")))
 
 def test_splash():
     print("【2. splash_magi 奥术溅射数值】")

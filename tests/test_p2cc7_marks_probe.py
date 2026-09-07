@@ -23,6 +23,7 @@ from game import battle as BT
 from game.store import init_db
 init_db()
 from game.core.weapon_effects import WEAPON_EFFECTS, proc as we_proc, _we_family, _WE_EXEC_KEYS
+import _c10_old_we as _OLDWE
 
 NEXT_KEYS = ["trinity_rhythm", "mountain_break", "oath_blade", "novice_spark_followup", "dusk_blade"]
 RETORT_KEYS = ["gargoyle_retort", "titan_retort", "ranger_retort", "guardian_will"]
@@ -84,7 +85,7 @@ def run_pair(key, event, ctx_maker, n_runs=20, player_mut=None, enemy_hp=None, h
         b_old = BT.Battle("monster", mk_enemy(*enemy_hp) if enemy_hp else mk_enemy(), player=p_old)
         ctx_old = ctx_maker()
         logs_old = []
-        handler = WEAPON_EFFECTS[key][event]
+        handler = _OLDWE.old_handler(key, event)
         handler(b_old, p_old, ctx_old, logs_old)
         if hit_seed_range and not (b_old.enemy.get("buffs") or {}).get("mon_atk_down"):
             continue  # guardian：未命中 seed 跳过（两路同步进行需重跑同 seed 匹配）
@@ -183,9 +184,10 @@ def test_migrated_route():
     for k in RETORT_KEYS:
         check(f"{k} → proc_retort_mark", _we_family(k) == "proc_retort_mark"
               and _WE_EXEC_KEYS.get(k) == "proc_retort_mark", f"fam={_we_family(k)}")
-    # 未迁移代表仍不进路由（安全阀）：guard_regen(proc_heal regen 未迁)/dawn_regen
+    # v181.P2C-C10：guard_regen/dawn_regen 已迁 proc_aux 收尾族
     for k in ("guard_regen", "dawn_regen"):
-        check(f"未族化 {k} 不进路由", k not in _WE_EXEC_KEYS, f"route={_WE_EXEC_KEYS.get(k)}")
+        check(f"C10 {k} 进 proc_aux 路由", _WE_EXEC_KEYS.get(k) == "proc_aux",
+              f"route={_WE_EXEC_KEYS.get(k)}")
 
 if __name__ == "__main__":
     test_next_atk_production()
