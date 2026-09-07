@@ -69,6 +69,24 @@ P2-D4a 新增族（6 proc / 3 族，方案 §6.2/§2.3 挂点10 player_turn + �
     一次性 flag（_tenacity_left_n/_core_last_stand_used）随战斗序列化——handler 读写一律走
     battle 属性（getattr/setattr），不落 actor dict 局部；磐核溢出转盾（core_overflow）段
     只做"承伤转化"判定与 _add_shield 副作用（键 core_overflow），挂点保留 _dr_pct 聚合计减。
+
+P2-D4b 新增族（3 proc / 1 族 revive_cond，挂点12 _post_hp_lethal 致死复活链，方案
+§6.2 P2-D4/§2.3 挂点12/§3.2 映射表）：
+    revive_cond      致死复活（一次性 flag 族）        death_contract / berserk_revive /
+                                                      stance_immortal
+    挂点12 是**最高风险批次之二**：三条复活 if 严格先后（死亡契约先于血怒先于铁誓，谁先
+    触发谁生效——不死鸟 phoenix_revive 更靠前，复活后 hp>0 后续块自然短路）逐字保留、
+    顺序不许重排；一次性 flag（_death_pact_used/_berserk_revive_used/_stance_immortal_used）
+    随战斗序列化（to_state/from_state battle.py 1259-1264/1550-1554）——handler 读写一律
+    battle 属性（getattr/setattr），不落 actor dict 局部；_death_pact_used 与 v107 暗影
+    祭司旧死亡契约（proc death_pact 非 52 白名单）共享——旧通道保留不迁移（不注册），
+    两条链仍消费同一致死钩子与 flag。ctx revive_kind 分派三段：death_pact_cond（死亡契约
+    信念≥faith_req 且存活骷髅在场 → 牺牲尾骷髅复活 hp_pct）/ berserk（血怒·不灭 狂暴态
+    → 清空战意复活 hp_pct）/ stance（铁誓·不动 守护姿态 → 免疫致命 1 次清空战意回满 hp_pct）。
+    数值读 _ps：faith_req/hp_pct（D0 已回填 5/0.20、0.30、1.0）；缺字段 = 无此行为（零默认
+    值铁律）。语义 = 原 3 段循环体逐字直搬：命中（复活成功）→ 返回 True（调用侧 break），
+    未命中（信念不足/无骷髅）→ 返回 None（调用侧 continue/循环尾——等价格局下与 max=1 单
+    条目原语义等价）。形态判定（dual_form_active 狂暴）与守护姿态 buff 守卫留在 battle 骨架。
 """
 from __future__ import annotations
 
@@ -764,6 +782,115 @@ def _h_dr_cond(battle, ctx: dict, ps: dict, ps_name: str):
 
 
 # ============================================================
+# 7b. revive_cond（P2-D4b：挂点12 _post_hp_lethal 致死复活链 3 proc）
+#     一次性 flag（_death_pact_used/_berserk_revive_used/_stance_immortal_used）随战斗
+#     序列化（to_state/from_state battle.py 1259-1264/1550-1554）——handler 读写一律
+#     battle 属性（getattr/setattr），不落 actor dict 局部。ctx revive_kind 分派三段，
+#     语义 = 原挂点 3 for 循环体逐字直搬（battle.py 10941-10988 迁移前副本）：
+#     - death_pact_cond（death_contract 死亡契约）：信念 ≥faith_req 且存活骷髅在场 →
+#       牺牲 1 只骷髅（尾骷髅，等价原 pop 语义）→ 置 _death_pact_used + 回 hp_pct HP；
+#       无骷髅 → 仅日志（信念已足但无骷髅可代受），不消耗契约、返回 None
+#       （原 continue 语义——未复活则继续查后续 proc 条目）
+#     - berserk（berserk_revive 血怒·不灭）：狂暴态（骨架守卫 dual_form_active 在调用侧）
+#       → 置 _berserk_revive_used + 清空战意 + 回 hp_pct HP
+#     - stance（stance_immortal 铁誓·不动）：守护姿态（骨架守卫 B.stance_guard 在调用侧）
+#       → 置 _stance_immortal_used + 移除 stance_guard + 清空战意 + 回满（hp_pct=1.0 满血）
+#     挂点保留 if 骨架（actor.hp<=0 + flag + 形态/buff 守卫）与顺序链（契约先于血怒先于
+#     铁誓）；handler 返回 True（复活成功 → 调用侧 break）或 None（未复活 → 循环尾）。
+#     数值读 _ps：faith_req/hp_pct（D0 已回填 5/0.20、0.30、1.0）；缺字段（faith_req ≤0
+#     或 hp_pct ≤0）= 无此行为（零默认值铁律）。flag 读写 battle 属性；companions/summons
+#     增删走 battle（随从容器权威在 battle.companions）。_death_pact_used 与 v107 旧死亡
+#     契约（proc death_pact 非 52）共享同一 flag 与致死钩子——旧通道保留（不注册不迁移）。
+# ============================================================
+@register("revive_cond")
+def _h_revive_cond(battle, ctx: dict, ps: dict, ps_name: str):
+    """致死复活族（一次性 flag 战斗属性序列化；三段 ctx revive_kind 分派）。"""
+    _kind = ctx.get("revive_kind")
+    _actor = ctx.get("actor")
+    if _actor is None:
+        return None
+    if _kind == "death_pact_cond":
+        # 死亡契约（牧师死灵线，proc death_contract）：信念 ≥faith_req 且存活骷髅在场
+        _req = float(ps.get("faith_req", 0.0) or 0.0)
+        _pct = float(ps.get("hp_pct", 0.0) or 0.0)
+        if _req <= 0 or _pct <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 5/0.20）
+        try:
+            _faith_v = float((_actor.setdefault("resources", {})).get("faith", 0) or 0)
+            if _faith_v < _req:
+                return None  # 信念不足 → 原 continue（不消耗、继续查后续条目）
+            # 存活骷髅 = summons（kind=summon 视图）里 tid=skeleton 且 hp>0（原口径）
+            _skels = [s for s in (battle.summons or [])
+                      if s.get("tid") == "skeleton" and s.get("hp", 0) > 0]
+            if not _skels:
+                _lg = ctx.get("logs")
+                if isinstance(_lg, list):
+                    _lg.append("💀 死亡契约：信念已足但没有骷髅代受致命一击！")
+                return None  # 原 continue——无骷髅可代受不消耗契约
+            setattr(battle, "_death_pact_used", True)
+            fallen = _skels.pop()  # 尾骷髅优先（等价原 pop 语义）
+            (getattr(battle, "companions", None) or []).remove(fallen)
+            _hp_new = max(1, int(_actor.get("max_hp", _actor.get("hp", 1))
+                                 * _pct))
+            _actor["hp"] = _hp_new
+            _lg = ctx.get("logs")
+            if isinstance(_lg, list):
+                _lg.append(f"💀 死亡契约：信念 {_faith_v:.0f} 引动契约，"
+                           f"{fallen.get('name', '骷髅')} 代受致命伤，"
+                           f"你以 {_actor['hp']} HP 站起！")
+            return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.death_contract", _sw_e)
+            return None
+    if _kind == "berserk":
+        # 血怒·不灭（战士攻线·狂暴）：狂暴中首次致死 → 清空战意复活（每场 1 次）
+        _pct = float(ps.get("hp_pct", 0.0) or 0.0)
+        if _pct <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.30）
+        try:
+            setattr(battle, "_berserk_revive_used", True)
+            # 清空战意（血怒·不灭承诺「清空战意复活」）
+            try:
+                _actor.setdefault("stacks", {})["zhan_yi"] = 0
+            except Exception:
+                pass
+            _hp_new = max(1, int(_actor.get("max_hp", _actor.get("hp", 1)) * _pct))
+            _actor["hp"] = _hp_new
+            _lg = ctx.get("logs")
+            if isinstance(_lg, list):
+                _lg.append(f"🔥 血怒·不灭！狂暴意志撑住了致命一击，你以 {_actor['hp']} HP 站起（战意已清空）！")
+            return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.berserk_revive", _sw_e)
+            return None
+    if _kind == "stance":
+        # 铁誓·不动（战士守线·守护姿态）：守护姿态下首次致命伤害免疫，随后清空全部战意
+        _pct = float(ps.get("hp_pct", 0.0) or 0.0)
+        if _pct <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 1.0）
+        try:
+            setattr(battle, "_stance_immortal_used", True)
+            try:
+                _actor.setdefault("buffs", {}).pop("stance_guard", None)
+            except Exception:
+                pass
+            try:
+                _actor.setdefault("stacks", {})["zhan_yi"] = 0
+            except Exception:
+                pass
+            _hp_new = max(1, int(_actor.get("max_hp", _actor.get("hp", 1)) * _pct))
+            _actor["hp"] = _hp_new
+            _lg = ctx.get("logs")
+            if isinstance(_lg, list):
+                _lg.append(f"🛡️ 铁誓·不动！守护姿态替你挡下致命一击（战意已清空）！")
+            return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.stance_immortal", _sw_e)
+            return None
+    return None  # 未知 revive_kind = 不触发
+
+
+# ============================================================
 # 8. proc → 族 声明（P2-D1 试点 5 proc + P2-D2a crit_cond_add 4 proc +
 #    P2-D2b stat_mult_cond 4 proc + P2-D3a dmg_mult_cond 扩展 2 + flag_set_cond 1 +
 #    P2-D3b 5 proc；P2-D4a 6 proc（tenacity/zhan_yi_full_reduce/core_full/core_reduce/
@@ -808,6 +935,13 @@ declare_proc("core_full", "dr_cond")
 declare_proc("core_reduce", "dr_cond")
 declare_proc("core_last_stand", "dr_cond")
 declare_proc("core_overflow", "dr_cond")
+# P2-D4b：挂点12 _post_hp_lethal 致死复活链 3 proc → revive_cond 族（一次性 flag 族；
+# death_contract 牧师死灵线信念≥5 牺牲骷髅复活 / berserk_revive 狂暴态首次致死清战意复活 /
+# stance_immortal 守护姿态首次致命免疫清战意回满——三条 if 严格先后由 battle 骨架保留；
+# flag _death_pact_used/_berserk_revive_used/_stance_immortal_used 随战斗序列化走 battle 属性）
+declare_proc("death_contract", "revive_cond")
+declare_proc("berserk_revive", "revive_cond")
+declare_proc("stance_immortal", "revive_cond")
 # cc_immune 无独立族声明——zhan_yi_full_reduce/core_full 双消费点（挂点10 免控 + 挂点11
 # 减伤）由同一 dr_cond 族 ctx cc_kind/dr_kind 分派（declare_proc 防重复：一 proc 一族）
 

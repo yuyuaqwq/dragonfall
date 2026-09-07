@@ -10938,51 +10938,51 @@ class Battle:
                 break
         # v169.7 死亡契约（牧师死灵线数据化：proc death_contract 信念≥5 + 骷髅在场）——
         # 与上方 v107 暗影祭司旧死亡契约（proc death_pact 无条件）并存；两条链都消费致死钩子
+        # v181.P2D-D4b：proc 消费迁注册表族 revive_cond（revive_kind='death_pact_cond'；
+        # if 骨架/顺序/flag 语义逐字保留——信念≥faith_req 且存活骷髅在场 → 牺牲尾骷髅复活
+        # hp_pct + 置 _death_pact_used；信念不足/无骷髅 → continue（handler 返回 None，
+        # for 无后续条目自然结束——等价格局 max=1 下原语义一致））
         if actor["hp"] <= 0 and not self._death_pact_used:
             try:
-                _faith_v = float(RES.get("faith", 0) or 0)
-                _skels = [s for s in self.summons if s.get("tid") == "skeleton" and s.get("hp", 0) > 0]
                 for _pn, _ps in self._passive_map(actor)["proc"].get("death_contract", []):
-                    if _faith_v < float(_ps.get("faith_req", 5) or 5):
-                        continue
-                    if not _skels:
-                        logs.append("💀 死亡契约：信念已足但没有骷髅代受致命一击！")
-                        continue
-                    self._death_pact_used = True
-                    fallen = _skels.pop()
-                    self.companions.remove(fallen)
-                    actor["hp"] = max(1, int(actor.get("max_hp", actor["hp"]) * float(_ps.get("hp_pct", 0.20) or 0.20)))
-                    logs.append(f"💀 死亡契约：信念 {_faith_v:.0f} 引动契约，{fallen.get('name', '骷髅')} 代受致命伤，你以 {actor['hp']} HP 站起！")
-                    break
+                    _ctx_dc = {"actor": actor, "ps": _ps, "ps_name": _pn,
+                               "revive_kind": "death_pact_cond", "logs": logs}
+                    _rv_dc = _run_proc_family(self, "death_contract", _ctx_dc)
+                    if _rv_dc:
+                        break  # 复活成功 → 原 break（本段内只处理 1 条 proc 条目）
             except Exception as _sw_e:
                 _battle_warn('_post_hp_lethal', _sw_e)
                 pass
         # v169.7 血怒·不灭（战士攻线·狂暴）：狂暴中首次致死 → 清空战意复活 30% 生命（每场 1 次）
+        # v181.P2D-D4b：proc 消费迁注册表族 revive_cond（revive_kind='berserk'；if 骨架/
+        # 顺序/flag 语义逐字保留——狂暴态（dual_form_active 守卫原样）→ 置 _berserk_revive_used
+        # + 清空战意 + 复活 hp_pct；狂暴判定/导入放骨架，flag 读写走 battle 属性）
         if actor["hp"] <= 0 and not getattr(self, "_berserk_revive_used", False):
             try:
                 from .core.battle_modes import dual_form_active as _dfa169
                 if _dfa169(actor):
                     for _pn, _ps in self._passive_map(actor)["proc"].get("berserk_revive", []):
-                        self._berserk_revive_used = True
-                        # 清空战意（血怒·不灭承诺「清空战意复活」）
-                        MS["zhan_yi"] = 0
-                        actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("hp_pct", 0.30) or 0.30)))
-                        logs.append(f"🔥 血怒·不灭！狂暴意志撑住了致命一击，你以 {actor['hp']} HP 站起（战意已清空）！")
-                        break
+                        _ctx_br = {"actor": actor, "ps": _ps, "ps_name": _pn,
+                                   "revive_kind": "berserk", "logs": logs}
+                        _rv_br = _run_proc_family(self, "berserk_revive", _ctx_br)
+                        if _rv_br:
+                            break  # 复活成功 → 原 break
             except Exception as _sw_e:
                 _battle_warn('_post_hp_lethal', _sw_e)
                 pass
         # v169.7 铁誓·不动（战士守线·守护姿态）：守护姿态下首次致命伤害免疫，随后清空全部战意
+        # v181.P2D-D4b：proc 消费迁注册表族 revive_cond（revive_kind='stance'；if 骨架/顺序/
+        # flag 语义逐字保留——守护姿态（B.stance_guard 守卫原样）→ 置 _stance_immortal_used
+        # + 移除姿态 + 清空战意 + 回满 hp_pct；flag 读写走 battle 属性）
         if actor["hp"] <= 0 and not getattr(self, "_stance_immortal_used", False) \
                 and B.get("stance_guard"):
             try:
                 for _pn, _ps in self._passive_map(actor)["proc"].get("stance_immortal", []):
-                    self._stance_immortal_used = True
-                    B.pop("stance_guard", None)
-                    MS["zhan_yi"] = 0
-                    actor["hp"] = max(1, int(actor.get("max_hp", actor.get("hp", 1)) * float(_ps.get("hp_pct", 1.0) or 1.0)))
-                    logs.append(f"🛡️ 铁誓·不动！守护姿态替你挡下致命一击（战意已清空）！")
-                    break
+                    _ctx_st = {"actor": actor, "ps": _ps, "ps_name": _pn,
+                               "revive_kind": "stance", "logs": logs}
+                    _rv_st = _run_proc_family(self, "stance_immortal", _ctx_st)
+                    if _rv_st:
+                        break  # 复活成功 → 原 break
             except Exception as _sw_e:
                 _battle_warn('_post_hp_lethal', _sw_e)
                 pass
