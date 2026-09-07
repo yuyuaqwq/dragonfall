@@ -100,12 +100,11 @@ def _snap(gid, qid, p, mon, extra=None):
         "evt": {},
         "extra": extra or {},
     }
-    # 时间敏感字段归一：宠物 last_sat_time / revive_choice ts 保留秒级即可
+    # 时间敏感字段归一：跨实现/跨时间全等需归零（epoch 秒级也会随运行时刻漂移）
     if s["pet"] and "last_sat_time" in s["pet"]:
-        try:
-            s["pet"]["last_sat_time"] = int(s["pet"]["last_sat_time"] or 0)
-        except (ValueError, TypeError):
-            s["pet"]["last_sat_time"] = 0
+        s["pet"]["last_sat_time"] = 0
+    if s["pet"] and "exp" in s["pet"]:
+        pass  # exp/level/satiety/bond 业务字段保留
     # event_state 全量（key 前缀收敛，避免读全表）
     for prefix, key in (
         ("revive_choice_", f"revive_choice_{gid}_{qid}"),
@@ -119,8 +118,18 @@ def _snap(gid, qid, p, mon, extra=None):
             if prefix == "revive_choice_":
                 try:
                     _j = json.loads(v)
-                    if isinstance(_j.get("ts"), (int, float)):
-                        _j["ts"] = int(_j["ts"])
+                    if "ts" in _j:
+                        _j["ts"] = 0
+                    v = json.dumps(_j, ensure_ascii=False)
+                except Exception:
+                    pass
+            if prefix == "red_":
+                v = "0"
+            if prefix == "daily_fortune_":
+                try:
+                    _j = json.loads(v)
+                    if "date" in _j:
+                        _j["date"] = ""
                     v = json.dumps(_j, ensure_ascii=False)
                 except Exception:
                     pass

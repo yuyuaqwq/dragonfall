@@ -443,7 +443,7 @@
     "exp": 10,
     "satiety": 98,
     "bond": 60,
-    "last_sat_time": 1788781889
+    "last_sat_time": 0
    },
    "stats": {
     "qq_id": "qE",
@@ -599,7 +599,7 @@
     "side": {}
    },
    "evt": {
-    "red_qG": "1788785489"
+    "red_qG": "0"
    },
    "extra": {}
   }
@@ -671,7 +671,7 @@
     "side": {}
    },
    "evt": {
-    "revive_choice_gH_qH": "{\"ts\": 1788781889, \"lost\": 100, \"extra\": 0, \"monster\": \"烬山魔物\"}"
+    "revive_choice_gH_qH": "{\"ts\": 0, \"lost\": 100, \"extra\": 0, \"monster\": \"烬山魔物\"}"
    },
    "extra": {}
   }

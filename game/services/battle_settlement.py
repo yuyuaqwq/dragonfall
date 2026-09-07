@@ -647,15 +647,19 @@ def victory_settle(group_id, qq_id, player, monster, result, extra_kills=None):
     exp, gold = rune_income(group_id, qq_id, player, exp, gold)
     # ---- 段16 幸运护符 ----
     gold, lucky_line = lucky_charm(gold, player, time.time())
-    # ---- 段17 材料折算 ----
-    lucky_line, _mat_drop_lines = material_fold(group_id, qq_id, player, monster, gold, lucky_line)
+    # ---- 段17 材料折算（drop_lines 与段9 图纸/段10 装备同一列表——原实现同变量，
+    # 折算追加在掉落行末尾，随后一起进面板 lines += drop_lines） ----
+    lucky_line, _mat_lines = material_fold(group_id, qq_id, player, monster, gold, lucky_line)
+    drop_lines += _mat_lines
     # ---- 段18 求知 ----
     exp, exp_bonus_line = know_exp_bonus(group_id, qq_id, player, exp)
     # ---- 段19 exp 落库/重读 ----
     player = grant_player_exp(group_id, qq_id, player, exp)
     # ---- 段20 rule_fire（原 L2167 位置：进度条前） ----
+    # 签名照抄 base._rule_fire：fire(group_id, qq_id, player, cur_map, trigger, evt, hooks)
     _rule_txt = _rule_fire(group_id, qq_id, player,
                            C.MAP_BY_ID.get(player.get("cur_map"), {}),
+                           "battle_win",
                            {"event": "win", "enemy": monster},
                            hooks={"title_bonus": lambda q: _title_bonus(group_id, q, db.get_player(group_id, q) or {})})
     # ---- 段21 面板行骨架 ----
@@ -767,6 +771,7 @@ def defeat_settle(group_id, qq_id, player, monster, result):
             f"你已被送回{_town_name}·{_town_sa_name}，休息后满血复活。"
         )
         # v97.5 行为彩蛋规则：战败（用于清零连胜等计数，不产出彩蛋）
+        # 签名照抄 base._rule_fire：fire(group_id, qq_id, player, cur_map, trigger, evt, hooks)
         _rule_fire("battle_win", group_id, qq_id, player,
                    C.MAP_BY_ID.get(player.get("cur_map"), {}),
                    {"event": "lose"},
@@ -784,6 +789,7 @@ def defeat_settle(group_id, qq_id, player, monster, result):
         f"休息后满血复活！下次要小心啊，冒险者。"
     )
     # v97.5 行为彩蛋规则：战败（用于清零连胜等计数，不产出彩蛋）
+    # 签名照抄 base._rule_fire：fire(group_id, qq_id, player, cur_map, trigger, evt, hooks)
     _rule_fire("battle_win", group_id, qq_id, player,
                C.MAP_BY_ID.get(player.get("cur_map"), {}),
                {"event": "lose"},
