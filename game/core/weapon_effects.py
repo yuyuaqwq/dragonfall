@@ -267,6 +267,19 @@ _WE_EXEC_KEYS = {
     "holy_radiance_mail": "proc_heal",
     "echo_band": "proc_heal",
     "novice_regen_heal": "proc_heal",
+    # C3：proc_shield 护盾族 10 key（starlight_bulwark/eclipse_crown/sentinel_aegis/
+    # deeprock_aegis/bedrock_crown/firmament_crown/gargoyle_heart/echo_bless/
+    # atonement_shield/endless_radiance）——事件 battle_start/taken/threshold/skill_hit/heal
+    "starlight_bulwark": "proc_shield",
+    "eclipse_crown": "proc_shield",
+    "sentinel_aegis": "proc_shield",
+    "deeprock_aegis": "proc_shield",
+    "bedrock_crown": "proc_shield",
+    "firmament_crown": "proc_shield",
+    "gargoyle_heart": "proc_shield",
+    "echo_bless": "proc_shield",
+    "atonement_shield": "proc_shield",
+    "endless_radiance": "proc_shield",
 }
 # 族默认事件表（key 未显式声明 event 时按族）：proc_dot 主事件 hit/skill_hit，
 # proc_reflect→taken、proc_heal amp→heal。分发器按"key 注册事件集"匹配事件后再调执行器
