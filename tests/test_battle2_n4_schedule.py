@@ -142,6 +142,29 @@ def test_flee():
     check("逃跑结束", b.result == "fled", f"result={b.result}")
 
 
+def test_real_data_spd0_player():
+    """回归（2026-09-08 对拍发现）：真实玩家 actor 裸 spd=0（面板由 stats 聚合），
+    _after_act 若用裸 spd=0 算行动耗时 → 玩家每次行动等 sqrt(50/1)≈7s，被怪碾压致死。
+    修复：_after_act 用聚合面板 spd（与 next_ct 同口径）。"""
+    print("【N4.7 回归：裸 spd=0 玩家（真实数据形态）auto_run 正常】")
+    # 模拟 battle2_bridge 产物：玩家 actor 裸 spd/atk/def=0，面板靠 class 聚合
+    p = make_actor(uid="p_q1", name="裸奔勇者", side="player", kind="player",
+                   human_controlled=True, class_name="战士", level=10,
+                   hp=200, max_hp=200, mp=50, max_mp=50,
+                   equipment={}, skills=[], learned_skills=[], race=None,
+                   evolve_path=0, class_tier=0, attributes=None)
+    check("裸 spd=0（真实形态）", p.get("spd") == 0, f"spd={p.get('spd')}")
+    m = mk_monster(hp=165, atk=48, spd=14, name="野狼")  # 同级 dps 怪
+    b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
+    logs = []
+    b.auto_run(logs)
+    check("战斗有结果", b.result in ("victory", "defeat"), f"result={b.result}")
+    # 关键：玩家必须能行动多轮（不被 spd=0 卡死/碾压）——logs 数足量说明交替行动了
+    check("行动轮次充足（>5 条日志）", len(logs) > 5, f"logs={len(logs)}")
+    # 玩家至少出过手（怪掉血了）
+    check("怪物被攻击过", m["hp"] < 165, f"m_hp={m['hp']}")
+
+
 def main():
     print("=== N4 battle2 CTB 调度测试 ===")
     test_full_battle_victory()
@@ -150,6 +173,7 @@ def main():
     test_human_act_advance()
     test_dot_tick()
     test_flee()
+    test_real_data_spd0_player()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:
