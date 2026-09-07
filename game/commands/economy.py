@@ -24,6 +24,7 @@ from ..core import timed_events as _te  # noqa: E402
 from ..core import smith_stock as _ss  # v135 铁匠铺全服共享货架
 from ..core import shop_stock as _sshop  # v166 商店限购（店内共享库存+每日个人限购）
 from ..services import shop as _shop_svc  # v181.P4-3 ShopService 交易区服务化（services/shop.py）
+from ..services import crafting as _craft_svc  # v181.P4-4 CraftingService 锻造-强化区服务化（services/crafting.py）
 
 # v127.5 等待型副业（垂钓/采集/挖掘）收编进通用懒计时引擎：
 # 存储走 timed_events.set_timed/get_timed/remove_timed（内部 key "prof_wait"），
@@ -3082,27 +3083,24 @@ class EconomyCmds(CommandBase):
         if _boost:
             db.set_event_state(f"enhance_boost_{qq_id}", "")
         # v101.30 炼金强化材料接入：精炼强化石 = 成功率 +25%（自动消耗）；强化石 = 失败保护（失败不掉级）
-        _rate = info["rate"]
-        _stone_line = ""
-        # v113.3 副业渐进加成：强化师每级 +0.5%（Lv.10 = +5%，原仅 Lv.10 一档）
-        _rate_bonus = min(prof_lv, 10) * 0.005
-        # O108 修复：手艺加成行单独存（_craft_line），升级当次用新等级重算后再拼回
-        _craft_line = ""
-        if _rate_bonus > 0:
-            _rate = min(1.0, _rate + _rate_bonus)
-            _craft_line = f"\n🛠️ 强化师 Lv.{prof_lv} 的手艺：成功率 +{_rate_bonus*100:.1f}%！"
+        # v181.P4-4：成功率/强化石叠加纯规则下沉 services.crafting.compute_enhance_rate（结构化结果），
+        # 扣料与文案行按结果在命令层执行/拼装（逐字符等价原内联段）
+        _cr = _craft_svc.compute_enhance_rate(
+            info["rate"], prof_lv, boost=_boost,
+            has_refine=db.count_item(group_id, qq_id, _craft_svc.ENHANCE_STONE_REFINE) >= 1,
+            has_blessed=db.count_item(group_id, qq_id, _craft_svc.ENHANCE_STONE_BLESSED) >= 1,
+        )
+        _rate = _cr["rate"]
+        _craft_line = _cr["craft_line"]  # O108 修复：手艺加成行单独存（_craft_line），升级当次重算后再拼回
         _stone_line = _craft_line
-        # v105 M11 P2：星铁必成(_boost)或成功率已 100% 时不再消耗精炼强化石（+25% 纯浪费）
-        if not _boost and _rate < 1.0 and db.count_item(group_id, qq_id, "i_stone_refine") >= 1:
-            _rate = min(1.0, _rate + 0.25)
-            db.remove_item(group_id, qq_id, "i_stone_refine", 1)
-            _stone_line += "\n✨ 精炼强化石淬入火中，成功率提升了！"
-        # v113.3 祝福符石：成功率 +15%（自动消耗，与精炼石叠加，上限 100%）
-        if not _boost and _rate < 1.0 and db.count_item(group_id, qq_id, "i_stone_blessed") >= 1:
-            _rate = min(1.0, _rate + 0.15)
-            db.remove_item(group_id, qq_id, "i_stone_blessed", 1)
-            _stone_line += "\n✨ 祝福符石泛起微光，成功率提升了！"
-        _protect_have = db.count_item(group_id, qq_id, "i_stone_upgrade")
+        for _sk in _cr["stones_used"]:  # 等价原内联扣料+文案行（消耗顺序：精炼→祝福，与判定顺序一致）
+            if _sk == _craft_svc.ENHANCE_STONE_REFINE:
+                db.remove_item(group_id, qq_id, _craft_svc.ENHANCE_STONE_REFINE, 1)
+                _stone_line += "\n✨ 精炼强化石淬入火中，成功率提升了！"
+            elif _sk == _craft_svc.ENHANCE_STONE_BLESSED:
+                db.remove_item(group_id, qq_id, _craft_svc.ENHANCE_STONE_BLESSED, 1)
+                _stone_line += "\n✨ 祝福符石泛起微光，成功率提升了！"
+        _protect_have = db.count_item(group_id, qq_id, _craft_svc.ENHANCE_STONE_PROTECT)
         # 掷强化
         if _boost or random.random() < _rate:
             d["enhance"] = cur_enh + 1
@@ -3141,11 +3139,14 @@ class EconomyCmds(CommandBase):
                 lines.append(_stone_line)
             yield event.plain_result("\n".join(lines))
         else:
-            drop = C.ENHANCE_FAIL_DROP.get(cur_enh, 0)  # v104 M11：+1~+4 失败不掉级（策划 19 章"纯亏金币"），+5 起才掉级
-            new_enh = max(0, cur_enh - drop)
-            if _protect_have >= 1 and new_enh != cur_enh:
+            # v181.P4-4：失败保级/降级纯规则下沉 services.crafting.enhance_fail_floor（结构化结果），
+            # 保护石消耗按结果执行（逐字符等价原内联失败分支）
+            _new_enh, _protect_used = _craft_svc.enhance_fail_floor(
+                cur_enh, has_protect=_protect_have >= 1)
+            new_enh = _new_enh
+            if _protect_used:
                 # v101.30 强化石失败保护：消耗 1 个，不掉级
-                db.remove_item(group_id, qq_id, "i_stone_upgrade", 1)
+                db.remove_item(group_id, qq_id, _craft_svc.ENHANCE_STONE_PROTECT, 1)
                 yield event.plain_result(
                     f"💥 强化失败！但强化石轰然炸开挡住了冲击，【{d['name']}】保住了等级(+{cur_enh})！\n"
                     # O93 修复：失败文案补金币消耗显示（强化石×1 之外同时列出金币）
