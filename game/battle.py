@@ -20,21 +20,9 @@ import time
 from . import content as C
 from . import engine as E
 from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径数值/白名单数据表 + v130 引擎新机制表
-    MECH_STACK_BONUS, MECH_STACK_WHITELIST, DOT_DEFS,
-    DOT_BLEED_DOUBLE_HP_PCT, DOT_ADAPT_DECAY_STEP, DOT_RESIST_CAP,
-    DOT_BOSS_PCT_MULT, DOT_PCT_CAP,
-    BOSS_ATTACK_MULTS, CONTROL_MECHS, SKILL_CC_WHITELIST,
-    MECH_FULL_HP_CRIT, MECH_FROZEN_MULT, MECH_COMBO_STACKS,
-    MECH_PROC_GROUPS, MECH_STAT_PASSIVES,
-    ELEMENT_MARKS_MAX, REACTION_TABLE,
-    ELEMENT_SAME_CAST_EXTRA_CHARGE, RAGE_GAIN_HP_SCALE, ENERGY_HIGH,
-    COMBO_CFG, ASSASSIN_ON_CRIT_GAIN, ASSASSIN_ON_TAKE_HIT_PENALTY,
-    MOMENTUM_CFG, SHADOW_STEP_CFG, SHADOW_STEALTH_DMG_MULT,
-        ECHO_CFG,
-        BRANCH_RESOURCE_OVERRIDE,
-        LUCKY_CRIT_CHANCE, LUCKY_CRIT_MULT, LUCK_CRIT_CONV, MULTI_HIT_CRIT_FIRST_ONLY,  # v133 峰值红线
-        BUFF_MULT, TEAM_BUFF_KEYS,  # v176 增益映射表下沉 data/battle_config.py
-    )
+    SHADOW_STEALTH_DMG_MULT,
+    MECH_CFG as _MC,  # v181 P2E-P3b：全部机制常量读点收敛 MECH_CFG 单表（本文件仅保 SHADOW_STEALTH_DMG_MULT 原位）
+)
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
 from .core.skill_kinds import (  # v176 去魔法字符串：类型常量替代散落中文比较
     K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_TRUE, K_TAUNT, K_SUMMON,
@@ -42,7 +30,7 @@ from .core.skill_kinds import (  # v176 去魔法字符串：类型常量替代�
 )
 from .core.constants import (  # v130.7 意见#28：逃跑成功率修正常量（core/__init__ 未导出清单，直连避免动聚合层）
     FLEE_CHANCE, FLEE_LEVEL_STEP, FLEE_SPD_STEP, FLEE_MIN, FLEE_MAX,
-    # v138.2 异常体系五律：阈值递增/每场上限+饱和/跨阶段保留/饱和收敛（真伤走 DOT_DEFS true_dmg）
+    # v138.2 异常体系五律：阈值递增/每场上限+饱和/跨阶段保留/饱和收敛（真伤走 MECH_CFG['dot'] true_dmg）
     DOT_THRESHOLD_MULT, DOT_THRESHOLD_CAP, DOT_MAX_TRIGGER,
     DOT_PRESERVE_PCT, DOT_PRESERVE_THRESHOLD_BONUS, DOT_SATURATE_MULT,
     # v181.P2B 引擎刻度常量收 core/constants.py 权威单源（原本文件模块级定义 →
@@ -498,12 +486,12 @@ def _th_faith_decay(battle, actor, eff, logs):
 def _th_echo_heal(battle, actor, eff, logs):
     """歌者回声驻留每层回体力。条件：回声层数 > 0。"""
     try:
-        from .data.battle_config import ECHO_CFG as _ECHO_CFG
+        from .data.battle_config import MECH_CFG as _MC
         echo_n = battle._echo_layers()
         if echo_n <= 0:
             return [], False  # 无回声层 → 通道关闭
-        _heal_e = int(_ECHO_CFG.get("heal_per_layer", 6) or 6) * echo_n
-        if echo_n >= int(_ECHO_CFG.get("max_layers", 3) or 3):
+        _heal_e = int(_MC['echo'].get("heal_per_layer", 6) or 6) * echo_n
+        if echo_n >= int(_MC['echo'].get("max_layers", 3) or 3):
             _heal_e *= 2
         out = []
         if actor.get("hp", 0) < actor.get("max_hp", 1):
@@ -565,8 +553,8 @@ def _th_actor_dot(battle, actor, eff, logs):
         if not actor:
             return [], False
         _deb = actor.get("debuffs") or {}
-        # 过滤出还在 DOT_DEFS 里的有效 dot 类型（debuffs 可能含非 dot 键）
-        _has_dot = any(_k in DOT_DEFS for _k in _deb)
+        # 过滤出还在 MECH_CFG['dot'] 里的有效 dot 类型（debuffs 可能含非 dot 键）
+        _has_dot = any(_k in _MC['dot'] for _k in _deb)
         if not _has_dot:
             return [], False  # 无有效 dot → 通道关闭（毒消失/被净化）
         out = []
@@ -587,7 +575,7 @@ def _th_actor_dot(battle, actor, eff, logs):
             pass
         # 结算后仍有效 dot → keep=True 续排；无 → False 停
         _deb2 = actor.get("debuffs") or {}
-        _still = any(_k in DOT_DEFS for _k in _deb2)
+        _still = any(_k in _MC['dot'] for _k in _deb2)
         return out, _still
     except Exception:
         return [], False
@@ -1768,13 +1756,13 @@ class Battle:
     # ---------------- 核心资源（v2.0 / v130.2 分支级 resource_override） ----------------
     def _branch_keys(self, player: dict) -> list:
         """当前职业/转职分支激活的核心资源 key 列表（v130.2 分支级 resource_override）。
-        命中 BRANCH_RESOURCE_OVERRIDE[(class, evolve_path)] → 用分支指定资源（歌者 共鸣+回声、
+        命中 MECH_CFG['branch_resources'][(class, evolve_path)] → 用分支指定资源（歌者 共鸣+回声、
         元素/奥秘法师 充能条）；否则回落 core_resources 按 class 默认单资源。
         基础法师（纯蓝施法者）无分支时不持有任何资源 → 返回 []。"""
         cls = player.get("class_name", "") or ""
         path = int(player.get("evolve_path", 0) or 0)
         tier = int(player.get("class_tier", 0) or 0)
-        ov = BRANCH_RESOURCE_OVERRIDE.get((cls, path))
+        ov = _MC['branch_resources'].get((cls, path))
         if ov is not None:
             # v176: (cls, 0) 空元组 = 基础态无资源（原 842 行 cls_fa_shi 特判数据化）
             return list(ov)
@@ -1807,13 +1795,13 @@ class Battle:
         return int(player.get("evolve_path", 0) or 0) == int(path or 0)
 
     def _is_element_mage(self, player: dict) -> bool:
-        """元素法师（法师·攻线）判定——v181 收口：归属读分支资源表 BRANCH_RESOURCE_OVERRIDE
+        """元素法师（法师·攻线）判定——v181 收口：归属读分支资源表 MECH_CFG['branch_resources']
         （(cls_fa_shi,1)/(cls_fa_shi,2) 声明 element 充能资源）+ 攻线 path=1；
         v176 单点收口（原 7 处 cls_fa_shi+_is_path(1) 散落特判 → 数据表驱动）。"""
         cls = player.get("class_name", "")
         if not self._is_path(player, 1):
             return False
-        return "element" in (BRANCH_RESOURCE_OVERRIDE.get((cls, 1)) or ())
+        return "element" in (_MC['branch_resources'].get((cls, 1)) or ())
 
     @staticmethod
     def _is_element_skill(info: dict) -> bool:
@@ -2498,7 +2486,7 @@ class Battle:
         for k in keys:
             if k == "echo":
                 v = int(self._p_stacks().get("echo", 0) or 0)
-                parts.append(f"✦ 回声 {v}/{ECHO_CFG['max_layers']}")
+                parts.append(f"✦ 回声 {v}/{_MC['echo'].get('max_layers', 3)}")
             elif k == "element":
                 v = self._elem_charge()
                 # v130.2c 元素使徒 2 件：上限 5 → 6 随 _res_max 展示
@@ -2622,14 +2610,14 @@ class Battle:
     # —— 刺客攻线·影舞者：连段计数 combo（连了才涨、断了重来；仅攻线结算）——
     def _combo_active(self, player: dict) -> bool:
         """连段计数是否活跃（仅攻线·影舞者；基础/毒线/影步线均不读 combo）
-        v176: 归属读 COMBO_CFG.class_id/path 数据（原职业特判）。"""
-        return bool(player.get("class_name", "") == COMBO_CFG.get("class_id")
-                    and self._is_path(player, int(COMBO_CFG.get("path", 1))))
+        v176: 归属读 _MC['assassin_combo'].class_id/path 数据（原职业特判）。"""
+        return bool(player.get("class_name", "") == _MC['assassin_combo'].get("class_id")
+                    and self._is_path(player, int(_MC['assassin_combo'].get("path", 1))))
 
     def _combo_add(self, player: dict) -> int:
         """命中 +1 连段（上限 cap=10）。"""
         combo = int(self._p_stacks().get("combo", 0) or 0)
-        combo = min(int(COMBO_CFG.get("cap", 10) or 10), combo + 1)
+        combo = min(int(_MC['assassin_combo'].get("cap", 10) or 10), combo + 1)
         self._p_stacks()["combo"] = combo
         return combo
 
@@ -2671,7 +2659,7 @@ class Battle:
     def _combo_finish_min(self, player: dict) -> int:
         """v130.2d 连段之锋：连段生效阈值 -1（combo ≥3 → ≥2，最低 1；攻线限定）。"""
         if not self._combo_active(player):
-            return int(COMBO_CFG.get("finish_min", 3) or 3)
+            return int(_MC['assassin_combo'].get("finish_min", 3) or 3)
         reduce = 0
         for eff, tier in self._affix_effs(player, "combo_edge"):
             if not eff:
@@ -2679,7 +2667,7 @@ class Battle:
             v = int(tier if tier is not None else eff.get("combo_threshold_reduce", 0) or 0)
             if v > 0:
                 reduce += v
-        return max(1, int(COMBO_CFG.get("finish_min", 3) or 3) - reduce)
+        return max(1, int(_MC['assassin_combo'].get("finish_min", 3) or 3) - reduce)
 
     def _combo_dmg_mult(self, player: dict) -> float:
         """终结技连段增伤：combo ≥3 起每层 +5%，上限 +40%（8 层封顶）。
@@ -2689,8 +2677,8 @@ class Battle:
         combo = int(self._p_stacks().get("combo", 0) or 0)
         if combo < self._combo_finish_min(player):
             return 1.0
-        per = float(COMBO_CFG.get("per_layer", 0.05) or 0.05)
-        cap = float(COMBO_CFG.get("max_bonus", 0.40) or 0.40)
+        per = float(_MC['assassin_combo'].get("per_layer", 0.05) or 0.05)
+        cap = float(_MC['assassin_combo'].get("max_bonus", 0.40) or 0.40)
         _ce = self._set_eff(player, "combo_finisher_per_layer", 5)
         if _ce:
             per = float(_ce.get("per_layer", 0.08) or 0.08)
@@ -2705,8 +2693,8 @@ class Battle:
         if not self._is_path(player, 1) or "chi" not in (self._p_res() or {}):
             return 1.0
         chi = int(self._p_res().get("chi", 0) or 0)
-        cap = int(MOMENTUM_CFG.get("cap_chi", 10) or 10)
-        per = float(MOMENTUM_CFG.get("per_chi", 0.03) or 0.03)
+        cap = int(_MC['chi_hold_dmg'].get("cap_chi", 10) or 10)
+        per = float(_MC['chi_hold_dmg'].get("per_chi", 0.03) or 0.03)
         # v130.2d 蓄势精通：攻线每 1 气物理伤害 +3% → +4%（词条 effect.momentum_per_chi 覆盖常量；
         # 攻线蓄势限定随上方 class/path 门；苦修士线锁系数不上浮不受影响）
         for _meff, _mtier in self._affix_effs(player, "momentum_mastery"):
@@ -2731,11 +2719,11 @@ class Battle:
         _pres = getattr(self, "_pre_cost_res", None)
         energy_val = int(_pres.get("energy", 0) or 0) if isinstance(_pres, dict) \
             else int(self._p_res().get("energy", 0) or 0)
-        if energy_val < int(ENERGY_HIGH.get("threshold", 80) or 80):
+        if energy_val < int(_MC['full_tension'].get("threshold", 80) or 80):
             return False
         if info is not None:
             cost = int((info.get("res_cost") or {}).get("energy", 0) or 0)
-            if cost > int(ENERGY_HIGH.get("max_cost", 25) or 25):
+            if cost > int(_MC['full_tension'].get("max_cost", 25) or 25):
                 return False
         return True
 
@@ -2753,7 +2741,7 @@ class Battle:
 
     def _elem_mark_apply(self, element: str, target: dict | None = None, layers: int = 1,
                          player: dict | None = None) -> int:
-        """施法命中叠加目标元素印记（每系上限 ELEMENT_MARKS_MAX=3；印记铭刻词条 +1 → 4）。
+        """施法命中叠加目标元素印记（每系上限 MECH_CFG['element']['marks_max']=3；印记铭刻词条 +1 → 4）。
         返回该系新层数。"""
         if element not in E.ELEMENT_MARKS:  # v176: 元素枚举读数据表 keys（原硬编码 fire/ice/thunder）
             return 0
@@ -2764,7 +2752,7 @@ class Battle:
         return new
 
     def _elem_mark_max(self, player: dict | None = None) -> int:
-        """v130.2d 印记铭刻：元素印记每系上限（基础 ELEMENT_MARKS_MAX=3；词条 effect.max_sigil 叠加，
+        """v130.2d 印记铭刻：元素印记每系上限（基础 MECH_CFG['element']['marks_max']=3；词条 effect.max_sigil 叠加，
         元素法师 cls_fa_shi 攻线转职后生效，cond=element_mage）。player 缺省取本场 self.player。"""
         pl = player or self.player or {}
         bonus = 0
@@ -2779,7 +2767,7 @@ class Battle:
                 _mt = int(eff.get("max_total", 0) or 0)
                 if _mt > 0 and bonus > _mt:
                     bonus = _mt
-        return int(ELEMENT_MARKS_MAX or 3) + bonus
+        return int(_MC['element']['marks_max'] or 3) + bonus
 
     def _elem_marks_total(self, target: dict | None = None) -> int:
         """目标三系印记总和（供元素共鸣类加成引用）。"""
@@ -2794,8 +2782,8 @@ class Battle:
         if not last or last != element:
             return False
         # 元素凝聚被动：同系连发第二次施放额外 +1 充能（攻线·元素法师）
-        if self._is_element_mage(player) and ELEMENT_SAME_CAST_EXTRA_CHARGE:
-            self._res_gain(player, "element", ELEMENT_SAME_CAST_EXTRA_CHARGE)
+        if self._is_element_mage(player) and _MC['element']['same_cast_extra_charge']:
+            self._res_gain(player, "element", _MC['element']['same_cast_extra_charge'])
         return True
 
     # —— 牧师攻线·歌者：回声驻留叠层（echo 存 mech_stacks，战斗内不清零，上限 max_layers）——
@@ -2808,7 +2796,7 @@ class Battle:
         if "echo" not in self._branch_keys(player):  # v176: 回声所有权查分支资源键
             return 0
         cur = self._echo_layers()
-        cap = int(ECHO_CFG.get("max_layers", 3) or 3)
+        cap = int(_MC['echo'].get('max_layers', 3) or 3)
         if cur >= cap:
             return cur
         cur = min(cap, cur + int(amount or 0))
@@ -2818,7 +2806,7 @@ class Battle:
 
     # —— 法师攻线·元素：引爆技反应表结算（cond type='reaction'，读目标 element_marks）——
     def _reaction_table_resolve(self, player: dict, element: str, st: dict, logs: list) -> tuple | None:
-        """引爆技按 引爆系 × 目标 element_marks 组合查 REACTION_TABLE 结算（蒸发/超载/冻结/感电）。
+        """引爆技按 引爆系 × 目标 element_marks 组合查 MECH_CFG['element']['reaction_table'] 结算（蒸发/超载/冻结/感电）。
 
         返回 (reaction_mult, 反应日志, chain_flag) 或 None（目标无对应印记系）。
         aoe/freeze 在函数内结算；chain 返回 flag 由调用方 multi+1。结算后清除被反应消费的目标印记系。
@@ -2827,13 +2815,13 @@ class Battle:
             return None
         marks = self._elem_marks()
         target_el = None
-        for cast_el, mark_el in REACTION_TABLE:
+        for cast_el, mark_el in _MC['element']['reaction_table']:
             if cast_el == element and int(marks.get(mark_el, 0) or 0) > 0:
                 target_el = mark_el
                 break
         if target_el is None:
             return None
-        r = REACTION_TABLE[(element, target_el)]
+        r = _MC['element']['reaction_table'][(element, target_el)]
         rmult = float(r.get("mult", 1.0))
         # v130.2d 反应催化：元素反应伤害 +15%（元素法师转职后生效；词条 effect.reaction_dmg 叠加）
         rmult *= self._reaction_catalyst_mult(player)
@@ -4411,7 +4399,7 @@ class Battle:
         # v169.7 奥术恒常 arcane_constant（奥术学者）：奥术技能耗蓝 −50%（乘算，与符文/药剂/词条叠加）
         try:
             _mech_ac = info.get("mech", "")
-            _is_arcane_skill = bool(_mech_ac in MECH_PROC_GROUPS.get("arcane_dmg", ())
+            _is_arcane_skill = bool(_mech_ac in _MC['ctrl']['proc_groups'].get("arcane_dmg", ())
                                     or (info.get("res_gain") or {}).get("arcane")
                                     or _mech_ac in ("arcane", "arcane_burst"))
             if _is_arcane_skill:
@@ -4818,7 +4806,7 @@ class Battle:
         return int((self._p_res() or {}).get("guard_core", 0) or 0)
 
     def _poison_cap(self, player: dict) -> int:
-        """毒层上限：基础 5（MECH_STACK_MAX poison=5 / battle_mech 叠层 min(5, ...)）+ 被动提升。
+        """毒层上限：基础 5（MECH_CFG['mech_stack']['max'] poison=5 / battle_mech 叠层 min(5, ...)）+ 被动提升。
         剧毒之心（游侠 poison_cap_up +3）/ 淬毒之心（刺客 poison_cap +3，最高 8）。
         v181.P2D-D1：被动提升读注册表族 stack_cap_add（cap 基础 5 累加，封顶/下限保留原语义）。"""
         cap = 5
@@ -5170,12 +5158,12 @@ class Battle:
             # v130.2f2（T11 P2）：潜行已于出手处置 True 标记（消费点 3030-3034 先删 buff）——
             # 此处读标记而非二次查 buff，「潜行出手额外 +1 影步」不再空转
             if self._p_buffs_bag().get("stealth") or self._p_stealth_atk():
-                gain += int(SHADOW_STEP_CFG.get("stealth_extra", 1) or 0)
+                gain += int(_MC['shadow_step'].get("stealth_extra", 1) or 0)
             self._p_res()[k] = E.core_resource_gain(cls, self._p_res(), gain)
             proc_ok = True
         # 刺客攻线·影舞者：on_crit 额外 +1 连击点（叠于 on_attack/on_skill）
-        elif self._combo_active(player):  # v176: combo归属已数据化COMBO_CFG
-            self._p_res()[k] = E.core_resource_gain(cls, self._p_res(), ASSASSIN_ON_CRIT_GAIN)
+        elif self._combo_active(player):  # v176: combo归属已数据化_MC['assassin_combo']
+            self._p_res()[k] = E.core_resource_gain(cls, self._p_res(), _MC['assassin_combo'].get('on_crit_gain', 1))
             proc_ok = True
         # v151 隐藏职业删除：星语猎印暴击额外（crit_mark）已移除
         return proc_ok
@@ -6266,7 +6254,7 @@ class Battle:
                 h(self, skill_name, info, player, lv, logs)
             else:
                 # v104 M02 P1-4：团队增益 effect=xx_all 映射为施放者自身有效键（def_all→def_up 等）
-                key = TEAM_BUFF_KEYS.get(eff, eff)
+                key = _MC['buff']['team_keys'].get(eff, eff)
                 # v104 M02 P2-11：同 effect 不同技能 buff 覆盖取高（与药水路径一致）
                 # v180：怪物施法（_cast_ctx 非玩家 actor）buff 刻数固定读 info.buff_turns（缺省 3）
                 # ——怪 buff 无"技能等级养成"，对齐旧 MON_BUFF BUFF_TURNS=3（不叠加折算等级成长）
@@ -6382,9 +6370,9 @@ class Battle:
             _m2val = int(info.get("mech2_val", 0) or 0) or 1
             self._apply_mech_effect(_mech2, _m2val, p_mech, total, logs, skill_name, is_crit, info, caster=player)
         # v63 额外控制效果（cc 字段，独立于 mech 叠层）：眩晕/沉默/净化
-        # v125.2 B1：cc 白名单查表 SKILL_CC_WHITELIST
+        # v125.2 B1：cc 白名单查表 MECH_CFG['ctrl']['skill_cc_whitelist']
         cc = info.get("cc")
-        if cc and cc in SKILL_CC_WHITELIST:
+        if cc and cc in _MC['ctrl']['skill_cc_whitelist']:
             self._apply_mech_effect(cc, 1, p_mech, total, logs, skill_name, is_crit, info, caster=player)
         # v169.7 镇魂安魂 dirge_ctrl_up（诗人挽歌线）：挽歌系控制时长 +1.5 刻——
         # 本技能对敌施加的控制（mech/cc 走 MECH_EFFECTS 写入 e_buffs 后）延长 1 刻（1.5 向下取整；
@@ -6483,7 +6471,7 @@ class Battle:
         if self._combo_active(player):
             if total > 0:
                 new_combo = self._combo_add(player)
-                logs.append(f"🌪️ 连段 {new_combo}/{COMBO_CFG['cap']}")
+                logs.append(f"🌪️ 连段 {new_combo}/{_MC['assassin_combo']['cap']}")
             else:
                 self._combo_break(player)
         # v130.2 暴击命中结算（on_crit：暮影影步/刺客攻线/星语猎印暴击额外）
@@ -6523,7 +6511,7 @@ class Battle:
         tags = []
         if is_crit:
             tags.append("💥暴击")
-        if mech in MECH_FULL_HP_CRIT and self._tgt().get("hp", 0) >= self._tgt().get("max_hp", 1):
+        if mech in _MC['crit']['full_hp_mechs'] and self._tgt().get("hp", 0) >= self._tgt().get("max_hp", 1):
             tags.append("满血影袭必暴")
         if frozen_bonus > 1.0:
             tags.append("❄️碎冰增伤")
@@ -6792,10 +6780,10 @@ class Battle:
         计算 frozen/stack/cond/passive/reaction/蓄势/终结/词条/套装 各乘区 → pmult（cap 后）。
         返回 ctx dict（段循环/标签/命中效果需要的全部中间量）。
         """
-        # 机制：冰霜（冻结目标碎冰增伤）——查表 MECH_FROZEN_MULT（v125.2 B1）
+        # 机制：冰霜（冻结目标碎冰增伤）——查表 MECH_CFG['crit']['frozen_mult']（v125.2 B1）
         frozen_bonus = 1.0
-        if mech in MECH_FROZEN_MULT and "freeze" in self._tgt_buffs():
-            frozen_bonus = MECH_FROZEN_MULT[mech]
+        if mech in _MC['crit']['frozen_mult'] and "freeze" in self._tgt_buffs():
+            frozen_bonus = _MC['crit']['frozen_mult'][mech]
         # 机制：圣光/毒/影/气/审判/狂暴 层数加成
         stack_bonus = self._mech_stack_bonus(mech, p_mech, info)
         # v30 条件转化：按战场状态变形态（残血斩杀/背水一战）
@@ -6805,8 +6793,8 @@ class Battle:
         # 段数：技能数据统一用 hits 键（v175e 修复——原只读 multi 导致 22 个多段技能
         # 全当单段打，疾风/血怒/奥术弹幕等多段流伤害只有设计的 1/N；multi 为旧别名兼容）
         multi = int(info.get("multi") or info.get("hits") or 1)
-        # 机制：风印 → 连击次数增加（查表 MECH_COMBO_STACKS，v125.2 B1）
-        if mech in MECH_COMBO_STACKS:
+        # 机制：风印 → 连击次数增加（查表 MECH_CFG['crit']['combo_mechs']，v125.2 B1）
+        if mech in _MC['crit']['combo_mechs']:
             multi += p_mech.get(mech, 0)
         # v34 破魔：魔法伤害 +x%
         mb_lvl = self._enchant_lvl(effs, "magic_break")
@@ -6962,17 +6950,17 @@ class Battle:
             if element and E.ELEMENT_MARKS.get(element):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # v110.3 P2-9：毒系技能伤害（mech 判定，废弃"名字含毒"子串；毒爆术 mech=poison_burst 一并覆盖）
-        # v125.2 B1：mech 归属查表 MECH_PROC_GROUPS
+        # v125.2 B1：mech 归属查表 MECH_CFG['ctrl']['proc_groups']
         for _pn, _ps in _procs.get("poison_dmg", []):
-            if mech in MECH_PROC_GROUPS.get("poison_dmg", ()):
+            if mech in _MC['ctrl']['proc_groups'].get("poison_dmg", ()):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # 对标记目标伤害（追猎者/猎魔之眼：e_buffs["mark"] 为目标易伤标记）
         for _pn, _ps in _procs.get("mark_dmg", []):
             if "mark" in self.e_buffs:
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
-        # 奥术系伤害（奥术之心）——v125.2 B1：mech 归属查表 MECH_PROC_GROUPS
+        # 奥术系伤害（奥术之心）——v125.2 B1：mech 归属查表 MECH_CFG['ctrl']['proc_groups']
         for _pn, _ps in _procs.get("arcane_dmg", []):
-            if mech in MECH_PROC_GROUPS.get("arcane_dmg", ()):
+            if mech in _MC['ctrl']['proc_groups'].get("arcane_dmg", ()):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # v169.7 奥术共鸣 arcane_resonance：奥术技能伤害 +15%（与奥术之心同 mech 口径叠加）
         # v181.C: mult 读 skills.py 奥术共鸣 passive（缺字段=无此行为）
@@ -7013,10 +7001,10 @@ class Battle:
             if st.get("spd", 0) > est.get("spd", 0):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # 机制型 stat 被动（审判之心 judge / 暗影之心 shadow）：对应 mech 技能伤害加成
-        # v125.2 B1：mech 归属查表 MECH_STAT_PASSIVES
+        # v125.2 B1：mech 归属查表 MECH_CFG['ctrl']['stat_passives']
         for _pn, _ps in _pm["stat"]:
             _sstat = _ps.get("stat")
-            if _sstat in MECH_STAT_PASSIVES and mech == MECH_STAT_PASSIVES[_sstat]:
+            if _sstat in _MC['ctrl']['stat_passives'] and mech == _MC['ctrl']['stat_passives'][_sstat]:
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
             elif _sstat == "stealth_crit_dmg" and (self._p_buffs_bag().get("stealth") or self._p_stealth_atk()):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
@@ -7047,16 +7035,16 @@ class Battle:
         返回 (is_crit, _stealth_hit, lucky, stealth_mult, est, effs)。
         副作用：潜行 buff 消费、_stealth_atk 标记、破甲符文改写 est 副本。
         """
-        # v109.2 P1-1 运势：幸运转化为暴击补充（luck → crit，转化 0.3/cap 0.12 → LUCK_CRIT_CONV）；
+        # v109.2 P1-1 运势：幸运转化为暴击补充（luck → crit，转化 0.3/cap 0.12 → MECH_CFG['crit']['luck_conv']）；
         # v130.2c 套装暴击：巡林长披风（带标记 +5%）/ 夜幕合契·影纱 4 件（终结技 +15%）
         # v169.7 条件被动暴击族（狂热/真知/疾风之心/元素之核/影舞·极）：统一走 _passive_crit_bonus 消费
-        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * LUCK_CRIT_CONV["per_luck"],
-                                                      LUCK_CRIT_CONV["cap"])
+        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * _MC['crit']['luck_conv']["per_luck"],
+                                                      _MC['crit']['luck_conv']["cap"])
                                      + self._set_crit_bonus(player, info)
                                      + self._passive_crit_bonus(player, info=info)) * self._tenacity_mult(est)
         # v130.2 游侠满弦状态（守线·风行者）：精力 ≥80 且低耗/连射技能 暴击率 +10%
         if self._energy_high_crit(player, info):
-            is_crit = is_crit or random.random() < float(ENERGY_HIGH.get("crit_bonus", 0.10) or 0.10)
+            is_crit = is_crit or random.random() < float(_MC['full_tension'].get("crit_bonus", 0.10) or 0.10)
         # v104 R3 P1-1：猎手本能——对标记目标暴击 +10%（e_buffs["mark"] 为目标易伤标记）
         if "mark" in self._tgt_buffs():
             for _pn, _ps in self._passive_map(player)["stat"]:
@@ -7080,8 +7068,8 @@ class Battle:
             est = dict(est)
             est["def"] = int(est["def"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
             est["mdef"] = int(est["mdef"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
-        # 机制：影袭（满血必暴）——查表 MECH_FULL_HP_CRIT（v125.2 B1）
-        if mech in MECH_FULL_HP_CRIT and self._tgt().get("hp", 0) >= self._tgt().get("max_hp", 1):
+        # 机制：影袭（满血必暴）——查表 MECH_CFG['crit']['full_hp_mechs']（v125.2 B1）
+        if mech in _MC['crit']['full_hp_mechs'] and self._tgt().get("hp", 0) >= self._tgt().get("max_hp", 1):
             is_crit = True
         # v130.2f2 暮影潜行乘区：潜行出手时 终结·破影一击 ×1.5 / 幽影刃 ×1.25（数据驱动
         #   SHADOW_STEALTH_DMG_MULT，assassin.md §5.2；非潜行/非表内技能恒 1.0，不影响其他职业）
@@ -7089,7 +7077,7 @@ class Battle:
         if _stealth_hit and skill_name in SHADOW_STEALTH_DMG_MULT:
             stealth_mult = float(SHADOW_STEALTH_DMG_MULT[skill_name])
         # v109.2 P1-1 运势：暴击命中后 30% 概率追加 50% 伤害（幸运一击，含必暴机制）
-        lucky = is_crit and random.random() < LUCKY_CRIT_CHANCE
+        lucky = is_crit and random.random() < _MC['crit'].get('lucky_chance', 0.30)
         return is_crit, _stealth_hit, lucky, stealth_mult, est, effs
 
     def _skill_seg_damage(self, st: dict, est: dict, info: dict, kind: str, lv: int,
@@ -7177,7 +7165,7 @@ class Battle:
             dmg_i = int(dmg_i * (1 + cdmg))
         # v109.2 P1-1 运势：幸运一击——暴击后 30% 概率追加 50% 伤害
         if _lucky_seg:
-            dmg_i = int(dmg_i * LUCKY_CRIT_MULT)
+            dmg_i = int(dmg_i * _MC['crit'].get('lucky_mult', 1.3))
         dmg_i = self._apply_mark(dmg_i)
         return dmg_i, magi_add
 
@@ -7265,10 +7253,10 @@ class Battle:
         # 鱼鱼拍板：技能 = 基础值 + n%AD/AP（低攻不刮痧，高攻百分比主导）
         _skill_flat = E.skill_flat_value(int(player.get("level", 1) or 1), lv, info)
         for seg in range(multi):
-            # v133 峰值红线：多段仅首段吃暴击/幸运（MULTI_HIT_CRIT_FIRST_ONLY，
+            # v133 峰值红线：多段仅首段吃暴击/幸运（_MC['crit'].get('multi_hit_first_only', True)，
             # 避免"多段共享单次暴击判定"整段连锁暴击的峰值爆炸）
-            _seg_crit = is_crit and (seg == 0 or not MULTI_HIT_CRIT_FIRST_ONLY)
-            _lucky_seg = lucky and (seg == 0 or not MULTI_HIT_CRIT_FIRST_ONLY)
+            _seg_crit = is_crit and (seg == 0 or not _MC['crit'].get('multi_hit_first_only', True))
+            _lucky_seg = lucky and (seg == 0 or not _MC['crit'].get('multi_hit_first_only', True))
             # v156 formula 字段：每技能独立配置伤害公式（数据驱动任意组合）——
             #   [{"stat": "atk"|"matk"|"max_hp"|"flat", "mult": 百分比系数, "flat": 固定值(基础值), "type": "phys"|"magi"|"true"}]
             #   混伤：多段 formula；物理职业魔法技：stat=atk + type=magi；基础值+百分比：flat
@@ -7311,23 +7299,23 @@ class Battle:
     # ---------------- v29 分支机制 ----------------
     def _mech_stack_bonus(self, mech: str, p_mech: dict, info: dict) -> float:
         """层数型机制对本次伤害的倍率（v125.2 B1：每层增伤查表 MECH_STACK_BONUS）
-        v130.2 P1-5：隐藏线每层加成（dragon_might +18%/zen +12%，已并入 MECH_STACK_BONUS）——
+        v130.2 P1-5：隐藏线每层加成（dragon_might +18%/zen +12%，已并入 MECH_CFG['mech_stack']['bonus']）——
         消耗型终极技（res_cost 含该核心资源键）按「施放前持有层数」叠乘（龙脉终曲 满龙力 ×2.8、
         撼岳·终焉 满禅意 ×2.2），读 self._pre_cost_res（见 _do_player_skill 快照，扣费后归 0 放不大）。"""
-        step = MECH_STACK_BONUS.get(mech)
+        step = _MC['mech_stack']['bonus'].get(mech)
         if step:
             n = p_mech.get(mech, 0)
             if n:
                 return 1.0 + n * step
-        # v130.2：技能 res_cost 消费的核心资源键若在 MECH_STACK_BONUS 且非 mech 叠层型（dragon_might/zen），
+        # v130.2：技能 res_cost 消费的核心资源键若在 MECH_CFG['mech_stack']['bonus'] 且非 mech 叠层型（dragon_might/zen），
         # 按其「施放前持有层数」补阶梯加成——mech 叠层型（rage/chi/shadow/spellblade，在 MECH_STACK_WHITELIST）
         # 层数存 mech_stacks 由上方 mech 分支结算，此处分流避免双重累加。
         rc = (info or {}).get("res_cost") or {}
         if rc:
             _pres = getattr(self, "_pre_cost_res", None)
             _pres = _pres if isinstance(_pres, dict) else None
-            for _k, _step in MECH_STACK_BONUS.items():
-                if _k in MECH_STACK_WHITELIST:
+            for _k, _step in _MC['mech_stack']['bonus'].items():
+                if _k in _MC['mech_stack']['whitelist']:
                     continue
                 if int(rc.get(_k, 0) or 0) <= 0:
                     continue
@@ -7386,8 +7374,8 @@ class Battle:
         return bool(check and check(self, player, cond))
 
     def _apply_mech_gain(self, mech: str, mval: int, p_mech: dict, logs: list, skill_name: str):
-        """增益类技能叠层(v59：封顶；v125.2 B1：可叠层 mech 白名单查表 MECH_STACK_WHITELIST)"""
-        if mech and mval and mech in MECH_STACK_WHITELIST:
+        """增益类技能叠层(v59：封顶；v125.2 B1：可叠层 mech 白名单查表 MECH_CFG['mech_stack']['whitelist'])"""
+        if mech and mval and mech in _MC['mech_stack']['whitelist']:
             p_mech[mech] = E.mech_stack_gain(mech, p_mech, mval)
 
     def _boss_ctrl_dur(self, key: str, val: int) -> int:
@@ -7415,7 +7403,7 @@ class Battle:
                 _cap_pre["hunt_mark"] = int(_deb_cap0.get("hunt_mark", 0) or 0)
             if mech == "soul_mark":
                 _cap_pre["soul_mark"] = int(_deb_cap0.get("soul_mark", 0) or 0)
-            if mech in MECH_PROC_GROUPS.get("poison_dmg", ("poison",)):
+            if mech in _MC['ctrl']['proc_groups'].get("poison_dmg", ("poison",)):
                 _cap_pre["poison"] = int((_deb_cap0.get("poison") or {}).get("n", 0) or 0)
         except Exception:
             _cap_pre = {}
@@ -7459,7 +7447,7 @@ class Battle:
                 _now_sm = int(_deb_cap.get("soul_mark", 0) or 0)
                 if _old_sm + _mv > _now_sm:
                     _deb_cap["soul_mark"] = min(int(_extra_sm), _old_sm + _mv)
-            if mech in MECH_PROC_GROUPS.get("poison_dmg", ("poison",)):
+            if mech in _MC['ctrl']['proc_groups'].get("poison_dmg", ("poison",)):
                 _cap_pois = self._poison_cap(_pl_cap)
                 _old_p = _cap_pre.get("poison", 0)
                 _now_p = int((_deb_cap.get("poison") or {}).get("n", 0) or 0)
@@ -7487,15 +7475,15 @@ class Battle:
                 logs.append(f"🎯 {'/'.join(_trig_mark)}：额外标记 +{_extra_mark} 层！（与追踪印记叠加）")
         # v120 审计修复 q5：玩家施加的控制（眩晕/冰冻/沉默）统一切入 Boss 控制抗性——
         # Boss 时长减半（至少 1 刻）；非 Boss 不变（handler 已设时长，此处术后收紧）。
-        # v125.2 B1：控制白名单查表 CONTROL_MECHS
-        if mech in CONTROL_MECHS:
+        # v125.2 B1：控制白名单查表 MECH_CFG['ctrl']['mechs']
+        if mech in _MC['ctrl']['mechs']:
             tgt = getattr(self, "_active_target", None) or self.enemy
             if tgt.get("is_boss") or tgt.get("role") == "boss":
-                for k in CONTROL_MECHS:
+                for k in _MC['ctrl']['mechs']:
                     if k in self.e_buffs:
                         self.e_buffs[k] = self._boss_ctrl_dur(k, self.e_buffs[k])
         # v2 控制打断蓄力：眩晕/冻结/沉默施加到蓄力目标 → 打断（§6.2规则4）
-        if mech in CONTROL_MECHS:
+        if mech in _MC['ctrl']['mechs']:
             tgt = getattr(self, "_active_target", None) or self.enemy
             if tgt.get("charging"):
                 self._interrupt_charging(tgt, logs, source=skill_name or self._last_hitter)
@@ -8224,10 +8212,10 @@ class Battle:
     def _apply_buffs(self, st: dict, buffs: dict) -> dict:
         st = dict(st)
         for eff, turns in buffs.items():
-            if eff in BUFF_MULT:
-                attr, val = BUFF_MULT[eff]
+            if eff in _MC['buff']['mult']:
+                attr, val = _MC['buff']['mult'][eff]
                 # v104 M17 P2-5：宠物 buff（buff_atk/crit_up）实读 PET_POOL skill_value，
-                # 覆盖 BUFF_MULT 常量（此前日志 25% 实际 30%，数据层承诺"加宠物=加一行"失效）
+                # 覆盖 MECH_CFG['buff']['mult'] 常量（此前日志 25% 实际 30%，数据层承诺"加宠物=加一行"失效）
                 # v180E 阶段2：强度值存 owner actor dict 的 pet_buff_vals（随 actor 序列化，
                 # 替代旧 Battle 级 _pet_buff_vals 旁路——副本/断线恢复不丢）
                 if attr in ("atk", "crit"):
@@ -8301,13 +8289,13 @@ class Battle:
             "precise": e.get("precise", 0) or 0,
         }
         est = self._apply_buffs(est, eb)
-        # v58 Boss 狂暴：血量 <30% 触发后攻击 +35%（v125.2 B1：乘区查表 BOSS_ATTACK_MULTS）
+        # v58 Boss 狂暴：血量 <30% 触发后攻击 +35%（v125.2 B1：乘区查表 MECH_CFG['boss']['attack_mults']）
         if e.get("enraged"):
-            est["atk"] = int(est["atk"] * BOSS_ATTACK_MULTS["enraged"])
-            est["matk"] = int(est["matk"] * BOSS_ATTACK_MULTS["enraged"])
+            est["atk"] = int(est["atk"] * _MC['boss']['attack_mults']["enraged"])
+            est["matk"] = int(est["matk"] * _MC['boss']['attack_mults']["enraged"])
         # v83 04 章 2.5：多阶段（每阶段 +20%）/ 叠层强化（每层 +8%）
         if e.get("phase_count"):
-            pm = 1 + BOSS_ATTACK_MULTS["phase_step"] * e["phase_count"]
+            pm = 1 + _MC['boss']['attack_mults']["phase_step"] * e["phase_count"]
             est["atk"] = int(est["atk"] * pm)
             est["matk"] = int(est["matk"] * pm)
         # v138.1 阶段四件套：_phase_mod 数值修正（atk_mult/def_add/spd_add/dmg_taken_mult）——
@@ -8330,13 +8318,13 @@ class Battle:
                 est["spd"] = max(1, int(est["spd"] / _fq))
         # v116.1 条件触发反制：玩家低血追击(+25%) / 玩家大招反扑(+30%)——仅受击当刻生效
         if e.get("_low_hp_active"):
-            est["atk"] = int(est["atk"] * BOSS_ATTACK_MULTS["low_hp"])
-            est["matk"] = int(est["matk"] * BOSS_ATTACK_MULTS["low_hp"])
+            est["atk"] = int(est["atk"] * _MC['boss']['attack_mults']["low_hp"])
+            est["matk"] = int(est["matk"] * _MC['boss']['attack_mults']["low_hp"])
         if e.get("_pv_broken_active"):
-            est["atk"] = int(est["atk"] * BOSS_ATTACK_MULTS["pv_broken"])
-            est["matk"] = int(est["matk"] * BOSS_ATTACK_MULTS["pv_broken"])
+            est["atk"] = int(est["atk"] * _MC['boss']['attack_mults']["pv_broken"])
+            est["matk"] = int(est["matk"] * _MC['boss']['attack_mults']["pv_broken"])
         if e.get("mech_stacks_n"):
-            sm = 1 + BOSS_ATTACK_MULTS["stack_step"] * e["mech_stacks_n"]
+            sm = 1 + _MC['boss']['attack_mults']["stack_step"] * e["mech_stacks_n"]
             est["atk"] = int(est["atk"] * sm)
         if "def_down" in eb:
             # 阶段八：词条破甲 15%（_armor_break_pct），旧技能破甲减半兜底
@@ -8370,7 +8358,7 @@ class Battle:
         for _k in ("atk", "matk"):
             _base = max(0, int(e.get(_k, 0) or 0))
             if _base > 0:
-                est[_k] = min(est[_k], int(_base * BOSS_ATTACK_MULTS["cap"]))
+                est[_k] = min(est[_k], int(_base * _MC['boss']['attack_mults']["cap"]))
         # v1.1 毒蚀（契约 §10.1）：每层毒使目标防御/魔防 -4%（上限 20%），
         # 层数衰减时自动恢复（动态计算，不改 enemy dict 本体）
         _poison_n = int((e.get("debuffs") or {}).get("poison", {}).get("n", 0) or 0)
@@ -8742,6 +8730,9 @@ class Battle:
         _caster_is_player = self._is_player_side(caster) if caster is not None else False
         _tgt_name = "你" if _tgt_is_player else f"【{e.get('name', '目标')}】"
         deb = e.get("debuffs") or {}
+        # v181 P2E-P3b：MECH_CFG['dot'] 混入标量配置子键（boss_pct_mult/pct_cap 等），
+        # dot 类型定义视图 = 仅 value 为 dict 的子键（poison/burn/bleed/corros），与原 DOT_DEFS 语义一致
+        _dot_types = {_k: _v for _k, _v in _MC['dot'].items() if isinstance(_v, dict)}
         # v138.2 律二（控制侧）：e_buffs 里的控制效果达上限后直接失效（防 Boss 被无限控死）。
         _iname_map = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}
         _eb2 = e.get("buffs") or {}
@@ -8761,7 +8752,7 @@ class Battle:
         # 快照缺失（老档/直接构造的 debuffs）→ 回落 caster 面板（玩家毒怪实时）。
         _atk = _matk = 0
         # 各类型层内快照（同类型不同层施法者不同时取最新挂的一层）
-        for _dk in DOT_DEFS:
+        for _dk in _dot_types:
             _dd = (deb.get(_dk) or {})
             if _dd.get("atk") is not None:
                 _atk = max(_atk, int(_dd.get("atk", 0) or 0))
@@ -8774,14 +8765,14 @@ class Battle:
             except Exception:
                 _atk = _matk = 0
         # 每层每刻混合公式：poison=atk×0.5+max_hp×1.5% / burn=matk×0.4+max_hp×1% / bleed=atk×0.6+max_hp×1.5%
-        _atk_parts = {_k: _v["atk"] for _k, _v in DOT_DEFS.items()}
-        _matk_parts = {_k: _v["matk"] for _k, _v in DOT_DEFS.items()}
-        _hp_parts = {_k: _v["hp"] for _k, _v in DOT_DEFS.items()}
-        _true_parts = {_k: bool(_v.get("true_dmg", False)) for _k, _v in DOT_DEFS.items()}
+        _atk_parts = {_k: _v["atk"] for _k, _v in _dot_types.items()}
+        _matk_parts = {_k: _v["matk"] for _k, _v in _dot_types.items()}
+        _hp_parts = {_k: _v["hp"] for _k, _v in _dot_types.items()}
+        _true_parts = {_k: bool(_v.get("true_dmg", False)) for _k, _v in _dot_types.items()}
         _ctrl = ("freeze", "stun", "sleep")
         _kname_map = {"poison": "毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}
         _icon_map = {"poison": "☠️", "burn": "🔥", "bleed": "🩸", "corros": "🧪"}
-        for k in DOT_DEFS:
+        for k in _dot_types:
             d = deb.get(k)
             if not d:
                 continue
@@ -8817,12 +8808,12 @@ class Battle:
             # v1.2 总抗：基础抗性 + 减益适应（目标侧字段，玩家无 → 0）
             base_res = float(e.get("dot_res", 0) or 0)
             adapt_v = float((e.get("adapt") or {}).get(k, 0.0) or 0.0)
-            res = min(DOT_RESIST_CAP, base_res + adapt_v)
+            res = min(_MC['dot'].get('resist_cap', 0.95), base_res + adapt_v)
             # 混合公式 + Boss/精英百分比打折（目标侧 is_boss/is_elite）
             atk_part = _atk * _atk_parts[k] + _matk * _matk_parts[k]
-            _dot_type = (DOT_DEFS.get(k) or {}).get("type", "flat")
-            # v180E：支持 per-debuff pct 覆盖——handler 显式写 d.pct 时用它替代 DOT_DEFS
-            # 的 hp 系数（如词条"灼烧每刻 1.5%"真实生效）；未写则回落 DOT_DEFS 权威值。
+            _dot_type = (_MC['dot'].get(k) or {}).get("type", "flat")
+            # v180E：支持 per-debuff pct 覆盖——handler 显式写 d.pct 时用它替代 MECH_CFG['dot']
+            # 的 hp 系数（如词条"灼烧每刻 1.5%"真实生效）；未写则回落 MECH_CFG['dot'] 权威值。
             _dpct = d.get("pct")
             if _dpct is not None:
                 _hp_part = max_hp * float(_dpct)
@@ -8830,8 +8821,8 @@ class Battle:
                 _hp_part = max_hp * _hp_parts[k]
             if _hp_part > 0 and _dot_type in ("pct", "hybrid"):
                 if e.get("is_boss") or e.get("role") == "boss" or e.get("is_elite"):
-                    _hp_part *= DOT_BOSS_PCT_MULT
-                _hp_part = min(_hp_part, max_hp * DOT_PCT_CAP)
+                    _hp_part *= _MC['dot'].get('boss_pct_mult', 0.5)
+                _hp_part = min(_hp_part, max_hp * _MC['dot'].get('pct_cap', 0.01))
             hp_part = _hp_part
             # v169.7 万毒归宗 poison_all_up（刺客毒线，caster 是玩家才查被动）
             # v181.P2D-D5b：毒 DOT 乘区迁注册表族 dot_mult_cond（poison_all_up——守卫
@@ -8859,7 +8850,7 @@ class Battle:
                     pass
             # v1.1 放血：目标当前生命 <30%（处决线）流血 ×2——必须在落地前翻倍
             _bleed_tag = ""
-            if k == "bleed" and int(e.get("hp", 0) or 0) < max_hp * DOT_BLEED_DOUBLE_HP_PCT:
+            if k == "bleed" and int(e.get("hp", 0) or 0) < max_hp * _MC['dot'].get('bleed_double_hp_pct', 0.30):
                 p = int(p * 2)
                 _bleed_tag = "(放血)"
             # v138.2 律四：真伤分支——绕过 _enemy_mitigate 的 def/mdef 削减，直走落地。
@@ -8927,7 +8918,7 @@ class Battle:
                 _last = int(d.get("last_tick", d.get("last_round", 0)) or 0)
                 if _last > 0 and self._tick_no() - _last >= 2:
                     _am = e.setdefault("adapt", {})
-                    _am[k] = max(0.0, float(_am.get(k, 0.0) or 0.0) - DOT_ADAPT_DECAY_STEP)
+                    _am[k] = max(0.0, float(_am.get(k, 0.0) or 0.0) - _MC['dot'].get('adapt_decay_step', 0.04))
             # 目标=怪 且被毒死 → 胜利（玩家被毒死不触发）
             if not _tgt_is_player and self._enemy_dead():
                 self.result = "victory"
@@ -9040,7 +9031,7 @@ class Battle:
         """v130.2d 疾风余韵：上刻结束时精力 ≥80 → 本刻精力自然回复 +10（词条 effect.regen）。
         跨刻状态由 _end_round 记录 _tailwind_prev_energy（每战初始化 None，随战斗序列化）。"""
         _prev = self._p_tailwind_prev_energy()
-        if _prev is None or int(_prev or 0) < int(ENERGY_HIGH.get("threshold", 80) or 80):
+        if _prev is None or int(_prev or 0) < int(_MC['full_tension'].get("threshold", 80) or 80):
             return 0
         if "swift_tailwind" not in self._equip_affix_ids(player):
             return 0
@@ -9304,7 +9295,7 @@ class Battle:
             for _dt_cand in [player] + list(self.enemies or []):
                 if not _dt_cand or not (_dt_cand.get("debuffs") or {}):
                     continue
-                _dt_dots = {_k for _k in _dt_cand["debuffs"] if _k in DOT_DEFS}
+                _dt_dots = {_k for _k in _dt_cand["debuffs"] if _k in _MC['dot']}
                 if not _dt_dots:
                     continue
                 _is_pl = self._is_player_side(_dt_cand)
@@ -11075,9 +11066,9 @@ class Battle:
             if k == "rage" and self._is_path(actor, 1):  # v176: 资源键判（原 cls_zhan_shi 特判）
                 _max = max(1, actor.get("max_hp", 1) or 1)
                 _missing = max(0.0, min(1.0, 1.0 - (float(actor.get("hp", 0) or 0) / _max)))
-                gain = int(RAGE_GAIN_HP_SCALE.get("base", 1) or 1)
-                gain += int(_missing * float(RAGE_GAIN_HP_SCALE.get("coef", 4.0) or 4.0))
-                gain = min(int(RAGE_GAIN_HP_SCALE.get("cap", 5) or 5), gain)
+                gain = int(_MC['blood_debt_gain'].get("base", 1) or 1)
+                gain += int(_missing * float(_MC['blood_debt_gain'].get("coef", 4.0) or 4.0))
+                gain = min(int(_MC['blood_debt_gain'].get("cap", 5) or 5), gain)
             RES[k] = self._res_gain_class(cls, k, gain)
         # v130.2 资源增幅：受击触发（沸腾战血 3 刻内受击额外 +2 怒，P0-1 消费端；持续时长制 turns 衰减）
         _amp_th = self._amp_resource(actor, "on_hit_taken")
@@ -11087,8 +11078,8 @@ class Battle:
         self._affix_res_proc(actor, "on_taken", logs)
         # v151 隐藏职业删除：暮影影步受击清空（原 cls_shadow_blade 专属）已移除
         # v130.2 刺客攻线·影舞者：受击回退 -1 连击点 + 连段归零（高风险高回报，assassin_转职 §1.0）
-        if self._combo_active(actor):  # v176: combo归属已数据化COMBO_CFG
-            _pen = int(ASSASSIN_ON_TAKE_HIT_PENALTY or 0)
+        if self._combo_active(actor):  # v176: combo归属已数据化_MC['assassin_combo']
+            _pen = int(_MC['assassin_combo'].get('on_take_hit_penalty', -1) or 0)
             cur_cp = int(RES.get("cp", 0) or 0)
             if cur_cp > 0 and _pen < 0:
                 penalty = min(cur_cp, -_pen)
