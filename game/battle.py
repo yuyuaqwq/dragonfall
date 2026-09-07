@@ -10793,20 +10793,25 @@ class Battle:
         # 统一挂点（与既有 counter_attack 消费点 battle.py:6990 同段）：以守为攻给基础
         # 35% 概率×80% 普攻；反击之王在学了以守为攻时 +25% 概率 & +50% 伤害
         # （两被动皆学 = 60% 概率 ×120% 普攻——combine，见下方聚合）
+        # v181.P2D-D5a：聚合逻辑进注册表族 counter_cond（handler 逐条贡献聚合 ctx 槽：
+        # counter_chance chance max/mult min、counter_up 首条 +=chance_add / *=(1+dmg_add)——
+        # 原双 for 循环体逐字直搬）；cap min(chance,0.9) + roll + 反击/回气 = 聚合结果的
+        # 一次性消费（原代码聚合完才 roll 一次）留在骨架，日志串/顺序逐字保留）
         if _rtgt and _rtgt.get("hp", 0) > 0:
             _cc_list = self._proc_pm(actor)["proc"].get("counter_chance", [])
             _cu_list = self._proc_pm(actor)["proc"].get("counter_up", [])
             if _cc_list or _cu_list:
-                _chance = 0.0
-                _mult = 1.0
+                _ctx_ct = {"actor": actor, "ps": {}, "ps_name": "", "chance": 0.0, "mult": 1.0}
                 for _pn, _ps in _cc_list:
-                    _chance = max(_chance, float(_ps.get("chance", 0.35) or 0.35))
-                    _mult = min(_mult, float(_ps.get("mult", 0.80) or 0.80))  # 以守为攻 80% 普攻
-                if _cu_list:  # 反击之王：+25% 概率、反击伤害 +50%
+                    _ctx_ct.update({"ps": _ps, "ps_name": _pn})
+                    _run_proc_family(self, "counter_chance", _ctx_ct)
+                if _cu_list:  # 反击之王：+25% 概率、反击伤害 +50%（只首条——原循环尾 break）
                     for _pn, _ps in _cu_list:
-                        _chance += float(_ps.get("chance_add", 0.25) or 0.25)
-                        _mult *= 1.0 + float(_ps.get("dmg_add", 0.50) or 0.50)
+                        _ctx_ct.update({"ps": _ps, "ps_name": _pn})
+                        _run_proc_family(self, "counter_up", _ctx_ct)
                         break
+                _chance = float(_ctx_ct.get("chance", 0.0) or 0.0)
+                _mult = float(_ctx_ct.get("mult", 1.0) or 1.0)
                 _chance = min(_chance, 0.9)
                 if random.random() < _chance:
                     _c2_dmg, _c2_crit = self._phys_retort(actor, _mult, logs, roll_crit=True, target=_rtgt)  # v180E 统一反击(以守为攻)

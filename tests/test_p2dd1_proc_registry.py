@@ -67,8 +67,9 @@ def test_registry_static():
     # core_last_stand/core_overflow）并入 → 总数 28（6 试点 + 4 条件暴击 +
     # 4 stat_mult + 3 P2-D3a + 5 P2-D3b + 6 P2-D4a）
     # P2-D4b：挂点12 致死复活链 3 proc（death_contract/berserk_revive/stance_immortal）
-    # 并入 revive_cond → 总数 31
-    check("PROC_FAMILIES 含 35 声明", len(PP.PROC_FAMILIES) == 35, str(len(PP.PROC_FAMILIES)))
+    # 并入 revive_cond → 31；P2-D5a 反击 2 + P2-D6 tick 4 → 总数 37
+    # （6 试点 + 4 crit_cond + 4 stat_mult + 3 D3a + 5 D3b + 6 D4a + 3 D4b + 2 D5a + 4 D6）
+    check("PROC_FAMILIES 含 37 声明", len(PP.PROC_FAMILIES) == 37, str(len(PP.PROC_FAMILIES)))
     expect_map = {
         "speed_ratio_dmg": "dmg_mult_cond",
         "arcane_resonance": "dmg_mult_cond",
@@ -109,6 +110,10 @@ def test_registry_static():
         "arcane_intuition": "tick_mech_charge",
         "undead_faith": "tick_faith",
         "faith_overload_heal": "tick_faith",
+        # P2-D5a 2 proc（受击反击聚合族 counter_cond；chance max/mult min/
+        # counter_up 加 chance_add×dmg_add——聚合逻辑进 handler，挂点 cap0.9+roll 收口）
+        "counter_chance": "counter_cond",
+        "counter_up": "counter_cond",
     }
     for proc, fam in expect_map.items():
         check(f"{proc} → {fam}", PP.PROC_FAMILIES.get(proc) == fam,

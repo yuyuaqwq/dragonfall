@@ -105,6 +105,25 @@ _th_mech_charge/_th_faith_decay，方案 §6.2 P2-D6/§2.3 挂点24/§3.2 映射
     名单通道（_regen_needed/_ensure_regen_effects）：proc 名是"卡片存在性"检查键
     （查 _pm[proc] 非空）——注册表化后 proc 名不变 → 名单不动。
     KNOWN_GAPS 移除 4 个 E 类成员（tick 族已收编）；剩 D 类 4 个真空转。
+P2-D5a 新增族（2 proc / 1 族 counter_cond，挂点13 _retaliations_and_buffs 受击反击
+聚合段，方案 §6.2 P2-D5/§2.3 挂点13/§3.2 映射表 counter_chance/counter_up）：
+    counter_cond     受击反击聚合族（聚合）            counter_chance / counter_up
+    聚合语义（原挂点 10776-10800 双 for 循环逐字直搬）：
+      - chance = max(所有 counter_chance.chance)；mult = min(所有 counter_chance.mult)
+        （以守为攻 35% 概率 ×80% 普攻；多条目防御性 max/min——原 for 无 break 全聚）
+      - 存在 counter_up 条目 → 只取首条（原 `break` 在循环尾——max=1 下等价）：
+        chance += chance_add；mult *= (1.0 + dmg_add)（反击之王 +25% 概率 / 伤害 ×1.50；
+        两被动皆学 = 0.60 概率 ×1.20 普攻）
+      - 聚合结果（ctx 引用槽 chance/mult）由挂点逐条 run 后读回；cap min(chance, 0.9)
+        与 roll（random.random() < chance → _phys_retort + _hit_back + 日志 + 反击回气
+        气+2）是聚合结果的**一次性消费**，留在挂点骨架（原代码即聚合完才 roll 一次——
+        逐条目 handler 无法预知后续条目，roll 天然属聚合收口点 = 调用侧）。
+    本 handler = 单条目聚合贡献器：每次调用把一个 proc 条目的数值聚合进 ctx 槽
+    （chance/mult 跨调用全程传递，同 ctx 数值槽铁律），返回 None。proc 角色读
+    ps["proc"]（passive dict 自带键，数据权威非内容名）：counter_chance → max/min；
+    counter_up → += chance_add / *= (1+dmg_add)。数值读 _ps 零默认：chance/mult 或
+    chance_add/dmg_add 缺字段/≤0 = 该条目不聚合（无此行为；D0 已回填 0.35/0.80、0.25/0.50）。
+    挂点13 if 骨架（_rtgt 存活守卫 + _cc_list or _cu_list 才进）+ 日志串/顺序逐字保留。
 """
 from __future__ import annotations
 
@@ -1054,6 +1073,58 @@ def _h_tick_faith(battle, ctx: dict, ps: dict, ps_name: str):
             _swallow(battle, "passive_procs.faith_overload_heal", _sw_e)
             return None
     return None  # 未知 faith_kind = 不触发
+# 7c. counter_cond（P2-D5a：挂点13 _retaliations_and_buffs 受击反击聚合段 2 proc）
+#     聚合语义（原挂点 10776-10800 双 for 循环逐字直搬，行为零变化）：
+#     - counter_chance（以守为攻 磐石行者）：chance = max(所有条目 chance 0.35)；
+#       mult = min(所有条目 mult 0.80)（80% 普攻）——原 for 无 break，全条目聚合
+#     - counter_up（反击之王 磐石行者）：只取首条（原 `break` 在循环尾——max=1 数据
+#       约束下等价）：chance += chance_add(0.25)；mult *= 1.0 + dmg_add(0.50)
+#       （两被动皆学 = 0.60 概率 ×1.20 普攻）
+#     本 handler = 单条目聚合贡献器：把某 proc 条目的数值聚合进 ctx 引用槽
+#     （chance/mult 跨调用全程传递，ctx 数值槽铁律——与 poison_cap 累加同款），返回
+#     None。proc 角色读 ps["proc"]（passive dict 自带键 = 数据权威，非内容名）。
+#     数值读 _ps 零默认：chance/mult 或 chance_add/dmg_add 缺字段/≤0 = 该条目不聚合
+#     （无此行为铁律；D0 已回填 0.35/0.80、0.25/0.50）。
+#     cap min(chance, 0.9) + roll（random.random() < chance → _phys_retort/_hit_back/
+#     日志/反击回气 +2）是聚合结果的**一次性消费**，留在挂点骨架（原代码聚合完才 roll
+#     一次——逐条目 handler 无法预知后续条目，roll 天然属聚合收口点 = 调用侧）。
+#     ctx：actor（被动方）、logs、rtgt（反击目标 = 攻击者，缺省 None）、chance/mult 槽。
+#     挂点13 if 骨架（_rtgt 存活守卫 + 有 counter_chance/counter_up 条目才进）保留。
+# ============================================================
+@register("counter_cond")
+def _h_counter_cond(battle, ctx: dict, ps: dict, ps_name: str):
+    """受击反击聚合族：单条目聚合贡献（counter_chance max/min + counter_up 加乘），返回 None。"""
+    _role = ps.get("proc")
+    _actor = ctx.get("actor")
+    if _actor is None:
+        return None  # 无被动方 = 不聚合（挂点守卫已保证，双保险）
+    if _role == "counter_chance":
+        # 以守为攻：chance max（概率取最大）、mult min（伤害取最小 = 80% 普攻档）
+        _ch = float(ps.get("chance", 0.0) or 0.0)
+        _mu = float(ps.get("mult", 0.0) or 0.0)
+        if _ch <= 0 or _mu <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.35/0.80）
+        try:
+            ctx["chance"] = max(float(ctx.get("chance", 0.0) or 0.0), _ch)
+            ctx["mult"] = min(float(ctx.get("mult", 1.0) or 1.0), _mu)
+            return None
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.counter_chance", _sw_e)
+            return None
+    if _role == "counter_up":
+        # 反击之王：+chance_add 概率、伤害 ×(1+dmg_add)（只首条——挂点循环尾 break）
+        _ca = float(ps.get("chance_add", 0.0) or 0.0)
+        _da = float(ps.get("dmg_add", 0.0) or 0.0)
+        if _ca <= 0 or _da <= 0:
+            return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 0.25/0.50）
+        try:
+            ctx["chance"] = float(ctx.get("chance", 0.0) or 0.0) + _ca
+            ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * (1.0 + _da)
+            return None
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.counter_up", _sw_e)
+            return None
+    return None  # 未知 proc 角色 = 不聚合
 
 
 # ============================================================
@@ -1118,6 +1189,11 @@ declare_proc("focus_regen_summon", "tick_regen")
 declare_proc("arcane_intuition", "tick_mech_charge")
 declare_proc("undead_faith", "tick_faith")
 declare_proc("faith_overload_heal", "tick_faith")
+# P2-D5a：挂点13 _retaliations_and_buffs 受击反击聚合段 2 proc → counter_cond 族
+# （以守为攻 counter_chance 35%×80% / 反击之王 counter_up +25%×+50%；chance max、mult min、
+#   counter_up 加乘；cap 0.9 + roll + 反击回气 收口在挂点骨架——聚合结果一次性消费）
+declare_proc("counter_chance", "counter_cond")
+declare_proc("counter_up", "counter_cond")
 # cc_immune 无独立族声明——zhan_yi_full_reduce/core_full 双消费点（挂点10 免控 + 挂点11
 # 减伤）由同一 dr_cond 族 ctx cc_kind/dr_kind 分派（declare_proc 防重复：一 proc 一族）
 
