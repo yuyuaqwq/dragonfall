@@ -214,7 +214,7 @@ def test_battle_affix():
     # 6.2 处决低血增伤（血 20% 触发）
     p2 = mk_player(["execute"])
     b2 = BT.Battle("monster", mk_enemy(hp=200, max_hp=1000), {}, p2)
-    logs = b2._player_attack(b2._player_stats(p2), p2)
+    logs = b2._actor_attack(b2._player_stats(p2), p2)
     check("处决低血增伤", any("处决" in l for l in logs), str(logs))
     # 6.3 流血/破甲/连击/吸血/元素附加（seed 固定触发任意 on_hit 词条 + 专项验证）
     onhit_hits = 0
@@ -222,7 +222,7 @@ def test_battle_affix():
         random.seed(seed)
         p3 = mk_player(["bleed", "armor_break", "combo", "lifesteal", "element_ice"])
         b3 = BT.Battle("monster", mk_enemy(), {}, p3)
-        logs = b3._player_attack(b3._player_stats(p3), p3)
+        logs = b3._actor_attack(b3._player_stats(p3), p3)
         joined = "".join(logs)
         if any(k in joined for k in ("流血", "破甲", "连击", "吸血", "元素", "贯穿", "蓄力")):
             onhit_hits += 1
@@ -234,7 +234,7 @@ def test_battle_affix():
             random.seed(seed)
             p3 = mk_player(["bleed", "armor_break"])
             b3 = BT.Battle("monster", mk_enemy(), {}, p3)
-            logs = b3._player_attack(b3._player_stats(p3), p3)
+            logs = b3._actor_attack(b3._player_stats(p3), p3)
             if target in "".join(logs):
                 found = True
                 break
@@ -270,7 +270,7 @@ def test_battle_affix():
     # 6.6 龙语印记叠层
     p6 = mk_player([], "dragon_tongue")
     b6 = BT.Battle("monster", mk_enemy(), {}, p6)
-    b6._player_attack(b6._player_stats(p6), p6)
+    b6._actor_attack(b6._player_stats(p6), p6)
     check("龙语印记叠层", b6._p_stacks().get("dragon_mark") == 1, str(b6._p_stacks()))
     # 6.7 元素伤害专属（澜歌之泪 冰 +20%）
     p7 = mk_player(["element_ice"], "lang_tear")
@@ -283,7 +283,7 @@ def test_battle_affix():
     p8 = mk_player(["bleed"])
     random.seed(1)
     b8 = BT.Battle("monster", mk_enemy(hp=1000), {}, p8)
-    b8._player_attack(b8._player_stats(p8), p8)
+    b8._actor_attack(b8._player_stats(p8), p8)
     if b8._tgt_buffs().get("bleed"):
         logs = b8._turn_start(p8)
         check("流血回合结算", "流血" in "".join(logs) and b8.enemy["hp"] < 1000, str(logs))

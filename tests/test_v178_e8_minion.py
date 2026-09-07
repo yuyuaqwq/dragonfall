@@ -50,7 +50,7 @@ boss = mk_boss()
 minion1 = mk_minion("机关A")
 minion2 = mk_minion("机关B")
 b = BT.Battle("instance", boss, enemies=[boss, minion1, minion2])
-b.player = mk_player()
+b._focus = mk_player()
 check("存活 2 minion 计数", b._minion_count() == 2, f"n={b._minion_count()}")
 
 # 2. 死亡一个后计数降
@@ -106,7 +106,7 @@ check("无死亡标记不触发", not ret8 and not (boss6.get("shields") or {}))
 boss7 = mk_boss()
 minion7 = mk_minion("爪牙X")
 b7 = BT.Battle("instance", boss7, enemies=[boss7, minion7])
-b7.player = mk_player()
+b7._focus = mk_player()
 b7._remove_unit("enemy", minion7)
 check("无配置 Boss 正常", boss7.get("_minion_died_count") == 1)
 

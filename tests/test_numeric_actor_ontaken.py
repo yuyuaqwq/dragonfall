@@ -79,7 +79,7 @@ mon = build_ontaken_monster({"heal": {"pct": 0.10, "cd": 2}})
 mon["hp"] = 5000
 mon["max_hp"] = 5000
 b = BT.Battle("monster", mon)
-b.player = player
+b._focus = player
 logs = []
 b._deal_damage(1000, logs)
 # 回 10% = 500 → hp = 4000 + 500 = 4500（先扣 1000 再回 500）
@@ -95,7 +95,7 @@ mon["max_hp"] = 5000
 mon["atk"] = 100
 mon["matk"] = 100
 b = BT.Battle("monster", mon)
-b.player = player
+b._focus = player
 logs = []
 b._deal_damage(100, logs)
 check("受击激怒日志", any("激怒" in l for l in logs), str(logs))
@@ -109,7 +109,7 @@ mon = build_ontaken_monster({"shield": {"pct": 0.10}})
 mon["hp"] = 5000
 mon["max_hp"] = 5000
 b = BT.Battle("monster", mon)
-b.player = player
+b._focus = player
 logs = []
 b._deal_damage(100, logs)
 check("受击凝甲日志", any("凝甲" in l or "护盾" in l for l in logs), str(logs))
@@ -123,7 +123,7 @@ plain = {
     "atk": 1, "spd": 10, "level": 20, "buffs": {},
 }
 b = BT.Battle("monster", plain)
-b.player = player
+b._focus = player
 logs = []
 r = b._deal_damage(100, logs)
 check("普通怪正常扣血", r == 100 and plain["hp"] == 900, f"r={r} hp={plain['hp']}")

@@ -12,13 +12,13 @@
                             ['挥砍', '猛击', '破甲斩'], boss, seeds=8)
 
 口径（与 numeric_sim.class_battle_matrix 对齐）：
-  - 直接构造 BT.Battle(btype="monster", enemy=怪, player=玩家)，循环 player_turn
+  - 直接构造 BT.Battle(btype="monster", enemy=怪, player=玩家)，循环 actor_turn
   - 固定种子序列 seed 0..N-1：每场先 random.seed(seed) 再建人开打（可复现）
   - 玩家 dict 完全对齐 numeric_sim：class_name/level/class_tier/evolve_path/
     equipment/attributes/learned_skills/hp/mp/max_hp/max_mp/race/title_bonus
   - class_tier/evolve_path 按 lv 算：lv>=90→tier3, >=60→tier2, >=30→tier1, else 0；
     evolve_path=1（攻线）
-  - 技能拦截判定：player_turn 返回后 b._p_acts 不变 且 b.result is None
+  - 技能拦截判定：actor_turn 返回后 b._p_acts 不变 且 b.result is None
     （O118 前置校验拦截：技能不存在/未学习/冷却中/蓝不足/核心资源不足 →
     玩家刻不开始、敌方不行动；numeric_sim 121-124 行同款逻辑）
   - 击杀轮口径：b._tick_no()（numeric_sim 129 行同款）
@@ -182,7 +182,7 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
             _filtered.append(_sn)
     learned_skills = _filtered
     # 玩家基础信息（每场重建副本，模板不动——v175b 修复：
-    # 原实现 player 在循环外建一次，循环内 player_turn 直接改模板 player，
+    # 原实现 player 在循环外建一次，循环内 actor_turn 直接改模板 player，
     # 第一场打赢后第二场从残血红蓝开始 → 多场胜率系统性偏低/0 胜假象）
     player_base = {
         "class_name": cls_id, "level": int(lv), "class_tier": tier, "evolve_path": path,
@@ -268,8 +268,8 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
         # 每场重建敌方与玩家：boss 每场重新展开（build_monster 全新实例，防串场）
         b = BT.Battle(btype="monster", enemy=boss_of(boss_def, iid=iid, n_players=n_players),
                       player=dict(player_base))
-        # v180G B7：循环与 Battle 共用同一 player 对象——b.player 是权威（出手/承伤/存活判定）
-        player = b.player
+        # v180G B7：循环与 Battle 共用同一 actor 对象——b._focus 是权威（出手/承伤/存活判定）
+        player = b._focus
         turns = 0
         while b.result is None and turns < max_turns:
             acted = False
@@ -284,7 +284,7 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
                 if _cond_wait_skill(b, skill_name):
                     continue   # 攒层大招层数未满 → 本轮不放（等层）
                 prev_acts = b._p_acts
-                b.player_turn("skill", skill_name, player)
+                b.actor_turn("skill", skill_name, player)
                 # v180G B7 统一 CTB：出手登记后推进到下一个决策点（命中/怪行动结算）
                 b.advance_until_next_decision([])
                 if b._p_acts != prev_acts:
@@ -294,7 +294,7 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
                     break            # 技能路径中分出胜负（如处决类特技/反击）
             else:
                 # 全部技能被拦截 → 普攻（numeric_sim 121-124 行同款转普攻逻辑）
-                b.player_turn("attack", None, player)
+                b.actor_turn("attack", None, player)
                 b.advance_until_next_decision([])
                 acted = True
             if b.result is not None:

@@ -70,14 +70,14 @@ def mk_enemy(def_=20, mdef=20, hp=100000, spd=10):
 
 def mk_battle(player, enemy=None):
     b = BT.Battle("monster", enemy or mk_enemy(), {}, player)
-    b.player.setdefault("resources", {})
-    b.player.setdefault("stacks", {})
-    b.player.setdefault("buffs", {})
-    b.player.setdefault("eff", {})
+    b._focus.setdefault("resources", {})
+    b._focus.setdefault("stacks", {})
+    b._focus.setdefault("buffs", {})
+    b._focus.setdefault("eff", {})
     b.enemy.setdefault("element_marks", {})
     b.enemy.setdefault("buffs", {})
     # _skill_passive_dmg_bonus 尾部（斩杀/血魔法段）读技能管线实例属性——探针直呼挂点，
-    # 补齐真实 _player_skill 管线在此前设置的默认值（行为等价：血魔法未触发 0.30）
+    # 补齐真实 _actor_skill 管线在此前设置的默认值（行为等价：血魔法未触发 0.30）
     b._hp_cost_bonus = getattr(b, "_hp_cost_bonus", 0.0)
     return b
 
@@ -89,7 +89,7 @@ def run_hook(b, mech="arcane", kind="魔法", element="fire", info=None):
     est = {}
     info = dict(info or {})
     info.setdefault("element", element)
-    pb, _tag, _el, _pr = b._skill_passive_dmg_bonus(st, est, b.player, info, mech, kind)
+    pb, _tag, _el, _pr = b._skill_passive_dmg_bonus(st, est, b._focus, info, mech, kind)
     return pb, _pr
 
 
@@ -100,7 +100,7 @@ def OLD_3procs(b, mech="arcane", kind="魔法", element="fire", info=None):
     """OLD 挂点6 3 段（奥术共鸣/元素起源/元素同调）——迁移前 6962-6989 逐字副本。
     返回 (passive_bonus, _elem_sync_bonus)。前置公共段（pierce/fire_bonus/element_dmg 等）
     未学则不触发，本探针只测 3 proc 学/不学 → 与 NEW 公共段等价（同一引擎前置段）。"""
-    _pm = b._passive_map(b.player)
+    _pm = b._passive_map(b._focus)
     _procs = _pm["proc"]
     passive_bonus = 1.0
     info = dict(info or {})
@@ -147,7 +147,7 @@ def test_arcane_resonance():
             b_old = mk_battle(dict(p))
             b_new = mk_battle(dict(p))
             for b in (b_old, b_new):
-                pm = b._passive_map(b.player)
+                pm = b._passive_map(b._focus)
                 pm["proc"]["arcane_resonance"] = [("奥术共鸣", {"proc": "arcane_resonance"})]
                 b._passive_map = lambda pl, _pm=pm: _pm
             r_old, _ = OLD_3procs(b_old, mech="arcane")
@@ -181,7 +181,7 @@ def test_element_origin():
             b_new = mk_battle(dict(p))
             for b in (b_old, b_new):
                 b.enemy["element_marks"] = {"fire": 2, "ice": 2, "thunder": 2}
-                pm = b._passive_map(b.player)
+                pm = b._passive_map(b._focus)
                 pm["proc"]["element_origin"] = [("元素起源", {"proc": "element_origin"})]
                 b._passive_map = lambda pl, _pm=pm: _pm
             r_old, _ = OLD_3procs(b_old)
@@ -200,8 +200,8 @@ def test_element_sync():
                 b_old = mk_battle(dict(p))
                 b_new = mk_battle(dict(p))
                 if last is not None:
-                    b_old.player["last_element"] = last
-                    b_new.player["last_element"] = last
+                    b_old._focus["last_element"] = last
+                    b_new._focus["last_element"] = last
                 # OLD：本地 _sync 模拟（不真置 battle 属性，避免污染）——读语义一致
                 _, _sync_old = OLD_3procs(b_old, element=element)
                 # NEW：真置位 → 读回 battle 标记（与挂印分支消费同源）
@@ -241,8 +241,8 @@ def test_combined_and_multi():
     b_old3 = mk_battle(dict(p3))
     b_new3 = mk_battle(dict(p3))
     for b in (b_old3, b_new3):
-        b.player["last_element"] = "fire"
-        pm = b._passive_map(b.player)
+        b._focus["last_element"] = "fire"
+        pm = b._passive_map(b._focus)
         pm["proc"]["element_sync"] = [
             ("元素同调", {"proc": "element_sync"}),
             ("测试第二条", {"proc": "element_sync"}),
@@ -259,7 +259,7 @@ def test_combined_and_multi():
     b_new4 = mk_battle(dict(p4))
     for b in (b_old4, b_new4):
         b.enemy["element_marks"] = {"fire": 2, "ice": 2, "thunder": 2}
-        pm = b._passive_map(b.player)
+        pm = b._passive_map(b._focus)
         pm["proc"]["element_origin"] = [
             ("元素起源", {"proc": "element_origin", "layers": 9, "mult": 0.20}),
             ("测试第二条", {"proc": "element_origin", "layers": 1, "mult": 0.50}),
@@ -275,7 +275,7 @@ def test_combined_and_multi():
     b_old5 = mk_battle(dict(p5))
     b_new5 = mk_battle(dict(p5))
     for b in (b_old5, b_new5):
-        pm = b._passive_map(b.player)
+        pm = b._passive_map(b._focus)
         pm["proc"]["arcane_resonance"] = [
             ("奥术共鸣", {"proc": "arcane_resonance", "mult": 0.15}),
             ("测试第二条", {"proc": "arcane_resonance", "mult": 0.10}),

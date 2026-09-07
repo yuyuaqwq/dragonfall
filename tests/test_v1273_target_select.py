@@ -78,7 +78,7 @@ def test_numeric_target_second():
     b = make_battle(mon_defs, player)
     # 战士技能：猛击
     skill_name = "猛击"
-    logs, ended = b.player_turn("skill", skill_name, player, target="2")
+    logs, ended = b.actor_turn("skill", skill_name, player, target="2")
     # v154 读条命中制：出招读条结束（cast_done）才命中结算——推进后生效
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
@@ -105,7 +105,7 @@ def test_a_prefixed_target():
               "equipment": {}, "attributes": {}, "learned_skills": ["猛击"], "class_tier": 0,
               "evolve_path": 0, "race": "human", "reach": 1, "name": "测试"}
     b = make_battle(mon_defs, player)
-    logs, ended = b.player_turn("skill", "猛击", player, target="a2")
+    logs, ended = b.actor_turn("skill", "猛击", player, target="a2")
     # v154 读条命中制：技能读条结束（cast_done）才命中结算——推进后生效
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
@@ -128,7 +128,7 @@ def test_out_of_range_target():
               "equipment": {}, "attributes": {}, "learned_skills": ["猛击"], "class_tier": 0,
               "evolve_path": 0, "race": "human", "reach": 1, "name": "测试"}
     b = make_battle(mon_defs, player)
-    logs, ended = b.player_turn("skill", "猛击", player, target="a9")
+    logs, ended = b.actor_turn("skill", "猛击", player, target="a9")
     # v154 读条命中制：自动选择也走读条——推进后命中结算
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
@@ -148,7 +148,7 @@ def test_name_prefix_target():
     b = make_battle(mon_defs, player)
     import random as _r
     _r.seed(55)
-    logs, ended = b.player_turn("skill", "猛击", player, target="史莱姆B")
+    logs, ended = b.actor_turn("skill", "猛击", player, target="史莱姆B")
     # v154 读条命中制：技能读条结束（cast_done）才命中结算——推进后生效
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
@@ -172,7 +172,7 @@ def test_heal_b_target():
     # 治疗技能：治疗术（牧师基础）—— 需要技能存在
     import random
     random.seed(7)
-    logs, ended = b.player_turn("skill", "治愈术", player, target="b1")
+    logs, ended = b.actor_turn("skill", "治愈术", player, target="b1")
     # v154 读条命中制：治疗读条结束（cast_done）才结算——推进后生效
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
@@ -190,7 +190,7 @@ def test_single_monster_target():
               "equipment": {}, "attributes": {}, "learned_skills": ["猛击"], "class_tier": 0,
               "evolve_path": 0, "race": "human", "reach": 1, "name": "测试"}
     b = BT.Battle("monster", None, {}, player=player, enemies=[mon])
-    logs, ended = b.player_turn("skill", "猛击", player, target="a9")
+    logs, ended = b.actor_turn("skill", "猛击", player, target="a9")
     # v154 读条命中制：技能读条结束（cast_done）才命中结算——推进后生效
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)

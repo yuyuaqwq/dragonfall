@@ -109,7 +109,7 @@ def test_heal_target_ally():
     enemy = mk_enemy()
     b = BT.Battle("monster", enemy, player=priest, enemies=[enemy],
                   allies=[ally1, ally2])
-    logs, ended = b.player_turn("skill", "治愈术", priest, enemy_act=False, target="阿瓦隆")
+    logs, ended = b.actor_turn("skill", "治愈术", priest, enemy_act=False, target="阿瓦隆")
     # v154 读条命中制：出招读条结束（cast_done）才结算（治疗命中时刻生效）
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, priest)
     text = "\n".join(logs)
@@ -129,7 +129,7 @@ def test_heal_self_default():
     enemy = mk_enemy()
     b = BT.Battle("monster", enemy, player=priest, enemies=[enemy],
                   allies=[ally1])
-    logs, ended = b.player_turn("skill", "治愈术", priest, enemy_act=False, target=None)
+    logs, ended = b.actor_turn("skill", "治愈术", priest, enemy_act=False, target=None)
     # v154 读条命中制：治疗读条结束（cast_done）才结算——推进后生效
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, priest)
     text = "\n".join(logs)
@@ -147,7 +147,7 @@ def test_heal_target_missing():
     enemy = mk_enemy()
     b = BT.Battle("monster", enemy, player=priest, enemies=[enemy],
                   allies=[ally1])
-    logs, ended = b.player_turn("skill", "治愈术", priest, enemy_act=False, target="不存在")
+    logs, ended = b.actor_turn("skill", "治愈术", priest, enemy_act=False, target="不存在")
     text = "\n".join(logs)
     check("日志提示队伍里没有", "队伍里没有" in text, text[:200])
     check("MP 未扣", priest["mp"] == 100, f"实际 {priest['mp']}")
@@ -163,7 +163,7 @@ def test_heal_solo_target_ignored():
     priest = mk_priest(hp=400)
     enemy = mk_enemy()
     b = BT.Battle("monster", enemy, player=priest, enemies=[enemy])  # 无 allies
-    logs, ended = b.player_turn("skill", "治愈术", priest, enemy_act=False, target="随便")
+    logs, ended = b.actor_turn("skill", "治愈术", priest, enemy_act=False, target="随便")
     # v154 读条命中制：单人治疗也走读条——推进后生效
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, priest)
     text = "\n".join(logs)
@@ -193,7 +193,7 @@ def test_damage_skill_target_enemy():
     b = BT.Battle("monster", e1, player=warrior, enemies=[e1, e2], allies=[ally1])
     b._p_res().clear()
     b._p_res()["rage"] = 10  # 裂地斩消耗 3 怒气
-    logs, ended = b.player_turn("skill", "裂地斩", warrior, enemy_act=False, target="后排怪")
+    logs, ended = b.actor_turn("skill", "裂地斩", warrior, enemy_act=False, target="后排怪")
     text = "\n".join(logs)
     # 战士 reach=1 打不到 rank2 → 射程拒绝（v2 既有行为，v122 不破坏）
     check("非治疗技能目标解析走敌人射程", "攻击范围之外" in text or e2["hp"] < 500, text[:200])

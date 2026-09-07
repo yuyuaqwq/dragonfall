@@ -65,7 +65,7 @@ mon = {"name": "持剑魔像", "hp": 8000, "max_hp": 8000, "def": 60, "mdef": 60
        "skills": ["sk_hui_kan"]}
 player = mk_player("cls_fa_shi")
 b = BT.Battle("monster", mon)
-b.player = player
+b._focus = player
 s = b._lookup_skill_info("sk_hui_kan")
 check("_lookup_skill_info 查玩家技能", s.get("name") == "挥砍", str(s.get("name")))
 s_old = b._lookup_skill_info("ms_ai_hao")
@@ -77,7 +77,7 @@ mon["hp"] = 8000
 player["hp"] = 5000
 random.seed(2)
 hp0 = player["hp"]
-logs, dmg, _ = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": "sk_hui_kan"})
+logs, dmg, _ = b._hostile_cast_done(player, mon, {"kind": "skill", "skill": "sk_hui_kan"})
 dealt = hp0 - player["hp"]
 # v180F：管线内部扣血返回 dmg=0——伤害断言改看真实 hp 扣减
 check("挥砍造成伤害>0", dealt > 100, f"dealt={dealt}")
@@ -96,10 +96,10 @@ if heal_key:
               "buffs": {}, "resources": {}, "stacks": {}, "charging": None,
               "skills": [heal_key]}
     b2 = BT.Battle("monster", priest)
-    b2.player = dict(player)
+    b2._focus = dict(player)
     priest["hp"] = 1000
     random.seed(3)
-    logs2, dmg2, _ = b2._enemy_cast_done(player, priest, {"kind": "skill", "skill": heal_key})
+    logs2, dmg2, _ = b2._hostile_cast_done(player, priest, {"kind": "skill", "skill": heal_key})
     check("牧师怪治疗回血", priest["hp"] > 1000, f"hp={priest['hp']}")
     check("治疗无伤害", dmg2 == 0, f"dmg={dmg2}")
     check("治疗日志", any("治愈" in l or "回复" in l or "治疗" in l for l in logs2), str(logs2[:1]))

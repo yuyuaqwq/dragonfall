@@ -41,7 +41,7 @@ print("== v178.1 actor 对称 + 无兼容壳验证 ==")
 player = mk_player()
 mon = mk_mon(atk=300, matk=0)
 b = BT.Battle("monster", mon)
-b.player = player
+b._focus = player
 b._apply_dot(player, mon, {"type": "poison", "n": 1}, [])
 b._apply_dot(player, mon, {"type": "burn", "n": 1}, [])
 b._apply_dot(mon, player, {"type": "bleed", "n": 1}, [])
@@ -57,7 +57,7 @@ check("双方各挂 1 张自己的 actor_dot 卡(per-actor)", n_ev_p == 1 and n_
 player2 = mk_player()
 mon2 = mk_mon(atk=100, matk=100)
 b2 = BT.Battle("monster", mon2)
-b2.player = player2
+b2._focus = player2
 b2._apply_dot(player2, mon2, {"type": "burn", "n": 1}, [])
 hp_b2 = player2["hp"]
 b2._tick_actor_dots(player2, [])
@@ -68,7 +68,7 @@ mon3 = mk_mon()
 player3 = mk_player()
 player3["atk"] = 200
 b3 = BT.Battle("monster", mon3)
-b3.player = player3
+b3._focus = player3
 b3._apply_dot(mon3, player3, {"type": "bleed", "n": 1}, [])
 hp_m3 = mon3["hp"]
 b3._tick_actor_dots(mon3, [])
@@ -79,7 +79,7 @@ player4 = mk_player()
 mon4 = mk_mon(atk=150, matk=100)
 mon4["hp"] = 8000
 b4 = BT.Battle("monster", mon4)
-b4.player = player4
+b4._focus = player4
 player4["atk"] = 200
 b4._apply_dot(player4, mon4, {"type": "poison", "n": 2}, [])   # 怪毒玩家
 b4._apply_dot(mon4, player4, {"type": "burn", "n": 2}, [])     # 玩家毒怪

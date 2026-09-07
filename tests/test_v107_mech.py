@@ -72,7 +72,7 @@ async def main():
     st1 = b1._player_stats(p1)
     random.seed(3)
     hp1 = b1.enemy["hp"]
-    logs1 = b1._player_skill(st1, "斩击", e_info, p1)
+    logs1 = b1._actor_skill(st1, "斩击", e_info, p1)
     dealt1 = hp1 - b1.enemy["hp"]
     # 无斩杀时应 ≈ atk×1.0（≈220±15%），斩杀 ×1.4 → ≈308；v156 基础值 flat 也吃斩杀倍率
     _flat = E.skill_flat_value(30, 30, e_info)
@@ -87,7 +87,7 @@ async def main():
     st1b = b1b._player_stats(p1b)
     random.seed(3)
     hp1b = b1b.enemy["hp"]
-    logs1b = b1b._player_skill(st1b, "斩击", e_info, p1b)
+    logs1b = b1b._actor_skill(st1b, "斩击", e_info, p1b)
     dealt1b = hp1b - b1b.enemy["hp"]
     base1b = int(st1b["atk"] * 1.0)  # 无斩杀
     check("满血无斩杀加成", 0.8 * base1b <= dealt1b <= 1.25 * base1b,
@@ -103,7 +103,7 @@ async def main():
     b2 = BT.Battle("怪物", mk_enemy(def_=10, hp=10000), {}, p2)
     st2 = b2._player_stats(p2)
     random.seed(5)
-    logs2 = b2._player_skill(st2, "虚空箭", mp_info, p2)
+    logs2 = b2._actor_skill(st2, "虚空箭", mp_info, p2)
     check("吸MP 回蓝", p2["mp"] > 10, f"mp {p2['mp']}")
     check("吸MP 日志", any("虚空汲取" in l for l in logs2), str(logs2))
 
@@ -182,14 +182,14 @@ async def main():
     b6 = BT.Battle("怪物", mk_enemy(def_=10, hp=10000), {}, p6)
     st6 = b6._player_stats(p6)
     random.seed(3)
-    logs6 = b6._player_skill(st6, "血之契约", hm_info, p6)
+    logs6 = b6._actor_skill(st6, "血之契约", hm_info, p6)
     check("血魔法扣血 10%", p6["hp"] <= 450, f"hp {p6['hp']}")
     check("血魔法日志", any("血之代价" in l for l in logs6), str(logs6))
     # 对照：无 hp_cost 不扣血
     p6b = mk_player(cls="cls_fa_shi", hp=500)
     b6b = BT.Battle("怪物", mk_enemy(def_=10, hp=10000), {}, p6b)
     random.seed(3)
-    b6b._player_skill(b6b._player_stats(p6b), "虚空箭", mp_info, p6b)
+    b6b._actor_skill(b6b._player_stats(p6b), "虚空箭", mp_info, p6b)
     check("无 hp_cost 不扣血", p6b["hp"] == 500, f"hp {p6b['hp']}")
 
     # 7. 死亡契约
@@ -223,14 +223,14 @@ async def main():
             "summon": "vine_guard"}
     p8 = mk_player(cls="cls_you_xia")
     b8 = BT.Battle("怪物", mk_enemy(), {}, p8)
-    b8._player_skill(b8._player_stats(p8), "召唤藤蔓守卫", evo1, p8)
+    b8._actor_skill(b8._player_stats(p8), "召唤藤蔓守卫", evo1, p8)
     check("召唤藤蔓守卫", len(b8.summons) == 1 and b8.summons[0]["tid"] == "vine_guard",
           str([s.get("tid") for s in b8.summons]))
     # 数量流：藤蔓守卫可叠 2（limit 2）
-    b8._player_skill(b8._player_stats(p8), "召唤藤蔓守卫", evo1, p8)
+    b8._actor_skill(b8._player_stats(p8), "召唤藤蔓守卫", evo1, p8)
     check("藤蔓守卫可叠 2", len(b8.summons) == 2, str([s.get("tid") for s in b8.summons]))
     # 再招第 3 只 → 达上限提示（不重复召唤）
-    b8._player_skill(b8._player_stats(p8), "召唤藤蔓守卫", evo1, p8)
+    b8._actor_skill(b8._player_stats(p8), "召唤藤蔓守卫", evo1, p8)
     check("藤蔓守卫达上限", len(b8.summons) == 2, str([s.get("tid") for s in b8.summons]))
 
     # 清理注入

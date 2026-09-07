@@ -251,7 +251,7 @@ def _m_slow(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
 @register(MECH_EFFECTS, "interrupt")
 def _m_interrupt(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """打断（v180 actor 统一）：目标正在蓄力/读条则打断。
-    目标=玩家（_tgt_is_player）→ 清玩家蓄力（self.charging，返 50% MP）或读条
+    目标=玩家（_tgt_is_side_player）→ 清玩家蓄力（self.charging，返 50% MP）或读条
     （self._pending_player_cast → _interrupt_player_cast）；目标=怪 → 清 actor["charging"]。
     v125.1 P2 原 MON_CTRL interrupt 只打蓄力（player.get('charging')）；v180 扩展读条。"""
     tgt = getattr(battle, "_tgt", lambda: None)()
@@ -832,7 +832,7 @@ def _b_opening(battle, logs, e, r):
 def _b_player_low(battle, logs, e, r):
     """玩家低血追击：玩家 HP<30% 时 Boss 输出杀意文案并本刻攻击加成（25%）。
     触发频率：默认 once；或配置 triggers.player_low.cooldown=N 后每 N 刻一次。"""
-    p = getattr(battle, "player", None) or {}
+    p = getattr(battle, "_focus", None) or {}
     mh = p.get("max_hp") or 0
     if mh <= 0:
         return
@@ -960,7 +960,7 @@ MON_CTRL_EFFECTS = {}
 @register(MON_CTRL_EFFECTS, "freeze")
 def _mc_freeze(battle, player, logs, mval):
     """冻结玩家（概率，1 刻）。v180-B ②：读写被打玩家 actor dict（player 参数即目标）。"""
-    _pl = player or battle.player or {}
+    _pl = player or battle._focus or {}
     if (_pl.setdefault("buffs", {}) or {}).get("cc_immune"):
         logs.append("🗿 不动如山！免疫了冻结！")
         return
@@ -973,7 +973,7 @@ def _mc_freeze(battle, player, logs, mval):
 @register(MON_CTRL_EFFECTS, "stun")
 def _mc_stun(battle, player, logs, mval):
     """眩晕玩家（概率，1 刻）。v180-B ②：读写被打玩家 actor dict（player 参数即目标）。"""
-    _pl = player or battle.player or {}
+    _pl = player or battle._focus or {}
     if (_pl.setdefault("buffs", {}) or {}).get("cc_immune"):
         logs.append("🗿 不动如山！免疫了眩晕！")
         return
@@ -986,7 +986,7 @@ def _mc_stun(battle, player, logs, mval):
 @register(MON_CTRL_EFFECTS, "silence")
 def _mc_silence(battle, player, logs, mval):
     """沉默玩家（稳定，2 刻）。v180-B ②：读写被打玩家 actor dict（player 参数即目标）。"""
-    _pl = player or battle.player or {}
+    _pl = player or battle._focus or {}
     _pl.setdefault("buffs", {})["silence"] = 2
     logs.append("🤐 你被沉默，2 刻内无法使用技能！")
 
@@ -996,9 +996,9 @@ def _mc_interrupt(battle, player, logs, mval):
     """打断玩家蓄力（v125.1 P2 消费端：ms_an_ying_dan 等带 mech=interrupt 的怪物技能）。
     原怪物技能 interrupt:True 为死字段（_enemy_turn 不读 interrupt）——改经 mech 接线本表：
     命中时若玩家正在蓄力，打断并返还 50% 已扣 MP（向上取整，对齐 battle._interrupt_charging
-    玩家侧口径）。v180-B ①：蓄力状态权威在玩家 actor dict（battle.player["charging"]）。"""
+    玩家侧口径）。v180-B ①：蓄力状态权威在玩家 actor dict（battle._focus["charging"]）。"""
     # 蓄力读焦点玩家 actor dict（player 参数即被打断玩家）
-    _pl = player or battle.player or {}
+    _pl = player or battle._focus or {}
     ch = _pl.get("charging")
     if not ch or not ch.get("skill"):
         return
@@ -1016,7 +1016,7 @@ def _mc_interrupt(battle, player, logs, mval):
 @register(MON_CTRL_EFFECTS, "slow")
 def _mc_slow(battle, player, logs, mval):
     """减速玩家（v180-B ②：5 件套控制免疫数据化 + cc_immune 免控；v101.28f 不动药剂免疫）"""
-    _pl = player or battle.player or {}
+    _pl = player or battle._focus or {}
     if (_pl.setdefault("buffs", {}) or {}).get("cc_immune"):
         logs.append("🗿 不动如山！免疫了减速！")
     elif "slow" in battle._set_bonus_5_ctrl_immune(_pl):
@@ -1231,7 +1231,7 @@ def _sb_cleanse_p(battle, player, logs, scope="single"):
     # v178 E4：净化同时清玩家持续伤害（debuffs 容器——Boss 挂的毒/灼烧/流血/腐蚀
     # 属于减益，可被驱散技能解除；single 清一层、all 全清）
     try:
-        _target = battle._cast_ctx or battle.player
+        _target = battle._cast_ctx or battle._focus
         _pdeb = (_target or {}).get("debuffs")
         if _pdeb:
             _kname = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}
@@ -1521,7 +1521,7 @@ def _sb_stealth_cc(battle, skill_name, info, player, lv, logs):
 
 @register(SKILL_BUFF_EFFECTS, "taunt")
 def _sb_taunt(battle, skill_name, info, player, lv, logs):
-    """v169.7 注册兜底：嘲讽 effect 实机不可达（kind=嘲讽走 battle.py _player_skill 独立分支：
+    """v169.7 注册兜底：嘲讽 effect 实机不可达（kind=嘲讽走 battle.py _actor_skill 独立分支：
     敌方降攻 + 叠狂暴 / 副本仇恨），不留无消费端假字段。仅占位注册说明。"""
     logs.append("📢 嘲讽！强制敌人攻击你！(kind=嘲讽分支处理)")
 
@@ -1973,7 +1973,7 @@ def _m_zhan_yi_cash(battle, mval, p_mech, total, logs, skill_name, is_crit, info
         logs.append("⚔️ 战意不足，冷静失效！")
         return
     p_mech["zhan_yi"] = stacks - mval
-    player = getattr(battle, "_last_player", None) or battle.player or {}
+    player = getattr(battle, "_last_player", None) or battle._focus or {}
     heal = int(player.get("max_hp", 1) * 0.20)
     battle._heal_actor(player, heal, logs)  # v180E 统一落地
     logs.append(f"🧘 冷静！消耗 {mval} 层战意，回复 {heal} 点生命！")
@@ -1995,7 +1995,7 @@ def _m_zhan_yi_fury(battle, mval, p_mech, total, logs, skill_name, is_crit, info
         return
     p_mech["zhan_yi"] = stacks - mval
     from .battle_modes import dual_form_state
-    df = dual_form_state(getattr(battle, "_last_player", None) or battle.player or {})
+    df = dual_form_state(getattr(battle, "_last_player", None) or battle._focus or {})
     df["form"] = "alt"
     logs.append(f"🩸 血祭！消耗 {mval} 层战意，强制进入狂暴形态！")
 
@@ -2010,7 +2010,7 @@ def _m_faith_unload(battle, mval, p_mech, total, logs, skill_name, is_crit, info
         logs.append("🕯️ 信念不足，卸负失效！")
         return
     player.setdefault('resources', {})["faith"] = faith - mval
-    player = getattr(battle, "_last_player", None) or battle.player or {}
+    player = getattr(battle, "_last_player", None) or battle._focus or {}
     heal = int(player.get("max_hp", 1) * 0.15)
     battle._heal_actor(player, heal, logs)  # v180E 统一落地
     logs.append(f"🕊️ 卸负！信念 -{mval}，回复 {heal} 点生命！")

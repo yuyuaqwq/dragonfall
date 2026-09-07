@@ -52,7 +52,7 @@ async def main():
     print("【眩晕：敌人被眩晕跳过行动】")
     b = BT.Battle("monster", make_monster())
     p = make_player()
-    b.player = p  # v180-B：玩家行动/引擎方法需焦点玩家（受击统计等读 player dict）
+    b._focus = p  # v180-B：玩家行动/引擎方法需焦点玩家（受击统计等读 player dict）
     b._tgt_buffs()["stun"] = 1
     logs, dmg = b._enemy_turn(p)
     check("眩晕跳过行动", "被眩晕" in " ".join(logs), str(logs[:2]))
@@ -61,7 +61,7 @@ async def main():
     print("【沉默：敌人被沉默只能普攻】")
     b = BT.Battle("monster", make_monster(skills=["ms_kuang_bao"]))
     p = make_player()
-    b.player = p
+    b._focus = p
     b._tgt_buffs()["silence"] = 1
     # 沉默时即使概率命中也不放技能（不出现"使用了"）
     logs, dmg = b._enemy_turn(p)
@@ -70,7 +70,7 @@ async def main():
     print("【净化：驱散敌方增益】")
     b = BT.Battle("monster", make_monster())
     p = make_player()
-    b.player = p
+    b._focus = p
     b._tgt_buffs()["mon_atk_up"] = 2
     b._tgt_buffs()["mon_def_up"] = 2
     b._apply_mech_effect("cleanse", 1, {}, 0, [], "圣言术", False)
@@ -79,19 +79,19 @@ async def main():
     print("【玩家被眩晕：本回合无法行动】")
     b = BT.Battle("monster", make_monster())
     p = make_player(hp=9999)
-    b.player = p  # v180-B：player_turn 以 self.player 为权威（未绑才绑传入）
+    b._focus = p  # v180-B：actor_turn 以 self._focus 为权威（未绑才绑传入）
     b.enemy["atk"] = 5
     b._p_buffs_bag()["stun"] = 1
-    logs, ended = b.player_turn("attack", None, p)
+    logs, ended = b.actor_turn("attack", None, p)
     check("玩家眩晕无法攻击", any("被眩晕" in l for l in logs), str(logs[:3]))
     check("眩晕状态清除", "stun" not in b._p_buffs_bag(), str(b._p_buffs_bag()))
 
     print("【玩家被沉默：技能被拦截转普攻】")
     b = BT.Battle("monster", make_monster())
     p = make_player(cls="cls_fa_shi", lv=20, hp=9999)
-    b.player = p
+    b._focus = p
     b._p_buffs_bag()["silence"] = 2
-    logs, ended = b.player_turn("skill", "冰锥", p)
+    logs, ended = b.actor_turn("skill", "冰锥", p)
     # v154 读条命中制：转普攻也走读条——推进到命中结算后伤害才生效
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     check("沉默拦截技能", any("被沉默" in l for l in logs), str(logs[:3]))

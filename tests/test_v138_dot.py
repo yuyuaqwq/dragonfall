@@ -6,7 +6,7 @@
 2. 律二 每场上限+饱和：trigger_count 达 DOT_MAX_TRIGGER[k] 置饱和；
    饱和后控制类不再结算、伤害类照常结算
 3. 律三 跨阶段保留：_preserve_debuffs 保留一半层数 + 阈值 +15%
-4. 律四 异常直伤独立结算：corros 真伤绕过 _enemy_mitigate 的 def 削减（仍走免疫检查）
+4. 律四 异常直伤独立结算：corros 真伤绕过 _hostile_mitigate 的 def 削减（仍走免疫检查）
 5. 律五 饱和阈值收敛：饱和后 saturate_mult 逐次 ×0.8
 6. 兼容：旧 debuffs 无 threshold/trigger_count/saturate_mult 字段 → 默认不崩
 7. 常量导出：core/__init__ 与 data/battle_config 可导入
@@ -164,8 +164,8 @@ def test_true_dmg():
     tick(b, p)
     check("腐蚀真伤绕过 def/mdef：56×0.1=5", 1000 - b.enemy["hp"] == 5,
           f"dmg={1000 - b.enemy['hp']}")
-    # 对照：同配置毒被 0.9 总抗削到 6 点（毒还额外吃 def/mdef？不，毒是 magi 段走 _enemy_mitigate）——
-    # 关键差异：腐蚀不吃 def/mdef（真伤），毒吃 mdef（_enemy_mitigate 削减）
+    # 对照：同配置毒被 0.9 总抗削到 6 点（毒还额外吃 def/mdef？不，毒是 magi 段走 _hostile_mitigate）——
+    # 关键差异：腐蚀不吃 def/mdef（真伤），毒吃 mdef（_hostile_mitigate 削减）
     b2 = BT.Battle("monster", mk_enemy(hp=1000, **{"def": 1000000, "mdef": 1000000, "dot_res": 0.9}))
     b2.enemy.setdefault("debuffs", {})["poison"] = {"n": 1, "mult": 1.0}
     tick(b2, p)

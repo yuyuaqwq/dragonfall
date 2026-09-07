@@ -77,7 +77,7 @@ def test_dot_amp():
     b.enemy.setdefault("debuffs", {})["poison"] = {"n": 1, "mult": 1.0}
     import random as _rnd; _rnd.seed(7)
     st = b._player_stats(p)
-    b._player_attack(st, p)
+    b._actor_attack(st, p)
     _deb = b.enemy.get("debuffs") or {}
     check("dot_amp 毒层+1", int(_deb.get("poison", {}).get("n", 0) or 0) >= 2, str(_deb))
 
@@ -103,7 +103,7 @@ def test_vuln():
     b._deal_damage = spy
     import random as _rnd2; _rnd2.seed(11)
     st = b._player_stats(p)
-    b._player_attack(st, p)
+    b._actor_attack(st, p)
     check("vuln 增伤生效", captured and captured[0] > 85, f"dmg={captured}")
 
 if __name__ == "__main__":

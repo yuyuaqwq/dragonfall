@@ -2601,14 +2601,14 @@ class InstanceCmds(CommandBase):
             # 由 from_state 恢复段重绑 actor——敌方 DOT/宠物卡跨行动不丢）
             "tick_effects": st.get("tick_effects") or [],
         })
-        # v121 CTB：副本 Battle 由 from_state 构造未设 self.player，而 _after_actor_ct("p")
-        # 按 self.player 的 _player_stats(spd) 结算玩家 ct——必须指向行动者快照，否则恒取 cost=100
-        b.player = snap
+        # v121 CTB：副本 Battle 由 from_state 构造未设 self._focus，而 _after_actor_ct("p")
+        # 按 self._focus 的 _player_stats(spd) 结算玩家 ct——必须指向行动者快照，否则恒取 cost=100
+        b._focus = snap
         _pct_before = float(getattr(b, "p_ct", 0.0) or 0.0)
         # v180G B7 统一 CTB：player_act = 出手登记 + advance 推进到下一个真人决策点。
         # 与野外同一套代码（advance_until_next_decision 统一事件推进：怪行动/命中/dot）。
         # 返回 who = 下一个该行动的玩家（可能不是当前行动者——多玩家 CTB 交错）。
-        act_logs, ended, _who_next = b.player_act(action, skill_name, snap, enemy_act=True, target=target)
+        act_logs, ended, _who_next = b.actor_act(action, skill_name, snap, enemy_act=True, target=target)
         # v157 DEBUG：玩家行动后诊断（确认是否真的执行了 player_turn 且日志拼接）
         try:
             print(f"[DBG_instance_act] 行动后: action={action} skill={skill_name!r} ended={ended} "
@@ -2619,12 +2619,12 @@ class InstanceCmds(CommandBase):
         except Exception:
             pass
         st["players"][cur_key] = snap
-        # v180-B ①：玩家状态权威在玩家快照（b.player is snap）actor dict——写回从
+        # v180-B ①：玩家状态权威在玩家快照（b._focus is snap）actor dict——写回从
         # player dict 读；st 顶层 per-player 键保留老格式供 from_state 兼容读取
-        st["p_buffs"][cur_key] = b.player.get("buffs") or {}
-        st.setdefault("p_hot", {})[cur_key] = b.player.get("hot") or {}
-        st.setdefault("p_food_effects", {})[cur_key] = b.player.get("food_effects") or []
-        st["mech_stacks"][cur_key] = b.player.get("stacks") or {}
+        st["p_buffs"][cur_key] = b._focus.get("buffs") or {}
+        st.setdefault("p_hot", {})[cur_key] = b._focus.get("hot") or {}
+        st.setdefault("p_food_effects", {})[cur_key] = b._focus.get("food_effects") or []
+        st["mech_stacks"][cur_key] = b._focus.get("stacks") or {}
         # v2：敌方阵列写回（逐单位 hp/buffs/stacks/defending/charging）→ 压缩死亡单位
         # v141 审计：b.enemies 与 st["enemies"] 是同一列表引用（from_state 直接传入），
         # _deal_damage 死亡单位即时 _remove_unit 移除；此处直接同步，无需再压缩。
@@ -2636,9 +2636,9 @@ class InstanceCmds(CommandBase):
         # v152 时刻制：round 删除，st["round"] 改为展示用行动轮次（_tick_no()）
         st["round"] = b._tick_no()
         st["e_minions"] = b.e_minions
-        st.setdefault("resources", {})[cur_key] = b.player.get("resources") or {}
-        st.setdefault("cooldown", {})[cur_key] = b.player.get("cooldown") or {}
-        st.setdefault("combo_seq", {})[cur_key] = b.player.get("combo_seq") or []
+        st.setdefault("resources", {})[cur_key] = b._focus.get("resources") or {}
+        st.setdefault("cooldown", {})[cur_key] = b._focus.get("cooldown") or {}
+        st.setdefault("combo_seq", {})[cur_key] = b._focus.get("combo_seq") or []
         # v180F 清2e：副本每行动重建 Battle——通用 tick 卡（DOT/宠物/武器特效周期）此前
         # 不写回 st → 下次重建全丢（敌方 DOT 跨行动不跳）。写回序列化格式（actor_ref），
         # 下次 from_state 由 battle 恢复段重绑。
@@ -2647,7 +2647,7 @@ class InstanceCmds(CommandBase):
             for _e in (getattr(b, "tick_effects", None) or []):
                 _actor = _e.get("actor")
                 _ref = ""
-                if _actor is b.player:
+                if _actor is b._focus:
                     _ref = "player"
                 elif _actor is b.pet:
                     _ref = "pet"
@@ -2690,10 +2690,10 @@ class InstanceCmds(CommandBase):
         st.setdefault("player_hit", {})[cur_key] = b._player_hit
         # v101.25 #323：防御状态必须写回——否则 Boss 反击时读 st["p_defending"] 永远是 False，
         # 副本防御减半完全不生效（playtest round67 影刃实测 93→75 仅约 -19%）
-        st["p_defending"][cur_key] = bool(b.player.get("defending", False))
+        st["p_defending"][cur_key] = bool(b._focus.get("defending", False))
         # v2 副本玩家蓄力持久化：写回（含 None 表示蓄力已结束/未蓄力）
-        st.setdefault("charging", {})[cur_key] = b.player.get("charging")
-        snap["p_shields"] = b.player.get("shields") or {}
+        st.setdefault("charging", {})[cur_key] = b._focus.get("charging")
+        snap["p_shields"] = b._focus.get("shields") or {}
         # v2：敌方阵列写回（逐单位 hp/buffs/stacks/defending/charging）→ 压缩死亡单位
         st["enemies"] = b.enemies
         # v110 P0（#110 海盗王任务卡死）：battle._remove_unit 击杀即从 enemies 阵列移除
@@ -2791,7 +2791,7 @@ class InstanceCmds(CommandBase):
                 logs += self._apply_team_effect(st, cur_key, te)
 
         # 4. 当前敌人死亡 → 分层判断（v86.2：清小怪→推进→Boss）
-        # v141 审计：b.player_turn(enemy_act=False) 只改 st["enemies"] 各单位 hp，
+        # v141 审计：b.actor_turn(enemy_act=False) 只改 st["enemies"] 各单位 hp，
         # 不压缩死亡单位（battle 内部 _enemy_phase 被跳过，_enemy_dead 只读存活）。
         # 副本侧全灭判定必须基于存活单位——先压缩一次（死亡单位移出，防占位误判）。
         self._instance_enemies_compact(st)

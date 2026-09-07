@@ -132,8 +132,8 @@ def peak_of(cls, lv, loadout, diff, seeds=25, branch=False):
             if cls == 'cls_wu_seng' and name == '碎骨拳':
                 # 攒 3 气：普攻 3 次
                 for _ in range(3):
-                    b.player_turn('attack', None, pd)
-            res, ended = b.player_turn('skill', name, pd)
+                    b.actor_turn('attack', None, pd)
+            res, ended = b.actor_turn('skill', name, pd)
             line = [x for x in res if isinstance(x, str) and ('造成' in x or '共造成' in x)]
             import re
             mm = re.search(r'(?:共造成|造成) (\d+) 点伤害', ' '.join(line))

@@ -61,7 +61,7 @@ def sim_worldboss_act(gboss, battle, player_unit, poison_layers=3, interval=4, n
     # v1.2 行动前 adapt 同步
     b.enemy["adapt"] = dict(gboss.get("adapt") or {"poison": 0.0, "burn": 0.0})
     before = sum(max(0, u.get("hp", 0)) for u in b.enemies)
-    # 行动（简化：不发 player_turn，避免对老存档/缺技能怪抛错；只走 dot 结算流）
+    # 行动（简化：不发 actor_turn，避免对老存档/缺技能怪抛错；只走 dot 结算流）
     logs = logs_buf if logs_buf is not None else []
     gboss["dot_act"] = int(gboss.get("dot_act", 0) or 0) + 1
     if int(gboss["dot_act"]) % interval == 0:

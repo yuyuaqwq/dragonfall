@@ -58,9 +58,9 @@ def mk_enemy(def_=20, mdef=20, hp=100000, spd=10):
 
 def mk_battle(player, enemy=None):
     b = BT.Battle("monster", enemy or mk_enemy(), {}, player)
-    b.player.setdefault("resources", {})
-    b.player.setdefault("stacks", {})
-    b.player.setdefault("eff", {})
+    b._focus.setdefault("resources", {})
+    b._focus.setdefault("stacks", {})
+    b._focus.setdefault("eff", {})
     b.enemy.setdefault("element_marks", {})
     return b
 
@@ -126,10 +126,10 @@ def diff_bonus(name, cls, skill, setup_fn, info_list):
                 b_new = mk_battle(dict(p))
                 setup(b_old)
                 setup(b_new)
-                r_old = OLD_crit_bonus(b_old, b_old.player, info)
-                r_new = b_new._passive_crit_bonus(b_new.player, info=info)
-                e_old = bool((b_old.player.get("eff") or {}).get("focus_surplus_proc"))
-                e_new = bool((b_new.player.get("eff") or {}).get("focus_surplus_proc"))
+                r_old = OLD_crit_bonus(b_old, b_old._focus, info)
+                r_new = b_new._passive_crit_bonus(b_new._focus, info=info)
+                e_old = bool((b_old._focus.get("eff") or {}).get("focus_surplus_proc"))
+                e_new = bool((b_new._focus.get("eff") or {}).get("focus_surplus_proc"))
                 check(f"{name} 学={learned} {tag} info={'有' if info is not None else '无'}: "
                       f"bonus {r_old}=={r_new} eff {e_old}=={e_new}",
                       abs(r_old - r_new) < 1e-9 and e_old == e_new,
@@ -142,10 +142,10 @@ def diff_bonus(name, cls, skill, setup_fn, info_list):
 def test_zhan_yi_crit():
     print("\n== 1. zhan_yi_crit（战意 7/8 边界）OLD vs NEW ==")
     setups = {
-        "战意0": lambda b: b.player["stacks"].update({"zhan_yi": 0}),
-        "战意7": lambda b: b.player["stacks"].update({"zhan_yi": 7}),
-        "战意8": lambda b: b.player["stacks"].update({"zhan_yi": 8}),
-        "战意10": lambda b: b.player["stacks"].update({"zhan_yi": 10}),
+        "战意0": lambda b: b._focus["stacks"].update({"zhan_yi": 0}),
+        "战意7": lambda b: b._focus["stacks"].update({"zhan_yi": 7}),
+        "战意8": lambda b: b._focus["stacks"].update({"zhan_yi": 8}),
+        "战意10": lambda b: b._focus["stacks"].update({"zhan_yi": 10}),
     }
     diff_bonus("狂热", "cls_zhan_shi", "狂热", setups, [None, {"element": "fire"}])
 
@@ -157,13 +157,13 @@ def test_arcane_wisdom():
     print("\n== 2. arcane_wisdom（充能 4/5 与满 5；攻线 arcane 叠层 4/5）OLD vs NEW ==")
     setups = {
         # 守线·奥秘法师：resources.element_charge 满条判（charge ≥ _res_max element=5）
-        "charge0": lambda b: b.player["resources"].update({"element_charge": 0}),
-        "charge4": lambda b: b.player["resources"].update({"element_charge": 4}),
-        "charge5": lambda b: b.player["resources"].update({"element_charge": 5}),
+        "charge0": lambda b: b._focus["resources"].update({"element_charge": 0}),
+        "charge4": lambda b: b._focus["resources"].update({"element_charge": 4}),
+        "charge5": lambda b: b._focus["resources"].update({"element_charge": 5}),
         # 攻线 arcane 叠层（无 element_charge 键）
-        "arcane0": lambda b: b.player["stacks"].update({"arcane": 0}),
-        "arcane4": lambda b: b.player["stacks"].update({"arcane": 4}),
-        "arcane5": lambda b: b.player["stacks"].update({"arcane": 5}),
+        "arcane0": lambda b: b._focus["stacks"].update({"arcane": 0}),
+        "arcane4": lambda b: b._focus["stacks"].update({"arcane": 4}),
+        "arcane5": lambda b: b._focus["stacks"].update({"arcane": 5}),
     }
     diff_bonus("真知", "cls_fa_shi", "真知", setups, [None, {"element": "fire"}])
 
@@ -178,8 +178,8 @@ def test_focus_surplus_crit():
         "快照40": lambda b: setattr(b, "_pre_cost_res", {"energy": 40}),
         "快照60": lambda b: setattr(b, "_pre_cost_res", {"energy": 60}),
         # 快照缺失 → 回落当前 energy（直接调用非技能链场景）
-        "无快照当前39": lambda b: b.player["resources"].update({"energy": 39}),
-        "无快照当前40": lambda b: b.player["resources"].update({"energy": 40}),
+        "无快照当前39": lambda b: b._focus["resources"].update({"energy": 39}),
+        "无快照当前40": lambda b: b._focus["resources"].update({"energy": 40}),
     }
     # info 有（技能链）→ 触发路径
     diff_bonus("疾风之心", "cls_you_xia", "疾风之心", setups, [{"element": "fire"}])
@@ -211,10 +211,10 @@ def test_element_core():
                 setup(b_old)
                 setup(b_new)
                 if info.get("element") == "current":
-                    b_old.player["resources"]["element"] = "fire"
-                    b_new.player["resources"]["element"] = "fire"
-                r_old = OLD_crit_bonus(b_old, b_old.player, info)
-                r_new = b_new._passive_crit_bonus(b_new.player, info=info)
+                    b_old._focus["resources"]["element"] = "fire"
+                    b_new._focus["resources"]["element"] = "fire"
+                r_old = OLD_crit_bonus(b_old, b_old._focus, info)
+                r_new = b_new._passive_crit_bonus(b_new._focus, info=info)
                 check(f"元素之核 学={learned} {tag} el={info.get('element')!r}: "
                       f"bonus {r_old}=={r_new}",
                       abs(r_old - r_new) < 1e-9, f"{r_old} vs {r_new}")
@@ -225,8 +225,8 @@ def test_element_core():
         b_new = mk_battle(dict(p))
         b_old.enemy["element_marks"]["fire"] = 3
         b_new.enemy["element_marks"]["fire"] = 3
-        r_old = OLD_crit_bonus(b_old, b_old.player, None)
-        r_new = b_new._passive_crit_bonus(b_new.player, info=None)
+        r_old = OLD_crit_bonus(b_old, b_old._focus, None)
+        r_new = b_new._passive_crit_bonus(b_new._focus, info=None)
         check(f"元素之核 学={learned} info=None → 0==0", abs(r_old - r_new) < 1e-9, f"{r_old} vs {r_new}")
 
 
@@ -252,23 +252,23 @@ def test_registry_and_multi():
     b_old = mk_battle(dict(p))
     b_new = mk_battle(dict(p))
     for b in (b_old, b_new):
-        pm = b._proc_pm(b.player)
+        pm = b._proc_pm(b._focus)
         pm["proc"]["element_core"] = [
             ("元素之核", {"proc": "element_core", "layers": 3, "add": 0.20}),
             ("测试第二条", {"proc": "element_core", "layers": 0, "add": 0.30}),
         ]
         b._proc_pm = lambda pl, _pm=pm: _pm
         b.enemy["element_marks"]["fire"] = 3
-    r_old = OLD_crit_bonus(b_old, b_old.player, {"element": "fire"})
-    r_new = b_new._passive_crit_bonus(b_new.player, info={"element": "fire"})
+    r_old = OLD_crit_bonus(b_old, b_old._focus, {"element": "fire"})
+    r_new = b_new._passive_crit_bonus(b_new._focus, info={"element": "fire"})
     # 首条命中 +0.20 后 break → 第二条不判（OLD 同）→ 0.20 非 0.50
     check("双条目：首条命中即 break（0.20 非 0.50）", abs(r_old - 0.20) < 1e-9 and abs(r_new - 0.20) < 1e-9,
           f"{r_old} vs {r_new}")
     # 首条印记不足也无条件 break → 0（第二条 layers=0 本可触发但不判）
     for b in (b_old, b_new):
         b.enemy["element_marks"]["fire"] = 0
-    r_old = OLD_crit_bonus(b_old, b_old.player, {"element": "fire"})
-    r_new = b_new._passive_crit_bonus(b_new.player, info={"element": "fire"})
+    r_old = OLD_crit_bonus(b_old, b_old._focus, {"element": "fire"})
+    r_new = b_new._passive_crit_bonus(b_new._focus, info={"element": "fire"})
     check("双条目：首条不足也无条件 break → 0==0", abs(r_old - 0.0) < 1e-9 and abs(r_new - 0.0) < 1e-9,
           f"{r_old} vs {r_new}")
 

@@ -37,7 +37,7 @@ by = BT.Battle('monster', mkmon('狼'), player=py)
 check("游侠精力初始满 100", by._p_res().get('energy') == 100, str(by._p_res()))
 
 print("【核心资源：获取】")
-logs, done = b.player_turn('attack', None, p, enemy_act=False)
+logs, done = b.actor_turn('attack', None, p, enemy_act=False)
 # v154 读条命中制：出招读条结束（cast_done）才结算命中（怒气获取在命中时刻）——推进后生效
 b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
 check("战士普攻 +1 怒气", b._p_res().get('rage') == 1, str(b._p_res()))
@@ -59,7 +59,7 @@ check("怒气上限 10", b4._p_res().get('rage') == 10, str(b4._p_res()))
 print("【核心资源：序列化往返】")
 st = by.to_state()
 b2 = BT.Battle.from_state(st)
-b2.player = py  # v180-B ①：from_state 后绑定玩家快照（战斗状态权威在 player dict）
+b2._focus = py  # v180-B ①：from_state 后绑定玩家快照（战斗状态权威在 player dict）
 b2._apply_restore_pstate()  # 把 from_state 暂存的玩家状态灌入绑定玩家
 check("resources 序列化往返", b2._p_res() == by._p_res(), str((b2._p_res(), by._p_res())))
 

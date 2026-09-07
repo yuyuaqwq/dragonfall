@@ -5907,7 +5907,7 @@ class EconomyCmds(CommandBase):
                 yield event.plain_result("PVP 战斗无法使用道具！")
                 return
             b = BT.Battle.from_state(battle["state"])
-            b.player = player  # v121 审计修复：恢复路径补齐 self.player（盾强度/冷却缩减/精准减免读它）
+            b._focus = player  # v121 审计修复：恢复路径补齐 self._focus（盾强度/冷却缩减/精准减免读它）
             ctx = IT.ItemContext(group_id, qq_id, player, d, battle=battle["state"], hooks=hooks)
             r = IT.TEMPLATES[tpl_name](ctx)
             if not r.consume:
@@ -5929,7 +5929,7 @@ class EconomyCmds(CommandBase):
             _it_cast = d.get("cast")
             if _it_cast:
                 payload = f"{payload};cast:{_it_cast}" if payload else f"cast:{_it_cast}"
-            logs, ended, _who = b.player_act("use_item", payload, player)
+            logs, ended, _who = b.actor_act("use_item", payload, player)
             db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"],
                              max_hp=player["max_hp"], max_mp=player["max_mp"])
             if ended:

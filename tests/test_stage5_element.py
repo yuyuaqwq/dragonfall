@@ -65,7 +65,7 @@ b = BT.Battle("monster", mon, player=p)
 b._tgt_buffs()["fire_mark"] = 1
 # 施放冰系技能 → 应触发蒸发（增伤 30%）
 hp_before = mon["hp"]
-logs, done = b.player_turn("skill", name, p, enemy_act=False)
+logs, done = b.actor_turn("skill", name, p, enemy_act=False)
 # v154 读条命中制：出招读条结束（cast_done）才结算命中——推进后生效
 b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
 dmg = hp_before - mon["hp"]
@@ -77,7 +77,7 @@ p2 = mk()
 p2["learned_skills"] = [name]
 b2 = BT.Battle("monster", mkmon(hp=99999), player=p2)
 hp0 = b2.enemy["hp"]
-b2.player_turn("skill", name, p2, enemy_act=False)
+b2.actor_turn("skill", name, p2, enemy_act=False)
 b2._process_until(float(getattr(b2, "p_ct", 0) or 0) + 0.001, [], p2)
 dmg0 = hp0 - b2.enemy["hp"]
 random.seed(42)
@@ -86,7 +86,7 @@ p_ev["learned_skills"] = [name]
 b_ev = BT.Battle("monster", mkmon(hp=99999), player=p_ev)
 b_ev._tgt_buffs()["fire_mark"] = 1
 hp_ev = b_ev.enemy["hp"]
-b_ev.player_turn("skill", name, p_ev, enemy_act=False)
+b_ev.actor_turn("skill", name, p_ev, enemy_act=False)
 b_ev._process_until(float(getattr(b_ev, "p_ct", 0) or 0) + 0.001, [], p_ev)
 dmg_ev = hp_ev - b_ev.enemy["hp"]
 check("蒸发增伤 30%", abs(dmg_ev / dmg0 - 1.3) < 0.08, f"蒸发={dmg_ev} 无={dmg0} 比={dmg_ev/dmg0:.3f}")
@@ -99,7 +99,7 @@ p3p["learned_skills"] = [name]
 b3 = BT.Battle("monster", mkmon(hp=99999), player=p3p)
 b3._tgt_buffs()["thunder_mark"] = 1
 hp_before3 = b3.enemy["hp"]
-logs3, done3 = b3.player_turn("skill", name, p3p, enemy_act=False)
+logs3, done3 = b3.actor_turn("skill", name, p3p, enemy_act=False)
 b3._process_until(float(getattr(b3, "p_ct", 0) or 0) + 0.001, logs3, p3p)
 check("超载日志", any("超载" in x for x in logs3), str(logs3)[:200])
 check("超载清除雷印", "thunder_mark" not in b3._tgt_buffs(), str(b3._tgt_buffs()))
@@ -110,7 +110,7 @@ p4p["learned_skills"] = [name]
 b4 = BT.Battle("monster", mkmon(hp=99999), player=p4p)
 b4._tgt_buffs()["thunder_mark"] = 2
 sk[test_skill]["element"] = "thunder"  # 雷系
-logs4, done4 = b4.player_turn("skill", name, p4p, enemy_act=False)
+logs4, done4 = b4.actor_turn("skill", name, p4p, enemy_act=False)
 b4._process_until(float(getattr(b4, "p_ct", 0) or 0) + 0.001, logs4, p4p)
 check("感电日志", any("感电" in x for x in logs4), str(logs4)[:200])
 check("感电连击 +1", any("连击 2" in x for x in logs4), str(logs4)[:200])
@@ -126,7 +126,7 @@ sk[test_skill]["element"] = "thunder"
 b5._tgt_buffs().pop("thunder_mark", None)
 p5 = mk()
 p5["learned_skills"] = [name]
-b5.player_turn("skill", name, p5, enemy_act=False)
+b5.actor_turn("skill", name, p5, enemy_act=False)
 b5._process_until(float(getattr(b5, "p_ct", 0) or 0) + 0.001, [], p5)
 check("施放后切雷系", b5._p_res().get("element") == "thunder", str(b5._p_res()))
 

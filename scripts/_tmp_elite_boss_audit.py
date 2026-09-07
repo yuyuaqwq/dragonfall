@@ -84,7 +84,7 @@ def fight(cls, lv, attr, equip, role, mlv, seeds=SEEDS):
         b = BT.Battle(btype="monster", enemy=dict(m), player=p)
         turns = 0
         while b.result is None and turns < _MAX_TURNS:
-            b.player_turn("attack", None, p)
+            b.actor_turn("attack", None, p)
             turns += 1
         if b.result == "victory":
             wins += 1

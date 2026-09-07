@@ -48,7 +48,7 @@ def run_battle(sides, max_turns=200, seed=42):
             break
         turn += 1
         logs = []
-        b._process_until(b._events[0][0] + 0.2, logs, b.player or {})
+        b._process_until(b._events[0][0] + 0.2, logs, b._focus or {})
         logs_all += logs
         # 敌阵死亡清理（_remove_unit 在 _damage_actor 内做，但保险再压缩）
         b.enemies[:] = [e for e in b.enemies if e.get("hp", 0) > 0 or e.get("_dead") == "keep"]
@@ -68,7 +68,7 @@ async def main():
     mon_b = mk_mon("史莱姆B", 600, 70, 15, 12, side="side_b")
     from data.plugins.dragonfall.game import battle as BT
     b = BT.Battle("monster", sides={"side_a": [dict(mon_a)], "side_b": [dict(mon_b)]})
-    check("sides 构造：无玩家", not b.player or not b.player.get("class_name"), str(b.player))
+    check("sides 构造：无玩家", not b._focus or not b._focus.get("class_name"), str(b._focus))
     check("sides 保留双阵营", set(b.sides.keys()) == {"side_a", "side_b"}, str(list(b.sides.keys())))
     ea = [e for e in b.enemies if e.get("side") == "side_a"][0]
     eb = [e for e in b.enemies if e.get("side") == "side_b"][0]
@@ -108,7 +108,7 @@ async def main():
          "qq_id": "t1", "name": "测试玩家"}
     mon_e = mk_mon("野狼", 500, 80, 15, 14, side="enemy")
     b4 = _BT.Battle("monster", dict(mon_e), player=p)
-    logs4, ended = b4.player_turn("attack", None, p)
+    logs4, ended = b4.actor_turn("attack", None, p)
     check("常规玩家战斗仍正常", logs4 is not None, str(logs4[:1] if logs4 else "no logs"))
 
     # 5. 序列化往返（B6）：怪vs怪中途存档 → 恢复 → 继续打完
@@ -116,7 +116,7 @@ async def main():
     mon_e1 = mk_mon("骷髅A", 800, 90, 25, 15, side="s_a")
     mon_e2 = mk_mon("史莱姆B", 600, 70, 15, 12, side="s_b")
     b5 = _BT.Battle("monster", sides={"s_a": [dict(mon_e1)], "s_b": [dict(mon_e2)]})
-    b5._process_until(2.0, [], b5.player or {})  # 打 2 秒（中途）
+    b5._process_until(2.0, [], b5._focus or {})  # 打 2 秒（中途）
     _hp1 = [e for e in b5.enemies if e.get("side") == "s_a"][0].get("hp", 0)
     try:
         js5 = json.dumps(b5.to_state(), ensure_ascii=False, default=str)
@@ -134,7 +134,7 @@ async def main():
     check("命令层旧入口 → sides 双阵营", set(b7.sides.keys()) == {"player", "enemy"},
           str(list(b7.sides.keys())))
     _sp = (b7.sides.get("player") or [{}])[0]
-    b7.player["hp"] = 4321
+    b7._focus["hp"] = 4321
     check("命令层读写同步到 sides（同引用）", _sp.get("hp") == 4321,
           f"sides player hp={_sp.get('hp')}")
 

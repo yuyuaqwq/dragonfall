@@ -73,7 +73,7 @@ def build_mon(role, lv):
 
 def win_rate(equip, mdef, seeds=6):
     """固定种子序列 0..N-1 打怪，返回 (胜数, 场数)。只普攻。
-    v154 读条命中制：player_turn 只出手（排 cast_done），命中结算在出招读条结束后——
+    v154 读条命中制：actor_turn 只出手（排 cast_done），命中结算在出招读条结束后——
     每次行动后推进到 p_ct 触发 cast_done，再判定结果。"""
     wins = 0
     for seed in range(seeds):
@@ -82,7 +82,7 @@ def win_rate(equip, mdef, seeds=6):
         b = BT.Battle("monster", mdef, {}, p)
         guard = 0
         while b.result is None and guard < 300:
-            b.player_turn("attack", None, p)
+            b.actor_turn("attack", None, p)
             b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)  # v154：推进到命中结算
             guard += 1
         if b.result == "victory":

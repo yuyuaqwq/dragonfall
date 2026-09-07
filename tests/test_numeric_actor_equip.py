@@ -67,7 +67,7 @@ boss = mk_boss({"armor": {"affixes": ["thorns"], "quality": "blue"},
                 "boots": {"affixes": ["dodge"], "quality": "blue"}})
 player = mk_player()
 b = BT.Battle("monster", boss)
-b.player = player
+b._focus = player
 est = b._enemy_stats()
 check("怪物面板 thorns=0.1", abs(float(est.get("thorns", 0)) - 0.1) < 1e-6, str(est.get("thorns")))
 check("怪物面板 dodge=0.05", abs(float(est.get("dodge", 0)) - 0.05) < 1e-6, str(est.get("dodge")))
@@ -77,7 +77,7 @@ print("\n-- 怪反伤打玩家 --")
 boss = mk_boss({"armor": {"affixes": ["thorns"], "quality": "blue"}})
 player = mk_player()
 b = BT.Battle("monster", boss)
-b.player = player
+b._focus = player
 random.seed(3)
 logs = []
 b._damage_actor(boss, 800, logs, source="玩家", attacker=player)
@@ -90,14 +90,14 @@ boss = mk_boss()
 player = mk_player()
 # 玩家面板折算：直接给 st 塞 thorns 模拟已折算装备词条
 b = BT.Battle("monster", boss)
-b.player = player
+b._focus = player
 # 真实玩家词条在面板折算：给 stats 加 thorns（模拟折算后）
 # 玩家被打，怪 attacker → 玩家 thorns 反伤应打怪
 # 用 _mitigate 路径验证：玩家有 thorns 词条折算在面板（stats 键）
 boss2 = mk_boss()
 boss2["hp"] = 5000
 b2 = BT.Battle("monster", boss2)
-b2.player = player
+b2._focus = player
 # 直接塞面板 thorns（模拟玩家装备折算后的面板值）
 # 玩家被打 500，玩家 thorns 反伤 → 怪掉血
 # （真实玩家词条经 _player_stats 折算；此处直接给 resources/buffs 无意义——通过正常装备路径验证在 numeric 门禁覆盖）
@@ -110,7 +110,7 @@ print("\n-- 无装备怪零影响 --")
 boss = mk_boss()
 player = mk_player()
 b = BT.Battle("monster", boss)
-b.player = player
+b._focus = player
 est = b._enemy_stats()
 check("无装备怪 thorns=0", float(est.get("thorns", 0) or 0) == 0.0)
 check("无装备怪 dodge=0", float(est.get("dodge", 0) or 0) == 0.0)

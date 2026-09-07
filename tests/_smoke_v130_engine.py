@@ -258,7 +258,7 @@ def smoke_element():
 
 
 def smoke_res_cost_cast():
-    print("[挂点9/10] 元素充能 res_cost 施放主路径不崩（_do_player_skill 消费/校验）")
+    print("[挂点9/10] 元素充能 res_cost 施放主路径不崩（_do_actor_skill 消费/校验）")
     b, p = new_battle("cls_fa_shi", 1, 1, learned=["元素引爆", "元素冲击"])
     # 元素引爆 res_cost {"element": 2}
     info = C.BRANCH_SKILLS["cls_fa_shi"]["branches"][1]["元素法师"]["元素引爆"]
@@ -350,12 +350,12 @@ def smoke_tier2_3_branches():
 def smoke_on_heal():
     """P1-2 修复：on_heal 消费者——牧师/悼咏治疗攒点 +2（v130 删 per-skill gain 后的唯一主渠道）"""
     print("[修复2/8] P1-2 on_heal 消费端（牧师治疗攒点）")
-    # 基础牧师施放 治愈术 → 治疗命中攒 2 信仰（黑盒走 _do_player_skill 全链）
+    # 基础牧师施放 治愈术 → 治疗命中攒 2 信仰（黑盒走 _do_actor_skill 全链）
     b, p = new_battle("cls_mu_shi", 0, 0, learned=["治愈术"])
     p["hp"] = 200
     b.p_eff["next_heal_up"] = 0.20
     b.resources["faith"] = 0
-    logs = b._do_player_skill("治愈术", p)
+    logs = b._do_actor_skill("治愈术", p)
     check("牧师治疗攒点 on_heal=2", b.resources.get("faith", 0) == 2, f"faith={b.resources.get('faith')} logs={logs}")
     # 歌者（双资源分支）治疗走共鸣，不给信仰（防双计数）
     b, p = new_battle("cls_mu_shi", 1, 1)
@@ -411,7 +411,7 @@ def smoke_full_tension_timing():
     print("[修复4/8] P1-4 满弦时序（读施放前精力）")
     b, p = new_battle("cls_you_xia", 1, 2)  # 风行者
     b.resources["energy"] = 100
-    # 模拟 _do_player_skill：施放前快照 energy=100，随后扣 25 → 当前 75
+    # 模拟 _do_actor_skill：施放前快照 energy=100，随后扣 25 → 当前 75
     b._pre_cost_res = dict(b.resources)
     b._res_spend("energy", 25)
     check("扣费后当前精力75(<80)", b.resources["energy"] == 75)
@@ -450,17 +450,17 @@ def smoke_item_consumers():
     print("[修复6/8] P0 消耗品消费端（引气精华/信仰结晶/熔核之心/澎湃烈酒）")
     # 引气精华 buff_phys_next：下一次物理技 一次性消费（命中即清，豁免回合递减）
     b, p = new_battle("cls_zhan_shi", 0, 0, learned=["无畏冲击"])
-    b.player = p
+    b._focus = p
     st = b._player_stats(p)
     b.p_buffs["buff_phys_next"] = 1
     b.p_eff["buff_phys_next"] = 0.20
-    b._player_attack(st, p)
+    b._actor_attack(st, p)
     check("buff_phys_next 物理普攻命中即清", "buff_phys_next" not in b.p_buffs and "buff_phys_next" not in b.p_eff,
           f"p_buffs={b.p_buffs}")
-    # 信仰结晶 next_heal_up：_do_player_skill 治疗黑盒消费（上面 P1-2 已共用）
+    # 信仰结晶 next_heal_up：_do_actor_skill 治疗黑盒消费（上面 P1-2 已共用）
     # 熔核之心 reduce_all 负值：受伤 +20%（P0-4）
     b, p = new_battle("cls_zhan_shi", 0, 0)
-    b.player = p
+    b._focus = p
     p["hp"] = p["max_hp"]
     b.p_buffs["reduce_all"] = -0.2
     b._reduce_all_left = 2
@@ -471,7 +471,7 @@ def smoke_item_consumers():
     check("熔核负值减伤：受损 +20%(120)", lost >= 115, f"lost={lost} hp={p['hp']} logs={logs}")
     # 正向 reduce_all 不被覆盖（团队技能减伤 ×0.9 保持）
     b, p = new_battle("cls_zhan_shi", 0, 0)
-    b.player = p
+    b._focus = p
     p["hp"] = p["max_hp"]
     b.p_buffs["reduce_all"] = 0.5
     b._reduce_all_left = 2
@@ -481,11 +481,11 @@ def smoke_item_consumers():
     check("正向 reduce_all 仍减伤(50%→50)", lost <= 55 and lost > 0, f"lost={lost}")
     # 澎湃烈酒 phys_up：物理伤害 +5%，回合制持续 buff 普攻后仍在
     b, p = new_battle("cls_zhan_shi", 0, 0)
-    b.player = p
+    b._focus = p
     st = b._player_stats(p)
     b.p_buffs["phys_up"] = 3
     b.p_eff["phys_up"] = 0.05
-    b._player_attack(st, p)
+    b._actor_attack(st, p)
     check("phys_up 普攻后仍在(回合制)", b.p_buffs.get("phys_up") == 3, f"{b.p_buffs.get('phys_up')}")
 
 
@@ -524,7 +524,7 @@ def smoke_reaction_wiring():
     b._elem_mark_apply("ice", layers=1)
     info = {"kind": "魔法", "element": "fire", "power": 2.0,
             "cond": {"type": "reaction", "label": "双系连珠"}}
-    # 与 _player_skill:2607 内联判定一致：cond.type=='reaction' and element → 走 _reaction_table_resolve
+    # 与 _actor_skill:2607 内联判定一致：cond.type=='reaction' and element → 走 _reaction_table_resolve
     if info.get("cond", {}).get("type") == "reaction" and info.get("element"):
         rr = b._reaction_table_resolve(p, info["element"], {"matk": 100}, [])
         check("reaction cond 技能触发反应表(蒸发1.30)", rr is not None and rr[0] == 1.30,

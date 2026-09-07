@@ -29,9 +29,9 @@ async def main():
     b._pet_ensure_actor()
     before = [c for c in b.companions]
     print(f"宠物 actor 化后 companions: {len(before)} 个, kind={[c.get('kind') for c in before]}")
-    # 模拟玩家行动后触发（真实战斗 player_turn 尾部会调）
+    # 模拟玩家行动后触发（真实战斗 actor_turn 尾部会调）
     logs = []
-    b._companions_trigger("player_act", logs)
+    b._companions_trigger("actor_act", logs)
     after = [c for c in b.companions]
     print(f"触发 _companions_trigger 后 companions: {len(after)} 个")
     pet_alive = any(c is b.pet for c in after)

@@ -63,7 +63,7 @@ async def main():
     p = make_player("战士", 10)
     m = make_monster(hp=1000, defense=5)
     b = BT.Battle("monster", m)
-    logs, ended = b.player_turn("attack", None, p)
+    logs, ended = b.actor_turn("attack", None, p)
     # v154 读条命中制：出手只排 cast_done，推进到玩家下次行动点触发命中结算
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     check("造成伤害", m["hp"] < 1000, f"hp={m['hp']}")
@@ -76,7 +76,7 @@ async def main():
     p = make_player("战士", 20, mp=100)
     m = make_monster(hp=100000, defense=50)
     b = BT.Battle("monster", m)
-    logs, _ = b.player_turn("skill", "战吼", p)
+    logs, _ = b.actor_turn("skill", "战吼", p)
     # v154 读条命中制：增益类技能也走读条（排 cast_done 后命中时刻结算生效）——推进后生效
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
     check("怒吼日志（施放播报）", any("战吼" in l or "攻击提升" in l or "战意" in l or "攻击" in l or "施展" in l or "你施展" in l for l in logs), str(logs)[:200])
@@ -86,15 +86,15 @@ async def main():
     p2 = make_player("战士", 20)
     m2 = make_monster(hp=100000, defense=50)
     b2 = BT.Battle("pvp", m2)
-    b2.player_turn("skill", "战吼", p2)
+    b2.actor_turn("skill", "战吼", p2)
     check("战吼 p_buffs 挂 atk_up=3（PVP 不推进时刻）", b2._p_buffs_bag().get("atk_up", 0) == 3, str(b2._p_buffs_bag()))
-    b2.player_turn("attack", None, p2)
+    b2.actor_turn("attack", None, p2)
     dmg_buffed = 100000 - m2["hp"]
     random.seed(3)
     p3 = make_player("战士", 20)
     m3 = make_monster(hp=100000, defense=50)
     b3 = BT.Battle("pvp", m3)
-    b3.player_turn("attack", None, p3)
+    b3.actor_turn("attack", None, p3)
     dmg_plain = 100000 - m3["hp"]
     check("怒吼后伤害提升", dmg_buffed > dmg_plain, f"buff={dmg_buffed} plain={dmg_plain}")
 
@@ -112,7 +112,7 @@ async def main():
     E.skill_info = _ice_force
     try:
         _p_ice = make_player("法师", 10, mp=100)
-        logs, _ = b.player_turn("skill", "冰锥", _p_ice)
+        logs, _ = b.actor_turn("skill", "冰锥", _p_ice)
         b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, _p_ice)
     finally:
         E.skill_info = _orig_si
@@ -123,12 +123,12 @@ async def main():
     random.seed(5)
     b = BT.Battle("monster", make_monster(hp=100000))
     # v153：刺客基础无 淬毒（暗杀/淬毒已删）；基础毒系 = 割裂 bleed。毒层用 毒刃（分支）测
-    logs, _ = b.player_turn("skill", "割裂", make_player("刺客", 15, mp=100))
+    logs, _ = b.actor_turn("skill", "割裂", make_player("刺客", 15, mp=100))
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], make_player("刺客", 15, mp=100))
     check("割裂挂流血层", (b.enemy.get("debuffs") or {}).get("bleed", {}).get("n", 0) > 0, str(b.enemy.get("debuffs")))
     random.seed(6)
     b = BT.Battle("monster", make_monster(hp=100000))
-    b.player_turn("skill", "破甲斩", make_player("战士", 10, mp=100))
+    b.actor_turn("skill", "破甲斩", make_player("战士", 10, mp=100))
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], make_player("战士", 10, mp=100))
     # v151→技能全鉴 P1 修复：破甲斩 desc"破防"与数据对齐（恢复 pierce:True，命中后挂 def_down 破防减益）
     # ——断言改为验证战意积攒 + 破防减益（不再是无减益异常）
@@ -143,7 +143,7 @@ async def main():
     # 对齐真实产物：战士 10 级面板 atk≈59
     b.enemy.setdefault("debuffs", {})["poison"] = {"n": 2, "mult": 1.0,
                                                     "atk": 59, "matk": 0}
-    logs, ended = b.player_turn("attack", None, p)
+    logs, ended = b.actor_turn("attack", None, p)
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     # 毒 2 层（混合公式 atk×0.5+max_hp×1.5% 每层）+ 普攻
     check("中毒发作扣血", b.enemy["hp"] < 950, f"hp={b.enemy['hp']} (普攻+毒)")
@@ -180,7 +180,7 @@ async def main():
     pl = make_player("法师", 20, skills=["冰锥"])
     b2 = make_battle()
     random.seed(42)
-    logs, _ = b2.player_turn("skill", "冰锥", pl, enemy_act=True)
+    logs, _ = b2.actor_turn("skill", "冰锥", pl, enemy_act=True)
     b2._process_until(float(getattr(b2, "p_ct", 0) or 0) + 0.001, logs, pl)
     check("冰锥减速（spd_down 命中）", any("被减速" in l or "减速" in l or "冰印" in l for l in logs), str(logs))
     print("【机制：毒层→毒爆】")
@@ -188,12 +188,12 @@ async def main():
     # ——用 毒刃（t1 lv32 mech=poison 2 层）叠 2 次 + 1 次触发
     pl = make_player("刺客", 50, skills=["毒刃", "毒爆"])
     b = make_battle(10000)
-    b.player_turn("skill", "毒刃", pl, enemy_act=False)
+    b.actor_turn("skill", "毒刃", pl, enemy_act=False)
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], pl)
-    b.player_turn("skill", "毒刃", pl, enemy_act=False)
+    b.actor_turn("skill", "毒刃", pl, enemy_act=False)
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], pl)
     hp_before = b.enemy["hp"]
-    b.player_turn("skill", "毒爆", pl, enemy_act=False)
+    b.actor_turn("skill", "毒爆", pl, enemy_act=False)
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], pl)
     check("毒爆额外伤害", b.enemy["hp"] < hp_before, f"{hp_before}->{b.enemy['hp']}")
 

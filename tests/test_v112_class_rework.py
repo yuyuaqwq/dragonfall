@@ -145,7 +145,7 @@ async def test_tome(m):
     info = E.skill_info(p["class_name"], "龙息之怒")
     b = BT.Battle("怪物", {"name": "T", "hp": 5000, "max_hp": 5000, "atk": 10, "def": 500, "spd": 5}, {}, p)
     hp0 = b.enemy["hp"]
-    b._player_skill(b._player_stats(p), "龙息之怒", info, p)
+    b._actor_skill(b._player_stats(p), "龙息之怒", info, p)
     check("技能战斗可用(真伤无视防御)", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
 
 

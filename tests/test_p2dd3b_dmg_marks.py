@@ -72,10 +72,10 @@ def mk_enemy(def_=20, mdef=20, hp=100000, spd=10, lv=None):
 
 def mk_battle(player, enemy=None):
     b = BT.Battle("monster", enemy or mk_enemy(), {}, player)
-    b.player.setdefault("resources", {})
-    b.player.setdefault("stacks", {})
-    b.player.setdefault("buffs", {})
-    b.player.setdefault("eff", {})
+    b._focus.setdefault("resources", {})
+    b._focus.setdefault("stacks", {})
+    b._focus.setdefault("buffs", {})
+    b._focus.setdefault("eff", {})
     b.enemy.setdefault("element_marks", {})
     b.enemy.setdefault("buffs", {})
     b.enemy.setdefault("debuffs", {})
@@ -120,7 +120,7 @@ def OLD_5(b, dmg, logs, target=None, attacker=None):
         target = getattr(b, "_active_target", None) or b.enemy
     if dmg <= 0:
         return dmg, []
-    _atk_actor = attacker if attacker is not None else (b.player or {})
+    _atk_actor = attacker if attacker is not None else (b._focus or {})
     _mult_pas = 1.0
     _tags_pas = []
     _pl_d = _atk_actor
@@ -257,7 +257,7 @@ def test_hunt_mark_up():
     p = mk_player("cls_you_xia", ["自然之眼"])
     def setup_missing(b):
         set_target_state(b, hunt=2)
-        pm = b._passive_map(b.player)
+        pm = b._passive_map(b._focus)
         pm["proc"]["hunt_mark_up"] = [("自然之眼", {"proc": "hunt_mark_up"})]
         b._passive_map = lambda pl, _pm=pm: _pm
     old, new = diff_case("缺 per_layer 字段", p, setup_missing)
@@ -316,7 +316,7 @@ def test_shaken_awareness():
     p = mk_player("cls_wu_seng", ["气力之心"])
     def setup_missing(b):
         set_target_state(b, shaken={"val": 20, "threshold": 15})
-        pm = b._passive_map(b.player)
+        pm = b._passive_map(b._focus)
         pm["proc"]["shaken_awareness"] = [("气力之心", {"proc": "shaken_awareness"})]
         b._passive_map = lambda pl, _pm=pm: _pm
     old, new = diff_case("缺 bar_at/mult 字段", p, setup_missing)
@@ -397,7 +397,7 @@ def test_dirge_debuff_dmg():
     p = mk_player("cls_shi_ren", ["挽歌·极"])
     def setup_missing(b):
         b.enemy["debuffs"] = {"poison": {"n": 1}, "burn": {"n": 1}}
-        pm = b._passive_map(b.player)
+        pm = b._passive_map(b._focus)
         pm["proc"]["dirge_debuff_dmg"] = [("挽歌·极", {"proc": "dirge_debuff_dmg"})]
         b._passive_map = lambda pl, _pm=pm: _pm
     old, new = diff_case("缺 per_debuff/cap 字段", p, setup_missing)
@@ -436,7 +436,7 @@ def test_combined():
               "buffs": {}, "resources": {}, "stacks": {}, "equipment": {}}
     def setup_pet(b):
         b.enemy["debuffs"] = {"hunt_mark": 3, "soul_mark": 1, "poison": {"n": 1}}
-    # attacker=宠物（无 class/learned → _passive_map 走 lambda 注入只对 battle.player 生效？——
+    # attacker=宠物（无 class/learned → _passive_map 走 lambda 注入只对 battle._focus 生效？——
     # OLD/NEW 读 _proc_pm(_atk_actor)：monkeypatch 只影响 self._passive_map 全部 player……
     # 这里 attacker 无被动条目 → 无额外；用 OLD 结果（真实数据路径）+ 注玩家条目不适用。
     # 直接断言：OLD==NEW（双方同路径），期望 = 只标记基础

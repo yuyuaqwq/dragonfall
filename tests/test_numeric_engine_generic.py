@@ -41,7 +41,7 @@ def t1():
     mon = mk_mon({"equipment": {"armor": {"affixes": ["thorns"], "quality": "blue"}}})
     player = mk_player()
     b = BT.Battle("monster", mon)
-    b.player = player
+    b._focus = player
     random.seed(1)
     logs = []
     b._damage_actor(mon, 800, logs, source="玩家", attacker=player)
@@ -53,9 +53,9 @@ def t2():
     mon = mk_mon({"skills": ["sk_hui_kan"]})
     player = mk_player()
     b = BT.Battle("monster", mon)
-    b.player = player
+    b._focus = player
     random.seed(1)
-    b._enemy_cast_done(player, mon, {"kind": "skill", "skill": "sk_hui_kan"})
+    b._hostile_cast_done(player, mon, {"kind": "skill", "skill": "sk_hui_kan"})
     return int((mon.get("stacks") or {}).get("zhan_yi", 0)) > 0, f"stacks={mon.get('stacks')}"
 
 
@@ -65,7 +65,7 @@ def t4():
     mon = mk_mon({"resource_def": {"key": "rage", "max": 10}, "skills": ["sk_hui_kan"]})
     player = mk_player()
     b = BT.Battle("monster", mon)
-    b.player = player
+    b._focus = player
     # sk_hui_kan 无 res_gain——测怪物自己技能带 res_gain
     return True, "怪物技能 res_gain 已在 B4 验证"
 
@@ -77,7 +77,7 @@ def t5():
     mon = mk_mon({"skills": ["sk_tie_bi"]})
     player = mk_player()
     b = BT.Battle("monster", mon)
-    b.player = player
+    b._focus = player
     fn = SKILL_BUFF_EFFECTS.get(info.get("effect"))
     logs = []
     b._cast_ctx = mon
@@ -93,10 +93,10 @@ def t6():
     mon = mk_mon({"skills": [heal_key]})
     player = mk_player()
     b = BT.Battle("monster", mon)
-    b.player = player
+    b._focus = player
     mon["hp"] = 2000
     random.seed(1)
-    b._enemy_cast_done(player, mon, {"kind": "skill", "skill": heal_key})
+    b._hostile_cast_done(player, mon, {"kind": "skill", "skill": heal_key})
     return mon["hp"] > 2000, f"hp={mon['hp']}"
 
 
@@ -106,13 +106,13 @@ def t7():
     for cls_id, cls in PLAYER_SKILLS.items():
         for sk, sv in (cls.get("skills") or {}).items():
             if sv.get("aoe") and sv.get("kind") in ("物理", "魔法"):
-                # 怪物施放 aoe——_enemy_cast_done 支持 aoe 吗？
+                # 怪物施放 aoe——_hostile_cast_done 支持 aoe 吗？
                 mon = mk_mon({"skills": [sk]})
                 player = mk_player()
                 b = BT.Battle("monster", mon)
-                b.player = player
+                b._focus = player
                 random.seed(1)
-                logs, dmg, _ = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": sk})
+                logs, dmg, _ = b._hostile_cast_done(player, mon, {"kind": "skill", "skill": sk})
                 return dmg > 0, f"技能={sk} dmg={dmg} logs={logs[:1]}"
     return False, "无 aoe 伤害技能"
 
@@ -128,10 +128,10 @@ def t8():
                         mon = mk_mon({"skills": [sk], "is_boss": True})
                         player = mk_player()
                         b = BT.Battle("monster", mon)
-                        b.player = player
+                        b._focus = player
                         n_before = len(b.enemies)
                         random.seed(1)
-                        logs, dmg, _ = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": sk})
+                        logs, dmg, _ = b._hostile_cast_done(player, mon, {"kind": "skill", "skill": sk})
                         return len(b.enemies) > n_before, f"技能={sk} 敌数 {n_before}→{len(b.enemies)}"
     return False, "无召唤技能"
 
@@ -141,9 +141,9 @@ def t9():
     mon = mk_mon({"skills": ["sk_hui_kan"], "resource_def": {"key": "rage", "max": 10}})
     player = mk_player()
     b = BT.Battle("monster", mon)
-    b.player = player
+    b._focus = player
     random.seed(2)
-    b._enemy_cast_done(player, mon, {"kind": "skill", "skill": "sk_hui_kan"})
+    b._hostile_cast_done(player, mon, {"kind": "skill", "skill": "sk_hui_kan"})
     return int((mon.get("stacks") or {}).get("zhan_yi", 0)) >= 1, f"zhan_yi={mon.get('stacks',{}).get('zhan_yi')}"
 
 

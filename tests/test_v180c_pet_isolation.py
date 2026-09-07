@@ -134,7 +134,7 @@ async def main():
     b5._pet_ensure_actor()
     check("宠物 actor 已入 companions", any(c is b5.pet for c in b5.companions),
           f"n={len(b5.companions)}")
-    b5._companions_trigger("player_act", [])
+    b5._companions_trigger("actor_act", [])
     check("触发后宠物仍存活（未被死亡清理误删）", any(c is b5.pet for c in b5.companions),
           f"n={len(b5.companions)}")
 

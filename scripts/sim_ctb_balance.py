@@ -86,9 +86,9 @@ def run_one_battle(p, enemy, use_skill=True, spd_override=None, enemy_spd_overri
         # 与旧 sim 口径一致：仅在已学技能时用技能，否则普攻（否则未学技能会被 O118
         # 拦截持续返回 done=False，造成死循环）
         if use_skill and pp.get("learned_skills") and pp["mp"] >= 6:
-            logs, done = b.player_turn("skill", "猛击", pp)
+            logs, done = b.actor_turn("skill", "猛击", pp)
         else:
-            logs, done = b.player_turn("attack", None, pp)
+            logs, done = b.actor_turn("attack", None, pp)
         if done:
             break
         if b.round > 800:  # 兜底保护，防御极端配速解析不一导致的死循环
@@ -160,7 +160,7 @@ def action_statistics(player_spd, enemy_spd, player_actions=100):
 
     p_acts = 0
     while p_acts < player_actions:
-        logs, done = b.player_turn("attack", None, pp)
+        logs, done = b.actor_turn("attack", None, pp)
         p_acts += 1
         if done or b.result is not None:
             break
@@ -219,7 +219,7 @@ def enemy_cap8_test():
             cnt["p"] += 1; cnt["chain"] = 0
         return real(self, side, unit, player)
     Battle._after_actor_ct = _after
-    b.player_turn("attack", None, pp)
+    b.actor_turn("attack", None, pp)
     Battle._after_actor_ct = real
     return {"enemy_in_1pturn": cnt["e"], "max_chain": cnt["max"], "p_turns": cnt["p"]}
 

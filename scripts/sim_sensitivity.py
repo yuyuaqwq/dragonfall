@@ -41,9 +41,9 @@ def run_battle(player, rounds=400):
         p["max_hp"] = st["max_hp"]; p["max_mp"] = st["max_mp"]; p["hp"] = st["max_hp"]; p["mp"] = st["max_mp"]
         while True:
             if p["mp"] >= 6:
-                logs, done = b.player_turn("skill", "猛击", p)
+                logs, done = b.actor_turn("skill", "猛击", p)
             else:
-                logs, done = b.player_turn("attack", None, p)
+                logs, done = b.actor_turn("attack", None, p)
             if done: break
         if b.result == "victory":
             wins += 1; rnds.append(b.round); dmg_taken.append(st["max_hp"] - p["hp"])

@@ -67,11 +67,11 @@ for cls, name in [("cls_fa_shi", "法师"), ("cls_mu_shi", "牧师"), ("cls_shi_
           f"kind={bs.get('kind')} expr={bs.get('exprs')}")
 
 # 3. 法系普攻伤害 = matk 段（matk=100, mdef=10 → ~90，引擎伤害有 ±15% 浮动）
-# ⚠️ 断言放宽到 ≥75：引擎 _player_attack 走通用攻击段 variance=0.15，
+# ⚠️ 断言放宽到 ≥75：引擎 _actor_attack 走通用攻击段 variance=0.15，
 # 90×(1-0.15)=76.5，曾偶发 78/79 红（非回归，是随机浮动）——与战士口径对齐
 for cls in ["cls_fa_shi", "cls_mu_shi", "cls_shi_ren"]:
     player, b, st = mk_battle(cls, atk=30, matk=100)
-    logs = b._player_attack(st, player)
+    logs = b._actor_attack(st, player)
     dmg = 0
     for l in logs:
         if "造成" in l and "伤害" in l:
@@ -84,7 +84,7 @@ for cls in ["cls_fa_shi", "cls_mu_shi", "cls_shi_ren"]:
 
 # 4. 物理普攻不回归（atk=100 → 与旧 calc_damage 一致）
 player, b, st = mk_battle("cls_zhan_shi", atk=100, matk=10)
-logs = b._player_attack(st, player)
+logs = b._actor_attack(st, player)
 dmg = 0
 for l in logs:
     if "造成" in l and "伤害" in l:
@@ -99,7 +99,7 @@ player, b, st = mk_battle("cls_zhan_shi", atk=100, matk=10)
 b2 = BT.Battle("monster", {"name": "魔法木桩", "hp": 99999, "max_hp": 99999,
                            "def": 10, "mdef": 10, "atk": 100, "matk": 10, "spd": 10, "level": 20,
                            "basic_skill": {"name": "魔力爪", "kind": "魔法", "exprs": ["matk*1.0"]}})
-# 敌方普攻路径（直接调 _enemy_cast_done 或近似验证公式解析）
+# 敌方普攻路径（直接调 _hostile_cast_done 或近似验证公式解析）
 from data.plugins.dragonfall.game.core import formula_expr as FE
 _mst = {"matk": 10, "atk": 100}
 _v = FE.build_vars(_mst, player_lv=20, skill_lv=0)

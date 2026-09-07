@@ -130,7 +130,7 @@ def main():
     b4 = BT.Battle("monster", mk_monster("m_tf_4", "dps", 1), player=p)
     b4.enemy["atk"] = 1
     p4 = mk_player("cls_zhan_shi", 11, None)
-    b4.player = p4
+    b4._focus = p4
     b4.add_tick_effect("test_regen_heal", p4, interval=1.0, uid="s1",
                        data={"heal": 7}, expire_at=10.0)
     st = b4.to_state()

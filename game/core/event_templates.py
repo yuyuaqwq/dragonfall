@@ -35,7 +35,7 @@ _BP_PAGE_BY_QUALITY = {"white": 1, "green": 1, "blue": 2, "purple": 4, "orange":
 def _add_bp_or_pages(ctx, db, bp):
     """已学图纸 → 图纸残页入包；未学 → 整张图纸入包。返回 (is_learned, bp_name, pages)。"""
     import uuid
-    _learned = ctx.player.get("learned_blueprints") or []
+    _learned = ctx._focus.get("learned_blueprints") or []
     if bp.get("blueprint_for") in _learned:
         _pages = _BP_PAGE_BY_QUALITY.get(bp.get("quality", "white"), 1)
         db.add_item(ctx.group_id, ctx.qq_id, "mat_tu_zhi_can_ye",
@@ -53,7 +53,7 @@ class EventContext:
                  name="此地", hooks=None, loot_mult=None, pref_mats=None):
         self.group_id = group_id
         self.qq_id = qq_id
-        self.player = player
+        self._focus = player
         self.cur_map = cur_map
         self.params = params or {}
         self.name = name
@@ -65,7 +65,7 @@ class EventContext:
     # ---- 便捷访问 ----
     @property
     def lv(self):
-        return self.player.get("level", 1)
+        return self._focus.get("level", 1)
 
     def _db(self):
         from .. import db
@@ -98,7 +98,7 @@ class EventContext:
 @register("loot_gold")
 def tpl_loot_gold(ctx):
     """金币：gold = randint(min,max) + lv*scale_lv。params: min/max/scale_lv/header
-    v109.3 P0 修复：基数从 DB 读最新 gold（原用 ctx.player 陈旧对象——调用方在
+    v109.3 P0 修复：基数从 DB 读最新 gold（原用 ctx._focus 陈旧对象——调用方在
     _rule_fire 前可能已通过其他路径加过金币（如 _complete_side_quest 的行会委托
     在 _bump_daily_progress 落库），旧 dict 覆盖会吞掉金币——combat.py:1779 同型
     问题 v105 M18 已修，quest 路径漏网导致 test_v104_quests 30% 偶发失败）"""
@@ -180,7 +180,7 @@ def tpl_loot_gold_mats(ctx):
     bp_chance = ctx.param("blueprint_chance", 0)
     # v94 图纸经济：宝箱为图纸主要来源；阶段九：精灵森林之友——探索获得物品概率 +10%
     if ctx.param("explore_item_bonus", False):
-        bp_chance = bp_chance + (0.10 if E.race_stats(ctx.player.get("race")).get("explore_item") else 0)
+        bp_chance = bp_chance + (0.10 if E.race_stats(ctx._focus.get("race")).get("explore_item") else 0)
     if bp_chance and random.random() < bp_chance:
         bp = C.roll_blueprint(max(1, ctx.lv))
         _learned, _bpn, _pages = _add_bp_or_pages(ctx, db, bp)
@@ -203,12 +203,12 @@ def tpl_exp_gain(ctx):
     C = ctx._C()
     E = ctx._E()
     exp_gain = ctx.param("min", 15) + ctx.lv * ctx.param("scale_lv", 3)
-    # v110 审计修复：从 DB 读最新 exp 再累加（防 ctx.player 陈旧 dict 覆盖吞经验——
-    # 与 v109.3 loot_gold 同型），并回写 ctx.player 引用（#262：战斗结算进度条
+    # v110 审计修复：从 DB 读最新 exp 再累加（防 ctx._focus 陈旧 dict 覆盖吞经验——
+    # 与 v109.3 loot_gold 同型），并回写 ctx._focus 引用（#262：战斗结算进度条
     # 显示依赖同一 player dict，保持引用同步）
     cur_exp = int(db.get_player(ctx.group_id, ctx.qq_id).get("exp", 0))
-    ctx.player["exp"] = cur_exp + exp_gain
-    db.update_player(ctx.group_id, ctx.qq_id, exp=ctx.player["exp"])
+    ctx._focus["exp"] = cur_exp + exp_gain
+    db.update_player(ctx.group_id, ctx.qq_id, exp=ctx._focus["exp"])
     player = db.get_player(ctx.group_id, ctx.qq_id)
     player["_title_bonus"] = ctx.hooks.get("title_bonus", lambda q: None)(ctx.qq_id)
     lines = [ctx.param("header", "✨ 经验 +{exp}").replace("{name}", ctx.name).replace("{exp}", str(exp_gain))]
@@ -221,11 +221,11 @@ def tpl_exp_gain(ctx):
                          attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0),
                          learned_skills=player.get("learned_skills", []))
         # F1 P1-2（report_02）：升级后把最新 level/exp 等同步回调用方 player dict
-        # （ctx.player 与调用方同引用）——否则战斗胜利主流程随后再次 check_player_level_up
+        # （ctx._focus 与调用方同引用）——否则战斗胜利主流程随后再次 check_player_level_up
         # 会用陈旧 level/exp 重复升级 → 升级公告双打印
         for _k in ("level", "exp", "hp", "mp", "max_hp", "max_mp", "skills",
                    "attr_pts", "skill_points", "learned_skills"):
-            ctx.player[_k] = player.get(_k, ctx.player.get(_k))
+            ctx._focus[_k] = player.get(_k, ctx._focus.get(_k))
     return "\n".join(lines)
 
 
@@ -233,7 +233,7 @@ def tpl_exp_gain(ctx):
 def tpl_heal_full(ctx):
     """回满血蓝。params: header"""
     db = ctx._db()
-    db.update_player(ctx.group_id, ctx.qq_id, hp=ctx.player["max_hp"], mp=ctx.player["max_mp"])
+    db.update_player(ctx.group_id, ctx.qq_id, hp=ctx._focus["max_hp"], mp=ctx._focus["max_mp"])
     header = ctx.param("header", "❤️ 生命全满！💙 魔力全满！")
     return header.replace("{name}", ctx.name)
 
@@ -242,14 +242,14 @@ def tpl_heal_full(ctx):
 def tpl_damage(ctx):
     """扣血（陷阱类）。params: pct/min/header"""
     db = ctx._db()
-    dmg = int(ctx.player["max_hp"] * ctx.param("pct", 0.15)) + ctx.param("min", 5)
-    new_hp = max(1, ctx.player["hp"] - dmg)
+    dmg = int(ctx._focus["max_hp"] * ctx.param("pct", 0.15)) + ctx.param("min", 5)
+    new_hp = max(1, ctx._focus["hp"] - dmg)
     db.update_player(ctx.group_id, ctx.qq_id, hp=new_hp)
     header = ctx.param("header", "你摔伤了，损失 {dmg} 点生命(当前 ❤️ {hp}/{max_hp})")
     return header.replace("{name}", ctx.name) \
                  .replace("{dmg}", str(dmg)) \
                  .replace("{hp}", str(new_hp)) \
-                 .replace("{max_hp}", str(ctx.player["max_hp"]))
+                 .replace("{max_hp}", str(ctx._focus["max_hp"]))
 
 
 @register("set_state")
@@ -295,14 +295,14 @@ def tpl_mystery_chest(ctx):
     C = ctx._C()
     gold = random.randint(50, 120) + ctx.lv * 5
     gold = int(gold * (ctx.loot_mult or 1.0))  # v115 今日奇遇 loot_mult 倍率
-    # v110 审计修复：与 tpl_loot_gold 同型——读 DB 最新 gold 再累加，防 ctx.player
+    # v110 审计修复：与 tpl_loot_gold 同型——读 DB 最新 gold 再累加，防 ctx._focus
     # 陈旧 dict 覆盖吞金币（v109.3 P0 同类事故的漏网模板）
     cur = db.get_player(ctx.group_id, ctx.qq_id).get("gold", 0)
     db.update_player(ctx.group_id, ctx.qq_id, gold=cur + gold)
     mat_line = ""
     # v105 M23 P1-4：材料源改当前子区域怪物掉落池（与 combat.py 探索遇怪同源）——
     # v87.6 后怪物全部下沉子区域，地图级 monsters 0/116 全空，原宝匣材料行静默失效（只掉金币+图纸）
-    cur_sa_id = ctx.player.get("cur_subarea") or ""
+    cur_sa_id = ctx._focus.get("cur_subarea") or ""
     mon_src = None
     for _sa in (ctx.cur_map.get("subareas") or []):
         if _sa["id"] == cur_sa_id:
@@ -344,7 +344,7 @@ def tpl_merchant(ctx):
     q = random.choices(["white", "green", "blue"], weights=[45, 40, 15])[0]
     equip = C.generate_equip(random.choice(["weapon", "ring", "necklace"]), max(1, ctx.lv), q)
     price = int(equip["price"] * 0.6)
-    # F1 审计修复（C-D3.3）：按 DB 最新 gold 判能否出价（原用 ctx.player 陈旧对象——调用方在
+    # F1 审计修复（C-D3.3）：按 DB 最新 gold 判能否出价（原用 ctx._focus 陈旧对象——调用方在
     # _rule_fire 前可能已通过其他路径加/扣过金币，旧 dict 覆盖会误判出价；与 tpl_loot_gold 同型口径）
     _cur_gold = db.get_player(ctx.group_id, ctx.qq_id).get("gold", 0)
     if _cur_gold >= price and random.random() < C.TRADER_DEAL_CHANCE:  # v101.5 常量
@@ -397,7 +397,7 @@ def tpl_combo(ctx):
     for i, step in enumerate(ctx.param("steps", [])):
         sub_params = dict(ctx.params)
         sub_params.update(step.get("params", {}))
-        sub_ctx = EventContext(ctx.group_id, ctx.qq_id, ctx.player, ctx.cur_map,
+        sub_ctx = EventContext(ctx.group_id, ctx.qq_id, ctx._focus, ctx.cur_map,
                                params=sub_params, name=ctx.name, hooks=ctx.hooks)
         fn = TEMPLATES.get(step.get("template"))
         if fn:
@@ -416,7 +416,7 @@ def tpl_random_choice(ctx):
         return ""
     sub_params = dict(ctx.params)
     sub_params.update(branch.get("params", {}))
-    sub_ctx = EventContext(ctx.group_id, ctx.qq_id, ctx.player, ctx.cur_map,
+    sub_ctx = EventContext(ctx.group_id, ctx.qq_id, ctx._focus, ctx.cur_map,
                            params=sub_params, name=ctx.name, hooks=ctx.hooks)
     fn = TEMPLATES.get(branch.get("template"))
     if fn:
@@ -432,7 +432,7 @@ def tpl_stamina_cost(ctx):
     db = ctx._db()
     cost = ctx.param("cost", 5)
     max_st = 100 + ctx.lv * 2
-    cur = int(ctx.player.get("stamina") or 0)
+    cur = int(ctx._focus.get("stamina") or 0)
     new = max(0, cur - cost)
     db.update_player(ctx.group_id, ctx.qq_id, stamina=new)
     header = ctx.param("header", "⚡ 体力 -{cost}（当前 ⚡ {stamina}/{max}）")
@@ -471,12 +471,12 @@ def tpl_stamina_gift(ctx):
     db = ctx._db()
     gain = random.randint(ctx.param("min", 5), ctx.param("max", 10))
     max_st = 100 + ctx.lv * 2
-    cur = int(ctx.player.get("stamina") or 0)
+    cur = int(ctx._focus.get("stamina") or 0)
     new = min(max_st, cur + gain)
     if new != cur:
         import time as _time
         db.update_player(ctx.group_id, ctx.qq_id, stamina=new, stamina_ts=int(_time.time()))
-        ctx.player["stamina"] = new  # 同步上下文，避免跨事件陈旧值
+        ctx._focus["stamina"] = new  # 同步上下文，避免跨事件陈旧值
     header = ctx.param("header", "⚡ 体力 +{gain}（当前 ⚡ {stamina}/{max}）")
     return (header.replace("{name}", ctx.name)
                   .replace("{gain}", str(new - cur))

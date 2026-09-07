@@ -43,18 +43,18 @@ MONSTER_SKILLS["ms_test_eye"] = {"kind": "魔法", "power": 1.0, "defend_reduce"
 
 def run_evasion(skill_key, seed=0):
     """模拟敌方技能命中 + 玩家防御（走 _process_until 的 defend 分支太复杂，
-    直接验证 _enemy_cast_done 伤害 + defend_reduce 折算逻辑）"""
+    直接验证 _hostile_cast_done 伤害 + defend_reduce 折算逻辑）"""
     import random as _r
     _r.seed(seed)
     player = mk_player()
     mon = mk_mon()
     b = BT.Battle("monster", mon)
-    b.player = player
-    # v180F 防御格挡下沉承伤链：_enemy_cast_done 管线分支内部扣血（返回 dmg=0），
+    b._focus = player
+    # v180F 防御格挡下沉承伤链：_hostile_cast_done 管线分支内部扣血（返回 dmg=0），
     # 格挡在 _damage_actor 按 player.defending 消费。旧断言"返回 dmg>0"已不适用——
     # 改为设 defending 标志，断言真实 hp 扣减比例（格挡前后对比）。
     hp0 = player.get("hp", 0)
-    logs, dmg, _ = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": skill_key})
+    logs, dmg, _ = b._hostile_cast_done(player, mon, {"kind": "skill", "skill": skill_key})
     dealt = hp0 - player.get("hp", 0)
     return dmg, dealt
 
@@ -79,10 +79,10 @@ try:
         player = mk_player()
         mon = mk_mon()
         b = BT.Battle("monster", mon)
-        b.player = player
+        b._focus = player
         player["defending"] = True
         hp0 = player.get("hp", 0)
-        logs, dmg, _ = b._enemy_cast_done(player, mon, {"kind": "skill", "skill": skill_key})
+        logs, dmg, _ = b._hostile_cast_done(player, mon, {"kind": "skill", "skill": skill_key})
         return hp0 - player.get("hp", 0)
     dealt_n_def = run_defend("ms_test_normal", seed=11)   # 默认 0.5
     dealt_e_def = run_defend("ms_test_eye", seed=12)      # 0.8

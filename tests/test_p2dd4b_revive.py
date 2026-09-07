@@ -24,7 +24,7 @@ stance_immortal）从 battle.py 内联 for 迁移到 passive_procs 注册表族 
 直接置 0（模拟扣血后致死态），dmg 参数仅为挂点签名（复活段不消费 dmg）。
 Battle.__init__ 会把 player.max_hp 重算为实时面板值（mk_player 初值 500 仅占位）——
 探针一律不硬编码复活数值，断言两路状态一致 + 关键语义（>0 复活/0 未复活 + 骷髅牺牲/
-宠物留场/姿态移除/战意清空 + flag 置位），绝对数值由特写场景动态取 b.player.max_hp 锁定。
+宠物留场/姿态移除/战意清空 + flag 置位），绝对数值由特写场景动态取 b._focus.max_hp 锁定。
 
 运行（与门禁同款 python）：
   python tests/test_p2dd4b_revive.py
@@ -74,12 +74,12 @@ def mk_enemy(def_=20, mdef=20, hp=100000, spd=10):
 def mk_battle(player, enemy=None):
     """构造战斗（深拷贝防 Battle 内 setdefault 污染 OLD 参考源）。"""
     b = BT.Battle("monster", enemy or mk_enemy(), {}, copy.deepcopy(player))
-    b.player.setdefault("resources", {})
-    b.player.setdefault("stacks", {})
-    b.player.setdefault("buffs", {})
-    b.player.setdefault("shields", {})
-    b.player.setdefault("eff", {})
-    b.player.setdefault("v139_modes", {})
+    b._focus.setdefault("resources", {})
+    b._focus.setdefault("stacks", {})
+    b._focus.setdefault("buffs", {})
+    b._focus.setdefault("shields", {})
+    b._focus.setdefault("eff", {})
+    b._focus.setdefault("v139_modes", {})
     return b
 
 
@@ -177,13 +177,13 @@ def _run_lethal_pair(player, setup, dmg=99999):
     b_new = mk_battle(dict(player), mk_enemy())
     for b in (b_old, b_new):
         setup(b)
-        b.player["hp"] = 0  # 致死态（扣血后 hp 已 ≤0 才进复活链）
+        b._focus["hp"] = 0  # 致死态（扣血后 hp 已 ≤0 才进复活链）
     logs_o, logs_n = [], []
-    OLD_lethal(b_old, b_old.player, dmg, logs_o)
-    b_new._post_hp_lethal(b_new.player, dmg, logs_n)
-    same = (_state_of(b_old, b_old.player) == _state_of(b_new, b_new.player)
+    OLD_lethal(b_old, b_old._focus, dmg, logs_o)
+    b_new._post_hp_lethal(b_new._focus, dmg, logs_n)
+    same = (_state_of(b_old, b_old._focus) == _state_of(b_new, b_new._focus)
             and logs_o == logs_n)
-    return same, (_state_of(b_old, b_old.player), logs_o), (_state_of(b_new, b_new.player), logs_n)
+    return same, (_state_of(b_old, b_old._focus), logs_o), (_state_of(b_new, b_new._focus), logs_n)
 
 
 def _inject(b, proc_keys):
@@ -193,7 +193,7 @@ def _inject(b, proc_keys):
     遍历用 _passive_map；_proc_pm 同换防其它消费（hp 重算等不涉及）。
     proc_keys 传 proc 键（death_contract/berserk_revive/stance_immortal）。
     """
-    pm = b._proc_pm(b.player)
+    pm = b._proc_pm(b._focus)
     base = dict(pm)
     base.setdefault("proc", {})
     for pn in proc_keys:
@@ -224,7 +224,7 @@ def test_death_contract():
                     # 宠物（kind=pet）绝不作为祭品（v180-C S3）
                     comps.append(mk_skeleton("宠物", hp=200, kind="pet", tid="pet_tiger"))
                     def setup(b, comps=comps, faith=faith, flag=flag):
-                        b.player["resources"]["faith"] = faith
+                        b._focus["resources"]["faith"] = faith
                         b.companions = [dict(c) for c in comps]
                         if flag:
                             b._death_pact_used = True  # 模拟 from_state 恢复已用
@@ -243,15 +243,15 @@ def test_death_contract():
     # 特写断言（独立构造 NEW 验复活数值/牺牲对象/宠物留场）——数值以 battle 重算 max_hp 为口径
     p = mk_player("cls_mu_shi", ["死亡契约"])
     b = mk_battle(dict(p), mk_enemy())
-    _maxhp = int(b.player["max_hp"])
-    b.player["resources"]["faith"] = 5
+    _maxhp = int(b._focus["max_hp"])
+    b._focus["resources"]["faith"] = 5
     b.companions = [mk_skeleton("骷髅A"), mk_skeleton("骷髅B", kind="pet", tid="pet_x")]
-    b.player["hp"] = 0
+    b._focus["hp"] = 0
     logs = []
-    b._post_hp_lethal(b.player, 99999, logs)
+    b._post_hp_lethal(b._focus, 99999, logs)
     comps_after = b.companions
-    check(f"复活 hp = max_hp×0.20 = {max(1, int(_maxhp*0.20))}", b.player["hp"] == max(1, int(_maxhp * 0.20)),
-          f"hp={b.player['hp']} max_hp={_maxhp}")
+    check(f"复活 hp = max_hp×0.20 = {max(1, int(_maxhp*0.20))}", b._focus["hp"] == max(1, int(_maxhp * 0.20)),
+          f"hp={b._focus['hp']} max_hp={_maxhp}")
     check("牺牲尾骷髅（骷髅A）离场，宠物留场",
           len(comps_after) == 1 and comps_after[0]["tid"] == "pet_x"
           and comps_after[0]["kind"] == "pet", str(comps_after))
@@ -259,43 +259,43 @@ def test_death_contract():
     check("复活日志含 死亡契约", any("死亡契约" in s and "站起" in s for s in logs), str(logs))
     # 无骷髅：信念已足 → 日志提示，不消耗契约、不复活（后续链无接棒 → hp 保持 0）
     b2 = mk_battle(dict(p), mk_enemy())
-    b2.player["resources"]["faith"] = 5
-    b2.player["hp"] = 0
+    b2._focus["resources"]["faith"] = 5
+    b2._focus["hp"] = 0
     logs2 = []
-    b2._post_hp_lethal(b2.player, 99999, logs2)
+    b2._post_hp_lethal(b2._focus, 99999, logs2)
     check("无骷髅 → 不复活 hp=0 + 提示日志 + 不消耗契约",
-          b2.player["hp"] == 0 and not getattr(b2, "_death_pact_used", False)
-          and any("没有骷髅" in s for s in logs2), f"hp={b2.player['hp']} flag={getattr(b2,'_death_pact_used',False)} logs={logs2}")
+          b2._focus["hp"] == 0 and not getattr(b2, "_death_pact_used", False)
+          and any("没有骷髅" in s for s in logs2), f"hp={b2._focus['hp']} flag={getattr(b2,'_death_pact_used',False)} logs={logs2}")
     # 信念不足：无日志、不复活
     b3 = mk_battle(dict(p), mk_enemy())
-    b3.player["resources"]["faith"] = 4
+    b3._focus["resources"]["faith"] = 4
     b3.companions = [mk_skeleton("骷髅A")]
-    b3.player["hp"] = 0
+    b3._focus["hp"] = 0
     logs3 = []
-    b3._post_hp_lethal(b3.player, 99999, logs3)
-    check("信念4 <5 → 不触发 hp=0 无日志", b3.player["hp"] == 0 and not logs3,
-          f"hp={b3.player['hp']} logs={logs3}")
+    b3._post_hp_lethal(b3._focus, 99999, logs3)
+    check("信念4 <5 → 不触发 hp=0 无日志", b3._focus["hp"] == 0 and not logs3,
+          f"hp={b3._focus['hp']} logs={logs3}")
     # 同场二次致死：flag 已置 → 不复活
     b4 = mk_battle(dict(p), mk_enemy())
-    b4.player["resources"]["faith"] = 5
+    b4._focus["resources"]["faith"] = 5
     b4.companions = [mk_skeleton("骷髅A")]
-    b4.player["hp"] = 0
-    b4._post_hp_lethal(b4.player, 99999, [])
-    b4.player["hp"] = 0
+    b4._focus["hp"] = 0
+    b4._post_hp_lethal(b4._focus, 99999, [])
+    b4._focus["hp"] = 0
     logs4 = []
-    b4._post_hp_lethal(b4.player, 99999, logs4)
-    check("同场二次致死（flag 已用）→ 不复活 hp=0 无日志", b4.player["hp"] == 0 and not logs4,
-          f"hp={b4.player['hp']} logs={logs4}")
+    b4._post_hp_lethal(b4._focus, 99999, logs4)
+    check("同场二次致死（flag 已用）→ 不复活 hp=0 无日志", b4._focus["hp"] == 0 and not logs4,
+          f"hp={b4._focus['hp']} logs={logs4}")
     # 未学被动：无 proc 条目 → 不触发（死亡契约 proc 无条目段空转）
     p0 = mk_player("cls_mu_shi", [])
     b0 = mk_battle(dict(p0), mk_enemy())
-    b0.player["resources"]["faith"] = 5
+    b0._focus["resources"]["faith"] = 5
     b0.companions = [mk_skeleton("骷髅A")]
-    b0.player["hp"] = 0
+    b0._focus["hp"] = 0
     logs0 = []
-    b0._post_hp_lethal(b0.player, 99999, logs0)
-    check("未学死亡契约 → 不触发 hp=0 无日志", b0.player["hp"] == 0 and not logs0,
-          f"hp={b0.player['hp']} logs={logs0}")
+    b0._post_hp_lethal(b0._focus, 99999, logs0)
+    check("未学死亡契约 → 不触发 hp=0 无日志", b0._focus["hp"] == 0 and not logs0,
+          f"hp={b0._focus['hp']} logs={logs0}")
 
 
 # ============================================================
@@ -309,9 +309,9 @@ def test_berserk_revive():
                 for flag in (False, True):
                     p = mk_player("cls_zhan_shi", ["血怒·不灭"] if learned else [])
                     def setup(b, alt=alt, zy=zy, flag=flag):
-                        b.player["stacks"]["zhan_yi"] = zy
+                        b._focus["stacks"]["zhan_yi"] = zy
                         if alt:
-                            b.player["v139_modes"] = {"dual_form": {"form": "alt", "turns_left": 5}}
+                            b._focus["v139_modes"] = {"dual_form": {"form": "alt", "turns_left": 5}}
                         if flag:
                             b._berserk_revive_used = True
                     same, st_o, st_n = _run_lethal_pair(p, setup)
@@ -320,36 +320,36 @@ def test_berserk_revive():
     # 特写：狂暴首次致死 → 30% 复活 + 战意清 0 + flag 置位
     p = mk_player("cls_zhan_shi", ["血怒·不灭"])
     b = mk_battle(dict(p), mk_enemy())
-    _maxhp = int(b.player["max_hp"])
-    b.player["stacks"]["zhan_yi"] = 7
-    b.player["v139_modes"] = {"dual_form": {"form": "alt"}}
-    b.player["hp"] = 0
+    _maxhp = int(b._focus["max_hp"])
+    b._focus["stacks"]["zhan_yi"] = 7
+    b._focus["v139_modes"] = {"dual_form": {"form": "alt"}}
+    b._focus["hp"] = 0
     logs = []
-    b._post_hp_lethal(b.player, 99999, logs)
+    b._post_hp_lethal(b._focus, 99999, logs)
     check(f"狂暴致死 → 复活 hp = max_hp×0.30 = {max(1,int(_maxhp*0.30))}",
-          b.player["hp"] == max(1, int(_maxhp * 0.30)), f"hp={b.player['hp']} max_hp={_maxhp}")
-    check("战意清空 zhan_yi==0", b.player["stacks"]["zhan_yi"] == 0, str(b.player["stacks"]))
+          b._focus["hp"] == max(1, int(_maxhp * 0.30)), f"hp={b._focus['hp']} max_hp={_maxhp}")
+    check("战意清空 zhan_yi==0", b._focus["stacks"]["zhan_yi"] == 0, str(b._focus["stacks"]))
     check("flag _berserk_revive_used 置位", getattr(b, "_berserk_revive_used", False) is True)
     check("日志含 血怒·不灭", any("血怒·不灭" in s for s in logs), str(logs))
     # 非狂暴态致死：不触发（无接棒）hp=0 无日志
     b2 = mk_battle(dict(p), mk_enemy())
-    b2.player["stacks"]["zhan_yi"] = 7
-    b2.player["hp"] = 0
+    b2._focus["stacks"]["zhan_yi"] = 7
+    b2._focus["hp"] = 0
     logs2 = []
-    b2._post_hp_lethal(b2.player, 99999, logs2)
-    check("非狂暴 → 不触发 hp=0 无日志", b2.player["hp"] == 0 and not logs2,
-          f"hp={b2.player['hp']} logs={logs2}")
+    b2._post_hp_lethal(b2._focus, 99999, logs2)
+    check("非狂暴 → 不触发 hp=0 无日志", b2._focus["hp"] == 0 and not logs2,
+          f"hp={b2._focus['hp']} logs={logs2}")
     # 同场二次致死（flag 已用）→ 不触发
     b3 = mk_battle(dict(p), mk_enemy())
-    b3.player["stacks"]["zhan_yi"] = 10
-    b3.player["v139_modes"] = {"dual_form": {"form": "alt"}}
-    b3.player["hp"] = 0
-    b3._post_hp_lethal(b3.player, 99999, [])
-    b3.player["hp"] = 0
+    b3._focus["stacks"]["zhan_yi"] = 10
+    b3._focus["v139_modes"] = {"dual_form": {"form": "alt"}}
+    b3._focus["hp"] = 0
+    b3._post_hp_lethal(b3._focus, 99999, [])
+    b3._focus["hp"] = 0
     logs3 = []
-    b3._post_hp_lethal(b3.player, 99999, logs3)
-    check("二次致死（flag 已用）→ 不复活 hp=0", b3.player["hp"] == 0 and not logs3,
-          f"hp={b3.player['hp']} logs={logs3}")
+    b3._post_hp_lethal(b3._focus, 99999, logs3)
+    check("二次致死（flag 已用）→ 不复活 hp=0", b3._focus["hp"] == 0 and not logs3,
+          f"hp={b3._focus['hp']} logs={logs3}")
 
 
 # ============================================================
@@ -363,9 +363,9 @@ def test_stance_immortal():
                 for flag in (False, True):
                     p = mk_player("cls_zhan_shi", ["铁誓·不动"] if learned else [])
                     def setup(b, guard=guard, zy=zy, flag=flag):
-                        b.player["stacks"]["zhan_yi"] = zy
+                        b._focus["stacks"]["zhan_yi"] = zy
                         if guard:
-                            b.player["buffs"]["stance_guard"] = 1
+                            b._focus["buffs"]["stance_guard"] = 1
                         if flag:
                             b._stance_immortal_used = True
                     same, st_o, st_n = _run_lethal_pair(p, setup)
@@ -374,37 +374,37 @@ def test_stance_immortal():
     # 特写：守护姿态致死 → 回满 max_hp + 姿态移除 + 战意清 0 + flag 置位
     p = mk_player("cls_zhan_shi", ["铁誓·不动"])
     b = mk_battle(dict(p), mk_enemy())
-    _maxhp = int(b.player["max_hp"])
-    b.player["stacks"]["zhan_yi"] = 7
-    b.player["buffs"]["stance_guard"] = 1
-    b.player["hp"] = 0
+    _maxhp = int(b._focus["max_hp"])
+    b._focus["stacks"]["zhan_yi"] = 7
+    b._focus["buffs"]["stance_guard"] = 1
+    b._focus["hp"] = 0
     logs = []
-    b._post_hp_lethal(b.player, 99999, logs)
-    check(f"守护致死 → 回满 hp = max_hp = {_maxhp}", b.player["hp"] == _maxhp,
-          f"hp={b.player['hp']} max_hp={_maxhp}")
-    check("姿态 stance_guard 移除", "stance_guard" not in b.player["buffs"], str(b.player["buffs"]))
-    check("战意清空 zhan_yi==0", b.player["stacks"]["zhan_yi"] == 0, str(b.player["stacks"]))
+    b._post_hp_lethal(b._focus, 99999, logs)
+    check(f"守护致死 → 回满 hp = max_hp = {_maxhp}", b._focus["hp"] == _maxhp,
+          f"hp={b._focus['hp']} max_hp={_maxhp}")
+    check("姿态 stance_guard 移除", "stance_guard" not in b._focus["buffs"], str(b._focus["buffs"]))
+    check("战意清空 zhan_yi==0", b._focus["stacks"]["zhan_yi"] == 0, str(b._focus["stacks"]))
     check("flag _stance_immortal_used 置位", getattr(b, "_stance_immortal_used", False) is True)
     check("日志含 铁誓·不动", any("铁誓·不动" in s for s in logs), str(logs))
     # 无守护姿态：不触发 hp=0
     b2 = mk_battle(dict(p), mk_enemy())
-    b2.player["stacks"]["zhan_yi"] = 7
-    b2.player["hp"] = 0
+    b2._focus["stacks"]["zhan_yi"] = 7
+    b2._focus["hp"] = 0
     logs2 = []
-    b2._post_hp_lethal(b2.player, 99999, logs2)
-    check("无守护姿态 → 不触发 hp=0 无日志", b2.player["hp"] == 0 and not logs2,
-          f"hp={b2.player['hp']} logs={logs2}")
+    b2._post_hp_lethal(b2._focus, 99999, logs2)
+    check("无守护姿态 → 不触发 hp=0 无日志", b2._focus["hp"] == 0 and not logs2,
+          f"hp={b2._focus['hp']} logs={logs2}")
     # 同场二次致死（flag 已用 + 姿态已移除）→ 不触发
     b3 = mk_battle(dict(p), mk_enemy())
-    b3.player["stacks"]["zhan_yi"] = 10
-    b3.player["buffs"]["stance_guard"] = 1
-    b3.player["hp"] = 0
-    b3._post_hp_lethal(b3.player, 99999, [])
-    b3.player["hp"] = 0
+    b3._focus["stacks"]["zhan_yi"] = 10
+    b3._focus["buffs"]["stance_guard"] = 1
+    b3._focus["hp"] = 0
+    b3._post_hp_lethal(b3._focus, 99999, [])
+    b3._focus["hp"] = 0
     logs3 = []
-    b3._post_hp_lethal(b3.player, 99999, logs3)
-    check("二次致死（flag 已用）→ 不复活 hp=0", b3.player["hp"] == 0 and not logs3,
-          f"hp={b3.player['hp']} logs={logs3}")
+    b3._post_hp_lethal(b3._focus, 99999, logs3)
+    check("二次致死（flag 已用）→ 不复活 hp=0", b3._focus["hp"] == 0 and not logs3,
+          f"hp={b3._focus['hp']} logs={logs3}")
 
 
 # ============================================================
@@ -428,87 +428,87 @@ def test_chain_order():
                                 ("stance_immortal", combo[2])) if l]
         for b in (b_old, b_new):
             _inject(b, _keys)
-            b.player["resources"]["faith"] = 5
+            b._focus["resources"]["faith"] = 5
             b.companions = [mk_skeleton("骷髅A")]
-            b.player["v139_modes"] = {"dual_form": {"form": "alt"}}  # 狂暴接棒条件
-            b.player["buffs"]["stance_guard"] = 1                    # 铁誓接棒条件
-            b.player["stacks"]["zhan_yi"] = 9
-            b.player["hp"] = 0
+            b._focus["v139_modes"] = {"dual_form": {"form": "alt"}}  # 狂暴接棒条件
+            b._focus["buffs"]["stance_guard"] = 1                    # 铁誓接棒条件
+            b._focus["stacks"]["zhan_yi"] = 9
+            b._focus["hp"] = 0
         logs_o, logs_n = [], []
-        OLD_lethal(b_old, b_old.player, 99999, logs_o)
-        b_new._post_hp_lethal(b_new.player, 99999, logs_n)
-        same = (_state_of(b_old, b_old.player) == _state_of(b_new, b_new.player)
+        OLD_lethal(b_old, b_old._focus, 99999, logs_o)
+        b_new._post_hp_lethal(b_new._focus, 99999, logs_n)
+        same = (_state_of(b_old, b_old._focus) == _state_of(b_new, b_new._focus)
                 and logs_o == logs_n)
         # 已注入的键集（_keys）即组合里"已学"的
         exp_hp = 0
         if combo[0]:
-            exp_hp = max(1, int(b_old.player.get("max_hp", 1) * 0.20))
+            exp_hp = max(1, int(b_old._focus.get("max_hp", 1) * 0.20))
         elif combo[1]:
-            exp_hp = max(1, int(b_old.player.get("max_hp", 1) * 0.30))
+            exp_hp = max(1, int(b_old._focus.get("max_hp", 1) * 0.30))
         elif combo[2]:
-            exp_hp = b_old.player.get("max_hp", 1)
+            exp_hp = b_old._focus.get("max_hp", 1)
         exp_comp = 0 if combo[0] else (1 if combo[1] else 1)
         check(f"组合dc={combo[0]} br={combo[1]} st={combo[2]}: 状态/logs 一致",
-              same, f"OLD{_state_of(b_old,b_old.player)}/{logs_o} NEW{_state_of(b_new,b_new.player)}/{logs_n}")
+              same, f"OLD{_state_of(b_old,b_old._focus)}/{logs_o} NEW{_state_of(b_new,b_new._focus)}/{logs_n}")
         check(f"  复活 hp={exp_hp} 骷髅剩{exp_comp}",
-              b_old.player["hp"] == b_new.player["hp"] == exp_hp
+              b_old._focus["hp"] == b_new._focus["hp"] == exp_hp
               and len(b_old.companions) == len(b_new.companions) == exp_comp,
-              f"OLD hp={b_old.player['hp']} comps={len(b_old.companions)} NEW hp={b_new.player['hp']} comps={len(b_new.companions)}")
+              f"OLD hp={b_old._focus['hp']} comps={len(b_old.companions)} NEW hp={b_new._focus['hp']} comps={len(b_new.companions)}")
     # 场景 B：dc 无骷髅（信念足但无代受）→ dc 日志不复活 → berserk 接棒（狂暴）→ 复活 30%
     b_old = mk_battle(dict(mk_chain()), mk_enemy())
     b_new = mk_battle(dict(mk_chain()), mk_enemy())
     for b in (b_old, b_new):
         _inject(b, ["death_contract", "berserk_revive", "stance_immortal"])
-        b.player["resources"]["faith"] = 5
-        b.player["v139_modes"] = {"dual_form": {"form": "alt"}}
-        b.player["buffs"]["stance_guard"] = 1
-        b.player["stacks"]["zhan_yi"] = 9
-        b.player["hp"] = 0
+        b._focus["resources"]["faith"] = 5
+        b._focus["v139_modes"] = {"dual_form": {"form": "alt"}}
+        b._focus["buffs"]["stance_guard"] = 1
+        b._focus["stacks"]["zhan_yi"] = 9
+        b._focus["hp"] = 0
     logs_o, logs_n = [], []
-    OLD_lethal(b_old, b_old.player, 99999, logs_o)
-    b_new._post_hp_lethal(b_new.player, 99999, logs_n)
-    _mhp = int(b_new.player["max_hp"])
+    OLD_lethal(b_old, b_old._focus, 99999, logs_o)
+    b_new._post_hp_lethal(b_new._focus, 99999, logs_n)
+    _mhp = int(b_new._focus["max_hp"])
     check("dc无骷髅→berserk接棒复活30% + dc日志 + 未耗契约",
-          _state_of(b_old, b_old.player) == _state_of(b_new, b_new.player)
-          and b_new.player["hp"] == max(1, int(_mhp * 0.30))
+          _state_of(b_old, b_old._focus) == _state_of(b_new, b_new._focus)
+          and b_new._focus["hp"] == max(1, int(_mhp * 0.30))
           and not getattr(b_new, "_death_pact_used", False)
           and getattr(b_new, "_berserk_revive_used", False)
           and any("没有骷髅" in s for s in logs_n),
-          f"OLD{_state_of(b_old,b_old.player)}/{logs_o} NEW{_state_of(b_new,b_new.player)}/{logs_n}")
+          f"OLD{_state_of(b_old,b_old._focus)}/{logs_o} NEW{_state_of(b_new,b_new._focus)}/{logs_n}")
     # 场景 C：dc 信念不足 + 非狂暴（berserk 不接）→ stance 接棒（守护）→ 回满清姿态清战意
     b_old = mk_battle(dict(mk_chain()), mk_enemy())
     b_new = mk_battle(dict(mk_chain()), mk_enemy())
     for b in (b_old, b_new):
         _inject(b, ["death_contract", "berserk_revive", "stance_immortal"])
-        b.player["resources"]["faith"] = 4
-        b.player["buffs"]["stance_guard"] = 1
-        b.player["stacks"]["zhan_yi"] = 9
-        b.player["hp"] = 0
+        b._focus["resources"]["faith"] = 4
+        b._focus["buffs"]["stance_guard"] = 1
+        b._focus["stacks"]["zhan_yi"] = 9
+        b._focus["hp"] = 0
     logs_o, logs_n = [], []
-    OLD_lethal(b_old, b_old.player, 99999, logs_o)
-    b_new._post_hp_lethal(b_new.player, 99999, logs_n)
-    _mhp2 = int(b_new.player["max_hp"])
+    OLD_lethal(b_old, b_old._focus, 99999, logs_o)
+    b_new._post_hp_lethal(b_new._focus, 99999, logs_n)
+    _mhp2 = int(b_new._focus["max_hp"])
     check("dc信念不足+非狂暴→stance接棒回满清姿态清战意",
-          _state_of(b_old, b_old.player) == _state_of(b_new, b_new.player)
-          and b_new.player["hp"] == _mhp2
-          and "stance_guard" not in b_new.player["buffs"]
-          and b_new.player["stacks"]["zhan_yi"] == 0
+          _state_of(b_old, b_old._focus) == _state_of(b_new, b_new._focus)
+          and b_new._focus["hp"] == _mhp2
+          and "stance_guard" not in b_new._focus["buffs"]
+          and b_new._focus["stacks"]["zhan_yi"] == 0
           and getattr(b_new, "_stance_immortal_used", False),
-          f"OLD{_state_of(b_old,b_old.player)}/{logs_o} NEW{_state_of(b_new,b_new.player)}/{logs_n}")
+          f"OLD{_state_of(b_old,b_old._focus)}/{logs_o} NEW{_state_of(b_new,b_new._focus)}/{logs_n}")
     # 场景 D：dc 信念不足 + 非狂暴 + 无守护 → 全链不触发 hp=0 无日志
     b = mk_battle(dict(mk_chain()), mk_enemy())
     _inject(b, ["death_contract", "berserk_revive", "stance_immortal"])
-    b.player["resources"]["faith"] = 4
-    b.player["stacks"]["zhan_yi"] = 9
-    b.player["hp"] = 0
+    b._focus["resources"]["faith"] = 4
+    b._focus["stacks"]["zhan_yi"] = 9
+    b._focus["hp"] = 0
     logs = []
-    b._post_hp_lethal(b.player, 99999, logs)
+    b._post_hp_lethal(b._focus, 99999, logs)
     check("全链条件不满足 → hp=0 无日志 无 flag",
-          b.player["hp"] == 0 and not logs
+          b._focus["hp"] == 0 and not logs
           and not getattr(b, "_death_pact_used", False)
           and not getattr(b, "_berserk_revive_used", False)
           and not getattr(b, "_stance_immortal_used", False),
-          f"hp={b.player['hp']} logs={logs}")
+          f"hp={b._focus['hp']} logs={logs}")
 
 
 # ============================================================
@@ -526,22 +526,22 @@ def test_serialized_flags():
         b_old = mk_battle(dict(p), mk_enemy())
         b_new = mk_battle(dict(p), mk_enemy())
         for b in (b_old, b_new):
-            b.player["resources"].update(res)
+            b._focus["resources"].update(res)
             if comps:
                 b.companions = [dict(c) for c in comps]
             if attr == "_berserk_revive_used":
-                b.player["v139_modes"] = {"dual_form": {"form": "alt"}}
+                b._focus["v139_modes"] = {"dual_form": {"form": "alt"}}
             if attr == "_stance_immortal_used":
-                b.player["buffs"]["stance_guard"] = 1
+                b._focus["buffs"]["stance_guard"] = 1
             setattr(b, attr, True)  # 模拟 from_state 恢复已用
-            b.player["hp"] = 0
+            b._focus["hp"] = 0
         logs_o, logs_n = [], []
-        OLD_lethal(b_old, b_old.player, 99999, logs_o)
-        b_new._post_hp_lethal(b_new.player, 99999, logs_n)
+        OLD_lethal(b_old, b_old._focus, 99999, logs_o)
+        b_new._post_hp_lethal(b_new._focus, 99999, logs_n)
         check(f"{sk_name} 恢复 flag 已用 → 致死不触发 hp=0 无日志",
-              _state_of(b_old, b_old.player) == _state_of(b_new, b_new.player)
-              and b_new.player["hp"] == 0 and not logs_n,
-              f"OLD{_state_of(b_old,b_old.player)} NEW{_state_of(b_new,b_new.player)} logs={logs_n}")
+              _state_of(b_old, b_old._focus) == _state_of(b_new, b_new._focus)
+              and b_new._focus["hp"] == 0 and not logs_n,
+              f"OLD{_state_of(b_old,b_old._focus)} NEW{_state_of(b_new,b_new._focus)} logs={logs_n}")
     # 序列化键保留（to_state/from_state 未动——方案 §6.1 风险 4）
     battle = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "game", "battle.py"),
                   encoding="utf-8").read()

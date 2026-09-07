@@ -138,8 +138,8 @@ async def main():
     check("第二次战斗无 echo_bless", not b2._p_buffs_bag().get("echo_bless"), b2._p_buffs_bag())
 
     # atk +5% 生效验证（v180F B2：_player_stats 读入参 buffs——传战斗内 player（有 echo_bless））
-    st0 = b2._player_stats(b2.player or db.get_player("g1", "q1"))
-    st1 = b._player_stats(b.player)
+    st0 = b2._player_stats(b2._focus or db.get_player("g1", "q1"))
+    st1 = b._player_stats(b._focus)
     check("echo_bless 攻击 +5%", st1["atk"] == int(st0["atk"] * 1.05), (st0["atk"], st1["atk"]))
 
     print("\n【5. 18 个新事件冒烟（hit+miss 双路径）】")

@@ -55,7 +55,7 @@ class FakeCtx:
     def __init__(self, battle):
         self.battle = battle
         self.data = ale
-        self.player = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100}
+        self._focus = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100}
     def _db(self):
         class D:
             def update_player(self, *a, **k): pass
@@ -74,14 +74,14 @@ enemy = {"name": "野狗", "hp": 50, "max_hp": 50, "atk": 5, "def": 0, "matk": 0
 b = Battle("monster", enemy, {})
 player = {"hp": 50, "max_hp": 100, "mp": 20, "max_mp": 100, "class_name": "cls_zhan_shi",
           "level": 1, "learned_skills": [], "race": "human", "attributes": {}}
-logs, ended = b.player_turn("use_item", "hot:0.05,0.06,3", player)
+logs, ended = b.actor_turn("use_item", "hot:0.05,0.06,3", player)
 joined = "\n".join(logs)
 check("吃下播报", "🍲 你吃下了食物" in joined and "每刻恢复 5% 生命" in joined, joined[:120])
 check("p_hot 已设置", b._p_hot() == {"heal": 0.05, "mana": 0.06, "turns": 3}, str(b._p_hot()))
 hp0, mp0 = player["hp"], player["mp"]
 
 # 下回合（普攻）：hot 结算
-logs2, _ = b.player_turn("attack", "", player)
+logs2, _ = b.actor_turn("attack", "", player)
 # v180G B7 统一 CTB：推进日志并入（hot 结算在 advance 内触发）
 _adv2 = []
 b.advance_until_next_decision(_adv2)
@@ -93,9 +93,9 @@ check("剩余回合提示", "剩余" in j2 and "刻" in j2, j2[:100])
 check("turns 递减", b._p_hot()["turns"] in (1, 2), str(b._p_hot()))
 
 # 再两回合 → hot 结束
-b.player_turn("attack", "", player)
+b.actor_turn("attack", "", player)
 b.advance_until_next_decision([])
-logs4, _ = b.player_turn("attack", "", player)
+logs4, _ = b.actor_turn("attack", "", player)
 b.advance_until_next_decision([])
 check("hot 结束清理", b._p_hot() == {}, str(b._p_hot()))
 
@@ -103,7 +103,7 @@ check("hot 结束清理", b._p_hot() == {}, str(b._p_hot()))
 b2 = Battle("monster", enemy, {})
 p2 = {"hp": 50, "max_hp": 100, "mp": 20, "max_mp": 100, "class_name": "cls_zhan_shi",
       "level": 1, "learned_skills": [], "race": "human", "attributes": {}}
-l0, _ = b2.player_turn("use_item", "hot:0.05,0,3", p2)
+l0, _ = b2.actor_turn("use_item", "hot:0.05,0,3", p2)
 check("吃食物回合不额外结算", "持续恢复生效" not in "\n".join(l0))
 
 # ---- 4. 战斗外即时回复 ----
@@ -112,7 +112,7 @@ class CtxOut:
     def __init__(self):
         self.battle = None
         self.data = ale
-        self.player = {"hp": 50, "max_hp": 100, "mp": 20, "max_mp": 100}
+        self._focus = {"hp": 50, "max_hp": 100, "mp": 20, "max_mp": 100}
         self.group_id = "g1"
         self.qq_id = "q1"
         self.removed = False
@@ -137,7 +137,7 @@ class CtxFull:
     def __init__(self):
         self.battle = None
         self.data = {"name": "炖菜", "heal": 0.4, "hot": 0.06, "hot_turns": 3}
-        self.player = {"hp": 100, "max_hp": 100, "mp": 100, "max_mp": 100}
+        self._focus = {"hp": 100, "max_hp": 100, "mp": 100, "max_mp": 100}
         self.group_id = "g1"
         self.qq_id = "q1"
     def _db(self):
@@ -182,7 +182,7 @@ class BufCtx:
     def __init__(self, battle):
         self.battle = battle
         self.data = burger
-        self.player = {"hp": 50, "max_hp": 100, "mp": 50, "max_mp": 100}
+        self._focus = {"hp": 50, "max_hp": 100, "mp": 50, "max_mp": 100}
         self.group_id = "g1"
         self.qq_id = "q1"
     def _db(self):
@@ -204,7 +204,7 @@ b2 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "d
                         "matk": 0, "mdef": 0, "spd": 1000}, {})
 p2 = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
       "level": 1, "learned_skills": [], "race": "human", "attributes": {}}
-l2, _ = b2.player_turn("use_item", "buff:food_def_up", p2)
+l2, _ = b2.actor_turn("use_item", "buff:food_def_up", p2)
 check("料理播报(非'饮下战斗药水')", "吃下了料理" in "\n".join(l2), "\n".join(l2))
 check("food_def_up 生效 def×1.15",
       b2._apply_buffs(b2._player_stats(p2), b2._p_buffs_bag()).get("def") == int(b2._player_stats(p2).get("def", 0) * 1.15))
@@ -218,7 +218,7 @@ class AffCtx:
     def __init__(self, battle):
         self.battle = battle
         self.data = snake
-        self.player = {"hp": 50, "max_hp": 100, "mp": 50, "max_mp": 100}
+        self._focus = {"hp": 50, "max_hp": 100, "mp": 50, "max_mp": 100}
         self.group_id = "g1"
         self.qq_id = "q1"
     def _db(self):
@@ -240,7 +240,7 @@ p3 = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan
       "equipment": {}}
 b3 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
                         "matk": 0, "mdef": 0, "spd": 1000}, {}, player=p3)
-l3, _ = b3.player_turn("use_item", "foodfx:lifesteal", p3)
+l3, _ = b3.actor_turn("use_item", "foodfx:lifesteal", p3)
 j3 = "\n".join(l3)
 check("吃下播报【吸血】", "获得【吸血】效果" in j3, j3)
 check("p_food_effects 已设置", b3._p_food_effects() == ["lifesteal"], str(b3._p_food_effects()))

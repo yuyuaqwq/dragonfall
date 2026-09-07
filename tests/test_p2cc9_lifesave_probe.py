@@ -159,82 +159,82 @@ def test_battle_consume_lethal():
     for with_undying in (True, False):
         p = mk_player(["undying_will"] if with_undying else [])
         b = BT.Battle("monster", mk_enemy(), player=p)
-        _maxhp = int(b.player["max_hp"])
-        b.player["hp"] = int(_maxhp * 0.15)  # 低血（未死）——致死一击打穿
+        _maxhp = int(b._focus["max_hp"])
+        b._focus["hp"] = int(_maxhp * 0.15)  # 低血（未死）——致死一击打穿
         logs = []
-        b._damage_actor(b.player, 999999, logs, source="测试")
+        b._damage_actor(b._focus, 999999, logs, source="测试")
         if with_undying:
             check("undying 致死不死（hp 回拉/回血至 max_hp×0.10）",
-                  b.player["hp"] == max(1, int(_maxhp * 0.10)),
-                  f"hp={b.player['hp']} max={_maxhp} logs={logs}")
+                  b._focus["hp"] == max(1, int(_maxhp * 0.10)),
+                  f"hp={b._focus['hp']} max={_maxhp} logs={logs}")
             check("used 置位 + immune 消费清",
-                  (b.player.get("eff") or {}).get("we_undying_used") is True
-                  and "we_undying_immune" not in (b.player.get("eff") or {}),
-                  str(b.player.get("eff")))
+                  (b._focus.get("eff") or {}).get("we_undying_used") is True
+                  and "we_undying_immune" not in (b._focus.get("eff") or {}),
+                  str(b._focus.get("eff")))
         else:
-            check("无 undying 致死 hp=0", b.player["hp"] == 0, f"hp={b.player['hp']}")
+            check("无 undying 致死 hp=0", b._focus["hp"] == 0, f"hp={b._focus['hp']}")
     # undying 每场 1 次：第二次致死不再救（固定 seed 1——基础闪避 roll 不干扰致死命中）
     random.seed(1)
     p = mk_player(["undying_will"])
     b = BT.Battle("monster", mk_enemy(), player=p)
-    _maxhp = int(b.player["max_hp"])
-    b.player["hp"] = int(_maxhp * 0.15)
-    b._damage_actor(b.player, 999999, [], source="测试")
-    check("首次致死存活", b.player["hp"] > 0, f"hp={b.player['hp']}")
-    b.player["hp"] = int(_maxhp * 0.10)
-    b._damage_actor(b.player, 999999, [], source="测试")
-    check("二次致死（used 已置）不救 hp=0", b.player["hp"] == 0, f"hp={b.player['hp']}")
+    _maxhp = int(b._focus["max_hp"])
+    b._focus["hp"] = int(_maxhp * 0.15)
+    b._damage_actor(b._focus, 999999, [], source="测试")
+    check("首次致死存活", b._focus["hp"] > 0, f"hp={b._focus['hp']}")
+    b._focus["hp"] = int(_maxhp * 0.10)
+    b._damage_actor(b._focus, 999999, [], source="测试")
+    check("二次致死（used 已置）不救 hp=0", b._focus["hp"] == 0, f"hp={b._focus['hp']}")
     # death_dance：受击填充 dmg×pool_pct(0.35)（无特效不进段）
     p = mk_player(["death_dance"])
     b = BT.Battle("monster", mk_enemy(), player=p)
-    b.player["hp"] = 5000
-    b._post_hp_lethal(b.player, 1000, [])
-    check("death_dance 池填充 dmg×0.35=350", abs(float((b.player.get("eff") or {}).get("we_death_pool", 0)) - 350.0) < 1e-6,
-          str(b.player.get("eff")))
-    b._post_hp_lethal(b.player, 1000, [])
-    check("二次填充累积 350+350=700", abs(float((b.player.get("eff") or {}).get("we_death_pool", 0)) - 700.0) < 1e-6,
-          str(b.player.get("eff")))
+    b._focus["hp"] = 5000
+    b._post_hp_lethal(b._focus, 1000, [])
+    check("death_dance 池填充 dmg×0.35=350", abs(float((b._focus.get("eff") or {}).get("we_death_pool", 0)) - 350.0) < 1e-6,
+          str(b._focus.get("eff")))
+    b._post_hp_lethal(b._focus, 1000, [])
+    check("二次填充累积 350+350=700", abs(float((b._focus.get("eff") or {}).get("we_death_pool", 0)) - 700.0) < 1e-6,
+          str(b._focus.get("eff")))
     p0 = mk_player([])
     b0 = BT.Battle("monster", mk_enemy(), player=p0)
-    b0.player["hp"] = 5000
-    b0._post_hp_lethal(b0.player, 1000, [])
-    check("无 death_dance 无 pool 键", "we_death_pool" not in (b0.player.get("eff") or {}),
-          str(b0.player.get("eff")))
+    b0._focus["hp"] = 5000
+    b0._post_hp_lethal(b0._focus, 1000, [])
+    check("无 death_dance 无 pool 键", "we_death_pool" not in (b0._focus.get("eff") or {}),
+          str(b0._focus.get("eff")))
     # turn_start 结算池——端到端（battle 实际 tick 走 proc turn_start）
     p2 = mk_player(["death_dance"])
     b2 = BT.Battle("monster", mk_enemy(), player=p2)
-    b2.player["hp"] = 5000
-    b2._post_hp_lethal(b2.player, 1000, [])  # pool=350
+    b2._focus["hp"] = 5000
+    b2._post_hp_lethal(b2._focus, 1000, [])  # pool=350
     b2._now = 1.0  # 第一刻之后（结算不依赖 tick_no，只依赖 pool）
-    hp_before = b2.player["hp"]
+    hp_before = b2._focus["hp"]
     logs2 = []
-    we_proc(b2, b2.player, "turn_start", {}, logs2)
+    we_proc(b2, b2._focus, "turn_start", {}, logs2)
     pay = max(1, int(350 * 0.10))
     check("turn_start 结算 pay=max(1,int(350×0.10))=35", pay == 35, f"pay={pay}")
-    check("结算扣血 hp=5000-35", b2.player["hp"] == hp_before - pay, f"hp={b2.player['hp']}")
-    check("pool 递减 350-35=315", abs(float((b2.player.get("eff") or {}).get("we_death_pool", 0)) - 315.0) < 1e-6,
-          str(b2.player.get("eff")))
+    check("结算扣血 hp=5000-35", b2._focus["hp"] == hp_before - pay, f"hp={b2._focus['hp']}")
+    check("pool 递减 350-35=315", abs(float((b2._focus.get("eff") or {}).get("we_death_pool", 0)) - 315.0) < 1e-6,
+          str(b2._focus.get("eff")))
 
 def test_battle_consume_mitigate():
     print("【6. battle _mitigate_chain 守御 mark_key + _roll_dodge 远行 mark_key】")
     # 守御：battle_start 置 novice_guard_active → tick1 受击 dmg×0.90
     p = mk_player(["novice_first_turn_guard"], max_hp=50000)
     b = BT.Battle("monster", mk_enemy(), player=p)
-    b.player["max_hp"] = 50000
-    b.player["hp"] = 50000
-    we_proc(b, b.player, "battle_start", {}, [])
-    check("守御标记置位", (b.player.get("eff") or {}).get("novice_guard_active") is True,
-          str(b.player.get("eff")))
+    b._focus["max_hp"] = 50000
+    b._focus["hp"] = 50000
+    we_proc(b, b._focus, "battle_start", {}, [])
+    check("守御标记置位", (b._focus.get("eff") or {}).get("novice_guard_active") is True,
+          str(b._focus.get("eff")))
     b._now = 0.5
-    hp_before = b.player["hp"]
-    b._damage_actor(b.player, 1000, [], source="测试")
-    check("tick1 受击 -10% 扣 900", hp_before - b.player["hp"] == 900, f"taken={hp_before - b.player['hp']}")
+    hp_before = b._focus["hp"]
+    b._damage_actor(b._focus, 1000, [], source="测试")
+    check("tick1 受击 -10% 扣 900", hp_before - b._focus["hp"] == 900, f"taken={hp_before - b._focus['hp']}")
     # tick2 不再减免（tick_no>1）：受击全额 1000（盾/其它减伤链惰性——_roll_dodge 需 class 判定走玩家侧）
     b._now = 2 * 1.0
-    b.player["hp"] = 50000
-    hp_before = b.player["hp"]
-    b._damage_actor(b.player, 1000, [], source="测试")
-    check("tick>1 全额受击 1000", hp_before - b.player["hp"] == 1000, f"taken={hp_before - b.player['hp']}")
+    b._focus["hp"] = 50000
+    hp_before = b._focus["hp"]
+    b._damage_actor(b._focus, 1000, [], source="测试")
+    check("tick>1 全额受击 1000", hp_before - b._focus["hp"] == 1000, f"taken={hp_before - b._focus['hp']}")
     # 远行：battle_start 置 novice_dodge_active → _roll_dodge tick1 闪避合成含 +5%（dodge>0 且 roll 命中）
     # 直接验 _roll_dodge 返回（低基础闪避 + 首刻 +5% 命中 seed 扫描）
     sd = hit = None
@@ -242,10 +242,10 @@ def test_battle_consume_mitigate():
         random.seed(sd)
         p2 = mk_player(["novice_first_turn_dodge"], hp=9999, max_hp=9999)
         b2 = BT.Battle("monster", mk_enemy(), player=p2)
-        b2.player["dodge"] = 0.0  # 意图清零——注意 _actor_stats_of 重算基础 0.03，实际 0.0785
-        we_proc(b2, b2.player, "battle_start", {}, [])
+        b2._focus["dodge"] = 0.0  # 意图清零——注意 _actor_stats_of 重算基础 0.03，实际 0.0785
+        we_proc(b2, b2._focus, "battle_start", {}, [])
         b2._now = 0.5
-        if b2._roll_dodge(b2.player, []):
+        if b2._roll_dodge(b2._focus, []):
             hit = True
             break
     check("远行首刻闪避可命中（+5% 乘算）", hit, f"sd={sd}")
@@ -253,15 +253,15 @@ def test_battle_consume_mitigate():
     # 与带远行同 seed 序列对比：带远行命中时对照组必不中（同 roll 值 0.0785 > 0.03 下同 roll 命中带远行）
     p3 = mk_player([], hp=9999, max_hp=9999)
     b3 = BT.Battle("monster", mk_enemy(), player=p3)
-    b3.player["dodge"] = 0.0
+    b3._focus["dodge"] = 0.0
     hit2 = miss_ct = 0
     for sd in range(1, 400):
         random.seed(sd)
         pA = mk_player(["novice_first_turn_dodge"], hp=9999, max_hp=9999)
         bA = BT.Battle("monster", mk_enemy(), player=pA)
-        we_proc(bA, bA.player, "battle_start", {}, [])
+        we_proc(bA, bA._focus, "battle_start", {}, [])
         bA._now = 0.5
-        hitA = bA._roll_dodge(bA.player, [])
+        hitA = bA._roll_dodge(bA._focus, [])
         random.seed(sd)
         pB = mk_player([], hp=9999, max_hp=9999)
         bB = BT.Battle("monster", mk_enemy(), player=pB)

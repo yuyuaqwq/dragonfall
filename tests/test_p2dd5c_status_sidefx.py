@@ -72,11 +72,11 @@ def mk_enemy(hp=100000, def_=20, mdef=20, spd=10):
 
 def mk_battle(player, enemy=None):
     b = BT.Battle("monster", enemy or mk_enemy(), {}, copy.deepcopy(player))
-    b.player.setdefault("resources", {})
-    b.player.setdefault("stacks", {})
-    b.player.setdefault("buffs", {})
-    b.player.setdefault("eff", {})
-    b.player.setdefault("p_shields", {})
+    b._focus.setdefault("resources", {})
+    b._focus.setdefault("stacks", {})
+    b._focus.setdefault("buffs", {})
+    b._focus.setdefault("eff", {})
+    b._focus.setdefault("p_shields", {})
     b.enemy.setdefault("buffs", {})
     b.enemy.setdefault("debuffs", {})
     return b
@@ -109,7 +109,7 @@ def inject_proc(b, entries):
 def OLD_element_affinity(b, mech):
     """OLD 挂点18 element_affinity 段（mech=element_burst* 前缀守卫由调用侧负责——直接复刻循环）。"""
     try:
-        for _pn_ea, _ps_ea in b._proc_pm(b.player)["proc"].get("element_affinity", []):
+        for _pn_ea, _ps_ea in b._proc_pm(b._focus)["proc"].get("element_affinity", []):
             b._elem_affinity_next = True
             break
     except Exception:
@@ -120,7 +120,7 @@ def OLD_element_affinity(b, mech):
 def OLD_broken_extend(b, bs):
     """OLD 挂点18 broken_extend 延长段循环体（bs = e_buffs.shaken dict 引用）。"""
     try:
-        for _pn_be, _ps_be in b._proc_pm(b.player)["proc"].get("broken_extend", []):
+        for _pn_be, _ps_be in b._proc_pm(b._focus)["proc"].get("broken_extend", []):
             bs["immune_turns"] = int(bs.get("immune_turns", 0) or 0) + int(_ps_be.get("extend", 1) or 1)
             break
     except Exception:
@@ -131,7 +131,7 @@ def OLD_broken_extend(b, bs):
 def OLD_dirge_ctrl_up(b, eb):
     """OLD 挂点18 dirge_ctrl_up 循环体（eb = e_buffs dict 引用）。"""
     try:
-        for _pn_dg, _ps_dg in b._proc_pm(b.player)["proc"].get("dirge_ctrl_up", []):
+        for _pn_dg, _ps_dg in b._proc_pm(b._focus)["proc"].get("dirge_ctrl_up", []):
             for _ck_dg in ("stun", "freeze", "silence", "sleep", "spd_down"):
                 if eb.get(_ck_dg):
                     eb[_ck_dg] = int(eb[_ck_dg]) + int(_ps_dg.get("add", 1) or 1)
@@ -146,7 +146,7 @@ def OLD_melody_duet(b, mel):
     """OLD 挂点20 melody_duet 循环体（mel = _melody_state() 引用）。"""
     try:
         from data.plugins.dragonfall.game.core.battle_mech import MELODY_CFG as _MEL_CFG
-        for _pn_md, _ps_md in b._proc_pm(b.player)["proc"].get("melody_duet", []):
+        for _pn_md, _ps_md in b._proc_pm(b._focus)["proc"].get("melody_duet", []):
             if mel.get("name") and int(mel.get("stack", 0) or 0) > 0:
                 mel["stack"] = min(int(_MEL_CFG.get("max_stack", 5) or 5),
                                    int(mel.get("stack", 0) or 0) + 1)
@@ -159,7 +159,7 @@ def OLD_melody_duet(b, mel):
 def OLD_heal_overflow_shield(b, target_unit, hp_before, heal, target_ally, logs):
     """OLD 挂点19 heal_overflow_shield 段循环体（_heal_overflow_procs 双 proc 循环中该 proc 的迭代体）。"""
     _hpn, _hpdef = "heal_overflow_shield", 0.5
-    for _pn, _ps in b._passive_map(b.player)["proc"].get(_hpn, []):
+    for _pn, _ps in b._passive_map(b._focus)["proc"].get(_hpn, []):
         overflow = hp_before + heal - target_unit.get("max_hp", target_unit.get("hp", 0))
         if overflow > 0:
             shield_gain = int(overflow * float(_ps.get("pct", _hpdef)))
@@ -181,7 +181,7 @@ def OLD_heal_overflow_shield(b, target_unit, hp_before, heal, target_ally, logs)
 def OLD_shaken_decay_half(b, eb_sh, decay_full):
     """OLD 挂点23 shaken_decay_half 循环体（eb_sh = e_buffs.shaken dict 引用）。"""
     try:
-        for _pn_dh, _ps_dh in b._proc_pm(b.player)["proc"].get("shaken_decay_half", []):
+        for _pn_dh, _ps_dh in b._proc_pm(b._focus)["proc"].get("shaken_decay_half", []):
             if isinstance(eb_sh, dict):
                 _decay_full = float(decay_full or 0) or 1.7
                 eb_sh["val"] = int(eb_sh.get("val", 0) or 0) + int(_decay_full / 2)
@@ -219,7 +219,7 @@ def test_element_affinity():
             if pe:
                 inject_proc(b_n, pe)
             if mech and mech.startswith("element_burst"):
-                NEW_flag(b_n, b_n.player, "element_affinity", "elem_affinity", {})
+                NEW_flag(b_n, b_n._focus, "element_affinity", "elem_affinity", {})
             got_n = bool(getattr(b_n, "_elem_affinity_next", False))
             check(f"学={learned} mech={mech}: OLD==NEW 置位 {got_o}=={got_n}",
                   got_o == got_n, f"OLD {got_o} NEW {got_n}")
@@ -247,9 +247,9 @@ def test_broken_extend():
             sh_n = {"val": 0, "threshold": 15, "immune_turns": imm0, "trigger_count": 1}
             # 现引擎 broken_extend 族 = dmg_mult_cond（D3b 声明乘区段）；延长段 = 同族
             # mult_kind=broken_extend 分派（battle.py 挂点18 run_proc_family 走该分派）
-            ctx = {"player": b_n.player, "ps": {}, "ps_name": "",
+            ctx = {"player": b_n._focus, "ps": {}, "ps_name": "",
                    "mult_kind": "broken_extend", "shaken": sh_n}
-            PP.run_proc_family_pm(b_n, b_n.player, "broken_extend", ctx)
+            PP.run_proc_family_pm(b_n, b_n._focus, "broken_extend", ctx)
             check(f"学={learned} immune_turns 现值{imm0}: OLD==NEW {sh_o['immune_turns']}=={sh_n['immune_turns']}",
                   sh_o == sh_n, f"OLD {sh_o} NEW {sh_n}")
             if learned:
@@ -258,9 +258,9 @@ def test_broken_extend():
             # 乘区段不受延长段迁移影响（mult_kind=broken_break 原样——仅学到时触发）
             if learned:
                 sh_m = {"val": 0, "threshold": 15, "immune_turns": 1, "trigger_count": 1}
-                ctx_m = {"player": b_n.player, "ps": {}, "ps_name": "",
+                ctx_m = {"player": b_n._focus, "ps": {}, "ps_name": "",
                          "mult_kind": "broken_break", "shaken": sh_m, "mult": 1.0, "tags": []}
-                PP.run_proc_family_pm(b_n, b_n.player, "broken_extend", ctx_m)
+                PP.run_proc_family_pm(b_n, b_n._focus, "broken_extend", ctx_m)
                 check(f"学={learned}: 乘区段 mult_kind=broken_break 仍触发 ×1.5",
                       abs(ctx_m.get("mult", 1.0) - 1.5) < 1e-9, f"got {ctx_m.get('mult')}")
 
@@ -286,7 +286,7 @@ def test_dirge_ctrl_up():
                     inject_proc(b_n, pe)
                 eb_n = dict(eb0)  # 从 OLD 前快照重建（防 OLD 突变污染 NEW 输入）
                 logs_n = []
-                NEW_flag(b_n, b_n.player, "dirge_ctrl_up", "dirge_ctrl_up",
+                NEW_flag(b_n, b_n._focus, "dirge_ctrl_up", "dirge_ctrl_up",
                          {"e_buffs": eb_n, "logs": logs_n})
                 check(f"学={learned} {key}={pre}: OLD==NEW e_buffs {eb_o}=={eb_n}",
                       eb_o == eb_n, f"OLD {eb_o} NEW {eb_n}")
@@ -316,7 +316,7 @@ def test_melody_duet():
                 mel_n = {"name": "测试旋律" if has_name else None, "stack": stk0,
                          "finale_ready": False}
                 logs_n = []
-                NEW_flag(b_n, b_n.player, "melody_duet", "melody_duet",
+                NEW_flag(b_n, b_n._focus, "melody_duet", "melody_duet",
                          {"melody": mel_n, "max_stack": MELODY_CFG.get("max_stack", 5),
                           "logs": logs_n})
                 check(f"学={learned} name={has_name} stack{stk0}: OLD==NEW {mel_o}=={mel_n}",
@@ -345,8 +345,8 @@ def test_heal_overflow_shield():
                     inject_proc(b_n, pe)
                 if ally is None:
                     # 自己：target = battle player（max_hp 已被 Battle.__init__ 重算为实时面板）
-                    tgt_o = b_o.player
-                    tgt_n = b_n.player
+                    tgt_o = b_o._focus
+                    tgt_n = b_n._focus
                     ally_o = None
                     ally_n = None
                 else:
@@ -362,15 +362,15 @@ def test_heal_overflow_shield():
                 heal_n = ov_target + int(tgt_n.get("max_hp", 400)) - hp_before
                 logs_o, logs_n = [], []
                 OLD_heal_overflow_shield(b_o, tgt_o, hp_before, heal_o, ally_o, logs_o)
-                NEW_flag(b_n, b_n.player, "heal_overflow_shield", "heal_overflow_shield",
+                NEW_flag(b_n, b_n._focus, "heal_overflow_shield", "heal_overflow_shield",
                          {"target_unit": tgt_n, "hp_before": hp_before, "heal": heal_n,
                           "target_ally": ally_n, "overflow_shield_turns": 2,
                           "logs": logs_n})
                 # 自己场景：OLD 原循环 _add_shield → player.shields.overflow（expire_at 时刻制）；
                 # NEW handler 同 _add_shield → 同袋同值。队友场景 p_shields.overflow（turns 制）。
                 if ally is None:
-                    st_o = b_o.player.setdefault("shields", {}).get("overflow")
-                    st_n = b_n.player.setdefault("shields", {}).get("overflow")
+                    st_o = b_o._focus.setdefault("shields", {}).get("overflow")
+                    st_n = b_n._focus.setdefault("shields", {}).get("overflow")
                     same = (st_o == st_n) and logs_o == logs_n
                 else:
                     st_o = tgt_o.setdefault("p_shields", {}).get("overflow")
@@ -402,7 +402,7 @@ def test_shaken_decay_half():
                 if pe:
                     inject_proc(b_n, pe)
                 sh_n = {"val": val0, "threshold": 15}
-                NEW_flag(b_n, b_n.player, "shaken_decay_half", "shaken_decay_half",
+                NEW_flag(b_n, b_n._focus, "shaken_decay_half", "shaken_decay_half",
                          {"e_buffs_shaken": sh_n, "decay_full": decay})
                 check(f"学={learned} val{val0} decay{decay}: OLD==NEW {sh_o}=={sh_n}",
                       sh_o == sh_n, f"OLD {sh_o} NEW {sh_n}")

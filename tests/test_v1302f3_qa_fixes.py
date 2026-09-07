@@ -102,10 +102,10 @@ def test_shadow_ambush_flow():
     b, p = new_battle("cls_ci_ke", 0, 0, learned=["潜行", "刺击"], level=60)
     _init_res(b)
     with mock.patch.object(BT.random, "random", return_value=0.99):
-        logs_a, _ = b.player_turn("skill", "潜行", p, enemy_act=False)
+        logs_a, _ = b.actor_turn("skill", "潜行", p, enemy_act=False)
         # v154 读条命中制：潜行（增益）也走读条——推进到命中时刻才挂 buff
         b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs_a, p)
-    check("潜行真实施放（player_turn 技能全链）：挂 stealth buff",
+    check("潜行真实施放（actor_turn 技能全链）：挂 stealth buff",
           (b._p_buffs_bag() or {}).get("stealth") == 1, f"p_buffs={b._p_buffs_bag()} logs={logs_a[:2]}")
     b._end_round()
     check("经历 _end_round（跨回合）：潜行保留",
@@ -114,7 +114,7 @@ def test_shadow_ambush_flow():
     cap_s = {}
     with mock.patch.object(E, "calc_damage", side_effect=_capture_calc(cap_s)):
         with mock.patch.object(BT.random, "random", return_value=0.99):
-            logs_s, _ = b.player_turn("skill", "刺击", p, enemy_act=False)
+            logs_s, _ = b.actor_turn("skill", "刺击", p, enemy_act=False)
             # v154 读条命中制：技能读条结束（cast_done）才命中结算（潜行生效/消耗）——推进后触发
             b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs_s, p)
     check("潜行必暴：潜行生效日志（🌙 潜行生效）",
@@ -128,7 +128,7 @@ def test_shadow_ambush_flow():
     cap_n = {}
     with mock.patch.object(E, "calc_damage", side_effect=_capture_calc(cap_n)):
         with mock.patch.object(BT.random, "random", return_value=0.99):
-            logs_n, _ = b2.player_turn("skill", "刺击", p2, enemy_act=False)
+            logs_n, _ = b2.actor_turn("skill", "刺击", p2, enemy_act=False)
             # v154 读条命中制：同上推进（对照组的伤害结算也走读条命中）
             b2._process_until(float(getattr(b2, "p_ct", 0) or 0) + 0.001, logs_n, p2)
     check("对照：无潜行刺击 raw 基准已取到（伤害结算同链）", cap_n.get("raw", 0) > 0,
@@ -147,7 +147,7 @@ def test_guard_stance_res_gain():
     b, p = new_battle("cls_zhan_shi", 1, 2, learned=["守护姿态", "挥砍"])
     _init_res(b)
     with mock.patch.object(BT.random, "random", return_value=0.99):
-        logs_s, _ = b.player_turn("skill", "挥砍", p, enemy_act=False)
+        logs_s, _ = b.actor_turn("skill", "挥砍", p, enemy_act=False)
         # v154 读条命中制：技能读条结束（cast_done）才命中结算（怒气 +2）——推进后触发
         b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs_s, p)
     check("技能施放（挥砍）命中 → 怒气 +2（on_skill 战意渠道）",
@@ -192,7 +192,7 @@ def test_hawk_eye_mark_path():
     _init_res(b)
     b._p_res()["energy"] = 41
     with mock.patch.object(BT.random, "random", side_effect=[0.99, 0.0]):
-        logs_m, _ = b.player_turn("skill", "森语印记", p, enemy_act=False)
+        logs_m, _ = b.actor_turn("skill", "森语印记", p, enemy_act=False)
         # v154 读条命中制：增益技能也走读条——推进到命中时刻（此处验证 buff 分支 mech 缺口）
         b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs_m, p)
     mark_n = int((b.enemy.get("debuffs") or {}).get("hunt_mark", 0) or 0)
@@ -218,7 +218,7 @@ def test_combo_finisher():
         # 叠 5 段连段（每段 = 1 层）
         with mock.patch.object(BT.random, "random", return_value=0.99):
             for _ in range(5):
-                _lg, _ = b.player_turn("skill", "刺击", p, enemy_act=False)
+                _lg, _ = b.actor_turn("skill", "刺击", p, enemy_act=False)
                 # v154 读条命中制：每段刺击读条结束（cast_done）才叠段——推进后触发
                 b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, _lg, p)
         combo = b._p_stacks().get("lian_duan", 0)
@@ -226,7 +226,7 @@ def test_combo_finisher():
         cap = {}
         with mock.patch.object(E, "calc_damage", side_effect=_capture_calc(cap)):
             with mock.patch.object(BT.random, "random", return_value=0.99):
-                logs_z, _ = b.player_turn("skill", "终结·处刑", p, enemy_act=False)
+                logs_z, _ = b.actor_turn("skill", "终结·处刑", p, enemy_act=False)
                 # v154 读条命中制：终结技读条结束才命中结算——推进后触发
                 b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs_z, p)
         check("终结·处刑施放成功（连段终结日志）",

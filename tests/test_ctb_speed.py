@@ -15,7 +15,7 @@ CTB 规格（docs/CTB_REFACTOR.md §5，Agent C 测试清单）：
   6. 玩家被控（眩晕）：跳过行动 + p_ct 照走
   7. 存档往返：to_state/from_state 保留 p_ct 与单位 ct；老存档兜底
   8. PVP 不介入（btype=="pvp" 时 p_ct 不变）
-  9. 硬上限：极端配速下敌方行动段不死循环、player_turn 正常返回
+  9. 硬上限：极端配速下敌方行动段不死循环、actor_turn 正常返回
   副本层：instance.py 尚在同步 CTB 改造中，副本下一行动者判定待 instance.py 完成后补（见报告）。
 """
 import sys, os
@@ -71,7 +71,7 @@ def _count_enemy_acts(b, n_player_acts, defend_hp=False):
     try:
         for _ in range(n_player_acts):
             if self_ok(b, p):
-                b.player_turn("attack", None, p)
+                b.actor_turn("attack", None, p)
                 # v154 读条命中制：推进到命中结算（cast_done 触发玩家伤害 + 敌方行动段事件）
                 b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
             else:
@@ -96,7 +96,7 @@ def test_openers():
     check("快者 ct 更小（更先）", b.p_ct < b.enemy["ct"], f"{b.p_ct} vs {b.enemy['ct']}")
     # 快者（玩家）先行动：第一回合完整回合，玩家 ct 仍 <= 敌方 ct（敌方未抢到先手）
     b2 = BT.Battle("monster", make_enemy(10), player=make_player())
-    logs, ended = b2.player_turn("attack", None, make_player())
+    logs, ended = b2.actor_turn("attack", None, make_player())
     check("先手回合正常返回", ended is False, f"ended={ended}")
     # 单怪同速差：spd 20 vs 10 第一回合结束时 p_ct(15) == e_ct(15)（敌方未行动，未领先）
     check("快方首回合占优（敌方 ct 未小于玩家 ct）",
@@ -110,7 +110,7 @@ def test_openers():
         cnt3[0] += 1
         return _o3(self, player, unit)
     BT.Battle._enemy_turn = _w3
-    b3.player_turn("attack", None, make_player())
+    b3.actor_turn("attack", None, make_player())
     # v180G B7 统一 CTB：出手登记后推进（怪先手插队在 advance 事件推进内发生）
     b3.advance_until_next_decision([])
     BT.Battle._enemy_turn = _o3
@@ -185,7 +185,7 @@ def test_enemy_chained():
         cnt[0] += 1
         return orig(self, player, unit)
     BT.Battle._enemy_turn = wrap
-    logs, ended = b.player_turn("attack", None, make_player())
+    logs, ended = b.actor_turn("attack", None, make_player())
     # v180G B7 统一 CTB：出手登记后推进到下一个决策点（敌方连动在 advance 事件推进内发生）
     b.advance_until_next_decision([])
     BT.Battle._enemy_turn = orig
@@ -208,7 +208,7 @@ def test_enemy_chained():
     try:
         _p = make_player()
         for _ in range(10):
-            bm.player_turn("attack", None, _p)  # 长程 10 个玩家回合（v130.10 线性频率）
+            bm.actor_turn("attack", None, _p)  # 长程 10 个玩家回合（v130.10 线性频率）
             bm.advance_until_next_decision([])  # v180G B7 统一 CTB：出手后推进
     finally:
         BT.Battle._enemy_stats = patched_e_stats
@@ -252,7 +252,7 @@ def test_player_control():
     p = make_player()
     before = b.p_ct
     before_acts = b._p_acts
-    logs, ended = b.player_turn("attack", None, p)
+    logs, ended = b.actor_turn("attack", None, p)
     check("玩家眩晕跳过行动", any("眩晕" in l for l in logs), str(logs[-2:]))
     check("回合照常记数（消耗行动点）", b._p_acts == before_acts + 1, f"{before_acts}->{b._p_acts}")
     check("玩家 p_ct 照走（增加 cost）", b.p_ct > before, f"{before} -> {b.p_ct}")
@@ -263,7 +263,7 @@ def test_save_roundtrip():
     clean_db()
     set_spd(20, 10)
     b = BT.Battle("monster", make_enemy(10), player=make_player())
-    b.player_turn("attack", None, make_player())  # 造出非初始 ct
+    b.actor_turn("attack", None, make_player())  # 造出非初始 ct
     st = b.to_state()
     b2 = BT.Battle.from_state(st)
     check("存档保留 p_ct", abs(b2.p_ct - b.p_ct) < 1e-9, f"{b2.p_ct} vs {b.p_ct}")
@@ -284,7 +284,7 @@ def test_pvp_no_interference():
                           "def": 0, "spd": 999, "skills": []}, player=make_player())
     before = b.p_ct
     p = make_player()
-    logs, ended = b.player_turn("attack", None, p, enemy_act=True)
+    logs, ended = b.actor_turn("attack", None, p, enemy_act=True)
     # v161 曲线：玩家普攻出招 = 1.15 × √(50/20) = 1.818（v156 线性 50/spd=2.5 假设已过时）
     check("PVP 行动后 p_ct 推进 = 出招耗时（v161 边际递减曲线）",
           abs(b.p_ct - (before + 1.8183096546)) < 1e-6,
@@ -292,20 +292,20 @@ def test_pvp_no_interference():
 
 
 def test_hard_cap():
-    print("【CTB 硬上限：极端配速不死循环，player_turn 正常返回】")
+    print("【CTB 硬上限：极端配速不死循环，actor_turn 正常返回】")
     clean_db()
     # 玩家 spd 80（软上限）vs 敌方 spd 1：敌方极慢 → 单段应有限次（guard 保护）
     set_spd(80, 1)
     b = BT.Battle("monster", make_enemy(1, hp=10_000_000), player=make_player())
-    logs, ended = b.player_turn("attack", None, make_player())
-    check("极端配速 player_turn 正常返回", isinstance(logs, list), "")
+    logs, ended = b.actor_turn("attack", None, make_player())
+    check("极端配速 actor_turn 正常返回", isinstance(logs, list), "")
 
     # 敌方碾压玩家：spd 1 vs 79，单次玩家行动后敌方可能连动 → guard 上限 8 内收敛，不死循环
     set_spd(1, 79)
     b2 = BT.Battle("monster", make_enemy(79, hp=10_000_000, atk=0), player=make_player())
     import time
     t0 = time.time()
-    logs2, ended2 = b2.player_turn("attack", None, make_player())
+    logs2, ended2 = b2.actor_turn("attack", None, make_player())
     dt = time.time() - t0
     check("敌方碾压极端配速正常返回", isinstance(logs2, list) and dt < 5.0,
           f"ended={ended2} dt={dt:.2f}s")

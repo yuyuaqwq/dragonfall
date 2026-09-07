@@ -9,7 +9,7 @@
     按数值等价规则生成 formula：
       物理: [{"stat": "atk",  "mult": power, "type": "phys"}]
       魔法: [{"stat": "matk", "mult": power, "type": "magi"}]
-    敌方无 skill_flat 概念（_enemy_cast_done 不注入基础值），故不带 skill_flat。
+    敌方无 skill_flat 概念（_hostile_cast_done 不注入基础值），故不带 skill_flat。
     有 mech 控制/元素字段的技能照常保留原字段，formula 只描述伤害段。
 
     --apply 才写回；不加 --apply 只打印计划。

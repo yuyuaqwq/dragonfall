@@ -123,7 +123,7 @@ def _true_dmg(battle, base: int, logs, source: str = "✨"):
 
 def _extra_phys(battle, atk_pct: float, logs, ignore_def: bool = False, source: str = "💥") -> int:
     """追加物理伤害：atk × atk_pct，可选择无视防御。"""
-    st = _pstats(battle, battle.player)
+    st = _pstats(battle, battle._focus)
     atk = int(st.get("atk", 0) or 0)
     if ignore_def:
         dmg = max(1, int(atk * atk_pct))
@@ -139,7 +139,7 @@ def _extra_phys(battle, atk_pct: float, logs, ignore_def: bool = False, source: 
 
 def _extra_magi(battle, matk_pct: float, logs, source: str = "🔮") -> int:
     """追加奥术/魔法伤害：matk × matk_pct。"""
-    st = _pstats(battle, battle.player)
+    st = _pstats(battle, battle._focus)
     matk = int(st.get("matk", 0) or 0)
     est = _estats(battle)
     from ..engine import calc_damage

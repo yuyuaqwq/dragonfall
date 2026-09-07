@@ -71,7 +71,7 @@ async def main():
     check(f"ATK 按玩家比例 ({exp_atk})", abs(s1["atk"] - exp_atk) <= 1, f"got {s1['atk']}")
     check("actor 容器齐全", s1.get("side") == "player" and s1.get("kind") == "summon"
           and isinstance(s1.get("buffs"), dict), str({k: s1.get(k) for k in ("side", "kind", "buffs")}))
-    check("auto_act player_act", (s1.get("auto_act") or {}).get("trigger") == "player_act", str(s1.get("auto_act")))
+    check("auto_act actor_act", (s1.get("auto_act") or {}).get("trigger") == "actor_act", str(s1.get("auto_act")))
     check("guard 数据化", (s1.get("guard") or {}).get("chance") == 0.40, str(s1.get("guard")))
     check("日志有加入提示", any("加入战斗" in l for l in logs1), str(logs1))
 
@@ -148,7 +148,7 @@ async def main():
     b6._summon_entity("skeleton", mk_player(), [])
     hp6 = b6.enemy["hp"]
     logs6 = []
-    b6._companions_trigger("player_act", logs6)
+    b6._companions_trigger("actor_act", logs6)
     check("召唤物普攻造成伤害", b6.enemy["hp"] < hp6, f"dealt {hp6 - b6.enemy['hp']}")
     check("攻击日志", any("攻击" in l for l in logs6), str(logs6))
 

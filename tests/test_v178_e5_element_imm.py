@@ -43,50 +43,50 @@ print("== E5 元素免疫/弱点验证 ==")
 player = mk_player()
 mon = mk_mon({"element_immune": ["fire"]})
 b = BT.Battle("monster", mon)
-b.player = player
+b._focus = player
 logs = []
-dmg, magi = b._enemy_mitigate(500, 0, "fire", logs, kind="魔法")
+dmg, magi = b._hostile_mitigate(500, 0, "fire", logs, kind="魔法")
 check("免疫 fire → 伤害 0", dmg == 0, f"dmg={dmg}")
 check("免疫有日志", any("免疫" in l for l in logs), str(logs))
 
 # 2. 不免疫冰 → 正常
 logs2 = []
-dmg2, magi2 = b._enemy_mitigate(500, 0, "ice", logs2, kind="魔法")
+dmg2, magi2 = b._hostile_mitigate(500, 0, "ice", logs2, kind="魔法")
 check("不免疫 ice → 正常伤害", dmg2 > 0, f"dmg={dmg2}")
 
 # 3. 弱点冰 ×1.5 → 增伤
 mon3 = mk_mon({"element_weak": {"ice": 1.5}})
 b3 = BT.Battle("monster", mon3)
-b3.player = player
+b3._focus = player
 logs3 = []
-dmg3, _ = b3._enemy_mitigate(500, 0, "ice", logs3, kind="魔法")
+dmg3, _ = b3._hostile_mitigate(500, 0, "ice", logs3, kind="魔法")
 check("弱点 ice ×1.5 → 伤害 ≥ 750", dmg3 >= 750, f"dmg={dmg3}")
 check("弱点有日志", any("弱点" in l for l in logs3), str(logs3))
 
 # 4. 无弱点的元素 → 正常
 logs4 = []
-dmg4, _ = b3._enemy_mitigate(500, 0, "fire", logs4, kind="魔法")
+dmg4, _ = b3._hostile_mitigate(500, 0, "fire", logs4, kind="魔法")
 check("无弱点 fire → 正常 500", dmg4 == 500, f"dmg={dmg4}")
 
 # 5. 普通怪无免疫/弱点字段 → 零行为变化
 mon5 = mk_mon()
 b5 = BT.Battle("monster", mon5)
-b5.player = player
+b5._focus = player
 logs5 = []
-dmg5, _ = b5._enemy_mitigate(500, 0, "fire", logs5, kind="魔法")
+dmg5, _ = b5._hostile_mitigate(500, 0, "fire", logs5, kind="魔法")
 check("普通怪无字段 → 伤害不变", dmg5 == 500, f"dmg={dmg5}")
 
 # 6. 免疫 + 弱元素并存不冲突（免疫优先）
 mon6 = mk_mon({"element_immune": ["ice"], "element_weak": {"ice": 1.5}})
 b6 = BT.Battle("monster", mon6)
-b6.player = player
+b6._focus = player
 logs6 = []
-dmg6, _ = b6._enemy_mitigate(500, 0, "ice", logs6, kind="魔法")
+dmg6, _ = b6._hostile_mitigate(500, 0, "ice", logs6, kind="魔法")
 check("免疫优先于弱点", dmg6 == 0, f"dmg={dmg6}")
 
 # 7. 真伤跳过免疫（K_TRUE 语义保留）
 logs7 = []
-dmg7, _ = b._enemy_mitigate(500, 0, "fire", logs7, kind="真伤")
+dmg7, _ = b._hostile_mitigate(500, 0, "fire", logs7, kind="真伤")
 check("真伤绕过免疫", dmg7 == 500, f"dmg={dmg7}")
 
 # 8. build_monster 透传 element_immune/weak/dmg_taken_mult

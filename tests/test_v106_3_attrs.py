@@ -92,7 +92,7 @@ async def main():
     check("战斗聚合吸血 13%（兽人5%+词条8%）", abs(st.get("lifesteal", 0) - 0.13) < 1e-9, str(st.get("lifesteal")))
     random.seed(42)
     b2 = BT.Battle("怪物", mk_enemy(), {}, p)
-    logs = b2._player_attack(b2._player_stats(p), p)
+    logs = b2._actor_attack(b2._player_stats(p), p)
     ls_logs = [l for l in logs if "吸血" in l]
     check("普攻命中触发吸血日志", len(ls_logs) > 0, str(logs))
 
@@ -100,7 +100,7 @@ async def main():
     p5 = mk_player(["lifesteal"], race="orc", hp=200)
     b5 = BT.Battle("怪物", mk_enemy(), {}, p5)
     random.seed(3)
-    logs5 = b5._player_attack(b5._player_stats(p5), p5)
+    logs5 = b5._actor_attack(b5._player_stats(p5), p5)
     ls5 = [l for l in logs5 if "吸血" in l]
     if ls5:
         heal = int(ls5[0].split("回复")[1].split("点")[0])
@@ -118,7 +118,7 @@ async def main():
         random.seed(seed)
         p3 = mk_player(["crit_dmg"], race="elf")
         b4 = BT.Battle("怪物", mk_enemy(), {}, p3)
-        logs3 = b4._player_attack(b4._player_stats(p3), p3)
+        logs3 = b4._actor_attack(b4._player_stats(p3), p3)
         crit = [l for l in logs3 if "💥暴击" in l]
         if crit:
             crit_found = True
@@ -162,15 +162,15 @@ async def main():
     print("— 药水 —")
     b8 = BT.Battle("怪物", mk_enemy(), {}, mk_player())
     logs8 = []
-    b8._apply_potion_special("lifesteal_pot", b8.player, logs8)
+    b8._apply_potion_special("lifesteal_pot", b8._focus, logs8)
     check("嗜血药剂 buff 生效", b8._p_buffs_bag().get("lifesteal_pot") == 3, str(logs8))
     b9 = BT.Battle("怪物", mk_enemy(), {}, mk_player())
     logs9 = []
-    b9._apply_potion_special("crit_dmg_pot", b9.player, logs9)
+    b9._apply_potion_special("crit_dmg_pot", b9._focus, logs9)
     check("狂暴药剂 buff 生效", b9._p_buffs_bag().get("crit_dmg_pot") == 3, str(logs9))
     b10 = BT.Battle("怪物", mk_enemy(), {}, mk_player())
     logs10 = []
-    b10._apply_potion_special("block_pot", b10.player, logs10)
+    b10._apply_potion_special("block_pot", b10._focus, logs10)
     check("岩壁药剂 buff 生效", b10._p_buffs_bag().get("block_pot") == 3, str(logs10))
 
     check("嗜血药剂物品数据", "i_lifesteal_pot" in ITEMS, "missing")
@@ -195,4 +195,3 @@ async def main():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
-

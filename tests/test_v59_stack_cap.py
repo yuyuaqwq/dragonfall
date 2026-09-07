@@ -17,7 +17,7 @@ def _mk_battle(enemy=None):
     """v180-B ①：状态权威在玩家 actor dict——构造后绑玩家快照。"""
     b = BT.Battle("monster", enemy or {"name": "靶子", "lv": 10, "hp": 99999, "max_hp": 99999,
                                        "atk": 1, "def": 1, "matk": 1, "mdef": 1, "spd": 1})
-    b.player = {
+    b._focus = {
         "class_name": "zhan_shi", "level": 30, "max_hp": 1000, "hp": 1000,
         "max_mp": 500, "mp": 500, "atk": 100, "def": 50, "matk": 80, "mdef": 50,
         "spd": 10, "crit": 0.05, "equipment": {},

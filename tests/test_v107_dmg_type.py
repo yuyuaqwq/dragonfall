@@ -83,7 +83,7 @@ async def main():
     st1 = b1._player_stats(p1)
     true_base = int(st1["atk"] * 1.0) + EG.skill_flat_value(30, 30, true_info)
     enemy_hp_before = b1.enemy["hp"]
-    logs1 = b1._player_skill(st1, "龙息测试", true_info, p1)
+    logs1 = b1._actor_skill(st1, "龙息测试", true_info, p1)
     dealt1 = enemy_hp_before - b1.enemy["hp"]
     check(f"真伤技能无视 def=500（≈atk×power {true_base}±15%）",
           0.8 * true_base <= dealt1 <= 1.2 * true_base, f"dealt {dealt1}, atk {true_base}")
@@ -92,7 +92,7 @@ async def main():
     p1b = mk_player()
     b1b = BT.Battle("怪物", mk_enemy(def_=500), {}, p1b)
     hp_b = b1b.enemy["hp"]
-    logs1b = b1b._player_skill(b1b._player_stats(p1b), "劈砍测试", phys_info, p1b)
+    logs1b = b1b._actor_skill(b1b._player_stats(p1b), "劈砍测试", phys_info, p1b)
     dealt1b = hp_b - b1b.enemy["hp"]
     check("物理技能被 def=500 大幅削减", dealt1b < dealt1 * 0.5,
           f"phys {dealt1b} vs true {dealt1}")
@@ -102,13 +102,13 @@ async def main():
     p2 = mk_player()
     b2 = BT.Battle("怪物", mk_enemy(def_=10), {}, p2)
     hp2 = b2.enemy["hp"]
-    b2._player_skill(b2._player_stats(p2), "龙息测试", true_info, p2)
+    b2._actor_skill(b2._player_stats(p2), "龙息测试", true_info, p2)
     dealt2 = hp2 - b2.enemy["hp"]
     random.seed(3)
     p2b = mk_player()
     b2b = BT.Battle("怪物", mk_enemy(def_=10), {}, p2b)
     hp2b = b2b.enemy["hp"]
-    b2b._player_skill(b2b._player_stats(p2b), "劈砍测试", phys_info, p2b)
+    b2b._actor_skill(b2b._player_stats(p2b), "劈砍测试", phys_info, p2b)
     dealt2b = hp2b - b2b.enemy["hp"]
     check("低防下真伤与物理接近（差距<35%）", abs(dealt2 - dealt2b) < dealt2 * 0.35,
           f"true {dealt2} vs phys {dealt2b}")
@@ -120,7 +120,7 @@ async def main():
     b3 = BT.Battle("怪物", mk_enemy(def_=10, hp=10000), {}, p3)
     random.seed(5)
     hp_before = p3["hp"]
-    logs3 = b3._player_skill(b3._player_stats(p3), "龙息测试", true_info, p3)
+    logs3 = b3._actor_skill(b3._player_stats(p3), "龙息测试", true_info, p3)
     check("真伤技能不回血", p3["hp"] == hp_before, f"{p3['hp']} vs {hp_before}")
     check("真伤无吸血日志", not any("吸血" in l for l in logs3), str([l for l in logs3 if "吸血" in l]))
 
@@ -135,7 +135,7 @@ async def main():
         random.seed(seed)
         p3c = mk_player(affixes=["thirst_magi"], cls="法师", skills=["火球术"], hp=300)
         b3c = BT.Battle("怪物", mk_enemy(def_=10, hp=10000), {}, p3c)
-        logs3c = b3c._player_skill(b3c._player_stats(p3c), "火球术",
+        logs3c = b3c._actor_skill(b3c._player_stats(p3c), "火球术",
                                    E.skill_info("法师", "火球术"), p3c)
         if any("吸血" in l for l in logs3c):
             found = True

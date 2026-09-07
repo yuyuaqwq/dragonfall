@@ -42,7 +42,7 @@ print("== E9 打断奖励钩子验证 ==")
 # 1. vulnerable（歌澜破音虚脱：承伤×1.4 + 虚弱）
 boss = mk_boss({"on_interrupt": {"effect": "vulnerable", "value": 1.4, "turns": 2}})
 b = BT.Battle("instance", boss, enemies=[boss])
-b.player = mk_player()
+b._focus = mk_player()
 logs = []
 b._interrupt_charging(boss, logs, "玩家")
 check("蓄力被清空", boss.get("charging") is None)
@@ -54,7 +54,7 @@ check("有日志", any("破绽" in l for l in logs), str(logs))
 boss2 = mk_boss({"on_interrupt": {"effect": "stacks_set", "value": 3, "key": "charge"},
                  "stacks": {"charge": 5}, "mech_stacks_n": 5})
 b2 = BT.Battle("instance", boss2, enemies=[boss2])
-b2.player = mk_player()
+b2._focus = mk_player()
 logs2 = []
 b2._interrupt_charging(boss2, logs2, "玩家")
 check("层数回 3", (boss2.get("stacks") or {}).get("charge") == 3, str(boss2.get("stacks")))
@@ -63,7 +63,7 @@ check("mech_stacks_n 同步", boss2.get("mech_stacks_n") == 3, str(boss2.get("me
 # 3. freeze_self（咕噜号令打断僵直）
 boss3 = mk_boss({"on_interrupt": {"effect": "freeze_self", "turns": 1}})
 b3 = BT.Battle("instance", boss3, enemies=[boss3])
-b3.player = mk_player()
+b3._focus = mk_player()
 logs3 = []
 b3._interrupt_charging(boss3, logs3, "玩家")
 check("自我冻结", (boss3.get("buffs") or {}).get("freeze") == 1, str(boss3.get("buffs")))
@@ -71,7 +71,7 @@ check("自我冻结", (boss3.get("buffs") or {}).get("freeze") == 1, str(boss3.g
 # 4. atk_down（打断惩罚）
 boss4 = mk_boss({"on_interrupt": {"effect": "atk_down", "turns": 3}})
 b4 = BT.Battle("instance", boss4, enemies=[boss4])
-b4.player = mk_player()
+b4._focus = mk_player()
 logs4 = []
 b4._interrupt_charging(boss4, logs4, "玩家")
 check("atk_down 3刻", (boss4.get("buffs") or {}).get("mon_atk_down") == 3, str(boss4.get("buffs")))
@@ -79,7 +79,7 @@ check("atk_down 3刻", (boss4.get("buffs") or {}).get("mon_atk_down") == 3, str(
 # 5. 无 on_interrupt 配置 → 仅清蓄力（旧行为）
 boss5 = mk_boss()
 b5 = BT.Battle("instance", boss5, enemies=[boss5])
-b5.player = mk_player()
+b5._focus = mk_player()
 logs5 = []
 b5._interrupt_charging(boss5, logs5, "玩家")
 check("无配置仅清蓄力", boss5.get("charging") is None and not boss5.get("_dmg_taken_mult"))
@@ -88,7 +88,7 @@ check("无配置仅清蓄力", boss5.get("charging") is None and not boss5.get("
 ally = {"name": "玩家", "side": "ally", "charging": {"skill": "x", "left": 1, "mp_spent": 10},
         "mp": 80, "max_mp": 100, "on_interrupt": {"effect": "vulnerable"}}
 b6 = BT.Battle("monster", {"name": "怪", "hp": 10})
-b6.player = mk_player()
+b6._focus = mk_player()
 logs6 = []
 b6._interrupt_charging(ally, logs6, "怪")
 check("玩家打断返还 MP", ally.get("mp") == 85, f"mp={ally.get('mp')}")

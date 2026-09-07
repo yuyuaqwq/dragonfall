@@ -118,7 +118,7 @@ def test_class_actor_as_focus():
     # _is_player_side: side=player → True（当焦点玩家）
     check("side=player actor 属玩家侧", b._is_player_side(follower), "")
     # 容器路由退化后：受击读 actor 自身 buffs（不受 Battle 玩家 buffs 影响）
-    b.player["buffs"]["atk_up"] = 99  # 污染 Battle 玩家——follower 受击不应读它
+    b._focus["buffs"]["atk_up"] = 99  # 污染 Battle 玩家——follower 受击不应读它
     _hp0 = follower["hp"]
     logs = []
     # 直接走承伤核心（shield 50 先吸收 50，剩 30 穿透 → 扣 30）

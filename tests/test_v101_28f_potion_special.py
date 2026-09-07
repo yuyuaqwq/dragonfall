@@ -51,7 +51,7 @@ class Ctx:
     def __init__(self, data):
         self.battle = True
         self.data = data
-        self.player = mk_player()
+        self._focus = mk_player()
         self.group_id = "g1"
         self.qq_id = "q1"
     def _db(self):

@@ -43,18 +43,18 @@ def make_battle(**kw):
     _eb = b.enemy.setdefault("buffs", {})
     _eb.clear()
     _eb.update(kw.pop("e_buffs", {}) or {})
-    # v180-B ①：玩家状态权威在 b.player actor dict——注入到对应袋
-    _pb = b.player.setdefault("buffs", {})
+    # v180-B ①：玩家状态权威在 b._focus actor dict——注入到对应袋
+    _pb = b._focus.setdefault("buffs", {})
     _pb.clear()
     _pb.update(kw.pop("p_buffs", {}) or {})
-    _ps = b.player.setdefault("stacks", {})
+    _ps = b._focus.setdefault("stacks", {})
     _ps.clear()
     _ps.update(kw.pop("mech_stacks", {}) or {})
     b.shield = kw.pop("shield", 0)
-    _psh = b.player.setdefault("shields", {})
+    _psh = b._focus.setdefault("shields", {})
     _psh.clear()
     _psh.update(kw.pop("p_shields", {}) or {})  # v101.28d 护盾 buff 化（v104 审计修复对齐）
-    _pr = b.player.setdefault("resources", {})
+    _pr = b._focus.setdefault("resources", {})
     _pr.clear()
     _pr.update(kw.pop("resources", {}) or {})
     b._player_hit = kw.pop("player_hit", False)
@@ -105,12 +105,12 @@ b = make_battle(enemy={"name": "野狼", "hp": 100, "max_hp": 100, "atk": 20, "m
                        "debuffs": {"poison": {"n": 2, "mult": 1.0}}})
 check("enemy_poison_stacks（2<3）不命中", b._cond_mult({"cond": {"type": "enemy_poison_stacks", "mult": 1.4}}, player, 1) == 1.0)
 b = make_battle(shield=10, p_shields={"shield_test": {"value": 10, "turns": 3}})
-# v180-B：条件求值的 player = battle 绑定玩家（b.player）——状态权威在 b.player dict
-check("player_shield 命中", b._cond_mult({"cond": {"type": "player_shield", "mult": 1.3}}, b.player, 1) == 1.3)
+# v180-B：条件求值的 player = battle 绑定玩家（b._focus）——状态权威在 b._focus dict
+check("player_shield 命中", b._cond_mult({"cond": {"type": "player_shield", "mult": 1.3}}, b._focus, 1) == 1.3)
 b = make_battle(resources={"rage": 5})
-check("player_res_stacks（rage 5≥3）命中", b._cond_mult({"cond": {"type": "player_res_stacks", "res_key": "rage", "stacks": 3, "mult": 1.5}}, b.player, 1) == 1.5)
+check("player_res_stacks（rage 5≥3）命中", b._cond_mult({"cond": {"type": "player_res_stacks", "res_key": "rage", "stacks": 3, "mult": 1.5}}, b._focus, 1) == 1.5)
 b = make_battle(p_buffs={"spd_up": 1})
-check("player_spd_up 命中", b._cond_mult({"cond": {"type": "player_spd_up", "mult": 1.2}}, b.player, 1) == 1.2)
+check("player_spd_up 命中", b._cond_mult({"cond": {"type": "player_spd_up", "mult": 1.2}}, b._focus, 1) == 1.2)
 b = make_battle(player_hit=True)
 check("player_untouched（已受击）不命中", b._cond_mult({"cond": {"type": "player_untouched", "mult": 1.8}}, player, 1) == 1.0)
 
@@ -223,16 +223,16 @@ b = make_battle(enemy={"name": "狼王", "hp": 50, "max_hp": 100, "atk": 20, "ma
 logs = []
 BM.MON_BUFF_EFFECTS["heal_self"](b, logs, "疗愈")
 check("怪物 heal_self 恢复 15%", b.enemy["hp"] == 65 and "15 点" in logs[0])
-# v180-B ②：MON_CTRL handler 读写"被打玩家"=battle.player——测试传 b.player（游离
-# player dict 只是面板快照，真实战斗 MON_CTRL 的 player 参数即 battle.player）
+# v180-B ②：MON_CTRL handler 读写"被打玩家"=battle._focus——测试传 b._focus（游离
+# player dict 只是面板快照，真实战斗 MON_CTRL 的 player 参数即 battle._focus）
 b = make_battle()
 logs = []
 random.seed(1)
-BM.MON_CTRL_EFFECTS["silence"](b, b.player, logs, 1)
+BM.MON_CTRL_EFFECTS["silence"](b, b._focus, logs, 1)
 check("怪物 silence 稳定 2 回合", b._p_buffs_bag().get("silence") == 2)
 b = make_battle()
 logs = []
-BM.MON_CTRL_EFFECTS["slow"](b, b.player, logs, 1)
+BM.MON_CTRL_EFFECTS["slow"](b, b._focus, logs, 1)
 check("怪物 slow 减速", b._p_buffs_bag().get("spd_down") == 2)
 
 # ============ 9. 全覆盖：数据 key 全部有注册 ============

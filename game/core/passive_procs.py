@@ -21,7 +21,7 @@
 - 第一批试点族（P2-D1，方案 §6.2）：按"先细后粗"——族粒度 = 现有挂点代码直搬。
 
 试点族（5 proc / 5 族）：
-    dmg_mult_cond    条件 → 伤害乘区（速度比型）               speed_ratio_dmg（挂点4 _player_dmg_mult）
+    dmg_mult_cond    条件 → 伤害乘区（速度比型）               speed_ratio_dmg（挂点4 _actor_dmg_mult）
     lifesteal_add    每层战意 → 吸血率加算（cap 由挂点保留）    zhan_yi_lifesteal（挂点5 _settle_lifesteal）
     stack_cap_add    叠层上限放宽（基础 + Σadd，封顶挂点保留）  poison_cap_up / poison_cap（挂点17 _poison_cap）
     summon_cap_add   召唤同模板上限放宽（min(cap, base+add)）  skeleton_cap（挂点21 _summon_entity）
@@ -137,7 +137,7 @@ cap 段，方案 §6.2 P2-D5/§2.3 挂点15/16/§3.2 映射表）：
                      幅度的固有引擎语义——desc「减速 30%、降防 20%」由这两键消费，引擎侧
                      无对应 _ps 键可读，属引擎固有常量，非 proc 数值配置；spd_down/def_down
                      才是被动数值读 _ps） + 固定日志 ☠️剧毒之触：毒层 ≥5，敌人减速降防！
-                     守卫：caster 玩家毒怪（`_caster_is_player and not _tgt_is_player`）+
+                     守卫：caster 玩家毒怪（`_caster_is_player and not _tgt_is_side_player`）+
                      层数门槛（n ≥ ps.layers 且条目存在才写 buff——原代码先判 list 非空
                      再判 n ≥ 首条 layers）留在挂点骨架；target buffs dict 由 ctx[\"tgt_buffs\"]
                      引用槽传入（调用侧 e.setdefault(\"buffs\", {})——与挂点侧逐字等价）
@@ -183,7 +183,7 @@ KNOWN_GAPS: set = {
     # （E 类 tick 族成员 focus_regen_summon/arcane_intuition/undead_faith/
     #   faith_overload_heal 已由 P2-D6 收编进 tick_regen/tick_mech_charge/tick_faith 族；
     #   P2-D7 收尾记录另 3 个"引擎旧通道"名单：arcane_constant/lian_duan_soft/
-    #   shadow_dance_cd（挂点 7/8/9：_do_player_skill MP 段/_combo_break/_set_skill_cd）
+    #   shadow_dance_cd（挂点 7/8/9：_do_actor_skill MP 段/_combo_break/_set_skill_cd）
     #   消费点在 battle.py 仍是旧式 for 直读（非 run_proc_family 分发）——三挂点均为
     #   引擎旧 proc 通道（v169.7 数据驱动前身），P2 未迁入注册表（§5 挂点7/8/9 卡），
     #   数据/行为已完整（D0 回填），登记为"已消费但未注册表化"缺口——非静默空转，
@@ -305,13 +305,13 @@ def run_proc_family_pm(battle, player, proc_names, ctx: dict):
 #    每个 handler 逻辑 = 对应挂点迁移前的原 for 循环体逐字直搬（行为零变化）。
 # ============================================================
 
-# ---- 3.1 dmg_mult_cond（疾风·极 speed_ratio_dmg：挂点4 _player_dmg_mult）----
+# ---- 3.1 dmg_mult_cond（疾风·极 speed_ratio_dmg：挂点4 _actor_dmg_mult）----
 @register("dmg_mult_cond")
 def _h_dmg_mult_cond(battle, ctx: dict, ps: dict, ps_name: str):
     """速度比 ≥ ratio → 伤害 ×(1+dmg_add)；奥术系/三系印记 → ×(1+mult)（条件伤害乘区族）。
 
     ctx 分派（mult_kind ∈ speed_ratio/arcane_mech/element_marks；缺省 speed_ratio 兼容挂点4）：
-    - speed_ratio    速度比 ≥ ps.ratio → ×(1+ps.dmg_add)（疾风·极；原挂点4 _player_dmg_mult）
+    - speed_ratio    速度比 ≥ ps.ratio → ×(1+ps.dmg_add)（疾风·极；原挂点4 _actor_dmg_mult）
                      读 ctx.pst_spd/est_spd；敌方无速度键按 0 防御性跳过（原语义）；标签 💨疾风x… 原样保留
     - arcane_mech    mech ∈ MECH_PROC_GROUPS.arcane_dmg → ×(1+ps.mult)（奥术共鸣；原挂点6 循环体）
                      需 ctx["mech"]；多条目逐条累乘（原 for 无 break——逐条 *=，连乘语义保留）
@@ -573,7 +573,7 @@ def _h_dot_mult_cond(battle, ctx: dict, ps: dict, ps_name: str):
 def _h_dot_weaken(battle, ctx: dict, ps: dict, ps_name: str):
     """毒层 ≥ps.layers → 目标减速降防（剧毒之触 poison_weaken；原挂点15 循环体直搬）。
 
-    守卫（_caster_is_player and not _tgt_is_player + 条目存在 + n ≥ 首条 layers）由调用侧
+    守卫（_caster_is_player and not _tgt_is_side_player + 条目存在 + n ≥ 首条 layers）由调用侧
     骨架保留（原代码先判 list 非空再判 n ≥ 首条 layers——两判全在挂点，handler 不重判）。
     数值读 _ps：layers/spd_down/def_down（D0 回填 5/2/2）；缺字段（layers ≤0）=
     无此行为（零默认值铁律）。副作用写 ctx[\"tgt_buffs\"]（调用侧 e.setdefault(\"buffs\",{})
@@ -651,7 +651,7 @@ def _h_crit_cond_add(battle, ctx: dict, ps: dict, ps_name: str):
             _res = battle._p_res() if hasattr(battle, "_p_res") else {}
             if (_res or {}).get("element_charge") is not None:
                 # 守线·奥秘法师充能条：charge ≥ 该资源当前上限
-                _hit = battle._elem_charge() >= battle._res_max(ctx.get("player") or battle.player or {}, "element")
+                _hit = battle._elem_charge() >= battle._res_max(ctx.get("player") or battle._focus or {}, "element")
             else:
                 # 攻线 arcane 叠层 ≥ 满层门槛（读数据 stacks）
                 _stk = battle._p_stacks() if hasattr(battle, "_p_stacks") else {}

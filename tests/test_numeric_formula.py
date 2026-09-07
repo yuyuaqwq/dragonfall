@@ -5,7 +5,7 @@
 1. resolve_formula 纯函数：混伤/物理职业魔法技/基础值+百分比/目标血百分比/纯固定值/chance/mult 乘区
 2. 技能 formula 字段：配 formula 的技能走数据驱动公式（引擎消费端）
 3. 装备词条 formula：带 formula 的词条自动触发追加伤害（_affix_on_hit）
-4. 敌方技能 formula：带 formula 的怪物技能走数据驱动公式（_enemy_cast_done）
+4. 敌方技能 formula：带 formula 的怪物技能走数据驱动公式（_hostile_cast_done）
 
 运行：python tests/test_numeric_formula.py（exit=0 全绿）
 """
@@ -100,7 +100,7 @@ def test_skill_formula():
     }
     random.seed(42)
     st = b._player_stats(player)
-    logs = b._player_skill(st, "测试混伤", C.PLAYER_SKILLS["cls_zhan_shi"]["skills"]["sk_test_fml"], player)
+    logs = b._actor_skill(st, "测试混伤", C.PLAYER_SKILLS["cls_zhan_shi"]["skills"]["sk_test_fml"], player)
     # 应有造成伤害日志
     has_dmg = any(isinstance(l, str) and "造成" in l and "伤害" in l for l in logs)
     check("技能 formula 生效（造成伤害）", has_dmg, f"logs={[l for l in logs if isinstance(l, str)][:3]}")
@@ -131,7 +131,7 @@ def test_skill_exprs_levels():
         p["skill_levels"] = {"测试逐级斩": lv}
         b2 = mk_battle(p)
         st2 = b2._player_stats(p)
-        logs = b2._player_skill(st2, "测试逐级斩", _info, p)
+        logs = b2._actor_skill(st2, "测试逐级斩", _info, p)
         # 期望公式值：atk*mult+flat（未乘外部乘区/未过防御的基础值）
         _expect_base = int(atk * (0.8 + 0.05 * (lv - 1)) + (20 + 5 * (lv - 1)))
         # 伤害日志里应出现 ≈ 期望（基础值过防御后略低；直接用 resolve_formula 对齐）
@@ -162,7 +162,7 @@ def test_skill_exprs_levels():
     p["skill_levels"] = {"测试逐级斩": 9}
     b9 = mk_battle(p)
     st9 = b9._player_stats(p)
-    logs9 = b9._player_skill(st9, "测试逐级斩", _info, p)
+    logs9 = b9._actor_skill(st9, "测试逐级斩", _info, p)
     _has9 = any(isinstance(l, str) and "造成" in l and "伤害" in l for l in logs9)
     check("Lv.9 越界取最后一条仍出伤", _has9, f"logs={[l for l in logs9 if isinstance(l, str)][:3]}")
     # 清理注入（防污染后续测试）
@@ -190,7 +190,7 @@ def test_affix_formula():
 
 
 def test_enemy_formula():
-    print("【4. 敌方技能 formula（_enemy_cast_done）】")
+    print("【4. 敌方技能 formula（_hostile_cast_done）】")
     player = mk_player()
     b = mk_battle(player)
     from game.data.monsters import MONSTER_SKILLS

@@ -140,11 +140,11 @@ def test_dragon_mark_no_affix():
     print("【3. 龙语印记无词条也结算（v104 移入 _extra_dmg_mult）】")
     b = BT.Battle("monster", make_monster(hp=1000), player=make_player("战士", 10))
     b._p_stacks()["dragon_mark"] = 5
-    mult, tags = b._affix_dmg_mult(b.player)
+    mult, tags = b._affix_dmg_mult(b._focus)
     check("无词条 + 5 层印记 → 倍率 1.10", abs(mult - 1.10) < 1e-9,
           f"mult={mult} tags={tags}")
     b2 = BT.Battle("monster", make_monster(hp=1000), player=make_player("战士", 10))
-    mult2, _ = b2._affix_dmg_mult(b2.player)
+    mult2, _ = b2._affix_dmg_mult(b2._focus)
     check("无印记 → 倍率 1.0", abs(mult2 - 1.0) < 1e-9, f"mult={mult2}")
 
 

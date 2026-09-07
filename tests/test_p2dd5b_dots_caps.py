@@ -70,10 +70,10 @@ def mk_enemy(hp=100000, def_=20, mdef=20, spd=10):
 
 def mk_battle(player, enemy=None):
     b = BT.Battle("monster", enemy or mk_enemy(), {}, dict(player))
-    b.player.setdefault("resources", {})
-    b.player.setdefault("stacks", {})
-    b.player.setdefault("buffs", {})
-    b.player.setdefault("eff", {})
+    b._focus.setdefault("resources", {})
+    b._focus.setdefault("stacks", {})
+    b._focus.setdefault("buffs", {})
+    b._focus.setdefault("eff", {})
     b.enemy.setdefault("buffs", {})
     b.enemy.setdefault("debuffs", {})
     return b
@@ -113,7 +113,7 @@ def OLD_dot_poison(b, e, caster, n, k="poison", logs=None):
     """
     logs = logs if logs is not None else []
     _caster_is_player = b._is_player_side(caster) if caster is not None else False
-    _tgt_is_player = b._is_player_side(e)
+    _tgt_is_side_player = b._is_player_side(e)
     _poison_all_mult = 1.0
     if k == "poison" and _caster_is_player:
         try:
@@ -123,7 +123,7 @@ def OLD_dot_poison(b, e, caster, n, k="poison", logs=None):
         except Exception:
             pass
     # p 只算乘区贡献（OLD/NEW 同路径的 atk/hp/res 段差分抵消）——直接还原乘区乘数
-    if k == "poison" and _caster_is_player and not _tgt_is_player:
+    if k == "poison" and _caster_is_player and not _tgt_is_side_player:
         try:
             _pw_list = b._proc_pm(caster)["proc"].get("poison_weaken", [])
             if _pw_list and n >= int((_pw_list[0][1]).get("layers", 5) or 5):
@@ -214,7 +214,7 @@ def test_poison_all_up():
                 p = mk_player(CLS, [WD] if learned else [])
                 b_o = mk_battle(p)
                 inject_proc(b_o, pe) if pe else None
-                caster_o = b_o.player if caster_side == "player" else dict(b_o.enemy)
+                caster_o = b_o._focus if caster_side == "player" else dict(b_o.enemy)
                 e_o = dict(b_o.enemy)
                 if caster_side == "enemy":
                     # caster=怪（非玩家侧）：_proc_pm(caster) 空 → 乘区不触发
@@ -224,7 +224,7 @@ def test_poison_all_up():
                 p2 = mk_player(CLS, [WD] if learned else [])
                 b_n = mk_battle(p2)
                 inject_proc(b_n, pe) if pe else None
-                caster_n = b_n.player if caster_side == "player" else b_n.enemy
+                caster_n = b_n._focus if caster_side == "player" else b_n.enemy
                 hp0 = int(b_n.enemy["hp"])
                 logs_n = []
                 b_n.enemy.setdefault("debuffs", {})["poison"] = {
@@ -244,7 +244,7 @@ def test_poison_all_up():
             "n": 3, "turns": 2, "mult": 1.0, "atk": 100, "matk": 0, "pct": 0.0}
         hp_o0 = int(b_o.enemy["hp"])
         logs_o = []
-        m_o, _ = OLD_dot_poison(b_o, b_o.enemy, b_o.player, 3)
+        m_o, _ = OLD_dot_poison(b_o, b_o.enemy, b_o._focus, 3)
         b_o._tick_actor_dots(b_o.enemy, logs_o)
         dmg_o = hp_o0 - int(b_o.enemy["hp"])
         p2 = mk_player(CLS, [WD] if learned else [])
@@ -260,7 +260,7 @@ def test_poison_all_up():
         check(f"{tag}: OLD 伤害 == NEW 伤害（毒3层 atk100）", dmg_o == dmg_n,
               f"OLD {dmg_o} NEW {dmg_n}")
         if learned:
-            # atk_part = 100×0.5×3 = 150；×1.35 → int 202.5 → 202；magi 抗 def/mdef 20 → _enemy_mitigate
+            # atk_part = 100×0.5×3 = 150；×1.35 → int 202.5 → 202；magi 抗 def/mdef 20 → _hostile_mitigate
             # 纯比较 OLD==NEW（抗性同路径），不硬编码终值
             check(f"{tag}: 乘区生效（伤害 > 未学对照）", dmg_n > 0, str(dmg_n))
         else:
@@ -283,15 +283,15 @@ def test_poison_weaken():
                     b_o = mk_battle(p)
                     if pe:
                         inject_proc(b_o, pe)
-                    e_o = dict(b_o.enemy) if not tgt_player else dict(b_o.player)
-                    # 目标怪/玩家：weaken 守卫 not _tgt_is_player——玩家目标不触发
+                    e_o = dict(b_o.enemy) if not tgt_player else dict(b_o._focus)
+                    # 目标怪/玩家：weaken 守卫 not _tgt_is_side_player——玩家目标不触发
                     if not tgt_player:
                         b_o.enemy.setdefault("buffs", {})["spd_down"] = pre_spd
-                        m_o, bf_o = OLD_dot_poison(b_o, b_o.enemy, b_o.player, n)
+                        m_o, bf_o = OLD_dot_poison(b_o, b_o.enemy, b_o._focus, n)
                     else:
                         # 玩家目标：OLD 守卫短路（weaken 只毒怪）
                         logs_o = []
-                        m_o, bf_o = OLD_dot_poison(b_o, b_o.player, b_o.player, n, logs=logs_o)
+                        m_o, bf_o = OLD_dot_poison(b_o, b_o._focus, b_o._focus, n, logs=logs_o)
                     p2 = mk_player(CLS, [JDC] if learned else [])
                     b_n = mk_battle(p2)
                     if pe:
@@ -304,11 +304,11 @@ def test_poison_weaken():
                         b_n._tick_actor_dots(b_n.enemy, logs_n)
                         bf_n = b_n.enemy.setdefault("buffs", {})
                     else:
-                        b_n.player.setdefault("debuffs", {})["poison"] = {
+                        b_n._focus.setdefault("debuffs", {})["poison"] = {
                             "n": n, "turns": 2, "mult": 1.0, "atk": 0, "matk": 0, "pct": 0.0}
                         logs_n = []
-                        b_n._tick_actor_dots(b_n.player, logs_n)
-                        bf_n = b_n.player.setdefault("buffs", {})
+                        b_n._tick_actor_dots(b_n._focus, logs_n)
+                        bf_n = b_n._focus.setdefault("buffs", {})
                     # 玩家目标会真的掉血（damage_actor）——weaken 不该触发；OLD 对照 bf_o 空
                     keys = ("spd_down", "def_down", "_weaken_spd_pct", "_weaken_def_pct")
                     sub_o = {k: bf_o.get(k, 0) for k in keys}
@@ -364,14 +364,14 @@ def test_hunt_mark_cap():
                 b_o.enemy.setdefault("debuffs", {})["hunt_mark"] = now_hm
                 cap_pre = {"hunt_mark": old_hm}
                 logs_o = []
-                d_o = OLD_cap(b_o, "hunt_mark", mval, cap_pre, caster=b_o.player, logs=logs_o)
+                d_o = OLD_cap(b_o, "hunt_mark", mval, cap_pre, caster=b_o._focus, logs=logs_o)
                 p2 = mk_player(CLS, [ZLZ] if learned else [])
                 b_n = mk_battle(p2)
                 if pe:
                     inject_proc(b_n, pe)
                 b_n.enemy.setdefault("debuffs", {})["hunt_mark"] = old_hm
                 logs_n = []
-                b_n._apply_mech_effect("hunt_mark", mval, {}, 0, logs_n, "探针", False, None, b_n.player)
+                b_n._apply_mech_effect("hunt_mark", mval, {}, 0, logs_n, "探针", False, None, b_n._focus)
                 d_n = b_n.enemy.setdefault("debuffs", {})
                 tag = f"学={learned} mval={mval} old={old_hm}"
                 check(f"{tag}: OLD == NEW（补层后 hunt_mark）",
@@ -383,14 +383,14 @@ def test_hunt_mark_cap():
     inject_proc(b, _proc_entries(CLS, ["追猎者"]))
     b.enemy["debuffs"]["hunt_mark"] = 3
     logs = []
-    b._apply_mech_effect("hunt_mark", 2, {}, 0, logs, "探针", False, None, b.player)
+    b._apply_mech_effect("hunt_mark", 2, {}, 0, logs, "探针", False, None, b._focus)
     check("术后补层到 5（3+2 被 cap 吞后补到被动上限）", b.enemy["debuffs"]["hunt_mark"] == 5,
           str(b.enemy["debuffs"].get("hunt_mark")))
     # 未学：无条目 → 无补层（cap 段守卫 proc 存在）
     p2 = mk_player(CLS, [])
     b2 = mk_battle(p2)
     b2.enemy["debuffs"]["hunt_mark"] = 3
-    b2._apply_mech_effect("hunt_mark", 2, {}, 0, [], "探针", False, None, b2.player)
+    b2._apply_mech_effect("hunt_mark", 2, {}, 0, [], "探针", False, None, b2._focus)
     check("未学追猎者 → 无补层（保持 3）", b2.enemy["debuffs"]["hunt_mark"] == 3,
           str(b2.enemy["debuffs"].get("hunt_mark")))
 
@@ -416,14 +416,14 @@ def test_soul_mark_cap():
                 b_o.enemy.setdefault("debuffs", {})["soul_mark"] = now_sm
                 cap_pre = {"soul_mark": old_sm}
                 logs_o = []
-                d_o = OLD_cap(b_o, "soul_mark", mval, cap_pre, caster=b_o.player, logs=logs_o)
+                d_o = OLD_cap(b_o, "soul_mark", mval, cap_pre, caster=b_o._focus, logs=logs_o)
                 p2 = mk_player(CLS, [LHS] if learned else [])
                 b_n = mk_battle(p2)
                 if pe:
                     inject_proc(b_n, pe)
                 b_n.enemy.setdefault("debuffs", {})["soul_mark"] = old_sm
                 logs_n = []
-                b_n._apply_mech_effect("soul_mark", mval, {}, 0, logs_n, "探针", False, None, b_n.player)
+                b_n._apply_mech_effect("soul_mark", mval, {}, 0, logs_n, "探针", False, None, b_n._focus)
                 d_n = b_n.enemy.setdefault("debuffs", {})
                 tag = f"学={learned} mval={mval} old={old_sm}"
                 check(f"{tag}: OLD == NEW（补层后 soul_mark）",
@@ -434,12 +434,12 @@ def test_soul_mark_cap():
     b = mk_battle(p)
     inject_proc(b, _proc_entries(CLS, ["灵魂锁链"]))
     b.enemy["debuffs"]["soul_mark"] = 3
-    b._apply_mech_effect("soul_mark", 2, {}, 0, [], "探针", False, None, b.player)
+    b._apply_mech_effect("soul_mark", 2, {}, 0, [], "探针", False, None, b._focus)
     check("soul_mark 术后补层到 5", b.enemy["debuffs"]["soul_mark"] == 5,
           str(b.enemy["debuffs"].get("soul_mark")))
     # 双消费点互不干扰：cap 段迁移后，乘区段（挂点14 mult_kind=soul_mark per_layer）仍生效
     b.enemy["debuffs"]["soul_mark"] = 3
-    dmg = b._deal_damage(100, [], attacker=b.player)
+    dmg = b._deal_damage(100, [], attacker=b._focus)
     # per_layer 0.08 → (1 + (0.06+0.08)*3) = 1.42 → 142
     exp = max(1, int(100 * (1 + (0.06 + 0.08) * 3)))
     check(f"乘区段不受 cap 迁移影响（魂标3层 142）", dmg == exp, f"dmg {dmg} exp {exp}")
@@ -455,11 +455,11 @@ def test_poison_cap_untouched_and_static():
     p = mk_player(CLS, ["淬毒之心"])
     b = mk_battle(p)
     inject_proc(b, _proc_entries(CLS, ["淬毒之心"]))
-    cap = b._poison_cap(b.player)
+    cap = b._poison_cap(b._focus)
     check("_poison_cap 淬毒之心 +3 → cap 8（D1 stack_cap_add 族保留）", cap == 8, str(cap))
     b.enemy.setdefault("debuffs", {})["poison"] = {"n": 5, "turns": 2}
     # poison 段走 _poison_cap（>5 才补）——hunt_mark_cap/soul_mark_cap 迁移不影响
-    b._apply_mech_effect("poison", 3, {}, 0, [], "探针", False, None, b.player)
+    b._apply_mech_effect("poison", 3, {}, 0, [], "探针", False, None, b._focus)
     check("poison cap 段补层（5 → min(8, 5+3)=8）", b.enemy["debuffs"]["poison"]["n"] == 8,
           str(b.enemy["debuffs"]["poison"].get("n")))
     # 静态注册断言

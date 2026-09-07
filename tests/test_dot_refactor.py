@@ -275,7 +275,7 @@ def test_legacy_migration():
     check("poison 迁入 enemy debuffs", b.enemy["debuffs"]["poison"]["n"] == 3,
           str(b.enemy.get("debuffs")))
     # v180-B ①：from_state 恢复的玩家战斗状态暂存 _restore_pstate，需绑玩家 + _apply_restore_pstate 灌入
-    b.player = mk_player()
+    b._focus = mk_player()
     b._apply_restore_pstate()
     check("玩家资源保留", b._p_stacks().get("rage") == 2, str(b._p_stacks()))
     check("mech_stacks 无 poison", "poison" not in b._p_stacks(), str(b._p_stacks()))
@@ -313,8 +313,8 @@ def test_fix_regressions():
     b5._p_buffs_bag()["mortal_wound"] = 2
     info = {"lifesteal": 0.25}
     hp0 = p["hp"]
-    b5._player_skill(b5._player_stats(p), "嗜血斩", info, p) if False else None
-    # 直接验证 skill_lifesteal 路径：模拟 _player_skill 的吸血块（重伤 ×0.5）
+    b5._actor_skill(b5._player_stats(p), "嗜血斩", info, p) if False else None
+    # 直接验证 skill_lifesteal 路径：模拟 _actor_skill 的吸血块（重伤 ×0.5）
     from game import engine as EG
     heal = int(1000 * EG.skill_lifesteal_pct(info, 10))
     if b5._p_buffs_bag().get("mortal_wound"):

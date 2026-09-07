@@ -53,7 +53,7 @@ async def main():
     # v156 基础值：flat = 12 + 90(玩家) + 40×4(技能) = 262
     base1 = int(st1["atk"] * 1.0) + EG.skill_flat_value(90, 40, pierce_skill)
     h0 = b1.enemy["hp"]
-    b1._player_skill(st1, "破甲测试", pierce_skill, p1)
+    b1._actor_skill(st1, "破甲测试", pierce_skill, p1)
     dealt1 = h0 - b1.enemy["hp"]
     check(f"pierce 技能伤害 ≈ atk×1.0（{base1}±15%，无视 def=9999）",
           0.85*base1 <= dealt1 <= 1.15*base1, f"dealt {dealt1}")
@@ -67,7 +67,7 @@ async def main():
     st2 = b2._player_stats(p2)
     base2 = int(st2["atk"] * 1.0) + EG.skill_flat_value(90, 40, phys_skill)
     h0 = b2.enemy["hp"]
-    b2._player_skill(st2, "斩击测试", phys_skill, p2)
+    b2._actor_skill(st2, "斩击测试", phys_skill, p2)
     dealt2 = h0 - b2.enemy["hp"]
     check(f"物理伤害 ≈ atk×1.0（{base2}±15%）", 0.85*base2 <= dealt2 <= 1.15*base2, f"dealt {dealt2}")
     magi_skill = {"name": "魔法测试", "kind": "魔法", "power": 1.0, "lv": 40, "cd": 1}
@@ -77,7 +77,7 @@ async def main():
     st2m = b2m._player_stats(p2m)
     base2m = int(st2m["matk"] * 1.0) + EG.skill_flat_value(90, 40, magi_skill)
     h0 = b2m.enemy["hp"]
-    b2m._player_skill(st2m, "魔法测试", magi_skill, p2m)
+    b2m._actor_skill(st2m, "魔法测试", magi_skill, p2m)
     dealt2m = h0 - b2m.enemy["hp"]
     check(f"魔法伤害 ≈ matk×1.0（{base2m}±15%）", 0.85*base2m <= dealt2m <= 1.15*base2m, f"dealt {dealt2m}")
 
@@ -114,7 +114,7 @@ async def main():
     p4 = mk_player(cls="战士", skills=["怒斩"], hp=10000)
     b4 = BT.Battle("怪物", mk_enemy(hp=10**9), {}, p4)
     random.seed(11)
-    logs4, _ = b4.player_turn("skill", "怒斩", p4)
+    logs4, _ = b4.actor_turn("skill", "怒斩", p4)
     # v154 读条命中制：出招读条结束（cast_done）才结算命中（战意叠层）——推进后生效
     b4._process_until(float(getattr(b4, "p_ct", 0) or 0) + 0.001, logs4, p4)
     check("怒斩施放 → 战意叠层（mech_zhan_yi 引擎挂点）",

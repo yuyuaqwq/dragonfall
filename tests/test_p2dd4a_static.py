@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """v181.P2D-D4a 静态等价佐证（test_p2dd4a_static.py）
 
-本文件不跑引擎：断言 battle.py 挂点10 player_turn 免控段 + 挂点11 _mitigate_chain
+本文件不跑引擎：断言 battle.py 挂点10 actor_turn 免控段 + 挂点11 _mitigate_chain
 条件减伤聚合段的 6 proc 迁移痕迹（P2-D4a 收），并确认：
 - 挂点12 _post_hp_lethal 致死复活族（death_contract/berserk_revive/stance_immortal，
   D4b 收）未被误碰
@@ -56,8 +56,8 @@ def main():
     old = re.findall(r'_ps\d*\.get\("(?:stacks|reduce|per_core|shield_pct|turns)"', seg)
     check("挂点11 聚合段无旧直读残留", not old, str(old))
     # 挂点10 免控区（3275-3300）：旧直读清零（stacks 兜底只在注册表，不在 battle 免控段）
-    pt = battle.split("def player_turn")[1]
-    pt = pt.split("def _player_charge_release")[0] if "def _player_charge_release" in pt else pt[:6000]
+    pt = battle.split("def actor_turn")[1]
+    pt = pt.split("def _actor_charge_release")[0] if "def _actor_charge_release" in pt else pt[:6000]
     old_cc = re.findall(r'_ps_(?:zy|cf)\.get\("stacks"', pt)
     check("挂点10 免控区无旧直读残留", not old_cc, str(old_cc))
     # 一次性 flag 序列化键保留

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """v181.P2D-D4a 受击减伤/免控族等价探针（test_p2dd4a_cc_dr.py）
 
-验证挂点10 player_turn 免控段 + 挂点11 _mitigate_chain 条件减伤聚合段 6 proc
+验证挂点10 actor_turn 免控段 + 挂点11 _mitigate_chain 条件减伤聚合段 6 proc
 （tenacity / zhan_yi_full_reduce / core_full / core_reduce / core_last_stand /
 core_overflow）从 battle.py 内联 for 迁移到 passive_procs 注册表族 cc_break_cost /
 dr_cond（ctx cc_kind/dr_kind 分派）后行为零变化（OLD vs NEW 双实现差分）。
@@ -68,11 +68,11 @@ def mk_enemy(def_=20, mdef=20, hp=100000, spd=10):
 def mk_battle(player, enemy=None, keep_player_copy=False):
     """构造战斗玩家 dict 副本（默认深拷贝防 Battle 内 setdefault 污染 OLD 参考源）。"""
     b = BT.Battle("monster", enemy or mk_enemy(), {}, copy.deepcopy(player))
-    b.player.setdefault("resources", {})
-    b.player.setdefault("stacks", {})
-    b.player.setdefault("buffs", {})
-    b.player.setdefault("shields", {})
-    b.player.setdefault("eff", {})
+    b._focus.setdefault("resources", {})
+    b._focus.setdefault("stacks", {})
+    b._focus.setdefault("buffs", {})
+    b._focus.setdefault("shields", {})
+    b._focus.setdefault("eff", {})
     return b
 
 
@@ -201,12 +201,12 @@ def test_tenacity():
                     b_old = mk_battle(dict(p))
                     b_new = mk_battle(dict(p))
                     for b in (b_old, b_new):
-                        b.player["stacks"]["zhan_yi"] = zy
+                        b._focus["stacks"]["zhan_yi"] = zy
                         if preseed is not None:
                             b._tenacity_left_n = preseed  # 模拟 from_state 恢复 flag
                     logs_o, logs_n = [], []
-                    r_old = OLD_tenacity_break(b_old, b_old.player, logs_o)
-                    r_new = b_new._tenacity_try_break(b_new.player, logs_n)
+                    r_old = OLD_tenacity_break(b_old, b_old._focus, logs_o)
+                    r_new = b_new._tenacity_try_break(b_new._focus, logs_n)
                     same = (r_old == r_new
                             and b_old._zhan_yi_n() == b_new._zhan_yi_n()
                             and getattr(b_old, "_tenacity_left_n", 3) == getattr(b_new, "_tenacity_left_n", 3)
@@ -220,10 +220,10 @@ def test_tenacity():
     b = mk_battle(dict(p))
     hits = 0
     for _i in range(5):
-        b.player["stacks"]["zhan_yi"] = 10
-        b.player["buffs"]["stun"] = 1
+        b._focus["stacks"]["zhan_yi"] = 10
+        b._focus["buffs"]["stun"] = 1
         logs = []
-        if b._tenacity_try_break(b.player, logs):
+        if b._tenacity_try_break(b._focus, logs):
             hits += 1
         else:
             break
@@ -243,16 +243,16 @@ def test_zy_full_stun_clear():
                 b_old = mk_battle(dict(p))
                 b_new = mk_battle(dict(p))
                 for b in (b_old, b_new):
-                    b.player["stacks"]["zhan_yi"] = zy
+                    b._focus["stacks"]["zhan_yi"] = zy
                     if has_stun:
-                        b.player["buffs"]["stun"] = 1
+                        b._focus["buffs"]["stun"] = 1
                 logs_o, logs_n = [], []
-                OLD_stun_clear(b_old, b_old.player, logs_o)
+                OLD_stun_clear(b_old, b_old._focus, logs_o)
                 # NEW：复刻现挂点骨架（if stun + for + run + break）
                 if "stun" in b_new._p_buffs_bag():
                     try:
-                        for _pn_zy, _ps_zy in b_new._proc_pm(b_new.player)["proc"].get("zhan_yi_full_reduce", []):
-                            _c = {"player": b_new.player, "ps": _ps_zy, "ps_name": _pn_zy,
+                        for _pn_zy, _ps_zy in b_new._proc_pm(b_new._focus)["proc"].get("zhan_yi_full_reduce", []):
+                            _c = {"player": b_new._focus, "ps": _ps_zy, "ps_name": _pn_zy,
                                   "cc_kind": "stun_clear", "logs": logs_n}
                             PP.run_proc_family(b_new, "zhan_yi_full_reduce", _c)
                             break
@@ -276,13 +276,13 @@ def test_core_full_cc_window():
                 b_old = mk_battle(dict(p))
                 b_new = mk_battle(dict(p))
                 for b in (b_old, b_new):
-                    b.player["resources"]["guard_core"] = gc
+                    b._focus["resources"]["guard_core"] = gc
                     if cc_cur:
-                        b.player["buffs"]["cc_immune"] = cc_cur
-                OLD_cc_window(b_old, b_old.player)
+                        b._focus["buffs"]["cc_immune"] = cc_cur
+                OLD_cc_window(b_old, b_old._focus)
                 try:
-                    for _pn_cf, _ps_cf in b_new._proc_pm(b_new.player)["proc"].get("core_full", []):
-                        _c = {"player": b_new.player, "ps": _ps_cf, "ps_name": _pn_cf,
+                    for _pn_cf, _ps_cf in b_new._proc_pm(b_new._focus)["proc"].get("core_full", []):
+                        _c = {"player": b_new._focus, "ps": _ps_cf, "ps_name": _pn_cf,
                               "cc_kind": "cc_window"}
                         PP.run_proc_family(b_new, "core_full", _c)
                         break
@@ -320,18 +320,18 @@ def test_mitigate_dr():
                         b_old = mk_battle(dict(p), mk_enemy())
                         b_new = mk_battle(dict(p), mk_enemy())
                         for b in (b_old, b_new):
-                            b.player["stacks"]["zhan_yi"] = zy
-                            b.player["resources"]["guard_core"] = gc
+                            b._focus["stacks"]["zhan_yi"] = zy
+                            b._focus["resources"]["guard_core"] = gc
                             if ls_used:
                                 b._core_last_stand_used = True  # 模拟序列化恢复已触发
                         logs_o, logs_n = [], []
-                        rt_old = OLD_dr_segment(b_old, b_old.player, dmg, logs_o)
+                        rt_old = OLD_dr_segment(b_old, b_old._focus, dmg, logs_o)
                         # NEW：直接跑现引擎 _mitigate_chain 全链（守卫需 class_name+... 通过）
-                        d_new, _inter = b_new._mitigate_chain(b_new.player, dmg, logs_n)
+                        d_new, _inter = b_new._mitigate_chain(b_new._focus, dmg, logs_n)
                         # OLD 端还原最终 dmg（聚合段外无其它减伤——actor 无 buffs/装备特效）
                         d_old = max(1, dmg - rt_old)
-                        sh_old = dict(b_old.player.get("shields") or {})
-                        sh_new = dict(b_new.player.get("shields") or {})
+                        sh_old = dict(b_old._focus.get("shields") or {})
+                        sh_new = dict(b_new._focus.get("shields") or {})
                         same = (d_old == d_new and sh_old == sh_new and logs_o == logs_n)
                         tag = f"[{label}] 战意{zy} 磐核{gc} 置位{ls_used} dmg{dmg}"
                         check(f"{tag}: dmg {d_old}=={d_new} 盾/日志一致",
@@ -339,12 +339,12 @@ def test_mitigate_dr():
     # 磐核 3/4 层转盾边界特写：dmg 小到 int(dmg*0.8)==0 → 不转盾（ov_sh>0 守卫）
     p = mk_player("cls_wu_seng", ["磐石之心"])
     b = mk_battle(dict(p), mk_enemy())
-    b.player["resources"]["guard_core"] = 3
+    b._focus["resources"]["guard_core"] = 3
     logs = []
-    d1, _ = b._mitigate_chain(b.player, 1, logs)
+    d1, _ = b._mitigate_chain(b._focus, 1, logs)
     check("磐核3 dmg=1: int(1*0.8)=0 不转盾无日志", d1 == 1 and not logs,
           f"d={d1} logs={logs}")
-    sh = b.player.get("shields") or {}
+    sh = b._focus.get("shields") or {}
     check("磐核3 dmg=1: 无 shield 键", "core_overflow" not in sh, str(sh))
 
 
@@ -359,9 +359,9 @@ def test_serialized_flags():
     b._tenacity_left_n = 1  # from_state 'tenacity_left':1
     hits = 0
     for _i in range(3):
-        b.player["stacks"]["zhan_yi"] = 10
-        b.player["buffs"]["stun"] = 1
-        if b._tenacity_try_break(b.player, []):
+        b._focus["stacks"]["zhan_yi"] = 10
+        b._focus["buffs"]["stun"] = 1
+        if b._tenacity_try_break(b._focus, []):
             hits += 1
         else:
             break
@@ -371,14 +371,14 @@ def test_serialized_flags():
     b2 = mk_battle(dict(p2), mk_enemy())
     b2._core_last_stand_used = True
     logs = []
-    d2, _ = b2._mitigate_chain(b2.player, 1000, logs)
+    d2, _ = b2._mitigate_chain(b2._focus, 1000, logs)
     # 真实引擎完整链：1000 - 40%（last_stand 常驻）= 600；日志含被动减伤 400 点
     check("置位恢复 → 常驻减伤生效 dmg 1000-400=600", d2 == 600 and any("被动减伤" in s and "400" in s for s in logs),
           f"d={d2} logs={logs}")
     # 不动如山未触发 + 高血量 → 无首触发生产、无常驻减伤（首触发生产段在 hp<30% 才补核）
     p3 = mk_player("cls_wu_seng", ["不动如山"], hp=500)
     b3 = mk_battle(dict(p3), mk_enemy())
-    d3, _ = b3._mitigate_chain(b3.player, 1000, [])
+    d3, _ = b3._mitigate_chain(b3._focus, 1000, [])
     check("未置位 hp 100% → 无减伤 dmg 1000 原样", d3 == 1000 and not getattr(b3, "_core_last_stand_used", False),
           f"d={d3}")
 

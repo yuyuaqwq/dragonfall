@@ -11,7 +11,7 @@
 - bodyguard：挡刀概率（敌人攻击时由召唤物承受的概率）
 
 v180F 清3（2026-09-07）：eats_aoe 已接线——敌方 AOE 技能（地狱火等 aoe=all）现在
-对目标 side 全体结算，_player_side_aoe_pool 把 eats_aoe=True 的随从（前排挡刀型）纳入
+对目标 side 全体结算，_side_aoe_pool 把 eats_aoe=True 的随从（前排挡刀型）纳入
 AOE 目标池（v151 意图落地：藤蔓守卫/古树守卫吃 AOE）；hidden/untargetable 宠物不吃。
 
 v113 调整：游侠攻线改为自然系「林语者」后，召唤下放基础职业——

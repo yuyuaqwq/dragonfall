@@ -36,7 +36,7 @@ def run_battle(player, enemy):
     for _ in range(100):
         if enemy.get("hp", 0) <= 0 or player.get("hp", 0) <= 0:
             break
-        logs += b.player_turn("attack", None, player)[0]
+        logs += b.actor_turn("attack", None, player)[0]
     return b, logs
 
 print("【1. 战斗开始特效】")
@@ -51,7 +51,7 @@ p = mk_player(["wind_mark"])
 e = mk_enemy()
 b = BT.Battle("monster", e, player=p)
 for _ in range(3):
-    b.player_turn("attack", None, p)
+    b.actor_turn("attack", None, p)
 check("风痕叠层 3 层", b.mech_stacks.get("wind_mark", 0) == 3, str(b.mech_stacks))
 
 print("【3. 技能命中特效（余波溅射）】")

@@ -16,7 +16,7 @@ def check(name, cond, detail=""):
 def _mk_battle(enemy=None):
     """v180-B ①：状态权威在 player actor dict——构造带完整玩家快照（面板字段完整才能跑引擎方法）。"""
     b = BT.Battle("monster", enemy or {"name": "靶", "hp": 100, "max_hp": 100})
-    b.player = {
+    b._focus = {
         "class_name": "cls_zhan_shi", "qq_id": "p_test",
         "hp": 1000, "max_hp": 1000, "mp": 500, "max_mp": 500,
         "atk": 100, "def": 50, "matk": 80, "mdef": 50, "spd": 10, "crit": 0.05,
@@ -37,13 +37,13 @@ def test_serialize_roundtrip():
     b._p_shields_bag()["test_shield"] = {"value": 50, "turns": 999}
     st = b.to_state()
     b2 = BT.Battle.from_state(st)
-    b2.player = _player()          # v180-B：from_state 后绑定玩家 actor dict
+    b2._focus = _player()          # v180-B：from_state 后绑定玩家 actor dict
     b2._apply_restore_pstate()     # 恢复状态灌入绑定玩家
     check("叠层保留", b2._p_stacks().get("rage") == 3, str(b2._p_stacks()))
     check("护盾保留", b2._p_shields_bag().get("test_shield", {}).get("value") == 50, str(b2._p_shields_bag()))
     # 老存档无字段兼容
     b3 = BT.Battle.from_state({"type": "monster", "enemy": {}, "p_buffs": {}, "e_buffs": {}})
-    b3.player = _player()
+    b3._focus = _player()
     b3._apply_restore_pstate()
     check("老存档兼容", b3._p_stacks() == {} and b3._p_shields_bag() == {},
           str((b3._p_stacks(), b3._p_shields_bag())))
@@ -54,11 +54,11 @@ def test_two_rounds_stack_persist():
              "atk": 1, "def": 1, "matk": 1, "mdef": 1, "spd": 1}
     player = _player()
     b = _mk_battle(enemy)
-    b.player = player
+    b._focus = player
     b._apply_mech_effect("rage", 1, b._p_stacks(), 100, [], "狂暴打击")
     st = b.to_state()  # 模拟 db 存储
     b2 = BT.Battle.from_state(st)  # 模拟下一回合 db 重读
-    b2.player = player  # v180-B：恢复战斗需绑玩家（状态经 _apply_restore_pstate 灌入）
+    b2._focus = player  # v180-B：恢复战斗需绑玩家（状态经 _apply_restore_pstate 灌入）
     b2._apply_restore_pstate()
     b2._apply_mech_effect("rage", 1, b2._p_stacks(), 100, [], "狂暴打击")
     check("第2回合狂暴=2层", b2._p_stacks().get("rage") == 2, str(b2._p_stacks().get("rage")))
@@ -73,10 +73,10 @@ def test_shield_persist_and_absorb():
              "atk": 50, "def": 1, "matk": 1, "mdef": 1, "spd": 1}
     player = _player()
     b = _mk_battle(enemy)
-    b.player = player
+    b._focus = player
     b._p_shields_bag()["test_shield"] = {"value": 100, "turns": 999}
     b2 = BT.Battle.from_state(b.to_state())
-    b2.player = player
+    b2._focus = player
     b2._apply_restore_pstate()
     check("护盾跨回合保留", b2._p_shields_bag().get("test_shield", {}).get("value") == 100, str(b2._p_shields_bag()))
     # 屏蔽随机闪避，保证受击断言确定性（护盾吸收需命中才触发）
@@ -97,12 +97,12 @@ def test_reduce_all_left_persist():
     b._p_set_reduce_all_left(3)
     st = b.to_state()
     b2 = BT.Battle.from_state(st)
-    b2.player = _player()
+    b2._focus = _player()
     b2._apply_restore_pstate()
     check("reduce_all_left 保留", b2._p_reduce_all_left() == 3, str(b2._p_reduce_all_left()))
     # 老存档无字段兼容（默认 0）
     b3 = BT.Battle.from_state({"type": "monster", "enemy": {}, "p_buffs": {}, "e_buffs": {}})
-    b3.player = _player()
+    b3._focus = _player()
     b3._apply_restore_pstate()
     check("老存档兼容", b3._p_reduce_all_left() == 0, str(b3._p_reduce_all_left()))
 

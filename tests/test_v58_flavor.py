@@ -102,7 +102,7 @@ async def main():
     b = BT.Battle("monster", boss)
     st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
     p["max_hp"] = st["max_hp"]; p["max_mp"] = st["max_mp"]; p["hp"] = st["max_hp"]; p["mp"] = st["max_mp"]
-    logs, _ = b.player_turn("attack", None, p)
+    logs, _ = b.actor_turn("attack", None, p)
     check("enrage 触发狂暴日志", any("狂暴" in x for x in logs), "|".join(logs)[:200])
     check("enrage 标记", boss.get("enraged") is True, str(boss.get("enraged")))
     est = b._enemy_stats()
@@ -119,9 +119,9 @@ async def main():
     boss2["hp"] = 99999; boss2["max_hp"] = 99999; boss2["atk"] = 1
     b2 = BT.Battle("monster", boss2)
     p2 = dict(p_s)
-    b2.player_turn("attack", None, p2)  # 回合 1
-    b2.player_turn("attack", None, p2)  # 回合 2
-    logs3, _ = b2.player_turn("attack", None, p2)  # 回合 3 → 召唤
+    b2.actor_turn("attack", None, p2)  # 回合 1
+    b2.actor_turn("attack", None, p2)  # 回合 2
+    logs3, _ = b2.actor_turn("attack", None, p2)  # 回合 3 → 召唤
     check("summon 第3回合召唤", any("召唤" in x for x in logs3), "|".join(logs3)[:200])
 
     # heal：第 4 回合自愈
@@ -134,9 +134,9 @@ async def main():
     b3 = BT.Battle("monster", boss3)
     p3 = dict(p_h)
     for _ in range(3):
-        b3.player_turn("attack", None, p3)
+        b3.actor_turn("attack", None, p3)
     hp_before = boss3["hp"]
-    logs4, _ = b3.player_turn("attack", None, p3)  # 回合 4 → 自愈
+    logs4, _ = b3.actor_turn("attack", None, p3)  # 回合 4 → 自愈
     check("heal 第4回合自愈", boss3["hp"] > hp_before or any("恢复" in x for x in logs4),
           f"{hp_before}→{boss3['hp']} logs={'|'.join(logs4)[:200]}")
 

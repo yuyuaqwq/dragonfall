@@ -40,7 +40,7 @@ print("== v178.1 dot 事件驱动重构验证 ==")
 player = mk_player()
 mon = mk_mon(atk=300, matk=0)
 b = BT.Battle("monster", mon)
-b.player = player
+b._focus = player
 logs = []
 b._apply_dot(player, mon, {"type": "poison", "n": 2}, logs)
 deb_p = player.get("debuffs") or {}
@@ -54,7 +54,7 @@ check("挂毒挂了 actor_dot 通用卡", any(e.get("kind") == "actor_dot" for e
 player2 = mk_player()
 mon2 = mk_mon()
 b2 = BT.Battle("monster", mon2)
-b2.player = player2
+b2._focus = player2
 logs2 = []
 b2._apply_dot(mon2, player2, {"type": "burn", "n": 1}, logs2)
 deb_m = mon2.get("debuffs") or {}
@@ -65,7 +65,7 @@ check("日志说怪物名", any("测试Boss" in l for l in logs2), str(logs2))
 player3 = mk_player()
 mon3 = mk_mon(atk=100, matk=0)
 b3 = BT.Battle("monster", mon3)
-b3.player = player3
+b3._focus = player3
 logs3 = []
 b3._apply_dot(player3, mon3, {"type": "poison", "n": 1}, logs3)
 hp_before = player3["hp"]
@@ -77,7 +77,7 @@ player4 = mk_player()
 mon4 = mk_mon()
 mon4["hp"] = 8000
 b4 = BT.Battle("monster", mon4)
-b4.player = player4
+b4._focus = player4
 logs4 = []
 player4["atk"] = 200
 b4._apply_dot(mon4, player4, {"type": "poison", "n": 1}, logs4)
@@ -88,7 +88,7 @@ check("统一结算器结算怪 dot 扣血", mon4["hp"] < hp_before4, f"{hp_befo
 # 5. 无 debuffs 的 actor → 零操作不崩
 player5 = mk_player()
 b5 = BT.Battle("monster", mk_mon())
-b5.player = player5
+b5._focus = player5
 logs5 = []
 b5._tick_actor_dots(player5, logs5)
 check("空 actor 不崩", player5["hp"] == 9999)
@@ -97,7 +97,7 @@ check("空 actor 不崩", player5["hp"] == 9999)
 player6 = mk_player()
 mon6 = mk_mon(atk=100, matk=0)
 b6 = BT.Battle("monster", mon6)
-b6.player = player6
+b6._focus = player6
 logs6 = []
 b6._apply_dot(player6, mon6, {"type": "burn", "n": 2}, logs6)
 b6._apply_dot(player6, mon6, {"type": "burn", "n": 1}, logs6)
@@ -115,7 +115,7 @@ check("非法类型不挂", "lava" not in (player6.get("debuffs") or {}), str(pl
 player8 = mk_player()
 mon8 = mk_mon(atk=100, matk=0)
 b8 = BT.Battle("monster", mon8)
-b8.player = player8
+b8._focus = player8
 logs8 = []
 b8._apply_dot(player8, mon8, {"type": "poison", "n": 3}, logs8)
 hp_before8 = player8["hp"]
@@ -135,7 +135,7 @@ player9 = mk_player()
 mon9 = mk_mon()
 mon9["hp"] = 8000
 b9 = BT.Battle("monster", mon9)
-b9.player = player9
+b9._focus = player9
 logs9 = []
 player9["atk"] = 200
 b9._apply_dot(mon9, player9, {"type": "poison", "n": 2}, logs9)
@@ -151,7 +151,7 @@ check("事件驱动怪毒发作扣血", mon9["hp"] < hp_before9, f"{hp_before9}�
 player10 = mk_player()
 mon10 = mk_mon(atk=100)
 b10 = BT.Battle("monster", mon10)
-b10.player = player10
+b10._focus = player10
 b10._apply_dot(player10, mon10, {"type": "burn", "n": 2}, [])
 b10._apply_dot(player10, mon10, {"type": "bleed", "n": 1}, [])
 check("净化前有 2 dot", len((player10.get("debuffs") or {})) == 2, str(player10.get("debuffs")))
@@ -172,17 +172,17 @@ for _ in range(2):
 n_ev10 = sum(1 for e in b10.tick_effects if e.get("kind") == "actor_dot")
 check("净化后 dot_tick 不再排", n_ev10 == 0, f"{n_ev10} 张 actor_dot 卡")
 
-# 11. 完整链路：MONSTER_SKILLS 配 pdot 的技能经 _enemy_cast_done 命中给玩家挂毒
+# 11. 完整链路：MONSTER_SKILLS 配 pdot 的技能经 _hostile_cast_done 命中给玩家挂毒
 from game.data.monsters import MONSTER_SKILLS
 player11 = mk_player()
 mon11 = mk_mon(atk=200, matk=0)
 b11 = BT.Battle("monster", mon11)
-b11.player = player11
+b11._focus = player11
 MONSTER_SKILLS["ms_test_poison"] = {"kind": "魔法", "power": 1.0,
                                     "pdot": {"type": "poison", "n": 2},
                                     "desc": "测试毒", "name": "毒雾测试"}
 try:
-    logs11, dmg11, _ = b11._enemy_cast_done(player11, mon11, {"kind": "skill", "skill": "ms_test_poison"})
+    logs11, dmg11, _ = b11._hostile_cast_done(player11, mon11, {"kind": "skill", "skill": "ms_test_poison"})
     deb11 = player11.get("debuffs") or {}
     check("技能配 pdot 完整链路生效", deb11.get("poison", {}).get("n") == 2, str(deb11))
     check("强度快照=敌方 atk", deb11.get("poison", {}).get("atk") == 200, str(deb11))

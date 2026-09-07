@@ -99,7 +99,7 @@ async def main():
     b = BT.Battle("怪物", {"name": "T", "hp": 5000, "max_hp": 5000, "atk": 10, "def": 500, "spd": 5}, {}, p)
     hp0 = b.enemy["hp"]
     st = b._player_stats(p)
-    b._player_skill(st, "龙息之怒", info, p)
+    b._actor_skill(st, "龙息之怒", info, p)
     check("战士施放龙息之怒(真伤无视防御)", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
 
     print(f"\n===== v113 技能书冒烟: {passed} passed, {failed} failed =====")

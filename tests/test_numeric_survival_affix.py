@@ -88,7 +88,7 @@ def main():
     check(f"闪避词条显著提升存活/胜率（dodge 存活比 ≥1.15）", ok,
           f"rows={[(x[0], x[1], x[3]) for x in dodge_rows]}")
     # 断言 2：lifesteal 显著提升存活（≥1.10）或翻胜
-    # v180F 校准：修复 _enemy_cast_done 攻击方面板（_enemy_stats() 无参读 _active_target
+    # v180F 校准：修复 _hostile_cast_done 攻击方面板（_enemy_stats() 无参读 _active_target
     # 在多怪/Boss 爪牙时漂移 → 敌方伤害被低估）后，敌方伤害回归真实 → 吸血存活比整体
     # 略降（战士 1.2/游侠 1.13/法师 1.53，仍全部显著提升）。阈值 1.15→1.10 保留
     # "吸血显著提升存活"语义（1.13+ 明显 >1.0 基准）。

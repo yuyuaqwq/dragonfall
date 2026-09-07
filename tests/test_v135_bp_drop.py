@@ -103,7 +103,7 @@ class _ChestCtx:
         self.group_id = gid
         self.qq_id = qid
         self.lv = lv
-        self.player = dbm.get_player(gid, qid)
+        self._focus = dbm.get_player(gid, qid)
         self._dbm = dbm
         self._Cm = Cm
 
@@ -160,7 +160,7 @@ class _ChestCtx:
         self.group_id = gid
         self.qq_id = qid
         self.lv = lv
-        self.player = dbm.get_player(gid, qid)
+        self._focus = dbm.get_player(gid, qid)
         self._dbm = dbm
         self._Cm = Cm
 

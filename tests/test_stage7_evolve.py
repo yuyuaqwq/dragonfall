@@ -278,7 +278,7 @@ def test_mage_mechanics():
         lv = 1
         mval = E.skill_mech_val(info, lv)
         # 奥术弹幕 mech=arcane：施放叠奥术充能层
-        b._player_skill(b._player_stats(p), "奥术弹幕", info, dict(p))
+        b._actor_skill(b._player_stats(p), "奥术弹幕", info, dict(p))
         check("奥术弹幕叠奥术充能", b._p_stacks().get("arcane", 0) >= 1, str(b._p_stacks().get("arcane")))
 
     print("【元素/奥术机制：元素跃迁切系（element_shift，法师系）】")
@@ -291,7 +291,7 @@ def test_mage_mechanics():
     info2 = E.skill_info("法师", "元素湮灭")
     check("元素湮灭可查到", bool(info2), str(info2))
     if info2:
-        logs = b2._player_skill(b2._player_stats(pf), "元素湮灭", info2, dict(pf))
+        logs = b2._actor_skill(b2._player_stats(pf), "元素湮灭", info2, dict(pf))
         check("元素湮灭施放不抛错", True, str(logs)[:120])
 
     print("【元素/奥术机制：current 系技能读当前元素】")
@@ -303,7 +303,7 @@ def test_mage_mechanics():
         # 怪死后挂的火印随移除丢失 → 随机失败。加大血量确保存活。
         b3 = make_battle(pf, {"name": "木桩", "hp": 99999, "max_hp": 99999, "atk": 10, "def": 10, "spd": 5})
         b3._p_res()["element"] = "fire"
-        logs = b3._player_skill(b3._player_stats(pf), "织焰", info3, dict(pf))
+        logs = b3._actor_skill(b3._player_stats(pf), "织焰", info3, dict(pf))
         _fire_marks = ((b3.enemy.get("debuffs") or {}).get("element_marks") or {}).get("fire", 0)
         check("织焰挂火印", _fire_marks >= 1, str(b3.enemy.get("debuffs")))
 

@@ -70,7 +70,7 @@ def cast(sk_name, setup=None, chi=10):
     b._p_res()["guard_core"] = chi  # v180-B：resources 在 player actor dict
     if setup:
         setup(b)
-    logs, _ = b.player_turn("skill", sk_name, p, enemy_act=False)
+    logs, _ = b.actor_turn("skill", sk_name, p, enemy_act=False)
     # v154 读条命中制：出招读条结束（cast_done）才命中结算（伤害/叠层）——推进后触发
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
     return b, logs
@@ -150,7 +150,7 @@ def main():
     bJ._combo_push("踢")
     st = bJ.to_state()
     bK = BT.Battle.from_state(st)
-    bK.player = mk()  # v180-B ①：from_state 后绑定玩家 actor dict
+    bK._focus = mk()  # v180-B ①：from_state 后绑定玩家 actor dict
     bK._apply_restore_pstate()
     check("⑤ combo_seq 保留", bK._p_combo_seq() == ["拳", "踢"], str(bK._p_combo_seq()))
     check("⑤ last_combo_tag 保留", bK._p_last_combo_tag() == "踢", str(bK._p_last_combo_tag()))

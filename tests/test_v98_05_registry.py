@@ -56,7 +56,7 @@ def make_battle(**kw):
     # player dict 对应键（Battle 构造时已播种空袋）。
     for _pk, _bag in (("resources", "resources"), ("p_buffs", "buffs"), ("mech_stacks", "stacks")):
         if _pk in kw:
-            b.player[_bag] = kw.pop(_pk) or {}
+            b._focus[_bag] = kw.pop(_pk) or {}
     b._last_player = kw.pop("last_player", None)
     return b
 

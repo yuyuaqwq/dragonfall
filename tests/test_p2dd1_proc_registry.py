@@ -145,13 +145,13 @@ def test_registry_static():
 def _mk_battle(player, enemy=None):
     b = BT.Battle("monster", enemy or mk_enemy(), {}, player)
     # 探针需要玩家 resources/stacks 袋（Battle __init__ 可能未建）
-    b.player.setdefault("resources", {})
-    b.player.setdefault("stacks", {})
+    b._focus.setdefault("resources", {})
+    b._focus.setdefault("stacks", {})
     return b
 
 
 def test_speed_ratio_dmg():
-    print("\n== 2. speed_ratio_dmg（挂点4 _player_dmg_mult）OLD vs NEW ==")
+    print("\n== 2. speed_ratio_dmg（挂点4 _actor_dmg_mult）OLD vs NEW ==")
 
     def OLD(b, player, kind):
         # 迁移前原逻辑副本（读 _ps ratio/dmg_add + 现成状态）——逐字复刻 6cde807
@@ -173,8 +173,8 @@ def test_speed_ratio_dmg():
         for e_spd in (10, 60, 90):  # 玩家100：比 10 /1.67 /1.11
             b_old = _mk_battle(dict(p), mk_enemy(spd=e_spd))
             b_new = _mk_battle(dict(p), mk_enemy(spd=e_spd))
-            m_old, t_old = OLD(b_old, b_old.player, "phys")
-            m_new, t_new = b_new._player_dmg_mult(b_new.player, "phys")
+            m_old, t_old = OLD(b_old, b_old._focus, "phys")
+            m_new, t_new = b_new._actor_dmg_mult(b_new._focus, "phys")
             tag_ok = (t_new == t_old)
             check(f"学={learned} 敌速{e_spd}: mult {m_old}=={m_new} tags{t_old}=={t_new}",
                   abs(m_old - m_new) < 1e-9 and tag_ok, f"{m_old} vs {m_new} / {t_old} vs {t_new}")
@@ -199,20 +199,20 @@ def test_zhan_yi_lifesteal():
         for zy in (0, 3, 10):
             for base_rate in (0.0, 0.05):
                 b_old = _mk_battle(dict(p))
-                b_old.player["stacks"]["zhan_yi"] = zy
+                b_old._focus["stacks"]["zhan_yi"] = zy
                 b_new = _mk_battle(dict(p))
-                b_new.player["stacks"]["zhan_yi"] = zy
+                b_new._focus["stacks"]["zhan_yi"] = zy
                 # NEW = 现引擎 _settle_lifesteal 内 rate 增量段：读 st lifesteal + 战意加算
-                st_old = b_old._player_stats(b_old.player)
-                st_new = b_new._player_stats(b_new.player)
-                r_old = OLD(b_old, b_old.player, float(st_old.get("lifesteal", 0) or 0) + base_rate, zy)
+                st_old = b_old._player_stats(b_old._focus)
+                st_new = b_new._player_stats(b_new._focus)
+                r_old = OLD(b_old, b_old._focus, float(st_old.get("lifesteal", 0) or 0) + base_rate, zy)
                 r_new = float(st_new.get("lifesteal", 0) or 0) + base_rate
                 # 复刻 NEW 挂点内的注册表调用（对 b_new）
                 try:
                     _zy = b_new._zhan_yi_n()
                     if _zy > 0:
-                        for _pn, _ps in b_new._passive_map(b_new.player)["proc"].get("zhan_yi_lifesteal", []):
-                            _c = {"player": b_new.player, "ps": _ps, "ps_name": _pn,
+                        for _pn, _ps in b_new._passive_map(b_new._focus)["proc"].get("zhan_yi_lifesteal", []):
+                            _c = {"player": b_new._focus, "ps": _ps, "ps_name": _pn,
                                   "zhan_yi_n": _zy, "rate": r_new}
                             PP.run_proc_family(b_new, "zhan_yi_lifesteal", _c)
                             r_new = _c.get("rate", r_new)
@@ -243,21 +243,21 @@ def test_poison_cap():
             p = mk_player(cls, [sk] if learned else [])
             b_old = _mk_battle(dict(p))
             b_new = _mk_battle(dict(p))
-            c_old = OLD(b_old, b_old.player)
-            c_new = b_new._poison_cap(b_new.player)
+            c_old = OLD(b_old, b_old._focus)
+            c_new = b_new._poison_cap(b_new._focus)
             check(f"{cls} 学={learned}: cap {c_old}=={c_new}", c_old == c_new, f"{c_old} vs {c_new}")
         # 双条目聚合（同 proc 2 条被动：手工注入 PLAYER_SKILLS 第二分支不可行→ 直接测 _poison_cap
         # 对 pm 双条目等价：OLD 累加两 add；NEW 注册表逐条累加）
         p = mk_player(cls, [sk])
         b = _mk_battle(dict(p))
-        pm = b._proc_pm(b.player)
+        pm = b._proc_pm(b._focus)
         pm["proc"][proc].append(("测试第二", {"proc": proc, "add": 3}))
         b._proc_pm = lambda pl: pm
-        c = b._poison_cap(b.player)
+        c = b._poison_cap(b._focus)
         check(f"{cls} 双条目聚合 cap(5+3+3→8)", c == 8, f"got {c}")
         # 封顶 8：再加一条 → 仍 8
         pm["proc"][proc].append(("测试第三", {"proc": proc, "add": 3}))
-        c = b._poison_cap(b.player)
+        c = b._poison_cap(b._focus)
         check(f"{cls} 三条目封顶 cap==8", c == 8, f"got {c}")
 
 
@@ -285,7 +285,7 @@ def test_skeleton_cap():
         # NEW：跑 _summon_entity 上限路径 — 用真实 skeleton 模板 & 记录是否被拦（不实际 spawn）
         # 简化：直接调注册表族（NEW 挂点内的核心），与 OLD_limit 比
         lim_old = OLD_limit(sk_tmpl_limit, [ps for _, ps in ps_list])
-        ctx = {"player": b_new.player, "limit": sk_tmpl_limit}
+        ctx = {"player": b_new._focus, "limit": sk_tmpl_limit}
         for _pn, _ps in ps_list:
             ctx["ps"], ctx["ps_name"] = _ps, _pn
             PP.run_proc_family(b_new, "skeleton_cap", ctx)
@@ -322,26 +322,26 @@ def test_focus_full_on_kill():
         p = mk_player("cls_you_xia", ["追风"] if learned else [])
         for energy in (0, 30, 100):
             b_old = _mk_battle(dict(p))
-            b_old.player["resources"] = {"energy": energy}
+            b_old._focus["resources"] = {"energy": energy}
             b_old._pending_dmg_lines = []
             b_new = _mk_battle(dict(p))
-            b_new.player["resources"] = {"energy": energy}
+            b_new._focus["resources"] = {"energy": energy}
             b_new._pending_dmg_lines = []
-            OLD_refill(b_old, b_old.player, b_old._pending_dmg_lines)
+            OLD_refill(b_old, b_old._focus, b_old._pending_dmg_lines)
             # NEW：复刻 _remove_unit 内现挂点调用
             try:
-                for _pn_k, _ps_k in b_new._proc_pm(b_new.player)["proc"].get("focus_full_on_kill", []):
+                for _pn_k, _ps_k in b_new._proc_pm(b_new._focus)["proc"].get("focus_full_on_kill", []):
                     if b_new._p_res().get("energy") is not None:
-                        _c = {"player": b_new.player, "ps": _ps_k, "ps_name": _pn_k,
+                        _c = {"player": b_new._focus, "ps": _ps_k, "ps_name": _pn_k,
                               "res": b_new._p_res(), "res_key": "energy",
-                              "res_max": b_new._res_max(b_new.player, "energy"),
+                              "res_max": b_new._res_max(b_new._focus, "energy"),
                               "pending_dmg_lines": b_new._pending_dmg_lines}
                         PP.run_proc_family(b_new, "focus_full_on_kill", _c)
                     break
             except Exception:
                 pass
-            e_old = b_old.player["resources"].get("energy")
-            e_new = b_new.player["resources"].get("energy")
+            e_old = b_old._focus["resources"].get("energy")
+            e_new = b_new._focus["resources"].get("energy")
             l_old = b_old._pending_dmg_lines
             l_new = b_new._pending_dmg_lines
             check(f"学={learned} 精力{energy}: {e_old}=={e_new} logs {l_old}=={l_new}",
@@ -350,22 +350,22 @@ def test_focus_full_on_kill():
     p2 = mk_player("cls_you_xia", ["追风"])
     b2 = _mk_battle(dict(p2))
     b2._pending_dmg_lines = []
-    b2.player["resources"].pop("energy", None)  # 模拟无 energy 键（守卫路径）
-    _res_before = dict(b2.player["resources"])
+    b2._focus["resources"].pop("energy", None)  # 模拟无 energy 键（守卫路径）
+    _res_before = dict(b2._focus["resources"])
     try:
-        for _pn_k, _ps_k in b2._proc_pm(b2.player)["proc"].get("focus_full_on_kill", []):
+        for _pn_k, _ps_k in b2._proc_pm(b2._focus)["proc"].get("focus_full_on_kill", []):
             if b2._p_res().get("energy") is not None:
-                _c = {"player": b2.player, "ps": _ps_k, "ps_name": _pn_k,
+                _c = {"player": b2._focus, "ps": _ps_k, "ps_name": _pn_k,
                       "res": b2._p_res(), "res_key": "energy",
-                      "res_max": b2._res_max(b2.player, "energy"),
+                      "res_max": b2._res_max(b2._focus, "energy"),
                       "pending_dmg_lines": b2._pending_dmg_lines}
                 PP.run_proc_family(b2, "focus_full_on_kill", _c)
             break
     except Exception:
         pass
     check("energy 缺失 → 挂点守卫短路无副作用",
-          b2._pending_dmg_lines == [] and b2.player["resources"] == _res_before
-          and "energy" not in b2.player["resources"], str(b2.player["resources"]))
+          b2._pending_dmg_lines == [] and b2._focus["resources"] == _res_before
+          and "energy" not in b2._focus["resources"], str(b2._focus["resources"]))
 
 
 # ============================================================

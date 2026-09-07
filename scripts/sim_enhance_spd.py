@@ -42,9 +42,9 @@ def run_battle(player, rounds=400, elite_mult=1.0):
         p["max_hp"] = st["max_hp"]; p["max_mp"] = st["max_mp"]; p["hp"] = st["max_hp"]; p["mp"] = st["max_mp"]
         while True:
             if p["mp"] >= 6:
-                logs, done = b.player_turn("skill", "猛击", p)
+                logs, done = b.actor_turn("skill", "猛击", p)
             else:
-                logs, done = b.player_turn("attack", None, p)
+                logs, done = b.actor_turn("attack", None, p)
             if done: break
         if b.result == "victory":
             wins += 1; rnds.append(b.round); dmg_taken.append(st["max_hp"] - p["hp"])
@@ -88,5 +88,5 @@ print("="*90)
 print("【四】速度机制现状")
 print("="*90)
 print("  battle.py 里 spd 的用途：仅 buff 计算（spd_up/spd_down），从不参与行动顺序")
-print("  战斗流程：player_turn 永远是玩家先打 → _enemy_turn 敌人后打")
+print("  战斗流程：actor_turn 永远是玩家先打 → _enemy_turn 敌人后打")
 print("  结论：速度对先手/多动 0 影响 —— 裸奔玩家也永远先手，精英 spd15 也无优势")

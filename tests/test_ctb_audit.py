@@ -6,7 +6,7 @@
   2. 敌方睡眠按回合递减（审计 P1-2：_enemy_turn 不再多重递减，只走 _end_round）
   3. 玩家被控跳过时敌方同步时间流逝（审计 P2-1：统一 _after_actor_ct("p")）
   4. 召唤援军带 ct=-spd（审计 P2-2：_summon_minions）
-  5. 防御连动下每次行动伤害减半（单机 _enemy_phase defend=True）
+  5. 防御连动下每次行动伤害减半（单机 _hostile_phase defend=True）
   6. （v180G B7 删除：副本 _instance_apply_enemy_act_ct 命令层外部驱动怪已废弃，
      敌方 ct 结算统一由 battle._after_actor_ct(\"e\") buffed spd 处理——见测试 1）
   7. 副本超时自动防御同步队友 ct 时间流逝
@@ -57,7 +57,7 @@ def test_1_spd_down_enemy_frequency():
     _SPD["p"], _SPD["e"] = 20, 40
     # 无减速：敌方 cost = 100/40 = 2.5
     b = BT.Battle("monster", make_enemy(40), player=make_player())
-    logs, ended = b.player_turn("attack", None, make_player())
+    logs, ended = b.actor_turn("attack", None, make_player())
     # v180G B7 统一 CTB：出手登记后推进到下一个决策点
     b.advance_until_next_decision([])
     # 有减速（spd_down → 敌方有效 20 → cost 5）：同窗口内敌方行动次数应减少
@@ -70,7 +70,7 @@ def test_1_spd_down_enemy_frequency():
             cnt[0] += 1
         return orig(self, side, unit, player, cast_mult)
     BT.Battle._after_actor_ct = wrap
-    logs2, ended2 = b2.player_turn("attack", None, make_player())
+    logs2, ended2 = b2.actor_turn("attack", None, make_player())
     # v180G B7 统一 CTB：出手登记后推进到下一个决策点
     b.advance_until_next_decision([])
     BT.Battle._after_actor_ct = orig
@@ -92,7 +92,7 @@ def test_2_sleep_round_decay():
     b._tgt_buffs()["sleep"] = 3
     # 防御一回合（不打醒；敌方连动多次）——v152 事件队列：防御窗口内敌方可能多次行动，
     # 但睡眠是行动级消费（每次被选中行动消耗 1 次），不是回合级递减。
-    logs, ended = b.player_turn("defend", None, make_player())
+    logs, ended = b.actor_turn("defend", None, make_player())
     # v180G B7 统一 CTB：出手登记后推进到下一个决策点
     b.advance_until_next_decision([])
     # v152：_advance_time 会按绝对时刻到期 buff。sleep 是 int 值（非 expire_at 形态）——
@@ -113,11 +113,11 @@ def test_3_stun_skip_time_flow():
     b._p_buffs_bag()["stun"] = 1
     e_ct0 = b.enemy["ct"]
     p = make_player()
-    logs, ended = b.player_turn("attack", None, p)
+    logs, ended = b.actor_turn("attack", None, p)
     # v180G B7 统一 CTB：出手登记后推进到下一个决策点
     b.advance_until_next_decision([])
     # v152 绝对时刻：敌方 ct 是下次可行动绝对时刻（单调递增），玩家被控跳过后
-    # 战斗时刻推进（_enemy_phase 内 _process_until 到 p_ct），敌方事件按需触发。
+    # 战斗时刻推进（_hostile_phase 内 _process_until 到 p_ct），敌方事件按需触发。
     # 断言：玩家行动确实被控跳过（日志含眩晕）且战斗时刻推进（_now > 0）。
     check("玩家被控跳过（日志含眩晕）", any("眩晕" in l for l in logs), str(logs[-2:]))
     check("战斗时刻推进（被控行动也消耗行为时长）", b._now > 0, f"now={b._now}")
@@ -145,7 +145,7 @@ def test_5_defend_chain_reduce():
     _SPD["p"], _SPD["e"] = 5, 40  # 敌方快 → 连动多次
     b = BT.Battle("monster", make_enemy(40, atk=100), player=make_player())
     p = make_player(999999)
-    logs, ended = b.player_turn("defend", None, p)
+    logs, ended = b.actor_turn("defend", None, p)
     # v180G B7 统一 CTB：出手登记后推进到下一个决策点
     b.advance_until_next_decision([])
     # 若每次行动都减半，总伤害应显著小于未减半连动

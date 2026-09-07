@@ -16,7 +16,7 @@
 == 审计期间发现的引擎规格缺口 ==
 本测试开发过程中曾通过用例暴露并记录了以下引擎缺口；审计（T6）修复已落地到 game/battle.py
 （"审计 P1 修复"等），对应用例现按修复后正确行为断言并通过：
-  - G1〔A3〕指定目标超出射程未拒绝（_resolve_player_target 已加射程校验，battle.py:477）
+  - G1〔A3〕指定目标超出射程未拒绝（_resolve_target 已加射程校验，battle.py:477）
   - G2〔A3/A5〕战斗内敌方死亡未即时压缩（_deal_damage 死亡即 _remove_unit+compact，battle.py:3054）
   - G3〔A5〕AOE 逐目标不消费各自防御（_aoe_damage 已并入逐目标减伤）
   - G4〔A6〕蓄力释放被自身冷却阻塞（释放路径已绕过 CD 重复校验）
@@ -104,13 +104,13 @@ def test_battle_target_behaviour():
     back = mk_unit("狼巫", hp=3000, atk=0, rank=2, reach=2)
     pr = mk_player(cls="cls_fa_shi", reach=2, spd=0)
     br = BT.Battle("monster", None, {}, player=pr, enemies=[dict(front), dict(back)])
-    br.player_turn("attack", None, pr, target="狼巫", enemy_act=False)
+    br.actor_turn("attack", None, pr, target="狼巫", enemy_act=False)
     # v154 读条命中制：出手只排 cast_done，推进到玩家下次行动点触发命中结算
     br._process_until(float(getattr(br, "p_ct", 0) or 0) + 0.001, [], pr)
     check("远程 reach2 可指定打后排", hp_of(br, "狼巫") < 3000, f"狼巫 hp={hp_of(br, '狼巫')}")
     pm = mk_player(reach=1, spd=0)
     bm = BT.Battle("monster", None, {}, player=pm, enemies=[dict(front), dict(back)])
-    bm.player_turn("attack", None, pm, enemy_act=False)
+    bm.actor_turn("attack", None, pm, enemy_act=False)
     # v154 读条命中制：同上推进（近战自动目标命中前排）
     bm._process_until(float(getattr(bm, "p_ct", 0) or 0) + 0.001, [], pm)
     check("近战自动目标打前排（后排不掉）", hp_of(bm, "狼巫") == 3000, f"狼巫 hp={hp_of(bm, '狼巫')}")
@@ -127,7 +127,7 @@ def test_melee_target_out_of_range():
     player_hp0 = pm["hp"]
     cd0 = dict(bm._p_cooldown())
     random.seed(2)
-    logs, ended = bm.player_turn("attack", None, pm, target="狼巫", enemy_act=True)
+    logs, ended = bm.actor_turn("attack", None, pm, target="狼巫", enemy_act=True)
     check("近战指定后排被拒（后端未掉血）", hp_of(bm, "狼巫") == hp_b, f"{hp_b}->{hp_of(bm, '狼巫')}")
     check("返回『够不着/攻击范围外』提示",
           any(("够不着" in x or "攻击范围之外" in x or "射程" in x) for x in logs), str(logs[:3]))
@@ -166,7 +166,7 @@ def test_compact_on_death():
           str([(u["name"], u["rank"]) for u in b.enemies]))
     check("enemy property 指向新前排", b.enemy["name"] == "狼巫", f"enemy={b.enemy['name']}")
     # 近战 reach1 现在可打已前移的后排（压缩后近战有目标）
-    picked = b._resolve_player_target(p)
+    picked = b._resolve_target(p)
     check("近战可选中压缩后前排", picked is not None and picked["name"] == "狼巫",
           str(picked and picked["name"]))
 
@@ -188,7 +188,7 @@ def test_multi_enemy_turns():
     hit = set()
     total = 0
     for _ in range(10):
-        logs, ended = b.player_turn("attack", None, p, enemy_act=True)
+        logs, ended = b.actor_turn("attack", None, p, enemy_act=True)
         # v180G B7 统一 CTB：出手登记后推进到下一个决策点（敌方行动在 advance 内发生）
         _adv_logs = []
         b.advance_until_next_decision(_adv_logs)
@@ -279,7 +279,7 @@ def test_charge_cast():
     e = mk_unit("靶子", hp=99999, atk=0)
     b = BT.Battle("monster", e, {}, player=p)
     mp0 = p["mp"]
-    logs, _ = b.player_turn("skill", "蓄力射击", p, enemy_act=False)
+    logs, _ = b.actor_turn("skill", "蓄力射击", p, enemy_act=False)
     check("施放进入蓄力(剩1)", b._p_charging() and b._p_charging()["left"] == 1, str(b._p_charging()))
     check("蓄力施放扣MP(14)", p["mp"] == mp0 - 14, f"{mp0}->{p['mp']}")
     check("施放回合不结算（靶子不掉血）", e["hp"] == 99999, f"hp={e['hp']}")
@@ -292,7 +292,7 @@ def test_charge_blocks_attack():
     e = mk_unit("靶子", hp=99999, atk=0)
     b = BT.Battle("monster", e, {}, player=p)
     b._p_set_charging({"skill": "蓄力射击", "left": 2, "name": "蓄力射击", "mp_spent": 14})
-    logs, _ = b.player_turn("attack", None, p, enemy_act=False)
+    logs, _ = b.actor_turn("attack", None, p, enemy_act=False)
     check("蓄力中普攻被拦截（提示正在蓄力）", any("正在蓄力" in x for x in logs), str(logs[:3]))
     check("蓄力中普攻未泄力（charging 仍在）", b._p_charging() is not None, str(b._p_charging()))
 
@@ -308,13 +308,13 @@ def test_charge_release_damage():
     b._p_cooldown().pop("蓄力射击", None)  # 清 CD：隔离"释放路径能结算"（G4 是 CD 阻塞问题）
     mp1 = p["mp"]
     logs = []
-    released = b._player_charge_release(p, logs)
+    released = b._actor_charge_release(p, logs)
     check("蓄力回合开始触发释放", released, f"released={released}")
     check("释放技能效果造成伤害（清CD后生效）", e["hp"] < 99999, f"靶子 hp={e['hp']}")
     check("释放清空蓄力", not b._p_charging(), str(b._p_charging()))
     check("释放不重复扣MP", p["mp"] == mp1, f"{mp1}->{p['mp']}")
     if p["mp"] != mp1:
-        KNOWN_BUGS.append("G5：蓄力释放 _do_player_skill 再次扣MP（§6.2 应不重复扣）")
+        KNOWN_BUGS.append("G5：蓄力释放 _do_actor_skill 再次扣MP（§6.2 应不重复扣）")
 
 
 def test_charge_release_cd_gap():
@@ -323,12 +323,12 @@ def test_charge_release_cd_gap():
     p = mk_player(cls="cls_you_xia", learned=["蓄力射击"], mp=100, spd=0)
     e = mk_unit("靶子", hp=99999, atk=0)
     b = BT.Battle("monster", e, {}, player=p)
-    b.player_turn("skill", "蓄力射击", p, enemy_act=False)  # 施放设 CD=12
+    b.actor_turn("skill", "蓄力射击", p, enemy_act=False)  # 施放设 CD=12
     hp0 = e["hp"]
-    released = b._player_charge_release(p, [])  # 下回合开始：蓄力释放（隔离，不含玩家普攻）
+    released = b._actor_charge_release(p, [])  # 下回合开始：蓄力释放（隔离，不含玩家普攻）
     check("真实蓄力射击释放造成伤害（不被自身CD阻塞）", e["hp"] < hp0, f"hp={hp0}->{e['hp']}")
     if released and e["hp"] == hp0:
-        KNOWN_BUGS.append("G4：蓄力技能释放被自身CD阻塞（_do_player_skill 释放路径仍查 _skill_on_cd）")
+        KNOWN_BUGS.append("G4：蓄力技能释放被自身CD阻塞（_do_actor_skill 释放路径仍查 _skill_on_cd）")
 
 
 def test_charge_interrupt():
@@ -354,7 +354,7 @@ def test_charge_interrupt():
     p2 = mk_player(reach=1, spd=0, atk=500)
     b2 = BT.Battle("monster", e2, {}, player=p2)
     random.seed(2)
-    logs2, _ = b2.player_turn("attack", None, p2, enemy_act=False)
+    logs2, _ = b2.actor_turn("attack", None, p2, enemy_act=False)
     # v154 读条命中制：出招读条结束（cast_done）才命中结算（打断蓄力在命中时刻触发）
     b2._process_until(float(getattr(b2, "p_ct", 0) or 0) + 0.001, [], p2)
     check("攻击打断敌方蓄力", not e2["charging"], str(e2.get("charging")))

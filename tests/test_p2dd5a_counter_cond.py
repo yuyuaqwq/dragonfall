@@ -67,13 +67,13 @@ def mk_enemy(def_=20, mdef=20, hp=100000, spd=10, atk=50):
 def mk_battle(player, enemy=None):
     """构造战斗（深拷贝防 Battle 内 setdefault 污染 OLD 参考源）。"""
     b = BT.Battle("monster", enemy or mk_enemy(), {}, copy.deepcopy(player))
-    b.player.setdefault("resources", {})
-    b.player.setdefault("stacks", {})
-    b.player.setdefault("buffs", {})
-    b.player.setdefault("shields", {})
-    b.player.setdefault("eff", {})
-    b.player.setdefault("v139_modes", {})
-    b.player.setdefault("learned_skills", [])
+    b._focus.setdefault("resources", {})
+    b._focus.setdefault("stacks", {})
+    b._focus.setdefault("buffs", {})
+    b._focus.setdefault("shields", {})
+    b._focus.setdefault("eff", {})
+    b._focus.setdefault("v139_modes", {})
+    b._focus.setdefault("learned_skills", [])
     return b
 
 
@@ -82,7 +82,7 @@ def _inject_extra_cc(b, extra_entry):
 
     OLD/NEW 都走同一合成 pm 才公平——挂点13 for 遍历用 _proc_pm/_passive_map。
     """
-    pm = b._proc_pm(b.player)
+    pm = b._proc_pm(b._focus)
     base = dict(pm)
     base.setdefault("proc", {})
     lst = list(base["proc"].get("counter_chance", []))
@@ -189,11 +189,11 @@ def test_learn_matrix():
                     b_new = mk_battle(dict(p), mk_enemy())
                     # 暴击：NEW 走 _actor_stats_of——affix 无 crit 键 → 0；用 buffs.crit 顶
                     if crit:
-                        b_old.player["buffs"]["crit"] = 1.0
-                        b_new.player["buffs"]["crit"] = 1.0
+                        b_old._focus["buffs"]["crit"] = 1.0
+                        b_new._focus["buffs"]["crit"] = 1.0
                     logs_o, logs_n = [], []
-                    ro = OLD_counter_segment(b_old, b_old.player, logs_o, seed, tgt_hp)
-                    rn = NEW_counter_segment(b_new, b_new.player, logs_n, seed, tgt_hp)
+                    ro = OLD_counter_segment(b_old, b_old._focus, logs_o, seed, tgt_hp)
+                    rn = NEW_counter_segment(b_new, b_new._focus, logs_n, seed, tgt_hp)
                     same = (ro == rn)
                     # 特写：学以守为攻 且 seed 落 35% 内 → 反击伤害复刻一致
                     tag = f"[{label}] seed{seed} 敌hp{tgt_hp} 暴击{crit}"
@@ -212,8 +212,8 @@ def test_cap_and_mult():
         b_old = mk_battle(dict(p), mk_enemy())
         b_new = mk_battle(dict(p), mk_enemy())
         logs_o, logs_n = [], []
-        ro = OLD_counter_segment(b_old, b_old.player, logs_o, seed)
-        rn = NEW_counter_segment(b_new, b_new.player, logs_n, seed)
+        ro = OLD_counter_segment(b_old, b_old._focus, logs_o, seed)
+        rn = NEW_counter_segment(b_new, b_new._focus, logs_n, seed)
         check(f"双学 seed{seed}: OLD==NEW", ro == rn, f"OLD{ro} NEW{rn} logs{logs_o}/{logs_n}")
     # cap 0.9：chance_add 堆叠超 0.9 → min 截断——合成 counter_chance 0.85 + counter_up 0.25
     p = mk_player("cls_wu_seng", [])
@@ -225,22 +225,22 @@ def test_cap_and_mult():
     # 单 counter_up 条目：0.85+0.25=1.10 → cap 0.9
     up = [("反击之王", {"proc": "counter_up", "chance_add": 0.25, "dmg_add": 0.50})]
     for b in (b_old, b_new):
-        pm = b._proc_pm(b.player)
+        pm = b._proc_pm(b._focus)
         base = dict(pm)
         base.setdefault("proc", {})
         base["proc"]["counter_up"] = up
         b._proc_pm = lambda pl: base
         b._passive_map = lambda pl: base
     logs_o, logs_n = [], []
-    ro = OLD_counter_segment(b_old, b_old.player, logs_o, 2)
-    rn = NEW_counter_segment(b_new, b_new.player, logs_n, 2)
+    ro = OLD_counter_segment(b_old, b_old._focus, logs_o, 2)
+    rn = NEW_counter_segment(b_new, b_new._focus, logs_n, 2)
     check("cap0.9: 1.10→0.9 截断 OLD==NEW", ro == rn, f"OLD{ro} NEW{rn}")
     # mult min：两条 counter_chance mult 0.80 / 0.60 → min 0.60（低伤档）
     p2 = mk_player("cls_wu_seng", [])
     b_o2 = mk_battle(dict(p2), mk_enemy())
     b_n2 = mk_battle(dict(p2), mk_enemy())
     for b in (b_o2, b_n2):
-        pm = b._proc_pm(b.player)
+        pm = b._proc_pm(b._focus)
         base = dict(pm)
         base.setdefault("proc", {})
         base["proc"]["counter_chance"] = [
@@ -250,8 +250,8 @@ def test_cap_and_mult():
         b._proc_pm = lambda pl: base
         b._passive_map = lambda pl: base
     logs_o2, logs_n2 = [], []
-    ro2 = OLD_counter_segment(b_o2, b_o2.player, logs_o2, 9)
-    rn2 = NEW_counter_segment(b_n2, b_n2.player, logs_n2, 9)
+    ro2 = OLD_counter_segment(b_o2, b_o2._focus, logs_o2, 9)
+    rn2 = NEW_counter_segment(b_n2, b_n2._focus, logs_n2, 9)
     check("多 cc 条目 mult min: OLD==NEW", ro2 == rn2, f"OLD{ro2} NEW{rn2}")
 
 
@@ -266,18 +266,18 @@ def test_chi_regen():
     b_new = mk_battle(dict(p), mk_enemy())
     # 强制命中（chance→1.0 合成）+ 高伤区 使反击必触发 → 看 气
     for b in (b_old, b_new):
-        pm = b._proc_pm(b.player)
+        pm = b._proc_pm(b._focus)
         base = dict(pm)
         base.setdefault("proc", {})
         base["proc"]["counter_chance"] = [("以守为攻", {"proc": "counter_chance", "chance": 1.0, "mult": 0.80})]
         b._proc_pm = lambda pl: base
         b._passive_map = lambda pl: base
-        b.player["resources"]["chi"] = 3
+        b._focus["resources"]["chi"] = 3
     logs_o, logs_n = [], []
-    ro = OLD_counter_segment(b_old, b_old.player, logs_o, 1)
-    rn = NEW_counter_segment(b_new, b_new.player, logs_n, 1)
-    chi_o = b_old.player["resources"].get("chi", 0)
-    chi_n = b_new.player["resources"].get("chi", 0)
+    ro = OLD_counter_segment(b_old, b_old._focus, logs_o, 1)
+    rn = NEW_counter_segment(b_new, b_new._focus, logs_n, 1)
+    chi_o = b_old._focus["resources"].get("chi", 0)
+    chi_n = b_new._focus["resources"].get("chi", 0)
     # 挂点13 反击段回气是静默副作用（无日志串——只有 v107 counter_attack 段有回气日志），
     # OLD/NEW 都不输出 回气+2 日志；断言状态一致 + 气 3→5
     check("chi 职业反击命中 气+2（3→5）OLD==NEW 且无回气日志（段内静默）",

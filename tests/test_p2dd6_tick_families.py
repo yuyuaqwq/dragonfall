@@ -83,21 +83,21 @@ def mk_skeleton(name="骷髅", hp=50, kind="summon", tid="skeleton"):
 
 
 def mk_battle(player, enemy=None):
-    """构造战斗（b.player 与入参同引用——现引擎口径：Battle 持有玩家快照引用）。"""
+    """构造战斗（b._focus 与入参同引用——现引擎口径：Battle 持有玩家快照引用）。"""
     b = BT.Battle("monster", enemy or mk_enemy(), {}, player)
-    b.player.setdefault("resources", {})
-    b.player.setdefault("stacks", {})
-    b.player.setdefault("buffs", {})
-    b.player.setdefault("v139_modes", {})
+    b._focus.setdefault("resources", {})
+    b._focus.setdefault("stacks", {})
+    b._focus.setdefault("buffs", {})
+    b._focus.setdefault("v139_modes", {})
     return b
 
 
 def _snap_state(b):
     """NEW vs OLD 可比状态快照。"""
-    r = b.player.setdefault("resources", {})
-    s = b.player.setdefault("stacks", {})
-    bu = b.player.setdefault("buffs", {})
-    return (b.player.get("hp", 0),
+    r = b._focus.setdefault("resources", {})
+    s = b._focus.setdefault("stacks", {})
+    bu = b._focus.setdefault("buffs", {})
+    return (b._focus.get("hp", 0),
             r.get("energy"),
             r.get("faith"),
             s.get("arcane"),
@@ -166,9 +166,9 @@ def _run_pair(seg, player, setup=None, enemy=None):
     if setup:
         setup(b_o)
         setup(b_n)
-    old_logs = _old_tick_regen(b_o, b_o.player, [])
+    old_logs = _old_tick_regen(b_o, b_o._focus, [])
     old_st = _snap_state(b_o)
-    new_logs = b_n._tick_regen(b_n.player, [])
+    new_logs = b_n._tick_regen(b_n._focus, [])
     new_st = _snap_state(b_n)
     key = {"focus": "森之共鸣", "arcane": "奥术直觉",
            "undead": "亡灵祭仪", "faith_overload": "信念·圣化"}[seg]
@@ -192,7 +192,7 @@ def test_focus_regen_summon():
                     elif comps_kind == "pet":
                         b.companions = [mk_skeleton("宠物", kind="pet", tid="pet_x")]
                     if energy is not None:
-                        b.player["resources"]["energy"] = energy
+                        b._focus["resources"]["energy"] = energy
                 same, st_o, st_n, lo, ln = _run_pair(
                     "focus", mk_player("cls_you_xia", ["森之共鸣"] if learned else []), setup)
                 tag = f"学={learned} {comps_kind} energy={energy}"
@@ -202,15 +202,15 @@ def test_focus_regen_summon():
         p_a = mk_player("cls_you_xia", ["森之共鸣"])
         p_b = mk_player("cls_you_xia", ["森之共鸣"])
         ba = mk_battle(p_a); bb = mk_battle(p_b)
-        ba.player["resources"]["energy"] = eng; bb.player["resources"]["energy"] = eng
+        ba._focus["resources"]["energy"] = eng; bb._focus["resources"]["energy"] = eng
         ba.companions = [mk_skeleton("骷髅")]
-        la = ba._tick_regen(ba.player, [])
-        lb = bb._tick_regen(bb.player, [])
+        la = ba._tick_regen(ba._focus, [])
+        lb = bb._tick_regen(bb._focus, [])
         check(f"energy {eng}：召唤在场比无召唤多回 +5（NEW 口径）",
-              ba.player["resources"]["energy"] - bb.player["resources"]["energy"] == 5
+              ba._focus["resources"]["energy"] - bb._focus["resources"]["energy"] == 5
               and any("森之共鸣" in str(x) for x in la)
               and not any("森之共鸣" in str(x) for x in lb),
-              f"{ba.player['resources']} vs {bb.player['resources']}")
+              f"{ba._focus['resources']} vs {bb._focus['resources']}")
 
 
 # ============================================================
@@ -223,9 +223,9 @@ def test_arcane_intuition():
             for focus in (False, True):
                 def setup(b, arcane=arcane, focus=focus):
                     if arcane is not None:
-                        b.player["stacks"]["arcane"] = arcane
+                        b._focus["stacks"]["arcane"] = arcane
                     if focus:
-                        b.player.setdefault("v139_modes", {})["focus"] = {"active": True, "turns": 3}
+                        b._focus.setdefault("v139_modes", {})["focus"] = {"active": True, "turns": 3}
                 same, st_o, st_n, lo, ln = _run_pair(
                     "arcane", mk_player("cls_fa_shi", ["奥术直觉"] if learned else []), setup)
                 tag = f"学={learned} arcane={arcane} focus={focus}"
@@ -236,9 +236,9 @@ def test_arcane_intuition():
     # 封顶：arcane=5 满 → 仍 5 无日志（new>old 判定）
     p = mk_player("cls_fa_shi", ["奥术直觉"])
     b = mk_battle(p)
-    b.player["stacks"]["arcane"] = 5
-    logs = b._tick_regen(b.player, [])
-    check("arcane 满 5：不超上限无 +1 日志", b.player["stacks"]["arcane"] == 5
+    b._focus["stacks"]["arcane"] = 5
+    logs = b._tick_regen(b._focus, [])
+    check("arcane 满 5：不超上限无 +1 日志", b._focus["stacks"]["arcane"] == 5
           and not any("奥术直觉" in str(l) for l in logs), f"{logs}")
 
 
@@ -253,13 +253,13 @@ def test_undead_faith():
                 for faith in (0.5, 5.0, 9.5):
                     for exh in (None, 1):
                         def setup(b, n_skel=n_skel, undead_enemy=undead_enemy, faith=faith, exh=exh):
-                            b.player["resources"]["faith"] = float(faith)
+                            b._focus["resources"]["faith"] = float(faith)
                             if n_skel:
                                 b.companions = [mk_skeleton(f"骷髅{i}") for i in range(n_skel)]
                             if undead_enemy:
                                 b.enemy["name"] = "亡灵法师"
                             if exh is not None:
-                                b.player["buffs"]["faith_exhausted"] = exh
+                                b._focus["buffs"]["faith_exhausted"] = exh
                         same, st_o, st_n, lo, ln = _run_pair(
                             "undead", mk_player("cls_mu_shi", ["亡灵祭仪"] if learned else []), setup)
                         tag = f"学={learned} 骷髅{n_skel} 亡灵敌={undead_enemy} faith={faith} exh={exh}"
@@ -276,8 +276,8 @@ def test_faith_overload_heal():
         for faith in (10.0, 12.0):
             for hp_frac in (0.5, 1.0):
                 def setup(b, faith=faith, hp_frac=hp_frac):
-                    b.player["resources"]["faith"] = float(faith)
-                    b.player["hp"] = int(b.player.get("max_hp", 2000) * hp_frac)
+                    b._focus["resources"]["faith"] = float(faith)
+                    b._focus["hp"] = int(b._focus.get("max_hp", 2000) * hp_frac)
                 same, st_o, st_n, lo, ln = _run_pair(
                     "faith_overload", mk_player("cls_mu_shi", ["信念·圣化"] if learned else []), setup)
                 tag = f"学={learned} faith={faith} hp={hp_frac}"
@@ -291,12 +291,12 @@ def test_faith_overload_heal():
     p2 = mk_player("cls_mu_shi", [])
     b1 = mk_battle(p1)
     b2 = mk_battle(p2)
-    mx1 = int(b1.player["max_hp"]); mx2 = int(b2.player["max_hp"])
-    b1.player["resources"]["faith"] = 10.0; b2.player["resources"]["faith"] = 10.0
-    b1.player["hp"] = int(mx1 * 0.5); b2.player["hp"] = int(mx2 * 0.5)
-    b1._tick_regen(b1.player, []); b2._tick_regen(b2.player, [])
+    mx1 = int(b1._focus["max_hp"]); mx2 = int(b2._focus["max_hp"])
+    b1._focus["resources"]["faith"] = 10.0; b2._focus["resources"]["faith"] = 10.0
+    b1._focus["hp"] = int(mx1 * 0.5); b2._focus["hp"] = int(mx2 * 0.5)
+    b1._tick_regen(b1._focus, []); b2._tick_regen(b2._focus, [])
     check("圣化回血 > 无圣化回血（heal_up 30% 乘算）",
-          b1.player["hp"] > b2.player["hp"], f"{b1.player['hp']} vs {b2.player['hp']}")
+          b1._focus["hp"] > b2._focus["hp"], f"{b1._focus['hp']} vs {b2._focus['hp']}")
 
 
 # ============================================================

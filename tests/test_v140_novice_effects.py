@@ -91,13 +91,13 @@ def test_spark_followup():
     logs = []
     we_proc(b, p, "skill_cast", {"skill": "测试", "kind": "物理"}, logs)
     check("星火标记挂上", b._p_stacks().get("novice_spark") is True, str(b._p_stacks()))
-    # 下次普攻（这里直接验证 _player_attack 消费：伤害应比无标记时高）
+    # 下次普攻（这里直接验证 _actor_attack 消费：伤害应比无标记时高）
     st = b._player_stats(p)
     # 先打一次无标记的
     b2 = BT.Battle("monster", mk_enemy(), player=mk_player(["novice_spark_followup"], atk=100))
     b2._p_stacks()["novice_spark"] = True  # 模拟已挂标记
-    # 对比：伤害计算内部逻辑，直接检查 _player_attack 是否清掉标记
-    logs2 = b2._player_attack(b2._player_stats(p), p)
+    # 对比：伤害计算内部逻辑，直接检查 _actor_attack 是否清掉标记
+    logs2 = b2._actor_attack(b2._player_stats(p), p)
     check("普攻消费并清除星火标记", not b2._p_stacks().get("novice_spark"), str(b2._p_stacks()))
 
 def test_regen_heal():

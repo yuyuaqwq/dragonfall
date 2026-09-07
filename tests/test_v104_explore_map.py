@@ -198,7 +198,7 @@ async def main():
     gold0, exp0 = p0["gold"], p0["exp"]
     out = await cmd(m, "hunt_boss", "g1", "q1", "讨伐")
     check("讨伐开战", "讨伐开始" in out, out[:100])
-    # v154 读条命中制：攻击只排读条——命中结算在 _enemy_phase 推进时；Boss 一击残血后
+    # v154 读条命中制：攻击只排读条——命中结算在 _hostile_phase 推进时；Boss 一击残血后
     # 需下一次行动命令才会触发击杀判定。连续攻击直至击杀（上限 5 次防死循环）。
     out_lines = []
     for _i in range(5):

@@ -82,7 +82,7 @@ async def section_potion(m):
     check("药水已消耗", inv_count(qq, "狂怒药剂") == 0, f"count={inv_count(qq, '狂怒药剂')}")
     # 直接调用注册表 handler（回合内语义）：p_buffs 置位。
     # v180-B：药水 handler 写传入 player dict 的 buffs——必须传 Battle 绑定的同一玩家
-    # dict（b.player），否则写入落在游离快照上读不到（旧架构写 battle 实例袋）。
+    # dict（b._focus），否则写入落在游离快照上读不到（旧架构写 battle 实例袋）。
     pl2 = db.get_player("g", qq)
     b2 = BT.Battle("monster", weak_enemy(), {}, pl2)
     logs = []
@@ -97,7 +97,7 @@ async def section_potion(m):
     # v125.3 修复：next_atk_up 是"下一次攻击消费"型一次性 buff，_end_round 已豁免回合递减
     st = db.get_battle("g", qq)
     b3 = BT.Battle.from_state(st["state"])
-    b3.player = db.get_player("g", qq)  # v180-B ①：from_state 后绑定玩家 actor dict
+    b3._focus = db.get_player("g", qq)  # v180-B ①：from_state 后绑定玩家 actor dict
     b3._apply_restore_pstate()
     b3._p_buffs_bag()["next_atk_up"] = 1
     b3._end_round()

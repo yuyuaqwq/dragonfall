@@ -127,7 +127,7 @@ def main():
           f"pool={[(e.get('kind'), e.get('uid')) for e in b5.tick_effects]}")
 
     # 场景⑥：断线恢复/副本 act 重建后 regen 卡随 tick_effects 序列化恢复
-    # （from_state 恢复时 b.player 空 dict——但卡片 actor 已重绑 b.player 占位，
+    # （from_state 恢复时 b._focus 空 dict——但卡片 actor 已重绑 b._focus 占位，
     #  真实玩家绑定后同一引用即生效；_turn_start 保险丝再兜底确保挂卡幂等）
     p6 = mk_player("cls_zhan_shi", 11, None, set_items="set_chen_guang_jiao_hui")
     b6 = BT.Battle("monster", mk_monster("m_rg_6", "dps", 1), player=p6)
@@ -140,7 +140,7 @@ def main():
     # from_state 恢复后：tick_effects 卡随序列化恢复（st 里有 tick_effects 字段时）
     has_regen6_before = any(e.get("uid", "").startswith("regen_") for e in b6b.tick_effects)
     # 模拟命令层绑定真实玩家后首次行动 → _turn_start 保险丝确保挂卡（幂等）
-    b6b.player = p6
+    b6b._focus = p6
     b6b._turn_start(p6)
     has_regen6_after = any(e.get("uid", "").startswith("regen_") for e in b6b.tick_effects)
     check("from_state 恢复后首次行动保险丝确保 regen 卡存在",

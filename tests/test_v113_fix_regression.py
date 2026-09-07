@@ -92,7 +92,7 @@ def cast_skill(b, p, sname):
     st = b._player_stats(p)
     hp0 = b.enemy["hp"]
     random.seed(11)
-    logs = b._player_skill(st, sname, info, p)
+    logs = b._actor_skill(st, sname, info, p)
     return logs, hp0 - b.enemy["hp"]
 
 
@@ -170,9 +170,9 @@ async def test_downstream_skills_combat(m):
     # v153：淬毒箭矢→淬毒箭(lv44)；毒爆术→荆棘爆(lv58)
     p = mk_bp("cls_you_xia", ["淬毒箭", "藤蔓缠绕", "荆棘爆"], level=60, matk=120)
     b2 = BT.Battle("怪物", mk_be(def_=10, mdef=10), {}, p)
-    b2._player_skill(b2._player_stats(p), "淬毒箭", E.skill_info("cls_you_xia", "淬毒箭"), p)
+    b2._actor_skill(b2._player_stats(p), "淬毒箭", E.skill_info("cls_you_xia", "淬毒箭"), p)
     for _ in range(2):
-        b2._player_skill(b2._player_stats(p), "藤蔓缠绕", E.skill_info("cls_you_xia", "藤蔓缠绕"), p)
+        b2._actor_skill(b2._player_stats(p), "藤蔓缠绕", E.skill_info("cls_you_xia", "藤蔓缠绕"), p)
     poison_before = (b2.enemy.get("debuffs") or {}).get("poison", {}).get("n", 0)
     check("游侠·叠毒达标", poison_before >= 3, f"poison {poison_before}")
     hp0 = b2.enemy["hp"]
@@ -218,8 +218,8 @@ async def test_downstream_skills_combat(m):
     pbp = mk_bp("cls_you_xia", ["荆棘爆"], level=60)
     b2 = BT.Battle("怪物", mk_be(def_=10, mdef=10), {}, pbp)
     for _ in range(2):
-        b2._player_skill(b2._player_stats(pbp), "藤蔓缠绕", E.skill_info("cls_you_xia", "藤蔓缠绕"), pbp)
-    b2._player_skill(b2._player_stats(pbp), "淬毒箭", E.skill_info("cls_you_xia", "淬毒箭"), pbp)
+        b2._actor_skill(b2._player_stats(pbp), "藤蔓缠绕", E.skill_info("cls_you_xia", "藤蔓缠绕"), pbp)
+    b2._actor_skill(b2._player_stats(pbp), "淬毒箭", E.skill_info("cls_you_xia", "淬毒箭"), pbp)
     hp0 = b2.enemy["hp"]
     logs, dealt = cast_skill(b2, pbp, "荆棘爆")
     check("守线游侠·荆棘爆 战斗引爆可用", b2.enemy["hp"] < hp0, f"{hp0}→{b2.enemy['hp']}")
@@ -274,30 +274,30 @@ def test_plant_summons(m):
     p1 = mk_you(50, ["召唤藤蔓守卫"])
     b = BT.Battle("怪物", mk_be(), {}, p1)
     _init_res(b)
-    b._player_skill(b._player_stats(p1), "召唤藤蔓守卫", E.skill_info("cls_you_xia", "召唤藤蔓守卫"), p1)
+    b._actor_skill(b._player_stats(p1), "召唤藤蔓守卫", E.skill_info("cls_you_xia", "召唤藤蔓守卫"), p1)
     check("40 级召唤藤蔓守卫", len(b.summons) == 1 and b.summons[0]["tid"] == "vine_guard",
           str([s.get("tid") for s in b.summons]))
-    b._player_skill(b._player_stats(p1), "召唤藤蔓守卫", E.skill_info("cls_you_xia", "召唤藤蔓守卫"), p1)
+    b._actor_skill(b._player_stats(p1), "召唤藤蔓守卫", E.skill_info("cls_you_xia", "召唤藤蔓守卫"), p1)
     check("藤蔓守卫可叠 2", len(b.summons) == 2, str(len(b.summons)))
-    b._player_skill(b._player_stats(p1), "召唤藤蔓守卫", E.skill_info("cls_you_xia", "召唤藤蔓守卫"), p1)
+    b._actor_skill(b._player_stats(p1), "召唤藤蔓守卫", E.skill_info("cls_you_xia", "召唤藤蔓守卫"), p1)
     check("藤蔓守卫第 3 只被拒(limit 2)", len(b.summons) == 2, str(len(b.summons)))
 
     # 4.2 90 级林语者：召唤古树守卫（t3 万木之灵），第 2 只被拒（limit 1）
     p3 = mk_you(95, ["召唤古树守卫", "召唤藤蔓守卫"])
     b3 = BT.Battle("怪物", mk_be(), {}, p3)
     _init_res(b3)
-    b3._player_skill(b3._player_stats(p3), "召唤古树守卫", E.skill_info("cls_you_xia", "召唤古树守卫"), p3)
+    b3._actor_skill(b3._player_stats(p3), "召唤古树守卫", E.skill_info("cls_you_xia", "召唤古树守卫"), p3)
     check("90 级召唤古树守卫", len(b3.summons) == 1 and b3.summons[0]["tid"] == "treant",
           str([s.get("tid") for s in b3.summons]))
-    b3._player_skill(b3._player_stats(p3), "召唤古树守卫", E.skill_info("cls_you_xia", "召唤古树守卫"), p3)
+    b3._actor_skill(b3._player_stats(p3), "召唤古树守卫", E.skill_info("cls_you_xia", "召唤古树守卫"), p3)
     check("古树守卫第 2 只被拒(limit 1)", len(b3.summons) == 1, f"summons {len(b3.summons)}")
 
     # 4.3 混合召唤共存：藤蔓 + 古树 同时在场
     bm = BT.Battle("怪物", mk_be(), {}, mk_you(95, ["召唤古树守卫", "召唤藤蔓守卫"]))
     _init_res(bm)
     pm = mk_you(95, ["召唤古树守卫", "召唤藤蔓守卫"])
-    bm._player_skill(bm._player_stats(pm), "召唤藤蔓守卫", E.skill_info("cls_you_xia", "召唤藤蔓守卫"), pm)
-    bm._player_skill(bm._player_stats(pm), "召唤古树守卫", E.skill_info("cls_you_xia", "召唤古树守卫"), pm)
+    bm._actor_skill(bm._player_stats(pm), "召唤藤蔓守卫", E.skill_info("cls_you_xia", "召唤藤蔓守卫"), pm)
+    bm._actor_skill(bm._player_stats(pm), "召唤古树守卫", E.skill_info("cls_you_xia", "召唤古树守卫"), pm)
     tids = sorted(s["tid"] for s in bm.summons)
     check("混合召唤共存(藤蔓+古树)", tids == ["treant", "vine_guard"], str(tids))
 
@@ -308,7 +308,7 @@ def test_plant_summons(m):
         p5 = mk_you(50, ["召唤藤蔓守卫"])
         b5 = BT.Battle("怪物", mk_be(), {}, p5)
         _init_res(b5)
-        b5._player_skill(b5._player_stats(p5), "召唤藤蔓守卫", E.skill_info("cls_you_xia", "召唤藤蔓守卫"), p5)
+        b5._actor_skill(b5._player_stats(p5), "召唤藤蔓守卫", E.skill_info("cls_you_xia", "召唤藤蔓守卫"), p5)
         if not b5.summons:
             continue
         hp0 = p5["hp"]

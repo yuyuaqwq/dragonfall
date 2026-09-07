@@ -85,8 +85,8 @@ def new_battle(cls, tier, path, **pw):
 
 
 def cast_capture(b, skill_name, p):
-    """黑盒施放：真实走 player_turn 全链（校验/消耗/统一公式折算 + v154 读条排事件），
-    推进到命中时刻后把伤害结算 _player_skill 替换为捕获器记录引擎折算后的 info['power']
+    """黑盒施放：真实走 actor_turn 全链（校验/消耗/统一公式折算 + v154 读条排事件），
+    推进到命中时刻后把伤害结算 _actor_skill 替换为捕获器记录引擎折算后的 info['power']
     （确定性：不跑真实伤害链的随机点）。"""
     captured = {}
 
@@ -94,9 +94,9 @@ def cast_capture(b, skill_name, p):
         captured["power"] = float(info.get("power") or 0)
         return []
 
-    b._player_skill = _fake
-    logs, _ = b.player_turn("skill", skill_name, p, enemy_act=False)
-    # v154 读条命中制：出招读条结束（cast_done）才调用 _player_skill（命中结算）——推进后触发
+    b._actor_skill = _fake
+    logs, _ = b.actor_turn("skill", skill_name, p, enemy_act=False)
+    # v154 读条命中制：出招读条结束（cast_done）才调用 _actor_skill（命中结算）——推进后触发
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
     return captured, logs
 
@@ -136,7 +136,7 @@ def test_overcap_regression():
         b._p_res()["element_charge"] = 2
         logs, blocked = b._skill_cast_blocked("元素湮灭", p)
         check("持 2 充能预检不拦截", blocked is False, f"{logs}")
-        logs, _ = b.player_turn("skill", "元素湮灭", p, enemy_act=False)
+        logs, _ = b.actor_turn("skill", "元素湮灭", p, enemy_act=False)
         # v154 读条命中制：施放只排读条——推进后命中结算（此处验证无资源不足日志）
         b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
         check("持 2 充能施放成功（无资源不足日志）", not any("不足" in l for l in logs), f"{logs[:2]}")
@@ -177,7 +177,7 @@ def test_bard_echo_loop():
             pp["hp"] = hp
             bb = BT.Battle("monster", make_enemy(), player=pp)
             bb._p_res()["faith"] = faith
-            lg, _ = bb.player_turn("skill", "治愈术", pp, enemy_act=False)
+            lg, _ = bb.actor_turn("skill", "治愈术", pp, enemy_act=False)
             # v154 读条命中制：治疗读条结束（cast_done）才结算——推进后生效
             bb._process_until(float(getattr(bb, "p_ct", 0) or 0) + 0.001, lg, pp)
             m3 = _re3.search(r"治愈了你 (\d+) 点生命", next(x for x in lg if "治愈" in x))
@@ -369,13 +369,13 @@ def test_sets_sample():
         # v151（2026-08-31）：战士无 consume_all 怒气技能（旧无畏冲击已删），
         # 「满怒大招怒气消耗 -1」无数据命中——保留满怒判定 + 满怒普攻二段追击断言。
         b2, p2 = new_battle("cls_zhan_shi", 0, 0, equipment=eq)
-        b2.player = p2
+        b2._focus = p2
         b2._p_res()["rage"] = 10
         st = b2._player_stats(p2)
         enemy_hp0 = b2.enemy["hp"]
         logs2 = []
         with mock.patch.object(BT.random, "random", return_value=0.99):
-            logs2 = b2._player_attack(st, p2)
+            logs2 = b2._actor_attack(st, p2)
         check("满怒普攻二段追击（沸血二段追加伤害）",
               any("沸血二段" in l for l in logs2) and b2.enemy["hp"] < enemy_hp0,
               f"ehp={b2.enemy['hp']} logs={logs2}")

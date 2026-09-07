@@ -185,10 +185,10 @@ def run_experiment(cid: str, lv: int, attr, equip: dict, role: str, mlv: int,
         turns = 0
         while b.result is None and turns < _MAX_TURNS:
             prev_round = b.round
-            b.player_turn("skill" if use_skill else "attack", skill_name, player)
+            b.actor_turn("skill" if use_skill else "attack", skill_name, player)
             # 技能施放被拦截（蓝/资源/CD 未就绪）→ 当回合转普攻
             if use_skill and b.round == prev_round and b.result is None:
-                b.player_turn("attack", None, player)
+                b.actor_turn("attack", None, player)
             turns += 1
         if b.result == "victory":
             wins += 1

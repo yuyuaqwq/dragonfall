@@ -44,7 +44,7 @@ print("【冷却：序列化往返】")
 b._set_skill_cd("冰锥", 2)
 st = b.to_state()
 b2 = BT.Battle.from_state(st)
-b2.player = mk('法师')  # v180-B ①：from_state 后绑定玩家 actor dict，再灌入恢复状态
+b2._focus = mk('法师')  # v180-B ①：from_state 后绑定玩家 actor dict，再灌入恢复状态
 b2._apply_restore_pstate()
 check("cooldown 序列化", b2._p_cooldown() == b._p_cooldown(), str((b2._p_cooldown(), b._p_cooldown())))
 
@@ -71,7 +71,7 @@ p["spd"] = 60  # v152：行动间隔 cost=40/60=0.667 + 技能 1.6 = 2.267 < CD 
 p["learned_skills"] = [target_name]
 b3 = BT.Battle('monster', mkmon(), player=p)
 # 第一次施放成功
-logs, done = b3.player_turn('skill', target_name, p, enemy_act=False)
+logs, done = b3.actor_turn('skill', target_name, p, enemy_act=False)
 # v154 读条命中制：出招读条结束（cast_done）才结算伤害——推进后命中
 b3._process_until(float(getattr(b3, "p_ct", 0) or 0) + 0.001, logs, p)
 check("首次施放成功", any("冷却" not in x and "造成" in x for x in logs), str(logs)[:150])
@@ -79,7 +79,7 @@ check("首次施放成功", any("冷却" not in x and "造成" in x for x in log
 # 施放后推进时 CD 已到期清除——CD 拦截逻辑改由下方「手动置 CD」路径覆盖（确定性）。
 check("施放路径正确（无异常）", b3.result is None, str(b3.result))
 # 立即再施放被拦（v163 修复：读条路径出手瞬间进 CD——此前 CD 从不设置可无限连放）
-logs2, done2 = b3.player_turn('skill', target_name, p, enemy_act=False)
+logs2, done2 = b3.actor_turn('skill', target_name, p, enemy_act=False)
 check("再施放被 CD 拦截（同刻窗口内 CD 未到期）", any("冷却" in x for x in logs2), str(logs2)[:150])
 # 推进时间超过 ready_at（now + cd×ACT_TICK）后 CD 到期可再放
 try:
@@ -89,7 +89,7 @@ except NameError:
 b3._now = b3._now + 4 * _act + 0.1  # 推进超过 cd=3 刻的绝对时刻
 b3._process_until(b3._now, logs2, p)
 p["mp"] = 999
-logs2c, done2c = b3.player_turn('skill', target_name, p, enemy_act=False)
+logs2c, done2c = b3.actor_turn('skill', target_name, p, enemy_act=False)
 # v180G B7 统一 CTB：出手登记后推进到命中结算（cast_done 在 p_ct 前触发）
 b3._process_until(float(getattr(b3, "p_ct", 0) or 0) + 0.001, logs2c, p)
 check("CD 到期后放行", any("造成" in x for x in logs2c) and not any("冷却" in x for x in logs2c),
@@ -102,12 +102,12 @@ p2b = mk('法师')
 p2b["learned_skills"] = [target_name]
 b3b = BT.Battle('monster', mkmon(), player=p2b)
 b3b._set_skill_cd(target_name, 3)
-logs2b, done2b = b3b.player_turn('skill', target_name, p2b, enemy_act=False)
+logs2b, done2b = b3b.actor_turn('skill', target_name, p2b, enemy_act=False)
 check("CD 中拦截（手动置 CD 3）", any("冷却" in x for x in logs2b), str(logs2b)[:150])
 b3b._end_round()
 b3b._end_round()
 b3b._end_round()
-logs3b, done3b = b3b.player_turn('skill', target_name, p2b, enemy_act=False)
+logs3b, done3b = b3b.actor_turn('skill', target_name, p2b, enemy_act=False)
 # v154 读条命中制：出招读条结束（cast_done）才结算伤害——推进后命中
 b3b._process_until(float(getattr(b3b, "p_ct", 0) or 0) + 0.001, logs3b, p2b)
 check("CD 结束后可再放", any("造成" in x for x in logs3b), str(logs3b)[:150])
@@ -128,7 +128,7 @@ for k, info in C.PLAYER_SKILLS["cls_zhan_shi"]["skills"].items():
         break
 if old_skill:
     p2["learned_skills"] = [old_skill]
-    logs4, done4 = b4.player_turn('skill', old_skill, p2, enemy_act=False)
+    logs4, done4 = b4.actor_turn('skill', old_skill, p2, enemy_act=False)
     # v154 读条命中制：出招读条结束（cast_done）才结算——推进后生效
     b4._process_until(float(getattr(b4, "p_ct", 0) or 0) + 0.001, logs4, p2)
     check("无 cd 技能不设冷却", not b4._skill_on_cd(old_skill), str(b4._p_cooldown()))

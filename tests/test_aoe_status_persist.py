@@ -91,7 +91,7 @@ def main():
     b9._p_acts = 5  # v152：round → _p_acts（玩家行动计数）
     st9 = b9._player_stats(p)
     random.seed(31)
-    logs9 = b9._player_skill(st9, "旋风斩", info_all, p)
+    logs9 = b9._actor_skill(st9, "旋风斩", info_all, p)
     a_hp, b_hp = [u["hp"] for u in b9.enemies]
     check("A 掉血且存活", a_hp < 10 ** 9 and a_hp > 0, f"hp={a_hp}")
     check("B 掉血且存活", b_hp < 10 ** 9 and b_hp > 0, f"hp={b_hp}")
@@ -136,7 +136,7 @@ def main():
     # 恢复后的战斗可继续 aoe（阵列各单位继续扣血）
     random.seed(32)
     before = {u["name"]: u["hp"] for u in b11.enemies}
-    logs11 = b11._player_skill(b11._player_stats(p), "旋风斩", info_all, p)
+    logs11 = b11._actor_skill(b11._player_stats(p), "旋风斩", info_all, p)
     loss = {u["name"]: before[u["name"]] - u["hp"] for u in b11.enemies
             if u["hp"] < before[u["name"]]}
     check("恢复后继续 aoe：A/B 都继续扣血", loss.get("A", 0) > 0 and loss.get("B", 0) > 0,

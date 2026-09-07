@@ -89,7 +89,7 @@ async def main():
     # 打满 3 回合：round=3 时应触发撕咬
     logs = []
     for _ in range(3):
-        logs2, ended = b.player_turn("attack", None, db.get_player("g1", "w1"))
+        logs2, ended = b.actor_turn("attack", None, db.get_player("g1", "w1"))
         logs2 += finish_turn(b, db.get_player("g1", "w1"))
         logs += logs2
         if ended:
@@ -101,7 +101,7 @@ async def main():
                    {}, player=db.get_player("g1", "w1"), pet={"pet_key": "pet_wolf", "name": "阿黄", "level": 10, "satiety": 0})
     logs2 = []
     for _ in range(3):
-        l, ended = b2.player_turn("attack", None, db.get_player("g1", "w1"))
+        l, ended = b2.actor_turn("attack", None, db.get_player("g1", "w1"))
         l += finish_turn(b2, db.get_player("g1", "w1"))
         logs2 += l
         if ended:
@@ -119,8 +119,8 @@ async def main():
     _r.random = lambda: 0.01
     try:
         logs3 = []
-        # v180F B4：挡刀按 owner 归属——受击者必须是宠物 owner 同引用（b3.player）
-        b3._damage_actor(b3.player or db.get_player("g1", "w1"), 50, logs3)
+        # v180F B4：挡刀按 owner 归属——受击者必须是宠物 owner 同引用（b3._focus）
+        b3._damage_actor(b3._focus or db.get_player("g1", "w1"), 50, logs3)
     finally:
         _r.random = orig_random
     pet_log3 = "\n".join(logs3)

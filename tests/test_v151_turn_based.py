@@ -54,17 +54,17 @@ def _sim_end_round(battle):
 
 class FakeBattle:
     def __init__(self):
-        self.player = {}
+        self._focus = {}
         self._p_buffs_bag()["def_up"] = 3
         self._p_buff_hits()["def_up"] = 3
 
     def _p_buffs_bag(self):
         """v180-B：玩家 buffs 袋 = player actor dict['buffs']（与 Battle 同语义）。"""
-        return self.player.setdefault("buffs", {})
+        return self._focus.setdefault("buffs", {})
 
     def _p_buff_hits(self):
         """v180-B：受击计数袋 = player actor dict['buff_hits']。"""
-        return self.player.setdefault("buff_hits", {})
+        return self._focus.setdefault("buff_hits", {})
 
 
 def main():
@@ -92,8 +92,8 @@ def main():
 
     # 非防御 buff 不登记 hits，仍按回合递减
     b2 = FakeBattle()
-    b2.player["buffs"] = {"atk_up": 3}
-    b2.player["buff_hits"] = {}
+    b2._focus["buffs"] = {"atk_up": 3}
+    b2._focus["buff_hits"] = {}
     _sim_end_round(b2)
     check("攻击 buff 不豁免：回合递减", b2._p_buffs_bag().get("atk_up") == 2,
           str(b2._p_buffs_bag()))

@@ -708,7 +708,7 @@ class Battle:
             if _others:
                 enemies = enemies or _others
         # v137 副本：btype="instance" 的 Battle 仅是命令层（instance.py）驱动的"瞬态结算器"——
-        # 玩家行动 player_turn(enemy_act=False) + 序列化 type + allies ct 广播（_after_actor_ct 1393-1436）。
+        # 玩家行动 actor_turn(enemy_act=False) + 序列化 type + allies ct 广播（_after_actor_ct 1393-1436）。
         # 副本战斗主循环（谁行动/敌方阶段/超时/换层）由命令层 instance.py 驱动，不在本引擎内调度。
         # active_keys 参数保留（命令层可注入在场成员 key），本引擎不使用（v137 收编方法已删）。
         self.dmg_mult = dmg_mult           # v93 GM 世界 Boss 伤害倍率（gm_伤害 设置，仅 worldboss 生效）
@@ -776,12 +776,12 @@ class Battle:
         # （_remove_unit 敌方死亡时记录；胜利结算按全部击杀逐个计任务进度）
         self.killed_enemies: list = []
         self.allies: list = allies or []   # v122 我方阵列（治疗指定队友：副本传存活玩家快照引用）
-        self.player = player or {}         # v105 攻击方属性读取（_target_dodge_check 需要玩家精准）
+        self._focus = player or {}         # v105 攻击方属性读取（_target_dodge_check 需要玩家精准）
         # ================= v180-B P1a/P2：玩家 actor dict 播种 =================
         # 玩家战斗可变状态权威 = 玩家 actor dict（与怪 dict 完全同构）。此处播种全部
         # 战斗可变状态键；副本 allies 快照（729-739）已播种站位键，instance._instance_
         # ensure_player_fields 会兜底老档。战斗状态不落 DB（update_player 白名单）。
-        # self.player 为空（from_state 先构造后绑 player）时用 _seed 空 dict 兜底，
+        # self._focus 为空（from_state 先构造后绑 player）时用 _seed 空 dict 兜底，
         # 调用方绑定真实玩家后 from_state/to_state 负责把存档状态灌入。
         _seed = player if player else {}
         _seed.setdefault("resources", {})
@@ -807,9 +807,9 @@ class Battle:
         _seed.setdefault("defending", False)
         _seed.setdefault("charging", None)
         # v180-B P2：玩家战斗可变状态权威 = player actor dict。
-        # 引擎内读点统一走 _p_* helper（每次动态读 self.player，换绑/切焦点自动跟随），
+        # 引擎内读点统一走 _p_* helper（每次动态读 self._focus，换绑/切焦点自动跟随），
         # Battle 实例不再持有玩家焦点字段的独立引用（原 self.p_buffs/self.resources/...
-        # 实例属性已删除——避免换绑 self.player 后旧引用失联）。
+        # 实例属性已删除——避免换绑 self._focus 后旧引用失联）。
         # v177 双上下文路由（保留 Battle 级——瞬时管线上下文非玩家状态）
         self._cast_ctx: dict | None = None
         self._target_ctx: dict | None = None
@@ -972,7 +972,7 @@ class Battle:
             # 仅新建战斗在此挂（_now<=0）；恢复战斗由 from_state/_turn_start 保险丝兜底。
             if not self._enemy_dead() and float(getattr(self, "_now", 0.0) or 0.0) <= 0:
                 try:
-                    _pl0 = self.player or {}
+                    _pl0 = self._focus or {}
                     if _pl0 and not self._actor_dead(_pl0):
                         self._ensure_regen_effects(_pl0)
                 except Exception as _sw_e:
@@ -1003,7 +1003,7 @@ class Battle:
     def _seed_sides(self) -> dict:
         """把现有玩家侧/敌方侧容器映射为通用阵营视图 self.sides。
 
-        - player side：self.player（焦点）+ self.allies + companions（随从）
+        - player side：self._focus（焦点）+ self.allies + companions（随从）
         - enemy side：self.enemies（含多 side 时各自保留 side 名）
         - 每 actor 播种 side 字段（缺失时按所属容器补默认）
         - sides 值是**同引用**（非拷贝）——引擎改动 actor 直接反映，序列化据此落档。
@@ -1012,12 +1012,12 @@ class Battle:
         player 可能为空 dict，player side 仍建立（空列表或占位）。
         """
         _player_side = []
-        _p = getattr(self, "player", None) or {}
+        _p = getattr(self, "_focus", None) or {}
         # 焦点玩家 actor 若无 side 字段 → 补 "player"
         if _p:
             _p.setdefault("side", "player")
             _p.setdefault("kind", "player")
-            # 空 dict 占位不算成员（无玩家战斗时 self.player={}）
+            # 空 dict 占位不算成员（无玩家战斗时 self._focus={}）
             if _p.get("class_name") or _p.get("name") or _p.get("qq_id"):
                 _player_side.append(_p)
         for _a in (getattr(self, "allies", None) or []):
@@ -1055,7 +1055,7 @@ class Battle:
         if _s:
             return str(_s)
         # 兜底按容器归属判定（side 字段缺失的老 actor）
-        if actor is getattr(self, "player", None):
+        if actor is getattr(self, "_focus", None):
             return "player"
         for _a in (getattr(self, "allies", None) or []):
             if _a is actor:
@@ -1207,7 +1207,7 @@ class Battle:
         return a
 
     def to_state(self) -> dict:
-        _pl = self.player or {}
+        _pl = self._focus or {}
         _p_res = _pl.setdefault("resources", {})
         _p_stacks = _pl.setdefault("stacks", {})
         _p_eff = _pl.setdefault("eff", {})
@@ -1291,7 +1291,7 @@ class Battle:
                     "interval": e.get("interval"), "next_at": e.get("next_at"),
                     "expire_at": e.get("expire_at"), "data": e.get("data") or {},
                     "source": e.get("source", ""),
-                    "actor_ref": ("player" if (e.get("actor") is self.player)
+                    "actor_ref": ("player" if (e.get("actor") is self._focus)
                                   else ("pet" if (e.get("actor") is self.pet)
                                         else ("comp:" + str((e.get("actor") or {}).get("uid", "") or (e.get("actor") or {}).get("name", ""))
                                               if any(c is e.get("actor") for c in (getattr(self, "companions", None) or []))
@@ -1327,7 +1327,7 @@ class Battle:
         """v173.6 重构（v180-B ①更新）：副本敌方行动选目标后切换结算焦点。
 
         副本玩家状态权威 = 玩家快照 dict（actor dict，含 buffs/resources/stacks/...）。
-        旧架构把状态载入 Battle 单套焦点字段；v180-B 后 Battle.player 直接指向目标玩家
+        旧架构把状态载入 Battle 单套焦点字段；v180-B 后 Battle._focus 直接指向目标玩家
         快照，并把 st 顶层 per-player 旁路键（p_buffs/resources/cooldown/...）合并进快照
         （P3 双轨折叠前的兼容读取；instance.py 后续迁移后 st 顶层键不再写）。
 
@@ -1341,8 +1341,8 @@ class Battle:
             snap = (st.get("players") or {}).get(key)
             if not snap or not (st.get("alive") or {}).get(key, True):
                 return None
-            # 目标玩家快照即 actor dict——切焦点 = self.player 指向它
-            self.player = snap
+            # 目标玩家快照即 actor dict——切焦点 = self._focus 指向它
+            self._focus = snap
             # 播种快照 actor 键（老档/旧开本可能缺）
             _ = snap.setdefault("buffs", {})
             snap.setdefault("resources", {})
@@ -1405,16 +1405,16 @@ class Battle:
 
     def _apply_restore_pstate(self):
         """v180-B ①：把 from_state 暂存的玩家战斗状态（_restore_pstate）灌入当前绑定的
-        玩家 actor dict。仅灌一次（灌后清空 _restore_pstate）。player_turn 入口自动调用；
-        测试/命令层 from_state 后直接操作前可手动调（先绑 b.player=玩家快照）。"""
+        玩家 actor dict。仅灌一次（灌后清空 _restore_pstate）。actor_turn 入口自动调用；
+        测试/命令层 from_state 后直接操作前可手动调（先绑 b._focus=玩家快照）。"""
         if not getattr(self, "_restore_pstate", None):
             return
-        _plb = self.player
+        _plb = self._focus
         if not _plb:
-            return  # player 未绑定（空 dict）→ 保留暂存等真绑（player_turn 绑定后再灌）
+            return  # player 未绑定（空 dict）→ 保留暂存等真绑（actor_turn 绑定后再灌）
         try:
             _rst = self._restore_pstate
-            _plb = self.player
+            _plb = self._focus
             for _k, _v in _rst.items():
                 if _k == "stacks":
                     _plb.setdefault("stacks", {}).update(_v or {})
@@ -1439,7 +1439,7 @@ class Battle:
             pass
         self._restore_pstate = None
 
-    def _pick_enemy_target(self, unit: dict) -> dict | None:
+    def _pick_ally_target(self, unit: dict) -> dict | None:
         """v173.6 副本敌方行动选目标（battle 侧，多目标重构）。
         从 allies（全存活玩家快照）按 monster_mods target_policy 选目标：
           hate_top（点名仇恨最高）/ random / weakest / backline（后排）/ front（前排，默认）
@@ -1506,8 +1506,8 @@ class Battle:
         b._inst_cb = st.get("_cb") if isinstance(st, dict) else None
         b.allies = st.get("allies") or []   # v122 治疗指定队友（副本传存活玩家快照引用）
         # v180-B：玩家战斗状态权威 = player actor dict。from_state 构造时 player 可能未绑定
-        #（命令层后绑 b.player = 真实玩家），恢复的玩家战斗状态先暂存 b._restore_pstate，
-        # 命令层绑 player 后经 _bind_player/_restore_player_state 灌入（见 player_turn 收口）。
+        #（命令层后绑 b._focus = 真实玩家），恢复的玩家战斗状态先暂存 b._restore_pstate，
+        # 命令层绑 player 后经 _bind_player/_restore_player_state 灌入（见 actor_turn 收口）。
         b._restore_pstate = {
             "buffs": dict(st.get("p_buffs") or {}),
             "buff_hits": dict(st.get("p_buff_hits") or {}),
@@ -1592,10 +1592,10 @@ class Battle:
                     b._schedule(_init_t, {"type": "enemy_act", "unit": _u})
         # v178.2 regen_tick（v179 升级通用卡）：tick_effects 已随 to_state/from_state 序列化恢复
         # （P0），此处兜底：老档无 tick_effects 字段 + player 已可用（调用方先绑定）→ 挂卡。
-        # 注意 from_state 恢复的 b.player 默认空 dict（真实玩家由调用方后续绑定），
+        # 注意 from_state 恢复的 b._focus 默认空 dict（真实玩家由调用方后续绑定），
         # 恢复后首次玩家行动由 _turn_start 保险丝兜底挂卡（玩家真实可用）。
         try:
-            _pl_r = b.player or {}
+            _pl_r = b._focus or {}
             if _pl_r.get("class_name") and not b._enemy_dead():
                 b._ensure_regen_effects(_pl_r)
         except Exception as _sw_e:
@@ -1640,8 +1640,8 @@ class Battle:
                                 break
                     b._schedule(_phit, {"type": "cast_done", "side": "p", "kind": _pcs.get("kind", "atk"),
                                         "skill": _pcs.get("skill"), "player_ref": _pa, "target": _ptgt})
-        # v179 通用 tick 效果恢复：actor_ref 重绑（"player"→b.player（调用方后续绑定真实玩家，
-        # 此刻可能是空 dict——效果 actor 若为玩家，恢复时 actor 先用 b.player 占位，命令层绑定
+        # v179 通用 tick 效果恢复：actor_ref 重绑（"player"→b._focus（调用方后续绑定真实玩家，
+        # 此刻可能是空 dict——效果 actor 若为玩家，恢复时 actor 先用 b._focus 占位，命令层绑定
         # 真实玩家后同一引用即生效）；"pet"→b.pet（v180E 阶段6：宠物 actor 卡不再丢）；
         # 敌人 uid → enemies 里对应单位）。
         try:
@@ -1650,7 +1650,7 @@ class Battle:
                 _actor = None
                 _ref = _e_st.get("actor_ref", "")
                 if _ref == "player":
-                    _actor = b.player
+                    _actor = b._focus
                 elif _ref == "pet" and b.pet:
                     _actor = b.pet
                 elif _ref.startswith("comp:"):
@@ -1788,7 +1788,7 @@ class Battle:
     def _elem_charge(self) -> int:
         """法师充能条当前值（v130.2：element 资源数值化 0-5；resources['element'] 保留当前系字符串，兼容旧消费点）
         v180-B：读焦点玩家 actor dict（与怪 actor 同构）。"""
-        _pl = self.player or {}
+        _pl = self._focus or {}
         return int(_pl.setdefault("resources", {}).get("element_charge", 0) or 0)
 
     # ---------------- v177 施法者状态路由（玩家技能管线 actor 化） ----------------
@@ -1821,7 +1821,7 @@ class Battle:
                 return u
         return self.enemies[0] if self.enemies else {}
 
-    def _tgt_is_player(self) -> bool:
+    def _tgt_is_side_player(self) -> bool:
         """v177 管线目标是否为玩家（怪物施法玩家技能时 _target_ctx=玩家 → True）。
         v180-B：身份判定用 _is_player_side（side/引用/我方），不用 class_name——
         怪扮职业（配 class_name 的怪）不会被误判成玩家。"""
@@ -1839,7 +1839,7 @@ class Battle:
         if dmg <= 0:
             return 0
         try:
-            if self._tgt_is_player():
+            if self._tgt_is_side_player():
                 return self._damage_actor(self._tgt(), dmg, logs, source=str(source or "敌人"),
                                           dmg_kind=dmg_kind)
             return self._deal_damage(dmg, logs, wake_sleep=wake_sleep, source=source)
@@ -1877,112 +1877,112 @@ class Battle:
         u = self._cast_ctx
         if u is not None:
             return self._actor_stats_of(u)
-        return self._player_stats(self.player)
+        return self._player_stats(self._focus)
 
-    def _cast_is_player(self) -> bool:
+    def _cast_is_side_player(self) -> bool:
         return self._cast_ctx is None
 
     # ---------------- v180-B P2：焦点玩家 actor 取袋 helper ----------------
     # 迁移后 Battle 不再持有"玩家焦点状态字段"——玩家战斗可变状态权威在
-    # self.player（当前行动玩家）actor dict 上。以下 helper 是"读当前玩家 actor
+    # self._focus（当前行动玩家）actor dict 上。以下 helper 是"读当前玩家 actor
     # 某状态袋"的语义口（与怪 actor dict 同构），所有原 self.xxx 读点经它们收口。
-    # setdefault 惰性建袋：self.player 未绑定/测试空 dict 时安全返回空袋。
+    # setdefault 惰性建袋：self._focus 未绑定/测试空 dict 时安全返回空袋。
     def _p_res(self) -> dict:
-        return (self.player or {}).setdefault("resources", {})
+        return (self._focus or {}).setdefault("resources", {})
 
     def _p_stacks(self) -> dict:
-        return (self.player or {}).setdefault("stacks", {})
+        return (self._focus or {}).setdefault("stacks", {})
 
     def _p_eff(self) -> dict:
-        return (self.player or {}).setdefault("eff", {})
+        return (self._focus or {}).setdefault("eff", {})
 
     def _p_shields_bag(self) -> dict:
-        return (self.player or {}).setdefault("shields", {})
+        return (self._focus or {}).setdefault("shields", {})
 
     def _p_buffs_bag(self) -> dict:
-        return (self.player or {}).setdefault("buffs", {})
+        return (self._focus or {}).setdefault("buffs", {})
 
     # ---- v180-B P2：玩家 actor 标量/列表袋 helper（原 Battle 焦点字段迁移） ----
     def _p_charging(self):
-        return (self.player or {}).get("charging")
+        return (self._focus or {}).get("charging")
 
     def _p_set_charging(self, val):
-        (self.player or {})["charging"] = val
+        (self._focus or {})["charging"] = val
 
     def _p_cooldown(self) -> dict:
-        return (self.player or {}).setdefault("cooldown", {})
+        return (self._focus or {}).setdefault("cooldown", {})
 
     def _p_combo_seq(self) -> list:
-        return (self.player or {}).setdefault("combo_seq", [])
+        return (self._focus or {}).setdefault("combo_seq", [])
 
     def _p_last_combo_tag(self):
-        return (self.player or {}).get("last_combo_tag")
+        return (self._focus or {}).get("last_combo_tag")
 
     def _p_set_last_combo_tag(self, val):
-        (self.player or {})["last_combo_tag"] = val
+        (self._focus or {})["last_combo_tag"] = val
 
     def _p_hot(self) -> dict:
-        return (self.player or {}).setdefault("hot", {})
+        return (self._focus or {}).setdefault("hot", {})
 
     def _p_food_effects(self) -> list:
-        return (self.player or {}).setdefault("food_effects", [])
+        return (self._focus or {}).setdefault("food_effects", [])
 
     def _p_defending(self) -> bool:
-        return bool((self.player or {}).get("defending", False))
+        return bool((self._focus or {}).get("defending", False))
 
     def _p_set_defending(self, val: bool):
-        (self.player or {})["defending"] = bool(val)
+        (self._focus or {})["defending"] = bool(val)
 
     def _p_buff_hits(self) -> dict:
-        return (self.player or {}).setdefault("buff_hits", {})
+        return (self._focus or {}).setdefault("buff_hits", {})
 
     def _p_reduce_all_left(self) -> int:
-        return int((self.player or {}).get("reduce_all_left", 0) or 0)
+        return int((self._focus or {}).get("reduce_all_left", 0) or 0)
 
     def _p_set_reduce_all_left(self, val: int):
-        (self.player or {})["reduce_all_left"] = int(val or 0)
+        (self._focus or {})["reduce_all_left"] = int(val or 0)
 
     def _p_reduce_left(self) -> int:
-        return int((self.player or {}).get("reduce_left", 0) or 0)
+        return int((self._focus or {}).get("reduce_left", 0) or 0)
 
     def _p_set_reduce_left(self, val: int):
-        (self.player or {})["reduce_left"] = int(val or 0)
+        (self._focus or {})["reduce_left"] = int(val or 0)
 
     def _p_poi_buff(self):
-        return (self.player or {}).get("poi_buff")
+        return (self._focus or {}).get("poi_buff")
 
     def _p_set_poi_buff(self, val):
-        (self.player or {})["poi_buff"] = val
+        (self._focus or {})["poi_buff"] = val
 
     def _p_last_element(self):
-        return (self.player or {}).get("last_element")
+        return (self._focus or {}).get("last_element")
 
     def _p_set_last_element(self, val):
-        (self.player or {})["last_element"] = val
+        (self._focus or {})["last_element"] = val
 
     def _p_tailwind_prev_energy(self):
-        return (self.player or {}).get("tailwind_prev_energy")
+        return (self._focus or {}).get("tailwind_prev_energy")
 
     def _p_set_tailwind_prev_energy(self, val):
-        (self.player or {})["tailwind_prev_energy"] = val
+        (self._focus or {})["tailwind_prev_energy"] = val
 
     def _p_v139_modes(self) -> dict:
-        return (self.player or {}).setdefault("v139_modes", {})
+        return (self._focus or {}).setdefault("v139_modes", {})
 
     def _p_v139_charge(self) -> dict:
-        return (self.player or {}).setdefault("v139_charge", {})
+        return (self._focus or {}).setdefault("v139_charge", {})
 
     def _p_overflow_shield_cd(self) -> bool:
-        return bool((self.player or {}).get("overflow_shield_cd", False))
+        return bool((self._focus or {}).get("overflow_shield_cd", False))
 
     def _p_set_overflow_shield_cd(self, val: bool):
-        (self.player or {})["overflow_shield_cd"] = bool(val)
+        (self._focus or {})["overflow_shield_cd"] = bool(val)
 
     def _p_stealth_atk(self) -> bool:
-        return bool((self.player or {}).get("stealth_atk", False))
+        return bool((self._focus or {}).get("stealth_atk", False))
 
     def _p_set_stealth_atk(self, val: bool):
-        (self.player or {})["stealth_atk"] = bool(val)
+        (self._focus or {})["stealth_atk"] = bool(val)
 
     def _res_def_of(self, actor: dict) -> dict:
         """v177 actor 资源定义：actor 带 resource_def（怪物/自定义）→ 用它；
@@ -2150,8 +2150,8 @@ class Battle:
         if not rd:
             return self._p_res().get(k, 0)
         # v130.2 R1：上限口径与 _res_max 统一（词条 max_bonus + 套装 res_max）；无 player 参数取本场玩家；
-        # self.player 为 None（from_state 恢复等）时按空 dict 守卫，套装/词条加成归 0
-        _pl = self.player or {}
+        # self._focus 为 None（from_state 恢复等）时按空 dict 守卫，套装/词条加成归 0
+        _pl = self._focus or {}
         mx = int(rd.get("max", 99) or 99) + self._res_affix_max_bonus(_pl, k) + self._set_res_max_bonus(_pl, k)
         cur = int(self._p_res().get(k, 0) or 0)
         amount = int(amount or 0)
@@ -2522,7 +2522,7 @@ class Battle:
         if cd > 0:
             cdr = 0.0
             try:
-                cdr = min(float(self._player_stats(self.player).get("cdr", 0) or 0), 0.4)
+                cdr = min(float(self._player_stats(self._focus).get("cdr", 0) or 0), 0.4)
             except Exception:
                 cdr = 0.0
             if cdr > 0 and cd > 1:
@@ -2530,7 +2530,7 @@ class Battle:
             # v169.7 影舞·无间 shadow_dance_cd：影舞态中所有技能冷却 −20%（乘算叠加在既有 cdr 后）
             if cd > 1 and self._p_buffs_bag().get("shadow_dance"):
                 try:
-                    _pl_sd = self.player or {}
+                    _pl_sd = self._focus or {}
                     for _pn_sd, _ps_sd in self._proc_pm(_pl_sd)["proc"].get("shadow_dance_cd", []):
                         cd = max(1, int(cd * (1.0 - float(_ps_sd.get("cdr", 0.20) or 0.20))))
                         break
@@ -2560,7 +2560,7 @@ class Battle:
                 _pe.pop("we_starlight_next", None)
                 try:
                     from .core.weapon_effects import proc as _we_proc
-                    _we_proc(self, self.player, "battle_start", {}, [])
+                    _we_proc(self, self._focus, "battle_start", {}, [])
                 except Exception as _sw_e:
                     _battle_warn('_tick_cooldowns', _sw_e)
                     pass
@@ -2705,7 +2705,7 @@ class Battle:
             return True
         if "energy" not in (self._p_res() or {}) or not self._is_path(player, 2):  # v176: 职业名→资源键+线
             return False
-        # v130.2 P1-4：读「施放前」精力（_do_player_skill 已快照）；直接调用/非技能链回落当前值。
+        # v130.2 P1-4：读「施放前」精力（_do_actor_skill 已快照）；直接调用/非技能链回落当前值。
         _pres = getattr(self, "_pre_cost_res", None)
         energy_val = int(_pres.get("energy", 0) or 0) if isinstance(_pres, dict) \
             else int(self._p_res().get("energy", 0) or 0)
@@ -2743,8 +2743,8 @@ class Battle:
 
     def _elem_mark_max(self, player: dict | None = None) -> int:
         """v130.2d 印记铭刻：元素印记每系上限（基础 MECH_CFG['element']['marks_max']=3；词条 effect.max_sigil 叠加，
-        元素法师 cls_fa_shi 攻线转职后生效，cond=element_mage）。player 缺省取本场 self.player。"""
-        pl = player or self.player or {}
+        元素法师 cls_fa_shi 攻线转职后生效，cond=element_mage）。player 缺省取本场 self._focus。"""
+        pl = player or self._focus or {}
         bonus = 0
         if self._is_element_mage(pl):
             for eff, tier in self._affix_effs(pl, "sigil_engrave"):
@@ -2940,7 +2940,7 @@ class Battle:
         """
         _now = self._now
         if side == "p":
-            _p = player or self.player or {}
+            _p = player or self._focus or {}
             # v154：总耗时 = 动作耗时（出招+收招，已含速度折算），无恢复间隔
             self.p_ct = _now + float(cast_mult or 1.0)
             # v180G B6/B7 统一 CTB：出手者 actor 自己的 next_act_at 也落快照 ct 字段
@@ -2964,11 +2964,11 @@ class Battle:
         # 保留函数签名兼容；instance 层调度由命令层 _instance_next_actor 按 next_act_at 选人。
 
     # ---------------- v2 目标选择 / 蓄力（§3.2、§6） ----------------
-    def _player_attacker(self, player: dict) -> dict:
+    def _actor_attacker(self, player: dict) -> dict:
         """玩家攻击方（射程按职业 reach，数据层未落地时默认 2=远程）。"""
         return {"uid": "player", "reach": int(player.get("reach") or 2)}
 
-    def _resolve_player_target(self, player: dict, target=None) -> dict | None:
+    def _resolve_target(self, player: dict, target=None) -> dict | None:
         """解析玩家行动目标（单怪兼容：恒为唯一/enemy 主目标）。
         返回目标单位 dict；无存活敌方返回 None。distinct 记录在 self._active_target。
 
@@ -2986,7 +2986,7 @@ class Battle:
             # 单怪路径零随机（v103 确定性铁律：不改变存量单怪 random 顺序）
             self._active_target = alive[0]
             return alive[0]
-        attacker = self._player_attacker(player)
+        attacker = self._actor_attacker(player)
         if target is None:
             picked = select_target(attacker, self.enemies)
         else:
@@ -3039,7 +3039,7 @@ class Battle:
                 return u
         return None
 
-    def _player_charge_release(self, player: dict, logs: list) -> bool:
+    def _actor_charge_release(self, player: dict, logs: list) -> bool:
         """蓄力刻开始结算：left 递增计时，归零自动释放技能。返回是否已释放。"""
         if not self._p_charging() or not self._p_charging().get("skill"):
             self._p_set_charging(None)
@@ -3055,7 +3055,7 @@ class Battle:
                 logs.append(f"✨ 【{cname}】蓄力完成，轰然落下！")
                 self._releasing_charge = True
                 try:
-                    self._do_player_skill(skill_name, player)
+                    self._do_actor_skill(skill_name, player)
                 finally:
                     self._releasing_charge = False
                 return True
@@ -3063,7 +3063,7 @@ class Battle:
                 logs.append(f"⏳ 你正在蓄力【{cname}】(剩 {self._p_charging()['left']} 刻)，本刻无法普攻/技能！")
         return False
 
-    def _player_charging_blocked(self, logs: list, action: str) -> bool:
+    def _actor_charging_blocked(self, logs: list, action: str) -> bool:
         """蓄力期间非防御/道具行动 → 拦截（提示剩余刻），返回是否被拦截。"""
         if not (self._p_charging() and self._p_charging().get("skill")):
             return False
@@ -3148,31 +3148,31 @@ class Battle:
         return False
 
     # ---------------- 玩家行动入口 ----------------
-    def player_turn(self, action: str, skill_name: str | None, player: dict, enemy_act: bool = True, target=None) -> tuple:
+    def actor_turn(self, action: str, skill_name: str | None, player: dict, enemy_act: bool = True, target=None) -> tuple:
         """执行玩家行动。返回 (日志列表, 是否结束)
         action: attack | skill | defend | flee | use_item
         player: 玩家 dict（战斗内会修改 hp/mp，由调用方负责存库）
         enemy_act: 是否在玩家行动后立即结算敌方刻（PVP 传 False，由对方真人操作）
         target: v2 指定目标（uid 或名字前缀，None=自动选择）
         v121：CTB 行动时间轴——玩家正常行动 +1 刻；行动后玩家 ct += cost，
-        其余敌方单位 ct -= cost，随后进入敌方行动段（敌方连动由 _enemy_phase 判定）。
+        其余敌方单位 ct -= cost，随后进入敌方行动段（敌方连动由 _hostile_phase 判定）。
         不再有额外行动 / 先手概念，快 = 更频繁轮到行动。
         """
         logs = []
-        # v180-B ① actor 化：行动者即焦点玩家。self.player 权威 = 构造时绑定的玩家
-        # dict（含播种的战斗状态 resources/buffs/...）。player_turn 传入的 player 参数
-        # 真实代码与 self.player 是同一引用（combat 先绑 b.player=player 再 player_turn）；
-        # 模拟器/测试若传不同副本（battle_rotation dict(player) 模式），以 self.player 为准
-        # ——只有 self.player 为空/未绑时才绑定传入 player（测试直调兜底）。
+        # v180-B ① actor 化：行动者即焦点玩家。self._focus 权威 = 构造时绑定的玩家
+        # dict（含播种的战斗状态 resources/buffs/...）。actor_turn 传入的 player 参数
+        # 真实代码与 self._focus 是同一引用（combat 先绑 b._focus=player 再 player_turn）；
+        # 模拟器/测试若传不同副本（battle_rotation dict(player) 模式），以 self._focus 为准
+        # ——只有 self._focus 为空/未绑时才绑定传入 player（测试直调兜底）。
         # from_state 恢复的玩家战斗状态（_restore_pstate）在此灌入玩家 actor dict
         #（仅灌一次：首次真实 player 绑定后清空，避免切焦点/重复行动覆盖战斗内已变更状态）
-        if not self.player:
-            self.player = player or {}
+        if not self._focus:
+            self._focus = player or {}
         self._apply_restore_pstate()
         # v180F B7：player 后绑（测试/命令层 Battle 构造未传 player）→ 补 sides player 阵营，
         # 否则 _check_side_end 误判"玩家侧已灭"（sides 无 player key 时只剩 enemy）
-        if self.player:
-            _pl_r = self.player
+        if self._focus:
+            _pl_r = self._focus
             if _pl_r.get("class_name") or _pl_r.get("name") or _pl_r.get("qq_id"):
                 _sides = getattr(self, "sides", None)
                 if _sides is not None and "player" not in _sides:
@@ -3180,15 +3180,15 @@ class Battle:
                     _pl_r.setdefault("kind", "player")
                     _sides["player"] = [_pl_r]
                     self._side_names = list(_sides.keys())
-        # 若传入 player 与 self.player 不同 dict（模拟器浅拷贝模式），把传入 player 的
-        # 可观察面板字段同步到 self.player（避免引擎读 self.player 得到空面板）
-        if player is not None and player is not self.player:
+        # 若传入 player 与 self._focus 不同 dict（模拟器浅拷贝模式），把传入 player 的
+        # 可观察面板字段同步到 self._focus（避免引擎读 self._focus 得到空面板）
+        if player is not None and player is not self._focus:
             try:
                 for _pk in ("hp", "mp", "max_hp", "max_mp"):
                     if _pk in player and player[_pk] is not None:
-                        self.player[_pk] = player[_pk]
+                        self._focus[_pk] = player[_pk]
             except Exception as _sw_e:
-                _battle_warn('player_turn', _sw_e)
+                _battle_warn('actor_turn', _sw_e)
                 pass
         # v95.19: 战斗内上限统一实时值——覆盖 from_state 恢复的战斗（恢复时不传 player，
         # __init__ 刷新不到；DB max_hp/max_mp 换装备后过时，会导致战斗内上限与面板不一致）
@@ -3197,7 +3197,7 @@ class Battle:
             player["max_hp"] = int(_st.get("max_hp", player.get("max_hp", 100)))
             player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", C.DEFAULT_MAX_MP)))
         except Exception as _sw_e:
-            _battle_warn('player_turn', _sw_e)
+            _battle_warn('actor_turn', _sw_e)
             pass
         # v139 配置注入（player 传入时补一次）：core_resources 的 dual_form/focus/vent 定义挂到 player dict
         # （from_state 恢复的战斗 __init__ 不传 player 刷新不到，此处补注入；battle_modes/battle_bars 纯函数读这些字段）
@@ -3210,7 +3210,7 @@ class Battle:
             player["v139_modes"] = self._p_v139_modes()
             player["v139_charge"] = self._p_v139_charge()
         except Exception as _sw_e:
-            _battle_warn('player_turn', _sw_e)
+            _battle_warn('actor_turn', _sw_e)
             pass
         # v63 玩家被沉默：技能类行动先被拦截转普攻（置于 O118 校验前，避免未学习技能
         # 在沉默下先被拦截而无法转普攻）；后续沉默状态下只能普攻/防御/道具
@@ -3242,10 +3242,10 @@ class Battle:
                         self._p_res()["guard_core"] = max(self._guard_core_n(), int((_cl_pm[0][1]).get("cores", 3) or 3))
                         logs.append(f"⛰️ 不动如山：绝境不屈，获得 {int((_cl_pm[0][1]).get('cores', 3) or 3)} 枚磐核！（每场 1 次）")
         except Exception as _sw_e:
-            _battle_warn('player_turn', _sw_e)
+            _battle_warn('actor_turn', _sw_e)
             pass
         # v2 蓄力：刻开始结算——归零自动释放技能（§6.2）
-        self._player_charge_release(player, logs)
+        self._actor_charge_release(player, logs)
         logs += self._turn_start(player)
         # v101.28 食物持续恢复（v179 P3 升级通用 tick 卡）：每秒由 food_hot 卡结算。
         # 此处兜底：老档恢复有 p_hot 但没卡 → 挂卡（幂等）；不再每行动直接 _apply_hot
@@ -3261,7 +3261,7 @@ class Battle:
                               "turns": int(self._p_hot().get("turns", 0) or 0)},
                         uid="p_hot_card", source="food")
         except Exception as _sw_e:
-            _battle_warn('player_turn', _sw_e)
+            _battle_warn('actor_turn', _sw_e)
             pass
         # v154 宠物独立速度读条：宠物技能由 pet_tick 事件驱动（_process_until 内触发），
         # 不再跟随玩家行动（玩家行动时宠物可能正在读条，节奏由宠物自身 spd 决定）。
@@ -3285,7 +3285,7 @@ class Battle:
                     _run_proc_family(self, "zhan_yi_full_reduce", _ctx_zy2)
                     break
             except Exception as _sw_e:
-                _battle_warn('player_turn', _sw_e)
+                _battle_warn('actor_turn', _sw_e)
                 pass
         # v169.7 磐石之躯 core_full：磐核满 5 免控（刻开始兜底刷新免疫窗口，等效持续免控）
         # v181.P2D-D4a：消费迁注册表族 dr_cond（cc_kind='cc_window' 免控窗口段；if 骨架/顺序/
@@ -3297,7 +3297,7 @@ class Battle:
                 _run_proc_family(self, "core_full", _ctx_cf2)
                 break
         except Exception as _sw_e:
-            _battle_warn('player_turn', _sw_e)
+            _battle_warn('actor_turn', _sw_e)
             pass
         if "stun" in self._p_buffs_bag():
             logs.append("🌀 你被眩晕，无法行动！")
@@ -3315,7 +3315,7 @@ class Battle:
             return logs, self.result is not None
 
         # v2 蓄力期间：普攻/技能被拦截（可防御/道具），敌方照常行动
-        if self._player_charging_blocked(logs, action):
+        if self._actor_charging_blocked(logs, action):
             # v121 CTB：蓄力等待也是玩家行动 → 玩家 ct 照走（PVP 不介入）
             if self.btype != "pvp":
                 self._after_actor_ct("p", player=player)
@@ -3324,7 +3324,7 @@ class Battle:
 
         # v2 目标解析（攻击/技能指定的目标；其余行动重置为主目标）
         if action in ("attack", "skill"):
-            # v122 治疗类技能：目标=队友（由 _do_player_skill 解析），不解析敌人目标
+            # v122 治疗类技能：目标=队友（由 _do_actor_skill 解析），不解析敌人目标
             _is_heal = False
             if action == "skill" and skill_name:
                 _info0 = E.skill_info(player.get("class_name", ""), skill_name)
@@ -3334,7 +3334,7 @@ class Battle:
             else:
                 self._target_out_of_range = False
                 self._target_not_found = None
-                self._resolve_player_target(player, target)
+                self._resolve_target(player, target)
                 if getattr(self, "_target_out_of_range", False):
                     # 射程校验拒绝（审计 P1 修复）：不消耗刻，玩家可重新选择
                     logs.append(f"⛔ 【{target}】在你的攻击范围之外，够不着！(近战只可及前排)")
@@ -3370,7 +3370,7 @@ class Battle:
         st = self._player_stats(player)
         # v154 读条命中制：技能/普攻出手瞬间 → 排 cast_done 事件（出招读条结束 = 命中时刻结算）
         if action == "skill":
-            logs += self._do_player_skill(skill_name, player, target=target)  # v122：target 传治疗队友目标
+            logs += self._do_actor_skill(skill_name, player, target=target)  # v122：target 传治疗队友目标
             # v116.1 pv_broken：记录玩家本刻用了技能，敌方 _boss_mech 据此决定反扑
             self._player_recent_skill = True
             # v154 数据驱动：出招 + 收招（速度折算）
@@ -3393,7 +3393,7 @@ class Battle:
                     "_target_uid": str(_ht_a.get("uid") or _ht_a.get("qq_id") or _ht_a.get("name") or "") if _ht_a and _ht_a.get("hp", 0) > 0 else "",
                 }
             else:
-                # PVP 不介入：立即结算（保持真人轮流；_do_player_skill 内部 PVP 走立即路径）
+                # PVP 不介入：立即结算（保持真人轮流；_do_actor_skill 内部 PVP 走立即路径）
                 self._after_actor_ct("p", player=player, cast_mult=_cast_t + _recover_t)
             _cast_mult = _cast_t + _recover_t
         else:
@@ -3406,7 +3406,7 @@ class Battle:
                     "_hit_target": _atk_tgt_a if _atk_tgt_a is not None and _atk_tgt_a.get("hp", 0) > 0 else None,
                 }
             else:
-                logs += self._player_attack(st, player)
+                logs += self._actor_attack(st, player)
             # v154 数据驱动：出招 + 收招（速度折算）
             _cast_t, _recover_t = self._action_times("atk", player=player)
             if self.btype != "pvp":
@@ -3434,7 +3434,7 @@ class Battle:
             return logs, True
 
         # v154：玩家下次可行动点已由 _after_actor_ct 设为命中时刻 + 收招（PVP 已即时结算）
-        # 注意：非 PVP 下 cast_done 事件会在 _enemy_phase 推进时触发结算
+        # 注意：非 PVP 下 cast_done 事件会在 _hostile_phase 推进时触发结算
 
         # v180-C S2 随从自动行为：玩家正常行动结束后触发（player_act trigger 的随从
         # ——召唤物旧语义；通用触发点，扫 companions 带 auto_act.trigger=player_act 的）
@@ -3449,9 +3449,9 @@ class Battle:
         # advance_until_next_decision 统一完成（单人=多人同一套代码）。
         return logs, self.result is not None
 
-    def _enemy_phase(self, player: dict, logs: list, enemy_act: bool, defend: bool = False) -> tuple:
+    def _hostile_phase(self, player: dict, logs: list, enemy_act: bool, defend: bool = False) -> tuple:
         """v152 真·事件队列：推进战斗时刻到玩家下次可行动点，期间处理所有事件（敌方行动/DOT/机制）。
-        - 玩家行动后：玩家 next_act_at = now + 行为耗时（已在 player_turn 内 _after_actor_ct("p") 排好）
+        - 玩家行动后：玩家 next_act_at = now + 行为耗时（已在 actor_turn 内 _after_actor_ct("p") 排好）
         - _process_until(玩家 next_act_at)：弹出并处理所有 t <= until 的事件
           · enemy_act：敌方单位行动（用其 buffed spd cost 排下一次）
           · dot_tick / mech_tick / pet_tick / regen_tick：持续效果与定时机制
@@ -3470,7 +3470,7 @@ class Battle:
             # 命中丢失"——玩家慢动作（逃跑/防御等）后敌方已出招（动画已播）但命中时刻 > p_ct，
             # 该伤害等下次玩家行动才结算；战斗结束则永远丢失（玩家实抓多次）。
             # 实现：直接把队首越界 cast_done 对应的伤害结算掉（复刻 _process_until cast_done(side=e)
-            # 分支：_enemy_cast_done → _damage_actor），并清单位 _cast 状态。
+            # 分支：_hostile_cast_done → _damage_actor），并清单位 _cast 状态。
             # ⚠️ 不调 _process_until / 不推进 now → 不抬高敌方出手频率（test_ctb_speed 基线
             # 48/60 不受影响，2026-09-03 实测对比）。
             if self.btype != "instance":
@@ -3482,7 +3482,7 @@ class Battle:
                             try:
                                 _e0 = _peek0[2].get("unit") or {}
                                 if _e0.get("hp", 0) > 0:
-                                    _ml, _dg, _dk = self._enemy_cast_done(player, _e0, _peek0[2])
+                                    _ml, _dg, _dk = self._hostile_cast_done(player, _e0, _peek0[2])
                                     logs += _ml
                                     _e0.pop("_cast", None)
                                     # v180F：管线分支已内部扣血（返回 dmg=0），非管线返回 dmg 外部扣
@@ -3495,7 +3495,7 @@ class Battle:
                                     # 判定——玩家 hp 归 0 但 result 不置 defeat → 命令层看
                                     # ended=False 只存战斗状态，玩家血 0 不触发死亡/战败结算。
                                     # 与 _process_until cast_done(side=e) 分支同款判定。
-                                    # 不提前 return：置 defeat 后走 _enemy_phase 正常尾部
+                                    # 不提前 return：置 defeat 后走 _hostile_phase 正常尾部
                                     # （_advance_time 推进 + return logs, result is not None）。
                                     # v180F 修复：死亡判定移出 _dg>0 门控——管线内部扣血
                                     # （返回 0）也能致死，须同样判 defeat（flee_death 敌速5/8 回归）。
@@ -3503,7 +3503,7 @@ class Battle:
                                         self.result = "defeat"
                                     self._heapq.heappop(self._events)
                             except Exception as _sw_e:
-                                _battle_warn('_enemy_phase', _sw_e)
+                                _battle_warn('_hostile_phase', _sw_e)
                                 pass
             # v158 副本合并：instance 玩家行动后只补结算一次"读条命中"事件（cast_done）——
             # 敌方出招读条结束的伤害要在本次行动内结算（否则 from_state 不恢复事件队列，
@@ -3520,7 +3520,7 @@ class Battle:
                 from .core.weapon_effects import proc as _we_proc
                 _we_proc(self, player, "enemy_act", {}, logs)
             except Exception as _sw_e:
-                _battle_warn('_enemy_phase', _sw_e)
+                _battle_warn('_hostile_phase', _sw_e)
                 pass
             self._active_target = None  # 敌方行动结束后重置玩家下次目标
         else:
@@ -3738,7 +3738,7 @@ class Battle:
                             else:
                                 pc = {"kind": "atk", "st": None, "target": ev.get("target")}
                         self._pending_player_cast = None
-                        # v169.7 修 #132：恢复施放时快照的目标（_enemy_phase 尾部已清 _active_target）
+                        # v169.7 修 #132：恢复施放时快照的目标（_hostile_phase 尾部已清 _active_target）
                         # ——目标仍存活 → 设回 _active_target（伤害结算打到指定 a2/a3 而非主目标 a1）；
                         #   目标已死 → 清 None（_deal_damage 兜底主目标 = 命中落空语义）。
                         _ht = pc.get("_hit_target")
@@ -3751,12 +3751,12 @@ class Battle:
                         if not self._enemy_dead():
                             _kind = pc.get("kind", ev.get("kind", ""))
                             if _kind == "atk":
-                                logs += self._player_attack(pc.get("st") or self._player_stats(_hit_player), _hit_player)
+                                logs += self._actor_attack(pc.get("st") or self._player_stats(_hit_player), _hit_player)
                             elif _kind == "skill":
                                 _sn = pc.get("skill_name") or ev.get("skill")
                                 _inf = pc.get("info") or {}
                                 if _sn and _inf:
-                                    logs += self._player_skill(pc.get("st") or self._player_stats(_hit_player),
+                                    logs += self._actor_skill(pc.get("st") or self._player_stats(_hit_player),
                                                                _sn, _inf, _hit_player, target=pc.get("target") or ev.get("target"))
                             elif _kind == "item":
                                 # 道具无读条命中（即时生效，v152 行为保留）——这里只是兜底
@@ -3774,7 +3774,7 @@ class Battle:
                             # v180F B5：结算目标 = 排程时选定的 target（怪vs怪打敌对怪），
                             # 无 target（旧战斗/兼容路径）回落 player 参数
                             _tgt = ev.get("target") or player
-                            mlogs, dmg, _dk = self._enemy_cast_done(_tgt, e_unit, ev)
+                            mlogs, dmg, _dk = self._hostile_cast_done(_tgt, e_unit, ev)
                             logs += mlogs
                             # v163：敌方读条结算完成 → 清单位读条状态（防 from_state 重复补排）
                             e_unit.pop("_cast", None)
@@ -3838,7 +3838,7 @@ class Battle:
     # v180G B6/B7 统一 CTB 推进器（一套代码：单人=副本=世界Boss=PVP）
     # 唯一"事件推进"入口——所有命令层驱动战斗都调它，不各自手写窗口推进。
     # ============================================================
-    def player_act(self, action: str, skill_name: str | None, player: dict, target=None, enemy_act: bool = True) -> tuple:
+    def actor_act(self, action: str, skill_name: str | None, player: dict, target=None, enemy_act: bool = True) -> tuple:
         """v180G B7 统一 CTB 行动接口（命令层唯一入口）：
         1) 玩家出手登记（player_turn 纯登记：扣资源/排事件/更新行动点）
         2) 推进到下一个真人决策点（advance_until_next_decision：事件自动结算）
@@ -3850,7 +3850,7 @@ class Battle:
 
         单人：who == 出手者自己（或 None if ended）；多人：按行动点交错返回下一个真人。
         """
-        logs, ended = self.player_turn(action, skill_name, player, enemy_act=enemy_act, target=target)
+        logs, ended = self.actor_turn(action, skill_name, player, enemy_act=enemy_act, target=target)
         if not ended:
             _act, _who = self.advance_until_next_decision(logs)
             if _act == "over" or self.result:
@@ -3859,10 +3859,10 @@ class Battle:
         else:
             _who = None
         return logs, ended, _who
-    def _player_next_act_times(self) -> list:
+    def _next_act_times(self) -> list:
         """所有存活真人玩家的下次可行动绝对时刻列表。焦点玩家 p_ct；副本 allies 各 ct。
         时刻 <= now 视为"已到点"（该玩家应立即决策）——返回 now 使其最先被选出。"""
-        _pl0 = self.player or {}
+        _pl0 = self._focus or {}
         times = []
         if _pl0.get("class_name") and (_pl0.get("hp", 1) > 0):
             _pt = float(getattr(self, "p_ct", 0) or 0)
@@ -3875,9 +3875,9 @@ class Battle:
                 times.append(_at if _at > self._now else self._now)
         return times
 
-    def _player_who_at(self, t: float):
+    def _who_acts_at(self, t: float):
         """t 时刻该行动的真人玩家。玩家行动点 <= t（已到点）时返回该玩家。"""
-        _pl0 = self.player or {}
+        _pl0 = self._focus or {}
         _pt = float(getattr(self, "p_ct", 0) or 0)
         if _pl0.get("class_name") and _pl0.get("hp", 1) > 0 and _pt <= t + 1e-9:
             return _pl0
@@ -3915,7 +3915,7 @@ class Battle:
             # 注：不用 _check_side_end 做提前结束判定——instance/命令层后绑玩家场景下
             # sides 可能只有 enemy（player 后绑不在 sides），存活阵营 ≤1 误判提前结束。
             # 战斗结束统一由事件处理（_enemy_dead/_actor_dead 置 result）与下方决策点判定完成。
-            _ptimes = self._player_next_act_times()
+            _ptimes = self._next_act_times()
             _dt = min(_ptimes) if _ptimes else None
             _et = self._events[0][0] if self._events else None
             if _dt is None and _et is None:
@@ -3924,16 +3924,16 @@ class Battle:
                 # 事件先到 → 结算该事件（推进到事件时刻，_process_until 处理堆顶及同刻）
                 # v180G B7：事件时刻 == now（同刻恢复/浮点）也调 _process_until——它内部
                 # 处理堆顶 t <= until 的事件并把 now 推到事件时刻（严格 < 才跳过）。
-                self._process_until(max(_et, self._now), logs, self.player or {}, defend=defend)
+                self._process_until(max(_et, self._now), logs, self._focus or {}, defend=defend)
                 if self.result:
                     return ("over", None)
                 continue
             # 玩家行动点先到 → 推进到它（期间结算 <= 它的事件），返回该玩家
             if _dt is not None:
                 if _dt > self._now:
-                    self._process_until(_dt, logs, self.player or {}, defend=defend)
+                    self._process_until(_dt, logs, self._focus or {}, defend=defend)
                     # v180G B7：_process_until 只把 now 推到<=_dt 的最新事件时刻；
-                    # 补推进到玩家决策点（buff/CD/DOT 用绝对时刻到期，与旧 _enemy_phase 同语义）
+                    # 补推进到玩家决策点（buff/CD/DOT 用绝对时刻到期，与旧 _hostile_phase 同语义）
                     _gap = _dt - self._now
                     if _gap > 0:
                         self._advance_time(_gap)
@@ -3941,15 +3941,15 @@ class Battle:
                     return ("over", None)
                 # v167.3 补结算语义收编：决策点右边界越界的敌方读条命中不丢失——
                 # 直接结算（复刻 _process_until cast_done(side=e) 分支伤害落地）。
-                self._settle_cross_boundary_hits(logs, player=self.player or {}, until=_dt, defend=defend)
+                self._settle_cross_boundary_hits(logs, player=self._focus or {}, until=_dt, defend=defend)
                 if self.result:
                     return ("over", None)
-                _who = self._player_who_at(_dt)
+                _who = self._who_acts_at(_dt)
                 return ("player", _who) if _who else ("over", None)
         return ("over", None)
 
     def _settle_cross_boundary_hits(self, logs, player=None, until=None, defend=False):
-        """v167.3 补结算（收编自 _enemy_phase）：推进到决策点(until)后，若敌方已出招
+        """v167.3 补结算（收编自 _hostile_phase）：推进到决策点(until)后，若敌方已出招
         （动画已播）但命中时刻略超决策点右边界，直接把伤害结算掉，避免命中丢失。
         只处理队首越界 cast_done（不 while 追新：敌方新出招留给下次推进，防一次
         行动内敌方多次结算）。instance 模式由命令层补结算，此处跳过。"""
@@ -3968,8 +3968,8 @@ class Battle:
             try:
                 _e0 = _peek0[2].get("unit") or {}
                 if _e0.get("hp", 0) > 0:
-                    _pl = player if player is not None else (self.player or {})
-                    _ml, _dg, _dk = self._enemy_cast_done(_pl, _e0, _peek0[2])
+                    _pl = player if player is not None else (self._focus or {})
+                    _ml, _dg, _dk = self._hostile_cast_done(_pl, _e0, _peek0[2])
                     logs += _ml
                     _e0.pop("_cast", None)
                     if _dg > 0:
@@ -3993,7 +3993,7 @@ class Battle:
         if value <= 0:
             return
         try:
-            _spv = min(float(self._player_stats(self.player).get("shield_power", 0) or 0), 0.5)
+            _spv = min(float(self._player_stats(self._focus).get("shield_power", 0) or 0), 0.5)
             if _spv > 0:
                 value = int(value * (1 + _spv))
         except Exception as _sw_e:
@@ -4042,7 +4042,7 @@ class Battle:
         """战斗中使用消耗品：恢复/增益(v61 抽公共，普通刻与额外行动共用)"""
         logs = []
         # v152 数据驱动动作时长：先剥离 payload 尾部 cast/recovery 参数（由 _item_payload_cast
-        # 在 player_turn 消费，此处只解析效果本体；不剥离会破坏 int()/split(",") 等解析）
+        # 在 actor_turn 消费，此处只解析效果本体；不剥离会破坏 int()/split(",") 等解析）
         payload = re.sub(r"(?:^|[;&,])\s*(?:cast|recovery):[\d.]+", "", payload).rstrip(";,")
         if payload.startswith("foodfx:"):
             # v101.28e 食物效果：foodfx:效果ID,效果ID（本场战斗有效，独立于装备词条）
@@ -4225,7 +4225,7 @@ class Battle:
         """O118 技能施放前置校验（无副作用，不扣资源/蓝）：技能不存在/未学习/冷却中/
         蓝不足/核心资源不足 → 返回 (日志列表, True)。
         拦截时玩家刻不开始、敌方不行动，玩家可重新选择其他行动。
-        与 _do_player_skill 的校验口径保持一致（那里负责真正扣除消耗）。"""
+        与 _do_actor_skill 的校验口径保持一致（那里负责真正扣除消耗）。"""
         logs = []
         info = E.skill_info(player["class_name"], skill_name)
         if not info:
@@ -4284,7 +4284,7 @@ class Battle:
                     return logs, True
         return logs, False
 
-    def _do_player_skill(self, skill_name: str, player: dict, target=None) -> list:
+    def _do_actor_skill(self, skill_name: str, player: dict, target=None) -> list:
         """玩家施放技能(v61 抽公共，普通刻与额外行动共用)"""
         logs = []
         st = self._player_stats(player)
@@ -4398,7 +4398,7 @@ class Battle:
                     logs.append(f"📖 {_pn_ac}：奥术恒常，耗蓝减半！")
                     break
         except Exception as _sw_e:
-            _battle_warn('_do_player_skill', _sw_e)
+            _battle_warn('_do_actor_skill', _sw_e)
             pass
         if not _releasing:  # 蓄力释放跳过 MP 扣减（施放时已扣，§6.2）
             player["mp"] -= mp_cost
@@ -4425,14 +4425,14 @@ class Battle:
                 _orig_power = info.get("power", 1.0)
                 info["power"] = float(_rel.get("power", 2.8) or 1.0)
                 _extra = _rel.get("extra") or {}
-                # v139 满阶释放：破防/指定后排等 extra 生效（临时标记，_player_skill 内消费）
+                # v139 满阶释放：破防/指定后排等 extra 生效（临时标记，_actor_skill 内消费）
                 _prev_extra = info.get("_charge_release_extra")
                 if _extra:
                     info["_charge_release_extra"] = _extra
                 # v139 满阶释放扣完整 res_cost（能量 50；蓄力阶段只扣了 charge_cost）
                 for _rk, _rv in (info.get("res_cost") or {}).items():
                     self._res_spend(_rk, int(_rv or 0))
-                logs += self._player_skill(st, skill_name, info, player, target=target)
+                logs += self._actor_skill(st, skill_name, info, player, target=target)
                 info["power"] = _orig_power
                 if _extra:
                     if _prev_extra is None:
@@ -4448,7 +4448,7 @@ class Battle:
                 # 未满阶：本刻出伤 ×dmg_mult（边攒边打），不进入旧蓄力，不触发 cd
                 _orig_power = info.get("power", 1.0)
                 info["power"] = float(_ch.get("dmg_mult", 0.7) or 0.7)
-                logs += self._player_skill(st, skill_name, info, player, target=target)
+                logs += self._actor_skill(st, skill_name, info, player, target=target)
                 info["power"] = _orig_power
             return logs
         # ---- v139 focus 开启技（元素架设/时间凝滞）：effect=element_focus/time_stasis → 进入架设态，本刻不出伤 ----
@@ -4480,13 +4480,13 @@ class Battle:
         # v154 读条命中制：普通技能出手 → 排 cast_done 事件（命中时刻才结算）。
         # 不排事件的特例：PVP（真人轮流）、蓄力释放（_releasing_charge 已含蓄力读条语义）。
         if self.btype != "pvp" and not getattr(self, "_releasing_charge", False):
-            # 出招读条（cast 秒数，速度折算）在 player_turn 已排 cast_done；
+            # 出招读条（cast 秒数，速度折算）在 actor_turn 已排 cast_done；
             # 这里把"命中时刻要调用的结算函数 + 参数"暂存到 self._pending_player_cast，
             # 由 _process_until 的 cast_done 分支消费（用命中时刻状态重新计算）。
-            # v169.7 修 #132：命中时刻 _active_target 会被敌方行动段清空（_enemy_phase 尾部
+            # v169.7 修 #132：命中时刻 _active_target 会被敌方行动段清空（_hostile_phase 尾部
             # self._active_target = None），若不快照目标单位，命中结算打回主目标(a1)。
             # 快照解析好的目标 dict 引用（攻击目标，非治疗）；命中时恢复 + 死亡回退。
-            # v169.9 兜底：_active_target 仅在敌方行动段赋值——直接调 _do_player_skill（测试/
+            # v169.9 兜底：_active_target 仅在敌方行动段赋值——直接调 _do_actor_skill（测试/
             # 副本命令层某些路径）未走敌方回合时不存在该属性 → getattr 退化到主目标。
             _atk_tgt = getattr(self, "_active_target", None)
             if _atk_tgt is None:
@@ -4506,7 +4506,7 @@ class Battle:
                 self._set_skill_cd(skill_name, cd)
             return logs
         # 非读条路径（PVP / 蓄力释放）：立即结算
-        logs += self._player_skill(st, skill_name, info, player, target=target)  # v122：target 传治疗队友目标
+        logs += self._actor_skill(st, skill_name, info, player, target=target)  # v122：target 传治疗队友目标
         # v130.2c 圣典·日冕 2 件：施放二档以上神迹 → 全体队友额外恢复 30 体力
         self._set_miracle_team_heal(player, info, logs)
         # v2.0 冷却：技能表 cd 字段（刻），施放后进入冷却
@@ -4948,12 +4948,12 @@ class Battle:
         except Exception:
             return False
 
-    def _player_attack(self, st: dict, player: dict) -> list:
+    def _actor_attack(self, st: dict, player: dict) -> list:
         """v174.1 普攻行动 = 释放职业 basic_skill（玩家敲"攻击"即施放该技能）。
 
         代码层不做任何普攻特判计算——basic_skill 是数据配置的普通技能
         （exprs 公式 / res_gain 资源 / 无 CD 无消耗），一切乘区/资源/命中
-        效果均由 _player_skill 统一技能管道结算。旧版手抄 ~200 行普攻乘区
+        效果均由 _actor_skill 统一技能管道结算。旧版手抄 ~200 行普攻乘区
         已删除（v174.1，鱼鱼拍板：保留一套技能代码，配置做不到=设计问题）。
         """
         bs = None
@@ -4968,7 +4968,7 @@ class Battle:
         info = dict(bs)
         # basic 技能无 CD/无蓝耗/无需学习等级（skill_levels 无此技能 → lv=0，
         # expr 公式内嵌全部数值、无需技能成长）；资源获取由 res_gain / on_skill 数据驱动
-        return self._player_skill(st, info["name"], info, player, target=None)
+        return self._actor_skill(st, info["name"], info, player, target=None)
 
     def _settle_lifesteal(self, player: dict, dmg: int, logs: list, magic: bool = False, dmg_type: str = "phys"):
         """v106.3 吸血统一结算（属性面板化）：heal = dmg × 吸血率
@@ -5162,7 +5162,7 @@ class Battle:
         """v130.2f 致命预谋返还挂点：每场首次 消耗连击点的终结技 结算后，返还 1 连击点
         （保底节奏；_assassin_refund_used 防重复，随战斗序列化）。
         被动判定走 battle_start_cp proc（致命预谋 数据层挂载），数据驱动不按名字硬匹配。
-        调用点：_do_player_skill 的 res_cost cp / consume_all cp 两处扣费结算后。"""
+        调用点：_do_actor_skill 的 res_cost cp / consume_all cp 两处扣费结算后。"""
         if getattr(self, "_assassin_refund_used", False):
             return
         if not self._passive_map(player)["proc"].get("battle_start_cp", []):
@@ -5387,7 +5387,7 @@ class Battle:
     def _energy_cost_reduce(self, player: dict, info: dict, base_cost: int) -> int:
         """v130.2 R1 P1-1：精力消耗统一折算——先词条「精力刀刃」折扣（tier 档 5%/8%/12%，保底 1 点），
         再套装「猎首」折扣（对带标记敌人 50/100 档 -10%）。预检 _skill_cast_blocked 与扣减
-        _do_player_skill 共用此函数，保证两处消耗口径完全同源。"""
+        _do_actor_skill 共用此函数，保证两处消耗口径完全同源。"""
         _rv = int(base_cost or 0)
         _ee, _et = self._affix_eff_tiered(player, "energy_blade")
         if _ee:
@@ -5623,7 +5623,7 @@ class Battle:
         mk = (e.get("debuffs") or {}).get("mark") or {}
         return int(mk.get("n", 0) or 0) > 0
 
-    def _player_dmg_mult(self, player: dict, kind: str = K_PHYS) -> tuple:
+    def _actor_dmg_mult(self, player: dict, kind: str = K_PHYS) -> tuple:
         """v156 玩家侧公共乘区统一组装——普攻/技能共用（一处修改，两边生效）。
 
         收拢两边重复的组装逻辑：
@@ -5679,7 +5679,7 @@ class Battle:
                 tags = _ctx_sr.get("tags", tags)
                 break
         except Exception as _sw_e:
-            _battle_warn('_player_dmg_mult', _sw_e)
+            _battle_warn('_actor_dmg_mult', _sw_e)
             pass
         return mult * race_mult, tags
 
@@ -5964,7 +5964,7 @@ class Battle:
         return int(target["hp"]) - _before
 
     def _skill_heal(self, st, skill_name, info, player, lv, mech, mval, p_mech, logs, target_ally=None):
-        """治疗分支（v103.6 从 _player_skill 拆出；v122 支持指定队友目标 target_ally）"""
+        """治疗分支（v103.6 从 _actor_skill 拆出；v122 支持指定队友目标 target_ally）"""
         # v122 治疗目标单位：指定队友 → 队友快照（引用）；None → 施法者自己
         target_unit = target_ally if target_ally is not None else player
         # v32 条件转化：治疗技能也吃战场状态（如神谕者自身低血时治疗量提升）
@@ -6208,7 +6208,7 @@ class Battle:
 
 
     def _skill_buff(self, st, skill_name, info, player, lv, mech, mval, p_mech, logs):
-        """增益分支（v103.6 从 _player_skill 拆出）"""
+        """增益分支（v103.6 从 _actor_skill 拆出）"""
         eff = info.get("effect")
         # v153 §7：诗人旋律——增益技能带 melody 字段 → 起手/吟唱/终章（驻留光环）
         if info.get("melody") or mech in ("melody", "melody_chant", "melody_finale"):
@@ -6249,7 +6249,7 @@ class Battle:
                 # v104 M02 P2-11：同 effect 不同技能 buff 覆盖取高（与药水路径一致）
                 # v180：怪物施法（_cast_ctx 非玩家 actor）buff 刻数固定读 info.buff_turns（缺省 3）
                 # ——怪 buff 无"技能等级养成"，对齐旧 MON_BUFF BUFF_TURNS=3（不叠加折算等级成长）
-                if not self._cast_is_player():
+                if not self._cast_is_side_player():
                     base_turns = int(info.get("buff_turns", 3) or 3)
                 else:
                     base_turns = E.skill_buff_turns(lv)
@@ -6283,7 +6283,7 @@ class Battle:
                            mval: int, p_mech: dict, effs: dict,
                            is_crit: bool, total: int, lv: int,
                            skill_name: str, kind: str, _procs: dict, logs: list) -> None:
-        """v176 拆分：攻击命中后结算（原 _player_skill 172 行内联）。
+        """v176 拆分：攻击命中后结算（原 _actor_skill 172 行内联）。
 
         连招/符文/词条/料理/武器hit → mech效果/mech2/cc/控制延长/shaken →
         技能吸血/破防 → 资源/词条/连段/暴击 → 套装特效。
@@ -6430,7 +6430,7 @@ class Battle:
         if info.get("pierce") and self._tgt().get("hp", 0) > 0:
             self._tgt_buffs()["def_down"] = E.skill_buff_turns(lv)
         # v180 pdot 管线化：技能带 pdot（持续伤害：毒/灼烧/流血/腐蚀）→ 命中挂目标
-        # （v178 E4 怪技能 pdot 原在 _enemy_cast_done 简化段处理；收编管线后在命中结算统一挂——
+        # （v178 E4 怪技能 pdot 原在 _hostile_cast_done 简化段处理；收编管线后在命中结算统一挂——
         #  玩家/怪技能同入口 _apply_dot(target=被打目标, source=施法者)。cc_immune 免疫不挂）
         try:
             _pdot_p = info.get("pdot") or (info.get("effect") or {}).get("pdot")
@@ -6493,7 +6493,7 @@ class Battle:
                                 _execute_tag: str, affix_tags: list, elem_mult: float,
                                 reaction_log: str,
                                 _procs: dict, logs: list, _v169_tags: list) -> None:
-        """v176 拆分：攻击技能标签组装 + 元素印记命中（原 _player_skill 74 行内联）。
+        """v176 拆分：攻击技能标签组装 + 元素印记命中（原 _actor_skill 74 行内联）。
 
         把暴击/碎冰/潜行/增幅/条件/破魔/斩杀/词条/元素 标签拼到伤害日志；
         带 element 技能命中给目标挂印记 + 法师切系 + 元素被动消费。
@@ -6550,7 +6550,7 @@ class Battle:
                 self._elem_affinity_next = False
                 extra_layers += 1
                 logs.append("✨ 元素亲和：引爆余韵，挂印 +1 层！")
-            # v169.7 元素同调 element_sync：连续两次同系施法第二次挂印 +1 层（_player_skill 前置判定置位）
+            # v169.7 元素同调 element_sync：连续两次同系施法第二次挂印 +1 层（_actor_skill 前置判定置位）
             if getattr(self, "_elem_sync_bonus", False):
                 self._elem_sync_bonus = False
                 extra_layers += 1
@@ -6578,7 +6578,7 @@ class Battle:
                                element: str, skill_name: str, multi: int,
                                is_crit: bool, total: int, _magi_part: int,
                                logs: list) -> tuple:
-        """v176 拆分：攻击总伤后处理（原 _player_skill 113 行内联）。
+        """v176 拆分：攻击总伤后处理（原 _actor_skill 113 行内联）。
 
         boss filter → 武器被动增伤 → v153 乘区 → v169 乘区 → 感电 → 敌方抗性 → 闪避/AOE →
         伤害落地(_deal_damage) → 吸血/吸魔。返回 (total, magi_part, info)。
@@ -6587,7 +6587,7 @@ class Battle:
         # v180F 收编配套：伤害类型透传承伤链（玩家受击 phys/magi 免伤消费）
         _dmg_kind = seg_of(kind) or ""
         # v181 P3：target=当前被打怪（玩家技能路径 _tgt()=被选中的怪；多怪打副怪不再错读主怪 mech/阶段）
-        _fd_tgt = self._tgt() if not self._tgt_is_player() else self.enemy
+        _fd_tgt = self._tgt() if not self._tgt_is_side_player() else self.enemy
         total = self._boss_dmg_filter(total, player, logs, dmg_type=seg_of(kind), target=_fd_tgt)
         # v140 波3.1：特效装备技能被动增伤（奥术苍穹/岁月流转/永恒契约/铭文/秘典/雷纹/三相/破岳/咒誓/暮裂）
         try:
@@ -6642,13 +6642,13 @@ class Battle:
                 total += _combo_dmg
                 logs.append(f"⚡ 感电连击！追加 {_combo_dmg} 点伤害！")
         # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
-        total, _magi_part = self._enemy_mitigate(total, _magi_part, element, logs, kind=kind)
-        # v180 等级压制 actor 化：怪打玩家（管线 _tgt_is_player）时，伤害段 ×怪高玩家级差压制
-        # （原在 _enemy_cast_done 手动乘 _lpm；管线收编后统一在落地前消费。玩家打怪仍走
-        # _deal_damage 内 v136 双向曲线，不受影响；PVP btype 由 _enemy_lv_pressure 内部返回 1.0）
-        if self._tgt_is_player() and self._cast_ctx is not None:
+        total, _magi_part = self._hostile_mitigate(total, _magi_part, element, logs, kind=kind)
+        # v180 等级压制 actor 化：怪打玩家（管线 _tgt_is_side_player）时，伤害段 ×怪高玩家级差压制
+        # （原在 _hostile_cast_done 手动乘 _lpm；管线收编后统一在落地前消费。玩家打怪仍走
+        # _deal_damage 内 v136 双向曲线，不受影响；PVP btype 由 _hostile_lv_pressure 内部返回 1.0）
+        if self._tgt_is_side_player() and self._cast_ctx is not None:
             try:
-                _lpm_pipe = self._enemy_lv_pressure(self._tgt(), self._cast_ctx)
+                _lpm_pipe = self._hostile_lv_pressure(self._tgt(), self._cast_ctx)
                 if _lpm_pipe != 1.0:
                     total = max(1, int(total * _lpm_pipe))
             except Exception as _sw_e:
@@ -6670,20 +6670,20 @@ class Battle:
             logs.append(f"✨ 星火x{1 + _spark_pct:.1f}：普攻伤害 +{int(_spark_pct * 100)}%！")
         # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
         # v177 双向：玩家施法=怪闪避（_target_dodge_check）；怪施法玩家技能=目标玩家闪避由 _deal_hit 内 _damage_actor 处理
-        if not self._tgt_is_player() and self._target_dodge_check(logs):
+        if not self._tgt_is_side_player() and self._target_dodge_check(logs):
             total = 0
         else:
             aoe = info.get("aoe")
             if aoe:
                 # v180F 清3 设计修正：AOE = 选目标（front/all）+ 逐目标结算，方向由
-                # 施法目标决定（不再写死 not _tgt_is_player——怪施法 AOE 打玩家侧也走这里）
+                # 施法目标决定（不再写死 not _tgt_is_side_player——怪施法 AOE 打玩家侧也走这里）
                 scope = "all" if aoe is True else str(aoe)
                 self._aoe_reach = int(info.get("reach") or 3)
                 self._aoe_falloff = float(info.get("aoe_falloff", 1.0) or 1.0)
-                if self._tgt_is_player():
+                if self._tgt_is_side_player():
                     # 怪 AOE 打玩家侧：对玩家 side 全体存活 actor（player + allies）逐目标
                     # 走 _deal_hit（复用玩家承伤链；野外单玩家 = 单目标无差）
-                    _pl_pool = self._player_side_aoe_pool()
+                    _pl_pool = self._side_aoe_pool()
                     if len(_pl_pool) <= 1:
                         _boss_dmg = self._deal_hit(total, logs, source=skill_name, dmg_kind=_dmg_kind)
                     else:
@@ -6715,12 +6715,12 @@ class Battle:
             # "你挥剑斩击，造成 N 点伤害"；无 cast_verb 保持"你施展【技能】，造成 N 点伤害"。
             _verb = info.get("cast_verb")
             # v180G B7：日志主语 = 攻击者视角。攻击者(player 参数)是当前行为驱动者
-            # (self.player) → "你"；攻击者是他人（副本跨玩家命中：B 的 Battle 触发 A 的
+            # (self._focus) → "你"；攻击者是他人（副本跨玩家命中：B 的 Battle 触发 A 的
             # 挂起命中）→ 显示攻击者名；怪施法（_cast_ctx 非空）→ 显示怪名。
             _caster = self._cast_ctx
             if _caster is not None:
                 _subject = str((_caster or {}).get("name", "敌人"))
-            elif player is self.player or self.player is None or player is None:
+            elif player is self._focus or self._focus is None or player is None:
                 _subject = "你"
             else:
                 _subject = str(player.get("name") or "队友")
@@ -6768,7 +6768,7 @@ class Battle:
                               p_mech: dict, logs: list, effs: dict,
                               is_crit: bool, _stealth_hit: bool,
                               lucky: bool, stealth_mult: float) -> dict:
-        """v176 拆分：攻击技能乘区装配（原 _player_skill 123 行内联）。
+        """v176 拆分：攻击技能乘区装配（原 _actor_skill 123 行内联）。
 
         计算 frozen/stack/cond/passive/reaction/蓄势/终结/词条/套装 各乘区 → pmult（cap 后）。
         返回 ctx dict（段循环/标签/命中效果需要的全部中间量）。
@@ -6844,7 +6844,7 @@ class Battle:
                 if chain_flag:
                     multi += 1
         # v130.2 拳师蓄势 Momentum（攻线·格斗士）：物理技能吃「每 1 气 +3%」持有加伤
-        # v156：蓄势已由 _player_dmg_mult 统一乘入（普攻/技能共用），此处只记录标签
+        # v156：蓄势已由 _actor_dmg_mult 统一乘入（普攻/技能共用），此处只记录标签
         _mom_mult = self._momentum_mult(player)
         if kind == K_PHYS and _mom_mult != 1.0:
             self._mom_mult = _mom_mult
@@ -6878,8 +6878,8 @@ class Battle:
         total = 0
         _magi_part = 0  # v109.2 P2-4：混合伤害魔法段累计（吸血分账用）
         # v156 玩家侧公共乘区统一组装（词条/狼嚎/蓄势/禅意/物理药水/种族）——
-        # 与普攻共用 _player_dmg_mult（一处修改，普攻/技能同时生效）
-        affix_mult, affix_tags = self._player_dmg_mult(player, kind)
+        # 与普攻共用 _actor_dmg_mult（一处修改，普攻/技能同时生效）
+        affix_mult, affix_tags = self._actor_dmg_mult(player, kind)
         if self._mom_mult != 1.0:
             affix_tags = list(affix_tags) + [f"🔥蓄势x{round(self._mom_mult, 2)}"]
         if self._combo_mult != 1.0:
@@ -6912,7 +6912,7 @@ class Battle:
 
     def _skill_passive_dmg_bonus(self, st: dict, est: dict, player: dict, info: dict,
                                   mech: str, kind: str) -> tuple:
-        """v176 拆分：攻击技能被动伤害乘区装配（原 _player_skill 94 行内联）。
+        """v176 拆分：攻击技能被动伤害乘区装配（原 _actor_skill 94 行内联）。
 
         累乘来源：破甲/烈焰亲和/双修/元素伤害/毒/标记/奥术/元素起源/武技/速度/审判/复仇/斩杀/血魔法。
         返回 (passive_bonus, execute_tag, element, _procs)。副作用：复仇 buff 消费、_elem_reaction_boost 预置。
@@ -7022,7 +7022,7 @@ class Battle:
 
     def _skill_crit_roll(self, st: dict, est: dict, player: dict, info: dict,
                           mech: str, skill_name: str, logs: list) -> tuple:
-        """v176 拆分：攻击技能暴击判定（原 _player_skill 42 行内联）。
+        """v176 拆分：攻击技能暴击判定（原 _actor_skill 42 行内联）。
 
         暴击来源：面板 crit + 幸运转化 + 套装 + 条件被动 + 满弦 + 标记 + 潜行必暴 + 满血必暴。
         返回 (is_crit, _stealth_hit, lucky, stealth_mult, est, effs)。
@@ -7077,7 +7077,7 @@ class Battle:
                           pmult: float, _seg_crit: bool, _lucky_seg: bool,
                           _pp_phys: float, _pf_phys: int, _pp_magi: float, _pf_magi: int,
                           _skill_flat: int, effs: dict, player: dict) -> tuple:
-        """v176 拆分：单段伤害计算（原 _player_skill 段循环内 76 行内联）。
+        """v176 拆分：单段伤害计算（原 _actor_skill 段循环内 76 行内联）。
 
         输入段级状态（暴击/穿透/技能基础值/乘区/符文），返回 (dmg_i, magi_add)。
         副作用：消耗 spellblade_surge buff、_apply_mark 标记。
@@ -7162,7 +7162,7 @@ class Battle:
         dmg_i = self._apply_mark(dmg_i)
         return dmg_i, magi_add
 
-    def _player_skill(self, st: dict, skill_name: str, info: dict, player: dict, target=None) -> list:
+    def _actor_skill(self, st: dict, skill_name: str, info: dict, player: dict, target=None) -> list:
         """施放技能：治疗/增益/攻击 + 特效全部落地(v27 技能等级 + v29 分支机制)"""
         logs = []
         lv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名（战斗内等级此前恒 Lv.1）
@@ -7174,19 +7174,19 @@ class Battle:
             from .core.weapon_effects import proc as _we_proc
             _we_proc(self, player, "skill_cast", {"skill": skill_name, "kind": kind}, logs)
         except Exception as _sw_e:
-            _battle_warn('_player_skill', _sw_e)
+            _battle_warn('_actor_skill', _sw_e)
             pass
         # v122 治疗指定队友：解析目标（allies 空=单人战斗 → None=奶自己）
         target_ally = self._resolve_ally_target(target) if kind == K_HEAL else None
         # v107 召唤：技能带 summon 字段 → 生成召唤物实体（治疗/增益/攻击技能均可带，先召唤再结算技能）
         # v177 双向：施法者是怪（_cast_ctx 无 class_name）→ 召唤敌方援军帮自己；玩家 → 原玩家侧召唤物
         if info.get("summon"):
-            if not self._cast_is_player():
+            if not self._cast_is_side_player():
                 try:
                     self._summon_minions(1)
                     logs.append(f"🜲 【{player.get('name', '怪物')}】召唤了援军！")
                 except Exception as _sw_e:
-                    _battle_warn('_player_skill', _sw_e)
+                    _battle_warn('_actor_skill', _sw_e)
                     pass
             else:
                 self._summon_entity(info["summon"], player, logs)
@@ -7218,7 +7218,7 @@ class Battle:
 
         # v180 actor 化：est = 被打目标面板（原硬编码 self.enemy=主怪；怪施法打玩家时
         # 错误用怪自己 def/mdef/韧性当玩家防御 → 伤害虚高。_tgt() 玩家施法=怪、怪施法=玩家）
-        if self._tgt_is_player():
+        if self._tgt_is_side_player():
             est = self._player_stats(self._tgt())
         else:
             # v180F 修复：显式传目标怪（_enemy_stats() 无参读 _active_target 多怪时漂移）
@@ -7294,7 +7294,7 @@ class Battle:
         """层数型机制对本次伤害的倍率（v125.2 B1：每层增伤查表 MECH_STACK_BONUS）
         v130.2 P1-5：隐藏线每层加成（dragon_might +18%/zen +12%，已并入 MECH_CFG['mech_stack']['bonus']）——
         消耗型终极技（res_cost 含该核心资源键）按「施放前持有层数」叠乘（龙脉终曲 满龙力 ×2.8、
-        撼岳·终焉 满禅意 ×2.2），读 self._pre_cost_res（见 _do_player_skill 快照，扣费后归 0 放不大）。"""
+        撼岳·终焉 满禅意 ×2.2），读 self._pre_cost_res（见 _do_actor_skill 快照，扣费后归 0 放不大）。"""
         step = _MC['mech_stack']['bonus'].get(mech)
         if step:
             n = p_mech.get(mech, 0)
@@ -7450,7 +7450,7 @@ class Battle:
             _battle_warn('_apply_mech_effect', _sw_e)
             pass
         # v130.2f2（T7 P1-1）：鹰眼 mark_extra 在游侠标记路径（mech=mark：林语印记/猎杀标记类技能）
-        # 也独立 roll——与法师元素印记路径（_player_skill 3388-3390）同语义：每个被动独立 chance，
+        # 也独立 roll——与法师元素印记路径（_actor_skill 3388-3390）同语义：每个被动独立 chance，
         # 额外层经同源 handler 叠加进目标 debuffs.mark（cap 5）。此前消费点只在 element 印记分支，
         # 全库 element 技能仅法师系持有，游侠/星语猎手标记被动（追踪印记 30%/鹰眼 15%）零触发=死被动。
         if mech == "mark":
@@ -7659,7 +7659,7 @@ class Battle:
     #   越 5 级 ×1.28 / 10 级 ×1.63 / 15 级 ×2.08 / 20+ 级 ×2.65+，cap ×3.0 防一发出殡）；
     #   怪 ≤ 玩家等级不削（保持现状——低怪打高玩家不惩罚，反向无趣）。
     #   PVP 排除（敌方玩家快照无 lv 压制语义）；_damage_actor 全链路（普攻/技能/蓄力/反扑）都吃。
-    def _enemy_lv_pressure(self, player: dict, e: dict) -> float:
+    def _hostile_lv_pressure(self, player: dict, e: dict) -> float:
         try:
             if self.btype == "pvp":
                 return 1.0
@@ -7669,7 +7669,7 @@ class Battle:
             if _diff > 0:
                 return min(1.05 ** min(_diff, 50), 3.0)
         except Exception as _sw_e:
-            _battle_warn('_enemy_lv_pressure', _sw_e)
+            _battle_warn('_hostile_lv_pressure', _sw_e)
             pass
         return 1.0
 
@@ -7722,7 +7722,7 @@ class Battle:
             _hp0 = int(target.get("hp", 0) or 0)  # 管线前快照（扣血基准）
             try:
                 # target=None → 治疗/增益目标=施法者自己（管线 _resolve_ally_target(None) 单人=自己）
-                plogs = self._player_skill(st, skill_name, info, caster, target=None)
+                plogs = self._actor_skill(st, skill_name, info, caster, target=None)
             finally:
                 if _had_skl is None:
                     caster.pop("skill_levels", None)
@@ -7745,7 +7745,7 @@ class Battle:
             else:
                 caster["_cast_skill"] = _saved_ck
 
-    def _enemy_cast_done(self, player: dict, unit: dict, ev: dict) -> tuple:
+    def _hostile_cast_done(self, player: dict, unit: dict, ev: dict) -> tuple:
         """v154 敌方对称读条：敌方出招读条结束（cast_done 事件触发）→ 结算伤害。
         返回 (日志列表, 对玩家伤害, 伤害段类型 or None)。
         v180G B2-2：第三返回值 dmg_kind —— 普攻 atk 分支不再手写物免/魔免减免，
@@ -7786,14 +7786,14 @@ class Battle:
             else:
                 # v180 所有技能统一走管线（玩家技能 key + 怪自身技能 ms_*）：
                 # _actor_skill_cast 已双向 actor（_cast_ctx=怪/_target_ctx=玩家），
-                # _player_skill 按 kind 分流（治疗 hp_pct/heal_formula/增益/召唤/物理魔法伤害），
+                # _actor_skill 按 kind 分流（治疗 hp_pct/heal_formula/增益/召唤/物理魔法伤害），
                 # 怪自身技能数据已归一（heal_self→kind=治疗+hp_pct、无 formula 已补等效段）。
                 # 原 v177 只对玩家技能 key 走管线、怪自身技能落下方 260 行简化结算（两套代码根）。
                 try:
                     _ml_s, _dg_s = self._actor_skill_cast(e, ev.get("skill"), player, ev)
                     return _ml_s, _dg_s, None  # v180G B2-2：管线已内部落地，dmg_kind=None
                 except Exception as _sw_e:
-                    _battle_warn('_enemy_cast_done', _sw_e)
+                    _battle_warn('_hostile_cast_done', _sw_e)
                     pass
                 # v180：管线异常兜底回落普攻（简化结算死代码已删——正常全部走 _actor_skill_cast）
                 _kind = "atk"
@@ -7801,7 +7801,7 @@ class Battle:
         # v169.3 等级压制增伤：怪高玩家 N 级 → 普攻 ×(1+0.02N)（cap ×3，同技能方向）
         # v174/v174.1 普攻技能化统一：怪物普攻 = 释放普攻技（默认 atk×1.0 物理；e.basic_skill
         # 可配自定义如魔法普攻怪 matk×1.0 magi 段吃 mdef），统一走 resolve_formula 管道
-        _lpm = self._enemy_lv_pressure(player, e)
+        _lpm = self._hostile_lv_pressure(player, e)
         is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
         _pp, _pf = self._pene_vals(est)
         _mbs = (e or {}).get("basic_skill")
@@ -7846,7 +7846,7 @@ class Battle:
             _hostile = self.hostile_sides(_side)
             if not _hostile:
                 # 兜底：没有 side 体系（旧战斗）→ 玩家侧为目标
-                return getattr(self, "player", None) or {}
+                return getattr(self, "_focus", None) or {}
             for _hs in _hostile:
                 _pool = (self.sides or {}).get(_hs) or []
                 # 前排优先：rank 小者先；存活过滤
@@ -7857,18 +7857,18 @@ class Battle:
                 return _alive[0]
             return None
         except Exception:
-            return getattr(self, "player", None) or {}
+            return getattr(self, "_focus", None) or {}
 
     def _enemy_turn(self, player: dict, unit=None) -> tuple:
         """敌方单个单位行动。返回 (日志列表, 对玩家伤害)。
         v2：unit 缺省 = 主目标（单怪兼容）；支持单位级蓄力。
         v154 敌方对称读条：本函数 = 敌方"出手瞬间"（决定动作类型 + 排敌方出招读条）。
-        出招读条结束（cast_done）才结算伤害——见 _enemy_cast_done。
+        出招读条结束（cast_done）才结算伤害——见 _hostile_cast_done。
         特例：被控跳过（眩晕/冻结/睡眠）、增益/蓄力直接返回（无出招读条）。
         """
         if self.btype == "pvp":
             # v180E 低危 B3：删除僵尸 _pvp_enemy_turn——PVP 战斗 enemy_act 恒 False
-            # （battle 刻由双方真人轮流操作），_enemy_phase 首行 `enemy_act and btype != "pvp"`
+            # （battle 刻由双方真人轮流操作），_hostile_phase 首行 `enemy_act and btype != "pvp"`
             # 已挡死本分支。保留 raise 防未来误直调（真实 PVP AI 需用事件系统重写）。
             raise RuntimeError("PVP 敌方 AI 未实现（不可达：PVP enemy_act 恒 False）")
         e = unit or self.enemy
@@ -7895,9 +7895,9 @@ class Battle:
                 # 原目标已死（instance 旧逻辑可能传已倒玩家）→ 重新选
                 player = None
             if self._st.get("_enemy_pick_target", True):
-                # 副本默认由 battle 按策略重选目标（_pick_enemy_target 内部读 target_policy；
+                # 副本默认由 battle 按策略重选目标（_pick_hostile_target 内部读 target_policy；
                 # 若 instance 显式指定目标（如 Boss 点名技能预选）可置 _enemy_pick_target=False）
-                _picked = self._pick_enemy_target(e)
+                _picked = self._pick_ally_target(e)
                 if _picked is not None:
                     player = _picked
         elif _e_side == "enemy" and not player:
@@ -7987,7 +7987,7 @@ class Battle:
         # v167.3 修：蓄力释放伤害必须经 _damage_actor 落地（旧版只写 pending 日志不扣血——
         # 玩家实抓野猪王【践踏】"蓄力完成，轰然落下"后无伤害）
         if e.get("charging"):
-            return self._enemy_charge_tick(e, pst, est, logs, ename, player=player)
+            return self._hostile_charge_tick(e, pst, est, logs, ename, player=player)
         # v178 E3b：阶段大招 ult_every 消费（每 N 刻强制施放 ult_skills 池中技能，无视 skill_chance）
         silenced = "silence" in eb
         _ult_skill = None
@@ -8110,7 +8110,7 @@ class Battle:
                 # v178 E6：记录本刻施放的技能 key（方向性防御读 defend_reduce 用）
                 e["_last_skill_key"] = skill
                 # v116 敌方蓄力接线：抽中带 charge 的技能且敌方未在蓄力 → 进入蓄力
-                # （本刻不结算伤害，先给意图预告，之后刻由 _enemy_charge_tick 结算）
+                # （本刻不结算伤害，先给意图预告，之后刻由 _hostile_charge_tick 结算）
                 charge_n = int(sinfo.get("charge", 0) or 0)
                 if charge_n > 0 and not e.get("charging"):
                     e["charging"] = {"skill": skill, "left": charge_n, "name": sname}
@@ -8149,7 +8149,7 @@ class Battle:
                 self._after_actor_ct("e", e, cast_mult=_cast_t + _rec_t)
                 return logs, 0
         # v180F 敌方普攻收编管线：普攻 = 释放默认普攻技 ms_basic_attack（kind=skill 走完整
-        # 管线，与 v180 敌方技能同路）。原手写普攻出招（kind=atk）已删——_enemy_cast_done
+        # 管线，与 v180 敌方技能同路）。原手写普攻出招（kind=atk）已删——_hostile_cast_done
         # 不再有独立普攻结算。怪可配 e.basic_skill（技能 key）自定义普攻（缺省 ms_basic_attack）。
         _atk_key = str((e or {}).get("basic_skill") or "ms_basic_attack")
         _atk_info = self._lookup_skill_info(_atk_key) or {}
@@ -8171,7 +8171,7 @@ class Battle:
         self._after_actor_ct("e", e, cast_mult=_cast_t + _rec_t)
         return logs, 0
 
-    def _enemy_charge_tick(self, e: dict, pst: dict, est: dict, logs: list, ename: str, player: dict | None = None) -> tuple:
+    def _hostile_charge_tick(self, e: dict, pst: dict, est: dict, logs: list, ename: str, player: dict | None = None) -> tuple:
         """敌方蓄力单位刻：left-1；归零自动释放技能（结算效果，不普攻）。"""
         ch = e.get("charging") or {}
         left = int(ch.get("left", 1) or 1)
@@ -8194,8 +8194,8 @@ class Battle:
                               player: dict | None = None) -> tuple:
         """敌方蓄力释放：按 MONSTER_SKILLS 里的技能结算伤害（对整个玩家方）。
         返回 (logs, 对玩家伤害)。"""
-        # v180 蓄力释放统一走管线（同 _enemy_cast_done 收编）：_actor_skill_cast
-        # 双向 actor（_cast_ctx=e 蓄力怪 / _target_ctx=player），_player_skill 按 kind 分流——
+        # v180 蓄力释放统一走管线（同 _hostile_cast_done 收编）：_actor_skill_cast
+        # 双向 actor（_cast_ctx=e 蓄力怪 / _target_ctx=player），_actor_skill 按 kind 分流——
         # 物理/魔法伤害、治疗(hp_pct)、增益、召唤、pdot、mech 控制全语义一次获得。
         # 原简化结算（MON_BUFF_EFFECTS 增益 / calc_damage 手动伤害）为两套代码残余，已废弃。
         # ⚠️ 参数：_actor_skill_cast(unit, skill_name, target_player, ev)——第 4 参 ev 占位；
@@ -8218,7 +8218,7 @@ class Battle:
                 # v180E 阶段2：强度值存 owner actor dict 的 pet_buff_vals（随 actor 序列化，
                 # 替代旧 Battle 级 _pet_buff_vals 旁路——副本/断线恢复不丢）
                 if attr in ("atk", "crit"):
-                    _pv = (self.player or {}).get("pet_buff_vals", {}).get(attr)
+                    _pv = (self._focus or {}).get("pet_buff_vals", {}).get(attr)
                     if _pv is not None:
                         val = 1.0 + _pv if attr == "atk" else _pv
                 if attr == "crit":
@@ -8228,7 +8228,7 @@ class Battle:
                     # v173.3 意见#95：命中 buff 加法并入精准（PCT 百分比，cap 60% 与词条同源）
                     st["precise"] = min(C.PCT_CAPS.get("precise", 0.6), float(st.get("precise", 0) or 0) + val)
                 elif attr == "magic_reduce":
-                    # v180F 清2a：magic_resist 药剂魔法免伤（加法，cap 40% 与引擎 _enemy_mitigate 一致）
+                    # v180F 清2a：magic_resist 药剂魔法免伤（加法，cap 40% 与引擎 _hostile_mitigate 一致）
                     st["magic_reduce"] = min(0.4, float(st.get("magic_reduce", 0) or 0) + val)
                 else:
                     st[attr] = int(st.get(attr, 0) * val)
@@ -8370,7 +8370,7 @@ class Battle:
             est = self._apply_equip_affix_stats(e, est)
         return est
 
-    def _enemy_mitigate(self, dmg: int, magi_part: int, element: str | None, logs: list, kind: str = K_PHYS,
+    def _hostile_mitigate(self, dmg: int, magi_part: int, element: str | None, logs: list, kind: str = K_PHYS,
                         dot: bool = False) -> tuple:
         """v110 P1-3：玩家攻击端消费敌方防守属性（与 _pvp_enemy_turn 玩家受击口径对称）。
         物理段吃敌方物免(≤40%)+格挡(≤40%，命中物段减半)；魔法段吃敌方魔免(≤40%)+元素抗(≤40%，按元素)。
@@ -8382,7 +8382,7 @@ class Battle:
         if kind == K_TRUE:
             return dmg, magi_part
         tgt = self._tgt()
-        if self._tgt_is_player():
+        if self._tgt_is_side_player():
             tst = self._player_stats(tgt)
         else:
             tst = self._enemy_stats()
@@ -8415,20 +8415,20 @@ class Battle:
             red = max(1, int(magi * mr))
             magi -= red
             reduced += red
-            # v180 文案：怪打玩家走管线时输出专门"魔法免伤"（旧 _enemy_cast_done 手动段文案，
+            # v180 文案：怪打玩家走管线时输出专门"魔法免伤"（旧 _hostile_cast_done 手动段文案，
             # test_stage9_race 龙鳞/鲁莽断言依赖；玩家打怪仍合并进"敌方防守削减"）
-            if self._tgt_is_player():
+            if self._tgt_is_side_player():
                 logs.append(f"🛡️ 魔法免伤，减免 {red} 点伤害！")
-        # v180 元素抗性词条保底（旧 _enemy_cast_done 6810-6815 语义）：装备带
+        # v180 元素抗性词条保底（旧 _hostile_cast_done 6810-6815 语义）：装备带
         # elem_resist/abyss_resist 词条时，面板抗性不足保底值按保底算（战斗内动态读词条 id，
         # 不依赖面板折算——手工/旧装备词条可能未折算进 stats）。目标=玩家才查玩家装备。
         _pids_r = []
-        if self._tgt_is_player():
+        if self._tgt_is_side_player():
             try:
                 _pids_r = self._equip_affix_ids(self._tgt())
             except Exception:
                 _pids_r = []
-        # v180 暗影抗性（abyss_res）：dark 元素走深渊抗（旧 _enemy_cast_done melem==dark 分支）。
+        # v180 暗影抗性（abyss_res）：dark 元素走深渊抗（旧 _hostile_cast_done melem==dark 分支）。
         # ⚠️ dark ∉ ELEMENT_MARKS（只有 fire/ice/thunder）——暗影抗必须在此独立处理，不能放块内
         if element == "dark":
             _imm_d = list((tgt or {}).get("element_immune") or [])
@@ -8443,7 +8443,7 @@ class Battle:
                 red = max(1, int(magi * ar))
                 magi -= red
                 reduced += red
-                if self._tgt_is_player():
+                if self._tgt_is_side_player():
                     logs.append(f"🛡️ 元素抗性减免 {red} 点伤害！")
         if element and E.ELEMENT_MARKS.get(element):
             # v110 审计修复：cap 0.4 → 0.5（对齐防御端 _enemy_turn / PCT_CAPS["elem_res"]=0.5 /
@@ -8462,9 +8462,9 @@ class Battle:
                 red = max(1, int(magi * er))
                 magi -= red
                 reduced += red
-                # v180 文案：怪打玩家走管线时输出"元素抗性减免"（旧 _enemy_cast_done 手动段文案，
+                # v180 文案：怪打玩家走管线时输出"元素抗性减免"（旧 _hostile_cast_done 手动段文案，
                 # test_stage8_equip_affix elem_resist/abyss_resist 断言依赖）
-                if self._tgt_is_player():
+                if self._tgt_is_side_player():
                     logs.append(f"🛡️ 元素抗性减免 {red} 点伤害！")
             _weak = (tgt or {}).get("element_weak") or {}
             if isinstance(_weak, dict) and element in _weak:
@@ -8476,7 +8476,7 @@ class Battle:
                         reduced -= _add  # 负的 reduced = 增伤（日志合并）
                         logs.append(f"⚡ 弱点！【{tgt.get('name', '敌人')}】弱{element}，受到额外伤害！")
                 except Exception as _sw_e:
-                    _battle_warn('_enemy_mitigate', _sw_e)
+                    _battle_warn('_hostile_mitigate', _sw_e)
                     pass
         if reduced > 0:
             logs.append(f"🛡️ 敌方防守削减 {reduced} 点伤害！")
@@ -8489,7 +8489,7 @@ class Battle:
         额外 +5%（与暗蚀铭刻叠加 = 每层 +25%）；无则维持 +20%。"""
         n = int((self.enemy.get("debuffs") or {}).get("mark", {}).get("n", 0) or 0)
         if n > 0:
-            _pl = getattr(self, "player", None) or {}
+            _pl = getattr(self, "_focus", None) or {}
             _mk_effs = E.set_bonus_4(_pl.get("equipment") or {})
             _pct = 0.15 if "shadow_etch_vuln" in _mk_effs else 0.20
             if "shadow_track" in _mk_effs:
@@ -8535,8 +8535,8 @@ class Battle:
             pet["hidden"] = True
             pet["untargetable"] = True
             # v180F B4：宠物归属 owner = 焦点玩家（与召唤物同语义，挡刀/治疗归属读 owner）
-            if not pet.get("owner") and self.player:
-                pet["owner"] = self.player
+            if not pet.get("owner") and self._focus:
+                pet["owner"] = self._focus
             # v180E 阶段2：skill_type → auto_act（block 除外——挡刀走 guard）
             if not pet.get("auto_act"):
                 pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
@@ -8698,11 +8698,11 @@ class Battle:
 
         actor = 身上挂着 debuffs 的目标（玩家或怪物同一套逻辑）；
         caster = 施法者（提供强度面板/玩家被动乘区）。缺省时：
-          - actor 是怪（class_name 空）→ caster 回落 self.player（玩家毒怪，现状语义）
+          - actor 是怪（class_name 空）→ caster 回落 self._focus（玩家毒怪，现状语义）
           - actor 是玩家（有 class_name）→ 强度走 debuffs 快照（挂 dot 时存的施法者 atk/matk）
         五律按 actor 字段消费：怪/Boss 有 dot_res/adapt/immune_dots/is_boss → 抗性生效；
         玩家无这些字段 → 纯公式。落地按 actor 字段路由：玩家走 _damage_actor 承伤链，
-        怪走 _enemy_mitigate + _boss_dmg_filter + _deal_damage。
+        怪走 _hostile_mitigate + _boss_dmg_filter + _deal_damage。
 
         v138.2 五律（docs/COMBAT_ENRICH_v138.md §二）：
           律一 阈值递增 / 律二 每场上限+饱和 / 律三 跨阶段保留(_preserve_debuffs) /
@@ -8714,20 +8714,20 @@ class Battle:
         """
         e = actor if actor is not None else (self.enemy or {})
         # v178.1 actor 无关：目标玩家 = actor 有 class_name（无则怪路径）
-        _tgt_is_player = self._is_player_side(e)
+        _tgt_is_side_player = self._is_player_side(e)
         # v180F A7：不猜 caster——dot 强度以挂毒时存的施法者快照为准（_apply_dot 8246-8247），
         # 快照缺失（老档/直接构造）不回落 _last_player 猜当前玩家（可能是错的人——多人副本
         # 毒是 A 挂的、B 行动时结算），缺失即 0 强度只吃 max_hp 部分，随毒自然过期。
         # v180F A7b：caster=None（tick 卡 _th_actor_dot / 世界 Boss force 入口）时，
-        # 目标怪侧回落 self.player（玩家毒怪现状语义——快照缺失的毒 tick 由玩家结算）；
+        # 目标怪侧回落 self._focus（玩家毒怪现状语义——快照缺失的毒 tick 由玩家结算）；
         # 目标玩家侧保持 None（玩家被动乘区不作用于自己身上的毒）。原代码 caster 参数
         # 全程透传——乘区守卫 `_caster_is_player = caster 且玩家侧` 下 None 永不触发，
         # 无参调用点（模块 tick 卡/combat force 结算毒）走不到 poison_all_up/weaken。
         # 修复：仅当 actor 非玩家侧且 caster 缺省时回落 player（对应当前调用点语义）。
-        if caster is None and not self._is_player_side(e) and self.player:
-            caster = self.player
+        if caster is None and not self._is_player_side(e) and self._focus:
+            caster = self._focus
         _caster_is_player = self._is_player_side(caster) if caster is not None else False
-        _tgt_name = "你" if _tgt_is_player else f"【{e.get('name', '目标')}】"
+        _tgt_name = "你" if _tgt_is_side_player else f"【{e.get('name', '目标')}】"
         deb = e.get("debuffs") or {}
         # v181 P2E-P3b：MECH_CFG['dot'] 混入标量配置子键（boss_pct_mult/pct_cap 等），
         # dot 类型定义视图 = 仅 value 为 dict 的子键（poison/burn/bleed/corros），与原 DOT_DEFS 语义一致
@@ -8837,7 +8837,7 @@ class Battle:
             # v181.P2D-D5b：毒层 → 目标减速降防迁注册表族 dot_weaken（守卫：caster 玩家毒怪 +
             # 条目存在 + n ≥ 首条 layers 由骨架保留；tgt_buffs 引用槽 = e.setdefault("buffs",{})
             # 原循环体内逐条重取同 dict，调用侧取一次传入等价）
-            if k == "poison" and _caster_is_player and not _tgt_is_player:
+            if k == "poison" and _caster_is_player and not _tgt_is_side_player:
                 try:
                     _pw_list = self._proc_pm(caster)["proc"].get("poison_weaken", [])
                     if _pw_list and n >= int((_pw_list[0][1]).get("layers", 5) or 5):
@@ -8852,11 +8852,11 @@ class Battle:
             if k == "bleed" and int(e.get("hp", 0) or 0) < max_hp * _MC['dot'].get('bleed_double_hp_pct', 0.30):
                 p = int(p * 2)
                 _bleed_tag = "(放血)"
-            # v138.2 律四：真伤分支——绕过 _enemy_mitigate 的 def/mdef 削减，直走落地。
+            # v138.2 律四：真伤分支——绕过 _hostile_mitigate 的 def/mdef 削减，直走落地。
             # v177 actor 统一：怪物扣血/护盾吸收(halve)/死亡全由 _deal_damage→_damage_actor
             # 处理——不再先走 _boss_dmg_filter（其护盾逻辑 v177 已迁 _damage_actor，双吸）。
             if _true_parts.get(k):
-                if _tgt_is_player:
+                if _tgt_is_side_player:
                     try:
                         p = self._damage_actor(e, p, logs, source="dot", true_dmg=True)
                     except Exception as _sw_e:
@@ -8867,7 +8867,7 @@ class Battle:
                         self._deal_damage(p, logs, wake_sleep=False, target=e, true_dmg=True)
             else:
                 # 伤害段：灼烧=magi 火抗 / 毒=magi / 流血=phys
-                if _tgt_is_player:
+                if _tgt_is_side_player:
                     # 玩家承伤：走 _damage_actor 完整减伤链
                     try:
                         p = self._damage_actor(e, p, logs, source="dot")
@@ -8877,13 +8877,13 @@ class Battle:
                 else:
                     if k == "burn":
                         dt = "magi"
-                        p, _ = self._enemy_mitigate(p, p, "fire", logs, kind=K_MAGI, dot=True)
+                        p, _ = self._hostile_mitigate(p, p, "fire", logs, kind=K_MAGI, dot=True)
                     elif k == "poison":
                         dt = "magi"
-                        p, _ = self._enemy_mitigate(p, p, None, logs, kind=K_MAGI, dot=True)
+                        p, _ = self._hostile_mitigate(p, p, None, logs, kind=K_MAGI, dot=True)
                     else:
                         dt = "phys"
-                        p, _ = self._enemy_mitigate(p, 0, None, logs, kind=K_PHYS, dot=True)
+                        p, _ = self._hostile_mitigate(p, 0, None, logs, kind=K_PHYS, dot=True)
                     if p > 0:
                         self._deal_damage(p, logs, wake_sleep=False, target=e)
             # v138.2 律一：阈值递增——每次触发后 threshold ×1.3（封顶 3.0），防无限复读
@@ -8913,20 +8913,20 @@ class Battle:
                 _sm = float(d.get("saturate_mult", 1.0) or 1.0)
                 d["saturate_mult"] = _sm * DOT_SATURATE_MULT
             # v1.2 适应回落（目标侧 adapt 字段）
-            if k in ("poison", "burn") and not _tgt_is_player:
+            if k in ("poison", "burn") and not _tgt_is_side_player:
                 _last = int(d.get("last_tick", d.get("last_round", 0)) or 0)
                 if _last > 0 and self._tick_no() - _last >= 2:
                     _am = e.setdefault("adapt", {})
                     _am[k] = max(0.0, float(_am.get(k, 0.0) or 0.0) - _MC['dot'].get('adapt_decay_step', 0.04))
             # 目标=怪 且被毒死 → 胜利（玩家被毒死不触发）
-            if not _tgt_is_player and self._enemy_dead():
+            if not _tgt_is_side_player and self._enemy_dead():
                 self.result = "victory"
                 death_text = ("毒发身亡" if k == "poison" else "灼烧致死" if k == "burn"
                               else "失血过多" if k == "bleed" else "腐蚀崩解")
                 logs.append(f"🎉 你击败了【{e.get('name', '敌人')}】！({death_text})")
                 break
         # v1.3 标记层与 dot 同生命周期（仅怪目标有 mark 语义）
-        if not _tgt_is_player:
+        if not _tgt_is_side_player:
             _mk = deb.get("mark")
             if _mk:
                 _mn = int(_mk.get("n", 0) or 0) - 1
@@ -9280,7 +9280,7 @@ class Battle:
         """刻开始：v10 套装每刻回复 + 破绽条衰减（v151）。DOT 已事件驱动（v178.1），不在此结算。"""
         logs = []
         # v178.1：_turn_start 收到实际行动玩家 → 缓存为 _last_player（dot_tick 事件结算强度用；
-        # 否则事件在 player_turn 设 _last_player 之前触发，毒伤按空面板算=0）
+        # 否则事件在 actor_turn 设 _last_player 之前触发，毒伤按空面板算=0）
         if player:
             try:
                 self._last_player = player
@@ -9513,7 +9513,7 @@ class Battle:
         # （防御/等待/收招等 dt 推进路径——不进 _process_until 事件循环，这里补处理）
         if self.tick_effects:
             try:
-                _pl_now = self.player or {}
+                _pl_now = self._focus or {}
                 self._process_tick_effects([], _pl_now)
             except Exception as _sw_e:
                 _battle_warn('_advance_time', _sw_e)
@@ -9570,7 +9570,7 @@ class Battle:
                 return False
             my_hit = 0.0
             try:
-                my_hit = min(float(self._player_stats(self.player).get("precise", 0) or 0), 0.60)
+                my_hit = min(float(self._player_stats(self._focus).get("precise", 0) or 0), 0.60)
             except Exception:
                 my_hit = 0.0
             eff = mon_dodge * (1 - my_hit)
@@ -9582,15 +9582,15 @@ class Battle:
             pass
         return False
 
-    def _player_side_aoe_pool(self) -> list:
+    def _side_aoe_pool(self) -> list:
         """v180F 清3：玩家侧 AOE 目标池——敌方 AOE 打玩家时选谁。
 
-        野外 = [self.player]（单目标）；副本 = player + allies 存活（与 _pick_enemy_target
+        野外 = [self._focus]（单目标）；副本 = player + allies 存活（与 _pick_hostile_target
         目标池一致）。随从：hidden/untargetable（隐身宠物/纯挡刀）不进池；eats_aoe=True 的
         随从（藤蔓守卫/古树守卫等前排挡刀）进池（v151 设计意图：它们吃 AOE）。
         """
         pool = []
-        _pl = getattr(self, "player", None) or {}
+        _pl = getattr(self, "_focus", None) or {}
         if _pl.get("hp", 0) > 0 and (_pl.get("class_name") or _pl.get("qq_id") or _pl.get("name")):
             pool.append(_pl)
         for _a in (getattr(self, "allies", None) or []):
@@ -9679,13 +9679,13 @@ class Battle:
             return 0
         # ---- v169.7 通用伤害乘区（读敌方标记/破绽 + 已学被动；只影响带机制/已学被动玩家）----
         # v180-C S3 actor 化：乘区读"来源 actor"（attacker）的被动——宠物/随从 actor
-        # 攻击时读它们自身被动（宠物无被动 → 无乘区），不再无条件吃 self.player。
+        # 攻击时读它们自身被动（宠物无被动 → 无乘区），不再无条件吃 self._focus。
         # 缺省 attacker=None = 玩家攻击（全部旧调用点行为不变）。
         # v181.P2D-D3b：5 段消费迁注册表族 dmg_mult_cond（ctx mult_kind 分派 hunt_mark/
         # soul_mark/shaken_bar/broken_break/dirge_debuffs；循环骨架/顺序/break 语义逐字保留——
         # 各段原 break 在循环尾且 max=1 数据下，run_proc_family_pm 逐条执行等价；soul_mark_cap
         # /broken_extend 双消费点只迁本挂点乘区段，cap/延长段在挂点16/18 后续批次收）
-        _atk_actor = attacker if attacker is not None else (self.player or {})
+        _atk_actor = attacker if attacker is not None else (self._focus or {})
         try:
             _db_t = target.get("debuffs") or {}
             _mult_pas = 1.0
@@ -9762,12 +9762,12 @@ class Battle:
         #   高打低：每高 1 级 ×1.02 连乘（指数曲线，不封顶——等级越高碾压越强）
         # v180-C S3 fix（审计）：压制基准用攻击者（attacker）自身等级——宠物 actor 有
         # level 用宠物级；无 level 的随从（召唤物按玩家属性生成）回落玩家等级（原行为）。
-        # 守卫保留"有可用攻击者等级才压制"（原 self.player 条件语义：测试/DOT 无玩家不压）。
+        # 守卫保留"有可用攻击者等级才压制"（原 self._focus 条件语义：测试/DOT 无玩家不压）。
         _atk_lv = None
         if attacker is not None:
             _atk_lv = attacker.get("level")
         if _atk_lv is None:
-            _atk_lv = (self.player or {}).get("level")
+            _atk_lv = (self._focus or {}).get("level")
         if self.btype != "pvp" and _atk_lv and target.get("lv"):
             try:
                 _plv = int(_atk_lv or 0)
@@ -9957,7 +9957,7 @@ class Battle:
         self.companions.append(actor)
         # v151 古树光环：常驻全队攻击 +30%（生成时挂 p_buffs，直到召唤物死亡）
         _aura = float(cfg.get("aura_atk_all", 0) or 0)
-        if _aura > 0 and self.player:
+        if _aura > 0 and self._focus:
             _cur = float(self._p_buffs_bag().get("atk_up_all", 0) or 0)
             self._p_buffs_bag()["atk_up_all"] = max(_cur, _aura)
             logs.append(f"🌳 {actor['name']}：全队攻击＋{int(_aura * 100)}%！")
@@ -10026,7 +10026,7 @@ class Battle:
         返回是否出手（出手=消费本次触发）。
 
         数据驱动（鱼鱼 2026-09-06：语义不固定，全配置）：
-        - trigger=player_act：玩家行动后触发（召唤物旧语义，player_turn 尾部扫）
+        - trigger=player_act：玩家行动后触发（召唤物旧语义，actor_turn 尾部扫）
         - trigger=interval：由外部 tick 卡按节奏触发（宠物 pet_act 卡每 N 刻一次）
         - act.type=basic_atk：普攻（用自身 atk/dmg_type/reach 选目标，等价旧 _summons_act 单只）
         - act.type=dmg_owner_atk/matk_pct：以 owner 面板 × value 打敌（宠物撕咬/龙息）
@@ -10205,22 +10205,22 @@ class Battle:
                     continue
                 self.killed_enemies.append(dict(_u))
             # v140 波3.1：特效装备击杀后（暮裂潜行——击杀进入潜行，每场 1 次）
-            if self.player:
+            if self._focus:
                 try:
                     from .core.weapon_effects import proc as _we_proc
-                    _we_proc(self, self.player, "kill", {}, getattr(self, "_pending_dmg_lines", None) or [])
+                    _we_proc(self, self._focus, "kill", {}, getattr(self, "_pending_dmg_lines", None) or [])
                 except Exception as _sw_e:
                     _battle_warn('_remove_unit', _sw_e)
                     pass
                 # v169.7 追风 focus_full_on_kill（游侠）：击杀目标后 专注(精力)立即回满
                 # v181.P2D-D1：proc 消费迁移注册表族 on_kill_refill（行为零变化）
                 try:
-                    for _pn_k, _ps_k in self._proc_pm(self.player)["proc"].get("focus_full_on_kill", []):
+                    for _pn_k, _ps_k in self._proc_pm(self._focus)["proc"].get("focus_full_on_kill", []):
                         if self._p_res().get("energy") is not None:
                             _ctx_k = {
-                                "player": self.player, "ps": _ps_k, "ps_name": _pn_k,
+                                "player": self._focus, "ps": _ps_k, "ps_name": _pn_k,
                                 "res": self._p_res(), "res_key": "energy",
-                                "res_max": self._res_max(self.player, "energy"),
+                                "res_max": self._res_max(self._focus, "energy"),
                                 "pending_dmg_lines": getattr(self, "_pending_dmg_lines", None),
                             }
                             _run_proc_family(self, "focus_full_on_kill", _ctx_k)
@@ -10257,14 +10257,14 @@ class Battle:
         """
         if dmg <= 0:
             return dmg
-        _victim = victim or getattr(self, "player", None) or {}
+        _victim = victim or getattr(self, "_focus", None) or {}
         guard_actors = [s for s in (self.companions or [])
                         if isinstance(s.get("guard"), dict)
                         and s.get("guard").get("mode") in ("absorb", "redirect")
                         # v180F B4：归属过滤——随从 owner 是受击者（或未带 owner 的旧随从
                         # 兜底 = 焦点玩家场景不误挡他人）
                         and (s.get("owner") is _victim
-                             or (not s.get("owner") and _victim is getattr(self, "player", None)))]
+                             or (not s.get("owner") and _victim is getattr(self, "_focus", None)))]
         if not guard_actors:
             return dmg
         # 召唤物 redirect 池带 hp 才可挡（死了/纯效果发生器除外）；absorb 宠物无 hp 也挡
@@ -11115,7 +11115,7 @@ class Battle:
         字段 p_buffs/resources/...）。玩家本体/副本当前操作玩家 → True（焦点字段）；
         怪（含配 class_name 扮职业的，side=enemy）/PVP 敌方快照 → False（actor 自身 dict）。
         判定：① side 显式 player/enemy 优先（v180-B actor 化字段）；② 引用相等
-        （actor is self.player / allies 内——副本切焦点换绑）；③ 兼容兜底：带 class_name
+        （actor is self._focus / allies 内——副本切焦点换绑）；③ 兼容兜底：带 class_name
         且无 side=enemy 且非"显然敌方"（有 id 无 qq_id 的怪模板）视为玩家侧。"""
         if not actor:
             return False
@@ -11123,7 +11123,7 @@ class Battle:
         if _side is not None:
             return _side == "player"
         try:
-            if actor is self.player:
+            if actor is self._focus:
                 return True
             for _al in (self.allies or []):
                 if _al is actor:
@@ -11358,7 +11358,7 @@ class Battle:
         if not sides:
             # 旧战斗：玩家存活 → player；enemies 存活 → enemy
             out = []
-            _pl = getattr(self, "player", None) or {}
+            _pl = getattr(self, "_focus", None) or {}
             if _pl.get("hp", 0) > 0 or _pl.get("class_name") or _pl.get("name") or _pl.get("qq_id"):
                 if _pl.get("hp", 1) > 0:
                     out.append("player")
@@ -11368,10 +11368,10 @@ class Battle:
         alive = []
         for _sn, _acts in sides.items():
             if not _acts:
-                # 空阵营：player side 未绑成员但 self.player 已有真玩家（测试/命令层后绑）
-                # → 按 self.player 存活计；其它空阵营忽略
+                # 空阵营：player side 未绑成员但 self._focus 已有真玩家（测试/命令层后绑）
+                # → 按 self._focus 存活计；其它空阵营忽略
                 if _sn == "player":
-                    _pl = getattr(self, "player", None) or {}
+                    _pl = getattr(self, "_focus", None) or {}
                     if _pl.get("class_name") or _pl.get("name") or _pl.get("qq_id"):
                         if _pl.get("hp", 1) > 0:
                             alive.append("player")

@@ -67,11 +67,11 @@ b = BT.Battle("monster", e, player=p)
 from game.core.potion_effects import eff_dot_amp
 msg = eff_dot_amp(b, p, {"turns": 2, "layer_per_hit": 1})
 print(f"  使用效果: {msg}")
-# 给目标挂毒，直接调 _player_attack（跳过 _turn_start 的 DOT 结算会清层）
+# 给目标挂毒，直接调 _actor_attack（跳过 _turn_start 的 DOT 结算会清层）
 b.enemy.setdefault("debuffs", {})["poison"] = {"n": 1, "mult": 1.0}
 import random as _rnd; _rnd.seed(7)
 st = b._player_stats(p)
-b._player_attack(st, p)
+b._actor_attack(st, p)
 _deb = b.enemy.get("debuffs") or {}
 check("dot_amp 毒层+1", int(_deb.get("poison", {}).get("n", 0) or 0) >= 2, str(_deb))
 
@@ -99,7 +99,7 @@ def spy(d, l, wake_sleep=True, target=None, source=None):
 b._deal_damage = spy
 import random as _rnd2; _rnd2.seed(11)
 st = b._player_stats(p)
-b._player_attack(st, p)
+b._actor_attack(st, p)
 # 基础普攻 100 攻 vs 100 防 ≈ 68；vuln 36% 后应 > 90
 check("vuln 增伤生效", captured and captured[0] > 85, f"dmg={captured}")
 

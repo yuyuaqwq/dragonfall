@@ -57,7 +57,7 @@ async def main():
     def attack_once(b, st, p, seed, atk=None):
         random.seed(seed)
         b.enemy["hp"] = 10**9
-        logs = b._player_attack(st, p)
+        logs = b._actor_attack(st, p)
         dealt = 10**9 - b.enemy["hp"]
         a = atk or st["atk"]
         # v174.1：普攻走技能管道后非暴伤害含 variance 上浮（可 >atk×1.2），
@@ -76,13 +76,13 @@ async def main():
     # v156 基础值：flat = 12 + 30(玩家) + 30×4(技能) = 162
     base = int(st1["matk"] * 1.0) + EG.skill_flat_value(30, 30, p_magi)
     h0 = b1.enemy["hp"]
-    b1._player_skill(st1, "魔法测试", p_magi, p1)
+    b1._actor_skill(st1, "魔法测试", p_magi, p1)
     dealt_magi = h0 - b1.enemy["hp"]
     random.seed(3)
     p1b = mk_player()
     b1b = BT.Battle("怪物", mk_enemy(mdef=500), {}, p1b)
     h0 = b1b.enemy["hp"]
-    b1b._player_skill(b1b._player_stats(p1b), "审判测试", p_pierce, p1b)
+    b1b._actor_skill(b1b._player_stats(p1b), "审判测试", p_pierce, p1b)
     dealt_pierce = h0 - b1b.enemy["hp"]
     check("pierce 魔法无视 mdef=500（≈matk×power ±15%）",
           0.8 * base <= dealt_pierce <= 1.2 * base, f"{dealt_pierce} vs base {base}")
@@ -115,7 +115,7 @@ async def main():
     b2._tgt_buffs()["sleep"] = 2
     st2 = b2._player_stats(p2)
     random.seed(8)
-    b2._player_attack(st2, p2)
+    b2._actor_attack(st2, p2)
     check("普攻打醒睡眠（受击解除全清）", "sleep" not in b2._tgt_buffs(), str(b2._tgt_buffs()))
     # 世界 Boss 只睡 1 回合
     p2b = mk_player(cls="cls_shi_ren", skills=[])
@@ -134,7 +134,7 @@ async def main():
     random.seed(7)
     p3 = mk_player(cls="cls_zhan_shi", skills=["龙息之怒"], hp=10000)
     b3 = BT.Battle("怪物", mk_enemy(hp=100000), {}, p3)
-    logs3, _ = b3.player_turn("skill", "龙息之怒", p3)
+    logs3, _ = b3.actor_turn("skill", "龙息之怒", p3)
     # v154 读条命中制：出招读条结束（cast_done）才结算命中（灼烧叠层）——推进后生效
     b3._process_until(float(getattr(b3, "p_ct", 0) or 0) + 0.001, logs3, p3)
     burn_n = int(((b3.enemy.get("debuffs") or {}).get("burn") or {}).get("n", 0))
@@ -222,9 +222,9 @@ async def main():
         s_q = {"name": "直拳", "kind": "物理", "power": 1.0, "lv": 1, "cd": 1, "combo": "拳"}
         s_t = {"name": "侧踢", "kind": "物理", "power": 1.0, "lv": 1, "cd": 1, "combo": "踢"}
         s_z = {"name": "钢拳", "kind": "物理", "power": 1.0, "lv": 1, "cd": 1, "combo": "掌"}
-        b._player_skill(st, "直拳", s_q, p)
-        b._player_skill(st, "侧踢", s_t, p)
-        logs = b._player_skill(st, "钢拳", s_z, p)
+        b._actor_skill(st, "直拳", s_q, p)
+        b._actor_skill(st, "侧踢", s_t, p)
+        logs = b._actor_skill(st, "钢拳", s_z, p)
         return logs, 10 ** 9 - b.enemy["hp"]
     logs_a, total_a = combo_play(False)
     logs_b, total_b = combo_play(True)

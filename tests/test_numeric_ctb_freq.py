@@ -93,7 +93,7 @@ def run_freq(player, enemy, rounds=ROUNDS, seed=0):
             player["hp"] = player["max_hp"]
             enemy["hp"] = enemy["max_hp"]
             b.result = None
-            b.player_turn("attack", None, player)
+            b.actor_turn("attack", None, player)
             # v180G B7 统一 CTB：出手登记后推进到下一个决策点（怪行动在 advance 内计数）
             b.advance_until_next_decision([])
     finally:

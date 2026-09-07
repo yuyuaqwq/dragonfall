@@ -89,7 +89,7 @@ def cast_skill_aoe(b, st, info, p, name, seed):
     """固定种子施放一次技能，返回 (logs, {name: 掉血量})。"""
     random.seed(seed)
     before = {u["name"]: u["hp"] for u in b.enemies}
-    logs = b._player_skill(st, name, info, p)
+    logs = b._actor_skill(st, name, info, p)
     loss = {u["name"]: before[u["name"]] - u["hp"] for u in b.enemies
             if u["hp"] < before[u["name"]]}
     return logs, loss
@@ -201,7 +201,7 @@ def main():
     check("存活后排前移为 rank1（压缩后近战可及）", all(u["rank"] == 1 for u in b6.enemies),
           str([(u["name"], u["rank"]) for u in b6.enemies]))
     aliv = [u for u in b6.enemies if u.get("hp", 0) > 0]
-    picked = b6._resolve_player_target(p6)  # 近战自动目标
+    picked = b6._resolve_target(p6)  # 近战自动目标
     check("近战自动目标落到存活的 B", picked is not None and picked.get("name") == "B",
           f"picked={picked and picked.get('name')} alive={[u['name'] for u in aliv]}")
     check("enemy property 指向存活的 B", b6.enemy["name"] == "B",
@@ -219,7 +219,7 @@ def main():
     b7.enemy["buffs"]["thunder_mark"] = 1
     # 主伤害（非 aoe 火球）落到主目标 T1，超载 AOE 段打到全阵
     before7 = {u["name"]: u["hp"] for u in b7.enemies}
-    logs7 = b7._player_skill(st7, "火球测试", info_fire, p7)
+    logs7 = b7._actor_skill(st7, "火球测试", info_fire, p7)
     loss7 = {u["name"]: before7[u["name"]] - u["hp"] for u in b7.enemies
              if u["hp"] < before7[u["name"]]}
     check("超载 aoe 段 == int(matk×1.2)（T2 后排只吃 aoe 段）", loss7.get("T2", 0) == aoe_dmg,
@@ -293,7 +293,7 @@ def main():
     before = {u["name"]: u["hp"] for u in b10.enemies}
     hp0 = p10["hp"]
     random.seed(11)
-    logs10 = b10._player_skill(st10, "焚天斩", info_front, p10)
+    logs10 = b10._actor_skill(st10, "焚天斩", info_front, p10)
     loss10 = {u["name"]: before[u["name"]] - u["hp"] for u in b10.enemies
               if u["hp"] < before[u["name"]]}
     heal = p10["hp"] - hp0

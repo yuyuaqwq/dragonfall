@@ -157,7 +157,7 @@ async def main():
     b8 = BT.Battle("怪物", mk_enemy(hp=999999), {}, p7)
     base_hp = p7["max_hp"] // 2
     p7["hp"] = base_hp
-    b8._player_skill(b8._player_stats(p7), "治愈术", BT.E.skill_info("牧师", "治愈术"), p7)
+    b8._actor_skill(b8._player_stats(p7), "治愈术", BT.E.skill_info("牧师", "治愈术"), p7)
     gain_p0 = int(p7["hp"]) - base_hp
     check("玩家技能治疗正常奶(治愈术>0)", gain_p0 > 0, f"gain={gain_p0}")
     # 满血时不溢出、clamp 到 max_hp
@@ -165,7 +165,7 @@ async def main():
     b7b = BT.Battle("怪物", mk_enemy(hp=999999), {}, p7b)
     p7b["hp"] = p7b["max_hp"]
     hp_before = p7b["hp"]
-    b7b._player_skill(b7b._player_stats(p7b), "治愈术", BT.E.skill_info("牧师", "治愈术"), p7b)
+    b7b._actor_skill(b7b._player_stats(p7b), "治愈术", BT.E.skill_info("牧师", "治愈术"), p7b)
     check("玩家技能治疗满血 clamp 不溢出", p7b["hp"] == p7b["max_hp"] and hp_before == p7b["max_hp"],
           f"hp={p7b['hp']} max={p7b['max_hp']}")
 

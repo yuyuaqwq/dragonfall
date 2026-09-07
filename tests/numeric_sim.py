@@ -12,7 +12,7 @@
 
 实现口径（与 FRAMEWORK.md 一致）：
   - 直接构造 BT.Battle(btype="monster", enemy=怪, player=玩家)，
-    循环 player_turn("attack"/"skill", ...) 直到 b.result 非空
+    循环 actor_turn("attack"/"skill", ...) 直到 b.result 非空
   - 固定种子序列 seed 0..N-1：每场先 random.seed(seed) 再建怪建人开打（可复现）
   - 用真实引擎 E.player_final_stats / C.build_monster / BT.Battle，不 mock 核心公式
   - GWEN_GAME_DB 用 setdefault 指向 tests/test_game_data.db（尊重测试脚本预置的私有库）
@@ -89,7 +89,7 @@ def class_battle_matrix(cls: str, lv: int, attr: dict, equip: dict | None,
 
     返回 (胜场数, 平均回合)。每场：random.seed(seed)（seed=0..seeds-1）→
     构造玩家（FRAMEWORK 模板，learned_skills 默认 []）→ BT.Battle → 循环
-    player_turn 直到 b.result 为 victory/defeat（护栏 _MAX_TURNS 兜底）。
+    actor_turn 直到 b.result 为 victory/defeat（护栏 _MAX_TURNS 兜底）。
 
     use_skill=True：每回合按 REP_SKILL[cls] 施放代表技能（自动写入 learned_skills）；
     技能施放被拦截（蓝/资源/CD 未就绪）当回合自动转普攻。
@@ -117,12 +117,12 @@ def class_battle_matrix(cls: str, lv: int, attr: dict, equip: dict | None,
         while b.result is None and turns < _MAX_TURNS:
             # v152：round 已删除 → 用 _p_acts（玩家行动次数）判定技能拦截（未消耗行动则不变）
             prev_acts = b._p_acts
-            b.player_turn("skill" if use_skill else "attack", skill_name, player)
+            b.actor_turn("skill" if use_skill else "attack", skill_name, player)
             # v180G B7 统一 CTB：出手登记后推进到下一个决策点（命中/怪行动结算）
             b.advance_until_next_decision([])
-            # 技能施放被拦截：player_turn 不消耗行动（_p_acts 不变、result 仍空）→ 转普攻
+            # 技能施放被拦截：actor_turn 不消耗行动（_p_acts 不变、result 仍空）→ 转普攻
             if use_skill and b._p_acts == prev_acts and b.result is None:
-                b.player_turn("attack", None, player)
+                b.actor_turn("attack", None, player)
                 b.advance_until_next_decision([])
             turns += 1
         if b.result == "victory":

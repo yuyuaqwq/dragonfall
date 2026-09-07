@@ -167,7 +167,7 @@ def test_battle_post_hp_lethal():
     # 固定 seed（基础闪避 3% roll 不干扰致死命中——seed 1 已验证致死必中）
     random.seed(1)
     b, p = battle_for("undying_will")
-    _maxhp = int(b.player["max_hp"])
+    _maxhp = int(b._focus["max_hp"])
     p["hp"] = int(_maxhp * 0.15)
     logs = []
     b._damage_actor(p, 999999, logs, source="测试")
@@ -184,7 +184,7 @@ def test_battle_post_hp_lethal():
     # 免疫兜底回拉单元（battle 消费分支直测）：immune 置位 + hp=0（治疗被禁疗完全压制等场景）
     # → _post_hp_lethal 回拉 max_hp×hp_pct + 撑住了日志 + 清 immune
     b4, p4 = battle_for("undying_will")
-    _m4 = int(b4.player["max_hp"])
+    _m4 = int(b4._focus["max_hp"])
     p4.setdefault("eff", {})["we_undying_immune"] = True
     p4.setdefault("eff", {})["we_undying_used"] = True
     p4["hp"] = 0
@@ -215,8 +215,8 @@ def test_battle_post_hp_lethal():
 def test_battle_mitigate():
     print("【7. battle _mitigate_chain（守御首刻减伤 mark_key）】")
     b, p = battle_for("novice_first_turn_guard", hp=50000, max_hp=50000)
-    b.player["max_hp"] = 50000
-    b.player["hp"] = 50000
+    b._focus["max_hp"] = 50000
+    b._focus["hp"] = 50000
     we_proc(b, p, "battle_start", {}, [])
     b._now = 0.5  # tick 1
     hp_before = p["hp"]

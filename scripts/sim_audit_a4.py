@@ -65,9 +65,9 @@ def run_one_battle(p, enemy, use_skill=True, p_spd=None, e_spd=None):
         b._player_stats = _inj.__get__(b, Battle)
     while True:
         if use_skill and pp.get("learned_skills") and pp["mp"] >= 6:
-            logs, done = b.player_turn("skill", _SKILL.get(p["class_name"], "sk_meng_ji"), pp)
+            logs, done = b.actor_turn("skill", _SKILL.get(p["class_name"], "sk_meng_ji"), pp)
         else:
-            logs, done = b.player_turn("attack", None, pp)
+            logs, done = b.actor_turn("attack", None, pp)
         if done:
             break
         if b.round > 1500:
@@ -136,7 +136,7 @@ def _wrap_freq_counter(b, pp, player_actions):
     n = 0
     try:
         while n < player_actions:
-            logs, done = b.player_turn("attack", None, pp)
+            logs, done = b.actor_turn("attack", None, pp)
             n += 1
             if done:
                 break
@@ -250,7 +250,7 @@ for p_spd, e_spd, label in ((60, 30, "spd≈60 vs 敌30"), (80, 40, "spd≈80 vs
 # ---------------- C. 先手价值 ----------------
 print("\n" + "=" * 78)
 print("【C. 先手价值】实现公式：p_ct=-玩家spd（battle.py:197），敌方ct=-敌spd（:221）")
-print("   先手者 = ct 更小者 → spd 更大者。同速 p_ct==e_ct，玩家方驱动 player_turn → 玩家先。")
+print("   先手者 = ct 更小者 → spd 更大者。同速 p_ct==e_ct，玩家方驱动 actor_turn → 玩家先。")
 print("=" * 78)
 for p, e in ((30, 30), (31, 30), (29, 30), (35, 30), (30, 45), (10, 30)):
     pc, ec = -float(p), -float(e)

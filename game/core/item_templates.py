@@ -58,14 +58,14 @@ class ItemContext:
     def __init__(self, group_id, qq_id, player, data, battle=None, hooks=None):
         self.group_id = group_id
         self.qq_id = qq_id
-        self.player = player
+        self._focus = player
         self.data = data
         self.battle = battle
         self.hooks = hooks or {}
 
     @property
     def lv(self):
-        return self.player.get("level", 1)
+        return self._focus.get("level", 1)
 
     def _db(self):
         from .. import db
@@ -146,7 +146,7 @@ def tpl_heal(ctx):
     heal_v = d["heal"]
     # <=1 视为百分比（0.2=20%；1.0=100% 完全回复），>1 固定值（旧式配方兼容）
     if heal_v <= 1:
-        heal_v = int(ctx.player["max_hp"] * heal_v)
+        heal_v = int(ctx._focus["max_hp"] * heal_v)
     if ctx.battle:
         # v104 M02 P1-5：战斗内满血拦截（与战斗外同规则）——满血纯治疗不扣道具、
         # 不消耗刻（consume=False 由 economy use() 短路，敌方不动）。
@@ -161,17 +161,17 @@ def tpl_heal(ctx):
                     consume=False)
         return ItemResult(payload=str(heal_v))
     # 战斗外
-    if ctx.player["hp"] >= ctx.player["max_hp"] and not d.get("stamina") and not d.get("mana"):
+    if ctx._focus["hp"] >= ctx._focus["max_hp"] and not d.get("stamina") and not d.get("mana"):
         return ItemResult(
-            text=f"❤️ 你现在的生命是满的({ctx.player['hp']}/{ctx.player['max_hp']})，用不着【{d['name']}】～",
+            text=f"❤️ 你现在的生命是满的({ctx._focus['hp']}/{ctx._focus['max_hp']})，用不着【{d['name']}】～",
             consume=False)
     db = ctx._db()
-    st_msg = ctx.hook("stamina_msg", ctx.group_id, ctx.qq_id, ctx.player) or ""
-    new_hp = min(ctx.player["max_hp"], ctx.player["hp"] + heal_v)
+    st_msg = ctx.hook("stamina_msg", ctx.group_id, ctx.qq_id, ctx._focus) or ""
+    new_hp = min(ctx._focus["max_hp"], ctx._focus["hp"] + heal_v)
     db.update_player(ctx.group_id, ctx.qq_id, hp=new_hp)
     ctx.hook("remove_item")
     return ItemResult(
-        text=f"💊 你使用了【{d['name']}】，恢复 {heal_v} 点生命！\n❤️ {new_hp}/{ctx.player['max_hp']}{st_msg}")
+        text=f"💊 你使用了【{d['name']}】，恢复 {heal_v} 点生命！\n❤️ {new_hp}/{ctx._focus['max_hp']}{st_msg}")
 
 
 def _battle_cur_max(ctx, cur_key, max_key):
@@ -188,16 +188,16 @@ def _battle_cur_max(ctx, cur_key, max_key):
     try:
         tb = (st or {}).get("title_bonus") or {}
         real = E.player_final_stats(
-            ctx.player.get("class_name", ""),
-            ctx.player.get("level", 1),
-            ctx.player.get("equipment", {}),
-            ctx.player.get("class_tier", 0),
-            ctx.player.get("attributes"),
-            ctx.player.get("evolve_path", 0),
-            tb, ctx.player.get("race"))
-        return ctx.player.get(cur_key, 0), int(real.get(max_key, ctx.player.get(max_key, 0)))
+            ctx._focus.get("class_name", ""),
+            ctx._focus.get("level", 1),
+            ctx._focus.get("equipment", {}),
+            ctx._focus.get("class_tier", 0),
+            ctx._focus.get("attributes"),
+            ctx._focus.get("evolve_path", 0),
+            tb, ctx._focus.get("race"))
+        return ctx._focus.get(cur_key, 0), int(real.get(max_key, ctx._focus.get(max_key, 0)))
     except Exception:
-        return ctx.player.get(cur_key, 0), ctx.player.get(max_key, 0)
+        return ctx._focus.get(cur_key, 0), ctx._focus.get(max_key, 0)
 
 
 @register("mana", battle_ok=True)
@@ -211,7 +211,7 @@ def tpl_mana(ctx):
     mana_v = d["mana"]
     # <=1 视为百分比（1.0=100% 完全回复），>1 固定值
     if mana_v <= 1:
-        mana_v = int(ctx.player["max_mp"] * mana_v)
+        mana_v = int(ctx._focus["max_mp"] * mana_v)
     if ctx.battle:
         # v104 M02 P1-5：战斗内满蓝拦截（与 tpl_heal 同规则）——满蓝纯回蓝不扣
         # 道具、不消耗刻；血量取权威来源（副本快照/引擎实时上限，见 _battle_cur_max）
@@ -223,17 +223,17 @@ def tpl_mana(ctx):
                     consume=False)
         return ItemResult(payload=f"mana:{mana_v}")
     # 战斗外：满蓝纯回蓝拦截不消耗（v104 M02 P1-5 补齐，此前满蓝也扣）
-    if ctx.player["mp"] >= ctx.player["max_mp"] and not d.get("stamina") and not d.get("heal"):
+    if ctx._focus["mp"] >= ctx._focus["max_mp"] and not d.get("stamina") and not d.get("heal"):
         return ItemResult(
-            text=f"💙 你现在的魔力是满的({ctx.player['mp']}/{ctx.player['max_mp']})，用不着【{d['name']}】～",
+            text=f"💙 你现在的魔力是满的({ctx._focus['mp']}/{ctx._focus['max_mp']})，用不着【{d['name']}】～",
             consume=False)
     db = ctx._db()
-    st_msg = ctx.hook("stamina_msg", ctx.group_id, ctx.qq_id, ctx.player) or ""
-    new_mp = min(ctx.player["max_mp"], ctx.player["mp"] + mana_v)
+    st_msg = ctx.hook("stamina_msg", ctx.group_id, ctx.qq_id, ctx._focus) or ""
+    new_mp = min(ctx._focus["max_mp"], ctx._focus["mp"] + mana_v)
     db.update_player(ctx.group_id, ctx.qq_id, mp=new_mp)
     ctx.hook("remove_item")
     return ItemResult(
-        text=f"💙 你使用了【{d['name']}】，恢复 {mana_v} 点魔力！\n💙 {new_mp}/{ctx.player['max_mp']}{st_msg}")
+        text=f"💙 你使用了【{d['name']}】，恢复 {mana_v} 点魔力！\n💙 {new_mp}/{ctx._focus['max_mp']}{st_msg}")
 
 
 @register("heal_mana", battle_ok=True)
@@ -250,15 +250,15 @@ def tpl_heal_mana(ctx):
             return ItemResult(
                 text=f"❤️💙 你的生命和魔力都是满的({_hp}/{_max_hp} · {_mp}/{_max_mp})，用不着【{d['name']}】～",
                 consume=False)
-        hv = d["heal"] if d["heal"] > 1 else int(ctx.player["max_hp"] * d["heal"])
-        mv = d["mana"] if d["mana"] > 1 else int(ctx.player["max_mp"] * d["mana"])
+        hv = d["heal"] if d["heal"] > 1 else int(ctx._focus["max_hp"] * d["heal"])
+        mv = d["mana"] if d["mana"] > 1 else int(ctx._focus["max_mp"] * d["mana"])
         return ItemResult(payload=f"hm:{hv},{mv}")
     # 战斗外：全满拦截（_food_out_battle 对带 mana 物品无全满拦截，此处补）
-    if (ctx.player["hp"] >= ctx.player["max_hp"]
-            and ctx.player["mp"] >= ctx.player["max_mp"]
+    if (ctx._focus["hp"] >= ctx._focus["max_hp"]
+            and ctx._focus["mp"] >= ctx._focus["max_mp"]
             and not d.get("stamina")):
         return ItemResult(
-            text=f"❤️💙 你的生命和魔力都是满的({ctx.player['hp']}/{ctx.player['max_hp']} · {ctx.player['mp']}/{ctx.player['max_mp']})，用不着【{d['name']}】～",
+            text=f"❤️💙 你的生命和魔力都是满的({ctx._focus['hp']}/{ctx._focus['max_hp']} · {ctx._focus['mp']}/{ctx._focus['max_mp']})，用不着【{d['name']}】～",
             consume=False)
     return _food_out_battle(ctx)
 
@@ -271,16 +271,16 @@ def tpl_stamina(ctx):
     val = int(d.get("stamina", 0))
     if ctx.battle:
         return ItemResult(payload="0")
-    st_gain = ctx.hook("add_stamina", ctx.group_id, ctx.qq_id, val, ctx.player) or 0
+    st_gain = ctx.hook("add_stamina", ctx.group_id, ctx.qq_id, val, ctx._focus) or 0
     if st_gain <= 0:
-        p = ctx.hook("get_player") or ctx.player
+        p = ctx.hook("get_player") or ctx._focus
         cur = ctx.hook("stamina_cur", p) or 0
         mx = ctx.hook("stamina_max", p) or 0
         return ItemResult(
             text=f"🍖 你肚子还饱着呢(体力 {cur}/{mx})，先活动活动再吃吧～", consume=False)
     ctx.hook("remove_item")
     return ItemResult(
-        text=f"🍖 你吃下了【{d['name']}】！\n⚡ 恢复 {st_gain} 点体力({ctx.hook('stamina_cur', ctx.hook('get_player') or ctx.player)}/{ctx.hook('stamina_max', ctx.hook('get_player') or ctx.player)})")
+        text=f"🍖 你吃下了【{d['name']}】！\n⚡ 恢复 {st_gain} 点体力({ctx.hook('stamina_cur', ctx.hook('get_player') or ctx._focus)}/{ctx.hook('stamina_max', ctx.hook('get_player') or ctx._focus)})")
 
 
 @register("food", battle_ok=True)
@@ -325,26 +325,26 @@ def _food_out_battle(ctx):
     """食物战斗外公共逻辑：即时回复 + 体力（满血拦截）。"""
     d = ctx.data
     db = ctx._db()
-    st_msg = ctx.hook("stamina_msg", ctx.group_id, ctx.qq_id, ctx.player) or ""
+    st_msg = ctx.hook("stamina_msg", ctx.group_id, ctx.qq_id, ctx._focus) or ""
     msgs = []
     changed = False
     if d.get("heal"):
-        hv = d["heal"] if d["heal"] > 1 else int(ctx.player["max_hp"] * d["heal"])
-        if ctx.player["hp"] < ctx.player["max_hp"] or d.get("mana") or d.get("stamina"):
-            new_hp = min(ctx.player["max_hp"], ctx.player["hp"] + hv)
+        hv = d["heal"] if d["heal"] > 1 else int(ctx._focus["max_hp"] * d["heal"])
+        if ctx._focus["hp"] < ctx._focus["max_hp"] or d.get("mana") or d.get("stamina"):
+            new_hp = min(ctx._focus["max_hp"], ctx._focus["hp"] + hv)
             db.update_player(ctx.group_id, ctx.qq_id, hp=new_hp)
             msgs.append(f"恢复 {hv} 点生命")
             changed = True
     if d.get("mana"):
-        mv = d["mana"] if d["mana"] > 1 else int(ctx.player["max_mp"] * d["mana"])
-        if ctx.player["mp"] < ctx.player["max_mp"] or d.get("stamina"):
-            new_mp = min(ctx.player["max_mp"], ctx.player["mp"] + mv)
+        mv = d["mana"] if d["mana"] > 1 else int(ctx._focus["max_mp"] * d["mana"])
+        if ctx._focus["mp"] < ctx._focus["max_mp"] or d.get("stamina"):
+            new_mp = min(ctx._focus["max_mp"], ctx._focus["mp"] + mv)
             db.update_player(ctx.group_id, ctx.qq_id, mp=new_mp)
             msgs.append(f"恢复 {mv} 点魔力")
             changed = True
     if not changed:
         return ItemResult(
-            text=f"❤️ 你现在的状态是满的({ctx.player['hp']}/{ctx.player['max_hp']})，用不着【{d['name']}】～",
+            text=f"❤️ 你现在的状态是满的({ctx._focus['hp']}/{ctx._focus['max_hp']})，用不着【{d['name']}】～",
             consume=False)
     ctx.hook("remove_item")
     return ItemResult(
@@ -506,7 +506,7 @@ def tpl_return_vila(ctx):
     """回城卷轴：回最近城镇（v95.13：原写死 oak_town，新世界地图按距离）。"""
     db = ctx._db()
     C = ctx._C()
-    cur = ctx.player.get("cur_map", "")
+    cur = ctx._focus.get("cur_map", "")
     dest = ctx.hook("nearest_town", cur) or ctx._C().START_MAP
     # v104 P2(M22): 城内直达（回城卷轴）落 subareas[0]（广场），与方碑传送/战败回城/出门一致
     # （core/maps.py:115 注释明确"传送/回家等城内直达走广场不走城门"；原实现落 map_entry_subarea=城门）
@@ -531,7 +531,7 @@ def tpl_teleport_portal(ctx):
         return ItemResult(text="战斗中无法使用传送卷轴！先解决眼前的敌人吧～", consume=False)
     db = ctx._db()
     C = ctx._C()
-    cur = ctx.player.get("cur_map", "")
+    cur = ctx._focus.get("cur_map", "")
     portals = [m for m in (db.get_portals(ctx.qq_id) or []) if C.MAP_BY_ID.get(m)]
     if not portals:
         return ItemResult(
@@ -590,7 +590,7 @@ def _make_bait_tpl(key):
         # 原实现仅拦战斗（ctx.battle），任意地点可用；与垂钓命令同源判定：
         # 当前地图无 FISHING_SPOTS 钓点（城镇/野外）拒绝挂饵
         _C = ctx._C()
-        _cur = (ctx.player or {}).get("cur_map", "")
+        _cur = (ctx._focus or {}).get("cur_map", "")
         if _cur and not _C.FISHING_SPOTS.get(_cur):
             return ItemResult(text="鱼饵只能在水边使用——这里没有水域，到有钓点的地方再挂饵吧～", consume=False)
         name, tip = _BAIT_INFO[key]
@@ -640,7 +640,7 @@ def tpl_open_chest(ctx):
     C = ctx._C()
     ctx.hook("remove_item")
     gold = random.randint(30, 80) + ctx.lv * 3
-    db.update_player(ctx.group_id, ctx.qq_id, gold=ctx.player["gold"] + gold)
+    db.update_player(ctx.group_id, ctx.qq_id, gold=ctx._focus["gold"] + gold)
     # v140 波2：宝箱计数（stats 白名单已加 chests_opened；bump 失败静默不影响开箱）
     try:
         db.bump_stats(ctx.group_id, ctx.qq_id, chests_opened=1)
@@ -731,7 +731,7 @@ def tpl_mount(ctx):
     mdef = C.MOUNT_BY_KEY.get(mk) if mk else None
     if not mdef:
         return ItemResult(text="这缰绳上的气息有点古怪……", consume=False)
-    mounts = ctx.player.get("mounts") or {}
+    mounts = ctx._focus.get("mounts") or {}
     owned = list(mounts.get("owned") or [])
     if mk in owned:
         return ItemResult(text=f"你已经拥有『{mdef['name']}』了！", consume=False)
@@ -797,28 +797,28 @@ def tpl_skill_tome(ctx):
     learn = d.get("learn_skill", "")
     req = d.get("require_class", "") or ""
     # 技能定义按源流职业查（技能书 = 跨流派稀有技，技能属于隐藏线表；玩家职业只用于源流校验）
-    info = E.skill_info(req, learn) if req else E.skill_info(ctx.player.get("class_name", ""), learn)
+    info = E.skill_info(req, learn) if req else E.skill_info(ctx._focus.get("class_name", ""), learn)
     if not info:
         return ItemResult(text=f"你翻开【{d.get('name', '技能书')}】，但其中的技艺晦涩难解……(技能数据缺失)", consume=False)
     if req:
         req_id = C.resolve("classes", req)
-        cls_id = C.resolve("classes", ctx.player.get("class_name", ""))
+        cls_id = C.resolve("classes", ctx._focus.get("class_name", ""))
         if cls_id != req_id:
             src_name = C.CLASSES.get(req_id, {}).get("name", req)
             return ItemResult(
                 text=f"书页上流转着【{src_name}】一脉的印记，与你的力量不合……", consume=False)
     need_lv = int(info.get("lv", 1))
-    if ctx.player.get("level", 0) < need_lv:
+    if ctx._focus.get("level", 0) < need_lv:
         return ItemResult(
-            text=f"书中的技艺需要 Lv.{need_lv} 才能参悟，你才 Lv.{ctx.player.get('level', 0)}。", consume=False)
-    learned = list(ctx.player.get("learned_skills", []))
+            text=f"书中的技艺需要 Lv.{need_lv} 才能参悟，你才 Lv.{ctx._focus.get('level', 0)}。", consume=False)
+    learned = list(ctx._focus.get("learned_skills", []))
     sname = info.get("name", learn)
     if C.resolve("skills", sname) in [C.resolve("skills", s) for s in learned if s]:
         return ItemResult(text=f"『{sname}』你早已掌握，这本书对你没有用了。", consume=False)
     self_db = ctx._db()
     self_db.update_player(ctx.group_id, ctx.qq_id, learned_skills=learned + [sname])
     try:
-        C.check_achievements(ctx.group_id, ctx.qq_id, ctx.player)
+        C.check_achievements(ctx.group_id, ctx.qq_id, ctx._focus)
     except Exception:
         pass
     ctx.hook("remove_item")  # 战斗外路径模板自行扣除（与 tpl_heal 同款）
@@ -936,7 +936,7 @@ def tpl_grapple(ctx):
     if ctx.battle:
         return ItemResult(text="钩索要在野外攀爬时使用，战斗中用不上～", consume=False)
     from .. import content as C
-    cur = (ctx.player or {}).get("cur_map", "")
+    cur = (ctx._focus or {}).get("cur_map", "")
     cm = C.MAP_BY_ID.get(cur) or {}
     if cm.get("type") == C.MAP_TYPE_TOWN:
         return ItemResult(text="钩索只在野外有用——城里到处是路，用不上它～", consume=False)
@@ -969,7 +969,7 @@ def tpl_scout(ctx):
     if ctx.battle:
         return ItemResult(text="望远镜要在野外眺望时使用，战斗中用不上～", consume=False)
     from .. import content as C
-    cur = (ctx.player or {}).get("cur_map", "")
+    cur = (ctx._focus or {}).get("cur_map", "")
     cm = C.MAP_BY_ID.get(cur) or {}
     lines = [f"🔭 你举起【{ctx.item_name()}】眺望{cm.get('name', '此地')}……"]
     if cm:
@@ -1006,7 +1006,7 @@ def tpl_fish_net(ctx):
     if ctx.battle:
         return ItemResult(text="鱼网要在水边使用时，战斗结束后再下网吧～", consume=False)
     from .. import content as C
-    _cur = (ctx.player or {}).get("cur_map", "")
+    _cur = (ctx._focus or {}).get("cur_map", "")
     if _cur and not C.FISHING_SPOTS.get(_cur):
         return ItemResult(text="鱼网只能在水边使用——这里没有水域，到有钓点的地方再下网吧～", consume=False)
     db = ctx._db()
@@ -1083,7 +1083,7 @@ def tpl_anchor(ctx):
     if ctx.battle:
         return ItemResult(text="星砂要在野外安置，战斗中用不上～", consume=False)
     from .. import content as C
-    cur = (ctx.player or {}).get("cur_map", "")
+    cur = (ctx._focus or {}).get("cur_map", "")
     cm = C.MAP_BY_ID.get(cur) or {}
     if cm.get("type") == C.MAP_TYPE_TOWN:
         return ItemResult(text="星砂锚点只能放在野外——城镇随时能回，用不上它～", consume=False)

@@ -63,7 +63,7 @@ def test_class_actor_panel_and_identity():
     check("_actor_stats_of 出玩家式面板（含 max_hp）", st.get("max_hp", 0) > 0, str(st.get("max_hp")))
     check("面板 def > 0（战士基础）", st.get("def", 0) > 0, str(st.get("def")))
     # 身份：怪被打走自身容器（职业面板 def=职业公式 → 扣血按新面板，只验证 >0 且不误用玩家 buff）
-    b.player["buffs"]["atk_up"] = 99  # 玩家有 buff（若怪错读玩家容器，怪受击/反击会异常）
+    b._focus["buffs"]["atk_up"] = 99  # 玩家有 buff（若怪错读玩家容器，怪受击/反击会异常）
     m["hp"] = 500
     m["max_hp"] = 500
     m.setdefault("buffs", {})["mon_atk_up"] = 5

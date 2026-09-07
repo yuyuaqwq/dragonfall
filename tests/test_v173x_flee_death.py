@@ -2,7 +2,7 @@
 """v173.x 意见#154/#155：逃跑失败敌方读条越界补结算路径死亡判定。
 
 玩家『逃跑』失败（慢动作，cast_flee > 0）后，敌方出招读条命中时刻 > 玩家下次
-可行动点（越界）→ _enemy_phase 补结算分支（v167.3）直接调 _damage_player 结算，
+可行动点（越界）→ _hostile_phase 补结算分支（v167.3）直接调 _damage_player 结算，
 此前该分支缺 _player_dead 判定 → 玩家 hp 归 0 但 result 不置 defeat → 命令层
 ended=False 只存战斗状态，玩家血 0 不触发死亡（玩家实抓：逃跑时归0不会死）。
 
@@ -62,7 +62,7 @@ def main():
         b = BT.Battle("monster", make_monster(spd), {}, p)
         # roll 0.999 → 逃跑必败（同级同速 0.75 < 0.999）；敌方普攻必命中
         with unittest.mock.patch("random.random", return_value=0.999):
-            logs, ended = b.player_turn("flee", None, p)
+            logs, ended = b.actor_turn("flee", None, p)
         if p.get("hp", 1) <= 0:
             name = f"敌速 {spd}：玩家 hp<=0 → 必须 defeat 且战斗结束"
             ok = b.result == "defeat" and ended

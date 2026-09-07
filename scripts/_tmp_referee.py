@@ -48,11 +48,11 @@ for use_skill in (False, True):
             prev = b.round
             if use_skill:
                 sname = skill_pool[turns % 2]
-                b.player_turn("skill", sname, player)
+                b.actor_turn("skill", sname, player)
                 if b.round == prev and b.result is None:
-                    b.player_turn("attack", None, player)
+                    b.actor_turn("attack", None, player)
             else:
-                b.player_turn("attack", None, player)
+                b.actor_turn("attack", None, player)
         if b.result == "victory":
             wins += 1
         rounds_sum += b.round

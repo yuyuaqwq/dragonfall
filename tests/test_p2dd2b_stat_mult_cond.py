@@ -65,16 +65,16 @@ def mk_enemy(def_=20, mdef=20, hp=100000, spd=10):
 
 def mk_battle(player, enemy=None):
     b = BT.Battle("monster", enemy or mk_enemy(), {}, player)
-    b.player.setdefault("resources", {})
-    b.player.setdefault("stacks", {})
-    b.player.setdefault("buffs", {})
-    b.player.setdefault("eff", {})
+    b._focus.setdefault("resources", {})
+    b._focus.setdefault("stacks", {})
+    b._focus.setdefault("buffs", {})
+    b._focus.setdefault("eff", {})
     return b
 
 
 def full_stats(b):
     """跑 NEW 引擎 _player_stats 完整面板（含影舞/旋律两段注册表消费）。"""
-    return b._player_stats(b.player)
+    return b._player_stats(b._focus)
 
 
 # ============================================================
@@ -167,10 +167,10 @@ def test_shadow_dance_crit_dmg():
             b_old = mk_battle(dict(p))
             b_new = mk_battle(dict(p))
             if sd:
-                b_old.player["buffs"]["shadow_dance"] = 3
-                b_new.player["buffs"]["shadow_dance"] = 3
-            r_old = OLD_crit_dmg_mult(b_old, b_old.player)
-            r_new = b_new._passive_crit_dmg_mult(b_new.player)
+                b_old._focus["buffs"]["shadow_dance"] = 3
+                b_new._focus["buffs"]["shadow_dance"] = 3
+            r_old = OLD_crit_dmg_mult(b_old, b_old._focus)
+            r_new = b_new._passive_crit_dmg_mult(b_new._focus)
             check(f"学={learned} 影舞={sd}: crit_dmg {r_old}=={r_new}",
                   abs(r_old - r_new) < 1e-9, f"{r_old} vs {r_new}")
 
@@ -182,8 +182,8 @@ def test_shadow_dance_spd():
     print("\n== 2. shadow_dance_bonus spd 段（挂点3 _player_stats）OLD vs NEW ==")
     setups = {
         "非影舞": lambda a, b: None,
-        "影舞": lambda a, b: (a.player["buffs"].update({"shadow_dance": 3}),
-                              b.player["buffs"].update({"shadow_dance": 3})),
+        "影舞": lambda a, b: (a._focus["buffs"].update({"shadow_dance": 3}),
+                              b._focus["buffs"].update({"shadow_dance": 3})),
     }
     for learned in (False, True):
         for tag, setup in setups.items():
@@ -194,14 +194,14 @@ def test_shadow_dance_spd():
                 b_new = mk_battle(dict(p))
                 setup(b_old, b_new)
                 # OLD：基底 st（引擎算，无被动路径）+ OLD spd 段；NEW：引擎 _player_stats
-                base = b_old._player_stats(b_old.player)  # 先取全量作为公共基底？——不行，含 NEW 段。
+                base = b_old._player_stats(b_old._focus)  # 先取全量作为公共基底？——不行，含 NEW 段。
                 # 正确：OLD 基底 = 引擎在"该玩家无被动两段"下等同（同一 player 无暗影步·极时基底一致）：
                 # 直接构造 无被动玩家 的同款基底，避免 NEW 段混入 OLD。
                 p_base = dict(p)
                 p_base["learned_skills"] = []
                 st_old_base = b_old._player_stats(p_base)
-                st_old = OLD_shadow_dance_spd(b_old, b_old.player, st_old_base)
-                st_new = b_new._player_stats(b_new.player)
+                st_old = OLD_shadow_dance_spd(b_old, b_old._focus, st_old_base)
+                st_new = b_new._player_stats(b_new._focus)
                 check(f"学={learned} {tag} {spd_tag}: spd {st_old.get('spd')}=={st_new.get('spd')}",
                       int(st_old.get("spd", 0) or 0) == int(st_new.get("spd", 0) or 0),
                       f"{st_old.get('spd')} vs {st_new.get('spd')}")
@@ -235,8 +235,8 @@ def test_melody_auras():
             p_base = dict(p)
             p_base["learned_skills"] = []
             st_old_base = b_old._player_stats(p_base)
-            st_old = OLD_melody(b_old, b_old.player, st_old_base)
-            st_new = b_new._player_stats(b_new.player)
+            st_old = OLD_melody(b_old, b_old._focus, st_old_base)
+            st_new = b_new._player_stats(b_new._focus)
             keys = ("atk", "def", "matk", "mdef", "spd")
             ok = all(int(st_old.get(k, 0) or 0) == int(st_new.get(k, 0) or 0) for k in keys)
             check(f"学={learned} {tag}: 面板一致", ok,
@@ -266,29 +266,29 @@ def test_registry_and_multi():
         b_old = mk_battle(dict(p))
         b_new = mk_battle(dict(p))
         for b in (b_old, b_new):
-            pm = b._proc_pm(b.player)
+            pm = b._proc_pm(b._focus)
             pm["proc"]["shadow_dance_bonus"] = [
                 ("暗影步·极", {"proc": "shadow_dance_bonus", "spd_add": 0.25, "crit_dmg": 0.20}),
                 ("测试第二条", {"proc": "shadow_dance_bonus", "spd_add": 0.50, "crit_dmg": 0.40}),
             ]
             b._proc_pm = lambda pl, _pm=pm: _pm
-            b.player["buffs"]["shadow_dance"] = 3
+            b._focus["buffs"]["shadow_dance"] = 3
         p_base = dict(p)
         p_base["learned_skills"] = []
-        st_new = b_new._player_stats(b_new.player)
+        st_new = b_new._player_stats(b_new._focus)
         # 双条目首条 break 语义 = 只消费首条 0.25（OLD/NEW 两实现同一 _proc_pm 双条目下都只乘首条）。
         # OLD 对照：用 b_new 原 _proc_pm（注入双条目前）为 基底——先存真 _proc_pm 再注入双条目。
         # 基底玩家 = b2 无被动副本（b2._proc_pm 已被注入双条目，须绕开）：
         b2 = mk_battle(dict(p))
         b2._proc_pm = lambda pl, _pm=pm: _pm
-        b2.player["buffs"]["shadow_dance"] = 3
+        b2._focus["buffs"]["shadow_dance"] = 3
         p_base2 = dict(p)
         p_base2["learned_skills"] = []
         p_base2["buffs"] = dict(p_base2.get("buffs") or {})
         p_base2["buffs"]["shadow_dance"] = 3
         b3 = mk_battle(p_base2)  # 全新 battle：无被动、无注入 → _player_stats 不乘（基底 210）
-        st_old_base = b3._player_stats(b3.player)
-        st_old = OLD_shadow_dance_spd(b2, b2.player, st_old_base)  # OLD 副本对基底乘首条 0.25
+        st_old_base = b3._player_stats(b3._focus)
+        st_old = OLD_shadow_dance_spd(b2, b2._focus, st_old_base)  # OLD 副本对基底乘首条 0.25
         check(f"双条目：首条即 break（spd ×1.25 非 ×1.50）",
               int(st_old.get("spd", 0) or 0) == int(st_new.get("spd", 0) or 0) == 263,
               f"OLD {st_old.get('spd')} vs NEW {st_new.get('spd')}")

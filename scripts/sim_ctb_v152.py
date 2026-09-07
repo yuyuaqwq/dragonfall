@@ -19,7 +19,7 @@ def run_combat(p_spd, e_spd, p_acts_target=100, seed=42):
     p_acts = 0
     e_acts = 0
     for i in range(500):
-        logs, ended = b.player_turn('attack', None, player)
+        logs, ended = b.actor_turn('attack', None, player)
         p_acts += 1
         # 统计敌方行动：从日志数敌方攻击行
         for l in logs:

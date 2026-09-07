@@ -910,7 +910,7 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         b = BT.Battle.from_state(battle["state"])
-        b.player = player  # v121 审计修复：恢复路径补齐 self.player（盾强度/冷却缩减/精准减免读它）
+        b._focus = player  # v121 审计修复：恢复路径补齐 self._focus（盾强度/冷却缩减/精准减免读它）
         # v2 指定目标：『攻击 <名字>』解析为目标名传给引擎（引擎会校验射程/存活）；无参→None 自动
         _target = target_arg or None
         # v94.2 体力：每次攻击扣 1（普通/世界Boss通用；instance/pvp 已在上方分流）
@@ -926,7 +926,7 @@ class CombatCmds(CommandBase):
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "attack", None, target=_target):
                 yield _r
             return
-        logs, ended, _who = b.player_act("attack", None, player, target=_target)
+        logs, ended, _who = b.actor_act("attack", None, player, target=_target)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             # v130.3 意见#9 体验增强：胜利/结束时若残存潜行（技能/防御击杀场景潜行未被攻击消费），
@@ -1150,7 +1150,7 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         b = BT.Battle.from_state(battle["state"])
-        b.player = player  # v121 审计修复：恢复路径补齐 self.player（盾强度/冷却缩减/精准减免读它）
+        b._focus = player  # v121 审计修复：恢复路径补齐 self._focus（盾强度/冷却缩减/精准减免读它）
         if battle["state"].get("type") == "pvp":
             if self._pvp_handle_timeout(battle, group_id, qq_id):
                 yield event.plain_result("⏰ PVP 战斗超过 5 分钟无人行动，自动解除！")
@@ -1171,7 +1171,7 @@ class CombatCmds(CommandBase):
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "skill", skill_name, target=_skill_target):
                 yield _r
             return
-        logs, ended, _who = b.player_act("skill", skill_name, player, target=_skill_target)
+        logs, ended, _who = b.actor_act("skill", skill_name, player, target=_skill_target)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "victory":
@@ -1490,7 +1490,7 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         b = BT.Battle.from_state(battle["state"])
-        b.player = player  # v121 审计修复：恢复路径补齐 self.player（盾强度/冷却缩减/精准减免读它）
+        b._focus = player  # v121 审计修复：恢复路径补齐 self._focus（盾强度/冷却缩减/精准减免读它）
         if battle["state"].get("type") == "pvp":
             if self._pvp_handle_timeout(battle, group_id, qq_id):
                 yield event.plain_result("⏰ PVP 战斗超过 5 分钟无人行动，自动解除！")
@@ -1502,7 +1502,7 @@ class CombatCmds(CommandBase):
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "defend", None):
                 yield _r
             return
-        logs, ended, _who = b.player_act("defend", None, player)
+        logs, ended, _who = b.actor_act("defend", None, player)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended and b.result == "defeat":
             for _r in self._handle_defeat(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
@@ -1547,8 +1547,8 @@ class CombatCmds(CommandBase):
             yield event.plain_result("👑 Boss 锁定了你，无法逃跑！背水一战吧！")
             return
         b = BT.Battle.from_state(battle["state"])
-        b.player = player  # v121 审计修复：恢复路径补齐 self.player（盾强度/冷却缩减/精准减免读它）
-        logs, ended, _who = b.player_act("flee", None, player)
+        b._focus = player  # v121 审计修复：恢复路径补齐 self._focus（盾强度/冷却缩减/精准减免读它）
+        logs, ended, _who = b.actor_act("flee", None, player)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "fled":
@@ -2129,7 +2129,7 @@ class CombatCmds(CommandBase):
         # v1.2（契约 §11.3）：行动前把全局共享减益适应同步到本地主目标（与 debuffs 同步同处）。
         b.enemy["adapt"] = dict(gboss.get("adapt") or {"poison": 0.0, "burn": 0.0})
         before = sum(max(0, u.get("hp", 0)) for u in b.enemies)
-        logs, ended, _who = b.player_act(action, skill_name, player, target=target)
+        logs, ended, _who = b.actor_act(action, skill_name, player, target=target)
         # DOT/减益重构（契约 §6）：行动后累加全局 dot 结算计数，每 WORLD_BOSS_DOT_INTERVAL
         # 次玩家行动强制结算一次 dot（force=True 直接扣 b.enemies hp，忽略 _dot_pending 闸门，
         # 模拟"一队一轮"）。结算必须在 after/dealt 计算**之前**调用，这样 dealt 已含 dot 伤害、
@@ -2512,7 +2512,7 @@ class CombatCmds(CommandBase):
         # v2 多对多：per 快照已含 rank/reach/buffs/stacks/defending/charging 站位字段 → enemies=[快照]
         b = BT.Battle("pvp", enemy=None, title_bonus=self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=[dict(opp, **_opp_extra)])
         # v180-B ①：玩家状态权威在 player actor dict——从 player dict 恢复/写回 buffs/charging
-        _pl_buffs = b.player.setdefault("buffs", {})
+        _pl_buffs = b._focus.setdefault("buffs", {})
         _pl_buffs.clear()
         _pl_buffs.update(dict(state.get(f"{my_key[0]}_buffs", {})))
         # v181 P3：对手 buffs 落 enemy actor dict（enemies[0] = 对手快照）
@@ -2520,7 +2520,7 @@ class CombatCmds(CommandBase):
         _opp_buffs.clear()
         _opp_buffs.update(dict(state.get(f"{opp_key[0]}_buffs", {})))
         # PVP 蓄力持久化：跨刻恢复玩家侧 charging（蓄力技 PVP 中跨刻生效）
-        b.player["charging"] = state.get("charging")
+        b._focus["charging"] = state.get("charging")
         if action == "skill":
             info = E.skill_info(player["class_name"], skill_name)
             if not info:
@@ -2542,7 +2542,7 @@ class CombatCmds(CommandBase):
         else:
             # 非防御行动：对方此前的防御姿态被本次行动消耗
             state.pop("defending_qq", None)
-        logs, ended = b.player_turn(action, skill_name, player, enemy_act=False)
+        logs, ended = b.actor_turn(action, skill_name, player, enemy_act=False)
         # 同步快照与 buffs（v2：胜利时敌方阵列已清空，b.enemy 回退 {} → .get 兜底）
         opp["hp"] = b.enemy.get("hp", 0)
         opp["mp"] = b.enemy.get("mp", opp.get("mp", 0))
@@ -2558,10 +2558,10 @@ class CombatCmds(CommandBase):
             opp.pop("adapt", None)
         state[my_key]["hp"] = player["hp"]
         state[my_key]["mp"] = player["mp"]
-        state[f"{my_key[0]}_buffs"] = b.player.get("buffs") or {}
+        state[f"{my_key[0]}_buffs"] = b._focus.get("buffs") or {}
         state[f"{opp_key[0]}_buffs"] = (b.enemy or {}).get("buffs") or {}
         # PVP 蓄力持久化：写回（含 None 表示蓄力已结束/未蓄力）
-        state["charging"] = b.player.get("charging")
+        state["charging"] = b._focus.get("charging")
         db.save_battle(group_id, qq_id, state)
         db.save_battle(group_id, opp["qq_id"], state)
         if ended and b.result == "victory":

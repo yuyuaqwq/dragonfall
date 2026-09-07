@@ -32,7 +32,7 @@ def learn_all(p, cls):
 
 def cast(b, p, skill):
     """施放技能（跳过回合流转）"""
-    logs, _ = b.player_turn("skill", skill, p, enemy_act=False)
+    logs, _ = b.actor_turn("skill", skill, p, enemy_act=False)
     # v154 读条命中制：出招读条结束（cast_done）才结算命中（伤害/叠层/资源）——推进后生效
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
     return logs
@@ -56,7 +56,7 @@ check("裂地斩战意不足无增伤", not any("战意裂地" in x for x in log
 # 战意攒够 6 层 → 裂地斩流血触发（v153 mech=bleed，不再有"战意"文案）
 b2b = BT.Battle("monster", mkmon(), player=learn_all(mk("战士", lv=50), "cls_zhan_shi"))
 b2b._p_stacks()["zhan_yi"] = 6
-_p2b = b2b.player
+_p2b = b2b._focus
 _p2b["learned_skills"] = list(_p2b["learned_skills"]) + ["裂地斩"]
 logs3 = cast(b2b, _p2b, "裂地斩")
 check("裂地斩战意≥6 增伤", any("流血" in x or "战意" in x for x in logs3), str(logs3)[:120])
@@ -76,9 +76,9 @@ check("火球术造成伤害", any("造成" in x for x in logs), str(logs)[:120]
 # 引擎元素印记路径把冰印登记到 enemy.debuffs["element_marks"]["ice"]，减速落 e_buffs.spd_down。
 b4 = BT.Battle("monster", mkmon(), player=p)
 random.seed(2)
-# v154 读条命中制：技能出手只排 cast_done（读条），需经 player_turn 设置 p_ct 后推进才结算
-# （曾直接调 _do_player_skill 跳过回合 → 未走敌方行动段 _active_target 未初始化，v169.9 已由引擎兜底）
-logs4, _ = b4.player_turn("skill", "冰锥", p, enemy_act=False)
+# v154 读条命中制：技能出手只排 cast_done（读条），需经 actor_turn 设置 p_ct 后推进才结算
+# （曾直接调 _do_actor_skill 跳过回合 → 未走敌方行动段 _active_target 未初始化，v169.9 已由引擎兜底）
+logs4, _ = b4.actor_turn("skill", "冰锥", p, enemy_act=False)
 b4._process_until(float(getattr(b4, "p_ct", 0) or 0) + 0.001, logs4, p)
 _ice_marks = ((b4.enemy.get("debuffs") or {}).get("element_marks") or {}).get("ice", 0)
 check("冰锥挂冰印", _ice_marks > 0, str(b4.enemy.get("debuffs")))

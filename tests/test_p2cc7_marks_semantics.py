@@ -168,13 +168,13 @@ def test_passive_consume_old_semantics():
 
 def test_battle_consume_spark():
     print("【8. battle _skill_finalize_damage 消费星火（basic 技，读表 stack_key）】")
-    # 直接调用 _skill_finalize_damage 前的内部路径较深——用 _player_attack 全链验证
+    # 直接调用 _skill_finalize_damage 前的内部路径较深——用 _actor_attack 全链验证
     # （novice_spark_followup 技能后置标 → 普攻命中消费清除；test_v140_novice 同款断言）
     p = mk_player(["novice_spark_followup"], atk=100)
     b = BT.Battle("monster", mk_enemy(hp=1000000), player=p)
     we_proc(b, p, "skill_cast", {"skill": "测试", "kind": "物理"}, [])
     check("星火标记挂上", b._p_stacks().get("novice_spark") is True, str(b._p_stacks()))
-    logs = b._player_attack(b._player_stats(p), p)
+    logs = b._actor_attack(b._player_stats(p), p)
     check("普攻消费并清除星火标记", not b._p_stacks().get("novice_spark"), str(b._p_stacks()))
     check("星火增伤日志", any("星火" in l for l in logs), str(logs[-3:]))
 

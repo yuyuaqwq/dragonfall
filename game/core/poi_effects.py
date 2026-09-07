@@ -45,7 +45,7 @@ class PoiContext:
                  st=None, hooks=None):
         self.group_id = group_id
         self.qq_id = qq_id
-        self.player = player    # 世界 POI：DB 玩家 dict（快照）；副本 POI：队长玩家 dict
+        self._focus = player    # 世界 POI：DB 玩家 dict（快照）；副本 POI：队长玩家 dict
         self.cur_map = cur_map  # 世界 POI：地图 dict；副本 POI：stage dict
         self.poi_id = poi_id
         self.poi = poi
@@ -67,7 +67,7 @@ class PoiContext:
         cur_map = self.cur_map or {}
         name = cur_map.get("name", "此地")
         sub_name = ""
-        cur_sa_id = (self.player or {}).get("cur_subarea") or ""
+        cur_sa_id = (self._focus or {}).get("cur_subarea") or ""
         for _sa in (cur_map.get("subareas") or []):
             if _sa["id"] == cur_sa_id:
                 sub_name = _sa.get("name", "")
@@ -108,7 +108,7 @@ def poi_recover(ctx):
     """篝火：恢复 30% 生命/魔力 + 随机烹饪食材。"""
     db = ctx._db()
     C = ctx._C()
-    player = ctx.player
+    player = ctx._focus
     hp_gain = int(player["max_hp"] * 0.30)
     mp_gain = int(player["max_mp"] * 0.30)
     db.update_player(ctx.group_id, ctx.qq_id,
@@ -149,7 +149,7 @@ def poi_merchant(ctx):
     """v115 行商营地：随机金币（图等级×5~×10）或一张图纸（简化版，不做强卖流程）。"""
     db = ctx._db()
     C = ctx._C()
-    player = ctx.player
+    player = ctx._focus
     map_lv = (ctx.cur_map or {}).get("lv", 1)
     if random.random() < 0.5:
         gold = random.randint(map_lv * 5, map_lv * 10)
@@ -193,7 +193,7 @@ def poi_loot(ctx):
     """可疑包裹/龙骸/沉船：金币 / 图纸 / 陷阱（扣血）。"""
     db = ctx._db()
     C = ctx._C()
-    player = ctx.player
+    player = ctx._focus
     r = random.random()
     if r < 0.6:
         gold = random.randint(20, 80) + player["level"] * 3
@@ -255,7 +255,7 @@ def poi_note(ctx):
         if not db.get_event_state(_gkey):
             db.set_event_state(_gkey, "1")
             return (f"{ctx.icon} 【{ctx.pname}】你在{ctx.loc}见到一座无名的旅者之墓，苔痕斑驳的碑上刻着几行字。\n"
-                    f"🪦 \"{ctx.player['name']}，愿你的旅途有人记得。\"\n"
+                    f"🪦 \"{ctx._focus['name']}，愿你的旅途有人记得。\"\n"
                     f"🕯️ 你郑重祭拜，于墓前放下一朵野花。")
         return (f"{ctx.icon} 【{ctx.pname}】你再次路过{ctx.loc}的旅者之墓，碑前的野花还开着。\n"
                 f"🪦 你默默驻足片刻，为这位先行的旅人献上沉默的敬意。")
@@ -363,7 +363,7 @@ def inst_loot(ctx):
         else:
             _eq_q = "blue"
         _slot = random.choice(["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"])
-        _lv = max(1, (ctx.player or {}).get("level", 1) + random.randint(-3, 3))
+        _lv = max(1, (ctx._focus or {}).get("level", 1) + random.randint(-3, 3))
         eq = C.generate_equip(_slot, _lv, _eq_q)
         db.add_item(ctx.group_id, ctx.qq_id, f"eq_{uuid.uuid4().hex[:8]}", eq)
         # 白 🎒 / 绿 🟢 / 蓝 🔵：品质色块 + 装备名（与 C.QUALITY 档位色一致）

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """v116：敌方蓄力接线 + 意图预告
 
-之前 battle.py 的敌方蓄力结算逻辑（_enemy_charge_tick/_enemy_release_charge）是僵尸代码，
+之前 battle.py 的敌方蓄力结算逻辑（_hostile_charge_tick/_enemy_release_charge）是僵尸代码，
 敌方 _enemy_turn 从不为敌方单位写入 `charging`，导致带 charge 的怪物技能永远不触发。
 本测试验证接线后：
   1. 抽中带 charge 技能 → 敌方进入蓄力（charging 写入）、本回合不结算伤害、日志含"【意图】"

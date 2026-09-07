@@ -47,7 +47,7 @@ async def main():
     check("未知条件键测试环境告警(v104 改)", _raises_valueerror(check_need, {"future_key_xx": 1}, {}), "")
 
     # ---- 2. title_conds：注册新称号条件 ----
-    TC.register("test_title_99")(lambda ctx: ctx.player.get("level", 0) >= 99)
+    TC.register("test_title_99")(lambda ctx: ctx._focus.get("level", 0) >= 99)
     tctx = TC.TitleCtx("g1", "w1", {"level": 50}, {}, {}, {})
     check("title 注册表直接调用", TC.CONDITIONS["test_title_99"](tctx) is False, "")
     tctx2 = TC.TitleCtx("g1", "w1", {"level": 100}, {}, {}, {})

@@ -1031,7 +1031,7 @@ class PlayerCmds(CommandBase):
                 _bstate = db.get_battle(group_id, qq_id)
                 if _bstate and _bstate.get("state"):
                     _b = BT.Battle.from_state(_bstate["state"])
-                    _b.player = player
+                    _b._focus = player
                     _battle_st = _b._player_stats(player)
             except Exception:
                 _battle_st = None

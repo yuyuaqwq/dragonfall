@@ -25,7 +25,7 @@ def _new_battle(monster=None, player=None):
     v95.19 用 _player_stats 重算 max_hp/max_mp 覆盖测试给定面板），再绑玩家 actor dict。
     状态经 _p_* helper 惰性建袋注入绑定后的 player。"""
     b = BT.Battle("monster", monster or {"name": "山贼头目", "hp": 3000, "max_hp": 4000})
-    b.player = player if player is not None else mk_player()
+    b._focus = player if player is not None else mk_player()
     return b
 
 def test_status_line():
@@ -38,7 +38,7 @@ def test_status_line():
     b._p_buffs_bag().update({"atk_up": 3, "def_up": 2})
     b._tgt_buffs().update({"def_down": 2})
     b.enemy["debuffs"] = {"burn": {"n": 3}, "poison": {"n": 3}, "mark": {"n": 2}}
-    player = b.player
+    player = b._focus
     s = mixin._status_line(player, b)
     check("玩家叠层显示", "狂暴×5" in s and "神恩×2" in s, s)
     check("玩家buff显示", "攻击↑(剩3刻)" in s and "防御↑(剩2刻)" in s, s)
@@ -53,7 +53,7 @@ def test_footer():
     b._p_stacks().update({"rage": 5})  # v59 叠层存战斗状态
     b._p_buffs_bag().update({"atk_up": 3})
     b._tgt_buffs().update({"def_down": 2})
-    player = b.player
+    player = b._focus
     f = mixin._battle_footer(player, b, b.enemy)
     # v164.1：血量汇总行已删——血量在站位图逐只带出（❤️当前/最大）
     check("站位图怪物血条", "山贼头目 ❤️3000/4000" in f, f)
@@ -63,7 +63,7 @@ def test_footer():
 def test_no_status():
     print("【无状态不显示】")
     b = _new_battle({"name": "野狗", "hp": 50, "max_hp": 50})
-    player = b.player
+    player = b._focus
     s = mixin._status_line(player, b)
     check("无状态为空", s == "", repr(s))
     f = mixin._battle_footer(player, b, b.enemy)
@@ -72,7 +72,7 @@ def test_no_status():
 def test_enrage():
     print("【敌方狂暴显示】")
     b = _new_battle({"name": "骷髅王", "hp": 500, "max_hp": 2000, "enraged": True})
-    player = b.player
+    player = b._focus
     s = mixin._status_line(player, b)
     check("狂暴标记", "😡狂暴" in s, s)
 

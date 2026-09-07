@@ -390,7 +390,7 @@ def _set_full_rage_pursuit(battle, player, dmg, logs, params: dict):
     """v174.1 余烬军团徽章 4 件（full_rage_pursuit）：满怒时攻击命中 → 二段追击。
 
     数据驱动 type 执行器：满怒即触发（无概率），params.power（0.50）= 二段追击威力。
-    旧版在 _player_attack 硬编码普攻特判；普攻技能化后改为通用套装特效——
+    旧版在 _actor_attack 硬编码普攻特判；普攻技能化后改为通用套装特效——
     _set_attack_proc（技能/普攻命中统一调用）→ _execute_set_proc 分发至此。
     """
     try:

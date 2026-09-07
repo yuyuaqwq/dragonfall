@@ -61,7 +61,7 @@ def flee(p_lv, e_lv, e_spd=None, roll=None, btype="monster"):
         e_spd = _spd_of(p_lv)
     b = BT.Battle(btype, make_monster(lv=e_lv, spd=e_spd), {}, p)
     with unittest.mock.patch("random.random", return_value=roll):
-        logs, ended = b.player_turn("flee", None, p)
+        logs, ended = b.actor_turn("flee", None, p)
     return b, logs, ended
 
 

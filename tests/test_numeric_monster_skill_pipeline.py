@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """v180 怪物技能管线化收编门禁（test_numeric_monster_skill_pipeline）
 
-背景：v180 P1-P9 把 329 个 MONSTER_SKILLS 全量收编进玩家技能管线（_player_skill）：
-- _enemy_cast_done / _enemy_release_charge / _enemy_turn 增益即时分支全部走 _actor_skill_cast
-- _enemy_cast_done 260 行简化结算已删（P9）
+背景：v180 P1-P9 把 329 个 MONSTER_SKILLS 全量收编进玩家技能管线（_actor_skill）：
+- _hostile_cast_done / _enemy_release_charge / _enemy_turn 增益即时分支全部走 _actor_skill_cast
+- _hostile_cast_done 260 行简化结算已删（P9）
 - 怪技能数据归一：heal_self→kind=治疗+hp_pct、summon 加 summon:1、无 formula 补等效段
 
 本测试：
-1. 329 个怪技能逐个经 _enemy_cast_done（读条命中路径）走管线执行不崩
+1. 329 个怪技能逐个经 _hostile_cast_done（读条命中路径）走管线执行不崩
 2. 分类验证效果落地：伤害型扣血>0、heal_self 回血、summon 援军、buff 上身、控制命中
 3. 玩家技能/普攻回归冒烟（不破坏）
 
@@ -45,7 +45,7 @@ def mk_monster(mid, role, lv, skills=None):
 
 
 def test_all_skills_pipeline():
-    """329 怪技能全部经 _enemy_cast_done（读条命中路径）执行不崩"""
+    """329 怪技能全部经 _hostile_cast_done（读条命中路径）执行不崩"""
     print("【1. 329 技能管线执行不崩】")
     errs = []
     dmg_count = 0
@@ -58,7 +58,7 @@ def test_all_skills_pipeline():
             # 直接读条命中结算（等同 cast_done 事件触发）
             # v180F：管线分支内部扣血（返回 dmg=0 防外部双扣）——伤害判定改看 hp 扣减
             hp0 = p.get("hp", 0)
-            logs, dmg, _ = b._enemy_cast_done(p, m, {"kind": "skill", "skill": skey})
+            logs, dmg, _ = b._hostile_cast_done(p, m, {"kind": "skill", "skill": skey})
             dealt = hp0 - p.get("hp", 0)
             # 分类验证
             kind = sinfo.get("kind", "")
@@ -71,7 +71,7 @@ def test_all_skills_pipeline():
                     b2 = BT.Battle("monster", m2, player=p2)
                     p2["dodge"] = 0.0
                     hp0_2 = p2.get("hp", 0)
-                    logs2, dmg2, _ = b2._enemy_cast_done(p2, m2, {"kind": "skill", "skill": skey})
+                    logs2, dmg2, _ = b2._hostile_cast_done(p2, m2, {"kind": "skill", "skill": skey})
                     dealt = hp0_2 - p2.get("hp", 0)
                 if dealt <= 0:
                     errs.append((skey, sinfo.get("name", "?"), "伤害型没打出伤害"))
@@ -93,7 +93,7 @@ def test_effect_landing():
         b = BT.Battle("monster", m, player=p)
         m["hp"] = m["max_hp"] // 2
         mhp0 = m["hp"]
-        logs, dmg, _ = b._enemy_cast_done(p, m, {"kind": "skill", "skill": skey})
+        logs, dmg, _ = b._hostile_cast_done(p, m, {"kind": "skill", "skill": skey})
         gain = m["hp"] - mhp0
         expect = int(m["max_hp"] * 0.15)
         check(f"{skey} heal_self 回 15% max_hp (+{gain}≈{expect})", gain == expect)
@@ -102,20 +102,20 @@ def test_effect_landing():
     m = mk_monster("m_sum", "boss", 22, skills=["ms_zhao_huan_lie_quan"])
     b = BT.Battle("monster", m, player=p)
     n0 = len(b.enemies)
-    logs, dmg, _ = b._enemy_cast_done(p, m, {"kind": "skill", "skill": "ms_zhao_huan_lie_quan"})
+    logs, dmg, _ = b._hostile_cast_done(p, m, {"kind": "skill", "skill": "ms_zhao_huan_lie_quan"})
     check("summon 召唤援军 +1", len(b.enemies) == n0 + 1, f"{len(b.enemies)} vs {n0}")
     # buff → 怪 buffs 3 刻
     p = mk_player()
     m = mk_monster("m_buff", "dps", 22, skills=["ms_zhan_hou"])
     b = BT.Battle("monster", m, player=p)
-    logs, dmg, _ = b._enemy_cast_done(p, m, {"kind": "skill", "skill": "ms_zhan_hou"})
+    logs, dmg, _ = b._hostile_cast_done(p, m, {"kind": "skill", "skill": "ms_zhan_hou"})
     check("atk_up 怪 buffs atk_up=3", m.get("buffs", {}).get("atk_up") == 3,
           str(m.get("buffs")))
     # shield → 怪盾 halve
     p = mk_player()
     m = mk_monster("m_shd", "dps", 22, skills=["ms_shan_hu_hu_dun"])
     b = BT.Battle("monster", m, player=p)
-    logs, dmg, _ = b._enemy_cast_done(p, m, {"kind": "skill", "skill": "ms_shan_hu_hu_dun"})
+    logs, dmg, _ = b._hostile_cast_done(p, m, {"kind": "skill", "skill": "ms_shan_hu_hu_dun"})
     shd = m.get("shields", {}).get("buff")
     check("shield 怪盾 halve", shd is not None and shd.get("halve") is True, str(shd))
     # 控制 mech → 玩家 buffs（概率性控制循环尝试；沉默稳定）
@@ -128,7 +128,7 @@ def test_effect_landing():
             sinfo["mech_val"] = 10  # 强制高概率
             C.MONSTER_SKILLS[skey] = sinfo
             b = BT.Battle("monster", m, player=p)
-            logs, dmg, _ = b._enemy_cast_done(p, m, {"kind": "skill", "skill": skey})
+            logs, dmg, _ = b._hostile_cast_done(p, m, {"kind": "skill", "skill": skey})
             if p.get("buffs", {}).get(bkey) is not None:
                 hit = True
                 break
@@ -148,7 +148,7 @@ def test_player_side_smoke():
     # 玩家普攻打怪
     try:
         pst = b._player_stats(p)
-        logs = b._player_attack(pst, p)
+        logs = b._actor_attack(pst, p)
         check("玩家普攻不崩", isinstance(logs, list) and len(logs) > 0, str(logs[:1]))
     except Exception as ex:
         check("玩家普攻不崩", False, f"{type(ex).__name__}: {ex}")

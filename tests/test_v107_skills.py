@@ -46,7 +46,7 @@ async def main():
         info = E.skill_info(p["class_name"], sname)
         st = b._player_stats(p)
         random.seed(11)
-        return b._player_skill(st, sname, info, p)
+        return b._actor_skill(st, sname, info, p)
 
     # 1. 战士：龙息之怒真伤（v153 T2 狂战士 t2 62）
     print("— 战士·龙息之怒 —")

@@ -43,7 +43,7 @@ print("== E7 连招链验证 ==")
 mon = mk_mon({"_chain_cfg": [{"seq": ["ms_ai_hao", "ms_an_ying_dan", "ms_bao_dan"], "cd": 0}]})
 player = mk_player()
 b = BT.Battle("monster", mon)
-b.player = player
+b._focus = player
 import random
 random.seed(7)
 # 首次行动
@@ -68,7 +68,7 @@ check("链回绕回第1招", sk4 == "ms_ai_hao", f"sk4={sk4}")
 # 3. cd 冷却：链打完后等 N 刻不推进（cd=2 → 打完3招后冷却2刻）
 mon2 = mk_mon({"_chain_cfg": [{"seq": ["ms_ai_hao", "ms_an_ying_dan"], "cd": 2}]})
 b2 = BT.Battle("monster", mon2)
-b2.player = mk_player()
+b2._focus = mk_player()
 random.seed(3)
 b2._enemy_turn(player)  # 招1
 b2._now += 1.0
@@ -88,7 +88,7 @@ mon3 = mk_mon({"_chain_cfg": [
     {"seq": ["ms_bao_dan"], "cd": 0},
 ]})
 b3 = BT.Battle("monster", mon3)
-b3.player = mk_player()
+b3._focus = mk_player()
 random.seed(5)
 b3._enemy_turn(player)
 s1 = mon3.get("_last_skill_key")
@@ -101,7 +101,7 @@ check("链1打完换链2 = ms_bao_dan", s2 == "ms_bao_dan", f"s2={s2}")
 # 5. 无 chains 配置 → 零行为变化（不影响普通怪）
 mon4 = mk_mon()
 b4 = BT.Battle("monster", mon4)
-b4.player = mk_player()
+b4._focus = mk_player()
 random.seed(11)
 logs5, _ = b4._enemy_turn(player)
 check("无链普通怪正常行动", len(logs5) > 0, str(logs5[:1]))
@@ -110,7 +110,7 @@ check("无链不设 _chain_cfg", mon4.get("_chain_cfg") is None)
 # 6. 链技能不存在时优雅回落（seq 里技能不在 skills）
 mon6 = mk_mon({"_chain_cfg": [{"seq": ["ms_bu_cun_zai"], "cd": 0}]})
 b6 = BT.Battle("monster", mon6)
-b6.player = mk_player()
+b6._focus = mk_player()
 random.seed(2)
 logs6, _ = b6._enemy_turn(player)
 check("链技能缺失不崩", len(logs6) > 0, str(logs6[:1]))

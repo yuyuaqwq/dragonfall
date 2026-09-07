@@ -53,13 +53,13 @@ for name, cid, kind, _ in CLASSES:
         b = BT.Battle("monster", enemy, {}, player=p, enemies=[enemy])
         n = 24
         total = 0
-        logs, done = b.player_turn("skill", seq[0], p, enemy_act=False)
+        logs, done = b.actor_turn("skill", seq[0], p, enemy_act=False)
         total += (10**9) - b.enemies[0]["hp"]
         for i in range(1, n):
             sk = seq[i % len(seq)]
             p["mp"] = p["max_mp"]  # 关闭蓝耗，验证纯伤害口径
             before = b.enemies[0]["hp"]
-            logs, done = b.player_turn("skill", sk, p, enemy_act=False)
+            logs, done = b.actor_turn("skill", sk, p, enemy_act=False)
             total += before - b.enemies[0]["hp"]
         dmg_log.append(total / n)
     emp = statistics.mean(dmg_log)

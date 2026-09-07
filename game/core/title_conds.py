@@ -28,7 +28,7 @@ class TitleCtx:
     def __init__(self, group_id, qq_id, player, stats, rep, quests, hooks=None):
         self.group_id = group_id
         self.qq_id = qq_id
-        self.player = player or {}
+        self._focus = player or {}
         self.stats = stats or {}
         self.rep = rep or {}
         self.quests = quests or {}
@@ -54,17 +54,17 @@ def _t_novice(ctx):
 
 @register("lv10")
 def _t_lv10(ctx):
-    return ctx.player.get("level", 0) >= 10
+    return ctx._focus.get("level", 0) >= 10
 
 
 @register("lv20")
 def _t_lv20(ctx):
-    return ctx.player.get("level", 0) >= 20
+    return ctx._focus.get("level", 0) >= 20
 
 
 @register("lv30")
 def _t_lv30(ctx):
-    return ctx.player.get("level", 0) >= 30
+    return ctx._focus.get("level", 0) >= 30
 
 
 @register("kill10")
@@ -116,7 +116,7 @@ def _t_quest10(ctx):
 
 @register("wealthy")
 def _t_wealthy(ctx):
-    return ctx.player.get("gold", 0) >= 5000
+    return ctx._focus.get("gold", 0) >= 5000
 
 
 @register("explorer")

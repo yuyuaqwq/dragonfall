@@ -4,7 +4,7 @@
 覆盖：
 1. 召唤：技能带 summon 字段 → 实体生成（属性按玩家比例缩放）
 2. 上限：骷髅海 limit=3，第 4 次召唤被拒
-3. 自动攻击：玩家行动后触发点 _companions_trigger('player_act') 每回合造成伤害（物理段吃敌 def）
+3. 自动攻击：玩家行动后触发点 _companions_trigger('actor_act') 每回合造成伤害（物理段吃敌 def）
 4. 真伤召唤物（合成 synthetic_true）：dmg_type=true 绕过防御
 5. 挡刀：_damage_player 概率转移伤害给召唤物
 6. 受击死亡：挡刀扣血到 0 移除
@@ -99,7 +99,7 @@ async def main():
     b3._summon_entity("skeleton", mk_player(), [])
     hp3 = b3.enemy["hp"]
     logs3 = []
-    b3._companions_trigger("player_act", logs3)
+    b3._companions_trigger("actor_act", logs3)
     dealt3 = hp3 - b3.enemy["hp"]
     check("召唤物攻击造成伤害", dealt3 > 0, f"dealt {dealt3}")
     check("日志有攻击文案", any("攻击" in l for l in logs3), str(logs3))
@@ -112,10 +112,10 @@ async def main():
     b4.companions.append({"tid": "synthetic_true", "name": "真伤灵", "icon": "✨",
                           "hp": 500, "max_hp": 500, "atk": 100, "def": 0,
                           "dmg_type": "true", "kind": "summon", "side": "player", "buffs": {},
-                          "auto_act": {"trigger": "player_act", "act": {"type": "basic_atk"}}})
+                          "auto_act": {"trigger": "actor_act", "act": {"type": "basic_atk"}}})
     hp4 = b4.enemy["hp"]
     logs4 = []
-    b4._companions_trigger("player_act", logs4)
+    b4._companions_trigger("actor_act", logs4)
     dealt4 = hp4 - b4.enemy["hp"]
     check("真伤召唤物无视 def=5000", 80 <= dealt4 <= 120, f"dealt {dealt4}")
     # 对照：物理召唤物（骷髅）被高防大幅削减
@@ -125,7 +125,7 @@ async def main():
     b4b.summons[0]["atk"] = 100
     hp4b = b4b.enemy["hp"]
     logs4b = []
-    b4b._companions_trigger("player_act", logs4b)
+    b4b._companions_trigger("actor_act", logs4b)
     dealt4b = hp4b - b4b.enemy["hp"]
     check("骷髅物理被高防削减", dealt4b < dealt4 * 0.5, f"phys {dealt4b} vs true {dealt4}")
 
@@ -207,11 +207,11 @@ async def main():
     check("from_state 恢复 summons", len(b8r.summons) == 2 and b8r.summons[0]["tid"] == "skeleton")
     check("老存档无 summons 兜底", BT.Battle.from_state({"type": "monster"}).summons == [])
 
-    # 9. 技能字段触发召唤（_player_skill 挂点）
+    # 9. 技能字段触发召唤（_actor_skill 挂点）
     print("\n— 技能召唤挂点 —")
     p9 = mk_player()
     b9 = BT.Battle("怪物", mk_enemy(), {}, p9)
-    logs9 = b9._player_skill(b9._player_stats(p9), "召唤骷髅", summon_info, p9)
+    logs9 = b9._actor_skill(b9._player_stats(p9), "召唤骷髅", summon_info, p9)
     check("技能召唤生成实体", len(b9.summons) == 1, f"summons {len(b9.summons)}")
     check("技能召唤有日志", any("加入战斗" in l for l in logs9), str(logs9))
 
