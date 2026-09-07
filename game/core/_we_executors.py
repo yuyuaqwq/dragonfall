@@ -17,7 +17,7 @@ import random
 # 命中后给敌方挂 DOT（maxhp% / curhp%）。事件 hit/skill_hit 由数据表 family 默认事件表
 # 分发（见 weapon_effects.py proc()），执行器本身不关心事件。
 
-def _we_exec_dot(battle, player, ctx, logs, wd, key):
+def _we_exec_dot(battle, player, ctx, logs, wd, key, event):
     """DOT 执行器：chance 判定 → 目标 pct 判定（boss/精英 vs 普通）→ 写敌方 debuffs。
 
     覆盖 smith_blaze_wound/rong_lu_yu_wen/ember_burn（走 _apply_dot 共享动作）与
@@ -52,7 +52,7 @@ def _we_exec_dot(battle, player, ctx, logs, wd, key):
 # 纯反伤段（thorn_armor 无条件 / retribution_ring chance）——C2 只收这 2 key，
 # iron_echo/dragon_spine_mail/ember_bulwark 带附赠（heal/heal_down/burn）留 C4 收。
 
-def _we_exec_reflect(battle, player, ctx, logs, wd, key):
+def _we_exec_reflect(battle, player, ctx, logs, wd, key, event):
     """反伤执行器：chance（缺省=恒触发，thorn_armor 无 chance 字段）→ ctx.dmg×reflect_pct 反弹。
 
     覆盖 thorn_armor（无条件反 15%）/ retribution_ring（20% 反 30%）。
@@ -77,7 +77,7 @@ def _we_exec_reflect(battle, player, ctx, logs, wd, key):
 # （_slow_enemy/_freeze_enemy——Boss 免疫退化内建）与 e_buffs 直写（heal_down/stun/叠层）。
 # ⚠️ 状态键（eff 计数/CD/used、e_buffs 叠层）一律读表字段，不硬编码。
 
-def _we_exec_control(battle, player, ctx, logs, wd, key):
+def _we_exec_control(battle, player, ctx, logs, wd, key, event):
     """控制执行器：chance/次数/CD 前置判定 → mode 分派 → 共享动作/e_buffs 写控。
 
     覆盖控制族 9 key：frost_ring/holy_judgment_field/everfrost_domain/everfrost_scepter/
@@ -158,7 +158,7 @@ def _we_exec_control(battle, player, ctx, logs, wd, key):
 # 治疗增强段：ctx.heal ×(1+heal_pct)。溢出段（ctx.overflow 真值）跳过——由 battle.py
 # 两次 proc（无 overflow 的治疗加成阶段 → 有 overflow 的溢出转盾阶段）驱动。
 
-def _we_exec_heal_amp(battle, player, ctx, logs, wd, key):
+def _we_exec_heal_amp(battle, player, ctx, logs, wd, key, event):
     """治疗增幅执行器：ctx.heal ×(1+heal_pct)。"""
     if ctx.get("overflow"):
         return
@@ -190,7 +190,7 @@ def _shield_base_value(battle, player, wd):
         return int(player.get("max_hp", 100) * float(wd["shield_pct"]))
     return int(player.get("max_hp", 100) * float(wd["shield_hp_pct"]))
 
-def _we_exec_shield(battle, player, ctx, logs, wd, key):
+def _we_exec_shield(battle, player, ctx, logs, wd, key, event):
     """护盾族执行器：按 key 语义执行（事件由分发器路由，执行器内逐 key 分支与原 handler 等价）。"""
     from .constants import ACT_TICK
     eff = player.setdefault("eff", {})
@@ -288,6 +288,195 @@ _SHIELD_LOG = {
     "endless_radiance": "🌟 无尽辉光：暴击获得 5% 最大生命护盾！",
 }
 
+
+# ---------------------------------------------------------------- proc_passive_mult（4 key）
+# 被动乘区族：伤害结算挂点（battle _skill_finalize_damage passive 分发，ctx 统一含 mult/tags/
+# is_crit/kind/skill）读敌/自身状态条件 → 乘进 ctx.mult 或 ctx.crit_dmg。双事件 key 生产-消费
+# 成对整体迁移（§2.4/§6：combo_end 的 hit 置标 + arcane_firmament 的 battle_start 置标也一并进
+# 执行器，事件由 ctx 区分——被动消费段 ctx 必带 mult 键，生产段无）。条件谓词/数值作用面见
+# docs/REFACTOR_P2C_weapon_executors.md §3.10/§4.1 族 #11。
+
+def _we_exec_passive_mult(battle, player, ctx, logs, wd, key, event):
+    """被动乘区执行器：cond 谓词（hp 阈值/kind/连段）命中 → mode mult（ctx.mult ×值）/crit_dmg。
+
+    覆盖 twilight_execute/star_slayer_edge（hp 阈值 mult）/ arcane_firmament（kind=魔法 mult，
+    battle_start 置 mark_key 标记——消费段只判 kind 不读标记，置标仅原样保留）/ combo_end
+    （hit 置 mark_key 标记 → passive is_crit 消费 ctx.crit_dmg 加法并清标）。行为与旧 handler
+    逐语句等价（C8 目标：行为零变化）。
+    """
+    eff = player.setdefault("eff", {})
+    # 事件路由：生产段（battle_start/hit 置标）vs passive 消费段。
+    # ⚠️ passive 挂点共 3 处（battle dmg 结算 _wectx / heal / taken）——旧 handler 对全部三 ctx
+    # 都执行消费（handler 不查 ctx 内容；twi/star 读敌 hp、arcane 读 ctx.kind、combo 读
+    # ctx.is_crit+标——heal/taken ctx 下各自空转或写 mult 都已被 OLD 语义，迁移逐句复刻）。
+    if event != "passive":
+        # ---- 生产段：置标 / 叠层 ----
+        if key == "arcane_firmament":
+            # battle_start：挂 eff.we_arcane_firmament 标记 + 日志（旧 handler 原文案）
+            eff[wd["mark_key"]] = True
+            logs.append(wd.get("log") or "✨ 奥术苍穹：魔攻 +15%，技能伤害 +10%！")
+            return
+        if key == "combo_end":
+            # hit：连段活跃（battle._combo_active——旧 handler 只判布尔不查层数）→ 置暴伤标记
+            if battle._combo_active(player):
+                eff[wd["mark_key"]] = float(wd["crit_dmg"])
+            return
+        return  # 其余 key 无其它生产事件（proc_stack 各生产段在其执行器内）
+    is_passive = "mult" in ctx
+    if key == "twilight_execute":
+        # 暮光处决：对生命 <40% 的目标 +25% 伤害（唯一事件 passive）
+        from .weapon_effects import _hp_ratio
+        if _hp_ratio(battle) < float(wd["threshold"]):
+            ctx["mult"] = ctx.get("mult", 1.0) * float(wd["dmg_mult"])
+            ctx["tags"] = ctx.get("tags", []) + ["🌆暮光处决"]
+        return
+    if key == "star_slayer_edge":
+        # 弑星：对生命 >70% 的目标 +15% 伤害（暴伤 +30% 在 _player_stats 面板消费点，非本段）
+        from .weapon_effects import _hp_ratio
+        if _hp_ratio(battle) > float(wd["threshold"]):
+            ctx["mult"] = ctx.get("mult", 1.0) * float(wd["dmg_mult"])
+            ctx["tags"] = ctx.get("tags", []) + ["⭐弑星"]
+        return
+    if key == "arcane_firmament":
+        # passive：魔法技 ×(1+skill_dmg_pct)（魔攻 +15% 面板在 _player_stats 消费）
+        if ctx.get("kind") == "魔法":
+            ctx["mult"] = ctx.get("mult", 1.0) * (1 + float(wd["skill_dmg_pct"]))
+            ctx["tags"] = ctx.get("tags", []) + ["✨奥术苍穹"]
+        return
+    if key == "combo_end":
+        # 连击终点（夜枭双匕）：hit 置暴伤标记（连段活跃即置——保持旧 handler 判定：只查
+        # battle._combo_active，不查 stacks.combo≥3）→ passive 暴击消费 ctx.crit_dmg 加法并清标
+        if ctx.get("is_crit") and eff.get(wd["mark_key"]):
+            ctx["crit_dmg"] = ctx.get("crit_dmg", 0) + float(wd["crit_dmg"])
+            eff.pop(wd["mark_key"], None)
+        return
+
+
+# ---------------------------------------------------------------- proc_stack（7 key）
+# 叠层增幅族：生产事件（skill_cast/hit/turn_start 叠层写 stacks/eff 槽）→ passive 乘区段
+# （读层数/charge 乘进 ctx.mult，rune_amp 消费后清 0 / sage_amp/thunder_weave 消费 charge 后清）。
+# 覆盖 7 key = wind_mark/thunder_weave/novice_hunt_combo（hit 叠层；面板/连击消费在 battle
+# 直读点，本执行器只写槽）/ rune_amp/sage_amp/eternal_codex（skill_cast 叠层）/ time_staff
+# （turn_start 叠层+回血）。面板消费点（_player_stats 直读 gale/wind_mark/thunder_weave 层数）
+# 属 C6 批次，不改。事件区分：被动消费段 ctx 必带 mult 键；生产段无。
+
+def _we_exec_stack(battle, player, ctx, logs, wd, key, event):
+    """叠层增幅执行器：生产段叠层（写 stacks/eff 槽 + 原文案日志）→ 被动段读层/charge 乘区消费。
+
+    与旧 handler 逐语句等价（C8 目标：行为零变化）。双事件 key（rune_amp/sage_amp/eternal_codex/
+    thunder_weave/time_staff）生产-消费配对整体迁移——生产段保留原逻辑，被动消费段读同槽。
+    wind_mark/novice_hunt_combo 仅 hit 叠层（无 passive 段），照旧 handler 全量搬迁。
+    """
+    eff = player.setdefault("eff", {})
+    stacks = player.setdefault("stacks", {})
+    # 事件路由：生产段（skill_cast/hit/turn_start）叠层写槽 vs passive 消费段。
+    # ⚠️ passive 挂点共 3 处（battle dmg 结算 / heal / taken）——旧 handler 全部触发被动消费
+    # （不查 ctx 内容；time_staff 等只读 stacks，heal/taken ctx 下也写 ctx.mult/tags，调用方
+    # 只读自己键 → 无害）。复刻 = event==passive 即消费（含无 mult 的 heal/taken ctx）。
+    is_passive = (event == "passive")
+    # 生产段（非被动事件）：wind_mark/novice_hunt_combo/thunder_weave 仅 hit；rune_amp/sage_amp/
+    # eternal_codex 仅 skill_cast；time_staff 仅 turn_start。
+    if not is_passive:
+        if event not in ("hit", "skill_cast", "turn_start"):
+            return  # 其它事件（battle_start 等非生产 key）→ 空转
+        if key == "wind_mark":
+            # 风痕（风行短弓）：每次命中 +1 层（上限 max_stack=4），每层速度 +2%（_player_stats 直读消费）
+            n = min(int(wd["max_stack"]), int(stacks.get("wind_mark", 0) or 0) + 1)
+            stacks["wind_mark"] = n
+            logs.append(f"🌬️ 风痕叠加！({n}/4 层，每层速度 +2%)")
+            return
+        if key == "novice_hunt_combo":
+            # 猎影（猎影之牙）：暴击后叠层（上限 max_stack=5），每层连击率 +per_stack%（消费在 battle）
+            if not ctx.get("is_crit"):
+                return
+            n = min(int(wd["max_stack"]), int(stacks.get("novice_combo", 0) or 0) + 1)
+            stacks["novice_combo"] = n
+            logs.append(f"🎯 猎影：暴击叠层！（{n}/5 层，每层连击率 +{int(float(wd['per_stack']) * 100)}%）")
+            return
+        if key == "thunder_weave":
+            # hit 生产：+1 层（上限 5），满层清零并置 we_thunder_charge（下一次技能 +20%）
+            n = min(int(wd["max_stack"]), int(stacks.get("thunder_weave", 0) or 0) + 1)
+            stacks["thunder_weave"] = n
+            logs.append(f"⚡ 雷纹连打！({n}/5 层，每层速度+2% 攻击+1%)")
+            if n >= int(wd["max_stack"]):
+                stacks["thunder_weave"] = 0
+                eff[wd["charge_key"]] = float(wd["charge_pct"])
+            return
+        if key == "rune_amp":
+            # skill_cast 生产：叠层（上限 5）
+            n = min(int(wd["max_stack"]), int(stacks.get("rune_amp", 0) or 0) + 1)
+            stacks["rune_amp"] = n
+            logs.append(f"📜 铭文增幅！({n}/5 层，下一技能 +{int(n * float(wd['dmg_pct_per']) * 100)}%)")
+            return
+        if key == "sage_amp":
+            # skill_cast 生产：计数（need 次满 → 置 we_sage_charge = ×charge_pct）
+            n = int(stacks.get("sage_amp", 0) or 0) + 1
+            stacks["sage_amp"] = n
+            if n >= int(wd["need"]):
+                stacks["sage_amp"] = 0
+                eff[wd["charge_key"]] = float(wd["charge_pct"])
+            return
+        if key == "eternal_codex":
+            # skill_cast 生产：叠层（上限 max_stack=8）
+            cap = int(wd["max_stack"])
+            n = min(cap, int(stacks.get("eternal_codex", 0) or 0) + 1)
+            stacks["eternal_codex"] = n
+            logs.append(f"📖 永恒契约！({n}/{cap} 层，每层技能伤害 +{float(wd['dmg_pct_per']) * 100:.1f}%)")
+            return
+        if key == "time_staff":
+            # turn_start 生产：叠层（上限 max_stack=10）+ 掉血时回 1.5% 最大生命
+            from .weapon_effects import _heal_player
+            n = min(int(wd["max_stack"]), int(stacks.get("time_staff", 0) or 0) + 1)
+            stacks["time_staff"] = n
+            if player.get("hp", 0) < player.get("max_hp", 1):
+                heal = max(1, int(player.get("max_hp", 1) * float(wd["per_pct"])))
+                _heal_player(battle, player, heal, logs, source="⏳ 岁月流转")
+            logs.append(f"⏳ 岁月流转叠层！({n}/10 层，攻击 +{int(n * float(wd['per_pct']) * 100)}%)")
+            return
+        return  # 该 key 当前事件无对应生产段 → 空转
+    # ===== 以下 = event==passive 且 ctx 带 mult（伤害结算）→ 被动乘区消费 =====
+    if key == "wind_mark":
+        return  # 风痕无被动消费段（面板直读，C6 收）
+    if key == "novice_hunt_combo":
+        return  # 猎影无 passive 消费段（连击率由 battle 直读，C6/后收）
+    if key == "thunder_weave":
+        # passive：满层 charge 消费（下一次技能 ×charge_pct）
+        if eff.get(wd["charge_key"]):
+            ctx["mult"] = ctx.get("mult", 1.0) * float(eff.get(wd["charge_key"], float(wd["charge_pct"])))
+            ctx["tags"] = ctx.get("tags", []) + ["⚡雷纹x1.20"]
+            eff.pop(wd["charge_key"], None)
+        return
+    if key == "rune_amp":
+        # passive：下一技能 ×(1+per_pct×层)，消费后清 0
+        n = int(stacks.get("rune_amp", 0) or 0)
+        if n > 0:
+            ctx["mult"] = ctx.get("mult", 1.0) * (1 + float(wd["per_pct"]) * n)
+            ctx["tags"] = ctx.get("tags", []) + [f"📜铭文x{1 + float(wd['per_pct']) * n:.2f}"]
+            stacks["rune_amp"] = 0
+        return
+    if key == "sage_amp":
+        # passive：charge 消费（下一次技能 ×charge_pct）
+        if eff.get(wd["charge_key"]):
+            ctx["mult"] = ctx.get("mult", 1.0) * float(eff.get(wd["charge_key"], float(wd["charge_pct"])))
+            ctx["tags"] = ctx.get("tags", []) + ["📚秘典x1.25"]
+            eff.pop(wd["charge_key"], None)
+        return
+    if key == "eternal_codex":
+        # passive：每层 ×(1+per_pct×层)（不清层）
+        n = int(stacks.get("eternal_codex", 0) or 0)
+        if n > 0:
+            ctx["mult"] = ctx.get("mult", 1.0) * (1 + float(wd["per_pct"]) * n)
+            ctx["tags"] = ctx.get("tags", []) + [f"📖永恒x{1 + float(wd['per_pct']) * n:.2f}"]
+        return
+    if key == "time_staff":
+        # passive：每层 ×(1+per_pct×层)（不清层）
+        n = int(stacks.get("time_staff", 0) or 0)
+        if n > 0:
+            ctx["mult"] = ctx.get("mult", 1.0) * (1 + float(wd["per_pct"]) * n)
+            ctx["tags"] = ctx.get("tags", []) + [f"⏳岁月x{1 + float(wd['per_pct']) * n:.2f}"]
+        return
+    return
+
 # ---------------------------------------------------------------- 注册表
 # 族名 → 执行器。key→族 由数据表 family 字段路由（proc() 分发器读表）。
 WE_EXECUTORS = {
@@ -296,6 +485,8 @@ WE_EXECUTORS = {
     "proc_control": _we_exec_control,
     "proc_heal": _we_exec_heal_amp,
     "proc_shield": _we_exec_shield,
+    "proc_passive_mult": _we_exec_passive_mult,
+    "proc_stack": _we_exec_stack,
 }
 
 # 族内 key 专属文案/源（dot 触发源 / reflect 日志模板）——数据表未下沉文案时放这

@@ -290,6 +290,24 @@ _WE_EXEC_KEYS = {
     "echo_bless": "proc_shield",
     "atonement_shield": "proc_shield",
     "endless_radiance": "proc_shield",
+    # C8：proc_passive_mult 被动乘区族 4 key（twilight_execute/star_slayer_edge/arcane_firmament/
+    # combo_end——passive 消费段 + 双事件生产段 battle_start(奥术置标)/hit(连击置标)整体迁移；
+    # 事件经分发器 event 形参传入执行器内区分：event=passive 走消费，battle_start/hit 走置标）
+    "twilight_execute": "proc_passive_mult",
+    "star_slayer_edge": "proc_passive_mult",
+    "arcane_firmament": "proc_passive_mult",
+    "combo_end": "proc_passive_mult",
+    # C8：proc_stack 叠层族 7 key（rune_amp/sage_amp/eternal_codex/time_staff/thunder_weave/
+    # wind_mark/novice_hunt_combo——生产段 skill_cast/hit/turn_start 叠层 + passive 乘区消费段
+    # 整体迁移；wind_mark/novice_hunt_combo 无 passive 段，仅叠层写槽——面板/连击消费在
+    # _player_stats/battle 直读点属 C6 后续收，槽键不变行为零变化）
+    "rune_amp": "proc_stack",
+    "sage_amp": "proc_stack",
+    "eternal_codex": "proc_stack",
+    "time_staff": "proc_stack",
+    "thunder_weave": "proc_stack",
+    "wind_mark": "proc_stack",
+    "novice_hunt_combo": "proc_stack",
 }
 # 族默认事件表（key 未显式声明 event 时按族）：proc_dot 主事件 hit/skill_hit，
 # proc_reflect→taken、proc_heal amp→heal。分发器按"key 注册事件集"匹配事件后再调执行器
@@ -329,10 +347,10 @@ def proc(battle, player, event: str, ctx: dict | None = None, logs: list | None 
         if fam:
             _ex = _execs.get(fam)
             if _ex is not None:
-                # 族执行器签名 (battle, player, ctx, logs, wd, key)；异常静默吞（同旧语义）。
+                # 族执行器签名 (battle, player, ctx, logs, wd, key, event)；异常静默吞（同旧语义）。
                 try:
                     wd = effect_data(battle, player, key)
-                    _ex(battle, player, ctx, logs, wd, key)
+                    _ex(battle, player, ctx, logs, wd, key, event)
                 except Exception:
                     pass
                 continue
