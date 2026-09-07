@@ -57,6 +57,7 @@ import）；实际 95 常量 52 真消费/41 死表。教训：AST 扫"被 impor
 - P2E 实施：MECH_CFG 落位 A29+B14+C7+D45（消费点改 ~150-200 行，与 battle.py 撞文件需串行）
 - P2F-3：player_base_stats/monster_stats 声明化（✅ b955276 P2F3a F14 MONSTER_ROLE_MODS 表 + 4f705ee P2F3b F6 base_growth.py 声明表；numeric 52/52）
 - P3：玩家状态容器收尾（p_meta 槽收纳，需先行为快照测试）
+- **P3/P2G 并入项（鱼鱼 2026-09-07 反馈古王"内战"后拍板）：e_buffs 老共享 dict 收口**——敌方 buffs 双路径并存：老代码直写共享 `self.e_buffs`（battle.py L2868/5249/5271/10139 等单怪时代遗留），新代码写每怪 `u["buffs"]`（_enemy_turn L3162 等）；显示层只读共享 e_buffs → 多怪（古王+王冠核心）buff 串/归属错乱。收口方向：全部敌方 buffs 走每怪 actor `u["buffs"]`，`e_buffs` 仅作单怪兼容别名（指向存活主怪 buffs），老写入点逐个迁。属于 actor 状态容器统一（P3）范畴，与 P2G 动作库一起做。
 - P4：命令层抽 services（BattleSettlement/Quest/Shop/Crafting/Profession…）
 - P5：battle 拆类（最后，需白盒黑盒化）
 - **P6（最后做，鱼鱼 2026-09-07 夜拍板）：可视化配置编辑器**——直接编辑游戏配置的可视化编辑器（data/ 各表已 dict/表驱动，编辑器直接读写）。排在 P0~P5 全部完成后，别提前做。
