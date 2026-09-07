@@ -1943,7 +1943,7 @@ def _melody_state(battle):
 
 
 # ================= 4.11 v153 磐核 discharge（拳师 B 线） =================
-# v153 §6：磐核 0-5（引擎 GUARD_CORE_CFG 已配 max 5 / discharge 系数 0.7），
+# v153 §6：磐核 0-5（引擎字面 max 5 / discharge 系数 0.7，MECH_CFG 未含磐核段，
 # 磐岩释能/磐核爆发/气力万法 消耗全部磐核换伤害倍率
 
 @register(MECH_EFFECTS, "guard_core_burst")
