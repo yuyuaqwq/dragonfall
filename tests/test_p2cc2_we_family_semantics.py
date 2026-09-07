@@ -61,9 +61,11 @@ def test_family_routing():
               "iron_echo", "dragon_spine_mail", "ember_bulwark"):
         check(f"未迁移同族 key {k} 不进路由", _we_family(k) in ("proc_heal", "proc_reflect")
               and k not in _WE_EXEC_KEYS, f"route={_WE_EXEC_KEYS.get(k)}")
-    # 未族化 key（如 star_pierce family=proc_extra_dmg）→ 不在路由 → 仍走旧 handler
-    check("未族化 key 不进路由", _we_family("star_pierce") not in _WE_EXEC_KEYS.values()
-          and "star_pierce" not in _WE_EXEC_KEYS, _we_family("star_pierce"))
+    # v181.P2C-C4：star_pierce 直伤追击族 11 key 已整体迁入 proc_extra_dmg 路由——
+    # 此处原"未族化 key 不进路由"断言改查仍未迁移的 proc_buff key（gale_step 家族）走旧 handler
+    check("未迁移 key（gale_step proc_buff）不进路由",
+          _we_family("gale_step") not in _WE_EXEC_KEYS.values()
+          and "gale_step" not in _WE_EXEC_KEYS, _we_family("gale_step"))
 
 def test_dot_behavior():
     print("【2. proc_dot 数值行为】")
