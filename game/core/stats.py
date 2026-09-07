@@ -39,12 +39,13 @@ def _boss_atk_stage(lv: int) -> float:
     """v169.3 boss 专用 atk 等级曲线（保留 v169.2 减速曲线，数值完全一致）：
     31-60 级每级 -0.5%、61+ 每级 -0.4% 并夹 max(0.2, …) 防未来等级上限提升出现负 atk。
     boss 后期 atk 成长由 BOSS_ATK_STAGE_MULT（stat_templates v156 段乘区）承担，
-    本曲线只为维持 boss 级内面板与旧版一致（BOSS_ATK_STAGE_MULT 门禁 8~12% 口径不动）。"""
-    if lv <= 30:
-        return 1.0
-    if lv <= 60:
-        return 1.0 - (lv - 30) * 0.005
-    return max(0.2, 0.85 - (lv - 60) * 0.004)
+    本曲线只为维持 boss 级内面板与旧版一致（BOSS_ATK_STAGE_MULT 门禁 8~12% 口径不动）。
+    P2F-2：段表 + floor → data/formula_skeleton.py FORMULA_SKELETON["boss_atk_legacy"]
+      （seg=((30,0),(60,-0.005),(999,-0.004))，floor=0.2；表语义与 _stage_mult 一致：
+      ≤30 → 1.0；31-60 → 1.0-(lv-30)×0.005；61+ → 0.85-(lv-60)×0.004，夹 floor）。
+    """
+    _bal = FORMULA_SKELETON["boss_atk_legacy"]
+    return max(_bal["floor"], _stage_mult(_bal["seg"], lv))
 
 
 def _stage_mult(segments: tuple, lv: int) -> float:
