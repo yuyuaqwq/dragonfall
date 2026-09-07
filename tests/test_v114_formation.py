@@ -423,6 +423,9 @@ def test_single_enemy_compat():
     check("to_state 含 enemies 阵列", isinstance(st.get("enemies"), list) and len(st["enemies"]) == 1,
           str(st.keys()))
     b2 = BT.Battle.from_state(st)
+    # v181.P3d：from_state 不绑 player（命令层后绑），绑后玩家视角敌对主目标恢复
+    b2._focus = p
+    b2._apply_restore_pstate()
     check("from_state 恢复单怪", b2.enemy["name"] == "单怪" and b2._actor_buffs(b2.enemy).get("poison") == 3,
           str(b2.enemy.get("name")))
 

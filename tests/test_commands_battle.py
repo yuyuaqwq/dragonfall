@@ -55,7 +55,8 @@ async def main():
     b = BT.Battle("monster", make_monster(hp=100))
     b2 = BT.Battle.from_state(b.to_state())
     check("type 保留", b2.btype == "monster")
-    check("enemy hp 保留", b2.enemy["hp"] == 100)
+    # v181.P3d：无玩家纯怪战斗无玩家视角主目标 → 读 actor 组验证序列化保留
+    check("敌方 actor hp 保留", (b2._hostile_actors() or [{}])[0].get("hp") == 100, str(b2._hostile_actors()))
     check("buffs 保留", b2._p_buffs_bag() == {} and b2._tgt_buffs() == {})
 
     print("【战斗：普攻】")
@@ -138,20 +139,21 @@ async def main():
     print("【战斗：中毒持续伤害】")
     p = make_player("战士", 10, hp=9999)
     b = BT.Battle("monster", make_monster(hp=1000))
+    b._focus = p  # v181.P3d：先绑玩家（挂毒/读敌人都需要玩家视角）
     # v180F A7：毒强度快照由施法者挂载时写入（_apply_dot 8246-8247），结算不再回落
     # _last_player 猜——直接构造缺快照的 debuff = 无强度（只吃 max_hp 部分）。测试补快照
     # 对齐真实产物：战士 10 级面板 atk≈59
-    b.enemy.setdefault("debuffs", {})["poison"] = {"n": 2, "mult": 1.0,
-                                                    "atk": 59, "matk": 0}
+    b._hostile_primary("player").setdefault("debuffs", {})["poison"] = {"n": 2, "mult": 1.0,
+                                                                         "atk": 59, "matk": 0}
     logs, ended = b.actor_turn("attack", None, p)
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     # 毒 2 层（混合公式 atk×0.5+max_hp×1.5% 每层）+ 普攻
-    check("中毒发作扣血", b.enemy["hp"] < 950, f"hp={b.enemy['hp']} (普攻+毒)")
+    check("中毒发作扣血", b._hostile_primary("player")["hp"] < 950, f"hp={b.enemy['hp']} (普攻+毒)")
     # v152 时刻制：DOT 由 dot_tick 事件按行动轮次结算，层数=剩余结算次数。
     # 玩家行动窗口内毒发作 1 次（2→1），随后攻击命中把怪打死（hp 1000 → 900-<950 已接近）；
     # 若结算后怪已死则 debuffs 清空（毒随目标死亡移除）——断言放宽为：毒层已结算（n 减少或已移除）
     check("毒层结算后衰减或目标已死清除", b.enemy.get("debuffs", {}).get("poison", {}).get("n", 0) in (0, 1)
-          or b._enemy_dead(), str(b.enemy.get("debuffs")))
+          or b._enemy_dead(), str(b._hostile_primary("player").get("debuffs")))
 
     print("【数值铁律：分支奥义 ≥ 基础大招】")
     # v153：旧 Lv.30 大招（元素风暴/蓄力斩/圣光惩戒/暗杀等）已删除；基础表 lv≤30 等效输出

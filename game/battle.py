@@ -1098,15 +1098,41 @@ class Battle:
         u.setdefault("drops", [])
         return u
 
+    def _side_actors(self, side: str) -> list:
+        """v181.P3d：某阵营的 actor 组（sides 权威）。无该阵营 → []。"""
+        return (self.sides or {}).get(side) or []
+
+    def _side_primary(self, side: str) -> dict:
+        """v181.P3d：某阵营首个存活 actor（无 → {}）。"""
+        for _u in self._side_actors(side):
+            if _u.get("hp", 0) > 0:
+                return _u
+        return {}
+
+    def _hostile_actors(self, side: str = "player") -> list:
+        """v181.P3d：side 的所有敌对阵营 actor 扁平列表（sides 权威，无身份预设）。"""
+        out = []
+        for _hs in self.hostile_sides(side):
+            out.extend(self._side_actors(_hs))
+        return out
+
+    def _hostile_primary(self, side: str = "player") -> dict:
+        """v181.P3d：side 敌对阵营首个存活 actor（无 → {}）。"""
+        for _hs in self.hostile_sides(side):
+            for _u in self._side_actors(_hs):
+                if _u.get("hp", 0) > 0:
+                    return _u
+        return {}
+
     @property
     def enemy(self) -> dict:
-        """兼容代理：主目标 = 最前排第一个存活单位（无存活返回 enemies[0]）。"""
-        for u in self.enemies:
-            if u.get("hp", 0) > 0:
-                return u
-        if self.enemies:
-            return self.enemies[0]
-        return {}
+        """玩家视角敌对主目标（v181.P3d：从 sides 敌对阵营读，替代 enemies[0] 容器直读）。
+
+        仅当 player side 存在（sides 有 player 组）或焦点 actor 已绑（命令层后绑场景）
+        时返回敌对主目标；否则（纯 actor 组战斗无玩家）→ {}。"""
+        if not (self.sides or {}).get("player") and not (self._focus or {}):
+            return {}
+        return self._hostile_primary("player")
 
     @enemy.setter
     def enemy(self, val: dict):
