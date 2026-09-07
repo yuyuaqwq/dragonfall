@@ -499,12 +499,12 @@ def _we_exec_stack(battle, player, ctx, logs, wd, key, event):
 #   - soul_eater 的 _deal_damage(wake_sleep=False) 与 heal 顺序（先伤后回）必须保持
 
 def _we_exec_extra_dmg(battle, player, ctx, logs, wd, key, event):
-    """直伤追击族执行器：mode 分派 → 计数/chance/crit 前置 → 共享动作追加伤害。"""
+    """直伤追击族执行器：key 分派（mode 由数据表标注，key 粒度更精确）→ 计数/chance/crit
+    前置 → 共享动作追加伤害。"""
     from .weapon_effects import (
         _extra_magi, _extra_phys, _true_dmg, _heal_player,
         _pstats, _estats,
     )
-    mode = wd.get("mode") or ""
     stacks = player.setdefault("stacks", {})
     eff = player.setdefault("eff", {})
     # ================= splash_magi：奥术溅射 =================
@@ -588,7 +588,7 @@ def _we_exec_extra_dmg(battle, player, ctx, logs, wd, key, event):
         return
 
 
-# 直伤追击族触发源（旧 handler source 参数原文案）
+# 直伤追击族触发源（旧 handler source 参数原文案；由 key 路由使用，mode 仅表标注不消费）
 _EXTRA_DMG_SOURCE = {
     "afterglow_splash": "🌅 余波",
     "spellblade_echo": "🔮 咒刃",
