@@ -158,6 +158,9 @@ cap 段，方案 §6.2 P2-D5/§2.3 挂点15/16/§3.2 映射表）：
 """
 from __future__ import annotations
 
+import os
+import re
+
 # ============================================================
 # 1. 注册表（两层）
 # ============================================================
@@ -175,8 +178,19 @@ _FAMILY_PENDING: set = set()
 KNOWN_GAPS: set = {
     # D 类真空转（0 引擎读取，skills.py 声明 + battle.py 注释 TODO）：
     "faith_share", "finisher_up", "poison_burst_up", "poison_spread",
+    # P2-D7 收尾补登 3 个"引擎旧通道直读"缺口（挂点7/8/9 未迁注册表，见下注释）
+    "arcane_constant", "lian_duan_soft", "shadow_dance_cd",
     # （E 类 tick 族成员 focus_regen_summon/arcane_intuition/undead_faith/
-    #   faith_overload_heal 已由 P2-D6 收编进 tick_regen/tick_mech_charge/tick_faith 族）
+    #   faith_overload_heal 已由 P2-D6 收编进 tick_regen/tick_mech_charge/tick_faith 族；
+    #   P2-D7 收尾记录另 3 个"引擎旧通道"名单：arcane_constant/lian_duan_soft/
+    #   shadow_dance_cd（挂点 7/8/9：_do_player_skill MP 段/_combo_break/_set_skill_cd）
+    #   消费点在 battle.py 仍是旧式 for 直读（非 run_proc_family 分发）——三挂点均为
+    #   引擎旧 proc 通道（v169.7 数据驱动前身），P2 未迁入注册表（§5 挂点7/8/9 卡），
+    #   数据/行为已完整（D0 回填），登记为"已消费但未注册表化"缺口——非静默空转，
+    #   与 D 类真空转性质不同，统一收进 KNOWN_GAPS 启动校验豁免表（校验只问
+    #   "不静默"，不强制每条都走注册表；引擎遗留旧通道列入缺口表防误删））
+    # P2-D7 启动校验豁免 = D 类 4（真空转）+ 3（旧通道直读）7 个；
+    # 45 声明已全覆盖 52-7；校验在文件尾 validate_proc_coverage()（ImportError 即红）
 }
 
 _REG_ORDER: list = []
@@ -1506,4 +1520,78 @@ declare_proc("heal_overflow_shield", "flag_set_cond")
 declare_proc("shaken_decay_half", "flag_set_cond")
 # broken_extend → dmg_mult_cond 已在 P2-D3b 声明（挂点14 乘区段）；延长段走同族新 ctx
 # flag_kind=broken_extend 分派（declare_proc 防重复——不再重复声明）
+
+
+# ============================================================
+# 9. P2-D7 收尾：52 proc 全覆盖启动校验（方案 §6.2 P2-D7 / §7.2）
+# ============================================================
+# 防未来新增被动 proc 忘注册（静默空转）：
+#   52 白名单 = skills.py 数据层全部 passive.proc 键（引擎唯一权威源，逐条 import 前
+#   静态扫描）；每个 proc 必须二选一：
+#     - 已在 PROC_FAMILIES 声明（含 FAMILY_HANDLERS 执行器就位），或
+#     - 显式列入 KNOWN_GAPS（设计文档登记的已知缺口：D 类 4 真空转 faith_share/
+#       finisher_up/poison_burst_up/poison_spread——单人不触发/数据缺陷/依赖在
+#   battle_mech 文件所有权外，登记不静默；另有 3 个"引擎旧通道直读"缺口
+#   arcane_constant/lian_duan_soft/shadow_dance_cd（挂点7/8/9 未迁注册表，
+#   行为在 battle.py 旧 for 通道完整，登记不静默——见上 KNOWN_GAPS 注释）。
+#   校验失败 → ImportError（import passive_procs 即失败 = 启动即红），防新增 proc
+#   忘注册静默空转；同时也拦：声明表外名字、声明族缺执行器、KNOWN_GAPS 与声明
+#   重复登记（需先想清楚到底走哪条）。
+#   注意：本校验不 import engine/content（避免循环依赖/拖慢 import）——skills.py
+#   是纯数据文件，用轻量 re 扫描其被动 proc 键即可拿到权威白名单。skills.py 行号
+#   见 docs/REFACTOR_P2D_passive_proc_registry.md 附录 A。
+_ALL_PASSIVE_PROCS = None
+
+
+def validate_proc_coverage() -> dict:
+    """52 全覆盖校验：返回 {whitelist, declared, gaps, unaccounted, extra_decl}。
+
+    每个 52 白名单 proc 必须 ∈ PROC_FAMILIES（已收编）或 ∈ KNOWN_GAPS（登记缺口）；
+    不满足 → ImportError。同时断言：声明集 ∩ KNOWN_GAPS = ∅、声明集 ⊆ 52、
+    已声明族均有执行器（_FAMILY_PENDING 为空 = P2 全批完成后执行器全就位）。
+    """
+    global _ALL_PASSIVE_PROCS
+    if _ALL_PASSIVE_PROCS is None:
+        # 静态扫描 skills.py（纯数据，无 import）：抓 passive 块内的 proc 键
+        _skill_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   "..", "data", "skills.py")
+        try:
+            with open(_skill_path, encoding="utf-8") as _f:
+                _sk_text = _f.read()
+            _found = set(re.findall(r'["\']proc["\']\s*:\s*["\']([a-z_0-9]+)["\']', _sk_text))
+        except OSError:
+            # 数据文件缺失 → 无权威源可校验：宁可放过（等真实启动报缺文件），
+            # 也不在 import 期抛误导性错（工程上 skills.py 永远存在）。
+            _found = set()
+        _ALL_PASSIVE_PROCS = _found
+    _wl = _ALL_PASSIVE_PROCS
+    _declared = set(PROC_FAMILIES)
+    _gaps = set(KNOWN_GAPS)
+    _unaccounted = sorted(_wl - _declared - _gaps)
+    _extra = sorted(_declared - _wl)
+    _dup = sorted(_declared & _gaps)
+    if _unaccounted:
+        raise ImportError(
+            "passive_procs 52 全覆盖校验失败：以下 proc 未声明也未登记 KNOWN_GAPS，"
+            f"未来新增被动忘注册会静默空转 —— 请 declare_proc 收编或登记缺口: "
+            f"{_unaccounted}")
+    if _extra:
+        raise ImportError(
+            f"passive_procs 声明了 52 白名单外的 proc（skills.py 无此被动）: {_extra} "
+            "—— 声明表必须 ⊆ 52 白名单")
+    if _dup:
+        raise ImportError(
+            f"passive_procs 声明与 KNOWN_GAPS 重复登记（需二选一）: {_dup}")
+    if _FAMILY_PENDING:
+        raise ImportError(
+            f"passive_procs 有声明族缺执行器（P2 全批完成后应清零）: "
+            f"{sorted(_FAMILY_PENDING)}")
+    return {"whitelist": len(_wl), "declared": len(_declared),
+            "gaps": len(_gaps), "unaccounted": len(_unaccounted),
+            "extra_decl": len(_extra)}
+
+
+# 模块 import 尾部即校验：52 全覆盖 or 已知缺口表不满足 = import 失败（启动即红）。
+# 防未来 skills.py 新增 passive.proc 忘注册 —— 无注册 = 无触发 = 静默空转。
+validate_proc_coverage()
 
