@@ -164,7 +164,8 @@ def test_buff_skill():
     same_left = p_old.get("reduce_left") == p_new.get("reduce_left")
     check("铁壁 buffs 一致 (reduce=0.45)", same_buff, f"old={p_old.get('buffs')} new={p_new.get('buffs')}")
     check("铁壁 reduce_left 一致 (8)", same_left, f"old={p_old.get('reduce_left')} new={p_new.get('reduce_left')}")
-    # 战吼 atk_up（现状复刻 = 3）
+    # 战吼 atk_up（新引擎做正确值 10 刻 = desc「全队攻击+30% 持续 10 刻」；
+    # 旧引擎漏传 info → 只给 3 刻 = 旧 bug，测试固化。此处验证新引擎正确行为）
     sk2, info2 = find_skill("战士", "战吼")
     check("找到战吼", sk2 is not None)
     p_old2 = make_old_player("战士", 20, [sk2], [info2["name"]])
@@ -174,8 +175,11 @@ def test_buff_skill():
     p_new2 = new_player("战士", 20, [sk2], [info2["name"]], st2)
     b_new2 = new_battle(p_new2)
     b_new2.human_act("skill", info2["name"], p_new2)
-    check("战吼 buffs atk_up=3 一致", p_old2.get("buffs", {}).get("atk_up") == p_new2.get("buffs", {}).get("atk_up"),
-          f"old={p_old2.get('buffs')} new={p_new2.get('buffs')}")
+    new_atk_up = p_new2.get("buffs", {}).get("atk_up")
+    old_atk_up = p_old2.get("buffs", {}).get("atk_up")
+    check("战吼 atk_up = 10 刻（desc 正确值，旧引擎 bug=3 不跟随）",
+          new_atk_up == int(info2.get("buff_turns", 10)),
+          f"new={new_atk_up} old_bug={old_atk_up} desc_buff_turns={info2.get('buff_turns')}")
 
 
 def test_basic_n1_still_green():
