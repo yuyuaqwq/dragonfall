@@ -389,3 +389,22 @@ def mech_cfg(mech: str) -> dict:      # core/mech_cfg_loader 或 battle 内 help
 ---
 
 *（end of doc — 侦察基线 master 329989c / wt_p2e，未改 game/ 代码）*
+
+---
+
+## 附录 B：P2E 执行完成回写（P1a-P3a 批次清单，2026-09-07）
+
+> 本附录由执行批次回写（任务书 docs/REFACTOR_P2E_task.md §P3c.7）。**已随 wt_p2e merge 095abd4 完成 P1a-P3a**；P3b/P3c 仍在 wt_p3c 分支推进（battle.py 读点迁移 / tests·scripts·docs 收尾）。顶层旧常量名暂保留作兼容层（P3c 后评估移除）。
+
+| 批次 | 内容 | commit | 状态 |
+|---|---|---|---|
+| P1a | 43 死表删除（41 死表 + GUARD_CORE_CFG/RANGER_CHARGE_CFG 注释-only；ZEN_HOLD_CFG 随 P1c） | 28a687d | ✅ |
+| P1b | BARD_BRANCHES 消费链退役 + 删除（恒 False 死判定清理） | f6c57ca | ✅ |
+| P1c | ZEN_HOLD_CFG 删除（随 P1a 同批 28a687d） | 28a687d | ✅ |
+| P2a | 双源归一：删 classes.combo dict（零读死源）+ echo.max 标注 | b81301d | ✅ |
+| P2b | 职业字段兜底族复核 + classes.charge 死字段标注 | 6c5d50f | ✅ |
+| P3a | MECH_CFG 机制单表成型 + 非 battle 消费点迁移（engine/battle_bars/battle_modes/__init__） | 492105e | ✅ |
+| P3b | battle.py 全量读点迁移 | —（wt_p3b 进行中） | ⏳ |
+| P3c | tests/scripts/docs 收尾（scripts/numeric_lib DOT 读点迁 MECH_CFG + docs 已删常量标注 + 测试断言同步） | —（wt_p3c） | ⏳ |
+
+> 合并节点：`095abd4 Merge wt_p2e: P2E Phase1+2+P3a`（9bd8d6d ← 492105e）。行为源证据全量清单见 REFACTOR_P2E_task.md 附录 A 与本文档附录 A；删除后行为真实源= battle_mech handler 字面量 / skills.py 技能条目 / core_resources·classes.py 职业字段 / ENEMY_BAR_CFG（见附录 A 每行"行为真实源"列）。

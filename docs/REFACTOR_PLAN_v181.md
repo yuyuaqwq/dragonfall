@@ -114,6 +114,8 @@ COMBO_REFLOW_*/BONE_RUSH_CFG/SHAKEN_CFG/CURSE_CFG/GUARD_CORE_CFG/ZEN_HOLD_CFG/MA
 现状（审计报告 2 §四）：battle_config ~40 常量以职业/流派命名（BARD_BRANCHES 硬编码中文分支名、SHADOW_STEP_CFG、ECHO_CFG、COMBO_CFG 带 class_id 等）；~30 个零消费死表（AST 扫描 90 常量仅 7 被 import）；同一机制字段 classes.py/core_resources/battle_config 三处并存无双源权威。
 ⚠️ 需先 AST 扫描核对"零消费"（数值可能以技能字段/注释硬编码在 skills.py/battle.py）。出清单给人确认再删。**侦察先行，改动单线**。
 
+> ✅ **P2-E 已完成（commit 095abd4 合并 wt_p2e：Phase1 死表清理 43 顶层 def 删 + Phase2 双源归一 + P3a MECH_CFG 机制单表成型/非 battle 消费点迁移；P3b battle.py 全量读点迁移 / P3c 测试·docs 收尾由 wt_p3c 分支批次跟进——本行标注为 095abd4 即 P1a-P3a 主体完成态）**。执行细节见 docs/REFACTOR_P2E_task.md 与 docs/REFACTOR_P2E_mech_cfg.md（附录已完成批次回写）。
+
 ## 分批派工（文件所有权互斥）
 
 | 批次 | 子任务 | 所有权文件 | 风险 |
