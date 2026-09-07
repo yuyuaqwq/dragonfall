@@ -744,9 +744,108 @@ def _h_flag_set_cond(battle, ctx: dict, ps: dict, ps_name: str):
             _swallow(battle, "passive_procs.element_sync", _sw_e)
             pass
         return None
+    if _kind == "elem_affinity":
+        # 元素亲和 element_affinity（挂点18 _skill_hit_settle 引爆后置位段）：
+        # 引爆结算（mech=element_burst*）后置位下次挂印 +1 标记——已学被动才置位。
+        # 原循环体：`for...: self._elem_affinity_next = True; break`（ps 空 dict 纯置位型，
+        # 学到即置位——无参数读取）；置位供挂印分支 6582 消费后清零（battle 属性随序列化）。
+        # 读 _ps：零参数——但保留零默认值铁律：无 flag_kind/无 mech 前缀门槛 = 不触发。
+        try:
+            battle._elem_affinity_next = True
+            return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.element_affinity", _sw_e)
+            pass
+        return None
+    if _kind == "broken_extend":
+        # 破绽·极 broken_extend 延长段（挂点18 _skill_hit_settle shaken 触发免疫窗口段）：
+        # 目标 shaken dict（_bs）免疫窗口 +ps.extend 刻（原循环体逐字直搬；首条 break——原
+        # 循环尾 break，max=1 数据下 run_proc_family_pm 逐条分发只到首条即等效）。
+        # 双消费点：乘区段（broken_mult，挂点14 mult_kind=broken_break）已由 D3b 收编同族
+        # 不同 ctx 分派——本段只做延长副作用。ctx["shaken"] = 调用侧 bar_trigger 后的
+        # e_buffs["shaken"] dict 引用（副作用直接落在该 dict）；日志 🥋破绽·极 原样保留。
+        # 读 _ps：extend；缺字段（≤ 0）= 无此行为（零默认值铁律；D0 回填 1）。
+        _ext = int(ps.get("extend", 0) or 0)
+        if _ext <= 0:
+            return None  # 缺字段 = 无此行为
+        _bs = ctx.get("shaken")
+        if not isinstance(_bs, dict):
+            return None  # 无 shaken dict → 不触发（调用侧守卫已保证，双保险）
+        try:
+            _bs["immune_turns"] = int(_bs.get("immune_turns", 0) or 0) + _ext
+            return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.broken_extend", _sw_e)
+            pass
+        return None
+    if _kind == "dirge_ctrl_up":
+        # 镇魂安魂 dirge_ctrl_up（挂点18 _skill_hit_settle 控制延长段）：挽歌系控制
+        # （mech/cc/mech2 ∈ stun/freeze/silence/sleep/spd_down）对敌施加后 e_buffs
+        # 控制键时长 +ps.add 刻（1.5 向下取整——半刻引擎不支持）。
+        # 原循环体逐字直搬：遍历控制键找首个带时长键 → 加 add 刻 + 日志 + break；外层
+        # for...break（首条 proc）。ctx["e_buffs"] = 调用侧 _tgt_buffs() 引用（副作用落
+        # 该 dict）；日志串与原文逐字一致（原文硬编码 "+1 刻！"，data add=1 渲染同文）。
+        # 读 _ps：add；缺字段（≤ 0）= 无此行为（零默认值铁律；D0 回填 1）。
+        _add = int(ps.get("add", 0) or 0)
+        if _add <= 0:
+            return None
+        _eb = ctx.get("e_buffs")
+        if not isinstance(_eb, dict):
+            return None
+        try:
+            for _ck in ("stun", "freeze", "silence", "sleep", "spd_down"):
+                if _eb.get(_ck):
+                    _eb[_ck] = int(_eb[_ck]) + _add
+                    _lg = ctx.get("logs")
+                    if isinstance(_lg, list):
+                        _lg.append(f"🎵 {ps_name}：挽歌延长【{_ck}】控制 +1 刻！")
+                    return True
+            return None
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.dirge_ctrl_up", _sw_e)
+            pass
+        return None
+    if _kind == "melody_duet":
+        # 二重唱 melody_duet（挂点20 _skill_buff 吟唱段）：吟唱（外层 `if mech ==
+        # "melody_chant":` 骨架守卫）→ 旋律强度 +ps.add（cap MELODY_CFG.max_stack）。
+        # 原循环体（battle.py 6265-6277 迁移前副本）逐字直搬：guard = melody.name 非空
+        # 且 stack > 0 才 +add；ctx["melody"] = 调用侧 _melody_state() 引用（副作用直接
+        # 落该 dict——_melody 随战斗序列化）；ctx["max_stack"] = MELODY_CFG.max_stack
+        # （核心常量族 battle_mech，调用侧取）；日志 🎶二重唱… 原样保留。
+        # 读 _ps：add；缺字段（≤ 0）= 无此行为（零默认值铁律；D0 回填 1）。
+        _add_md = int(ps.get("add", 0) or 0)
+        if _add_md <= 0:
+            return None
+        _mel_md = ctx.get("melody")
+        if not isinstance(_mel_md, dict):
+            return None
+        if not _mel_md.get("name") or int(_mel_md.get("stack", 0) or 0) <= 0:
+            return None  # 原守卫：无旋律驻留/强度 0 → 不触发
+        try:
+            _cap_md = int(ctx.get("max_stack") or 5)
+            _mel_md["stack"] = min(_cap_md, int(_mel_md.get("stack", 0) or 0) + _add_md)
+            _lg = ctx.get("logs")
+            if isinstance(_lg, list):
+                _lg.append(f"🎶 {ps_name}：二重唱，旋律强度额外 +{_add_md}！（{_mel_md['stack']}/{_cap_md}）")
+            return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.melody_duet", _sw_e)
+            pass
+        return None
     return None  # 未知 flag_kind = 不触发（调用侧未配置该 proc 的置位谓词）
 
 
+# ---- 7c.2.1 melody_duet（P2-D5c：挂点20 _skill_buff 诗人吟唱段；flag_set_cond ctx flag_kind=melody_duet）----
+#     二重唱 melody_duet：吟唱（mech=melody_chant）→ 旋律强度 +ps.add（cap MELODY_CFG）。
+#     原循环体（battle.py 6265-6277 迁移前副本）逐字直搬：外层 `if mech == "melody_chant":`
+#     + try/except 骨架保留在调用侧；本 handler 只做单个 proc 条目的数值副作用。
+#     ctx["melody"] = 调用侧 _melody_state() 引用（副作用直接落该 dict——_melody 随战斗序列化）；
+#     ctx["max_stack"] = MELODY_CFG.max_stack（核心常量，调用侧取——battle_mech 常量族）。
+#     guard：melody.name 非空 且 stack > 0 才 +add（原守卫）；日志 🎶二重唱… 原样保留。
+#     读 _ps：add；缺字段（≤ 0）= 无此行为（零默认值铁律；D0 回填 1）。
+#     注册表一 proc 一族（declare_proc 防重复）：melody_duet 走本族已注册的 flag_set_cond
+#     分发表——族分派函数在 _h_flag_set_cond 内按 flag_kind 完整分发（melody_duet 分支加
+#     在族主 handler 内，见上方 5b 区块）。本注释区为语义登记；无独立 handler。
 # ============================================================
 # 7. cc_break_cost / dr_cond（P2-D4a：挂点10 player_turn + 挂点11 _mitigate_chain）
 #    受击减伤/免控族——本批风险最高（顺序语义 + 一次性 flag + 磐核溢出转盾）。
