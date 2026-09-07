@@ -80,7 +80,7 @@ b4._focus = player
 # 直接调 _enemy_turn 验证 ult 分支（r=3 时 tick_no=3 → 3%3==0）
 b4._now = 2 * 1.0  # tick_no = int(now/ACT_TICK)+1; ACT_TICK=1 → tick=3
 random.seed(42)
-logs, dmg = b4._enemy_turn(player)
+logs, dmg = b4._actor_auto_turn(player)
 # 若 ult 触发，日志会有技能名（非普攻"挥爪"）
 joined = " ".join(logs)
 check("ult_every 触发（tick3 大招而非普攻）", "挥爪" not in joined and len(logs) > 0,
@@ -93,7 +93,7 @@ mon5["_phase_mod"] = {"atk_mult": 1.3, "def_add": 10, "spd_add": 0, "dmg_taken_m
 b5 = BT.Battle("monster", mon5)
 b5._focus = player
 b5._now = 4 * 1.0  # tick = 5 → 5-1=4 >= 3 → 触发退出
-logs5, _ = b5._enemy_turn(player)
+logs5, _ = b5._actor_auto_turn(player)
 check("exit_turns 触发退出", "_phase_exit" not in mon5 and "_phase_mod" not in mon5,
       f"exit={mon5.get('_phase_exit')} mod={mon5.get('_phase_mod')}")
 check("exit 日志", any("气息回落" in l for l in logs5), str(logs5[:2]))
@@ -105,7 +105,7 @@ mon6["_phase_mod"] = {"atk_mult": 1.3, "def_add": 10, "spd_add": 0, "dmg_taken_m
 b6 = BT.Battle("monster", mon6)
 b6._focus = player
 b6._now = 2 * 1.0  # tick=3 → 3-1=2 < 10 → 不退出
-logs6, _ = b6._enemy_turn(player)
+logs6, _ = b6._actor_auto_turn(player)
 check("未到 exit_turns 不退出", "_phase_exit" in mon6, "已退出?")
 
 # 5. _phase_apply 写入 _phase_ult_skills（数据字段透传）

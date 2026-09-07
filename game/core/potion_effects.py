@@ -135,7 +135,7 @@ def eff_def_down(battle, player, value):
     turns = int(v.get("turns", 2))
     from .effect_actions import action_def_down
     _scratch = []
-    action_def_down(battle, _scratch, turns=turns, pct=pct, target=battle.enemy)
+    action_def_down(battle, _scratch, turns=turns, pct=pct, target=battle._hit_tgt())
     return f"🛡️ 破甲！敌人防御下降 {int(pct * 100)}%！({turns} 刻)"
 
 
@@ -463,7 +463,7 @@ def eff_trap(battle, player, value):
     turns = max(1, int(v.get("turns", 1) or 1))
     if ctrl not in ("stun", "freeze", "silence"):
         return "🧪 陷阱控制类型配置异常，没有生效！"
-    e = battle.enemy or {}
+    e = battle._hit_tgt() or {}
     is_boss = bool(e.get("is_boss") or e.get("role") == "boss")
     eb = e.setdefault("buffs", {})
     msgs = []
@@ -545,7 +545,7 @@ def eff_steal_buff(battle, player, value):
     """v140 汲魂水晶：偷取敌方 1 个增益转给自己（敌方 buffs 键 → p_buffs 同刻数）。
     敌方无增益时按 effect_data no_target_no_consume 语义不消耗（模板层已拦截）。"""
     v = _resolve(value, "steal_buff")
-    e = battle.enemy or {}
+    e = battle._hit_tgt() or {}
     eb = e.get("buffs") or {}
     # 敌方增益候选：正向乘区/控制标记以外的 buff 键
     cand = [k for k in eb if k not in ("stun", "freeze", "silence", "sleep")
@@ -666,7 +666,7 @@ def eff_dot_amp(battle, player, value):
     turns = max(1, int(v.get("turns", 2) or 2))
     per = max(1, int(v.get("layer_per_hit", 1) or 1))
     player.setdefault('eff', {})["dot_amp"] = {"turns_left": turns, "layer_per_hit": per}
-    e = battle.enemy or {}
+    e = battle._hit_tgt() or {}
     deb = e.setdefault("debuffs", {})
     n = 0
     for k in ("poison", "burn", "bleed"):
@@ -717,7 +717,7 @@ def eff_vuln(battle, player, value):
     per = float(v.get("per_debuff", 0.12) or 0.12)
     mdb = max(1, int(v.get("max_debuff", 3) or 3))
     cap = float(v.get("max_bonus", 0.36) or 0.36)
-    e = battle.enemy or {}
+    e = battle._hit_tgt() or {}
     neg = 0
     eb = e.get("buffs") or {}
     for k in ("freeze", "stun", "silence", "spd_down", "def_down", "mon_atk_down", "sleep"):

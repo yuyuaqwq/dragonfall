@@ -20,6 +20,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, E, db, clean_db, Main, FakeEvent, run, BT
 
 passed = failed = 0
+def _first_hostile(b):
+    """测试取场上 enemy 阵营首个 actor（sides 直读；无 → {}）"""
+    acts = (b.sides or {}).get("enemy") or []
+    return (acts[0] if acts else {})
+
 def check(name, cond, detail=""):
     global passed, failed
     if cond:
@@ -54,7 +59,7 @@ async def main():
     p = make_player()
     b._focus = p  # v180-B：玩家行动/引擎方法需焦点玩家（受击统计等读 player dict）
     b._tgt_buffs()["stun"] = 1
-    logs, dmg = b._enemy_turn(p)
+    logs, dmg = b._actor_auto_turn(p)
     check("眩晕跳过行动", "被眩晕" in " ".join(logs), str(logs[:2]))
     check("眩晕后状态清除", "stun" not in b._tgt_buffs(), str(b._tgt_buffs()))
 
@@ -64,7 +69,7 @@ async def main():
     b._focus = p
     b._tgt_buffs()["silence"] = 1
     # 沉默时即使概率命中也不放技能（不出现"使用了"）
-    logs, dmg = b._enemy_turn(p)
+    logs, dmg = b._actor_auto_turn(p)
     check("沉默不放增益技能", not any("使用了" in l for l in logs), str(logs))
 
     print("【净化：驱散敌方增益】")
@@ -80,7 +85,7 @@ async def main():
     b = BT.Battle("monster", make_monster())
     p = make_player(hp=9999)
     b._focus = p  # v180-B：actor_turn 以 self._focus 为权威（未绑才绑传入）
-    b.enemy["atk"] = 5
+    _first_hostile(b)["atk"] = 5
     b._p_buffs_bag()["stun"] = 1
     logs, ended = b.actor_turn("attack", None, p)
     check("玩家眩晕无法攻击", any("被眩晕" in l for l in logs), str(logs[:3]))
@@ -95,7 +100,7 @@ async def main():
     # v154 读条命中制：转普攻也走读条——推进到命中结算后伤害才生效
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     check("沉默拦截技能", any("被沉默" in l for l in logs), str(logs[:3]))
-    check("沉默转普攻有伤害", b.enemy["hp"] < 100000, f"hp={b.enemy['hp']}")
+    check("沉默转普攻有伤害", _first_hostile(b)["hp"] < 100000, f"hp={_first_hostile(b)['hp']}")
 
     print("【联动：眩晕目标盾击增伤（enemy_stunned）】")
     b = BT.Battle("monster", make_monster())

@@ -7,6 +7,11 @@ from game import battle as BT
 from game.commands.combat import CombatCmds
 
 passed = 0
+def _first_hostile(b):
+    """测试取场上 enemy 阵营首个 actor（sides 直读；无 → {}）"""
+    acts = (b.sides or {}).get("enemy") or []
+    return (acts[0] if acts else {})
+
 def check(name, cond, detail=""):
     global passed
     assert cond, f"{name}: {detail}"
@@ -37,7 +42,7 @@ def test_status_line():
     b._p_shields_bag()["test_shield"] = {"value": 150, "turns": 999}
     b._p_buffs_bag().update({"atk_up": 3, "def_up": 2})
     b._tgt_buffs().update({"def_down": 2})
-    b.enemy["debuffs"] = {"burn": {"n": 3}, "poison": {"n": 3}, "mark": {"n": 2}}
+    _first_hostile(b)["debuffs"] = {"burn": {"n": 3}, "poison": {"n": 3}, "mark": {"n": 2}}
     player = b._focus
     s = mixin._status_line(player, b)
     check("玩家叠层显示", "狂暴×5" in s and "神恩×2" in s, s)
@@ -54,7 +59,7 @@ def test_footer():
     b._p_buffs_bag().update({"atk_up": 3})
     b._tgt_buffs().update({"def_down": 2})
     player = b._focus
-    f = mixin._battle_footer(player, b, b.enemy)
+    f = mixin._battle_footer(player, b, _first_hostile(b))
     # v164.1：血量汇总行已删——血量在站位图逐只带出（❤️当前/最大）
     check("站位图怪物血条", "山贼头目 ❤️3000/4000" in f, f)
     check("玩家血蓝", "800/1000" in f and "120/300" in f, f)
@@ -66,7 +71,7 @@ def test_no_status():
     player = b._focus
     s = mixin._status_line(player, b)
     check("无状态为空", s == "", repr(s))
-    f = mixin._battle_footer(player, b, b.enemy)
+    f = mixin._battle_footer(player, b, _first_hostile(b))
     check("footer只有血蓝", "野狗" in f and "🛡️你" not in f, f)
 
 def test_enrage():

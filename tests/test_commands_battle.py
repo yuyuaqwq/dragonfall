@@ -49,6 +49,11 @@ def make_player(cls="战士", level=10, hp=None, mp=None, skills=None, mech=None
     return p
 
 
+def _first_hostile(b):
+    """测试取场上 enemy 阵营首个 actor（sides 直读；无 → {}）"""
+    acts = (b.sides or {}).get("enemy") or []
+    return (acts[0] if acts else {})
+
 async def main():
     clean_db()
     print("【战斗：序列化 round trip】")
@@ -56,7 +61,7 @@ async def main():
     b2 = BT.Battle.from_state(b.to_state())
     check("type 保留", b2.btype == "monster")
     # v181.P3d：无玩家纯怪战斗无玩家视角主目标 → 读 actor 组验证序列化保留
-    check("敌方 actor hp 保留", (b2._hostile_actors() or [{}])[0].get("hp") == 100, str(b2._hostile_actors()))
+    check("敌方 actor hp 保留", _first_hostile(b2).get("hp") == 100, str(_first_hostile(b2)))
     check("buffs 保留", b2._p_buffs_bag() == {} and b2._tgt_buffs() == {})
 
     print("【战斗：普攻】")
@@ -119,14 +124,14 @@ async def main():
         E.skill_info = _orig_si
     check("冰锥减速命中（spd_down）", any("被减速" in l or "减速" in l or "冰印" in l for l in logs), str(logs))
     # v153：冰锥仍挂冰元素印记（mech=ice_mark，登记到 enemy debuffs.element_marks）
-    check("冰锥挂冰元素印记", ((b.enemy.get("debuffs") or {}).get("element_marks") or {}).get("ice", 0) > 0,
-          str(b.enemy.get("debuffs")))
+    check("冰锥挂冰元素印记", ((_first_hostile(b).get("debuffs") or {}).get("element_marks") or {}).get("ice", 0) > 0,
+          str(_first_hostile(b).get("debuffs")))
     random.seed(5)
     b = BT.Battle("monster", make_monster(hp=100000))
     # v153：刺客基础无 淬毒（暗杀/淬毒已删）；基础毒系 = 割裂 bleed。毒层用 毒刃（分支）测
     logs, _ = b.actor_turn("skill", "割裂", make_player("刺客", 15, mp=100))
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], make_player("刺客", 15, mp=100))
-    check("割裂挂流血层", (b.enemy.get("debuffs") or {}).get("bleed", {}).get("n", 0) > 0, str(b.enemy.get("debuffs")))
+    check("割裂挂流血层", (_first_hostile(b).get("debuffs") or {}).get("bleed", {}).get("n", 0) > 0, str(_first_hostile(b).get("debuffs")))
     random.seed(6)
     b = BT.Battle("monster", make_monster(hp=100000))
     b.actor_turn("skill", "破甲斩", make_player("战士", 10, mp=100))
@@ -143,17 +148,17 @@ async def main():
     # v180F A7：毒强度快照由施法者挂载时写入（_apply_dot 8246-8247），结算不再回落
     # _last_player 猜——直接构造缺快照的 debuff = 无强度（只吃 max_hp 部分）。测试补快照
     # 对齐真实产物：战士 10 级面板 atk≈59
-    b._hostile_primary("player").setdefault("debuffs", {})["poison"] = {"n": 2, "mult": 1.0,
+    _first_hostile(b).setdefault("debuffs", {})["poison"] = {"n": 2, "mult": 1.0,
                                                                          "atk": 59, "matk": 0}
     logs, ended = b.actor_turn("attack", None, p)
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     # 毒 2 层（混合公式 atk×0.5+max_hp×1.5% 每层）+ 普攻
-    check("中毒发作扣血", b._hostile_primary("player")["hp"] < 950, f"hp={b.enemy['hp']} (普攻+毒)")
+    check("中毒发作扣血", _first_hostile(b)["hp"] < 950, f"hp={_first_hostile(b)['hp']} (普攻+毒)")
     # v152 时刻制：DOT 由 dot_tick 事件按行动轮次结算，层数=剩余结算次数。
     # 玩家行动窗口内毒发作 1 次（2→1），随后攻击命中把怪打死（hp 1000 → 900-<950 已接近）；
     # 若结算后怪已死则 debuffs 清空（毒随目标死亡移除）——断言放宽为：毒层已结算（n 减少或已移除）
-    check("毒层结算后衰减或目标已死清除", b.enemy.get("debuffs", {}).get("poison", {}).get("n", 0) in (0, 1)
-          or b._enemy_dead(), str(b._hostile_primary("player").get("debuffs")))
+    check("毒层结算后衰减或目标已死清除", _first_hostile(b).get("debuffs", {}).get("poison", {}).get("n", 0) in (0, 1)
+          or b._enemy_dead(), str(_first_hostile(b).get("debuffs")))
 
     print("【数值铁律：分支奥义 ≥ 基础大招】")
     # v153：旧 Lv.30 大招（元素风暴/蓄力斩/圣光惩戒/暗杀等）已删除；基础表 lv≤30 等效输出
@@ -194,10 +199,10 @@ async def main():
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], pl)
     b.actor_turn("skill", "毒刃", pl, enemy_act=False)
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], pl)
-    hp_before = b.enemy["hp"]
+    hp_before = _first_hostile(b)["hp"]
     b.actor_turn("skill", "毒爆", pl, enemy_act=False)
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], pl)
-    check("毒爆额外伤害", b.enemy["hp"] < hp_before, f"{hp_before}->{b.enemy['hp']}")
+    check("毒爆额外伤害", _first_hostile(b)["hp"] < hp_before, f"{hp_before}->{_first_hostile(b)['hp']}")
 
     print("【装备：武器名类型绑定】")
     random.seed(42)

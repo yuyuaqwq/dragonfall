@@ -14,9 +14,9 @@ v180-G B6（动作收口到 effect_actions 全量适配）：
 - "攻击目标向"动作（action_dot/action_def_down/action_bonus_pct/action_element_dmg/
   action_pierce_dmg/action_counter 及 _bonus_dmg_apply 底座）统一加关键字参数
   target=None：传入目标 actor dict 则对其生效（debuffs/buffs 写目标自身 dict、
-  附加伤害 _deal_damage 显式打 target）；None → 回落主目标 battle.enemy
+  附加伤害 _deal_damage 显式打 target）；None → 回落主目标 battle._hit_tgt()
   （旧语义 = 玩家打当前主敌）。调用方（affix_effects/food_effects/potion_effects）
-  已显式传 battle.enemy，不再依赖本文件写死 enemy。
+  已显式传 battle._hit_tgt()，不再依赖本文件写死 enemy。
 - 对"施法者自身"作用（action_regen_hp/regen_mp/mark/lifesteal 回血回蓝/叠印记/
   吸血）目标天然是 player 自身，不加 target。
 - 伤害落地统一走 battle._deal_damage(..., target=...) 与 battle._boss_dmg_filter
@@ -26,7 +26,7 @@ import random as _random
 
 
 def _ea_tgt(battle, target):
-    """目标解析：显式传目标 actor → 用之；None → 主目标（旧语义 battle.enemy）。"""
+    """目标解析：显式传目标 actor → 用之；None → 主目标（旧语义 battle._hit_tgt()）。"""
     if isinstance(target, dict):
         return target
     return getattr(battle, "enemy", None) or {}
@@ -52,7 +52,7 @@ def action_dot(battle, logs, *, key="bleed", stacks=3, max_n=None, label="流血
     """目标级持续伤害：叠 target.debuffs[key] 层（原 affix bleed / food 烬火辣椒）。
 
     stacks=每次触发叠层数（兼上限，除非 max_n 指定）；max_n=None 用 stacks。
-    target=None → 主目标 battle.enemy（调用方应显式传目标 actor）。
+    target=None → 主目标 battle._hit_tgt()（调用方应显式传目标 actor）。
     """
     tgt = _ea_tgt(battle, target)
     deb = tgt.setdefault("debuffs", {})
@@ -66,7 +66,7 @@ def action_dot(battle, logs, *, key="bleed", stacks=3, max_n=None, label="流血
 def action_def_down(battle, logs, *, turns=2, pct=0.15, label="破甲", target=None):
     """目标防御削减：target.buffs def_down 刻数 + _armor_break_pct（原 affix armor_break / food 蘑菇汤）。
 
-    target=None → 主目标 battle.enemy（调用方应显式传目标 actor）。
+    target=None → 主目标 battle._hit_tgt()（调用方应显式传目标 actor）。
     """
     tgt = _ea_tgt(battle, target)
     eb = tgt.setdefault("buffs", {})
@@ -94,7 +94,7 @@ def _bonus_dmg_apply(battle, player, cd, logs, tag, name, target=None):
 
     food 侧原实现有此过滤、affix 侧漏了（词条 combo/charge 附加伤害绕过 Boss
     护盾 = bug）——统一收口到本动作后两侧一致。
-    target=None → 主目标 battle.enemy；显式传目标则打该 actor。
+    target=None → 主目标 battle._hit_tgt()；显式传目标则打该 actor。
     """
     if cd <= 0:
         return 0
@@ -112,7 +112,7 @@ def action_bonus_pct(battle, player, dmg, logs, *, pct=0.50, tag="⚡", name="�
     """按本次伤害 dmg × pct 追加一次伤害（原 affix combo/charge / food 鹰蛋/皇家烤肉）。
 
     combo(连击)与 charge(蓄力爆发)动作同构，仅文案/标签不同——统一本动作。
-    target=None → 主目标 battle.enemy。
+    target=None → 主目标 battle._hit_tgt()。
     """
     if dmg <= 0:
         return 0
@@ -124,7 +124,7 @@ def action_element_dmg(battle, player, dmg, logs, *, pct=0.05, tag="🔥", name=
                        slow_turns=0, label="减速", target=None):
     """攻击附加 dmg × pct 元素伤害（原 affix/food element_fire / element_ice）。
 
-    slow_turns>0 时额外对 target 挂减速（冰）。target=None → 主目标 battle.enemy。
+    slow_turns>0 时额外对 target 挂减速（冰）。target=None → 主目标 battle._hit_tgt()。
     """
     if dmg <= 0:
         return 0
@@ -142,7 +142,7 @@ def action_pierce_dmg(battle, player, logs, *, atk_pct=0.60, tag="🏹", name="�
     """无视防御追加伤害（原 affix/food pierce）。
 
     按玩家 atk × atk_pct 计算，防御=0 直伤（无视防御语义）。
-    target=None → 主目标 battle.enemy。
+    target=None → 主目标 battle._hit_tgt()。
     """
     from ..engine import calc_damage
     pst = battle._player_stats(player)
@@ -156,7 +156,7 @@ def action_counter(battle, player, logs, *, atk_pct=0.60, tag="⚔️", name="�
     """受击反击：按玩家 atk × atk_pct 反打目标（原 affix/food counter）。
 
     触发条件（目标存活/概率）由来源 handler 判定；此处只做反击动作。
-    target=None → 主目标 battle.enemy（反击方向 = 打攻击方，当前引擎主目标即玩家视野的敌人）。
+    target=None → 主目标 battle._hit_tgt()（反击方向 = 打攻击方，当前引擎主目标即玩家视野的敌人）。
     """
     tgt = _ea_tgt(battle, target)
     if not tgt.get("hp", 0) or tgt.get("hp", 0) <= 0:

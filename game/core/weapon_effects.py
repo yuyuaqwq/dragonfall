@@ -160,7 +160,7 @@ def _slow_enemy(battle, turns: int, pct: float = 0.40, logs=None):
 
 def _freeze_enemy(battle, logs, turns: int = 1, boss_slow: int = 2, source: str = "❄️"):
     """冻结敌人（Boss 免疫退化减速）。"""
-    e = battle.enemy or {}
+    e = battle._hit_tgt() or {}
     is_boss = bool(e.get("role") == "boss" or e.get("is_boss") or e.get("boss"))
     if is_boss:
         _slow_enemy(battle, boss_slow, 0.40, logs)
@@ -173,7 +173,7 @@ def _freeze_enemy(battle, logs, turns: int = 1, boss_slow: int = 2, source: str 
 
 def _apply_dot(battle, key: str, stacks: int, pct: float, turns: int, logs, source: str = "🩸"):
     """给敌人挂 DOT（毒/灼烧/流血/败血），mult 统一 1.0。"""
-    deb = battle.enemy.setdefault("debuffs", {})
+    deb = battle._hit_tgt().setdefault("debuffs", {})
     cur = deb.get(key) or {"n": 0, "mult": 1.0}
     cur["n"] = min(int(cur.get("n", 0) or 0) + stacks, stacks)
     cur["pct"] = pct
@@ -200,7 +200,7 @@ def _boss_enemy(e: dict) -> bool:
 
 
 def _hp_ratio(battle, unit: dict | None = None) -> float:
-    u = unit or battle.enemy or {}
+    u = unit or battle._hit_tgt() or {}
     return float(u.get("hp", 0)) / max(1, u.get("max_hp", 1) or 1)
 
 

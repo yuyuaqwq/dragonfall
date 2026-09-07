@@ -54,7 +54,7 @@ def enemy_turn_cast(b, p):
     适配 v154 对称读条：旧测试调 _enemy_turn 后立即查日志，现在要
     推进到 cast_done 命中结算才看得到伤害/免伤日志。
     """
-    logs, _ = b._enemy_turn(p)
+    logs, _ = b._actor_auto_turn(p)
     cast_logs = finish_enemy_cast(b, p)
     return logs + cast_logs
 

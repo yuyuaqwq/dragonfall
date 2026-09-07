@@ -1098,65 +1098,6 @@ class Battle:
         u.setdefault("drops", [])
         return u
 
-    def _side_actors(self, side: str) -> list:
-        """v181.P3d：某阵营的 actor 组（sides 权威）。无该阵营 → []。"""
-        return (self.sides or {}).get(side) or []
-
-    def _side_primary(self, side: str) -> dict:
-        """v181.P3d：某阵营首个存活 actor（无 → {}）。"""
-        for _u in self._side_actors(side):
-            if _u.get("hp", 0) > 0:
-                return _u
-        return {}
-
-    def _hostile_actors(self, side: str = "player") -> list:
-        """v181.P3d：side 的所有敌对阵营 actor 扁平列表（sides 权威，无身份预设）。"""
-        out = []
-        for _hs in self.hostile_sides(side):
-            out.extend(self._side_actors(_hs))
-        return out
-
-    def _hostile_primary(self, side: str = "player") -> dict:
-        """v181.P3d：side 敌对阵营首个存活 actor（无 → {}）。"""
-        for _hs in self.hostile_sides(side):
-            for _u in self._side_actors(_hs):
-                if _u.get("hp", 0) > 0:
-                    return _u
-        return {}
-
-    @property
-    def enemy(self) -> dict:
-        """玩家视角敌对主目标（v181.P3d：从 sides 敌对阵营读，替代 enemies[0] 容器直读）。
-
-        仅当 player side 存在（sides 有 player 组）或焦点 actor 已绑（命令层后绑场景）
-        时返回敌对主目标；否则（纯 actor 组战斗无玩家）→ {}。"""
-        if not (self.sides or {}).get("player") and not (self._focus or {}):
-            return {}
-        return self._hostile_primary("player")
-
-    @enemy.setter
-    def enemy(self, val: dict):
-        """设置敌对主目标（v181.P3d）：写入 sides['enemy'] 组。
-
-        单怪场景外部 b.enemy = {...}（Boss 阶段测试手动指定主怪等）→ 该 actor
-        成为 enemy side 组首个，enemy property 能读回。"""
-        _u = self._wrap_enemy_unit(val, 0)
-        _u.setdefault("side", "enemy")
-        _u.setdefault("kind", "monster")
-        # sides 唯一容器
-        _sides = getattr(self, "sides", None)
-        if _sides is not None:
-            _pool = _sides.setdefault("enemy", [])
-            _uid = _u.get("uid")
-            for _i, _ex in enumerate(_pool):
-                if _ex.get("uid") == _uid:
-                    _pool[_i] = _u
-                    break
-            else:
-                _pool.insert(0, _u)
-            if "enemy" not in self._side_names:
-                self._side_names.append("enemy")
-
     @property
     def summons(self) -> list:
         """v180-C S1 兼容视图：我方召唤物 = companions 里 kind=='summon' 的子集。
@@ -1265,7 +1206,7 @@ class Battle:
             "p_acts": self._p_acts,
             # v2：敌方完整阵列（核心）；enemy 保留为兼容键（= 主目标引用）
             # v180F B6：序列化前剥离 actor 循环引用（_cast.target/owner → uid）
-            "enemy": self._strip_actor_refs(self.enemy),
+            "enemy": self._strip_actor_refs(self._hit_tgt()),
             "enemies": [self._strip_actor_refs(u) for u in self.enemies],
             "killed_enemies": getattr(self, "killed_enemies", []),  # v130.7 意见#17 击杀记录随战斗持久化（跨消息续战胜利不丢）
             # v180-B：玩家战斗状态已存 player actor dict——序列化输出沿用旧顶层键结构
@@ -1605,20 +1546,6 @@ class Battle:
             b._last_player = _lp
         b._shifted_element = st.get("shifted_element")
         # v139/v130.2d/v130.2f2 状态已收进 _restore_pstate（v180-B）——此处不再设实例属性
-        # DOT 重构（契约 §2.3）：老档案迁移——敌方持续减益迁为目标级 enemy["debuffs"]。
-        # 旧档 mech_stacks 里的 poison/burn/mark（敌方减益）迁移为 debuffs 结构后清键；
-        # 玩家侧键（dragon_mark/rage/shadow/chi 等）与 e_buffs 标记不受影响。
-        if not b.enemy.get("debuffs"):
-            _old_m = st.get("mech_stacks") or {}
-            _new_deb = {}
-            for _k in ("poison", "burn", "mark"):
-                if _k in _old_m:
-                    _v = int(_old_m[_k] or 0)
-                    if _v > 0:
-                        _new_deb[_k] = {"n": _v, "mult": 1.0}
-                    b._restore_pstate["stacks"].pop(_k, None)
-            if _new_deb:
-                b.enemy["debuffs"] = _new_deb
         # v158 副本合并：instance 类型恢复时按敌方 ct 排 enemy_act 事件——事件队列驱动
         # 敌方行动（v137 起 instance 被排除在 __init__ 排事件之外，靠命令层外部轮转；
         # 合并后副本也走 battle 队列，必须恢复敌方事件）。野外非 instance 已在
@@ -1840,7 +1767,7 @@ class Battle:
         u = self._target_ctx
         if u is not None:
             return u
-        return self.enemy
+        return self._hit_tgt()
 
     def _tgt_buffs(self) -> dict:
         """v177 技能管线目标 buffs（同 _tgt，buff actor 化——目标 buffs 在目标 dict 上）。"""
@@ -2763,7 +2690,7 @@ class Battle:
     # —— 法师攻线·元素：目标侧 element_marks 登记（每目标每系独立 0..3）——
     def _elem_marks(self, target: dict | None = None) -> dict:
         """目标侧元素印记 dict {fire/ice/thunder: 0..N}；缺省 = 当前交战目标。"""
-        tgt = target or getattr(self, "_active_target", None) or self.enemy
+        tgt = target or getattr(self, "_active_target", None)
         if not isinstance(tgt, dict):
             return {}
         marks = tgt.get("element_marks")
@@ -3461,7 +3388,7 @@ class Battle:
                 # 供副本跨 Battle 恢复补排（多人 CTB：A 出手挂起，B 的 Battle 也能触发 A 命中）
                 _atk_tgt_a2 = getattr(self, "_active_target", None)
                 if _atk_tgt_a2 is None:
-                    _atk_tgt_a2 = self.enemy if getattr(self, "enemy", None) else (self.enemies[0] if self.enemies else None)
+                    _atk_tgt_a2 = self._hit_tgt() if getattr(self, "enemy", None) else (self.enemies[0] if self.enemies else None)
                 actor["_cast"] = {
                     "hit_at": self._now + _cast_t,
                     "kind": "atk",
@@ -3741,7 +3668,7 @@ class Battle:
                     if self._actor_dead(player):
                         self.result = "defeat"
                         break
-                    mlogs, dmg = self._enemy_turn(player, unit)
+                    mlogs, dmg = self._actor_auto_turn(unit, player)
                     logs += mlogs
                     # v158 副本合并：敌方行动后通知副本命令层（同步血量/仇恨/贡献/倒地）
                     # 野外不传 cb（None）→ 零影响
@@ -4600,7 +4527,7 @@ class Battle:
         # 越级进高级区更难脱身（玩家等级/速度取战斗实时值）
         p_lv = int(player.get("level", 1) or 1)
         p_spd = int(self._player_stats(player).get("spd", 0) or 0)
-        e = self.enemy or {}
+        e = self._hit_tgt() or {}
         e_lv = int(e.get("lv", 0) or 0)
         e_spd = int(self._enemy_stats().get("spd", 0) or 0)
         # 敌方数据缺失（lv/spd 为 0）时对应差值项退化为 0，仅按可得项修正（防误判逃跑率）
@@ -4870,7 +4797,7 @@ class Battle:
         """敌方当前携带的负面种类数（挽歌·极 dirge_debuff_dmg：每 1 个负面 +4%，上限 40%）。
         统计：debuffs 各类型（poison/burn/bleed/mark/corros/curse/soul_mark/hunt_mark）+ e_buffs 控制/减益键
         （stun/freeze/silence/sleep/spd_down/def_down/mon_atk_down）——只数“正在生效”的种数。"""
-        e = self.enemy or {}
+        e = self._hit_tgt() or {}
         n = 0
         try:
             db = e.get("debuffs") or {}
@@ -5225,7 +5152,7 @@ class Battle:
         # 灼热：攻击附带灼烧 n 层（DOT 重构：敌方灼烧为目标级 enemy["debuffs"]，不再写 p_mech）
         burn_lvl = self._enchant_lvl(effs, "burn")
         if burn_lvl:
-            _enemy = self.enemy or {}
+            _enemy = self._hit_tgt() or {}
             _blv = int(C.rune_value("burn", burn_lvl))
             _deb = _enemy.setdefault("debuffs", {})
             _cur = _deb.get("burn") or {"n": 0, "mult": 1.0}
@@ -5586,8 +5513,8 @@ class Battle:
         mult = 1.0
         tags = []
         s5names = self._set_bonus_5(player)
-        ename = self.enemy.get("name", "")
-        e = self.enemy
+        ename = self._hit_tgt().get("name", "")
+        e = self._hit_tgt()
         hp_ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
         # v104 M07 修复 P1/P2：灰烬守卫（残血增攻）与迷雾（沼泽/毒腐系增伤）5 件效果同表
         p_ratio = player.get("hp", 0) / max(1, player.get("max_hp", 1))
@@ -5782,7 +5709,7 @@ class Battle:
             return mult, tags
         # 猎杀时刻：对带猎印目标增伤
         if self._p_buffs_bag().get("hunt_team_dmg"):
-            _hm = int(((self.enemy or {}).get("debuffs") or {}).get("hunt_mark", 0) or 0)
+            _hm = int(((self._hit_tgt() or {}).get("debuffs") or {}).get("hunt_mark", 0) or 0)
             if _hm > 0:
                 pct = float((self._p_eff() or {}).get("hunt_team_dmg", 0) or 0)
                 if pct > 0:
@@ -5846,7 +5773,7 @@ class Battle:
         v98.5：效果数据化 → core/affix_effects.py HIT_EFFECTS（并列 if 语义，顺序遍历）
         v156：带 formula 字段的词条走通用执行器（零代码），旧词条仍走注册函数"""
         ids = self._equip_affix_ids(player)
-        if not ids or self.enemy.get("hp", 0) <= 0:
+        if not ids or self._hit_tgt().get("hp", 0) <= 0:
             return
         from .core.affix_effects import HIT_EFFECTS, run_affix_formula
         # v156 formula 词条：数据驱动追加伤害（无需手写 handler）
@@ -5904,7 +5831,7 @@ class Battle:
     # ---------------- v101.28e 食物效果挂点（独立于装备词条） ----------------
     def _food_on_hit(self, player: dict, dmg: int, logs: list):
         """攻击命中后料理效果触发（吸血/流血/破甲/连击/龙语印记/元素/贯穿/蓄力）。"""
-        if not self._p_food_effects() or self.enemy.get("hp", 0) <= 0:
+        if not self._p_food_effects() or self._hit_tgt().get("hp", 0) <= 0:
             return
         from .core.food_effects import FOOD_HIT_EFFECTS
         for key in self._p_food_effects():
@@ -6630,7 +6557,7 @@ class Battle:
         # v180F 收编配套：伤害类型透传承伤链（玩家受击 phys/magi 免伤消费）
         _dmg_kind = seg_of(kind) or ""
         # v181 P3：target=当前被打怪（玩家技能路径 _tgt()=被选中的怪；多怪打副怪不再错读主怪 mech/阶段）
-        _fd_tgt = self._tgt() if not self._tgt_is_side_player() else self.enemy
+        _fd_tgt = self._tgt() if not self._tgt_is_side_player() else self._hit_tgt()
         total = self._boss_dmg_filter(total, player, logs, dmg_type=seg_of(kind), target=_fd_tgt)
         # v140 波3.1：特效装备技能被动增伤（奥术苍穹/岁月流转/永恒契约/铭文/秘典/雷纹/三相/破岳/咒誓/暮裂）
         try:
@@ -7051,8 +6978,8 @@ class Battle:
             del self._p_buffs_bag()["revenge_atk"]
         # v107 斩杀（影武者）：目标 HP<30% 时伤害加成（cond_hp 斩杀线 / mult 加成）
         _execute_tag = ""
-        if self.enemy.get("hp", 0) > 0 and self.enemy.get("max_hp", 1) > 0:
-            _hp_ratio = self.enemy["hp"] / self.enemy["max_hp"]
+        if self._hit_tgt().get("hp", 0) > 0 and self._hit_tgt().get("max_hp", 1) > 0:
+            _hp_ratio = self._hit_tgt()["hp"] / self._hit_tgt()["max_hp"]
             for _pn, _ps in _procs.get("execute", []):
                 if _hp_ratio < float(_ps.get("cond_hp", 0.30)):
                     passive_bonus *= (1 + float(_ps.get("mult", 0.40)))
@@ -7422,7 +7349,7 @@ class Battle:
         """v120 审计修复 q5：敌方/BOSS 控制免疫·霸体——眩晕/冰冻/沉默/睡眠等控制效果
         作用在 Boss（敌方 dict is_boss 标记或 role=="boss"）上时时长减半（向下取整、至少 1 刻）。
         非 Boss 单位原样返回（不改变非 Boss 行为）。"""
-        e = self.enemy or {}
+        e = self._hit_tgt() or {}
         if not (e.get("is_boss") or e.get("role") == "boss"):
             return val
         return max(1, int(val) // 2)
@@ -7437,7 +7364,7 @@ class Battle:
         _cap_pre = {}
         try:
             _pl_cap = caster or {}
-            _tgt_cap0 = getattr(self, "_active_target", None) or self.enemy
+            _tgt_cap0 = self._hit_tgt()
             _deb_cap0 = (_tgt_cap0.get("debuffs") or {})
             if mech == "hunt_mark":
                 _cap_pre["hunt_mark"] = int(_deb_cap0.get("hunt_mark", 0) or 0)
@@ -7460,7 +7387,7 @@ class Battle:
         try:
             _pl_cap = caster or {}
             _pm_cap = self._proc_pm(_pl_cap)
-            _tgt_cap = getattr(self, "_active_target", None) or self.enemy
+            _tgt_cap = self._hit_tgt()
             _deb_cap = _tgt_cap.setdefault("debuffs", {})
             _mv = max(0, int(mval or 0))
             if mech == "hunt_mark" and _pm_cap["proc"].get("hunt_mark_cap") and _mv > 0:
@@ -7525,7 +7452,7 @@ class Battle:
                         _eb_t[k] = self._boss_ctrl_dur(k, _eb_t[k])
         # v2 控制打断蓄力：眩晕/冻结/沉默施加到蓄力目标 → 打断（§6.2规则4）
         if mech in _MC['ctrl']['mechs']:
-            tgt = getattr(self, "_active_target", None) or self.enemy
+            tgt = getattr(self, "_active_target", None)
             if tgt.get("charging"):
                 self._interrupt_charging(tgt, logs, source=skill_name or self._last_hitter)
 
@@ -7560,7 +7487,7 @@ class Battle:
             if dmg < 1:
                 dmg = 1
         # v181 P3：承伤怪 = 显式 target（玩家技能多怪打副怪）or 主怪（单怪/旧调用）
-        _e_t = target if target is not None else (self.enemy or {})
+        _e_t = target if target is not None else (self._hit_tgt() or {})
         # v138.1 阶段四件套：承伤倍率 dmg_taken_mult（>1=更脆，对应「疲态核心件外露」易伤+0.40）——
         # 由 _phase_apply 写入 e._dmg_taken_mult，_enemy_stats 聚合时从 _phase_mod 刷新
         # v178 E10：静态字段 dmg_taken_mult（build_monster 透传）作为兜底（动态 _dmg_taken_mult 优先）
@@ -7606,7 +7533,7 @@ class Battle:
         v2：unit 参数（多怪场景逐个单位触发自身 mech；缺省=主目标）。
         v116.1：新增条件反制机制开开场技(phase_open)/低血追击(player_low)/反扑(pv_broken)，
         phases 剧本化交给 _b_phase（换招/演出刻/阈值预告）。"""
-        e = unit or self.enemy
+        e = unit
         # v178 E8b：爪牙死亡联动消费（独立于 mech——配 on_minion_died 字段即生效；
         # 瞬态标记由 _on_minion_died_tick 内部 pop 消费）
         try:
@@ -7906,11 +7833,12 @@ class Battle:
         except Exception:
             return getattr(self, "_focus", None) or {}
 
-    def _enemy_turn(self, player: dict, unit=None) -> tuple:
-        """敌方单个单位行动。返回 (日志列表, 对玩家伤害)。
-        v2：unit 缺省 = 主目标（单怪兼容）；支持单位级蓄力。
-        v154 敌方对称读条：本函数 = 敌方"出手瞬间"（决定动作类型 + 排敌方出招读条）。
-        出招读条结束（cast_done）才结算伤害——见 _hostile_cast_done。
+    def _actor_auto_turn(self, actor: dict, target: dict | None = None) -> tuple:
+        """actor 按自身配置自动行动（v181.P4：原 _enemy_turn 泛化——任意 actor 通用）。
+
+        actor 读自身配置（ai/skills/charging/chains/mech）决定动作，打 target；
+        target 缺省 → 按 actor 敌对阵营自动选（_pick_hostile_target）。
+        返回 (日志列表, 对目标伤害)。
         特例：被控跳过（眩晕/冻结/睡眠）、增益/蓄力直接返回（无出招读条）。
         """
         if self.btype == "pvp":
@@ -7918,7 +7846,7 @@ class Battle:
             # （battle 刻由双方真人轮流操作），_hostile_phase 首行 `enemy_act and btype != "pvp"`
             # 已挡死本分支。保留 raise 防未来误直调（真实 PVP AI 需用事件系统重写）。
             raise RuntimeError("PVP 敌方 AI 未实现（不可达：PVP enemy_act 恒 False）")
-        e = unit or self.enemy
+        e = actor
         eb = e.setdefault("buffs", {})
         ename = e.get("name", "怪物")
         logs = []
@@ -7926,32 +7854,32 @@ class Battle:
         # 优先级：
         #  ① 自定义 side（怪vs怪等无玩家战斗）→ _pick_hostile_target 从敌对阵营选
         #  ② 副本（battle 带 _st + allies）→ 按 target_policy 从 allies 选（原逻辑）
-        #  ③ 野外/单人 → player 原样（传入即目标）
+        #  ③ 野外/单人 → target 原样（传入即目标）
         _e_side = self.side_of(e)
         if _e_side and _e_side != "player" and _e_side != "enemy":
             # 自定义敌对阵营（怪vs怪/多阵营混战）：从敌对 side 选目标
             _t = self._pick_hostile_target(e)
             if _t is not None and _t.get("hp", 0) > 0:
-                player = _t
+                target = _t
             else:
                 # 敌对全灭 → 无目标（应由战斗流程层判胜利）
                 return logs, 0
-        elif self._st and self.allies and player:
-            _q_src = str(player.get("qq_id") or "")
+        elif self._st and self.allies and target:
+            _q_src = str(target.get("qq_id") or "")
             if _q_src and not (self._st.get("alive") or {}).get(_q_src, True):
                 # 原目标已死（instance 旧逻辑可能传已倒玩家）→ 重新选
-                player = None
+                target = None
             if self._st.get("_enemy_pick_target", True):
                 # 副本默认由 battle 按策略重选目标（_pick_hostile_target 内部读 target_policy；
                 # 若 instance 显式指定目标（如 Boss 点名技能预选）可置 _enemy_pick_target=False）
                 _picked = self._pick_ally_target(e)
                 if _picked is not None:
-                    player = _picked
-        elif _e_side == "enemy" and not player:
-            # 敌方无玩家目标（野外构造异常/测试）→ 敌对 player side 若有成员则选
+                    target = _picked
+        elif _e_side == "enemy" and not target:
+            # 敌方无玩家目标（野外构造异常/测试）→ 敌对 target side 若有成员则选
             _t = self._pick_hostile_target(e)
             if _t is not None and _t.get("hp", 0) > 0:
-                player = _t
+                target = _t
         # v2：本次敌方行动目标 = 该单位（_enemy_stats 默认按 _active_target 解析单位属性；
         # 兼容测试 monkeypatch 的 1 参 _enemy_stats）
         self._active_target = e
@@ -8001,7 +7929,7 @@ class Battle:
         _ctr = (e or {}).get("_phase_counter")
         if _ctr:
             logs.append(f"💡 反制：{_ctr}")
-        pst = self._player_stats(player)
+        pst = self._player_stats(target)
         dmg = 0
         # v29 冻结：跳过敌方刻
         if "freeze" in eb:
@@ -8034,7 +7962,7 @@ class Battle:
         # v167.3 修：蓄力释放伤害必须经 _damage_actor 落地（旧版只写 pending 日志不扣血——
         # 玩家实抓野猪王【践踏】"蓄力完成，轰然落下"后无伤害）
         if e.get("charging"):
-            return self._hostile_charge_tick(e, pst, est, logs, ename, player=player)
+            return self._hostile_charge_tick(e, pst, est, logs, ename, target=target)
         # v178 E3b：阶段大招 ult_every 消费（每 N 刻强制施放 ult_skills 池中技能，无视 skill_chance）
         silenced = "silence" in eb
         _ult_skill = None
@@ -8171,7 +8099,7 @@ class Battle:
                     # 增益(_skill_buff: atk_up/def_up/spd_up 兜底写怪 buffs)、治疗(_skill_heal:
                     # hp_pct/heal_formula)、召唤(summon:1 分支 _summon_minions)。即时生效语义保留
                     # （增益出手即上身，不排读条）。
-                    _logs_b, _dmg_b = self._actor_skill_cast(e, skill, player,
+                    _logs_b, _dmg_b = self._actor_skill_cast(e, skill, target,
                                                                   {"kind": "skill", "skill": skill})
                     logs += _logs_b
                     # v154：增益立即生效，但敌方行动也要消耗 ct（读条 + 收招）
@@ -8185,13 +8113,13 @@ class Battle:
                 self._schedule_cast_done(self._now + _cast_t,
                                          {"side": "e", "unit": e, "kind": "skill",
                                           "skill": skill, "power_mult": power,
-                                          "target": player})
+                                          "target": target})
                 logs.append(f"⚔️ 【{ename}】正在施展【{sname}】！(出招 {_cast_t:.1f}s)")
                 # v163 敌方读条持久化：命中参数写入单位 dict（随 enemies 序列化），
                 # from_state 恢复时补排 cast_done——野外/副本一套代码，读条伤害跨消息不丢。
                 # v180F B5：目标 actor 一并写入（怪vs怪打敌对目标结算用）
                 e["_cast"] = {"hit_at": self._now + _cast_t, "kind": "skill",
-                              "skill": skill, "power_mult": power, "target": player}
+                              "skill": skill, "power_mult": power, "target": target}
                 # 敌方读条后收招：ct = 命中时刻 + 收招（= 出手 + 总耗时）
                 self._after_actor_ct("e", e, cast_mult=_cast_t + _rec_t)
                 return logs, 0
@@ -8207,12 +8135,12 @@ class Battle:
         # v163 敌方读条持久化（同技能分支：普攻命中参数也随单位序列化）
         # v180F B5：目标 actor 一并写入（怪vs怪打敌对目标结算用）
         e["_cast"] = {"hit_at": self._now + _cast_t, "kind": "skill",
-                      "skill": _atk_key, "target": player}
+                      "skill": _atk_key, "target": target}
         self._schedule_cast_done(self._now + _cast_t,
                                  {"side": "e", "unit": e, "kind": "skill",
-                                  "skill": _atk_key, "target": player})
+                                  "skill": _atk_key, "target": target})
         _atk_name = _atk_info.get("name", "攻击") if _atk_info else "攻击"
-        _tname = player.get("name", "你") if player else "你"
+        _tname = target.get("name", "你") if target else "你"
         logs.append(f"⚔️ 【{ename}】对{_tname}发动【{_atk_name}】！(出招 {_cast_t:.1f}s)")
         # 敌方读条后收招：ct = 命中时刻 + 收招（= 出手 + 总耗时）
         self._after_actor_ct("e", e, cast_mult=_cast_t + _rec_t)
@@ -8317,9 +8245,9 @@ class Battle:
         return st
 
     def _enemy_stats(self, unit=None) -> dict:
-        """敌方当前属性(应用敌方增益/减益)。v2：unit 缺省=主目标（单怪兼容）。"""
+        """敌方当前属性(应用敌方增益/减益)。v2：unit 缺省=当前受击目标（_hit_tgt）。"""
         if unit is None:
-            unit = getattr(self, "_active_target", None) or self.enemy
+            unit = self._hit_tgt()
         e = unit
         eb = e.setdefault("buffs", {})
         est = {
@@ -8423,7 +8351,7 @@ class Battle:
         物理段吃敌方物免(≤40%)+格挡(≤40%，命中物段减半)；魔法段吃敌方魔免(≤40%)+元素抗(≤40%，按元素)。
         真伤绕过全部减伤（四层架构）；dot=True 时跳过格挡 roll（持续伤害不触发格挡事件）。
         PVE 标准怪无这些键(=0) → 伤害不变。
-        v180 actor 化：目标=怪（玩家施法）读 self.enemy 防守；目标=玩家（怪物施法玩家技能/怪物技能）
+        v180 actor 化：目标=怪（玩家施法）读 self._hit_tgt() 防守；目标=玩家（怪物施法玩家技能/怪物技能）
         读玩家 actor 防守（phys_reduce/magic_reduce/elem_res/abyss_res 百分比免伤；格挡/闪避由
         _deal_hit 内 _damage_actor 承伤链处理）。返回 (削减后伤害, 削减后魔段)（魔段回传供吸血分账）。"""
         if kind == K_TRUE:
@@ -8534,7 +8462,7 @@ class Battle:
         e_buffs["mark"] 计时窗口保留（由 _m_mark 写入），层数在 enemy.debuffs 随刻衰减。
         v140 S1 分档：暗蚀铭刻（shadow_etch_vuln）每层 +15%；追影者（shadow_track）
         额外 +5%（与暗蚀铭刻叠加 = 每层 +25%）；无则维持 +20%。"""
-        n = int((self.enemy.get("debuffs") or {}).get("mark", {}).get("n", 0) or 0)
+        n = int((self._hit_tgt().get("debuffs") or {}).get("mark", {}).get("n", 0) or 0)
         if n > 0:
             _pl = getattr(self, "_focus", None) or {}
             _mk_effs = E.set_bonus_4(_pl.get("equipment") or {})
@@ -8759,7 +8687,7 @@ class Battle:
         - 伤害类型：毒/灼烧=magi，流血=phys；腐蚀=true（真伤）
         - force 参数兼容世界 Boss 显式结算入口（combat 层调用），无闸门语义
         """
-        e = actor if actor is not None else (self.enemy or {})
+        e = actor
         # v178.1 actor 无关：目标玩家 = actor 有 class_name（无则怪路径）
         _tgt_is_side_player = self._is_player_side(e)
         # v180F A7：不猜 caster——dot 强度以挂毒时存的施法者快照为准（_apply_dot 8246-8247），
@@ -8993,7 +8921,7 @@ class Battle:
           防止「转阶段重置上限」被利用成无限叠异常）
         调用点：_b_phase（battle_mech.py BOSS_MECHS["phase"]）阶段转换处（主 agent 收尾接线）。
         """
-        e = self.enemy or {}
+        e = self._hit_tgt() or {}
         deb = e.get("debuffs") or {}
         if not deb:
             return
@@ -9367,7 +9295,7 @@ class Battle:
         try:
             from .core.battle_bars import turn_start_bars, bar_def
             _bd = None
-            _trig = turn_start_bars(self.enemy, logs) or []
+            _trig = turn_start_bars(self._hit_tgt(), logs) or []
             for _bk in _trig:
                 # 触发效果：skip_turn → 敌方跳过下刻行动（由 _enemy_turn 消费 immune_turns）
                 _bd = bar_def(_bk) or {}
@@ -9381,7 +9309,7 @@ class Battle:
                 for _pn_dh, _ps_dh in self._proc_pm(player)["proc"].get("shaken_decay_half", []):
                     _ctx_dh = {"player": player, "ps": _ps_dh, "ps_name": _pn_dh,
                                "flag_kind": "shaken_decay_half",
-                               "e_buffs_shaken": (self._actor_buffs(self.enemy) or {}).get("shaken"),
+                               "e_buffs_shaken": (self._actor_buffs(self._hit_tgt()) or {}).get("shaken"),
                                "decay_full": float((_bd or {}).get("decay_per_turn", 0) or 0) or 1.7}
                     _run_proc_family(self, "shaken_decay_half", _ctx_dh)
                     break  # 原循环尾 break（max=1：只处理首条 proc 条目）
@@ -9570,7 +9498,7 @@ class Battle:
         """攻击方精准（v105 精准体系）：PVP 时攻击方是对方玩家快照（用 _player_stats 计算装备/词条精准），
         PVE 怪物无精准=0（玩家闪避不被削减）。任何异常按 0 处理。"""
         try:
-            en = self.enemy or {}
+            en = self._hit_tgt() or {}
             # v120 审计修复 q3：类从未定义 self.mode（恒 AttributeError 被吞→恒 0.0），
             # Battle 用 self.btype 区分类型（monster/worldboss/pvp）→ 改用 btype，PVP 精准真实生效。
             if self.btype == "pvp" and en.get("equipment"):
@@ -9611,7 +9539,7 @@ class Battle:
         命中判定成功追加闪避日志并返回 True（调用方跳过本次伤害结算）。
         v169.7 修 #132：判定目标用 _active_target（指定打 a2 时判 a2 闪避），无活跃目标回退主目标。"""
         try:
-            _mob = getattr(self, "_active_target", None) or self.enemy or {}
+            _mob = getattr(self, "_active_target", None) or {}
             mon_dodge = min(float(_mob.get("dodge", 0) or 0), 0.30)
             if mon_dodge <= 0:
                 return False
@@ -9666,7 +9594,7 @@ class Battle:
         targets = _fm.select_aoe_targets(attacker, self.enemies, scope)
         if not targets:
             return 0
-        main = self.enemy
+        main = self._hit_tgt()
         main_hit = 0
         for t in targets:
             if t.get("hp", 0) <= 0:
@@ -9711,7 +9639,7 @@ class Battle:
                       true_dmg: bool = False, attacker: dict | None = None) -> int:
         """对敌方单位造成伤害（§3.2）。返回实际对目标造成（或其 HP 被扣）的伤害。
 
-        - target：目标单位 dict；None=当前玩家活跃目标(_active_target)或主目标(self.enemy)。
+        - target：目标单位 dict；None=当前玩家活跃目标(_active_target)或主目标(self._hit_tgt())。
         - attacker：本次伤害的来源 actor（v180-C S3 actor 化——谁攻击吃谁的被动）。
           None = 玩家本人（兼容全部现有调用点：技能/普攻/AOE/反伤默认玩家攻击）。
           宠物 actor/随从 actor 攻击时传自己 → 乘区读宠物自身被动（无被动=无加成），
@@ -9721,7 +9649,7 @@ class Battle:
         - wake_sleep：dot 传 False（持续伤害不打醒睡眠、也不打断蓄力）。
         F1 P1-4：PVP 防御生效——目标防御中(defending)时伤害减半。"""
         if target is None:
-            target = getattr(self, "_active_target", None) or self.enemy
+            target = self._hit_tgt()
         if dmg <= 0:
             return 0
         # ---- v169.7 通用伤害乘区（读敌方标记/破绽 + 已学被动；只影响带机制/已学被动玩家）----
@@ -9863,7 +9791,7 @@ class Battle:
             if _room <= 0:
                 return []
             n = min(n, _room)
-        e = self.enemy or {}
+        e = self._hit_tgt() or {}
         # v163：命名基准用 Boss 本体名（self.enemy 可能被前排爪牙顶替导致名字叠"爪牙的爪牙"）
         _boss_name = ""
         for _u in self.enemies:
@@ -10148,7 +10076,7 @@ class Battle:
                     logs.append(f"🛡️ {pname}的【{sname}】击碎了敌人的护甲！(防御减半 2 刻)")
                 if self._enemy_dead():
                     self.result = "victory"
-                    logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！(宠物击杀)")
+                    logs.append(f"🎉 你击败了【{self._hit_tgt().get('name', '敌人')}】！(宠物击杀)")
                 return True
             if atype == "heal_owner":
                 owner = self._resolve_owner(actor) or {}
@@ -10235,7 +10163,7 @@ class Battle:
             if unit.get("is_minion"):
                 try:
                     _boss_u = next((u for u in self.enemies
-                                    if u.get("is_boss") and not u.get("is_minion")), None) or self.enemy
+                                    if u.get("is_boss") and not u.get("is_minion")), None) or self._hit_tgt()
                     if _boss_u:
                         _boss_u["_minion_died_count"] = int(_boss_u.get("_minion_died_count", 0) or 0) + 1
                         _boss_u["_minion_died_this_act"] = True  # 瞬态标记（当刻消费，行动后清）
@@ -10278,7 +10206,7 @@ class Battle:
             # 同步 e_minions 旧字段（镜像同对象）
             if unit in self.e_minions:
                 self.e_minions[:] = [m for m in self.e_minions if m.get("hp", 0) > 0]
-            self.enemy  # 刷新主目标引用（property）
+            self._hit_tgt()  # 刷新主目标引用（property）
         elif side == "ally":
             lives = []
             for u in (self.allies or []):
@@ -10510,7 +10438,7 @@ class Battle:
             logs.append(f"🛡️ 格挡！减免 {block_reduce} 点伤害！")
             # v142 数据驱动：壁槌反震（bi_chui_wall）——格挡成功必反弹 30% 原始伤害（数值读 params）
             _bw_eff = self._set_eff(actor, "bi_chui_wall", 4)
-            if _bw_eff and self.enemy.get("hp", 0) > 0:
+            if _bw_eff and actor.get("hp", 0) > 0:
                 _bw_params = (_bw_eff or {}).get("params") or {}
                 _bw = max(1, int(dmg * float(_bw_params.get("reflect_pct", 0.30))))
                 _bw = self._boss_dmg_filter(_bw, actor, logs)
@@ -10519,7 +10447,7 @@ class Battle:
             # v107 格挡反击（圣殿骑士）：格挡成功后按 chance 反伤（物理段，mult 为反伤系数）
             # v110.3 P2-1：多个格挡反击被动逐个独立 roll，命中即停；此前 break 在 for 末尾无条件退出，只 roll 第一个被动
             for _pn, _ps in self._passive_map(actor)["proc"].get("block_counter", []):
-                if self.enemy.get("hp", 0) > 0 and random.random() < float(_ps.get("chance", 0.5)):
+                if actor.get("hp", 0) > 0 and random.random() < float(_ps.get("chance", 0.5)):
                     rd = max(1, int(dmg * float(_ps.get("mult", 0.5))))
                     rd = self._boss_dmg_filter(rd, actor, logs)
                     self._deal_damage(rd, logs)
@@ -10634,7 +10562,7 @@ class Battle:
                         RES[_rk] = self._res_gain_class(_rcls, _rk, _rg)
                         if int(RES.get(_rk, 0) or 0) > _rg_before:
                             logs.append(f"⚡ {ps_name}：受击获取 {_rg} 点资源（{_rk} {RES[_rk]}）")
-            elif proc == "reflect" and self.enemy.get("hp", 0) > 0:
+            elif proc == "reflect" and actor.get("hp", 0) > 0:
                 # v113.1：反震——按 chance 概率反伤（缺省 100%：无条件反伤，保持旧行为）
                 if "chance" in ps and random.random() >= float(ps.get("chance") or 0):
                     continue
@@ -10780,13 +10708,13 @@ class Battle:
     def _retaliations_and_buffs(self, actor: dict, dmg: int, logs: list, attacker: dict | None = None) -> tuple:
         """v177 受击后效（任意 actor）：反伤/反击/金身/符文壁垒/次元门扉/圣辉等——回击攻击者或改自身状态。
         返回 (处理后的 dmg, interrupted)；interrupted=True = 本次承伤被免疫中断（次元门扉），调用方 return。
-        回击目标 = attacker（攻击者，玩家被打=怪 / 怪被打=玩家），缺省回退 self.enemy。
+        回击目标 = attacker（攻击者，玩家被打=怪 / 怪被打=玩家），缺省回退 self._hit_tgt()。
         actor 无养成数据源（装备/被动/职业）→ 空转。副作用全在 self + logs。"""
         if not actor or not (actor.get("class_name") or actor.get("equipment") or actor.get("learned_skills")
                               or actor.get("buffs") or actor.get("shields") or actor.get("resources")):
             return dmg, False
         # 反击/反伤目标：攻击者优先；玩家被打场景（attacker=None）回退敌人
-        _rtgt = attacker if attacker is not None else self.enemy
+        _rtgt = attacker
         # 回击落点：v177 actor 统一——玩家/怪都走 _damage_actor（状态容器按 _is_player_side 路由）。
         # 修复：旧 else 分支 _hit_back(rd_val) 无限自调（RecursionError 被吞 → 反伤静默丢失，
         # 荆棘/格挡反震等对怪回击全失效）；现统一 _damage_actor 目标即正确扣血/移除。

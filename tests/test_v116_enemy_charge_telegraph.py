@@ -22,8 +22,8 @@ passed = failed = 0
 
 
 def _first_hostile(b):
-    """v181.P3d：取敌对 actor 组首个（无玩家预设的测试直接操作场上怪）"""
-    acts = b._hostile_actors("player")
+    """测试取场上 enemy 阵营首个 actor（sides 直读；无 → {}）"""
+    acts = (b.sides or {}).get("enemy") or []
     return (acts[0] if acts else {})
 
 def check(name, cond, detail=""):
@@ -76,7 +76,7 @@ def test_charge_start_and_release():
     # 第 1 回合：抽中蓄力技能 → 进入蓄力，不结算伤害
     force_skill("ms_zhen_ji")
     try:
-        logs1, dmg1 = b._enemy_turn(p)
+        logs1, dmg1 = b._actor_auto_turn(p)
     finally:
         restore_random()
     check("第1回合不结算伤害（dmg=0）", dmg1 == 0, f"dmg1={dmg1}")
@@ -88,7 +88,7 @@ def test_charge_start_and_release():
     # v180F：蓄力释放走 _actor_skill_cast 管线内部扣血（返回 dmg=0 防外部双扣）——
     # 断言改看玩家真实 hp 扣减（伤害确实发生）
     hp_before = p.get("hp", 0)
-    logs2, dmg2 = b._enemy_turn(p)
+    logs2, dmg2 = b._actor_auto_turn(p)
     dealt = hp_before - p.get("hp", 0)
     check("第2回合蓄力释放造成伤害（dealt>0）", dealt > 0, f"dealt={dealt} dmg2={dmg2}")
     check("释放含『蓄力完成，轰然落下』", any("蓄力完成" in l for l in logs2), str(logs2))
@@ -103,7 +103,7 @@ def test_charge_leftover_telegraph_and_interrupt():
     e = _first_hostile(b)
     p = make_player(hp=99999)
     _first_hostile(b)["charging"] = {"skill": "ms_jian_ta", "left": 2, "name": "践踏"}
-    logs_sub, dmg_sub = b._enemy_turn(p)
+    logs_sub, dmg_sub = b._actor_auto_turn(p)
     check("蓄力持续回合（left 2→1）不结算伤害", dmg_sub == 0 and e["charging"]["left"] == 1
           and not e.get("charging", {}).get("left") == 0, f"dmg={dmg_sub} ch={e.get('charging')}")
     check("持续回合意图『蓄力中(剩N)』", any("蓄力中(剩 1" in l or "蓄力中(剩1" in l for l in logs_sub), str(logs_sub))
@@ -119,7 +119,7 @@ def test_charge_leftover_telegraph_and_interrupt():
     # 打断后敌方正常回合 = 重新按概率抽技能（random=0.0 必放技能，但技能不再蓄力一次？charge 技能会重新蓄力）
     force_skill("ms_jian_ta")
     try:
-        logs_b, dmg_b = b2._enemy_turn(p2)
+        logs_b, dmg_b = b2._actor_auto_turn(p2)
     finally:
         restore_random()
     check("打断后下回合重新进入蓄力（charge 技能再次蓄力）", isinstance(_first_hostile(b2).get("charging"), dict)

@@ -28,23 +28,23 @@ def _we_exec_dot(battle, player, ctx, logs, wd, key, event):
         return
     if random.random() >= float(wd["chance"]):
         return
-    # 目标：battle.enemy（与旧 handler 一致；ctx 不携带目标）
-    if not battle.enemy:
+    # 目标：battle._hit_tgt()（与旧 handler 一致；ctx 不携带目标）
+    if not battle._hit_tgt():
         return
     # 延迟取共享动作（weapon_effects 模块已完全加载后才可能调执行器——proc 延迟 import）
     from .weapon_effects import _apply_dot, _boss_enemy
     if key == "blood_trace":
         # 败血：当前生命%（pct_boss 对 Boss/精英），非 _apply_dot maxhp 语义（原 handler 直写）
-        deb = battle.enemy.setdefault("debuffs", {})
+        deb = battle._hit_tgt().setdefault("debuffs", {})
         cur = deb.get("blood_trace") or {"n": 0, "mult": 1.0}
         cur["n"] = min(int(cur.get("n", 0) or 0) + 1, 1)
-        cur["pct"] = float(wd["pct_boss"]) if _boss_enemy(battle.enemy) else float(wd["pct"])
+        cur["pct"] = float(wd["pct_boss"]) if _boss_enemy(battle._hit_tgt()) else float(wd["pct"])
         cur["turns"] = int(wd["turns"])
         deb["blood_trace"] = cur
         logs.append("🩸 败血：目标 4 刻内每刻损失当前生命！（对败血目标 +10% 伤害）")
         return
     # smith_blaze_wound/rong_lu_yu_wen/ember_burn：_apply_dot（maxhp%）
-    pct = float(wd["dot_pct_boss"]) if _boss_enemy(battle.enemy) else float(wd["dot_pct"])
+    pct = float(wd["dot_pct_boss"]) if _boss_enemy(battle._hit_tgt()) else float(wd["dot_pct"])
     _apply_dot(battle, wd["dot_key"], 1, pct, int(wd["turns"]), logs, source=_DOT_SOURCE[key])
 
 
@@ -65,7 +65,7 @@ def _we_exec_reflect(battle, player, ctx, logs, wd, key, event):
             return
     dmg = int(ctx.get("dmg", 0) or 0)
     rd = max(1, int(dmg * float(wd["reflect_pct"])))
-    if battle.enemy and battle.enemy.get("hp", 0) > 0 and rd > 0:
+    if battle._hit_tgt() and battle._hit_tgt().get("hp", 0) > 0 and rd > 0:
         battle._deal_damage(rd, logs)
         logs.append(_REFLECT_LOG[key].format(rd=rd))
 
@@ -554,7 +554,7 @@ def _we_exec_extra_dmg(battle, player, ctx, logs, wd, key, event):
             stacks[sk] = 0
             st = _pstats(battle, player)
             if key == "star_pierce":
-                e = battle.enemy or {}
+                e = battle._hit_tgt() or {}
                 base = int(st.get("atk", 0) * float(wd["atk_pct"]))
                 lost = int((e.get("max_hp", 0) - e.get("hp", 0)) * float(wd["lost_hp_pct"]))
                 cap = int(e.get("max_hp", 1) * float(wd["cap_pct"]))
@@ -566,7 +566,7 @@ def _we_exec_extra_dmg(battle, player, ctx, logs, wd, key, event):
         return
     # ================= curhp_dmg_heal：敌当前生命%伤 + 回等量 =================
     if key == "soul_eater":
-        e = battle.enemy or {}
+        e = battle._hit_tgt() or {}
         st = _pstats(battle, player)
         cap = max(1, int(st.get("atk", 0) or 0))
         bonus = min(cap, max(1, int(e.get("hp", 0) * float(wd["cur_hp_pct"]))))
@@ -948,9 +948,9 @@ def _we_exec_aux(battle, player, ctx, logs, wd, key, event):
             return
         eff["we_ember_bulwark_used"] = True
         dmg = max(1, int(player.get("max_hp", 100) * float(wd.get("max_hp_pct", 0.05))))
-        if battle.enemy.get("hp", 0) > 0:
+        if battle._hit_tgt().get("hp", 0) > 0:
             battle._deal_damage(dmg, logs)
-            deb = battle.enemy.setdefault("debuffs", {})
+            deb = battle._hit_tgt().setdefault("debuffs", {})
             cur = deb.get("burn") or {"n": 0, "mult": 1.0}
             cur["n"] = min(int(wd.get("burn_cap", 5)), int(cur.get("n", 0) or 0) + int(wd.get("burn_stack", 1)))
             cur["last_tick"] = max(1, int(battle._tick_no()))
@@ -960,7 +960,7 @@ def _we_exec_aux(battle, player, ctx, logs, wd, key, event):
     if key == "iron_echo":
         if random.random() >= float(wd.get("chance", 0.20)):
             return
-        if battle.enemy.get("hp", 0) <= 0:
+        if battle._hit_tgt().get("hp", 0) <= 0:
             return
         _extra_phys(battle, float(wd.get("reflect_pct", 0.40)), logs, source=_AUX_SOURCE[key])
         _heal_player(battle, player, int(player.get("max_hp", 100) * float(wd.get("heal_pct", 0.02))), logs, source=_AUX_SOURCE[key])
@@ -970,7 +970,7 @@ def _we_exec_aux(battle, player, ctx, logs, wd, key, event):
             return
         dmg = int(ctx.get("dmg", 0) or 0)
         rd = max(1, int(dmg * float(wd.get("reflect_pct", 0.25))))
-        if battle.enemy.get("hp", 0) > 0 and rd > 0:
+        if battle._hit_tgt().get("hp", 0) > 0 and rd > 0:
             battle._deal_damage(rd, logs)
             battle._actor_buffs(battle._hit_tgt())["heal_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("heal_down", 0), int(wd.get("heal_down", 2)))
             logs.append((wd.get("log") or "🐉 龙脊反噬：反弹 {rd} 点伤害，并施加重伤！").format(rd=rd))

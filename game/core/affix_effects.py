@@ -118,7 +118,7 @@ def _h_bleed(battle, player, dmg, logs):
         from .effect_actions import action_dot
         # 目标级减益：血层挂到目标 debuffs["bleed"]（攻击命中后主敌必在；显式传 target）
         stacks = int(_affix_effect("bleed").get("stacks", 3))  # 每次触发叠层数（兼作上限）
-        action_dot(battle, logs, key="bleed", stacks=stacks, max_n=stacks, target=battle.enemy)
+        action_dot(battle, logs, key="bleed", stacks=stacks, max_n=stacks, target=battle._hit_tgt())
 
 
 @register(HIT_EFFECTS, "armor_break")
@@ -127,7 +127,7 @@ def _h_armor_break(battle, player, dmg, logs):
     if "armor_break" in battle._equip_affix_ids(player) and random.random() < _affix_chance("armor_break", 0.25):
         from .effect_actions import action_def_down
         eff = _affix_effect("armor_break")
-        action_def_down(battle, logs, turns=int(eff.get("turns", 2)), pct=float(eff.get("pct", 0.15)), target=battle.enemy)
+        action_def_down(battle, logs, turns=int(eff.get("turns", 2)), pct=float(eff.get("pct", 0.15)), target=battle._hit_tgt())
 
 
 @register(HIT_EFFECTS, "combo")
@@ -137,7 +137,7 @@ def _h_combo(battle, player, dmg, logs):
         from .effect_actions import action_bonus_pct
         action_bonus_pct(battle, player, dmg, logs,
                          pct=float(_affix_effect("combo").get("extra_atk", 0.50)),
-                         tag="⚡", name="连击", target=battle.enemy)
+                         tag="⚡", name="连击", target=battle._hit_tgt())
 
 
 @register(HIT_EFFECTS, "element_fire")
@@ -147,7 +147,7 @@ def _h_element_fire(battle, player, dmg, logs):
         from .effect_actions import action_element_dmg
         action_element_dmg(battle, player, dmg, logs,
                            pct=float(_affix_effect("element_fire").get("pct", 0.05)),
-                           tag="🔥", name="火焰附加", target=battle.enemy)
+                           tag="🔥", name="火焰附加", target=battle._hit_tgt())
 
 
 @register(HIT_EFFECTS, "element_ice")
@@ -159,7 +159,7 @@ def _h_element_ice(battle, player, dmg, logs):
                            pct=float(_affix_effect("element_ice").get("pct", 0.05)),
                            tag="❄️", name="冰霜附加",
                            slow_turns=int(_affix_effect("element_ice").get("slow_turns", 2)),
-                           target=battle.enemy)
+                           target=battle._hit_tgt())
 
 
 @register(HIT_EFFECTS, "element_thunder")
@@ -201,8 +201,8 @@ def _h_chu_huo(battle, player, dmg, logs):
     battle._deal_damage(ed, logs)
     logs.append(f"🔥 初火余烬：火属性附加 {ed} 点伤害！")
     if random.random() < _affix_chance("chu_huo", 0.20):
-        pct_dot = 0.01 if (battle.enemy or {}).get("role") == "boss" else 0.015
-        deb = battle.enemy.setdefault("debuffs", {})
+        pct_dot = 0.01 if (battle._hit_tgt() or {}).get("role") == "boss" else 0.015
+        deb = battle._hit_tgt().setdefault("debuffs", {})
         cur = deb.get("burn") or {"n": 0, "mult": 1.0}
         cur["n"] = min(3, int(cur.get("n", 0) or 0) + 1)
         cur["pct"] = pct_dot
@@ -218,7 +218,7 @@ def _h_pierce(battle, player, dmg, logs):
         from .effect_actions import action_pierce_dmg
         action_pierce_dmg(battle, player, logs,
                           atk_pct=float(_affix_effect("pierce").get("atk_pct", 0.60)),
-                          target=battle.enemy)
+                          target=battle._hit_tgt())
 
 
 @register(HIT_EFFECTS, "charge")
@@ -228,7 +228,7 @@ def _h_charge(battle, player, dmg, logs):
         from .effect_actions import action_bonus_pct
         action_bonus_pct(battle, player, dmg, logs,
                          pct=float(_affix_effect("charge").get("dmg_pct", 0.50)),
-                         tag="💪", name="蓄力爆发", target=battle.enemy)
+                         tag="💪", name="蓄力爆发", target=battle._hit_tgt())
 
 
 @register(HIT_EFFECTS, "purify")
@@ -309,17 +309,17 @@ def _t_tenacity(battle, player, ctx, logs):
 @register(TAKEN_EFFECTS, "counter")
 def _t_counter(battle, player, ctx, logs):
     """反击：20% 反击 60% 伤害"""
-    if "counter" in battle._equip_affix_ids(player) and random.random() < _affix_chance("counter", 0.20) and battle.enemy.get("hp", 0) > 0:
+    if "counter" in battle._equip_affix_ids(player) and random.random() < _affix_chance("counter", 0.20) and battle._hit_tgt().get("hp", 0) > 0:
         from .effect_actions import action_counter
         action_counter(battle, player, logs,
                        atk_pct=float(_affix_effect("counter").get("pct", 0.60)),
-                       target=battle.enemy)
+                       target=battle._hit_tgt())
 
 
 @register(TAKEN_EFFECTS, "ember_ward")
 def _t_ember_ward(battle, player, ctx, logs):
     """灰烬壁垒（灰烬守卫套专属）：20% 反弹 50% 伤害（基于原始 dmg）"""
-    if "ember_ward" in battle._equip_affix_ids(player) and random.random() < _affix_chance("ember_ward", 0.20) and battle.enemy.get("hp", 0) > 0:
+    if "ember_ward" in battle._equip_affix_ids(player) and random.random() < _affix_chance("ember_ward", 0.20) and battle._hit_tgt().get("hp", 0) > 0:
         rd = int(ctx["dmg"] * float(_affix_effect("ember_ward").get("pct", 0.50)))
         battle._deal_damage(rd, logs)
         logs.append(f"🔥 灰烬壁垒！反弹 {rd} 点伤害！")
@@ -463,15 +463,15 @@ def _sp_flat_dmg(battle, player, dmg, logs, params: dict):
             return
     pct = float(params.get("pct", 0.50))
     if params.get("cond_hp_lt") is not None:
-        ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
+        ratio = battle._hit_tgt().get("hp", 0) / max(1, battle._hit_tgt().get("max_hp", 1))
         if ratio >= float(params["cond_hp_lt"]):
             return
     if params.get("cond_mark"):
-        mk = (battle.enemy.get("debuffs") or {}).get("mark") or {}
+        mk = (battle._hit_tgt().get("debuffs") or {}).get("mark") or {}
         if int(mk.get("n", 0) or 0) > 0:
             pct = float(params.get("pct_alt", pct))
     # 雷印条件：带雷印变比例 / ≥2 消耗1层 / 满3必触发
-    mk = (battle.enemy.get("debuffs") or {}).get("element_marks") or {}
+    mk = (battle._hit_tgt().get("debuffs") or {}).get("element_marks") or {}
     if params.get("cond_thunder_mark") and int(mk.get("thunder", 0) or 0) > 0:
         pct = float(params.get("pct_alt", pct))
     if params.get("cond_thunder_ge2") and int(mk.get("thunder", 0) or 0) >= 2:
@@ -496,7 +496,7 @@ def _sp_flat_dmg(battle, player, dmg, logs, params: dict):
 def _sp_mark(battle, player, dmg, logs, params: dict):
     """proc_mark：概率叠标记
     params: chance, max_mark, mark_key(mark/element_marks/thunder/erode/poison), mark_desc"""
-    deb = battle.enemy.setdefault("debuffs", {})
+    deb = battle._hit_tgt().setdefault("debuffs", {})
     key = params.get("mark_key", "mark")
     if key == "element_marks":
         mk = deb.setdefault("element_marks", {})
@@ -574,7 +574,7 @@ def _sp_execute(battle, player, dmg, logs, params: dict):
     """proc_execute：低血处决（追加 pct×atk 或 pct×本次伤害）
     params: hp_lt, pct, stat, true_dmg, pct_of_dmg(用本次伤害%而非atk%)"""
     from ..engine import calc_damage
-    ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
+    ratio = battle._hit_tgt().get("hp", 0) / max(1, battle._hit_tgt().get("max_hp", 1))
     # 满血分支（night_backstab）：满血直接 +25% 本次伤害
     if params.get("hp_full") and ratio >= 0.999:
         battle._deal_damage(int(dmg * float(params.get("pct", 0.25))), logs)
@@ -601,7 +601,7 @@ def _sp_execute(battle, player, dmg, logs, params: dict):
     # 非满血非低血，但有 hp_pct_dmg（night_backstab 的 20% 5%max_hp 真伤，chance 已由外层检查）
     elif params.get("hp_pct_dmg"):
         pst = battle._player_stats(player)
-        cd = calc_damage(int(battle.enemy.get("max_hp", 1) * float(params.get("pct2", 0.05))), 0)
+        cd = calc_damage(int(battle._hit_tgt().get("max_hp", 1) * float(params.get("pct2", 0.05))), 0)
         if cd > 0:
             battle._deal_damage(cd, logs)
             tag = params.get("tag", "🌙")
@@ -620,7 +620,7 @@ def _sp_shield(battle, player, dmg, logs, params: dict):
 def _sp_burn(battle, player, dmg, logs, params: dict):
     """proc_burn：概率灼烧
     params: chance, burn_pct, burn_turns, max_stacks"""
-    deb = battle.enemy.setdefault("debuffs", {})
+    deb = battle._hit_tgt().setdefault("debuffs", {})
     cur = deb.get("burn") or {"n": 0, "mult": 1.0}
     cur["n"] = min(int(params.get("max_stacks", 3)), int(cur.get("n", 0) or 0) + 1)
     cur["pct"] = float(params.get("burn_pct", 0.01))
@@ -717,7 +717,7 @@ def _sp_dmg_cut(battle, player, dmg, logs, params: dict):
 def _sp_counter(battle, player, dmg, logs, params: dict):
     """proc_counter：受击概率反击
     params: chance, atk_pct, once_per_round(bool)"""
-    if not battle.enemy.get("hp", 0) or battle.enemy.get("hp", 0) <= 0:
+    if not battle._hit_tgt().get("hp", 0) or battle._hit_tgt().get("hp", 0) <= 0:
         return
     if params.get("once_per_round"):
         _turn = battle._tick_no()
@@ -745,7 +745,7 @@ def _sp_res_gain(battle, player, dmg, logs, params: dict):
 def _sp_stealth(battle, player, dmg, logs, params: dict):
     """proc_stealth：低血概率隐身（下次攻击必暴击）
     params: hp_lt, chance, buff_key"""
-    ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
+    ratio = battle._hit_tgt().get("hp", 0) / max(1, battle._hit_tgt().get("max_hp", 1))
     if ratio < float(params.get("hp_lt", 0.30)):
         player.setdefault('buffs', {})[params.get("buff_key", "stealth")] = 1
         tag = params.get("tag", "🌙")
@@ -772,7 +772,7 @@ def _sp_mp_on_dmg(battle, player, dmg, logs, params: dict):
 def _sp_erode(battle, player, dmg, logs, params: dict):
     """proc_erode：概率暗蚀（敌方每刻损 %max_hp，全额回血）
     params: chance, max_stacks, turns"""
-    deb = battle.enemy.setdefault("debuffs", {})
+    deb = battle._hit_tgt().setdefault("debuffs", {})
     cur = deb.get("erode") or {"n": 0, "mult": 1.0}
     cur["n"] = min(int(params.get("max_stacks", 2)), int(cur.get("n", 0) or 0) + 1)
     deb["erode"] = cur
@@ -784,7 +784,7 @@ def _sp_thunder_burst(battle, player, dmg, logs, params: dict):
     """proc_thunder_burst：雷印体系——叠印/满印引爆
     params: chance, max_mark, burst_pct, stat(matk), edef"""
     from ..engine import calc_damage
-    deb = battle.enemy.setdefault("debuffs", {})
+    deb = battle._hit_tgt().setdefault("debuffs", {})
     mk = deb.setdefault("element_marks", {})
     mk["thunder"] = min(int(params.get("max_mark", 3)), int(mk.get("thunder", 0) or 0) + 1)
     if int(mk.get("thunder", 0)) >= int(params.get("burst_at", 3)):
@@ -817,13 +817,13 @@ def _sp_mark_or_dmg(battle, player, dmg, logs, params: dict):
     """proc_mark_or_dmg：有标记→追加伤害，否则叠标记（hunter_mark_bonus）
     params: chance, max_mark, dmg_pct, mark_desc"""
     from ..engine import calc_damage
-    mk = (battle.enemy.get("debuffs") or {}).get("mark") or {}
+    mk = (battle._hit_tgt().get("debuffs") or {}).get("mark") or {}
     if int(mk.get("n", 0) or 0) > 0:
         battle._deal_damage(int(dmg * float(params.get("dmg_pct", 0.15))), logs)
         tag = params.get("tag", "🏹")
         logs.append(f"{tag} {params.get('name', '标记增伤')}！标记目标追加 {int(dmg*float(params.get('dmg_pct', 0.15)))} 点伤害！")
     else:
-        cur = battle.enemy.setdefault("debuffs", {}).setdefault("mark", {"n": 0, "mult": 1.0})
+        cur = battle._hit_tgt().setdefault("debuffs", {}).setdefault("mark", {"n": 0, "mult": 1.0})
         cur["n"] = min(int(params.get("max_mark", 5)), int(cur.get("n", 0) or 0) + 1)
         tag = params.get("tag", "🏹")
         logs.append(f"{tag} {params.get('name', '标记')}！敌人被标记！")
@@ -862,7 +862,7 @@ def _taken_dmg_cut(battle, player, dmg, logs, params: dict):
 def _taken_counter(battle, player, dmg, logs, params: dict):
     """taken_counter：受击概率反击（ferry_repel）
     params: chance, atk_pct, once_per_round"""
-    if not battle.enemy.get("hp", 0) or battle.enemy.get("hp", 0) <= 0:
+    if not battle._hit_tgt().get("hp", 0) or battle._hit_tgt().get("hp", 0) <= 0:
         return
     if params.get("once_per_round"):
         _turn = battle._tick_no()
@@ -985,7 +985,7 @@ def _h_ember_furnace(battle, player, dmg, logs):
     """熔炉余烬（熔岩护手）：20% 灼烧 1% 最大生命×2 刻"""
     if "ember_furnace" in battle._equip_affix_ids(player) and random.random() < _affix_chance("ember_furnace", 0.20):
         eff = _affix_effect("ember_furnace")
-        deb = battle.enemy.setdefault("debuffs", {})
+        deb = battle._hit_tgt().setdefault("debuffs", {})
         cur = deb.get("burn") or {"n": 0, "mult": 1.0}
         cur["n"] = min(3, int(cur.get("n", 0) or 0) + 1)
         cur["pct"] = float(eff.get("burn_pct", 0.01))
@@ -1007,7 +1007,7 @@ def _h_blazing_sun(battle, player, dmg, logs):
         battle._deal_damage(ed, logs)
         logs.append(f"🔥 烈日灼烧：火属性附加 {ed} 点伤害！")
         if random.random() < _affix_chance("blazing_sun", 0.15):
-            deb = battle.enemy.setdefault("debuffs", {})
+            deb = battle._hit_tgt().setdefault("debuffs", {})
             cur = deb.get("burn") or {"n": 0, "mult": 1.0}
             cur["n"] = min(3, int(cur.get("n", 0) or 0) + 1)
             cur["pct"] = float(eff.get("burn_pct", 0.015))
@@ -1039,7 +1039,7 @@ def _h_thunder_mark(battle, player, dmg, logs):
     """雷鸣印记（雷鸣龙鳞）：20% 叠雷鸣印记"""
     if "thunder_mark" in battle._equip_affix_ids(player) and random.random() < _affix_chance("thunder_mark", 0.20):
         eff = _affix_effect("thunder_mark")
-        deb = battle.enemy.setdefault("debuffs", {})
+        deb = battle._hit_tgt().setdefault("debuffs", {})
         cur = deb.setdefault("mark", {"n": 0, "mult": 1.0})
         cur["n"] = min(int(eff.get("max_mark", 5)), int(cur.get("n", 0) or 0) + 1)
         logs.append("⚡ 雷鸣印记！敌人被标记（每层 +2% 伤害）")
@@ -1268,7 +1268,7 @@ def _h_star_shatter(battle, player, dmg, logs):
     from ..engine import calc_damage
     if "star_shatter" not in battle._equip_affix_ids(player) or random.random() >= _affix_chance("star_shatter", 0.25):
         return
-    if battle.enemy.get("hp", 0) <= 0:
+    if battle._hit_tgt().get("hp", 0) <= 0:
         return
     eff = _affix_effect("star_shatter")
     pst = battle._player_stats(player)
@@ -1302,12 +1302,12 @@ def _h_dark_star_gauntlet(battle, player, dmg, logs):
         # 满层后的下一次攻击：额外 +20% 爆发并清空（本轮爆发替代常驻叠层增伤）
         player.setdefault('stacks', {})["dark_star"] = 0
         burst = max(1, int(dmg * (burst_mult - 1.0)))
-        if battle.enemy.get("hp", 0) > 0:
+        if battle._hit_tgt().get("hp", 0) > 0:
             battle._deal_damage(burst, logs)
         logs.append(f"{tag}：暗星爆发！追加 {burst} 点伤害！（暗星层数清零）")
         return
     # 常驻叠层增伤：本击按已有层数每层 +3% 追加（叠层当刻生效、下一击起全额成长）
-    if cur > 0 and battle.enemy.get("hp", 0) > 0:
+    if cur > 0 and battle._hit_tgt().get("hp", 0) > 0:
         ramp = max(1, int(dmg * per * cur))
         battle._deal_damage(ramp, logs)
         logs.append(f"{tag}：暗星之力（{cur} 层）追加 {ramp} 点伤害！")
@@ -1338,7 +1338,7 @@ def _h_gale_dirge(battle, player, dmg, logs):
             if any(k in str(u.get("name", "")) for k in kw):
                 named = u
                 break
-    target = named or any_min or battle.enemy
+    target = named or any_min or battle._hit_tgt()
     if target.get("hp", 0) <= 0:
         return
     est_t = battle._enemy_stats(target)
@@ -1362,7 +1362,7 @@ def _h_shadow_raid(battle, player, dmg, logs):
         return
     eff = _affix_effect("shadow_raid")
     tag = eff.get("tag", "🗡️影袭连刺")
-    if battle.enemy.get("hp", 0) > 0:
+    if battle._hit_tgt().get("hp", 0) > 0:
         cd = max(1, int(dmg * float(eff.get("extra_atk", 0.40))))
         battle._deal_damage(cd, logs)
         logs.append(f"{tag}！追击 {cd} 点伤害！")

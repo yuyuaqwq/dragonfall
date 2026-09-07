@@ -43,7 +43,7 @@ def register(key, label=None):
 @register("enemy_hp_low", label=lambda c: f"敌方血量<{int(c.get('hp_pct', 0.4) * 100)}%")
 def _c_enemy_hp_low(battle, player, cond):
     """敌方血量低于 hp_pct（默认 40%）"""
-    return battle.enemy.get("hp", 0) < battle.enemy.get("max_hp", 1) * cond.get("hp_pct", 0.4)
+    return battle._hit_tgt().get("hp", 0) < battle._hit_tgt().get("max_hp", 1) * cond.get("hp_pct", 0.4)
 
 
 @register("player_hp_low", label=lambda c: f"自身血量<{int(c.get('hp_pct', 0.3) * 100)}%")
@@ -55,7 +55,7 @@ def _c_player_hp_low(battle, player, cond):
 @register("enemy_hp_high", label=lambda c: f"敌方血量>{int(c.get('hp_pct', 0.7) * 100)}%")
 def _c_enemy_hp_high(battle, player, cond):
     """敌方血量高于 hp_pct（默认 70%）"""
-    return battle.enemy.get("hp", 0) > battle.enemy.get("max_hp", 1) * cond.get("hp_pct", 0.7)
+    return battle._hit_tgt().get("hp", 0) > battle._hit_tgt().get("max_hp", 1) * cond.get("hp_pct", 0.7)
 
 
 @register("player_hp_high", label=lambda c: f"自身血量>{int(c.get('hp_pct', 0.8) * 100)}%")
@@ -67,7 +67,7 @@ def _c_player_hp_high(battle, player, cond):
 @register("enemy_full_hp", label=lambda c: "敌方满血")
 def _c_enemy_full_hp(battle, player, cond):
     """敌方满血"""
-    return battle.enemy.get("hp", 0) >= battle.enemy.get("max_hp", 1)
+    return battle._hit_tgt().get("hp", 0) >= battle._hit_tgt().get("max_hp", 1)
 
 
 # ================= 控制/异常状态类条件 =================
@@ -93,7 +93,7 @@ def _c_enemy_silenced(battle, player, cond):
 @register("enemy_poison_stacks", label=lambda c: f"敌方中毒≥{c.get('stacks', 0)}层")
 def _c_enemy_poison_stacks(battle, player, cond):
     """敌方中毒层数 ≥ stacks（默认 3）；毒层已迁到目标级 enemy["debuffs"]["poison"]"""
-    return (int(((battle.enemy.get("debuffs") or {}).get("poison", {}) or {}).get("n", 0) or 0)
+    return (int(((battle._hit_tgt().get("debuffs") or {}).get("poison", {}) or {}).get("n", 0) or 0)
             >= cond.get("stacks", 3))
 
 
@@ -104,7 +104,7 @@ def _c_enemy_shaken_gt(battle, player, cond):
     v139 拳师/淬势者：破绽条触发 = 敌方跳过刻（被晕），trigger_count>0 表示触发过、
     immune_turns>0 表示仍在免疫窗口（即刚被震慑）。stacks 参数保留兼容（默认 0）。
     """
-    bs = (battle.enemy.get("buffs") or {}).get("shaken")
+    bs = (battle._hit_tgt().get("buffs") or {}).get("shaken")
     if not isinstance(bs, dict):
         return False
     return int(bs.get("trigger_count", 0) or 0) > 0 and int(bs.get("immune_turns", 0) or 0) > 0
@@ -132,7 +132,7 @@ def _c_player_combo_stacks(battle, player, cond):
 @register("enemy_marked", label=lambda c: "敌方被标记")
 def _c_enemy_marked(battle, player, cond):
     """敌方被标记（e_buffs 或目标级 debuffs 机制层任一）"""
-    return "mark" in battle._actor_buffs(battle._hit_tgt()) or int(((battle.enemy.get("debuffs") or {}).get("mark", {}) or {}).get("n", 0) or 0) > 0
+    return "mark" in battle._actor_buffs(battle._hit_tgt()) or int(((battle._hit_tgt().get("debuffs") or {}).get("mark", {}) or {}).get("n", 0) or 0) > 0
 
 
 @register("enemy_debuff", label=lambda c: "敌方有减益")
@@ -142,7 +142,7 @@ def _c_enemy_debuff(battle, player, cond):
                    "stun", "freeze", "silence")
     if any(k in battle._actor_buffs(battle._hit_tgt()) for k in debuff_keys):
         return True
-    debuffs = battle.enemy.get("debuffs") or {}
+    debuffs = battle._hit_tgt().get("debuffs") or {}
     return any(int((debuffs.get(k) or {}).get("n", 0) or 0) > 0
                for k in ("poison", "burn", "mark", "bleed"))
 
@@ -285,21 +285,21 @@ def _c_speed_ratio(battle, player, cond):
 def _c_enemy_hunt_mark(battle, player, cond):
     """敌方有猎印（≥1 层）。hunt_mark 由 battle_mech _m_hunt_mark 写入
     enemy.debuffs.hunt_mark（int 层数，cap=info.mark_cap 默认 3）。"""
-    return int(((battle.enemy.get("debuffs") or {}).get("hunt_mark", 0) or 0)) > 0
+    return int(((battle._hit_tgt().get("debuffs") or {}).get("hunt_mark", 0) or 0)) > 0
 
 
 @register("enemy_hunt_full", label=lambda c: f"敌方猎印已满{c.get('stacks', 3)}层")
 def _c_enemy_hunt_full(battle, player, cond):
     """敌方猎印满层（≥ stacks，默认 3 = info.mark_cap；追猎者被动 cap 可叠加到 5）。
     与 _m_hunt_mark 叠层上限同源：cap 默认 3、技能数据 mark_cap 可覆盖（上限 5）。"""
-    return int(((battle.enemy.get("debuffs") or {}).get("hunt_mark", 0) or 0)) >= cond.get("stacks", 3)
+    return int(((battle._hit_tgt().get("debuffs") or {}).get("hunt_mark", 0) or 0)) >= cond.get("stacks", 3)
 
 
 @register("enemy_cursed", label=lambda c: "敌方带诅咒")
 def _c_enemy_cursed(battle, player, cond):
     """敌方带骨噬诅咒（battle_mech _m_curse/_m_curse_refresh 写入
     enemy.debuffs.curse = {"n": 1, "turns": N}）。"""
-    return int(((battle.enemy.get("debuffs") or {}).get("curse", {}) or {}).get("n", 0) or 0) > 0
+    return int(((battle._hit_tgt().get("debuffs") or {}).get("curse", {}) or {}).get("n", 0) or 0) > 0
 
 
 @register("faith_full", label=lambda c: f"信念满{c.get('stacks', 10)}")
@@ -320,7 +320,7 @@ def _c_faith_lt(battle, player, cond):
 def _c_enemy_broken(battle, player, cond):
     """敌方被破防/震慑中（破绽条触发态）：shaken 条 trigger_count>0 且免疫期内。
     判定与 _c_enemy_shaken_gt 完全同源（破防=敌方跳过刻=被震慑）。"""
-    bs = (battle.enemy.get("buffs") or {}).get("shaken")
+    bs = (battle._hit_tgt().get("buffs") or {}).get("shaken")
     if not isinstance(bs, dict):
         return False
     return int(bs.get("trigger_count", 0) or 0) > 0 and int(bs.get("immune_turns", 0) or 0) > 0
@@ -334,7 +334,7 @@ def _c_enemy_shaken_ratio(battle, player, cond):
     数据侧 mult=0.8 语义是「每 50 点 +80%」（如条 50 → ×1.8、条 100 → ×2.6 档进），
     布尔判定无法表达线性档进——这里注册为「条值 ≥ 一个档位即满足」（val≥step 即生效），
     并置 cond["_bar_val"] 供调用方/数据侧按 val 扩展多档（见文件顶部 TODO 3）。"""
-    bs = (battle.enemy.get("buffs") or {}).get("shaken")
+    bs = (battle._hit_tgt().get("buffs") or {}).get("shaken")
     if not isinstance(bs, dict):
         return False
     cond["_bar_val"] = int(bs.get("val", 0) or 0)  # 供调用方读取条值（多档/比例扩展用）
@@ -348,7 +348,7 @@ def _c_enemy_shaken_scale(battle, player, cond):
     比例式倍率 1 + val/max×系数 需调用方读条值计算（register 为 bool 接口，见 TODO 3）。
     这里注册为「条值 >0 即满足」（配合数据侧 cond.mult 作基础触发倍率），
     条值存 cond["_bar_val"] 供调用方扩展比例档位。"""
-    bs = (battle.enemy.get("buffs") or {}).get("shaken")
+    bs = (battle._hit_tgt().get("buffs") or {}).get("shaken")
     if not isinstance(bs, dict):
         return False
     val = int(bs.get("val", 0) or 0)
@@ -412,8 +412,8 @@ def _c_enemy_low_hp(battle, player, cond):
     """敌方血量低于阈值（收割 desc「目标生命 <40% 时 ×1.45」）。
     数据侧用 hp_lt（百分数 int，40=40%）——兼容读 hp_lt 或 hp_pct（小数，0.4=40%）。"""
     if "hp_lt" in cond:
-        return battle.enemy.get("hp", 0) < battle.enemy.get("max_hp", 1) * (int(cond["hp_lt"]) / 100.0)
-    return battle.enemy.get("hp", 0) < battle.enemy.get("max_hp", 1) * cond.get("hp_pct", 0.4)
+        return battle._hit_tgt().get("hp", 0) < battle._hit_tgt().get("max_hp", 1) * (int(cond["hp_lt"]) / 100.0)
+    return battle._hit_tgt().get("hp", 0) < battle._hit_tgt().get("max_hp", 1) * cond.get("hp_pct", 0.4)
 
 
 @register("enemy_marks", label=lambda c: f"敌方印记总层≥{c.get('stacks', 4)}")

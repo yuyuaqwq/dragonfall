@@ -92,6 +92,19 @@ WORLD_BOSS_DROPS = {
 
 class CombatCmds(CommandBase):
 
+    def _b_enemy(self, b) -> dict:
+        """命令层读当前敌方 actor（显示/结算用；sides['enemy'] 首个存活，无 → {}）。
+
+        v181.P4：Battle 不再暴露 enemy 主怪代理——命令层自己从 actor 组读。"""
+        try:
+            acts = (getattr(b, "sides", None) or {}).get("enemy") or []
+            for _u in acts:
+                if _u.get("hp", 0) > 0:
+                    return _u
+            return acts[0] if acts else {}
+        except Exception:
+            return {}
+
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?探索(?!进度)(?:\s*|$)")
     @require_player()
     @no_prof_waiting()
@@ -916,7 +929,7 @@ class CombatCmds(CommandBase):
         # v94.2 体力：每次攻击扣 1（普通/世界Boss通用；instance/pvp 已在上方分流）
         _ok, _st = self._spend_stamina(group_id, qq_id, 1, player, "攻击")
         if not _ok:
-            if b.enemy.get("is_boss"):
+            if self._b_enemy(b).get("is_boss"):
                 # v95.20 #101：Boss 战无法逃跑，体力耗尽=被困战斗——提示必须说清出路
                 yield event.plain_result(_st + "\n👑 Boss 战无法逃跑！『防御』不耗体力可拖延等待自然恢复，或吃食物(『使用 <食物>』)立即恢复～")
             else:
@@ -936,14 +949,14 @@ class CombatCmds(CommandBase):
             if b.result == "victory":
                 # v126.7 胜利结算用原主怪引用（打死怪后 _remove_unit 清空 enemies，
                 # b.enemy 变 {} → monster["exp"] KeyError）
-                _mon = getattr(b, "_origin_enemy", None) or b.enemy
+                _mon = getattr(b, "_origin_enemy", None) or self._b_enemy(b)
                 # v130.7 意见#17：同场全部击杀单位（含副怪）交胜利结算——掉落/经验只按主怪一次
                 _kills = list(getattr(b, "killed_enemies", None) or [])
                 for _r in self._handle_victory(event, group_id, qq_id, player, _mon, "\n".join(logs), extra_kills=_kills):
                     yield _r
                 return
             if b.result == "defeat":
-                for _r in self._handle_defeat(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
+                for _r in self._handle_defeat(event, group_id, qq_id, player, self._b_enemy(b), "\n".join(logs)):
                     yield _r
                 return
             if b.result == "fled":
@@ -953,7 +966,7 @@ class CombatCmds(CommandBase):
                 return
         # 保存战斗状态（v9）
         db.save_battle(group_id, qq_id, b.to_state())
-        monster = b.enemy
+        monster = self._b_enemy(b)
         result = "\n".join(logs)
         yield event.plain_result(
             f"{result}\n━━━━━━━━━━━━\n"
@@ -1161,7 +1174,7 @@ class CombatCmds(CommandBase):
         # v94.2 体力：施放技能扣 1（instance/pvp 已在上方分流）
         _ok, _st = self._spend_stamina(group_id, qq_id, 1, player, "施放技能")
         if not _ok:
-            if b.enemy.get("is_boss"):
+            if self._b_enemy(b).get("is_boss"):
                 # v95.20 #101：Boss 战无法逃跑，体力耗尽=被困战斗——提示必须说清出路
                 yield event.plain_result(_st + "\n👑 Boss 战无法逃跑！『防御』不耗体力可拖延等待自然恢复，或吃食物(『使用 <食物>』)立即恢复～")
             else:
@@ -1176,18 +1189,18 @@ class CombatCmds(CommandBase):
         if ended:
             if b.result == "victory":
                 # v126.7 胜利结算用原主怪引用（打死怪后 b.enemy 变 {}）
-                _mon = getattr(b, "_origin_enemy", None) or b.enemy
+                _mon = getattr(b, "_origin_enemy", None) or self._b_enemy(b)
                 # v130.7 意见#17：同场全部击杀单位（含副怪）交胜利结算——掉落/经验只按主怪一次
                 _kills = list(getattr(b, "killed_enemies", None) or [])
                 for _r in self._handle_victory(event, group_id, qq_id, player, _mon, "\n".join(logs), extra_kills=_kills):
                     yield _r
                 return
             if b.result == "defeat":
-                for _r in self._handle_defeat(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
+                for _r in self._handle_defeat(event, group_id, qq_id, player, self._b_enemy(b), "\n".join(logs)):
                     yield _r
                 return
         db.save_battle(group_id, qq_id, b.to_state())
-        monster = b.enemy
+        monster = self._b_enemy(b)
         result = "\n".join(logs)
         yield event.plain_result(
             f"{result}\n━━━━━━━━━━━━\n"
@@ -1505,11 +1518,11 @@ class CombatCmds(CommandBase):
         logs, ended, _who = b.actor_act("defend", None, player)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended and b.result == "defeat":
-            for _r in self._handle_defeat(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
+            for _r in self._handle_defeat(event, group_id, qq_id, player, self._b_enemy(b), "\n".join(logs)):
                 yield _r
             return
         db.save_battle(group_id, qq_id, b.to_state())
-        monster = b.enemy
+        monster = self._b_enemy(b)
         result = "\n".join(logs)
         yield event.plain_result(
             f"{result}\n━━━━━━━━━━━━\n"
@@ -1557,11 +1570,11 @@ class CombatCmds(CommandBase):
                 yield event.plain_result("\n".join(logs))
                 return
             if b.result == "defeat":
-                for _r in self._handle_defeat(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
+                for _r in self._handle_defeat(event, group_id, qq_id, player, self._b_enemy(b), "\n".join(logs)):
                     yield _r
                 return
         db.save_battle(group_id, qq_id, b.to_state())
-        monster = b.enemy
+        monster = self._b_enemy(b)
         result = "\n".join(logs)
         yield event.plain_result(
             f"{result}\n"
@@ -1684,7 +1697,7 @@ class CombatCmds(CommandBase):
             parts.append(f"🛡️你：「{' '.join(pbuf)}」")
         # 敌方状态（当前主目标怪 buffs 刻数 >0）
         ebuf = []
-        _eb_disp = (b.enemy or {}).get("buffs") or {}
+        _eb_disp = (self._b_enemy(b) or {}).get("buffs") or {}
         for k, v in _eb_disp.items():
             # v151 破绽断链修复：e_buffs 可能出现 dict 值（enemy_bar 状态 shaken/curse = {val, threshold, ...}），
             # 不是刻 buff，跳过显示（bar 状态由战斗逻辑单独维护）
@@ -1706,7 +1719,7 @@ class CombatCmds(CommandBase):
                     else:
                         ebuf.append(f"{self._E_BUFF_NAMES[k]}")
         # 敌方狂暴（v58 mech）
-        if b.enemy.get("enraged"):
+        if self._b_enemy(b).get("enraged"):
             ebuf.append("😡狂暴")
         # v114：敌方援军（真召唤实体）——独立行『👥 援军：爪牙×2（HP 320/320、300/300）』
         # 名字×数量 + HP 当前/最大逗号分隔（在 Boss HP 行下方），无援军不显示
@@ -1720,14 +1733,14 @@ class CombatCmds(CommandBase):
                     f"{_m.get('hp', 0)}/{_m.get('max_hp', 1)}" for _m in _ms) + "）")
         # DOT/减益重构（契约 §7）：敌方持续减益（毒/灼烧/标记/流血）读 enemy["debuffs"]，
         # 层数=剩余结算次数（不是 mech_stacks）；有层才显示。
-        deb = b.enemy.get("debuffs") or {}
+        deb = self._b_enemy(b).get("debuffs") or {}
         for k, d in deb.items():
             if k in self._DEBUFF_NAMES:
                 _n = int((d or {}).get("n", 0) or 0)
                 if _n > 0:
                     ebuf.append(f"{self._DEBUFF_NAMES[k]}×{_n}")
         # 异常抗性（毒/灼烧/流血统一减伤，dot_res>0 才显示——普通怪不设键=0）
-        _dres = float(b.enemy.get("dot_res", 0) or 0)
+        _dres = float(self._b_enemy(b).get("dot_res", 0) or 0)
         if _dres > 0:
             ebuf.append(f"🛡️异常抗性{int(_dres * 100)}%")
         if ebuf:
@@ -2121,13 +2134,13 @@ class CombatCmds(CommandBase):
                 if _gu is not None:
                     u["hp"] = _gu.get("hp", u.get("hp", 0))
         else:
-            b.enemy["hp"] = gboss.get("hp", b.enemy.get("hp", 0))
+            self._b_enemy(b)["hp"] = gboss.get("hp", self._b_enemy(b).get("hp", 0))
         # DOT/减益重构（契约 §6）：行动前把全局共享 debuffs 同步到本地主目标（逐键浅拷贝，
         # 世界 Boss 毒/灼烧/流血为全局单份，多玩家并发时各行动叠加层、每 N 次行动统一结算）。
         # 主目标即 enemy（dot 只挂主目标，爪牙不挂 dot）。
-        b.enemy["debuffs"] = {k: dict(v) for k, v in (gboss.get("debuffs") or {}).items()}
+        self._b_enemy(b)["debuffs"] = {k: dict(v) for k, v in (gboss.get("debuffs") or {}).items()}
         # v1.2（契约 §11.3）：行动前把全局共享减益适应同步到本地主目标（与 debuffs 同步同处）。
-        b.enemy["adapt"] = dict(gboss.get("adapt") or {"poison": 0.0, "burn": 0.0})
+        self._b_enemy(b)["adapt"] = dict(gboss.get("adapt") or {"poison": 0.0, "burn": 0.0})
         before = sum(max(0, u.get("hp", 0)) for u in b.enemies)
         logs, ended, _who = b.actor_act(action, skill_name, player, target=target)
         # DOT/减益重构（契约 §6）：行动后累加全局 dot 结算计数，每 WORLD_BOSS_DOT_INTERVAL
@@ -2138,7 +2151,7 @@ class CombatCmds(CommandBase):
         if int(gboss["dot_act"]) % WORLD_BOSS_DOT_INTERVAL == 0:
             # 契约 §2.2 实际实现：_tick_actor_dots 原地向传入的 logs 追加文案并返回同一列表，
             # 故用 logs = 覆盖而非 logs +=，避免同一列表二次自拼接导致 dot 行重复显示。
-            logs = b._tick_actor_dots(b.enemy, logs, force=True, caster=player)  # force 结算的 dot 文案并入
+            logs = b._tick_actor_dots(self._b_enemy(b), logs, force=True, caster=player)  # force 结算的 dot 文案并入
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         after = sum(max(0, u.get("hp", 0)) for u in b.enemies)
         dealt = max(0, before - after)  # 全阵列伤害合计
@@ -2160,12 +2173,12 @@ class CombatCmds(CommandBase):
                 gboss["hp"] = _main_now.get("hp", 0)
                 gboss["max_hp"] = _main_now.get("max_hp", _main_now.get("hp", 1))
         else:
-            gboss["hp"] = b.enemy["hp"]
+            gboss["hp"] = self._b_enemy(b)["hp"]
         # DOT/减益重构（契约 §6）：行动后把本地结算后的 debuffs 写回全局（毒/灼烧/流血全局共享单份，
         # 供其他玩家下一步行动同步；与 hp 写回同处）。
-        gboss["debuffs"] = {k: dict(v) for k, v in (b.enemy.get("debuffs") or {}).items()}
+        gboss["debuffs"] = {k: dict(v) for k, v in (self._b_enemy(b).get("debuffs") or {}).items()}
         # v1.2（契约 §11.3）：行动后把本地减益适应写回全局（与 debuffs 写回同处）。
-        gboss["adapt"] = dict(b.enemy.get("adapt") or {"poison": 0.0, "burn": 0.0})
+        gboss["adapt"] = dict(self._b_enemy(b).get("adapt") or {"poison": 0.0, "burn": 0.0})
 
         if ended and b.result == "victory":
             # Boss 死亡结算（全阵列无存活；先于玩家死亡判断）
@@ -2224,7 +2237,7 @@ class CombatCmds(CommandBase):
         if ended and b.result == "defeat":
             # 玩家阵亡（Boss 未死）：贡献已记，同步血量，走死亡结算
             if not genemies:
-                gboss["hp"] = b.enemy["hp"]
+                gboss["hp"] = self._b_enemy(b)["hp"]
             db.save_world_event(cur_evt["etype"], cur_evt["ends_at"], cur_evt["data"])
             self._unlock_battle(group_id, qq_id)
             db.clear_battle(group_id, qq_id)
@@ -2516,7 +2529,7 @@ class CombatCmds(CommandBase):
         _pl_buffs.clear()
         _pl_buffs.update(dict(state.get(f"{my_key[0]}_buffs", {})))
         # v181 P3：对手 buffs 落 enemy actor dict（enemies[0] = 对手快照）
-        _opp_buffs = b.enemy.setdefault("buffs", {})
+        _opp_buffs = self._b_enemy(b).setdefault("buffs", {})
         _opp_buffs.clear()
         _opp_buffs.update(dict(state.get(f"{opp_key[0]}_buffs", {})))
         # PVP 蓄力持久化：跨刻恢复玩家侧 charging（蓄力技 PVP 中跨刻生效）
@@ -2535,7 +2548,7 @@ class CombatCmds(CommandBase):
         # F1 P1-4（report_09）：PVP『防御』生效——对手防御姿态中时，本次行动对其造成的
         # 伤害减半（b.e_defending → _deal_damage 统一消费，普攻/技能/召唤物全路径覆盖）
         if str(state.get("defending_qq", "")) == str(opp["qq_id"]):
-            b.enemy["defending"] = True
+            self._b_enemy(b)["defending"] = True
         if action == "defend":
             # 防御姿态：持续到对方下一次行动（对方攻击/技能均按防御减半结算）
             state["defending_qq"] = str(qq_id)
@@ -2544,22 +2557,22 @@ class CombatCmds(CommandBase):
             state.pop("defending_qq", None)
         logs, ended = b.actor_turn(action, skill_name, player, enemy_act=False)
         # 同步快照与 buffs（v2：胜利时敌方阵列已清空，b.enemy 回退 {} → .get 兜底）
-        opp["hp"] = b.enemy.get("hp", 0)
-        opp["mp"] = b.enemy.get("mp", opp.get("mp", 0))
+        opp["hp"] = self._b_enemy(b).get("hp", 0)
+        opp["mp"] = self._b_enemy(b).get("mp", opp.get("mp", 0))
         # 目标级减益/适应持久化：把本刻 enemy 上的 debuffs/adapt 深拷贝写回对手快照
         #（需显式逐层复制，避免与后续 Battle 读入共享容器引用）
-        if b.enemy.get("debuffs"):
-            opp["debuffs"] = {k: dict(v) for k, v in b.enemy["debuffs"].items()}
+        if self._b_enemy(b).get("debuffs"):
+            opp["debuffs"] = {k: dict(v) for k, v in self._b_enemy(b)["debuffs"].items()}
         elif "debuffs" in opp:
             opp.pop("debuffs", None)
-        if b.enemy.get("adapt"):
-            opp["adapt"] = {k: float(v) for k, v in b.enemy["adapt"].items()}
+        if self._b_enemy(b).get("adapt"):
+            opp["adapt"] = {k: float(v) for k, v in self._b_enemy(b)["adapt"].items()}
         elif "adapt" in opp:
             opp.pop("adapt", None)
         state[my_key]["hp"] = player["hp"]
         state[my_key]["mp"] = player["mp"]
         state[f"{my_key[0]}_buffs"] = b._focus.get("buffs") or {}
-        state[f"{opp_key[0]}_buffs"] = (b.enemy or {}).get("buffs") or {}
+        state[f"{opp_key[0]}_buffs"] = (self._b_enemy(b) or {}).get("buffs") or {}
         # PVP 蓄力持久化：写回（含 None 表示蓄力已结束/未蓄力）
         state["charging"] = b._focus.get("charging")
         db.save_battle(group_id, qq_id, state)
@@ -2748,4 +2761,3 @@ class CombatCmds(CommandBase):
                 lines.append(f"  🗡️ 终结阈值：{prefs['finisher']}")
         lines.append("用法：战前形态 <狂暴> / 战前阈值 <快刀|满刃|残血|满段>")
         yield event.plain_result("\n".join(lines))
-

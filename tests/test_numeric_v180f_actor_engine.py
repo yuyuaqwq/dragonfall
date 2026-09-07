@@ -151,7 +151,7 @@ async def main():
     b8._now = 0.1
     import random as _r8
     _r8.seed(3)
-    b8._enemy_turn(pA, b8.enemies[0])
+    b8._actor_auto_turn(pA, b8.enemies[0])
     b8._process_until(b8._now + 5, [], pA)
     _BT.Battle._roll_dodge = _orig_dodge
     check("敌方 AOE 打多人（全员结算扣血）",

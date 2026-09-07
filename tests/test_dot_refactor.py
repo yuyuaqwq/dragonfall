@@ -22,8 +22,8 @@ from game.core.stats import monster_stats
 
 passed = 0
 def _first_hostile(b):
-    """v181.P3d：取敌对 actor 组首个（测试直接操作场上怪，无玩家预设）"""
-    acts = b._hostile_actors("player")
+    """测试取场上 enemy 阵营首个 actor（sides 直读；无 → {}）"""
+    acts = (b.sides or {}).get("enemy") or []
     return (acts[0] if acts else {})
 
 def check(name, cond, detail=""):

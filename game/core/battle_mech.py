@@ -5,7 +5,7 @@
 1. Battle._apply_mech_effect() 的 32 个 mech 分支（攻击技能机制结算）
 2. Battle._boss_mech() 的 10 个 boss 专属机制（enrage/summon/heal/shield/phase/stacks/
    reflect + v116.1 条件反制 phase_open/player_low/pv_broken）
-3. Battle._enemy_turn() 的怪物增益效果（5 个）+ 控制机制（4 个）
+3. Battle._actor_auto_turn() 的怪物增益效果（5 个）+ 控制机制（4 个）
 
 扩展方式：
 - 加机制：register 一个函数（~5 行），之后技能/怪物数据直接可用
@@ -119,7 +119,7 @@ def _m_burn(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     重构图契约 §3.1：敌方灼烧迁为 enemy["debuffs"]["burn"]（副本/世界Boss 全局共享）。"""
     if not mval:
         return
-    enemy = battle.enemy or {}
+    enemy = battle._hit_tgt() or {}
     # 免疫检查：enemy["immune_dots"] 含 "burn" 时完全免疫，不叠层
     if "burn" in (enemy.get("immune_dots") or []):
         logs.append("🛡️ 敌人免疫灼烧！")
@@ -158,7 +158,7 @@ def _m_burn_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=N
     重构图契约 §3.1：读/清 enemy["debuffs"]["burn"]（敌方灼烧层迁为目标级状态）。
     重构图契约 §10.1 易燃乘区：灼爆时 n≥3 → 伤害 ×(1+0.10×(n-2))（3层+10%/4层+20%/5层+30%），
     日志标注「🔥 易燃！」；公式主体仍为 matk×0.40×n 魔法段。"""
-    enemy = battle.enemy or {}
+    enemy = battle._hit_tgt() or {}
     n = int(((enemy.get("debuffs") or {}).get("burn") or {"n": 0}).get("n", 0) or 0)
     st2 = battle._player_stats(battle._last_player) if hasattr(battle, "_last_player") else None
     if st2 and n:
@@ -300,12 +300,12 @@ def _m_cleanse(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None
         return
     removed = []
     for k in ("mon_atk_up", "mon_atk_up_strong", "mon_def_up", "summon", "enraged"):
-        if k in battle._actor_buffs(battle._hit_tgt()) or (k == "enraged" and battle.enemy.get("enraged")):
+        if k in battle._actor_buffs(battle._hit_tgt()) or (k == "enraged" and battle._hit_tgt().get("enraged")):
             battle._actor_buffs(battle._hit_tgt()).pop(k, None)
-            battle.enemy["enraged"] = False
+            battle._hit_tgt()["enraged"] = False
             removed.append(k)
     # 新增：净化敌方持续减益（目标级 enemy["debuffs"]，pop 全部键）
-    enemy = battle.enemy or {}
+    enemy = battle._hit_tgt() or {}
     deb = enemy.get("debuffs") or {}
     had_debuffs = bool(deb)
     for _k in list(deb):
@@ -329,7 +329,7 @@ def _m_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     from .constants import DEBUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     if not mval:
         return
-    enemy = battle.enemy or {}
+    enemy = battle._hit_tgt() or {}
     deb = enemy.setdefault("debuffs", {})
     cur = deb.get("mark") or {"n": 0, "mult": 1.0}
     cur["n"] = min(5, int(cur.get("n", 0) or 0) + mval)
@@ -343,7 +343,7 @@ def _m_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
 def _m_mark_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """标记爆发：每层 +20%
     重构图契约 §3.1：读/清 enemy["debuffs"]["mark"]（敌方标记层迁为目标级状态）。"""
-    enemy = battle.enemy or {}
+    enemy = battle._hit_tgt() or {}
     n = int(((enemy.get("debuffs") or {}).get("mark") or {"n": 0}).get("n", 0) or 0)
     bonus = int(total * n * 0.20)
     _burst_damage(battle, bonus, logs)
@@ -500,7 +500,7 @@ def _m_poison(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None)
         return
     if use_mc and random.random() >= chance:
         return
-    enemy = battle.enemy or {}
+    enemy = battle._hit_tgt() or {}
     # 免疫检查：enemy["immune_dots"] 含 "poison" 时完全免疫，不叠层
     if "poison" in (enemy.get("immune_dots") or []):
         logs.append("🛡️ 敌人免疫中毒！")
@@ -538,7 +538,7 @@ def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info
     重构图契约 §10.1 v1.1 修正：伤害 = atk×0.30×n，**物理段吃 def**（dmg_type="phys"，
     与毒 dot 的 atk 口径一致，修复 skills.py 注释"按 atk"的矛盾）；仍不吃 dot_res（爆发直伤）。
     v1.3（审计 R1）：毒爆系数 0.15 → 0.30，5 层从 1%→2%+ Boss 血，成为可观收尾。"""
-    enemy = battle.enemy or {}
+    enemy = battle._hit_tgt() or {}
     n = int(((enemy.get("debuffs") or {}).get("poison") or {"n": 0}).get("n", 0) or 0)
     if n < 3:
         logs.append(f"☠️ 毒层 {n}（≥3 层可引爆）")
@@ -569,7 +569,7 @@ def _m_bleed(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
         return
     if use_mc and random.random() >= chance:
         return
-    enemy = battle.enemy or {}
+    enemy = battle._hit_tgt() or {}
     if "bleed" in (enemy.get("immune_dots") or []):
         logs.append("🛡️ 敌人免疫流血！")
         return
@@ -894,7 +894,7 @@ def _mb_atk_up(battle, logs, sname):
     """攻击提升"""
     from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     battle._actor_buffs(battle._hit_tgt())["mon_atk_up"] = BUFF_TURNS
-    logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，攻击力提升了！")
+    logs.append(f"【{battle._hit_tgt()['name']}】使用了【{sname}】，攻击力提升了！")
 
 
 @register(MON_BUFF_EFFECTS, "atk_up_strong")
@@ -902,7 +902,7 @@ def _mb_atk_up_strong(battle, logs, sname):
     """攻击大幅提升"""
     from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     battle._actor_buffs(battle._hit_tgt())["mon_atk_up_strong"] = BUFF_TURNS
-    logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，攻击力大幅提升了！")
+    logs.append(f"【{battle._hit_tgt()['name']}】使用了【{sname}】，攻击力大幅提升了！")
 
 
 @register(MON_BUFF_EFFECTS, "def_up")
@@ -910,15 +910,15 @@ def _mb_def_up(battle, logs, sname):
     """防御提升"""
     from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     battle._actor_buffs(battle._hit_tgt())["mon_def_up"] = BUFF_TURNS
-    logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，防御提升了！")
+    logs.append(f"【{battle._hit_tgt()['name']}】使用了【{sname}】，防御提升了！")
 
 
 @register(MON_BUFF_EFFECTS, "heal_self")
 def _mb_heal_self(battle, logs, sname):
     """自我恢复 15% 生命"""
-    heal = int(battle.enemy.get("max_hp", 1) * 0.15)
-    battle._heal_actor(battle.enemy, heal, logs)  # v180E 统一落地
-    logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，恢复了 {heal} 点生命！")
+    heal = int(battle._hit_tgt().get("max_hp", 1) * 0.15)
+    battle._heal_actor(battle._hit_tgt(), heal, logs)  # v180E 统一落地
+    logs.append(f"【{battle._hit_tgt()['name']}】使用了【{sname}】，恢复了 {heal} 点生命！")
 
 
 @register(MON_BUFF_EFFECTS, "summon")
@@ -926,19 +926,19 @@ def _mb_summon(battle, logs, sname):
     """召唤援军（v101.28l #438：真召唤，生成援军实体）"""
     mins = battle._summon_minions(1)
     m = mins[0] if mins else {}
-    logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，召唤了援军【{m.get('name', '爪牙')}】！")
+    logs.append(f"【{battle._hit_tgt()['name']}】使用了【{sname}】，召唤了援军【{m.get('name', '爪牙')}】！")
 
 
 @register(MON_BUFF_EFFECTS, "shield")
 def _mb_shield(battle, logs, sname):
     """怪物护盾（v1.x 补注册：珊瑚护盾/铁壁/云盾 等 effect=shield 此前静默空转）。
-    v177 actor 护盾统一：写 battle.enemy["shields"] dict（halve=True 受伤减半），
+    v177 actor 护盾统一：写 battle._hit_tgt()["shields"] dict（halve=True 受伤减半），
     （技能数据无数值字段，按 BOSS 口径 = 20% 最大生命），玩家伤害经
     battle._boss_dmg_filter 扣减（受伤减半 + 先扣盾再扣血），破盾即消失。"""
-    _val = int(battle.enemy.get("max_hp", 1) * 0.20)
-    _shd = battle.enemy.setdefault("shields", {})
+    _val = int(battle._hit_tgt().get("max_hp", 1) * 0.20)
+    _shd = battle._hit_tgt().setdefault("shields", {})
     _shd["buff"] = {"value": _val, "halve": True}
-    logs.append(f"🛡️ 【{battle.enemy['name']}】使用了【{sname}】，周身浮现一层护盾(受伤减半)！")
+    logs.append(f"🛡️ 【{battle._hit_tgt()['name']}】使用了【{sname}】，周身浮现一层护盾(受伤减半)！")
 
 
 @register(MON_BUFF_EFFECTS, "spd_up")
@@ -948,7 +948,7 @@ def _mb_spd_up(battle, logs, sname):
     _enemy_stats → _apply_buffs 读 BUFF_MULT["spd_up"]=(spd, 1.40) 实际生效。"""
     from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     battle._actor_buffs(battle._hit_tgt())["spd_up"] = BUFF_TURNS
-    logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，速度提升了！")
+    logs.append(f"【{battle._hit_tgt()['name']}】使用了【{sname}】，速度提升了！")
 
 
 
@@ -1037,7 +1037,7 @@ def _stack(battle, mech, p_mech, mval):
 def _burst_damage(battle, bonus, logs):
     """v104 M02 P2：burst 附加伤害统一走结算主路径（Boss 护盾减半 + 援军挡刀）。
 
-    此前 burst 类机制直接 battle.enemy["hp"] -= bonus，绕过 _boss_dmg_filter
+    此前 burst 类机制直接 battle._hit_tgt()["hp"] -= bonus，绕过 _boss_dmg_filter
     （护盾受伤减半/反伤）与 _deal_damage（e_minions 援军挡刀）→ 打盾 Boss 不减半、
     有援军不挡刀。修复：参照普通伤害路径（battle.py _skill_use 的
     `_boss_dmg_filter → _deal_damage`）逐段结算，不双杀（total 主伤害已结算，本函数只结算附加段）。"""
@@ -1064,7 +1064,7 @@ def _sb_mon_shield(battle, skill_name, info, player, lv, logs):
     写施法者 actor.shields（halve=True 受伤减半）——怪被 _damage_actor 怪分支消费。
     盾值 = max_hp×20%（旧 MON_BUFF shield 同款；技能可配 shield_pct 覆盖）。"""
     _pct = float(info.get("shield_pct", 0.20) or 0.20)
-    _val = int((player or battle.enemy).get("max_hp", 1) * _pct)
+    _val = int((player or battle._hit_tgt()).get("max_hp", 1) * _pct)
     _shd = player.setdefault("shields", {})
     _shd["buff"] = {"value": _val, "halve": True}
     logs.append(f"🛡️ 【{player.get('name', '怪物')}】使用了【{skill_name}】，周身浮现一层护盾(受伤减半)！")
@@ -1796,7 +1796,7 @@ ELEMENT_MARKS_REACTION = {
 
 def _element_marks(battle):
     """读取敌身元素印记 dict（不存在则初始化）"""
-    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    deb = (battle._hit_tgt() or {}).setdefault("debuffs", {})
     return deb.setdefault(ELEMENT_MARKS_KEY, {})
 
 
@@ -2037,7 +2037,7 @@ def _m_hunt_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=No
     """v153 游侠猎印：挂敌身（enemy.debuffs.hunt_mark），每层全队 +8% 伤害，上限 3"""
     if not mval:
         return
-    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    deb = (battle._hit_tgt() or {}).setdefault("debuffs", {})
     cur = int(deb.get("hunt_mark", 0) or 0)
     cap = int((info or {}).get("mark_cap", 3) or 3)
     deb["hunt_mark"] = min(cap, cur + mval)
@@ -2049,7 +2049,7 @@ def _m_soul_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=No
     """v153 牧师灵魂标记：每层全队 +6%（上限 3，随骷髅存活同步）"""
     if not mval:
         return
-    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    deb = (battle._hit_tgt() or {}).setdefault("debuffs", {})
     cur = int(deb.get("soul_mark", 0) or 0)
     cap = int((info or {}).get("mark_cap", 3) or 3)
     deb["soul_mark"] = min(cap, cur + mval)
@@ -2061,7 +2061,7 @@ def _m_curse(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """v153 牧师骨噬诅咒：全队对目标伤害 +20%（8 刻）"""
     if not mval:
         return
-    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    deb = (battle._hit_tgt() or {}).setdefault("debuffs", {})
     deb["curse"] = {"n": 1, "turns": 8}
     logs.append("☠️ 骨噬诅咒！全队对其伤害 +20%（8 刻）")
 
@@ -2069,7 +2069,7 @@ def _m_curse(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
 @register(MECH_EFFECTS, "curse_refresh")
 def _m_curse_refresh(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """v153 牧师墓穴低语：刷新目标诅咒持续"""
-    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    deb = (battle._hit_tgt() or {}).setdefault("debuffs", {})
     if "curse" in deb:
         deb["curse"]["turns"] = 8
         logs.append("☠️ 墓穴低语：诅咒持续时间刷新！")
@@ -2105,7 +2105,7 @@ def _m_sacrifice(battle, mval, p_mech, total, logs, skill_name, is_crit, info=No
 @register(MECH_EFFECTS, "poison_burst_finisher")
 def _m_poison_burst_finisher(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """v153 刺客毒爆（终结技）：引爆全部毒层，每层 +14%，结算后连段归零"""
-    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    deb = (battle._hit_tgt() or {}).setdefault("debuffs", {})
     poison = int((deb.get("poison") or {}).get("n", 0) or 0)
     per = 0.14
     if info and info.get("per_layer"):
@@ -2145,7 +2145,7 @@ def _m_corros(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None)
     """v153 刺客腐蚀：真伤 DOT（层数）"""
     if not mval:
         return
-    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    deb = (battle._hit_tgt() or {}).setdefault("debuffs", {})
     cur = deb.get("corros") or {"n": 0, "mult": 1.0}
     cur["n"] = min(5, int(cur.get("n", 0) or 0) + mval)
     deb["corros"] = cur

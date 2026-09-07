@@ -105,7 +105,7 @@ async def main():
     logs = []
     _sleep_h(b2, "测试睡眠", {"name": "测试睡眠", "kind": "增益", "power": 1.0, "lv": 1}, p2, 1, logs)
     check("施放后 e_buffs['sleep']=2（普通怪）", b2._tgt_buffs().get("sleep") == 2, str(b2._tgt_buffs()))
-    l2, d2 = b2._enemy_turn(p2)
+    l2, d2 = b2._actor_auto_turn(p2)
     b2._end_round()
     check("敌方回合被跳过（伤害 0）", d2 == 0, f"dmg {d2}")
     check("日志含『沉睡』", any("沉睡" in x for x in l2), str(l2))

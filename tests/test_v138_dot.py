@@ -44,8 +44,8 @@ def mk_enemy(hp=1000, **kw):
 
 
 def _first_hostile(b):
-    """v181.P3d：取敌对 actor 组首个（测试直接操作场上怪，无玩家预设）"""
-    acts = b._hostile_actors("player")
+    """测试取场上 enemy 阵营首个 actor（sides 直读；无 → {}）"""
+    acts = (b.sides or {}).get("enemy") or []
     return (acts[0] if acts else {})
 
 def tick(b, player, force=True):
@@ -54,7 +54,7 @@ def tick(b, player, force=True):
     logs = []
     # v178.1：统一结算器（结算 enemy 身上毒，施法者=player）；force 参数保留语义
     # v181.P3d：结算敌对 actor 组首个的毒（无玩家预设，纯 actor 组语义）
-    _tgt = (b._hostile_actors("player") or [{}])[0]
+    _tgt = _first_hostile(b)
     b._tick_actor_dots(_tgt, logs, force=force, caster=player)
     return logs
 
@@ -82,12 +82,12 @@ def test_threshold():
     p = mk_player()
     b = BT.Battle("monster", mk_enemy(hp=100000))
     b._focus = p  # v181.P3d：阶段保留真实场景（Boss 战必有玩家）
-    (b._hostile_actors("player") or [{}])[0].setdefault("debuffs", {})["poison"] = {"n": 3, "mult": 1.0}
+    _first_hostile(b).setdefault("debuffs", {})["poison"] = {"n": 3, "mult": 1.0}
     tick(b, p)
-    d = (b._hostile_actors("player") or [{}])[0]["debuffs"]["poison"]
+    d = _first_hostile(b)["debuffs"]["poison"]
     check("首触后 threshold = 1.3", abs(d.get("threshold", 0) - 1.3) < 1e-9, str(d))
     tick(b, p)
-    d = (b._hostile_actors("player") or [{}])[0]["debuffs"]["poison"]
+    d = _first_hostile(b)["debuffs"]["poison"]
     check("二触后 threshold = 1.69", abs(d.get("threshold", 0) - 1.69) < 1e-9, str(d))
     # 连续触发：3 层每次只触发一次；第 2 次 tick 后 n=1，第 3 次 tick 后消散。
     # 用大层数续命到封顶：1.3/1.69/2.197/2.8561/3.0（封顶）——9 层可触发 5 次
@@ -105,16 +105,16 @@ def test_max_trigger_and_saturation():
     # 伤害类：达上限后照常结算（Boss 不被锁输出）
     b = BT.Battle("monster", mk_enemy(hp=100000))
     b._focus = p  # v181.P3d：阶段保留真实场景（Boss 战必有玩家）
-    (b._hostile_actors("player") or [{}])[0].setdefault("debuffs", {})["poison"] = {"n": 10, "mult": 1.0}
+    _first_hostile(b).setdefault("debuffs", {})["poison"] = {"n": 10, "mult": 1.0}
     for i in range(6):
         tick(b, p)
-        d = (b._hostile_actors("player") or [{}])[0]["debuffs"]["poison"]
+        d = _first_hostile(b)["debuffs"]["poison"]
         if i < 5:
             check(f"poison 第 {i+1} 次触发 count={i+1}", d.get("trigger_count") == i + 1, str(d))
         else:
             check("第 6 次仍结算（伤害类饱和不清除）", d.get("saturated") is True, str(d))
-    check("伤害类饱和后 trigger_count 达上限", (b._hostile_actors("player") or [{}])[0]["debuffs"]["poison"]["trigger_count"] >= 5,
-          str((b._hostile_actors("player") or [{}])[0]["debuffs"]["poison"]))
+    check("伤害类饱和后 trigger_count 达上限", _first_hostile(b)["debuffs"]["poison"]["trigger_count"] >= 5,
+          str(_first_hostile(b)["debuffs"]["poison"]))
     # 控制类：饱和后不再结算（冻结/眩晕/睡眠），但伤害类照常
     # 控制效果存于 e.buffs（eb），由 _enemy_turn 消费；_tick_dots 按 eb 的
     # {k}_trigger_count 做饱和判定（达上限的控制在 eb 中直接移除，从根源不再生效）
@@ -142,12 +142,12 @@ def test_preserve():
     p = mk_player()
     b = BT.Battle("monster", mk_enemy(hp=100000))
     b._focus = p  # v181.P3d：阶段保留真实场景（Boss 战必有玩家）
-    (b._hostile_actors("player") or [{}])[0].setdefault("debuffs", {})["poison"] = {"n": 5, "mult": 1.0, "threshold": 1.69}
-    (b._hostile_actors("player") or [{}])[0]["debuffs"]["burn"] = {"n": 3, "mult": 1.0, "threshold": 0.0}
-    (b._hostile_actors("player") or [{}])[0]["debuffs"]["mark"] = {"n": 2, "mult": 1.0}  # 标记不保留
+    _first_hostile(b).setdefault("debuffs", {})["poison"] = {"n": 5, "mult": 1.0, "threshold": 1.69}
+    _first_hostile(b)["debuffs"]["burn"] = {"n": 3, "mult": 1.0, "threshold": 0.0}
+    _first_hostile(b)["debuffs"]["mark"] = {"n": 2, "mult": 1.0}  # 标记不保留
     logs = []
     b._preserve_debuffs(logs)
-    deb = (b._hostile_actors("player") or [{}])[0]["debuffs"]
+    deb = _first_hostile(b)["debuffs"]
     check("poison 5 层 → 保留 2 层（50% 向下取整）", deb["poison"]["n"] == 2, str(deb["poison"]))
     check("burn 3 层 → 保留 1 层（max(1, int(1.5))）", deb["burn"]["n"] == 1, str(deb["burn"]))
     check("阈值 +15%：1.69→1.9435", abs(deb["poison"].get("threshold", 0) - 1.9435) < 1e-9,
@@ -172,10 +172,10 @@ def test_true_dmg():
     # 真伤只豁免防御削减（def/mdef），不豁免目标异常抗性（dot_res 0.9 仍生效 → 56×0.1=5.6→5）
     # 注：def/mdef 是保留字，用 **{"def": ...} 解包传参（同 test_dot_refactor.py 口径）
     b = BT.Battle("monster", mk_enemy(hp=1000, **{"def": 1000000, "mdef": 1000000, "dot_res": 0.9}))
-    (b._hostile_actors("player") or [{}])[0].setdefault("debuffs", {})["corros"] = {"n": 1, "mult": 1.0}
+    _first_hostile(b).setdefault("debuffs", {})["corros"] = {"n": 1, "mult": 1.0}
     tick(b, p)
-    check("腐蚀真伤绕过 def/mdef：56×0.1=5", 1000 - (b._hostile_actors("player") or [{}])[0]["hp"] == 5,
-          f"dmg={1000 - (b._hostile_actors("player") or [{}])[0]['hp']}")
+    check("腐蚀真伤绕过 def/mdef：56×0.1=5", 1000 - _first_hostile(b)["hp"] == 5,
+          f"dmg={1000 - _first_hostile(b)['hp']}")
     # 对照：同配置毒被 0.9 总抗削到 6 点（毒还额外吃 def/mdef？不，毒是 magi 段走 _hostile_mitigate）——
     # 关键差异：腐蚀不吃 def/mdef（真伤），毒吃 mdef（_hostile_mitigate 削减）
     b2 = BT.Battle("monster", mk_enemy(hp=1000, **{"def": 1000000, "mdef": 1000000, "dot_res": 0.9}))
@@ -213,31 +213,31 @@ def test_saturate_conv():
     # 饱和后 saturate_mult 乘区 = 0.8^t，同层数伤害 = 80×n×(0.8^t)
     b = BT.Battle("monster", mk_enemy(hp=100000))
     b._focus = p  # v181.P3d：阶段保留真实场景（Boss 战必有玩家）
-    (b._hostile_actors("player") or [{}])[0].setdefault("debuffs", {})["poison"] = {"n": 8, "mult": 1.0}
+    _first_hostile(b).setdefault("debuffs", {})["poison"] = {"n": 8, "mult": 1.0}
     # 触发 5 次至饱和（trigger_count 1→5，第 5 次置位）
     for _ in range(4):
         tick(b, p)
-    d = (b._hostile_actors("player") or [{}])[0]["debuffs"]["poison"]
+    d = _first_hostile(b)["debuffs"]["poison"]
     check("第 4 次触发未饱和", not d.get("saturated"), str(d))
-    hp0 = (b._hostile_actors("player") or [{}])[0]["hp"]
+    hp0 = _first_hostile(b)["hp"]
     tick(b, p)  # 第 5 次：饱和置位，当次满伤（饱和前已结算）
-    d = (b._hostile_actors("player") or [{}])[0]["debuffs"]["poison"]
-    check("饱和置位当次满伤（n=4×80=320）", hp0 - (b._hostile_actors("player") or [{}])[0]["hp"] == 320,
-          f"dmg={hp0 - (b._hostile_actors("player") or [{}])[0]['hp']} n={d.get('n')}")
+    d = _first_hostile(b)["debuffs"]["poison"]
+    check("饱和置位当次满伤（n=4×80=320）", hp0 - _first_hostile(b)["hp"] == 320,
+          f"dmg={hp0 - _first_hostile(b)['hp']} n={d.get('n')}")
     check("置位后 saturate_mult=0.8（下次起收敛）", abs(d.get("saturate_mult", 0) - 0.8) < 1e-9,
           str(d))
     # 第 6 次：n=3，×0.8 → 80×3×0.8 = 192
-    hp0 = (b._hostile_actors("player") or [{}])[0]["hp"]
+    hp0 = _first_hostile(b)["hp"]
     tick(b, p)
-    d = (b._hostile_actors("player") or [{}])[0]["debuffs"]["poison"]
-    check("饱和后同层伤害 ×0.8：80×3×0.8=192", hp0 - (b._hostile_actors("player") or [{}])[0]["hp"] == 192,
-          f"dmg={hp0 - (b._hostile_actors("player") or [{}])[0]['hp']} n={d.get('n')}")
+    d = _first_hostile(b)["debuffs"]["poison"]
+    check("饱和后同层伤害 ×0.8：80×3×0.8=192", hp0 - _first_hostile(b)["hp"] == 192,
+          f"dmg={hp0 - _first_hostile(b)['hp']} n={d.get('n')}")
     check("saturate_mult 继续收敛 0.64", abs(d.get("saturate_mult", 0) - 0.64) < 1e-9, str(d))
     # 第 7 次：n=2，×0.64 → 80×2×0.64 = 102.4→102
-    hp0 = (b._hostile_actors("player") or [{}])[0]["hp"]
+    hp0 = _first_hostile(b)["hp"]
     tick(b, p)
-    check("二次收敛 ×0.64：80×2×0.64=102", hp0 - (b._hostile_actors("player") or [{}])[0]["hp"] == 102,
-          f"dmg={hp0 - (b._hostile_actors("player") or [{}])[0]['hp']}")
+    check("二次收敛 ×0.64：80×2×0.64=102", hp0 - _first_hostile(b)["hp"] == 102,
+          f"dmg={hp0 - _first_hostile(b)['hp']}")
     # 对照：未饱和同层数（n=4）满伤 320（无收敛乘区）
     b2 = BT.Battle("monster", mk_enemy(hp=100000))
     _first_hostile(b2).setdefault("debuffs", {})["poison"] = {"n": 4, "mult": 1.0}
@@ -251,9 +251,9 @@ def test_legacy_compat():
     p = mk_player()
     b = BT.Battle("monster", mk_enemy(hp=100000))
     b._focus = p  # v181.P3d：阶段保留真实场景（Boss 战必有玩家）
-    (b._hostile_actors("player") or [{}])[0].setdefault("debuffs", {})["poison"] = {"n": 3, "mult": 1.0}
+    _first_hostile(b).setdefault("debuffs", {})["poison"] = {"n": 3, "mult": 1.0}
     tick(b, p)
-    d = (b._hostile_actors("player") or [{}])[0]["debuffs"]["poison"]
+    d = _first_hostile(b)["debuffs"]["poison"]
     check("旧结构自动补 threshold/trigger_count", d.get("threshold") == 1.3
           and d.get("trigger_count") == 1, str(d))
     check("saturate_mult 缺省不崩", d.get("saturate_mult", 1.0) == 1.0, str(d))

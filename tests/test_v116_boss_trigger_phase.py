@@ -136,7 +136,7 @@ def test_phase_scripted():
     # 演出回合在 _enemy_turn 里直接跳过行动
     b2 = BT.Battle("monster", mk_boss("phase", hp=400, max_hp=1000, scripts=scripts), {}, player=mk_player())
     b2._now = 3 * 2.0  # v152：round 3 → 绝对时刻 6.0
-    logs2, dmg2 = b2._enemy_turn(mk_player())
+    logs2, dmg2 = b2._actor_auto_turn(mk_player())
     check("演出回合 _enemy_turn 不行动(dmg=0)", dmg2 == 0 and any("蜕变" in x for x in logs2),
           f"dmg={dmg2} logs={str(logs2)}")
     # 阶段攻击 +20% 仍有
