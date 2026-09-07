@@ -302,9 +302,9 @@ def test_registry_static():
     # P2-D4a：挂点10/11 6 proc 并入（tenacity→cc_break_cost 新族 + zhan_yi_full_reduce/
     # core_full/core_reduce/core_last_stand/core_overflow→dr_cond 新族）+ P2-D5b 3 proc
     # （poison_all_up→dot_mult_cond、poison_weaken→dot_weaken 新族、hunt_mark_cap→
-    # dmg_mult_cond；soul_mark_cap cap 段同族）→ 声明 34 / 族 12
+    # dmg_mult_cond；soul_mark_cap cap 段同族）→ 声明 34 / 族 13
     check("PROC_FAMILIES 含 34 声明", len(PP.PROC_FAMILIES) == 34, str(sorted(PP.PROC_FAMILIES)))
-    check("FAMILY_HANDLERS 共 12 族", len(PP.FAMILY_HANDLERS) == 12, str(list(PP.FAMILY_HANDLERS)))
+    check("FAMILY_HANDLERS 共 13 族", len(PP.FAMILY_HANDLERS) == 13, str(list(PP.FAMILY_HANDLERS)))
     # 零默认值：_ps 空 / 缺字段 → 不触发
     for kind in ("arcane_mech", "element_marks"):
         ctx = {"player": {}, "ps": {}, "ps_name": "x", "mult_kind": kind, "mult": 1.0, "mech": "arcane"}

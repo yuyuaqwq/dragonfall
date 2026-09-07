@@ -473,9 +473,9 @@ def test_poison_cap_untouched_and_static():
     # 挂点15/16 旧直读残留清零
     battle = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "game", "battle.py"),
                   encoding="utf-8").read()
-    seg15 = battle.split("    def _tick_actor_dots")[1].split("    def _tick_turn_effects")[0] \
-        if "    def _tick_turn_effects" in battle.split("    def _tick_actor_dots")[1] \
-        else battle.split("    def _tick_actor_dots")[1].split("\n    def ")[1]
+    # _tick_actor_dots 方法体（到下一个 def）
+    m15 = battle.split("    def _tick_actor_dots")[1]
+    seg15 = m15.split("\n    def ")[0]
     old15 = [s for s in ('_ps_pa.get("mult"', '_ps_pw.get("spd_down"', '_ps_pw.get("def_down"',
                          '_tgt_b["_weaken_spd_pct"] = max', "剧毒之触：毒层 ≥5")
              if s in seg15]
