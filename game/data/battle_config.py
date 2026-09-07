@@ -202,10 +202,8 @@ SHADOW_STEALTH_DMG_MULT = {"终结·破影一击": 1.5, "幽影刃": 1.25}
 ECHO_CFG = {
     "max_layers": 3,             # 回声叠层上限（对应 core_resources echo max）
     "heal_per_layer": 6,         # 每层刻初始全队恢复体力
-    "buff_extend_per_layer": 1,  # 增益技持续 + 回声层数 刻
+    "buff_extend_per_layer": 1,  # 增益技持续 + 回声层数 刻（P1b 退役歌类技判定后引擎不再读）
 }
-# 歌者攻线分支（牧师 cls_mu_shi evolve_path=1）：凡落在这些分支名下的技能 = 歌类技（施放 +1 回声）
-BARD_BRANCHES = ("吟游诗人", "灵魂歌者", "黎明颂者")
 
 # ============================================================
 # 分支级 resource_override：转职分支决定该分支用什么资源（核心资源 key 列表）

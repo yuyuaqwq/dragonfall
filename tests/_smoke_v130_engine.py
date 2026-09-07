@@ -208,12 +208,6 @@ def smoke_bard_echo():
     b._echo_add(p, [])
     b._echo_add(p, [])
     check("回声封顶 3", b._echo_layers() == 3)
-    # 歌类技判定
-    info = C.BRANCH_SKILLS.get("cls_mu_shi", {}).get("branches", {}).get(1, {}).get("吟游诗人", {}).get("轻快拨弦")
-    check("轻快拨弦=歌类技", b._is_bard_skill(p, info) is True)
-    info2 = C.PLAYER_SKILLS.get("cls_mu_shi", {}).get("sk_she_dan")
-    if isinstance(info2, dict) and "skills" not in info2:
-        check("基础圣光弹非歌类", b._is_bard_skill(p, info2) is False)
     # _turn_start 全队恢复：满层翻倍 6×3×2=36/回合（策划案 12 章 5.1.1；原恒真 check 已改真断言）
     p["hp"] = 100  # 满血时恢复被跳过（hp<max 才结算），先压低血量再验证真实恢复量
     logs_ts = b._turn_start(p)
