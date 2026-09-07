@@ -10938,22 +10938,18 @@ class Battle:
                 break
         # v169.7 死亡契约（牧师死灵线数据化：proc death_contract 信念≥5 + 骷髅在场）——
         # 与上方 v107 暗影祭司旧死亡契约（proc death_pact 无条件）并存；两条链都消费致死钩子
+        # v181.P2D-D4b：proc 消费迁注册表族 revive_cond（revive_kind='death_pact_cond'；
+        # if 骨架/顺序/flag 语义逐字保留——信念≥faith_req 且存活骷髅在场 → 牺牲尾骷髅复活
+        # hp_pct + 置 _death_pact_used；信念不足/无骷髅 → continue（handler 返回 None，
+        # for 无后续条目自然结束——等价格局 max=1 下原语义一致））
         if actor["hp"] <= 0 and not self._death_pact_used:
             try:
-                _faith_v = float(RES.get("faith", 0) or 0)
-                _skels = [s for s in self.summons if s.get("tid") == "skeleton" and s.get("hp", 0) > 0]
                 for _pn, _ps in self._passive_map(actor)["proc"].get("death_contract", []):
-                    if _faith_v < float(_ps.get("faith_req", 5) or 5):
-                        continue
-                    if not _skels:
-                        logs.append("💀 死亡契约：信念已足但没有骷髅代受致命一击！")
-                        continue
-                    self._death_pact_used = True
-                    fallen = _skels.pop()
-                    self.companions.remove(fallen)
-                    actor["hp"] = max(1, int(actor.get("max_hp", actor["hp"]) * float(_ps.get("hp_pct", 0.20) or 0.20)))
-                    logs.append(f"💀 死亡契约：信念 {_faith_v:.0f} 引动契约，{fallen.get('name', '骷髅')} 代受致命伤，你以 {actor['hp']} HP 站起！")
-                    break
+                    _ctx_dc = {"actor": actor, "ps": _ps, "ps_name": _pn,
+                               "revive_kind": "death_pact_cond", "logs": logs}
+                    _rv_dc = _run_proc_family(self, "death_contract", _ctx_dc)
+                    if _rv_dc:
+                        break  # 复活成功 → 原 break（本段内只处理 1 条 proc 条目）
             except Exception as _sw_e:
                 _battle_warn('_post_hp_lethal', _sw_e)
                 pass

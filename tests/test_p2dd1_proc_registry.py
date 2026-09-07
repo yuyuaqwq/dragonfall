@@ -66,7 +66,9 @@ def test_registry_static():
     # P2-D4a：挂点10/11 6 proc（tenacity/zhan_yi_full_reduce/core_full/core_reduce/
     # core_last_stand/core_overflow）并入 → 总数 28（6 试点 + 4 条件暴击 +
     # 4 stat_mult + 3 P2-D3a + 5 P2-D3b + 6 P2-D4a）
-    check("PROC_FAMILIES 含 28 声明", len(PP.PROC_FAMILIES) == 28, str(PP.PROC_FAMILIES))
+    # P2-D4b：挂点12 致死复活链 3 proc（death_contract/berserk_revive/stance_immortal）
+    # 并入 revive_cond → 总数 31
+    check("PROC_FAMILIES 含 31 声明", len(PP.PROC_FAMILIES) == 31, str(PP.PROC_FAMILIES))
     expect_map = {
         "speed_ratio_dmg": "dmg_mult_cond",
         "arcane_resonance": "dmg_mult_cond",
@@ -98,13 +100,18 @@ def test_registry_static():
         "core_reduce": "dr_cond",
         "core_last_stand": "dr_cond",
         "core_overflow": "dr_cond",
+        # P2-D4b 3 proc（挂点12 致死复活链 → revive_cond）
+        "death_contract": "revive_cond",
+        "berserk_revive": "revive_cond",
+        "stance_immortal": "revive_cond",
     }
     for proc, fam in expect_map.items():
         check(f"{proc} → {fam}", PP.PROC_FAMILIES.get(proc) == fam,
               f"got {PP.PROC_FAMILIES.get(proc)}")
     for fam in ("dmg_mult_cond", "lifesteal_add", "stack_cap_add",
                 "summon_cap_add", "on_kill_refill", "crit_cond_add",
-                "stat_mult_cond", "flag_set_cond", "cc_break_cost", "dr_cond"):
+                "stat_mult_cond", "flag_set_cond", "cc_break_cost", "dr_cond",
+                "revive_cond"):
         check(f"族执行器 {fam} 已注册", fam in PP.FAMILY_HANDLERS)
     # 52 全覆盖校验：除 KNOWN_GAPS + 本批 6 外，其余 52 proc 尚未声明（后续批次）——不静默
     declared = set(PP.PROC_FAMILIES)
