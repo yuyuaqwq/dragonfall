@@ -832,10 +832,72 @@ def _h_flag_set_cond(battle, ctx: dict, ps: dict, ps_name: str):
             _swallow(battle, "passive_procs.melody_duet", _sw_e)
             pass
         return None
+    if _kind == "heal_overflow_shield":
+        # 圣光回响 heal_overflow_shield（挂点19 _skill_heal 治疗溢出转盾段）：
+        # 真实溢出 = hp_before + heal − max_hp（heal 已 clamp 前修正量）；溢出 > 0 →
+        # 盾 = int(溢出 ×ps.pct)（1 次/条），落 target_ally 侧 p_shields.overflow 或
+        # self._add_shield("overflow", ...)（v122 队友语义）。原循环（挂点19 段逐字直搬）：
+        # `for _pn,_ps in _passive_map(player)["proc"].get("heal_overflow_shield", [])` ——
+        # heal_shield（庇护之光，非 52）同族异名保留在调用侧骨架（本批不迁）。
+        # ctx["target_unit"]（被治疗者 dict 引用）、ctx["hp_before"]、ctx["heal"]、
+        # ctx["target_ally"]（None=自己）、ctx["overflow_shield_turns"]（2，battle.py
+        # 本地语义 = 原循环内写死 2）。日志 🛡️圣光回响… 原样保留。
+        # 读 _ps：pct；缺字段（≤ 0）= 无此行为（零默认值铁律；D0 回填 0.5）。
+        _pct_hos = float(ps.get("pct", 0.0) or 0.0)
+        if _pct_hos <= 0:
+            return None
+        try:
+            _tu_hos = ctx.get("target_unit")
+            if _tu_hos is None:
+                return None
+            _ov_hos = int(ctx.get("hp_before") or 0) + int(ctx.get("heal") or 0) \
+                - int(_tu_hos.get("max_hp", _tu_hos.get("hp", 0)) or 0)
+            if _ov_hos <= 0:
+                return None  # 无真实溢出 → 不触发
+            _sh_gain = int(_ov_hos * _pct_hos)
+            _tt = int(ctx.get("overflow_shield_turns") or 2)
+            if ctx.get("target_ally") is not None:
+                _sh_hos = _tu_hos.setdefault("p_shields", {})
+                _cur_hos = _sh_hos.get("overflow")
+                if _cur_hos:
+                    _cur_hos["value"] = _cur_hos.get("value", 0) + _sh_gain
+                    _cur_hos["turns"] = max(_cur_hos.get("turns", 0), _tt)
+                else:
+                    _sh_hos["overflow"] = {"value": _sh_gain, "turns": _tt}
+            else:
+                battle._add_shield("overflow", _sh_gain, _tt)
+            _lg = ctx.get("logs")
+            if isinstance(_lg, list):
+                _lg.append(f"🛡️ {ps_name}：治疗溢出转化为 {_sh_gain} 点护盾！")
+            return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.heal_overflow_shield", _sw_e)
+            pass
+        return None
+    if _kind == "shaken_decay_half":
+        # 破绽感知 shaken_decay_half（挂点23 _turn_start 破绽条衰减回补段）：turn_start_bars
+        # 已按 bar 配置衰减 _bd.decay_per_turn（缺省 1.7），这里把半衰量回补（净效果 −0.85）。
+        # 原循环体逐字直搬：e_buffs.shaken dict（val 键）→ val += int(decay_full / 2)；
+        # 首条 break。ctx["e_buffs_shaken"] = 调用侧 self.e_buffs.get("shaken") dict 引用
+        # （副作用直接落该 dict——e_buffs = enemy.buffs 代理，随战斗序列化）；
+        # ctx["decay_full"] = 调用侧 bar_def 快照 _bd.decay_per_turn（缺省 1.7，原语义）。
+        # 读 _ps：零参数（纯副作用型）——学到即回补；保留防御：shaken dict 缺失 = 不触发。
+        _eb_shd = ctx.get("e_buffs_shaken")
+        if not isinstance(_eb_shd, dict):
+            return None
+        try:
+            _decay_full2 = float(ctx.get("decay_full") or 0) or 1.7
+            _eb_shd["val"] = int(_eb_shd.get("val", 0) or 0) + int(_decay_full2 / 2)
+            return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.shaken_decay_half", _sw_e)
+            pass
+        return None
     return None  # 未知 flag_kind = 不触发（调用侧未配置该 proc 的置位谓词）
 
 
-# ---- 7c.2.1 melody_duet（P2-D5c：挂点20 _skill_buff 诗人吟唱段；flag_set_cond ctx flag_kind=melody_duet）----
+# ============================================================
+# 7c.2.1 melody_duet（P2-D5c：挂点20 _skill_buff 诗人吟唱段；flag_set_cond ctx flag_kind=melody_duet）
 #     二重唱 melody_duet：吟唱（mech=melody_chant）→ 旋律强度 +ps.add（cap MELODY_CFG）。
 #     原循环体（battle.py 6265-6277 迁移前副本）逐字直搬：外层 `if mech == "melody_chant":`
 #     + try/except 骨架保留在调用侧；本 handler 只做单个 proc 条目的数值副作用。

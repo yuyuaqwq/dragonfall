@@ -6199,8 +6199,21 @@ class Battle:
         # v122：治疗队友时溢出护盾加给被治疗者（队友快照 p_shields；自己场景保持 self._add_shield）
         # v169.7 圣光回响 heal_overflow_shield：与庇护之光同族同语义（proc 不同名，数值 50% 转盾）
         # ——复用同一溢出计算；两 proc 全学则各自独立结算（50%+20% = 70% 溢出转盾，属同族叠加）
+        # v181.P2D-D5c：heal_overflow_shield 段迁注册表族 flag_set_cond（ctx flag_kind=
+        # heal_overflow_shield）——heal_shield（庇护之光，非 52 proc）保留原位循环（同族异名，
+        # 顺序不变：heal_shield 循环先跑 → 注册表调用后跑，与原两轮循环逐 proc 独立结算等价）
         _heal_overflow_procs = [("heal_shield", 0.2), ("heal_overflow_shield", 0.5)]
         for _hpn, _hpdef in _heal_overflow_procs:
+            if _hpn == "heal_overflow_shield":
+                # 原循环无 break（同 proc 全条目各自独立结算；max=1 数据下 = 单条目）；
+                # run_proc_family_pm 逐条分发等价
+                _ctx_hos = {"player": player, "ps": {}, "ps_name": "",
+                            "flag_kind": "heal_overflow_shield",
+                            "target_unit": target_unit, "hp_before": hp_before,
+                            "heal": heal, "target_ally": target_ally,
+                            "overflow_shield_turns": 2}
+                _run_proc_family_pm(self, player, "heal_overflow_shield", _ctx_hos)
+                continue
             for _pn, _ps in self._passive_map(player)["proc"].get(_hpn, []):
                 overflow = hp_before + heal - target_unit.get("max_hp", target_unit.get("hp", 0))
                 if overflow > 0:
@@ -9354,13 +9367,16 @@ class Battle:
                     logs.append(f"💢 破绽触发！敌方即将失去行动！")
             # v169.7 破绽感知 shaken_decay_half（拳师攻线）：破绽衰减减半（−1.7/s → −0.85/s）——
             # turn_start_bars 已按配置衰减 1.7，这里把半衰量回补（净效果 −0.85）
+            # v181.P2D-D5c：proc 消费迁移注册表族 flag_set_cond（ctx flag_kind=shaken_decay_half；
+            # 外层枚举骨架保留，handler 内做回补副作用）
             try:
                 for _pn_dh, _ps_dh in self._proc_pm(player)["proc"].get("shaken_decay_half", []):
-                    _eb_sh = self.e_buffs.get("shaken")
-                    if isinstance(_eb_sh, dict):
-                        _decay_full = float((_bd or {}).get("decay_per_turn", 0) or 0) or 1.7
-                        _eb_sh["val"] = int(_eb_sh.get("val", 0) or 0) + int(_decay_full / 2)
-                    break
+                    _ctx_dh = {"player": player, "ps": _ps_dh, "ps_name": _pn_dh,
+                               "flag_kind": "shaken_decay_half",
+                               "e_buffs_shaken": self.e_buffs.get("shaken"),
+                               "decay_full": float((_bd or {}).get("decay_per_turn", 0) or 0) or 1.7}
+                    _run_proc_family(self, "shaken_decay_half", _ctx_dh)
+                    break  # 原循环尾 break（max=1：只处理首条 proc 条目）
             except Exception as _sw_e:
                 _battle_warn('_turn_start', _sw_e)
                 pass
