@@ -52,11 +52,10 @@ import）；实际 95 常量 52 真消费/41 死表。教训：AST 扫"被 impor
 
 ## 实施队列（方案全齐，按序推进）
 
-- P0B-C：SKILL_UP key 改稳定 id 根治（B 止血后）
-- P2C 实施：C1（weapon 表补齐）→ C2-C5（低风险族）→ C6-C9（高险 battle 直读）→ C10 收尾
-- P2D 实施：D1（建 passive_procs.py）→ D2-D6 族迁移 → D7 收尾（52 proc→~20 族）
+- P2C 实施：C2 试点→C3-C10（C1 已完成）
+- **P2G 效果动作统一收敛（鱼鱼 2026-09-07 拍板）**：消灭各域重复实现（weapon_effects 97 handler/battle_mech 124/affix 46 内联的 shield/dot/buff/control 逻辑抽成 effect_actions 动作，每动作全项目只写一次）；目标 = 新增效果走单一标准路径：①查 effect_actions 有现成动作→data 声明直接用 ②没有→effect_actions 加一个动作（~15 行全域通用）；触发层保持分域薄壳（触发语义不同），1 动作库 + N 薄触发壳；P2C 完成后做（P2C 先收敛 weapon handler 到族执行器，P2G 再把族执行器里的动作抽共享）
 - P2E 实施：MECH_CFG 落位 A29+B14+C7+D45（消费点改 ~150-200 行，与 battle.py 撞文件需串行）
-- P2F-2：分段曲线表驱动（hp/atk/boss_atk_stage）；P2F-3：player_base_stats/monster_stats 声明化
+- P2F-3：player_base_stats/monster_stats 声明化（F1/F2 已完成）
 - P3：玩家状态容器收尾（p_meta 槽收纳，需先行为快照测试）
 - P4：命令层抽 services（BattleSettlement/Quest/Shop/Crafting/Profession…）
 - P5：battle 拆类（最后，需白盒黑盒化）
