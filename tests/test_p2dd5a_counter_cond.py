@@ -322,7 +322,7 @@ def test_static():
         check(f"{proc} → {fam}", PP.PROC_FAMILIES.get(proc) == fam,
               f"got {PP.PROC_FAMILIES.get(proc)}")
     check("族执行器 counter_cond 已注册", "counter_cond" in PP.FAMILY_HANDLERS)
-    check("PROC_FAMILIES 含 33 声明", len(PP.PROC_FAMILIES) == 33, str(len(PP.PROC_FAMILIES)))
+    check("PROC_FAMILIES 含 45 声明", len(PP.PROC_FAMILIES) == 45, str(len(PP.PROC_FAMILIES)))
     battle = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "game", "battle.py"),
                   encoding="utf-8").read()
     # 挂点13 区（_retaliations_and_buffs 方法体）走注册表聚合

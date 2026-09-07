@@ -68,7 +68,7 @@ def test_registry_static():
     # 4 stat_mult + 3 P2-D3a + 5 P2-D3b + 6 P2-D4a）
     # P2-D4b：挂点12 致死复活链 3 proc（death_contract/berserk_revive/stance_immortal）
     # 全批次并入后注册表总数 40（6+4+4+3+5+6+3+2+4+3；soul_mark_cap D3b 已声明）
-    check("PROC_FAMILIES 含 40 声明", len(PP.PROC_FAMILIES) == 40, str(len(PP.PROC_FAMILIES)))
+    check("PROC_FAMILIES 含 45 声明", len(PP.PROC_FAMILIES) == 45, str(len(PP.PROC_FAMILIES)))
     expect_map = {
         "speed_ratio_dmg": "dmg_mult_cond",
         "arcane_resonance": "dmg_mult_cond",

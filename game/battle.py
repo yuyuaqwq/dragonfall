@@ -6199,8 +6199,21 @@ class Battle:
         # v122：治疗队友时溢出护盾加给被治疗者（队友快照 p_shields；自己场景保持 self._add_shield）
         # v169.7 圣光回响 heal_overflow_shield：与庇护之光同族同语义（proc 不同名，数值 50% 转盾）
         # ——复用同一溢出计算；两 proc 全学则各自独立结算（50%+20% = 70% 溢出转盾，属同族叠加）
+        # v181.P2D-D5c：heal_overflow_shield 段迁注册表族 flag_set_cond（ctx flag_kind=
+        # heal_overflow_shield）——heal_shield（庇护之光，非 52 proc）保留原位循环（同族异名，
+        # 顺序不变：heal_shield 循环先跑 → 注册表调用后跑，与原两轮循环逐 proc 独立结算等价）
         _heal_overflow_procs = [("heal_shield", 0.2), ("heal_overflow_shield", 0.5)]
         for _hpn, _hpdef in _heal_overflow_procs:
+            if _hpn == "heal_overflow_shield":
+                # 原循环无 break（同 proc 全条目各自独立结算；max=1 数据下 = 单条目）；
+                # run_proc_family_pm 逐条分发等价
+                _ctx_hos = {"player": player, "ps": {}, "ps_name": "",
+                            "flag_kind": "heal_overflow_shield",
+                            "target_unit": target_unit, "hp_before": hp_before,
+                            "heal": heal, "target_ally": target_ally,
+                            "overflow_shield_turns": 2}
+                _run_proc_family_pm(self, player, "heal_overflow_shield", _ctx_hos)
+                continue
             for _pn, _ps in self._passive_map(player)["proc"].get(_hpn, []):
                 overflow = hp_before + heal - target_unit.get("max_hp", target_unit.get("hp", 0))
                 if overflow > 0:
@@ -6262,16 +6275,18 @@ class Battle:
                 _battle_warn('_skill_buff', _sw_e)
                 pass
             # v169.7 二重唱 melody_duet：吟唱时旋律强度额外 +1（_m_melody_chant 叠完后补一层）
+            # v181.P2D-D5c：proc 消费迁移注册表族 flag_set_cond（ctx flag_kind=melody_duet；
+            # 外层 mech==melody_chant 守卫/try 骨架保留，handler 内做强度 +add 副作用）
             if mech == "melody_chant":
                 try:
+                    from .core.battle_mech import MELODY_CFG as _MEL_CFG2
                     for _pn_md, _ps_md in self._proc_pm(player)["proc"].get("melody_duet", []):
-                        _mel_md = self._melody_state()
-                        if _mel_md.get("name") and int(_mel_md.get("stack", 0) or 0) > 0:
-                            from .core.battle_mech import MELODY_CFG as _MEL_CFG
-                            _mel_md["stack"] = min(int(_MEL_CFG.get("max_stack", 5) or 5),
-                                                   int(_mel_md.get("stack", 0) or 0) + 1)
-                            logs.append(f"🎶 {_pn_md}：二重唱，旋律强度额外 +1！（{_mel_md['stack']}/5）")
-                        break
+                        _ctx_md = {"player": player, "ps": _ps_md, "ps_name": _pn_md,
+                                   "flag_kind": "melody_duet", "melody": self._melody_state(),
+                                   "max_stack": _MEL_CFG2.get("max_stack", 5),
+                                   "logs": logs}
+                        _run_proc_family(self, "melody_duet", _ctx_md)
+                        break  # 原循环尾 break（max=1：只处理首条 proc 条目）
                 except Exception as _sw_e:
                     _battle_warn('_skill_buff', _sw_e)
                     pass
@@ -6375,11 +6390,15 @@ class Battle:
         self._apply_mech_effect(mech, mval, p_mech, total, logs, skill_name, is_crit, info, caster=player)
         # v169.7 元素亲和 element_affinity：元素引爆（mech=element_burst* 清印记结算）后置位
         # 下次挂印 +1 标记（命中挂印分支消费）；已学被动才置位
+        # v181.P2D-D5c：proc 消费迁移注册表族 flag_set_cond（ctx flag_kind=elem_affinity；
+        # 外层 mech 前缀守卫保留，handler 内仅置位标记）
         if mech and mech.startswith("element_burst"):
             try:
                 for _pn_ea, _ps_ea in self._proc_pm(player)["proc"].get("element_affinity", []):
-                    self._elem_affinity_next = True
-                    break
+                    _ctx_ea = {"player": player, "ps": _ps_ea, "ps_name": _pn_ea,
+                               "flag_kind": "elem_affinity"}
+                    _run_proc_family(self, "element_affinity", _ctx_ea)
+                    break  # 原循环尾 break（max=1：只处理首条 proc 条目）
             except Exception as _sw_e:
                 _battle_warn('_skill_hit_settle', _sw_e)
                 pass
@@ -6406,6 +6425,8 @@ class Battle:
         # v169.7 镇魂安魂 dirge_ctrl_up（诗人挽歌线）：挽歌系控制时长 +1.5 刻——
         # 本技能对敌施加的控制（mech/cc 走 MECH_EFFECTS 写入 e_buffs 后）延长 1 刻（1.5 向下取整；
         # 小数半刻引擎不支持，见 技能引擎缺口全量清单 §四.5）
+        # v181.P2D-D5c：proc 消费迁移注册表族 flag_set_cond（ctx flag_kind=dirge_ctrl_up；
+        # 外层控制键门槛/枚举骨架保留，handler 内做时长延长副作用）
         try:
             _ctrl_keys_dg = ("stun", "freeze", "silence", "sleep", "spd_down")
             _apply_any_ctrl = False
@@ -6413,13 +6434,11 @@ class Battle:
                 _apply_any_ctrl = True
             if _apply_any_ctrl:
                 for _pn_dg, _ps_dg in self._proc_pm(player)["proc"].get("dirge_ctrl_up", []):
-                    _eb_dg = self._tgt_buffs()
-                    for _ck_dg in _ctrl_keys_dg:
-                        if _eb_dg.get(_ck_dg):
-                            _eb_dg[_ck_dg] = int(_eb_dg[_ck_dg]) + int(_ps_dg.get("add", 1) or 1)
-                            logs.append(f"🎵 {_pn_dg}：挽歌延长【{_ck_dg}】控制 +1 刻！")
-                            break
-                    break
+                    _ctx_dg = {"player": player, "ps": _ps_dg, "ps_name": _pn_dg,
+                               "flag_kind": "dirge_ctrl_up", "e_buffs": self._tgt_buffs(),
+                               "logs": logs}
+                    _run_proc_family(self, "dirge_ctrl_up", _ctx_dg)
+                    break  # 原循环尾 break（max=1：只处理首条 proc 条目）
         except Exception as _sw_e:
             _battle_warn('_skill_hit_settle', _sw_e)
             pass
@@ -6438,10 +6457,14 @@ class Battle:
                         _tgt_buffs = _tgt.get("buffs", {})
                         _bs = _tgt_buffs.get("shaken", {})
                         # v169.7 破绽·极 broken_extend（拳师攻线）：破防持续 +1.5 刻（免疫窗口 +1，半刻不支持向下取整）
+                        # v181.P2D-D5c：proc 消费迁移注册表族 flag_set_cond（ctx flag_kind=broken_extend；
+                        # 外层 shaken 触发骨架保留，handler 内做免疫窗口延长副作用）
                         try:
                             for _pn_be, _ps_be in self._proc_pm(player)["proc"].get("broken_extend", []):
-                                _bs["immune_turns"] = int(_bs.get("immune_turns", 0) or 0) + int(_ps_be.get("extend", 1) or 1)
-                                break
+                                _ctx_be = {"player": player, "ps": _ps_be, "ps_name": _pn_be,
+                                           "flag_kind": "broken_extend", "shaken": _bs}
+                                _run_proc_family(self, "broken_extend", _ctx_be)
+                                break  # 原循环尾 break（max=1：只处理首条 proc 条目）
                         except Exception as _sw_e:
                             _battle_warn('_skill_hit_settle', _sw_e)
                             pass
@@ -9344,13 +9367,16 @@ class Battle:
                     logs.append(f"💢 破绽触发！敌方即将失去行动！")
             # v169.7 破绽感知 shaken_decay_half（拳师攻线）：破绽衰减减半（−1.7/s → −0.85/s）——
             # turn_start_bars 已按配置衰减 1.7，这里把半衰量回补（净效果 −0.85）
+            # v181.P2D-D5c：proc 消费迁移注册表族 flag_set_cond（ctx flag_kind=shaken_decay_half；
+            # 外层枚举骨架保留，handler 内做回补副作用）
             try:
                 for _pn_dh, _ps_dh in self._proc_pm(player)["proc"].get("shaken_decay_half", []):
-                    _eb_sh = self.e_buffs.get("shaken")
-                    if isinstance(_eb_sh, dict):
-                        _decay_full = float((_bd or {}).get("decay_per_turn", 0) or 0) or 1.7
-                        _eb_sh["val"] = int(_eb_sh.get("val", 0) or 0) + int(_decay_full / 2)
-                    break
+                    _ctx_dh = {"player": player, "ps": _ps_dh, "ps_name": _pn_dh,
+                               "flag_kind": "shaken_decay_half",
+                               "e_buffs_shaken": self.e_buffs.get("shaken"),
+                               "decay_full": float((_bd or {}).get("decay_per_turn", 0) or 0) or 1.7}
+                    _run_proc_family(self, "shaken_decay_half", _ctx_dh)
+                    break  # 原循环尾 break（max=1：只处理首条 proc 条目）
             except Exception as _sw_e:
                 _battle_warn('_turn_start', _sw_e)
                 pass
