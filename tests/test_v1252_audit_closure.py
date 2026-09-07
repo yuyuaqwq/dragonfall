@@ -384,25 +384,35 @@ def section_gather_cond():
 
 # ================= 12. battle_config 各表被 battle.py 接线消费 =================
 def section_battle_config():
-    print("【12. battle_config 各表被 battle.py 消费】")
-    check("MECH_STACK_BONUS 接线（battle.py 同一对象）", BT.MECH_STACK_BONUS is C.MECH_STACK_BONUS)
-    check("DOT_DEFS 接线", BT.DOT_DEFS is C.DOT_DEFS)
-    check("BOSS_ATTACK_MULTS 接线", BT.BOSS_ATTACK_MULTS is C.BOSS_ATTACK_MULTS)
-    check("CONTROL_MECHS 接线", BT.CONTROL_MECHS is C.CONTROL_MECHS)
-    check("MECH_FULL_HP_CRIT 接线", BT.MECH_FULL_HP_CRIT is C.MECH_FULL_HP_CRIT)
-    check("MECH_FROZEN_MULT 接线", BT.MECH_FROZEN_MULT is C.MECH_FROZEN_MULT)
-    check("MECH_COMBO_STACKS 接线", BT.MECH_COMBO_STACKS is C.MECH_COMBO_STACKS)
-    check("MECH_PROC_GROUPS 接线", BT.MECH_PROC_GROUPS is C.MECH_PROC_GROUPS)
-    check("MECH_STAT_PASSIVES 接线", BT.MECH_STAT_PASSIVES is C.MECH_STAT_PASSIVES)
-    check("ELEMENT_REACTIONS 接线（engine.py）", E.ELEMENT_REACTIONS is C.ELEMENT_REACTIONS)
+    print("【12. battle_config MECH_CFG 各机制表被 battle.py 接线消费】")
+    # v181 P2E-P3b：battle.py 读点全量收敛 MECH_CFG 单表——identity 断言改为
+    #   BT._MC is C.MECH_CFG（battle 与 data 聚合同一对象）+ MECH_CFG 结构断言（子键在位）
+    check("battle.py 读 MECH_CFG 单表（BT._MC is C.MECH_CFG）", BT._MC is C.MECH_CFG)
+    _mc = C.MECH_CFG
+    check("MECH_CFG['mech_stack']['bonus'] rage=0.12 在位", abs(_mc["mech_stack"]["bonus"]["rage"] - 0.12) < 1e-9, "rage")
+    check("MECH_CFG['dot']['poison'] 类型定义在位", (_mc["dot"].get("poison") or {}).get("type") == "flat", "poison")
+    check("MECH_CFG['dot'].boss_pct_mult=0.5 在位", abs(_mc["dot"]["boss_pct_mult"] - 0.5) < 1e-9, "boss_pct_mult")
+    check("MECH_CFG['boss']['attack_mults'] enraged=1.35 在位", abs(_mc["boss"]["attack_mults"]["enraged"] - 1.35) < 1e-9, "enraged")
+    check("MECH_CFG['ctrl']['mechs'] 含 stun/freeze/silence", set(_mc["ctrl"]["mechs"]) >= {"stun", "freeze", "silence"}, str(_mc["ctrl"]["mechs"]))
+    check("MECH_CFG['crit']['full_hp_mechs']=shadow", _mc["crit"]["full_hp_mechs"] == ("shadow",), str(_mc["crit"]["full_hp_mechs"]))
+    check("MECH_CFG['crit']['frozen_mult'] freeze=1.5", abs(_mc["crit"]["frozen_mult"]["freeze"] - 1.5) < 1e-9, "frozen_mult")
+    check("MECH_CFG['crit']['combo_mechs']=wind", _mc["crit"]["combo_mechs"] == ("wind",), str(_mc["crit"]["combo_mechs"]))
+    check("MECH_CFG['ctrl']['proc_groups'] 含 poison_dmg", "poison_dmg" in _mc["ctrl"]["proc_groups"], "proc_groups")
+    check("MECH_CFG['ctrl']['stat_passives'] judge=judge", _mc["ctrl"]["stat_passives"].get("judge") == "judge", "stat_passives")
+    check("MECH_CFG['assassin_combo'] cap=10", int(_mc["assassin_combo"]["cap"]) == 10, "combo cap")
+    check("MECH_CFG['full_tension'] threshold=80", int(_mc["full_tension"]["threshold"]) == 80, "full_tension")
+    check("MECH_CFG['blood_debt_gain'] coef=4.0", abs(_mc["blood_debt_gain"]["coef"] - 4.0) < 1e-9, "blood_debt_gain")
+    check("MECH_CFG['echo'] max_layers=3", int(_mc["echo"]["max_layers"]) == 3, "echo")
+    check("MECH_CFG['branch_resources'] (cls_mu_shi,1)→resonance/echo", _mc["branch_resources"].get(("cls_mu_shi", 1)) == ("resonance", "echo"), str(_mc["branch_resources"].get(("cls_mu_shi", 1))))
+    check("MECH_CFG['element']['reaction_table'] (fire,ice)=vaporize", (_mc["element"]["reaction_table"].get(("fire", "ice")) or {}).get("kind") == "vaporize", "reaction_table")
     # 功能抽查：_mech_stack_bonus 查表（rage 3 层 → 1.36）
     b = BT.Battle(enemy={"name": "t", "hp": 100, "max_hp": 100, "spd": 1})
     mult = b._mech_stack_bonus("rage", {"rage": 3}, {})
-    check("_mech_stack_bonus rage×3 → 1.36（MECH_STACK_BONUS 生效）",
+    check("_mech_stack_bonus rage×3 → 1.36（MECH_CFG 生效）",
           abs(mult - 1.36) < 1e-9, str(mult))
     # CONTROL_MECHS 消费：Boss 控制时长减半（stun 2 → 1）
     b2 = BT.Battle(enemy={"name": "b", "hp": 100, "max_hp": 100, "is_boss": True, "spd": 1})
-    check("_boss_ctrl_dur Boss 眩晕减半（CONTROL_MECHS 配套）",
+    check("_boss_ctrl_dur Boss 眩晕减半（MECH_CFG['ctrl']['mechs'] 配套）",
           b2._boss_ctrl_dur("stun", 2) == 1, str(b2._boss_ctrl_dur("stun", 2)))
 
 
