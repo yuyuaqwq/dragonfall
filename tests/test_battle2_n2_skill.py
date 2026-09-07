@@ -141,7 +141,11 @@ def test_heal_skill():
         st = E.player_final_stats("牧师", 10, {}, 0, {}, 1)
         p_new = new_player("牧师", 10, [sk], [info["name"]], st, hp0=hp0)
         b_new = new_battle(p_new)
-        b_new.human_act("skill", info["name"], p_new)
+        # 单次行动直调 act（不推进——推进会让怪反击干扰治疗量验证）
+        from game.battle2.actors import ActCtx
+        ctx = ActCtx(caster=p_new, action="skill", skill_name=info["name"],
+                     info=info, target=p_new)
+        b_new.act(ctx)
         nh = p_new["hp"]
         if oh == nh:
             ok += 1
