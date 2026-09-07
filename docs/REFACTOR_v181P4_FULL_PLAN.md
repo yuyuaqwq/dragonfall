@@ -20,35 +20,65 @@ Battle
 ```
 
 ### 1.2 actor dict 字段定义（全同构，无身份）
+
+> 字段分四组：标签（不参与逻辑分支）、面板（算出来的数值）、可变状态（战斗中被读写）、
+> 配置（actor 怎么行动/有什么能力）。引擎逻辑**只用字段值，不按字段猜身份**。
+
 ```python
 actor = {
-    # —— 身份/数据标签（不参与逻辑分支）——
-    "uid": str,              # 唯一 id（e_0 / p_qqid / summon_x）
-    "name": str,
-    "side": str,             # 阵营名（"player"/"enemy"/任意自定义）
-    "kind": str,             # 数据标签：player|monster|summon|pet
-    "human_controlled": bool,# True=真人操作，False=按 auto_act 配置行动
+    # ========== ① 身份/数据标签（只做标识与展示，引擎逻辑不分叉） ==========
+    "uid": str,             # 唯一 id（e_0 / p_qqid / summon_x）——序列化/选目标/日志用
+    "name": str,            # 展示名（日志/状态栏显示）
+    "side": str,            # 所属阵营名（"player"/"enemy"/任意自定义）
+                            #   作用：side_of(actor) 查阵营 → hostile_of(side) 找敌对
+                            #   （AI 选目标、胜负判定用）。不是"身份"，是分组。
+    "kind": str,            # 数据标签：player|monster|summon|pet——纯描述，不进逻辑
+    "human_controlled": bool,  # True=真人操作（命令层等输入）；False=按 auto_act 行动
+                            #   调度器只靠它决定"谁要等输入、谁自动跑"
 
-    # —— 基础属性（战斗面板，由 _actor_stats_of 计算/聚合）——
-    "hp": int, "max_hp": int, "mp": int, "max_mp": int,
-    "atk": int, "matk": int, "def": int, "mdef": int, "spd": int,
-    "crit": float, "dodge": float, ...（面板字段）
+    # ========== ② 面板字段（参与伤害/防御计算） ==========
+    # 注意：这些是"基础值"，实际战斗用 actor_stats() 算出的聚合面板
+    # （聚合 buffs/装备/等级/被动——见 stats.py）。hp/mp 是实时值直接读写。
+    "hp": int, "max_hp": int,    # 当前/上限生命（hp 被伤害/治疗实时改）
+    "mp": int, "max_mp": int,    # 当前/上限法力（技能消耗）
+    "atk": int, "matk": int,     # 物攻/法攻（伤害公式 input）
+    "def": int, "mdef": int,     # 物防/法防（减免公式 input）
+    "spd": int,                  # 速度（CTB 时钟折算——决定行动频率，见 ct）
+    "crit": float, "dodge": float, "crit_dmg": float, "luck": float,
+    "tenacity": float, "block": float, "pene": float, ...   # 其他战斗属性
+    "race": str,                 # 种族（种族被动/词条条件用）
 
-    # —— 战斗可变状态（玩家/怪同构）——
-    "buffs": dict,       # {buff_key: 刻数/值} 如 {"atk_up": 3, "shield": {...}}
-    "debuffs": dict,     # {dot_key: {n, mult, threshold, atk, ...}} 持续减益
-    "stacks": dict,      # 职业叠层（气/怒/战意）
-    "resources": dict,   # 核心资源（法力/能量/元素充能）
-    "shields": dict,     # 护盾 {key: {value, halve, expire...}}
-    "charging": dict|None, # 蓄力中 {skill, left, ...}
-    "defending": bool,
-    "ct": float,         # CTB 行动时钟
-    "equipment": dict,   # 装备（玩家有，怪空）
-    "class_name": str,   # 职业（玩家/扮职业怪）
-    "level": int,
-    "auto_act": dict|None,  # 自动行为配置（怪/随从）
-    "skills": list,      # 可用技能 key
-    "cooldown": dict,    # 技能冷却
+    # ========== ③ 战斗可变状态（战斗中高频读写，玩家/怪同构） ==========
+    "buffs": dict,       # 增益 {key: 刻数}，如 {"atk_up": 3}
+                         #   消费：面板聚合（actor_stats 读它加成）、buff 到期衰减
+    "debuffs": dict,     # 持续减益 {key: {n:层数, mult, threshold, atk...}}
+                         #   消费：dot 结算（每刻跳伤害）、减抗
+    "stacks": dict,      # 职业叠层 {key: 层数}（气/怒/战意/连击点）——技能条件/消耗
+    "resources": dict,   # 核心资源 {key: 当前值}（法力/能量/元素充能）——技能门槛
+    "shields": dict,     # 护盾 {key: {value, halve, expire_at}}——承伤先扣盾
+    "charging": dict|None, # 蓄力中 {skill, left, name}——蓄力技读条；被打可打断
+    "defending": bool,   # 防御中（伤害减半，命令层 defend 动作设置）
+    "ct": float,         # CTB 行动时钟 = "下次能行动的绝对时刻"
+                         #   消费：调度器每刻找 ct<=now 的 actor → 行动 → 推 ct
+                         #   spd 快 → 行动耗时短 → ct 推进少 → 更频繁行动
+    "cooldown": dict,    # 技能冷却 {skill_key: 下次可用时刻}
+    "poi_buff": dict|None,   # 探索祝福（进战斗带的临时加成）
+    "hot": dict,         # 持续治疗
+
+    # ========== ④ 配置/能力（actor 有什么、怎么行动） ==========
+    "class_name": str,   # 职业名——**面板计算的数据源选择器**：
+                         #   有 class_name → actor_stats 走职业公式
+                         #   (player_final_stats：装备/等级/转职全算)
+                         #   无 class_name（普通怪）→ 直接读 atk/def 字段
+                         #   ⚠️ 不是身份：带 class_name 的怪仍属 enemy side
+    "level": int,        # 等级——等级压制（高打低增伤）/技能解锁/面板成长
+    "equipment": dict,   # 装备 {槽位: 装备dict}（玩家有；怪通常空）——面板/词条来源
+    "skills": list,      # 可用技能 key 列表——AI/玩家技能菜单
+    "auto_act": dict|None,  # 自动行为配置（human_controlled=False 的 actor 用）
+                            #   {trigger, act:{type,skill...}, interval...}
+                            #   调度器读它决定自动 actor 怎么动（行为树是外部扩展）
+    "learned_skills": dict, # 已学被动/技能等级（玩家）
+    "side_effects": ...,     # （按需扩展，字段即能力，缺字段=无此行为）
 }
 
 # sides 组织
