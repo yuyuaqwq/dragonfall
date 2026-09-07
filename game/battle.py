@@ -6785,8 +6785,13 @@ class Battle:
                             + f"，连击 {multi} 次，共造成 {total} 点伤害！")
             else:
                 # v127.3 多怪时日志带目标名（a1 指定/自动选择都显示打了谁；单怪保持原文案）
+                # v181 fix：目标名必须取真正承伤 actor（_target_ctx = 管线结算目标：
+                # 玩家打怪=被选中的怪；怪打玩家=玩家），不能取 _active_target
+                # （那是玩家视角选中目标——怪施法时可能残留为怪自己/其他怪 → 日志
+                # 误显示"怪打怪"，实际伤害打在玩家身上。玩家反馈古王王冠核心"内战"实为
+                # 此显示错位，伤害结算一直正确）。
                 _alive_n2 = sum(1 for u in self.enemies if u.get("hp", 0) > 0)
-                _tg_d2 = getattr(self, "_active_target", None) or self._tgt()
+                _tg_d2 = self._target_ctx or getattr(self, "_active_target", None) or self._tgt()
                 _tgtxt2 = f"对【{_tg_d2.get('name', '敌人')}】" if _alive_n2 > 1 and _tg_d2 else ""
                 logs.append(_subj_verb
                             + f"，{_tgtxt2}造成 {total} 点伤害！")
