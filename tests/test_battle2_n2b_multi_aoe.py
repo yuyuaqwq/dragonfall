@@ -79,7 +79,7 @@ def new_player(cls, level, skill_keys, skill_names, st):
 def new_battle(p, mons):
     es = [make_actor(uid=f"e_{i}", name=m["name"], side="enemy", kind="monster",
                      hp=m["hp"], max_hp=m["max_hp"], atk=m["atk"], **{"def": m["def"]},
-                     matk=m["matk"], mdef=m["mdef"], spd=m["spd"], crit=m["crit"], lv=5)
+                     matk=m["matk"], mdef=m["mdef"], spd=m["spd"], crit=m["crit"], level=5)
           for i, m in enumerate(mons)]
     return BT_NEW(btype="monster", sides={"player": [p], "enemy": es})
 

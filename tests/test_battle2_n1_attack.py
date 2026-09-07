@@ -84,7 +84,7 @@ def run_pair(seed, cls, level, mdef, label):
     st_new = E.player_final_stats(cls, level, {}, 0, {}, 1)
     m_new = make_actor(uid="e_0", name="测试怪", side="enemy", kind="monster",
                        hp=100000, max_hp=100000, atk=10, **{"def": mdef},
-                       matk=5, mdef=5, spd=5, crit=0.05, lv=5)
+                       matk=5, mdef=5, spd=5, crit=0.05, level=5)
     p_actor = make_actor(uid="p_q1", name="测试勇者", side="player", kind="player",
                          human_controlled=True, class_name=cls, level=level,
                          hp=99999, max_hp=int(st_new["max_hp"]),
@@ -128,7 +128,7 @@ def test_battle_ends_on_kill():
     st_new = E.player_final_stats("战士", 10, {}, 0, {}, 1)
     m_new = make_actor(uid="e_0", name="小怪", side="enemy", kind="monster",
                        hp=30, max_hp=30, atk=10, **{"def": 0},
-                       matk=5, mdef=5, spd=5, crit=0.05, lv=1)
+                       matk=5, mdef=5, spd=5, crit=0.05, level=1)
     p_actor = make_actor(uid="p_q1", name="测试勇者", side="player", kind="player",
                          human_controlled=True, class_name="战士", level=10,
                          hp=99999, max_hp=330, mp=67, max_mp=67,
@@ -150,7 +150,7 @@ def test_battle_defeat_when_player_dies():
     st_new = E.player_final_stats("法师", 5, {}, 0, {}, 1)
     m_new = make_actor(uid="e_0", name="强怪", side="enemy", kind="monster",
                        hp=100000, max_hp=100000, atk=500, **{"def": 5},
-                       matk=500, mdef=5, spd=5, crit=0.05, lv=10)
+                       matk=500, mdef=5, spd=5, crit=0.05, level=10)
     p_actor = make_actor(uid="p_q1", name="测试勇者", side="player", kind="player",
                          human_controlled=True, class_name="法师", level=5,
                          hp=10, max_hp=10, mp=67, max_mp=67,

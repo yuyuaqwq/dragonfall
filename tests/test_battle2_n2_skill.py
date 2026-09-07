@@ -91,7 +91,7 @@ def new_player(cls, level, skill_keys, skill_names, st, hp0=99999, mp0=None):
 def new_battle(p, mdef=5):
     m = make_actor(uid="e_0", name="测试怪", side="enemy", kind="monster",
                    hp=100000, max_hp=100000, atk=10, **{"def": mdef},
-                   matk=5, mdef=mdef, spd=5, crit=0.05, lv=5)
+                   matk=5, mdef=mdef, spd=5, crit=0.05, level=5)
     return BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
 
 

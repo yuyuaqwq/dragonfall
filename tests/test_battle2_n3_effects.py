@@ -71,7 +71,7 @@ def make_actors(cls="战士", level=10, skill_keys=(), skill_names=()):
                    **{k: st[k] for k in ("atk", "matk", "def", "mdef", "spd", "crit") if k in st})
     m = make_actor(uid="e_0", name="测试怪", side="enemy", kind="monster",
                    hp=100000, max_hp=100000, atk=10, **{"def": 5},
-                   matk=5, mdef=5, spd=5, crit=0.05, lv=5)
+                   matk=5, mdef=5, spd=5, crit=0.05, level=5)
     return p, m, st
 
 
@@ -220,7 +220,7 @@ def test_state_scale():
     def hit_dmg(p_atk, state_rage):
         mon = make_actor(uid="e0", name="靶", side="enemy", kind="monster",
                          hp=100000, max_hp=100000, atk=10, **{"def": 0},
-                         matk=5, mdef=0, spd=5, crit=0.05, lv=1)
+                         matk=5, mdef=0, spd=5, crit=0.05, level=1)
         p = make_actor(uid="p1", name="打手", side="player", kind="player",
                        human_controlled=True, class_name="战士", level=1,
                        hp=999, max_hp=999, mp=100, max_mp=100,
