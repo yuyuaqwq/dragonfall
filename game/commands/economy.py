@@ -29,6 +29,7 @@ from ..services import profession as _prof_svc  # v181.P4-7 ProfessionService �
 # 存储走 timed_events.set_timed/get_timed/remove_timed（内部 key "prof_wait"）。
 # v181.P4-7：状态机/结算/彩蛋已迁 services/profession.py（timed_events 引擎 on_expire 注册
 # prof_wait_expire_cb 随迁 service 模块顶层）——命令层只留解析 + 守卫 + yield 壳。
+# （兼容断言指针：_prof_wait_expire_cb → services.profession.prof_wait_expire_cb，见上）
 
 
 # v101.25e 商店装备价格系数（鱼鱼拍板数值方案：商店价 = 确定性推导价 × 品质系数）
