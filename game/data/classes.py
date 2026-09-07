@@ -16,6 +16,8 @@ v139 职业融合（云海猎团职业卡吸收，13 份方案 design/new_world/
   新增职业级机制字段（说明性引用，值与 core_resources.py / battle_config.py 同名字段同构，
   由 battle.py 通用引擎机消费——dual_form 双形态 / focus 架设态 / vent 排气节流阀 /
   charge 电荷蓄力 / enemy_bar 挂敌身条 / combo 链值 / support 随附支援 / dirge 死歌 等）：
+  P2E（2026-09-07）：classes 内机制参数字段与 battle_config/core_resources 并存属历史双源；
+  删除评估在数据批次（combo dict 已随 P2E-P2a 删），引擎读 core_resources / battle_config。
     cls_zhan_shi      dual_form（攻线狂战士狂暴）
     cls_fa_shi        focus（元素架设）
     cls_you_xia       vent + charge（凝神屏息 + 电荷蓄力）
@@ -333,13 +335,11 @@ CLASSES = {
             "data_field": "player.event_state.finisher_threshold",
             "default": "满刃", "options": ["快刀", "满刃", "残血", "满段"],
         },
-        # v139（云海盗贼段数三线投喂翻译）：攻线连段链值 combo——COMBO_CFG（battle_config.py）
-        # cap 10 / 追加段 ≥5 / 终结每层 +5% / 暴击注入 ≥8 / 旋锋锁死 ≥8；只喂攻线（守线=毒层轴）
-        "combo": {
-            "cap": 10, "chase_at": 5, "chase_power": 0.5,
-            "finish_min": 3, "per_layer": 0.05, "max_bonus": 0.40,
-            "inject_at": 8, "spin_lock": 8,
-        },
+        # v139（云海盗贼段数三线投喂翻译）：攻线连段链值 combo——数值权威 = battle_config
+        # COMBO_CFG（P2E 后 = MECH_CFG['assassin_combo']）：cap 10 / finish_min 3 /
+        # per_layer 0.05 / max_bonus 0.40 / class_id cls_ci_ke / path 1。
+        # 机制 TODO（未实装设计，零读字段不保留数值 dict）：chase_at 5 / chase_power 0.5
+        # （追加段触发）/ inject_at 8（暴击注入链值）/ spin_lock 8（旋锋锁死不累积）——引擎只读 COMBO_CFG。
         "attack_text": "匕首突刺",
         "basic_skill": {"name": "暗刺", "kind": "物理", "exprs": ["atk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True, "trigger_hit": True, "cast_verb": "匕首突刺"},
         "tutor": ("暗影渡鸦", "铁港城·港口广场"),
