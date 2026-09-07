@@ -15,6 +15,7 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
+from ..services.auction import settle_expired_auction  # v181 P4-5：拍卖状态机服务化（过期结算+清槽单点）
 from ..commands.base import CommandBase, require_player
 # v116 公会成长纵深：新数据表/存取函数不经 __init__ 聚合导出，
 # 直接本地 import，避免改动 data/__init__、store/__init__（与并行改动的 agent 冲突）。
@@ -1327,10 +1328,11 @@ class SocialCmds(CommandBase):
         import random as _rnd
         cur = db.get_world_event(include_expired=True)
         now = int(time.time())
-        # 当前事件过期 → 清除（v104R3 P1-1：过期拍卖必须先走 _settle_auction 结算——
+        # 当前事件过期 → 清除（v104R3 P1-1：过期拍卖必须先走结算——
         # 否则出价金币随 bids 记录一起销毁，永久丢失；Boss 事件由各自指令处理）
         if cur and now >= cur["ends_at"]:
             if cur["etype"] == "auction":
+                # v181 P4-5：结算本体+过期判定已下沉 services.auction；过期拍卖在此先结算后清槽
                 try:
                     _lines = self._settle_auction(cur, group_id)
                     if _lines:
@@ -1404,11 +1406,9 @@ class SocialCmds(CommandBase):
         cur = db.get_world_event()
         now = int(time.time())
         if not cur:
-            # 是否有过期的拍卖待结算
-            expired = db.get_world_event(include_expired=True)
-            if expired and expired["etype"] == "auction" and now >= expired["ends_at"]:
-                lines = self._settle_auction(expired, group_id)
-                db.clear_world_event()
+            # 是否有过期的拍卖待结算（过期结算+清槽收敛至 services.auction.settle_expired_auction）
+            lines = settle_expired_auction(group_id)
+            if lines:
                 broadcast_text = f"🏪 【拍卖行 · 落槌结算】\n{lines}"
                 try:
                     await self._broadcast(broadcast_text)
@@ -1440,37 +1440,9 @@ class SocialCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     def _settle_auction(self, cur, group_id: str) -> str:
-        """拍卖到期结算：最高价者得物品，其余退还。返回结算文本"""
-        if not cur or cur["etype"] != "auction":
-            return "拍卖行已关闭。"
-        items = cur["data"].get("items", [])
-        lines = []
-        for it in items:
-            if it["bids"]:
-                top_qq = max(it["bids"], key=it["bids"].get)
-                amount = it["bids"][top_qq]
-                # 发放装备（v48：品质档英文 ID；key 用唯一 id 而非装备名）
-                # v104 P1：直接发放初始化时存好的完整 equip（展示什么发什么），
-                # 不再以 lv30/purple 重新生成；旧数据(无 equip)按存字段兜底
-                import uuid as _uuid
-                equip = it.get("equip") or C.generate_equip(it["slot"], it.get("lv", 30), it.get("quality", "purple"))
-                db.add_item(group_id, top_qq, f"eq_{_uuid.uuid4().hex[:8]}", equip, count=1)
-                p = self._player(group_id, top_qq)
-                name = p["name"] if p else top_qq
-                lines.append(f"🎉 {name} 以 {amount} 金币拍得【{it['name']}】！")
-                # 退还其他出价者
-                for qq2, amt2 in it["bids"].items():
-                    if qq2 != top_qq:
-                        p2 = self._player(group_id, qq2)
-                        if p2:
-                            db.update_player(group_id, qq2, gold=p2["gold"] + amt2)
-                            lines.append(f"↩️ 退还 {p2['name']} {amt2} 金币")
-            else:
-                lines.append(f"💤 【{it['name']}】无人出价，流拍。")
-        # v104R3 P2：落槌价去向说明（复验点12：赢家金币为系统回收，无文案说明）
-        if any(it.get("bids") for it in items):
-            lines.append("💰 落槌价已由拍卖行收讫(系统回收)，未成交者的出价已全额退还。")
-        return "\n".join(lines)
+        """（v181 P4-5 兼容壳：转调 game/services/auction.settle_auction——拍卖到期结算本体已下沉 service）"""
+        from ..services.auction import settle_auction as _sa
+        return _sa(cur, group_id)
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?竞拍(?:\s*|$)")
     @require_player()
@@ -1482,11 +1454,9 @@ class SocialCmds(CommandBase):
         cur = db.get_world_event()
         now = int(time.time())
         if not cur:
-            # 过期的拍卖待结算
-            expired = db.get_world_event(include_expired=True)
-            if expired and expired["etype"] == "auction" and now >= expired["ends_at"]:
-                lines = self._settle_auction(expired, group_id)
-                db.clear_world_event()
+            # 过期的拍卖待结算（过期结算+清槽收敛至 services.auction.settle_expired_auction）
+            lines = settle_expired_auction(group_id)
+            if lines:
                 broadcast_text = f"🏪 【拍卖行 · 落槌结算】\n{lines}"
                 try:
                     await self._broadcast(broadcast_text)

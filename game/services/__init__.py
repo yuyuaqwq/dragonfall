@@ -23,3 +23,6 @@ from .shop import (  # noqa: F401
     fish_weight_max, sell_one, apprentice_protect_mats,
     buy_index_dispatch, buy_weapon_fn, limit_buy_guard, limit_label,
 )
+from .auction import (  # noqa: F401
+    settle_auction, settle_expired_auction, save_auction_state,
+)
