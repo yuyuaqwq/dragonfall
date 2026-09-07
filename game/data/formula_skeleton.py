@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """奥兰迪亚·余烬纪年数据层 - formula_skeleton.py（P2F-1：2026-09-07 鱼鱼拍板公式骨架参数化）
 
-底层公式骨架数值（F2/F3/F4/F7/F9/F15/F16 纯参数批）。默认值 = 重构前引擎字面量，
+底层公式骨架数值（P2F-1 纯参数批 F2/F3/F4/F7/F9/F15/F16 + P2F-2 追加）。默认值 = 重构前引擎字面量，
 行为零变化；公式结构（分支/截断序/随机）仍由 core/engine 执行器承担。
 
 改数值 = 改这里（数值进 data）；公式结构见 REFACTOR_P2F_formula_skeleton.md §3/§4。
@@ -15,6 +15,9 @@
                      skill_buff_turns / skill_lifesteal_pct（成长默认值，调用方可传参覆盖）
 - skill_learn_cost→ engine.py skill_learn_cost（技能点定价）
 - prof_exp_need   → core/constants.py prof_exp_need（副业经验二次曲线，函数本体仍在 constants）
+- equip_crit      → core/stats.py equip_stats（武器/戒指暴击修正，P2F-2）
+- necklace_mdef   → core/stats.py equip_stats（项链 mdef 修正，P2F-2）
+- boss_atk_legacy → core/stats.py _boss_atk_stage（v169.3 boss 旧减速曲线段表 + floor，P2F-2）
 """
 FORMULA_SKELETON = {
     # ---- F2 exp_to_next 超出 100 级兜底（core/stats.py:253）----
@@ -50,4 +53,20 @@ FORMULA_SKELETON = {
     # ---- F16 副业经验曲线（core/constants.py:192-203）----
     # need(lv) = a*lv² + b*lv（v105 平衡曲线，累计 2100 满级；函数本体仍在 constants.py）
     "prof_exp_need": {"a": 5, "b": 15},
+
+    # ---- F5 equip_stats 修正系数（core/stats.py:203-206，P2F-2 参数化）----
+    # v156：武器/戒指 blue+ 品质 crit 修正——crit = round((base + per_lv*lv/per_lv_div)*(mult-1), 3)
+    #       （现状字面量 0.02 + 0.01*lv/10；默认=现状，行为零变化）
+    "equip_crit": {"base": 0.02, "per_lv": 0.01, "per_lv_div": 10},
+    # v156：项链 blue+ 品质 mdef 修正——mdef += int(flat*mult)（现状字面量 int(3*mult)）
+    "necklace_mdef": {"flat": 3},
+
+    # ---- F12 v169.3 boss 专用 atk 旧减速曲线（core/stats.py:42-51，P2F-2 表驱动）----
+    # 31-60 级每级 -0.5%、61+ 每级 -0.4%，夹 max(floor, …) 防负 atk。
+    # 表语义与 stat_templates 段乘区一致（首段末值 1.0，起点 lv=0 处 1.0）：
+    #   段 ((30,0),(60,-0.005),(999,-0.004))：≤30 → 1.0；31-60 → 1.0-(lv-30)*0.005；
+    #   61+ → 0.85-(lv-60)*0.004（floor 0.2 于 lv≥223 兜底，现状 max(0.2,…) 同语义）。
+    # ⚠️ 消费侧 monster_stats boss 分支两级 int 截断序（int(线性×本曲线) 再 ×段乘区 int）
+    #   绝不重排——monster_curve 门禁 Lv60 boss atk=1217 锁定（见 §6 风险 1）。
+    "boss_atk_legacy": {"seg": ((30, 0.0), (60, -0.005), (999, -0.004)), "floor": 0.2},
 }

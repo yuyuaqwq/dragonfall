@@ -5,7 +5,9 @@ from ..data import (
     MONSTER_ROLE_BASE, MONSTER_ROLE_GROWTH, QUALITY,
     NORMAL_HP_STAGE_MULT, BOSS_ATK_STAGE_MULT,   # v156 阶段 6 怪物数值修复
     INSTANCE_BOSS_ATK_STAGE_MULT,  # v173.1 副本 Boss atk 段乘区（area=instance）
+    HP_STAGE_MULT, ATK_STAGE_MULT,  # P2F-2 hp/atk 分段曲线表（v131 收缓/v169.3 正斜率，原函数体数值）
     FORMULA_SKELETON,  # P2F-1 底层公式骨架参数（exp_to_next 兜底 / monster_exp / monster_gold）
+    WEAPON_DIST, ARMOR_FAMILY, ARMOR_FAMILY_ALIAS,  # P2F-2 v156 装备分系表下沉（data/equipment.py）
 )  # v102.5 模板表下沉 data/stat_templates.py
 
 
@@ -18,14 +20,9 @@ from ..data import (
 #   100 级 ×1.28，怪攻击成长不再滞后玩家防御；配合 MONSTER_ROLE_GROWTH atk 上调）
 def hp_stage_mult(lv: int) -> float:
     # v131 收缓（2026-08-27）：16-30 段 8%→5%（30 级 1.75）、31-60 段 4%→3%（60 级 2.65）、61+ 3%→2%（100 级 3.45）
-    # 原：≤15=1.0；16-30: 1+(lv-15)*0.08；31-60: 2.2+(lv-30)*0.04；61+: 3.4+(lv-60)*0.03
-    if lv <= 15:
-        return 1.0
-    if lv <= 30:
-        return 1.0 + (lv - 15) * 0.05
-    if lv <= 60:
-        return 1.75 + (lv - 30) * 0.03
-    return 2.65 + (lv - 60) * 0.02
+    # P2F-2：分段点/斜率 → data/stat_templates.py HP_STAGE_MULT（_stage_mult 同款表语义，
+    #   首段末值 1.0；逐 lv 1..200 等值探针 tests/test_numeric_p2f2_curve_tables.py 锁）。
+    return _stage_mult(HP_STAGE_MULT, lv)
 
 
 def atk_stage_mult(lv: int) -> float:
@@ -34,21 +31,21 @@ def atk_stage_mult(lv: int) -> float:
     # ≤30 级保持 1.0（新手期裸装口径）；31 级起线性微增，100 级 ×1.28，无负斜率。
     # ⚠️ 消费侧：仅普通怪（tank/dps/caster/speedster/healer）与精英乘本函数；boss 走
     #   独立 _boss_atk_stage（旧减速曲线 + 下限 clamp），避免 boss 双重段乘区爆表。
-    if lv <= 30:
-        return 1.0
-    return 1.0 + (lv - 30) * 0.004
+    # P2F-2：分段点/斜率 → data/stat_templates.py ATK_STAGE_MULT（表驱动，等值探针锁）。
+    return _stage_mult(ATK_STAGE_MULT, lv)
 
 
 def _boss_atk_stage(lv: int) -> float:
     """v169.3 boss 专用 atk 等级曲线（保留 v169.2 减速曲线，数值完全一致）：
     31-60 级每级 -0.5%、61+ 每级 -0.4% 并夹 max(0.2, …) 防未来等级上限提升出现负 atk。
     boss 后期 atk 成长由 BOSS_ATK_STAGE_MULT（stat_templates v156 段乘区）承担，
-    本曲线只为维持 boss 级内面板与旧版一致（BOSS_ATK_STAGE_MULT 门禁 8~12% 口径不动）。"""
-    if lv <= 30:
-        return 1.0
-    if lv <= 60:
-        return 1.0 - (lv - 30) * 0.005
-    return max(0.2, 0.85 - (lv - 60) * 0.004)
+    本曲线只为维持 boss 级内面板与旧版一致（BOSS_ATK_STAGE_MULT 门禁 8~12% 口径不动）。
+    P2F-2：段表 + floor → data/formula_skeleton.py FORMULA_SKELETON["boss_atk_legacy"]
+      （seg=((30,0),(60,-0.005),(999,-0.004))，floor=0.2；表语义与 _stage_mult 一致：
+      ≤30 → 1.0；31-60 → 1.0-(lv-30)×0.005；61+ → 0.85-(lv-60)×0.004，夹 floor）。
+    """
+    _bal = FORMULA_SKELETON["boss_atk_legacy"]
+    return max(_bal["floor"], _stage_mult(_bal["seg"], lv))
 
 
 def _stage_mult(segments: tuple, lv: int) -> float:
@@ -148,25 +145,10 @@ def monster_stats(lv: int, role: str, area: str | None = None) -> dict:
         stats["dot_res"] = 0.8
     return stats
 
-# v156 装备分系表：武器按 weapon_type 分系（atk/matk 分配），防具按需求属性族分系
-# 物理武器（剑/匕/拳/弓/枪）atk 为主；法系武器（法杖/锤）matk 为主；盾 防御向
-# 防具：str/vit（重甲）HP高、agi（皮甲）spd中、int（布甲）mdef高
-WEAPON_DIST = {
-    "sword":  {"atk": 1.0, "matk": 0.1},
-    "dagger": {"atk": 1.0, "matk": 0.1},
-    "fist":   {"atk": 1.0, "matk": 0.1},
-    "bow":    {"atk": 1.0, "matk": 0.1},
-    "spear":  {"atk": 0.9, "matk": 0.2},
-    "staff":  {"atk": 0.1, "matk": 1.0},
-    "mace":   {"atk": 0.6, "matk": 0.6},
-    "shield": {"atk": 0.3, "matk": 0.3},
-}
-ARMOR_FAMILY = {
-    "heavy": {"hp_mult": 1.6, "def_mult": 1.4, "mdef_mult": 0.7, "spd_mult": 0.6},   # str/vit 重甲
-    "leather": {"hp_mult": 1.0, "def_mult": 1.0, "mdef_mult": 1.0, "spd_mult": 1.3}, # agi 皮甲
-    "cloth": {"hp_mult": 0.6, "def_mult": 0.7, "mdef_mult": 1.5, "spd_mult": 0.9},   # int 布甲
-}
-ARMOR_FAMILY_ALIAS = {"str": "heavy", "vit": "heavy", "agi": "leather", "int": "cloth"}
+# v156 装备分系表（P2F-2 下沉 data/equipment.py——纯 dict 零函数；此处仅从 data 聚合再导出，
+# 保持 core.stats.ARMOR_FAMILY_ALIAS / WEAPON_DIST 旧引用名可用：drops.py:3 / economy.py:196 直引）
+#   武器按 weapon_type 分系（atk/matk 分配），防具按需求属性族分系——数值见 data/equipment.py 注释。
+__all__ = []  # 本文件无 __all__ 限制（core/stats 函数均经 core/__init__ 聚合）；占位防误读
 
 def equip_stats(slot: str, lv: int, quality: str,
                 weapon_type: str | None = None,
@@ -175,9 +157,9 @@ def equip_stats(slot: str, lv: int, quality: str,
 
     v156 装备分系（可选参数，默认 None = 旧行为，36 调用点零破坏）：
       - weapon_type: 武器分系（sword/dagger/fist/bow/spear 物理 atk 主；
-                      staff/mace 法系 matk 主；shield 防御向）
+                      staff/mace 法系 matk 主；shield 防御向）——表 data/equipment.py WEAPON_DIST
       - armor_family: 防具分系（heavy 重甲 HP高/def高；leather 皮甲 spd高；
-                       cloth 布甲 mdef高）
+                       cloth 布甲 mdef高）——表 data/equipment.py ARMOR_FAMILY
     只有装备生成路径显式传参才生效，其余调用保持原样。
     """
     mult = QUALITY[quality]["mult"]
@@ -200,10 +182,16 @@ def equip_stats(slot: str, lv: int, quality: str,
                          ("mdef", fam["mdef_mult"]), ("spd", fam["spd_mult"])):
                 if k in stats:
                     stats[k] = int(stats[k] * m)
+    # P2F-2：crit/项链修正系数进 data/formula_skeleton.py（FORMULA_SKELETON["equip_crit"] /
+    #   ["necklace_mdef"]；默认=现状字面量，行为零变化）
+    #   注意保持原 int 截断序：先 int((base+scaling*lv)*mult) 再逐段 int(×分系乘数)，绝不重排。
     if slot in ("weapon", "ring") and quality in ("blue", "purple", "orange"):
-        stats["crit"] = round((0.02 + 0.01 * lv / 10) * (QUALITY[quality]["mult"] - 1), 3)
+        _ec = FORMULA_SKELETON["equip_crit"]
+        stats["crit"] = round((_ec["base"] + _ec["per_lv"] * lv / _ec["per_lv_div"])
+                              * (QUALITY[quality]["mult"] - 1), 3)
     if slot == "necklace" and quality in ("blue", "purple", "orange"):
-        stats["mdef"] += int(3 * mult)
+        _nm = FORMULA_SKELETON["necklace_mdef"]
+        stats["mdef"] += int(_nm["flat"] * mult)
     return stats
 
 
