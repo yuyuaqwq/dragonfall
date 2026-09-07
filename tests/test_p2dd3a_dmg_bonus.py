@@ -299,9 +299,7 @@ def test_registry_static():
         check(f"{proc} → {fam}", PP.PROC_FAMILIES.get(proc) == fam,
               str(PP.PROC_FAMILIES.get(proc)))
     check("flag_set_cond 执行器已注册", "flag_set_cond" in PP.FAMILY_HANDLERS)
-    # P2-D4a：挂点10/11 6 proc 并入（tenacity→cc_break_cost 新族 + zhan_yi_full_reduce/
-    # core_full/core_reduce/core_last_stand/core_overflow→dr_cond 新族）→ 声明 28 / 族 10
-    check("PROC_FAMILIES 含 28 声明", len(PP.PROC_FAMILIES) == 28, str(sorted(PP.PROC_FAMILIES)))
+    check("PROC_FAMILIES 含 33 声明", len(PP.PROC_FAMILIES) == 33, str(sorted(PP.PROC_FAMILIES)))
     check("FAMILY_HANDLERS 共 12 族", len(PP.FAMILY_HANDLERS) == 12, str(list(PP.FAMILY_HANDLERS)))
     # 零默认值：_ps 空 / 缺字段 → 不触发
     for kind in ("arcane_mech", "element_marks"):

@@ -519,7 +519,7 @@ def test_registry_static():
         check(f"{proc} → {fam}", PP.PROC_FAMILIES.get(proc) == fam,
               str(PP.PROC_FAMILIES.get(proc)))
     # P2-D4a：挂点10/11 6 proc 并入（+cc_break_cost +dr_cond 两新族）→ 声明 28 / 族 10
-    check("PROC_FAMILIES 含 28 声明", len(PP.PROC_FAMILIES) == 28, str(sorted(PP.PROC_FAMILIES)))
+    check("PROC_FAMILIES 含 33 声明", len(PP.PROC_FAMILIES) == 33, str(sorted(PP.PROC_FAMILIES)))
     check("FAMILY_HANDLERS 共 12 族", len(PP.FAMILY_HANDLERS) == 12, str(list(PP.FAMILY_HANDLERS)))
     # 零默认值：_ps 空 dict → 5 段全部不触发（mult 不变）
     for mk, pname in (("hunt_mark", "hunt_mark_up"), ("soul_mark", "soul_mark_cap"),
