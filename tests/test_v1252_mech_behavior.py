@@ -272,13 +272,22 @@ def section_daily_settle(m):
     WORLD._settle_daily_quest(m, "g", qq, daily, dq, lines2)
     check("二次结算 _completed 递增", daily.get("_completed") == 2, str(daily))
     check("二次结算 _repeat 递增", daily.get("_repeat", {}).get(dq["name"]) == 2, str(daily))
-    # 双路径一致：combat 与 world 引用同一函数
-    check("combat._settle_daily_quest is world._settle_daily_quest",
-          COMBAT._settle_daily_quest is WORLD._settle_daily_quest)
-    check("world._bump_daily_progress 调用单点",
-          "_settle_daily_quest(" in inspect.getsource(WORLD.WorldCmds._bump_daily_progress))
-    check("combat._update_quests 调用单点",
-          "_settle_daily_quest(" in inspect.getsource(COMBAT.CombatCmds._update_quests))
+    # 双路径一致（v181 P4-1）：world 模块级兼容壳与 combat 模块级 import 都绑定同一实现。
+    # combat.py 原 from .world import _settle_daily_quest 已改 from ..services.quests import settle_daily_quest；
+    # 故 combat 模块属性是 services 实现本身，world 模块属性是兼容壳——两者行为同一（壳转调 services）。
+    from data.plugins.dragonfall.game.services.quests import settle_daily_quest as _svc_settle
+    check("combat 模块级 import 即 services.settle_daily_quest",
+          COMBAT.settle_daily_quest is _svc_settle)
+    check("world._settle_daily_quest 兼容壳转调 services（同实现）",
+          WORLD._settle_daily_quest.__doc__ and "services" in WORLD._settle_daily_quest.__doc__)
+    check("services.settle_daily_quest 即世界唯一实现",
+          _svc_settle.__module__ == "data.plugins.dragonfall.game.services.quests")
+    check("world._bump_daily_progress 调用单点（转调 services）",
+          "services" in inspect.getsource(WORLD.WorldCmds._bump_daily_progress)
+          and "_settle_daily_quest(" not in inspect.getsource(WORLD.WorldCmds._bump_daily_progress))
+    check("combat._update_quests 调用单点（services.settle_daily_quest 直调）",
+          "services.quests" in inspect.getsource(COMBAT.CombatCmds._update_quests)
+          and "_settle_daily_quest(self" not in inspect.getsource(COMBAT.CombatCmds._update_quests))
 
 
 # ================= 7. s64 collect_count 无 count 交付不崩 =================
