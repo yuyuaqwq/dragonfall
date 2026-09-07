@@ -602,6 +602,130 @@ _EXTRA_DMG_SOURCE = {
     "novice_lifesteal": "🩸 吸血",
 }
 
+# ---------------------------------------------------------------- proc_next_atk_mark（5 key）
+# 下次攻击标记族：生产事件（skill_hit 三相/破岳/咒刃、skill_cast 星火、kill 暮裂）置标记
+# → passive 消费段（trinity/mountain 要求 ctx.attack、oath/dusk 无条件；mult 乘标记后清标）。
+# 覆盖 trinity_rhythm/mountain_break/oath_blade/novice_spark_followup/dusk_blade。
+# ⚠️ 标记键全部读表 mark_key/extra_key/buff_key/used_key/stack_key（C7 铁律：编排层零内容名）。
+# 消费方注意：battle passive 挂点 ctx 不带 attack 键（_skill_finalize_damage/他挂点均不传）——
+# trinity/mountain/retort 旧 handler 的 ctx.get("attack") 判定恒 False ⇒ passive 段永不消费，
+# 原消费链 = battle 直读 eff 标记（novice_spark 在 _skill_finalize_damage 6715 / we_oath 在
+# _decay_buff_table 9453 / 其余标记键无 battle 直读点）。执行器与旧 handler 逐语句等价
+# （含"ctx.attack 门恒 False 不消费不清标"语义——保持零变化）。
+
+def _we_exec_next_atk_mark(battle, player, ctx, logs, wd, key, event):
+    """下次攻击标记执行器：生产段置标（skill_hit/skill_cast/kill）→ passive 消费段乘区清标。
+
+    与旧 handler 逐语句等价（C7 目标：行为零变化）。生产段：
+    - skill_hit：trinity（置 we_trinity + we_trinity_thunder）/ mountain（we_mountain）/
+      oath（we_oath）——无 RNG、无日志（旧 handler 仅置标）
+    - skill_cast：novice_spark_followup（stacks.novice_spark=True + 原文案日志）
+    - kill：dusk_blade（每场 1 次 used_key → buffs.stealth + eff.we_dusk_dmg + 原文案日志）
+    passive 消费段：trinity/mountain/retort 旧 handler 判 ctx.attack（battle 恒不传 ⇒ 空转）；
+    oath 无 attack 门——we_oath 标记消费（mult ×(1+atk_pct) + tag 后清）；dusk 无 attack 门——
+    we_dusk_dmg 消费（mult ×(1+atk_pct 表值——next_atk_pct/atk_pct 同 0.30) + tag 后清）。
+    """
+    eff = player.setdefault("eff", {})
+    stacks = player.setdefault("stacks", {})
+    if event != "passive":
+        # ---- 生产段 ----
+        if key == "novice_spark_followup":
+            # skill_cast：星火法杖——下次普攻 +atk_pct（mech_stacks.novice_spark 标记，_player_attack 消费）
+            stacks[wd["stack_key"]] = True
+            logs.append(wd.get("log") or "✨ 星火：下次普攻伤害 +10%！")
+            return
+        if key == "dusk_blade":
+            # kill：暮裂潜行——每场 1 次，潜行 + 下次攻击增伤标记
+            if eff.get(wd["used_key"]):
+                return
+            eff[wd["used_key"]] = True
+            player.setdefault("buffs", {})[wd["buff_key"]] = max(
+                int(player.setdefault("buffs", {}).get(wd["buff_key"], 0) or 0), 1)
+            eff[wd["mark_key"]] = float(wd.get("next_atk_pct") or wd.get("atk_pct") or 0.30)
+            logs.append(wd.get("log") or "🌒 暮裂潜行：击杀后遁入暗影，下一次攻击 +30% 且无视闪避！")
+            return
+        # skill_hit 三 key：trinity / mountain / oath —— 无条件置标（无 RNG 无日志）
+        if key == "trinity_rhythm":
+            eff[wd["mark_key"]] = float(wd["atk_pct"])
+            if wd.get("extra_key"):
+                eff[wd["extra_key"]] = float(wd.get("thunder_pct") or 0)
+            return
+        if key in ("mountain_break", "oath_blade"):
+            eff[wd["mark_key"]] = float(wd["atk_pct"])
+            return
+        return  # 其它事件 → 空转
+    # ===== passive 消费段 =====
+    if key == "trinity_rhythm":
+        # 三相：ctx.attack 门（battle 恒不传 False → 空转不清标——旧语义保留）
+        if ctx.get("attack") and eff.get(wd["mark_key"]):
+            ctx["mult"] = ctx.get("mult", 1.0) * float(eff.get(wd["mark_key"], float(wd.get("atk_pct") or 0.30)))
+            ctx["tags"] = ctx.get("tags", []) + ["⚡三相x1.30"]
+            eff.pop(wd["mark_key"], None)
+        return
+    if key == "mountain_break":
+        if ctx.get("attack") and eff.get(wd["mark_key"]):
+            ctx["mult"] = ctx.get("mult", 1.0) * float(eff.get(wd["mark_key"], float(wd.get("atk_pct") or 0.25)))
+            ctx["tags"] = ctx.get("tags", []) + ["⛰️破岳x1.25"]
+            eff.pop(wd["mark_key"], None)
+        return
+    if key == "oath_blade":
+        # 咒刃之誓：无 attack 门——有 we_oath 标记即消费（mult ×(1+atk_pct)）
+        if eff.get(wd["mark_key"]):
+            ctx["mult"] = ctx.get("mult", 1.0) * float(eff.get(wd["mark_key"], float(wd.get("atk_pct") or 0.25)))
+            ctx["tags"] = ctx.get("tags", []) + ["⚔️咒誓x1.25"]
+            eff.pop(wd["mark_key"], None)
+        return
+    if key == "dusk_blade":
+        # 暮裂：无 attack 门——we_dusk_dmg 消费
+        if eff.get(wd["mark_key"]):
+            ctx["mult"] = ctx.get("mult", 1.0) * float(eff.get(wd["mark_key"], float(wd.get("atk_pct") or 0.30)))
+            ctx["tags"] = ctx.get("tags", []) + ["🌒暮裂x1.30"]
+            eff.pop(wd["mark_key"], None)
+        return
+    return
+
+
+# ---------------------------------------------------------------- proc_retort_mark（4 key）
+# 反击标记族：taken 置 we_retort / guardian 敌弱化（e_buffs.mon_atk_down + _weaken_val）→
+# passive 消费段（retort：ctx.attack 门——battle 恒不传 ⇒ 空转，与旧 handler 逐字一致）。
+# 覆盖 gargoyle_retort/titan_retort/ranger_retort/guardian_will。
+# ⚠️ 三 retort 共享 we_retort 槽取 max（装备多件取最高强化——旧 handler max 语义）；
+#    passive 消费 handler 是 3 key 叠装饰器同一函数（_we_retort_p）——族内由当前装备 key
+#    各自注册 passive 事件，执行器按 key 消费同一槽（多件时 proc 遍历逐 key 空转/首件消费后清，
+#    与旧 has_effect 三查一消费语义等价——消费段仅"有标记即乘"不依赖 key）。
+
+def _we_exec_retort_mark(battle, player, ctx, logs, wd, key, event):
+    """反击/弱化标记执行器：taken 置标 → passive 消费（attack 门保留旧语义）。
+
+    与旧 handler 逐语句等价（C7 目标：行为零变化）：
+    - taken：gargoyle/titan/ranger → eff.we_retort = max(旧值, next_atk_pct)（无 RNG 无日志）；
+      guardian_will → chance 判定（0.08）→ e_buffs.mon_atk_down=1 + _weaken_val=weaken + 原文案日志
+    - passive：retort 三 key → ctx.attack 门（battle 恒不传 ⇒ 空转不清标——旧语义保留）
+    """
+    eff = player.setdefault("eff", {})
+    if event == "taken":
+        if key == "guardian_will":
+            if random.random() >= float(wd["chance"]):
+                return
+            battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 1)
+            battle.e_buffs["_weaken_val"] = max(float(battle.e_buffs.get("_weaken_val", 0) or 0),
+                                                float(wd["weaken"]))
+            logs.append(wd.get("log") or "🛡️ 卫士信念：敌人下一次攻击伤害 -25%！")
+            return
+        # retort 三 key：共享 we_retort 槽取 max（数值表 next_atk_pct 权威）
+        eff[wd["mark_key"]] = max(float(eff.get(wd["mark_key"], 0) or 0), float(wd["next_atk_pct"]))
+        return
+    if event == "passive":
+        # 与旧 _we_retort_p 逐字：ctx.attack 门（battle 恒不传 ⇒ 空转不清标——保留旧语义）
+        if ctx.get("attack") and eff.get("we_retort"):
+            mult = float(eff.get("we_retort", float(wd.get("fallback_pct") or 0.20)))
+            ctx["mult"] = ctx.get("mult", 1.0) * (1 + mult)
+            ctx["tags"] = ctx.get("tags", []) + [f"🛡️反击x{1 + mult:.2f}"]
+            eff.pop("we_retort", None)
+        return
+    return
+
+
 # ---------------------------------------------------------------- 注册表
 # 族名 → 执行器。key→族 由数据表 family 字段路由（proc() 分发器读表）。
 WE_EXECUTORS = {
@@ -613,6 +737,8 @@ WE_EXECUTORS = {
     "proc_passive_mult": _we_exec_passive_mult,
     "proc_stack": _we_exec_stack,
     "proc_extra_dmg": _we_exec_extra_dmg,
+    "proc_next_atk_mark": _we_exec_next_atk_mark,
+    "proc_retort_mark": _we_exec_retort_mark,
 }
 
 # 族内 key 专属文案/源（dot 触发源 / reflect 日志模板）——数据表未下沉文案时放这

@@ -94,6 +94,23 @@ def _basic_attack_verb(player: dict) -> str:
     return C.CLASSES.get(player.get("class_name", ""), {}).get("attack_text", "挥剑攻击")
 
 
+def _we_stack_key_of(battle, player, key: str) -> str:
+    """v181.P2C-C7：读武器特效数据表 stack_key 标记键（编排层零内容名）。
+
+    battle.py 编排层消费 proc_next_atk_mark 族置标时，标记键一律查表（不再硬编码
+    novice_spark 等键名）。缺表/异常按防御性回退旧键（effect_data 表 stack_key 权威
+    且 C1 全量核表，实际恒命中）。"""
+    try:
+        from .core.weapon_effects import effect_data as _we_ed2
+        _k = (_we_ed2(battle, player, key) or {}).get("stack_key")
+        if _k:
+            return str(_k)
+    except Exception:
+        pass
+    # 防御回退：与 data 表 stack_key 同值（novice_spark_followup → novice_spark）
+    return {"novice_spark_followup": "novice_spark"}.get(key, key)
+
+
 # BUFF_MULT 已下沉 game/data/battle_config.py（v176）
 # TEAM_BUFF_KEYS 已下沉 game/data/battle_config.py（v176）
 # v113.1：团队技能 reduce_all 真·百分比减伤（此前被 TEAM_BUFF_KEYS 误映射为 def_up 防御提升，
@@ -6712,14 +6729,16 @@ class Battle:
         # v174.1 星火（novice_spark_followup 星火法杖）：basic 普攻技命中消费星火标记（+X% 后清）。
         # 原语义"释放技能后下次普攻+10%"——basic_skill 即普攻，仅 basic 技触发，普通技能不消费。
         # v180E 阶段4：数值从武器特效参数表读（novice_spark_followup.atk_pct）
-        if info.get("basic") and self._cast_stacks().get("novice_spark"):
+        # v181.P2C-C7：消费点从"直读 mech_stacks.novice_spark + 硬编码键名"改查族执行器数据表
+        # （标记键/数值均读 weapon_effect_data 表 stack_key/atk_pct——编排层零内容名；行为零变化）
+        if info.get("basic") and self._cast_stacks().get(_we_stack_key_of(self, player, "novice_spark_followup")):
             try:
                 from .core.weapon_effects import effect_data as _we_ed
                 _spark_pct = float(_we_ed(self, player, "novice_spark_followup").get("atk_pct", 0.10) or 0.10)
             except Exception:
                 _spark_pct = 0.10
             total = int(total * (1 + _spark_pct))
-            del self._cast_stacks()["novice_spark"]
+            del self._cast_stacks()[_we_stack_key_of(self, player, "novice_spark_followup")]
             logs.append(f"✨ 星火x{1 + _spark_pct:.1f}：普攻伤害 +{int(_spark_pct * 100)}%！")
         # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
         # v177 双向：玩家施法=怪闪避（_target_dodge_check）；怪施法玩家技能=目标玩家闪避由 _deal_hit 内 _damage_actor 处理
@@ -9450,6 +9469,8 @@ class Battle:
             if k in ("fire_mark", "ice_mark", "thunder_mark"):
                 continue
             # 一次性 buff：攻击消费，不在时刻递减
+            # v181.P2C-C7：we_oath 属 proc_next_atk_mark 族（oath_blade 技能后置标，普攻消费
+            # 后由族被动段清）——同 next_atk_up 等一次性键保留"不按时刻递减"语义（原键语义零变化）
             if k in ("next_atk_up", "buff_phys_next", "stealth", "arcane_echo", "oath_blade_next", "we_oath"):
                 continue
             # reduce_all/shield：特殊语义，不按 int 递减
