@@ -54,6 +54,7 @@ from .core.constants import (  # v130.7 意见#28：逃跑成功率修正常量�
 from .core.tick_effects import TICK_HANDLERS as _TICK_HANDLERS  # v179 通用 tick 效果注册表（数据驱动）
 # v181.P2D-D1 被动 proc 注册表（proc → 机制族 handler + 分发；无注册 = 不触发）
 from .core.passive_procs import run_proc_family as _run_proc_family  # noqa: F401
+from .core.passive_procs import run_proc_family_pm as _run_proc_family_pm  # noqa: F401
 from .data.races import (  # v181.D P1-D 种族机制数据下沉（原模块级常量/标签内联 → data 单源）
     RACE_ATTACK_MULT as _RACE_ATTACK_MULT,
     UNDEAD_KEYWORDS as _UNDEAD_KEYWORDS,
@@ -8798,29 +8799,25 @@ class Battle:
                 _hp_part = min(_hp_part, max_hp * DOT_PCT_CAP)
             hp_part = _hp_part
             # v169.7 万毒归宗 poison_all_up（刺客毒线，caster 是玩家才查被动）
-            _poison_all_mult = 1.0
+            # v181.P2D-D5b：毒 DOT 乘区迁注册表族 dot_mult_cond（poison_all_up——守卫
+            # k==poison and _caster_is_player 由骨架保留；mult 引用槽改写读回——原 `_poison_all_mult
+            # *= 1.0+mult; break` 的 max=1 语义 = run_proc_family_pm 逐条等价）
             if k == "poison" and _caster_is_player:
-                try:
-                    for _pn_pa, _ps_pa in self._proc_pm(caster)["proc"].get("poison_all_up", []):
-                        _poison_all_mult *= 1.0 + float(_ps_pa.get("mult", 0.35) or 0.35)
-                        break
-                except Exception as _sw_e:
-                    _battle_warn('_tick_actor_dots', _sw_e)
-                    pass
+                _ctx_pa = {"player": caster, "ps": {}, "ps_name": "", "mult": _poison_all_mult}
+                _run_proc_family_pm(self, caster, "poison_all_up", _ctx_pa)
+                _poison_all_mult = _ctx_pa.get("mult", _poison_all_mult)  # handler 数值槽改写读回
             p = int((atk_part + hp_part) * n * mult * _poison_all_mult * (1 - res))
             # v169.7 剧毒之触 poison_weaken（caster 玩家毒怪 → 怪减速降防）
+            # v181.P2D-D5b：毒层 → 目标减速降防迁注册表族 dot_weaken（守卫：caster 玩家毒怪 +
+            # 条目存在 + n ≥ 首条 layers 由骨架保留；tgt_buffs 引用槽 = e.setdefault("buffs",{})
+            # 原循环体内逐条重取同 dict，调用侧取一次传入等价）
             if k == "poison" and _caster_is_player and not _tgt_is_player:
                 try:
                     _pw_list = self._proc_pm(caster)["proc"].get("poison_weaken", [])
                     if _pw_list and n >= int((_pw_list[0][1]).get("layers", 5) or 5):
-                        for _pn_pw, _ps_pw in _pw_list:
-                            _tgt_b = e.setdefault("buffs", {})
-                            _tgt_b["spd_down"] = max(int(_tgt_b.get("spd_down", 0) or 0), int(_ps_pw.get("spd_down", 2) or 2))
-                            _tgt_b["def_down"] = max(int(_tgt_b.get("def_down", 0) or 0), int(_ps_pw.get("def_down", 2) or 2))
-                            _tgt_b["_weaken_spd_pct"] = max(float(_tgt_b.get("_weaken_spd_pct", 0) or 0), 0.30)
-                            _tgt_b["_weaken_def_pct"] = max(float(_tgt_b.get("_weaken_def_pct", 0) or 0), 0.20)
-                            logs.append("☠️ 剧毒之触：毒层 ≥5，敌人减速降防！")
-                            break
+                        _ctx_pw = {"player": caster, "ps": {}, "ps_name": "", "logs": logs,
+                                   "tgt_buffs": e.setdefault("buffs", {})}
+                        _run_proc_family_pm(self, caster, "poison_weaken", _ctx_pw)
                 except Exception as _sw_e:
                     _battle_warn('_tick_actor_dots', _sw_e)
                     pass
