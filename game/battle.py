@@ -1136,11 +1136,26 @@ class Battle:
 
     @enemy.setter
     def enemy(self, val: dict):
-        """兼容写入：单怪场景外部改写 b.enemy = {...} 时同步主目标（enemies[0]）。"""
-        if not self.enemies:
-            self.enemies.append(self._wrap_enemy_unit(val, 0))
-        else:
-            self.enemies[0] = self._wrap_enemy_unit(val, 0)
+        """设置敌对主目标（v181.P3d）：写入 sides['enemy'] 组。
+
+        单怪场景外部 b.enemy = {...}（Boss 阶段测试手动指定主怪等）→ 该 actor
+        成为 enemy side 组首个，enemy property 能读回。"""
+        _u = self._wrap_enemy_unit(val, 0)
+        _u.setdefault("side", "enemy")
+        _u.setdefault("kind", "monster")
+        # sides 唯一容器
+        _sides = getattr(self, "sides", None)
+        if _sides is not None:
+            _pool = _sides.setdefault("enemy", [])
+            _uid = _u.get("uid")
+            for _i, _ex in enumerate(_pool):
+                if _ex.get("uid") == _uid:
+                    _pool[_i] = _u
+                    break
+            else:
+                _pool.insert(0, _u)
+            if "enemy" not in self._side_names:
+                self._side_names.append("enemy")
 
     @property
     def summons(self) -> list:
@@ -3197,16 +3212,16 @@ class Battle:
         if not self._focus:
             self._focus = actor or {}
         self._apply_restore_pstate()
-        # v180F B7：actor 后绑（测试/命令层 Battle 构造未传 actor）→ 补 sides actor 阵营，
-        # 否则 _check_side_end 误判"玩家侧已灭"（sides 无 actor key 时只剩 enemy）
+        # v180F B7：actor 后绑（测试/命令层 Battle 构造未传 actor）→ 补 sides player 阵营，
+        # 否则 _check_side_end 误判"玩家侧已灭"（sides 无 player key 时只剩 enemy）
         if self._focus:
             _pl_r = self._focus
             if _pl_r.get("class_name") or _pl_r.get("name") or _pl_r.get("qq_id"):
                 _sides = getattr(self, "sides", None)
-                if _sides is not None and "actor" not in _sides:
-                    _pl_r.setdefault("side", "actor")
-                    _pl_r.setdefault("kind", "actor")
-                    _sides["actor"] = [_pl_r]
+                if _sides is not None and "player" not in _sides:
+                    _pl_r.setdefault("side", "player")
+                    _pl_r.setdefault("kind", "player")
+                    _sides["player"] = [_pl_r]
                     self._side_names = list(_sides.keys())
         # 若传入 actor 与 self._focus 不同 dict（模拟器浅拷贝模式），把传入 actor 的
         # 可观察面板字段同步到 self._focus（避免引擎读 self._focus 得到空面板）
@@ -7193,6 +7208,10 @@ class Battle:
     def _actor_skill(self, st: dict, skill_name: str, info: dict, player: dict, target=None) -> list:
         """施放技能：治疗/增益/攻击 + 特效全部落地(v27 技能等级 + v29 分支机制)"""
         logs = []
+        # v181.P3d：玩家施法者上下文——_cast_ctx=None=玩家语义；_focus 未绑（测试/模拟器
+        # 直调）时把 player 参数绑定为焦点，使目标解析（_tgt/_enemy_primary）能定位敌对组
+        if self._cast_ctx is None and not self._focus:
+            self._focus = player or {}
         lv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名（战斗内等级此前恒 Lv.1）
         kind = info["kind"]
         mech = info.get("mech", "")

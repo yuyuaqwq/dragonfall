@@ -70,9 +70,9 @@ def make_player(**kw):
 
 def new_battle(boss, player):
     random.seed(42)
-    b = BT.Battle("test", player, boss)
-    b.enemy = boss
-    b.btype = "monster"
+    # v181.P3d：正确传参（boss=敌方 actor、player=玩家 actor）——旧写法 Battle("test", player, boss)
+    # 把 player 传进 enemy 位置、boss 传进 title_bonus 位置，依赖 enemy setter 无脑覆盖才碰巧工作
+    b = BT.Battle("monster", boss, player=player)
     return b
 
 

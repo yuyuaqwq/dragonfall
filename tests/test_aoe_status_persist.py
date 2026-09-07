@@ -131,8 +131,10 @@ def main():
     legacy_st = {"type": "monster", "enemy": mk_enemy("旧怪", rank=1, hp=999),
                  "e_buffs": {"atk_up": 3}}
     b_legacy = BT.Battle.from_state(legacy_st)
-    check("旧档(仅 enemy 键) 包装单怪恢复", len(b_legacy.enemies) == 1
-          and b_legacy.enemy.get("name") == "旧怪", str(b_legacy.enemies))
+    # v181.P3d：无 player 的旧档恢复 → enemy 无玩家视角，读 enemy 阵营 actor 组验证
+    _legacy_enemies = b_legacy._side_actors("enemy")
+    check("旧档(仅 enemy 键) 包装单怪恢复", len(_legacy_enemies) == 1
+          and (_legacy_enemies[0] or {}).get("name") == "旧怪", str(_legacy_enemies))
     # 恢复后的战斗可继续 aoe（阵列各单位继续扣血）
     random.seed(32)
     before = {u["name"]: u["hp"] for u in b11.enemies}

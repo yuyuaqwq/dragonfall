@@ -21,6 +21,11 @@ _orig_choice = random.choice
 passed = failed = 0
 
 
+def _first_hostile(b):
+    """v181.P3d：取敌对 actor 组首个（无玩家预设的测试直接操作场上怪）"""
+    acts = b._hostile_actors("player")
+    return (acts[0] if acts else {})
+
 def check(name, cond, detail=""):
     global passed, failed
     if cond:
@@ -64,9 +69,9 @@ def restore_random():
 def test_charge_start_and_release():
     print("【敌方蓄力接线：蓄力回合不结算 + 次回合释放】")
     b = BT.Battle("monster", make_monster(skills=["ms_zhen_ji"], atk=100, matk=100))
-    e = b.enemy
+    e = _first_hostile(b)
     p = make_player(hp=99999)
-    b.enemy["charging"] = None
+    _first_hostile(b)["charging"] = None
 
     # 第 1 回合：抽中蓄力技能 → 进入蓄力，不结算伤害
     force_skill("ms_zhen_ji")
@@ -95,9 +100,9 @@ def test_charge_leftover_telegraph_and_interrupt():
     # 用 charge 数值更大的虚拟技能模拟多回合蓄力（直接用现成 charge:1 无法覆盖"剩N"，
     # 改为手动构造 charging 进行延续意图验证）
     b = BT.Battle("monster", make_monster(skills=["ms_jian_ta"]))
-    e = b.enemy
+    e = _first_hostile(b)
     p = make_player(hp=99999)
-    b.enemy["charging"] = {"skill": "ms_jian_ta", "left": 2, "name": "践踏"}
+    _first_hostile(b)["charging"] = {"skill": "ms_jian_ta", "left": 2, "name": "践踏"}
     logs_sub, dmg_sub = b._enemy_turn(p)
     check("蓄力持续回合（left 2→1）不结算伤害", dmg_sub == 0 and e["charging"]["left"] == 1
           and not e.get("charging", {}).get("left") == 0, f"dmg={dmg_sub} ch={e.get('charging')}")
@@ -106,10 +111,10 @@ def test_charge_leftover_telegraph_and_interrupt():
     # 蓄力中被打断：清空 charging，日志含打断
     b2 = BT.Battle("monster", make_monster(skills=["ms_jian_ta"]))
     p2 = make_player(hp=99999)
-    b2.enemy["charging"] = {"skill": "ms_jian_ta", "left": 1, "name": "践踏"}
+    _first_hostile(b2)["charging"] = {"skill": "ms_jian_ta", "left": 1, "name": "践踏"}
     clogs = []
-    b2._interrupt_charging(b2.enemy, clogs, source="破空斩")
-    check("打断后 charging 清空", not b2.enemy.get("charging"), str(b2.enemy.get("charging")))
+    b2._interrupt_charging(_first_hostile(b2), clogs, source="破空斩")
+    check("打断后 charging 清空", not _first_hostile(b2).get("charging"), str(_first_hostile(b2).get("charging")))
     check("断开日志含『打断了』", any("打断了" in l for l in clogs), str(clogs))
     # 打断后敌方正常回合 = 重新按概率抽技能（random=0.0 必放技能，但技能不再蓄力一次？charge 技能会重新蓄力）
     force_skill("ms_jian_ta")
@@ -117,7 +122,7 @@ def test_charge_leftover_telegraph_and_interrupt():
         logs_b, dmg_b = b2._enemy_turn(p2)
     finally:
         restore_random()
-    check("打断后下回合重新进入蓄力（charge 技能再次蓄力）", isinstance(b2.enemy.get("charging"), dict)
+    check("打断后下回合重新进入蓄力（charge 技能再次蓄力）", isinstance(_first_hostile(b2).get("charging"), dict)
           and any("正在蓄力" in l for l in logs_b), f"logs={str(logs_b[:3])}")
 
 
