@@ -214,6 +214,9 @@ CLASSES = {
         },
         # v139（云海弓手蓄力三律翻译）：电荷制蓄力——CHARGE_CFG 引擎默认值（battle_config.py；
         # max 3 / 边攒边打出伤 0.7/1.3/1.9 / 打断-1阶 / 满 3 强制释放 / 狙击 reach=3
+        # ⚠️ 死字段：技能无 charge_cfg 挂载（skills.py 全表 0 处）、引擎 battle_bars charge_def
+        #   只读 skill_info.charge/charge_cfg（不读本职业 dict）→ 本 dict 零消费；删除归数据批次。
+        #   兜底活源 = battle_config CHARGE_CFG（battle_bars _cfg(_battle_cfg("charge"),…)）。
         "charge": {
             "max": 3, "gain_per_turn": 1, "dmg_per_stage": [0.7, 1.3, 1.9],
             "interrupt_penalty": 1, "force_release": True, "release_power": 2.8,
