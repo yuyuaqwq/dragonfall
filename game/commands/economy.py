@@ -50,7 +50,6 @@ _RECIPE_ROSTER_IDS = frozenset(
 # v181.P4-3：sell 命令壳提示文案仍引用品类分店常量 → 自 services.shop 别名（单一数据源，逐字符等价）
 _MAT_FACILITY = _shop_svc._MAT_FACILITY
 _MAT_FACILITY_HINT = _shop_svc._MAT_FACILITY_HINT
-
 # v126.3 材料大类归并：配置 type 细分为 18 种（兽材/矿石/草药/精华/宝石/织物/木材/食材/
 # 杂物/图纸/鱼/材料/垃圾/宝物/鱼王/收藏/传说/任务道具），v126.3 水合后 data['type'] 是
 # 配置真实值——『背包 材料』筛选/使用兜底按大类归并，否则兽材/矿石等全部漏筛。
@@ -593,7 +592,10 @@ def _render_item_tags(d, lines):
 
 # v181.P4-7：采集限定条件词注册表 _GATHER_COND_CHECKERS + v125.2 启动校验
 # 已随迁 services/profession.py（gather_roll/gather_cond_roll 一并迁走）——
-# 命令层不再持有（service 模块 import 即执行启动校验，行为等价）。
+# 命令层不再持有定义；保留下划线别名供存量测试/工具 import（单一数据源）
+_GATHER_COND_CHECKERS = _prof_svc._GATHER_COND_CHECKERS
+_prof_svc.validate_gather_cond()  # v125.2 fail-fast：economy 模块 import/reload 同样触发（P4-7 迁走后保持原行为）
+
 
 class EconomyCmds(CommandBase):
     """背包/装备/锻造/强化/商店/采集/垂钓/炼金"""
@@ -1192,6 +1194,15 @@ class EconomyCmds(CommandBase):
     # v127.5 前方法名保留为命令层兼容壳（gather/mining/fishing/prof_forget/use 等命令直接调 self._xxx）；
     # 函数体 = 一行转调 _prof_svc.<同名>（每日任务推进/tips/彩蛋/广播等命令层能力以注入参数传入）。
 
+    # v181.P4-7：垂钓惊喜概率表/档位边界（v168.2，原类属性）已随迁 services/profession.py
+    # （FISHING_SURPRISE_*，单一数据源）；此处保留等价类属性，兼容 test_v135_bp_drop
+    # 源码结构断言（值逐字符等价，行为零变化）
+    _FISHING_SURPRISE_TRIGGER = _prof_svc.FISHING_SURPRISE_TRIGGER
+    _FISHING_SURPRISE_BP = 0.30
+    _FISHING_SURPRISE_EQ = 0.55
+    _FISHING_SURPRISE_RUNE = 0.75
+    _FISHING_SURPRISE_GEM = 0.90
+
     def _gather_roll(self, level: int, prof_lv: int = 1, cur_map: str = "") -> list:
         """v181.P4-7：转发 services.profession.gather_roll（economy 本地定义已随迁）"""
         return _prof_svc.gather_roll(level, prof_lv, cur_map)
@@ -1242,7 +1253,11 @@ class EconomyCmds(CommandBase):
                 asyncio.create_task(self._prof_delayed_push(event, gid, qid, st, wait))
             except Exception:
                 pass  # 无事件循环/任务创建失败 → 惰性结算兜底（与原实现等价）
-        return _ps.prof_wait_begin(group_id, qq_id, prof_type, extra, delayed_push=_dp)
+        return _ps.prof_wait_begin(
+            group_id, qq_id, prof_type, extra,
+            delayed_push=_dp,
+            duration=lambda pt, lv: self._prof_wait_duration(pt, lv),
+        )
 
     async def _prof_delayed_push(self, event, group_id, qq_id, st, wait):
         """v181.P4-7：转发 services.profession.prof_delayed_push（event.send 推送壳）。

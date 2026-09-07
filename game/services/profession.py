@@ -70,6 +70,21 @@ for _cond_map_id, _cond_entries in getattr(C, "GATHER_COND_POOLS", {}).items():
                     f"（材料 {_cond_mid}）——请修正拼写或补入 _GATHER_COND_CHECKERS")
 
 
+def validate_gather_cond():
+    """v125.2 启动校验封装：GATHER_COND_POOLS 全部条件词必须 ∈ 注册表
+    （数据拼写错误启动即暴露）。service 模块 import 时执行一次；命令层 economy
+    模块 import/reload 时同样调用（P4-7 迁走后保持原 fail-fast 行为）。"""
+    for _cond_map_id, _cond_entries in getattr(C, "GATHER_COND_POOLS", {}).items():
+        for _cond_mid, _cond_w, _cond_str in _cond_entries:
+            for _tok in str(_cond_str).split("+"):
+                if _tok not in _GATHER_COND_CHECKERS:
+                    raise RuntimeError(
+                        f"[dragonfall] GATHER_COND_POOLS[{_cond_map_id}] 条件词 {_tok!r} 未注册"
+                        f"（材料 {_cond_mid}）——请修正拼写或补入 _GATHER_COND_CHECKERS")
+
+validate_gather_cond()
+
+
 # ============ v168.2 垂钓惊喜盲盒（鱼鱼 2026-09-03 拍板，原 economy 类属性随迁） ============
 # 惊喜不绑定宝箱：每次垂钓结算在既有内容之外做一次「惊喜判定」，按本次鱼获品质给概率：
 #   白(垃圾)/0% · 绿 2% · 蓝 5% · 紫(含陈旧的宝箱) 15% · 鱼王/橙 30%
@@ -276,7 +291,7 @@ def prof_wait_duration(prof_type, prof_lv):
 
 
 def prof_wait_begin(group_id, qq_id, prof_type, extra=None, *,
-                    delayed_push=None):
+                    delayed_push=None, duration=None):
     """开始一轮等待型副业：挂 timed_events 引擎倒计时 + 尽力而为的延迟推送(失败由惰性结算兜底)。
 
     v127.5：set_timed(key="prof_wait", type_key="prof_wait", duration_sec=wait)
@@ -285,10 +300,15 @@ def prof_wait_begin(group_id, qq_id, prof_type, extra=None, *,
     命令层能力注入（§2.4）：delayed_push=命令层 async 推送壳（收 group_id/qq_id/st/wait），
     由命令层内部 create_task(self._prof_delayed_push(...))；缺省 None = 不推送
     （无事件循环/测试环境 → 惰性结算兜底，与原 try/except 静默等价）。
+    duration=等待时长注入（收 prof_type/prof_lv → 秒；测试 monkeypatch 经命令层壳转发，
+    等价原 economy 直接改 self._prof_wait_duration 的测试手法）；缺省 None 走模块实现。
     """
     from .. import db
     prof_lv = db.get_prof_level(group_id, qq_id, prof_type)
-    wait = prof_wait_duration(prof_type, prof_lv)
+    if duration is not None:
+        wait = duration(prof_type, prof_lv)
+    else:
+        wait = prof_wait_duration(prof_type, prof_lv)
     finish = int(time.time()) + wait
     data = {"finish": finish, "type": prof_type}
     if extra:
