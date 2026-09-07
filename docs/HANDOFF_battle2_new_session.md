@@ -8,10 +8,10 @@
 
 ## 0. 分支与位置
 - 分支：`wt_ebuffs`（worktree：`C:/Users/yuyu/AppData/Local/Temp/df_wt_ebuffs/w1`）
-- HEAD：`572edc9`（方案文档定稿）
+- HEAD：`57c3e61`（方案文档 + 交接定稿）
 - 主仓（生产）：`C:/Users/yuyu/qqbot/data/plugins/dragonfall`（master 4b634d6，未动）
-- 沙盒（跑测试用）：`C:/Users/yuyu/AppData/Local/Temp/df_wt_copy2e/data/plugins/dragonfall`
-  （从 w1 同步 game/ 过去才能跑测试）
+- **开发环境：直接在 w1 里写，不用沙盒**（鱼鱼 2026-09-08 拍板：不需要 df_wt_copy2e 沙盒，
+  直接主环境开发）。新引擎的测试也在 w1 里写/跑（测试 DB 用独立临时库隔离，不碰真实库）。
 
 ## 1. 方案文档（权威，开工先读）
 | 文档 | 内容 |
@@ -58,10 +58,11 @@ game/battle2/
 **绝不 import 旧 game/battle.py、core/battle_mech.py handler**
 
 ## 5. 测试策略（引擎独立测试）
-- 测试目录：`game/battle2/tests/`（或 tests/test_battle2_*.py）
+- 测试位置：`tests/test_battle2_*.py`（w1 里直接写直接跑；N6 删旧后自然进全量）
 - 每阶段：对拍测试（同场景双引擎跑，数值差=0）+ 行为断言
 - numeric_lib 的纯数值函数（player.py 等）可直接复用做对拍基准
 - 参照旧测试怎么构造 battle/玩家/怪（tests/ 里 mk_player/mk_enemy 模式）
+- 引擎纯逻辑测试尽量不依赖 DB（避免碰真实库）；确需 DB 用独立临时 GWEN_GAME_DB
 
 ## 6. 旧引擎已知现状（新引擎要避免的坑）
 - battle.py 11000+ 行，v100+ 补丁叠加，隐式全局目标(self.enemy/_active_target)混乱
@@ -78,6 +79,7 @@ game/battle2/
 
 ## 8. 关键常量/路径速查
 - Python：`C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe`
-- 测试跑法：cd 到沙盒插件根，`python tests/xxx.py`（需 GWEN_GAME_DB 隔离）
+- 测试跑法：w1 里直接 `python tests/xxx.py`（引擎独立测试用独立临时 GWEN_GAME_DB，
+  不碰真实库 game/game_data.db；新引擎纯逻辑测试可不依赖 DB）
 - numeric 门禁：`python scripts/run_numeric_tests.py`（N6 才跑）
 - 公式复用入口：game/engine.py 的 calc_damage/player_final_stats/skill_info/skill_flat_value
