@@ -477,6 +477,131 @@ def _we_exec_stack(battle, player, ctx, logs, wd, key, event):
         return
     return
 
+# ---------------------------------------------------------------- proc_extra_dmg（11 key）
+# 直伤追击族：命中后追加直伤/真伤/吸血。事件 hit（7 key）与 skill_hit（4 key）由分发器
+# 按 key 注册事件集匹配。mode 分派（读表字段，零代码默认值）：
+#   - splash_magi（afterglow_splash/spellblade_echo/annihilation_echo）：chance（无字段=恒触发）
+#     → _extra_magi 奥术溅射（技能命中）
+#   - extra_phys（wind_split）：chance → _extra_phys 物理追加
+#   - extra_phys_pene（phantom_barrage）：计数 + chance/保底 → calc_damage 无视 pene_pct% 防御直伤
+#   - extra_phys_oncrit（endless_blade）：is_crit + 每刻限 1（used_key）→ _extra_phys
+#   - true_dmg_nth（hunter_open/siren_fang/star_pierce）：每 count 次真伤（star 含已损加成+cap）
+#   - curhp_dmg_heal（soul_eater）：敌当前生命%伤（cap atk）+ 回等量
+#   - lifesteal（novice_lifesteal）：dmg×heal_pct 吸血
+# 堆栈计数键（hunter_cnt/siren_cnt/star_cnt/phantom_cnt）与 used 键一律读 wd 表字段
+# （stack_key/used_key），不硬编码。日志 = 旧 handler 原文案，走共享动作源参/表 log 模板。
+#
+# ⚠️ 行为零变化要点（与旧 handler 逐语句等价）：
+#   - chance 判定在 has_effect 自查后（旧 proc 已保证装备持有，执行器免查）；
+#     phantom_barrage 的 RNG 只在 chance 判定消耗一次（保底靠计数无条件触发，同旧语义）
+#   - _true_dmg/_extra_phys/_extra_magi/_heal_player/_pstats/_estats 全部从 weapon_effects
+#     模块 import（共享动作唯一实现，执行器不复制公式）
+#   - soul_eater 的 _deal_damage(wake_sleep=False) 与 heal 顺序（先伤后回）必须保持
+
+def _we_exec_extra_dmg(battle, player, ctx, logs, wd, key, event):
+    """直伤追击族执行器：mode 分派 → 计数/chance/crit 前置 → 共享动作追加伤害。"""
+    from .weapon_effects import (
+        _extra_magi, _extra_phys, _true_dmg, _heal_player,
+        _pstats, _estats,
+    )
+    mode = wd.get("mode") or ""
+    stacks = player.setdefault("stacks", {})
+    eff = player.setdefault("eff", {})
+    # ================= splash_magi：奥术溅射 =================
+    if key in ("afterglow_splash", "spellblade_echo", "annihilation_echo"):
+        if wd.get("chance") is not None and random.random() >= float(wd["chance"]):
+            return
+        _extra_magi(battle, float(wd["atk_pct"]), logs,
+                    source=_EXTRA_DMG_SOURCE[key])
+        return
+    # ================= extra_phys：物理追加 =================
+    if key == "wind_split":
+        if wd.get("chance") is not None and random.random() >= float(wd["chance"]):
+            return
+        _extra_phys(battle, float(wd["atk_pct"]), logs,
+                    source=_EXTRA_DMG_SOURCE[key])
+        return
+    # ================= extra_phys_pene：破防追加+保底 =================
+    if key == "phantom_barrage":
+        sk = wd["stack_key"]
+        n = int(stacks.get(sk, 0) or 0) + 1
+        stacks[sk] = n
+        if random.random() < float(wd["chance"]) or n >= int(wd["guarantee"]):
+            stacks[sk] = 0
+            st = _pstats(battle, player)
+            est = _estats(battle)
+            from ..engine import calc_damage
+            dmg = max(1, calc_damage(
+                int(st.get("atk", 0) * float(wd["atk_pct"])),
+                int(est.get("def", 0) * (1 - float(wd["pene_pct"])))))
+            battle._deal_damage(dmg, logs)
+            logs.append(wd.get("log", "🌪️ 幻影连射！无视 50% 防御造成 {dmg} 点伤害！").format(dmg=dmg))
+        return
+    # ================= extra_phys_oncrit：暴击追击（每刻限 1） =================
+    if key == "endless_blade":
+        if not ctx.get("is_crit") or eff.get(wd["used_key"]):
+            return
+        eff[wd["used_key"]] = True
+        _extra_phys(battle, float(wd["atk_pct"]), logs,
+                    source=_EXTRA_DMG_SOURCE[key])
+        return
+    # ================= true_dmg_nth：每 N 次真伤 =================
+    if key in ("hunter_open", "siren_fang", "star_pierce"):
+        sk = wd["stack_key"]
+        n = int(stacks.get(sk, 0) or 0) + 1
+        stacks[sk] = n
+        if n >= int(wd["count"]):
+            stacks[sk] = 0
+            st = _pstats(battle, player)
+            if key == "star_pierce":
+                e = battle.enemy or {}
+                base = int(st.get("atk", 0) * float(wd["atk_pct"]))
+                lost = int((e.get("max_hp", 0) - e.get("hp", 0)) * float(wd["lost_hp_pct"]))
+                cap = int(e.get("max_hp", 1) * float(wd["cap_pct"]))
+                bonus = base + min(lost, cap)
+                _true_dmg(battle, bonus, logs, source=_EXTRA_DMG_SOURCE[key])
+            else:
+                _true_dmg(battle, st.get("atk", 0) * float(wd["atk_pct"]),
+                          logs, source=_EXTRA_DMG_SOURCE[key])
+        return
+    # ================= curhp_dmg_heal：敌当前生命%伤 + 回等量 =================
+    if key == "soul_eater":
+        e = battle.enemy or {}
+        st = _pstats(battle, player)
+        cap = max(1, int(st.get("atk", 0) or 0))
+        bonus = min(cap, max(1, int(e.get("hp", 0) * float(wd["cur_hp_pct"]))))
+        if bonus > 0:
+            battle._deal_damage(bonus, logs, wake_sleep=False)
+            healed = _heal_player(battle, player, bonus, logs,
+                                  source=_EXTRA_DMG_SOURCE[key])
+            logs.append(wd.get("log", "💜 破败之吻：额外 {bonus} 点伤害，回复 {healed} 点生命！")
+                        .format(bonus=bonus, healed=healed))
+        return
+    # ================= lifesteal：吸血 =================
+    if key == "novice_lifesteal":
+        dmg = int(ctx.get("dmg", 0) or 0)
+        if dmg <= 0:
+            st = _pstats(battle, player)
+            dmg = int(st.get("atk", 0) or 0)
+        heal = int(dmg * float(wd["heal_pct"]))
+        _heal_player(battle, player, heal, logs, source=_EXTRA_DMG_SOURCE[key])
+        return
+
+
+# 直伤追击族触发源（旧 handler source 参数原文案）
+_EXTRA_DMG_SOURCE = {
+    "afterglow_splash": "🌅 余波",
+    "spellblade_echo": "🔮 咒刃",
+    "annihilation_echo": "💥 湮灭回响",
+    "wind_split": "🌪️ 裂风矢",
+    "endless_blade": "⚔️ 无尽锋芒",
+    "hunter_open": "🗡️ 破绽",
+    "siren_fang": "🧜 海妖猎杀",
+    "star_pierce": "☄️ 穿星",
+    "soul_eater": "💜 破败之吻",
+    "novice_lifesteal": "🩸 吸血",
+}
+
 # ---------------------------------------------------------------- 注册表
 # 族名 → 执行器。key→族 由数据表 family 字段路由（proc() 分发器读表）。
 WE_EXECUTORS = {
@@ -487,6 +612,7 @@ WE_EXECUTORS = {
     "proc_shield": _we_exec_shield,
     "proc_passive_mult": _we_exec_passive_mult,
     "proc_stack": _we_exec_stack,
+    "proc_extra_dmg": _we_exec_extra_dmg,
 }
 
 # 族内 key 专属文案/源（dot 触发源 / reflect 日志模板）——数据表未下沉文案时放这

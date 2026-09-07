@@ -308,6 +308,22 @@ _WE_EXEC_KEYS = {
     "thunder_weave": "proc_stack",
     "wind_mark": "proc_stack",
     "novice_hunt_combo": "proc_stack",
+    # C4：proc_extra_dmg 直伤追击族 11 key（splash_magi 3 = afterglow_splash/spellblade_echo/
+    # annihilation_echo；extra_phys = wind_split；extra_phys_pene = phantom_barrage；
+    # extra_phys_oncrit = endless_blade；true_dmg_nth 3 = hunter_open/siren_fang/star_pierce；
+    # curhp_dmg_heal = soul_eater；lifesteal = novice_lifesteal）——事件 hit/skill_hit 全量迁移，
+    # mode 由数据表分发（_we_exec_extra_dmg），共享动作/计数槽键读表字段
+    "afterglow_splash": "proc_extra_dmg",
+    "spellblade_echo": "proc_extra_dmg",
+    "annihilation_echo": "proc_extra_dmg",
+    "wind_split": "proc_extra_dmg",
+    "phantom_barrage": "proc_extra_dmg",
+    "endless_blade": "proc_extra_dmg",
+    "hunter_open": "proc_extra_dmg",
+    "siren_fang": "proc_extra_dmg",
+    "star_pierce": "proc_extra_dmg",
+    "soul_eater": "proc_extra_dmg",
+    "novice_lifesteal": "proc_extra_dmg",
 }
 # 族默认事件表（key 未显式声明 event 时按族）：proc_dot 主事件 hit/skill_hit，
 # proc_reflect→taken、proc_heal amp→heal。分发器按"key 注册事件集"匹配事件后再调执行器
