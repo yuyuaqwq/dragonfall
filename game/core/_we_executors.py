@@ -70,6 +70,90 @@ def _we_exec_reflect(battle, player, ctx, logs, wd, key):
         logs.append(_REFLECT_LOG[key].format(rd=rd))
 
 
+# ---------------------------------------------------------------- proc_control（9 key）
+# 敌方控制族：mode(slow_or_freeze/slow_heal_down/freeze_cd/freeze/freeze_taken_limited/
+# freeze_heal/spd_down_stack/threshold_stun)。事件 hit/skill_hit/taken/heal/threshold/
+# enemy_act 由分发器按 key 注册事件集匹配。全部走 weapon_effects 共享动作
+# （_slow_enemy/_freeze_enemy——Boss 免疫退化内建）与 e_buffs 直写（heal_down/stun/叠层）。
+# ⚠️ 状态键（eff 计数/CD/used、e_buffs 叠层）一律读表字段，不硬编码。
+
+def _we_exec_control(battle, player, ctx, logs, wd, key):
+    """控制执行器：chance/次数/CD 前置判定 → mode 分派 → 共享动作/e_buffs 写控。
+
+    覆盖控制族 9 key：frost_ring/holy_judgment_field/everfrost_domain/everfrost_scepter/
+    frost_crown/holy_word_bind/randuin_weary/ice_vein/time_freeze（C5 全量迁移）。
+    """
+    from .weapon_effects import _slow_enemy, _freeze_enemy
+    mode = wd.get("mode") or "freeze"
+    eff = player.setdefault("eff", {})
+    # ---- heal 事件溢出段跳过（holy_word_bind：旧 handler 在 chance 判定前先跳，
+    #      不消耗 RNG——顺序必须保持，防战斗随机流漂移）----
+    if mode == "freeze_heal" and ctx.get("overflow"):
+        return
+    # ---- 前置判定：CD（everfrost_domain）——缺 cd_key=无 CD 段 ----
+    cd_key = wd.get("cd_key")
+    if cd_key:
+        if float(eff.get(cd_key, 0) or 0) > battle._now:
+            return
+    # ---- 前置判定：限次（frost_crown：每场最多 max_per_battle 次）----
+    used_key = wd.get("used_key")
+    limit = int(wd.get("max_per_battle") or 0) if wd.get("max_per_battle") is not None else 0
+    if limit > 0:
+        if int(eff.get(used_key, 0) or 0) >= limit:
+            return
+    # ---- chance 判定（randuin_weary/ice_vein/time_freeze 表无 chance = 无条件）----
+    if wd.get("chance") is not None and random.random() >= float(wd["chance"]):
+        return
+    # ---- mode 分派（缺字段 = 无此行为铁律；各段参数表权威）----
+    src = wd.get("source") or _CONTROL_SOURCE.get(key) or "❄️"
+    if mode == "slow_or_freeze":      # frost_ring：已减速→冻结（Boss 退化减速），否则减速
+        if battle.e_buffs.get("spd_down"):
+            _freeze_enemy(battle, logs, turns=int(wd["freeze_turns"]),
+                          boss_slow=int(wd["boss_slow"]), source=src)
+        else:
+            _slow_enemy(battle, int(wd["slow_turns"]), float(wd["slow_pct"]), logs)
+    elif mode == "slow_heal_down":    # holy_judgment_field：减速 + e_buffs.heal_down 禁疗
+        _slow_enemy(battle, int(wd["slow_turns"]), float(wd["slow_pct"]), logs)
+        battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), int(wd["heal_down"]))
+        logs.append(wd.get("log") or "⚖️ 圣裁领域：目标受治疗 -30%（2 刻）！")
+    elif mode == "freeze_cd":         # everfrost_domain：冻结后写 CD（ready_at = now + cd×ACT_TICK）
+        _freeze_enemy(battle, logs, turns=int(wd["freeze_turns"]),
+                      boss_slow=int(wd["boss_slow"]), source=src)
+        from .constants import ACT_TICK
+        eff[cd_key] = battle._now + int(wd["cd"]) * ACT_TICK
+    elif mode == "freeze":            # everfrost_scepter：纯冻结
+        _freeze_enemy(battle, logs, turns=int(wd["freeze_turns"]),
+                      boss_slow=int(wd["boss_slow"]), source=src)
+    elif mode == "freeze_taken_limited":  # frost_crown：受击冻结限次（先计数后冻结，同旧 handler）
+        eff[used_key] = int(eff.get(used_key, 0) or 0) + 1
+        _freeze_enemy(battle, logs, turns=int(wd["freeze_turns"]),
+                      boss_slow=int(wd["boss_slow"]), source=src)
+    elif mode == "freeze_heal":       # holy_word_bind：heal 事件冻结（overflow 段已在上方前置跳过）
+        _freeze_enemy(battle, logs, turns=int(wd["freeze_turns"]),
+                      boss_slow=int(wd["boss_slow"]), source=src)
+    elif mode == "spd_down_stack":    # randuin_weary/ice_vein：enemy_act 叠层（e_buffs 乘算减速）
+        ms = int(wd["max_stack"])
+        sp = float(wd["spd_down_pct"])
+        sk = wd.get("stack_key") or "_randuin_stack"
+        n = min(ms, int(battle.e_buffs.get(sk, 0) or 0) + 1)
+        battle.e_buffs[sk] = n
+        battle.e_buffs["_spd_down_pct"] = max(
+            float(battle.e_buffs.get("_spd_down_pct", 0) or 0), sp * n)
+        # 日志 = 旧 handler 原文案（表 log 含 f-string 表达式文本，不可机器 .format，代码侧重建）
+        logs.append(_CONTROL_STACK_LOG[key].format(sp_pct=int(sp * 100 * n), n=n, ms=ms))
+    elif mode == "threshold_stun":    # time_freeze：阈值（每场 1 次）→ 敌 stun
+        if eff.get(used_key):
+            return
+        ratio = float(player.get("hp", 0)) / max(1, player.get("max_hp", 1) or 1)
+        if ratio >= float(wd["threshold"]):
+            return
+        eff[used_key] = True
+        battle.e_buffs["stun"] = max(battle.e_buffs.get("stun", 0), 1)
+        logs.append(wd.get("log") or "⏳ 时光凝滞！敌人被定身，跳过一次行动！")
+        return
+    # 未知 mode：静默（旧 proc 语义——无注册事件不触发；防御未知表标注）
+
+
 # ---------------------------------------------------------------- proc_heal amp（4 key）
 # 治疗增强段：ctx.heal ×(1+heal_pct)。溢出段（ctx.overflow 真值）跳过——由 battle.py
 # 两次 proc（无 overflow 的治疗加成阶段 → 有 overflow 的溢出转盾阶段）驱动。
@@ -87,6 +171,7 @@ def _we_exec_heal_amp(battle, player, ctx, logs, wd, key):
 WE_EXECUTORS = {
     "proc_dot": _we_exec_dot,
     "proc_reflect": _we_exec_reflect,
+    "proc_control": _we_exec_control,
     "proc_heal": _we_exec_heal_amp,
 }
 
@@ -100,4 +185,19 @@ _DOT_SOURCE = {
 _REFLECT_LOG = {
     "thorn_armor": "🌵 荆棘缠绕：反弹 {rd} 点伤害！",
     "retribution_ring": "⚔️ 复仇之环：反弹 {rd} 点伤害！",
+}
+# 叠层减速日志模板（C5：旧 handler f-string 原文案；表 log 字段含 f-string 表达式文本，
+# 不可机器 .format——C10 收尾把文案全量下沉为纯模板后删本表）
+_CONTROL_STACK_LOG = {
+    "randuin_weary": "🛡️ 兰顿倦意：敌人速度 -{sp_pct}%（{n}/{ms} 层）！",
+    "ice_vein": "❄️ 冰脉寒流：敌人速度 -{sp_pct}%（{n}/{ms} 层）！",
+}
+# C5 冻结/减速触发源 emoji（旧 handler source 参数原文案；表 log 已含完整文案的
+# slow_heal_down/threshold_stun 例外，其余 7 key 文案由 _freeze_enemy/_slow_enemy 拼接）
+_CONTROL_SOURCE = {
+    "frost_ring": "🧊 霜环",
+    "everfrost_domain": "🧊 永冻领域",
+    "everfrost_scepter": "🧊 永霜禁锢",
+    "frost_crown": "🧊 寒霜凝视",
+    "holy_word_bind": "✨ 圣言禁锢",
 }
