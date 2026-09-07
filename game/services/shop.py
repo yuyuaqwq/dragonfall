@@ -301,6 +301,173 @@ def apprentice_protect_mats(group_id, qq_id) -> dict:
 
 # ============ v166 商店限购（店内共享库存 + 每日个人限购） ============
 
+def buy_index_dispatch(key, group_id, qq_id, player, qty, discount, *,
+                       shop_items, materials, weapons, equip_items, smith_items,
+                       sa_id, area_id, cur, is_smith, evt_tip,
+                       limit_guard=None, at_shop=None, smith_stock=None, buy_weapon=None,
+                       roll_blueprint=None, uuid=None, add_item=None, update_player=None,
+                       generate_roster_equip=None, ec=None):
+    """v181.P4-3：buy 序号购买 key 分派（bp:/m:/w:/mount:/e:/s:/消耗品 巨型 if 原样下沉）。
+
+    等价于原 economy.buy 序号分支（L7230 起逐 key 判断 + 原子写 + 文案）——
+    成交/拦截文案逐字符等价，分支穷尽终结（每 key 命中即 return）。
+
+    返回 (result, msg)：
+      msg 非 None = 拦截/提示文案，调用方 yield 后 return
+      msg None    = 命中并完成成交（service 已扣金币并发物品），调用方直接 return
+    （result 恒 None，保留双值槽位便于将来返回结构化结算供命令层拼扩展文案）
+
+    注入参数（命令层能力边界 §2.4）：limit_guard=_shop_limit_buy_guard（限购扣减）、
+    at_shop=base._at_shop、smith_stock=core.smith_stock（货架原子购买）、
+    buy_weapon=命令层 _buy_weapon 转发（等价 service buy_weapon）；其余数据/引擎原子全 C/db。
+    """
+    from .. import db  # 惰性导入
+    from ..core import smith_stock as _ss  # v135 铁匠铺全服共享货架（注入缺省）
+    _ec = ec or C.ECON_CONFIG
+    _limit_guard = limit_guard or (lambda *a, **k: (True, ""))
+    _at_shop = at_shop or (lambda p: False)
+    _ss = smith_stock or _ss
+    _buy_weapon = buy_weapon or buy_weapon_fn
+    _add_item = add_item or db.add_item
+    _upd_player = update_player or db.update_player
+    _roll_bp = roll_blueprint or C.roll_blueprint
+    _gen_eq = generate_roster_equip or C.generate_roster_equip
+    _uuid = uuid or __import__("uuid")
+    _gold = player["gold"]
+    if key == "bp:rand":
+        # v94 图纸经济：铁匠铺随机图纸（价格 = 图纸价×3，商队集市 8 折）
+        bp_price = int((max(1, player["level"]) * _ec["bp_price_per_lv"]
+                        + _ec["bp_price_base"]) * _ec["bp_smith_mult"] * discount)
+        # v105 M09 P3-9：图纸单件商品，数量参数不适用（此前 qty 被静默忽略）
+        if qty > 1:
+            return None, "神秘锻造图纸只能买 1 张！想再买一张就再输一次～"
+        if _gold < bp_price:
+            return None, f"金币不足！需要 {bp_price} 金币。"
+        _upd_player(group_id, qq_id, gold=_gold - bp_price)
+        bp = _roll_bp(max(1, player["level"]))
+        _add_item(group_id, qq_id, f"eq_{_uuid.uuid4().hex[:8]}", bp)
+        return None, f"✅ 你买到一张【{bp['name']}】！{evt_tip}"
+    if str(key).startswith("m:"):
+        # 锻造材料购买
+        mid = str(key)[2:]
+        mt = C.MATERIALS[mid]
+        price = int(mt["price"] * discount)
+        total = price * qty
+        if _gold < total:
+            return None, f"金币不足！需要 {total} 金币。"
+        # v166 商店限购：材料限购（店内共享库存+每日个人限购）
+        _l_ok, _l_msg = _limit_guard(group_id, qq_id, sa_id, f"mat:{mid}", qty)
+        if not _l_ok:
+            return None, _l_msg
+        _upd_player(group_id, qq_id, gold=_gold - total)
+        # v104 修 M09-P3：材料购买全量拷贝定义字段（补 quality 等），不再丢字段
+        _add_item(group_id, qq_id, mid, {**mt, "type": "材料", "stackable": True, "price": price}, count=qty)
+        qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
+        return None, f"✅ 你购买了【{mt['name']}】{qty_str}！{evt_tip}"
+    if str(key).startswith("w:"):
+        wname = str(key)[2:]
+        wt = next((w for w in weapons if w[0] == wname), None)
+        if not wt:
+            return None, f"商店里没有『{wname}』！输入『商店』查看商品。"
+        wname, wtype, wlv, wq = wt
+        price = int(equip_price("weapon", wlv, wq, wtype) * discount)
+        # v105 M09 P3-9：武器单件商品（此前『购买 铁剑 3』静默只买 1 把）
+        if qty > 1:
+            return None, f"『{wname}』是武器，只能单件购买！需要几把就再买几次～"
+        if _gold < price:
+            return None, f"金币不足！需要 {price} 金币。"
+        # v166 商店限购：商店武器（店内共享库存+每日个人限购）
+        _l_ok, _l_msg = _limit_guard(group_id, qq_id, sa_id, f"weapon:{wname}", 1)
+        if not _l_ok:
+            return None, _l_msg
+        # 阶段八：武器不锁职业（20 章），名册名走名册精确生成
+        _upd_player(group_id, qq_id, gold=_gold - price)
+        equip_item = _buy_weapon(wname, wtype, wlv, wq)
+        # v21 防刷钱：商店装备卖出价 = 买入价一半（否则属性推导价远高于买入价，可无限倒卖刷钱）
+        equip_item["price"] = int(price * _ec["equip_resale_rate"])
+        _add_item(group_id, qq_id, f"eq_{_uuid.uuid4().hex[:8]}", equip_item)
+        return None, f"✅ 你购买了【{wname}】！放到背包了，输入『装备 {wname}』使用。"
+    if str(key).startswith("mount:"):
+        # v104 修 M17-P2：序号购买坐骑（老马/小毛驴，与面板序号一致，仅橡木镇可买）
+        mdef = C.MOUNT_BY_KEY[str(key)[6:]]
+        mounts = player.get("mounts") or {}
+        if mdef["key"] in (mounts.get("owned") or []):
+            return None, f"你已经拥有{mdef['name']}了！"
+        # v104 M17 P2-1：购买时同步校验骑乘等级（此前买完骑不了才发现）
+        if player["level"] < mdef["lv"]:
+            return None, f"『{mdef['name']}』需要 Lv.{mdef['lv']} 才能骑乘，你才 Lv.{player['level']}！先升级再来买吧～"
+        price = int(mdef["price"] * discount)
+        if _gold < price:
+            return None, f"金币不足！{mdef['name']}要 {price} 金币。"
+        _upd_player(group_id, qq_id, gold=_gold - price)
+        mounts = dict(player.get("mounts") or {})
+        owned = list(mounts.get("owned") or [])
+        owned.append(mdef["key"])
+        mounts["owned"] = owned
+        _upd_player(group_id, qq_id, mounts=mounts)
+        return None, (f"{mdef['icon']} 你买了{mdef['name']}！缰绳交到你手里，它打了个响鼻。\n"
+                      f"💡 『骑乘 {mdef['name']}』骑上它，『坐骑』查看全部！")
+    if str(key).startswith("e:"):
+        # 名册装备购买（铁匠铺全套装备）
+        rid = str(key)[2:]
+        r = C.EQUIP_ROSTER[rid]
+        price = int(equip_price(r["slot"], r["lv"], r["quality"], r.get("weapon_type"), rid) * discount)
+        # v105 M09 P3-9：装备单件商品（数量参数不适用）
+        if qty > 1:
+            return None, f"『{r['name']}』是装备，只能单件购买！需要几件就再买几次～"
+        if _gold < price:
+            return None, f"金币不足！需要 {price} 金币。"
+        # v166 商店限购：名册装备（店内共享库存+每日个人限购）
+        _l_ok, _l_msg = _limit_guard(group_id, qq_id, sa_id, f"equip:{rid}", 1)
+        if not _l_ok:
+            return None, _l_msg
+        _upd_player(group_id, qq_id, gold=_gold - price)
+        equip_item = _gen_eq(rid)
+        # v21 防刷钱：商店装备卖出价 = 买入价一半
+        equip_item["price"] = int(price * _ec["equip_resale_rate"])
+        _add_item(group_id, qq_id, f"eq_{_uuid.uuid4().hex[:8]}", equip_item)
+        return None, f"✅ 你购买了【{r['name']}】！放到背包了，输入『装备 {r['name']}』使用。"
+    if str(key).startswith("s:"):
+        # v135 铁匠铺货架（全服共享）：先到先得，原子扣减库存
+        rid = str(key)[2:]
+        town_lv = _ss.town_level(cur)
+        ok, item_data, price = _ss.buy_stock_item(cur, town_lv, rid)
+        if not ok:
+            return None, "😢 这件作品已被别的冒险者买走了，售罄等补货吧～"
+        if _gold < price:
+            return None, f"金币不足！需要 {price} 金币。"
+        _upd_player(group_id, qq_id, gold=_gold - price)
+        # v21 防刷钱：货架装备卖出价 = 买入价一半（含浮动）
+        item_data["price"] = int(price * _ec["equip_resale_rate"])
+        _add_item(group_id, qq_id, f"eq_{_uuid.uuid4().hex[:8]}", item_data)
+        return None, f"✅ 你买下了【{item_data['name']}】！铁匠的手艺交到你手里，输入『装备』查看。"
+    # else：普通消耗品（iid = key，非冒号前缀 key）
+    iid = key
+    it = C.ITEMS[iid]
+    price = int(it["price"] * discount)
+    total = price * qty
+    if _gold < total:
+        return None, f"金币不足！需要 {total} 金币。"
+    # v166 商店限购：消耗品（店内共享库存+每日个人限购）
+    _l_ok, _l_msg = _limit_guard(group_id, qq_id, sa_id, f"item:{iid}", qty)
+    if not _l_ok:
+        return None, _l_msg
+    _upd_player(group_id, qq_id, gold=_gold - total)
+    # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
+    # v104 修 M09-P0：全量拷贝 ITEMS 定义字段（hot/hot_turns/hot_mana/food_effect/effect），
+    #   否则 9 种店售食物丢 hot 字段 → infer_template 判为药水，战斗内持续恢复失效
+    _add_item(group_id, qq_id, iid, {**it, "type": "消耗品", "stackable": True, "price": price}, count=qty)
+    qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
+    return None, f"✅ 你购买了【{it['name']}】{qty_str}！{evt_tip}"
+
+
+def buy_weapon_fn(wname: str, wtype: str, wlv: int, wq: str) -> dict:
+    """v181.P4-3：buy_index_dispatch 缺省兜底武器生成（= buy_weapon 同实现）。"""
+    return buy_weapon(wname, wtype, wlv, wq)
+
+
+# ============ v166 商店限购（店内共享库存 + 每日个人限购） ============
+
 def limit_buy_guard(group_id: str, qq_id: str, sa_id: str, key: str, qty: int):
     """商店限购统一拦截（在购买成交前调用，扣库存+记日限）。
 

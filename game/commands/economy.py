@@ -7228,165 +7228,23 @@ class EconomyCmds(CommandBase):
                 yield event.plain_result(f"没有第 {idx} 号商品！『商店』查看商品列表。")
                 return
             key = entries[idx - 1]
-            if key == "bp:rand":
-                # v94 图纸经济：铁匠铺随机图纸（价格 = 图纸价×3，商队集市 8 折）
-                bp_price = int((max(1, player["level"]) * _ec["bp_price_per_lv"]
-                                + _ec["bp_price_base"]) * _ec["bp_smith_mult"] * discount)
-                # v105 M09 P3-9：图纸单件商品，数量参数不适用（此前 qty 被静默忽略）
-                if qty > 1:
-                    yield event.plain_result("神秘锻造图纸只能买 1 张！想再买一张就再输一次～")
-                    return
-                if player["gold"] < bp_price:
-                    yield event.plain_result(f"金币不足！需要 {bp_price} 金币。")
-                    return
-                db.update_player(group_id, qq_id, gold=player["gold"] - bp_price)
-                bp = C.roll_blueprint(max(1, player["level"]))
-                import uuid
-                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
-                tip = _evt_tip
-                yield event.plain_result(f"✅ 你买到一张【{bp['name']}】！{tip}")
+            # ============ v181.P4-3：序号购买 key 分派（bp/m/w/mount/e/s/消耗品）业务下沉 services.shop ============
+            _buy_res, _buy_msg = _shop_svc.buy_index_dispatch(
+                key, group_id, qq_id, player, qty, discount,
+                shop_items=shop_items, materials=materials, weapons=weapons,
+                equip_items=equip_items, smith_items=smith_items,
+                sa_id=sa_id, area_id=area_id, cur=cur, is_smith=is_smith,
+                evt_tip=_evt_tip,
+                limit_guard=self._shop_limit_buy_guard,
+                at_shop=self._at_shop,
+                smith_stock=_ss, buy_weapon=self._buy_weapon,
+            )
+            if _buy_msg is not None:
+                yield event.plain_result(_buy_msg)
                 return
-            if str(key).startswith("m:"):
-                # 锻造材料购买
-                mid = str(key)[2:]
-                mt = C.MATERIALS[mid]
-                price = int(mt["price"] * discount)
-                total = price * qty
-                if player["gold"] < total:
-                    yield event.plain_result(f"金币不足！需要 {total} 金币。")
-                    return
-                # v166 商店限购：材料限购（店内共享库存+每日个人限购）
-                _l_ok, _l_msg = self._shop_limit_buy_guard(group_id, qq_id, sa_id, f"mat:{mid}", qty)
-                if not _l_ok:
-                    yield event.plain_result(_l_msg)
-                    return
-                db.update_player(group_id, qq_id, gold=player["gold"] - total)
-                # v104 修 M09-P3：材料购买全量拷贝定义字段（补 quality 等），不再丢字段
-                db.add_item(group_id, qq_id, mid, {**mt, "type": "材料", "stackable": True, "price": price}, count=qty)
-                tip = _evt_tip
-                qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
-                yield event.plain_result(f"✅ 你购买了【{mt['name']}】{qty_str}！{tip}")
-                return
-            if str(key).startswith("w:"):
-                wname = str(key)[2:]
-                wt = next((w for w in weapons if w[0] == wname), None)
-                if not wt:
-                    yield event.plain_result(f"商店里没有『{wname}』！输入『商店』查看商品。")
-                    return
-                wname, wtype, wlv, wq = wt
-                price = int(self._shop_equip_price("weapon", wlv, wq, wtype) * discount)
-                # v105 M09 P3-9：武器单件商品（此前『购买 铁剑 3』静默只买 1 把）
-                if qty > 1:
-                    yield event.plain_result(f"『{wname}』是武器，只能单件购买！需要几把就再买几次～")
-                    return
-                if player["gold"] < price:
-                    yield event.plain_result(f"金币不足！需要 {price} 金币。")
-                    return
-                # v166 商店限购：商店武器（店内共享库存+每日个人限购）
-                _l_ok, _l_msg = self._shop_limit_buy_guard(group_id, qq_id, sa_id, f"weapon:{wname}", 1)
-                if not _l_ok:
-                    yield event.plain_result(_l_msg)
-                    return
-                # 阶段八：武器不锁职业（20 章），名册名走名册精确生成
-                db.update_player(group_id, qq_id, gold=player["gold"] - price)
-                equip_item = self._buy_weapon(wname, wtype, wlv, wq)
-                # v21 防刷钱：商店装备卖出价 = 买入价一半（否则属性推导价远高于买入价，可无限倒卖刷钱）
-                equip_item["price"] = int(price * _ec["equip_resale_rate"])
-                import uuid
-                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
-                yield event.plain_result(f"✅ 你购买了【{wname}】！放到背包了，输入『装备 {wname}』使用。")
-                return
-            if str(key).startswith("mount:"):
-                # v104 修 M17-P2：序号购买坐骑（老马/小毛驴，与面板序号一致，仅橡木镇可买）
-                mdef = C.MOUNT_BY_KEY[str(key)[6:]]
-                mounts = player.get("mounts") or {}
-                if mdef["key"] in (mounts.get("owned") or []):
-                    yield event.plain_result(f"你已经拥有{mdef['name']}了！")
-                    return
-                # v104 M17 P2-1：购买时同步校验骑乘等级（此前买完骑不了才发现）
-                if player["level"] < mdef["lv"]:
-                    yield event.plain_result(f"『{mdef['name']}』需要 Lv.{mdef['lv']} 才能骑乘，你才 Lv.{player['level']}！先升级再来买吧～")
-                    return
-                price = int(mdef["price"] * discount)
-                if player["gold"] < price:
-                    yield event.plain_result(f"金币不足！{mdef['name']}要 {price} 金币。")
-                    return
-                db.update_player(group_id, qq_id, gold=player["gold"] - price)
-                mounts = dict(player.get("mounts") or {})
-                owned = list(mounts.get("owned") or [])
-                owned.append(mdef["key"])
-                mounts["owned"] = owned
-                db.update_player(group_id, qq_id, mounts=mounts)
-                yield event.plain_result(
-                    f"{mdef['icon']} 你买了{mdef['name']}！缰绳交到你手里，它打了个响鼻。\n"
-                    f"💡 『骑乘 {mdef['name']}』骑上它，『坐骑』查看全部！")
-                return
-            if str(key).startswith("e:"):
-                # 名册装备购买（铁匠铺全套装备）
-                rid = str(key)[2:]
-                r = C.EQUIP_ROSTER[rid]
-                q = C.QUALITY[r["quality"]]
-                price = int(self._shop_equip_price(r["slot"], r["lv"], r["quality"], r.get("weapon_type"), rid) * discount)
-                # v105 M09 P3-9：装备单件商品（数量参数不适用）
-                if qty > 1:
-                    yield event.plain_result(f"『{r['name']}』是装备，只能单件购买！需要几件就再买几次～")
-                    return
-                if player["gold"] < price:
-                    yield event.plain_result(f"金币不足！需要 {price} 金币。")
-                    return
-                # v166 商店限购：名册装备（店内共享库存+每日个人限购）
-                _l_ok, _l_msg = self._shop_limit_buy_guard(group_id, qq_id, sa_id, f"equip:{rid}", 1)
-                if not _l_ok:
-                    yield event.plain_result(_l_msg)
-                    return
-                db.update_player(group_id, qq_id, gold=player["gold"] - price)
-                equip_item = C.generate_roster_equip(rid)
-                # v21 防刷钱：商店装备卖出价 = 买入价一半
-                equip_item["price"] = int(price * _ec["equip_resale_rate"])
-                import uuid
-                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
-                yield event.plain_result(f"✅ 你购买了【{r['name']}】！放到背包了，输入『装备 {r['name']}』使用。")
-                return
-            if str(key).startswith("s:"):
-                # v135 铁匠铺货架（全服共享）：先到先得，原子扣减库存
-                rid = str(key)[2:]
-                town_lv = _ss.town_level(cur)
-                ok, item_data, price = _ss.buy_stock_item(cur, town_lv, rid)
-                if not ok:
-                    yield event.plain_result("😢 这件作品已被别的冒险者买走了，售罄等补货吧～")
-                    return
-                if player["gold"] < price:
-                    yield event.plain_result(f"金币不足！需要 {price} 金币。")
-                    return
-                db.update_player(group_id, qq_id, gold=player["gold"] - price)
-                # v21 防刷钱：货架装备卖出价 = 买入价一半（含浮动）
-                item_data["price"] = int(price * _ec["equip_resale_rate"])
-                import uuid
-                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", item_data)
-                yield event.plain_result(f"✅ 你买下了【{item_data['name']}】！铁匠的手艺交到你手里，输入『装备』查看。")
-                return
-            else:
-                iid = key
-                it = C.ITEMS[iid]
-                price = int(it["price"] * discount)
-                total = price * qty
-                if player["gold"] < total:
-                    yield event.plain_result(f"金币不足！需要 {total} 金币。")
-                    return
-                # v166 商店限购：消耗品（店内共享库存+每日个人限购）
-                _l_ok, _l_msg = self._shop_limit_buy_guard(group_id, qq_id, sa_id, f"item:{iid}", qty)
-                if not _l_ok:
-                    yield event.plain_result(_l_msg)
-                    return
-                db.update_player(group_id, qq_id, gold=player["gold"] - total)
-                # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
-                # v104 修 M09-P0：全量拷贝 ITEMS 定义字段（hot/hot_turns/hot_mana/food_effect/effect），
-                #   否则 9 种店售食物丢 hot 字段 → infer_template 判为药水，战斗内持续恢复失效
-                db.add_item(group_id, qq_id, iid, {**it, "type": "消耗品", "stackable": True, "price": price}, count=qty)
-                tip = _evt_tip
-                qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
-                yield event.plain_result(f"✅ 你购买了【{it['name']}】{qty_str}！{tip}")
-                return
+            # （分派完成：msg None = 命中并完成成交分支——序号 key 分派穷尽终结，
+            #   所有 key 都落 bp:/m:/w:/mount:/e:/s:/消耗品 之一，原实现各分支均 return）
+            return
         # 找铁匠铺随机图纸（按名称）：『购买 神秘锻造图纸』→ bp:rand（序号分支 v94 已支持，名称分支补上）
         if is_smith and item_name in ("神秘锻造图纸", "锻造图纸", "图纸", "神秘图纸"):
             bp_price = int((max(1, player["level"]) * _ec["bp_price_per_lv"]
