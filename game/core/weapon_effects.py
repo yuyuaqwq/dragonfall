@@ -267,6 +267,16 @@ _WE_EXEC_KEYS = {
     "holy_radiance_mail": "proc_heal",
     "echo_band": "proc_heal",
     "novice_regen_heal": "proc_heal",
+    # C5 proc_control 控制族 9 key（全量迁移，全走 e_buffs/_freeze_enemy 共享动作）
+    "frost_ring": "proc_control",
+    "holy_judgment_field": "proc_control",
+    "everfrost_domain": "proc_control",
+    "everfrost_scepter": "proc_control",
+    "frost_crown": "proc_control",
+    "holy_word_bind": "proc_control",
+    "time_freeze": "proc_control",
+    "randuin_weary": "proc_control",
+    "ice_vein": "proc_control",
 }
 # 族默认事件表（key 未显式声明 event 时按族）：proc_dot 主事件 hit/skill_hit，
 # proc_reflect→taken、proc_heal amp→heal。分发器按"key 注册事件集"匹配事件后再调执行器
