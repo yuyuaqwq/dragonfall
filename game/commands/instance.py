@@ -1574,6 +1574,7 @@ class InstanceCmds(CommandBase):
                 lines.append(f"　🛡️「{' '.join(pbuf)}」")
         # 敌方单位级 buffs/stacks/debuffs（多对多阵列；v181 P3 收口：buffs 在每怪 actor dict，
         # 无共享 e_buffs——旧 st["e_buffs"] 冗余显示已删）
+        ebuf = []
         for u in alive_enemies:
             for bk, bv in (u.get("buffs") or {}).items():
                 # 单位 buff 可能是 dict（盾/bar 状态等）→ 跳过非刻数键

@@ -405,27 +405,25 @@ def test_summon_entity():
     check("召唤物经受敌方攻击（挡刀）", hit, "")
 
 
-# ============ A8 兼容 ============
+# ============ A8 单怪兼容（纯 actor 语义）============
 def test_single_enemy_compat():
     clean_db()
     e = mk_unit("单怪", hp=500, atk=5)
     p = mk_player(reach=1, spd=0)
     b = BT.Battle("monster", e, {}, player=p)
-    check("单怪构造兼容 enemy 主目标", b.enemy["name"] == "单怪", "")
+    check("单怪构造 enemy 指向唯一怪", b.enemy["name"] == "单怪", "")
     check("单怪包装成 enemies[1]", len(b.enemies) == 1, str(len(b.enemies)))
-    b.e_buffs["def_down"] = 2
-    check("e_buffs 写入代理主目标 buffs", b.enemy["buffs"].get("def_down") == 2, str(b.e_buffs))
-    b.e_buffs = {"poison": 3}
-    check("e_buffs 整体赋值 setter", b.enemy["buffs"].get("poison") == 3, str(b.enemy["buffs"]))
-    b.e_defending = True
-    check("e_defending 读写代理", b.e_defending is True and b.enemies[0]["defending"] is True,
-          str(b.e_defending))
+    b._actor_buffs(b.enemy)["def_down"] = 2
+    check("debuff 写入敌方 actor buffs", b.enemy["buffs"].get("def_down") == 2, str(b.enemy["buffs"]))
+    b._actor_buffs(b.enemy).update({"poison": 3})
+    check("敌方 actor buffs 整体更新", b.enemy["buffs"].get("poison") == 3, str(b.enemy["buffs"]))
+    b.enemy["defending"] = True
+    check("敌方 defending 走 actor 字段", b.enemies[0]["defending"] is True, str(b.enemies[0].get("defending")))
     st = b.to_state()
     check("to_state 含 enemies 阵列", isinstance(st.get("enemies"), list) and len(st["enemies"]) == 1,
           str(st.keys()))
-    check("to_state 保留 enemy 兼容键", st.get("enemy") is not None, "")
     b2 = BT.Battle.from_state(st)
-    check("from_state 恢复单怪", b2.enemy["name"] == "单怪" and b2.e_buffs.get("poison") == 3,
+    check("from_state 恢复单怪", b2.enemy["name"] == "单怪" and b2._actor_buffs(b2.enemy).get("poison") == 3,
           str(b2.enemy.get("name")))
 
 

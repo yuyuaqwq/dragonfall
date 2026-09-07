@@ -70,7 +70,7 @@ def state_slices(b, p):
     for k in ("hp", "max_hp"):
         out[f"e.{k}"] = e.get(k)
     for bag, name in ((e.get("buffs"), "e.buffs"), (e.get("debuffs"), "e.debuffs"),
-                      (e.get("e_buffs"), "e.e_buffs"), (b.e_buffs, "b.e_buffs"),
+                      (e.get("e_buffs"), "e.e_buffs"), (b._tgt_buffs(), "b._tgt_buffs()"),
                       (b._p_buffs_bag() if hasattr(b, "_p_buffs_bag") else None, "b.p_buffs"),
                       (b._p_shields_bag() if hasattr(b, "_p_shields_bag") else None, "b.p_shields"),
                       (b._p_eff() if hasattr(b, "_p_eff") else None, "b.p_eff"),

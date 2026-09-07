@@ -104,24 +104,24 @@ async def main():
     b2 = BT.Battle("怪物", mk_enemy(), {}, p2)
     logs = []
     _sleep_h(b2, "测试睡眠", {"name": "测试睡眠", "kind": "增益", "power": 1.0, "lv": 1}, p2, 1, logs)
-    check("施放后 e_buffs['sleep']=2（普通怪）", b2.e_buffs.get("sleep") == 2, str(b2.e_buffs))
+    check("施放后 e_buffs['sleep']=2（普通怪）", b2._tgt_buffs().get("sleep") == 2, str(b2._tgt_buffs()))
     l2, d2 = b2._enemy_turn(p2)
     b2._end_round()
     check("敌方回合被跳过（伤害 0）", d2 == 0, f"dmg {d2}")
     check("日志含『沉睡』", any("沉睡" in x for x in l2), str(l2))
-    check("跳过一回合后 sleep 仍 2（v152 行动级消费，非回合递减）", b2.e_buffs.get("sleep") == 2,
-          str(b2.e_buffs))
+    check("跳过一回合后 sleep 仍 2（v152 行动级消费，非回合递减）", b2._tgt_buffs().get("sleep") == 2,
+          str(b2._tgt_buffs()))
     # 受击解除：再挂睡眠后普攻打醒
-    b2.e_buffs["sleep"] = 2
+    b2._tgt_buffs()["sleep"] = 2
     st2 = b2._player_stats(p2)
     random.seed(8)
     b2._player_attack(st2, p2)
-    check("普攻打醒睡眠（受击解除全清）", "sleep" not in b2.e_buffs, str(b2.e_buffs))
+    check("普攻打醒睡眠（受击解除全清）", "sleep" not in b2._tgt_buffs(), str(b2._tgt_buffs()))
     # 世界 Boss 只睡 1 回合
     p2b = mk_player(cls="cls_shi_ren", skills=[])
     b2b = BT.Battle("worldboss", mk_enemy(), {}, p2b)
     _sleep_h(b2b, "测试睡眠", {"name": "测试睡眠", "kind": "增益", "power": 1.0, "lv": 1}, p2b, 1, [])
-    check("世界 Boss 只睡 1 回合", b2b.e_buffs.get("sleep") == 1, str(b2b.e_buffs))
+    check("世界 Boss 只睡 1 回合", b2b._tgt_buffs().get("sleep") == 1, str(b2b._tgt_buffs()))
 
     print("\n===== 3. 灼烧机制（v153 适配：龙息之怒 burn 层）=====\n")
     # v153：火之亲和/内燃（burn_amp 被动）已删（旧隐藏线/旧表移除）；战士 T2 狂战士 龙息之怒

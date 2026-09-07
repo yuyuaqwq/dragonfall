@@ -40,7 +40,9 @@ def make_battle(**kw):
     enemy = kw.pop("enemy", {"name": "野狼", "hp": 100, "max_hp": 100, "atk": 20, "matk": 15, "def": 5, "mdef": 5, "spd": 10})
     b = Battle(btype="monster", enemy=enemy, player={"class_name": "cls_zhan_shi"})
     b.round = kw.pop("round", 1)
-    b.e_buffs = kw.pop("e_buffs", {})
+    _eb = b.enemy.setdefault("buffs", {})
+    _eb.clear()
+    _eb.update(kw.pop("e_buffs", {}) or {})
     # v180-B ①：玩家状态权威在 b.player actor dict——注入到对应袋
     _pb = b.player.setdefault("buffs", {})
     _pb.clear()
@@ -167,7 +169,7 @@ b = make_battle()
 logs = []
 p_mech = {}
 b._apply_mech_effect("mark", 1, p_mech, 100, logs, "猎杀标记")
-check("mark 挂 e_buffs", "mark" in b.e_buffs
+check("mark 挂 e_buffs", "mark" in b._tgt_buffs()
       and (b.enemy.get("debuffs") or {}).get("mark", {}).get("n", 0) >= 1)
 # shield_burst 扣血 + 清零
 b = make_battle()
@@ -216,7 +218,7 @@ print("【8. 怪物增益/控制】")
 b = make_battle(enemy={"name": "狼王", "hp": 100, "max_hp": 100, "atk": 20, "matk": 15, "def": 5, "mdef": 5, "spd": 10})
 logs = []
 BM.MON_BUFF_EFFECTS["atk_up"](b, logs, "嗜血怒吼")
-check("怪物 atk_up 增益", b.e_buffs.get("mon_atk_up") == 3 and "攻击力提升" in logs[0])
+check("怪物 atk_up 增益", b._tgt_buffs().get("mon_atk_up") == 3 and "攻击力提升" in logs[0])
 b = make_battle(enemy={"name": "狼王", "hp": 50, "max_hp": 100, "atk": 20, "matk": 15, "def": 5, "mdef": 5, "spd": 10})
 logs = []
 BM.MON_BUFF_EFFECTS["heal_self"](b, logs, "疗愈")

@@ -62,7 +62,7 @@ p["learned_skills"] = [name]
 mon = mkmon(hp=99999)
 b = BT.Battle("monster", mon, player=p)
 # 先挂火印（敌方 e_buffs）
-b.e_buffs["fire_mark"] = 1
+b._tgt_buffs()["fire_mark"] = 1
 # 施放冰系技能 → 应触发蒸发（增伤 30%）
 hp_before = mon["hp"]
 logs, done = b.player_turn("skill", name, p, enemy_act=False)
@@ -84,31 +84,31 @@ random.seed(42)
 p_ev = mk()
 p_ev["learned_skills"] = [name]
 b_ev = BT.Battle("monster", mkmon(hp=99999), player=p_ev)
-b_ev.e_buffs["fire_mark"] = 1
+b_ev._tgt_buffs()["fire_mark"] = 1
 hp_ev = b_ev.enemy["hp"]
 b_ev.player_turn("skill", name, p_ev, enemy_act=False)
 b_ev._process_until(float(getattr(b_ev, "p_ct", 0) or 0) + 0.001, [], p_ev)
 dmg_ev = hp_ev - b_ev.enemy["hp"]
 check("蒸发增伤 30%", abs(dmg_ev / dmg0 - 1.3) < 0.08, f"蒸发={dmg_ev} 无={dmg0} 比={dmg_ev/dmg0:.3f}")
-check("蒸发清除火印", "fire_mark" not in b.e_buffs, str(b.e_buffs))
+check("蒸发清除火印", "fire_mark" not in b._tgt_buffs(), str(b._tgt_buffs()))
 
 print("【元素反应：战斗内超载】")
 sk[test_skill]["element"] = "fire"  # 火系（超载=雷印+火）
 p3p = mk()
 p3p["learned_skills"] = [name]
 b3 = BT.Battle("monster", mkmon(hp=99999), player=p3p)
-b3.e_buffs["thunder_mark"] = 1
+b3._tgt_buffs()["thunder_mark"] = 1
 hp_before3 = b3.enemy["hp"]
 logs3, done3 = b3.player_turn("skill", name, p3p, enemy_act=False)
 b3._process_until(float(getattr(b3, "p_ct", 0) or 0) + 0.001, logs3, p3p)
 check("超载日志", any("超载" in x for x in logs3), str(logs3)[:200])
-check("超载清除雷印", "thunder_mark" not in b3.e_buffs, str(b3.e_buffs))
+check("超载清除雷印", "thunder_mark" not in b3._tgt_buffs(), str(b3._tgt_buffs()))
 
 print("【元素反应：印记保留（感电）】")
 p4p = mk()
 p4p["learned_skills"] = [name]
 b4 = BT.Battle("monster", mkmon(hp=99999), player=p4p)
-b4.e_buffs["thunder_mark"] = 2
+b4._tgt_buffs()["thunder_mark"] = 2
 sk[test_skill]["element"] = "thunder"  # 雷系
 logs4, done4 = b4.player_turn("skill", name, p4p, enemy_act=False)
 b4._process_until(float(getattr(b4, "p_ct", 0) or 0) + 0.001, logs4, p4p)
@@ -117,13 +117,13 @@ check("感电连击 +1", any("连击 2" in x for x in logs4), str(logs4)[:200])
 # 感电保留旧印记(2)，施放又挂 1 层 → 3；印记为层数标记不受 _end_round 回合递减
 # （v121 CTB：旧 v61 靠速度优势回合推迟 _end_round 掩盖了印记误递减，CTB 下印记
 #  已豁免回合递减——生命周期 = 触发反应清除或战斗结束）
-check("感电保留雷印", b4.e_buffs.get("thunder_mark") == 3, str(b4.e_buffs))
+check("感电保留雷印", b4._tgt_buffs().get("thunder_mark") == 3, str(b4._tgt_buffs()))
 
 print("【元素反应：法师切换当前系】")
 b5 = BT.Battle("monster", mkmon(), player=mk())
 check("默认火系", b5._p_res().get("element") == "fire", str(b5._p_res()))
 sk[test_skill]["element"] = "thunder"
-b5.e_buffs.pop("thunder_mark", None)
+b5._tgt_buffs().pop("thunder_mark", None)
 p5 = mk()
 p5["learned_skills"] = [name]
 b5.player_turn("skill", name, p5, enemy_act=False)

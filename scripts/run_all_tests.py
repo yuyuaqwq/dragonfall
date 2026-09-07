@@ -55,6 +55,21 @@ SHIM_DIR = os.path.join(TESTS_DIR, "shim_astrbot")
 # （不认外层 env，无法用私有库隔离）→ 必须与并行主体错开，保持旧行为先跑。
 SERIAL_SLOT = {"test_v101_28_food_hot.py"}
 
+# 退役探针：P2C 族化迁移期 OLD==NEW 差分验证工具。迁移完成（旧 handler 从 HEAD 删除）后
+# 差分对象不存在 → 恒 KeyError。semantics 测试（新实现硬断言）已接替持续回归职责。
+# 保留文件供历史参考，run_all 不再纳入（v181.P3a 起）。
+RETIRED_PROBES = {
+    "test_p2cc2_we_family_probe.py",
+    "test_p2cc3_we_shield_probe.py",
+    "test_p2cc4_extra_dmg_probe.py",
+    "test_p2cc5_control_probe.py",
+    "test_p2cc6_panel_buff_probe.py",
+    "test_p2cc7_marks_probe.py",
+    "test_p2cc8_passive_stack_probe.py",
+    "test_p2cc9_lifesave_probe.py",
+    "test_p2cc10_aux_probe.py",
+}
+
 # 探测未来新增的同款硬编码共享库文件（忽略注释行），命中自动进串行槽
 _SHARED_DB_RE = re.compile(
     r'os\.environ\[["\']GWEN_GAME_DB["\']\]\s*=\s*[^\n]*test_game_data\.db'
@@ -100,7 +115,7 @@ def _collect_files(only, skips):
         return [f], []
 
     def _want(name):
-        return name not in skips
+        return name not in skips and name not in RETIRED_PROBES
 
     serial, parallel = [], []
     for name in sorted(

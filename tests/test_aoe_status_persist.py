@@ -126,12 +126,13 @@ def main():
     check("db 快照写回 now/p_acts 一致", st_rt.get("now") == st.get("now")
           and st_rt.get("p_acts") == st.get("p_acts"),
           f"now={st_rt.get('now')} p_acts={st_rt.get('p_acts')}")
-    # 旧存档容错：只有 enemy（单怪）+ 旧 e_buffs 时 from_state 并入主单位 buffs
+    # v181 P3 旧档容错：只有 enemy（无 enemies 阵列）的极旧存档 → 包装单怪阵列恢复。
+    #（enemy 键是 to_state 一直保留的主目标兼容键；e_buffs 共享键已删，不再并入）
     legacy_st = {"type": "monster", "enemy": mk_enemy("旧怪", rank=1, hp=999),
                  "e_buffs": {"atk_up": 3}}
     b_legacy = BT.Battle.from_state(legacy_st)
-    check("旧存档 e_buffs 并入主单位 buffs",
-          b_legacy.enemy["buffs"].get("atk_up") == 3, str(b_legacy.enemy["buffs"]))
+    check("旧档(仅 enemy 键) 包装单怪恢复", len(b_legacy.enemies) == 1
+          and b_legacy.enemy.get("name") == "旧怪", str(b_legacy.enemies))
     # 恢复后的战斗可继续 aoe（阵列各单位继续扣血）
     random.seed(32)
     before = {u["name"]: u["hp"] for u in b11.enemies}

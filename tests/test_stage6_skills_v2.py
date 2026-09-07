@@ -70,7 +70,7 @@ check("法师默认火系", b3._p_res().get("element") == "fire", str(b3._p_res(
 # （元素法师 element=current 技能），基础层纯蓝施法（core_resource element on_skill=0）。
 # 验证基础火球术不挂 fire_mark（v151 设计：印记在分支）
 logs = cast(b3, p, "火球术")
-check("火球术不挂火印（基础层纯蓝）", b3.e_buffs.get("fire_mark", 0) == 0, str(b3.e_buffs))
+check("火球术不挂火印（基础层纯蓝）", b3._tgt_buffs().get("fire_mark", 0) == 0, str(b3._tgt_buffs()))
 check("火球术造成伤害", any("造成" in x for x in logs), str(logs)[:120])
 # v153：冰锥 mech=ice_mark（挂冰印 1 层）+ mech2=spd_down（减速）。mech2 handler 已注册。
 # 引擎元素印记路径把冰印登记到 enemy.debuffs["element_marks"]["ice"]，减速落 e_buffs.spd_down。
@@ -82,7 +82,7 @@ logs4, _ = b4.player_turn("skill", "冰锥", p, enemy_act=False)
 b4._process_until(float(getattr(b4, "p_ct", 0) or 0) + 0.001, logs4, p)
 _ice_marks = ((b4.enemy.get("debuffs") or {}).get("element_marks") or {}).get("ice", 0)
 check("冰锥挂冰印", _ice_marks > 0, str(b4.enemy.get("debuffs")))
-check("冰锥减速（spd_down）", b4.e_buffs.get("spd_down", 0) > 0, str(b4.e_buffs))
+check("冰锥减速（spd_down）", b4._tgt_buffs().get("spd_down", 0) > 0, str(b4._tgt_buffs()))
 check("冰锥造成伤害", any("造成" in x for x in logs4), str(logs4)[:120])
 
 print("【游侠：精力消耗不耗魔】")

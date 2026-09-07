@@ -207,15 +207,15 @@ def test_bursts():
     b3.enemy.setdefault("debuffs", {})["poison"] = {"n": 3, "mult": 1.0}
     logs3 = []
     BM.MECH_EFFECTS["poison_burst"](b3, 1, b3._p_stacks(), 100, logs3, "毒爆术", False)
-    check("毒爆 3 层附虚弱 -15%", abs(b3.e_buffs.get("_weaken_val", 0) - 0.15) < 1e-9
-          and b3.e_buffs.get("mon_atk_down", 0) >= 1, str(b3.e_buffs))
+    check("毒爆 3 层附虚弱 -15%", abs(b3._tgt_buffs().get("_weaken_val", 0) - 0.15) < 1e-9
+          and b3._tgt_buffs().get("mon_atk_down", 0) >= 1, str(b3._tgt_buffs()))
     b4 = BT.Battle("monster", mk_enemy(**{"def": 0}))
     b4._last_player = p
     b4.enemy.setdefault("debuffs", {})["poison"] = {"n": 5, "mult": 1.0}
     logs4 = []
     BM.MECH_EFFECTS["poison_burst"](b4, 1, b4._p_stacks(), 100, logs4, "毒爆术", False)
-    check("毒爆 5 层附虚弱 -25%", abs(b4.e_buffs.get("_weaken_val", 0) - 0.25) < 1e-9, str(b4.e_buffs))
-    check("毒爆不附重伤", not b4.e_buffs.get("mortal_wound"), str(b4.e_buffs))
+    check("毒爆 5 层附虚弱 -25%", abs(b4._tgt_buffs().get("_weaken_val", 0) - 0.25) < 1e-9, str(b4._tgt_buffs()))
+    check("毒爆不附重伤", not b4._tgt_buffs().get("mortal_wound"), str(b4._tgt_buffs()))
     # v1.3 重伤：仅 Boss『重创』施加，玩家吸血减半
     p_st = {"lifesteal": 0.30}
     b5 = BT.Battle("monster", mk_enemy(), player=p)

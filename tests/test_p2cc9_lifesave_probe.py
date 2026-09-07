@@ -65,7 +65,7 @@ def state_slices(b, p):
         if bag:
             out[name] = snapshot(bag)
     e = b.enemy or {}
-    for bag, name in ((e.get("buffs"), "e.buffs"), (b.e_buffs, "b.e_buffs")):
+    for bag, name in ((e.get("buffs"), "e.buffs"), (b._tgt_buffs(), "b._tgt_buffs()")):
         if bag:
             out[name] = snapshot(bag)
     return out

@@ -110,8 +110,8 @@ check("荆棘反弹 30% 伤害(15)", b3.enemy["hp"] == eh - 15, f"{eh}→{b3.ene
 p4 = mk_player()
 b4 = mk_battle(player=p4)
 b4._do_use_item("special:def_down", p4)
-check("破甲 e_buffs def_down", b4.e_buffs.get("def_down") == 2, str(b4.e_buffs))
-check("破甲 _armor_break_pct", b4.e_buffs.get("_armor_break_pct") == 0.15, str(b4.e_buffs.get("_armor_break_pct")))
+check("破甲 e_buffs def_down", b4._tgt_buffs().get("def_down") == 2, str(b4._tgt_buffs()))
+check("破甲 _armor_break_pct", b4._tgt_buffs().get("_armor_break_pct") == 0.15, str(b4._tgt_buffs().get("_armor_break_pct")))
 
 # 影步：15% 闪避（概率测试——直接查 buff 挂载）
 p5 = mk_player()

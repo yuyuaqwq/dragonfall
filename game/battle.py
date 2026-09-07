@@ -1483,8 +1483,13 @@ class Battle:
 
     @classmethod
     def from_state(cls, st: dict):
-        # v181 P3：敌方一律走完整阵列（enemies 每怪自带 buffs/defending/ct）；无阵列 = 空战（不做旧档兼容）
-        enemies = st.get("enemies") or []
+        # v181 P3：敌方一律走完整阵列（enemies 每怪自带 buffs/defending/ct）。
+        # to_state 同时序列化 enemy(主目标兼容键) + enemies(完整阵列)；旧档只有 enemy 键
+        #（无 enemies）时包装成单怪阵列恢复——合法收口迁移，非 e_buffs 兼容。
+        enemies = st.get("enemies")
+        if not enemies:
+            _legacy_e = st.get("enemy")
+            enemies = [_legacy_e] if isinstance(_legacy_e, dict) else []
         b = cls(st.get("type", "monster"), None, st.get("title_bonus") or {}, pet=st.get("pet") or {},
                 enemies=[dict(u) for u in enemies])
         # v152：round 概念删除，改 _now（绝对时刻）+ _p_acts（玩家行动计数，展示用）。
@@ -6581,7 +6586,9 @@ class Battle:
         """
         # v180F 收编配套：伤害类型透传承伤链（玩家受击 phys/magi 免伤消费）
         _dmg_kind = seg_of(kind) or ""
-        total = self._boss_dmg_filter(total, player, logs, dmg_type=seg_of(kind))
+        # v181 P3：target=当前被打怪（玩家技能路径 _tgt()=被选中的怪；多怪打副怪不再错读主怪 mech/阶段）
+        _fd_tgt = self._tgt() if not self._tgt_is_player() else self.enemy
+        total = self._boss_dmg_filter(total, player, logs, dmg_type=seg_of(kind), target=_fd_tgt)
         # v140 波3.1：特效装备技能被动增伤（奥术苍穹/岁月流转/永恒契约/铭文/秘典/雷纹/三相/破岳/咒誓/暮裂）
         try:
             from .core.weapon_effects import proc as _we_proc
@@ -7492,36 +7499,41 @@ class Battle:
             _execute_set_proc(eff, self, player, dmg, logs)
 
     # ---------------- 敌方刻 ----------------
-    def _boss_dmg_filter(self, dmg: int, player: dict, logs: list, dmg_type: str = "phys", dot: bool = False) -> int:
+    def _boss_dmg_filter(self, dmg: int, player: dict, logs: list, dmg_type: str = "phys", dot: bool = False,
+                         target: dict | None = None) -> int:
         """v83 04 章 2.5：Boss 护盾/反伤过滤（挂在玩家伤害结算主路径）。
         shield：护盾存在期间受伤 -50%，先扣盾再扣血（破盾提示）。
         v110：真伤豁免 -50%（四层架构"真伤绕过全部减伤"），但护盾 HP 层仍吸收（仅护盾可吸收）。
         reflect：血量 <25% 反弹 15% 伤害给玩家。
-        v93：worldboss 应用 GM 伤害倍率（gm_伤害 设置）。"""
+        v93：worldboss 应用 GM 伤害倍率（gm_伤害 设置）。
+        v181 P3：target=实际承伤怪（玩家技能多怪打副怪时读副怪 mech/易伤/阶段，不再硬编码主怪）；
+        缺省 None 回落 self.enemy（单怪/旧调用行为不变）。player 参数=反伤扣血对象（攻击者）。"""
         if self.btype == "worldboss" and self.dmg_mult != 1.0:
             dmg = int(dmg * self.dmg_mult)
             if dmg < 1:
                 dmg = 1
+        # v181 P3：承伤怪 = 显式 target（玩家技能多怪打副怪）or 主怪（单怪/旧调用）
+        _e_t = target if target is not None else (self.enemy or {})
         # v138.1 阶段四件套：承伤倍率 dmg_taken_mult（>1=更脆，对应「疲态核心件外露」易伤+0.40）——
         # 由 _phase_apply 写入 e._dmg_taken_mult，_enemy_stats 聚合时从 _phase_mod 刷新
         # v178 E10：静态字段 dmg_taken_mult（build_monster 透传）作为兜底（动态 _dmg_taken_mult 优先）
-        _dtm = float((self.enemy or {}).get("_dmg_taken_mult",
-                     (self.enemy or {}).get("dmg_taken_mult", 1.0)) or 1.0)
+        _dtm = float(_e_t.get("_dmg_taken_mult",
+                     _e_t.get("dmg_taken_mult", 1.0)) or 1.0)
         if _dtm != 1.0:
             dmg = max(1, int(dmg * _dtm))
         # v178 E3c：阶段退出 exit_dmg 累计（仅当阶段配了 exit_dmg 才记——_phase_exit 存在且 dmg 非空）
         try:
-            _px = (self.enemy or {}).get("_phase_exit")
+            _px = _e_t.get("_phase_exit")
             if _px and _px.get("dmg") is not None:
                 _px["_acc_dmg"] = int(_px.get("_acc_dmg", 0) or 0) + max(0, dmg)
         except Exception as _sw_e:
             _battle_warn('_boss_dmg_filter', _sw_e)
             pass
-        mech = self.enemy.get("mech")
+        mech = _e_t.get("mech")
         if self.btype == "pvp":
             return dmg
         mechs = [x.strip() for x in (mech or "").split(",") if x.strip()]
-        e = self.enemy
+        e = _e_t
         # v180G B2-1：护盾吸收段删除——护盾（含 halve 语义）统一由 _damage_actor
         # 承伤链消费（L10853 起完整处理 halve 盾/真伤/破盾后剩余穿透）。此前此处
         # 与 _damage_actor 各有一份手写吸收 = 结构性重复；dot/附加伤害只走

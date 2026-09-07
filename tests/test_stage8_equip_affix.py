@@ -284,7 +284,7 @@ def test_battle_affix():
     random.seed(1)
     b8 = BT.Battle("monster", mk_enemy(hp=1000), {}, p8)
     b8._player_attack(b8._player_stats(p8), p8)
-    if b8.e_buffs.get("bleed"):
+    if b8._tgt_buffs().get("bleed"):
         logs = b8._turn_start(p8)
         check("流血回合结算", "流血" in "".join(logs) and b8.enemy["hp"] < 1000, str(logs))
     else:

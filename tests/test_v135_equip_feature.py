@@ -88,7 +88,7 @@ p = make_player(eq(["hunt"]))
 # 2a. e_buffs mark → 命中
 b = make_battle({"name": "野狼", "role": "dps", "hp": 1000, "max_hp": 1000,
                  "atk": 20, "matk": 5, "def": 5, "mdef": 5, "spd": 10, "skills": [], "debuffs": {}}, p)
-b.e_buffs["mark"] = 2
+b._tgt_buffs()["mark"] = 2
 mult, tags = b._affix_dmg_mult(p)
 check("e_buffs mark 命中（mult=1.2）", abs(mult - 1.2) < 1e-9 and "🎯追猎" in tags)
 # 2b. debuffs.mark>0 → 命中（原条件不认）
@@ -108,7 +108,7 @@ print("【3. 净化 purify 增强】")
 p = make_player(eq(["purify"]))
 b = make_battle({"name": "野狼", "role": "dps", "hp": 1000, "max_hp": 1000,
                  "atk": 20, "matk": 5, "def": 5, "mdef": 5, "spd": 10, "skills": [], "debuffs": {}}, p)
-b.e_buffs["mon_atk_up"] = 3
+b._tgt_buffs()["mon_atk_up"] = 3
 random.seed(1)  # 保证 15% chance 命中
 logs = []
 # 直接调 handler：_affix_on_hit 内部 roll chance
@@ -120,12 +120,12 @@ found_purify = False
 for _ in range(30):
     b2 = make_battle({"name": "野狼", "role": "dps", "hp": 1000, "max_hp": 1000,
                       "atk": 20, "matk": 5, "def": 5, "mdef": 5, "spd": 10, "skills": [], "debuffs": {}}, p)
-    b2.e_buffs["mon_atk_up"] = 3
+    b2._tgt_buffs()["mon_atk_up"] = 3
     b2._affix_on_hit(p, 100, [])
-    if b2.e_buffs.get("mon_atk_down"):
+    if b2._tgt_buffs().get("mon_atk_down"):
         found_purify = True
         check("净化成功 → mon_atk_down 挂上（圣洁）", True)
-        check("mon_atk_down=1 回合", b2.e_buffs["mon_atk_down"] == 1)
+        check("mon_atk_down=1 回合", b2._tgt_buffs()["mon_atk_down"] == 1)
         break
 if not found_purify:
     check("净化成功 → mon_atk_down 挂上（圣洁）", False)

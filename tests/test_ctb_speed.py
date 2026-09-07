@@ -228,7 +228,7 @@ def test_enemy_control():
     # 敌方稍慢（spd 18 vs 20）→ 玩家行动后敌方轮到恰好 1 次（单次被控跳过的判定窗口）
     set_spd(20, 18)
     b = BT.Battle("monster", make_enemy(18, hp=10_000_000, atk=50), player=make_player())
-    b.e_buffs["stun"] = 1          # 敌方眩晕
+    b._tgt_buffs()["stun"] = 1          # 敌方眩晕
     p = make_player()
     before_e = b.enemy["ct"]       # v152 绝对时刻：敌方初始行动时刻 = cost(spd18) = 5.56
     # v152 事件队列：直接把战斗时刻推进到敌方行动时刻（enemy_act 事件触发 → 眩晕跳过）
@@ -240,7 +240,7 @@ def test_enemy_control():
     # v152 绝对时刻：敌方 stun 行动被跳过 → 该单位 ct 重排为 now + cost（绝对时刻单调递增）
     check("敌方 ct 照走（行动被浪费后重排推进）", b.enemy["ct"] > before_e,
           f"{before_e} -> {b.enemy['ct']}")
-    check("眩晕消费点 pops（下次不再眩晕跳过）", "stun" not in b.e_buffs, f"{b.e_buffs}")
+    check("眩晕消费点 pops（下次不再眩晕跳过）", "stun" not in b._tgt_buffs(), f"{b._tgt_buffs()}")
 
 
 def test_player_control():

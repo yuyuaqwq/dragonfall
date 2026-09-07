@@ -20,7 +20,7 @@ def main():
                   "hp": 300, "max_hp": 300, "atk": 60, "def": 20, "spd": 10,
                   "resources": {}, "buffs": {}})
     print("enemies:", [u.get("name") for u in b.enemies])
-    print("e_buffs property = 主怪 buffs?:", b.e_buffs is b.enemies[0].get("buffs") or (b.e_buffs == b.enemies[0].setdefault("buffs", {})))
+    print("e_buffs property = 主怪 buffs?:", b._tgt_buffs() is b.enemies[0].get("buffs") or (b._tgt_buffs() == b.enemies[0].setdefault("buffs", {})))
     print("b.enemy 是主怪(古王)?:", b.enemy.get("name"))
 
     # 场景1：对【王冠核心】(副怪) 施放减速 —— 走 _skill_hit_settle / _tgt 指向副怪时写 debuff
@@ -28,15 +28,15 @@ def main():
     b.enemies[1].setdefault("buffs", {})["spd_down"] = 2
     print("\n场景1 直接写副怪 buffs → 副怪:", b.enemies[1]["buffs"])
     print("  主怪 buffs:", b.enemies[0].get("buffs"))
-    print("  e_buffs (共享别名) =", dict(b.e_buffs), "← 看不到副怪的 spd_down = 显示层 bug 复现")
+    print("  e_buffs (共享别名) =", dict(b._tgt_buffs()), "← 看不到副怪的 spd_down = 显示层 bug 复现")
 
     # 场景2：老代码路径 battle.e_buffs["stun"]=1 —— 会挂到主怪
-    b.e_buffs["stun"] = 1
-    print("\n场景2 battle.e_buffs['stun']=1 → 挂到主怪:", b.enemies[0]["buffs"])
+    b._tgt_buffs()["stun"] = 1
+    print("\n场景2 battle._tgt_buffs()['stun']=1 → 挂到当前目标:", b.enemies[0]["buffs"])
     print("  副怪 buffs:", b.enemies[1]["buffs"], "← stun 没挂副怪（若意图是对副怪施放=挂错）")
 
     # 显示层模拟（combat.py L1687 逻辑）
-    ebuf = [k for k, v in b.e_buffs.items() if v and not isinstance(v, dict)]
+    ebuf = [k for k, v in b._tgt_buffs().items() if v and not isinstance(v, dict)]
     print("\n状态栏 e_buffs 显示:", ebuf, "← 只含主怪 buff")
 
 if __name__ == "__main__":

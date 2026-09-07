@@ -72,7 +72,7 @@ def state_slices(b, p):
     e = b.enemy or {}
     for k in ("hp", "max_hp"):
         out[f"e.{k}"] = e.get(k)
-    for bag, name in ((e.get("debuffs"), "e.debuffs"), (b.e_buffs, "b.e_buffs"),
+    for bag, name in ((e.get("debuffs"), "e.debuffs"), (b._tgt_buffs(), "b._tgt_buffs()"),
                       (b._p_buffs_bag(), "b.p_buffs"), (b._p_shields_bag(), "b.p_shields"),
                       (b._p_eff(), "b.p_eff"), (b._p_stacks(), "b.p_stacks")):
         if bag:

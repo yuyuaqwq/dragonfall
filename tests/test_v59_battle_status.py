@@ -36,7 +36,7 @@ def test_status_line():
     # 直接写权威袋（结构同引擎 _add_shield：value + turns/expire_at）
     b._p_shields_bag()["test_shield"] = {"value": 150, "turns": 999}
     b._p_buffs_bag().update({"atk_up": 3, "def_up": 2})
-    b.e_buffs.update({"def_down": 2})
+    b._tgt_buffs().update({"def_down": 2})
     b.enemy["debuffs"] = {"burn": {"n": 3}, "poison": {"n": 3}, "mark": {"n": 2}}
     player = b.player
     s = mixin._status_line(player, b)
@@ -52,7 +52,7 @@ def test_footer():
     b = _new_battle()
     b._p_stacks().update({"rage": 5})  # v59 叠层存战斗状态
     b._p_buffs_bag().update({"atk_up": 3})
-    b.e_buffs.update({"def_down": 2})
+    b._tgt_buffs().update({"def_down": 2})
     player = b.player
     f = mixin._battle_footer(player, b, b.enemy)
     # v164.1：血量汇总行已删——血量在站位图逐只带出（❤️当前/最大）

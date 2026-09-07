@@ -48,7 +48,9 @@ def make_battle(**kw):
     enemy = kw.pop("enemy", {"name": "野狼", "hp": 100, "max_hp": 100, "atk": 20, "matk": 15, "def": 5, "mdef": 5, "spd": 10})
     b = Battle(btype="monster", enemy=enemy, player={"class_name": "cls_zhan_shi"})
     b.round = kw.pop("round", 1)
-    b.e_buffs = kw.pop("e_buffs", {})
+    _eb = b.enemy.setdefault("buffs", {})
+    _eb.clear()
+    _eb.update(kw.pop("e_buffs", {}) or {})
     # v180-B：玩家战斗可变状态权威 = player actor dict 的对应袋。原 REBIND 整袋到
     # Battle 实例属性（p_buffs/mech_stacks/shield/resources）已删除——改为直接写入
     # player dict 对应键（Battle 构造时已播种空袋）。
@@ -159,14 +161,14 @@ b = make_battle()
 b._equip_affix_ids = lambda p: ["element_ice"]
 logs = []
 b._affix_on_hit(player, 100, logs)
-check("element_ice 单独触发（附加伤害+减速）", "冰霜附加" in logs[0] and b.e_buffs.get("spd_down") == 2)
+check("element_ice 单独触发（附加伤害+减速）", "冰霜附加" in logs[0] and b._tgt_buffs().get("spd_down") == 2)
 # 净化：judgment_chain 在时 purify 不触发（if-elif 互斥）
 b = make_battle(e_buffs={"mon_atk_up": 3})
 b._equip_affix_ids = lambda p: ["purify", "judgment_chain"]
 random.seed(2)  # 让 purify 的 15% 命中（若误触发会清增益）
 logs = []
 b._affix_on_hit(player, 100, logs)
-check("净化互斥：有 judgment_chain 时 purify 不触发", "mon_atk_up" in b.e_buffs)
+check("净化互斥：有 judgment_chain 时 purify 不触发", "mon_atk_up" in b._tgt_buffs())
 # 减伤叠加：dmg_reduce + earth_heart = -8%
 b = make_battle()
 b._equip_affix_ids = lambda p: ["dmg_reduce", "earth_heart"]

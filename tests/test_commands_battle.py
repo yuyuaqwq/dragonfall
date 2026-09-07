@@ -56,7 +56,7 @@ async def main():
     b2 = BT.Battle.from_state(b.to_state())
     check("type 保留", b2.btype == "monster")
     check("enemy hp 保留", b2.enemy["hp"] == 100)
-    check("buffs 保留", b2._p_buffs_bag() == {} and b2.e_buffs == {})
+    check("buffs 保留", b2._p_buffs_bag() == {} and b2._tgt_buffs() == {})
 
     print("【战斗：普攻】")
     random.seed(1)
@@ -133,7 +133,7 @@ async def main():
     # v151→技能全鉴 P1 修复：破甲斩 desc"破防"与数据对齐（恢复 pierce:True，命中后挂 def_down 破防减益）
     # ——断言改为验证战意积攒 + 破防减益（不再是无减益异常）
     check("破甲斩积攒战意", (b._p_stacks() or {}).get("zhan_yi", 0) > 0, str(b._p_stacks()))
-    check("破甲斩施加破防（def_down）", (b.e_buffs or {}).get("def_down", 0) > 0, str(b.e_buffs))
+    check("破甲斩施加破防（def_down）", (b._tgt_buffs() or {}).get("def_down", 0) > 0, str(b._tgt_buffs()))
 
     print("【战斗：中毒持续伤害】")
     p = make_player("战士", 10, hp=9999)

@@ -213,23 +213,23 @@ def test_new_conds():
     b = make_battle(p)
     cond = {"type": "enemy_debuff", "mult": 1.2, "label": "猎物标记"}
     check("无减益不触发", abs(b._cond_mult({"cond": cond}, p) - 1.0) < 1e-9, str(b._cond_mult({"cond": cond}, p)))
-    b.e_buffs["def_down"] = 2
+    b._tgt_buffs()["def_down"] = 2
     check("有减益触发", abs(b._cond_mult({"cond": cond}, p) - 1.2) < 1e-9, str(b._cond_mult({"cond": cond}, p)))
 
     print("【条件：enemy_slowed（目标减速）】")
     b2 = make_battle(p)
     cond2 = {"type": "enemy_slowed", "mult": 1.2, "label": "寒霜亲和"}
     check("未减速不触发", abs(b2._cond_mult({"cond": cond2}, p) - 1.0) < 1e-9, "")
-    b2.e_buffs["spd_down"] = 2
+    b2._tgt_buffs()["spd_down"] = 2
     check("减速触发", abs(b2._cond_mult({"cond": cond2}, p) - 1.2) < 1e-9, "")
 
     print("【条件：element_marks（元素印记层数）】")
     b3 = make_battle(p)
     cond3 = {"type": "element_marks", "element": "fire", "stacks": 3, "mult": 1.3, "label": "连环引爆"}
     check("无火印不触发", abs(b3._cond_mult({"cond": cond3}, p) - 1.0) < 1e-9, "")
-    b3.e_buffs["fire_mark"] = 2
+    b3._tgt_buffs()["fire_mark"] = 2
     check("火印不足不触发", abs(b3._cond_mult({"cond": cond3}, p) - 1.0) < 1e-9, "")
-    b3.e_buffs["fire_mark"] = 3
+    b3._tgt_buffs()["fire_mark"] = 3
     check("火印≥3 触发", abs(b3._cond_mult({"cond": cond3}, p) - 1.3) < 1e-9, "")
 
     print("【条件：speed_ratio（速度比）】")
@@ -331,7 +331,7 @@ def test_mage_mechanics():
     b6 = make_battle(p)
     cond6 = {"type": "element_marks", "element": "any", "stacks": 1, "mult": 1.2, "label": "万象共鸣"}
     check("无印记不触发", abs(b6._cond_mult({"cond": cond6}, p) - 1.0) < 1e-9, "")
-    b6.e_buffs["ice_mark"] = 2
+    b6._tgt_buffs()["ice_mark"] = 2
     check("任意系印记触发", abs(b6._cond_mult({"cond": cond6}, p) - 1.2) < 1e-9, "")
 
 

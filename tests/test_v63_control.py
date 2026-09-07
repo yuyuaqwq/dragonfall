@@ -53,16 +53,16 @@ async def main():
     b = BT.Battle("monster", make_monster())
     p = make_player()
     b.player = p  # v180-B：玩家行动/引擎方法需焦点玩家（受击统计等读 player dict）
-    b.e_buffs["stun"] = 1
+    b._tgt_buffs()["stun"] = 1
     logs, dmg = b._enemy_turn(p)
     check("眩晕跳过行动", "被眩晕" in " ".join(logs), str(logs[:2]))
-    check("眩晕后状态清除", "stun" not in b.e_buffs, str(b.e_buffs))
+    check("眩晕后状态清除", "stun" not in b._tgt_buffs(), str(b._tgt_buffs()))
 
     print("【沉默：敌人被沉默只能普攻】")
     b = BT.Battle("monster", make_monster(skills=["ms_kuang_bao"]))
     p = make_player()
     b.player = p
-    b.e_buffs["silence"] = 1
+    b._tgt_buffs()["silence"] = 1
     # 沉默时即使概率命中也不放技能（不出现"使用了"）
     logs, dmg = b._enemy_turn(p)
     check("沉默不放增益技能", not any("使用了" in l for l in logs), str(logs))
@@ -71,10 +71,10 @@ async def main():
     b = BT.Battle("monster", make_monster())
     p = make_player()
     b.player = p
-    b.e_buffs["mon_atk_up"] = 2
-    b.e_buffs["mon_def_up"] = 2
+    b._tgt_buffs()["mon_atk_up"] = 2
+    b._tgt_buffs()["mon_def_up"] = 2
     b._apply_mech_effect("cleanse", 1, {}, 0, [], "圣言术", False)
-    check("净化清除攻/防增益", "mon_atk_up" not in b.e_buffs and "mon_def_up" not in b.e_buffs, str(b.e_buffs))
+    check("净化清除攻/防增益", "mon_atk_up" not in b._tgt_buffs() and "mon_def_up" not in b._tgt_buffs(), str(b._tgt_buffs()))
 
     print("【玩家被眩晕：本回合无法行动】")
     b = BT.Battle("monster", make_monster())
@@ -101,12 +101,12 @@ async def main():
     b = BT.Battle("monster", make_monster())
     p = make_player(lv=35, mp=999)
     p["learned_skills"] = ["盾击·誓"]
-    b.e_buffs["stun"] = 1
+    b._tgt_buffs()["stun"] = 1
     # 盾击·誓（v153 盾卫士 t1 lv32，mech=stun）
     info = E.skill_info("cls_zhan_shi", "盾击·誓")
     check("盾击·誓带眩晕 mech", info.get("mech") == "stun", str(info.get("mech")))
     b2 = BT.Battle("monster", make_monster())
-    b2.e_buffs["stun"] = 1
+    b2._tgt_buffs()["stun"] = 1
     mult_stunned = b2._cond_mult({"cond": info.get("cond")}, make_player(lv=35), 1)
     check("眩晕目标增伤>=1", mult_stunned >= 1.0, f"mult={mult_stunned}")
 

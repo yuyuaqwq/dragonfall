@@ -60,7 +60,7 @@ def state_slices(b, p):
     for k in ("hp", "max_hp"):
         out[f"e.{k}"] = e.get(k)
     for bag, name in ((e.get("buffs"), "e.buffs"), (e.get("debuffs"), "e.debuffs"),
-                      (b.e_buffs, "b.e_buffs")):
+                      (b._tgt_buffs(), "b._tgt_buffs()")):
         if bag:
             out[name] = snap(bag)
     return out

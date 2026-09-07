@@ -104,7 +104,7 @@ def test_opening_roar():
     logs = []
     b._boss_mech(logs)
     check("开场演出【深渊咆哮】", any("深渊咆哮" in x for x in logs), str(logs))
-    check("开场增益 mon_atk_up", b.e_buffs.get("mon_atk_up", 0) >= 2, str(b.e_buffs))
+    check("开场增益 mon_atk_up", b._tgt_buffs().get("mon_atk_up", 0) >= 2, str(b._tgt_buffs()))
     check("开场 once（_open_played）", b.enemy.get("_open_played") is True, "")
     # 非首回合不再触发
     b2 = BT.Battle("monster", mk_boss("phase_open", scripts=scripts), {}, player=mk_player())

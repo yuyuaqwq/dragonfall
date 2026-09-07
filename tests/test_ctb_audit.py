@@ -62,7 +62,7 @@ def test_1_spd_down_enemy_frequency():
     b.advance_until_next_decision([])
     # 有减速（spd_down → 敌方有效 20 → cost 5）：同窗口内敌方行动次数应减少
     b2 = BT.Battle("monster", make_enemy(40), player=make_player())
-    b2.e_buffs["spd_down"] = 2
+    b2._tgt_buffs()["spd_down"] = 2
     cnt = [0]
     orig = BT.Battle._after_actor_ct
     def wrap(self, side, unit=None, player=None, cast_mult=1.0):
@@ -78,7 +78,7 @@ def test_1_spd_down_enemy_frequency():
     # 直接验证 cost 计算：减速后 e_cost 变大
     b3 = BT.Battle("monster", make_enemy(40), player=make_player())
     cost0 = b3._ct_cost(b3._enemy_stats().get("spd", 0))
-    b3.e_buffs["spd_down"] = 2
+    b3._tgt_buffs()["spd_down"] = 2
     cost1 = b3._ct_cost(b3._enemy_stats().get("spd", 0))
     check("减速后敌方 cost 变大", cost1 > cost0, f"{cost0} -> {cost1}")
 
@@ -89,7 +89,7 @@ def test_2_sleep_round_decay():
     BT.Battle._enemy_stats = patched_e_stats
     _SPD["p"], _SPD["e"] = 5, 40  # 敌方快 → 连动窗口大
     b = BT.Battle("monster", make_enemy(40, atk=1), player=make_player())
-    b.e_buffs["sleep"] = 3
+    b._tgt_buffs()["sleep"] = 3
     # 防御一回合（不打醒；敌方连动多次）——v152 事件队列：防御窗口内敌方可能多次行动，
     # 但睡眠是行动级消费（每次被选中行动消耗 1 次），不是回合级递减。
     logs, ended = b.player_turn("defend", None, make_player())
@@ -101,7 +101,7 @@ def test_2_sleep_round_decay():
     # 断言放宽：防御一回合后 sleep 要么仍在（未被多重递减清零），要么正常按行动消费（≥1 或已耗尽但
     # 敌方正被唤醒）——核心是"不被时刻/连动多重递减一次性清零到异常"。
     check("防御一回合后睡眠按行动级消费（v152 不被多重递减清零）",
-          b.e_buffs.get("sleep", 0) >= 0, f"sleep={b.e_buffs.get('sleep')}")
+          b._tgt_buffs().get("sleep", 0) >= 0, f"sleep={b._tgt_buffs().get('sleep')}")
 
 def test_3_stun_skip_time_flow():
     print("【3. 玩家被控跳过时敌方时间流逝（P2-1 修复）】")

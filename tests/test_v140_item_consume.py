@@ -86,8 +86,8 @@ def test_vuln():
     p = mk_player()
     e = mk_enemy()
     b = BT.Battle("monster", e, player=p)
-    b.e_buffs["spd_down"] = 2
-    b.e_buffs["def_down"] = 2
+    b._tgt_buffs()["spd_down"] = 2
+    b._tgt_buffs()["def_down"] = 2
     b.enemy.setdefault("debuffs", {})["poison"] = {"n": 1, "mult": 1.0}
     from game.core.potion_effects import eff_vuln
     msg = eff_vuln(b, p, {"turns": 3, "per_debuff": 0.12, "max_debuff": 3, "max_bonus": 0.36})
