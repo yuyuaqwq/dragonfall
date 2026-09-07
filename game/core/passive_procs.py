@@ -1469,4 +1469,16 @@ declare_proc("hunt_mark_cap", "dmg_mult_cond")
 # soul_mark_cap → dmg_mult_cond 已在 P2-D3b 声明（乘区段）；cap 段同族 ctx cap_kind 分派
 # cc_immune 无独立族声明——zhan_yi_full_reduce/core_full 双消费点（挂点10 免控 + 挂点11
 # 减伤）由同一 dr_cond 族 ctx cc_kind/dr_kind 分派（declare_proc 防重复：一 proc 一族）
+# P2-D5c：挂点18/19/20/23 命中后置/治疗/增益副作用族 6 proc → flag_set_cond 族 ctx
+# flag_kind 分派（挂点18 element_affinity 引爆置位 / broken_extend 延长段 / dirge_ctrl_up
+# 挽歌控制延长；挂点19 heal_overflow_shield 溢出转盾；挂点20 melody_duet 吟唱 +add；
+# 挂点23 shaken_decay_half 破绽衰减回补——broken_extend 双消费点：乘区段已 D3b 声明
+# dmg_mult_cond（mult_kind=broken_break），延长段本批同族 flag_kind=broken_extend）
+declare_proc("element_affinity", "flag_set_cond")
+declare_proc("dirge_ctrl_up", "flag_set_cond")
+declare_proc("melody_duet", "flag_set_cond")
+declare_proc("heal_overflow_shield", "flag_set_cond")
+declare_proc("shaken_decay_half", "flag_set_cond")
+# broken_extend → dmg_mult_cond 已在 P2-D3b 声明（挂点14 乘区段）；延长段走同族新 ctx
+# flag_kind=broken_extend 分派（declare_proc 防重复——不再重复声明）
 
