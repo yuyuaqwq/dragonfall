@@ -383,8 +383,9 @@ def _h_dmg_mult_cond(battle, ctx: dict, ps: dict, ps_name: str):
         return None
     if _kind == "cap_kind":
         # 挂点16 _apply_mech_effect cap 段（hunt_mark_cap/soul_mark_cap **双消费点 cap 段**——
-        # 同 proc 挂点14 乘区段已声明；一 proc 一族下 cap 段语义进本族新 ctx 分派 cap_kind
-        # hunt_mark/soul_mark——同 D2b stat_kind/D3b soul_mark cap 段模式）
+        # 同 proc 挂点14 乘区段已声明；一 proc 一族下 cap 段语义进本族新 ctx 分派
+        # mult_kind=cap_kind + ctx cap_kind=hunt_mark/soul_mark——同 D2b stat_kind/
+        # D3b soul_mark cap 段模式）
         _add = int(ps.get("add", 0) or 0)
         if _add <= 0:
             return None  # 缺字段 = cap 不放宽 = 原 3/5 上限（零默认值铁律；D0 回填 2）

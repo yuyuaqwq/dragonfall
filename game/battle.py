@@ -7409,12 +7409,12 @@ class Battle:
             handler(self, mval, p_mech, total, logs, skill_name, is_crit, info)
         # ---- v169.7 被动叠层上限放宽（术后补层，只对命中当次生效；mval=叠层量）----
         # v181.P2D-D5b：hunt_mark_cap/soul_mark_cap cap 段迁注册表族 dmg_mult_cond
-        # （ctx cap_kind 分派 hunt_mark/soul_mark——同 proc 挂点14 乘区段已声明，双消费点
-        # 同族参数化；handler 返回 base+add = 3+add，调用侧 min(返回, 叠加后层数) 等价原
-        # `min(3+_extra_cap, _old+_mv)`。守卫（mech 判定 + proc 条目存在 + mval>0 +
-        # _old+_mv>_now 才补层）由骨架保留。poison 段只调 _poison_cap() 读放宽后上限——
-        # poison_cap_up/poison_cap 已整体迁 stack_cap_add 族（D1，挂点17 本体族化），
-        # 挂点16 非独立消费，本批不动）
+        # （ctx mult_kind=cap_kind + cap_kind 分派 hunt_mark/soul_mark——同 proc 挂点14
+        # 乘区段已声明，双消费点同族参数化；handler 返回 base+add = 3+add，调用侧
+        # min(返回, 叠加后层数) 等价原 `min(3+_extra_cap, _old+_mv)`。守卫（mech 判定 +
+        # proc 条目存在 + mval>0 + _old+_mv>_now 才补层）由骨架保留。poison 段只调
+        # _poison_cap() 读放宽后上限——poison_cap_up/poison_cap 已整体迁 stack_cap_add
+        # 族（D1，挂点17 本体族化），挂点16 非独立消费，本批不动）
         try:
             _pl_cap = caster or {}
             _pm_cap = self._proc_pm(_pl_cap)
@@ -7422,7 +7422,8 @@ class Battle:
             _deb_cap = _tgt_cap.setdefault("debuffs", {})
             _mv = max(0, int(mval or 0))
             if mech == "hunt_mark" and _pm_cap["proc"].get("hunt_mark_cap") and _mv > 0:
-                _ctx_hmc = {"player": _pl_cap, "ps": {}, "ps_name": "", "cap_kind": "hunt_mark"}
+                _ctx_hmc = {"player": _pl_cap, "ps": {}, "ps_name": "", "mult_kind": "cap_kind",
+                            "cap_kind": "hunt_mark"}
                 _rv_hmc = _run_proc_family_pm(self, _pl_cap, "hunt_mark_cap", _ctx_hmc)
                 if _rv_hmc:
                     _extra_cap = float(_rv_hmc[0])
@@ -7433,7 +7434,8 @@ class Battle:
                 if _old_hm + _mv > _now_hm:
                     _deb_cap["hunt_mark"] = min(int(_extra_cap), _old_hm + _mv)
             if mech == "soul_mark" and _pm_cap["proc"].get("soul_mark_cap") and _mv > 0:
-                _ctx_smc = {"player": _pl_cap, "ps": {}, "ps_name": "", "cap_kind": "soul_mark"}
+                _ctx_smc = {"player": _pl_cap, "ps": {}, "ps_name": "", "mult_kind": "cap_kind",
+                            "cap_kind": "soul_mark"}
                 _rv_smc = _run_proc_family_pm(self, _pl_cap, "soul_mark_cap", _ctx_smc)
                 if _rv_smc:
                     _extra_sm = float(_rv_smc[0])
@@ -8715,6 +8717,14 @@ class Battle:
         # v180F A7：不猜 caster——dot 强度以挂毒时存的施法者快照为准（_apply_dot 8246-8247），
         # 快照缺失（老档/直接构造）不回落 _last_player 猜当前玩家（可能是错的人——多人副本
         # 毒是 A 挂的、B 行动时结算），缺失即 0 强度只吃 max_hp 部分，随毒自然过期。
+        # v180F A7b：caster=None（tick 卡 _th_actor_dot / 世界 Boss force 入口）时，
+        # 目标怪侧回落 self.player（玩家毒怪现状语义——快照缺失的毒 tick 由玩家结算）；
+        # 目标玩家侧保持 None（玩家被动乘区不作用于自己身上的毒）。原代码 caster 参数
+        # 全程透传——乘区守卫 `_caster_is_player = caster 且玩家侧` 下 None 永不触发，
+        # 无参调用点（模块 tick 卡/combat force 结算毒）走不到 poison_all_up/weaken。
+        # 修复：仅当 actor 非玩家侧且 caster 缺省时回落 player（对应当前调用点语义）。
+        if caster is None and not self._is_player_side(e) and self.player:
+            caster = self.player
         _caster_is_player = self._is_player_side(caster) if caster is not None else False
         _tgt_name = "你" if _tgt_is_player else f"【{e.get('name', '目标')}】"
         deb = e.get("debuffs") or {}
