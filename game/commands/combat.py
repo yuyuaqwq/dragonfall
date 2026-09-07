@@ -22,7 +22,9 @@ from ..core.skill_kinds import K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_PASSIVE, K_TAUN
 
 from ..core.formation import formation_view  # v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle
-from .world import _DAILY_META_KEYS, _settle_daily_quest  # v125.1 P0/P2：每日元数据键 + 达标结算单点（与 world 收敛）
+# v181 P4-1 试点：每日元数据键 + 达标结算单点已收敛至 services.quests——
+# combat 与 world 共同 import services（不再 from .world 引命令层私有函数）
+from ..services.quests import DAILY_META_KEYS, settle_daily_quest  # noqa: F401
 from .weekly import weekly_bump_kill  # v169.2 周常悬赏击杀推进（达标自动发奖）
 from .tower import tower_guard_on_kill  # v169.2 修炼爬塔塔卫击杀结算（与野王同款接线）
 from ..core.wild_king import (  # v140 波2：野王体系（探索命中/击杀结算/摸宝箱）
@@ -2441,6 +2443,8 @@ class CombatCmds(CommandBase):
                         lines.append(f"📜 主线『{mq['name']}』：{prog[obj['kill']]}/{obj['count']}")
         # 每日
         # v94：先清跨天任务（daily 里 _date 不是今天 → 清空），避免旧任务残留
+        # v181 P4-1 试点：达标结算单点收敛至 services.quests.settle_daily_quest
+        # （模块级 import，见文件头；combat 不再 from .world 引命令层私有函数）
         if db.expire_daily(quests):
             changed = True
         daily = dict(quests.get("daily", {}))
@@ -2448,7 +2452,7 @@ class CombatCmds(CommandBase):
         # _completed(int)/_repeat(dict) 被 dq["objective"] 下标 → TypeError 每日首战必崩
         # （对照 world.py _bump_daily_progress 的 _DAILY_META_KEYS 正确实现）
         for dkey, dq in list(daily.items()):
-            if dkey in _DAILY_META_KEYS:  # 跨天/计数元数据，不是任务
+            if dkey in DAILY_META_KEYS:  # 跨天/计数元数据，不是任务
                 continue
             dobj = dq["objective"]
             prog = dq.get("progress", 0)
@@ -2463,7 +2467,7 @@ class CombatCmds(CommandBase):
             if prog >= dobj.get("kill_any", dobj.get("kill_elite", dobj.get("kill_boss", 99))):
                 # v125.1 P2：发奖结算统一走 _settle_daily_quest（与 world._bump_daily_progress 同单点；
                 # 击杀型每日在此接线，防刷上限/衰减对击杀型同样生效）
-                _settle_daily_quest(self, group_id, qq_id, daily, dq, lines)
+                settle_daily_quest(group_id, qq_id, daily, dq, lines)
                 del daily[dkey]
         # 无条件写回：即使全部完成（daily 为空）也要清空 quests，否则任务残留会无限重复发奖励
         quests["daily"] = daily
