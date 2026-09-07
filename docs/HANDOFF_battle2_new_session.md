@@ -8,78 +8,97 @@
 
 ## 0. 分支与位置
 - 分支：`wt_ebuffs`（worktree：`C:/Users/yuyu/AppData/Local/Temp/df_wt_ebuffs/w1`）
-- HEAD：`57c3e61`（方案文档 + 交接定稿）
+- **HEAD：`9a5627f`**（2026-09-08 晚，质量批次：分支覆盖 90.4%）
 - 主仓（生产）：`C:/Users/yuyu/qqbot/data/plugins/dragonfall`（master 4b634d6，未动）
-- **开发环境：直接在 w1 里写，不用沙盒**（鱼鱼 2026-09-08 拍板：不需要 df_wt_copy2e 沙盒，
-  直接主环境开发）。新引擎的测试也在 w1 里写/跑（测试 DB 用独立临时库隔离，不碰真实库）。
+- 开发环境：直接在 w1 写（鱼鱼拍板不用沙盒）。测试独立临时 GWEN_GAME_DB。
 
-## 1. 方案文档（权威，开工先读）
+## 1. 权威文档
 | 文档 | 内容 |
 |---|---|
-| `docs/REFACTOR_v181P4_FULL_PLAN.md` | **主方案 v2**：目标架构/字段定义/行动签名/效果系统/DB 存储/实施 N1-N6/落地细节/风险 |
-| `docs/ENGINE_ARCHITECTURE_v181P4.md` | 架构分析：行动流程/作用对象模型/mech-effect 合并 |
-| `docs/HANDLER_MANUAL_battle_mech.md` | 旧 battle_mech 122 handler 分类手册（迁移参考） |
+| `docs/REFACTOR_v181P4_FULL_PLAN.md` | 主方案 v2（Part 1-8 全） |
+| `docs/REFACTOR_v181P4_class_mech_decouple.md` | **职业机制与引擎解耦方案**（2026-09-08 鱼鱼拍板，见 §2） |
+| `docs/ENGINE_ARCHITECTURE_v181P4.md` | 旧架构分析 |
+| `tools/COVERAGE_battle2.md` | 覆盖率三层说明 + 豁免清单 |
 
-## 2. 核心设计（一句话版）
-- 引擎 = sides（actor 组）+ act_ctx（每次行动的 caster/target/scope）
-- actor 全同构（无身份逻辑；class_name 只选面板公式，side 只分组）
-- 行动入口：`human_act`（命令层）/`actor_auto`（自动 actor）/内部 `act(ctx)`
-- 效果：单一 `EFFECT_HANDLERS` 表，handler 签名 `fn(battle, caster, target, params, logs)`
-- mech/effect 双轨合并成技能 `effects: [{type, stacks, turns, pct...}]` 列表
-- 数值公式**复用旧 engine.py**（不重写），只薄封装
-- DB：battle_state 的 state JSON 换 sides-only（旧档一次性迁移）
+## 2. 本会话重大架构决策（鱼鱼拍板，全部落地）
 
-## 3. 实施阶段（每阶段独立可用 + 自测）
-| Phase | 内容 | 验收 |
+这些是**方案文档之外**的新决策，必须遵守：
+
+1. **职业机制不进引擎**（鱼鱼："职业机制不应该依赖战斗系统，战斗系统提供通用接口"）
+   - mech 三分类：A 通用状态已迁 / B 通用动作数据化 / **C 职业专属机制不迁**
+   - C 类（血祭/卸负/旋律状态机/骷髅祭仪）留给上层职业模块（事件总线方案未做）
+2. **actor 字段契约**：引擎白名单 + `ext` 扩展区
+   - 职业状态写 `actor["ext"]`（引擎绝不读）；白名单外引擎不假设
+3. **叠层不做进引擎**（鱼鱼："叠层这东西有必要做进引擎吗" → 不）
+   - 统一 `actor["state"]` 容器（删 stacks/resources 双轨，零兼容）
+   - `state_effects` 声明表：cap/stat_scale/dot/on=target 全数据驱动
+4. **框架/配置分离**（鱼鱼："换一套配置就是新游戏"）
+   - 引擎只有**动词执行器**：control/buff/shield/cleanse/state_add/state_spend
+   - 游戏名词（眩晕/灼烧/战意）在 `game/data/battle2_rules.py` 配置层
+   - battle2 经 `config.py` 挂载点查表，引擎零游戏知识
+5. **不陪葬旧 bug**（鱼鱼："你确定你的新引擎没问题就行"）
+   - 战吼 atk_up=10 刻（旧引擎漏传 info=3 刻是 bug，测试固化）
+   - AOE 弃用 infer_atk 反推（数学不自洽），逐目标独立结算
+   - 等级字段统一 `level`（删怪用 lv，零兼容）
+6. **落地统一收口**：`landing.py` 的 deal_damage/heal_actor
+   - 所有伤害/治疗必须走它（防绕过护盾/死亡判定）
+
+## 3. 实施进度（N1-N5a 完成，全套 168/168 绿）
+
+| 阶段 | 内容 | 状态 |
 |---|---|---|
-| N1 | battle2 包骨架：actors.py 模型 + Battle 构造 + 普攻闭环 | 同场景新旧引擎伤害一致（对拍脚本） |
-| N2 | actions.py 行动链：技能/治疗/增益/AOE/承伤 | kind 三类全通 + 数值对拍一致 |
-| N3 | effects.py 效果系统 + 数据迁移 | dot/控制/buff/元素全通 + 数值一致 |
-| N4 | schedule.py CTB 调度 + 自动行动 + 状态收尾 | 完整战斗能打完（胜负/逃跑） |
-| N5 | serialize.py + 命令层切换 | 野外/副本/PVP 能玩 |
-| N6 | 删旧 battle.py + 全量回归 | run_all_tests 全绿 + numeric 52/52 |
+| N1 | battle2 骨架 + 普攻闭环（对拍 45/45） | ✅ 8d315a9 |
+| N2a | 技能链（攻/疗/益 数值主线） | ✅ 9bfc620 |
+| N2b | 多段 hits + AOE 逐目标独立结算 | ✅ ed2bc86 |
+| N3a | effects 效果单表 + 命中接入 | ✅ 416b23b |
+| - | actor 字段契约 ext 扩展区 | ✅ 717d09d |
+| - | 状态底子：统一 state + 声明表折算 | ✅ 2d975c2 |
+| - | landing 落地接口层 + level 统一 | ✅ ca38710 |
+| - | 框架/配置分离 Step1（state 表迁配置） | ✅ b31f5a9 |
+| - | 框架/配置分离 Step2（effects 动词化） | ✅ 41178e5 |
+| N4 | CTB 调度 + 自动行动 + DOT 结算 | ✅ da129a5 |
+| N5a | serialize 序列化（to_state/from_state） | ✅ 68110ae |
+| - | 质量：函数级覆盖 100% + 补齐 38 项 | ✅ 777260a |
+| - | 质量：分支覆盖 90.4% + 甄别文档 | ✅ 9a5627f |
+| **N5b** | **命令层切换（combat.py 等接新引擎）** | ⬜ 下一步 |
+| **N6** | **删旧 battle.py + 全量回归** | ⬜ |
 
-**关键**：N1-N4 只写引擎自己的测试（新引擎行为验证），不跑全量；N6 才全量。
-
-## 4. battle2 包结构（目标）
+### battle2 包结构（现状）
 ```
 game/battle2/
-├── __init__.py        # 导出 Battle（from game.battle2 import Battle）
-├── actors.py          # Actor 工厂/Sides/ActCtx/序列化
-├── battle.py          # Battle 主类：构造/act/human_act/actor_auto/胜负
-├── actions.py         # 行动结算：技能/普攻/伤害落地/承伤链/AOE
-├── effects.py         # EFFECT_HANDLERS 单表 + handler + 执行
-├── stats.py           # 面板（薄封装 engine.py，不重写公式）
-├── schedule.py        # CTB：事件队列/时刻推进/自动调度
-├── serialize.py       # to_state/from_state（sides-only）
-└── data_bridge.py     # 读旧数据层适配（技能/词条/怪物表）
+├── __init__.py    导出 Battle/ActCtx/make_actor/actor_ext
+├── actors.py      actor 模型/state 访问/ActCtx/ext
+├── battle.py      Battle 主类（act/human_act/auto_run/to_state/from_state）
+├── actions.py     行动结算（攻击/治疗/增益/多段/AOE）
+├── effects.py     动词执行器（control/buff/shield/cleanse/state_add/spend）
+├── landing.py     落地收口（deal_damage/heal_actor）
+├── stats.py       面板（actor_stats + 声明折算）
+├── schedule.py    CTB 推进（advance/auto 调度/DOT）
+├── serialize.py   to_state/from_state（sides-only）
+├── config.py      配置挂载点（load_game_rules）
+└── state_effects.py  薄封装查 config 规则
+游戏配置（引擎外）：game/data/battle2_rules.py
 ```
-依赖：→ engine.py（数值，只读）/ data/ / core/formation.py / core/constants.py
-**绝不 import 旧 game/battle.py、core/battle_mech.py handler**
 
-## 5. 测试策略（引擎独立测试）
-- 测试位置：`tests/test_battle2_*.py`（w1 里直接写直接跑；N6 删旧后自然进全量）
-- 每阶段：对拍测试（同场景双引擎跑，数值差=0）+ 行为断言
-- numeric_lib 的纯数值函数（player.py 等）可直接复用做对拍基准
-- 参照旧测试怎么构造 battle/玩家/怪（tests/ 里 mk_player/mk_enemy 模式）
-- 引擎纯逻辑测试尽量不依赖 DB（避免碰真实库）；确需 DB 用独立临时 GWEN_GAME_DB
-
-## 6. 旧引擎已知现状（新引擎要避免的坑）
-- battle.py 11000+ 行，v100+ 补丁叠加，隐式全局目标(self.enemy/_active_target)混乱
-- 已做（本分支 commit）：e_buffs 删除、命名 actor 化（player_act→actor_act）、
-  enemy property 改 sides 读、部分 core handler 改 _hit_tgt()
-- **当前全量回归是红的**（旧引擎改造半途）——新会话不要管旧引擎红，专注 battle2
-- 旧 battle.py 的 27 红测试等 N6 删旧时一并处理（很多会随旧引擎消失）
-
-## 7. 开工第一步建议
-1. 读 REFACTOR_v181P4_FULL_PLAN.md（尤其 Part 1/2/7）
-2. 建 battle2/actors.py（模型）+ 一个最小 Battle（普攻）
-3. 写对拍脚本：同构造旧 battle 普攻 vs 新 battle 普攻，伤害一致
-4. 跑通 N1 验收再进 N2
-
-## 8. 关键常量/路径速查
+## 4. 测试
+- 位置：`tests/test_battle2_*.py`（8 个文件，168 断言全绿）
+- 跑法：`python tests/test_battle2_n1_attack.py` 等（w1 内）
+- **覆盖率门禁（每改必跑）**：
+  - `python tools/cov_func_battle2.py` — 函数级（0 未调用）
+  - `python tools/cov_branch_battle2.py` — 行级 90.4%（其余防御代码豁免，见 tools/COVERAGE_battle2.md）
 - Python：`C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe`
-- 测试跑法：w1 里直接 `python tests/xxx.py`（引擎独立测试用独立临时 GWEN_GAME_DB，
-  不碰真实库 game/game_data.db；新引擎纯逻辑测试可不依赖 DB）
-- numeric 门禁：`python scripts/run_numeric_tests.py`（N6 才跑）
-- 公式复用入口：game/engine.py 的 calc_damage/player_final_stats/skill_info/skill_flat_value
+
+## 5. N5b 待办（命令层切换，还没开始）
+- combat.py/instance.py/world.py/tower.py 的 `from game import battle as BT` → battle2
+- 盘点命令层调用面（b.xxx 方法清单）→ battle2 提供同语义 API
+- 旧档迁移（enemy/enemies 键 → sides）：serialize.migrate_old_state 未写（方案留了）
+- 命令层模式：`b.to_state()` → `db.save_battle()`；恢复 `BT.Battle.from_state(st)`
+
+## 6. 已知差异（新引擎 vs 旧引擎，切换时注意）
+- human_act 出手后会**自动推进**到下一个决策点（旧引擎要命令层手动 advance）——命令层要适配
+- actor 全 level（怪模板 lv 由 data_bridge 入口翻译，引擎不认 lv）
+- shield 默认 on=caster（施法者给自己上盾）；对敌 shield 要显式 on=target
+
+## 7. 会话重启接续
+- 新会话开场：读本文档 + REFACTOR_v181P4_FULL_PLAN.md
+- git log 看进度；继续 N5b 从命令层盘点开始
