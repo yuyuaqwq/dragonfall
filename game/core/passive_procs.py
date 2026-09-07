@@ -393,6 +393,23 @@ def _h_dmg_mult_cond(battle, ctx: dict, ps: dict, ps_name: str):
                 _tags.append(f"💢破防x{round(1 + _bm, 2)}")
             return _nv
         return None
+    if _kind == "broken_extend":
+        # 挂点18 破绽·极 broken_extend **延长段**（双消费点之二：乘区段 mult_kind=broken_break
+        # 已在 D3b 收编本族）：目标 shaken dict（bar_trigger 后免疫窗口）→ immune_turns
+        # +ps.extend。ctx["shaken"] = e_buffs["shaken"] dict 引用，副作用直落。
+        # 读 _ps：extend；缺字段（≤ 0）= 无此行为（零默认值铁律；D0 回填 1）。
+        _ext2 = int(ps.get("extend", 0) or 0)
+        if _ext2 <= 0:
+            return None  # 缺字段 = 无此行为
+        _sh2 = ctx.get("shaken")
+        if not isinstance(_sh2, dict):
+            return None  # 无 shaken dict → 不触发（调用侧守卫已保证，双保险）
+        try:
+            _sh2["immune_turns"] = int(_sh2.get("immune_turns", 0) or 0) + _ext2
+            return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.broken_extend", _sw_e)
+            return None
     if _kind == "dirge_debuffs":
         # 挂点14 挽歌·极 dirge_debuff_dmg：读 battle._enemy_debuff_kind_count()（self.enemy
         # 口径——原循环体直读，非 target）→ pct=min(_ps.per_debuff×种数, _ps.cap)；pct>0 →
@@ -750,6 +767,8 @@ def _h_flag_set_cond(battle, ctx: dict, ps: dict, ps_name: str):
         # 原循环体：`for...: self._elem_affinity_next = True; break`（ps 空 dict 纯置位型，
         # 学到即置位——无参数读取）；置位供挂印分支 6582 消费后清零（battle 属性随序列化）。
         # 读 _ps：零参数——但保留零默认值铁律：无 flag_kind/无 mech 前缀门槛 = 不触发。
+        if battle is None:
+            return None  # 无 battle 实例 = 无标记可置（探针/静态路径防御）
         try:
             battle._elem_affinity_next = True
             return True
@@ -811,7 +830,8 @@ def _h_flag_set_cond(battle, ctx: dict, ps: dict, ps_name: str):
         # 原循环体（battle.py 6265-6277 迁移前副本）逐字直搬：guard = melody.name 非空
         # 且 stack > 0 才 +add；ctx["melody"] = 调用侧 _melody_state() 引用（副作用直接
         # 落该 dict——_melody 随战斗序列化）；ctx["max_stack"] = MELODY_CFG.max_stack
-        # （核心常量族 battle_mech，调用侧取）；日志 🎶二重唱… 原样保留。
+        # （核心常量族 battle_mech，调用侧取）；日志串与原文逐字一致（原文硬编码
+        # "额外 +1！"与 "/5"——data add=1/max_stack=5 渲染同文）。
         # 读 _ps：add；缺字段（≤ 0）= 无此行为（零默认值铁律；D0 回填 1）。
         _add_md = int(ps.get("add", 0) or 0)
         if _add_md <= 0:
@@ -826,7 +846,7 @@ def _h_flag_set_cond(battle, ctx: dict, ps: dict, ps_name: str):
             _mel_md["stack"] = min(_cap_md, int(_mel_md.get("stack", 0) or 0) + _add_md)
             _lg = ctx.get("logs")
             if isinstance(_lg, list):
-                _lg.append(f"🎶 {ps_name}：二重唱，旋律强度额外 +{_add_md}！（{_mel_md['stack']}/{_cap_md}）")
+                _lg.append(f"🎶 {ps_name}：二重唱，旋律强度额外 +1！（{_mel_md['stack']}/5）")
             return True
         except Exception as _sw_e:
             _swallow(battle, "passive_procs.melody_duet", _sw_e)
@@ -850,6 +870,9 @@ def _h_flag_set_cond(battle, ctx: dict, ps: dict, ps_name: str):
             _tu_hos = ctx.get("target_unit")
             if _tu_hos is None:
                 return None
+            # 自己场景 _add_shield 落 player.shields（_p_shields_bag = actor.shields）；
+            # 队友场景落 target_unit.p_shields——两路取 shields 袋口径一致（v101.28d 同源）
+            _tu_hos.setdefault("shields", {})  # 保证 shields 袋存在（_add_shield 内 _p_shields_bag 读写）
             _ov_hos = int(ctx.get("hp_before") or 0) + int(ctx.get("heal") or 0) \
                 - int(_tu_hos.get("max_hp", _tu_hos.get("hp", 0)) or 0)
             if _ov_hos <= 0:
@@ -882,6 +905,8 @@ def _h_flag_set_cond(battle, ctx: dict, ps: dict, ps_name: str):
         # （副作用直接落该 dict——e_buffs = enemy.buffs 代理，随战斗序列化）；
         # ctx["decay_full"] = 调用侧 bar_def 快照 _bd.decay_per_turn（缺省 1.7，原语义）。
         # 读 _ps：零参数（纯副作用型）——学到即回补；保留防御：shaken dict 缺失 = 不触发。
+        # ps 零默认值铁律：add/pct 类数值 proc 缺字段=无此行为；本 proc 为纯置位型无参数
+        # 消费（学到即回补）——沿用族内既有零参模式（elem_affinity：置位不读 _ps 数值）。
         _eb_shd = ctx.get("e_buffs_shaken")
         if not isinstance(_eb_shd, dict):
             return None
