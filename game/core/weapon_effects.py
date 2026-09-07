@@ -51,6 +51,11 @@ def _we_defaults(key: str) -> dict:
             _WE_DATA_TABLE = {}
     return dict((_WE_DATA_TABLE or {}).get(key) or {})
 
+
+def _we_family(key: str) -> str:
+    """读数据表 family 字段（C1 标注的机制族；缺省空 = 未族化走旧 handler）。"""
+    return str((_we_defaults(key) or {}).get("family") or "")
+
 # ---------------------------------------------------------------- 读取器
 
 def weapon_effect_ids(battle, player) -> list:
@@ -222,14 +227,92 @@ def register(event_or_key: str, event: str | None = None):
     return deco
 
 
+# ---- v181.P2C-C2：族执行器注册表（试点 3 族；其余 10 族 C3+ 逐批迁入） ----
+# 设计（docs/REFACTOR_P2C_weapon_executors.md §4.1/§4.3 方案 A）：保留 WEAPON_EFFECTS
+# 注册表（测试/快照兼容），proc() 分发器优先走族执行器（key→family 由数据表读）。
+# 族执行器 = 参数化机制族（仿 affix_effects.SET_PROC_TYPES），数值全读 effect_data 表，
+# 代码零默认值。首批：proc_dot/proc_reflect(纯反伤)/proc_heal(amp) 3 族 10 key。
+_WE_EXECUTORS = None  # 延迟加载族执行器模块（防 data→core 装配期循环）
+
+
+def _we_executors() -> dict:
+    """延迟 import 族执行器注册表。"""
+    global _WE_EXECUTORS
+    if _WE_EXECUTORS is None:
+        try:
+            from ._we_executors import WE_EXECUTORS as _M
+            _WE_EXECUTORS = _M
+        except Exception:
+            _WE_EXECUTORS = {}
+    return _WE_EXECUTORS
+
+
+# C2 族路由白名单：仅当 key 的 family 命中以下族（且执行器存在）才走族分发。
+# 其余 family（proc_shield/proc_control/proc_stack/...）未迁移 → 走旧 handler（C3+ 逐批迁）。
+# ⚠️ 白名单 = 安全阀：即使表 family 被误标，也绝不把未迁移族 key 导去不存在的执行器。
+# ⚠️ C2 只迁移"族内同构子段"——proc_heal 只收 heal_amp 4 key（vital/holy/echo/novice_regen），
+#    同 family 的 regen/回蓝 key（guard_regen/dawn_regen/undying_band/novice_dawn_mana）未迁
+#    → 不进白名单仍走旧 handler（C4+ 收 regen/mp 段时再入）；proc_reflect 只收纯反伤 2 key
+#    （thorn/retribution），带附赠的 iron_echo/dragon_spine_mail/ember_bulwark 同 family 未迁
+#    → 同样不进白名单（C4 收附赠段）。proc_dot 4 key 全同构全迁。
+# key→族精确路由表（C2 已迁移子段；key 未在此表 = 未迁移走旧 handler）。
+_WE_EXEC_KEYS = {
+    "smith_blaze_wound": "proc_dot",
+    "rong_lu_yu_wen": "proc_dot",
+    "ember_burn": "proc_dot",
+    "blood_trace": "proc_dot",
+    "thorn_armor": "proc_reflect",
+    "retribution_ring": "proc_reflect",
+    "vital_band": "proc_heal",
+    "holy_radiance_mail": "proc_heal",
+    "echo_band": "proc_heal",
+    "novice_regen_heal": "proc_heal",
+}
+# 族默认事件表（key 未显式声明 event 时按族）：proc_dot 主事件 hit/skill_hit，
+# proc_reflect→taken、proc_heal amp→heal。分发器按"key 注册事件集"匹配事件后再调执行器
+# （与旧 proc 逐 key 同事件语义——只有该 key 注册了当前 event 才触发）。
+def _we_key_event_family(key: str, event: str) -> str | None:
+    """返回 key 在当前 event 下应走的执行器族；不匹配返回 None（走旧 handler）。
+
+    语义 = 旧 WEAPON_EFFECTS[key][event] 存在性：族内 key 的事件集 = 原 handler 注册事件
+    （proc_dot: hit/skill_hit 按 key；proc_reflect: taken；proc_heal amp: heal）。
+    """
+    fam = _WE_EXEC_KEYS.get(key)
+    if not fam:
+        return None
+    entry = WEAPON_EFFECTS.get(key)
+    if not entry or event not in entry:
+        return None
+    return fam
+
+
 def proc(battle, player, event: str, ctx: dict | None = None, logs: list | None = None):
     """统一分发：遍历已装备特效，事件匹配则调用 handler。
-    ctx 可为 None（默认 {}）；logs 为 None 时内部建 list（battle_start 等无声场景）。"""
+
+    v181.P2C-C2：对已族化 key（key∈_WE_EXEC_KEYS 精确路由 + 当前事件在该 key 注册事件集内）
+    走族执行器（纯事件内替换，行为零变化——执行器与旧 handler 逐语句等价）；
+    未族化 key 保持旧 WEAPON_EFFECTS 逐 key 分发（C3+ 逐批迁）。
+    ctx 可为 None（默认 {}）；logs 为 None 时内部建 list（battle_start 等无声场景）。
+    """
     if logs is None:
         logs = []
     ctx = ctx or {}
+    _execs = _we_executors()
     for key in weapon_effect_ids(battle, player):
         entry = WEAPON_EFFECTS.get(key)
+        fn = None
+        # v181.P2C-C2：key 命中 C2 精确路由 + 当前事件在该 key 注册事件集内 → 走族执行器
+        fam = _we_key_event_family(key, event)
+        if fam:
+            _ex = _execs.get(fam)
+            if _ex is not None:
+                # 族执行器签名 (battle, player, ctx, logs, wd, key)；异常静默吞（同旧语义）。
+                try:
+                    wd = effect_data(battle, player, key)
+                    _ex(battle, player, ctx, logs, wd, key)
+                except Exception:
+                    pass
+                continue
         if not entry:
             continue
         fn = entry.get(event)
