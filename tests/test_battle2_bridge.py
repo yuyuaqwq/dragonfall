@@ -150,5 +150,59 @@ b2.auto_run(logs2)
 check("auto_run 战斗有结果", b2.result in ("victory", "defeat", "fled"))
 check("auto_run 日志非空", len(logs2) > 0)
 
+section("migrate_old_state 旧档迁移")
+# 构造一个旧引擎格式 state（enemies + 玩家状态顶层键）
+legacy = {
+    "type": "monster",
+    "now": 3.5,
+    "round": 2,
+    "result": None,
+    "enemy": dict(mon_real),
+    "enemies": [dict(u) for u in group],
+    "title_bonus": {},
+    # 玩家战斗状态（旧顶层键）
+    "p_buffs": {"atk_up": 2, "echo_bless": 1},
+    "p_hot": {},
+    "p_shields": {},
+    "p_defending": False,
+    "charging": None,
+    "poi_buff": None,
+    "cooldown": {"猛击": 5.0},
+    "mech_stacks": {"zhan_yi": 3},
+    "resources": {"qi": 2},
+    "eff_data": {},
+    "killed_enemies": [],
+    "map": "测试平原",
+    "player_hit": False,
+}
+check("is_old_state 识别旧档", BR.is_old_state(legacy) is True)
+check("is_old_state 识别新档", BR.is_old_state({"sides": {"player": []}}) is False)
+new_st = BR.migrate_old_state(legacy, player=p)
+check("迁移后含 sides", "sides" in new_st)
+check("sides.player 1 actor", len(new_st.get("sides", {}).get("player", [])) == 1)
+check("sides.enemy N actor", len(new_st.get("sides", {}).get("enemy", [])) == len(group))
+mig_p = new_st["sides"]["player"][0]
+check("玩家 buffs 灌入", mig_p.get("buffs", {}).get("echo_bless") == 1)
+check("玩家 atk_up 灌入", mig_p.get("buffs", {}).get("atk_up") == 2)
+check("玩家 cooldown 灌入", mig_p.get("cooldown", {}).get("猛击") == 5.0)
+st_ = mig_p.get("state", {})
+check("mech_stacks → state", st_.get("zhan_yi") == 3)
+check("resources → state", st_.get("qi") == 2)
+check("敌方 lv→level", all(a.get("level", 0) > 0 and "lv" not in a for a in new_st["sides"]["enemy"]))
+check("meta 保留 map", new_st.get("meta", {}).get("map") == "测试平原")
+check("type 保留", new_st.get("type") == "monster")
+check("now 保留", abs(new_st.get("now", 0) - 3.5) < 1e-9)
+check("p_acts 兜底 round", new_st.get("p_acts") == 2)
+# 迁移后能 from_state 恢复并续战
+b3 = B2Battle.from_state(new_st)
+check("迁移档 from_state 成功", b3 is not None and b3.btype == "monster")
+logs3 = []
+b3.auto_run(logs3)
+check("迁移档续战 auto_run 有结果", b3.result in ("victory", "defeat", "fled"))
+# 单怪旧档（只有 enemy 键）也能迁
+legacy2 = {"type": "monster", "enemy": dict(mon_real), "title_bonus": {}, "p_buffs": {}}
+new_st2 = BR.migrate_old_state(legacy2, player=p)
+check("单怪旧档迁移 enemy side 1", len(new_st2.get("sides", {}).get("enemy", [])) == 1)
+
 print("\n=== 结果 PASS=%d FAIL=%d ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

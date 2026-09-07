@@ -168,3 +168,124 @@ def apply_player_battle_start(player: dict, actor: dict, db=None) -> dict:
     返回 actor（原地补全后同一引用）。
     """
     return actor
+
+
+# ============================================================
+# 旧档迁移（旧 battle state → battle2 sides state）
+# ============================================================
+
+# 旧档顶层玩家状态键 → player actor 字段映射
+_OLD_PSTATE_TO_ACTOR = {
+    "p_buffs": "buffs",            # 玩家 buffs dict
+    "p_shields": "shields",        # 玩家护盾 dict
+    "p_hot": "hot",                # HOT dict
+    "charging": "charging",        # 蓄力
+    "p_defending": "defending",    # 防御中
+    "poi_buff": "poi_buff",        # 神龛祝福
+    "cooldown": "cooldown",        # 技能冷却（绝对时刻）
+    "combo_seq": "combo_seq",      # 连击序列
+    "last_combo_tag": "last_combo_tag",
+    "last_element": "last_element",
+    "tailwind_prev_energy": "tailwind_prev_energy",
+    "v139_modes": "v139_modes",
+    "v139_charge": "v139_charge",
+    "overflow_shield_cd": "overflow_shield_cd",
+    "stealth_atk": "stealth_atk",
+    "buff_hits": "buff_hits",      # 增益命中计数
+    "reduce_all_left": "reduce_all_left",  # 团队减伤剩余刻
+    "reduce_left": "reduce_left",          # 单体减伤剩余刻
+    "eff_data": "eff",             # 旧效果倍数袋（部分走 state，这里兜底 eff 键）
+    "p_food_effects": "food_effects",      # 食物效果
+}
+
+# 旧档顶层玩家"叠层/资源"键 → battle2 actor.state（统一数值容器）
+# 注意：旧 stacks 是 {机制key: 层数}，旧 resources 是 {资源key: 值}。
+# battle2 state 容器同时承载叠层和资源——但语义声明（cap/scale）查 state_effects 表。
+# 迁移时平铺进 state（不做语义判断——那是上层职业模块的活）。
+_OLD_PSTATE_TO_STATE = {
+    "mech_stacks": None,   # 值 dict 直接合并进 state
+    "resources": None,     # 值 dict 直接合并进 state
+    "eff_data": None,      # 值 dict 直接合并进 state（旧 eff 效果倍数）
+}
+
+
+def is_old_state(st: dict) -> bool:
+    """判断 battle_state.state 是不是旧引擎格式（无 sides 键 = 旧档）。"""
+    if not isinstance(st, dict):
+        return False
+    if st.get("sides"):
+        return False
+    # 旧格式特征：有 enemies/enemy 键且无 sides
+    return ("enemies" in st) or ("enemy" in st)
+
+
+def migrate_old_state(st: dict, player: Optional[dict] = None) -> dict:
+    """旧 battle state → battle2 state（sides 结构）。
+
+    输入：旧引擎 to_state 产物（enemies/enemy/p_buffs/mech_stacks/resources 顶层键）
+    输出：battle2 serialize.to_state 兼容结构（sides + 战斗级 meta 保留）
+
+    player：命令层手里的当前玩家 dict（恢复战斗时 db.get_player）——玩家 actor 的
+      身份/面板字段从这里来；旧档顶层的玩家战斗状态（buffs/护盾/叠层/资源）灌入。
+
+    战斗级元数据（旧 Battle 当 dict 塞的 map/name/dot_res/adapt 等）：
+      保留到返回 dict 的 "meta" 键（battle2 引擎不读，命令层展示用）。
+    """
+    st = st or {}
+    enemies_raw = st.get("enemies")
+    if not enemies_raw:
+        _legacy_e = st.get("enemy")
+        enemies_raw = [_legacy_e] if isinstance(_legacy_e, dict) else []
+    # 敌方：旧怪 dict（可能带 lv）→ battle2 enemy actor
+    enemy_actors = []
+    for i, m in enumerate(enemies_raw or []):
+        if not isinstance(m, dict):
+            continue
+        enemy_actors.append(monster_to_actor(m, i))
+    # 玩家 actor：player dict（命令层当前数据）→ actor，旧战斗状态灌入
+    player_actors = []
+    p_actor = player_to_actor(player) if player is not None else None
+    if p_actor is not None:
+        # 旧档玩家状态 → actor 字段
+        for old_k, actor_k in _OLD_PSTATE_TO_ACTOR.items():
+            if old_k in st and st[old_k] is not None:
+                p_actor[actor_k] = st[old_k]
+        # 旧档玩家状态 → actor.state（叠层/资源平铺）
+        state = p_actor.setdefault("state", {})
+        for old_k in ("mech_stacks", "resources", "eff_data"):
+            if old_k in st and isinstance(st[old_k], dict):
+                for k, v in st[old_k].items():
+                    if k not in state:
+                        state[k] = v
+        player_actors.append(p_actor)
+    # 战斗级元数据（旧 Battle dict 自定义键——battle2 不读，存 meta 给命令层）
+    meta_keys = ("map", "name", "hp", "skills", "buffs", "debuffs", "dot_act",
+                 "dot_res", "immune_dots", "adapt", "world_id", "map_name",
+                 "player_hit", "first_attack_done", "death_pact_used",
+                 "set_immune_used", "e_minions", "summons", "team_effects")
+    meta = {}
+    for k in meta_keys:
+        if k in st and st[k] is not None:
+            meta[k] = st[k]
+    # 组 sides
+    out = {
+        "type": st.get("type", "monster"),
+        "now": float(st.get("now", 0.0) or 0.0),
+        "p_acts": int(st.get("p_acts", st.get("round", 0)) or 0),
+        "result": st.get("result"),
+        "winner_side": st.get("winner_side"),
+        "sides": {"player": player_actors, "enemy": enemy_actors},
+        "hostile_map": {},
+        "title_bonus": dict(st.get("title_bonus") or {}),
+        "killed": [],
+        "flags": {},
+        # 战斗级元数据（命令层读；battle2 引擎忽略）
+        "meta": meta,
+    }
+    # 击杀记录（旧 killed_enemies uid 快照 → killed uid 列表；找不到实体就算了）
+    _kills = []
+    for _ke in (st.get("killed_enemies") or []):
+        if isinstance(_ke, dict) and _ke.get("uid"):
+            _kills.append(_ke["uid"])
+    out["killed"] = _kills
+    return out
