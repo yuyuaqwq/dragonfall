@@ -41,8 +41,9 @@ def save_battle(group_id, qq_id, state: dict):
         state = {
             # v152 时刻制：round 删除，now = 战斗绝对时刻
             "type": "monster", "now": 0.0,
-            "enemy": state, "p_buffs": {}, "e_buffs": {},
-            "p_defending": False, "e_defending": False,
+            # v181 P3：敌方一律走 enemies 阵列（每怪自带 buffs/defending）；无共享 e_buffs/e_defending 键
+            "enemies": [state], "p_buffs": {},
+            "p_defending": False,
         }
     with _lock:
         conn = _connect()
@@ -113,13 +114,6 @@ def get_battle(group_id, qq_id):
                 conn.commit()
                 return None
             state = json.loads(row["state"])
-            # 兼容 v9 之前的旧数据（state 字段直接是裸怪物 dict）
-            if "type" not in state:
-                state = {
-                    "type": "monster", "now": 0.0,
-                    "enemy": state, "p_buffs": {}, "e_buffs": {},
-                    "p_defending": False, "e_defending": False,
-                }
             return {"state": state, "monster": state.get("enemy", {}), "name": row["monster"], "updated_at": row["updated_at"]}
         finally:
             conn.close()
@@ -136,12 +130,6 @@ def get_battle_raw(group_id, qq_id):
             if not row:
                 return None
             state = json.loads(row["state"])
-            if "type" not in state:
-                state = {
-                    "type": "monster", "now": 0.0,
-                    "enemy": state, "p_buffs": {}, "e_buffs": {},
-                    "p_defending": False, "e_defending": False,
-                }
             return {"state": state, "monster": state.get("enemy", {}), "name": row["monster"], "updated_at": row["updated_at"]}
         finally:
             conn.close()

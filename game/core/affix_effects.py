@@ -241,21 +241,21 @@ def _h_purify(battle, player, dmg, logs):
     elif "purify" in ids and random.random() < _affix_chance("purify", 0.15):
         purge_n = int(_affix_effect("purify").get("purge", 1))
     if purge_n:
-        gain_keys = [k for k in battle.e_buffs
+        gain_keys = [k for k in battle._actor_buffs(battle._hit_tgt())
                      if k.startswith("mon_") or k in ("summon", "atk_up_strong")]
         removed = 0
         for _ in range(purge_n):
             if not gain_keys:
                 break
             k = gain_keys.pop(random.randrange(len(gain_keys)))
-            del battle.e_buffs[k]
+            del battle._actor_buffs(battle._hit_tgt())[k]
             removed += 1
         if removed:
             logs.append(f"✨ 净化！驱散了敌人 {removed} 层增益！")
             # v135 哑词条激活·净化增强：驱散成功附加『圣洁』——敌人攻击 -10%(1 刻)
             # （驱散 × 削弱，净化从"防 buff"升级为攻防一体的可感知特色）
-            battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 1)
-            battle.e_buffs["_weaken_val"] = float(_affix_effect("purify").get("holy_weaken", 0.10))
+            battle._actor_buffs(battle._hit_tgt())["mon_atk_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("mon_atk_down", 0), 1)
+            battle._actor_buffs(battle._hit_tgt())["_weaken_val"] = float(_affix_effect("purify").get("holy_weaken", 0.10))
             logs.append("😇 圣洁之力！净化后敌人攻击下降 10%！")
 
 
@@ -330,8 +330,8 @@ def _t_moro_crown(battle, player, ctx, logs):
     """深渊腐蚀（摩罗之冠专属）：15% 敌人攻击 -10%（2 刻）"""
     if "moro_crown" in battle._equip_affix_ids(player) and random.random() < _affix_chance("moro_crown", 0.15):
         eff = _affix_effect("moro_crown")
-        battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), int(eff.get("turns", 2)))
-        battle.e_buffs["_weaken_val"] = float(eff.get("pct", 0.10))
+        battle._actor_buffs(battle._hit_tgt())["mon_atk_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("mon_atk_down", 0), int(eff.get("turns", 2)))
+        battle._actor_buffs(battle._hit_tgt())["_weaken_val"] = float(eff.get("pct", 0.10))
         logs.append("👿 深渊腐蚀！敌人攻击下降 10%！")
 
 
@@ -519,8 +519,8 @@ def _sp_mark(battle, player, dmg, logs, params: dict):
 def _sp_slow(battle, player, dmg, logs, params: dict):
     """proc_slow：概率减速
     params: chance, slow_pct, slow_turns"""
-    battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), int(params.get("slow_turns", 2)))
-    battle.e_buffs["_spd_down_pct"] = float(params.get("slow_pct", 0.15))
+    battle._actor_buffs(battle._hit_tgt())["spd_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("spd_down", 0), int(params.get("slow_turns", 2)))
+    battle._actor_buffs(battle._hit_tgt())["_spd_down_pct"] = float(params.get("slow_pct", 0.15))
     tag = params.get("tag", "🕸️")
     logs.append(f"{tag} {params.get('name', '减速')}！敌方速度下降 {int(params.get('slow_pct', 0.15)*100)}%！")
 
@@ -636,7 +636,7 @@ def _sp_freeze(battle, player, dmg, logs, params: dict):
     if hasattr(battle, "_freeze_enemy"):
         battle._freeze_enemy()
     else:
-        battle.e_buffs["freeze"] = max(battle.e_buffs.get("freeze", 0), int(params.get("freeze_turns", 1)))
+        battle._actor_buffs(battle._hit_tgt())["freeze"] = max(battle._actor_buffs(battle._hit_tgt()).get("freeze", 0), int(params.get("freeze_turns", 1)))
     tag = params.get("tag", "🧊")
     logs.append(f"{tag} {params.get('name', '冰冻')}！敌人被冻结！")
 
@@ -658,7 +658,7 @@ def _sp_purify_heal(battle, player, dmg, logs, params: dict):
 def _sp_armor_break(battle, player, dmg, logs, params: dict):
     """proc_armor_break：概率破甲（可带：已破甲追加伤害）
     params: chance, break_pct, break_turns, bonus_atk_pct"""
-    if "def_down" in battle.e_buffs and params.get("bonus_atk_pct"):
+    if "def_down" in battle._actor_buffs(battle._hit_tgt()) and params.get("bonus_atk_pct"):
         from ..engine import calc_damage
         pst = battle._player_stats(player)
         est = battle._enemy_stats()
@@ -668,8 +668,8 @@ def _sp_armor_break(battle, player, dmg, logs, params: dict):
             tag = params.get("tag", "🐎")
             logs.append(f"{tag} {params.get('name', '破甲追加')}！追加 {cd} 点伤害！")
     else:
-        battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(params.get("break_turns", 2)))
-        battle.e_buffs["_armor_break_pct"] = float(params.get("break_pct", 0.15))
+        battle._actor_buffs(battle._hit_tgt())["def_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("def_down", 0), int(params.get("break_turns", 2)))
+        battle._actor_buffs(battle._hit_tgt())["_armor_break_pct"] = float(params.get("break_pct", 0.15))
         tag = params.get("tag", "🐎")
         logs.append(f"{tag} {params.get('name', '破甲')}！敌人防御下降 {int(params.get('break_pct', 0.15)*100)}%！")
 
@@ -677,9 +677,9 @@ def _sp_armor_break(battle, player, dmg, logs, params: dict):
 def _sp_anti_heal(battle, player, dmg, logs, params: dict):
     """proc_anti_heal：概率破甲 + 受疗 -%
     params: chance, break_pct, break_turns, anti_heal_pct"""
-    battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(params.get("break_turns", 2)))
-    battle.e_buffs["_armor_break_pct"] = float(params.get("break_pct", 0.15))
-    battle.e_buffs["_anti_heal_pct"] = float(params.get("anti_heal_pct", 0.30))
+    battle._actor_buffs(battle._hit_tgt())["def_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("def_down", 0), int(params.get("break_turns", 2)))
+    battle._actor_buffs(battle._hit_tgt())["_armor_break_pct"] = float(params.get("break_pct", 0.15))
+    battle._actor_buffs(battle._hit_tgt())["_anti_heal_pct"] = float(params.get("anti_heal_pct", 0.30))
     tag = params.get("tag", "🌅")
     logs.append(f"{tag} {params.get('name', '破甲+禁疗')}！敌人破甲且受疗效果 -{int(params.get('anti_heal_pct', 0.30)*100)}%！")
 
@@ -687,8 +687,8 @@ def _sp_anti_heal(battle, player, dmg, logs, params: dict):
 def _sp_mon_atk_down(battle, player, dmg, logs, params: dict):
     """proc_mon_atk_down：概率敌方攻击 -%
     params: chance, atk_down_pct, turns"""
-    battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), int(params.get("turns", 2)))
-    battle.e_buffs["_weaken_val"] = float(params.get("atk_down_pct", 0.15))
+    battle._actor_buffs(battle._hit_tgt())["mon_atk_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("mon_atk_down", 0), int(params.get("turns", 2)))
+    battle._actor_buffs(battle._hit_tgt())["_weaken_val"] = float(params.get("atk_down_pct", 0.15))
     tag = params.get("tag", "🐉")
     logs.append(f"{tag} {params.get('name', '敌方攻击下降')}！敌人攻击下降 {int(params.get('atk_down_pct', 0.15)*100)}%！")
 
@@ -805,10 +805,10 @@ def _sp_thunder_burst(battle, player, dmg, logs, params: dict):
 def _sp_armor_stack(battle, player, dmg, logs, params: dict):
     """proc_armor_stack：概率叠敌方破甲层（jing_tie_refine 精淬）
     params: chance, max_stacks, break_pct(每层), break_turns"""
-    lv = battle.e_buffs.get("jing_tie_lv", 0)
+    lv = battle._actor_buffs(battle._hit_tgt()).get("jing_tie_lv", 0)
     if lv < int(params.get("max_stacks", 3)):
-        battle.e_buffs["jing_tie_lv"] = lv + 1
-        battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(params.get("break_turns", 2)))
+        battle._actor_buffs(battle._hit_tgt())["jing_tie_lv"] = lv + 1
+        battle._actor_buffs(battle._hit_tgt())["def_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("def_down", 0), int(params.get("break_turns", 2)))
     tag = params.get("tag", "⚒️")
     logs.append(f"{tag} {params.get('name', '破甲叠加')}！敌方防御 -{int(params.get('break_pct', 0.05)*100)}%/层！")
 
@@ -974,8 +974,8 @@ def _h_sanctum_light(battle, player, dmg, logs):
     mon_atk_down/_weaken_val（_enemy_stats 消费，效果真实生效）。"""
     if "sanctum_light" in battle._equip_affix_ids(player) and random.random() < _affix_chance("sanctum_light", 0.15):
         eff = _affix_effect("sanctum_light")
-        battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), int(eff.get("turns", 1)))
-        battle.e_buffs["_weaken_val"] = max(float(battle.e_buffs.get("_weaken_val", 0) or 0),
+        battle._actor_buffs(battle._hit_tgt())["mon_atk_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("mon_atk_down", 0), int(eff.get("turns", 1)))
+        battle._actor_buffs(battle._hit_tgt())["_weaken_val"] = max(float(battle._actor_buffs(battle._hit_tgt()).get("_weaken_val", 0) or 0),
                                             float(eff.get("mon_atk_down_pct", 0.08)))
         logs.append("✨ 圣殿辉光！敌人攻击下降 8%！")
 
@@ -1029,8 +1029,8 @@ def _h_deep_frost(battle, player, dmg, logs):
         battle._deal_damage(ed, logs)
         logs.append(f"❄️ 深寒：冰属性附加 {ed} 点伤害！")
         if random.random() < _affix_chance("deep_frost", 0.20):
-            battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), int(eff.get("slow_turns", 2)))
-            battle.e_buffs["_spd_down_pct"] = float(eff.get("slow", 0.20))
+            battle._actor_buffs(battle._hit_tgt())["spd_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("spd_down", 0), int(eff.get("slow_turns", 2)))
+            battle._actor_buffs(battle._hit_tgt())["_spd_down_pct"] = float(eff.get("slow", 0.20))
             logs.append("❄️ 深寒：目标减速 20%！")
 
 
@@ -1113,8 +1113,8 @@ def _t_iron_bastion(battle, player, ctx, logs):
     """铁壁意志（D2）：受击 20% 使敌人下一次攻击 -25%"""
     if "iron_bastion" in battle._equip_affix_ids(player) and random.random() < _affix_chance("iron_bastion", 0.20):
         eff = _affix_effect("iron_bastion")
-        battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 1)
-        battle.e_buffs["_weaken_val"] = float(eff.get("pct", 0.25))
+        battle._actor_buffs(battle._hit_tgt())["mon_atk_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("mon_atk_down", 0), 1)
+        battle._actor_buffs(battle._hit_tgt())["_weaken_val"] = float(eff.get("pct", 0.25))
         logs.append("🛡️ 铁壁意志！敌人下一次攻击 -25%！")
 
 
@@ -1192,7 +1192,7 @@ def _h_mortal_wound(battle, player, dmg, logs):
     原写 _anti_heal_pct=0.50 超出 desc 且无正确计时——heal_down 层×10% 引擎正确计时）。"""
     if "mortal_wound" in battle._equip_affix_ids(player) and random.random() < _affix_chance("mortal_wound", 0.20):
         eff = _affix_effect("mortal_wound")
-        battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), int(eff.get("heal_down", 3)))
+        battle._actor_buffs(battle._hit_tgt())["heal_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("heal_down", 0), int(eff.get("heal_down", 3)))
         logs.append("💢 致伤重击！目标受疗效果 -30%（3 刻）！")
 
 
@@ -1201,7 +1201,7 @@ def _h_memory_tear(battle, player, dmg, logs):
     """记忆撕裂（D2）：攻击 15% 概率使敌人沉默 1 刻（v180E 对齐数据 desc：原误做降攻）。"""
     if "memory_tear" in battle._equip_affix_ids(player) and random.random() < _affix_chance("memory_tear", 0.15):
         eff = _affix_effect("memory_tear")
-        battle.e_buffs["silence"] = max(battle.e_buffs.get("silence", 0), int(eff.get("silence", 1)))
+        battle._actor_buffs(battle._hit_tgt())["silence"] = max(battle._actor_buffs(battle._hit_tgt()).get("silence", 0), int(eff.get("silence", 1)))
         logs.append("🧠 记忆撕裂！敌人被沉默，无法使用技能！")
 
 
@@ -1227,7 +1227,7 @@ def _h_siphon(battle, player, dmg, logs):
     if "siphon" in battle._equip_affix_ids(player) and random.random() < _affix_chance("siphon", 0.20):
         eff = _affix_effect("siphon")
         # 驱散 1 层敌方增益（buff 优先清可驱散的正向 buff）
-        _eb = battle.e_buffs
+        _eb = battle._actor_buffs(battle._hit_tgt())
         for _pk in ("atk_up", "def_up", "spd_up", "matk_up", "mon_atk_up", "mon_def_up", "reduce_all", "shield"):
             if _eb.get(_pk):
                 _eb.pop(_pk, None)
@@ -1279,8 +1279,8 @@ def _h_star_shatter(battle, player, dmg, logs):
     if cd > 0:
         battle._deal_damage(cd, logs)
     logs.append(f"{eff.get('tag', '💥碎星拳劲')}！破甲重拳造成 {cd} 点伤害！（无视 30% 防御）")
-    battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(eff.get("turns", 2)))
-    battle.e_buffs["_armor_break_pct"] = float(eff.get("pct", 0.15))
+    battle._actor_buffs(battle._hit_tgt())["def_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("def_down", 0), int(eff.get("turns", 2)))
+    battle._actor_buffs(battle._hit_tgt())["_armor_break_pct"] = float(eff.get("pct", 0.15))
     logs.append("🛡️ 碎星拳劲：目标防御下降 15%（2 刻）！")
 
 

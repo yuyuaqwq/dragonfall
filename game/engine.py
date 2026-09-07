@@ -19,7 +19,7 @@ from .core.skill_kinds import K_PASSIVE  # v176 去魔法字符串
 # 元素亲和可切换的系（法师）
 ELEMENT_OPTIONS = ["fire", "ice", "thunder"]
 ELEMENT_CN = {"fire": "火", "ice": "冰", "thunder": "雷"}
-# 元素印记 key（存敌方 e_buffs，层数）
+# 元素印记 key（存敌方 actor buffs，层数）
 ELEMENT_MARKS = {"fire": "fire_mark", "ice": "ice_mark", "thunder": "thunder_mark"}
 
 # ============================================================

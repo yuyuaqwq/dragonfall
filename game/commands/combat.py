@@ -1682,9 +1682,10 @@ class CombatCmds(CommandBase):
         # 玩家金身减伤（iron 在 stacks 里已显示）
         if pbuf:
             parts.append(f"🛡️你：「{' '.join(pbuf)}」")
-        # 敌方状态（e_buffs 刻数 >0）
+        # 敌方状态（当前主目标怪 buffs 刻数 >0）
         ebuf = []
-        for k, v in (b.e_buffs or {}).items():
+        _eb_disp = (b.enemy or {}).get("buffs") or {}
+        for k, v in _eb_disp.items():
             # v151 破绽断链修复：e_buffs 可能出现 dict 值（enemy_bar 状态 shaken/curse = {val, threshold, ...}），
             # 不是刻 buff，跳过显示（bar 状态由战斗逻辑单独维护）
             if isinstance(v, dict):
@@ -2514,7 +2515,10 @@ class CombatCmds(CommandBase):
         _pl_buffs = b.player.setdefault("buffs", {})
         _pl_buffs.clear()
         _pl_buffs.update(dict(state.get(f"{my_key[0]}_buffs", {})))
-        b.e_buffs = dict(state.get(f"{opp_key[0]}_buffs", {}))
+        # v181 P3：对手 buffs 落 enemy actor dict（enemies[0] = 对手快照）
+        _opp_buffs = b.enemy.setdefault("buffs", {})
+        _opp_buffs.clear()
+        _opp_buffs.update(dict(state.get(f"{opp_key[0]}_buffs", {})))
         # PVP 蓄力持久化：跨刻恢复玩家侧 charging（蓄力技 PVP 中跨刻生效）
         b.player["charging"] = state.get("charging")
         if action == "skill":
@@ -2531,7 +2535,7 @@ class CombatCmds(CommandBase):
         # F1 P1-4（report_09）：PVP『防御』生效——对手防御姿态中时，本次行动对其造成的
         # 伤害减半（b.e_defending → _deal_damage 统一消费，普攻/技能/召唤物全路径覆盖）
         if str(state.get("defending_qq", "")) == str(opp["qq_id"]):
-            b.e_defending = True
+            b.enemy["defending"] = True
         if action == "defend":
             # 防御姿态：持续到对方下一次行动（对方攻击/技能均按防御减半结算）
             state["defending_qq"] = str(qq_id)
@@ -2555,7 +2559,7 @@ class CombatCmds(CommandBase):
         state[my_key]["hp"] = player["hp"]
         state[my_key]["mp"] = player["mp"]
         state[f"{my_key[0]}_buffs"] = b.player.get("buffs") or {}
-        state[f"{opp_key[0]}_buffs"] = b.e_buffs
+        state[f"{opp_key[0]}_buffs"] = (b.enemy or {}).get("buffs") or {}
         # PVP 蓄力持久化：写回（含 None 表示蓄力已结束/未蓄力）
         state["charging"] = b.player.get("charging")
         db.save_battle(group_id, qq_id, state)

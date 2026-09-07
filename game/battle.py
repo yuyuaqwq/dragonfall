@@ -1117,24 +1117,6 @@ class Battle:
             self.enemies[0] = self._wrap_enemy_unit(val, 0)
 
     @property
-    def e_buffs(self) -> dict:
-        """兼容代理：主目标单位级增益（可读写）。"""
-        return self.enemy.setdefault("buffs", {})
-
-    @e_buffs.setter
-    def e_buffs(self, val: dict):
-        self.enemy["buffs"] = val or {}
-
-    @property
-    def e_defending(self) -> bool:
-        """兼容代理：主目标防御状态。"""
-        return bool(self.enemy.get("defending", False))
-
-    @e_defending.setter
-    def e_defending(self, val: bool):
-        self.enemy["defending"] = bool(val)
-
-    @property
     def summons(self) -> list:
         """v180-C S1 兼容视图：我方召唤物 = companions 里 kind=='summon' 的子集。
         纯读兼容（旧代码遍历/序列化用）；召唤物增删一律直接操作 companions。
@@ -1266,9 +1248,7 @@ class Battle:
             # v180F B6：序列化时 summons 清洗 owner 循环引用——owner actor dict 引用 → owner_uid
             # 字符串（uuid/qq_id），防 json 序列化循环引用；恢复后靠 _last_player 兜底归属
             "summons": self._summons_serializable(),
-            "e_buffs": self.e_buffs,
             "p_defending": bool(_pl.get("defending", False)),
-            "e_defending": self.e_defending,
             "title_bonus": self.title_bonus,
             "mech_stacks": _p_stacks,
             "resources": _p_res,
@@ -1503,20 +1483,10 @@ class Battle:
 
     @classmethod
     def from_state(cls, st: dict):
-        # v2：有完整阵列用阵列；只有单怪 enemy → 包成单怪阵列（旧存档容错）
-        enemies = st.get("enemies")
-        if enemies:
-            b = cls(st.get("type", "monster"), None, st.get("title_bonus") or {}, pet=st.get("pet") or {},
-                    enemies=[dict(u) for u in enemies])
-        else:
-            b = cls(st.get("type", "monster"), st.get("enemy", {}) or {}, st.get("title_bonus") or {}, pet=st.get("pet") or {})
-            # 旧存档：只有 e_buffs 时并入主单位 buffs（§3.2 容错）
-            legacy = st.get("e_buffs") or {}
-            if legacy:
-                main = b.enemy
-                merged = dict(legacy)
-                merged.update(main.get("buffs") or {})
-                main["buffs"] = merged
+        # v181 P3：敌方一律走完整阵列（enemies 每怪自带 buffs/defending/ct）；无阵列 = 空战（不做旧档兼容）
+        enemies = st.get("enemies") or []
+        b = cls(st.get("type", "monster"), None, st.get("title_bonus") or {}, pet=st.get("pet") or {},
+                enemies=[dict(u) for u in enemies])
         # v152：round 概念删除，改 _now（绝对时刻）+ _p_acts（玩家行动计数，展示用）。
         # 兼容旧档：读 round 时 _p_acts 兜底；_now 缺省 0。
         b._now = float(st.get("now", 0.0) or 0.0)
@@ -1560,7 +1530,6 @@ class Battle:
         b.e_minions = st.get("e_minions", []) or []
         b.killed_enemies = [dict(u) for u in (st.get("killed_enemies") or [])]  # v130.7 意见#17 击杀记录恢复
         b.summons = st.get("summons", []) or []
-        b.e_defending = st.get("e_defending", False)
         b.team_effects = []
         # v121 CTB：玩家 ct 读取（老存档兜底 0）；敌方单位 ct 兜底 -spd
         # v130.10 绝对时刻：p_ct<0（旧相对时钟存档）重置 0；怪 ct 缺失或<=0（旧 -spd 语义）重置为初始等待
@@ -1830,6 +1799,22 @@ class Battle:
     def _tgt_buffs(self) -> dict:
         """v177 技能管线目标 buffs（同 _tgt，buff actor 化——目标 buffs 在目标 dict 上）。"""
         return self._tgt().setdefault("buffs", {})
+
+    # —— v181 P3：actor 一视同仁 buffs 访问器（替代 e_buffs 共享别名）——
+    def _actor_buffs(self, actor: dict) -> dict:
+        """目标 actor 的 buffs（玩家/怪/随从同构；actor 必须非 None，由调用方保证）。"""
+        return actor.setdefault("buffs", {})
+
+    def _hit_tgt(self) -> dict:
+        """当前受击/被作用目标 actor：玩家当前选中怪；无活跃目标回退第一存活怪。
+        v181 P3：纯 actor 语义，不依赖 enemy 主怪别名。"""
+        t = getattr(self, "_active_target", None)
+        if t is not None and t.get("hp", 0) > 0:
+            return t
+        for u in self.enemies:
+            if u.get("hp", 0) > 0:
+                return u
+        return self.enemies[0] if self.enemies else {}
 
     def _tgt_is_player(self) -> bool:
         """v177 管线目标是否为玩家（怪物施法玩家技能时 _target_ctx=玩家 → True）。
@@ -2837,7 +2822,7 @@ class Battle:
             self._aoe_damage(aoe_dmg, logs)
             log = f"💥超载爆发！额外 {aoe_dmg} 点全体伤害！"
         elif extra == "freeze":
-            self.e_buffs["freeze"] = 1
+            self._actor_buffs(self._hit_tgt())["freeze"] = 1
             log = "❄️冻结！目标被冰封 1 刻！"
         elif extra == "chain":
             chain_flag = True
@@ -5202,7 +5187,7 @@ class Battle:
         # 冰霜：x% 概率冻结 1 刻
         freeze_lvl = self._enchant_lvl(effs, "freeze")
         if freeze_lvl and random.random() < C.rune_value("freeze", freeze_lvl):
-            self.e_buffs["freeze"] = 1
+            self._actor_buffs(self._hit_tgt())["freeze"] = 1
             logs.append("❄️ 符文冰霜：敌人被冻结，跳过下刻！")
         # 吸血：造成伤害的 x% 回复生命
         ls_lvl = self._enchant_lvl(effs, "lifesteal")
@@ -5224,8 +5209,9 @@ class Battle:
         # 虚弱：攻击使敌人攻击 -x%（3 刻）
         weak_lvl = self._enchant_lvl(effs, "weaken")
         if weak_lvl:
-            self.e_buffs["mon_atk_down"] = 3
-            self.e_buffs["_weaken_val"] = C.rune_value("weaken", weak_lvl)
+            _eb_tgt = self._actor_buffs(self._hit_tgt())
+            _eb_tgt["mon_atk_down"] = 3
+            _eb_tgt["_weaken_val"] = C.rune_value("weaken", weak_lvl)
             logs.append(f"😵 符文虚弱：敌人攻击力下降！")
         # 破魔：魔法伤害 +x%（对普攻无加成，技能路径处理）
         mb_lvl = self._enchant_lvl(effs, "magic_break")
@@ -5384,7 +5370,7 @@ class Battle:
         """套装暴击率加成：巡林长披风（命中带标记目标 +5%）/ 夜幕合契·影纱 4 件（终结技 +15%）。"""
         bonus = 0.0
         eff = self._set_eff(player, "crit_on_marked", 2)
-        if eff and "mark" in self.e_buffs:
+        if eff and "mark" in self._actor_buffs(self._hit_tgt()):
             bonus += float(eff.get("crit", 0.05) or 0.05)
         if info and ((info.get("res_cost") or {}).get("cp")
                      or (info.get("consume_all") or {}).get("key") == "cp"):
@@ -5409,7 +5395,7 @@ class Battle:
         档位按原始消耗判定（orig 缺省 = rv），折扣作用于传入的 rv（可叠加精力刀刃词条）。"""
         rc = info.get("res_cost") or {}
         _base = orig if orig is not None else rv
-        if rc.get("energy") and "mark" in self.e_buffs:
+        if rc.get("energy") and "mark" in self._actor_buffs(self._hit_tgt()):
             eff = self._set_eff(player, "res_cost_reduce", 4, res="energy", on="finisher_marked")
             # v130.2 R1：50/100 档阈值读数据 effect.min_cost（R2 配；缺省 50）
             if eff and _base >= int(eff.get("min_cost", 50) or 50):
@@ -5627,7 +5613,7 @@ class Battle:
         debuffs.mark（层数 >0，副本/多单位共享标记）任一存在即视为标记目标。
         原实现只认 e_buffs["mark"]（仅游侠标记技写入），战士/法师/牧师/刺客/拳师
         携带追猎词条时零触发 → 放宽后追猎成为普适的『集火增伤』特色词条。"""
-        if "mark" in self.e_buffs:
+        if "mark" in self._actor_buffs(self._hit_tgt()):
             return True
         mk = (e.get("debuffs") or {}).get("mark") or {}
         return int(mk.get("n", 0) or 0) > 0
@@ -6956,7 +6942,7 @@ class Battle:
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # 对标记目标伤害（追猎者/猎魔之眼：e_buffs["mark"] 为目标易伤标记）
         for _pn, _ps in _procs.get("mark_dmg", []):
-            if "mark" in self.e_buffs:
+            if "mark" in self._actor_buffs(self._hit_tgt()):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # 奥术系伤害（奥术之心）——v125.2 B1：mech 归属查表 MECH_CFG['ctrl']['proc_groups']
         for _pn, _ps in _procs.get("arcane_dmg", []):
@@ -7477,11 +7463,12 @@ class Battle:
         # Boss 时长减半（至少 1 刻）；非 Boss 不变（handler 已设时长，此处术后收紧）。
         # v125.2 B1：控制白名单查表 MECH_CFG['ctrl']['mechs']
         if mech in _MC['ctrl']['mechs']:
-            tgt = getattr(self, "_active_target", None) or self.enemy
+            tgt = getattr(self, "_active_target", None) or self._hit_tgt()
             if tgt.get("is_boss") or tgt.get("role") == "boss":
+                _eb_t = self._actor_buffs(tgt)
                 for k in _MC['ctrl']['mechs']:
-                    if k in self.e_buffs:
-                        self.e_buffs[k] = self._boss_ctrl_dur(k, self.e_buffs[k])
+                    if k in _eb_t:
+                        _eb_t[k] = self._boss_ctrl_dur(k, _eb_t[k])
         # v2 控制打断蓄力：眩晕/冻结/沉默施加到蓄力目标 → 打断（§6.2规则4）
         if mech in _MC['ctrl']['mechs']:
             tgt = getattr(self, "_active_target", None) or self.enemy
@@ -9335,7 +9322,7 @@ class Battle:
                 for _pn_dh, _ps_dh in self._proc_pm(player)["proc"].get("shaken_decay_half", []):
                     _ctx_dh = {"player": player, "ps": _ps_dh, "ps_name": _pn_dh,
                                "flag_kind": "shaken_decay_half",
-                               "e_buffs_shaken": self.e_buffs.get("shaken"),
+                               "e_buffs_shaken": (self._actor_buffs(self.enemy) or {}).get("shaken"),
                                "decay_full": float((_bd or {}).get("decay_per_turn", 0) or 0) or 1.7}
                     _run_proc_family(self, "shaken_decay_half", _ctx_dh)
                     break  # 原循环尾 break（max=1：只处理首条 proc 条目）
@@ -10097,7 +10084,8 @@ class Battle:
                     self._heal_actor(owner, heal, logs)
                     logs.append(f"🩸 {pname}汲取了 {heal} 点生命归还给你！")
                 elif atype == "pierce":
-                    self.e_buffs["def_down"] = max(int(self.e_buffs.get("def_down", 0) or 0), 2)
+                    _eb_pet = self._actor_buffs(self._hit_tgt())
+                    _eb_pet["def_down"] = max(int(_eb_pet.get("def_down", 0) or 0), 2)
                     logs.append(f"🛡️ {pname}的【{sname}】击碎了敌人的护甲！(防御减半 2 刻)")
                 if self._enemy_dead():
                     self.result = "victory"

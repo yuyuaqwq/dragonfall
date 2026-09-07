@@ -107,14 +107,14 @@ def _we_exec_control(battle, player, ctx, logs, wd, key, event):
     # ---- mode 分派（缺字段 = 无此行为铁律；各段参数表权威）----
     src = wd.get("source") or _CONTROL_SOURCE.get(key) or "❄️"
     if mode == "slow_or_freeze":      # frost_ring：已减速→冻结（Boss 退化减速），否则减速
-        if battle.e_buffs.get("spd_down"):
+        if battle._actor_buffs(battle._hit_tgt()).get("spd_down"):
             _freeze_enemy(battle, logs, turns=int(wd["freeze_turns"]),
                           boss_slow=int(wd["boss_slow"]), source=src)
         else:
             _slow_enemy(battle, int(wd["slow_turns"]), float(wd["slow_pct"]), logs)
     elif mode == "slow_heal_down":    # holy_judgment_field：减速 + e_buffs.heal_down 禁疗
         _slow_enemy(battle, int(wd["slow_turns"]), float(wd["slow_pct"]), logs)
-        battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), int(wd["heal_down"]))
+        battle._actor_buffs(battle._hit_tgt())["heal_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("heal_down", 0), int(wd["heal_down"]))
         logs.append(wd.get("log") or "⚖️ 圣裁领域：目标受治疗 -30%（2 刻）！")
     elif mode == "freeze_cd":         # everfrost_domain：冻结后写 CD（ready_at = now + cd×ACT_TICK）
         _freeze_enemy(battle, logs, turns=int(wd["freeze_turns"]),
@@ -135,10 +135,10 @@ def _we_exec_control(battle, player, ctx, logs, wd, key, event):
         ms = int(wd["max_stack"])
         sp = float(wd["spd_down_pct"])
         sk = wd.get("stack_key") or "_randuin_stack"
-        n = min(ms, int(battle.e_buffs.get(sk, 0) or 0) + 1)
-        battle.e_buffs[sk] = n
-        battle.e_buffs["_spd_down_pct"] = max(
-            float(battle.e_buffs.get("_spd_down_pct", 0) or 0), sp * n)
+        n = min(ms, int(battle._actor_buffs(battle._hit_tgt()).get(sk, 0) or 0) + 1)
+        battle._actor_buffs(battle._hit_tgt())[sk] = n
+        battle._actor_buffs(battle._hit_tgt())["_spd_down_pct"] = max(
+            float(battle._actor_buffs(battle._hit_tgt()).get("_spd_down_pct", 0) or 0), sp * n)
         # 日志 = 旧 handler 原文案（表 log 含 f-string 表达式文本，不可机器 .format，代码侧重建）
         logs.append(_CONTROL_STACK_LOG[key].format(sp_pct=int(sp * 100 * n), n=n, ms=ms))
     elif mode == "threshold_stun":    # time_freeze：阈值（每场 1 次）→ 敌 stun
@@ -148,7 +148,7 @@ def _we_exec_control(battle, player, ctx, logs, wd, key, event):
         if ratio >= float(wd["threshold"]):
             return
         eff[used_key] = True
-        battle.e_buffs["stun"] = max(battle.e_buffs.get("stun", 0), 1)
+        battle._actor_buffs(battle._hit_tgt())["stun"] = max(battle._actor_buffs(battle._hit_tgt()).get("stun", 0), 1)
         logs.append(wd.get("log") or "⏳ 时光凝滞！敌人被定身，跳过一次行动！")
         return
     # 未知 mode：静默（旧 proc 语义——无注册事件不触发；防御未知表标注）
@@ -797,8 +797,8 @@ def _we_exec_retort_mark(battle, player, ctx, logs, wd, key, event):
         if key == "guardian_will":
             if random.random() >= float(wd["chance"]):
                 return
-            battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 1)
-            battle.e_buffs["_weaken_val"] = max(float(battle.e_buffs.get("_weaken_val", 0) or 0),
+            battle._actor_buffs(battle._hit_tgt())["mon_atk_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("mon_atk_down", 0), 1)
+            battle._actor_buffs(battle._hit_tgt())["_weaken_val"] = max(float(battle._actor_buffs(battle._hit_tgt()).get("_weaken_val", 0) or 0),
                                                 float(wd["weaken"]))
             logs.append(wd.get("log") or "🛡️ 卫士信念：敌人下一次攻击伤害 -25%！")
             return
@@ -972,7 +972,7 @@ def _we_exec_aux(battle, player, ctx, logs, wd, key, event):
         rd = max(1, int(dmg * float(wd.get("reflect_pct", 0.25))))
         if battle.enemy.get("hp", 0) > 0 and rd > 0:
             battle._deal_damage(rd, logs)
-            battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), int(wd.get("heal_down", 2)))
+            battle._actor_buffs(battle._hit_tgt())["heal_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("heal_down", 0), int(wd.get("heal_down", 2)))
             logs.append((wd.get("log") or "🐉 龙脊反噬：反弹 {rd} 点伤害，并施加重伤！").format(rd=rd))
         return
     return

@@ -152,8 +152,8 @@ def _extra_magi(battle, matk_pct: float, logs, source: str = "🔮") -> int:
 
 def _slow_enemy(battle, turns: int, pct: float = 0.40, logs=None):
     """减速敌人：e_buffs spd_down + _spd_down_pct。"""
-    battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), turns)
-    battle.e_buffs["_spd_down_pct"] = max(float(battle.e_buffs.get("_spd_down_pct", 0) or 0), pct)
+    battle._actor_buffs(battle._hit_tgt())["spd_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("spd_down", 0), turns)
+    battle._actor_buffs(battle._hit_tgt())["_spd_down_pct"] = max(float(battle._actor_buffs(battle._hit_tgt()).get("_spd_down_pct", 0) or 0), pct)
     if logs is not None:
         logs.append(f"❄️ 敌人减速 {int(pct * 100)}%（{turns} 刻）！")
 
@@ -166,7 +166,7 @@ def _freeze_enemy(battle, logs, turns: int = 1, boss_slow: int = 2, source: str 
         _slow_enemy(battle, boss_slow, 0.40, logs)
         logs.append(f"{source} Boss 免疫冻结，退化为减速！")
         return False
-    battle.e_buffs["freeze"] = max(battle.e_buffs.get("freeze", 0), turns)
+    battle._actor_buffs(battle._hit_tgt())["freeze"] = max(battle._actor_buffs(battle._hit_tgt()).get("freeze", 0), turns)
     logs.append(f"{source} 敌人被冻结 {turns} 刻！")
     return True
 

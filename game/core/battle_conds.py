@@ -75,19 +75,19 @@ def _c_enemy_full_hp(battle, player, cond):
 @register("enemy_frozen", label=lambda c: "敌方被冻结")
 def _c_enemy_frozen(battle, player, cond):
     """敌方被冻结"""
-    return "freeze" in battle.e_buffs
+    return "freeze" in battle._actor_buffs(battle._hit_tgt())
 
 
 @register("enemy_stunned", label=lambda c: "敌方被眩晕")
 def _c_enemy_stunned(battle, player, cond):
     """敌方被眩晕（v63 联动：晕杀）"""
-    return "stun" in battle.e_buffs
+    return "stun" in battle._actor_buffs(battle._hit_tgt())
 
 
 @register("enemy_silenced", label=lambda c: "敌方被沉默")
 def _c_enemy_silenced(battle, player, cond):
     """敌方被沉默（v63 联动：静默处决）"""
-    return "silence" in battle.e_buffs
+    return "silence" in battle._actor_buffs(battle._hit_tgt())
 
 
 @register("enemy_poison_stacks", label=lambda c: f"敌方中毒≥{c.get('stacks', 0)}层")
@@ -132,7 +132,7 @@ def _c_player_combo_stacks(battle, player, cond):
 @register("enemy_marked", label=lambda c: "敌方被标记")
 def _c_enemy_marked(battle, player, cond):
     """敌方被标记（e_buffs 或目标级 debuffs 机制层任一）"""
-    return "mark" in battle.e_buffs or int(((battle.enemy.get("debuffs") or {}).get("mark", {}) or {}).get("n", 0) or 0) > 0
+    return "mark" in battle._actor_buffs(battle._hit_tgt()) or int(((battle.enemy.get("debuffs") or {}).get("mark", {}) or {}).get("n", 0) or 0) > 0
 
 
 @register("enemy_debuff", label=lambda c: "敌方有减益")
@@ -140,7 +140,7 @@ def _c_enemy_debuff(battle, player, cond):
     """敌方有减益（e_buffs 控制/属性降或目标级毒/灼烧/印记层）"""
     debuff_keys = ("def_down", "spd_down", "mon_atk_down", "atk_down",
                    "stun", "freeze", "silence")
-    if any(k in battle.e_buffs for k in debuff_keys):
+    if any(k in battle._actor_buffs(battle._hit_tgt()) for k in debuff_keys):
         return True
     debuffs = battle.enemy.get("debuffs") or {}
     return any(int((debuffs.get(k) or {}).get("n", 0) or 0) > 0
@@ -150,7 +150,7 @@ def _c_enemy_debuff(battle, player, cond):
 @register("enemy_slowed", label=lambda c: "敌方减速中")
 def _c_enemy_slowed(battle, player, cond):
     """敌方减速中"""
-    return "spd_down" in battle.e_buffs or "mon_spd_down" in battle.e_buffs
+    return "spd_down" in battle._actor_buffs(battle._hit_tgt()) or "mon_spd_down" in battle._actor_buffs(battle._hit_tgt())
 
 
 @register("enemy_mark_full", label=lambda c: f"敌方{c.get('mech','')}印记已满{c.get('stacks',3)}层")
@@ -176,10 +176,10 @@ def _c_element_marks(battle, player, cond):
     from ..engine import ELEMENT_MARKS  # 延迟引用，避免 core→engine→content→core 循环
     elem = cond.get("element", "")
     if elem == "any":
-        marks_total = sum(battle.e_buffs.get(mk, 0) for mk in ELEMENT_MARKS.values())
+        marks_total = sum(battle._actor_buffs(battle._hit_tgt()).get(mk, 0) for mk in ELEMENT_MARKS.values())
         return marks_total >= cond.get("stacks", 1)
     mk = ELEMENT_MARKS.get(elem, "")
-    return bool(mk) and battle.e_buffs.get(mk, 0) >= cond.get("stacks", 1)
+    return bool(mk) and battle._actor_buffs(battle._hit_tgt()).get(mk, 0) >= cond.get("stacks", 1)
 
 
 # ================= 自身状态类条件 =================

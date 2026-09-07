@@ -1,0 +1,225 @@
+敌方兼容层引用全量清单（e_buffs/e_defending/e_minions）共 199 处
+
+
+===== game/battle.py (45) =====
+  818: [e_minions] self.e_minions: list = []          # 敌方援军实体
+  1120: [e_buffs] def e_buffs(self) -> dict:
+  1124: [e_buffs] @e_buffs.setter
+  1125: [e_buffs] def e_buffs(self, val: dict):
+  1129: [e_defending] def e_defending(self) -> bool:
+  1133: [e_defending] @e_defending.setter
+  1134: [e_defending] def e_defending(self, val: bool):
+  1265: [e_minions] "e_minions": self.e_minions,
+  1269: [e_buffs] "e_buffs": self.e_buffs,
+  1271: [e_defending] "e_defending": self.e_defending,
+  1513: [e_buffs] # 旧存档：只有 e_buffs 时并入主单位 buffs（§3.2 容错）
+  1514: [e_buffs] legacy = st.get("e_buffs") or {}
+  1560: [e_minions] b.e_minions = st.get("e_minions", []) or []
+  1563: [e_defending] b.e_defending = st.get("e_defending", False)
+  1595: [e_buffs] # 玩家侧键（dragon_mark/rage/shadow/chi 等）与 e_buffs 标记不受影响。
+  2840: [e_buffs] self.e_buffs["freeze"] = 1
+  4838: [e_buffs] 统计：debuffs 各类型（poison/burn/bleed/mark/corros/curse/soul_mark/hunt_mark）+ e_buffs 控制/减益键
+  5205: [e_buffs] self.e_buffs["freeze"] = 1
+  5227: [e_buffs] self.e_buffs["mon_atk_down"] = 3
+  5228: [e_buffs] self.e_buffs["_weaken_val"] = C.rune_value("weaken", weak_lvl)
+  5387: [e_buffs] if eff and "mark" in self.e_buffs:
+  5412: [e_buffs] if rc.get("energy") and "mark" in self.e_buffs:
+  5626: [e_buffs] """v135 哑词条激活·追猎：标记判定放宽——e_buffs["mark"]（技能标记）+ 目标级
+  5628: [e_buffs] 原实现只认 e_buffs["mark"]（仅游侠标记技写入），战士/法师/牧师/刺客/拳师
+  5630: [e_buffs] if "mark" in self.e_buffs:
+  6378: [e_buffs] # 本技能对敌施加的控制（mech/cc 走 MECH_EFFECTS 写入 e_buffs 后）延长 1 刻（1.5 向下取整；
+  6390: [e_buffs] "flag_kind": "dirge_ctrl_up", "e_buffs": self._tgt_buffs(),
+  6509: [e_buffs] 副作用：改 logs[-1]、e_buffs 印记、_last_element_set。返回 None。
+  6594: [e_buffs] 副作用：改 self._cast_buffs()/e_buffs、打伤害、回血回蓝（经 self + logs 传出）。
+  6841: [e_buffs] # 独立于旧 e_buffs 反应体系，读目标侧 element_marks（mage_转职.md §1.0②）
+  6957: [e_buffs] # 对标记目标伤害（追猎者/猎魔之眼：e_buffs["mark"] 为目标易伤标记）
+  6959: [e_buffs] if "mark" in self.e_buffs:
+  7048: [e_buffs] # v104 R3 P1-1：猎手本能——对标记目标暴击 +10%（e_buffs["mark"] 为目标易伤标记）
+  7483: [e_buffs] if k in self.e_buffs:
+  7484: [e_buffs] self.e_buffs[k] = self._boss_ctrl_dur(k, self.e_buffs[k])
+  8488: [e_buffs] e_buffs["mark"] 计时窗口保留（由 _m_mark 写入），层数在 enemy.debuffs 随刻衰减。
+  8736: [e_buffs] # v138.2 律二（控制侧）：e_buffs 里的控制效果达上限后直接失效（防 Boss 被无限控死）。
+  9338: [e_buffs] "e_buffs_shaken": self.e_buffs.get("shaken"),
+  9453: [e_buffs] # v180G B4 修正：原只扫 (p_buffs, e_buffs)——e_buffs 是主怪别名，副怪 buffs 不衰减；
+  9804: [e_minions] 保持 e_minions 旧字段同步（命令层/instance 展示与持久化兼容）。
+  9900: [e_minions] self.e_minions.append(m)
+  10100: [e_buffs] self.e_buffs["def_down"] = max(int(self.e_buffs.get("def_down", 0) or 0), 2)
+  10231: [e_minions] # 同步 e_minions 旧字段（镜像同对象）
+  10232: [e_minions] if unit in self.e_minions:
+  10233: [e_minions] self.e_minions[:] = [m for m in self.e_minions if m.get("hp", 0) > 0]
+
+===== game/commands/combat.py (10) =====
+  1605: [e_buffs] # v125.1 P2-4：补漏显键（对照全量 e_buffs 写入点：Boss 盾/速/睡眠/减速 + 元素印记）
+  1685: [e_buffs] # 敌方状态（e_buffs 刻数 >0）
+  1687: [e_buffs] for k, v in (b.e_buffs or {}).items():
+  1688: [e_buffs] # v151 破绽断链修复：e_buffs 可能出现 dict 值（enemy_bar 状态 shaken/curse = {val, threshold, ...}），
+  1701: [e_buffs] # v181.P2C-C10：e_buffs int = 绝对到期刻号，按 _now 折算剩余刻
+  1712: [e_minions] mins = getattr(b, "e_minions", []) or []
+  2517: [e_buffs] b.e_buffs = dict(state.get(f"{opp_key[0]}_buffs", {}))
+  2532: [e_defending] # 伤害减半（b.e_defending → _deal_damage 统一消费，普攻/技能/召唤物全路径覆盖）
+  2534: [e_defending] b.e_defending = True
+  2558: [e_buffs] state[f"{opp_key[0]}_buffs"] = b.e_buffs
+
+===== game/commands/instance.py (16) =====
+  444: [e_buffs] st["e_buffs"] = {}
+  446: [e_minions] st["e_minions"] = []  # v101.28m #438：新战斗开始清空旧援军（防止残留挡刀）
+  967: [e_buffs] st["e_buffs"] = {}
+  969: [e_minions] st["e_minions"] = []  # v101.28m #438：新战斗开始清空旧援军（防止残留挡刀）
+  1465: [e_buffs] 数据全部从 st（players/enemies/p_buffs/e_buffs/resources/...）取，
+  1579: [e_buffs] for bk, bv in (st.get("e_buffs") or {}).items():
+  1878: [e_buffs] "e_buffs": {},
+  1914: [e_buffs] "e_buffs": {},
+  1945: [e_buffs] "e_buffs": {},
+  2573: [e_buffs] "e_buffs": st["e_buffs"],
+  2575: [e_defending] "e_defending": False,
+  2581: [e_minions] # （e_minions）刻结束蒸发、核心资源（resources）不持久化导致耗资源
+  2586: [e_minions] "e_minions": st.get("e_minions", []),
+  2644: [e_buffs] st["e_buffs"] = b.e_buffs
+  2656: [e_minions] st["e_minions"] = b.e_minions
+  2964: [e_buffs] st["e_buffs"] = {}
+
+===== game/core/_we_executors.py (17) =====
+  77: [e_buffs] # （_slow_enemy/_freeze_enemy——Boss 免疫退化内建）与 e_buffs 直写（heal_down/stun/叠层）。
+  78: [e_buffs] # ⚠️ 状态键（eff 计数/CD/used、e_buffs 叠层）一律读表字段，不硬编码。
+  81: [e_buffs] """控制执行器：chance/次数/CD 前置判定 → mode 分派 → 共享动作/e_buffs 写控。
+  110: [e_buffs] if battle.e_buffs.get("spd_down"):
+  115: [e_buffs] elif mode == "slow_heal_down":    # holy_judgment_field：减速 + e_buffs.heal_down 禁疗
+  117: [e_buffs] battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), int(wd["heal_down"]))
+  134: [e_buffs] elif mode == "spd_down_stack":    # randuin_weary/ice_vein：enemy_act 叠层（e_buffs 乘算减速）
+  138: [e_buffs] n = min(ms, int(battle.e_buffs.get(sk, 0) or 0) + 1)
+  139: [e_buffs] battle.e_buffs[sk] = n
+  140: [e_buffs] battle.e_buffs["_spd_down_pct"] = max(
+  141: [e_buffs] float(battle.e_buffs.get("_spd_down_pct", 0) or 0), sp * n)
+  151: [e_buffs] battle.e_buffs["stun"] = max(battle.e_buffs.get("stun", 0), 1)
+  779: [e_buffs] # 反击标记族：taken 置 we_retort / guardian 敌弱化（e_buffs.mon_atk_down + _weaken_val）→
+  792: [e_buffs] guardian_will → chance 判定（0.08）→ e_buffs.mon_atk_down=1 + _weaken_val=weaken + 原文案日志
+  800: [e_buffs] battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 1)
+  801: [e_buffs] battle.e_buffs["_weaken_val"] = max(float(battle.e_buffs.get("_weaken_val", 0) or 0),
+  975: [e_buffs] battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), int(wd.get("heal_down", 2)))
+
+===== game/core/affix_effects.py (31) =====
+  244: [e_buffs] gain_keys = [k for k in battle.e_buffs
+  251: [e_buffs] del battle.e_buffs[k]
+  257: [e_buffs] battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 1)
+  258: [e_buffs] battle.e_buffs["_weaken_val"] = float(_affix_effect("purify").get("holy_weaken", 0.10))
+  333: [e_buffs] battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), int(eff.get("turns", 2)))
+  334: [e_buffs] battle.e_buffs["_weaken_val"] = float(eff.get("pct", 0.10))
+  522: [e_buffs] battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), int(params.get("slow_turns", 2)))
+  523: [e_buffs] battle.e_buffs["_spd_down_pct"] = float(params.get("slow_pct", 0.15))
+  639: [e_buffs] battle.e_buffs["freeze"] = max(battle.e_buffs.get("freeze", 0), int(params.get("freeze_turns", 1)))
+  661: [e_buffs] if "def_down" in battle.e_buffs and params.get("bonus_atk_pct"):
+  671: [e_buffs] battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(params.get("break_turns", 2)))
+  672: [e_buffs] battle.e_buffs["_armor_break_pct"] = float(params.get("break_pct", 0.15))
+  680: [e_buffs] battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(params.get("break_turns", 2)))
+  681: [e_buffs] battle.e_buffs["_armor_break_pct"] = float(params.get("break_pct", 0.15))
+  682: [e_buffs] battle.e_buffs["_anti_heal_pct"] = float(params.get("anti_heal_pct", 0.30))
+  690: [e_buffs] battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), int(params.get("turns", 2)))
+  691: [e_buffs] battle.e_buffs["_weaken_val"] = float(params.get("atk_down_pct", 0.15))
+  808: [e_buffs] lv = battle.e_buffs.get("jing_tie_lv", 0)
+  810: [e_buffs] battle.e_buffs["jing_tie_lv"] = lv + 1
+  811: [e_buffs] battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(params.get("break_turns", 2)))
+  977: [e_buffs] battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), int(eff.get("turns", 1)))
+  978: [e_buffs] battle.e_buffs["_weaken_val"] = max(float(battle.e_buffs.get("_weaken_val", 0) or 0),
+  1032: [e_buffs] battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), int(eff.get("slow_turns", 2)))
+  1033: [e_buffs] battle.e_buffs["_spd_down_pct"] = float(eff.get("slow", 0.20))
+  1116: [e_buffs] battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 1)
+  1117: [e_buffs] battle.e_buffs["_weaken_val"] = float(eff.get("pct", 0.25))
+  1195: [e_buffs] battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), int(eff.get("heal_down", 3)))
+  1204: [e_buffs] battle.e_buffs["silence"] = max(battle.e_buffs.get("silence", 0), int(eff.get("silence", 1)))
+  1230: [e_buffs] _eb = battle.e_buffs
+  1282: [e_buffs] battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(eff.get("turns", 2)))
+  1283: [e_buffs] battle.e_buffs["_armor_break_pct"] = float(eff.get("pct", 0.15))
+
+===== game/core/battle_conds.py (11) =====
+  10: [e_buffs] battle 为 Battle 实例（enemy/e_buffs/mech_stacks/p_buffs/shield/resources/_player_stats...）
+  78: [e_buffs] return "freeze" in battle.e_buffs
+  84: [e_buffs] return "stun" in battle.e_buffs
+  90: [e_buffs] return "silence" in battle.e_buffs
+  134: [e_buffs] """敌方被标记（e_buffs 或目标级 debuffs 机制层任一）"""
+  135: [e_buffs] return "mark" in battle.e_buffs or int(((battle.enemy.get("debuffs") or {}).get("mark", {}) or {}).get("n", 0)
+  140: [e_buffs] """敌方有减益（e_buffs 控制/属性降或目标级毒/灼烧/印记层）"""
+  143: [e_buffs] if any(k in battle.e_buffs for k in debuff_keys):
+  153: [e_buffs] return "spd_down" in battle.e_buffs or "mon_spd_down" in battle.e_buffs
+  179: [e_buffs] marks_total = sum(battle.e_buffs.get(mk, 0) for mk in ELEMENT_MARKS.values())
+  182: [e_buffs] return bool(mk) and battle.e_buffs.get(mk, 0) >= cond.get("stacks", 1)
+
+===== game/core/battle_mech.py (47) =====
+  174: [e_buffs] battle.e_buffs.pop("burn", None)
+  303: [e_buffs] if k in battle.e_buffs or (k == "enraged" and battle.enemy.get("enraged")):
+  304: [e_buffs] battle.e_buffs.pop(k, None)
+  326: [e_buffs] """标记：叠层（层数供 mark_burst 消费，同时挂 e_buffs 供 _apply_mark 增伤）
+  328: [e_buffs] 并**保留** battle.e_buffs["mark"]=DEBUFF_TURNS（+30% 易伤计时不变）。"""
+  337: [e_buffs] battle.e_buffs["mark"] = DEBUFF_TURNS  # +30% 易伤计时保留
+  448: [e_buffs] battle.e_buffs["stun"] = 1
+  555: [e_buffs] battle.e_buffs["mon_atk_down"] = max(int(battle.e_buffs.get("mon_atk_down", 0) or 0), 2)
+  556: [e_buffs] battle.e_buffs["_weaken_val"] = max(float(battle.e_buffs.get("_weaken_val", 0) or 0), _wv)
+  560: [e_buffs] battle.e_buffs.pop("poison", None)
+  661: [e_buffs] battle.e_buffs["mon_atk_up"] = max(battle.e_buffs.get("mon_atk_up", 0), 2)
+  816: [e_buffs] battle.e_buffs["mon_atk_up"] = max(battle.e_buffs.get("mon_atk_up", 0), int(power))
+  819: [e_buffs] battle.e_buffs["mon_atk_up_strong"] = max(
+  820: [e_buffs] battle.e_buffs.get("mon_atk_up_strong", 0), int(power))
+  896: [e_buffs] battle.e_buffs["mon_atk_up"] = BUFF_TURNS
+  904: [e_buffs] battle.e_buffs["mon_atk_up_strong"] = BUFF_TURNS
+  912: [e_buffs] battle.e_buffs["mon_def_up"] = BUFF_TURNS
+  947: [e_buffs] 参考 BUFF_MULT spd_up 模式：e_buffs["spd_up"] = BUFF_TURNS，
+  950: [e_buffs] battle.e_buffs["spd_up"] = BUFF_TURNS
+  1041: [e_minions] （护盾受伤减半/反伤）与 _deal_damage（e_minions 援军挡刀）→ 打盾 Boss 不减半、
+  1075: [e_buffs] """v51 挫志怒吼：敌方攻击下降（写 e_buffs 而非 p_buffs）"""
+  1077: [e_buffs] battle.e_buffs["mon_atk_down"] = skill_buff_turns(lv)
+  1113: [e_buffs] """v104 M02 P1-2：死亡标记是目标易伤——挂敌方侧 e_buffs（_apply_mark 只认 e_buffs）"""
+  1115: [e_buffs] battle.e_buffs["mark"] = skill_buff_turns(lv)
+  1122: [e_buffs] battle.e_buffs["sleep"] = battle._boss_ctrl_dur("sleep", 1 if battle.btype == "worldboss" else 2)
+  1179: [e_buffs] # effect 直接映射到已有 p_buffs/e_buffs 键（不改数值体系，缺数值档位由 desc 对齐的键承载）
+  1181: [e_buffs] # crit_hit_buff→crit_up（暴击 +20%）；vuln→mark（e_buffs mark +30% 易伤，_apply_mark 消费）
+  1194: [e_buffs] """写 e_buffs[key]=skill_buff_turns(lv, info)（敌方侧计时键，同 effect 覆盖取高）。"""
+  1197: [e_buffs] battle.e_buffs[key] = max(int(battle.e_buffs.get(key, 0) or 0), int(t))
+  1198: [e_buffs] return int(battle.e_buffs[key])
+  1204: [e_buffs] eb = battle.e_buffs
+  1284: [e_buffs] """v169.7 effect 补全：死亡标记（vuln）→ 目标易伤 e_buffs mark（_apply_mark 按层 +20% 消费）。
+  1572: [e_buffs] # 数据：12 首歌 melody=系别 token；7 个 finale=终章 token。系别→p_buffs/e_buffs 映射：
+  1574: [e_buffs] #   e_spd→e_buffs spd_down、e_atk→mon_atk_down、e_all→mon_atk_down+def_down+spd_down、
+  1580: [e_buffs] # 光环随刻驻留：写成 p_buffs/e_buffs 时长键（v152 时刻制由 _advance_time 按数值刻到期），
+  1584: [e_buffs] # ⚠️ e_buffs 写键对齐既有命名：mon_atk_down（攻）、def_down（防）、spd_down（速）——
+  1617: [e_buffs] """按旋律 kind 写 e_buffs 减益光环（敌方侧）。e_* 写对应降键 + 数值 % 通道。"""
+  1619: [e_buffs] eb = battle.e_buffs
+  1649: [e_buffs] 2. 真正写 p_buffs/e_buffs 光环效果（_melody_apply_p_buffs/_melody_apply_e_buffs）。"""
+  1695: [e_buffs] silence → 全体沉默 3.0 刻（e_buffs silence）
+  1696: [e_buffs] stun  → 敌方定身 3.5 刻（e_buffs stun）
+  1706: [e_buffs] pb, eb = battle._cast_buffs(), battle.e_buffs
+  1869: [e_buffs] battle.e_buffs["stun"] = rcfg["stun"]
+  2124: [e_buffs] battle.e_buffs["mon_atk_down"] = 8
+  2131: [e_buffs] battle.e_buffs["def_down"] = 8
+  2138: [e_buffs] battle.e_buffs["mon_atk_down"] = 8
+  2139: [e_buffs] battle.e_buffs["def_down"] = 8
+
+===== game/core/food_effects.py (1) =====
+  127: [e_buffs] battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), int(_fp("static", "turns", 2)))
+
+===== game/core/passive_procs.py (8) =====
+  413: [e_buffs] # +ps.extend。ctx["shaken"] = e_buffs["shaken"] dict 引用，副作用直落。
+  799: [e_buffs] # e_buffs["shaken"] dict 引用（副作用直接落在该 dict）；日志 🥋破绽·极 原样保留。
+  816: [e_buffs] # （mech/cc/mech2 ∈ stun/freeze/silence/sleep/spd_down）对敌施加后 e_buffs
+  819: [e_buffs] # for...break（首条 proc）。ctx["e_buffs"] = 调用侧 _tgt_buffs() 引用（副作用落
+  825: [e_buffs] _eb = ctx.get("e_buffs")
+  917: [e_buffs] # 原循环体逐字直搬：e_buffs.shaken dict（val 键）→ val += int(decay_full / 2)；
+  918: [e_buffs] # 首条 break。ctx["e_buffs_shaken"] = 调用侧 self.e_buffs.get("shaken") dict 引用
+  919: [e_buffs] # （副作用直接落该 dict——e_buffs = enemy.buffs 代理，随战斗序列化）；
+
+===== game/core/weapon_effects.py (6) =====
+  154: [e_buffs] """减速敌人：e_buffs spd_down + _spd_down_pct。"""
+  155: [e_buffs] battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), turns)
+  156: [e_buffs] battle.e_buffs["_spd_down_pct"] = max(float(battle.e_buffs.get("_spd_down_pct", 0) or 0), pct)
+  169: [e_buffs] battle.e_buffs["freeze"] = max(battle.e_buffs.get("freeze", 0), turns)
+  270: [e_buffs] # C5 proc_control 控制族 9 key（全量迁移，全走 e_buffs/_freeze_enemy 共享动作）
+  349: [e_buffs] # we_retort max；guardian_will taken chance → e_buffs 弱化。retort passive 消费 ctx.attack 门
+
+===== game/engine.py (1) =====
+  22: [e_buffs] # 元素印记 key（存敌方 e_buffs，层数）
+
+===== game/store/battle_state.py (6) =====
+  44: [e_buffs] "enemy": state, "p_buffs": {}, "e_buffs": {},
+  45: [e_defending] "p_defending": False, "e_defending": False,
+  120: [e_buffs] "enemy": state, "p_buffs": {}, "e_buffs": {},
+  121: [e_defending] "p_defending": False, "e_defending": False,
+  142: [e_buffs] "enemy": state, "p_buffs": {}, "e_buffs": {},
+  143: [e_defending] "p_defending": False, "e_defending": False,

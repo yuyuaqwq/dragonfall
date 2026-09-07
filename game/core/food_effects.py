@@ -124,7 +124,7 @@ def _f_h_charge(battle, player, dmg, logs):
 def _f_h_static(battle, player, dmg, logs):
     """雷雨藤烤串（v102.3）：静电麻痹——攻击 20% 令敌方减速（2 刻）"""
     if random.random() < float(_fp("static", "chance", 0.20)) and battle.enemy.get("hp", 0) > 0:
-        battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), int(_fp("static", "turns", 2)))
+        battle._actor_buffs(battle._hit_tgt())["spd_down"] = max(battle._actor_buffs(battle._hit_tgt()).get("spd_down", 0), int(_fp("static", "turns", 2)))
         logs.append(f"⚡ 静电麻痹！【{battle.enemy.get('name', '敌人')}】速度下降！")
 
 

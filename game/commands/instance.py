@@ -441,7 +441,6 @@ class InstanceCmds(CommandBase):
             st["stage_secret_cleared"] = False
             self._check_stage_secret_cond(st)  # 新层 secret cond 检查（如海蚀洞窟 L3 藏宝密室）
         st["enemy"] = st["boss"]
-        st["e_buffs"] = {}
         st["round"] = 1
         st["e_minions"] = []  # v101.28m #438：新战斗开始清空旧援军（防止残留挡刀）
         for m in st["members"]:
@@ -964,7 +963,6 @@ class InstanceCmds(CommandBase):
             # v101.28l #423：精英按人数缩放（此前不缩放，2 人档与单人一样难）
             self._instance_elite_scale(st, st["boss"])
         st["enemy"] = st["boss"]
-        st["e_buffs"] = {}
         st["round"] = 1
         st["e_minions"] = []  # v101.28m #438：新战斗开始清空旧援军（防止残留挡刀）
         for m in st["members"]:
@@ -1574,19 +1572,8 @@ class InstanceCmds(CommandBase):
                         pbuf.append(f"✨护盾{s['value']}")
             if pbuf:
                 lines.append(f"　🛡️「{' '.join(pbuf)}」")
-        # 敌方 buff / 减益
-        ebuf = []
-        for bk, bv in (st.get("e_buffs") or {}).items():
-            if isinstance(bv, dict):
-                continue
-            if bv and bv > 0 and bk in ebuf_names:
-                if bk == "shield":
-                    ebuf.append(f"{ebuf_names[bk]}{bv}")
-                elif bk in ("fire_mark", "ice_mark", "thunder_mark"):
-                    ebuf.append(f"{ebuf_names[bk]}×{bv}")
-                else:
-                    ebuf.append(f"{ebuf_names[bk]}(剩{bv}刻)")
-        # 敌方单位级 buffs/stacks/debuffs（多对多阵列）
+        # 敌方单位级 buffs/stacks/debuffs（多对多阵列；v181 P3 收口：buffs 在每怪 actor dict，
+        # 无共享 e_buffs——旧 st["e_buffs"] 冗余显示已删）
         for u in alive_enemies:
             for bk, bv in (u.get("buffs") or {}).items():
                 # 单位 buff 可能是 dict（盾/bar 状态等）→ 跳过非刻数键
@@ -1875,7 +1862,6 @@ class InstanceCmds(CommandBase):
                     "p_buffs": {str(m): {} for m in members},
                     "p_hot": {str(m): {} for m in members},
                     "p_food_effects": {str(m): [] for m in members},
-                    "e_buffs": {},
                     "p_defending": {str(m): False for m in members},
                     "mech_stacks": {str(m): {} for m in members},
                     "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
@@ -1911,7 +1897,6 @@ class InstanceCmds(CommandBase):
                     "p_buffs": {str(m): {} for m in members},
                     "p_hot": {str(m): {} for m in members},
                     "p_food_effects": {str(m): [] for m in members},
-                    "e_buffs": {},
                     "p_defending": {str(m): False for m in members},
                     "mech_stacks": {str(m): {} for m in members},
                     "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
@@ -1942,7 +1927,6 @@ class InstanceCmds(CommandBase):
             "p_buffs": {str(m): {} for m in members},
             "p_hot": {str(m): {} for m in members},
             "p_food_effects": {str(m): [] for m in members},
-            "e_buffs": {},
             "mech_stacks": {str(m): {} for m in members},  # v59 副本叠层（按玩家持久化）
             "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
             "p_defending": {str(m): False for m in members},
@@ -2570,9 +2554,7 @@ class InstanceCmds(CommandBase):
             "p_buffs": st["p_buffs"].get(cur_key, {}),
             "p_hot": st.get("p_hot", {}).get(cur_key, {}),
             "p_food_effects": st.get("p_food_effects", {}).get(cur_key, []) or st.get("p_food_affixes", {}).get(cur_key, []),
-            "e_buffs": st["e_buffs"],
             "p_defending": st["p_defending"].get(cur_key, False),
-            "e_defending": False,
             "title_bonus": snap.get("title_bonus") or {},
             # v59：叠层/护盾随战斗持久化（副本按玩家存；v101.28d 盾 buff 化）
             "mech_stacks": st["mech_stacks"].get(cur_key, {}),
@@ -2641,7 +2623,6 @@ class InstanceCmds(CommandBase):
         st["p_buffs"][cur_key] = b.player.get("buffs") or {}
         st.setdefault("p_hot", {})[cur_key] = b.player.get("hot") or {}
         st.setdefault("p_food_effects", {})[cur_key] = b.player.get("food_effects") or []
-        st["e_buffs"] = b.e_buffs
         st["mech_stacks"][cur_key] = b.player.get("stacks") or {}
         # v2：敌方阵列写回（逐单位 hp/buffs/stacks/defending/charging）→ 压缩死亡单位
         # v141 审计：b.enemies 与 st["enemies"] 是同一列表引用（from_state 直接传入），
@@ -2961,7 +2942,6 @@ class InstanceCmds(CommandBase):
                         (st["pets"][_m0]).pop("_last_hit_at", None)
                     except Exception:
                         pass
-                st["e_buffs"] = {}
                 # δ副本层：切怪/换 Boss 清层——新怪无减益、新刻重新允许结算、
                 # 玩家资源（叠层/护盾）不跨怪残留、轮次行动记录重置
                 st["dot_pending"] = True

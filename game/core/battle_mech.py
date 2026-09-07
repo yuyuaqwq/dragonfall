@@ -171,7 +171,7 @@ def _m_burn_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=N
         _burst_damage(battle, d, logs)
         logs.append(f"🔥 灼烧引爆！{n} 层造成 {d} 点伤害")
     enemy.get("debuffs", {}).pop("burn", None)
-    battle.e_buffs.pop("burn", None)
+    battle._actor_buffs(battle._hit_tgt()).pop("burn", None)
 
 
 @register(MECH_EFFECTS, "freeze")
@@ -300,8 +300,8 @@ def _m_cleanse(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None
         return
     removed = []
     for k in ("mon_atk_up", "mon_atk_up_strong", "mon_def_up", "summon", "enraged"):
-        if k in battle.e_buffs or (k == "enraged" and battle.enemy.get("enraged")):
-            battle.e_buffs.pop(k, None)
+        if k in battle._actor_buffs(battle._hit_tgt()) or (k == "enraged" and battle.enemy.get("enraged")):
+            battle._actor_buffs(battle._hit_tgt()).pop(k, None)
             battle.enemy["enraged"] = False
             removed.append(k)
     # 新增：净化敌方持续减益（目标级 enemy["debuffs"]，pop 全部键）
@@ -325,7 +325,7 @@ def _m_cleanse(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None
 def _m_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """标记：叠层（层数供 mark_burst 消费，同时挂 e_buffs 供 _apply_mark 增伤）
     重构图契约 §3.1：敌方标记迁为 enemy["debuffs"]["mark"]（cap 5），
-    并**保留** battle.e_buffs["mark"]=DEBUFF_TURNS（+30% 易伤计时不变）。"""
+    并**保留** battle._actor_buffs(battle._hit_tgt())["mark"]=DEBUFF_TURNS（+30% 易伤计时不变）。"""
     from .constants import DEBUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     if not mval:
         return
@@ -334,7 +334,7 @@ def _m_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     cur = deb.get("mark") or {"n": 0, "mult": 1.0}
     cur["n"] = min(5, int(cur.get("n", 0) or 0) + mval)
     deb["mark"] = cur
-    battle.e_buffs["mark"] = DEBUFF_TURNS  # +30% 易伤计时保留
+    battle._actor_buffs(battle._hit_tgt())["mark"] = DEBUFF_TURNS  # +30% 易伤计时保留
     n = cur["n"]
     logs.append(f"🎯 目标被标记！标记层数 {n}")
 
@@ -445,7 +445,7 @@ def _m_spellblade_meteor(battle, mval, p_mech, total, logs, skill_name, is_crit,
         p_mech["spellblade"] = 0
         from .. import content as _C  # v101.5 概率常量延迟导入防环
         if random.random() < _C.STARFALL_STUN_CHANCE:
-            battle.e_buffs["stun"] = 1
+            battle._actor_buffs(battle._hit_tgt())["stun"] = 1
             logs.append("🌠 星陨斩的余威将敌人眩晕！")
     else:
         logs.append(f"⚔️ 魔能不足({n}/5)，星陨斩无法施展！")
@@ -552,12 +552,12 @@ def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info
         # v1.3 毒爆特色（与灼爆"易燃更痛"区分）：毒爆余毒虚弱——敌方攻击 -5%×n（3层-15%…5层-25%）2 刻。
         # 提前引爆（3层）即可拿虚弱压制，等满层则更高伤害+更强虚弱——"提前爆发的价值"成立。
         _wv = 0.05 * n
-        battle.e_buffs["mon_atk_down"] = max(int(battle.e_buffs.get("mon_atk_down", 0) or 0), 2)
-        battle.e_buffs["_weaken_val"] = max(float(battle.e_buffs.get("_weaken_val", 0) or 0), _wv)
+        battle._actor_buffs(battle._hit_tgt())["mon_atk_down"] = max(int(battle._actor_buffs(battle._hit_tgt()).get("mon_atk_down", 0) or 0), 2)
+        battle._actor_buffs(battle._hit_tgt())["_weaken_val"] = max(float(battle._actor_buffs(battle._hit_tgt()).get("_weaken_val", 0) or 0), _wv)
         logs.append(f"😵 毒爆余毒侵蚀！敌方攻击 -{int(_wv * 100)}%（2 刻）")
         logs.append(f"☠️ 毒爆！{n} 层引爆造成 {d} 点物理伤害")
     enemy.get("debuffs", {}).pop("poison", None)
-    battle.e_buffs.pop("poison", None)
+    battle._actor_buffs(battle._hit_tgt()).pop("poison", None)
 
 
 @register(MECH_EFFECTS, "bleed")
@@ -658,7 +658,7 @@ def _b_summon(battle, logs, e, r):
         names = '、'.join(f'【{m["name"]}】' for m in mins)
         if not mins:
             return  # 满员/无可召（上限 3 已满）→ 本次机制跳过（不叠攻击buff）
-        battle.e_buffs["mon_atk_up"] = max(battle.e_buffs.get("mon_atk_up", 0), 2)
+        battle._actor_buffs(battle._hit_tgt())["mon_atk_up"] = max(battle._actor_buffs(battle._hit_tgt()).get("mon_atk_up", 0), 2)
         logs.append(f'👥【{e["name"]}】召唤了 {names}！它们挡在身前，攻击也提升了！')
 
 
@@ -813,11 +813,11 @@ def _b_opening(battle, logs, e, r):
     power = float(op.get("power", 2.0) or 2.0)
     from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
     if effect == "atk_up":
-        battle.e_buffs["mon_atk_up"] = max(battle.e_buffs.get("mon_atk_up", 0), int(power))
+        battle._actor_buffs(battle._hit_tgt())["mon_atk_up"] = max(battle._actor_buffs(battle._hit_tgt()).get("mon_atk_up", 0), int(power))
         logs.append(f"⚡【{e['name']}】的{name}让攻击力提升了！")
     elif effect == "atk_up_strong":
-        battle.e_buffs["mon_atk_up_strong"] = max(
-            battle.e_buffs.get("mon_atk_up_strong", 0), int(power))
+        battle._actor_buffs(battle._hit_tgt())["mon_atk_up_strong"] = max(
+            battle._actor_buffs(battle._hit_tgt()).get("mon_atk_up_strong", 0), int(power))
         logs.append(f"⚡【{e['name']}】的{name}让攻击力大幅提升了！")
     elif effect == "mon_atk_down":  # 低吼削弱玩家（可选）
         battle._cast_buffs()["atk_down"] = max(battle._cast_buffs().get("atk_down", 0), int(power))
@@ -893,7 +893,7 @@ MON_BUFF_EFFECTS = {}
 def _mb_atk_up(battle, logs, sname):
     """攻击提升"""
     from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
-    battle.e_buffs["mon_atk_up"] = BUFF_TURNS
+    battle._actor_buffs(battle._hit_tgt())["mon_atk_up"] = BUFF_TURNS
     logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，攻击力提升了！")
 
 
@@ -901,7 +901,7 @@ def _mb_atk_up(battle, logs, sname):
 def _mb_atk_up_strong(battle, logs, sname):
     """攻击大幅提升"""
     from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
-    battle.e_buffs["mon_atk_up_strong"] = BUFF_TURNS
+    battle._actor_buffs(battle._hit_tgt())["mon_atk_up_strong"] = BUFF_TURNS
     logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，攻击力大幅提升了！")
 
 
@@ -909,7 +909,7 @@ def _mb_atk_up_strong(battle, logs, sname):
 def _mb_def_up(battle, logs, sname):
     """防御提升"""
     from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
-    battle.e_buffs["mon_def_up"] = BUFF_TURNS
+    battle._actor_buffs(battle._hit_tgt())["mon_def_up"] = BUFF_TURNS
     logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，防御提升了！")
 
 
@@ -947,7 +947,7 @@ def _mb_spd_up(battle, logs, sname):
     参考 BUFF_MULT spd_up 模式：e_buffs["spd_up"] = BUFF_TURNS，
     _enemy_stats → _apply_buffs 读 BUFF_MULT["spd_up"]=(spd, 1.40) 实际生效。"""
     from .constants import BUFF_TURNS  # v181.P2B 权威定义在 core/constants（原延迟 from ..battle）
-    battle.e_buffs["spd_up"] = BUFF_TURNS
+    battle._actor_buffs(battle._hit_tgt())["spd_up"] = BUFF_TURNS
     logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，速度提升了！")
 
 
@@ -1074,7 +1074,7 @@ def _sb_mon_shield(battle, skill_name, info, player, lv, logs):
 def _sb_mon_atk_down(battle, skill_name, info, player, lv, logs):
     """v51 挫志怒吼：敌方攻击下降（写 e_buffs 而非 p_buffs）"""
     from ..engine import skill_buff_turns
-    battle.e_buffs["mon_atk_down"] = skill_buff_turns(lv)
+    battle._actor_buffs(battle._hit_tgt())["mon_atk_down"] = skill_buff_turns(lv)
 
 
 @register(SKILL_BUFF_EFFECTS, "element_shift")
@@ -1112,14 +1112,14 @@ def _sb_shadow_realm(battle, skill_name, info, player, lv, logs):
 def _sb_mark(battle, skill_name, info, player, lv, logs):
     """v104 M02 P1-2：死亡标记是目标易伤——挂敌方侧 e_buffs（_apply_mark 只认 e_buffs）"""
     from ..engine import skill_buff_turns
-    battle.e_buffs["mark"] = skill_buff_turns(lv)
+    battle._actor_buffs(battle._hit_tgt())["mark"] = skill_buff_turns(lv)
 
 
 @register(SKILL_BUFF_EFFECTS, "sleep")
 def _sb_sleep(battle, skill_name, info, player, lv, logs):
     """v109.2 P1-3：安眠曲改睡眠——敌方睡眠（受击解除；世界 Boss 只睡 1 刻）
     v120 q5：Boss 亦控制减半（普通 2 刻 → Boss 1 刻）。"""
-    battle.e_buffs["sleep"] = battle._boss_ctrl_dur("sleep", 1 if battle.btype == "worldboss" else 2)
+    battle._actor_buffs(battle._hit_tgt())["sleep"] = battle._boss_ctrl_dur("sleep", 1 if battle.btype == "worldboss" else 2)
 
 
 @register(SKILL_BUFF_EFFECTS, "shield_all")
@@ -1194,14 +1194,14 @@ def _sb_eb_set_turns(battle, key, lv, info=None, base=None):
     """写 e_buffs[key]=skill_buff_turns(lv, info)（敌方侧计时键，同 effect 覆盖取高）。"""
     from ..engine import skill_buff_turns
     t = base if base else skill_buff_turns(lv, info=info)
-    battle.e_buffs[key] = max(int(battle.e_buffs.get(key, 0) or 0), int(t))
-    return int(battle.e_buffs[key])
+    battle._actor_buffs(battle._hit_tgt())[key] = max(int(battle._actor_buffs(battle._hit_tgt()).get(key, 0) or 0), int(t))
+    return int(battle._actor_buffs(battle._hit_tgt())[key])
 
 
 def _sb_write_eb_pct(battle, valkey, pct):
     """写敌方减益百分比自定义通道（_enemy_stats 消费）：
     mon_atk_down/_weaken_val（攻）、def_down/_armor_break_pct（防）、spd_down/_spd_down_pct（速）。"""
-    eb = battle.e_buffs
+    eb = battle._actor_buffs(battle._hit_tgt())
     eb[valkey] = max(float(eb.get(valkey, 0) or 0), float(pct))
 
 
@@ -1616,7 +1616,7 @@ def _melody_apply_p_buffs(battle, mel, turns):
 def _melody_apply_e_buffs(battle, mel, turns):
     """按旋律 kind 写 e_buffs 减益光环（敌方侧）。e_* 写对应降键 + 数值 % 通道。"""
     kind = mel.get("kind")
-    eb = battle.e_buffs
+    eb = battle._actor_buffs(battle._hit_tgt())
     if kind == "e_spd":
         eb["spd_down"] = max(int(eb.get("spd_down", 0) or 0), int(turns))
         _sb_write_eb_pct(battle, "_spd_down_pct", 0.15)
@@ -1703,7 +1703,7 @@ def _m_melody_finale(battle, mval, p_mech, total, logs, skill_name, is_crit, inf
         return
     fin = (info or {}).get("finale") or mel.get("kind") or ""
     turns = max(1, int((info or {}).get("buff_turns") or 8) or 8)
-    pb, eb = battle._cast_buffs(), battle.e_buffs
+    pb, eb = battle._cast_buffs(), battle._actor_buffs(battle._hit_tgt())
     tag = ""
     if fin in ("crit",):
         pb["crit_up"] = max(int(pb.get("crit_up", 0) or 0), int(turns))
@@ -1866,7 +1866,7 @@ def _m_element_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, inf
                 logs.append("💥 超载反应！转为全体 AOE")
                 battle._cast_buffs()["element_overload_aoe"] = 1
             elif rname == "freeze":
-                battle.e_buffs["stun"] = rcfg["stun"]
+                battle._actor_buffs(battle._hit_tgt())["stun"] = rcfg["stun"]
                 logs.append(f"🧊 冻结反应！目标定身 {rcfg['stun']} 刻")
             reacted = True
             break
@@ -2121,22 +2121,22 @@ def _m_poison_burst_finisher(battle, mval, p_mech, total, logs, skill_name, is_c
 @register(MECH_EFFECTS, "atk_down")
 def _m_atk_down(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """v153 诗人哀歌：音刃 + 目标攻击 −20%"""
-    battle.e_buffs["mon_atk_down"] = 8
+    battle._actor_buffs(battle._hit_tgt())["mon_atk_down"] = 8
     logs.append("📉 敌方攻击下降！（8 刻）")
 
 
 @register(MECH_EFFECTS, "def_down")
 def _m_def_down(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """v153 诗人破碎和音：目标防御 −30%"""
-    battle.e_buffs["def_down"] = 8
+    battle._actor_buffs(battle._hit_tgt())["def_down"] = 8
     logs.append("🛡️ 敌方防御下降！（8 刻）")
 
 
 @register(MECH_EFFECTS, "all_down")
 def _m_all_down(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """v153 诗人哀悼之音：目标全属性 −20%"""
-    battle.e_buffs["mon_atk_down"] = 8
-    battle.e_buffs["def_down"] = 8
+    battle._actor_buffs(battle._hit_tgt())["mon_atk_down"] = 8
+    battle._actor_buffs(battle._hit_tgt())["def_down"] = 8
     logs.append("📉 敌方全属性下降！（8 刻）")
 
 
