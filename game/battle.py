@@ -4771,6 +4771,9 @@ class Battle:
             pass
         # v140 波3.1：特效装备常驻面板属性（奥术苍穹魔攻+15%/疾风步速度+/弑星·无尽辉光暴伤+）
         # v180E 阶段4：数值全从武器特效参数表读（WEAPON_EFFECT_DATA）
+        # v181.P2C-C6：面板数值消费点收口——非本批 5 项（奥术魔攻/弑星暴伤/辉光暴伤）仍直读表；
+        # 本批 4 项（gale_step_pct/wind_mark 层/novice_wind_spd/thunder_weave 层）改走执行器
+        # 输出查询 API（_we_panel_apply——读表参数，语义与旧直读逐条等价）。
         try:
             from .core.weapon_effects import weapon_effect_ids as _we_ids
             from .core.weapon_effects import effect_data as _we_edp
@@ -4778,43 +4781,22 @@ class Battle:
             if "arcane_firmament" in _weids:
                 _af_pct = float(_we_edp(self, player, "arcane_firmament").get("matk_pct", 0.15) or 0.15)
                 st["matk"] = int(st.get("matk", 0) * (1 + _af_pct))
-            _gale_pct = float((self._p_eff() or {}).get("gale_step_pct", 0) or 0)
-            if _gale_pct > 0 and self._p_buffs_bag().get("gale_step"):
-                st["spd"] = int(st.get("spd", 0) * (1 + _gale_pct))
+            # 疾风步/风痕/翠风/雷纹 面板速度/攻击加成（C6 收口：_we_panel_apply 聚合执行器
+            # 输出段——键名/数值语义内聚 core，battle 零内容名直读）
+            try:
+                from .core._we_executors import _we_panel_apply
+                _we_panel_apply(st, self, player)
+            except Exception:
+                pass
             if "star_slayer_edge" in _weids:
                 _sse_cd = float(_we_edp(self, player, "star_slayer_edge").get("crit_dmg", 0.30) or 0.30)
                 st["crit_dmg"] = float(st.get("crit_dmg", 0) or 0) + _sse_cd
             if "endless_radiance" in _weids:
                 _er_cd = float(_we_edp(self, player, "endless_radiance").get("crit_dmg_pct", 0.25) or 0.25)
                 st["crit_dmg"] = float(st.get("crit_dmg", 0) or 0) + _er_cd
-            # 风痕（风行短弓）：每层速度 +X%
-            _wm = int((self._p_stacks() or {}).get("wind_mark", 0) or 0)
-            if _wm > 0:
-                try:
-                    from .core.weapon_effects import effect_data as _we_edw
-                    _wm_pct = float(_we_edw(self, self.player, "wind_mark").get("spd_pct_per", 0.02) or 0.02)
-                except Exception:
-                    _wm_pct = 0.02
-                st["spd"] = int(st.get("spd", 0) * (1 + _wm_pct * _wm))
-            # v140 波4：新手特效 翠风（novice_wind_spd）——命中后自身速度 +5%（2 刻）
-            if self._p_buffs_bag().get("novice_wind_spd"):
-                try:
-                    from .core.weapon_effects import effect_data as _we_ed2
-                    _nws_pct = float(_we_ed2(self, self.player, "novice_wind_spd").get("spd_pct", 0.05) or 0.05)
-                except Exception:
-                    _nws_pct = 0.05
-                st["spd"] = int(st.get("spd", 0) * (1 + _nws_pct))
-            # 雷纹连打（雷纹拳甲）：每层速度 +X%、攻击 +X%
-            _tw = int((self._p_stacks() or {}).get("thunder_weave", 0) or 0)
-            if _tw > 0:
-                try:
-                    from .core.weapon_effects import effect_data as _we_edt
-                    _tw_spd = float(_we_edt(self, self.player, "thunder_weave").get("spd_pct_per", 0.02) or 0.02)
-                    _tw_atk = float(_we_edt(self, self.player, "thunder_weave").get("atk_pct_per", 0.01) or 0.01)
-                except Exception:
-                    _tw_spd, _tw_atk = 0.02, 0.01
-                st["spd"] = int(st.get("spd", 0) * (1 + _tw_spd * _tw))
-                st["atk"] = int(st.get("atk", 0) * (1 + _tw_atk * _tw))
+            # 风痕（风行短弓）：每层速度 +X%（已并入 _we_panel_apply 聚合——C6）
+            # v140 波4：新手特效 翠风（novice_wind_spd）——命中后自身速度 +5%（2 刻）（同上）
+            # 雷纹连打（雷纹拳甲）：每层速度 +X%、攻击 +X%（同上）
         except Exception as _sw_e:
             _battle_warn('_player_stats', _sw_e)
             pass

@@ -324,6 +324,17 @@ _WE_EXEC_KEYS = {
     "star_pierce": "proc_extra_dmg",
     "soul_eater": "proc_extra_dmg",
     "novice_lifesteal": "proc_extra_dmg",
+    # C6：proc_buff 增益族 7 key（gale_step 家族 5 key 同 buff_key=gale_step 共享键 + 新手翠风
+    # novice_wind_spd hit 自加速 + 深渊屏障 abyss_barrier battle_start maxhp 永久加成）——
+    # 事件 battle_start（gale 5 + abyss）/ hit（novice_wind_spd）由分发器按注册事件集匹配；
+    # 面板数值消费（_player_stats 直读 gale_step_pct/层数）C6 同批改走执行器查询 API
+    "gale_step": "proc_buff",
+    "swift_boots": "proc_buff",
+    "deadman_stride": "proc_buff",
+    "temple_stride": "proc_buff",
+    "void_stride": "proc_buff",
+    "novice_wind_spd": "proc_buff",
+    "abyss_barrier": "proc_buff",
 }
 # 族默认事件表（key 未显式声明 event 时按族）：proc_dot 主事件 hit/skill_hit，
 # proc_reflect→taken、proc_heal amp→heal。分发器按"key 注册事件集"匹配事件后再调执行器

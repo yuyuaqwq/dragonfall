@@ -602,6 +602,98 @@ _EXTRA_DMG_SOURCE = {
     "novice_lifesteal": "🩸 吸血",
 }
 
+# ---------------------------------------------------------------- proc_buff（7 key）
+# 自身增益族：battle_start/hit 事件 → 写 p_buffs（计时 int）＋ eff pct 键（同族共享键
+# gale_step：5 个 spd_buff_battle_start key 共享 buff_key=gale_step / buff_pct_key=gale_step_pct）。
+# 面板消费点（battle._player_stats 直读 eff.gale_step_pct + stacks 层数）C6 同步收口到
+# _we_panel_apply（本文件），battle 不再直读内容名。数值全读 wd；共享键语义（同名 buff
+# 家族 5 key 同键互相 max 覆盖）由表 buff_key/buff_pct_key 参数表达。
+# 逐语句等价旧 handler（C6 目标：行为零变化）。
+
+def _we_exec_buff(battle, player, ctx, logs, wd, key, event):
+    """增益执行器（battle_start spd buff / hit 自加速）：写 buffs[buff_key] 计时 + eff[buff_pct_key]。
+
+    覆盖 proc_buff 族 7 key：
+    - gale_step/swift_boots/deadman_stride/temple_stride/void_stride（battle_start，spd_buff_battle_start）：
+      buffs[buff_key]=max(旧, turns)；eff[buff_pct_key]=max(旧, spd_pct)——同键共享 max 语义
+      （5 key 同 buff_key=gale_step，多次装备取最大 turns/pct 不叠加）。
+    - novice_wind_spd（hit，spd_buff_on_hit）：buffs[buff_key]=max(旧, turns)。
+      （无 buff_pct_key 字段——面板消费直读表 spd_pct，不写 eff。）
+    - abyss_barrier（battle_start，maxhp_buff）：max_hp += max_hp_pct×max_hp；hp 同步 +bonus。
+    日志 = 表 log 纯串（gale 5 key 文案固定；novice_wind_spd 固定；abyss log 含 {bonus} 需 .format）。
+    """
+    eff = player.setdefault("eff", {})
+    # ---- abyss_barrier：battle_start 永久 maxhp 加成（独立语义，不写 buffs）----
+    if key == "abyss_barrier":
+        if event != "battle_start":
+            return
+        bonus = int(player.get("max_hp", 100) * float(wd.get("max_hp_pct") or 0))
+        player["max_hp"] = player.get("max_hp", 100) + bonus
+        player["hp"] = min(player["max_hp"], player.get("hp", 0) + bonus)
+        logs.append((wd.get("log") or "🌑 深渊屏障：最大生命 +{bonus}！（持续整场）").format(bonus=bonus))
+        return
+    # ---- spd buff 家族（battle_start 5 key / hit novice_wind_spd）----
+    if event not in ("battle_start", "hit"):
+        return
+    bkey = wd.get("buff_key")
+    if not bkey:
+        return  # 缺 buff_key = 无此行为铁律
+    turns = int(wd.get("turns") or 0)
+    if turns > 0:
+        player.setdefault("buffs", {})[bkey] = max(
+            int(player.setdefault("buffs", {}).get(bkey, 0) or 0), turns)
+    # eff pct 键：仅表声明 buff_pct_key 的 key 写（gale 5 key；novice_wind_spd 无此字段
+    # → 不写 eff——面板直读表 spd_pct 消费，见 _we_panel_apply）
+    pk = wd.get("buff_pct_key")
+    if pk:
+        eff[pk] = max(float(eff.get(pk, 0) or 0), float(wd.get("spd_pct") or 0))
+    logs.append(wd.get("log") or "🌪️ 风之加护：速度提升！")
+
+
+# ---------------------------------------------------------------- C6 面板消费（_player_stats 收口）
+# battle._player_stats 直读点（eff.gale_step_pct / stacks.wind_mark / buffs.novice_wind_spd /
+# stacks.thunder_weave 数值消费）收口到本函数：battle 只调一次，键名/数值语义全部内聚 core，
+# 数值从数据表 effect_data 读（零硬编码）。**逐语句复刻旧直读段算术**（行为零变化铁律）：
+# 四段按旧顺序（gale → wind_mark → novice → thunder）依次作用 st，每段 int() 截断——
+# ⚠️ 不可合并成一次乘算（旧代码各段 int 截断后乘下一段，合并会漂移）。
+
+def _we_panel_apply(st: dict, battle, player: dict) -> dict:
+    """面板 spd/atk 加成（C6 proc_buff + proc_stack 面板段消费）：原地改 st 并返回。
+
+    等价旧 _player_stats 直读块（读表数值 + 状态袋键名内聚本模块）：
+    1) gale_step 家族：buffs[buff_key] 活跃 且 eff[buff_pct_key]>0 → spd×(1+pct)
+       （pct 读 eff 共享键——5 家族装备取 max 的语义由执行器写入侧保证）
+    2) wind_mark：stacks[stack_key] 层 × spd_pct_per（表读）→ spd
+    3) novice_wind_spd：buffs[buff_key] 活跃 → spd×(1+spd_pct)（表读）
+    4) thunder_weave：stacks[stack_key] 层 → spd×(1+层×spd_pct_per)；atk×(1+层×atk_pct_per)
+    """
+    from .weapon_effects import effect_data as _we_ed
+    pbuffs = player.setdefault("buffs", {})
+    peff = player.setdefault("eff", {})
+    pstacks = player.setdefault("stacks", {})
+    # 1) gale_step 家族（buffs.gale_step + eff.gale_step_pct）
+    _gwd = _we_ed(battle, player, "gale_step")
+    _g = float(peff.get(_gwd.get("buff_pct_key") or "gale_step_pct", 0) or 0)
+    if _g > 0 and pbuffs.get(_gwd.get("buff_key") or "gale_step"):
+        st["spd"] = int(st.get("spd", 0) * (1 + _g))
+    # 2) wind_mark（风行短弓）：层数 × spd_pct_per
+    _wwd = _we_ed(battle, player, "wind_mark")
+    _wm = int(pstacks.get(_wwd.get("stack_key") or "wind_mark", 0) or 0)
+    if _wm > 0:
+        st["spd"] = int(st.get("spd", 0) * (1 + _wm * float(_wwd.get("spd_pct_per") or 0)))
+    # 3) novice_wind_spd（翠风）：buff 活跃 → ×(1+spd_pct)
+    _nwd = _we_ed(battle, player, "novice_wind_spd")
+    if pbuffs.get(_nwd.get("buff_key") or "novice_wind_spd"):
+        st["spd"] = int(st.get("spd", 0) * (1 + float(_nwd.get("spd_pct") or 0)))
+    # 4) thunder_weave（雷纹）：层数 → spd 先 atk 后（旧段顺序）
+    _twd = _we_ed(battle, player, "thunder_weave")
+    _tw = int(pstacks.get(_twd.get("stack_key") or "thunder_weave", 0) or 0)
+    if _tw > 0:
+        st["spd"] = int(st.get("spd", 0) * (1 + _tw * float(_twd.get("spd_pct_per") or 0)))
+        st["atk"] = int(st.get("atk", 0) * (1 + _tw * float(_twd.get("atk_pct_per") or 0)))
+    return st
+
+
 # ---------------------------------------------------------------- 注册表
 # 族名 → 执行器。key→族 由数据表 family 字段路由（proc() 分发器读表）。
 WE_EXECUTORS = {
@@ -613,6 +705,7 @@ WE_EXECUTORS = {
     "proc_passive_mult": _we_exec_passive_mult,
     "proc_stack": _we_exec_stack,
     "proc_extra_dmg": _we_exec_extra_dmg,
+    "proc_buff": _we_exec_buff,
 }
 
 # 族内 key 专属文案/源（dot 触发源 / reflect 日志模板）——数据表未下沉文案时放这
