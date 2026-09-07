@@ -213,58 +213,21 @@ class WorldCmds(CommandBase):
         return poi_lines, prop_lines
 
     def _visible_sas(self, player: dict, cur_map: dict, group_id: str, qq_id: str) -> list:
-        """v115 当前位置地图中**可见**的子区域列表（供面板/移动统一使用）。
-
-        隐藏房间（A 提供 is_hidden_room）未揭示（C.reveal_met）→ 不可见（不列出）。
-        若 A 尚未装好网状/hidden 接口，用 getattr 兜底：is_hidden_room 缺失时全部可见。
-        """
-        sas = cur_map.get("subareas") or []
-        map_id = cur_map.get("id", "")
-        is_hidden = getattr(C, "is_hidden_room", None)
-        reveal_met = getattr(C, "reveal_met", None)
-        visible = []
-        for sa in sas:
-            sa_id = sa.get("id", "")
-            if is_hidden is None or reveal_met is None:
-                visible.append(sa)
-                continue
-            try:
-                if is_hidden(map_id, sa_id) and not reveal_met(sa.get("reveal"), group_id, qq_id, map_id):
-                    continue  # 隐藏未揭示 → 跳过
-            except Exception:
-                pass
-            visible.append(sa)
-        return visible
+        """v115 当前位置地图中**可见**的子区域列表（供面板/移动统一使用）——v181 P4-8 已下沉 travel.visible_sas。"""
+        from ..services.travel import visible_sas
+        return visible_sas(player, cur_map, group_id, qq_id)
 
     @staticmethod
     def _conn_target(conn) -> tuple:
-        """解析可前往连接项 → (目标地图 dict, 指定子区域 id 或 None)
-        v87.5 支持两字段配置：'map_id' 或 ('map_id', 'subarea_id')"""
-        if isinstance(conn, tuple):
-            return C.MAP_BY_ID[conn[0]], conn[1]
-        return C.MAP_BY_ID[conn], None
+        """解析可前往连接项 → (目标地图 dict, 指定子区域 id 或 None) ——v181 P4-8 已下沉 travel.conn_target。"""
+        from ..services.travel import conn_target
+        return conn_target(conn)
 
     @staticmethod
     def _conn_subarea_name(nm: dict, want_sa) -> str:
-        """目标地图的落点子区域显示名(默认入口子区域，可指定)
-
-        v87.16：无指定时用 map_entry_subarea（进城落点=出口/入口），不再是首个子区域
-        """
-        sas = nm.get("subareas") or []
-        if not sas:
-            return ""
-        if want_sa:
-            for s in sas:
-                if s["id"] == want_sa:
-                    return f" · {s['name']}"
-            return ""
-        # v87.16：跨图落点 = 城镇出口（镇郊）/ 野外入口，显示与实际到达一致
-        entry_id = C.map_entry_subarea(nm.get("id", ""))
-        if entry_id:
-            for s in sas:
-                if s["id"] == entry_id:
-                    return f" · {s['name']}"
-        return f" · {sas[0]['name']}"
+        """目标地图的落点子区域显示名(默认入口子区域，可指定) ——v181 P4-8 已下沉 travel.conn_subarea_name。"""
+        from ..services.travel import conn_subarea_name
+        return conn_subarea_name(nm, want_sa)
 
     # ---------------- v68 地契房产 ----------------
 
@@ -1164,36 +1127,9 @@ class WorldCmds(CommandBase):
         yield event.plain_result(self._hurry_panel(player, cur_map, cur_sa, group_id, qq_id, ftype))
 
     def _move_blocked_msg(self, cur_map: dict, player: dict, target_sa: dict) -> str:
-        """v87.14 同图内不可直达时的提示(城镇星形 / 野外线性)。"""
-        cur_sa_id = player.get("cur_subarea") or ""
-        cur_name = cur_sa_id
-        tgt_name = target_sa.get("name", target_sa.get("id", "？"))
-        sas = cur_map.get("subareas") or []
-        for s in sas:
-            if s["id"] == cur_sa_id:
-                cur_name = s["name"]
-                break
-        center = sas[0] if sas else {}
-        if center.get("type") == C.SUB_TYPE_TOWN:
-            # v87.16 街道链：在广场想去链上目标（东大街/镇郊）时提示必经之路
-            if cur_sa_id == center.get("id", ""):
-                chain = [s for s in sas if s.get("type") in (C.SUB_TYPE_STREET, C.SUB_TYPE_GATE)]
-                # v95.12 防御：目标就是链首（无街道时链首=出口自身）不拦截，避免"先经过自己"
-                if (any(s["id"] == target_sa.get("id") for s in chain)
-                        and chain and chain[0]["id"] != target_sa.get("id")):
-                    first = chain[0]["name"] if chain else center.get("name", "广场")
-                    return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
-                            f"路只有一条，需要先经过{first}。")
-            # v95.12：非广场城镇子区域按空间连接提示必经路线（街道/出口链），
-            # 不要一律"回广场"——镇郊去广场要先经过东大街，提示必须与真实路径一致
-            links = C.subarea_links(cur_map.get("id", ""), cur_sa_id)
-            link_names = [next((s["name"] for s in sas if s["id"] == lid), lid) for lid in links]
-            return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
-                    f"路只有一条，需要先经过{'、'.join(link_names)}。")
-        links = C.subarea_links(cur_map.get("id", ""), cur_sa_id)
-        link_names = [next((s["name"] for s in sas if s["id"] == lid), lid) for lid in links]
-        return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
-                f"路只有一条，需要先经过{'、'.join(link_names)}。")
+        """v87.14 同图内不可直达时的提示(城镇星形 / 野外线性)——v181 P4-8 已下沉 travel.move_blocked_msg。"""
+        from ..services.travel import move_blocked_msg
+        return move_blocked_msg(cur_map, player, target_sa)
 
     # v104 P2(M22): 『移动』=『前往』别名（23 章指令表主指令=『移动 <地名或序号>』），双名共存；
     # (?!开始|结束) 负向断言保留：v128 已删移动模式开关（改『位置』面板回复 0 切换赶路），
@@ -1413,25 +1349,11 @@ class WorldCmds(CommandBase):
                         return
                     # v87.14 空间连接：同图只能移动到相邻子区域
                     # v115：隐藏未揭示房不能直接前往（提示需先探索揭开）
-                    _is_hidden_fn = getattr(C, "is_hidden_room", None)
-                    _reveal_met_fn = getattr(C, "reveal_met", None)
-                    if _is_hidden_fn is not None and _reveal_met_fn is not None:
-                        try:
-                            if _is_hidden_fn(cur, sa["id"]) and not _reveal_met_fn(sa.get("reveal"), group_id, qq_id, cur):
-                                _reveal_pr = getattr(C, "reveal_progress", None)
-                                _progress_txt = ""
-                                if _reveal_pr is not None:
-                                    try:
-                                        _ck, _nk = _reveal_pr(group_id, qq_id, cur)
-                                        if _nk is not None:
-                                            _progress_txt = f"（还差 {_nk - _ck} 次探索）"
-                                    except Exception:
-                                        pass
-                                yield event.plain_result(
-                                    f"🔒 这里似乎被什么遮挡着……（在本图继续『探索』可揭开它的面纱）{_progress_txt}")
-                                return
-                        except Exception:
-                            pass
+                    from ..services.travel import subarea_hidden_block
+                    _hidden_txt = subarea_hidden_block(group_id, qq_id, cur, sa)
+                    if _hidden_txt:
+                        yield event.plain_result(_hidden_txt)
+                        return
                     links2 = C.subarea_links(cur, player.get("cur_subarea") or "")
                     if sa["id"] not in links2:
                         yield event.plain_result(self._move_blocked_msg(cur_map, player, sa))
@@ -1470,45 +1392,18 @@ class WorldCmds(CommandBase):
                 yield event.plain_result(f"序号无效！这里可前往 {total} 处，输入『地图』查看～")
                 return
         else:
-            for m in C.MAPS:
-                if dest in (m["name"], m["id"]):
-                    target = m
-                    break
-            if not target and dest in C.LEGACY_MAP_ALIAS:
-                target = C.MAP_BY_ID.get(C.LEGACY_MAP_ALIAS[dest])
-            if not target:
-                # 区域名 → 区域入口
-                for m in C.MAPS:
-                    if dest in m.get("area_name", ""):
-                        target = m
-                        break
+            from ..services.travel import resolve_map_target
+            target = resolve_map_target(dest)
         if not target:
             names = "、".join([m["name"] for m in C.MAPS])
             yield event.plain_result(f"找不到『{dest}』！输入『地图』查看可前往区域，或『传送 <名称>』用方碑快速旅行～")
             return
         # 隐藏图检查
-        if target.get("hidden"):
-            unlock = C.HIDDEN_MAP_UNLOCK.get(target["id"], {})
-            if player["level"] < unlock.get("level", 99):
-                yield event.plain_result("前方被无形的屏障阻挡……这里需要更强大的实力！(等级不足)")
-                return
-            # v87：物品型准入（H6 泛黄书页×3 / H7 烬火信标）
-            item_req = unlock.get("item")
-            if item_req:
-                lack = [f"{name}×{need}" for name, need in item_req.items()
-                        if db.count_item(group_id, qq_id, name) < need]
-                if lack:
-                    yield event.plain_result(
-                        "入口被古老的力量封锁，似乎需要信物才能进入……\n"
-                        f"🔒 缺少：{'、'.join(lack)}\n"
-                        "💡 失落图书馆：集齐 3 张泛黄书页(探索彩蛋/圣堂地窖精英/符文石)\n"
-                        "💡 灰烬回廊：找到老守墓人·灰须领取烬火信标"
-                    )
-                    return
-            quests = db.get_quests(group_id, qq_id)
-            if unlock.get("quest") not in quests.get("completed_main", []):
-                yield event.plain_result("地图的入口被古老魔法封印，似乎只有完成主线任务才能解开……")
-                return
+        from ..services.travel import hidden_map_block
+        _hid_block = hidden_map_block(group_id, qq_id, player, target)
+        if _hid_block:
+            yield event.plain_result(_hid_block)
+            return
         # 是否相邻
         cur = player["cur_map"]
         neighbors = C.MAP_CONNECTIONS.get(cur, [])
@@ -1528,18 +1423,13 @@ class WorldCmds(CommandBase):
                 "(红名期间不能进入安全区，去野外避避风头吧)")
             return
         # 等级提示
-        lv_msg = ""
-        if player["level"] < target["lv"]:
-            lv_msg = f"\n⚠️ 建议等级 Lv.{target['lv']}，你才 Lv.{player['level']}，小心行事！"
+        from ..services.travel import level_warn
+        lv_msg = level_warn(player, target)
         # v87.14 出图必须在该图出口子区域（城镇=城门，野外=入口）
-        exit_sa_id = C.map_exit_subarea(cur)
-        if exit_sa_id and player.get("cur_subarea") != exit_sa_id:
-            _exit_name = next((s["name"] for s in (cur_map.get("subareas") or []) if s["id"] == exit_sa_id), "出口")
-            _cur_sa_name = next((s["name"] for s in (cur_map.get("subareas") or []) if s["id"] == player.get("cur_subarea")), player.get("cur_subarea", ""))
-            yield event.plain_result(
-                f"🧭 你身处【{_cur_sa_name}】，还不能离开{cur_map.get('name', '此地')}——"
-                f"需要先到{_exit_name}(『前往 {_exit_name}』)才能出城/出图。"
-            )
+        from ..services.travel import leave_map_block_msg
+        _leave_block = leave_map_block_msg(cur_map, player)
+        if _leave_block:
+            yield event.plain_result(_leave_block)
             return
         # q1-B 副本图门禁：副本图（type=副本）不可徒步直入（终局副本旁路修复）——
         # 需已接取对应 explore 主线/支线任务、或持有副本钥匙、或已通关该副本才能进入。
@@ -1561,30 +1451,15 @@ class WorldCmds(CommandBase):
                 yield _r
             return
         # v86 子区域：跨图移动 → 落点：城镇=城门，野外=入口（v87.14）
-        target_sas = target.get("subareas") or []
-        first_sa = None
-        entry_sa_id = C.map_entry_subarea(target["id"])
-        for _s in target_sas:
-            if _s["id"] == entry_sa_id:
-                first_sa = _s
-                break
-        if first_sa is None and target_sas:
-            first_sa = target_sas[0]
-        if want_sa:
-            for _s in target_sas:
-                if _s["id"] == want_sa:
-                    first_sa = _s
-                    break
+        from ..services.travel import landing_subarea
+        first_sa = landing_subarea(target, want_sa)
         # v94 体力：跨图移动扣 1；体力 0 拒绝（同图移动免费已在上方处理）；v101.13 坐骑 stamina_reduce 概率免费
         if self._stamina(player) < 1:
-            yield event.plain_result(
-                f"⚡ 你太累了，走不动了！(体力 {self._stamina(player)}/{self._stamina_max(player)})\n"
-                "💡 恢复体力：野外营地『休息』/ 吃食物 / 旅店『住宿』，或等体力自然恢复(每1分钟+1)\n"
-                "💡 也可以『传送』(已激活的方碑)或使用『回城卷轴』脱身～\n"
-                "💡 新手建议：野外活动前先在城镇『商店』买点食物（烤肉串等），体力 0 才不会困在野外～"
-            )
+            from ..services.travel import stamina_tired_line
+            yield event.plain_result(stamina_tired_line(player))
             return
-        _mv_cost = 0 if random.random() < float(C.mount_effects(player).get("stamina_reduce", 0) or 0) else 1
+        from ..services.travel import move_stamina_cost
+        _mv_cost = move_stamina_cost(player)
         if _mv_cost > 0:
             self._spend_stamina(group_id, qq_id, _mv_cost, player, "移动")
         db.update_player(group_id, qq_id, cur_map=target["id"],
@@ -1599,10 +1474,8 @@ class WorldCmds(CommandBase):
         if quest_lines:
             extra = "\n\n" + "\n".join(quest_lines)
         # 旅者方碑提示（未激活时）
-        portal_msg = ""
-        if target["id"] in C.PORTALS and target["id"] not in db.get_portals(qq_id):
-            p = C.PORTALS[target["id"]]
-            portal_msg = f"\n\n🌌 一座{p['icon']}{p['name']}矗立在此！『激活』可解锁传送点～"
+        from ..services.travel import portal_arrive_note
+        portal_msg = portal_arrive_note(group_id, qq_id, target)
         # v13：到达后显示可前往 + 设施/场景（v87.13 拆分）
         # v87.16 与地图面板一致：links 顺序号 + 邻居从 len(links)+1 编号
         target_sas = target.get("subareas") or []
@@ -1854,76 +1727,14 @@ class WorldCmds(CommandBase):
         yield event.plain_result(arrive_view)
 
     def _travel_ambush(self, player: dict, target_map: dict, group_id=None, qq_id=None):
-        """移动撞怪判定：返回撞到的怪物 dict 或 None。
+        """移动撞怪判定：返回撞到的怪物 dict 或 None——v181 P4-8 已下沉 travel.travel_ambush。
 
-        生物趋避利害：
-        - 玩家等级 ≥ 地图等级+5：威慑低等级生物，不撞怪
-        - 玩家等级 ≤ 地图等级-5：闯入强者地盘，30% 概率撞怪
-        - 同级/略低：8~18% 概率
-        城镇区域不撞怪（安全区）。'城镇外郊' 类型数据不存在，v102.1 清理。
+        生物趋避利害/副本分支/v130.7 越级线性档位逐行等价随迁；撞怪档位双轨
+        （core/constants.MOVE_ENCOUNTER_CHANCE）本批先搬后统一，见 docs/REFACTOR_P4_services.md §P4-8。
         """
-        mtype = target_map.get("type", C.MAP_TYPE_FIELD)
-        if mtype == C.MAP_TYPE_TOWN:
-            return None
-        # v95.23 #247：副本区域不参与移动撞怪——副本 Boss 在入口子区域 monsters 池里，
-        # 撞怪会绕过『副本 <名字>』开本流程的等级/人数校验，低等级玩家进副本入口被 Boss 秒杀。
-        # 副本入口应显示地图信息，引导玩家走开本流程（'副本' 命令有完整校验）。
-        # v105 M19 P0：主线击杀目标只挂副本时放行——撞怪池仅保留主线目标怪
-        # （走下方统一概率判定，Boss 按等级差概率撞，不绕过任何校验之外的新增风险面）。
-        if mtype == C.MAP_TYPE_INSTANCE:
-            # v105 M19 P0：主线击杀目标只挂副本时放行——撞怪池仅保留主线目标怪
-            # （走下方统一概率判定；group_id/qq_id 为空=既有测试直调场景，维持原跳过）
-            _main_ent = None
-            if group_id and qq_id:
-                _main_ent = self._main_kill_target_on_map(group_id, qq_id, target_map)
-            if not _main_ent:
-                return None
-            monsters = [_main_ent]
-            diff = target_map.get("lv", 1) - player["level"]
-            if diff <= -5:
-                return None
-            if diff >= 5:
-                chance = 0.30
-            elif diff >= 0:
-                chance = 0.18
-            else:
-                chance = 0.08
-            if random.random() >= chance:
-                return None
-            return C.build_monster(random.choice(monsters), target_map, lv_jitter=1)
-        # v87.6 内容下沉子区域：优先取落点入口子区域的怪；入口无怪才找最近有怪子区域
-        # （M22 P3：原逻辑取"首个有怪子区域"，入口无怪时会抽到深处高等级怪，玩家刚进图就被深处怪秒）
-        _sas = target_map.get("subareas") or []
-        _entry_id = C.map_entry_subarea(target_map.get("id", ""))
-        monsters = []
-        for sa in _sas:
-            if sa["id"] == _entry_id and sa.get("monsters"):
-                monsters = sa["monsters"]
-                break
-        if not monsters:
-            # 入口无怪：线性图按列表顺序扫描即离入口由近及远
-            for sa in _sas:
-                if sa.get("monsters"):
-                    monsters = sa["monsters"]
-                    break
-        if not monsters:
-            return None
-        diff = target_map.get("lv", 1) - player["level"]
-        if diff <= -5:
-            return None
-        # v130.7 意见#28 越级风险增强：比玩家高 5 级起，撞怪概率随等级差线性提升
-        # （0.30 + (diff-5)*0.05；低 10 级 = 0.55，低 11 级+ = 0.60 封顶）
-        if diff >= 5:
-            chance = min(0.60, 0.30 + (diff - 5) * 0.05)
-        elif diff >= 0:
-            chance = 0.18
-        else:
-            chance = 0.08
-        if random.random() >= chance:
-            return None
-        # v101.25c 移动撞怪也带等级波动（普通怪 ±1，精英/Boss 固定）
-        # v130.8 意见#32：±1 感知弱 → 增强为 ±2；v132 鱼鱼拍板改回 ±1（面板明示 Lv.X±1）
-        return C.build_monster(random.choice(monsters), target_map, lv_jitter=1)
+        from ..services.travel import travel_ambush
+        return travel_ambush(player, target_map, group_id, qq_id,
+                             main_kill_hook=self._main_kill_target_on_map)
 
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:祭坛|方碑)(?:\s*|$)")
