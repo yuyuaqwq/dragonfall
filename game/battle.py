@@ -7408,6 +7408,13 @@ class Battle:
         if handler:
             handler(self, mval, p_mech, total, logs, skill_name, is_crit, info)
         # ---- v169.7 被动叠层上限放宽（术后补层，只对命中当次生效；mval=叠层量）----
+        # v181.P2D-D5b：hunt_mark_cap/soul_mark_cap cap 段迁注册表族 dmg_mult_cond
+        # （ctx cap_kind 分派 hunt_mark/soul_mark——同 proc 挂点14 乘区段已声明，双消费点
+        # 同族参数化；handler 返回 base+add = 3+add，调用侧 min(返回, 叠加后层数) 等价原
+        # `min(3+_extra_cap, _old+_mv)`。守卫（mech 判定 + proc 条目存在 + mval>0 +
+        # _old+_mv>_now 才补层）由骨架保留。poison 段只调 _poison_cap() 读放宽后上限——
+        # poison_cap_up/poison_cap 已整体迁 stack_cap_add 族（D1，挂点17 本体族化），
+        # 挂点16 非独立消费，本批不动）
         try:
             _pl_cap = caster or {}
             _pm_cap = self._proc_pm(_pl_cap)
@@ -7415,23 +7422,27 @@ class Battle:
             _deb_cap = _tgt_cap.setdefault("debuffs", {})
             _mv = max(0, int(mval or 0))
             if mech == "hunt_mark" and _pm_cap["proc"].get("hunt_mark_cap") and _mv > 0:
-                _extra_cap = 0
-                for _pn, _ps in _pm_cap["proc"].get("hunt_mark_cap", []):
-                    _extra_cap = int(_ps.get("add", 2) or 2)
-                    break
+                _ctx_hmc = {"player": _pl_cap, "ps": {}, "ps_name": "", "cap_kind": "hunt_mark"}
+                _rv_hmc = _run_proc_family_pm(self, _pl_cap, "hunt_mark_cap", _ctx_hmc)
+                if _rv_hmc:
+                    _extra_cap = float(_rv_hmc[0])
+                else:
+                    _extra_cap = 0  # 缺字段/未注册 = cap 不放宽（零默认值——原写死 2 由 D0 回填）
                 _old_hm = _cap_pre.get("hunt_mark", 0)
                 _now_hm = int(_deb_cap.get("hunt_mark", 0) or 0)
                 if _old_hm + _mv > _now_hm:
-                    _deb_cap["hunt_mark"] = min(3 + _extra_cap, _old_hm + _mv)
+                    _deb_cap["hunt_mark"] = min(int(_extra_cap), _old_hm + _mv)
             if mech == "soul_mark" and _pm_cap["proc"].get("soul_mark_cap") and _mv > 0:
-                _extra_sm = 2
-                for _pn, _ps in _pm_cap["proc"].get("soul_mark_cap", []):
-                    _extra_sm = int(_ps.get("add", 2) or 2)
-                    break
+                _ctx_smc = {"player": _pl_cap, "ps": {}, "ps_name": "", "cap_kind": "soul_mark"}
+                _rv_smc = _run_proc_family_pm(self, _pl_cap, "soul_mark_cap", _ctx_smc)
+                if _rv_smc:
+                    _extra_sm = float(_rv_smc[0])
+                else:
+                    _extra_sm = 0  # 缺字段 = cap 不放宽（原 `_extra_sm = 2` 写死由 D0 回填）
                 _old_sm = _cap_pre.get("soul_mark", 0)
                 _now_sm = int(_deb_cap.get("soul_mark", 0) or 0)
                 if _old_sm + _mv > _now_sm:
-                    _deb_cap["soul_mark"] = min(3 + _extra_sm, _old_sm + _mv)
+                    _deb_cap["soul_mark"] = min(int(_extra_sm), _old_sm + _mv)
             if mech in MECH_PROC_GROUPS.get("poison_dmg", ("poison",)):
                 _cap_pois = self._poison_cap(_pl_cap)
                 _old_p = _cap_pre.get("poison", 0)
