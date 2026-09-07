@@ -2092,54 +2092,10 @@ class WorldCmds(CommandBase):
         )
 
     def _update_explore_quests(self, group_id, qq_id, map_id):
-        """到达子区域时检查 explore 型任务(主线和支线)"""
-        lines = []
-        quests = db.get_quests(group_id, qq_id)
-        changed = False
-        # 主线 explore（v105：仅已接取(active)时触发——pending 未接取到达目标图不得自动完成+发奖）
-        main_id = quests.get("main_quest")
-        if main_id and quests.get("main_status") == "active":
-            mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
-            if mq and mq["objective"].get("explore") == map_id:
-                # v124.3：奖励统一走 _grant_quest_rewards（exp/gold/升级 + reward_item 全格式
-                # + reward_pet/reward_mount/unlock_class）——此前 explore 自动完成只有
-                # reward_item 单值，reward_pet 配了也静默不发
-                self._grant_quest_rewards(group_id, qq_id, mq, lines)
-                completed = list(quests.get("completed_main", []))
-                completed.append(main_id)
-                quests["completed_main"] = completed
-                quests["main_quest"] = mq["next"]
-                # v105 M19 P1：explore 自动完成必须重置 main_status=pending（与 _take_main_quest
-                # 交付分支一致）——此前遗留 "active" 导致任务面板显示"进行中"而非"未接取"、
-                # 对话树 quest_pending 接取入口不亮（q1_5 完成后 q1_6 需 3-4 轮对话才兜底接取）
-                quests["main_status"] = "pending"
-                quests["main_progress"] = {}
-                changed = True
-                lines.append(f"📜 主线『{mq['name']}』达成！奖励：经验 +{mq['reward_exp']} 金币 +{mq['reward_gold']}")
-                # v105 M19 P2：explore 自动完成补发声望（奖励本体已并入 _grant_quest_rewards）
-                _rep = self._quest_reputation(group_id, qq_id, mq["giver"])
-                if _rep:
-                    lines.append(f"  {_rep}")
-                if mq["next"]:
-                    nq = next((q for q in C.MAIN_QUESTS if q["id"] == mq["next"]), None)
-                    if nq:
-                        lines.append(f"📜 新主线：『{nq['name']}』{nq['desc']}")
-                else:
-                    lines.append("🎊 恭喜！你完成了全部主线任务，成为奥兰迪亚的传说！")
-        # 支线 explore
-        side = dict(quests.get("side", {}))
-        for sid, sq in list(side.items()):
-            if sq.get("status") == "active":
-                sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
-                if sqd and sqd["objective"].get("explore") == map_id:
-                    sq["status"] = "ready"
-                    changed = True
-                    _g = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}
-                    lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} {self._deliver_hint(sqd['giver'])}吧～")
-        if changed:
-            quests["side"] = side
-            db.save_quests(group_id, qq_id, quests)
-        return lines
+        """到达子区域时检查 explore 型任务（P4-2 壳：转调 services.quests_flow.update_explore_quests）"""
+        from ..services import quests_flow as qf
+        return qf.update_explore_quests(group_id, qq_id, map_id)
+
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:任务|主线)(?:\s*|$)")
     @require_player()
@@ -2489,83 +2445,22 @@ class WorldCmds(CommandBase):
         yield event.plain_result("没有可接取的任务。输入『任务』查看进度～")
 
     def _sq_unlocked(self, quests, sq):
-        """v124 链式支线：unlock 前置解锁检查。unlock 支持单条或列表（全部满足）。
-        格式：{"side": "s5"} 或 {"main": "q2_3"}（兼容 {"type":"side","id":"s5"} 写法）。
-        无 unlock=天然解锁。"""
-        u = sq.get("unlock")
-        if not u:
-            return True
-        us = u if isinstance(u, list) else [u]
-        for x in us:
-            if not isinstance(x, dict):
-                continue
-            _typ = x.get("type") or ("side" if x.get("side") else "main" if x.get("main") else None)
-            _tid = x.get("id") or x.get("side") or x.get("main") or ""
-            if _typ == "side":
-                # 支线完成 = side dict 中该任务 status==done
-                _sq = (quests.get("side") or {}).get(_tid) or {}
-                if _sq.get("status") != "done":
-                    return False
-            elif _typ == "main":
-                _cm = quests.get("completed_main") or []
-                if _tid not in _cm and quests.get("main_quest") != _tid:
-                    return False
-        return True
+        """v124 链式支线：unlock 前置解锁检查（P4-2 壳：转调 services.quests_flow.sq_unlocked）"""
+        from ..services import quests_flow as qf
+        return qf.sq_unlocked(quests, sq)
+
 
     def _sq_stats_met(self, player, sq):
-        """v124 隐藏线/副业线：require_stats 动作计数门槛。达标才可接取。
-        stats 表以 qq_id 为主键，group_id 参数为兼容占位。"""
-        rs = sq.get("require_stats")
-        if not rs:
-            return True
-        _qq = player.get("qq_id") or player.get("id", "")
-        if not _qq:
-            return False
-        _st = db.get_stats("", _qq) or {}
-        for k, v in rs.items():
-            if int(_st.get(k, 0) or 0) < int(v):
-                return False
-        return True
+        """v124 隐藏线/副业线：require_stats 动作计数门槛（P4-2 壳：转调 services.quests_flow.sq_stats_met）"""
+        from ..services import quests_flow as qf
+        return qf.sq_stats_met(player, sq)
+
 
     def _available_quest_list(self, player, quests, mq) -> list:
-        """当前地图可接取任务列表（v123d 抽出，供『接取』无参渲染与『接取 <序号>』映射共用）。
+        """当前地图可接取任务列表（P4-2 壳：转调 services.quests_flow.available_quest_list——本体含 sq_unlocked/sq_stats_met 收敛）"""
+        from ..services import quests_flow as qf
+        return qf.available_quest_list(player, quests, mq)
 
-        返回 [{"name": 任务名, "line": 渲染行（不含 📜 前缀）}, ...]——主线 pending 在前，
-        支线按 C.SIDE_QUESTS 顺序；告示委托（board）不在此列（须去告示板指名接取）。
-        """
-        available = []
-        if mq and quests.get("main_status") == "pending":
-            giver = C.NPCS.get(mq["giver"]) or C.ALL_WILD.get(mq["giver"]) or {}
-            if giver.get("map") == player["cur_map"]:
-                available.append({
-                    "name": mq["name"],
-                    "line": f"主线『{mq['name']}』（{giver.get('name', '？')}发布）",
-                })
-        for sq in C.SIDE_QUESTS:
-            if sq["id"] in (quests.get("side") or {}):
-                continue
-            # v124 链式支线：unlock 前置未满足不出现在可接列表
-            if not self._sq_unlocked(quests, sq):
-                continue
-            # v124 隐藏线：require_stats 计数门槛未达不出现在可接列表
-            if not self._sq_stats_met(player, sq):
-                continue
-            # v104 M20 P2：告示委托（board: true）只在告示板子区域指名接取，
-            # 列入普通列表会误导玩家（点名接取被 world.py 告示板拦截逻辑挡下）
-            if sq.get("board"):
-                continue
-            npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
-            if npc.get("map") == player["cur_map"]:
-                # v104 M19：接取列表显示支线等级门槛
-                _lv = f"Lv.{sq['min_level']}+ " if sq.get("min_level") else ""
-                available.append({
-                    "name": sq["name"],
-                    "line": f"支线『{sq['name']}』{_lv}（{npc.get('name', '？')}发布）",
-                })
-        return available
-
-
-    # v116 §3.4：放弃进行中的支线/每日任务（释放接取位）。主线不可放弃。
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?放弃(?:\s*(\d+))?\s*$")
 
     async def quest_abandon(self, event: AstrMessageEvent):
@@ -2941,120 +2836,10 @@ class WorldCmds(CommandBase):
         return base
 
     def _take_main_quest(self, group_id, qq_id, npc_id, npc):
-        """从 NPC 接主线任务；返回通知行列表"""
-        lines = []
-        player = self._player(group_id, qq_id)
-        quests = db.get_quests(group_id, qq_id)
-        main_id = quests.get("main_quest")
-        if not main_id:
-            lines.append("🎊 主线任务已全部完成，你已是奥兰迪亚的传说！")
-            return lines
-        mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
-        # 存档容错：main_quest 指向已不存在的任务（旧存档/主线数据变更）→ 重置回主线起点
-        if not mq and main_id:
-            quests["main_quest"] = "q1_1"
-            quests["main_status"] = "pending"
-            quests["main_progress"] = {}
-            main_id = "q1_1"
-            mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
-        if not mq or mq["giver"] != npc_id:
-            # 不是这个 NPC 的任务
-            need_npc = C.NPCS.get(mq["giver"], {}).get("name", "？") if mq else "？"
-            lines.append(f"【{npc['name']}】我现在没有任务交给你。镇长/各地首领或许有安排……")
-            if mq:
-                lines.append(f"📜 当前主线『{mq['name']}』由 {need_npc} 发布。")
-            return lines
-        st = quests.get("main_status", "pending")
-        # v105 P0：collect 型主线（q5_5 圣光百合）——背包材料足够即置 ready
-        # （对齐支线逻辑 talk_actions.py:111-113 实时数背包；交付时再扣材料）
-        # 放在状态分发前：pending 接取时材料已齐 → 直接可交付；active 回来找 NPC → 置 ready
-        obj0 = mq["objective"]
-        if obj0.get("collect") and st != "ready" and db.count_item(group_id, qq_id, obj0["collect"]) >= obj0.get("count", 1):
-            quests["main_status"] = "ready"
-            quests["main_progress"] = {obj0["collect"]: obj0.get("count", 1)}
-            db.save_quests(group_id, qq_id, quests)
-            st = "ready"
-        if st == "pending":
-            # v169.1：主线 min_level 硬门槛（高经验主线防跨级接取；suggest_lv 仅软提示保留）
-            if mq.get("min_level") and player["level"] < mq["min_level"]:
-                return lines + [f"🛡️ 『{mq['name']}』需要 Lv.{mq['min_level']} 才能接取！（你当前 Lv.{player['level']}）先去提升实力吧～"]
-            quests["main_status"] = "active"
-            quests["main_progress"] = {}
-            # talk 型任务：与发布 NPC 交谈即达成目标（对话即完成）
-            obj = mq["objective"]
-            if obj.get("talk") and obj["talk"] == npc_id:
-                quests["main_status"] = "ready"
-                quests["main_progress"] = {obj["talk"]: 1}
-            # v105 P2：explore 型主线接取时已在目标地图 → 直接置 ready（免出图重进）
-            if obj.get("explore") and player.get("cur_map") == obj["explore"]:
-                quests["main_status"] = "ready"
-                quests["main_progress"] = {obj["explore"]: 1}
-            db.save_quests(group_id, qq_id, quests)
-            lines.append(f"📜 【接取任务】『{mq['name']}』")
-            if mq.get("story"):
-                lines.append(f"  📖 {mq['story']}")
-            lines.append(f"  🎯 目标：{self._obj_text(mq['objective'])}")
-            lines.append(f"  奖励：经验 +{mq['reward_exp']} 金币 +{mq['reward_gold']}")
-            # v95.25 #138：主线等级建议（软提示，不拦截接取）——suggest_lv 在 quests.py 数据里
-            if mq.get("suggest_lv") and player["level"] < mq["suggest_lv"]:
-                lines.append(f"  ⚠️ 建议等级 Lv.{mq['suggest_lv']}，你才 Lv.{player['level']}——可以先练练级再挑战！")
-            if quests["main_status"] == "ready":
-                lines.append("  ✨ 交谈完成！再与这位 NPC 对话即可交付任务。")
-        elif st == "ready":
-            # 交任务领奖
-            obj = mq.get("objective") or {}
-            # v105 P0：collect 型主线交付时扣材料（先复核背包，材料被消耗则回到进行中）
-            if obj.get("collect"):
-                need = obj.get("count", 1)
-                if db.count_item(group_id, qq_id, obj["collect"]) < need:
-                    quests["main_status"] = "active"
-                    quests["main_progress"] = {}
-                    db.save_quests(group_id, qq_id, quests)
-                    lines.append(f"📜 交付『{mq['name']}』需要 {obj['collect']} ×{need}，你背包里不够了，先去凑齐吧～")
-                    return lines
-                db.remove_item(group_id, qq_id, obj["collect"], need)
-                # v126.2：鱼获个体属性在 item_data.tags，remove_item 自动截断，无需额外同步
-                lines.append(f"🎒 交出 {obj['collect']} ×{need}")
-            # v124.3：奖励统一走 _grant_quest_rewards（exp/gold/升级 + reward_item 全格式
-            # + reward_pet/reward_mount/unlock_class）——此前主线交付只支持 reward_item
-            # 单值 + reward_pet，eq:/list 随机/坐骑/隐藏职业配了不发
-            self._grant_quest_rewards(group_id, qq_id, mq, lines)
-            completed = list(quests.get("completed_main", []))
-            completed.append(main_id)
-            quests["completed_main"] = completed
-            quests["main_quest"] = mq["next"]
-            quests["main_status"] = "pending"
-            quests["main_progress"] = {}
-            db.save_quests(group_id, qq_id, quests)
-            lines.append(f"✅ 【任务完成】『{mq['name']}』！")
-            if mq.get("ending"):
-                # v105 M19 P1：主线抉择结局变体——q10_5 等任务按对话树选择的 flag 输出不同结尾
-                _ending = mq["ending"]
-                _endings = mq.get("endings") or {}
-                if _endings:
-                    try:
-                        _flags = db.get_talk_flags(group_id, qq_id, mq["giver"]) or []
-                    except Exception:
-                        _flags = []
-                    for _fk, _fv in _endings.items():
-                        if _fk in _flags:
-                            _ending = _fv
-                            break
-                lines.append(f"  📖 {_ending}")
-            lines.append(f"  奖励：经验 +{mq['reward_exp']} 金币 +{mq['reward_gold']}")
-            rep_line = self._quest_reputation(group_id, qq_id, mq["giver"])
-            if rep_line:
-                lines.append(f"  {rep_line}")
-            if mq["next"]:
-                nq = next((q for q in C.MAIN_QUESTS if q["id"] == mq["next"]), None)
-                if nq:
-                    lines.append(f"📜 新主线：『{nq['name']}』{nq['desc']}")
-                    lines.append(f"  🎯 去找 {C.NPCS[nq['giver']]['name']} 接取新任务")
-            else:
-                lines.append("🎊 恭喜！你完成了全部主线任务，成为奥兰迪亚的传说！")
-        else:
-            lines.append(f"📜 你已接取『{mq['name']}』：{mq['desc']}")
-        return lines
+        """从 NPC 接主线任务；返回通知行列表（P4-2 壳：转调 services.quests_flow.take_main_quest）"""
+        from ..services import quests_flow as qf
+        return qf.take_main_quest(group_id, qq_id, npc_id, npc)
+
 
     def _obj_text(self, obj):
         if obj.get("kill"):
@@ -3103,17 +2888,10 @@ class WorldCmds(CommandBase):
         return lines or ["？"]
 
     def _quest_reputation(self, group_id, qq_id, npc_id):
-        """完成任务时给对应势力加声望，返回提示行(如有)"""
-        npc = C.NPCS.get(npc_id)
-        if not npc:
-            return ""
-        m = C.MAP_BY_ID.get(npc["map"], {})
-        area_key = m.get("area", npc["map"])
-        faction = C.AREA_FACTION.get(area_key)
-        if not faction:
-            return ""
-        db.add_reputation(group_id, qq_id, faction, 10)
-        return f"🏛️ {C.FACTIONS[faction]['icon']} 声望＋10"
+        """完成任务时给对应势力加声望，返回提示行（P4-2 壳：转调 services.quests_flow.quest_reputation）"""
+        from ..services import quests_flow as qf
+        return qf.quest_reputation(group_id, qq_id, npc_id)
+
 
     def _wild_cond_label(self, npc: dict) -> str:
         """野外 NPC 出现条件 → 中文标签(见闻录/时间面板用)"""
@@ -3756,12 +3534,10 @@ class WorldCmds(CommandBase):
         return lines
 
     def _branch_wait_sid(self, group_id, qq_id):
-        """v124：查找处于分支等待状态的支线 sid（ready + branch_wait）。"""
-        quests = db.get_quests(group_id, qq_id)
-        for sid, sq in (quests.get("side") or {}).items():
-            if sq.get("status") == "ready" and sq.get("branch_wait"):
-                return sid
-        return None
+        """v124 分支等待支线 sid 查询（P4-2 壳：转调 services.quests_flow.branch_wait_sid）"""
+        from ..services import quests_flow as qf
+        return qf.branch_wait_sid(group_id, qq_id)
+
 
     def _weapon_pick_active(self, group_id, qq_id) -> bool:
         """v173.3 意见#103：是否有武器自选礼包挂起选择未完成。"""
@@ -3831,74 +3607,16 @@ class WorldCmds(CommandBase):
         return False
 
     def _update_use_quests(self, group_id, qq_id, item_name):
-        """v124 use 目标支线：使用指定物品后支线置 ready（如 递麦酒/用月鳞/交信物）。
-        v124.2 防跨图白嫖：objective.map 或任务自身 map 配置时，须玩家当前地图一致才推进；
-        objective 无 map 且任务无 map 的保持原行为（不校验直接推进）。"""
-        if not item_name:
-            return ""
-        quests = db.get_quests(group_id, qq_id)
-        side = quests.get("side") or {}
-        lines = []
-        changed = False
-        for sid, sq in list(side.items()):
-            if sq.get("status") != "active":
-                continue
-            sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
-            if not sqd:
-                continue
-            obj = sqd.get("objective") or {}
-            if obj.get("use") and obj["use"] == item_name:
-                _need_map = obj.get("map") or sqd.get("map")
-                if _need_map:
-                    _pm = self._player(group_id, qq_id) or {}
-                    if _pm.get("cur_map") != _need_map:
-                        continue
-                side[sid] = {"status": "ready", "progress": {"use": item_name}}
-                changed = True
-                giver = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}
-                lines.append(f"✨ 『{sqd['name']}』目标达成！回去找 {giver.get('name', '发布人')} 交付吧～")
-        if changed:
-            quests["side"] = side
-            db.save_quests(group_id, qq_id, quests)
-        return "\n".join(lines)
+        """v124 use 目标支线：使用物品后置 ready（P4-2 壳：转调 services.quests_flow.update_use_quests）"""
+        from ..services import quests_flow as qf
+        return qf.update_use_quests(group_id, qq_id, item_name)
+
 
     def _talk_quest_progress(self, group_id, qq_id, npc_id) -> list:
-        """v95.11：talk 型主线与目标 NPC 对话即达成（active 空进度遗留态 → ready）。
-        覆盖 v95.9 对话化之前接取、或接取瞬间未置 ready 的存量档，返回通知行。
-        v105 P0/P2：collect 型主线对话时实时数背包（材料足够 → ready）；
-        explore 型主线已在目标地图 → ready（免出图重进）。"""
-        quests = db.get_quests(group_id, qq_id)
-        if quests.get("main_status") != "active":
-            return []
-        mid = quests.get("main_quest")
-        if not mid:
-            return []
-        mq = next((q for q in C.MAIN_QUESTS if q["id"] == mid), None)
-        if not mq:
-            return []
-        obj = mq.get("objective", {})
-        if obj.get("talk") == npc_id:
-            quests["main_status"] = "ready"
-            quests["main_progress"] = {npc_id: 1}
-            db.save_quests(group_id, qq_id, quests)
-            return ["✨ 交谈完成！再与这位 NPC 对话即可交付任务。"]
-        if obj.get("collect") and mq.get("giver") == npc_id:
-            need = obj.get("count", 1)
-            if db.count_item(group_id, qq_id, obj["collect"]) >= need:
-                quests["main_status"] = "ready"
-                quests["main_progress"] = {obj["collect"]: need}
-                db.save_quests(group_id, qq_id, quests)
-                return [f"✨ 材料已齐（{obj['collect']} ×{need}）！再与这位 NPC 对话即可交付任务。"]
-        if obj.get("explore") and mq.get("giver") == npc_id:
-            player = self._player(group_id, qq_id)
-            if player.get("cur_map") == obj["explore"]:
-                quests["main_status"] = "ready"
-                quests["main_progress"] = {obj["explore"]: 1}
-                db.save_quests(group_id, qq_id, quests)
-                return ["✨ 目标地点已到达！再与这位 NPC 对话即可交付任务。"]
-        return []
+        """talk/collect/explore 型主线对话即达成（P4-2 壳：转调 services.quests_flow.talk_quest_progress）"""
+        from ..services import quests_flow as qf
+        return qf.talk_quest_progress(group_id, qq_id, npc_id)
 
-    # ---------------- v95.23 职业就职 / 导师转职 ----------------
 
     def _do_join_class(self, group_id, qq_id, player, new_cls):
         """行会就职：见习冒险者 → 基础职业。
@@ -4195,146 +3913,28 @@ class WorldCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     def _deliver_hint(self, npc_id):
-        """交付方式提示（v95.16 #75）：有对话树 NPC 走对话交付，无对话树 NPC 用『交付任务』"""
-        if C.DIALOGUES.get(npc_id):
-            return "对话交付"
-        return "『交付任务』交付"
+        """交付方式提示（P4-2 壳：转调 services.quests_flow.deliver_hint）"""
+        from ..services import quests_flow as qf
+        return qf.deliver_hint(npc_id)
+
 
     def _side_available_list(self, group_id, qq_id, npc_id, npc) -> list:
-        """v127.6：该 NPC 名下当前"可接"的支线清单（对话菜单/预告/全接三处同源过滤）。
+        """该 NPC 名下当前"可接"的支线清单（P4-2 壳：转调 services.quests_flow.side_available_list）"""
+        from ..services import quests_flow as qf
+        return qf.side_available_list(group_id, qq_id, npc_id, npc)
 
-        过滤条件与旧 _offer_side_quests 全部一致：giver == npc_id、非告示板委托(board)、
-        未接取（不在 side）、_sq_unlocked 链式前置、_sq_stats_met 计数门槛、
-        min_level 等级门槛、require_race 种族限制。每项返回
-        {sid, name, desc, objective_text, reward_exp, reward_gold}，按 SIDE_QUESTS 定义顺序
-        （保证对话菜单序号稳定）。npc 参数保留以与 _offer_side_quests 签名一致（此处未用到）。
-        """
-        player = self._player(group_id, qq_id) or {}
-        quests = db.get_quests(group_id, qq_id)
-        side = quests.get("side", {}) or {}
-        out = []
-        for sq in C.SIDE_QUESTS:
-            if sq["giver"] != npc_id:
-                continue
-            if sq.get("board"):  # v95r65 #295：告示板委托只能在告示板接取，NPC 不自动发
-                continue
-            if sq["id"] in side:
-                continue
-            # v124 链式支线：unlock 前置未满足不自动发（如剧情线第二步等第一步完成）
-            if not self._sq_unlocked(quests, sq):
-                continue
-            # v124 隐藏线/副业线：require_stats 计数门槛未达不自动发（如 H7 需垂钓 10 次）
-            if not self._sq_stats_met(player, sq):
-                continue
-            # v101.30d #O52：支线等级门槛（min_level 字段）——等级不够不算可接
-            if sq.get("min_level") and (player.get("level") or 0) < sq["min_level"]:
-                continue
-            # v113 种族限制：require_race 指定血脉（隐藏线试炼）——非该种族不算可接
-            if sq.get("require_race"):
-                _cur = player.get("race") or "human"
-                if _cur != sq["require_race"]:
-                    continue
-            out.append({
-                "sid": sq["id"],
-                "name": sq["name"],
-                "desc": sq.get("desc", ""),
-                "objective_text": self._obj_text(sq.get("objective") or {}),
-                "reward_exp": sq.get("reward_exp", 0),
-                "reward_gold": sq.get("reward_gold", 0),
-            })
-        return out
 
     def _offer_side_quest(self, group_id, qq_id, npc_id, sid) -> list:
-        """v127.6：单条支线接取（对话 side_menu 子选项 action: side_take_one）。
+        """单条支线接取（P4-2 壳：转调 services.quests_flow.offer_side_quest）"""
+        from ..services import quests_flow as qf
+        return qf.offer_side_quest(group_id, qq_id, npc_id, sid)
 
-        校验 sid 必须在 _side_available_list 当前可接清单内才接（防越权/已接/等级不足），
-        否则返回 [] 不落地。返回该任务的接取通知行列表。
-        """
-        item = next((a for a in self._side_available_list(group_id, qq_id, npc_id, None)
-                     if a["sid"] == sid), None)
-        if not item:
-            return []
-        sq = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
-        if not sq:
-            return []
-        quests = db.get_quests(group_id, qq_id)
-        side = dict(quests.get("side", {}))
-        side[sid] = {"status": "active", "progress": {}}
-        quests["side"] = side
-        db.save_quests(group_id, qq_id, quests)
-        return [
-            f"📜 【支线】『{sq['name']}』{sq['desc']}",
-            f"  奖励：经验 +{sq['reward_exp']} 金币 +{sq['reward_gold']}",
-            f"  🎯 目标：{item['objective_text']}",
-        ]
 
     def _offer_side_quests(self, group_id, qq_id, npc_id, npc):
-        """NPC 有未接的支线任务时自动接取，返回通知行列表
+        """NPC 有未接的支线任务时自动接取，返回通知行列表（P4-2 壳：转调 services.quests_flow.offer_side_quests）"""
+        from ..services import quests_flow as qf
+        return qf.offer_side_quests(group_id, qq_id, npc_id, npc)
 
-        v127.6 重构：可接清单统一走 _side_available_list（与对话 side_menu 菜单/预告同源过滤），
-        逐条复用 _offer_side_quest 接取；不可接（min_level/require_race 被过滤掉）的
-        原拒绝提示按 SIDE_QUESTS 顺序保留，全接+完成提示行为不变（旧 side_offer action 兼容，
-        单支线 NPC 无感）。
-        """
-        player = self._player(group_id, qq_id) or {}
-        lines = []
-        quests = db.get_quests(group_id, qq_id)
-        side = dict(quests.get("side", {}))
-        available = self._side_available_list(group_id, qq_id, npc_id, npc)
-        av_ids = {a["sid"] for a in available}
-        changed = False
-        for sq in C.SIDE_QUESTS:
-            if sq["giver"] != npc_id or sq.get("board"):
-                continue
-            if sq["id"] in side:
-                continue
-            if sq["id"] in av_ids:
-                side[sq["id"]] = {"status": "active", "progress": {}}
-                changed = True
-                lines.append(f"📜 【支线】『{sq['name']}』{sq['desc']}")
-                lines.append(f"  奖励：经验 +{sq['reward_exp']} 金币 +{sq['reward_gold']}")
-                lines.append(f"  🎯 目标：{self._obj_text(sq['objective'])}")
-                continue
-            # 不可接但符合其余条件的拒绝提示（与原始行为文案一致）
-            if not self._sq_unlocked(quests, sq):
-                continue
-            if not self._sq_stats_met(player, sq):
-                continue
-            # v101.30d #O52：支线等级门槛——等级不够不自动接
-            if sq.get("min_level") and (player.get("level") or 0) < sq["min_level"]:
-                lines.append(
-                    f"🛡️ {npc.get('name', '对方')}打量了你一眼：这活得有 Lv.{sq['min_level']}+ 的本事，你再去练练吧。"
-                )
-                continue
-            # v113 种族限制：require_race 指定血脉——非该种族导师直接拒绝
-            if sq.get("require_race"):
-                _rr = sq["require_race"]
-                _cur = player.get("race") or "human"
-                if _cur != _rr:
-                    _rcn = (C.RACES.get(_rr) or {}).get("name", "对应血脉")
-                    lines.append(
-                        f"⛔ {npc.get('name', '对方')}凝视着你，缓缓摇头：『这份传承只属于{_rcn}的血脉。"
-                        f"你体内流淌的{(C.RACES.get(_cur) or {}).get('name', '血脉')}之血，与它无缘。』"
-                    )
-                    continue
-        if changed:
-            quests["side"] = side
-            db.save_quests(group_id, qq_id, quests)
-        # v95.4：该 NPC 有已完成支线 → 提示交付入口（反馈：可交任务找不到交付方式）
-        # v95.15 #73：代词按 NPC 性别（迷路骑士等男性 NPC 用"他"）
-        # v95.16 #75：按是否有对话树区分交付引导（无对话树 NPC 的『对话』没有交付选项）
-        _ta = "她" if npc.get("gender") == "女" else "他"
-        for sid, sq in list(quests.get("side", {}).items()):
-            sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
-            if sqd and sqd["giver"] == npc_id and sq.get("status") == "ready":
-                if C.DIALOGUES.get(npc_id):
-                    lines.append(f"✅ 『{sqd['name']}』已完成！与{_ta}对话即可交付～")
-                else:
-                    lines.append(f"✅ 『{sqd['name']}』已完成！输入『交付任务』即可交付～")
-                break
-        return lines
-
-    # v104 M24 P2-2：『交任务』无命中（策划案 23 章:182 主指令）→ 补别名
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:交付任务|交任务)(?:\s*|$)")
     @require_player()
 
@@ -4444,169 +4044,16 @@ class WorldCmds(CommandBase):
         yield event.plain_result("没有可交的任务。输入『任务』查看进度～")
 
     def _grant_quest_rewards(self, group_id, qq_id, qdef, lines):
-        """v124.3 统一任务奖励发放（主线 explore 自动完成 / 主线交付 / 支线交付三处共用）。
+        """v124.3 统一任务奖励发放（P4-2 壳：转调 services.quests_flow.grant_quest_rewards）"""
+        from ..services import quests_flow as qf
+        return qf.grant_quest_rewards(group_id, qq_id, qdef, lines)
 
-        基准：支线 _complete_side_quest 原实现（v104 M20 + v124 全奖励类型）——
-        reward_exp/reward_gold 入角色并结算升级；reward_item 支持单值 / 列表随机 /
-        eq: 装备名册；reward_pet 宠物蛋 / reward_mount 坐骑缰绳入包；unlock_class
-        解锁隐藏职业。声望 / 分支 flag / 每日计数等任务特有处理不入此函数，调用方各自保留。
-        返回结算后的 player（调用方后续需要时使用，如 _complete_side_quest 的 _rule_fire）。"""
-        player = self._player(group_id, qq_id)
-        player["exp"] += qdef.get("reward_exp", 0)
-        player["gold"] += qdef.get("reward_gold", 0)
-        player["_title_bonus"] = self._title_bonus(group_id, qq_id)
-        lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
-        db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
-        if lv_logs:
-            if lines:
-                lines.append("")
-            lines += lv_logs
-        # v104 M20 P1：列表型奖励（如 s17 随机符文）→ 随机抽一个发放
-        # v174 统一抽象：item/eq/pet/mount/title 发放走 game.reward.grant_reward
-        # （只传物品类，exp/gold 已在上方原逻辑结算且要 return 更新后 player）
-        ri = qdef.get("reward_item")
-        _reward_items = []
-        if ri:
-            if isinstance(ri, list):
-                ri = random.choice(ri)
-            # eq: 前缀保留（grant_reward 支持 eq:rid 按名册名解析）
-            _reward_items.append({"item": ri, "n": 1})
-        _rew = {}
-        if _reward_items:
-            _rew["items"] = _reward_items
-        rp = qdef.get("reward_pet")
-        if rp:
-            _rew["pets"] = [rp] if isinstance(rp, str) else list(rp)
-        rm = qdef.get("reward_mount")
-        if rm:
-            _rew["mounts"] = [rm] if isinstance(rm, str) else list(rm)
-        _tid = qdef.get("title")
-        if _tid:
-            _rew["title"] = _tid
-        if _rew:
-            try:
-                from game.reward import grant_reward
-                grant_reward(_rew, group_id, qq_id, player=player, lines=lines)
-            except Exception:
-                pass
-        # v87 隐藏职业：交任务解锁（unlock_class 写入 hidden_class_unlock）
-        uc = qdef.get("unlock_class")
-        if uc:
-            player_now = self._player(group_id, qq_id)
-            unlocks = list(player_now.get("hidden_class_unlock", []) or [])
-            if uc not in unlocks:
-                unlocks.append(uc)
-                db.update_player(group_id, qq_id, hidden_class_unlock=unlocks)
-                lines.append(f"  ⚔️ 传承达成！隐藏职业「{C.CLASSES.get(uc, {}).get('name', uc)}」已解锁！")
-                # v112：档位门槛统一读 CLASSES["tier_levels"]（缺省 T1=40），删除 60/30 特例
-                _need = (C.CLASSES.get(uc, {}).get("tier_levels") or {1: 40, 2: 60, 3: 90})[1]
-                _cname = C.CLASSES.get(uc, {}).get("name", uc)
-                lines.append(f"  💡 达到 {_need} 级后输入『转职 {_cname}』接受传承！")
-        # v140 波3.6：任务奖励称号（title 字段 = titles.py id 或中文名；称号系统条件判定自动拥有，
-        # 这里仅播报解锁——条件满足即生效，不满足也不阻塞任务完成）
-        _tid = qdef.get("title")
-        if _tid:
-            _tinfo = next((t for t in C.TITLES if t.get("id") == _tid), None)
-            if not _tinfo:
-                # 兼容支线旧字段用中文名（如 "北境的恩人" → north_benefactor）
-                _tinfo = next((t for t in C.TITLES if t.get("name") == _tid), None)
-            if _tinfo:
-                lines.append(f"  🏅 获得称号：「{_tinfo.get('name', _tid)}」！")
-            else:
-                print(f"[dragonfall][v140] 任务『{qdef.get('name', '')}』称号 id 缺失：{_tid}（titles.py 未登记），已跳过")
-        return player
 
     def _complete_side_quest(self, group_id, qq_id, sid, branch_choice=None):
-        """交支线任务，返回通知行列表
-        v124：支持 branch 分支交付（第一次输出选项并置 branch_wait，玩家回复数字后执行）+
-        deliver_text 交付剧情文本。"""
-        lines = []
-        quests = db.get_quests(group_id, qq_id)
-        sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
-        if not sqd:
-            return ["未知支线任务。"]
-        sq = quests.get("side", {}).get(sid)
-        if not sq:
-            return ["这个任务还没完成呢。"]
-        obj = sqd["objective"]
-        # 收集型：实时检查背包材料（不依赖 ready 状态）
-        if obj.get("collect"):
-            # v87 复合目标：kill+collect（魔剑士试炼），collect_count 独立于 kill count
-            need = obj.get("collect_count") or obj.get("count", 1)  # v125.1 P2：s64 等 collect_count 无 count 不再 KeyError
-            _ckey = C.resolve("materials", obj["collect"])
-            have = db.count_item(group_id, qq_id, _ckey)
-            if have < need:
-                return [f"材料不够！需要 {obj['collect']} ×{need}，你只有 {have} 个。"]
-            # v87 复合目标：同时存在 kill 目标时，击杀进度也要满足
-            if obj.get("kill"):
-                kp = (sq.get("progress") or {}).get(obj["kill"], 0)
-                if kp < obj["count"]:
-                    return [f"还要击败 {obj['kill']} ×{obj['count'] - kp}(当前 {kp}/{obj['count']})！"]
-        elif sq.get("status") != "ready":
-            return ["这个任务还没完成呢。"]
-        # v124 分支任务：第一次交付输出选项，等待玩家回复数字
-        br = sqd.get("branch")
-        if br and not branch_choice:
-            opts = br.get("options") or []
-            if sq.get("branch_wait"):
-                return [f"{br.get('prompt', '')}\n{self._tip('quest_branch')}\n" + "\n".join(
-                    f"  {o.get('key', str(i + 1))}. {o.get('label', '')}" for i, o in enumerate(opts))]
-            quests["side"][sid] = {**sq, "status": "ready", "branch_wait": True}
-            db.save_quests(group_id, qq_id, quests)
-            _o = [f"  {o.get('key', str(i + 1))}. {o.get('label', '')}" for i, o in enumerate(opts)]
-            return [f"{br.get('prompt', '')}\n{self._tip('quest_branch')}\n" + "\n".join(_o)]
-        # v124 分支选择执行
-        if br and branch_choice:
-            opts = br.get("options") or []
-            chosen = None
-            if isinstance(branch_choice, str):
-                for o in opts:
-                    if branch_choice in (o.get("key"), o.get("label")):
-                        chosen = o
-                        break
-            if chosen is None:
-                return [f"没有这个选项～{br.get('prompt', '')}\n{self._tip('quest_branch')}\n" + "\n".join(
-                    f"  {o.get('key', str(i + 1))}. {o.get('label', '')}" for i, o in enumerate(opts))]
-            # 用分支选项覆盖奖励（顶层 reward 为 0 时以选项为准）
-            lines.append(f"  📖 {chosen.get('text', '')}")
-            sqd = {**sqd,
-                   "reward_exp": chosen.get("reward_exp", sqd.get("reward_exp", 0)),
-                   "reward_gold": chosen.get("reward_gold", sqd.get("reward_gold", 0)),
-                   "reward_item": chosen.get("reward_item", sqd.get("reward_item"))}
-            # v124 分支 flag：写入 giver NPC 的 flag 桶（称号/后续任务判定用）
-            _cf = chosen.get("flag")
-            if _cf:
-                db.set_talk_flag(group_id, qq_id, sqd.get("giver", ""), _cf)
-        # 收集类：扣除材料
-        if obj.get("collect"):
-            need = obj.get("collect_count") or obj.get("count", 1)  # v125.1 P2：s64 等 collect_count 无 count 不再 KeyError
-            for _ in range(need):
-                db.remove_item(group_id, qq_id, _ckey)
-            # v126.2：鱼获个体属性在 item_data.tags，remove_item 自动截断，无需额外同步
-        # v124 交付剧情文本（无分支时）
-        dt = sqd.get("deliver_text")
-        if dt and not br:
-            lines.append(f"  📖 {dt}")
-        # v124.3：奖励统一走 _grant_quest_rewards（exp/gold/升级 + reward_item 全格式 +
-        # reward_pet/reward_mount/unlock_class）——逻辑与支线原实现完全一致（列表随机 /
-        # eq: 名册 / items→materials 顺序），返回结算后 player 供下方 _rule_fire 使用
-        player = self._grant_quest_rewards(group_id, qq_id, sqd, lines)
-        # v95.12：交付后保留条目标记 done（无 completed_side 列），防止 _offer_side_quests 自动重接
-        quests["side"][sid] = {"status": "done"}
-        db.save_quests(group_id, qq_id, quests)
-        # v104 M20：行会委托每日（complete_side）——支线交付完成 +1，达标发奖
-        self._bump_daily_progress(group_id, qq_id, "complete_side", lines)
-        lines.append(f"✅ 【支线完成】『{sqd['name']}』！")
-        lines.append(f"  奖励：经验 +{sqd['reward_exp']} 金币 +{sqd['reward_gold']}")
-        rep_line = self._quest_reputation(group_id, qq_id, sqd["giver"])
-        if rep_line:
-            lines.append(f"  {rep_line}")
-        # v97.5 行为彩蛋规则：任务交付后
-        _rule_txt = self._rule_fire("quest_deliver", group_id, qq_id, player,
-                                    C.MAP_BY_ID.get(player.get("cur_map"), {}))
-        if _rule_txt:
-            lines.append(f"  {_rule_txt}")
-        return lines
+        """交支线任务，返回通知行列表（P4-2 壳：转调 services.quests_flow.complete_side_quest；_tip/_rule_fire 以 hooks 注入）"""
+        from ..services import quests_flow as qf
+        return qf.complete_side_quest(group_id, qq_id, sid, branch_choice, hooks={"tip": self._tip, "rule_fire": self._rule_fire})
+
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?休息(?:\s*|$)")
     @require_player()

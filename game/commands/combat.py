@@ -2412,113 +2412,21 @@ class CombatCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     def _update_quests(self, group_id, qq_id, monster):
-        """战斗后更新任务进度，返回通知行
+        """战斗后更新任务进度，返回通知行（P4-2 壳：任务状态机收敛至 services.quests_flow）
+
         主线任务流程：未接 → (找NPC) 进行中 → 目标达成(可交) → (找NPC) 交任务领奖
+        v181 P4-2：主线/支线/每日击杀进度推进原样随迁 services.quests_flow.quest_kill_progress
+        （v105 M19 P2 前缀精确 / kill_any / settle_daily_quest 同单点）；周常悬赏属 weekly
+        域，仍由本命令层追加（行为不变）。
         """
-        lines = []
-        quests = db.get_quests(group_id, qq_id)
-        changed = False
-        # 主线（仅处理已接且进行中的任务；击杀达到目标则变为可交状态）
-        main_id = quests.get("main_quest")
-        if main_id:
-            mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
-            if mq and quests.get("main_status") == "active":
-                prog = dict(quests.get("main_progress", {}))
-                obj = mq["objective"]
-                if obj.get("kill") and (monster["name"] == obj["kill"] or monster["name"].startswith(obj["kill"] + "·")):
-                    # v95.7 #33：精英/头目变体名包含目标怪名（如『野猪』←『野猪·首领』）也计入任务进度
-                    # v105 M19 P2：进度 key 统一记 obj['kill']（此前记 monster['name']，杀精英变体时
-                    # 计数入账但面板按 obj['kill'] 读 → 显示 0/N；现精英击杀也计入基础怪 key）
-                    # v104 M20 P2：in 后缀包含误伤面过大（『野猪』命中巨型野猪/风车野猪/铁甲野猪/
-                    # 岛野猪，『霜巨魔』顶 3 只霜巨魔王），改前缀精确：== 或 「目标·」开头，仅命中
-                    # 同名怪与「·」后缀精英/Boss 变体
-                    prog[obj["kill"]] = prog.get(obj["kill"], 0) + 1
-                    quests["main_progress"] = prog
-                    changed = True
-                    if prog.get(obj["kill"], 0) >= obj["count"]:
-                        quests["main_status"] = "ready"
-                        _g = C.NPCS.get(mq["giver"]) or C.ALL_WILD.get(mq["giver"]) or {}
-                        lines.append(f"📜 主线『{mq['name']}』目标达成！回去找 {_g.get('name', '？')} {self._deliver_hint(mq['giver'])}吧～")
-                    else:
-                        lines.append(f"📜 主线『{mq['name']}』：{prog[obj['kill']]}/{obj['count']}")
-        # 每日
-        # v94：先清跨天任务（daily 里 _date 不是今天 → 清空），避免旧任务残留
-        # v181 P4-1 试点：达标结算单点收敛至 services.quests.settle_daily_quest
-        # （模块级 import，见文件头；combat 不再 from .world 引命令层私有函数）
-        if db.expire_daily(quests):
-            changed = True
-        daily = dict(quests.get("daily", {}))
-        # v125.1 P0 修复：跳过全部元数据键（_date/_completed/_repeat）——原只跳过 _date，
-        # _completed(int)/_repeat(dict) 被 dq["objective"] 下标 → TypeError 每日首战必崩
-        # （对照 world.py _bump_daily_progress 的 _DAILY_META_KEYS 正确实现）
-        for dkey, dq in list(daily.items()):
-            if dkey in DAILY_META_KEYS:  # 跨天/计数元数据，不是任务
-                continue
-            dobj = dq["objective"]
-            prog = dq.get("progress", 0)
-            if dobj.get("kill_any"):
-                prog += 1
-            elif dobj.get("kill_elite") and monster.get("is_elite"):
-                prog += 1
-            elif dobj.get("kill_boss") and monster.get("is_boss"):
-                prog += 1
-            dq["progress"] = prog
-            changed = True
-            if prog >= dobj.get("kill_any", dobj.get("kill_elite", dobj.get("kill_boss", 99))):
-                # v125.1 P2：发奖结算统一走 _settle_daily_quest（与 world._bump_daily_progress 同单点；
-                # 击杀型每日在此接线，防刷上限/衰减对击杀型同样生效）
-                settle_daily_quest(group_id, qq_id, daily, dq, lines)
-                del daily[dkey]
-        # 无条件写回：即使全部完成（daily 为空）也要清空 quests，否则任务残留会无限重复发奖励
-        quests["daily"] = daily
-        # 支线（击杀型）
-        side = dict(quests.get("side", {}))
-        for sid, sq in list(side.items()):
-            if sq.get("status") != "active":
-                continue
-            sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
-            if not sqd:
-                continue
-            obj = sqd["objective"]
-            if obj.get("kill_any"):
-                # v95.13 修复：kill_any 支线（护送商货等）此前无计数分支，任务永久卡死
-                prog = dict(sq.get("progress", {}))
-                prog["any"] = prog.get("any", 0) + 1
-                sq["progress"] = prog
-                changed = True
-                if prog["any"] >= obj["kill_any"]:
-                    sq["status"] = "ready"
-                    _g = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}
-                    lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} {self._deliver_hint(sqd['giver'])}吧～")
-                else:
-                    lines.append(f"📜 支线『{sqd['name']}』：{prog['any']}/{obj['kill_any']}")
-            elif obj.get("kill") and (monster["name"] == obj["kill"] or monster["name"].startswith(obj["kill"] + "·")):
-                # v105 M19 P2：进度 key 统一记 obj['kill']（与主线一致、与面板/交付校验读取一致）
-                # v104 补测发现：支线此前只精确 ==（杀精英变体不推进），现与主线同款前缀精确匹配
-                # v104 M20 P2：in 后缀包含误伤面过大（『盗贼』命中盗贼头目·黑鸦、『霜巨魔』顶 3 只
-                # 霜巨魔王、『月狼』命中月狼王·银鬃），改前缀精确：== 或 「目标·」开头
-                prog = dict(sq.get("progress", {}))
-                # v105 M19 P2：进度 key 统一记 obj['kill']（与主线一致、与面板/交付校验读取一致）
-                prog[obj["kill"]] = prog.get(obj["kill"], 0) + 1
-                sq["progress"] = prog
-                changed = True
-                if prog.get(obj["kill"], 0) >= obj["count"]:
-                    sq["status"] = "ready"
-                    _g = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}
-                    lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} {self._deliver_hint(sqd['giver'])}吧～")
-                else:
-                    lines.append(f"📜 支线『{sqd['name']}』：{prog[obj['kill']]}/{obj['count']}")
-        if side:
-            quests["side"] = side
-        if changed:
-            db.save_quests(group_id, qq_id, quests)
+        from ..services.quests_flow import quest_kill_progress
+        lines = quest_kill_progress(group_id, qq_id, monster)
         # v169.2 周常悬赏：每只击杀怪物推进本周悬赏（达标自动发奖，与每日任务同构）
         try:
             lines += weekly_bump_kill(self, group_id, qq_id, monster)
         except Exception:
             pass
         return lines
-
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?讨伐(?:\s*|$)")
     @require_player()
     @no_prof_waiting()
