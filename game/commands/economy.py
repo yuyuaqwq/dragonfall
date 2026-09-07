@@ -20,39 +20,17 @@ from .. import engine as E
 from .. import battle as BT
 from ..commands.base import CommandBase, require_player
 from ..core.drops import _eq_random_desc
-from ..core import timed_events as _te  # noqa: E402
 from ..core import smith_stock as _ss  # v135 铁匠铺全服共享货架
 from ..core import shop_stock as _sshop  # v166 商店限购（店内共享库存+每日个人限购）
 from ..services import shop as _shop_svc  # v181.P4-3 ShopService 交易区服务化（services/shop.py）
 from ..services import crafting as _craft_svc  # v181.P4-4 CraftingService 锻造-强化区服务化（services/crafting.py）
+from ..services import profession as _prof_svc  # v181.P4-7 ProfessionService 等待型副业服务化（services/profession.py）
 
 # v127.5 等待型副业（垂钓/采集/挖掘）收编进通用懒计时引擎：
-# 存储走 timed_events.set_timed/get_timed/remove_timed（内部 key "prof_wait"），
-# 引擎 expire = 真实完成时间 → 到点被 lazy 清除（_maint_gate 挂 refresh 触发）。
-# 结算主路径 _prof_delayed_push（尽力而为推送）+ 惰性结算兜底
-# （_prof_wait_residual 非破坏读引擎存储残留，防『到点但未结算』吞掉奖励）。
-# 意见#6『采集后没有东西』修复：延迟推送失败（进程重启/异常被吞）时，到点的
-# prof_wait 事件若被 refresh_timed 直接物理删除，结算数据即永久丢失（玩家之后
-# 任意指令都会触发 _maint_gate → refresh_timed，唯一幸存路径是下一个指令恰好
-# 又是副业指令）。→ 注册 on_expire：引擎删除前把结算数据平移到历史遗留键
-# prof_wait_{qq_id}（_prof_wait_residual 第二顺位读取），由下次副业指令的
-# _prof_wait_flow 惰性结算出旧轮（物品入包 + 提示语一并带出）。
-
-def _prof_wait_expire_cb(group_id, qq_id, data):
-    """v127.5 意见#6：引擎 refresh 物理删除到点 prof_wait 前的数据保全。
-
-    把 {finish,type,spot_map} 平移到历史遗留键 prof_wait_{qq_id}，供
-    _prof_wait_residual 下次读取 → _prof_wait_flow 惰性结算（入包+播报）。
-    幂等：结算后 _prof_wait_clear 清空该键，无双结算；重复触发仅覆盖同结构数据。
-    """
-    try:
-        st = dict(data or {})
-        if st.get("finish") and st.get("type") in ("gather", "fishing", "mining"):
-            db.set_event_state(f"prof_wait_{qq_id}", json.dumps(st, ensure_ascii=False))
-    except Exception:
-        pass
-
-_te.register_timed("prof_wait", duration_sec=None, on_expire=_prof_wait_expire_cb)
+# 存储走 timed_events.set_timed/get_timed/remove_timed（内部 key "prof_wait"）。
+# v181.P4-7：状态机/结算/彩蛋已迁 services/profession.py（timed_events 引擎 on_expire 注册
+# prof_wait_expire_cb 随迁 service 模块顶层）——命令层只留解析 + 守卫 + yield 壳。
+# （兼容断言指针：_prof_wait_expire_cb → services.profession.prof_wait_expire_cb，见上）
 
 
 # v101.25e 商店装备价格系数（鱼鱼拍板数值方案：商店价 = 确定性推导价 × 品质系数）
@@ -74,7 +52,6 @@ _RECIPE_ROSTER_IDS = frozenset(
 # v181.P4-3：sell 命令壳提示文案仍引用品类分店常量 → 自 services.shop 别名（单一数据源，逐字符等价）
 _MAT_FACILITY = _shop_svc._MAT_FACILITY
 _MAT_FACILITY_HINT = _shop_svc._MAT_FACILITY_HINT
-
 # v126.3 材料大类归并：配置 type 细分为 18 种（兽材/矿石/草药/精华/宝石/织物/木材/食材/
 # 杂物/图纸/鱼/材料/垃圾/宝物/鱼王/收藏/传说/任务道具），v126.3 水合后 data['type'] 是
 # 配置真实值——『背包 材料』筛选/使用兜底按大类归并，否则兽材/矿石等全部漏筛。
@@ -85,11 +62,8 @@ def _item_kind_type(t):
         return "材料"
     return t
 
-# v105 M14 评估实现（19 章 §2.2 挖掘疲劳值）：连续挖掘 N 次进入疲劳，
-# 疲劳期间稀有矿脉概率减半；10 分钟不挖掘自动恢复（与体力自然恢复节奏一致）。
-# 存储用 event_state（mining_fatigue_{qq_id}），无 schema 变更。
-MINING_FATIGUE_THRESHOLD = 5    # 连续挖掘 5 次进入疲劳
-MINING_FATIGUE_RECOVER = 600    # 距上次挖掘超过 600s（10 分钟）计数重置
+# v181.P4-7：挖掘疲劳常量（MINING_FATIGUE_THRESHOLD/RECOVER）已随迁 services/profession.py
+# （mining_fatigue_state/tick/fatigued 一并迁走）；本文件 use 命令壳经 _prof_svc 别名引用。
 
 
 # ================= 物品详情渲染器（v101.6） =================
@@ -618,26 +592,11 @@ def _render_item_tags(d, lines):
             lines.append(f"……还有 {left} 条")
 
 
-# v125.2 fail-closed：限定采集条件词注册表（GATHER_COND_POOLS 条件串 split('+') 后的词）。
-# 判定统一走注册表：未收录词 → 本条不命中 + 告警日志（防拼写错误被静默放行造成
-# 语义反转——旧实现未知词 ok 保持 True，新增 "fog" 等词反而必出）。
-_GATHER_COND_CHECKERS = {
-    "night": lambda period, season, weather: period == "night",
-    "morning": lambda period, season, weather: period == "morning",
-    "winter": lambda period, season, weather: season == "winter",
-    "rain": lambda period, season, weather: weather == "rain",
-}
-
-# v125.2 启动校验：GATHER_COND_POOLS 全部条件词必须 ∈ 注册表（数据拼写错误启动即暴露，
-# 与 data/__init__.py B4 池 id 校验同款 fail-fast 风格）
-for _cond_map_id, _cond_entries in getattr(C, "GATHER_COND_POOLS", {}).items():
-    for _cond_mid, _cond_w, _cond_str in _cond_entries:
-        for _tok in str(_cond_str).split("+"):
-            if _tok not in _GATHER_COND_CHECKERS:
-                raise RuntimeError(
-                    f"[dragonfall] GATHER_COND_POOLS[{_cond_map_id}] 条件词 {_tok!r} 未注册"
-                    f"（材料 {_cond_mid}）——请修正拼写或补入 _GATHER_COND_CHECKERS")
-
+# v181.P4-7：采集限定条件词注册表 _GATHER_COND_CHECKERS + v125.2 启动校验
+# 已随迁 services/profession.py（gather_roll/gather_cond_roll 一并迁走）——
+# 命令层不再持有定义；保留下划线别名供存量测试/工具 import（单一数据源）
+_GATHER_COND_CHECKERS = _prof_svc._GATHER_COND_CHECKERS
+_prof_svc.validate_gather_cond()  # v125.2 fail-fast：economy 模块 import/reload 同样触发（P4-7 迁走后保持原行为）
 
 
 class EconomyCmds(CommandBase):
@@ -666,762 +625,6 @@ class EconomyCmds(CommandBase):
                 q.append((nxt, d + 1))
         return C.START_MAP
 
-    # 采集物地图绑定池（19 章 §2.1：特定地图只有特定采集物；#154 修复 2026-08-10）
-    # 格式：地图ID → [(材料ID, 权重), ...]；未配置的地图回退下方价格区间逻辑
-
-    def _gather_roll(self, level: int, prof_lv: int = 1, cur_map: str = "") -> list:
-        """按等级采集材料：地图绑定池优先（19 章 §2.1）；未配置地图按地图等级价格区间兜底；副业等级提高产出数量与稀有度
-
-        v174 统一抽象：有地图池时走 drop_engine（数据源 DROP_POOLS）；无池走价格带兜底。
-        """
-        import random as _rnd
-        cand = []
-        from game.drop_engine import expand_pool as _expand
-        _expanded = _expand(f"gather:{cur_map or ''}")
-        if _expanded:
-            cand = list(_expanded)
-        else:
-            # v97.2 兜底：按地图等级映射价格区间（修复原逻辑 Lv50+ 采不到 500+ 材料的问题）
-            # v104 R3 M14 P1-2：兜底池排除强化石类消耗品（i_stone_* 是炼金/商店独占，禁止采集白嫖）
-            # v125.2 B3：价格带公式数据下沉 prof_config.price_band（原 3+lv*4 / 20+lv*12 双处字面量）
-            _map_lv = C.MAP_BY_ID.get(cur_map or "", {}).get("lv", level)
-            _lo, _hi = C.price_band(_map_lv)
-            cand = [name for name, m in C.MATERIALS.items()
-                    if _lo <= m["price"] <= _hi
-                    and name not in ("i_stone_upgrade", "i_stone_refine")]
-            if not cand:
-                # 空区间放宽为"全价段"，保证高等级副本/隐藏区域也有产出
-                cand = [name for name, m in C.MATERIALS.items()
-                        if m["price"] <= _hi
-                        and name not in ("i_stone_upgrade", "i_stone_refine")]
-            if not cand:
-                cand = [n for n in C.MATERIALS
-                        if n not in ("i_stone_upgrade", "i_stone_refine")]
-        # v102.3 限定采集物（时机钩子）：当前时段/季节/天气命中 → 低权重追加
-        special = self._gather_cond_roll(cur_map or "")
-        if special:
-            cand = cand + [special] if special not in cand else cand
-        # 副业等级加成：Lv.3+ 概率采到 2 份材料；Lv.6+ 概率 3 份
-        n = _rnd.randint(1, 2)
-        if prof_lv >= 3 and _rnd.random() < 0.3:
-            n += 1
-        if prof_lv >= 6 and _rnd.random() < 0.25:
-            n += 1
-        return [_rnd.choice(cand) for _ in range(n)] if cand else []
-
-    def _gather_cond_roll(self, cur_map: str) -> str | None:
-        """v102.3 限定采集物判定：返回命中的材料 ID（未命中返回 None）。
-
-        条件：night=20:00-05:00 / morning=05:00-08:00 / winter=冬季 / rain=雨天；
-        组合条件用 '+'（如 "winter+night" 需全部命中）。命中后按权重随机选一个。
-        v125.2 fail-closed：条件词查 _GATHER_COND_CHECKERS 注册表，未收录词
-        本条不命中 + 告警日志（防未知词静默放行导致语义反转：新词反而必出）。
-        """
-        import random as _rnd
-        import logging as _logging
-        pool = getattr(C, "GATHER_COND_POOLS", {}).get(cur_map or "")
-        if not pool:
-            return None
-        period = C.current_period()
-        season = C.current_season()
-        weather = C.today_weather(cur_map or None)
-        hit = []
-        for mid, w, cond in pool:
-            ok = True
-            for p in str(cond).split("+"):
-                chk = _GATHER_COND_CHECKERS.get(p)
-                if chk is None:
-                    # fail-closed：未知条件词 → 本条不命中 + 告警（防语义反转）
-                    ok = False
-                    _logging.getLogger("astrbot").warning(
-                        "[dragonfall] 采集条件词 %r 未注册（地图 %s 材料 %s），fail-closed 不命中——"
-                        "请检查 GATHER_COND_POOLS 或 _GATHER_COND_CHECKERS", p, cur_map, mid)
-                    continue
-                if not chk(period, season, weather):
-                    ok = False
-            if ok:
-                hit.extend([mid] * w)
-        if not hit:
-            return None
-        return _rnd.choice(hit)
-
-    # ---------------- 等待型副业（v55：垂钓/采集/挖掘） ----------------
-    # 基准等待（秒）随机范围：fish/gather 45~75，mining 65~115；副业等级每级 -5%（上限 -50%），保底 10 秒
-
-    def _prof_wait_key(self, group_id, qq_id):
-        # v83: 去掉 group_id —— 等待型副业按玩家全局互斥，防止跨群双开多刷
-        # v127.5：仅保留作为历史遗留键（v127.5 前的在途等待迁移/清理用），主体存储已走引擎
-        return f"prof_wait_{qq_id}"
-
-    @staticmethod
-    def _prof_wait_ev_name(qq_id):
-        # timed_events 引擎的玩家事件存储 key（与 engine 内部 _PLAYER_KEY 同一模板）
-        return f"timed_events_{qq_id}"
-
-    @staticmethod
-    def _prof_wait_compat(ev):
-        """引擎事件 → 兼容 st 形状 {finish,type,…extra}（data 平铺 + finish/type 补齐）"""
-        st = dict(ev.get("data") or {})
-        if not st.get("finish"):
-            st["finish"] = ev.get("expire")
-        if st.get("type") is None:
-            st["type"] = ev.get("type")
-        return st if st.get("finish") else None
-
-    def _prof_wait_residual(self, group_id, qq_id):
-        """非破坏读『到点但未结算』的残留等待数据（惰性结算兜底数据源）。
-
-        v127.5：引擎 expire = 完成时间，到点即被 get_timed/_maint_gate refresh 惰性清除；
-        但结算需要事件数据（type/spot/spot_map/finish），清除即丢 → 从这里按引擎存储布局
-        非破坏回读残留（不清除），供 _prof_wait_flow/_prof_delayed_push/prof_forget 兜底。
-        顺序：timed_events 引擎残留 → v127.5 前历史遗留 prof_wait_{qq}（迁移）。"""
-        raw = db.get_event_state(self._prof_wait_ev_name(qq_id))
-        if raw:
-            try:
-                d = json.loads(raw)
-            except (ValueError, TypeError):
-                d = None
-            ev = ((d or {}).get("prof_wait")) if isinstance(d, dict) else None
-            if isinstance(ev, dict):
-                st = self._prof_wait_compat(ev)
-                if st:
-                    return st
-        # v127.5 前历史遗留键（旧格式 {finish,type,…extra}）——迁移兜底
-        raw = db.get_event_state(self._prof_wait_key(group_id, qq_id))
-        if not raw:
-            return None
-        try:
-            st = json.loads(raw)
-        except (ValueError, TypeError):
-            return None
-        if isinstance(st, dict) and st.get("finish"):
-            return st
-        return None
-
-    def _prof_wait_state(self, group_id, qq_id):
-        """读取进行中的等待型副业状态(无/损坏返回 None)。v127.5 改走 timed_events 引擎。
-
-        未过期 → 兼容 st 形状 {finish,type,…extra}（data 平铺 + finish=expire）；
-        已到点/无 → None（引擎 lazy 清除，与惰性语义一致——到点即视为不在等待中）。
-        注意：调用方如需结算『到点但未结算』的数据，用 _prof_wait_residual。"""
-        raw = _te.get_timed(group_id, qq_id, "prof_wait")
-        if not raw:
-            return None
-        return self._prof_wait_compat(raw)
-
-    def _prof_wait_clear(self, group_id, qq_id):
-        _te.remove_timed(group_id, qq_id, "prof_wait")
-        # 顺手清历史遗留键，防 v127.5 前残留状态串台
-        db.set_event_state(self._prof_wait_key(group_id, qq_id), "")
-
-    def _prof_wait_duration(self, prof_type, prof_lv):
-        """等待时长：基准随机范围 ±25%，副业等级每级－5%(上限－50%)，保底 10 秒
-        v125：衰减/保底数据下沉 prof_config.PROF_WAIT_DECAY / PROF_WAIT_FLOOR"""
-        low, high, _ = C.PROF_WAIT_BASE[prof_type]
-        wait = random.randint(low, high)
-        wait = int(wait * (1 - C.PROF_WAIT_DECAY * min(prof_lv, 10)))
-        return max(wait, C.PROF_WAIT_FLOOR)
-
-    def _prof_wait_begin(self, event, group_id, qq_id, prof_type, extra=None):
-        """开始一轮等待型副业：挂 timed_events 引擎倒计时 + 尽力而为的延迟推送(失败由惰性结算兜底)。
-
-        v127.5：set_timed(key="prof_wait", type_key="prof_wait", duration_sec=wait)
-        → 引擎 expire = 真实完成时间；data 平铺 {finish,type,…extra} 供结算取用。"""
-        prof_lv = db.get_prof_level(group_id, qq_id, prof_type)
-        wait = self._prof_wait_duration(prof_type, prof_lv)
-        finish = int(time.time()) + wait
-        data = {"finish": finish, "type": prof_type}
-        if extra:
-            data.update(extra)
-        _te.set_timed(group_id, qq_id, key="prof_wait", type_key="prof_wait",
-                      data=data, duration_sec=wait)
-        # 历史遗留键清空：新轮已挂引擎，防止 v127.5 前残留/测试残留后续被 residual 误读
-        db.set_event_state(self._prof_wait_key(group_id, qq_id), "")
-        st = dict(data)  # 兼容形状（延迟推送/结算用）
-        try:
-            asyncio.get_running_loop()
-            asyncio.create_task(self._prof_delayed_push(event, group_id, qq_id, st, wait))
-        except Exception:
-            pass  # 无事件循环（测试环境）或任务创建失败 → 惰性结算兜底
-        return wait
-
-    async def _prof_delayed_push(self, event, group_id, qq_id, st, wait):
-        """延迟结算并主动推送结果(尽力而为；进程重启/推送失败由惰性结算兜底)
-
-        v127.5：到点后引擎已 lazy 清除事件，结算数据从 _prof_wait_residual（引擎存储残留）取"""
-        try:
-            await asyncio.sleep(wait)
-            cur = self._prof_wait_state(group_id, qq_id) or self._prof_wait_residual(group_id, qq_id)
-            if not cur or cur.get("finish") != st.get("finish"):
-                return  # 已被惰性结算/开新轮
-            text = self._prof_settle(group_id, qq_id, cur)
-            if text and hasattr(event, "send"):
-                await event.send(MessageChain([Plain(text)]))
-        except Exception:
-            pass
-
-    def _prof_settle(self, group_id, qq_id, st):
-        """结算等待型副业(入包/经验/每日任务)，返回结果文本；先清状态防双结算"""
-        self._prof_wait_clear(group_id, qq_id)
-        prof_type = st.get("type")
-        if prof_type == "fishing":
-            text = self._settle_fishing(group_id, qq_id, st)
-        elif prof_type == "gather":
-            text = self._settle_gather(group_id, qq_id, st)
-        elif prof_type == "mining":
-            text = self._settle_mining(group_id, qq_id, st)
-        else:
-            return None
-        if text:
-            # v97.5 行为彩蛋规则：副业结算后（采集/挖掘/垂钓统一挂点）
-            _p = db.get_player(group_id, qq_id)
-            _cm = C.MAP_BY_ID.get(_p.get("cur_map"), {}) if _p else {}
-            _rule_txt = self._rule_fire("gather_done", group_id, qq_id, _p, _cm, {"event": prof_type})
-            if _rule_txt:
-                text += "\n" + _rule_txt
-        return text
-
-    def _fish_legend_broadcast(self, group_id, qq_id, player, fname, spot):
-        """v104 R3 M15 P2-1：传说档全服广播（13 章 2.6：鱼王 + 古代鱼骨；史诗静默防刷屏）。
-
-        _settle_fishing 为同步函数（惰性结算/延迟推送两条路径都可能触发），
-        广播用 fire-and-forget：有事件循环则 create_task，无（测试环境）静默跳过。"""
-        try:
-            asyncio.get_running_loop()
-            pname = (player or {}).get("name") or str(qq_id)
-            asyncio.create_task(self._broadcast(
-                f"📢 【传说】玩家 {pname} 在{spot}钓上了【{fname}】！！全服为之震动！"
-            ))
-        except Exception:
-            pass
-
-    def _settle_fishing(self, group_id, qq_id, st):
-        player = db.get_player(group_id, qq_id)
-        if not player:
-            return None
-        prof_lv = db.get_prof_level(group_id, qq_id, "fishing")
-        spot = st.get("spot", "水边")
-        # v102.3 鱼饵：使用鱼饵后本次垂钓品质/品种加权（一次性，结算后清除）
-        bait = None
-        bait_line = ""
-        _braw = db.get_event_state(f"bait_{qq_id}")
-        if _braw:
-            try:
-                _b = json.loads(_braw)
-                # v104 R3 M15 P2-4：鱼饵 24 小时过期——挂饵后长期不垂钓不再无限期生效
-                # （挂饵时写入 ts，读取时校验；无 ts 的历史状态视为未过期——一次性消耗不构成长期滞留）
-                if isinstance(_b, dict) and _b.get("ts") and time.time() - float(_b["ts"]) > 86400:
-                    _b = None
-                bait = _b.get("kind") if _b else None
-            except (ValueError, TypeError):
-                bait = None
-            db.set_event_state(f"bait_{qq_id}", "")
-            if bait:
-                _bait_cn = {"glow": "萤光鱼饵", "dough": "面团鱼饵", "blood": "血饵"}
-                bait_line = f"\n✨ 鱼饵【{_bait_cn.get(bait, bait)}】生效了！"
-        # v83 16 章 4.x：彩蛋收藏鱼（独立判定，纯收藏惊喜）
-        _cf = C.roll_collect_fish(st.get("spot_map"), C.current_period() == "night")
-        # 9.3：钓点差异化（禁出档位 + 品种限定水域），roll_fish 按 16 章五档权重表；v102.3 带鱼饵
-        fish = C.roll_fish(prof_lv, st.get("spot_map"), bait)
-        db.bump_fishing(group_id, qq_id)
-        fname = fish["name"]
-        fq = fish.get("quality", "white")
-        # 品质标记：白档不显示，绿/蓝/紫/橙 ✦品质（16 章 1.1 定稿）
-        q_mark = "" if fq == "white" else f"✦{C.QUALITY.get(fq, {}).get('name', fq)}"
-        q_name = f"{q_mark}·{fname}" if q_mark else fname
-        # 垂钓经验：白 1 / 绿 1 / 蓝 2 / 紫 3 / 橙 5（16 章 2.6）
-        f_exp = C.FISH_EXP.get(fq, 1)
-        # 出货文案按档位（16 章 2.6）
-        _catch_line = {
-            "blue": "水面泛起奇异的光晕…",
-            "purple": "鱼线猛地绷紧！",
-            "orange": "一道金光破水而出——",
-        }.get(fq, "")
-        catch_pre = f"{_catch_line}\n" if _catch_line else ""
-        # 鱼王：全服公告 + 鱼王计数（v168.2：鱼王/橙档惊喜层统一在下方普通路径收尾判定）
-        if fish["type"] == "鱼王":
-            db.bump_fish_king(group_id, qq_id)
-            gold = 300 + player["level"] * 10
-            db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-            new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
-            lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
-            # v104 M15 修复：鱼王分支同样推进每日副业任务（原漏计）
-            _done, _msg = self._daily_prof_bump(group_id, qq_id, "fishing")
-            lv_msg += _msg
-            # 阶段九：垂钓次数 + 鱼王成就
-            db.bump_stats(group_id, qq_id, fish_count=1)
-            C.check_achievements(group_id, qq_id, player, {"fish_king": True})
-            # v104 R3 M15 P2-1：鱼王出水全服广播（13 章 2.6 传说档广播）
-            self._fish_legend_broadcast(group_id, qq_id, player, fname, spot)
-            _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
-            # v168.2：鱼王也走统一惊喜层（鱼王 type=鱼王、quality=orange → 橙档 30% 触发；
-            # 若同杆还中了彩蛋收藏鱼（force_legend）则直接传说档必橙装，不重复 roll）
-            _sv_line = self._fishing_surprise(group_id, qq_id, player, fish,
-                                              force_legend=bool(_cf))
-            return (f"🐉 天啊！你在{spot}钓上了【{q_name}】！！\n"
-                    f"鱼王出水，水波震荡，岸边的旅人都看呆了！\n"
-                    f"💰 获得 {gold} 金币的赏金！{_sv_line}{lv_msg}\n"
-                    f"📜 你的图鉴记下了这传说的一笔……{_cf_line}{bait_line}")
-        # 宝物宝箱：立即开（金币保底；惊喜层由收尾统一判定，v168.2 垂钓盲盒不再独占图纸档）
-        # 宝箱本体不入包（type=宝物 无售价，MATERIALS 已登记 price=0）；金币即其固定内容
-        if fish["type"] == "宝物":
-            gold = random.randint(30, 80) + player["level"] * 3
-            db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-            new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
-            lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
-            # v104 M15 修复：宝物分支同样推进每日副业任务（原漏计）
-            _done, _msg = self._daily_prof_bump(group_id, qq_id, "fishing")
-            lv_msg += _msg
-            db.bump_stats(group_id, qq_id, fish_count=1)
-            C.check_achievements(group_id, qq_id, player)
-            # 宝箱本体不再入包（type=宝物 固定内容=金币）；惊喜层在收尾统一判定
-            _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
-            # v168.2：宝物箱也走统一惊喜层（type=宝物 quality=purple → 紫档 15% 触发；
-            # 若同杆还中了彩蛋收藏鱼 force_legend=True → 直接传说档必橙装）
-            _sv_line = self._fishing_surprise(group_id, qq_id, player, fish,
-                                              force_legend=bool(_cf))
-            return (f"{catch_pre}🎣 你在{spot}钓上来了一个【{q_name}】！\n"
-                    f"打开一看：💰 {gold} 金币！{_sv_line}{_cf_line}{lv_msg}{bait_line}")
-        # 垃圾：直接报（type=垃圾 恒 white 档——惊喜触发率 0%，不走收尾惊喜层；
-        # 收藏鱼 _cf 彩蛋走 _collect_bonus_line 入图鉴，纯收藏不触发惊喜档）
-        if fish["type"] == "垃圾":
-            new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
-            lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
-            # v104 M15 修复：垃圾分支同样推进每日副业任务（原漏计）
-            _done, _msg = self._daily_prof_bump(group_id, qq_id, "fishing")
-            lv_msg += _msg
-            db.bump_stats(group_id, qq_id, fish_count=1)
-            C.check_achievements(group_id, qq_id, player)
-            _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
-            return f"🎣 你在{spot}钓上来一个【{q_name}】……唉，今天的运气不太好。{lv_msg}{_cf_line}{bait_line}"
-        # 鱼/材料入背包（9.3：mat_ ID 入包 + quality 字段，16 章 2.7 禁动态中文 key）
-        mat_key = C.resolve("materials", fname)
-        # v126.2 个体属性 tags：roll 尺寸/重量 → 随 add_item 入包（tag 存 item_data.tags，
-        # 出售按 FIFO 加权"大鱼更贵"，任务扣料 remove_item 自动同步截断）
-        _sw = C.roll_fish_size_weight(fish)
-        db.add_item(group_id, qq_id, mat_key,
-                    {"name": fname, "type": fish["type"], "stackable": True,
-                     "price": fish["price"], "quality": fq},
-                    tag=_sw)
-        if _sw:
-            _size_line = f"（{_sw['size']:.1f}cm/{_sw['weight']}kg）"
-        else:
-            _size_line = ""
-        # ============ v168.2 垂钓惊喜层（鱼鱼 2026-09-03 拍板） ============
-        # 惊喜不绑定宝箱：鱼获品质→触发率（白/垃圾 0%·绿 2%·蓝 5%·紫 15%·鱼王/橙 30%；
-        # 彩蛋收藏鱼命中→必给且升级传说档=必橙装），与图纸/宠物蛋/坐骑等既有产出互相独立。
-        # 走到这里的 = 普通鱼/材料（鱼王/宝物/垃圾分支各自 return 且已含惊喜行）。
-        _sv_line = ""
-        if fq not in ("white",):
-            _sv_line = self._fishing_surprise(group_id, qq_id, player, fish,
-                                              force_legend=bool(_cf))
-        new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
-        lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
-        _done, _msg = self._daily_prof_bump(group_id, qq_id, "fishing")
-        lv_msg += _msg
-        # 阶段九：垂钓次数 + 成就判定
-        db.bump_stats(group_id, qq_id, fish_count=1)
-        C.check_achievements(group_id, qq_id, player)
-        _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
-        # v104 R3 M15 P2-1：古代鱼骨全服广播（13 章 2.6 传说档广播，与鱼王同级）
-        if fname == "古代鱼骨":
-            self._fish_legend_broadcast(group_id, qq_id, player, fname, spot)
-        # 24 章二：月光兔蛋特殊渠道——垂钓传说档（orange）15% 概率（真稀有原则）
-        _pet_egg_line = ""
-        if fq == "orange" and random.random() < C.PET_EGG_ORANGE_CHANCE:
-            egg = C.make_pet_egg("pet_rabbit")
-            db.add_item(group_id, qq_id, f"petegg_pet_rabbit", egg)
-            _pet_egg_line = f"\n🥚 咦？鱼肚子里藏着一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
-        # v101.15 生活渠道：垂钓品质档特殊产出（稀缺品走生活渠道，不走战斗掉落）
-        _life_line = ""
-        if fq == "blue":
-            if random.random() < 0.08:  # 铁壳龟蛋
-                egg = C.make_pet_egg("pet_turtle")
-                db.add_item(group_id, qq_id, f"petegg_pet_turtle", egg)
-                _life_line += f"\n🥚 水草缠着一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
-            if random.random() < 0.05:  # 圣光鸽蛋
-                egg = C.make_pet_egg("pet_dove")
-                db.add_item(group_id, qq_id, f"petegg_pet_dove", egg)
-                _life_line += f"\n🥚 水面上漂来一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
-            # v110 审计修复：驼马缰绳档位对齐 31 章设计（稀有级 blue 垂钓 5%）——
-            # 原实现错标 purple 档（史诗档出绿色坐骑缰绳，档位与坐骑品质倒挂）
-            if random.random() < 0.05:  # 铁港驼马缰绳
-                rein = C.make_mount_rein("mount_camel")
-                db.add_item(group_id, qq_id, f"mountrein_mount_camel", rein)
-                _life_line += f"\n🐫 鱼肚子里卷着一根【{rein['name']}】！『使用 缰绳』驯服！"
-        # v110 审计修复：purple 档原驼马条目已移入 blue 档（档位对齐 31 章设计），此档暂空
-        elif fq == "orange":
-            if random.random() < 0.08:  # 森林独角兽缰绳
-                rein = C.make_mount_rein("mount_unicorn")
-                db.add_item(group_id, qq_id, f"mountrein_mount_unicorn", rein)
-                _life_line += f"\n🦄 传说之鱼口中衔着【{rein['name']}】！『使用 缰绳』驯服！"
-            if random.random() < 0.08:  # 星灵蝶蛋
-                egg = C.make_pet_egg("pet_starbutterfly")
-                db.add_item(group_id, qq_id, f"petegg_pet_starbutterfly", egg)
-                _life_line += f"\n🥚 鱼肚子里泛着星光——是【{egg['name']}】！『使用 宠物蛋』孵化！"
-        # v101.13 坐骑 fish_bonus：概率额外多一条（骑乘钓鱼类坐骑）
-        _mount_fish_line = ""
-        meff = C.mount_effects(player)
-        fb = float(meff.get("fish_bonus", 0) or 0)
-        if fb > 0 and random.random() < fb:
-            # v126.2 坐骑叼回：同样 roll 个体属性入 tags
-            _sw2 = C.roll_fish_size_weight(fish)
-            db.add_item(group_id, qq_id, mat_key,
-                        {"name": fname, "type": fish["type"], "stackable": True,
-                         "price": fish["price"], "quality": fq},
-                        tag=_sw2)
-            _mount_fish_line = f"\n🐾 坐骑帮你多叼回一条【{fname}】！"
-        # v101.30b Lv.10 深海渔神：一杆双鱼（15% 概率多一条同品质渔获）
-        _master_line = ""
-        if prof_lv >= 10 and random.random() < 0.15:
-            # v126.2 渔神双鱼：同样 roll 个体属性入 tags
-            _sw3 = C.roll_fish_size_weight(fish)
-            db.add_item(group_id, qq_id, mat_key,
-                        {"name": fname, "type": fish["type"], "stackable": True,
-                         "price": fish["price"], "quality": fq},
-                        tag=_sw3)
-            _master_line = f"\n🐟 渔神出手，一杆双鱼！又一条【{fname}】入网！"
-        return (f"{catch_pre}🎣 你在{spot}钓上来一条【{q_name}】{_size_line}！\n"
-                f"📦 {fish['desc']}(可『出售 {fname}』，标价 {fish['price']} 金币，实收按店铺 8~9 折)"
-                f"{_sv_line}{lv_msg}{_cf_line}{_mount_fish_line}{_master_line}{_pet_egg_line}{_life_line}{bait_line}")
-
-    # ============ v168.2 垂钓惊喜盲盒（鱼鱼 2026-09-03 拍板） ============
-    # 惊喜不绑定宝箱：每次垂钓结算在既有内容之外做一次「惊喜判定」，按本次鱼获品质给概率：
-    #   白(垃圾)/0% · 绿 2% · 蓝 5% · 紫(含陈旧的宝箱) 15% · 鱼王/橙 30%
-    #   彩蛋收藏鱼命中 → 必给惊喜且升级「传说档」（必橙装）
-    # 惊喜内容池（按玩家等级合理出，克制不膨胀）：图纸 30% / 装备 25% / 稀有符文 20% /
-    # 原石宝石 15% / 罕见材料 10%。档位互斥、一杆最多一条惊喜；命中触发但内容池意外全空时
-    # 静默跳过（不喧宾夺主，也不造一句假惊喜）。
-    _FISHING_SURPRISE_TRIGGER = {  # 鱼获品质 → 惊喜触发率
-        "white": 0.0, "green": 0.02, "blue": 0.05, "purple": 0.15, "orange": 0.30,
-    }
-    # 内容池档位边界（累积）：图纸 30% / 装备 55% / 符文 75% / 宝石 90% / 罕见材料 100%
-    _FISHING_SURPRISE_BP = 0.30
-    _FISHING_SURPRISE_EQ = 0.55
-    _FISHING_SURPRISE_RUNE = 0.75
-    _FISHING_SURPRISE_GEM = 0.90
-
-    def _fishing_surprise(self, group_id, qq_id, player, fish, force_legend=False):
-        """v168.2 垂钓惊喜层：按鱼获品质判定触发，命中后从内容池掷一档惊喜入包。
-
-        触发判定只吃 1 次 random.random()；内容档位各吃 1 次（总消耗可预期，不影响
-        垂钓其余随机序列）。装备档品质 roll 蓝50/紫35/橙15（鱼鱼拍板，克制不膨胀），
-        名册 roll_drop_equip('elite') 命中即用、未命中兜底 generate_equip 随机部位，
-        保证装备档永不空开。
-        force_legend=True（彩蛋收藏鱼命中）：必给惊喜且内容池固定为「传说档」= 必橙装
-        （鱼鱼拍板：收藏鱼是垂钓最高彩蛋，惊喜也拉满——不出图纸/符文等次档）。
-        """
-        if not player:
-            return ""
-        q = fish.get("quality", "white")
-        if not force_legend:
-            chance = self._FISHING_SURPRISE_TRIGGER.get(q, 0.0)
-            if chance <= 0 or random.random() >= chance:
-                return ""
-        # 命中惊喜：从内容池掷一档（force_legend=收藏鱼命中 → 直接必橙装传说档）
-        import uuid
-        lv = max(1, int(player.get("level") or 1))
-        if force_legend:
-            # 传说档：必橙装。名册就近（roll_drop_equip('elite')）命中即用，落空兜底
-            # generate_equip 橙装——两路都只可能出橙装（收藏鱼是垂钓最高彩蛋，惊喜拉满）
-            eq = C.roll_drop_equip(lv, "elite")
-            if not eq or eq.get("quality") != "orange":
-                slot = random.choice(
-                    ["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"])
-                eq = C.generate_equip(slot, lv + random.randint(-3, 3), "orange")
-            db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", eq)
-            _qmark = {"green": "🟢", "blue": "🔵", "purple": "✨🟣", "orange": "🌟🟠"}.get(
-                eq.get("quality", ""), "")
-            return (f"\n🎏 一道金光从鱼腹中迸出——【{_qmark}{eq['name']}】静静躺在"
-                    f"水草间，传说中的宝物现世了！(已收入背包)")
-        roll = random.random()
-        if roll < self._FISHING_SURPRISE_BP:      # 图纸档 30%
-            bp = C.roll_blueprint(lv)
-            if bp:
-                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
-                return (f"\n🎏 惊喜！鱼肚子里还藏着一张泛黄的纸——【{bp['name']}】！"
-                        f"(『背包 使用』学习锻造配方)")
-            roll = self._FISHING_SURPRISE_BP  # 图纸池空（无配方可出）→ 落入装备档，不额外吃随机
-        if roll < self._FISHING_SURPRISE_EQ:      # 装备档 25%
-            _q = "blue" if random.random() < 0.50 else (
-                "purple" if random.random() < 0.70 else "orange")
-            eq = C.roll_drop_equip(lv, "elite")
-            if eq is None:
-                slot = random.choice(
-                    ["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"])
-                eq = C.generate_equip(slot, lv + random.randint(-3, 3), _q)
-            db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", eq)
-            _qmark = {"green": "🟢", "blue": "🔵", "purple": "✨🟣", "orange": "🌟🟠"}.get(
-                eq.get("quality", ""), "")
-            if eq.get("quality") == "orange":
-                return (f"\n🎏 一道金光从鱼腹中迸出——【{_qmark}{eq['name']}】静静躺在"
-                        f"水草间，传说中的宝物现世了！(已收入背包)")
-            if eq.get("quality") == "purple":
-                return f"\n🎏 紫光流转——【{_qmark}{eq['name']}】夹在鱼鳃里闪闪发亮！(已收入背包)"
-            return f"\n🎏 惊喜！鱼肚子里卷着一件装备——【{_qmark}{eq['name']}】！(已收入背包)"
-        if roll < self._FISHING_SURPRISE_RUNE:    # 稀有符文档 20%（蓝/紫品质符文）
-            rare_runes = [k for k, r in C.RUNES.items()
-                          if (r.get("quality") or "") in ("blue", "purple")]
-            if rare_runes:
-                rk = random.choice(rare_runes)
-                r_def = C.RUNES[rk]
-                rune_data = C.rune_item(r_def["effect"], random.randint(1, 2))
-                if rune_data:
-                    # key 与战斗掉落一致（rune_<effect>_<lvl>，同键可叠加）
-                    db.add_item(group_id, qq_id,
-                                f"rune_{r_def['effect']}_{rune_data['lvl']}", rune_data)
-                    return (f"\n🎏 鱼腹泛起微光——一枚刻着古老铭文的【{rune_data['name']}】"
-                            f"随水流漂出！(『背包 使用』附魔到装备)")
-            roll = self._FISHING_SURPRISE_RUNE  # 蓝紫符文池空 → 落入宝石档，不额外吃随机
-        if roll < self._FISHING_SURPRISE_GEM:     # 原石宝石档 15%（必给 1 颗原石，层数 1-6）
-            # roll_gem_drop 带 normal 2% 底率——宝石惊喜档命中了却大概率空手（98% miss 会
-            # 顺落罕见材料档，实测材料占比 24.7% 膨胀 2.5 倍）。改为：优先 roll_gem_drop
-            # （对照 instance.py 原石掉落写法），未命中直接 roll_gem 兜底——宝石档=必给原石。
-            _gem = C.roll_gem_drop({"lv": lv, "is_boss": False, "name": fish.get("name", "")},
-                                   boss_fixed={})
-            if not _gem:
-                _gem = C.roll_gem(1, 6)
-            if _gem:
-                db.add_item(group_id, qq_id, f"gem_{uuid.uuid4().hex[:8]}", _gem)
-                return f"\n💎 惊喜！鱼肚子里嵌着一颗【{_gem['name']}】——原石入包，可『原石』镶嵌到装备孔位！"
-        # 罕见材料档 10%（type in 传说/宝石/精华 且 价≥150 的 MATERIALS 池）
-        rare_pool = {k: v for k, v in C.MATERIALS.items()
-                     if v.get("type") in ("传说", "宝石", "精华")
-                     and (v.get("price") or 0) >= 150}
-        if rare_pool:
-            _mkey = random.choice(list(rare_pool))
-            _mdef = rare_pool[_mkey]
-            _mname = C.display("materials", _mkey)
-            db.add_item(group_id, qq_id, _mkey, {
-                "name": _mname, "type": _mdef.get("type", "材料"),
-                "stackable": True, "price": _mdef.get("price", 0),
-            })
-            return f"\n🎁 惊喜！水底沉着稀罕的材料——【{_mname}】！(已收入背包)"
-        return ""  # 罕见材料池意外为空 → 静默（不再造一句假惊喜）
-
-    def _collect_bonus_line(self, group_id, qq_id, player, cf):
-        """彩蛋收藏鱼入包 + 计数 + 成就，返回提示行(未命中返回空串)"""
-        if not cf:
-            return ""
-        db.add_item(group_id, qq_id, cf["id"],
-                    {"name": cf["name"], "type": "收藏", "stackable": True, "price": 1})
-        db.bump_stats(group_id, qq_id, catch_collect=1)
-        C.check_achievements(group_id, qq_id, player, {"collect_fish": cf["id"]})
-        return (f"\n🌈 水面忽然泛起奇异的光——【{cf['name']}】跃出水面！\n"
-                f"　它美得不像凡物，你小心翼翼地收进了图鉴(彩蛋收藏品，回收仅 1 金币)")
-
-    def _settle_gather(self, group_id, qq_id, st):
-        player = db.get_player(group_id, qq_id)
-        if not player:
-            return None
-        prof = db.get_prof_level(group_id, qq_id, "gather")
-        # v105R3 M13 P2-4：结算用等待开始时存储的地图（重启后玩家已移动也不串池），
-        # 无存储（旧状态）才回退当前地图
-        _map_id = st.get("spot_map") or player.get("cur_map", "")
-        mats = self._gather_roll(player["level"], prof, _map_id)
-        got = {}
-        for mat in mats:
-            mname = C.display("materials", mat)
-            # v104 M08 P0-1：type 从 MATERIALS 定义取（防任务道具类材料被写死为"材料"）
-            db.add_item(group_id, qq_id, mat, {"name": mname, "type": C.MATERIALS[mat].get("type", "材料"), "stackable": True, "price": C.MATERIALS[mat]["price"]})
-            # v105R3 M14 P3-1：重复材料合并计数（原逐条"草药x1、草药x1"）
-            got[mname] = got.get(mname, 0) + 1
-        new_lv, leveled = db.add_prof_exp(group_id, qq_id, "gather", 1)
-        lv_msg = f"\n🌟 采集等级提升到 Lv.{new_lv}！" if leveled else ""
-        _done, _msg = self._daily_prof_bump(group_id, qq_id, "gather")
-        lv_msg += _msg
-        # v101.13 坐骑 collect_bonus：概率额外采一份（骑乘采集类坐骑）
-        _mount_bonus_line = ""
-        meff = C.mount_effects(player)
-        cb = float(meff.get("collect_bonus", 0) or 0)
-        if cb > 0 and random.random() < cb:
-            # B3 修复：坐骑 collect_bonus 不再重新掷池（_gather_roll 可能抽到与本次非同
-            # 类的材料），改从本次 mats 中取样，保证『🐾 坐骑帮你多叼回一份』与实入包同物
-            mat = random.choice(mats) if mats else None
-            if mat:
-                mname = C.display("materials", mat)
-                db.add_item(group_id, qq_id, mat, {"name": mname, "type": C.MATERIALS[mat].get("type", "材料"), "stackable": True, "price": C.MATERIALS[mat]["price"]})
-                got[mname] = got.get(mname, 0) + 1
-                _mount_bonus_line = f"\n🐾 坐骑帮你多叼回一份【{mname}】！"
-        # 阶段九：采集次数 + 成就判定
-        db.bump_stats(group_id, qq_id, gather_count=1)
-        C.check_achievements(group_id, qq_id, player)
-        cur_map = C.MAP_BY_ID.get(_map_id, {})
-        # 24 章二：月光兔蛋特殊渠道——采集稀有产出 10% 概率（稀有材料判定参考 _gather_roll 的高价段）
-        _pet_egg_line = ""
-        # v125.2 B3：稀有阈值数据下沉 prof_config.RARE_MATERIAL_PRICE（原字面量 150）
-        rare_hit = any(C.MATERIALS[m].get("price", 0) >= C.RARE_MATERIAL_PRICE for m in mats)
-        # v101.30b Lv.10 万物采集大师：稀有惊喜概率翻倍（兔蛋 10%→20%）
-        _rare_ch = 0.20 if prof >= 10 else C.RARE_MAT_CHANCE
-        if rare_hit and random.random() < _rare_ch:
-            egg = C.make_pet_egg("pet_rabbit")
-            db.add_item(group_id, qq_id, "petegg_pet_rabbit", egg)
-            _pet_egg_line = f"\n🥚 草丛深处有一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
-        # v101.15 生活渠道：北境采集稀有产出驯鹿缰绳 5%（稀缺品走生活渠道）
-        _life_line = ""
-        # v101.30b Lv.10：驯鹿缰绳 5%→10%
-        _rein_ch = 0.10 if prof >= 10 else 0.05
-        # v104 M17 P2：驯鹿缰绳仅限北境区域采集稀有产出（desc「北境采集稀有产出『驯鹿缰绳』」）
-        # 非北境地图（region 不以"北境"开头）即使采到稀有材料也不出驯鹿缰绳
-        _is_north = str(cur_map.get("region", "")).startswith("北境")
-        if rare_hit and _is_north and random.random() < _rein_ch:
-            rein = C.make_mount_rein("mount_reindeer")
-            db.add_item(group_id, qq_id, "mountrein_mount_reindeer", rein)
-            _life_line = f"\n🦌 树根下缠着一根【{rein['name']}】！『使用 缰绳』驯服！"
-        # v104 M20 P1：每日『采集任务』(collect_any) 进度推进——主采集动作接线
-        # （此前只有城镇场景元素「交互 草药柜」每日 1 次推进，野外『采集』恒 0/5）
-        _daily_lines = []
-        self._bump_daily_progress(group_id, qq_id, "collect_any", _daily_lines)
-        _daily_txt = "".join(f"\n{l}" for l in _daily_lines) if _daily_lines else ""
-        # q7-9：满级采集彩蛋（兔蛋/驯鹿缰绳）只绑稀有产出（价格≥150），低等级图无稀有材料
-        # 恒 0%——本次未采到稀有材料时提示去高级图（纯文案，不动数值）
-        _rare_hint = (f"\n💡 稀有产出需前往产出价≥{C.RARE_MATERIAL_PRICE} 材料的区域（高级图）" if not rare_hit else "")
-        # v105R3 M14 P3-2：材料每项单独一行（对齐物品详情排版规范 v101.21）
-        _got_txt = "".join(f"\n{m}x{c}" for m, c in got.items())
-        # v169.x 意见#101：采集完成消息顶部加玩家名（同文件 791 行『玩家 {pname}』口径：
-        # player.name 优先，缺省回退 qq_id）
-        _pname = (player or {}).get("name") or str(qq_id)
-        return (f"🌿 采集完成！玩家【{_pname}】在【{cur_map.get('name', '？')}】采到了：{_got_txt}\n"
-                + self._tip("gather") + f"{lv_msg}{_mount_bonus_line}{_pet_egg_line}{_life_line}{_rare_hint}{_daily_txt}")
-
-    # ---------- v105 挖掘疲劳值（19 章 §2.2；M14 P2-4 最小实现） ----------
-    # 连续挖掘计数存 event_state（mining_fatigue_{qq_id}），无 schema 变更；
-    # 疲劳效果：稀有矿脉概率减半；恢复：10 分钟不挖掘自动清零（食物解除待后续版本）。
-
-    def _mining_fatigue_state(self, group_id, qq_id):
-        """读取疲劳状态 {cnt, ts}；无/损坏返回 None"""
-        raw = db.get_event_state(f"mining_fatigue_{qq_id}")
-        if not raw:
-            return None
-        try:
-            st = json.loads(raw)
-        except (ValueError, TypeError):
-            return None
-        if not isinstance(st, dict) or "cnt" not in st or "ts" not in st:
-            return None
-        return st
-
-    def _mining_fatigue_tick(self, group_id, qq_id):
-        """发起一轮挖掘时计数：距上次挖掘超过恢复窗口则重置为 1，否则 +1。
-        返回 (cnt, fatigued)。"""
-        now = int(time.time())
-        st = self._mining_fatigue_state(group_id, qq_id)
-        if st and now - st.get("ts", 0) <= MINING_FATIGUE_RECOVER:
-            cnt = st.get("cnt", 0) + 1
-        else:
-            cnt = 1
-        db.set_event_state(f"mining_fatigue_{qq_id}",
-                           json.dumps({"cnt": cnt, "ts": now}, ensure_ascii=False))
-        return cnt, cnt >= MINING_FATIGUE_THRESHOLD
-
-    def _mining_fatigued(self, group_id, qq_id):
-        """结算时判定是否处于疲劳：连续挖掘 ≥ 阈值且距上次挖掘在恢复窗口内"""
-        st = self._mining_fatigue_state(group_id, qq_id)
-        if not st:
-            return False
-        return (st.get("cnt", 0) >= MINING_FATIGUE_THRESHOLD
-                and int(time.time()) - st.get("ts", 0) <= MINING_FATIGUE_RECOVER)
-
-    def _settle_mining(self, group_id, qq_id, st):
-        player = db.get_player(group_id, qq_id)
-        if not player:
-            return None
-        prof = db.get_prof_level(group_id, qq_id, "mining")
-        # v125：挖掘矿石关键词数据下沉 prof_config.MINING_KEYWORDS（原 _ORE_KW）
-        # v105R3 M13 P2-4：结算用等待开始时存储的地图（重启后玩家已移动也不串池），
-        # 无存储（旧状态）才回退当前地图
-        cur_map = st.get("spot_map") or player.get("cur_map", "")
-        # v102.3 深矿池优先：矿洞类地图（山丘矿洞/深隧/海蚀洞窟）按权重出专属矿
-        # v174 统一抽象：数据源走 drop_engine（mine:{map} / gather:{map}）
-        from game.drop_engine import expand_pool as _expand_pool
-        deep_ores = _expand_pool(f"mine:{cur_map}")
-        if deep_ores:
-            ores = deep_ores
-        else:
-            # v101.28k 地图矿石池优先：复用该地图采集池里的矿石类材料（矿场图=矿池，
-            # 植物图无矿则按地图等级价格区间兜底）→ 不同地图挖到不同档次的矿
-            gather_ores = [m for m in _expand_pool(f"gather:{cur_map}")
-                           if any(k in C.MATERIALS.get(m, {}).get("name", "") for k in C.MINING_KEYWORDS)]
-            if gather_ores:
-                ores = gather_ores
-            else:
-                ores = []
-            if not ores:
-                # v104 R3 M14 P1-2：兜底排除强化石类消耗品（i_stone_* 是炼金/商店独占，禁止挖掘白嫖）
-                ores = [m for m, mm in C.MATERIALS.items()
-                        if any(k in mm.get("name", "") for k in C.MINING_KEYWORDS)
-                        and m not in ("i_stone_upgrade", "i_stone_refine")]
-                _map_lv = C.MAP_BY_ID.get(cur_map, {}).get("lv", player["level"])
-                # v125.2 B3：价格带公式数据下沉 prof_config.price_band（原 3+lv*4 / 20+lv*12 双处字面量）
-                _lo, _hi = C.price_band(_map_lv)
-                cand = [m for m in ores if _lo <= C.MATERIALS[m]["price"] <= _hi]
-                if cand:
-                    ores = cand
-        # 稀有矿脉：副业 Lv.4+ 概率（15% / Lv.7+ 30%），只在当前地图池内选稀有
-        # v101.30b Lv.10 群山之王：稀有矿脉 50%
-        # v105 疲劳值（19 章 §2.2）：疲劳期间稀有矿脉概率减半
-        # v125.2 B3：稀有阈值数据下沉 prof_config.RARE_MATERIAL_PRICE（原字面量 150）
-        rare = [m for m in ores if C.MATERIALS[m]["price"] >= C.RARE_MATERIAL_PRICE]
-        is_rare = False
-        fatigued = self._mining_fatigued(group_id, qq_id)
-        _rare_ch = 0.15 if prof < 7 else (0.50 if prof >= 10 else 0.30)
-        if fatigued:
-            _rare_ch *= 0.5
-        if prof >= 4 and rare and random.random() < _rare_ch:
-            ore = random.choice(rare)
-            is_rare = True
-        else:
-            ore = random.choice(ores)
-        n = random.randint(1, 2)
-        if prof >= 5 and random.random() < C.PROF5_BONUS_CHANCE:
-            n += 1
-        oname = C.display("materials", ore)
-        db.add_item(group_id, qq_id, ore, {"name": oname, "type": C.MATERIALS[ore].get("type", "材料"), "stackable": True, "price": C.MATERIALS[ore]["price"]}, count=n)
-        new_lv, leveled = db.add_prof_exp(group_id, qq_id, "mining", 1)
-        lv_msg = f"\n🌟 挖掘等级提升到 Lv.{new_lv}！" if leveled else ""
-        _done, _msg = self._daily_prof_bump(group_id, qq_id, "mining")
-        lv_msg += _msg
-        # 阶段九：挖掘次数 + 成就判定
-        db.bump_stats(group_id, qq_id, mine_count=1)
-        C.check_achievements(group_id, qq_id, player)
-        # v101.28k 挖掘演出：稀有矿脉 / 多份暴击 / 普通
-        if is_rare:
-            head = "💎 矿脉深处泛起宝光，一锤下去竟是稀有矿脉！"
-        elif n >= 3:
-            head = "⛏️ 这一锤又准又狠，矿脉整个崩开了！"
-        else:
-            head = "⛏️ 矿脉敲开了！"
-        # v105 疲劳值：结算附疲劳提示（疲劳只降稀有概率，不影响正常产出）
-        _fat_line = ("\n💤 连续挖掘让你手臂发酸，稀有矿脉更难挖到了……休息 10 分钟（不挖掘）疲劳自会消退！"
-                     if fatigued else "")
-        # q7-9：满级挖掘稀有矿脉只绑价格≥150 的矿，低等级图矿池无稀有矿则彩蛋恒 0%——
-        # 本次无稀有矿可挖时提示去高级图（纯文案，不动数值）
-        _rare_hint = (f"\n💡 稀有产出需前往产出价≥{C.RARE_MATERIAL_PRICE} 材料的区域（高级图）" if not rare else "")
-        return f"{head}\n你获得了 {oname} x{n}！(『背包』查看){lv_msg}{_fat_line}{_rare_hint}"
-
-    def _prof_wait_flow(self, event, group_id, qq_id, prof_type, extra=None, begin_text=""):
-        """等待型副业统一流程：进行中→提示剩余；到期→先结算再开新一轮；无→开新一轮。
-        返回 (回复文本, 是否开启新一轮)。
-
-        v127.5 惰性结算兜底：引擎 expire=完成时间，到点事件已被 get_timed/_maint_gate
-        refresh lazy 清除，旧轮结算数据只剩引擎存储残留可取 → 先 _prof_wait_residual
-        非破坏读一次再走 _prof_wait_state，防『到点但未结算』被吞（奖励丢失）。"""
-        leftover = self._prof_wait_residual(group_id, qq_id)
-        st = self._prof_wait_state(group_id, qq_id)
-        now = int(time.time())
-        if st and st["finish"] > now:
-            left = st["finish"] - now
-            tname = C.PROF_WAIT_BASE.get(st["type"], (0, 0, "副业"))[2]
-            return f"⏳ 你还在{tname}呢，再有 {left} 秒就完成啦～(完成会自动入包)", False
-        settle_text = None
-        if st:
-            settle_text = self._prof_settle(group_id, qq_id, st)
-        elif leftover and int(leftover.get("finish", 0)) <= now:
-            # 到点但引擎已惰性清 → 残留数据结算（防吞旧轮产出）
-            settle_text = self._prof_settle(group_id, qq_id, leftover)
-        wait = self._prof_wait_begin(event, group_id, qq_id, prof_type, extra)
-        head = f"{settle_text}\n" if settle_text else ""
-        return f"{head}{begin_text}{wait} 秒后完成，自动入包～", True
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?采集(?:\s*|$)")
     @require_player()
@@ -1987,6 +1190,176 @@ class EconomyCmds(CommandBase):
             f"📜 10 张图纸残页在掌中拼合，微光闪过——\n"
             f"✅ 合成成功！获得【{bp['name']}】({q.get('name', '')}·Lv.{r['lv']})\n"
             f"💡 『学习 {bp['name']}』永久解锁锻造配方！"
+        )
+
+    # ---------------- 等待型副业（v181.P4-7：业务迁 services/profession.py，本区只留薄转发） ----------------
+    # v127.5 前方法名保留为命令层兼容壳（gather/mining/fishing/prof_forget/use 等命令直接调 self._xxx）；
+    # 函数体 = 一行转调 _prof_svc.<同名>（每日任务推进/tips/彩蛋/广播等命令层能力以注入参数传入）。
+
+    # v181.P4-7：垂钓惊喜概率表/档位边界（v168.2，原类属性）已随迁 services/profession.py
+    # （FISHING_SURPRISE_*，单一数据源）；此处保留等价类属性，兼容 test_v135_bp_drop
+    # 源码结构断言（值逐字符等价，行为零变化）
+    _FISHING_SURPRISE_TRIGGER = _prof_svc.FISHING_SURPRISE_TRIGGER
+    _FISHING_SURPRISE_BP = 0.30
+    _FISHING_SURPRISE_EQ = 0.55
+    _FISHING_SURPRISE_RUNE = 0.75
+    _FISHING_SURPRISE_GEM = 0.90
+
+    def _gather_roll(self, level: int, prof_lv: int = 1, cur_map: str = "") -> list:
+        """v181.P4-7：转发 services.profession.gather_roll（economy 本地定义已随迁）"""
+        return _prof_svc.gather_roll(level, prof_lv, cur_map)
+
+    def _gather_cond_roll(self, cur_map: str):
+        """v181.P4-7：转发 services.profession.gather_cond_roll（economy 本地定义已随迁）"""
+        return _prof_svc.gather_cond_roll(cur_map)
+
+    def _prof_wait_key(self, group_id, qq_id):
+        """v181.P4-7：转发 services.profession.prof_wait_key"""
+        return _prof_svc.prof_wait_key(group_id, qq_id)
+
+    @staticmethod
+    def _prof_wait_ev_name(qq_id):
+        """v181.P4-7：转发 services.profession.prof_wait_ev_name"""
+        return _prof_svc.prof_wait_ev_name(qq_id)
+
+    @staticmethod
+    def _prof_wait_compat(ev):
+        """v181.P4-7：转发 services.profession.prof_wait_compat"""
+        return _prof_svc.prof_wait_compat(ev)
+
+    def _prof_wait_residual(self, group_id, qq_id):
+        """v181.P4-7：转发 services.profession.prof_wait_residual"""
+        return _prof_svc.prof_wait_residual(group_id, qq_id)
+
+    def _prof_wait_state(self, group_id, qq_id):
+        """v181.P4-7：转发 services.profession.prof_wait_state"""
+        return _prof_svc.prof_wait_state(group_id, qq_id)
+
+    def _prof_wait_clear(self, group_id, qq_id):
+        """v181.P4-7：转发 services.profession.prof_wait_clear"""
+        return _prof_svc.prof_wait_clear(group_id, qq_id)
+
+    def _prof_wait_duration(self, prof_type, prof_lv):
+        """v181.P4-7：转发 services.profession.prof_wait_duration"""
+        return _prof_svc.prof_wait_duration(prof_type, prof_lv)
+
+    def _prof_wait_begin(self, event, group_id, qq_id, prof_type, extra=None):
+        """v181.P4-7：转发 services.profession.prof_wait_begin（延迟推送注入 = 命令层 async 壳）。
+
+        原实现：try 拿 event loop → create_task(self._prof_delayed_push(...))；无 loop 静默。
+        service 版：delayed_push 注入 = lambda 包 create_task（等位逻辑，见 _prof_delayed_push 壳）。
+        """
+        from ..services import profession as _ps
+        def _dp(gid, qid, st, wait):
+            try:
+                asyncio.create_task(self._prof_delayed_push(event, gid, qid, st, wait))
+            except Exception:
+                pass  # 无事件循环/任务创建失败 → 惰性结算兜底（与原实现等价）
+        return _ps.prof_wait_begin(
+            group_id, qq_id, prof_type, extra,
+            delayed_push=_dp,
+            duration=lambda pt, lv: self._prof_wait_duration(pt, lv),
+        )
+
+    async def _prof_delayed_push(self, event, group_id, qq_id, st, wait):
+        """v181.P4-7：转发 services.profession.prof_delayed_push（event.send 推送壳）。
+
+        延迟结算并主动推送结果(尽力而为；进程重启/推送失败由惰性结算兜底)。
+        v127.5：到点后引擎已 lazy 清除事件，结算数据从 residual（引擎存储残留）取。
+        send 注入 = event.send(MessageChain([Plain(text)]))（原 _prof_delayed_push 推送 I/O）。
+        """
+        from ..services import profession as _ps
+        async def _settle_fn(gid, qid, cur):
+            return self._prof_settle(gid, qid, cur)
+        async def _send_fn(text):
+            await event.send(MessageChain([Plain(text)]))
+        await _ps.prof_delayed_push(group_id, qq_id, st, wait,
+                                    settle=_settle_fn, send=_send_fn)
+
+    def _prof_settle(self, group_id, qq_id, st):
+        """v181.P4-7：转发 services.profession.prof_settle（rule_fire 彩蛋 + 分型结算注入）。
+
+        原 _rule_fire("gather_done",...) 命令层行为彩蛋：service 收 rule_fire 注入。
+        """
+        from ..services import profession as _ps
+        def _rf(trigger, gid, qid, p, cm, evt):
+            return self._rule_fire(trigger, gid, qid, p, cm, evt)
+        return _ps.prof_settle(
+            group_id, qq_id, st,
+            rule_fire=_rf,
+            settle_fishing=self._settle_fishing,
+            settle_gather=self._settle_gather,
+            settle_mining=self._settle_mining,
+            clear=self._prof_wait_clear,
+        )
+
+    def _fish_legend_broadcast(self, group_id, qq_id, player, fname, spot):
+        """v181.P4-7：settle_fishing hooks["legend"] 注入源（原 economy._fish_legend_broadcast 本体）。
+
+        v104 R3 M15 P2-1：传说档全服广播（13 章 2.6：鱼王 + 古代鱼骨；史诗静默防刷屏）。
+        settle_fishing 为同步函数（惰性结算/延迟推送两条路径都可能触发），广播用
+        fire-and-forget：有事件循环则 create_task，无（测试环境）静默跳过。
+        """
+        try:
+            asyncio.get_running_loop()
+            pname = (player or {}).get("name") or str(qq_id)
+            asyncio.create_task(self._broadcast(
+                f"📢 【传说】玩家 {pname} 在{spot}钓上了【{fname}】！！全服为之震动！"
+            ))
+        except Exception:
+            pass
+
+    def _settle_fishing(self, group_id, qq_id, st):
+        """v181.P4-7：转发 services.profession.settle_fishing（hooks.legend 广播注入）"""
+        from ..services import profession as _ps
+        return _ps.settle_fishing(
+            group_id, qq_id, st,
+            hooks={"legend": self._fish_legend_broadcast},
+            daily_prof_bump=self._daily_prof_bump,
+        )
+
+    def _fishing_surprise(self, group_id, qq_id, player, fish, force_legend=False):
+        """v181.P4-7：转发 services.profession.fishing_surprise_fn"""
+        return _prof_svc.fishing_surprise_fn(group_id, qq_id, player, fish, force_legend)
+
+    def _collect_bonus_line(self, group_id, qq_id, player, cf):
+        """v181.P4-7：转发 services.profession.collect_bonus_line"""
+        return _prof_svc.collect_bonus_line(group_id, qq_id, player, cf)
+
+    def _settle_gather(self, group_id, qq_id, st):
+        """v181.P4-7：转发 services.profession.settle_gather（collect_any/tip/daily 注入）"""
+        from ..services import profession as _ps
+        return _ps.settle_gather(
+            group_id, qq_id, st,
+            daily_prof_bump=self._daily_prof_bump,
+            collect_any_bump=self._bump_daily_progress,
+            tip=self._tip,
+        )
+
+    def _mining_fatigue_state(self, group_id, qq_id):
+        """v181.P4-7：转发 services.profession.mining_fatigue_state"""
+        return _prof_svc.mining_fatigue_state(group_id, qq_id)
+
+    def _mining_fatigue_tick(self, group_id, qq_id):
+        """v181.P4-7：转发 services.profession.mining_fatigue_tick"""
+        return _prof_svc.mining_fatigue_tick(group_id, qq_id)
+
+    def _mining_fatigued(self, group_id, qq_id):
+        """v181.P4-7：转发 services.profession.mining_fatigued"""
+        return _prof_svc.mining_fatigued(group_id, qq_id)
+
+    def _settle_mining(self, group_id, qq_id, st):
+        """v181.P4-7：转发 services.profession.settle_mining（daily 注入）"""
+        from ..services import profession as _ps
+        return _ps.settle_mining(group_id, qq_id, st, daily_prof_bump=self._daily_prof_bump)
+
+    def _prof_wait_flow(self, event, group_id, qq_id, prof_type, extra=None, begin_text=""):
+        """v181.P4-7：转发 services.profession.prof_wait_flow（settle/begin 注入=命令层壳）"""
+        from ..services import profession as _ps
+        return _ps.prof_wait_flow(
+            group_id, qq_id, prof_type, extra, begin_text,
+            settle=lambda g, q, s: self._prof_settle(g, q, s),
+            begin=lambda g, q, pt, ex: self._prof_wait_begin(event, g, q, pt, ex),
         )
 
     def _prof_active_check(self, group_id, qq_id, key, require_apprentice=False):
@@ -6608,7 +5981,7 @@ class EconomyCmds(CommandBase):
                 if tpl_name == "none" and _k == 0:
                     if d.get("stamina") or d.get("food_effect"):
                         _fst = self._mining_fatigue_state(group_id, qq_id)
-                        if _fst and int(time.time()) - _fst.get("ts", 0) <= MINING_FATIGUE_RECOVER:
+                        if _fst and int(time.time()) - _fst.get("ts", 0) <= _prof_svc.MINING_FATIGUE_RECOVER:
                             db.set_event_state(f"mining_fatigue_{qq_id}", "")
                             _fat_line = "\n🍖 吃饱喝足，疲劳一扫而空！(挖掘稀有矿脉概率恢复)"
                     _use_q_line = self._update_use_quests(group_id, qq_id, d.get("name", ""))
@@ -6618,7 +5991,7 @@ class EconomyCmds(CommandBase):
                 # 食用含体力/持续效果的食物且实际消耗成功时，清除疲劳计数（批量仅首轮判定）
                 if d.get("stamina") or d.get("food_effect"):
                     _fst = self._mining_fatigue_state(group_id, qq_id)
-                    if _fst and int(time.time()) - _fst.get("ts", 0) <= MINING_FATIGUE_RECOVER:
+                    if _fst and int(time.time()) - _fst.get("ts", 0) <= _prof_svc.MINING_FATIGUE_RECOVER:
                         db.set_event_state(f"mining_fatigue_{qq_id}", "")
                         _fat_line = "\n🍖 吃饱喝足，疲劳一扫而空！(挖掘稀有矿脉概率恢复)"
                 # v124 use 目标支线：批量只推进一次
