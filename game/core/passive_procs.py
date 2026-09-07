@@ -59,6 +59,16 @@ P2-D3b 扩展族（5 proc / 0 新族，挂点14 _deal_damage 对敌标记/破绽
                      shaken dict）+ tags 引用槽；命中 break 语义由挂点 run_proc_family 单条循环保留。
                      soul_mark_cap/broken_extend 双消费点：本批只收挂点14 乘区段（挂点16 cap 段 /
                      挂点18 延长段后续批次收，届时同 handler 同族 ctx 参数化分派）。
+
+P2-D4a 新增族（6 proc / 3 族，方案 §6.2/§2.3 挂点10 player_turn + 挂点11 _mitigate_chain）：
+    cc_break_cost    战意挡控（3 次/场，_tenacity_try_break 骨架迁表）        tenacity
+    cc_immune_cond   条件免控（挂点10 免眩晕/免控窗口兜底）                  zhan_yi_full_reduce / core_full
+    dr_cond          条件减伤（挂点11 _mitigate_chain 聚合段）               zhan_yi_full_reduce / core_full /
+                     core_reduce / core_last_stand(已触发常驻段) / core_overflow(溢出转盾段)
+    挂点 10/11 是**最高风险批次**：多 if 严格先后（坚韧先于坚城免眩晕先于磐石免控）逐字保留、
+    一次性 flag（_tenacity_left_n/_core_last_stand_used）随战斗序列化——handler 读写一律走
+    battle 属性（getattr/setattr），不落 actor dict 局部；磐核溢出转盾（core_overflow）段
+    只做"承伤转化"判定与 _add_shield 副作用（键 core_overflow），挂点保留 _dr_pct 聚合计减。
 """
 from __future__ import annotations
 
@@ -580,9 +590,185 @@ def _h_flag_set_cond(battle, ctx: dict, ps: dict, ps_name: str):
 
 
 # ============================================================
-# 6. proc → 族 声明（P2-D1 试点 5 proc + P2-D2a crit_cond_add 4 proc +
-#    P2-D2b stat_mult_cond 4 proc + P2-D3a dmg_mult_cond 扩展 2 + flag_set_cond 1；
-#    其余 52 内 proc 由 P2-D2c~D7 批次按序声明）
+# 7. cc_break_cost / dr_cond（P2-D4a：挂点10 player_turn + 挂点11 _mitigate_chain）
+#    受击减伤/免控族——本批风险最高（顺序语义 + 一次性 flag + 磐核溢出转盾）。
+#    挂点多 if 严格先后（坚韧→坚城免眩晕→磐石免控 / 磐石族减伤顺序）由 battle.py 骨架保留；
+#    handler 只做"单个 proc 的条件判定 + 副作用/返回值"，flag 读写一律 battle 属性
+#    （getattr/setattr——_tenacity_left_n/_core_last_stand_used 随 to_state/from_state 序列化，
+#    绝不可落 actor dict 局部）；ps 零默认值铁律（缺字段 = 无此行为）。
+#    族粒度说明：zhan_yi_full_reduce/core_full 双消费点（挂点10 免控 + 挂点11 减伤）——
+#    注册表一 proc 一族的约束下（declare_proc 防重复），双语义收敛进 dr_cond 单 handler，
+#    ctx cc_kind（挂点10 免控）/dr_kind（挂点11 减伤）分派（同 D2b shadow_dance_bonus
+#    stat_kind 模式；方案 §4.2 注"族粒度可收敛"+§6.1 双消费点参数化）。
+# ============================================================
+
+# ---- 7.1 cc_break_cost（坚韧 tenacity：战意挡控，3 次/场）----
+@register("cc_break_cost")
+def _h_cc_break_cost(battle, ctx: dict, ps: dict, ps_name: str):
+    """战意 ≥ps.cost（默认 2）且剩余次数 >0 → 扣战意 + 次数-1，返回 True（被控照常行动）。
+
+    语义 = 原 _tenacity_try_break 方法体逐字直搬（battle.py 4963-4983）——调用侧（battle.py
+    挂点10 player_turn）保留外层骨架：`if (被控) and self._tenacity_try_break(player, logs)`，
+    方法内部改查本族（原方法体 try/except 吞错留痕语义由 run_proc_family 保留）。
+    一次性次数 _tenacity_left_n：随战斗序列化（to_state 'tenacity_left' / from_state 恢复）——
+    读写一律走 battle 属性（getattr(battle, "_tenacity_left_n", 3)/setattr），不落 actor dict。
+    数值读 _ps：cost（D0 回填 2）；缺字段（cost ≤ 0）= 无此行为（零默认值铁律）。
+    ctx：logs（list，存在才追加）；读 battle._zhan_yi_n()/_p_stacks() 战意扣减。
+    """
+    _cost = int(ps.get("cost", 0) or 0)
+    if _cost <= 0:
+        return None  # 缺字段 = 无此行为（零默认值铁律；D0 已回填 2）
+    try:
+        if battle._zhan_yi_n() < _cost:
+            return None
+        _left = int(getattr(battle, "_tenacity_left_n", 3))
+        if _left <= 0:
+            return None
+        # 消耗战意 + 次数（原 _tenacity_try_break 顺序：先扣战意再次数-1）
+        battle._p_stacks()["zhan_yi"] = max(0, battle._zhan_yi_n() - _cost)
+        setattr(battle, "_tenacity_left_n", _left - 1)
+        _lg = ctx.get("logs")
+        if isinstance(_lg, list):
+            _lg.append(f"🛡️ {ps_name}：消耗 {_cost} 层战意挣脱控制！（剩余 {int(getattr(battle, '_tenacity_left_n', 0))} 次）")
+        return True
+    except Exception as _sw_e:
+        _swallow(battle, "passive_procs.tenacity", _sw_e)
+        return None
+
+
+# ---- 7.2 dr_cond（挂点11 _mitigate_chain 条件减伤聚合 + 挂点10 免控兜底）----
+@register("dr_cond")
+def _h_dr_cond(battle, ctx: dict, ps: dict, ps_name: str):
+    """受击减伤/免控族（_mitigate_chain 磐核/战意持有档位聚合 + player_turn 免控兜底，
+    ctx cc_kind/dr_kind 双分派——两 proc 双消费点同 handler 参数化）：
+
+    免控段（挂点10 player_turn，cc_kind）：
+    - stun_clear（zhan_yi_full_reduce）：战意 ≥ps.stacks → 移除 stun + 日志
+    - cc_window（core_full）：磐核 ≥ps.stacks → p_buffs.cc_immune = max(现值, 1)
+    减伤段（挂点11 _mitigate_chain，dr_kind，返回值累进挂点 _dr_pct）：
+    - zy_full（zhan_yi_full_reduce 减伤段）：战意 ≥ps.stacks → 返回 reduce（+10%）
+    - core_full（core_full 减伤段）：磐核 ≥ps.stacks → 返回 reduce（+20%）
+    - per_core（core_reduce）：磐核 >0 → 返回 per_core × 磐核数（每枚 +2%）
+    - last_stand（core_last_stand 已触发常驻段）：_core_last_stand_used 已置位 → 返回 reduce（+40%）
+    - overflow_shield（core_overflow）：磐核 ≥ps.stacks → 溢出承伤转盾（_add_shield
+      键 'core_overflow'，值 = dmg × shield_pct，turns 刻）——纯副作用，无返回值
+    语义 = 原挂点10 两 for 循环体 + 挂点11 五段循环体逐字直搬（break 在循环尾，调用侧
+    保留 for 骨架）；返回值由挂点 _dr_pct 累加（免控段/转盾段无返回值——只副作用）。
+    一次性 flag：last_stand 段读 getattr(battle, "_core_last_stand_used", False)——
+    该字段随 to_state/from_state 序列化（battle.py 1265/1555），读写走 battle 属性。
+    数值读 _ps：stacks/reduce/per_core/shield_pct/turns（D0 已回填 10/0.10、5/0.20、
+    0.02、0.40、3/0.80/3）；缺字段 = 无此行为（零默认值铁律）。
+    ctx：logs（list，存在才追加）、dmg（int，转盾段用）；读 battle._zhan_yi_n()/
+    _guard_core_n()；_add_shield 副作用走 battle（actor 为玩家/怪通用——原代码 RES/self
+    副作用即 battle 口径，等价）。
+    """
+    _kind = ctx.get("cc_kind")
+    if _kind == "stun_clear":
+        # 坚城之姿免眩晕（挂点10）：战意满 → 移除 stun + 日志（原循环体直搬）
+        _need = int(ps.get("stacks", 0) or 0)
+        if _need <= 0:
+            return None
+        try:
+            if battle._zhan_yi_n() >= _need:
+                battle._p_buffs_bag().pop("stun", None)
+                _lg = ctx.get("logs")
+                if isinstance(_lg, list):
+                    _lg.append(f"🛡️ {ps_name}：战意圆满，眩晕不侵！")
+                return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.zhan_yi_full_reduce", _sw_e)
+            pass
+        return None
+    if _kind == "cc_window":
+        # 磐石之躯免控免疫窗口（挂点10）：磐核满 → cc_immune = max(现值, 1)
+        _need = int(ps.get("stacks", 0) or 0)
+        if _need <= 0:
+            return None
+        try:
+            if battle._guard_core_n() >= _need:
+                battle._p_buffs_bag()["cc_immune"] = max(int(battle._p_buffs_bag().get("cc_immune", 0) or 0), 1)
+                return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.core_full", _sw_e)
+            pass
+        return None
+    _kind = ctx.get("dr_kind")
+    if _kind == "zy_full":
+        _need = int(ps.get("stacks", 0) or 0)
+        _red = float(ps.get("reduce", 0.0) or 0.0)
+        if _need <= 0 or _red <= 0:
+            return None
+        try:
+            if battle._zhan_yi_n() >= _need:
+                return _red
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.zhan_yi_full_reduce", _sw_e)
+            pass
+        return None
+    if _kind == "core_full":
+        _need = int(ps.get("stacks", 0) or 0)
+        _red = float(ps.get("reduce", 0.0) or 0.0)
+        if _need <= 0 or _red <= 0:
+            return None
+        try:
+            if battle._guard_core_n() >= _need:
+                return _red
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.core_full", _sw_e)
+            pass
+        return None
+    if _kind == "per_core":
+        _per = float(ps.get("per_core", 0.0) or 0.0)
+        if _per <= 0:
+            return None
+        try:
+            _gn = battle._guard_core_n()
+            if _gn > 0:
+                return _per * _gn
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.core_reduce", _sw_e)
+            pass
+        return None
+    if _kind == "last_stand":
+        _red = float(ps.get("reduce", 0.0) or 0.0)
+        if _red <= 0:
+            return None
+        try:
+            if getattr(battle, "_core_last_stand_used", False):
+                return _red
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.core_last_stand", _sw_e)
+            pass
+        return None
+    if _kind == "overflow_shield":
+        # 磐核 ≥ps.stacks → 溢出承伤转护盾（护盾 = 伤害额 ×shield_pct，turns 刻）——纯副作用
+        _need = int(ps.get("stacks", 0) or 0)
+        _spct = float(ps.get("shield_pct", 0.0) or 0.0)
+        if _need <= 0 or _spct <= 0:
+            return None
+        try:
+            if battle._guard_core_n() >= _need:
+                _dmg_v = int(ctx.get("dmg") or 0)
+                _ov_sh = int(_dmg_v * _spct)
+                if _ov_sh > 0:
+                    battle._add_shield("core_overflow", _ov_sh, int(ps.get("turns", 0) or 0))
+                    _lg = ctx.get("logs")
+                    if isinstance(_lg, list):
+                        _lg.append(f"🪨 磐石之心：磐核 {battle._guard_core_n()} 枚，承伤转化 {_ov_sh} 点护盾！")
+                return True
+        except Exception as _sw_e:
+            _swallow(battle, "passive_procs.core_overflow", _sw_e)
+            pass
+        return None
+    return None  # 未知 cc_kind/dr_kind = 不触发
+
+
+# ============================================================
+# 8. proc → 族 声明（P2-D1 试点 5 proc + P2-D2a crit_cond_add 4 proc +
+#    P2-D2b stat_mult_cond 4 proc + P2-D3a dmg_mult_cond 扩展 2 + flag_set_cond 1 +
+#    P2-D3b 5 proc；P2-D4a 6 proc（tenacity/zhan_yi_full_reduce/core_full/core_reduce/
+#    core_last_stand/core_overflow——挂点10/11 受击减伤/免控族）；
+#    其余 52 内 proc 由后续批次按序声明）
 # ============================================================
 declare_proc("speed_ratio_dmg", "dmg_mult_cond")
 declare_proc("arcane_resonance", "dmg_mult_cond")
@@ -609,4 +795,19 @@ declare_proc("shadow_dance_bonus", "stat_mult_cond")
 declare_proc("melody_resonance", "stat_mult_cond")
 declare_proc("melody_full", "stat_mult_cond")
 declare_proc("melody_master", "stat_mult_cond")
+# P2-D4a：挂点10 player_turn + 挂点11 _mitigate_chain 受击减伤/免控族 6 proc
+# （tenacity 坚韧 3 次/场挡控 → cc_break_cost；zhan_yi_full_reduce 坚城之姿 战意满减伤/免眩晕
+#   → dr_cond(zy_full)+cc_immune_cond(stun_clear)；core_full 磐石之躯 磐核满减伤/免控窗口
+#   → dr_cond(core_full)+cc_immune_cond(cc_window)；core_reduce 大地之肤 每磐核减伤
+#   → dr_cond(per_core)；core_last_stand 不动如山 已触发常驻减伤 → dr_cond(last_stand)；
+#   core_overflow 磐石之心 溢出转盾 → dr_cond(overflow_shield)——一次性 flag
+#   _core_last_stand_used 首触发生产段在挂点12 区（3236/10569 不动如山补磐核）本批不迁）
+declare_proc("tenacity", "cc_break_cost")
+declare_proc("zhan_yi_full_reduce", "dr_cond")
+declare_proc("core_full", "dr_cond")
+declare_proc("core_reduce", "dr_cond")
+declare_proc("core_last_stand", "dr_cond")
+declare_proc("core_overflow", "dr_cond")
+# cc_immune 无独立族声明——zhan_yi_full_reduce/core_full 双消费点（挂点10 免控 + 挂点11
+# 减伤）由同一 dr_cond 族 ctx cc_kind/dr_kind 分派（declare_proc 防重复：一 proc 一族）
 

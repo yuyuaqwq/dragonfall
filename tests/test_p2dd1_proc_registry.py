@@ -63,10 +63,10 @@ def mk_enemy(def_=20, mdef=20, hp=100000, spd=10):
 # ============================================================
 def test_registry_static():
     print("\n== 1. 注册表静态结构 ==")
-    # P2-D3b：挂点14 5 proc（hunt_mark_up/soul_mark_cap/shaken_awareness/
-    # broken_extend/dirge_debuff_dmg）并入 → 总数 22（6 试点 + 4 条件暴击 +
-    # 4 stat_mult + 3 P2-D3a + 5 P2-D3b）
-    check("PROC_FAMILIES 含 22 声明", len(PP.PROC_FAMILIES) == 22, str(PP.PROC_FAMILIES))
+    # P2-D4a：挂点10/11 6 proc（tenacity/zhan_yi_full_reduce/core_full/core_reduce/
+    # core_last_stand/core_overflow）并入 → 总数 28（6 试点 + 4 条件暴击 +
+    # 4 stat_mult + 3 P2-D3a + 5 P2-D3b + 6 P2-D4a）
+    check("PROC_FAMILIES 含 28 声明", len(PP.PROC_FAMILIES) == 28, str(PP.PROC_FAMILIES))
     expect_map = {
         "speed_ratio_dmg": "dmg_mult_cond",
         "arcane_resonance": "dmg_mult_cond",
@@ -82,20 +82,37 @@ def test_registry_static():
         "poison_cap": "stack_cap_add",
         "skeleton_cap": "summon_cap_add",
         "focus_full_on_kill": "on_kill_refill",
+        "zhan_yi_crit": "crit_cond_add",
+        "arcane_wisdom": "crit_cond_add",
+        "focus_surplus_crit": "crit_cond_add",
+        "element_core": "crit_cond_add",
+        "shadow_dance_bonus": "stat_mult_cond",
+        "melody_resonance": "stat_mult_cond",
+        "melody_full": "stat_mult_cond",
+        "melody_master": "stat_mult_cond",
+        # P2-D4a 6 proc（受击减伤/免控族；zhan_yi_full_reduce/core_full 双消费点
+        # 收敛 dr_cond 单族——免控段 cc_kind / 减伤段 dr_kind ctx 分派）
+        "tenacity": "cc_break_cost",
+        "zhan_yi_full_reduce": "dr_cond",
+        "core_full": "dr_cond",
+        "core_reduce": "dr_cond",
+        "core_last_stand": "dr_cond",
+        "core_overflow": "dr_cond",
     }
     for proc, fam in expect_map.items():
         check(f"{proc} → {fam}", PP.PROC_FAMILIES.get(proc) == fam,
               f"got {PP.PROC_FAMILIES.get(proc)}")
     for fam in ("dmg_mult_cond", "lifesteal_add", "stack_cap_add",
-                "summon_cap_add", "on_kill_refill"):
+                "summon_cap_add", "on_kill_refill", "crit_cond_add",
+                "stat_mult_cond", "flag_set_cond", "cc_break_cost", "dr_cond"):
         check(f"族执行器 {fam} 已注册", fam in PP.FAMILY_HANDLERS)
     # 52 全覆盖校验：除 KNOWN_GAPS + 本批 6 外，其余 52 proc 尚未声明（后续批次）——不静默
     declared = set(PP.PROC_FAMILIES)
     check("声明集 ∩ KNOWN_GAPS = ∅", not (declared & PP.KNOWN_GAPS),
           str(declared & PP.KNOWN_GAPS))
-    # 无注册 = 不触发：未声明 proc（如 tenacity）run 无副作用
+    # 无注册 = 不触发：未声明 proc（如 poison_burst_up）run 无副作用
     ctx = {"player": {}, "ps": {}, "ps_name": "x", "cap": 5, "mult": 1.0, "rate": 0.0}
-    out = PP.run_proc_family(None, ["tenacity"], ctx)
+    out = PP.run_proc_family(None, ["poison_burst_up"], ctx)
     check("无注册 proc → 不触发返回空", out == [] and ctx["cap"] == 5 and ctx["mult"] == 1.0, str(out))
 
 

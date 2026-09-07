@@ -3275,21 +3275,26 @@ class Battle:
             self._p_buffs_bag().pop("stun", None)
             self._p_buffs_bag().pop("freeze", None)
         # v169.7 坚城之姿 zhan_yi_full_reduce：战意满 10 免疫眩晕——被眩晕刻自动解除（无消耗）
+        # v181.P2D-D4a：消费迁注册表族 dr_cond（cc_kind='stun_clear' 免眩晕段；if 骨架/顺序/
+        # break 语义逐字保留——战意≥stacks → 移除 stun + 日志）
         if "stun" in self._p_buffs_bag():
             try:
                 for _pn_zy, _ps_zy in self._proc_pm(player)["proc"].get("zhan_yi_full_reduce", []):
-                    if self._zhan_yi_n() >= int(_ps_zy.get("stacks", 10) or 10):
-                        self._p_buffs_bag().pop("stun", None)
-                        logs.append(f"🛡️ {_pn_zy}：战意圆满，眩晕不侵！")
+                    _ctx_zy2 = {"player": player, "ps": _ps_zy, "ps_name": _pn_zy,
+                                "cc_kind": "stun_clear", "logs": logs}
+                    _run_proc_family(self, "zhan_yi_full_reduce", _ctx_zy2)
                     break
             except Exception as _sw_e:
                 _battle_warn('player_turn', _sw_e)
                 pass
         # v169.7 磐石之躯 core_full：磐核满 5 免控（刻开始兜底刷新免疫窗口，等效持续免控）
+        # v181.P2D-D4a：消费迁注册表族 dr_cond（cc_kind='cc_window' 免控窗口段；if 骨架/顺序/
+        # break 语义逐字保留——磐核≥stacks → cc_immune = max(现值, 1)）
         try:
             for _pn_cf, _ps_cf in self._proc_pm(player)["proc"].get("core_full", []):
-                if self._guard_core_n() >= int(_ps_cf.get("stacks", 5) or 5):
-                    self._p_buffs_bag()["cc_immune"] = max(int(self._p_buffs_bag().get("cc_immune", 0) or 0), 1)
+                _ctx_cf2 = {"player": player, "ps": _ps_cf, "ps_name": _pn_cf,
+                            "cc_kind": "cc_window", "logs": logs}
+                _run_proc_family(self, "core_full", _ctx_cf2)
                 break
         except Exception as _sw_e:
             _battle_warn('player_turn', _sw_e)
@@ -4962,23 +4967,18 @@ class Battle:
 
     def _tenacity_try_break(self, player: dict, logs: list) -> bool:
         """坚韧 tenacity：被控时消耗 2 层战意跳过控制（每场 3 次）。
-        有战意（≥ps.cost 默认 2）且剩余次数 >0 → 扣战意 + 次数 -1，返回 True（本刻照常行动）。"""
+        有战意（≥ps.cost 默认 2）且剩余次数 >0 → 扣战意 + 次数 -1，返回 True（本刻照常行动）。
+        v181.P2D-D4a：消费迁注册表族 cc_break_cost（tenacity → cc_break_cost；原方法体逐字
+        搬入 handler——flag _tenacity_left_n 读写走 battle 属性 getattr/setattr，随战斗序列化；
+        骨架/顺序/日志串/返回值语义不变：判定失败/异常 → False 不触发）。"""
         try:
             _pm = self._proc_pm(player)
             if not _pm["proc"].get("tenacity"):
                 return False
-            _ps = _pm["proc"]["tenacity"][0][1]
-            cost = int(_ps.get("cost", 2) or 2)
-            if self._zhan_yi_n() < cost:
-                return False
-            if self._tenacity_left() <= 0:
-                return False
-            # 消耗战意 + 次数
-            self._p_stacks()["zhan_yi"] = max(0, self._zhan_yi_n() - cost)
-            self._tenacity_left_n = self._tenacity_left() - 1
-            _pn = _pm["proc"]["tenacity"][0][0]
-            logs.append(f"🛡️ {_pn}：消耗 {cost} 层战意挣脱控制！（剩余 {self._tenacity_left()} 次）")
-            return True
+            _pn_t, _ps_t = _pm["proc"]["tenacity"][0]
+            _ctx_t = {"player": player, "ps": _ps_t, "ps_name": _pn_t, "logs": logs}
+            _rv_t = _run_proc_family(self, "tenacity", _ctx_t)
+            return bool(_rv_t)
         except Exception:
             return False
 
@@ -10592,33 +10592,47 @@ class Battle:
         try:
             _pm_dr = self._proc_pm(actor)
             _dr_pct = 0.0
-            # 坚城之姿
+            # 坚城之姿（战意档）
             for _pn2, _ps2 in _pm_dr["proc"].get("zhan_yi_full_reduce", []):
-                if self._zhan_yi_n() >= int(_ps2.get("stacks", 10) or 10):
-                    _dr_pct += float(_ps2.get("reduce", 0.10) or 0.10)
+                _ctx_zyf = {"player": actor, "ps": _ps2, "ps_name": _pn2,
+                            "dr_kind": "zy_full", "logs": logs}
+                _rv_zyf = _run_proc_family(self, "zhan_yi_full_reduce", _ctx_zyf)
+                if _rv_zyf:
+                    _dr_pct += float(_rv_zyf[0])  # 返回值 = 减伤比例（战意满 → +10%）
                 break
-            # 磐石之躯 / 大地之肤（磐核档）
+            # 磐石之躯（磐核档）
             for _pn2, _ps2 in _pm_dr["proc"].get("core_full", []):
-                if self._guard_core_n() >= int(_ps2.get("stacks", 5) or 5):
-                    _dr_pct += float(_ps2.get("reduce", 0.20) or 0.20)
+                _ctx_cf = {"player": actor, "ps": _ps2, "ps_name": _pn2,
+                           "dr_kind": "core_full", "logs": logs}
+                _rv_cf = _run_proc_family(self, "core_full", _ctx_cf)
+                if _rv_cf:
+                    _dr_pct += float(_rv_cf[0])  # 返回值 = 减伤比例（磐核满 → +20%）
                 break
             for _pn2, _ps2 in _pm_dr["proc"].get("core_reduce", []):
-                _gn = self._guard_core_n()
-                if _gn > 0:
-                    _dr_pct += float(_ps2.get("per_core", 0.02) or 0.02) * _gn
+                _ctx_cr = {"player": actor, "ps": _ps2, "ps_name": _pn2,
+                           "dr_kind": "per_core", "logs": logs}
+                _rv_cr = _run_proc_family(self, "core_reduce", _ctx_cr)
+                if _rv_cr:
+                    _dr_pct += float(_rv_cr[0])  # 返回值 = per_core × 磐核数（每枚 +2%）
                 break
-            # 不动如山：已触发后（hp<30%）减伤 40% 持续生效
+            # 不动如山 core_last_stand：已触发后（hp<30%）减伤 40% 持续生效
+            # v181.P2D-D4a：消费迁注册表族 dr_cond（dr_kind='last_stand' 常驻段；if 骨架/顺序/
+            # break 语义逐字保留——_core_last_stand_used 已置位 → 返回 reduce 40%）
             if getattr(self, "_core_last_stand_used", False):
                 for _pn2, _ps2 in _pm_dr["proc"].get("core_last_stand", []):
-                    _dr_pct += float(_ps2.get("reduce", 0.40) or 0.40)
+                    _ctx_ls = {"player": actor, "ps": _ps2, "ps_name": _pn2,
+                               "dr_kind": "last_stand", "logs": logs}
+                    _rv_ls = _run_proc_family(self, "core_last_stand", _ctx_ls)
+                    if _rv_ls:
+                        _dr_pct += float(_rv_ls[0])  # 返回值 = 常驻减伤（已触发 → +40%）
                     break
-            # 磐石之心：磐核 ≥3 → 溢出承伤转护盾（护盾 = 超过 hp 上限部分的伤害额 80%，3 刻）
+            # 磐石之心 core_overflow：磐核 ≥3 → 溢出承伤转护盾（护盾 = 超过 hp 上限部分的伤害额 80%，3 刻）
+            # v181.P2D-D4a：消费迁注册表族 dr_cond（dr_kind='overflow_shield' 转盾段；if 骨架/顺序/
+            # break 语义逐字保留——磐核≥stacks → _add_shield('core_overflow') 纯副作用）
             for _pn2, _ps2 in _pm_dr["proc"].get("core_overflow", []):
-                if self._guard_core_n() >= int(_ps2.get("stacks", 3) or 3):
-                    _ov_sh = int(dmg * float(_ps2.get("shield_pct", 0.80) or 0.80))
-                    if _ov_sh > 0:
-                        self._add_shield("core_overflow", _ov_sh, int(_ps2.get("turns", 3) or 3))
-                        logs.append(f"🪨 磐石之心：磐核 {self._guard_core_n()} 枚，承伤转化 {_ov_sh} 点护盾！")
+                _ctx_ov = {"player": actor, "ps": _ps2, "ps_name": _pn2,
+                           "dr_kind": "overflow_shield", "logs": logs, "dmg": dmg}
+                _run_proc_family(self, "core_overflow", _ctx_ov)
                 break
             if _dr_pct > 0:
                 reduce_total += int(dmg * min(_dr_pct, 0.9))
