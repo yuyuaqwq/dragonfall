@@ -85,7 +85,54 @@ STATE_EFFECTS: dict = {
 }
 
 # ============================================================
-# 名词效果 → 引擎动词动作序列（第 2 步用，先空壳占位）
-# 例： {"眩晕": [{"action": "control", "tag": "stun", "turns": 1}]}
+# 名词效果 → 引擎动词动作序列
+# （技能数据/怪物模板里的 effect/mech 名词，经这里翻译成引擎动词）
 # ============================================================
-EFFECT_ACTIONS: dict = {}
+EFFECT_ACTIONS: dict = {
+    # ---- 控制类（写 target.buffs[tag]=刻数）----
+    "stun":      [{"action": "control", "tag": "stun", "turns": 1}],
+    "freeze":    [{"action": "control", "tag": "freeze", "turns": 1}],
+    "silence":   [{"action": "control", "tag": "silence", "turns": 2}],
+    "sleep":     [{"action": "control", "tag": "sleep", "turns": 1}],
+    "slow":      [{"action": "control", "tag": "spd_down", "turns": 2}],
+    "spd_down":  [{"action": "control", "tag": "spd_down", "turns": 2}],
+    # ---- 属性增益（写 caster.buffs[key]=刻数）----
+    "atk_up":    [{"action": "buff", "key": "atk_up"}],
+    "dodge_buff":  [{"action": "buff", "key": "dodge_up"}],
+    "spd_buff":    [{"action": "buff", "key": "spd_up"}],
+    "crit_hit_buff": [{"action": "buff", "key": "crit_up"}],
+    "cc_immune":    [{"action": "buff", "key": "cc_immune"}],
+    # 团队/全员增益 → 自身有效键（旧 team_keys 同语义）
+    "atk_all":   [{"action": "buff", "key": "atk_up"}],
+    "def_all":   [{"action": "buff", "key": "def_up"}],
+    "matk_all":  [{"action": "buff", "key": "matk_up_strong"}],
+    "crit_all":  [{"action": "buff", "key": "crit_up"}],
+    "spd_all":   [{"action": "buff", "key": "spd_up"}],
+    "atk_matk_all": [{"action": "buff", "key": "atk_up"},
+                     {"action": "buff", "key": "matk_up"}],
+    # ---- 减伤（value 型 buff：mech_val 折算百分比 45→0.45）----
+    "reduce":    [{"action": "buff", "key": "reduce", "pct_from_mech_val": True}],
+    # ---- 护盾 ----
+    "shield_self": [{"action": "shield", "halve": False}],
+    "shield":      [{"action": "shield", "halve": True}],
+    # ---- 净化 ----
+    "cleanse":     [{"action": "cleanse"}],
+    "cleanse_all": [{"action": "cleanse_all"}],
+}
+
+# 净化应清的控制键（buff 容器里的控制 tag）
+CLEANSE_TAGS = ["stun", "silence", "freeze", "spd_down", "reduce"]
+
+# ============================================================
+# buff key → 面板属性折算规则（stats 聚合面板时查表折算）
+# value 存刻数 → 属性 ×(1+层数×0.10)；spd_down 特殊 ×0.8
+# ============================================================
+BUFF_STAT_KEYS: dict = {
+    "atk_up": "atk",
+    "def_up": "def",
+    "matk_up": "matk",
+    "mdef_up": "mdef",
+    "spd_up": "spd",
+    "spd_down": "spd",  # ×0.8（SPD_DOWN_MULT）
+}
+SPD_DOWN_MULT = 0.8
