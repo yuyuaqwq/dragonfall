@@ -54,6 +54,7 @@ from .core.constants import (  # v130.7 意见#28：逃跑成功率修正常量�
 from .core.tick_effects import TICK_HANDLERS as _TICK_HANDLERS  # v179 通用 tick 效果注册表（数据驱动）
 # v181.P2D-D1 被动 proc 注册表（proc → 机制族 handler + 分发；无注册 = 不触发）
 from .core.passive_procs import run_proc_family as _run_proc_family  # noqa: F401
+from .core.passive_procs import run_proc_family_pm as _run_proc_family_pm  # noqa: F401
 from .data.races import (  # v181.D P1-D 种族机制数据下沉（原模块级常量/标签内联 → data 单源）
     RACE_ATTACK_MULT as _RACE_ATTACK_MULT,
     UNDEAD_KEYWORDS as _UNDEAD_KEYWORDS,
@@ -7427,6 +7428,13 @@ class Battle:
         if handler:
             handler(self, mval, p_mech, total, logs, skill_name, is_crit, info)
         # ---- v169.7 被动叠层上限放宽（术后补层，只对命中当次生效；mval=叠层量）----
+        # v181.P2D-D5b：hunt_mark_cap/soul_mark_cap cap 段迁注册表族 dmg_mult_cond
+        # （ctx mult_kind=cap_kind + cap_kind 分派 hunt_mark/soul_mark——同 proc 挂点14
+        # 乘区段已声明，双消费点同族参数化；handler 返回 base+add = 3+add，调用侧
+        # min(返回, 叠加后层数) 等价原 `min(3+_extra_cap, _old+_mv)`。守卫（mech 判定 +
+        # proc 条目存在 + mval>0 + _old+_mv>_now 才补层）由骨架保留。poison 段只调
+        # _poison_cap() 读放宽后上限——poison_cap_up/poison_cap 已整体迁 stack_cap_add
+        # 族（D1，挂点17 本体族化），挂点16 非独立消费，本批不动）
         try:
             _pl_cap = caster or {}
             _pm_cap = self._proc_pm(_pl_cap)
@@ -7434,23 +7442,29 @@ class Battle:
             _deb_cap = _tgt_cap.setdefault("debuffs", {})
             _mv = max(0, int(mval or 0))
             if mech == "hunt_mark" and _pm_cap["proc"].get("hunt_mark_cap") and _mv > 0:
-                _extra_cap = 0
-                for _pn, _ps in _pm_cap["proc"].get("hunt_mark_cap", []):
-                    _extra_cap = int(_ps.get("add", 2) or 2)
-                    break
+                _ctx_hmc = {"player": _pl_cap, "ps": {}, "ps_name": "", "mult_kind": "cap_kind",
+                            "cap_kind": "hunt_mark"}
+                _rv_hmc = _run_proc_family_pm(self, _pl_cap, "hunt_mark_cap", _ctx_hmc)
+                if _rv_hmc:
+                    _extra_cap = float(_rv_hmc[0])
+                else:
+                    _extra_cap = 0  # 缺字段/未注册 = cap 不放宽（零默认值——原写死 2 由 D0 回填）
                 _old_hm = _cap_pre.get("hunt_mark", 0)
                 _now_hm = int(_deb_cap.get("hunt_mark", 0) or 0)
                 if _old_hm + _mv > _now_hm:
-                    _deb_cap["hunt_mark"] = min(3 + _extra_cap, _old_hm + _mv)
+                    _deb_cap["hunt_mark"] = min(int(_extra_cap), _old_hm + _mv)
             if mech == "soul_mark" and _pm_cap["proc"].get("soul_mark_cap") and _mv > 0:
-                _extra_sm = 2
-                for _pn, _ps in _pm_cap["proc"].get("soul_mark_cap", []):
-                    _extra_sm = int(_ps.get("add", 2) or 2)
-                    break
+                _ctx_smc = {"player": _pl_cap, "ps": {}, "ps_name": "", "mult_kind": "cap_kind",
+                            "cap_kind": "soul_mark"}
+                _rv_smc = _run_proc_family_pm(self, _pl_cap, "soul_mark_cap", _ctx_smc)
+                if _rv_smc:
+                    _extra_sm = float(_rv_smc[0])
+                else:
+                    _extra_sm = 0  # 缺字段 = cap 不放宽（原 `_extra_sm = 2` 写死由 D0 回填）
                 _old_sm = _cap_pre.get("soul_mark", 0)
                 _now_sm = int(_deb_cap.get("soul_mark", 0) or 0)
                 if _old_sm + _mv > _now_sm:
-                    _deb_cap["soul_mark"] = min(3 + _extra_sm, _old_sm + _mv)
+                    _deb_cap["soul_mark"] = min(int(_extra_sm), _old_sm + _mv)
             if mech in MECH_PROC_GROUPS.get("poison_dmg", ("poison",)):
                 _cap_pois = self._poison_cap(_pl_cap)
                 _old_p = _cap_pre.get("poison", 0)
@@ -8723,6 +8737,14 @@ class Battle:
         # v180F A7：不猜 caster——dot 强度以挂毒时存的施法者快照为准（_apply_dot 8246-8247），
         # 快照缺失（老档/直接构造）不回落 _last_player 猜当前玩家（可能是错的人——多人副本
         # 毒是 A 挂的、B 行动时结算），缺失即 0 强度只吃 max_hp 部分，随毒自然过期。
+        # v180F A7b：caster=None（tick 卡 _th_actor_dot / 世界 Boss force 入口）时，
+        # 目标怪侧回落 self.player（玩家毒怪现状语义——快照缺失的毒 tick 由玩家结算）；
+        # 目标玩家侧保持 None（玩家被动乘区不作用于自己身上的毒）。原代码 caster 参数
+        # 全程透传——乘区守卫 `_caster_is_player = caster 且玩家侧` 下 None 永不触发，
+        # 无参调用点（模块 tick 卡/combat force 结算毒）走不到 poison_all_up/weaken。
+        # 修复：仅当 actor 非玩家侧且 caster 缺省时回落 player（对应当前调用点语义）。
+        if caster is None and not self._is_player_side(e) and self.player:
+            caster = self.player
         _caster_is_player = self._is_player_side(caster) if caster is not None else False
         _tgt_name = "你" if _tgt_is_player else f"【{e.get('name', '目标')}】"
         deb = e.get("debuffs") or {}
@@ -8818,29 +8840,26 @@ class Battle:
                 _hp_part = min(_hp_part, max_hp * DOT_PCT_CAP)
             hp_part = _hp_part
             # v169.7 万毒归宗 poison_all_up（刺客毒线，caster 是玩家才查被动）
+            # v181.P2D-D5b：毒 DOT 乘区迁注册表族 dot_mult_cond（poison_all_up——守卫
+            # k==poison and _caster_is_player 由骨架保留；mult 引用槽改写读回——原 `_poison_all_mult
+            # *= 1.0+mult; break` 的 max=1 语义 = run_proc_family_pm 逐条等价）
             _poison_all_mult = 1.0
             if k == "poison" and _caster_is_player:
-                try:
-                    for _pn_pa, _ps_pa in self._proc_pm(caster)["proc"].get("poison_all_up", []):
-                        _poison_all_mult *= 1.0 + float(_ps_pa.get("mult", 0.35) or 0.35)
-                        break
-                except Exception as _sw_e:
-                    _battle_warn('_tick_actor_dots', _sw_e)
-                    pass
+                _ctx_pa = {"player": caster, "ps": {}, "ps_name": "", "mult": _poison_all_mult}
+                _run_proc_family_pm(self, caster, "poison_all_up", _ctx_pa)
+                _poison_all_mult = _ctx_pa.get("mult", _poison_all_mult)  # handler 数值槽改写读回
             p = int((atk_part + hp_part) * n * mult * _poison_all_mult * (1 - res))
             # v169.7 剧毒之触 poison_weaken（caster 玩家毒怪 → 怪减速降防）
+            # v181.P2D-D5b：毒层 → 目标减速降防迁注册表族 dot_weaken（守卫：caster 玩家毒怪 +
+            # 条目存在 + n ≥ 首条 layers 由骨架保留；tgt_buffs 引用槽 = e.setdefault("buffs",{})
+            # 原循环体内逐条重取同 dict，调用侧取一次传入等价）
             if k == "poison" and _caster_is_player and not _tgt_is_player:
                 try:
                     _pw_list = self._proc_pm(caster)["proc"].get("poison_weaken", [])
                     if _pw_list and n >= int((_pw_list[0][1]).get("layers", 5) or 5):
-                        for _pn_pw, _ps_pw in _pw_list:
-                            _tgt_b = e.setdefault("buffs", {})
-                            _tgt_b["spd_down"] = max(int(_tgt_b.get("spd_down", 0) or 0), int(_ps_pw.get("spd_down", 2) or 2))
-                            _tgt_b["def_down"] = max(int(_tgt_b.get("def_down", 0) or 0), int(_ps_pw.get("def_down", 2) or 2))
-                            _tgt_b["_weaken_spd_pct"] = max(float(_tgt_b.get("_weaken_spd_pct", 0) or 0), 0.30)
-                            _tgt_b["_weaken_def_pct"] = max(float(_tgt_b.get("_weaken_def_pct", 0) or 0), 0.20)
-                            logs.append("☠️ 剧毒之触：毒层 ≥5，敌人减速降防！")
-                            break
+                        _ctx_pw = {"player": caster, "ps": {}, "ps_name": "", "logs": logs,
+                                   "tgt_buffs": e.setdefault("buffs", {})}
+                        _run_proc_family_pm(self, caster, "poison_weaken", _ctx_pw)
                 except Exception as _sw_e:
                     _battle_warn('_tick_actor_dots', _sw_e)
                     pass
