@@ -54,11 +54,10 @@ def test_routing():
         check(f"{k} family=proc_shield 且进路由", _we_family(k) == "proc_shield"
               and k in _WE_EXEC_KEYS and _WE_EXEC_KEYS[k] == "proc_shield",
               f"family={_we_family(k)} route={_WE_EXEC_KEYS.get(k)}")
-    # 未迁移 key（proc_next_atk_mark 等未迁移）→ 不在路由 → 仍走旧 handler
-    # （C8 已迁 twilight_execute → 从"未族化"清单移除，换 proc_next_atk_mark 代表；
-    #  C4 已迁 wind_split/star_pierce（proc_extra_dmg 11 key 全量）→ 从清单移除；
-    #  C6 已迁 gale_step（proc_buff）→ 从清单移除，剩 trinity_rhythm 代表）
-    for k in ("trinity_rhythm",):
+    # 未迁移 key（proc_heal regen 族等未迁移）→ 不在路由 → 仍走旧 handler
+    # （C4/C8/C6/C7 已迁 wind_split/twilight_execute/gale_step/trinity_rhythm 等 →
+    #  从"未族化"清单移除；剩 proc_heal regen 族 guard_regen/dawn_regen 等未迁代表）
+    for k in ("guard_regen", "dawn_regen"):
         check(f"未族化 {k} 不进路由", k not in _WE_EXEC_KEYS, f"route={_WE_EXEC_KEYS.get(k)}")
     # 其他已迁族不受影响
     for k, f in (("smith_blaze_wound", "proc_dot"), ("thorn_armor", "proc_reflect"),

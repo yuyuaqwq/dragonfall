@@ -13,7 +13,7 @@
 8. time_staff：turn_start 叠层 + 半血回血；passive 每层 ×1.015
 9. thunder_weave：5 次 hit 满层 → eff.we_thunder_charge；passive mult ×1.20 后清
 10. wind_mark / novice_hunt_combo：叠层写槽（面板消费点在 battle，C6 收）
-11. 未迁移 key（trinity_rhythm family=proc_next_atk_mark）不进白名单 → 仍走旧 handler
+11. 未迁移 key（gale_step family=proc_buff）不进白名单 → 仍走旧 handler（C7 已迁 trinity_rhythm）
 """
 import sys, os, random
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -193,12 +193,16 @@ def test_wind_hunt():
 
 def test_unmigrated_old_path():
     print("【11. 未迁移 key 走旧 handler（安全阀）】")
-    # trinity_rhythm family=proc_next_atk_mark（C7 收）不在 C8 白名单
-    check("trinity_rhythm family=proc_next_atk_mark", _we_family("trinity_rhythm") == "proc_next_atk_mark"
-          and "trinity_rhythm" not in _WE_EXEC_KEYS, f"fam={_we_family('trinity_rhythm')}")
+    # trinity_rhythm（C7 已迁 proc_next_atk_mark）→ 从"未族化"样例移除；
+    # 换未迁移代表：gale_step（proc_buff 未迁）skill_hit 无注册事件不触发（proc 安全阀）；
+    # 直接验证未族化 family 路由表不含 gale_step + 新 C7 路由进表
+    check("gale_step family=proc_buff 未进 C8 白名单", _we_family("gale_step") == "proc_buff"
+          and "gale_step" not in _WE_EXEC_KEYS, f"fam={_we_family('gale_step')}")
+    check("trinity_rhythm 进 C7 路由", _we_family("trinity_rhythm") == "proc_next_atk_mark"
+          and _WE_EXEC_KEYS.get("trinity_rhythm") == "proc_next_atk_mark", "")
     b, p = battle_for("trinity_rhythm")
     we_proc(b, p, "skill_hit", {"dmg": 100, "is_crit": False, "skill": "测试", "kind": "物理"}, [])
-    check("trinity skill_hit 旧 handler 置 we_trinity", abs(float((p.get("eff") or {}).get("we_trinity", 0)) - 0.30) < 1e-9,
+    check("trinity skill_hit 族执行器置 we_trinity", abs(float((p.get("eff") or {}).get("we_trinity", 0)) - 0.30) < 1e-9,
           str(p.get("eff")))
 
 if __name__ == "__main__":

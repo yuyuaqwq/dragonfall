@@ -200,15 +200,17 @@ def test_control_behavior():
 
 def test_unmigrated_still_old():
     print("【4. 安全阀：非 C5 key 仍走旧 handler】")
-    # guardian_will（proc_retort_mark 未迁）→ 旧 handler 写 mon_atk_down（命中 seed 探测）
-    sd, b, p, logs = _find_hit_seed("guardian_will", "taken", {}, "卫士信念")
-    check("guardian_will 命中 seed", sd is not None, f"sd={sd}")
+    # 未族化 key（proc_reflect 带附赠 iron_echo 未迁 / proc_buff gale_step）→ 旧 handler
+    # （C7 已迁 guardian_will → proc_retort_mark 路由，从"未族化"样例移除）
+    sd, b, p, logs = _find_hit_seed("iron_echo", "taken", {}, "铁壁回响")
+    check("iron_echo 命中 seed", sd is not None, f"sd={sd}")
     if sd is not None:
-        check("guardian_will 未迁移仍旧 handler 触发",
-              b.enemy["buffs"].get("mon_atk_down") == 1
-              and abs(float(b.enemy["buffs"].get("_weaken_val", 0)) - 0.25) < 1e-9,
-              f"eb={b.enemy['buffs']}")
-    check("guardian_will 不在 C5 路由", "guardian_will" not in _WE_EXEC_KEYS, "")
+        check("iron_echo 未迁移仍旧 handler 触发",
+              (p.get("eff") or {}).get("we_retort") is None
+              and any("铁壁回响" in x for x in logs),
+              f"logs={logs}")
+    check("guardian_will 进 C7 路由", "guardian_will" in _WE_EXEC_KEYS
+          and _WE_EXEC_KEYS["guardian_will"] == "proc_retort_mark", "")
 
 if __name__ == "__main__":
     test_routing()

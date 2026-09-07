@@ -335,6 +335,23 @@ _WE_EXEC_KEYS = {
     "void_stride": "proc_buff",
     "novice_wind_spd": "proc_buff",
     "abyss_barrier": "proc_buff",
+    # C7：proc_next_atk_mark 下次攻击标记族 5 key（trinity_rhythm/mountain_break/oath_blade/
+    # novice_spark_followup/dusk_blade——skill_hit 置标/novice skill_cast 置 stacks/kill 潜行置标，
+    # passive 消费段整体迁移；trinity/mountain/retort 的 ctx.attack 门 battle 恒不传=空转旧语义
+    # 保留；oath/dusk passive 消费在 battle passive ctx 无 attack 键下本也不触发——真正消费 =
+    # battle 直读标记键，C7 一并收编排层直读点）
+    "trinity_rhythm": "proc_next_atk_mark",
+    "mountain_break": "proc_next_atk_mark",
+    "oath_blade": "proc_next_atk_mark",
+    "novice_spark_followup": "proc_next_atk_mark",
+    "dusk_blade": "proc_next_atk_mark",
+    # C7：proc_retort_mark 反击标记族 4 key（gargoyle_retort/titan_retort/ranger_retort taken 置
+    # we_retort max；guardian_will taken chance → e_buffs 弱化。retort passive 消费 ctx.attack 门
+    # battle 恒不传=空转旧语义保留）
+    "gargoyle_retort": "proc_retort_mark",
+    "titan_retort": "proc_retort_mark",
+    "ranger_retort": "proc_retort_mark",
+    "guardian_will": "proc_retort_mark",
 }
 # 族默认事件表（key 未显式声明 event 时按族）：proc_dot 主事件 hit/skill_hit，
 # proc_reflect→taken、proc_heal amp→heal。分发器按"key 注册事件集"匹配事件后再调执行器
