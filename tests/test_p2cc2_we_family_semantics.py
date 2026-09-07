@@ -63,10 +63,10 @@ def test_family_routing():
               and k not in _WE_EXEC_KEYS, f"route={_WE_EXEC_KEYS.get(k)}")
     # v181.P2C-C4：star_pierce 直伤追击族 11 key 已整体迁入 proc_extra_dmg 路由——
     # 此处原"未族化 key 不进路由"断言改查仍未迁移的 proc_buff key（gale_step 家族）走旧 handler
-    # v181.P2C-C6：gale_step 家族已迁 proc_buff——未族化样例改查 proc_next_atk_mark（C7 收）
-    check("未迁移 key（trinity_rhythm proc_next_atk_mark）不进路由",
-          _we_family("trinity_rhythm") not in _WE_EXEC_KEYS.values()
-          and "trinity_rhythm" not in _WE_EXEC_KEYS, _we_family("trinity_rhythm"))
+    # v181.P2C-C6/C7：gale_step 家族/trinity_rhythm 均已迁——改验证已迁移 key 进路由
+    check("已迁移 key（trinity_rhythm proc_next_atk_mark）进路由",
+          _we_family("trinity_rhythm") == "proc_next_atk_mark"
+          and "trinity_rhythm" in _WE_EXEC_KEYS, _we_family("trinity_rhythm"))
 
 def test_dot_behavior():
     print("【2. proc_dot 数值行为】")
