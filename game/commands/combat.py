@@ -1635,94 +1635,109 @@ class CombatCmds(CommandBase):
         "poison": "☠️毒", "burn": "🔥灼烧", "mark": "🎯标记", "bleed": "🩸流血",
     }
 
-    def _status_line(self, player: dict, b) -> str:
-        """战斗状态行：玩家 buff/叠层 + 敌方状态。无状态返回空串。"""
-        parts = []
-        # 玩家 buff（p_buffs 刻数 >0）
-        # v181.P2C-C10 显示修复：buff v152 起按绝对时刻到期（_decay_buff_table 整条删不递减，
-        # v = 到期绝对刻号），旧直接"剩{v}刻"永远显示初值不递减 → 按 _now 折算剩余（护盾 v167.3 同款）。
-        _now_t = float(getattr(b, "_now", 0.0) or 0.0)
-        # 特殊键：控制类/元素印记/一次性/减伤盾——不经时刻衰减（_decay_buff_table 语义），原样显示刻数
+    @staticmethod
+    def _buff_left_ticks(k, v, now_t) -> "tuple[str | None, str]":
+        """buff 条目 → (剩余刻标签 or None, 值格式)。
+
+        N5b4-1 双形态折算（纯读层兼容，N10 删旧后只留 dict 分支）：
+        - dict（battle2 N7.1 定稿 / 旧复杂值）：{expire: 绝对秒} → 剩刻 = expire - now；
+          无 expire（bar 状态/复杂值）→ 只显名无刻数
+        - int/float（旧引擎绝对到期刻号）：值 × ACT_TICK - now 折算剩刻
+        - 特殊键（控制/印记/一次性）battle2 也走 dict.expire；旧 int 特殊键原样显刻
+        """
         _SPECIAL_NO_DECAY = {"stun", "freeze", "fire_mark", "ice_mark", "thunder_mark",
                              "next_atk_up", "buff_phys_next", "stealth", "arcane_echo",
                              "oath_blade_next", "we_oath", "reduce_all", "reduce", "shield"}
+        if isinstance(v, dict):
+            exp = v.get("expire")
+            if isinstance(exp, (int, float)) and exp is not None:
+                _left = float(exp) - now_t
+                if _left > 0:
+                    return f"剩{max(1, int(round(_left / (ACT_TICK or 1.0))))}刻", None
+                return None, None  # 已到期将清 → 只显名
+            return None, None  # 无到期语义（bar 状态/永久）→ 只显名
+        # int/float 形态（旧引擎）
+        if k in _SPECIAL_NO_DECAY:
+            return f"剩{int(v)}刻", None
+        _left = float(v) * (ACT_TICK or 1.0) - now_t
+        if _left > 0:
+            return f"剩{max(1, int(round(_left / (ACT_TICK or 1.0))))}刻", None
+        return None, None
+
+    def _status_line(self, player: dict, b) -> str:
+        """战斗状态行：玩家 buff/叠层 + 敌方状态。无状态返回空串。
+
+        N5b4-1：玩家侧改读 player dict（命令层已 sync_player_from_actor 回写；
+        旧引擎引用同步同效）——展示纯读不依赖引擎 battle 类型，先切安全。
+        敌方读 b.sides（旧 v180F / battle2 双引擎通用，_b_enemy 已 sides 化）。
+        """
+        parts = []
+        _now_t = float(getattr(b, "_now", 0.0) or 0.0)
         pbuf = []
-        for k, v in (b._p_buffs_bag() or {}).items():
-            if not v or not (v > 0) or k not in self._P_BUFF_NAMES:
+        # 玩家 buff：读 player dict（battle2 命令层回写 / 旧引擎引用同步）
+        for k, v in (player.get("buffs") or {}).items():
+            if k not in self._P_BUFF_NAMES:
                 continue
+            # dict 条目（battle2 {expire,stat,...}/bar 状态）或旧 int 刻号；
+            # 无效值（0/空）由 helper 过滤，这里只查名字表避免 dict 比较 TypeError
             if isinstance(v, dict):
-                # bar 状态/复杂值：无刻数语义，只显名
-                pbuf.append(f"{self._P_BUFF_NAMES[k]}")
+                if "expire" not in (v or {}) and not v.get("stat") and not v.get("mode"):
+                    continue  # 空/纯状态残留
+            elif not v or not (v > 0):
                 continue
-            if k in _SPECIAL_NO_DECAY:
-                pbuf.append(f"{self._P_BUFF_NAMES[k]}(剩{int(v)}刻)")
-                continue
-            # int/float = 绝对到期刻号（_decay_buff_table 语义：_now >= v*ACT_TICK 整删）
-            _left = float(v) * (ACT_TICK or 1.0) - _now_t
-            if _left > 0:
-                pbuf.append(f"{self._P_BUFF_NAMES[k]}(剩{max(1, int(round(_left / (ACT_TICK or 1.0))))}刻)")
-            else:
-                pbuf.append(f"{self._P_BUFF_NAMES[k]}")
-        # 玩家叠层（v59：叠层随战斗持久化，读 b.mech_stacks）
+            left_tag, _ = self._buff_left_ticks(k, v, _now_t)
+            pbuf.append(f"{self._P_BUFF_NAMES[k]}{('(' + left_tag + ')') if left_tag else ''}")
+        # 玩家叠层（v59：叠层随战斗持久化；N5b4-1 读 player dict）
         # O96：burn/poison/mark 是敌方减益叠层，不在玩家栏显示
-        stacks = (b._p_stacks() or {})
+        stacks = (player.get("stacks") or {})
         for k, v in stacks.items():
             if v and v > 0 and k in self._STACK_NAMES and k not in self._ENEMY_MECH_STACKS:
                 pbuf.append(f"{self._STACK_NAMES[k]}×{v}")
-        # 玩家护盾（v59：随战斗持久化；v101.28d 多来源盾，显示各来源值+剩余刻）
-        # v167.3 显示修复：护盾 v152 起按绝对时刻存储（expire_at），不再有"剩余刻"直接字段；
-        # 旧 {turns} 兼容值只在过期迁移前存在。turns<999 拼接 (N刻) 在 turns=0（无刻数语义
-        # 来源/已过期迁移中）时显示 (0刻) 很怪——改为：只对**真正剩余时刻 > 0** 的护盾换算
-        # 剩余刻数显示（expire_at - now 折算 ACT_TICK；无 expire_at 的旧档不显示刻数）。
-        # v180-B：护盾权威在玩家 actor dict["shields"]（getattr 兼容壳已失效）——读 _p_shields_bag
-        shields = b._p_shields_bag() or {}
-        _now_t = float(getattr(b, "_now", 0.0) or 0.0)
+        # 玩家护盾（读 player dict shields；expire_at 绝对秒折算，同旧逻辑）
+        shields = player.get("shields") or {}
         for sname, s in shields.items():
             if (s or {}).get("value", 0) > 0:
                 _exp = (s or {}).get("expire_at")
                 _left_sec = None
                 if isinstance(_exp, (int, float)):
                     _left_sec = float(_exp) - _now_t
-                # 旧档 {turns} 兼容：无 expire_at 时按 turns 折算（_end_round 迁移前）
+                # 旧档 {turns} 兼容：无 expire_at 时按 turns 折算
                 if _left_sec is None and (s or {}).get("turns") is not None:
                     _left_sec = max(0.0, float(s.get("turns", 0) or 0)) * (ACT_TICK or 1.0)
                 if _left_sec is not None and _left_sec > 0:
                     _turns = max(1, int(round(_left_sec / (ACT_TICK or 1.0))))
                     pbuf.append(f"✨护盾{s['value']}({_turns}刻)")
                 else:
-                    # 无到期语义（turns=999 永久盾 / 未知来源）/ 已到期将清 → 只显示盾值
                     pbuf.append(f"✨护盾{s['value']}")
-        # 玩家金身减伤（iron 在 stacks 里已显示）
         if pbuf:
             parts.append(f"🛡️你：「{' '.join(pbuf)}」")
-        # 敌方状态（当前主目标怪 buffs 刻数 >0）
+        # 敌方状态（当前主目标怪 buffs；sides 双引擎通用）
         ebuf = []
-        _eb_disp = (self._b_enemy(b) or {}).get("buffs") or {}
+        _eb = self._b_enemy(b) or {}
+        _eb_disp = _eb.get("buffs") or {}
         for k, v in _eb_disp.items():
-            # v151 破绽断链修复：e_buffs 可能出现 dict 值（enemy_bar 状态 shaken/curse = {val, threshold, ...}），
-            # 不是刻 buff，跳过显示（bar 状态由战斗逻辑单独维护）
-            if isinstance(v, dict):
+            if k not in self._E_BUFF_NAMES:
                 continue
-            if v and v > 0 and k in self._E_BUFF_NAMES:
-                # v125.1 P2-4：shield 存护盾值（HP 量）、元素印记存层数——非刻语义，按各自格式显示
-                if k == "shield":
-                    ebuf.append(f"{self._E_BUFF_NAMES[k]}{v}")
-                elif k in ("fire_mark", "ice_mark", "thunder_mark"):
-                    ebuf.append(f"{self._E_BUFF_NAMES[k]}×{v}")
-                elif k in _SPECIAL_NO_DECAY:
-                    ebuf.append(f"{self._E_BUFF_NAMES[k]}(剩{int(v)}刻)")
-                else:
-                    # v181.P2C-C10：e_buffs int = 绝对到期刻号，按 _now 折算剩余刻
-                    _left = float(v) * (ACT_TICK or 1.0) - _now_t
-                    if _left > 0:
-                        ebuf.append(f"{self._E_BUFF_NAMES[k]}(剩{max(1, int(round(_left / (ACT_TICK or 1.0))))}刻)")
-                    else:
-                        ebuf.append(f"{self._E_BUFF_NAMES[k]}")
+            # bar 状态/复杂值（shaken/curse = {val, threshold, ...}）非刻 buff，跳过；
+            # dict 有 expire（battle2 控制/buff 形态）参与折算，不做 dict>int 比较
+            if isinstance(v, dict):
+                if "expire" not in (v or {}) and not v.get("mode"):
+                    continue
+            elif not v or not (v > 0):
+                continue
+            # shield 存护盾值（HP 量）、元素印记存层数——非刻语义，按各自格式显示
+            if k == "shield":
+                ebuf.append(f"{self._E_BUFF_NAMES[k]}{v}")
+                continue
+            if k in ("fire_mark", "ice_mark", "thunder_mark"):
+                ebuf.append(f"{self._E_BUFF_NAMES[k]}×{v}")
+                continue
+            left_tag, _ = self._buff_left_ticks(k, v, _now_t)
+            ebuf.append(f"{self._E_BUFF_NAMES[k]}{('(' + left_tag + ')') if left_tag else ''}")
         # 敌方狂暴（v58 mech）
-        if self._b_enemy(b).get("enraged"):
+        if _eb.get("enraged"):
             ebuf.append("😡狂暴")
         # v114：敌方援军（真召唤实体）——独立行『👥 援军：爪牙×2（HP 320/320、300/300）』
-        # 名字×数量 + HP 当前/最大逗号分隔（在 Boss HP 行下方），无援军不显示
         mins = getattr(b, "e_minions", []) or []
         if mins:
             _grp = {}
@@ -1731,16 +1746,15 @@ class CombatCmds(CommandBase):
             for _nm, _ms in _grp.items():
                 parts.append(f"👥 援军：{_nm}×{len(_ms)}（HP " + "、".join(
                     f"{_m.get('hp', 0)}/{_m.get('max_hp', 1)}" for _m in _ms) + "）")
-        # DOT/减益重构（契约 §7）：敌方持续减益（毒/灼烧/标记/流血）读 enemy["debuffs"]，
-        # 层数=剩余结算次数（不是 mech_stacks）；有层才显示。
-        deb = self._b_enemy(b).get("debuffs") or {}
+        # DOT/减益重构（契约 §7）：敌方持续减益（毒/灼烧/标记/流血）读 enemy["debuffs"]
+        deb = _eb.get("debuffs") or {}
         for k, d in deb.items():
             if k in self._DEBUFF_NAMES:
                 _n = int((d or {}).get("n", 0) or 0)
                 if _n > 0:
                     ebuf.append(f"{self._DEBUFF_NAMES[k]}×{_n}")
-        # 异常抗性（毒/灼烧/流血统一减伤，dot_res>0 才显示——普通怪不设键=0）
-        _dres = float(self._b_enemy(b).get("dot_res", 0) or 0)
+        # 异常抗性（dot_res>0 才显示——普通怪不设键=0）
+        _dres = float(_eb.get("dot_res", 0) or 0)
         if _dres > 0:
             ebuf.append(f"🛡️异常抗性{int(_dres * 100)}%")
         if ebuf:
@@ -1748,11 +1762,14 @@ class CombatCmds(CommandBase):
         return "\n".join(parts)
 
     def _resource_line(self, player: dict, b) -> str:
-        """v95.4：核心资源条（怒气/元素亲和/精力/信仰/连击点/气）——反馈：资源体系无界面显示"""
-        rd = E.core_resource_def(player["class_name"])
+        """v95.4：核心资源条（怒气/元素亲和/精力/信仰/连击点/气）——反馈：资源体系无界面显示
+
+        N5b4-1：读 player dict 的 resources（旧引擎 _p_res 即 _focus.resources 引用同步；
+        battle2 命令层 sync 回写含 resources 键；职业资源上层模块未迁前可能为空 → 空串安全）。"""
+        rd = E.core_resource_def(player.get("class_name") or "")
         if not rd:
             return ""
-        res = b._p_res() or {}
+        res = player.get("resources") or {}
         key = rd["key"]
         name = rd.get("name", key)
         if rd.get("type") == "switch":
@@ -1780,14 +1797,17 @@ class CombatCmds(CommandBase):
 
     def _battle_formation_panel(self, player: dict, b) -> str:
         """v2 多对多站位图面板（§4.4）：双方各一层行（formation_view），含蓄力标记。
-        敌方= b.enemies 存活阵列；我方= 单机 [玩家]。阵亡（enemies 全灭）面板不输出敌方行。
+        敌方= b.sides 存活阵列（N5b4-1：旧引擎 .enemies 与 battle2 sides 统一走
+        b.sides——旧 v180F 已播种 sides，展示层不依赖引擎类型）；我方= 单机 [玩家]。
+        阵亡（敌全灭）面板不输出敌方行。
 
         v127.3 目标编号：敌方 a1/a2…（A{n}层），我方 b1（B{n}层）——『技能1 a2』指定目标。
         """
         from ..core.formation import alive_units
         allies = [self._player_unit_for_formation(player)]
         ally_rows = formation_view(alive_units(allies), side="ally")
-        _alive_enemies = alive_units(b.enemies)
+        _enemies = (getattr(b, "sides", None) or {}).get("enemy") or []
+        _alive_enemies = alive_units(_enemies)
         enemy_rows = formation_view(_alive_enemies, side="enemy") if _alive_enemies else []
         panel = (("── 敌方 ──\n" + "\n".join(enemy_rows) + "\n") if enemy_rows else "") \
             + "── 我方 ──\n" + "\n".join(ally_rows)
