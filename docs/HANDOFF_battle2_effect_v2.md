@@ -488,4 +488,26 @@ stacks cap5 累计 / heal 4 刻节奏 / enrage 补漏 + phases 覆盖跳过 / sh
   给 pv_broken 反扑预留）/ element/defend_reduce/pdot/reflect 反弹/形态轮换（P5 盘点）
 - mortal_wound 消费端 = battle2 吸血装配落地批
 
+## 9.6 5c P3 完成记录（2026-09-09 上午，召唤援军）
+### 交付（boss_script.py _check_summon，引擎零改动）
+- mech summon：CD 5 刻（对齐旧 r%5==0：round_no 5/10 触发）、单次 1 只、
+  场上援军上限 3（含开怪自带爪牙——enemy side 存活 is_minion 计数，死亡不占位）
+- 召唤物模板（v163 口径）：INSTANCES[inst_id].minions[0].monster →
+  C.build_monster（同图小怪模板，不从 Boss 缩放）；非 instance/无 minions 回落
+  Boss×0.2（旧兜底路径保留）
+- 召唤物字段：uid e_min_seq（bs.summon_seq 递增）、名字 "{Boss}的{模板名}"、
+  rank1/reach1、is_minion=True、is_boss/is_elite False、mech=""（防递归剧本）、
+  auto_act 缺省普攻、ct=now+2（站场不插队）
+- 成功召唤 → Boss 攻击联动 atk×1.30 时效 2 秒（旧 mon_atk_up 线上行为；
+  ⚠️ 策划案文字"自身攻击+20%"为概数——记录差异，行为跟旧代码）
+- append 写 battle.sides["enemy"] 容器（⚠️ sides_of 返回拷贝——初版 append 到
+  拷贝白做，测试 n=0 抓到）
+### 测试（test_boss_script_p3.py 18/0）
+CD 节奏 5/10 / v163 模板（哥布林营地 → 哥布林守卫）/ 回落 Boss×0.2 / 上限 3
+（预置 2+召 1；满员不召）/ 死亡爪牙不占位 / 无 token 不召。P1 22/0 P2 26/0 仍绿；
+全量 338 = 313/25 与基线一致零新增。
+### 待 P4-P5
+- P4 chains/on_interrupt/on_minion_died（含"插一帧行动"基建给 pv_broken 预留）
+- P5 reflect 反弹/element_immune/weak/defend_reduce/pdot/形态轮换盘点
+
 ## 10. 会话重启口令（2026-09-09 上午更新）

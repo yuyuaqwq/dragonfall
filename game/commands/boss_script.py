@@ -103,6 +103,8 @@ def make_script_hook(st: dict):
             _check_player_low(st, battle, actor, cfg, bs, _now, logs)
             # P2：简单机制 token（stacks/heal/enrage/shield 补漏——phases 未覆盖的）
             _check_simple_mech(st, battle, actor, cfg, bs, _now, logs)
+            # P3：召唤援军（CD 5 刻 / 上限 3 / v163 同图小怪模板）
+            _check_summon(st, battle, actor, cfg, bs, _now, logs)
             # P1：phases 转阶段（返回 True = 演出刻拦截本刻行动）
             return _check_phases(st, battle, actor, cfg, bs, logs)
         except Exception:
@@ -412,3 +414,99 @@ def _check_simple_mech(st: dict, battle, actor: dict, cfg: dict, bs: dict,
                                                  "turns": 999}, logs)
         except Exception:
             pass
+
+
+# ============================================================
+# P3：召唤援军（mech summon / v163 口径）
+# 数值权威 = 04 章机制表召唤行 + 旧 _summon_minions（battle.py:9791）：
+# - CD 5 刻、单次 1 只、场上援军上限 3（含开怪自带爪牙，满员不再召）
+# - 召唤物 = 该副本怪池同等级普通怪模板（INSTANCES[iid].minions[0].monster，
+#   C.build_monster 构建），不从 Boss 比例缩放；非 instance 回落 Boss×0.2
+# - 召唤物：uid 唯一、rank1/reach1、is_minion=True、is_boss/is_elite False、
+#   mech=""（防多怪重复触发剧本）、auto_act 缺省普攻
+# - 召唤成功 → Boss 攻击联动（旧 mon_atk_up 2 刻 = atk×1.30，线上行为）
+# ============================================================
+
+def _check_summon(st: dict, battle, actor: dict, cfg: dict, bs: dict,
+                  now: float, logs: list) -> None:
+    mech = cfg.get("mech") or []
+    if "summon" not in mech:
+        return
+    rn = int(bs.get("round_no", 0) or 0)
+    if rn <= 1:
+        return
+    # CD 5 刻（SUMMON_MINION_CD，旧 r>1 且 r%5==0）
+    _last = int(bs.get("summon_last", 0) or 0)
+    if rn - _last < 5:
+        return
+    # 场上援军上限 3（含开怪自带爪牙：enemy side 存活 is_minion）
+    _alive_min = [u for u in battle.sides_of("enemy")
+                  if u.get("is_minion") and int(u.get("hp", 0) or 0) > 0]
+    try:
+        from .battle_mech import SUMMON_MINION_CAP
+    except Exception:
+        SUMMON_MINION_CAP = 3
+    if len(_alive_min) >= int(SUMMON_MINION_CAP or 3):
+        return
+    # ---- 召唤物模板：INSTANCES[iid].minions[0].monster（v163）----
+    _tpl = None
+    _tpl_name = "爪牙"
+    _iid = str(st.get("inst_id") or "") or ""
+    _boss_name = actor.get("name", "首领")
+    try:
+        from .. import content as C
+        if _iid and (C.INSTANCES or {}).get(_iid):
+            _mcfg = (C.INSTANCES[_iid].get("minions") or [])
+            if _mcfg and isinstance(_mcfg[0].get("monster"), (list, tuple)) \
+                    and len(_mcfg[0]["monster"]) >= 6:
+                _tpl = _mcfg[0]["monster"]
+                _tpl_name = _mcfg[0].get("name") or (_tpl[1] if len(_tpl) > 1 else "爪牙")
+    except Exception:
+        _tpl = None
+    m = None
+    if _tpl is not None:
+        try:
+            from .. import content as C
+            m = C.build_monster(_tpl, {"id": _iid or "x", "name": _iid or "x",
+                                       "area": "instance"})
+        except Exception:
+            m = None
+    if m is not None:
+        m = dict(m)
+    # 非 instance/无模板 → 回落 Boss×0.2（旧兜底路径）
+    if m is None:
+        m = {
+            "name": "爪牙", "role": "dps", "hp": max(1, int(actor.get("max_hp", 1) * 0.2)),
+            "max_hp": max(1, int(actor.get("max_hp", 1) * 0.2)),
+            "atk": max(1, int(actor.get("atk", 1) * 0.4)),
+            "def": 10, "matk": 10, "mdef": 10, "spd": 80,
+            "lv": actor.get("lv", 1), "rank": 1, "reach": 1,
+            "drops": [], "exp": 0, "gold": 0, "effects": {}, "shields": {},
+        }
+        _tpl_name = "爪牙"
+    seq = int(bs.get("summon_seq", 0) or 0) + 1
+    bs["summon_seq"] = seq
+    m["uid"] = f"e_min_{int(bs.get('summon_base', 0) or 0) + seq}"
+    m["side"] = "enemy"
+    m["name"] = f"{_boss_name}的{_tpl_name}"
+    m["rank"] = 1
+    m["reach"] = 1
+    m["is_minion"] = True
+    m["is_boss"] = False
+    m["is_elite"] = False
+    m["mech"] = ""
+    m["ct"] = float(now) + 2.0  # 站场不插队当前行动
+    m["effects"] = dict(m.get("effects") or {})
+    m["shields"] = dict(m.get("shields") or {})
+    # 入 enemy side（⚠️ sides_of 返回拷贝——写操作直接碰 self.sides 容器；
+    # 命令层每刻 from_state 重建 battle → 本帧改动 to_state 落回）
+    battle.sides.setdefault("enemy", []).append(m)
+    bs["summon_last"] = rn
+    bs.setdefault("summoned", []).append(m["uid"])
+    logs.append(f"👥【{actor.get('name','')}】召唤了【{m['name']}】！它挡在身前！")
+    # Boss 攻击联动（旧 mon_atk_up 2 刻 = atk×1.30，线上行为——策划案文字 +20% 为概数）
+    try:
+        _temp_stat_mult(actor, "boss_summon_atk", "atk", 1.30, 2.0, now)
+        logs.append(f"⚡【{actor.get('name','')}】攻击也提升了！")
+    except Exception:
+        pass
