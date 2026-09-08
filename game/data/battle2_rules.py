@@ -147,6 +147,29 @@ EFFECT_RULES: dict = {
         "on": "target",
         "dot": {"pct_max_hp": 0.05, "pct_boss": 0.02, "turns": 3},
     },
+    # ============ 静态面板增益（V5 数值入表：buff key → panel 声明） ============
+    # 原 EFFECT_ACTIONS 动作参数 stat/op/mult → EFFECT_RULES[key].panel；
+    # EFFECT_ACTIONS 瘦身为 {"action": "apply", "key": X}（数值查表，apply 快照进条目）。
+    # cap=1 非叠层；同 key 数值唯一（已核），多名词映射共享同一 panel。
+    "atk_up":          {"cap": 1, "panel": {"stat": "atk",  "op": "mul", "mult": 1.30}},
+    "atk_up_big":      {"cap": 1, "panel": {"stat": "atk",  "op": "mul", "mult": 1.40}},
+    "atk_up_small":    {"cap": 1, "panel": {"stat": "atk",  "op": "mul", "mult": 1.20}},
+    "def_up":          {"cap": 1, "panel": {"stat": "def",  "op": "mul", "mult": 1.45}},
+    "spd_up":          {"cap": 1, "panel": {"stat": "spd",  "op": "mul", "mult": 1.40}},
+    "spd_up_small":    {"cap": 1, "panel": {"stat": "spd",  "op": "mul", "mult": 1.20}},
+    "crit_up":         {"cap": 1, "panel": {"stat": "crit", "op": "add", "mult": 0.20}},
+    "crit_up_big":     {"cap": 1, "panel": {"stat": "crit", "op": "add", "mult": 0.30}},
+    "crit_up_small":   {"cap": 1, "panel": {"stat": "crit", "op": "add", "mult": 0.15}},
+    "dodge_up":        {"cap": 1, "panel": {"stat": "dodge", "op": "add", "mult": 0.10}},
+    "matk_up":         {"cap": 1, "panel": {"stat": "matk", "op": "mul", "mult": 1.50}},
+    "matk_up_pot":     {"cap": 1, "panel": {"stat": "matk", "op": "mul", "mult": 1.30}},
+    "matk_up_strong":  {"cap": 1, "panel": {"stat": "matk", "op": "mul", "mult": 1.80}},
+    "food_atk_up":     {"cap": 1, "panel": {"stat": "atk",  "op": "mul", "mult": 1.10}},
+    "food_def_up":     {"cap": 1, "panel": {"stat": "def",  "op": "mul", "mult": 1.15}},
+    "food_spd_up":     {"cap": 1, "panel": {"stat": "spd",  "op": "mul", "mult": 1.12}},
+    "food_spd_up_small": {"cap": 1, "panel": {"stat": "spd", "op": "mul", "mult": 1.10}},
+    "food_matk_up":    {"cap": 1, "panel": {"stat": "matk", "op": "mul", "mult": 1.10}},
+    "food_crit_up":    {"cap": 1, "panel": {"stat": "crit", "op": "add", "mult": 0.08}},
 }
 
 # ============================================================
