@@ -184,8 +184,8 @@ def test_no_equip_no_trigger():
 def test_unsupported_key_skipped():
     print("【N9.6 未支持 key 静默跳过（范围外）】")
     p = mk_a("p1", "player")
-    equip(p, "vital_band", slot="armor")   # proc_heal amp：后续批次
-    equip(p, "undying_will", slot="weapon")  # proc_dr_revive：后续批次
+    equip(p, "death_dance", slot="armor")   # proc_special 缓伤池：后续批次
+    equip(p, "arcane_firmament", slot="weapon")  # proc_passive_mult：后续批次
     EP.apply_to_actor(p)
     check("未支持 key 不装配", not (p.get("triggers") or {}), f"{p.get('triggers')}")
 
@@ -561,6 +561,35 @@ def test_heal_amp_and_mana():
     check("整场仅一次", p2["mp"] == 30, f"mp={p2['mp']}")
 
 
+def test_death_guard():
+    print("【N9.19 濒死保护 death_guard：致死保底 + 层耗尽再死】")
+    # 引擎规则直测：state death_guard 1 → 致死保命（800×10% 保底 + 回 10% = 160）
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=99999, atk=1)
+    b = new_battle(p, m)
+    p["state"]["death_guard"] = 1
+    from game.battle2.landing import deal_damage as _dd
+    _dd(b, m, p, 9999, [])
+    check("致死保命 hp=160", p["hp"] == 160, f"hp={p['hp']}")
+    check("层耗尽", (p["state"] or {}).get("death_guard", 0) == 0, f"state={p.get('state')}")
+    check("未登记死亡", p not in b.killed_actors, f"killed={b.killed_actors}")
+    # 第二次致死 → 真死
+    _dd(b, m, p, 9999, [])
+    check("层耗尽再死", p["hp"] == 0 and p in b.killed_actors,
+          f"hp={p['hp']} killed={p in b.killed_actors}")
+    # undying_will 装配端到端：battle_start 挂层 → 致死保命
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    equip(p2, "undying_will", slot="necklace")
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))  # 首动触发 battle_start
+    check("undying 挂 death_guard 1", (p2["state"] or {}).get("death_guard", 0) == 1,
+          f"state={p2.get('state')}")
+    _dd(b2, m2, p2, 9999, [])
+    check("undying 致死保命", p2["hp"] > 0, f"hp={p2['hp']}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -581,6 +610,7 @@ def main():
     test_extra_dmg()
     test_control_ext()
     test_heal_amp_and_mana()
+    test_death_guard()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

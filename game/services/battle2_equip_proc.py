@@ -353,6 +353,11 @@ _START_TRANSLATORS = {
     # proc_aux novice_dawn_mana（施法首次回蓝——we_mana_once 扩展动作）
     "novice_dawn_mana": lambda k, wd: _translate_we(k, wd, "we_mana_once", "skill_cast",
                                                     ("mp", "log")),
+    # proc_dr_revive undying_will（battle_start 挂濒死保护层——landing 致死保底）
+    "undying_will": lambda k, wd: {
+        "battle_start": [{"type": "state_add", "key": "death_guard", "amount": 1,
+                          "on": "caster", "log": wd.get("log")}],
+    },
 }
 
 
