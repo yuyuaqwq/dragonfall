@@ -96,20 +96,23 @@ EFFECT_ACTIONS: dict = {
     "sleep":     [{"action": "control", "tag": "sleep", "turns": 1}],
     "slow":      [{"action": "control", "tag": "spd_down", "turns": 2}],
     "spd_down":  [{"action": "control", "tag": "spd_down", "turns": 2}],
-    # ---- 属性增益（写 caster.buffs[key]=刻数）----
-    "atk_up":    [{"action": "buff", "key": "atk_up"}],
-    "dodge_buff":  [{"action": "buff", "key": "dodge_up"}],
-    "spd_buff":    [{"action": "buff", "key": "spd_up"}],
-    "crit_hit_buff": [{"action": "buff", "key": "crit_up"}],
-    "cc_immune":    [{"action": "buff", "key": "cc_immune"}],
+    # ---- 属性增益（写 caster.buffs[key]，数值=动作参数 stat/op/mult 快照进条目）----
+    # 数值参考旧 battle_config.BUFF_MULT（N7.1 全新填：desc/策划案为准，旧表对照）：
+    #   atk_up=×1.30 / matk_up=×1.50 / matk_up_strong=×1.80 / def_up=×1.45 /
+    #   spd_up=×1.40 / crit_up=+0.20 / magic_resist=+0.15 / mon_atk_down=×0.70
+    "atk_up":    [{"action": "buff", "key": "atk_up",    "stat": "atk",  "op": "mul", "mult": 1.30}],
+    "dodge_buff":  [{"action": "buff", "key": "dodge_up", "stat": "dodge", "op": "add", "mult": 0.10}],
+    "spd_buff":    [{"action": "buff", "key": "spd_up",   "stat": "spd",  "op": "mul", "mult": 1.40}],
+    "crit_hit_buff": [{"action": "buff", "key": "crit_up", "stat": "crit", "op": "add", "mult": 0.20}],
+    "cc_immune":    [{"action": "buff", "key": "cc_immune"}],   # 无面板折算（纯免疫状态）
     # 团队/全员增益 → 自身有效键（旧 team_keys 同语义）
-    "atk_all":   [{"action": "buff", "key": "atk_up"}],
-    "def_all":   [{"action": "buff", "key": "def_up"}],
-    "matk_all":  [{"action": "buff", "key": "matk_up_strong"}],
-    "crit_all":  [{"action": "buff", "key": "crit_up"}],
-    "spd_all":   [{"action": "buff", "key": "spd_up"}],
-    "atk_matk_all": [{"action": "buff", "key": "atk_up"},
-                     {"action": "buff", "key": "matk_up"}],
+    "atk_all":   [{"action": "buff", "key": "atk_up",       "stat": "atk",  "op": "mul", "mult": 1.30}],
+    "def_all":   [{"action": "buff", "key": "def_up",       "stat": "def",  "op": "mul", "mult": 1.45}],
+    "matk_all":  [{"action": "buff", "key": "matk_up_strong", "stat": "matk", "op": "mul", "mult": 1.80}],
+    "crit_all":  [{"action": "buff", "key": "crit_up",      "stat": "crit", "op": "add", "mult": 0.20}],
+    "spd_all":   [{"action": "buff", "key": "spd_up",       "stat": "spd",  "op": "mul", "mult": 1.40}],
+    "atk_matk_all": [{"action": "buff", "key": "atk_up",    "stat": "atk",  "op": "mul", "mult": 1.30},
+                     {"action": "buff", "key": "matk_up",   "stat": "matk", "op": "mul", "mult": 1.50}],
     # ---- 减伤（value 型 buff：mech_val 折算百分比 45→0.45）----
     "reduce":    [{"action": "buff", "key": "reduce", "pct_from_mech_val": True}],
     # ---- 护盾 ----
@@ -123,16 +126,4 @@ EFFECT_ACTIONS: dict = {
 # 净化应清的控制键（buff 容器里的控制 tag）
 CLEANSE_TAGS = ["stun", "silence", "freeze", "spd_down", "reduce"]
 
-# ============================================================
-# buff key → 面板属性折算规则（stats 聚合面板时查表折算）
-# value 存刻数 → 属性 ×(1+层数×0.10)；spd_down 特殊 ×0.8
-# ============================================================
-BUFF_STAT_KEYS: dict = {
-    "atk_up": "atk",
-    "def_up": "def",
-    "matk_up": "matk",
-    "mdef_up": "mdef",
-    "spd_up": "spd",
-    "spd_down": "spd",  # ×0.8（SPD_DOWN_MULT）
-}
-SPD_DOWN_MULT = 0.8
+

@@ -314,7 +314,7 @@ def test_actions_branches():
     FX.apply_effects(b4, p2, p2,
                      [{"type": "buff", "key": "reduce", "turns": 5,
                        "mech_val": 45, "pct_from_mech_val": True}], logs4)
-    check("buff pct 折算 45→0.45", abs(p2["buffs"].get("reduce", 0) - 0.45) < 1e-9,
+    check("buff pct 折算 45→0.45", abs(float((p2["buffs"].get("reduce") or {}).get("v", 0)) - 0.45) < 1e-9,
           f"reduce={p2['buffs'].get('reduce')}")
     check("reduce_left 记 5 刻", p2.get("reduce_left") == 5)
 
@@ -399,7 +399,7 @@ def test_more_branches():
     binfo = {"name": "怪力", "kind": "增益", "effect": "atk_up", "buff_turns": 4}
     _do_buff(b5, AC2(caster=mon_buff, action="skill", skill_name="怪力", info=binfo),
              mon_buff, binfo, logs5)
-    check("怪施法 buff 4 刻", mon_buff["buffs"].get("atk_up") == 4,
+    check("怪施法 buff 4 刻", abs(float((mon_buff["buffs"].get("atk_up") or {}).get("expire", 0)) - 4.0) < 1e-9,
           f"buffs={mon_buff['buffs']}")
     # 护盾 pct 分支（shield_self 之外：shield 用 shield_pct）
     p6, m6 = mk_ctx()
@@ -409,10 +409,10 @@ def test_more_branches():
     expect_sh = int(m6["max_hp"] * 0.5)
     check("shield pct 0.5", m6["shields"].get("buff", {}).get("value") == expect_sh,
           f"sh={m6['shields'].get('buff')} expect={expect_sh}")
-    # float 值 buff 折算（spd_down float）
+    # float 值 buff 折算（spd_down 快照形态：{stat: spd, op: reduce, mult: 0.5}）
     p7, m7 = mk_ctx()
     b7 = BT_NEW(btype="monster", sides={"player": [p7], "enemy": [m7]})
-    p7["buffs"]["spd_down"] = 0.5
+    p7["buffs"]["spd_down"] = {"expire": 99.0, "stat": "spd", "op": "reduce", "mult": 0.5}
     from game.battle2 import stats as ST2
     st7 = ST2.actor_stats(b7, p7)
     check("spd_down float 折算", st7["spd"] < p7["spd"], f"spd={st7['spd']} < {p7['spd']}")

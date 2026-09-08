@@ -7,6 +7,10 @@
 > **排期决策（鱼鱼 2026-09-08）：先完全收敛效果系统（N7），再继续命令层切换（N5b-4）——
 > 展示辅助依赖效果语义定稿，先收敛避免命令层返工。N7 全部完成后才回到 N5b-4。**
 >
+> **实施方式（鱼鱼 2026-09-08 纠正）：不迁移旧代码/旧配置——效果系统 v2 全新写，
+> 配置重新填充（策划案为准，旧 BUFF_MULT 仅作对照参考——策划案可能过时，两边对比）。
+> 旧 battle_mech/weapon_effects/affix 三套完全不动、保留可跑，v2 验证后整体切换。**
+>
 > 目标：battle2 引擎代码一次收口，字段级定稿，对拍旧引擎行为，测试固化。
 > 北极星不变：引擎零游戏知识（只执行动词/查配置表），配置换=新游戏。
 
@@ -187,12 +191,13 @@ BUFF_RULES = {
 ## 3. 执行顺序（每步可验证）
 
 ### N7.1 buff 数值动作参数化 + 面板快照折算（effects.py + stats.py + rules）
-1. 写迁移脚本：battle_config.BUFF_MULT 26 键数值 → EFFECT_ACTIONS 对应 effect 动作的
-   stat/op/mult 参数（脚本化不手抄；同名 effect 不同键（atk_up/big/small）→ 各自 mult）
+1. **全新填 EFFECT_ACTIONS 配置**：每个 buff 名词动作补 stat/op/mult 参数——
+   数值以策划案/技能 desc 为准（如战吼 desc「攻击+30%」→ mult=1.30），
+   旧 battle_config.BUFF_MULT 26 键仅作对照（导出对照表，两边不一致时以策划案为准并记录）
 2. effects.act_buff 读动作参数 stat/op/mult → buff 条目 `{expire, stat, op, mult}` 快照
 3. stats._apply_buffs 读条目快照折算：mul → st[stat]×=mult；add → st[stat]+=mult
-4. 删 BUFF_STAT_KEYS 表与"×(1+n×0.10)"逻辑
-5. 对拍：裸装 + 各 buff 键 → 旧引擎 vs battle2 面板全等
+4. BUFF_STAT_KEYS 旧表不再使用（v2 配置不含它；旧表留在旧配置不动）
+5. 对拍：裸装 + 各 buff 键 → 旧引擎 vs battle2 面板（差异=配置更新点，逐条裁决）
 6. 测试固化（test_battle2_n3_effects 扩展）
 
 ### N7.2 buffs 绝对到期 + 到期扫（effects.py + schedule.py）

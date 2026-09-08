@@ -155,16 +155,21 @@ def test_buff_effect_handler():
     caster = {"uid": "p", "name": "勇者", "buffs": {}, "state": {},
               "shields": {}, "reduce_left": 0, "max_hp": 1000, "hp": 500}
     logs = []
-    # reduce（mech_val=45 → 45%）
+    # reduce（mech_val=45 → 45%）——N7.1 形态：{expire, v}
     FX.apply_effects(b, caster, caster,
                      [{"type": "reduce", "turns": 8, "mech_val": 45, "info": {}}], logs)
-    check("reduce buffs=0.45", abs(caster["buffs"].get("reduce", 0) - 0.45) < 1e-9)
+    check("reduce buffs.v=0.45", abs(caster["buffs"].get("reduce", {}).get("v", 0) - 0.45) < 1e-9,
+          f"reduce={caster['buffs'].get('reduce')}")
     check("reduce_left=8", caster.get("reduce_left") == 8)
-    # atk_all → atk_up
+    # atk_all → atk_up（N7.1 快照：{expire, stat, op, mult}）
     caster["buffs"].clear()
     FX.apply_effects(b, caster, caster, [{"type": "atk_all", "turns": 10}], logs)
-    check("atk_all → atk_up=10", caster["buffs"].get("atk_up") == 10,
-          f"buffs={caster['buffs']}")
+    _au = caster["buffs"].get("atk_up") or {}
+    check("atk_all → atk_up stat=atk mult=1.30",
+          _au.get("stat") == "atk" and abs(float(_au.get("mult", 0)) - 1.30) < 1e-9,
+          f"atk_up={_au}")
+    check("atk_up expire≈now+10", abs(float(_au.get("expire", 0)) - 10.0) < 1e-9,
+          f"expire={_au.get('expire')}")
     # shield_self
     FX.apply_effects(b, caster, caster,
                      [{"type": "shield_self", "mech_val": 300, "info": {"effect_val": 0}}], logs)
@@ -241,6 +246,31 @@ def test_state_scale():
     check(f"普攻伤害 rage 3 层（{d1}）> 无层（{d0}）", d1 > d0, f"d0={d0} d1={d1}")
 
 
+def test_buff_snapshot_scaling():
+    print("【N3.7 N7.1 buff 快照折算：条目 mult/add 驱动面板，纯状态不折算】")
+    # 纯怪（无 class_name → 直接读字段，避免职业公式干扰折算验证）
+    actor = make_actor(uid="e1", name="折算靶", side="enemy", kind="monster",
+                       atk=100, **{"def": 0}, matk=10, mdef=0, spd=50,
+                       crit=0.05, max_hp=999, hp=999)
+    b = BT_NEW(btype="monster", sides={"enemy": [actor], "player": []})
+    st0 = S.actor_stats(b, actor)
+    check("无 buff atk=100", st0["atk"] == 100, f"atk={st0['atk']}")
+    # mul 快照：atk_up mult=1.30 → 100×1.30 = 130（不是旧"3刻×10%"逻辑）
+    actor["buffs"]["atk_up"] = {"expire": 10.0, "stat": "atk", "op": "mul", "mult": 1.30}
+    st1 = S.actor_stats(b, actor)
+    check("atk_up mul 快照 atk=130", st1["atk"] == 130, f"atk={st1['atk']}")
+    # add 快照：crit_up mult=0.20 → crit +0.20
+    actor["buffs"]["crit_up"] = {"expire": 10.0, "stat": "crit", "op": "add", "mult": 0.20}
+    st2 = S.actor_stats(b, actor)
+    check("crit_up add 快照 crit+0.20",
+          abs(float(st2.get("crit", 0)) - (float(st0.get("crit", 0)) + 0.20)) < 1e-9,
+          f"crit={st2.get('crit')}")
+    # 纯状态（无 stat）不折算：stun 挂上 atk 不变
+    actor["buffs"]["stun"] = {"expire": 1.0}
+    st3 = S.actor_stats(b, actor)
+    check("stun 纯状态不折算 atk", st3["atk"] == 130, f"atk={st3['atk']}")
+
+
 def main():
     print("=== N3 battle2 效果系统测试 ===")
     test_debuff_stack()
@@ -249,6 +279,7 @@ def main():
     test_buff_effect_handler()
     test_mech_on_hit()
     test_state_scale()
+    test_buff_snapshot_scaling()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         print("失败明细:")
