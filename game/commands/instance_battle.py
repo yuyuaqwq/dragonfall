@@ -74,6 +74,69 @@ def _player_actor(snap: dict, st: dict, key: str) -> dict:
     return actor
 
 
+def _instance_target_picker(st: dict):
+    """副本自动怪目标选择闭包（5b G1：仇恨/嘲讽/target_policy）。
+
+    返回 callable(battle, actor) -> Optional[actor]（None=引擎回落默认敌对）。
+    语义对齐旧 _pick_instance_target（battle.py 1440-1479）：
+    ① 嘲讽强制：st.taunt_target 存活 → 打嘲讽者
+    ② 按怪 target_policy（MONSTER_MODS target_policy；Boss 缺省 hate_top，
+       其他缺省 front）+ st.threat 表 → FM.pick_by_policy
+    引擎零游戏知识（target_picker 只是决策注入点）。
+    """
+    def pick(battle, actor):
+        try:
+            from ..core import formation as FM
+            from .. import content as C
+            alive_p = [a for a in battle.sides_of("player")
+                       if int(a.get("hp", 0) or 0) > 0]
+            if not alive_p:
+                return None
+            # ① 嘲讽强制
+            tk = str(st.get("taunt_target") or "")
+            if tk:
+                for a in alive_p:
+                    if str(a.get("qq_id") or "") == tk:
+                        return a
+            # ② target_policy + threat（threat 表 key=qq_id → pick 用 uid 映射）
+            _threat = {}
+            for a in alive_p:
+                _q = str(a.get("qq_id") or "")
+                _threat[str(a.get("uid") or ("p_%s" % _q))] = float(
+                    (st.get("threat") or {}).get(_q, 0) or 0)
+            _tpol = ""
+            try:
+                _mid = actor.get("id") or ""
+                _tpol = str((C.MONSTER_MODS.get(_mid, {}) or {}).get("target_policy", "") or "")
+            except Exception:
+                _tpol = ""
+            if not _tpol:
+                _tpol = "hate_top" if str(actor.get("role", "")) == "boss" else "front"
+            picked = FM.pick_by_policy(_tpol, alive_p, threat=_threat)
+            return picked
+        except Exception:
+            return None
+    return pick
+
+
+def _attach_instance_hooks(b, st: dict) -> None:
+    """battle 恢复/重建后重挂命令层注入钩子（5b：target_picker + 5a：action_override）。
+
+    battle2 的 Battle 构造参数（target_picker/on_event/action_override）都是运行回调，
+    不随 to_state/from_state 序列化——每次 from_state 后必须重挂，否则副本自动怪
+    不按仇恨选目标、道具行动回调丢失。
+    """
+    try:
+        b.target_picker = _instance_target_picker(st)
+    except Exception:
+        b.target_picker = None
+    try:
+        from .battle2_item_use import make_override
+        b.action_override = make_override()
+    except Exception:
+        b.action_override = None
+
+
 def build_battle(st: dict) -> "object":
     """遭遇/切怪/Boss 战：组 sides → B2 → st["battle"]=to_state。返回 B2。
 
@@ -106,6 +169,8 @@ def build_battle(st: dict) -> "object":
     except Exception:
         pass
     b = B2("instance", sides=sides, title_bonus={}, pet=_pet or {})
+    # 5b：构造时注入副本命令层钩子（target_picker 仇恨选目标等）
+    _attach_instance_hooks(b, st)
     st["battle"] = b.to_state()
     return b
 
@@ -156,13 +221,9 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
     if not st_battle.get("sides"):
         return ["战斗状态异常，请重新遭遇！"], True, None
     b = B2.from_state(st_battle)
-    # I3：from_state 后注入道具行动回调（action_override 不可序列化，恢复必重挂；
-    # use_item/自定义动作由回调翻译成引擎动词——引擎零道具名词）
-    try:
-        from .battle2_item_use import make_override
-        b.action_override = make_override()
-    except Exception:
-        b.action_override = None
+    # I3：from_state 后注入道具行动回调 + 5b target_picker（action_override/
+    # target_picker 不可序列化，恢复必重挂——副本自动怪选目标、道具行动都靠它们）
+    _attach_instance_hooks(b, st)
     # 从重建后的 b.sides 定位行动者（不能从 st 旧 dict 找——from_state 是反序列化
     # 副本，引擎修改落在 b 内 actor，若用 st 旧 actor 则 to_state 落回时修改丢失：
     # hp/ct/defending 全部不写回，副本战斗永远无进展）。PVP act 同口径。

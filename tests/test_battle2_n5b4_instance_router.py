@@ -475,6 +475,45 @@ def test_12_use_item_router():
           f"ct {_ct_before}->{_ct_after}")
 
 
+def test_13_target_picker():
+    print("【13. 5b target_picker：仇恨选目标 / 嘲讽强制 / policy 缺省】")
+    from game.battle2 import Battle as B2
+    from game.commands import instance_battle as IB
+    st = mk_st([70111, 70112], enemy=mk_enemy(hp=5000, spd=1, role="boss"))
+    IB.build_battle(st)
+    # 组装 battle 实例（build_battle 已注入 picker——但 st["battle"] 是 to_state，
+    # picker 是构造时闭包，需直接 from_state 后手动挂）
+    b = B2.from_state(st["battle"])
+    IB._attach_instance_hooks(b, st)
+    pa1 = next(a for a in b.sides_of("player") if a.get("qq_id") == "70111")
+    pa2 = next(a for a in b.sides_of("player") if a.get("qq_id") == "70112")
+    enemy = b.sides_of("enemy")[0]
+    enemy["role"] = "boss"
+    # ① 无嘲讽：boss 缺省 hate_top → 打仇恨最高
+    st["taunt_target"] = ""
+    st["threat"] = {"70111": 100, "70112": 30}
+    p = b.target_picker(b, enemy)
+    check("boss hate_top 打仇恨最高者", p is not None and p.get("qq_id") == "70111",
+          f"picked={p.get('qq_id') if p else None}")
+    # ② 嘲讽强制（无视仇恨表）
+    st["taunt_target"] = "70112"
+    p2 = b.target_picker(b, enemy)
+    check("嘲讽强制打嘲讽者", p2 is not None and p2.get("qq_id") == "70112",
+          f"picked={p2.get('qq_id') if p2 else None}")
+    st["taunt_target"] = ""
+    # ③ 普通怪（非 boss 缺省 front）→ 有存活就选（单人/前排）
+    enemy["role"] = "dps"
+    p3 = b.target_picker(b, enemy)
+    check("普通怪 front 选存活玩家", p3 is not None and p3.get("qq_id") in ("70111", "70112"),
+          f"picked={p3.get('qq_id') if p3 else None}")
+    # ④ 玩家全灭 → None（引擎回落默认，不崩）
+    pa1["hp"] = 0
+    pa2["hp"] = 0
+    p4 = b.target_picker(b, enemy)
+    check("无存活玩家 → None", p4 is None, f"picked={p4}")
+    print("  -- 注：st threat 表 key=qq_id，monster_to_actor 透传 role 字段")
+
+
 def _collect(agen):
     """跑命令层 filter handler（async generator 或 coroutine 兼容）。"""
     return _run_gen(agen)
@@ -493,6 +532,7 @@ def main():
     test_10_rooms_boss()
     test_11_command_entry_switch()
     test_12_use_item_router()
+    test_13_target_picker()
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     if FAILURES:
         for f in FAILURES:
