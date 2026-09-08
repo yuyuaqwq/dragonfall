@@ -177,6 +177,29 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
     if my is None:
         return ["你已不在战斗中（状态异常）！"], True, None
     _tgt = target
+    # 目标解析：battle2 引擎只吃 actor dict（字符串会崩）——名字/编号在此翻译。
+    # 支持：None=自动 / actor dict 直传 / 字符串=敌名（前缀匹配，v2 多怪指定）
+    #       / aN 编号（A 层第 N 个存活敌，formation 站位编号语义，v127.3）
+    if isinstance(_tgt, str):
+        _s = _tgt.strip().lower()
+        _alive_e = [u for u in b.sides_of("enemy") if (u.get("hp") or 0) > 0]
+        _picked = None
+        if _s.startswith("a") and _s[1:].isdigit():
+            _idx = int(_s[1:]) - 1
+            if 0 <= _idx < len(_alive_e):
+                _picked = _alive_e[_idx]
+        elif _s.isdigit():
+            _idx = int(_s) - 1
+            if 0 <= _idx < len(_alive_e):
+                _picked = _alive_e[_idx]
+        else:
+            _nm = _tgt.strip()
+            for u in _alive_e:
+                if (u.get("name") or "") == _nm or (u.get("name") or "").startswith(_nm):
+                    _picked = u
+                    break
+        _tgt = _picked  # 解析失败 → None 自动选目标（引擎 _default_target）
+    _action, _skill = action, skill_name
     if action == "skill" and skill_name:
         try:
             _info = E.skill_info(my.get("class_name") or "", skill_name) or {}
@@ -184,7 +207,7 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
                 _tgt = None  # 治疗/增益作用自己（防奶敌）
         except Exception:
             pass
-    logs, ended, who = b.human_act(action, skill_name, actor=my, target=_tgt)
+    logs, ended, who = b.human_act(_action, _skill, actor=my, target=_tgt)
     st["battle"] = b.to_state()
     nxt = None
     if not ended:

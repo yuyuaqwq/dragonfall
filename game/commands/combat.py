@@ -958,7 +958,8 @@ class CombatCmds(CommandBase):
             yield event.plain_result("你附近没有敌人！输入『探索』寻找敌人～")
             return
         if battle["state"].get("type") == "instance":
-            async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "attack", None):
+            # N5b4-5a R2：接线点 attack → 新 Router（battle2 原生；老 _instance_act R3 删除）
+            async for _r in self._instance_router(event, group_id, qq_id, player, battle["state"], "attack", None):
                 yield _r
             return
         if battle["state"].get("type") == "pvp":
@@ -1221,7 +1222,8 @@ class CombatCmds(CommandBase):
             yield event.plain_result("💙 魔力不足！休息一下或使用魔力药水吧～")
             return
         if battle["state"].get("type") == "instance":
-            async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "skill", skill_name, target=_skill_target):
+            # N5b4-5a R2：接线点 skill → 新 Router（battle2 原生；老 _instance_act R3 删除）
+            async for _r in self._instance_router(event, group_id, qq_id, player, battle["state"], "skill", skill_name, target=_skill_target):
                 yield _r
             return
         if battle["state"].get("type") == "pvp":
@@ -1577,7 +1579,8 @@ class CombatCmds(CommandBase):
             if inst_row:
                 battle = inst_row
         if battle["state"].get("type") == "instance":
-            async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "defend", None):
+            # N5b4-5a R2：接线点 defend → 新 Router（battle2 原生；老 _instance_act R3 删除）
+            async for _r in self._instance_router(event, group_id, qq_id, player, battle["state"], "defend", None):
                 yield _r
             return
         if battle["state"].get("type") == "pvp":

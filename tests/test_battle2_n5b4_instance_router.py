@@ -394,6 +394,56 @@ def _run_gen(agen):
         loop.close()
 
 
+def test_11_command_entry_switch():
+    print("【11. R2 命令层接线：CombatCmds attack/skill/defend 分流 → router】")
+    # attack：db 有 battle 行 → instance 分流 → _instance_router（不再 _instance_act）
+    # 注意：命令层从 db.get_battle 读回反序列化副本操作（大陆权威 st 场景在 R4 端到端），
+    # 此处校验 db 行内 sides 敌 hp 下降（真实写入路径）。
+    st = mk_st([70091], enemy=mk_enemy(hp=300, spd=1))
+    IB.build_battle(st)
+    db.save_battle(GID, 70091, st)
+    inst = _Host()
+    ev = FakeEvent(GID, "70091", "攻击")
+    msgs = _collect(inst.attack(ev))
+    joined = "\n".join(msgs)
+    row = db.get_battle(GID, 70091)
+    e_hp = 300
+    if row:
+        _sides = (row["state"].get("battle") or {}).get("sides") or row["state"].get("sides") or {}
+        _e = _sides.get("enemy") or []
+        if _e:
+            e_hp = max(0, int(_e[0].get("hp", 300) or 300))
+    check("attack 分流 → router 普攻造成伤害（db 行敌 hp 下降）", e_hp < 300, f"敌hp={e_hp}")
+    check("attack 输出含回合面板", "行动" in joined or "伤害" in joined, joined[:100])
+    # defend：实例行 → router 防御（db 行 defending 置位）
+    ev2 = FakeEvent(GID, "70091", "防御")
+    msgs2 = _collect(inst.defend(ev2))
+    joined2 = "\n".join(msgs2)
+    row2 = db.get_battle(GID, 70091)
+    _def = False
+    if row2:
+        _sides2 = (row2["state"].get("battle") or {}).get("sides") or {}
+        for _p in (_sides2.get("player") or []):
+            if str(_p.get("qq_id")) == "70091":
+                _def = bool(_p.get("defending"))
+    check("defend 分流 → router 防御（db 行 defending）", _def, f"defending={_def}")
+    check("defend 输出含防御文案", "防御" in joined2 or "减半" in joined2, joined2[:100])
+    # skill：需要技能栏/已学——用攻击型验证不崩（heal 已覆盖于单测 4）
+    st2 = mk_st([70092], enemy=mk_enemy(hp=500, spd=1))
+    IB.build_battle(st2)
+    db.save_battle(GID, 70092, st2)
+    ev3 = FakeEvent(GID, "70092", "技能")
+    msgs3 = _collect(inst.skill(ev3))
+    # 无技能名 → 技能面板（说明走到了 skill 而非崩溃）
+    joined3 = "\n".join(msgs3)
+    check("skill 无参 → 面板（分流不崩）", bool(joined3.strip()), joined3[:80])
+
+
+def _collect(agen):
+    """跑命令层 filter handler（async generator 或 coroutine 兼容）。"""
+    return _run_gen(agen)
+
+
 def main():
     test_1_no_enemy_hint()
     test_2_turn_wait()
@@ -405,6 +455,7 @@ def main():
     test_8_defeat()
     test_9_secret_guard()
     test_10_rooms_boss()
+    test_11_command_entry_switch()
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     if FAILURES:
         for f in FAILURES:
