@@ -229,6 +229,107 @@ def we_guardian_will(battle, caster, target, params, logs):
 
 
 # ============================================================
+# proc_shield 条件盾（threshold 低保 3 + heal 溢出 2 + crit 1）
+# ============================================================
+
+_SHIELD_COND_LOG = {
+    "bedrock_crown": "🪨 磐石守护：生命垂危，获得 {shield} 点护盾！（4 刻）",
+    "firmament_crown": "🌌 苍穹庇护：获得 {shield} 点护盾！",
+    "gargoyle_heart": "💎 石像鬼之心：获得 {shield} 点护盾并回复 {heal} 点生命！",
+    "echo_bless": "🌿 回响祝福：治疗溢出转化为 {shield} 点护盾！",
+    "atonement_shield": "⚖️ 赎罪之盾：治疗溢出转化为 {shield} 点护盾！",
+    "endless_radiance": "🌟 无尽辉光：暴击获得 {shield} 点护盾！",
+}
+
+
+def _add_owner_shield(battle, owner, params, value, logs):
+    from game.battle2.effects import act_shield
+    act_shield(battle, owner, owner,
+               {"type": "shield", "key": params.get("shield_key") or "we_shield",
+                "value": value, "turns": int(params.get("turns") or 3), "on": "caster"},
+               logs)
+
+
+@register_action("we_shield_cond")
+def we_shield_cond(battle, caster, target, params, logs):
+    """条件护盾（proc_shield 条件型）——事件由装配层挂载，执行器按 key 语义：
+
+    - bedrock/gargoyle（on_taken 后自查）：hp 低于 threshold → 整场一次低保盾
+      （gargoyle 附回血）
+    - firmament（on_taken 后自查）：hp 低于 threshold → 限 per_battle 次低保盾
+    - echo_bless/atonement（on_heal）：治疗溢出转盾（_fire_ctx.overflow）
+    - endless_radiance（crit）：暴击 + cd → 盾
+    状态（used/次数/cd）存 owner.ext.we_proc。
+    """
+    owner = params.get("_owner") or target
+    if owner is None or not actor_alive(owner):
+        return
+    key = params.get("key") or ""
+    st = owner.setdefault("ext", {}).setdefault("we_proc", {})
+    ctx = getattr(battle, "_fire_ctx", None) or {}
+    now = float(getattr(battle, "_now", 0) or 0)
+    # ---- heal 溢出转盾 ----
+    if key in ("echo_bless", "atonement_shield"):
+        overflow = int(ctx.get("overflow", 0) or 0)
+        if overflow <= 0:
+            return
+        cap = int(owner.get("max_hp", 100) * float(params.get("cap_hp_pct") or 0.10))
+        if key == "echo_bless":
+            shield = min(cap, int(overflow * float(params.get("overflow_pct") or 0.30)))
+        else:
+            shield = min(cap, overflow)
+        if shield > 0:
+            _add_owner_shield(battle, owner, params, shield, logs)
+            logs.append(_SHIELD_COND_LOG.get(key, "").format(shield=shield))
+        return
+    # ---- crit 盾（endless_radiance：装配层挂 crit 事件 → 到达即暴击）----
+    if key == "endless_radiance":
+        if float(st.get(params.get("cd_key"), 0) or 0) > now:
+            return
+        shield = int(owner.get("max_hp", 100) * float(params.get("shield_hp_pct") or 0.05))
+        from game.core.constants import ACT_TICK
+        _add_owner_shield(battle, owner, params, shield, logs)
+        st[params.get("cd_key") or "we_radiance_cd"] = now + int(params.get("cd") or 3) * ACT_TICK
+        logs.append(_SHIELD_COND_LOG.get(key, "").format(shield=shield))
+        return
+    # ---- threshold 低保盾（bedrock/gargoyle/firmament）----
+    used_key = params.get("used_key")
+    if key == "firmament_crown":
+        n = int(st.get(used_key, 0) or 0)
+        if n >= int(params.get("per_battle") or 2):
+            return
+    else:
+        if st.get(used_key):
+            return
+    ratio = float(owner.get("hp", 0)) / max(1, owner.get("max_hp", 1) or 1)
+    if ratio >= float(params.get("threshold") or 0.30):
+        return  # 血量未到阈值
+    if key == "firmament_crown":
+        st[used_key] = int(st.get(used_key, 0) or 0) + 1
+    else:
+        st[used_key] = True
+    shield = int(owner.get("max_hp", 100) * float(params.get("shield_hp_pct") or 0.2))
+    _add_owner_shield(battle, owner, params, shield, logs)
+    if key == "gargoyle_heart":
+        heal = int(owner.get("max_hp", 100) * float(params.get("heal_pct") or 0.1))
+        from game.battle2.landing import heal_actor
+        heal_actor(battle, owner, heal, logs)
+        logs.append(_SHIELD_COND_LOG.get(key, "").format(shield=shield, heal=heal))
+    else:
+        logs.append(_SHIELD_COND_LOG.get(key, "").format(shield=shield))
+
+
+def _crit_flag(ctx: dict) -> bool:
+    """crit 事件判定兜底：crit 事件 ctx 无 is_crit 键（事件本身即暴击）——
+    由装配层区分：endless_radiance 挂 crit 事件时恒为暴击 → ctx 带 is_crit=True 由
+    fire 暂存补充不了，这里约定 crit 事件挂载的 effect 直接视为暴击。
+    """
+    # fire crit 事件 ctx 不设 is_crit；on_hit 类也不该挂 endless_radiance——
+    # 装配层把 endless_radiance 挂 crit 事件 → 到达执行器即暴击。
+    return True
+
+
+# ============================================================
 # 注册入口（装配层 install_ext_actions 调，幂等）
 # ============================================================
 

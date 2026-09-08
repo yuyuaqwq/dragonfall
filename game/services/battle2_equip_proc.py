@@ -220,6 +220,19 @@ def _translate_shield_taken_cd(key: str, wd: dict) -> dict:
     return {"taken": [eff]}
 
 
+def _translate_shield_cond(key: str, wd: dict, old_ev: str) -> dict:
+    """proc_shield 条件型：族扩展动作 we_shield_cond。
+    threshold 低保盾（bedrock/gargoyle/firmament）挂 on_taken（受击后自查 hp 阈值）；
+    heal 溢出（echo_bless/atonement）挂 heal；crit 盾（endless_radiance）挂 crit。"""
+    eff = {"type": "we_shield_cond", "key": key}
+    for f in ("threshold", "shield_hp_pct", "heal_pct", "turns", "per_battle",
+              "overflow_pct", "cap_hp_pct", "shield_key", "used_key", "active_key",
+              "cd_key", "cd", "shield_turns"):
+        if wd.get(f) is not None:
+            eff[f] = wd[f]
+    return {old_ev: [eff]}
+
+
 def _translate_dusk_blade(key: str, wd: dict) -> dict:
     """proc_next_atk_mark dusk_blade（kill）：击杀后潜行（必暴）+ 下次攻击 +30%。"""
     effs = []
@@ -279,6 +292,13 @@ _START_TRANSLATORS = {
     # proc_shield taken 概率盾（族扩展动作带 cd）
     "sentinel_aegis": _translate_shield_taken_cd,
     "deeprock_aegis": _translate_shield_taken_cd,
+    # proc_shield 条件盾（threshold 低保 / heal 溢出 / crit）
+    "bedrock_crown": lambda k, wd: _translate_shield_cond(k, wd, "taken"),
+    "firmament_crown": lambda k, wd: _translate_shield_cond(k, wd, "taken"),
+    "gargoyle_heart": lambda k, wd: _translate_shield_cond(k, wd, "taken"),
+    "echo_bless": lambda k, wd: _translate_shield_cond(k, wd, "heal"),
+    "atonement_shield": lambda k, wd: _translate_shield_cond(k, wd, "heal"),
+    "endless_radiance": lambda k, wd: _translate_shield_cond(k, wd, "crit"),
 }
 
 

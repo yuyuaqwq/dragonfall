@@ -183,7 +183,7 @@ def test_no_equip_no_trigger():
 def test_unsupported_key_skipped():
     print("【N9.6 未支持 key 静默跳过（范围外）】")
     p = mk_a("p1", "player")
-    equip(p, "bedrock_crown", slot="armor")   # proc_shield threshold 低保盾：后续批次
+    equip(p, "frost_ring", slot="armor")   # proc_control：后续批次
     equip(p, "wind_split", slot="weapon")    # proc_extra_dmg：后续批次
     EP.apply_to_actor(p)
     check("未支持 key 不装配", not (p.get("triggers") or {}), f"{p.get('triggers')}")
@@ -398,6 +398,47 @@ def test_dusk_blade_kill():
     check("击杀挂 stealth buff", "stealth" in (p["buffs"] or {}), f"buffs={p.get('buffs')}")
 
 
+def test_shield_cond_overflow_crit():
+    print("【N9.15 条件盾：threshold 低保 / heal 溢出 / crit】")
+    # bedrock：hp < 25% 受击后整场一次 20% 盾
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=99999, atk=1)
+    equip(p, "bedrock_crown", slot="helm",
+          we_data={"threshold": 0.25, "shield_hp_pct": 0.2, "turns": 4})
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    from game.battle2.landing import deal_damage as _dd
+    _dd(b, m, p, 30, [])   # hp 高不触发
+    check("hp 高不触发", not (p["shields"] or {}), f"shields={p.get('shields')}")
+    p["hp"] = 150  # 800×0.25=200 阈值下
+    _dd(b, m, p, 10, [])
+    check("低保盾 20%（160）", int((p["shields"] or {}).get("we_bedrock", {}).get("value", 0)) == 160,
+          f"shields={p.get('shields')}")
+    p["shields"] = {}
+    _dd(b, m, p, 10, [])   # 整场一次 → used 不重复
+    check("整场一次不重复", not (p["shields"] or {}), f"shields={p.get('shields')}")
+    # echo_bless：heal 溢出转盾（溢出 30% cap 10%）
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    equip(p2, "echo_bless", slot="necklace")
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    from game.battle2.landing import heal_actor as _ha
+    p2["hp"] = p2["max_hp"] - 100  # 缺 100
+    _ha(b2, p2, 200, [])   # 计划 200 实回 100 → 溢出 100
+    check("溢出 30% → 盾 30", int((p2["shields"] or {}).get("we_echo_bless", {}).get("value", 0)) == 30,
+          f"shields={p2.get('shields')}")
+    # endless_radiance：crit 事件 → 5% 盾
+    p3 = mk_a("p3", "player", crit=1.0)
+    m3 = mk_a("e3", "enemy", hp=99999, atk=1)
+    equip(p3, "endless_radiance", slot="weapon")
+    EP.apply_to_actor(p3)
+    b3 = new_battle(p3, m3)
+    b3.act(ActCtx(caster=p3, action="attack", target=m3))
+    check("暴击给盾 5%（40）", int((p3["shields"] or {}).get("we_radiance", {}).get("value", 0)) == 40,
+          f"shields={p3.get('shields')}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -414,6 +455,7 @@ def main():
     test_next_atk_and_retort_marks()
     test_shield_taken_cd()
     test_dusk_blade_kill()
+    test_shield_cond_overflow_crit()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:
