@@ -94,6 +94,137 @@ def equipped_weapon_keys(actor: dict) -> list:
 
 
 # ============================================================
+# affix 词条装配（N9.7：AFFIXES 76 → 分档）
+# ============================================================
+# 分档结论（docs/REFACTOR_v181P4_N9_7_affix_migration.md）：
+# - A1 stat 型 26：装备生成时已折算进 item.stats → battle2 面板自动含，装配层跳过
+# - B 事件型：trigger 映射 battle2 事件 → 翻译成效果声明（此文件翻译器）
+# - 资源型/职业机制 ~37：上层职业模块缺口清单（此文件不装，静默跳过）
+# tier 语义（旧 _affix_effs）：effect.tiers[装备品质] 覆盖主数值键（如能量上限
+# full_pack purple 10/orange 20）；装配时按 item.quality 取档。
+
+_AFFIX_TABLE = None
+
+
+def _affix_data() -> dict:
+    """AFFIXES 表（数值权威，惰性读）。"""
+    global _AFFIX_TABLE
+    if _AFFIX_TABLE is None:
+        try:
+            from game.data import affixes as _A
+            _AFFIX_TABLE = getattr(_A, "AFFIXES", {})
+        except Exception:
+            _AFFIX_TABLE = {}
+    return _AFFIX_TABLE
+
+
+def equipped_affix_ids(actor: dict) -> list:
+    """actor 已装备的全部 affix id（各槽位 affixes 列表，去重保序）。"""
+    out = []
+    for item in (actor.get("equipment") or {}).values():
+        if not isinstance(item, dict):
+            continue
+        for aid in (item.get("affixes") or []):
+            if aid and aid not in out:
+                out.append(aid)
+    return out
+
+
+def _tier_value(eff: dict, quality: str):
+    """effect.tiers[quality] 取档覆盖（旧 _affix_effs 语义）；无 tiers → None。"""
+    tiers = eff.get("tiers")
+    if not isinstance(tiers, dict):
+        return None
+    return tiers.get(quality or "")
+
+
+def _affix_effect_final(aid: str, actor: dict) -> dict:
+    """词条 effect + tier 覆盖（读 AFFIXES 表；未找到 = {} → 缺字段无行为）。"""
+    info = (_affix_data() or {}).get(aid) or {}
+    eff = dict(info.get("effect") or {})
+    tiers = eff.get("tiers")
+    if isinstance(tiers, dict):
+        # 找该词条所在装备的品质（同名词条多件品质不同 → 取最高档）
+        tv = None
+        for item in (actor.get("equipment") or {}).values():
+            if isinstance(item, dict) and aid in (item.get("affixes") or []):
+                q = item.get("quality", "")
+                if q in tiers:
+                    cand = tiers[q]
+                    if tv is None or (isinstance(cand, (int, float))
+                                      and cand > tv):
+                        tv = cand
+        eff.pop("tiers", None)
+        if tv is not None:
+            # 主数值键 = 排除辅助键（cond/on/desc）外的第一个数值键
+            for k, v in eff.items():
+                if isinstance(v, (int, float)) and k not in ("cond",):
+                    eff[k] = tv
+                    break
+    return eff
+
+
+# ============================================================
+# affix → 效果声明翻译器（按 aid 注册；chance 数据表权威）
+# ============================================================
+
+# 已支持 affix key 清单 → 翻译器（函数签名 (aid, actor, eff) -> {old_event: [效果]})
+_AFFIX_TRANSLATORS: dict = {}
+
+
+def _register_affix(aid: str):
+    """affix 翻译器注册装饰器。"""
+    def deco(fn):
+        _AFFIX_TRANSLATORS[aid] = fn
+        return fn
+    return deco
+
+
+def _affix_chance_of(aid: str) -> float:
+    """词条触发概率（AFFIXES 表 chance；缺省 None = 恒触发——旧语义）。"""
+    return (_affix_data() or {}).get(aid, {}).get("chance")
+
+
+def _affix_hit_ev(eff: dict) -> str:
+    """词条命中挂点：数据表自定义事件（如 soul_devourer skill_hit）缺省 hit
+    （装配层 map_event 展开 attack_hit+skill_hit）。"""
+    return eff.get("event") or "hit"
+
+
+@_register_affix("shield")
+def _af_shield(aid, actor, eff):
+    """护盾：battle_start 10% maxhp 盾（3 刻）。（无 chance → 纯动词可直接走）"""
+    return {"battle_start": [{"type": "shield", "key": "affix_shield",
+                              "pct": float(eff.get("shield_hp_pct") or 0.10),
+                              "turns": int(eff.get("turns") or 3), "on": "caster"}]}
+
+
+@_register_affix("regen")
+def _af_regen(aid, actor, eff):
+    """回春：turn_start 回 1% 最大生命。"""
+    return {"turn_start": [{"type": "heal", "pct": float(eff.get("pct") or 0.01),
+                            "on": "caster"}]}
+
+
+@_register_affix("meditate")
+def _af_meditate(aid, actor, eff):
+    """冥想：turn_start 回 1% 最大生命（法师词条，同 regen 语义）。"""
+    return {"turn_start": [{"type": "heal", "pct": float(eff.get("pct") or 0.01),
+                            "on": "caster"}]}
+
+
+def affix_triggers_for_key(aid: str, actor: dict) -> dict:
+    """单个 affix → {old_event: [效果 dict]}（未支持 key → {}）。"""
+    fn = _AFFIX_TRANSLATORS.get(aid)
+    if fn is None:
+        return {}
+    eff = _affix_effect_final(aid, actor)
+    if not eff and aid not in _AFFIX_TRANSLATORS:
+        return {}
+    return fn(aid, actor, eff)
+
+
+# ============================================================
 # key → 效果声明翻译（第一批：纯动词 battle_start 起手类）
 # ============================================================
 # 返回 {old_event(字符串): [效果 dict]}（装配时 map_event 把旧事件展开成 battle2 事件）
@@ -507,15 +638,39 @@ def weapon_triggers(actor: dict) -> dict:
     return out
 
 
+def affix_triggers(actor: dict) -> dict:
+    """actor 全部已装备词条（事件型）→ {battle2事件: [效果 dict]}。
+
+    - stat 型词条（生成时已折算进 item.stats）不产生 triggers（面板自动含）
+    - 资源型/职业机制词条：翻译器未注册 → 静默跳过（上层职业模块缺口清单）
+    - 事件型走翻译器 + 事件映射展开（hit → attack_hit + skill_hit）
+    """
+    out: dict = {}
+    for aid in equipped_affix_ids(actor):
+        raw = affix_triggers_for_key(aid, actor)
+        if not raw:
+            continue
+        for old_ev, effs in raw.items():
+            for b2_ev in map_event(old_ev):
+                out.setdefault(b2_ev, []).extend(list(effs))
+    return out
+
+
 def apply_to_actor(actor: dict) -> None:
-    """把装备特效装配进 actor（幂等；命令层开战前调用）：
-    1. 事件型效果 → actor["triggers"]（triggers 可能引用 we_xxx → 先注册扩展动作）
+    """把装备特效+词条装配进 actor（幂等；命令层开战前调用）：
+    1. 事件型效果 → actor["triggers"]（武器特效 + 词条事件型合并）
     2. 被动常驻型（proc_heal amp：受疗增幅）→ actor.state.heal_amp_pct（landing 折算）"""
     if not actor:
         return
     install_ext_actions()
-    # 1) 事件型
+    # 1) 事件型（武器特效 + affix 词条）
     merged = weapon_triggers(actor)
+    try:
+        _afx = affix_triggers(actor)
+        for ev, effs in _afx.items():
+            merged.setdefault(ev, []).extend(effs)
+    except Exception:
+        pass  # 词条装配异常不阻断武器装配（容错）
     tr = actor.setdefault("triggers", {})
     for ev, effs in merged.items():
         tr.setdefault(ev, []).extend(effs)

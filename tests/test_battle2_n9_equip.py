@@ -790,6 +790,71 @@ def test_act_done_randuin():
           f"foe state={foe.get('state')}")
 
 
+def test_affix_basic():
+    print("【N9.7a affix 装配骨架：stat 面板自动含 + 纯动词词条 shield/regen/meditate】")
+    # --- stat 型 26 零代码验证：带 crit_up(+5% crit) 词条的装备 → battle2 面板含 ---
+    p = mk_a("p1", "player", class_name="战士")
+    p.setdefault("equipment", {})["weapon"] = {
+        "slot": "weapon", "quality": "purple",
+        "affixes": ["crit_up"],  # effect: crit +0.05 → 生成时折算进 stats
+        "stats": {"crit": 0.05, "atk": 10},
+    }
+    # 实际生成路径 stat_affix_stats 折算（drops 同款）——直接调折算验证
+    from game.core.affix import stat_affix_stats
+    conv = stat_affix_stats(["crit_up"], "weapon", 10)
+    check("stat_affix_stats 折算 crit_up", abs((conv.get("crit") or 0) - 0.05) < 1e-9,
+          f"conv={conv}")
+    # battle2 面板：带折算后的 stats 即含（不产生 triggers）
+    EP.apply_to_actor(p)
+    check("stat 词条不产生 triggers", not (p.get("triggers") or {}),
+          f"triggers={p.get('triggers')}")
+    from game.battle2 import stats as S
+    b = new_battle(p, mk_a("e0", "enemy", hp=99999, atk=1))
+    st = S.actor_stats(b, p)
+    check("面板 crit 含词条（>基础）", float(st.get("crit", 0) or 0) > 0.05 + 1e-9,
+          f"crit={st.get('crit')}")
+    # --- shield 词条：battle_start 10% maxhp 盾 ---
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    p2.setdefault("equipment", {})["armor"] = {
+        "slot": "armor", "quality": "blue", "affixes": ["shield"], "stats": {},
+    }
+    EP.apply_to_actor(p2)
+    check("shield 词条装配 battle_start", "battle_start" in (p2.get("triggers") or {}),
+          f"triggers={p2.get('triggers')}")
+    b2 = new_battle(p2, m2)
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    sh = (p2.get("shields") or {}).get("affix_shield")
+    check("battle_start 盾 = 10% maxhp（80）", sh is not None and abs(int(sh.get("value", 0)) - 80) <= 1,
+          f"shields={p2.get('shields')}")
+    # --- regen 词条：turn_start 回 1% maxhp ---
+    p3 = mk_a("p3", "player")
+    m3 = mk_a("e3", "enemy", hp=99999, atk=1)
+    p3.setdefault("equipment", {})["ring"] = {
+        "slot": "ring", "quality": "green", "affixes": ["regen"], "stats": {},
+    }
+    EP.apply_to_actor(p3)
+    check("regen 词条装配 turn_start", "turn_start" in (p3.get("triggers") or {}),
+          f"triggers={p3.get('triggers')}")
+    b3 = new_battle(p3, m3)
+    p3["hp"] = p3["max_hp"] - 100  # 缺 100
+    b3.act(ActCtx(caster=p3, action="attack", target=m3))
+    check("regen 回合回 1% maxhp（+8）", p3["hp"] == p3["max_hp"] - 100 + 8,
+          f"hp={p3['hp']} expect {p3['max_hp']-100+8}")
+    # --- meditate 同 regen 语义 ---
+    p4 = mk_a("p4", "player")
+    m4 = mk_a("e4", "enemy", hp=99999, atk=1)
+    p4.setdefault("equipment", {})["ring"] = {
+        "slot": "ring", "quality": "green", "affixes": ["meditate"], "stats": {},
+    }
+    EP.apply_to_actor(p4)
+    b4 = new_battle(p4, m4)
+    p4["hp"] = p4["max_hp"] - 50
+    b4.act(ActCtx(caster=p4, action="attack", target=m4))
+    check("meditate 回合回 1% maxhp（+8）", p4["hp"] == p4["max_hp"] - 50 + 8,
+          f"hp={p4['hp']}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -815,6 +880,7 @@ def main():
     test_cond_mult_and_stacks()
     test_death_dance()
     test_act_done_randuin()
+    test_affix_basic()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:
