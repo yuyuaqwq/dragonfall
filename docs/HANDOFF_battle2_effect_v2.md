@@ -10,7 +10,7 @@
 ## 0. 分支/位置/跑法
 
 - 分支：`wt_ebuffs`（worktree：`C:/Users/yuyu/AppData/Local/Temp/df_wt_ebuffs/w1`）
-- HEAD：`b9f0d50`（N9.7d affix 条件乘区，2026-09-08）
+- HEAD：`dcd8d30`（docs: N5b-4 命令层切换详细设计，2026-09-08）
 - 主仓（生产）：`C:/Users/yuyu/qqbot/data/plugins/dragonfall`（master 未动）
 - Python：`C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe`
 - 全套测试：`for f in tests/test_battle2_*.py; do python "$f"; done`（当前 12 文件全绿）
@@ -19,10 +19,23 @@
 - N9 施工方案：`docs/REFACTOR_v181P4_N9_migration.md`（盘点/批次/删除清单）
 - N9A 缺口方案：`docs/REFACTOR_v181P4_N9A_weapon_gap_plan.md`（weapon 缺口设计）
 - N9.7 affix 方案：`docs/REFACTOR_v181P4_N9_7_affix_migration.md`（分档 + 进度）
+- **N5b-4 命令层切换详细设计（下一步主工程，字段/函数级施工图）**：
+  `docs/REFACTOR_v181P4_N5B4_command_switch.md`
 - 旧三套注册表数据权威：`game/data/weapon_effect_data.py`（79 key）、
   `game/data/affixes.py`（76 词条）
 
 ---
+
+## 0.5 鱼鱼 2026-09-08 拍板记录（本会话新增）
+
+1. **enemy_act → 通用 act_done 广播事件**（鱼鱼拍板"事件可以做，但更通用——
+   所有阵营行动都触发，自己 if 判断敌我"）：EVENTS +act_done、Battle.act() 尾部
+   fire({"acted": actor}) 全员广播、randuin/ice_vein 效果侧 hostile_sides 判敌我。
+   语义差异：旧"整轮后叠给锁定目标"→ 新"谁行动叠谁"（多怪更合理，绕 e_buffs bug）。
+2. **weapon 缺口清单"肯定不能放着不做"**：先出方案文档再实施（非闷头做）。
+3. **affix 76 分档**：不是全迁——资源型 20 + 职业机制 12 归上层职业模块缺口。
+4. **N5b-4 命令层切换**：鱼鱼要看详细设计文档（字段/函数级）再动工；
+   核心战斗文件 diff 鱼鱼过目再提交。
 
 ## 1. 已完成（全部绿，工作区干净）
 
@@ -85,13 +98,22 @@ heal/state_set/interrupt/damage 动词补齐。
 - 职业机制 12（法印/反应/攻线/终结技）→ 上层职业模块
 - boiling_blood（rage_full 判定）/ finisher（终结技）→ 上层
 
-### C. N5b-4 命令层切换（施工图 docs/N5B_调用映射表.md 已备）
-- combat.py 等 import 切换 + battle2_bridge.build_sides + EP.apply_to_actor(开战前装配)
-- 之前约定"核心战斗文件等鱼鱼把关"——建议主 agent 出 diff 后鱼鱼过目再提交
+### C. N5b-4 命令层切换（🔴 **下一步主工程**——详细设计已备好）
+- **详细设计文档**：`docs/REFACTOR_v181P4_N5B4_command_switch.md`（字段/函数级，
+  2026-09-08 鱼鱼要求出详细方案再动工）
+- 内容：9 文件改造总账 + 开战统一改法（prepare+build_sides+EP_apply）+ 玩家回写
+  sync_player_from_actor（battle2 actor 是副本！）+ 世界Boss meta 外壳 + _status_line
+  逐字段改造 + db.save_battle monster 列 sides 兼容 + PVP/instance 难点 + 8 批计划
+- 关键已核实事实：死亡 actor 不从 sides 移除（只进 killed_actors，展示要过滤
+  actor_alive）；db.save_battle 的 monster 列读旧 state["enemies"] 需兼容 sides
+- 鱼鱼约定：**核心战斗文件 diff 出后鱼鱼过目再提交**
+- 批次：展示纯读函数先切 → 探索战斗 → 世界Boss → PVP → instance → 轻文件 → 全量回归
 
 ### D. N10 删旧（最终验收"清干净"）
-- 删除清单见 `docs/REFACTOR_v181P4_N9_migration.md` §4
-- **前提**：weapon/affix 全部能力由 battle2 路径覆盖 + 命令层真实玩家跑通
+- 删除清单见 `docs/REFACTOR_v181P4_N9_migration.md` §4：battle.py（11000+ 行）/
+  battle_mech.py / weapon_effects.py / _we_executors.py / affix_effects.py / BUFF_MULT
+- **前提**：weapon/affix 全部能力由 battle2 路径覆盖 + 命令层真实玩家跑通（N5b-4 完成后）
+- 顺序建议：weapon 小缺口（trinity thunder 段等）→ N5b-4 → N10
 
 ---
 
