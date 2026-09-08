@@ -275,3 +275,30 @@ heal/state_set/interrupt/damage 动词补齐。
 读本文档 → `git log --oneline -8` 确认 HEAD → 剩余：C 的 N5b4-4 PVP / N5b4-5 instance
 （N5b4-7 前核心 diff 给鱼鱼过目）+ §0.5 记录 6 的**世界Boss DOT 语义未决点**（先保留
 现状路线 B，鱼鱼说"先保留吧，我开新会话了"）。每批 commit 后汇报鱼鱼。✂️
+
+## 7. V 系列更新（2026-09-08 V4+V5 完成后追加）
+
+### V1 原子切换（bf6c590）+ V1b 显示适配（15a8ba0）→ V4 动词收敛（fe1350b）→ V5 面板入表（ba04288）
+
+- **V4 动词收敛**：control/buff/state_add/state_set/state_spend 五动词 → apply/consume 二动词。
+  effects.py 注册 apply（mode=控制 / op=add|set=叠层 / value=值型 / stat=增益快照 /
+  hit=出手消费 / 纯状态 参数分流，cap 查 EFFECT_RULES，threshold 事件保留）+ consume（扣叠层）。
+  effects_from_skill mech 分派发 apply+op=add。EFFECT_ACTIONS 33 buff→apply + 6 control→apply
+  （补 key/on/mode 显式——slow/spd_down 原 mode 缺省 skip 已显式化）+ stacks_set→apply op=set。
+  装配层 equip_proc 9buff+2state_add、we_procs 4buff+2control+内部直调 act_buff/act_control→act_apply、
+  item_use 反查兼容 apply。测试 4 文件 type 机械替换 + coverage 控制用例显式 mode。
+  ⚠️ 与旧记录「动词名勿删」的关系：那是 V1 阶段为避免破坏装配层的临时约束；V4 同步改完全调用面后
+  删旧注册名是干净终态（鱼鱼拍板 A 确认）。V4 后装配层只发 apply/consume + shield/cleanse/heal/
+  damage/interrupt。battle2 21 文件全绿，run_all 335 零新增回归（v137_dungeon 基线红已证 15a8ba0
+  同 19/1；v85_pvp_honor run_all 库互清偶发单跑 25/0 绿）。
+- **V5 面板入表**：EFFECT_RULES 加 19 buff key panel{stat,op,mult} 声明（atk_up/def_up/spd_up/
+  crit_up/matk_up/food_* 等），act_apply 增益分支参数缺省查表（动态装配层参数直传仍优先），
+  stats._apply_effects 折算单源查表能力就绪。EFFECT_ACTIONS 动作参数暂保留（双源一致零行为变化，
+  动作瘦身为纯组织优化押后——跨行缩进破坏风险）。
+- **剩余**：EFFECT_ACTIONS 动作瘦身（可选纯组织优化）；V6 命令层复查（V1 已切大部分）；V7 回归
+  （V4 commit 已做 run_all 对照）。V 系列后 → I3-I7 道具链续做（用新 API apply/consume）。
+
+## 8. 会话重启第一步（V 系列后更新）
+读本文档 → `git log --oneline -6` 确认 HEAD → V 系列已完成（V1/V1b/V4/V5），剩余主线：
+I3-I7 道具链续做（apply/consume API）+ N5b4-6/7 + 世界Boss DOT 语义未决点（记录 6 路线 B）。
+每批 commit 后汇报鱼鱼。✂️
