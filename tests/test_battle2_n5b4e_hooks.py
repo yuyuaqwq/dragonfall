@@ -161,12 +161,56 @@ def test_on_event_error_isolated():
     check("无钩子战斗正常", isinstance(logs2, list))
 
 
+def test_action_override_custom():
+    """【N5b4-5a action_override：非引擎内置动作 → 外部回调执行+推ct】"""
+    from game.battle2 import Battle as B2, make_actor
+    # max_hp 留余量：+20 不被 clamp 挡住（mk_player_actor max=hp 会吃满回血）
+    p1 = make_actor(uid="p1", name="p1", side="player", kind="player",
+                    human_controlled=True, class_name="战士", level=1,
+                    equipment={}, skills=[], learned_skills=[],
+                    hp=700, max_hp=9999)
+    # 静止怪（无 auto_act）——advance 不触发敌方行动，血量断言干净
+    e = make_actor(uid="e1", name="e1", side="enemy", kind="monster",
+                   human_controlled=False, hp=1000, max_hp=1000, spd=1)
+    calls = []
+
+    def ov(battle, action, actor, payload, target):
+        if action == "use_item":
+            calls.append(payload)
+            if payload == "heal:20":
+                actor["hp"] = min(actor.get("max_hp", 9999), (actor.get("hp", 0) or 0) + 20)
+                return [f"💊 恢复 20 点生命！"], "defend"
+            return ["道具无效果"], "attack"
+        return None, None
+
+    b = B2("monster", sides={"player": [p1], "enemy": [e]}, action_override=ov)
+    logs, ended, who = b.human_act("use_item", "heal:20", p1)
+    check("override 回调被调用", calls == ["heal:20"], str(calls))
+    check("道具回血日志", any("恢复 20" in l for l in logs), str(logs[:2]))
+    check("道具效果写回 actor hp>700", p1.get("hp", 0) > 700, f"hp={p1.get('hp')}")
+    check("自定义动作推 ct（占刻）", p1.get("ct", 0) > 0, f"ct={p1.get('ct')}")
+
+
+def test_action_override_unconsumed():
+    print("【N5b4-5a action_override 未消费 → 回落未知行动提示】")
+    from game.battle2 import Battle as B2
+    p1 = mk_player_actor("p1")
+    e = mk_auto_enemy(atk=1)
+    b = B2("monster", sides={"player": [p1], "enemy": [e]},
+           action_override=lambda battle, action, actor, payload, target: (None, None))
+    logs, ended, who = b.human_act("weird_thing", None, p1)
+    check("回落未知提示", any("未知" in l for l in logs), str(logs))
+    check("未消费不推 ct", p1.get("ct", 0) == 0, f"ct={p1.get('ct')}")
+
+
 def main():
     test_target_picker()
     test_target_picker_none_fallback()
     test_target_picker_dead_target_resolves()
     test_on_event_observer()
     test_on_event_error_isolated()
+    test_action_override_custom()
+    test_action_override_unconsumed()
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     if FAILURES:
         for f in FAILURES:
