@@ -20,7 +20,6 @@ from ._platform import EventType, star_handlers_registry
 from .. import content as C
 from .. import db
 from .. import engine as E
-from .. import battle as BT
 
 
 # ---------- v96 停服维护全局拦截 ----------

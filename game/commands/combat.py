@@ -16,7 +16,6 @@ from ._platform import MessageChain
 from .. import content as C
 from .. import db
 from .. import engine as E
-from .. import battle as BT
 from ..battle import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）
 from ..core.skill_kinds import K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_PASSIVE, K_TAUNT  # v176 去魔法字符串
 

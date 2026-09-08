@@ -14,7 +14,6 @@ from ._platform import AstrMessageEvent, filter, MessageChain
 from .. import content as C
 from .. import db
 from .. import engine as E
-from .. import battle as BT
 from ..services.auction import settle_expired_auction  # v181 P4-5：拍卖状态机服务化（过期结算+清槽单点）
 from ..commands.base import CommandBase, require_player
 # v116 公会成长纵深：新数据表/存取函数不经 __init__ 聚合导出，

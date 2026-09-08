@@ -15,7 +15,6 @@ from ._platform import AstrMessageEvent, filter, MessageChain
 from .. import content as C
 from .. import db
 from .. import engine as E
-from .. import battle as BT
 from ..commands.base import CommandBase, require_player
 
 
