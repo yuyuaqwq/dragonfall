@@ -182,6 +182,17 @@ def _attach_instance_hooks(b, st: dict) -> None:
         b.on_event = _instance_team_event(st)
     except Exception:
         b.on_event = None
+    try:
+        # 5c P1：Boss 剧本导演钩子（敌方阵容有剧本 Boss 才挂；无 → None 回落）
+        from .boss_script import boss_script_cfg, make_script_hook
+        _has_script = any(
+            boss_script_cfg(st, a) is not None
+            for a in b.sides_of("enemy")
+            if int(a.get("hp", 0) or 0) > 0
+        )
+        b.script_hook = make_script_hook(st) if _has_script else None
+    except Exception:
+        b.script_hook = None
 
 
 def build_battle(st: dict) -> "object":

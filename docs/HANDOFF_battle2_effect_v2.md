@@ -429,9 +429,37 @@ I3-I7 道具链续做（apply/consume API）+ N5b4-6/7 + 世界Boss DOT 语义�
   敌 ct 未到不插队）——真人轮流操作的自然行为，非 bug。
 - 生产代码零改动（账务层 5b G1/G2 已齐，纯补验证网）。
 
+## 9.4 5c P1 完成记录（2026-09-09 上午，导演框架 + phases 转阶段）
+### 交付（引擎改动 ≤15 行，命令层新模块）
+- **battle2/battle.py script_hook**：Battle.__init__ 第 4 注入钩子（target_picker/
+  on_event/action_override 同款）+ actor_auto 行动帧前置调用——返回 True = 演出刻
+  拦截本刻行动（照推 ct）；hook 日志并入 actor_auto 返回（_hook_logs 前置）。
+  默认 None → 零回归（全量 336 = 311/25 与基线一致，+test_boss_script_p1）。
+- **game/commands/boss_script.py 导演**：boss_script_cfg（MONSTER_MODS 基准 +
+  INSTANCES 副本覆盖 v178 E1 + mech token 并集 E2；无 phases → None 不挂）+
+  make_script_hook（导演帧：round_no 计数 + _check_phases 血量阈值转阶段）+ 状态
+  st["boss_script"]（随副本持久化，actors 只留引擎效果——V 系列铁律）。
+- **instance_battle._attach_instance_hooks**：敌方阵容有剧本 Boss 才挂 script_hook
+  （build_battle 构造 + act from_state 重挂统一走它）。
+### phases 转阶段语义（对齐旧 _b_phase，battle_mech.py:698 + v116 测试）
+- 阈值链：pc 从 0，target = phases[pc].min（缺省 0.5^n）；pc<3 且 ratio < target → 进
+  下一阶段；min=0 末条永不触发（古王 rampage 同理，无害）
+- 演出：phases[npc-1].script name/icon；阈值预告（pc>0 下一阈值 +3% once）
+- 换招：add_skills 幂等 append actor.skills + auto_act 切阶段主技能（actor_auto 读）
+- atk 乘区：phase_id → boss_phases.merge_phase_config 模板 atk_mult（覆盖式）；
+  无 phase_id/atk_mult → 旧行为 1+0.2×npc；落 actor.effects boss_phase_atk/matk
+  （面板快照型 stat/op/mult 内嵌，无需 EFFECT_RULES 注册——stats._apply_effects 折算）
+- 演出刻：返回 True → 引擎拦截本刻行动（对齐 _phase_skip_act）
+- preserve_debuffs：默认全保留（P1 简化为不清除，防误清 Boss 自身状态；
+  模板显式 False 的清负面留给 P2 盘点 EFFECT_RULES 后细化）
+### 测试（test_boss_script_p1.py 22/0）
+cfg 解析（inst 3 条覆盖）/ 40%→阶段2（王冠威临换招 ×1.2）/ 25%→阶段3（enrage
+模板 ×1.25）/ rampage min0 不触发 / 演出刻无伤害 / 序列化 st["boss_script"] 跨
+from_state 保留 + 重挂继续。
+### 教训/记录
+- actor_auto 无 logs 参数——hook 用局部 _hook_logs，正常行动时前置合并进返回日志
+  （初版引用不存在 logs 变量被 except 吞，导演静默失效——探针抓到）
+- monster_to_actor 剥 _inst_id（白名单透传）→ cfg 靠 st.inst_id 兜底（副本内
+  inst_id 恒在，可靠）
+
 ## 10. 会话重启口令（2026-09-09 上午更新）
-「读 HANDOFF_battle2_effect_v2 §9.3，HEAD 在 wt_ebuffs 84f18d8：5b 收尾完成
-（test_15 端到端 +13 断言）+ 生产库已从 bak_bestiary_20260907 恢复（空库留档
-game_data.db.empty_20260909_0248，AstrBot 仍离线）；I1-I7 道具链全完成；
-R3+R4 验证网绿；剩余 = 5c Boss 剧本 mech DSL 导演（需鱼鱼拍板副本范围）/
-N10 删旧 battle.py 1.1万行（大）/ 未决点世界Boss DOT 语义」
