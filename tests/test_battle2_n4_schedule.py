@@ -223,6 +223,33 @@ def test_time_effects_n72():
     check("过期控制后正常攻击", e2["hp"] < hp0, f"hp={e2['hp']}")
 
 
+def test_dot_interval_n74():
+    """N7.4 DOT interval：绝对时刻跳、跨多刻补跳、同刻不重复。"""
+    print("【N4.9 N7.4 DOT interval：按 interval 绝对时刻跳】")
+    from game.battle2.schedule import _settle_time_effects as _ste
+    e = make_actor(uid="e_dot", name="靶", side="enemy", kind="monster", hp=1000,
+                   max_hp=1000, atk=1, spd=10, level=1)
+    b = BT_NEW(btype="monster", sides={"player": [], "enemy": [e]})
+    e["state"]["burn"] = 2  # pct 3% ×2 层 = 60/跳
+    b._now = 0.0
+    _ste(b, [])
+    hp0 = e["hp"]
+    check("首跳延迟（0.0 不跳）", e["hp"] == hp0)
+    check("dot_next 登记 1.0", abs(float(e["dot_next"].get("burn", 0)) - 1.0) < 1e-9)
+    b._now = 1.5
+    _ste(b, [])
+    hp1 = e["hp"]
+    check("1.5 跳 1 次（60 伤）", hp0 - hp1 == 60, f"掉血 {hp0 - hp1}")
+    b._now = 4.2
+    _ste(b, [])
+    hp2 = e["hp"]
+    check("4.2 补跳 3 次（180 伤）", hp1 - hp2 == 180, f"掉血 {hp1 - hp2}")
+    check("dot_next 推进到 5.0", abs(float(e["dot_next"].get("burn", 0)) - 5.0) < 1e-9)
+    hp3 = e["hp"]
+    _ste(b, [])
+    check("同刻重复 settle 不重复跳", e["hp"] == hp3)
+
+
 def main():
     print("=== N4 battle2 CTB 调度测试 ===")
     test_full_battle_victory()
@@ -233,6 +260,7 @@ def main():
     test_flee()
     test_real_data_spd0_player()
     test_time_effects_n72()
+    test_dot_interval_n74()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:
