@@ -118,6 +118,14 @@ EFFECT_ACTIONS: dict = {
     "next_atk_up":   [{"action": "buff", "key": "next_atk_up",   "hit": {"dmg_mult": 1.50}}],
     "buff_phys_next":[{"action": "buff", "key": "buff_phys_next","hit": {"dmg_mult": 1.40}}],
     "stealth":       [{"action": "buff", "key": "stealth",       "hit": {"guaranteed_crit": True}}],
+    # ---- N7.5a 战斗核心：治疗/叠层置值/打断（怪 heal_self/heal_pct、on_interrupt 族）----
+    # vulnerable 易伤：完整语义（写 target 承伤乘区 + 持续刻）属 N8 事件总线接入，
+    # 不在词表假映射——landing 已支持 _dmg_taken_mult 字段（上层直写即生效）
+    "heal_self":   [{"action": "heal", "on": "caster"}],
+    "heal_pct":    [{"action": "heal", "on": "caster"}],
+    "regen":       [{"action": "heal", "on": "caster"}],     # 持续回复族（regen 单发）
+    "stacks_set":  [{"action": "state_set", "on": "target"}],
+    "interrupt":   [{"action": "interrupt"}],
     # ---- 减伤（value 型 buff：mech_val 折算百分比 45→0.45）----
     "reduce":    [{"action": "buff", "key": "reduce", "pct_from_mech_val": True}],
     # ---- 护盾 ----

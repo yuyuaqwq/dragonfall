@@ -346,6 +346,33 @@ def test_on_hit_n73():
     check("stealth 消费删除", "stealth" not in p3["buffs"])
 
 
+def test_n75a_verbs():
+    print("【N3.10 N7.5a 补动词：heal_pct/heal_self/stacks_set/interrupt + 承伤乘区】")
+    b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
+    caster = {"uid": "p", "name": "勇者", "buffs": {}, "state": {}, "shields": {},
+              "hp": 100, "max_hp": 1000, "mp": 100}
+    logs = []
+    FX.apply_effects(b, caster, caster,
+                     [{"type": "heal_pct", "on": "caster", "info": {"hp_pct": 0.15}}], logs)
+    check("heal_pct 治 15% max_hp", caster["hp"] == 250, f"hp={caster['hp']}")
+    caster["hp"] = 100
+    FX.apply_effects(b, caster, caster, [{"type": "heal_self", "info": {"hp_pct": 0.15}}], logs)
+    check("heal_self 治 15%", caster["hp"] == 250, f"hp={caster['hp']}")
+    FX.apply_effects(b, caster, caster, [{"type": "stacks_set", "key": "charge", "amount": 3}], logs)
+    check("stacks_set charge=3", caster["state"].get("charge") == 3)
+    FX.apply_effects(b, caster, caster, [{"type": "stacks_set", "key": "charge", "amount": 5}], logs)
+    check("stacks_set 覆盖 3→5", caster["state"].get("charge") == 5)
+    tgt = {"uid": "e", "name": "Boss", "buffs": {}, "state": {},
+           "charging": {"skill": "蓄力斩"}, "hp": 500}
+    FX.apply_effects(b, caster, tgt, [{"type": "interrupt"}], logs)
+    check("interrupt 清 charging", tgt.get("charging") is None)
+    # landing 承伤乘区（vulnerable 破绽直写 _dmg_taken_mult）
+    e2 = {"uid": "e2", "name": "靶", "hp": 1000, "max_hp": 1000, "_dmg_taken_mult": 1.5}
+    from game.battle2.landing import deal_damage
+    deal_damage(b, {"uid": "s", "name": "打", "level": 10}, e2, 100, [])
+    check("承伤×1.5 → 扣 150", 1000 - e2["hp"] == 150, f"扣血 {1000 - e2['hp']}")
+
+
 def main():
     print("=== N3 battle2 效果系统测试 ===")
     test_debuff_stack()
@@ -357,6 +384,7 @@ def main():
     test_buff_snapshot_scaling()
     test_n72_more_branches()
     test_on_hit_n73()
+    test_n75a_verbs()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         print("失败明细:")
