@@ -715,10 +715,19 @@ def we_dmg_mult_cond(battle, caster, target, params, logs):
             if tgt is not None and actor_alive(tgt) and tgt.get("hp") is not None:
                 hit = (float(tgt.get("hp", 0)) / max(1, float(tgt.get("max_hp", 1) or 1))
                        < float(params.get("threshold") or 0.30))
+        elif cond == "hp_target_gt":
+            # 弑星：目标高血量 >70% ×1.15
+            if tgt is not None and actor_alive(tgt) and tgt.get("hp") is not None:
+                hit = (float(tgt.get("hp", 0)) / max(1, float(tgt.get("max_hp", 1) or 1))
+                       > float(params.get("threshold") or 0.70))
         elif cond == "hp_self_lt":
             if owner is not None and owner.get("hp") is not None:
                 hit = (float(owner.get("hp", 0)) / max(1, float(owner.get("max_hp", 1) or 1))
                        < float(params.get("threshold") or 0.30))
+        elif cond == "kind_magic":
+            # 奥术苍穹：仅魔法技（info.kind == 魔法）×1.1
+            info = ctx.get("info") or {}
+            hit = (info.get("kind") == "魔法")
         else:
             hit = True
     except Exception:
@@ -749,6 +758,16 @@ def we_taken_mult_cond(battle, caster, target, params, logs):
             if owner is not None and owner.get("hp") is not None:
                 hit = (float(owner.get("hp", 0)) / max(1, float(owner.get("max_hp", 1) or 1))
                        < float(params.get("threshold") or 0.30))
+        elif cond == "first_turn":
+            # 首刻守御：整场首次受击减伤（used 标记消耗一次）
+            if owner is not None:
+                st = owner.setdefault("ext", {}).setdefault("we_proc", {})
+                uk = params.get("used_key")
+                if uk and st.get(uk):
+                    return  # 已用过
+                if uk:
+                    st[uk] = True
+                hit = True
         elif cond.startswith("state_full"):
             sk = params.get("state_key") or ""
             if owner is not None and sk:
@@ -772,6 +791,79 @@ def _state_cap(key: str) -> int:
         return int((state_def(key) or {}).get("cap") or 0)
     except Exception:
         return 0
+
+
+# ============================================================
+# proc_stack 叠层放大器（N9.14：生产叠层 + dmg_calc 消费乘区）
+# ============================================================
+
+
+@register_action("we_stack_prod")
+def we_stack_prod(battle, caster, target, params, logs):
+    """叠层生产（proc_stack）：普通 = state_add 1（cap 声明表）；sage = 满 need 置 charge；
+    thunder_weave = 满 cap 清层置 charge。"""
+    owner = params.get("_owner") or caster
+    if owner is None or not actor_alive(owner):
+        return
+    key = params.get("key") or ""
+    sk = params.get("stack_key") or key
+    from game.battle2.state_effects import state_def
+    cfg = state_def(sk) or {}
+    cap = int(cfg.get("cap") or 999)
+    if key == "sage_amp":
+        need = int(params.get("need") or 2)
+        n = int((owner.get("state") or {}).get(sk, 0) or 0) + 1
+        if n >= need:
+            owner.setdefault("state", {})[sk] = 0
+            owner.setdefault("ext", {}).setdefault("we_proc", {})[params.get("charge_key") or "we_sage_charge"] = float(params.get("charge_pct") or 0.25)
+            logs.append("📚 秘典充能就绪！下一技能伤害 +25%")
+        else:
+            owner.setdefault("state", {})[sk] = n
+        return
+    # 普通叠层（state cap 声明封顶）
+    from game.battle2.actors import state_add as _sa
+    cur = _sa(owner, sk, 1, cap=cap)
+    if key == "thunder_weave" and cur >= cap:
+        owner["state"][sk] = 0
+        owner.setdefault("ext", {}).setdefault("we_proc", {})[params.get("charge_key") or "we_thunder_charge"] = float(params.get("charge_pct") or 0.20)
+        logs.append("⚡ 雷纹充盈！下一次攻击 +20%")
+    elif key in ("rune_amp", "eternal_codex", "time_staff"):
+        logs.append(f"✦ {sk} 叠层 {cur}/{cap}")
+
+
+@register_action("we_amp_consume")
+def we_amp_consume(battle, caster, target, params, logs):
+    """叠层消费乘区（dmg_calc）：按 key 语义乘进 _fire_ctx.mult：
+    - rune_amp：×(1+per×层) 后清层（"下一技能"消耗）
+    - eternal_codex/time_staff：×(1+per×层) 不清层（常驻放大器）
+    - sage_amp/thunder_weave：charge 就绪 → ×charge_pct 一次并清
+    """
+    ctx = getattr(battle, "_fire_ctx", None)
+    if ctx is None:
+        return
+    owner = params.get("_owner") or caster
+    if owner is None:
+        return
+    key = params.get("key") or ""
+    sk = params.get("stack_key") or key
+    st = owner.setdefault("ext", {}).setdefault("we_proc", {})
+    mult = 1.0
+    if key == "rune_amp":
+        n = int((owner.get("state") or {}).pop(sk, 0) or 0)
+        if n > 0:
+            mult = 1.0 + float(params.get("per_pct") or 0.02) * n
+    elif key in ("eternal_codex", "time_staff"):
+        n = int((owner.get("state") or {}).get(sk, 0) or 0)
+        if n > 0:
+            mult = 1.0 + float(params.get("per_pct") or 0.015) * n
+    elif key in ("sage_amp", "thunder_weave"):
+        ck = params.get("charge_key") or ("we_sage_charge" if key == "sage_amp" else "we_thunder_charge")
+        cp = st.pop(ck, None)
+        if cp:
+            mult = float(cp)
+    if mult != 1.0:
+        ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * mult
+        ctx["tags"] = list(ctx.get("tags") or []) + [f"📈x{mult:.2f}"]
 
 
 # ============================================================

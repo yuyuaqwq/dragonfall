@@ -122,7 +122,9 @@ def test_event_map():
     check("hit 展开双事件", set(EP.map_event("hit")) == {"attack_hit", "skill_hit"})
     check("taken → on_taken", EP.map_event("taken") == ("on_taken",))
     check("skill_cast → act_cast", EP.map_event("skill_cast") == ("act_cast",))
-    check("未迁事件空集", EP.map_event("enemy_act") == ())
+    # 不在旧事件表 = 假定已是 battle2 原生事件名（同名直通；fire EVENTS 校验兜底）
+    check("原生事件名直通", EP.map_event("dmg_calc") == ("dmg_calc",))
+    check("未知旧事件同名直通（fire 校验忽略）", EP.map_event("enemy_act") == ("enemy_act",))
 
 
 # ============================================================
@@ -185,7 +187,7 @@ def test_unsupported_key_skipped():
     print("【N9.6 未支持 key 静默跳过（范围外）】")
     p = mk_a("p1", "player")
     equip(p, "death_dance", slot="armor")   # proc_special 缓伤池：后续批次
-    equip(p, "arcane_firmament", slot="weapon")  # proc_passive_mult：后续批次
+    equip(p, "novice_hunt_combo", slot="weapon")  # proc_stack 连击率：机制缺口
     EP.apply_to_actor(p)
     check("未支持 key 不装配", not (p.get("triggers") or {}), f"{p.get('triggers')}")
 
@@ -623,6 +625,53 @@ def test_dmg_taken_calc_hooks():
     check("承伤减伤 8%（92）", real == 92, f"real={real}")
 
 
+def test_cond_mult_and_stacks():
+    print("【N9.21 条件乘区 + 叠层放大器】")
+    # twilight_execute：目标 hp<40% ×1.25
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=100000, atk=1)
+    equip(p, "twilight_execute", slot="weapon")
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    d_full = 100000 - m["hp"]
+    m["hp"] = 30000  # 30%
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    d_low = 100000 - m["hp"]
+    check("暮光低血 ×1.25", d_low > d_full * 1.15, f"full={d_full} low={d_low}")
+    # death_dance_armor：受击减伤 8%
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    equip(p2, "death_dance_armor", slot="armor")
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    from game.battle2.landing import deal_damage as _dd
+    hp0 = p2["hp"]
+    _dd(b2, m2, p2, 100, [])
+    check("减伤 8% 掉 92", hp0 - p2["hp"] == 92, f"real={hp0-p2['hp']}")
+    # rune_amp：技能施放叠层（每次攻击 dmg_calc 都会消费——旧语义）→ 直调验证
+    p3 = mk_a("p3", "player")
+    m3 = mk_a("e3", "enemy", hp=100000, atk=1)
+    equip(p3, "rune_amp", slot="weapon", we_data={"per_pct": 0.02})
+    EP.apply_to_actor(p3)
+    b3 = new_battle(p3, m3)
+    from game.services.battle2_we_procs import we_stack_prod, we_amp_consume
+    # 生产 3 层
+    for _ in range(3):
+        we_stack_prod(b3, p3, m3, {"type": "we_stack_prod", "key": "rune_amp",
+                                   "stack_key": "rune_amp", "need": None,
+                                   "charge_key": None, "charge_pct": None}, [])
+    check("生产叠 3 层", (p3["state"] or {}).get("rune_amp", 0) == 3,
+          f"state={p3.get('state')}")
+    # dmg_calc 消费 → ×(1+0.02×3)=1.06 并清层
+    b3._fire_ctx = {"target": m3, "dmg": 100, "mult": 1.0, "tags": []}
+    we_amp_consume(b3, p3, m3, {"type": "we_amp_consume", "key": "rune_amp",
+                                "stack_key": "rune_amp", "per_pct": 0.02,
+                                "charge_key": None}, [])
+    check("消费 ×1.06", abs(b3._fire_ctx["mult"] - 1.06) < 1e-9, f"mult={b3._fire_ctx.get('mult')}")
+    check("层被清", (p3["state"] or {}).get("rune_amp", 0) == 0, f"state={p3.get('state')}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -645,6 +694,7 @@ def main():
     test_heal_amp_and_mana()
     test_death_guard()
     test_dmg_taken_calc_hooks()
+    test_cond_mult_and_stacks()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

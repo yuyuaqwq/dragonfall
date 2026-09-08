@@ -115,6 +115,18 @@ STATE_EFFECTS: dict = {
         "guard_hp_pct": 0.10,   # 触发后保底到 10% 最大生命（undying_will 语义）
         "heal_pct": 0.10,       # 触发额外回 10% 最大生命
     },
+    # ============ 装备叠层放大器（N9.14：proc_stack 生产段叠层 + dmg_calc 消费） ============
+    "rune_amp": {"cap": 5},                       # 铭文：每层下一技能 +2%（dmg_calc 消费清层）
+    "eternal_codex": {"cap": 8},                  # 永恒契约：每层技能伤 +1.5%（不清层）
+    "time_staff": {                                # 岁月流转：每层 atk+1.5%（面板常驻）
+        "cap": 10,
+        "stat_scale": {"atk": 0.015},
+    },
+    "thunder_weave": {                             # 雷纹：每层 spd+2%/atk+1%（面板常驻）
+        "cap": 5,
+        "stat_scale": {"spd": 0.02, "atk": 0.01},
+    },
+    "sage_amp": {"cap": 2},                        # 秘典充能：计数 need 2 → 下一技能 ×1.25
 }
 
 # ============================================================

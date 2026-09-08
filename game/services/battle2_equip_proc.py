@@ -43,7 +43,9 @@ _EVENT_MAP = {
 
 # 每个旧事件映射后的 battle2 事件（返回 tuple）
 def map_event(old_ev: str) -> tuple:
-    return _EVENT_MAP.get(old_ev, ())
+    """旧事件 → battle2 事件展开；不在表 = 假定已是 battle2 原生事件名，同名直通
+    （dmg_calc/taken_calc/battle_start 等装配层可直接用 battle2 事件名）。"""
+    return _EVENT_MAP.get(old_ev, (old_ev,))
 
 
 # ============================================================
@@ -273,6 +275,50 @@ def _translate_dusk_blade(key: str, wd: dict) -> dict:
     return {"kill": effs}
 
 
+def _cond_mult(old_ev: str, cond: str, threshold: float, mult: float, tag: str = "") -> dict:
+    """条件乘区翻译（dmg_calc/taken_calc → we_*_mult_cond 扩展动作）。"""
+    return {old_ev: [{"type": "we_dmg_mult_cond", "cond": cond, "threshold": threshold,
+                      "mult": mult, "tag": tag}]}
+
+
+def _star_slayer(wd: dict) -> dict:
+    """弑星：目标 hp>70% ×1.15（dmg_calc）+ 暴伤 +30% 面板（battle_start buff）。"""
+    out = {"dmg_calc": [{"type": "we_dmg_mult_cond", "cond": "hp_target_gt",
+                         "threshold": float(wd.get("threshold") or 0.70),
+                         "mult": float(wd.get("dmg_mult") or 1.15), "tag": "⭐弑星"}]}
+    cd = float(wd.get("crit_dmg") or 0)
+    if cd > 0:
+        out["battle_start"] = [{"type": "buff", "key": "we_star_slayer_cd",
+                                "stat": "crit_dmg", "op": "add", "mult": cd,
+                                "turns": 999, "on": "caster"}]
+    return out
+
+
+def _arcane_firmament(wd: dict) -> dict:
+    """奥术苍穹：魔攻 +15% 面板（battle_start buff）+ 魔法技 ×1.1（dmg_calc kind_magic）。"""
+    return {
+        "battle_start": [{"type": "buff", "key": "we_arcane_matk", "stat": "matk",
+                          "op": "mul", "mult": 1.0 + float(wd.get("matk_pct") or 0.15),
+                          "turns": 999, "on": "caster"}],
+        "dmg_calc": [{"type": "we_dmg_mult_cond", "cond": "kind_magic",
+                      "mult": 1.0 + float(wd.get("skill_dmg_pct") or 0.10), "tag": "✨奥术苍穹"}],
+    }
+
+
+def _stack_pair(key: str, wd: dict, prod_old_ev: str) -> dict:
+    """叠层放大器翻译：生产事件 → we_stack_prod；dmg_calc → we_amp_consume。"""
+    return {
+        prod_old_ev: [{"type": "we_stack_prod", "key": key,
+                       "stack_key": wd.get("stack_key") or key,
+                       "need": wd.get("need"), "charge_key": wd.get("charge_key"),
+                       "charge_pct": wd.get("charge_pct")}],
+        "dmg_calc": [{"type": "we_amp_consume", "key": key,
+                      "stack_key": wd.get("stack_key") or key,
+                      "per_pct": wd.get("per_pct") or wd.get("dmg_pct_per"),
+                      "charge_key": wd.get("charge_key")}],
+    }
+
+
 # 第一批支持 key 清单（key → 翻译器）
 # proc_heal amp 被动常驻 4 key（不走 triggers——装配 state heal_amp_pct）
 _HEAL_AMP_KEYS = ("vital_band", "holy_radiance_mail", "echo_band", "novice_regen_heal")
@@ -358,6 +404,29 @@ _START_TRANSLATORS = {
         "battle_start": [{"type": "state_add", "key": "death_guard", "amount": 1,
                           "on": "caster", "log": wd.get("log")}],
     },
+    # proc_passive_mult 条件乘区（dmg_calc/taken_calc 通道）
+    "twilight_execute": lambda k, wd: _cond_mult("dmg_calc", "hp_target_lt",
+                                                 float(wd.get("threshold") or 0.40),
+                                                 float(wd.get("dmg_mult") or 1.25), "🌆暮光处决"),
+    "star_slayer_edge": lambda k, wd: _star_slayer(wd),
+    "arcane_firmament": lambda k, wd: _arcane_firmament(wd),
+    # proc_dr_revive death_dance_armor（受击减伤 8%——taken_calc 通道；复活段缺口）
+    "death_dance_armor": lambda k, wd: {
+        "taken_calc": [{"type": "we_taken_mult_cond", "key": k, "cond": "always",
+                        "mult": 1.0 - float(wd.get("taken_reduce_pct") or 0.08)}],
+    },
+    # proc_special 首刻守御（taken_calc first_turn 一次）
+    "novice_first_turn_guard": lambda k, wd: {
+        "taken_calc": [{"type": "we_taken_mult_cond", "key": k, "cond": "first_turn",
+                        "mult": 1.0 - float(wd.get("reduce_pct") or 0.10),
+                        "used_key": wd.get("mark_key") or "novice_guard_used"}],
+    },
+    # proc_stack 叠层放大器（生产事件 + dmg_calc 消费）
+    "rune_amp": lambda k, wd: _stack_pair(k, wd, "skill_cast"),
+    "sage_amp": lambda k, wd: _stack_pair(k, wd, "skill_cast"),
+    "eternal_codex": lambda k, wd: _stack_pair(k, wd, "skill_cast"),
+    "time_staff": lambda k, wd: _stack_pair(k, wd, "turn_start"),
+    "thunder_weave": lambda k, wd: _stack_pair(k, wd, "hit"),
 }
 
 
