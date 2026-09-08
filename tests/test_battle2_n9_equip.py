@@ -183,7 +183,7 @@ def test_no_equip_no_trigger():
 def test_unsupported_key_skipped():
     print("【N9.6 未支持 key 静默跳过（范围外）】")
     p = mk_a("p1", "player")
-    equip(p, "sentinel_aegis", slot="armor")   # proc_shield taken 概率盾：后续批次
+    equip(p, "bedrock_crown", slot="armor")   # proc_shield threshold 低保盾：后续批次
     equip(p, "wind_split", slot="weapon")    # proc_extra_dmg：后续批次
     EP.apply_to_actor(p)
     check("未支持 key 不装配", not (p.get("triggers") or {}), f"{p.get('triggers')}")
@@ -334,6 +334,70 @@ def test_reflect_ext_action():
     check("禁疗 20%（回 80）", m2["hp"] == 180, f"hp={m2['hp']}")
 
 
+def test_next_atk_and_retort_marks():
+    print("【N9.12 下次出手强化标记：skill_hit 叠 + 出手消费】")
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=99999, atk=1)
+    equip(p, "mountain_break", slot="weapon", we_data={"atk_pct": 0.25})
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    tr = p.get("triggers") or {}
+    check("mountain 装配 skill_hit", "skill_hit" in tr, f"keys={list(tr.keys())}")
+    # 技能命中 → 挂下次强化 buff
+    from game.battle2 import actions as AC
+    AC.do_skill(b, ActCtx(caster=p, action="skill", skill_name="斩",
+                          info={"name": "斩", "kind": "物理", "exprs": ["atk*1.0"]}, target=m))
+    check("技能命中挂 we_mountain", "we_mountain" in (p["buffs"] or {}), f"buffs={p.get('buffs')}")
+    # 下次普攻出手消费 → 增伤（dmg_mult 1.25）
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    check("出手消费标记", "we_mountain" not in (p["buffs"] or {}), f"buffs={p.get('buffs')}")
+    # 受击反击势能（titan_retort）
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    equip(p2, "titan_retort", slot="armor", we_data={"next_atk_pct": 0.4})
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    from game.battle2.landing import deal_damage as _dd
+    _dd(b2, m2, p2, 50, [])
+    check("受击挂反击势能", "we_retort" in (p2["buffs"] or {}), f"buffs={p2.get('buffs')}")
+
+
+def test_shield_taken_cd():
+    print("【N9.13 sentinel 概率盾 + CD】")
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=99999, atk=1)
+    equip(p, "deeprock_aegis", slot="armor",
+          we_data={"chance": 1.0, "shield_pct": 0.08, "turns": 3, "cd": 2})
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    from game.battle2.landing import deal_damage as _dd
+    _dd(b, m, p, 50, [])
+    check("受击触发盾 8%", int((p["shields"] or {}).get("we_deeprock", {}).get("value", 0)) == 64,
+          f"shields={p.get('shields')}")
+    # cd 内不再触发（盾已破场景：清盾再打一次 → 因 cd 不再上盾）
+    p["shields"] = {}
+    b._now = 0.5
+    _dd(b, m, p, 50, [])
+    check("cd 内不重复触发", not (p["shields"] or {}), f"shields={p.get('shields')}")
+    # cd 过（ACT_TICK=1 × cd 2）后恢复
+    b._now = 3.0
+    _dd(b, m, p, 50, [])
+    check("cd 过恢复触发", int((p["shields"] or {}).get("we_deeprock", {}).get("value", 0)) == 64,
+          f"shields={p.get('shields')}")
+
+
+def test_dusk_blade_kill():
+    print("【N9.14 dusk_blade：击杀后潜行 + 下次强化】")
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=10)
+    equip(p, "dusk_blade", slot="weapon")
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    from game.battle2.landing import deal_damage as _dd
+    _dd(b, p, m, 99, [])
+    check("击杀挂 stealth buff", "stealth" in (p["buffs"] or {}), f"buffs={p.get('buffs')}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -347,6 +411,9 @@ def main():
     test_dot_ext_action()
     test_dot_blood_trace_curhp()
     test_reflect_ext_action()
+    test_next_atk_and_retort_marks()
+    test_shield_taken_cd()
+    test_dusk_blade_kill()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

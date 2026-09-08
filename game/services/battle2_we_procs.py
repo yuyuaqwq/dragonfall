@@ -153,6 +153,82 @@ def we_reflect(battle, caster, target, params, logs):
 
 
 # ============================================================
+# proc_shield taken 概率盾（sentinel/deeprock：chance + cd 冷却）
+# ============================================================
+
+_SHIELD_TAKEN_LOG = {
+    "sentinel_aegis": "🛡️ 哨兵壁垒：获得 {shield} 点护盾！（3 刻）",
+    "deeprock_aegis": "🪨 深岩壁垒：获得护盾！（吸收 8% 最大生命）",
+}
+
+
+@register_action("we_shield_taken")
+def we_shield_taken(battle, caster, target, params, logs):
+    """受击概率盾（proc_shield taken，on_taken）：cd 冷却 → chance → 上盾。
+
+    owner = _owner/受击者；盾值 sentinel = base+per_lv×lv，deeprock = shield_pct×maxhp；
+    cd 存 owner.ext.we_proc（cd_key → ready_at 绝对时刻，ACT_TICK 折算）。
+    """
+    owner = params.get("_owner") or target
+    if owner is None or not actor_alive(owner):
+        return
+    cd_key = params.get("cd_key")
+    now = float(getattr(battle, "_now", 0) or 0)
+    st = owner.setdefault("ext", {}).setdefault("we_proc", {})
+    if cd_key:
+        if float(st.get(cd_key, 0) or 0) > now:
+            return  # cd 中
+    if not _roll(params.get("chance")):
+        return
+    # 盾值
+    if params.get("base") is not None or params.get("per_lv") is not None:
+        lv = int(owner.get("level", 1) or 1)
+        value = int(float(params.get("base") or 0) + float(params.get("per_lv") or 0) * lv)
+    elif params.get("shield_pct") is not None:
+        value = int(owner.get("max_hp", 100) * float(params["shield_pct"]))
+    else:
+        return
+    if value <= 0:
+        return
+    key = params.get("shield_key") or "we_sentinel"
+    turns = int(params.get("turns") or 3)
+    from game.battle2.effects import act_shield
+    act_shield(battle, owner, owner,
+               {"type": "shield", "key": key, "value": value, "turns": turns, "on": "caster"},
+               logs)
+    if cd_key:
+        from game.core.constants import ACT_TICK
+        st[cd_key] = now + int(params.get("cd") or 1) * ACT_TICK
+    logs.append(_SHIELD_TAKEN_LOG.get(params.get("key") or "", f"🛡️ 获得护盾 {value} 点！").format(shield=value))
+
+
+# ============================================================
+# proc_retort_mark guardian_will（受击给攻击者挂减攻）
+# ============================================================
+
+
+@register_action("we_guardian_will")
+def we_guardian_will(battle, caster, target, params, logs):
+    """卫士信念：受击 chance → 攻击者下一次攻击伤害 -weaken%（攻方 buff atk mul 0.75）。"""
+    owner = params.get("_owner") or target
+    if owner is None or not actor_alive(owner):
+        return
+    if not _roll(params.get("chance")):
+        return
+    ctx = getattr(battle, "_fire_ctx", None) or {}
+    attacker = ctx.get("source")
+    if attacker is None or not actor_alive(attacker):
+        return
+    weaken = float(params.get("weaken", 0.25) or 0.25)
+    from game.battle2.effects import act_buff
+    act_buff(battle, attacker, attacker,
+             {"type": "buff", "key": params.get("debuff_key") or "mon_atk_down",
+              "stat": "atk", "op": "mul", "mult": 1.0 - weaken,
+              "turns": int(params.get("turns", 1) or 1), "on": "caster"}, logs)
+    logs.append("🛡️ 卫士信念：敌人下一次攻击伤害 -25%！")
+
+
+# ============================================================
 # 注册入口（装配层 install_ext_actions 调，幂等）
 # ============================================================
 

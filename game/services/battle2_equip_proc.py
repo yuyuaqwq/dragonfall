@@ -144,6 +144,15 @@ def _translate_stack_hit(key: str, wd: dict) -> dict:
     return {"hit": [eff]}
 
 
+def _translate_we(key: str, wd: dict, action: str, old_ev: str, fields: tuple) -> dict:
+    """通用族扩展动作翻译：type=action + key + 指定字段透传，挂 old_ev 事件。"""
+    eff = {"type": action, "key": key}
+    for f in fields:
+        if wd.get(f) is not None:
+            eff[f] = wd[f]
+    return {old_ev: [eff]}
+
+
 def _translate_dot_hit(key: str, wd: dict) -> dict:
     """proc_dot 命中挂 DOT：族扩展动作 we_dot（chance 概率 + 挂 state dot 层）。
     smith/rong/blood = hit 双事件；ember_burn = skill_hit。"""
@@ -163,6 +172,64 @@ def _translate_reflect_taken(key: str, wd: dict) -> dict:
         if wd.get(f) is not None:
             eff[f] = wd[f]
     return {"taken": [eff]}
+
+
+def _translate_buff_hit_self(key: str, wd: dict, old_ev: str) -> dict:
+    """通用：事件后自身 buff（属性提升——buff 动词 stat/op/mult 快照）。"""
+    stat = wd.get("stat") or "spd"
+    op = wd.get("op") or "mul"
+    mult = float(wd.get("spd_pct") or 0)
+    if mult <= 0:
+        return {}
+    eff = {"type": "buff", "key": wd.get("buff_key") or key, "stat": stat, "op": op,
+           "mult": 1.0 + mult, "turns": int(wd.get("turns") or 3), "on": "caster"}
+    return {old_ev: [eff]}
+
+
+def _translate_next_atk_mark(key: str, wd: dict) -> dict:
+    """proc_next_atk_mark：命中后给自身挂「下次出手强化」buff（引擎 N7.3 hit 子键
+    天然支持：出手时消费 dmg_mult）。mountain/oath = skill_hit；spark = skill_cast。
+    （trinity 的 thunder_pct 附加雷伤段 / dusk 的 stealth 段后续扩展动作补）"""
+    old_ev = "skill_cast" if key == "novice_spark_followup" else "skill_hit"
+    pct = float(wd.get("atk_pct") or 0)
+    if pct <= 0:
+        return {}
+    eff = {"type": "buff", "key": wd.get("mark_key") or ("we_" + key),
+           "turns": 999, "hit": {"dmg_mult": 1.0 + pct}, "on": "caster"}
+    return {old_ev: [eff]}
+
+
+def _translate_retort_mark(key: str, wd: dict) -> dict:
+    """proc_retort_mark：受击后自身挂「下次出手强化」buff（反击势能，同 hit 子键消费）。
+    gargoyle/titan/ranger 共用 we_retort 键（同源刷新，各取 next_atk_pct）。"""
+    pct = float(wd.get("next_atk_pct") or 0)
+    if pct <= 0:
+        return {}
+    eff = {"type": "buff", "key": wd.get("mark_key") or "we_retort",
+           "turns": 999, "hit": {"dmg_mult": 1.0 + pct}, "on": "caster"}
+    return {"taken": [eff]}
+
+
+def _translate_shield_taken_cd(key: str, wd: dict) -> dict:
+    """proc_shield taken 概率盾（sentinel/deeprock）：族扩展动作 we_shield_taken
+    （chance + cd 判定 → 上盾）。base+per_lv×lv / shield_pct×maxhp。"""
+    eff = {"type": "we_shield_taken", "key": key}
+    for f in ("chance", "base", "per_lv", "shield_pct", "turns", "cd", "shield_key", "cd_key"):
+        if wd.get(f) is not None:
+            eff[f] = wd[f]
+    return {"taken": [eff]}
+
+
+def _translate_dusk_blade(key: str, wd: dict) -> dict:
+    """proc_next_atk_mark dusk_blade（kill）：击杀后潜行（必暴）+ 下次攻击 +30%。"""
+    effs = []
+    spd_pct = float(wd.get("next_atk_pct") or 0)
+    if spd_pct > 0:
+        effs.append({"type": "buff", "key": wd.get("mark_key") or "we_dusk",
+                     "turns": 999, "hit": {"dmg_mult": 1.0 + spd_pct}, "on": "caster"})
+    effs.append({"type": "buff", "key": wd.get("buff_key") or "stealth",
+                 "turns": 999, "hit": {"guaranteed_crit": True}, "on": "caster"})
+    return {"kill": effs}
 
 
 # 第一批支持 key 清单（key → 翻译器）
@@ -195,6 +262,23 @@ _START_TRANSLATORS = {
     "iron_echo": _translate_reflect_taken,
     "dragon_spine_mail": _translate_reflect_taken,
     "ember_bulwark": _translate_reflect_taken,
+    # proc_buff hit 型（自身速度 buff）
+    "novice_wind_spd": lambda k, wd: _translate_buff_hit_self(k, wd, "hit"),
+    # proc_next_atk_mark（下次出手强化 buff，引擎 hit 子键消费）
+    "mountain_break": _translate_next_atk_mark,
+    "oath_blade": _translate_next_atk_mark,
+    "novice_spark_followup": _translate_next_atk_mark,
+    "dusk_blade": _translate_dusk_blade,
+    "trinity_rhythm": _translate_next_atk_mark,   # atk_pct 段（thunder_pct 附雷段后续补）
+    # proc_retort_mark（受击反击势能）
+    "gargoyle_retort": _translate_retort_mark,
+    "titan_retort": _translate_retort_mark,
+    "ranger_retort": _translate_retort_mark,
+    "guardian_will": lambda k, wd: _translate_we(k, wd, "we_guardian_will", "taken",
+                                                 ("chance", "weaken", "debuff_key", "turns")),
+    # proc_shield taken 概率盾（族扩展动作带 cd）
+    "sentinel_aegis": _translate_shield_taken_cd,
+    "deeprock_aegis": _translate_shield_taken_cd,
 }
 
 
