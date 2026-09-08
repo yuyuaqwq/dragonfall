@@ -964,10 +964,14 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         _stype = battle["state"].get("type")
-        # worldboss 战斗（N5b4-3 切 battle2 前仍走旧引擎）
+        # worldboss 战斗（N5b4-3：battle2 恢复）
         if _stype == "worldboss":
-            b = BT.Battle.from_state(battle["state"])
-            b._focus = player
+            b = self._restore_battle2(battle["state"])
+            if b is None:
+                db.clear_battle(group_id, qq_id)
+                self._unlock_battle(group_id, qq_id)
+                yield event.plain_result("⏳ 旧存档已失效，重新讨伐吧！")
+                return
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "attack", None, target=target_arg or None):
                 yield _r
             return
@@ -1222,10 +1226,14 @@ class CombatCmds(CommandBase):
             async for _r in self._pvp_act(event, group_id, qq_id, player, battle["state"], "skill", skill_name):
                 yield _r
             return
-        # worldboss 战斗（N5b4-3 切 battle2 前仍走旧引擎）
+        # worldboss 战斗（N5b4-3：battle2 恢复）
         if battle["state"].get("type") == "worldboss":
-            b = BT.Battle.from_state(battle["state"])
-            b._focus = player
+            b = self._restore_battle2(battle["state"])
+            if b is None:
+                db.clear_battle(group_id, qq_id)
+                self._unlock_battle(group_id, qq_id)
+                yield event.plain_result("⏳ 旧存档已失效，重新讨伐吧！")
+                return
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "skill", skill_name, target=_skill_target):
                 yield _r
             return
@@ -1574,10 +1582,14 @@ class CombatCmds(CommandBase):
             async for _r in self._pvp_act(event, group_id, qq_id, player, battle["state"], "defend", None):
                 yield _r
             return
-        # worldboss 战斗（N5b4-3 切 battle2 前仍走旧引擎）
+        # worldboss 战斗（N5b4-3：battle2 恢复）
         if battle["state"].get("type") == "worldboss":
-            b = BT.Battle.from_state(battle["state"])
-            b._focus = player
+            b = self._restore_battle2(battle["state"])
+            if b is None:
+                db.clear_battle(group_id, qq_id)
+                self._unlock_battle(group_id, qq_id)
+                yield event.plain_result("⏳ 旧存档已失效，重新讨伐吧！")
+                return
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "defend", None):
                 yield _r
             return
@@ -1639,11 +1651,16 @@ class CombatCmds(CommandBase):
         if _is_boss:
             yield event.plain_result("👑 Boss 锁定了你，无法逃跑！背水一战吧！")
             return
-        # worldboss 战斗（N5b4-3 切 battle2 前仍走旧引擎）
+        # worldboss 战斗（N5b4-3：battle2 恢复；世界Boss 通常被 is_boss 拦截不可逃，兜底）
         if battle["state"].get("type") == "worldboss":
-            b = BT.Battle.from_state(battle["state"])
-            b._focus = player
-            logs, ended, _who = b.actor_act("flee", None, player)
+            b = self._restore_battle2(battle["state"])
+            if b is None:
+                db.clear_battle(group_id, qq_id)
+                self._unlock_battle(group_id, qq_id)
+                yield event.plain_result("⏳ 旧存档已失效，重新讨伐吧！")
+                return
+            logs, ended, _who = b.human_act("flee", None, b.focus())
+            self._sync_battle_player(player, b)
             db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
             if ended and b.result == "fled":
                 self._unlock_battle(group_id, qq_id)
@@ -2136,20 +2153,32 @@ class CombatCmds(CommandBase):
                 f"🧭 用『前往 <地图名>』前往指定地点才能讨伐！"
             )
             return
-        # 已有世界BOSS战斗状态 → 显示当前状态
+        # 已有世界BOSS战斗状态 → 显示当前状态（N5b4-3：battle2 state 存 sides）
         battle = db.get_battle(group_id, qq_id)
         if battle and battle["state"].get("type") == "worldboss":
             _st = battle["state"]
-            _enemies = _st.get("enemies") or []
-            if _enemies:
-                _sum = sum(1 for u in _enemies if (u.get("hp") or 0) > 0)
+            if _st.get("sides"):
+                _enemies = [u for u in (_st.get("sides", {}).get("enemy") or [])
+                            if (u.get("hp") or 0) > 0]
                 _sum_hp = sum(max(0, u.get("hp", 0)) for u in _enemies)
                 _sum_max = sum(max(0, u.get("max_hp", u.get("hp", 1))) for u in _enemies)
                 _pct = max(0, int(_sum_hp / max(1, _sum_max) * 100))
                 yield event.plain_result(
                     f"⚔️ 你已加入讨伐！\n"
-                    f"👹【{b.get('name', '?')}】敌方还有 {_sum} 只(总 {_sum_hp:,}/{_sum_max:,}, {_pct}%)\n"
-                    f"  " + "\n  ".join([f"{u.get('name','?')} ❤️{max(0,u.get('hp',0))}" for u in _enemies if (u.get('hp') or 0) > 0]) + "\n"
+                    f"👹【{_enemies[0].get('name', '?') if _enemies else b.get('name', '?')}】敌方还有 {len(_enemies)} 只(总 {_sum_hp:,}/{_sum_max:,}, {_pct}%)\n"
+                    f"  " + "\n  ".join([f"{u.get('name','?')} ❤️{max(0,u.get('hp',0))}" for u in _enemies]) + "\n"
+                    f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}\n"
+                    f"━━━━━━━━━━━━\n你的行动：『攻击』『技能 <名称/序号>』『防御』"
+                )
+            elif _st.get("enemies"):
+                _enemies = [u for u in _st.get("enemies") if (u.get("hp") or 0) > 0]
+                _sum_hp = sum(max(0, u.get("hp", 0)) for u in _enemies)
+                _sum_max = sum(max(0, u.get("max_hp", u.get("hp", 1))) for u in _enemies)
+                _pct = max(0, int(_sum_hp / max(1, _sum_max) * 100))
+                yield event.plain_result(
+                    f"⚔️ 你已加入讨伐！\n"
+                    f"👹【{b.get('name', '?')}】敌方还有 {len(_enemies)} 只(总 {_sum_hp:,}/{_sum_max:,}, {_pct}%)\n"
+                    f"  " + "\n  ".join([f"{u.get('name','?')} ❤️{max(0,u.get('hp',0))}" for u in _enemies]) + "\n"
                     f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}\n"
                     f"━━━━━━━━━━━━\n你的行动：『攻击』『技能 <名称/序号>』『防御』"
                 )
@@ -2216,7 +2245,29 @@ class CombatCmds(CommandBase):
         b["enemies"] = [dict(u) for u in _boss_grp]  # 拷贝：避免 b["enemies"][0] is b 全局自引用（P3 序列化递归）
         b["name"] = _main.get("name", b.get("name", "?"))
         b["hp"], b["max_hp"] = _main.get("hp", 0), _main.get("max_hp", _main.get("hp", 1))
-        nb = BT.Battle("worldboss", None, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), dmg_mult=db.get_boss_dmg_mult(qq_id), enemies=[dict(u) for u in _boss_grp])
+        # N5b4-3：世界Boss 切 battle2（Boss 自动行动 + CTB 时间轴；dmg_mult 构造参数）
+        from ..services import battle2_bridge as BR
+        _tb = self._title_bonus(group_id, qq_id)
+        BR.prepare_player_for_battle(player, _tb, db)
+        _sides = BR.build_sides(player=player, enemies=[dict(u) for u in _boss_grp])
+        # 敌 actor 装配（weapon/affix 是玩家侧；敌侧只需 auto_act 行动配置）
+        for _a in _sides.get("enemy", []):
+            if not _a.get("auto_act"):
+                _a["auto_act"] = {"act": {"type": "attack"}}
+        from ..battle2 import Battle as B2
+        nb = B2("worldboss", sides=_sides, title_bonus=_tb,
+                dmg_mult=db.get_boss_dmg_mult(qq_id), pet=db.pet_get(qq_id))
+        # 敌 actor 技能索引已由 B2 构造建立；给 Boss 配首个技能自动行动（AI 轮换属上层怪 AI 模块）
+        try:
+            _boss_a = next((u for u in nb.sides_of("enemy") if u.get("is_boss")), None)
+            if _boss_a:
+                _idx = _boss_a.get("_skill_index") or {}
+                _sk_names = [_k for _k, _inf in _idx.items()
+                             if _inf and _inf.get("name") == _k]  # 中文名键 = 技能显示名
+                if _sk_names:
+                    _boss_a["auto_act"] = {"act": {"type": "skill", "skill": _sk_names[0]}}
+        except Exception:
+            pass
         # 同步回全局事件（含 enemies 阵列，供其他玩家响应共享血量）
         db.save_world_event(cur["etype"], cur["ends_at"], cur["data"])
         db.save_battle(group_id, qq_id, nb.to_state())
@@ -2238,9 +2289,13 @@ class CombatCmds(CommandBase):
 
     async def _worldboss_act(self, event, group_id, qq_id, player, b, action, skill_name=None, target=None):
         """世界BOSS战斗行动（attack/skill/defend 共用）
-        1. 同步全局 Boss 阵列血量到本地 b.enemies（其他玩家可能也打了，逐 uid）
+        1. 同步全局 Boss 阵列血量到本地 b.sides_of("enemy")（其他玩家可能也打了，逐 uid）
         2. 玩家行动（target 指定目标）→ 贡献累积（全阵列伤害合计）→ 本地写回全局阵列
-        3. 全阵列无存活（b._enemy_dead()）→ Boss 死亡结算；玩家死亡 → 走死亡结算
+        3. 全阵列无存活（battle2 result=victory）→ Boss 死亡结算；玩家死亡 → 走死亡结算
+
+        N5b4-3（battle2）：玩家 action 走 human_act（actor 副本）+ sync 回写；
+        DOT 由 battle2 schedule 自动结算（actor.state dot 规则），退役旧全局
+        debuffs/adapt 共享 + 每4次强制结算补丁（鱼鱼拍板按新引擎语义）。
         """
         cur_evt = db.get_world_event()
         if not cur_evt or cur_evt["etype"] != "boss":
@@ -2250,59 +2305,48 @@ class CombatCmds(CommandBase):
             return
         gboss = cur_evt["data"]["boss"]
         genemies = gboss.get("enemies")
-        # 行动前：全局阵列血量 → 本地 b.enemies（逐 uid；旧单怪数据回落主目标 hp）
+        # N5b4-3（battle2）：本地敌 actor = b.sides_of("enemy")（死亡不移除 → 读存活过滤）；
+        # 行动前全局阵列血量 → 本地（逐 uid；旧单怪数据回落主目标 hp）。
+        _l_enemies = [u for u in b.sides_of("enemy") if (u.get("hp") or 0) > 0] or b.sides_of("enemy")
         if genemies:
             _g_by_uid = {u.get("uid"): u for u in genemies}
-            for u in b.enemies:
+            for u in _l_enemies:
                 _gu = _g_by_uid.get(u.get("uid"))
                 if _gu is not None:
                     u["hp"] = _gu.get("hp", u.get("hp", 0))
         else:
-            self._b_enemy(b)["hp"] = gboss.get("hp", self._b_enemy(b).get("hp", 0))
-        # DOT/减益重构（契约 §6）：行动前把全局共享 debuffs 同步到本地主目标（逐键浅拷贝，
-        # 世界 Boss 毒/灼烧/流血为全局单份，多玩家并发时各行动叠加层、每 N 次行动统一结算）。
-        # 主目标即 enemy（dot 只挂主目标，爪牙不挂 dot）。
-        self._b_enemy(b)["debuffs"] = {k: dict(v) for k, v in (gboss.get("debuffs") or {}).items()}
-        # v1.2（契约 §11.3）：行动前把全局共享减益适应同步到本地主目标（与 debuffs 同步同处）。
-        self._b_enemy(b)["adapt"] = dict(gboss.get("adapt") or {"poison": 0.0, "burn": 0.0})
-        before = sum(max(0, u.get("hp", 0)) for u in b.enemies)
-        logs, ended, _who = b.actor_act(action, skill_name, player, target=target)
-        # DOT/减益重构（契约 §6）：行动后累加全局 dot 结算计数，每 WORLD_BOSS_DOT_INTERVAL
-        # 次玩家行动强制结算一次 dot（force=True 直接扣 b.enemies hp，忽略 _dot_pending 闸门，
-        # 模拟"一队一轮"）。结算必须在 after/dealt 计算**之前**调用，这样 dealt 已含 dot 伤害、
-        # 后续 hp 写回全局也一并包含。
-        gboss["dot_act"] = int(gboss.get("dot_act", 0) or 0) + 1
-        if int(gboss["dot_act"]) % WORLD_BOSS_DOT_INTERVAL == 0:
-            # 契约 §2.2 实际实现：_tick_actor_dots 原地向传入的 logs 追加文案并返回同一列表，
-            # 故用 logs = 覆盖而非 logs +=，避免同一列表二次自拼接导致 dot 行重复显示。
-            logs = b._tick_actor_dots(self._b_enemy(b), logs, force=True, caster=player)  # force 结算的 dot 文案并入
+            _me0 = _l_enemies[0] if _l_enemies else self._b_enemy(b)
+            _me0["hp"] = gboss.get("hp", _me0.get("hp", 0))
+        before = sum(max(0, u.get("hp", 0)) for u in b.sides_of("enemy"))
+        # N5b4-3：battle2 行动入口 human_act（副本 actor）+ 回写 player dict。
+        # DOT 由 battle2 schedule 在行动推进中自动结算（actor.state dot 规则，
+        # 本地副本语义——旧"全局共享 debuffs + 每4次强制结算"补丁按鱼鱼拍板退役）。
+        logs, ended, _who = b.human_act(action, skill_name, b.focus(), target=target)
+        self._sync_battle_player(player, b)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
-        after = sum(max(0, u.get("hp", 0)) for u in b.enemies)
-        dealt = max(0, before - after)  # 全阵列伤害合计
+        after = sum(max(0, u.get("hp", 0)) for u in b.sides_of("enemy"))
+        dealt = max(0, before - after)  # 全阵列伤害合计（含 schedule 自动 DOT）
         contrib = gboss.setdefault("contrib", {})
         contrib[str(qq_id)] = contrib.get(str(qq_id), 0) + dealt
-        # 保留"你击败了"过滤（胜利文案由结算逻辑输出）；恢复"毒发身亡"文案（dot 结算击杀的展示）
+        # 保留"你击败了"过滤（胜利文案由结算逻辑输出）；battle2 击杀日志文案可能含目标名
         lines = [x for x in logs if "你击败了" not in x]
 
-        # 行动后：本地 b.enemies → 全局阵列（逐 uid 同步 hp）+ 主目标汇总
+        # 行动后：本地 b.sides_of("enemy") → 全局阵列（逐 uid 同步 hp）+ 主目标汇总
+        _l_all = b.sides_of("enemy")
         if genemies:
-            _l_by_uid = {u.get("uid"): u for u in b.enemies}
+            _l_by_uid = {u.get("uid"): u for u in _l_all}
             for _gu in genemies:
                 _lu = _l_by_uid.get(_gu.get("uid"))
                 if _lu is not None:
                     _gu["hp"] = _lu.get("hp", _gu.get("hp", 0))
-            _main_now = next((u for u in b.enemies if (u.get("hp") or 0) > 0), None) or (b.enemies[0] if b.enemies else None)
+            _main_now = next((u for u in _l_all if (u.get("hp") or 0) > 0), None) or (_l_all[0] if _l_all else None)
             if _main_now:
                 gboss["name"] = _main_now.get("name", gboss.get("name", "?"))
                 gboss["hp"] = _main_now.get("hp", 0)
                 gboss["max_hp"] = _main_now.get("max_hp", _main_now.get("hp", 1))
         else:
-            gboss["hp"] = self._b_enemy(b)["hp"]
-        # DOT/减益重构（契约 §6）：行动后把本地结算后的 debuffs 写回全局（毒/灼烧/流血全局共享单份，
-        # 供其他玩家下一步行动同步；与 hp 写回同处）。
-        gboss["debuffs"] = {k: dict(v) for k, v in (self._b_enemy(b).get("debuffs") or {}).items()}
-        # v1.2（契约 §11.3）：行动后把本地减益适应写回全局（与 debuffs 写回同处）。
-        gboss["adapt"] = dict(self._b_enemy(b).get("adapt") or {"poison": 0.0, "burn": 0.0})
+            _me0 = _l_all[0] if _l_all else {}
+            gboss["hp"] = _me0.get("hp", gboss.get("hp", 0))
 
         if ended and b.result == "victory":
             # Boss 死亡结算（全阵列无存活；先于玩家死亡判断）
@@ -2361,7 +2405,8 @@ class CombatCmds(CommandBase):
         if ended and b.result == "defeat":
             # 玩家阵亡（Boss 未死）：贡献已记，同步血量，走死亡结算
             if not genemies:
-                gboss["hp"] = self._b_enemy(b)["hp"]
+                _me0 = b.sides_of("enemy")
+                gboss["hp"] = (_me0[0] if _me0 else {}).get("hp", gboss.get("hp", 0))
             db.save_world_event(cur_evt["etype"], cur_evt["ends_at"], cur_evt["data"])
             self._unlock_battle(group_id, qq_id)
             db.clear_battle(group_id, qq_id)
@@ -2375,7 +2420,7 @@ class CombatCmds(CommandBase):
         # Boss 未死：更新贡献 + 全局血量/阵列 + 战斗状态
         db.save_world_event(cur_evt["etype"], cur_evt["ends_at"], cur_evt["data"])
         db.save_battle(group_id, qq_id, b.to_state())
-        _enemies_alive = [u for u in b.enemies if (u.get("hp") or 0) > 0]
+        _enemies_alive = [u for u in b.sides_of("enemy") if (u.get("hp") or 0) > 0]
         _sum_hp = sum(max(0, u.get("hp", 0)) for u in _enemies_alive or [])
         _sum_max = sum(max(0, u.get("max_hp", u.get("hp", 1))) for u in _enemies_alive or [])
         pct = max(0, int(_sum_hp / max(1, _sum_max) * 100))

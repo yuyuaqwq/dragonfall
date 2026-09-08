@@ -22,11 +22,22 @@ def _json_ready(obj):
 
 def _monster_display_name(state):
     """I0-B8：monster 列展示宿主昵称——多对多阵列优先取 enemies[0]（阵列压缩换位后的实际首单位），
-    无 enemies 时回落单怪 enemy 名。"""
+    无 enemies 时回落单怪 enemy 名。N5b4-3：battle2 存档无顶层 enemies/enemy（存 sides）——
+    取 enemy side 首个存活 actor 名（展示宿主昵称用，不影响战斗数据）。"""
     enemies = state.get("enemies")
     if isinstance(enemies, list) and enemies:
         return enemies[0].get("name", "") or ""
-    return (state.get("enemy") or {}).get("name", "") or ""
+    enemy = state.get("enemy") or {}
+    if enemy:
+        return enemy.get("name", "") or ""
+    sides = state.get("sides") or {}
+    eacts = sides.get("enemy") or []
+    if eacts:
+        # 展示取首个存活 actor（战斗宿主 = 主目标；死亡不移除 → 过滤存活，兜底首 actor）
+        alive = [u for u in eacts if (u.get("hp") or 0) > 0]
+        pick = (alive[0] if alive else eacts[0]) or {}
+        return pick.get("name", "") or ""
+    return ""
 
 
 def save_battle(group_id, qq_id, state: dict):
