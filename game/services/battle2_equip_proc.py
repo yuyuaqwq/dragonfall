@@ -126,6 +126,24 @@ def _translate_shield_abyss(key: str, wd: dict) -> dict:
     return {"battle_start": [eff]}
 
 
+def _translate_regen_turn_start(key: str, wd: dict) -> dict:
+    """proc_aux regen 型：每刻（turn_start）回复。guard_regen = 已损生命%；
+    dawn_regen/undying_band = 最大生命%（heal 动词 missing_pct/pct，N9.4 引擎扩展）。"""
+    pct = float(wd.get("pct") or 0.02)
+    if key == "guard_regen":
+        eff = {"type": "heal", "missing_pct": pct, "on": "caster"}
+    else:
+        eff = {"type": "heal", "pct": pct, "on": "caster"}
+    return {"turn_start": [eff]}
+
+
+def _translate_stack_hit(key: str, wd: dict) -> dict:
+    """proc_stack 纯叠层型（wind_mark）：每次命中 +1 层（cap/stat_scale 由 STATE_EFFECTS
+    声明，面板折算读 state；命中 = 普攻+技能双事件展开）。"""
+    eff = {"type": "state_add", "key": key, "amount": 1, "on": "caster"}
+    return {"hit": [eff]}
+
+
 # 第一批支持 key 清单（key → 翻译器）
 _START_TRANSLATORS = {
     # proc_shield battle_start 起手盾
@@ -139,6 +157,12 @@ _START_TRANSLATORS = {
     "void_stride": _translate_buff_start,
     # 深渊屏障（单独形态：max_hp_pct 起手盾）
     "abyss_barrier": _translate_shield_abyss,
+    # proc_aux regen 型（每刻回复）
+    "guard_regen": _translate_regen_turn_start,
+    "dawn_regen": _translate_regen_turn_start,
+    "undying_band": _translate_regen_turn_start,
+    # proc_stack 纯叠层型（命中叠层 + state_effects 面板折算）
+    "wind_mark": _translate_stack_hit,
 }
 
 
