@@ -439,6 +439,42 @@ def test_11_command_entry_switch():
     check("skill 无参 → 面板（分流不崩）", bool(joined3.strip()), joined3[:80])
 
 
+def test_12_use_item_router():
+    print("【12. I3 use_item 端到端：router → override 翻译器 heal 生效 / 缺口不占刻】")
+    # 玩家 hp 打残 → 副本内喝治疗药水 payload（模板产物 "150" 绝对恢复）
+    st = mk_st([70101], enemy=mk_enemy(hp=800, spd=5))
+    IB.build_battle(st)
+    # 打掉玩家一点血（sides actor 直改——真实链路里由敌方攻击写）
+    _pa = IB.player_actor_of(st, 70101)
+    _max0 = int(_pa.get("max_hp", 0) or 0)
+    _pa["hp"] = max(1, _max0 // 2)
+    IB.sync_views(st, GID)
+    inst = _Host()
+    # 首次普通攻击推进轮转到玩家（turn_time 置现避免超时误判）
+    import time as _t
+    st["turn_time"] = int(_t.time())
+    _hp_before = int((st["players"] or {}).get("70101", {}).get("hp", 0))
+    msgs = _sync_run(inst, st, "70101", "use_item", "150")
+    joined = "\n".join(msgs)
+    _hp_after = int((st["players"] or {}).get("70101", {}).get("hp", 0))
+    check("use_item 经 router 翻译恢复生命（battle2 actor 生效）", _hp_after > _hp_before,
+          f"hp {_hp_before}->{_hp_after}")
+    check("use_item 日志含恢复/使用文案", any(k in joined for k in ("恢复", "使用", "道具")), joined[:120])
+    # battle state 仍在且敌未死
+    check("使用后战斗未结束", not st.get("over"), f"over={st.get('over')}")
+    # 机制型缺口（特殊分发未覆盖）→ 不生效提示，不占刻（战斗可继续普攻）
+    st2 = mk_st([70102], enemy=mk_enemy(hp=800, spd=5))
+    IB.build_battle(st2)
+    st2["turn_time"] = int(_t.time())
+    _ct_before = float((IB.player_actor_of(st2, 70102) or {}).get("ct", 0) or 0)
+    msgs2 = _sync_run(inst, st2, "70102", "use_item", "special:summon")
+    joined2 = "\n".join(msgs2)
+    check("缺口 payload 不静默——给出未知/无效提示", bool(joined2.strip()), joined2[:120])
+    _ct_after = float((IB.player_actor_of(st2, 70102) or {}).get("ct", 0) or 0)
+    check("缺口不占刻（ct 未推）", abs(_ct_after - _ct_before) < 0.01,
+          f"ct {_ct_before}->{_ct_after}")
+
+
 def _collect(agen):
     """跑命令层 filter handler（async generator 或 coroutine 兼容）。"""
     return _run_gen(agen)
@@ -456,6 +492,7 @@ def main():
     test_9_secret_guard()
     test_10_rooms_boss()
     test_11_command_entry_switch()
+    test_12_use_item_router()
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     if FAILURES:
         for f in FAILURES:

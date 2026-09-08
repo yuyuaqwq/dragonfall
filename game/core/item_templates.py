@@ -745,42 +745,81 @@ def tpl_mount(ctx):
 
 
 # v104 P2-7 修复：净化卷轴死数据——战斗内清除玩家负面 buff（stun/freeze/silence/spd_down）
+# I5（battle2）：负面权威 = actor.effects（V 系列单容器 + EFFECT_RULES 声明）。
+# 本模板只做「净化对象存在」判定（读视图/state actors），清除统一由翻译器
+# battle2_item_use 执行（act_cleanse 查表：period/on=target/cleanse=True；sleep 不可净化）。
 _PURIFY_DEBUFF_KEYS = ("stun", "freeze", "silence", "spd_down",
                        "atk_down", "def_down", "matk_down", "mdef_down")
+
+
+def _b2_player_effects_candidates(st) -> list:
+    """从 battle2 战斗状态提取玩家侧 actors（净化对象候选，含 effects 容器）。
+
+    支持两种形态（economy 战斗内 ctx.battle 传的就是它们）：
+    - 副本 instance st：players 视图（sync_views 每刻回写 effects）为主
+    - 普通野外 to_state / st.battle.sides：sides.player actors 直读
+    返回 [actor_dict...]（模板判定只读，翻译器净化时用权威 actor 引用）。
+    """
+    out = []
+    if not isinstance(st, dict):
+        return out
+    # ① sides actors 优先（battle2 权威：普通战斗 to_state 顶层 / 副本 st.battle.sides）
+    for _b in (st.get("battle"), st):
+        if not isinstance(_b, dict):
+            continue
+        sides = _b.get("sides")
+        if isinstance(sides, dict):
+            for _a in (sides.get("player") or []):
+                if isinstance(_a, dict):
+                    out.append(_a)
+        if out:
+            return out
+    # ② players 视图兜底（老档/视图同步中间态）
+    players = st.get("players")
+    if isinstance(players, dict):
+        for _q, _snap in players.items():
+            if isinstance(_snap, dict):
+                out.append(_snap)
+        if out:
+            return out
+    return out
+
+
+def _b2_has_purifiable(st) -> bool:
+    """battle2 玩家侧是否有可净化负面（EFFECT_RULES period/on=target/cleanse 声明）。"""
+    try:
+        from ..data import battle2_rules as _B2R
+        rules = _B2R.EFFECT_RULES or {}
+    except Exception:
+        rules = {}
+    for _a in _b2_player_effects_candidates(st):
+        ef = _a.get("effects")
+        if not isinstance(ef, dict):
+            continue
+        for _k in ef:
+            cfg = rules.get(_k) or {}
+            if cfg.get("period") or cfg.get("on") == "target" or cfg.get("cleanse"):
+                return True
+    return False
 
 
 @register("purify", battle_ok=True)
 def tpl_purify(ctx):
     """净化卷轴（v104 P2-7 修复：原无 effect 字段 → infer_template 判 none 死数据）。
-    战斗内：清除 p_buffs 中的负面效果。普通战斗 p_buffs 为平铺 {buff: 刻}；
-    副本战斗为 {成员: {buff: 刻}}，按道具文案『驱散全队负面』清全部成员。
-    p_buffs 与战斗引擎 Battle 实例共享同一 dict 对象（battle.py from_state 直接引用
-    st["p_buffs"]），此处直接改状态即被 player_turn 感知并随 to_state 持久化；
-    payload="0" 走 _do_use_item 默认分支播报（不新增 battle.py 分支的约束下最简实现）。
-    战斗外/无负面可驱散：不消耗（与满血治疗拦截同款，M02 P1-5 模式）。"""
+    I5（battle2）：战斗内负面在 actor.effects（V 系列单容器）。模板只判定净化对象：
+    - 有可净化负面 → payload="purify:1"，实际清除由翻译器（battle2_item_use）执行
+    - 无负面可驱散 → 不消耗（与满血治疗拦截同款，M02 P1-5 模式）
+    战斗外/无负面：不消耗提示。"""
     d = ctx.data
     if not ctx.battle:
         return ItemResult(
             text=f"✨ 你展开【{d['name']}】，但此刻你身上没有需要净化的负面状态～",
             consume=False)
-    st = ctx.battle
-    pb = st.get("p_buffs") if isinstance(st, dict) else getattr(st, "p_buffs", None)
-    removed = []
-    if isinstance(pb, dict):
-        # 副本结构 {成员: {buff:刻}}（全队驱散）；普通战斗平铺 {buff:刻}
-        nested = any(isinstance(v, dict) for v in pb.values())
-        for t in (list(pb.values()) if nested else [pb]):
-            if isinstance(t, dict):
-                for k in _PURIFY_DEBUFF_KEYS:
-                    if k in t:
-                        t.pop(k, None)
-                        removed.append(k)
-    removed = list(dict.fromkeys(removed))
-    if not removed:
-        return ItemResult(
-            text=f"✨ 你展开【{d['name']}】，但此刻你身上没有需要净化的负面状态～",
-            consume=False)
-    return ItemResult(payload="0")
+    if _b2_has_purifiable(ctx.battle):
+        return ItemResult(payload="purify:1")
+    return ItemResult(
+        text=f"✨ 你展开【{d['name']}】，但此刻你身上没有需要净化的负面状态～",
+        consume=False)
 
 
 @register("skill_tome")

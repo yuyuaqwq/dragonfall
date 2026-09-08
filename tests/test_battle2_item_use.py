@@ -270,6 +270,57 @@ def test_override_end_to_end():
           str(logs))
 
 
+def test_purify():
+    print("【I5.1 purify：模板判定 + 翻译器清除（battle2 effects 负面）】")
+    from game.battle2 import Battle
+    from game.battle2.effects import apply_effects
+    from game.commands.battle2_item_use import translate as _tr
+    from game.core.item_templates import tpl_purify, ItemContext, _b2_has_purifiable
+    # 玩家带负面（stun 控制 + sleep 不可净化 + atk_up 正面）
+    p = mk_player(hp_ratio=0.9)
+    e = {"uid": "e_0", "name": "木桩", "side": "enemy", "kind": "monster",
+         "hp": 99999, "max_hp": 99999, "atk": 0, "def": 0, "matk": 0, "mdef": 0,
+         "spd": 1, "crit": 0.0, "level": 1, "human_controlled": False,
+         "effects": {}, "shields": {}, "ct": 0.0}
+    b = Battle(btype="monster", sides={"player": [p], "enemy": [e]})
+    apply_effects(b, p, p, [{"action": "apply", "key": "stun", "mode": "skip",
+                             "on": "caster", "turns": 2}], [])
+    apply_effects(b, p, p, [{"action": "apply", "key": "sleep", "mode": "skip",
+                             "on": "caster", "turns": 2}], [])
+    apply_effects(b, p, p, [{"action": "apply", "key": "atk_up", "on": "caster",
+                             "turns": 3}], [])
+    check("负面挂上（stun）", "stun" in (p.get("effects") or {}))
+    # 模板判定：有可净化负面（stun）→ consume + payload=purify:1
+    d = {"name": "净化卷轴"}
+    ctx = ItemContext.__new__(ItemContext)
+    ctx.battle = b.to_state()
+    ctx.data = d
+    ctx.group_id = "g"; ctx.qq_id = "q1"
+    r = tpl_purify(ctx)
+    check("模板判定有负面 → consume", r.consume is True, f"consume={r.consume} text={r.text}")
+    check("payload=purify:1", r.payload == "purify:1", f"payload={r.payload}")
+    # 视图判定（模板同款 helper）在清除前应识别到负面
+    _bstate1 = b.to_state()
+    check("_b2_has_purifiable 有负面判定 True", _b2_has_purifiable(_bstate1) is True)
+    # 翻译器清除：stun 清、sleep 不可净化保留、atk_up 正面保留
+    logs, cast = _tr(b, p, "purify:1")
+    ef = p.get("effects") or {}
+    check("stun 被净化", "stun" not in ef, f"effects={list(ef)}")
+    check("sleep 保留（不可净化）", "sleep" in ef, f"effects={list(ef)}")
+    check("atk_up 保留（正面）", "atk_up" in ef, f"effects={list(ef)}")
+    check("净化日志", any("净化" in x for x in logs), str(logs))
+    # 无负面场景：模板判定 consume=False
+    p2 = mk_player(hp_ratio=0.9)
+    b2 = Battle(btype="monster", sides={"player": [p2], "enemy": [dict(e)]})
+    ctx2 = ItemContext.__new__(ItemContext)
+    ctx2.battle = b2.to_state()
+    ctx2.data = d
+    ctx2.group_id = "g"; ctx2.qq_id = "q1"
+    r2 = tpl_purify(ctx2)
+    check("无负面 → 不消耗", r2.consume is False, f"consume={r2.consume}")
+    check("_b2_has_purifiable 无负面判定 False", _b2_has_purifiable(b2.to_state()) is False)
+
+
 def main():
     print("=== I2 battle2 道具翻译器测试 ===")
     test_heal_direct()
@@ -284,6 +335,7 @@ def main():
     test_foodfx()
     test_cast_suffix()
     test_override_end_to_end()
+    test_purify()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

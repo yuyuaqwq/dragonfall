@@ -79,6 +79,50 @@ def _find_effect_action_name(table: dict, container_key: str) -> Optional[str]:
 # 主入口
 # ------------------------------------------------------------
 
+def make_override():
+    """battle2 action_override 回调工厂（I3：instance_battle/野外 from_state 后注入）。
+
+    引擎 act() 遇非内置 action（use_item）问回调：签名
+    (battle, action, actor, skill_name, target) -> (logs, cast)；
+    logs=None → 未消费（回落「未知行动类型」，命令层不占刻不扣道具）。
+    翻译器把 payload（经 skill_name 参数透传）→ 引擎动词。
+    """
+    def _override(battle, action, actor, skill_name, target):
+        if action != "use_item":
+            return None, None
+        return translate(battle, actor, skill_name or "", target)
+    return _override
+
+
+def can_translate(payload: str) -> bool:
+    """纯判定 payload 翻译器能否处理（无副作用，不建 battle/actor）。
+
+    供 economy.use() 在 remove_item 前调用：不能翻译（机制型缺口
+    summon/trap/phoenix/...）→ 提示「战斗内效果未迁移」且不扣道具不占刻。
+    """
+    if not payload or not str(payload).strip():
+        return False
+    _p = str(payload).strip()
+    # 剥 cast/recovery 尾缀后判前缀
+    _body = re.sub(r"(?:^|[;&,])\s*(?:cast|recovery):[\d.]+", "", _p).rstrip(";,")
+    if not _body:
+        return True  # 仅 cast（占刻无效果——食物体力类）
+    if _body.startswith(("foodfx:", "hot:", "mana:", "hm:", "buff:", "purify:")):
+        return True
+    if _body.startswith("special:"):
+        _k = _body[8:]
+        _kind = _k.split(":", 1)[0] if ":" in _k else _k
+        if _kind in _EFFECT_ACTION_KEYS or _kind in _SHIELD_KINDS:
+            return True
+        # 其余机制型 special → 缺口
+        return False
+    try:
+        int(_body or "x")
+        return True  # 纯数字 heal
+    except ValueError:
+        return False
+
+
 def translate(battle, actor: dict, payload: str,
               target: Optional[dict] = None) -> Optional[tuple]:
     """道具 payload → (logs, cast)。未覆盖（机制型缺口）→ (None, None)。
@@ -129,6 +173,35 @@ def translate(battle, actor: dict, payload: str,
         from ..core.food_effects import FOOD_EFFECT_NAMES
         _names = [FOOD_EFFECT_NAMES.get(a, a) for a in aids]
         logs.append(f"🍲 你吃下了料理，获得【{'、'.join(_names)}】效果！(本场战斗)")
+        return logs, cast
+
+    # ---- 1.5 purify 净化卷轴（I5：模板只判定，清除在翻译器）----
+    # 清玩家侧全部存活 actor 的可净化负面（EFFECT_RULES period/on=target/cleanse；
+    # sleep 不可净化）。旧模板直改 p_buffs 已随 battle2 失效——负面权威在 actor.effects。
+    if _payload == "purify:1":
+        from ..battle2.effects import apply_effects
+        _cleaned = []
+        _holders = []
+        try:
+            for _a in (battle.sides_of("player") if hasattr(battle, "sides_of") else []):
+                if isinstance(_a, dict) and int(_a.get("hp", 0) or 0) > 0:
+                    _holders.append(_a)
+        except Exception:
+            _holders = []
+        if not _holders and isinstance(actor, dict):
+            _holders = [actor]
+        for _h in _holders:
+            _before = set((_h.get("effects") or {}).keys())
+            apply_effects(battle, _h, _h, [{"action": "cleanse"}], [])
+            _after = set((_h.get("effects") or {}).keys())
+            _rem = _before - _after
+            if _rem:
+                _cleaned.append((_h.get("name", "?"), sorted(_rem)))
+        if _cleaned:
+            _lines = [f"{_nm}：{'、'.join(_ks)}" for _nm, _ks in _cleaned]
+            logs.append(f"✨ 净化卷轴驱散了负面效果！({'; '.join(_lines)})")
+        else:
+            logs.append("✨ 净化卷轴展开，没有需要驱散的负面效果～")
         return logs, cast
 
     # ---- 2. hot（持续恢复：effects["regen_hot"] period 声明，schedule 周期结算）----
@@ -260,7 +333,7 @@ def translate(battle, actor: dict, payload: str,
 
 # EFFECT_ACTIONS 直映射键（N7.5b 药水/食物别名已在规则表；此处命中即通用查表翻译）
 _EFFECT_ACTION_KEYS = {
-    "next_atk_up", "buff_phys_next", "cc_immune",
+    "next_atk_up", "buff_phys_next", "cc_immune", "purify_immune",
     # 纯属性别名（payload buff: 已覆盖，双保险）
     "buff_atk", "buff_def", "buff_spd", "buff_crit", "buff_matk",
     "buff_atk_big", "buff_atk_small", "buff_atk_food",

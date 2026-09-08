@@ -214,6 +214,7 @@ EFFECT_ACTIONS: dict = {
     "spd_buff":    [{"action": "apply", "key": "spd_up"}],
     "crit_hit_buff": [{"action": "apply", "key": "crit_up"}],
     "cc_immune":    [{"action": "apply", "key": "cc_immune"}],   # 无面板折算（纯免疫状态）
+    "purify_immune": [{"action": "apply", "key": "cc_immune"}],  # 净化免疫药（I5 映射 cc_immune）
     # 团队/全员增益 → 自身有效键（旧 team_keys 同语义）
     "atk_all":   [{"action": "apply", "key": "atk_up"}],
     "def_all":   [{"action": "apply", "key": "def_up"}],

@@ -5881,6 +5881,15 @@ class EconomyCmds(CommandBase):
                     # v104 M02 P1-5：满血/满蓝拦截——不扣道具、不消耗刻（敌方不动）
                     yield event.plain_result(r.text)
                     return
+                # I5：机制型缺口（special summon/trap/... 翻译器不覆盖）→ 提示不扣道具
+                from .battle2_item_use import can_translate as _b2u_can
+                _pl0 = r.payload if r.payload is not None else "0"
+                _it_cast0 = d.get("cast")
+                if _it_cast0:
+                    _pl0 = f"{_pl0};cast:{_it_cast0}" if _pl0 else f"cast:{_it_cast0}"
+                if not _b2u_can(_pl0):
+                    yield event.plain_result("⚠️ 该道具的战斗内效果尚未迁移，请在战斗外使用～")
+                    return
                 if r.consume:
                     db.remove_item(group_id, qq_id, target["key"])
                 if d.get("stamina"):
@@ -5892,7 +5901,10 @@ class EconomyCmds(CommandBase):
                 _it_cast = d.get("cast")
                 if _it_cast:
                     payload = f"{payload};cast:{_it_cast}" if payload else f"cast:{_it_cast}"
-                async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "use_item", payload):
+                # I3：副本战斗 use_item 走 battle2 router（action_override 翻译器），
+                # 不再调旧 _instance_act（其 BT.from_state 对 battle2 state 失效——
+                # 道具效果静默不生效，I 系列文档 §0.2）
+                async for _r in self._instance_router(event, group_id, qq_id, player, battle["state"], "use_item", payload):
                     yield _r
                 return
             # 战斗中：只允许恢复类 + 战斗药水（模板 meta battle_ok），且算一刻（敌方会行动）
@@ -5906,13 +5918,33 @@ class EconomyCmds(CommandBase):
             if battle["state"].get("type") == "pvp":
                 yield event.plain_result("PVP 战斗无法使用道具！")
                 return
-            b = BT.Battle.from_state(battle["state"])
-            b._focus = player  # v121 审计修复：恢复路径补齐 self._focus（盾强度/冷却缩减/精准减免读它）
+            b = self._restore_battle2(battle["state"])
+            if b is None:
+                # 旧格式存档作废：清档重开（N5b 约定不迁移）
+                db.clear_battle(group_id, qq_id)
+                self._unlock_battle(group_id, qq_id)
+                yield event.plain_result("⏳ 旧存档已失效，重新探索开始新的战斗吧！")
+                return
+            # I4：from_state 后注入道具行动回调（action_override 不可序列化）
+            try:
+                from .battle2_item_use import make_override
+                b.action_override = make_override()
+            except Exception:
+                b.action_override = None
             ctx = IT.ItemContext(group_id, qq_id, player, d, battle=battle["state"], hooks=hooks)
             r = IT.TEMPLATES[tpl_name](ctx)
             if not r.consume:
                 # v104 M02 P1-5：满血/满蓝拦截——不扣道具、不消耗刻（敌方不动）
                 yield event.plain_result(r.text)
+                return
+            # I5：机制型缺口（special summon/trap/... 翻译器不覆盖）→ 提示不扣道具
+            from .battle2_item_use import can_translate as _b2u_can
+            _pl0 = r.payload if r.payload is not None else "0"
+            _it_cast0 = d.get("cast")
+            if _it_cast0:
+                _pl0 = f"{_pl0};cast:{_it_cast0}" if _pl0 else f"cast:{_it_cast0}"
+            if not _b2u_can(_pl0):
+                yield event.plain_result("⚠️ 该道具的战斗内效果尚未迁移，请在战斗外使用～")
                 return
             if r.consume:
                 db.remove_item(group_id, qq_id, target["key"])
@@ -5929,18 +5961,36 @@ class EconomyCmds(CommandBase):
             _it_cast = d.get("cast")
             if _it_cast:
                 payload = f"{payload};cast:{_it_cast}" if payload else f"cast:{_it_cast}"
-            logs, ended, _who = b.actor_act("use_item", payload, player)
+            # battle2 玩家 actor 定位（battle2 引擎只吃 actor dict；sides player 首 actor）
+            _my = b.focus() if hasattr(b, "focus") else None
+            if _my is None:
+                for _a in b.sides_of("player"):
+                    if str(_a.get("qq_id") or "") == str(qq_id):
+                        _my = _a
+                        break
+            if _my is None:
+                yield event.plain_result("你不在战斗中（状态异常）！")
+                return
+            logs, ended, _who = b.human_act("use_item", payload, _my)
+            # battle2 行动后回写 player dict（副本 actor 改动不自动落回）
+            try:
+                from ..services.battle2_bridge import sync_player_from_actor
+                sync_player_from_actor(player, _my)
+            except Exception:
+                pass
             db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"],
                              max_hp=player["max_hp"], max_mp=player["max_mp"])
             if ended:
+                # battle2 胜负按 actor 存活判定（结果视角固定 player side）
+                _enemies = [u for u in b.sides_of("enemy") if (u.get("hp") or 0) > 0]
+                _mon = _enemies[0] if _enemies else (b.sides_of("enemy") or [{}])[0]
                 if b.result == "victory":
-                    # v126.7 胜利结算用原主怪引用（打死怪后 b.enemy 变 {}）
-                    _mon = getattr(b, "_origin_enemy", None) or b.enemy
+                    # v126.7 胜利结算用原主怪引用（死亡不移除，读 sides 存活/首怪）
                     for _r in self._handle_victory(event, group_id, qq_id, player, _mon, "\n".join(logs)):
                         yield _r
                     return
                 if b.result == "defeat":
-                    for _r in self._handle_defeat(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
+                    for _r in self._handle_defeat(event, group_id, qq_id, player, _mon, "\n".join(logs)):
                         yield _r
                     return
             db.save_battle(group_id, qq_id, b.to_state())

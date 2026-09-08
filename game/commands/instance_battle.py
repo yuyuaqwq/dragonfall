@@ -156,6 +156,13 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
     if not st_battle.get("sides"):
         return ["战斗状态异常，请重新遭遇！"], True, None
     b = B2.from_state(st_battle)
+    # I3：from_state 后注入道具行动回调（action_override 不可序列化，恢复必重挂；
+    # use_item/自定义动作由回调翻译成引擎动词——引擎零道具名词）
+    try:
+        from .battle2_item_use import make_override
+        b.action_override = make_override()
+    except Exception:
+        b.action_override = None
     # 从重建后的 b.sides 定位行动者（不能从 st 旧 dict 找——from_state 是反序列化
     # 副本，引擎修改落在 b 内 actor，若用 st 旧 actor 则 to_state 落回时修改丢失：
     # hp/ct/defending 全部不写回，副本战斗永远无进展）。PVP act 同口径。
