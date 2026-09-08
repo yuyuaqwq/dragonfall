@@ -320,3 +320,66 @@ heal/state_set/interrupt/damage 动词补齐。
 读本文档 → `git log --oneline -6` 确认 HEAD → V 系列已完成（V1/V1b/V4/V5），剩余主线：
 I3-I7 道具链续做（apply/consume API）+ N5b4-6/7 + 世界Boss DOT 语义未决点（记录 6 路线 B）。
 每批 commit 后汇报鱼鱼。✂️
+
+## 9. V6/V7 + I3-I5 + N5b4-6/7 自主推进记录（2026-09-09 鱼鱼睡觉批）
+
+### V6 命令层/桥复查（b116e4f）——修 2 个真实断链 bug
+- **echo_bless（神龛祝福 v97.4）断链**：prepare_player_for_battle 消费 event_state 后写
+  player.buffs 旧键，player_to_actor 又剔除 buffs → 祝福效果 battle2 从不生效。
+  修：仪式消费读 event_state pct（5/6/8% 动态）→ 落 `player["_battle_boons"]` 标记 →
+  player_to_actor 尾部 `_battle_boons_to_effects` 翻译进 actor.effects 面板快照
+  （{stacks,stat,op,mult}，无 expire=整场；stats._apply_effects 折算）。
+- **poi_buff（神龛祝福 v104 M23）断链**：仪式写 player.poi_buff 仅透传 actor 字段，
+  battle2 stats 从不折算。修：同落 _battle_boons → effects（stat/mult 动态）。
+- player dict 不再透传 poi_buff 冗余 actor 字段；combat.py 两处开战 bless_note 改读
+  _battle_boons + 动态 pct 文案（原来写死 +5%/+10%，雷淬之池实际 pct=8%）。
+- 测试：test_battle2_bridge 断言同步新语义 + boons→effects 翻译断言（64/64）。
+
+### V7 全量回归（沙盒对照）
+- 沙盒：Temp/df_wt_v7sbx/data/plugins/dragonfall（data/plugins 父链必需）。
+- run_all 335：306 通过 / 29 失败 = V5 HEAD(ecdca3f) 对照逐条一致（v5check 沙盒），
+  **零新增回归**。失败名单全部是旧引擎线测试（N10 删旧前基线红）。
+
+### I3-I5 道具链 battle2 化（65886cc）
+- I3：instance_battle.act from_state 后注入 make_override（action_override 不可序列化，
+  恢复必重挂）；economy 副本 use_item 分流改 _instance_router（不再调旧 _instance_act——
+  其对 battle2 state 静默失效）。
+- I4：economy 普通野外 use_item 段改 battle2（_restore_battle2 + override + human_act +
+  sync_player_from_actor 回写；胜负按 sides actor 存活判定）。
+- I5：purify 改翻译器——item_templates tpl_purify 只做净化对象判定（读 battle2 视图/
+  sides actors effects + EFFECT_RULES period/on=target/cleanse 声明）→ payload=purify:1；
+  翻译器新增 purify 分支清玩家侧负面（sleep 不可净化保留）；purify_immune 映射 cc_immune
+  （规则表 + 分诊键）。机制型缺口（summon/trap/phoenix 等）：can_translate 纯判定 +
+  economy 两处 remove_item 前拦截 → 提示不扣道具不占刻（原状态=白扣+静默失效）。
+- 测试：router test_12 use_item 端到端（heal 生效/缺口不占刻）；item_use test_purify；
+  battle2 21 文件全绿。
+
+### N5b4-6 轻文件切 battle2（34b5608）+ N5b4-7 回归
+- player.py 属性面板战斗内实时值：BT.Battle.from_state+_player_stats → battle2
+  from_state+actor_stats（state 无 sides 回落静态）。
+- tower.py 爬塔开战 / world.py 跨图撞怪伏击：旧 BT.Battle 构造 → battle2 四步仪式
+  （prepare/sides/装配/B2，同 _open_battle2 语义）。
+- economy/world/player/tower 四处 BT import 清零（N10 前置）。
+- world.py 副本行动提示改 battle2 轮转（_instance_turn_player_name 读 IB.next_actor_key，
+  4b193ba 前置 commit）。
+- 测试适配：v97_07/v1252 use 段旧格式 state fixture → battle2 to_state（9b36ed7）。
+- run_all 335：306 通过 / 29 失败 = V5 基线逐条一致（v7c 沙盒确认）。
+
+### 卡点（无法自主安全推进，待鱼鱼）
+- **I6/R3 instance.py 删除清单**：_instance_act 零调用可删，但 CT helpers
+  （_instance_next_player_name/_instance_ct_queue/_instance_next_actor/_instance_reset_player_cts 等）
+  仍被玩法壳引用（instance_advance/_instance_explore/_instance_start/_instance_battle_footer/
+  _instance_secret_crack 等 8+ 调用点），删除前需逐点改读 battle2 或删段；副本流程测试
+  （v141/v137/v178 等）在基线红 → 删除无兜底验证网。建议先写 R4 端到端（拟真 DB 2 人
+  开本完整流程）再删。
+- **N5b4-5b/5c**：账务深化（target_picker/team 广播 on_event 翻译器）+ Boss 剧本
+  mech DSL 导演——开放内容翻译工程（每剧本一个命令层动作，量=副本内容翻译），
+  范围需鱼鱼拍板。
+- **N10 删旧**：前置 = N5b4 全切 + weapon/affix 覆盖 + R4 验证；当前 battle.py 1.1万行
+  仍被旧路径测试引用（29 基线红大半是它）。
+- 世界Boss DOT 语义未决点（记录 6 路线 B）：未动，保留现状。
+
+## 10. 会话重启口令（2026-09-09 夜）
+「读 HANDOFF_v181_refactor + HANDOFF_battle2_effect_v2 §9，当前 HEAD 在 wt_ebuffs
+V6/V7/I3-I5/N5b4-6/7 完成；剩余 = R3 删除（需先 R4 端到端）/5b/5c/N10 待鱼鱼」
+
