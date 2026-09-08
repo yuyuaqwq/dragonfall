@@ -99,7 +99,7 @@ def test_damage_death():
     b.killed_actors = []
     src = mk_actor("p", "打手", "player", hp=500)
     tgt = mk_actor("e", "残血", "enemy", hp=20)
-    b._on_actor_dead = lambda a: b.killed_actors.append(a)
+    b._on_actor_dead = lambda a, logs=None: b.killed_actors.append(a)
     logs = []
     real = L.deal_damage(b, src, tgt, 50, logs)
     check("致死：hp=0", tgt["hp"] == 0, f"hp={tgt['hp']}")
