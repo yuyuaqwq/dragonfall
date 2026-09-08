@@ -10,10 +10,10 @@
 ## 0. 分支/位置/跑法
 
 - 分支：`wt_ebuffs`（worktree：`C:/Users/yuyu/AppData/Local/Temp/df_wt_ebuffs/w1`）
-- HEAD：`dcd8d30`（docs: N5b-4 命令层切换详细设计，2026-09-08）
+- HEAD：`413c276`（v181.N9.8 trinity thunder 段，2026-09-08）
 - 主仓（生产）：`C:/Users/yuyu/qqbot/data/plugins/dragonfall`（master 未动）
 - Python：`C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe`
-- 全套测试：`for f in tests/test_battle2_*.py; do python "$f"; done`（当前 12 文件全绿）
+- 全套测试：`for f in tests/test_battle2_*.py; do python "$f"; done`（当前 12 文件 486 断言全绿）
 - 覆盖率门禁：`python tools/cov_func_battle2.py`（0 未调用）+ `cov_branch_battle2.py`
 - 效果系统主方案：`docs/DESIGN_effect_system_v2.md`（Part 3.3/4 定稿 19 时机 + 管线）
 - N9 施工方案：`docs/REFACTOR_v181P4_N9_migration.md`（盘点/批次/删除清单）
@@ -36,6 +36,16 @@
 3. **affix 76 分档**：不是全迁——资源型 20 + 职业机制 12 归上层职业模块缺口。
 4. **N5b-4 命令层切换**：鱼鱼要看详细设计文档（字段/函数级）再动工；
    核心战斗文件 diff 鱼鱼过目再提交。
+5. **（2026-09-08 后续会话）trinity thunder 段补齐 + death_dance_armor 复活段复核**：
+   - trinity thunder：文案承诺"附雷 15% atk"旧引擎置标空转永不消费（ctx.attack 门
+     恒 False bug）→ battle2 按文案兑现：hit 子键 bonus_atk_pct（引擎 actions.py
+     N9.8 通用附伤参数）+ 装配翻译器 _translate_trinity 双段。weapon 73/79。
+   - death_dance_armor 复活段：**复核结论 = 旧引擎从未实现**（全 battle.py 复活链族
+     只有 phoenix/death_pact/berserk/stance 4 条，无 death_dance_armor 消费点；
+     revive_hp_pct 0.12 是数据孤儿，装备文案比实现多写了复活）→ battle2 现状
+     （taken_calc 减伤 8%）已与旧引擎行为等价，不算丢能力。复活段**不单开引擎原语**
+     （单 key 造半套"死后复活"违背北极星，同闪避体系判断），记 N10 文案清单：
+     玩家可见 special 文案含复活承诺但旧引擎从未生效，N10 前改文案或确认不要。
 
 ## 1. 已完成（全部绿，工作区干净）
 
@@ -84,13 +94,13 @@ heal/state_set/interrupt/damage 动词补齐。
 
 ## 3. 剩余工作（按优先级）
 
-### A. weapon 缺口（剩 4）
+### A. weapon 缺口（剩 2 实现缺口）
 | key | 缺的机制 | 状态 |
 |---|---|---|
 | novice_first_turn_dodge | 闪避（battle2 无命中 roll） | 等命令层 N5b-4 后做（N9A-3 战斗系统批） |
 | novice_hunt_combo / combo_end | 连击/连段（拳师/刺客职业机制） | 缺口等上层职业模块 |
-| trinity_rhythm thunder 段 | 附雷附加（thunder_pct 未做） | N9A 未含，可补（damage 附加） |
-| death_dance_armor 复活段 | 致死复活链 | 复核 undying_will 是否覆盖 |
+| ~~trinity_rhythm thunder 段~~ | ~~附雷附加~~ | ✅ N9.8 已补（hit 子键 bonus_atk_pct + _translate_trinity） |
+| ~~death_dance_armor 复活段~~ | ~~致死复活链~~ | ✅ 复核 = 旧引擎从未实现，battle2 行为已等价；文案虚标记 N10 清单 |
 
 ### B. affix 缺口（剩 34）
 - purify：需"敌方增益 key 语义"设计（battle2 buffs 无 mon_ 前缀概念）
