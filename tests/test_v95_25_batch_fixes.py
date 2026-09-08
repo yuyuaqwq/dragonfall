@@ -101,17 +101,33 @@ async def main():
     # 构造一场必败战斗（100 级怪）
     await cmd(m, "register", "g1", "w6", "注册 战士 送头 男")
     db.update_player("g1", "w6", gold=1000, level=1, cur_map="oak_plain", cur_subarea="oak_plain_1")
-    from game import battle as BT
-    b = BT.Battle("monster", {"name": "测试凶兽", "hp": 99999, "max_hp": 99999, "atk": 9999, "def": 9999, "spd": 999}, {}, db.get_player("g1", "w6"))
-    db.save_battle("g1", "w6", b.to_state())
+    # N5b4-6：battle2 state（命令层 attack 只认 sides）
+    from game.services import battle2_bridge as _BR
+    from game.battle2 import Battle as _B2
+    pl6 = db.get_player("g1", "w6")
+    _BR.prepare_player_for_battle(pl6, {}, db)
+    _mon6 = {"name": "测试凶兽", "hp": 99999, "max_hp": 99999, "atk": 9999, "def": 9999,
+             "spd": 999, "matk": 1, "mdef": 1, "crit": 0.0, "uid": "e_death", "level": 100,
+             "lv": 100, "rank": 1, "reach": 1, "skills": [], "is_boss": False, "is_elite": False}
+    _s6 = _BR.build_sides(player=pl6, enemies=[_mon6])
+    for _a in _s6.get("player", []):
+        _a["stat_bonus"] = {}
+    db.save_battle("g1", "w6", _B2("monster", sides=_s6, title_bonus={}).to_state())
     out = await cmd(m, "attack", "g1", "w6", "攻击")
     check("死亡提示含 10% 规则", "10% 金币" in out, out[:300])
 
     print("【7. #145 技能报错显示已学技能】")
     await cmd(m, "register", "g1", "w7", "注册 战士 技能哥 男")
     db.update_player("g1", "w7", learned_skills=["挥砍"])
-    b2 = BT.Battle("monster", {"name": "测试史莱姆", "hp": 50, "max_hp": 50, "atk": 5, "def": 2, "spd": 3}, {}, db.get_player("g1", "w7"))
-    db.save_battle("g1", "w7", b2.to_state())
+    pl7 = db.get_player("g1", "w7")
+    _BR.prepare_player_for_battle(pl7, {}, db)
+    _mon7 = {"name": "测试史莱姆", "hp": 50, "max_hp": 50, "atk": 5, "def": 2, "spd": 3,
+             "matk": 1, "mdef": 1, "crit": 0.0, "uid": "e_slime", "level": 1, "lv": 1,
+             "rank": 1, "reach": 1, "skills": [], "is_boss": False, "is_elite": False}
+    _s7 = _BR.build_sides(player=pl7, enemies=[_mon7])
+    for _a in _s7.get("player", []):
+        _a["stat_bonus"] = {}
+    db.save_battle("g1", "w7", _B2("monster", sides=_s7, title_bonus={}).to_state())
     out = await cmd(m, "skill", "g1", "w7", "技能 火球")
     check("报错含已学技能", "挥砍" in out, out[:300])
     check("不再显示遗留列", "你当前的技能：无" not in out, out[:300])
