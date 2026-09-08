@@ -28,7 +28,6 @@ from ._platform import AstrMessageEvent, filter
 from .. import content as C
 from .. import db
 from .. import engine as E
-from .. import battle as BT
 from ..battle import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 from .instance_router import InstanceRouterCmds  # v181.N5b4-5a R1：battle2 副本行动路由
@@ -42,7 +41,6 @@ INVESTIGATE_BP_CHANCE = 0.25     # 图纸残页
 INVESTIGATE_RUNE_CHANCE = 0.15   # 蓝符（Lv.60+）
 INVESTIGATE_COLLECT_CHANCE = 0.03  # 收藏
 
-
 def _inst_map_id(inst_id: str) -> str:
     """v137：副本 INSTANCES key（inst_xxx）→ 地图 MAPS key（xxx）。
 
@@ -54,7 +52,6 @@ def _inst_map_id(inst_id: str) -> str:
     if inst_id and inst_id.startswith("inst_"):
         return inst_id[len("inst_"):]
     return inst_id or ""
-
 
 class InstanceCmds(InstanceRouterCmds, CommandBase):
     """副本命令 mixin —— v181.N5b4-5a R1 起继承 InstanceRouterCmds（battle2 行动路由）。"""
@@ -197,7 +194,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             cands = [c for c in (ec + pc) if c is not None]
             if cands:
                 ref = min(cands)
-            cost = BT.Battle()._ct_cost(_spd)
+            from ..battle2.schedule import action_time as _b2_at
+            cost = _b2_at(int(_spd))
             snap["ct"] = (ref if ref is not None else 0.0) + cost
         except Exception:
             snap["ct"] = -_spd  # 兜底：-spd 与旧副本口径一致
@@ -471,7 +469,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             f"🚪 第 {st['stage_idx'] + 1} 层 · {next_stage['name']}\n"
             f"━━━━━━━━━━━━\n"
             f"{self._instance_battle_footer(st, group_id)}\n"
-            f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+            f"⏳ 轮到 {self._instance_turn_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
         )
 
     # ---------------- 副本地图（v87.2） ----------------
@@ -856,7 +854,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         f"🍃 你警惕地探索着，突然——{cur_sa.get('name', '') if cur_sa else cur_map.get('name', '')}里的怪物扑了上来！\n"
                         f"━━━━━━━━━━━━\n"
                         f"{self._instance_battle_footer(st, group_id)}\n"
-                        f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+                        f"⏳ 轮到 {self._instance_turn_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
                     )
                     return
                 yield event.plain_result("🍃 你仔细搜索了这片区域，怪物没有发现你……")
@@ -882,7 +880,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 f"━━━━━━━━━━━━\n"
                 f"{boss_line_note}"
                 f"{self._instance_battle_footer(st, group_id)}\n"
-                f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+                f"⏳ 轮到 {self._instance_turn_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
             )
             return
         # 无怪：检查陷阱（未用的 trap POI）——50% 概率踩中
@@ -1075,13 +1073,9 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 refs.append(float(u.get("ct", 0) or 0))
         for key, snap in (st.get("players") or {}).items():
             if st.get("alive", {}).get(str(key), True):
-                _spd = snap.get("spd", 0)
-                try:
-                    _st0 = BT.Battle()._player_stats(snap)
-                    _spd = _st0.get("spd", _spd) if _st0 else _spd
-                except Exception:
-                    pass
-                _cost = BT.Battle()._ct_cost(_spd)
+                _spd = int(snap.get("spd", 0) or 0)
+                from ..battle2.schedule import action_time as _b2_at
+                _cost = _b2_at(_spd)
                 ref = min(refs) if refs else 0.0
                 snap["ct"] = ref + _cost
 
@@ -1110,7 +1104,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         copy["mod"] = ""
         return copy
 
-
     def _mark_minion_copy(self, m: dict, uid: str, name: str) -> dict:
         """v163：把 build_monster 产物标记为爪牙（独立小怪模板路径）。
         改名/换 uid/打 is_minion + 清 mech/mod（防逐单位 _boss_mech 多怪重复机制）。
@@ -1138,14 +1131,15 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         精英/普通怪 → 单怪阵列 [boss]。缺省无 minions → 仅 Boss。
         v121 CTB：每个敌方单位补 ct = -spd（越小越先行动）。
         v152 绝对时刻：ct = 初始等待（BASE_DELAY/spd，即 cost，正数越大越晚行动）。"""
+        from ..battle2.schedule import initial_ct as _ict
         boss = boss or {}
         if not boss:
             return []
         if not boss.get("is_boss"):
-            boss.setdefault("ct", BT._ct_initial_wait(boss.get("spd", 0)))
+            boss.setdefault("ct", _ict(boss.get("spd", 0)))
             return [boss]
         enemies = [boss]
-        boss.setdefault("ct", BT._ct_initial_wait(boss.get("spd", 0)))
+        boss.setdefault("ct", _ict(boss.get("spd", 0)))
         inst = C.INSTANCES.get(st.get("inst_id") or "", {})
         mcfg = inst.get("minions") or []
         base_name = boss.get("name", "BOSS")
@@ -1171,7 +1165,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     sub = self._scale_enemy_copy(
                         boss, 0.5, "{}-m{}_{}".format(base_uid, mi, j),
                         "{}的{}".format(base_name, mname), mrank, mreach)
-                sub.setdefault("ct", BT._ct_initial_wait(sub.get("spd", 0)))
+                sub.setdefault("ct", _ict(sub.get("spd", 0)))
                 enemies.append(sub)
         return enemies
 
@@ -1277,7 +1271,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 return rest.strip().lower()
             return rest
         return None
-
 
     def _class_role_label(self, class_name) -> str:
         """职业定位标签：战士·坦克 / 牧师·治疗"""
@@ -1612,7 +1605,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         # ⑤ 分隔 + 提示
         lines.append("💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己")
         return "\n".join(lines)
-
 
     # ---------------- 副本地图化 helpers（v87.2，29 章十三节） ----------------
     def _stage_poi_state(self, st: dict, stage_idx: int) -> dict:
@@ -2105,8 +2097,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         pois_left.remove(poi_id)
         return reward
 
-
     async def _instance_start(self, event, group_id, qq_id, player, arg):
+        from ..battle2.schedule import initial_ct as _ict
         kid = None
         for k, inst in C.INSTANCES.items():
             if inst["name"] == arg or k == arg:
@@ -2294,7 +2286,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                                             p.get("class_tier", 0), p.get("attributes"),
                                             p.get("evolve_path", 0), None, p.get("race")).get("spd", 0),
                 # v152 绝对时刻：玩家快照 ct = 初始等待（BASE_DELAY/spd，正数越大越晚行动）
-                "ct": BT._ct_initial_wait(E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
+                "ct": _ict(E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
                                             p.get("class_tier", 0), p.get("attributes"),
                                             p.get("evolve_path", 0), None, p.get("race")).get("spd", 0)),
                 "equipment": p.get("equipment", {}),
@@ -2411,38 +2403,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             f"{intro_note}"
         )
 
-    def _instance_battle_cb(self, evt: str, payload: dict):
-        """v158 副本合并：battle 事件队列回调（_inst_cb 注入）。
-
-        battle 的 _process_until 驱动敌方行动后调用。由于副本 enemies/allies 是引用
-        传递（battle 改 hp 直接写回 st），这里只需处理副本层账务：
-        - 敌方死亡压缩（battle 已 _remove_unit 清空 enemies，这里补 st 同步）
-        - 玩家倒地标记（battle _damage_actor 扣血后，检查 alive 标记）
-        - 仇恨/贡献（伤害 dealt 累加——由 _instance_act 主流程在玩家行动后统一算，
-          这里不重复；回调只处理 battle 内部驱动的敌方行动带来的即时状态）
-        """
-        try:
-            if evt == "enemy_acted":
-                # 敌方行动已由 battle 结算（伤害打到 allies 引用），同步 st 存活标记。
-                # b._st["players"]/["alive"] 是副本真实 st 的引用（构造时注入）。
-                b = payload.get("battle")
-                if not b:
-                    return
-                st = getattr(b, "_st", None) or {}
-                players = st.get("players") or {}
-                alive = st.setdefault("alive", {})
-                changed = False
-                for mk, snap in players.items():
-                    k = str(mk)
-                    if snap.get("hp", 0) <= 0 and alive.get(k, True):
-                        alive[k] = False
-                        changed = True
-                if changed:
-                    # 全员倒地 → 战斗失败（由 _instance_act 后续检测 over）
-                    st["over"] = True
-        except Exception:
-            pass
-
     def _sync_players_db(self, group_id, st):
         """v95r76 #383：副本快照血量/魔力同步回 DB。
 
@@ -2460,716 +2420,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                              max_hp=snap.get("max_hp", 100), max_mp=snap.get("max_mp", 100))
 
     # ---------------- 行动核心 ----------------
-    async def _instance_act(self, event, group_id, qq_id, player, st, action, skill_name=None, target=None):
-        """副本刻行动(由攻击/技能/防御指令路由进来)
-
-        v127.3：target 参数（『技能 <槽位> <编号>』指定目标）由 combat 层解析传入。
-        """
-        # v157 DEBUG：副本行动入口诊断（排查"无限回合/技能不结算"）
-        try:
-            import time as _t
-            _dbg_cts = {str(k): round(float(v.get("ct", 0) or 0), 3) for k, v in (st.get("players") or {}).items()}
-            _dbg_ects = [f"{u.get('name')}:{round(float(u.get('ct', 0) or 0), 3)}" for u in (st.get("enemies") or [])]
-            _dbg_cur = self._instance_next_actor(st, group_id)
-            print(f"[DBG_instance_act] qq={qq_id} action={action} skill={skill_name!r} target={target} "
-                  f"turn={st.get('turn')} members={st.get('members')} p_cts={_dbg_cts} e_cts={_dbg_ects} "
-                  f"next={_dbg_cur} alive={st.get('alive')} turn_time={st.get('turn_time')} now={int(_t.time())}")
-        except Exception as _e:
-            print(f"[DBG_instance_act] 诊断异常 {_e!r}")
-        # v101.24 #301：某层肃清后进入地图模式(boss=None, stage_cleared)时，攻击/技能/防御/使用道具
-        # 都会走到 st["boss"]["hp"] 对 None 下标 → 'NoneType' object is not subscriptable 裸错。
-        # 层内无敌人时直接引导『深入』推进，不进入战斗刻逻辑。
-        # v2 修复：判定基于 enemies 阵列存活（兼容键 st["boss"] 在阵列清空后保留引用，
-        # 不能再用 not st.get("boss") 判断地图模式——否则肃清后攻击会进入空阵列战斗路径）。
-        if not self._instance_enemies_alive(st) or not st.get("enemies"):
-            # O111 修复：肃清提示与『深入』判定统一——层内还有未遭遇的怪物
-            # （stage_pending 非空，如『深入』刚进入的新层）时不能说"已被肃清"，
-            # 否则同层先提示"敌人已被肃清"又提示"还没肃清"（playtest O111 阿甘实测）。
-            # 有 pending → 引导『探索』；无 pending 才是真肃清 → 引导『深入』。
-            if st.get("stage_pending"):
-                yield event.plain_result(
-                    "当前区域还有敌人潜伏！『探索』找到它们～"
-                )
-                return
-            nxt = ""
-            stages = st.get("inst_stages") or []
-            idx = st.get("stage_idx", 0)
-            if stages and idx < len(stages) - 1:
-                nxt = f"前方是【{stages[idx + 1]['name']}】……输入『深入』继续推进！"
-            else:
-                nxt = "这是最后一层，输入『深入』挑战 Boss！"
-            yield event.plain_result(f"当前区域的敌人已被肃清！\n{nxt}")
-            return
-        members = st["members"]
-        now = int(time.time())
-        logs = []
-        self._instance_ensure_player_fields(st)
-
-        # 1. CTB 行动轴推进：敌我按 ct 最小者行动。
-        #    v180G B7 统一 CTB：player_act = 出手登记 + advance_until_next_decision 统一推进，
-        #    敌方行动（含 cast_done/宠物/DOT）由 battle 事件队列驱动，回调 _cb 同步血量/仇恨/贡献。
-        #    本循环只负责：a) 确认下一个行动玩家（存活玩家 ct 最小者）b) 超时自动防御
-        #    c) 无可行动玩家 → 失败结算
-        while True:
-            # 无可行动存活玩家（全灭/全退队）→ 直接失败结算
-            if not self._instance_living_player_cts(st, group_id):
-                st["over"] = True
-                async for _r in self._instance_defeat(event, group_id, qq_id, player, st, logs):
-                    yield _r
-                return
-            cts = self._instance_living_player_cts(st, group_id)
-            if not cts:
-                return
-            cur_key = min(cts, key=lambda kk: cts[kk])
-            # v157 DEBUG：轮转迭代诊断
-            try:
-                print(f"[DBG_loop] 迭代: 下一行动者={cur_key} 请求者={qq_id} 现有logs={len(logs)}")
-            except Exception:
-                pass
-            if cur_key == str(qq_id):
-                break
-            # 非请求玩家：超时 → 自动防御（含 ct 结算）后重算；未超时 → 等待
-            # v121 审计修复：auto-defend 后不刷新 turn_time——保持轮转计时起点不变，
-            # 同一条指令内连续结算所有已超时者（原实现逐个 60s 消化，全队 AFK 需反复触发）
-            if now - st.get("turn_time", now) > INSTANCE_TIMEOUT:
-                logs += self._instance_auto_defend_player(st, group_id, cur_key)
-                continue
-            st["turn"] = members.index(cur_key)
-            cur_name = (self._player(group_id, cur_key) or {}).get("name", cur_key)
-            yield event.plain_result("\n".join(logs + [f"⏳ 现在是 {cur_name} 的刻，等待 TA 行动～"]))
-            return
-
-        # 2. 确认轮到当前玩家
-        cur_idx = members.index(cur_key)
-        st["turn"] = cur_idx
-        st["turn_time"] = now
-
-        # 3. 玩家行动（enemy_act=False，Boss 不立即反击）
-        snap = st["players"][cur_key]
-        # v121 审计修复：防御状态过期点 = 该玩家下次行动开始时（覆盖其间敌方段全部行动；
-        # 若本次是防御行动，_do_defend 会重新置 True 并写回）
-        st["p_defending"][cur_key] = False
-        # v2 目标指定：从消息『攻击 <名字>』/『技能 <名> <目标名>』解析（None=自动）
-        # v127.3：combat 层已解析好 target（『技能1 a2』槽位+编号）时优先使用
-        target = target if target is not None else self._instance_extract_target(event, action, skill_name)
-        # v2 敌我阵列归一（老存档恢复时补 enemies/站位字段）
-        self._instance_ensure_player_fields(st)
-        enemies = st["enemies"] if st.get("enemies") else [st["boss"]] if st.get("boss") else []
-        if not enemies:
-            # 无存活敌人（理论上不可达：入口已拦截 boss=None），防御兜底
-            st["turn"] = (st["turn"] + 1) % len(members)
-            st["turn_time"] = now
-            self._sync_players_db(group_id, st)
-            self._instance_save(group_id, st)
-            yield event.plain_result("眼前已经没有敌人了！")
-            return
-        # v49 意见#6 仇恨：行动前记录全队血量（用于计算治疗仇恨）
-        hp_before = sum(st["players"][m]["hp"] for m in members if st["alive"].get(str(m), True))
-        # v2 行动前记录敌方阵列各单位血量（用于计算 dealt 贡献/仇恨）
-        enemies_before = {str(u.get("uid")): int(u.get("hp", 0) or 0) for u in enemies}
-        b = BT.Battle.from_state({
-            "type": "instance",
-            "enemy": st["boss"] or (enemies[0] if enemies else {}),
-            "enemies": enemies,
-            "p_buffs": st["p_buffs"].get(cur_key, {}),
-            "p_hot": st.get("p_hot", {}).get(cur_key, {}),
-            "p_food_effects": st.get("p_food_effects", {}).get(cur_key, []) or st.get("p_food_affixes", {}).get(cur_key, []),
-            "p_defending": st["p_defending"].get(cur_key, False),
-            "title_bonus": snap.get("title_bonus") or {},
-            # v59：叠层/护盾随战斗持久化（副本按玩家存；v101.28d 盾 buff 化）
-            "mech_stacks": st["mech_stacks"].get(cur_key, {}),
-            "p_shields": snap.get("p_shields", {}) or {},
-            # v101.28m #438 复测修复：副本战斗状态必须完整传递，否则召唤援军
-            # （e_minions）刻结束蒸发、核心资源（resources）不持久化导致耗资源
-            # 技能永不可用、round 恒 0 导致按刻 Boss 机制（召唤/回血）失序
-            "round": st.get("round", 0),
-            # v157 修复：透传绝对时刻 now（否则 _now 每次 0 → p_ct 不累积 → 无限出手）
-            "now": st.get("now", 0.0) or 0.0,
-            "e_minions": st.get("e_minions", []),
-            "resources": st.get("resources", {}).get(cur_key, {}),
-            "cooldown": st.get("cooldown", {}).get(cur_key, {}),
-            "combo_seq": st.get("combo_seq", {}).get(cur_key, []),
-            # v2 副本玩家蓄力持久化：跨刻恢复（蓄力技副本中跨刻生效）
-            "charging": st.get("charging", {}).get(cur_key),
-            # v121 CTB：透传玩家快照 ct（行动后 Battle 内部 _after_actor_ct("p") 推进并随写回转存）
-            "p_ct": snap.get("ct", 0.0),
-            "player_hit": st.get("player_hit", {}).get(cur_key, False),
-            # v110 P0（#110 海盗王任务卡死）：透传击杀记录——battle._remove_unit 杀敌时
-            # 即时把死亡单位快照进 b.killed_enemies（含 Boss 被最后打死的情形，此时该单位
-            # 已不在 enemies 阵列，_instance_enemies_compact 无从记录）。此前未传该键，
-            # 副本击杀账（_last_killed）漏记 Boss → 通关结算/主线击杀目标上报全部落空。
-            "killed_enemies": st.get("killed_enemies", []) or [],
-            # δ副本层：dot 结算闸门透传（A 在 Battle.from_state 读 st["dot_pending"]；
-            # 全队共享敌减益，每轮只结算一次，行动后自动置 False 并写回）
-            "dot_pending": st.get("dot_pending", True),
-            # v122 治疗指定队友：存活成员快照引用（Battle 内改 hp 直接反映到 st["players"]）
-            "allies": [st["players"][str(m)] for m in st.get("members", [])
-                       if st.get("alive", {}).get(str(m), True)],
-            # v158 副本合并：注入副本回调——battle 事件队列驱动敌方行动后同步副本状态。
-            # 敌方伤害直接打到玩家快照（allies 引用），这里只需处理：死亡压缩/仇恨/贡献。
-            # （battle 的 _enemy_turn 用 _damage_actor 扣血，allies 引用会同步；回调补副本层账务）
-            "_cb": self._instance_battle_cb,
-            # v158：回调需要访问真实副本 st 的 alive/players（构造 dict 只有子集）
-            "players": st.get("players") or {},
-            "alive": st.get("alive") or {},
-            # v167.3 副本带宠物：当前行动者带自己的宠物（st["pets"] 开本/加入时按 DB 快照）。
-            # 野外/副本同一套——pet_tick 由 battle 事件队列驱动，读条命中/技能节奏/伤害跟
-            # buffs/装备全走与野外 Battle 相同代码（Battle.__init__ 不再按 btype 排除排程）。
-            "pet": (st.get("pets") or {}).get(cur_key) or (db.pet_get(cur_key) or {}),
-            # v180F 清2e：副本 tick 卡跨行动传递（行动后写回 st["tick_effects"]，此处读回
-            # 由 from_state 恢复段重绑 actor——敌方 DOT/宠物卡跨行动不丢）
-            "tick_effects": st.get("tick_effects") or [],
-        })
-        # v121 CTB：副本 Battle 由 from_state 构造未设 self._focus，而 _after_actor_ct("p")
-        # 按 self._focus 的 _player_stats(spd) 结算玩家 ct——必须指向行动者快照，否则恒取 cost=100
-        b._focus = snap
-        _pct_before = float(getattr(b, "p_ct", 0.0) or 0.0)
-        # v180G B7 统一 CTB：player_act = 出手登记 + advance 推进到下一个真人决策点。
-        # 与野外同一套代码（advance_until_next_decision 统一事件推进：怪行动/命中/dot）。
-        # 返回 who = 下一个该行动的玩家（可能不是当前行动者——多玩家 CTB 交错）。
-        act_logs, ended, _who_next = b.actor_act(action, skill_name, snap, enemy_act=True, target=target)
-        # v157 DEBUG：玩家行动后诊断（确认是否真的执行了 player_turn 且日志拼接）
-        try:
-            print(f"[DBG_instance_act] 行动后: action={action} skill={skill_name!r} ended={ended} "
-                  f"pct_before={_pct_before:.3f} pct_after={float(b.p_ct):.3f} act_logs={len(act_logs)}条 "
-                  f"敌hp={[(u.get('name'), u.get('hp')) for u in (st.get('enemies') or [])][:3]} "
-                  f"result={getattr(b, 'result', None)} 玩家hp={snap.get('hp')} "
-                  f"日志={act_logs[:4]}")
-        except Exception:
-            pass
-        st["players"][cur_key] = snap
-        # v180-B ①：玩家状态权威在玩家快照（b._focus is snap）actor dict——写回从
-        # player dict 读；st 顶层 per-player 键保留老格式供 from_state 兼容读取
-        st["p_buffs"][cur_key] = b._focus.get("buffs") or {}
-        st.setdefault("p_hot", {})[cur_key] = b._focus.get("hot") or {}
-        st.setdefault("p_food_effects", {})[cur_key] = b._focus.get("food_effects") or []
-        st["mech_stacks"][cur_key] = b._focus.get("stacks") or {}
-        # v2：敌方阵列写回（逐单位 hp/buffs/stacks/defending/charging）→ 压缩死亡单位
-        # v141 审计：b.enemies 与 st["enemies"] 是同一列表引用（from_state 直接传入），
-        # _deal_damage 死亡单位即时 _remove_unit 移除；此处直接同步，无需再压缩。
-        st["enemies"] = b.enemies
-        # δ副本层：DOT 结算闸门——v152 时刻制下每个玩家行动 = 时刻推进一次，
-        # 该行动者的 Battle 结算其 DOT（from_state 读 dot_pending=True）；不等待全员轮转。
-        st["dot_pending"] = True
-        # v101.28m #438 复测修复：战斗状态写回（援军/时刻/资源/冷却/连招持久化）
-        # v152 时刻制：round 删除，st["round"] 改为展示用行动轮次（_tick_no()）
-        st["round"] = b._tick_no()
-        st["e_minions"] = b.e_minions
-        st.setdefault("resources", {})[cur_key] = b._focus.get("resources") or {}
-        st.setdefault("cooldown", {})[cur_key] = b._focus.get("cooldown") or {}
-        st.setdefault("combo_seq", {})[cur_key] = b._focus.get("combo_seq") or []
-        # v180F 清2e：副本每行动重建 Battle——通用 tick 卡（DOT/宠物/武器特效周期）此前
-        # 不写回 st → 下次重建全丢（敌方 DOT 跨行动不跳）。写回序列化格式（actor_ref），
-        # 下次 from_state 由 battle 恢复段重绑。
-        try:
-            _te_ser = []
-            for _e in (getattr(b, "tick_effects", None) or []):
-                _actor = _e.get("actor")
-                _ref = ""
-                if _actor is b._focus:
-                    _ref = "player"
-                elif _actor is b.pet:
-                    _ref = "pet"
-                elif any(c is _actor for c in (getattr(b, "companions", None) or [])):
-                    _ref = "comp:" + str(_actor.get("uid", "") or _actor.get("name", ""))
-                else:
-                    for _u in b.enemies:
-                        if _u is _actor:
-                            _ref = str(_u.get("uid", ""))
-                            break
-                _te_ser.append({
-                    "uid": _e.get("uid"), "kind": _e.get("kind"),
-                    "interval": _e.get("interval"), "next_at": _e.get("next_at"),
-                    "expire_at": _e.get("expire_at"), "data": _e.get("data") or {},
-                    "source": _e.get("source", ""), "actor_ref": _ref,
-                })
-            st["tick_effects"] = _te_ser
-        except Exception:
-            pass
-        # v167.3 副本带宠物：战斗宠物状态（读条限频窗口 _last_hit_at 等）写回 st["pets"]，
-        # 下次该成员行动重建 Battle 时沿用——跨行动/跨怪/切层节奏不重置（野外/副本同一套）
-        try:
-            if b.pet:
-                st.setdefault("pets", {})[cur_key] = dict(b.pet)
-        except Exception:
-            pass
-        # v121 CTB：玩家 ct 写回快照（b.p_ct 已含该玩家行动后的 _after_actor_ct("p") 推进）
-        # v152 绝对时刻制：snap["ct"] = b.p_ct（= 该玩家下次可行动绝对时刻）。
-        # 其他玩家 ct 是各自独立绝对值，无需广播 -cost（绝对时刻下时间流逝由各自 next_act_at 体现）。
-        # v158 副本合并：敌方 ct 不再手动流逝——battle 事件队列绝对时刻制自己管理
-        # （敌方行动后 _after_actor_ct("e") 设 ct = now + cast，_process_until 按 ct 调度）。
-        # 玩家 p_ct 累积（now 持久化），行动几次后自然超过敌方 ct → 敌方被队列驱动行动。
-        # v157 旧补丁（敌方 ct -= 玩家耗时）与队列双算，导致敌方连续行动，已删。
-        # v158 修复：写回 battle 绝对时刻 now——否则副本 from_state 每次 _now=0，
-        # p_ct = 0 + cast 恒等于初始值（不累积）→ 玩家 ct 永远最小 → 无限出手/敌永不动
-        # （2026-09-01 实抓根因，见 local_battle_sim 验证：透传 now 后 p_ct 正常累积、
-        #  敌我 ct 交替，玩家 ct 超过敌方时敌方正常行动）
-        st["now"] = getattr(b, "_now", 0.0) or 0.0
-        snap["ct"] = b.p_ct
-        st.setdefault("player_hit", {})[cur_key] = b._player_hit
-        # v101.25 #323：防御状态必须写回——否则 Boss 反击时读 st["p_defending"] 永远是 False，
-        # 副本防御减半完全不生效（playtest round67 影刃实测 93→75 仅约 -19%）
-        st["p_defending"][cur_key] = bool(b._focus.get("defending", False))
-        # v2 副本玩家蓄力持久化：写回（含 None 表示蓄力已结束/未蓄力）
-        st.setdefault("charging", {})[cur_key] = b._focus.get("charging")
-        snap["p_shields"] = b._focus.get("shields") or {}
-        # v2：敌方阵列写回（逐单位 hp/buffs/stacks/defending/charging）→ 压缩死亡单位
-        st["enemies"] = b.enemies
-        # v110 P0（#110 海盗王任务卡死）：battle._remove_unit 击杀即从 enemies 阵列移除
-        # 单位并记入 b.killed_enemies（本次行动新击杀）——同步回 st，保证 _last_killed
-        # 击杀账不漏 Boss（Boss 死时若爪牙仍存活/同刻死亡，压缩只能记录仍在阵列的单位，
-        # 被 battle 提前移除的 Boss 若不在此合并即永久丢失）。与压缩返回的死亡单位去重合并。
-        try:
-            _bk_new = getattr(b, "killed_enemies", None) or []
-            if _bk_new:
-                _cur_killed = list(st.get("killed_enemies", []) or [])
-                _cur_killed.extend(dict(u) for u in _bk_new if u not in _cur_killed)
-                st["killed_enemies"] = _cur_killed
-        except Exception:
-            pass
-        self._instance_enemies_compact(st)
-        # v2 dealt = 全阵列 hp 减少总和（含爪牙，贡献/仇恨/击杀按单位）
-        dealt_enemy = 0
-        for _uid, _bh in enemies_before.items():
-            cur = next((u for u in st["enemies"] if str(u.get("uid")) == _uid), None)
-            if cur is not None:
-                dealt_enemy += max(0, _bh - int(cur.get("hp", 0) or 0))
-            else:
-                # 单位已死并被压缩移除 → 原 hp 全部计入
-                dealt_enemy += _bh
-        dealt = dealt_enemy
-        if dealt > 0:
-            st["contribution"][cur_key] = st["contribution"].get(cur_key, 0) + dealt
-        # v49 意见#6 仇恨：伤害/治疗积累仇恨，防御嘲讽拉仇恨
-        threat = st.setdefault("threat", {})
-        if dealt > 0:
-            threat[cur_key] = threat.get(cur_key, 0) + dealt
-        # v173.5 全层仇恨·仇恨技倍率（数据驱动）：技能定义配 hate_mult 字段的
-        # （如盾卫士顿足/盾击·誓 hate_mult=4）→ 技能伤害仇恨额外 ×(hate_mult-1)；
-        # 未配字段 = 普通技能，仇恨=伤害（×1）。
-        # 守护姿态受击反击仇恨 ×0.5 在 battle 敌方行动段（_damage_actor 承伤链/回调）处理。
-        if action == "skill" and skill_name and dealt > 0:
-            _hm = 1.0
-            try:
-                _sk = self._find_skill_cfg(snap, str(skill_name))
-                if _sk:
-                    _hm = float(_sk.get("hate_mult", 1) or 1)
-            except Exception:
-                _hm = 1.0
-            if _hm > 1:
-                threat[cur_key] = threat.get(cur_key, 0) + int(dealt * (_hm - 1))
-                logs.append(f"🛡️ 仇恨技！Boss 的注意力被你牢牢吸住！")
-        hp_after = sum(st["players"][m]["hp"] for m in members if st["alive"].get(str(m), True))
-        heal = max(0, hp_after - hp_before)
-        if heal > 0:
-            threat[cur_key] = threat.get(cur_key, 0) + int(heal * 0.8)
-        if action == "defend":
-            top = max(threat.values()) if threat else 0
-            threat[cur_key] = max(threat.get(cur_key, 0), int(top * 1.3) + 50)
-            # v101.25 #324：副本非 Boss 怪（精英/普通）不该念"Boss 的注意力"文案——
-            # playtest round67 影刃抓包精英怪复用 Boss 挑衅台词
-            _e_name = st["boss"].get("name", "怪物")
-            if st["boss"].get("role") == "boss":
-                logs.append(f"🛡️ 你大声挑衅，Boss 的注意力被你吸引过来！(仇恨飙升)")
-            else:
-                logs.append(f"🛡️ 你大声挑衅，【{_e_name}】的注意力被你吸引过来！(仇恨飙升)")
-        logs += act_logs
-
-        # O105 修复：玩家自身行动后 HP≤0（反伤/自伤/毒发等）→ 标记倒地并明确提示
-        # "你已倒下，等待队友…"——此前 st["alive"] 不更新，轮转把 0 血玩家当行动者，
-        # 一直显示"轮到 XX 行动"空等（playtest O105 洛洛 HP0 实测）
-        if snap.get("hp", 0) <= 0 and st["alive"].get(cur_key, True):
-            st["alive"][cur_key] = False
-            threat[cur_key] = 0
-            logs.append(f"💀 {snap.get('name', cur_key)} 倒下了！你已倒下，等待队友…")
-            # 全员倒地（含同归于尽）→ 直接失败结算
-            if not [mm for mm in members if st["alive"].get(str(mm), True)]:
-                st["over"] = True
-                if not self._instance_enemies_alive(st):
-                    logs.append("⚔️ 同归于尽！你与敌人同时倒下了……")
-                async for _r in self._instance_defeat(event, group_id, qq_id, player, st, logs):
-                    yield _r
-                return
-
-        # v50 团队技能：广播到全队（治疗/增益/护盾/减伤/暴击/魔攻/速度）
-        team_effects = getattr(b, "team_effects", None) or []
-        for te in team_effects:
-            if te.get("kind") == "taunt":
-                # v51 嘲讽：仇恨拉满 + Boss 强制打嘲讽者
-                # v173.5 全层仇恨参数（鱼鱼拍板 2026-09-04，数值模型验证）——数据驱动：
-                #   嘲讽仇恨倍率 hate_taunt_mult（技能数据，默认 3）、强制锁定刻数 hate_lock_turns（默认 3）
-                _tcfg = te.get("cfg") or {}
-                _tm = float(_tcfg.get("hate_taunt_mult", 3) or 3)
-                _tl = int(_tcfg.get("hate_lock_turns", 3) or 3)
-                top = max(threat.values()) if threat else 0
-                threat[cur_key] = max(threat.get(cur_key, 0), int(top * _tm) + 100)
-                st["taunt_target"] = cur_key
-                st["taunt_turns"] = _tl
-                logs.append(f"📢 {snap.get('name', cur_key)} 大声挑衅，Boss 的仇恨被牢牢锁定！")
-            else:
-                logs += self._apply_team_effect(st, cur_key, te)
-
-        # 4. 当前敌人死亡 → 分层判断（v86.2：清小怪→推进→Boss）
-        # v141 审计：b.actor_turn(enemy_act=False) 只改 st["enemies"] 各单位 hp，
-        # 不压缩死亡单位（battle 内部 _enemy_phase 被跳过，_enemy_dead 只读存活）。
-        # 副本侧全灭判定必须基于存活单位——先压缩一次（死亡单位移出，防占位误判）。
-        self._instance_enemies_compact(st)
-        if not self._instance_enemies_alive(st):
-            # v101.27 #390 暗格守卫击杀：走精英击杀奖励 → 密室宝箱出现（不是通关）
-            if st.get("secret_guard_pending"):
-                st["secret_guard_pending"] = False
-                kill_lines = self._instance_kill_reward(group_id, st)
-                st["secret_chest"] = True
-                st["mode"] = "map"
-                st["boss"] = None
-                st["enemy"] = None
-                st["enemies"] = []
-                # v167.3 副本带宠物：战斗结束回地图模式 → 重置宠物限频窗口（每场新战斗节奏独立）
-                for _m0 in list((st.get("pets") or {}).keys()):
-                    try:
-                        (st["pets"][_m0]).pop("_last_hit_at", None)
-                    except Exception:
-                        pass
-                for m in st["members"]:
-                    self._unlock_battle(group_id, m)
-                self._sync_players_db(group_id, st)
-                self._instance_save(group_id, st)
-                yield event.plain_result(
-                    "\n".join(logs) +
-                    (("\n" + "\n".join(kill_lines)) if kill_lines else "") +
-                    "\n━━━━━━━━━━━━\n"
-                    "✅ 精英守卫被击败了！密室深处露出一口【神秘宝箱】……\n"
-                    "🔐 『调查 宝箱』看看里面藏着什么！"
-                )
-                return
-            # v137 副本地图化：dungeon rooms 存档 → 敌人全灭后按当前房间判定
-            # （Boss 房 → 通关；普通房 → 回地图模式，怪物池已消耗该房间剩余）
-            if st.get("rooms"):
-                cur_sa = self._player(group_id, st.get("leader") or "").get("cur_subarea", "") or ""
-                _rstate = (st.get("rooms") or {}).get(cur_sa) or {}
-                _kill_lines = self._instance_kill_reward(group_id, st)
-                # v141 审计：Boss 房判定以"当前房间的 boss 是否已被击败"为准——
-                # boss_alive 可能已被 dungeon_move 置 False（到达 Boss 房触发 Boss 战后
-                # 未置 False 则保持 True），或 rooms 怪池消费后 Boss 从池中消失。
-                # v157 修复：必须显式 _is_boss=True 才算 Boss 房——此前 "boss_alive=False
-                # 且怪清空" 对普通房恒成立（普通房初始 boss_alive=False），导致入口房
-                # 打小怪误触发通关（鱼鱼实抓 2026-09-01）。判定 Boss 已死 = 房间怪池清空
-                # （Boss 从 monsters_left 消费后消失）且 _is_boss=True。
-                # 老数据兜底：_is_boss 缺失时按副本配置 boss_room 推断（subarea id == boss_room）。
-                _is_boss_r = bool(_rstate.get("_is_boss"))
-                if not _is_boss_r:
-                    _dun_cfg = (C.MAP_BY_ID.get(st.get("inst_id") or "") or {}).get("dungeon") or {}
-                    _is_boss_r = (_dun_cfg.get("boss_room") or "") == cur_sa
-                _room_boss = _is_boss_r and (
-                    not (_rstate.get("monsters_left") or []) or bool(_rstate.get("_boss_room")))
-                if _room_boss:
-                    # Boss 房 Boss 被击败 → 标记 boss_alive=False + 通关（下段 _instance_victory）
-                    _rstate["boss_alive"] = False
-                    _rstate["_boss_room"] = True
-                    # v141 审计：大陆 st 与镜像 battle 是不同对象（create 深拷贝）——
-                    # 权威 st（大陆）也要同步 boss_alive/_boss_room，否则 _instance_victory
-                    # 读大陆 st 时 rooms 仍是旧值（boss_alive=True）→ 通关判定失效。
-                    _wid_a = st.get("world_id") or ""
-                    if _wid_a.startswith("inst:"):
-                        _st_inst = C.get_instance_st(_wid_a)
-                        if _st_inst is not None:
-                            _ra = (_st_inst.get("rooms") or {}).get(cur_sa) or {}
-                            _ra["boss_alive"] = False
-                            _ra["_boss_room"] = True
-                st["stage_cleared"] = True
-                st["over"] = False
-                st["mode"] = "map"
-                st["boss"] = None
-                st["enemy"] = None
-                st["enemies"] = []
-                # v167.3 副本带宠物：肃清/Boss房战斗结束 → 重置宠物限频窗口（新一场战斗节奏独立）
-                for _m0 in list((st.get("pets") or {}).keys()):
-                    try:
-                        (st["pets"][_m0]).pop("_last_hit_at", None)
-                    except Exception:
-                        pass
-                for m in st["members"]:
-                    self._unlock_battle(group_id, m)
-                self._sync_players_db(group_id, st)
-                self._instance_save(group_id, st)
-                if _rstate.get("_boss_room"):
-                    # Boss 房击败 → 走通关结算
-                    # v141 审计：大陆 st 与镜像 battle_state 是不同对象（create 时深拷贝），
-                    # 直接取 DB 行可能拿到旧 rooms（boss_alive 未清）——统一从大陆实例读权威 st。
-                    _st_final = C.get_instance_st(st.get("world_id") or "") or st
-                    _rstate_final = (_st_final.get("rooms") or {}).get(cur_sa) or {}
-                    _rstate_final["boss_alive"] = False
-                    _rstate_final["_boss_room"] = True
-                    async for _r in self._instance_victory(event, group_id, qq_id, player, _st_final, logs + [f"👑 副本 Boss 已被击败！"]):
-                        yield _r
-                    return
-                map_view = self._instance_map_view(st, group_id)
-                yield event.plain_result(
-                    "\n".join(logs) +
-                    (("\n" + "\n".join(_kill_lines)) if _kill_lines else "") +
-                    f"\n━━━━━━━━━━━━\n"
-                    f"✅ 【{cur_sa}】的敌人被肃清了！\n"
-                    f"{map_view}\n"
-                    f"━━━━━━━━━━━━\n"
-                    f"🧭 副本内可继续探索/移动，或『副本』查看进度！"
-                )
-                return
-            stages = st.get("inst_stages") or []
-            pending = st.get("stage_pending") or []
-            if pending:
-                # 当前层还有怪 → 切下一只
-                # v95r77 #363：副本小怪/精英击杀奖励（此前击杀零播报）
-                # v141 审计：dungeon rooms 副本（v137 副本地图化）的房间怪池与 stages 配置
-                # 脱钩——rooms[当前房].monsters_left 才是权威池，stage_pending 只是开本时
-                # 由 stages 生成的旧字段。Boss 房 Boss（从房间怪池消费）被击败后 stage_pending
-                # 仍非空，但当前房间 boss_alive 已 False 且房间怪池已空 → 直接走通关结算，
-                # 不再"切下一只"（否则打完 Boss 又出小怪，通关永远不触发）。
-                _cur_sa_p = self._player(group_id, st.get("leader") or "").get("cur_subarea", "") or ""
-                _rp = (st.get("rooms") or {}).get(_cur_sa_p) or {}
-                if bool(st.get("rooms")) and not (_rp.get("monsters_left") or []) \
-                        and not _rp.get("boss_alive", True):
-                    _rp["_boss_room"] = True
-                    _wid_p = st.get("world_id") or ""
-                    if _wid_p.startswith("inst:"):
-                        _sp = C.get_instance_st(_wid_p)
-                        if _sp is not None:
-                            _rp2 = (_sp.get("rooms") or {}).get(_cur_sa_p) or {}
-                            _rp2["_boss_room"] = True
-                    st["over"] = True
-                    st["first_clear"] = not any(
-                        a.get("ach_key") == f"inst_clear_{st['inst_id']}" and a.get("progress", 0) >= 1
-                        for m in (self._instance_current_members(group_id, st) or [str(st["leader"])])
-                        for a in (db.get_achievements(group_id, m) or [])
-                    )
-                    async for _r in self._instance_victory(event, group_id, qq_id, player, st, logs):
-                        yield _r
-                    return
-                kill_lines = self._instance_kill_reward(group_id, st)
-                nxt = pending.pop(0)
-                st["boss"] = C.build_monster(nxt, {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
-                if nxt[2] == "elite":
-                    # v101.28l #423：精英按人数缩放（切怪入口同样套用）
-                    self._instance_elite_scale(st, st["boss"])
-                st["enemy"] = st["boss"]
-                # v2：重建敌方阵列（普通/精英 → 单怪阵列）
-                st["enemies"] = self._instance_build_enemy_array(st, st["boss"])
-                # v121 审计修复：切怪后玩家 ct 与敌方同规则重置（-spd 播种对称）
-                self._instance_reset_player_cts(st)
-                # v167.3 副本带宠物：肃清后敌人已清空（ended 段，切下一只）——重置宠物限频窗口
-                # （新怪=新一场战斗；野外每场 Battle 新建节奏独立，副本等价对齐）
-                for _m0 in list((st.get("pets") or {}).keys()):
-                    try:
-                        (st["pets"][_m0]).pop("_last_hit_at", None)
-                    except Exception:
-                        pass
-                # δ副本层：切怪/换 Boss 清层——新怪无减益、新刻重新允许结算、
-                # 玩家资源（叠层/护盾）不跨怪残留、轮次行动记录重置
-                st["dot_pending"] = True
-                st["boss"].pop("debuffs", None)                    # 新怪无减益
-                st["boss"].pop("adapt", None)                      # δv1.2 §11.1：新怪无适应状态（与 debuffs 一起清）
-                st["mech_stacks"] = {str(m): {} for m in st["members"]}   # 玩家资源不跨怪
-                st["round"] = 1
-                for i in st["members"]:
-                    st["p_buffs"][i] = {}
-                    st["p_defending"][i] = False
-                st["turn"] = 0
-                st["turn_time"] = now
-                self._sync_players_db(group_id, st)  # v95r76 #383：切怪前同步快照血量
-                self._instance_save(group_id, st)
-                yield event.plain_result(
-                    "\n".join(logs) +
-                    (("\n" + "\n".join(kill_lines)) if kill_lines else "") +
-                    f"\n━━━━━━━━━━━━\n"
-                    f"⚔️ 又一只怪物挡在面前！\n"
-                    f"{self._instance_battle_footer(st, group_id)}\n"
-                    f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
-                )
-                return
-            if stages:
-                last = st["stage_idx"] >= len(stages) - 1
-                if not last:
-                    # 清完非末层 → 地图模式（可调查剩余 POI / 深入）
-                    # v95r77 #363：层肃清时最后一只怪的击杀奖励（须在 st["boss"] 置空前取）
-                    kill_lines = self._instance_kill_reward(group_id, st)
-                    st["stage_cleared"] = True
-                    st["over"] = False
-                    st["mode"] = "map"
-                    st["boss"] = None
-                    st["enemy"] = None
-                    st["enemies"] = []
-                    # v167.3 副本带宠物：肃清/层清 → 重置宠物限频窗口（新一场战斗节奏独立）
-                    for _m0 in list((st.get("pets") or {}).keys()):
-                        try:
-                            (st["pets"][_m0]).pop("_last_hit_at", None)
-                        except Exception:
-                            pass
-                    for m in st["members"]:
-                        self._unlock_battle(group_id, m)
-                    self._sync_players_db(group_id, st)  # v95r76 #383：层肃清后战斗外逻辑读 DB 须与快照一致
-                    self._instance_save(group_id, st)
-                    cur_name = stages[st["stage_idx"]]["name"]
-                    nxt_name = stages[st["stage_idx"] + 1]["name"]
-                    map_view = self._instance_map_view(st, group_id)
-                    yield event.plain_result(
-                        "\n".join(logs) +
-                        (("\n" + "\n".join(kill_lines)) if kill_lines else "") +
-                        f"\n━━━━━━━━━━━━\n"
-                        f"✅ 【{cur_name}】的敌人被肃清了！\n"
-                        f"{map_view}\n"
-                        f"━━━━━━━━━━━━\n"
-                        f"🧭 前方是【{nxt_name}】……输入『深入』继续推进！"
-                    )
-                    return
-            # 最后一层 / 无 stages → 通关
-            st["over"] = True
-            # v101.27 #390 首通判断：必须在 _instance_victory 内 set_achievement 前判断，
-            # 首通暗格概率 50%（复刷回落 20%）
-            # v104 M04 P2：原用 st["members"][0]——该列表按速度降序(instance.py:956)不是队长，
-            # 且未过滤退队者；成员[0] 是退队者时首通判定基于其成就记录。改按"任一当前成员"
-            # 判定：当前成员有人通关过 → 非首通（防退队者成就误判暗格概率）。
-            _fc_cur = self._instance_current_members(group_id, st) or [str(st["leader"])]
-            st["first_clear"] = not any(
-                a.get("ach_key") == f"inst_clear_{st['inst_id']}" and a.get("progress", 0) >= 1
-                for m in _fc_cur
-                for a in (db.get_achievements(group_id, m) or [])
-            )
-            # v141 审计：dungeon rooms 副本的 Boss 房判定——rooms 存档 + 当前房间
-            # boss_alive（Boss 从房间怪池消费后为 False）时，`stage_pending` 仍非空
-            # （房间怪池与 stages 配置脱钩，v137 副本地图化后 rooms 是权威池）。
-            # 此时玩家实际击败的是 Boss 房 Boss，应走通关结算而非"切下一只"——补一次
-            # 权威判定：当前房间 _is_boss=True 且 boss_alive 已 False 且房间怪池已空
-            # → 标记通关路径（v157：必须显式 _is_boss，普通房怪清空不触发通关）。
-            _cur_sa_v = self._player(group_id, st.get("leader") or "").get("cur_subarea", "") or ""
-            _rv = (st.get("rooms") or {}).get(_cur_sa_v) or {}
-            # v157 老数据兜底：_is_boss 缺失时按副本配置 boss_room 推断
-            _is_boss_v = bool(_rv.get("_is_boss"))
-            if not _is_boss_v:
-                _dun_v = (C.MAP_BY_ID.get(st.get("inst_id") or "") or {}).get("dungeon") or {}
-                _is_boss_v = (_dun_v.get("boss_room") or "") == _cur_sa_v
-            _room_done = bool(st.get("rooms")) and not (_rv.get("monsters_left") or []) \
-                and _is_boss_v
-            if _room_done and st.get("rooms"):
-                _rv["_boss_room"] = True
-                _wid_v = st.get("world_id") or ""
-                if _wid_v.startswith("inst:"):
-                    _sv = C.get_instance_st(_wid_v)
-                    if _sv is not None:
-                        _rv2 = (_sv.get("rooms") or {}).get(_cur_sa_v) or {}
-                        _rv2["_boss_room"] = True
-                async for _r in self._instance_victory(event, group_id, qq_id, player, st, logs):
-                    yield _r
-                return
-            async for _r in self._instance_victory(event, group_id, qq_id, player, st, logs):
-                yield _r
-            return
-
-        # 5. v180G B7：敌方行动已由 player_act 内 advance_until_next_decision 统一驱动
-        # （含读条 cast_done/召唤/DOT），血量经 _inst_cb 回调/引用同步——此处只做玩家侧收尾：
-        # 倒地失败检测（battle 队列可能打死玩家）+ 下一行动玩家 = 存活玩家 ct 最小者。
-        if not self._instance_living_player_cts(st, group_id):
-            st["over"] = True
-            if not self._instance_enemies_alive(st):
-                logs.append("⚔️ 同归于尽！你与敌人同时倒下了……")
-            async for _r in self._instance_defeat(event, group_id, qq_id, player, st, logs):
-                yield _r
-            return
-        # 重算下一行动玩家 = 存活玩家中 ct 最小者（敌方由 battle 队列驱动，不参与轮转）
-        cts = self._instance_living_player_cts(st, group_id)
-        nxt_key = min(cts, key=lambda kk: cts[kk]) if cts else None
-        if nxt_key and nxt_key in members:
-            st["turn"] = members.index(nxt_key)
-        else:
-            st["turn"] = 0
-        st["turn_time"] = now
-
-        # 6. 保存状态（存到队长名下）并展示
-        self._sync_players_db(group_id, st)  # v95r76 #383：每刻行动后同步快照血量（对齐普通战斗）
-        self._instance_save(group_id, st)
-        nxt_key = str(members[st["turn"]])
-        nxt_p = self._player(group_id, nxt_key)
-        yield event.plain_result(
-            "\n".join(logs) +
-            "\n━━━━━━━━━━━━\n"
-            f"{self._instance_battle_footer(st, group_id)}\n"
-            f"⏳ 轮到 {nxt_p['name'] if nxt_p else nxt_key} 行动！『攻击』『技能 <名称>』『防御』"
-        )
-
-    def _apply_team_effect(self, st: dict, source_key: str, te: dict) -> list:
-        """v50 团队技能广播：heal_all / def_all / reduce_all / shield_all / matk_all / crit_all / spd_all / poison_all"""
-        logs = []
-        members = st["members"]
-        alive = [str(m) for m in members if st["alive"].get(str(m), True)]
-        kind = te.get("kind", "")
-        eff = te.get("effect", "")
-        lv = te.get("lv", 1)
-        turns = E.skill_buff_turns(lv)
-        stats = te.get("stats") or {}
-        # 全队治疗
-        if kind == "heal_all":
-            heal = int(te.get("matk", 0) * te.get("power", 4.0) * E.skill_power_mult(lv))
-            for k in alive:
-                if k == source_key:
-                    continue  # 施放者已由 Battle 内部治疗
-                p = st["players"][k]
-                p["hp"] = min(p.get("max_hp", p["hp"]), p.get("hp", 0) + heal)
-                logs.append(f"✨ {p.get('name', k)} 恢复 {heal} 点生命！")
-            return logs
-        # 全队 buff（写入各自 p_buffs，Boss 刻按仇恨打时生效）
-        buff_effects = {
-            "def_all": "def_up", "atk_all": "atk_up",
-            "matk_all": "matk_up_strong", "crit_all": "crit_up", "spd_all": "spd_up",
-        }
-        # v151 刻制审计：reduce_all 从映射表移除（原误映射 def_up，与单机 v113.1 口径分裂）——
-        # 真·百分比减伤：p_buffs["reduce_all"]=减伤百分比（float），刻记 st["reduce_all_left"]
-        if kind == "reduce_all":
-            pct = float(te.get("reduce_all") or (stats or {}).get("reduce_all") or 0)
-            st["reduce_all_left"] = max(int(st.get("reduce_all_left", 0) or 0), turns)
-            for k in alive:
-                pb = st["p_buffs"].setdefault(k, {})
-                pb["reduce_all"] = pct
-            logs.append(f"🛡️ 全队减伤 {int(pct * 100)}%（持续 {st['reduce_all_left']} 刻）")
-            return logs
-        if kind in buff_effects:
-            be = buff_effects[kind]
-            for k in alive:
-                if k == source_key and eff:
-                    continue  # 施放者已有自身 buff
-                pb = st["p_buffs"].setdefault(k, {})
-                pb[be] = max(pb.get(be, 0), turns)
-            logs.append("🛡️ 全队获得增益效果！")
-            return logs
-        # 全队护盾（v101.28d 盾 buff 化：同源叠加 + 刷新 3 刻）
-        if kind == "shield_all":
-            src = st["players"][source_key]
-            base = stats.get("matk") or stats.get("atk") or 0
-            shield = int(base * 0.20)
-            for k in alive:
-                p = st["players"][k]
-                sh = p.setdefault("p_shields", {})
-                cur = sh.get("team_bless")
-                if cur:
-                    cur["value"] += shield
-                    cur["turns"] = max(cur.get("turns", 0), 3)
-                else:
-                    sh["team_bless"] = {"value": shield, "turns": 3}
-                logs.append(f"🛡️ {p.get('name', k)} 获得 {shield} 点护盾！")
-            return logs
-        # δ副本层：全队武器淬毒→对共享 Boss 挂毒（目标级 debuffs，每轮结算一次）
-        if kind == "poison_all":
-            boss = st.get("boss")
-            if boss:
-                deb = boss.setdefault("debuffs", {})
-                cur = deb.get("poison") or {"n": 0, "mult": 1.0}
-                cur["n"] = min(5, cur["n"] + 2)
-                cur["last_round"] = st.get("round", 0) or 0  # 记录叠层刻
-                deb["poison"] = cur
-                # 适应机制：团队淬毒为持续施加，+0.04（cap 0.20），回落由结算侧按刻判定
-                adapt = boss.setdefault("adapt", {})
-                adapt["poison"] = min(0.20, float(adapt.get("poison", 0.0) or 0.0) + 0.04)
-                logs.append("☠️ 全队武器淬毒！(毒层共享，每刻结算一次)")
-            return logs
-        return logs
-
     # ---------------- v121 CTB：副本行动轴 helpers ----------------
     def _instance_living_player_cts(self, st: dict, group_id) -> dict:
         """当前在场（仍组队且未倒下）玩家快照的 {member_key: ct}，用于最小 ct 判定。"""
@@ -3206,22 +2456,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         k = min(cts, key=lambda kk: cts[kk]) if cts else None
         return ("p", k) if k else ("none", None)
 
-
-    def _instance_auto_defend_player(self, st: dict, group_id: int, key: str) -> list:
-        """CTB 超时自动防御：走现有自动防御路径（置 p_defending 防御），并结算一次 defend
-        行动的 ct（v152 绝对时刻：自身 ct += 防御耗时，其他单位不动）。
-        v121 审计修复：cost 用快照速度的 buffed 口径（_player_stats 与正常行动一致，
-        此前 raw spd 使超时惩罚比正常行动重 ~2.3×）。绝对时刻下其他单位 next_act_at 独立。"""
-        snap = st["players"][key]
-        logs = [f"⏰ {snap.get('name', key)} 迟迟没有行动，自动进入防御姿态！"]
-        st["p_defending"][key] = True
-        try:
-            cost = BT.Battle()._ct_cost(BT.Battle()._player_stats(snap).get("spd", 0) if snap else 0)
-        except Exception:
-            cost = BT.Battle()._ct_cost(snap.get("spd", 0))
-        snap["ct"] = float(snap.get("ct", 0) or 0) + cost
-        return logs
-
     def _instance_ct_queue(self, st: dict, group_id: int, limit: int = 8) -> str:
         """CTB 行动队列预览：按当前 ct 排序前 limit 名，玩家标注『我』、敌标注『敌』。"""
         self._instance_ensure_player_fields(st)
@@ -3238,16 +2472,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         # 玩家参照读条命中/行动序需要当前时刻（出招 X.Xs 后命中 → 命中时刻 = now + X.X）。
         _now = float(st.get("now", 0.0) or 0.0)
         return f"🕐 时刻 {_now:.1f}s ｜ ⚡ 行动顺序：" + " → ".join(p[1] for p in entries[:limit])
-
-    def _instance_next_player_name(self, st: dict, group_id: int, fallback_key=None) -> str:
-        """v121 CTB：下一位玩家行动者名字（按存活玩家 ct 最小者；无则回退 fallback_key 或队伍第一人）。"""
-        nxt = self._instance_next_actor(st, group_id)
-        key = None
-        if nxt[0] == "p" and nxt[1]:
-            key = str(nxt[1])
-        if key is None:
-            key = str(fallback_key) if fallback_key else str(st.get("members", [None])[0])
-        return (st.get("players", {}).get(key, {}) or {}).get("name", key)
 
     def _instance_turn_player_name(self, st: dict, group_id: int, fallback_key=None) -> str:
         """battle2 版轮转提示：下一位玩家行动者名字（读 battle state actors ct）。
@@ -3307,18 +2531,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         except Exception:
             return None
         return None
-
-
-    def _sync_enemy_unit(self, st: dict, unit: dict) -> None:
-        """v2：把单怪 Battle 结算后的单位状态写回 st["enemies"] 原单位（按 uid 定位）。
-        覆盖 hp/max_hp/buffs/stacks/defending/charging（引擎 _enemy_turn 可能改 buffs/stacks）。"""
-        uid = str(unit.get("uid"))
-        for u in st.get("enemies") or []:
-            if str(u.get("uid")) == uid:
-                for k in ("hp", "max_hp", "buffs", "stacks", "defending", "charging"):
-                    if k in unit:
-                        u[k] = unit[k]
-                return
 
     # ---------------- 结算 ----------------
     def _instance_kill_reward(self, group_id, st):
@@ -3729,7 +2941,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             "一个魁梧的身影挡在密室前……\n"
             "━━━━━━━━━━━━\n"
             f"{self._instance_battle_footer(st, group_id)}\n"
-            f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+            f"⏳ 轮到 {self._instance_turn_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
         )
 
     def _instance_secret_chest(self, group_id, qq_id, player, st) -> str:
