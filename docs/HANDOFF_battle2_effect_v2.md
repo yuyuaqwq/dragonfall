@@ -64,12 +64,12 @@
 7. **（2026-09-08 N5b4-4）PVP 切 battle2（本 commit）**
    - 实现见 §3C；测试 tests/test_battle2_n5b4_pvp.py（29 断言：发起/轮流/胜负/防御/
      skill/超时/旧档清档）。全套 battle2 16 文件 541 断言绿。
-   - 🔴 **新缺口（待鱼鱼拍板）PVP title_bonus 对称置空**：battle2 Battle.title_bonus 是
-     战斗级单份（actor_stats 对有 class_name 的 actor 都读 battle.title_bonus），无法按
-     actor 区分双方各自称号/成就加成（旧 PVP 快照各自折算进面板）。N5b4-4 先**双方都
-     不吃称号**（对称公平）——PVP 面板比野外略低几十属性。后续要精确需引擎支持
-     per-actor title_bonus（stats.actor_stats 读 actor 自带 title_bonus 覆盖）→ 引擎改动
-     需鱼鱼拍板。
+   - 🔴 ~~新缺口（待鱼鱼拍板）PVP title_bonus 对称置空~~ → **✅ 鱼鱼拍板方案 A 已实施
+     （2026-09-08 本 commit）**：battle2/stats.py `_player_base_stats` 改 actor 自带
+     title_bonus 优先、缺省回落 battle.title_bonus（野外零变化）；_pvp_start 双方各自
+     title_bonus（core.title_bonus 直调 + 已 load player dict）塞 actor["title_bonus"]
+     随 actor 落盘/恢复。PVP 双方称号加成各自精确。测试 +8 断言（per-actor 面板/互不
+     污染/battle 级回落/序列化保留）。
    - 附注（引擎行为确认，命令层已兜底不崩）：battle2 的 DOT/时间结算路径（schedule
      _advance_time/_settle_time_effects）致死**不触发 _check_side_end**（result 不置位），
      只在 act() 尾部/actor_auto 后置——PVP 命令层胜负判定已改为**按 actor 存活**（不依赖

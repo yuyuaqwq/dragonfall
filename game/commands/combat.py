@@ -2680,23 +2680,34 @@ class CombatCmds(CommandBase):
         # N5b4-4：创建 PVP 战斗状态（battle2）——sides 双 actor 持久化 + meta 外壳。
         #   sides.player 固定 = 攻击者(发起方)、sides.enemy = 防守方；双方 human_controlled
         #   （PVP 轮流制由命令层 meta.actor 驱动，enemy 侧真人 actor 不自动行动）。
-        #   title_bonus 对称置空：battle2 Battle.title_bonus 是战斗级单份，无法按 actor
-        #   区分双方各自称号加成（旧 PVP 快照各自折算）→ 先双方都不吃称号，缺口记 HANDOFF。
+        #   title_bonus（鱼鱼拍板 per-actor，N5b4-4）：Battle.title_bonus 战斗级单份无法
+        #   区分双人——各自称号加成算好后塞进 actor["title_bonus"]（stats 读 actor 优先），
+        #   双方面板各自精确；battle 级传 {} 仅兜底。
         from ..services import battle2_bridge as BR
         from ..services.battle2_equip_proc import apply_to_actor as _EP_apply
         from ..battle2 import Battle as B2
-        # ① 开战仪式（仅攻击方：echo_bless/神龛祝福是发起者消耗自己的祝福；title_bonus
-        #    对称置空 → 仪式 max_hp/max_mp 重算也不含称号，与引擎面板口径一致）
-        BR.prepare_player_for_battle(player, {}, db)
+        # 0. 双方各自 title_bonus（core 直调 + 已 load 的 player dict，避免 _title_bonus
+        #    内部再读档；失败降级空 dict）
+        from ..core.title_bonus import title_bonus as _core_tb
+        _tb_me = {}
+        _tb_opp = {}
+        try:
+            _tb_me = _core_tb(group_id, qq_id, player) or {}
+            _tb_opp = _core_tb(group_id, target_qq, target_player) or {}
+        except Exception:
+            pass
+        # ① 开战仪式（仅攻击方：echo_bless/神龛祝福是发起者消耗自己的祝福；max_hp/max_mp
+        #    重算带自己称号 → 与 actor_stats 面板口径一致）
+        BR.prepare_player_for_battle(player, _tb_me, db)
         # ② 防守方：拷贝 + 只实时化 max_hp/max_mp（不跑仪式——防消费对方 event_state；
-        #    title_bonus 同样置空）
+        #    title_bonus 用防守方自己的）
         _def_p = dict(target_player)
         try:
             _dst = E.player_final_stats(
                 _def_p.get("class_name", "战士"), int(_def_p.get("level", 1) or 1),
                 _def_p.get("equipment") or {}, int(_def_p.get("class_tier", 0) or 0),
                 _def_p.get("attributes"), int(_def_p.get("evolve_path", 0) or 0),
-                {}, _def_p.get("race"))
+                _tb_opp, _def_p.get("race"))
             if _dst.get("max_hp"):
                 _def_p["max_hp"] = int(_dst["max_hp"])
             if _dst.get("max_mp") is not None:
@@ -2707,6 +2718,8 @@ class CombatCmds(CommandBase):
         _my_actor = BR.player_to_actor(player)
         _opp_actor = BR.player_to_actor(_def_p)
         _opp_actor["side"] = "enemy"  # 防守方入敌侧（human_controlled=True 保持 → 不自动）
+        _my_actor["title_bonus"] = _tb_me   # per-actor 称号加成（随 actor 落盘/恢复）
+        _opp_actor["title_bonus"] = _tb_opp
         for _a in (_my_actor, _opp_actor):
             try:
                 _EP_apply(_a)
