@@ -17,7 +17,6 @@ from .. import db
 from .. import engine as E
 from ..core.stats import hp_stage_mult
 from ..core.formation import formation_view, alive_units  # v2 多对多站位图文案行
-from .. import battle as BT
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 
 # 任务目标类型 → 进度展示行（v101.3：加新目标类型 = 加一行，quest_view 零改动）
@@ -1496,8 +1495,19 @@ class WorldCmds(CommandBase):
         # 此前跨图是另一套精简拼接（fac_msg/scene_msg/nav），鱼鱼抓"前往不同区域提示模板不一样"
         if ambush:
             # v2 多对多：撞怪经 build_monster_group 生成敌方阵列（单只即可，伏击不引入随机双怪）
+            # N5b4-6：撞怪开战 battle2 化（同 _open_battle2 仪式，跨图伏击 = 普通战斗形态）
             _grp = C.build_monster_group(ambush, target, player)
-            _nb = BT.Battle("monster", None, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=_grp)
+            _open2 = getattr(self, "_open_battle2", None)
+            if _open2 is not None:
+                _nb = _open2(player, _grp, "monster", group_id=group_id, qq_id=qq_id)
+            else:
+                from ..services import battle2_bridge as BR
+                BR.prepare_player_for_battle(player, self._title_bonus(group_id, qq_id), db)
+                _sides = BR.build_sides(player=player, enemies=_grp)
+                from ..battle2 import Battle as B2
+                _nb = B2("monster", sides=_sides,
+                         title_bonus=self._title_bonus(group_id, qq_id),
+                         pet=db.pet_get(qq_id))
             db.save_battle(group_id, qq_id, _nb.to_state())
             self._lock_battle(group_id, qq_id)
             arrive_txt = f"🚶 你来到了【{target['name']}】"

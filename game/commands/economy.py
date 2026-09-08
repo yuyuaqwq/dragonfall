@@ -17,7 +17,6 @@ from ._platform import MessageChain, Plain
 from .. import content as C
 from .. import db
 from .. import engine as E
-from .. import battle as BT
 from ..commands.base import CommandBase, require_player
 from ..core.drops import _eq_random_desc
 from ..core import smith_stock as _ss  # v135 铁匠铺全服共享货架

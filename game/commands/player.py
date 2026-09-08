@@ -16,7 +16,6 @@ from ._platform import MessageChain
 from .. import content as C
 from .. import db
 from .. import engine as E
-from .. import battle as BT
 from ..commands.base import CommandBase, require_player
 
 
@@ -1030,9 +1029,22 @@ class PlayerCmds(CommandBase):
             try:
                 _bstate = db.get_battle(group_id, qq_id)
                 if _bstate and _bstate.get("state"):
-                    _b = BT.Battle.from_state(_bstate["state"])
-                    _b._focus = player
-                    _battle_st = _b._player_stats(player)
+                    # N5b4-6：battle2 实时面板（state sides-only → from_state → actor_stats；
+                    # 旧格式无 sides → 回落静态养成面板）
+                    _st_src = _bstate["state"]
+                    if _st_src.get("sides"):
+                        from ..battle2 import Battle as _B2
+                        from ..battle2.stats import actor_stats as _as
+                        _b = _B2.from_state(_st_src)
+                        _my = None
+                        for _a in _b.sides_of("player"):
+                            if str(_a.get("qq_id") or "") == str(qq_id):
+                                _my = _a
+                                break
+                        if _my is None:
+                            _my = _b.focus()
+                        if _my is not None:
+                            _battle_st = _as(_b, _my)
             except Exception:
                 _battle_st = None
         st, sources = E.player_stats_detail(

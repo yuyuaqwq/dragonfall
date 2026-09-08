@@ -24,7 +24,6 @@ from ._platform import AstrMessageEvent, filter
 
 from .. import content as C
 from .. import db
-from .. import battle as BT
 from ..commands.base import CommandBase, require_player
 
 
@@ -219,8 +218,24 @@ class TowerCmds(CommandBase):
             return
         guard = build_tower_guard(floor)
         guard_name = guard.get("name", "塔卫")
-        b = BT.Battle("monster", None, self._title_bonus(group_id, qq_id),
-                      player=player, pet=db.pet_get(qq_id), enemies=[guard])
+        # N5b4-6：塔开战 battle2 化（四步仪式：prepare → sides → 装配 → B2；
+        # 同 _open_battle2 语义，tower 是普通战斗形态）
+        from ..services import battle2_bridge as BR
+        tb = self._title_bonus(group_id, qq_id)
+        BR.prepare_player_for_battle(player, tb, db)
+        _sides = BR.build_sides(player=player, enemies=[guard])
+        for _a in _sides.get("player", []):
+            try:
+                _a["stat_bonus"] = dict(tb or {})
+            except Exception:
+                pass
+            try:
+                from ..services.battle2_equip_proc import apply_to_actor as _EP_apply
+                _EP_apply(_a)
+            except Exception:
+                pass
+        from ..battle2 import Battle as B2
+        b = B2("monster", sides=_sides, title_bonus=tb, pet=db.pet_get(qq_id))
         db.save_battle(group_id, qq_id, b.to_state())
         _lock = getattr(self, "_lock_battle", None)
         if _lock:
