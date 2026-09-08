@@ -10,10 +10,10 @@
 ## 0. 分支/位置/跑法
 
 - 分支：`wt_ebuffs`（worktree：`C:/Users/yuyu/AppData/Local/Temp/df_wt_ebuffs/w1`）
-- HEAD：`207e741`（v181.N5b4.3 世界Boss 切 battle2，2026-09-08）
+- HEAD：`（N5b4-4 PVP 切 battle2 后）`（v181.N5b4.4，2026-09-08）
 - 主仓（生产）：`C:/Users/yuyu/qqbot/data/plugins/dragonfall`（master 未动）
 - Python：`C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe`
-- 全套测试：`for f in tests/test_battle2_*.py; do python "$f"; done`（当前 15 文件 512 断言全绿）
+- 全套测试：`for f in tests/test_battle2_*.py; do python "$f"; done`（当前 16 文件 541 断言全绿）
 - 覆盖率门禁：`python tools/cov_func_battle2.py`（0 未调用）+ `cov_branch_battle2.py`
 - 效果系统主方案：`docs/DESIGN_effect_system_v2.md`（Part 3.3/4 定稿 19 时机 + 管线）
 - N9 施工方案：`docs/REFACTOR_v181P4_N9_migration.md`（盘点/批次/删除清单）
@@ -61,6 +61,19 @@
      强关联"。两条路：A 毒层回全局共享（对齐旧玩法语义，需防多玩家轮流刷毒伤）、
      B 接受"Boss 独立镜像"语义（当前实现，血量共享/贡献独立/DOT 个人输出）。
      **鱼鱼拍板：先保留现状（路线 B），新会话再议。**
+7. **（2026-09-08 N5b4-4）PVP 切 battle2（本 commit）**
+   - 实现见 §3C；测试 tests/test_battle2_n5b4_pvp.py（29 断言：发起/轮流/胜负/防御/
+     skill/超时/旧档清档）。全套 battle2 16 文件 541 断言绿。
+   - 🔴 **新缺口（待鱼鱼拍板）PVP title_bonus 对称置空**：battle2 Battle.title_bonus 是
+     战斗级单份（actor_stats 对有 class_name 的 actor 都读 battle.title_bonus），无法按
+     actor 区分双方各自称号/成就加成（旧 PVP 快照各自折算进面板）。N5b4-4 先**双方都
+     不吃称号**（对称公平）——PVP 面板比野外略低几十属性。后续要精确需引擎支持
+     per-actor title_bonus（stats.actor_stats 读 actor 自带 title_bonus 覆盖）→ 引擎改动
+     需鱼鱼拍板。
+   - 附注（引擎行为确认，命令层已兜底不崩）：battle2 的 DOT/时间结算路径（schedule
+     _advance_time/_settle_time_effects）致死**不触发 _check_side_end**（result 不置位），
+     只在 act() 尾部/actor_auto 后置——PVP 命令层胜负判定已改为**按 actor 存活**（不依赖
+     result，防守方视角 result 本身要翻转），慢杀/毒跳死场景正常收尾。
 
 ## 1. 已完成（全部绿，工作区干净）
 
@@ -123,13 +136,19 @@ heal/state_set/interrupt/damage 动词补齐。
 - 职业机制 12（法印/反应/攻线/终结技）→ 上层职业模块
 - boiling_blood（rage_full 判定）/ finisher（终结技）→ 上层
 
-### C. N5b4 命令层切换（进度：1/2/3 完成，剩 4/5/6/7）🔴 下一步主工程
+### C. N5b4 命令层切换（进度：1/2/3/4 完成，剩 5/6/7）🔴 下一步主工程
 - **详细设计文档**：`docs/REFACTOR_v181P4_N5B4_command_switch.md`（字段/函数级施工图）
-- **已完成**（0c1a5c6/fe0b3a8/207e741，每批全绿）：
+- **已完成**（0c1a5c6/fe0b3a8/207e741 + N5b4-4，每批全绿）：
   - N5b4-1 展示纯读（player dict + b.sides 双引擎通用）
   - N5b4-2 野外/野王/普通遇怪 + 4 行动（attack/skill/defend/flee）切 battle2
   - N5b4-3 世界Boss 切 battle2（DOT 语义未决点见 §0.5 记录 6）
-- **剩余**：N5b4-4 PVP（focus 双 human_controlled 轮流）、N5b4-5 instance.py 副本
+  - N5b4-4 **PVP 切 battle2**：_pvp_start 构造 battle2 sides（player=攻击方/enemy=防守方
+    双 human_controlled）+ meta{attacker_qq, actor} 外壳；_pvp_act 从 state 恢复、按
+    my_side 显式定位行动者、meta.actor 驱动轮流、defending 随 actor 持久化（defend 覆盖/
+    非 defend 消耗）、heal/buff 技能 target=None（防奶对手）、胜负按 actor 存活判定
+    （battle2 result 视角固定 player side，防守方翻转）；flee/超时/旧档清档兼容。
+    测试 tests/test_battle2_n5b4_pvp.py 29 断言。title_bonus 缺口见 §0.5 记录 7。
+- **剩余**：N5b4-5 instance.py 副本
   （增援/DOT 自动/killed）、N5b4-6 economy/player/tower 轻文件 + 删 import、
   N5b4-7 全命令层回归 + 汇报鱼鱼过目 diff
 - **已核实事实**：死亡 actor 不从 sides 移除（只进 killed_actors，展示要过滤

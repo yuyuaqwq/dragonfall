@@ -1632,13 +1632,17 @@ class CombatCmds(CommandBase):
         if battle["state"].get("type") == "pvp":
             # PVP 逃跑 = 脱离战斗（双方解除，互不追究），避免被锁死/被骚扰
             st = battle["state"]
-            opp_qq = st["attacker"]["qq_id"] if str(st["defender"]["qq_id"]) == str(qq_id) else st["defender"]["qq_id"]
+            # N5b4-4（battle2）：双方 qq 从 meta/sides 读（旧格式快照键兜底兼容）
+            _att_qq, _def_qq = self._pvp_meta_qqs(st)
+            _my = str(qq_id)
+            opp_qq = _def_qq if _my == _att_qq else _att_qq
             # 攻击方获得袭击 CD（无论谁逃跑，防反复骚扰）
-            self._set_pvp_cd(st.get("attacker_qq", st["attacker"]["qq_id"]))
+            self._set_pvp_cd(_att_qq or _my)
             self._unlock_battle(group_id, qq_id)
             db.clear_battle(group_id, qq_id)
-            self._unlock_battle(group_id, opp_qq)
-            db.clear_battle(group_id, opp_qq)
+            if opp_qq:
+                self._unlock_battle(group_id, opp_qq)
+                db.clear_battle(group_id, opp_qq)
             yield event.plain_result("💨 你脱离了 PVP 战斗！双方原地休整，互不追究。")
             return
         # Boss 锁场检查：battle2 格式读 sides["enemy"] 存活怪 is_boss；旧格式读 state.enemy
@@ -2477,6 +2481,28 @@ class CombatCmds(CommandBase):
         except (ValueError, TypeError):
             return 0
 
+    def _pvp_meta_qqs(self, state: dict):
+        """PVP state → (attacker_qq, defender_qq)。
+
+        N5b4-4（battle2）：state = battle2 to_state + meta{attacker_qq, actor}，
+        sides.player 固定 = 攻击者(发起方)、sides.enemy = 防守方（双方 actor 都透传
+        qq_id）。旧格式（attacker/defender 快照键）兜底兼容（存量旧档超时清理用）。
+        """
+        meta = state.get("meta") or {}
+        att = str(meta.get("attacker_qq", "") or "")
+        if not att and isinstance(state.get("attacker"), dict):
+            att = str(state["attacker"].get("qq_id", "") or "")
+        deff = ""
+        if isinstance(state.get("defender"), dict):
+            deff = str(state["defender"].get("qq_id", "") or "")
+        if not deff:
+            for _sn, _acts in (state.get("sides") or {}).items():
+                for _a in _acts or []:
+                    _q = str((_a or {}).get("qq_id", "") or "")
+                    if _q and _q != att:
+                        deff = _q
+        return att, deff
+
     def _pvp_snapshot(self, p: dict, group_id: str = "", qq_id: str = "") -> dict:
         """玩家快照(PVP 战斗状态用)
         v109.2 P0 修复：补全战斗结算属性（此前缺 atk/def/mdef/tenacity 等 → PVP 中防御/韧性全失效，
@@ -2513,13 +2539,18 @@ class CombatCmds(CommandBase):
         """PVP 超时检查：5 分钟无行动自动解除(防对方离线卡死)。返回 True=已解除"""
         if time.time() - battle.get("updated_at", 0) > C.PVP_TIMEOUT_SEC:
             st = battle["state"]
-            opp_qq = st["attacker"]["qq_id"] if str(st["defender"]["qq_id"]) == str(qq_id) else st["defender"]["qq_id"]
+            # N5b4-4（battle2）：双方 qq 从 meta/sides 读（旧格式快照键兜底兼容）
+            _att_qq, _def_qq = self._pvp_meta_qqs(st)
+            _my = str(qq_id)
+            # 对方 = 两方里非我的那个（都不匹配时取防守方——能走到超时的多半是防守方离线）
+            opp_qq = _def_qq if _my == _att_qq else _att_qq
             # 攻击方获得袭击 CD，防脱离后立刻再骚扰
-            self._set_pvp_cd(st.get("attacker_qq", st["attacker"]["qq_id"]))
+            self._set_pvp_cd(_att_qq or _my)
             self._unlock_battle(group_id, qq_id)
             db.clear_battle(group_id, qq_id)
-            self._unlock_battle(group_id, opp_qq)
-            db.clear_battle(group_id, opp_qq)
+            if opp_qq:
+                self._unlock_battle(group_id, opp_qq)
+                db.clear_battle(group_id, opp_qq)
             return True
         return False
 
@@ -2646,22 +2677,53 @@ class CombatCmds(CommandBase):
         if abs(player["level"] - target_player["level"]) > 10:
             yield event.plain_result(f"等级差超过 10 级，无法发起攻击！(你 {player['level']} 级 vs 对方 {target_player['level']} 级)")
             return
-        # 创建 PVP 战斗状态（双方各存一份）
-        state = {
-            "type": "pvp",
-            "actor": "attacker",
-            "attacker_qq": str(qq_id),
-            "attacker": self._pvp_snapshot(player, group_id, qq_id),
-            "defender": self._pvp_snapshot(target_player, group_id, target_qq),
-            "a_buffs": {}, "b_buffs": {},
-        }
+        # N5b4-4：创建 PVP 战斗状态（battle2）——sides 双 actor 持久化 + meta 外壳。
+        #   sides.player 固定 = 攻击者(发起方)、sides.enemy = 防守方；双方 human_controlled
+        #   （PVP 轮流制由命令层 meta.actor 驱动，enemy 侧真人 actor 不自动行动）。
+        #   title_bonus 对称置空：battle2 Battle.title_bonus 是战斗级单份，无法按 actor
+        #   区分双方各自称号加成（旧 PVP 快照各自折算）→ 先双方都不吃称号，缺口记 HANDOFF。
+        from ..services import battle2_bridge as BR
+        from ..services.battle2_equip_proc import apply_to_actor as _EP_apply
+        from ..battle2 import Battle as B2
+        # ① 开战仪式（仅攻击方：echo_bless/神龛祝福是发起者消耗自己的祝福；title_bonus
+        #    对称置空 → 仪式 max_hp/max_mp 重算也不含称号，与引擎面板口径一致）
+        BR.prepare_player_for_battle(player, {}, db)
+        # ② 防守方：拷贝 + 只实时化 max_hp/max_mp（不跑仪式——防消费对方 event_state；
+        #    title_bonus 同样置空）
+        _def_p = dict(target_player)
+        try:
+            _dst = E.player_final_stats(
+                _def_p.get("class_name", "战士"), int(_def_p.get("level", 1) or 1),
+                _def_p.get("equipment") or {}, int(_def_p.get("class_tier", 0) or 0),
+                _def_p.get("attributes"), int(_def_p.get("evolve_path", 0) or 0),
+                {}, _def_p.get("race"))
+            if _dst.get("max_hp"):
+                _def_p["max_hp"] = int(_dst["max_hp"])
+            if _dst.get("max_mp") is not None:
+                _def_p["max_mp"] = int(_dst["max_mp"])
+        except Exception:
+            pass
+        # ③ 组 sides + 双方装备装配（PVP 双方都是真人 actor，武器/词条一视同仁）
+        _my_actor = BR.player_to_actor(player)
+        _opp_actor = BR.player_to_actor(_def_p)
+        _opp_actor["side"] = "enemy"  # 防守方入敌侧（human_controlled=True 保持 → 不自动）
+        for _a in (_my_actor, _opp_actor):
+            try:
+                _EP_apply(_a)
+            except Exception:
+                pass  # 装配异常不阻断开战
+        _b2 = B2("pvp", sides={"player": [_my_actor], "enemy": [_opp_actor]},
+                 title_bonus={}, pet=db.pet_get(qq_id))
+        state = _b2.to_state()
+        # meta 外壳（battle2 from_state 忽略未知键 → 只给命令层读）
+        state["meta"] = {"pvp": True, "attacker_qq": str(qq_id), "actor": "attacker"}
         db.save_battle(group_id, qq_id, state)
         db.save_battle(group_id, target_qq, state)
         self._lock_battle(group_id, qq_id)
         self._lock_battle(group_id, target_qq)
         # 主动攻击 → 灰名 10 分钟
         db.set_event_state(f"grey_{qq_id}", str(int(time.time()) + 600))
-        a, d = state["attacker"], state["defender"]
+        a, d = _my_actor, _opp_actor
         yield event.plain_result(
             f"⚔️ 你向【{target_player['name']}】发起攻击！\n"
             f"━━━━━━━━━━━━\n"
@@ -2671,38 +2733,53 @@ class CombatCmds(CommandBase):
         )
 
     async def _pvp_act(self, event, group_id, qq_id, player, state, action, skill_name=None):
-        """PVP 行动：轮流操作，胜者结算"""
-        my_key = "attacker" if str(state["attacker"]["qq_id"]) == str(qq_id) else "defender"
-        if state.get("actor") != my_key:
+        """PVP 行动：轮流操作，胜者结算（N5b4-4 battle2 版）。
+
+        state = battle2 to_state + meta{attacker_qq, actor}；sides.player = 攻击者(发起方)、
+        sides.enemy = 防守方，双方 human_controlled。轮流制由命令层 meta.actor 驱动：
+        当前行动者可能是 player side（攻击者）或 enemy side（防守方）——按 side 显式定位
+        actor（battle2 focus() 只认 sides.player 首个 human_controlled，PVP 不依赖）。
+        胜负判定 = 自己 actor 是否存活（battle2 result 视角固定 player side，防守方视角
+        要翻转——不直接用 result 判自己输赢）。
+        """
+        # 旧格式（无 sides/meta）→ 作废清档重开（N5b 约定不迁移）
+        meta = state.get("meta") or {}
+        if not isinstance(state.get("sides"), dict) or not state["sides"] or not meta.get("attacker_qq"):
+            self._unlock_battle(group_id, qq_id)
+            db.clear_battle(group_id, qq_id)
+            yield event.plain_result("⏳ PVP 旧存档已失效，请重新发起攻击～")
+            return
+        from ..battle2 import Battle as B2
+        b = B2.from_state(state)
+        if b is None:
+            self._unlock_battle(group_id, qq_id)
+            db.clear_battle(group_id, qq_id)
+            yield event.plain_result("⏳ PVP 存档已失效，请重新发起攻击～")
+            return
+        attacker_qq = str(meta.get("attacker_qq", ""))
+        my_key = "attacker" if str(qq_id) == attacker_qq else "defender"
+        if meta.get("actor") != my_key:
             yield event.plain_result("⏳ 还没轮到你行动！等对方出手……")
             return
         opp_key = "defender" if my_key == "attacker" else "attacker"
-        opp = state[opp_key]
-        # PVP 战斗中血量/蓝量以快照为准（战斗内扣血不写回 db，避免被重置）
-        player["hp"] = state[my_key].get("hp", player["hp"])
-        player["mp"] = state[my_key].get("mp", player["mp"])
-        # 目标级减益/适应持久化：从对手快照深拷贝 debuffs/adapt 带入本次 Battle
-        #（dict(opp) 仅浅拷贝，嵌套 dict 需显式复制，防止写回与读入共享引用）
-        opp_debuffs = {k: dict(v) for k, v in (opp.get("debuffs") or {}).items()}
-        opp_adapt = dict(opp.get("adapt") or {})
-        _opp_extra = {}
-        if opp_debuffs:
-            _opp_extra["debuffs"] = opp_debuffs
-        if opp_adapt:
-            _opp_extra["adapt"] = opp_adapt
-        # 重建 Battle：我是 player，对方是 enemy 快照（PVP 不自动反击）。
-        # v2 多对多：per 快照已含 rank/reach/buffs/stacks/defending/charging 站位字段 → enemies=[快照]
-        b = BT.Battle("pvp", enemy=None, title_bonus=self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=[dict(opp, **_opp_extra)])
-        # v180-B ①：玩家状态权威在 player actor dict——从 player dict 恢复/写回 buffs/charging
-        _pl_buffs = b._focus.setdefault("buffs", {})
-        _pl_buffs.clear()
-        _pl_buffs.update(dict(state.get(f"{my_key[0]}_buffs", {})))
-        # v181 P3：对手 buffs 落 enemy actor dict（enemies[0] = 对手快照）
-        _opp_buffs = self._b_enemy(b).setdefault("buffs", {})
-        _opp_buffs.clear()
-        _opp_buffs.update(dict(state.get(f"{opp_key[0]}_buffs", {})))
-        # PVP 蓄力持久化：跨刻恢复玩家侧 charging（蓄力技 PVP 中跨刻生效）
-        b._focus["charging"] = state.get("charging")
+        # 我的 actor 在 my_side（攻击者=player 侧/防守者=enemy 侧），对方在 opp_side
+        my_side = "player" if my_key == "attacker" else "enemy"
+        opp_side = "enemy" if my_key == "attacker" else "player"
+        my_actor = next((_a for _a in b.sides_of(my_side) if _a.get("human_controlled")), None)
+        opp_actor = next((_a for _a in b.sides_of(opp_side) if _a.get("human_controlled")), None)
+        if my_actor is None:
+            yield event.plain_result("⏳ 你已不在战斗中（状态异常），请重新发起攻击～")
+            return
+        if opp_actor is None:
+            # 对方记录异常（正常该在）→ 保险清场
+            self._unlock_battle(group_id, qq_id)
+            db.clear_battle(group_id, qq_id)
+            yield event.plain_result("对手状态异常，PVP 已解除～")
+            return
+        opp_qq = str(opp_actor.get("qq_id", "") or "")
+        # PVP 战斗中血量/蓝量以战斗 state 为准（actor 副本；不写回 db，避免被重置）
+        from ..services.battle2_bridge import sync_player_from_actor
+        sync_player_from_actor(player, my_actor)
         if action == "skill":
             info = E.skill_info(player["class_name"], skill_name)
             if not info:
@@ -2711,67 +2788,70 @@ class CombatCmds(CommandBase):
             if not E.is_skill_learned(player["class_name"], player["level"], skill_name, player.get("learned_skills", [])):
                 yield event.plain_result(f"该技能需要 Lv.{info['lv']} 才能使用，你才 Lv.{player['level']}")
                 return
-            if player["mp"] < info["mp"]:
+            if (info.get("mp", 0) or 0) > 0 and (my_actor.get("mp") or 0) < info["mp"]:
                 yield event.plain_result("💙 魔力不足！")
                 return
-        # F1 P1-4（report_09）：PVP『防御』生效——对手防御姿态中时，本次行动对其造成的
-        # 伤害减半（b.e_defending → _deal_damage 统一消费，普攻/技能/召唤物全路径覆盖）
-        if str(state.get("defending_qq", "")) == str(opp["qq_id"]):
-            self._b_enemy(b)["defending"] = True
+        # PVP『防御』（battle2：目标 actor defending=True → landing deal_damage 减半统一消费）。
+        # 防御姿态随 actor dict 持久化（to_state 带 defending）——上一击 defend 的人恢复后
+        # 自动在 defending 状态，无需命令层再搬运。这里只做"覆盖/消耗"语义：
+        # - defend 行动：己方由引擎 _do_defend 置 True；对方旧防御被覆盖清掉
+        # - 攻击/技能行动：对方防御在本次伤害结算中生效（引擎）→ 行动后双方防御都被消耗
         if action == "defend":
-            # 防御姿态：持续到对方下一次行动（对方攻击/技能均按防御减半结算）
-            state["defending_qq"] = str(qq_id)
-        else:
-            # 非防御行动：对方此前的防御姿态被本次行动消耗
-            state.pop("defending_qq", None)
-        logs, ended = b.actor_turn(action, skill_name, player, enemy_act=False)
-        # 同步快照与 buffs（v2：胜利时敌方阵列已清空，b.enemy 回退 {} → .get 兜底）
-        opp["hp"] = self._b_enemy(b).get("hp", 0)
-        opp["mp"] = self._b_enemy(b).get("mp", opp.get("mp", 0))
-        # 目标级减益/适应持久化：把本刻 enemy 上的 debuffs/adapt 深拷贝写回对手快照
-        #（需显式逐层复制，避免与后续 Battle 读入共享容器引用）
-        if self._b_enemy(b).get("debuffs"):
-            opp["debuffs"] = {k: dict(v) for k, v in self._b_enemy(b)["debuffs"].items()}
-        elif "debuffs" in opp:
-            opp.pop("debuffs", None)
-        if self._b_enemy(b).get("adapt"):
-            opp["adapt"] = {k: float(v) for k, v in self._b_enemy(b)["adapt"].items()}
-        elif "adapt" in opp:
-            opp.pop("adapt", None)
-        state[my_key]["hp"] = player["hp"]
-        state[my_key]["mp"] = player["mp"]
-        state[f"{my_key[0]}_buffs"] = b._focus.get("buffs") or {}
-        state[f"{opp_key[0]}_buffs"] = (self._b_enemy(b) or {}).get("buffs") or {}
-        # PVP 蓄力持久化：写回（含 None 表示蓄力已结束/未蓄力）
-        state["charging"] = b._focus.get("charging")
-        db.save_battle(group_id, qq_id, state)
-        db.save_battle(group_id, opp["qq_id"], state)
-        if ended and b.result == "victory":
-            # 行动者胜：胜者受伤状态写回 db
-            db.update_player(group_id, qq_id, hp=state[my_key]["hp"], mp=state[my_key]["mp"])
+            opp_actor["defending"] = False
+        # 目标：攻击类技能打对方；治疗/增益类作用自己（PVP 无友方——传敌方 actor
+        # 会让 heal 奶对手 / buff 挂敌人）
+        _tgt = opp_actor if (opp_actor.get("hp") or 0) > 0 else None
+        if action == "skill":
+            _info = E.skill_info(player["class_name"], skill_name) or {}
+            if _info.get("kind") in (K_HEAL, K_BUFF):
+                _tgt = None
+        logs, ended, _who = b.human_act(action, skill_name, actor=my_actor, target=_tgt)
+        if action != "defend":
+            my_actor["defending"] = False
+            opp_actor["defending"] = False
+        # 回写 player dict（展示/后续结算读 player 时拿到最新值；db 不写——PVP 快照制）
+        sync_player_from_actor(player, my_actor)
+        my_alive = (my_actor.get("hp") or 0) > 0
+        opp_alive = (opp_actor.get("hp") or 0) > 0
+        # 结果展示体（双方面板）
+        _opp_hp = max(0, int(opp_actor.get("hp", 0) or 0))
+        _my_hp = max(0, int(my_actor.get("hp", 0) or 0))
+        _opp_mp = max(0, int(opp_actor.get("mp", 0) or 0))
+        _my_mp = max(0, int(my_actor.get("mp", 0) or 0))
+        if not my_alive:
+            # 行动者败（反伤/荆棘/毒跳类）→ 双方解除（对齐旧 defeat 保险分支，不做掉落惩罚）
             self._unlock_battle(group_id, qq_id)
-            self._unlock_battle(group_id, opp["qq_id"])
             db.clear_battle(group_id, qq_id)
-            db.clear_battle(group_id, opp["qq_id"])
-            async for _r in self._pvp_finish(event, group_id, qq_id, opp["qq_id"], state.get("attacker_qq", qq_id), "\n".join(logs)):
-                yield _r
-            return
-        if ended and b.result == "defeat":
-            # PVP 无敌方刻，正常不会走到；保险处理
-            self._unlock_battle(group_id, qq_id)
-            self._unlock_battle(group_id, opp["qq_id"])
-            db.clear_battle(group_id, qq_id)
-            db.clear_battle(group_id, opp["qq_id"])
+            if opp_qq:
+                self._unlock_battle(group_id, opp_qq)
+                db.clear_battle(group_id, opp_qq)
             yield event.plain_result("\n".join(logs))
             return
-        state["actor"] = opp_key
-        db.save_battle(group_id, qq_id, state)
-        db.save_battle(group_id, opp["qq_id"], state)
+        if not opp_alive:
+            # 行动者胜：受伤状态写回 db → 结算（掉金/荣誉/回城）
+            db.update_player(group_id, qq_id, hp=_my_hp, mp=_my_mp,
+                             max_hp=my_actor.get("max_hp"), max_mp=my_actor.get("max_mp"))
+            self._unlock_battle(group_id, qq_id)
+            db.clear_battle(group_id, qq_id)
+            if opp_qq:
+                self._unlock_battle(group_id, opp_qq)
+                db.clear_battle(group_id, opp_qq)
+            async for _r in self._pvp_finish(event, group_id, qq_id, opp_qq,
+                                             attacker_qq or str(qq_id), "\n".join(logs)):
+                yield _r
+            return
+        # 未分胜负：meta.actor 翻给对手，存双方（同一 st）
+        meta["actor"] = opp_key
+        st = b.to_state()
+        st["meta"] = meta
+        db.save_battle(group_id, qq_id, st)
+        if opp_qq:
+            db.save_battle(group_id, opp_qq, st)
         body = "\n".join(logs)
         yield event.plain_result(
             f"{body}\n━━━━━━━━━━━━\n"
-            f"【{opp['name']}】❤️ {max(0, opp['hp'])}/{opp['max_hp']} 💙 {opp['mp']}/{opp['max_mp']}\n"
-            f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}\n"
+            f"【{opp_actor.get('name', '对方')}】❤️ {_opp_hp}/{max(0, int(opp_actor.get('max_hp', 1) or 1))} 💙 {_opp_mp}/{max(0, int(opp_actor.get('max_mp', 1) or 1))}\n"
+            f"你：❤️ {_my_hp}/{max(0, int(my_actor.get('max_hp', 1) or 1))} 💙 {_my_mp}/{max(0, int(my_actor.get('max_mp', 1) or 1))}\n"
             f"━━━━━━━━━━━━\n已轮到对方行动！(对方输入『攻击』『技能』『防御』)"
         )
 
