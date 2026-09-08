@@ -249,6 +249,19 @@ def _translate_control(key: str, wd: dict, old_ev: str) -> dict:
     return {old_ev: [eff]}
 
 
+def _translate_death_dance(key: str, wd: dict) -> dict:
+    """proc_special death_dance 缓伤池：on_taken 收池（dmg×pool_pct）+ turn_start 结算
+    （pay = pool×pay_pct 扣血）。池存 actor.ext.we_proc[pool_key]（扩展动作自管）。
+    battle_start 惰性建键由执行器 .get 天然缺省 0，无需事件。"""
+    pool_key = wd.get("pool_key") or "we_death_pool"
+    return {
+        "on_taken": [{"type": "we_death_pool_add", "key": key, "pool_key": pool_key,
+                      "pool_pct": float(wd.get("pool_pct") or 0.35)}],
+        "turn_start": [{"type": "we_death_pool_pay", "key": key, "pool_key": pool_key,
+                        "pay_pct": float(wd.get("pay_pct") or 0.10)}],
+    }
+
+
 def _translate_extra_dmg(key: str, wd: dict) -> dict:
     """proc_extra_dmg 命中追击：we_extra_dmg 扩展动作。事件 = 数据表注册事件
     （skill_hit 4：afterglow/spellblade/annihilation/endless_blade；其余 hit）。"""
@@ -427,6 +440,8 @@ _START_TRANSLATORS = {
     "eternal_codex": lambda k, wd: _stack_pair(k, wd, "skill_cast"),
     "time_staff": lambda k, wd: _stack_pair(k, wd, "turn_start"),
     "thunder_weave": lambda k, wd: _stack_pair(k, wd, "hit"),
+    # proc_special death_dance 缓伤池（受击收池 + 每刻结算）
+    "death_dance": _translate_death_dance,
 }
 
 

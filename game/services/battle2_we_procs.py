@@ -867,6 +867,53 @@ def we_amp_consume(battle, caster, target, params, logs):
 
 
 # ============================================================
+# proc_special death_dance（缓伤池：受击收 35% → turn_start 结算 10%）
+# ============================================================
+# 旧语义（battle.py _post_hp_lethal 10955-10958 + _we_executors 871-895）：
+#   battle_start  : eff[we_death_pool] = float(现值 or 0)（惰性建键）
+#   受击          : eff[we_death_pool] += dmg × pool_pct(0.35)（dmg = 盾后实扣）
+#   turn_start    : pool>0 → pay = max(1, int(pool×pay_pct(0.10)))
+#                   hp = max(0, hp-pay); pool = max(0, pool-pay)
+# 池存 owner.ext.we_proc[pool_key]（float；serialize 全量保留）。直接改 hp
+# （自伤不走 landing——缓伤池结算不该被盾/减伤二次拦截；pay 只会 1 起扣不致死）。
+
+
+@register_action("we_death_pool_add")
+def we_death_pool_add(battle, caster, target, params, logs):
+    """缓伤池收池（on_taken 事件）：pool += 承伤实值 × pool_pct。"""
+    owner = params.get("_owner") or caster
+    if owner is None:
+        return
+    pool_key = params.get("pool_key") or "we_death_pool"
+    ctx = getattr(battle, "_fire_ctx", None) or {}
+    dmg = float(ctx.get("dmg", 0) or 0)
+    if dmg <= 0:
+        return  # 无实伤不收池（护盾全吸收/免疫）
+    pool_pct = float(params.get("pool_pct") or 0.35)
+    st = owner.setdefault("ext", {}).setdefault("we_proc", {})
+    st[pool_key] = float(st.get(pool_key, 0) or 0) + dmg * pool_pct
+    # 不写日志——旧版收池静默（日志只在 turn_start 结算时）
+
+
+@register_action("we_death_pool_pay")
+def we_death_pool_pay(battle, caster, target, params, logs):
+    """缓伤池结算（turn_start 事件）：pool>0 → pay = max(1, pool×pay_pct) 扣血递减。"""
+    owner = params.get("_owner") or caster
+    if owner is None or not actor_alive(owner):
+        return
+    pool_key = params.get("pool_key") or "we_death_pool"
+    st = owner.setdefault("ext", {}).setdefault("we_proc", {})
+    pool = float(st.get(pool_key, 0) or 0)
+    if pool <= 0:
+        return
+    pay_pct = float(params.get("pay_pct") or 0.10)
+    pay = max(1, int(pool * pay_pct))
+    owner["hp"] = max(0, int(owner.get("hp", 0) or 0) - pay)
+    st[pool_key] = max(0.0, pool - pay)
+    logs.append(f"💀 死亡之舞：缓伤池结算，损失 {pay} 点生命！（剩余 {st[pool_key]:.0f}）")
+
+
+# ============================================================
 # 注册入口（装配层 install_ext_actions 调，幂等）
 # ============================================================
 

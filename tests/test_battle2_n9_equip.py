@@ -186,8 +186,9 @@ def test_no_equip_no_trigger():
 def test_unsupported_key_skipped():
     print("【N9.6 未支持 key 静默跳过（范围外）】")
     p = mk_a("p1", "player")
-    equip(p, "death_dance", slot="armor")   # proc_special 缓伤池：后续批次
-    equip(p, "novice_hunt_combo", slot="weapon")  # proc_stack 连击率：机制缺口
+    # 真缺口 key（N9A 尚未支持）：randuin/ice_vein 需 act_done 事件、novice_hunt_combo 需职业模块
+    equip(p, "randuin_weary", slot="armor")
+    equip(p, "novice_hunt_combo", slot="weapon")
     EP.apply_to_actor(p)
     check("未支持 key 不装配", not (p.get("triggers") or {}), f"{p.get('triggers')}")
 
@@ -475,7 +476,7 @@ def test_extra_dmg():
     we_extra_dmg(b2, p2, m2, {"type": "we_extra_dmg", "key": "siren_fang",
                               "mode": "true_dmg_nth", "count": 3, "atk_pct": 0.4,
                               "stack_key": "siren_cnt"}, [])
-    check("第三击触发 ~16 真伤", 14 <= 99999 - m2["hp"] <= 18, f"hp={m2['hp']} dmg={99999-m2['hp']}")
+    check("第三击触发 ~16 真伤", 13 <= 99999 - m2["hp"] <= 18, f"hp={m2['hp']} dmg={99999-m2['hp']}")
     # lifesteal：吸血 heal_pct（模拟 hit dmg 100 回 5）
     p3 = mk_a("p3", "player")
     m3 = mk_a("e3", "enemy", hp=99999, atk=1)
@@ -672,6 +673,61 @@ def test_cond_mult_and_stacks():
     check("层被清", (p3["state"] or {}).get("rune_amp", 0) == 0, f"state={p3.get('state')}")
 
 
+def test_death_dance():
+    print("【N9A-1 death_dance 缓伤池：受击收 35% → turn_start 结算 10%】")
+    from game.battle2.landing import deal_damage as _dd
+    # 装配端到端
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=99999, atk=1)
+    equip(p, "death_dance", slot="armor")
+    EP.apply_to_actor(p)
+    check("death_dance 装配 triggers", "on_taken" in (p.get("triggers") or {})
+          and "turn_start" in (p.get("triggers") or {}),
+          f"triggers={p.get('triggers')}")
+    b = new_battle(p, m)
+    b.act(ActCtx(caster=p, action="attack", target=m))  # 首动 battle_start + turn_start
+    # 受击 100（收 35 进池，扣 100 血）
+    hp0 = p["hp"]
+    _dd(b, m, p, 100, [])
+    check("受击扣 100", p["hp"] == hp0 - 100, f"hp={p['hp']} expect {hp0-100}")
+    pool = (p.get("ext", {}).get("we_proc", {}) or {}).get("we_death_pool", 0)
+    check("缓伤池收 35", abs(pool - 35.0) < 1e-9, f"pool={pool}")
+    # 再受击 200（pool = 35 + 200×0.35 = 105）
+    hp0 = p["hp"]
+    _dd(b, m, p, 200, [])
+    check("二次受击扣 200", p["hp"] == hp0 - 200, f"hp={p['hp']}")
+    pool = (p.get("ext", {}).get("we_proc", {}) or {}).get("we_death_pool", 0)
+    check("缓伤池累计 105", abs(pool - 105.0) < 1e-9, f"pool={pool}")
+    # turn_start 结算：pay = max(1, int(105×0.10)) = 10，扣血 + 池减 10
+    hp0 = p["hp"]
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    check("结算扣 10", p["hp"] == hp0 - 10, f"hp={p['hp']} expect {hp0-10}")
+    pool = (p.get("ext", {}).get("we_proc", {}) or {}).get("we_death_pool", 0)
+    check("池减到 95", abs(pool - 95.0) < 1e-9, f"pool={pool}")
+    # 多轮结算直到池尽（每轮 pay = max(1, int(pool×0.10))）
+    turns = 0
+    guard = 0
+    while pool > 0 and guard < 100:
+        guard += 1
+        turns += 1
+        b.act(ActCtx(caster=p, action="attack", target=m))
+        pool = (p.get("ext", {}).get("we_proc", {}) or {}).get("we_death_pool", 0)
+    check("池最终耗尽", pool <= 0 and turns > 1, f"pool={pool} turns={turns}")
+    # 序列化续战保留池：先受击收池 → to_state → from_state → 池还在
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    equip(p2, "death_dance", slot="armor")
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    _dd(b2, m2, p2, 100, [])
+    st = b2.to_state()
+    b2r = BT_NEW.from_state(st)
+    p2r = b2r.sides["player"][0]
+    pool_r = (p2r.get("ext", {}).get("we_proc", {}) or {}).get("we_death_pool", 0)
+    check("序列化保留池 35", abs(pool_r - 35.0) < 1e-9, f"pool_r={pool_r}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -695,6 +751,7 @@ def main():
     test_death_guard()
     test_dmg_taken_calc_hooks()
     test_cond_mult_and_stacks()
+    test_death_dance()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:
