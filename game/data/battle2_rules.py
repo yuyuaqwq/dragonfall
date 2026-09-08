@@ -49,26 +49,28 @@ EFFECT_RULES: dict = {
         "on": "target",
         "debuff_scale": {"dmg_taken": 0.06},  # 每层承伤 +6%
     },
-    # ============ 持续伤害 DOT（on=target） ============
+    # ============ 持续伤害 DOT（on=target；V5：dot → period 统一声明） ============
+    # period = {dir, interval, 数值字段}：schedule 按 dir 分流结算（damage/heal/mana）。
+    # damage 方向 pct 字段 = 每层每跳（×stacks）；turns 限跳数（0=无限）；dmg_type=true=真伤
     "burn": {
         "cap": 5,
         "on": "target",
-        "dot": {"pct_max_hp": 0.03},          # 每层每刻掉 3% 生命
+        "period": {"dir": "damage", "interval": 1.0, "pct_max_hp": 0.03},   # 每层每刻掉 3% 生命
     },
     "bleed": {
         "cap": 10,
         "on": "target",
-        "dot": {"type": "flat", "per_layer": 0},
+        "period": {"dir": "damage", "interval": 1.0, "type": "flat", "per_layer": 0},
     },
     "poison": {
         "cap": 5,
         "on": "target",
-        "dot": {"pct_max_hp": 0.02},
+        "period": {"dir": "damage", "interval": 1.0, "pct_max_hp": 0.02},
     },
     "corros": {
         "cap": 5,
         "on": "target",
-        "dot": {"pct_max_hp": 0.02, "dmg_type": "true"},  # 真伤 DOT
+        "period": {"dir": "damage", "interval": 1.0, "pct_max_hp": 0.02, "dmg_type": "true"},  # 真伤 DOT
     },
     # ============ 元素印记（on=target） ============
     "fire_mark": {
@@ -92,17 +94,17 @@ EFFECT_RULES: dict = {
     "blaze": {
         "cap": 3,
         "on": "target",
-        "dot": {"pct_max_hp": 0.015, "pct_boss": 0.01, "turns": 3},   # 裂伤：1.5%(boss 1%)/跳 3 跳
+        "period": {"dir": "damage", "interval": 1.0, "pct_max_hp": 0.015, "pct_boss": 0.01, "turns": 3},   # 裂伤：1.5%(boss 1%)/跳 3 跳
     },
     "ember": {
         "cap": 3,
         "on": "target",
-        "dot": {"pct_max_hp": 0.015, "pct_boss": 0.01, "turns": 3},   # 烬燃：1.5%(boss 1%)/跳 3 跳
+        "period": {"dir": "damage", "interval": 1.0, "pct_max_hp": 0.015, "pct_boss": 0.01, "turns": 3},   # 烬燃：1.5%(boss 1%)/跳 3 跳
     },
     "blood_trace": {
         "cap": 1,
         "on": "target",
-        "dot": {"pct_cur_hp": 0.02, "pct_cur_boss": 0.015, "turns": 4},  # 败血：当前生命 2%(boss 1.5%)/跳 4 跳
+        "period": {"dir": "damage", "interval": 1.0, "pct_cur_hp": 0.02, "pct_cur_boss": 0.015, "turns": 4},  # 败血：当前生命 2%(boss 1.5%)/跳 4 跳
     },
     # ============ 禁疗（N9 收编：旧 buffs int 直写 → state 层×10% cap50%） ============
     "heal_down": {
@@ -141,11 +143,11 @@ EFFECT_RULES: dict = {
     },
     # ============ affix 词条 DOT（N9.7b：命中流血词条） ============
     # 旧语义（affix bleed）：20% 使目标流血，每刻 5% 生命，3 刻（叠 3 层 cap）
-    # → state 层 dot 声明（on=target，pct_max_hp 每层，turns 限时 3 跳清层）
+    # → state 层 period 声明（on=target，pct_max_hp 每层，turns 限时 3 跳清层）
     "affix_bleed": {
         "cap": 3,
         "on": "target",
-        "dot": {"pct_max_hp": 0.05, "pct_boss": 0.02, "turns": 3},
+        "period": {"dir": "damage", "interval": 1.0, "pct_max_hp": 0.05, "pct_boss": 0.02, "turns": 3},
     },
     # ============ 静态面板增益（V5 数值入表：buff key → panel 声明） ============
     # 原 EFFECT_ACTIONS 动作参数 stat/op/mult → EFFECT_RULES[key].panel；
@@ -170,6 +172,21 @@ EFFECT_RULES: dict = {
     "food_spd_up_small": {"cap": 1, "panel": {"stat": "spd", "op": "mul", "mult": 1.10}},
     "food_matk_up":    {"cap": 1, "panel": {"stat": "matk", "op": "mul", "mult": 1.10}},
     "food_crit_up":    {"cap": 1, "panel": {"stat": "crit", "op": "add", "mult": 0.08}},
+    # ============ 控制 tag（V5② 表声明：consume.mode 语义 + 净化标记；技能 mech 分派
+    # 靠 effects._mech_to_effect「无 consume/panel 才走叠层」判据防劫持——
+    # 纯控制 mech（stun 等）走 EFFECT_ACTIONS 名词路径，与入表前行为一致） ============
+    # 注意：sleep 不可净化（受击醒），cleanse 不标——对齐原 CLEANSE_TAGS（无 sleep）
+    "stun":     {"cap": 1, "consume": {"mode": "skip"}, "tag": "stun", "cleanse": True, "negative": True},
+    "freeze":   {"cap": 1, "consume": {"mode": "skip"}, "tag": "freeze", "cleanse": True, "negative": True},
+    "sleep":    {"cap": 1, "consume": {"mode": "skip"}, "tag": "sleep", "wake_on_hit": True,
+                 "negative": True},          # 不可净化（原 CLEANSE_TAGS 无 sleep）
+    "silence":  {"cap": 1, "consume": {"mode": "no_skill"}, "tag": "silence", "cleanse": True, "negative": True},
+    # ============ 可净化减伤/状态（V5④：原 CLEANSE_TAGS 硬清单成员表化） ============
+    # spd_down：双语义（装配层 _slow 减速 stat + EFFECT_ACTIONS 控制 skip）→ 不设 consume
+    #   （动作参数优先，协议 §7 判据）；仅作净化标记
+    "spd_down": {"cap": 1, "tag": "spd_down", "cleanse": True, "negative": True},
+    # reduce：value 型减伤（effects[key].v）；净化遍历查表清（原 CLEANSE_TAGS 含 reduce）
+    "reduce":   {"cap": 1, "cleanse": True, "negative": True},
 }
 
 # ============================================================
@@ -177,49 +194,52 @@ EFFECT_RULES: dict = {
 # （技能数据/怪物模板里的 effect/mech 名词，经这里翻译成引擎动词）
 # ============================================================
 EFFECT_ACTIONS: dict = {
-    # ---- 控制类（写 target.buffs[tag]=刻数）----
+    # ---- 控制类（写 target.effects[tag]；V5②：mode 语义已入 EFFECT_RULES[key].consume，
+    #      stun/freeze/sleep/silence 瘦身 key-only 查表——spd_down 双语义保留动作参数）----
     # mode=skip 整跳（行动级消费：轮到行动跳过+清）；mode=no_skill 禁技（技能转普攻）
-    "stun":      [{"action": "apply", "key": "stun", "on": "target", "turns": 1, "mode": "skip"}],
-    "freeze":    [{"action": "apply", "key": "freeze", "on": "target", "turns": 1, "mode": "skip"}],
-    "sleep":     [{"action": "apply", "key": "sleep", "on": "target", "turns": 1, "mode": "skip", "wake_on_hit": True}],
-    "silence":   [{"action": "apply", "key": "silence", "on": "target", "turns": 2, "mode": "no_skill"}],
+    "stun":      [{"action": "apply", "key": "stun", "on": "target", "turns": 1}],
+    "freeze":    [{"action": "apply", "key": "freeze", "on": "target", "turns": 1}],
+    "sleep":     [{"action": "apply", "key": "sleep", "on": "target", "turns": 1}],
+    "silence":   [{"action": "apply", "key": "silence", "on": "target", "turns": 2}],
     "slow":      [{"action": "apply", "key": "spd_down", "on": "target", "turns": 2, "mode": "skip"}],
     "spd_down":  [{"action": "apply", "key": "spd_down", "on": "target", "turns": 2, "mode": "skip"}],
-    # ---- 属性增益（写 caster.buffs[key]，数值=动作参数 stat/op/mult 快照进条目）----
+    # ---- 属性增益（写 caster.effects[key]；数值 V5 已入 EFFECT_RULES[key].panel，
+    #      动作瘦身 key-only——apply 参数缺省查表快照进条目；单源查表）----
     # 数值参考旧 battle_config.BUFF_MULT（N7.1 全新填：desc/策划案为准，旧表对照）：
     #   atk_up=×1.30 / matk_up=×1.50 / matk_up_strong=×1.80 / def_up=×1.45 /
     #   spd_up=×1.40 / crit_up=+0.20 / magic_resist=+0.15 / mon_atk_down=×0.70
-    "atk_up":    [{"action": "apply", "key": "atk_up",    "stat": "atk",  "op": "mul", "mult": 1.30}],
-    "dodge_buff":  [{"action": "apply", "key": "dodge_up", "stat": "dodge", "op": "add", "mult": 0.10}],
-    "spd_buff":    [{"action": "apply", "key": "spd_up",   "stat": "spd",  "op": "mul", "mult": 1.40}],
-    "crit_hit_buff": [{"action": "apply", "key": "crit_up", "stat": "crit", "op": "add", "mult": 0.20}],
+    # panel 声明见上方 EFFECT_RULES（V5 静态增益入表段，数值与旧动作参数逐条核验一致）。
+    "atk_up":    [{"action": "apply", "key": "atk_up"}],
+    "dodge_buff":  [{"action": "apply", "key": "dodge_up"}],
+    "spd_buff":    [{"action": "apply", "key": "spd_up"}],
+    "crit_hit_buff": [{"action": "apply", "key": "crit_up"}],
     "cc_immune":    [{"action": "apply", "key": "cc_immune"}],   # 无面板折算（纯免疫状态）
     # 团队/全员增益 → 自身有效键（旧 team_keys 同语义）
-    "atk_all":   [{"action": "apply", "key": "atk_up",       "stat": "atk",  "op": "mul", "mult": 1.30}],
-    "def_all":   [{"action": "apply", "key": "def_up",       "stat": "def",  "op": "mul", "mult": 1.45}],
-    "matk_all":  [{"action": "apply", "key": "matk_up_strong", "stat": "matk", "op": "mul", "mult": 1.80}],
-    "crit_all":  [{"action": "apply", "key": "crit_up",      "stat": "crit", "op": "add", "mult": 0.20}],
-    "spd_all":   [{"action": "apply", "key": "spd_up",       "stat": "spd",  "op": "mul", "mult": 1.40}],
-    "atk_matk_all": [{"action": "apply", "key": "atk_up",    "stat": "atk",  "op": "mul", "mult": 1.30},
-                     {"action": "apply", "key": "matk_up",   "stat": "matk", "op": "mul", "mult": 1.50}],
-    # ---- N7.5b 药水/食物纯属性别名（items.py effect → BUFF_MULT 数值；special:* 类 N8 事件）----
-    "buff_atk":    [{"action": "apply", "key": "atk_up",       "stat": "atk",  "op": "mul", "mult": 1.30}],
-    "buff_atk_big":[{"action": "apply", "key": "atk_up_big",   "stat": "atk",  "op": "mul", "mult": 1.40}],
-    "buff_atk_small":[{"action": "apply", "key": "atk_up_small","stat": "atk", "op": "mul", "mult": 1.20}],
-    "buff_atk_food":[{"action": "apply", "key": "food_atk_up", "stat": "atk",  "op": "mul", "mult": 1.10}],
-    "buff_def":    [{"action": "apply", "key": "def_up",       "stat": "def",  "op": "mul", "mult": 1.45}],
-    "buff_def_food":[{"action": "apply", "key": "food_def_up", "stat": "def",  "op": "mul", "mult": 1.15}],
-    "buff_spd":    [{"action": "apply", "key": "spd_up",       "stat": "spd",  "op": "mul", "mult": 1.40}],
-    "buff_spd_small":[{"action": "apply", "key": "spd_up_small","stat": "spd", "op": "mul", "mult": 1.20}],
-    "buff_spd_food":[{"action": "apply", "key": "food_spd_up", "stat": "spd",  "op": "mul", "mult": 1.12}],
-    "buff_crit":   [{"action": "apply", "key": "crit_up",      "stat": "crit", "op": "add", "mult": 0.20}],
-    "buff_crit_small":[{"action": "apply", "key": "crit_up_small","stat": "crit","op": "add","mult": 0.15}],
-    "buff_crit_big":[{"action": "apply", "key": "crit_up_big", "stat": "crit", "op": "add", "mult": 0.30}],
-    "buff_crit_food":[{"action": "apply", "key": "food_crit_up","stat": "crit","op": "add","mult": 0.08}],
-    "buff_matk":   [{"action": "apply", "key": "matk_up_pot",  "stat": "matk", "op": "mul", "mult": 1.30}],
-    "buff_matk_strong":[{"action": "apply", "key": "matk_up_strong","stat": "matk","op": "mul","mult": 1.80}],
-    "buff_matk_food":[{"action": "apply", "key": "food_matk_up","stat": "matk", "op": "mul", "mult": 1.10}],
-    "food_spd_up_small":[{"action": "apply", "key": "food_spd_up_small","stat": "spd","op": "mul","mult": 1.10}],
+    "atk_all":   [{"action": "apply", "key": "atk_up"}],
+    "def_all":   [{"action": "apply", "key": "def_up"}],
+    "matk_all":  [{"action": "apply", "key": "matk_up_strong"}],
+    "crit_all":  [{"action": "apply", "key": "crit_up"}],
+    "spd_all":   [{"action": "apply", "key": "spd_up"}],
+    "atk_matk_all": [{"action": "apply", "key": "atk_up"},
+                     {"action": "apply", "key": "matk_up"}],
+    # ---- N7.5b 药水/食物纯属性别名（items.py effect → EFFECT_RULES panel；special:* 类 N8 事件）----
+    "buff_atk":    [{"action": "apply", "key": "atk_up"}],
+    "buff_atk_big":[{"action": "apply", "key": "atk_up_big"}],
+    "buff_atk_small":[{"action": "apply", "key": "atk_up_small"}],
+    "buff_atk_food":[{"action": "apply", "key": "food_atk_up"}],
+    "buff_def":    [{"action": "apply", "key": "def_up"}],
+    "buff_def_food":[{"action": "apply", "key": "food_def_up"}],
+    "buff_spd":    [{"action": "apply", "key": "spd_up"}],
+    "buff_spd_small":[{"action": "apply", "key": "spd_up_small"}],
+    "buff_spd_food":[{"action": "apply", "key": "food_spd_up"}],
+    "buff_crit":   [{"action": "apply", "key": "crit_up"}],
+    "buff_crit_small":[{"action": "apply", "key": "crit_up_small"}],
+    "buff_crit_big":[{"action": "apply", "key": "crit_up_big"}],
+    "buff_crit_food":[{"action": "apply", "key": "food_crit_up"}],
+    "buff_matk":   [{"action": "apply", "key": "matk_up_pot"}],
+    "buff_matk_strong":[{"action": "apply", "key": "matk_up_strong"}],
+    "buff_matk_food":[{"action": "apply", "key": "food_matk_up"}],
+    "food_spd_up_small":[{"action": "apply", "key": "food_spd_up_small"}],
     # ---- 一次性出手消费（hit 子键：出手增伤 / 必暴；效果参数可被调用方 effect_data 覆盖）----
     "next_atk_up":   [{"action": "apply", "key": "next_atk_up",   "hit": {"dmg_mult": 1.50}}],
     "buff_phys_next":[{"action": "apply", "key": "buff_phys_next","hit": {"dmg_mult": 1.40}}],
@@ -241,8 +261,5 @@ EFFECT_ACTIONS: dict = {
     "cleanse":     [{"action": "cleanse"}],
     "cleanse_all": [{"action": "cleanse_all"}],
 }
-
-# 净化应清的控制键（buff 容器里的控制 tag）
-CLEANSE_TAGS = ["stun", "silence", "freeze", "spd_down", "reduce"]
 
 

@@ -276,7 +276,7 @@ heal/state_set/interrupt/damage 动词补齐。
 （N5b4-7 前核心 diff 给鱼鱼过目）+ §0.5 记录 6 的**世界Boss DOT 语义未决点**（先保留
 现状路线 B，鱼鱼说"先保留吧，我开新会话了"）。每批 commit 后汇报鱼鱼。✂️
 
-## 7. V 系列更新（2026-09-08 V4+V5 完成后追加）
+## 7. V 系列更新（2026-09-08 V4+V5 完成后追加；09-09 V5 收尾补齐）
 
 ### V1 原子切换（bf6c590）+ V1b 显示适配（15a8ba0）→ V4 动词收敛（fe1350b）→ V5 面板入表（ba04288）
 
@@ -291,12 +291,30 @@ heal/state_set/interrupt/damage 动词补齐。
   删旧注册名是干净终态（鱼鱼拍板 A 确认）。V4 后装配层只发 apply/consume + shield/cleanse/heal/
   damage/interrupt。battle2 21 文件全绿，run_all 335 零新增回归（v137_dungeon 基线红已证 15a8ba0
   同 19/1；v85_pvp_honor run_all 库互清偶发单跑 25/0 绿）。
-- **V5 面板入表**：EFFECT_RULES 加 19 buff key panel{stat,op,mult} 声明（atk_up/def_up/spd_up/
+- **V5 面板入表（ba04288 半程）**：EFFECT_RULES 加 19 buff key panel{stat,op,mult} 声明（atk_up/def_up/spd_up/
   crit_up/matk_up/food_* 等），act_apply 增益分支参数缺省查表（动态装配层参数直传仍优先），
-  stats._apply_effects 折算单源查表能力就绪。EFFECT_ACTIONS 动作参数暂保留（双源一致零行为变化，
-  动作瘦身为纯组织优化押后——跨行缩进破坏风险）。
-- **剩余**：EFFECT_ACTIONS 动作瘦身（可选纯组织优化）；V6 命令层复查（V1 已切大部分）；V7 回归
-  （V4 commit 已做 run_all 对照）。V 系列后 → I3-I7 道具链续做（用新 API apply/consume）。
+  stats._apply_effects 折算单源查表能力就绪。
+- **V5 收尾（09-09 手工补齐，本次 commit）**——数据表迁移四大块一次做完：
+  1. **EFFECT_ACTIONS 静态 buff 瘦身**：27 名词/28 动作的 stat/op/mult 参数删除 → key-only
+     （数值单源查 EFFECT_RULES[key].panel；改前逐条核验 0 误差）。
+  2. **控制 tag 入表**：stun/freeze/sleep/silence 进 EFFECT_RULES 带 consume{mode}（sleep 额外
+     wake_on_hit 声明，不可净化）；act_apply 控制分支 mode 参数缺省查表回落；EFFECT_ACTIONS
+     控制条目瘦身（stun/freeze/sleep/silence 去 mode 参数）。⚠️ **mech 分派防劫持**：
+     _mech_to_effect 判据改为 _is_stack_resource()（有 stat_scale/debuff_scale/period/dot/
+     on_threshold/guard_hp_pct 或 cap>1 纯计数 = 叠层资源走 apply op=add；仅 consume/panel/
+     tag/cleanse 效果声明 = 名词路径走 EFFECT_ACTIONS）——否则技能 mech=stun（mech_val=2 刻晕）
+     会被当叠层 2 层，行为破坏。spd_down 双语义（装配层 _slow 减速 stat + 控制 skip）不入
+     consume，仅作净化标记（动作参数优先，协议 §7 判据）。
+  3. **DOT dot → period 统一**：EFFECT_RULES 8 DOT key（burn/bleed/poison/corros/blaze/ember/
+     blood_trace/affix_bleed）改 period{dir:damage, interval:1.0, 原数值}；schedule 读点删
+     旧 dot 回落折算，直接读表 period；act_cleanse 读点同步（dot → period）。
+  4. **cleanse 表化**：CLEANSE_TAGS 硬清单删除 → EFFECT_RULES 内 cleanse/negative 声明
+     （stun/freeze/silence/spd_down/reduce cleanse=True；sleep 不可净化）；act_cleanse 遍历
+     effects 查表（period / on==target / cleanse）；config.py cleanse_tags 挂载/接口删除。
+  battle2 21 文件全绿；run_all 335 沙盒对照：V5 29 失败 = 基线(c1154d8) 29 失败 完全一致，
+  **零新增回归**（既有基线含 v137_dungeon 等，非本次引入）。
+- **剩余**：V6 命令层复查（V1 已切大部分）；V7 最终回归 + 文档 diff 给鱼鱼。V 系列后 →
+  I3-I7 道具链续做（用新 API apply/consume）。
 
 ## 8. 会话重启第一步（V 系列后更新）
 读本文档 → `git log --oneline -6` 确认 HEAD → V 系列已完成（V1/V1b/V4/V5），剩余主线：
