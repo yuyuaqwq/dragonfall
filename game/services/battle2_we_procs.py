@@ -1081,6 +1081,63 @@ def we_affix_bonus(battle, caster, target, params, logs):
 
 
 # ============================================================
+# N9.7c affix on_taken 族（counter/tenacity_cc）+ dmg_reduce 减伤
+# ============================================================
+# counter：受击 20% 反击攻击方 atk×60%（on_taken，攻击方在 ctx.source）
+# tenacity_cc：受击 20% 免疫/清除自身负面（spd_down/atk_down/def_down）+ 回 3% maxhp
+# dmg_reduce：常驻全减伤 3%（taken_calc 乘区——装配层直接挂 we_taken_mult_cond）
+
+_AFFIX_TAKEN_LOG = {
+    "counter": "⚔️ 反击！对【{tgt}】造成 {dmg} 点伤害！",
+    "tenacity_cc": "💪 坚韧！免疫了负面效果，回复 {heal} 点生命",
+}
+
+
+@register_action("we_affix_counter")
+def we_affix_counter(battle, caster, target, params, logs):
+    """affix 反击（counter）：受击后 chance → 按玩家 atk×atk_pct 反击攻击方。"""
+    owner = params.get("_owner") or caster
+    if owner is None or not actor_alive(owner):
+        return
+    ctx = getattr(battle, "_fire_ctx", None) or {}
+    attacker = ctx.get("source")  # on_taken 攻击方
+    if attacker is None or not actor_alive(attacker):
+        return
+    if not _roll(params.get("chance")):
+        return
+    from game.battle2.landing import deal_damage
+    from game.battle2.stats import actor_stats as _as
+    st = _as(battle, owner) or {}
+    dmg = max(1, int(float(st.get("atk", 0) or 0) * float(params.get("atk_pct") or 0.60)))
+    deal_damage(battle, owner, attacker, dmg, logs)
+    logs.append(_AFFIX_TAKEN_LOG.get(params.get("key"), "⚔️ 反击！").format(
+        tgt=attacker.get("name", "敌人"), dmg=dmg))
+
+
+@register_action("we_affix_tenacity")
+def we_affix_tenacity(battle, caster, target, params, logs):
+    """affix 坚韧（tenacity_cc）：受击后 chance → 免疫/清除自身负面 + 回 3% maxhp。
+    负面 = buffs 中带减益语义的条目（op=reduce/mul<1 的属性减成）。"""
+    owner = params.get("_owner") or caster
+    if owner is None or not actor_alive(owner):
+        return
+    if not _roll(params.get("chance")):
+        return
+    bf = owner.get("buffs") or {}
+    neg = [k for k, e in bf.items() if isinstance(e, dict) and e.get("stat")
+           and ((e.get("op") == "reduce") or
+                (e.get("op") == "mul" and float(e.get("mult", 1) or 1) < 1.0))]
+    if not neg:
+        return
+    import random as _r
+    bf.pop(_r.choice(neg), None)
+    from game.battle2.landing import heal_actor
+    heal = max(1, int(owner.get("max_hp", 1) * float(params.get("heal_pct") or 0.03)))
+    heal_actor(battle, owner, heal, logs)
+    logs.append(_AFFIX_TAKEN_LOG.get(params.get("key"), "💪 坚韧！").format(heal=heal))
+
+
+# ============================================================
 # 注册入口（装配层 install_ext_actions 调，幂等）
 # ============================================================
 

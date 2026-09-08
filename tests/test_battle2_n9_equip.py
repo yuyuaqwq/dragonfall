@@ -924,6 +924,49 @@ def test_affix_onhit():
     check("pierce 真伤 ~24（±15%）", 20 <= d5 <= 28, f"dmg={d5}")
 
 
+def test_affix_taken():
+    print("【N9.7c affix on_taken 族：counter/tenacity_cc + dmg_reduce 减伤】")
+    from game.services.battle2_we_procs import we_affix_counter, we_affix_tenacity
+    # counter：受击 100 由敌发起 → 20% 反击敌 atk×60%（直调恒触发）
+    p = mk_a("p1", "player", atk=40)
+    m = mk_a("e1", "enemy", hp=99999, atk=1)
+    b = new_battle(p, m)
+    hp0 = m["hp"]
+    b._fire_ctx = {"source": m}   # on_taken 攻击方 = m
+    we_affix_counter(b, p, m, {"key": "counter", "chance": 1.0, "atk_pct": 0.6}, [])
+    dmg = hp0 - m["hp"]
+    check("反击打攻击方 ~24（±15%）", 20 <= dmg <= 28, f"dmg={dmg}")
+    # tenacity_cc：带负面受击 → 清一个负面 + 回 3% maxhp
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    p2.setdefault("buffs", {})["spd_down"] = {"expire": 99, "stat": "spd",
+                                              "op": "mul", "mult": 0.10}
+    p2["hp"] = p2["max_hp"] - 200
+    b2 = new_battle(p2, m2)
+    b2._fire_ctx = {"source": m2}
+    we_affix_tenacity(b2, p2, m2, {"key": "tenacity_cc", "chance": 1.0,
+                                   "heal_pct": 0.03}, [])
+    check("坚韧清负面", "spd_down" not in (p2.get("buffs") or {}),
+          f"buffs={p2.get('buffs')}")
+    check("坚韧回 3% maxhp（+24）", p2["hp"] == p2["max_hp"] - 200 + 24,
+          f"hp={p2['hp']} expect {p2['max_hp']-200+24}")
+    # dmg_reduce：装配端到端受击减 3%
+    p3 = mk_a("p3", "player")
+    m3 = mk_a("e3", "enemy", hp=99999, atk=1)
+    p3.setdefault("equipment", {})["armor"] = {
+        "slot": "armor", "quality": "blue", "affixes": ["dmg_reduce"], "stats": {},
+    }
+    EP.apply_to_actor(p3)
+    check("dmg_reduce 装配 taken_calc", "taken_calc" in (p3.get("triggers") or {}),
+          f"triggers={p3.get('triggers')}")
+    b3 = new_battle(p3, m3)
+    from game.battle2.landing import deal_damage as _dd
+    hp0 = p3["hp"]
+    _dd(b3, m3, p3, 100, [])
+    real = hp0 - p3["hp"]
+    check("受击减 3%（97）", real == 97, f"real={real}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -951,6 +994,7 @@ def main():
     test_act_done_randuin()
     test_affix_basic()
     test_affix_onhit()
+    test_affix_taken()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

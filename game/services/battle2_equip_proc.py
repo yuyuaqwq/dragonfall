@@ -287,6 +287,33 @@ def _af_pierce(aid, actor, eff):
                      "tag": "🏹", "name": "贯穿"}]}
 
 
+# ============ N9.7c on_taken 族 + dmg_reduce ============
+
+@_register_affix("counter")
+def _af_counter(aid, actor, eff):
+    """反击：受击 20% 反击攻击方 atk×60%（on_taken，攻击方在 ctx.source）。"""
+    return {"on_taken": [{"type": "we_affix_counter", "key": aid, "aid": aid,
+                          "chance": _affix_chance_of(aid),
+                          "atk_pct": eff.get("pct") or 0.60}]}
+
+
+@_register_affix("tenacity_cc")
+def _af_tenacity_cc(aid, actor, eff):
+    """坚韧：受击 20% 免疫/清除自身负面 + 回 3% maxhp。"""
+    return {"on_taken": [{"type": "we_affix_tenacity", "key": aid, "aid": aid,
+                          "chance": _affix_chance_of(aid),
+                          "heal_pct": eff.get("heal_pct") or 0.03}]}
+
+
+@_register_affix("dmg_reduce")
+def _af_dmg_reduce(aid, actor, eff):
+    """全减伤（常驻 3%）：taken_calc 乘区 ×（1-0.03）。stat trigger 但实际是
+    受击减伤（旧 TAKEN_EFFECTS reduce 段），装配成 taken_calc 乘区。"""
+    return {"taken_calc": [{"type": "we_taken_mult_cond", "key": aid, "cond": "always",
+                            "mult": 1.0 - float(eff.get("dmg_reduce") or 0.03),
+                            "tag": "🛡️减伤"}]}
+
+
 def affix_triggers_for_key(aid: str, actor: dict) -> dict:
     """单个 affix → {old_event: [效果 dict]}（未支持 key → {}）。"""
     fn = _AFFIX_TRANSLATORS.get(aid)
