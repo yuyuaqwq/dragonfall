@@ -270,7 +270,7 @@ def test_effects_branches():
     check("非 dict 效果跳过", True)
     # 动词直通（无映射的 action 名）
     p["effects"] = {}
-    FX.apply_effects(b, p, m, [{"type": "state_add", "key": "test_x", "amount": 5, "on": "caster"}], logs)
+    FX.apply_effects(b, p, m, [{"type": "apply", "op": "add", "key": "test_x", "amount": 5, "on": "caster"}], logs)
     check("动词直通 state_add", stk(p, "test_x", 0) == 5)
     # shield 名词直通 → shield 动词（默认 on=caster：施法者给自己上盾）
     m2 = make_actor(uid="m2", name="怪", side="enemy", kind="monster",
@@ -278,12 +278,13 @@ def test_effects_branches():
     FX.apply_effects(b, p, m2, [{"type": "shield", "value": 30, "halve": True}], logs)
     check("shield 动词直通写 caster", p["shields"].get("buff", {}).get("value") == 30,
           f"p.shields={p['shields']}")
-    # control 动词直通（无映射 action）——N7.2 快照形态 {expire, mode}
+    # apply 动词直通控制型（mode 显式声明）——N7.2 快照形态 {expire, mode}
     m3 = make_actor(uid="m3", name="怪", side="enemy", kind="monster",
                     hp=100, max_hp=100, atk=1, **{"def": 0}, level=1)
-    FX.apply_effects(b, p, m3, [{"type": "control", "tag": "stun", "turns": 2}], logs)
+    FX.apply_effects(b, p, m3, [{"type": "apply", "on": "target", "tag": "stun", "turns": 2,
+                                 "mode": "skip"}], logs)
     _st3 = ent(m3, "stun") or {}
-    check("control 动词直通 快照 mode=skip",
+    check("apply 动词直通 快照 mode=skip",
           isinstance(_st3, dict) and abs(float(_st3.get("expire", 0)) - 2.0) < 1e-9
           and _st3.get("mode") == "skip", f"stun={_st3}")
 
@@ -298,7 +299,7 @@ def test_actions_branches():
     b2 = BT_NEW(btype="monster", sides={"player": [p], "enemy": []})
     from game.battle2 import effects as FX2
     logs = []
-    r = FX2.apply_effects(b2, p, None, [{"type": "state_add", "key": "x", "amount": 1}], logs)
+    r = FX2.apply_effects(b2, p, None, [{"type": "apply", "op": "add", "key": "x", "amount": 1}], logs)
     check("空敌人 side 构造可用", True)
     # do_skill 无 info
     ctx_none = ActCtx(caster=p, action="skill", skill_name="不存在", info=None)
@@ -315,7 +316,7 @@ def test_actions_branches():
     b4 = BT_NEW(btype="monster", sides={"player": [p2], "enemy": []})
     logs4 = []
     FX.apply_effects(b4, p2, p2,
-                     [{"type": "buff", "key": "reduce", "turns": 5,
+                     [{"type": "apply", "key": "reduce", "turns": 5,
                        "mech_val": 45, "pct_from_mech_val": True}], logs4)
     check("buff pct 折算 45→0.45", abs(float((ent(p2, "reduce") or {}).get("v", 0)) - 0.45) < 1e-9,
           f"reduce={ent(p2, 'reduce')}")

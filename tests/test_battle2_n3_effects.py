@@ -99,21 +99,21 @@ def test_debuff_stack():
     logs = []
     # burn 叠 2 层（on=target → 写 target.state.burn）
     FX.apply_effects(b, caster, target,
-                     [{"type": "state_add", "key": "burn", "amount": 2, "on": "target"}], logs)
+                     [{"type": "apply", "op": "add", "key": "burn", "amount": 2, "on": "target"}], logs)
     check("burn 写入 target.state", stk(target, "burn", 0) == 2,
           f"target.effects={target.get('effects')}")
     check("caster.state 无 burn", "burn" not in ((caster).get("effects") or {}))
     # burn 再叠 4 层 → cap 5（查声明表）
     FX.apply_effects(b, caster, target,
-                     [{"type": "state_add", "key": "burn", "amount": 4, "on": "target"}], logs)
+                     [{"type": "apply", "op": "add", "key": "burn", "amount": 4, "on": "target"}], logs)
     check("burn cap 5", stk(target, "burn", 0) == 5, f"n={stk(target, 'burn', 0)}")
     # bleed 叠 3
     FX.apply_effects(b, caster, target,
-                     [{"type": "state_add", "key": "bleed", "amount": 3, "on": "target"}], logs)
+                     [{"type": "apply", "op": "add", "key": "bleed", "amount": 3, "on": "target"}], logs)
     check("bleed 写入 state", stk(target, "bleed", 0) == 3)
     # 元素印记 on=target
     FX.apply_effects(b, caster, target,
-                     [{"type": "state_add", "key": "fire_mark", "amount": 2, "on": "target"}], logs)
+                     [{"type": "apply", "op": "add", "key": "fire_mark", "amount": 2, "on": "target"}], logs)
     check("fire_mark 写入 state", stk(target, "fire_mark", 0) == 2)
 
 
@@ -148,24 +148,24 @@ def test_caster_stack():
     caster = {"uid": "p", "name": "勇者", "effects": {}}
     logs = []
     FX.apply_effects(b, caster, None,
-                     [{"type": "state_add", "key": "zhan_yi", "amount": 3, "on": "caster"}], logs)
+                     [{"type": "apply", "op": "add", "key": "zhan_yi", "amount": 3, "on": "caster"}], logs)
     check("zhan_yi 3 层", stk(caster, "zhan_yi", 0) == 3)
     FX.apply_effects(b, caster, None,
-                     [{"type": "state_add", "key": "zhan_yi", "amount": 9, "on": "caster"}], logs)
+                     [{"type": "apply", "op": "add", "key": "zhan_yi", "amount": 9, "on": "caster"}], logs)
     check("zhan_yi cap 10", stk(caster, "zhan_yi", 0) == 10,
           f"n={stk(caster, 'zhan_yi', 0)}")
     FX.apply_effects(b, caster, None,
-                     [{"type": "state_add", "key": "rage", "amount": 4, "on": "caster"}], logs)
+                     [{"type": "apply", "op": "add", "key": "rage", "amount": 4, "on": "caster"}], logs)
     check("rage 4", stk(caster, "rage", 0) == 4)
     FX.apply_effects(b, caster, None,
-                     [{"type": "state_add", "key": "chi", "amount": 5, "on": "caster"}], logs)
+                     [{"type": "apply", "op": "add", "key": "chi", "amount": 5, "on": "caster"}], logs)
     check("chi 5", stk(caster, "chi", 0) == 5)
     # 不足消费拦截（state_spend 需足额）
     FX.apply_effects(b, caster, None,
-                     [{"type": "state_spend", "key": "zhan_yi", "amount": 50, "on": "caster"}], logs)
+                     [{"type": "consume", "key": "zhan_yi", "amount": 50, "on": "caster"}], logs)
     check("zhan_yi 消费不足保留 10", stk(caster, "zhan_yi", 0) == 10)
     FX.apply_effects(b, caster, None,
-                     [{"type": "state_spend", "key": "zhan_yi", "amount": 4, "on": "caster"}], logs)
+                     [{"type": "consume", "key": "zhan_yi", "amount": 4, "on": "caster"}], logs)
     check("zhan_yi 消费 4 → 6", stk(caster, "zhan_yi", 0) == 6,
           f"n={stk(caster, 'zhan_yi', 0)}")
 
@@ -300,7 +300,7 @@ def test_n72_more_branches():
     logs = []
     # 纯状态 buff（无 stat）→ 只记 expire，不折算（cc_immune 走 buff 动词无 stat 参数）
     FX.apply_effects(b, caster, caster,
-                     [{"type": "buff", "key": "cc_immune", "turns": 5}], logs)
+                     [{"type": "apply", "key": "cc_immune", "turns": 5}], logs)
     _ci = ent(caster, "cc_immune") or {}
     check("纯状态 buff 存 expire", isinstance(_ci, dict) and abs(float(_ci.get("expire", 0)) - 5.0) < 1e-9,
           f"cc_immune={_ci}")

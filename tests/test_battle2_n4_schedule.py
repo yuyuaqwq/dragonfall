@@ -139,7 +139,7 @@ def test_dot_tick():
     # 挂 burn 3 层（state_add on=target）
     from game.battle2 import effects as FX
     FX.apply_effects(b := BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]}),
-                     p, m, [{"type": "state_add", "key": "burn", "amount": 3, "on": "target"}], [])
+                     p, m, [{"type": "apply", "op": "add", "key": "burn", "amount": 3, "on": "target"}], [])
     check("burn 3 层挂上", stk(m, "burn", 0) == 3)
     hp0 = m["hp"]
     logs = []

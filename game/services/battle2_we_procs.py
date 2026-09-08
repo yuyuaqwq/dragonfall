@@ -240,9 +240,9 @@ def we_guardian_will(battle, caster, target, params, logs):
     if attacker is None or not actor_alive(attacker):
         return
     weaken = float(params.get("weaken", 0.25) or 0.25)
-    from game.battle2.effects import act_buff
-    act_buff(battle, attacker, attacker,
-             {"type": "buff", "key": params.get("debuff_key") or "mon_atk_down",
+    from game.battle2.effects import act_apply
+    act_apply(battle, attacker, attacker,
+             {"type": "apply", "key": params.get("debuff_key") or "mon_atk_down",
               "stat": "atk", "op": "mul", "mult": 1.0 - weaken,
               "turns": int(params.get("turns", 1) or 1), "on": "caster"}, logs)
     logs.append("🛡️ 卫士信念：敌人下一次攻击伤害 -25%！")
@@ -596,16 +596,16 @@ def _control_target(battle, target, params) -> dict:
 
 def _freeze(battle, owner, tgt, turns, params, logs):
     """冻结（Boss 减半沿用引擎 act_control 定稿语义，不迁旧免疫退化特例）。"""
-    from game.battle2.effects import act_control
-    act_control(battle, owner, tgt,
-                {"type": "control", "tag": "freeze", "turns": turns, "mode": "skip"}, logs)
+    from game.battle2.effects import act_apply
+    act_apply(battle, owner, tgt,
+                {"type": "apply", "key": "freeze", "turns": turns, "mode": "skip", "on": "target"}, logs)
 
 
 def _slow(battle, owner, tgt, turns, pct, logs):
     """减速：敌 spd×（1-pct）buff（battle2 buff 快照折算）。"""
-    from game.battle2.effects import act_buff
-    act_buff(battle, owner, tgt,
-             {"type": "buff", "key": "spd_down", "stat": "spd", "op": "mul",
+    from game.battle2.effects import act_apply
+    act_apply(battle, owner, tgt,
+             {"type": "apply", "key": "spd_down", "stat": "spd", "op": "mul",
               "mult": 1.0 - float(pct), "turns": turns, "on": "target"}, logs)
 
 
@@ -687,9 +687,9 @@ def we_control(battle, caster, target, params, logs):
         if ratio >= float(params.get("threshold") or 0.30):
             return
         st[used_key] = True
-        from game.battle2.effects import act_control
-        act_control(battle, owner, tgt,
-                    {"type": "control", "tag": "stun", "turns": 1, "mode": "skip"}, logs)
+        from game.battle2.effects import act_apply
+        act_apply(battle, owner, tgt,
+                    {"type": "apply", "key": "stun", "turns": 1, "mode": "skip", "on": "target"}, logs)
         logs.append(_CONTROL_LOG.get(key, "⏳ 时光凝滞！"))
         return
     return  # 未知 mode 静默
@@ -1056,9 +1056,9 @@ def we_affix_defdown(battle, caster, target, params, logs):
         return
     if not _roll(params.get("chance")):
         return
-    from game.battle2.effects import act_buff
-    act_buff(battle, caster, tgt,
-             {"type": "buff", "key": "def_down", "stat": "def", "op": "mul",
+    from game.battle2.effects import act_apply
+    act_apply(battle, caster, tgt,
+             {"type": "apply", "key": "def_down", "stat": "def", "op": "mul",
               "mult": 1.0 - float(params.get("pct") or 0.15),
               "turns": int(params.get("turns") or 2), "on": "target"}, logs)
     logs.append(_AFFIX_HIT_LOG.get(params.get("key"), "🛡️ 目标防御下降！").format(
@@ -1091,9 +1091,9 @@ def we_affix_element(battle, caster, target, params, logs):
     logs.append(f"{_tag} {params.get('name') or '元素附加'}！造成 {dmg} 点{ {'fire':'火','ice':'冰','thunder':'雷'}.get(element, element) }属性伤害！")
     # ice 附带减速（spd_down mult = 减幅语义：slow 0.10 → spd×0.9）
     if element == "ice" and params.get("slow") is not None:
-        from game.battle2.effects import act_buff
-        act_buff(battle, caster, tgt,
-                 {"type": "buff", "key": "spd_down", "stat": "spd", "op": "mul",
+        from game.battle2.effects import act_apply
+        act_apply(battle, caster, tgt,
+                 {"type": "apply", "key": "spd_down", "stat": "spd", "op": "mul",
                   "mult": float(params.get("slow") or 0.10),
                   "turns": int(params.get("slow_turns") or 2), "on": "target"}, logs)
     # thunder 概率小爆

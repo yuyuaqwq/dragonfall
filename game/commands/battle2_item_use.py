@@ -69,7 +69,7 @@ def _find_effect_action_name(table: dict, container_key: str) -> Optional[str]:
         if not isinstance(acts, list):
             continue
         for a in acts:
-            if isinstance(a, dict) and a.get("action") == "buff" \
+            if isinstance(a, dict) and a.get("action") in ("apply", "buff") \
                     and a.get("key") == container_key:
                 return name
     return None

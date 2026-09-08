@@ -390,7 +390,7 @@ def _translate_buff_start(key: str, wd: dict) -> dict:
     """proc_buff battle_start 起手 buff：spd_pct → buff 动词（spd mul 1+pct，turns 数据给）。"""
     if wd.get("spd_pct") is None:
         return {}
-    eff = {"type": "buff", "key": wd.get("buff_key") or key,
+    eff = {"type": "apply", "key": wd.get("buff_key") or key,
            "stat": "spd", "op": "mul", "mult": 1.0 + float(wd["spd_pct"]),
            "turns": int(wd.get("turns") or 3), "on": "caster"}
     return {"battle_start": [eff]}
@@ -420,7 +420,7 @@ def _translate_regen_turn_start(key: str, wd: dict) -> dict:
 def _translate_stack_hit(key: str, wd: dict) -> dict:
     """proc_stack 纯叠层型（wind_mark）：每次命中 +1 层（cap/stat_scale 由 STATE_EFFECTS
     声明，面板折算读 state；命中 = 普攻+技能双事件展开）。"""
-    eff = {"type": "state_add", "key": key, "amount": 1, "on": "caster"}
+    eff = {"type": "apply", "op": "add", "key": key, "amount": 1, "on": "caster"}
     return {"hit": [eff]}
 
 
@@ -461,7 +461,7 @@ def _translate_buff_hit_self(key: str, wd: dict, old_ev: str) -> dict:
     mult = float(wd.get("spd_pct") or 0)
     if mult <= 0:
         return {}
-    eff = {"type": "buff", "key": wd.get("buff_key") or key, "stat": stat, "op": op,
+    eff = {"type": "apply", "key": wd.get("buff_key") or key, "stat": stat, "op": op,
            "mult": 1.0 + mult, "turns": int(wd.get("turns") or 3), "on": "caster"}
     return {old_ev: [eff]}
 
@@ -474,7 +474,7 @@ def _translate_next_atk_mark(key: str, wd: dict) -> dict:
     pct = float(wd.get("atk_pct") or 0)
     if pct <= 0:
         return {}
-    eff = {"type": "buff", "key": wd.get("mark_key") or ("we_" + key),
+    eff = {"type": "apply", "key": wd.get("mark_key") or ("we_" + key),
            "turns": 999, "hit": {"dmg_mult": 1.0 + pct}, "on": "caster"}
     return {old_ev: [eff]}
 
@@ -497,7 +497,7 @@ def _translate_trinity(key: str, wd: dict) -> dict:
     if tp > 0:
         hit["bonus_atk_pct"] = tp
         hit["bonus_tag"] = wd.get("bonus_tag") or "⚡"
-    eff = {"type": "buff", "key": wd.get("mark_key") or ("we_" + key),
+    eff = {"type": "apply", "key": wd.get("mark_key") or ("we_" + key),
            "turns": 999, "hit": hit, "on": "caster"}
     return {"skill_hit": [eff]}
 
@@ -508,7 +508,7 @@ def _translate_retort_mark(key: str, wd: dict) -> dict:
     pct = float(wd.get("next_atk_pct") or 0)
     if pct <= 0:
         return {}
-    eff = {"type": "buff", "key": wd.get("mark_key") or "we_retort",
+    eff = {"type": "apply", "key": wd.get("mark_key") or "we_retort",
            "turns": 999, "hit": {"dmg_mult": 1.0 + pct}, "on": "caster"}
     return {"taken": [eff]}
 
@@ -592,9 +592,9 @@ def _translate_dusk_blade(key: str, wd: dict) -> dict:
     effs = []
     spd_pct = float(wd.get("next_atk_pct") or 0)
     if spd_pct > 0:
-        effs.append({"type": "buff", "key": wd.get("mark_key") or "we_dusk",
+        effs.append({"type": "apply", "key": wd.get("mark_key") or "we_dusk",
                      "turns": 999, "hit": {"dmg_mult": 1.0 + spd_pct}, "on": "caster"})
-    effs.append({"type": "buff", "key": wd.get("buff_key") or "stealth",
+    effs.append({"type": "apply", "key": wd.get("buff_key") or "stealth",
                  "turns": 999, "hit": {"guaranteed_crit": True}, "on": "caster"})
     return {"kill": effs}
 
@@ -612,7 +612,7 @@ def _star_slayer(wd: dict) -> dict:
                          "mult": float(wd.get("dmg_mult") or 1.15), "tag": "⭐弑星"}]}
     cd = float(wd.get("crit_dmg") or 0)
     if cd > 0:
-        out["battle_start"] = [{"type": "buff", "key": "we_star_slayer_cd",
+        out["battle_start"] = [{"type": "apply", "key": "we_star_slayer_cd",
                                 "stat": "crit_dmg", "op": "add", "mult": cd,
                                 "turns": 999, "on": "caster"}]
     return out
@@ -621,7 +621,7 @@ def _star_slayer(wd: dict) -> dict:
 def _arcane_firmament(wd: dict) -> dict:
     """奥术苍穹：魔攻 +15% 面板（battle_start buff）+ 魔法技 ×1.1（dmg_calc kind_magic）。"""
     return {
-        "battle_start": [{"type": "buff", "key": "we_arcane_matk", "stat": "matk",
+        "battle_start": [{"type": "apply", "key": "we_arcane_matk", "stat": "matk",
                           "op": "mul", "mult": 1.0 + float(wd.get("matk_pct") or 0.15),
                           "turns": 999, "on": "caster"}],
         "dmg_calc": [{"type": "we_dmg_mult_cond", "cond": "kind_magic",
@@ -725,7 +725,7 @@ _START_TRANSLATORS = {
                                                     ("mp", "log")),
     # proc_dr_revive undying_will（battle_start 挂濒死保护层——landing 致死保底）
     "undying_will": lambda k, wd: {
-        "battle_start": [{"type": "state_add", "key": "death_guard", "amount": 1,
+        "battle_start": [{"type": "apply", "op": "add", "key": "death_guard", "amount": 1,
                           "on": "caster", "log": wd.get("log")}],
     },
     # proc_passive_mult 条件乘区（dmg_calc/taken_calc 通道）

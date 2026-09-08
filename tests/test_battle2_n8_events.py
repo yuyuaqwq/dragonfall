@@ -176,8 +176,8 @@ def test_skill_hit_vs_attack_hit():
     p = mk_a("p1", "player")
     m = mk_a("e1", "enemy", hp=9999)
     p["triggers"] = {
-        "attack_hit": [{"type": "state_add", "key": "n8_atk", "amount": 1, "on": "caster"}],
-        "skill_hit":  [{"type": "state_add", "key": "n8_sk", "amount": 1, "on": "caster"}],
+        "attack_hit": [{"type": "apply", "op": "add", "key": "n8_atk", "amount": 1, "on": "caster"}],
+        "skill_hit":  [{"type": "apply", "op": "add", "key": "n8_sk", "amount": 1, "on": "caster"}],
     }
     b = new_battle(p, m)
     do_attack(b, p, m)
@@ -187,8 +187,8 @@ def test_skill_hit_vs_attack_hit():
     p2 = mk_a("p2", "player")
     m2 = mk_a("e2", "enemy", hp=9999)
     p2["triggers"] = {
-        "attack_hit": [{"type": "state_add", "key": "n8_atk", "amount": 1, "on": "caster"}],
-        "skill_hit":  [{"type": "state_add", "key": "n8_sk", "amount": 1, "on": "caster"}],
+        "attack_hit": [{"type": "apply", "op": "add", "key": "n8_atk", "amount": 1, "on": "caster"}],
+        "skill_hit":  [{"type": "apply", "op": "add", "key": "n8_sk", "amount": 1, "on": "caster"}],
     }
     b2 = new_battle(p2, m2)
     do_skill(b2, p2, m2, TEST_SKILL)
@@ -201,8 +201,8 @@ def test_crit_event():
     p = mk_a("p1", "player", crit=1.0)  # 必暴
     m = mk_a("e1", "enemy", hp=9999)
     p["triggers"] = {
-        "attack_hit": [{"type": "state_add", "key": "n8_hit", "amount": 1, "on": "caster"}],
-        "crit":       [{"type": "state_add", "key": "n8_crit", "amount": 1, "on": "caster"}],
+        "attack_hit": [{"type": "apply", "op": "add", "key": "n8_hit", "amount": 1, "on": "caster"}],
+        "crit":       [{"type": "apply", "op": "add", "key": "n8_crit", "amount": 1, "on": "caster"}],
     }
     b = new_battle(p, m)
     do_attack(b, p, m)
@@ -228,7 +228,7 @@ def test_on_heal():
     print("【N8.6 on_heal：治疗生效后】")
     tgt = mk_a("t1", "player", hp=500)
     tgt["hp"] = 400
-    tgt["triggers"] = {"on_heal": [{"type": "state_add", "key": "n8_heal", "amount": 1, "on": "target"}]}
+    tgt["triggers"] = {"on_heal": [{"type": "apply", "op": "add", "key": "n8_heal", "amount": 1, "on": "target"}]}
     b = new_battle(tgt, mk_a("e1", "enemy"))
     logs = []
     real = L.heal_actor(b, tgt, 30, logs)
@@ -246,9 +246,9 @@ def test_on_kill_and_on_death():
     print("【N8.7 on_kill（击杀者）/ on_death（死者自身效果）】")
     p = mk_a("p1", "player")
     m = mk_a("e1", "enemy", hp=50)
-    p["triggers"] = {"on_kill": [{"type": "state_add", "key": "n8_kill", "amount": 1, "on": "caster"}]}
+    p["triggers"] = {"on_kill": [{"type": "apply", "op": "add", "key": "n8_kill", "amount": 1, "on": "caster"}]}
     # on_death 主体=死者（fire 允许 dead subject 执行自身声明——死亡遗言类）
-    m["triggers"] = {"on_death": [{"type": "state_add", "key": "n8_dead", "amount": 1, "on": "caster"}]}
+    m["triggers"] = {"on_death": [{"type": "apply", "op": "add", "key": "n8_dead", "amount": 1, "on": "caster"}]}
     b = new_battle(p, m)
     logs = []
     L.deal_damage(b, p, m, 999, logs)
@@ -263,7 +263,7 @@ def test_dot_tick():
     print("【N8.8 dot_tick：DOT 每跳】")
     e = mk_a("e1", "enemy", hp=1000)
     e["effects"]["burn"] = {"stacks": 2}
-    e["triggers"] = {"dot_tick": [{"type": "state_add", "key": "n8_dot", "amount": 1, "on": "target"}]}
+    e["triggers"] = {"dot_tick": [{"type": "apply", "op": "add", "key": "n8_dot", "amount": 1, "on": "target"}]}
     b = new_battle(mk_a("p1", "player"), e)
     b._now = 0.0
     _ste(b, [])   # 登记 dot_next=1.0
@@ -297,13 +297,13 @@ def test_threshold():
     a["triggers"] = {"threshold": [{"type": "heal", "value": 5, "on": "caster"}]}
     b = new_battle(a, mk_a("e1", "enemy"))
     logs = []
-    FX.apply_effects(b, a, a, [{"type": "state_add", "key": "rage", "amount": 1}], logs)
+    FX.apply_effects(b, a, a, [{"type": "apply", "op": "add", "key": "rage", "amount": 1}], logs)
     check("层数加上", stk(a, "rage", 0) == 1)
     check("threshold 触发回血 5", a["hp"] == 405, f"hp={a['hp']}")
     # state_set 置值也广播
     a["hp"] = 400
     logs2 = []
-    FX.apply_effects(b, a, a, [{"type": "state_set", "key": "rage", "amount": 2}], logs2)
+    FX.apply_effects(b, a, a, [{"type": "apply", "op": "set", "key": "rage", "amount": 2}], logs2)
     check("state_set 后 threshold 也触发", a["hp"] == 405, f"hp={a['hp']}")
 
 
