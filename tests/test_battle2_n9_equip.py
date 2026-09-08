@@ -855,6 +855,75 @@ def test_affix_basic():
           f"hp={p4['hp']}")
 
 
+def test_affix_onhit():
+    print("【N9.7b affix on_hit 族：bleed/armor_break/element_fire/element_ice/pierce】")
+    # bleed：命中 100 → 20% 概率挂 affix_bleed 层（直调扩展动作验证语义）
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=99999, atk=1)
+    from game.services.battle2_we_procs import we_affix_dot, we_affix_defdown, \
+        we_affix_element, we_affix_bonus
+    # 装配端到端：带 bleed + armor_break + element_fire + element_ice + pierce 装备
+    p.setdefault("equipment", {})["weapon"] = {
+        "slot": "weapon", "quality": "orange",
+        "affixes": ["bleed", "armor_break", "element_fire", "element_ice", "pierce"],
+        "stats": {"atk": 40},
+    }
+    EP.apply_to_actor(p)
+    tr = p.get("triggers") or {}
+    check("affix on_hit 全部挂 attack_hit", all(t in tr for t in
+          ("attack_hit", "skill_hit")), f"keys={list(tr.keys())}")
+    check("bleed 挂 we_affix_dot", any(e.get("type") == "we_affix_dot"
+          for e in tr.get("attack_hit", [])), f"{tr}")
+    b = new_battle(p, m)
+    # 直调（chance 用参数覆盖为恒触发验证语义）
+    b._fire_ctx = {"target": m, "dmg": 100}
+    we_affix_dot(b, p, m, {"key": "bleed", "state_key": "affix_bleed",
+                           "chance": 1.0, "stacks": 3}, [])
+    check("bleed 挂 affix_bleed 3 层", int((m.get("state") or {}).get("affix_bleed", 0)) == 3,
+          f"state={m.get('state')}")
+    # armor_break：def 50 → ×0.85
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    m2["def"] = 50
+    p2 = mk_a("p2", "player")
+    b2 = new_battle(p2, m2)
+    b2._fire_ctx = {"target": m2, "dmg": 100}
+    we_affix_defdown(b2, p2, m2, {"key": "armor_break", "chance": 1.0,
+                                  "pct": 0.15, "turns": 2}, [])
+    from game.battle2 import stats as S
+    def2 = S.actor_stats(b2, m2).get("def", 0)
+    check("armor_break def -15%（42）", def2 == 42, f"def={def2}")
+    # element_fire：dmg 100 ×5% = 5 附加
+    m3 = mk_a("e3", "enemy", hp=99999, atk=1)
+    p3 = mk_a("p3", "player")
+    b3 = new_battle(p3, m3)
+    hp0 = m3["hp"]
+    b3._fire_ctx = {"target": m3, "dmg": 100}
+    we_affix_element(b3, p3, m3, {"key": "element_fire", "element": "fire",
+                                  "pct": 0.05, "name": "火焰附加"}, [])
+    check("fire 附加 5 点", hp0 - m3["hp"] == 5, f"hp={m3['hp']}")
+    # element_ice：附加 5 + 减速 buff
+    m4 = mk_a("e4", "enemy", hp=99999, atk=1, spd=50)
+    p4 = mk_a("p4", "player")
+    b4 = new_battle(p4, m4)
+    b4._fire_ctx = {"target": m4, "dmg": 100}
+    we_affix_element(b4, p4, m4, {"key": "element_ice", "element": "ice",
+                                  "pct": 0.05, "slow": 0.10, "slow_turns": 2,
+                                  "name": "冰霜附加"}, [])
+    check("ice 附加伤害", abs(5 - (99999 - m4["hp"])) <= 1, f"hp={m4['hp']}")
+    spd_ice = S.actor_spd(b4, m4)
+    check("ice 减速 spd×0.9（45）", spd_ice == 45, f"spd={spd_ice}")
+    # pierce：atk 40 ×60% = 24 真伤
+    m5 = mk_a("e5", "enemy", hp=99999, atk=1)
+    p5 = mk_a("p5", "player", atk=40)
+    b5 = new_battle(p5, m5)
+    hp5 = m5["hp"]
+    b5._fire_ctx = {"target": m5, "dmg": 100}
+    we_affix_bonus(b5, p5, m5, {"key": "pierce", "mode": "atk_true", "chance": 1.0,
+                                "atk_pct": 0.60, "tag": "🏹", "name": "贯穿"}, [])
+    d5 = hp5 - m5["hp"]
+    check("pierce 真伤 ~24（±15%）", 20 <= d5 <= 28, f"dmg={d5}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -881,6 +950,7 @@ def main():
     test_death_dance()
     test_act_done_randuin()
     test_affix_basic()
+    test_affix_onhit()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

@@ -138,6 +138,14 @@ STATE_EFFECTS: dict = {
         "cap": 3,
         "stat_scale": {"spd": -0.08},              # 冰脉寒流：每层敌速 -8%
     },
+    # ============ affix 词条 DOT（N9.7b：命中流血词条） ============
+    # 旧语义（affix bleed）：20% 使目标流血，每刻 5% 生命，3 刻（叠 3 层 cap）
+    # → state 层 dot 声明（on=target，pct_max_hp 每层，turns 限时 3 跳清层）
+    "affix_bleed": {
+        "cap": 3,
+        "on": "target",
+        "dot": {"pct_max_hp": 0.05, "pct_boss": 0.02, "turns": 3},
+    },
 }
 
 # ============================================================

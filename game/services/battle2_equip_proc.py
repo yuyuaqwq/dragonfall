@@ -213,6 +213,80 @@ def _af_meditate(aid, actor, eff):
                             "on": "caster"}]}
 
 
+# ============ N9.7b on_hit 族（带 chance/附加伤害 → 扩展动作层） ============
+
+@_register_affix("bleed")
+def _af_bleed(aid, actor, eff):
+    """流血：20% 使目标流血（每刻 dot_pct 生命，3 刻）。"""
+    return {"hit": [{"type": "we_affix_dot", "key": aid, "aid": aid,
+                     "state_key": "affix_bleed", "chance": _affix_chance_of(aid),
+                     "stacks": eff.get("stacks") or 3}]}
+
+
+@_register_affix("armor_break")
+def _af_armor_break(aid, actor, eff):
+    """破甲：25% 降低目标防御 15%（2 刻）。"""
+    return {"hit": [{"type": "we_affix_defdown", "key": aid, "aid": aid,
+                     "chance": _affix_chance_of(aid),
+                     "pct": eff.get("pct") or 0.15,
+                     "turns": eff.get("turns") or 2}]}
+
+
+@_register_affix("element_fire")
+def _af_element_fire(aid, actor, eff):
+    """元素附加·火：5% 属性伤害（恒触发）。"""
+    return {"hit": [{"type": "we_affix_element", "key": aid, "aid": aid,
+                     "element": eff.get("element") or "fire",
+                     "pct": eff.get("pct") or 0.05, "name": "火焰附加"}]}
+
+
+@_register_affix("element_ice")
+def _af_element_ice(aid, actor, eff):
+    """元素附加·冰：5% 属性伤害 + 减速。"""
+    return {"hit": [{"type": "we_affix_element", "key": aid, "aid": aid,
+                     "element": eff.get("element") or "ice",
+                     "pct": eff.get("pct") or 0.05, "name": "冰霜附加",
+                     "slow": eff.get("slow") or 0.10,
+                     "slow_turns": eff.get("slow_turns") or 2}]}
+
+
+@_register_affix("element_thunder")
+def _af_element_thunder(aid, actor, eff):
+    """元素附加·雷：5% 属性伤害 + chance 20% 小爆。"""
+    return {"hit": [{"type": "we_affix_element", "key": aid, "aid": aid,
+                     "element": eff.get("element") or "thunder",
+                     "pct": eff.get("pct") or 0.05, "name": "雷光附加",
+                     "chance": _affix_chance_of(aid),
+                     "thunder_bonus": eff.get("thunder_bonus") or 0.20}]}
+
+
+@_register_affix("combo")
+def _af_combo(aid, actor, eff):
+    """连击：15% 追加一次 50% 伤害（本击 dmg × extra_atk）。"""
+    return {"hit": [{"type": "we_affix_bonus", "key": aid, "aid": aid,
+                     "mode": "dmg_pct", "chance": _affix_chance_of(aid),
+                     "pct": eff.get("extra_atk") or 0.50,
+                     "tag": "⚡", "name": "连击"}]}
+
+
+@_register_affix("charge")
+def _af_charge(aid, actor, eff):
+    """蓄力：10% 追加 50% 伤害（本击 dmg × dmg_pct）。"""
+    return {"hit": [{"type": "we_affix_bonus", "key": aid, "aid": aid,
+                     "mode": "dmg_pct", "chance": _affix_chance_of(aid),
+                     "pct": eff.get("dmg_pct") or 0.50,
+                     "tag": "💪", "name": "蓄力爆发"}]}
+
+
+@_register_affix("pierce")
+def _af_pierce(aid, actor, eff):
+    """贯穿：20% 无视防御追加伤害（玩家 atk × atk_pct 真伤）。"""
+    return {"hit": [{"type": "we_affix_bonus", "key": aid, "aid": aid,
+                     "mode": "atk_true", "chance": _affix_chance_of(aid),
+                     "atk_pct": eff.get("atk_pct") or 0.60,
+                     "tag": "🏹", "name": "贯穿"}]}
+
+
 def affix_triggers_for_key(aid: str, actor: dict) -> dict:
     """单个 affix → {old_event: [效果 dict]}（未支持 key → {}）。"""
     fn = _AFFIX_TRANSLATORS.get(aid)

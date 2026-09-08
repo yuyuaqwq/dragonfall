@@ -960,6 +960,127 @@ def we_act_done_slow(battle, caster, target, params, logs):
 
 
 # ============================================================
+# N9.7b affix 词条 on_hit 族扩展动作（bleed/armor_break/element/pierce/charge）
+# ============================================================
+# 带 chance 的命中词条在扩展动作层 roll（纯动词无 chance 概念）；读 _fire_ctx.dmg
+# 做"本击百分比"类附加。affix 词条 = 通用伤害词条（非职业专属），装配层按 AFFIXES
+# 表翻译后挂 hit（展开 attack_hit+skill_hit）。
+
+_AFFIX_HIT_LOG = {
+    "bleed": "🩸 流血！{tgt} 伤口裂开，将持续失血！",
+    "armor_break": "🛡️ 破甲！{tgt} 防御下降 {pct}%！",
+}
+
+
+@register_action("we_affix_dot")
+def we_affix_dot(battle, caster, target, params, logs):
+    """affix 命中流血（bleed）：chance → 目标挂 affix_bleed state 层（每刻 pct 生命，
+    限时 turns 跳，cap 由 STATE_EFFECTS 声明）。"""
+    tgt = _hit_target(battle, target)
+    if not tgt:
+        return
+    if not _roll(params.get("chance")):
+        return
+    sk = params.get("state_key") or params.get("dot_key")
+    if not sk:
+        return
+    from game.battle2.state_effects import state_def
+    cap = int((state_def(sk) or {}).get("cap") or 3)
+    n = state_add(tgt, sk, int(params.get("stacks") or 1), cap=cap)
+    logs.append(_AFFIX_HIT_LOG.get(params.get("key"), "🩸 目标流血了！").format(
+        tgt=tgt.get("name", "目标")))
+    return n
+
+
+@register_action("we_affix_defdown")
+def we_affix_defdown(battle, caster, target, params, logs):
+    """affix 破甲（armor_break）：chance → 目标 def ×（1-pct）buff 持续刻。"""
+    tgt = _hit_target(battle, target)
+    if not tgt:
+        return
+    if not _roll(params.get("chance")):
+        return
+    from game.battle2.effects import act_buff
+    act_buff(battle, caster, tgt,
+             {"type": "buff", "key": "def_down", "stat": "def", "op": "mul",
+              "mult": 1.0 - float(params.get("pct") or 0.15),
+              "turns": int(params.get("turns") or 2), "on": "target"}, logs)
+    logs.append(_AFFIX_HIT_LOG.get(params.get("key"), "🛡️ 目标防御下降！").format(
+        tgt=tgt.get("name", "目标"),
+        pct=int(float(params.get("pct") or 0.15) * 100)))
+
+
+@register_action("we_affix_element")
+def we_affix_element(battle, caster, target, params, logs):
+    """affix 元素附加（element_fire/ice/thunder）：本击 dmg × pct 附加元素伤害。
+    - fire：恒触发
+    - ice：恒触发 + 减速（敌速减半 2 刻）
+    - thunder：恒触发 + chance 追加 thunder_bonus 小爆
+    附加伤害走 landing.deal_damage（等级压制/护盾统一收口）。
+    """
+    tgt = _hit_target(battle, target)
+    if not tgt:
+        return
+    ctx = getattr(battle, "_fire_ctx", None) or {}
+    base = float(ctx.get("dmg", 0) or 0)
+    if base <= 0:
+        return
+    key = params.get("key") or ""
+    element = params.get("element") or "fire"
+    pct = float(params.get("pct") or 0.05)
+    dmg = max(1, int(base * pct))
+    from game.battle2.landing import deal_damage
+    deal_damage(battle, caster, tgt, dmg, logs)
+    _tag = {"fire": "🔥", "ice": "❄️", "thunder": "⚡"}.get(element, "✨")
+    logs.append(f"{_tag} {params.get('name') or '元素附加'}！造成 {dmg} 点{ {'fire':'火','ice':'冰','thunder':'雷'}.get(element, element) }属性伤害！")
+    # ice 附带减速（spd_down mult = 减幅语义：slow 0.10 → spd×0.9）
+    if element == "ice" and params.get("slow") is not None:
+        from game.battle2.effects import act_buff
+        act_buff(battle, caster, tgt,
+                 {"type": "buff", "key": "spd_down", "stat": "spd", "op": "mul",
+                  "mult": float(params.get("slow") or 0.10),
+                  "turns": int(params.get("slow_turns") or 2), "on": "target"}, logs)
+    # thunder 概率小爆
+    if element == "thunder" and _roll(params.get("chance")):
+        sd = max(1, int(base * float(params.get("thunder_bonus") or 0.20)))
+        deal_damage(battle, caster, tgt, sd, logs)
+        logs.append(f"⚡⚡ 感电连跳！追加 {sd} 点雷系伤害！")
+
+
+@register_action("we_affix_bonus")
+def we_affix_bonus(battle, caster, target, params, logs):
+    """affix 追加伤害（combo/charge/pierce）：chance → 追加 dmg×pct（本击）或
+    atk×pct（无视防御，pierce 语义）。mode 分派：
+    - dmg_pct（combo/charge）：本击 dmg × pct 追加
+    - atk_true（pierce）：玩家 atk × pct 无视防御（真伤）
+    """
+    tgt = _hit_target(battle, target)
+    if not tgt:
+        return
+    if not _roll(params.get("chance")):
+        return
+    mode = params.get("mode") or "dmg_pct"
+    dmg = 0
+    if mode == "atk_true":
+        from game.battle2.landing import deal_damage as _dd2
+        from game.battle2.stats import actor_stats as _as2
+        st = _as2(battle, caster) or {}
+        dmg = max(1, int(float(st.get("atk", 0) or 0) * float(params.get("atk_pct") or 0.60)))
+        _dd2(battle, caster, tgt, dmg, logs)
+    else:
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        base = float(ctx.get("dmg", 0) or 0)
+        if base <= 0:
+            return
+        from game.battle2.landing import deal_damage as _dd3
+        dmg = max(1, int(base * float(params.get("pct") or 0.50)))
+        _dd3(battle, caster, tgt, dmg, logs)
+    tag = params.get("tag") or "⚡"
+    name = params.get("name") or "追加"
+    logs.append(f"{tag} {name}！对【{tgt.get('name', '敌人')}】追加 {dmg} 点伤害！")
+
+
+# ============================================================
 # 注册入口（装配层 install_ext_actions 调，幂等）
 # ============================================================
 
