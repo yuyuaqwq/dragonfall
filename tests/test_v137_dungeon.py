@@ -65,8 +65,29 @@ async def enter_combat(m, gid, qid):
             return out
     return out
 
+def _authoritative_st(m, gid, qid, battle):
+    """副本大陆权威 st（router 4.1a 从 C.get_instance_st 恢复行动）；无则回落 db 行。"""
+    st = battle["state"]
+    _wid = st.get("world_id") or ""
+    if str(_wid).startswith("inst:"):
+        try:
+            _live = C.get_instance_st(_wid)
+            if _live is not None:
+                return _live
+        except Exception:
+            pass
+    return st
+
+
 def _set_enemies_hp1(st):
-    """把敌方阵列血量压 1、攻击压 1（防随机反击打死玩家），专注测流程。"""
+    """把敌方阵列血量压 1、攻击压 1（防随机反击打死玩家），专注测流程。
+    N5b4-6：battle2 权威在 st[\"battle\"].sides actors（sync_views 每刻回写视图）——
+    敌我 actors + 视图都压。"""
+    _bsides = (st.get("battle") or {}).get("sides") or {}
+    for _a in (_bsides.get("enemy") or []):
+        _a["hp"] = 1
+        _a["atk"] = 1
+        _a["matk"] = 1
     for _eu in (st.get("enemies") or []):
         _eu["hp"] = 1
         _eu["atk"] = 1
@@ -79,27 +100,30 @@ def _set_enemies_hp1(st):
 async def attack_loop(m, gid, qid, max_rounds=12):
     """循环攻击直到战斗结束/通关。返回最后输出。"""
     out = ""
+    from game.commands import instance_battle as _IB
     for _ in range(max_rounds):
         battle = db.get_battle(gid, qid)
         if not battle:
             break
-        st = battle["state"]
+        st = _authoritative_st(m, gid, qid, battle)
         if st.get("over") or st.get("cleared"):
             break
         _set_enemies_hp1(st)
         st["turn_time"] = int(time.time())
+        # 大陆权威 st 变更要落回 db 行（副本队长名下 battle = 权威镜像）
+        try:
+            _wid = st.get("world_id") or ""
+            if str(_wid).startswith("inst:"):
+                db.save_battle(gid, qid, st)
+        except Exception:
+            pass
         db.save_battle(gid, qid, st)
-        # 当前行动者：ct 最小玩家（v121 CTB）
+        # 当前行动者：battle2 next_actor_key（ct 最小存活玩家）
         cur = st["members"][0]
         try:
-            # v152 副本绝对时刻：_instance_next_actor 返回 ("p", key) 才可取行动者；
-            # 副本内击杀/通关后 battle 可能已被清除（battle=None → 直接结束）。
-            nxt = m._instance_next_actor(st, gid)
-            if nxt and nxt[0] == "p" and nxt[1]:
-                cur = nxt[1]
-            elif nxt and nxt[0] == "e":
-                # 轮到敌方行动：副本命令层会在攻击指令内自动结算敌方段，跳过本次玩家行动
-                pass
+            nxt = _IB.next_actor_key(st)
+            if nxt:
+                cur = nxt
         except Exception:
             pass
         out = await cmd(m, "attack", gid, cur, "攻击")

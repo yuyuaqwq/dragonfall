@@ -141,8 +141,19 @@ class InstanceRouterCmds(CommandBase):
         st = self._router_authoritative_st(st)
 
         # 4.1b 懒构建 battle state（遭遇/切怪点若未 build_battle——R3 前过渡态）
+        # R4 修复：battle sides 敌 uid 与视图 enemies uid 不一致（切房/新怪入场只更新
+        # 视图、残留上一场 sides 打旧尸体死循环）→ 强制重建
         _b = st.get("battle") or {}
-        if not _b.get("sides") or not (st.get("enemies") or []):
+        _need_build = False
+        if not _b.get("sides"):
+            _need_build = True
+        elif st.get("enemies"):
+            _b_uids = {str(u.get("uid") or "") for u in
+                       ((_b.get("sides") or {}).get("enemy") or [])}
+            _v_uids = {str(u.get("uid") or "") for u in st.get("enemies")}
+            if _b_uids != _v_uids:
+                _need_build = True
+        if _need_build:
             # 无敌人视图 → 肃清引导（不 build）
             if not (st.get("enemies") or []):
                 yield self._router_no_enemy_hint(event, group_id, st)

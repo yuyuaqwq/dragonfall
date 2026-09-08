@@ -392,22 +392,52 @@ async def check_fail_destroy(m):
     check("遇怪进入战斗（前置）", b is not None and len(b["state"].get("enemies") or []) > 0, out[:120])
     st = b["state"]
     # 压敌方 1（防反击打死玩家），玩家快照与 DB 血量都压 0 —— 模拟全队空血
-    for eu in (st.get("enemies") or []):
-        eu["hp"] = 1
-        eu["atk"] = 1
-        eu["matk"] = 1
-        eu["ct"] = -99999.0
-    for mk, snap in (st.get("players") or {}).items():
-        snap["hp"] = 0
-    st["turn_time"] = int(time.time())
-    db.save_battle("g1", "z1", st)
+    # N5b4-6/R4：副本行动从「大陆权威 st」（C.get_instance_st）恢复（router 4.1a），
+    # 只改 db battle 行副本会被权威覆盖（"死不了"）。权威 st 与 db 行同源同步压。
+    _wid = st.get("world_id") or ""
+    _live = None
+    if str(_wid).startswith("inst:"):
+        try:
+            _live = C.get_instance_st(_wid)
+        except Exception:
+            _live = None
+    _targets = []
+    if _live is not None:
+        _targets.append(_live)
+    _targets.append(st)
+    for _t in _targets:
+        _bsides = (_t.get("battle") or {}).get("sides") or {}
+        for eu in (_bsides.get("enemy") or _t.get("enemies") or []):
+            eu["hp"] = 1
+            eu["atk"] = 1
+            eu["matk"] = 1
+            eu["ct"] = -99999.0
+        for eu in (_t.get("enemies") or []):
+            eu["hp"] = 1
+            eu["atk"] = 1
+            eu["matk"] = 1
+            eu["ct"] = -99999.0
+        for pa in (_bsides.get("player") or []):
+            pa["hp"] = 0
+            _q = str(pa.get("qq_id") or "")
+            _t.setdefault("alive", {})[_q] = False
+        for mk, snap in (_t.get("players") or {}).items():
+            snap["hp"] = 0
+            _t.setdefault("alive", {})[mk] = False
+        _t["turn_time"] = int(time.time())
+    if _live is not None:
+        db.save_battle("g1", "z1", _live)
+    else:
+        db.save_battle("g1", "z1", st)
     db.update_player("g1", "z1", hp=0)
-    db.save_battle("g1", "z1", st)
-    cur = st["members"][0]
+    if _live is not None:
+        db.save_battle("g1", "z1", _live)
+    cur = (_live or st)["members"][0]
     try:
-        nxt = m._instance_next_actor(st, "g1")
-        if nxt[0] == "p" and nxt[1]:
-            cur = nxt[1]
+        from game.commands import instance_battle as _IB
+        nxt = _IB.next_actor_key(_live or st)
+        if nxt:
+            cur = nxt
     except Exception:
         pass
     out = await cmd(m, "attack", "g1", cur, "攻击")
