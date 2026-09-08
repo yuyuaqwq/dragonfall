@@ -532,6 +532,35 @@ def test_control_ext():
     check("冻结敌行动被跳过", (m3["buffs"] or {}).get("freeze") is None, f"buffs={m3.get('buffs')}")
 
 
+def test_heal_amp_and_mana():
+    print("【N9.18 受疗增幅（被动）+ 施法首蓝】")
+    # vital_band：受疗 +15%
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=99999, atk=1)
+    equip(p, "vital_band", slot="necklace", we_data={"heal_pct": 0.15})
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    check("装配 heal_amp_pct 0.15", abs((p["state"] or {}).get("heal_amp_pct", 0) - 0.15) < 1e-9,
+          f"state={p.get('state')}")
+    from game.battle2.landing import heal_actor as _ha
+    p["hp"] = 500  # 缺 300
+    _ha(b, p, 100, [])
+    check("受疗 +15%（115）", p["hp"] == 615, f"hp={p['hp']}")
+    # novice_dawn_mana：施法首次回蓝 10
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    equip(p2, "novice_dawn_mana", slot="weapon", we_data={"mp": 10})
+    EP.apply_to_actor(p2)
+    tr2 = p2.get("triggers") or {}
+    check("首蓝装配 act_cast", "act_cast" in tr2, f"keys={list(tr2.keys())}")
+    b2 = new_battle(p2, m2)
+    p2["mp"] = 20
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))  # 普攻也走 do_skill → act_cast
+    check("首次施法回蓝", p2["mp"] == 30, f"mp={p2['mp']}")
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    check("整场仅一次", p2["mp"] == 30, f"mp={p2['mp']}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -551,6 +580,7 @@ def main():
     test_shield_cond_overflow_crit()
     test_extra_dmg()
     test_control_ext()
+    test_heal_amp_and_mana()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

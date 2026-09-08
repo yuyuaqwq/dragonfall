@@ -274,6 +274,9 @@ def _translate_dusk_blade(key: str, wd: dict) -> dict:
 
 
 # 第一批支持 key 清单（key → 翻译器）
+# proc_heal amp 被动常驻 4 key（不走 triggers——装配 state heal_amp_pct）
+_HEAL_AMP_KEYS = ("vital_band", "holy_radiance_mail", "echo_band", "novice_regen_heal")
+
 _START_TRANSLATORS = {
     # proc_shield battle_start 起手盾
     "starlight_bulwark": _translate_shield_start,
@@ -347,6 +350,9 @@ _START_TRANSLATORS = {
     "frost_crown": lambda k, wd: _translate_control(k, wd, "taken"),
     "holy_word_bind": lambda k, wd: _translate_control(k, wd, "heal"),
     "time_freeze": lambda k, wd: _translate_control(k, wd, "taken"),
+    # proc_aux novice_dawn_mana（施法首次回蓝——we_mana_once 扩展动作）
+    "novice_dawn_mana": lambda k, wd: _translate_we(k, wd, "we_mana_once", "skill_cast",
+                                                    ("mp", "log")),
 }
 
 
@@ -394,11 +400,26 @@ def weapon_triggers(actor: dict) -> dict:
 
 
 def apply_to_actor(actor: dict) -> None:
-    """把装备特效装配进 actor["triggers"]（幂等合并；命令层开战前调用）。"""
+    """把装备特效装配进 actor（幂等；命令层开战前调用）：
+    1. 事件型效果 → actor["triggers"]（triggers 可能引用 we_xxx → 先注册扩展动作）
+    2. 被动常驻型（proc_heal amp：受疗增幅）→ actor.state.heal_amp_pct（landing 折算）"""
     if not actor:
         return
-    install_ext_actions()  # 保证族扩展动作已注册（triggers 可能引用 we_xxx）
+    install_ext_actions()
+    # 1) 事件型
     merged = weapon_triggers(actor)
     tr = actor.setdefault("triggers", {})
     for ev, effs in merged.items():
         tr.setdefault(ev, []).extend(effs)
+    # 2) 被动常驻：heal amp（vital_band 等 proc_heal amp 4 key）
+    amp = 0.0
+    for key in equipped_weapon_keys(actor):
+        wd = _we_config(key, actor)
+        if (wd.get("family") == "proc_heal" and wd.get("heal_pct") is not None
+                and key in _HEAL_AMP_KEYS):
+            pct = float(wd.get("heal_pct") or 0)
+            if pct > 0:
+                amp = 1.0 - (1.0 - amp) * (1.0 - pct)  # 多件叠乘转加和
+    if amp > 0:
+        st = actor.setdefault("state", {})
+        st["heal_amp_pct"] = max(float(st.get("heal_amp_pct", 0) or 0), amp)

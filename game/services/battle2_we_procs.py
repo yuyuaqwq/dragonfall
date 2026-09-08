@@ -510,6 +510,26 @@ def we_extra_dmg(battle, caster, target, params, logs):
 
 
 # ============================================================
+# proc_aux novice_dawn_mana（施法首次回蓝）
+# ============================================================
+
+
+@register_action("we_mana_once")
+def we_mana_once(battle, caster, target, params, logs):
+    """晨星回蓝（novice_dawn_mana，skill_cast 事件）：整场首次施法回蓝。"""
+    owner = params.get("_owner") or caster
+    if owner is None:
+        return
+    st = owner.setdefault("ext", {}).setdefault("we_proc", {})
+    if st.get("dawn_mana_used"):
+        return
+    st["dawn_mana_used"] = True
+    mp = int(params.get("mp") or 10)
+    owner["mp"] = min(int(owner.get("max_mp", 999) or 999), int(owner.get("mp", 0) or 0) + mp)
+    logs.append(params.get("log") or f"🌅 晨星：回复 {mp} 点魔力！")
+
+
+# ============================================================
 # proc_control（9 key 敌方控制：7 可迁 + randuin/ice_vein 依赖 enemy_act 事件
 # ——battle2 无"敌人行动后"事件点位，留缺口记录（见 docs/N9 施工文档 §1.3））
 # ============================================================
