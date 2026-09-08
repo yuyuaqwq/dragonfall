@@ -49,9 +49,15 @@ turn_start    : pool>0 → pay = max(1, int(pool × 0.10))     # 表 pay_pct 权
 - 同输入快照：装 death_dance → 受击 n 次 → 每轮到点扣 pay → 断言 pool/hp 数值与旧公式一致。
 - 测试放 tests/test_battle2_n9_equip.py（N9 验收文件，加 key 在此补用例）。
 
+### 1.4 语义精度（实现前已核，2026-09-08）
+- 旧 `_post_hp_lethal` 每次承伤后都调（battle.py:11330，非仅致死）→ 池每次受击收；
+- 收池用 landing on_taken ctx 的 `dmg: real`（盾后实扣值）——与旧版进 _post_hp_lethal
+  的 dmg（护盾吸收后剩值）口径一致 ✓；
+- 池存 actor.eff（serialize 全量保留除 _skill_index 外所有键 ✓，恢复续战不丢池）。
+
 ---
 
-## 2. randuin_weary / ice_vein：enemy_act 事件与阵营语义（⚠️ 鱼鱼拍板点 1）
+## 2. randuin_weary / ice_vein：通用"行动完成"广播事件（鱼鱼 2026-09-08 拍板方向）
 
 ### 2.1 旧语义（weapon_effects.py:389 + _we_executors 134-143）
 ```
@@ -63,37 +69,49 @@ turn_start    : pool>0 → pay = max(1, int(pool × 0.10))     # 表 pay_pct 权
       ice_vein {mode: spd_down_stack, max_stack: 3, spd_down_pct: 0.08, stack_key: _ice_vein_stack}
 ```
 
-### 2.2 鱼鱼的问题：battle2 没有"敌人"概念？
-对。battle2 是 `sides = {阵营名: [actor]}` + `hostile_map`（默认除自己外全敌对），
-引擎不预设 player/enemy 名词，只有 **hostile_sides(battle, side)**（actors.py:241）推导敌对阵营。
+### 2.2 鱼鱼拍板方向（2026-09-08）：「事件可以做，但更通用——所有阵营行动都触发，
+自己 if 判断是不是敌对阵营就行」
 
-### 2.3 方案选项
-**方案 A（推荐）：引擎加通用事件 `enemy_act` + 事件总线"敌对方响应"规则**
-- fire 点：schedule.advance 中**自动 actor 行动完成后**（actor_auto 返回后，schedule.py:100-105 区间）
-- 事件语义：`fire("enemy_act", {actor: 行动的敌方actor, target: 行动目标}, logs)`
-- 总线改动：enemy_act 不按"主体自己声明"过滤，而是**广播给与行动者敌对阵营的存活 actor**
-  （hostile_sides(行动者.side) 里每个 actor 查 triggers["enemy_act"]）——即"我在监听敌方行动"。
-- 装配层：玩家 actor 挂 `triggers["enemy_act"] = [we_control spd_down_stack 声明]`，
-  执行器目标 = ctx.actor（行动的敌）→ 减速叠到**该敌 actor** 的 buffs。
-- 引擎零游戏知识：引擎不认识 spd_down / 兰顿，只做"敌对 actor 行动后广播给其敌对方"。
+### 2.3 设计定稿：通用广播事件 `act_done`（非专用 enemy_act）
+- **事件名**：`act_done`（行动完成；与现有 act_begin/act_cast 命名族一致，语义中立）。
+  旧装配映射 enemy_act → act_done 由装配层翻译，引擎不出现"敌人"名词。
+- **fire 点**：`Battle.act()` 尾部——action 分发执行完成后、胜负判定前插 1 处
+  （battle.py 285-287 区间：`_do_attack/_do_skill/_do_defend/_do_flee` 之后）。天然正确：
+  - 所有阵营（玩家/怪/随从/PVP 对手）**真实行动完成**都触发；
+  - 被控跳过（stun/freeze）早退 return 不触发 ✓（被控不算行动完成，旧 enemy_act 同）；
+  - 玩家自己行动也触发 → 玩家若挂了"行动完成"监听，扩展动作 if 敌对判断自然不误伤自己。
+- **ctx 形态**：`fire("act_done", {"acted": actor}, logs)` —— **不带 `actor` 键**！
+  原因：fire 主体过滤看 ctx.actor，带 actor 键 = 只有行动者自己能响应（旁观者被拦截，
+  正是 N9.6 修的事）。不带 actor 键 → subject=None → 走 battle_start 同款**全员广播**：
+  每个存活 actor 查自己 `triggers["act_done"]`。刚行动的 actor 放 `ctx["acted"]`
+  （暂存进 battle._fire_ctx，扩展动作读）。
+- **敌我判断在效果侧**：randuin/ice_vein 装配成扩展动作 we_spd_down_stack 挂
+  `triggers["act_done"]`；执行器内读 ctx["acted"] → `hostile_sides(battle, 自己.side)`
+  包含 acted.side → 才给 acted 叠减速层。判断代码在装配层（游戏侧），引擎零知识。
+- **事件全集**：EVENTS 加 "act_done"（21 → 22）。
 
-**方案 B：不新增事件点，randuin/ice_vein 归 Boss 类上层机制**
-- 引擎不加事件，装配层也不挂；这 2 key 记缺口，等上层（Boss 机制/职业模块）有
-  "行动后"监听能力再接。
-- 代价：玩家武器实装后这 2 个特效在 battle2 静默（旧档清空重开背景下可接受？）。
+### 2.4 通用性收益（为什么比专用 enemy_act 好）
+| 场景 | 专用 enemy_act | act_done 通用广播 |
+|---|---|---|
+| randuin/ice_vein 敌行动减速 | 支持 | 支持（效果侧 if hostile） |
+| 未来"友方行动后我加 buff" | 不支持（需再加事件） | 支持（if ally） |
+| 未来"任何人行动计数/层数" | 不支持 | 支持 |
+| 引擎改动 | 事件 + 特判广播规则 | 一个通用广播事件 + 插桩 1 处 |
+| 北极星"引擎零身份" | 事件名带敌意倾向 | 事件名中立 ✓ |
 
-**方案 C：改语义为 on_taken/受击叠层**
-- 放弃"敌人行动后"触发，改玩家受击时叠（语义漂移，违背行为零变化，不推荐）。
+### 2.5 语义差异说明（vs 旧版，需鱼鱼知晓）
+- 旧版：敌方**整轮**行动完 → 叠给"当前锁定目标"（_hit_tgt，e_buffs 共享单怪遗留）。
+- 新版：**每个敌对 actor 各自行动完** → 叠给"行动的那只"（actor 自己的 buffs）。
+  单体怪战斗零差异；多怪战斗更合理（谁动谁被叠，且绕开 e_buffs 共享串扰 bug——
+  该 bug 本就是 P3 要收口的古王内战根因）。按 battle2 actor 语义这是正确行为，非陪葬旧 bug。
 
-### 2.4 方案 A 引擎改动面
-- effect_triggers.py：`fire()` 里对 `enemy_act` 事件特殊处理（或加 `_SUBJECTLESS_BROADCAST = {"enemy_act"}` 集合，
-  语义 = 广播给行动者的敌对 actor，ctx.actor 原样保留 = 行动者）。约 10-15 行。
-- EVENTS 加 "enemy_act"（21 → 22）。
-- schedule.advance 插 fire 点 1 处。
-- ⚠️ 事件名"enemy_act"是否算游戏名词？——它是旧引擎事件协议名（weapon_effects 分发器同款），
-  且语义已泛化为"敌对行动完成"，引擎按 hostile 判定广播。若鱼鱼认为名字带"敌人"不符合
-  北极星（引擎零身份），可改名 `side_acted`（敌对 actor 行动完成）——效果声明在装配层
-  翻译时用哪个事件名由引擎协议定，数据侧不感知。**此点请鱼鱼定夺。**
+### 2.6 引擎改动清单
+1. `effect_triggers.py` EVENTS 加 "act_done"（22 个，单行定义保 cov 行 trace）；
+2. `battle.py act()` action 分发后插 `fire("act_done", {"acted": actor}, logs)` 1 处；
+   （被控 skip 早退路径不触发；行动结束已含攻击/技能/防御/逃跑）
+3. 无 fire 过滤逻辑改动——复用 battle_start 无主体广播语义（subject=None 全员查声明）。
+4. 装配层：map_event 加 "enemy_act" → ("act_done",)；randuin/ice_vein 翻译器挂
+   act_done + we_spd_down_stack 扩展动作（mode 分派已有骨架，新注册一个敌对判断执行器）。
 
 ---
 
@@ -168,9 +186,14 @@ undying_will 但 death_dance_armor 的"致死复活"段是否已覆盖需复核�
 | 序 | 批次 | 内容 | 前置 |
 |---|---|---|---|
 | 1 | N9A-1 | death_dance 缓伤池（方案 §1） | 无，可直接做 |
-| 2 | N9A-2 | enemy_act 事件 + randuin/ice_vein（方案 §2 选 A 时） | 鱼鱼拍板阵营语义 |
+| 2 | N9A-2 | act_done 广播事件 + randuin/ice_vein（方案 §2 定稿） | 鱼鱼确认设计 |
 | 3 | N9A-3 | 闪避体系批次（方案 §3 时机） | 鱼鱼拍板时机 |
 | 4 | — | hunt_combo/combo_end 记缺口等职业模块（方案 §4 选 A 时） | 鱼鱼拍板归属 |
 | 5 | N9.7 | affix 76 迁移（stat 41 面板已含 + 事件型 ~35） | N9A 或并行 |
+
+**2026-09-08 鱼鱼拍板记录：**
+- enemy_act 事件：✅ 可做，但**改通用 act_done 广播**（全员触发，效果侧 if 敌我判断）——已定稿 §2
+- death_dance：✅ 做（"肯定不能放着不做"）
+- 待拍板：dodge 时机（§3 建议命令层切换后同批）、combo 归属（§4 建议等职业模块）
 
 每批：改前 git status 干净 → 实现 + 测试补用例 → 全套 433 绿 → commit v181.N9A.X → 汇报鱼鱼。
