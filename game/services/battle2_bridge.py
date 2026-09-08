@@ -52,12 +52,10 @@ def player_to_actor(player: dict) -> dict:
               "race"):
         if player.get(k) is not None:
             stats_kw[k] = player[k]
-    # buffs/debuffs/shields/cooldown 同构透传
-    for k in ("buffs", "debuffs", "shields", "cooldown", "charging", "defending",
-              "ct", "state", "poi_buff"):
-        if k == "state":
-            # 旧 dict 没有 state 键（旧引擎用 stacks/resources 双轨）→ 由调用方决定映射
-            continue
+    # 同构状态键透传（V 系列：effects 由 make_actor 播种，调用方按需填；
+    # buffs/debuffs/hot/state 旧四键已废弃——透传只会造成脏残留，剔除）
+    for k in ("shields", "cooldown", "charging", "defending",
+              "ct", "poi_buff"):
         if player.get(k) is not None:
             stats_kw[k] = player[k]
     skills = player.get("learned_skills") or player.get("skills") or []
@@ -99,9 +97,9 @@ def monster_to_actor(mon: dict, idx: int = 0) -> dict:
               "crit", "crit_dmg", "dodge", "block", "pene", "luck", "tenacity"):
         if mon.get(k) is not None:
             stats_kw[k] = mon[k]
-    # buffs/debuffs/shields/cooldown/hot/charging/defending/ct 同构透传
-    for k in ("buffs", "debuffs", "shields", "cooldown", "hot", "charging",
-              "defending", "ct", "state"):
+    # 同构状态键透传（V 系列：effects/shields/cooldown；旧 buffs/debuffs/hot/state 废弃剔除）
+    for k in ("shields", "cooldown", "charging",
+              "defending", "ct"):
         if mon.get(k) is not None:
             stats_kw[k] = mon[k]
     actor = make_actor(
@@ -296,11 +294,12 @@ _BACK_SYNC_SCALARS = (
     "hp", "mp", "max_hp", "max_mp",
 )
 
-# 战斗可变状态键（actor → player dict 同构回写；玩家 buffs/shields/state 等
-# 战斗内由引擎维护在 actor 上，战斗结束/展示前回写 player 保证命令层读得到）。
+# 战斗可变状态键（actor → player dict 同构回写；V 系列：效果状态在 effects，
+# shields/cooldown 独立容器，defending/charging/ct 行动状态——战斗内由引擎维护
+# 在 actor 上，战斗结束/展示前回写 player 保证命令层读得到）。
 _BACK_SYNC_BAGS = (
-    "buffs", "debuffs", "shields", "cooldown", "hot", "charging", "defending",
-    "ct", "poi_buff", "state",
+    "effects", "shields", "cooldown", "charging", "defending",
+    "ct", "poi_buff",
     # 旧玩家 dict 兼容键（职业层可能在 player 上读，见 _PLAYER_PASSTHROUGH）
     "resources", "stacks", "eff", "food_effects", "buff_hits",
     "last_element", "v139_modes", "v139_charge", "overflow_shield_cd",

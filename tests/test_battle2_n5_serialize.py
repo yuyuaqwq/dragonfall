@@ -46,6 +46,20 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {detail}")
 
 
+
+def stk(a, k, d=0):
+    """V 系列：读效果叠层数 effects[key].stacks。"""
+    e = (a or {}).get("effects") or {}
+    ent = e.get(k)
+    return int(ent.get("stacks", 0) or 0) if isinstance(ent, dict) else int(d)
+
+
+def ent(a, k):
+    """V 系列：读效果条目 dict effects[key]。"""
+    e = (a or {}).get("effects") or {}
+    return e.get(k) or {}
+
+
 def mk_player(cls="战士", level=10):
     st = E.player_final_stats(cls, level, {}, 0, {}, 1)
     return make_actor(uid="p_q1", name="测试勇者", side="player", kind="player",
@@ -70,9 +84,9 @@ def test_roundtrip_full():
     b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
     # 打一半状态：玩家放技能/挂 state
     from game.battle2 import effects as FX
-    p["state"]["zhan_yi"] = 3
-    p["buffs"]["atk_up"] = 4
-    m["state"]["burn"] = 2
+    p["effects"]["zhan_yi"] = {"stacks": 3}
+    p["effects"]["atk_up"] = {"stacks": 4}
+    m["effects"]["burn"] = {"stacks": 2}
     p["hp"] = 123
     m["hp"] = 77
     # 序列化
@@ -87,10 +101,10 @@ def test_roundtrip_full():
     m2 = b2.sides["enemy"][0]
     check("sides 重建", len(b2.sides["player"]) == 1 and len(b2.sides["enemy"]) == 1)
     check("玩家 hp 保留", p2["hp"] == 123, f"hp={p2['hp']}")
-    check("玩家 zhan_yi 保留", p2["state"].get("zhan_yi") == 3)
-    check("玩家 buffs 保留", p2["buffs"].get("atk_up") == 4)
+    check("玩家 zhan_yi 保留", stk(p2, "zhan_yi", 0) == 3)
+    check("玩家 buffs 保留", stk(p2, "atk_up", 0) == 4)
     check("怪 hp 保留", m2["hp"] == 77, f"hp={m2['hp']}")
-    check("怪 burn 保留", m2["state"].get("burn") == 2)
+    check("怪 burn 保留", stk(m2, "burn", 0) == 2)
     check("玩家 class_name 保留", p2["class_name"] == "战士")
     check("玩家 level 保留", p2["level"] == 10)
 

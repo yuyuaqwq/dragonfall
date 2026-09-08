@@ -131,18 +131,20 @@ def translate(battle, actor: dict, payload: str,
         logs.append(f"🍲 你吃下了料理，获得【{'、'.join(_names)}】效果！(本场战斗)")
         return logs, cast
 
-    # ---- 2. hot（持续恢复：写 actor["hot"]，schedule 周期结算）----
+    # ---- 2. hot（持续恢复：effects["regen_hot"] period 声明，schedule 周期结算）----
     if _payload.startswith("hot:"):
         _p = _payload[4:].split(",")
         hpct = float(_p[0]) if _p and _p[0] else 0.0
         mpct = float(_p[1]) if len(_p) > 1 and _p[1] else 0.0
         turns = int(_p[2]) if len(_p) > 2 and _p[2] else 3
-        # 不叠加取高（对齐旧 v110 修复：低值食物不顶掉高值恢复）
-        _cur = actor.get("hot") or {}
-        _new = {"heal": max(hpct, float(_cur.get("heal", 0) or 0)),
-                "mana": max(mpct, float(_cur.get("mana", 0) or 0)),
-                "turns": max(turns, int(_cur.get("turns", 0) or 0))}
-        actor["hot"] = _new
+        # V 系列：hot = effects["regen_hot"] 条目 + period 声明（动态数值随条目走）
+        # 首跳延迟 1s + 每 interval 跳一次，turns 次后到期清（schedule 统一周期段）
+        ef = actor.setdefault("effects", {})
+        entry = ef.setdefault("regen_hot", {"stacks": 1})
+        entry["period"] = {"dir": "heal", "interval": 1.0,
+                           "heal_pct": hpct, "mana_pct": mpct,
+                           "turns": turns}
+        # 到期 = 首跳延迟后跳 turns 次：expire 兜底（schedule 用 dot_next 计数，见周期段）
         _desc = []
         if hpct > 0:
             _desc.append(f"每刻恢复 {int(hpct * 100)}% 生命")

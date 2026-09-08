@@ -47,6 +47,20 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {detail}")
 
 
+
+def stk(a, k, d=0):
+    """V 系列：读效果叠层数 effects[key].stacks。"""
+    e = (a or {}).get("effects") or {}
+    ent = e.get(k)
+    return int(ent.get("stacks", 0) or 0) if isinstance(ent, dict) else int(d)
+
+
+def ent(a, k):
+    """V 系列：读效果条目 dict effects[key]。"""
+    e = (a or {}).get("effects") or {}
+    return e.get(k) or {}
+
+
 def mk_player(cls="战士", level=10, hp=None):
     st = E.player_final_stats(cls, level, {}, 0, {}, 1)
     p = make_actor(uid="p_q1", name="测试勇者", side="player", kind="player",
@@ -126,7 +140,7 @@ def test_dot_tick():
     from game.battle2 import effects as FX
     FX.apply_effects(b := BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]}),
                      p, m, [{"type": "state_add", "key": "burn", "amount": 3, "on": "target"}], [])
-    check("burn 3 层挂上", m["state"].get("burn") == 3)
+    check("burn 3 层挂上", stk(m, "burn", 0) == 3)
     hp0 = m["hp"]
     logs = []
     b.auto_run(logs)
@@ -179,20 +193,20 @@ def test_time_effects_n72():
                    skills=[], auto_act={"act": {"type": "attack"}})
     b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [e]})
     # 1. mode=skip：被晕攻击跳过 + 清除
-    p["buffs"]["stun"] = {"expire": 99.0, "mode": "skip"}
+    p["effects"]["stun"] = {"stacks": 1, "expire": 99.0, "mode": "skip"}
     hp0 = e["hp"]
     logs, ended, who = b.human_act("attack", None, p)
     check("被晕攻击被跳过（怪满血）", e["hp"] == hp0)
-    check("stun 消费清除", "stun" not in p["buffs"])
+    check("stun 消费清除", "stun" not in ((p).get("effects") or {}))
     hp0 = e["hp"]
     b.human_act("attack", None, p)
     check("清醒后攻击命中", e["hp"] < hp0, f"hp={e['hp']}")
     # 2. mode=no_skill：沉默技能转普攻（仍造成伤害），持续不消
-    p["buffs"]["silence"] = {"expire": 99.0, "mode": "no_skill"}
+    p["effects"]["silence"] = {"stacks": 1, "expire": 99.0, "mode": "no_skill"}
     hp0 = e["hp"]
     b.human_act("skill", "猛击", p)
     check("沉默下技能仍造成伤害", e["hp"] < hp0, f"hp={e['hp']}")
-    check("沉默持续未清除", "silence" in p["buffs"])
+    check("沉默持续未清除", "silence" in ((p).get("effects") or {}))
     # 3. shields 到期删
     e2 = make_actor(uid="e_e2", name="怪2", side="enemy", kind="monster",
                     hp=500, max_hp=500, atk=1, spd=10, level=1)
@@ -205,21 +219,21 @@ def test_time_effects_n72():
     _settle_time_effects(b2, [])
     check("盾到期删除", "test" not in e2["shields"])
     # 4. buffs 到期删
-    p["buffs"]["atk_up"] = {"expire": 3.0, "stat": "atk", "op": "mul", "mult": 1.30}
+    p["effects"]["atk_up"] = {"stacks": 1, "expire": 3.0, "stat": "atk", "op": "mul", "mult": 1.30}
     b2._now = 2.0
     _settle_time_effects(b2, [])
-    check("buff 未到期仍在", "atk_up" in p["buffs"])
+    check("buff 未到期仍在", "atk_up" in ((p).get("effects") or {}))
     b2._now = 4.0
     _settle_time_effects(b2, [])
-    check("buff 到期删除", "atk_up" not in p["buffs"])
+    check("buff 到期删除", "atk_up" not in ((p).get("effects") or {}))
 
 
     # 5. 过期控制：act 前 expire 已到点 → 自然消失不拦截
-    p["buffs"]["stun"] = {"expire": 1.0, "mode": "skip"}
+    p["effects"]["stun"] = {"stacks": 1, "expire": 1.0, "mode": "skip"}
     b2._now = 5.0
     hp0 = e2["hp"]
     b2.human_act("attack", None, p)
-    check("过期控制自然消失（不拦截）", "stun" not in p["buffs"])
+    check("过期控制自然消失（不拦截）", "stun" not in ((p).get("effects") or {}))
     check("过期控制后正常攻击", e2["hp"] < hp0, f"hp={e2['hp']}")
 
 
@@ -230,7 +244,7 @@ def test_dot_interval_n74():
     e = make_actor(uid="e_dot", name="靶", side="enemy", kind="monster", hp=1000,
                    max_hp=1000, atk=1, spd=10, level=1)
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": [e]})
-    e["state"]["burn"] = 2  # pct 3% ×2 层 = 60/跳
+    e["effects"]["burn"] = {"stacks": 2}  # pct 3% ×2 层 = 60/跳
     b._now = 0.0
     _ste(b, [])
     hp0 = e["hp"]

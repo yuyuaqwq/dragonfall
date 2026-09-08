@@ -122,11 +122,11 @@ def test_battle_start_once():
     m = mk_a("e1", "enemy", hp=9999)
     p["triggers"] = {"battle_start": [{"type": "atk_up", "turns": 5}]}
     b = new_battle(p, m)
-    check("构造后未触发（buffs 空）", "atk_up" not in (p["buffs"] or {}))
+    check("构造后未触发（buffs 空）", "atk_up" not in ((p).get("effects") or {}))
     logs = []
     b.human_act("attack", None, actor=p, target=m)
-    _au = (p["buffs"] or {}).get("atk_up") or {}
-    check("首动触发 → atk_up 挂上", "atk_up" in (p["buffs"] or {}), f"buffs={p['buffs']}")
+    _au = ((p).get("effects") or {}).get("atk_up") or {}
+    check("首动触发 → atk_up 挂上", "atk_up" in ((p).get("effects") or {}), f"buffs={((p).get('effects') or {})}")
     check("mult 快照 1.30", abs(float(_au.get("mult", 0)) - 1.30) < 1e-9, f"{_au}")
     logs2 = []
     b.human_act("attack", None, actor=p, target=m)
@@ -156,7 +156,7 @@ def test_turn_begin_cast_cycle():
     p2 = mk_a("p2", "player")
     p2["hp"] = p2["max_hp"] - 100
     m2 = mk_a("e2", "enemy", hp=9999)
-    p2["buffs"]["stun"] = {"expire": 9999.0, "mode": "skip"}
+    p2["effects"]["stun"] = {"stacks": 1, "expire": 9999.0, "mode": "skip"}
     p2["triggers"] = {
         "turn_start":      [{"type": "heal", "value": 10, "on": "caster"}],
         "act_begin":       [{"type": "heal", "value": 20, "on": "caster"}],
@@ -167,7 +167,7 @@ def test_turn_begin_cast_cycle():
     g2 = 100 - (p2["max_hp"] - p2["hp"])
     check("被晕：turn_start 10 + on_act_consume 5", g2 == 15, f"回血 {g2}")
     check("被晕：act_begin 不触发（stun 仍在？被消费删除）",
-          "stun" not in (p2["buffs"] or {}), f"buffs={p2['buffs']}")
+          "stun" not in ((p2).get("effects") or {}), f"buffs={((p2).get('effects') or {})}")
 
 
 def test_skill_hit_vs_attack_hit():
@@ -181,8 +181,8 @@ def test_skill_hit_vs_attack_hit():
     }
     b = new_battle(p, m)
     do_attack(b, p, m)
-    check("普攻触发 attack_hit", (p["state"] or {}).get("n8_atk") == 1, f"state={p['state']}")
-    check("普攻不触发 skill_hit", "n8_sk" not in (p["state"] or {}), f"state={p['state']}")
+    check("普攻触发 attack_hit", stk(p, "n8_atk", 0) == 1, f"state={((p).get('effects') or {})}")
+    check("普攻不触发 skill_hit", "n8_sk" not in ((p).get("effects") or {}), f"state={((p).get('effects') or {})}")
     # 技能 → 只 skill_hit（另开战斗避免叠层混淆）
     p2 = mk_a("p2", "player")
     m2 = mk_a("e2", "enemy", hp=9999)
@@ -192,8 +192,8 @@ def test_skill_hit_vs_attack_hit():
     }
     b2 = new_battle(p2, m2)
     do_skill(b2, p2, m2, TEST_SKILL)
-    check("技能触发 skill_hit", (p2["state"] or {}).get("n8_sk") == 1, f"state={p2['state']}")
-    check("技能不触发 attack_hit", "n8_atk" not in (p2["state"] or {}), f"state={p2['state']}")
+    check("技能触发 skill_hit", stk(p2, "n8_sk", 0) == 1, f"state={((p2).get('effects') or {})}")
+    check("技能不触发 attack_hit", "n8_atk" not in ((p2).get("effects") or {}), f"state={((p2).get('effects') or {})}")
 
 
 def test_crit_event():
@@ -207,8 +207,8 @@ def test_crit_event():
     b = new_battle(p, m)
     do_attack(b, p, m)
     check("暴击普攻：attack_hit 与 crit 都触发",
-          (p["state"] or {}).get("n8_hit") == 1 and (p["state"] or {}).get("n8_crit") == 1,
-          f"state={p['state']}")
+          stk(p, "n8_hit", 0) == 1 and stk(p, "n8_crit", 0) == 1,
+          f"state={((p).get('effects') or {})}")
 
 
 def test_on_taken_self_shield():
@@ -233,13 +233,13 @@ def test_on_heal():
     logs = []
     real = L.heal_actor(b, tgt, 30, logs)
     check("治疗 30 生效", real == 30, f"real={real}")
-    check("on_heal 触发", (tgt["state"] or {}).get("n8_heal") == 1, f"state={tgt['state']}")
+    check("on_heal 触发", stk(tgt, "n8_heal", 0) == 1, f"state={((tgt).get('effects') or {})}")
     # 满血时治疗 clamp → real=0 → on_heal 不广播
     tgt["hp"] = tgt["max_hp"]
     logs2 = []
     real2 = L.heal_actor(b, tgt, 30, logs2)
     check("满血治疗 real=0", real2 == 0, f"real={real2}")
-    check("无效治疗不触发 on_heal", (tgt["state"] or {}).get("n8_heal") == 1, f"state={tgt['state']}")
+    check("无效治疗不触发 on_heal", stk(tgt, "n8_heal", 0) == 1, f"state={((tgt).get('effects') or {})}")
 
 
 def test_on_kill_and_on_death():
@@ -252,17 +252,17 @@ def test_on_kill_and_on_death():
     b = new_battle(p, m)
     logs = []
     L.deal_damage(b, p, m, 999, logs)
-    check("击杀触发 on_kill", (p["state"] or {}).get("n8_kill") == 1, f"state={p['state']}")
+    check("击杀触发 on_kill", stk(p, "n8_kill", 0) == 1, f"state={((p).get('effects') or {})}")
     check("敌人死亡", m["hp"] == 0)
     # on_death：死者自己的死亡效果执行（fire subject=dead 例外）
-    check("on_death 死者声明执行", (m["state"] or {}).get("n8_dead") == 1, f"state={m['state']}")
+    check("on_death 死者声明执行", stk(m, "n8_dead", 0) == 1, f"state={((m).get('effects') or {})}")
     check("死者登记", len(b.killed_actors) >= 1)
 
 
 def test_dot_tick():
     print("【N8.8 dot_tick：DOT 每跳】")
     e = mk_a("e1", "enemy", hp=1000)
-    e["state"]["burn"] = 2
+    e["effects"]["burn"] = {"stacks": 2}
     e["triggers"] = {"dot_tick": [{"type": "state_add", "key": "n8_dot", "amount": 1, "on": "target"}]}
     b = new_battle(mk_a("p1", "player"), e)
     b._now = 0.0
@@ -271,22 +271,22 @@ def test_dot_tick():
     logs = []
     _ste(b, logs)
     check("burn 跳 1 次掉 60", 1000 - e["hp"] == 60, f"hp={e['hp']}")
-    check("dot_tick 每跳触发", (e["state"] or {}).get("n8_dot") == 1, f"state={e['state']}")
+    check("dot_tick 每跳触发", stk(e, "n8_dot", 0) == 1, f"state={((e).get('effects') or {})}")
 
 
 def test_buff_expire():
     print("【N8.9 buff_expire：buff 到期钩子】")
     a = mk_a("a1", "player", hp=500)
     a["hp"] = 400
-    a["buffs"]["n8_buf"] = {"expire": 1.0}
+    a["effects"]["n8_buf"] = {"stacks": 1, "expire": 1.0}
     a["triggers"] = {"buff_expire": [{"type": "heal", "value": 5, "on": "caster"}]}
     b = new_battle(a, mk_a("e1", "enemy"))
     b._now = 0.0
     _ste(b, [])
-    check("未到期不删", "n8_buf" in (a["buffs"] or {}))
+    check("未到期不删", "n8_buf" in ((a).get("effects") or {}))
     b._now = 2.0
     _ste(b, [])
-    check("到点删除", "n8_buf" not in (a["buffs"] or {}))
+    check("到点删除", "n8_buf" not in ((a).get("effects") or {}))
     check("buff_expire 触发回血 5", a["hp"] == 405, f"hp={a['hp']}")
 
 
@@ -298,7 +298,7 @@ def test_threshold():
     b = new_battle(a, mk_a("e1", "enemy"))
     logs = []
     FX.apply_effects(b, a, a, [{"type": "state_add", "key": "rage", "amount": 1}], logs)
-    check("层数加上", (a["state"] or {}).get("rage") == 1)
+    check("层数加上", stk(a, "rage", 0) == 1)
     check("threshold 触发回血 5", a["hp"] == 405, f"hp={a['hp']}")
     # state_set 置值也广播
     a["hp"] = 400
@@ -312,11 +312,11 @@ def test_on_hit_consume():
     p = mk_a("p1", "player")
     m = mk_a("e1", "enemy", hp=9999)
     p["hp"] = p["max_hp"] - 50
-    p["buffs"]["next_atk_up"] = {"expire": 9999.0, "hit": {"dmg_mult": 1.5}}
+    p["effects"]["next_atk_up"] = {"stacks": 1, "expire": 9999.0, "hit": {"dmg_mult": 1.5}}
     p["triggers"] = {"on_hit_consume": [{"type": "heal", "value": 5, "on": "caster"}]}
     b = new_battle(p, m)
     do_attack(b, p, m)
-    check("一次性 buff 被消费", "next_atk_up" not in (p["buffs"] or {}))
+    check("一次性 buff 被消费", "next_atk_up" not in ((p).get("effects") or {}))
     check("on_hit_consume 触发回血 5", p["hp"] == p["max_hp"] - 45, f"hp={p['hp']}")
 
 
@@ -331,6 +331,20 @@ def test_trigger_serde_roundtrip():
     p2 = b2.sides["player"][0]
     check("triggers 落盘恢复", (p2.get("triggers") or {}).get("battle_start") ==
           [{"type": "atk_up", "turns": 5}], f"triggers={p2.get('triggers')}")
+
+
+
+def stk(a, k, d=0):
+    """V 系列：读效果叠层数 effects[key].stacks。"""
+    e = (a or {}).get("effects") or {}
+    ent = e.get(k)
+    return int(ent.get("stacks", 0) or 0) if isinstance(ent, dict) else int(d)
+
+
+def ent(a, k):
+    """V 系列：读效果条目 dict effects[key]。"""
+    e = (a or {}).get("effects") or {}
+    return e.get(k) or {}
 
 
 def main():

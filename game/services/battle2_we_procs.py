@@ -18,7 +18,7 @@ from __future__ import annotations
 import random
 
 from game.battle2.effects import register_action
-from game.battle2.actors import state_add, actor_alive
+from game.battle2.actors import actor_alive
 
 
 def _roll(chance) -> bool:
@@ -50,6 +50,26 @@ def _is_boss(actor) -> bool:
     return bool(actor and (actor.get("is_boss") or actor.get("role") == "boss"))
 
 
+def _add_stacks(actor, key: str, amount: int, cap: int | None = None) -> int:
+    """扩展动作内部叠层加值（V 系列：写 actor.effects[key].stacks）。
+
+    仅本文件内部使用（不进引擎公共 API）；cap 缺省查 EFFECT_RULES 表。
+    返回加后值。与引擎 act_state_add 语义一致（cap/下限）。
+    """
+    if actor is None or amount == 0:
+        return 0
+    ef = actor.setdefault("effects", {})
+    entry = ef.get(key)
+    if not isinstance(entry, dict):
+        entry = ef[key] = {}
+    if cap is None:
+        from game.battle2.state_effects import state_def
+        cap = int((state_def(key) or {}).get("cap") or 0) or 999999
+    cur = int(entry.get("stacks", 0) or 0)
+    entry["stacks"] = max(0, min(cap, cur + int(amount)))
+    return entry["stacks"]
+
+
 # ============================================================
 # proc_dot（4 key：命中挂限时 DOT）
 # ============================================================
@@ -76,7 +96,7 @@ def we_dot(battle, caster, target, params, logs):
         return  # 缺字段 = 无此行为
     from game.battle2.state_effects import state_def
     cap = int((state_def(dot_key) or {}).get("cap") or 1)
-    state_add(tgt, dot_key, int(params.get("amount", 1) or 1), cap=cap)
+    _add_stacks(tgt, dot_key, int(params.get("amount", 1) or 1), cap=cap)
     turns = int(params.get("turns") or 0) or 3
     logs.append(_DOT_LOG.get(params.get("key"), f"🔥 {dot_key}：目标持续掉血（{turns} 刻）！"))
 
@@ -132,7 +152,7 @@ def we_reflect(battle, caster, target, params, logs):
             deal_damage(battle, deflector, attacker, rd, logs)
             from game.battle2.state_effects import state_def
             cap = int((state_def("burn") or {}).get("cap") or 5)
-            state_add(attacker, "burn", int(params.get("burn_stack", 1) or 1), cap=cap)
+            _add_stacks(attacker, "burn", int(params.get("burn_stack", 1) or 1), cap=cap)
         logs.append(_REFLECT_LOG.get(key, "").format(rd=rd))
         return
     if params.get("reflect_pct") is not None:
@@ -148,7 +168,7 @@ def we_reflect(battle, caster, target, params, logs):
         elif key == "dragon_spine_mail":
             from game.battle2.state_effects import state_def
             cap = int((state_def("heal_down") or {}).get("cap") or 5)
-            state_add(attacker, "heal_down", int(params.get("heal_down", 2) or 2), cap=cap)
+            _add_stacks(attacker, "heal_down", int(params.get("heal_down", 2) or 2), cap=cap)
     logs.append(_REFLECT_LOG.get(key, "").format(rd=rd))
 
 
@@ -618,8 +638,8 @@ def we_control(battle, caster, target, params, logs):
         return
     src_turns = int(params.get("freeze_turns") or params.get("turns") or 1)
     if mode == "slow_or_freeze":
-        # frost_ring：已减速 → 冻结；否则减速
-        if (tgt.get("buffs") or {}).get("spd_down"):
+        # frost_ring：已减速 → 冻结；否则减速（V 系列：效果条目在 effects）
+        if (tgt.get("effects") or {}).get("spd_down"):
             _freeze(battle, owner, tgt, src_turns, params, logs)
             _bump_control_state(st, cd_key, used_key, params, now)
             logs.append(_CONTROL_LOG.get(key, "🧊 冻结！").format(turns=src_turns))
@@ -632,7 +652,7 @@ def we_control(battle, caster, target, params, logs):
               float(params.get("slow_pct") or 0.3), logs)
         from game.battle2.state_effects import state_def
         cap = int((state_def("heal_down") or {}).get("cap") or 5)
-        state_add(tgt, "heal_down", int(params.get("heal_down") or 2), cap=cap)
+        _add_stacks(tgt, "heal_down", int(params.get("heal_down") or 2), cap=cap)
         logs.append(_CONTROL_LOG.get(key, "⚖️ 圣裁领域！").format(turns=0))
         return
     if mode == "freeze_cd":
@@ -745,12 +765,13 @@ def we_dmg_mult_cond(battle, caster, target, params, logs):
                 hit = bool(tgt.get("is_caster") or tgt.get("role") == "caster"
                            or tgt.get("kind") == "caster")
         elif cond == "enemy_marked":
-            # 追猎：目标带猎印（state hunt_mark >0 或 buffs hunt_mark）
+            # 追猎：目标带猎印（effects hunt_mark 层 >0 或 mark 条目）
             if tgt is not None:
-                st = tgt.get("state") or {}
-                bf = tgt.get("buffs") or {}
-                hit = (int(st.get("hunt_mark", 0) or 0) > 0
-                       or bool(bf.get("hunt_mark")) or bool(bf.get("mark")))
+                ef = tgt.get("effects") or {}
+                hm = ef.get("hunt_mark")
+                mk = ef.get("mark")
+                hit = (int(hm.get("stacks", 0) or 0) > 0 if isinstance(hm, dict) else False) \
+                    or bool(mk)
         else:
             hit = True
     except Exception:
@@ -794,9 +815,11 @@ def we_taken_mult_cond(battle, caster, target, params, logs):
         elif cond.startswith("state_full"):
             sk = params.get("state_key") or ""
             if owner is not None and sk:
-                st = owner.get("state") or {}
+                ef = owner.get("effects") or {}
+                entry = ef.get(sk)
                 cap = int((_state_cap(sk) or 0))
-                hit = cap > 0 and int(st.get(sk, 0) or 0) >= cap
+                hit = cap > 0 and int(entry.get("stacks", 0) or 0) >= cap \
+                    if isinstance(entry, dict) else False
         else:
             hit = True
     except Exception:
@@ -823,8 +846,8 @@ def _state_cap(key: str) -> int:
 
 @register_action("we_stack_prod")
 def we_stack_prod(battle, caster, target, params, logs):
-    """叠层生产（proc_stack）：普通 = state_add 1（cap 声明表）；sage = 满 need 置 charge；
-    thunder_weave = 满 cap 清层置 charge。"""
+    """叠层生产（proc_stack）：普通 = effects[key].stacks +1（cap 声明表）；
+    sage = 满 need 置 charge；thunder_weave = 满 cap 清层置 charge。"""
     owner = params.get("_owner") or caster
     if owner is None or not actor_alive(owner):
         return
@@ -833,21 +856,28 @@ def we_stack_prod(battle, caster, target, params, logs):
     from game.battle2.state_effects import state_def
     cfg = state_def(sk) or {}
     cap = int(cfg.get("cap") or 999)
+    ef = owner.setdefault("effects", {})
     if key == "sage_amp":
         need = int(params.get("need") or 2)
-        n = int((owner.get("state") or {}).get(sk, 0) or 0) + 1
+        cur_entry = ef.get(sk)
+        n = int(cur_entry.get("stacks", 0) or 0) if isinstance(cur_entry, dict) else 0
+        n += 1
         if n >= need:
-            owner.setdefault("state", {})[sk] = 0
+            ef[sk] = {"stacks": 0}
             owner.setdefault("ext", {}).setdefault("we_proc", {})[params.get("charge_key") or "we_sage_charge"] = float(params.get("charge_pct") or 0.25)
             logs.append("📚 秘典充能就绪！下一技能伤害 +25%")
         else:
-            owner.setdefault("state", {})[sk] = n
+            ef[sk] = {"stacks": n}
         return
-    # 普通叠层（state cap 声明封顶）
-    from game.battle2.actors import state_add as _sa
-    cur = _sa(owner, sk, 1, cap=cap)
+    # 普通叠层（cap 声明封顶）
+    entry = ef.get(sk)
+    if not isinstance(entry, dict):
+        entry = ef[sk] = {}
+    cur = int(entry.get("stacks", 0) or 0)
+    entry["stacks"] = max(0, min(cap, cur + 1))
+    cur = entry["stacks"]
     if key == "thunder_weave" and cur >= cap:
-        owner["state"][sk] = 0
+        ef[sk] = {"stacks": 0}
         owner.setdefault("ext", {}).setdefault("we_proc", {})[params.get("charge_key") or "we_thunder_charge"] = float(params.get("charge_pct") or 0.20)
         logs.append("⚡ 雷纹充盈！下一次攻击 +20%")
     elif key in ("rune_amp", "eternal_codex", "time_staff"):
@@ -870,13 +900,16 @@ def we_amp_consume(battle, caster, target, params, logs):
     key = params.get("key") or ""
     sk = params.get("stack_key") or key
     st = owner.setdefault("ext", {}).setdefault("we_proc", {})
+    ef = owner.setdefault("effects", {})
     mult = 1.0
     if key == "rune_amp":
-        n = int((owner.get("state") or {}).pop(sk, 0) or 0)
+        entry = ef.pop(sk, None)
+        n = int(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0
         if n > 0:
             mult = 1.0 + float(params.get("per_pct") or 0.02) * n
     elif key in ("eternal_codex", "time_staff"):
-        n = int((owner.get("state") or {}).get(sk, 0) or 0)
+        entry = ef.get(sk)
+        n = int(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0
         if n > 0:
             mult = 1.0 + float(params.get("per_pct") or 0.015) * n
     elif key in ("sage_amp", "thunder_weave"):
@@ -977,7 +1010,7 @@ def we_act_done_slow(battle, caster, target, params, logs):
     sk = params.get("stack_key") or key
     from game.battle2.state_effects import state_def
     cap = int((state_def(sk) or {}).get("cap") or ms)
-    n = state_add(acted, sk, 1, cap=cap)
+    n = _add_stacks(acted, sk, 1, cap=cap)
     logs.append(_ACT_DONE_SLOW_LOG.get(
         key, "🌊 减速叠层！").format(pct=int(sp * 100 * n), n=n, ms=ms))
 
@@ -1009,7 +1042,7 @@ def we_affix_dot(battle, caster, target, params, logs):
         return
     from game.battle2.state_effects import state_def
     cap = int((state_def(sk) or {}).get("cap") or 3)
-    n = state_add(tgt, sk, int(params.get("stacks") or 1), cap=cap)
+    n = _add_stacks(tgt, sk, int(params.get("stacks") or 1), cap=cap)
     logs.append(_AFFIX_HIT_LOG.get(params.get("key"), "🩸 目标流血了！").format(
         tgt=tgt.get("name", "目标")))
     return n
@@ -1140,13 +1173,13 @@ def we_affix_counter(battle, caster, target, params, logs):
 @register_action("we_affix_tenacity")
 def we_affix_tenacity(battle, caster, target, params, logs):
     """affix 坚韧（tenacity_cc）：受击后 chance → 免疫/清除自身负面 + 回 3% maxhp。
-    负面 = buffs 中带减益语义的条目（op=reduce/mul<1 的属性减成）。"""
+    负面 = effects 中带减益语义的条目（op=reduce/mul<1 的属性减成）。"""
     owner = params.get("_owner") or caster
     if owner is None or not actor_alive(owner):
         return
     if not _roll(params.get("chance")):
         return
-    bf = owner.get("buffs") or {}
+    bf = owner.get("effects") or {}
     neg = [k for k, e in bf.items() if isinstance(e, dict) and e.get("stat")
            and ((e.get("op") == "reduce") or
                 (e.get("op") == "mul" and float(e.get("mult", 1) or 1) < 1.0))]

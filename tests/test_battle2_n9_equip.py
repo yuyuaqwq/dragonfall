@@ -151,7 +151,7 @@ def test_weapon_battle_start():
     b.act(ActCtx(caster=p, action="attack", target=m))
     _sh = (p.get("shields") or {}).get("we_starlight") or {}
     check("起手盾 10% maxhp（80）", int(_sh.get("value", 0)) == 80, f"shields={p.get('shields')}")
-    _b = (p.get("buffs") or {}).get("gale_step") or {}
+    _b = ent(p, "gale_step") or {}
     check("起手速度 buff mult 1.15", abs(float(_b.get("mult", 0)) - 1.15) < 1e-9, f"{_b}")
     check("buff stat=spd", _b.get("stat") == "spd")
 
@@ -183,7 +183,7 @@ def test_no_equip_no_trigger():
     check("无 triggers 注入", not (p.get("triggers") or {}), f"{p.get('triggers')}")
     b = new_battle(p, m)
     b.act(ActCtx(caster=p, action="attack", target=m))
-    check("无盾无 buff", not (p.get("shields") or {}) and not (p.get("buffs") or {}))
+    check("无盾无 buff", not (p.get("shields") or {}) and not ((p).get("effects") or {}))
 
 
 def test_unsupported_key_skipped():
@@ -243,11 +243,11 @@ def test_wind_mark_stack():
     b = new_battle(p, m)
     from game.battle2.actors import ActCtx as _Ctx
     b.act(_Ctx(caster=p, action="attack", target=m))
-    check("一次命中叠 1 层", (p["state"] or {}).get("wind_mark") == 1, f"state={p['state']}")
+    check("一次命中叠 1 层", stk(p, "wind_mark", 0) == 1, f"state={((p).get('effects') or {})}")
     b.act(_Ctx(caster=p, action="attack", target=m))
     b.act(_Ctx(caster=p, action="attack", target=m))
     b.act(_Ctx(caster=p, action="attack", target=m))
-    check("四次命中 cap 4", (p["state"] or {}).get("wind_mark") == 4, f"state={p['state']}")
+    check("四次命中 cap 4", stk(p, "wind_mark", 0) == 4, f"state={((p).get('effects') or {})}")
     # spd 面板折算：stat_scale spd 0.02/层 → 4 层 spd×1.08
     from game.battle2 import stats as S
     st = S.actor_stats(b, p)
@@ -268,7 +268,7 @@ def test_dot_ext_action():
     from game.battle2.schedule import _settle_time_effects as _ste
     b._now = 0.0
     b.act(ActCtx(caster=p, action="attack", target=m))
-    check("命中挂 blaze 1 层", (m["state"] or {}).get("blaze") == 1, f"state={m['state']}")
+    check("命中挂 blaze 1 层", stk(m, "blaze", 0) == 1, f"state={((m).get('effects') or {})}")
     hp_after_act = m["hp"]   # 普攻伤害后、DOT 跳前
     _ste(b, [])  # 登记 dot_next=1.0
     b._now = 1.5
@@ -278,7 +278,7 @@ def test_dot_ext_action():
           f"act后={hp_after_act} 跳后={hp1}")
     b._now = 5.0  # 跨 3.5/4.5 补跳 → 累计 3 跳
     _ste(b, [])
-    check("跳满 3 次自动清层", "blaze" not in (m["state"] or {}), f"state={m['state']}")
+    check("跳满 3 次自动清层", "blaze" not in ((m).get("effects") or {}), f"state={((m).get('effects') or {})}")
     check("DOT 总 45 伤", hp_after_act - m["hp"] == 45, f"act后={hp_after_act} 终={m['hp']}")
 
 
@@ -292,7 +292,7 @@ def test_dot_blood_trace_curhp():
     from game.battle2.schedule import _settle_time_effects as _ste
     b._now = 0.0
     b.act(ActCtx(caster=p, action="attack", target=m))
-    check("败血挂 1 层", (m["state"] or {}).get("blood_trace") == 1, f"state={m['state']}")
+    check("败血挂 1 层", stk(m, "blood_trace", 0) == 1, f"state={((m).get('effects') or {})}")
     _ste(b, [])
     b._now = 1.5
     _ste(b, [])
@@ -332,8 +332,8 @@ def test_reflect_ext_action():
     hp0b = m2["hp"]
     _dd(b2, m2, p2, 100, [])
     check("龙脊反 25", m2["hp"] == hp0b - 25, f"hp={m2['hp']}")
-    check("攻击者 heal_down 2 层", (m2["state"] or {}).get("heal_down") == 2,
-          f"state={m2['state']}")
+    check("攻击者 heal_down 2 层", stk(m2, "heal_down", 0) == 2,
+          f"state={((m2).get('effects') or {})}")
     # heal_down 生效：m2 被治疗减 20%
     from game.battle2.landing import heal_actor as _ha
     m2["hp"] = 100
@@ -354,10 +354,10 @@ def test_next_atk_and_retort_marks():
     from game.battle2 import actions as AC
     AC.do_skill(b, ActCtx(caster=p, action="skill", skill_name="斩",
                           info={"name": "斩", "kind": "物理", "exprs": ["atk*1.0"]}, target=m))
-    check("技能命中挂 we_mountain", "we_mountain" in (p["buffs"] or {}), f"buffs={p.get('buffs')}")
+    check("技能命中挂 we_mountain", "we_mountain" in ((p).get("effects") or {}), f"buffs={p.get('buffs')}")
     # 下次普攻出手消费 → 增伤（dmg_mult 1.25）
     b.act(ActCtx(caster=p, action="attack", target=m))
-    check("出手消费标记", "we_mountain" not in (p["buffs"] or {}), f"buffs={p.get('buffs')}")
+    check("出手消费标记", "we_mountain" not in ((p).get("effects") or {}), f"buffs={p.get('buffs')}")
     # 受击反击势能（titan_retort）
     p2 = mk_a("p2", "player")
     m2 = mk_a("e2", "enemy", hp=99999, atk=1)
@@ -366,7 +366,7 @@ def test_next_atk_and_retort_marks():
     b2 = new_battle(p2, m2)
     from game.battle2.landing import deal_damage as _dd
     _dd(b2, m2, p2, 50, [])
-    check("受击挂反击势能", "we_retort" in (p2["buffs"] or {}), f"buffs={p2.get('buffs')}")
+    check("受击挂反击势能", "we_retort" in ((p2).get("effects") or {}), f"buffs={p2.get('buffs')}")
 
 
 def test_trinity_thunder():
@@ -382,7 +382,7 @@ def test_trinity_thunder():
     from game.battle2 import actions as AC
     AC.do_skill(b, ActCtx(caster=p, action="skill", skill_name="斩",
                           info={"name": "斩", "kind": "物理", "exprs": ["atk*1.0"]}, target=m))
-    bf = p.get("buffs") or {}
+    bf = p.get("effects") or {}
     check("技能命中挂 we_trinity + bonus 0.15",
           "we_trinity" in bf and abs(float((bf["we_trinity"].get("hit") or {}).get("bonus_atk_pct", 0)) - 0.15) < 1e-9,
           f"buffs={bf}")
@@ -390,7 +390,7 @@ def test_trinity_thunder():
     hp_before = m["hp"]
     logs = b.act(ActCtx(caster=p, action="attack", target=m))
     dmg = hp_before - m["hp"]
-    check("出手消费标记清空", "we_trinity" not in (p["buffs"] or {}), f"buffs={p.get('buffs')}")
+    check("出手消费标记清空", "we_trinity" not in ((p).get("effects") or {}), f"buffs={p.get('buffs')}")
     check("附雷段伤害 = atk×0.15", dmg >= 40 * 0.15, f"总掉血 {dmg}（主伤害+附雷）")
     # 第二击普攻：标记已消费 → 不再附雷（只普通伤害）
     hp2 = m["hp"]
@@ -406,7 +406,7 @@ def test_trinity_thunder():
     from game.battle2 import actions as AC2
     AC2.do_skill(b2, ActCtx(caster=p2, action="skill", skill_name="斩",
                             info={"name": "斩", "kind": "物理", "exprs": ["atk*1.0"]}, target=m2))
-    bf2 = p2.get("buffs") or {}
+    bf2 = p2.get("effects") or {}
     hit2 = (bf2.get("we_trinity") or {}).get("hit") or {}
     check("we_data thunder_pct=0 → 无 bonus 段", "bonus_atk_pct" not in hit2, f"hit={hit2}")
 
@@ -444,7 +444,7 @@ def test_dusk_blade_kill():
     b = new_battle(p, m)
     from game.battle2.landing import deal_damage as _dd
     _dd(b, p, m, 99, [])
-    check("击杀挂 stealth buff", "stealth" in (p["buffs"] or {}), f"buffs={p.get('buffs')}")
+    check("击杀挂 stealth buff", "stealth" in ((p).get("effects") or {}), f"buffs={p.get('buffs')}")
 
 
 def test_shield_cond_overflow_crit():
@@ -549,7 +549,7 @@ def test_control_ext():
     from game.battle2 import actions as AC
     AC.do_skill(b, ActCtx(caster=p, action="skill", skill_name="斩",
                           info={"name": "斩", "kind": "物理", "exprs": ["atk*1.0"]}, target=m))
-    _fb = (m["buffs"] or {}).get("freeze") or {}
+    _fb = ((m).get("effects") or {}).get("freeze") or {}
     check("技能命中冻结敌", _fb.get("mode") == "skip", f"buffs={m.get('buffs')}")
     # frost_ring：命中先减速 → 再命中（已减速）冻结
     p2 = mk_a("p2", "player")
@@ -560,10 +560,10 @@ def test_control_ext():
     EP.apply_to_actor(p2)
     b2 = new_battle(p2, m2)
     b2.act(ActCtx(caster=p2, action="attack", target=m2))
-    check("首击减速", "spd_down" in (m2["buffs"] or {}), f"buffs={m2.get('buffs')}")
+    check("首击减速", "spd_down" in ((m2).get("effects") or {}), f"effects={m2.get('effects')}")
     b2.act(ActCtx(caster=p2, action="attack", target=m2))
-    check("再击冻结", (m2["buffs"] or {}).get("freeze", {}).get("mode") == "skip",
-          f"buffs={m2.get('buffs')}")
+    check("再击冻结", ((m2).get("effects") or {}).get("freeze", {}).get("mode") == "skip",
+          f"effects={m2.get('effects')}")
     # frost_crown：受击冻结攻击者（taken 事件反冻）
     p3 = mk_a("p3", "player")
     m3 = mk_a("e3", "enemy", hp=99999, atk=1)
@@ -573,11 +573,11 @@ def test_control_ext():
     b3 = new_battle(p3, m3)
     from game.battle2.landing import deal_damage as _dd
     _dd(b3, m3, p3, 30, [])
-    check("受击反冻攻击者", (m3["buffs"] or {}).get("freeze", {}).get("mode") == "skip",
-          f"m3 buffs={m3.get('buffs')}")
+    check("受击反冻攻击者", ((m3).get("effects") or {}).get("freeze", {}).get("mode") == "skip",
+          f"effects={m3.get('effects')}")
     # 被冻敌行动跳过（freeze 消费）
     b3.act(ActCtx(caster=m3, action="attack", target=p3))
-    check("冻结敌行动被跳过", (m3["buffs"] or {}).get("freeze") is None, f"buffs={m3.get('buffs')}")
+    check("冻结敌行动被跳过", ((m3).get("effects") or {}).get("freeze") is None, f"effects={m3.get('effects')}")
 
 
 def test_heal_amp_and_mana():
@@ -588,8 +588,8 @@ def test_heal_amp_and_mana():
     equip(p, "vital_band", slot="necklace", we_data={"heal_pct": 0.15})
     EP.apply_to_actor(p)
     b = new_battle(p, m)
-    check("装配 heal_amp_pct 0.15", abs((p["state"] or {}).get("heal_amp_pct", 0) - 0.15) < 1e-9,
-          f"state={p.get('state')}")
+    check("装配 heal_amp_pct 0.15", abs(float((ent(p, "heal_amp_pct").get("value") or {}).get("amp", 0)) - 0.15) < 1e-9,
+          f"effects={p.get('effects')}")
     from game.battle2.landing import heal_actor as _ha
     p["hp"] = 500  # 缺 300
     _ha(b, p, 100, [])
@@ -615,11 +615,11 @@ def test_death_guard():
     p = mk_a("p1", "player")
     m = mk_a("e1", "enemy", hp=99999, atk=1)
     b = new_battle(p, m)
-    p["state"]["death_guard"] = 1
+    p["effects"]["death_guard"] = {"stacks": 1}
     from game.battle2.landing import deal_damage as _dd
     _dd(b, m, p, 9999, [])
     check("致死保命 hp=160", p["hp"] == 160, f"hp={p['hp']}")
-    check("层耗尽", (p["state"] or {}).get("death_guard", 0) == 0, f"state={p.get('state')}")
+    check("层耗尽", stk(p, "death_guard", 0) == 0, f"effects={p.get('effects')}")
     check("未登记死亡", p not in b.killed_actors, f"killed={b.killed_actors}")
     # 第二次致死 → 真死
     _dd(b, m, p, 9999, [])
@@ -632,7 +632,7 @@ def test_death_guard():
     EP.apply_to_actor(p2)
     b2 = new_battle(p2, m2)
     b2.act(ActCtx(caster=p2, action="attack", target=m2))  # 首动触发 battle_start
-    check("undying 挂 death_guard 1", (p2["state"] or {}).get("death_guard", 0) == 1,
+    check("undying 挂 death_guard 1", stk(p2, "death_guard", 0) == 1,
           f"state={p2.get('state')}")
     _dd(b2, m2, p2, 9999, [])
     check("undying 致死保命", p2["hp"] > 0, f"hp={p2['hp']}")
@@ -707,7 +707,7 @@ def test_cond_mult_and_stacks():
         we_stack_prod(b3, p3, m3, {"type": "we_stack_prod", "key": "rune_amp",
                                    "stack_key": "rune_amp", "need": None,
                                    "charge_key": None, "charge_pct": None}, [])
-    check("生产叠 3 层", (p3["state"] or {}).get("rune_amp", 0) == 3,
+    check("生产叠 3 层", stk(p3, "rune_amp", 0) == 3,
           f"state={p3.get('state')}")
     # dmg_calc 消费 → ×(1+0.02×3)=1.06 并清层
     b3._fire_ctx = {"target": m3, "dmg": 100, "mult": 1.0, "tags": []}
@@ -715,7 +715,7 @@ def test_cond_mult_and_stacks():
                                 "stack_key": "rune_amp", "per_pct": 0.02,
                                 "charge_key": None}, [])
     check("消费 ×1.06", abs(b3._fire_ctx["mult"] - 1.06) < 1e-9, f"mult={b3._fire_ctx.get('mult')}")
-    check("层被清", (p3["state"] or {}).get("rune_amp", 0) == 0, f"state={p3.get('state')}")
+    check("层被清", stk(p3, "rune_amp", 0) == 0, f"state={p3.get('state')}")
 
 
 def test_death_dance():
@@ -785,24 +785,24 @@ def test_act_done_randuin():
     b = new_battle(p, m)
     # 敌方行动 1 次 → 敌方叠 1 层（speed 从 50 → ×(1-0.06) = 47）
     b.act(ActCtx(caster=m, action="attack", target=p))
-    st = m.get("state") or {}
-    check("敌方行动叠 1 层", int(st.get("randuin_weary", 0) or 0) == 1,
-          f"state={st}")
+    ef = m.get("effects") or {}
+    check("敌方行动叠 1 层", stk(m, "randuin_weary", 0) == 1,
+          f"effects={ef}")
     from game.battle2 import stats as S
     spd1 = S.actor_spd(b, m)
     check("减速 -6%（47）", spd1 == 47, f"spd={spd1}")
     # 敌方再行动 2 次 → 叠满 3 层 → ×(1-0.18) = 41
     b.act(ActCtx(caster=m, action="attack", target=p))
     b.act(ActCtx(caster=m, action="attack", target=p))
-    st = m.get("state") or {}
-    check("敌行动叠满 3 层", int(st.get("randuin_weary", 0) or 0) == 3,
-          f"state={st}")
+    ef = m.get("effects") or {}
+    check("敌行动叠满 3 层", stk(m, "randuin_weary", 0) == 3,
+          f"effects={ef}")
     spd3 = S.actor_spd(b, m)
     check("减速 -18%（41）", spd3 == 41, f"spd={spd3}")
     # 玩家自己行动不叠（旁观者不误触发——玩家侧声明的监听不叠自己）
-    n_before = int((m.get("state") or {}).get("randuin_weary", 0) or 0)
+    n_before = stk(m, "randuin_weary", 0)
     b.act(ActCtx(caster=p, action="attack", target=m))
-    n_after = int((m.get("state") or {}).get("randuin_weary", 0) or 0)
+    n_after = stk(m, "randuin_weary", 0)
     check("玩家行动不额外叠层", n_after == n_before, f"{n_before}→{n_after}")
     # ice_vein：每层 -8%
     p2 = mk_a("p2", "player")
@@ -816,9 +816,9 @@ def test_act_done_randuin():
     # 我方随从（同阵营）行动不叠
     pet = mk_a("pet1", "player", hp=200, atk=5)
     b2.sides["player"].append(pet)
-    n2 = int((m2.get("state") or {}).get("ice_vein", 0) or 0)
+    n2 = stk(m2, "ice_vein", 0)
     b2.act(ActCtx(caster=pet, action="attack", target=m2))
-    n2b = int((m2.get("state") or {}).get("ice_vein", 0) or 0)
+    n2b = stk(m2, "ice_vein", 0)
     check("友方行动不叠层", n2b == n2, f"{n2}→{n2b}")
     # PVP：对手（enemy 阵营但 human_controlled）行动也叠（敌对判定按 side 不按 human）
     p3 = mk_a("p3", "player")
@@ -828,7 +828,7 @@ def test_act_done_randuin():
     EP.apply_to_actor(p3)
     b3 = new_battle(p3, foe)
     b3.act(ActCtx(caster=foe, action="attack", target=p3))
-    check("PVP 对手行动也叠层", int((foe.get("state") or {}).get("randuin_weary", 0) or 0) == 1,
+    check("PVP 对手行动也叠层", stk(foe, "randuin_weary", 0) == 1,
           f"foe state={foe.get('state')}")
 
 
@@ -921,8 +921,8 @@ def test_affix_onhit():
     b._fire_ctx = {"target": m, "dmg": 100}
     we_affix_dot(b, p, m, {"key": "bleed", "state_key": "affix_bleed",
                            "chance": 1.0, "stacks": 3}, [])
-    check("bleed 挂 affix_bleed 3 层", int((m.get("state") or {}).get("affix_bleed", 0)) == 3,
-          f"state={m.get('state')}")
+    check("bleed 挂 affix_bleed 3 层", stk(m, "affix_bleed", 0) == 3,
+          f"state={m.get('effects')}")
     # armor_break：def 50 → ×0.85
     m2 = mk_a("e2", "enemy", hp=99999, atk=1)
     m2["def"] = 50
@@ -981,14 +981,14 @@ def test_affix_taken():
     # tenacity_cc：带负面受击 → 清一个负面 + 回 3% maxhp
     p2 = mk_a("p2", "player")
     m2 = mk_a("e2", "enemy", hp=99999, atk=1)
-    p2.setdefault("buffs", {})["spd_down"] = {"expire": 99, "stat": "spd",
+    p2.setdefault("effects", {})["spd_down"] = {"stacks": 1, "expire": 99, "stat": "spd",
                                               "op": "mul", "mult": 0.10}
     p2["hp"] = p2["max_hp"] - 200
     b2 = new_battle(p2, m2)
     b2._fire_ctx = {"source": m2}
     we_affix_tenacity(b2, p2, m2, {"key": "tenacity_cc", "chance": 1.0,
                                    "heal_pct": 0.03}, [])
-    check("坚韧清负面", "spd_down" not in (p2.get("buffs") or {}),
+    check("坚韧清负面", "spd_down" not in ((p2).get("effects") or {}),
           f"buffs={p2.get('buffs')}")
     check("坚韧回 3% maxhp（+24）", p2["hp"] == p2["max_hp"] - 200 + 24,
           f"hp={p2['hp']} expect {p2['max_hp']-200+24}")
@@ -1040,7 +1040,7 @@ def test_affix_cond_mult():
     p2 = mk_a("p2", "player")
     m2 = mk_a("e2b", "enemy", hp=100000, atk=1)
     m2m = mk_a("e2c", "enemy", hp=100000, atk=1)
-    m2m.setdefault("state", {})["hunt_mark"] = 1
+    m2m.setdefault("effects", {})["hunt_mark"] = {"stacks": 1}
     p2.setdefault("equipment", {})["weapon"] = {
         "slot": "weapon", "quality": "purple", "affixes": ["hunt"], "stats": {},
     }
@@ -1084,6 +1084,20 @@ def test_affix_cond_mult():
                                    "mult": 1.25, "tag": "🐉龙威"}, [])
     check("龙威对龙 ×1.25", abs(b3._fire_ctx["mult"] - 1.25) < 1e-9,
           f"mult={b3._fire_ctx['mult']}")
+
+
+
+def stk(a, k, d=0):
+    """V 系列：读效果叠层数 effects[key].stacks。"""
+    e = (a or {}).get("effects") or {}
+    ent = e.get(k)
+    return int(ent.get("stacks", 0) or 0) if isinstance(ent, dict) else int(d)
+
+
+def ent(a, k):
+    """V 系列：读效果条目 dict effects[key]。"""
+    e = (a or {}).get("effects") or {}
+    return e.get(k) or {}
 
 
 def main():

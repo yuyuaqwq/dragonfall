@@ -134,10 +134,24 @@ def test_heal_anti():
     print("【L6 治疗落地：禁疗 heal_down 修正】")
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
     tgt = mk_actor("e", "被禁疗", "enemy", hp=50, max_hp=100)
-    tgt["state"]["heal_down"] = 2  # 禁疗 2 层 → -20%（v2 数值容器 state，N9 收编）
+    tgt["effects"]["heal_down"] = {"stacks": 2}  # 禁疗 2 层 → -20%（v2 数值容器 state，N9 收编）
     logs = []
     real = L.heal_actor(b, tgt, 50, logs)
     check("heal_down 2 层 → 治疗 -20% → 40", real == 40, f"real={real} hp={tgt['hp']}")
+
+
+
+def stk(a, k, d=0):
+    """V 系列：读效果叠层数 effects[key].stacks。"""
+    e = (a or {}).get("effects") or {}
+    ent = e.get(k)
+    return int(ent.get("stacks", 0) or 0) if isinstance(ent, dict) else int(d)
+
+
+def ent(a, k):
+    """V 系列：读效果条目 dict effects[key]。"""
+    e = (a or {}).get("effects") or {}
+    return e.get(k) or {}
 
 
 def main():

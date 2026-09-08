@@ -166,9 +166,9 @@ def test_buff_skill():
     p_new = new_player("战士", 12, [sk], [info["name"]], st)
     b_new = new_battle(p_new)
     b_new.human_act("skill", info["name"], p_new)
-    # 铁壁 reduce：旧引擎存 float 0.45；新引擎存快照 dict {expire, v}——比较语义值
+    # 铁壁 reduce：旧引擎存 float 0.45；新引擎存快照 dict {stacks, expire, v}——比较语义值
     _old_r = p_old.get("buffs", {}).get("reduce")
-    _new_r = p_new.get("buffs", {}).get("reduce") or {}
+    _new_r = (p_new.get("effects") or {}).get("reduce") or {}
     _new_rv = _new_r.get("v", 0) if isinstance(_new_r, dict) else _new_r
     check("铁壁 reduce 值一致 (0.45)",
           abs(float(_old_r or 0) - float(_new_rv or 0)) < 1e-9,
@@ -186,8 +186,8 @@ def test_buff_skill():
     p_new2 = new_player("战士", 20, [sk2], [info2["name"]], st2)
     b_new2 = new_battle(p_new2)
     b_new2.human_act("skill", info2["name"], p_new2)
-    new_atk_up = p_new2.get("buffs", {}).get("atk_up") or {}
-    # N7.1 新形态：{expire: now+turns, stat: atk, op: mul, mult: 1.30}
+    new_atk_up = (p_new2.get("effects") or {}).get("atk_up") or {}
+    # N7.1 新形态：{stacks:1, expire: now+turns, stat: atk, op: mul, mult: 1.30}
     new_ttl = float(new_atk_up.get("expire", 0)) if isinstance(new_atk_up, dict) else new_atk_up
     check("战吼 atk_up 持续 10 刻（desc 正确值，旧引擎 bug=3 不跟随）",
           abs(float(new_ttl) - float(info2.get("buff_turns", 10))) < 1e-9,

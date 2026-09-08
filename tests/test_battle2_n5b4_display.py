@@ -47,6 +47,20 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {detail}")
 
 
+
+def stk(a, k, d=0):
+    """V 系列：读效果叠层数 effects[key].stacks。"""
+    e = (a or {}).get("effects") or {}
+    ent = e.get(k)
+    return int(ent.get("stacks", 0) or 0) if isinstance(ent, dict) else int(d)
+
+
+def ent(a, k):
+    """V 系列：读效果条目 dict effects[key]。"""
+    e = (a or {}).get("effects") or {}
+    return e.get(k) or {}
+
+
 def mk_player():
     return {"qq_id": "1001", "group_id": "g1", "name": "展示勇者", "class_name": "战士",
             "level": 10, "hp": 200, "mp": 50, "max_hp": 200, "max_mp": 50,
@@ -84,10 +98,10 @@ def test_status_line_battle2_buffs():
     b = new_battle(player, enemy)
     focus = b.focus()
     # battle2 buff dict 形态：atk_up 绝对到期 50.0（now=0 → 剩 50 刻）
-    focus.setdefault("buffs", {})["atk_up"] = {"expire": 50.0, "stat": "atk",
+    focus.setdefault("effects", {})["atk_up"] = {"stacks": 1, "expire": 50.0, "stat": "atk",
                                                 "op": "mul", "mult": 1.3}
     # 控制类 dict（stun 剩 3 刻：now=0 + turns 3）
-    focus["buffs"]["stun"] = {"expire": 3.0, "mode": "skip"}
+    focus["effects"]["stun"] = {"stacks": 1, "expire": 3.0, "mode": "skip"}
     # 护盾 dict：expire_at 折算（now=0，剩 5 刻）
     focus.setdefault("shields", {})["we_test"] = {"value": 100, "expire_at": 5.0}
     # 真实命令层流程：行动后 sync_player_from_actor 回写 player dict（展示读 player）
@@ -98,7 +112,7 @@ def test_status_line_battle2_buffs():
     check("stun dict → 剩3刻", "🌀眩晕(剩3刻)" in s, s)
     check("护盾 100 → 5刻", "✨护盾100(5刻)" in s, s)
     # 敌方 dict buff（def_down 剩 8 刻）
-    enemy.setdefault("buffs", {})["def_down"] = {"expire": 8.0, "stat": "def",
+    enemy.setdefault("effects", {})["def_down"] = {"stacks": 1, "expire": 8.0, "stat": "def",
                                                   "op": "mul", "mult": 0.8}
     s2 = cmds._status_line(player, b)
     check("敌方 def_down dict → 剩8刻", "💔破甲(剩8刻)" in s2, s2)
@@ -111,7 +125,7 @@ def test_resource_and_footer_battle2():
     enemy = mk_enemy()
     b = new_battle(player, enemy)
     focus = b.focus()
-    focus.setdefault("buffs", {})["atk_up"] = {"expire": 50.0, "stat": "atk",
+    focus.setdefault("effects", {})["atk_up"] = {"stacks": 1, "expire": 50.0, "stat": "atk",
                                                 "op": "mul", "mult": 1.3}
     # 资源行：player dict 读（战士 rage 3）
     rl = cmds._resource_line(player, b)

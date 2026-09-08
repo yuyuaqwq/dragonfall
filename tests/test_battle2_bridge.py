@@ -77,11 +77,11 @@ check("rank/reach/role 透传", a.get("rank") == 1 and a.get("reach") == 1 and a
 check("exp/gold/drops 透传", a.get("exp") == 20 and a.get("gold") == 15)
 check("is_boss/is_elite 透传", a.get("is_boss") is False and a.get("is_elite") is False)
 check("atk/def/spd 字段", a.get("atk") == 12 and a.get("def") == 5 and a.get("spd") == 6)
-check("buffs 同构", a.get("buffs") == {})
+check("effects 播种（V 系列，buffs 不透传）", a.get("effects") == {} and "buffs" not in a)
 check("kind=monster（无 class_name）", a.get("kind") == "monster")
 check("make_actor 播种 ct", "ct" in a and a.get("ct") == 0.0)
-check("make_actor 播种 state", isinstance(a.get("state"), dict))
-check("make_actor 播种 shields/cooldown/hot", isinstance(a.get("shields"), dict) and isinstance(a.get("cooldown"), dict) and isinstance(a.get("hot"), dict))
+check("make_actor 播种 effects", isinstance(a.get("effects"), dict))
+check("make_actor 播种 shields/cooldown", isinstance(a.get("shields"), dict) and isinstance(a.get("cooldown"), dict))
 check("auto_act 缺省 attack", (a.get("auto_act") or {}).get("act", {}).get("type") == "attack")
 
 section("monster_to_actor 怪扮职业")
@@ -165,7 +165,7 @@ db.set_event_state("bless_10001", "1")
 db.set_event_state("poi_buff_10001", _json.dumps(
     {"stat": "atk", "mult": 1.10, "name": "攻击", "left": 2}, ensure_ascii=False))
 BR.prepare_player_for_battle(_p2, title_bonus={})
-check("播种 buffs/shields/state/cooldown", all(isinstance(_p2.get(k), dict) for k in
+check("播种 buffs/shields/cooldown（player dict 协议）", all(isinstance(_p2.get(k), dict) for k in
       ("buffs", "shields", "cooldown", "resources", "stacks")))
 check("echo_bless 消费进 buffs", (_p2.get("buffs") or {}).get("echo_bless") == 1)
 check("echo_bless event_state 清空", not db.get_event_state("bless_10001"))
@@ -187,11 +187,11 @@ _b3 = B2Battle("monster", sides=_sides, title_bonus={})
 _focus = _b3.focus()
 _focus["hp"] = 77          # 引擎改 actor（副本）
 _focus["mp"] = 12
-_focus.setdefault("buffs", {})["atk_up"] = 2
+_focus.setdefault("effects", {})["atk_up"] = {"stacks": 2}
 BR.sync_player_from_actor(_p4, _focus)
 check("回写 hp", _p4.get("hp") == 77)
 check("回写 mp", _p4.get("mp") == 12)
-check("回写 buffs", (_p4.get("buffs") or {}).get("atk_up") == 2)
+check("回写 effects", (_p4.get("effects") or {}).get("atk_up", {}).get("stacks") == 2)
 check("空 actor 安全", BR.sync_player_from_actor(_p4, {}) is _p4)
 
 print("\n=== 结果 PASS=%d FAIL=%d ===" % (PASS, FAIL))

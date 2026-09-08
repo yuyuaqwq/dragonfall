@@ -838,7 +838,7 @@ def apply_to_actor(actor: dict) -> None:
     tr = actor.setdefault("triggers", {})
     for ev, effs in merged.items():
         tr.setdefault(ev, []).extend(effs)
-    # 2) 被动常驻：heal amp（vital_band 等 proc_heal amp 4 key）
+    # 2) 被动常驻：heal amp（vital_band 等 proc_heal amp 4 key）→ effects["heal_amp_pct"] 条目
     amp = 0.0
     for key in equipped_weapon_keys(actor):
         wd = _we_config(key, actor)
@@ -848,5 +848,9 @@ def apply_to_actor(actor: dict) -> None:
             if pct > 0:
                 amp = 1.0 - (1.0 - amp) * (1.0 - pct)  # 多件叠乘转加和
     if amp > 0:
-        st = actor.setdefault("state", {})
-        st["heal_amp_pct"] = max(float(st.get("heal_amp_pct", 0) or 0), amp)
+        ef = actor.setdefault("effects", {})
+        entry = ef.get("heal_amp_pct")
+        if not isinstance(entry, dict):
+            entry = ef["heal_amp_pct"] = {}
+        cur_v = float((entry.get("value") or {}).get("amp", 0) or 0)
+        entry.setdefault("value", {})["amp"] = max(cur_v, amp)

@@ -11,9 +11,10 @@ battle2 引擎不认识这些名词，只通过 config 挂载点查表折算。
 from __future__ import annotations
 
 # ============================================================
+# EFFECT_RULES: 效果规则表（V 系列统一——cap/stat_scale/period/consume/cleanse 全声明）
 # state key → 影响规则（cap/stat_scale/dot/on/threshold）
 # ============================================================
-STATE_EFFECTS: dict = {
+EFFECT_RULES: dict = {
     # ============ 通用叠层/资源（玩家侧，每层持有即生效） ============
     "zhan_yi": {
         "cap": 10,

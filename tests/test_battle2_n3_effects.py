@@ -63,6 +63,20 @@ def find_skill(cls_cn, name):
     return None, None
 
 
+
+def stk(a, k, d=0):
+    """V 系列：读效果叠层数 effects[key].stacks。"""
+    e = (a or {}).get("effects") or {}
+    ent = e.get(k)
+    return int(ent.get("stacks", 0) or 0) if isinstance(ent, dict) else int(d)
+
+
+def ent(a, k):
+    """V 系列：读效果条目 dict effects[key]。"""
+    e = (a or {}).get("effects") or {}
+    return e.get(k) or {}
+
+
 def make_actors(cls="战士", level=10, skill_keys=(), skill_names=()):
     st = E.player_final_stats(cls, level, {}, 0, {}, 1)
     p = make_actor(uid="p_q1", name="测试勇者", side="player", kind="player",
@@ -80,98 +94,98 @@ def make_actors(cls="战士", level=10, skill_keys=(), skill_names=()):
 def test_debuff_stack():
     print("【N3.1 状态叠层：burn/bleed/poison（on=target）cap 与写入 state】")
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
-    caster = {"uid": "p", "name": "勇者", "state": {}, "buffs": {}}
-    target = {"uid": "e", "name": "怪", "state": {}, "buffs": {}, "hp": 100, "max_hp": 100}
+    caster = {"uid": "p", "name": "勇者", "effects": {}}
+    target = {"uid": "e", "name": "怪", "effects": {}, "hp": 100, "max_hp": 100}
     logs = []
     # burn 叠 2 层（on=target → 写 target.state.burn）
     FX.apply_effects(b, caster, target,
                      [{"type": "state_add", "key": "burn", "amount": 2, "on": "target"}], logs)
-    check("burn 写入 target.state", target["state"].get("burn") == 2,
-          f"target.state={target['state']}")
-    check("caster.state 无 burn", "burn" not in caster["state"])
+    check("burn 写入 target.state", stk(target, "burn", 0) == 2,
+          f"target.effects={target.get('effects')}")
+    check("caster.state 无 burn", "burn" not in ((caster).get("effects") or {}))
     # burn 再叠 4 层 → cap 5（查声明表）
     FX.apply_effects(b, caster, target,
                      [{"type": "state_add", "key": "burn", "amount": 4, "on": "target"}], logs)
-    check("burn cap 5", target["state"].get("burn") == 5, f"n={target['state'].get('burn')}")
+    check("burn cap 5", stk(target, "burn", 0) == 5, f"n={stk(target, 'burn', 0)}")
     # bleed 叠 3
     FX.apply_effects(b, caster, target,
                      [{"type": "state_add", "key": "bleed", "amount": 3, "on": "target"}], logs)
-    check("bleed 写入 state", target["state"].get("bleed") == 3)
+    check("bleed 写入 state", stk(target, "bleed", 0) == 3)
     # 元素印记 on=target
     FX.apply_effects(b, caster, target,
                      [{"type": "state_add", "key": "fire_mark", "amount": 2, "on": "target"}], logs)
-    check("fire_mark 写入 state", target["state"].get("fire_mark") == 2)
+    check("fire_mark 写入 state", stk(target, "fire_mark", 0) == 2)
 
 
 def test_control():
     print("【N3.2 控制：stun/freeze/silence 写入 target.buffs】")
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
     caster = {"uid": "p", "name": "勇者"}
-    target = {"uid": "e", "name": "怪", "buffs": {}, "state": {}}
+    target = {"uid": "e", "name": "怪", "effects": {}}
     logs = []
     FX.apply_effects(b, caster, target, [{"type": "stun", "turns": 3}], logs)
-    _st = target["buffs"].get("stun") or {}
+    _st = ent(target, "stun") or {}
     check("stun 3 刻 快照 expire≈3 mode=skip",
           abs(float(_st.get("expire", 0)) - 3.0) < 1e-9 and _st.get("mode") == "skip",
           f"stun={_st}")
     FX.apply_effects(b, caster, target, [{"type": "freeze", "turns": 1}], logs)
-    check("freeze 1 刻 快照", abs(float((target["buffs"].get("freeze") or {}).get("expire", 0)) - 1.0) < 1e-9)
+    check("freeze 1 刻 快照", abs(float((ent(target, "freeze") or {}).get("expire", 0)) - 1.0) < 1e-9)
     FX.apply_effects(b, caster, target, [{"type": "silence", "turns": 2}], logs)
-    _si = target["buffs"].get("silence") or {}
+    _si = ent(target, "silence") or {}
     check("silence 2 刻 快照 mode=no_skill",
           abs(float(_si.get("expire", 0)) - 2.0) < 1e-9 and _si.get("mode") == "no_skill",
           f"silence={_si}")
     # Boss 控制减半
-    boss = {"uid": "boss", "name": "Boss", "is_boss": True, "buffs": {}, "state": {}}
+    boss = {"uid": "boss", "name": "Boss", "is_boss": True, "effects": {}}
     FX.apply_effects(b, caster, boss, [{"type": "stun", "turns": 4}], logs)
-    check("Boss stun 减半 2 刻", abs(float((boss["buffs"].get("stun") or {}).get("expire", 0)) - 2.0) < 1e-9,
-          f"stun={boss['buffs'].get('stun')}")
+    check("Boss stun 减半 2 刻", abs(float((ent(boss, "stun") or {}).get("expire", 0)) - 2.0) < 1e-9,
+          f"stun={ent(boss, 'stun')}")
 
 
 def test_caster_stack():
     print("【N3.3 叠层：zhan_yi/rage/chi 写入 caster.state】")
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
-    caster = {"uid": "p", "name": "勇者", "buffs": {}, "state": {}}
+    caster = {"uid": "p", "name": "勇者", "effects": {}}
     logs = []
     FX.apply_effects(b, caster, None,
                      [{"type": "state_add", "key": "zhan_yi", "amount": 3, "on": "caster"}], logs)
-    check("zhan_yi 3 层", caster["state"].get("zhan_yi") == 3)
+    check("zhan_yi 3 层", stk(caster, "zhan_yi", 0) == 3)
     FX.apply_effects(b, caster, None,
                      [{"type": "state_add", "key": "zhan_yi", "amount": 9, "on": "caster"}], logs)
-    check("zhan_yi cap 10", caster["state"].get("zhan_yi") == 10,
-          f"n={caster['state'].get('zhan_yi')}")
+    check("zhan_yi cap 10", stk(caster, "zhan_yi", 0) == 10,
+          f"n={stk(caster, 'zhan_yi', 0)}")
     FX.apply_effects(b, caster, None,
                      [{"type": "state_add", "key": "rage", "amount": 4, "on": "caster"}], logs)
-    check("rage 4", caster["state"].get("rage") == 4)
+    check("rage 4", stk(caster, "rage", 0) == 4)
     FX.apply_effects(b, caster, None,
                      [{"type": "state_add", "key": "chi", "amount": 5, "on": "caster"}], logs)
-    check("chi 5", caster["state"].get("chi") == 5)
+    check("chi 5", stk(caster, "chi", 0) == 5)
     # 不足消费拦截（state_spend 需足额）
     FX.apply_effects(b, caster, None,
                      [{"type": "state_spend", "key": "zhan_yi", "amount": 50, "on": "caster"}], logs)
-    check("zhan_yi 消费不足保留 10", caster["state"].get("zhan_yi") == 10)
+    check("zhan_yi 消费不足保留 10", stk(caster, "zhan_yi", 0) == 10)
     FX.apply_effects(b, caster, None,
                      [{"type": "state_spend", "key": "zhan_yi", "amount": 4, "on": "caster"}], logs)
-    check("zhan_yi 消费 4 → 6", caster["state"].get("zhan_yi") == 6,
-          f"n={caster['state'].get('zhan_yi')}")
+    check("zhan_yi 消费 4 → 6", stk(caster, "zhan_yi", 0) == 6,
+          f"n={stk(caster, 'zhan_yi', 0)}")
 
 
 def test_buff_effect_handler():
     print("【N3.4 增益 effect 单表：reduce/atk_all/shield_self/cleanse】")
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
-    caster = {"uid": "p", "name": "勇者", "buffs": {}, "state": {},
+    caster = {"uid": "p", "name": "勇者", "effects": {},
               "shields": {}, "reduce_left": 0, "max_hp": 1000, "hp": 500}
     logs = []
     # reduce（mech_val=45 → 45%）——N7.1 形态：{expire, v}
     FX.apply_effects(b, caster, caster,
                      [{"type": "reduce", "turns": 8, "mech_val": 45, "info": {}}], logs)
-    check("reduce buffs.v=0.45", abs(caster["buffs"].get("reduce", {}).get("v", 0) - 0.45) < 1e-9,
-          f"reduce={caster['buffs'].get('reduce')}")
+    check("reduce buffs.v=0.45", abs(ent(caster, "reduce").get("v", 0) - 0.45) < 1e-9,
+          f"reduce={ent(caster, 'reduce')}")
     check("reduce_left=8", caster.get("reduce_left") == 8)
     # atk_all → atk_up（N7.1 快照：{expire, stat, op, mult}）
-    caster["buffs"].clear()
+    caster["effects"].clear()
     FX.apply_effects(b, caster, caster, [{"type": "atk_all", "turns": 10}], logs)
-    _au = caster["buffs"].get("atk_up") or {}
+    _au = ent(caster, "atk_up") or {}
     check("atk_all → atk_up stat=atk mult=1.30",
           _au.get("stat") == "atk" and abs(float(_au.get("mult", 0)) - 1.30) < 1e-9,
           f"atk_up={_au}")
@@ -182,11 +196,11 @@ def test_buff_effect_handler():
                      [{"type": "shield_self", "mech_val": 300, "info": {"effect_val": 0}}], logs)
     check("shield_self 300", caster["shields"].get("buff", {}).get("value") == 300)
     # cleanse：先挂状态再净化（cleanse 清 state 减益键 + buffs 控制键）
-    caster["state"]["burn"] = 2
-    caster["buffs"]["stun"] = 1
+    caster["effects"]["burn"] = {"stacks": 2}
+    caster["effects"]["stun"] = {"stacks": 1}
     FX.apply_effects(b, caster, caster, [{"type": "cleanse", "turns": 0}], logs)
-    check("cleanse 移除 burn", "burn" not in caster["state"])
-    check("cleanse 移除 stun", "stun" not in caster["buffs"])
+    check("cleanse 移除 burn", "burn" not in ((caster).get("effects") or {}))
+    check("cleanse 移除 stun", "stun" not in ((caster).get("effects") or {}))
 
 
 def test_mech_on_hit():
@@ -198,7 +212,7 @@ def test_mech_on_hit():
     b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
     random.seed(1)
     b.human_act("skill", info["name"], p)
-    zy = p.get("state", {}).get("zhan_yi", 0)
+    zy = stk(p, "zhan_yi", 0)
     check("挥砍命中后 zhan_yi ≥1", zy >= 1, f"zhan_yi={zy}")
     # 找带 burn mech 的攻击技能（龙息之怒 burn）
     sk2, info2 = find_skill("战士", "龙息之怒")
@@ -207,7 +221,7 @@ def test_mech_on_hit():
         b2 = BT_NEW(btype="monster", sides={"player": [p2], "enemy": [m2]})
         random.seed(3)
         b2.human_act("skill", info2["name"], p2)
-        burn = m2.get("state", {}).get("burn", 0)
+        burn = stk(m2, "burn", 0)
         check("龙息之怒命中后目标 burn ≥1", burn >= 1, f"burn={burn}")
     else:
         print("  跳过：龙息之怒未找到（数据可能变动）")
@@ -221,11 +235,11 @@ def test_state_scale():
                        atk=100, **{"def": 5}, matk=10, mdef=5, spd=5, crit=0.05)
     st0 = S.actor_stats(b, actor)
     check("无 state atk=100", st0["atk"] == 100, f"atk={st0['atk']}")
-    actor["state"]["zhan_yi"] = 5
+    actor["effects"]["zhan_yi"] = {"stacks": 5}
     st1 = S.actor_stats(b, actor)
     check("战意 5 层 atk ×1.2 = 120", st1["atk"] == 120, f"atk={st1['atk']}")
     # dmg_mult：rage 3 层 → _state_dmg_mult 1.36
-    actor["state"]["rage"] = 3
+    actor["effects"]["rage"] = {"stacks": 3}
     st2 = S.actor_stats(b, actor)
     check("rage 3 层 _state_dmg_mult=1.36",
           abs(float(st2.get("_state_dmg_mult", 1.0)) - 1.36) < 1e-9,
@@ -242,7 +256,7 @@ def test_state_scale():
                        race=None, evolve_path=1, class_tier=0, attributes={},
                        atk=p_atk, matk=10, **{"def": 5}, mdef=5, spd=5, crit=0.0)
         if state_rage:
-            p["state"]["rage"] = state_rage
+            p["effects"]["rage"] = {"stacks": state_rage}
         bb = BT_NEW(btype="monster", sides={"player": [p], "enemy": [mon]})
         random.seed(9)
         hp0 = mon["hp"]
@@ -263,17 +277,17 @@ def test_buff_snapshot_scaling():
     st0 = S.actor_stats(b, actor)
     check("无 buff atk=100", st0["atk"] == 100, f"atk={st0['atk']}")
     # mul 快照：atk_up mult=1.30 → 100×1.30 = 130（不是旧"3刻×10%"逻辑）
-    actor["buffs"]["atk_up"] = {"expire": 10.0, "stat": "atk", "op": "mul", "mult": 1.30}
+    actor["effects"]["atk_up"] = {"stacks": 1, "expire": 10.0, "stat": "atk", "op": "mul", "mult": 1.30}
     st1 = S.actor_stats(b, actor)
     check("atk_up mul 快照 atk=130", st1["atk"] == 130, f"atk={st1['atk']}")
     # add 快照：crit_up mult=0.20 → crit +0.20
-    actor["buffs"]["crit_up"] = {"expire": 10.0, "stat": "crit", "op": "add", "mult": 0.20}
+    actor["effects"]["crit_up"] = {"stacks": 1, "expire": 10.0, "stat": "crit", "op": "add", "mult": 0.20}
     st2 = S.actor_stats(b, actor)
     check("crit_up add 快照 crit+0.20",
           abs(float(st2.get("crit", 0)) - (float(st0.get("crit", 0)) + 0.20)) < 1e-9,
           f"crit={st2.get('crit')}")
     # 纯状态（无 stat）不折算：stun 挂上 atk 不变
-    actor["buffs"]["stun"] = {"expire": 1.0}
+    actor["effects"]["stun"] = {"stacks": 1, "expire": 1.0}
     st3 = S.actor_stats(b, actor)
     check("stun 纯状态不折算 atk", st3["atk"] == 130, f"atk={st3['atk']}")
 
@@ -281,13 +295,13 @@ def test_buff_snapshot_scaling():
 def test_n72_more_branches():
     print("【N3.8 N7.2 补分支：纯状态 buff / 护盾叠厚 / 缺省盾值 / 过期控制】")
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
-    caster = {"uid": "p", "name": "勇者", "buffs": {}, "state": {},
+    caster = {"uid": "p", "name": "勇者", "effects": {},
               "shields": {}, "reduce_left": 0, "max_hp": 1000, "hp": 500}
     logs = []
     # 纯状态 buff（无 stat）→ 只记 expire，不折算（cc_immune 走 buff 动词无 stat 参数）
     FX.apply_effects(b, caster, caster,
                      [{"type": "buff", "key": "cc_immune", "turns": 5}], logs)
-    _ci = caster["buffs"].get("cc_immune") or {}
+    _ci = ent(caster, "cc_immune") or {}
     check("纯状态 buff 存 expire", isinstance(_ci, dict) and abs(float(_ci.get("expire", 0)) - 5.0) < 1e-9,
           f"cc_immune={_ci}")
     check("纯状态 buff 无 stat", "stat" not in _ci)
@@ -322,14 +336,14 @@ def test_on_hit_n73():
     b = BT_NEW(btype="monster", sides={"player": [mk_p("p1")], "enemy": [mk_e("e1")]})
     p = b.sides["player"][0]
     FX.apply_effects(b, p, p, [{"type": "next_atk_up", "turns": 3}], [])
-    _n = p["buffs"].get("next_atk_up") or {}
+    _n = ent(p, "next_atk_up") or {}
     check("next_atk_up 条目带 hit.dmg_mult=1.50",
           isinstance(_n.get("hit"), dict) and abs(float(_n["hit"].get("dmg_mult", 0)) - 1.50) < 1e-9,
           f"entry={_n}")
     # 出手消费：攻击后 buff 删 + 伤害增加
     hp0 = b.sides["enemy"][0]["hp"]
     b.human_act("attack", None, p)
-    check("next_atk_up 出手消费删除", "next_atk_up" not in p["buffs"])
+    check("next_atk_up 出手消费删除", "next_atk_up" not in ((p).get("effects") or {}))
     # stealth 必暴：crit=0 面板下普攻 vs 潜行
     b2 = BT_NEW(btype="monster", sides={"player": [mk_p("p2")], "enemy": [mk_e("e2")]})
     p2 = b2.sides["player"][0]
@@ -343,13 +357,13 @@ def test_on_hit_n73():
     b3.human_act("attack", None, p3)
     crit_d = 100000 - b3.sides["enemy"][0]["hp"]
     check("stealth 必暴伤害 > 普攻", crit_d > plain, f"{crit_d} vs {plain}")
-    check("stealth 消费删除", "stealth" not in p3["buffs"])
+    check("stealth 消费删除", "stealth" not in ((p3).get("effects") or {}))
 
 
 def test_n75a_verbs():
     print("【N3.10 N7.5a 补动词：heal_pct/heal_self/stacks_set/interrupt + 承伤乘区】")
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
-    caster = {"uid": "p", "name": "勇者", "buffs": {}, "state": {}, "shields": {},
+    caster = {"uid": "p", "name": "勇者", "effects": {}, "shields": {},
               "hp": 100, "max_hp": 1000, "mp": 100}
     logs = []
     FX.apply_effects(b, caster, caster,
@@ -359,10 +373,10 @@ def test_n75a_verbs():
     FX.apply_effects(b, caster, caster, [{"type": "heal_self", "info": {"hp_pct": 0.15}}], logs)
     check("heal_self 治 15%", caster["hp"] == 250, f"hp={caster['hp']}")
     FX.apply_effects(b, caster, caster, [{"type": "stacks_set", "key": "charge", "amount": 3}], logs)
-    check("stacks_set charge=3", caster["state"].get("charge") == 3)
+    check("stacks_set charge=3", stk(caster, "charge", 0) == 3)
     FX.apply_effects(b, caster, caster, [{"type": "stacks_set", "key": "charge", "amount": 5}], logs)
-    check("stacks_set 覆盖 3→5", caster["state"].get("charge") == 5)
-    tgt = {"uid": "e", "name": "Boss", "buffs": {}, "state": {},
+    check("stacks_set 覆盖 3→5", stk(caster, "charge", 0) == 5)
+    tgt = {"uid": "e", "name": "Boss", "effects": {},
            "charging": {"skill": "蓄力斩"}, "hp": 500}
     FX.apply_effects(b, caster, tgt, [{"type": "interrupt"}], logs)
     check("interrupt 清 charging", tgt.get("charging") is None)
@@ -376,23 +390,23 @@ def test_n75a_verbs():
 def test_n75b_potion_aliases():
     print("【N3.11 N7.5b 药水纯属性别名：buff_atk/buff_crit/food 系 → BUFF_MULT 数值】")
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
-    actor = {"uid": "p", "name": "勇者", "buffs": {}, "state": {}, "shields": {},
+    actor = {"uid": "p", "name": "勇者", "effects": {}, "shields": {},
              "hp": 500, "max_hp": 1000, "atk": 100, "def": 0, "spd": 50,
              "crit": 0.05, "max_mp": 100, "mp": 100, "matk": 10, "mdef": 0}
     logs = []
     FX.apply_effects(b, actor, actor, [{"type": "buff_atk", "turns": 3}], logs)
-    _au = actor["buffs"].get("atk_up") or {}
+    _au = ent(actor, "atk_up") or {}
     check("buff_atk → atk_up stat=atk mult=1.30",
           _au.get("stat") == "atk" and abs(float(_au.get("mult", 0)) - 1.30) < 1e-9, f"entry={_au}")
     st = S.actor_stats(b, actor)
     check("atk_up 面板折算 atk×1.30", abs(st["atk"] - int(100 * 1.30)) <= 1, f"atk={st['atk']}")
     FX.apply_effects(b, actor, actor, [{"type": "buff_crit", "turns": 3}], logs)
-    _cu = actor["buffs"].get("crit_up") or {}
+    _cu = ent(actor, "crit_up") or {}
     check("buff_crit → crit_up add 0.20",
           _cu.get("stat") == "crit" and _cu.get("op") == "add"
           and abs(float(_cu.get("mult", 0)) - 0.20) < 1e-9, f"entry={_cu}")
     FX.apply_effects(b, actor, actor, [{"type": "buff_atk_food", "turns": 3}], logs)
-    _fu = actor["buffs"].get("food_atk_up") or {}
+    _fu = ent(actor, "food_atk_up") or {}
     check("buff_atk_food → food_atk_up mult=1.10",
           abs(float(_fu.get("mult", 0)) - 1.10) < 1e-9, f"entry={_fu}")
 

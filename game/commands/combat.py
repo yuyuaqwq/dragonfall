@@ -1807,22 +1807,35 @@ class CombatCmds(CommandBase):
         parts = []
         _now_t = float(getattr(b, "_now", 0.0) or 0.0)
         pbuf = []
-        # 玩家 buff：读 player dict（battle2 命令层回写 / 旧引擎引用同步）
-        for k, v in (player.get("buffs") or {}).items():
+        # 玩家效果源（V 系列：sync 回写 effects 条目；旧引擎引用同步 buffs）——
+        # 双引擎过渡判型（N5b4-1 通用显示），N10 删旧引擎后去掉 buffs 分支
+        _pb_src = (player.get("effects") or {}) if isinstance(player.get("effects"), dict) else {}
+        _pb_old = player.get("buffs") or {}
+        for k, v in (_pb_src if _pb_src else _pb_old).items():
             if k not in self._P_BUFF_NAMES:
                 continue
             # dict 条目（battle2 {expire,stat,...}/bar 状态）或旧 int 刻号；
             # 无效值（0/空）由 helper 过滤，这里只查名字表避免 dict 比较 TypeError
             if isinstance(v, dict):
-                if "expire" not in (v or {}) and not v.get("stat") and not v.get("mode"):
+                if "expire" not in (v or {}) and not v.get("stat") and not v.get("mode") and not v.get("period"):
                     continue  # 空/纯状态残留
             elif not v or not (v > 0):
                 continue
             left_tag, _ = self._buff_left_ticks(k, v, _now_t)
             pbuf.append(f"{self._P_BUFF_NAMES[k]}{('(' + left_tag + ')') if left_tag else ''}")
-        # 玩家叠层（v59：叠层随战斗持久化；N5b4-1 读 player dict）
-        # O96：burn/poison/mark 是敌方减益叠层，不在玩家栏显示
-        stacks = (player.get("stacks") or {})
+        # 玩家叠层（V 系列：effects 条目 stacks——rage/战意等 stat_scale 声明 key；
+        # O96：burn/poison/mark 是敌方减益叠层，不在玩家栏显示）
+        stacks = {}
+        if isinstance(player.get("effects"), dict):
+            from ..battle2.state_effects import all_state_effects as _ase
+            _stk_table = _ase()
+            for _k, _ent in (player.get("effects") or {}).items():
+                if isinstance(_ent, dict) and (_k in _stk_table or _k in self._STACK_NAMES):
+                    _sv = int(_ent.get("stacks", 0) or 0)
+                    if _sv > 0:
+                        stacks[_k] = _sv
+        else:
+            stacks = player.get("stacks") or {}
         for k, v in stacks.items():
             if v and v > 0 and k in self._STACK_NAMES and k not in self._ENEMY_MECH_STACKS:
                 pbuf.append(f"{self._STACK_NAMES[k]}×{v}")
@@ -1844,10 +1857,11 @@ class CombatCmds(CommandBase):
                     pbuf.append(f"✨护盾{s['value']}")
         if pbuf:
             parts.append(f"🛡️你：「{' '.join(pbuf)}」")
-        # 敌方状态（当前主目标怪 buffs；sides 双引擎通用）
+        # 敌方状态（当前主目标怪；battle2 效果在 effects / 旧引擎 buffs——双引擎判型）
         ebuf = []
         _eb = self._b_enemy(b) or {}
-        _eb_disp = _eb.get("buffs") or {}
+        _eb_eff = _eb.get("effects") or {}
+        _eb_disp = _eb_eff if isinstance(_eb_eff, dict) and _eb_eff else (_eb.get("buffs") or {})
         for k, v in _eb_disp.items():
             if k not in self._E_BUFF_NAMES:
                 continue
@@ -1855,6 +1869,13 @@ class CombatCmds(CommandBase):
             # dict 有 expire（battle2 控制/buff 形态）参与折算，不做 dict>int 比较
             if isinstance(v, dict):
                 if "expire" not in (v or {}) and not v.get("mode"):
+                    continue
+                # V 系列叠层条目（effects[key].stacks）：标/stacks>0 显示
+                _vsv = int(v.get("stacks", 0) or 0) if v.get("stacks") is not None else 0
+                if _vsv > 0 and "expire" not in (v or {}) and not v.get("mode"):
+                    v = _vsv
+                elif _vsv > 0 and k in ("fire_mark", "ice_mark", "thunder_mark", "hunt_mark", "soul_mark"):
+                    ebuf.append(f"{self._E_BUFF_NAMES[k]}×{_vsv}")
                     continue
             elif not v or not (v > 0):
                 continue

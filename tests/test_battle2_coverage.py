@@ -86,8 +86,8 @@ def test_actor_helpers():
     b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
     # actor_buffs 惰性播种
     a2 = {"uid": "x", "name": "x", "side": "player", "hp": 10}
-    check("actor_buffs 惰性播种", A.actor_buffs(a2) == {} and "buffs" in a2)
-    check("actor_debuffs 惰性播种", A.actor_debuffs(a2) == {} and "debuffs" in a2)
+    check("effects_of 纯读兜底", A.effects_of(a2) == {})
+    # actor_debuffs 已删（V 系列统一 effects；debuffs 死键清除）
     # actor_ext 惰性播种
     check("actor_ext 惰性播种", A.actor_ext(a2) == {} and "ext" in a2)
     check("actor_ext 返回同引用", A.actor_ext(a2) is A.actor_ext(a2))
@@ -122,18 +122,18 @@ def test_cleanse_all_and_misc_effects():
     print("【CV4 cleanse_all / apply_action 便捷】")
     p, m = mk_ctx()
     b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
-    p["state"]["burn"] = 3
-    p["buffs"]["stun"] = 2
+    p["effects"]["burn"] = {"stacks": 3}
+    p["effects"]["stun"] = {"stacks": 1, "mode": "skip"}
     logs = []
     # 直接动词调用（apply_action 便捷）
     FX.apply_action(b, p, p, "cleanse", {}, logs)
-    check("apply_action cleanse 清 burn", "burn" not in p["state"])
+    check("apply_action cleanse 清 burn", "burn" not in ((p).get("effects") or {}))
     # cleanse_all
-    p["state"]["poison"] = 2
-    p["buffs"]["silence"] = 1
+    p["effects"]["poison"] = {"stacks": 2}
+    p["effects"]["silence"] = {"stacks": 1, "mode": "no_skill"}
     FX.apply_action(b, p, p, "cleanse_all", {}, logs)
-    check("cleanse_all 清 poison", "poison" not in p["state"])
-    check("cleanse_all 清 silence", "silence" not in p["buffs"])
+    check("cleanse_all 清 poison", "poison" not in ((p).get("effects") or {}))
+    check("cleanse_all 清 silence", "silence" not in ((p).get("effects") or {}))
 
 
 def test_schedule_tools():
@@ -219,10 +219,10 @@ def test_landing_branches():
     # 睡眠打醒
     slp = make_actor(uid="s", name="睡", side="enemy", kind="monster",
                      hp=100, max_hp=100, atk=1, **{"def": 0}, level=1)
-    slp["buffs"]["sleep"] = 2
+    slp["effects"]["sleep"] = {"stacks": 1, "mode": "skip"}
     logs4 = []
     L.deal_damage(b, p, slp, 30, logs4)
-    check("睡眠被打醒", "sleep" not in slp["buffs"])
+    check("睡眠被打醒", "sleep" not in ((slp).get("effects") or {}))
     check("睡眠唤醒日志", any("惊醒" in l for l in logs4))
     # 蓄力打断
     chg = make_actor(uid="c", name="蓄", side="enemy", kind="monster",
@@ -244,7 +244,7 @@ def test_landing_branches():
     check("heal amount<=0 → 0", r8 == 0)
     # 禁疗归零（heal_down 超量）
     t9 = make_actor("t9", "禁疗重", "enemy", hp=50, max_hp=100)
-    t9["buffs"]["heal_down"] = 10  # 10×10% cap 50%
+    t9["effects"]["heal_down"] = {"stacks": 10}  # 10×10% cap 50%
     r9 = L.heal_actor(b, t9, 100, logs6)
     check("heal_down 10 层 cap 50% → 50", r9 == 50, f"r9={r9}")
     # label 日志
@@ -269,9 +269,9 @@ def test_effects_branches():
     FX.apply_effects(b, p, m, ["string_eff"], logs)
     check("非 dict 效果跳过", True)
     # 动词直通（无映射的 action 名）
-    p["state"] = {}
+    p["effects"] = {}
     FX.apply_effects(b, p, m, [{"type": "state_add", "key": "test_x", "amount": 5, "on": "caster"}], logs)
-    check("动词直通 state_add", p["state"].get("test_x") == 5)
+    check("动词直通 state_add", stk(p, "test_x", 0) == 5)
     # shield 名词直通 → shield 动词（默认 on=caster：施法者给自己上盾）
     m2 = make_actor(uid="m2", name="怪", side="enemy", kind="monster",
                     hp=100, max_hp=100, atk=1, **{"def": 0}, level=1)
@@ -282,7 +282,7 @@ def test_effects_branches():
     m3 = make_actor(uid="m3", name="怪", side="enemy", kind="monster",
                     hp=100, max_hp=100, atk=1, **{"def": 0}, level=1)
     FX.apply_effects(b, p, m3, [{"type": "control", "tag": "stun", "turns": 2}], logs)
-    _st3 = m3["buffs"].get("stun") or {}
+    _st3 = ent(m3, "stun") or {}
     check("control 动词直通 快照 mode=skip",
           isinstance(_st3, dict) and abs(float(_st3.get("expire", 0)) - 2.0) < 1e-9
           and _st3.get("mode") == "skip", f"stun={_st3}")
@@ -317,8 +317,8 @@ def test_actions_branches():
     FX.apply_effects(b4, p2, p2,
                      [{"type": "buff", "key": "reduce", "turns": 5,
                        "mech_val": 45, "pct_from_mech_val": True}], logs4)
-    check("buff pct 折算 45→0.45", abs(float((p2["buffs"].get("reduce") or {}).get("v", 0)) - 0.45) < 1e-9,
-          f"reduce={p2['buffs'].get('reduce')}")
+    check("buff pct 折算 45→0.45", abs(float((ent(p2, "reduce") or {}).get("v", 0)) - 0.45) < 1e-9,
+          f"reduce={ent(p2, 'reduce')}")
     check("reduce_left 记 5 刻", p2.get("reduce_left") == 5)
 
 
@@ -392,7 +392,7 @@ def test_more_branches():
     from game.battle2.actors import ActCtx as AC2
     ctx = AC2(caster=p2, action="skill", skill_name="双效果", info=sk, target=m2)
     do_skill(b4, ctx)
-    check("mech2 rage 生效", p2["state"].get("rage", 0) >= 1, f"rage={p2['state'].get('rage')}")
+    check("mech2 rage 生效", stk(p2, "rage", 0) >= 1, f"rage={((p2).get('effects') or {}).get('rage')}")
     # 怪施法 buff（无 class_name → base_turns 读 buff_turns）
     mon_buff = make_actor(uid="mb", name="buff怪", side="enemy", kind="monster",
                           hp=100, max_hp=100, atk=1, **{"def": 0}, level=5)
@@ -402,8 +402,8 @@ def test_more_branches():
     binfo = {"name": "怪力", "kind": "增益", "effect": "atk_up", "buff_turns": 4}
     _do_buff(b5, AC2(caster=mon_buff, action="skill", skill_name="怪力", info=binfo),
              mon_buff, binfo, logs5)
-    check("怪施法 buff 4 刻", abs(float((mon_buff["buffs"].get("atk_up") or {}).get("expire", 0)) - 4.0) < 1e-9,
-          f"buffs={mon_buff['buffs']}")
+    check("怪施法 buff 4 刻", abs(float((ent(mon_buff, "atk_up") or {}).get("expire", 0)) - 4.0) < 1e-9,
+          f"buffs={((mon_buff).get('effects') or {})}")
     # 护盾 pct 分支（shield_self 之外：shield 用 shield_pct）
     p6, m6 = mk_ctx()
     b6 = BT_NEW(btype="monster", sides={"player": [p6], "enemy": [m6]})
@@ -415,7 +415,7 @@ def test_more_branches():
     # float 值 buff 折算（spd_down 快照形态：{stat: spd, op: reduce, mult: 0.5}）
     p7, m7 = mk_ctx()
     b7 = BT_NEW(btype="monster", sides={"player": [p7], "enemy": [m7]})
-    p7["buffs"]["spd_down"] = {"expire": 99.0, "stat": "spd", "op": "reduce", "mult": 0.5}
+    p7["effects"]["spd_down"] = {"stacks": 1, "expire": 99.0, "stat": "spd", "op": "reduce", "mult": 0.5}
     from game.battle2 import stats as ST2
     st7 = ST2.actor_stats(b7, p7)
     check("spd_down float 折算", st7["spd"] < p7["spd"], f"spd={st7['spd']} < {p7['spd']}")
@@ -442,6 +442,20 @@ def test_more_branches():
     dmg_b = hp_b0 - back["hp"]
     check("AOE 前排受伤", dmg_f > 0, f"dmg_f={dmg_f}")
     check("AOE 后排也受伤（falloff 标记路径）", dmg_b > 0, f"dmg_b={dmg_b}")
+
+
+
+def stk(a, k, d=0):
+    """V 系列：读效果叠层数 effects[key].stacks。"""
+    e = (a or {}).get("effects") or {}
+    ent = e.get(k)
+    return int(ent.get("stacks", 0) or 0) if isinstance(ent, dict) else int(d)
+
+
+def ent(a, k):
+    """V 系列：读效果条目 dict effects[key]。"""
+    e = (a or {}).get("effects") or {}
+    return e.get(k) or {}
 
 
 def main():

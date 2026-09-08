@@ -27,51 +27,46 @@ from ..services import battle2_bridge as BR
 from ..core.skill_kinds import K_HEAL, K_BUFF
 
 # 玩家快照/玩法壳视图需要同步回的每玩家键（actor → snap 或 st per-player 键）
+# V 系列：战斗状态权威 = effects（snap 由 sync_player_from_actor 回写），
+# p_buffs/p_hot 等玩法壳视图键的折算由显示层按需读 effects（N5b4-1 双引擎通用）
 _VIEW_SNAP_KEYS = (
-    "hp", "mp", "max_hp", "max_mp", "buffs", "shields", "defending", "charging",
-    "ct", "stacks", "resources", "cooldown", "hot", "food_effects",
+    "hp", "mp", "max_hp", "max_mp", "effects", "shields", "defending", "charging",
+    "ct", "cooldown", "food_effects",
 )
 _VIEW_ST_KEYS = {
-    "buffs": "p_buffs", "hot": "p_hot", "food_effects": "p_food_effects",
+    "effects": "p_effects", "shields": "p_shields", "food_effects": "p_food_effects",
     "defending": "p_defending", "charging": "charging", "cooldown": "cooldown",
-    "resources": "resources", "stacks": "mech_stacks",
 }
 
 
 def _player_actor(snap: dict, st: dict, key: str) -> dict:
     """玩家快照 + st per-player 键 → battle2 player actor（sides 用）。
 
-    快照字段全透传（身份/面板/站位）；buff 等状态以快照内键为基底、
-    st 顶层 per-player 键为旧档兜底（老存档可能只有一处有值）。
+    快照字段全透传（身份/面板/站位）；V 系列：状态在 snap.effects（由
+    sync_player_from_actor 每帧回写），p_effects 顶层键为老档兜底。
     """
     actor = BR.player_to_actor(snap)
     # 状态键合并：快照内键优先，st 顶层键兜底（老存档恢复兼容）
     _snap_src = {}
-    for _k in ("buffs", "shields", "defending", "charging", "ct",
-               "stacks", "resources", "cooldown", "hot", "food_effects"):
+    for _k in ("effects", "shields", "defending", "charging", "ct",
+               "cooldown", "food_effects"):
         if snap.get(_k) is not None:
             _snap_src[_k] = snap[_k]
     for _snap_k, _st_k in _VIEW_ST_KEYS.items():
         if _snap_k not in _snap_src and (st.get(_st_k) or {}).get(str(key)) is not None:
             _snap_src[_snap_k] = (st.get(_st_k) or {}).get(str(key))
-    if _snap_src.get("buffs") is not None and actor.get("buffs") is not None:
-        actor["buffs"] = dict(_snap_src["buffs"])
-    if _snap_src.get("hot") is not None:
-        actor["hot"] = dict(_snap_src["hot"])
-    if _snap_src.get("food_effects") is not None:
-        actor["food_effects"] = list(_snap_src["food_effects"])
+    if _snap_src.get("effects") is not None:
+        actor["effects"] = dict(_snap_src["effects"])
     if _snap_src.get("shields") is not None:
         actor["shields"] = dict(_snap_src["shields"])
     if _snap_src.get("defending") is not None:
         actor["defending"] = bool(_snap_src["defending"])
     if _snap_src.get("charging") is not None:
         actor["charging"] = _snap_src["charging"]
-    if _snap_src.get("stacks") is not None:
-        actor["stacks"] = dict(_snap_src["stacks"])
-    if _snap_src.get("resources") is not None:
-        actor["resources"] = dict(_snap_src["resources"])
     if _snap_src.get("cooldown") is not None:
         actor["cooldown"] = dict(_snap_src["cooldown"])
+    if _snap_src.get("food_effects") is not None:
+        actor["food_effects"] = list(_snap_src["food_effects"])
     actor["ct"] = float(_snap_src.get("ct", 0) or 0)
     # 通用外部增幅（N5b4-4c）：快照 stat_bonus（旧档 title_bonus 键兜底）
     _sb = snap.get("stat_bonus") or snap.get("title_bonus") or {}

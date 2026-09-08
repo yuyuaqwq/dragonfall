@@ -5,7 +5,7 @@
 - heal 纯数字（半身人 race item_effect 加成）
 - mana:N / hm:hp,mp 双恢复
 - buff:k1,k2 → EFFECT_ACTIONS 查表（actor.buffs 结构化条目）
-- hot:hp%,mp%,turns → actor["hot"] 容器（不叠加取高）
+- hot:hp%,mp%,turns → effects["regen_hot"] period 声明（V 系列统一）
 - special:next_atk_up（hit buff）/ cc_immune（纯状态）/ shield_big（盾动词）
 - 机制型缺口（summon）→ (None, None) 不消费
 - foodfx 落 actor["food_effects"] + shield 特判
@@ -121,7 +121,7 @@ def test_buff_effect_actions():
     p = mk_player(hp_ratio=1.0)
     b = mk_battle(p)
     logs, cast = translate(b, p, "buff:atk_up")
-    bf = p["buffs"].get("atk_up")
+    bf = (p.get("effects") or {}).get("atk_up")
     check("atk_up 挂上结构化条目", isinstance(bf, dict) and bf.get("stat") == "atk",
           f"bf={bf}")
     check("mult=1.30", bf is not None and abs(float(bf.get("mult", 0)) - 1.30) < 1e-9,
@@ -132,23 +132,28 @@ def test_buff_effect_actions():
     p2 = mk_player(hp_ratio=1.0)
     b2 = mk_battle(p2)
     logs, cast = translate(b2, p2, "buff:atk_up,def_up")
-    check("复合双 buff", "atk_up" in p2["buffs"] and "def_up" in p2["buffs"],
-          f"keys={list(p2['buffs'].keys())}")
+    check("复合双 buff", "atk_up" in (p2.get("effects") or {}) and "def_up" in (p2.get("effects") or {}),
+          f"keys={list(((p2).get('effects') or {}).keys())}")
 
 
 def test_hot_container():
-    print("【I2.5 hot → actor[\"hot\"] 容器 + 不叠加取高】")
+    print("【I2.5 hot → effects[\"regen_hot\"] period 声明（V 系列统一）】")
     from game.commands.battle2_item_use import translate
     p = mk_player(hp_ratio=0.5)
     b = mk_battle(p)
     logs, cast = translate(b, p, "hot:0.05,0.10,3")
-    h = p["hot"]
-    check("hot 写入", abs(h["heal"] - 0.05) < 1e-9 and abs(h["mana"] - 0.10) < 1e-9
-          and h["turns"] == 3, f"hot={h}")
-    # 再吃低值不覆盖（取高）
+    entry = (p.get("effects") or {}).get("regen_hot") or {}
+    per = entry.get("period") or {}
+    check("regen_hot 条目挂上", bool(entry), f"entry={entry}")
+    check("period dir=heal + 数值", per.get("dir") == "heal"
+          and abs(per.get("heal_pct", 0) - 0.05) < 1e-9
+          and abs(per.get("mana_pct", 0) - 0.10) < 1e-9
+          and per.get("turns") == 3, f"period={per}")
+    # 再次吃（刷新——V 系列 setdefault 覆盖语义；调度按新 period 结算）
     translate(b, p, "hot:0.02,0.05,2")
-    check("不叠加取高", abs(p["hot"]["heal"] - 0.05) < 1e-9 and p["hot"]["turns"] == 3,
-          f"hot={p['hot']}")
+    per2 = ((p.get("effects") or {}).get("regen_hot") or {}).get("period") or {}
+    check("再次食用刷新 period", abs(per2.get("heal_pct", 0) - 0.02) < 1e-9
+          and per2.get("turns") == 2, f"period2={per2}")
 
 
 def test_special_next_atk_up():
@@ -157,7 +162,7 @@ def test_special_next_atk_up():
     p = mk_player(hp_ratio=1.0)
     b = mk_battle(p)
     logs, cast = translate(b, p, "special:next_atk_up")
-    bf = p["buffs"].get("next_atk_up")
+    bf = (p.get("effects") or {}).get("next_atk_up")
     check("next_atk_up 挂上", isinstance(bf, dict), f"bf={bf}")
     check("hit dmg_mult", bf is not None and isinstance(bf.get("hit"), dict)
           and abs(float(bf["hit"].get("dmg_mult", 0)) - 1.5) < 1e-9,
@@ -170,7 +175,7 @@ def test_special_cc_immune():
     p = mk_player(hp_ratio=1.0)
     b = mk_battle(p)
     logs, cast = translate(b, p, "special:cc_immune")
-    check("cc_immune 挂上", "cc_immune" in p["buffs"], f"buffs={list(p['buffs'])}")
+    check("cc_immune 挂上", "cc_immune" in (p.get("effects") or {}), f"effects={list(((p).get('effects') or {}))}")
 
 
 def test_special_shield():
@@ -230,8 +235,8 @@ def test_cast_suffix():
     check("recovery:N → 数字秒", cast == 0.5, f"cast={cast}")
     hp0 = p["hp"]
     logs, cast = translate(b, p, "hot:0.1,0,3;cast:1.4")
-    check("hot+cast 剥离", cast == 1.4 and p["hot"].get("turns") == 3,
-          f"cast={cast} hot={p['hot']}")
+    check("hot+cast 剥离", cast == 1.4 and ((p.get("effects") or {}).get("regen_hot") or {}).get("period", {}).get("turns") == 3,
+          f"cast={cast} hot={(p.get('effects') or {}).get('regen_hot')}")
 
 
 def test_override_end_to_end():

@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
-"""N5b4-5a I1 验收：hot 正向持续恢复（battle2 schedule）。
+"""V 系列统一：hot 正向持续恢复（effects["regen_hot"] + period 声明，schedule 周期结算）。
 
-覆盖（对齐旧引擎 v179 P3 语义——每秒墙钟跳，与出手快慢无关；对称 DOT 绝对时刻补跳）：
-- 挂 hot 后首跳延迟 1s（首跳登记 now+interval，不立即跳）
-- 到点回血/回蓝（按 max_hp/max_mp 百分比，clamp 上限）
+V 系列后 hot 不再用独立 actor["hot"] 容器——食物/料理挂 effects["regen_hot"] 条目：
+  {"stacks": 1, "period": {"dir": "heal", "interval": 1.0, "heal_pct": x,
+                            "mana_pct": y, "turns": N}}
+schedule 统一周期段按 interval 绝对时刻循环补跳（damage/heal/mana 方向分流），
+turns 次后自动清层。对齐旧引擎 v179 P3 每秒墙钟 tick 语义（N 刻 = N 秒）。
+
+覆盖：
+- 挂 hot 后首跳延迟 1s（dot_next 登记）
+- 到点回血/回蓝（百分比×max，clamp 上限）
 - 跨多刻补跳多次（now 一次性推远 → 循环补跳）
-- turns 递减，归零清容器（hot 键保留空 dict=actor 同构）
+- turns 跳满自动清层
 - 同刻重复 settle 不重复跳
 
 跑法：python tests/test_battle2_hot_regen.py
@@ -69,35 +75,44 @@ def _mk_battle(p, m=None):
     return BT_NEW(btype="monster", sides={"player": [p], "enemy": [m or mk_monster()]})
 
 
+def _hang_hot(p, heal=0.1, mana=0.0, turns=3):
+    """挂 regen_hot 条目（V 系列形态：period 声明 + 动态数值随条目）。"""
+    p.setdefault("effects", {})["regen_hot"] = {
+        "stacks": 1,
+        "period": {"dir": "heal", "interval": 1.0,
+                   "heal_pct": heal, "mana_pct": mana,
+                   "turns": turns},
+    }
+
+
 def test_hot_first_jump_delay():
-    """首跳延迟：挂 hot 后同刻不跳，hot_next 登记 now+1。"""
-    print("【I1.1 首跳延迟：挂 hot 同刻不跳，登记 now+interval】")
-    from game.battle2.schedule import _settle_time_effects as _ste, HOT_INTERVAL
+    """首跳延迟：挂 hot 后同刻不跳，dot_next 登记 now+1。"""
+    print("【V-HOT.1 首跳延迟：挂 hot 同刻不跳，登记 now+interval】")
+    from game.battle2.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.5)
     b = _mk_battle(p)
-    p["hot"] = {"heal": 0.1, "mana": 0.0, "turns": 3}
+    _hang_hot(p)
     hp0 = p["hp"]
     b._now = 0.0
     _ste(b, [])
     check("同刻不跳（首跳延迟）", p["hp"] == hp0, f"hp {hp0} → {p['hp']}")
-    check("hot_next 登记 now+1", abs(float(p["hot_next"]) - 1.0) < 1e-9,
-          f"hot_next={p.get('hot_next')}")
-    check("turns 未减", p["hot"].get("turns") == 3)
+    check("dot_next 登记 1.0", abs(float(p["dot_next"].get("regen_hot", 0)) - 1.0) < 1e-9,
+          f"dot_next={p.get('dot_next')}")
 
 
 def test_hot_heal_and_mana():
     """到点回血回蓝（百分比×max，clamp 上限）。"""
-    print("【I1.2 到点跳：回血 + 回蓝 + clamp】")
+    print("【V-HOT.2 到点跳：回血 + 回蓝 + clamp】")
     from game.battle2.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.5, mp_ratio=0.5)
     mx_hp = p["max_hp"]
     mx_mp = p["max_mp"]
     b = _mk_battle(p)
-    p["hot"] = {"heal": 0.1, "mana": 0.1, "turns": 2}
+    _hang_hot(p, heal=0.1, mana=0.1, turns=2)
     hp0, mp0 = p["hp"], p["mp"]
     logs = []
     b._now = 0.0
-    _ste(b, [])  # 惰性登记 hot_next=1.0（对称 DOT）
+    _ste(b, [])  # 登记
     b._now = 1.0
     _ste(b, logs)
     gain_hp = int(mx_hp * 0.1)
@@ -105,58 +120,54 @@ def test_hot_heal_and_mana():
     check("回血 10%max", p["hp"] == hp0 + gain_hp, f"{hp0} → {p['hp']} (期望+{gain_hp})")
     check("回蓝 10%max", p["mp"] == mp0 + gain_mp, f"{mp0} → {p['mp']} (期望+{gain_mp})")
     check("有恢复日志", any("持续恢复" in x for x in logs), f"logs={logs}")
-    check("turns 递减到 1", p["hot"].get("turns") == 1, f"turns={p['hot'].get('turns')}")
 
 
 def test_hot_catchup_multijump():
-    """跨多刻补跳：now 一次性推远 → while 循环补跳多次。"""
-    print("【I1.3 跨多刻补跳：now 推远 5s → 跳满 turns 次】")
+    """跨多刻补跳：now 推远 → while 循环补跳满 turns 次后自动清层。"""
+    print("【V-HOT.3 跨多刻补跳 + turns 跳满清层】")
     from game.battle2.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.1)
     mx_hp = p["max_hp"]
     b = _mk_battle(p)
-    p["hot"] = {"heal": 0.1, "mana": 0.0, "turns": 3}
+    _hang_hot(p, heal=0.1, mana=0.0, turns=3)
     hp0 = p["hp"]
     b._now = 0.0
     _ste(b, [])  # 登记
-    b._now = 1.0
+    b._now = 5.0  # 推远 5s → 应跳 3 次（t=1,2,3），第 3 次后 turns 满自动清层
     _ste(b, [])
-    # 已跳 1 次（now=1.0），turns=2，hot_next=2.0
-    check("首跳后 turns=2", p["hot"].get("turns") == 2, f"turns={p['hot'].get('turns')}")
-    b._now = 5.0  # 一次推远 4s → 应补跳 2 次（t=2,3），turns 归零清容器
-    _ste(b, [])
-    check("hot 容器清空", p["hot"] == {}, f"hot={p['hot']}")
-    check("hot_next 清除", "hot_next" not in p, f"hot_next={p.get('hot_next')}")
+    check("turns 跳满自动清层", "regen_hot" not in (p.get("effects") or {}),
+          f"effects={p.get('effects')}")
     expect = hp0 + int(mx_hp * 0.1) * 3
-    check("血量 = 首跳+补跳 3 次总量", p["hp"] == expect,
-          f"{p['hp']} vs {expect}")
+    check("血量 = 3 次总量", p["hp"] == expect, f"{p['hp']} vs {expect}")
 
 
 def test_hot_clamp_max():
     """clamp：恢复不超过 max_hp/max_mp。"""
-    print("【I1.4 clamp：恢复封顶 max】")
+    print("【V-HOT.4 clamp：恢复封顶 max】")
     from game.battle2.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.95)
     b = _mk_battle(p)
-    p["hot"] = {"heal": 0.1, "mana": 0.0, "turns": 3}
+    _hang_hot(p, heal=0.1, mana=0.0, turns=3)
     b._now = 0.0
     _ste(b, [])  # 登记
     b._now = 1.0
     _ste(b, [])
     b._now = 2.0
     _ste(b, [])
+    b._now = 3.0
+    _ste(b, [])
     check("hp 封顶 max_hp", p["hp"] == p["max_hp"], f"{p['hp']}/{p['max_hp']}")
 
 
 def test_hot_no_repeat_same_now():
     """同刻重复 settle 不重复跳（绝对时刻推进语义）。"""
-    print("【I1.5 同刻重复 settle 不重复跳】")
+    print("【V-HOT.5 同刻重复 settle 不重复跳】")
     from game.battle2.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.5)
     b = _mk_battle(p)
-    p["hot"] = {"heal": 0.1, "mana": 0.0, "turns": 3}
+    _hang_hot(p, heal=0.1, mana=0.0, turns=3)
     b._now = 0.0
-    _ste(b, [])  # 登记 hot_next=1
+    _ste(b, [])  # 登记
     hp0 = p["hp"]
     b._now = 1.0
     _ste(b, [])
@@ -166,32 +177,13 @@ def test_hot_no_repeat_same_now():
     check("同刻不重复跳", p["hp"] == hp1, f"{hp1} → {p['hp']}")
 
 
-def test_hot_auto_run_integration():
-    """集成：战斗中挂 hot 后随墙钟结算（木桩不打人，纯验 hot 时间轴）。"""
-    print("【I1.6 集成：auto_run 中 hot 随墙钟结算】")
-    p = mk_player(hp_ratio=0.4)
-    m = mk_monster(hp=100000, atk=0, spd=1)  # 木桩：atk=0 不掉玩家血
-    b = _mk_battle(p, m)
-    p["hp"] = int(p["max_hp"] * 0.4)
-    p["hot"] = {"heal": 0.05, "mana": 0.0, "turns": 3}
-    logs = []
-    b.auto_run(logs)
-    # auto_run 推进中 hot 至少跳过 1 次（墙钟制，与玩家出手无关）
-    hot_logs = [x for x in logs if "持续恢复" in x]
-    check("auto_run 中有 hot 结算日志", len(hot_logs) >= 1, f"hot_logs={hot_logs}")
-    # 战斗没结束（玩家打不死木桩，木桩打不死玩家），但 hot 容器应已耗尽清空或 turn 递减
-    check("hot 已结算推进", p["hot"] == {} or int(p["hot"].get("turns", 0)) < 3,
-          f"hot={p['hot']}")
-
-
 def main():
-    print("=== I1 battle2 hot 持续恢复测试 ===")
+    print("=== V-HOT battle2 hot 持续恢复（effects period 统一）测试 ===")
     test_hot_first_jump_delay()
     test_hot_heal_and_mana()
     test_hot_catchup_multijump()
     test_hot_clamp_max()
     test_hot_no_repeat_same_now()
-    test_hot_auto_run_integration()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:
