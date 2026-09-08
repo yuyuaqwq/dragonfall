@@ -558,6 +558,78 @@ def test_14_team_heal_broadcast():
     check("单人广播不崩", isinstance(logs2, list), str(logs2)[:60])
 
 
+def test_15_multi_death_alive_sync():
+    print("【15. 5b 收尾：多人一死一活 → alive 同步 / 死者不轮转 / 通关奖励隔离】")
+    import time
+    st = mk_st([70131, 70132], enemy=mk_enemy(hp=300, atk=2000, spd=200, role="boss"))
+    # 70131 残血诱杀（视图 + DB 同步压，build_battle 读视图、sync_views 写 DB）
+    st["players"]["70131"]["hp"] = 30
+    db.update_player(GID, "70131", hp=30)
+    # 70132 高血防 Boss 磨死（满血 99999，atk2000 打不死）
+    st["players"]["70132"]["hp"] = 99999
+    st["players"]["70132"]["max_hp"] = 99999
+    db.update_player(GID, "70132", hp=99999, max_hp=99999)
+    # Boss hate_top 仇恨锁定 70131（先打死一个，验证单死场景）
+    st["threat"] = {"70131": 99999, "70132": 0}
+    IB.build_battle(st)
+    inst = _Host()
+    orig = _patch_current_members(["70131", "70132"])
+    joined = ""
+    try:
+        guard = 0
+        died = False
+        while guard < 60:
+            guard += 1
+            if st.get("over") or st.get("cleared"):
+                break
+            nxt = IB.next_actor_key(st)
+            st["turn_time"] = int(time.time())
+            if str(nxt) == "70131":
+                msgs = _sync_run(inst, st, "70131", "defend")
+            else:
+                msgs = _sync_run(inst, st, "70132", "attack")
+            joined += "\n" + "\n".join(msgs)
+            if not st["alive"].get("70131", True) and not died:
+                died = True
+                # 死者 actor/视图/DB 三路同步为 0
+                pa1 = IB.player_actor_of(st, "70131")
+                check("70131 倒地（actor hp=0）", int(pa1.get("hp", 1) or 0) <= 0,
+                      f"actor hp={pa1.get('hp')}")
+                check("alive[70131]=False（sync_views 落地）", st["alive"].get("70131") is False,
+                      str(st["alive"]))
+                check("视图 hp=0", int((st["players"].get("70131") or {}).get("hp", 1) or 0) <= 0)
+                check("DB hp=0（玩家血量同步）",
+                      int((db.get_player(GID, 70131) or {}).get("hp", 1) or 0) <= 0)
+                check("alive[70132] 仍 True（一死一活）", st["alive"].get("70132") is True,
+                      str(st["alive"]))
+                # 死者立即请求行动 → 轮转到活人等待提示，不崩不真行动
+                st["turn_time"] = int(time.time())
+                msgs_d = _sync_run(inst, st, "70131", "defend")
+                d_joined = "\n".join(msgs_d)
+                check("死者请求行动 → 等待活人提示（不崩）",
+                      "等待" in d_joined or "70132" in d_joined, d_joined[-120:])
+                check("死者请求未消耗轮次（未真行动）",
+                      bool(st["alive"].get("70131") is False), str(st["alive"]))
+                # 轮转不再选死者
+                nxt2 = IB.next_actor_key(st)
+                check("next_actor_key 跳过死者", str(nxt2) != "70131", f"nxt={nxt2}")
+        # 活人单刷 Boss → 通关
+        check("活人 70132 单刷通关", st.get("cleared") is True,
+              f"cleared={st.get('cleared')} over={st.get('over')}")
+        p1 = db.get_player(GID, 70131) or {}
+        p2 = db.get_player(GID, 70132) or {}
+        check("通关文案含阵亡提示（💀 未获奖励）", "阵亡" in joined or "已阵亡" in joined,
+              joined[-400:])
+        check("阵亡者未得通关奖励（gold 不变）", int(p1.get("gold", -1)) == 50,
+              f"70131 gold={p1.get('gold')}")
+        check("活人得通关奖励（gold 增长）", int(p2.get("gold", 0)) > 50,
+              f"70132 gold={p2.get('gold')}")
+        check("阵亡者 DB hp 保持 0", int(p1.get("hp", 1) or 0) <= 0,
+              f"70131 hp={p1.get('hp')}")
+    finally:
+        _restore_current_members(orig)
+
+
 def _collect(agen):
     """跑命令层 filter handler（async generator 或 coroutine 兼容）。"""
     return _run_gen(agen)
@@ -578,6 +650,7 @@ def main():
     test_12_use_item_router()
     test_13_target_picker()
     test_14_team_heal_broadcast()
+    test_15_multi_death_alive_sync()
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     if FAILURES:
         for f in FAILURES:
