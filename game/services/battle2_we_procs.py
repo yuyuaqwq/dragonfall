@@ -682,6 +682,99 @@ def _bump_control_state(st, cd_key, used_key, params, now):
 
 
 # ============================================================
+# 乘区修正动作（N9.13：dmg_calc/taken_calc 事件消费）
+# ============================================================
+
+_MULT_TAG = {
+    "hp_target_lt": "💀处决",
+    "hp_self_lt": "🔥残血",
+    "target_marked": "🎯追猎",
+    "always": "🛡️",
+}
+
+
+@register_action("we_dmg_mult_cond")
+def we_dmg_mult_cond(battle, caster, target, params, logs):
+    """条件增伤乘区（dmg_calc 事件，攻击者视角）：cond 命中 → _fire_ctx.mult ×= 值。
+    条件谓词全在扩展动作（引擎零知识）：
+    - hp_target_lt：目标生命低于阈值（处决 execute：<30% ×1.3）
+    - hp_self_lt：自己生命低于阈值（残血增伤）
+    - always：无条件（叠层放大器常驻段等）"""
+    ctx = getattr(battle, "_fire_ctx", None)
+    if ctx is None:
+        return
+    owner = params.get("_owner") or caster
+    tgt = ctx.get("target") or target
+    cond = params.get("cond") or "always"
+    mult = float(params.get("mult") or 0)
+    if mult <= 0:
+        return
+    hit = False
+    try:
+        if cond == "hp_target_lt":
+            if tgt is not None and actor_alive(tgt) and tgt.get("hp") is not None:
+                hit = (float(tgt.get("hp", 0)) / max(1, float(tgt.get("max_hp", 1) or 1))
+                       < float(params.get("threshold") or 0.30))
+        elif cond == "hp_self_lt":
+            if owner is not None and owner.get("hp") is not None:
+                hit = (float(owner.get("hp", 0)) / max(1, float(owner.get("max_hp", 1) or 1))
+                       < float(params.get("threshold") or 0.30))
+        else:
+            hit = True
+    except Exception:
+        hit = False
+    if hit:
+        ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * mult
+        tag = params.get("tag") or _MULT_TAG.get(cond, "")
+        if tag:
+            ctx["tags"] = list(ctx.get("tags") or []) + [f"{tag}x{mult:.2f}"]
+
+
+@register_action("we_taken_mult_cond")
+def we_taken_mult_cond(battle, caster, target, params, logs):
+    """条件减伤乘区（taken_calc 事件，承伤者视角）：cond 命中 → _fire_ctx.mult ×= 值
+    （值 <1 = 减伤：death_dance 8% → 0.92；沸血怒气满全减伤 0.92）。
+    谓词：always / hp_self_lt / state_full（state 满层：rage_full 怒气满）"""
+    ctx = getattr(battle, "_fire_ctx", None)
+    if ctx is None:
+        return
+    owner = params.get("_owner") or target
+    cond = params.get("cond") or "always"
+    mult = float(params.get("mult") or 0)
+    if mult <= 0:
+        return
+    hit = False
+    try:
+        if cond == "hp_self_lt":
+            if owner is not None and owner.get("hp") is not None:
+                hit = (float(owner.get("hp", 0)) / max(1, float(owner.get("max_hp", 1) or 1))
+                       < float(params.get("threshold") or 0.30))
+        elif cond.startswith("state_full"):
+            sk = params.get("state_key") or ""
+            if owner is not None and sk:
+                st = owner.get("state") or {}
+                cap = int((_state_cap(sk) or 0))
+                hit = cap > 0 and int(st.get(sk, 0) or 0) >= cap
+        else:
+            hit = True
+    except Exception:
+        hit = False
+    if hit:
+        ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * mult
+        tag = params.get("tag") or ""
+        if tag:
+            ctx["tags"] = list(ctx.get("tags") or []) + [f"{tag}x{mult:.2f}"]
+
+
+def _state_cap(key: str) -> int:
+    try:
+        from game.battle2.state_effects import state_def
+        return int((state_def(key) or {}).get("cap") or 0)
+    except Exception:
+        return 0
+
+
+# ============================================================
 # 注册入口（装配层 install_ext_actions 调，幂等）
 # ============================================================
 

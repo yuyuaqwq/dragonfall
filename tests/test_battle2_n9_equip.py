@@ -590,6 +590,39 @@ def test_death_guard():
     check("undying 致死保命", p2["hp"] > 0, f"hp={p2['hp']}")
 
 
+def test_dmg_taken_calc_hooks():
+    print("【N9.20 数值修正钩子：dmg_calc 条件增伤 / taken_calc 减伤】")
+    # dmg_calc：处决类——目标 hp<30% ×1.3
+    p = mk_a("p1", "player")
+    m_full = mk_a("e1", "enemy", hp=100000, atk=1)
+    m_low = mk_a("e2", "enemy", hp=100000, atk=1)
+    EP.install_ext_actions()
+    p["triggers"] = {"dmg_calc": [{"type": "we_dmg_mult_cond", "key": "execute_test",
+                                   "cond": "hp_target_lt", "threshold": 0.30, "mult": 1.3}]}
+    b = new_battle(p, m_full, m_low)
+    # 打满血目标
+    b.act(ActCtx(caster=p, action="attack", target=m_full))
+    dmg_full = 100000 - m_full["hp"]
+    # 打 5% 血目标
+    m_low["hp"] = 5000
+    b.act(ActCtx(caster=p, action="attack", target=m_low))
+    dmg_low = 100000 - m_low["hp"]
+    check("低血触发 ×1.3", dmg_low > dmg_full * 1.15,
+          f"full={dmg_full} low={dmg_low}")
+    # taken_calc：减伤 8%（death_dance_armor 语义）
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2b", "enemy", hp=99999, atk=1)
+    EP.install_ext_actions()
+    p2["triggers"] = {"taken_calc": [{"type": "we_taken_mult_cond", "key": "dd_test",
+                                      "cond": "always", "mult": 0.92}]}
+    b2 = new_battle(p2, m2)
+    from game.battle2.landing import deal_damage as _dd
+    hp0 = p2["hp"]
+    _dd(b2, m2, p2, 100, [])
+    real = hp0 - p2["hp"]
+    check("承伤减伤 8%（92）", real == 92, f"real={real}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -611,6 +644,7 @@ def main():
     test_control_ext()
     test_heal_amp_and_mana()
     test_death_guard()
+    test_dmg_taken_calc_hooks()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:
