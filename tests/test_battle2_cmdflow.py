@@ -76,6 +76,11 @@ logs, ended, who = b2.human_act("attack", None, focus)
 dmg = hp0 - enemy0.get("hp", 0)
 check("普攻造成伤害", dmg > 0, "dmg=%s" % dmg)
 check("行动返回 logs", isinstance(logs, list) and len(logs) > 0)
+# 命令层回写：action 后 actor → player dict（旧引擎引用传递自动同步，
+# battle2 actor 是副本，命令层 db.update_player/展示读 player dict 需显式回写）
+BR.sync_player_from_actor(player, b2.focus())
+check("回写 hp 同步", player.get("hp", 0) <= 200, "hp=%s" % player.get("hp"))
+check("回写 mp 同步", player.get("mp", 0) >= 0, "mp=%s" % player.get("mp"))
 db.save_battle(gid, qid, b2.to_state())
 
 print("== 3. 续战恢复 → 继续打完 ==")

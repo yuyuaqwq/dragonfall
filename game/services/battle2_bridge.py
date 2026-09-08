@@ -168,3 +168,51 @@ def apply_player_battle_start(player: dict, actor: dict, db=None) -> dict:
     返回 actor（原地补全后同一引用）。
     """
     return actor
+
+
+# ============================================================
+# 战斗回写（battle2 actor → 命令层 player dict）
+# ============================================================
+
+# 战斗后需要同步回 player dict 的面板当前值（hp/mp 战斗中被引擎改动，
+# 命令层 db.update_player / 展示页读的是 player dict——旧引擎引用传递
+# 自动同步；battle2 actor 是副本，命令层行动后必须显式回写）。
+_BACK_SYNC_SCALARS = (
+    "hp", "mp", "max_hp", "max_mp",
+)
+
+# 战斗可变状态键（actor → player dict 同构回写；玩家 buffs/shields/state 等
+# 战斗内由引擎维护在 actor 上，战斗结束/展示前回写 player 保证命令层读得到）。
+_BACK_SYNC_BAGS = (
+    "buffs", "debuffs", "shields", "cooldown", "hot", "charging", "defending",
+    "ct", "poi_buff", "state",
+    # 旧玩家 dict 兼容键（职业层可能在 player 上读，见 _PLAYER_PASSTHROUGH）
+    "resources", "stacks", "eff", "food_effects", "buff_hits",
+    "last_element", "v139_modes", "v139_charge", "overflow_shield_cd",
+    "stealth_atk", "reduce_all_left", "reduce_left",
+    "combo_seq", "last_combo_tag", "tailwind_prev_energy",
+)
+
+
+def sync_player_from_actor(player: dict, actor: dict) -> dict:
+    """battle2 actor 战斗后状态 → player dict 回写（命令层行动后调用）。
+
+    旧 Battle 构造时把 player dict 直接当 _focus 引用，引擎内 hp/buffs 改动
+    自动落在 player dict 上；battle2 的 player actor 是 make_actor 副本，
+    命令层在每次 human_act / 战斗结束结算前调用本函数，把战斗结果同步回
+    player dict，后续 db.update_player / 展示面板读到的才是最新值。
+
+    返回 player（原地回写后同一引用；player 为空 dict 时也安全）。
+    """
+    player = player if isinstance(player, dict) else {}
+    actor = actor if isinstance(actor, dict) else {}
+    if not actor:
+        return player
+    for k in _BACK_SYNC_SCALARS:
+        if actor.get(k) is not None:
+            player[k] = actor[k]
+    for k in _BACK_SYNC_BAGS:
+        if k in actor and actor[k] is not None:
+            player[k] = actor[k]
+    return player
+
