@@ -62,7 +62,7 @@
 | - | 质量：分支覆盖 90.4% + 甄别文档 | ✅ 9a5627f |
 | **N5b-0** | **盘点：命令层调用面（旧 dict 语义 vs battle2 sides-only 矛盾）** | ✅ dec4647 |
 | **N5b-1** | **数据桥 battle2_bridge（player/怪 → actor 翻译）** | ✅ 64ab806 |
-| **N5b-2** | **旧档迁移 migrate_old_state（enemies/enemy → sides）** | ✅ 83a213d |
+| **N5b-2** | **旧档迁移 migrate_old_state（enemies/enemy → sides）→ 已删（鱼鱼 2026-09-08 拍板：不留旧档迁移代码，旧格式档直接作废清档）** | ⛔ 83a213d 内容删除 |
 | - | **fix：_after_act 用聚合 spd（真实玩家裸 spd=0 卡死 bug）** | ✅ 9fceee0 |
 | - | **调用映射表施工图（combat 改造依据）** | ✅ a56d5e4 |
 | **N5b-3** | **命令层数据流验证测试（DB 存/取 + 行动链 + 迁移）** | ✅ bfd3991 |
@@ -91,13 +91,12 @@ game/battle2/
   - `player_to_actor(player)` → player actor（class 面板字段透传 + buffs/shields 同构）
   - `monster_to_actor(mon)` → enemy actor（lv→level；rank/reach/role/is_boss/掉落透传）
   - `build_sides(player, enemies, allies)` → sides dict
-  - `is_old_state(st)` / `migrate_old_state(st, player)` → 旧档转 sides state（玩家 buffs/
-    shields/cooldown 灌 actor；mech_stacks/resources → actor.state 平铺；战斗级元数据
-    map/name/dot_res 存 meta 键）
+  - ~~旧档迁移~~（is_old_state / migrate_old_state 已删——鱼鱼拍板：**不做旧档兼容**，
+    命令层只认 battle2 格式；旧格式存档（无 sides）→ 直接清档重开）
 - **docs/N5B_命令层盘点.md**：9 文件依赖 + b.xxx 全景
 - **docs/N5B_调用映射表.md**：施工图（combat.py/instance.py 逐项 b.xxx → battle2 等价）
-- **tests/test_battle2_bridge.py**（67 断言）、**tests/test_battle2_cmdflow.py**（11 断言）
-- 全套 232/232 绿（battle2 引擎 221 + cmdflow 11）
+- **tests/test_battle2_bridge.py**（49 断言）、**tests/test_battle2_cmdflow.py**（10 断言）
+- 全套 231/231 绿（battle2 引擎 221 + cmdflow 10）
 
 ### ⚠️ 真实数据对拍发现并修复的引擎 bug（9fceee0）
 - 真实玩家 actor 裸 spd/atk/def=0（面板由 stats.actor_stats 从 class/equip 聚合）。
@@ -112,11 +111,11 @@ game/battle2/
 - Lv10 vs Lv12：双 defeat（✅ 同向）
 
 ## 4. 测试
-- 位置：`tests/test_battle2_*.py`（9 个文件，232 断言全绿：引擎 221 + cmdflow 11）
+- 位置：`tests/test_battle2_*.py`（9 个文件，231 断言全绿：引擎 221 + cmdflow 10）
 - 跑法：`python tests/test_battle2_n1_attack.py` 等（w1 内）
 - **覆盖率门禁（每改必跑）**：
   - `python tools/cov_func_battle2.py` — 函数级（0 未调用）
-  - `python tools/cov_branch_battle2.py` — 行级 90.4%（其余防御代码豁免，见 tools/COVERAGE_battle2.md）
+  - `python tools/cov_branch_battle2.py` — 行级 90.6%（其余防御代码豁免，见 tools/COVERAGE_battle2.md）
 - Python：`C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe`
 
 ## 5. N5b 待办（前置已完，剩命令层本体改造）
@@ -124,14 +123,15 @@ game/battle2/
 ✅ 已完成（见 §3）：
 - 盘点 9 文件 + b.xxx 全景（docs/N5B_命令层盘点.md）
 - 数据桥 game/services/battle2_bridge.py（battle2 包外，引擎零改动）
-- 旧档迁移 migrate_old_state + 命令层数据流验证（test_battle2_cmdflow.py）
+- 旧档迁移代码删除（鱼鱼拍板：不留迁移代码，旧格式档作废清档）+ 命令层数据流验证
+  （test_battle2_cmdflow.py 第 4 段已改为「旧格式无 sides → 清 DB 重开」）
 - spd 聚合 bug 修复 + 回归
 
 ⬜ 下一步（N5b-4，施工图 docs/N5B_调用映射表.md）：
 - combat.py 切换（按映射表逐处改）：
   - import：`from .. import battle as BT` → battle2 + bridge
   - 开战构造 → `b = B2.Battle(btype, sides=bridge.build_sides(player, group), title_bonus=tb, pet=...)`
-  - 恢复：旧档 `bridge.is_old_state(st)` → `bridge.migrate_old_state(st, player)`；新档直用
+  - 恢复：只认 battle2 格式（state 含 sides）→ 直用 `from_state`；无 sides 旧格式 → 清档重开
   - 行动：`b.actor_act(...)` → `b.human_act(...)`（签名一致）
   - 展示：`b.enemies` → `b.sides_of("enemy")`；`b._p_*` → `b.focus()` actor 字段
   - `b._focus = player` 不再需要（battle2 focus() 返回 sides player 首 actor）

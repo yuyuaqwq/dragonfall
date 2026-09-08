@@ -10,7 +10,7 @@
   - 注意：battle2 Battle 构造签名 `(btype, sides, title_bonus, dmg_mult, pet, st, hostile_map)`
 - **存档恢复**：`BT.Battle.from_state(st)` —— battle2 也有 from_state，但只认 sides 结构
   - 新开战斗（battle2 to_state 产物）→ 直接用
-  - 存量旧档（enemies/enemy 键）→ 先 migrate_old_state（桥实现）再 from_state
+  - 存量旧档（enemies/enemy 键）→ **作废处理：清档重开**（鱼鱼 2026-09-08 拍板不留迁移代码）
 - **行动**：`b.actor_act(action, skill_name, player, target=...)` → `b.human_act(action, skill_name, player, target=...)`
   - 签名顺序完全一致！返回 (logs, ended, who) 一致
   - `b.actor_turn(action, skill_name, player, enemy_act=...)`（PVP）→ battle2 无对应
@@ -79,18 +79,17 @@ battle2 Battle 不是 dict——不能塞。
 - 展示时从 battle_state 读，不从 b 读
 - 这符合架构：战斗级元数据不属于引擎对象，属于"存档外壳"
 
-## 5. 存量旧档迁移（migrate_old_state）
+## 5. 存量旧档策略：作废（不做迁移）
 
-桥里实现：
-- 输入旧 state（enemies/enemy/player 键，怪含 lv）
-- 输出 battle2 state（sides 结构）
-- 旧怪 dict → actor（lv→level）；旧玩家 buffs/stacks/resources → actor 字段
-- 命令层恢复战斗时：先判断 state 有没有 sides → 没有则 migrate
+鱼鱼 2026-09-08 拍板：**不留旧档迁移代码**（migrate_old_state/is_old_state 已删）。
+- 命令层恢复战斗只认 battle2 格式（state 含 sides）→ 直用 `from_state`
+- 无 sides 的旧格式存档 → **清档重开**（db.clear_battle + 提示重新遭遇）
+- 上线时旧 battle.py 的在途战斗档一律作废，玩家重开战斗即可
 
 ## 6. 切换顺序建议（每步可验证）
 
 1. ✅ 数据桥 battle2_bridge（done, 64ab806）
-2. 桥补 migrate_old_state + 战斗外壳 helper
+2. ✅ 删 migrate_old_state/is_old_state（鱼鱼拍板，已删）+ 战斗外壳 helper
 3. 展示辅助方法改造（不依赖 BT 引擎的纯读函数）
 4. combat.py 探索/遇怪构造切 battle2（新开战斗）
 5. combat.py attack/skill/defend/flee 行动切 battle2

@@ -5,7 +5,7 @@
 1. 开战：build_monster_group → 桥 build_sides → battle2.Battle → to_state → db.save_battle
 2. 玩家攻击：db.get_battle → from_state → human_act("attack") → to_state → save
 3. 续战恢复：db.get_battle → from_state → 再攻击/逃跑 → 到结束
-4. 旧档兼容：构造旧格式 state → 存 DB → 读取走 migrate → battle2 恢复 → 能打完
+4. 旧格式存档作废：构造旧格式 state（无 sides）→ 存 DB → 命令层不迁移，直接清档重开
 
 跑法：python _probe_cmdflow.py
 """
@@ -89,7 +89,7 @@ if b3.result == "victory":
 db.clear_battle(gid, qid)
 check("清战斗成功", db.get_battle(gid, qid) is None)
 
-print("== 4. 旧档迁移流程（旧 state 存 DB → 读时 migrate → battle2 打完）==")
+print("== 4. 旧格式存档作废（无 sides → 清 DB 重开，不做迁移）==")
 legacy = {
     "type": "monster", "now": 2.0, "round": 1, "result": None,
     "enemy": dict(mon), "enemies": [dict(u) for u in group],
@@ -101,18 +101,14 @@ legacy = {
 db.save_battle(gid, qid, legacy)
 row = db.get_battle(gid, qid)
 check("旧档存 DB 成功", row is not None)
-# 命令层读档逻辑：is_old_state → migrate
+# 命令层读档逻辑：只认 battle2 格式（含 sides）；旧格式无 sides → 战斗作废清档（不迁移）
 stored = row["state"]
-if BR.is_old_state(stored):
-    migrated = BR.migrate_old_state(stored, player=player)
-    b4 = B2.from_state(migrated)
-    check("旧档 migrate → from_state 成功", b4 is not None)
-    logs4 = []
-    b4.auto_run(logs4)
-    check("旧档续战能打完", b4.result in ("victory", "defeat", "fled"), "result=%s" % b4.result)
-else:
+if isinstance(stored, dict) and stored.get("sides"):
     b4 = B2.from_state(stored)
-    check("已是新档直用", b4 is not None)
+    check("新档直用", b4 is not None)
+else:
+    db.clear_battle(gid, qid)
+    check("旧格式作废清档", db.get_battle(gid, qid) is None)
 
 print("\n=== 结果 PASS=%d FAIL=%d ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

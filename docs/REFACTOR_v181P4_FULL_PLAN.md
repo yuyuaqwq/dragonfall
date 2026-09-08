@@ -279,7 +279,7 @@ actor dict 含 owner 循环引用（召唤物）→ 序列化转 uid 字符串�
 ## Part 6：必做收尾承诺（不可跳过）
 - [ ] mech/effect 合并（N3 的 EFFECT_HANDLERS）完成前不许认为重构结束
 - [ ] enemy 过渡属性删除（新引擎天然无，旧引擎删）
-- [ ] 旧档迁移一次性脚本 + 删除持续兼容
+- [x] ~~旧档迁移一次性脚本 + 删除持续兼容~~ → **已否决（鱼鱼 2026-09-08 拍板：不留旧档迁移代码；旧格式档作废清档重开）**
 - [ ] 旧 battle.py 最终删除（N6）
 
 ---
@@ -385,7 +385,7 @@ def apply_effects(battle, caster, target, effects, logs):
 ```python
 def to_state(battle) -> dict      # Part 4.2 结构（sides-only）
 def from_state(state) -> Battle   # 重建 sides+actors
-def migrate_old_state(state) -> dict  # 旧档（enemy/enemies 键）一次性迁移
+def migrate_old_state(state) -> dict  # ~~旧档（enemy/enemies 键）一次性迁移~~ 已否决（鱼鱼 2026-09-08：不做，旧档作废）
 ```
 
 ### 7.4 数值一致性策略（关键风险）
