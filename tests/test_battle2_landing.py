@@ -134,7 +134,7 @@ def test_heal_anti():
     print("【L6 治疗落地：禁疗 heal_down 修正】")
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
     tgt = mk_actor("e", "被禁疗", "enemy", hp=50, max_hp=100)
-    tgt["buffs"]["heal_down"] = 2  # 禁疗 2 层 → -20%
+    tgt["state"]["heal_down"] = 2  # 禁疗 2 层 → -20%（v2 数值容器 state，N9 收编）
     logs = []
     real = L.heal_actor(b, tgt, 50, logs)
     check("heal_down 2 层 → 治疗 -20% → 40", real == 40, f"real={real} hp={tgt['hp']}")

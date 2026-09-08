@@ -155,6 +155,16 @@ def _translate_dot_hit(key: str, wd: dict) -> dict:
     return {ev: [eff]}
 
 
+def _translate_reflect_taken(key: str, wd: dict) -> dict:
+    """proc_reflect 受击反弹：族扩展动作 we_reflect（on_taken；攻击者=caster 反弹对象）。
+    参数全带（chance/reflect_pct/heal_pct/heal_down/max_hp_pct/burn_stack——缺省执行器兜底无此段）。"""
+    eff = {"type": "we_reflect", "key": key}
+    for f in ("chance", "reflect_pct", "heal_pct", "heal_down", "max_hp_pct", "burn_stack"):
+        if wd.get(f) is not None:
+            eff[f] = wd[f]
+    return {"taken": [eff]}
+
+
 # 第一批支持 key 清单（key → 翻译器）
 _START_TRANSLATORS = {
     # proc_shield battle_start 起手盾
@@ -179,6 +189,12 @@ _START_TRANSLATORS = {
     "rong_lu_yu_wen": _translate_dot_hit,
     "ember_burn": _translate_dot_hit,
     "blood_trace": _translate_dot_hit,
+    # proc_reflect 受击反弹（族扩展动作）
+    "thorn_armor": _translate_reflect_taken,
+    "retribution_ring": _translate_reflect_taken,
+    "iron_echo": _translate_reflect_taken,
+    "dragon_spine_mail": _translate_reflect_taken,
+    "ember_bulwark": _translate_reflect_taken,
 }
 
 

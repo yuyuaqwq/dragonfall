@@ -183,7 +183,7 @@ def test_no_equip_no_trigger():
 def test_unsupported_key_skipped():
     print("【N9.6 未支持 key 静默跳过（范围外）】")
     p = mk_a("p1", "player")
-    equip(p, "thorn_armor", slot="armor")   # proc_reflect：后续批次
+    equip(p, "sentinel_aegis", slot="armor")   # proc_shield taken 概率盾：后续批次
     equip(p, "wind_split", slot="weapon")    # proc_extra_dmg：后续批次
     EP.apply_to_actor(p)
     check("未支持 key 不装配", not (p.get("triggers") or {}), f"{p.get('triggers')}")
@@ -300,6 +300,40 @@ def test_dot_blood_trace_curhp():
     check("当前 2% 递减跳", 1000 - hp2 == 20, f"dmg={1000-hp2} (2%×1000)")
 
 
+def test_reflect_ext_action():
+    print("【N9.11 proc_reflect 扩展动作：受击反弹 + 附赠】")
+    # thorn_armor 无条件反 15%
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=1000, atk=1)
+    equip(p, "thorn_armor", slot="armor")
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    tr = p.get("triggers") or {}
+    check("thorn 装配 on_taken", "on_taken" in tr, f"keys={list(tr.keys())}")
+    # 敌打玩家 100 → 反射 15
+    hp0 = m["hp"]
+    from game.battle2.landing import deal_damage as _dd
+    _dd(b, m, p, 100, [])
+    check("受击反 15%", m["hp"] == hp0 - 15, f"hp={m['hp']} dmg={hp0-m['hp']}")
+    # dragon_spine_mail：反 25% + 攻击者 heal_down 2 层
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=1000, atk=1)
+    equip(p2, "dragon_spine_mail", slot="armor",
+          we_data={"chance": 1.0, "reflect_pct": 0.25, "heal_down": 2})
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    hp0b = m2["hp"]
+    _dd(b2, m2, p2, 100, [])
+    check("龙脊反 25", m2["hp"] == hp0b - 25, f"hp={m2['hp']}")
+    check("攻击者 heal_down 2 层", (m2["state"] or {}).get("heal_down") == 2,
+          f"state={m2['state']}")
+    # heal_down 生效：m2 被治疗减 20%
+    from game.battle2.landing import heal_actor as _ha
+    m2["hp"] = 100
+    _ha(b2, m2, 100, [])
+    check("禁疗 20%（回 80）", m2["hp"] == 180, f"hp={m2['hp']}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -312,6 +346,7 @@ def main():
     test_wind_mark_stack()
     test_dot_ext_action()
     test_dot_blood_trace_curhp()
+    test_reflect_ext_action()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

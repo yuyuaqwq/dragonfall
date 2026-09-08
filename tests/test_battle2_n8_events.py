@@ -242,21 +242,19 @@ def test_on_heal():
 
 
 def test_on_kill_and_on_death():
-    print("【N8.7 on_kill（击杀者）/ on_death（死亡）】")
+    print("【N8.7 on_kill（击杀者）/ on_death（死者自身效果）】")
     p = mk_a("p1", "player")
     m = mk_a("e1", "enemy", hp=50)
-    ally = mk_a("e2", "enemy", hp=600)
-    ally["hp"] = 400
     p["triggers"] = {"on_kill": [{"type": "state_add", "key": "n8_kill", "amount": 1, "on": "caster"}]}
-    ally["triggers"] = {"on_death": [{"type": "heal", "value": 5, "on": "caster"}]}
-    b = new_battle(p, m, ally)
+    # on_death 主体=死者（fire 允许 dead subject 执行自身声明——死亡遗言类）
+    m["triggers"] = {"on_death": [{"type": "state_add", "key": "n8_dead", "amount": 1, "on": "caster"}]}
+    b = new_battle(p, m)
     logs = []
     L.deal_damage(b, p, m, 999, logs)
     check("击杀触发 on_kill", (p["state"] or {}).get("n8_kill") == 1, f"state={p['state']}")
     check("敌人死亡", m["hp"] == 0)
-    # on_death：同阵营存活者（ally）声明 → 触发 heal
-    g = 400 - ally["hp"]
-    check("on_death 触发 ally 回血 5", g == -5 or ally["hp"] == 405, f"hp={ally['hp']} gained={g}")
+    # on_death：死者自己的死亡效果执行（fire subject=dead 例外）
+    check("on_death 死者声明执行", (m["state"] or {}).get("n8_dead") == 1, f"state={m['state']}")
     check("死者登记", len(b.killed_actors) >= 1)
 
 
