@@ -1,118 +1,145 @@
-# N5b4-5a 副本战斗重写版施工图 v2（battle2 原生，鱼鱼 2026-09-08 拍板）
+# N5b4-5a 副本战斗重写 v3 —— 行动命令层全重写方案（新会话执行蓝图）
 
-> 取代 v1（补丁版）。鱼鱼拍板：**不在 4005 行老 instance.py 上打洞**——副本战斗
-> 直接用 battle2 原生重写（新控制器文件），旧战斗代码整段删除，不留镜像/兼容壳。
-> 上一级缺口设计见 `REFACTOR_v181P4_N5B5_instance_gap_design.md`（5E 钩子已落地）。
+> 2026-09-08 定稿。鱼鱼拍板："战斗+行动命令层全重写（新 InstanceBattle 命令层接管
+> 副本行动入口），老 instance.py 战斗路由停用不手术，纯玩法命令按需迁移/保留引用"。
+> **本文档是给新会话的执行蓝图**——照做即可，边做边核对行号（代码可能已漂移）。
 
 ---
 
-## 0. 目标架构
+## 0. 已落地状态（wt_ebuffs 分支，勿重复）
+
+- commit `49def5d`：5a 施工图 v2（重写模型）
+- commit `e8e62e8`：新控制器骨架 `game/commands/instance_battle.py`（battle2 原生、
+  零 import 旧 battle）：
+  - `build_battle(st)`：组 sides → B2 → `st["battle"]=to_state`
+  - `act(st, gid, qq, action, skill, target)`：from_state → human_act → to_state 落回
+    （heal/buff target=None 防奶敌）
+  - `sync_views(st, gid)`：actors → st["players"]/enemies/boss 视图 + DB 血量（单点同步）
+  - `next_actor_key(st)`：轮转 = sides player 存活 actor ct 最小者
+  - 测试 `tests/test_battle2_n5b4_instance.py` 17 断言绿
+- 全套 battle2 18 文件 579 断言绿
+
+## 1. 目标架构（v3）
 
 ```
-玩法壳（instance.py 保留 ~2000 行）            新控制器（instance_battle.py 新文件）
-  开本/组队/地图/探索/调查/宝箱/撤退/任务   →   战斗 = battle2 原生
-  命令路由到控制器
-        │  st["players"] 视图（只读，控制器同步）      │
-        └──────────────  st（副本实例状态） ───────────┘
-                              st["battle"] = battle2 to_state（战斗权威，sides actors）
+CombatCmds（main.py mixin，命令解析层，只留 4 处接线点）
+  『攻击/技能/防御/逃跑』 instance 分流行 → 新入口（不再调老 _instance_act）
+        │
+        ▼
+InstanceBattleRouter（新文件，全逻辑新写，命令层薄壳）
+  轮转（谁行动/超时自动防御/等待提示）
+  行动（调 instance_battle.act）
+  结算（敌死→通关/肃清/切怪/失败/同归）
+  账务（贡献 dealt/仇恨表/击杀账——5b 完善）
+        │
+        ▼
+instance_battle.py（已落地：build_battle/act/sync_views/next_actor_key）
+        │
+        ▼
+battle2 引擎（B2 human_act/sides/事件）
+
+玩法壳（instance.py 保留：开本/组队/地图/探索/调查/宝箱/任务/撤退/通关奖励）
+  读 st["players"]/st["boss"]/st["enemies"] 视图（sync_views 单点喂）
 ```
 
-- **战斗权威** = `st["battle"]`（battle2 to_state：sides 全员 actors + now + killed）
-- **无镜像**：旧 p_buffs/p_hot/p_defending/mech_stacks/enemies/boss/enemy/charging/
-  cooldown 战斗键全删（actors 内）
-- **视图垫片**（唯一双写点）：每刻落盘时把 actors 状态同步回 st["players"] +
-  st["boss"]/st["enemies"]（玩法壳只读旧键不炸）——集中在控制器一个函数
-- **DB 同步**：战斗每刻把存活玩家 hp/mp 写回 DB（保留现行为 _sync_players_db）
+## 2. 命令注册约束（侦查结论，方案前提）
 
-## 1. 新文件 `game/commands/instance_battle.py`
+- 插件命令 = `Main`（main.py 285）继承命令 Mixin（PlayerCmds/CombatCmds/...），
+  handler 经 filter 装饰注册进 astrbot 注册表（`game/commands/_platform.py`）
+- **同名 filter 命令无法共存**（MRO 后者覆盖 / 或重复触发）→ 不能注册第二个『攻击』
+- 因此『攻击/技能/防御/逃跑』命令的**消息解析层仍由 CombatCmds 提供**，其内部
+  instance 分流行是唯一不可避免的接线点（每命令约 1-2 行：调用目标从
+  `self._instance_act(...)` 改为新路由入口）——除此之外的副本战斗代码**全部搬新文件
+  或删除**，CombatCmds 不承载副本战斗逻辑
 
-### 1.1 `build_battle(st, group_id) -> B2`
-遭遇/切怪/Boss 战入口（替换 `_enter_stage_combat`/切怪段的 Battle 构造）：
-```python
-def build_battle(st, group_id):
-    sides = {"player": [], "enemy": []}
-    for k in st["members"]:
-        if not st.get("alive", {}).get(str(k), True):
-            continue
-        snap = st["players"][str(k)]
-        sides["player"].append(_player_actor(snap, st, k))
-    for u in st.get("enemies") or []:
-        sides["enemy"].append(BR.monster_to_actor(u))
-    b = B2("instance", sides=sides, title_bonus={},
-           target_picker=<5b>, on_event=<5b>)      # 5a 先 None
-    st["battle"] = b.to_state()                     # battle2 state 落 st
-    return b
-```
-`_player_actor(snap, st, k)`：player_to_actor(snap) + 合并 p_buffs→buffs /
-p_hot→hot / p_food_effects→food_effects / p_defending→defending /
-charging / cooldown / resources / mech_stacks→stacks / p_shields→shields /
-ct / stat_bonus（全字段映射见 v1 §1.1，此处 actors 是权威后这些 st 键在建战斗时
-一次性搬入，之后只从 actors 回读视图）。
+## 3. CombatCmds 接线点（4 处小改，目标改调用）
 
-### 1.2 `act(st, group_id, qq_id, action, skill_name, target) -> (logs, ended, who_key)`
-真人行动入口（替换 `_instance_act` 战斗段）：
-```python
-def act(st, group_id, qq_id, action, skill_name, target):
-    b = B2.from_state(st["battle"])
-    my = <player side 中 qq_id 匹配 actor>（副本轮转已由命令层确认轮到）
-    tgt = <目标 actor 或 None>（heal/buff → None 防奶敌，同 PVP）
-    logs, ended, who = b.human_act(action, skill_name, actor=my, target=tgt)
-    st["battle"] = b.to_state()
-    return logs, ended, who
-```
-### 1.3 `sync_views(st, group_id)` —— 唯一视图/DB 同步点
-每刻行动落盘后调：actors → st["players"]（hp/mp/max/buffs 视图）+ st["boss"]/
-st["enemies"]（存活敌视图 + 死亡入 killed 账 + 压缩语义由命令层保留 compact）+
-st["now"] + DB 血量同步。详细逐字段 = 控制器内 `_BACK_SYNC_*` 同款。
+| 文件/函数 | 现状 | 改法 |
+|---|---|---|
+| combat.py `attack`（~955 `type=="instance"`） | `self._instance_act(event,gid,qid,player,state,"attack",None)` | `self._instance_router(...)` 同参 |
+| combat.py `skill`（~1218） | 同上 "skill", skill_name, target | 同上 |
+| combat.py `defend`（~1574） | 同上 "defend", None | 同上 |
+| combat.py `flee`（~1629 instance 分支） | 直接提示"副本 Boss 锁场不可逃" | 保留（副本战斗内不可逃语义不变） |
 
-### 1.4 命令层薄壳保留（instance.py 内，读 actors 结果）
-- 轮转：下一行动者 = sides player actors ct 最小存活（battle2 schedule 语义，读
-  st["battle"] sides）；超时自动防御（薄壳现有逻辑，改读 actors）
-- 账务：贡献 dealt/仇恨表 = 命令层自算（现有 hp 差逻辑）
-- 通关/失败/肃清/切怪：现有分支保留，改调 build_battle/act
+> 接线点改动的"老文件接触"仅此 4 行调用目标——把战斗逻辑全部留在新文件，这就是
+> 鱼鱼要求的"不手术"（架构上同名命令无法避免的最小接触）。
 
-## 2. instance.py 删除清单（被新控制器替代，整段删）
+## 4. 新文件 `game/commands/instance_router.py`（或并入 instance_battle.py）职责
 
-| 函数/段 | 去向 |
+`_instance_router(event, group_id, qq_id, player, state, action, skill_name=None, target=None)`
+（async generator，对齐旧 _instance_act 调用协议）逐段重写（**不搬老代码，全新实现**）：
+
+### 4.1 入口守卫
+- 取大陆实例 st（`C.get_instance_st(world_id)` 优先，battle_state 行兜底——沿用
+  `_instance_battle_for` 语义，逻辑新写）
+- 肃清/无敌人 → 引导探索/深入（对应老 2465-2483）
+- 当前行动者校验（`instance_battle.next_actor_key`）+ 非请求者 → 超时自动防御或等待
+  提示（对应老 2494-2521；自动防御 = 对非请求超时者调 act("defend")，新写）
+
+### 4.2 行动
+- `instance_battle.build_battle(st)` 已在遭遇/切怪时调用过 → 直接用 `st["battle"]`
+- `logs, ended, nxt = instance_battle.act(st, gid, qq, action, skill, target)`
+- `instance_battle.sync_views(st, gid)`
+
+### 4.3 账务（薄壳，5a 基础版）
+- dealt/贡献/仇恨：从行动前后敌 hp 差算（沿用思路，新写读 st["battle"] sides）
+- 防御挑衅/仇恨技 hate_mult 文案：5a 保留基础（读技能 cfg），仇恨选目标 5b
+
+### 4.4 结算分支（对应老 2793-3045，全重写为读 actors 结果）
+- 玩家倒地（sync_views 已标记 alive=False）→ 全员倒地失败 `_instance_defeat`（玩法壳
+  函数保留引用调用）
+- 敌全灭（st["enemies"] 视图空）→ 分支判定：
+  - secret_guard_pending → 精英守卫奖励/宝箱（玩法壳函数引用）
+  - rooms Boss 房 → boss_alive 标记 + `_instance_victory`（玩法壳引用）
+  - stage_pending 有怪 → 击杀奖励 + 切下一只（**切怪 = build_battle 重新构造**）
+  - stages 层清 → 地图模式/深入提示
+  - 末层/无 stages → `_instance_victory`
+- 死亡账：`battle.killed_actors` uid → st["killed_enemies"]/击杀任务（新写读
+  battle state killed 键）
+
+### 4.5 收尾展示
+- 行动日志 + `_instance_battle_footer`（玩法壳保留，改读视图）+ "轮到 X 行动"提示
+- `sync_players_db` 已由 sync_views 内 DB 同步替代
+
+## 5. instance.py 删除清单（被 v3 替代，整段删，不留死代码）
+
+| 删 | 说明 |
 |---|---|
-| `_instance_act`（2444-3077 战斗主体） | 删（路由改调控制器 act） |
-| `_instance_battle_cb`（2395） | 删（5b on_event） |
-| `_apply_team_effect`（3078）+ taunt 消费段 | 删（5b on_event 翻译器） |
-| CT helpers 全家（3155-3230）：living_player_cts/min_*_ct/next_actor/auto_defend_player/ct_queue/next_player_name | 删或按 §1.4 薄壳重建 |
-| `_sync_enemy_unit`（3277） | 删（actors 权威） |
-| `_find_skill_cfg`（3233） | 保留（技能数据查询，账务/5b 用） |
-| `_instance_seed_*`/`_instance_affix_ids`（1000-1063） | 5a 先保留调用（词条种子行为待拍板）或删（装配批）——见 §5 |
-| `_instance_reset_player_cts`（1064） | 删（battle2 ct 由 actors 带）——遭遇重建时 actors 初始 ct 由 build 播种 |
-| `_instance_enemies_compact`（1184） | 保留（命令层压缩 st 视图）但简化 |
-| `_instance_build_enemy_array`（1132）/`_scale_enemy_copy`/`_mark_minion_copy` | 保留（敌组构造——build_battle 用） |
-| `_instance_enemies_alive/_enemy_units/_player_units/_ensure_player_fields` | 保留（视图判定用）或改读 actors |
-| 战斗展示 `_instance_battle_footer`（1458） | 保留（改读 actors/st 视图） |
+| `_instance_act` 战斗主体（约 2444-3077） | 被 router 替代 |
+| `_instance_battle_cb`（2395） | 5b on_event 替代 |
+| `_apply_team_effect`（3078）+ taunt 消费段 | 5b on_event 翻译器（暂删，5b 新写） |
+| CT helpers 全家（3155-3230：living_player_cts/min_*_ct/next_actor/auto_defend_player/ct_queue/next_player_name） | 轮转 = instance_battle.next_actor_key + router 4.1 |
+| `_sync_enemy_unit`（3277） | actors 权威 |
+| `_instance_reset_player_cts`（1064） | ct 在 actors（遭遇/切怪 build 时播种） |
+| `_enter_stage_combat` 的 Battle 构造段 | 玩法初始化保留，构造段调 build_battle |
+| 旧 import：`from .. import battle as BT` / `BT._ct_*` 引用（1078/1143/1146/1172/198 等处） | 清零 |
 
-## 3. 路由改造（instance.py 命令层）
+**保留（玩法壳，只读视图）：** `_instance_build_state`/`_instance_start`（开本）、
+`join_battle`（加入——ct 播种改 battle2 schedule 初值）、`_instance_build_enemy_array`
+（敌组构造，build_battle 用）、`_instance_enemies_compact`（视图压缩）、
+`_instance_kill_reward`/`_instance_victory`/`_instance_defeat`（结算奖励/任务）、
+`_instance_map_view`/探索/调查/宝箱/撤退/任务/`_instance_battle_footer`（展示）。
 
-| 命令 | 改法 |
-|---|---|
-| attack/skill/defend（combat.py 内路由 `type==instance` → `_instance_act`） | 改调 `instance_battle.act`（保留 instance.py 入口薄壳做轮转/超时判定） |
-| `_enter_stage_combat`（914） | 保留玩法初始化（mode/alive/lock/宠物窗口重置），Battle 构造段 → `build_battle` |
-| 肃清/切怪/通关分支（_instance_act 尾段 2793-3045） | 移入命令层新流程函数（act 返回后判定） |
+## 6. 分步执行 + 验证（每步 commit）
 
-## 4. 测试（tests/test_battle2_n5b4_instance.py）
-- build_battle：sides 字段断言（成员 actor 合并 p_*、敌 actor、stat_bonus、ct）
-- act 闭环：human_act 后 st["battle"] 更新 + sync_views 后 st["players"] hp 正确
-- 多玩家轮转：A 行动 → who/ct → B 轮（min-ct 语义）
-- 死亡：敌死 → killed 账 → compact 视图 → 通关/切怪分支
-- 增援：sides append（5b/剧本批）
-- 回归：battle2 全套
+| 步 | 内容 | 验证 |
+|---|---|---|
+| R1 | 写 `instance_router`（4.1-4.5 全逻辑，调 instance_battle + 玩法壳引用） | 单测：肃清守卫/轮转/超时自动防御/切怪/通关/失败 分支 |
+| R2 | CombatCmds 4 处接线点改指向 router | 现有 battle2 全套 + 命令层冒烟 |
+| R3 | instance.py 删除清单执行 + `grep BT.Battle` 清零 + 残留调用清零 | grep 验证 + 全套测试 |
+| R4 | 端到端副本流程测试（拟真 DB 2 人开本 → 小怪/精英/Boss/死亡/通关） | 新流程测试绿 |
+| R5 | HANDOFF 更新 + diff 给鱼鱼过目 + commit | — |
 
-## 5. 边界（随批次补，5a 完成时差异清单）
-- 仇恨/嘲讽 → 5b target_picker；团队广播 → 5b on_event
-- 旧毒（boss.debuffs.poison δ层）→ battle2 state 不认 → 内容批迁 actor.state dot
-- Boss 剧本（mech）→ 5c 导演；宠物 → 宠物批
-- 玩家武器词条特效：旧副本 Battle 无 player 装配 → **5a 不装配对齐旧**；是否启用 EP_apply 待鱼鱼拍板
-- 词条种子护盾（_instance_seed_battle_start_affixes）：保留调用（行为不变）直到装配拍板
+## 7. 行为差异（v3 完成后，5a 边界内）
+- Boss 仇恨/嘲讽：回落默认目标（5b target_picker）
+- 团队群奶/群体增益：不广播（5b on_event）
+- 副本旧毒（boss.debuffs.poison）：battle2 state 不认 → 毒结算断（内容批迁 state dot）
+- Boss 剧本 mech（转阶段/召唤/低血）：不触发（5c）
+- 宠物：只存不驱动（宠物批）
+- 玩家词条种子护盾（_instance_seed_battle_start_affixes）：玩法壳保留调用（行为不变，
+  装配启用待拍板）
+- 轮转细节以 battle2 ct/schedule 为准（不再有旧 CT 队列）
 
-## 6. 验收
-- 副本流程测试绿 + battle2 全套绿
-- grep 验证：instance.py 与 instance_battle.py 无 `BT.Battle` / 无被删函数残留调用
-- 手测：2 人开本 → 普通/精英/Boss 数值战斗主线跑通
-- 核心 diff（新控制器 + instance.py 删除 + 路由）→ 鱼鱼过目
+## 8. 会话接力口令
+「继续 N5b4-5a v3，读 docs/REFACTOR_v181P4_N5B5a_instance_mainline.md（v3 执行蓝图）
++ HANDOFF §0.5 记录 8，从 R1 开始」

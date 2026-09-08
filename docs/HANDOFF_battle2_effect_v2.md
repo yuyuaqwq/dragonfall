@@ -79,6 +79,15 @@
      _advance_time/_settle_time_effects）致死**不触发 _check_side_end**（result 不置位），
      只在 act() 尾部/actor_auto 后置——PVP 命令层胜负判定已改为**按 actor 存活**（不依赖
      result，防守方视角 result 本身要翻转），慢杀/毒跳死场景正常收尾。
+   8. **（2026-09-08 N5b4-5 重写路线拍板）** 鱼鱼两次纠正："别在老引擎上改动、重新写"
+   → 副本战斗 = battle2 原生**行动命令层全重写**：新 InstanceBattle 层接管副本行动
+   入口（战斗执行/轮转/结算全新代码），instance.py 战斗路由停用不手术、纯玩法壳
+   保留。已落地：5a v2 施工图（49def5d）+ 控制器骨架 instance_battle.py（e8e62e8，
+   build_battle/act/sync_views/next_actor_key，17 断言）。**v3 执行蓝图（本会话最后
+   产出）**：docs/REFACTOR_v181P4_N5B5a_instance_mainline.md——命令注册约束（同名
+   『攻击』无法共存→CombatCmds 仅 4 处接线点改调用目标）、instance_router 新文件
+   职责、instance.py 删除清单、R1-R5 分步。**新会话口令：「继续 N5b4-5a v3，读
+   docs/REFACTOR_v181P4_N5B5a_instance_mainline.md（v3）+ 本节，从 R1 开始」**
 
 ## 1. 已完成（全部绿，工作区干净）
 
