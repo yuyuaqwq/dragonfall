@@ -188,8 +188,7 @@ class CombatCmds(CommandBase):
             # 野王在场：构造野王战斗（血量弹性按参战人数）→ 保存战斗状态
             monster = build_king_monster(_king, cur_map, player)
             group = C.build_monster_group(monster, cur_map, player, scale_main=False)
-            b = BT.Battle("monster", None, self._title_bonus(group_id, qq_id), player=player,
-                          pet=db.pet_get(qq_id), enemies=group)
+            b = self._open_battle2(player, group, "monster", group_id=group_id, qq_id=qq_id)
             db.save_battle(group_id, qq_id, b.to_state())
             self._lock_battle(group_id, qq_id)
             _acts = "『攻击』『技能 <名称>』『防御』"  # 野王=Boss 战，不可逃跑
@@ -343,11 +342,11 @@ class CombatCmds(CommandBase):
             monster, tag, flavor = hm
             # v2 多对多：隐藏怪经 build_monster_group 生成敌方阵列（精英带爪牙）后传入 Battle
             group = C.build_monster_group(monster, cur_map, player)
-            b = BT.Battle("monster", None, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=group)
+            b = self._open_battle2(player, group, "monster", group_id=group_id, qq_id=qq_id)
             db.save_battle(group_id, qq_id, b.to_state())
             self._lock_battle(group_id, qq_id)
-            bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b._p_buffs_bag().get("echo_bless") else ""
-            _pb = b._p_poi_buff()
+            bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if (player.get("buffs") or {}).get("echo_bless") else ""
+            _pb = player.get("poi_buff")
             if _pb:
                 bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}+10%！\n"
             # O121 Boss 战隐藏『逃跑』选项（引擎/命令层均禁逃，防误导）
@@ -412,11 +411,11 @@ class CombatCmds(CommandBase):
         # v2 多对多：经 build_monster_group 生成敌方阵列（普通怪 single/double；精英带爪牙；
         # Boss 带 2 爪牙）后传入 Battle 构造（enemies 参数）
         group = C.build_monster_group(monster, cur_map, player, double=double)
-        b = BT.Battle("monster", None, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=group)
+        b = self._open_battle2(player, group, "monster", group_id=group_id, qq_id=qq_id)
         db.save_battle(group_id, qq_id, b.to_state())
         self._lock_battle(group_id, qq_id)
-        bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b._p_buffs_bag().get("echo_bless") else ""
-        _pb = getattr(b, "poi_buff", None)
+        bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if (player.get("buffs") or {}).get("echo_bless") else ""
+        _pb = player.get("poi_buff")
         if _pb:
             bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}+10%！\n"
         role_mark = tag or ("👑 BOSS" if monster["is_boss"] else ("⭐ 精英" if monster["is_elite"] else "🐾"))
@@ -531,6 +530,48 @@ class CombatCmds(CommandBase):
 
     def _unlock_battle(self, group_id, qq_id):
         _battle_locks.discard(str(qq_id))
+
+    # ---- N5b4-2：battle2 战斗构造/恢复统一入口（命令层不手拼 sides）----
+
+    def _open_battle2(self, player: dict, enemies: list, btype: str = "monster",
+                      group_id=None, qq_id=None, pet=None) -> "object":
+        """开战构造（battle2 四步仪式，N5b4-2 起探索/野王/普通遇怪/约战/塔统一走）。
+
+        ① 开战仪式（player dict 侧：字段播种/max 重算/echo_bless/poi_buff 消费）
+        ② 组 sides（player + 怪组）
+        ③ 装备装配（weapon_effect + affix → actor.triggers，N9/N9.7 已支持）
+        ④ 构造 Battle
+        """
+        from ..services import battle2_bridge as BR
+        from ..services.battle2_equip_proc import apply_to_actor as _EP_apply
+        tb = self._title_bonus(group_id, qq_id) if (group_id is not None and qq_id is not None) else {}
+        BR.prepare_player_for_battle(player, tb, db)
+        sides = BR.build_sides(player=player, enemies=enemies)
+        for _a in sides.get("player", []):
+            try:
+                _EP_apply(_a)
+            except Exception:
+                pass  # 装配异常不阻断开战（词条/武器个别解析失败静默）
+        from ..battle2 import Battle as B2
+        return B2(btype, sides=sides, title_bonus=tb,
+                  pet=pet if pet is not None else db.pet_get(qq_id))
+
+    def _restore_battle2(self, state: dict) -> "object":
+        """恢复 battle2 战斗（from_state）。旧格式（无 sides）→ None（命令层清档重开）。"""
+        if not isinstance(state, dict) or not state.get("sides"):
+            return None
+        from ..battle2 import Battle as B2
+        return B2.from_state(state)
+
+    def _sync_battle_player(self, player: dict, b) -> None:
+        """battle2 行动后回写：actor（副本）→ player dict（命令层读它做 db/展示）。"""
+        try:
+            _f = b.focus() if hasattr(b, "focus") else None
+            if _f:
+                from ..services.battle2_bridge import sync_player_from_actor
+                sync_player_from_actor(player, _f)
+        except Exception:
+            pass  # 回写异常不阻断（player 可能为空/半构造）
 
     def _mount_explore_bonus(self, player) -> float:
         """v39 坐骑：骑乘中探索精英率提升"""
@@ -922,8 +963,21 @@ class CombatCmds(CommandBase):
             async for _r in self._pvp_act(event, group_id, qq_id, player, battle["state"], "attack", None):
                 yield _r
             return
-        b = BT.Battle.from_state(battle["state"])
-        b._focus = player  # v121 审计修复：恢复路径补齐 self._focus（盾强度/冷却缩减/精准减免读它）
+        _stype = battle["state"].get("type")
+        # worldboss 战斗（N5b4-3 切 battle2 前仍走旧引擎）
+        if _stype == "worldboss":
+            b = BT.Battle.from_state(battle["state"])
+            b._focus = player
+            async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "attack", None, target=target_arg or None):
+                yield _r
+            return
+        b = self._restore_battle2(battle["state"])
+        if b is None:
+            # 旧格式存档作废：清档重开（N5b 约定不迁移）
+            db.clear_battle(group_id, qq_id)
+            self._unlock_battle(group_id, qq_id)
+            yield event.plain_result("⏳ 旧存档已失效，重新探索开始新的战斗吧！")
+            return
         # v2 指定目标：『攻击 <名字>』解析为目标名传给引擎（引擎会校验射程/存活）；无参→None 自动
         _target = target_arg or None
         # v94.2 体力：每次攻击扣 1（普通/世界Boss通用；instance/pvp 已在上方分流）
@@ -935,23 +989,22 @@ class CombatCmds(CommandBase):
             else:
                 yield event.plain_result(_st + "\n🍖 战斗中『使用 <食物>』恢复体力继续战斗，或『逃跑』脱离战斗～")
             return
-        if b.btype == "worldboss":
-            async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "attack", None, target=_target):
-                yield _r
-            return
-        logs, ended, _who = b.actor_act("attack", None, player, target=_target)
+        logs, ended, _who = b.human_act("attack", None, b.focus(), target=_target)
+        self._sync_battle_player(player, b)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             # v130.3 意见#9 体验增强：胜利/结束时若残存潜行（技能/防御击杀场景潜行未被攻击消费），
             # 显式提示消散，避免玩家误解"战斗结束了暴击还在"
-            if b._p_buffs_bag().get("stealth"):
+            if (player.get("buffs") or {}).get("stealth"):
                 logs.append("🌫️ 潜行的影子在战局结束后消散了……")
             if b.result == "victory":
-                # v126.7 胜利结算用原主怪引用（打死怪后 _remove_unit 清空 enemies，
-                # b.enemy 变 {} → monster["exp"] KeyError）
-                _mon = getattr(b, "_origin_enemy", None) or self._b_enemy(b)
-                # v130.7 意见#17：同场全部击杀单位（含副怪）交胜利结算——掉落/经验只按主怪一次
-                _kills = list(getattr(b, "killed_enemies", None) or [])
+                # N5b4-2：胜利结算用原主怪引用（sides["enemy"][0]——死亡不移除，读存活首怪或引用）
+                _mon = self._b_enemy(b)
+                if not _mon:
+                    _acts = b.sides_of("enemy")
+                    _mon = _acts[0] if _acts else {}
+                # N5b4-2：同场全部击杀单位（含副怪）交胜利结算——掉落/经验只按主怪一次
+                _kills = list(getattr(b, "killed_actors", None) or [])
                 for _r in self._handle_victory(event, group_id, qq_id, player, _mon, "\n".join(logs), extra_kills=_kills):
                     yield _r
                 return
@@ -1162,8 +1215,6 @@ class CombatCmds(CommandBase):
             async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "skill", skill_name, target=_skill_target):
                 yield _r
             return
-        b = BT.Battle.from_state(battle["state"])
-        b._focus = player  # v121 审计修复：恢复路径补齐 self._focus（盾强度/冷却缩减/精准减免读它）
         if battle["state"].get("type") == "pvp":
             if self._pvp_handle_timeout(battle, group_id, qq_id):
                 yield event.plain_result("⏰ PVP 战斗超过 5 分钟无人行动，自动解除！")
@@ -1171,7 +1222,21 @@ class CombatCmds(CommandBase):
             async for _r in self._pvp_act(event, group_id, qq_id, player, battle["state"], "skill", skill_name):
                 yield _r
             return
-        # v94.2 体力：施放技能扣 1（instance/pvp 已在上方分流）
+        # worldboss 战斗（N5b4-3 切 battle2 前仍走旧引擎）
+        if battle["state"].get("type") == "worldboss":
+            b = BT.Battle.from_state(battle["state"])
+            b._focus = player
+            async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "skill", skill_name, target=_skill_target):
+                yield _r
+            return
+        b = self._restore_battle2(battle["state"])
+        if b is None:
+            # 旧格式存档作废：清档重开（N5b 约定不迁移）
+            db.clear_battle(group_id, qq_id)
+            self._unlock_battle(group_id, qq_id)
+            yield event.plain_result("⏳ 旧存档已失效，重新探索开始新的战斗吧！")
+            return
+        # v94.2 体力：施放技能扣 1（instance/pvp/worldboss 已在上方分流）
         _ok, _st = self._spend_stamina(group_id, qq_id, 1, player, "施放技能")
         if not _ok:
             if self._b_enemy(b).get("is_boss"):
@@ -1180,18 +1245,18 @@ class CombatCmds(CommandBase):
             else:
                 yield event.plain_result(_st + "\n🍖 战斗中『使用 <食物>』恢复体力继续战斗，或『逃跑』脱离战斗～")
             return
-        if b.btype == "worldboss":
-            async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "skill", skill_name, target=_skill_target):
-                yield _r
-            return
-        logs, ended, _who = b.actor_act("skill", skill_name, player, target=_skill_target)
+        logs, ended, _who = b.human_act("skill", skill_name, b.focus(), target=_skill_target)
+        self._sync_battle_player(player, b)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "victory":
-                # v126.7 胜利结算用原主怪引用（打死怪后 b.enemy 变 {}）
-                _mon = getattr(b, "_origin_enemy", None) or self._b_enemy(b)
-                # v130.7 意见#17：同场全部击杀单位（含副怪）交胜利结算——掉落/经验只按主怪一次
-                _kills = list(getattr(b, "killed_enemies", None) or [])
+                # N5b4-2：胜利结算用原主怪引用（sides["enemy"][0]——死亡不移除，读存活首怪或引用）
+                _mon = self._b_enemy(b)
+                if not _mon:
+                    _acts = b.sides_of("enemy")
+                    _mon = _acts[0] if _acts else {}
+                # N5b4-2：同场全部击杀单位（含副怪）交胜利结算——掉落/经验只按主怪一次
+                _kills = list(getattr(b, "killed_actors", None) or [])
                 for _r in self._handle_victory(event, group_id, qq_id, player, _mon, "\n".join(logs), extra_kills=_kills):
                     yield _r
                 return
@@ -1502,8 +1567,6 @@ class CombatCmds(CommandBase):
             async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "defend", None):
                 yield _r
             return
-        b = BT.Battle.from_state(battle["state"])
-        b._focus = player  # v121 审计修复：恢复路径补齐 self._focus（盾强度/冷却缩减/精准减免读它）
         if battle["state"].get("type") == "pvp":
             if self._pvp_handle_timeout(battle, group_id, qq_id):
                 yield event.plain_result("⏰ PVP 战斗超过 5 分钟无人行动，自动解除！")
@@ -1511,11 +1574,21 @@ class CombatCmds(CommandBase):
             async for _r in self._pvp_act(event, group_id, qq_id, player, battle["state"], "defend", None):
                 yield _r
             return
-        if b.btype == "worldboss":
+        # worldboss 战斗（N5b4-3 切 battle2 前仍走旧引擎）
+        if battle["state"].get("type") == "worldboss":
+            b = BT.Battle.from_state(battle["state"])
+            b._focus = player
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "defend", None):
                 yield _r
             return
-        logs, ended, _who = b.actor_act("defend", None, player)
+        b = self._restore_battle2(battle["state"])
+        if b is None:
+            db.clear_battle(group_id, qq_id)
+            self._unlock_battle(group_id, qq_id)
+            yield event.plain_result("⏳ 旧存档已失效，重新探索开始新的战斗吧！")
+            return
+        logs, ended, _who = b.human_act("defend", None, b.focus())
+        self._sync_battle_player(player, b)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended and b.result == "defeat":
             for _r in self._handle_defeat(event, group_id, qq_id, player, self._b_enemy(b), "\n".join(logs)):
@@ -1556,12 +1629,43 @@ class CombatCmds(CommandBase):
             db.clear_battle(group_id, opp_qq)
             yield event.plain_result("💨 你脱离了 PVP 战斗！双方原地休整，互不追究。")
             return
-        if battle["state"].get("enemy", {}).get("is_boss"):
+        # Boss 锁场检查：battle2 格式读 sides["enemy"] 存活怪 is_boss；旧格式读 state.enemy
+        _is_boss = False
+        if battle["state"].get("sides"):
+            _eacts = battle["state"].get("sides", {}).get("enemy") or []
+            _is_boss = any((_u or {}).get("is_boss") for _u in _eacts)
+        else:
+            _is_boss = bool((battle["state"].get("enemy") or {}).get("is_boss"))
+        if _is_boss:
             yield event.plain_result("👑 Boss 锁定了你，无法逃跑！背水一战吧！")
             return
-        b = BT.Battle.from_state(battle["state"])
-        b._focus = player  # v121 审计修复：恢复路径补齐 self._focus（盾强度/冷却缩减/精准减免读它）
-        logs, ended, _who = b.actor_act("flee", None, player)
+        # worldboss 战斗（N5b4-3 切 battle2 前仍走旧引擎）
+        if battle["state"].get("type") == "worldboss":
+            b = BT.Battle.from_state(battle["state"])
+            b._focus = player
+            logs, ended, _who = b.actor_act("flee", None, player)
+            db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
+            if ended and b.result == "fled":
+                self._unlock_battle(group_id, qq_id)
+                db.clear_battle(group_id, qq_id)
+                yield event.plain_result("\n".join(logs))
+                return
+            db.save_battle(group_id, qq_id, b.to_state())
+            monster = self._b_enemy(b)
+            result = "\n".join(logs)
+            yield event.plain_result(
+                f"{result}\n"
+                f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}"
+            )
+            return
+        b = self._restore_battle2(battle["state"])
+        if b is None:
+            db.clear_battle(group_id, qq_id)
+            self._unlock_battle(group_id, qq_id)
+            yield event.plain_result("⏳ 旧存档已失效，重新探索开始新的战斗吧！")
+            return
+        logs, ended, _who = b.human_act("flee", None, b.focus())
+        self._sync_battle_player(player, b)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "fled":
