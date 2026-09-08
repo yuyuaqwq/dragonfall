@@ -1537,28 +1537,41 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     cur_res = res.get(key, 0)
                     cap = rd.get("max", 99)
                     lines.append(f"　⚡ {name}：{cur_res}/{cap}")
-            # 玩家 buff（刻数>0）+ 叠层 + 护盾（读各玩家 p_buffs/mech_stacks/p_shields）
+            # 玩家 buff（V 系列：效果在 snap.effects 条目 {expire/stat/period/...}，
+            # 叠层/资源在条目 stacks；护盾 snap.shields）——旧 p_buffs 键由 N10 清
             pbuf = []
-            pb = (st.get("p_buffs") or {}).get(k, {}) or {}
-            for bk, bv in pb.items():
-                if isinstance(bv, dict):  # 部分 buff 存 dict（阈值/值）→ 跳过
+            _now_eff = float(st.get("now", 0.0) or 0.0)
+            snap_eff = snap.get("effects") or {}
+            # 属性/控制 buff 条目（带 expire 或 mode → 显示剩余刻数）
+            for bk, bv in snap_eff.items():
+                if not isinstance(bv, dict):
                     continue
-                if bv and bv > 0 and bk in pbuf_names:
-                    if bk in ("reduce_all",):  # reduce_all 存减伤百分比，特殊
-                        continue
-                    pbuf.append(f"{pbuf_names[bk]}(剩{bv}刻)")
-            # 减伤（reduce_all 百分比 + reduce_all_left 刻数，副本 st 层级）
-            _ral = int(st.get("reduce_all_left", 0) or 0)
-            if _ral > 0 and pb.get("reduce_all"):
-                pbuf.append(f"🛡️减伤{int(float(pb.get('reduce_all')) * 100)}%({_ral}刻)")
-            stacks = (st.get("mech_stacks") or {}).get(k, {}) or {}
-            for sk, sv in stacks.items():
-                if sv and sv > 0 and sk in stack_names and sk not in enemy_mech_stacks:
-                    pbuf.append(f"{stack_names[sk]}×{sv}")
-            shields = (snap.get("p_shields") or {})
+                if bk not in pbuf_names:
+                    # 非玩家显示名 → 跳过（burn/poison 敌方减益）
+                    continue
+                _exp = bv.get("expire")
+                if isinstance(_exp, (int, float)):
+                    _left_sec = float(_exp) - _now_eff
+                    if _left_sec > 0:
+                        _turns = max(1, int(round(_left_sec / (ACT_TICK or 1.0))))
+                        pbuf.append(f"{pbuf_names[bk]}(剩{_turns}刻)")
+                    continue
+                # 无 expire 叠层条目（战意/怒气等资源层）→ 层数显示
+                _sv = int(bv.get("stacks", 0) or 0)
+                if _sv > 0 and bk in stack_names and bk not in enemy_mech_stacks:
+                    pbuf.append(f"{stack_names[bk]}×{_sv}")
+            # 减伤（reduce 条目 value 百分比 + 剩余刻）
+            _red = snap_eff.get("reduce")
+            if isinstance(_red, dict):
+                _rv = float(_red.get("v", 0) or 0)
+                _re = _red.get("expire")
+                if _rv > 0 and isinstance(_re, (int, float)):
+                    _left_r = max(1, int(round((float(_re) - _now_eff) / (ACT_TICK or 1.0))))
+                    pbuf.append(f"🛡️减伤{int(_rv * 100)}%({_left_r}刻)")
+            shields = (snap.get("shields") or {})
             # v167.3 显示修复（同 combat._status_line）：护盾实际按 expire_at 绝对时刻到期，
             # 旧 {turns} 兼容值 turns=0 时显示 (0刻) 很怪 → 只对真正剩余 >0 的盾显示剩余刻数。
-            _now_sh = float(st.get("now", 0.0) or 0.0)
+            _now_sh = _now_eff
             for sname, s in shields.items():
                 if (s or {}).get("value", 0) > 0:
                     _exp = (s or {}).get("expire_at")
@@ -1574,21 +1587,25 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         pbuf.append(f"✨护盾{s['value']}")
             if pbuf:
                 lines.append(f"　🛡️「{' '.join(pbuf)}」")
-        # 敌方单位级 buffs/stacks/debuffs（多对多阵列；v181 P3 收口：buffs 在每怪 actor dict，
-        # 无共享 e_buffs——旧 st["e_buffs"] 冗余显示已删）
+        # 敌方单位级效果（V 系列：每怪 actor.effects 条目；无共享 e_buffs——N10 清旧键）
         ebuf = []
         for u in alive_enemies:
-            for bk, bv in (u.get("buffs") or {}).items():
-                # 单位 buff 可能是 dict（盾/bar 状态等）→ 跳过非刻数键
-                if isinstance(bv, dict):
+            u_eff = u.get("effects") or {}
+            for bk, bv in u_eff.items():
+                if not isinstance(bv, dict):
                     continue
-                if bv and bv > 0 and bk in ebuf_names:
-                    ebuf.append(f"{u.get('name', '敌')} {ebuf_names[bk]}(剩{bv}刻)")
-            for dk, d in (u.get("debuffs") or {}).items():
-                if dk in debuff_names:
-                    _n = int((d or {}).get("n", 0) or 0)
-                    if _n > 0:
-                        ebuf.append(f"{u.get('name', '敌')} {debuff_names[dk]}×{_n}")
+                if bk not in ebuf_names:
+                    continue
+                _exp = bv.get("expire")
+                if isinstance(_exp, (int, float)):
+                    _left_sec = float(_exp) - _now_eff
+                    if _left_sec > 0:
+                        _turns = max(1, int(round(_left_sec / (ACT_TICK or 1.0))))
+                        ebuf.append(f"{u.get('name', '敌')} {ebuf_names[bk]}(剩{_turns}刻)")
+                    continue
+                _sv = int(bv.get("stacks", 0) or 0)
+                if _sv > 0 and bk in ebuf_names:
+                    ebuf.append(f"{u.get('name', '敌')} {ebuf_names[bk]}×{_sv}")
         if ebuf:
             lines.append(f"👹敌：「{' '.join(ebuf)}」")
 

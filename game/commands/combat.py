@@ -1005,7 +1005,10 @@ class CombatCmds(CommandBase):
         if ended:
             # v130.3 意见#9 体验增强：胜利/结束时若残存潜行（技能/防御击杀场景潜行未被攻击消费），
             # 显式提示消散，避免玩家误解"战斗结束了暴击还在"
-            if (player.get("buffs") or {}).get("stealth"):
+            # V 系列：battle2 效果在 player.effects；旧引擎引用同步 buffs——双引擎判型
+            _stealth_left = bool((player.get("effects") or {}).get("stealth")) \
+                if isinstance(player.get("effects"), dict) else bool((player.get("buffs") or {}).get("stealth"))
+            if _stealth_left:
                 logs.append("🌫️ 潜行的影子在战局结束后消散了……")
             if b.result == "victory":
                 # N5b4-2：胜利结算用原主怪引用（sides["enemy"][0]——死亡不移除，读存活首怪或引用）
