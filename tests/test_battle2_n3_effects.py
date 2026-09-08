@@ -373,6 +373,30 @@ def test_n75a_verbs():
     check("承伤×1.5 → 扣 150", 1000 - e2["hp"] == 150, f"扣血 {1000 - e2['hp']}")
 
 
+def test_n75b_potion_aliases():
+    print("【N3.11 N7.5b 药水纯属性别名：buff_atk/buff_crit/food 系 → BUFF_MULT 数值】")
+    b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
+    actor = {"uid": "p", "name": "勇者", "buffs": {}, "state": {}, "shields": {},
+             "hp": 500, "max_hp": 1000, "atk": 100, "def": 0, "spd": 50,
+             "crit": 0.05, "max_mp": 100, "mp": 100, "matk": 10, "mdef": 0}
+    logs = []
+    FX.apply_effects(b, actor, actor, [{"type": "buff_atk", "turns": 3}], logs)
+    _au = actor["buffs"].get("atk_up") or {}
+    check("buff_atk → atk_up stat=atk mult=1.30",
+          _au.get("stat") == "atk" and abs(float(_au.get("mult", 0)) - 1.30) < 1e-9, f"entry={_au}")
+    st = S.actor_stats(b, actor)
+    check("atk_up 面板折算 atk×1.30", abs(st["atk"] - int(100 * 1.30)) <= 1, f"atk={st['atk']}")
+    FX.apply_effects(b, actor, actor, [{"type": "buff_crit", "turns": 3}], logs)
+    _cu = actor["buffs"].get("crit_up") or {}
+    check("buff_crit → crit_up add 0.20",
+          _cu.get("stat") == "crit" and _cu.get("op") == "add"
+          and abs(float(_cu.get("mult", 0)) - 0.20) < 1e-9, f"entry={_cu}")
+    FX.apply_effects(b, actor, actor, [{"type": "buff_atk_food", "turns": 3}], logs)
+    _fu = actor["buffs"].get("food_atk_up") or {}
+    check("buff_atk_food → food_atk_up mult=1.10",
+          abs(float(_fu.get("mult", 0)) - 1.10) < 1e-9, f"entry={_fu}")
+
+
 def main():
     print("=== N3 battle2 效果系统测试 ===")
     test_debuff_stack()
@@ -385,6 +409,7 @@ def main():
     test_n72_more_branches()
     test_on_hit_n73()
     test_n75a_verbs()
+    test_n75b_potion_aliases()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         print("失败明细:")
