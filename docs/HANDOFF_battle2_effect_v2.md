@@ -1,9 +1,12 @@
 # battle2 效果系统 v2 交接（N8/N9 阶段）——开新会话必读
 
 > 2026-09-08 交接。主线 = 效果系统 v2 + 装备特效族化迁移（wt_ebuffs 分支）。
+> 🔴 **队列最新状态（2026-09-08 会话尾）**：效果容器统一（V 系列）拍板插队，
+> 排在 I3-I7 之前。方案 `docs/REFACTOR_v181P4_EFFECTS_UNIFY_design.md`。
 > 鱼鱼验收北极星：**最后清干净——N10 删旧 battle.py + 旧效果系统三套注册表，
 > 不留兼容壳/开关/兜底参数**（鱼鱼原话："老的一定要确保删掉，最后不留东西"）。
-> 会话重启口令：「继续 battle2，读 HANDOFF_battle2_effect_v2.md 接着 N9」
+> 会话重启口令：「继续 effects 统一，读 docs/REFACTOR_v181P4_EFFECTS_UNIFY_design.md
+> 从 V1 开始」
 
 ---
 
@@ -119,6 +122,25 @@
      _instance_ct_queue/_instance_next_player_name，删 helpers 前要改读
      battle state）/ R4 端到端 / R5 HANDOFF。
 
+10. **（2026-09-08 会话尾）🔴 效果容器统一（V 系列）拍板——插队排期**：
+  鱼鱼连续质疑 I1 hot 设计：「DOT/HOT 本质同构能否合并 / state 是否不够通用 /
+  能不能基于 buff/state 实现」。深挖结论：**引擎现状 4 个效果容器
+  （state 29 key / buffs / hot(I1 新做) / debuffs 死键）各带一半能力，分裂是
+  历史演化非第一性设计**——state 无到期（dot.turns hack）、buff 无叠层、
+  hot 无归宿、debuffs 零消费。鱼鱼拍板**做干净**：统一为单容器
+  `actor["effects"]` + 单规则表 `EFFECT_RULES`。
+  - **方案文档（完整字段级+排期）**：`docs/REFACTOR_v181P4_EFFECTS_UNIFY_design.md`
+  - **排期决策**：V 系列插在 **I2 之后、I3 之前**（现在做）——引擎还在重写早期，
+    命令层盖楼前先浇地基；I1 hot 容器段（V3 删）+ I2 翻译器（V6 改）被 V 吸收，
+    不做独立回滚；V 完成后 I3-I7 用新 API 写（工作量反而减少）。
+  - **V1-V7 分阶段**：V1 容器地基（串行前置）→ V2 stats/V4 动词可并行 →
+    V3 schedule 统一结算 → V5 数据表 29 key 迁移 → V6 命令层/桥适配 →
+    V7 全套回归。约 23h（子 agent 并行压 ~2 工作日）。
+  - **完成顺序（更新后总队列）**：~~I1/I2（已做，被 V 吸收）~~ → **V1-V7** →
+    I3-I7（命令层用新 API）→ R3-R5 → N5b4-6/7 → 剩余 weapon/affix 缺口 → N10 删旧。
+  - 未决点随附：世界Boss DOT 语义（记录 6 路线 B）在 V 统一 period damage 后
+    语义不变，顺手一起收口。
+
 ## 1. 已完成（全部绿，工作区干净）
 
 ### N7 效果系统收口（8 commit）
@@ -164,7 +186,15 @@ heal/state_set/interrupt/damage 动词补齐。
 
 ---
 
-## 3. 剩余工作（按优先级）
+## 3. 剩余工作（按优先级）🔴 队列已因 V 系列插队更新（见 §0.5 记录 10）
+
+### A0. 🔴 效果容器统一（V 系列）——当前第一优先（I2 之后、I3 之前）
+- 方案：`docs/REFACTOR_v181P4_EFFECTS_UNIFY_design.md`（完整字段级 + V1-V7 排期）
+- 4 容器（state/buffs/hot/debuffs）→ 单 `actor["effects"]` + 单表 `EFFECT_RULES`
+- V1 容器地基 → V2 stats/V4 动词（并行）→ V3 schedule 统一结算 → V5 数据表
+  → V6 命令层/桥适配 → V7 回归；每阶段全绿 commit
+- 开工口令：「继续 effects 统一，读 docs/REFACTOR_v181P4_EFFECTS_UNIFY_design.md
+  从 V1 开始」
 
 ### A. weapon 缺口（剩 2 实现缺口）
 | key | 缺的机制 | 状态 |
@@ -204,6 +234,8 @@ heal/state_set/interrupt/damage 动词补齐。
   actor_alive）；db.save_battle 的 monster 列已兼容 sides（N5b4-3 改）
 - 鱼鱼约定：**核心战斗文件 diff 出后鱼鱼过目再提交**
 - 引擎零改动铁律至今保持（N5b4 三个 commit 均未碰 game/battle2/）
+- ⏸️ **N5b4-5a I3-I7 道具链后续暂停**（V 系列统一容器先行，见 §0.5 记录 10；
+  I1/I2 已 commit 的 hot 容器/翻译器被 V 吸收，V 完成后用新 API 续做 I3-I7）
 
 ### D. N10 删旧（最终验收"清干净"）
 - 删除清单见 `docs/REFACTOR_v181P4_N9_migration.md` §4：battle.py（11000+ 行）/
