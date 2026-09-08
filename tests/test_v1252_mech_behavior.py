@@ -67,18 +67,26 @@ async def section_potion(m):
     print("【1. 狂怒药剂 next_atk_up】")
     qq = "v_pot"
     make_player(qq)
-    b = BT.Battle("monster", weak_enemy(), {}, db.get_player("g", qq))
-    db.save_battle("g", qq, b.to_state())
+    # N5b4-6：命令层 use 的普通战斗 state 已 battle2（旧格式无 sides → 清档重开）
+    from game.services import battle2_bridge as _BR
+    from game.battle2 import Battle as _B2
+    pl0 = db.get_player("g", qq)
+    _BR.prepare_player_for_battle(pl0, {}, db)
+    _we = weak_enemy()
+    _we.update({"uid": "e_v1252", "level": 3, "lv": 3, "rank": 1, "reach": 1})
+    _sides = _BR.build_sides(player=pl0, enemies=[_we])
+    for _a in _sides.get("player", []):
+        _a["stat_bonus"] = {}
+    _bb = _B2("monster", sides=_sides, title_bonus={})
+    db.save_battle("g", qq, _bb.to_state())
     add_item(qq, "i_fury_potion", dict(C.ITEMS["i_fury_potion"]))
     ev = FakeEvent("g", qq, "使用 狂怒药剂")
     out = await run(m.use, ev)
     txt = "\n".join(str(r) for r in out)
-    # v152：道具 cast 内嵌 payload（special:next_atk_up;cast:2.0）→ _do_use_item 的 special
-    # 分发按 payload[8:] 取 kind = "next_atk_up;cast:2.0"（注册表查表 miss → 兜底"饮下药剂"）。
-    # 这是 v152 数据驱动动作时长的副作用（cast 后缀混入 special kind 解析），引擎差距已知。
-    # 播报断言改为宽松：要么"蓄势待发"（旧裸 payload），要么"饮下药剂"（v152 内嵌 cast 兜底），
-    # 药水消耗 + p_buffs 置位由下方注册表 handler 直调断言覆盖（确定性）。
-    check("use 播报（蓄势待发 或 饮下药剂）", "蓄势待发" in txt or "饮下了药剂" in txt, txt[:120])
+    # battle2 use：翻译器 special 分诊（next_atk_up → EFFECT_ACTIONS hit 型 apply），
+    # 日志「效果就绪」（I2 语义，替代旧 _do_use_item 的“蓄势待发/饮下药剂”）
+    check("use 播报（效果就绪 或 蓄势待发 或 饮下药剂）",
+          "效果就绪" in txt or "蓄势待发" in txt or "饮下了药剂" in txt, txt[:120])
     check("药水已消耗", inv_count(qq, "狂怒药剂") == 0, f"count={inv_count(qq, '狂怒药剂')}")
     # 直接调用注册表 handler（回合内语义）：p_buffs 置位。
     # v180-B：药水 handler 写传入 player dict 的 buffs——必须传 Battle 绑定的同一玩家
@@ -95,9 +103,11 @@ async def section_potion(m):
     check("next_atk_up 一次性消费（删除）", "next_atk_up" not in b2._p_buffs_bag(), str(b2._p_buffs_bag()))
     check("倍率标签含狂怒", any("狂怒" in t for t in tags), str(tags))
     # v125.3 修复：next_atk_up 是"下一次攻击消费"型一次性 buff，_end_round 已豁免回合递减
-    st = db.get_battle("g", qq)
-    b3 = BT.Battle.from_state(st["state"])
-    b3._focus = db.get_player("g", qq)  # v180-B ①：from_state 后绑定玩家 actor dict
+    # N5b4-6：本段是旧引擎 _end_round 语义单元测试，本地构造 Battle 即可
+    # （db 行的 use 后 state 已是 battle2 格式，不再 from_state）。
+    pl3 = db.get_player("g", qq)
+    b3 = BT.Battle("monster", weak_enemy(), {}, pl3)
+    b3._focus = pl3
     b3._apply_restore_pstate()
     b3._p_buffs_bag()["next_atk_up"] = 1
     b3._end_round()

@@ -26,14 +26,23 @@ async def main():
         else: fail += 1; print(f"  ❌ {name} {detail}")
 
     # 造一场战斗（test_v94 现成 state 模式：手写怪物 dict）
+    # N5b4-6：普通战斗 state 已是 battle2 sides-only——命令层 use 走 battle2
+    # 恢复，旧格式（无 sides）按约定清档；此处直接存 battle2 to_state。
     import random
     random.seed(42)
+    from game.services import battle2_bridge as _BR
+    from game.battle2 import Battle as _B2
     mon = {"name": "测试怪", "hp": 999999, "max_hp": 999999, "def": 50, "mdef": 40,
            "spd": 5, "atk": 30, "matk": 30, "crit": 0.0, "dodge": 0.0,
-           "is_boss": False, "is_elite": False, "skills": [], "exp": 10, "gold": 10}
-    db.save_battle("g1", "w1", {"type": "monster", "round": 0, "enemy": mon,
-                                "p_buffs": {}, "e_buffs": {}, "p_defending": False,
-                                "e_defending": False})
+           "is_boss": False, "is_elite": False, "skills": [], "exp": 10, "gold": 10,
+           "uid": "e_test", "level": 5, "lv": 5, "rank": 1, "reach": 1}
+    pl0 = db.get_player("g1", "w1")
+    _BR.prepare_player_for_battle(pl0, {}, db)
+    _sides = _BR.build_sides(player=pl0, enemies=[mon])
+    for _a in _sides.get("player", []):
+        _a["stat_bonus"] = {}
+    _bb = _B2("monster", sides=_sides, title_bonus={})
+    db.save_battle("g1", "w1", _bb.to_state())
 
     # 1. 战斗内治疗药水
     hp_before = db.get_player("g1", "w1")["hp"]
