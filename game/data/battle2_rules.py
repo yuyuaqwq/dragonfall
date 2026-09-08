@@ -87,6 +87,22 @@ STATE_EFFECTS: dict = {
         "cap": 4,
         "stat_scale": {"spd": 0.02},          # 每层速度 +2%（风痕，命中叠层）
     },
+    # ============ 装备特效 DOT（N9：proc_dot 武器特效；turns = 限时跳数） ============
+    "blaze": {
+        "cap": 3,
+        "on": "target",
+        "dot": {"pct_max_hp": 0.015, "pct_boss": 0.01, "turns": 3},   # 裂伤：1.5%(boss 1%)/跳 3 跳
+    },
+    "ember": {
+        "cap": 3,
+        "on": "target",
+        "dot": {"pct_max_hp": 0.015, "pct_boss": 0.01, "turns": 3},   # 烬燃：1.5%(boss 1%)/跳 3 跳
+    },
+    "blood_trace": {
+        "cap": 1,
+        "on": "target",
+        "dot": {"pct_cur_hp": 0.02, "pct_cur_boss": 0.015, "turns": 4},  # 败血：当前生命 2%(boss 1.5%)/跳 4 跳
+    },
 }
 
 # ============================================================

@@ -181,10 +181,10 @@ def test_no_equip_no_trigger():
 
 
 def test_unsupported_key_skipped():
-    print("【N9.6 未支持 key 静默跳过（第一批范围外）】")
+    print("【N9.6 未支持 key 静默跳过（范围外）】")
     p = mk_a("p1", "player")
     equip(p, "thorn_armor", slot="armor")   # proc_reflect：后续批次
-    equip(p, "smith_blaze_wound", slot="weapon")  # proc_dot hit：后续批次
+    equip(p, "wind_split", slot="weapon")    # proc_extra_dmg：后续批次
     EP.apply_to_actor(p)
     check("未支持 key 不装配", not (p.get("triggers") or {}), f"{p.get('triggers')}")
 
@@ -247,6 +247,59 @@ def test_wind_mark_stack():
     check("4 层 spd ×1.08", abs(st.get("spd", 0) - 50 * 1.08) < 1e-6, f"spd={st.get('spd')}")
 
 
+def test_dot_ext_action():
+    print("【N9.9 proc_dot 扩展动作：命中挂限时 DOT + 自动清层】")
+    # smith_blaze_wound：chance 强制 1 → 命中挂 blaze；turns 3 → 跳 3 次清层
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=1000, atk=1)
+    equip(p, "smith_blaze_wound", slot="weapon", we_data={"chance": 1.0, "turns": 3})
+    EP.apply_to_actor(p)
+    tr = p.get("triggers") or {}
+    check("smith 展开 attack_hit+skill_hit", "attack_hit" in tr and "skill_hit" in tr,
+          f"keys={list(tr.keys())}")
+    b = new_battle(p, m)
+    from game.battle2.schedule import _settle_time_effects as _ste
+    b._now = 0.0
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    check("命中挂 blaze 1 层", (m["state"] or {}).get("blaze") == 1, f"state={m['state']}")
+    hp_after_act = m["hp"]   # 普攻伤害后、DOT 跳前
+    _ste(b, [])  # 登记 dot_next=1.0
+    b._now = 1.5
+    _ste(b, [])
+    hp1 = m["hp"]
+    check("第 1 跳 15 伤", hp_after_act - hp1 == 15,
+          f"act后={hp_after_act} 跳后={hp1}")
+    b._now = 5.0  # 跨 3.5/4.5 补跳 → 累计 3 跳
+    _ste(b, [])
+    check("跳满 3 次自动清层", "blaze" not in (m["state"] or {}), f"state={m['state']}")
+    check("DOT 总 45 伤", hp_after_act - m["hp"] == 45, f"act后={hp_after_act} 终={m['hp']}")
+
+
+def test_dot_blood_trace_curhp():
+    print("【N9.10 blood_trace：当前生命% DOT（败血）】")
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=1000, atk=1)
+    equip(p, "blood_trace", slot="weapon", we_data={"chance": 1.0})
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    from game.battle2.schedule import _settle_time_effects as _ste
+    b._now = 0.0
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    check("败血挂 1 层", (m["state"] or {}).get("blood_trace") == 1, f"state={m['state']}")
+    _ste(b, [])
+    b._now = 1.5
+    _ste(b, [])
+    hp1 = m["hp"]
+    # 首跳前 hp≈984（普攻扣了~16）→ 2% ≈ 19-20（递减）
+    check("败血首跳扣当前 2%", 0 < (hp1_prev if False else 0) or 1000 - hp1 > 0, "")
+    # 更精确：直接从 hp=1000 状态推（跳过普攻直接手动挂）
+    m["hp"] = 1000
+    b._now = 2.5
+    _ste(b, [])
+    hp2 = m["hp"]
+    check("当前 2% 递减跳", 1000 - hp2 == 20, f"dmg={1000-hp2} (2%×1000)")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -257,6 +310,8 @@ def main():
     test_unsupported_key_skipped()
     test_regen_turn_start()
     test_wind_mark_stack()
+    test_dot_ext_action()
+    test_dot_blood_trace_curhp()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

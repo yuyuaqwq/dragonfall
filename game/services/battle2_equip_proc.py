@@ -144,6 +144,17 @@ def _translate_stack_hit(key: str, wd: dict) -> dict:
     return {"hit": [eff]}
 
 
+def _translate_dot_hit(key: str, wd: dict) -> dict:
+    """proc_dot 命中挂 DOT：族扩展动作 we_dot（chance 概率 + 挂 state dot 层）。
+    smith/rong/blood = hit 双事件；ember_burn = skill_hit。"""
+    ev = "skill_hit" if key == "ember_burn" else "hit"
+    eff = {"type": "we_dot", "key": key}
+    for f in ("dot_key", "chance", "turns"):
+        if wd.get(f) is not None:
+            eff[f] = wd[f]
+    return {ev: [eff]}
+
+
 # 第一批支持 key 清单（key → 翻译器）
 _START_TRANSLATORS = {
     # proc_shield battle_start 起手盾
@@ -163,6 +174,11 @@ _START_TRANSLATORS = {
     "undying_band": _translate_regen_turn_start,
     # proc_stack 纯叠层型（命中叠层 + state_effects 面板折算）
     "wind_mark": _translate_stack_hit,
+    # proc_dot 命中挂 DOT（族扩展动作）
+    "smith_blaze_wound": _translate_dot_hit,
+    "rong_lu_yu_wen": _translate_dot_hit,
+    "ember_burn": _translate_dot_hit,
+    "blood_trace": _translate_dot_hit,
 }
 
 
@@ -179,6 +195,19 @@ def triggers_for_key(key: str, actor: Optional[dict] = None) -> dict:
 # 装配入口
 # ============================================================
 
+_EXT_LOADED = False
+
+
+def install_ext_actions() -> None:
+    """注册族扩展动作（形态 2）——import 时 register_action 装饰器即注册，幂等。"""
+    global _EXT_LOADED
+    if _EXT_LOADED:
+        return
+    _EXT_LOADED = True
+    from game.services import battle2_we_procs as _WEP
+    _WEP.ensure_registered()
+
+
 def weapon_triggers(actor: dict) -> dict:
     """actor 全部已装备武器特效 → {battle2事件: [效果 dict]}。
 
@@ -189,7 +218,7 @@ def weapon_triggers(actor: dict) -> dict:
     for key in equipped_weapon_keys(actor):
         raw = triggers_for_key(key, actor)
         if not raw:
-            continue  # 未支持 key：静默跳过（第一批范围外）
+            continue  # 未支持 key：静默跳过（范围外）
         for old_ev, effs in raw.items():
             for b2_ev in map_event(old_ev):
                 out.setdefault(b2_ev, []).extend(list(effs))
@@ -200,6 +229,7 @@ def apply_to_actor(actor: dict) -> None:
     """把装备特效装配进 actor["triggers"]（幂等合并；命令层开战前调用）。"""
     if not actor:
         return
+    install_ext_actions()  # 保证族扩展动作已注册（triggers 可能引用 we_xxx）
     merged = weapon_triggers(actor)
     tr = actor.setdefault("triggers", {})
     for ev, effs in merged.items():
