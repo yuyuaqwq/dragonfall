@@ -153,21 +153,136 @@ def build_sides(player: Optional[dict] = None, enemies: Optional[list] = None,
 
 
 # ============================================================
-# 开战仪式（旧 Battle.__init__ 的玩家侧副作用 → actor 初始状态）
+# 开战仪式（旧 Battle.__init__ 的玩家侧副作用 → 命令层开战前对 player dict 处理）
 # ============================================================
 
 def apply_player_battle_start(player: dict, actor: dict, db=None) -> dict:
     """把旧 Battle.__init__ 的玩家侧开战仪式结果应用到 battle2 actor。
 
+    ⚠️ 本函数保持旧签名/语义的薄壳（命令层调用点可能传 actor）——推荐新调用方
+    直接调 prepare_player_for_battle(player, title_bonus, db)（build_sides 前
+    对 player dict 做仪式，build_sides 透传即得仪式后 actor）。
+
     目前实现（只做数据搬运，不触发引擎逻辑）：
-    - echo_bless/poi_buff 已在 player dict 的 buffs/poi_buff 键里（旧引擎构造时
-      从 event_state 读取写入 player）→ actor 构造时已透传
-    - 装备词条战斗开始效果（护盾/狼嚎/奥术屏障/起手资源/套装）→ 属职业/装备层，
-      N5b 后续增量按效果逐项搬（不在这里一次性全做）
+    - echo_bless/poi_buff 从 event_state 消费写入 player dict（旧引擎构造时做）→
+      actor 构造时已透传
+    - 装备词条战斗开始效果（护盾/狼嚎/奥术屏障/起手资源/套装/weapon_effects）→
+      属职业/装备层（上层模块），N5b 不复制旧 Battle 效果逻辑进桥——留 TODO 增量。
 
     返回 actor（原地补全后同一引用）。
     """
+    prepare_player_for_battle(player, None, db)
     return actor
+
+
+def prepare_player_for_battle(player: dict, title_bonus: Optional[dict] = None,
+                              db=None) -> dict:
+    """开战仪式（player dict 侧，build_sides 前调用）——纯数据搬运/事件消费。
+
+    对齐旧 Battle.__init__ 的玩家侧副作用（只做不依赖 Battle 实例的部分；
+    效果执行类属上层职业/装备模块，N5b 增量）：
+
+    1. 战斗字段键播种（buffs/shields/state/cooldown/... 与旧引擎同构）
+    2. max_hp/max_mp 实时重算（v95.19：DB max 是注册/升级快照，换装备后过时——
+       战斗内面板/护盾 pct/heal clamp 以实时聚合值为准）
+    3. echo_bless 消费（event_state bless_{qq_id} → player.buffs.echo_bless，一次性）
+    4. 神龛祝福消费（event_state poi_buff_{qq_id} → player.poi_buff，left-1；用完删）
+    5. v139 core_resource 配置注入（dual_form/focus/vent 挂 player，供上层读）
+
+    ⚠️ 依赖红线：只 import game.engine / game.db（纯函数/存储层），
+    绝不 import game.battle（旧引擎）——N6 删旧引擎后本桥必须能独立存活。
+
+    返回 player（原地补全后同一引用）。
+    """
+    player = player if isinstance(player, dict) else {}
+    if not player:
+        return player
+    # 1. 战斗字段播种（与旧 Battle.__init__ _seed 同款；actor 由 build_sides 透传）
+    _seed_battle_keys(player)
+    # 2. 面板实时化（不传 learned_skills——战斗侧被动由上层动态处理，防双算）
+    try:
+        from .. import engine as _E
+        _cn = player.get("class_name") or "战士"
+        _st = _E.player_final_stats(
+            _cn, int(player.get("level", 1) or 1),
+            player.get("equipment") or {},
+            int(player.get("class_tier", 0) or 0),
+            player.get("attributes"),
+            int(player.get("evolve_path", 0) or 0),
+            title_bonus or {},
+            player.get("race"),
+        )
+        if _st.get("max_hp"):
+            player["max_hp"] = int(_st["max_hp"])
+        if _st.get("max_mp") is not None:
+            player["max_mp"] = int(_st["max_mp"])
+    except Exception:
+        pass  # 面板重算失败不阻断开战（沿用 DB 值）
+    # 3. echo_bless 消费（v97.4：探索事件写 event_state bless_{qid}，本场攻击 +5%，一次性）
+    try:
+        _qq = player.get("qq_id")
+        if _qq and not (player.get("buffs") or {}).get("echo_bless"):
+            _raw = (db or _default_db()).get_event_state(f"bless_{_qq}")
+            if _raw:
+                player.setdefault("buffs", {})["echo_bless"] = 1
+                (db or _default_db()).set_event_state(f"bless_{_qq}", "")
+    except Exception:
+        pass
+    # 4. 神龛祝福消费（v104 M23：poi_buff_{qid}，left-1；用完删 key，flee 也算消耗）
+    try:
+        _qq = player.get("qq_id")
+        if _qq and not player.get("poi_buff"):
+            _raw = (db or _default_db()).get_event_state(f"poi_buff_{_qq}")
+            if _raw:
+                import json as _json
+                _pb = _json.loads(_raw)
+                if isinstance(_pb, dict) and _pb.get("stat") in ("atk", "def", "spd") \
+                        and int(_pb.get("left", 0) or 0) > 0:
+                    player["poi_buff"] = {"stat": _pb["stat"],
+                                          "mult": float(_pb.get("mult", 1.10)),
+                                          "name": _pb.get("name", _pb["stat"])}
+                    _pb["left"] = int(_pb["left"]) - 1
+                    if _pb["left"] <= 0:
+                        (db or _default_db()).delete_event_state(f"poi_buff_{_qq}")
+                    else:
+                        (db or _default_db()).set_event_state(
+                            f"poi_buff_{_qq}", _json.dumps(_pb, ensure_ascii=False))
+    except Exception:
+        pass
+    # 5. v139 配置注入（dual_form/focus/vent 定义挂 player；缺失 = 默认不启用）
+    try:
+        from .. import engine as _E139
+        _crd = _E139.core_resource_def(player.get("class_name", "")) or {}
+        for _mk in ("dual_form", "focus", "vent"):
+            if _crd.get(_mk) and not player.get(_mk):
+                player[_mk] = _crd[_mk]
+    except Exception:
+        pass
+    return player
+
+
+def _seed_battle_keys(player: dict) -> dict:
+    """玩家战斗可变键播种（旧 Battle.__init__ 玩家侧 setdefault 全量）。"""
+    _seeds = {
+        "resources": dict, "stacks": dict, "eff": dict, "shields": dict,
+        "cooldown": dict, "hot": dict, "food_effects": list,
+        "buff_hits": dict, "combo_seq": list,
+        "last_combo_tag": None, "last_element": None,
+        "tailwind_prev_energy": None, "v139_modes": dict, "v139_charge": dict,
+        "overflow_shield_cd": False, "stealth_atk": False,
+        "reduce_all_left": 0, "reduce_left": 0,
+        "buffs": dict, "poi_buff": None, "charging": None, "defending": False,
+    }
+    for _k, _ctor in _seeds.items():
+        if _k not in player or player[_k] is None:
+            player[_k] = _ctor() if callable(_ctor) else _ctor
+    return player
+
+
+def _default_db():
+    """延迟取存储层（避免顶部循环 import）。"""
+    from .. import db as _db
+    return _db
 
 
 # ============================================================

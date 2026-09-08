@@ -16,6 +16,7 @@ import tempfile
 # 独立临时 GWEN_GAME_DB（HANDOFF 约定：测试独立临时库）
 _tmp_db = tempfile.mkdtemp(prefix="gwen_b2bridge_")
 os.environ["GWEN_GAME_DB"] = os.path.join(_tmp_db, "game.db")
+os.environ["GWEN_TEST_MODE"] = "1"
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -23,6 +24,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from game.battle2 import config as _b2c
 _b2c.load_game_defaults()
 
+from game.store.connection import init_db
+init_db()
+
+from game import db
 from game.battle2 import Battle as B2Battle
 from game.battle2 import actors as B2A
 from game.services import battle2_bridge as BR
@@ -149,6 +154,45 @@ b2 = B2Battle("monster", sides=BR.build_sides(player=p, enemies=group), title_bo
 b2.auto_run(logs2)
 check("auto_run 战斗有结果", b2.result in ("victory", "defeat", "fled"))
 check("auto_run 日志非空", len(logs2) > 0)
+
+section("开战仪式 prepare_player_for_battle")
+# 玩家：DB max_hp 给旧值 100（战士 Lv10 实时面板应 > 100——v95.19 面板实时化）
+_p2 = make_player(level=10, hp=80, mp=20)
+_p2["max_hp"], _p2["max_mp"] = 100, 30  # 模拟 DB 注册/升级快照旧值
+# 预置 event_state：echo_bless（一次性）+ poi_buff（left=2）
+import json as _json
+db.set_event_state("bless_10001", "1")
+db.set_event_state("poi_buff_10001", _json.dumps(
+    {"stat": "atk", "mult": 1.10, "name": "攻击", "left": 2}, ensure_ascii=False))
+BR.prepare_player_for_battle(_p2, title_bonus={})
+check("播种 buffs/shields/state/cooldown", all(isinstance(_p2.get(k), dict) for k in
+      ("buffs", "shields", "cooldown", "resources", "stacks")))
+check("echo_bless 消费进 buffs", (_p2.get("buffs") or {}).get("echo_bless") == 1)
+check("echo_bless event_state 清空", not db.get_event_state("bless_10001"))
+check("神龛 poi_buff 挂上", (_p2.get("poi_buff") or {}).get("stat") == "atk")
+check("poi_buff left 2→1", _json.loads(db.get_event_state("poi_buff_10001"))["left"] == 1)
+check("max_hp 实时化 > 100", int(_p2.get("max_hp", 0)) > 100, "max_hp=%s" % _p2.get("max_hp"))
+# 第二次开战：echo 不再重复；poi left 1→0 删 key
+_p3 = make_player(level=10, hp=80, mp=20)
+_p3["max_hp"], _p3["max_mp"] = 100, 30
+BR.prepare_player_for_battle(_p3, title_bonus={})
+check("二次开战 echo 不重复", not (_p3.get("buffs") or {}).get("echo_bless"))
+check("poi left 耗尽删 key", not db.get_event_state("poi_buff_10001"))
+check("二次开战 poi_buff 仍挂上", (_p3.get("poi_buff") or {}).get("stat") == "atk")
+
+section("战斗回写 sync_player_from_actor")
+_p4 = make_player(level=10, hp=200, mp=50)
+_sides = BR.build_sides(player=_p4, enemies=group)
+_b3 = B2Battle("monster", sides=_sides, title_bonus={})
+_focus = _b3.focus()
+_focus["hp"] = 77          # 引擎改 actor（副本）
+_focus["mp"] = 12
+_focus.setdefault("buffs", {})["atk_up"] = 2
+BR.sync_player_from_actor(_p4, _focus)
+check("回写 hp", _p4.get("hp") == 77)
+check("回写 mp", _p4.get("mp") == 12)
+check("回写 buffs", (_p4.get("buffs") or {}).get("atk_up") == 2)
+check("空 actor 安全", BR.sync_player_from_actor(_p4, {}) is _p4)
 
 print("\n=== 结果 PASS=%d FAIL=%d ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)
