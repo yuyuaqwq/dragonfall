@@ -3249,6 +3249,22 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             key = str(fallback_key) if fallback_key else str(st.get("members", [None])[0])
         return (st.get("players", {}).get(key, {}) or {}).get("name", key)
 
+    def _instance_turn_player_name(self, st: dict, group_id: int, fallback_key=None) -> str:
+        """battle2 版轮转提示：下一位玩家行动者名字（读 battle state actors ct）。
+
+        N5b4-5a R3：替代旧 _instance_next_player_name（其 CT 队列已随旧引擎退役）。
+        优先读 IB.next_actor_key（battle2 actors 权威 ct 最小者）；无 battle/无存活
+        回落队伍第一人。"""
+        try:
+            from . import instance_battle as IB
+            _k = IB.next_actor_key(st)
+            if _k:
+                return (st.get("players", {}).get(str(_k), {}) or {}).get("name", str(_k))
+        except Exception:
+            pass
+        key = str(fallback_key) if fallback_key else str(st.get("members", [None])[0])
+        return (st.get("players", {}).get(key, {}) or {}).get("name", key)
+
     def _find_skill_cfg(self, player: dict, skill_name: str) -> dict | None:
         """v173.5 按技能名查技能配置（数据驱动：读 hate_mult 等字段）。
         遍历 PLAYER_SKILLS 基础表 + BRANCH_SKILLS 分支表 + TUTOR_SKILLS 导师表，

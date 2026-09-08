@@ -1700,7 +1700,7 @@ class WorldCmds(CommandBase):
                 f"🍃 刚踏进【{target_sa['name']}】，{_mon.get('name', '怪物')} 就扑了上来！\n"
                 f"━━━━━━━━━━━━\n"
                 f"{self._instance_battle_footer(st, group_id)}\n"
-                f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+                f"⏳ 轮到 {self._instance_turn_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
             )
             return
         # Boss 房 + boss_alive → 触发 Boss 战（不消耗普通怪池）
@@ -1720,7 +1720,7 @@ class WorldCmds(CommandBase):
                     f"👑 踏入【{target_sa['name']}】，Boss【{_mon.get('name', '')}】Lv.{_mon.get('lv', '?')} 拦在面前！\n"
                     f"━━━━━━━━━━━━\n"
                     f"{self._instance_battle_footer(st, group_id)}\n"
-                    f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+                    f"⏳ 轮到 {self._instance_turn_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
                 )
                 return
         # 无事到达
