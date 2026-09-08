@@ -307,6 +307,45 @@ def test_n72_more_branches():
           f"sh={caster['shields'].get('buff')}")
 
 
+def test_on_hit_n73():
+    print("【N3.9 N7.3 一次性 on_hit：next_atk_up 增伤 / stealth 必暴，出手消费】")
+    import random as _r
+    def mk_p(uid):
+        return make_actor(uid=uid, name="勇者", side="player", kind="player", human_controlled=True,
+                          class_name="战士", level=10, hp=1000, max_hp=1000, atk=100, mp=100,
+                          max_mp=100, spd=50, equipment={}, class_tier=0, attributes={},
+                          evolve_path=0, race="人族", crit=0.0, crit_dmg=1.0)
+    def mk_e(uid):
+        return make_actor(uid=uid, name="靶", side="enemy", kind="monster", hp=100000,
+                          max_hp=100000, atk=10, **{"def": 0}, spd=10, level=5)
+    # 写入：next_atk_up 名词 → 条目带 hit.dmg_mult=1.50
+    b = BT_NEW(btype="monster", sides={"player": [mk_p("p1")], "enemy": [mk_e("e1")]})
+    p = b.sides["player"][0]
+    FX.apply_effects(b, p, p, [{"type": "next_atk_up", "turns": 3}], [])
+    _n = p["buffs"].get("next_atk_up") or {}
+    check("next_atk_up 条目带 hit.dmg_mult=1.50",
+          isinstance(_n.get("hit"), dict) and abs(float(_n["hit"].get("dmg_mult", 0)) - 1.50) < 1e-9,
+          f"entry={_n}")
+    # 出手消费：攻击后 buff 删 + 伤害增加
+    hp0 = b.sides["enemy"][0]["hp"]
+    b.human_act("attack", None, p)
+    check("next_atk_up 出手消费删除", "next_atk_up" not in p["buffs"])
+    # stealth 必暴：crit=0 面板下普攻 vs 潜行
+    b2 = BT_NEW(btype="monster", sides={"player": [mk_p("p2")], "enemy": [mk_e("e2")]})
+    p2 = b2.sides["player"][0]
+    _r.seed(1)
+    b2.human_act("attack", None, p2)
+    plain = 100000 - b2.sides["enemy"][0]["hp"]
+    b3 = BT_NEW(btype="monster", sides={"player": [mk_p("p3")], "enemy": [mk_e("e3")]})
+    p3 = b3.sides["player"][0]
+    FX.apply_effects(b3, p3, p3, [{"type": "stealth", "turns": 3}], [])
+    _r.seed(1)
+    b3.human_act("attack", None, p3)
+    crit_d = 100000 - b3.sides["enemy"][0]["hp"]
+    check("stealth 必暴伤害 > 普攻", crit_d > plain, f"{crit_d} vs {plain}")
+    check("stealth 消费删除", "stealth" not in p3["buffs"])
+
+
 def main():
     print("=== N3 battle2 效果系统测试 ===")
     test_debuff_stack()
@@ -317,6 +356,7 @@ def main():
     test_state_scale()
     test_buff_snapshot_scaling()
     test_n72_more_branches()
+    test_on_hit_n73()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         print("失败明细:")

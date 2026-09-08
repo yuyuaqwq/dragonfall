@@ -114,6 +114,10 @@ EFFECT_ACTIONS: dict = {
     "spd_all":   [{"action": "buff", "key": "spd_up",       "stat": "spd",  "op": "mul", "mult": 1.40}],
     "atk_matk_all": [{"action": "buff", "key": "atk_up",    "stat": "atk",  "op": "mul", "mult": 1.30},
                      {"action": "buff", "key": "matk_up",   "stat": "matk", "op": "mul", "mult": 1.50}],
+    # ---- 一次性出手消费（hit 子键：出手增伤 / 必暴；效果参数可被调用方 effect_data 覆盖）----
+    "next_atk_up":   [{"action": "buff", "key": "next_atk_up",   "hit": {"dmg_mult": 1.50}}],
+    "buff_phys_next":[{"action": "buff", "key": "buff_phys_next","hit": {"dmg_mult": 1.40}}],
+    "stealth":       [{"action": "buff", "key": "stealth",       "hit": {"guaranteed_crit": True}}],
     # ---- 减伤（value 型 buff：mech_val 折算百分比 45→0.45）----
     "reduce":    [{"action": "buff", "key": "reduce", "pct_from_mech_val": True}],
     # ---- 护盾 ----
