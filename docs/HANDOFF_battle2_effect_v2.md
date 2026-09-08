@@ -10,10 +10,10 @@
 ## 0. 分支/位置/跑法
 
 - 分支：`wt_ebuffs`（worktree：`C:/Users/yuyu/AppData/Local/Temp/df_wt_ebuffs/w1`）
-- HEAD：`413c276`（v181.N9.8 trinity thunder 段，2026-09-08）
+- HEAD：`207e741`（v181.N5b4.3 世界Boss 切 battle2，2026-09-08）
 - 主仓（生产）：`C:/Users/yuyu/qqbot/data/plugins/dragonfall`（master 未动）
 - Python：`C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe`
-- 全套测试：`for f in tests/test_battle2_*.py; do python "$f"; done`（当前 12 文件 486 断言全绿）
+- 全套测试：`for f in tests/test_battle2_*.py; do python "$f"; done`（当前 15 文件 512 断言全绿）
 - 覆盖率门禁：`python tools/cov_func_battle2.py`（0 未调用）+ `cov_branch_battle2.py`
 - 效果系统主方案：`docs/DESIGN_effect_system_v2.md`（Part 3.3/4 定稿 19 时机 + 管线）
 - N9 施工方案：`docs/REFACTOR_v181P4_N9_migration.md`（盘点/批次/删除清单）
@@ -46,6 +46,21 @@
      （taken_calc 减伤 8%）已与旧引擎行为等价，不算丢能力。复活段**不单开引擎原语**
      （单 key 造半套"死后复活"违背北极星，同闪避体系判断），记 N10 文案清单：
      玩家可见 special 文案含复活承诺但旧引擎从未生效，N10 前改文案或确认不要。
+6. **（2026-09-08 N5b4 批）命令层切 battle2 进度：N5b4-1/2/3 完成（0c1a5c6/fe0b3a8/207e741）**
+   - N5b4-1 展示层：_status_line/_resource_line/_battle_formation_panel 改读
+     player dict + b.sides（双引擎通用，纯读先切）+ _buff_left_ticks 双形态折算
+   - N5b4-2 野外/野王/普通遇怪构造 + attack/skill/defend/flee 行动切 battle2
+     （_open_battle2 四步仪式 / _restore_battle2 / _sync_battle_player；旧档清档重开）
+   - N5b4-3 世界Boss 切 battle2：构造 sides+auto_act；**退役全局 debuffs/adapt 共享 +
+     每4次强制 DOT 结算补丁**（鱼鱼拍板按新引擎语义：本地 actor.state DOT + schedule
+     自动跳）；_monster_display_name 兼容 sides
+   - 🔴 **未决设计点（鱼鱼 2026-09-08 会话尾提出，先保留现状待拍板）**：
+     世界Boss DOT 挂载语义——battle2 毒挂在**玩家各自本地副本的 enemy actor**（私有），
+     不跟 Boss 真身（gboss.enemies）共享；旧引擎是 gboss.debuffs 全局单份 + 每 N 次
+     行动统一结算。鱼鱼原话质疑："DOT 应该是挂在目标 actor 身上的吧？为什么会跟玩家
+     强关联"。两条路：A 毒层回全局共享（对齐旧玩法语义，需防多玩家轮流刷毒伤）、
+     B 接受"Boss 独立镜像"语义（当前实现，血量共享/贡献独立/DOT 个人输出）。
+     **鱼鱼拍板：先保留现状（路线 B），新会话再议。**
 
 ## 1. 已完成（全部绿，工作区干净）
 
@@ -108,16 +123,19 @@ heal/state_set/interrupt/damage 动词补齐。
 - 职业机制 12（法印/反应/攻线/终结技）→ 上层职业模块
 - boiling_blood（rage_full 判定）/ finisher（终结技）→ 上层
 
-### C. N5b-4 命令层切换（🔴 **下一步主工程**——详细设计已备好）
-- **详细设计文档**：`docs/REFACTOR_v181P4_N5B4_command_switch.md`（字段/函数级，
-  2026-09-08 鱼鱼要求出详细方案再动工）
-- 内容：9 文件改造总账 + 开战统一改法（prepare+build_sides+EP_apply）+ 玩家回写
-  sync_player_from_actor（battle2 actor 是副本！）+ 世界Boss meta 外壳 + _status_line
-  逐字段改造 + db.save_battle monster 列 sides 兼容 + PVP/instance 难点 + 8 批计划
-- 关键已核实事实：死亡 actor 不从 sides 移除（只进 killed_actors，展示要过滤
-  actor_alive）；db.save_battle 的 monster 列读旧 state["enemies"] 需兼容 sides
+### C. N5b4 命令层切换（进度：1/2/3 完成，剩 4/5/6/7）🔴 下一步主工程
+- **详细设计文档**：`docs/REFACTOR_v181P4_N5B4_command_switch.md`（字段/函数级施工图）
+- **已完成**（0c1a5c6/fe0b3a8/207e741，每批全绿）：
+  - N5b4-1 展示纯读（player dict + b.sides 双引擎通用）
+  - N5b4-2 野外/野王/普通遇怪 + 4 行动（attack/skill/defend/flee）切 battle2
+  - N5b4-3 世界Boss 切 battle2（DOT 语义未决点见 §0.5 记录 6）
+- **剩余**：N5b4-4 PVP（focus 双 human_controlled 轮流）、N5b4-5 instance.py 副本
+  （增援/DOT 自动/killed）、N5b4-6 economy/player/tower 轻文件 + 删 import、
+  N5b4-7 全命令层回归 + 汇报鱼鱼过目 diff
+- **已核实事实**：死亡 actor 不从 sides 移除（只进 killed_actors，展示要过滤
+  actor_alive）；db.save_battle 的 monster 列已兼容 sides（N5b4-3 改）
 - 鱼鱼约定：**核心战斗文件 diff 出后鱼鱼过目再提交**
-- 批次：展示纯读函数先切 → 探索战斗 → 世界Boss → PVP → instance → 轻文件 → 全量回归
+- 引擎零改动铁律至今保持（N5b4 三个 commit 均未碰 game/battle2/）
 
 ### D. N10 删旧（最终验收"清干净"）
 - 删除清单见 `docs/REFACTOR_v181P4_N9_migration.md` §4：battle.py（11000+ 行）/
@@ -154,5 +172,6 @@ heal/state_set/interrupt/damage 动词补齐。
 | tests/test_battle2_n9_equip.py | N9/N9A/N9.7 验收（133 断言） |
 
 ## 6. 会话重启第一步
-读本文档 → `git log --oneline -8` 确认 HEAD → 剩余：B affix purify 设计 /
-C（N5b-4 需鱼鱼把关 diff）等。每批 commit 后汇报鱼鱼。✂️
+读本文档 → `git log --oneline -8` 确认 HEAD → 剩余：C 的 N5b4-4 PVP / N5b4-5 instance
+（N5b4-7 前核心 diff 给鱼鱼过目）+ §0.5 记录 6 的**世界Boss DOT 语义未决点**（先保留
+现状路线 B，鱼鱼说"先保留吧，我开新会话了"）。每批 commit 后汇报鱼鱼。✂️
