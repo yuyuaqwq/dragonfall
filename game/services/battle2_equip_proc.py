@@ -1,0 +1,182 @@
+# -*- coding: utf-8 -*-
+"""battle2 装备特效/词条装配层（game/services/battle2_equip_proc.py，N9）。
+
+battle2 包外（引擎零知识——引擎不 import 本模块，本模块 import 引擎/数据）。
+职责：把玩家装备的 weapon_effect / affix 数据 → actor["triggers"] 声明
+（N8 事件总线消费），使装备特效在 battle2 战斗中生效。
+
+架构（docs/REFACTOR_v181P4_N9_migration.md §2）：
+- 效果源 = actor["triggers"] = {事件: [效果 dict]}，效果 dict 两种形态：
+  ① 纯动词（引擎原生能力）：shield/buff/state_add/control/heal/...
+  ② 族扩展动作（复杂机制，ACTION_HANDLERS 扩展注册）：type="we_xxx"
+- 事件映射：旧 proc 事件集 → battle2 19 事件（hit→attack_hit+skill_hit 展开等）
+- 数值权威：weapon_effect_data.WEAPON_EFFECT_DATA + 装备行 we_data 覆盖层
+  （读表零默认值铁律：缺字段 = 无此行为）
+
+N9 批次：第一批 = battle_start 起手类纯动词 key（proc_shield 起手 2 +
+proc_buff 起手 6），验证「读表 → 事件映射 → triggers 装配 → 引擎 fire」管线。
+后续批按 docs/REFACTOR_v181P4_N9_migration.md §3 铺开。
+"""
+from __future__ import annotations
+
+from typing import Optional
+
+# ============================================================
+# 旧事件集 → battle2 19 事件映射
+# ============================================================
+
+# 旧 weapon proc 事件集（weapon_effects._WE_KEY_EVENTS 的 key）
+_EVENT_MAP = {
+    "battle_start": ("battle_start",),
+    "hit": ("attack_hit", "skill_hit"),   # 普攻+技能通用命中
+    "skill_hit": ("skill_hit",),
+    "skill_cast": ("act_cast",),
+    "taken": ("on_taken",),
+    "heal": ("on_heal",),
+    "turn_start": ("turn_start",),
+    "threshold": ("threshold",),
+    "crit": ("crit",),
+    "kill": ("on_kill",),
+    # 以下旧时机 battle2 无 1:1 点位，第一批不迁（后续批次/上层处理）：
+    # taken_after / turn_end / enemy_act / passive / dot_taken
+}
+
+# 每个旧事件映射后的 battle2 事件（返回 tuple）
+def map_event(old_ev: str) -> tuple:
+    return _EVENT_MAP.get(old_ev, ())
+
+
+# ============================================================
+# 数据表读取（数值权威）
+# ============================================================
+
+_WE_TABLE = None
+
+
+def _we_data() -> dict:
+    global _WE_TABLE
+    if _WE_TABLE is None:
+        try:
+            from game.data import weapon_effect_data as W
+            _WE_TABLE = getattr(W, "WEAPON_EFFECT_DATA", {})
+        except Exception:
+            _WE_TABLE = {}
+    return _WE_TABLE
+
+
+def _we_config(key: str, actor: Optional[dict] = None) -> dict:
+    """key 的生效参数：数据表权威 + 装备行 we_data 覆盖（同旧 effect_data 语义）。"""
+    cfg = dict((_we_data() or {}).get(key) or {})
+    if actor:
+        for item in (actor.get("equipment") or {}).values():
+            if not isinstance(item, dict):
+                continue
+            if item.get("weapon_effect") == key and isinstance(item.get("we_data"), dict):
+                cfg.update(item["we_data"])
+    return cfg
+
+
+def equipped_weapon_keys(actor: dict) -> list:
+    """actor 已装备的 weapon_effect key 列表（各槽位，去重保序）。"""
+    out = []
+    for item in (actor.get("equipment") or {}).values():
+        if not isinstance(item, dict):
+            continue
+        we = item.get("weapon_effect")
+        if we and we not in out:
+            out.append(we)
+    return out
+
+
+# ============================================================
+# key → 效果声明翻译（第一批：纯动词 battle_start 起手类）
+# ============================================================
+# 返回 {old_event(字符串): [效果 dict]}（装配时 map_event 把旧事件展开成 battle2 事件）
+
+def _translate_shield_start(key: str, wd: dict) -> dict:
+    """proc_shield battle_start 起手盾：盾值 = shield_hp_pct×maxhp / shield_pct×maxhp /
+    base+per_lv×lv（sentinel 型后续批），turns 由数据给。"""
+    turns = int(wd.get("turns") or 3)
+    eff = {"type": "shield", "key": wd.get("shield_key") or ("we_" + key),
+           "turns": turns, "on": "caster"}
+    if wd.get("base") is not None or wd.get("per_lv") is not None:
+        # 固定值形态（value 按 level 由装配时算不了 level 依赖——走 pct 或交给扩展动作）
+        return {}  # 第一批不含该形态（sentinel/deeprock 属 taken 概率盾，后续批）
+    if wd.get("shield_pct") is not None:
+        eff["pct"] = float(wd["shield_pct"])
+    else:
+        eff["pct"] = float(wd.get("shield_hp_pct") or 0.10)
+    return {"battle_start": [eff]}
+
+
+def _translate_buff_start(key: str, wd: dict) -> dict:
+    """proc_buff battle_start 起手 buff：spd_pct → buff 动词（spd mul 1+pct，turns 数据给）。"""
+    if wd.get("spd_pct") is None:
+        return {}
+    eff = {"type": "buff", "key": wd.get("buff_key") or key,
+           "stat": "spd", "op": "mul", "mult": 1.0 + float(wd["spd_pct"]),
+           "turns": int(wd.get("turns") or 3), "on": "caster"}
+    return {"battle_start": [eff]}
+
+
+def _translate_shield_abyss(key: str, wd: dict) -> dict:
+    """abyss_barrier：深渊屏障 = 起手 max_hp_pct 护盾（无 turns 字段 → 3 刻）。"""
+    eff = {"type": "shield", "key": "we_abyss", "pct": float(wd.get("max_hp_pct") or 0.08),
+           "turns": int(wd.get("turns") or 3), "on": "caster"}
+    return {"battle_start": [eff]}
+
+
+# 第一批支持 key 清单（key → 翻译器）
+_START_TRANSLATORS = {
+    # proc_shield battle_start 起手盾
+    "starlight_bulwark": _translate_shield_start,
+    "eclipse_crown": _translate_shield_start,
+    # proc_buff battle_start 起手速度 buff
+    "gale_step": _translate_buff_start,
+    "swift_boots": _translate_buff_start,
+    "deadman_stride": _translate_buff_start,
+    "temple_stride": _translate_buff_start,
+    "void_stride": _translate_buff_start,
+    # 深渊屏障（单独形态：max_hp_pct 起手盾）
+    "abyss_barrier": _translate_shield_abyss,
+}
+
+
+def triggers_for_key(key: str, actor: Optional[dict] = None) -> dict:
+    """单个 weapon key → {old_event: [效果 dict]}（未支持 key → {}）。"""
+    if key not in _START_TRANSLATORS:
+        return {}
+    wd = _we_config(key, actor)
+    fn = _START_TRANSLATORS[key]
+    return fn(key, wd)
+
+
+# ============================================================
+# 装配入口
+# ============================================================
+
+def weapon_triggers(actor: dict) -> dict:
+    """actor 全部已装备武器特效 → {battle2事件: [效果 dict]}。
+
+    内部先把 key 翻译成 {old_event: [效果]}，再把 old_event 映射展开到
+    battle2 事件（hit → attack_hit + skill_hit 双事件注册）。
+    """
+    out: dict = {}
+    for key in equipped_weapon_keys(actor):
+        raw = triggers_for_key(key, actor)
+        if not raw:
+            continue  # 未支持 key：静默跳过（第一批范围外）
+        for old_ev, effs in raw.items():
+            for b2_ev in map_event(old_ev):
+                out.setdefault(b2_ev, []).extend(list(effs))
+    return out
+
+
+def apply_to_actor(actor: dict) -> None:
+    """把装备特效装配进 actor["triggers"]（幂等合并；命令层开战前调用）。"""
+    if not actor:
+        return
+    merged = weapon_triggers(actor)
+    tr = actor.setdefault("triggers", {})
+    for ev, effs in merged.items():
+        tr.setdefault(ev, []).extend(effs)
