@@ -124,7 +124,7 @@ class CollectionCmds(CommandBase):
         if rw.get("title"):
             rw_txt.append(f"称号『{rw['title']}』")
         if rw.get("bonus"):
-            # v174 实装：集齐即 title_bonus() 动态给永久属性（读 possessed/bestiary）
+            # v174 实装：集齐即 stat_bonus() 动态给永久属性（读 possessed/bestiary）
             _bn = rw["bonus"]
             _parts = [f"{k}+{v}" for k, v in _bn.items()]
             rw_txt.append(f"永久属性({'、'.join(_parts)})")

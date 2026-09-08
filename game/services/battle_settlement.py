@@ -607,7 +607,7 @@ def victory_settle(group_id, qq_id, player, monster, result, extra_kills=None):
       rule_txt（rule_fire("battle_win", win) 返回值——壳在 L2288 原位置追加）"""
     from .. import db
     from ..core.rule_engine import fire as _rule_fire
-    from ..core.title_bonus import title_bonus as _title_bonus
+    from ..core.stat_bonus import stat_bonus as _stat_bonus
 
     # v155 防御（2026-09-01 玩家实战抓包）：_mon 可能来自旧存档恢复的残缺敌人
     # （enemies=[] 只有 enemy 兼容键 → _origin_enemy 缺 exp/gold）——.get 兜底防 KeyError
@@ -661,7 +661,7 @@ def victory_settle(group_id, qq_id, player, monster, result, extra_kills=None):
                            C.MAP_BY_ID.get(player.get("cur_map"), {}),
                            "battle_win",
                            {"event": "win", "enemy": monster},
-                           hooks={"title_bonus": lambda q: _title_bonus(group_id, q, db.get_player(group_id, q) or {})})
+                           hooks={"title_bonus": lambda q: _stat_bonus(group_id, q, db.get_player(group_id, q) or {})})
     # ---- 段21 面板行骨架 ----
     need = C.exp_to_next(player["level"])
     exp_pct = min(100, int(player["exp"] / need * 100)) if need else 0
@@ -723,7 +723,7 @@ def defeat_settle(group_id, qq_id, player, monster, result):
       player：结算后 dict（hp/mp 已回满、cur_map/cur_subarea 已落城镇）"""
     from .. import db
     from ..core.rule_engine import fire as _rule_fire
-    from ..core.title_bonus import title_bonus as _title_bonus
+    from ..core.stat_bonus import stat_bonus as _stat_bonus
 
     db.init_stats(group_id, qq_id)
     db.bump_stats(group_id, qq_id, deaths=1)
@@ -775,7 +775,7 @@ def defeat_settle(group_id, qq_id, player, monster, result):
         _rule_fire("battle_win", group_id, qq_id, player,
                    C.MAP_BY_ID.get(player.get("cur_map"), {}),
                    {"event": "lose"},
-                   hooks={"title_bonus": lambda q: _title_bonus(group_id, q, db.get_player(group_id, q) or {})})
+                   hooks={"title_bonus": lambda q: _stat_bonus(group_id, q, db.get_player(group_id, q) or {})})
         return {"lines": lines, "revive_state": {"lost": lost, "extra": extra,
                                                  "monster": monster.get("name", "?")},
                 "player": player}
@@ -793,5 +793,5 @@ def defeat_settle(group_id, qq_id, player, monster, result):
     _rule_fire("battle_win", group_id, qq_id, player,
                C.MAP_BY_ID.get(player.get("cur_map"), {}),
                {"event": "lose"},
-               hooks={"title_bonus": lambda q: _title_bonus(group_id, q, db.get_player(group_id, q) or {})})
+               hooks={"title_bonus": lambda q: _stat_bonus(group_id, q, db.get_player(group_id, q) or {})})
     return {"lines": lines, "revive_state": None, "player": player}

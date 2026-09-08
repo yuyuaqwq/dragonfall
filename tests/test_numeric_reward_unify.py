@@ -94,7 +94,7 @@ async def main():
             record_possessed("gcb", "wcb", e.get("key") or e.get("name"))
         except Exception:
             pass
-    from game.core.title_bonus import title_bonus as _tb
+    from game.core.stat_bonus import stat_bonus as _tb
     tb_ok = _tb("gcb", "wcb", db.get_player("gcb", "wcb"))
     tb_no = _tb("gcb", "wcb2", db.get_player("gcb", "wcb2"))
     has_bonus = bool(b0.get("reward", {}).get("bonus"))

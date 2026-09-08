@@ -228,8 +228,8 @@ def get_player(group_id, qq_id):
                     # 称号加成会写低上限（存档 861 vs 面板 891，回血回不满永久复发）。
                     # 全 store 共用 connection._lock（已改 RLock），此处可安全调用 store 函数。
                     try:
-                        from ..core.title_bonus import title_bonus
-                        p["_title_bonus"] = title_bonus(group_id, qq_id, p)
+                        from ..core.stat_bonus import stat_bonus
+                        p["_title_bonus"] = stat_bonus(group_id, qq_id, p)
                     except Exception:
                         p["_title_bonus"] = {}
                     _logs, _p2 = check_player_level_up(group_id, qq_id, p)

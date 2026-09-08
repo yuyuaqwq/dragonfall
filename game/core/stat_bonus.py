@@ -1,11 +1,24 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年核心层 - title_bonus.py（v105 M01#11）
+"""奥兰迪亚·余烬纪年核心层 - stat_bonus.py（v105 M01#11，N5b4-4 泛化正名）
 
-副业大师称号/成就称号的属性加成汇总，独立于命令层：
-- commands/base.py:_title_bonus 与 store/players.py 惰性升级共用同一实现，
-  避免 get_player 读档升级重算 max_hp 时缺称号加成（存档上限 < 面板计算值，
-  升级回满血只回到旧上限，面板长期"生命 861/891"不满）。
-- 逻辑与 base.py 旧实现逐行等价（TITLES 加成 + 成就加成 + M18 同名去重）。
+**外部面板数值增幅聚合器**（鱼鱼 2026-09-08 拍板：新增纯数值增幅系统不改战斗引擎）。
+
+来源（全部是"纯 flat 数值"，加进面板）：
+- 副业大师称号/成就称号（TITLES/ACHIEVEMENTS bonus）
+- 收藏册满套 bonus（v174）
+- 【未来新增来源：挂件/时装/符文等——只在这个函数加一路，引擎/battle2/命令层零改动】
+
+⚠️ 边界：机制型效果（触发/条件/事件）不走这里——走 battle2 装配层
+（actor.triggers + 事件总线，N9/N9A 通用通道）。本聚合器只产 flat 数值 dict
+（如 {"atk": 15, "spd": 10}），由命令层开战时塞进 actor["stat_bonus"]。
+
+命名迁移：v105 原名 title_bonus（只聚合称号）；v174 并入收藏册后语义已是
+"外部增幅"，N5b4-4 正名 stat_bonus。命令层 _title_bonus 方法名与
+engine.player_final_stats 的 title_bonus 位置参数保留（旧引擎冻结区，N10 删旧收敛）。
+
+独立于命令层：commands/base.py:_title_bonus 与 store/players.py 惰性升级共用
+同一实现，避免 get_player 读档升级重算 max_hp 时缺称号加成（存档上限 < 面板
+计算值，升级回满血只回到旧上限，面板长期"生命 861/891"不满）。
 - player 参数：已加载玩家 dict 时传入，避免重复读档（get_player 持锁调用必须传）。
 """
 from .. import content as C
@@ -46,10 +59,11 @@ def _has_enhanced(group_id, qq_id, level):
     return False
 
 
-def title_bonus(group_id, qq_id, player=None) -> dict:
-    """称号属性加成汇总（Lv.10 称号 bonus 叠加 + 阶段九成就称号 bonus）。
+def stat_bonus(group_id, qq_id, player=None) -> dict:
+    """外部面板数值增幅聚合（称号加成 + 成就称号 + 收藏册满套；未来纯数值来源加这里）。
 
-    与 commands/base.py:_title_bonus 同逻辑；失败静默返回 {}（与旧实现一致）。
+    与 commands/base.py 旧 _title_bonus 同逻辑（TITLES 加成 + 成就加成 +
+    M18 同名去重 + v174 收藏册）；失败静默返回 {}（与旧实现一致）。
     """
     bonus = {}
     try:

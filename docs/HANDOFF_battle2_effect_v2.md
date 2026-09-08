@@ -65,11 +65,16 @@
    - 实现见 §3C；测试 tests/test_battle2_n5b4_pvp.py（29 断言：发起/轮流/胜负/防御/
      skill/超时/旧档清档）。全套 battle2 16 文件 541 断言绿。
    - 🔴 ~~新缺口（待鱼鱼拍板）PVP title_bonus 对称置空~~ → **✅ 鱼鱼拍板方案 A 已实施
-     （2026-09-08 本 commit）**：battle2/stats.py `_player_base_stats` 改 actor 自带
-     title_bonus 优先、缺省回落 battle.title_bonus（野外零变化）；_pvp_start 双方各自
-     title_bonus（core.title_bonus 直调 + 已 load player dict）塞 actor["title_bonus"]
-     随 actor 落盘/恢复。PVP 双方称号加成各自精确。测试 +8 断言（per-actor 面板/互不
-     污染/battle 级回落/序列化保留）。
+     （2026-09-08）**：battle2/stats.py `_player_base_stats` 改 actor 自带 stat_bonus
+     优先、缺省回落 battle.title_bonus（野外零变化）；PVP 双方各自增幅塞 actor 随盘。
+   - ✅ **再拍板：通用容器正名 stat_bonus（新增纯数值增幅系统不改引擎）**：
+     `core/title_bonus.py → core/stat_bonus.py`，聚合函数 `stat_bonus()` = 外部面板
+     数值增幅聚合器（称号 TITLES + 成就 ACHIEVEMENTS + 收藏册 + 未来挂件/时装等纯
+     flat 来源只在这里加一路）。actor 容器字段 `title_bonus → stat_bonus`；全开战
+     路径（_open_battle2 野外/约战/塔、世界Boss 玩家侧、PVP）都塞 actor["stat_bonus"]，
+     battle.title_bonus 仅兜底（N10 收）。机制型效果不走这（走装配层 triggers）。
+     冻结区保留：命令层 _title_bonus 方法名 / rule hooks 键 / engine.player_final_stats
+     第 7 参数名（N10 删旧引擎时收敛）。
    - 附注（引擎行为确认，命令层已兜底不崩）：battle2 的 DOT/时间结算路径（schedule
      _advance_time/_settle_time_effects）致死**不触发 _check_side_end**（result 不置位），
      只在 act() 尾部/actor_auto 后置——PVP 命令层胜负判定已改为**按 actor 存活**（不依赖

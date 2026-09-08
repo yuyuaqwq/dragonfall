@@ -646,7 +646,12 @@ class CommandBase:
 
 
     def _title_bonus(self, group_id, qq_id) -> dict:
-        """副业大师称号的属性加成汇总(Lv.10 称号 bonus 叠加 + 阶段九成就称号 bonus)
-        v105 M01#11：逻辑下沉 core/title_bonus.py（命令层与 store 惰性升级共用同一实现）"""
-        from ..core.title_bonus import title_bonus
-        return title_bonus(group_id, qq_id, self._player(group_id, qq_id) or {})
+        """当前玩家外部面板增幅聚合（称号/成就/收藏；未来纯数值来源）。
+
+        N5b4-4 泛化：实现已下沉 core/stat_bonus.py（原名 title_bonus.py，v174 并入
+        收藏册后语义=外部增幅聚合器）。方法名保留（命令层 20+ 处调用 + rule_engine
+        hooks 键 title_bonus 契约；旧引擎冻结区 N10 删旧时一并收敛）。
+        v105 M01#11：命令层与 store 惰性升级共用同一实现。
+        """
+        from ..core.stat_bonus import stat_bonus
+        return stat_bonus(group_id, qq_id, self._player(group_id, qq_id) or {})

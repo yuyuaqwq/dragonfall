@@ -231,7 +231,7 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
     from .. import content as C
     from .. import db
     from ..engine import check_player_level_up
-    from .title_bonus import title_bonus
+    from .stat_bonus import stat_bonus
     try:
         rows = db.get_achievements(group_id, qq_id) or []
         pending = [r for r in rows if not r.get("claimed")]
@@ -259,9 +259,9 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
         if not player:
             return [], "请先注册角色～"
         player = dict(player)
-        # K0-A1：复用统一单点 title_bonus()（含 M18 同名去重 + TITLES 侧 bonus），
+        # K0-A1：复用统一单点 stat_bonus()（含 M18 同名去重 + TITLES 侧 bonus），
         # 不再用轻量 _title_bonus_plain——避免 Lv.10 副业大师称号被当作第二份双算。
-        player["_title_bonus"] = title_bonus(group_id, qq_id, player)
+        player["_title_bonus"] = stat_bonus(group_id, qq_id, player)
         exp_gain = sum((a.get("reward") or {}).get("exp", 0) for a in claimable)
         gold_gain = sum((a.get("reward") or {}).get("gold", 0) for a in claimable)
         # v140 波2：物品奖励统一收集 → 发放（失败静默跳过，不阻塞经验/金币/升级）

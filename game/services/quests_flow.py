@@ -472,12 +472,12 @@ def grant_quest_rewards(group_id, qq_id, qdef, lines):
     from .. import content as C
     from .. import db
     from .. import engine as E
-    from ..core.title_bonus import title_bonus
+    from ..core.stat_bonus import stat_bonus
     import random
     player = db.get_player(group_id, qq_id)
     player["exp"] += qdef.get("reward_exp", 0)
     player["gold"] += qdef.get("reward_gold", 0)
-    player["_title_bonus"] = title_bonus(group_id, qq_id, player)
+    player["_title_bonus"] = stat_bonus(group_id, qq_id, player)
     lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
     db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
     if lv_logs:
