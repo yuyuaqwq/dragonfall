@@ -89,6 +89,36 @@
    职责、instance.py 删除清单、R1-R5 分步。**新会话口令：「继续 N5b4-5a v3，读
    docs/REFACTOR_v181P4_N5B5a_instance_mainline.md（v3）+ 本节，从 R1 开始」**
 
+9. **（2026-09-08 N5b4-5a 执行会话：R1/R2 完成 + use_item 链设计文档）**
+   - **R1 完成（db70ce1）**：新 `game/commands/instance_router.py`
+     （InstanceCmds 继承挂载，v3 §4.1-4.5 全逻辑）——入口守卫（大陆权威
+     st/肃清引导/轮转+超时自动防御）/行动（IB.act+sync_views）/账务薄壳/
+     结算全重写（守卫宝箱/rooms Boss 通关/切怪 build_battle 重构造/层清/
+     victory/失败同归）/死亡账 diff→_last_killed。**顺手修骨架 bug**：
+     instance_battle.act 行动者要从 from_state 副本 sides 找（原 st 旧 dict
+     → 引擎修改不落回，ct/defending 全丢）。测试 28 断言。
+   - **R2 完成（aa7384e）**：CombatCmds attack/skill/defend 3 处 instance
+     分流 → `_instance_router`（flee 保留锁场不可逃）；instance_battle.act
+     补目标解析（None/actor dict/字符串敌名/aN 编号——battle2 引擎只吃
+     actor dict）。接线冒烟测试（db 行真实写入）33 断言。
+   - **引擎 action_override（f0199d6）**：鱼鱼拍板"通用行动驱动回调——
+     告诉引擎做一次行动+耗时，回调写功能"。Battle 加 `action_override`
+     注入点（同 target_picker/on_event 先例）：非内置 action（use_item）
+     → 回调 (battle, action, actor, payload, target)->(logs, cast)；
+     cast=str 内置基准或数字秒；consumed 才推 ct+advance。引擎零名词。
+   - 🔴 **use_item 道具链设计（新会话执行蓝图）**：
+     docs/REFACTOR_v181P4_N5B5a_use_item_design.md——economy use_item
+     （副本 5895 / 普通 5909）在 R2/N5b4-2 后**已静默坏**（state battle2 化
+     但走旧 BT.from_state→enemy={}），R3 删 `_instance_act` 前必须处理。
+     方案：翻译器 battle2_item_use（payload→actor）+ schedule hot 周期恢复
+     基建 + economy 分流切 router + purify 改翻译器；机制型 special
+     （summon/trap/phoenix/morph/invuln 等）明确提示不扣道具列缺口。
+     **新会话口令：「读 docs/REFACTOR_v181P4_N5B5a_use_item_design.md，
+     从 I1 开始（先做 hot 基建）→ I2-I5 → 回 R3」**
+   - 未做：R3 删除清单 / footer、world.py 两处 CT helpers 残留（依赖
+     _instance_ct_queue/_instance_next_player_name，删 helpers 前要改读
+     battle state）/ R4 端到端 / R5 HANDOFF。
+
 ## 1. 已完成（全部绿，工作区干净）
 
 ### N7 效果系统收口（8 commit）
