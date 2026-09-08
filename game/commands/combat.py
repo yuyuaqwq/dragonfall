@@ -345,10 +345,16 @@ class CombatCmds(CommandBase):
             b = self._open_battle2(player, group, "monster", group_id=group_id, qq_id=qq_id)
             db.save_battle(group_id, qq_id, b.to_state())
             self._lock_battle(group_id, qq_id)
-            bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if (player.get("buffs") or {}).get("echo_bless") else ""
+            _boons = player.get("_battle_boons") or {}
+            _bl = _boons.get("echo_bless")
+            bless_note = ""
+            if _bl and _bl.get("mult"):
+                _pct = int(round((float(_bl["mult"]) - 1.0) * 100))
+                bless_note += f"✨ 回声祝福生效：本场攻击力 +{_pct}%！\n"
             _pb = player.get("poi_buff")
             if _pb:
-                bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}+10%！\n"
+                _pct_pb = int(round((float(_pb.get("mult", 1.10)) - 1.0) * 100))
+                bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}+{_pct_pb}%！\n"
             # O121 Boss 战隐藏『逃跑』选项（引擎/命令层均禁逃，防误导）
             _acts = "『攻击』『技能 <名称>』『防御』" + ("" if monster.get("is_boss") else "『逃跑』")
             yield event.plain_result(
@@ -414,10 +420,16 @@ class CombatCmds(CommandBase):
         b = self._open_battle2(player, group, "monster", group_id=group_id, qq_id=qq_id)
         db.save_battle(group_id, qq_id, b.to_state())
         self._lock_battle(group_id, qq_id)
-        bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if (player.get("buffs") or {}).get("echo_bless") else ""
+        _boons = player.get("_battle_boons") or {}
+        _bl = _boons.get("echo_bless")
+        bless_note = ""
+        if _bl and _bl.get("mult"):
+            _pct = int(round((float(_bl["mult"]) - 1.0) * 100))
+            bless_note += f"✨ 回声祝福生效：本场攻击力 +{_pct}%！\n"
         _pb = player.get("poi_buff")
         if _pb:
-            bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}+10%！\n"
+            _pct_pb = int(round((float(_pb.get("mult", 1.10)) - 1.0) * 100))
+            bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}+{_pct_pb}%！\n"
         role_mark = tag or ("👑 BOSS" if monster["is_boss"] else ("⭐ 精英" if monster["is_elite"] else "🐾"))
         # v104 修复（M06 P2-2）：展示 MONSTER_MODS 个体特色文案（此前只有数值生效，玩家看不到）
         mod_line = f"📜 {monster['mod']}\n" if monster.get("mod") else ""

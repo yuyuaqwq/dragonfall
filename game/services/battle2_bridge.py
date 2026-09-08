@@ -32,13 +32,40 @@ from ..battle2 import make_actor  # 只读 battle2 工厂，不改 battle2
 _PLAYER_PASSTHROUGH = (
     "qq_id", "group_id", "cur_map", "race", "class_tier", "attributes",
     "evolve_path", "learned_skills", "skill_levels",
-    # 状态字段（战斗内玩家 buffs/叠层/资源——从旧档恢复或开战仪式已写入 player）
-    "resources", "stacks", "eff", "hot", "food_effects", "poi_buff",
+    # 状态字段（战斗内玩家资源——从旧档恢复或开战仪式已写入 player；
+    # 效果类（echo_bless/poi_buff/…）V6 起由 _start_effects_to_actor 翻译进
+    # actor.effects 面板快照，不在 passthrough 冗余透传）
+    "resources", "stacks", "eff", "hot", "food_effects",
     "buff_hits", "last_element", "dual_form", "focus", "vent",
     "v139_modes", "v139_charge", "overflow_shield_cd", "stealth_atk",
     "reduce_all_left", "reduce_left", "combo_seq", "last_combo_tag",
     "tailwind_prev_energy", "last_skill", "last_cast_at",
 )
+
+# 开战仪式一次性祝福 → actor.effects 面板快照条目（V6：旧引擎 BUFF_MULT 折算
+# /poi ×1.10 在 _apply_buffs；battle2 无 buffs 容器 → 仪式消费的祝福翻译成
+# effects 面板快照，整场生效。数值权威：prepare_player_for_battle 消费时已
+# 按 event_state 写入 player["_battle_boons"]——纯数据搬运，桥不造数值）。
+def _battle_boons_to_effects(player: dict, actor: dict) -> dict:
+    """玩家开战仪式产物（_battle_boons 标记）→ actor.effects 面板快照条目。
+
+    条目无 expire（整场），stats._apply_effects 读内嵌 stat/op/mult 折算。
+    幂等：已翻译过的键跳过（防 build_sides 重复调用双写）。
+    """
+    boons = player.get("_battle_boons") or {}
+    if not isinstance(boons, dict) or not boons:
+        return actor
+    ef = actor.setdefault("effects", {})
+    for key, b in boons.items():
+        if not isinstance(b, dict):
+            continue
+        if not b.get("stat") or b.get("mult") is None:
+            continue
+        if key in ef:  # 已翻译（重复 build_sides 幂等）
+            continue
+        ef[key] = {"stacks": 1, "stat": b["stat"], "op": b.get("op", "mul"),
+                   "mult": float(b["mult"])}
+    return actor
 
 # 玩家 dict 的 buffs 键（旧引擎把玩家 buffs 写 player["buffs"]——battle2 actor.buffs 同构）
 def player_to_actor(player: dict) -> dict:
@@ -53,9 +80,10 @@ def player_to_actor(player: dict) -> dict:
         if player.get(k) is not None:
             stats_kw[k] = player[k]
     # 同构状态键透传（V 系列：effects 由 make_actor 播种，调用方按需填；
-    # buffs/debuffs/hot/state 旧四键已废弃——透传只会造成脏残留，剔除）
+    # buffs/debuffs/hot/state 旧四键已废弃——透传只会造成脏残留，剔除；
+    # poi_buff 已由 V6 翻译进 effects 面板快照条目，不再透传冗余 actor 字段）
     for k in ("shields", "cooldown", "charging", "defending",
-              "ct", "poi_buff"):
+              "ct"):
         if player.get(k) is not None:
             stats_kw[k] = player[k]
     skills = player.get("learned_skills") or player.get("skills") or []
@@ -76,6 +104,8 @@ def player_to_actor(player: dict) -> dict:
     for k in _PLAYER_PASSTHROUGH:
         if k in player and k not in actor:
             actor[k] = player[k]
+    # V6：开战仪式祝福（echo_bless/poi_buff）→ effects 面板快照（整场生效）
+    _battle_boons_to_effects(player, actor)
     # 旧 stacks/resources → battle2 state 映射（开战仪式/恢复时用；默认空）
     #   注意：只有调用方明确要迁移时才填——本函数不做隐式迁移（避免把旧职业
     #   叠层语义错误地灌进 state，那应由上层职业模块按声明表翻译）
@@ -216,17 +246,29 @@ def prepare_player_for_battle(player: dict, title_bonus: Optional[dict] = None,
             player["max_mp"] = int(_st["max_mp"])
     except Exception:
         pass  # 面板重算失败不阻断开战（沿用 DB 值）
-    # 3. echo_bless 消费（v97.4：探索事件写 event_state bless_{qid}，本场攻击 +5%，一次性）
+    # 3. echo_bless 消费（v97.4：探索事件写 event_state bless_{qid}，本场攻击 +pct%，
+    #    一次性）。V6：不再写 player.buffs 旧键——落 _battle_boons 标记，
+    #    player_to_actor 翻译成 actor.effects 面板快照（stats 折算，整场生效）。
     try:
         _qq = player.get("qq_id")
-        if _qq and not (player.get("buffs") or {}).get("echo_bless"):
+        if _qq and not ((player.get("_battle_boons") or {}).get("echo_bless")
+                        or (player.get("buffs") or {}).get("echo_bless")):
             _raw = (db or _default_db()).get_event_state(f"bless_{_qq}")
             if _raw:
-                player.setdefault("buffs", {})["echo_bless"] = 1
+                import json as _json2
+                try:
+                    _bless = _json2.loads(_raw)
+                    _pct = float((_bless or {}).get("pct", 5) or 5)
+                except Exception:
+                    _pct = 5.0
+                player.setdefault("_battle_boons", {})["echo_bless"] = {
+                    "stat": "atk", "op": "mul", "mult": 1.0 + _pct / 100.0}
                 (db or _default_db()).set_event_state(f"bless_{_qq}", "")
     except Exception:
         pass
     # 4. 神龛祝福消费（v104 M23：poi_buff_{qid}，left-1；用完删 key，flee 也算消耗）
+    #    V6：效果落 _battle_boons → actor.effects 面板快照（player.poi_buff 保留
+    #    供命令层开战 note 显示，同旧语义）
     try:
         _qq = player.get("qq_id")
         if _qq and not player.get("poi_buff"):
@@ -239,6 +281,9 @@ def prepare_player_for_battle(player: dict, title_bonus: Optional[dict] = None,
                     player["poi_buff"] = {"stat": _pb["stat"],
                                           "mult": float(_pb.get("mult", 1.10)),
                                           "name": _pb.get("name", _pb["stat"])}
+                    player.setdefault("_battle_boons", {})["poi_buff"] = {
+                        "stat": _pb["stat"], "op": "mul",
+                        "mult": float(_pb.get("mult", 1.10))}
                     _pb["left"] = int(_pb["left"]) - 1
                     if _pb["left"] <= 0:
                         (db or _default_db()).delete_event_state(f"poi_buff_{_qq}")

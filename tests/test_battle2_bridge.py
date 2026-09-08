@@ -167,8 +167,15 @@ db.set_event_state("poi_buff_10001", _json.dumps(
 BR.prepare_player_for_battle(_p2, title_bonus={})
 check("播种 buffs/shields/cooldown（player dict 协议）", all(isinstance(_p2.get(k), dict) for k in
       ("buffs", "shields", "cooldown", "resources", "stacks")))
-check("echo_bless 消费进 buffs", (_p2.get("buffs") or {}).get("echo_bless") == 1)
+check("echo_bless 消费进 _battle_boons（V6 面板快照标记）",
+      (_p2.get("_battle_boons") or {}).get("echo_bless", {}).get("mult") == 1.05)
 check("echo_bless event_state 清空", not db.get_event_state("bless_10001"))
+# V6：boons → player_to_actor 翻译成 actor.effects 面板快照（整场生效）
+_boon_actor = BR.player_to_actor(dict(_p2))
+check("echo_bless 翻译进 actor.effects",
+      (_boon_actor.get("effects") or {}).get("echo_bless", {}).get("mult") == 1.05)
+check("poi_buff 翻译进 actor.effects",
+      (_boon_actor.get("effects") or {}).get("poi_buff", {}).get("stat") == "atk")
 check("神龛 poi_buff 挂上", (_p2.get("poi_buff") or {}).get("stat") == "atk")
 check("poi_buff left 2→1", _json.loads(db.get_event_state("poi_buff_10001"))["left"] == 1)
 check("max_hp 实时化 > 100", int(_p2.get("max_hp", 0)) > 100, "max_hp=%s" % _p2.get("max_hp"))
@@ -176,7 +183,7 @@ check("max_hp 实时化 > 100", int(_p2.get("max_hp", 0)) > 100, "max_hp=%s" % _
 _p3 = make_player(level=10, hp=80, mp=20)
 _p3["max_hp"], _p3["max_mp"] = 100, 30
 BR.prepare_player_for_battle(_p3, title_bonus={})
-check("二次开战 echo 不重复", not (_p3.get("buffs") or {}).get("echo_bless"))
+check("二次开战 echo 不重复", not (_p3.get("_battle_boons") or {}).get("echo_bless"))
 check("poi left 耗尽删 key", not db.get_event_state("poi_buff_10001"))
 check("二次开战 poi_buff 仍挂上", (_p3.get("poi_buff") or {}).get("stat") == "atk")
 
