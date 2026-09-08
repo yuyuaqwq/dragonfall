@@ -127,6 +127,17 @@ STATE_EFFECTS: dict = {
         "stat_scale": {"spd": 0.02, "atk": 0.01},
     },
     "sage_amp": {"cap": 2},                        # 秘典充能：计数 need 2 → 下一技能 ×1.25
+    # ============ 敌方减速叠层（N9A：randuin/ice_vein，act_done 敌行动叠层） ============
+    # 旧语义：敌行动 +1 层（cap 3），_spd_down_pct = spd_down_pct×n 乘算减速
+    # （cap 0.5 折算端；3×0.06=0.18 / 3×0.08=0.24 均不触 cap → stat_scale 负值精确等价）
+    "randuin_weary": {
+        "cap": 3,
+        "stat_scale": {"spd": -0.06},              # 兰顿倦意：每层敌速 -6%
+    },
+    "ice_vein": {
+        "cap": 3,
+        "stat_scale": {"spd": -0.08},              # 冰脉寒流：每层敌速 -8%
+    },
 }
 
 # ============================================================

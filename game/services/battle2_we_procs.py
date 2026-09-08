@@ -914,6 +914,52 @@ def we_death_pool_pay(battle, caster, target, params, logs):
 
 
 # ============================================================
+# N9A-2 act_done 通用广播监听（randuin_weary/ice_vein：敌行动叠减速层）
+# ============================================================
+# 事件语义（鱼鱼 2026-09-08 拍板）：act_done = 全员广播，任何阵营 actor 行动完成都
+# fire（不带 ctx.actor 键 → subject=None 全员查声明）。监听者自己 if 敌我判断：
+#   ctx["acted"] = 刚行动的 actor；owner 声明者查 hostile_sides(battle, owner.side)
+#   是否包含 acted.side → 是才给 acted 叠层（state + stat_scale 负值折算减速）。
+
+_ACT_DONE_SLOW_LOG = {
+    "randuin_weary": "🛡️ 兰顿倦意：敌人速度 -{pct}%（{n}/{ms} 层）！",
+    "ice_vein": "❄️ 冰脉寒流：敌人速度 -{pct}%（{n}/{ms} 层）！",
+}
+
+
+@register_action("we_act_done_slow")
+def we_act_done_slow(battle, caster, target, params, logs):
+    """敌对 actor 行动完成 → 给它叠减速层（act_done 广播监听）。"""
+    owner = params.get("_owner") or caster
+    if owner is None or not actor_alive(owner):
+        return
+    ctx = getattr(battle, "_fire_ctx", None) or {}
+    acted = ctx.get("acted")
+    if acted is None or not actor_alive(acted):
+        return
+    if acted is owner:
+        return  # 自己行动不叠
+    # 敌我判断（引擎零知识，装配层效果侧 if）：acted 是否 owner 敌对阵营
+    try:
+        from game.battle2.actors import hostile_sides
+        own_side = owner.get("side") or ""
+        acted_side = acted.get("side") or ""
+        if acted_side not in hostile_sides(battle, own_side):
+            return  # 非敌对（友方/中立）行动不响应
+    except Exception:
+        return  # 阵营判定失败不叠（安全）
+    key = params.get("key") or ""
+    ms = int(params.get("max_stack") or 3)
+    sp = float(params.get("spd_down_pct") or 0.06)
+    sk = params.get("stack_key") or key
+    from game.battle2.state_effects import state_def
+    cap = int((state_def(sk) or {}).get("cap") or ms)
+    n = state_add(acted, sk, 1, cap=cap)
+    logs.append(_ACT_DONE_SLOW_LOG.get(
+        key, "🌊 减速叠层！").format(pct=int(sp * 100 * n), n=n, ms=ms))
+
+
+# ============================================================
 # 注册入口（装配层 install_ext_actions 调，幂等）
 # ============================================================
 

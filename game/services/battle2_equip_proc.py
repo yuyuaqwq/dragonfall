@@ -37,8 +37,11 @@ _EVENT_MAP = {
     "threshold": ("threshold",),
     "crit": ("crit",),
     "kill": ("on_kill",),
+    # N9A-2：旧 enemy_act（敌方行动后）→ 通用 act_done 广播（全员触发，效果侧
+    # 自己 if 敌我判断——randuin/ice_vein 敌对判断在 we_act_done_slow 扩展动作内）
+    "enemy_act": ("act_done",),
     # 以下旧时机 battle2 无 1:1 点位，第一批不迁（后续批次/上层处理）：
-    # taken_after / turn_end / enemy_act / passive / dot_taken
+    # taken_after / turn_end / passive / dot_taken
 }
 
 # 每个旧事件映射后的 battle2 事件（返回 tuple）
@@ -262,6 +265,19 @@ def _translate_death_dance(key: str, wd: dict) -> dict:
     }
 
 
+def _translate_act_done_slow(key: str, wd: dict) -> dict:
+    """proc_control spd_down_stack（randuin/ice_vein）：敌对 actor 行动完成 → 给它
+    叠减速层。挂 enemy_act → act_done（全员广播）；敌我判断在扩展动作
+    we_act_done_slow 内（hostile_sides 查 owner vs acted）。
+    ⚠️ state key 用效果 key（randuin_weary/ice_vein）而非数据表 stack_key
+    （_randuin_stack/_ice_vein_stack——那是旧 e_buffs 内部键）——battle2 的
+    STATE_EFFECTS 面板折算/层 cap 以注册 key 为权威。"""
+    eff = {"type": "we_act_done_slow", "key": key, "stack_key": key,
+           "max_stack": wd.get("max_stack"),
+           "spd_down_pct": wd.get("spd_down_pct")}
+    return {"enemy_act": [eff]}
+
+
 def _translate_extra_dmg(key: str, wd: dict) -> dict:
     """proc_extra_dmg 命中追击：we_extra_dmg 扩展动作。事件 = 数据表注册事件
     （skill_hit 4：afterglow/spellblade/annihilation/endless_blade；其余 hit）。"""
@@ -440,6 +456,9 @@ _START_TRANSLATORS = {
     "eternal_codex": lambda k, wd: _stack_pair(k, wd, "skill_cast"),
     "time_staff": lambda k, wd: _stack_pair(k, wd, "turn_start"),
     "thunder_weave": lambda k, wd: _stack_pair(k, wd, "hit"),
+    # proc_control 敌方控制（randuin_weary/ice_vein = act_done 叠减速层）
+    "randuin_weary": _translate_act_done_slow,
+    "ice_vein": _translate_act_done_slow,
     # proc_special death_dance 缓伤池（受击收池 + 每刻结算）
     "death_dance": _translate_death_dance,
 }

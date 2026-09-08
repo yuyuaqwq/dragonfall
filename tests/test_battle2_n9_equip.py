@@ -124,7 +124,10 @@ def test_event_map():
     check("skill_cast → act_cast", EP.map_event("skill_cast") == ("act_cast",))
     # 不在旧事件表 = 假定已是 battle2 原生事件名（同名直通；fire EVENTS 校验兜底）
     check("原生事件名直通", EP.map_event("dmg_calc") == ("dmg_calc",))
-    check("未知旧事件同名直通（fire 校验忽略）", EP.map_event("enemy_act") == ("enemy_act",))
+    # N9A-2：旧 enemy_act（敌行动后）→ 通用 act_done 广播（全员触发 + 效果侧判敌我）
+    check("enemy_act → act_done", EP.map_event("enemy_act") == ("act_done",))
+    # 完全未知事件仍同名直通（fire EVENTS 校验忽略）
+    check("未知事件同名直通", EP.map_event("turn_end") == ("turn_end",))
 
 
 # ============================================================
@@ -186,8 +189,8 @@ def test_no_equip_no_trigger():
 def test_unsupported_key_skipped():
     print("【N9.6 未支持 key 静默跳过（范围外）】")
     p = mk_a("p1", "player")
-    # 真缺口 key（N9A 尚未支持）：randuin/ice_vein 需 act_done 事件、novice_hunt_combo 需职业模块
-    equip(p, "randuin_weary", slot="armor")
+    # 真缺口 key（N9A 尚未支持）：combo 系需职业模块
+    equip(p, "combo_end", slot="armor")
     equip(p, "novice_hunt_combo", slot="weapon")
     EP.apply_to_actor(p)
     check("未支持 key 不装配", not (p.get("triggers") or {}), f"{p.get('triggers')}")
@@ -728,6 +731,65 @@ def test_death_dance():
     check("序列化保留池 35", abs(pool_r - 35.0) < 1e-9, f"pool_r={pool_r}")
 
 
+def test_act_done_randuin():
+    print("【N9A-2 act_done 通用广播：randuin/ice_vein 敌行动叠减速层】")
+    # 装配端到端：玩家带 randuin，敌方每次行动完成 → 敌方叠层
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=99999, atk=1, spd=50)
+    equip(p, "randuin_weary", slot="armor")
+    EP.apply_to_actor(p)
+    check("randuin 装配 act_done", "act_done" in (p.get("triggers") or {}),
+          f"triggers={p.get('triggers')}")
+    b = new_battle(p, m)
+    # 敌方行动 1 次 → 敌方叠 1 层（speed 从 50 → ×(1-0.06) = 47）
+    b.act(ActCtx(caster=m, action="attack", target=p))
+    st = m.get("state") or {}
+    check("敌方行动叠 1 层", int(st.get("randuin_weary", 0) or 0) == 1,
+          f"state={st}")
+    from game.battle2 import stats as S
+    spd1 = S.actor_spd(b, m)
+    check("减速 -6%（47）", spd1 == 47, f"spd={spd1}")
+    # 敌方再行动 2 次 → 叠满 3 层 → ×(1-0.18) = 41
+    b.act(ActCtx(caster=m, action="attack", target=p))
+    b.act(ActCtx(caster=m, action="attack", target=p))
+    st = m.get("state") or {}
+    check("敌行动叠满 3 层", int(st.get("randuin_weary", 0) or 0) == 3,
+          f"state={st}")
+    spd3 = S.actor_spd(b, m)
+    check("减速 -18%（41）", spd3 == 41, f"spd={spd3}")
+    # 玩家自己行动不叠（旁观者不误触发——玩家侧声明的监听不叠自己）
+    n_before = int((m.get("state") or {}).get("randuin_weary", 0) or 0)
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    n_after = int((m.get("state") or {}).get("randuin_weary", 0) or 0)
+    check("玩家行动不额外叠层", n_after == n_before, f"{n_before}→{n_after}")
+    # ice_vein：每层 -8%
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1, spd=50)
+    equip(p2, "ice_vein", slot="armor")
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    b2.act(ActCtx(caster=m2, action="attack", target=p2))
+    spd_i1 = S.actor_spd(b2, m2)
+    check("冰脉一层 -8%（46）", spd_i1 == 46, f"spd={spd_i1}")
+    # 我方随从（同阵营）行动不叠
+    pet = mk_a("pet1", "player", hp=200, atk=5)
+    b2.sides["player"].append(pet)
+    n2 = int((m2.get("state") or {}).get("ice_vein", 0) or 0)
+    b2.act(ActCtx(caster=pet, action="attack", target=m2))
+    n2b = int((m2.get("state") or {}).get("ice_vein", 0) or 0)
+    check("友方行动不叠层", n2b == n2, f"{n2}→{n2b}")
+    # PVP：对手（enemy 阵营但 human_controlled）行动也叠（敌对判定按 side 不按 human）
+    p3 = mk_a("p3", "player")
+    foe = mk_a("foe1", "enemy", hp=99999, atk=1, spd=50)
+    foe["human_controlled"] = True  # PVP 对手也是真人（但 side=enemy → 敌对判定仍叠）
+    equip(p3, "randuin_weary", slot="armor")
+    EP.apply_to_actor(p3)
+    b3 = new_battle(p3, foe)
+    b3.act(ActCtx(caster=foe, action="attack", target=p3))
+    check("PVP 对手行动也叠层", int((foe.get("state") or {}).get("randuin_weary", 0) or 0) == 1,
+          f"foe state={foe.get('state')}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -752,6 +814,7 @@ def main():
     test_dmg_taken_calc_hooks()
     test_cond_mult_and_stacks()
     test_death_dance()
+    test_act_done_randuin()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:
