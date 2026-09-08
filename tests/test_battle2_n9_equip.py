@@ -369,6 +369,48 @@ def test_next_atk_and_retort_marks():
     check("受击挂反击势能", "we_retort" in (p2["buffs"] or {}), f"buffs={p2.get('buffs')}")
 
 
+def test_trinity_thunder():
+    print("【N9.17 trinity_rhythm：技能后下一次出手 +30% + 附雷 atk×15%】")
+    p = mk_a("p1", "player", hp=99999)
+    m = mk_a("e1", "enemy", hp=99999, atk=1)
+    equip(p, "trinity_rhythm", slot="weapon")
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    tr = p.get("triggers") or {}
+    check("trinity 装配 skill_hit", "skill_hit" in tr, f"keys={list(tr.keys())}")
+    # 技能命中 → 挂 we_trinity（带 bonus_atk_pct 0.15）
+    from game.battle2 import actions as AC
+    AC.do_skill(b, ActCtx(caster=p, action="skill", skill_name="斩",
+                          info={"name": "斩", "kind": "物理", "exprs": ["atk*1.0"]}, target=m))
+    bf = p.get("buffs") or {}
+    check("技能命中挂 we_trinity + bonus 0.15",
+          "we_trinity" in bf and abs(float((bf["we_trinity"].get("hit") or {}).get("bonus_atk_pct", 0)) - 0.15) < 1e-9,
+          f"buffs={bf}")
+    # 下次普攻出手：atk_pct 增伤 + bonus 附雷段（atk=40 → 附雷 6）
+    hp_before = m["hp"]
+    logs = b.act(ActCtx(caster=p, action="attack", target=m))
+    dmg = hp_before - m["hp"]
+    check("出手消费标记清空", "we_trinity" not in (p["buffs"] or {}), f"buffs={p.get('buffs')}")
+    check("附雷段伤害 = atk×0.15", dmg >= 40 * 0.15, f"总掉血 {dmg}（主伤害+附雷）")
+    # 第二击普攻：标记已消费 → 不再附雷（只普通伤害）
+    hp2 = m["hp"]
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    dmg2 = hp2 - m["hp"]
+    check("第二击无附雷（正常普攻伤害）", dmg2 < dmg, f"第二击 {dmg2} vs 首击 {dmg}")
+    # we_data 显式覆盖 thunder_pct=0 → 无附雷段（覆盖层语义：we_data 覆盖表字段）
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    equip(p2, "trinity_rhythm", slot="weapon", we_data={"thunder_pct": 0})
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    from game.battle2 import actions as AC2
+    AC2.do_skill(b2, ActCtx(caster=p2, action="skill", skill_name="斩",
+                            info={"name": "斩", "kind": "物理", "exprs": ["atk*1.0"]}, target=m2))
+    bf2 = p2.get("buffs") or {}
+    hit2 = (bf2.get("we_trinity") or {}).get("hit") or {}
+    check("we_data thunder_pct=0 → 无 bonus 段", "bonus_atk_pct" not in hit2, f"hit={hit2}")
+
+
 def test_shield_taken_cd():
     print("【N9.13 sentinel 概率盾 + CD】")
     p = mk_a("p1", "player")
@@ -1058,6 +1100,7 @@ def main():
     test_dot_blood_trace_curhp()
     test_reflect_ext_action()
     test_next_atk_and_retort_marks()
+    test_trinity_thunder()
     test_shield_taken_cd()
     test_dusk_blade_kill()
     test_shield_cond_overflow_crit()

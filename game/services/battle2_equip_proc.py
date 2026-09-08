@@ -469,7 +469,7 @@ def _translate_buff_hit_self(key: str, wd: dict, old_ev: str) -> dict:
 def _translate_next_atk_mark(key: str, wd: dict) -> dict:
     """proc_next_atk_mark：命中后给自身挂「下次出手强化」buff（引擎 N7.3 hit 子键
     天然支持：出手时消费 dmg_mult）。mountain/oath = skill_hit；spark = skill_cast。
-    （trinity 的 thunder_pct 附加雷伤段 / dusk 的 stealth 段后续扩展动作补）"""
+    （dusk 的 stealth 段后续扩展动作补；trinity 走 _translate_trinity 含附雷段）"""
     old_ev = "skill_cast" if key == "novice_spark_followup" else "skill_hit"
     pct = float(wd.get("atk_pct") or 0)
     if pct <= 0:
@@ -477,6 +477,29 @@ def _translate_next_atk_mark(key: str, wd: dict) -> dict:
     eff = {"type": "buff", "key": wd.get("mark_key") or ("we_" + key),
            "turns": 999, "hit": {"dmg_mult": 1.0 + pct}, "on": "caster"}
     return {old_ev: [eff]}
+
+
+def _translate_trinity(key: str, wd: dict) -> dict:
+    """proc_next_atk_mark trinity_rhythm（奔雷大剑）：技能后下一次出手 +30% 伤害
+    **并附带 atk×thunder_pct 雷属性伤害**（N9.8 补 thunder 段）。
+
+    - atk_pct 段：buff hit 子键 dmg_mult（引擎 N7.3 出手消费，同族通用）；
+    - thunder 段：buff hit 子键 bonus_atk_pct —— 引擎 _consume_hit_buffs 返回
+      附伤参数 → actions 主伤害落地后按 atk×pct 追一段独立伤害（走 landing
+      统一收口）。数值全读 wd 表（零硬编码）；无 thunder_pct → 纯 atk 段
+      （读表零默认值：缺字段 = 无此行为）。
+    """
+    pct = float(wd.get("atk_pct") or 0)
+    if pct <= 0:
+        return {}
+    hit = {"dmg_mult": 1.0 + pct}
+    tp = float(wd.get("thunder_pct") or 0)
+    if tp > 0:
+        hit["bonus_atk_pct"] = tp
+        hit["bonus_tag"] = wd.get("bonus_tag") or "⚡"
+    eff = {"type": "buff", "key": wd.get("mark_key") or ("we_" + key),
+           "turns": 999, "hit": hit, "on": "caster"}
+    return {"skill_hit": [eff]}
 
 
 def _translate_retort_mark(key: str, wd: dict) -> dict:
@@ -660,7 +683,7 @@ _START_TRANSLATORS = {
     "oath_blade": _translate_next_atk_mark,
     "novice_spark_followup": _translate_next_atk_mark,
     "dusk_blade": _translate_dusk_blade,
-    "trinity_rhythm": _translate_next_atk_mark,   # atk_pct 段（thunder_pct 附雷段后续补）
+    "trinity_rhythm": _translate_trinity,   # atk_pct + thunder_pct 双段（N9.8 收口）
     # proc_retort_mark（受击反击势能）
     "gargoyle_retort": _translate_retort_mark,
     "titan_retort": _translate_retort_mark,
