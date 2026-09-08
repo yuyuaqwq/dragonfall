@@ -330,6 +330,163 @@ def _crit_flag(ctx: dict) -> bool:
 
 
 # ============================================================
+# proc_extra_dmg（11 key：命中追击直伤/真伤/吸血）
+# ============================================================
+
+_EXTRA_LOG = {
+    "afterglow_splash": "🌅 余波 溅射 {dmg} 点奥术伤害！",
+    "spellblade_echo": "🔮 咒刃 溅射 {dmg} 点奥术伤害！",
+    "annihilation_echo": "💥 湮灭回响 溅射 {dmg} 点奥术伤害！",
+    "wind_split": "🌪️ 裂风矢 追加 {dmg} 点伤害！",
+    "endless_blade": "⚔️ 无尽锋芒 追加 {dmg} 点伤害！",
+    "hunter_open": "🗡️ 破绽 造成 {dmg} 点真实伤害！",
+    "siren_fang": "🧜 海妖猎杀 造成 {dmg} 点真实伤害！",
+    "star_pierce": "☄️ 穿星 造成 {dmg} 点真实伤害！",
+}
+
+
+def _owner_stats(battle, owner):
+    from game.battle2 import stats as S
+    try:
+        return S.actor_stats(battle, owner)
+    except Exception:
+        return dict(owner)
+
+
+def _target_def_stats(battle, target):
+    from game.battle2 import stats as S
+    try:
+        return S.actor_stats(battle, target)
+    except Exception:
+        return dict(target)
+
+
+def _calc(battle, atk_val, def_val, dmg_type="phys", pene_pct=0.0):
+    from game import engine as E
+    try:
+        if dmg_type == "true":
+            return max(1, E.calc_damage(int(atk_val), 0, False, dmg_type="true"))
+        return max(1, E.calc_damage(int(atk_val), int(def_val), False,
+                                    pene_pct=pene_pct, dmg_type=dmg_type))
+    except Exception:
+        return max(1, int(atk_val))
+
+
+@register_action("we_extra_dmg")
+def we_extra_dmg(battle, caster, target, params, logs):
+    """命中追击（proc_extra_dmg，hit/skill_hit 事件，主体=攻击者即 owner）。
+    mode 分派（表字段权威；RNG 在 chance/计数保底处各消耗一次，同旧语义）：
+    - splash_magi（afterglow/spellblade_echo/annihilation）：matk×pct vs mdef 溅射
+    - extra_phys（wind_split）：atk×pct vs def
+    - extra_phys_pene（phantom_barrage）：计数 + chance/保底 → atk×pct vs def×(1-pene)
+    - extra_phys_oncrit（endless_blade）：crit 事件 + cd 1 刻 → atk×pct 追加
+    - true_dmg_nth（hunter/siren/star）：计数到 count → atk×pct 真伤（star 加已损 bonus cap）
+    - curhp_dmg_heal（soul_eater）：敌当前 hp×pct（cap atk）伤 + 回等量
+    - lifesteal（novice_lifesteal）：hit dmg×heal_pct 回血
+    计数/CD 存 owner.ext.we_proc。
+    """
+    owner = params.get("_owner") or caster
+    if owner is None or not actor_alive(owner):
+        return
+    ctx = getattr(battle, "_fire_ctx", None) or {}
+    tgt = ctx.get("target") or target
+    if tgt is None or not actor_alive(tgt):
+        return
+    key = params.get("key") or ""
+    mode = params.get("mode") or ""
+    st = owner.setdefault("ext", {}).setdefault("we_proc", {})
+    # ---- lifesteal：本击伤害回血 ----
+    if key == "novice_lifesteal":
+        dmg = int(ctx.get("dmg", 0) or 0)
+        if dmg <= 0:
+            os_ = _owner_stats(battle, owner)
+            dmg = int(os_.get("atk", 0) or 0)
+        heal = int(dmg * float(params.get("heal_pct") or 0.05))
+        if heal > 0:
+            from game.battle2.landing import heal_actor
+            heal_actor(battle, owner, heal, logs)
+        return
+    # ---- 概率前置（溅射/裂风）----
+    if mode in ("splash_magi", "extra_phys", "extra_phys_pene"):
+        if not _roll(params.get("chance")):
+            return
+    os_ = _owner_stats(battle, owner)
+    es_ = _target_def_stats(battle, tgt)
+    # ---- extra_phys_pene（phantom：计数保底）----
+    if key == "phantom_barrage":
+        sk = params.get("stack_key") or "phantom_cnt"
+        n = int(st.get(sk, 0) or 0) + 1
+        st[sk] = n
+        if n < int(params.get("guarantee") or 5) and random.random() >= float(params.get("chance") or 0.2):
+            return
+        st[sk] = 0
+        dmg = _calc(battle, int(os_.get("atk", 0)) * float(params.get("atk_pct") or 0.3),
+                    es_.get("def", 0), pene_pct=float(params.get("pene_pct") or 0.5))
+        from game.battle2.landing import deal_damage
+        deal_damage(battle, owner, tgt, dmg, logs)
+        logs.append(params.get("log") or f"🌪️ 幻影连射！无视 50% 防御造成 {dmg} 点伤害！")
+        return
+    # ---- splash_magi（matk 溅射）----
+    if mode == "splash_magi":
+        dmg = _calc(battle, int(os_.get("matk", 0)) * float(params.get("atk_pct") or 0.15),
+                    es_.get("mdef", 0), dmg_type="magi")
+        from game.battle2.landing import deal_damage
+        deal_damage(battle, owner, tgt, dmg, logs)
+        logs.append(_EXTRA_LOG.get(key, "🔮 溅射 {dmg} 点奥术伤害！").format(dmg=dmg))
+        return
+    # ---- extra_phys_oncrit（endless_blade：crit + cd 1 刻限 1）----
+    if key == "endless_blade":
+        now = float(getattr(battle, "_now", 0) or 0)
+        cd_key = params.get("used_key") or "we_blade_cd"
+        if float(st.get(cd_key, 0) or 0) > now:
+            return
+        from game.core.constants import ACT_TICK
+        st[cd_key] = now + ACT_TICK  # 1 刻冷却（"每刻限 1"）
+        dmg = _calc(battle, int(os_.get("atk", 0)) * float(params.get("atk_pct") or 0.2),
+                    es_.get("def", 0))
+        from game.battle2.landing import deal_damage
+        deal_damage(battle, owner, tgt, dmg, logs)
+        logs.append(_EXTRA_LOG.get(key, "⚔️ 追加 {dmg} 点伤害！").format(dmg=dmg))
+        return
+    # ---- extra_phys（wind_split）----
+    if mode == "extra_phys":
+        dmg = _calc(battle, int(os_.get("atk", 0)) * float(params.get("atk_pct") or 0.5),
+                    es_.get("def", 0))
+        from game.battle2.landing import deal_damage
+        deal_damage(battle, owner, tgt, dmg, logs)
+        logs.append(_EXTRA_LOG.get(key, "💥 追加 {dmg} 点伤害！").format(dmg=dmg))
+        return
+    # ---- true_dmg_nth（hunter/siren/star 计数真伤）----
+    if mode == "true_dmg_nth":
+        sk = params.get("stack_key") or key + "_cnt"
+        n = int(st.get(sk, 0) or 0) + 1
+        st[sk] = n
+        if n < int(params.get("count") or 3):
+            return
+        st[sk] = 0
+        base = int(os_.get("atk", 0)) * float(params.get("atk_pct") or 0.2)
+        if key == "star_pierce":
+            lost = int((tgt.get("max_hp", 0) - tgt.get("hp", 0)) * float(params.get("lost_hp_pct") or 0.03))
+            cap = int(tgt.get("max_hp", 1) * float(params.get("cap_pct") or 0.05))
+            base = base + min(lost, cap)
+        dmg = _calc(battle, base, 0, dmg_type="true")
+        from game.battle2.landing import deal_damage
+        deal_damage(battle, owner, tgt, dmg, logs)
+        logs.append(_EXTRA_LOG.get(key, "✨ 造成 {dmg} 点真实伤害！").format(dmg=dmg))
+        return
+    # ---- curhp_dmg_heal（soul_eater）----
+    if key == "soul_eater":
+        cap = max(1, int(os_.get("atk", 0) or 0))
+        bonus = min(cap, max(1, int(tgt.get("hp", 0) * float(params.get("cur_hp_pct") or 0.02))))
+        if bonus > 0:
+            from game.battle2.landing import deal_damage, heal_actor
+            deal_damage(battle, owner, tgt, bonus, logs)
+            healed = heal_actor(battle, owner, bonus, logs)
+            logs.append("💜 破败之吻：额外 {bonus} 点伤害，回复 {healed} 点生命！".format(bonus=bonus, healed=healed))
+        return
+
+
+# ============================================================
 # 注册入口（装配层 install_ext_actions 调，幂等）
 # ============================================================
 

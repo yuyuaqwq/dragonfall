@@ -183,8 +183,8 @@ def test_no_equip_no_trigger():
 def test_unsupported_key_skipped():
     print("【N9.6 未支持 key 静默跳过（范围外）】")
     p = mk_a("p1", "player")
-    equip(p, "frost_ring", slot="armor")   # proc_control：后续批次
-    equip(p, "wind_split", slot="weapon")    # proc_extra_dmg：后续批次
+    equip(p, "vital_band", slot="armor")   # proc_heal amp：后续批次
+    equip(p, "undying_will", slot="weapon")  # proc_dr_revive：后续批次
     EP.apply_to_actor(p)
     check("未支持 key 不装配", not (p.get("triggers") or {}), f"{p.get('triggers')}")
 
@@ -439,6 +439,51 @@ def test_shield_cond_overflow_crit():
           f"shields={p3.get('shields')}")
 
 
+def test_extra_dmg():
+    print("【N9.16 proc_extra_dmg：命中追击多 mode】")
+    # wind_split：普攻命中 chance 100% 追加 atk×50%
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=99999, atk=1)
+    equip(p, "wind_split", slot="weapon", we_data={"chance": 1.0, "atk_pct": 0.5})
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    hp0 = m["hp"]
+    from game.battle2.landing import deal_damage as _dd
+    # 直接命中模拟：攻击 40 防 5 → ~35；普攻后 fire hit → 追加 atk 40×0.5=20 vs def5 → ~15
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    total = hp0 - m["hp"]
+    check("普攻+追击都造成伤害", 30 < total < 80, f"dmg={total}")
+    # 计数真伤：siren_fang 每 3 次命中触发 atk×40% 真伤
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    equip(p2, "siren_fang", slot="weapon", we_data={"count": 3, "atk_pct": 0.4})
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    h0 = m2["hp"]
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    h2 = m2["hp"]
+    per_hit = (h0 - h2) / 2  # 单次普攻伤害
+    # 第 3 击触发真伤（atk 40 × 0.4 = 16）→ 第三击总伤 ≈ 普攻 + 16
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    h3 = m2["hp"]
+    third = h2 - h3
+    check("第三击含真伤", third > per_hit + 12, f"third={third:.0f} per={per_hit:.0f}")
+    # lifesteal：吸血 heal_pct（模拟 hit dmg 100 回 5）
+    p3 = mk_a("p3", "player")
+    m3 = mk_a("e3", "enemy", hp=99999, atk=1)
+    equip(p3, "novice_lifesteal", slot="weapon", we_data={"heal_pct": 0.05})
+    EP.apply_to_actor(p3)
+    b3 = new_battle(p3, m3)
+    p3["hp"] = p3["max_hp"] - 100
+    # 直接调 we_extra_dmg 模拟 hit ctx dmg=100
+    from game.services.battle2_we_procs import we_extra_dmg
+    b3._fire_ctx = {"target": m3, "dmg": 100}
+    we_extra_dmg(b3, p3, m3,
+                 {"type": "we_extra_dmg", "key": "novice_lifesteal", "heal_pct": 0.05}, [])
+    check("吸血回 5", p3["hp"] == p3["max_hp"] - 100 + 5, f"hp={p3['hp']}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -456,6 +501,7 @@ def main():
     test_shield_taken_cd()
     test_dusk_blade_kill()
     test_shield_cond_overflow_crit()
+    test_extra_dmg()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

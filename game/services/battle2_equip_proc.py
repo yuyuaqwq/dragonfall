@@ -233,6 +233,20 @@ def _translate_shield_cond(key: str, wd: dict, old_ev: str) -> dict:
     return {old_ev: [eff]}
 
 
+def _translate_extra_dmg(key: str, wd: dict) -> dict:
+    """proc_extra_dmg 命中追击：we_extra_dmg 扩展动作。事件 = 数据表注册事件
+    （skill_hit 4：afterglow/spellblade/annihilation/endless_blade；其余 hit）。"""
+    ev = "skill_hit" if key in ("afterglow_splash", "spellblade_echo",
+                                "annihilation_echo", "endless_blade") else "hit"
+    eff = {"type": "we_extra_dmg", "key": key}
+    for f in ("mode", "chance", "atk_pct", "pene_pct", "guarantee", "count",
+              "lost_hp_pct", "cap_pct", "cur_hp_pct", "heal_pct", "stack_key",
+              "used_key", "log"):
+        if wd.get(f) is not None:
+            eff[f] = wd[f]
+    return {ev: [eff]}
+
+
 def _translate_dusk_blade(key: str, wd: dict) -> dict:
     """proc_next_atk_mark dusk_blade（kill）：击杀后潜行（必暴）+ 下次攻击 +30%。"""
     effs = []
@@ -299,6 +313,18 @@ _START_TRANSLATORS = {
     "echo_bless": lambda k, wd: _translate_shield_cond(k, wd, "heal"),
     "atonement_shield": lambda k, wd: _translate_shield_cond(k, wd, "heal"),
     "endless_radiance": lambda k, wd: _translate_shield_cond(k, wd, "crit"),
+    # proc_extra_dmg 命中追击（族扩展动作多 mode）
+    "afterglow_splash": _translate_extra_dmg,
+    "spellblade_echo": _translate_extra_dmg,
+    "annihilation_echo": _translate_extra_dmg,
+    "wind_split": _translate_extra_dmg,
+    "phantom_barrage": _translate_extra_dmg,
+    "endless_blade": _translate_extra_dmg,
+    "hunter_open": _translate_extra_dmg,
+    "siren_fang": _translate_extra_dmg,
+    "star_pierce": _translate_extra_dmg,
+    "soul_eater": _translate_extra_dmg,
+    "novice_lifesteal": _translate_extra_dmg,
 }
 
 
