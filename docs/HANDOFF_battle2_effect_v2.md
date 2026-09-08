@@ -415,11 +415,23 @@ I3-I7 道具链续做（apply/consume API）+ N5b4-6/7 + 世界Boss DOT 语义�
 - N10 删旧（battle.py 1.1万行）：命令层 import 已清零，剩 weapon/affix 上层缺口 +
   numeric/stage/v1xx 旧引擎直测 25 红的迁移
 
-## 10. 会话重启口令（2026-09-09 深夜更新）
-「读 HANDOFF_battle2_effect_v2 §9.2，HEAD 在 wt_ebuffs：R3 删除完成 + 5b G1/G2
-完成 + R4 验证网 6 测试绿；剩余 = 5b 收尾验证/5c 剧本/N10（需鱼鱼）」
+## 9.3 5b 收尾 + I7 道具链收口记录（2026-09-09 上午，84f18d8）
+### 5b 收尾：多人死亡 alive 同步端到端验证（test_15，+13 断言，router 59/0）
+- 覆盖：一死一活副本战 → actor/视图/DB 三路 hp 同步 0 + alive=False
+  （sync_views 倒地标记 O105 语义落地验证）；
+  死者请求行动 → 轮转到活人等待提示，不崩不占轮；
+  next_actor_key 跳过死者（hp<=0 过滤）；活人单刷通关；
+  通关奖励隔离：阵亡者 💀 未获奖励（gold 不变），活人得奖；
+  失败回城/全灭已有 test_8 单人覆盖，v4 探针确认多人同链路。
+- 探针教训（多人 router 测试）：无 party 行必须 _patch_current_members；
+  压血要视图+DB 双写（build_battle 读视图、sync_views 写 DB）；
+  多人 CTB 推进 = 按 next_actor_key 轮流驱动（engine 停在真人行动点，
+  敌 ct 未到不插队）——真人轮流操作的自然行为，非 bug。
+- 生产代码零改动（账务层 5b G1/G2 已齐，纯补验证网）。
 
-## 10. 会话重启口令（2026-09-09 夜）
-「读 HANDOFF_v181_refactor + HANDOFF_battle2_effect_v2 §9，当前 HEAD 在 wt_ebuffs
-V6/V7/I3-I5/N5b4-6/7 完成；剩余 = R3 删除（需先 R4 端到端）/5b/5c/N10 待鱼鱼」
-
+## 10. 会话重启口令（2026-09-09 上午更新）
+「读 HANDOFF_battle2_effect_v2 §9.3，HEAD 在 wt_ebuffs 84f18d8：5b 收尾完成
+（test_15 端到端 +13 断言）+ 生产库已从 bak_bestiary_20260907 恢复（空库留档
+game_data.db.empty_20260909_0248，AstrBot 仍离线）；I1-I7 道具链全完成；
+R3+R4 验证网绿；剩余 = 5c Boss 剧本 mech DSL 导演（需鱼鱼拍板副本范围）/
+N10 删旧 battle.py 1.1万行（大）/ 未决点世界Boss DOT 语义」
