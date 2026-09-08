@@ -462,4 +462,30 @@ from_state 保留 + 重挂继续。
 - monster_to_actor 剥 _inst_id（白名单透传）→ cfg 靠 st.inst_id 兜底（副本内
   inst_id 恒在，可靠）
 
+## 9.5 5c P2 完成记录（2026-09-09 上午，opening/player_low/简单机制）
+### 交付（boss_script.py 导演扩展，引擎零改动）
+- **_check_opening**（mech phase_open）：第一帧 once——演出 + effect 翻译
+  （数值 battle_config BUFF_STATS 同源零新数值）：atk_up/strong → Boss atk/matk
+  ×1.30/×1.70 时效 power 秒；mon_atk_down → 玩家 atk ×0.70；mortal_wound → 玩家
+  effects 落条目（**battle2 吸血装配未落地——条目预留，吸血批消费**；3 boss 用）
+- **_check_player_low**（mech player_low/triggers）：任一存活玩家 hp<阈值
+  （triggers.hp 缺省 0.30）→ 演出 + 本刻 atk/matk ×1.25（旧 _b_player_low 25%）；
+  once 或 cooldown=N 重复（_low_hp_cd 计数）
+- **_check_simple_mech**（简单 token，04 章机制表数值）：
+  stacks 每 2 刻 +1 cap5 ×(1+0.08n) / heal 每 4 刻回 8%（landing.heal_actor）/
+  enrage 血<30% once ×1.35（**phases 含 enrage phase 则跳过**——P1 phases 管）/
+  shield 开战 once 20% 盾 halve（effects.act_shield turns=999 永久盾）
+- hook 帧顺序：round_no++ → opening → player_low → simple_mech → phases（skip）
+- **pv_broken 不做**：当前数据零消费（无 token/triggers 配置）——不做死代码
+- **临时乘区 = effects 面板快照型 + expire=now+短秒**（0.1s：下次时刻推进即过期，
+  仅本帧行动吃到——对齐旧"本刻加成"语义）
+### 测试（test_boss_script_p2.py 26/0）
+opening atk_up/mortal_wound/once / player_low 低血触发+满血不触发+无配置不触发 /
+stacks cap5 累计 / heal 4 刻节奏 / enrage 补漏 + phases 覆盖跳过 / shield 20% halve /
+简单机制不拦截。P1 22/0 仍绿；全量 337 = 312/25 与基线一致零新增。
+### 待 P3-P5
+- summon 召唤系（P3）/ chains/on_interrupt/on_minion_died（P4，含"插一帧行动"基建
+  给 pv_broken 反扑预留）/ element/defend_reduce/pdot/reflect 反弹/形态轮换（P5 盘点）
+- mortal_wound 消费端 = battle2 吸血装配落地批
+
 ## 10. 会话重启口令（2026-09-09 上午更新）

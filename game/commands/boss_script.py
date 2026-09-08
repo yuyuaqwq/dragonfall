@@ -96,6 +96,14 @@ def make_script_hook(st: dict):
             if not isinstance(bs, dict):
                 bs = st["boss_script"] = _new_script_state()
             bs["round_no"] = int(bs.get("round_no", 0) or 0) + 1
+            _now = float(getattr(battle, "_now", 0) or 0)
+            # P2：开场技（第一帧 once）
+            _check_opening(st, battle, actor, cfg, bs, _now, logs)
+            # P2：条件反制（player_low 玩家低血追击）
+            _check_player_low(st, battle, actor, cfg, bs, _now, logs)
+            # P2：简单机制 token（stacks/heal/enrage/shield 补漏——phases 未覆盖的）
+            _check_simple_mech(st, battle, actor, cfg, bs, _now, logs)
+            # P1：phases 转阶段（返回 True = 演出刻拦截本刻行动）
             return _check_phases(st, battle, actor, cfg, bs, logs)
         except Exception:
             return False
@@ -217,3 +225,190 @@ def _apply_atk_phase(actor: dict, am: float, npc: int) -> None:
                             "phase": npc}
     ef["boss_phase_matk"] = {"stat": "matk", "op": "mul", "mult": am, "stacks": 1,
                              "phase": npc}
+
+
+# ============================================================
+# P2：开场技 / 条件反制 / 简单机制 token
+# 数值权威 = 04 章怪物图鉴二.5 机制表 + battle_config BUFF_STATS（旧 buff 强度）
+# ============================================================
+
+def _buff_stat_mult(effect: str):
+    """旧 buff effect → 面板乘区（battle_config BUFF_STATS 同源值，零新数值）。"""
+    _tbl = {
+        "atk_up": ("atk", 1.30), "atk_up_strong": ("atk", 1.70),
+        "mon_atk_up": ("atk", 1.30), "mon_atk_up_strong": ("atk", 1.70),
+        "mon_atk_down": ("atk", 0.70), "atk_down": ("atk", 0.70),
+    }
+    return _tbl.get(effect)
+
+
+def _temp_stat_mult(actor: dict, key: str, stat: str, mult: float, secs: float,
+                    now: float) -> None:
+    """临时乘区 buff（effects 面板快照型，expire=now+secs——引擎 _settle 到期删）。"""
+    ef = actor.setdefault("effects", {})
+    ef[key] = {"stat": stat, "op": "mul", "mult": float(mult), "stacks": 1,
+               "expire": now + max(0.1, float(secs))}
+
+
+def _check_opening(st: dict, battle, actor: dict, cfg: dict, bs: dict,
+                   now: float, logs: list) -> None:
+    """开场技（mech phase_open / cfg.opening）：第一帧 once——演出 + effect 翻译。
+
+    对齐旧 _b_opening（battle_mech.py:800）：r==1 且未 _open_played。
+    effect 翻译（数值 battle_config BUFF_STATS）：
+      atk_up/atk_up_strong → Boss atk ×1.30/×1.70，持续 power 刻（秒）
+      mon_atk_down         → 玩家侧 atk ×0.70，持续 power 刻
+      mortal_wound         → 玩家侧重创条目（battle2 吸血批落地时消费减半；
+                            当前装配吸血未迁 battle2——条目先落预留）
+    无 opening 配置的 phase_open token → 缺省咆哮演出（atk_up ×1.30）。
+    """
+    mech = cfg.get("mech") or []
+    if "phase_open" not in mech:
+        return
+    if bs.get("round_no", 0) != 1:
+        return
+    flags = bs.setdefault("flags", {})
+    if flags.get("_open_played"):
+        return
+    flags["_open_played"] = True
+    op = cfg.get("opening") or {}
+    if isinstance(op, str):
+        op = {"name": op}
+    name = op.get("name") or "咆哮"
+    effect = str(op.get("effect") or "atk_up").lower()
+    power = float(op.get("power", 2.0) or 2.0)
+    bname = actor.get("name", "")
+    logs.append(f"🌪️【{bname}】发出震天【{name}】！气势瞬间拉满！")
+    _mult_info = _buff_stat_mult(effect)
+    if _mult_info and effect in ("atk_up", "atk_up_strong", "mon_atk_up",
+                                 "mon_atk_up_strong"):
+        stat, mult = _mult_info
+        _temp_stat_mult(actor, "boss_open_atk", stat, mult, power, now)
+        _temp_stat_mult(actor, "boss_open_matk", "matk", mult, power, now)
+        logs.append(f"⚡【{bname}】的{name}让攻击力提升了！")
+    elif _mult_info and effect in ("mon_atk_down", "atk_down"):
+        stat, mult = _mult_info
+        for a in battle.sides_of("player"):
+            if int(a.get("hp", 0) or 0) <= 0:
+                continue
+            _temp_stat_mult(a, "boss_open_atk_down", stat, mult, power, now)
+        logs.append(f"🫁【{bname}】的{name}压制了你，攻击下降！")
+    elif effect == "mortal_wound":
+        # v1.3 重创：吸血/治疗偷取减半（battle2 吸血批落地时消费此条目减半）
+        for a in battle.sides_of("player"):
+            if int(a.get("hp", 0) or 0) <= 0:
+                continue
+            ef = a.setdefault("effects", {})
+            old = ef.get("mortal_wound") or {}
+            ef["mortal_wound"] = {"stacks": 1,
+                                  "expire": max(float(old.get("expire", 0) or 0),
+                                                now + power)}
+        logs.append(f"🤕【{bname}】的{name}重创了你！吸血效果减半（{int(power)} 刻）！")
+    # 其他 effect：演出照出（P5 原语盘点标注，不静默吞）
+
+
+def _check_player_low(st: dict, battle, actor: dict, cfg: dict, bs: dict,
+                      now: float, logs: list) -> None:
+    """玩家低血追击（mech player_low / triggers.player_low）：任一存活玩家
+    hp/max < 阈值 → 演出 + 本刻攻击加成 25%（旧 _b_player_low）。
+
+    频率：once；triggers.player_low.cooldown=N 可重复（每 N 刻一次）。
+    阈值：triggers.player_low.hp（缺省 0.30）。旧加成消费在伤害处（本刻）；
+    battle2 表达 = 临时 atk/matk ×1.25（expire 短——下次时刻推进即过期，
+    仅本帧行动吃到）。
+    """
+    mech = cfg.get("mech") or []
+    trig = (cfg.get("triggers") or {}).get("player_low") or {}
+    if "player_low" not in mech and not trig:
+        return
+    thresh = float(trig.get("hp", 0.30) or 0.30)
+    cooldown = int(trig.get("cooldown", 0) or 0)
+    flags = bs.setdefault("flags", {})
+    low = False
+    for a in battle.sides_of("player"):
+        mh = int(a.get("max_hp", 0) or 0)
+        if mh <= 0:
+            continue
+        if int(a.get("hp", 0) or 0) / mh < thresh:
+            low = True
+            break
+    if not low:
+        return
+    cd = int(flags.get("_low_hp_cd", 0) or 0)
+    if flags.get("_low_hp_fired"):
+        if cooldown <= 0:
+            return
+        if cd > 0:
+            flags["_low_hp_cd"] = cd - 1
+            return
+        flags["_low_hp_cd"] = cooldown
+        logs.append(f"☠️ 【{actor.get('name','')}】盯上了重伤的你，狞笑着扑来！(追击)")
+        _temp_stat_mult(actor, "boss_low_atk", "atk", 1.25, 0.1, now)
+        return
+    flags["_low_hp_fired"] = True
+    if cooldown > 0:
+        flags["_low_hp_cd"] = cooldown
+    logs.append(f"☠️ 【{actor.get('name','')}】盯上了重伤的你……本刻攻击大幅提升！")
+    _temp_stat_mult(actor, "boss_low_atk", "atk", 1.25, 0.1, now)
+    _temp_stat_mult(actor, "boss_low_matk", "matk", 1.25, 0.1, now)
+
+
+def _check_simple_mech(st: dict, battle, actor: dict, cfg: dict, bs: dict,
+                       now: float, logs: list) -> None:
+    """简单机制 token（04 章机制表，phases 未覆盖才补）：
+      stacks：每 2 刻 +1（上限 5，每层 atk/matk +8%）
+      heal  ：每 4 刻回复 8% 生命
+      enrage：血量 <30%（一次）atk/matk +35%——若 phases 含 enrage 阶段则 phases 管
+      shield：开战一次获得 20% 生命护盾（halve：盾存在受伤减半，landing 消费）
+    """
+    mech = cfg.get("mech") or []
+    if not mech:
+        return
+    rn = int(bs.get("round_no", 0) or 0)
+    mh = int(actor.get("max_hp", 1) or 1)
+    hp = int(actor.get("hp", 0) or 0)
+    name = actor.get("name", "")
+    # ---- stacks：每 2 刻 +1（cap 5）----
+    if "stacks" in mech and rn > 0 and rn % 2 == 0:
+        n = int(bs.get("stacks_n", 0) or 0)
+        if n < 5:
+            n += 1
+            bs["stacks_n"] = n
+            mult = 1.0 + 0.08 * n
+            ef = actor.setdefault("effects", {})
+            ef["boss_mech_stacks_atk"] = {"stat": "atk", "op": "mul",
+                                          "mult": mult, "stacks": 1}
+            ef["boss_mech_stacks_matk"] = {"stat": "matk", "op": "mul",
+                                           "mult": mult, "stacks": 1}
+            logs.append(f"⚔️【{name}】气势攀升，攻击叠层＋1({n}/5)")
+    # ---- heal：每 4 刻回复 8% ----
+    if "heal" in mech and rn > 0 and rn % 4 == 0:
+        try:
+            from ..battle2.landing import heal_actor as _heal
+            v = max(1, int(mh * 0.08))
+            real = _heal(battle, actor, v, logs)
+            if real > 0:
+                logs.append(f"💚【{name}】愈合伤口，恢复 {real} 点生命！")
+        except Exception:
+            pass
+    # ---- enrage：血<30% once（phases 含 enrage phase → 跳过，P1 已管）----
+    if "enrage" in mech:
+        _ph_ids = [str((p or {}).get("phase_id", "")) for p in (cfg.get("phases") or [])]
+        if "enrage" not in _ph_ids and not bs.get("flags", {}).get("_enraged"):
+            if mh > 0 and hp / mh < 0.30:
+                bs.setdefault("flags", {})["_enraged"] = True
+                ef = actor.setdefault("effects", {})
+                ef["boss_enrage_atk"] = {"stat": "atk", "op": "mul",
+                                         "mult": 1.35, "stacks": 1}
+                ef["boss_enrage_matk"] = {"stat": "matk", "op": "mul",
+                                          "mult": 1.35, "stacks": 1}
+                logs.append(f"🔥【{name}】陷入狂暴，攻击大幅提升！(×1.35)")
+    # ---- shield：开战一次 20% 护盾（halve 盾存在受伤减半）----
+    if "shield" in mech and not bs.get("flags", {}).get("_shielded"):
+        bs.setdefault("flags", {})["_shielded"] = True
+        try:
+            from ..battle2 import effects as _EF
+            _EF.act_shield(battle, actor, actor, {"pct": 0.20, "halve": True,
+                                                 "turns": 999}, logs)
+        except Exception:
+            pass
