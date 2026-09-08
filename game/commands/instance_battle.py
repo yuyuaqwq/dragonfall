@@ -161,7 +161,19 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
     if not st_battle.get("sides"):
         return ["战斗状态异常，请重新遭遇！"], True, None
     b = B2.from_state(st_battle)
-    my = player_actor_of(st, qq_id)
+    # 从重建后的 b.sides 定位行动者（不能从 st 旧 dict 找——from_state 是反序列化
+    # 副本，引擎修改落在 b 内 actor，若用 st 旧 actor 则 to_state 落回时修改丢失：
+    # hp/ct/defending 全部不写回，副本战斗永远无进展）。PVP act 同口径。
+    my = None
+    try:
+        for _a in b.sides_of("player"):
+            if str(_a.get("qq_id") or "") == str(qq_id):
+                my = _a
+                break
+    except Exception:
+        my = None
+    if my is None:
+        my = player_actor_of(st, qq_id)
     if my is None:
         return ["你已不在战斗中（状态异常）！"], True, None
     _tgt = target

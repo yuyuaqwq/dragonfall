@@ -31,6 +31,7 @@ from .. import engine as E
 from .. import battle as BT
 from ..battle import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）
 from ..commands.base import CommandBase, no_prof_waiting, require_player
+from .instance_router import InstanceRouterCmds  # v181.N5b4-5a R1：battle2 副本行动路由
 
 INSTANCE_TIMEOUT = 60  # 副本行动超时（秒）v101.30d #O9/O32：120s→60s，队友挂机自动防御不再"卡死"（playtest 实测 60s+ 无反应）
 
@@ -55,7 +56,8 @@ def _inst_map_id(inst_id: str) -> str:
     return inst_id or ""
 
 
-class InstanceCmds(CommandBase):
+class InstanceCmds(InstanceRouterCmds, CommandBase):
+    """副本命令 mixin —— v181.N5b4-5a R1 起继承 InstanceRouterCmds（battle2 行动路由）。"""
 
     def _instance_save(self, group_id, st):
         """v141 大陆隔离：副本状态持久化统一入口。
