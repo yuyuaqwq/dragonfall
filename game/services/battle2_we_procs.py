@@ -330,6 +330,29 @@ def _crit_flag(ctx: dict) -> bool:
 
 
 # ============================================================
+# proc_buff abyss_barrier（battle_start 永久最大生命加成）
+# ============================================================
+
+
+@register_action("we_abyss")
+def we_abyss(battle, caster, target, params, logs):
+    """深渊屏障（proc_buff abyss_barrier，battle_start 整场一次）：
+    最大生命 +max_hp_pct×当前 maxhp，hp 同步等量增加。ext 标记防重复。"""
+    owner = params.get("_owner") or caster
+    if owner is None:
+        return
+    st = owner.setdefault("ext", {}).setdefault("we_proc", {})
+    if st.get("abyss_used"):
+        return
+    st["abyss_used"] = True
+    bonus = int(owner.get("max_hp", 100) * float(params.get("max_hp_pct") or 0.08))
+    if bonus > 0:
+        owner["max_hp"] = owner.get("max_hp", 100) + bonus
+        owner["hp"] = min(owner["max_hp"], owner.get("hp", 0) + bonus)
+        logs.append(params.get("log") or f"🌑 深渊屏障：最大生命 +{bonus}！（持续整场）")
+
+
+# ============================================================
 # proc_extra_dmg（11 key：命中追击直伤/真伤/吸血）
 # ============================================================
 
@@ -484,6 +507,158 @@ def we_extra_dmg(battle, caster, target, params, logs):
             healed = heal_actor(battle, owner, bonus, logs)
             logs.append("💜 破败之吻：额外 {bonus} 点伤害，回复 {healed} 点生命！".format(bonus=bonus, healed=healed))
         return
+
+
+# ============================================================
+# proc_control（9 key 敌方控制：7 可迁 + randuin/ice_vein 依赖 enemy_act 事件
+# ——battle2 无"敌人行动后"事件点位，留缺口记录（见 docs/N9 施工文档 §1.3））
+# ============================================================
+
+_CONTROL_LOG = {
+    "frost_ring": "🧊 霜环：目标被冻结 {turns} 刻！",
+    "holy_judgment_field": "⚖️ 圣裁领域：目标受治疗 -30%（2 刻）！",
+    "everfrost_domain": "🧊 永冻领域：目标被冻结 {turns} 刻！",
+    "everfrost_scepter": "🧊 永霜禁锢：目标被冻结 {turns} 刻！",
+    "frost_crown": "🧊 寒霜凝视：目标被冻结 {turns} 刻！",
+    "holy_word_bind": "✨ 圣言禁锢：目标被冻结 {turns} 刻！",
+    "time_freeze": "⏳ 时光凝滞！敌人被定身，跳过一次行动！",
+}
+
+
+def _control_target(battle, target, params) -> dict:
+    """控制作用目标（owner = 装备者）：
+    - hit/skill_hit 事件：被打者（ctx.target，非 owner）
+    - taken 事件：攻击者 ctx.source（受击反冻——不控自己）
+    - heal 事件：敌对首选存活（治疗控场）
+    目标非 owner 自己时优先 target（hit 被打者）。
+    """
+    ctx = getattr(battle, "_fire_ctx", None) or {}
+    ev = ctx.get("_event") or ""
+    owner = params.get("_owner")
+    if ev in ("taken",):
+        t = ctx.get("source")
+        if t is not None and actor_alive(t):
+            return t
+    if target is not None and target is not owner and actor_alive(target):
+        return target
+    if ev in ("heal",):
+        pass  # fallthrough 敌对首选
+    t = ctx.get("source")
+    if t is not None and t is not owner and actor_alive(t):
+        return t
+    # 兜底：敌对首个存活
+    for acts in battle.sides.values():
+        for a in acts:
+            if a is not owner and actor_alive(a) and not a.get("human_controlled"):
+                return a
+    return None
+
+
+def _freeze(battle, owner, tgt, turns, params, logs):
+    """冻结（Boss 减半沿用引擎 act_control 定稿语义，不迁旧免疫退化特例）。"""
+    from game.battle2.effects import act_control
+    act_control(battle, owner, tgt,
+                {"type": "control", "tag": "freeze", "turns": turns, "mode": "skip"}, logs)
+
+
+def _slow(battle, owner, tgt, turns, pct, logs):
+    """减速：敌 spd×（1-pct）buff（battle2 buff 快照折算）。"""
+    from game.battle2.effects import act_buff
+    act_buff(battle, owner, tgt,
+             {"type": "buff", "key": "spd_down", "stat": "spd", "op": "mul",
+              "mult": 1.0 - float(pct), "turns": turns, "on": "target"}, logs)
+
+
+@register_action("we_control")
+def we_control(battle, caster, target, params, logs):
+    """敌方控制（proc_control）：mode 分派。目标 = hit/skill_hit 被打者 /
+    taken 攻击者 / heal 敌对首选。状态（次数/cd/used）存 owner.ext.we_proc。"""
+    owner = params.get("_owner") or caster
+    if owner is None or not actor_alive(owner):
+        return
+    key = params.get("key") or ""
+    mode = params.get("mode") or "freeze"
+    tgt = _control_target(battle, target, params)
+    if tgt is None or not actor_alive(tgt):
+        return
+    st = owner.setdefault("ext", {}).setdefault("we_proc", {})
+    ctx = getattr(battle, "_fire_ctx", None) or {}
+    now = float(getattr(battle, "_now", 0) or 0)
+    # ---- 前置：cd（everfrost_domain）----
+    cd_key = params.get("cd_key")
+    if cd_key and float(st.get(cd_key, 0) or 0) > now:
+        return
+    # ---- 前置：限次（frost_crown 每场 max_per_battle）----
+    used_key = params.get("used_key")
+    limit = int(params.get("max_per_battle") or 0) if params.get("max_per_battle") is not None else 0
+    if limit > 0 and int(st.get(used_key, 0) or 0) >= limit:
+        return
+    # ---- chance ----
+    if not _roll(params.get("chance")):
+        return
+    src_turns = int(params.get("freeze_turns") or params.get("turns") or 1)
+    if mode == "slow_or_freeze":
+        # frost_ring：已减速 → 冻结；否则减速
+        if (tgt.get("buffs") or {}).get("spd_down"):
+            _freeze(battle, owner, tgt, src_turns, params, logs)
+            _bump_control_state(st, cd_key, used_key, params, now)
+            logs.append(_CONTROL_LOG.get(key, "🧊 冻结！").format(turns=src_turns))
+        else:
+            _slow(battle, owner, tgt, int(params.get("slow_turns") or 2),
+                  float(params.get("slow_pct") or 0.4), logs)
+        return
+    if mode == "slow_heal_down":
+        _slow(battle, owner, tgt, int(params.get("slow_turns") or 2),
+              float(params.get("slow_pct") or 0.3), logs)
+        from game.battle2.state_effects import state_def
+        cap = int((state_def("heal_down") or {}).get("cap") or 5)
+        state_add(tgt, "heal_down", int(params.get("heal_down") or 2), cap=cap)
+        logs.append(_CONTROL_LOG.get(key, "⚖️ 圣裁领域！").format(turns=0))
+        return
+    if mode == "freeze_cd":
+        _freeze(battle, owner, tgt, src_turns, params, logs)
+        if cd_key:
+            from game.core.constants import ACT_TICK
+            st[cd_key] = now + int(params.get("cd") or 1) * ACT_TICK
+        logs.append(_CONTROL_LOG.get(key, "🧊 永冻！").format(turns=src_turns))
+        return
+    if mode == "freeze":
+        _freeze(battle, owner, tgt, src_turns, params, logs)
+        logs.append(_CONTROL_LOG.get(key, "🧊 冻结！").format(turns=src_turns))
+        return
+    if mode == "freeze_taken_limited":
+        # frost_crown：受击冻结限次（先计数后冻结）
+        if used_key:
+            st[used_key] = int(st.get(used_key, 0) or 0) + 1
+        _freeze(battle, owner, tgt, src_turns, params, logs)
+        logs.append(_CONTROL_LOG.get(key, "🧊 冻结！").format(turns=src_turns))
+        return
+    if mode == "freeze_heal":
+        if ctx.get("overflow"):
+            return
+        _freeze(battle, owner, tgt, src_turns, params, logs)
+        logs.append(_CONTROL_LOG.get(key, "✨ 禁锢！").format(turns=src_turns))
+        return
+    if mode == "threshold_stun":
+        # time_freeze：玩家 hp 低阈值（挂 on_taken 自查）每场一次
+        if st.get(used_key):
+            return
+        ratio = float(owner.get("hp", 0)) / max(1, owner.get("max_hp", 1) or 1)
+        if ratio >= float(params.get("threshold") or 0.30):
+            return
+        st[used_key] = True
+        from game.battle2.effects import act_control
+        act_control(battle, owner, tgt,
+                    {"type": "control", "tag": "stun", "turns": 1, "mode": "skip"}, logs)
+        logs.append(_CONTROL_LOG.get(key, "⏳ 时光凝滞！"))
+        return
+    return  # 未知 mode 静默
+
+
+def _bump_control_state(st, cd_key, used_key, params, now):
+    from game.core.constants import ACT_TICK
+    if cd_key:
+        st[cd_key] = now + int(params.get("cd") or 1) * ACT_TICK
 
 
 # ============================================================

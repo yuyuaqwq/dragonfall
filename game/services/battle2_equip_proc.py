@@ -120,9 +120,12 @@ def _translate_buff_start(key: str, wd: dict) -> dict:
 
 
 def _translate_shield_abyss(key: str, wd: dict) -> dict:
-    """abyss_barrier：深渊屏障 = 起手 max_hp_pct 护盾（无 turns 字段 → 3 刻）。"""
-    eff = {"type": "shield", "key": "we_abyss", "pct": float(wd.get("max_hp_pct") or 0.08),
-           "turns": int(wd.get("turns") or 3), "on": "caster"}
+    """abyss_barrier：深渊屏障 = battle_start 永久最大生命加成（we_abyss 扩展动作）。"""
+    eff = {"type": "we_abyss", "key": key}
+    if wd.get("max_hp_pct") is not None:
+        eff["max_hp_pct"] = wd["max_hp_pct"]
+    if wd.get("log") is not None:
+        eff["log"] = wd["log"]
     return {"battle_start": [eff]}
 
 
@@ -233,6 +236,17 @@ def _translate_shield_cond(key: str, wd: dict, old_ev: str) -> dict:
     return {old_ev: [eff]}
 
 
+def _translate_control(key: str, wd: dict, old_ev: str) -> dict:
+    """proc_control 敌方控制：we_control 扩展动作。字段全带（mode/chance/cd/限次/
+    slow/freeze 参数——执行器按 mode 分派，缺省无此段）。"""
+    eff = {"type": "we_control", "key": key}
+    for f in ("mode", "chance", "slow_turns", "slow_pct", "freeze_turns", "heal_down",
+              "cd", "cd_key", "used_key", "max_per_battle", "threshold", "turns", "source", "log"):
+        if wd.get(f) is not None:
+            eff[f] = wd[f]
+    return {old_ev: [eff]}
+
+
 def _translate_extra_dmg(key: str, wd: dict) -> dict:
     """proc_extra_dmg 命中追击：we_extra_dmg 扩展动作。事件 = 数据表注册事件
     （skill_hit 4：afterglow/spellblade/annihilation/endless_blade；其余 hit）。"""
@@ -325,6 +339,14 @@ _START_TRANSLATORS = {
     "star_pierce": _translate_extra_dmg,
     "soul_eater": _translate_extra_dmg,
     "novice_lifesteal": _translate_extra_dmg,
+    # proc_control 敌方控制（randuin_weary/ice_vein 依赖 enemy_act 事件暂缺）
+    "frost_ring": lambda k, wd: _translate_control(k, wd, "hit"),
+    "holy_judgment_field": lambda k, wd: _translate_control(k, wd, "hit"),
+    "everfrost_domain": lambda k, wd: _translate_control(k, wd, "skill_hit"),
+    "everfrost_scepter": lambda k, wd: _translate_control(k, wd, "skill_hit"),
+    "frost_crown": lambda k, wd: _translate_control(k, wd, "taken"),
+    "holy_word_bind": lambda k, wd: _translate_control(k, wd, "heal"),
+    "time_freeze": lambda k, wd: _translate_control(k, wd, "taken"),
 }
 
 

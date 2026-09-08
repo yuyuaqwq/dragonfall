@@ -152,7 +152,7 @@ def test_weapon_battle_start():
 
 
 def test_weapon_abyss_and_multi():
-    print("【N9.4 深渊屏障 + 多装备合并】")
+    print("【N9.4 abyss 最大生命加成 + 多装备合并】")
     p = mk_a("p1", "player")
     m = mk_a("e1", "enemy", hp=99999, atk=1)
     equip(p, "abyss_barrier", slot="armor", we_data={"max_hp_pct": 0.08})
@@ -161,11 +161,12 @@ def test_weapon_abyss_and_multi():
     tr = p.get("triggers") or {}
     check("两件都装配", len(tr.get("battle_start", [])) == 2, f"{tr.get('battle_start')}")
     b = new_battle(p, m)
+    hp0, mhp0 = p["hp"], p["max_hp"]
     b.act(ActCtx(caster=p, action="attack", target=m))
+    check("abyss maxhp +8%（864）", p["max_hp"] == int(mhp0 * 1.08), f"max_hp={p['max_hp']}")
+    check("hp 同步 +bonus", p["hp"] == hp0 + (p["max_hp"] - mhp0), f"hp={p['hp']}")
     _sh = p.get("shields") or {}
-    check("深渊屏障 8%（64）", int((_sh.get("we_abyss") or {}).get("value", 0)) == 64,
-          f"shields={_sh}")
-    check("蚀月 15%（120）", int((_sh.get("we_eclipse") or {}).get("value", 0)) == 120,
+    check("蚀月 15%（基于加成后 maxhp）", int((_sh.get("we_eclipse") or {}).get("value", 0)) == int(p["max_hp"] * 0.15),
           f"shields={_sh}")
 
 
@@ -453,22 +454,26 @@ def test_extra_dmg():
     b.act(ActCtx(caster=p, action="attack", target=m))
     total = hp0 - m["hp"]
     check("普攻+追击都造成伤害", 30 < total < 80, f"dmg={total}")
-    # 计数真伤：siren_fang 每 3 次命中触发 atk×40% 真伤
+    # 计数真伤：siren_fang 每 3 次命中触发 atk×40% 真伤（直调扩展动作避免普攻波动）
     p2 = mk_a("p2", "player")
     m2 = mk_a("e2", "enemy", hp=99999, atk=1)
     equip(p2, "siren_fang", slot="weapon", we_data={"count": 3, "atk_pct": 0.4})
     EP.apply_to_actor(p2)
     b2 = new_battle(p2, m2)
-    h0 = m2["hp"]
-    b2.act(ActCtx(caster=p2, action="attack", target=m2))
-    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    from game.services.battle2_we_procs import we_extra_dmg
+    hit_ctx = {"target": m2, "dmg": 10}
+    for i in range(2):
+        b2._fire_ctx = dict(hit_ctx)
+        we_extra_dmg(b2, p2, m2, {"type": "we_extra_dmg", "key": "siren_fang",
+                                  "mode": "true_dmg_nth", "count": 3, "atk_pct": 0.4,
+                                  "stack_key": "siren_cnt"}, [])
     h2 = m2["hp"]
-    per_hit = (h0 - h2) / 2  # 单次普攻伤害
-    # 第 3 击触发真伤（atk 40 × 0.4 = 16）→ 第三击总伤 ≈ 普攻 + 16
-    b2.act(ActCtx(caster=p2, action="attack", target=m2))
-    h3 = m2["hp"]
-    third = h2 - h3
-    check("第三击含真伤", third > per_hit + 12, f"third={third:.0f} per={per_hit:.0f}")
+    check("前两击无真伤", h2 == 99999, f"hp={h2}")
+    b2._fire_ctx = dict(hit_ctx)
+    we_extra_dmg(b2, p2, m2, {"type": "we_extra_dmg", "key": "siren_fang",
+                              "mode": "true_dmg_nth", "count": 3, "atk_pct": 0.4,
+                              "stack_key": "siren_cnt"}, [])
+    check("第三击触发 ~16 真伤", 14 <= 99999 - m2["hp"] <= 18, f"hp={m2['hp']} dmg={99999-m2['hp']}")
     # lifesteal：吸血 heal_pct（模拟 hit dmg 100 回 5）
     p3 = mk_a("p3", "player")
     m3 = mk_a("e3", "enemy", hp=99999, atk=1)
@@ -482,6 +487,49 @@ def test_extra_dmg():
     we_extra_dmg(b3, p3, m3,
                  {"type": "we_extra_dmg", "key": "novice_lifesteal", "heal_pct": 0.05}, [])
     check("吸血回 5", p3["hp"] == p3["max_hp"] - 100 + 5, f"hp={p3['hp']}")
+
+
+def test_control_ext():
+    print("【N9.17 proc_control：敌方控制多 mode】")
+    # everfrost_scepter：技能命中冻结 2 刻
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=99999, atk=1)
+    equip(p, "everfrost_scepter", slot="weapon",
+          we_data={"chance": 1.0, "mode": "freeze", "freeze_turns": 2})
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    from game.battle2 import actions as AC
+    AC.do_skill(b, ActCtx(caster=p, action="skill", skill_name="斩",
+                          info={"name": "斩", "kind": "物理", "exprs": ["atk*1.0"]}, target=m))
+    _fb = (m["buffs"] or {}).get("freeze") or {}
+    check("技能命中冻结敌", _fb.get("mode") == "skip", f"buffs={m.get('buffs')}")
+    # frost_ring：命中先减速 → 再命中（已减速）冻结
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    equip(p2, "frost_ring", slot="weapon",
+          we_data={"chance": 1.0, "mode": "slow_or_freeze", "slow_turns": 2, "slow_pct": 0.4,
+                   "freeze_turns": 1})
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    check("首击减速", "spd_down" in (m2["buffs"] or {}), f"buffs={m2.get('buffs')}")
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    check("再击冻结", (m2["buffs"] or {}).get("freeze", {}).get("mode") == "skip",
+          f"buffs={m2.get('buffs')}")
+    # frost_crown：受击冻结攻击者（taken 事件反冻）
+    p3 = mk_a("p3", "player")
+    m3 = mk_a("e3", "enemy", hp=99999, atk=1)
+    equip(p3, "frost_crown", slot="armor",
+          we_data={"chance": 1.0, "mode": "freeze_taken_limited", "freeze_turns": 1, "max_per_battle": 2})
+    EP.apply_to_actor(p3)
+    b3 = new_battle(p3, m3)
+    from game.battle2.landing import deal_damage as _dd
+    _dd(b3, m3, p3, 30, [])
+    check("受击反冻攻击者", (m3["buffs"] or {}).get("freeze", {}).get("mode") == "skip",
+          f"m3 buffs={m3.get('buffs')}")
+    # 被冻敌行动跳过（freeze 消费）
+    b3.act(ActCtx(caster=m3, action="attack", target=p3))
+    check("冻结敌行动被跳过", (m3["buffs"] or {}).get("freeze") is None, f"buffs={m3.get('buffs')}")
 
 
 def main():
@@ -502,6 +550,7 @@ def main():
     test_dusk_blade_kill()
     test_shield_cond_overflow_crit()
     test_extra_dmg()
+    test_control_ext()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:
