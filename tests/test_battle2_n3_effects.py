@@ -110,15 +110,22 @@ def test_control():
     target = {"uid": "e", "name": "怪", "buffs": {}, "state": {}}
     logs = []
     FX.apply_effects(b, caster, target, [{"type": "stun", "turns": 3}], logs)
-    check("stun 3 刻", target["buffs"].get("stun") == 3, f"stun={target['buffs'].get('stun')}")
+    _st = target["buffs"].get("stun") or {}
+    check("stun 3 刻 快照 expire≈3 mode=skip",
+          abs(float(_st.get("expire", 0)) - 3.0) < 1e-9 and _st.get("mode") == "skip",
+          f"stun={_st}")
     FX.apply_effects(b, caster, target, [{"type": "freeze", "turns": 1}], logs)
-    check("freeze 1 刻", target["buffs"].get("freeze") == 1)
+    check("freeze 1 刻 快照", abs(float((target["buffs"].get("freeze") or {}).get("expire", 0)) - 1.0) < 1e-9)
     FX.apply_effects(b, caster, target, [{"type": "silence", "turns": 2}], logs)
-    check("silence 2 刻", target["buffs"].get("silence") == 2)
+    _si = target["buffs"].get("silence") or {}
+    check("silence 2 刻 快照 mode=no_skill",
+          abs(float(_si.get("expire", 0)) - 2.0) < 1e-9 and _si.get("mode") == "no_skill",
+          f"silence={_si}")
     # Boss 控制减半
     boss = {"uid": "boss", "name": "Boss", "is_boss": True, "buffs": {}, "state": {}}
     FX.apply_effects(b, caster, boss, [{"type": "stun", "turns": 4}], logs)
-    check("Boss stun 减半 2 刻", boss["buffs"].get("stun") == 2, f"stun={boss['buffs'].get('stun')}")
+    check("Boss stun 减半 2 刻", abs(float((boss["buffs"].get("stun") or {}).get("expire", 0)) - 2.0) < 1e-9,
+          f"stun={boss['buffs'].get('stun')}")
 
 
 def test_caster_stack():
@@ -271,6 +278,35 @@ def test_buff_snapshot_scaling():
     check("stun 纯状态不折算 atk", st3["atk"] == 130, f"atk={st3['atk']}")
 
 
+def test_n72_more_branches():
+    print("【N3.8 N7.2 补分支：纯状态 buff / 护盾叠厚 / 缺省盾值 / 过期控制】")
+    b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
+    caster = {"uid": "p", "name": "勇者", "buffs": {}, "state": {},
+              "shields": {}, "reduce_left": 0, "max_hp": 1000, "hp": 500}
+    logs = []
+    # 纯状态 buff（无 stat）→ 只记 expire，不折算（cc_immune 走 buff 动词无 stat 参数）
+    FX.apply_effects(b, caster, caster,
+                     [{"type": "buff", "key": "cc_immune", "turns": 5}], logs)
+    _ci = caster["buffs"].get("cc_immune") or {}
+    check("纯状态 buff 存 expire", isinstance(_ci, dict) and abs(float(_ci.get("expire", 0)) - 5.0) < 1e-9,
+          f"cc_immune={_ci}")
+    check("纯状态 buff 无 stat", "stat" not in _ci)
+    # 护盾同源叠厚：两次 shield_self → value 累加
+    caster["shields"].clear()
+    FX.apply_effects(b, caster, caster,
+                     [{"type": "shield_self", "value": 100, "turns": 3}], logs)
+    FX.apply_effects(b, caster, caster,
+                     [{"type": "shield_self", "value": 50, "turns": 5}], logs)
+    _sh = caster["shields"].get("buff") or {}
+    check("同源叠厚 value=150", int(_sh.get("value", 0)) == 150, f"sh={_sh}")
+    check("expire 取 max≈5", abs(float(_sh.get("expire_at", 0)) - 5.0) < 1e-9, f"exp={_sh.get('expire_at')}")
+    # 缺省盾值：value=0 且无 pct → max_hp×20%
+    caster["shields"].clear()
+    FX.apply_effects(b, caster, caster, [{"type": "shield_self", "turns": 3}], logs)
+    check("缺省盾 max_hp×20% = 200", int((caster["shields"].get("buff") or {}).get("value", 0)) == 200,
+          f"sh={caster['shields'].get('buff')}")
+
+
 def main():
     print("=== N3 battle2 效果系统测试 ===")
     test_debuff_stack()
@@ -280,6 +316,7 @@ def main():
     test_mech_on_hit()
     test_state_scale()
     test_buff_snapshot_scaling()
+    test_n72_more_branches()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         print("失败明细:")

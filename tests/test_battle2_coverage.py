@@ -278,11 +278,14 @@ def test_effects_branches():
     FX.apply_effects(b, p, m2, [{"type": "shield", "value": 30, "halve": True}], logs)
     check("shield 动词直通写 caster", p["shields"].get("buff", {}).get("value") == 30,
           f"p.shields={p['shields']}")
-    # control 动词直通（无映射 action）
+    # control 动词直通（无映射 action）——N7.2 快照形态 {expire, mode}
     m3 = make_actor(uid="m3", name="怪", side="enemy", kind="monster",
                     hp=100, max_hp=100, atk=1, **{"def": 0}, level=1)
     FX.apply_effects(b, p, m3, [{"type": "control", "tag": "stun", "turns": 2}], logs)
-    check("control 动词直通", m3["buffs"].get("stun") == 2)
+    _st3 = m3["buffs"].get("stun") or {}
+    check("control 动词直通 快照 mode=skip",
+          isinstance(_st3, dict) and abs(float(_st3.get("expire", 0)) - 2.0) < 1e-9
+          and _st3.get("mode") == "skip", f"stun={_st3}")
 
 
 def test_actions_branches():

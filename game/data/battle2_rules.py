@@ -90,10 +90,11 @@ STATE_EFFECTS: dict = {
 # ============================================================
 EFFECT_ACTIONS: dict = {
     # ---- 控制类（写 target.buffs[tag]=刻数）----
-    "stun":      [{"action": "control", "tag": "stun", "turns": 1}],
-    "freeze":    [{"action": "control", "tag": "freeze", "turns": 1}],
-    "silence":   [{"action": "control", "tag": "silence", "turns": 2}],
-    "sleep":     [{"action": "control", "tag": "sleep", "turns": 1}],
+    # mode=skip 整跳（行动级消费：轮到行动跳过+清）；mode=no_skill 禁技（技能转普攻）
+    "stun":      [{"action": "control", "tag": "stun", "turns": 1, "mode": "skip"}],
+    "freeze":    [{"action": "control", "tag": "freeze", "turns": 1, "mode": "skip"}],
+    "sleep":     [{"action": "control", "tag": "sleep", "turns": 1, "mode": "skip", "wake_on_hit": True}],
+    "silence":   [{"action": "control", "tag": "silence", "turns": 2, "mode": "no_skill"}],
     "slow":      [{"action": "control", "tag": "spd_down", "turns": 2}],
     "spd_down":  [{"action": "control", "tag": "spd_down", "turns": 2}],
     # ---- 属性增益（写 caster.buffs[key]，数值=动作参数 stat/op/mult 快照进条目）----
