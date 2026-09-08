@@ -379,6 +379,46 @@ I3-I7 道具链续做（apply/consume API）+ N5b4-6/7 + 世界Boss DOT 语义�
   仍被旧路径测试引用（29 基线红大半是它）。
 - 世界Boss DOT 语义未决点（记录 6 路线 B）：未动，保留现状。
 
+## 9.2 R3 + 5b 推进记录（2026-09-09 追问后继续推进）
+### R3 instance.py 删除清单（63ada06 + 80d2632 + 117626a）
+- 删除 803 行：_instance_act（633 行战斗主体）/ _instance_battle_cb / _apply_team_effect
+  / _instance_auto_defend_player / _sync_enemy_unit / _instance_next_player_name
+- CT helpers 保留链：living/min/min_enemy/next_actor（_instance_start 开本首动展示用）、
+  ct_queue（footer 行动队列）——均无 BT 依赖
+- instance.py BT 依赖清零：ct 播种 _ct_cost/_ct_initial_wait → battle2 schedule
+  action_time/initial_ct（公式同款：CAST_ATK×√(SPD_REF/spd)）；BT import 删除
+- 命令层 BT import 清零：base/combat/misc/social 残留 import 删除（N10 前置）
+- 先修 2 个旧测试：ctb_audit（auto_defend→IB.act defend 语义 + reset 断言对齐）
+### 抓到的真 bug（v137 暴露）：副本切房/新怪入场只更新 st.enemies 视图，
+- st.battle 残留上一房 sides → router 懒构建条件仅查'有无 sides'不重建 → 玩家打旧
+  死亡 actor 死循环（真人在副本换房会遇到）。修：4.1b 按敌人 uid 集合一致性强制
+  重建（7ec4631）。
+### R4 验证网测试 battle2 化（7ec4631/ddc6b56/80d2632）
+- v137_dungeon 23/0（开本→清怪→移房→Boss→通关端到端）+ v141_instance_world 101/0
+  （失败回城/大陆销毁）+ v94_stamina 22/0 + v95_25 27/0 + ctb_audit 13/0
+  —— 均为旧格式 state fixture → battle2 to_state + 大陆权威 st（C.get_instance_st）
+  适配。全量 335：310 过 / 25 失败 = R3 前基线逐条一致，零新增回归。
+### 5b 副本账务：G1 仇恨 + G2 团队广播（4680f83 + be073a2）
+- G1 target_picker：_instance_target_picker(st) 闭包（嘲讽强制 → MONSTER_MODS
+  target_policy（boss 缺省 hate_top/其他 front）+ st.threat 表 → FM.pick_by_policy）；
+  _attach_instance_hooks(b, st) 统一重挂 target_picker + action_override + on_event
+  （build_battle 构造时 + act from_state 后）——构造参数不可序列化必重挂
+- G2 on_event 团队广播：_instance_team_event 监听 act_cast + info.team==heal_all →
+  除施放者外全队治疗（_heal_amount 同引擎口径 + landing.heal_actor）。数据现状
+  team 值仅 heal_all（救赎之光）——按声明做无 if-elif 扩散
+- router test_13（hate_top/嘲讽/front/无存活）+ test_14（双人 heal_all 广播/单人
+  不崩）46/0；battle2 全套 + v137/v141 零回归
+### 剩余（需鱼鱼）
+- 5b 死亡/击杀 on_death → alive 同步：router 死亡账已齐（_router_advance_killed），
+  玩家倒地 sync_views 已写 alive——待端到端验证
+- 5c Boss 剧本 mech DSL 导演（25 phases × 副本，内容翻译工程）
+- N10 删旧（battle.py 1.1万行）：命令层 import 已清零，剩 weapon/affix 上层缺口 +
+  numeric/stage/v1xx 旧引擎直测 25 红的迁移
+
+## 10. 会话重启口令（2026-09-09 深夜更新）
+「读 HANDOFF_battle2_effect_v2 §9.2，HEAD 在 wt_ebuffs：R3 删除完成 + 5b G1/G2
+完成 + R4 验证网 6 测试绿；剩余 = 5b 收尾验证/5c 剧本/N10（需鱼鱼）」
+
 ## 10. 会话重启口令（2026-09-09 夜）
 「读 HANDOFF_v181_refactor + HANDOFF_battle2_effect_v2 §9，当前 HEAD 在 wt_ebuffs
 V6/V7/I3-I5/N5b4-6/7 完成；剩余 = R3 删除（需先 R4 端到端）/5b/5c/N10 待鱼鱼」
