@@ -728,6 +728,29 @@ def we_dmg_mult_cond(battle, caster, target, params, logs):
             # 奥术苍穹：仅魔法技（info.kind == 魔法）×1.1
             info = ctx.get("info") or {}
             hit = (info.get("kind") == "魔法")
+        elif cond == "hp_self_gt":
+            # 王狮之心：自己生命 >70% 时增伤
+            if owner is not None and owner.get("hp") is not None:
+                hit = (float(owner.get("hp", 0)) / max(1, float(owner.get("max_hp", 1) or 1))
+                       > float(params.get("threshold") or 0.70))
+        elif cond == "name_contains":
+            # 龙威：目标名包含关键词（enemy_contains 列表任一命中）
+            if tgt is not None:
+                _nm = str(tgt.get("name", ""))
+                kw = params.get("keywords") or []
+                hit = any(k in _nm for k in kw)
+        elif cond == "role_caster":
+            # 破魔：目标 role=caster/法系（is_caster/role 标签）
+            if tgt is not None:
+                hit = bool(tgt.get("is_caster") or tgt.get("role") == "caster"
+                           or tgt.get("kind") == "caster")
+        elif cond == "enemy_marked":
+            # 追猎：目标带猎印（state hunt_mark >0 或 buffs hunt_mark）
+            if tgt is not None:
+                st = tgt.get("state") or {}
+                bf = tgt.get("buffs") or {}
+                hit = (int(st.get("hunt_mark", 0) or 0) > 0
+                       or bool(bf.get("hunt_mark")) or bool(bf.get("mark")))
         else:
             hit = True
     except Exception:

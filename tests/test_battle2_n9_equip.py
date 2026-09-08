@@ -967,6 +967,83 @@ def test_affix_taken():
     check("受击减 3%（97）", real == 97, f"real={real}")
 
 
+def test_affix_cond_mult():
+    print("【N9.7d affix 条件乘区：execute/hunt/break_magic/dragon_aw】")
+    # execute：目标 <30% ×1.3（直调乘区避免伤害波动干扰）
+    p = mk_a("p1", "player")
+    m_full = mk_a("e1", "enemy", hp=100000, atk=1)
+    m_low = mk_a("e2", "enemy", hp=100000, atk=1)
+    p.setdefault("equipment", {})["weapon"] = {
+        "slot": "weapon", "quality": "purple", "affixes": ["execute"], "stats": {},
+    }
+    EP.apply_to_actor(p)
+    check("execute 装配 dmg_calc", "dmg_calc" in (p.get("triggers") or {}),
+          f"triggers={p.get('triggers')}")
+    from game.services.battle2_we_procs import we_dmg_mult_cond
+    b = new_battle(p, m_full, m_low)
+    b._fire_ctx = {"target": m_full, "dmg": 100, "mult": 1.0, "tags": []}
+    we_dmg_mult_cond(b, p, m_full, {"type": "we_dmg_mult_cond", "key": "execute",
+                                    "cond": "hp_target_lt", "threshold": 0.30,
+                                    "mult": 1.3, "tag": "💀处决"}, [])
+    check("满血不触发处决", abs(b._fire_ctx["mult"] - 1.0) < 1e-9,
+          f"mult={b._fire_ctx['mult']}")
+    m_low["hp"] = 20000  # 20%
+    b._fire_ctx = {"target": m_low, "dmg": 100, "mult": 1.0, "tags": []}
+    we_dmg_mult_cond(b, p, m_low, {"type": "we_dmg_mult_cond", "key": "execute",
+                                   "cond": "hp_target_lt", "threshold": 0.30,
+                                   "mult": 1.3, "tag": "💀处决"}, [])
+    check("处决低血 ×1.3", abs(b._fire_ctx["mult"] - 1.3) < 1e-9,
+          f"mult={b._fire_ctx['mult']}")
+    # hunt：目标带猎印 ×1.2（直调乘区避免伤害波动干扰）
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2b", "enemy", hp=100000, atk=1)
+    m2m = mk_a("e2c", "enemy", hp=100000, atk=1)
+    m2m.setdefault("state", {})["hunt_mark"] = 1
+    p2.setdefault("equipment", {})["weapon"] = {
+        "slot": "weapon", "quality": "purple", "affixes": ["hunt"], "stats": {},
+    }
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2, m2m)
+    from game.services.battle2_we_procs import we_dmg_mult_cond
+    b2._fire_ctx = {"target": m2, "dmg": 100, "mult": 1.0, "tags": []}
+    we_dmg_mult_cond(b2, p2, m2, {"type": "we_dmg_mult_cond", "key": "hunt",
+                                  "cond": "enemy_marked", "mult": 1.20,
+                                  "tag": "🎯追猎"}, [])
+    check("无印不触发追猎", abs(b2._fire_ctx["mult"] - 1.0) < 1e-9,
+          f"mult={b2._fire_ctx['mult']}")
+    b2._fire_ctx = {"target": m2m, "dmg": 100, "mult": 1.0, "tags": []}
+    we_dmg_mult_cond(b2, p2, m2m, {"type": "we_dmg_mult_cond", "key": "hunt",
+                                   "cond": "enemy_marked", "mult": 1.20,
+                                   "tag": "🎯追猎"}, [])
+    check("追猎带印 ×1.2", abs(b2._fire_ctx["mult"] - 1.2) < 1e-9,
+          f"mult={b2._fire_ctx['mult']}")
+    # dragon_aw：目标名含龙 ×1.25（直调乘区避免伤害波动干扰）
+    p3 = mk_a("p3", "player")
+    m3a = mk_a("幼龙", "enemy", hp=100000, atk=1)
+    p3.setdefault("equipment", {})["weapon"] = {
+        "slot": "weapon", "quality": "purple", "affixes": ["dragon_aw"], "stats": {},
+    }
+    EP.apply_to_actor(p3)
+    b3 = new_battle(p3, m3a)
+    from game.services.battle2_we_procs import we_dmg_mult_cond
+    # 打非龙目标：倍率不变
+    m_wolf = mk_a("野狼", "enemy", hp=100000, atk=1)
+    b3.sides["enemy"].append(m_wolf)
+    b3._fire_ctx = {"target": m_wolf, "dmg": 100, "mult": 1.0, "tags": []}
+    we_dmg_mult_cond(b3, p3, m_wolf, {"type": "we_dmg_mult_cond", "key": "dragon_aw",
+                                      "cond": "name_contains", "keywords": ["龙"],
+                                      "mult": 1.25, "tag": "🐉龙威"}, [])
+    check("野狼不触发龙威", abs(b3._fire_ctx["mult"] - 1.0) < 1e-9,
+          f"mult={b3._fire_ctx['mult']}")
+    # 打龙目标：×1.25
+    b3._fire_ctx = {"target": m3a, "dmg": 100, "mult": 1.0, "tags": []}
+    we_dmg_mult_cond(b3, p3, m3a, {"type": "we_dmg_mult_cond", "key": "dragon_aw",
+                                   "cond": "name_contains", "keywords": ["龙"],
+                                   "mult": 1.25, "tag": "🐉龙威"}, [])
+    check("龙威对龙 ×1.25", abs(b3._fire_ctx["mult"] - 1.25) < 1e-9,
+          f"mult={b3._fire_ctx['mult']}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -995,6 +1072,7 @@ def main():
     test_affix_basic()
     test_affix_onhit()
     test_affix_taken()
+    test_affix_cond_mult()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

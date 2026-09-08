@@ -314,6 +314,46 @@ def _af_dmg_reduce(aid, actor, eff):
                             "tag": "🛡️减伤"}]}
 
 
+# ============ N9.7d 条件乘区（passive → dmg_calc 钩子） ============
+
+@_register_affix("execute")
+def _af_execute(aid, actor, eff):
+    """处决：目标生命 <30% ×1.3（dmg_calc hp_target_lt）。"""
+    return {"dmg_calc": [{"type": "we_dmg_mult_cond", "key": aid,
+                          "cond": "hp_target_lt",
+                          "threshold": eff.get("execute_threshold") or 0.30,
+                          "mult": eff.get("dmg_mult") or 1.30,
+                          "tag": eff.get("tag") or "💀处决"}]}
+
+
+@_register_affix("hunt")
+def _af_hunt(aid, actor, eff):
+    """追猎：目标带猎印 ×1.2（dmg_calc enemy_marked）。"""
+    return {"dmg_calc": [{"type": "we_dmg_mult_cond", "key": aid,
+                          "cond": "enemy_marked",
+                          "mult": eff.get("dmg_mult") or 1.20,
+                          "tag": eff.get("tag") or "🎯追猎"}]}
+
+
+@_register_affix("break_magic")
+def _af_break_magic(aid, actor, eff):
+    """破魔：目标为法系 ×1.25（dmg_calc role_caster）。"""
+    return {"dmg_calc": [{"type": "we_dmg_mult_cond", "key": aid,
+                          "cond": "role_caster",
+                          "mult": eff.get("dmg_mult") or 1.25,
+                          "tag": eff.get("tag") or "🔮破魔"}]}
+
+
+@_register_affix("dragon_aw")
+def _af_dragon_aw(aid, actor, eff):
+    """龙威：目标名含龙 ×1.25（dmg_calc name_contains）。"""
+    return {"dmg_calc": [{"type": "we_dmg_mult_cond", "key": aid,
+                          "cond": "name_contains",
+                          "keywords": eff.get("enemy_contains") or ["龙"],
+                          "mult": eff.get("dmg_mult") or 1.25,
+                          "tag": eff.get("tag") or "🐉龙威"}]}
+
+
 def affix_triggers_for_key(aid: str, actor: dict) -> dict:
     """单个 affix → {old_event: [效果 dict]}（未支持 key → {}）。"""
     fn = _AFFIX_TRANSLATORS.get(aid)
