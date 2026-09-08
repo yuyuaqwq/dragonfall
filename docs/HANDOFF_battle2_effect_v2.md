@@ -156,6 +156,11 @@ heal/state_set/interrupt/damage 动词补齐。
 - **剩余**：N5b4-5 instance.py 副本
   （增援/DOT 自动/killed）、N5b4-6 economy/player/tower 轻文件 + 删 import、
   N5b4-7 全命令层回归 + 汇报鱼鱼过目 diff
+- **N5b4-5 进度**：侦查发现副本深度定制旧引擎（仇恨/团队广播/剧本/内聚引用），
+  切 battle2 需先补缺口 → 设计文档 `docs/REFACTOR_v181P4_N5B5_instance_gap_design.md`
+  （鱼鱼 2026-09-08 审查后拍板"先做"）。引擎批 5E 完成：Battle +target_picker
+  （自动 actor 目标注入）/ +on_event（事件总线外部观察者），引擎零游戏知识；
+  测试 test_battle2_n5b4e_hooks.py 13 断言。剩 5a 主流程 / 5b 账务 / 5c 剧本。
 - **已核实事实**：死亡 actor 不从 sides 移除（只进 killed_actors，展示要过滤
   actor_alive）；db.save_battle 的 monster 列已兼容 sides（N5b4-3 改）
 - 鱼鱼约定：**核心战斗文件 diff 出后鱼鱼过目再提交**
