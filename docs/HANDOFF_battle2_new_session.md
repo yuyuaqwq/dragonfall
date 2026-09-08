@@ -66,8 +66,21 @@
 | - | **fix：_after_act 用聚合 spd（真实玩家裸 spd=0 卡死 bug）** | ✅ 9fceee0 |
 | - | **调用映射表施工图（combat 改造依据）** | ✅ a56d5e4 |
 | **N5b-3** | **命令层数据流验证测试（DB 存/取 + 行动链 + 迁移）** | ✅ bfd3991 |
-| **N5b-4** | **combat.py 等命令层 import 切换（真正改命令层）** | ⬜ 下一步 |
+| **N5b-4** | **combat.py 等命令层 import 切换（真正改命令层）** | ⬜ **已排到 N7 之后**（鱼鱼 2026-09-08 拍板：先收敛效果系统） |
 | **N6** | **删旧 battle.py + 全量回归** | ⬜ |
+
+### ⚠️ 排期变更（2026-09-08 鱼鱼拍板：先完全收敛效果系统，再继续命令层）
+**当前主线 = N7 效果系统收口**（方案：`docs/REFACTOR_v181P4_effect_time_system.md`）：
+- N7.1 buff 数值动作参数化 + 面板快照折算（效果数值进 EFFECT_ACTIONS 动作参数，
+  act_buff 快照 mult 进 buff 条目，stats 折算读快照——**退役 BUFF_MULT 名字表**）
+- N7.2 buffs 绝对到期 + shields expire_at + 控制 on_act 行动级消费
+- N7.3 一次性 on_hit 出手消费（actions.py）
+- N7.4 DOT interval（schedule.py + STATE_EFFECTS）
+- N7.5 187 effect 名词分诊收敛（A 战斗→规则 / B 生活→排除 / C 词条→上层）
+- 全部完成后才回 N5b-4（展示辅助按 N7 定稿语义一次写对，不返工）
+
+**为什么**：N5b-4 展示辅助依赖 buffs/shields 值语义定稿；N1-N5a 对拍全过是
+"无效果场景"假象（带 buff/盾/控制即露馅）；效果收敛纯引擎内独立可验证。
 
 ### battle2 包结构（现状）
 ```
