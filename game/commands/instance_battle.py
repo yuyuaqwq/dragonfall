@@ -119,6 +119,49 @@ def _instance_target_picker(st: dict):
     return pick
 
 
+def _instance_team_event(st: dict):
+    """副本团队技能广播观察者（5b G2：act_cast + info.team → 全队效果）。
+
+    旧引擎由 battle.py 生成 team_effects（6176/6256/7204）→ instance 层 _apply_team_effect
+    消费；battle2 引擎零游戏知识——本观察者经 on_event（事件总线尾部通知）监听：
+      act_cast + info.team == "heal_all" → 除施放者外全队治疗（施放者已由 _do_heal 治疗）
+    数据现状：skills.py team 值仅 heal_all（牧师救赎之光）——按数据声明做，无 if-elif 扩散。
+    """
+    def on_event(battle, evt_name, ctx, logs):
+        try:
+            if evt_name != "act_cast":
+                return
+            info = (ctx or {}).get("info") or {}
+            team = info.get("team")
+            if not team or team != "heal_all":
+                return
+            caster = (ctx or {}).get("actor")
+            if not caster or int(caster.get("hp", 0) or 0) <= 0:
+                return
+            # 治疗量 = 施法者面板公式（对齐 _do_heal/_heal_amount，独立算全队口径）
+            from ..battle2.actions import _heal_amount as _hcalc
+            from ..battle2 import stats as _S
+            from ..battle2.landing import heal_actor as _heal
+            from .. import engine as _E
+            _stp = _S.actor_stats(battle, caster)
+            _lv = _E.skill_level_of(caster, info.get("name", "")) if caster.get("class_name") else 0
+            try:
+                _heal_v = _hcalc(_stp, caster, info, _lv)
+            except Exception:
+                _heal_v = 0
+            if _heal_v <= 0:
+                return
+            for _a in battle.sides_of("player"):
+                if _a is caster or int(_a.get("hp", 0) or 0) <= 0:
+                    continue
+                _real = _heal(battle, _a, _heal_v, logs)
+                if _real > 0:
+                    logs.append(f"✨ {_a.get('name', '队友')} 恢复 {_real} 点生命！")
+        except Exception:
+            pass  # 观察者异常不阻断战斗结算
+    return on_event
+
+
 def _attach_instance_hooks(b, st: dict) -> None:
     """battle 恢复/重建后重挂命令层注入钩子（5b：target_picker + 5a：action_override）。
 
@@ -135,6 +178,10 @@ def _attach_instance_hooks(b, st: dict) -> None:
         b.action_override = make_override()
     except Exception:
         b.action_override = None
+    try:
+        b.on_event = _instance_team_event(st)
+    except Exception:
+        b.on_event = None
 
 
 def build_battle(st: dict) -> "object":

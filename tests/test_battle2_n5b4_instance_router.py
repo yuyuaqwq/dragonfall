@@ -514,6 +514,50 @@ def test_13_target_picker():
     print("  -- 注：st threat 表 key=qq_id，monster_to_actor 透传 role 字段")
 
 
+def test_14_team_heal_broadcast():
+    print("【14. 5b G2 on_event：team=heal_all 全队广播（牧师救赎之光）】")
+    from game.battle2 import Battle as B2
+    from game.commands import instance_battle as IB
+    # 双人副本：牧师 + 战士，战士残血
+    st = mk_st([70121, 70122], enemy=mk_enemy(hp=5000, spd=1))
+    # 换职业：70121 牧师（救赎之光 heal_all 技能）
+    sn1 = st["players"]["70121"]
+    sn1["class_name"] = "牧师"
+    db.update_player(GID, "70121", learned_skills=["救赎之光"])
+    db.set_skill_bar(GID, ["救赎之光", None, None, None, None, None])
+    # 重读快照带新技能
+    for k in ("hp", "mp", "max_hp", "max_mp"):
+        p = db.get_player(GID, "70121")
+        if k == "mp":
+            p["mp"] = p["max_mp"] = 999
+    st["players"]["70121"] = mk_snap(70121, "牧师甲", cls="cls_mu_shi", level=15, learned=["救赎之光"])
+    # 战士残血
+    sn2 = st["players"]["70122"]
+    sn2["hp"] = int(sn2.get("max_hp", 500) * 0.3)
+    IB.build_battle(st)
+    b = B2.from_state(st["battle"])
+    IB._attach_instance_hooks(b, st)
+    # 确认 on_event 挂上
+    check("on_event 已挂", b.on_event is not None)
+    # 牧师打自己目标 = 治疗自己；heal_all 应广播到战士
+    pa1 = next(a for a in b.sides_of("player") if str(a.get("qq_id")) == "70121")
+    pa2 = next(a for a in b.sides_of("player") if str(a.get("qq_id")) == "70122")
+    hp2_before = int(pa2.get("hp", 0) or 0)
+    logs, ended, _who = b.human_act("skill", "救赎之光", pa1)
+    hp2_after = int(pa2.get("hp", 0) or 0)
+    check("队友被全队治疗（hp 上升）", hp2_after > hp2_before, f"hp {hp2_before}->{hp2_after}")
+    check("广播日志含队友恢复", any("恢复" in x for x in logs), str(logs[-2:]))
+    # 单人副本无队友 → 广播不崩
+    st2 = mk_st([70123], enemy=mk_enemy(hp=5000, spd=1))
+    st2["players"]["70123"]["class_name"] = "牧师"
+    IB.build_battle(st2)
+    b2 = B2.from_state(st2["battle"])
+    IB._attach_instance_hooks(b2, st2)
+    pa3 = next(a for a in b2.sides_of("player"))
+    logs2, ended2, _who2 = b2.human_act("skill", "救赎之光", pa3)
+    check("单人广播不崩", isinstance(logs2, list), str(logs2)[:60])
+
+
 def _collect(agen):
     """跑命令层 filter handler（async generator 或 coroutine 兼容）。"""
     return _run_gen(agen)
@@ -533,6 +577,7 @@ def main():
     test_11_command_entry_switch()
     test_12_use_item_router()
     test_13_target_picker()
+    test_14_team_heal_broadcast()
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     if FAILURES:
         for f in FAILURES:
