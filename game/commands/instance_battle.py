@@ -179,7 +179,14 @@ def _attach_instance_hooks(b, st: dict) -> None:
     except Exception:
         b.action_override = None
     try:
-        b.on_event = _instance_team_event(st)
+        from .boss_script import make_script_event
+        _se = make_script_event(st)
+        _te = _instance_team_event(st)
+
+        def _combined_event(battle, evt_name, ctx, logs):
+            _te(battle, evt_name, ctx, logs)
+            _se(battle, evt_name, ctx, logs)
+        b.on_event = _combined_event
     except Exception:
         b.on_event = None
     try:

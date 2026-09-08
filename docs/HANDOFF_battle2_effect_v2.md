@@ -510,4 +510,30 @@ CD 节奏 5/10 / v163 模板（哥布林营地 → 哥布林守卫）/ 回落 Bo
 - P4 chains/on_interrupt/on_minion_died（含"插一帧行动"基建给 pv_broken 预留）
 - P5 reflect 反弹/element_immune/weak/defend_reduce/pdot/形态轮换盘点
 
+## 9.7 5c P4 完成记录（2026-09-09 上午，chains / on_minion_died）
+### 交付（boss_script.py，引擎零改动）
+- **_check_chains**（导演帧，非演出刻才推进）：seq 顺序轮换改 actor.auto_act
+  （本帧 actor_auto 读它出招）；chain_pos 推进到头回绕 + chain_idx 多链轮换；
+  cd 整链冷却（until = 帧 + cd + 1：cd=0 无缝 / cd=1 隔 1 帧）；break>0 概率断链
+  回随机池；charging 读条中不出链
+- **make_script_event**（剧本事件观察者，组合进 instance_battle on_event 链：
+  团队广播 + 剧本联动并存）：on_death + is_minion → 找剧本 Boss（非爪牙存活）
+  → on_minion_died 联动执行 _minion_death_link：
+  heal_pct（Boss 回 pct max）/ stacks_clear（清 stacks_n + effects）/
+  atk_up（×1.30 时效 turns）
+- **boss_script_cfg 门槛放宽**（P1 只认 phases → P2-P4 任一剧本要素即可挂导演/
+  观察者：phases/opening/chains/on_interrupt/on_minion_died/简单 token）——
+  on_minion_died 独立于 phases 的 Boss（如 b_moro）也能被观察者识别
+- **on_interrupt 未做**：需引擎 interrupt 事件扩展（act_interrupt/landing 清
+  charging 处 fire）+ 玩家打断技能链路确认——P5 或独立小批，19 boss 带配置
+### 测试（test_boss_script_p4.py 14/0）
+chains 4 招轮换回绕 / cd=1 隔帧冷却 / charging 不出链 / heal_pct（b_moro 真实
+cfg 经观察者端到端）/ stacks_clear / atk_up（直调分支）/ 非爪牙死亡不触发。
+P1-P3 22/26/18 仍绿；全量 339 = 314/25 与基线一致零新增。
+### 5c 批进度小结
+P1 导演框架+phases ✅ / P2 opening+低血+简单机制 ✅ / P3 召唤 ✅ / P4 chains+
+爪牙联动 ✅ → 27 卡绝大多数机制族已可表达（打断族 on_interrupt 例外待 P5/独立批）
+剩余：on_interrupt（引擎 interrupt 事件）、P5 场景原语盘点（reflect 反弹/
+element_immune/weak/defend_reduce/pdot/形态轮换）
+
 ## 10. 会话重启口令（2026-09-09 上午更新）

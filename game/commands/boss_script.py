@@ -48,7 +48,13 @@ def boss_script_cfg(st: dict, actor: dict):
                           if x.strip()]
             _mech = list(dict.fromkeys(_mech + _inst_mech))
         cfg["mech"] = _mech
-        if not cfg["phases"]:
+        # 剧本要素门槛（P1 只认 phases；P2-P4 扩展后任一要素即可挂导演/观察者）
+        _has_script = bool(cfg["phases"]) or bool(cfg["opening"]) or bool(cfg["chains"]) \
+            or bool(cfg["on_interrupt"]) or bool(cfg["on_minion_died"]) \
+            or any(t in _mech for t in ("phase_open", "player_low", "summon",
+                                        "stacks", "heal", "enrage", "shield",
+                                        "reflect"))
+        if not _has_script:
             return None
         return cfg
     except Exception:
@@ -106,7 +112,11 @@ def make_script_hook(st: dict):
             # P3：召唤援军（CD 5 刻 / 上限 3 / v163 同图小怪模板）
             _check_summon(st, battle, actor, cfg, bs, _now, logs)
             # P1：phases 转阶段（返回 True = 演出刻拦截本刻行动）
-            return _check_phases(st, battle, actor, cfg, bs, logs)
+            _skip = _check_phases(st, battle, actor, cfg, bs, logs)
+            # P4a：连招链 chains（仅在非演出刻帧推进——演出刻本刻不行动）
+            if not _skip:
+                _check_chains(st, battle, actor, cfg, bs, _now, logs)
+            return _skip
         except Exception:
             return False
     return hook
@@ -508,5 +518,124 @@ def _check_summon(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     try:
         _temp_stat_mult(actor, "boss_summon_atk", "atk", 1.30, 2.0, now)
         logs.append(f"⚡【{actor.get('name','')}】攻击也提升了！")
+    except Exception:
+        pass
+
+
+# ============================================================
+# P4a：连招链 chains（固定技能序列轮换）
+# 语义对齐旧 v178 E7（battle.py:7999）：seq 按序推进到头回绕；cd=整链打完
+# 冷却刻数（0=无缝循环）；break=断链概率（<1 时概率中断回随机池，缺省 0 必中链）；
+# 多链按 chain_idx 取模轮换。引擎状态存导演 bs（chain_pos/chain_idx/chain_until）。
+# battle2 表达 = 导演帧改 actor.auto_act → 本帧 actor_auto 读它出招。
+# ============================================================
+
+def _check_chains(st: dict, battle, actor: dict, cfg: dict, bs: dict,
+                  now: float, logs: list) -> None:
+    chains = cfg.get("chains")
+    if not isinstance(chains, list) or not chains:
+        return
+    if actor.get("charging"):
+        return  # 读条中不出链（v178：charging 时不消费链）
+    rn = int(bs.get("round_no", 0) or 0)
+    _until = int(bs.get("chain_until", 0) or 0)
+    if rn < _until:
+        return  # 整链冷却中
+    ci = int(bs.get("chain_idx", 0) or 0)
+    ch = chains[ci % len(chains)]
+    seq = (ch.get("seq") or []) if isinstance(ch, dict) else []
+    if not seq:
+        return
+    pos = int(bs.get("chain_pos", 0) or 0)
+    if pos >= len(seq):
+        pos = 0
+        bs["chain_idx"] = ci + 1
+        ch = chains[bs["chain_idx"] % len(chains)]
+        seq = (ch.get("seq") or []) if isinstance(ch, dict) else []
+        if not seq:
+            return
+    # 断链（break>0 概率中断，链状态清空回随机池——battle2 回落普攻/auto_act 原值）
+    _brk = float(ch.get("break", 0.0) or 0.0)
+    if _brk > 0:
+        import random as _rnd
+        if _rnd.random() < _brk:
+            bs["chain_pos"] = 0
+            bs.pop("chain_until", None)
+            return
+    s = seq[pos]
+    if s:
+        actor["auto_act"] = {"act": {"type": "skill", "skill": s}}
+        bs["chain_pos"] = pos + 1
+        if pos + 1 >= len(seq):
+            _cd = int(ch.get("cd", 0) or 0)
+            # 整链打完冷却：until = 当前帧 + cd + 1（cd=0 无缝；cd=1 隔 1 帧）
+            bs["chain_until"] = rn + _cd + 1
+            logs.append(f"⚔️【{actor.get('name','')}】连招轮转，准备下一轮攻势！")
+
+
+# ============================================================
+# P4b：爪牙死亡联动 on_minion_died（观察者，on_event on_death 消费）
+# 配置样例（MONSTER_MODS）：
+#   {"effect": "heal_pct", "value": 0.03}    → Boss 回 3% max
+#   {"effect": "stacks_clear", "value": 1}   → 清叠层（stacks token 联动）
+#   {"effect": "atk_up", "value": 2}         → Boss 攻击提升 2 刻（atk×1.30）
+# ============================================================
+
+def make_script_event(st: dict):
+    """剧本事件观察者：on_event 尾部通知（命令层组合进现有观察者链）。
+
+    与导演帧（make_script_hook）正交：本观察者处理响应型联动（爪牙死亡等），
+    帧处理轮询型机制（phases/opening/低血/召唤/chains）。
+    """
+    def on_event(battle, evt_name, ctx, logs):
+        try:
+            if evt_name != "on_death":
+                return
+            dead = (ctx or {}).get("actor") or {}
+            if not dead.get("is_minion"):
+                return
+            # 找剧本 Boss（enemy side 非爪牙有 on_minion_died 配置）
+            for a in battle.sides_of("enemy"):
+                if a is dead or a.get("is_minion"):
+                    continue
+                if int(a.get("hp", 0) or 0) <= 0:
+                    continue
+                cfg = boss_script_cfg(st, a)
+                if not cfg or not cfg.get("on_minion_died"):
+                    continue
+                _minion_death_link(st, battle, a, cfg["on_minion_died"], logs)
+        except Exception:
+            pass
+    return on_event
+
+
+def _minion_death_link(st: dict, battle, boss: dict, link, logs: list) -> None:
+    """爪牙死亡联动执行。link = {"effect": ..., "value": ...}。"""
+    try:
+        if not isinstance(link, dict):
+            return
+        eff = str(link.get("effect") or "")
+        val = link.get("value")
+        bname = boss.get("name", "")
+        if eff == "heal_pct":
+            pct = float(val if val is not None else 0.03)
+            from ..battle2.landing import heal_actor as _heal
+            v = max(1, int(int(boss.get("max_hp", 1) or 1) * pct))
+            real = _heal(battle, boss, v, logs)
+            if real > 0:
+                logs.append(f"💀 爪牙倒下，【{bname}】汲取残魂恢复 {real} 点生命！")
+        elif eff == "stacks_clear":
+            bs = st.get("boss_script")
+            if isinstance(bs, dict):
+                bs["stacks_n"] = 0
+                ef = boss.get("effects") or {}
+                ef.pop("boss_mech_stacks_atk", None)
+                ef.pop("boss_mech_stacks_matk", None)
+            logs.append(f"💀 爪牙倒下，【{bname}】的叠层强化消散了！")
+        elif eff == "atk_up":
+            turns = int(val if val is not None else 2)
+            _temp_stat_mult(boss, "boss_minion_atk", "atk", 1.30, turns,
+                            float(getattr(battle, "_now", 0) or 0))
+            logs.append(f"💀 爪牙倒下，【{bname}】悲愤交加，攻击提升了！")
     except Exception:
         pass
