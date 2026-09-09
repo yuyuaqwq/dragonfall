@@ -146,6 +146,48 @@ def install() -> None:
         icon = params.get("icon") or "💥"
         logs.append(f"{icon} {label}！结算 {'、'.join(hit_systems)}，伤害 ×{factor:.2f}")
 
+    @register_action("class_res_channel_gain")
+    def class_res_channel_gain(battle, caster, target, params, logs):
+        """职业资源渠道 gain（v181.M-R2d）：owner.effects[res].stacks += gain。
+
+        装配层从 EFFECT_RULES 条目 channels 声明生成（归属职业 start_classes 已过滤）：
+        - res/gain/label 全由声明写入，动作零资源 key 硬编码
+        - kind / not_basic 事件过滤（heal_cast 时机只认 kind=治疗 行动——普攻/攻击技能
+          施放不触发，防误攒；参数由装配时从渠道时机映射写入）
+        - cap clamp 查 EFFECT_RULES[res].cap（动作侧 min(cap, cur+gain)，满层不溢出不刷值）
+        """
+        from ..battle2.actors import actor_alive
+        from ..battle2.state_effects import state_def
+        owner = params.get("_owner") or caster
+        if owner is None or not actor_alive(owner):
+            return
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        info = ctx.get("info") or {}
+        kind = params.get("kind")
+        if kind and (info.get("kind") or "") != kind:
+            return
+        if params.get("not_basic") and info.get("_basic"):
+            return
+        res = params.get("res") or ""
+        gain = int(params.get("gain") or 0)
+        if not res or gain <= 0:
+            return
+        cap = int((state_def(res) or {}).get("cap") or 0) or 999999
+        ef = owner.setdefault("effects", {})
+        entry = ef.get(res)
+        cur = int(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0
+        if cur >= cap:
+            return
+        n = max(0, min(cap, cur + gain))
+        if n == cur:
+            return
+        if not isinstance(entry, dict):
+            entry = ef[res] = {}
+        entry["stacks"] = n
+        cap_txt = f"/{cap}" if cap < 999999 else ""
+        logs.append(f"{params.get('icon') or '✦'} {params.get('label') or res} "
+                    f"+{gain}（{n}{cap_txt}）")
+
     _registered = True
 
 
@@ -165,6 +207,57 @@ def _effect_rules() -> dict:
         return get_effect_rules() or {}
     except Exception:
         return {}
+
+
+# ============================================================
+# v181.M-R2d：职业资源攒取渠道（事件型）——装配与动作
+# ============================================================
+# 渠道时机名 → (battle2 事件, 附加过滤参数)。语义源 = EFFECT_RULES 资源条目 channels
+# 声明 + docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『M-R2d 渠道装配设计』§2.2：
+#   heal_cast 治疗「施放」与「命中」同刻 → act_cast + kind=治疗（同 R4 holy_echo 折中；
+#   每技能施放 fire 1 次，无多目标重复）；普攻（basic 经 do_skill）也 fire act_cast 但
+#   kind=物理 → kind 过滤天然排除，不会误攒。
+_CHANNEL_EVENTS = {
+    "attack_hit": ("attack_hit", {}),            # 普攻命中
+    "skill_hit": ("skill_hit", {}),              # 技能命中
+    "heal_cast": ("act_cast", {"kind": "治疗"}),  # 治疗施放
+    "taken": ("on_taken", {}),                   # 受击（真实承伤后，subject=受击者）
+    "cast": ("act_cast", {"not_basic": True}),   # （预留）技能施放（未装配用）
+}
+
+
+def apply_class_channels(actor: dict, rules: dict) -> None:
+    """EFFECT_RULES 资源条目 channels 声明 → actor.triggers 事件钩子（并入 apply_class_mech）。
+
+    对每个声明了 channels 的资源条目（归属职业 start_classes 命中才装——防白拿）：
+    时机名 → battle2 事件 → 挂 class_res_channel_gain 生产动作（gain 值由声明给，
+    cap clamp 动作侧查 EFFECT_RULES）。未映射时机名静默跳过（版本漂移保护，同
+    affix 翻译器缺口词条行为）。装配器零资源 key 硬编码——渠道全由声明驱动。
+    """
+    if not actor:
+        return
+    cn = actor.get("class_name") or ""
+    trig = actor.setdefault("triggers", {})
+    for rk, rc in (rules or {}).items():
+        if not isinstance(rc, dict):
+            continue
+        ch = rc.get("channels")
+        if not isinstance(ch, dict) or not ch:
+            continue  # 无渠道声明 = 无此行为（零默认值铁律）
+        sc = rc.get("start_classes") or []
+        if sc and cn not in sc:
+            continue
+        name = rc.get("name") or rk
+        for chan, gain in ch.items():
+            if not chan or not isinstance(gain, (int, float)) or int(gain) <= 0:
+                continue
+            ev, extra = _CHANNEL_EVENTS.get(chan, (None, None))
+            if ev is None:
+                continue
+            d = {"type": "class_res_channel_gain", "res": rk, "gain": int(gain),
+                 "label": name, "icon": "✦"}
+            d.update(extra)
+            trig.setdefault(ev, []).append(d)
 
 
 def _learned_mech_skills(actor: dict) -> list:
@@ -221,6 +314,13 @@ def apply_class_mech(actor: dict) -> None:
                         "stacks": _cap, "expire": 999999.0}
         except Exception:
             pass
+        # v181.M-R2d：职业资源攒取渠道（事件型）——EFFECT_RULES 条目 channels 声明 → 事件钩子。
+        # 核实结论（docs『M-R2d 渠道装配设计』§1）：现网仅牧师 faith 活 key 缺攒端（卸负消费 +
+        # 治疗/受击渠道），rage/cp/chi/element 技能域死 key 不接（EFFECT_RULES 条目注释标注）。
+        try:
+            apply_class_channels(actor, _effect_rules())
+        except Exception:
+            pass  # 渠道装配异常不阻断开战（容错铁律）
         mechs = {info.get("mech") for _s, info in _learned_mech_skills(actor)}
         for mech in mechs:
             cash = rules.get(mech)

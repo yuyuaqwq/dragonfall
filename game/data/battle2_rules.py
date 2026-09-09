@@ -34,6 +34,12 @@ EFFECT_RULES: dict = {
         "name": "怒气",
         "cap": 10,
         "stat_scale": {"dmg_mult": 0.12},     # 每层伤害 +12%
+        # ⚠️ v181.M-R2d 核实：技能域渠道死 key——现网 skills.py 全表零 mech/res_gain/res_cost
+        # rage（v151 后战士主资源=zhan_yi 战意，rage 满 10 狂暴/背水随 battle.py 形态机退役、
+        # battle2 无 dual_form 消费端）；若事件渠道误喂，满层 +120% dmg 无人消费 = 数值崩坏。
+        # → 职业渠道不接（affix 词条域 war_spirit/blood_bath/boiling_blood 仍由 R4
+        #   we_affix_res_gain 通道喂，勿在本域重建）。待清死数据（详见
+        #   docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『M-R2d 渠道装配设计』§3）。
     },
     # 龙语印记（dragon_tongue：龙蛋煎饼料理 / 龙语圣剑传奇词条）——每层伤害 +2%，
     # 攻击命中叠层（cap 5）。stat_scale.dmg_mult 通用通道（同 rage），stats 折算
@@ -45,6 +51,10 @@ EFFECT_RULES: dict = {
     "chi": {
         "name": "气",
         "cap": 10,
+        # ⚠️ v181.M-R2d 核实：技能域渠道死 key——现网技能零 mech/res_gain/res_cost chi
+        # （v151 武僧=破绽条 shaken + 磐核体系，v130「3 气崩拳/10 气破岳拳」随技能重做消失；
+        # guard_core_burst 磐核攒端 = v153 机制缺口见蓝图 §7 R1d）。
+        # → 职业渠道不接（affix 词条域 rock_rest/opening_stance 仍由 R4 通道喂）。待清死数据。
     },
     "arcane": {
         "name": "奥术",
@@ -67,14 +77,27 @@ EFFECT_RULES: dict = {
     "faith": {
         "name": "信仰值",
         "cap": 10,
+        # v181.M-R2d 攒取渠道（源 core_resources.cls_mu_shi on_heal:2/on_hit:1，文件 R2c 退役）：
+        #   heal_cast 治疗施放 +2 / taken 受击 +1——装配层 class_mech_proc 按 start_classes
+        #   归属挂事件钩子（clamp cap；圣光/死灵两线共用 cls_mu_shi）。攻击系攒信念 = v130
+        #   per-skill res_gain 数据语义，v153 skills 重做未回填 → 缺口见
+        #   docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『M-R2d 渠道装配设计』§4。
+        "start_classes": ["cls_mu_shi"],
+        "channels": {"heal_cast": 2, "taken": 1},
     },
     "cp": {
         "name": "连击点",
         "cap": 5,
+        # ⚠️ v181.M-R2d 核实：技能域渠道死 key——现网技能零 mech/res_gain/res_cost cp
+        # （v151 刺客主资源=lian_duan 连段，技能 mech 命中攒段已通，finisher 兑现 R1a 已装）。
+        # → 职业渠道不接（affix 词条域 crit_return 仍由 R4 通道喂）。待清死数据。
     },
     "element": {
         "name": "元素亲和",
         "cap": 5,
+        # ⚠️ v181.M-R2d 核实：技能域渠道死 key——现网技能零使用（v151 印记体系
+        # fire/ice/thunder_mark mech 取代 v139 element 充能条，BRANCH 元素法师挂印不挂亲和）。
+        # → 职业渠道不接（affix 词条域 arcana_flux 仍由 R4 通道喂）。待清死数据。
     },
     "shield": {
         "cap": 10,

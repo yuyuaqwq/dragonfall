@@ -253,3 +253,121 @@ echo 建议落 mech_stacks 驻留叠层（战斗内不清零天然契合长周�
 > 退役后仍存活读点（数据文件本体保留中，未 git rm）：job_guide 职业速查 desc 原文派生
 > （data/job_guide.py + commands/job_guide.py EXTRA_RESOURCES 共鸣/回声展示）、
 > commands/player.py `_RES_CN` 技能详情资源名、data/__init__.py re-export、tests 结构断言——归后续批次。
+
+---
+
+# M-R2d 渠道装配设计（v181.M-R2d · 2026-09-09）
+
+> §6「渠道层（R2）技术方案」落地批。前置：R2a energy period dir=gain（dd94ddc）、
+> R2b/R2c core_resources.py 退役删除（渠道字段 on_attack/on_hit/on_skill/on_heal 随文件消失，
+> 资源 name/cap 单源 EFFECT_RULES）。本批 = **把「旧表职业主资源事件型攒取渠道」按现网技能
+> 口径核实后，以 EFFECT_RULES 声明 + class_mech_proc 装配层事件钩子重建**。
+
+## 1. 核实结论：现网职业资源口径矩阵（动手前逐项核实）
+
+核实源（语义权威顺序）：skills.py 现网玩家技能（PLAYER 56 + BRANCH 238，v151+/v153 世代）
+→ EFFECT_RULES → 退役测试断言 → 旧 battle.py 渠道实现（git 379a792^ 退役前世代，已 N10-C 删）。
+
+| 职业 | EFFECT_RULES 资源 key | 现网技能攒端 | 现网技能消费端 | 判定 |
+|---|---|---|---|---|
+| 战士 | **zhan_yi 战意** cap10 | ✅ 技能 mech 命中攒层已通（挥砍/破甲斩/旋风斩/战吼+3/怒斩/怒涛/狂战怒吼 等 9 技能，desc「命中积攒 1 点战意」） | ✅ res_cost zhan_yi5（冷静 R1c）+ 血祭/坚韧 desc | v151 语义主资源；**攒层引擎已通（skill 内嵌 mech）→ 本批不重复装配** |
+| 战士 | **rage 怒气** cap10 | ❌ 现网技能表 **零** mech/res_gain/res_cost rage | ❌ 零技能消费（v130「满 10 背水/狂暴」随 battle.py 形态机退役，battle2 无 dual_form 消费端） | **技能域死 key** → 渠道不接（§3）；affix 词条域（war_spirit/blood_bath/boiling_blood）仍由 R4 we_affix_res_gain 通道喂，不动 |
+| 法师 | element 元素亲和 cap5 | ❌ 零技能使用（v151 印记体系 fire/ice/thunder_mark mech 取代；v139 注释亦明示基础不经营） | ❌ 零消费 | **死 key**（affix arcana_flux R4 域照旧）→ 不接 |
+| 法师 | arcane 奥术 cap10 | ✅ BRANCH 奥术学者 mech 充能 +1/+2 已通（奥术弹幕/爆破等） | arcane_burst 兑现（MECH_CASH 未声明=R1 记缺口，cap 漂移 10 vs desc 5） | 攒层已通 → 不重复；兑现缺口归 R1 |
+| 游侠 | energy cap100 | ✅ R2a period dir=gain 18/刻 + start_full 已通 | ✅ res_cost 全系 | ✅ 完成不回退 |
+| 牧师 | **faith 信仰值** cap10 | ❌ **缺**：现网技能表零攒点字段（v153 重做丢了 per-skill res_gain；旧表 on_heal:2/on_hit:1 渠道随 core_resources 退役） | ✅ 真实消费端：卸负（mech=faith_unload 卸 3 点信念回血）；desc「圣光惩戒…不增信念」反证攻击系默认攒信念 | **活 key 且攒端断 → 本批接渠道**（圣光/死灵两线共用 cls_mu_shi） |
+| 刺客 | **lian_duan 连段** cap10 | ✅ 技能 mech 命中攒段已通（刺击/影袭/影刃/双刃乱舞 mech lian_duan） | ✅ finisher 兑现（R1a 已装）+ poison_burst_finisher | v151 主资源；攒层已通 → 不重复 |
+| 刺客 | cp 连击点 cap5 | ❌ 零技能使用（v151 lian_duan 取代 v130 cp） | ❌ 零消费 | **死 key**（affix crit_return R4 域照旧）→ 不接 |
+| 武僧 | chi 气 cap10 | ❌ 零技能使用（v151 破绽条 shaken + 磐核体系取代 v130 气/崩拳） | ❌ 零消费（3 气崩拳/10 气破岳拳 v130 语义已随技能重做消失） | **死 key**（affix rock_rest/opening_stance R4 域照旧）→ 不接 |
+| 诗人 | （无主资源） | melody 驻留体系 = 单独系统（蓝图 §7 R1d 记录） | — | 非本批 |
+| 全职业 | 普攻攒点 | ❌ classes.py basic_skill 现网无 mech/无 dict res_gain（战士挥剑斩击带 `res_gain: 1` int 死字段——旧「普攻攒 1 主资源」泛语义，无 key 无消费端） | — | **普攻渠道无现网数据/desc 证据 → 不接**（§3 缺口） |
+
+**渠道只接一条**：牧师 faith（治疗施放 +2 / 受击 +1——旧表 on_heal:2/on_hit:1 逐字值；
+on_hit 终代语义 = 受击，JOB_GUIDE desc「治疗攒点(on_heal +2)/受击 +1」佐证一致）。
+
+## 2. 数据形态与装配器（字段级）
+
+### 2.1 渠道声明（EFFECT_RULES 资源条目扩展）
+
+```python
+"faith": {
+    "name": "信仰值", "cap": 10,
+    # v181.M-R2d 攒取渠道（源 core_resources.cls_mu_shi on_heal:2/on_hit:1，文件 R2c 退役）：
+    #   heal_cast 治疗施放 +2 / taken 受击 +1——装配层按 start_classes 归属挂事件钩子。
+    #   （攻击系攒信念 = v130 per-skill res_gain 数据语义，v153 skills 重做未回填 → §3 缺口）
+    "start_classes": ["cls_mu_shi"],       # 渠道归属职业（复用 start_full 归属字段语义：防白拿）
+    "channels": {"heal_cast": 2, "taken": 1},
+}
+```
+
+- `channels`：dict {渠道时机名: 每事件加值}。时机名是装配层语义层（非 battle2 事件名直接裸露），
+  由装配器映射展开——防止渠道语义与事件位细节耦合（事件位若日后调整只改映射表）。
+- `start_classes`：归属职业（空 = 不装配，防白拿）。复用 start_full 同名字段（R2a 先例），
+  语义泛化为「本条目的装配归属职业」（start_full 与 channels 各自按它过滤）。
+
+### 2.2 时机名 → battle2 事件映射（class_mech_proc 私有表）
+
+| 时机名 | battle2 事件 | 附加过滤 | 说明 |
+|---|---|---|---|
+| attack_hit | attack_hit | — | 普攻命中（basic 专属事件） |
+| skill_hit | skill_hit | — | 技能命中 |
+| heal_cast | act_cast | kind=治疗 | 治疗「施放」与「命中」同刻（R4 holy_echo 同款折中）；act_cast 每技能施放 1 次 → 无多目标重复 |
+| taken | on_taken | — | 受击（真实承伤后 fire，subject=受击者） |
+| cast | act_cast | not_basic | （预留：技能施放，未装配用） |
+
+未映射时机名 → 装配器静默跳过（版本漂移保护，同 R4 affix 翻译器缺口词条行为）。
+
+### 2.3 装配器落点：并入 class_mech_proc（不新建文件、不碰 battle2_equip_proc）
+
+- 装配函数：`class_mech_proc.apply_class_mech(actor)` 内新增「渠道段」（与既有 start_full 段并列；
+  同一幂等装配入口）。**装配点零改动**——apply_class_mech 已由 _open_battle2 / PVP / tower 四处
+  并列 `_EP_apply + _CM_apply` 调用（combat.py L622/L2804、tower.py L154；instance 控制器
+  现状未接 class_mech，渠道随之不在副本生效——与 mech 兑现现状一致，不新增风险）。
+- 渠道效果形态：`actor.triggers[事件]` 挂 `{"type": "class_res_channel_gain", "res", "gain",
+  "kind"/"not_basic", "label", "icon"}`——与 affix R4 产出同构（battle2 事件总线统一分发），
+  但 **type 用 class_mech_proc 自注册动作**（R1a mech_cash_* 先例），零跨文件私有耦合：
+  - 不动 battle2_we_procs.py（并行 agent 域 + R4 词条动作命名域）
+  - 不 import battle2_equip_proc 的 _AFFIX_RES_GAIN_ON（私有表，affix 域时机语义带 on_ 前缀）
+- 动作 `class_res_channel_gain`（~20 行，参数化零资源硬编码）：
+  kind/not_basic 过滤（读 battle._fire_ctx.info）→ owner=声明者（_owner 或 caster）存活检查 →
+  effects[res].stacks += gain，cap clamp 查 state_def(res).cap → 日志「✦ {label} +{gain}（{n}/{cap}）」。
+  （叠层写入与引擎 apply op=add 同口径；独立动作只因需事件过滤 + 统一日志。）
+
+### 2.4 范围与防刷约束
+
+- 只接核实过「现网有技能/机制在用的资源」渠道；energy period 不回退。
+- 渠道值全来自 EFFECT_RULES 声明（零默认值铁律：无 channels 字段 = 无渠道）。
+- clamp cap：动作侧 min(cap, cur+gain)（溢出不产生任何值——防刷资源）。
+- 层数无 stat_scale 副作用（faith 纯 cap 容器）→ 攒满/溢出无属性影响；等卸负兑现（R1c
+  heal_clear 族缺口）+ 负载档位装配后闭环（§3）。
+
+## 3. 死 key 判定与处理（不接 + 标注）
+
+| key | 判定依据 | 处理 |
+|---|---|---|
+| rage | skills.py 全表零 mech/res_gain/res_cost；battle2 无 dual_form 形态机消费（v139 留档）；EFFECT_RULES stat_scale dmg_mult 0.12/层为 v151 前残留——若渠道误喂，满层 +120% dmg 无人消费 = 数值崩坏 | EFFECT_RULES 注释标注「技能域渠道死 key」，渠道不接；affix 域由 R4 通道照旧 |
+| cp / chi / element | v151+ 技能零使用（lian_duan / 破绽条·磐核 / 印记体系取代） | 同上标注（EFFECT_RULES 条目注释） |
+| 普攻攒 zhan_yi/lian_duan | 现网 basic_skill 无 mech/无 dict res_gain；v151 desc 攒点语义全内嵌技能 mech（普攻用 lv1 无 cd 技能承担攒点职责，如挥砍/刺击/圣光弹） | 不接，注释缺口（若策划要普攻直接攒 → basic_skill 加 mech 或 channels 声明 attack_hit 一行，勿在装配层硬编码） |
+
+## 4. 缺口注释（本批不做，留档）
+
+- 牧师攻击系攒信念：v130 per-skill res_gain（圣光弹/圣光惩击 +1、圣光惩戒「不增信念」无字段）
+  在 v153 skills 重做时未回填 → 需技能数据回填 res_gain（蓝图边界：不改 skills 数据，归数据批次）。
+- faith_unload（卸负）兑现装配：mech 值在 MECH_CASH 无声明 → 信念攒出后暂无人消费（层 clamp cap
+  无副作用）；兑现 + 负载四档（0-3/4-7 ×1.25/8-9 ×1.5/10 过载清零）+ 每刻 −0.7 衰减 = v130 负载制
+  整体装配，记缺口（同 passive_procs tick_faith 族未挂接现状）。
+- 战士普攻攒战意 / 刺客普攻攒连段：无现网证据，若策划确认需 basic_skill mech 或 channels 声明。
+- overflow_shield 满溢转盾：v130.2.1 三资源（rage/chi 域）随死 key 不接；活 key 侧无声明需求，不引入。
+- v153 被动族（passive_procs.py 52 proc：arcane_intuition 每刻充能 / undead_faith 亡灵在场回信念等）
+  挂点未接 battle2——被动回复属 tick 族装配批次，非事件渠道。
+
+## 5. 测试计划（tests/test_class_mech_r2d.py，仿 R2a 样板）
+
+1. 装配：牧师 apply_class_mech → triggers.act_cast（kind=治疗 gain2）+ triggers.on_taken（gain1）；
+   战士/游侠无 faith 渠道条目（start_classes 归属防白拿）
+2. 治疗施放攒：A.do_skill kind=治疗 → effects.faith 0→2
+3. 连续治疗 clamp cap：堆到 cap 10 不再涨（溢出安全）
+4. 受击攒：敌方真实扣血（landing.deal_damage）→ faith +1
+5. 负向：普攻（物理 act_cast）/攻击技能命中（skill_hit）不增 faith（kind 过滤，无双计数）
+6. 负向：非牧师职业受击/治疗无 faith 条目（无渠道装配 + 无副作用）
+7. 回归：energy start_full/period 不受影响（faith 无 start_full 无 period → 牧师开局无 faith 条目）
