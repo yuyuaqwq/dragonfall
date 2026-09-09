@@ -554,4 +554,32 @@ interrupt 事件扩展）+ P5 原语盘点（element/reflect/defend_reduce/形�
 全量 340 = 315/25 与基线一致零新增（5c 系列测试 P1 22 + P2 26 + P3 18 + P4 14
 + e2e 15 = 95 断言全绿）。
 
+## 9.9 5c P5 完成记录（2026-09-09，on_interrupt + 原语盘点结论）
+### 交付：on_interrupt 读条打断联动（引擎 +4 行事件 + 导演观察者）
+- EVENTS 全集加 "interrupt"（23 个；n8_events 断言 22→23 同步）
+- 引擎打断点 fire：landing.py 伤害打断 charging 处 + effects.act_interrupt 动词处
+  （ctx {actor=被打断者, source=攻击方}）
+- 导演 make_script_event 加 interrupt 分支：被打断者是剧本 Boss（cfg.on_interrupt）
+  → _interrupt_link：
+    freeze_self（咕噜等）→ effects boss_frozen {mode=skip, expire=now+turns}
+    （引擎 act 控制消费：冻结帧不行动）
+    vulnerable（19 处配置多数）→ boss._dmg_taken_mult=value + bs.flags._vuln_until
+    =round_no+turns；导演帧 _check_vuln_expire 到点清（landing 承伤乘区消费）
+- 测试 test_boss_script_p5.py 14/0（观察者 freeze_self 真实咕噜 cfg / vulnerable
+  时效清理 / 引擎链路伤害打断→联动 / 非剧本 Boss 不联动）
+### P5 原语盘点结论（能做的做了，其余标注缺口待上层批）
+| 原语 | 现状 | 处置 |
+|---|---|---|
+| on_interrupt ×19 | ✅ 本次完成 | 全链可用 |
+| pdot（给玩家 DOT） | battle2 effects period 已表达（on target） | ✅ 无需专门原语 |
+| element_immune/weak | 数据透传但 **battle2 无元素伤害系统**（landing/effects 无 elem 消费） | ⏳ 元素伤害批（未来） |
+| reflect（血<25% 反弹 15%，×1 boss） | 反伤装配未迁 battle2（_we_executors 旧引擎） | ⏳ 装配层 on_taken 声明批 |
+| defend_reduce（方向性防御 v178 E6） | battle2 defending 减伤固定 0.5（landing:58），无按技能覆盖 | ⏳ 防御技能批 |
+| 形态轮换（烛影/蚀夜双态） | phases + element 组合可表达；element 未落地前形态无伤害差异 | ⏳ 随 element 批 |
+| mortal_wound（3 opening 用） | 玩家 effects 条目已落（P2）；**battle2 吸血装配未落地**→无消费 | ⏳ 吸血装配批 |
+- v15 flaky 记录：numeric_actor_class run_all 并行偶红（单测 3 次全过；
+  清 .run_all_workers 后 v16 回绿）——既有随机脆弱测试，非本次改动引入
+### 5c 终态：P1-P5 + e2e 全完成，测试 109 断言全绿
+P1 22 + P2 26 + P3 18 + P4 14 + P5 14 + e2e 15。全量 341 = 316/25（基线一致零新增）。
+
 ## 10. 会话重启口令（2026-09-09 上午更新）

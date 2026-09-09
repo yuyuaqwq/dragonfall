@@ -94,7 +94,8 @@ TEST_SKILL = {"name": "测试斩", "kind": "物理", "exprs": ["atk*1.0"]}
 
 def test_events_declared():
     print("【N8.0 事件全集声明 + 引擎点位分布】")
-    check("EVENTS 22 个（19 效果时机 + 2 数值修正钩子 + act_done）", len(TR.EVENTS) == 22, f"len={len(TR.EVENTS)}")
+    check("EVENTS 23 个（19 效果时机 + 2 数值修正钩子 + act_done + N5B5c interrupt）",
+          len(TR.EVENTS) == 23, f"len={len(TR.EVENTS)}")
     for ev in ("battle_start", "turn_start", "act_begin", "act_cast",
                "skill_hit", "attack_hit", "crit", "on_taken", "on_heal",
                "on_kill", "on_death", "dot_tick", "on_act_consume",

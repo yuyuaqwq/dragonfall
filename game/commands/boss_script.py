@@ -103,6 +103,8 @@ def make_script_hook(st: dict):
                 bs = st["boss_script"] = _new_script_state()
             bs["round_no"] = int(bs.get("round_no", 0) or 0) + 1
             _now = float(getattr(battle, "_now", 0) or 0)
+            # P5：vulnerable 破绽到期清理（on_interrupt 联动时效）
+            _check_vuln_expire(st, battle, actor, bs)
             # P2：开场技（第一帧 once）
             _check_opening(st, battle, actor, cfg, bs, _now, logs)
             # P2：条件反制（player_low 玩家低血追击）
@@ -589,24 +591,78 @@ def make_script_event(st: dict):
     """
     def on_event(battle, evt_name, ctx, logs):
         try:
-            if evt_name != "on_death":
-                return
-            dead = (ctx or {}).get("actor") or {}
-            if not dead.get("is_minion"):
-                return
-            # 找剧本 Boss（enemy side 非爪牙有 on_minion_died 配置）
-            for a in battle.sides_of("enemy"):
-                if a is dead or a.get("is_minion"):
-                    continue
-                if int(a.get("hp", 0) or 0) <= 0:
-                    continue
-                cfg = boss_script_cfg(st, a)
-                if not cfg or not cfg.get("on_minion_died"):
-                    continue
-                _minion_death_link(st, battle, a, cfg["on_minion_died"], logs)
+            if evt_name == "on_death":
+                dead = (ctx or {}).get("actor") or {}
+                if not dead.get("is_minion"):
+                    return
+                # 找剧本 Boss（enemy side 非爪牙有 on_minion_died 配置）
+                for a in battle.sides_of("enemy"):
+                    if a is dead or a.get("is_minion"):
+                        continue
+                    if int(a.get("hp", 0) or 0) <= 0:
+                        continue
+                    cfg = boss_script_cfg(st, a)
+                    if not cfg or not cfg.get("on_minion_died"):
+                        continue
+                    _minion_death_link(st, battle, a, cfg["on_minion_died"], logs)
+            elif evt_name == "interrupt":
+                # N5B5c P5：读条打断 → on_interrupt 剧本联动（Boss 被断 → 反噬/破绽）
+                hit = (ctx or {}).get("actor") or {}
+                if int(hit.get("hp", 0) or 0) <= 0:
+                    return
+                cfg = boss_script_cfg(st, hit)
+                if not cfg or not cfg.get("on_interrupt"):
+                    return
+                _interrupt_link(st, battle, hit, cfg["on_interrupt"], logs)
         except Exception:
             pass
     return on_event
+
+
+def _interrupt_link(st: dict, battle, boss: dict, link, logs: list) -> None:
+    """读条打断联动执行。link = {"effect": ..., "value": ..., "turns": ...}。
+    配置样例（MONSTER_MODS on_interrupt）：
+      {"effect": "freeze_self", "value": 1, "turns": 1}   → Boss 自冻结（skip 1 刻）
+      {"effect": "vulnerable",  "value": 1.2, "turns": 2} → Boss 承伤 ×1.2（2 帧）
+    """
+    try:
+        if not isinstance(link, dict):
+            return
+        eff = str(link.get("effect") or "")
+        val = link.get("value")
+        turns = int(link.get("turns", 1) or 1)
+        bname = boss.get("name", "")
+        now = float(getattr(battle, "_now", 0) or 0)
+        if eff == "freeze_self":
+            ef = boss.setdefault("effects", {})
+            old = ef.get("boss_frozen") or {}
+            ef["boss_frozen"] = {"mode": "skip",
+                                 "expire": max(float(old.get("expire", 0) or 0),
+                                               now + turns)}
+            logs.append(f"🧊【{bname}】的读条被打破，僵直了 {turns} 刻！")
+        elif eff == "vulnerable":
+            boss["_dmg_taken_mult"] = float(val if val is not None else 1.2)
+            bs = st.get("boss_script")
+            if isinstance(bs, dict):
+                rn = int(bs.get("round_no", 0) or 0)
+                bs.setdefault("flags", {})["_vuln_until"] = rn + max(1, turns)
+            logs.append(f"💔【{bname}】读条被断，破绽大开（承伤提升）！")
+    except Exception:
+        pass
+
+
+def _check_vuln_expire(st: dict, battle, actor: dict, bs: dict) -> None:
+    """导演帧：vulnerable 破绽到期清理（round_no 到点移除 _dmg_taken_mult）。"""
+    try:
+        flags = bs.get("flags") or {}
+        until = int(flags.get("_vuln_until", 0) or 0)
+        if not until:
+            return
+        if int(bs.get("round_no", 0) or 0) >= until:
+            actor.pop("_dmg_taken_mult", None)
+            flags.pop("_vuln_until", None)
+    except Exception:
+        pass
 
 
 def _minion_death_link(st: dict, battle, boss: dict, link, logs: list) -> None:
