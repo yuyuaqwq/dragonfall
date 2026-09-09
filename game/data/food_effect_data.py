@@ -44,3 +44,14 @@ FOOD_EFFECT_PARAMS = {
     # ---- 护盾类（battle._do_use_item 特判消费） ----
     "shield":       {"pct": 0.10, "turns": 3},                    # 圣餐面包：10% 生命护盾 3刻
 }
+
+# 食物效果展示名（吃下播报/物品详情用；N10-B7 从 core/food_effects 迁入——
+# food_effects.py 旧注册表随 battle.py 删除，展示名权威表与数值同处）
+FOOD_EFFECT_NAMES = {
+    "lifesteal": "吸血", "shield": "护盾", "bleed": "流血", "counter": "反击",
+    "armor_break": "破甲", "dragon_tongue": "龙语印记", "combo": "连击",
+    "element_ice": "元素·冰", "regen": "回春", "meditate": "冥想",
+    "thorns": "反伤", "precise": "精准", "execute": "处决", "pierce": "贯穿",
+    "element_fire": "元素·火", "charge": "蓄力", "dawn_crown": "晨曦祝福",
+    "aurora_guard": "极光庇护", "static": "静电麻痹",
+}

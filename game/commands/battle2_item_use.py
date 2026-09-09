@@ -178,7 +178,7 @@ def translate(battle, actor: dict, payload: str,
                                 "on": "caster"}], logs)
             except Exception:
                 pass  # 数据异常不阻断（护盾段可选）
-        from ..core.food_effects import FOOD_EFFECT_NAMES
+        from ..data.food_effect_data import FOOD_EFFECT_NAMES
         _names = [FOOD_EFFECT_NAMES.get(a, a) for a in aids]
         logs.append(f"🍲 你吃下了料理，获得【{'、'.join(_names)}】效果！(本场战斗)")
         return logs, cast

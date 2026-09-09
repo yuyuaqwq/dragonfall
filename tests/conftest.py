@@ -38,7 +38,6 @@ if os.environ.get("GWEN_NO_SHIMMED_ASTRBOT") != "1":
         sys.path.insert(0, _SHIM_DIR)
 
 from data.plugins.dragonfall.game import content as C, db, engine as E  # noqa: E402
-from data.plugins.dragonfall.game import battle as BT  # noqa: E402
 from data.plugins.dragonfall.main import Main  # noqa: E402
 
 

@@ -17,7 +17,6 @@ sys.path.insert(0, PLUGIN_DIR)
 from data.plugins.dragonfall.game import content as C
 from data.plugins.dragonfall.game.core import item_templates as IT
 from data.plugins.dragonfall.game import engine as E
-from data.plugins.dragonfall.game.battle import Battle
 
 PASS = 0
 FAIL = 0
@@ -68,43 +67,9 @@ class FakeCtx:
 r = IT.TEMPLATES["food"](FakeCtx(battle=True))
 check("战斗内 payload=hot:0.05,0.06,3", r.payload == "hot:0.05,0.06,3", r.payload)
 
-# ---- 3. Battle hot 全链路 ----
-print("== 3. 战斗内 hot 全链路 ==")
-enemy = {"name": "野狗", "hp": 50, "max_hp": 50, "atk": 5, "def": 0, "matk": 0, "mdef": 0, "spd": 25}
-b = Battle("monster", enemy, {})
-player = {"hp": 50, "max_hp": 100, "mp": 20, "max_mp": 100, "class_name": "cls_zhan_shi",
-          "level": 1, "learned_skills": [], "race": "human", "attributes": {}}
-logs, ended = b.actor_turn("use_item", "hot:0.05,0.06,3", player)
-joined = "\n".join(logs)
-check("吃下播报", "🍲 你吃下了食物" in joined and "每刻恢复 5% 生命" in joined, joined[:120])
-check("p_hot 已设置", b._p_hot() == {"heal": 0.05, "mana": 0.06, "turns": 3}, str(b._p_hot()))
-hp0, mp0 = player["hp"], player["mp"]
-
-# 下回合（普攻）：hot 结算
-logs2, _ = b.actor_turn("attack", "", player)
-# v180G B7 统一 CTB：推进日志并入（hot 结算在 advance 内触发）
-_adv2 = []
-b.advance_until_next_decision(_adv2)
-logs2 = logs2 + _adv2
-j2 = "\n".join(logs2)
-check("回合开始 hot 回血", "持续恢复生效" in j2 and player["hp"] > hp0, f"{j2[:100]} hp={player['hp']}")
-check("hot 回蓝", player["mp"] > mp0, f"mp={player['mp']}")
-check("剩余回合提示", "剩余" in j2 and "刻" in j2, j2[:100])
-check("turns 递减", b._p_hot()["turns"] in (1, 2), str(b._p_hot()))
-
-# 再两回合 → hot 结束
-b.actor_turn("attack", "", player)
-b.advance_until_next_decision([])
-logs4, _ = b.actor_turn("attack", "", player)
-b.advance_until_next_decision([])
-check("hot 结束清理", b._p_hot() == {}, str(b._p_hot()))
-
-# 吃食物当回合不结算（吃+结算不能同回合重复）
-b2 = Battle("monster", enemy, {})
-p2 = {"hp": 50, "max_hp": 100, "mp": 20, "max_mp": 100, "class_name": "cls_zhan_shi",
-      "level": 1, "learned_skills": [], "race": "human", "attributes": {}}
-l0, _ = b2.actor_turn("use_item", "hot:0.05,0,3", p2)
-check("吃食物回合不额外结算", "持续恢复生效" not in "\n".join(l0))
+# ---- 3. (N10 删旧：战斗内 hot 全链路已由 battle2 regen_hot period 验证——
+#    test_battle2_n10_b7_food test_honey_regen + battle2_item_use hot: 分支覆盖，
+#    旧 Battle.actor_turn hot 段退役) ----
 
 # ---- 4. 战斗外即时回复 ----
 print("== 4. tpl_food 战斗外 ==")

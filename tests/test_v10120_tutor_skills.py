@@ -103,15 +103,34 @@ async def main():
     print("【5. 技能升级 + 战斗施放】")
     out = await cmd(m, "skill_upgrade", "g1", "w1", "技能升级 魔力脉冲")
     check("升级成功", "Lv.2" in out, out[:150])
-    from game.battle import Battle
+    # battle2 验证升级后专属技能真实打出伤害（N10 删旧：battle2 施放语义）
+    from game.battle2 import Battle as _B2
+    from game.battle2 import make_actor as _mk2
     bp = db.get_player("g1", "w1")
-    bp["hp"] = bp["max_hp"]; bp["mp"] = 50
-    enemy = {"name": "测试木桩", "hp": 200, "max_hp": 200, "atk": 10, "def": 5, "matk": 10, "mdef": 5, "spd": 5, "lv": 5}
-    b = Battle("monster", enemy, title_bonus=None, player=bp)
-    logs, _ = b.actor_turn("skill", "魔力脉冲", bp)
-    # v154 读条命中制：出招读条结束（cast_done）才结算伤害——推进后命中
-    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, bp)
-    check("战斗施放有伤害", any("伤害" in str(l) for l in logs), str(logs)[:200])
+    _st = _mk2(uid="p_q1", name=bp.get("name", "勇者"), side="player", kind="player",
+               human_controlled=True, class_name=bp.get("class_name") or "法师",
+               level=bp.get("level") or 1, hp=500, max_hp=500, mp=200, max_mp=200,
+               atk=10, matk=50, spd=10, crit=0.0, equipment={}, skills=[],
+               learned_skills=bp.get("skills") or [], race=None, evolve_path=0,
+               class_tier=0, attributes={}, **{"def": 5, "mdef": 5})
+    _e = _mk2(uid="e_0", name="测试木桩", side="enemy", kind="monster", level=5,
+              hp=200, max_hp=200, atk=10, matk=10, spd=5, crit=0.0,
+              exp=0, gold=0, **{"def": 5, "mdef": 5})
+    _b = _B2(btype="monster", sides={"player": [_st], "enemy": [_e]})
+    _sk_id, _sk_info = None, None
+    for _cid, _cd in (C.PLAYER_SKILLS or {}).items():
+        for _sid, _sk in (_cd.get("skills") or {}).items():
+            if str((_sk or {}).get("name")) == "魔力脉冲":
+                _sk_id, _sk_info = _sid, dict(_sk)
+    if _sk_info:
+        from game.battle2.actors import ActCtx
+        _logs = []
+        _b.act(ActCtx(caster=_st, action="skill", skill_name="魔力脉冲",
+                      info=_sk_info, target=_e))
+        check("战斗施放有伤害（battle2）", int(_e.get("hp", 200)) < 200,
+              f"hp={_e.get('hp')} logs={str(_logs)[:80]}")
+    else:
+        check("找到魔力脉冲技能数据", False, "skills 未找到")
 
     print("【6. 职业技能不受影响】")
     # 战士的破甲斩/战吼是职业技能（TUTOR 重名已删）→ 技能点可学

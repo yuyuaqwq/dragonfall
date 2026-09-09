@@ -2,7 +2,7 @@
 """v83 探索彩蛋事件（02 章 7.5）：流星许愿 / 神秘宝匣 / 神秘访客 + 许愿命令"""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, E, BT, Main, FakeEvent, run, clean_db, make_player
+from conftest import C, db, E, Main, FakeEvent, run, clean_db, make_player
 
 passed = failed = 0
 def check(name, cond, detail=""):

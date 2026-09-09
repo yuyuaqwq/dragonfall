@@ -172,19 +172,6 @@ async def test_enhance_boost():
         m._at_smith = orig_at
 
 
-def test_aurora_guard():
-    print("【5. 极光庇护（受击减伤）】")
-    from data.plugins.dragonfall.game.core.food_effects import FOOD_TAKEN_EFFECTS
-    fn = FOOD_TAKEN_EFFECTS["aurora_guard"]
-    class FakeBattle:
-        enemy = {"hp": 100, "name": "测试怪"}
-    logs = []
-    ctx = {"dmg": 100, "out": 100}
-    fn(FakeBattle(), {"hp": 50}, ctx, logs)
-    check("极光庇护减伤 15%", ctx["out"] == 85, f"out={ctx['out']}")
-    check("减伤有播报", any("极光庇护" in l for l in logs), str(logs))
-
-
 def test_recipes():
     print("【6. 新配方完整性】")
     from game.data.cooking import COOKING_RECIPES
@@ -218,7 +205,6 @@ async def main():
     test_deep_mining()
     test_bait_fishing()
     await test_enhance_boost()
-    test_aurora_guard()
     test_recipes()
     print(f"\n结果: {passed} 通过, {failed} 失败")
     sys.exit(1 if failed else 0)
