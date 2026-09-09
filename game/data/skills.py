@@ -128,6 +128,7 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 1.16,
              'kind': '魔法·火',
+             'element': 'fire',
              'exprs': ['matk*1.6 + 16 + player_lv*5.4 + skill_lv*12.8'],
              
              'cast': 0.8,
@@ -141,6 +142,7 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.16,
              'kind': '魔法·冰',
+             'element': 'ice',
              'exprs': ['matk*1.4 + 15 + player_lv*5.0 + skill_lv*12'],
              
              'cast': 0.8,
@@ -155,6 +157,7 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.16,
              'kind': '魔法·雷',
+             'element': 'thunder',
              'exprs': ['matk*1.6 + 19 + player_lv*6.0 + skill_lv*14'],
              
              'cast': 0.8,
@@ -196,6 +199,7 @@ PLAYER_SKILLS = {
              'mp': 16,
              'power': 0.47,
              'kind': '魔法·雷',
+             'element': 'thunder',
              'exprs': ['matk*0.33 + 10 + player_lv*4.0 + skill_lv*8'],
              
              'cast': 1.0,
@@ -211,6 +215,7 @@ PLAYER_SKILLS = {
              'mp': 24,
              'power': 1.08,
              'kind': '魔法·火',
+             'element': 'fire',
              'exprs': ['matk*2 + 25 + player_lv*8.0 + skill_lv*20'],
              
              'cast': 1.2,
@@ -1333,6 +1338,7 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 1.48,
                         'kind': '魔法·火',
+                        'element': 'fire',
              'exprs': ['matk*1.767 + 33 + player_lv*7.8 + skill_lv*16.5'],
              
                         'cast': 0.9,
@@ -1694,6 +1700,7 @@ BRANCH_SKILLS = {
                         'mp': 50,
                         'power': 3.15,
                         'kind': '魔法·雷',
+                        'element': 'thunder',
              'exprs': ['matk*3.5 + 125 + player_lv*8.0 + skill_lv*18'],
              
                         'cast': 1.1,
