@@ -536,4 +536,22 @@ P1 导演框架+phases ✅ / P2 opening+低血+简单机制 ✅ / P3 召唤 ✅ 
 剩余：on_interrupt（引擎 interrupt 事件）、P5 场景原语盘点（reflect 反弹/
 element_immune/weak/defend_reduce/pdot/形态轮换）
 
+## 9.8 5c 端到端验收完成记录（2026-09-09，真实副本 Boss 战）
+### test_boss_script_e2e.py 15/0（真实命令层链路，非单测）
+- 流程：开本（哥布林营地）→ 清房 → 移动 Boss 房 → Boss 战（真实玩家操作）
+- 断言：咕噜登场（+开怪 2 爪牙 minions 展开）→ opening 首帧触发（掠夺号令
+  演出 + flags._open_played）→ Boss 压血 <60% 触发阶段 2（抄起酒桌演出 +
+  sides actor auto_act 换招 ms_lve_jie_huan_zhua）→ <40% 酒疯（merge normal
+  模板 atk ×1.7 落 sides actor effects）→ 导演状态 st["boss_script"] 全程
+  在真实副本大陆权威 st 持久化
+- 教训：导演改动落在 **sides actors**（st["boss"] 视图键不同步 auto_act/effects）
+  ——断言必须读 sides actor；压血 helper 只压存活单位（死爪牙别"复活"）；
+  副本开本按 DB max_hp 钳制玩家血（测试提血要连 max_hp 一起）
+### 5c 状态：P1-P4 + e2e 全部完成
+27 卡机制族：打断博弈/叠层/转火/读招防反/召唤 全部可表达（phases+opening+
+player_low+summon+chains+on_minion_died+简单 token）；剩 on_interrupt（引擎
+interrupt 事件扩展）+ P5 原语盘点（element/reflect/defend_reduce/形态轮换）。
+全量 340 = 315/25 与基线一致零新增（5c 系列测试 P1 22 + P2 26 + P3 18 + P4 14
++ e2e 15 = 95 断言全绿）。
+
 ## 10. 会话重启口令（2026-09-09 上午更新）
