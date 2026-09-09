@@ -50,9 +50,9 @@ def mk_mage():
     return p
 
 
-def mk_enemy(hp=99999, name="测试怪", **kw):
+def mk_enemy(hp=99999, name="测试怪", atk=1, matk=1, **kw):
     e = make_actor(uid="e1", name=name, side="enemy", kind="monster",
-                   hp=hp, max_hp=hp, atk=1, matk=1, spd=5, crit=0.0,
+                   hp=hp, max_hp=hp, atk=atk, matk=matk, spd=5, crit=0.0,
                    level=20, exp=0, gold=0, **{"def": 5, "mdef": 5}, **kw)
     return e
 
@@ -143,6 +143,79 @@ def test_holy_weak():
     check("holy 弱点 ×1.15", 110 <= 100000 - e["hp"] <= 120, f"hp={e['hp']} dmg0={dmg0}")
 
 
+def test_player_elem_res():
+    print("【7. N10-B6c：怪元素技能打玩家吃元素抗性（elem_res）】")
+    import random
+    random.seed(99)  # 固定 seed 消除 variance 干扰（前序测试已消费随机序列）
+    # 玩家 actor 面板 elem_res 从词条折算（equipment stats）
+    p = make_actor(uid="p1", name="抗性法师", side="player", kind="player",
+                   human_controlled=True, class_name="cls_fa_shi", level=20,
+                   hp=3000, max_hp=3000, mp=500, max_mp=500,
+                   atk=30, matk=200, spd=15, crit=0.0,
+                   equipment={"armor": {"key": "a1", "stats": {"elem_res": 0.30}}},
+                   skills=[], learned_skills=[], race=None,
+                   evolve_path=0, class_tier=0, attributes={},
+                   **{"def": 30, "mdef": 30})
+    m = mk_enemy(hp=99999, name="火元素怪", atk=1, matk=100)
+    b = B2(btype="monster", sides={"player": [p], "enemy": [m]})
+    hp0 = p["hp"]
+    # 怪火系魔法打玩家（element=fire）→ 吃 elem_res 30%
+    info = {"kind": "魔法", "power": 1.0, "element": "fire", "exprs": ["matk*1.0"], "name": "火球"}
+    A.do_skill(b, ActCtx(caster=m, action="skill", skill_name="火球", info=info, target=p))
+    lost_res = hp0 - p["hp"]
+    # 对照：同技能打无抗性玩家（同 seed 同 roll）
+    random.seed(99)
+    p2 = make_actor(uid="p2", name="无抗法师", side="player", kind="player",
+                    human_controlled=True, class_name="cls_fa_shi", level=20,
+                    hp=3000, max_hp=3000, mp=500, max_mp=500,
+                    atk=30, matk=200, spd=15, crit=0.0,
+                    equipment={}, skills=[], learned_skills=[], race=None,
+                    evolve_path=0, class_tier=0, attributes={},
+                    **{"def": 30, "mdef": 30})
+    b2 = B2(btype="monster", sides={"player": [p2], "enemy": [mk_enemy(name="火元素怪", atk=1, matk=100)]})
+    hp0_2 = p2["hp"]
+    A.do_skill(b2, ActCtx(caster=b2.sides_of("enemy")[0], action="skill",
+                          skill_name="火球", info=info, target=p2))
+    lost_no = hp0_2 - p2["hp"]
+    check("有抗玩家受伤更少", lost_res < lost_no, f"res={lost_res} no={lost_no}")
+    check("抗性减免明显生效（ratio<0.95）", lost_res < 0.95 * lost_no,
+          f"ratio={lost_res/max(1,lost_no):.2f}")
+
+
+def test_dark_abyss_res():
+    print("【8. N10-B6c：dark 元素吃深渊抗性（abyss_res）】")
+    p = make_actor(uid="p1", name="深渊抗性", side="player", kind="player",
+                   human_controlled=True, class_name="cls_fa_shi", level=20,
+                   hp=3000, max_hp=3000, mp=500, max_mp=500,
+                   atk=30, matk=200, spd=15, crit=0.0,
+                   equipment={"armor": {"key": "a1", "stats": {"abyss_res": 0.20}}},
+                   skills=[], learned_skills=[], race=None,
+                   evolve_path=0, class_tier=0, attributes={},
+                   **{"def": 30, "mdef": 30})
+    m = mk_enemy(hp=99999, name="暗影怪", atk=1, matk=100)
+    b = B2(btype="monster", sides={"player": [p], "enemy": [m]})
+    hp0 = p["hp"]
+    info = {"kind": "魔法", "power": 1.0, "element": "dark", "exprs": ["matk*1.0"], "name": "暗影箭"}
+    A.do_skill(b, ActCtx(caster=m, action="skill", skill_name="暗影箭", info=info, target=p))
+    lost_dark = hp0 - p["hp"]
+    # 对照：fire 不吃 abyss_res（0.2 只对 dark 生效）
+    p2 = make_actor(uid="p2", name="深渊抗性2", side="player", kind="player",
+                    human_controlled=True, class_name="cls_fa_shi", level=20,
+                    hp=3000, max_hp=3000, mp=500, max_mp=500,
+                    atk=30, matk=200, spd=15, crit=0.0,
+                    equipment={"armor": {"key": "a1", "stats": {"abyss_res": 0.20}}},
+                    skills=[], learned_skills=[], race=None,
+                    evolve_path=0, class_tier=0, attributes={},
+                    **{"def": 30, "mdef": 30})
+    b2 = B2(btype="monster", sides={"player": [p2], "enemy": [mk_enemy(name="火怪", atk=1, matk=100)]})
+    hp0_2 = p2["hp"]
+    info_fire = {"kind": "魔法", "power": 1.0, "element": "fire", "exprs": ["matk*1.0"], "name": "火球"}
+    A.do_skill(b2, ActCtx(caster=b2.sides_of("enemy")[0], action="skill",
+                          skill_name="火球", info=info_fire, target=p2))
+    lost_fire = hp0_2 - p2["hp"]
+    check("dark 伤害被深渊抗减免", lost_dark < lost_fire, f"dark={lost_dark} fire={lost_fire}")
+
+
 if __name__ == "__main__":
     test_fireball_carries_element()
     test_weak_multiplier()
@@ -150,6 +223,8 @@ if __name__ == "__main__":
     test_no_element_noop()
     test_aoe_per_target()
     test_holy_weak()
+    test_player_elem_res()
+    test_dark_abyss_res()
     print(f"\n== 结果：通过 {PASS} / 共 {PASS + FAIL} ==")
     if FAILURES:
         for f in FAILURES:
