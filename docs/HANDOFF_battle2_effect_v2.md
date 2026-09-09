@@ -582,4 +582,29 @@ interrupt 事件扩展）+ P5 原语盘点（element/reflect/defend_reduce/形�
 ### 5c 终态：P1-P5 + e2e 全完成，测试 109 断言全绿
 P1 22 + P2 26 + P3 18 + P4 14 + P5 14 + e2e 15。全量 341 = 316/25（基线一致零新增）。
 
+## 9.10 N5B 怪 AI P1 完成记录（2026-09-09，通用 AI 决策器 + 怪技能索引 bug）
+### 交付
+- **game/battle2/ai.py 新模块**：normalize_ai（旧 {skill_chance,weights} → weighted
+  moves，幂等写回）+ eval_when（谓词 v1：self_hp_lt/gt、hostile_lowest_hp_lt、
+  round_mod（actor.act_count）、cd_ok、恒真——未知谓词不命中防拼写漂移）+
+  resolve_ai_move（priority 条件表 / weighted 权重随机 + skill_chance 概率回落）
+- **actor_auto 决策 4 层**：导演演出刻 skip → auto_act 显式（导演换招/连招链压 AI）
+  → ai 决策器（本批）→ 普攻；act_count 个体行动计数随 actor 序列化
+- **🚨 修深层 bug：battle2 怪技能索引缺 MONSTER_SKILLS 源**（battle.py _index_skills
+  只查玩家技能表 → ms_* 怪技能索引空 → ActCtx.info={} → do_skill 静默空放——
+  怪从头到尾放不出技能，5c 导演换招后 Boss 实际打普攻）。修：查 C.MONSTER_SKILLS
+  （旧引擎 7666 同款：先怪表后玩家表）
+### 测试（test_monster_ai_p1.py 22/0）
+normalize 幂等 / priority 命中顺序+AND+未知谓词 / round_mod 节奏 /
+hostile 残血追击 / cd_ok 冷却（id→name 经 actor._skill_index）/ weighted 分布
++chance 回落 / 真实咕噜 ai.weights 20 帧自选技能（技能真实打出伤害）
+### ⚠️ 已知小瑕疵（记录待修）
+- P3 召唤物 append enemy side 尾部 = 后排不挡刀；旧语义 rank1 前排。真实 Boss
+  召唤应插前排（e2e 咕噜无 summon token 未暴露）。修法：append 前插到敌方
+  sides 前排位置（rank1 层），后续批处理。
+- battle2 无射程限制（玩家可指定打后排，无"够不到"规则）——旧 v114.2 站位
+  射程语义未迁，记录上层站位批。
+### 全量
+342 = 317/25（AI 测试计入）基线一致零新增。
+
 ## 10. 会话重启口令（2026-09-09 上午更新）
