@@ -158,6 +158,15 @@ def _mech_cash_rules() -> dict:
         return {}
 
 
+def _effect_rules() -> dict:
+    """当前 EFFECT_RULES（缺省空）。"""
+    try:
+        from ..battle2.config import get_effect_rules
+        return get_effect_rules() or {}
+    except Exception:
+        return {}
+
+
 def _learned_mech_skills(actor: dict) -> list:
     """actor 已学技能中含 mech 的技能 [(中文名, info)]（查技能定义表）。"""
     cn = actor.get("class_name") or ""
@@ -193,6 +202,24 @@ def apply_class_mech(actor: dict) -> None:
         if not rules:
             return
         trig = actor.setdefault("triggers", {})
+        # v181.M-R2：start_full 资源开局满额（读 EFFECT_RULES 条目 start_full 声明，
+        # 源 core_resources.cls_you_xia v176 游侠精力开局满——装配层初始化 effects 条目）
+        try:
+            _full_rules = _effect_rules()
+            _cn = actor.get("class_name") or ""
+            for _rk, _rc in (_full_rules or {}).items():
+                if not (isinstance(_rc, dict) and _rc.get("start_full")):
+                    continue
+                # 开局满额归属职业（start_classes 声明，空 = 不装配）——防非游侠白拿 energy
+                _sc = _rc.get("start_classes") or []
+                if _sc and _cn not in _sc:
+                    continue
+                _cap = int(_rc.get("cap", 0) or 0)
+                if _cap > 0:
+                    actor.setdefault("effects", {})[_rk] = {
+                        "stacks": _cap, "expire": 999999.0}
+        except Exception:
+            pass
         mechs = {info.get("mech") for _s, info in _learned_mech_skills(actor)}
         for mech in mechs:
             cash = rules.get(mech)

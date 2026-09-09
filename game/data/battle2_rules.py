@@ -48,6 +48,12 @@ EFFECT_RULES: dict = {
     # 渠道喂养/单源化属 R2 批次，词条装配 R4 先落地。
     "energy": {
         "cap": 100,
+        # v181.M-R2（游侠专注流量制，源 core_resources.cls_you_xia v176）：
+        # - start_full：开局满额（装配层初始化 effects[energy] = cap）
+        # - period dir=gain：每刻自然回 18（schedule 时间驱动，静默回复 clamp cap）
+        "name": "精力", "start_full": True,
+        "start_classes": ["cls_you_xia"],   # 开局满额归属职业（装配层按 class 判）
+        "period": {"dir": "gain", "interval": 1.0, "amount": 18},
     },
     "faith": {
         "cap": 10,
