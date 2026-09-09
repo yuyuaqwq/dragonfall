@@ -599,11 +599,11 @@ def victory_settle(group_id, qq_id, player, monster, result, extra_kills=None):
     #262: 行为规则(三连胜等)提前到进度条显示前触发——exp_gain 模板会同步 player["exp"]，
     进度条与公告口径一致（此前公告在面板之后才写库，玩家感知为经验延迟到下一场）
 
-    返回 dict（供壳拼 lines 后 yield）：
-      exp / gold / exp_note / lucky_line / exp_bonus_line / party_bonus_line /
-      drop_lines / gem_line / rune_line / pet_egg_line / mount_line / rep_lines /
-      guild_bonus / pet_bonus / mount_bonus / evt_bonus /
-      lines_pre（进度条 4 行骨架 + 各加成段行） / player（结算后重读 dict）/
+    返回 dict（供壳拼 lines 后 yield）。v181 L3-P4 收口：仅保留壳实际消费的 3 键——
+    其余段中间量（exp/gold/各类 bonus/rep_lines……）已全部内联进 lines_pre 面板行，
+    dict 键全仓零消费者，属死字段清理（玩家可见输出零变化）：
+      lines_pre（完整面板行：进度条骨架 + 加成/掉落/图鉴声望/奖励各段行） /
+      player（结算后重读 dict）/
       rule_txt（rule_fire("battle_win", win) 返回值——壳在 L2288 原位置追加）"""
     from .. import db
     from ..core.rule_engine import fire as _rule_fire
@@ -696,13 +696,7 @@ def victory_settle(group_id, qq_id, player, monster, result, extra_kills=None):
     if evt_bonus:
         lines += evt_bonus
     return {
-        "exp": exp, "gold": gold,
-        "exp_note": _exp_note, "lucky_line": lucky_line,
-        "exp_bonus_line": exp_bonus_line, "party_bonus_line": party_bonus_line,
-        "drop_lines": drop_lines, "gem_line": gem_line, "rune_line": rune_line,
-        "pet_egg_line": pet_egg_line, "mount_line": mount_line,
-        "rep_lines": rep_lines, "guild_bonus": guild_bonus, "pet_bonus": pet_bonus,
-        "mount_bonus": mount_bonus, "evt_bonus": evt_bonus,
+        # v181 L3-P4 收口：16 个无消费者返回键已删（全仓仅壳消费 lines_pre/player/rule_txt）
         "lines_pre": lines,
         "player": player,
         "rule_txt": _rule_txt,
