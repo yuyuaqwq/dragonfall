@@ -4,6 +4,8 @@
 > `docs/DESIGN_v181_L3_player_event_bus.md` 细化到字段/行号级，可直接派 P1/P2 实施。
 > 本文件 = 任务书（P2E_task 先例），设计文档 = 权威思想；两者冲突以本文件侦察修订为准
 > （差异均在 §2 列出）。审过本文件后 P1 可开工。
+> 完成状态：✅ P1-P4 已全部落地（2026-09-09；P1 e26f92a / P2a b7f509c / P2 ee19c45 /
+> P3 0f722cd / P4 f9493e5+收尾，落地与裁定记录见 §9 P4 完成注、设计文档 §3 排期表）。
 
 ## 1. 侦察结论摘要
 
@@ -199,6 +201,15 @@ def fire(event: str, ctx: dict) -> list
 - P3-3 成就 25 处调用收敛：非战斗场景调用（economy/player/social/profession/party 等 20+ 处）不在 L3 范围
   （它们是行为钩子不是战斗事件），P3 只数"战斗入口调用数可数下降"，别误迁行为钩子。
 - P4 settlement 瘦身 + 新订阅方接入文档 + 本文件/设计文档回写收官。
+  ✅ **完成（2026-09-09，f9493e5 + 收尾 commit）**：接入指南 = docs/L3_player_event_subscription_guide.md
+  （剧情示例；声望/图鉴**刻意不给订阅示例**——见下方范围裁定，重复接线会双发）+
+  验证网 tests/test_l3_player_events.py 18 断言。settlement 瘦身裁定：P2/P3 已把玩家级反应
+  全部迁出结算链，victory_settle 现存唯一玩家级段 = 段8 bump_kill_stats（图鉴+势力声望），
+  按本文件 §2 差异表 #1 **范围外不迁**（行夹资源行中段：rep_lines 前有 mount_line 后有
+  guild_bonus，迁订阅=行序重组+零收益；且其消费 evt_effects 为结算内部传递链）——设计文档
+  P4 行原预期「victory_settle 行数显著下降」随 P2 壳段迁移已达成主体。收尾动作：victory_settle
+  返回 dict 删 16 个零消费者键（全仓仅 combat._handle_victory 壳消费 lines_pre/player/rule_txt；
+  死字段清理铁律：先 grep 全仓引用确认无消费者再删），玩家可见输出零变化（快照测试逐字段全等）。
 
 ## 10. 风险与边界（实施前必读）
 
