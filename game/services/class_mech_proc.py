@@ -885,6 +885,49 @@ def install() -> None:
                               "expire": exp}
         logs.append(f"🐍 {params.get('label') or '被动'}：剧毒缠身，目标减速降防！")
 
+    @register_action("class_shadow_dance_enter")
+    def class_shadow_dance_enter(battle, caster, target, params, logs):
+        """增益技 effect=shadow_dance（暗影步）：连段 ≥5 → 进入影舞态。
+
+        语义（v153 影舞者线）：暗影步「连段满 5 → 进入影舞态」——effects[shadow_dance]
+        1 层（cd_mult 0.8 态内 CD−20% 引擎通用修正）。连段不足 → 提示不进入。
+        """
+        actor = caster if caster is not None else target
+        if actor is None:
+            return
+        ef = actor.get("effects") or {}
+        _le = ef.get("lian_duan")
+        n = float(_le.get("stacks", 0) or 0) if isinstance(_le, dict) else 0.0
+        if n < 5:
+            logs.append(f"🌫️ 连段不足（{int(n)}/5），无法进入影舞态！")
+            return
+        actor.setdefault("effects", {})["shadow_dance"] = {"stacks": 1, "expire": None}
+        logs.append("🌫️ 踏入影舞之境！技能 CD −20%，如影随形！")
+
+    @register_action("passive_shadow_buff")
+    def passive_shadow_buff(battle, caster, target, params, logs):
+        """act_cast 影舞态强化 buff：态内 → 面板 spd ×(1+spd_add)（暗影步·极）。
+
+        语义（v153）：暗影步·极「影舞态中速度 +25%、暴伤 +20%」——spd 走 buff 快照
+        （stat spd op mul）；暴伤无面板通道（crit_dmg 非面板字段）→ 标缺口待引擎通道。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        actor = ctx.get("actor") or caster
+        if actor is None:
+            return
+        ef = actor.setdefault("effects", {})
+        buff_key = params.get("buff_key") or "_shadow_spd"
+        if not isinstance(ef.get("shadow_dance"), dict):
+            ef.pop(buff_key, None)  # 非影舞态 → 清残留
+            return
+        spd_add = float(params.get("spd_add") or 0)
+        if spd_add <= 0:
+            return
+        ef[buff_key] = {"stacks": 1, "stat": "spd", "mult": 1.0 + spd_add,
+                        "op": "mul", "expire": None}
+
     @register_action("passive_revive_berserk")
     def passive_revive_berserk(battle, caster, target, params, logs):
         """on_death 狂暴中复活（血怒·不灭）：狂暴中首次死亡 → 清空战意复活回 hp_pct。

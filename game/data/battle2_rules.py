@@ -40,6 +40,14 @@ EFFECT_RULES: dict = {
         "name": "连段",
         "cap": 10,
     },
+    # v153 刺客影舞态（CLASS_MECHANICS_v153 影舞者线）：暗影步（effect=shadow_dance）
+    # 连段满 5 → 进入影舞态。cd_mult 0.8 = 态内技能 CD −20%（引擎 do_skill cd 设置
+    # 读态声明通用修正，零名词）；spd/crit_dmg 加成由被动暗影步·极（PASSIVE_PROC）提供。
+    "shadow_dance": {
+        "name": "影舞态",
+        "cap": 1,
+        "cd_mult": 0.8,
+    },
     "rage": {
         "name": "怒气",
         "cap": 10,
@@ -344,6 +352,8 @@ EFFECT_ACTIONS: dict = {
     "crit_hit_buff": [{"action": "apply", "key": "crit_up"}],
     "cc_immune":    [{"action": "apply", "key": "cc_immune"}],   # 无面板折算（纯免疫状态）
     "purify_immune": [{"action": "apply", "key": "cc_immune"}],  # 净化免疫药（I5 映射 cc_immune）
+    # 刺客影舞态（暗影步 v153：连段满 5 → 进入影舞态）——装配层动作查条件写态条目
+    "shadow_dance": [{"action": "class_shadow_dance_enter"}],
     # 团队/全员增益 → 自身有效键（旧 team_keys 同语义）
     "atk_all":   [{"action": "apply", "key": "atk_up"}],
     "def_all":   [{"action": "apply", "key": "def_up"}],
@@ -642,6 +652,11 @@ PASSIVE_PROC: dict = {
     "berserk_revive": {        # 血怒·不灭：狂暴中首次死亡 → 清战意复活回 hp_pct
         "event": "on_death", "action": "passive_revive_berserk",
         "form": "fury", "used_key": "_berserk_revive_used",
+    },
+    # ---- P2 族：影舞态强化（暗影步·极——态由暗影步 effect 进，EFFECT_RULES cd_mult）----
+    "shadow_dance_bonus": {    # 暗影步·极：影舞态中速度 +25%（暴伤无面板通道标缺口）
+        "event": "act_cast", "action": "passive_shadow_buff",
+        "buff_key": "_shadow_spd",
     },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
     # stance_immortal/undead_faith 等职业批续（C 桶映射见 roadmap）
