@@ -87,6 +87,56 @@ WORLD_BOSS_DROPS = {
 }
 
 
+# ---- v181.M-R3：职业资源展示（actor.effects 叠层版）----
+# battle2 战斗内职业资源 = actor.effects 叠层条目（技能 mech/装配层 apply op=add 写
+# stacks，cap 由 EFFECT_RULES[key].cap 管，见 game/data/battle2_rules.py 通用叠层段）。
+# 旧 player["resources"]/st["resources"] 无生产写入（死字段）——展示一律改读 effects。
+# 只认本白名单 key（防把敌方减益 burn/poison/装备特效 dragon_mark 等当职业资源误显）。
+RESOURCE_STACK_CN = {
+    "zhan_yi": "战意",      # 战士（v151 起主资源；EFFECT_RULES cap 10）
+    "rage": "怒气",         # 旧狂暴层（EFFECT_RULES cap 10；v151 前战士）
+    "arcane": "奥术",       # 法师转职（EFFECT_RULES cap 10）
+    "chi": "气",            # 武僧（EFFECT_RULES cap 10）
+    "lian_duan": "连段",    # 刺客转职（EFFECT_RULES cap 10）
+    "cp": "连击点",         # 刺客基础（无 EFFECT_RULES 条目 → 只显层数）
+    "energy": "精力",       # 游侠（无 EFFECT_RULES 条目 → 只显层数）
+    "faith": "信仰值",      # 牧师（无 EFFECT_RULES 条目 → 只显层数）
+    "melody": "旋律",       # 歌者旋律（无 EFFECT_RULES 条目 → 只显层数）
+}
+
+
+def resource_stack_text(effects) -> str:
+    """effects 容器 → 职业资源叠层文本（'战意 5/10层 连段 3/10层'；无/空 → ''）。
+
+    v181.M-R3：野外/副本/世界 Boss 面板的资源条统一入口——白名单 key 取 stacks，
+    cap 查 EFFECT_RULES[key].cap（config 未挂载时容错空表；未声明 cap 只显 'N层'）。
+    纯读函数，不依赖 battle 类型/self，副本 footer（snap.effects）与战斗 footer
+    （actor.effects）共用。
+    """
+    if not isinstance(effects, dict) or not effects:
+        return ""
+    rules = {}
+    try:
+        from ..battle2 import config as _b2c
+        rules = _b2c.get_effect_rules() or {}
+    except Exception:
+        rules = {}
+    parts = []
+    for k, cn in RESOURCE_STACK_CN.items():
+        ent = effects.get(k)
+        if not isinstance(ent, dict):
+            continue
+        try:
+            n = int(ent.get("stacks", 0) or 0)
+        except Exception:
+            n = 0
+        if n <= 0:
+            continue
+        cap = (rules.get(k) or {}).get("cap")
+        parts.append(f"{cn} {n}/{int(cap)}层" if cap else f"{cn} {n}层")
+    return " ".join(parts)
+
+
 class CombatCmds(CommandBase):
 
     def _b_enemy(self, b) -> dict:
@@ -1933,22 +1983,48 @@ class CombatCmds(CommandBase):
         return "\n".join(parts)
 
     def _resource_line(self, player: dict, b) -> str:
-        """v95.4：核心资源条（怒气/元素亲和/精力/信仰/连击点/气）——反馈：资源体系无界面显示
+        """职业资源条（v181.M-R3：读当前战斗玩家 actor 的 effects 叠层）。
 
-        N5b4-1：读 player dict 的 resources（旧引擎 _p_res 即 _focus.resources 引用同步；
-        battle2 命令层 sync 回写含 resources 键；职业资源上层模块未迁前可能为空 → 空串安全）。"""
-        rd = E.core_resource_def(player.get("class_name") or "")
-        if not rd:
+        v95.4/v181.M 前实现读 player["resources"] + core_resource_def——该键已无
+        生产写入（死字段，R3 清理）；battle2 战斗内职业资源 = actor.effects 叠层
+        （技能 mech/装配层 apply op=add，cap 见 EFFECT_RULES）。本行从 b 的玩家
+        actor（sides_of("player") 按 qq_id 匹配，无 qq_id/未命中回落
+        human_controlled 焦点）读 effects，经 resource_stack_text 白名单展示；
+        无战斗/无 actor/无白名单资源 → ""（调用方已判空拼接，兼容安全）。
+        """
+        if b is None:
             return ""
-        res = player.get("resources") or {}
-        key = rd["key"]
-        name = rd.get("name", key)
-        if rd.get("type") == "switch":
-            cur = E.ELEMENT_CN.get(res.get(key, "fire"), "火")
-            return f"🔮 {name}：{cur}系"
-        cur = res.get(key, 0)
-        cap = rd.get("max", 99)
-        return f"⚡ {name}：{cur}/{cap}"
+        p_acts = []
+        try:
+            _sof = getattr(b, "sides_of", None)
+            if callable(_sof):
+                p_acts = list(_sof("player"))
+            else:
+                p_acts = list((getattr(b, "sides", None) or {}).get("player") or [])
+        except Exception:
+            p_acts = []
+        if not p_acts:
+            return ""
+        me = None
+        _qq = str(player.get("qq_id") or "")
+        if _qq:
+            for _a in p_acts:
+                if str(_a.get("qq_id") or "") == _qq:
+                    me = _a
+                    break
+        if me is None:
+            # 兜底：无 qq_id 的 actor（旧测试/简构 actor）→ human_controlled/玩家 kind
+            for _a in p_acts:
+                if _a.get("human_controlled") or _a.get("kind") == "player":
+                    me = _a
+                    break
+        if me is None:
+            return ""
+        try:
+            _txt = resource_stack_text(me.get("effects") or {})
+        except Exception:
+            _txt = ""
+        return f"⚡ {_txt}" if _txt else ""
 
     def _player_unit_for_formation(self, player: dict) -> dict:
         """v2 多对多站位图：把玩家单机单位表示为站位单位 dict（并入我方阵列展示用）。
