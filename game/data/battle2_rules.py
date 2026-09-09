@@ -505,6 +505,23 @@ PASSIVE_PROC: dict = {
     "focus_full_on_kill": {  # 追风：击杀 → 专注回满（EFFECT_RULES energy start_full 口径）
         "event": "on_kill", "action": "passive_kill_gain",
     },
+    # ---- 静态域（domain：不挂 triggers，装配器直接写 bonus 容器——纯配置量）----
+    "poison_cap": {          # 淬毒之心：毒层上限 +3（bonus.cap[poison]）
+        "domain": "cap", "cap_key": "poison",
+    },
+    "poison_cap_up": {       # 剧毒之心：毒层上限 +3（毒爆增伤部分 P2 动作）
+        "domain": "cap", "cap_key": "poison",
+    },
+    "hunt_mark_cap": {       # 追猎者：猎印上限 +2（至 5 层）
+        "domain": "cap", "cap_key": "hunt_mark",
+    },
+    "soul_mark_cap": {       # 灵魂锁链：魂标上限 +2（per_layer 乘区部分 P2）
+        "domain": "cap", "cap_key": "soul_mark",
+    },
+    "arcane_constant": {     # 奥术恒常：奥术技能耗蓝 −50%（bonus.cost when mech_prefix arcane）
+        "domain": "cost",
+        "when": [{"judge": {"mech_prefix": ["arcane"]}}],
+    },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
     # counter_chance/berserk_revive/zhan_yi_crit/dr_cond 等 P2 续
 }

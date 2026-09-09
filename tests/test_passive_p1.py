@@ -144,12 +144,51 @@ def test_5_on_kill_gain():
     check("追风挂 on_kill passive_kill_gain", len(kills) == 1, repr(kills))
 
 
+def test_6_static_domain():
+    print("【6. 静态域：cap/cost 直接写 bonus 容器（纯配置量）】")
+    from game.battle2.effects import _cap_of
+    from game import engine as E
+    # cap 域：淬毒之心 poison cap +3
+    a = make_actor(uid="p_k", name="毒刃", side="player", kind="player",
+                   human_controlled=True, class_name="cls_ci_ke", level=60,
+                   learned_skills=["淬毒之心"], skills=["淬毒之心"],
+                   atk=150, matk=30, spd=80, hp=900, max_hp=900, mp=200, max_mp=200)
+    a['effects'] = {}
+    a['bonus'] = {'panel': {}, 'cap': {}, 'cost': {}}
+    apply_class_mech(a)
+    check("cap 域：poison cap 基础5+3=8", _cap_of(a, "poison") == 8,
+          f"cap={_cap_of(a, 'poison')}")
+    # 追猎者 hunt_mark cap 基础3+2=5（desc 至 5 层）
+    b = mk_ranger(["追猎者"], hp=600)
+    apply_class_mech(b)
+    check("cap 域：hunt_mark 3+2=5（desc 至 5 层）", _cap_of(b, "hunt_mark") == 5,
+          f"cap={_cap_of(b, 'hunt_mark')}")
+    # cost 域：奥术恒常 奥术技能耗蓝 -50%
+    c = make_actor(uid="p_f", name="奥术", side="player", kind="player",
+                   human_controlled=True, class_name="cls_fa_shi", level=90,
+                   learned_skills=["奥术恒常", "奥术弹幕", "火球术"],
+                   skills=["奥术恒常", "奥术弹幕", "火球术"],
+                   atk=50, matk=220, spd=60, hp=600, max_hp=600, mp=500, max_mp=500)
+    c['effects'] = {}
+    c['bonus'] = {'panel': {}, 'cap': {}, 'cost': {}}
+    apply_class_mech(c)
+    pay_arc = E.skill_mp_pay_of(c, E.skill_info("cls_fa_shi", "奥术弹幕") or {})
+    pay_fire = E.skill_mp_pay_of(c, E.skill_info("cls_fa_shi", "火球术") or {})
+    info_full = E.skill_info("cls_fa_shi", "奥术弹幕") or {}
+    info_fire = E.skill_info("cls_fa_shi", "火球术") or {}
+    check("cost 域：奥术弹幕耗蓝减半", pay_arc < int(info_full.get("mp", 0) or 0),
+          f"{pay_arc} vs {info_full.get('mp')}")
+    check("cost 域：火球术不减", pay_fire == int(info_fire.get("mp", 0) or 0),
+          f"{pay_fire} vs {info_fire.get('mp')}")
+
+
 def main():
     test_1_assemble()
     test_2_trigger_arcane()
     test_3_negative_non_arcane()
     test_4_undeclared_proc()
     test_5_on_kill_gain()
+    test_6_static_domain()
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     sys.exit(1 if FAIL else 0)
 

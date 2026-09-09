@@ -559,7 +559,11 @@ def _passive_proc_rules() -> dict:
 def apply_class_passives(actor: dict) -> None:
     """被动 proc 装配（v181.M-passive P1 插件样板）：扫已学 kind=被动 + passive.proc
     → 查 PASSIVE_PROC 声明表 → 参数化挂 actor.triggers[event]。学什么挂什么防白拿；
-    表未声明 proc → 跳过（记缺口，不硬做）。"""
+    表未声明 proc → 跳过（记缺口，不硬做）。
+    domain 域（不进 triggers 的静态修正）：cap → 写 actor.bonus.cap[key] += add
+    （资源上限被动：毒/猎印/魂标 cap——引擎 _cap_of 动态收敛已支持 bonus.cap）；
+    cost → 写 actor.bonus.cost（消耗折扣：mp_pct/mp_flat/res——引擎 _skill_pay_of 折算）。
+    """
     if not actor:
         return
     cn = actor.get("class_name") or ""
@@ -584,6 +588,34 @@ def apply_class_passives(actor: dict) -> None:
         cfg = rules.get(proc)
         if not isinstance(cfg, dict):
             continue  # 表未声明 → 记缺口跳过（不硬做）
+        domain = cfg.get("domain") or ""
+        if domain == "cap":
+            # 资源上限被动：bonus.cap[key] += add（cap 修正容器，_cap_of 动态读）
+            key = cfg.get("cap_key") or proc
+            try:
+                add = int(p.get("add", cfg.get("add", 0)) or 0)
+            except Exception:
+                add = 0
+            if add > 0:
+                bonus = actor.setdefault("bonus", {})
+                bonus.setdefault("cap", {})[key] = \
+                    int((bonus.get("cap") or {}).get(key, 0) or 0) + add
+            continue
+        if domain == "cost":
+            # 消耗折扣被动：bonus.cost（引擎 _skill_pay_of 折算）。mp_mult（如
+            # 奥术恒常 mp_mult 0.5 = 奥术技能耗蓝-50%）→ 有 cfg.when 判据则放 when
+            # 子条目（限定技能），无 when 才放顶层（无条件全技能）。
+            pct = float(p.get("mp_mult", 0) or 0)
+            when = cfg.get("when")
+            bonus = actor.setdefault("bonus", {})
+            _c = bonus.setdefault("cost", {})
+            if when:
+                _w = dict(when[0]) if isinstance(when, list) and when else {}
+                _w["mp_pct"] = float(_w.get("mp_pct", 0) or 0) + pct
+                _c.setdefault("when", []).append(_w)
+            elif pct > 0:
+                _c["mp_pct"] = float(_c.get("mp_pct", 0) or 0) + pct
+            continue
         d = {"type": cfg.get("action") or "", "judge": cfg.get("judge") or {}}
         # 被动参数并入（mult 归一 mult/dmg_add/per_layer；label 用技能名）
         for k, v in p.items():
