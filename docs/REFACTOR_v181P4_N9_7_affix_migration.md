@@ -53,7 +53,7 @@ heal_power shield_power
 | N9.7b | c1b6ed7 | on_hit 族 8（bleed/armor_break/element_*/combo/charge/pierce）+ 4 扩展动作 | 113→121 |
 | N9.7c | 67558d6 | on_taken 族 2 + dmg_reduce（we_affix_counter/tenacity） | 121→126 |
 | N9.7d | 1b0943c | 条件乘区 4（execute/hunt/break_magic/dragon_aw）+ 4 新谓词 | 126→133 |
-| N9.7e（R4） | _见 R4 commit_ | 资源事件 gain 型 10（we_affix_res_gain + on 映射表 + crit_return tier 键修正）+ boiling_blood 怒气满减伤 + EFFECT_RULES 资源 cap 行补全（energy/faith/cp/element） | +tests/test_affix_res_gain.py 39 断言 |
+| N9.7e（R4） | e46cf05 | 资源事件 gain 型 10（we_affix_res_gain + on 映射表 + crit_return tier 键修正）+ boiling_blood 怒气满减伤 + EFFECT_RULES 资源 cap 行补全（energy/faith/cp/element） | +tests/test_affix_res_gain.py 39 断言 |
 
 ## 4. 装配层架构速查（N9.7）
 - `equipped_affix_ids(actor)`：装备 affixes 列表 → 去重保序
