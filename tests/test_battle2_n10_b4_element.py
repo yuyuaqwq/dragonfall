@@ -75,6 +75,9 @@ def test_fireball_carries_element():
 
 def test_weak_multiplier():
     print("【2. 弱点 fire×1.5 → 伤害 ≈1.5×】")
+    import random
+    # 固定 seed 消除伤害 variance 波动（两场同 seed 同 roll → 只差 weak 乘区）
+    random.seed(42)
     # 对照怪（无 weak）
     p1 = mk_mage()
     e_no = mk_enemy(hp=99999)
@@ -82,7 +85,8 @@ def test_weak_multiplier():
     A.do_skill(b1, ActCtx(caster=p1, action="skill", skill_name="火球术",
                           info=fireball_info(), target=e_no))
     dmg_no = 99999 - e_no["hp"]
-    # 冰霜领主（weak fire×1.5）
+    # 冰霜领主（weak fire×1.5）——重置 seed 让两次 roll 序列一致
+    random.seed(42)
     p2 = mk_mage()
     e_wk = mk_enemy(hp=99999, element_weak={"fire": 1.5})
     b2 = B2(btype="monster", sides={"player": [p2], "enemy": [e_wk]})
@@ -90,7 +94,8 @@ def test_weak_multiplier():
                           info=fireball_info(), target=e_wk))
     dmg_wk = 99999 - e_wk["hp"]
     check("弱点怪受伤更多", dmg_wk > dmg_no, f"no={dmg_no} wk={dmg_wk}")
-    check("弱点 ≈1.5×", 1.3 * dmg_no <= dmg_wk <= 1.7 * dmg_no, f"no={dmg_no} wk={dmg_wk} ratio={dmg_wk/dmg_no:.2f}")
+    check("弱点 ≈1.5×", 1.40 * dmg_no <= dmg_wk <= 1.62 * dmg_no,
+          f"no={dmg_no} wk={dmg_wk} ratio={dmg_wk/dmg_no:.2f}")
 
 
 def test_immune_zero():
