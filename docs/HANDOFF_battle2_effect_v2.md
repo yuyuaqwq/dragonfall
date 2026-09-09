@@ -631,4 +631,14 @@ hostile 残血追击 / cd_ok 冷却（id→name 经 actor._skill_index）/ weigh
 ### 全量
 344 = 319/25 基线一致零新增（router 59 + 仇恨 11 + AI 34 + 5c 109 全绿）
 
-## 10. 会话重启口令（2026-09-09 下午更新）
+## 10. 会话重启口令（2026-09-09 晚更新）
+- N10-B 缺口批已全部落地（B1吸血 e6a5b30 / B2 defend_reduce / B3 reflect / B4 element /
+  B6 承伤属性 / B6b 初始ct / B6c 元素抗性 4e0c9e6），battle2 全套 35/35 绿，HEAD=4e0c9e6。
+- **N10 剩余队列**：B7+ 上层装配缺口收口（如有）→ C 删旧（battle.py 1.1万行 + battle_mech/
+  weapon_effects/affix 三套注册表）→ D 测试处置（numeric/stage/v1xx 旧引擎直测 25 红）。
+  权威施工文档 = docs/REFACTOR_v181P4_N10B_gap_fill.md + docs/REFACTOR_v181P4_FULL_PLAN.md N6。
+- 🔴 **L3 玩家事件层已排期**（2026-09-09 拍板，N10 删旧合并 master 后开工）：
+  设计+排期 = docs/DESIGN_v181_L3_player_event_bus.md。L1 战斗内效果总线(N8) ✅ 已落地、
+  L2 战斗级观察者(on_event) ✅ 已落地、L3 玩家级事件总线 ⬜ 缺位——victory_settle 手动
+  接线任务/成就/公会/野王/塔卫要收敛成订阅。方案 = DDD 同步领域事件（非 QFramework 全家桶）。
+- 续做口令：读本 HANDOFF §10 → git log 确认 HEAD → 按 N10 队列继续。
