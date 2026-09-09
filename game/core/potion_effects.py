@@ -213,9 +213,17 @@ def eff_shield_big(battle, player, value):
 
 
 def _item_res_def(key: str) -> dict:
-    """按资源 key 查核心资源定义（副资源 resonance/echo 亦按 key 注册）。"""
-    from .. import engine as E
-    return E.core_resource_def_by_key(key) or {}
+    """按资源 key 查资源定义（v181.M-R2b：单源 = EFFECT_RULES 条目 name/cap；
+    旧 core_resource_def_by_key（core_resources.py 表）退役迁移。未注册 key → {}，与旧兜底同）。"""
+    try:
+        from ..data.battle2_rules import EFFECT_RULES as _ER
+        _r = _ER.get(key) or {}
+        if not _r:
+            return {}
+        return {"key": key, "name": _r.get("name") or key,
+                "max": int(_r.get("cap", 0) or 0)}  # cap ↔ 旧 max（怒气 10/精力 100/… 同值）
+    except Exception:
+        return {}
 
 
 def _res_mine(battle, player, key: str) -> bool:
@@ -524,8 +532,22 @@ def eff_resource_charge(battle, player, value):
     v = _resolve(value, "resource_charge")
     gain = int(v.get("res_gain", 0) or 0)
     cd = int(v.get("cd_reduce", 0) or 0)
-    from .. import engine as E
-    rd = E.core_resource_def(player.get("class_name", ""))
+    # v181.M-R2b：旧 class→主资源单表（engine.core_resource_def）已退役——EFFECT_RULES 无
+    # class→key 维度，主资源判定 = 条目 start_classes 归属（R2a energy 先例：cls_you_xia）。
+    # legacy handler（v130.2/v140 旧战斗消耗品，POTION_EFFECTS 现无消费端）：按职业归属取首条
+    # 资源；未归属 → 沿用旧「你的职业没有核心资源」兜底。
+    _cls = player.get("class_name", "")
+    rd = {}
+    if _cls:
+        try:
+            from ..data.battle2_rules import EFFECT_RULES as _ER2
+            for _rk, _ru in _ER2.items():
+                if _cls in ((_ru or {}).get("start_classes") or []):
+                    rd = {"key": _rk, "name": (_ru.get("name") or _rk),
+                          "max": int(_ru.get("cap", 0) or 0)}
+                    break
+        except Exception:
+            rd = {}
     msgs = []
     if rd and gain > 0:
         key = rd["key"]

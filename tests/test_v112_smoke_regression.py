@@ -6,7 +6,7 @@
   1) _hidden_class_routes：档位全名 → (cls_id, tier, 流派索引)
   2) _hidden_alias_map：短别名 → (cls_id, 流派索引)
   3) branch_skill_owner：龙焰吐息 → 龙裔线 T3 龙魂战将
-  4) core_resource_def：龙裔线核心资源 key=dragon_might
+  4) EFFECT_RULES 资源单源（v181.M-R2b：engine.core_resource_def 退役，rage name/cap 迁新表）
   5) 龙裔传承最小闭环：40 级战士 + dragonborn 血脉 → cls_dragon_oath T1 path=1,
      习得 龙魂/龙息
 
@@ -57,9 +57,12 @@ async def main():
     owner = E.branch_skill_owner("cls_zhan_shi", "龙息之怒")
     check("branch_skill_owner 龙息之怒 → (2, 狂战士)（v153 BRANCH_SKILLS 键统一 T1 档位名）",
           owner == (2, "狂战士"), str(owner))
-    rd = E.core_resource_def("cls_zhan_shi")
-    check("core_resource_def 战士 key=rage",
-          isinstance(rd, dict) and rd.get("key") == "rage", str(rd))
+    # v181.M-R2b：engine.core_resource_def 退役删除——资源名/上限单源 EFFECT_RULES
+    # （rage name=怒气 cap=10 由旧 core_resources.cls_zhan_shi 迁移，展示/校验读点全改新源）
+    from game.data.battle2_rules import EFFECT_RULES as _ER  # noqa: E402
+    _rage = _ER.get("rage") or {}
+    check("EFFECT_RULES 战士资源单源（rage name=怒气 cap=10）",
+          _rage.get("name") == "怒气" and _rage.get("cap") == 10, str(_rage))
 
     print("【基础职业导师转职最小闭环（30级战士 → 狂战士 T1）】")
     from conftest import Main

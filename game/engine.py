@@ -52,18 +52,9 @@ def element_mark_apply(target_marks: dict, element: str, layers: int = 1, max_la
     return target_marks
 
 
-def core_resource_def(class_name: str) -> dict:
-    """职业核心资源定义(v48：中文或 ID → ID)。无定义返回 {}。"""
-    cls_id = C.resolve("classes", class_name) if class_name else ""
-    return C.CORE_RESOURCES.get(cls_id, {})
-
-
-def core_resource_def_by_key(res_key: str) -> dict:
-    """按资源 key 直接查核心资源定义（v130.2 副资源：共鸣/回声等按 key 注册，
-    非 class id，core_resource_def 按 class 查不到——歌者双资源/分支级 resource_override 用）。"""
-    if not res_key:
-        return {}
-    return C.CORE_RESOURCES.get(res_key, {})
+# v181.M-R2b：core_resource_def / core_resource_def_by_key 已退役删除（旧 core_resources.py
+# 按 class/key 查资源定义；现资源名/cap 单源 = EFFECT_RULES（game/data/battle2_rules.py），
+# 展示名查 EFFECT_RULES[key].name、上限查 cap——脱战校验/技能表/药水调用点已全部改读新源）。
 
 
 def mech_stack_gain(mech: str, p_mech: dict, mval: int) -> int:

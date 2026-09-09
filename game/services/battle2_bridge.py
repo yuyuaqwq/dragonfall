@@ -215,7 +215,6 @@ def prepare_player_for_battle(player: dict, title_bonus: Optional[dict] = None,
        战斗内面板/护盾 pct/heal clamp 以实时聚合值为准）
     3. echo_bless 消费（event_state bless_{qq_id} → player.buffs.echo_bless，一次性）
     4. 神龛祝福消费（event_state poi_buff_{qq_id} → player.poi_buff，left-1；用完删）
-    5. v139 core_resource 配置注入（dual_form/focus/vent 挂 player，供上层读）
 
     ⚠️ 依赖红线：只 import game.engine / game.db（纯函数/存储层），
     绝不 import game.battle（旧引擎）——N6 删旧引擎后本桥必须能独立存活。
@@ -292,15 +291,9 @@ def prepare_player_for_battle(player: dict, title_bonus: Optional[dict] = None,
                             f"poi_buff_{_qq}", _json.dumps(_pb, ensure_ascii=False))
     except Exception:
         pass
-    # 5. v139 配置注入（dual_form/focus/vent 定义挂 player；缺失 = 默认不启用）
-    try:
-        from .. import engine as _E139
-        _crd = _E139.core_resource_def(player.get("class_name", "")) or {}
-        for _mk in ("dual_form", "focus", "vent"):
-            if _crd.get(_mk) and not player.get(_mk):
-                player[_mk] = _crd[_mk]
-    except Exception:
-        pass
+    # 【v181.M-R2b 删除原步骤 5】v139 core_resource 配置注入（dual_form/focus/vent 挂 player）——
+    #    core_resources.py 退役，注入无消费端（形态层未实现；battle_modes/battle_conds 为 v139
+    #    遗留空壳，字段缺失=引擎默认不启用，无读者报错）。
     return player
 
 

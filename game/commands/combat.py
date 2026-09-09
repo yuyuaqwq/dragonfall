@@ -137,6 +137,21 @@ def resource_stack_text(effects) -> str:
     return " ".join(parts)
 
 
+def _res_display_name(key: str) -> str:
+    """资源/效果 key → 展示中文名（v181.M-R2b 单源：EFFECT_RULES[key].name，无条目兜底 key）。
+
+    旧 core_resources.py 按职业主资源取名（engine.core_resource_def 按 class 查）已退役——
+    res_cost/res_gain 的 key 直查 EFFECT_RULES（energy→精力 / zhan_yi→战意 / faith→信仰值…，
+    cap 亦同表）。读数据表本体而非 config 挂载，保证脱战/技能列表等命令上下文不依赖挂载时机。
+    """
+    try:
+        from ..data.battle2_rules import EFFECT_RULES as _ER
+        _n = (_ER.get(key) or {}).get("name")
+        return _n or key
+    except Exception:
+        return key
+
+
 class CombatCmds(CommandBase):
 
     def _b_enemy(self, b) -> dict:
@@ -1194,12 +1209,11 @@ class CombatCmds(CommandBase):
                 # 大治愈术 faith3）此前脱战 0 信仰可无限刷，改拦截（核心资源仅战斗内存在，脱战无法攒取）；
                 # CD 为战斗内状态，脱战无 battle 实例无法校验，带 cd 的无资源技能保持可脱战施放
                 if info.get("res_cost"):
-                    _rd_t = E.core_resource_def(player["class_name"])
-                    _rcn_t = _rd_t.get("name", "") if _rd_t else ""
+                    # v181.M-R2b：资源名单源 EFFECT_RULES[key].name（旧按职业主资源
+                    # core_resource_def 已退役）——res_cost 键直查：energy→精力、zhan_yi→战意
                     _rc_list = []
                     for _k, _v in info["res_cost"].items():
-                        _cn_t = _rcn_t or _k
-                        _rc_list.append(f"{_v} {_cn_t}")
+                        _rc_list.append(f"{_v} {_res_display_name(_k)}")
                     yield event.plain_result(
                         f"『{info.get('name', skill_name)}』需要战斗内核心资源才能施放（消耗 {' + '.join(_rc_list)}），脱战中无法使用～"
                     )
@@ -1588,14 +1602,13 @@ class CombatCmds(CommandBase):
             # v126.5 资源消耗并入魔力求（鱼鱼问"信仰-3 是不是要消耗"→原格式 `信仰值 -3`
             # 像属性值 -3 有歧义；改为 `30 魔力 + 3 信仰值` 直白表达消耗）
             _rc = info.get("res_cost") or {}
-            _rd = E.core_resource_def(player["class_name"])
-            _rcn = _rd.get("name", "") if _rd else ""
+            # v181.M-R2b：资源名单源 EFFECT_RULES[key].name（旧 core_resource_def 按职业
+            # 主资源取名已退役）——res_cost/res_gain 键直查（energy→精力、zhan_yi→战意…）
             _rc_parts = []
             for _k, _v in _rc.items():
-                _cn = _rcn or _k
                 # v126.6c 鱼鱼终版拍板：消耗项数字后缀用 `-`（消耗=扣减，与 res_gain
                 # 获得的 `+` 区分；`消耗：` 前缀后带上下文，无属性值歧义）
-                _rc_parts.append(f"{_cn} -{_v}")
+                _rc_parts.append(f"{_res_display_name(_k)} -{_v}")
             if _mp or _rc_parts:
                 _cost_parts = []
                 if _mp:
@@ -1612,10 +1625,11 @@ class CombatCmds(CommandBase):
                 # res_gain 可为 int（常规）或 dict（按资源名取值，如林语印记 {"energy": 10}）
                 if isinstance(_rg, dict):
                     for _k, _v in _rg.items():
-                        _cn = _rcn or _k
-                        _cost.append(f"{_cn} +{_v}")
+                        _cost.append(f"{_res_display_name(_k)} +{_v}")
                 else:
-                    _cost.append(f"{_rcn or '资源'} +{_rg}")
+                    # int res_gain 无 key（旧「职业主资源隐含」口径随 core_resource_def 退役；
+                    # 现网技能表无 int res_gain 条目 → 此分支不可达，固定 '资源' 标签兜底）
+                    _cost.append(f"资源 +{_rg}")
             _cd = info.get("cd") or 0
             if _cd:
                 _cost.append(f"冷却 {_cd} 刻")

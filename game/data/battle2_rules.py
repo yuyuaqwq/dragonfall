@@ -16,15 +16,21 @@ from __future__ import annotations
 # ============================================================
 EFFECT_RULES: dict = {
     # ============ 通用叠层/资源（玩家侧，每层持有即生效） ============
+    # v181.M-R2b：name 展示名单源化（源 core_resources.py v130.2 旧表退役迁移——rage 怒气/faith 信仰值/
+    # cp 连击点/element 元素亲和/chi 气 对照旧表 name；zhan_yi 战意/lian_duan 连段/arcane 奥术
+    # 对齐 commands/combat RESOURCE_STACK_CN v181.M-R3 现网展示名）。cap 即旧 max（同值）。
     "zhan_yi": {
+        "name": "战意",
         "cap": 10,
         "stat_scale": {"atk": 0.04},          # 每层攻击 +4%
         "on_threshold": {10: {"form": "fury"}},  # 满 10 进狂暴（上层消费）
     },
     "lian_duan": {
+        "name": "连段",
         "cap": 10,
     },
     "rage": {
+        "name": "怒气",
         "cap": 10,
         "stat_scale": {"dmg_mult": 0.12},     # 每层伤害 +12%
     },
@@ -36,9 +42,11 @@ EFFECT_RULES: dict = {
         "stat_scale": {"dmg_mult": 0.02},     # 每层伤害 +2%（上限 5 层 = +10%）
     },
     "chi": {
+        "name": "气",
         "cap": 10,
     },
     "arcane": {
+        "name": "奥术",
         "cap": 10,
     },
     # R4（N9.7e affix 资源词条 gain clamp 声明）：energy/faith/cp/element 是
@@ -56,12 +64,15 @@ EFFECT_RULES: dict = {
         "period": {"dir": "gain", "interval": 1.0, "amount": 18},
     },
     "faith": {
+        "name": "信仰值",
         "cap": 10,
     },
     "cp": {
+        "name": "连击点",
         "cap": 5,
     },
     "element": {
+        "name": "元素亲和",
         "cap": 5,
     },
     "shield": {

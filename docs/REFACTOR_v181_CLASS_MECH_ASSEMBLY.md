@@ -122,3 +122,134 @@ D = 需查语义（desc 不明/可能死数据）。
 - 新测试：tests/test_class_mech_actions.py（装配动作直测：构造 actor+effects 层 →
   施放兑现技能 → 断言伤害加成/清层/文案）。
 - 每批独立 commit（v181.M-xxx）；全量 run_all 209 绿。
+
+---
+
+# v139 形态层设计留档（源 core_resources.py 退役迁移 · v181.M-R2b）
+
+> 2026-09-09 v181.M-R2b：`game/data/core_resources.py`（v130.2 资源表）退役——战斗资源
+> 名/cap 单源化到 EFFECT_RULES（battle2_rules.py），engine.core_resource_def/def_by_key 删除，
+> 4 处调用点（combat 脱战校验/技能表、potion_effects、battle2_bridge v139 注入）改读新源。
+> 本文件保留旧表内 **v139 职业融合形态层设计原文**（dual_form/focus/vent/vow/resonance/echo），
+> 字段值/注释要点逐项抄录，作为未来形态层（B4 形态技 / focus 架设态）实施参考。
+> ⚠️ 该层尚未实现：v139 字段仅数据定义，引擎无形态机消费（battle_modes/battle_conds 为空壳）。
+> v151+ 职业机制重做后旧渠道字段（on_attack/on_hit/on_skill/overflow_shield 等）多数无消费端，
+> 有效部分（energy regen 18/start_full）已由 R2a 迁 EFFECT_RULES energy 条目（period dir=gain）。
+
+## 0. v139 签名字段总述（旧 core_resources.py 模块 docstring 原文摘录）
+
+v139 职业融合签名字段（2026-08-29 · 参考 design/new_world/参考_云海猎团职业融合_v139_*.md）：
+仅新增数据字段，不动既有 key/max/regen/on_* 字段；字段缺失时引擎默认不启用：
+- dual_form（双形态）：cls_zhan_shi 狂暴 / cls_dragon_oath 龙焰 / cls_shadow_blade 影舞 / cls_wu_sheng 蓄势·倾泻
+- focus（架设/凝滞态）：cls_fa_shi 元素架设 / cls_chronomancer 时间凝滞
+- vent（节流阀/排气）：cls_you_xia 凝神屏息 / cls_wild_hunter 猎印强制排气
+- 其余 v139 落点：vow 圣律（守线神谕副资源）、idle_floor_turns（暗影神谕亡灵祭仪保底律）
+
+v130.2 三大口径（背景）：
+1. 基础职业瘦身 = 通用基底；专属花活下放转职线（攻线/守线/隐藏线）。
+2. 法师例外：基础法师无任何核心资源（纯蓝施法），元素亲和充能条(0-5) 是攻线·元素法师 /
+   守线·奥秘法师 转职首获的专属资源（旧表 cls_fa_shi 保留 element 定义作多分支共用根，on_* 渠道全 0）。
+3. 牧师歌者双资源 = 共鸣(resonance) + 回声(echo)：攻线歌者转职后专属。
+
+## 1. cls_zhan_shi · dual_form 狂暴（攻线狂战士双形态）
+
+旧表注释原文：满怒入狂暴（免费切换不占行动）→ 双段普攻 + 维持 -1 → <4 强制回斧（无惩罚）
+```python
+"dual_form": {
+    "enter_requirement": 10,    # 入狂暴门槛（怒气 ≥10，可战前下调到 7）
+    "maintain_cost": 0.6,       # v153：狂暴中每刻 -0.6 怒气（v151 为 1，v153 §1 标定）
+    "hit_cost": 1,              # 狂暴中受击 -1 怒气
+    "hit_cost_cap": 1,          # 单刻受击至多 -1
+    "force_return": 4,          # 怒气 <4 强制回斧（无惩罚）
+    "return_penalty": "none",   # 强制回斧无惩罚
+    "form": "fury",             # 狂暴形态资源键
+}
+```
+v130.2 口径：基础战士只留「普攻/技能/受击三路攒怒 → 满怒大招 背水一战」骨架；
+血债怒火/沸血二段/破墨之志 → 攻线狂战士/狂战统领；血誓壁垒/守誓坦化 → 守线盾卫士。
+v130.2.1：满溢转盾（overflow_shield）开放——满 10 后受击溢出转 5 护盾（overflow_ratio: 5, v176 ×5 系数数据化）。
+
+## 2. cls_fa_shi · focus 元素架设 / 深度冥想（守线）
+
+旧表注释原文：状态型开关（与狂战士「资源型双形态」并列的免费切换家族第二例）：开启后魔法技能
+伤害 +40%（pmult 连乘，SKILL_PMULT_CAP=6.0 封顶）、受击 +20%、不能普攻/技能/换系（可防御/道具/
+逃跑）、施法命中充能额外 +1、被打断只掉 1 层充能不清零、被控强解；主动解除免费无损（不占行动）。
+守线深度冥想 = 守线版：增伤同 +40%，架设中每刻开始 arcane 叠层 +1，奥术脉冲燃尽改烧一半。
+架设只在转职后（evolve_path≥1 && class_tier≥1）可用——基础纯蓝身份不动。
+```python
+"focus": {
+    "enter_turn": 1,            # 进入占 1 刻（施放「元素聚焦/深度冥想」开启技，当刻不出伤）
+    "dmg_bonus": 0.40,          # 架设中魔法技能伤害 +40%（乘区挂 pmult 连乘，受 SKILL_PMULT_CAP=6.0 封顶）
+    "taken_bonus": 0.20,        # 架设中受击伤害 +20%（走 _damage_actor 惩罚分支，同熔核之心 reduce_all<0 先例）
+    "max_turns": 3,             # 维持上限 3 刻（时间过载自动解除）
+    "free_exit": True,          # 主动解除免费、无损、不占行动（同狂战士「免费切换」承重墙）
+    "no_burst_skills": True,    # 架设中不能普攻/技能/换系（元素跃迁视为换系被拦）；可「防御」「使用 <道具>」
+}
+```
+element 落地口径（勿改 on_skill=1，否则基础法师每施放一次白加 1 充能破坏「纯蓝」）：转职后由
+元素法师/奥秘法师技能显式 res_gain{element:1} 挂载、充能条随技能生效。
+
+## 3. cls_you_xia · vent 凝神屏息（v153 废弃，专注流量制）
+
+v153 专注流量制：废弃 v139 凝神屏息（vent 自动排气），专注是持续流量非攒满爆发。
+```python
+"vent": {
+    "trigger": 999,              # v153：废弃凝神屏息（专注流量制），trigger 999 永不到达
+    "reset": 0,                 # 触发后精力归 0
+    "seg_bonus": 1,             # 下刻低耗档技能 段数 +1（疾风连射 2→3、双重射击 2→3、致命连射 4→5…）
+    "vent_on_dodge": 15,        # 闪避成功泄压量（-15 精力，把精力从 100 拉回 85 推迟强制屏息）
+    "max_delay": 1,             # 深排：凝神屏息可延迟 1 刻释放，段数加成持续 2 刻
+}
+```
+energy 现网口径（R2a 已迁 EFFECT_RULES）：name=精力 cap=100 start_full=True start_classes=[cls_you_xia]
+period {dir=gain, interval=1.0, amount=18}——每刻自然回 18，开局满额。
+
+## 4. 歌者双资源（牧师攻线分支 · 共鸣 resonance + 回声 echo）
+
+架构落位结论（旧表注释要点）：歌者 = cls_mu_shi 攻线分支（吟游诗人→灵魂歌者→黎明颂者），
+是分支而非独立 class；旧 battle.py `core_resource_def(cls)` 只按 class_name（转职后仍 = cls_mu_shi）
+解析单资源 → 转职歌者后仍只会取到 faith。故 resonance/echo **以资源 key 直接注册**（非 class id），
+供引擎批次 2 实现分支级 resource_override（classes.py evolve_branches 攻线侧指定资源）。
+resonance 消耗侧 res_cost 可显式 {resonance:-N} 走通；获取侧（res_gain 副 key）需引擎批次 2。
+echo 建议落 mech_stacks 驻留叠层（战斗内不清零天然契合长周期驻留语义）；每层刻一始全队恢复
+6 点体力 + 增益续时需引擎批次 2 新增 echo 结算挂点。
+```python
+"resonance": {"key": "resonance", "name": "共鸣", "max": 10, "regen": 0,
+              # 歌类/咏叹技 +1(治疗赛诗 +2)，消耗放大增益/大招(启明圣咏 -3 / 终章·黎明颂歌 -5)，攒满约 4 刻
+              "on_attack": 0, "on_hit": 0, "on_skill": 1}
+"echo": {"key": "echo", "name": "回声", "max": 3, "regen": 0,
+         # max=展示/注册用（叠层实际由 battle_config ECHO_CFG.max_layers / MECH_CFG['echo'] 管，
+         # 引擎 _res_gain echo→mech_stacks 不经 core_resource_gain_key 上限注册）；
+         # P2E-P1b 后回声无「歌类技」判定生产者（v153 后 = _res_gain echo 单通道按技能数据叠加）
+         "on_attack": 0, "on_hit": 0, "on_skill": 1}
+```
+
+## 5. vow 圣律（守线神谕随附支援燃料条 0-3）
+
+参考_云海猎团职业融合_v139_牧师.md §4.4：治疗命中 +1 / 受击 +1（每刻至多 1），消耗 1 点
+施放圣辉支援（不占主行动）。注册：BRANCH_RESOURCE_OVERRIDE[("cls_mu_shi", 2)] = ("vow", "faith")
+（引擎批次 2，同歌者 resonance 先例）。
+```python
+"vow": {"key": "vow", "name": "圣律", "max": 3, "regen": 0,
+        "on_attack": 0, "on_hit": 1, "on_skill": 0, "on_heal": 1, "per_turn_cap": 1}
+```
+注：暗影神谕「亡灵祭仪保底律 idle_floor_turns」为独立配置常量（原放 battle_config.py，不占 CORE_RESOURCES 条目）。
+
+## 6. 其余旧表条目（展示元数据，v130.2 name 值已对照迁移 EFFECT_RULES）
+
+| class/key | name（旧表） | max（=EFFECT_RULES cap） | 备注 |
+|---|---|---|---|
+| cls_zhan_shi rage | 怒气 | 10 | R2b 已迁 |
+| cls_fa_shi element | 元素亲和 | 5 | 基础纯蓝不经营，转职首获充能条 |
+| cls_you_xia energy | 精力 | 100 | R2a 已迁（含 start_full/period） |
+| cls_mu_shi faith | 信仰值 | 10 | 负载四档：0-3 清醒/4-7 专注(×1.25)/8-9 透支(×1.5)/10 过载(强制清零全队回复)，每刻 −0.7 |
+| cls_ci_ke cp | 连击点 | 5 | 普攻/技能命中 +1 |
+| cls_wu_seng chi | 气 | 10 | 3 气崩拳/10 气破岳拳双档 |
+| vow | 圣律 | 3 | 见 §5 |
+| resonance | 共鸣 | 10 | 见 §4 |
+| echo | 回声 | 3 | 见 §4 |
+| zhan_yi / lian_duan / arcane | 战意/连段/奥术 | 10 | v151+ battle2 叠层资源，name 对齐 RESOURCE_STACK_CN |
+
+> 退役后仍存活读点（数据文件本体保留中，未 git rm）：job_guide 职业速查 desc 原文派生
+> （data/job_guide.py + commands/job_guide.py EXTRA_RESOURCES 共鸣/回声展示）、
+> commands/player.py `_RES_CN` 技能详情资源名、data/__init__.py re-export、tests 结构断言——归后续批次。
