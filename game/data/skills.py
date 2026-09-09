@@ -1679,6 +1679,11 @@ BRANCH_SKILLS = {
                         'cast': 1.3,
                         'cd': 20,
                         'aoe': 'all',
+                        # v181.M-smallfix：补 arcane_focus 判据标记（desc 明示"万象元素风暴"
+                        # 的元素系大招，此前 el/mech/名三路全空漏减 mp-10% 折扣）。无 mech_val
+                        # → 引擎零效果副作用（battle2 兼容层 mech_val=0 不落地）；element 字段
+                        # 不补（会进元素免疫/弱点/抗性结算，误触发）。值取同门印记结算技先例。
+                        'mech': 'element_burst_all',
                         'name': '万象风暴',
                         'desc': '引动万象元素风暴席卷战场，天地变色——造成 150% 魔法攻击 + 36 固定魔法伤害（成长）（全体），并为全体结算印记'
                     },
@@ -1747,6 +1752,10 @@ BRANCH_SKILLS = {
                         'cast': 1.3,
                         'cd': 20,
                         'cond': {"type": "player_mech_stacks", "mech": "arcane", "stacks": 3, "mult": 1.2},
+                        # v181.M-smallfix：补 arcane_focus 判据标记（desc 明示"奥术奥秘"的奥术系
+                        # 大招，名不含"元素/奥术"漏减 mp-10% 折扣；cond.mech=arcane 已锚定奥术充能
+                        # 体系）。无 mech_val → 引擎零效果副作用（不叠充能，行为零变化）。
+                        'mech': 'arcane',
                         'name': '奥秘主宰',
                         'desc': '将毕生奥术奥秘凝于一点骤然迸发——造成 220% 魔法攻击 + 78 固定魔法伤害（成长），充能 ≥3 时伤害 ×1.2'
                     },

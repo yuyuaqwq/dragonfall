@@ -1223,7 +1223,11 @@ class CombatCmds(CommandBase):
                 # v164.3 修复：技能数据 v161 起支持 res_cost（精力/怒气等核心资源），无 mp 字段——
                 # 原 info["mp"] 直接下标对 res_cost 技能 KeyError 崩（玩家报"放不出技能"）。
                 # 对齐引擎 battle.py:2455：mp 用 .get 兜底；res_cost 技能资源校验由引擎施放时执行。
-                if (info.get("mp", 0) or 0) > 0 and player["mp"] < info["mp"]:
+                # v181.M-smallfix：mp 预检改与引擎 actions._skill_pay_of 同源折算（bonus.cost
+                # 折扣后 floor+保底 1，= 引擎实际扣费值）——脱战 player 无 bonus 容器（词条
+                # 装配只在战斗 actor 上）→ 折算直通声明费（行为零变化），口径与战斗内一致。
+                _mp_need = E.skill_mp_pay_of(player, info)
+                if _mp_need > 0 and player["mp"] < _mp_need:
                     yield event.plain_result("💙 魔力不足！休息一下或使用魔力药水吧～")
                     return
                 if player.get("hp", 0) >= player.get("max_hp", 1):
@@ -1301,7 +1305,31 @@ class CombatCmds(CommandBase):
         # v164.3 修复：技能数据 v161 起支持 res_cost（精力/怒气等核心资源），无 mp 字段——
         # 原 info["mp"] 直接下标对 res_cost 技能 KeyError 崩（玩家报"放不出技能"）。
         # 对齐引擎 battle.py:2455：mp 用 .get 兜底；res_cost 技能资源校验由引擎施放时执行。
-        if (info.get("mp", 0) or 0) > 0 and player["mp"] < info["mp"]:
+        # v181.M-smallfix：mp 预检改与引擎 actions._skill_pay_of 同源折算——折扣词条
+        # （arcane_focus 等 bonus.cost）下 mp ∈ [实际pay, 声明费) 边界放行施放（丢边界
+        # 收益修复，无白嫖：pay = 引擎实际扣费，floor+保底 1 同语义）。折算容器取战斗
+        # state 我方 actor（开战装配 bonus.cost 随档落盘/恢复）；异常/找不到 → 回落
+        # player dict（无容器 → 声明费直通，历史行为不变）。
+        _mp_need = E.skill_mp_pay_of(player, info)
+        _mp_cur = int(player.get("mp", 0) or 0)
+        try:
+            _me_actor = None
+            for _acts in (battle.get("state") or {}).get("sides", {}).values():
+                for _a in (_acts or []):
+                    if not isinstance(_a, dict):
+                        continue
+                    if str(_a.get("qq_id") or _a.get("uid") or "") == str(qq_id):
+                        _me_actor = _a
+                        break
+                if _me_actor is not None:
+                    break
+            if _me_actor is not None:
+                _mp_need = E.skill_mp_pay_of(_me_actor, info)
+                if _me_actor.get("mp") is not None:
+                    _mp_cur = int(_me_actor.get("mp") or 0)
+        except Exception:
+            pass  # 取 actor 异常 → 保留 player dict 口径（兜底铁律）
+        if _mp_need > 0 and _mp_cur < _mp_need:
             yield event.plain_result("💙 魔力不足！休息一下或使用魔力药水吧～")
             return
         if battle["state"].get("type") == "instance":
@@ -2884,9 +2912,14 @@ class CombatCmds(CommandBase):
             if not E.is_skill_learned(player["class_name"], player["level"], skill_name, player.get("learned_skills", [])):
                 yield event.plain_result(f"该技能需要 Lv.{info['lv']} 才能使用，你才 Lv.{player['level']}")
                 return
-            if (info.get("mp", 0) or 0) > 0 and (my_actor.get("mp") or 0) < info["mp"]:
-                yield event.plain_result("💙 魔力不足！")
-                return
+            # v181.M-smallfix：PVP mp 预检与引擎 actions._skill_pay_of 同源折算——my_actor
+            # 为 restore 后战斗 actor（bonus.cost 词条装配随档在），pay = 引擎实际扣费值
+            # （floor+保底 1）→ 折扣词条下 mp ∈ [pay, 声明费) 边界放行（不再被声明费先拦）。
+            if info.get("mp", 0) or 0:
+                _pvp_mp_need = E.skill_mp_pay_of(my_actor or player, info)
+                if _pvp_mp_need > 0 and int(my_actor.get("mp") or 0) < _pvp_mp_need:
+                    yield event.plain_result("💙 魔力不足！")
+                    return
         # PVP『防御』（battle2：目标 actor defending=True → landing deal_damage 减半统一消费）。
         # 防御姿态随 actor dict 持久化（to_state 带 defending）——上一击 defend 的人恢复后
         # 自动在 defending 状态，无需命令层再搬运。这里只做"覆盖/消耗"语义：

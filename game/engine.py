@@ -970,6 +970,22 @@ def skill_info(class_name: str, skill_name: str):
     return None
 
 
+def skill_mp_pay_of(actor_or_player: dict, info: dict) -> int:
+    """技能实际 mp 消耗（命令层施放预检同源折算，v181.M-smallfix 薄封装）。
+
+    与 battle2 引擎 actions._skill_pay_of 同一折算点：actor bonus.cost 域
+    （mp_pct/mp_flat + when 判据 element/mech_prefix/name_contains）折扣 →
+    floor 取整 + 保底 1（玩家受益方向）——即引擎施放时实际会扣的 mp 值。
+    dict 无 bonus.cost 容器/域 → 声明费直通（读源兜底铁律，与引擎行为一致）。
+    命令层不便直接 import battle2 引擎内部函数 → 引擎层薄封装，battle2 核心零改动。
+    """
+    try:
+        from game.battle2.actions import _skill_pay_of
+        return int(_skill_pay_of(actor_or_player or {}, info or {}).get("mp") or 0)
+    except Exception:
+        return int((info or {}).get("mp", 0) or 0)
+
+
 def branch_skill_owner(class_name: str, skill_name: str):
     """分支专属技能归属：(tier, 分支名)；非分支技能返回 None(v26)"""
     skill_name = C.resolve("skills", skill_name)
