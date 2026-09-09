@@ -60,6 +60,30 @@ EFFECT_RULES: dict = {
         "name": "奥术",
         "cap": 10,
     },
+    # v181.M-melody：诗人旋律光环（v153 设计 docs/CLASS_MECHANICS_v153.md『七、吟游诗人』）
+    # 驻留旋律 = 全队光环，效果随强度：效果% = melody_pct(技能 desc 基础) × (1+0.25×(强度-1))
+    # （1 层=desc 值，5 层=×2=+100%；公式注释标待 v153 重做确认）。
+    # 实现：stat_scale per=0.01（每层 1%），广播时写等效层数=目标%（float 层支持——
+    # 目标%不整时小数层，stats 折算 n×0.01 得精确效果）。条目只作折算声明，由装配层
+    # class_melody_act 广播写全员 effects（施法者 effects["melody_state"] 存状态）。
+    "melody_atk": {
+        "stat_scale": {"atk": 0.01},        # 每层 +1% atk（层数=目标%）
+    },
+    "melody_atk_matk": {
+        "stat_scale": {"atk": 0.01, "matk": 0.01},
+    },
+    "melody_spd": {
+        "stat_scale": {"spd": 0.01},
+    },
+    "melody_def": {
+        "stat_scale": {"reduce": 0.01},     # 每层 +1% 减伤（reduce 承伤乘区，cap 0.9）
+    },
+    "melody_finale_atk": {
+        "stat_scale": {"atk": 0.01},        # 终章爆发 buff（expire 8-10 刻后消散，可叠加驻留）
+    },
+    "melody_finale_crit": {
+        "stat_scale": {"crit": 0.01},
+    },
     # R4（N9.7e affix 资源词条 gain clamp 声明）：energy/faith/cp/element 是
     # affix res+gain 词条（暴击蓄能/圣辉回响/暴击回点/充能汲引等）的资源容器 key，
     # cap 源 = core_resources legacy max（文件本体 R2c 退役；精力 100/信仰 10/连击点 5/元素亲和 5）。

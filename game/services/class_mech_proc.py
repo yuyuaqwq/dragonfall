@@ -310,6 +310,99 @@ def install() -> None:
         logs.append(f"⚡ 信仰过载！圣光迸发，全员回复 {healed} 点生命！"
                     if healed > 0 else "⚡ 信仰过载！信念归零（全员生命已满）！")
 
+    # ---- v181.M-melody：诗人旋律驻留（唱新歌/吟唱叠层/满层终章 + 全队光环广播）----
+    # 数据源 = 技能 dict：melody 字段（kind: atk/def/spd/atk_matk）+ melody_pct（基础%）
+    # + finale（终章 kind: crit/atk）+ melody_fin_pct/buff_turns。状态存施法者
+    # effects["melody_state"]（无 EFFECT_RULES 声明 → 零折算纯状态，随 actor 序列化）；
+    # 光环广播全员 effects["melody_<kind>"]（stat_scale per=0.01，stacks=目标%）。
+    # 数值公式：效果% = pct × (1 + 0.25×(stacks-1))（1 层=desc 值，5 层=×2=+100%；
+    # 公式与分支 e_ 减益系/终章触发细节标待 v153 重做确认——本次目的=机制载体）。
+    _MELODY_AURA_MAP = {
+        "atk": "melody_atk", "def": "melody_def",
+        "spd": "melody_spd", "atk_matk": "melody_atk_matk",
+    }
+    _MELODY_FIN_MAP = {"atk": "melody_finale_atk", "crit": "melody_finale_crit"}
+
+    def _melody_pct_of(state) -> float:
+        pct = float(state.get("pct") or 0)
+        stack = int(state.get("stacks") or 1)
+        return pct * (1.0 + 0.25 * max(0, stack - 1))
+
+    def _melody_write_aura(battle, actor, logs):
+        """按施法者 melody_state 写全员驻留光环（先清旧驻留条目，finale buff 不清）。"""
+        state = ((actor.get("effects") or {}).get("melody_state") or {})
+        key = _MELODY_AURA_MAP.get(state.get("kind") or "")
+        side = actor.get("side") or "player"
+        for _a in (getattr(battle, "sides", None) or {}).get(side, []) or []:
+            ef = _a.setdefault("effects", {})
+            for _k in list(ef):
+                if _k in _MELODY_AURA_MAP.values():
+                    ef.pop(_k, None)  # 旧驻留全清（换歌/叠层重写）
+            if key:
+                ef[key] = {"stacks": _melody_pct_of(state), "expire": None}
+
+    def _melody_finale(battle, actor, state, logs):
+        """终章：全员 finale 爆发 buff（expire 后消散，叠加在驻留上），强度归 1。"""
+        fin = state.get("fin_kind") or ""
+        fkey = _MELODY_FIN_MAP.get(fin)
+        if not fkey:
+            return
+        try:
+            _now = float(getattr(battle, "_now", 0) or 0)
+        except Exception:
+            _now = 0.0
+        _turns = max(1, int(state.get("fin_turns") or 8))
+        side = actor.get("side") or "player"
+        for _a in (getattr(battle, "sides", None) or {}).get(side, []) or []:
+            _a.setdefault("effects", {})[fkey] = {
+                "stacks": float(state.get("fin_pct") or 0), "expire": _now + _turns}
+        logs.append(f"💥 终章！全队获得爆发增益（{_turns} 刻）！")
+
+    @register_action("class_melody_act")
+    def class_melody_act(battle, caster, target, params, logs):
+        """act_cast：mech=melody（唱新歌/换歌）| mech=melody_chant（吟唱叠层）。"""
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        actor = ctx.get("actor") or caster
+        info = ctx.get("info") or {}
+        mech = info.get("mech")
+        if mech not in ("melody", "melody_chant"):
+            return
+        ef = actor.setdefault("effects", {})
+        if mech == "melody":
+            kind = info.get("melody") or ""
+            if kind not in _MELODY_AURA_MAP:
+                logs.append("🎵 这首曲式（" + str(kind) + "）尚未谱成……")
+                return
+            ef["melody_state"] = {
+                "stacks": 1, "kind": kind,
+                "pct": float(info.get("melody_pct") or 0),
+                "name": info.get("name") or "",
+                "fin_kind": info.get("finale") or "",
+                "fin_pct": float(info.get("melody_fin_pct") or 0),
+                "fin_turns": int(info.get("buff_turns") or 8),
+            }
+            _melody_write_aura(battle, actor, logs)
+            logs.append(f"🎵 奏响【{ef['melody_state']['name']}】！旋律驻留，全队获得光环！")
+            return
+        state = ef.get("melody_state")
+        if not isinstance(state, dict) or not state.get("kind"):
+            logs.append("🎵 尚无旋律奏响——先唱一首歌吧！（战歌/守歌/疾歌）")
+            return
+        stack = int(state.get("stacks") or 1)
+        if stack >= 5:
+            if state.get("fin_kind") and state.get("fin_kind") in _MELODY_FIN_MAP:
+                _melody_finale(battle, actor, state, logs)
+                state["stacks"] = 1
+                _melody_write_aura(battle, actor, logs)
+            else:
+                logs.append("🎵 旋律已至巅峰（5 层）——此曲无终章，保持最强音吧")
+            return
+        state["stacks"] = stack + 1
+        _melody_write_aura(battle, actor, logs)
+        logs.append(f"🎵 吟唱回旋，【{state.get('name')}】强度 +1（{state['stacks']}/5）！")
+
     _registered = True
 
 
@@ -459,6 +552,17 @@ def apply_class_mech(actor: dict) -> None:
                         {"type": "class_faith_overload", "res": "faith"})
         except Exception:
             pass  # 负载制装配异常不阻断开战（容错铁律）
+        # v181.M-melody：诗人旋律装配——class=cls_shi_ren 且学了 melody/melody_chant
+        # 系技能才挂 act_cast 触发器（学什么挂什么，零噪音；非诗人不挂）。
+        try:
+            _has_melody = any(
+                (info.get("mech") in ("melody", "melody_chant"))
+                for _s, info in _learned_mech_skills(actor))
+            if _has_melody:
+                trig.setdefault("act_cast", []).append(
+                    {"type": "class_melody_act"})
+        except Exception:
+            pass  # melody 装配异常不阻断开战（容错铁律）
         mechs = {info.get("mech") for _s, info in _learned_mech_skills(actor)}
         for mech in mechs:
             cash = rules.get(mech)

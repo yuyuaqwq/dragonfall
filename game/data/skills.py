@@ -763,6 +763,7 @@ PLAYER_SKILLS = {
              'cd': 8,
              'mech': 'melody',
              'melody': 'atk',
+             'melody_pct': 12,      # v181.M-melody：驻留基础效果 %（v153 设计表权威）
              'name': '战歌',
              'desc': '拨动琴弦，战意随旋律点燃血液——驻留：全队攻击 +12%'
             },
@@ -775,6 +776,7 @@ PLAYER_SKILLS = {
              'cd': 8,
              'mech': 'melody',
              'melody': 'def',
+             'melody_pct': 10,      # v181.M-melody：驻留减伤基础 %（v153 设计表权威）
              'name': '守歌',
              'desc': '弦音如盾，守护之歌环绕周身——驻留：全队减伤 +10%'
             },
@@ -787,6 +789,7 @@ PLAYER_SKILLS = {
              'cd': 8,
              'mech': 'melody',
              'melody': 'spd',
+             'melody_pct': 12,      # v181.M-melody：驻留速度基础 %（v153 设计表权威）
              'name': '疾歌',
              'desc': '轻快旋律催人疾行，风声与琴音竞速——驻留：全队速度 +12%'
             },
@@ -3681,6 +3684,9 @@ BRANCH_SKILLS = {
                         'cd': 8,
                         'mech': 'melody',
                         'melody': 'atk',
+                        'melody_pct': 20,      # v181.M-melody：驻留基础 %（v153 设计表权威）
+                        'finale': 'atk',       # v181.M-melody：终章 kind 补全（desc 明示全队攻+45%）
+                        'melody_fin_pct': 45,  # v181.M-melody：终章爆发 %（v153 设计表权威）
                         'name': '激昂战歌',
                         'desc': '战鼓般的旋律轰然奏响，点燃胸膛热血——驻留：全队攻击 +20%；终章：全队攻击 +45%，持续 8 刻'
                     },
@@ -3694,7 +3700,9 @@ BRANCH_SKILLS = {
                         'cd': 8,
                         'mech': 'melody',
                         'melody': 'atk_matk',
+                        'melody_pct': 16,      # v181.M-melody：驻留基础 %（v153 设计表权威）
                         'finale': 'crit',
+                        'melody_fin_pct': 25,  # v181.M-melody：终章暴击 %（v153 设计表权威）
                         'name': '英雄赞歌',
                         'desc': '歌颂英雄的史诗旋律，令剑与法同燃——驻留：全队攻击与魔攻 +16%；终章：全队暴击 +25%，持续 8 刻'
                     },
