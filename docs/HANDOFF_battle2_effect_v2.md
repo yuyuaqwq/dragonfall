@@ -643,6 +643,9 @@ hostile 残血追击 / cd_ok 冷却（id→name 经 actor._skill_index）/ weigh
   设计+排期 = docs/DESIGN_v181_L3_player_event_bus.md。L1 战斗内效果总线(N8) ✅ 已落地、
   L2 战斗级观察者(on_event) ✅ 已落地、L3 玩家级事件总线 ⬜ 缺位——victory_settle 手动
   接线任务/成就/公会/野王/塔卫要收敛成订阅。方案 = DDD 同步领域事件（非 QFramework 全家桶）。
-- **待办**：wt_ebuffs 合并 master（master 零分叉，fast-forward 即可）+ 处理 2 个遗留红 +
-  L3 开工。
-- 续做口令：读本 HANDOFF §10 → git log 确认 HEAD → 处理待办队列。
+- ✅ **master 合并完成**（2026-09-10，fast-forward 154 commit，9b73e2d）+ **2 个遗留红已清**：
+  feedback_features #6 仇恨段退役（旧防御嘲讽语义被 v173.5 router 仇恨 + test_instance_hate 覆盖）+
+  services_quests 测试日期改动态当天（写死旧日期被跨天重置误判）。**全量 207 = 207/0 全绿**。
+- **N10 整批收官**：B 缺口补完 → C 删旧（battle.py + 五注册表 -16965 行）→ D 收尾（遗留红清零）。
+  下一步 = L3 玩家事件层开工（排期文档已就绪，P0 任务书先行）。
+- 续做口令：读本 HANDOFF §10 → git log 确认 HEAD → L3-P0 出字段级任务书给鱼鱼审。
