@@ -108,10 +108,10 @@ async def main():
     from game.battle2 import make_actor as _mk2
     bp = db.get_player("g1", "w1")
     _st = _mk2(uid="p_q1", name=bp.get("name", "勇者"), side="player", kind="player",
-               human_controlled=True, class_name=bp.get("class_name") or "法师",
+               human_controlled=True, class_name=bp.get("class_name") or "cls_fa_shi",
                level=bp.get("level") or 1, hp=500, max_hp=500, mp=200, max_mp=200,
                atk=10, matk=50, spd=10, crit=0.0, equipment={}, skills=[],
-               learned_skills=bp.get("skills") or [], race=None, evolve_path=0,
+               learned_skills=bp.get("learned_skills") or [], race=None, evolve_path=0,
                class_tier=0, attributes={}, **{"def": 5, "mdef": 5})
     _e = _mk2(uid="e_0", name="测试木桩", side="enemy", kind="monster", level=5,
               hp=200, max_hp=200, atk=10, matk=10, spd=5, crit=0.0,
@@ -122,6 +122,12 @@ async def main():
         for _sid, _sk in (_cd.get("skills") or {}).items():
             if str((_sk or {}).get("name")) == "魔力脉冲":
                 _sk_id, _sk_info = _sid, dict(_sk)
+    if not _sk_info:
+        # 导师专属技能在 TUTOR_SKILLS（v101.20 职业导师）
+        for _cid, _cd in (getattr(C, "TUTOR_SKILLS", None) or {}).items():
+            for _sid, _sk in (_cd or {}).items():
+                if isinstance(_sk, dict) and str(_sk.get("name")) == "魔力脉冲":
+                    _sk_id, _sk_info = _sid, dict(_sk)
     if _sk_info:
         from game.battle2.actors import ActCtx
         _logs = []

@@ -85,7 +85,8 @@ def basic_attack(battle, actor, target):
 def test_snake_soup_lifesteal():
     print("【1. 蛇羹：普攻吸血 8%（命中回血）】")
     p = mk_fighter()
-    e = mk_enemy()
+    # 怪 atk 要能打穿 50 防（默认 atk=1 打不动满血战士 → 吸血无空间，并发下测试失效）
+    e = mk_enemy(atk=300)
     b = B2(btype="monster", sides={"player": [p], "enemy": [e]})
     logs, cast = eat_food(b, p, ["lifesteal"])
     check("吃料理播报", any("蛇羹" in x or "吸血" in x for x in (logs or [])),
