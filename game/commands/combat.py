@@ -24,11 +24,9 @@ from ..commands.base import CommandBase, no_prof_waiting, require_player, requir
 # v181 P4-1 试点：每日元数据键 + 达标结算单点已收敛至 services.quests——
 # combat 与 world 共同 import services（不再 from .world 引命令层私有函数）
 from ..services.quests import DAILY_META_KEYS, settle_daily_quest  # noqa: F401
-from .weekly import weekly_bump_kill  # v169.2 周常悬赏击杀推进（达标自动发奖）
-from .tower import tower_guard_on_kill  # v169.2 修炼爬塔塔卫击杀结算（与野王同款接线）
-from ..core.wild_king import (  # v140 波2：野王体系（探索命中/击杀结算/摸宝箱）
-    explore_king, build_king_monster, wild_king_on_kill, open_chest,
-    wild_king_summary, personal_meta,
+from ..core.wild_king import (  # v140 波2：野王体系（探索命中/结算/摸宝箱）
+    explore_king, build_king_monster, open_chest,
+    wild_king_summary,
 )
 
 # 全局战斗锁（简单并发保护：同一玩家同一时间只能一场战斗）
@@ -2031,91 +2029,29 @@ class CombatCmds(CommandBase):
         lines = _r["lines_pre"]
         player = _r["player"]
         _rule_txt = _r["rule_txt"]
-        # 公会任务推进（每日击杀 5 只；v43 修复：跨天重置而非跳过）
-        g2 = db.guild_get_by_member(qq_id)
-        if g2:
-            import datetime as _dt
-            tdate, tprog = db.guild_get_task(g2["gid"], qq_id)
-            today = _dt.date.today().isoformat()
-            if tdate != today:
-                tprog = 0  # 新的一天/新成员：重置进度
-            if tprog < C.GUILD_CONFIG["kill_task"]:
-                tprog += 1
-                db.guild_set_task(g2["gid"], qq_id, today, tprog)
-                if tprog >= C.GUILD_CONFIG["kill_task"]:
-                    cfg = C.GUILD_CONFIG
-                    db.guild_add_exp(g2["gid"], cfg["task_exp"], member_qq=qq_id, contribute=cfg["task_contribute"])
-                    # v105 M18 P2：先刷新 player 再写金币——player dict 在战斗结算中段刷新后，
-                    # _rule_fire("battle_win")（Boss 巢穴私藏金币等 loot_gold 彩蛋）可能已落库加金币，
-                    # 直接用旧 dict 值覆盖会丢掉同场彩蛋金币
-                    player = self._player(group_id, qq_id)
-                    db.update_player(group_id, qq_id, gold=player["gold"] + cfg["task_gold"])
-                    lines.append(f"🎯 【公会任务完成】击杀 {cfg['kill_task']} 只达成！公会经验 +{cfg['task_exp']} 贡献 +{cfg['task_contribute']} 金币 +{cfg['task_gold']}")
-                else:
-                    lines.append(f"🎯 公会任务进度 {tprog}/{C.GUILD_CONFIG['kill_task']}")
-        # 升级
-        player["_title_bonus"] = self._title_bonus(group_id, qq_id)
-        lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
-        if lv_logs:
-            if lines:
-                lines.append("")
-            lines += lv_logs
-            db.update_player(group_id, qq_id, level=player["level"], exp=player["exp"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
-        # 任务进度（v130.7 意见#17：多目标战斗按全部击杀单位逐个计数——掉落/经验/金币
-        # 仍只按主怪 monster 结算一次，故仅此处走循环；同名不合并，前缀变体各计一次）
+        # ---- L3 玩家级反应总线（v181 L3-P2：原 L2034-2118 手动段 公会每日/升级/
+        #   任务/周常/野王/塔卫/成就 收敛为 battle_victory 订阅——行序与空行规则由
+        #   总线 blank 参数保证，文案零变化；升级订阅方重绑 player 供后续使用）----
         killed = [dict(k) for k in (extra_kills or [])]
         if monster and not any(k.get("name") == monster.get("name") for k in killed):
             killed.insert(0, monster)
-        quest_lines = []
-        for k in killed:
-            quest_lines += (self._update_quests(group_id, qq_id, k) or [])
-        if quest_lines:
-            if lines:
-                lines.append("")
-            lines += quest_lines
-        # v140 波2：野王击杀结算——Boss 死亡 → 解锁宝箱 → 广播（探索命中链路专用）
-        if monster and str(monster.get("id", "")).startswith("b_guard_"):
-            try:
-                _wk_lines = wild_king_on_kill(group_id, qq_id, monster)
-                if _wk_lines:
-                    if lines:
-                        lines.append("")
-                    lines += _wk_lines
-                    try:
-                        self._broadcast("\n".join(_wk_lines))
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-        # v169.2 修炼爬塔：塔卫被击杀 → 爬塔状态推进/每日计数（标准战斗已发放 exp+gold）
-        try:
-            if monster and str(monster.get("id", "")).startswith("tower_"):
-                _tw_lines = tower_guard_on_kill(self, group_id, qq_id, monster)
-                if _tw_lines:
-                    if lines:
-                        lines.append("")
-                    lines += _tw_lines
-        except Exception:
-            pass
-        # 阶段九：成就判定（击杀/等级/精英/Boss/分类怪）
-        ach_lines = []
-        # v87：隐藏怪击杀累计（成就·传说猎人）
-        hm_defeated = set()
-        try:
-            _hm_st = db.get_event_state(f"hm_defeated_{group_id}_{qq_id}")
-            if _hm_st:
-                hm_defeated = set(_hm_st.split(",")) if _hm_st else set()
-            if monster.get("id") in C.HIDDEN_MONSTERS:
-                hm_defeated.add(monster["id"])
-                db.set_event_state(f"hm_defeated_{group_id}_{qq_id}", ",".join(sorted(hm_defeated)))
-        except Exception:
-            pass
-        new_achs = C.check_achievements(group_id, qq_id, player, {"defeated_hidden_monsters": hm_defeated})
-        for a in new_achs:
-            rw_txt = f"\n      🎁 {a['_reward_txt']}" if a.get("_reward_txt") else ""
-            ach_lines.append(f"🏆 成就解锁：{a['name']}！({a['desc']}){rw_txt}")
-        if ach_lines:
-            lines += [""] + ach_lines
+        from ..services.player_event_bus import fire as _pe_fire
+        from ..services import player_event_subscribers as _pe_subs  # noqa: F401  触发注册（幂等）
+        _vctx = {
+            "kind": "field",
+            "group_id": group_id, "qq_id": qq_id,
+            "player": player, "monster": monster, "killed": killed,
+            "side_effects": [],
+        }
+        lines += _pe_fire("battle_victory", _vctx)
+        player = _vctx["player"]  # levelup 订阅方可能重绑（升级后最新 dict）
+        # 野王广播副作用（原 self._broadcast 位点；订阅方行组已进 lines）
+        for _se in _vctx.get("side_effects") or []:
+            if _se.get("type") == "broadcast":
+                try:
+                    self._broadcast(_se.get("text", ""))
+                except Exception:
+                    pass
         # v97.5 行为彩蛋规则：战斗胜利后（#262：触发已提前到进度条生成前，这里只保留公告行位置）
         if _rule_txt:
             lines.append(_rule_txt)
@@ -2151,23 +2087,6 @@ class CombatCmds(CommandBase):
         from ..services.battle_settlement import defeat_settle
         _r = defeat_settle(group_id, qq_id, player, monster, result)
         yield event.plain_result("\n".join(_r["lines"]))
-
-    def _update_quests(self, group_id, qq_id, monster):
-        """战斗后更新任务进度，返回通知行（P4-2 壳：任务状态机收敛至 services.quests_flow）
-
-        主线任务流程：未接 → (找NPC) 进行中 → 目标达成(可交) → (找NPC) 交任务领奖
-        v181 P4-2：主线/支线/每日击杀进度推进原样随迁 services.quests_flow.quest_kill_progress
-        （v105 M19 P2 前缀精确 / kill_any / settle_daily_quest 同单点）；周常悬赏属 weekly
-        域，仍由本命令层追加（行为不变）。
-        """
-        from ..services.quests_flow import quest_kill_progress
-        lines = quest_kill_progress(group_id, qq_id, monster)
-        # v169.2 周常悬赏：每只击杀怪物推进本周悬赏（达标自动发奖，与每日任务同构）
-        try:
-            lines += weekly_bump_kill(self, group_id, qq_id, monster)
-        except Exception:
-            pass
-        return lines
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?讨伐(?:\s*|$)")
     @require_player()
     @no_prof_waiting()

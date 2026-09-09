@@ -13,6 +13,7 @@
 import sys, os, sqlite3, time, json, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, E, db, clean_db, Main, FakeEvent, run
+from data.plugins.dragonfall.game.services.quests_flow import quest_kill_progress  # v181 L3-P2：_update_quests 壳收编订阅方，击杀推进直调 services
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -199,7 +200,7 @@ async def main():
     db.save_quests("g1", "w1", qs)
     # 击杀任意怪 3 次（进度 1/5 → 3/5）
     for i in range(3):
-        lines = m3._update_quests("g1", "w1", {"name": "野狗"})
+        lines = quest_kill_progress("g1", "w1", {"name": "野狗"})
         joined = "|".join(lines)
         check(f"kill_any 第{i+1}次击杀有进度提示", f"{i+1}/5" in joined, joined[:100])
     qs2 = db.get_quests("g1", "w1")
@@ -208,7 +209,7 @@ async def main():
     check("3/5 未 ready", sq2.get("status") == "active", str(sq2.get("status")))
     # 再杀 2 只（任意怪名不同也可）→ 5/5 ready
     for i in range(2):
-        lines = m3._update_quests("g1", "w1", {"name": "森林狼"})
+        lines = quest_kill_progress("g1", "w1", {"name": "森林狼"})
         joined = "|".join(lines)
     qs3 = db.get_quests("g1", "w1")
     sq3 = qs3["side"]["s_caravan_escort"]

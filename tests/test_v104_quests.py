@@ -18,6 +18,7 @@ import sys, os, asyncio, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, Main, FakeEvent, run, make_player
+from data.plugins.dragonfall.game.services.quests_flow import quest_kill_progress  # v181 L3-P2：_update_quests 壳收编订阅方，击杀推进直调 services
 
 passed = failed = 0
 
@@ -242,27 +243,27 @@ async def main():
     db.save_quests("g9", "p10", qdata("q1_3", "active"))
     # v104 M20 P2：击杀匹配改前缀精确（== 或 「目标·」开头）——「·」后缀精英变体计入，
     # 前缀式命名（精英野猪/巨型野猪/霜巨魔王等）不再误伤
-    lines = m._update_quests("g9", "p10", {"name": "野猪·精英"})
+    lines = quest_kill_progress("g9", "p10", {"name": "野猪·精英"})
     qq = get_q("g9", "p10")
     check("杀『野猪·精英』计数入 obj key", qq["main_progress"] == {"野猪": 1}, str(qq["main_progress"]))
     check("面板进度显示 1/5", any("1/5" in l for l in lines), str(lines))
     out = await cmd(m, "quest_view", "g9", "p10", "任务")
     check("quest_view 进度 1/5", "1/5" in out, out[:200])
-    lines = m._update_quests("g9", "p10", {"name": "巨型野猪"})
+    lines = quest_kill_progress("g9", "p10", {"name": "巨型野猪"})
     check("前缀式『巨型野猪』不误伤", get_q("g9", "p10")["main_progress"] == {"野猪": 1}, str(get_q("g9", "p10")["main_progress"]))
     for _ in range(4):
-        m._update_quests("g9", "p10", {"name": "野猪"})
+        quest_kill_progress("g9", "p10", {"name": "野猪"})
     check("5 只后置 ready", get_q("g9", "p10")["main_status"] == "ready", get_q("g9", "p10")["main_status"])
     # 支线 kill key 一致（精确名）
     db.save_quests("g9", "p10", qdata("q1_3", "active", side={"s3": {"status": "active", "progress": {}}}))
-    m._update_quests("g9", "p10", {"name": "森林狼"})
+    quest_kill_progress("g9", "p10", {"name": "森林狼"})
     qq = get_q("g9", "p10")
     check("支线 kill 计数入 obj key", qq["side"]["s3"]["progress"] == {"森林狼": 1}, str(qq["side"]["s3"]["progress"]))
-    m._update_quests("g9", "p10", {"name": "森林狼·头狼"})
+    quest_kill_progress("g9", "p10", {"name": "森林狼·头狼"})
     qq = get_q("g9", "p10")
     check("支线『·』变体计入（前缀精确）",
           qq["side"]["s3"]["progress"] == {"森林狼": 2}, str(qq["side"]["s3"]["progress"]))
-    m._update_quests("g9", "p10", {"name": "精英森林狼"})
+    quest_kill_progress("g9", "p10", {"name": "精英森林狼"})
     qq = get_q("g9", "p10")
     check("支线前缀式『精英森林狼』不误伤",
           qq["side"]["s3"]["progress"] == {"森林狼": 2}, str(qq["side"]["s3"]["progress"]))
