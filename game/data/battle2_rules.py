@@ -28,6 +28,13 @@ EFFECT_RULES: dict = {
         "cap": 10,
         "stat_scale": {"dmg_mult": 0.12},     # 每层伤害 +12%
     },
+    # 龙语印记（dragon_tongue：龙蛋煎饼料理 / 龙语圣剑传奇词条）——每层伤害 +2%，
+    # 攻击命中叠层（cap 5）。stat_scale.dmg_mult 通用通道（同 rage），stats 折算
+    # _state_dmg_mult → actions 伤害乘区消费；命中叠层由装配层/翻译器声明。
+    "dragon_mark": {
+        "cap": 5,
+        "stat_scale": {"dmg_mult": 0.02},     # 每层伤害 +2%（上限 5 层 = +10%）
+    },
     "chi": {
         "cap": 10,
     },

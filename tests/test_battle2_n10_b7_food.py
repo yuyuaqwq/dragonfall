@@ -268,8 +268,34 @@ def test_aurora_guard_reduce():
           f"ratio={d_gd / max(1, d_no):.2f}")
 
 
+def test_dragon_pancake_mark():
+    print("【10. 龙蛋煎饼：命中叠 dragon_mark，每层 +2% 伤害（stat_scale 乘区通道）】")
+    p = mk_fighter()
+    e = mk_enemy(hp=999999)  # 高血多次命中叠层
+    b = B2(btype="monster", sides={"player": [p], "enemy": [e]})
+    eat_food(b, p, ["dragon_tongue"])
+    # 多次普攻 → 每次叠 1 层 dragon_mark（cap 5），伤害应随层数上升
+    # 第一击（0 层→1 层，伤害算的是叠层前）
+    dmg_first = 0
+    dmg_later = 0
+    prev = e["hp"]
+    for i in range(6):
+        basic_attack(b, p, e)
+        dmg = prev - e["hp"]
+        prev = e["hp"]
+        if i == 0:
+            dmg_first = dmg
+        if i == 5:
+            dmg_later = dmg  # 第 6 击时已叠 5 层满 → +10%
+    check("印记层数达 cap", int(((p.get("effects") or {}).get("dragon_mark") or {}).get("stacks", 0)) == 5,
+          f"stacks={(p.get('effects') or {}).get('dragon_mark')}")
+    check("满层伤害 > 首击", dmg_later > dmg_first, f"first={dmg_first} later={dmg_later}")
+    check("满层 ≈ +10%", 1.02 * dmg_first <= dmg_later <= 1.30 * dmg_first,
+          f"ratio={dmg_later / max(1, dmg_first):.2f}")
+
+
 def test_translation_table_full():
-    print("【10. 翻译表全 aid 覆盖（吃入全部 19 aid 不崩 + 分类正确）】")
+    print("【11. 翻译表全 aid 覆盖（吃入全部 19 aid 不崩 + 分类正确）】")
     p = mk_fighter()
     e = mk_enemy()
     b = B2(btype="monster", sides={"player": [p], "enemy": [e]})
@@ -281,10 +307,12 @@ def test_translation_table_full():
     check("吃全表不崩且播报", bool(logs), f"logs={logs}")
     tr = p.get("triggers") or {}
     hit_n = len([x for x in tr.get("skill_hit", []) if str(x.get("key")).startswith("food_")])
+    hit_dragon = any(x.get("key") == "dragon_mark" for x in tr.get("skill_hit", []))
     taken_n = len([x for x in tr.get("on_taken", []) if str(x.get("key")).startswith("food_")])
     dc_n = len([x for x in tr.get("dmg_calc", []) if str(x.get("key")).startswith("food_")])
     tc_n = len([x for x in tr.get("taken_calc", []) if str(x.get("key")).startswith("food_")])
-    check("命中类 ≥9（10 aid - dragon_tongue 未迁）", hit_n >= 9, f"skill_hit={hit_n}")
+    check("命中类 10 aid（9 food_ + dragon_mark）", hit_n >= 9 and hit_dragon,
+          f"skill_hit={hit_n} dragon={hit_dragon}")
     check("受击类 2（counter/thorns）", taken_n >= 2, f"on_taken={taken_n}")
     check("乘区类 2（execute/precise）", dc_n >= 2, f"dmg_calc={dc_n}")
     check("减伤类 1（aurora_guard）", tc_n >= 1, f"taken_calc={tc_n}")
@@ -304,6 +332,7 @@ if __name__ == "__main__":
     test_sacred_bread_shield()
     test_duplicate_idempotent()
     test_aurora_guard_reduce()
+    test_dragon_pancake_mark()
     test_translation_table_full()
     print(f"\n===== N10-B7: PASS={PASS} FAIL={FAIL} =====")
     if FAILURES:

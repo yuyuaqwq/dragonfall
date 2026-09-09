@@ -170,9 +170,12 @@ def food_trigger_decls(aid: str) -> dict:
                               "mult": float(_fp("precise", "mult", 1.10)),
                               "tag": "🎯精准"}]}
     if aid == "dragon_tongue":
-        # 龙蛋煎饼：叠龙语印记每层 +2% —— battle2 无 dragon_mark 叠层增伤乘区通道
-        # （affix 传奇龙语圣剑同缺）→ 记上层缺口批，本批不迁（防假生效）
-        return {}
+        # 龙蛋煎饼：攻击叠龙语印记（effects["dragon_mark"] 层，每层 +2% 伤害上限 5）。
+        # 叠层走引擎原生 apply op=add（cap 查 EFFECT_RULES.dragon_mark）；
+        # 乘区 = stat_scale.dmg_mult 通用通道（同 rage）→ stats 折算 _state_dmg_mult
+        # → actions 伤害乘区自动消费，无需扩展动作。
+        return {"hit": [{"type": "apply", "key": "dragon_mark", "op": "add",
+                         "amount": 1, "on": "caster"}]}
     # 未知/未迁 aid → 空（静默跳过；shield 特判在 battle2_item_use 独立处理）
     return {}
 
