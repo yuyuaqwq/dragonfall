@@ -5,7 +5,11 @@
 > 摘其「事件总线解耦」思想 + DDD 领域事件同步语义，做 L3 玩家级事件层。本文件 = 设计 + 排期。
 > 关联：docs/DESIGN_effect_system_v2.md（L1 战斗内效果总线 N8 已落地）+
 > docs/HANDOFF_battle2_effect_v2.md §9（L2 战斗级观察者 on_event 已落地）。
-> 状态：⬜ 排期已定，待 N10 删旧合并 master 后开工（实施前再出字段级任务书给鱼鱼审）。
+> 状态：✅ P0 字段级任务书已出（2026-09-09，真实代码侦察修订）——
+> **docs/REFACTOR_v181_L3_P0_task.md**（ctx schema 逐字段/订阅注册表/回填顺序对照表/P1-P4 任务书）。
+> 关键修订：手动接线已随 P4-9 落 combat._handle_victory 壳 L2034-2118（非 victory_settle 内）；
+> 公会每日任务=每场+1 订阅 battle_victory（非逐只）；升级段建模为订阅方保行序。
+> 审过后 P1（总线核心）可开工。
 
 ## 0. 三层事件全景（为什么要补 L3）
 
@@ -76,10 +80,10 @@ game/services/... (成就/图鉴/野王/塔卫 后续批)
 
 | 批 | 内容 | 前置 | 验收 |
 |---|---|---|---|
-| L3-P0 | 字段级任务书（本文件细化：ctx schema 逐字段、订阅注册表、回填顺序对照表） | 鱼鱼审过本文件 | 设计文档定稿 commit |
+| L3-P0 | 字段级任务书 | ✅ **REFACTOR_v181_L3_P0_task.md**（2026-09-09，真实代码侦察修订：接线在 _handle_victory 壳；6 订阅方注册表含 blank 空行规则；ctx 加 kind/killed/side_effects 字段） | 设计文档定稿 commit |
 | L3-P1 | 总线核心 `player_event_bus.py`（EVENTS/register/fire/容错/顺序）+ 纯单元测试 | P0 审过 | 测试：注册顺序/未知事件忽略/异常订阅不阻断/回填收集 |
-| L3-P2 | 迁移试点 1 批：任务 + 公会（订阅 monster_killed），settlement 尾部 fire 替换手动调用 | P1 | **结算文案逐行对照零变化** + 全量回归绿 |
-| L3-P3 | 迁移试点 2 批：成就战果类（battle_victory）+ 野王/塔卫（monster_killed 特判） | P2 | 同上 + 25 处 check_achievements 调用收敛数可数下降 |
+| L3-P2 | field 迁移试点：_handle_victory 壳 L2034-2118 整段 → fire（6 订阅方：guild/levelup/quests/weekly/野王/塔卫/成就；升级建模订阅方保行序；前置下沉 tower/weekly 的 inst 依赖） | P1 | **field 结算文案逐行 diff 零变化（含空行）** + instance/worldboss/PVP 零改动 + 全量回归同名单 | 
+| L3-P3 | instance + worldboss 收编（fire kind=instance/worldboss；成就订阅方 kind 分支；主线推进语义决策点交鱼鱼）+ 战斗入口成就调用收敛数可数下降 | P2 | 各入口文案逐行零变化 + 全量回归绿 |
 | L3-P4 | settlement 瘦身收口（victory_settle 只留掉落/经验核心）+ 新订阅方接入文档（含剧情/声望示例）+ 回写本文件 | P3 | victory_settle 行数显著下降 + 接入文档 commit |
 
 > 冲突规避：L3 实施期避开 N10 C/D（删 battle.py + 测试处置）并行——settlement/combat/
