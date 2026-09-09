@@ -648,4 +648,16 @@ hostile 残血追击 / cd_ok 冷却（id→name 经 actor._skill_index）/ weigh
   services_quests 测试日期改动态当天（写死旧日期被跨天重置误判）。**全量 207 = 207/0 全绿**。
 - **N10 整批收官**：B 缺口补完 → C 删旧（battle.py + 五注册表 -16965 行）→ D 收尾（遗留红清零）。
   下一步 = L3 玩家事件层开工（排期文档已就绪，P0 任务书先行）。
-- 续做口令：读本 HANDOFF §10 → git log 确认 HEAD → L3-P0 出字段级任务书给鱼鱼审。
+- 🔴 **L3 玩家事件层 P0-P3 完成（2026-09-09 午后会话，master HEAD 0f722cd）**：
+  - P0 字段级任务书 docs/REFACTOR_v181_L3_P0_task.md（339e90f）——侦察修订：手动接线在
+    combat._handle_victory 壳 L2034-2118 非 victory_settle；胜利入口 4 类；公会=每场+1 订阅 battle_victory。
+  - P1 总线核心 game/services/player_event_bus.py（e26f92a，EVENTS/register/fire/blank 空行/容错）。
+  - P2a 下沉 tower/weekly 状态族 services（b7f509c，re-export 零行为变化）。
+  - P2 field 试点（ee19c45）：6 订阅方 game/services/player_event_subscribers.py，combat 壳 → fire 单点；
+    升级建模订阅方保行序；删 _update_quests。
+  - P3 instance+worldboss 收编（0f722cd）：鱼鱼语义决策"任何击杀都算数"（老配置漏接非设计）；
+    levelup kind 守卫仅 field（副本不升级回血防破坏节奏——有意设计保留）；删 _instance_main_kill_progress；
+    战斗入口成就调用 3→0。全量 **208/208 绿**。
+  - 剩 L3-P4：settlement 瘦身（可选）+ 新订阅方接入文档 + 回写。**新玩法加战斗反应 = services 注册一行**
+    `register("battle_victory", handler, blank_line=...)`，不改结算函数。
+- 续做口令：读本 HANDOFF §10 → git log 确认 HEAD → L3-P4 或下个排期项。

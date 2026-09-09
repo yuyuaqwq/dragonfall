@@ -82,8 +82,8 @@ game/services/... (成就/图鉴/野王/塔卫 后续批)
 |---|---|---|---|
 | L3-P0 | 字段级任务书 | ✅ **REFACTOR_v181_L3_P0_task.md**（2026-09-09，真实代码侦察修订：接线在 _handle_victory 壳；6 订阅方注册表含 blank 空行规则；ctx 加 kind/killed/side_effects 字段） | 设计文档定稿 commit |
 | L3-P1 | 总线核心 `player_event_bus.py`（EVENTS/register/fire/容错/顺序）+ 纯单元测试 | P0 审过 | ✅ **e26f92a**（2026-09-09）：EVENTS 三元组/register 未知事件 raise/fire 容错+blank 空行规则/clear_registry(仅测试)；单测 15 断言全绿，零生产 import |
-| L3-P2 | field 迁移试点：_handle_victory 壳 L2034-2118 整段 → fire（6 订阅方：guild/levelup/quests/weekly/野王/塔卫/成就；升级建模订阅方保行序；前置下沉 tower/weekly 的 inst 依赖） | P1 | **field 结算文案逐行 diff 零变化（含空行）** + instance/worldboss/PVP 零改动 + 全量回归同名单 | 
-| L3-P3 | instance + worldboss 收编（fire kind=instance/worldboss；成就订阅方 kind 分支；主线推进语义决策点交鱼鱼）+ 战斗入口成就调用收敛数可数下降 | P2 | 各入口文案逐行零变化 + 全量回归绿 |
+| L3-P2 | field 迁移试点：_handle_victory 壳 L2034-2118 整段 → fire（6 订阅方：guild/levelup/quests/weekly/野王/塔卫/成就；升级建模订阅方保行序；前置下沉 tower/weekly 的 inst 依赖） | P1 | ✅ **b7f509c+P2a 下沉 + ee19c45 主步**（2026-09-09）：tower/weekly 状态族迁 services；combat 壳手动段→battle_victory 订阅（行序+blank 总线保证）；删 _update_quests；全量 **208/208 绿**（含 2 测试断言过时更新） | 
+| L3-P3 | instance + worldboss 收编（fire kind=instance/worldboss；成就订阅方 kind 分支；主线推进语义决策点交鱼鱼）+ 战斗入口成就调用收敛数可数下降 | P2 | ✅ **0f722cd**（2026-09-09）：语义决策落地（任何击杀都算数，quests/公会全 kind 推；levelup kind 守卫仅 field 保副本不升级节奏）；instance kill_reward/victory 逐成员 fire + worldboss 逐 contrib 玩家 fire；删 _instance_main_kill_progress；战斗入口成就调用 3→0。全量 **208/208 绿** |
 | L3-P4 | settlement 瘦身收口（victory_settle 只留掉落/经验核心）+ 新订阅方接入文档（含剧情/声望示例）+ 回写本文件 | P3 | victory_settle 行数显著下降 + 接入文档 commit |
 
 > 冲突规避：L3 实施期避开 N10 C/D（删 battle.py + 测试处置）并行——settlement/combat/
