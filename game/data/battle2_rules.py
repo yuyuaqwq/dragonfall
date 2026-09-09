@@ -411,6 +411,9 @@ MECH_CASH = {
         "mode": "dmg_mult_clear",        # owner=caster（缺省）：读/清 caster effects
         "key": "lian_duan",              # 消费的叠层条目
         "per_layer": 0.10,               # 每层伤害 +10%（技能 info.per_stack 可覆盖：链舞 +6%）
+        "upgrade": {"proc": "finisher_up", "per_layer_add": 0.06},
+        # 链舞（kind=物理 主动技带 passive.proc=finisher_up——装配器只扫 kind=被动不装配）：
+        # 学到链舞 → 终结技每段系数 10% → 16%（desc「终结技系数+6%（每段 10% → 16%）」）
         "clear": True,                   # 命中后清层（info.keep_on_kill = 不清，技能级覆盖）
         "crit_at": 4,                    # 连段 ≥4 必定暴击（处刑；crit roll 前钩子就绪后生效——声明先行）
         "layer_label": "连段", "unit": "段", "icon": "🔪",

@@ -901,6 +901,30 @@ def _learned_mech_skills(actor: dict) -> list:
     return out
 
 
+def _learned_proc(actor: dict, proc: str) -> bool:
+    """actor 已学技能中是否带指定 passive.proc（链舞 finisher_up 等挂在主动技上）。
+
+    装配器 apply_class_passives 只扫 kind=被动——主动技上的 proc 不装配 triggers，
+    但可作为 MECH_CASH.upgrade 的"学到即升级"判据（扫 learned_skills 全表）。
+    """
+    if not actor or not proc:
+        return False
+    cn = actor.get("class_name") or ""
+    names = actor.get("learned_skills") or []
+    if not cn or not names:
+        return False
+    from .. import engine as E
+    for s in names:
+        try:
+            info = E.skill_info(cn, s)
+        except Exception:
+            info = None
+        if info and isinstance(info.get("passive"), dict) \
+                and (info.get("passive") or {}).get("proc") == proc:
+            return True
+    return False
+
+
 def _passive_proc_rules() -> dict:
     """PASSIVE_PROC 声明表（缺省空——装配器不崩）。"""
     try:
@@ -1183,8 +1207,14 @@ def apply_class_mech(actor: dict) -> None:
             if mode not in ("dmg_mult_clear", "dmg_mult_clear_target"):
                 continue
             key = cash.get("key") or mech
+            _per = float(cash.get("per_layer") or 0.0)
+            # mech 升级（MECH_CASH.upgrade：学某 proc 被动 → 数值增强——链舞 finisher_up
+            # 使终结技每段 10%→16%。proc 挂在 kind=物理 主动技上，装配器不装配，这里查学到）
+            _up = cash.get("upgrade") or {}
+            if isinstance(_up, dict) and _up.get("proc") and _learned_proc(actor, _up["proc"]):
+                _per += float(_up.get("per_layer_add") or 0.0)
             dm = {"action": "mech_cash_dmg_mult", "mech": mech, "key": key,
-                  "per_layer": cash.get("per_layer") or 0.0,
+                  "per_layer": _per,
                   "label": cash.get("name") or mech}
             for _k in ("layer_label", "unit", "icon"):
                 if cash.get(_k):
