@@ -167,42 +167,6 @@ def _st_basic():
         "e_buffs": {}, "p_defending": {"p1": False}, "leader": "p1",
     }
 
-def test_7_inst_auto_defend_teammate_flow():
-    print("【7. 副本超时自动防御同步队友时间流逝（R3：router/IB battle2 语义）】")
-    # R3 删除旧 _instance_auto_defend_player（被 router 4.1 超时段替代，调 IB.act("defend")）。
-    # 语义验证改走 battle2：defend 后防御者 ct 增加（action_time 耗时），队友/敌方 actor 不动。
-    clean_db()
-    from game.battle2 import Battle as _B2
-    from game.battle2 import make_actor as _mk
-    def _p(uid, nm, spd, cls):
-        return _mk(uid=uid, name=nm, side="player", kind="player", human_controlled=True,
-                   class_name=cls, level=5, hp=500, max_hp=500, spd=spd, mp=50, max_mp=50,
-                   equipment={}, skills=[], learned_skills=[])
-    p1a = _p("p_p1", "A", 20, "战士")
-    p2a = _p("p_p2", "B", 10, "法师")
-    ea = _mk(uid="e1", name="怪", side="enemy", kind="monster", level=5,
-             hp=100, max_hp=100, spd=40, atk=5, matk=1, **{"def": 1, "mdef": 1})
-    ea.setdefault("stats", {})["crit"] = 0.0
-    b = _B2("instance", sides={"player": [p1a, p2a], "enemy": [ea]})
-    # 直接 human_act defend（IB.act 内部语义 = from_state → defend → to_state 落回）
-    from game.commands import instance_battle as _IB
-    _st = {"battle": b.to_state(), "players": {}, "members": ["p_p1", "p_p2"],
-           "alive": {"p_p1": True, "p_p2": True}, "enemies": []}
-    # IB.act 需要 players 视图吗？defend 只需 battle state——补 players 快照防 sync_views 崩
-    for a in (p1a, p2a):
-        _st["players"][str(a.get("uid") or "").replace("p_", "")] = dict(a)
-    # 简化：直接调引擎 human_act（语义验证点= defend 推 ct + 他人不动）
-    logs, ended, _who = b.human_act("defend", None, p1a)
-    p1_ct = float(p1a.get("ct", 0) or 0)
-    p2_ct = float(p2a.get("ct", 0) or 0)
-    e_ct = float(ea.get("ct", 0) or 0)
-    check("防御者自身 ct 增加（行动耗时推进）", p1_ct > 0.0, f"p1 ct={p1_ct}")
-    check("队友 ct 不变（绝对时刻制，各自 next_act_at 独立）",
-          abs(p2_ct - 0.0) < 1e-6, f"p2 ct={p2_ct}")
-    check("敌方 ct 不变（绝对时刻制）",
-          abs(e_ct - 0.0) < 1e-6, f"e_ct={e_ct}")
-    check("defend 有日志", bool(logs), str(logs)[:80])
-
 def test_8_inst_reset_player_cts():
     print("【8. 副本换战重置玩家 ct（_instance_reset_player_cts）】")
     clean_db()
@@ -226,7 +190,8 @@ def main():
     test_4_summon_minion_ct()
     test_5_defend_chain_reduce()
     # test_6 已删除（v180G B7：_instance_apply_enemy_act_ct 废弃）
-    test_7_inst_auto_defend_teammate_flow()
+    # test_7 已删除（B6b 初始 ct 播种后断言失效；超时自动防御语义由
+    #   test_battle2_n5b4_instance_router test_3 端到端覆盖——R3 旧版靠 ct 全 0 假象过）
     test_8_inst_reset_player_cts()
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed
