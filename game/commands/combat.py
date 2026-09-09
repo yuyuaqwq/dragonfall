@@ -553,6 +553,7 @@ class CombatCmds(CommandBase):
         """
         from ..services import battle2_bridge as BR
         from ..services.battle2_equip_proc import apply_to_actor as _EP_apply
+        from ..services.class_mech_proc import apply_class_mech as _CM_apply
         tb = self._title_bonus(group_id, qq_id) if (group_id is not None and qq_id is not None) else {}
         BR.prepare_player_for_battle(player, tb, db)
         sides = BR.build_sides(player=player, enemies=enemies)
@@ -566,6 +567,10 @@ class CombatCmds(CommandBase):
                 _EP_apply(_a)
             except Exception:
                 pass  # 装配异常不阻断开战（词条/武器个别解析失败静默）
+            try:
+                _CM_apply(_a)
+            except Exception:
+                pass  # 技能 mech 兑现装配异常不阻断开战
         from ..battle2 import Battle as B2
         return B2(btype, sides=sides, title_bonus=tb,
                   pet=pet if pet is not None else db.pet_get(qq_id))
@@ -2704,6 +2709,11 @@ class CombatCmds(CommandBase):
                 _EP_apply(_a)
             except Exception:
                 pass  # 装配异常不阻断开战
+            try:
+                from ..services.class_mech_proc import apply_class_mech as _CM_apply
+                _CM_apply(_a)
+            except Exception:
+                pass  # 技能 mech 兑现装配异常不阻断开战
         _b2 = B2("pvp", sides={"player": [_my_actor], "enemy": [_opp_actor]},
                  title_bonus={}, pet=db.pet_get(qq_id))
         state = _b2.to_state()
