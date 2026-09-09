@@ -607,4 +607,28 @@ hostile 残血追击 / cd_ok 冷却（id→name 经 actor._skill_index）/ weigh
 ### 全量
 342 = 317/25（AI 测试计入）基线一致零新增。
 
-## 10. 会话重启口令（2026-09-09 上午更新）
+## 9.11 N5B P2/P3 + target_hint + 仇恨配置完成（2026-09-09 下午）
+### N5B P2/P3（test_monster_ai_p2.py 12/0）
+- P2 覆盖验证：21+ boss ai.weights 全可 normalize + 技能 key 怪表/玩家表双查无悬空
+- P3 导演共存：auto_act 显式招真实结算压过 AI（物理技能日志无技能名前缀——
+  用玩家掉血验证）；无 auto_act 时 AI 生效；导演演出刻 skip 优先于 AI
+### target_hint（鱼鱼拍板加——AI 战术目标，可扩展位）
+- ai move 可带 "target_hint"：actor_auto 挂瞬态 actor["_target_hint"] →
+  命令层 target_picker 消费（v1：lowest_hp 残血收割——与仇恨不冲突时优先；
+  一次性 pop；未知 hint 回落仇恨；无 picker 引擎尾部清理防残留）
+- 语义分层：仇恨（target_picker）= 默认公道规则；AI hint = 战术意图仅覆盖不冲突场景
+### 🚨 仇恨配置接入（v173.5 模型——鱼鱼问"不同行为仇恨可配置吗"）
+- 发现脱钩：技能数据 hate_mult/hate_taunt_mult（v173.5 数值模型）已配但消费端
+  在 R3 删旧 _instance_act 时丢失（_find_skill_cfg 变死代码零调用）
+- 修：router 3.5 账务读本次技能 cfg（_find_skill_cfg 复活）：
+  伤害仇恨 = dealt × hate_mult（缺省 1，贡献仍按实际伤害）
+  嘲讽（effect=taunt）= 仇恨当前最高×hate_taunt_mult+100 + st.taunt_target 强制
+  lock 帧（hate_lock_turns 缺省 3）+ 每玩家行动帧递减 taunt_left 到 0 清强制
+  治疗仇恨 ×0.8（v49 保留）
+- 测试 test_instance_hate.py 11/0：普攻×1 / 盾击·誓×4 / 嘲讽最高×3+100 +
+  强制锁 3 帧递减清除
+- 测试教训：class_name 存职业 ID（cls_zhan_shi）不是中文——查表必须用 ID
+### 全量
+344 = 319/25 基线一致零新增（router 59 + 仇恨 11 + AI 34 + 5c 109 全绿）
+
+## 10. 会话重启口令（2026-09-09 下午更新）

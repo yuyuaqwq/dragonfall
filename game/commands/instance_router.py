@@ -137,6 +137,16 @@ class InstanceRouterCmds(CommandBase):
         返回 async generator：yield event.plain_result(...) 文本。
         """
         from ..core.skill_kinds import K_HEAL, K_BUFF
+        # 嘲讽强制剩余帧递减（每玩家行动帧；到 0 清强制回正常仇恨）
+        _tl = int(st.get("taunt_left", 0) or 0)
+        if _tl > 0:
+            st["taunt_left"] = _tl - 1
+            if st["taunt_left"] <= 0:
+                st.pop("taunt_target", None)
+                try:
+                    yield event.plain_result("……嘲讽效果结束，怪物恢复了本能仇恨！")
+                except Exception:
+                    pass
         # 4.1a 权威 st（大陆实例优先）
         st = self._router_authoritative_st(st)
 
@@ -245,16 +255,40 @@ class InstanceRouterCmds(CommandBase):
         IB.sync_views(st, group_id)
         logs += act_logs
 
-        # ---- 3.5 账务薄壳（v3 §4.3：dealt/仇恨，5a 基础版）----
+        # ---- 3.5 账务薄壳（v3 §4.3：dealt/仇恨；5b 基础 + v173.5 仇恨配置）----
         try:
+            # v173.5：本次行动技能仇恨配置——hate_mult 伤害仇恨倍率（缺省 1）；
+            # effect=taunt 嘲讽：仇恨=当前最高×hate_taunt_mult+100 + 强制锁
+            _hm = 1.0
+            _is_taunt = False
+            _tmult = 3.0
+            _tlock = 3
+            if action == "skill" and skill_name:
+                try:
+                    _cfg = self._find_skill_cfg(player, skill_name) or {}
+                    _hm = float(_cfg.get("hate_mult", 1.0) or 1.0)
+                    if str(_cfg.get("effect", "")) == "taunt":
+                        _is_taunt = True
+                        _tmult = float(_cfg.get("hate_taunt_mult", 3.0) or 3.0)
+                        _tlock = int(_cfg.get("hate_lock_turns", 3) or 3)
+                except Exception:
+                    pass
             _hp_after = sum(int(u.get("hp", 0) or 0) for u in IB._enemies_of(st))
             dealt = max(0, _hp_before - _hp_after)
             if dealt > 0:
                 st.setdefault("contribution", {})
                 st["contribution"][str(qq_id)] = st["contribution"].get(str(qq_id), 0) + dealt
                 st.setdefault("threat", {})
-                st["threat"][str(qq_id)] = st["threat"].get(str(qq_id), 0) + dealt
-            # 治疗仇恨（v49 语义基础）
+                st["threat"][str(qq_id)] = st["threat"].get(str(qq_id), 0) + int(dealt * max(0.0, _hm))
+            # 嘲讽（v173.5 数值模型：仇恨=当前最高×N+100，强制 taunt_target lock 帧）
+            if _is_taunt:
+                _th = st.setdefault("threat", {})
+                _mx = max([float(v) for v in _th.values()] or [0.0])
+                _th[str(qq_id)] = int(_mx * max(0.0, _tmult) + 100)
+                st["taunt_target"] = str(qq_id)
+                st["taunt_left"] = max(int(st.get("taunt_left", 0) or 0), max(1, _tlock))
+                logs.append("🛡️ 你高声嘲讽，怪物怒火尽归你身！（强制攻击自己）")
+            # 治疗仇恨（v49 语义基础：×0.8）
             _mem_after = sum(int((st.get("players") or {}).get(str(m), {}).get("hp", 0) or 0)
                              for m in members
                              if st.get("alive", {}).get(str(m), True))

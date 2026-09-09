@@ -92,6 +92,13 @@ def _instance_target_picker(st: dict):
                        if int(a.get("hp", 0) or 0) > 0]
             if not alive_p:
                 return None
+            # N5B target_hint：AI 战术目标提示（v1：lowest_hp 残血收割）——
+            # hint 与仇恨不冲突时优先（一次性，消费即弃；未知 hint 回落仇恨）
+            _hint = actor.pop("_target_hint", None)
+            if _hint == "lowest_hp":
+                return min(alive_p, key=lambda a: (
+                    int(a.get("hp", 0) or 0) /
+                    max(1, int(a.get("max_hp", 1) or 1))))
             # ① 嘲讽强制
             tk = str(st.get("taunt_target") or "")
             if tk:
