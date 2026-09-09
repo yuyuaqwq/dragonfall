@@ -587,7 +587,17 @@ def test_15_multi_death_alive_sync():
             if str(nxt) == "70131":
                 msgs = _sync_run(inst, st, "70131", "defend")
             else:
-                msgs = _sync_run(inst, st, "70132", "attack")
+                # M-w2s（召唤前排挡刀）适配：Boss 召唤的爪牙现插 enemy 队首挡刀且
+                # name 带 Boss 前缀（"测试Boss的哥布林打手"），名字匹配必然先打爪牙——
+                # 本场景目的是一死一活通关奖励隔离，故 70132 按存活序 aN 编号指定
+                # Boss（精确 name 匹配，Boss 死后回落 None 自动清剩余爪牙）。
+                _bt_sides = (st.get("battle") or {}).get("sides") or {}
+                _alive_e = [u for u in (_bt_sides.get("enemy") or [])
+                            if int(u.get("hp", 0) or 0) > 0]
+                _boss_i = next((i for i, u in enumerate(_alive_e)
+                                if (u.get("name") or "") == "测试Boss"), None)
+                msgs = _sync_run(inst, st, "70132", "attack",
+                                 target=f"a{_boss_i + 1}" if _boss_i is not None else None)
             joined += "\n" + "\n".join(msgs)
             if not st["alive"].get("70131", True) and not died:
                 died = True
