@@ -611,6 +611,33 @@ def make_script_event(st: dict):
                 if not cfg or not cfg.get("on_interrupt"):
                     return
                 _interrupt_link(st, battle, hit, cfg["on_interrupt"], logs)
+            elif evt_name == "on_taken":
+                # N10-B3：Boss mech reflect 被动反伤（对齐旧 _boss_dmg_filter reflect 段）
+                # 触发：剧本 Boss 受击（非 dot 无 source）且血<25% → 反弹 15% 给攻击者。
+                boss = (ctx or {}).get("actor") or {}
+                src = (ctx or {}).get("source") or {}
+                if not boss or not src:
+                    return  # dot/环境伤无 source 不反射（v1.3 语义）
+                if int(boss.get("hp", 0) or 0) <= 0 or int(src.get("hp", 0) or 0) <= 0:
+                    return
+                if boss is src:
+                    return
+                cfg = boss_script_cfg(st, boss)
+                if not cfg:
+                    return
+                mech = cfg.get("mech") or []
+                if "reflect" not in mech:
+                    return
+                _mh = int(boss.get("max_hp", 1) or 1)
+                if _mh <= 0 or int(boss.get("hp", 0) or 0) / _mh >= 0.25:
+                    return
+                rb = int(int(ctx.get("dmg", 0) or 0) * 0.15)
+                if rb <= 0:
+                    return
+                # 反伤保底 1 HP（永不致死——旧引擎设计取舍：反伤是代价不是处决，
+                # 避免残血玩家被反弹补刀挫败；04 章机制表仅写"反弹 15%"）
+                src["hp"] = max(1, int(src.get("hp", 1) or 1) - rb)
+                logs.append(f"🩸【{boss.get('name', '首领')}】龙鳞反伤！你受到 {rb} 点反弹伤害！")
         except Exception:
             pass
     return on_event
