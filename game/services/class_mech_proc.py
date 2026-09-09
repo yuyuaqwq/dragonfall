@@ -296,6 +296,22 @@ def install() -> None:
             pct = float((state_def("faith") or {}).get("overload_heal_pct", 0.015) or 0.015)
         except Exception:
             pct = 0.015
+        # 信念·圣化（faith_overload_heal：过载回血 ×(1+heal_up)——R2e 原注释待接，
+        # 现被动装配就绪：学过圣化的牧师过载回血提升 heal_up（desc「过载时不再力竭，
+        # 改为全队回血+30%」→ 全队回血量 ×1.3；数值读技能 passive dict 零硬编码）
+        if _learned_proc(owner, "faith_overload_heal"):
+            try:
+                from .. import engine as E
+                for _s in (owner.get("learned_skills") or []):
+                    _i = E.skill_info(owner.get("class_name") or "", _s) or {}
+                    if isinstance(_i.get("passive"), dict) \
+                            and (_i.get("passive") or {}).get("proc") == "faith_overload_heal":
+                        _up = float((_i.get("passive") or {}).get("heal_up", 0) or 0)
+                        if _up > 0:
+                            pct = pct * (1.0 + _up)
+                        break
+            except Exception:
+                pass  # 圣化增强异常不阻断过载（容错铁律）
         from ..battle2.actors import actor_alive
         from ..battle2.landing import heal_actor
         healed = 0
