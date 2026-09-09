@@ -91,15 +91,29 @@ D = 需查语义（desc 不明/可能死数据）。
 
 ## 7. 分批实施（R1 兑现族先行）
 
+> 🔴 B 类细分修正（2026-09-09 逐技能 desc 核对后）：
+> - **B1 caster 层乘区清层**：arcane_burst（燃尽充能每层+15%，满5层×1.75——需核对
+>   EFFECT_RULES arcane cap vs desc"满5层"漂移；focus 架设只烧一半=v139 形态缺口）
+> - **B2 target 层兑现**（读 target 印记/毒 → 加成 + 清 target）：element_burst_all
+>   （每层+12%）/element_burst_3（每系×1.2）/poison_burst（每层+15% 上限×1.75）
+>   /poison_burst_finisher（毒+连段归零混合）——模式需 owner=target 方向扩展；
+>   ⚠️ element_burst lv16 基础版"结算印记触发元素反应"= 元素反应系统（单独设计，非本轮）
+> - **B3 主动施放兑现**：zhan_yi_cash（花5战意回20%血+清1减益）——技能施放时检查，
+>   非命中事件通道；需施放点钩子设计
+> - **B4 形态技**：zhan_yi_fury（花4战意无视门槛进狂暴）——v139 dual_form 形态层
+> - **B5 效果声明缺失**（非兑现）：curse（全队对其伤害+20% 8刻，同 soul_mark 族——
+>   EFFECT_RULES 补声明即生效）/curse_refresh（刷新 target 效果时长，需动作）
+> - **B6 召唤/骷髅计数**：bone_rush（消耗骷髅每只+90%暗蚀）/sacrifice（暗蚀）——
+>   无召唤物引擎原语，超范围记录
+> - **B7 磐核**：guard_core_burst（消耗全部磐核每枚+70%）——磐核层来源待查（拳师）
+> - **melody/melody_chant**：歌者驻留旋律 14 技能——单独系统评估（非叠层非兑现）
+
 | 批 | 内容 | 验收 |
 |---|---|---|
-| R1a | finisher 族（3 技能：连段加成+结算归零） | dmg_calc 钩子 + 退役测试语义对照测试 |
-| R1b | 引爆族（element_burst×3/poison_burst×2/arcane_burst×2 通用 mech_cash） | 层数→附加伤害→清层；multi_mark 已挂印验证 |
-| R1c | 战意消费（zhan_yi_cash 回血 / zhan_yi_fury 无视防） | desc 语义测试 |
-| R1d | faith_unload + guard_core_burst（查语义） | — |
-| R2 | 渠道层 6 职业 on_* + regen | 攒层链路测试（战士普攻+1 怒/牧师治疗+2 信仰…） |
-| R3 | 展示接 effects + 死字段清理 | 全量绿 + 无 resource 死读 |
-| R4 | 32 affix 词条回归（cap 动态/谓词） | n9_equip 断言扩展 |
+| R1a | finisher 族（样板）✅ dd92807 | 声明驱动 v2 形态 |
+| R1b | B2 target 方向兑现（element_burst_all/_3 + poison_burst 族 + arcane_burst 若 cap 无漂移）| owner=target 执行器 + 声明 + 测试 |
+| R1c | B3 heal_clear（施放点钩子设计先行）+ B5 curse 效果声明 | — |
+| R1d | B4/B6/B7/melody 评估记录 | 缺口文档更新 |
 
 ## 8. 验证策略
 
