@@ -100,10 +100,47 @@ def test_3_control():
           f"hp={e.get('hp')}")
 
 
+def test_4_weaken():
+    print("【4. 剧毒之触：目标毒≥5 → 减速降防 debuff】")
+    p = mk_poisoner(["剧毒之触"])
+    apply_class_mech(p)
+    dc = [t for t in (p.get("triggers") or {}).get("dot_calc", [])
+          if t.get("type") == "passive_poison_weaken"]
+    check("剧毒之触挂 dot_calc", len(dc) == 1, repr(dc))
+    e = mk_enemy(hp=10000)
+    e['effects']['poison'] = {'stacks': 5, 'expire': None}
+    e['spd'] = 100
+    e['def'] = 50
+    b = B2("monster", sides={"player": [p], "enemy": [e]}, title_bonus={})
+    logs = run_dot_tick(b, e)
+    sd = (e.get("effects") or {}).get("spd_down")
+    dd = (e.get("effects") or {}).get("def_down")
+    check("spd_down 减速 30%（spd×0.7）",
+          isinstance(sd, dict) and abs(float(sd.get("mult") or 0) - 0.7) < 1e-9
+          and sd.get("stat") == "spd", repr(sd))
+    check("def_down 降防 20%（def×0.8）",
+          isinstance(dd, dict) and abs(float(dd.get("mult") or 0) - 0.8) < 1e-9
+          and dd.get("stat") == "def", repr(dd))
+
+
+def test_5_weaken_low_layers():
+    print("【5. 剧毒之触负向：毒层 <5 → 无 debuff】")
+    p = mk_poisoner(["剧毒之触"])
+    apply_class_mech(p)
+    e = mk_enemy(hp=10000)
+    e['effects']['poison'] = {'stacks': 3, 'expire': None}  # 3 层 < 5
+    b = B2("monster", sides={"player": [p], "enemy": [e]}, title_bonus={})
+    logs = run_dot_tick(b, e)
+    sd = (e.get("effects") or {}).get("spd_down")
+    check("毒层不足 → 无减速", sd is None, repr(sd))
+
+
 def main():
     test_1_assemble()
     test_2_poison_boost()
     test_3_control()
+    test_4_weaken()
+    test_5_weaken_low_layers()
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     sys.exit(1 if FAIL else 0)
 

@@ -598,8 +598,14 @@ PASSIVE_PROC: dict = {
         "event": "dot_calc", "action": "passive_dot_mult",
         "judge": {"dot_key": "poison"},
     },
+    # ---- P2 族：dot_calc 毒层条件 debuff（剧毒之触——毒每跳维护目标减速降防）----
+    "poison_weaken": {         # 剧毒之触：目标毒 ≥5 → 减速 30%、降防 20%
+        "event": "dot_calc", "action": "passive_poison_weaken",
+        "judge": {"dot_key": "poison", "layers_field": "layers"},
+        "spd_pct": 0.30, "def_pct": 0.20, "hold": 2.0,   # desc 权威：30%/20%，续期 2 刻（毒 1s/跳）
+    },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
-    # poison_weaken/berserk_revive 等 P2 续
+    # berserk_revive/shadow_dance 等职业批续（C 桶映射见 roadmap）
 }
 
 

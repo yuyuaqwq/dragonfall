@@ -766,6 +766,51 @@ def install() -> None:
         ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * (1.0 + mult)
         logs.append(f"☠️ {params.get('label') or '被动'}：DOT 伤害 ×{1.0 + mult:.2f}！")
 
+    @register_action("passive_poison_weaken")
+    def passive_poison_weaken(battle, caster, target, params, logs):
+        """dot_calc 毒层条件 debuff：目标毒 ≥layers → 减速降防（剧毒之触，desc 权威）。
+
+        语义（NO_OLD desc）：目标毒层 ≥5 时减速 30%、降防 20%——dot_calc 每跳广播时
+        检查承伤者毒层（效果持续 = 每跳续期 hold 刻，毒止跳后 debuff 自然到期消散）。
+        effects 快照条目折算对齐现网 we_ 减速/降防（stat spd/def op mul）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        owner = params.get("_owner") or caster
+        if owner is None:
+            return
+        dot_key = ctx.get("dot_key") or ""
+        judge = params.get("judge") or {}
+        if judge.get("dot_key") and dot_key != judge.get("dot_key"):
+            return
+        tgt = ctx.get("target")
+        if tgt is None:
+            return
+        _pe = (tgt.get("effects") or {}).get("poison")
+        n = int(_pe.get("stacks", 0) or 0) if isinstance(_pe, dict) else 0
+        layers_field = judge.get("layers_field") or ""
+        need = float(params.get(layers_field) or 0)
+        if need <= 0 or n < need:
+            return  # 毒层不足 = 无此行为
+        spd_pct = float(params.get("spd_pct") or 0)
+        def_pct = float(params.get("def_pct") or 0)
+        if spd_pct <= 0 and def_pct <= 0:
+            return
+        try:
+            from ..battle2.battle import _now_of
+            exp = _now_of(battle) + float(params.get("hold") or 2.0)
+        except Exception:
+            exp = None
+        ef = tgt.setdefault("effects", {})
+        if spd_pct > 0:
+            ef["spd_down"] = {"stat": "spd", "op": "mul", "mult": 1.0 - spd_pct,
+                              "expire": exp}
+        if def_pct > 0:
+            ef["def_down"] = {"stat": "def", "op": "mul", "mult": 1.0 - def_pct,
+                              "expire": exp}
+        logs.append(f"🐍 {params.get('label') or '被动'}：剧毒缠身，目标减速降防！")
+
     _registered = True
 
 
