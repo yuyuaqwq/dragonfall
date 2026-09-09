@@ -53,6 +53,32 @@ def install() -> None:
             total += int(ef.get("stacks", 0) or 0) if isinstance(ef, dict) else 0
         return total
 
+    def _add_mark(tgt: dict, mech: str, n: int) -> None:
+        """target effects 印记层 +n（挂印增强用——基础段 apply 前先加，总 = 1+n）。"""
+        if tgt is None or n <= 0:
+            return
+        ef = tgt.setdefault("effects", {})
+        en = ef.get(mech)
+        if not isinstance(en, dict):
+            en = ef[mech] = {}
+        en["stacks"] = int(en.get("stacks", 0) or 0) + n
+
+    def _act_target(battle, ctx, actor, target):
+        """act_cast 动作目标解析：act_cast fire 在 do_skill 目标解析之前（ctx.target=None）
+        → 回落敌对存活首目标（同 actions._default_target 语义）。"""
+        tgt = ctx.get("target") or target
+        if tgt is not None:
+            return tgt
+        try:
+            from ..battle2.actors import hostile_sides, actor_alive as _alive
+            for _sn in hostile_sides(battle, actor.get("side", "")):
+                for _a in (battle.sides.get(_sn) or []):
+                    if _alive(_a):
+                        return _a
+        except Exception:
+            pass
+        return None
+
     def _holder(owner, ctx, caster, target):
         """owner 方向选 actor：owner=target → ctx.target（fire ctx 优先）；缺省 caster。"""
         if (owner or "caster") == "target":
@@ -826,6 +852,96 @@ def install() -> None:
             ef["def_down"] = {"stat": "def", "op": "mul", "mult": 1.0 - def_pct,
                               "expire": exp}
         logs.append(f"🐍 {params.get('label') or '被动'}：剧毒缠身，目标减速降防！")
+
+    @register_action("passive_mark_enhance")
+    def passive_mark_enhance(battle, caster, target, params, logs):
+        """act_cast 元素印记增强：亲和（引爆后下次挂印+1）/ 同调（连续同系二次挂印+1）。
+
+        语义（desc 权威）：
+        - affinity：施放引爆技（mech 前缀 element_burst）→ 置待增强标记；下次挂印技
+          （mech=fire/ice/thunder_mark）→ target 对应印记 +1（效果段基础 apply 再 +1 = 总 2）
+        - sync：挂印技记录施法系，连续两次同系 → 第二次挂印 +1；非元素施法断连清记录
+        多印记技（element_multi_mark 双系）语义复杂不增强（保底基础行为）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        actor = ctx.get("actor") or caster
+        if actor is None:
+            return
+        info = ctx.get("info") or {}
+        mech = info.get("mech") or ""
+        mode = params.get("mode") or ""
+        _MARKS = {"fire_mark": "fire", "ice_mark": "ice", "thunder_mark": "thunder"}
+        is_mark = mech in _MARKS
+        is_burst = str(mech).startswith("element_burst")
+        if mode == "affinity":
+            if is_burst:
+                actor.setdefault("effects", {})["_elem_affinity_ready"] = {"stacks": 1}
+                return
+            if not is_mark:
+                return
+            ef = actor.get("effects") or {}
+            if "_elem_affinity_ready" not in ef:
+                return  # 无引爆后待增强标记
+            ef.pop("_elem_affinity_ready", None)
+            tgt = _act_target(battle, ctx, actor, target)
+            if tgt is None:
+                return
+            _add_mark(tgt, mech, 1)
+            logs.append(f"✨ {params.get('label') or '被动'}：元素亲和，挂印 +1 层！")
+            return
+        if mode == "sync":
+            if is_mark:
+                ef = actor.setdefault("effects", {})
+                last = (ef.get("_elem_last_mark") or {}).get("kind")
+                ef["_elem_last_mark"] = {"kind": mech}
+                tgt = _act_target(battle, ctx, actor, target)
+                if last == mech and tgt is not None:
+                    _add_mark(tgt, mech, 1)
+                    logs.append(f"✨ {params.get('label') or '被动'}：元素同调，挂印 +1 层！")
+            elif not is_burst:
+                # 非元素施法（普攻/其他系）打断连续记录
+                (actor.get("effects") or {}).pop("_elem_last_mark", None)
+
+    @register_action("passive_element_core_crit")
+    def passive_element_core_crit(battle, caster, target, params, logs):
+        """act_cast 元素之核：结算技时目标单系印记 ≥3 → 本次结算暴击 +20%。
+
+        语义（desc 权威）：单系印记满 3 时该系结算暴击 +20%——引擎暴击整次技能单 roll，
+        无法分系 → 目标有任意单系 ≥3 即整次结算暴击 +20%（近似 desc，buff 快照条
+        crit 加算，覆盖整个结算技行动）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        actor = ctx.get("actor") or caster
+        if actor is None:
+            return
+        info = ctx.get("info") or {}
+        mech = info.get("mech") or ""
+        if not str(mech).startswith("element_burst"):
+            return  # 仅结算技（元素迸发/裁决/万象风暴）
+        tgt = _act_target(battle, ctx, actor, target)
+        if tgt is None:
+            return
+        add = float(params.get("add") or 0)
+        if add <= 0:
+            return  # 缺字段 = 无此行为
+        _ef = tgt.get("effects") or {}
+        hit = False
+        for _mk in ("fire_mark", "ice_mark", "thunder_mark"):
+            _en = _ef.get(_mk)
+            if int(_en.get("stacks", 0) or 0) >= 3 if isinstance(_en, dict) else False:
+                hit = True
+                break
+        if not hit:
+            return
+        buff_key = "passive_crit_element_core"
+        actor.setdefault("effects", {})[buff_key] = {"stacks": 1, "stat": "crit",
+                                                     "mult": add, "op": "add",
+                                                     "expire": None}
+        logs.append(f"✨ {params.get('label') or '被动'}：元素核心，结算暴击 +{int(add * 100)}%！")
 
     _registered = True
 

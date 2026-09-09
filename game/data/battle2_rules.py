@@ -607,8 +607,21 @@ PASSIVE_PROC: dict = {
         "judge": {"dot_key": "poison", "layers_field": "layers"},
         "spd_pct": 0.30, "def_pct": 0.20, "hold": 2.0,   # desc 权威：30%/20%，续期 2 刻（毒 1s/跳）
     },
+    # ---- P2 族：元素印记增强（act_cast 挂印/引爆通道——元素机制现网活）----
+    # 挂印技 mech=fire_mark/ice_mark/thunder_mark（effects_from_skill mech→state 通用
+    # apply op=add）；引爆技 mech=element_burst_*（MECH_CASH dmg_mult_clear_target）。
+    # 挂印增强 = act_cast 时（效果段 apply 前）先给 target 印记 +1，基础段再 +1 = 总 2。
+    "element_affinity": {      # 元素亲和：引爆后，下次挂印 +1 层
+        "event": "act_cast", "action": "passive_mark_enhance", "mode": "affinity",
+    },
+    "element_sync": {          # 元素同调：连续两次同系施法，第二次挂印 +1 层
+        "event": "act_cast", "action": "passive_mark_enhance", "mode": "sync",
+    },
+    "element_core": {          # 元素之核：单系印记满 3 → 该系结算暴击 +20%
+        "event": "act_cast", "action": "passive_element_core_crit",
+    },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
-    # berserk_revive/shadow_dance 等职业批续（C 桶映射见 roadmap）
+    # berserk_revive/undead_faith 等职业批续（C 桶映射见 roadmap）
 }
 
 
