@@ -115,6 +115,37 @@ def install() -> None:
             xactor = _holder(ex.get("owner"), ctx, caster, target)
             _clear_actor(xactor, ex.get("key"), logs)
 
+    @register_action("mech_cash_per_system_mult")
+    def mech_cash_per_system_mult(battle, caster, target, params, logs):
+        """dmg_calc：每系独立乘区（模式 per_system_clear——element_burst_3 元素裁决）。
+
+        对 key 列表里每个 stacks≥1 的系各 ×(1+per_system)（层数不累加，有层就乘）：
+        desc 元素裁决：结算三系印记，每系 ×1.2（火/冰/雷各挂过印才触发对应系）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        info = ctx.get("info") or {}
+        if info.get("mech") != params.get("mech"):
+            return
+        actor = _holder(params.get("owner"), ctx, caster, target)
+        effects = actor.get("effects") or {}
+        ps = float(params.get("per_system") or 0)
+        factor = 1.0
+        hit_systems = []
+        for k in _key_list(params.get("key")):
+            ef = effects.get(k)
+            n = int(ef.get("stacks", 0) or 0) if isinstance(ef, dict) else 0
+            if n > 0:
+                factor *= 1.0 + ps
+                hit_systems.append(k)
+        if not hit_systems:
+            return
+        ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * factor
+        label = params.get("label") or params.get("mech") or ""
+        icon = params.get("icon") or "💥"
+        logs.append(f"{icon} {label}！结算 {'、'.join(hit_systems)}，伤害 ×{factor:.2f}")
+
     _registered = True
 
 
@@ -168,8 +199,27 @@ def apply_class_mech(actor: dict) -> None:
             if not cash:
                 continue
             mode = cash.get("mode") or ""
-            # R1b：owner 方向由 mode 推断（dmg_mult_clear_target → target，其余 caster）
-            owner = "target" if mode == "dmg_mult_clear_target" else "caster"
+            # owner 方向由 mode 推断（*_target → target，其余 caster）
+            owner = "target" if mode.endswith("_target") else "caster"
+            if mode.startswith("per_system_clear"):
+                # element_burst_3 元素裁决：每系独立乘区（per_system）
+                dm = {"action": "mech_cash_per_system_mult", "mech": mech,
+                      "key": cash.get("key") or mech,
+                      "per_system": cash.get("per_system") or 0.0,
+                      "label": cash.get("name") or mech}
+                for _k in ("layer_label", "unit", "icon"):
+                    if cash.get(_k):
+                        dm[_k] = cash[_k]
+                if owner == "target":
+                    dm["owner"] = "target"
+                trig.setdefault("dmg_calc", []).append(dm)
+                if cash.get("clear"):
+                    cl = {"action": "mech_cash_clear", "mech": mech,
+                          "key": cash.get("key") or mech}
+                    if owner == "target":
+                        cl["owner"] = "target"
+                    trig.setdefault("skill_hit", []).append(cl)
+                continue
             if mode not in ("dmg_mult_clear", "dmg_mult_clear_target"):
                 continue
             key = cash.get("key") or mech

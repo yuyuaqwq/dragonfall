@@ -56,6 +56,14 @@ EFFECT_RULES: dict = {
         "on": "target",
         "debuff_scale": {"dmg_taken": 0.06},  # 每层承伤 +6%
     },
+    # v181.M-R1c：牧师/死灵 骨噬诅咒（v153）——全队对其伤害 +20%（8 刻）。
+    # desc 限时 8 刻 = 叠层到期机制（引擎 schedule 层）待扩展，先按叠层生效；
+    # curse_refresh（刷新时长）依赖到期机制，同步记缺口。
+    "curse": {
+        "cap": 1,
+        "on": "target",
+        "debuff_scale": {"dmg_taken": 0.20},
+    },
     # ============ 持续伤害 DOT（on=target；V5：dot → period 统一声明） ============
     # period = {dir, interval, 数值字段}：schedule 按 dir 分流结算（damage/heal/mana）。
     # damage 方向 pct 字段 = 每层每跳（×stacks）；turns 限跳数（0=无限）；dmg_type=true=真伤
@@ -312,10 +320,14 @@ MECH_CASH = {
         "clear": True,
         "layer_label": "元素印记", "icon": "💥",
     },
-    # ⚠️ element_burst_3（元素裁决：结算三系印记，每系 ×1.2——层数≥1 的系各 ×1.2，不是每层）
-    #   = 与 element_burst_all（per_layer 线性加算）不同的乘区语义（per_system 连乘），
-    #   R1b 未实施（缺口：需独立乘区执行器 ~15 行，dmg_mult_clear* 参数覆盖不了）；未声明的
-    #   mech 装配零影响。
+    "element_burst_3": {
+        "name": "元素裁决",
+        "mode": "per_system_clear_target",   # v181.M-R1c：三系各自 stacks≥1 → 每系 ×(1+per_system)；印记在 target
+        "key": ["fire_mark", "ice_mark", "thunder_mark"],
+        "per_system": 0.20,               # desc：结算三系印记，每系 ×1.2（层数≥1 的系才乘）
+        "clear": True,
+        "layer_label": "元素印记", "icon": "⚖️",
+    },
     # element_burst（基础 lv16 元素引爆：结算印记并触发对应反应）= 元素反应系统，单独设计，非本轮。
     "poison_burst": {
         "name": "荆棘爆",
@@ -342,8 +354,10 @@ MECH_CASH = {
     #    （旧 mech cap 表 battle_config 亦记 arcane: 5 → EFFECT_RULES 系复制漂移）。
     #    未声明（未硬改任何 cap）——兑现裁决留主 agent：cap 收敛 5 后填
     #    owner=caster key=arcane per_layer=0.15；另"架设中只烧一半"（v139 focus 形态）同属缺口。
-    # R1c 占位（声明表形态示例——未实施的 mech 不会装配，零影响）：
-    # "zhan_yi_cash":   {"mode": "heal_clear",  "key": "zhan_yi",   "stacks_cost": 5, "heal_pct": 0.20},
+    # ✅ zhan_yi_cash（冷静：花 5 层战意回 20% 生命）v181.M-R1c 走 **res_cost 数据通道**
+    #   （skills.py 冷静已加 hp_pct=0.20 + res_cost={zhan_yi:5}：引擎 _spend_skill_cost 扣层 +
+    #   _skill_usable 前置拦截）——不需要 heal_clear 装配模式。清 1 减益 + curse 到期
+    #   机制记缺口（见 EFFECT_RULES curse 注释）。
 }
 
 

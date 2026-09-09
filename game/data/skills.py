@@ -115,6 +115,10 @@ PLAYER_SKILLS = {
              'cd': 16,
              'mech': 'zhan_yi_cash',
              'mech_val': 5,
+             # v181.M-R1c：花 5 层战意回 20% 生命（hp_pct 由 _do_heal 吃；res_cost 由
+             # 引擎 _spend_skill_cost 扣 effects zhan_yi 层 + _skill_usable 前置拦截）
+             'hp_pct': 0.20,
+             'res_cost': {"zhan_yi": 5},
              'name': '冷静',
              'desc': '治疗；花 5 层战意 → 回 20% 生命 + 清 1 减益（CD 16 刻）'
             },
