@@ -79,7 +79,7 @@ ctx = {
 | # | 订阅方（模块:函数） | 原代码段 | 事件 | blank | ctx 消费 | 回填行格式（原样） |
 |---|---|---|---|---|---|---|
 | 1 | guild_daily：`services/guild.py` 新 `guild_daily_kill_progress(group_id, qq_id)`（内联 L2034-2055 原样搬，纯 db） | combat 2034-2055 | battle_victory | False | group_id/qq_id | `🎯 公会任务进度 {t}/{kill_task}` 或 `🎯 【公会任务完成】击杀…达成！公会经验 +X 贡献 +Y 金币 +Z`（二选一互斥） |
-| 2 | levelup：`services/battle_settlement.py` 新 `victory_levelup(ctx)`（原 L2056-2063 + _title_bonus 注入；title_bonus→`core/stat_bonus.stat_bonus` 纯函数等价；**重绑 ctx["player"]**） | combat 2056-2063 | battle_victory | False | player（可变）/group_id/qq_id | `""` + lv_logs（升级才有行；无升级返回 []） |
+| 2 | levelup：`services/battle_settlement.py` 新 `victory_levelup(ctx)`（原 L2056-2063 + _title_bonus 注入；title_bonus→`core/stat_bonus.stat_bonus` 纯函数等价；**重绑 ctx["player"]**） | combat 2056-2063 | battle_victory | True | player（可变）/group_id/qq_id | `""` + lv_logs（升级才有行；无升级返回 []） |
 | 3 | quests_field：`services/quests_flow.py` 新 `on_monster_killed_batch(ctx)`：`for k in ctx["killed"]: quest_kill_progress(...)` + weekly 下沉版 | combat 2064-2075（_update_quests 壳） | battle_victory | True | killed 逐只 | `📜 主线/支线/每日/周常` 行组 |
 | 4 | wild_king：`core/wild_king.py` 原 `wild_king_on_kill(group_id, qq_id, monster)`（纯） | combat 2076-2089 | battle_victory | True | monster.id 前缀 `b_guard_` 自判；**返回行外还需 side_effects 广播**（原壳 self._broadcast） | `👑` 野王死亡行组 |
 | 5 | tower_guard：`commands/tower.py` → 下沉 `services/` 新函数（原 tower_guard_on_kill 逻辑，inst._player→db 等价读） | combat 2090-2099 | battle_victory | True | monster.id 前缀 `tower_` 自判 | `💰 塔层赏金` / `🏯 第 N 层突破` |
@@ -178,12 +178,24 @@ def fire(event: str, ctx: dict) -> list
 
 ## 9. P3/P4 任务书（后批，P2 审过后再细化）
 
-- P3-1 instance 收编：instance._instance_victory / _instance_kill_reward 尾段 → fire(kind="instance")，
-  订阅方成就扩 kind 分支（extra 组装：field=hm / instance=inst_id+flawless / worldboss=worldboss:1）；
-  副本主线推进 `_instance_main_kill_progress` 语义 = quests 订阅方 kind 分支（只推主线击杀目标，不推每日/支线/周常）→
-  **决策点**：保持"副本不推每日/支线"现状（推荐，行为零变化）还是趁机统一为全推（游戏玩法变更，需鱼鱼拍板）。
-- P3-2 worldboss 收编：_worldboss_act victory 段 per-player fire(kind="worldboss")；quests/guild 订阅方 kind 分支
-  不推进（现状零反应）——订阅方内部 if kind == "field" 短路，保持 worldboss 行为零变化。
+> 🔴 **语义决策（鱼鱼 2026-09-09 拍板："按你觉得是否合理来决定，老配置也可能是有问题的"）**：
+> 统一事件模型 = **任何击杀都算数**，订阅方按怪属性/事实自己决定推进什么，不按入口阉割。
+> 老配置不一致 = 各入口独立实现时漏接（副本只推主线是 v105 M19 当年只补了主线卡死场景）。
+> 具体落点：
+> - 任务（主线/每日/支线）+ 周常：**instance/worldboss 也全推**（kill_any/kill_elite/kill_boss 按怪属性匹配；
+>   主线按怪名匹配——副本 Boss/小怪、世界Boss 名字对得上就推）。副本 `_instance_main_kill_progress`
+>   被 quests 订阅方主线分支取代（删旧，统一单点）。
+> - 公会每日（每场胜利 +1）：instance 每场战斗 +1；worldboss 死亡给全体 contrib>0 玩家各 +1（同成就参与口径）。
+> - 野王/塔卫：怪 id 前缀 b_guard_/tower_ 自判——副本/世界Boss 不会出现这些怪 → 天然只命中 field，无需 kind 分支。
+> - 成就：extra 按场景组装（field=hm_defeated / instance=inst_id+flawless / worldboss=worldboss:1）——kind 分支只此一处。
+> - PVP 不 fire（打人不是杀怪，monster=None）。
+> - ⚠️ 行为变化（故意，合理）：instance/worldboss 击杀开始推进每日/支线/周常/公会计数——
+>   需配套快照测试更新（旧断言若写死"副本不推进"则按新语义改断言，勿当回归）。
+
+- P3-1 instance 收编：instance._instance_victory / _instance_kill_reward 尾段 → fire(kind="instance")（逐成员各一次），
+  订阅方按上表全推；_instance_main_kill_progress 删旧。
+- P3-2 worldboss 收编：_worldboss_act victory 段 per-player fire(kind="worldboss")（contrib>0 全体，含同归于尽玩家），
+  订阅方全推；现状"世界Boss 不推任务"按语义决策变更为推。
 - P3-3 成就 25 处调用收敛：非战斗场景调用（economy/player/social/profession/party 等 20+ 处）不在 L3 范围
   （它们是行为钩子不是战斗事件），P3 只数"战斗入口调用数可数下降"，别误迁行为钩子。
 - P4 settlement 瘦身 + 新订阅方接入文档 + 本文件/设计文档回写收官。
