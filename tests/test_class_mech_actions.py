@@ -61,13 +61,16 @@ def _battle(p, e):
 
 
 def t_assemble():
-    print("【1. 装配：学有终结技 → 双通道 triggers】")
+    print("【1. 装配：学有终结技 → 双通道 triggers（声明驱动参数化）】")
     p = mk_assassin()
     tr = p.get("triggers") or {}
-    check("dmg_calc 挂 mech_finisher_mult",
-          any(x.get("action") == "mech_finisher_mult" for x in tr.get("dmg_calc", [])), repr(tr.get("dmg_calc")))
-    check("skill_hit 挂 mech_finisher_clear",
-          any(x.get("action") == "mech_finisher_clear" for x in tr.get("skill_hit", [])), repr(tr.get("skill_hit")))
+    dm = [x for x in tr.get("dmg_calc", []) if x.get("action") == "mech_cash_dmg_mult"]
+    cl = [x for x in tr.get("skill_hit", []) if x.get("action") == "mech_cash_clear"]
+    check("dmg_calc 挂参数化执行器（mech=finisher/key=lian_duan/per=0.10）",
+          len(dm) == 1 and dm[0].get("mech") == "finisher"
+          and dm[0].get("key") == "lian_duan" and abs(float(dm[0].get("per_layer")) - 0.10) < 1e-6,
+          repr(dm))
+    check("skill_hit 挂清层执行器", len(cl) == 1 and cl[0].get("key") == "lian_duan", repr(cl))
 
 
 def t_no_finisher():

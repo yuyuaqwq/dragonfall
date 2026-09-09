@@ -270,4 +270,29 @@ EFFECT_ACTIONS: dict = {
     "cleanse_all": [{"action": "cleanse_all"}],
 }
 
+# ============================================================
+# MECH_CASH: 技能 mech 兑现声明表（v181.M 职业机制装配层）
+# mech 值 → 兑现行为（引擎零知识；class_mech_proc 装配时参数化挂事件钩子，
+# 动作只写"怎么兑现"，差异全在本表）。新兑现机制 = 加一行声明；
+# 模式覆盖不了的真新语义才写新动作（~15 行）。
+#
+# 模式（mode）：
+#   dmg_mult_clear  伤害乘区按持有层加成（dmg_calc）＋命中后清层（skill_hit）
+#   heal_clear      花 N 层换治疗（技能内兑现，R1c）
+#   bonus_clear     层数转附加伤害后清层（burst 引爆族，R1b）
+# ============================================================
+MECH_CASH = {
+    "finisher": {
+        "name": "终结技",
+        "mode": "dmg_mult_clear",
+        "key": "lian_duan",       # 消费的叠层条目
+        "per_layer": 0.10,        # 每层伤害 +10%（技能 info.per_stack 可覆盖：链舞 +6%）
+        "clear": True,            # 命中后清层（info.keep_on_kill = 不清，技能级覆盖）
+        "crit_at": 4,             # 连段 ≥4 必定暴击（处刑；crit roll 前钩子就绪后生效——声明先行）
+    },
+    # R1b/R1c 占位（声明表形态示例——未实施的 mech 不会装配，零影响）：
+    # "element_burst":  {"mode": "bonus_clear", "key": "fire_mark", "per_layer": 0.30, "clear": True},
+    # "zhan_yi_cash":   {"mode": "heal_clear",  "key": "zhan_yi",   "stacks_cost": 5, "heal_pct": 0.20},
+}
+
 
