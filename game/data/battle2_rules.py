@@ -26,6 +26,16 @@ EFFECT_RULES: dict = {
         "stat_scale": {"atk": 0.04},          # 每层攻击 +4%
         "on_threshold": {10: {"form": "fury"}},  # 满 10 进狂暴（上层消费）
     },
+    # v153 战士狂暴态（CLASS_MECHANICS_v153 战士血怒线）：血祭（zhan_yi_fury 兑现）
+    # 花 4 战意进入 → effects[fury] 1 层 = 狂暴中。攻击 +20%（stat_scale）；吸血 25% /
+    # 普攻双段 2×70% / 维持衰减每刻 -0.6 / 跌破 4 强退 = v153 细节，吸血与衰减需
+    # lifesteal stat_scale / time tick 装配点——标注缺口待补（引擎 stat_scale 折算
+    # 现支持 atk 面板乘算；普攻双段动引擎 basic 逻辑，不糙做）。
+    "fury": {
+        "name": "狂暴",
+        "cap": 1,
+        "stat_scale": {"atk": 0.2},           # 狂暴中攻击 +20%（v153）
+    },
     "lian_duan": {
         "name": "连段",
         "cap": 10,
@@ -419,6 +429,14 @@ MECH_CASH = {
         "layer_label": "连段", "unit": "段", "icon": "🔪",
     },
     # ---- B2 target 方向兑现（R1b burst 引爆族：mode dmg_mult_clear_target = owner=target）----
+    "zhan_yi_fury": {
+        "name": "狂暴",
+        "mode": "fury_enter",          # 血祭：花 res 层战意 → 进入狂暴（无视 10 层门槛）
+        "res": "zhan_yi",
+        "label": "血祭",
+        "icon": "🔥",
+        # mech_val（技能数据 4）= 进入消耗的战意层数——兑现动作读 mech_val_field 扣层
+    },
     "element_burst_all": {
         "name": "元素迸发",
         "mode": "dmg_mult_clear_target",  # 印记在 target effects（EFFECT_RULES fire/ice/thunder_mark on=target）
@@ -620,8 +638,13 @@ PASSIVE_PROC: dict = {
     "element_core": {          # 元素之核：单系印记满 3 → 该系结算暴击 +20%
         "event": "act_cast", "action": "passive_element_core_crit",
     },
+    # ---- P2 族：狂暴中死亡复活（血怒·不灭——v153 战士血怒线）----
+    "berserk_revive": {        # 血怒·不灭：狂暴中首次死亡 → 清战意复活回 hp_pct
+        "event": "on_death", "action": "passive_revive_berserk",
+        "form": "fury", "used_key": "_berserk_revive_used",
+    },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
-    # berserk_revive/undead_faith 等职业批续（C 桶映射见 roadmap）
+    # stance_immortal/undead_faith 等职业批续（C 桶映射见 roadmap）
 }
 
 

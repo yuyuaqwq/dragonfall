@@ -783,6 +783,38 @@ def install() -> None:
             sh[key] = {"value": val, "expire_at": expire, "halve": False}
         logs.append(f"🛡️ {params.get('label') or '被动'}：治疗溢出 {overflow}，转化护盾 {val} 点！")
 
+    @register_action("mech_cash_fury_enter")
+    def mech_cash_fury_enter(battle, caster, target, params, logs):
+        """act_cast 狂暴进入（血祭 zhan_yi_fury 兑现）：花 res 层战意 → effects[fury]。
+
+        语义（v153 CLASS_MECHANICS_v153 战士血怒线）：血祭花 4 层战意（无视 10 层
+        门槛）立即进入狂暴。fury 条目声明 EFFECT_RULES stat_scale atk +20%。
+        战意不足 → 不进入（技能无 res_cost 前置，兑现兜底判）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        owner = params.get("_owner") or ctx.get("actor") or caster
+        if owner is None:
+            return
+        info = ctx.get("info") or {}
+        mech = info.get("mech") or ""
+        if mech != "zhan_yi_fury":
+            return
+        res = params.get("res") or "zhan_yi"
+        cost = int(info.get(params.get("mech_val_field") or "mech_val") or 0)
+        if cost <= 0:
+            return  # 缺字段 = 无此行为
+        ef = owner.get("effects") or {}
+        _entry = ef.get(res)
+        cur = float(_entry.get("stacks", 0) or 0) if isinstance(_entry, dict) else 0.0
+        if cur < cost:
+            logs.append(f"🔥 战意不足（{int(cur)}/{cost}），无法进入狂暴！")
+            return
+        _entry["stacks"] = max(0, cur - cost)
+        owner.setdefault("effects", {})["fury"] = {"stacks": 1, "expire": None}
+        logs.append(f"🔥 {params.get('label') or '狂暴'}！战士进入狂暴状态，攻击 +20%！")
+
     @register_action("passive_dot_mult")
     def passive_dot_mult(battle, caster, target, params, logs):
         """dot_calc DOT 乘区：dot_key 匹配 → ctx.mult ×(1+mult)（施毒者被动万毒归宗）。
@@ -852,6 +884,45 @@ def install() -> None:
             ef["def_down"] = {"stat": "def", "op": "mul", "mult": 1.0 - def_pct,
                               "expire": exp}
         logs.append(f"🐍 {params.get('label') or '被动'}：剧毒缠身，目标减速降防！")
+
+    @register_action("passive_revive_berserk")
+    def passive_revive_berserk(battle, caster, target, params, logs):
+        """on_death 狂暴中复活（血怒·不灭）：狂暴中首次死亡 → 清空战意复活回 hp_pct。
+
+        语义（v153 desc 权威 + 旧挂点12 revive_cond 逐字）：狂暴中生命首次归零 →
+        清空战意复活回 30%（hp_pct）。一次性（used_key 标记）；复活从 battle.killed_actors
+        移除（_on_actor_dead 只记录，胜负/掉落判定后置——复活后照常行动）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        owner = ctx.get("actor") or caster
+        if owner is None:
+            return
+        form = params.get("form") or "fury"
+        used_key = params.get("used_key") or "_berserk_revive_used"
+        ef = owner.setdefault("effects", {})
+        if (ef.get(used_key) or {}).get("stacks"):
+            return  # 已用（一次性）
+        if not isinstance(ef.get(form), dict):
+            return  # 非狂暴中（条件不满足 = 不复活）
+        hp_pct = float(params.get("hp_pct") or 0)
+        if hp_pct <= 0:
+            return  # 缺字段 = 无此行为
+        mhp = int(owner.get("max_hp", 1) or 1)
+        owner["hp"] = max(1, int(mhp * hp_pct))
+        # 清空战意 + 移除狂暴 + 标记已用（v153：复活清空战意）
+        zy = ef.get("zhan_yi")
+        if isinstance(zy, dict):
+            zy["stacks"] = 0
+        ef.pop(form, None)
+        ef[used_key] = {"stacks": 1, "expire": None}
+        # 从死亡记录移除（胜负/击杀判定后置——复活后不被算作已死）
+        try:
+            ka = getattr(battle, "killed_actors", None)
+            if isinstance(ka, list) and owner in ka:
+                ka.remove(owner)
+        except Exception:
+            pass
+        logs.append(f"🔥 {params.get('label') or '血怒·不灭'}：怒意未熄，战士复活！回复 {int(mhp * hp_pct)} 生命")
 
     @register_action("passive_mark_enhance")
     def passive_mark_enhance(battle, caster, target, params, logs):
@@ -1335,6 +1406,16 @@ def apply_class_mech(actor: dict) -> None:
                     if owner == "target":
                         cl["owner"] = "target"
                     trig.setdefault("skill_hit", []).append(cl)
+                continue
+            if mode == "fury_enter":
+                # 血祭：施放时花 res 层战意 → 进入狂暴（mech_val = 消耗层，技能数据）
+                dm = {"action": "mech_cash_fury_enter", "mech": mech,
+                      "res": cash.get("res") or "zhan_yi",
+                      "mech_val_field": "mech_val",
+                      "label": cash.get("label") or cash.get("name") or mech}
+                if cash.get("icon"):
+                    dm["icon"] = cash["icon"]
+                trig.setdefault("act_cast", []).append(dm)
                 continue
             if mode not in ("dmg_mult_clear", "dmg_mult_clear_target"):
                 continue
