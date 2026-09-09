@@ -99,7 +99,16 @@ def equipped_weapon_keys(actor: dict) -> list:
 # 分档结论（docs/REFACTOR_v181P4_N9_7_affix_migration.md）：
 # - A1 stat 型 26：装备生成时已折算进 item.stats → battle2 面板自动含，装配层跳过
 # - B 事件型：trigger 映射 battle2 事件 → 翻译成效果声明（此文件翻译器）
-# - 资源型/职业机制 ~37：上层职业模块缺口清单（此文件不装，静默跳过）
+# - 资源型 R4（N9.7e）：res+gain+on 事件 gain 型 10 条已装（we_affix_res_gain）
+#   + boiling_blood 怒气满减伤（taken_calc state_full）；rage/chi/energy/faith/cp/
+#   element 资源容器 cap 已由 EFFECT_RULES 声明（EFFECT_RULES 无行=装配即无限攒，
+#   行已补全）
+# - 仍缺口（此文件不装，静默跳过，注释见 affixes.py v130.2 段）：上限型
+#   max_bonus（rage_forge/divine_radiance/holy_heart/rhythm_badge/chi_limit/
+#   full_pack）+ cost_reduce 型（energy_blade/arcane_focus/sigil_blessing）——
+#   cap 动态机制待引擎层 R4 未实施；cond 修正型 ember_brand（怒气获取修正需
+#   资源获取事件钩子）、combo_recover（连招技标签语义）、regen 型 energy_tide/
+#   swift_tailwind（刻末条件回能走 R2 渠道口径）等
 # tier 语义（旧 _affix_effs）：effect.tiers[装备品质] 覆盖主数值键（如能量上限
 # full_pack purple 10/orange 20）；装配时按 item.quality 取档。
 
@@ -138,8 +147,19 @@ def _tier_value(eff: dict, quality: str):
     return tiers.get(quality or "")
 
 
-def _affix_effect_final(aid: str, actor: dict) -> dict:
-    """词条 effect + tier 覆盖（读 AFFIXES 表；未找到 = {} → 缺字段无行为）。"""
+# tier 档位作用键（缺省 = effect 首个数值键）。crit_return 的 effect 首数值键是
+# gain=1，但 tiers {blue:0.15, purple:0.25, orange:0.40} 是 chance 档位（desc：
+# 暴击 15% 概率得点，史诗 25%/传说 40%）→ 显式声明 tier 作用到 chance 防错档。
+_AFFIX_TIER_KEY = {
+    "crit_return": "chance",
+}
+
+
+def _affix_effect_final(aid: str, actor: dict, tier_key: str = None) -> dict:
+    """词条 effect + tier 覆盖（读 AFFIXES 表；未找到 = {} → 缺字段无行为）。
+
+    tier_key 给定时档位覆盖该字段（_AFFIX_TIER_KEY）；缺省 = 首个数值键
+    （主数值键 = 排除辅助键（cond/on/desc）外的第一个数值键）。"""
     info = (_affix_data() or {}).get(aid) or {}
     eff = dict(info.get("effect") or {})
     tiers = eff.get("tiers")
@@ -156,7 +176,9 @@ def _affix_effect_final(aid: str, actor: dict) -> dict:
                         tv = cand
         eff.pop("tiers", None)
         if tv is not None:
-            # 主数值键 = 排除辅助键（cond/on/desc）外的第一个数值键
+            if tier_key and isinstance(eff.get(tier_key), (int, float)):
+                eff[tier_key] = tv
+                return eff
             for k, v in eff.items():
                 if isinstance(v, (int, float)) and k not in ("cond",):
                     eff[k] = tv
@@ -354,12 +376,110 @@ def _af_dragon_aw(aid, actor, eff):
                           "tag": eff.get("tag") or "🐉龙威"}]}
 
 
+# ============ N9.7e 资源 gain 型（R4：effect {res, gain, on} → 事件叠资源） ============
+# 统一规则：词条 effect 含 res+gain+on（事件时机）→ actor.triggers[对应 battle2 事件]
+# 挂 we_affix_res_gain 叠层生产动作（cap clamp 查 EFFECT_RULES[res].cap，动作侧）。
+# 事件选型（与词条语义最近且不重复触发——全部 subject=owner 自己，或 battle_start
+# 开战一次性，无广播误触发/无双事件重复）：
+#   on_attack   普攻行动触发 → attack_hit：普攻命中后（battle2 唯一 self-subject 的
+#               普攻点位——普攻经 do_skill 结算但 ev 按 _basic 标 attack_hit）。
+#               未命中（闪避/0 伤早退不 fire）该次不触发：引擎无「普攻行动」级独立
+#               事件，act_done 全员广播且 ctx 无行动类型（无法区分普攻/技能/防御），
+#               act_begin 同样无类型 → 命中事件是语义最近且不误触发的挂点。
+#   on_skill    技能行动触发 → skill_hit：技能命中后（heal/buff 类技能无命中事件 →
+#               天然只覆盖攻击技能，与「攻击/技能」攒怒语义一致；同上不选 act_done）
+#   on_cast     施法触发（充能语义）→ act_cast + not_basic：施放瞬间 subject=自己；
+#               battle2 普攻经 do_skill 也会 fire act_cast（info._basic）→ 装配附
+#               not_basic 过滤（元素/奥术技能施放不吃普攻）。
+#   on_crit     暴击命中 → crit：crit = 命中子集的独立事件（与 attack_hit/skill_hit
+#               分开 fire，不重复；同一次暴击只加一次）。
+#   on_taken    受击 → on_taken：承伤后 subject=受击者自己。
+#   on_heal     治疗命中 → act_cast + kind=治疗（折中）：battle2 on_heal 事件
+#               subject=被治疗者（治疗者只出现在 ctx.source），词条受益人是施法者
+#               （牧师）→ 挂 on_heal 只在自疗时触发、治疗队友全漏；治疗行动上
+#               「施放」与「命中」同刻发生 → 挂 act_cast+kind 过滤，全员治疗都触发。
+#   battle_start 开局 → battle_start：开战一次性（subject=None 全员触发一次）。
+#   buff_skill  增益技能 → act_cast + kind=增益（同 kind 过滤判据）。
+# 未映射（on 无对应语义点位/需额外判据）：combo_skill（连招技无技能标记事件——
+#   拳师「连招技」需词条级 kind/tag 语义核对，R4 记缺口不装）；ember_brand 等
+#   cond 被动修正型（effect 无 on）同样缺口。
+
+_AFFIX_RES_GAIN_ON = {
+    # on 时机 → (battle2 事件, 动作附加参数)
+    "on_attack": ("attack_hit", {}),
+    "on_skill": ("skill_hit", {}),
+    "on_cast": ("act_cast", {"not_basic": True}),
+    "on_crit": ("crit", {}),
+    "on_taken": ("on_taken", {}),
+    "on_heal": ("act_cast", {"kind": "治疗"}),
+    "battle_start": ("battle_start", {}),
+    "buff_skill": ("act_cast", {"kind": "增益"}),
+}
+
+# R4 已装配的 res+gain+on 词条（AFFIXES 表 effect 结构核对一致；其余资源型见缺口注释）
+_AFFIX_RES_GAIN_IDS = (
+    "war_spirit",      # 战意：普攻/技能命中怒+1（on=[on_attack,on_skill]）
+    "warcry_echo",     # 战吼回响：增益技能怒+1
+    "blood_bath",      # 浴血：受击怒+1
+    "arcana_flux",     # 充能汲引：技能施放 element+1
+    "crit_charge",     # 暴击蓄能：暴击 energy+3
+    "holy_echo",       # 圣辉回响：治疗施放 faith+1（tiers 档位取 gain）
+    "crit_return",     # 暴击回点：暴击 chance 概率 cp+1（tiers 档位取 chance）
+    "pious_charm",     # 虔诚护符：受击 faith+1
+    "rock_rest",       # 磐息：受击 chi+1
+    "opening_stance",  # 起手之势：开战 chi+1
+)
+
+
+def _translate_affix_res_gain(aid: str, actor: dict, eff: dict) -> dict:
+    """通用 res+gain+on 翻译：on（str/list）→ 事件映射 → we_affix_res_gain。"""
+    on = eff.get("on")
+    if isinstance(on, str):
+        on = [on]
+    if not isinstance(on, list) or not on:
+        return {}
+    res = eff.get("res")
+    gain = eff.get("gain")
+    if not res or gain is None:
+        return {}
+    info = (_affix_data() or {}).get(aid) or {}
+    out: dict = {}
+    for t in on:
+        ev, extra = _AFFIX_RES_GAIN_ON.get(t, (None, None))
+        if ev is None:
+            continue  # 未映射时机（combo_skill 等）：静默跳过（缺口词条不装配）
+        d = {"type": "we_affix_res_gain", "key": aid, "res": res, "gain": gain,
+             "label": info.get("name") or aid}
+        if eff.get("chance") is not None:
+            d["chance"] = eff["chance"]
+        d.update(extra)
+        out.setdefault(ev, []).append(d)
+    return out
+
+
+for _aid in _AFFIX_RES_GAIN_IDS:
+    _AFFIX_TRANSLATORS[_aid] = _translate_affix_res_gain
+
+
+@_register_affix("boiling_blood")
+def _af_boiling_blood(aid, actor, eff):
+    """沸血浇筑：怒气全满（rage 叠层满 cap，rage_full 语义）全减伤 8%。
+
+    taken_calc 承伤乘区 cond=state_full state_key=rage（现成谓词——state_full 的
+    key 参数名 = state_key，读 effects[state_key].stacks >= EFFECT_RULES cap）。
+    怒气来源 = 战士怒词条装配（war_spirit/blood_bath/warcry_echo 攒层）。"""
+    return {"taken_calc": [{"type": "we_taken_mult_cond", "key": aid,
+                            "cond": "state_full", "state_key": "rage",
+                            "mult": 1.0 - float(eff.get("dmg_reduce") or 0.08),
+                            "tag": eff.get("tag") or "🛡️沸血"}]}
+
+
 def affix_triggers_for_key(aid: str, actor: dict) -> dict:
     """单个 affix → {old_event: [效果 dict]}（未支持 key → {}）。"""
     fn = _AFFIX_TRANSLATORS.get(aid)
     if fn is None:
         return {}
-    eff = _affix_effect_final(aid, actor)
+    eff = _affix_effect_final(aid, actor, _AFFIX_TIER_KEY.get(aid))
     if not eff and aid not in _AFFIX_TRANSLATORS:
         return {}
     return fn(aid, actor, eff)
@@ -806,8 +926,9 @@ def affix_triggers(actor: dict) -> dict:
     """actor 全部已装备词条（事件型）→ {battle2事件: [效果 dict]}。
 
     - stat 型词条（生成时已折算进 item.stats）不产生 triggers（面板自动含）
-    - 资源型/职业机制词条：翻译器未注册 → 静默跳过（上层职业模块缺口清单）
     - 事件型走翻译器 + 事件映射展开（hit → attack_hit + skill_hit）
+    - 资源型：R4 已装事件 gain 型 10 + boiling_blood；上限型/cond 修正型/regen 型
+      翻译器未注册 → 静默跳过（缺口清单见模块头注释与 affixes.py）
     """
     out: dict = {}
     for aid in equipped_affix_ids(actor):

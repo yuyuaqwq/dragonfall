@@ -41,6 +41,23 @@ EFFECT_RULES: dict = {
     "arcane": {
         "cap": 10,
     },
+    # R4（N9.7e affix 资源词条 gain clamp 声明）：energy/faith/cp/element 是
+    # affix res+gain 词条（暴击蓄能/圣辉回响/暴击回点/充能汲引等）的资源容器 key，
+    # cap 源 = core_resources legacy max（精力 100/信仰 10/连击点 5/元素亲和 5）。
+    # 纯 cap 声明（无 stat_scale/period/consume → 引擎惰性条目，只 clamp 不折算）；
+    # 渠道喂养/单源化属 R2 批次，词条装配 R4 先落地。
+    "energy": {
+        "cap": 100,
+    },
+    "faith": {
+        "cap": 10,
+    },
+    "cp": {
+        "cap": 5,
+    },
+    "element": {
+        "cap": 5,
+    },
     "shield": {
         "cap": 10,
         "stat_scale": {"reduce": 0.03},       # 每层减伤

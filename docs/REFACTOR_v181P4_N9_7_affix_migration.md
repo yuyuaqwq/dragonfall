@@ -1,7 +1,11 @@
-# battle2 N9.7 affix 76 词条迁移方案（分档 + 批次）——进度更新 2026-09-08
+# battle2 N9.7 affix 76 词条迁移方案（分档 + 批次）——进度更新 2026-09-09
 
 > affix 迁移完成度：A1 26 零代码 ✓ + 通用战斗词条 16 已迁 ✓ + 条件乘区 4 ✓。
-> 剩余 = 资源型/职业机制 30（记缺口等上层职业模块）+ purify 特殊（缺"增益 key 语义"设计）。
+> R4（N9.7e，2026-09-09）：资源型落地一批——事件 gain 型 10 词条已装配
+> （war_spirit/warcry_echo/blood_bath/arcana_flux/crit_charge/holy_echo/crit_return/
+> pious_charm/rock_rest/opening_stance）+ boiling_blood 怒气满减伤。
+> 剩余 = 上限型/cost_reduce/cond 修正/regen 型 11（cap 动态机制待引擎层，R4 未实施）
+> + 职业机制 12 + purify 特殊（缺"增益 key 语义"设计）。
 
 ## 1. 分档矩阵（76 词条实测分类）
 
@@ -49,6 +53,7 @@ heal_power shield_power
 | N9.7b | c1b6ed7 | on_hit 族 8（bleed/armor_break/element_*/combo/charge/pierce）+ 4 扩展动作 | 113→121 |
 | N9.7c | 67558d6 | on_taken 族 2 + dmg_reduce（we_affix_counter/tenacity） | 121→126 |
 | N9.7d | 1b0943c | 条件乘区 4（execute/hunt/break_magic/dragon_aw）+ 4 新谓词 | 126→133 |
+| N9.7e（R4） | _见 R4 commit_ | 资源事件 gain 型 10（we_affix_res_gain + on 映射表 + crit_return tier 键修正）+ boiling_blood 怒气满减伤 + EFFECT_RULES 资源 cap 行补全（energy/faith/cp/element） | +tests/test_affix_res_gain.py 39 断言 |
 
 ## 4. 装配层架构速查（N9.7）
 - `equipped_affix_ids(actor)`：装备 affixes 列表 → 去重保序

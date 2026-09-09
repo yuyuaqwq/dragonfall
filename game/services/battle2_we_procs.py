@@ -1209,6 +1209,54 @@ def we_affix_tenacity(battle, caster, target, params, logs):
 
 
 # ============================================================
+# N9.7e affix 资源 gain 型词条（R4：effect {res, gain, on} → 事件时机叠资源）
+# ============================================================
+# 语义：词条在装配层翻译成「事件 → 给 owner.effects[res].stacks += gain」；
+# 事件全选 subject=owner 自己（或 battle_start 一次性广播）的点位 → 天然不重复。
+# 动作参数化零 affix 硬编码：res/gain/chance/kind/label 全由装配层从 AFFIXES
+# 表翻译写入（tiers 档位已在装配层折算）。cap clamp 查 EFFECT_RULES[res].cap
+# （_add_stacks 缺省查 state_def；rage/chi/energy/faith/cp/element 均有声明）。
+
+
+@register_action("we_affix_res_gain")
+def we_affix_res_gain(battle, caster, target, params, logs):
+    """affix 资源 gain：owner.effects[res].stacks += gain（EFFECT_RULES cap clamp）。
+
+    - res    资源 key（rage/energy/faith/cp/chi/element）
+    - gain   加值（tiers 档位已由装配层折算）
+    - chance 概率（crit_return 等带概率词条；缺省 None = 恒触发）
+    - kind   技能类别过滤（act_cast 事件用：kind=治疗/增益 才触发——warcry_echo
+             增益技 / holy_echo 治疗施放 折中挂点）
+    - not_basic 排除普攻施放（on_cast 词条：battle2 普攻经 do_skill 也 fire
+             act_cast 且 info._basic=True——元素/奥术技能施放不该吃普攻）
+    - label/icon 日志文案（装配层读 AFFIXES.name 写入，动作零硬编码）
+    """
+    owner = params.get("_owner") or caster
+    if owner is None or not actor_alive(owner):
+        return
+    ctx = getattr(battle, "_fire_ctx", None) or {}
+    info = ctx.get("info") or {}
+    kind = params.get("kind")
+    if kind and (info.get("kind") or "") != kind:
+        return  # 技能类别过滤不命中（buff_skill/治疗词条只认对应 kind 技能行动）
+    if params.get("not_basic") and info.get("_basic"):
+        return  # on_cast 语义 = 技能施放，普攻（basic 经 do_skill）不触发
+    if not _roll(params.get("chance")):
+        return
+    res = params.get("res") or ""
+    gain = int(params.get("gain") or 0)
+    if not res or gain <= 0:
+        return
+    n = _add_stacks(owner, res, gain)
+    if n <= 0:
+        return
+    from game.battle2.state_effects import state_def
+    cap = int((state_def(res) or {}).get("cap") or 0) or 999
+    logs.append(f"{params.get('icon') or '✦'} {params.get('label') or res} "
+                f"+{gain}（{n}/{cap}）")
+
+
+# ============================================================
 # 注册入口（装配层 install_ext_actions 调，幂等）
 # ============================================================
 
