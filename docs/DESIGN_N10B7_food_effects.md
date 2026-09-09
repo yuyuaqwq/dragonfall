@@ -61,7 +61,9 @@ for a in aids:
 # shield 特判保留；文案不变
 ```
 - actor["food_effects"] 容器**保留**（图鉴/面板/存档兼容 + 吃重复去重判断仍读它）
-- 触发时机由 battle2 事件总线 fire() 消费（skill_hit/on_taken/turn_start/dmg_calc 引擎已插桩）
+- 触发时机由 battle2 事件总线 fire() 消费（skill_hit/on_taken/dmg_calc/taken_calc 引擎已插桩）
+- **回春类特殊**：regen/meditate/dawn_crown 不进 triggers，吃入时直写 effects period
+  条目（schedule 时间驱动每刻跳，同 regen_hot 先例）——见 §3 修正表
 - 效果执行 = apply_effects 名词翻译 / we_* 扩展动作（引擎零知识不动）
 
 ### 为什么落 translate 而不是装配时
@@ -92,12 +94,25 @@ for a in aids:
 | thorns | `on_taken: [{type:"we_reflect", chance:0.10, pct:0.30}]` | we_reflect（N10-B3 反伤） |
 | aurora_guard | `taken_calc: [{type:"we_taken_mult_cond", cond:"always", mult:0.85}]` | affix 全减伤（equip_proc §_af reduce） |
 
-### TURN_START 刻开始类（turn_start 事件；旧走 tick 卡 1s 一跳，battle2 turn_start 语义对齐）
-| aid | triggers 声明 | 复用先例 |
+### TURN_START 刻开始类 → ⚠️ 改为 effects period 时间驱动（非 turn_start！）
+**修正（鱼鱼 2026-09-09 追问）**：效果料理描述 =「每刻回复 X%」——旧引擎实现是 tick 卡
+（ACT_TICK=1 刻=1 游戏秒，interval=1s **时间驱动**，keep=True 常驻到战斗结束），
+**不是行动帧触发**。battle2 同构通道 = effects 条目 + period 声明（schedule 周期段
+时间驱动，dir=heal 已支持 heal_pct + mana_pct 双资源，见 hot: 分支 regen_hot 先例）。
+因此 regen/meditate/dawn_crown **不走 turn_start 事件、不进 triggers**，吃入时直接写
+effects period 条目（首跳 1s + 每 1 刻跳 + 战斗全程常驻）：
+
+| aid | 落点 | 条目形态（schedule 周期段消费） |
 |---|---|---|
-| regen | `turn_start: [{type:"we_affix_regen"/heal 动词, pct:0.01}]` | affix regen 同款（equip_proc §_af regen） |
-| meditate | 同上（mana 版） | affix meditate |
-| dawn_crown | 同上 pct:0.02 | affix regen 高级版 |
+| regen | `effects["food_regen"]` | `{stacks:1, period:{dir:"heal", interval:1.0, heal_pct:0.01}, expire:战斗结束}` |
+| meditate | `effects["food_meditate"]` | `{stacks:1, period:{dir:"heal", interval:1.0, mana_pct:0.01}, expire:...}` |
+| dawn_crown | `effects["food_dawn_crown"]` | `{stacks:1, period:{dir:"heal", interval:1.0, heal_pct:0.02}, expire:...}` |
+
+- 对齐 battle2 hot: 分支 regen_hot 写法（`entry["period"] = {...}`，schedule 周期段消费）
+- **无 turns**：旧效果料理回春战斗全程常驻（keep=True），不是普通食物 hot 的 N 刻限时
+  → 条目不设 djump turns 清层（turns 缺省 0 = 不按跳数清）；expire 由战斗结束 actor
+  销毁自然消失（regen_hot 用 expire 兜底，food 全程型可留 expire=None 依赖 actor 销毁）
+- 文案：`🍲 你吃下了料理，获得【回春】效果！(每刻恢复 1% 生命)`
 
 ### 乘区类（dmg_calc 事件；旧 _affix_dmg_mult foods 分支）
 | aid | triggers 声明 | 复用先例 |
@@ -111,9 +126,11 @@ for a in aids:
    （对齐：若 fire 则 food 生效更广——以 battle2 v2 语义为准，v181 北极星）
 2. **真伤不触发**：旧 v107 真伤不吸血/不触发词条；battle2 dmg_calc/skill_hit 插桩点
    是否含真伤路径需核对（对齐旧语义）
-3. **回合开始 vs 1 秒 tick**：旧 turn_start 效果走 ACT_TICK=1s tick 卡，1 秒跳一次；
-   battle2 turn_start 是"该 actor 行动帧开始"一次。battle2 语义 = 每行动跳一次
-   （比 1s tick 更稀疏）→ 以 battle2 定稿为准（V 系列周期统一机制方向）
+3. **回合开始 vs 1 秒 tick（已修正）**：旧回春类效果走 tick 卡（ACT_TICK=1 刻=1 游戏秒，
+   **时间驱动**每刻跳，keep=True 常驻到战斗结束）——battle2 同构通道 = effects period
+   声明（schedule 周期段同样时间驱动、首跳 1s + interval 每刻跳），**不是 turn_start
+   行动帧**。regen/meditate/dawn_crown 已改为 effects period 落点（见 §3）。普通食物
+   hot（regen_hot）已有 turns 限时先例；效果料理回春无 turns（战斗全程，对齐旧 keep=True）。
 4. **效果期**：food = 本场战斗（actor 随战斗销毁即消失，无需 expire 管理）
 5. **吃重复**：同 aid 不重复 append（现有 if a not in _fe 逻辑保留；triggers 同幂等）
 
