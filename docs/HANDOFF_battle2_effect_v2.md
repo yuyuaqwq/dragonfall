@@ -200,7 +200,7 @@ heal/state_set/interrupt/damage 动词补齐。
 | key | 缺的机制 | 状态 |
 |---|---|---|
 | novice_first_turn_dodge | 闪避（battle2 无命中 roll） | 等命令层 N5b-4 后做（N9A-3 战斗系统批） |
-| novice_hunt_combo / combo_end | 连击/连段（拳师/刺客职业机制） | 缺口等上层职业模块 |
+| ~~novice_hunt_combo / combo_end~~ | ~~连击/连段（拳师/刺客职业机制）~~ | ✅ M-W2s 已接通：novice_hunt_combo → crit 暴击叠层（cap 5/每层连击率+8%，we_combo_stack）；combo_end → dmg_calc 连段≥3 暴伤+40%（we_combo_end，读 effects[lian_duan] 连段层） |
 | ~~trinity_rhythm thunder 段~~ | ~~附雷附加~~ | ✅ N9.8 已补（hit 子键 bonus_atk_pct + _translate_trinity） |
 | ~~death_dance_armor 复活段~~ | ~~致死复活链~~ | ✅ 复核 = 旧引擎从未实现，battle2 行为已等价；文案虚标记 N10 清单 |
 

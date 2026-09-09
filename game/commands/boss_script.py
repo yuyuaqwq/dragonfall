@@ -436,6 +436,8 @@ def _check_simple_mech(st: dict, battle, actor: dict, cfg: dict, bs: dict,
 #   C.build_monster 构建），不从 Boss 比例缩放；非 instance 回落 Boss×0.2
 # - 召唤物：uid 唯一、rank1/reach1、is_minion=True、is_boss/is_elite False、
 #   mech=""（防多怪重复触发剧本）、auto_act 缺省普攻
+# - 召唤物入场插 enemy side 队首（M-W2s 前排挡刀：存活第一名 = 新援军，
+#   默认目标/a1 先打它——旧 append 尾部 = 后排不挡刀）
 # - 召唤成功 → Boss 攻击联动（旧 mon_atk_up 2 刻 = atk×1.30，线上行为）
 # ============================================================
 
@@ -509,7 +511,12 @@ def _check_summon(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     m["shields"] = dict(m.get("shields") or {})
     # 入 enemy side（⚠️ sides_of 返回拷贝——写操作直接碰 self.sides 容器；
     # 命令层每刻 from_state 重建 battle → 本帧改动 to_state 落回）
-    battle.sides.setdefault("enemy", []).append(m)
+    # M-W2s：召唤物插 side 队首（前排挡刀）——append 尾部 = 排到 Boss/旧爪牙身后
+    # （=后排），默认目标/编号 a1 永远是 Boss 或旧前排，新援军不挡刀、与日志
+    # 「它挡在身前！」矛盾。insert(0) = 新援军站队首：存活序列第一名即召唤物，
+    # 玩家无指定目标的攻击/a1 编号都先打它（死亡单位残留队首时亦先于其判定，
+    # 存活序不变）。
+    battle.sides.setdefault("enemy", []).insert(0, m)
     bs["summon_last"] = rn
     bs.setdefault("summoned", []).append(m["uid"])
     logs.append(f"👥【{actor.get('name','')}】召唤了【{m['name']}】！它挡在身前！")

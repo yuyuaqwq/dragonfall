@@ -6,6 +6,8 @@
   无 inst/无 minions → 回落 Boss×0.2
 - 上限 3（含开怪自带爪牙存活 is_minion；满员不召）
 - 召唤物字段：uid 唯一 / is_minion / rank1 / mech="" / ct=now+2
+- M-W2s：召唤物插 enemy side 队首（前排挡刀——存活序列第一名即新援军，
+  玩家默认目标/a1 编号先打它；旧 append 尾部 = 后排不挡刀）
 - Boss 攻击联动 atk×1.30（旧 mon_atk_up 线上行为）
 
 跑法：python tests/test_boss_script_p3.py
@@ -218,6 +220,51 @@ def test_6_summon_no_token():
     check("无 token 不召", not mins and not logs, str(logs))
 
 
+def test_7_summon_front_row():
+    print("【7. 召唤物插队首前排挡刀（M-W2s：append 尾部=后排 bug 修复）】")
+    # 无预置爪牙：召唤后召唤物 = enemy side 第 0 位（Boss 身前）
+    b, boss, st = mk_env(inst_id="inst_goblin_camp")
+    cfg = mk_cfg()
+    bs = BS._new_script_state()
+    bs["round_no"] = 6
+    logs = []
+    BS._check_summon(st, b, boss, cfg, bs, 6.0, logs)
+    es = b.sides_of("enemy")
+    check("召唤物在 enemy side 队首（index 0）",
+          es and es[0].get("is_minion") and str(es[0].get("uid", "")).startswith("e_min_"),
+          f"side 顺序={[u.get('name') for u in es]}")
+    check("Boss 被挤到召唤物身后（index 1）",
+          len(es) >= 2 and es[1] is boss, f"index1={es[1].get('name') if len(es) > 1 else None}")
+    alive = [u for u in es if int(u.get("hp", 0) or 0) > 0]
+    check("存活序列第一名 = 召唤物（a1 挡刀）", alive and alive[0] is es[0],
+          f"alive 顺序={[u.get('name') for u in alive]}")
+    # 玩家无指定目标的普攻先打召唤物（默认目标 = 敌对存活第一人 = 队首）
+    from game.battle2.actors import ActCtx as _B2Ctx
+    pa = b.sides["player"][0]
+    pa["side"] = "player"  # mk_env 快照 actor 无 side——补阵营才能正确解析敌对目标
+    pa["atk"] = 150  # 快照无 atk——补面板让普攻能造成伤害
+    hp_boss0 = boss["hp"]
+    hp_sum0 = es[0]["hp"]
+    b.act(_B2Ctx(caster=pa, action="attack"))
+    check("默认目标先打召唤物（挡刀）：Boss 不掉血", boss["hp"] == hp_boss0,
+          f"boss hp={boss['hp']} expect {hp_boss0}")
+    check("召唤物承伤", es[0]["hp"] < hp_sum0, f"summon hp={es[0]['hp']} <- {hp_sum0}")
+    # 队首有死亡单位残留时：新召唤仍站存活序列最前（先于 Boss）
+    b2, boss2, st2 = mk_env(inst_id="inst_goblin_camp", extra_minions=1)
+    bs2 = BS._new_script_state()
+    bs2["round_no"] = 6
+    dead = [u for u in b2.sides_of("enemy") if u.get("is_minion")][0]
+    dead["hp"] = 0
+    BS._check_summon(st2, b2, boss2, cfg, bs2, 6.0, [])
+    es2 = b2.sides_of("enemy")
+    alive2 = [u for u in es2 if int(u.get("hp", 0) or 0) > 0]
+    check("队首死亡残留不影响挡刀（存活第一名仍是新召唤物）",
+          alive2 and alive2[0].get("is_minion") and str(alive2[0].get("uid", "")).startswith("e_min_"),
+          f"alive 顺序={[u.get('name') for u in alive2]}")
+    check("Boss 仍在召唤物身后存活（第二存活）",
+          len(alive2) >= 2 and alive2[1] is boss2, f"alive2={[u.get('name') for u in alive2]}")
+
+
 def main():
     print("5c P3 Boss 剧本导演：召唤援军")
     test_1_summon_cd()
@@ -226,6 +273,7 @@ def main():
     test_4_summon_cap()
     test_5_summon_dead_minion_recycle()
     test_6_summon_no_token()
+    test_7_summon_front_row()
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     if FAILURES:
         for f in FAILURES:

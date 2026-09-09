@@ -876,6 +876,24 @@ _START_TRANSLATORS = {
     "ice_vein": _translate_act_done_slow,
     # proc_special death_dance 缓伤池（受击收池 + 每刻结算）
     "death_dance": _translate_death_dance,
+    # proc_stack crit 叠层（novice_hunt_combo：暴击 → 连击率叠层，cap/per_stack
+    # 数据权威——novice_combo 无 STATE_EFFECTS 行，we_combo_stack 读 max_stack）
+    "novice_hunt_combo": lambda k, wd: {
+        "crit": [{"type": "we_combo_stack", "key": k,
+                  "stack_key": wd.get("stack_key") or k,
+                  "max_stack": wd.get("max_stack"),
+                  "per_stack": wd.get("per_stack")}],
+    },
+    # proc_passive_mult combo_end（连击终点：本刻连段≥combo_need 且暴击 → 本次
+    # 暴伤乘区。battle2 无旧 passive 点位 → 挂 dmg_calc（ctx.is_crit = 本击被动
+    # 判定结果，we_combo_end 内判连段条件）；combo_key 缺省 lian_duan 连段资源）
+    "combo_end": lambda k, wd: {
+        "dmg_calc": [{"type": "we_combo_end", "key": k,
+                      "combo_need": wd.get("combo_need"),
+                      "crit_dmg": wd.get("crit_dmg"),
+                      "mark_key": wd.get("mark_key"),
+                      "combo_key": wd.get("combo_key")}],
+    },
 }
 
 

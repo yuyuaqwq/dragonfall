@@ -938,6 +938,84 @@ def we_amp_consume(battle, caster, target, params, logs):
 
 
 # ============================================================
+# combo 系武器特效（M-W2s：novice_hunt_combo 暴击叠层 + combo_end 连段暴伤）
+# ============================================================
+# 旧语义（REFACTOR_v181P4_N9A_weapon_gap_plan.md §4.1，_we_executors 388-395 +
+# battle.py 2586-2631）：
+#   novice_hunt_combo（猎影之牙）：暴击命中 → stacks[novice_combo] +1（cap 5），
+#     每层连击率 +8%——消费点在连击判定（直读叠层，非本执行器）
+#   combo_end（夜枭双匕）：本刻连段 ≥3 时本次攻击暴伤 +40%（触发：被动判定）
+# battle2 表达：
+#   - 生产段挂 crit 事件（暴击命中后）；叠层 cap/per_stack 数值权威 = 数据表
+#     （novice_combo 无 STATE_EFFECTS 声明行 → cap 缺省读数据 max_stack）
+#   - combo_end 的「本刻连段」= 连段资源当前层（effects[lian_duan].stacks，刺客
+#     攻线命中计数）；「被动判定」= 本击暴击 → 挂 dmg_calc 钩子（ctx.is_crit 即
+#     本击被动判定结果；battle2 无旧 passive 点位，dmg_calc 语义最近且不误伤——
+#     只在暴击且连段达标时乘入本次伤害，条件不满足 = 零效果零日志）。
+
+
+@register_action("we_combo_stack")
+def we_combo_stack(battle, caster, target, params, logs):
+    """暴击叠层生产（proc_stack crit 事件——novice_hunt_combo 猎影之牙）：
+    暴击命中 → effects[stack_key].stacks +1。cap = 数据表 max_stack 权威
+    （该叠层不进 STATE_EFFECTS 声明表，state_def 无行时以数据 max_stack 封顶，
+    再兜底 5）；每层 = 连击率 +per_stack（消费点=连击判定直读叠层，连击系统
+    就绪后接消费；本动作管生产段 + 玩家可见叠层文案，与装备 desc 逐字一致）。"""
+    owner = params.get("_owner") or caster
+    if owner is None or not actor_alive(owner):
+        return
+    sk = params.get("stack_key") or params.get("key") or ""
+    if not sk:
+        return
+    cap = int(params.get("max_stack") or 0)
+    if cap <= 0:
+        from game.battle2.state_effects import state_def
+        try:
+            cap = int((state_def(sk) or {}).get("cap") or 0)
+        except Exception:
+            cap = 0
+    if cap <= 0:
+        cap = 5  # 缺数据声明兜底（novice_combo 无状态表行，cap 恒走 max_stack）
+    ef = owner.setdefault("effects", {})
+    entry = ef.get(sk)
+    if not isinstance(entry, dict):
+        entry = ef[sk] = {}
+    cur = int(entry.get("stacks", 0) or 0)
+    entry["stacks"] = max(0, min(cap, cur + 1))
+    n = entry["stacks"]
+    pct = int(float(params.get("per_stack") or 0.08) * 100)
+    logs.append(f"🎯 猎影：暴击叠层！（{n}/{cap} 层，每层连击率 +{pct}%）")
+
+
+@register_action("we_combo_end")
+def we_combo_end(battle, caster, target, params, logs):
+    """连击终点（proc_passive_mult combo_end 夜枭双匕，dmg_calc 钩子）：
+    本刻连段（effects[lian_duan].stacks——连段资源当前层）≥ combo_need 且本击
+    暴击（_fire_ctx.is_crit）→ 本次攻击伤害 ×(1+crit_dmg)（暴伤 +40%）。
+    条件任一不满足（连段 <combo_need / 未暴击）= 本次不触发（零效果零日志）。"""
+    ctx = getattr(battle, "_fire_ctx", None)
+    if ctx is None:
+        return
+    owner = params.get("_owner") or caster
+    if owner is None or not actor_alive(owner):
+        return
+    if not ctx.get("is_crit"):
+        return  # 未暴击：本次攻击无暴击伤害可加成
+    need = int(params.get("combo_need") or 3)
+    cd = float(params.get("crit_dmg") or 0)
+    if cd <= 0:
+        return  # 缺字段 = 无此行为（读表零默认值铁律）
+    ef = owner.get("effects") or {}
+    entry = ef.get(params.get("combo_key") or "lian_duan")
+    n = int(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0
+    if n < need:
+        return  # 本刻连段不足：不触发
+    ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * (1.0 + cd)
+    ctx["tags"] = list(ctx.get("tags") or []) + [f"💢连击终点x{1.0 + cd:.2f}"]
+    logs.append(f"💢 连击终点：连段≥{need} 暴击，本次暴击伤害 +{int(cd * 100)}%！")
+
+
+# ============================================================
 # proc_special death_dance（缓伤池：受击收 35% → turn_start 结算 10%）
 # ============================================================
 # 旧语义（battle.py _post_hp_lethal 10955-10958 + _we_executors 871-895）：
