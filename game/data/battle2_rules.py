@@ -585,8 +585,16 @@ PASSIVE_PROC: dict = {
         "ctrl_any": True, "res": "zhan_yi", "cost_field": "cost",
         "left_key": "tenacity_break_left", "left_init": 3,
     },
+    # ---- P2 族：act_cast 吸血/治疗溢出（战士淬血 + 牧师圣光回响）----
+    "zhan_yi_lifesteal": {     # 淬血：每层战意提供 1.5% 吸血（行动内 lifesteal 面板加算 buff）
+        "event": "act_cast", "action": "passive_lifesteal_buff",
+        "res": "zhan_yi", "buff_key": "passive_lifesteal_zhan_yi",
+    },
+    "heal_overflow_shield": {  # 圣光回响：治疗溢出量的 50% 转为护盾（heal_calc 落地前算溢出）
+        "event": "heal_calc", "action": "passive_heal_overflow_shield",
+    },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
-    # berserk_revive/heal_overflow_shield 等 P2 续
+    # berserk_revive/poison_all_up 等 P2 续
 }
 
 

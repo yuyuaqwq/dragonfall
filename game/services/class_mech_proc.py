@@ -667,6 +667,80 @@ def install() -> None:
         ef.pop(hit_ctrl, None)
         logs.append(f"🛡️ {params.get('label') or '被动'}：消耗 {int(cost)} 层战意挣脱控制！")
 
+    @register_action("passive_lifesteal_buff")
+    def passive_lifesteal_buff(battle, caster, target, params, logs):
+        """act_cast 吸血 buff：每层资源 → 面板 lifesteal 加算（淬血 1.5%/层战意）。
+
+        语义 = 旧挂点5 _settle_lifesteal 吸血率加算（每层战意 +per_layer，cap 30% 引擎保留）
+        ——buff 快照条 {stat: lifesteal, mult: per_layer×层, op: add}，行动内 _settle_lifesteal
+        读面板吃到；下次行动重写/清除。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        actor = ctx.get("actor") or caster
+        if actor is None:
+            return
+        res = params.get("res") or "zhan_yi"
+        per = float(params.get("per_layer") or 0)
+        buff_key = params.get("buff_key") or ""
+        if per <= 0 or not buff_key:
+            return  # 缺字段 = 无此行为
+        ef = actor.setdefault("effects", {})
+        _entry = ef.get(res)
+        cur = float(_entry.get("stacks", 0) or 0) if isinstance(_entry, dict) else 0.0
+        value = per * cur
+        if value > 0:
+            ef[buff_key] = {"stacks": 1, "stat": "lifesteal", "mult": value,
+                            "op": "add", "expire": None}
+        else:
+            ef.pop(buff_key, None)
+
+    @register_action("passive_heal_overflow_shield")
+    def passive_heal_overflow_shield(battle, caster, target, params, logs):
+        """heal_calc 治疗溢出转盾：计划治疗超出目标缺口部分 ×pct → 护盾（给被治疗者）。
+
+        语义（NO_OLD，desc 权威）：圣光回响「治疗溢出量的 50% 转为护盾」——heal_calc
+        在落地前（缺口未填充），溢出 = heal - 当前缺口。护盾结构对齐引擎 shield 动词
+        （shields[key]={value, expire_at, halve}；转盾默认 3 刻）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        owner = ctx.get("actor") or caster
+        if owner is None:
+            return
+        tgt = ctx.get("target") or target
+        if tgt is None:
+            return
+        heal = float(ctx.get("heal") or 0)
+        pct = float(params.get("pct") or 0)
+        if heal <= 0 or pct <= 0:
+            return
+        _mx = int(tgt.get("max_hp", 1) or 1)
+        _cur_hp = int(tgt.get("hp", 0) or 0)
+        gap = max(0, _mx - _cur_hp)
+        overflow = max(0, int(heal) - gap)
+        if overflow <= 0:
+            return
+        val = max(1, int(overflow * pct))
+        try:
+            from ..battle2.battle import _now_of
+            now = _now_of(battle)
+        except Exception:
+            now = 0.0
+        sh = tgt.setdefault("shields", {})
+        key = "heal_overflow"
+        expire = now + 3  # 转盾默认 3 刻（shield 动词缺省 turns=3）
+        cur = sh.get(key)
+        if isinstance(cur, dict):
+            cur["value"] = int(cur.get("value", 0) or 0) + val
+            if cur.get("expire_at") is not None:
+                cur["expire_at"] = max(float(cur.get("expire_at", 0) or 0), expire)
+        else:
+            sh[key] = {"value": val, "expire_at": expire, "halve": False}
+        logs.append(f"🛡️ {params.get('label') or '被动'}：治疗溢出 {overflow}，转化护盾 {val} 点！")
+
     _registered = True
 
 
