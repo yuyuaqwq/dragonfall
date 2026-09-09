@@ -164,15 +164,22 @@ check("汉堡战斗内 payload=buff:food_def_up", rb.payload == "buff:food_def_u
 ro = IT.TEMPLATES["food_buff"](BufCtx(battle=False))
 check("汉堡战斗外即时回血+体力", "恢复 30 点生命" in ro.text and "恢复 35 点体力" in ro.text, ro.text)
 
-# 战斗内吃料理播报（food_ 前缀 → 料理文案）
-b2 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
-                        "matk": 0, "mdef": 0, "spd": 1000}, {})
-p2 = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
-      "level": 1, "learned_skills": [], "race": "human", "attributes": {}}
-l2, _ = b2.actor_turn("use_item", "buff:food_def_up", p2)
-check("料理播报(非'饮下战斗药水')", "吃下了料理" in "\n".join(l2), "\n".join(l2))
-check("food_def_up 生效 def×1.15",
-      b2._apply_buffs(b2._player_stats(p2), b2._p_buffs_bag()).get("def") == int(b2._player_stats(p2).get("def", 0) * 1.15))
+# 战斗内吃料理播报（food_ 前缀 → 料理文案；battle2 N10：buff: 翻译走 battle2_item_use）
+from game.battle2 import Battle as _B2
+from game.battle2 import make_actor as _mk2
+from game.battle2 import config as _b2cfg
+_b2cfg.load_game_defaults()
+_p2 = _mk2(uid="p_q1", name="试吃", side="player", kind="player", human_controlled=True,
+           class_name="cls_zhan_shi", level=1, hp=100, max_hp=100, mp=50, max_mp=100,
+           atk=10, matk=5, spd=10, crit=0.0, equipment={}, skills=[], learned_skills=[],
+           race="human", evolve_path=0, class_tier=0, attributes={}, **{"def": 20, "mdef": 10})
+_e2 = _mk2(uid="e_0", name="野狗", side="enemy", kind="monster", level=1,
+           hp=500, max_hp=500, atk=5, matk=5, spd=5, crit=0.0, exp=0, gold=0,
+           **{"def": 0, "mdef": 0})
+_b2 = _B2(btype="monster", sides={"player": [_p2], "enemy": [_e2]})
+from game.commands.battle2_item_use import translate as _tr_food
+_l2, _c2 = _tr_food(_b2, _p2, "buff:food_def_up")
+check("料理播报(非'饮下战斗药水')", any("吃下了料理" in str(l) for l in (_l2 or [])), str(_l2)[:120])
 
 # ---- 7. food_effect 效果料理 ----
 print("== 7. food_effect 效果料理 ==")
@@ -199,49 +206,9 @@ check("蛇羹战斗内 payload=foodfx:lifesteal", ra.payload == "foodfx:lifestea
 ro2 = IT.TEMPLATES["food_effect"](AffCtx(battle=False))
 check("蛇羹战斗外恢复", "恢复 20 点生命" in ro2.text, ro2.text)
 
-# 战斗内吃蛇羹 → 获得吸血效果 + 攻击触发吸血
-p3 = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
-      "level": 1, "learned_skills": [], "race": "human", "attributes": {},
-      "equipment": {}}
-b3 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
-                        "matk": 0, "mdef": 0, "spd": 1000}, {}, player=p3)
-l3, _ = b3.actor_turn("use_item", "foodfx:lifesteal", p3)
-j3 = "\n".join(l3)
-check("吃下播报【吸血】", "获得【吸血】效果" in j3, j3)
-check("p_food_effects 已设置", b3._p_food_effects() == ["lifesteal"], str(b3._p_food_effects()))
-check("食物效果不进装备词条", "lifesteal" not in b3._equip_affix_ids(p3), str(b3._equip_affix_ids(p3)))
-# 攻击命中触发吸血（直接调挂点验证）
-hp_b3 = p3["hp"]
-hit_logs = []
-b3._food_on_hit(p3, 100, hit_logs)
-check("吸血触发(8% 伤害)", p3["hp"] == min(p3["max_hp"], hp_b3 + 8), f"{hp_b3}→{p3['hp']}")
-check("吸血播报", any("吸血" in l for l in hit_logs), str(hit_logs))
-
-# 护盾料理特判（直接调 _do_use_item 避开敌方行动消耗）
-bread = C.ITEMS["i_sacred_bread"]
-p4 = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
-      "level": 1, "learned_skills": [], "race": "human", "attributes": {}, "equipment": {}}
-b4 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
-                        "matk": 0, "mdef": 0, "spd": 1000}, {}, player=p4)
-b4._do_use_item("foodfx:shield", p4)
-# v152 时刻制：护盾存 {value, expire_at}（expire_at = now + 3×ACT_TICK = 6.0）
-# v180-B：Battle 带 player 播种 + 实时重算 max_hp（战士 lv1 = 150，shield_power 0.05）
-# → 盾值 = 150×10%×1.05 = 15.75 → 15
-check("护盾料理获得 10% 护盾(3回合)", b4._p_shields_bag().get("food_shield", {}).get("value") == 15
-      and abs(float(b4._p_shields_bag().get("food_shield", {}).get("expire_at", 0)) - 3.0) < 1e-9,
-      str(b4._p_shields_bag()))  # v152 ACT_TICK=1.0：3 刻 = 3.0 秒
-
-# 回春料理：回合开始回血（直接调 food 挂点验证）
-p5 = {"hp": 80, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
-      "level": 1, "learned_skills": [], "race": "human", "attributes": {}, "equipment": {}}
-b5 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
-                        "matk": 0, "mdef": 0, "spd": 1000}, {}, player=p5)
-b5._p_food_effects().append("regen")
-hp_before = p5["hp"]
-ts_logs = []
-b5._food_turn_start(p5, ts_logs)
-check("回春回合开始回血(直接调)", p5["hp"] == hp_before + int(p5["max_hp"] * 0.01), f"{hp_before}→{p5['hp']}")
-check("回春播报", any("回春生效" in l for l in ts_logs), str(ts_logs))
+# (N10 删旧：战斗内 foodfx 效果段退役——蛇羹吸血/圣餐面包盾/回春回合回复已由
+#  battle2 B7 覆盖，见 test_battle2_n10_b7_food test_snake_soup_lifesteal /
+#  test_sacred_bread_shield / test_honey_regen；此处只保留模板层 payload 验证)
 
 print(f"\n结果: {PASS} 通过, {FAIL} 失败")
 sys.exit(1 if FAIL else 0)
