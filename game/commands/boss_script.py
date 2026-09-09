@@ -451,14 +451,11 @@ def _check_summon(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     _last = int(bs.get("summon_last", 0) or 0)
     if rn - _last < 5:
         return
-    # 场上援军上限 3（含开怪自带爪牙：enemy side 存活 is_minion）
+    # 场上援军上限 3（含开怪自带爪牙：enemy side 存活 is_minion）——v163 定稿值
+    # （N10 前由 battle_mech SUMMON_MINION_CAP 改为导演本地数据，battle_mech 将删）
     _alive_min = [u for u in battle.sides_of("enemy")
                   if u.get("is_minion") and int(u.get("hp", 0) or 0) > 0]
-    try:
-        from .battle_mech import SUMMON_MINION_CAP
-    except Exception:
-        SUMMON_MINION_CAP = 3
-    if len(_alive_min) >= int(SUMMON_MINION_CAP or 3):
+    if len(_alive_min) >= 3:
         return
     # ---- 召唤物模板：INSTANCES[iid].minions[0].monster（v163）----
     _tpl = None

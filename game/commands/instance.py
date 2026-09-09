@@ -28,7 +28,7 @@ from ._platform import AstrMessageEvent, filter
 from .. import content as C
 from .. import db
 from .. import engine as E
-from ..battle import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）
+from ..core.constants import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）——N10 前由 battle re-export 改为 core 权威单源
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 from .instance_router import InstanceRouterCmds  # v181.N5b4-5a R1：battle2 副本行动路由
 
