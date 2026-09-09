@@ -189,11 +189,13 @@ def test_no_equip_no_trigger():
 def test_unsupported_key_skipped():
     print("【N9.6 未支持 key 静默跳过（范围外）】")
     p = mk_a("p1", "player")
-    # 真缺口 key（N9A 尚未支持）：combo 系需职业模块
-    equip(p, "combo_end", slot="armor")
-    equip(p, "novice_hunt_combo", slot="weapon")
+    # 真缺口 key（N9B 闪避批次未迁）：novice_first_turn_dodge 属战斗判定缺口
+    equip(p, "novice_first_turn_dodge", slot="armor")
+    equip(p, "no_such_weapon_key", slot="weapon")
     EP.apply_to_actor(p)
     check("未支持 key 不装配", not (p.get("triggers") or {}), f"{p.get('triggers')}")
+    # M-W2s：combo 系两个缺口词条已接通（novice_hunt_combo → crit 叠层；
+    # combo_end → dmg_calc 连段暴伤）——装配断言见 N9.22/N9.23
 
 
 def test_regen_turn_start():
@@ -1087,6 +1089,134 @@ def test_affix_cond_mult():
 
 
 
+def test_novice_hunt_combo():
+    print("【N9.22 novice_hunt_combo（猎影之牙）：暴击 → 连击率叠层 cap 5】")
+    from game.services.battle2_we_procs import we_combo_stack
+    # 装配端：装备 猎影之牙 weapon_effect → triggers[crit]（暴击叠层生产段）
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=100000, atk=1)
+    equip(p, "novice_hunt_combo", slot="weapon")
+    EP.apply_to_actor(p)
+    tr = p.get("triggers") or {}
+    check("novice_hunt_combo 装配 crit 事件", "crit" in tr and len(tr["crit"]) == 1,
+          f"triggers={tr}")
+    e = tr.get("crit", [{}])[0]
+    check("装配参数透传（stack_key/max_stack/per_stack）",
+          e.get("type") == "we_combo_stack" and e.get("stack_key") == "novice_combo"
+          and e.get("max_stack") == 5 and abs(float(e.get("per_stack") or 0) - 0.08) < 1e-9,
+          f"eff={e}")
+    # 端到端：crit=1.0 → 每次暴击命中叠 1 层，cap 5 封顶
+    p["crit"] = 1.0
+    b = new_battle(p, m)
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    check("首次暴击叠 1 层", stk(p, "novice_combo", 0) == 1,
+          f"effects={p.get('effects')}")
+    for _ in range(6):
+        b.act(ActCtx(caster=p, action="attack", target=m))
+    check("连击暴击叠层 cap 5（6 次暴击后仍 5）", stk(p, "novice_combo", 0) == 5,
+          f"stacks={stk(p, 'novice_combo', 0)}")
+    # 条件不满足不触发：无暴击（crit=0）的攻击不叠层
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=100000, atk=1)
+    equip(p2, "novice_hunt_combo", slot="weapon")
+    p2["crit"] = 0.0
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    logs2 = []
+    for _ in range(3):
+        logs2.extend(b2.act(ActCtx(caster=p2, action="attack", target=m2))[0])
+    check("非暴击不叠层", "novice_combo" not in (p2.get("effects") or {}),
+          f"effects={p2.get('effects')}")
+    check("非暴击无猎影文案", not any("猎影" in x for x in logs2), str(logs2))
+    # 直调：层数/clamp/文案数值与 desc 一致（每层 +8%，文案带层数）
+    logs3 = []
+    we_combo_stack(b, p, m, {"type": "we_combo_stack", "key": "novice_hunt_combo",
+                             "stack_key": "novice_combo", "max_stack": 5,
+                             "per_stack": 0.08}, logs3)
+    check("叠层动作直调 +1（5→封顶仍 5）", stk(p, "novice_combo", 0) == 5, f"{stk(p, 'novice_combo', 0)}")
+    p["effects"]["novice_combo"] = {"stacks": 0}
+    logs3 = []
+    we_combo_stack(b, p, m, {"type": "we_combo_stack", "key": "novice_hunt_combo",
+                             "stack_key": "novice_combo", "max_stack": 5,
+                             "per_stack": 0.08}, logs3)
+    check("暴击叠层文案（猎影/层数/8%）", any("猎影" in x and "8%" in x and "/5 层" in x for x in logs3),
+          str(logs3))
+
+
+def test_combo_end():
+    print("【N9.23 combo_end（夜枭双匕）：连段≥3 暴击 → 暴伤 +40%】")
+    from game.services.battle2_we_procs import we_combo_end
+    # 装配端：装备 夜枭双匕 weapon_effect → triggers[dmg_calc]（连段暴伤乘区钩子）
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=100000, atk=1)
+    equip(p, "combo_end", slot="weapon")
+    EP.apply_to_actor(p)
+    tr = p.get("triggers") or {}
+    check("combo_end 装配 dmg_calc", "dmg_calc" in tr and len(tr["dmg_calc"]) == 1,
+          f"triggers={tr}")
+    e = tr.get("dmg_calc", [{}])[0]
+    check("装配参数透传（combo_need=3/crit_dmg=0.40）",
+          e.get("type") == "we_combo_end" and e.get("combo_need") == 3
+          and abs(float(e.get("crit_dmg") or 0) - 0.40) < 1e-9, f"eff={e}")
+    # 直调精确乘区：连段 3 + 暴击 → mult ×1.4 + 日志 + tags
+    b = new_battle(p, m)
+    p["effects"] = {"lian_duan": {"stacks": 3}}  # 本刻连段 = 连段资源当前层
+    b._fire_ctx = {"target": m, "dmg": 100, "is_crit": True, "mult": 1.0, "tags": []}
+    logs = []
+    we_combo_end(b, p, m, {"type": "we_combo_end", "key": "combo_end",
+                           "combo_need": 3, "crit_dmg": 0.40}, logs)
+    check("连段≥3 + 暴击 → mult ×1.4", abs(b._fire_ctx["mult"] - 1.40) < 1e-9,
+          f"mult={b._fire_ctx.get('mult')}")
+    check("暴伤乘区打标", any("连击终点" in x for x in b._fire_ctx.get("tags") or []),
+          f"tags={b._fire_ctx.get('tags')}")
+    check("触发日志（连击终点/40%）", any("连击终点" in x and "+40%" in x for x in logs), str(logs))
+    # 条件不满足 1：连段 <3（2 段）→ 不触发
+    p["effects"] = {"lian_duan": {"stacks": 2}}
+    b._fire_ctx = {"target": m, "dmg": 100, "is_crit": True, "mult": 1.0, "tags": []}
+    logs = []
+    we_combo_end(b, p, m, {"type": "we_combo_end", "key": "combo_end",
+                           "combo_need": 3, "crit_dmg": 0.40}, logs)
+    check("连段 2 <3 不触发", abs(b._fire_ctx["mult"] - 1.0) < 1e-9 and not logs,
+          f"mult={b._fire_ctx.get('mult')} logs={logs}")
+    # 条件不满足 2：连段 3 但未暴击 → 不触发
+    p["effects"] = {"lian_duan": {"stacks": 3}}
+    b._fire_ctx = {"target": m, "dmg": 100, "is_crit": False, "mult": 1.0, "tags": []}
+    logs = []
+    we_combo_end(b, p, m, {"type": "we_combo_end", "key": "combo_end",
+                           "combo_need": 3, "crit_dmg": 0.40}, logs)
+    check("未暴击不触发", abs(b._fire_ctx["mult"] - 1.0) < 1e-9 and not logs,
+          f"mult={b._fire_ctx.get('mult')} logs={logs}")
+    # 端到端：连段 3 + 必暴 → 实际伤害显著高于连段 0 基线（40% 加成）
+    # 幸运一击(30%)双方独立，聚合 8 击对比消除波动：基线均值 vs ×1.4 均值
+    p2 = mk_a("p2", "player", atk=60)
+    m2 = mk_a("e2", "enemy", hp=1000000, atk=1, **{"def": 30, "mdef": 30})
+    equip(p2, "combo_end", slot="weapon")
+    p2["crit"] = 1.0
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    p2["effects"] = {"lian_duan": {"stacks": 0}}
+    base_sum = 0
+    logs_base = []
+    for _ in range(8):
+        hp0 = m2["hp"]
+        logs_base.extend(b2.act(ActCtx(caster=p2, action="attack", target=m2))[0])
+        base_sum += hp0 - m2["hp"]
+    p2["effects"] = {"lian_duan": {"stacks": 3}}
+    m2["hp"] = 1000000
+    logs2 = []
+    boost_sum = 0
+    for _ in range(8):
+        hp0 = m2["hp"]
+        logs2.extend(b2.act(ActCtx(caster=p2, action="attack", target=m2))[0])
+        boost_sum += hp0 - m2["hp"]
+    check("连段 0 基线无连击终点日志", not any("连击终点" in x for x in logs_base), str(logs_base))
+    check("连段≥3 每次暴击出连击终点日志", sum("连击终点" in x for x in logs2) >= 8,
+          f"n={sum('连击终点' in x for x in logs2)}")
+    check("连段≥3 伤害总量显著高于基线（×1.4 生效）",
+          boost_sum > base_sum * 1.2,
+          f"base={base_sum} boost={boost_sum}")
+
+
 def stk(a, k, d=0):
     """V 系列：读效果叠层数 effects[key].stacks。"""
     e = (a or {}).get("effects") or {}
@@ -1130,6 +1260,8 @@ def main():
     test_affix_onhit()
     test_affix_taken()
     test_affix_cond_mult()
+    test_novice_hunt_combo()
+    test_combo_end()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:
