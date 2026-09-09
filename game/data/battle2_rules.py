@@ -593,8 +593,13 @@ PASSIVE_PROC: dict = {
     "heal_overflow_shield": {  # 圣光回响：治疗溢出量的 50% 转为护盾（heal_calc 落地前算溢出）
         "event": "heal_calc", "action": "passive_heal_overflow_shield",
     },
+    # ---- P2 族：dot_calc DOT 乘区（万毒归宗——引擎 N9.14 dot_calc 广播事件）----
+    "poison_all_up": {         # 万毒归宗：所有毒层造成的伤害 +35%（dot_calc 乘区）
+        "event": "dot_calc", "action": "passive_dot_mult",
+        "judge": {"dot_key": "poison"},
+    },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
-    # berserk_revive/poison_all_up 等 P2 续
+    # poison_weaken/berserk_revive 等 P2 续
 }
 
 

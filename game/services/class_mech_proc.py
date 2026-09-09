@@ -741,6 +741,31 @@ def install() -> None:
             sh[key] = {"value": val, "expire_at": expire, "halve": False}
         logs.append(f"🛡️ {params.get('label') or '被动'}：治疗溢出 {overflow}，转化护盾 {val} 点！")
 
+    @register_action("passive_dot_mult")
+    def passive_dot_mult(battle, caster, target, params, logs):
+        """dot_calc DOT 乘区：dot_key 匹配 → ctx.mult ×(1+mult)（施毒者被动万毒归宗）。
+
+        语义 = 旧挂点 DOT 伤害结算处毒伤乘区（所有毒层伤害 +mult）。dot_calc 是
+        broadcast 事件（施毒者在施放方、承伤者在 target——subject 过滤会挡住），
+        owner=_owner（fire 注入声明者）自查归属；dot_key 过滤只加成指定 DOT。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        owner = params.get("_owner") or caster
+        if owner is None:
+            return
+        dot_key = ctx.get("dot_key") or ""
+        judge = params.get("judge") or {}
+        allow = judge.get("dot_key") or ""
+        if allow and dot_key != allow:
+            return
+        mult = float(params.get("mult") or params.get("dmg_add") or 0)
+        if mult <= 0:
+            return  # 缺字段 = 无此行为
+        ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * (1.0 + mult)
+        logs.append(f"☠️ {params.get('label') or '被动'}：DOT 伤害 ×{1.0 + mult:.2f}！")
+
     _registered = True
 
 
