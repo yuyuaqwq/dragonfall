@@ -103,6 +103,7 @@ def test_3_counter_trigger():
         if t.get("type") == "passive_counter":
             t["chance"] = 1.0
     enemy = mk_enemy(spd=1, hp=999999)
+    enemy['dodge'] = 0.0  # 防反击被闪避 roll 干扰（闪避率 0）
     # 敌攻击玩家 → 玩家被击 → on_taken → 反击
     b = mk_battle([w], enemy)
     logs, _, _ = b.human_act("attack", None, enemy)  # enemy 手动普攻玩家?
@@ -110,6 +111,7 @@ def test_3_counter_trigger():
     from game.battle2.landing import deal_damage
     b2 = mk_battle([w], enemy)
     e = b2.sides_of("enemy")[0]
+    e['dodge'] = 0.0
     w2 = b2.sides_of("player")[0]
     logs2 = []
     deal_damage(b2, e, w2, 50, logs2)
