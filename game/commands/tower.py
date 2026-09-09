@@ -26,51 +26,12 @@ from .. import content as C
 from .. import db
 from ..commands.base import CommandBase, require_player
 
-
-def _tower_key(qq_id) -> str:
-    return f"tower_{qq_id}"
-
-
-def _tower_state(qq_id):
-    d = None
-    raw = db.get_event_state(_tower_key(qq_id))
-    if raw:
-        try:
-            d = json.loads(raw)
-        except Exception:
-            d = None
-    st = {"cur": 0, "cleared_today": [], "count_today": 0, "date": ""}
-    if isinstance(d, dict):
-        st.update(d)
-    today = datetime.date.today().isoformat()
-    if st.get("date") != today:
-        st["cleared_today"] = []
-        st["count_today"] = 0
-    st["date"] = today
-    # 类型兜底（旧档脏数据防御）
-    st["cleared_today"] = [int(x) for x in (st.get("cleared_today") or [])]
-    try:
-        st["count_today"] = int(st.get("count_today") or 0)
-    except Exception:
-        st["count_today"] = 0
-    try:
-        st["cur"] = int(st.get("cur") or 0)
-    except Exception:
-        st["cur"] = 0
-    return st
-
-
-def _save_tower_state(qq_id, st):
-    db.set_event_state(_tower_key(qq_id), json.dumps(st, ensure_ascii=False))
-
-
-def _floor_def(floor: int) -> dict:
-    """TRIAL_FLOORS 表查找（1 基；找不到返回 None）。"""
-    floors = list(getattr(C, "TRIAL_FLOORS", None) or [])
-    for f in floors:
-        if int(f.get("floor") or 0) == int(floor):
-            return f
-    return None
+# L3-P2a：状态函数族 + 击杀结算下沉 services/tower_progress.py（服务层订阅方消费，
+# services 禁 import commands 红线）；命令层 re-export 同名单保持零改动引用。
+from ..services.tower_progress import (  # noqa: F401  (re-export)
+    _tower_key, _tower_state, _save_tower_state, _floor_def,
+    tower_guard_on_kill,
+)
 
 
 def build_tower_guard(floor: int) -> dict:
@@ -104,51 +65,6 @@ def build_tower_guard(floor: int) -> dict:
     guard["exp"] = int(fd.get("reward_exp") or 0)
     guard["gold"] = 0
     return guard
-
-
-def tower_guard_on_kill(inst, group_id, qq_id, monster) -> list:
-    """塔卫被击杀 → 爬塔状态推进 + 金币结算 + 文案（combat._handle_victory 击杀后调用）。
-
-    经验已由标准战斗结算按 monster.exp 发放；金币（v93 怪物 gold 不直接入账）在此
-    显式 +reward_gold。返回通知行由调用方拼入结算输出。
-    """
-    lines = []
-    try:
-        mid = str(monster.get("id") or "")
-        if not mid.startswith("tower_"):
-            return lines
-        floor = int(mid[len("tower_"):])
-        fd = _floor_def(floor) or {}
-        gold = int(fd.get("reward_gold") or 0)
-        # 金币显式入账（v93：怪物 gold 折算材料不入账，塔的金币走这里）
-        if gold > 0:
-            player = inst._player(group_id, qq_id)
-            db.update_player(group_id, qq_id, gold=int(player.get("gold", 0) or 0) + gold)
-            lines.append(f"💰 塔层赏金：金币 +{gold}")
-        st = _tower_state(qq_id)
-        today_cleared = [int(x) for x in (st.get("cleared_today") or [])]
-        # 幂等：同一天同层已结算过不再重复计数
-        if floor in today_cleared:
-            return lines
-        today_cleared.append(floor)
-        st["cleared_today"] = sorted(today_cleared)
-        st["count_today"] = len(today_cleared)
-        st["cur"] = max(int(st.get("cur") or 0), floor)
-        _save_tower_state(qq_id, st)
-        lines.append(f"🏯 第 {floor} 层【{fd.get('name') or ''}】突破！")
-        left = max(0, int(getattr(C, "TRIAL_DAILY_LIMIT", 3) or 3) - st["count_today"])
-        if floor >= int(getattr(C, "TRIAL_MAX_FLOOR", 30) or 30):
-            lines.append("👑 你已登顶修炼塔之巅——奥兰迪亚的强者之名，当之无愧！")
-        elif left > 0:
-            nxt = floor + 1
-            nfd = _floor_def(nxt)
-            lines.append(f"💡 今日还可突破 {left} 层——回复『爬塔』挑战第 {nxt} 层"
-                         + (f"【{nfd.get('name') or ''}】(建议 Lv.{nfd.get('lv')})" if nfd else ""))
-        else:
-            lines.append("🌙 今日修炼已满 3 层，好好消化感悟，明日再来！(失败/逃跑不占次数)")
-    except Exception:
-        pass
-    return lines
 
 
 class TowerCmds(CommandBase):

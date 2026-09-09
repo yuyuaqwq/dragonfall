@@ -14,9 +14,11 @@
 跨周自动换 key → 旧状态自然作废（本周从未查过 = 无记录）。
 
 推进钩子（击杀时调用，参照 world._bump_daily_progress 接线思路）：
-  weekly_bump_kill(inst, group_id, qq_id, monster) -> list[str]
-    —— combat.py _update_quests 击杀结算处每只怪调一次，达标即自动发奖，
-       返回通知行列表由调用方拼入战斗结算（与每日任务击杀分支同构）。
+  weekly_bump_kill(group_id, qq_id, monster) -> list[str]
+    —— L3-P2a 起下沉 services/weekly_progress.py（命令层 re-export）；
+       combat 击杀结算已切 L3 玩家事件订阅方调用 services 版。
+       击杀自动推进周常，达标即自动发奖，返回通知行列表拼入战斗结算。
+
 """
 import datetime
 import json
@@ -28,87 +30,16 @@ from .. import db
 from .. import engine as E
 from ..commands.base import CommandBase, require_player
 
+# L3-P2a：周状态族 + 击杀推进下沉 services/weekly_progress.py（订阅方纯 services 消费）；
+# 命令层 re-export 同名单保持引用兼容（_assign_week/_obj_label 发布面板仍在本地）。
+from ..services.weekly_progress import (  # noqa: F401  (re-export)
+    _week_key, _week_state, _save_week_state, _grant_rewards,
+    weekly_bump_kill,
+)
+
 # 周常抽取条数 / 解锁等级（与数据层 WEEKLY_PICK/WEEKLY_MIN_LV 对齐）
 _WEEKLY_PICK = 3
 _WEEKLY_MIN_LV = 50
-
-
-def _week_key(qq_id) -> str:
-    """周状态 event_state key：weekly_{qq_id}_{ISO年}-W{周}（跨年自动换 key）。"""
-    y, w, _wd = datetime.date.today().isocalendar()
-    return f"weekly_{qq_id}_{y}-W{w:02d}"
-
-
-def _week_state(qq_id):
-    """读取本周状态（无记录返回 None）。"""
-    raw = db.get_event_state(_week_key(qq_id))
-    if not raw:
-        return None
-    try:
-        st = json.loads(raw)
-        if not isinstance(st, dict):
-            return None
-        st.setdefault("tasks", {})
-        st.setdefault("done_n", 0)
-        return st
-    except Exception:
-        return None
-
-
-def _save_week_state(qq_id, st):
-    db.set_event_state(_week_key(qq_id), json.dumps(st, ensure_ascii=False))
-
-
-def _grant_rewards(inst, group_id, qq_id, exp, gold):
-    """周常达标发奖单点（与 world._settle_daily_quest 同款结算：exp/gold + 升级）。
-
-    v174 统一抽象：走 game.reward.grant_reward（含升级结算，返回更新后 player）。
-    """
-    from game.reward import grant_reward
-    lines = grant_reward({"exp": int(exp), "gold": int(gold)}, group_id, qq_id)
-    player = inst._player(group_id, qq_id)
-    return player
-
-
-def weekly_bump_kill(inst, group_id, qq_id, monster) -> list:
-    """击杀推进周常（combat._update_quests 击杀结算处调用）。
-
-    周常无『接取/交付』环节：本周已发布的任务按击杀自动 +1，达标即自动结算发奖。
-    与每日任务击杀分支（_update_quests）同构——kill_any 任意击杀 / kill_elite 精英 /
-    kill_boss 区域 Boss。返回通知行列表（调用方拼入战斗结算输出）。
-    """
-    out = []
-    try:
-        st = _week_state(qq_id)
-        if not st or not st.get("tasks"):
-            return out
-        is_elite = bool(monster.get("is_elite"))
-        is_boss = bool(monster.get("is_boss"))
-        changed = False
-        for tname, task in list(st["tasks"].items()):
-            if task.get("done"):
-                continue
-            need = int(task.get("need") or 0)
-            obj = task.get("objective") or {}
-            hit = bool(obj.get("kill_any")) or (bool(obj.get("kill_elite")) and is_elite) \
-                or (bool(obj.get("kill_boss")) and is_boss)
-            if not hit:
-                continue
-            task["prog"] = int(task.get("prog", 0) or 0) + 1
-            changed = True
-            if task["prog"] >= need:
-                task["done"] = True
-                st["done_n"] = int(st.get("done_n", 0) or 0) + 1
-                _grant_rewards(inst, group_id, qq_id, task["reward_exp"], task["reward_gold"])
-                out.append(f"📜 周常『{tname}』完成！奖励：经验 +{task['reward_exp']} 金币 +{task['reward_gold']}")
-                if st["done_n"] >= len(st["tasks"]):
-                    out.append("🏆 本周悬赏全部完成！下周刷新后再来领新赏金～")
-        if changed:
-            _save_week_state(qq_id, st)
-    except Exception:
-        # 周常推进失败不影响战斗主流程（与成就/野王 hook 同款宽容）
-        pass
-    return out
 
 
 def _assign_week(player) -> dict:
