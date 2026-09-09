@@ -207,12 +207,12 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         st.setdefault("p_hot", {})[new_key] = {}
         st.setdefault("p_food_effects", {})[new_key] = []
         st.setdefault("p_food_affixes", {})[new_key] = []
-        st.setdefault("mech_stacks", {})[new_key] = {}
         st.setdefault("p_defending", {})[new_key] = False
         st.setdefault("contribution", {})[new_key] = 0
         st.setdefault("threat", {})[new_key] = 0
         st.setdefault("player_hit", {})[new_key] = False
-        st.setdefault("resources", {}).setdefault(new_key, {})
+        # v181.M-R3：旧 st["mech_stacks"]/st["resources"] 容器无生产写入无读取
+        # （战斗资源在 battle2 actor.effects 叠层）——不再为新成员播种死字段
         st.setdefault("cooldown", {}).setdefault(new_key, {})
         st.setdefault("combo_seq", {}).setdefault(new_key, [])
         # v167.3 副本带宠物：加入者战斗快照也带宠物（野外/副本同一套——当前行动者带自己的宠物）
@@ -1454,9 +1454,10 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         """v164 副本战斗面板（对齐野外 _battle_footer 信息量）。
 
         副本每刻行动后的完整战况：双方站位图 + 时刻/行动队列 + 敌方血量 +
-        全队成员血蓝 + 每人资源条 + buff/减伤/护盾状态 + 选敌引导。
-        数据全部从 st（players/enemies/p_buffs/e_buffs/resources/...）取，
-        与野外面板共用 _P_BUFF_NAMES/_E_BUFF_NAMES/_STACK_NAMES 显示名表
+        全队成员血蓝 + 每人职业资源叠层 + buff/减伤/护盾状态 + 选敌引导。
+        数据全部从 st（players/enemies/effects 视图键...）取——V 系列战斗状态
+        权威 = battle2 actor.effects（sync_views 回写 snap.effects），
+        与野外面板共用 _P_BUFF_NAMES/_E_BUFF_NAMES 显示名表
         （Main mixin 同时含 CombatCmds/InstanceCmds，getattr 兜底测试直用）。
 
         单人副本也走同一面板（我方一行 = 自己），保证观感与野外一致。
@@ -1466,9 +1467,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         # 显示名表（CombatCmds mixin 提供；独立测试 InstanceCmds 时兜底空表）
         pbuf_names = getattr(self, "_P_BUFF_NAMES", {}) or {}
         ebuf_names = getattr(self, "_E_BUFF_NAMES", {}) or {}
-        stack_names = getattr(self, "_STACK_NAMES", {}) or {}
-        debuff_names = getattr(self, "_DEBUFF_NAMES", {}) or {}
-        enemy_mech_stacks = getattr(self, "_ENEMY_MECH_STACKS", ()) or ()
 
         lines = []
         # ① 站位图：敌方阵列 + 我方存活玩家阵列（蓄力带标记，formation_view 处理）
@@ -1517,19 +1515,16 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     lines.append(f"　{_pn2}")
             except Exception:
                 pass
-            # 资源条（读 st.resources[m]，与野外 _resource_line 同口径）
-            rd = E.core_resource_def(snap.get("class_name", ""))
-            if rd:
-                res = (st.get("resources") or {}).get(k, {}) or {}
-                key = rd.get("key", "")
-                name = rd.get("name", key)
-                if rd.get("type") == "switch":
-                    cur_res = E.ELEMENT_CN.get(res.get(key, "fire"), "火")
-                    lines.append(f"　🔮 {name}：{cur_res}系")
-                else:
-                    cur_res = res.get(key, 0)
-                    cap = rd.get("max", 99)
-                    lines.append(f"　⚡ {name}：{cur_res}/{cap}")
+            # 职业资源叠层（v181.M-R3：战斗资源在 battle2 actor.effects 叠层，
+            # snap.effects 由 sync_views 每帧回写；st.resources 旧键无生产写入 =
+            # 死字段不再读。白名单/cap 逻辑与野外 _resource_line 同源）
+            try:
+                from .combat import resource_stack_text as _rst
+                _rl_txt = _rst(snap.get("effects") or {})
+            except Exception:
+                _rl_txt = ""
+            if _rl_txt:
+                lines.append(f"　⚡ {_rl_txt}")
             # 玩家 buff（V 系列：效果在 snap.effects 条目 {expire/stat/period/...}，
             # 叠层/资源在条目 stacks；护盾 snap.shields）——旧 p_buffs 键由 N10 清
             pbuf = []
@@ -1549,10 +1544,10 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         _turns = max(1, int(round(_left_sec / (ACT_TICK or 1.0))))
                         pbuf.append(f"{pbuf_names[bk]}(剩{_turns}刻)")
                     continue
-                # 无 expire 叠层条目（战意/怒气等资源层）→ 层数显示
-                _sv = int(bv.get("stacks", 0) or 0)
-                if _sv > 0 and bk in stack_names and bk not in enemy_mech_stacks:
-                    pbuf.append(f"{stack_names[bk]}×{_sv}")
+                # 无 expire 的叠层条目=职业资源层（战意/怒气/气…），v181.M-R3 起
+                # 由上方「职业资源叠层」行统一展示（白名单+EFFECT_RULES cap），
+                # 不再在 buff 行重复拼（旧 stacks 子分支外层 pbuf_names 过滤使其
+                # 永不命中——展示死路径，删除）
             # 减伤（reduce 条目 value 百分比 + 剩余刻）
             _red = snap_eff.get("reduce")
             if isinstance(_red, dict):
@@ -1875,7 +1870,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     "p_hot": {str(m): {} for m in members},
                     "p_food_effects": {str(m): [] for m in members},
                     "p_defending": {str(m): False for m in members},
-                    "mech_stacks": {str(m): {} for m in members},
+                    # v181.M-R3：旧 mech_stacks/resources 容器为死字段（战斗资源在
+                    # battle2 actor.effects 叠层）——新开本不再初始化
                     "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
                     "contribution": {},
                     "over": False,
@@ -1910,7 +1906,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     "p_hot": {str(m): {} for m in members},
                     "p_food_effects": {str(m): [] for m in members},
                     "p_defending": {str(m): False for m in members},
-                    "mech_stacks": {str(m): {} for m in members},
                     "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
                     "contribution": {},
                     "over": False,
@@ -1939,7 +1934,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             "p_buffs": {str(m): {} for m in members},
             "p_hot": {str(m): {} for m in members},
             "p_food_effects": {str(m): [] for m in members},
-            "mech_stacks": {str(m): {} for m in members},  # v59 副本叠层（按玩家持久化）
+            # v181.M-R3：旧 mech_stacks 容器死字段不再初始化（战斗资源在 effects）
             "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
             "p_defending": {str(m): False for m in members},
             "turn_time": now,

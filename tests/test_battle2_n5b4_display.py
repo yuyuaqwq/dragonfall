@@ -66,7 +66,8 @@ def mk_player():
             "level": 10, "hp": 200, "mp": 50, "max_hp": 200, "max_mp": 50,
             "equipment": {}, "class_tier": 0, "attributes": None,
             "evolve_path": 0, "race": None, "learned_skills": [],
-            "resources": {"rage": 3}, "stacks": {}, "buffs": {}, "shields": {}}
+            # v181.M-R3：player["resources"] 死字段（无生产写入）——测试不再构造
+            "stacks": {}, "buffs": {}, "shields": {}}
 
 
 def mk_enemy():
@@ -127,9 +128,14 @@ def test_resource_and_footer_battle2():
     focus = b.focus()
     focus.setdefault("effects", {})["atk_up"] = {"stacks": 1, "expire": 50.0, "stat": "atk",
                                                 "op": "mul", "mult": 1.3}
-    # 资源行：player dict 读（战士 rage 3）
+    # v181.M-R3：资源行改读 battle2 actor.effects 叠层（player.resources 为死字段，
+    # 无生产写入）——无白名单资源叠层 → 空串安全
+    rl0 = cmds._resource_line(player, b)
+    check("无职业资源叠层 → 空串", rl0 == "", rl0)
+    # 构造 actor effects zhan_yi 5 层 → 行含层数与上限（EFFECT_RULES cap=10）
+    focus.setdefault("effects", {})["zhan_yi"] = {"stacks": 5}
     rl = cmds._resource_line(player, b)
-    check("资源行含怒气", "怒" in rl and "3" in rl, rl)
+    check("资源行含战意层数", "战意" in rl and "5" in rl and "/10" in rl, rl)
     # 页脚整体不崩（battle2 无 .enemies 属性 → sides 读法关键路径）
     f = cmds._battle_footer(player, b, enemy)
     check("页脚含玩家血蓝", "200/200" in f, f)
