@@ -410,22 +410,34 @@ def install() -> None:
 
     @register_action("passive_dmg_mult")
     def passive_dmg_mult(battle, caster, target, params, logs):
-        """dmg_calc 条件乘区：judge 命中 → ctx.mult ×(1+mult)（对齐 N9.7d 词条乘区）。"""
+        """dmg_calc 条件乘区：judge 命中 → ctx.mult ×(1+mult)（对齐 N9.7d 词条乘区）。
+
+        judge kind（谓词扩展 P2）：
+        - mech_eq          本次技能 mech == judge.mech → mult 参数
+        - mech_prefix      本次技能 mech 以 judge.mech 开头（poison_burst 覆盖毒爆两种技）
+        - target_marks_all_ge  目标多印记都 ≥layers → mult 参数
+        - target_mark_any  目标带标记（层数>0）→ mult = per_layer × 层数（标记额外增伤，
+                          旧挂点14 增量并入语义——基础段 EFFECT_RULES debuff_scale 天然处理）
+        """
         ctx = getattr(battle, "_fire_ctx", None)
         if ctx is None:
             return
         judge = params.get("judge") or {}
         kind = judge.get("kind") or ""
-        mult = float(params.get("mult") or params.get("dmg_add")
-                     or params.get("per_layer") or 0)
-        if mult <= 0:
-            return
         actor = ctx.get("actor") or caster
         tg = ctx.get("target") or target
+        info = ctx.get("info") or {}
+        mult = 0.0
         ok = False
         if kind == "mech_eq":
-            info = ctx.get("info") or {}
             ok = (info.get("mech") or "") == judge.get("mech")
+            if ok:
+                mult = float(params.get("mult") or params.get("dmg_add") or 0)
+        elif kind == "mech_prefix":
+            _pre = judge.get("mech") or ""
+            ok = bool(_pre) and (info.get("mech") or "").startswith(str(_pre))
+            if ok:
+                mult = float(params.get("mult") or params.get("dmg_add") or 0)
         elif kind == "target_marks_all_ge":
             layers = float(params.get("layers") or judge.get("layers") or 1)
             if tg is not None:
@@ -433,7 +445,31 @@ def install() -> None:
                 ok = all(
                     float((ef.get(m) or {}).get("stacks", 0) or 0) >= layers
                     for m in (judge.get("marks") or []))
-        if not ok:
+                if ok:
+                    mult = float(params.get("mult") or 0)
+        elif kind == "target_mark_any":
+            # 标记额外增伤：目标带标记（层>0）→ ×(1 + per_layer×层)
+            mark = judge.get("mark") or ""
+            if tg is not None and mark:
+                _entry = (tg.get("effects") or {}).get(mark)
+                _n = int(_entry.get("stacks", 0) or 0) if isinstance(_entry, dict) else 0
+                if _n > 0:
+                    ok = True
+                    mult = float(params.get("per_layer") or 0) * _n
+        elif kind == "speed_ratio_ge":
+            # 速度比 ≥ ratio_field → ×(1+dmg_add)（疾风·极；旧挂点4 语义：
+            # 敌方无速度按 0 防御性跳过——速度比恒 ≥2 不触发）
+            try:
+                from ..battle2.stats import actor_stats as _as
+                _spd_a = float((_as(battle, actor) or {}).get("spd", 0) or 0)
+                _spd_t = float((_as(battle, tg) or {}).get("spd", 0) or 0) if tg is not None else 0.0
+            except Exception:
+                _spd_a = _spd_t = 0.0
+            _ratio = float(params.get("ratio") or judge.get("ratio") or 0)
+            if _ratio > 0 and _spd_t > 0 and _spd_a >= _ratio * _spd_t:
+                ok = True
+                mult = float(params.get("dmg_add") or params.get("mult") or 0)
+        if not ok or mult <= 0:
             return
         ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * (1.0 + mult)
         logs.append(f"✨ 被动生效：伤害 ×{1.0 + mult:.2f}！")
@@ -456,6 +492,36 @@ def install() -> None:
         ef[key]["stacks"] = float(cap)
         ef[key]["expire"] = None
         logs.append(f"✨ {params.get('label') or '被动'}:{'资源回满！'}")
+
+    @register_action("passive_counter")
+    def passive_counter(battle, caster, target, params, logs):
+        """on_taken 受击反击（聚合族装配后终值单条）：roll chance → atk×atk_pct 反打攻击方。
+
+        语义 = 旧挂点13 聚合收口 + we_affix_counter 落地动作（反击方向=攻击方，
+        on_taken ctx.source；伤害 = 攻击者面板 atk × atk_pct 直伤打防御）。
+        """
+        owner = params.get("_owner") or caster
+        if owner is None:
+            return
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        attacker = ctx.get("source")  # on_taken 攻击方
+        from ..battle2.actors import actor_alive
+        if attacker is None or not actor_alive(attacker):
+            return
+        import random as _r
+        chance = float(params.get("chance") or 0)
+        if chance <= 0 or _r.random() >= chance:
+            return
+        try:
+            from ..battle2.landing import deal_damage
+            from ..battle2.stats import actor_stats as _as
+            st = _as(battle, owner) or {}
+            dmg = max(1, int(float(st.get("atk", 0) or 0)
+                               * float(params.get("atk_pct") or 0.80)))
+            deal_damage(battle, owner, attacker, dmg, logs)
+            logs.append(f"⚔️ 反击！对【{attacker.get('name', '敌人')}】造成 {dmg} 点伤害！")
+        except Exception:
+            pass  # 反击异常不阻断受击落地
 
     _registered = True
 
@@ -576,6 +642,7 @@ def apply_class_passives(actor: dict) -> None:
         return
     from .. import engine as E
     trig = actor.setdefault("triggers", {})
+    _pending: dict = {}  # (event, agg) -> [(proc, entry)] 聚合族暂存（循环后归并单条）
     for s in names:
         try:
             info = E.skill_info(cn, s)
@@ -600,7 +667,7 @@ def apply_class_passives(actor: dict) -> None:
                 bonus = actor.setdefault("bonus", {})
                 bonus.setdefault("cap", {})[key] = \
                     int((bonus.get("cap") or {}).get(key, 0) or 0) + add
-            continue
+            # 双通道声明（cap + event，如 soul_mark_cap/poison_cap_up 乘区段）→ 不 continue，fall through
         if domain == "cost":
             # 消耗折扣被动：bonus.cost（引擎 _skill_pay_of 折算）。mp_mult（如
             # 奥术恒常 mp_mult 0.5 = 奥术技能耗蓝-50%）→ 有 cfg.when 判据则放 when
@@ -615,7 +682,7 @@ def apply_class_passives(actor: dict) -> None:
                 _c.setdefault("when", []).append(_w)
             elif pct > 0:
                 _c["mp_pct"] = float(_c.get("mp_pct", 0) or 0) + pct
-            continue
+            # cost 域声明无 event → 下方 d.type 空自然 continue
         d = {"type": cfg.get("action") or "", "judge": cfg.get("judge") or {}}
         # 被动参数并入（mult 归一 mult/dmg_add/per_layer；label 用技能名）
         for k, v in p.items():
@@ -626,8 +693,55 @@ def apply_class_passives(actor: dict) -> None:
         if not d.get("type"):
             continue
         ev = cfg.get("event") or ""
-        if ev:
+        if not ev:
+            continue
+        # 聚合族（agg：counter 等——多条目合成一条，旧挂点聚合语义）暂存，循环后归并
+        if cfg.get("agg"):
+            _pending.setdefault((ev, cfg.get("agg")), []).append((proc, d))
+        else:
             trig.setdefault(ev, []).append(d)
+    # ---- 族级聚合（旧 passive_procs 聚合族语义逐字：多条目 → 单条终值）----
+    for (ev, agg), entries in _pending.items():
+        merged = _merge_agg_entry(agg, entries)
+        if merged is not None:
+            trig.setdefault(ev, []).append(merged)
+
+
+def _merge_agg_entry(agg: str, entries: list) -> dict:
+    """聚合族归并：多条装配条目 → 单条终值 dict（返回 None = 无有效终值）。
+
+    语义源 = 旧 passive_procs._h_* 聚合族 handler 逐字（挂点13 counter）：
+    - counter_chance：chance 取 max、mult 取 min（以守为攻 35% ×80% 普攻档）
+    - counter_up：chance += chance_add、mult ×= (1+dmg_add)（反击之王只首条加成）
+    终值 atk_pct = mult（反击伤害 = 普攻 × mult，对齐 we_affix_counter 的 atk×atk_pct 直伤）。
+    """
+    if not entries:
+        return None
+    if agg == "counter":
+        chance = 0.0
+        mult = 1.0
+        labels = []
+        for proc, d in entries:
+            labels.append(d.get("label") or proc)
+            if proc == "counter_chance":
+                _ch = float(d.get("chance", 0.0) or 0.0)
+                _mu = float(d.get("mult", 0.0) or 0.0)
+                if _ch <= 0 or _mu <= 0:
+                    continue  # 缺字段 = 无此行为（零默认值铁律）
+                chance = max(chance, _ch)
+                mult = min(mult, _mu)
+            elif proc == "counter_up":
+                _ca = float(d.get("chance_add", 0.0) or 0.0)
+                _da = float(d.get("dmg_add", 0.0) or 0.0)
+                if _ca <= 0 or _da <= 0:
+                    continue  # 缺字段 = 无此行为
+                chance += _ca
+                mult *= (1.0 + _da)
+        if chance <= 0 or mult <= 0:
+            return None
+        return {"type": "passive_counter", "chance": min(chance, 0.9),
+                "atk_pct": mult, "label": "+".join(dict.fromkeys(labels))}
+    return None
 
 
 def apply_class_mech(actor: dict) -> None:

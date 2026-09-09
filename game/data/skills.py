@@ -2028,7 +2028,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "poison_cap_up", "add": 3},
+                        'passive': {"proc": "poison_cap_up", "add": 3, "mult": 0.2},
                         'name': '剧毒之心',
                         'desc': '剧毒在心口搏动，毒液愈发浓烈——毒层上限 +3，毒爆增伤 +20%'
                     },
@@ -2871,7 +2871,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "poison_burst_up"},
+                        'passive': {"proc": "poison_burst_up", "mult": 0.25},
                         'name': '蚀骨',
                         'desc': '毒素如蛆附骨，寸寸蚀穿血肉——毒爆伤害 +25%'
                     },

@@ -522,8 +522,34 @@ PASSIVE_PROC: dict = {
         "domain": "cost",
         "when": [{"judge": {"mech_prefix": ["arcane"]}}],
     },
+    # ---- P2 族：on_taken 受击反击（聚合族——装配器族级归并，旧挂点13 语义）----
+    "counter_chance": {      # 以守为攻：受击 35% 概率反击（普攻的 80%）
+        "event": "on_taken", "action": "passive_counter", "agg": "counter",
+    },
+    "counter_up": {          # 反击之王：反击概率 +25%、反击伤害 +50%（聚合增强，只首条）
+        "event": "on_taken", "action": "passive_counter", "agg": "counter",
+    },
+    # ---- P2 族：dmg_calc 乘区扩展（judge 谓词扩展：target_mark_any/mech_prefix）----
+    "hunt_mark_up": {        # 自然之眼：猎印每层增伤额外 +6%（基础 8% 走 debuff_scale 引擎天然段）
+        "event": "dmg_calc", "action": "passive_dmg_mult",
+        "judge": {"kind": "target_mark_any", "mark": "hunt_mark"},
+    },
+    "soul_mark_cap": {       # 灵魂锁链：cap 段（P1b 已收）+ 每层伤害 +8% 乘区段（本声明双通道）
+        "domain": "cap", "cap_key": "soul_mark",
+        "event": "dmg_calc", "action": "passive_dmg_mult",
+        "judge": {"kind": "target_mark_any", "mark": "soul_mark"},
+    },
+    "poison_burst_up": {     # 蚀骨：毒爆伤害 +25%（mech_prefix poison_burst 覆盖两种毒爆技）
+        "event": "dmg_calc", "action": "passive_dmg_mult",
+        "judge": {"kind": "mech_prefix", "mech": "poison_burst"},
+    },
+    "poison_cap_up": {       # 剧毒之心：cap 段（P1b）+ 毒爆增伤 +20%（本声明双通道）
+        "domain": "cap", "cap_key": "poison",
+        "event": "dmg_calc", "action": "passive_dmg_mult",
+        "judge": {"kind": "mech_prefix", "mech": "poison_burst"},
+    },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
-    # counter_chance/berserk_revive/zhan_yi_crit/dr_cond 等 P2 续
+    # zhan_yi_crit/berserk_revive/dr_cond 等 P2 续
 }
 
 
