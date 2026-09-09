@@ -1,0 +1,358 @@
+# -*- coding: utf-8 -*-
+"""R4 验收：affix 资源型词条装配（N9.7e——事件 gain 型 + 怒气满减伤）。
+
+覆盖：
+- 统一翻译规则：effect {res, gain, on} → actor.triggers[事件] 挂 we_affix_res_gain
+  （on 单值/列表展开；war_spirit on=[on_attack,on_skill] → attack_hit+skill_hit）
+- 端到端：war_spirit 普攻/技能命中攒怒、opening_stance 开局一次性 +1 气、
+  blood_bath/rock_rest 受击攒怒/气、crit_charge 暴击攒精（cap clamp 100）
+- boiling_blood：怒气满（rage 10/10）taken_calc 减伤 8%（92/100），未满不触发
+- holy_echo tiers 档位（purple gain=2）act_cast kind=治疗 过滤；warcry_echo
+  kind=增益 过滤；crit_return tiers 档位作用于 chance（_AFFIX_TIER_KEY）
+- 缺口词条零噪音：rage_forge/full_pack/combo_recover/ember_brand/energy_tide
+  未注册翻译器 → 不产生 triggers（cap 动态机制 R4 未实施）
+
+跑法：python tests/test_affix_res_gain.py
+"""
+import os
+import sys
+
+PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
+TEST_DB = os.path.join(PLUGIN_DIR, "test_affix_res_gain.db")
+os.environ.setdefault("GWEN_GAME_DB", TEST_DB)
+os.environ.setdefault("GWEN_TEST_MODE", "1")
+sys.path.insert(0, QQBOT_DIR)
+sys.path.insert(0, PLUGIN_DIR)
+_shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
+if os.path.isdir(_shim) and _shim not in sys.path:
+    sys.path.insert(0, _shim)
+
+from game.battle2 import Battle as BT_NEW, make_actor  # noqa: E402
+from game.battle2 import config as _b2config  # noqa: E402
+_b2config.load_game_defaults()  # noqa: E402
+from game.battle2.actors import ActCtx          # noqa: E402
+from game.battle2.effect_triggers import fire as _fire  # noqa: E402
+from game.battle2.landing import deal_damage as _dd     # noqa: E402
+from game.battle2.state_effects import state_def        # noqa: E402
+from game.services import battle2_equip_proc as EP      # noqa: E402
+from game.services.battle2_we_procs import we_affix_res_gain  # noqa: E402
+
+PASS = 0
+FAIL = 0
+FAILURES = []
+
+
+def check(name, cond, detail=""):
+    global PASS, FAIL
+    if cond:
+        PASS += 1
+        print(f"  ✅ {name}")
+    else:
+        FAIL += 1
+        FAILURES.append(f"{name}: {detail}")
+        print(f"  ❌ {name} {detail}")
+
+
+def mk_a(uid, side, hp=800, atk=40, **kw):
+    base = dict(hp=hp, max_hp=hp, atk=atk, matk=15, mdef=8,
+                spd=50, crit=0.05, level=10)
+    base["def"] = 8
+    base.update(kw)
+    return make_actor(uid=uid, name=uid, side=side,
+                      kind="player" if side == "player" else "monster",
+                      human_controlled=(side == "player"), **base)
+
+
+def new_battle(*actors):
+    sides = {}
+    for a in actors:
+        sides.setdefault(a["side"], []).append(a)
+    return BT_NEW(btype="monster", sides=sides)
+
+
+def equip_affix(actor, aid, slot, quality="blue", stats=None):
+    """给 actor 某槽位装带词条装备（词条装配只读 affixes+quality）。"""
+    actor.setdefault("equipment", {})[slot] = {
+        "slot": slot, "quality": quality, "affixes": [aid],
+        "stats": stats or {},
+    }
+    return actor
+
+
+def stk(a, k, d=0):
+    """读效果叠层数 effects[key].stacks。"""
+    e = (a or {}).get("effects") or {}
+    ent = e.get(k)
+    return int(ent.get("stacks", 0) or 0) if isinstance(ent, dict) else int(d)
+
+
+def trig_effs(p, ev):
+    """actor triggers[ev] 列表（无则 []）。"""
+    return (p.get("triggers") or {}).get(ev) or []
+
+
+# ============================================================
+# T1 统一翻译规则：res+gain+on → 事件 → we_affix_res_gain
+# ============================================================
+
+def test_translate_gain_rule():
+    print("【R4.1 统一翻译：on 单值/列表 → 事件挂 we_affix_res_gain】")
+    p = mk_a("p1", "player")
+    # war_spirit：on=[on_attack, on_skill] → attack_hit + skill_hit 双事件
+    equip_affix(p, "war_spirit", "weapon", quality="purple")
+    # boiling_blood：怒气满减伤（taken_calc state_full）
+    equip_affix(p, "boiling_blood", "armor", quality="orange")
+    # opening_stance：开局 +1 气（battle_start）
+    equip_affix(p, "opening_stance", "ring", quality="blue")
+    # crit_charge：暴击 energy+3（crit）
+    equip_affix(p, "crit_charge", "helm", quality="purple")
+    # rock_rest：受击 chi+1（on_taken）
+    equip_affix(p, "rock_rest", "boots", quality="blue")
+    EP.apply_to_actor(p)
+    tr = p.get("triggers") or {}
+    for ev in ("attack_hit", "skill_hit", "crit", "on_taken", "battle_start", "taken_calc"):
+        check(f"装配事件 {ev}", ev in tr, f"triggers={list(tr.keys())}")
+    # war_spirit 双事件：同一 res/gain 参数
+    for ev in ("attack_hit", "skill_hit"):
+        ws = [e for e in trig_effs(p, ev) if e.get("type") == "we_affix_res_gain"]
+        check(f"war_spirit@{ev} 参数", len(ws) == 1 and ws[0].get("res") == "rage"
+              and ws[0].get("gain") == 1 and ws[0].get("label") == "战意",
+              f"{ws}")
+    bb = [e for e in trig_effs(p, "taken_calc") if e.get("type") == "we_taken_mult_cond"]
+    check("boiling_blood state_full/state_key=rage/mult 0.92",
+          len(bb) == 1 and bb[0].get("cond") == "state_full"
+          and bb[0].get("state_key") == "rage"
+          and abs(float(bb[0].get("mult", 1)) - 0.92) < 1e-9, f"{bb}")
+    cc = [e for e in trig_effs(p, "crit") if e.get("type") == "we_affix_res_gain"]
+    check("crit_charge@crit res=energy gain=3",
+          len(cc) == 1 and cc[0].get("res") == "energy" and cc[0].get("gain") == 3,
+          f"{cc}")
+
+
+# ============================================================
+# T2 war_spirit 端到端：普攻/技能命中攒怒 + cap clamp
+# ============================================================
+
+def test_war_spirit_end2end():
+    print("【R4.2 war_spirit：普攻/技能命中怒+1，cap 10 clamp】")
+    p = mk_a("p2", "player")
+    m = mk_a("e2", "enemy", hp=100000, atk=1)
+    equip_affix(p, "war_spirit", "weapon", quality="purple")
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    b.act(ActCtx(caster=p, action="attack", target=m))  # battle_start + 普攻命中
+    check("普攻命中怒+1", stk(p, "rage") == 1, f"rage={stk(p, 'rage')}")
+    # 技能（伤害类）命中 → skill_hit → 怒再 +1
+    info = {"name": "斩击", "kind": "物理", "exprs": ["atk*1.0"]}
+    b.act(ActCtx(caster=p, action="skill", skill_name="斩击", info=info, target=m))
+    check("技能命中怒+1", stk(p, "rage") == 2, f"rage={stk(p, 'rage')}")
+    # cap clamp：直 fire 12 次 attack_hit → 怒封顶 10
+    for _ in range(12):
+        _fire(b, "attack_hit", {"actor": p, "target": m}, [])
+    check("cap clamp 怒气 10/10", stk(p, "rage") == 10, f"rage={stk(p, 'rage')}")
+    # EFFECT_RULES rage cap 声明 10（state_full 判据同源）
+    check("EFFECT_RULES rage cap=10", int((state_def("rage") or {}).get("cap") or 0) == 10,
+          f"{state_def('rage')}")
+
+
+# ============================================================
+# T3 opening_stance：开局一次性 +1 气
+# ============================================================
+
+def test_opening_stance():
+    print("【R4.3 opening_stance：开战 +1 气（只一次）】")
+    p = mk_a("p3", "player")
+    m = mk_a("e3", "enemy", hp=100000, atk=1)
+    equip_affix(p, "opening_stance", "ring", quality="blue")
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    check("开局前无气", stk(p, "chi") == 0)
+    b.act(ActCtx(caster=p, action="attack", target=m))  # 触发 battle_start
+    check("开局气+1", stk(p, "chi") == 1, f"chi={stk(p, 'chi')}")
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    check("battle_start 不重复触发", stk(p, "chi") == 1, f"chi={stk(p, 'chi')}")
+
+
+# ============================================================
+# T4 boiling_blood：怒气满（10/10）受击减伤 8%，未满不减
+# ============================================================
+
+def test_boiling_blood():
+    print("【R4.4 boiling_blood：怒气满全减伤 8%（92/100）】")
+    p = mk_a("p4", "player")
+    m = mk_a("e4", "enemy", hp=100000, atk=1)
+    equip_affix(p, "boiling_blood", "armor", quality="orange")
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    # 怒气未满（5/10）→ 不减伤
+    p.setdefault("effects", {})["rage"] = {"stacks": 5}
+    hp0 = p["hp"]
+    _dd(b, m, p, 100, [])
+    check("怒气未满不减伤（100）", hp0 - p["hp"] == 100, f"real={hp0 - p['hp']}")
+    # 怒气满（10/10）→ ×0.92 = 92
+    (p.get("effects") or {})["rage"] = {"stacks": 10}
+    hp0 = p["hp"]
+    _dd(b, m, p, 100, [])
+    check("怒气满减伤 8%（92）", hp0 - p["hp"] == 92, f"real={hp0 - p['hp']}")
+    # 怒气来源闭环：war_spirit 攒满后同场生效（装配 war_spirit + boiling_blood）
+    p2 = mk_a("p5", "player")
+    m2 = mk_a("e5", "enemy", hp=100000, atk=1)
+    equip_affix(p2, "war_spirit", "weapon", quality="purple")
+    equip_affix(p2, "boiling_blood", "armor", quality="orange")
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    for _ in range(12):  # 普攻 12 次攒满（attack_hit 每次 +1，cap 10）
+        b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    check("攒怒闭环满 10", stk(p2, "rage") == 10, f"rage={stk(p2, 'rage')}")
+    hp0 = p2["hp"]
+    _dd(b2, m2, p2, 100, [])
+    check("装配闭环减伤生效（92）", hp0 - p2["hp"] == 92, f"real={hp0 - p2['hp']}")
+
+
+# ============================================================
+# T5 受击攒怒/气：blood_bath（rage）+ rock_rest（chi）+ 职业 kind 过滤词条
+# ============================================================
+
+def test_taken_and_kind_filters():
+    print("【R4.5 受击攒 + act_cast kind 过滤（治疗/增益/普攻排除）】")
+    # blood_bath + rock_rest：受击怒/气各 +1
+    p = mk_a("p6", "player")
+    m = mk_a("e6", "enemy", hp=100000, atk=1)
+    equip_affix(p, "blood_bath", "armor", quality="purple")
+    equip_affix(p, "rock_rest", "boots", quality="blue")
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    _dd(b, m, p, 30, [])
+    check("受击怒+1", stk(p, "rage") == 1, f"rage={stk(p, 'rage')}")
+    check("受击气+1", stk(p, "chi") == 1, f"chi={stk(p, 'chi')}")
+    # holy_echo（purple tier：gain 2）：只认 kind=治疗 的施放
+    p2 = mk_a("p7", "player")
+    m2 = mk_a("e7", "enemy", hp=100000, atk=1)
+    equip_affix(p2, "holy_echo", "armor", quality="purple")
+    EP.apply_to_actor(p2)
+    tr = p2.get("triggers") or {}
+    he = [e for e in tr.get("act_cast", []) if e.get("type") == "we_affix_res_gain"]
+    check("holy_echo 装配 act_cast+kind=治疗+tier gain=2",
+          len(he) == 1 and he[0].get("kind") == "治疗" and he[0].get("res") == "faith"
+          and he[0].get("gain") == 2, f"{he}")
+    b2 = new_battle(p2, m2)
+    # 物理普攻（act_cast 也会 fire，kind=物理）→ 不触发
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    check("物理行动不加信仰", stk(p2, "faith") == 0, f"faith={stk(p2, 'faith')}")
+    # 治疗技能施放 → faith +2
+    _fire(b2, "act_cast", {"actor": p2, "target": m2,
+                           "info": {"name": "愈", "kind": "治疗"}}, [])
+    check("治疗施放信仰+2", stk(p2, "faith") == 2, f"faith={stk(p2, 'faith')}")
+    # 增益技能施放不加信仰（kind 过滤互斥）
+    _fire(b2, "act_cast", {"actor": p2, "target": m2,
+                           "info": {"name": "祝", "kind": "增益"}}, [])
+    check("增益行动不加信仰", stk(p2, "faith") == 2, f"faith={stk(p2, 'faith')}")
+    # warcry_echo：只认 kind=增益
+    p3 = mk_a("p8", "player")
+    m3 = mk_a("e8", "enemy", hp=100000, atk=1)
+    equip_affix(p3, "warcry_echo", "helm", quality="purple")
+    EP.apply_to_actor(p3)
+    b3 = new_battle(p3, m3)
+    _fire(b3, "act_cast", {"actor": p3, "target": m3,
+                           "info": {"name": "斩", "kind": "物理"}}, [])
+    check("非增益不加怒", stk(p3, "rage") == 0, f"rage={stk(p3, 'rage')}")
+    _fire(b3, "act_cast", {"actor": p3, "target": m3,
+                           "info": {"name": "战吼", "kind": "增益"}}, [])
+    check("增益技怒+1", stk(p3, "rage") == 1, f"rage={stk(p3, 'rage')}")
+    # arcana_flux：on_cast = 技能施放（排除普攻 basic）
+    p4 = mk_a("p9", "player")
+    m4 = mk_a("e9", "enemy", hp=100000, atk=1)
+    equip_affix(p4, "arcana_flux", "weapon", quality="blue")
+    EP.apply_to_actor(p4)
+    b4 = new_battle(p4, m4)
+    b4.act(ActCtx(caster=p4, action="attack", target=m4))  # 普攻 act_cast(_basic)
+    check("普攻施放不攒充能", stk(p4, "element") == 0, f"element={stk(p4, 'element')}")
+    _fire(b4, "act_cast", {"actor": p4, "target": m4,
+                           "info": {"name": "火球", "kind": "魔法"}}, [])
+    check("技能施放充能+1", stk(p4, "element") == 1, f"element={stk(p4, 'element')}")
+
+
+# ============================================================
+# T6 crit 族：crit_charge（energy+3 cap 100）/ crit_return（chance+tier 档）
+# ============================================================
+
+def test_crit_res_gain():
+    print("【R4.6 crit 族：暴击攒精/连击点（chance/tier 档位）】")
+    # crit_charge：crit 事件 energy+3，cap 100 clamp
+    p = mk_a("pa", "player")
+    m = mk_a("ea", "enemy", hp=100000, atk=1)
+    equip_affix(p, "crit_charge", "weapon", quality="purple")
+    EP.apply_to_actor(p)
+    b = new_battle(p, m)
+    for _ in range(40):  # 40×3 = 120 > cap 100
+        _fire(b, "crit", {"actor": p, "target": m, "dmg": 100}, [])
+    check("暴击攒精 cap 100 clamp", stk(p, "energy") == 100,
+          f"energy={stk(p, 'energy')}")
+    check("EFFECT_RULES energy cap=100", int((state_def("energy") or {}).get("cap") or 0) == 100,
+          f"{state_def('energy')}")
+    # crit_return：装配参数 chance=tier 档（purple 0.25）gain 保持 1
+    p2 = mk_a("pb", "player")
+    m2 = mk_a("eb", "enemy", hp=100000, atk=1)
+    equip_affix(p2, "crit_return", "ring", quality="purple")
+    EP.apply_to_actor(p2)
+    tr = p2.get("triggers") or {}
+    cr = [e for e in tr.get("crit", []) if e.get("type") == "we_affix_res_gain"]
+    check("crit_return 装配 chance=0.25 gain=1",
+          len(cr) == 1 and abs(float(cr[0].get("chance") or 0) - 0.25) < 1e-9
+          and cr[0].get("gain") == 1 and cr[0].get("res") == "cp", f"{cr}")
+    # 行为：直调动作恒触发（chance 覆盖 1.0）→ cp+1 cap 5；chance 0 → 不加
+    b2 = new_battle(p2, m2)
+    we_affix_res_gain(b2, p2, m2, {"key": "crit_return", "res": "cp", "gain": 1,
+                                   "chance": 1.0}, [])
+    check("暴击回点 cp+1", stk(p2, "cp") == 1, f"cp={stk(p2, 'cp')}")
+    we_affix_res_gain(b2, p2, m2, {"key": "crit_return", "res": "cp", "gain": 1,
+                                   "chance": 0.0}, [])
+    check("chance 0 不加点", stk(p2, "cp") == 1, f"cp={stk(p2, 'cp')}")
+    for _ in range(10):
+        we_affix_res_gain(b2, p2, m2, {"key": "crit_return", "res": "cp", "gain": 1,
+                                       "chance": 1.0}, [])
+    check("cp cap 5 clamp", stk(p2, "cp") == 5, f"cp={stk(p2, 'cp')}")
+
+
+# ============================================================
+# T7 缺口词条零噪音（上限型/cost_reduce/cond 修正/combo/regen R4 未实施）
+# ============================================================
+
+def test_gap_affixes_no_noise():
+    print("【R4.7 缺口词条不装配（零噪音）：上限型/cost_reduce/cond/combo/regen】")
+    p = mk_a("pc", "player")
+    # 一件装备多个缺口词条（rage_forge/full_pack 上限型；energy_blade cost_reduce；
+    # ember_brand cond 修正；combo_recover 连招技；energy_tide regen 型）
+    p.setdefault("equipment", {})["weapon"] = {
+        "slot": "weapon", "quality": "purple",
+        "affixes": ["rage_forge", "full_pack", "energy_blade", "ember_brand",
+                    "combo_recover", "energy_tide"],
+        "stats": {},
+    }
+    EP.apply_to_actor(p)
+    check("缺口词条零 triggers", not (p.get("triggers") or {}),
+          f"triggers={p.get('triggers')}")
+    check("缺口词条零 effects 条目", not (p.get("effects") or {}),
+          f"effects={p.get('effects')}")
+
+
+def main():
+    print("=== R4 affix 资源型词条装配测试 ===")
+    test_translate_gain_rule()
+    test_war_spirit_end2end()
+    test_opening_stance()
+    test_boiling_blood()
+    test_taken_and_kind_filters()
+    test_crit_res_gain()
+    test_gap_affixes_no_noise()
+    print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
+    if FAILURES:
+        for f in FAILURES:
+            print(f"  - {f}")
+    sys.exit(1 if FAIL else 0)
+
+
+if __name__ == "__main__":
+    main()

@@ -252,6 +252,25 @@ AFFIXES = {
     # 额外附 "qualities"（品质分布：blue=精良/稀有 紫=史诗 orange=传说，对应 AFFIX_POOL_BY_QUALITY）
     # 与 "tiers"（数值档位按品质的取值表，供批 2 引擎按品质取档）、"unique"（唯一主词条，禁跨件叠加）、
     # "line"（归属职业线/攻守）。effect 内 res 使用 core_resources 资源 key（rage/element/energy/faith/cp/chi）。
+    #
+    # ⚠️ battle2 装配落地状态（R4 / docs/REFACTOR_v181P4_N9_7_affix_migration.md）：
+    # - ✅ 已装配（翻译器在 game/services/battle2_equip_proc.py N9.7e）：effect 含
+    #   res+gain+on 的事件 gain 型 10 条（war_spirit/warcry_echo/blood_bath/arcana_flux/
+    #   crit_charge/holy_echo/crit_return/pious_charm/rock_rest/opening_stance——
+    #   对应 events → actor.triggers 叠 we_affix_res_gain 层，cap clamp 查
+    #   EFFECT_RULES[res].cap）+ boiling_blood（怒气满全减伤，taken_calc state_full）。
+    # - ⛔ 缺口（cap 动态机制待引擎层，R4 未实施——装配层不产生 triggers）：
+    #   · 上限型 effect {res, max_bonus}：rage_forge/divine_radiance/holy_heart/
+    #     rhythm_badge/chi_limit/full_pack——max_bonus 需要引擎级 cap 动态加成
+    #     （cap = EFFECT_RULES 基准 + 装备折算），引擎未支持前装配=无效，静默跳过；
+    #   · cost_reduce 型：energy_blade（{res, cost_reduce}）/arcane_focus/sigil_blessing
+    #     （mp_cost_reduce）——消费折算需技能消耗管线挂钩，R4 未实施；
+    #   · cond 修正型 ember_brand（{res, gain, cond: hp_lt_30}，effect 无 on 时机）——
+    #     「怒气获取时额外 +1」需资源获取事件钩子（装配层无对应事件位）；
+    #   · combo_recover（on: combo_skill）——拳师「连招技」无技能标记事件判据，
+    #     需词条级 kind/tag 语义核对；
+    #   · regen 型 energy_tide/swift_tailwind（effect {res, regen} 非 gain）——
+    #     每刻/条件回能属 R2 渠道口径（core_resources regen 单源化批次）。
     # ================= 战士（怒气 rage ）=================
     "war_spirit": {
         "name": "战意", "kind": "attack", "trigger": "passive",
