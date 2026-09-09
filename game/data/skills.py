@@ -977,6 +977,8 @@ BRANCH_SKILLS = {
                         'mech': 'zhan_yi',
                         'mech_val': 1,
                         'stance': 'counter',
+                        'effect': 'stance_guard',
+                        'buff_turns': 8,   # 姿态持续 8 刻（cd 轮转近似常驻；v153 无明示标待确认）
                         'name': '守护姿态',
                         'desc': '沉肩架盾，如磐石钉入大地——进入守护姿态：受击反击 40%，每刻积攒 0.2 点战意'
                     },

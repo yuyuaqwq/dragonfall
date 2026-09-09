@@ -904,6 +904,62 @@ def install() -> None:
         actor.setdefault("effects", {})["shadow_dance"] = {"stacks": 1, "expire": None}
         logs.append("🌫️ 踏入影舞之境！技能 CD −20%，如影随形！")
 
+    @register_action("class_stance_guard_enter")
+    def class_stance_guard_enter(battle, caster, target, params, logs):
+        """增益技 effect=stance_guard（守护姿态 v153 铁誓线）：写守护姿态态 + 挂反击。
+
+        语义：守护姿态「受击反击 40%、每刻积攒 0.2 战意」——effects[stance_guard]
+        持续 turns 刻（技能 buff_turns）；反击 = on_taken trigger（class_stance_counter，
+        态在才反击 40%，防重复挂）；每刻 +0.2 战意需 tick 装配点标缺口。
+        """
+        actor = caster if caster is not None else target
+        if actor is None:
+            return
+        try:
+            from ..battle2.battle import _now_of
+            now = _now_of(battle)
+        except Exception:
+            now = 0.0
+        turns = max(1, int(params.get("turns") or 0) or 8)
+        actor.setdefault("effects", {})["stance_guard"] = {
+            "stacks": 1, "expire": now + turns}
+        # 挂受击反击 trigger（幂等——同 key 不重复挂）
+        trig = actor.setdefault("triggers", {})
+        lst = trig.setdefault("on_taken", [])
+        if not any(isinstance(t, dict) and t.get("type") == "class_stance_counter"
+                   for t in lst):
+            lst.append({"type": "class_stance_counter", "chance": 0.40,
+                        "atk_pct": 1.0, "label": "守护姿态"})
+        logs.append(f"🛡️ 进入守护姿态：受击反击 40%（{turns} 刻）！")
+
+    @register_action("class_stance_counter")
+    def class_stance_counter(battle, caster, target, params, logs):
+        """on_taken 守护姿态反击：态在 → 40% 反打攻击者 atk×100%（普攻全额）。"""
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        owner = params.get("_owner") or ctx.get("actor") or caster
+        if owner is None:
+            return
+        if not isinstance((owner.get("effects") or {}).get("stance_guard"), dict):
+            return  # 姿态已过期 → 不反击
+        attacker = ctx.get("source")
+        from ..battle2.actors import actor_alive
+        if attacker is None or not actor_alive(attacker):
+            return
+        import random as _r
+        chance = float(params.get("chance") or 0)
+        if chance <= 0 or _r.random() >= chance:
+            return
+        try:
+            from ..battle2.landing import deal_damage
+            from ..battle2.stats import actor_stats as _as
+            st = _as(battle, owner) or {}
+            dmg = max(1, int(float(st.get("atk", 0) or 0)
+                               * float(params.get("atk_pct") or 1.0)))
+            deal_damage(battle, owner, attacker, dmg, logs)
+            logs.append(f"🛡️ 守护反击！对【{attacker.get('name', '敌人')}】造成 {dmg} 点伤害！")
+        except Exception:
+            pass
+
     @register_action("passive_shadow_buff")
     def passive_shadow_buff(battle, caster, target, params, logs):
         """act_cast 影舞态强化 buff：态内 → 面板 spd ×(1+spd_add)（暗影步·极）。
@@ -927,6 +983,41 @@ def install() -> None:
             return
         ef[buff_key] = {"stacks": 1, "stat": "spd", "mult": 1.0 + spd_add,
                         "op": "mul", "expire": None}
+
+    @register_action("passive_revive_guard")
+    def passive_revive_guard(battle, caster, target, params, logs):
+        """on_death 守护姿态致命免疫（铁誓·不动）：姿态下首次致命伤 → 回满 + 清空战意。
+
+        语义（v153 desc）：守护姿态下首次致命伤害免疫，清空全部战意——hp_pct 1.0
+        （满血复活=致命免疫）；一次性 used_key；姿态保留（守护姿态是 buff 不随战意）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        owner = ctx.get("actor") or caster
+        if owner is None:
+            return
+        form = params.get("form") or "stance_guard"
+        used_key = params.get("used_key") or "_stance_immortal_used"
+        ef = owner.setdefault("effects", {})
+        if (ef.get(used_key) or {}).get("stacks"):
+            return  # 已用（一次性）
+        if not isinstance(ef.get(form), dict):
+            return  # 非守护姿态
+        hp_pct = float(params.get("hp_pct") or 0)
+        if hp_pct <= 0:
+            return
+        mhp = int(owner.get("max_hp", 1) or 1)
+        owner["hp"] = max(1, int(mhp * hp_pct))
+        zy = ef.get("zhan_yi")
+        if isinstance(zy, dict):
+            zy["stacks"] = 0
+        ef[used_key] = {"stacks": 1, "expire": None}
+        try:
+            ka = getattr(battle, "killed_actors", None)
+            if isinstance(ka, list) and owner in ka:
+                ka.remove(owner)
+        except Exception:
+            pass
+        logs.append(f"🛡️ {params.get('label') or '铁誓·不动'}：铁誓加身，致命伤被免疫！")
 
     @register_action("passive_revive_berserk")
     def passive_revive_berserk(battle, caster, target, params, logs):

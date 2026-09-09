@@ -354,6 +354,8 @@ EFFECT_ACTIONS: dict = {
     "purify_immune": [{"action": "apply", "key": "cc_immune"}],  # 净化免疫药（I5 映射 cc_immune）
     # 刺客影舞态（暗影步 v153：连段满 5 → 进入影舞态）——装配层动作查条件写态条目
     "shadow_dance": [{"action": "class_shadow_dance_enter"}],
+    # 战士守护姿态（v153 铁誓线：受击反击 40%）——装配层动作写态 + 挂反击 trigger
+    "stance_guard": [{"action": "class_stance_guard_enter"}],
     # 团队/全员增益 → 自身有效键（旧 team_keys 同语义）
     "atk_all":   [{"action": "apply", "key": "atk_up"}],
     "def_all":   [{"action": "apply", "key": "def_up"}],
@@ -652,6 +654,11 @@ PASSIVE_PROC: dict = {
     "berserk_revive": {        # 血怒·不灭：狂暴中首次死亡 → 清战意复活回 hp_pct
         "event": "on_death", "action": "passive_revive_berserk",
         "form": "fury", "used_key": "_berserk_revive_used",
+    },
+    # ---- P2 族：守护姿态下致命免疫（铁誓·不动——姿态由守护姿态技能 effect 进）----
+    "stance_immortal": {       # 铁誓·不动：守护姿态下首次致命伤免疫，清空全部战意
+        "event": "on_death", "action": "passive_revive_guard",
+        "form": "stance_guard", "used_key": "_stance_immortal_used",
     },
     # ---- P2 族：影舞态强化（暗影步·极——态由暗影步 effect 进，EFFECT_RULES cd_mult）----
     "shadow_dance_bonus": {    # 暗影步·极：影舞态中速度 +25%（暴伤无面板通道标缺口）
