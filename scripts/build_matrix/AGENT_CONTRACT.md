@@ -19,7 +19,7 @@
 | BUILDS 流派 | 每职业 3 流派，**每流派=1条转职线**（技能从 base 起，跨 tier1→tier3） | builds.py |
 | 转职档 | 30/60/90 级（numeric_lib tier 1/2/3；TIER_GROWTH ×1.15/1.30/1.50） | classes.py |
 | 技能字段 | lv/mp/power/kind/cast/cd/exprs/mech/mech_val/effect/buff_turns/res_cost/cond/passive/hits/heal_formula/aoe/... | skills.py 299 实测 |
-| 资源系统 | core_resources.py CORE_RESOURCES：战士 rage、法师 element(基础无)、游侠 energy(regen 18/刻)、牧师 faith、刺客 cp、拳师 chi、诗人 resonance+echo | core_resources.py |
+| 资源系统 | job_guide CORE_RESOURCE_GUIDE（cid→key/desc）+ EFFECT_RULES（name/cap 单源；原 core_resources.py 已随 v181.M-R2c 退役）：战士 rage、法师 element(基础无)、游侠 energy(period 18/刻)、牧师 faith、刺客 cp、拳师 chi、诗人 resonance+echo | job_guide.py + battle2_rules.py |
 | 阶段 | P1(10)/P2(24)/P3(45)/P4(75)/P5(95)；装备档 loadout 见 numeric_lib STAGES | constants.py |
 | 副本 | 22 本；单人可进 12 本（min_players=1），多人 10 本（min>=2） | instances.py |
 | 技能升级 | SKILL_UP 每技能 max 3-5，p=每级+x% | skill_up.py |
@@ -48,8 +48,8 @@ scripts/balance_data/
 {
   "class_id": "cls_zhan_shi",
   "class_name": "战士",
-  "resource": "rage",              // core_resources 键：rage/element/energy/faith/cp/chi/resonance
-  "resource_max": 10,              // CORE_RESOURCES[cid].max
+  "resource": "rage",              // 资源 key：rage/element/energy/faith/cp/chi/resonance（单源 EFFECT_RULES/job_guide CORE_RESOURCE_GUIDE）
+  "resource_max": 10,              // EFFECT_RULES[key].cap（= 旧 core_resources max）
   "resource_regen_per_tick": 0,    // energy=18 等；无=0
   "builds": {                      // 3 流派，键名与 BUILDS 一致
     "狂战流": {

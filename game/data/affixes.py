@@ -251,7 +251,8 @@ AFFIXES = {
     # 说明：字段与既有 affix 结构对齐（name/kind/trigger/effect/desc/chance），
     # 额外附 "qualities"（品质分布：blue=精良/稀有 紫=史诗 orange=传说，对应 AFFIX_POOL_BY_QUALITY）
     # 与 "tiers"（数值档位按品质的取值表，供批 2 引擎按品质取档）、"unique"（唯一主词条，禁跨件叠加）、
-    # "line"（归属职业线/攻守）。effect 内 res 使用 core_resources 资源 key（rage/element/energy/faith/cp/chi）。
+    # "line"（归属职业线/攻守）。effect 内 res 使用资源 key（rage/element/energy/faith/cp/chi——key 语义
+    # 与 cap 单源 EFFECT_RULES，desc/展示见 job_guide 展示表；原 core_resources.py 已随 v181.M-R2c 退役）。
     #
     # ⚠️ battle2 装配落地状态（R4 / docs/REFACTOR_v181P4_N9_7_affix_migration.md）：
     # - ✅ 已装配（翻译器在 game/services/battle2_equip_proc.py N9.7e）：effect 含
@@ -270,7 +271,8 @@ AFFIXES = {
     #   · combo_recover（on: combo_skill）——拳师「连招技」无技能标记事件判据，
     #     需词条级 kind/tag 语义核对；
     #   · regen 型 energy_tide/swift_tailwind（effect {res, regen} 非 gain）——
-    #     每刻/条件回能属 R2 渠道口径（core_resources regen 单源化批次）。
+    #     每刻/条件回能属 R2 渠道口径（regen 单源化批次；原 core_resources regen 已随 R2c 退役，
+    #     energy 渠道现于 EFFECT_RULES period 声明）。
     # ================= 战士（怒气 rage ）=================
     "war_spirit": {
         "name": "战意", "kind": "attack", "trigger": "passive",

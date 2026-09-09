@@ -2,7 +2,7 @@
 """奥兰迪亚·余烬纪年 数据层 - classes.py(v48 key 转 ID)
 
 v112 职业体系重构（主题线制）：13 隐藏 → 6 隐藏线（每基础 1 条），
-每线 = 主题 + 核心资源（core_resources.py）+ 线级被动 + 2-3 流派（evolve_branches[1]）。
+每线 = 主题 + 核心资源（名/cap 单源 EFFECT_RULES，机制 desc 见 data/job_guide.py 展示表——原 core_resources.py 已随 v181.M-R2c 退役）+ 线级被动 + 2-3 流派（evolve_branches[1]）。
 v112 新增数据字段（数据驱动收敛，逻辑层只读数据）：
   aliases      转职短别名 → 流派索引（『转职 龙血』→ cls_dragon_oath 流派 1）
   lore         传承文案
@@ -13,11 +13,12 @@ v112 新增数据字段（数据驱动收敛，逻辑层只读数据）：
 
 v139 职业融合（云海猎团职业卡吸收，13 份方案 design/new_world/参考_云海猎团职业融合_v139_*.md）：
   mech 描述更新为「奥兰迪亚身份 + v139 融合机制」一句话（职业指南/战斗展示用）；
-  新增职业级机制字段（说明性引用，值与 core_resources.py / battle_config.py 同名字段同构，
-  由 battle.py 通用引擎机消费——dual_form 双形态 / focus 架设态 / vent 排气节流阀 /
-  charge 电荷蓄力 / enemy_bar 挂敌身条 / combo 链值 / support 随附支援 / dirge 死歌 等）：
+  新增职业级机制字段（说明性引用，与 battle_config.py 同名 CFG 同构——dual_form 双形态 /
+  focus 架设态 / vent 排气节流阀 / charge 电荷蓄力 / enemy_bar 挂敌身条 / combo 链值 /
+  support 随附支援 / dirge 死歌 等；同构值原在 core_resources.py，随 v181.M-R2c 退役删除，
+  字段值全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章(§0-§6)）：
   P2E（2026-09-07）：classes 内机制参数字段与 battle_config/core_resources 并存属历史双源；
-  删除评估在数据批次（combo dict 已随 P2E-P2a 删），引擎读 core_resources / battle_config。
+  删除评估在数据批次（combo dict 已随 P2E-P2a 删；core_resources.py 已随 M-R2c 退役删除）。
     cls_zhan_shi      dual_form（攻线狂战士狂暴）
     cls_fa_shi        focus（元素架设）
     cls_you_xia       vent + charge（凝神屏息 + 电荷蓄力）
@@ -84,7 +85,8 @@ CLASSES = {
             3: ["战争领主", "坚城统帅"],
         },
         # v139（云海狂战士双形态翻译，样板定稿）：攻线狂战士狂暴形态——字段与
-        # core_resources.py cls_zhan_shi.dual_form 同构（enter_requirement 10 / maintain_cost 1 /
+        # 旧 core_resources.py cls_zhan_shi.dual_form 同构（R2c 退役，同构值留档
+        # docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md §1；enter_requirement 10 / maintain_cost 1 /
         # hit_cost 1 / hit_cost_cap 1 / force_return 4 / form "fury"），由 battle.py 通用形态机消费；
         # 战前可设入狂暴 4 档预设（满怒/7怒/窗口/血线），守线 side 另有 tenacity 坚韧副资源
         "dual_form": {
@@ -134,8 +136,8 @@ CLASSES = {
         "cast_defend": 0.45,
         "cast_flee": 1.2,
         # v130.2（鱼鱼拍板）：基础法师无核心资源 = 纯蓝施法者——技能全纯 mp，
-        # 0 res_gain / 0 res_cost / 模型无 on_skill 渠道；element 充能条(0-5) 定义保留在
-        # core_resources.py，随攻线·元素法师 / 守线·奥秘法师 转职首获（转职批次挂 res_gain 生效）。
+        # 0 res_gain / 0 res_cost / 模型无 on_skill 渠道；element 充能条(0-5) 定义随
+        # core_resources.py 退役迁 job_guide CORE_RESOURCE_GUIDE + EFFECT_RULES（R2c），随攻线·元素法师 / 守线·奥秘法师 转职首获（转职批次挂 res_gain 生效）。
         # v112.5（鱼鱼拍板）：基础法师两条初始线——元素（攻）+ 奥秘（守）；
         # 奥秘守线 = 奥术师与秘法族合并体（原隐藏奥秘线元素流降为基础守线）
         # v139：攻线=元素架设爆发（聚焦→满充能→湮灭）、守线=深度冥想驻留（低耗高频+叠层加速）
@@ -145,8 +147,8 @@ CLASSES = {
             2: ["元素术士", "奥术大师"],
             3: ["元素贤者", "奥秘主宰"],
         },
-        # v139（云海机械师架设态翻译）：元素架设 focus——字段与 core_resources.py cls_fa_shi.focus
-        # 同构（enter_turn 1 / dmg_bonus 0.40 / taken_bonus 0.20 / interrupt 只掉 1 层 /
+        # v139（云海机械师架设态翻译）：元素架设 focus——字段与旧 core_resources.py cls_fa_shi.focus
+        # 同构（R2c 退役，同构值留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md §2；enter_turn 1 / dmg_bonus 0.40 / taken_bonus 0.20 / interrupt 只掉 1 层 /
         # max_turns 3 / free_exit），由 battle.py 通用专注机消费；攻线开启技「元素聚焦」、
         # 守线开启技「深度冥想」（架设中每刻 arcane 自动 +1）
         "focus": {
@@ -266,7 +268,8 @@ CLASSES = {
         # 吟游诗人→灵魂歌者→黎明颂者（歌声递进：鼓舞→治愈→终极颂歌），
         # 独立隐藏职业"吟游诗人"删除并回归牧师攻线（回到 6 隐藏线结构）
         # v130.2（鱼鱼拍板）：攻线歌者转职后=双核心资源「共鸣 resonance(max10) + 回声 echo(max3)」——
-        # 基础牧师仍单信仰值 faith；共鸣/回声定义已注册 core_resources.py（按资源 key 作注册键），
+        # 基础牧师仍单信仰值 faith；共鸣/回声展示元数据见 job_guide EXTRA_RESOURCE_GUIDE
+        #   （原 core_resources.py 按 key 注册段 R2c 退役迁入，{name,max,desc} 全量），
         # 需引擎批次 2 在 evolve_branches 攻线侧提供 分支级 resource_override 使 battle.py 能识别
         # 双资源；echo 建议落 mech_stacks 驻留叠层（战斗内不清零），刻起始全队恢复+增益续时另需引擎挂点。
         # v139：攻线歌者补双行算式+破晓长歌（EQ≈4.8）；守线神谕圣辉支援（圣律 vow 0-3，随附不占行动）
@@ -276,9 +279,10 @@ CLASSES = {
             2: ["大主教", "亡魂引渡者"],
             3: ["圣光先知", "黯灵君主"],
         },
-        # v139（云海圣骑士随附支援翻译）：守线圣辉支援——圣律 vow 0-3（core_resources.py 注册），
+        # v139（云海圣骑士随附支援翻译）：守线圣辉支援——圣律 vow 0-3（原 core_resources.py 注册段
+        # R2c 退役，vow 字段值留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md §5），
         # 治疗命中/受击攒圣律（每刻至多 1），消耗 1 圣律施放 1 件支援（不占主行动、主行动后结算）；
-        # 攻线歌者共鸣/回声双资源见 core_resources.py 表尾段
+        # 攻线歌者共鸣/回声双资源见 job_guide EXTRA_RESOURCE_GUIDE（原 core_resources.py 表尾段 R2c 退役迁入）
         "support": {
             "res_key": "vow", "max": 3, "per_turn_cap": 1,
             "type": "post_action",  # 主行动结算后触发（随附）

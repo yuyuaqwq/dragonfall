@@ -203,7 +203,8 @@ def apply_class_mech(actor: dict) -> None:
             return
         trig = actor.setdefault("triggers", {})
         # v181.M-R2：start_full 资源开局满额（读 EFFECT_RULES 条目 start_full 声明，
-        # 源 core_resources.cls_you_xia v176 游侠精力开局满——装配层初始化 effects 条目）
+        # 源 core_resources.cls_you_xia v176（原表随 v181.M-R2c 退役，现单源 EFFECT_RULES energy.start_full）
+        # 游侠精力开局满——装配层初始化 effects 条目）
         try:
             _full_rules = _effect_rules()
             _cn = actor.get("class_name") or ""

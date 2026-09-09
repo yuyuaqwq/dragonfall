@@ -7,8 +7,11 @@
 单一数据来源（防漂移，tests/test_v1302g_job_guide.py 强校验）：
   - name/desc/role/rank_label/reach/evolve_branches/hint/src_base/src_race/aliases
     → classes.py（本表逐字段复制，desc 逐字相等）
-  - 核心资源 name/max/desc → core_resources.py（牧师攻线·歌者双资源 共鸣/回声 以
-    资源 key 注册于该表表尾段，经 EXTRA_RESOURCES 按职业合并展示）
+  - 核心资源展示 → v181.M-R2c 单源化（原 data/core_resources.py 已退役删除）：
+      · 职业核心资源 key + 机制 desc → 本表 CORE_RESOURCE_GUIDE（六基础职业 cid→{key, desc}，
+        desc 自原表逐字迁移）；name/max → EFFECT_RULES[key].name/.cap 派生（battle2_rules.py 唯一权威，不重复存）
+      · 牧师攻线·歌者双资源 共鸣/回声 → 本表 EXTRA_RESOURCE_GUIDE（{name, max, desc} 全量，
+        不在 EFFECT_RULES；经 EXTRA_RESOURCES 按职业合并展示）
   - 本表仅补充（全部有底层出处）：
       POSITION_BRIEF   一览定位一句话（必须为 classes desc 的子串）
       EXTRA_ALIASES    查询兼容名（歌者→牧师，v130.2 牧师攻线·歌者双资源）
@@ -16,8 +19,8 @@
 """
 import re
 
+from .battle2_rules import EFFECT_RULES
 from .classes import CLASSES
-from .core_resources import CORE_RESOURCES
 from .races import RACES
 
 # 分支 key → 展示名（与 commands/player.py _BRANCH_KEY_DISPLAY 同源：
@@ -50,10 +53,75 @@ EXTRA_ALIASES = {
     "歌者线": "cls_mu_shi",
 }
 
-# 转职分支专属核心资源：注册键为资源 key（core_resources.py 表尾段，非 class id 键）
+# 转职分支专属核心资源：分支职业 → 资源 key 列表（副资源 key 的 name/max/desc 展示元数据
+# 在本表 EXTRA_RESOURCE_GUIDE；v181.M-R2c 原 core_resources.py 表尾段已退役迁入）
 EXTRA_RESOURCES = {
     "cls_mu_shi": ["resonance", "echo"],  # v130.2 牧师攻线·歌者双资源 共鸣 + 回声
 }
+
+# ============================================================
+# 职业核心资源展示元数据（v181.M-R2c：原 game/data/core_resources.py 退役，展示表单源化）
+# 六基础职业 cid → {key, desc}；name/cap 不重复存——运行时从 EFFECT_RULES[key].name/.cap
+# 派生（battle2_rules.py，唯一权威）。desc 为『职业』详情玩家可见的机制一句话，自旧表逐字迁移。
+# cls_shi_ren（诗人 v153 起独立第 7 职业）无核心资源 → 不在表内（JOB_GUIDE resource_* 为空）。
+# 注：原表 v139 形态字段（dual_form/focus/vent 等）与按 key 注册的 vow 副资源设计值随文件退役，
+#   已全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章（引擎批次 2 启用时自该章还原）。
+# ============================================================
+CORE_RESOURCE_GUIDE = {
+    "cls_zhan_shi": {
+        "key": "rage",
+        "desc": "通用基座：普攻/技能/受击三路攒怒，满 10 掷背水一战，满溢转盾(overflow_shield)兜底；血债/沸血/壁垒等血线玩法下放转职线",
+    },
+    "cls_fa_shi": {
+        "key": "element",
+        "desc": "充能条 0-5：基础不经营(纯蓝施法)，攻线·元素/守线·奥秘转职首获；施法攒充能、-1/-2/-3/-5 消耗",
+    },
+    "cls_you_xia": {
+        "key": "energy",
+        "desc": "专注流量制：每刻 +18 持续充能，技能消耗专注；结余 ≥40 时凝神暴击；满弦/叠标/引爆下放转职线",
+    },
+    "cls_mu_shi": {
+        "key": "faith",
+        "desc": "负载制 0-10：治疗攒点(on_heal +2)/受击 +1，档位 0-3/4-7/8-9/10(过载)，每刻 −0.7；圣光/死灵两线共用",
+    },
+    "cls_ci_ke": {
+        "key": "cp",
+        "desc": "通用基底：普攻/技能命中 +1，2-4 刻攒满即爆发；连段/受击回退/暴击攒点全部下放转职线",
+    },
+    "cls_wu_seng": {
+        "key": "chi",
+        "desc": "通用基底：出招攒气(连段技额外多给)，3 气崩拳/10 气破岳拳双档，满溢转盾(overflow_shield)兜底；蓄势/受击换气下放转职线",
+    },
+}
+
+# 转职分支专属副资源展示元数据（EXTRA_RESOURCES 展示用；不在 EFFECT_RULES——歌者专属，
+# 引擎批次 2 才启用）：资源 key → {name, max, desc} 全量（desc 自旧表逐字迁移）
+EXTRA_RESOURCE_GUIDE = {
+    "resonance": {
+        "name": "共鸣", "max": 10,
+        "desc": "歌者短周期燃料条：歌类/咏叹技 +1(治疗赛诗 +2)，消耗放大增益/大招(启明圣咏 -3 / 终章·黎明颂歌 -5)，攒满约 4 刻",
+    },
+    "echo": {
+        "name": "回声", "max": 3,
+        "desc": "歌者长周期驻留叠层：战斗内不清零；每层刻一始全队恢复 6 点体力（v153 后回声仅由带 res_gain.echo 的技能产出）",
+    },
+}
+
+
+def _core_resource_of(cid: str) -> dict:
+    """JOB_GUIDE resource_* 字段数据源：CORE_RESOURCE_GUIDE(key/desc) + EFFECT_RULES(name/cap) 派生。
+
+    返回 {key, name, max, desc}（无条目职业 → 全空/0，同旧表未注册口径）。
+    """
+    cfg = CORE_RESOURCE_GUIDE.get(cid) or {}
+    key = cfg.get("key", "")
+    er = EFFECT_RULES.get(key, {}) if key else {}
+    return {
+        "key": key,
+        "name": er.get("name", ""),
+        "max": int(er.get("cap", 0) or 0),
+        "desc": cfg.get("desc", ""),
+    }
 
 
 def _task_name(desc: str) -> str:
@@ -63,12 +131,12 @@ def _task_name(desc: str) -> str:
 
 
 def _build_guide():
-    """装配 12 职业速查表（classes.py + core_resources.py 派生 + 本表摘要）"""
+    """装配 12 职业速查表（classes.py + EFFECT_RULES/CORE_RESOURCE_GUIDE 派生 + 本表摘要）"""
     guide, succ = {}, {}
     for cid, cls in CLASSES.items():
         if cid == "cls_novice":  # 见习冒险者：初始状态，不计入 12 职业
             continue
-        res = CORE_RESOURCES.get(cid, {})
+        res = _core_resource_of(cid)
         hidden = bool(cls.get("hidden"))
         guide[cid] = {
             "cls_id": cid,

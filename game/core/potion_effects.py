@@ -214,7 +214,7 @@ def eff_shield_big(battle, player, value):
 
 def _item_res_def(key: str) -> dict:
     """按资源 key 查资源定义（v181.M-R2b：单源 = EFFECT_RULES 条目 name/cap；
-    旧 core_resource_def_by_key（core_resources.py 表）退役迁移。未注册 key → {}，与旧兜底同）。"""
+    旧 core_resource_def_by_key（core_resources.py 表，文件本体已随 v181.M-R2c 退役）退役迁移。未注册 key → {}，与旧兜底同）。"""
     try:
         from ..data.battle2_rules import EFFECT_RULES as _ER
         _r = _ER.get(key) or {}

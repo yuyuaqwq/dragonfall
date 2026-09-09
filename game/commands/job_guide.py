@@ -12,9 +12,8 @@ aliases（苦修士/武僧→淬势者）→ 兼容名（歌者→牧师）→ �
 from ._platform import AstrMessageEvent, filter
 from ..data.job_guide import (
     JOB_GUIDE, BASE_ORDER, HIDDEN_ORDER, HIDDEN_SUCCESSORS,
-    EXTRA_RESOURCES, resolve_job,
+    EXTRA_RESOURCES, EXTRA_RESOURCE_GUIDE, resolve_job,
 )
-from ..data.core_resources import CORE_RESOURCES
 from ..data.classes import CLASSES
 from ..commands.base import CommandBase
 
@@ -99,10 +98,10 @@ class JobGuideCmds(CommandBase):
         return "\n".join(lines)
 
     def _jg_resource_line(self, g: dict) -> str:
-        """核心资源与机制一句话（core_resources.py desc 原文）+ 转职分支专属资源"""
+        """核心资源与机制一句话（JOB_GUIDE resource_desc，源 job_guide CORE_RESOURCE_GUIDE 展示表）+ 转职分支专属资源"""
         lines = [f"⚡ 核心资源·{g['resource_name']}（上限 {g['resource_max']}）：{g['resource_desc']}"]
         for rk in EXTRA_RESOURCES.get(g["cls_id"], []):
-            r = CORE_RESOURCES.get(rk)
+            r = EXTRA_RESOURCE_GUIDE.get(rk)
             if r:
                 lines.append(f"　↳ 转职分支专属·{r.get('name', rk)}（上限 {r.get('max')}）：{r.get('desc')}")
         return "\n".join(lines)

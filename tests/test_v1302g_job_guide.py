@@ -2,9 +2,10 @@
 """v130.2g 新功能固化测试（test_v1302g_job_guide.py）：『职业』/『职业 <名称>』指令
 
 落地玩家意见 #1（zerc）「增加查看职业信息的功能」。覆盖：
- ① 数据一致性：job_guide 表与 classes.py / core_resources.py 全字段交叉核对
-    （desc/name 逐字相等、position 为 desc 子串、资源字段逐字相等、基础档位门槛与
-    EVOLVE_LEVELS 同源、攻/守双线分支展示）
+ ① 数据一致性：job_guide 表与 classes.py 全字段交叉核对 + 资源展示字段与单源新形态核对
+   （v181.M-R2c：原 core_resources.py 退役——resource_key/desc = CORE_RESOURCE_GUIDE、
+   resource_name/max = EFFECT_RULES 派生；desc 逐字一致、基础档位门槛与
+   EVOLVE_LEVELS 同源、攻/守双线分支展示）
  ② 『职业』一览：6 基础职业全名出现 + 分组标题
  ③ 『职业 <名称>』详情：6 职业名逐一可解析（resolve_job + 指令直跑），
     详情含核心机制字段（资源名 + 上限 + 机制 desc）
@@ -29,8 +30,9 @@ from conftest import C, run, FakeEvent, clean_db  # noqa: E402
 
 from data.plugins.dragonfall.game.data.job_guide import (  # noqa: E402
     JOB_GUIDE, BASE_ORDER, HIDDEN_ORDER, HIDDEN_SUCCESSORS,
-    JOB_ALIASES, EXTRA_RESOURCES, resolve_job,
+    JOB_ALIASES, EXTRA_RESOURCES, CORE_RESOURCE_GUIDE, EXTRA_RESOURCE_GUIDE, resolve_job,
 )
+from data.plugins.dragonfall.game.data.battle2_rules import EFFECT_RULES  # noqa: E402
 from data.plugins.dragonfall.game.commands.job_guide import JobGuideCmds  # noqa: E402
 from data.plugins.dragonfall.game.commands._registry import COMMAND_REGEX  # noqa: E402
 
@@ -59,24 +61,44 @@ async def main():
     jc = JobGuideCmds()
     ok = True
 
-    # ===== ① 数据一致性（classes.py / core_resources.py 交叉核对） =====
+    # ===== ① 数据一致性（classes.py + 单源新形态：CORE_RESOURCE_GUIDE / EFFECT_RULES） =====
     print("【① 数据一致性】")
     ok &= check("7 职业全量（基础七；v151 隐藏六已删除）",
                 len(JOB_GUIDE) == 7 and len(BASE_ORDER) == 7 and len(HIDDEN_ORDER) == 0,
                 f"实际 {len(JOB_GUIDE)}/{len(BASE_ORDER)}/{len(HIDDEN_ORDER)}")
     for cid, g in JOB_GUIDE.items():
         cls = C.CLASSES[cid]
-        res = C.CORE_RESOURCES.get(cid, {})
+        cfg = CORE_RESOURCE_GUIDE.get(cid)
         ok &= check(f"[{cid}] name 与 classes.py 一致", g["name"] == cls.get("name"), g["name"])
         ok &= check(f"[{cid}] desc 与 classes.py 逐字一致", g["desc"] == cls.get("desc"))
         ok &= check(f"[{cid}] position 为 desc 子串", g["position"] in g["desc"])
-        ok &= check(f"[{cid}] 资源字段与 core_resources.py 一致",
-                    (g["resource_name"], g["resource_max"], g["resource_desc"])
-                    == (res.get("name", ""), res.get("max", 0), res.get("desc", "")))
+        # v181.M-R2c：展示字段新源 = CORE_RESOURCE_GUIDE(key/desc) + EFFECT_RULES(name/cap 派生)，
+        # desc 逐字一致性继续强断言（原 core_resources.py 表已退役）
+        if cfg:
+            _er = EFFECT_RULES.get(cfg["key"], {})
+            ok &= check(f"[{cid}] resource_key 与 CORE_RESOURCE_GUIDE.key 一致",
+                        g["resource_key"] == cfg["key"], g["resource_key"])
+            ok &= check(f"[{cid}] resource_name 与 EFFECT_RULES.name 派生一致",
+                        g["resource_name"] == _er.get("name", ""), g["resource_name"])
+            ok &= check(f"[{cid}] resource_max 与 EFFECT_RULES.cap 派生一致",
+                        g["resource_max"] == int(_er.get("cap", 0) or 0), str(g["resource_max"]))
+            ok &= check(f"[{cid}] resource_desc 与 CORE_RESOURCE_GUIDE.desc 逐字一致",
+                        g["resource_desc"] == cfg.get("desc", ""), (g["resource_desc"] or "")[:40])
+        else:
+            ok &= check(f"[{cid}] 无核心资源注册（诗人）resource_* 字段全空",
+                        g["resource_key"] == "" and g["resource_name"] == ""
+                        and g["resource_max"] == 0 and g["resource_desc"] == "",
+                        f"{g['resource_key']!r}/{g['resource_name']!r}/{g['resource_max']}")
         ok &= check(f"[{cid}] 基础档位门槛与 EVOLVE_LEVELS 同源",
                     g["tier_levels"] == C.EVOLVE_LEVELS, str(g["tier_levels"]))
         ok &= check(f"[{cid}] 攻/守双线（T1 两个分支）",
                     len(g.get("tiers", {}).get(1, [])) == 2, str(g.get("tiers", {}).get(1)))
+
+    # 副资源展示闸：EXTRA_RESOURCES 引用的每个副资源 key 在 EXTRA_RESOURCE_GUIDE 全量 {name,max,desc}
+    ok &= check("EXTRA_RESOURCES 副资源 key 全在 EXTRA_RESOURCE_GUIDE 注册",
+                all(rk in EXTRA_RESOURCE_GUIDE
+                    for rks in EXTRA_RESOURCES.values() for rk in rks),
+                str(EXTRA_RESOURCE_GUIDE.keys()))
 
     # ===== ② 『职业』一览 =====
     print("【② 『职业』一览】")

@@ -6,6 +6,11 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C
+# v181.M-R2c：core_resources.py 退役——资源注册完整性断言改对单源新形态（见 main()）
+from game.data.battle2_rules import EFFECT_RULES as _ER_RULES  # noqa: E402
+from game.data.job_guide import (  # noqa: E402
+    CORE_RESOURCE_GUIDE as _CRG, EXTRA_RESOURCE_GUIDE as _XRG,
+)
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -37,8 +42,31 @@ def main():
     check("BRANCH_SKILLS 7 职业(7基础)", len(C.BRANCH_SKILLS) == 7, str(len(C.BRANCH_SKILLS)))
     check("每职业 3 分支（21 章三转体系 30/60/90）", all(len(v.get("branches", {})) == 3 for v in C.BRANCH_SKILLS.values()),
           str({k: len(v.get("branches", {})) for k, v in C.BRANCH_SKILLS.items()}))
-    check("核心资源 6 职业 + 3 副资源(共鸣/回声/圣律按 key 注册)", len(C.CORE_RESOURCES) == 9,
-          str({k: v.get("name") for k, v in C.CORE_RESOURCES.items()}))
+    # v181.M-R2c：原 data/core_resources.py 退役（git rm）——『资源注册完整性』闸迁移：
+    #   CORE_RESOURCE_GUIDE（6 职业 cid→key/desc）+ EFFECT_RULES（key 均注册 name+cap）
+    #   + EXTRA_RESOURCE_GUIDE（歌者副资源 resonance/echo {name,max,desc} 全量；vow 随 v139
+    #   未实装退役，设计值留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章）
+    check("资源注册完整性：CORE_RESOURCE_GUIDE 6 职业，key 全在 EFFECT_RULES(name+cap)",
+          len(_CRG) == 6
+          and all(_CRG[c].get("key") in _ER_RULES
+                  and _ER_RULES[_CRG[c]["key"]].get("name")
+                  and _ER_RULES[_CRG[c]["key"]].get("cap") is not None
+                  for c in _CRG),
+          str({c: _CRG[c].get("key") for c in _CRG}))
+    check("六职业核心资源 key→中文名与 EFFECT_RULES 单源一致（怒气/元素亲和/精力/信仰值/连击点/气）",
+          {c: _ER_RULES[_CRG[c]["key"]]["name"] for c in _CRG}
+          == {"cls_zhan_shi": "怒气", "cls_fa_shi": "元素亲和", "cls_you_xia": "精力",
+              "cls_mu_shi": "信仰值", "cls_ci_ke": "连击点", "cls_wu_seng": "气"},
+          str({c: _ER_RULES[_CRG[c]["key"]].get("name") for c in _CRG}))
+    check("副资源注册完整性：EXTRA_RESOURCE_GUIDE 仅 共鸣/回声，{name,max,desc} 全量",
+          set(_XRG) == {"resonance", "echo"}
+          and all(_XRG[k].get("name") and isinstance(_XRG[k].get("max"), int)
+                  and _XRG[k].get("desc") for k in _XRG),
+          str(_XRG))
+    check("副资源展示 desc 逐字（歌者共鸣/回声机制一句话，自旧表逐字迁移）",
+          _XRG["resonance"]["desc"].startswith("歌者短周期燃料条")
+          and _XRG["echo"]["desc"].startswith("歌者长周期驻留叠层"),
+          str({k: (v.get("desc") or "")[:18] for k, v in _XRG.items()}))
     sk = C.resolve("skills", "火球术")
     check("resolve(skills, 火球术) 有值", bool(sk), str(sk))
     if sk:

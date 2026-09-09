@@ -222,10 +222,10 @@ for _tag_type, _tag_cfg in ITEM_TAG_DISPLAY.items():
 from .signin_config import SIGNIN_CONFIG  # noqa: F401  (v125 签到配置数据下沉)
 from .econ_config import ECON_CONFIG  # noqa: F401  (v125.1 命令层经济数值下沉)
 from .skill_up import SKILL_UP  # noqa: F401  (v102.4 从 engine.py 下沉)
-from .core_resources import CORE_RESOURCES  # noqa: F401  (v102.4 从 engine.py 下沉)
-from .job_guide import (  # noqa: F401  (v130.2g 『职业』速查 12 职业数据表)
+from .job_guide import (  # noqa: F401  (v130.2g 『职业』速查 12 职业数据表；v181.M-R2c 并入核心资源展示表——原 core_resources.py 已退役)
     JOB_GUIDE, BASE_ORDER, HIDDEN_ORDER, HIDDEN_SUCCESSORS,
     JOB_ALIASES, EXTRA_ALIASES, EXTRA_RESOURCES, BRANCH_KEY_DISPLAY, resolve_job,
+    CORE_RESOURCE_GUIDE, EXTRA_RESOURCE_GUIDE,
 )
 from .stat_templates import (  # noqa: F401  (v102.5 从 core/stats.py 下沉)
     MONSTER_ROLE_BASE, MONSTER_ROLE_GROWTH, MONSTER_EXP_BASE, MONSTER_GOLD_BASE,

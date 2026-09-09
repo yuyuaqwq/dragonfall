@@ -180,9 +180,9 @@ ASSASSIN_ON_TAKE_HIT_PENALTY = -1
 MOMENTUM_CFG = {"per_chi": 0.03, "cap_chi": 10}
 
 # ============================================================
-# 暮影：影步积攒（cls_shadow_blade，assassin.md §5.2）
+# 暮影：影步积攒（cls_shadow_blade，assassin.md §5.2）——v151 已删隐藏职业，本段仅留档
 #   暴击命中 on_crit +1 / 闪避成功 on_dodge_success +1 / 潜行出手额外 +1 / 受击清空全部
-#   （on_crit / on_dodge_success 数值已按资源 key 在 core_resources.py 声明，此处只放战斗常量）
+#   （on_crit / on_dodge_success 数值原声明于 core_resources.py，已随 v181.M-R2c 退役删除）
 # ============================================================
 SHADOW_STEP_CFG = {"stealth_extra": 1, "stealth_proc": "stealth"}
 
@@ -198,7 +198,7 @@ SHADOW_STEALTH_DMG_MULT = {"终结·破影一击": 1.5, "幽影刃": 1.25}
 # 牧师歌者双资源：回声驻留叠层（priest_转职.md §3.0；echo 落 mech_stacks 驻留叠层，战斗内不清零）
 # ============================================================
 ECHO_CFG = {
-    "max_layers": 3,             # 回声叠层上限（对应 core_resources echo max）
+    "max_layers": 3,             # 回声叠层上限（对应原 core_resources echo.max——R2c 退役；现展示表 job_guide EXTRA_RESOURCE_GUIDE echo.max 同值 3）
     "heal_per_layer": 6,         # 每层刻初始全队恢复体力
     "buff_extend_per_layer": 1,  # 增益技持续 + 回声层数 刻（P1b 退役歌类技判定后引擎不再读）
 }
@@ -206,8 +206,9 @@ ECHO_CFG = {
 # ============================================================
 # 分支级 resource_override：转职分支决定该分支用什么资源（核心资源 key 列表）
 #   用于 battle.py 判定「该分支用什么资源」——player.class_name 仍是基础职业（如 cls_mu_shi），
-#   转职歌者后仍取 faith，需要分支侧覆盖。key 需已注册进 CORE_RESOURCES（含按 key 注册的副资源）。
-#   未命中的 (class, path) 回落 core_resources 按 class 默认单资源。
+#   转职歌者后仍取 faith，需要分支侧覆盖。key 集合 = EFFECT_RULES 注册 key（name/cap 单源）或
+#   job_guide EXTRA_RESOURCE_GUIDE 副资源 key（resonance/echo；原 core_resources.py 注册表 R2c 退役）。
+#   未命中的 (class, path) 回落职业默认单资源。
 # ============================================================
 BRANCH_RESOURCE_OVERRIDE = {
     # 基础法师无资源（纯蓝施法者）；攻线·元素法师 / 守线·奥秘法师 转职首获 元素亲和充能条(0-5)
@@ -232,18 +233,19 @@ QUALITY_UPGRADE_COST = {               # 品质提升额外消耗的稀有材料
 }
 
 # ============================================================
-# 隐藏线进阶变奏（总纲 §7.3，已由 core_resources 声明，此处仅留档说明）
+# 隐藏线进阶变奏留档（总纲 §7.3——v151 删隐藏线 + core_resources.py R2c 退役后无现网数据源，仅留档说明）
 #   龙力 dragon_might：刻末自然回 regen=1（_turn_start 通用 regen 管线已消费，龙脉沸腾）
 #   时之沙 time_sand：自动积沙 regen=1（同上）
-#   悼咏 canticle：overflow_shield=True 满溢转盾（见 core_resources，引擎溢出段消费）
+#   悼咏 canticle：overflow_shield=True 满溢转盾（v151 已删隐藏线；原 core_resources 字段 R2c 退役）
 #   禅意 zen：v151 已删（苦修士随 cls_wu_sheng 移除）；拳师蓄势（MOMENTUM_CFG）同型
 #     承担“持有资源加伤”，引擎挂点 battle.py _momentum_mult
 # ============================================================
 
 # ============================================================
 # v139 职业融合·6 大通用引擎机制（docs/EXTENSIBILITY_REFACTOR_PLAN_v139.md 实现基准）
-#   数据驱动：职业差异全部进各职业 core_resources dual_form/focus 字段与技能表，
-#   本文件只放 6 个通用机制（dual_form/focus/charge/vent/enemy_bar/counter）的引擎级数值，
+#   数据驱动：职业差异原进各职业 core_resources dual_form/focus 字段（v181.M-R2c 退役删除，
+#   字段值全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §0-§6）
+#   与技能表，本文件只放 6 个通用机制（dual_form/focus/charge/vent/enemy_bar/counter）的引擎级数值，
 #   以及 13 份职业方案（design/new_world/参考_云海猎团职业融合_v139_*.md）提炼的职业签名技数值。
 #   铁律：battle.py 禁止职业特判 if-elif；新增常量须 core/constants.py + core/__init__.py 导出；
 #   无字段 = 默认不启用（兼容旧数据）；数值过 run_numeric_tests.py 门禁 + v133 峰值红线（≤42% 同级怪血）。
@@ -252,9 +254,10 @@ QUALITY_UPGRADE_COST = {               # 品质提升额外消耗的稀有材料
 # ============================================================
 # 一、dual_form 双形态（通用形态机，v139 §1）
 #   消费端：battle.py 通用形态机（_dual_form_enter/_tick/_hit/_exit/_mult）；
-#   各职业差异字段在 core_resources.py 该职业的 dual_form 键下（enter_requirement /
-#   maintain_cost / hit_cost / hit_cost_cap / force_return / return_penalty / form /
-#   auto_enter / duration / lock_gain / no_hit_clear），本 CFG 只放引擎级通用数值与默认值。
+#   各职业差异字段（enter_requirement / maintain_cost / hit_cost / hit_cost_cap /
+#   force_return / return_penalty / form / auto_enter / duration / lock_gain / no_hit_clear）
+#   原在 core_resources.py 各职业 dual_form 键——R2c 退役后留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md §1；
+#   本 CFG 只放引擎级通用数值与默认值。
 #   免费切换是承重墙：进入/退出不占行动、不耗资源；强制回形态无惩罚（P1）；
 #   受击不清零（P3）：单刻至多扣 hit_cost_cap；状态随战斗 to_state/from_state 序列化。
 # ============================================================
@@ -267,22 +270,16 @@ DUAL_FORM_CFG = {
     "default_return_penalty": "none", # 默认强制回惩罚：P1 归零无惩罚（不晕/不空过）
     "auto_duration": 3,               # 自动形态持续刻（暮影影舞 auto_enter=True 时 3 刻）
     "dmg_bonus": 0.20,                # 形态增伤倍率默认值（狂暴/龙焰/影舞等形态内技能伤害 +20%）
-    # 各职业差异字段说明（实际值在 core_resources.py 对应职业 dual_form 键，引擎读职业字段）：
-    #   cls_zhan_shi（攻线狂战士 fury）：enter_requirement 10 / maintain 1 / hit 1 / cap 1 /
-    #     force_return 4 / return_penalty none / form fury；狂暴中双段普攻 2×70%，
-    #     破势斩入狂暴当刻自动追加 120% 物理（不占行动）；狂暴精通（被动）维持/受击 -1 → 0。
-    #   cls_dragon_oath（龙裔 dragon_flame）：enter_requirement 8（战前可下调 6）/ maintain 1 /
-    #     hit 1 / cap 1 / force_return 4 / form dragon_flame；龙焰形态龙息/龙爪/龙焰吐息 +20%，
-    #     龙焰初击入焰当刻追加 70% 真伤，龙焰吐息消耗 -1（-5→-4），龙脉终曲龙焰限定。
-    #   cls_shadow_blade（暮影 dance 影舞态）：auto_enter True / duration 3 / lock_gain True /
-    #     no_hit_clear True；影舞态内潜行乘区叠乘（破影一击 ×1.5 / 幽影刃 ×1.25）、CD 全 -1。
-    #   cls_wu_sheng（淬势者蓄势/倾泻）：显式化既有骨架，无形态动作不占行动，P1 归零无惩罚。
+    # 各职业差异字段说明（狂战士 fury / 龙裔 dragon_flame / 暮影 dance / 淬势者蓄势）——
+    #   原值在 core_resources.py 各职业 dual_form 键，随 v181.M-R2c 退役删除（v151 已删隐藏职业），
+    #   全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §1。
 }
 
 # ============================================================
 # 二、focus 架设态（通用专注机，v139 §2）
 #   消费端：battle.py 通用专注机（_focus_enter/_tick/_hit/_mult/_block/_exit）；
-#   职业差异在 core_resources.py 各职业 focus 字段；本 CFG 放引擎级默认值 + 法师/时咒数值。
+#   职业差异原在 core_resources.py 各职业 focus 字段（R2c 退役，值留档
+#   docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §2）；本 CFG 放引擎级默认值。
 #   核心规则：打断不清零（P3，资源保留只退态）；增伤不作用于耗资源大爆发技（防 EQ 超上限）；
 #   免费解除（承重墙）；受击打断概率挂 v130.2 批次 2 受击挂点。
 # ============================================================
@@ -297,14 +294,10 @@ FOCUS_CFG = {
     "blocked": ("attack", "skill", "swap"),  # 专注中禁止的行动（可防御/道具/逃跑）
     "free_exit": True,          # 主动解除 = 免费无损（承重墙，不扣充能不惩罚）
     "no_burst_skills": True,    # 增伤不作用于耗资源大爆发技（防 EQ 超上限，时咒教训）
-    # 各职业差异字段说明（实际值在 core_resources.py 对应职业 focus/stasis 键；法师/时咒
-    #   攻线留档 CFG 已随 P2E-P1a 删）：
-    #     cast_gain_extra 1（架设中施法命中充能 +1）/ interrupt_charge_loss 1（打断只掉 1 层）/
-    #     ctrl_break True（被晕/冻/沉默强制解除）/ stay_actions ("defend","use_item","flee")；
-    #     守线深度冥想：arcane_auto_per_turn 1（架设中每刻 arcane 叠层 +1，与奥术直觉叠加 = 每刻 +2）。
-    #   cls_chronomancer 时间凝滞（stasis）：enter_turn 1 / enter_gain 1 / gain_per_turn 1 /
-    #     dmg_bonus 0.40（不作用于耗沙大爆发）/ taken_bonus 0.20 / interrupt_rate 0.30 /
-    #     max_turns 3 / erosion_power 0.60（凝滞态每刻自动「时间侵蚀」60% 魔法伤害，不占行动）。
+    # 各职业差异字段说明（法师元素架设 / 守线深度冥想 / 时咒时间凝滞）——
+    #   原值在 core_resources.py 各职业 focus/stasis 键，随 v181.M-R2c 退役删除
+    #   （v151 已删隐藏职业 cls_chronomancer；法师 focus 同构值另见 classes.py 字段），
+    #   全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §2。
 }
 
 # ============================================================
@@ -347,14 +340,13 @@ VENT_CFG = {
     "vent_on_dodge": 15,              # 闪避成功泄压量（-15，伪装帷幕期间）
     "vent_on_mobile": 15,             # 机动技（风之疾走/风神降临）施放泄压量（-15）
     "max_delay": 1,                   # 最大可推迟刻（深排：凝神屏息延迟 1 刻释放，对齐倒地窗口）
-    # 各职业差异字段说明（实际值在 core_resources.py 对应职业 vent 字段）：
-    #   cls_you_xia 凝神屏息（v153 废弃留档常量已随 P2E-P1a 删；现网 core_resources
-    #     cls_you_xia.vent trigger=999 永不到达）：trigger 100 / auto True / reset 0 / seg_bonus 1 /
-    #     seg_low_cost_max 25 / seg_duration 1 / vent_on_dodge 15 / vent_on_mobile 15 / deep_delay 1；
+    # 各职业差异字段说明（游侠凝神屏息 / 星语猎印节流阀）——原值在 core_resources.py 各职业
+    #   vent 键，随 v181.M-R2c 退役删除（v153 废弃 + v151 删隐藏线 cls_wild_hunter），
+    #   全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §3：
+    #   cls_you_xia 凝神屏息（v153 废弃：vent trigger=999 永不到达——专注流量制）：
+    #     trigger 100 / auto True / reset 0 / seg_bonus 1 / vent_on_dodge 15 / vent_on_mobile 15 / max_delay 1；
     #     触发后屏息窗口标记 p_buffs["breathe_window"]（持续 1 刻）供技能 cond/联动消费。
-    #   cls_wild_hunter 猎印节流阀（星语猎印 v151 删除，猎印排气族留档常量已随 P2E-P1a
-    #     删）：猎印满 5 触发强制排气 / 排气余烬：排气后下刻首次命中猎印额外 +1 / 深排延迟 1 刻；
-    #     星移步闪避成功猎印 -1（泄压），占卜期间泄压 -2。
+    #   cls_wild_hunter 猎印节流阀（v151 删除）：猎印满 5 触发强制排气 / 星移步闪避成功猎印 -1。
 }
 
 # ============================================================

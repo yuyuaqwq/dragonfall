@@ -17,6 +17,7 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from ..commands.base import CommandBase, require_player
+from ..data.battle2_rules import EFFECT_RULES
 
 
 # v101.20 职业导师专属技能：TUTOR_SKILLS 只能导师教学学会，
@@ -27,8 +28,11 @@ def _tutor_mentor(cls_id: str):
     return C.CLASSES.get(cls_id, {}).get("tutor", ("职业导师", "各城"))
 
 
-# v112：核心资源 key → 中文名（skill 消耗展示用，数据源 CORE_RESOURCES，新增资源只改数据）
-_RES_CN = {rd["key"]: rd["name"] for rd in C.CORE_RESOURCES.values()}
+# v112：核心资源 key → 中文名（skill 消耗展示用，新增资源只改数据）
+# v181.M-R2c：数据源改 EFFECT_RULES（battle2_rules.py 资源名/cap 单源；原 data/core_resources.py
+#   已退役删除）。只收带 name 的效果条目（dragon_mark/curse/burn 等效果类无 name 不参与资源名展示，
+#   同旧表「仅职业/副资源条目有 name」口径并扩及 zhan_yi/连段/奥术 等新注册名）；未命中 key 兜底原样。
+_RES_CN = {k: v.get("name") for k, v in EFFECT_RULES.items() if v.get("name")}
 
 # v130.2f.2 苦修档位改名收尾（展示层）：evolve_branches 分支 key（与 skills.py BRANCH_SKILLS
 # 强耦合、绝不可动）→ 新档位展示名。仅苦修线：T1 武僧→淬势者、T2 大地武僧→锻势行者
@@ -1423,7 +1427,7 @@ class PlayerCmds(CommandBase):
         else:
             status = f"🔒 未学会(Lv.{info['lv']} 解锁)"
         # v104 R3 P2-3：消耗行同源展示（mp + res_cost + 精力），与 combat.py 技能列表口径一致
-        # v112：资源中文名数据驱动（CORE_RESOURCES，新增资源只改数据）
+        # v112：资源中文名数据驱动（v181.M-R2c 源 = EFFECT_RULES，新增资源只改数据）
         # v161 意见#70：消耗显示与技能列表统一——资源项带 `-` 前缀（消耗=扣减，与 res_gain 的 `+` 区分）
         _costs = []
         if info.get("mp"):

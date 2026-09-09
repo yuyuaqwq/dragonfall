@@ -113,7 +113,8 @@ def peak_of(cls, lv, loadout, diff, seeds=25, branch=False):
             random.seed(sd * 131 + lv * 7 + diff * 3 + len(rows))
             m2 = build_monster(base_mon, {'name': '靶场', 'id': 'scan_range', 'area': 'field'})
             b = Battle('monster', enemy=m2, player=pd)
-            # 资源给满（峰值口径：按 core_resources 上限注入，禁 999 防"层数×倍率"爆炸）
+            # 资源给满（峰值口径：按旧 core_resources 上限注入——R2c 退役，上限值同 EFFECT_RULES cap；
+            # 禁 999 防"层数×倍率"爆炸）
             RES_MAX = {'rage': 10, 'element': 5, 'energy': 100, 'faith': 10, 'cp': 5,
                        'chi': 10, 'dragon_might': 10, 'time_sand': 5, 'hunt_mark': 5,
                        'canticle': 10, 'shadow_step': 5, 'zen': 10, 'resonance': 10, 'echo': 3}

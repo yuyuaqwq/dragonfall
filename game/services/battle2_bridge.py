@@ -292,8 +292,8 @@ def prepare_player_for_battle(player: dict, title_bonus: Optional[dict] = None,
     except Exception:
         pass
     # 【v181.M-R2b 删除原步骤 5】v139 core_resource 配置注入（dual_form/focus/vent 挂 player）——
-    #    core_resources.py 退役，注入无消费端（形态层未实现；battle_modes/battle_conds 为 v139
-    #    遗留空壳，字段缺失=引擎默认不启用，无读者报错）。
+    #    core_resources.py 退役删除（R2b 函数层 + R2c 文件本体），注入无消费端（形态层未实现；
+    #    battle_modes/battle_conds 为 v139 遗留空壳，字段缺失=引擎默认不启用，无读者报错）。
     return player
 
 

@@ -456,7 +456,8 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
         "elem_res": float(mod.get("elem_res", 0) or 0),
         "abyss_res": float(mod.get("abyss_res", 0) or 0),
         "on_taken": mod.get("on_taken"),
-        # v177 actor 资源（Boss 改造）：怪物可配 resource_def（内联定义或引用 CORE_RESOURCES key）
+        # v177 actor 资源（Boss 改造）：怪物可配 resource_def（内联定义；引用 key 时语义同
+        # EFFECT_RULES/job_guide 展示表——原 CORE_RESOURCES 注册表已随 v181.M-R2c 退役）
         "resource_def": mod.get("resource_def"),
         # v178 E5/E10：元素免疫/弱点表 + 阶段承伤乘区静态配置透传（引擎 _enemy_mitigate /
         # _boss_dmg_filter 已支持读 enemy dict 字段——此前不透传导致 MONSTER_MODS 配了不生效）

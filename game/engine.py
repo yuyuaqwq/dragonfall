@@ -53,7 +53,7 @@ def element_mark_apply(target_marks: dict, element: str, layers: int = 1, max_la
 
 
 # v181.M-R2b：core_resource_def / core_resource_def_by_key 已退役删除（旧 core_resources.py
-# 按 class/key 查资源定义；现资源名/cap 单源 = EFFECT_RULES（game/data/battle2_rules.py），
+# 按 class/key 查资源定义——文件本体已随 v181.M-R2c 退役删除；现资源名/cap 单源 = EFFECT_RULES（game/data/battle2_rules.py），
 # 展示名查 EFFECT_RULES[key].name、上限查 cap——脱战校验/技能表/药水调用点已全部改读新源）。
 
 

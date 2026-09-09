@@ -11,7 +11,8 @@ ch = C.CLASSES['cls_chronomancer']
 print('cls_chronomancer:', ch['name'], ch['evolve_branches'], '| 血缘:', ch['src_base'])
 
 print('=== 技能 ===')
-print('PLAYER_SKILLS:', len(C.PLAYER_SKILLS), '| BRANCH_SKILLS:', len(C.BRANCH_SKILLS), '| 资源:', len(C.CORE_RESOURCES))
+print('PLAYER_SKILLS:', len(C.PLAYER_SKILLS), '| BRANCH_SKILLS:', len(C.BRANCH_SKILLS),
+      '| 职业资源表:', len(getattr(C, 'CORE_RESOURCE_GUIDE', {})), '| 副资源表:', len(getattr(C, 'EXTRA_RESOURCE_GUIDE', {})))
 fsb = C.BRANCH_SKILLS['cls_fa_shi']['branches']
 for t in (1, 2, 3):
     print('  fa_shi t%d:' % t, {bn: [s['name'] for s in sk.values()] for bn, sk in fsb[t].items()})

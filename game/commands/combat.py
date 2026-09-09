@@ -140,7 +140,8 @@ def resource_stack_text(effects) -> str:
 def _res_display_name(key: str) -> str:
     """资源/效果 key → 展示中文名（v181.M-R2b 单源：EFFECT_RULES[key].name，无条目兜底 key）。
 
-    旧 core_resources.py 按职业主资源取名（engine.core_resource_def 按 class 查）已退役——
+    旧数据源 core_resources.py（按职业主资源取名 + engine.core_resource_def 按 class 查）已退役删除——
+    （M-R2b 函数退役，M-R2c 文件本体删除；现网名单源 = EFFECT_RULES）
     res_cost/res_gain 的 key 直查 EFFECT_RULES（energy→精力 / zhan_yi→战意 / faith→信仰值…，
     cap 亦同表）。读数据表本体而非 config 挂载，保证脱战/技能列表等命令上下文不依赖挂载时机。
     """

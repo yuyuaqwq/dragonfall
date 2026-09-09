@@ -3220,7 +3220,8 @@ ITEMS.update({
 #   - buff_phys_next        下一次气力/物理技能 +P%     effect_data {pct}
 #   - full_tension（游侠守线专属满弦）                  effect_data {turns}
 # ⚠️ v130.2 基础法师无资源（纯蓝）：元素结晶/元素亲和药剂 按设计稿 §7 落地为纯蓝补给，不做充能写入（攻线限定说明见 desc）。
-# 资源 key 对齐 core_resources.py：rage / energy / faith / cp / chi / time_sand（法师基础 element 不再写入）。
+# 资源 key 对齐 EFFECT_RULES（name/cap 单源；原 core_resources.py 已随 v181.M-R2c 退役）：
+# rage / energy / faith / cp / chi / time_sand（法师基础 element 不再写入）。
 # 价格口径：一般 45-200 金、传说级特殊消耗品 400+（参考现有效果类物品；设计稿银/金参考值已按经济系统校准）。
 ITEMS.update({
     # ---- 战士线（怒气 rage，max 10）----

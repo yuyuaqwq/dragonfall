@@ -401,7 +401,7 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
     res_key = None
     res_max = 0
     regen = 0.0
-    # 读 balance_data JSON 拿资源（若无则从 core_resources 推）
+    # 读 balance_data JSON 拿资源（若无则从 job_guide 展示表 + EFFECT_RULES 推）
     json_path = os.path.join(_BM_DIR, "..", "balance_data", f"{cls_id}.json")
     if os.path.exists(json_path):
         try:
@@ -413,12 +413,17 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
         except Exception:
             pass
     if not res_key:
-        # fallback core_resources
-        from data.plugins.dragonfall.game.data import core_resources as CR
-        cr = CR.CORE_RESOURCES.get(cls_id, {})
-        res_key = cr.get("key")
-        res_max = int(cr.get("max", 0))
-        regen = float(cr.get("regen", 0))
+        # fallback：job_guide CORE_RESOURCE_GUIDE（cid→key）+ EFFECT_RULES（cap / period.amount 折算 regen）
+        # （原 data/core_resources.py 表随 v181.M-R2c 退役——六职业 key/desc 迁 CORE_RESOURCE_GUIDE，
+        #   name/cap 单源 EFFECT_RULES；regen 18 对应 energy period dir=gain amount=18）
+        from data.plugins.dragonfall.game.data.job_guide import CORE_RESOURCE_GUIDE
+        from data.plugins.dragonfall.game.data.battle2_rules import EFFECT_RULES
+        _cfg = CORE_RESOURCE_GUIDE.get(cls_id, {})
+        res_key = _cfg.get("key")
+        _er = EFFECT_RULES.get(res_key, {}) if res_key else {}
+        res_max = int(_er.get("cap", 0) or 0)
+        _period = _er.get("period") if isinstance(_er.get("period"), dict) else {}
+        regen = float(_period.get("amount", 0) or 0)
 
     # 目标
     if target is None:

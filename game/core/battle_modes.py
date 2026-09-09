@@ -62,7 +62,8 @@ def modes_state(player: dict) -> dict:
 # ============================================================
 
 def dual_form_def(player: dict) -> dict:
-    """读取玩家 dual_form 数据定义（core_resources 字段），无则 {}。"""
+    """读取玩家 dual_form 数据定义（v139 形态字段——原 core_resources.py 定义随 R2c 退役，字段值
+    留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §1），无则 {}。"""
     return player.get("dual_form") or {}
 
 
