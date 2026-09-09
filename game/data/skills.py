@@ -611,7 +611,7 @@ PLAYER_SKILLS = {
              
              
              'cast': 0.3,
-             'shaken_gain': 0,
+             'shaken_gain': 2,
              'name': '直拳',
              'desc': '拳风凌厉直捣要害——造成 55% 物理攻击 + 11 固定物理伤害（成长），命中即推破绽条'
             },
@@ -625,7 +625,7 @@ PLAYER_SKILLS = {
              
              'cast': 0.45,
              'cd': 8,
-             'shaken_gain': 0,
+             'shaken_gain': 3,
              'cond': {"type": "enemy_broken", "mult": 1.3},
              'name': '侧踢',
              'desc': '侧身旋踢扫向破绽处——造成 90% 物理攻击 + 14 固定物理伤害（成长），推破绽条；对破防目标伤害 ×1.3'
@@ -640,7 +640,7 @@ PLAYER_SKILLS = {
              
              'cast': 0.5,
              'cd': 12,
-             'shaken_gain': 0,
+             'shaken_gain': 5,
              'name': '钢拳',
              'desc': '钢拳崩裂护甲——造成 90% 物理攻击 + 15 固定物理伤害（成长），推破绽条并使目标破防'
             },
@@ -655,7 +655,7 @@ PLAYER_SKILLS = {
              'cast': 0.45,
              'cd': 12,
              'hits': 3,
-             'shaken_gain': 0,
+             'shaken_gain': 5,
              'name': '连招三连',
              'desc': '拳影连珠三连轰击——每段造成 35% 物理攻击 + 9 固定物理伤害×3（成长），三段皆推破绽条'
             },
@@ -685,7 +685,7 @@ PLAYER_SKILLS = {
              'cd': 12,
              'mech': 'stun',
              'mech_val': 2.0,
-             'shaken_gain': 0,
+             'shaken_gain': 15,
              'name': '震地击',
              'desc': '重拳砸地震裂大地——造成 90% 物理攻击 + 15 固定物理伤害（成长），40% 概率眩晕 2.0 刻'
             },
@@ -699,7 +699,7 @@ PLAYER_SKILLS = {
              
              'cast': 0.4,
              'cd': 12,
-             'shaken_gain': 0,
+             'shaken_gain': 3,
              'name': '冲拳',
              'desc': '蓄势冲拳破阵而入——造成 110% 物理攻击 + 18 固定物理伤害（成长），位移至前排并推破绽条'
             },
@@ -3225,7 +3225,7 @@ BRANCH_SKILLS = {
              
                         'cast': 0.4,
                         'cd': 8,
-                        'shaken_gain': 0,
+                        'shaken_gain': 5,
                         'name': '疾风拳',
                         'desc': '疾风骤雨般连打出拳——造成 50% 物理攻击 + 14 固定物理伤害（成长），推破绽条；速度比 ≥1.3 时推条额外 +6'
                     },
@@ -3239,7 +3239,7 @@ BRANCH_SKILLS = {
              
                         'cast': 0.45,
                         'cd': 12,
-                        'shaken_gain': 0,
+                        'shaken_gain': 5,
                         'aoe': 'front',
                         'name': '旋风踢',
                         'desc': '旋风扫堂踢撼前排——造成 55% 物理攻击 + 14 固定物理伤害（成长），AOE 推破绽条（前排全体）'
@@ -3254,7 +3254,7 @@ BRANCH_SKILLS = {
              
                         'cast': 0.6,
                         'cd': 12,
-                        'shaken_gain': 0,
+                        'shaken_gain': 15,
                         'cond': {"type": "enemy_broken", "mult": 1.45},
                         'name': '碎颅势',
                         'desc': '拳锋直取天灵要害——造成 75% 物理攻击 + 60 固定物理伤害（成长），对破防目标伤害 ×1.45'
@@ -3269,7 +3269,7 @@ BRANCH_SKILLS = {
              
                         'cast': 0.7,
                         'cd': 10,
-                        'shaken_gain': 0,
+                        'shaken_gain': 15,
                         'name': '崩拳',
                         'desc': '崩山一拳轰然砸落——造成 160% 物理攻击 + 38 固定物理伤害（成长），单次大幅推破绽条'
                     },
@@ -3311,7 +3311,7 @@ BRANCH_SKILLS = {
              
                         'cast': 0.4,
                         'cd': 8,
-                        'shaken_gain': 0,
+                        'shaken_gain': 5,
                         'name': '铁壁拳',
                         'desc': '铁壁横拳，攻守兼备——造成 40% 物理攻击 + 34 固定物理伤害（成长），推破绽条并获得护盾（推条值 ×1.5% 最大生命）持续 8 刻'
                     },
@@ -3336,7 +3336,7 @@ BRANCH_SKILLS = {
              
                         'cast': 0.25,
                         'cd': 12,
-                        'shaken_gain': 0,
+                        'shaken_gain': 5,
                         'cond': {"type": "guard_core", "per_core": 0.7},
                         'name': '磐岩释能',
                         'desc': '引磐核之力轰然释能——造成 66% 物理攻击 + 22 固定物理伤害（成长）并推破绽条，每枚磐核使伤害 +70%'
@@ -3370,7 +3370,7 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'shaken_gain': 0,
+                        'shaken_gain': 3,
                         'name': '反震',
                         'desc': '铜皮铁骨，力反其身——受击时对攻击者反弹 30% 伤害并推破绽条'
                     },
@@ -3399,7 +3399,7 @@ BRANCH_SKILLS = {
                         'cast': 0.5,
                         'cd': 12,
                         'hits': 4,
-                        'shaken_gain': 0,
+                        'shaken_gain': 4,
                         'name': '连环拳',
                         'desc': '拳如连珠四段疾打——每段造成 15% 物理攻击 + 16 固定物理伤害×4（成长），四段皆推破绽条'
                     },
@@ -3413,7 +3413,7 @@ BRANCH_SKILLS = {
              
                         'cast': 0.7,
                         'cd': 10,
-                        'shaken_gain': 0,
+                        'shaken_gain': 10,
                         'cond': {"type": "enemy_broken", "mult": 1.5},
                         'name': '气力裂空',
                         'desc': '气劲裂空，拳出破晓——造成 120% 物理攻击 + 162 固定物理伤害（成长），对破防目标伤害 ×1.5'
@@ -3429,7 +3429,7 @@ BRANCH_SKILLS = {
                         'cast': 0.6,
                         'cd': 16,
                         'hits': 3,
-                        'shaken_gain': 0,
+                        'shaken_gain': 5,
                         'name': '裂岳连击',
                         'desc': '裂岳之势三连重击——每段造成 22% 物理攻击 + 11 固定物理伤害×3（成长）；目标破绽 ≥20 时追加 1 段'
                     },
@@ -3453,7 +3453,7 @@ BRANCH_SKILLS = {
              
                         'cast': 0.7,
                         'cd': 16,
-                        'shaken_gain': 0,
+                        'shaken_gain': 10,
                         'mech2': 'stun',
                         'name': '震慑拳',
                         'desc': '震慑之拳直撼心神——造成 65% 物理攻击 + 95 固定物理伤害（成长），破防触发时额外眩晕 1.5 刻'
@@ -3491,7 +3491,7 @@ BRANCH_SKILLS = {
                         'cast': 0.3,
                         'cd': 16,
                         'mech': 'guard_core_burst',
-                        'shaken_gain': 0,
+                        'shaken_gain': 5,
                         'name': '磐核爆发',
                         'desc': '引爆磐核，一击惊天——造成 66% 物理攻击 + 13 固定物理伤害（成长），消耗全部磐核，每枚使伤害 +70%'
                     },
@@ -3545,7 +3545,7 @@ BRANCH_SKILLS = {
              
                         'cast': 0.8,
                         'cd': 20,
-                        'shaken_gain': 0,
+                        'shaken_gain': 12,
                         'cond': {"type": "enemy_shaken_scale", "mult": 1.0},
                         'name': '气力通天',
                         'desc': '气贯长天，一拳通神——造成 80% 物理攻击 + 109 固定物理伤害（成长），破绽越高伤害越高'
@@ -3561,7 +3561,7 @@ BRANCH_SKILLS = {
                         'cast': 0.6,
                         'cd': 16,
                         'hits': 4,
-                        'shaken_gain': 0,
+                        'shaken_gain': 3,
                         'name': '无影连打',
                         'desc': '拳影无痕四段连打——每段造成 18% 物理攻击 + 8 固定物理伤害×4（成长），四段皆推破绽条'
                     },
@@ -3575,7 +3575,7 @@ BRANCH_SKILLS = {
              
                         'cast': 0.8,
                         'cd': 16,
-                        'shaken_gain': 0,
+                        'shaken_gain': 18,
                         'name': '撼岳·终焉',
                         'desc': '撼岳终焉之拳崩天裂地——造成 175% 物理攻击 + 288 固定物理伤害（成长），推破绽条；破防时目标眩晕 2.0 刻'
                     },
@@ -3638,7 +3638,7 @@ BRANCH_SKILLS = {
                         'cast': 0.35,
                         'cd': 20,
                         'mech': 'guard_core_burst',
-                        'shaken_gain': 0,
+                        'shaken_gain': 10,
                         'name': '气力万法',
                         'desc': '气力汇万法于一拳——造成 66% 物理攻击 + 35 固定物理伤害（成长），消耗全部磐核，每枚使伤害 +70%'
                     },
@@ -3662,7 +3662,7 @@ BRANCH_SKILLS = {
              
                         'cast': 0.8,
                         'cd': 24,
-                        'shaken_gain': 0,
+                        'shaken_gain': 15,
                         'cond': {"type": "enemy_broken", "mult": 1.7},
                         'name': '磐岩·镇世',
                         'desc': '磐岩镇世，拳撼山河——造成 75% 物理攻击 + 120 固定物理伤害（成长），推破绽条；对破防目标伤害 ×1.7'
