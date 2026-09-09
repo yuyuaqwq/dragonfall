@@ -198,9 +198,11 @@ def test_action_override_unconsumed():
     e = mk_auto_enemy(atk=1)
     b = B2("monster", sides={"player": [p1], "enemy": [e]},
            action_override=lambda battle, action, actor, payload, target: (None, None))
+    ct_before = float(p1.get("ct", 0) or 0)
     logs, ended, who = b.human_act("weird_thing", None, p1)
     check("回落未知提示", any("未知" in l for l in logs), str(logs))
-    check("未消费不推 ct", p1.get("ct", 0) == 0, f"ct={p1.get('ct')}")
+    # N10-B6b：初始 ct 已播种（>0）；未消费动作 = ct 保持初始值不推
+    check("未消费不推 ct", abs(p1.get("ct", 0) - ct_before) < 1e-6, f"ct={p1.get('ct')} before={ct_before}")
 
 
 def main():
