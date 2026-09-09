@@ -107,9 +107,11 @@ def equipped_weapon_keys(actor: dict) -> list:
 #   full_pack——energy_blade 现网数据为 cost_reduce 型，非上限）v181.M-R2e 方案 A 已装：
 #   装配写 actor["cap_bonus"]（_apply_cap_bonus，覆盖写幂等），引擎 _cap_of 收敛点
 #   （effects 叠层 clamp/schedule period gain/渠道 gain clamp）读动态 cap = EFFECT_RULES
-#   基准 + cap_bonus。cost_reduce 型（energy_blade/arcane_focus/sigil_blessing）、cond
-#   修正型 ember_brand（怒气获取修正需资源获取事件钩子）、combo_recover（连招技标签
-#   语义）、regen 型 energy_tide/swift_tailwind（刻末条件回能走 R2 渠道口径）仍缺口。
+#   基准 + cap_bonus。cost_reduce 型（energy_blade/arcane_focus/sigil_blessing，消耗
+#   修正需引擎消耗管线挂钩——见缺口）、cond 修正型 ember_brand（怒气获取修正需资源
+#   获取事件钩子）、combo_recover（连招技标签语义）仍缺口；
+#   regen 型 energy_tide/swift_tailwind（每刻回能 turn_start）与 purify（驱散）
+#   v181.M-affixtail 已装（翻译器见下；cap clamp 全收敛 _cap_of）。
 # tier 语义（旧 _affix_effs）：effect.tiers[装备品质] 覆盖主数值键（如能量上限
 # full_pack purple 10/orange 20）；装配时按 item.quality 取档。
 
@@ -500,6 +502,46 @@ def _af_boiling_blood(aid, actor, eff):
                             "cond": "state_full", "state_key": "rage",
                             "mult": 1.0 - float(eff.get("dmg_reduce") or 0.08),
                             "tag": eff.get("tag") or "🛡️沸血"}]}
+
+
+# ============ N9.7 收尾（m_affixtail）：regen 型 + purify ============
+# regen 型（energy_tide/swift_tailwind）：effect {res, regen}（非 gain）→
+# turn_start 每刻回能（battle2「每刻」= 每行动，regen/meditate 同口径）；cap clamp
+# 走 we_affix_res_gain → _add_stacks → _cap_of（上限词条抬 cap 同源可攒满）。
+# 与 R4 gain 型同规则不按职业过滤（词条发放通用；资源归属职业由消耗端决定——
+# crit_charge/war_spirit R4 已发货行为一致，无职业判据零噪音）。
+
+
+@_register_affix("energy_tide")
+def _af_energy_tide(aid, actor, eff):
+    """精力潮汐：每刻 精力回复 +5（史诗 +5 / 传说 +10，tiers 取档）。"""
+    return {"turn_start": [{"type": "we_affix_res_gain", "key": aid,
+                            "res": "energy", "gain": int(eff.get("regen") or 5),
+                            "label": "🌊精力潮汐"}]}
+
+
+@_register_affix("swift_tailwind")
+def _af_swift_tailwind(aid, actor, eff):
+    """疾风余韵：刻末精力 ≥80 → 下刻 精力回复 +10（battle2 turn_start 判定当前
+    精力 ≥80 即回，持续维持线 ≈ 旧跨刻口径；cond=energy_ge_80 → cond_key/cond_ge
+    参数，动作侧静默跳过不满足）。"""
+    return {"turn_start": [{"type": "we_affix_res_gain", "key": aid,
+                            "res": "energy", "gain": int(eff.get("regen") or 10),
+                            "cond_key": "energy", "cond_ge": 80,
+                            "label": "🍃疾风余韵"}]}
+
+
+@_register_affix("purify")
+def _af_purify(aid, actor, eff):
+    """净化：命中 15% 驱散目标 1 层增益；成功 → 敌攻 -10%（1 刻）。
+
+    增益判定（N9_7 定稿）在动作侧 we_affix_purify：EFFECT_RULES/条目内嵌快照
+    查 op mul>1|add>0 / stat_scale 正层 / 自愈回能 period（battle2 effects 无
+    旧 mon_ 前缀概念）。purge_n/holy_weaken_pct 从 effect 取。"""
+    return {"hit": [{"type": "we_affix_purify", "key": aid, "aid": aid,
+                     "chance": _affix_chance_of(aid),
+                     "purge_n": int(eff.get("purge") or 1),
+                     "holy_weaken_pct": float(eff.get("holy_weaken") or 0.10)}]}
 
 
 def affix_triggers_for_key(aid: str, actor: dict) -> dict:
@@ -975,7 +1017,9 @@ def affix_triggers(actor: dict) -> dict:
     - 事件型走翻译器 + 事件映射展开（hit → attack_hit + skill_hit）
     - 资源型：R4 已装事件 gain 型 10 + boiling_blood；上限型 max_bonus 走
       _apply_cap_bonus（actor.cap_bonus 容器，非事件——apply_to_actor 第 0 步）；
-      cond 修正型/regen 型翻译器未注册 → 静默跳过（缺口清单见模块头注释与 affixes.py）
+      m_affixtail 已装 regen 型 2（energy_tide/swift_tailwind turn_start 回能）+
+      purify（命中驱散）；cond 修正型/职业机制词条翻译器未注册 → 静默跳过
+      （缺口清单见模块头注释与 affixes.py）
     """
     out: dict = {}
     for aid in equipped_affix_ids(actor):

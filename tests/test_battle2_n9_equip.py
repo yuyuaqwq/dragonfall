@@ -1230,6 +1230,127 @@ def ent(a, k):
     return e.get(k) or {}
 
 
+# ============================================================
+# N9.7 收尾（m_affixtail）：purify 净化 + regen 型回能装配
+# ============================================================
+
+def _affix_item(actor, aid, slot, quality="purple"):
+    actor.setdefault("equipment", {})[slot] = {
+        "slot": slot, "quality": quality, "affixes": [aid], "stats": {},
+    }
+    return actor
+
+
+def test_affix_purify():
+    print("【N9.7f purify 净化：命中 15% 驱散 1 层增益；成功 → 敌攻 -10%（1 刻）】")
+    # 装配：hit → attack_hit + skill_hit 双事件，参数 purge_n=1/chance=0.15/weaken 0.10
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=99999, atk=100)
+    _affix_item(p, "purify", "weapon", "purple")
+    EP.apply_to_actor(p)
+    tr = p.get("triggers") or {}
+    for ev in ("attack_hit", "skill_hit"):
+        pu = [e for e in tr.get(ev, []) if e.get("type") == "we_affix_purify"]
+        check(f"purify 展开 {ev}（chance 0.15/purge 1/weaken 0.10）",
+              len(pu) == 1 and abs(float(pu[0].get("chance") or 0) - 0.15) < 1e-9
+              and pu[0].get("purge_n") == 1
+              and abs(float(pu[0].get("holy_weaken_pct") or 0) - 0.10) < 1e-9,
+              f"{pu}")
+    # 端到端：目标带增益（atk_up 面板 mul>1）+ DOT（burn 非增益）→ 普攻命中驱散 1 层
+    for ev in ("attack_hit", "skill_hit"):
+        for e in tr.get(ev, []):
+            if e.get("type") == "we_affix_purify":
+                e["chance"] = 1.0  # 强制触发验证语义
+    b = new_battle(p, m)
+    m.setdefault("effects", {})["atk_up"] = {"stacks": 1, "expire": 99999,
+                                             "stat": "atk", "op": "mul", "mult": 1.30}
+    m.setdefault("effects", {})["burn"] = {"stacks": 2}
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    ef = m.get("effects") or {}
+    check("驱散 1 层增益（atk_up 清）", "atk_up" not in ef, f"effects={list(ef.keys())}")
+    check("DOT（burn）非增益不清", "burn" in ef, f"effects={list(ef.keys())}")
+    hw = ef.get("holy_weaken")
+    check("成功 → 圣洁削弱敌攻 -10% 1 刻",
+          hw and hw.get("stat") == "atk" and abs(float(hw.get("mult") or 0) - 0.90) < 1e-9
+          and hw.get("expire") is not None, f"hw={hw}")
+    from game.battle2 import stats as S
+    check("敌攻面板 ×0.90（100→90）", abs(S.actor_stats(b, m).get("atk", 0) - 90) < 1e-6,
+          f"atk={S.actor_stats(b, m).get('atk')}")
+    # 无增益目标：不驱散不削弱（圣洁只跟驱散成功）
+    p2 = mk_a("p2", "player")
+    _affix_item(p2, "purify", "weapon", "purple")
+    EP.apply_to_actor(p2)
+    for ev in ("attack_hit", "skill_hit"):
+        for e in (p2.get("triggers") or {}).get(ev, []):
+            if e.get("type") == "we_affix_purify":
+                e["chance"] = 1.0
+    m2 = mk_a("e2", "enemy", hp=99999, atk=100)
+    b2 = new_battle(p2, m2)
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    check("无增益目标不驱散不削弱", "holy_weaken" not in (m2.get("effects") or {}),
+          f"effects={list((m2.get('effects') or {}).keys())}")
+    # 减益（spd_down mul<1 / reduce 值型）不是增益，purify 不清
+    m3 = mk_a("e3", "enemy", hp=99999, atk=100)
+    b3 = new_battle(p2, m3)
+    m3.setdefault("effects", {})["spd_down"] = {"stacks": 1, "expire": 99999,
+                                                "stat": "spd", "op": "mul", "mult": 0.50}
+    m3.setdefault("effects", {})["atk_up"] = {"stacks": 1, "expire": 99999,
+                                              "stat": "atk", "op": "mul", "mult": 1.30}
+    b3.act(ActCtx(caster=p2, action="attack", target=m3))
+    ef3 = m3.get("effects") or {}
+    check("减益不清、增益被清", "spd_down" in ef3 and "atk_up" not in ef3,
+          f"effects={list(ef3.keys())}")
+
+
+def test_affix_regen_tail():
+    print("【N9.7g affix regen 型装配：energy_tide/swift_tailwind turn_start 回能】")
+    # energy_tide（purple tier 5）：装配 turn_start we_affix_res_gain
+    p = mk_a("p1", "player")
+    m = mk_a("e1", "enemy", hp=99999, atk=1)
+    _affix_item(p, "energy_tide", "armor", "purple")
+    EP.apply_to_actor(p)
+    ts = [e for e in (p.get("triggers") or {}).get("turn_start", [])
+          if e.get("type") == "we_affix_res_gain"]
+    check("energy_tide 装配 turn_start（gain 5 tier 档）",
+          len(ts) == 1 and ts[0].get("res") == "energy" and ts[0].get("gain") == 5,
+          f"{ts}")
+    b = new_battle(p, m)
+    p.setdefault("effects", {})["energy"] = {"stacks": 30}
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    check("每刻精力 +5（30→35）", stk(p, "energy") == 35,
+          f"energy={stk(p, 'energy')}")
+    # swift_tailwind（orange）：cond energy_ge_80 折算参数
+    p2 = mk_a("p2", "player")
+    m2 = mk_a("e2", "enemy", hp=99999, atk=1)
+    _affix_item(p2, "swift_tailwind", "ring", "orange")
+    EP.apply_to_actor(p2)
+    ts2 = [e for e in (p2.get("triggers") or {}).get("turn_start", [])
+           if e.get("type") == "we_affix_res_gain"]
+    check("swift_tailwind 装配 cond_key=energy/cond_ge=80",
+          len(ts2) == 1 and ts2[0].get("cond_key") == "energy"
+          and ts2[0].get("cond_ge") == 80 and ts2[0].get("gain") == 10,
+          f"{ts2}")
+    b2 = new_battle(p2, m2)
+    p2.setdefault("effects", {})["energy"] = {"stacks": 79}
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    check("精力 79 <80 不触发", stk(p2, "energy") == 79, f"energy={stk(p2, 'energy')}")
+    (p2.get("effects") or {})["energy"] = {"stacks": 80}
+    b2.act(ActCtx(caster=p2, action="attack", target=m2))
+    check("精力 80 ≥80 触发 +10", stk(p2, "energy") == 90,
+          f"energy={stk(p2, 'energy')}")
+    # 缺口词条（cost_reduce/cond/combo/职业机制）零装配零噪音
+    p3 = mk_a("p3", "player")
+    _affix_item(p3, "energy_blade", "weapon", "purple")
+    _affix_item(p3, "arcane_focus", "armor", "blue")
+    _affix_item(p3, "sigil_blessing", "ring", "blue")
+    _affix_item(p3, "ember_brand", "boots", "blue")
+    _affix_item(p3, "combo_recover", "helm", "blue")
+    _affix_item(p3, "sigil_engrave", "necklace", "purple")
+    EP.apply_to_actor(p3)
+    check("cost_reduce/cond/职业机制缺口词条零 triggers",
+          not (p3.get("triggers") or {}), f"triggers={p3.get('triggers')}")
+
+
 def main():
     print("=== N9 battle2 装备特效装配层测试 ===")
     test_damage_verb()
@@ -1262,6 +1383,8 @@ def main():
     test_affix_cond_mult()
     test_novice_hunt_combo()
     test_combo_end()
+    test_affix_purify()
+    test_affix_regen_tail()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

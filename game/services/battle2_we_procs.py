@@ -63,8 +63,13 @@ def _add_stacks(actor, key: str, amount: int, cap: int | None = None) -> int:
     if not isinstance(entry, dict):
         entry = ef[key] = {}
     if cap is None:
-        from game.battle2.state_effects import state_def
-        cap = int((state_def(key) or {}).get("cap") or 0) or 999999
+        # v181.M-affixtail cap 收敛：缺省 cap 走引擎 _cap_of（EFFECT_RULES 基础 +
+        # actor.cap_bonus 动态——上限词条 full_pack/rage_forge 等抬 cap 后，本文件
+        # 附赠通道（we_affix_res_gain 等）与主渠道同口径可攒满；无 cap_bonus 时与
+        # 旧静态 state_def 读等价（行为零变化）。调用方显式传 cap 的（dot/defdown 等
+        # 数值型叠层）语义不动。
+        from ..battle2.effects import _cap_of
+        cap = _cap_of(actor, key)
     cur = int(entry.get("stacks", 0) or 0)
     entry["stacks"] = max(0, min(cap, cur + int(amount)))
     return entry["stacks"]
@@ -1321,6 +1326,15 @@ def we_affix_res_gain(battle, caster, target, params, logs):
         return  # on_cast 语义 = 技能施放，普攻（basic 经 do_skill）不触发
     if not _roll(params.get("chance")):
         return
+    # v181.M-affixtail cond 门槛（swift_tailwind 疾风余韵：data cond=energy_ge_80
+    # 由装配层折算成 cond_key/cond_ge 参数——当前不足门槛 → 静默跳过不回复；
+    # 参数缺省 = 无条件，旧词条语义零变化）
+    ck = params.get("cond_key")
+    if ck and params.get("cond_ge") is not None:
+        _e = (owner.get("effects") or {}).get(ck)
+        _cur = float(_e.get("stacks", 0) or 0) if isinstance(_e, dict) else 0.0
+        if _cur < float(params.get("cond_ge") or 0):
+            return
     res = params.get("res") or ""
     gain = int(params.get("gain") or 0)
     if not res or gain <= 0:
@@ -1328,10 +1342,108 @@ def we_affix_res_gain(battle, caster, target, params, logs):
     n = _add_stacks(owner, res, gain)
     if n <= 0:
         return
-    from game.battle2.state_effects import state_def
-    cap = int((state_def(res) or {}).get("cap") or 0) or 999
+    # cap 展示走引擎 _cap_of（与 clamp 收敛点同源——上限词条抬 cap 后日志同口径）
+    from ..battle2.effects import _cap_of
+    cap = _cap_of(owner, res)
+    cap_txt = f"/{cap}" if cap < 999999 else ""
     logs.append(f"{params.get('icon') or '✦'} {params.get('label') or res} "
-                f"+{gain}（{n}/{cap}）")
+                f"+{gain}（{n}{cap_txt}）")
+
+
+# ============================================================
+# N9.7 收尾（m_affixtail）：purify 净化（命中驱散敌方增益 + 圣洁削弱）
+# ============================================================
+# 语义（旧 affix_effects._h_purify，v135 增强版）：命中 15%（数据表 chance）驱散
+# 目标 1 层增益（judgment_chain 专属 25% 驱散 2 层——传说词条，同族语义后续接线）；
+# 驱散成功 → 圣洁：敌人攻击 -10%（1 刻）。
+# battle2 buffs 并入 effects 无旧 mon_ 前缀概念 → N9_7 定稿的「增益」判定（查
+# EFFECT_RULES + 条目内嵌快照，引擎零名词）：
+#   - 面板快照型：op=mul 且 mult>1 / op=add 且 mult>0（正增益；op 缺省按 mul）
+#   - 叠层声明型：stat_scale 正系数（stacks>0 才有折算）
+#   - 周期自愈/回能型：period dir∈(heal/mana/gain)
+#   - value 型减伤（reduce）、负标记（negative）、控制（mode）、DOT 不属增益
+# 参数（装配层从 AFFIXES 表翻译）：purge_n（effect.purge）/holy_weaken_pct
+# （effect.holy_weaken）/chance（表 chance）。动作零词条硬编码。
+
+
+def _target_gain_keys(actor: dict) -> list:
+    """actor.effects 中按上述判据为「增益」的 key 列表（有序去重，无则 []）。"""
+    from ..battle2.state_effects import all_state_effects
+    ef = (actor or {}).get("effects") or {}
+    if not isinstance(ef, dict) or not ef:
+        return []
+    table = all_state_effects()
+    out = []
+    for key, entry in ef.items():
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("mode"):
+            continue  # 控制条目（stun/freeze…）不是增益
+        cfg = table.get(key) or {}
+        if cfg.get("negative"):
+            continue  # 显式负效果（虚弱/易伤类）不入驱散候选
+        # ① 面板快照（条目内嵌 stat/op/mult 或声明 panel）→ 正增益判定
+        stat = entry.get("stat") or (cfg.get("panel") or {}).get("stat")
+        mult = entry.get("mult")
+        if mult is None:
+            mult = (cfg.get("panel") or {}).get("mult")
+        if stat and mult is not None:
+            op = entry.get("op") or (cfg.get("panel") or {}).get("op") or "mul"
+            try:
+                mv = float(mult)
+            except Exception:
+                mv = 0.0
+            if (str(op) == "add" and mv > 0.0) or (str(op) != "add" and mv > 1.0):
+                out.append(key)
+                continue
+        # ② 叠层 stat_scale 正系数（每层增益；stacks>0）
+        n = int(entry.get("stacks", 0) or 0)
+        scale = cfg.get("stat_scale") or {}
+        if n > 0 and scale and all(
+                isinstance(v, (int, float)) and float(v) >= 0 for v in scale.values())\
+                and any(float(v) > 0 for v in scale.values()):
+            out.append(key)
+            continue
+        # ③ 周期自愈/回能（dir=heal/mana/gain 的 period 声明）
+        period = cfg.get("period")
+        if isinstance(period, dict) and str(period.get("dir") or "") in ("heal", "mana", "gain"):
+            out.append(key)
+    return out
+
+
+@register_action("we_affix_purify")
+def we_affix_purify(battle, caster, target, params, logs):
+    """affix 净化（purify）：命中 chance → 驱散目标 purge_n 层增益；成功附加圣洁
+    （敌攻 -holy_weaken_pct × 1 刻，面板 atk mul 快照——engine act_apply 语义）。"""
+    tgt = _hit_target(battle, target)
+    if not tgt or not actor_alive(tgt):
+        return
+    if not _roll(params.get("chance")):
+        return
+    purge_n = int(params.get("purge_n") or 0)
+    if purge_n <= 0:
+        return
+    gains = _target_gain_keys(tgt)
+    if not gains:
+        return
+    removed = 0
+    for _ in range(purge_n):
+        if not gains:
+            break
+        k = gains.pop(random.randrange(len(gains)))
+        (tgt.get("effects") or {}).pop(k, None)
+        removed += 1
+    if removed <= 0:
+        return
+    logs.append(f"✨ 净化！驱散了【{tgt.get('name', '目标')}】的 {removed} 层增益！")
+    wk = float(params.get("holy_weaken_pct") or 0)
+    if wk > 0:
+        from ..battle2.effects import act_apply
+        act_apply(battle, caster, tgt,
+                  {"type": "apply", "key": "holy_weaken", "stat": "atk", "op": "mul",
+                   "mult": 1.0 - wk, "turns": 1, "on": "target"}, logs)
+        logs.append("😇 圣洁之力！净化后敌人攻击下降 "
+                    f"{int(wk * 100)}%（1 刻）！")
 
 
 # ============================================================

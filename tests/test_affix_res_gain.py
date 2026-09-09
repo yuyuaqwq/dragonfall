@@ -317,18 +317,19 @@ def test_crit_res_gain():
 
 
 # ============================================================
-# T7 缺口词条零噪音（上限型/cost_reduce/cond 修正/combo/regen R4 未实施）
+# T7 缺口词条零噪音（上限型/cost_reduce/cond 修正/combo；regen 型 m_affixtail 已装）
 # ============================================================
 
 def test_gap_affixes_no_noise():
-    print("【R4.7 缺口词条不装配（零噪音）：上限型/cost_reduce/cond/combo/regen】")
+    print("【R4.7 缺口词条不装配（零噪音）：上限型/cost_reduce/cond/combo】")
     p = mk_a("pc", "player")
-    # 一件装备多个缺口词条（rage_forge/full_pack 上限型；energy_blade cost_reduce；
-    # ember_brand cond 修正；combo_recover 连招技；energy_tide regen 型）
+    # 一件装备多个缺口词条（rage_forge/full_pack 上限型走 cap_bonus 非事件；
+    # energy_blade cost_reduce；ember_brand cond 修正；combo_recover 连招技——
+    # energy_tide 等 regen 型已由 m_affixtail 装配（见 T9））
     p.setdefault("equipment", {})["weapon"] = {
         "slot": "weapon", "quality": "purple",
         "affixes": ["rage_forge", "full_pack", "energy_blade", "ember_brand",
-                    "combo_recover", "energy_tide"],
+                    "combo_recover"],
         "stats": {},
     }
     EP.apply_to_actor(p)
@@ -336,6 +337,122 @@ def test_gap_affixes_no_noise():
           f"triggers={p.get('triggers')}")
     check("缺口词条零 effects 条目", not (p.get("effects") or {}),
           f"effects={p.get('effects')}")
+    check("上限词条 cap_bonus 容器（非事件通道）", (p.get("cap_bonus") or {}).get("energy") == 10,
+          f"cap_bonus={p.get('cap_bonus')}")
+
+
+# ============================================================
+# T8 m_affixtail：we_affix_res_gain cap 收敛 _cap_of（上限词条抬 cap 后可攒满）
+# ============================================================
+
+def test_affix_gain_dynamic_cap():
+    print("【R4.8 affix 附赠通道 cap 收敛：full_pack 抬 cap 后暴击蓄能可攒满 110】")
+    from game.battle2.effects import _cap_of
+    # full_pack（purple +10 cap_bonus）+ crit_charge：crit 事件 energy+3 → cap 110
+    p = mk_a("pd", "player")
+    m = mk_a("ed", "enemy", hp=100000, atk=1)
+    equip_affix(p, "full_pack", "armor", quality="purple")
+    equip_affix(p, "crit_charge", "weapon", quality="purple")
+    EP.apply_to_actor(p)
+    check("full_pack cap_bonus.energy=10", (p.get("cap_bonus") or {}).get("energy") == 10,
+          f"cap_bonus={p.get('cap_bonus')}")
+    check("_cap_of 动态 cap=110", _cap_of(p, "energy") == 110, f"cap={_cap_of(p, 'energy')}")
+    b = new_battle(p, m)
+    for _ in range(40):  # 40×3 = 120 > 动态 cap 110
+        _fire(b, "crit", {"actor": p, "target": m, "dmg": 100}, [])
+    check("词条附赠通道攒满动态 cap（110 而非旧静态 100）",
+          stk(p, "energy") == 110, f"energy={stk(p, 'energy')}")
+    # 对照：无 full_pack → 静态 cap 100 clamp（行为不变）
+    p2 = mk_a("pe", "player")
+    m2 = mk_a("ee", "enemy", hp=100000, atk=1)
+    equip_affix(p2, "crit_charge", "weapon", quality="purple")
+    EP.apply_to_actor(p2)
+    b2 = new_battle(p2, m2)
+    for _ in range(40):
+        _fire(b2, "crit", {"actor": p2, "target": m2, "dmg": 100}, [])
+    check("无上限词条仍静态 cap 100", stk(p2, "energy") == 100,
+          f"energy={stk(p2, 'energy')}")
+    # divine_radiance（faith cap+1）：holy_echo 治疗施放 faith+1 → 可攒 11
+    p3 = mk_a("pf", "player")
+    m3 = mk_a("ef", "enemy", hp=100000, atk=1)
+    equip_affix(p3, "divine_radiance", "armor", quality="purple")
+    equip_affix(p3, "holy_echo", "weapon", quality="blue")  # gain 1
+    EP.apply_to_actor(p3)
+    b3 = new_battle(p3, m3)
+    check("divine_radiance cap_bonus.faith=1", (p3.get("cap_bonus") or {}).get("faith") == 1,
+          f"cap_bonus={p3.get('cap_bonus')}")
+    for _ in range(12):  # 12 次治疗施放 → 超过基础 10
+        _fire(b3, "act_cast", {"actor": p3, "target": m3,
+                               "info": {"name": "愈", "kind": "治疗"}}, [])
+    check("faith 附赠通道攒满动态 cap 11", stk(p3, "faith") == 11,
+          f"faith={stk(p3, 'faith')}")
+
+
+# ============================================================
+# T9 m_affixtail：regen 型 turn_start 回能（energy_tide/swift_tailwind）
+# ============================================================
+
+def test_regen_type_turn_start():
+    print("【R4.9 regen 型装配：energy_tide 每刻 +5（tier）/swift_tailwind 精力≥80 下刻 +10】")
+    # energy_tide purple：turn_start energy +5（tier 取档）
+    p = mk_a("pg", "player")
+    m = mk_a("eg", "enemy", hp=100000, atk=1)
+    equip_affix(p, "energy_tide", "armor", quality="purple")
+    EP.apply_to_actor(p)
+    tr = p.get("triggers") or {}
+    ts = [e for e in tr.get("turn_start", []) if e.get("type") == "we_affix_res_gain"]
+    check("energy_tide 装配 turn_start gain=5",
+          len(ts) == 1 and ts[0].get("res") == "energy" and ts[0].get("gain") == 5
+          and ts[0].get("cond_ge") is None, f"{ts}")
+    b = new_battle(p, m)
+    p.setdefault("effects", {})["energy"] = {"stacks": 50}
+    b.act(ActCtx(caster=p, action="attack", target=m))  # turn_start 回能
+    check("energy_tide 每刻精力+5（50→55）", stk(p, "energy") == 55,
+          f"energy={stk(p, 'energy')}")
+    # orange tier：+10
+    p2 = mk_a("ph", "player")
+    m2 = mk_a("eh", "enemy", hp=100000, atk=1)
+    equip_affix(p2, "energy_tide", "armor", quality="orange")
+    EP.apply_to_actor(p2)
+    ts2 = [e for e in ((p2.get("triggers") or {}).get("turn_start", [])
+                       if p2.get("triggers") else [])
+           if e.get("type") == "we_affix_res_gain"]
+    check("energy_tide 传说 tier gain=10", len(ts2) == 1 and ts2[0].get("gain") == 10,
+          f"{ts2}")
+    # swift_tailwind：energy<80 不触发；≥80 触发 +10（cap 100 clamp）
+    p3 = mk_a("pi", "player")
+    m3 = mk_a("ei", "enemy", hp=100000, atk=1)
+    equip_affix(p3, "swift_tailwind", "armor", quality="orange")
+    EP.apply_to_actor(p3)
+    ts3 = [e for e in ((p3.get("triggers") or {}).get("turn_start", [])
+                       if p3.get("triggers") else [])
+           if e.get("type") == "we_affix_res_gain"]
+    check("swift_tailwind 装配 cond_key=energy/cond_ge=80/gain=10",
+          len(ts3) == 1 and ts3[0].get("cond_key") == "energy"
+          and ts3[0].get("cond_ge") == 80 and ts3[0].get("gain") == 10, f"{ts3}")
+    b3 = new_battle(p3, m3)
+    p3.setdefault("effects", {})["energy"] = {"stacks": 75}
+    b3.act(ActCtx(caster=p3, action="attack", target=m3))  # 75 < 80 → 不触发
+    check("精力 75 <80 疾风余韵不触发", stk(p3, "energy") == 75,
+          f"energy={stk(p3, 'energy')}")
+    (p3.get("effects") or {})["energy"] = {"stacks": 85}
+    b3.act(ActCtx(caster=p3, action="attack", target=m3))  # 85 ≥80 → +10 → 95
+    check("精力 85 ≥80 疾风余韵 +10（85→95）", stk(p3, "energy") == 95,
+          f"energy={stk(p3, 'energy')}")
+    b3.act(ActCtx(caster=p3, action="attack", target=m3))  # 95 → +10 → 105 clamp 100
+    check("疾风余韵 cap 100 clamp（95→100）", stk(p3, "energy") == 100,
+          f"energy={stk(p3, 'energy')}")
+    # 与上限词条联动：full_pack（purple cap_bonus+10）+ swift_tailwind 满 110
+    p4 = mk_a("pj", "player")
+    m4 = mk_a("ej", "enemy", hp=100000, atk=1)
+    equip_affix(p4, "swift_tailwind", "armor", quality="orange")
+    equip_affix(p4, "full_pack", "ring", quality="purple")
+    EP.apply_to_actor(p4)
+    b4 = new_battle(p4, m4)
+    p4.setdefault("effects", {})["energy"] = {"stacks": 100}
+    b4.act(ActCtx(caster=p4, action="attack", target=m4))  # 100 ≥80 → +10 → 110
+    check("full_pack 抬 cap 后疾风余韵攒满 110", stk(p4, "energy") == 110,
+          f"energy={stk(p4, 'energy')}")
 
 
 def main():
@@ -347,6 +464,8 @@ def main():
     test_taken_and_kind_filters()
     test_crit_res_gain()
     test_gap_affixes_no_noise()
+    test_affix_gain_dynamic_cap()
+    test_regen_type_turn_start()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:
         for f in FAILURES:

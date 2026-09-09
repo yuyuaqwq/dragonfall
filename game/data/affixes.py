@@ -272,9 +272,12 @@ AFFIXES = {
     #     effect 无 on 时机）——「怒气获取时额外 +1」需资源获取事件钩子（装配层无对应事件位）；
     #   · combo_recover（on: combo_skill）——拳师「连招技」无技能标记事件判据，
     #     需词条级 kind/tag 语义核对；
-    #   · regen 型 energy_tide/swift_tailwind（effect {res, regen} 非 gain）——
-    #     每刻/条件回能属 R2 渠道口径（regen 单源化批次；原 core_resources regen 已随 R2c 退役，
-    #     energy 渠道现于 EFFECT_RULES period 声明）。
+    #   · ⛔ regen 型 energy_tide/swift_tailwind 与 purify → v181.M-affixtail 已装
+    #     （energy_tide/swift_tailwind：turn_start 回能 we_affix_res_gain，swift_tailwind
+    #     cond energy_ge_80 → cond_key/cond_ge 参数；purify：命中驱散 we_affix_purify，
+    #     增益判定 = 面板 op mul>1/add>0 / stat_scale 正层 / 自愈回能 period，
+    #     成功附加圣洁敌攻 -10% 1 刻——见 docs/REFACTOR_v181P4_N9_7_affix_migration.md
+    #     §5 收尾批；we_affix_res_gain cap clamp 同批收敛 _cap_of（上限词条抬 cap 可攒满））。
     # ================= 战士（怒气 rage ）=================
     "war_spirit": {
         "name": "战意", "kind": "attack", "trigger": "passive",

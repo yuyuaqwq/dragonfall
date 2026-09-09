@@ -276,6 +276,12 @@ EFFECT_RULES: dict = {
     "spd_down": {"cap": 1, "tag": "spd_down", "cleanse": True, "negative": True},
     # reduce：value 型减伤（effects[key].v）；净化遍历查表清（原 CLEANSE_TAGS 含 reduce）
     "reduce":   {"cap": 1, "cleanse": True, "negative": True},
+    # ============ N9.7 收尾（m_affixtail）：purify 圣洁削弱 ============
+    # 净化词条（purify）驱散成功后给敌方挂的 1 刻攻击 -10%（panel atk×0.90 快照，
+    # we_affix_purify 动作经 engine act_apply 写入；negative 标记使增益判定/净化
+    # 遍历天然不把它当增益回扫——语义记录 + 规则表一致性的纯声明行）
+    "holy_weaken": {"cap": 1, "tag": "holy_weaken", "negative": True,
+                    "panel": {"stat": "atk", "op": "mul", "mult": 0.90}},
 }
 
 # ============================================================
