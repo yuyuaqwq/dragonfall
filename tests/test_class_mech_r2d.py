@@ -132,18 +132,18 @@ def t_heal_cast():
 
 
 def t_clamp_cap():
-    print("【3. 连续治疗 clamp cap：堆满 10 封顶（溢出安全）】")
+    print("【3. 连续治疗 clamp cap + 过载复位：+2 堆到 10 封顶不溢出，满即过载清零（R2e）】")
     p = mk_priest()
     e = mk_enemy()
     b = _battle(p, e)
     info = {"kind": "治疗", "hp_pct": 0.05, "name": "小治愈"}
     seen = []
-    for _i in range(7):  # +2 × 7 = 14 → 应 clamp 在 10
+    for _i in range(7):  # +2 × 7：2,4,6,8 后第 5 次到 10 → 过载清零（0）→ 2,4
         A.do_skill(b, ActCtx(caster=p, action="skill", skill_name="小治愈",
                              info=info, target=None))
         seen.append(_faith_stacks(p))
-    check("序列 2,4,6,8,10,10,10（cap10 封顶不溢出）",
-          seen == [2, 4, 6, 8, 10, 10, 10], f"seen={seen}")
+    check("序列 2,4,6,8,0,2,4（cap10 clamp 不溢出；v181.M-R2e 满 10 过载清零复位）",
+          seen == [2, 4, 6, 8, 0, 2, 4], f"seen={seen}")
 
 
 def t_taken():
@@ -205,7 +205,7 @@ def t_regress():
     check("游侠 energy 开局满 100（R2a 不回退）",
           isinstance(ef, dict) and int(ef.get("stacks", 0)) == 100, repr(ef))
     p = mk_priest()
-    check("牧师开局无 faith 条目（faith 无 start_full/无 period——事件渠道驱动）",
+    check("牧师开局无 faith 条目（faith 无 start_full——事件渠道驱动；period 衰减只作用于已有条目）",
           "faith" not in (p.get("effects") or {}), repr(p.get("effects")))
     w = mk_warrior()
     check("战士无 energy 条目（start_classes 归属仍防白拿）",

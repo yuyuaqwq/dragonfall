@@ -154,10 +154,14 @@ def install() -> None:
         - res/gain/label 全由声明写入，动作零资源 key 硬编码
         - kind / not_basic 事件过滤（heal_cast 时机只认 kind=治疗 行动——普攻/攻击技能
           施放不触发，防误攒；参数由装配时从渠道时机映射写入）
-        - cap clamp 查 EFFECT_RULES[res].cap（动作侧 min(cap, cur+gain)，满层不溢出不刷值）
+        - cap clamp 查 _cap_of（v181.M-R2e 方案 A 收敛：EFFECT_RULES 基础 + actor
+          cap_bonus 动态——faith 上限词条 divine_radiance/holy_heart 生效）；
+          stacks float 读/写归一（B3——衰减后 3.9 +2 → 5.9 精度保真）
+        - 写后广播 threshold（v181.M-R2e B2：渠道攒到满 cap 的当次触发——过载钩子
+          依赖；对齐 effects.apply op=add 的 threshold 广播口径）
         """
         from ..battle2.actors import actor_alive
-        from ..battle2.state_effects import state_def
+        from ..battle2.effects import _cap_of as _cap_fn, _norm_stack as _ns
         owner = params.get("_owner") or caster
         if owner is None or not actor_alive(owner):
             return
@@ -169,24 +173,142 @@ def install() -> None:
         if params.get("not_basic") and info.get("_basic"):
             return
         res = params.get("res") or ""
-        gain = int(params.get("gain") or 0)
+        gain = float(params.get("gain") or 0)
         if not res or gain <= 0:
             return
-        cap = int((state_def(res) or {}).get("cap") or 0) or 999999
+        cap = _cap_fn(owner, res)
         ef = owner.setdefault("effects", {})
         entry = ef.get(res)
-        cur = int(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0
+        cur = float(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0.0
         if cur >= cap:
             return
-        n = max(0, min(cap, cur + gain))
-        if n == cur:
+        n = max(0.0, min(float(cap), cur + gain))
+        if abs(n - cur) < 1e-9:
             return
         if not isinstance(entry, dict):
             entry = ef[res] = {}
-        entry["stacks"] = n
+        entry["stacks"] = _ns(n)
         cap_txt = f"/{cap}" if cap < 999999 else ""
         logs.append(f"{params.get('icon') or '✦'} {params.get('label') or res} "
-                    f"+{gain}（{n}{cap_txt}）")
+                    f"+{_ns(gain):g}（{_ns(n)}{cap_txt}）")
+        # v181.M-R2e B2：叠层变化后广播 threshold（过载/阈值机制同一口径）
+        try:
+            from ..battle2.effect_triggers import fire as _fire
+            _fire(battle, "threshold", {"actor": owner, "key": res, "value": n}, logs)
+        except Exception:
+            pass
+
+    # ---- v181.M-R2e B2：牧师信仰负载制（档位乘区 + 过载）两个装配动作 ----
+    # 数据源 = EFFECT_RULES faith 条目 load_tiers/overload_heal_pct（声明驱动，
+    # 动作零职业知识——只有装配层按 start_classes 给牧师挂钩，防白拿）。
+
+    def _faith_tiers() -> list:
+        """EFFECT_RULES faith 条目 load_tiers 档位表（缺省 []——零默认值铁律）。"""
+        try:
+            from ..battle2.state_effects import state_def
+            _t = (state_def("faith") or {}).get("load_tiers")
+            return _t if isinstance(_t, list) else []
+        except Exception:
+            return []
+
+    @register_action("class_faith_load_tier")
+    def class_faith_load_tier(battle, caster, target, params, logs):
+        """heal_calc：牧师信仰负载档位治疗乘区（v181.M-R2e B2）。
+
+        施法者（_owner）查自身 effects[faith].stacks（float 保真——衰减 9.3 也准）→
+        load_tiers 档位（max 升序，取首个 stacks<=max 的档：0-3 清醒 / 4-7 专注 ×1.25 /
+        8-9 透支 ×1.5 / 10 过载 ×1.0）→ heal_mult 累乘进 ctx.mult。无条目/0 层 →
+        清醒档 ×1.0（零行为）；超过末档 max（cap_bonus 超高瞬态）→ 末档兜底。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        owner = params.get("_owner") or caster
+        if owner is None:
+            return
+        tiers = _faith_tiers()
+        if not tiers:
+            return
+        entry = (owner.get("effects") or {}).get("faith")
+        cur = float(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0.0
+        mult = 1.0
+        label = ""
+        for t in tiers:
+            if not isinstance(t, dict):
+                continue
+            mx = float(t.get("max", 0) or 0)
+            if mx < 0:
+                continue
+            if cur <= mx:
+                mult = float(t.get("heal_mult", 1.0) or 1.0)
+                label = str(t.get("label") or "")
+                break
+        else:
+            # 超过末档 max（cap_bonus 抬 cap 后 10+ 层瞬态）：取最后一档声明
+            _last = tiers[-1] if tiers else {}
+            if isinstance(_last, dict):
+                mult = float(_last.get("heal_mult", 1.0) or 1.0)
+                label = str(_last.get("label") or "")
+        if mult != 1.0:
+            ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * mult
+            logs.append(f"✨ 信仰{label or '专注'}！治疗 ×{mult:.2f}（{cur:g} 层）")
+
+    @register_action("class_faith_overload")
+    def class_faith_overload(battle, caster, target, params, logs):
+        """threshold：信仰叠到满 cap 的当次 → 过载（v181.M-R2e B2）。
+
+        - 触发点 = 叠层 clamp 后 threshold 事件（effects.apply op=add/set 与渠道
+          gain 均广播，subject=叠层者自己——只处理自己声明）
+        - 判据：ctx.key==faith 且 ctx.value 达 _cap_of 满额（叠到 cap 当次）
+        - 效果：faith 清零 + 我方全员回复 max_hp × overload_heal_pct（v130 旧值
+          0.015；圣化被动 faith_overload_heal 属旧被动域，battle2 未接——不乘）
+        - 防重复：满层后的再次 clamp（已满 +n 仍广播 value=cap）不再触发——过载帧
+          标记 _faith_overload_at（近 0.5 刻内只一次）；触发即清零自然离开满层，
+          下次重新攒满才再次过载。
+        """
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        if ctx.get("key") != "faith":
+            return
+        owner = params.get("_owner") or caster
+        if owner is None:
+            return
+        try:
+            from ..battle2.effects import _cap_of as _cap_fn
+            cap = _cap_fn(owner, "faith")
+        except Exception:
+            return
+        val = float(ctx.get("value", 0) or 0)
+        if val + 1e-9 < cap:
+            return  # 未满 cap 不触发（threshold 每层变化都广播）
+        now = float(getattr(battle, "_now", 0.0) or 0.0)
+        last = float(owner.get("_faith_overload_at", -99.0) or -99.0)
+        if now - last < 0.5:
+            return  # 过载帧标记：同刻/近帧已过载（满后再次 clamp 广播不重复触发）
+        owner["_faith_overload_at"] = now
+        # 清零 + 全队回复（同 side 存活成员）
+        ef = owner.setdefault("effects", {})
+        fentry = ef.get("faith")
+        if isinstance(fentry, dict):
+            fentry["stacks"] = 0
+        pct = 0.015
+        try:
+            from ..battle2.state_effects import state_def
+            pct = float((state_def("faith") or {}).get("overload_heal_pct", 0.015) or 0.015)
+        except Exception:
+            pct = 0.015
+        from ..battle2.actors import actor_alive
+        from ..battle2.landing import heal_actor
+        healed = 0
+        side = owner.get("side") or "player"
+        for _a in (getattr(battle, "sides", None) or {}).get(side, []) or []:
+            if not actor_alive(_a):
+                continue
+            _val = max(1, int((_a.get("max_hp", 1) or 1) * pct))
+            _real = heal_actor(battle, _a, _val, logs)
+            if _real > 0:
+                healed += _real
+        logs.append(f"⚡ 信仰过载！圣光迸发，全员回复 {healed} 点生命！"
+                    if healed > 0 else "⚡ 信仰过载！信念归零（全员生命已满）！")
 
     _registered = True
 
@@ -321,6 +443,22 @@ def apply_class_mech(actor: dict) -> None:
             apply_class_channels(actor, _effect_rules())
         except Exception:
             pass  # 渠道装配异常不阻断开战（容错铁律）
+        # v181.M-R2e B2：牧师信仰负载制装配——faith 条目声明 load_tiers（有档位表才挂，
+        # 零默认值铁律）+ start_classes 归属过滤（非牧师不挂，防白拿 heal_calc 乘区）：
+        #   heal_calc  → 施法时按自身 faith 层查档位 heal_mult 乘入（档位乘区）
+        #   threshold  → 叠层到满 cap 的当次触发过载（清零 + 全队回复）
+        try:
+            _fc = (_effect_rules() or {}).get("faith") or {}
+            if isinstance(_fc.get("load_tiers"), list) and _fc.get("load_tiers"):
+                _fsc = _fc.get("start_classes") or []
+                _cn2 = actor.get("class_name") or ""
+                if not _fsc or _cn2 in _fsc:
+                    trig.setdefault("heal_calc", []).append(
+                        {"type": "class_faith_load_tier", "res": "faith"})
+                    trig.setdefault("threshold", []).append(
+                        {"type": "class_faith_overload", "res": "faith"})
+        except Exception:
+            pass  # 负载制装配异常不阻断开战（容错铁律）
         mechs = {info.get("mech") for _s, info in _learned_mech_skills(actor)}
         for mech in mechs:
             cash = rules.get(mech)

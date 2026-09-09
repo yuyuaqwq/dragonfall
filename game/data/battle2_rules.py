@@ -84,6 +84,22 @@ EFFECT_RULES: dict = {
         #   docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『M-R2d 渠道装配设计』§4。
         "start_classes": ["cls_mu_shi"],
         "channels": {"heal_cast": 2, "taken": 1},
+        # v181.M-R2e 负载制闭环（B2/B3，方案 docs/REFACTOR_v181_M_R2e_engine_ext_plan.md）：
+        # - load_tiers：四档负载（v130 设计逐字，desc 参考 JOB_GUIDE『档位 0-3/4-7/8-9/10
+        #   (过载)』）——装配层 class_faith_load_tier 按 heal_calc 事件查自身层落档，
+        #   专注 ×1.25 / 透支 ×1.5 / 过载档 heal_mult 1.0（过载由 threshold 钩子处理）
+        # - overload_heal_pct：叠到满 cap 当次过载（class_faith_overload）清零 +
+        #   我方全员回复 max_hp×0.015（v130 旧值；圣化被动 heal_up 属旧被动域未接）
+        # - period dir=gain amount=-0.7：每刻 -0.7 慢衰减（B3 effects float 通用层——
+        #   schedule gain 分支支持负 amount，clamp 下限 0；~14 刻从满归 3 清醒档）
+        "load_tiers": [
+            {"max": 3, "heal_mult": 1.00, "label": "清醒"},
+            {"max": 7, "heal_mult": 1.25, "label": "专注"},
+            {"max": 9, "heal_mult": 1.50, "label": "透支"},
+            {"max": 10, "heal_mult": 1.00, "overload": True},
+        ],
+        "overload_heal_pct": 0.015,
+        "period": {"dir": "gain", "interval": 1.0, "amount": -0.7},
     },
     "cp": {
         "name": "连击点",
@@ -416,6 +432,20 @@ MECH_CASH = {
     #   （skills.py 冷静已加 hp_pct=0.20 + res_cost={zhan_yi:5}：引擎 _spend_skill_cost 扣层 +
     #   _skill_usable 前置拦截）——不需要 heal_clear 装配模式。清 1 减益 + curse 到期
     #   机制记缺口（见 EFFECT_RULES curse 注释）。
+    # ✅ faith_unload（卸负：卸 3 点信念回 80% 魔攻+成长）v181.M-R2e 兑现接通（heal_clear
+    #   R1c 同族先例 = 技能内 res_cost 兑现）：
+    #   - skills.py sk_xie_fu 已加 res_cost={faith:3}（引擎 _skill_usable 前置拦截 +
+    #     _spend_skill_cost 扣层 + kind=治疗 heal_formula 回血 = 施放时查 faith≥3 → 扣 3 →
+    #     自身回血 80% 魔攻+成长）
+    #   - 消费端配套（R2e 同批）：faith 渠道攒取（heal_cast+2/taken+1）、档位乘区
+    #     （heal_calc load_tiers）、过载（threshold）、每刻 -0.7 衰减（period）全闭环
+    "faith_unload": {
+        "name": "卸负",
+        "mode": "heal_clear",             # 技能内兑现（res_cost 数据通道，无事件钩子）
+        "key": "faith",                   # 消费的叠层条目（声明记录——兑现经 skills res_cost）
+        "amount": 3,                      # 每施放扣 3 层（mech_val=3 同源）
+        "note": "兑现走 skills.py sk_xie_fu res_cost={faith:3} + kind=治疗 heal_formula",
+    },
 }
 
 

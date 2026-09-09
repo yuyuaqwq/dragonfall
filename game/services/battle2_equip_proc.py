@@ -103,12 +103,13 @@ def equipped_weapon_keys(actor: dict) -> list:
 #   + boiling_blood 怒气满减伤（taken_calc state_full）；rage/chi/energy/faith/cp/
 #   element 资源容器 cap 已由 EFFECT_RULES 声明（EFFECT_RULES 无行=装配即无限攒，
 #   行已补全）
-# - 仍缺口（此文件不装，静默跳过，注释见 affixes.py v130.2 段）：上限型
-#   max_bonus（rage_forge/divine_radiance/holy_heart/rhythm_badge/chi_limit/
-#   full_pack）+ cost_reduce 型（energy_blade/arcane_focus/sigil_blessing）——
-#   cap 动态机制待引擎层 R4 未实施；cond 修正型 ember_brand（怒气获取修正需
-#   资源获取事件钩子）、combo_recover（连招技标签语义）、regen 型 energy_tide/
-#   swift_tailwind（刻末条件回能走 R2 渠道口径）等
+# - 上限型 max_bonus（rage_forge/divine_radiance/holy_heart/rhythm_badge/chi_limit/
+#   full_pack——energy_blade 现网数据为 cost_reduce 型，非上限）v181.M-R2e 方案 A 已装：
+#   装配写 actor["cap_bonus"]（_apply_cap_bonus，覆盖写幂等），引擎 _cap_of 收敛点
+#   （effects 叠层 clamp/schedule period gain/渠道 gain clamp）读动态 cap = EFFECT_RULES
+#   基准 + cap_bonus。cost_reduce 型（energy_blade/arcane_focus/sigil_blessing）、cond
+#   修正型 ember_brand（怒气获取修正需资源获取事件钩子）、combo_recover（连招技标签
+#   语义）、regen 型 energy_tide/swift_tailwind（刻末条件回能走 R2 渠道口径）仍缺口。
 # tier 语义（旧 _affix_effs）：effect.tiers[装备品质] 覆盖主数值键（如能量上限
 # full_pack purple 10/orange 20）；装配时按 item.quality 取档。
 
@@ -137,6 +138,33 @@ def equipped_affix_ids(actor: dict) -> list:
             if aid and aid not in out:
                 out.append(aid)
     return out
+
+
+def _apply_cap_bonus(actor: dict) -> None:
+    """上限词条装配（v181.M-R2e 方案 A：affix 动态 cap）——写 actor["cap_bonus"]。
+
+    扫当前装备全部 affixes：effect 含 {res, max_bonus} → cap_bonus[res] += N
+    （多件/多词条同资源累加）。数值权威 = AFFIXES 表（_affix_effect_final 已按装备
+    品质取 tiers 档：full_pack purple 10 / orange 20）。energy_blade 现行数据为
+    cost_reduce 型（无 max_bonus）→ 零贡献自动跳过（版本漂移，非上限词条）。
+    纯 flat int 容器（stat_bonus 平行哲学——引擎零语义，effects._cap_of clamp 时
+    读取）。覆盖写幂等：每次 apply_to_actor 按当前装备重算 → 卸装后重装配自然回落。
+    """
+    out: dict = {}
+    for aid in equipped_affix_ids(actor):
+        try:
+            eff = _affix_effect_final(aid, actor, None)
+            res = eff.get("res")
+            mb = eff.get("max_bonus")
+            if not res or not isinstance(mb, (int, float)) or float(mb) <= 0:
+                continue
+            out[res] = int(out.get(res, 0) + float(mb))
+        except Exception:
+            continue  # 单词条解析异常不阻断其余（容错铁律）
+    if out:
+        actor["cap_bonus"] = out
+    else:
+        actor.pop("cap_bonus", None)
 
 
 def _tier_value(eff: dict, quality: str):
@@ -945,8 +973,9 @@ def affix_triggers(actor: dict) -> dict:
 
     - stat 型词条（生成时已折算进 item.stats）不产生 triggers（面板自动含）
     - 事件型走翻译器 + 事件映射展开（hit → attack_hit + skill_hit）
-    - 资源型：R4 已装事件 gain 型 10 + boiling_blood；上限型/cond 修正型/regen 型
-      翻译器未注册 → 静默跳过（缺口清单见模块头注释与 affixes.py）
+    - 资源型：R4 已装事件 gain 型 10 + boiling_blood；上限型 max_bonus 走
+      _apply_cap_bonus（actor.cap_bonus 容器，非事件——apply_to_actor 第 0 步）；
+      cond 修正型/regen 型翻译器未注册 → 静默跳过（缺口清单见模块头注释与 affixes.py）
     """
     out: dict = {}
     for aid in equipped_affix_ids(actor):
@@ -961,11 +990,17 @@ def affix_triggers(actor: dict) -> dict:
 
 def apply_to_actor(actor: dict) -> None:
     """把装备特效+词条装配进 actor（幂等；命令层开战前调用）：
+    0. cap_bonus 上限词条容器（v181.M-R2e 方案 A：affix max_bonus → 动态 cap）
     1. 事件型效果 → actor["triggers"]（武器特效 + 词条事件型合并）
     2. 被动常驻型（proc_heal amp：受疗增幅）→ actor.state.heal_amp_pct（landing 折算）"""
     if not actor:
         return
     install_ext_actions()
+    # 0) cap_bonus（上限词条——先于渠道装配；覆盖写幂等，卸装后重装配回落）
+    try:
+        _apply_cap_bonus(actor)
+    except Exception:
+        pass  # 上限词条装配异常不阻断其余（容错铁律）
     # 1) 事件型（武器特效 + affix 词条）
     merged = weapon_triggers(actor)
     try:

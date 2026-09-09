@@ -260,14 +260,16 @@ AFFIXES = {
     #   crit_charge/holy_echo/crit_return/pious_charm/rock_rest/opening_stance——
     #   对应 events → actor.triggers 叠 we_affix_res_gain 层，cap clamp 查
     #   EFFECT_RULES[res].cap）+ boiling_blood（怒气满全减伤，taken_calc state_full）。
-    # - ⛔ 缺口（cap 动态机制待引擎层，R4 未实施——装配层不产生 triggers）：
-    #   · 上限型 effect {res, max_bonus}：rage_forge/divine_radiance/holy_heart/
-    #     rhythm_badge/chi_limit/full_pack——max_bonus 需要引擎级 cap 动态加成
-    #     （cap = EFFECT_RULES 基准 + 装备折算），引擎未支持前装配=无效，静默跳过；
-    #   · cost_reduce 型：energy_blade（{res, cost_reduce}）/arcane_focus/sigil_blessing
-    #     （mp_cost_reduce）——消费折算需技能消耗管线挂钩，R4 未实施；
-    #   · cond 修正型 ember_brand（{res, gain, cond: hp_lt_30}，effect 无 on 时机）——
-    #     「怒气获取时额外 +1」需资源获取事件钩子（装配层无对应事件位）；
+    # - ⛔/✅ 落地状态（v181.M-R2e 方案 A 已装 cap 动态机制）：
+    #   · ✅ 上限型 effect {res, max_bonus}：rage_forge/divine_radiance/holy_heart/
+    #     rhythm_badge/chi_limit/full_pack——装配写 actor["cap_bonus"]（battle2_equip_proc
+    #     _apply_cap_bonus，覆盖写幂等），引擎 _cap_of 收敛点（effects 叠层 clamp /
+    #     schedule period gain / 渠道 gain clamp）读动态 cap = EFFECT_RULES 基准 + 增量；
+    #   · ✅ energy_blade 现网数据为 cost_reduce 型（{res, cost_reduce}，v153 后非上限）
+    #     ——无 max_bonus 零贡献自动跳过，非上限词条；
+    #   · ⛔ cost_reduce 型：arcane_focus/sigil_blessing（mp_cost_reduce）——消费折算需
+    #     技能消耗管线挂钩；cond 修正型 ember_brand（{res, gain, cond: hp_lt_30}，
+    #     effect 无 on 时机）——「怒气获取时额外 +1」需资源获取事件钩子（装配层无对应事件位）；
     #   · combo_recover（on: combo_skill）——拳师「连招技」无技能标记事件判据，
     #     需词条级 kind/tag 语义核对；
     #   · regen 型 energy_tide/swift_tailwind（effect {res, regen} 非 gain）——
