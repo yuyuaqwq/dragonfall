@@ -114,10 +114,12 @@ def main():
     ok2, txt2 = S.draw_daily("g", qq3, db.get_player("g", qq3))
     check("已有任务拒绝", not ok2 and "已经有每日任务了" in txt2, txt2)
     # 上限守卫（_completed=10 → 拒绝）
+    import datetime as _dt9
+    _today9 = _dt9.date.today().isoformat()
     qq4 = "sv4"
     make_player(qq4)
     q4 = db.get_quests("g", qq4)
-    q4["daily"] = {"_date": "2026-09-07", "_completed": 10, "_repeat": {}}
+    q4["daily"] = {"_date": _today9, "_completed": 10, "_repeat": {}}
     db.save_quests("g", qq4, q4)
     ok3, txt3 = S.draw_daily("g", qq4, db.get_player("g", qq4))
     check("上限守卫拒绝", not ok3 and "10/10" in txt3, txt3)
@@ -125,7 +127,7 @@ def main():
     qq5 = "sv5"
     make_player(qq5)
     q5 = db.get_quests("g", qq5)
-    q5["daily"] = {"_date": "2026-09-07", "_completed": 2, "_repeat": {}}
+    q5["daily"] = {"_date": _today9, "_completed": 2, "_repeat": {}}
     db.save_quests("g", qq5, q5)
     ok4, txt4 = S.draw_daily("g", qq5, db.get_player("g", qq5))
     check("完成 2 个后再抽成功", ok4 and "已完成 2/10" in txt4, txt4)
