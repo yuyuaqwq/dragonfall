@@ -984,6 +984,37 @@ def install() -> None:
         ef[buff_key] = {"stacks": 1, "stat": "spd", "mult": 1.0 + spd_add,
                         "op": "mul", "expire": None}
 
+    @register_action("passive_res_gain_turn")
+    def passive_res_gain_turn(battle, caster, target, params, logs):
+        """turn_start 资源自动回复：effects[res] += gain（奥术直觉每行动回充能）。
+
+        语义（v153 法师奥术线）：奥术直觉「每刻自动回复 1 点奥术充能」——回合制近似
+        turn_start 每次行动回 gain（冥想中 +2 需冥想态标缺口）。cap clamp 同 apply。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        actor = ctx.get("actor") or caster
+        if actor is None:
+            return
+        res = params.get("res") or ""
+        gain = float(params.get(params.get("gain_field") or "gain") or 0)
+        if not res or gain <= 0:
+            return  # 缺字段 = 无此行为
+        ef = actor.setdefault("effects", {})
+        entry = ef.get(res)
+        if not isinstance(entry, dict):
+            entry = ef[res] = {}
+        from ..battle2.effects import _cap_of as _cap_fn
+        cap = _cap_fn(actor, res)
+        if cap <= 0:
+            return
+        cur = float(entry.get("stacks", 0) or 0)
+        n = min(float(cap), cur + gain)
+        if n > cur:
+            entry["stacks"] = n
+            logs.append(f"🔮 {params.get('label') or '被动'}：奥术充能自动回复 {int(gain)}（{n:g}/{cap}）")
+
     @register_action("passive_revive_guard")
     def passive_revive_guard(battle, caster, target, params, logs):
         """on_death 守护姿态致命免疫（铁誓·不动）：姿态下首次致命伤 → 回满 + 清空战意。

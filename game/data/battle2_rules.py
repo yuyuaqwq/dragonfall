@@ -76,7 +76,11 @@ EFFECT_RULES: dict = {
     },
     "arcane": {
         "name": "奥术",
-        "cap": 10,
+        # v153 法师奥术线（CLASS_MECHANICS_v153）：奥术充能 0-5 层挂自己；获取=奥术
+        # 直觉每刻 +1 / 奥术技能命中 +1（mech=arcane mech_val）；消耗=奥术脉冲/洪流
+        # 燃尽（MECH_CASH arcane_burst 每层 +15%）。cap 收敛 5（旧 10 = R1b 世代复制
+        # 漂移——技能 desc 全"满 5 层"，battle_config 旧记亦 5）。
+        "cap": 5,
     },
     # v181.M-melody：诗人旋律光环（v153 设计 docs/CLASS_MECHANICS_v153.md『七、吟游诗人』）
     # 驻留旋律 = 全队光环，效果随强度：效果% = melody_pct(技能 desc 基础) × (1+0.25×(强度-1))
@@ -449,6 +453,15 @@ MECH_CASH = {
         "icon": "🔥",
         # mech_val（技能数据 4）= 进入消耗的战意层数——兑现动作读 mech_val_field 扣层
     },
+    # 法师奥术燃尽（v153：奥术脉冲/洪流 燃尽全部充能每层 +15%，架设中只烧一半标缺口）
+    "arcane_burst": {
+        "name": "燃尽",
+        "mode": "dmg_mult_clear",        # owner=caster：读/清 caster arcane 层
+        "key": "arcane",
+        "per_layer": 0.15,               # 每层伤害 +15%（满 5 层 ×1.75）
+        "clear": True,
+        "layer_label": "奥术充能", "unit": "层", "icon": "🔮",
+    },
     "element_burst_all": {
         "name": "元素迸发",
         "mode": "dmg_mult_clear_target",  # 印记在 target effects（EFFECT_RULES fire/ice/thunder_mark on=target）
@@ -665,8 +678,14 @@ PASSIVE_PROC: dict = {
         "event": "act_cast", "action": "passive_shadow_buff",
         "buff_key": "_shadow_spd",
     },
+    # ---- P2 族：奥术直觉（v153：每刻自动回复 1 点奥术充能，冥想中+2 标缺口）----
+    # 每刻 → 回合行动近似（turn_start 每次行动回 gain；冥想态未落地只做基础 +1）
+    "arcane_intuition": {      # 奥术直觉：自动回复奥术充能
+        "event": "turn_start", "action": "passive_res_gain_turn",
+        "res": "arcane", "gain_field": "gain",
+    },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
-    # stance_immortal/undead_faith 等职业批续（C 桶映射见 roadmap）
+    # undead_faith/poison_spread 等职业批续（C 桶映射见 roadmap）
 }
 
 
