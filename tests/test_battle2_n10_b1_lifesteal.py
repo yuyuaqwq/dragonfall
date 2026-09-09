@@ -177,7 +177,11 @@ def test_monster_no_ls_noop():
     m_hp0 = m["hp"]
     try:
         logs = A._single_target_pipeline(b, m, p, {"kind": "物理", "exprs": ["atk*1.0"], "_basic": True}, 0)
-        check("怪攻击扣玩家血", p["hp"] < p_hp0, f"p_hp={p['hp']} logs={logs[:3]}")
+        # v181 flaky 修复：玩家真实面板含 ~3% 基础闪避（职业成长）——闪避=合法免伤，
+        # 本测试验证"怪无面板吸血 → 不自回血"，扣血断言容忍闪避（闪避时本次无伤害）
+        dodged = any("闪避" in str(x) for x in logs)
+        check("怪攻击扣玩家血（或合法闪避）", dodged or p["hp"] < p_hp0,
+              f"p_hp={p['hp']} logs={logs[:3]} dodged={dodged}")
         check("怪自身不回血（无面板吸血）", m["hp"] == m_hp0, f"m_hp={m['hp']}")
     except Exception as ex:
         check("怪攻击不崩", False, str(ex))

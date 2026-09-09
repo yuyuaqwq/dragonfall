@@ -53,7 +53,12 @@ SHIM_DIR = os.path.join(TESTS_DIR, "shim_astrbot")
 
 # 串行槽：直接赋值 os.environ["GWEN_GAME_DB"] 指向共享 test_game_data.db 的文件
 # （不认外层 env，无法用私有库隔离）→ 必须与并行主体错开，保持旧行为先跑。
-SERIAL_SLOT = {"test_v101_28_food_hot.py"}
+# v181 flaky 修复：硬编码自己私有库文件（os.environ[...] = tests/test_xxx_private.db）
+# 的文件同样绕过 worker 私有库 env → 归串行槽，避免并行脏残留/文件竞争。
+SERIAL_SLOT = {
+    "test_v101_28_food_hot.py",
+    "test_v1023_life_prof.py",
+}
 
 # 退役探针：P2C 族化迁移期 OLD==NEW 差分验证工具。迁移完成（旧 handler 从 HEAD 删除）后
 # 差分对象不存在 → 恒 KeyError。semantics 测试（新实现硬断言）已接替持续回归职责。

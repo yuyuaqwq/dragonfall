@@ -201,6 +201,10 @@ def test_recipes():
 
 
 async def main():
+    import random
+    # v181 flaky 修复：采集/垂钓随机产出采样——固定种子使概率断言确定性
+    # （本文件另硬编码私有库 tests/test_v1023_private.db，run_all 已归串行槽隔离）
+    random.seed(20260909)
     test_cond_gather()
     test_deep_mining()
     test_bait_fishing()

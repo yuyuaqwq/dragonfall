@@ -32,6 +32,10 @@ async def cmd(m, handler_name, gid, qid, msg):
     return results[-1] if results else ""
 
 async def main():
+    import random
+    # v181 flaky 修复：PVP 战斗含闪避/暴击随机——固定种子保证 40 轮内分出胜负确定，
+    # 避免偶发拖轮超限把"w2 被打败"打成假红
+    random.seed(20260909)
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "w1", "注册 战士 铁拳 男")

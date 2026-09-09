@@ -105,6 +105,10 @@ def test_skill_pipeline_passes():
 
 
 if __name__ == "__main__":
+    import random
+    # v181 flaky 修复：玩家真实面板 ~3% 基础闪避（职业成长）——固定随机种子保证
+    # 攻击命中序列确定（3% 闪避偶发会把数值断言打成假红）
+    random.seed(20260909)
     test_default_half()
     test_defend_reduce_08()
     test_skill_pipeline_passes()
