@@ -478,4 +478,35 @@ MECH_CASH = {
     },
 }
 
+# ============================================================
+# 被动 proc 声明表 PASSIVE_PROC（v181.M-passive · 插件形态样板）
+# ============================================================
+# 技能 kind=被动 + passive.proc 字段 → 本表声明 {event 触发事件, action 动作,
+# judge 判定模板}——装配器扫已学被动 → 被动参数(passive dict 的 mult/dmg_add/layers/
+# chance…)并入 effect dict 参数 → 挂 actor.triggers[event]。动作读 ctx+params 执行，
+# **零 proc 硬编码**（语义源 = 技能 desc + passive dict；旧 battle.py 时代 52 proc 全空转，
+# 方案 docs/REFACTOR_v181_PASSIVE_PROC_PLAN.md）。
+# judge 模板：装配时合并判定所需字段；被动参数归一 mult（mult/dmg_add/per_layer→mult）。
+PASSIVE_PROC: dict = {
+    # ---- P1 样板族：dmg_calc 条件乘区（零引擎改动通道——对齐 N9.7d we_dmg_mult_cond）----
+    "arcane_resonance": {   # 奥术共鸣：奥术系技能伤害 +15%
+        "event": "dmg_calc", "action": "passive_dmg_mult",
+        "judge": {"kind": "mech_eq", "mech": "arcane"},
+    },
+    "element_origin": {     # 元素起源：三系印记齐 ≥2 层 → ×1.2
+        "event": "dmg_calc", "action": "passive_dmg_mult",
+        "judge": {"kind": "target_marks_all_ge", "marks": ["fire_mark", "ice_mark", "thunder_mark"]},
+    },
+    "speed_ratio_dmg": {    # 疾风·极：我方速度 ≥ 敌方 ×2 → 伤害 +20%
+        "event": "dmg_calc", "action": "passive_dmg_mult",
+        "judge": {"kind": "speed_ratio_ge", "ratio_field": "ratio"},
+    },
+    # ---- P1 样板族：on_kill 回能 ----
+    "focus_full_on_kill": {  # 追风：击杀 → 专注回满（EFFECT_RULES energy start_full 口径）
+        "event": "on_kill", "action": "passive_kill_gain",
+    },
+    # ---- P2 族占位（填表即接；动作族见方案文档）----
+    # counter_chance/berserk_revive/zhan_yi_crit/dr_cond 等 P2 续
+}
+
 

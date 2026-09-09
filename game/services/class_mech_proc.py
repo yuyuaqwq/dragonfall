@@ -403,6 +403,60 @@ def install() -> None:
         _melody_write_aura(battle, actor, logs)
         logs.append(f"🎵 吟唱回旋，【{state.get('name')}】强度 +1（{state['stacks']}/5）！")
 
+    # ---- v181.M-passive P1：被动 proc 通用动作（插件样板——动作零 proc 硬编码）----
+    # 语义源 = 技能 desc + passive dict；声明表 PASSIVE_PROC（battle2_rules）给
+    # event/action/judge 模板；装配器把被动参数并入 params（mult 归一 mult/dmg_add）。
+    # P1 先落 dmg_calc 乘区 + on_kill 回能两样板（零引擎改动通道），其余族 P2 续。
+
+    @register_action("passive_dmg_mult")
+    def passive_dmg_mult(battle, caster, target, params, logs):
+        """dmg_calc 条件乘区：judge 命中 → ctx.mult ×(1+mult)（对齐 N9.7d 词条乘区）。"""
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        judge = params.get("judge") or {}
+        kind = judge.get("kind") or ""
+        mult = float(params.get("mult") or params.get("dmg_add")
+                     or params.get("per_layer") or 0)
+        if mult <= 0:
+            return
+        actor = ctx.get("actor") or caster
+        tg = ctx.get("target") or target
+        ok = False
+        if kind == "mech_eq":
+            info = ctx.get("info") or {}
+            ok = (info.get("mech") or "") == judge.get("mech")
+        elif kind == "target_marks_all_ge":
+            layers = float(params.get("layers") or judge.get("layers") or 1)
+            if tg is not None:
+                ef = tg.get("effects") or {}
+                ok = all(
+                    float((ef.get(m) or {}).get("stacks", 0) or 0) >= layers
+                    for m in (judge.get("marks") or []))
+        if not ok:
+            return
+        ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * (1.0 + mult)
+        logs.append(f"✨ 被动生效：伤害 ×{1.0 + mult:.2f}！")
+
+    @register_action("passive_kill_gain")
+    def passive_kill_gain(battle, caster, target, params, logs):
+        """on_kill 资源回满：击杀者 effects[key] 置 cap（追风：专注回满）。"""
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        actor = ctx.get("actor") or caster
+        if actor is None:
+            return
+        key = params.get("key") or "energy"
+        from ..battle2.effects import _cap_of as _cap_fn
+        cap = _cap_fn(actor, key)
+        if cap <= 0:
+            return
+        ef = actor.setdefault("effects", {})
+        if not isinstance(ef.get(key), dict):
+            ef[key] = {}
+        ef[key]["stacks"] = float(cap)
+        ef[key]["expire"] = None
+        logs.append(f"✨ {params.get('label') or '被动'}:{'资源回满！'}")
+
     _registered = True
 
 
@@ -493,6 +547,57 @@ def _learned_mech_skills(actor: dict) -> list:
     return out
 
 
+def _passive_proc_rules() -> dict:
+    """PASSIVE_PROC 声明表（缺省空——装配器不崩）。"""
+    try:
+        from ..data.battle2_rules import PASSIVE_PROC
+        return PASSIVE_PROC or {}
+    except Exception:
+        return {}
+
+
+def apply_class_passives(actor: dict) -> None:
+    """被动 proc 装配（v181.M-passive P1 插件样板）：扫已学 kind=被动 + passive.proc
+    → 查 PASSIVE_PROC 声明表 → 参数化挂 actor.triggers[event]。学什么挂什么防白拿；
+    表未声明 proc → 跳过（记缺口，不硬做）。"""
+    if not actor:
+        return
+    cn = actor.get("class_name") or ""
+    names = actor.get("learned_skills") or []
+    if not cn or not names:
+        return
+    install()
+    rules = _passive_proc_rules()
+    if not rules:
+        return
+    from .. import engine as E
+    trig = actor.setdefault("triggers", {})
+    for s in names:
+        try:
+            info = E.skill_info(cn, s)
+        except Exception:
+            info = None
+        if not info or info.get("kind") != "被动":
+            continue
+        p = info.get("passive") or {}
+        proc = p.get("proc") or ""
+        cfg = rules.get(proc)
+        if not isinstance(cfg, dict):
+            continue  # 表未声明 → 记缺口跳过（不硬做）
+        d = {"type": cfg.get("action") or "", "judge": cfg.get("judge") or {}}
+        # 被动参数并入（mult 归一 mult/dmg_add/per_layer；label 用技能名）
+        for k, v in p.items():
+            if k in ("proc",):
+                continue
+            d[k] = v
+        d.setdefault("label", info.get("name") or proc)
+        if not d.get("type"):
+            continue
+        ev = cfg.get("event") or ""
+        if ev:
+            trig.setdefault(ev, []).append(d)
+
+
 def apply_class_mech(actor: dict) -> None:
     """技能 mech 兑现装配（幂等；命令层开战仪式与 equip_proc 并列调用）。
 
@@ -563,6 +668,11 @@ def apply_class_mech(actor: dict) -> None:
                     {"type": "class_melody_act"})
         except Exception:
             pass  # melody 装配异常不阻断开战（容错铁律）
+        # v181.M-passive P1：被动 proc 装配（扫已学 kind=被动 → PASSIVE_PROC 表挂 triggers）
+        try:
+            apply_class_passives(actor)
+        except Exception:
+            pass  # 被动装配异常不阻断开战（容错铁律）
         mechs = {info.get("mech") for _s, info in _learned_mech_skills(actor)}
         for mech in mechs:
             cash = rules.get(mech)
