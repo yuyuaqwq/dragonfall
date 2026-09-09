@@ -548,8 +548,29 @@ PASSIVE_PROC: dict = {
         "event": "dmg_calc", "action": "passive_dmg_mult",
         "judge": {"kind": "mech_prefix", "mech": "poison_burst"},
     },
+    # ---- P2 族：act_cast 条件暴击（资源层数门槛 → 本次行动 crit 加算 buff）----
+    # 旧挂点1 _passive_crit_bonus（crit_cond_add）语义：资源 ≥ 阈值 → 暴击率 +add
+    # （绝对点加算——面板 crit 是小数概率）。buff 快照型 effects 条目（stat/mult/op=add），
+    # 动作每行动重写/清除，无残留。
+    "zhan_yi_crit": {        # 狂热：战意 ≥8 → 暴击 +15%
+        "event": "act_cast", "action": "passive_cond_crit",
+        "judge": {"kind": "res_ge", "res": "zhan_yi", "ge_field": "stacks"},
+        "buff_key": "passive_crit_zhan_yi",
+    },
+    "arcane_wisdom": {       # 真知：奥术充能满 5 → 奥术系技能暴击 +20%（desc「奥术暴击」）
+        "event": "act_cast", "action": "passive_cond_crit",
+        "judge": {"kind": "res_ge", "res": "arcane", "ge_field": "stacks",
+                  "mech": "arcane"},
+        "buff_key": "passive_crit_arcane",
+    },
+    "focus_surplus_crit": {  # 疾风之心：结余 ≥40 → 下次技能暴击 +20%（普攻不吃）
+        "event": "act_cast", "action": "passive_cond_crit",
+        "judge": {"kind": "res_ge", "res": "energy", "ge_field": "surplus",
+                  "not_basic": True},
+        "buff_key": "passive_crit_focus",
+    },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
-    # zhan_yi_crit/berserk_revive/dr_cond 等 P2 续
+    # berserk_revive/dr_cond 等 P2 续
 }
 
 

@@ -523,6 +523,65 @@ def install() -> None:
         except Exception:
             pass  # 反击异常不阻断受击落地
 
+    @register_action("passive_cond_crit")
+    def passive_cond_crit(battle, caster, target, params, logs):
+        """act_cast 条件暴击：资源 ≥ 阈值（+技能系/非普攻门槛）→ 本次行动暴击加算 buff。
+
+        语义 = 旧挂点1 _passive_crit_bonus（crit_cond_add）逐字：资源层数（战意/奥术/精力）
+        ≥ 阈值 → 暴击率 +add（绝对点）。实现 = effects buff 快照型条目
+        {stat: crit, mult: add, op: add}（stats._apply_effects 兼容路径，无需 EFFECT_RULES
+        声明）——act_cast 在 crit 判定前 fire（扣费后、伤害管线前），buff 覆盖整个行动；
+        下次行动动作重写/清除，无残留。
+        judge 参数：res（资源 key）/ ge_field（passive dict 阈值字段名）/ mech（可选技能系
+        过滤）/ not_basic（普攻不吃）。add 来自 passive dict。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        actor = ctx.get("actor") or caster
+        if actor is None:
+            return
+        info = ctx.get("info") or {}
+        judge = params.get("judge") or {}
+        buff_key = params.get("buff_key") or ""
+        if not buff_key:
+            return
+        ef = actor.setdefault("effects", {})
+        # 普攻排除（desc「下次技能暴击」）：basic 行动直接清旧残留并跳过
+        if judge.get("not_basic") and info.get("_basic"):
+            ef.pop(buff_key, None)
+            return
+        # 技能系过滤（desc「奥术暴击」）：info.mech 不匹配 → 清残留跳过
+        mech = judge.get("mech")
+        if mech and (info.get("mech") or "") != mech:
+            ef.pop(buff_key, None)
+            return
+        res = judge.get("res") or ""
+        ge_field = judge.get("ge_field") or ""
+        need = float(params.get(ge_field) or 0)
+        add = float(params.get("add") or 0)
+        if not res or need <= 0 or add <= 0:
+            ef.pop(buff_key, None)  # 缺字段 = 无此行为
+            return
+        _entry = ef.get(res)
+        cur = float(_entry.get("stacks", 0) or 0) if isinstance(_entry, dict) else 0.0
+        # 施放前快照还原（旧挂点 _pre_cost_res 语义）：act_cast 在 _spend_skill_cost
+        # 之后 fire——若本技能 res_cost 扣了该资源，施放前结余 = 当前 + 已扣额
+        # （疾风之心 desc「结余 ≥40」= 施放前判定，非扣费后）
+        _rc = (info.get("res_cost") or {})
+        if isinstance(_rc, dict) and res in _rc:
+            try:
+                cur += float(_rc.get(res, 0) or 0)
+            except Exception:
+                pass
+        if cur >= need:
+            # 命中 → 重写 buff（防多次行动叠加/陈旧值）
+            ef[buff_key] = {"stacks": 1, "stat": "crit", "mult": add,
+                            "op": "add", "expire": None}
+            logs.append(f"✨ 被动生效：暴击 +{int(add * 100)}%！")
+        else:
+            ef.pop(buff_key, None)
+
     _registered = True
 
 
@@ -684,6 +743,12 @@ def apply_class_passives(actor: dict) -> None:
                 _c["mp_pct"] = float(_c.get("mp_pct", 0) or 0) + pct
             # cost 域声明无 event → 下方 d.type 空自然 continue
         d = {"type": cfg.get("action") or "", "judge": cfg.get("judge") or {}}
+        # cfg 声明表非结构字段并入（buff_key 等动作参数——domain 消费过的键除外）
+        for k, v in cfg.items():
+            if k in ("event", "action", "judge", "agg", "domain",
+                     "cap_key", "when", "add"):
+                continue
+            d[k] = v
         # 被动参数并入（mult 归一 mult/dmg_add/per_layer；label 用技能名）
         for k, v in p.items():
             if k in ("proc",):
