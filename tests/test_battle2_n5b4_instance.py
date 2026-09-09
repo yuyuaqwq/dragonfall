@@ -67,7 +67,7 @@ def mk_snap(qid, name, cls="战士", level=15, learned=None, hp=None):
         "mp": int(pl.get("mp", 0)), "max_mp": 50,
         "equipment": {}, "skills": [], "learned_skills": learned or [],
         "class_tier": 0, "evolve_path": 0, "attributes": pl.get("attributes"),
-        "stat_bonus": {}, "race": pl.get("race"),
+        "bonus": {"panel": {}, "cap": {}, "cost": {}}, "race": pl.get("race"),
         "uid": f"p_{qid}", "buffs": {}, "stacks": {}, "defending": False,
         "charging": None, "ct": 0.0, "p_shields": {},
     }
@@ -116,7 +116,9 @@ def test_build_battle():
     check("player side 1 actor", len(p) == 1 and str(p[0].get("qq_id")) == "10001")
     check("enemy side 1 actor", len(e) == 1 and e[0].get("uid") == "e_boss")
     check("actor ct 透传", p[0].get("ct") is not None)
-    check("actor stat_bonus 容器", isinstance(p[0].get("stat_bonus"), dict))
+    check("actor bonus 容器（v181.M-bonus 三域）",
+          isinstance(p[0].get("bonus"), dict)
+          and isinstance((p[0].get("bonus") or {}).get("panel"), dict))
 
 
 def test_act_and_sync():

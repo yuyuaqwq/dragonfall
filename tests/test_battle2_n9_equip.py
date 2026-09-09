@@ -1338,7 +1338,8 @@ def test_affix_regen_tail():
     b2.act(ActCtx(caster=p2, action="attack", target=m2))
     check("精力 80 ≥80 触发 +10", stk(p2, "energy") == 90,
           f"energy={stk(p2, 'energy')}")
-    # 缺口词条（cost_reduce/cond/combo/职业机制）零装配零噪音
+    # v181.M-bonus：cost_reduce 3 词条（energy_blade/arcane_focus/sigil_blessing）已装
+    # → 走 bonus.cost 容器（非事件 → 仍零 triggers）；cond/combo/职业机制仍缺口零装配
     p3 = mk_a("p3", "player")
     _affix_item(p3, "energy_blade", "weapon", "purple")
     _affix_item(p3, "arcane_focus", "armor", "blue")
@@ -1347,8 +1348,11 @@ def test_affix_regen_tail():
     _affix_item(p3, "combo_recover", "helm", "blue")
     _affix_item(p3, "sigil_engrave", "necklace", "purple")
     EP.apply_to_actor(p3)
-    check("cost_reduce/cond/职业机制缺口词条零 triggers",
-          not (p3.get("triggers") or {}), f"triggers={p3.get('triggers')}")
+    check("cost 词条装配 bonus.cost（容器非事件）；缺口词条零 triggers",
+          not (p3.get("triggers") or {})
+          and abs(float((((p3.get("bonus") or {}).get("cost") or {}).get("res") or {})
+                        .get("energy", 0)) - 0.08) < 1e-9,
+          f"triggers={p3.get('triggers')} cost={(p3.get('bonus') or {}).get('cost')}")
 
 
 def main():

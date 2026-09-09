@@ -1,5 +1,19 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年核心层 - stat_bonus.py（v105 M01#11，N5b4-4 泛化正名）
+"""奥兰迪亚·余烬纪年核心层 - stat_bonus.py（v105 M01#11，N5b4-4 泛化正名；v181.M-bonus 统一 bonus 容器）
+
+**统一数值修正容器（v181.M-bonus，鱼鱼 2026-09-09 拍板方案 2）**：
+actor 上全部数值修正收敛为单容器 actor["bonus"] = {分域 dict}：
+    actor["bonus"] = {
+        "panel": {"atk": 15, "spd": 10},   # 面板 flat 增幅（现 stat_bonus 并入；stats.actor_stats 面板合成读）
+        "cap":   {"rage": 2},               # 资源上限 flat int 增量（现 cap_bonus 并入；effects._cap_of 读）
+        "cost":  {"mp_pct": 0.10, "res": {"energy": 0.05}, "mp_flat": 5,
+                  "when": [{"mp_pct": ..., "judge": {...}}]},  # 技能消耗修正（actions._skill_pay_of 读）
+    }
+约定：
+- 引擎零语义：装配层（开战仪式/词条装配）写入，引擎只读分域（读源一律 get 兜底 {}）。
+- 旧 actor 键 stat_bonus/cap_bonus 已全清（v181.M-bonus 迁移），无回落兼容。
+- 新增修正类型 = bonus 加域 + 引擎一个读点，不再散 actor 字段。
+- 本模块职责不变 = 外部面板增幅聚合器（返回 panel 分域 dict），外加容器播种/读取助手。
 
 **外部面板数值增幅聚合器**（鱼鱼 2026-09-08 拍板：新增纯数值增幅系统不改战斗引擎）。
 
@@ -10,10 +24,11 @@
 
 ⚠️ 边界：机制型效果（触发/条件/事件）不走这里——走 battle2 装配层
 （actor.triggers + 事件总线，N9/N9A 通用通道）。本聚合器只产 flat 数值 dict
-（如 {"atk": 15, "spd": 10}），由命令层开战时塞进 actor["stat_bonus"]。
+（如 {"atk": 15, "spd": 10}），由命令层开战时经 bonus_seed 塞进 actor["bonus"]["panel"]。
 
 命名迁移：v105 原名 title_bonus（只聚合称号）；v174 并入收藏册后语义已是
-"外部增幅"，N5b4-4 正名 stat_bonus。命令层 _title_bonus 方法名与
+"外部增幅"，N5b4-4 正名 stat_bonus（仅指聚合函数/模块名）；v181.M-bonus 起
+actor 键统称 bonus 容器（panel/cap/cost 分域）。命令层 _title_bonus 方法名与
 engine.player_final_stats 的 title_bonus 位置参数保留（旧引擎冻结区，N10 删旧收敛）。
 
 独立于命令层：commands/base.py:_title_bonus 与 store/players.py 惰性升级共用
@@ -173,3 +188,39 @@ def _collection_completed_bonus(qq_id: str, player: dict) -> dict:
     except Exception:
         pass
     return bonus
+
+
+# ============================================================
+# 统一 bonus 容器助手（v181.M-bonus：panel/cap/cost 分域读写约定）
+# ============================================================
+
+BONUS_DOMAINS = ("panel", "cap", "cost")
+
+
+def bonus_seed(actor: dict, panel: dict = None) -> dict:
+    """开战仪式播种/覆盖 actor["bonus"] 全容器（写约定唯一入口）。
+
+    panel = 外部面板增幅 flat dict（本模块 stat_bonus() 聚合产物）。
+    覆盖写：开战装配点每场重算外部增幅 → 整容器重建（cap/cost 由装备装配
+    apply_to_actor 随后覆盖写各自分域，先后无冲突）。
+    """
+    actor["bonus"] = {
+        "panel": dict(panel or {}),
+        "cap": {},
+        "cost": {},
+    }
+    return actor["bonus"]
+
+
+def bonus_domain(actor: dict, domain: str) -> dict:
+    """读 bonus 分域 dict（无容器/无域 → {}；引擎读源兜底铁律）。"""
+    if domain not in BONUS_DOMAINS:
+        return {}
+    try:
+        b = (actor or {}).get("bonus")
+        if not isinstance(b, dict):
+            return {}
+        d = b.get(domain)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}

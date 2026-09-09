@@ -260,15 +260,19 @@ AFFIXES = {
     #   crit_charge/holy_echo/crit_return/pious_charm/rock_rest/opening_stance——
     #   对应 events → actor.triggers 叠 we_affix_res_gain 层，cap clamp 查
     #   EFFECT_RULES[res].cap）+ boiling_blood（怒气满全减伤，taken_calc state_full）。
-    # - ⛔/✅ 落地状态（v181.M-R2e 方案 A 已装 cap 动态机制）：
+    # - ⛔/✅ 落地状态（v181.M-R2e 方案 A 已装 cap 动态机制；v181.M-bonus 统一 bonus 容器）：
     #   · ✅ 上限型 effect {res, max_bonus}：rage_forge/divine_radiance/holy_heart/
-    #     rhythm_badge/chi_limit/full_pack——装配写 actor["cap_bonus"]（battle2_equip_proc
+    #     rhythm_badge/chi_limit/full_pack——装配写 actor["bonus"]["cap"]（battle2_equip_proc
     #     _apply_cap_bonus，覆盖写幂等），引擎 _cap_of 收敛点（effects 叠层 clamp /
     #     schedule period gain / 渠道 gain clamp）读动态 cap = EFFECT_RULES 基准 + 增量；
-    #   · ✅ energy_blade 现网数据为 cost_reduce 型（{res, cost_reduce}，v153 后非上限）
-    #     ——无 max_bonus 零贡献自动跳过，非上限词条；
-    #   · ⛔ cost_reduce 型：arcane_focus/sigil_blessing（mp_cost_reduce）——消费折算需
-    #     技能消耗管线挂钩；cond 修正型 ember_brand（{res, gain, cond: hp_lt_30}，
+    #   · ✅ cost_reduce 型 v181.M-bonus 已装：energy_blade（{res, cost_reduce}，
+    #     精力消耗折扣）+ arcane_focus（mp_cost_reduce 0.10 元素/奥术判据）+
+    #     sigil_blessing（mp_cost_reduce 5/10 神迹技判据）→ 装配写 actor["bonus"]["cost"]
+    #     （_apply_cost_bonus 分域覆盖写），引擎 actions._skill_pay_of 折算（预检/扣费
+    #     同源、floor 取整、保底 1）；
+    #   · ✅ finisher（终结技伤害乘区 finisher_dmg tiers）v181.M-bonus 已装（dmg_calc
+    #     mech_any 谓词 + _af_finisher 翻译器）；
+    #   · ⛔ cond 修正型 ember_brand（{res, gain, cond: hp_lt_30}，
     #     effect 无 on 时机）——「怒气获取时额外 +1」需资源获取事件钩子（装配层无对应事件位）；
     #   · combo_recover（on: combo_skill）——拳师「连招技」无技能标记事件判据，
     #     需词条级 kind/tag 语义核对；

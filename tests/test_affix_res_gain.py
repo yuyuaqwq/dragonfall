@@ -54,6 +54,12 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {detail}")
 
 
+def _capb(a):
+    """bonus.cap 分域读（v181.M-bonus 统一容器）。"""
+    return ((a or {}).get("bonus") or {}).get("cap") or {}
+
+
+
 def mk_a(uid, side, hp=800, atk=40, **kw):
     base = dict(hp=hp, max_hp=hp, atk=atk, matk=15, mdef=8,
                 spd=50, crit=0.05, level=10)
@@ -323,7 +329,7 @@ def test_crit_res_gain():
 def test_gap_affixes_no_noise():
     print("【R4.7 缺口词条不装配（零噪音）：上限型/cost_reduce/cond/combo】")
     p = mk_a("pc", "player")
-    # 一件装备多个缺口词条（rage_forge/full_pack 上限型走 cap_bonus 非事件；
+    # 一件装备多个缺口词条（rage_forge/full_pack 上限型走 bonus.cap 非事件；
     # energy_blade cost_reduce；ember_brand cond 修正；combo_recover 连招技——
     # energy_tide 等 regen 型已由 m_affixtail 装配（见 T9））
     p.setdefault("equipment", {})["weapon"] = {
@@ -337,8 +343,7 @@ def test_gap_affixes_no_noise():
           f"triggers={p.get('triggers')}")
     check("缺口词条零 effects 条目", not (p.get("effects") or {}),
           f"effects={p.get('effects')}")
-    check("上限词条 cap_bonus 容器（非事件通道）", (p.get("cap_bonus") or {}).get("energy") == 10,
-          f"cap_bonus={p.get('cap_bonus')}")
+    check("上限词条 bonus.cap 容器（非事件通道）", _capb(p).get("energy") == 10, f"bonus.cap={_capb(p)}")
 
 
 # ============================================================
@@ -348,14 +353,13 @@ def test_gap_affixes_no_noise():
 def test_affix_gain_dynamic_cap():
     print("【R4.8 affix 附赠通道 cap 收敛：full_pack 抬 cap 后暴击蓄能可攒满 110】")
     from game.battle2.effects import _cap_of
-    # full_pack（purple +10 cap_bonus）+ crit_charge：crit 事件 energy+3 → cap 110
+    # full_pack（purple +10 bonus.cap）+ crit_charge：crit 事件 energy+3 → cap 110
     p = mk_a("pd", "player")
     m = mk_a("ed", "enemy", hp=100000, atk=1)
     equip_affix(p, "full_pack", "armor", quality="purple")
     equip_affix(p, "crit_charge", "weapon", quality="purple")
     EP.apply_to_actor(p)
-    check("full_pack cap_bonus.energy=10", (p.get("cap_bonus") or {}).get("energy") == 10,
-          f"cap_bonus={p.get('cap_bonus')}")
+    check("full_pack bonus.cap.energy=10", _capb(p).get("energy") == 10, f"bonus.cap={_capb(p)}")
     check("_cap_of 动态 cap=110", _cap_of(p, "energy") == 110, f"cap={_cap_of(p, 'energy')}")
     b = new_battle(p, m)
     for _ in range(40):  # 40×3 = 120 > 动态 cap 110
@@ -379,8 +383,7 @@ def test_affix_gain_dynamic_cap():
     equip_affix(p3, "holy_echo", "weapon", quality="blue")  # gain 1
     EP.apply_to_actor(p3)
     b3 = new_battle(p3, m3)
-    check("divine_radiance cap_bonus.faith=1", (p3.get("cap_bonus") or {}).get("faith") == 1,
-          f"cap_bonus={p3.get('cap_bonus')}")
+    check("divine_radiance bonus.cap.faith=1", _capb(p3).get("faith") == 1, f"bonus.cap={_capb(p3)}")
     for _ in range(12):  # 12 次治疗施放 → 超过基础 10
         _fire(b3, "act_cast", {"actor": p3, "target": m3,
                                "info": {"name": "愈", "kind": "治疗"}}, [])
@@ -442,7 +445,7 @@ def test_regen_type_turn_start():
     b3.act(ActCtx(caster=p3, action="attack", target=m3))  # 95 → +10 → 105 clamp 100
     check("疾风余韵 cap 100 clamp（95→100）", stk(p3, "energy") == 100,
           f"energy={stk(p3, 'energy')}")
-    # 与上限词条联动：full_pack（purple cap_bonus+10）+ swift_tailwind 满 110
+    # 与上限词条联动：full_pack（purple bonus.cap+10）+ swift_tailwind 满 110
     p4 = mk_a("pj", "player")
     m4 = mk_a("ej", "enemy", hp=100000, atk=1)
     equip_affix(p4, "swift_tailwind", "armor", quality="orange")

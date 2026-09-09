@@ -624,9 +624,10 @@ class CombatCmds(CommandBase):
         BR.prepare_player_for_battle(player, tb, db)
         sides = BR.build_sides(player=player, enemies=enemies)
         for _a in sides.get("player", []):
-            # N5b4-4 通用容器：外部增幅聚合塞 actor（actor_stats 读 actor 优先）
+            # v181.M-bonus 统一数值容器：外部面板增幅聚合塞 bonus.panel（actor_stats 读
+            # actor.bonus.panel 优先；cap/cost 分域由 apply_to_actor 装备装配覆盖写）
             try:
-                _a["stat_bonus"] = dict(tb or {})
+                _a["bonus"] = {"panel": dict(tb or {}), "cap": {}, "cost": {}}
             except Exception:
                 pass
             try:
@@ -2312,11 +2313,11 @@ class CombatCmds(CommandBase):
         _tb = self._title_bonus(group_id, qq_id)
         BR.prepare_player_for_battle(player, _tb, db)
         _sides = BR.build_sides(player=player, enemies=[dict(u) for u in _boss_grp])
-        # 玩家侧 actor 塞 stat_bonus（N5b4-4 通用容器；Boss 敌侧不塞——回落
+        # 玩家侧 actor 塞 bonus.panel（v181.M-bonus 统一容器；Boss 敌侧不塞——回落
         # battle.title_bonus 保持 N5b4-3 行为）
         try:
             for _a in _sides.get("player", []):
-                _a["stat_bonus"] = dict(_tb or {})
+                _a["bonus"] = {"panel": dict(_tb or {}), "cap": {}, "cost": {}}
         except Exception:
             pass
         # 敌 actor 装配（weapon/affix 是玩家侧；敌侧只需 auto_act 行动配置）
@@ -2755,13 +2756,14 @@ class CombatCmds(CommandBase):
         # N5b4-4：创建 PVP 战斗状态（battle2）——sides 双 actor 持久化 + meta 外壳。
         #   sides.player 固定 = 攻击者(发起方)、sides.enemy = 防守方；双方 human_controlled
         #   （PVP 轮流制由命令层 meta.actor 驱动，enemy 侧真人 actor 不自动行动）。
-        #   stat_bonus（鱼鱼拍板通用容器，N5b4-4）：Battle.title_bonus 战斗级单份无法
-        #   区分双人——各自外部增幅（core/stat_bonus.py 聚合）塞 actor["stat_bonus"]，
-        #   stats 读 actor 优先，双方面板各自精确；battle 级传 {} 仅兜底。
+        #   bonus.panel（v181.M-bonus 统一数值容器；N5b4-4 起 per-actor 增幅）：Battle.
+        #   title_bonus 战斗级单份无法区分双人——各自外部增幅（core/stat_bonus.py 聚合）
+        #   塞 actor["bonus"]["panel"]，stats 读 actor 优先，双方面板各自精确；
+        #   battle 级传 {} 仅兜底。
         from ..services import battle2_bridge as BR
         from ..services.battle2_equip_proc import apply_to_actor as _EP_apply
         from ..battle2 import Battle as B2
-        # 0. 双方各自 stat_bonus（core 直调 + 已 load 的 player dict，避免 _title_bonus
+        # 0. 双方各自外部增幅聚合（core 直调 + 已 load 的 player dict，避免 _title_bonus
         #    内部再读档；失败降级空 dict）
         from ..core.stat_bonus import stat_bonus as _core_tb
         _tb_me = {}
@@ -2775,7 +2777,7 @@ class CombatCmds(CommandBase):
         #    重算带自己增幅 → 与 actor_stats 面板口径一致）
         BR.prepare_player_for_battle(player, _tb_me, db)
         # ② 防守方：拷贝 + 只实时化 max_hp/max_mp（不跑仪式——防消费对方 event_state；
-        #    stat_bonus 用防守方自己的）
+        #    外部增幅用防守方自己的）
         _def_p = dict(target_player)
         try:
             _dst = E.player_final_stats(
@@ -2793,8 +2795,9 @@ class CombatCmds(CommandBase):
         _my_actor = BR.player_to_actor(player)
         _opp_actor = BR.player_to_actor(_def_p)
         _opp_actor["side"] = "enemy"  # 防守方入敌侧（human_controlled=True 保持 → 不自动）
-        _my_actor["stat_bonus"] = _tb_me   # per-actor 外部增幅聚合（随 actor 落盘/恢复）
-        _opp_actor["stat_bonus"] = _tb_opp
+        # v181.M-bonus 统一数值容器：各自外部面板增幅聚合塞 bonus.panel（随 actor 落盘/恢复）
+        _my_actor["bonus"] = {"panel": dict(_tb_me or {}), "cap": {}, "cost": {}}
+        _opp_actor["bonus"] = {"panel": dict(_tb_opp or {}), "cap": {}, "cost": {}}
         for _a in (_my_actor, _opp_actor):
             try:
                 _EP_apply(_a)

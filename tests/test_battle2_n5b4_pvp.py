@@ -162,10 +162,14 @@ async def test_pvp_start_state():
           and int(p_acts[0].get("max_hp", 0)) > 0)
     check("防守方 max_hp 已实时化", int(e_acts[0].get("max_hp", 0)) == def_player.get("max_hp"),
           f"actor={e_acts[0].get('max_hp')} db={def_player.get('max_hp')}")
-    # 鱼鱼拍板方案 A：双方 actor 各自携带 stat_bonus（per-actor 通用容器；测试玩家无增幅 → 空 dict）
-    check("双方 actor 带 stat_bonus 字段", isinstance(p_acts[0].get("stat_bonus"), dict)
-          and isinstance(e_acts[0].get("stat_bonus"), dict),
-          f"p={p_acts[0].get('stat_bonus')} e={e_acts[0].get('stat_bonus')}")
+    # 鱼鱼拍板方案 A：双方 actor 各自携带 bonus 容器（v181.M-bonus 统一数值容器；
+    # per-actor 外部增幅 = bonus.panel；测试玩家无增幅 → 空 panel dict）
+    check("双方 actor 带 bonus 容器（panel 空 dict）",
+          isinstance(p_acts[0].get("bonus"), dict)
+          and isinstance((p_acts[0].get("bonus") or {}).get("panel"), dict)
+          and isinstance(e_acts[0].get("bonus"), dict)
+          and isinstance((e_acts[0].get("bonus") or {}).get("panel"), dict),
+          f"p={p_acts[0].get('bonus')} e={e_acts[0].get('bonus')}")
     check("双方锁战斗", cmds._in_battle(GID, att_qq) and cmds._in_battle(GID, def_qq))
     # 灰名标记
     check("攻击者灰名 10 分钟", int(db.get_event_state(f"grey_{att_qq}") or 0) > 0)
@@ -321,7 +325,7 @@ async def test_pvp_skill_and_turn_guard():
 
 
 async def test_pvp_stat_bonus_per_actor():
-    print("【N5b4-4 per-actor stat_bonus 面板（通用容器）】")
+    print("【N5b4-4 per-actor 面板增幅 bonus.panel（v181.M-bonus 统一容器）】")
     from game.battle2 import make_actor, Battle as B2
     from game.battle2.stats import actor_stats
     _base = dict(class_name="战士", level=15, equipment={}, skills=[], learned_skills=[])
@@ -330,17 +334,17 @@ async def test_pvp_stat_bonus_per_actor():
         return make_actor(uid=uid, name=uid, side=side, kind="player",
                           human_controlled=True, **_base)
 
-    # 基础对照（battle.title_bonus 空、actor 无 tb）
+    # 基础对照（battle.title_bonus 空、actor 无 bonus 容器）
     a0 = _mk("t0", "player")
     e0 = _mk("t0e", "enemy")
     b0 = B2("pvp", sides={"player": [a0], "enemy": [e0]}, title_bonus={})
     s0 = actor_stats(b0, a0)
 
-    # A 带 atk+20、E 带 spd+30 → 面板各自精确、互不污染
+    # A 带 panel atk+20、E 带 panel spd+30 → 面板各自精确、互不污染
     a = _mk("t1", "player")
     e = _mk("t1e", "enemy")
-    a["stat_bonus"] = {"atk": 20}
-    e["stat_bonus"] = {"spd": 30}
+    a["bonus"] = {"panel": {"atk": 20}, "cap": {}, "cost": {}}
+    e["bonus"] = {"panel": {"spd": 30}, "cap": {}, "cost": {}}
     b = B2("pvp", sides={"player": [a], "enemy": [e]}, title_bonus={})
     sa, se = actor_stats(b, a), actor_stats(b, e)
     check("A 面板 atk = 基础 + 20", int(sa.get("atk", 0)) == int(s0.get("atk", 0)) + 20,
@@ -360,15 +364,15 @@ async def test_pvp_stat_bonus_per_actor():
     check("无 actor tb → 回落 battle.title_bonus", int(s2.get("atk", 0)) == int(s0.get("atk", 0)) + 5,
           f"battle 级={s2.get('atk')} 基础={s0.get('atk')}")
 
-    # 序列化保留（PVP 续战恢复后 actor 仍带自己称号）
+    # 序列化保留（PVP 续战恢复后 actor 仍带自己增幅 bonus.panel）
     st = b.to_state()
     b3 = B2.from_state(st)
     a3 = b3.sides_of("player")[0]
     e3 = b3.sides_of("enemy")[0]
-    check("恢复后 A 的 stat_bonus 保留", ((a3.get("stat_bonus") or {}).get("atk")) == 20,
-          f"{a3.get('stat_bonus')}")
-    check("恢复后 E 的 stat_bonus 保留", ((e3.get("stat_bonus") or {}).get("spd")) == 30,
-          f"{e3.get('stat_bonus')}")
+    check("恢复后 A 的 bonus.panel 保留", ((a3.get("bonus") or {}).get("panel") or {}).get("atk") == 20,
+          f"{a3.get('bonus')}")
+    check("恢复后 E 的 bonus.panel 保留", ((e3.get("bonus") or {}).get("panel") or {}).get("spd") == 30,
+          f"{e3.get('bonus')}")
 
 
 async def test_pvp_timeout_and_legacy():

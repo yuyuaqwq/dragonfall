@@ -68,9 +68,24 @@ def _player_actor(snap: dict, st: dict, key: str) -> dict:
     if _snap_src.get("food_effects") is not None:
         actor["food_effects"] = list(_snap_src["food_effects"])
     actor["ct"] = float(_snap_src.get("ct", 0) or 0)
-    # 通用外部增幅（N5b4-4c）：快照 stat_bonus（旧档 title_bonus 键兜底）
-    _sb = snap.get("stat_bonus") or snap.get("title_bonus") or {}
-    actor["stat_bonus"] = dict(_sb or {})
+    # 统一数值容器（v181.M-bonus）：快照 bonus 全容器恢复（panel/cap/cost 随 actor
+    # 落盘/恢复）；旧档快照（无 bonus 键，stat_bonus/cap_bonus 旧键）一次性转换——
+    # 仅存档数据迁移，非引擎读源回落（引擎读源一律 bonus 分域 get 兜底）
+    _bns = snap.get("bonus")
+    if isinstance(_bns, dict):
+        actor["bonus"] = {
+            "panel": dict(_bns.get("panel") or {}),
+            "cap": dict(_bns.get("cap") or {}),
+            "cost": dict(_bns.get("cost") or {}),
+        }
+    else:
+        actor["bonus"] = {
+            "panel": dict(snap.get("stat_bonus") or snap.get("title_bonus") or {}),
+            "cap": dict(snap.get("cap_bonus") or {}),
+            "cost": {},
+        }
+    actor.pop("stat_bonus", None)
+    actor.pop("cap_bonus", None)
     return actor
 
 
@@ -374,7 +389,15 @@ def sync_views(st: dict, group_id) -> None:
             if _a.get(_ak) is not None:
                 st.setdefault(_sk, {})[_k] = _a[_ak]
         snap["ct"] = float(_a.get("ct", 0) or 0)
-        snap["stat_bonus"] = dict(_a.get("stat_bonus") or {})
+        # v181.M-bonus：统一数值容器全量回写快照（panel/cap/cost；下轮 _player_actor 恢复）
+        _bn = _a.get("bonus")
+        snap["bonus"] = {
+            "panel": dict((_bn or {}).get("panel") or {}),
+            "cap": dict((_bn or {}).get("cap") or {}),
+            "cost": dict((_bn or {}).get("cost") or {}),
+        }
+        snap.pop("stat_bonus", None)
+        snap.pop("cap_bonus", None)
         # 倒地标记（O105 语义）
         if snap.get("hp", 0) <= 0 and st.get("alive", {}).get(_k, True):
             st["alive"][_k] = False

@@ -155,7 +155,7 @@ def install() -> None:
         - kind / not_basic 事件过滤（heal_cast 时机只认 kind=治疗 行动——普攻/攻击技能
           施放不触发，防误攒；参数由装配时从渠道时机映射写入）
         - cap clamp 查 _cap_of（v181.M-R2e 方案 A 收敛：EFFECT_RULES 基础 + actor
-          cap_bonus 动态——faith 上限词条 divine_radiance/holy_heart 生效）；
+          bonus.cap 动态（v181.M-bonus 分域）——faith 上限词条 divine_radiance/holy_heart 生效）；
           stacks float 读/写归一（B3——衰减后 3.9 +2 → 5.9 精度保真）
         - 写后广播 threshold（v181.M-R2e B2：渠道攒到满 cap 的当次触发——过载钩子
           依赖；对齐 effects.apply op=add 的 threshold 广播口径）
@@ -218,7 +218,7 @@ def install() -> None:
         施法者（_owner）查自身 effects[faith].stacks（float 保真——衰减 9.3 也准）→
         load_tiers 档位（max 升序，取首个 stacks<=max 的档：0-3 清醒 / 4-7 专注 ×1.25 /
         8-9 透支 ×1.5 / 10 过载 ×1.0）→ heal_mult 累乘进 ctx.mult。无条目/0 层 →
-        清醒档 ×1.0（零行为）；超过末档 max（cap_bonus 超高瞬态）→ 末档兜底。
+        清醒档 ×1.0（零行为）；超过末档 max（bonus.cap 抬 cap 超高瞬态）→ 末档兜底。
         """
         ctx = getattr(battle, "_fire_ctx", None)
         if ctx is None:
@@ -244,7 +244,7 @@ def install() -> None:
                 label = str(t.get("label") or "")
                 break
         else:
-            # 超过末档 max（cap_bonus 抬 cap 后 10+ 层瞬态）：取最后一档声明
+            # 超过末档 max（bonus.cap 抬 cap 后 10+ 层瞬态）：取最后一档声明
             _last = tiers[-1] if tiers else {}
             if isinstance(_last, dict):
                 mult = float(_last.get("heal_mult", 1.0) or 1.0)

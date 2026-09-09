@@ -127,7 +127,7 @@ async def main():
         _BR.prepare_player_for_battle(pl, {}, db)
         _sides = _BR.build_sides(player=pl, enemies=[_mk_mon()])
         for _a in _sides.get("player", []):
-            _a["stat_bonus"] = {}
+            _a["bonus"] = {"panel": {}, "cap": {}, "cost": {}}
         return _B2("monster", sides=_sides, title_bonus={}).to_state()
     # 攻击扣 1
     db.clear_battle("g1", "q1")

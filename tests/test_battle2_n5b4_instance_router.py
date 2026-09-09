@@ -113,7 +113,7 @@ def mk_snap(qid, name, cls="cls_zhan_shi", level=15, learned=None, hp=None, spd_
         "mp": int(pl.get("mp", 0)), "max_mp": 50,
         "equipment": {}, "skills": [], "learned_skills": learned or [],
         "class_tier": 0, "evolve_path": 0, "attributes": pl.get("attributes"),
-        "stat_bonus": {}, "race": pl.get("race"),
+        "bonus": {"panel": {}, "cap": {}, "cost": {}}, "race": pl.get("race"),
         "uid": f"p_{qid}", "buffs": {}, "stacks": {}, "defending": False,
         "charging": None, "ct": 0.0, "p_shields": {}, "spd": spd,
     }

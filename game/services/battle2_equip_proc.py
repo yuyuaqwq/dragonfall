@@ -104,14 +104,17 @@ def equipped_weapon_keys(actor: dict) -> list:
 #   element 资源容器 cap 已由 EFFECT_RULES 声明（EFFECT_RULES 无行=装配即无限攒，
 #   行已补全）
 # - 上限型 max_bonus（rage_forge/divine_radiance/holy_heart/rhythm_badge/chi_limit/
-#   full_pack——energy_blade 现网数据为 cost_reduce 型，非上限）v181.M-R2e 方案 A 已装：
-#   装配写 actor["cap_bonus"]（_apply_cap_bonus，覆盖写幂等），引擎 _cap_of 收敛点
-#   （effects 叠层 clamp/schedule period gain/渠道 gain clamp）读动态 cap = EFFECT_RULES
-#   基准 + cap_bonus。cost_reduce 型（energy_blade/arcane_focus/sigil_blessing，消耗
-#   修正需引擎消耗管线挂钩——见缺口）、cond 修正型 ember_brand（怒气获取修正需资源
-#   获取事件钩子）、combo_recover（连招技标签语义）仍缺口；
+#   full_pack）v181.M-R2e 方案 A 已装：装配写 actor["bonus"]["cap"]（_apply_cap_bonus，
+#   覆盖写幂等），引擎 _cap_of 收敛点（effects 叠层 clamp/schedule period gain/渠道
+#   gain clamp）读动态 cap = EFFECT_RULES 基准 + bonus.cap。cost_reduce 型
+#   （energy_blade/arcane_focus/sigil_blessing 消耗修正）v181.M-bonus 已装：
+#   装配写 actor["bonus"]["cost"]（_apply_cost_bonus 分域，覆盖写幂等），引擎
+#   actions._skill_pay_of 折算（预检/扣费同源、floor 取整、保底 1）；cond 修正型
+#   ember_brand（怒气获取修正需资源获取事件钩子）、combo_recover（连招技标签语义）
+#   仍缺口；
 #   regen 型 energy_tide/swift_tailwind（每刻回能 turn_start）与 purify（驱散）
 #   v181.M-affixtail 已装（翻译器见下；cap clamp 全收敛 _cap_of）。
+# finisher（终结技伤害乘区）v181.M-bonus 已装（dmg_calc mech_any 谓词，见 _af_finisher）。
 # tier 语义（旧 _affix_effs）：effect.tiers[装备品质] 覆盖主数值键（如能量上限
 # full_pack purple 10/orange 20）；装配时按 item.quality 取档。
 
@@ -142,14 +145,14 @@ def equipped_affix_ids(actor: dict) -> list:
     return out
 
 
-def _apply_cap_bonus(actor: dict) -> None:
-    """上限词条装配（v181.M-R2e 方案 A：affix 动态 cap）——写 actor["cap_bonus"]。
+def _apply_cap_bonus(actor: dict) -> dict:
+    """上限词条装配（v181.M-R2e 方案 A：affix 动态 cap）——写 actor["bonus"]["cap"]。
 
-    扫当前装备全部 affixes：effect 含 {res, max_bonus} → cap_bonus[res] += N
+    扫当前装备全部 affixes：effect 含 {res, max_bonus} → bonus.cap[res] += N
     （多件/多词条同资源累加）。数值权威 = AFFIXES 表（_affix_effect_final 已按装备
     品质取 tiers 档：full_pack purple 10 / orange 20）。energy_blade 现行数据为
     cost_reduce 型（无 max_bonus）→ 零贡献自动跳过（版本漂移，非上限词条）。
-    纯 flat int 容器（stat_bonus 平行哲学——引擎零语义，effects._cap_of clamp 时
+    纯 flat int 容器（bonus 容器平行哲学——引擎零语义，effects._cap_of clamp 时
     读取）。覆盖写幂等：每次 apply_to_actor 按当前装备重算 → 卸装后重装配自然回落。
     """
     out: dict = {}
@@ -163,10 +166,88 @@ def _apply_cap_bonus(actor: dict) -> None:
             out[res] = int(out.get(res, 0) + float(mb))
         except Exception:
             continue  # 单词条解析异常不阻断其余（容错铁律）
-    if out:
-        actor["cap_bonus"] = out
-    else:
-        actor.pop("cap_bonus", None)
+    return out
+
+
+# ============================================================
+# v181.M-bonus cost 域装配（消耗修正词条 → actor["bonus"]["cost"]）
+# ============================================================
+# 形态：actor["bonus"]["cost"] = {
+#     "mp_pct": float,   # 无条件全技能魔力折扣（% 值，0.10 = -10%）
+#     "mp_flat": int,    # 无条件魔力平减（固定减点）
+#     "res": {res: pct}, # 无条件该资源消耗折扣（energy_blade 0.05 = 精力消耗 -5%）
+#     "when": [{"mp_pct"/"mp_flat": ..., "judge": {...}}],  # 有条件条目（施放点按技能判）
+# }
+# judge 谓词（引擎施放点判，任一命中即生效——字段间 OR）：
+#   {"element": True}                          → 技能 info.element 非空（元素系）
+#   {"mech_prefix": ["arcane", ...]}           → info.mech startswith 任一
+#   {"name_contains": ["神迹"]}                → 技能显示名含任一子串
+# 引擎折算见 battle2/actions.py _skill_pay_of（预检/扣费同源、保底 1、floor 取整）。
+
+# 元素/奥术判据（arcane_focus desc：元素/奥术技能 魔力消耗 -10%——法师技能数据
+# element 字段只标元素系 7 技、奥术系走 mech=arcane/arcane_burst、部分大招仅名字
+# 含"元素/奥术"（万象风暴等无标记记缺口）→ 三路 OR 覆盖 desc 语义）
+_JUDGE_ARCANE = {
+    "element": True,
+    "mech_prefix": ["fire", "ice", "thunder", "element", "arcane"],
+    "name_contains": ["元素", "奥术"],
+}
+
+
+def _apply_cost_bonus(actor: dict) -> dict:
+    """消耗修正词条装配（v181.M-bonus）——扫 affixes，产 bonus.cost 分域 dict。
+
+    识别（_affix_effect_final 已按品质取 tiers 档）：
+    - energy_blade   effect {res, cost_reduce}      → res[res] += 折扣%（该资源消耗技
+      能才受影响 → 无条件即天然过滤）
+    - arcane_focus   effect {mp_cost_reduce: 0.10}  → when 条目 mp_pct + 元素/奥术判据
+      （float 值 = 比例折扣）
+    - sigil_blessing effect {mp_cost_reduce: 5, on: miracle} → when 条目 mp_flat + 神迹
+      判据（int 值 = 平减；神迹技 = 技能名含"神迹"，牧师树神迹/神迹·重生）
+    覆盖写幂等：按当前装备全量重算 → 卸装后重装配自然回落。
+    """
+    cost: dict = {}
+    _whens = []
+    for aid in equipped_affix_ids(actor):
+        try:
+            eff = _affix_effect_final(aid, actor, None)
+            if not eff:
+                continue
+            # ① res 折扣型（energy_blade）：该资源消耗 -cost_reduce%
+            _res = eff.get("res")
+            _cr = eff.get("cost_reduce")
+            if _res and isinstance(_cr, (int, float)) and float(_cr) > 0:
+                resm = cost.setdefault("res", {})
+                resm[_res] = float(resm.get(_res, 0.0) or 0.0) + float(_cr)
+            # ② mp 折扣型（arcane_focus / sigil_blessing）
+            _mcr = eff.get("mp_cost_reduce")
+            if isinstance(_mcr, (int, float)) and float(_mcr) > 0:
+                if isinstance(_mcr, float):
+                    # 比例折扣（0.10 = -10%）：元素/奥术技能判据
+                    _whens.append({"mp_pct": float(_mcr), "judge": dict(_JUDGE_ARCANE)})
+                else:
+                    # int 平减：sigil_blessing 限神迹技（on: miracle → 技能名含神迹）
+                    if eff.get("on") == "miracle":
+                        _whens.append({"mp_flat": int(_mcr),
+                                       "judge": {"name_contains": ["神迹"]}})
+                    else:
+                        cost["mp_flat"] = int(cost.get("mp_flat", 0) or 0) + int(_mcr)
+        except Exception:
+            continue  # 单词条解析异常不阻断其余（容错铁律）
+    if _whens:
+        cost["when"] = _whens
+    return cost
+
+
+def _apply_bonus_domains(actor: dict) -> None:
+    """装备词条 → bonus 容器分域（v181.M-bonus；cap/cost 覆盖写，panel 不动）。
+
+    apply_to_actor 第 0 步调用。actor 无 bonus 容器（未走开战仪式播种的直调路径）
+    → 补建空容器（panel {}），cap/cost 照常装配。
+    """
+    b = actor.setdefault("bonus", {"panel": {}, "cap": {}, "cost": {}})
+    b["cap"] = _apply_cap_bonus(actor)
+    b["cost"] = _apply_cost_bonus(actor)
 
 
 def _tier_value(eff: dict, quality: str):
@@ -542,6 +623,22 @@ def _af_purify(aid, actor, eff):
                      "chance": _affix_chance_of(aid),
                      "purge_n": int(eff.get("purge") or 1),
                      "holy_weaken_pct": float(eff.get("holy_weaken") or 0.10)}]}
+
+
+@_register_affix("finisher")
+def _af_finisher(aid, actor, eff):
+    """终结之技：终结技伤害 +tier%（v181.M-bonus 装配）。
+
+    dmg_calc 乘区 cond=mech_any（新谓词见 battle2_we_procs.we_dmg_mult_cond）：
+    本击技能 mech=finisher 或显示名含「终结」（终结·割喉/处决/暗影绞杀等刺客终结技；
+    毒爆 mech=poison_burst_finisher 名不含终结 → 不算——desc「终结技」限定）。
+    数值权威 = AFFIXES effect.finisher_dmg（tiers 已折入：blue 0.10/purple 0.15/
+    orange 0.20）。"""
+    return {"dmg_calc": [{"type": "we_dmg_mult_cond", "key": aid,
+                          "cond": "mech_any", "mechs": ["finisher"],
+                          "names_any": ["终结"],
+                          "mult": 1.0 + float(eff.get("finisher_dmg") or 0.10),
+                          "tag": "🗡️终结技"}]}
 
 
 def affix_triggers_for_key(aid: str, actor: dict) -> dict:
@@ -1016,7 +1113,8 @@ def affix_triggers(actor: dict) -> dict:
     - stat 型词条（生成时已折算进 item.stats）不产生 triggers（面板自动含）
     - 事件型走翻译器 + 事件映射展开（hit → attack_hit + skill_hit）
     - 资源型：R4 已装事件 gain 型 10 + boiling_blood；上限型 max_bonus 走
-      _apply_cap_bonus（actor.cap_bonus 容器，非事件——apply_to_actor 第 0 步）；
+      _apply_bonus_domains（actor.bonus cap/cost 分域容器，非事件——apply_to_actor 第
+      0 步；面板外部增幅 bonus.panel 由开战仪式播种，装配不动）；
       m_affixtail 已装 regen 型 2（energy_tide/swift_tailwind turn_start 回能）+
       purify（命中驱散）；cond 修正型/职业机制词条翻译器未注册 → 静默跳过
       （缺口清单见模块头注释与 affixes.py）
@@ -1034,17 +1132,19 @@ def affix_triggers(actor: dict) -> dict:
 
 def apply_to_actor(actor: dict) -> None:
     """把装备特效+词条装配进 actor（幂等；命令层开战前调用）：
-    0. cap_bonus 上限词条容器（v181.M-R2e 方案 A：affix max_bonus → 动态 cap）
+    0. bonus 容器分域（v181.M-bonus：cap 上限词条 max_bonus → bonus.cap；
+       cost 消耗修正词条 energy_blade/arcane_focus/sigil_blessing → bonus.cost；
+       panel 外部增幅由开战仪式播种，此处不动）
     1. 事件型效果 → actor["triggers"]（武器特效 + 词条事件型合并）
     2. 被动常驻型（proc_heal amp：受疗增幅）→ actor.state.heal_amp_pct（landing 折算）"""
     if not actor:
         return
     install_ext_actions()
-    # 0) cap_bonus（上限词条——先于渠道装配；覆盖写幂等，卸装后重装配回落）
+    # 0) bonus 容器（cap/cost——先于渠道装配；覆盖写幂等，卸装后重装配回落）
     try:
-        _apply_cap_bonus(actor)
+        _apply_bonus_domains(actor)
     except Exception:
-        pass  # 上限词条装配异常不阻断其余（容错铁律）
+        pass  # 词条 bonus 装配异常不阻断其余（容错铁律）
     # 1) 事件型（武器特效 + affix 词条）
     merged = weapon_triggers(actor)
     try:

@@ -64,8 +64,9 @@ def _add_stacks(actor, key: str, amount: int, cap: int | None = None) -> int:
         entry = ef[key] = {}
     if cap is None:
         # v181.M-affixtail cap 收敛：缺省 cap 走引擎 _cap_of（EFFECT_RULES 基础 +
-        # actor.cap_bonus 动态——上限词条 full_pack/rage_forge 等抬 cap 后，本文件
-        # 附赠通道（we_affix_res_gain 等）与主渠道同口径可攒满；无 cap_bonus 时与
+        # actor.bonus.cap 动态（v181.M-bonus 分域——上限词条 full_pack/rage_forge 等
+        # 抬 cap 后，本文件
+        # 附赠通道（we_affix_res_gain 等）与主渠道同口径可攒满；无 bonus.cap 时与
         # 旧静态 state_def 读等价（行为零变化）。调用方显式传 cap 的（dot/defdown 等
         # 数值型叠层）语义不动。
         from ..battle2.effects import _cap_of
@@ -792,6 +793,16 @@ def we_dmg_mult_cond(battle, caster, target, params, logs):
                 mk = ef.get("mark")
                 hit = (int(hm.get("stacks", 0) or 0) > 0 if isinstance(hm, dict) else False) \
                     or bool(mk)
+        elif cond == "mech_any":
+            # v181.M-bonus finisher：本击施放技能 mech 命中任一 或 显示名含任一
+            # （终结技词条：mech=finisher 的终结·割喉/处决/暗影绞杀；毒爆
+            # poison_burst_finisher 名不含终结 → 不算，词条 desc 终结技限定）
+            info = ctx.get("info") or {}
+            _m = str(info.get("mech") or "")
+            hit = any(_m == str(x) for x in (params.get("mechs") or []))
+            if not hit:
+                _nm = str(info.get("name") or "")
+                hit = any(k and k in _nm for k in (params.get("names_any") or []))
         else:
             hit = True
     except Exception:

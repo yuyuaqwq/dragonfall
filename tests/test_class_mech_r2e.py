@@ -3,10 +3,10 @@
 
 覆盖：
   A affix 动态 cap：
-    1. cap_bonus 装配：rage_forge→cap_bonus.rage=2；卸下覆盖写回落；full_pack purple
+    1. bonus.cap 装配：rage_forge→bonus.cap.rage=2；卸下覆盖写回落；full_pack purple
        tiers→energy+10；energy_blade（现网 cost_reduce 型非上限）零贡献
-    2. 引擎收敛：_cap_of = EFFECT_RULES 基础 + cap_bonus（12）；effects 叠层 clamp 到 12
-       不溢出、超新 cap 不溢出；无 cap_bonus 仍 10
+    2. 引擎收敛：_cap_of = EFFECT_RULES 基础 + bonus.cap（12）；effects 叠层 clamp 到 12
+       不溢出、超新 cap 不溢出；无 bonus.cap 仍 10
     3. 装配渠道 clamp 动态：牧师装 divine_radiance（faith cap 11）→ heal_cast 渠道 +2
        攒到 11 不溢出（class_res_channel_gain 读 _cap_of）
   B1 faith_unload 兑现（heal_clear/冷静 R1c 同族 res_cost 数据通道）：
@@ -65,6 +65,12 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {detail}")
 
 
+def _capb(a):
+    """bonus.cap 分域读（v181.M-bonus 统一容器）。"""
+    return ((a or {}).get("bonus") or {}).get("cap") or {}
+
+
+
 def mk(cid, name, hp=3000, matk=220, mp=300, lv=40, learned=(), uid="p"):
     a = make_actor(uid=uid, name=name, side="player", kind="player",
                    human_controlled=True, class_name=cid, level=lv,
@@ -113,32 +119,30 @@ def _stacks(a, k):
 # ============================================================
 
 def t_a_cap_bonus_assemble():
-    print("【A.1 cap_bonus 装配：max_bonus 词条 → actor 容器（覆盖写幂等）】")
+    print("【A.1 bonus.cap 装配：max_bonus 词条 → actor 容器（覆盖写幂等）】")
     p = mk_warrior()
     equip_affix(p, "rage_forge", "weapon", "purple")
     EP.apply_to_actor(p)
-    cb = p.get("cap_bonus") or {}
-    check("rage_forge → cap_bonus.rage = 2", int(cb.get("rage", 0)) == 2, repr(cb))
+    cb = _capb(p)
+    check("rage_forge → bonus.cap.rage = 2", int(cb.get("rage", 0)) == 2, repr(cb))
     check("rage_forge 无 triggers/effects 噪音（非事件词条）",
           not (p.get("triggers") or {}) and not (p.get("effects") or {}),
           f"triggers={p.get('triggers')} effects={p.get('effects')}")
     # 卸下 → 覆盖写回落（重装配 = 当前装备全量）
     p["equipment"]["weapon"]["affixes"] = []
     EP.apply_to_actor(p)
-    check("卸下后 cap_bonus 移除（重装配回落）", "rage" not in (p.get("cap_bonus") or {}),
-          repr(p.get("cap_bonus")))
+    check("卸下后 bonus.cap 移除（重装配回落）", "rage" not in _capb(p), repr(_capb(p)))
     # full_pack purple tiers 档位 10
     r = mk("cls_you_xia", "游侠")
     equip_affix(r, "full_pack", "weapon", "purple")
     EP.apply_to_actor(r)
-    check("full_pack purple tiers → energy +10", int((r.get("cap_bonus") or {}).get("energy", 0)) == 10,
-          repr(r.get("cap_bonus")))
+    check("full_pack purple tiers → bonus.cap.energy +10", int(_capb(r).get("energy", 0)) == 10, repr(_capb(r)))
     # energy_blade：现网数据为 cost_reduce 型（无 max_bonus）→ 零贡献（版本漂移非上限词条）
     r2 = mk("cls_you_xia", "游侠2")
     equip_affix(r2, "energy_blade", "weapon", "blue")
     EP.apply_to_actor(r2)
-    check("energy_blade（cost_reduce 型）零 cap_bonus 贡献",
-          "energy" not in (r2.get("cap_bonus") or {}), repr(r2.get("cap_bonus")))
+    check("energy_blade（cost_reduce 型）零 bonus.cap 贡献",
+          "energy" not in _capb(r2), repr(_capb(r2)))
 
 
 def t_a_cap_clamp():
@@ -148,8 +152,8 @@ def t_a_cap_clamp():
     EP.apply_to_actor(p)
     apply_class_mech(p)
     b = _battle(p, mk_enemy())
-    check("_cap_of(rage) = 12（10 + cap_bonus 2）", _cap_of(p, "rage") == 12, f"{_cap_of(p, 'rage')}")
-    # 无 cap_bonus 的战士仍 10
+    check("_cap_of(rage) = 12（10 + bonus.cap 2）", _cap_of(p, "rage") == 12, f"{_cap_of(p, 'rage')}")
+    # 无 bonus.cap 的战士仍 10
     w2 = mk_warrior()
     check("无词条 _cap_of(rage) = 10", _cap_of(w2, "rage") == 10, f"{_cap_of(w2, 'rage')}")
     # apply op=add ×12 → 到 12（clamp 不溢出）
@@ -167,19 +171,18 @@ def t_a_cap_clamp():
     for _i in range(15):
         apply_effects(b3, w3, w3, [{"type": "apply", "op": "add", "key": "rage",
                                     "amount": 1, "on": "caster"}], [])
-    check("无 cap_bonus 仍 clamp 10（int 语义不变）", _stacks(w3, "rage") == 10, f"{_stacks(w3, 'rage')}")
+    check("无 bonus.cap 仍 clamp 10（int 语义不变）", _stacks(w3, "rage") == 10, f"{_stacks(w3, 'rage')}")
 
 
 def t_a_channel_clamp_dynamic():
-    print("【A.3 装配渠道 clamp 收敛：牧师 faith cap_bonus → 渠道攒取到新 cap】")
+    print("【A.3 装配渠道 clamp 收敛：牧师 faith bonus.cap → 渠道攒取到新 cap】")
     p = mk_priest()
     # divine_radiance faith +1（cap 10 → 11）
     equip_affix(p, "divine_radiance", "armor", "purple")
     EP.apply_to_actor(p)
     apply_class_mech(p)
     b = _battle(p, mk_enemy())
-    check("divine_radiance → cap_bonus.faith = 1", int((p.get("cap_bonus") or {}).get("faith", 0)) == 1,
-          repr(p.get("cap_bonus")))
+    check("divine_radiance → bonus.cap.faith = 1", int(_capb(p).get("faith", 0)) == 1, repr(_capb(p)))
     check("牧师 _cap_of(faith) = 11（渠道 clamp 收敛动态 cap）", _cap_of(p, "faith") == 11,
           f"{_cap_of(p, 'faith')}")
     # heal_cast 渠道 +2 ×5 → 10：cap 11 下不满 → 不触发过载（渠道 clamp 上限已抬）

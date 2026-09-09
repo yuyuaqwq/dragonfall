@@ -142,7 +142,9 @@ class TowerCmds(CommandBase):
         _sides = BR.build_sides(player=player, enemies=[guard])
         for _a in _sides.get("player", []):
             try:
-                _a["stat_bonus"] = dict(tb or {})
+                # v181.M-bonus 统一数值容器：外部面板增幅聚合塞 bonus.panel（cap/cost 由
+                # apply_to_actor 装备装配覆盖写各分域）
+                _a["bonus"] = {"panel": dict(tb or {}), "cap": {}, "cost": {}}
             except Exception:
                 pass
             try:
