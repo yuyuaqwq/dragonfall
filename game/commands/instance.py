@@ -2677,48 +2677,24 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             lines.append(line)
             # v105 M19 P0：副本内击杀同步推进主线进度（组队玩家路线）——主线击杀目标
             # 只挂副本时，组队通关副本的击杀必须计入，否则副本路线玩家主线卡死
-            for mdef in killed:
-                _ql = self._instance_main_kill_progress(group_id, _key, mdef.get("name", ""))
-                if _ql:
-                    lines.append(f"  {p['name']}：{'；'.join(_ql)}")
-                    break
-        return lines
-
-    def _instance_main_kill_progress(self, group_id, qq_id, monster_name):
-        """v105 M19 P0：副本内击杀同步推进主线进度（组队玩家路线）。
-
-        主线击杀目标只挂副本（q3_3 海盗王·独眼杰克 / q6_2 古王·奥德里克 / q9_4 恶魔祭司·赫尔加 /
-        q10_1 封印守卫(腐蚀) / q12_1 深渊猎犬 / q12_2 蚀夜(真相形态)）时，副本内击杀/通关
-        必须计入主线，否则组队玩家路线主线永远卡死。匹配规则与 combat._update_quests
-        一致（精确匹配 / 目标名+"精英"后缀变体）。返回提示行列表（无匹配返回空）。"""
-        try:
-            quests = db.get_quests(group_id, qq_id)
-        except Exception:
-            return []
-        if not quests or quests.get("main_status") != "active":
-            return []
-        mid = quests.get("main_quest")
-        mq = next((q for q in C.MAIN_QUESTS if q["id"] == mid), None) if mid else None
-        if not mq:
-            return []
-        obj = mq.get("objective") or {}
-        target = obj.get("kill")
-        if not target:
-            return []
-        # 匹配规则与 combat._update_quests 一致（v104 M20 P2 前缀精确：== 或 「目标·」开头）
-        if monster_name != target and not monster_name.startswith(target + "·"):
-            return []
-        prog = dict(quests.get("main_progress", {}))
-        prog[target] = prog.get(target, 0) + 1
-        quests["main_progress"] = prog
-        lines = []
-        if prog[target] >= obj.get("count", 1):
-            quests["main_status"] = "ready"
-            _g = C.NPCS.get(mq["giver"]) or C.ALL_WILD.get(mq["giver"]) or {}
-            lines.append(f"📜 主线『{mq['name']}』目标达成！回去找 {_g.get('name', '？')} 对话交付吧～")
-        else:
-            lines.append(f"📜 主线『{mq['name']}』：{prog[target]}/{obj.get('count', 1)}")
-        db.save_quests(group_id, qq_id, quests)
+            # L3-P3：玩家级反应总线——任何击杀都算数（鱼鱼 09-09 语义决策）。
+            # 取代 _instance_main_kill_progress：quests 订阅方按怪名/属性全量推进
+            # （主线/每日/支线/周常）+ 公会（每场胜利+1）+ 成就（kind=instance）。
+            # 副本内升级守卫在订阅方（levelup 仅 field）——经验攒到出副本统一结算。
+            from ..services.player_event_bus import fire as _pe_fire
+            from ..services import player_event_subscribers as _pe_subs  # noqa: F401  触发注册（幂等）
+            _vctx = {
+                "kind": "instance",
+                "group_id": group_id, "qq_id": _key,
+                "player": p, "monster": (killed[0] if killed else {}),
+                "killed": killed,
+                "side_effects": [],
+                "meta": {},
+            }
+            _pname = (st.get("players") or {}).get(str(_key), {}).get("name", _key)
+            for _fl in _pe_fire("battle_victory", _vctx):
+                # 组队副本多成员各自进度 → 行带成员名前缀（与 per_member 行同风格）
+                lines.append(f"  {_pname}：{_fl}" if _fl.strip() else _fl)
         return lines
 
     # ---------------- 通关后搜刮（v101.27 #390） ----------------
@@ -3081,11 +3057,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         f"，升至 Lv.{_p_lv}！" if _lvup else ""))
             except Exception:
                 pass
-            # v105 M19 P0：副本 Boss 击杀同步推进主线进度（组队玩家路线，
-            # 与 _instance_kill_reward 内小怪/精英击杀同款接入）
-            _ql = self._instance_main_kill_progress(group_id, m, boss.get("name", ""))
-            if _ql:
-                lines.append(f"  {p['name']}：{'；'.join(_ql)}")
             # v135 副本全员图纸小概率：每名存活成员独立判定（首功图纸之外的全员奖励，
             # 概率 constants.INSTANCE_BP_CHANCE=10%）。已学图纸折算图纸残页，未学整张入包。
             if random.random() < C.INSTANCE_BP_CHANCE:
@@ -3167,7 +3138,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     else:
                         db.add_item(group_id, top_key, f"bp_{uuid.uuid4().hex[:8]}", bp)
                         lines.append(f"👑 首功 {top_p['name']} 额外获得图纸：{bp['name']}")
-        # 首通记录（每人）+ 阶段九：副本次数 + 成就判定
+        # 首通记录（每人）+ 阶段九：副本次数 + 成就判定（L3-P3 起成就走总线 kind=instance）
         # v105 M18 P1：结算统计「全队未受伤」→ ach_flawless「完美主义者」解锁
         # （此前全仓 check_achievements 无一传 flawless，条件恒 False 永不可解锁）
         _flawless = all(
@@ -3181,10 +3152,23 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             if st["alive"].get(str(m), True):
                 db.set_achievement(group_id, m, f"inst_clear_{st['inst_id']}", 1)
                 db.bump_stats(group_id, m, inst_clears=1)
-                _extra = {"inst_id": st["inst_id"]}
-                if _flawless:
-                    _extra["flawless"] = True
-                C.check_achievements(group_id, m, None, _extra)
+                # L3-P3：玩家级反应总线——任何击杀都算数（鱼鱼 09-09 语义决策）。
+                # quests 订阅方按 boss 名/属性推进主线/每日/支线/周常（取代
+                # _instance_main_kill_progress）；公会每场胜利+1；成就 kind=instance
+                # extra(inst_id+flawless)。levelup 订阅方 kind 守卫仅 field（副本不升级）。
+                from ..services.player_event_bus import fire as _pe_fire
+                from ..services import player_event_subscribers as _pe_subs  # noqa: F401  触发注册（幂等）
+                _vctx = {
+                    "kind": "instance",
+                    "group_id": group_id, "qq_id": m,
+                    "player": None, "monster": boss,
+                    "killed": [boss] if boss else [],
+                    "side_effects": [],
+                    "meta": {"inst_id": st.get("inst_id"), "flawless": _flawless},
+                }
+                _pname = (st.get("players") or {}).get(str(m), {}).get("name", m)
+                for _fl in _pe_fire("battle_victory", _vctx):
+                    lines.append(f"  {_pname}：{_fl}" if _fl.strip() else _fl)
         # v101.27 #390 隐藏奖励：通关后停留搜刮
         # ① 战利品堆（必出，保底搜刮体验）：金币=通关奖金×30% + 专属材料×1
         # ② 隐藏暗格（概率出）：20%（首通 50%）→ 墙上的裂痕 → 精英守卫 → 宝箱

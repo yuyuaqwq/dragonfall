@@ -44,8 +44,14 @@ def _sub_guild_daily(ctx):
 # 订阅方 2：升级（title_bonus 注入 + check_player_level_up）——原 combat L2056-2063
 # 经验落库后重读 player（v105 M18 P2：rule_fire 彩蛋金币已在库）→ 注入 stat_bonus
 # → 升级检查 → 升级时写回 db 字段并重绑 ctx["player"]（后续订阅方拿最新 dict）。
+# 🔴 kind 守卫：仅 field 升级——副本战斗内不做升级检查（_instance_kill_reward
+# docstring：check_player_level_up 回满 hp 会破坏连续战斗节奏，经验攒到出副本统一
+# 结算）；世界Boss 参与奖励现状也不升级。任务达标发奖内部的升级（settle_daily_quest
+# 单点）不在此列——那属发奖机制，全局一致。
 # ---------------------------------------------------------------------------
 def _sub_levelup(ctx):
+    if ctx.get("kind") != "field":
+        return []
     player = db.get_player(ctx["group_id"], ctx["qq_id"]) or {}
     player["_title_bonus"] = stat_bonus(ctx["group_id"], ctx["qq_id"], player)
     lv_logs, player2 = E.check_player_level_up(ctx["group_id"], ctx["qq_id"], player)
@@ -66,8 +72,10 @@ def _sub_levelup(ctx):
 # ---------------------------------------------------------------------------
 # 订阅方 3：任务（主线/每日/支线）+ 周常——原 combat L2064-2075 quest 循环
 # （_update_quests 壳 = quest_kill_progress + weekly_bump_kill 每只怪）
+# 全 kind 推（语义决策 09-09：任何击杀都算数；quest_kill_progress 内部按怪属性/名
+# 匹配，instance/worldboss 的怪名字对得上就推——取代副本 _instance_main_kill_progress）
 # ---------------------------------------------------------------------------
-def _sub_quests_field(ctx):
+def _sub_quests(ctx):
     lines = []
     for k in ctx.get("killed") or []:
         lines += (quest_kill_progress(ctx["group_id"], ctx["qq_id"], k) or [])
@@ -100,12 +108,32 @@ def _sub_tower_guard(ctx):
 
 
 # ---------------------------------------------------------------------------
-# 订阅方 6：成就（战果/隐藏怪累计）——原 combat L2100-2118
-# kind 分支：field = defeated_hidden_monsters extra（instance/worldboss 留 P3）
+# 订阅方 6：成就（按 kind 组装 extra）——field 原 combat L2100-2118 / instance 原
+# _instance_victory L3187(inst_id+flawless) / worldboss 原 _worldboss_act L2432
+# kind 分支只此一处（P0 任务书 §9）：场景决定 extra，解锁判定全局一致。
 # ---------------------------------------------------------------------------
+def _ach_lines(achs) -> list:
+    lines = []
+    for a in achs or []:
+        rw_txt = f"\n      🎁 {a['_reward_txt']}" if a.get("_reward_txt") else ""
+        lines.append(f"🏆 成就解锁：{a['name']}！({a['desc']}){rw_txt}")
+    return lines
+
+
 def _sub_achievements(ctx):
+    kind = ctx.get("kind", "field")
+    if kind == "instance":
+        meta = ctx.get("meta") or {}
+        extra = {"inst_id": meta.get("inst_id")}
+        if meta.get("flawless"):
+            extra["flawless"] = True
+        return _ach_lines(check_achievements(ctx["group_id"], ctx["qq_id"],
+                                             ctx.get("player"), extra))
+    if kind == "worldboss":
+        return _ach_lines(check_achievements(ctx["group_id"], ctx["qq_id"],
+                                             ctx.get("player"), {"worldboss": 1}))
+    # field：v87 隐藏怪击杀累计（成就·传说猎人）
     monster = ctx.get("monster") or {}
-    # v87：隐藏怪击杀累计（成就·传说猎人）
     hm_defeated = set()
     try:
         _hm_st = db.get_event_state(f"hm_defeated_{ctx['group_id']}_{ctx['qq_id']}")
@@ -116,13 +144,8 @@ def _sub_achievements(ctx):
             db.set_event_state(f"hm_defeated_{ctx['group_id']}_{ctx['qq_id']}", ",".join(sorted(hm_defeated)))
     except Exception:
         pass
-    new_achs = check_achievements(ctx["group_id"], ctx["qq_id"], ctx.get("player"),
-                                  {"defeated_hidden_monsters": hm_defeated})
-    ach_lines = []
-    for a in new_achs:
-        rw_txt = f"\n      🎁 {a['_reward_txt']}" if a.get("_reward_txt") else ""
-        ach_lines.append(f"🏆 成就解锁：{a['name']}！({a['desc']}){rw_txt}")
-    return ach_lines
+    return _ach_lines(check_achievements(ctx["group_id"], ctx["qq_id"], ctx.get("player"),
+                                         {"defeated_hidden_monsters": hm_defeated}))
 
 
 def ensure_registered() -> None:
@@ -137,7 +160,7 @@ def ensure_registered() -> None:
     # guild(无空行) → levelup → quests+weekly → wild_king → tower_guard → achievements
     register("battle_victory", _sub_guild_daily, blank_line=False)
     register("battle_victory", _sub_levelup, blank_line=True)
-    register("battle_victory", _sub_quests_field, blank_line=True)
+    register("battle_victory", _sub_quests, blank_line=True)
     register("battle_victory", _sub_wild_king, blank_line=True)
     register("battle_victory", _sub_tower_guard, blank_line=True)
     register("battle_victory", _sub_achievements, blank_line=True)
