@@ -146,7 +146,7 @@ def translate(battle, actor: dict, payload: str,
             cast = float(_m2.group(1))
             _payload = _CAST_RE.sub("", _payload).rstrip(";,")
 
-    # ---- 1. foodfx（食物效果：本场战斗词条族；落容器 + shield 特判）----
+    # ---- 1. foodfx（食物效果：本场战斗词条族；落容器 + shield 特判 + N10-B7 装配）----
     if _payload.startswith("foodfx:"):
         aids = [a for a in _payload[7:].split(",") if a]
         if not aids:
@@ -155,6 +155,14 @@ def translate(battle, actor: dict, payload: str,
         for a in aids:
             if a not in _fe:
                 _fe.append(a)
+        # N10-B7：food aid → actor["triggers"] 装配（skill_hit/on_taken/dmg_calc 事件）
+        # + effects period 周期声明（回春/冥想/晨曦）——复用 battle2_food_proc 翻译表。
+        # shield 特判不在此（下方独立处理）；翻译表数值读 food_effect_data 权威表。
+        try:
+            from ..services.battle2_food_proc import install_food_fx
+            install_food_fx(actor, aids, logs)
+        except Exception:
+            pass  # 装配异常不阻断吃料理（效果缺省无，文案照播——缺口可见性由测试保证）
         # shield 特判（对齐旧 _do_use_item：圣餐面包等立即给盾——数值读
         # food_effect_data 权威表）
         if "shield" in aids:

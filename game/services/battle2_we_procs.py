@@ -172,6 +172,21 @@ def we_reflect(battle, caster, target, params, logs):
     logs.append(_REFLECT_LOG.get(key, "").format(rd=rd))
 
 
+@register_action("we_hit_slow")
+def we_hit_slow(battle, caster, target, params, logs):
+    """命中减速（hit/skill_hit）：chance → 目标 spd_down（mult 减幅语义：
+    slow 0.5 = 速度减半剩 50%，对齐旧 SPD_DOWN_MULT 0.5 / affix slow 值语义）。
+    food static 静电麻痹 + 未来词条通用。"""
+    tgt = _hit_target(battle, target)
+    if not tgt:
+        return
+    if not _roll(params.get("chance")):
+        return
+    _slow(battle, caster, tgt, int(params.get("turns") or 2),
+          float(params.get("slow") or 0.5), logs)
+    logs.append("⚡ 静电麻痹！目标速度下降！")
+
+
 # ============================================================
 # proc_shield taken 概率盾（sentinel/deeprock：chance + cd 冷却）
 # ============================================================
@@ -438,8 +453,8 @@ def we_extra_dmg(battle, caster, target, params, logs):
     key = params.get("key") or ""
     mode = params.get("mode") or ""
     st = owner.setdefault("ext", {}).setdefault("we_proc", {})
-    # ---- lifesteal：本击伤害回血 ----
-    if key == "novice_lifesteal":
+    # ---- lifesteal：本击伤害回血（novice_lifesteal 装备词条 + food_lifesteal 料理蛇羹）----
+    if key in ("novice_lifesteal", "food_lifesteal"):
         dmg = int(ctx.get("dmg", 0) or 0)
         if dmg <= 0:
             os_ = _owner_stats(battle, owner)
