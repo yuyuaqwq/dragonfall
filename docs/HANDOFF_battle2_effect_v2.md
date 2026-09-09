@@ -631,14 +631,18 @@ hostile 残血追击 / cd_ok 冷却（id→name 经 actor._skill_index）/ weigh
 ### 全量
 344 = 319/25 基线一致零新增（router 59 + 仇恨 11 + AI 34 + 5c 109 全绿）
 
-## 10. 会话重启口令（2026-09-09 晚更新）
-- N10-B 缺口批已全部落地（B1吸血 e6a5b30 / B2 defend_reduce / B3 reflect / B4 element /
-  B6 承伤属性 / B6b 初始ct / B6c 元素抗性 4e0c9e6），battle2 全套 35/35 绿，HEAD=4e0c9e6。
-- **N10 剩余队列**：B7+ 上层装配缺口收口（如有）→ C 删旧（battle.py 1.1万行 + battle_mech/
-  weapon_effects/affix 三套注册表）→ D 测试处置（numeric/stage/v1xx 旧引擎直测 25 红）。
-  权威施工文档 = docs/REFACTOR_v181P4_N10B_gap_fill.md + docs/REFACTOR_v181P4_FULL_PLAN.md N6。
+## 10. 会话重启口令（2026-09-10 更新：N10-C 删旧完成 🎉）
+- **N10-C 删旧完成**（379a792 + ce87914 + 4ad2a41）：旧战斗引擎 game/battle.py(11000行) +
+  battle_mech/weapon_effects/_we_executors/affix_effects/food_effects 五注册表**全删**，
+  累计 **-16965 行**；退役 160+ 守护旧引擎路径的测试 → tests/_retired_old_engine/（run_all 自动跳过）。
+  现存验证网 = 205 绿 / 2 红（feedback_features+services_quests = 既有遗留，非删旧引入）。
+  HEAD=4ad2a41。
+- **N10 剩余**：D 测试处置的收尾只剩 2 个既有红（副本仇恨路径/任务断言过时，独立于删旧）；
+  numeric 数值门禁族退役（鱼鱼拍板"重做数值时重建"，numeric_lib 模拟引擎依赖旧 battle 已归档）。
 - 🔴 **L3 玩家事件层已排期**（2026-09-09 拍板，N10 删旧合并 master 后开工）：
   设计+排期 = docs/DESIGN_v181_L3_player_event_bus.md。L1 战斗内效果总线(N8) ✅ 已落地、
   L2 战斗级观察者(on_event) ✅ 已落地、L3 玩家级事件总线 ⬜ 缺位——victory_settle 手动
   接线任务/成就/公会/野王/塔卫要收敛成订阅。方案 = DDD 同步领域事件（非 QFramework 全家桶）。
-- 续做口令：读本 HANDOFF §10 → git log 确认 HEAD → 按 N10 队列继续。
+- **待办**：wt_ebuffs 合并 master（master 零分叉，fast-forward 即可）+ 处理 2 个遗留红 +
+  L3 开工。
+- 续做口令：读本 HANDOFF §10 → git log 确认 HEAD → 处理待办队列。
