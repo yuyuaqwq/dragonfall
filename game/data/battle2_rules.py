@@ -569,8 +569,24 @@ PASSIVE_PROC: dict = {
                   "not_basic": True},
         "buff_key": "passive_crit_focus",
     },
+    # ---- P2 族：taken_calc 条件减伤 + turn_start 免控（战士坚城之姿双段）----
+    # 旧挂点11 _mitigate_chain（dr_cond）语义：战意 ≥ stacks → 受击减伤 reduce；
+    # 旧挂点10 player_turn（cc stun_clear）语义：战意 ≥ stacks → 移除眩晕。
+    "zhan_yi_full_reduce": {   # 坚城之姿：战意满 10 → 减伤 +10%、免疫眩晕
+        "event": "taken_calc", "action": "passive_taken_reduce",
+        "judge": {"kind": "res_ge", "res": "zhan_yi", "ge_field": "stacks"},
+        "also": [{"event": "turn_start", "action": "passive_cc_clear",
+                  "judge": {"kind": "res_ge", "res": "zhan_yi", "ge_field": "stacks"},
+                  "ctrl": "stun"}],
+    },
+    # ---- P2 族：turn_start 战意挣脱控制（tenacity 坚韧 每场 3 次）----
+    "tenacity": {              # 坚韧：被控制时消耗 2 层战意跳过（每场 3 次）
+        "event": "turn_start", "action": "passive_cc_break",
+        "ctrl_any": True, "res": "zhan_yi", "cost_field": "cost",
+        "left_key": "tenacity_break_left", "left_init": 3,
+    },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
-    # berserk_revive/dr_cond 等 P2 续
+    # berserk_revive/heal_overflow_shield 等 P2 续
 }
 
 

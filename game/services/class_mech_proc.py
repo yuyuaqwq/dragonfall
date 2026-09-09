@@ -582,6 +582,91 @@ def install() -> None:
         else:
             ef.pop(buff_key, None)
 
+    @register_action("passive_taken_reduce")
+    def passive_taken_reduce(battle, caster, target, params, logs):
+        """taken_calc 条件减伤：资源 ≥ 阈值 → ctx.mult ×(1-reduce)（承伤者视角）。
+
+        语义 = 旧挂点11 dr_cond（zy_full 段）逐字：战意 ≥stacks → 减伤 reduce
+        （乘区模式对齐 we_taken_mult_cond：mult <1 = 减免）。reduce 来自 passive dict。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        owner = params.get("_owner") or ctx.get("actor") or caster
+        if owner is None:
+            return
+        reduce_v = float(params.get("reduce") or 0)
+        if reduce_v <= 0:
+            return  # 缺字段 = 无此行为
+        if not _res_ge_ok(owner, params.get("judge") or {}, params):
+            return
+        ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * (1.0 - min(reduce_v, 0.9))
+        logs.append(f"🛡️ {params.get('label') or '被动'}：减伤 {int(reduce_v * 100)}% 生效！")
+
+    @register_action("passive_cc_clear")
+    def passive_cc_clear(battle, caster, target, params, logs):
+        """turn_start 免控清除：资源 ≥ 阈值 → 移除指定控制条目（免疫眩晕等）。
+
+        语义 = 旧挂点10 stun_clear 段逐字（战意满 → 移除 stun——回合开始检查早于
+        控制消费，等效免疫；被晕时下回合开始即被清，控制不生效）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        owner = params.get("_owner") or ctx.get("actor") or caster
+        if owner is None:
+            return
+        if not _res_ge_ok(owner, params.get("judge") or {}, params):
+            return
+        ctrl = params.get("ctrl") or ""
+        if not ctrl:
+            return
+        ef = owner.get("effects") or {}
+        entry = ef.get(ctrl)
+        if isinstance(entry, dict) and entry.get("mode") == "skip":
+            ef.pop(ctrl, None)
+            logs.append(f"🛡️ {params.get('label') or '被动'}：免疫【{ctrl}】！")
+
+    @register_action("passive_cc_break")
+    def passive_cc_break(battle, caster, target, params, logs):
+        """turn_start 消耗挣脱：被控（mode=skip）→ 资源 ≥cost + 次数余 → 扣资源挣脱。
+
+        语义 = 旧 _tenacity_try_break 逐字：战意 ≥cost（默认2）且剩余次数>0 → 扣
+        战意 + 次数-1（effects[left_key]，装配时 init=3 每场重置）→ 移除控制照常行动。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        owner = params.get("_owner") or ctx.get("actor") or caster
+        if owner is None:
+            return
+        ef = owner.get("effects") or {}
+        # 找 skip 控制（stun/freeze/sleep…mode=skip 一律可挣脱）
+        hit_ctrl = None
+        for _k, _e in ef.items():
+            if isinstance(_e, dict) and _e.get("mode") == "skip":
+                hit_ctrl = _k
+                break
+        if hit_ctrl is None:
+            return
+        res = params.get("res") or ""
+        cost = float(params.get(params.get("cost_field") or "cost") or 0)
+        if not res or cost <= 0:
+            return  # 缺字段 = 无此行为
+        _entry = ef.get(res)
+        cur = float(_entry.get("stacks", 0) or 0) if isinstance(_entry, dict) else 0.0
+        left_key = params.get("left_key") or ""
+        _le = ef.get(left_key) if left_key else None
+        left = float(_le.get("stacks", 0) or 0) if isinstance(_le, dict) else 0.0
+        if cur < cost or left <= 0:
+            return
+        # 扣战意 + 次数-1 + 移除控制（旧 _tenacity_try_break 顺序）
+        _entry["stacks"] = max(0, cur - cost)
+        if left_key and isinstance(_le, dict):
+            _le["stacks"] = left - 1
+        ef.pop(hit_ctrl, None)
+        logs.append(f"🛡️ {params.get('label') or '被动'}：消耗 {int(cost)} 层战意挣脱控制！")
+
     _registered = True
 
 
@@ -765,11 +850,51 @@ def apply_class_passives(actor: dict) -> None:
             _pending.setdefault((ev, cfg.get("agg")), []).append((proc, d))
         else:
             trig.setdefault(ev, []).append(d)
+        # also 段：同被动第二条事件钩子（如坚城之姿 taken_calc 减伤 + turn_start 免晕）——
+        # 复用 d 的参数，覆盖 action/judge/额外字段
+        for _also in (cfg.get("also") or []):
+            if not isinstance(_also, dict):
+                continue
+            _d2 = dict(d)
+            _d2["type"] = _also.get("action") or d.get("type")
+            if _also.get("judge"):
+                _d2["judge"] = _also["judge"]
+            for _k in ("ctrl", "ctrl_any", "res", "left_key", "left_init",
+                       "cost_field", "buff_key"):
+                if _also.get(_k) is not None:
+                    _d2[_k] = _also[_k]
+            _ev2 = _also.get("event") or ev
+            if cfg.get("agg"):
+                _pending.setdefault((_ev2, cfg.get("agg")), []).append((proc, _d2))
+            else:
+                trig.setdefault(_ev2, []).append(_d2)
+        # 计数初始化（tenacity 每场 3 次：effects[left_key] = left_init——装配=开战时机）
+        _le = cfg.get("left_key")
+        if _le and cfg.get("left_init") is not None:
+            actor.setdefault("effects", {})[_le] = {"stacks": int(cfg.get("left_init")),
+                                                    "expire": None}
     # ---- 族级聚合（旧 passive_procs 聚合族语义逐字：多条目 → 单条终值）----
     for (ev, agg), entries in _pending.items():
         merged = _merge_agg_entry(agg, entries)
         if merged is not None:
             trig.setdefault(ev, []).append(merged)
+
+
+def _res_ge_ok(actor: dict, judge: dict, params: dict) -> bool:
+    """资源层数门槛判定（res_ge judge 通用）：effects[res].stacks ≥ 阈值。
+
+    judge: {kind: res_ge, res, ge_field}; 阈值读 params[ge_field]（passive dict 并入）。
+    """
+    if not actor:
+        return False
+    res = (judge or {}).get("res") or ""
+    ge_field = (judge or {}).get("ge_field") or ""
+    need = float((params or {}).get(ge_field) or 0)
+    if not res or need <= 0:
+        return False
+    _entry = ((actor.get("effects") or {})).get(res)
+    cur = float(_entry.get("stacks", 0) or 0) if isinstance(_entry, dict) else 0.0
+    return cur >= need
 
 
 def _merge_agg_entry(agg: str, entries: list) -> dict:
