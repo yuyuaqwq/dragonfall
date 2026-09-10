@@ -324,6 +324,11 @@ def test_translation_table_full():
 
 
 if __name__ == "__main__":
+    # v181 flaky 修复：玩家真实面板 ~3% 基础闪避（职业成长，actor["dodge"] 改不动——
+    # 走 E.player_final_stats 公式）——固定随机种子保证「怪打玩家」必命中
+    # （3% 闪避偶发让 test_snake_soup_lifesteal 的掉血/吸血断言打成假红）。
+    # 各用例内部自带 seed 的（精准/处决/极光）不受影响。
+    random.seed(20260910)
     test_snake_soup_lifesteal()
     test_pepper_bleed()
     test_wolf_jerky_counter()

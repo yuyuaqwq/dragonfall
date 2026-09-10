@@ -12,7 +12,7 @@
   7. 双通道：灵魂锁链 cap 段（bonus.cap soul_mark）+ per_layer 乘区段都装配
   8. speed_ratio_ge：疾风·极 速度比 ≥2 触发 ×1.2（P1 已声明补 judge 分支）
 """
-import sys, os
+import sys, os, random
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(PLUGIN_DIR, "test_passive_p2.db"))
@@ -219,6 +219,10 @@ def test_7_dual_channel():
 
 
 def main():
+    # v181 flaky 修复：玩家真实面板 ~3% 基础闪避（职业成长，actor["dodge"] 改不动——
+    # 走 E.player_final_stats 公式）——固定随机种子保证受击/命中序列确定
+    # （3% 闪避偶发会把「反击触发」断言打成假红）。同 test_battle2_n10_b2 做法。
+    random.seed(20260910)
     test_1_counter_assemble()
     test_2_counter_merge()
     test_3_counter_trigger()
