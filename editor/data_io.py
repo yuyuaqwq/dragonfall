@@ -1,15 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""奥兰迪亚 · 配置编辑器 — 数据读写层（MVP：技能域）
+"""奥兰迪亚 · 配置编辑器 — 数据读写层（多域：skills / affixes）
+
+域模型（怎么加一个新域见 editor/README.md「新增一个域」）
+----------------------------------------------------------
+`DOMAIN_DEFS` 一张表描述每个域：schema 文件 / 主 def / py 源文件 / 顶层表名 / 工作副本名
+/ 列表分组策略。读写/校验/列表全部由域定义驱动 —— 加域 = 往表里加一条，不改函数。
 
 读
 --
-用 `ast` 解析 `game/data/skills.py` 里的 PLAYER_SKILLS / BRANCH_SKILLS / TUTOR_SKILLS
-字面量。**绝不 import game 包**（避开循环导入、引擎副作用与并行重构期的不确定性）。
+用 `ast` 解析 `game/data/*.py` 里的顶层表字面量。**绝不 import game 包**（避开循环导入、
+引擎装配副作用与并行重构期的不确定性）。
 
-写（MVP 策略：JSON 工作副本）
-------------------------------
-改动写入 `editor/.workdir/skills.json`，**绝不触碰 game/data/skills.py**。
+写（策略：JSON 工作副本）
+--------------------------
+改动写入 `editor/.workdir/<域>.json`，**绝不触碰 game/data/*.py**。
 理由：整表回写 py 源码会丢注释与手工排版（skills.py 里有大量 `# v162:` 这类注释），
 定点 AST 回写留到与主工程讨论后（见 EDITOR_SPEC.md「回写 py 源码是最大风险点」）。
 
@@ -29,23 +34,63 @@ import os
 # --------------------------------------------------------------------------- paths
 EDITOR_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(EDITOR_DIR)                       # dragonfall/
-SKILLS_PY = os.path.join(ROOT, "game", "data", "skills.py")
-CLASSES_PY = os.path.join(ROOT, "game", "data", "classes.py")
 SCHEMA_DIR = os.path.join(ROOT, "schema")
-SKILL_SCHEMA_JSON = os.path.join(SCHEMA_DIR, "skill.schema.json")
 VALIDATE_PY = os.path.join(SCHEMA_DIR, "validate.py")
-
 WORKDIR = os.path.join(EDITOR_DIR, ".workdir")
-COPY_PATH = os.path.join(WORKDIR, "skills.json")
 
-# 可编辑的表（顺序即 UI 分组顺序）
-TABLES = ("PLAYER_SKILLS", "BRANCH_SKILLS", "TUTOR_SKILLS")
+# 域定义（顺序 = UI 顺序）。加新域：这里加一条 + README 写步骤。
+DOMAIN_DEFS = {
+    "skills": {
+        "label": "技能（skills.py）",
+        "schema": "skill.schema.json",
+        "primary": "skill",
+        "source": "game/data/skills.py",
+        "tables": ("PLAYER_SKILLS", "BRANCH_SKILLS", "TUTOR_SKILLS"),
+        "copy": "skills.json",
+        "flat": False,          # 三层嵌套表（表→职业→分支→技能）
+        "group": "class",       # 列表分组：按 表/职业/分支
+    },
+    "affixes": {
+        "label": "词条（affixes.py）",
+        "schema": "affix.schema.json",
+        "primary": "affix",
+        "source": "game/data/affixes.py",
+        "tables": ("AFFIXES",),
+        "copy": "affixes.json",
+        "flat": True,           # 扁平表（id → 条目）
+        "group": "kind",        # 列表分组：按 kind（attack 武器 / defense 防具）
+    },
+}
+DOMAINS = tuple(DOMAIN_DEFS)                             # UI 顺序
+
 # key 组件分隔符（URL 非保留字符，中文由浏览器 percent-encode，服务端 unquote）
 SEP = "~"
 
+# 兼容别名（旧代码/自检脚本按技能域语义引用）
+TABLES = DOMAIN_DEFS["skills"]["tables"]
+COPY_PATH = os.path.join(WORKDIR, DOMAIN_DEFS["skills"]["copy"])
+CLASSES_PY = os.path.join(ROOT, "game", "data", "classes.py")
+
 WRITE_MODE = "json_copy"
-WRITE_NOTE = ("当前为「JSON 工作副本」写入模式：改动只落到 editor/.workdir/skills.json，"
-              "不改动 game/data/skills.py。直接回写源码（保留注释/排版）需下一步讨论后实施。")
+WRITE_NOTE = ("当前为「JSON 工作副本」写入模式：改动只落到 editor/.workdir/<域>.json，"
+              "不改动 game/data/*.py。直接回写源码（保留注释/排版）需下一步讨论后实施。")
+
+AFFIX_KIND_CN = {"attack": "武器", "defense": "防具"}
+
+
+def domain_def(domain: str) -> dict:
+    d = DOMAIN_DEFS.get(domain)
+    if d is None:
+        raise KeyError(f"未知域 {domain!r}（可用：{', '.join(DOMAINS)}）")
+    return d
+
+
+def _copy_path(domain: str) -> str:
+    return os.path.join(WORKDIR, domain_def(domain)["copy"])
+
+
+def _source_path(domain: str) -> str:
+    return os.path.join(ROOT, domain_def(domain)["source"])
 
 
 # ------------------------------------------------------------------------ validate
@@ -70,27 +115,32 @@ def validator_engine() -> str:
         return "unavailable"
 
 
-def load_skill_schema() -> dict:
-    with open(SKILL_SCHEMA_JSON, "r", encoding="utf-8") as fh:
+def load_schema(domain: str = "skills") -> dict:
+    with open(os.path.join(SCHEMA_DIR, domain_def(domain)["schema"]), "r", encoding="utf-8") as fh:
         return json.load(fh)
 
 
-def validate_skill(obj) -> dict:
+def validate_entry(domain: str, obj) -> dict:
     """返回 {'ok': bool, 'errors': [{'path':..,'message':..}, ...], 'engine': str}"""
     try:
         v = _load_validator()
     except Exception as exc:                                  # pragma: no cover
         return {"ok": False, "engine": "unavailable",
                 "errors": [{"path": "$", "message": f"校验器不可用: {exc}"}]}
-    doc = load_skill_schema()
-    errors = v.validate_instance(obj, doc, "skill")
+    doc = load_schema(domain)
+    errors = v.validate_instance(obj, doc, domain_def(domain)["primary"])
     return {"ok": not errors, "engine": "jsonschema" if v.HAS_JSONSCHEMA else "minimal",
             "errors": [{"path": p, "message": m} for p, m in errors]}
 
 
 # ---------------------------------------------------------------------------- read
-def parse_source_tables(path: str = SKILLS_PY) -> dict:
-    """ast 抽 PLAYER_SKILLS / BRANCH_SKILLS / TUTOR_SKILLS 的字面量（只读源码，不 import）。"""
+def parse_source_tables(path: str = None, tables=None, domain: str = "skills") -> dict:
+    """ast 抽顶层表字面量（只读源码，不 import）。默认技能域（向后兼容）。"""
+    if path is None:
+        path = _source_path(domain)
+    if tables is None:
+        tables = domain_def(domain)["tables"]
+    tables = tuple(tables)
     with open(path, "r", encoding="utf-8") as fh:
         src = fh.read()
     tree = ast.parse(src, filename=path)
@@ -99,9 +149,9 @@ def parse_source_tables(path: str = SKILLS_PY) -> dict:
         if not isinstance(node, ast.Assign):
             continue
         for tgt in node.targets:
-            if isinstance(tgt, ast.Name) and tgt.id in TABLES:
+            if isinstance(tgt, ast.Name) and tgt.id in tables:
                 out[tgt.id] = ast.literal_eval(node.value)
-    missing = [t for t in TABLES if t not in out]
+    missing = [t for t in tables if t not in out]
     if missing:
         raise ValueError(f"{path}: 未找到顶层赋值 {missing}")
     return _norm_keys(out)
@@ -116,36 +166,39 @@ def _norm_keys(obj):
     return obj
 
 
-def workcopy_exists() -> bool:
-    return os.path.isfile(COPY_PATH)
+def workcopy_exists(domain: str = "skills") -> bool:
+    return os.path.isfile(_copy_path(domain))
 
 
-def source_info() -> dict:
-    return {"source": "workcopy" if workcopy_exists() else "python_source",
+def source_info(domain: str = "skills") -> dict:
+    cp = _copy_path(domain)
+    return {"domain": domain,
+            "source": "workcopy" if workcopy_exists(domain) else "python_source",
             "write_mode": WRITE_MODE,
             "note": WRITE_NOTE,
-            "copy_path": os.path.relpath(COPY_PATH, ROOT).replace("\\", "/"),
-            "source_path": os.path.relpath(SKILLS_PY, ROOT).replace("\\", "/"),
+            "copy_path": os.path.relpath(cp, ROOT).replace("\\", "/"),
+            "source_path": os.path.relpath(_source_path(domain), ROOT).replace("\\", "/"),
             "validator": validator_engine()}
 
 
-def current_tables() -> dict:
+def current_tables(domain: str = "skills") -> dict:
     """工作副本存在 → 读副本；否则读 py 源码字面量。"""
-    if workcopy_exists():
-        with open(COPY_PATH, "r", encoding="utf-8") as fh:
+    if workcopy_exists(domain):
+        with open(_copy_path(domain), "r", encoding="utf-8") as fh:
             return _norm_keys(json.load(fh))
-    return parse_source_tables()
+    return parse_source_tables(domain=domain)
 
 
 # --------------------------------------------------------------------------- write
-def write_copy(tables: dict) -> str:
+def write_copy(tables: dict, domain: str = "skills") -> str:
+    cp = _copy_path(domain)
     os.makedirs(WORKDIR, exist_ok=True)
-    tmp = COPY_PATH + ".tmp"
+    tmp = cp + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(tables, fh, ensure_ascii=False, indent=2, sort_keys=False)
         fh.write("\n")
-    os.replace(tmp, COPY_PATH)
-    return COPY_PATH
+    os.replace(tmp, cp)
+    return cp
 
 
 # ------------------------------------------------------------------------ key path
@@ -164,8 +217,38 @@ def _cls_name(cd: dict) -> str:
     return str(cd.get("name") or "")
 
 
-def iter_entries(tables: dict):
-    """展平成条目元信息列表（按表/职业/分支顺序）。"""
+def load_class_names() -> dict:
+    """只读 ast 抽 game/data/classes.py 的 CLASSES 名字（不 import game）。失败则空表。"""
+    try:
+        with open(CLASSES_PY, "r", encoding="utf-8") as fh:
+            tree = ast.parse(fh.read(), filename=CLASSES_PY)
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                for tgt in node.targets:
+                    if isinstance(tgt, ast.Name) and tgt.id == "CLASSES":
+                        d = ast.literal_eval(node.value)
+                        return {k: str(v.get("name") or "") for k, v in d.items()}
+    except Exception:
+        pass
+    return {}
+
+
+_SECTION_LABEL = {
+    "PLAYER_SKILLS": "基础技能",
+    "BRANCH_SKILLS": "分支技能",
+    "TUTOR_SKILLS": "导师秘传",
+    "AFFIXES": "词条",
+}
+
+
+def iter_entries(tables: dict, domain: str = "skills"):
+    """展平成条目元信息列表。域定义驱动：flat 域 → 单层；其余 → 三层（技能专用形状）。"""
+    if domain_def(domain)["flat"]:
+        return _iter_flat(tables, domain)
+    return _iter_skills(tables)
+
+
+def _iter_skills(tables: dict):
     class_names = load_class_names()
     out = []
 
@@ -186,83 +269,96 @@ def iter_entries(tables: dict):
     return out
 
 
-def load_class_names() -> dict:
-    """只读 ast 抽 game/data/classes.py 的 CLASSES 名字（不 import game）。失败则空表。"""
-    try:
-        with open(CLASSES_PY, "r", encoding="utf-8") as fh:
-            tree = ast.parse(fh.read(), filename=CLASSES_PY)
-        for node in tree.body:
-            if isinstance(node, ast.Assign):
-                for tgt in node.targets:
-                    if isinstance(tgt, ast.Name) and tgt.id == "CLASSES":
-                        d = ast.literal_eval(node.value)
-                        return {k: str(v.get("name") or "") for k, v in d.items()}
-    except Exception:
-        pass
-    return {}
+def _iter_flat(tables: dict, domain: str):
+    table = domain_def(domain)["tables"][0]
+    out = []
+    for eid, data in (tables.get(table) or {}).items():
+        if not isinstance(data, dict):
+            continue
+        e = _entry(table, None, None, eid, data, data.get("kind"), None)
+        e["group"] = data.get("kind")
+        e["trigger"] = data.get("trigger")
+        out.append(e)
+    return out
 
 
-def _entry(table, cls_id, cls_name, sk_id, sk, group, branch_lv):
+def _entry(table, cls_id, cls_name, eid, data, group, branch_lv):
     if table == "BRANCH_SKILLS":
-        key = make_key([table, cls_id, branch_lv, group, sk_id])
+        key = make_key([table, cls_id, branch_lv, group, eid])
+    elif cls_id is None:
+        key = make_key([table, eid])                      # 扁平域：表~id
     else:
-        key = make_key([table, cls_id, sk_id])
-    return {"key": key, "table": table, "cls_id": cls_id, "cls_name": cls_name,
-            "sk_id": sk_id, "group": group, "branch_lv": branch_lv,
-            "name": sk.get("name", ""), "kind": sk.get("kind", ""), "lv": sk.get("lv")}
+        key = make_key([table, cls_id, eid])
+    e = {"key": key, "id": eid, "table": table, "cls_id": cls_id, "cls_name": cls_name,
+         "group": group, "branch_lv": branch_lv,
+         "name": data.get("name", ""), "kind": data.get("kind", ""), "lv": data.get("lv")}
+    if table in ("PLAYER_SKILLS", "BRANCH_SKILLS", "TUTOR_SKILLS"):
+        e["sk_id"] = eid                                    # 兼容旧前端字段名
+    return e
 
 
-_SECTION_LABEL = {
-    "PLAYER_SKILLS": "基础技能",
-    "BRANCH_SKILLS": "分支技能",
-    "TUTOR_SKILLS": "导师秘传",
-}
-
-
-def list_payload() -> dict:
-    """GET /api/domain/skills 的响应体：按 表/职业/分支 分组。"""
-    tables = current_tables()
-    info = source_info()
-    entries = iter_entries(tables)
-    buckets = {}
-    order = []
+def list_payload(domain: str = "skills") -> dict:
+    """GET /api/domain/<domain> 的响应体：分组 + 元信息。"""
+    dd = domain_def(domain)
+    tables = current_tables(domain)
+    info = source_info(domain)
+    entries = iter_entries(tables, domain)
+    buckets, order = {}, []
     for e in entries:
-        gid = "|".join([e["table"], e["cls_id"], str(e["group"] or "")])
+        gid, label = _group_of(e, domain)
         if gid not in buckets:
-            if e["table"] == "BRANCH_SKILLS":
-                label = f"{e['cls_name']} · {_SECTION_LABEL[e['table']]}（{e['group']}）"
-            elif e["table"] == "TUTOR_SKILLS":
-                label = f"{e['cls_name']} · {_SECTION_LABEL[e['table']]}"
-            else:
-                label = f"{e['cls_name']} · {_SECTION_LABEL[e['table']]}"
             buckets[gid] = {"id": gid, "label": label, "table": e["table"],
                             "cls_id": e["cls_id"], "cls_name": e["cls_name"],
                             "section": e["table"], "entries": []}
             order.append(gid)
-        buckets[gid]["entries"].append(
-            {k: e[k] for k in ("key", "sk_id", "name", "kind", "lv", "group", "branch_lv")})
-    return {"domain": "skills", "total": len(entries),
+        item = {k: e.get(k) for k in ("key", "id", "sk_id", "name", "kind", "lv",
+                                      "group", "branch_lv", "trigger")}
+        buckets[gid]["entries"].append(item)
+    return {"domain": domain, "primary": dd["primary"], "label": dd["label"],
+            "flat": dd["flat"], "total": len(entries),
             "groups": [buckets[g] for g in order], **info}
 
 
-def get_skill(key: str):
+def _group_of(e: dict, domain: str):
+    """域定义驱动的列表分组 → (gid, 显示 label)。"""
+    mode = domain_def(domain)["group"]
+    if mode == "kind":
+        k = str(e.get("group") or e.get("kind") or "")
+        cn = AFFIX_KIND_CN.get(k, k)
+        return f"{e['table']}|{k}", f"{_SECTION_LABEL.get(e['table'], e['table'])} · {cn}（{k}）"
+    if e["table"] == "BRANCH_SKILLS":
+        return ("|".join([e["table"], e["cls_id"], str(e["group"] or "")]),
+                f"{e['cls_name']} · {_SECTION_LABEL[e['table']]}（{e['group']}）")
+    return ("|".join([e["table"], e["cls_id"], ""]),
+            f"{e['cls_name']} · {_SECTION_LABEL.get(e['table'], e['table'])}")
+
+
+# ------------------------------------------------------------------------ get / set
+def get_entry(domain: str, key: str):
     """返回 (entry_meta, data_dict)；不存在 → (None, None)。"""
-    tables = current_tables()
-    data = _resolve(tables, key)
+    tables = current_tables(domain)
+    data = _resolve(tables, key, domain)
     meta = None
-    for e in iter_entries(tables):
+    for e in iter_entries(tables, domain):
         if e["key"] == key:
             meta = e
             break
     return meta, data
 
 
-def _walk_parent(tables: dict, key: str, create=False):
+def _walk_parent(tables: dict, key: str, domain: str, create=False):
     """返回 (parent_container, leaf_id)，parent 是能直接赋值 leaf_id 的 dict。"""
+    dd = domain_def(domain)
     parts = split_key(key)
     table = parts[0]
-    if table not in TABLES:
-        raise KeyError(f"未知表 {table!r}")
+    if table not in dd["tables"]:
+        raise KeyError(f"未知表 {table!r}（域 {domain} 的可编辑表：{dd['tables']}）")
+    if dd["flat"]:
+        if len(parts) != 2:
+            raise KeyError(f"{table} key 形状应为 表~id: {key!r}")
+        _, eid = parts
+        root = tables.setdefault(table, {}) if create else tables.get(table, {})
+        return root, eid
     if table == "PLAYER_SKILLS":
         if len(parts) != 3:
             raise KeyError(f"PLAYER_SKILLS key 形状应为 表~职业~技能: {key!r}")
@@ -290,22 +386,22 @@ def _walk_parent(tables: dict, key: str, create=False):
     return skills, sk_id
 
 
-def _resolve(tables: dict, key: str):
+def _resolve(tables: dict, key: str, domain: str = "skills"):
     try:
-        parent, leaf = _walk_parent(tables, key)
+        parent, leaf = _walk_parent(tables, key, domain)
     except KeyError:
         return None
     return parent.get(leaf)
 
 
-def set_skill(key: str, data: dict) -> dict:
+def set_entry(domain: str, key: str, data: dict) -> dict:
     """把 data 写入工作副本（不存在则从源码种子创建）。返回 {key, created, copy_path}。"""
-    tables = current_tables()
-    parent, leaf = _walk_parent(tables, key, create=True)
+    tables = current_tables(domain)
+    parent, leaf = _walk_parent(tables, key, domain, create=True)
     created = leaf not in parent
     parent[leaf] = copy.deepcopy(data)
-    write_copy(tables)
-    return {"key": key, "created": created, "copy_path": COPY_PATH}
+    write_copy(tables, domain)
+    return {"key": key, "created": created, "copy_path": _copy_path(domain)}
 
 
 # ---------------------------------------------------------------------------- diff
@@ -333,19 +429,42 @@ def diff_values(before, after, path="") -> list:
     return out
 
 
+# ------------------------------------------------------- 兼容别名（技能域语义）
+def load_skill_schema() -> dict:
+    return load_schema("skills")
+
+
+def validate_skill(obj) -> dict:
+    return validate_entry("skills", obj)
+
+
+def get_skill(key: str):
+    return get_entry("skills", key)
+
+
+def set_skill(key: str, data: dict) -> dict:
+    return set_entry("skills", key, data)
+
+
 # ------------------------------------------------------------------------- selftest
 def _selftest():                                                     # pragma: no cover
-    tables = parse_source_tables()
-    entries = iter_entries(tables)
-    print(f"[selftest] 解析到 {len(entries)} 条技能；校验器引擎 = {validator_engine()}")
     bad = 0
-    for e in entries:
-        _m, d = get_skill(e["key"])
-        res = validate_skill(d)
-        if not res["ok"]:
+    for domain in DOMAINS:
+        try:
+            tables = parse_source_tables(domain=domain)
+        except Exception as exc:
+            print(f"[selftest] {domain}: 解析失败 {exc}")
             bad += 1
-            print("  !! 现网技能未过 schema:", e["key"], res["errors"][:2])
-    print(f"[selftest] 现网技能 schema 违规 {bad} 条（应为 0）")
+            continue
+        entries = iter_entries(tables, domain)
+        print(f"[selftest] {domain}: {len(entries)} 条；校验器 = {validator_engine()}")
+        for e in entries:
+            _m, d = get_entry(domain, e["key"])
+            res = validate_entry(domain, d)
+            if not res["ok"]:
+                bad += 1
+                print("  !! 现网条目未过 schema:", domain, e["key"], res["errors"][:2])
+    print(f"[selftest] 违规 {bad} 条（应为 0）")
     return 0 if bad == 0 else 1
 
 
