@@ -45,12 +45,16 @@ def install() -> None:
             return list(key)
         return [key] if key else []
 
-    def _stacks_of(effects, key) -> int:
-        """effects 层数：key 为 str 或多印记 key 列表（语义 = 各 key stacks 之和）。"""
-        total = 0
+    def _stacks_float(effects, key) -> float:
+        """effects 层数（float 保真）：多印记 key 各 stacks 之和。
+
+        v181 磐核经「守御姿态下每刻 +0.4」渠道产生小数层（如 3.4 枚）；burst 乘区
+        折算需保真——int 截断会低估 ×(1+0.7n)（3.4 → 3.0）。mech_cash_dmg_mult 走本函数。
+        """
+        total = 0.0
         for k in _key_list(key):
             ef = (effects or {}).get(k)
-            total += int(ef.get("stacks", 0) or 0) if isinstance(ef, dict) else 0
+            total += float(ef.get("stacks", 0) or 0) if isinstance(ef, dict) else 0.0
         return total
 
     def _add_mark(tgt: dict, mech: str, n: int) -> None:
@@ -106,7 +110,7 @@ def install() -> None:
         if info.get("mech") != params.get("mech"):
             return
         actor = _holder(params.get("owner"), ctx, caster, target)
-        n = _stacks_of(actor.get("effects"), params.get("key"))
+        n = _stacks_float(actor.get("effects"), params.get("key"))
         per = float(params.get("per_layer") or 0)
         # 技能级覆盖：info.per_stack（链舞被动给后续终结技 +6%/段）优先于声明缺省
         per = float(info.get("per_stack") or per)
@@ -116,7 +120,7 @@ def install() -> None:
         icon = params.get("icon") or "💥"
         layer_label = params.get("layer_label") or "、".join(_key_list(params.get("key")))
         unit = params.get("unit") or "层"
-        logs.append(f"{icon} {label}！{layer_label} {n} {unit}，伤害 ×{mult:.2f}")
+        logs.append(f"{icon} {label}！{layer_label} {n:g} {unit}，伤害 ×{mult:.2f}")
 
     @register_action("mech_cash_clear")
     def mech_cash_clear(battle, caster, target, params, logs):
@@ -180,6 +184,8 @@ def install() -> None:
         - res/gain/label 全由声明写入，动作零资源 key 硬编码
         - kind / not_basic 事件过滤（heal_cast 时机只认 kind=治疗 行动——普攻/攻击技能
           施放不触发，防误攒；参数由装配时从渠道时机映射写入）
+        - per_dt（tick 渠道）：gain × ctx["dt"]（每刻量按 dt 缩放——time_advance 的
+          推进步长可能 ≠1.0 刻）
         - cap clamp 查 _cap_of（v181.M-R2e 方案 A 收敛：EFFECT_RULES 基础 + actor
           bonus.cap 动态（v181.M-bonus 分域）——faith 上限词条 divine_radiance/holy_heart 生效）；
           stacks float 读/写归一（B3——衰减后 3.9 +2 → 5.9 精度保真）
@@ -204,6 +210,10 @@ def install() -> None:
             return
         res = params.get("res") or ""
         gain = float(params.get("gain") or 0)
+        # per_dt（tick 渠道声明）：每刻量按事件 dt 缩放——time_advance 的 dt 可能非
+        # 1.0 刻（大盘跳步），恒量直加会错。缺 dt 视作 1.0（引擎 time_advance ctx 恒带 dt）。
+        if params.get("per_dt"):
+            gain *= float(ctx.get("dt", 1.0) or 1.0)
         if not res or gain <= 0:
             return
         cap = _cap_fn(owner, res)
@@ -221,10 +231,15 @@ def install() -> None:
         cap_txt = f"/{cap}" if cap < 999999 else ""
         logs.append(f"{params.get('icon') or '✦'} {params.get('label') or res} "
                     f"+{_ns(gain):g}（{_ns(n)}{cap_txt}）")
-        # v181.M-R2e B2：叠层变化后广播 threshold（过载/阈值机制同一口径）
+        # v181.M-R2e B2：叠层变化后广播 threshold（过载/阈值机制同一口径）。
+        # v181 磐核：嵌套 fire 会覆写 battle._fire_ctx —— 广播前存、广播后还原，
+        # 否则同一事件批次里**排在渠道后的动作**（如 guard_core_burst 的 skill_hit
+        # 清层 mech_cash_clear 读 info.mech）会读到 threshold ctx 而静默失效。
         try:
             from ..battle2.effect_triggers import fire as _fire
+            _prev_ctx = getattr(battle, "_fire_ctx", None)
             _fire(battle, "threshold", {"actor": owner, "key": res, "value": n}, logs)
+            battle._fire_ctx = _prev_ctx
         except Exception:
             pass
 
@@ -368,6 +383,32 @@ def install() -> None:
         "spd": "melody_spd", "atk_matk": "melody_atk_matk",
     }
     _MELODY_FIN_MAP = {"atk": "melody_finale_atk", "crit": "melody_finale_crit"}
+    # v181.G1 挽歌者 e_ 减益旋律（敌方向）——docs/CLASS_MECHANICS_v153.md §七 B 线
+    # 「吟游诗人 — 驻留旋律」挽歌者 › 安魂歌者 › 镇魂挽者；旧语义源 =
+    # game/core/battle_mech.py._melody_apply_e_buffs/_m_melody_finale（git 379a792^，
+    # 该文件随 N10 删除，只读对齐）。旧引擎经 e_buffs（mon_atk_down/spd_down/def_down +
+    # _weaken_val/_spd_down_pct/_armor_break_pct 通道）表达；battle2 敌方面板无这些通道，
+    # 收口为 EFFECT_RULES 的 stat_scale 负值条目（层数 = 目标 %，与增益驻留同折算口径）。
+    #   kind → 敌方 effects 条目 key；None = 无面板条目（周期控制，走时钟 tick）
+    _MELODY_ENEMY_AURA_MAP = {
+        "e_atk": "melody_e_atk",          # 挽歌 驻留：敌方全体攻击 −N%
+        "e_spd": "melody_e_spd",          # 镇魂歌 驻留：敌方全体速度 −N%
+        "e_spd_hit": "melody_e_spd_hit",  # 挽歌·沉 驻留：速度 −N%（命中段缺通道）
+        "e_all": "melody_e_all",          # 终焉挽歌 驻留：攻/速 −N%（命中段缺通道）
+        "e_silence": None,                # 沉默之歌 驻留：封印技能（每 4 刻 1 次，时钟 tick）
+    }
+    # 挽歌系终章（敌方向，限时 debuff；层数 = 终章 %，expire = now + fin_turns）
+    _MELODY_ENEMY_FIN_MAP = {
+        "e_atk": "melody_e_fin_atk",      # 挽歌 终章：敌方全体攻击 −40% 8 刻
+        "e_spd": "melody_e_fin_spd",      # 镇魂歌 终章：敌方全体速度 −35% 8 刻
+        "e_all": "melody_e_fin_all",      # 终焉挽歌 终章：敌方全体全属性 −50% 10 刻
+    }
+    # 终章控制（敌方向）：finale token → 引擎控制 key（走 EFFECT_ACTIONS 名词路径）
+    _MELODY_FIN_CTRL_MAP = {"silence": "silence", "stun": "stun"}
+    # 时钟驱动型减益旋律（无面板条目：驻留期间按节流周期对敌施控）
+    _MELODY_SILENCE_TICK = 4.0    # 沉默之歌「每 4 刻至多 1 次」（v153 B 线表 / 技能 desc）
+    _MELODY_ALL_AURA_KEYS = set(_MELODY_AURA_MAP.values()) | \
+        {_v for _v in _MELODY_ENEMY_AURA_MAP.values() if _v}
     _MELODY_MAX_STACK = 5   # 旋律强度上限（1 层=desc 值；满层吟唱→终章/巅峰）
 
     def _melody_pct_of(state) -> float:
@@ -375,35 +416,110 @@ def install() -> None:
         stack = int(state.get("stacks") or 1)
         return pct * (1.0 + 0.25 * max(0, stack - 1))
 
-    def _melody_write_aura(battle, actor, logs):
-        """按施法者 melody_state 写全员驻留光环（先清旧驻留条目，finale buff 不清）。"""
-        state = ((actor.get("effects") or {}).get("melody_state") or {})
-        key = _MELODY_AURA_MAP.get(state.get("kind") or "")
+    def _melody_side_actors(battle, actor, enemy_dir: bool):
+        """驻留光环作用阵营：enemy_dir=True → 施法者对立阵营（挽歌者减益旋律打敌方），
+        否则己方阵营（增益旋律全队光环）——阵营关系由 battle.sides 键判定，零职业名。"""
         side = actor.get("side") or "player"
-        for _a in (getattr(battle, "sides", None) or {}).get(side, []) or []:
-            ef = _a.setdefault("effects", {})
-            for _k in list(ef):
-                if _k in _MELODY_AURA_MAP.values():
-                    ef.pop(_k, None)  # 旧驻留全清（换歌/叠层重写）
-            if key:
-                ef[key] = {"stacks": _melody_pct_of(state), "expire": None}
+        for _sn, _lst in (getattr(battle, "sides", None) or {}).items():
+            if (_sn != side) != bool(enemy_dir):
+                continue
+            for _a in _lst or []:
+                if isinstance(_a, dict):
+                    yield _a
+
+    def _melody_write_aura(battle, actor, logs):
+        """按施法者 melody_state 写驻留光环（先清旧驻留条目，finale/终章条目不清）。
+
+        增益系（atk/def/spd/atk_matk）→ 己方阵营 effects[melody_*]；
+        挽歌者 e_ 系列 → 敌方阵营 effects[melody_e_*]（EFFECT_RULES stat_scale 负值）。
+        旧驻留清点 = 全阵营全表清（换歌跨方向也必须清干净：增益歌切挽歌歌时敌方旧减益
+        不能残留，反之亦然）。
+        """
+        state = ((actor.get("effects") or {}).get("melody_state") or {})
+        kind = state.get("kind") or ""
+        key = _MELODY_AURA_MAP.get(kind) or _MELODY_ENEMY_AURA_MAP.get(kind)
+        enemy_dir = kind in _MELODY_ENEMY_AURA_MAP
+        for _lst in (getattr(battle, "sides", None) or {}).values():
+            for _a in _lst or []:
+                if not isinstance(_a, dict):
+                    continue
+                ef = _a.setdefault("effects", {})
+                for _k in list(ef):
+                    if _k in _MELODY_ALL_AURA_KEYS:
+                        ef.pop(_k, None)  # 旧驻留全清（换歌/换方向/叠层重写）
+        if not key:
+            return
+        for _a in _melody_side_actors(battle, actor, enemy_dir):
+            _a.setdefault("effects", {})[key] = {"stacks": _melody_pct_of(state),
+                                                 "expire": None}
+
+    def _melody_ensure_tick(actor, kind: str) -> None:
+        """时钟驱动型减益旋律自安装订阅（首次唱响时挂，幂等——同破绽条
+        battle2_bar_procs._ensure_tick 惯例，零噪音）：time_advance →
+        class_melody_dirge_tick（按节流周期对敌施控）。
+
+        面板类减益旋律（e_atk/e_spd/e_spd_hit/e_all）由驻留条目本身生效 → 不挂。
+        """
+        if _MELODY_ENEMY_AURA_MAP.get(kind) is not None:
+            return
+        lst = actor.setdefault("triggers", {}).setdefault("time_advance", [])
+        if not any(isinstance(e, dict) and e.get("action") == "class_melody_dirge_tick"
+                   for e in lst):
+            lst.append({"action": "class_melody_dirge_tick"})
+
+    def _melody_ctrl_apply(battle, actor, foe, ckey: str, turns: float, logs) -> None:
+        """对敌施加控制：走引擎 apply 动词（EFFECT_RULES[key].consume.mode 语义 +
+        Boss 控制减半天然生效，不自造控制通道）。turns 由引擎 int 化（半刻不支持）。"""
+        _t = max(1, int(turns or 0))
+        from ..battle2.effects import act_apply
+        act_apply(battle, actor, foe, {"key": ckey, "on": "target", "turns": _t}, logs)
 
     def _melody_finale(battle, actor, state, logs):
-        """终章：全员 finale 爆发 buff（expire 后消散，叠加在驻留上），强度归 1。"""
+        """终章：满强度一次性爆发，强度归 1（驻留继续）。
+
+        增益系（atk/crit）→ 全员 finale buff（expire 后消散，叠加在驻留上）；
+        挽歌系（e_atk/e_spd/e_all）→ 敌方限时 debuff（EFFECT_RULES melody_e_fin_*）；
+        控制系（silence/stun）→ 敌方全体控制（引擎 apply 动词）。
+        """
         fin = state.get("fin_kind") or ""
-        fkey = _MELODY_FIN_MAP.get(fin)
-        if not fkey:
-            return
         try:
             _now = float(getattr(battle, "_now", 0) or 0)
         except Exception:
             _now = 0.0
-        _turns = max(1, int(state.get("fin_turns") or 8))
-        side = actor.get("side") or "player"
-        for _a in (getattr(battle, "sides", None) or {}).get(side, []) or []:
-            _a.setdefault("effects", {})[fkey] = {
-                "stacks": float(state.get("fin_pct") or 0), "expire": _now + _turns}
-        logs.append(f"💥 终章！全队获得爆发增益（{_turns} 刻）！")
+        # ---- 增益系终章：全员爆发 buff（expire 后消散，叠加在驻留上）----
+        fkey = _MELODY_FIN_MAP.get(fin)
+        if fkey:
+            _turns = max(1, int(state.get("fin_turns") or 8))
+            for _a in _melody_side_actors(battle, actor, False):
+                _a.setdefault("effects", {})[fkey] = {
+                    "stacks": float(state.get("fin_pct") or 0), "expire": _now + _turns}
+            logs.append(f"💥 终章！全队获得爆发增益（{_turns} 刻）！")
+            return
+        # ---- 挽歌系终章：敌方限时减益 ----
+        ekey = _MELODY_ENEMY_FIN_MAP.get(fin)
+        if ekey:
+            _turns = max(1, int(state.get("fin_turns") or 8))
+            _pct = float(state.get("fin_pct") or 0)
+            if _pct <= 0:
+                return  # 缺字段 = 无此行为（零默认值铁律）
+            for _foe in _melody_side_actors(battle, actor, True):
+                if _foe.get("effects") is None:
+                    _foe["effects"] = {}
+                _of = _foe["effects"].get(ekey)
+                _oexp = float(_of.get("expire", 0) or 0) if isinstance(_of, dict) else 0.0
+                _foe["effects"][ekey] = {"stacks": _pct,
+                                         "expire": max(_oexp, _now + _turns)}
+            logs.append(f"💥 终章！敌方全体受到减益（{int(_pct)}%，{_turns} 刻）！")
+            return
+        # ---- 控制系终章：敌方全体控制 ----
+        ckey = _MELODY_FIN_CTRL_MAP.get(fin)
+        if ckey:
+            _turns = float(state.get("fin_ctrl") or 0)
+            if _turns <= 0:
+                return  # 缺字段 = 无此行为（零默认值铁律）
+            for _foe in _melody_side_actors(battle, actor, True):
+                _melody_ctrl_apply(battle, actor, _foe, ckey, _turns, logs)
+            logs.append(f"💥 终章！敌方全体被【{ckey}】{int(_turns)} 刻！")
 
     @register_action("class_melody_act")
     def class_melody_act(battle, caster, target, params, logs):
@@ -419,9 +535,10 @@ def install() -> None:
         ef = actor.setdefault("effects", {})
         if mech == "melody":
             kind = info.get("melody") or ""
-            if kind not in _MELODY_AURA_MAP:
+            if kind not in _MELODY_AURA_MAP and kind not in _MELODY_ENEMY_AURA_MAP:
                 logs.append("🎵 这首曲式（" + str(kind) + "）尚未谱成……")
                 return
+            enemy_dir = kind in _MELODY_ENEMY_AURA_MAP
             ef["melody_state"] = {
                 "stacks": 1, "kind": kind,
                 "pct": float(info.get("melody_pct") or 0),
@@ -429,17 +546,25 @@ def install() -> None:
                 "fin_kind": info.get("finale") or "",
                 "fin_pct": float(info.get("melody_fin_pct") or 0),
                 "fin_turns": int(info.get("buff_turns") or 8),
+                # 挽歌系终章控制刻数（finale=silence/stun——desc 权威「沉默 3.0 刻 /
+                # 定身 3.5 刻」；引擎控制 turns 走 int 化，半刻向下取整）
+                "fin_ctrl": float(info.get("melody_fin_turns") or 0),
             }
+            _melody_ensure_tick(actor, kind)
             _melody_write_aura(battle, actor, logs)
-            logs.append(f"🎵 奏响【{ef['melody_state']['name']}】！旋律驻留，全队获得光环！")
+            logs.append(f"🎵 奏响【{ef['melody_state']['name']}】！旋律驻留，"
+                        + ("敌方全体受挫！" if enemy_dir else "全队获得光环！"))
             return
         state = ef.get("melody_state")
         if not isinstance(state, dict) or not state.get("kind"):
             logs.append("🎵 尚无旋律奏响——先唱一首歌吧！（战歌/守歌/疾歌）")
             return
         stack = int(state.get("stacks") or 1)
+        _fin_tok = state.get("fin_kind") or ""
+        _fin_known = (_fin_tok in _MELODY_FIN_MAP or _fin_tok in _MELODY_ENEMY_FIN_MAP
+                      or _fin_tok in _MELODY_FIN_CTRL_MAP)
         if stack >= _MELODY_MAX_STACK:
-            if state.get("fin_kind") and state.get("fin_kind") in _MELODY_FIN_MAP:
+            if _fin_known:
                 _melody_finale(battle, actor, state, logs)
                 state["stacks"] = 1
                 _melody_write_aura(battle, actor, logs)
@@ -481,6 +606,93 @@ def install() -> None:
         _melody_write_aura(battle, actor, logs)
         logs.append(f"🎶 {params.get('label') or '二重唱'}：二重唱，旋律强度额外 +{add}！"
                     f"（{state['stacks']}/{_MELODY_MAX_STACK}）")
+
+    @register_action("class_melody_dirge_tick")
+    def class_melody_dirge_tick(battle, caster, target, params, logs):
+        """time_advance：时钟驱动的挽歌驻留旋律（沉默之歌 e_silence）对敌封印技能。
+
+        语义源 = 旧 battle_mech._melody_apply_e_buffs 的 e_silence 段（写
+        melody_silence_lock，消费点在旧 battle.py 敌方出手段「距上次封印 ≥4 刻则沉默 1 刻」）
+        —— battle2 敌方出手段随 N10 删除，收口为 time_advance 时钟 tick：驻留期间每
+        ≥4 刻（_MELODY_SILENCE_TICK，desc「每 4 刻至多 1 次」）对敌方全体施 1 次封印
+        （时长 = 节流间隔：驻留期间持续封印、每 4 刻刷新）。
+
+        宿主 = 声明者自身（_owner，fire 注入）；无驻留 / 非 e_silence → 零行为。
+        """
+        host = params.get("_owner") or caster
+        if not isinstance(host, dict):
+            return
+        state = (host.get("effects") or {}).get("melody_state")
+        if not isinstance(state, dict) or state.get("kind") != "e_silence" \
+                or int(state.get("stacks", 0) or 0) <= 0:
+            return
+        try:
+            now = float(getattr(battle, "_now", 0) or 0)
+        except Exception:
+            now = 0.0
+        last = state.get("_silence_at")
+        if last is not None and now - float(last) < _MELODY_SILENCE_TICK:
+            return
+        state["_silence_at"] = now
+        for _foe in _melody_side_actors(battle, host, True):
+            _melody_ctrl_apply(battle, host, _foe, "silence",
+                               int(_MELODY_SILENCE_TICK), logs)
+        logs.append("🎵 挽歌低沉：敌方技能被封（每 4 刻至多 1 次）！")
+
+    @register_action("passive_ctrl_extend")
+    def passive_ctrl_extend(battle, caster, target, params, logs):
+        """skill_hit / act_cast：挽歌系控制对敌施加后时长 +add 刻（镇魂安魂 dirge_ctrl_up）。
+
+        语义源 = 旧 battle.py 挂点18 `_skill_hit_settle` 控制延长段逐字（game/core/
+        passive_procs.py `_h_flag_set_cond::dirge_ctrl_up`）：本技能施控（mech/mech2/cc
+        ∈ 控制键，或旋律 finale 产出控制）→ 遍历控制键找首个生效键 → +add 刻 + 日志
+        （首条）；半刻不支持（add 数据已向下取整：desc +1.5 → add=1）。
+        battle2 控制条目 = effects[key].expire（刻制：延长 = expire += add）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        judge = params.get("judge") or {}
+        owner = params.get("_owner") or ctx.get("actor") or caster
+        if owner is None:
+            return
+        try:
+            add = float(params.get("add", 0) or 0)
+        except Exception:
+            add = 0.0
+        if add <= 0:
+            return  # 缺字段 = 无此行为（零默认值铁律）
+        ctrl_keys = judge.get("ctrl_keys") or ("stun", "freeze", "silence", "sleep", "spd_down")
+        info = ctx.get("info") or {}
+        # 门：本次技能确为施控技（旧引擎同门：mech/mech2/cc ∈ 控制键；挽歌旋律终章的
+        # 控制在 act_cast 落，finale token 视同施控）
+        _declared = {info.get("mech") or "", info.get("mech2") or "", info.get("cc") or ""}
+        if (info.get("mech") or "") == "melody":
+            _declared.add(info.get("finale") or "")
+        if not (_declared & set(ctrl_keys)):
+            return
+        # 宿主（控制落点）：命中目标优先（skill_hit 路径），否则扫对立阵营
+        hosts = []
+        _tg = ctx.get("target")
+        if isinstance(_tg, dict):
+            hosts.append(_tg)
+        for _foe in _melody_side_actors(battle, owner, True):
+            if _foe is not _tg:
+                hosts.append(_foe)
+        try:
+            now = float(getattr(battle, "_now", 0) or 0)
+        except Exception:
+            now = 0.0
+        for _ck in ctrl_keys:
+            for host in hosts:
+                entry = (host.get("effects") or {}).get(_ck)
+                if not isinstance(entry, dict):
+                    continue
+                exp = entry.get("expire")
+                if exp is None or float(exp) <= now:
+                    continue  # 无到期/已过期 → 非生效控制
+                entry["expire"] = float(exp) + add
+                logs.append(f"🎵 {params.get('label') or '镇魂安魂'}："
+                            f"挽歌延长【{_ck}】控制 +{int(add)} 刻！")
+                return
 
     # ---- v181.M-passive P1：被动 proc 通用动作（插件样板——动作零 proc 硬编码）----
     # 语义源 = 技能 desc + passive dict；声明表 PASSIVE_PROC（battle2_rules）给
@@ -535,6 +747,29 @@ def install() -> None:
                 if _n > 0:
                     ok = True
                     mult = float(params.get("per_layer") or 0) * _n
+        elif kind == "target_debuff_kinds":
+            # 挽歌·极 dirge_debuff_dmg：目标负面「种数」→ ×(1 + min(per_debuff×种数, cap))
+            # 旧语义源 = game/core/passive_procs.py 挂点14 dirge_debuffs handler 逐字：
+            #   pct = min(ps.per_debuff × battle._enemy_debuff_kind_count(), ps.cap)
+            # （旧引擎数 debuffs 容器种数 + e_buffs 控制/减益键；battle2 单容器 effects →
+            #  种数口径 = 声明 negative=True 或 on=target 的条目：控制/减益旋律/减益/
+            #  DOT/挂敌身印记，与旧清单等价、数据驱动零硬编码）。
+            # 数值 per_debuff/cap 来自技能 passive dict（0.04 / 0.40，desc 权威）。
+            _per = float(params.get("per_debuff") or 0)
+            _cap = float(params.get("cap") or 0)
+            if tg is not None and _per > 0 and _cap > 0:
+                from ..battle2.state_effects import state_def as _sd
+                _kinds = 0
+                for _k, _v in (tg.get("effects") or {}).items():
+                    if not isinstance(_v, dict):
+                        continue
+                    _cfg_k = _sd(_k)
+                    if _cfg_k.get("negative") or _cfg_k.get("on") == "target":
+                        _kinds += 1
+                _pct_d = min(_per * _kinds, _cap)
+                if _pct_d > 0:
+                    ok = True
+                    mult = _pct_d
         elif kind == "speed_ratio_ge":
             # 速度比 ≥ ratio_field → ×(1+dmg_add)（疾风·极；旧挂点4 语义：
             # 敌方无速度按 0 防御性跳过——速度比恒 ≥2 不触发）
@@ -727,10 +962,14 @@ def install() -> None:
 
     @register_action("passive_taken_reduce")
     def passive_taken_reduce(battle, caster, target, params, logs):
-        """taken_calc 条件减伤：资源 ≥ 阈值 → ctx.mult ×(1-reduce)（承伤者视角）。
+        """taken_calc 条件减伤：judge 谓词命中 → ctx.mult ×(1-reduce)（承伤者视角）。
 
-        语义 = 旧挂点11 dr_cond（zy_full 段）逐字：战意 ≥stacks → 减伤 reduce
-        （乘区模式对齐 we_taken_mult_cond：mult <1 = 减免）。reduce 来自 passive dict。
+        语义 = 旧挂点11 dr_cond 逐字；judge.kind 分派（缺字段=无此行为 / 未知 kind=fail-closed）：
+          - res_ge     资源 ≥ 阈值：reduce 读 passive dict（坚城之姿 战意满 10 / 磐石之躯 磐核满 5）
+          - has_effect 效果在位：守御姿态减伤 / 不动如山一次性 flag 常驻段
+          - per_core   每核减伤：reduce = per_core × effects[judge.res].stacks（float 保真）
+                       ——磐核基础 +3%（guard_core 声明）/ 大地之肤额外 +2%（旧 _h_dr_cond per_core 段）
+        乘区模式对齐 we_taken_mult_cond（mult <1 = 减免）。reduce 来自 passive dict。
         """
         ctx = getattr(battle, "_fire_ctx", None)
         if ctx is None:
@@ -738,11 +977,29 @@ def install() -> None:
         owner = params.get("_owner") or ctx.get("actor") or caster
         if owner is None:
             return
-        reduce_v = float(params.get("reduce") or 0)
-        if reduce_v <= 0:
-            return  # 缺字段 = 无此行为
-        if not _res_ge_ok(owner, params.get("judge") or {}, params):
-            return
+        judge = params.get("judge") or {}
+        kind = judge.get("kind") or "res_ge"
+        if kind == "per_core":
+            # 每核减伤：reduce = per_core × 持有层数（float 读——小数核保真）
+            per = float(params.get("per_core") or 0)
+            res = judge.get("res") or ""
+            entry = (owner.get("effects") or {}).get(res) if res else None
+            n = float(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0.0
+            if per <= 0 or n <= 0:
+                return  # 缺字段/无核 = 无此行为
+            reduce_v = per * n
+        else:
+            reduce_v = float(params.get("reduce") or 0)
+            if reduce_v <= 0:
+                return  # 缺字段 = 无此行为
+            if kind == "has_effect":
+                if not _has_effect_ok(owner, judge):
+                    return
+            elif kind == "res_ge":
+                if not _res_ge_ok(owner, judge, params):
+                    return
+            else:
+                return  # 未知 judge kind = fail-closed
         ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * (1.0 - min(reduce_v, 0.9))
         logs.append(f"🛡️ {params.get('label') or '被动'}：减伤 {int(reduce_v * 100)}% 生效！")
 
@@ -1061,6 +1318,138 @@ def install() -> None:
         except Exception:
             pass
 
+    # ---- v181 磐核线动作（拳师 B 线 磐石行者；声明表 = battle2_rules PASSIVE_PROC/MECH_CASH）----
+
+    @register_action("class_guard_stance_enter")
+    def class_guard_stance_enter(battle, caster, target, params, logs):
+        """增益技 effect=guard_stance（守御姿态 v153 L992）：写姿态态 + 挂受击减伤乘区。
+
+        语义（v153 L992）：「姿态：受伤 −25%，但推条值 −30%」
+        - 受伤 −25%：数值单源 = EFFECT_RULES[guard_stance].stat_scale.reduce——battle2
+          伤害路径不消费 st["reduce"]（stats 只写、instance 仅展示），故装配时挂
+          taken_calc 乘区钩子（passive_taken_reduce has_effect 段；形态同 warrior
+          class_stance_guard_enter「写态 + 挂 trigger」）。
+        - ⚠️ 推条值 −30%：推条注入端（battle2_bar_procs.bar_gain）直读技能 shaken_gain，
+          无按姿态的乘区通道 → 未落地（缺口）。
+        态持续 turns 刻（技能 buff_turns，经 actions._do_buff 注入 params.turns）。
+        """
+        owner = caster if isinstance(caster, dict) else target
+        if owner is None:
+            return
+        key = params.get("type") or ""
+        if not key:
+            return
+        try:
+            turns = int(params.get("turns") or 0)
+        except Exception:
+            turns = 0
+        if turns <= 0:
+            return  # 缺字段 = 无此行为（零默认值铁律）
+        from ..battle2.state_effects import state_def
+        cfg = state_def(key) or {}
+        reduce_v = float((cfg.get("stat_scale") or {}).get("reduce") or 0)
+        try:
+            from ..battle2.battle import _now_of
+            now = _now_of(battle)
+        except Exception:
+            now = 0.0
+        owner.setdefault("effects", {})[key] = {"stacks": 1, "expire": now + turns}
+        if reduce_v > 0:
+            lst = owner.setdefault("triggers", {}).setdefault("taken_calc", [])
+            if not any(isinstance(t, dict)
+                       and (t.get("judge") or {}).get("key") == key for t in lst):
+                lst.append({"type": "passive_taken_reduce",
+                            "judge": {"kind": "has_effect", "key": key},
+                            "reduce": reduce_v, "label": cfg.get("name") or key})
+        logs.append(f"🪨 进入{cfg.get('name') or key}：受伤 −{int(reduce_v * 100)}%（{turns} 刻）！")
+
+    @register_action("passive_low_hp_core")
+    def passive_low_hp_core(battle, caster, target, params, logs):
+        """on_taken 低血量补磐核（不动如山 v153 L1016）：生命 <hp_lt×max_hp 且本场未触发
+        → 获得 cores 枚磐核（clamp cap）+ 置一次性 flag（effects[used_key]，每场 1 次）。
+
+        ⚠️ 缺口：设计触发时机为「生命 <30%」（任意掉血源），但引擎无低血量事件
+        （player_low 无 fire 点位——见 battle2/effect_triggers.py 头注）→ 本动作以
+        on_taken（真实承伤后）为观测点：受击后跌破阈值即补；DOT/环境掉血须等下一次受击。
+        参数：hp_lt/cores（技能 passive dict）/ res/used_key（声明表）；缺字段=无此行为。
+        """
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        owner = params.get("_owner") or ctx.get("actor") or caster
+        from ..battle2.actors import actor_alive
+        if owner is None or not actor_alive(owner):
+            return
+        res = params.get("res") or ""
+        used_key = params.get("used_key") or ""
+        hp_lt = float(params.get("hp_lt") or 0)
+        cores = float(params.get("cores") or 0)
+        if not res or not used_key or hp_lt <= 0 or cores <= 0:
+            return  # 缺字段 = 无此行为
+        ef = owner.setdefault("effects", {})
+        if isinstance(ef.get(used_key), dict):
+            return  # 每场 1 次（一次性 flag 已置位）
+        mhp = int(owner.get("max_hp", 1) or 1)
+        if int(owner.get("hp", 0) or 0) >= int(mhp * hp_lt):
+            return  # 未跌破阈值
+        from ..battle2.effects import _cap_of as _cap_fn, _norm_stack as _ns
+        cap = _cap_fn(owner, res)
+        entry = ef.get(res)
+        cur = float(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0.0
+        n = max(0.0, min(float(cap), cur + cores))
+        if not isinstance(entry, dict):
+            entry = ef[res] = {}
+        entry["stacks"] = _ns(n)
+        ef[used_key] = {"stacks": 1, "expire": None}
+        logs.append(f"🪨 {params.get('label') or '不动如山'}：绝境补磐核 +{_ns(cores):g}"
+                    f"（{_ns(n)}/{cap}）！")
+
+    @register_action("passive_overflow_shield")
+    def passive_overflow_shield(battle, caster, target, params, logs):
+        """taken_calc 溢出承伤转护盾（磐石之心 v153 L1002）：磐核 ≥stacks → 本次承伤
+        ×shield_pct 转为护盾（turns 刻）。
+
+        语义源 = 旧 passive_procs._h_dr_cond overflow_shield 段逐字
+        （_add_shield('core_overflow', dmg × shield_pct, turns)——纯副作用，无乘区）。
+        ⚠️ 设计原文「溢出承伤转为护盾」未给折算比例（v153 表零数值）——shield_pct/turns
+        取技能 passive dict（旧引擎 D0 回填 0.80/3，非自创）。护盾结构对齐引擎 shield
+        动词（shields[key] = {value, expire_at, halve}）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None)
+        if ctx is None:
+            return
+        owner = params.get("_owner") or ctx.get("actor") or caster
+        if owner is None:
+            return
+        judge = params.get("judge") or {}
+        res = params.get("res") or judge.get("res") or ""
+        pct = float(params.get("shield_pct") or 0)
+        try:
+            turns = int(params.get("turns") or 0)
+        except Exception:
+            turns = 0
+        if not res or pct <= 0 or turns <= 0:
+            return  # 缺字段 = 无此行为
+        if not _res_ge_ok(owner, judge, params):
+            return
+        dmg = int(ctx.get("dmg") or 0)
+        val = int(dmg * pct)
+        if val <= 0:
+            return
+        try:
+            from ..battle2.battle import _now_of
+            now = _now_of(battle)
+        except Exception:
+            now = 0.0
+        sh = owner.setdefault("shields", {})
+        key = f"{res}_overflow"
+        cur = sh.get(key)
+        if isinstance(cur, dict):
+            cur["value"] = int(cur.get("value", 0) or 0) + val
+            if cur.get("expire_at") is not None:
+                cur["expire_at"] = max(float(cur.get("expire_at", 0) or 0), now + turns)
+        else:
+            sh[key] = {"value": val, "expire_at": now + turns, "halve": False}
+        logs.append(f"🪨 {params.get('label') or '磐石之心'}：承伤转化 {val} 点护盾！")
+
     @register_action("passive_shadow_buff")
     def passive_shadow_buff(battle, caster, target, params, logs):
         """act_cast 影舞态强化 buff：态内 → 面板 spd ×(1+spd_add)（暗影步·极）。
@@ -1315,6 +1704,7 @@ _CHANNEL_EVENTS = {
     "heal_cast": ("act_cast", {"kind": "治疗"}),  # 治疗施放
     "taken": ("on_taken", {}),                   # 受击（真实承伤后，subject=受击者）
     "cast": ("act_cast", {"not_basic": True}),   # （预留）技能施放（未装配用）
+    "tick": ("time_advance", {}),                 # 每刻时钟推进（schedule 广播，ctx 带 dt/now）
 }
 
 
@@ -1350,8 +1740,9 @@ def apply_class_channels(actor: dict, rules: dict) -> None:
             if isinstance(cv, dict):
                 gain = cv.get("gain")
                 when = cv.get("when")
+                per_dt = cv.get("per_dt")
             else:
-                gain, when = cv, None
+                gain, when, per_dt = cv, None, None
             if not chan or not isinstance(gain, (int, float)) or float(gain) <= 0:
                 continue
             ev, extra = _CHANNEL_EVENTS.get(chan, (None, None))
@@ -1363,6 +1754,9 @@ def apply_class_channels(actor: dict, rules: dict) -> None:
             # 条件透传：动作入口按谓词求值（_when_ok）。无声明不写键（零默认值）。
             if when:
                 d["when"] = when
+            # per_dt 透传（tick 渠道：gain 按事件 dt 缩放——见 class_res_channel_gain）
+            if per_dt:
+                d["per_dt"] = True
             trig.setdefault(ev, []).append(d)
 
 
@@ -1687,6 +2081,27 @@ def apply_class_mech(actor: dict) -> None:
             apply_class_channels(actor, _effect_rules())
         except Exception:
             pass  # 渠道装配异常不阻断开战（容错铁律）
+        # v181 磐核：职业资源固有「每核减伤」（EFFECT_RULES[res].stat_scale.reduce 声明）
+        # → taken_calc 承伤乘区（passive_taken_reduce per_core 段）。原因：battle2 伤害
+        # 路径只消费 taken_calc 乘区——stat_scale.reduce 仅由 stats 写入 st["reduce"]
+        # （无消费方，instance 仅展示）。数值单源 = 声明；归属过滤 = start_classes
+        # （**必须**声明 start_classes 才装配——无归属声明的通用效果键如 shield/melody_def
+        # 不接，防误加），零职业名硬编码。
+        try:
+            _cn_r = actor.get("class_name") or ""
+            for _rk, _rc in (_effect_rules() or {}).items():
+                if not isinstance(_rc, dict):
+                    continue
+                _per = float((_rc.get("stat_scale") or {}).get("reduce") or 0)
+                _sc_r = _rc.get("start_classes") or []
+                if _per <= 0 or not _sc_r or _cn_r not in _sc_r:
+                    continue
+                trig.setdefault("taken_calc", []).append(
+                    {"type": "passive_taken_reduce",
+                     "judge": {"kind": "per_core", "res": _rk},
+                     "per_core": _per, "label": _rc.get("name") or _rk})
+        except Exception:
+            pass  # 资源减伤装配异常不阻断开战（容错铁律）
         # v181.M-R2e B2：牧师信仰负载制装配——faith 条目声明 load_tiers（有档位表才挂，
         # 零默认值铁律）+ start_classes 归属过滤（非牧师不挂，防白拿 heal_calc 乘区）：
         #   heal_calc  → 施法时按自身 faith 层查档位 heal_mult 乘入（档位乘区）

@@ -3322,6 +3322,8 @@ BRANCH_SKILLS = {
                         'kind': '增益',
                         'cast': 0.35,
                         'cd': 8,
+                        'buff_turns': 8,      # v153 L992：姿态持续 8 刻
+                        'effect': 'guard_stance',   # v181 磐核线：守御姿态态（受伤 −25% → EFFECT_RULES.stat_scale.reduce）
                         'shaken_gain': 5,
                         'name': '守御姿态',
                         'desc': '沉肩扎马，守御如山——受伤 −25%，但推破绽条效果 −30%'
@@ -3337,7 +3339,7 @@ BRANCH_SKILLS = {
                         'cast': 0.25,
                         'cd': 12,
                         'shaken_gain': 5,
-                        'cond': {"type": "guard_core", "per_core": 0.7},
+                        'mech': 'guard_core_burst',   # v153 L993：消耗全部磐核，伤害 ×(1 + 0.7 × 核数)（MECH_CASH）
                         'name': '磐岩释能',
                         'desc': '引磐核之力轰然释能——造成 66% 物理攻击 + 22 固定物理伤害（成长）并推破绽条，每枚磐核使伤害 +70%'
                     },
@@ -3529,6 +3531,7 @@ BRANCH_SKILLS = {
                         'mech_val': 50,   # v162: 对齐 desc 减伤50%
                         'effect': 'reduce',
                         'reduce_pct': 0.50,   # v169.7: 显式字段（desc 自身减伤50%）
+                        'res_cost': {"guard_core": 3},   # v153 L1007：消耗 3 枚磐核（引擎 _skill_usable 前置拦截 + _spend_skill_cost 扣层）
                         'name': '磐岩甲',
                         'desc': '磐岩覆体，坚不可摧——消耗 3 枚磐核，自身减伤 50% 持续 10 刻'
                     },
@@ -3785,6 +3788,8 @@ BRANCH_SKILLS = {
                         'mech': 'melody',
                         'melody': 'e_spd',
                         'finale': 'e_spd',
+                        'melody_pct': 15,      # v181.G1：驻留基础 %（v153 B 线表：敌方全体速度 −15%）
+                        'melody_fin_pct': 35,  # v181.G1：终章 %（v153 B 线表：敌方全体速度 −35%）
                         'name': '镇魂歌',
                         'desc': '镇魂曲调阴冷盘旋，拖住敌人的脚步——驻留：敌方全体速度 −15%；终章：敌方全体速度 −35%，持续 8 刻'
                     },
@@ -3823,6 +3828,8 @@ BRANCH_SKILLS = {
                         'mech': 'melody',
                         'melody': 'e_atk',
                         'finale': 'e_atk',
+                        'melody_pct': 18,      # v181.G1：驻留基础 %（v153 B 线表：敌方全体攻击 −18%）
+                        'melody_fin_pct': 40,  # v181.G1：终章 %（v153 B 线表：敌方全体攻击 −40%）
                         'name': '挽歌',
                         'desc': '挽歌低回，为敌人的气焰提前唱起丧钟——驻留：敌方全体攻击 −18%；终章：敌方全体攻击 −40%，持续 8 刻'
                     },
@@ -3923,6 +3930,7 @@ BRANCH_SKILLS = {
                         'mech': 'melody',
                         'melody': 'e_silence',
                         'finale': 'silence',
+                        'melody_fin_turns': 3.0,   # v181.G1：终章控制刻数（desc「全体沉默 3.0 刻」）
                         'name': '沉默之歌',
                         'desc': '阴郁旋律扼住咽喉，令咒术尽数失声——驻留：封印敌方技能（每 4 刻至多 1 次）；终章：全体沉默 3.0 刻'
                     },
@@ -3988,6 +3996,8 @@ BRANCH_SKILLS = {
                         'mech': 'melody',
                         'melody': 'e_spd_hit',
                         'finale': 'stun',
+                        'melody_pct': 20,          # v181.G1：驻留基础 %（desc「速度 −20%」；命中 −15% 缺口）
+                        'melody_fin_turns': 3.5,   # v181.G1：终章控制刻数（desc「定身 3.5 刻」→ int 3）
                         'name': '挽歌·沉',
                         'desc': '沉郁挽歌压顶而下，天地仿佛凝滞——驻留：敌方全体速度 −20%、命中 −15%；终章：敌方全体定身 3.5 刻'
                     },
@@ -4068,6 +4078,8 @@ BRANCH_SKILLS = {
                         'mech': 'melody',
                         'melody': 'e_all',
                         'finale': 'e_all',
+                        'melody_pct': 25,      # v181.G1：驻留基础 %（desc「攻/速/命中 −25%」；命中缺口）
+                        'melody_fin_pct': 50,  # v181.G1：终章 %（desc「全属性 −50%」，buff_turns=10）
                         'name': '终焉挽歌',
                         'desc': '终焉挽歌为战场降下黄昏——驻留：敌方全体攻/速/命中 −25%；终章：敌方全体全属性 −50%，持续 10 刻'
                     },

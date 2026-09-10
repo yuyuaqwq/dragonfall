@@ -106,6 +106,48 @@ EFFECT_RULES: dict = {
     "melody_finale_crit": {
         "stat_scale": {"crit": 0.01},
     },
+    # v181.G1：挽歌者 e_ 减益旋律（敌方向驻留/终章——docs/CLASS_MECHANICS_v153.md §七 B 线
+    # 挽歌者 › 安魂歌者 › 镇魂挽者）。与增益驻留同折算口径（stat_scale per=±0.01，层数 =
+    # 目标 %）；差异仅在作用阵营与负号——由装配层 class_melody_act 按 kind 前缀 e_ 判方向。
+    # negative=True：同时作为「负面种数」计数口径（挽歌·极 dirge_debuff_dmg 的 judge）。
+    # 数值权威 = 各技能 desc / v153 B 线表（镇魂歌 15 / 挽歌 18 / 挽歌·沉 20 / 终焉挽歌 25）。
+    "melody_e_atk": {
+        "stat_scale": {"atk": -0.01},                  # 挽歌 驻留：敌方全体攻击 −N%
+        "negative": True,
+    },
+    "melody_e_spd": {
+        "stat_scale": {"spd": -0.01},                  # 镇魂歌 驻留：敌方全体速度 −N%
+        "negative": True,
+    },
+    "melody_e_spd_hit": {
+        # 挽歌·沉 驻留：速度 −N%（desc 另有命中 −15%——敌方无「命中」面板 stat，
+        # 旧引擎同缺通道（battle_mech._melody_apply_e_buffs 注释「敌方命中无独立通道」）
+        # → 只落速度段，命中段记缺口）
+        "stat_scale": {"spd": -0.01},
+        "negative": True,
+    },
+    "melody_e_all": {
+        # 终焉挽歌 驻留：攻/速 −N%（desc「攻/速/命中 −25%」——命中同缺口）
+        "stat_scale": {"atk": -0.01, "spd": -0.01},
+        "negative": True,
+    },
+    # 挽歌系终章（限时：装配层写 expire = now + buff_turns；层数 = 终章 %）
+    "melody_e_fin_atk": {
+        "stat_scale": {"atk": -0.01},                  # 挽歌 终章：敌方全体攻击 −40%（8 刻）
+        "negative": True,
+    },
+    "melody_e_fin_spd": {
+        "stat_scale": {"spd": -0.01},                  # 镇魂歌 终章：敌方全体速度 −35%（8 刻）
+        "negative": True,
+    },
+    "melody_e_fin_all": {
+        # 终焉挽歌 终章：敌方全体全属性 −50%（10 刻）——落可表达的五轴
+        # （攻/魔攻/防/魔防/速）；暴击/闪避为面板 float 且 stat_scale 折算走 int()
+        # → 无法表达（缺口，见交付报告）
+        "stat_scale": {"atk": -0.01, "matk": -0.01, "def": -0.01,
+                       "mdef": -0.01, "spd": -0.01},
+        "negative": True,
+    },
     # R4（N9.7e affix 资源词条 gain clamp 声明）：energy/faith/cp/element 是
     # affix res+gain 词条（暴击蓄能/圣辉回响/暴击回点/充能汲引等）的资源容器 key，
     # cap 源 = core_resources legacy max（文件本体 R2c 退役；精力 100/信仰 10/连击点 5/元素亲和 5）。
@@ -164,6 +206,48 @@ EFFECT_RULES: dict = {
     "shield": {
         "cap": 10,
         "stat_scale": {"reduce": 0.03},       # 每层减伤
+    },
+    # ============ v181 拳师磐核（guard_core）——守御姿态下攒取的防御资源 ============
+    # 设计权威 docs/CLASS_MECHANICS_v153.md L909-918（拳师 B 线 磐石行者）：
+    #   磐核 0-5；获取 = 守御姿态下受击 +1 / 守御姿态下每刻 +0.4 / 守线技能命中 +1；
+    #   消耗 = 磐岩释能 / 磐核爆发 / 磐岩甲（MECH_CASH guard_core_burst / res_cost）；
+    #   效果 = 每核 减伤 +3%、反击伤害 +10%；伤害系数 每核 +0.7（满核 ×4.5）；
+    #   衰减 = 战斗中不衰减，战斗结束清零（本条目无 period → 零衰减；effects 随战斗生命周期）。
+    # 归属过滤走 start_classes（装配层零职业名硬编码）；三来源条件各异：受击/每刻需
+    # 守御姿态在位（when has_effect），守线技能命中无条件（简写形态）。
+    # ⚠️ 缺口（不硬凑，见交付报告）：
+    #   ① 「每核 减伤 +3%」经 stat_scale.reduce 声明——battle2 伤害路径**不消费**
+    #      st["reduce"]（stats 只写、instance 仅展示），故装配层（class_mech_proc
+    #      apply_class_mech）按本声明挂 taken_calc 乘区钩子（passive_taken_reduce
+    #      per_core 段）落地；st["reduce"] 冗余写入无害。
+    #   ② 「每核 反击伤害 +10%」无面板通道（反击 = passive_counter 的 atk_pct 直伤，
+    #      无 per-resource 加成域）→ 未落地。
+    "guard_core": {
+        "name": "磐核",
+        "cap": 5,
+        "start_classes": ["cls_wu_seng"],
+        "stat_scale": {"reduce": 0.03},        # 每核减伤 +3%（v153 L915；经乘区钩子落地，见上注①）
+        "channels": {
+            # 守线技能命中 +1（无条件——v153 L913 第三条未挂姿态限定）
+            "skill_hit": 1,
+            # 守御姿态下受击 +1（条件攒取：姿态效果键 has_effect 谓词）
+            "taken": {"gain": 1,
+                      "when": [{"judge": {"kind": "has_effect", "key": "guard_stance"}}]},
+            # 守御姿态下每刻 +0.4（时钟事件 time_advance；per_dt = 按 dt 缩放，
+            # 非 1.0 刻的推进按比例折算——见 class_res_channel_gain）
+            "tick": {"gain": 0.4, "per_dt": True,
+                     "when": [{"judge": {"kind": "has_effect", "key": "guard_stance"}}]},
+        },
+    },
+    # 守御姿态（拳师 B 线 Lv38 增益技 effect=guard_stance，v153 L992）：
+    #   「姿态：受伤 −25%，但推条值 −30%」——受伤 −25% 经 stat_scale.reduce 声明
+    #   （装配层 class_guard_stance_enter 挂 taken_calc 乘区钩子，同 guard_core 口径①）；
+    #   ⚠️ 推条值 −30% 无消费端：推条注入（battle2_bar_procs bar_gain）直读技能
+    #   shaken_gain，无按姿态的乘区 → 未落地（缺口）。
+    "guard_stance": {
+        "name": "守御姿态",
+        "cap": 1,
+        "stat_scale": {"reduce": 0.25},
     },
     # ============ 对敌标记（on=target，谁打都吃） ============
     "hunt_mark": {
@@ -360,6 +444,8 @@ EFFECT_ACTIONS: dict = {
     "shadow_dance": [{"action": "class_shadow_dance_enter"}],
     # 战士守护姿态（v153 铁誓线：受击反击 40%）——装配层动作写态 + 挂反击 trigger
     "stance_guard": [{"action": "class_stance_guard_enter"}],
+    # 拳师守御姿态（v153 L992：受伤 −25%/推条 −30%）——装配层动作写态 + 挂减伤乘区
+    "guard_stance": [{"action": "class_guard_stance_enter"}],
     # 团队/全员增益 → 自身有效键（旧 team_keys 同语义）
     "atk_all":   [{"action": "apply", "key": "atk_up"}],
     "def_all":   [{"action": "apply", "key": "def_up"}],
@@ -461,6 +547,18 @@ MECH_CASH = {
         "per_layer": 0.15,               # 每层伤害 +15%（满 5 层 ×1.75）
         "clear": True,
         "layer_label": "奥术充能", "unit": "层", "icon": "🔮",
+    },
+    # 拳师磐核燃尽（v153 L917：伤害系数每核 +0.7，满核 ×4.5）——磐岩释能 / 磐核爆发 /
+    # 气力万法 消耗全部磐核：dmg_calc 乘区 ×(1 + 0.7 × 核数) + 命中后清层（MECH_CASH）。
+    # 层数读 float（磐核经「每刻 +0.4」渠道产生小数层——mech_cash_dmg_mult 走
+    # _stacks_float，非 int 截断；见 class_mech_proc）。
+    "guard_core_burst": {
+        "name": "磐核",
+        "mode": "dmg_mult_clear",        # owner=caster：读/清 caster guard_core 层
+        "key": "guard_core",
+        "per_layer": 0.7,                # 每核伤害 +70%（满 5 核 = 1+3.5 = ×4.5）
+        "clear": True,
+        "layer_label": "磐核", "unit": "枚", "icon": "🪨",
     },
     "element_burst_all": {
         "name": "元素迸发",
@@ -726,10 +824,63 @@ PASSIVE_PROC: dict = {
         # BAR_INJECT_FIELDS 解析成 {key, gain}——数值单源 = 技能数据字段（不重填）
         "bar_field": "shaken_gain",
     },
+    # ---- P19 族：拳师磐核线被动（v153 §六 B 线 磐石行者——设计权威 L1002-1016）----
+    # 磐核 = 守御姿态下攒取的防御资源（EFFECT_RULES guard_core channels）；本族被动按
+    # 磐核层数 / 一次性 flag 提供减伤·免控·转盾。参数全读技能 passive dict（缺字段=无行为）。
+    "core_full": {             # 磐石之躯 L90：磐核满 5 → 免控 + 减伤 +20%（v153 L1013）
+        "event": "taken_calc", "action": "passive_taken_reduce",
+        "judge": {"kind": "res_ge", "res": "guard_core", "ge_field": "stacks"},
+        # 免控段（turn_start，早于控制消费 → 等效免疫；passive_cc_clear 判据 = mode=skip）：
+        # stun/freeze/sleep 覆盖；⚠️ silence（mode=no_skill）不在 passive_cc_clear 判据内
+        # → 沉默段未落地（缺口，v153「免疫控制」含沉默）。
+        "also": [
+            {"event": "turn_start", "action": "passive_cc_clear", "ctrl": "stun",
+             "judge": {"kind": "res_ge", "res": "guard_core", "ge_field": "stacks"}},
+            {"event": "turn_start", "action": "passive_cc_clear", "ctrl": "freeze",
+             "judge": {"kind": "res_ge", "res": "guard_core", "ge_field": "stacks"}},
+            {"event": "turn_start", "action": "passive_cc_clear", "ctrl": "sleep",
+             "judge": {"kind": "res_ge", "res": "guard_core", "ge_field": "stacks"}},
+        ],
+    },
+    "core_reduce": {           # 大地之肤 L85：每核额外减伤 +2%（v153 L1006；与磐核基础 +3% 叠加）
+        # per_core 段：reduce = per_core × 磐核层数（float 读，小数核保真）。数值单源 =
+        # 技能 passive dict per_core（v153 权威 0.02；任务书表作 0.03 = 与磐核基础 +3%
+        # 混淆，以 v153 L915/L1006 分列 3%/2% 为准）。
+        "event": "taken_calc", "action": "passive_taken_reduce",
+        "judge": {"kind": "per_core", "res": "guard_core"},
+    },
+    "core_last_stand": {       # 不动如山 L97：生命 <30% → 获得 3 核 + 减伤 40%（每场 1 次，v153 L1016）
+        # 触发段（on_taken 观测——引擎无低血量事件 player_low，缺口见动作 docstring）
+        "event": "on_taken", "action": "passive_low_hp_core",
+        "res": "guard_core", "used_key": "_core_last_stand_used",
+        # 常驻段：一次性 flag 置位后 taken_calc 减伤 40%（reduce 读技能 passive dict）
+        "also": [{"event": "taken_calc", "action": "passive_taken_reduce",
+                  "judge": {"kind": "has_effect", "key": "_core_last_stand_used"}}],
+    },
+    "core_overflow": {         # 磐石之心 L62：磐核 ≥3 → 溢出承伤转护盾（v153 L1002）
+        "event": "taken_calc", "action": "passive_overflow_shield",
+        "judge": {"kind": "res_ge", "res": "guard_core", "ge_field": "stacks"},
+    },
     # ---- P16 族：诗人吟唱增强（二重唱——吟唱段后置，见 class_mech_proc 顺序契约）----
     "melody_duet": {           # 二重唱：吟唱时旋律强度额外 +add（被动 dict add=1）
         "event": "act_cast", "action": "passive_melody_duet",
         "judge": {"kind": "mech_eq", "mech": "melody_chant"},
+    },
+    # ---- P18 族：挽歌者减益旋律强化（v181.G1——docs/REFACTOR_v181_GAP_CLOSURE_PLAN.md §3）----
+    # 旧语义权威 = game/core/passive_procs.py 的 dirge_debuffs / dirge_ctrl_up 两 handler
+    # （v181.P2D 注册表：declare_proc("dirge_debuff_dmg","dmg_mult_cond") /
+    #  declare_proc("dirge_ctrl_up","flag_set_cond")），本批按同语义落到 battle2 声明表。
+    "dirge_debuff_dmg": {      # 挽歌·极：敌方每携带 1 个负面 → 受伤害 +per_debuff（上限 cap）
+        # 旧 handler：pct = min(ps.per_debuff × 负面种数, ps.cap) → 伤害乘区 ×(1+pct)
+        # （种数口径 = 敌方 effects 里声明 negative / on=target 的条目，见动作段）。
+        "event": "dmg_calc", "action": "passive_dmg_mult",
+        "judge": {"kind": "target_debuff_kinds"},
+    },
+    "dirge_ctrl_up": {         # 镇魂安魂：挽歌系控制对敌施加后时长 +add 刻（desc +1.5 刻 → add=1）
+        # 控制落地两处：① 旋律终章在 act_cast（class_melody_act 排 act_cast 首位）
+        # ② 技能 mech2 控制在 skill_hit 后置 → 双事件钩同一动作（首条控制生效后返回）。
+        "event": "act_cast", "action": "passive_ctrl_extend",
+        "also": [{"event": "skill_hit", "action": "passive_ctrl_extend"}],
     },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
     # undead_faith/poison_spread 等职业批续（C 桶映射见 roadmap）

@@ -41,10 +41,27 @@
 | ③ 守线技能命中 +1 | `channels: {"skill_hit": 1}`（现成时机） | data ✅ 零改动 |
 | ① 守御姿态受击 +1 | `channels: {"taken": 1}` + **姿态条件过滤** ← 唯一缺口 | services ⚠️ 装配层新增 |
 
-**唯一需要新增的能力（装配层，非引擎）**：
+**已落地（2026-09-10，三次提交）**：
+1. `2240b09` 渠道条件攒取：`_when_ok`/`_has_effect_ok` 谓词求值器 + `apply_class_channels`
+   透传 + `class_res_channel_gain` 入口条件门（未知谓词 fail-closed）
+2. `3fa76d1` 修正为**按渠道**声明条件（同资源不同来源条件不同——磐核：受击/每刻看姿态、
+   守线技能命中无条件）+ 渠道值两形态（`时机: N` 简写 / `时机: {gain, when, per_dt}`）
+   + float gain 支持（装配器原 `int(gain)` 会把 0.4 截断为 0 而丢渠道）
+3. 测试 `tests/test_v181_channel_when.py` 26 断言；全量回归 239/239
+
+**仍需新增的能力（装配层，非引擎）**：
 `class_res_channel_gain` 支持 `when`/`judge` 条件——复用现成 judge 求值器，加一个
 `has_effect` 谓词 kind（判 actor.effects 是否含某 key，即"是否处于守御姿态"）。
 装配时把渠道声明的 `when` 透传进 trigger 参数，动作入口求值，不满足直接 return。
+
+**每刻 +0.4 的落地方式**：走 `time_advance` 时钟事件渠道（引擎已在 schedule.py 广播，
+ctx 带 `dt`）——但每刻量必须**按 dt 缩放**（CTB 步长非恒定 1.0 刻），故渠道声明加
+`per_dt: True`，动作侧 `gain *= ctx.get("dt", 1.0)`。
+
+**「守御姿态」= 拳师 B 线 Lv38 增益技**（v153 L992：受伤 −25%/推条 −30%，8 刻）——
+它自己的效果键即磐核两个来源的 when 判据；姿态落地照 `stance_guard`（战士守护姿态）
+现成样板（EFFECT_RULES 条目 + EFFECT_ACTIONS + 写 `effects[key]` 的通用动作），
+**引擎不加任何「姿态」概念**。
 
 **被动读取端**（PASSIVE_PROC 加 4 条 + 复用/新增动作）：
 ```
