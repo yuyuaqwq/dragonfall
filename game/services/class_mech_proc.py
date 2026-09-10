@@ -1545,6 +1545,12 @@ def apply_class_mech(actor: dict) -> None:
             apply_class_passives(actor)
         except Exception:
             pass  # 被动装配异常不阻断开战（容错铁律）
+        # v181 破绽接线：挂敌身条注入装配（BAR_INJECT_FIELDS 声明表 → skill_hit 触发器）
+        try:
+            from .battle2_bar_procs import apply_bar_procs
+            apply_bar_procs(actor)
+        except Exception:
+            pass  # 挂条装配异常不阻断开战（容错铁律）
         mechs = {info.get("mech") for _s, info in _learned_mech_skills(actor)}
         for mech in mechs:
             cash = rules.get(mech)
