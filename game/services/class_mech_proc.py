@@ -1669,6 +1669,166 @@ def install() -> None:
                                                      "expire": None}
         logs.append(f"✨ {params.get('label') or '被动'}：元素核心，结算暴击 +{int(add * 100)}%！")
 
+    # ---- v181 缺口收尾（P20）：破绽感知 / 暗影之心 / 毒刃·共鸣（PASSIVE_PROC 三条）----
+
+    @register_action("passive_bar_decay_half")
+    def passive_bar_decay_half(battle, caster, target, params, logs):
+        """time_advance：破绽条衰减减半（破绽感知）。
+
+        语义源 = 技能 desc「破绽衰减减半（−1.7/s → −0.85/s）」+ v153 §六（每刻 −1.7）。
+        实现：内容层把声明者**敌对侧**宿主身上该条结算到当刻（bar_settle 全量衰减）后
+        回补本次衰减量的**一半**（净效果 = 半衰）。float 保真——修掉旧引擎
+        `int(decay/2)` 截断空转（shaken 1.7 → int(0.85)=0，物理无效果）。
+        条名由声明给（judge.bar）/ 宿主范围 = side 关系；宿主自带的 bar_time_settle
+        同事件后行时条 `_at` 已归零（幂等），故与订阅顺序无关。
+        """
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        judge = params.get("judge") or {}
+        bar = judge.get("bar") or params.get("bar") or ""
+        owner = params.get("_owner") or caster
+        if not isinstance(owner, dict) or not bar:
+            return
+        try:
+            from ..battle2.actors import hostile_sides
+            from ..core.battle_bars import bar_def, bar_effect_key, bar_settle
+        except Exception:
+            return
+        bd = bar_def(bar) or {}
+        if not bd:
+            return  # 无条配置 = 无此行为（零默认值铁律）
+        now = float(ctx.get("now", getattr(battle, "_now", 0.0)) or 0.0)
+        cap = float(bd.get("max", 0) or 0)
+        # 同刻去重（战斗级瞬态）：两名持有者不叠加成 ×0.75 衰（属性随战斗对象，不落盘）
+        _tick = getattr(battle, "_bar_decay_half_tick", None)
+        if not isinstance(_tick, dict):
+            _tick = battle._bar_decay_half_tick = {}
+        for _sn in hostile_sides(battle, owner.get("side") or ""):
+            for host in ((getattr(battle, "sides", None) or {}).get(_sn) or []):
+                bs = (host.get("effects") or {}).get(bar_effect_key(bar))
+                if not isinstance(bs, dict):
+                    continue  # 没挂过条 = 不触发（零噪音）
+                before = float(bs.get("val", 0.0) or 0.0)
+                if before <= 0 or _tick.get(id(host)) == now:
+                    continue
+                bar_settle(host, bar, now)
+                refund = (before - float(bs.get("val", 0.0) or 0.0)) * 0.5
+                if refund <= 0:
+                    continue
+                _tick[id(host)] = now
+                nv = float(bs.get("val", 0.0) or 0.0) + refund
+                bs["val"] = min(cap, nv) if cap > 0 else nv
+                logs.append(f"🎯 {params.get('label') or '破绽感知'}：破绽衰减减半"
+                            f"（{before:g} → {bs['val']:g}）")
+
+    @register_action("passive_lian_duan_soft")
+    def passive_lian_duan_soft(battle, caster, target, params, logs):
+        """暗影之心（lian_duan_soft）：断连时只损失 lose 段连击（而非减半）。
+
+        语义源 = 技能 desc「断连时只损失 1 段连击（而非减半）」+ passive dict（lose=1）
+        + v153 §五（连段 0-5；「1.5 刻内未命中 → 连段减半」= 断连窗权威）。
+        battle2 无基础断连载体（旧 battle.py `_combo_break` 随 N10 删除、未迁），
+        故内容层自管（引擎零改动，同 recon 路线）：
+          skill_hit / attack_hit  记「最后命中时刻」（effects._lian_duan_last_hit）
+          time_advance            now − 最后命中 ≥ gap 且连段 > 0 → 连段 −lose（并重开窗）
+        参数 res / gap / lose 全由声明给；缺 gap / 缺 lose / 无命中记录 / 连段 0 → 不动作
+        （零默认值铁律：缺字段 = 无此行为）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        owner = params.get("_owner") or caster
+        if not isinstance(owner, dict):
+            return
+        ev = ctx.get("_event") or ""
+        ef = owner.setdefault("effects", {})
+        rec_key = "_lian_duan_last_hit"
+        if ev in ("skill_hit", "attack_hit"):
+            ef[rec_key] = {"t": float(getattr(battle, "_now", 0.0) or 0.0)}
+            return
+        if ev != "time_advance":
+            return
+        res = params.get("res") or ""
+        try:
+            gap = float(params.get("gap") or 0)
+            lose = float(params.get("lose") or 0)
+        except Exception:
+            return
+        if not res or gap <= 0 or lose <= 0:
+            return  # 缺字段 = 无此行为
+        rec = ef.get(rec_key)
+        if not isinstance(rec, dict) or rec.get("t") is None:
+            return  # 从未命中 → 无断连判据（不臆造起点）
+        now = float(ctx.get("now", getattr(battle, "_now", 0.0)) or 0.0)
+        if now - float(rec.get("t")) < gap:
+            return  # 窗内仍有命中 → 连段未断
+        entry = ef.get(res)
+        cur = float(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0.0
+        if cur <= 0:
+            return
+        from ..battle2.effects import _norm_stack
+        nv = _norm_stack(max(0.0, cur - lose))
+        entry["stacks"] = nv
+        ef[rec_key] = {"t": now}   # 断连已结算 → 重开窗（防每刻连续掉段）
+        logs.append(f"🌑 {params.get('label') or '暗影之心'}：断连只损 {int(lose)} 段"
+                    f"（{int(cur)} → {int(nv)}）")
+
+    @register_action("passive_poison_spread")
+    def passive_poison_spread(battle, caster, target, params, logs):
+        """毒刃·共鸣（poison_spread）：毒爆击杀目标时，毒层扩散至相邻敌人。
+
+        语义源 = 技能 desc「毒爆击杀目标时，毒层扩散至相邻敌人」+ v153 §五 B 线。
+        同一动作按事件名分派（on_kill ctx 无技能信息 → 内容层自管本次施放记录）：
+          act_cast  记本次施放技能 mech（effects._poison_spread_mech）
+          on_kill   声明者击杀 + 记录 mech 前缀匹配（desc「毒爆击杀」）+ 死者带毒层
+                    → 死者毒层按其**当前层数**扩散给相邻（同 side 列表前后各一）存活敌人
+          act_done  清记录（作用域 = 单次行动）
+        「相邻」= battle.sides_of(死者 side) 列表内前后邻居（内容层可读）；扩散层数 =
+        死者现毒层数（desc 未给系数 → 不臆造常量，用现网单源）。落地走引擎 apply 动词
+        （cap 收敛 / threshold 广播与技能施毒同口径）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        owner = params.get("_owner") or caster
+        if not isinstance(owner, dict):
+            return
+        ev = ctx.get("_event") or ""
+        judge = params.get("judge") or {}
+        key = judge.get("key") or params.get("key") or ""
+        ef = owner.setdefault("effects", {})
+        rec_key = "_poison_spread_mech"
+        if ev == "act_cast":
+            ef[rec_key] = {"mech": (ctx.get("info") or {}).get("mech") or ""}
+            return
+        if ev == "act_done":
+            ef.pop(rec_key, None)
+            return
+        if ev != "on_kill" or not key:
+            return
+        prefix = str(params.get("mech_prefix") or "")
+        _rec = ef.get(rec_key)
+        mech = str(_rec.get("mech") or "") if isinstance(_rec, dict) else ""
+        if prefix and not mech.startswith(prefix):
+            return  # 非毒爆击杀（desc 限定）→ 不扩散
+        dead = ctx.get("target")
+        if not isinstance(dead, dict):
+            return
+        n = int(((dead.get("effects") or {}).get(key) or {}).get("stacks", 0) or 0)
+        if n <= 0:
+            return  # 死者无毒层 = 无此行为
+        from ..battle2.actors import actor_alive
+        lst = battle.sides_of(dead.get("side") or "")
+        idx = next((i for i, a in enumerate(lst) if a is dead), None)
+        if idx is None:
+            return
+        from ..battle2.effects import act_apply
+        spread = 0
+        for i in (idx - 1, idx + 1):
+            if not 0 <= i < len(lst) or not actor_alive(lst[i]):
+                continue
+            act_apply(battle, owner, lst[i],
+                      {"key": key, "op": "add", "amount": n, "on": "target"}, logs)
+            spread += 1
+        if spread > 0:
+            logs.append(f"☠️ {params.get('label') or '毒刃·共鸣'}：毒层扩散至 "
+                        f"{spread} 名相邻敌人（{n} 层）！")
+
     _registered = True
 
 

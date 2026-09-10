@@ -882,8 +882,41 @@ PASSIVE_PROC: dict = {
         "event": "act_cast", "action": "passive_ctrl_extend",
         "also": [{"event": "skill_hit", "action": "passive_ctrl_extend"}],
     },
+    # ---- P20 族：真空转收尾批（破绽感知 / 暗影之心 / 毒刃·共鸣）----
+    # 三条旧引擎均无实现（NO_OLD），语义全从技能 desc + passive dict + 设计权威
+    # docs/CLASS_MECHANICS_v153.md（§五 连段 / §六 破绽）推；动作在 services/class_mech_proc。
+    "shaken_decay_half": {     # 破绽感知：破绽条衰减减半（desc「−1.7/s → −0.85/s」）
+        # 时间制（v181 破绽时间化）：引擎广播 time_advance（ctx dt/now）——内容层把宿主
+        # **敌对侧**身上该条结算到当刻后回补本次衰减量的一半（净效果 = 半衰；float 保真，
+        # 修旧引擎 int(decay/2) 截断空转：1.7 → int(0.85)=0）。条名由 judge 给，动作零条名。
+        "event": "time_advance", "action": "passive_bar_decay_half",
+        "judge": {"bar": "shaken"},
+    },
+    "lian_duan_soft": {        # 暗影之心：断连时只损失 lose 段连击（而非减半）
+        # 「断连」= gap 刻内无命中（v153 §五 L759 权威：1.5 刻内未命中 → 连段减半）。
+        # battle2 无基础断连载体（旧 battle.py _combo_break 随 N10 删除、未迁）→ 内容层
+        # 自管（引擎零改动）：命中记时刻 → time_advance 查窗 → 掉段数 = passive dict lose。
+        "event": "time_advance", "action": "passive_lian_duan_soft",
+        "res": "lian_duan", "gap": 1.5,
+        "also": [
+            {"event": "skill_hit", "action": "passive_lian_duan_soft"},
+            {"event": "attack_hit", "action": "passive_lian_duan_soft"},
+        ],
+    },
+    "poison_spread": {         # 毒刃·共鸣：毒爆击杀目标时，毒层扩散至相邻敌人
+        # on_kill ctx 无技能信息 → 内容层自管「本次施放」记录（act_cast 记 mech /
+        # act_done 清，作用域 = 单次行动），击杀帧校验前缀（desc「毒爆击杀」；
+        # poison_burst 前缀覆盖两种毒爆技，同 poison_burst_up 口径）。扩散范围 =
+        # 死者同 side 列表前后邻居（battle.sides_of，内容层可读）。
+        "event": "on_kill", "action": "passive_poison_spread",
+        "judge": {"key": "poison"}, "mech_prefix": "poison_burst",
+        "also": [
+            {"event": "act_cast", "action": "passive_poison_spread"},
+            {"event": "act_done", "action": "passive_poison_spread"},
+        ],
+    },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
-    # undead_faith/poison_spread 等职业批续（C 桶映射见 roadmap）
+    # undead_faith 等职业批续（C 桶映射见 roadmap；poison_spread 已随 P20 收尾）
 }
 
 
