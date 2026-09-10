@@ -1473,6 +1473,21 @@ def apply_class_passives(actor: dict) -> None:
                 continue
             d[k] = v
         d.setdefault("label", info.get("name") or proc)
+        # bar_field：被动自身携带的推条字段（如反震 shaken_gain: 3）→ 装配时解析成
+        # {key, gain}（字段 → bar key 映射 = BAR_INJECT_FIELDS；数值单源 = 技能数据字段，
+        # 不在被动 dict 重填）。缺字段/非正数 = 只做动作其余段（零默认值铁律）。
+        _bf = cfg.get("bar_field")
+        if _bf and not d.get("gain"):
+            try:
+                from ..data.battle2_rules import BAR_INJECT_FIELDS
+                _spec = (BAR_INJECT_FIELDS or {}).get(_bf) or {}
+                _bk = _spec.get("key")
+                _bg = int(info.get(_bf) or 0)
+                if _bk and _bg > 0:
+                    d["key"] = _bk
+                    d["gain"] = _bg
+            except Exception:
+                pass
         if not d.get("type"):
             continue
         ev = cfg.get("event") or ""

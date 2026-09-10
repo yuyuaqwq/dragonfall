@@ -38,8 +38,8 @@ v153 §六 原文（`docs/CLASS_MECHANICS_v153.md:868-879`）与落地情况：
 | ① | `bar_tick` 用 `int(decay_per_turn)` → 实测 **−1/宿主动**且挂在宿主动作上 | 策划案 −1.7 **每刻** | ✅ 已改：`bar_settle` 按 dt 连续结算（小数累计），时钟事件 `time_advance` 驱动；验收 ≈4.5 次出手触发 |
 | ② | `immune_turns = 1` 按「宿主动作数」递减；免疫期内继续积蓄；`no_inject_on_trigger` 无消费方 | 策划案「2 刻内不再积蓄」+自锁防护 | ✅ 已改：`immune_secs = 2.0` + 绝对时刻 `immune_until`；期内注入忽略；触发当帧注入 = 0 |
 | ③ | 推满 = `effects mode=skip`「下一动」| 策划案 v153 写「定身 2.0 刻」 | ✅ 裁定保留 skip 语义（怪行动间隔 >2 刻，定身会白给）；**策划案 v153 已同步改文** |
-| ④ | `bar_preserve`（阶段保留 50%）零调用 | 策划案要求 | ⏳ 另立工单（Boss 阶段钩子：`boss_script` 补 `fire("phase")`） |
-| ⑤ | 反震（lv58 被动，`shaken_gain: 3`，desc「受击时…推破绽条」） | —— | ⏳ 另立工单（需 `on_taken` 装配动作 + reflect 通道） |
+| ④ | `bar_preserve`（阶段保留 50%）零调用 | 策划案要求 | ✅ 已落地：`boss_script` 转阶段广播通用时机事件 `fire("phase")`（引擎零知识，只给时机）+ 装配层订阅 `bar_phase_preserve`（比例读 `ENEMY_BAR_CFG[key].phase_preserve_pct`，缺省 50%） |
+| ⑤ | 反震（lv58 被动，`shaken_gain: 3`，desc「受击时…推破绽条」） | —— | ✅ 已落地：`on_taken` 装配动作 `passive_reflect_bar`（反弹 `reflect_pct` 伤害 + 反推攻击者条；无来源 DOT/环境伤不反制）；技能数据补 `passive: {proc: reflect_bar, reflect_pct: 0.30}` |
 
 **另：条上限死锁**（本批发现）——`max 50` 与「阈值递增封顶 ×2.5 = 125」打架
 （首次触发后阈值 67 > 上限 50 → 第二次起永远触发不了）→ ✅ 已改 `max = 125`。

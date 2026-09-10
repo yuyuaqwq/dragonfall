@@ -3371,6 +3371,7 @@ BRANCH_SKILLS = {
                         'kind': '被动',
                         'cast': 'None',
                         'shaken_gain': 3,
+                        'passive': {"proc": "reflect_bar", "reflect_pct": 0.30},
                         'name': '反震',
                         'desc': '铜皮铁骨，力反其身——受击时对攻击者反弹 30% 伤害并推破绽条'
                     },

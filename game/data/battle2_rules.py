@@ -704,9 +704,10 @@ PASSIVE_PROC: dict = {
         "res": "arcane", "gain_field": "gain",
     },
     # ---- P15 族：挂敌身条（破绽）条件乘区 + 触发后延长（格斗士攻线 v153 §六）----
-    # 条容器 = core/battle_bars（buffs[bar] = {val, threshold, trigger_count,
-    # immune_turns}，随战斗序列化）；推条/触发 = battle2_bar_procs（BAR_INJECT_FIELDS
-    # 声明表，命中注入 + 宿主回合 tick）；本表只做「条状态 → 增伤/延长」消费段。
+    # 条容器 = core/battle_bars（actor.effects[BAR_STATE_PREFIX+key] = {val, threshold,
+    # trigger_count, _at, immune_until}——V 系列统一单容器，随战斗序列化）；
+    # 推条/衰减/触发 = services/battle2_bar_procs（BAR_INJECT_FIELDS 命中注入 +
+    # time_advance 时钟结算）；本表只做「条状态 → 增伤/延长」消费段。
     "shaken_awareness": {      # 气力之心：敌人破绽 ≥15 → 对其伤害 +20%
         "event": "dmg_calc", "action": "passive_dmg_mult",
         "judge": {"kind": "target_bar_ge", "bar": "shaken", "ge_field": "bar_at"},
@@ -717,6 +718,13 @@ PASSIVE_PROC: dict = {
         # also = 本条命中触发破绽后延长免疫窗口（破防持续 +1 刻；v169.7 半刻向下取整）
         "also": [{"event": "skill_hit", "action": "passive_bar_extend",
                   "judge": {"bar": "shaken"}}],
+    },
+    # ---- P17 族：受击反制（反震——on_taken 反弹伤害 + 反推攻击者条）----
+    "reflect_bar": {           # 反震：受击时对攻击者反弹 reflect_pct 伤害 + 推其破绽条
+        "event": "on_taken", "action": "passive_reflect_bar",
+        # bar_field = 被动自身携带的推条字段（反震 shaken_gain: 3）；装配器经
+        # BAR_INJECT_FIELDS 解析成 {key, gain}——数值单源 = 技能数据字段（不重填）
+        "bar_field": "shaken_gain",
     },
     # ---- P16 族：诗人吟唱增强（二重唱——吟唱段后置，见 class_mech_proc 顺序契约）----
     "melody_duet": {           # 二重唱：吟唱时旋律强度额外 +add（被动 dict add=1）

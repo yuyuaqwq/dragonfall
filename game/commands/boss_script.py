@@ -223,6 +223,13 @@ def _check_phases(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     # ---- 异常净化（模板 preserve_debuffs=False 才清；默认保留 50% 语义 P1 简化为全保留）----
     if _merged is not None and _merged.get("preserve_debuffs") is False:
         _phase_cleanse_negatives(actor, logs)
+    # ---- 阶段事件广播（v181 破绽条：挂敌身条按阶段保留部分积蓄——订阅方 bar_preserve）----
+    # 引擎零知识：引擎只提供通用时机事件，条侧消费端在装配层（battle2_bar_procs）
+    try:
+        from ..battle2.effect_triggers import fire as _fire
+        _fire(battle, "phase", {"actor": actor, "phase": npc}, logs)
+    except Exception:
+        pass  # 阶段事件异常不阻断转阶段（容错铁律）
     # ---- 演出刻：本刻不行动（引擎 actor_auto 收到 True 拦截）----
     return True
 

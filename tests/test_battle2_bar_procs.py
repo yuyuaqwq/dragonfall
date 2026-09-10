@@ -4,7 +4,8 @@
 
 覆盖：装配（学什么挂什么）/ 命中注入（含多段 per_hit）/ 阈值触发 / 触发落地 mode=skip /
       跳过消费 / 时钟推进结算（time_advance）/ 免疫窗口（期内不积蓄、到期可再触发）/
-      阈值递增可多次触发（条上限 125）
+      阈值递增可多次触发（条上限 125）/ 反震（on_taken 反弹 + 反推条）/
+      阶段保留（phase → 积蓄保留 50%，进度遗产）
 
 跑法：python tests/test_battle2_bar_procs.py
 """
@@ -80,6 +81,11 @@ def _bar_trigs(actor):
 def _settle_trigs(actor):
     return [x for x in ((actor.get("triggers") or {}).get("time_advance") or [])
             if isinstance(x, dict) and (x.get("type") or x.get("action")) == "bar_time_settle"]
+
+
+def _phase_trigs(actor):
+    return [x for x in ((actor.get("triggers") or {}).get("phase") or [])
+            if isinstance(x, dict) and (x.get("type") or x.get("action")) == "bar_phase_preserve"]
 
 
 def test_install():
@@ -282,6 +288,78 @@ def test_no_bar_no_op():
     check("敌方无条也不崩", True)
 
 
+def test_reflect_bar():
+    print("【8. 反震（on_taken 装配）：反弹 30% 伤害 + 反推攻击者破绽条】")
+    p = mk_player(cls="cls_wu_seng", learned=["反震"], hp=1000)
+    CMP.apply_class_mech(p)
+    ref = [x for x in ((p.get("triggers") or {}).get("on_taken") or [])
+           if isinstance(x, dict) and (x.get("type") or x.get("action")) == "passive_reflect_bar"]
+    check("拳师学反震 → 挂 on_taken 反制条目", len(ref) == 1, f"trigs={ref}")
+    check("反射率 reflect_pct=0.30（passive dict 并入）",
+          bool(ref) and abs(float(ref[0].get("reflect_pct") or 0) - 0.30) < 1e-9, f"trig={ref}")
+    check("推条参数由 bar_field 解析（key=shaken / gain=3——数值单源 = 技能 shaken_gain）",
+          bool(ref) and ref[0].get("key") == "shaken" and ref[0].get("gain") == 3,
+          f"trig={ref}")
+    e = mk_enemy(hp=50000, atk=100)
+    b = new_battle(p, e)
+    logs = []
+    p_hp0 = p["hp"]
+    # 受击 30 → 反弹 30% = 9（攻击者掉血）；同时攻击者破绽条 +3
+    fire(b, "on_taken", {"actor": p, "source": e, "dmg": 30}, logs)
+    check("反弹 30 × 30% = 9（攻击者掉 9 血）", e["hp"] == 50000 - 9, f"e_hp={e['hp']}")
+    check("自身不掉血（反制不是自伤）", p["hp"] == p_hp0, f"p_hp={p['hp']}")
+    check("攻击者破绽条 +3（反推条）", float(bar_of(e).get("val", 0) or 0) == 3.0,
+          f"bs={bar_of(e)}")
+    check("被推条单位自安装时钟/阶段订阅",
+          len(_settle_trigs(e)) == 1 and len(_phase_trigs(e)) == 1,
+          f"settle={_settle_trigs(e)} phase={_phase_trigs(e)}")
+    check("反制日志落地", any("反震" in str(x) for x in logs), f"logs={logs}")
+    # 无来源（DOT/环境伤）：只留伤害来源判定，不反制
+    e2 = mk_enemy(hp=50000)
+    b2 = new_battle(p, e2)
+    logs2 = []
+    fire(b2, "on_taken", {"actor": p, "dmg": 30}, logs2)
+    check("无攻击来源不反制（不扣血、不推条）",
+          e2["hp"] == 50000 and not bar_of(e2), f"e_hp={e2['hp']} bs={bar_of(e2)}")
+    # 反向：未学反震 → 零条目（零噪音）
+    p2 = mk_player(cls="cls_wu_seng", learned=["钢拳"])
+    CMP.apply_class_mech(p2)
+    ref2 = [x for x in ((p2.get("triggers") or {}).get("on_taken") or [])
+            if isinstance(x, dict) and (x.get("type") or x.get("action")) == "passive_reflect_bar"]
+    check("未学反震 → 不挂反制条目", not ref2, f"trigs={ref2}")
+
+
+def test_phase_preserve():
+    print("【9. Boss 阶段保留：phase → 积蓄保留 50%（进度遗产，触发计数不清零）】")
+    p = mk_player(cls="cls_wu_seng", learned=["钢拳"])
+    CMP.apply_class_mech(p)
+    e = mk_enemy()
+    e2 = mk_enemy()
+    b = new_battle(p, e)
+    b.sides["enemy"].append(e2)
+    logs = []
+    fire(b, "skill_hit", {"actor": p, "target": e, "info": {"shaken_gain": 40}}, logs)
+    fire(b, "skill_hit", {"actor": p, "target": e2, "info": {"shaken_gain": 40}}, logs)
+    check("垫到 40 且阶段订阅自安装（首次挂条时）",
+          float(bar_of(e).get("val", 0) or 0) == 40.0 and len(_phase_trigs(e)) == 1,
+          f"bs={bar_of(e)} phase={_phase_trigs(e)}")
+    fire(b, "phase", {"actor": e, "phase": 1}, logs)
+    check("阶段转换后保留 50% = 20", float(bar_of(e).get("val", -1)) == 20.0,
+          f"bs={bar_of(e)}")
+    check("阈值/触发计数不被阶段洗掉（进度遗产只缩放积蓄）",
+          bar_of(e).get("threshold") == 50 and bar_of(e).get("trigger_count") == 0,
+          f"bs={bar_of(e)}")
+    check("阶段事件只作用于主体（旁观者 e2 条不动 = 40）",
+          float(bar_of(e2).get("val", -1)) == 40.0, f"bs2={bar_of(e2)}")
+    check("阶段保留日志落地", any("阶段更迭" in str(x) for x in logs), f"logs={logs}")
+    # 无条单位收到 phase 不崩（零行为）
+    e3 = mk_enemy()
+    b3 = new_battle(p, e3)
+    logs3 = []
+    fire(b3, "phase", {"actor": e3, "phase": 1}, logs3)
+    check("无条单位 phase 零行为", not bar_of(e3), f"bs={bar_of(e3)}")
+
+
 if __name__ == "__main__":
     test_install()
     test_inject_on_hit()
@@ -290,6 +368,8 @@ if __name__ == "__main__":
     test_time_decay()
     test_per_hit_multisegment()
     test_no_bar_no_op()
+    test_reflect_bar()
+    test_phase_preserve()
     print(f"\n== 结果：通过 {PASS} / 共 {PASS + FAIL} ==")
     if FAILURES:
         for f in FAILURES:

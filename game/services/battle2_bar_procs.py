@@ -6,12 +6,16 @@
 删除，`bar_gain` 全库零调用方，破绽条打不出去（容器/配置/条件全活，只断在消费链）。
 本模块把消费链接回 battle2 的事件总线（`effect_triggers.fire`）。
 
-三个通用动词（引擎零知识：动作名是动词，bar key / 技能字段名全由声明参数给出）：
-- `bar_gain`        skill_hit 命中后按技能数据字段注入积蓄（`params["field"]`，如
-                    `shaken_gain`）；满阈值 → `bar_trigger` → 落地 `trigger_effect`
-- `bar_time_settle` time_advance 时钟推进：把宿主身上所有条按 dt 结息（免疫到期 +
-                    连续衰减）→ 触发检查。读点永远拿到当刻值
-                    （宿主首次挂条时自安装订阅——只有真挂过条的单位才跑，零噪音）
+通用动词（引擎零知识：动作名是动词，bar key / 技能字段名全由声明参数给出）：
+- `bar_gain`          skill_hit 命中后按技能数据字段注入积蓄（`params["field"]`，如
+                      `shaken_gain`）；满阈值 → `bar_trigger` → 落地 `trigger_effect`
+- `bar_time_settle`   time_advance 时钟推进：把宿主身上所有条按 dt 结息（免疫到期 +
+                      连续衰减）→ 触发检查。读点永远拿到当刻值
+                      （宿主首次挂条时自安装订阅——只有真挂过条的单位才跑，零噪音）
+- `bar_phase_preserve` phase 阶段转换：宿主所有条保留配置比例积蓄（`phase_preserve_pct`，
+                      进度遗产不清零）——事件由上层剧本导演广播，比例全在配置里
+- `passive_reflect_bar` on_taken 受击反制（反震）：反弹 `reflect_pct` 伤害 + 反推攻击者条
+                      （量 = 被动自身推条字段，装配器经 `BAR_INJECT_FIELDS` 解析）
 
 数据来源：
 - 注入字段映射 = `data/battle2_rules.BAR_INJECT_FIELDS`（技能字段 → bar key；`per_hit`
@@ -55,12 +59,18 @@ def _bar_keys_of(host: dict) -> list:
 
 
 def _ensure_tick(host: dict) -> None:
-    """自安装 time_advance 结算订阅（首次挂条时；重复调用幂等）。"""
-    lst = host.setdefault("triggers", {}).setdefault("time_advance", [])
-    for e in lst:
-        if isinstance(e, dict) and e.get("action") == "bar_time_settle":
-            return
-    lst.append({"action": "bar_time_settle"})
+    """自安装订阅（首次挂条时；重复调用幂等）：
+
+    - `time_advance` → `bar_time_settle`：时钟推进按 dt 结息（谁挂过条谁才订阅，零噪音）
+    - `phase`        → `bar_phase_preserve`：阶段转换保留部分积蓄（进度遗产，配置定比例）
+    """
+    trig = host.setdefault("triggers", {})
+    lst = trig.setdefault("time_advance", [])
+    if not any(isinstance(e, dict) and e.get("action") == "bar_time_settle" for e in lst):
+        lst.append({"action": "bar_time_settle"})
+    lph = trig.setdefault("phase", [])
+    if not any(isinstance(e, dict) and e.get("action") == "bar_phase_preserve" for e in lph):
+        lph.append({"action": "bar_phase_preserve"})
 
 
 def _settle(battle, host: dict, key: str, logs: list) -> bool:
@@ -131,6 +141,63 @@ def bar_time_settle_act(battle, caster, target, params, logs):
     for key in _bar_keys_of(host):
         bar_settle(host, key, now, logs)
         _settle(battle, host, key, logs)
+
+
+@register_action("bar_phase_preserve")
+def bar_phase_preserve_act(battle, caster, target, params, logs):
+    """phase：宿主阶段转换 → 所有条保留配置比例积蓄（进度遗产；阶段不清零）。
+
+    比例 = `ENEMY_BAR_CFG[key].phase_preserve_pct`（缺省 50%）——动作零数值，
+    只是「阶段转换」这个通用时机的条侧消费端（事件由上层剧本导演广播）。
+    """
+    host = params.get("_owner") or _host_of(caster, target, params)
+    if not isinstance(host, dict):
+        return
+    from ..core.battle_bars import bar_def, bar_preserve, bar_state
+    for key in _bar_keys_of(host):
+        before = float((bar_state(host, key) or {}).get("val", 0.0) or 0.0)
+        if before <= 0:
+            continue
+        bar_preserve(host, key)
+        after = float((bar_state(host, key) or {}).get("val", 0.0) or 0.0)
+        bd = bar_def(key) or {}
+        pct = int(round(float(bd.get("phase_preserve_pct", 0.5) or 0.5) * 100))
+        logs.append(f"💢【{host.get('name', '目标')}】阶段更迭："
+                    f"{bd.get('name', key)}积蓄保留 {pct}%（{int(before)} → {int(after)}）")
+
+
+@register_action("passive_reflect_bar")
+def passive_reflect_bar_act(battle, caster, target, params, logs):
+    """on_taken：受击反制（反震）——反弹 `reflect_pct` 伤害 + 反推攻击者条。
+
+    - 反制者 = `params["_owner"]`（被动持有者 = 受击者；on_taken 主体过滤已保证）
+    - 攻击者 = `_fire_ctx["source"]`；反弹基数 = `_fire_ctx["dmg"]`；
+      无来源（DOT/环境伤）不反制（对齐 we_reflect 口径）
+    - 反推条 = `params["key"]/["gain"]`（装配器按被动 `bar_field` 解析的技能字段量）
+      → bar_gain + 触发检查（与命中注入同一条消费链）
+    """
+    from ..battle2.actors import actor_alive
+    from ..core.battle_bars import bar_gain
+    deflector = params.get("_owner") or target
+    if not isinstance(deflector, dict) or not actor_alive(deflector):
+        return
+    ctx = getattr(battle, "_fire_ctx", None) or {}
+    attacker = ctx.get("source")
+    if not isinstance(attacker, dict) or not actor_alive(attacker):
+        return
+    pct = float(params.get("reflect_pct", 0) or 0)
+    if pct > 0:
+        rd = max(1, int(int(ctx.get("dmg", 0) or 0) * pct))
+        from ..battle2.landing import deal_damage
+        deal_damage(battle, deflector, attacker, rd, logs)
+        logs.append(f"🪨 反震：反弹 {rd} 点伤害！")
+    key = params.get("key")
+    gain = int(params.get("gain", 0) or 0)
+    if key and gain > 0:
+        now = _now_of(battle)
+        bar_gain(attacker, key, gain, logs, now=now)
+        _ensure_tick(attacker)
+        _settle(battle, attacker, key, logs)
 
 
 def apply_bar_procs(actor: dict) -> None:
