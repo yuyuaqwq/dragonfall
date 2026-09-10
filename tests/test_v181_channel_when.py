@@ -59,24 +59,27 @@ WHEN_STANCE = [{"judge": {"kind": "has_effect", "key": "stance_guard"}}]
 RULES = {
     "guard_core": {
         "name": "磐核", "cap": 5, "start_classes": [CLASS],
-        "channels": {"taken": 1},
-        "when": WHEN_STANCE,
+        # 混合形态：受击需姿态（条件），技能命中无条件（简写）
+        "channels": {"taken": {"gain": 1, "when": WHEN_STANCE}, "skill_hit": 1},
     },
-    "plain_res": {          # 无 when 声明（回归对照）
+    "plain_res": {          # 全简写（无条件，回归对照）
         "name": "普通资源", "cap": 3, "start_classes": [CLASS],
         "channels": {"taken": 2},
     },
     "multi_res": {          # 多谓词 AND + res_ge
         "name": "双门资源", "cap": 5, "start_classes": [CLASS],
-        "channels": {"taken": 1},
-        "when": [{"judge": {"kind": "has_effect", "key": "stance_guard"}},
-                 {"judge": {"kind": "res_ge", "res": "guard_core", "ge_field": "stacks"},
-                  "stacks": 2}],
+        "channels": {"taken": {"gain": 1, "when": [
+            {"judge": {"kind": "has_effect", "key": "stance_guard"}},
+            {"judge": {"kind": "res_ge", "res": "guard_core", "ge_field": "stacks"},
+             "stacks": 2}]}},
     },
     "bad_res": {            # 未知 kind（fail-closed 对照）
         "name": "坏条件资源", "cap": 5, "start_classes": [CLASS],
-        "channels": {"taken": 1},
-        "when": [{"judge": {"kind": "no_such_kind"}}],
+        "channels": {"taken": {"gain": 1, "when": [{"judge": {"kind": "no_such_kind"}}]}},
+    },
+    "frac_res": {           # float gain（每刻 0.4 类小数攒取）
+        "name": "小数资源", "cap": 5, "start_classes": [CLASS],
+        "channels": {"taken": {"gain": 0.4, "when": WHEN_STANCE}},
     },
 }
 
@@ -141,8 +144,14 @@ def test_1_assembler_passthrough():
     check("guard_core 渠道已装配", bool(g), str(a.get("triggers")))
     check("when 透传进 trigger", g.get("when") == WHEN_STANCE, str(g.get("when")))
     check("gain 值来自声明(1)", g.get("gain") == 1, str(g.get("gain")))
+    # 同资源不同渠道：skill_hit 无条件（简写）→ 装配到 skill_hit 事件、不带 when
+    sh = [t for t in ((a.get("triggers") or {}).get("skill_hit") or [])
+          if isinstance(t, dict) and t.get("res") == "guard_core"]
+    check("同资源可混用：skill_hit 装配在 skill_hit 事件", len(sh) == 1, str(sh))
+    check("skill_hit 渠道无 when（简写形态不写键）", sh and "when" not in sh[0], str(sh[:1]))
+    check("skill_hit gain=1", sh and sh[0].get("gain") == 1, str(sh[:1]))
     p = assembled(a, "plain_res") or {}
-    check("无 when 声明 → 不写 when 键（零默认值）", "when" not in p, str(p))
+    check("全简写渠道 → 不写 when 键（零默认值）", "when" not in p, str(p))
     check("plain_res gain=2（无声明仍装配）", p.get("gain") == 2, str(p.get("gain")))
 
 
@@ -203,6 +212,22 @@ def test_6_legacy_no_when_unchanged():
     check("cap(3) 封顶", st(a, "plain_res") == 3, f"stacks={st(a,'plain_res')}")
 
 
+def test_8_fractional_gain():
+    print("【8. float gain（0.4/刻 类小数攒取）——非整数不被装配器丢弃】")
+    b, a = mk_battle()
+    f = assembled(a, "frac_res")
+    check("0.4 渠道已装配（int() 截断不再丢）", bool(f), str(a.get("triggers")))
+    check("gain 保持 0.4", f and abs(float(f.get("gain")) - 0.4) < 1e-9, str(f))
+    enter_stance(a)
+    fire_gain(b, a, "frac_res")
+    check("姿态中 → +0.4", abs(st(a, "frac_res") - 0.4) < 1e-9, f"stacks={st(a,'frac_res')}")
+    fire_gain(b, a, "frac_res")
+    check("累加到 0.8（精度保真）", abs(st(a, "frac_res") - 0.8) < 1e-9, f"stacks={st(a,'frac_res')}")
+    enter_stance(a, False)
+    fire_gain(b, a, "frac_res")
+    check("退态 → 停止攒", abs(st(a, "frac_res") - 0.8) < 1e-9, f"stacks={st(a,'frac_res')}")
+
+
 def test_7_start_classes_guard_unchanged():
     print("【7. 归属过滤不受影响（非本职业不装配 → 不白拿）】")
     b, a = mk_battle()
@@ -221,6 +246,7 @@ if __name__ == "__main__":
     test_5_multi_predicate_and()
     test_6_legacy_no_when_unchanged()
     test_7_start_classes_guard_unchanged()
+    test_8_fractional_gain()
     print(f"\n== 结果：通过 {PASS} / 共 {PASS + FAIL} ==")
     if FAILURES:
         for f in FAILURES:

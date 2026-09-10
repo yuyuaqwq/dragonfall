@@ -1325,6 +1325,9 @@ def apply_class_channels(actor: dict, rules: dict) -> None:
     时机名 → battle2 事件 → 挂 class_res_channel_gain 生产动作（gain 值由声明给，
     cap clamp 动作侧查 EFFECT_RULES）。未映射时机名静默跳过（版本漂移保护，同
     affix 翻译器缺口词条行为）。装配器零资源 key 硬编码——渠道全由声明驱动。
+
+    渠道值形态：`时机: 2`（无条件简写）或 `时机: {"gain": 1, "when": [judge...]}`
+    （条件攒取——when 谓词在动作入口求值，见 _when_ok）。
     """
     if not actor:
         return
@@ -1340,19 +1343,26 @@ def apply_class_channels(actor: dict, rules: dict) -> None:
         if sc and cn not in sc:
             continue
         name = rc.get("name") or rk
-        for chan, gain in ch.items():
-            if not chan or not isinstance(gain, (int, float)) or int(gain) <= 0:
+        for chan, cv in ch.items():
+            # 渠道值两形态：简写 int/float = 无条件的 gain；dict = {gain, when[...]}（条件攒取）。
+            # 条件按渠道声明而非资源条目——同一资源不同来源条件不同（磐核：受击/每刻看姿态，
+            # 守线技能命中无条件）。
+            if isinstance(cv, dict):
+                gain = cv.get("gain")
+                when = cv.get("when")
+            else:
+                gain, when = cv, None
+            if not chan or not isinstance(gain, (int, float)) or float(gain) <= 0:
                 continue
             ev, extra = _CHANNEL_EVENTS.get(chan, (None, None))
             if ev is None:
                 continue
-            d = {"type": "class_res_channel_gain", "res": rk, "gain": int(gain),
+            d = {"type": "class_res_channel_gain", "res": rk, "gain": float(gain),
                  "label": name, "icon": "✦"}
             d.update(extra)
-            # 条件攒取：资源条目声明 when（如磐核「守御姿态下受击 +1」）→ 透传给
-            # 动作，动作入口按谓词求值（_when_ok）。无声明不写键（零默认值）。
-            if rc.get("when"):
-                d["when"] = rc["when"]
+            # 条件透传：动作入口按谓词求值（_when_ok）。无声明不写键（零默认值）。
+            if when:
+                d["when"] = when
             trig.setdefault(ev, []).append(d)
 
 
