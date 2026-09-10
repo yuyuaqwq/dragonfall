@@ -6,25 +6,25 @@
 
 ```
 命令层
-  └─ Battle.human_act(action, skill_name, actor, target)        battle.py:221
+  └─ Battle.human_act(action, skill_name, actor, target)        battle.py:244
        ├─ ActCtx(caster, action, skill_name, target, ...)       actors.py:19
-       ├─ Battle.act(ctx)                                       battle.py:358
-       │    ├─ _ensure_battle_started()                         battle.py:466   ⚡ battle_start
-       │    ├─ fire("turn_start")                               battle.py:378   ⚡
-       │    ├─ 控制消费（mode=skip → 早退；no_skill → 技能转普攻） battle.py:383-406 ⚡ on_act_consume
-       │    ├─ fire("act_begin")                                battle.py:408   ⚡
+       ├─ Battle.act(ctx)                                       battle.py:398
+       │    ├─ _ensure_battle_started()                         battle.py:506   ⚡ battle_start
+       │    ├─ fire("turn_start")                               battle.py:418   ⚡
+       │    ├─ 控制消费（mode=skip → 早退；no_skill → 技能转普攻） battle.py:423-446 ⚡ on_act_consume
+       │    ├─ fire("act_begin")                                battle.py:448   ⚡
        │    ├─ _p_acts += 1                                     battle.py:410
        │    ├─ 分派：
        │    │    attack → actions.do_attack                      actions.py:49
        │    │    skill  → actions.do_skill                       actions.py:62
-       │    │    defend → Battle._do_defend                      battle.py:453
-       │    │    flee   → Battle._do_flee                        battle.py:458
-       │    │    其他   → Battle.action_override 注入点           battle.py:425
-       │    ├─ fire("act_done")                                 battle.py:442   ⚡
-       │    └─ _check_side_end()                                battle.py:499
+       │    │    defend → Battle._do_defend                      battle.py:493
+       │    │    flee   → Battle._do_flee                        battle.py:498
+       │    │    其他   → Battle.action_override 注入点           battle.py:465
+       │    ├─ fire("act_done")                                 battle.py:482   ⚡
+       │    └─ _check_side_end()                                battle.py:539
        └─ 若未结束且 action ∈ {attack, skill, defend} 或 override 被消费：
             ├─ schedule._after_act(battle, caster, action)      schedule.py:143  推 ct
-            └─ Battle.advance(logs)                             battle.py:267
+            └─ Battle.advance(logs)                             battle.py:293
                  └─ schedule.advance（推时钟 + 自动 actor 行动）  schedule.py:71
 ```
 
@@ -42,7 +42,7 @@ schedule.advance(battle, logs, max_steps=200)                     schedule.py:71
     else:
         _advance_time(battle, auto[1] - battle._now, logs)
         logs.append("—— {name} 行动 ——")
-        battle.actor_auto(actor)                                       battle.py:292
+        battle.actor_auto(actor)                                       battle.py:318
 ```
 
 `_advance_time(battle, dt, logs)`（`schedule.py:156`）内部：
@@ -79,9 +79,9 @@ actions.do_attack(battle, ctx)                                      actions.py:4
 
 actions.do_skill(battle, ctx)                                       actions.py:62
   1. info 空 → return []
-  2. 玩家（有 class_name）→ _skill_usable(...)                       actions.py:121
+  2. 玩家（有 class_name）→ _skill_usable(...)                       actions.py:141
        └─ res_cost 条目存在且 stacks < 需求 → 拦截 + 日志，return
-  3. _spend_skill_cost(actor, info)                                 actions.py:148
+  3. _spend_skill_cost(actor, info)                                 actions.py:189
        ├─ mp 扣减（pay = _skill_pay_of 折算）
        ├─ res_cost 扣 effects[key].stacks
        └─ consume_all → ef.pop(key)
@@ -94,16 +94,16 @@ actions.do_skill(battle, ctx)                                       actions.py:6
 ```
 
 ```
-actions._attack_damage_pipeline(battle, actor, target, info, lv)    actions.py:280
-  if info["aoe"] → _deal_aoe(...)                                   actions.py:292
+actions._attack_damage_pipeline(battle, actor, target, info, lv)    actions.py:321
+  if info["aoe"] → _deal_aoe(...)                                   actions.py:333
         scope = "all" | info["aoe"]
         enemies = 敌对 side 全部 actor
         targets = support.formation.select_aoe_targets(...)
         for t in targets: _single_target_pipeline(..., _no_lifesteal=True)
-  else → _single_target_pipeline(...)                               actions.py:332
+  else → _single_target_pipeline(...)                               actions.py:373
 
-actions._single_target_pipeline(battle, actor, target, info, lv)     actions.py:332
-  1. _consume_hit_buffs(battle, actor, logs)                        actions.py:426
+actions._single_target_pipeline(battle, actor, target, info, lv)     actions.py:373
+  1. _consume_hit_buffs(battle, actor, logs)                        actions.py:467
        └─ 遍历 effects 里带 "hit" 子键的条目 → 累积 dmg_mult/guaranteed_crit/bonus_atk_pct
           → ⚡ on_hit_consume → pop 条目
   2. st  = stats.actor_stats(battle, actor)                          stats.py:19
@@ -116,16 +116,16 @@ actions._single_target_pipeline(battle, actor, target, info, lv)     actions.py:
        ├─ expr 段：config.formulas().skill_formula_expr → resolve_formula(...)
        └─ 非 expr：config.formulas().calc_damage(atk|matk × power + skill_flat, def|mdef, ...)
   7. total *= _st_mult；total *= hit_buffs.dmg_mult
-  8. ⚡ fire("dmg_calc", {actor, target, dmg, is_crit, info, mult:1.0})  actions.py:376-382
+  8. ⚡ fire("dmg_calc", {actor, target, dmg, is_crit, info, mult:1.0})  actions.py:416-422
        └─ 读回 battle._fire_ctx["mult"] → total *= mult
-  9. _deal_hit(battle, actor, target, total, defend_reduce, element)   actions.py:525
+  9. _deal_hit(battle, actor, target, total, defend_reduce, element)   actions.py:566
        └─ landing.deal_damage(...)                                  landing.py:23
- 10. _settle_lifesteal(...)（非 AOE）                               actions.py:562
+ 10. _settle_lifesteal(...)（非 AOE）                               actions.py:603
        └─ rate = min(lifesteal 类面板, 0.30)，真伤不吸，mortal_wound ×0.5
           → landing.heal_actor → on_heal ⚡
  11. bonus_atk_pct > 0 → 再 _deal_hit 一段附伤
- 12. _apply_hit_effects(...) → effects_from_skill(info, lv) → apply_effects   actions.py:471
- 13. ⚡ fire("attack_hit"|"skill_hit")，然后若是暴击 ⚡ fire("crit")    actions.py:413-420
+ 12. _apply_hit_effects(...) → effects_from_skill(info, lv) → apply_effects   actions.py:512
+ 13. ⚡ fire("attack_hit"|"skill_hit")，然后若是暴击 ⚡ fire("crit")    actions.py:416-458
 ```
 
 ## 展开 3：`landing.deal_damage` 的落地顺序（顺序有语义）
@@ -159,7 +159,7 @@ landing.deal_damage(battle, source, target, amount, logs, dmg_kind, defend_reduc
 │      ├─ hp <= 0 → _apply_death_guard(...)（濒死保护）   landing.py:237     │
 │      │     effects["death_guard"].stacks > 0 → hp 拉回 guard_hp_pct      │
 │      │     （+heal_pct 额外治疗，走 heal_actor）→ 层 -1                    │
-│      ├─ 仍 <= 0 → Battle._on_actor_dead(...)           battle.py:481       │
+│      ├─ 仍 <= 0 → Battle._on_actor_dead(...)           battle.py:521       │
 │      │       killed_actors.append / 清 defending+charging                 │
 │      │     ⚡ fire("on_death", {actor, target})                            │
 │      │     source 非 None → ⚡ fire("on_kill", {actor: source, ...})       │
@@ -195,8 +195,8 @@ turn_start ─→ act_begin ─→ act_cast ─→ dmg_calc
 |---|---|---|
 | 普攻不是独立的伤害路径 | 它把自己改写成一次 `action="skill"` 的施放 | `actions.py:56-59` |
 | 技能索引进 `_skill_index` 且**失败不阻断** | 索引空 → 技能静默空放 | `battle.py:126-149` |
-| `act_done` 不带 `actor` 键 | 所以它是全员广播；行动者放在 `ctx["acted"]` | `battle.py:437-442` |
-| 被控跳过时 `act()` **提前 return**，`act_done` 不 fire | 推 ct 由调用方做 | `battle.py:399-406` |
+| `act_done` 不带 `actor` 键 | 所以它是全员广播；行动者放在 `ctx["acted"]` | `battle.py:477-482` |
+| 被控跳过时 `act()` **提前 return**，`act_done` 不 fire | 推 ct 由调用方做 | `battle.py:439-446` |
 | `_fire_ctx` 会被嵌套 fire 覆盖 | 需要 save/restore | `class_mech_proc.py:238-244` |
 
 ## 相关

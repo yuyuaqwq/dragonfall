@@ -41,11 +41,11 @@ actor["effects"] = {
 | 字段 | 谁写 | 谁读 | 含义 |
 |---|---|---|---|
 | `stacks` | `act_apply`（`effects.py:340/429`）/ `act_consume` / 周期 gain | `_cap_of` clamp、`stats` 折算、`schedule` 周期跳、`_apply_death_guard` | 层数。**允许 float**（小数刻度，如信仰每刻 −0.7） |
-| `expire` | `act_apply` | `schedule._settle_time_effects`（`schedule.py:202-206`）、`Battle.act` 控制过期兜底（`battle.py:390-392`）、`actions._consume_hit_buffs` | **绝对时刻**；`None` = 永不到期 |
-| `mode` | `act_apply` 控制分支 | `Battle.act` 控制消费（`battle.py:383-406`） | `"skip"` = 整跳行动 / `"no_skill"` = 技能转普攻 |
+| `expire` | `act_apply` | `schedule._settle_time_effects`（`schedule.py:202-206`）、`Battle.act` 控制过期兜底（`battle.py:430-432`）、`actions._consume_hit_buffs` | **绝对时刻**；`None` = 永不到期 |
+| `mode` | `act_apply` 控制分支 | `Battle.act` 控制消费（`battle.py:423-446`） | `"skip"` = 整跳行动 / `"no_skill"` = 技能转普攻 |
 | `v` | `act_apply` value 型 | **无引擎消费者**（☞ 见下） | 值型数值（如减伤 0.45） |
 | `stat` / `op` / `mult` | `act_apply` 快照分支 | `stats._apply_effects`（`stats.py:70-81`） | 面板增益快照 |
-| `hit` | `act_apply` hit 子键 | `actions._consume_hit_buffs`（`actions.py:426`） | 出手消费型（`dmg_mult` / `guaranteed_crit` / `bonus_atk_pct`） |
+| `hit` | `act_apply` hit 子键 | `actions._consume_hit_buffs`（`actions.py:467`） | 出手消费型（`dmg_mult` / `guaranteed_crit` / `bonus_atk_pct`） |
 | `period` | **内容侧**直接写入 | `schedule._settle_time_effects`（`schedule.py:239-247`） | 动态周期声明（条目自带优先，回落表声明） |
 | `value` | 内容侧（`heal_amp_pct` 等） | `landing._apply_heal_mods`（`landing.py:376`） | 附加数值袋（形态自定，消费方自己解释） |
 

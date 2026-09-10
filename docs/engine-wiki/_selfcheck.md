@@ -45,7 +45,7 @@
 | `schedule.HOT_INTERVAL = 1.0` | `schedule.py:29` | 零消费 |
 | `schedule.next_ct` | `schedule.py:46` | 有定义、无调用方（实际推进走 `_after_act`） |
 | `state_effects.stat_scale_of` | `state_effects.py:18` | 仅测试引用 |
-| `actions._aoe_falloff_apply` | `actions.py:483` | **占位实现**（原样返回 logs）。`info["aoe_falloff"]` 在 `actions.py:320` 被读取但随后被丢弃 → AOE falloff 实际未生效 |
+| `actions._aoe_falloff_apply` | `actions.py:524` | **占位实现**（原样返回 logs）。`info["aoe_falloff"]` 在 `actions.py:361` 被读取但随后被丢弃 → AOE falloff 实际未生效 |
 | `support.formation.reachable_units` | `formation.py:28` | 零外部引用 |
 | `support.formula_expr.expr_or` | `formula_expr.py:208` | 零外部引用 |
 | `support.battle_bars.charge_*`（6 个） | `battle_bars.py:244-321` | **全部零外部引用** —— 蓄力三律无消费者 |
@@ -53,7 +53,7 @@
 | `effects.effects_from_skill(..., caster_side_is_player=True)` | `effects.py:188` | **第三个参数在函数体里从未使用** |
 | `config.set_hook` | `config.py:142` | 零外部引用（都走 `mount`） |
 | `serialize.to_state` 的 `flags` | `serialize.py:49` | 恒写入 `{}`；**没有读取方**，也没有写入方 |
-| `Battle.auto_run(max_steps=500)` | `battle.py:276` | 全仓调用点**只在 `tests/`**（`test_battle2_add_actor.py:159`、`test_battle2_bridge.py:154`、`test_battle2_bar_procs.py:240` 等），内容侧零调用 —— 实质是**测试/AI 模式辅助**，不是生产路径（生产走 `human_act` + `advance`） |
+| `Battle.auto_run(max_steps=500)` | `battle.py:302` | 全仓调用点**只在 `tests/`**（`test_battle2_add_actor.py:159`、`test_battle2_bridge.py:154`、`test_battle2_bar_procs.py:240` 等），内容侧零调用 —— 实质是**测试/AI 模式辅助**，不是生产路径（生产走 `human_act` + `advance`） |
 
 ### 1.4 `EFFECT_ACTIONS` / 技能数据侧的静默 no-op
 
@@ -72,14 +72,14 @@
 | `actor["dot_next"]` / `actor["dot_jumps"]`（dict） | 引擎周期结算的运行期辅助（`schedule.py:228-229` 惰性建），**同样落盘**。这是「续战能对上」的原因，但字段名与内容无关 |
 | `actor["_dmg_taken_mult"]`（float） | 承伤乘区（`landing.py:86-91` 读）。由上层直写（例 `commands/boss_script.py:684`）；**同样落盘** |
 | `actor["reduce_left"]` / `reduce_all_left` | `effects.act_apply` 写（`effects.py:370`）+ 内容侧 bridge 透传/播种；**无消费者**（见 §1.3） |
-| `actor["act_count"]` | `actor_auto` 每动 +1（`battle.py:351`），AI 的 `round_mod` 谓词读它；落盘 |
+| `actor["act_count"]` | `actor_auto` 每动 +1（`battle.py:391`），AI 的 `round_mod` 谓词读它；落盘 |
 
 ## 2. 事件点位
 
 | 事件 | 结论 |
 |---|---|
 | `phase` / `player_low` / `pv_broken` | **在 `EVENTS` 里但引擎零 fire 点位**（设计如此，由上层驱动 —— `effect_triggers.py:38-40`） |
-| `skill_hit` / `attack_hit` | **有点位但静态 grep 不到**：`actions.py:415` 用变量选事件名（`ev = "attack_hit" if info.get("_basic") else "skill_hit"`）。文档若按 grep 结果断言「无点位」会是错的 |
+| `skill_hit` / `attack_hit` | **有点位但静态 grep 不到**：`actions.py:456` 用变量选事件名（`ev = "attack_hit" if info.get("_basic") else "skill_hit"`）。文档若按 grep 结果断言「无点位」会是错的 |
 | `EVENTS` 实际条目数 | **26**（不是 docstring 说的「19 时机」）。引擎插桩自然点位 **23** 个（不是注释说的「16 个」） |
 
 ## 3. `注释 ≠ 代码`（发现了 6 处）
