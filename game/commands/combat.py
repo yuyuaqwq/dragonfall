@@ -1332,6 +1332,27 @@ class CombatCmds(CommandBase):
         if _mp_need > 0 and _mp_cur < _mp_need:
             yield event.plain_result("💙 魔力不足！休息一下或使用魔力药水吧～")
             return
+        # 2026-09-11 ★P0 冷却预检（与引擎 actions._cd_left_of 同源：绝对时刻制
+        # `actor.cooldown[name] = 施放时刻 + cd`，与战斗 state["now"] 比较）。
+        # 拦截在命令层 → 不扣体力、不耗回合（对齐上方 mp 预检的处理方式）。
+        # 引擎侧 do_skill 也会拦（双保险：脚本/AI 等非命令路径直调引擎时不白放）。
+        if info.get("cd"):
+            try:
+                _cd_tbl = _me_actor.get("cooldown") or {}
+            except Exception:
+                _cd_tbl = {}  # 取 actor 异常 → 无冷却表（引擎侧仍会拦）
+            try:
+                _cd_due = float(_cd_tbl.get(info.get("name") or skill_name) or 0)
+                _cd_now = float((battle.get("state") or {}).get("now") or 0)
+                _cd_left = _cd_due - _cd_now
+            except Exception:
+                _cd_left = 0.0
+            if _cd_left > 0:
+                yield event.plain_result(
+                    f"⏳ 『{info.get('name', skill_name)}』冷却中：还需 {_cd_left:.1f} 刻！"
+                    f"换个技能、『普攻』或『防御』～"
+                )
+                return
         if battle["state"].get("type") == "instance":
             # N5b4-5a R2：接线点 skill → 新 Router（battle2 原生；老 _instance_act R3 删除）
             async for _r in self._instance_router(event, group_id, qq_id, player, battle["state"], "skill", skill_name, target=_skill_target):

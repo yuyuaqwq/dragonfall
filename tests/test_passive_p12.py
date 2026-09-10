@@ -124,6 +124,8 @@ def test_3_shadow_bonus():
     # 非态 → 清
     a2['effects'].pop("shadow_dance", None)
     b2 = mk_battle(a2)
+    # 新战斗 = 新时间轴 → 清残留冷却（口径同 test_passive_p3.test_1）
+    a2['cooldown'] = {}
     logs2, _, _ = b2.human_act("skill", "影刃", a2)
     check("非态 → 清 spd buff",
           (a2.get("effects") or {}).get("_shadow_spd") is None, "")

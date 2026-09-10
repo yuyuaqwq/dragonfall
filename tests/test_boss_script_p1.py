@@ -203,8 +203,14 @@ def test_4_rampage_not_triggered():
           bs.get("phase_count") == 2, str(bs.get("phase_count")))
     check("无第三次演出（亡者终末未触发）",
           not any("亡者终末" in x for x in logs), str(logs)[-150:])
-    # 10% 后本帧应正常行动（非演出刻）——玩家应受到伤害或被 Boss 攻击（不 skip）
-    check("非演出帧正常行动（无拦截）", not ended, f"ended={ended}")
+    # 10% 后本帧应正常行动（非演出刻）。
+    # 2026-09-11：引擎修掉「运行期换招索引失效」后，Boss 转阶段加的技能真能被
+    # 解析并结算（此前索引不含阶段新招 → do_skill 静默空放、0 伤害）。本用例玩家
+    # 面板是裸身（atk 0 / 1020 HP）而 Boss atk 1452 → 必被打倒，故 ended=True
+    # 属正常；断言改为「本帧有真实伤害结算 = 没被演出拦截、也不是空放」。
+    _dealt = any(("勇者" in str(x) and "伤害" in str(x)) or "倒下" in str(x)
+                 for x in logs)
+    check("非演出帧正常行动（真实结算伤害，非空放）", _dealt, f"logs={logs} ended={ended}")
 
 
 def test_5_serialize_persist():

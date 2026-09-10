@@ -77,6 +77,11 @@ def test_1_zhan_yi_crit():
     # 战意掉到 4 → 下次行动清除
     w['effects']['zhan_yi']['stacks'] = 4
     b2 = mk_battle(w)
+    # 新战斗 = 新时间轴：冷却表是绝对时刻（actions._cd_left_of 比 battle._now），
+    # 生产路径 build_battle 每次从快照重建 actor（快照无 cooldown 键，见
+    # instance.py 玩家快照构造）→ 换场冷却天然归零；此处复用同一 actor dict，
+    # 必须显式清（否则上一场的 '怒斩' 冷却被 b2._now=0 的旧时刻卡住）。
+    w['cooldown'] = {}
     logs2, _, _ = b2.human_act("skill", "怒斩", w)
     check("战意不足 → 清 buff", crit_buff_of(w, "passive_crit_zhan_yi") == 0.0,
           repr((w.get("effects") or {}).get("passive_crit_zhan_yi")))

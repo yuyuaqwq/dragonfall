@@ -6,6 +6,9 @@
 - 谓词：self_hp_lt/gt / hostile_lowest_hp_lt / round_mod（act_count）/ cd_ok
 - weighted：固定 seed 抽样 / skill_chance 回落
 - actor_auto 端到端：带 ai 怪战斗自选技能（真实 MONSTER_MODS ai 数据）
+- 2026-09-11：决策器加「可执行性过滤」（技能放不出 → 跳过，见 ai._move_castable）
+  → 本文件是**决策语义**单测，use 的 ms_* 假技能名真实技能表里不存在，故
+  mk_battle 直接给最小 _skill_index（真实索引由内容侧 hook 装配）。
 
 跑法：python tests/test_monster_ai_p1.py
 """
@@ -48,6 +51,20 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {detail}")
 
 
+# 决策器单测用的假技能名（真实技能表无此键）
+STUB_REFS = ("ms_low", "ms_mid", "ms_never", "ms_fallback", "ms_rhythm",
+             "ms_finish", "ms_skill_a", "ms_a", "ms_b")
+
+
+def _stub_index(*refs):
+    """最小技能索引（引擎 info 契约：name = 冷却表键）。
+
+    真实索引由内容侧 hook 装配（skill_lookup / monster_skill_fn）；本文件只验
+    决策语义，假技能名在真实技能表查不到 → 会被「可执行性过滤」挡掉，故直接给。
+    """
+    return {r: {"name": r, "cd": 0, "mp": 0} for r in refs}
+
+
 def mk_battle(mon_hp_ratio=1.0, player_hp_ratio=1.0, with_player=True):
     """怪（带 ai 可后续塞）+ 可选玩家。"""
     mon = {"uid": "e_ai", "id": "b_test", "name": "测试怪", "role": "boss",
@@ -65,6 +82,7 @@ def mk_battle(mon_hp_ratio=1.0, player_hp_ratio=1.0, with_player=True):
                             "ct": 0.0}]
     b = B2("instance", sides=sides)
     b._now = 100.0
+    mon["_skill_index"] = _stub_index(*STUB_REFS)   # 可执行性过滤需索引
     return b, mon
 
 
@@ -149,10 +167,10 @@ def test_5_cd_ok():
     mon["ai"] = {"select": "priority", "moves": [
         {"when": {"cd_ok": "ms_skill_a"}, "then": {"type": "skill", "skill": "ms_skill_a"}},
     ]}
-    # ms_skill_a 无索引 → id 直查 cooldown 无此键 → 无冷却
+    # ms_skill_a 有索引（stub）且无冷却 → 可选
     mv = AI.resolve_ai_move(b, mon)
     check("无冷却可选", (mv or {}).get("skill") == "ms_skill_a", str(mv))
-    # 有索引：怪 skills 含该技能（真实技能 id），cooldown 用 name
+    # 真实技能 id（ms_nu_hou）：重建 Battle 让真实索引并入 stub 索引
     b3, mon3 = mk_battle()
     b3._now = 100.0
     mon3["skills"] = ["ms_nu_hou"]  # 咕噜的怒吼（真实技能）

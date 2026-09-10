@@ -74,6 +74,15 @@ def enemy_of(b):
 
 
 def cast(b, actor, skill):
+    """施放一次（跳过技能冷却等待）。
+
+    2026-09-11：引擎补装「技能冷却强制」（拨弦 cd=4 刻 / 战歌 cd=8 刻，
+    数值权威 docs/CLASS_MECHANICS_v153.md 基础技能表）——本文件验的是旋律
+    叠层/换歌/终章节奏，两次吟唱之间生产里自然经过若干回合，故施放前清冷却
+    表模拟；**冷却强制本身**由 tests/test_battle2_cooldown_enforce.py 专测。
+    """
+    if isinstance(actor.get("cooldown"), dict):
+        actor["cooldown"].clear()
     logs, _e, _w = b.human_act("skill", skill, actor)
     return logs
 
