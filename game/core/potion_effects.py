@@ -407,57 +407,19 @@ def eff_battle_start_resource(battle, player, value):
 # 无消费点的纯标记效果（phoenix/invuln/morph 等）按 v140 收口约定先挂 p_eff/p_buffs
 # 标记（后续引擎消费端接线），确保『使用』不落 tpl_none 死数据。
 
-# 召唤物默认外观表（tid → 名称/图标；属性按 effect_data 比例缩放）
-_SUMMON_FACES = {
-    "ember_wisp": ("烬灵", "🔥"), "holy_totem": ("圣徽替身", "🛐"),
-    "thorn_golem": ("荆棘傀儡", "🌵"), "medic_golem": ("医者魔偶", "⚕️"),
-}
-
-
 @register("summon")
 def eff_summon(battle, player, value):
-    """v140 召唤类消耗品（烬灵香炉/圣徽替身像/荆棘傀儡种/战地医者魔偶）：
-    按 effect_data 比例生成召唤物实体入 battle.companions（auto_act 自动攻击 +
-    guard 挡刀走 v180-C 通用随从机制）；附带的 thorns/heal_pct/taunt 等
-    辅助效果走既有 buff 槽（荆棘药剂 thorns_pot / 食物 hot / 治疗增强 heal_up）。"""
-    v = _resolve(value, "summon")
-    tid = v.get("tid", "")
-    turns = max(1, int(v.get("turns", 3) or 3))
-    if not tid:
-        return "🧪 召唤物配置异常，没有生效！"
-    # 每场限 1 只：同 tid 已在场/已用过 → 无效无消耗
-    limit = int(v.get("limit", 1) or 1)
-    used = player.setdefault('eff', {}).setdefault("summon_used", [])
-    if len([s for s in battle.summons if s.get("tid") == tid]) >= limit or tid in used:
-        return "⛔ 该召唤物每场战斗只能使用 1 次，已经用过了！"
-    face = _SUMMON_FACES.get(tid, (tid, "👥"))
-    # v180-C S2 装配统一：实体由 battle._spawn_companion 装配（药水召唤不吃 summon_power）。
-    # v180-B ② guard 数据化后，挡刀只扫带 guard 字段的随从——药水 bodyguard 在此转 guard
-    # （烬灵香炉 bodyguard=0.30：P14 前走 SUMMONS 查表默认 0.40 误触发；现在按配置精确生效）
-    _actor = battle._spawn_companion({
-        "tid": tid, "name": face[0], "icon": face[1],
-        "hp_ratio": float(v.get("hp_ratio", 0)),
-        "atk_ratio": float(v.get("atk_ratio", 0) or 0),
-        "def_ratio": float(v.get("def_ratio", 0)),
-        "dmg_type": "phys", "rank": 1, "reach": 1,
-        "bodyguard": float(v.get("bodyguard", 0) or 0),
-        "absorb_once": bool(v.get("absorb_once", False)),
-        "summon_power": False,
-    }, player, [])
-    if _actor is None:
-        return "🧪 召唤物配置异常，没有生效！"
-    used.append(tid)
-    msgs = [f"{face[1]} {face[0]} 加入战斗！(HP {_actor['hp']} / 攻击 {_actor['atk']})"]
-    if float(v.get("thorns", 0) or 0) > 0:
-        player.setdefault('buffs', {})["thorns_pot"] = max(int(player.setdefault('buffs', {}).get("thorns_pot", 0) or 0), turns)
-        msgs.append(f"受击反弹 {int(float(v['thorns']) * 100)}% 伤害")
-    if float(v.get("heal_pct", 0) or 0) > 0:
-        player['hot'] = {"heal": float(v["heal_pct"]), "mana": 0.0, "turns": turns}
-        msgs.append(f"每刻回复 {int(float(v['heal_pct']) * 100)}% 最大生命")
-    if float(v.get("heal_bonus", 0) or 0) > 0:
-        player.setdefault('buffs', {})["heal_up"] = max(int(player.setdefault('buffs', {}).get("heal_up", 0) or 0), turns)
-        msgs.append("治疗技能效果提升")
-    return "✨ 召唤成功！" + "、".join(msgs) + f"！(持续 {turns} 刻)"
+    """v140 召唤类消耗品（烬灵香炉/圣徽替身像/荆棘傀儡种/战地医者魔偶）。
+
+    ⚠️ 未接入战斗结算（显式拒绝，非静默兜底）：召唤实体装配需要随从 actor
+    工厂 + auto_act/guard 一套；旧装配函数随 N10 删旧 battle.py 一并消失，
+    battle2 侧尚无随从装配（Battle.add_actor 只做注册/索引/排程，不含随从
+    属性缩放与守卫装配）。本 handler 在 battle2 下不可达——战斗内 summon 类
+    在 commands/battle2_item_use.can_translate 白名单外，使用前即被拦并提示
+    「战斗内效果未迁移」。复活路径见 docs/REFACTOR_v181_GAP_CLOSURE_PLAN.md
+    §2（随从线）与 §5（收尾项）。
+    """
+    return "🧪 召唤类消耗品尚未接入战斗结算，没有生效！"
 
 
 @register("trap")

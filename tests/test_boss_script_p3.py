@@ -265,6 +265,27 @@ def test_7_summon_front_row():
           len(alive2) >= 2 and alive2[1] is boss2, f"alive2={[u.get('name') for u in alive2]}")
 
 
+def test_8_summon_skill_index():
+    print("【8. 召唤物技能索引已建（add_actor 修复——此前手工 insert 不建 _skill_index，"
+          "援军的 ms_* 技能解析不到技能 dict 而静默退化为普攻）】")
+    b, boss, st = mk_env(inst_id="inst_goblin_camp")
+    cfg = mk_cfg()
+    bs = BS._new_script_state()
+    bs["round_no"] = 6
+    BS._check_summon(st, b, boss, cfg, bs, 6.0, [])
+    m = [u for u in b.sides_of("enemy") if u.get("is_minion")][0]
+    idx = m.get("_skill_index") or {}
+    check("召唤物模板带技能", bool(m.get("skills")), f"skills={m.get('skills')}")
+    check("召唤物 _skill_index 非空", bool(idx), f"idx={idx}")
+    check("模板技能 key 已解析（ms_* 进索引）",
+          any(str(k).startswith("ms_") for k in idx), f"keys={list(idx.keys())}")
+    # 索引可被技能解析链使用（name 与 key 双路，与 _index_one_actor 口径一致）
+    _sk = [k for k in idx if str(k).startswith("ms_")][0]
+    check("技能 dict 可读（含 name 字段）",
+          isinstance(idx.get(_sk), dict) and bool(idx[_sk].get("name")),
+          f"entry={idx.get(_sk)}")
+
+
 def main():
     print("5c P3 Boss 剧本导演：召唤援军")
     test_1_summon_cd()
@@ -274,6 +295,7 @@ def main():
     test_5_summon_dead_minion_recycle()
     test_6_summon_no_token()
     test_7_summon_front_row()
+    test_8_summon_skill_index()
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     if FAILURES:
         for f in FAILURES:

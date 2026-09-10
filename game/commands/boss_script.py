@@ -516,14 +516,16 @@ def _check_summon(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     m["ct"] = float(now) + 2.0  # 站场不插队当前行动
     m["effects"] = dict(m.get("effects") or {})
     m["shields"] = dict(m.get("shields") or {})
-    # 入 enemy side（⚠️ sides_of 返回拷贝——写操作直接碰 self.sides 容器；
-    # 命令层每刻 from_state 重建 battle → 本帧改动 to_state 落回）
-    # M-W2s：召唤物插 side 队首（前排挡刀）——append 尾部 = 排到 Boss/旧爪牙身后
-    # （=后排），默认目标/编号 a1 永远是 Boss 或旧前排，新援军不挡刀、与日志
-    # 「它挡在身前！」矛盾。insert(0) = 新援军站队首：存活序列第一名即召唤物，
+    # 入 enemy side：走引擎公开 API Battle.add_actor(front=True)。
+    # ⚠️ 此前是手工 `battle.sides.setdefault("enemy", []).insert(0, m)`——只入容器，
+    #    不建 actor["_skill_index"]（技能索引仅 Battle 构造期建一次）→ 援军的 ms_* 技能
+    #    解析不到技能 dict，静默退化为普攻（22/22 副本援军模板均带技能，线上全覆盖）。
+    #    add_actor 补齐索引 + 排程，且尊重 actor 已带的正 ct（下面 m["ct"] 自设不重播）。
+    # M-W2s：front=True 插 side 队首（前排挡刀）——存活序列第一名即召唤物，
     # 玩家无指定目标的攻击/a1 编号都先打它（死亡单位残留队首时亦先于其判定，
-    # 存活序不变）。
-    battle.sides.setdefault("enemy", []).insert(0, m)
+    # 存活序不变）。append 尾部 = 排到 Boss/旧爪牙身后（=后排）不挡刀，
+    # 与日志「它挡在身前！」矛盾。
+    battle.add_actor(m, "enemy", front=True)
     bs["summon_last"] = rn
     bs.setdefault("summoned", []).append(m["uid"])
     logs.append(f"👥【{actor.get('name','')}】召唤了【{m['name']}】！它挡在身前！")
