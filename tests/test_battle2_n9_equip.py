@@ -32,6 +32,12 @@ from game.battle2 import landing as L           # noqa: E402
 from game.battle2.actors import ActCtx          # noqa: E402
 from game.services import battle2_equip_proc as EP  # noqa: E402
 
+# v181 测试确定性：伤害含随机浮动（暴击/波动），而 test_trinity_thunder 断言
+# 「第二击 < 首击」只差附雷段 6 点 → 不固定种子会偶发翻转（实测 8 轮全量中 3 轮红）。
+# 同 test_passive_p1x 批次的确定性修复惯例。
+import random as _r  # noqa: E402
+_r.seed(20260911)
+
 PASS = 0
 FAIL = 0
 FAILURES = []
