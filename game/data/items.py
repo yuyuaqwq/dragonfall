@@ -1936,7 +1936,7 @@ MATERIALS = {
     "mat_wang_zhe_zhi_deng": {"price": 200, "name": "亡者之灯", "type": "收藏",
                               "desc": "鸦羽货摊的旧提灯，装备后夜间探索事件概率+10%(H5 探索道具·灯，效果待实现)"},
     "mat_tu_zhi_ye_xing_pi_feng": {"price": 100, "name": "夜行披风图纸", "type": "图纸",
-                                   "blueprint_for": "夜行披风",
+                                   "blueprint_for": "夜行披风", "roster_id": "eq_ye_xing_pi_feng",
                                    "desc": "Lv.30 蓝装披风锻造图纸，唯一来源为鸦羽货摊(H5 稀有锻造图纸·图纸学习解锁)"},
     # TODO 来源待接线：雨泪珍珠 desc 声称 H5 炼金材料/雨泪药剂主料，炼金配方未引用、任务无接线（零引用）
     "mat_yu_lei_zhen_zhu": {"price": 100, "name": "雨泪珍珠", "type": "宝石",
@@ -1950,7 +1950,7 @@ MATERIALS = {
                                               "blueprint_for": "白石圣灰药剂",
                                               "desc": "白石圣灰×2+草药×1+空瓶×1→圣灰药剂：战斗中驱散全队负面(炼金 Lv.4，H6 唯一来源·图纸学习解锁)"},
     "mat_chuan_shuo_tu_zhi_rong_lu_zhi_xin": {"price": 300, "name": "熔炉之心图纸", "type": "图纸",
-                                              "blueprint_for": "熔炉之心",
+                                              "blueprint_for": "熔炉之心", "roster_id": "eq_rong_lu_zhi_xin",
                                               "desc": "Lv.85 传说武器图纸：熔岩核心×3+精金×5+源质×2+熔炉之心的祝福(H8 唯一来源·图纸学习解锁)"},
     "mat_qing_tong_yu_ling": {"price": 40, "name": "青铜雨铃", "type": "任务道具",
                               "desc": "雨夜三声铃响的青铜铃——鸦羽货摊的钥匙，任务完成后保留为收藏(H5 信物)"},

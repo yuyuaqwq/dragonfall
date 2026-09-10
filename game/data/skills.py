@@ -1463,7 +1463,7 @@ BRANCH_SKILLS = {
                         'cd': 4,
                         'mech': 'arcane',
                         'mech_val': 1,
-                        'accuracy': 'true',
+                        'accuracy': True,
                         'name': '奥术飞弹',
                         'desc': '凝出必中的奥术飞弹循迹追踪，无从闪避——造成 180% 魔法攻击 + 32 固定魔法伤害（成长），充能 +1，架设中额外 +1'
                     },
@@ -2281,8 +2281,8 @@ BRANCH_SKILLS = {
                         'cd': 24,
                         'res_cost': {"energy": 70},
                         'pierce': True,
-                        'accuracy': 'true',
-                        'crit': 'true',
+                        'accuracy': True,
+                        'crit': True,
                         'target': 'back',
                         'name': '贯日箭',
                         'desc': '箭贯长空，骄阳亦被一箭贯穿——造成 120% 物理攻击 + 247 固定物理伤害（成长），必中必暴、破防并点名后排'
