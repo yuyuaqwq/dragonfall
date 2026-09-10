@@ -179,8 +179,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             "reach": C.CLASSES.get(_p["class_name"], {}).get("reach",
                              C.CLASSES.get(_p["class_name"], {}).get("default_rank", 2)),
             "uid": "p_{}".format(new_key),
-            "buffs": {},
-            "stacks": {},
             "defending": False,
             "charging": None,
         }
@@ -2294,8 +2292,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 "reach": C.CLASSES.get(p["class_name"], {}).get("reach",
                                  C.CLASSES.get(p["class_name"], {}).get("default_rank", 2)),
                 "uid": "p_{}".format(str(m)),
-                "buffs": {},
-                "stacks": {},
                 "defending": False,
                 "charging": None,
             }

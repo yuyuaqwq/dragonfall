@@ -1088,7 +1088,7 @@ class CombatCmds(CommandBase):
             # 显式提示消散，避免玩家误解"战斗结束了暴击还在"
             # V 系列：battle2 效果在 player.effects；旧引擎引用同步 buffs——双引擎判型
             _stealth_left = bool((player.get("effects") or {}).get("stealth")) \
-                if isinstance(player.get("effects"), dict) else bool((player.get("buffs") or {}).get("stealth"))
+                if isinstance(player.get("effects"), dict) else False
             if _stealth_left:
                 logs.append("🌫️ 潜行的影子在战局结束后消散了……")
             if b.result == "victory":
@@ -1918,11 +1918,9 @@ class CombatCmds(CommandBase):
         parts = []
         _now_t = float(getattr(b, "_now", 0.0) or 0.0)
         pbuf = []
-        # 玩家效果源（V 系列：sync 回写 effects 条目；旧引擎引用同步 buffs）——
-        # 双引擎过渡判型（N5b4-1 通用显示），N10 删旧引擎后去掉 buffs 分支
+        # 玩家效果源 = effects 单容器（V 系列四容器已合并；旧 buffs 分支随 N10 删除）
         _pb_src = (player.get("effects") or {}) if isinstance(player.get("effects"), dict) else {}
-        _pb_old = player.get("buffs") or {}
-        for k, v in (_pb_src if _pb_src else _pb_old).items():
+        for k, v in _pb_src.items():
             if k not in self._P_BUFF_NAMES:
                 continue
             # dict 条目（battle2 {expire,stat,...}/bar 状态）或旧 int 刻号；
@@ -1945,8 +1943,6 @@ class CombatCmds(CommandBase):
                     _sv = int(_ent.get("stacks", 0) or 0)
                     if _sv > 0:
                         stacks[_k] = _sv
-        else:
-            stacks = player.get("stacks") or {}
         for k, v in stacks.items():
             if v and v > 0 and k in self._STACK_NAMES and k not in self._ENEMY_MECH_STACKS:
                 pbuf.append(f"{self._STACK_NAMES[k]}×{v}")
@@ -2103,7 +2099,7 @@ class CombatCmds(CommandBase):
             "reach": int(cls_info.get("reach", 2) or 2),
             "name": f"{player.get('name', '你')}({cls_cn})",
             "hp": player.get("hp", 0), "max_hp": player.get("max_hp", 0),
-            "buffs": {}, "stacks": {}, "defending": False, "charging": None,
+            "defending": False, "charging": None,
         }
 
     def _battle_formation_panel(self, player: dict, b) -> str:
@@ -2321,7 +2317,7 @@ class CombatCmds(CommandBase):
         b["reach"] = 1
         b["is_boss"] = True
         b["is_elite"] = False
-        b.setdefault("buffs", {}); b.setdefault("stacks", {})
+        b.setdefault("effects", {})
         b["defending"] = False; b["charging"] = None
         # DOT/减益重构（契约 §6）：世界 Boss 全局共享减益层/dot 结算计数/抗性（事件数据可覆写）。
         # 老世界 Boss 存档无这些键 → setdefault 兜底，保证向前兼容。
@@ -2645,7 +2641,7 @@ class CombatCmds(CommandBase):
             "side": "enemy",
             "rank": 1,
             "reach": int(cls_info.get("reach", 2) or 2),
-            "buffs": {}, "stacks": {}, "defending": False, "charging": None,
+            "defending": False, "charging": None,
             # v109.2 战斗结算属性（_enemy_stats/_pvp_enemy_turn 消费）
             "atk": st.get("atk", 0), "def": st.get("def", 0),
             "matk": st.get("matk", 0), "mdef": st.get("mdef", 0),

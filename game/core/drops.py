@@ -424,8 +424,6 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
         "role": role,
         "rank": rank,             # v27b 站位层（caster/healer/boss → 2，其余 → 1）
         "reach": reach,           # v27b 攻击范围（同 rank）
-        "buffs": {},              # v27b 单位增益/减益
-        "stacks": {},             # v27b 单位叠层
         "defending": False,       # v27b 本刻防御
         "charging": None,         # v27b 蓄力状态
         "hp": stats["hp"],
@@ -492,8 +490,6 @@ def _scale_monster(m: dict, mult: float, uid: str, name: str, rank: int, reach: 
     copy["name"] = name
     copy["rank"] = rank
     copy["reach"] = reach
-    copy["buffs"] = {}
-    copy["stacks"] = {}
     copy["defending"] = False
     copy["charging"] = None
     # 爪牙/幼崽不属于首领/精英本体（身份/奖励判定走主怪）

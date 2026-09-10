@@ -306,7 +306,7 @@ def _seed_battle_keys(player: dict) -> dict:
         "tailwind_prev_energy": None, "v139_modes": dict, "v139_charge": dict,
         "overflow_shield_cd": False, "stealth_atk": False,
         "reduce_all_left": 0, "reduce_left": 0,
-        "buffs": dict, "poi_buff": None, "charging": None, "defending": False,
+        "poi_buff": None, "charging": None, "defending": False,
     }
     for _k, _ctor in _seeds.items():
         if _k not in player or player[_k] is None:

@@ -165,8 +165,10 @@ db.set_event_state("bless_10001", "1")
 db.set_event_state("poi_buff_10001", _json.dumps(
     {"stat": "atk", "mult": 1.10, "name": "攻击", "left": 2}, ensure_ascii=False))
 BR.prepare_player_for_battle(_p2, title_bonus={})
-check("播种 buffs/shields/cooldown（player dict 协议）", all(isinstance(_p2.get(k), dict) for k in
-      ("buffs", "shields", "cooldown", "resources", "stacks")))
+check("播种 shields/cooldown/resources/stacks（player dict 协议；buffs 容器已随 V 系列合并删除）",
+      all(isinstance(_p2.get(k), dict) for k in
+          ("shields", "cooldown", "resources", "stacks"))
+      and "buffs" not in _p2)
 check("echo_bless 消费进 _battle_boons（V6 面板快照标记）",
       (_p2.get("_battle_boons") or {}).get("echo_bless", {}).get("mult") == 1.05)
 check("echo_bless event_state 清空", not db.get_event_state("bless_10001"))

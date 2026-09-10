@@ -48,7 +48,7 @@ def build_tower_guard(floor: int) -> dict:
         # build_monster 失败兜底：手搓最小敌人（防数据漂移导致爬塔不可玩）
         guard = {
             "id": f"tower_{floor}", "uid": f"e_tower_{floor}", "name": name, "lv": lv,
-            "role": role, "rank": 1, "reach": 1, "buffs": {}, "stacks": {},
+            "role": role, "rank": 1, "reach": 1,
             "defending": False, "charging": None,
             "hp": 600, "max_hp": 600, "atk": 60, "def": 30, "matk": 30, "mdef": 30,
             "spd": 12, "exp": 0, "gold": 0, "skills": [], "drops": [],
