@@ -89,6 +89,26 @@ grep -rho 'register_action("[^"]*")' game/services/*.py | sort -u | wc -l
 注意 `stun` 等的 `turns` 由**动作参数**给（技能显式 `cc_turns` 可覆盖 —— 见下「技能数据侧」），
 `mode` 走 `EFFECT_RULES[key].consume.mode` 查表（`effects.py:293-296`）。
 
+> ### ⚠️ 自己加控制名词时的三个静默失效点（第三方第一版必踩）
+>
+> 写自己的控制类 `EFFECT_ACTIONS` 条目时，下面每一处都会**不打日志地失败**：
+>
+> | 漏了什么 | 引擎行为 | 代码 |
+> |---|---|---|
+> | `key`（或 `tag` / `mech`）全缺 | `if not key: return` → 效果**完全不施加** | `effects.py:287-289` |
+> | `turns` ≤ 0 / 不写 | 控制分支 `if turns <= 0: return` → **不施加**（`turns` 不会被默认值兜底） | `effects.py:301-303` |
+> | `on` 不写 | 缺省值是 **`"caster"`**（`params.get("on", "caster")`）→ **把控制挂到自己身上**（晕自己） | `effects.py:286, 300` |
+>
+> 正确写法 = 三个都给：
+>
+> ```python
+> "my_taunt": [{"action": "apply", "key": "my_taunt", "on": "target", "turns": 2}],
+> ```
+>
+> 另外控制分支要求 `target` 非空（`if not target: return`），且 `key` 必须在 `EFFECT_RULES` /
+> `state_def` 里能查到 `consume.mode`（否则 `mode is None` → 落到叠层分支，语义完全不同）。
+
+
 ### 属性增益（写 caster，数值查 `EFFECT_RULES[key].panel`）
 
 ```python
