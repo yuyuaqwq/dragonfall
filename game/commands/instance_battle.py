@@ -161,7 +161,7 @@ def _instance_team_event(st: dict):
             if not caster or int(caster.get("hp", 0) or 0) <= 0:
                 return
             # 治疗量 = 施法者面板公式（对齐 _do_heal/_heal_amount，独立算全队口径）
-            from ..battle2.actions import _heal_amount as _hcalc
+            from ..battle2.actions import heal_amount as _hcalc
             from ..battle2 import stats as _S
             from ..battle2.landing import heal_actor as _heal
             from .. import engine as _E

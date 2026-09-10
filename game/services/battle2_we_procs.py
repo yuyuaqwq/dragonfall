@@ -69,8 +69,8 @@ def _add_stacks(actor, key: str, amount: int, cap: int | None = None) -> int:
         # 附赠通道（we_affix_res_gain 等）与主渠道同口径可攒满；无 bonus.cap 时与
         # 旧静态 state_def 读等价（行为零变化）。调用方显式传 cap 的（dot/defdown 等
         # 数值型叠层）语义不动。
-        from ..battle2.effects import _cap_of
-        cap = _cap_of(actor, key)
+        from ..battle2.effects import cap_of
+        cap = cap_of(actor, key)
     cur = int(entry.get("stacks", 0) or 0)
     entry["stacks"] = max(0, min(cap, cur + int(amount)))
     return entry["stacks"]
@@ -1354,8 +1354,8 @@ def we_affix_res_gain(battle, caster, target, params, logs):
     if n <= 0:
         return
     # cap 展示走引擎 _cap_of（与 clamp 收敛点同源——上限词条抬 cap 后日志同口径）
-    from ..battle2.effects import _cap_of
-    cap = _cap_of(owner, res)
+    from ..battle2.effects import cap_of
+    cap = cap_of(owner, res)
     cap_txt = f"/{cap}" if cap < 999999 else ""
     logs.append(f"{params.get('icon') or '✦'} {params.get('label') or res} "
                 f"+{gain}（{n}{cap_txt}）")

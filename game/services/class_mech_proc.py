@@ -193,7 +193,7 @@ def install() -> None:
           依赖；对齐 effects.apply op=add 的 threshold 广播口径）
         """
         from ..battle2.actors import actor_alive
-        from ..battle2.effects import _cap_of as _cap_fn, _norm_stack as _ns
+        from ..battle2.effects import cap_of as _cap_fn, norm_stack as _ns
         owner = params.get("_owner") or caster
         if owner is None or not actor_alive(owner):
             return
@@ -318,7 +318,7 @@ def install() -> None:
         if owner is None:
             return
         try:
-            from ..battle2.effects import _cap_of as _cap_fn
+            from ..battle2.effects import cap_of as _cap_fn
             cap = _cap_fn(owner, "faith")
         except Exception:
             return
@@ -860,7 +860,7 @@ def install() -> None:
         if actor is None:
             return
         key = params.get("key") or "energy"
-        from ..battle2.effects import _cap_of as _cap_fn
+        from ..battle2.effects import cap_of as _cap_fn
         cap = _cap_fn(actor, key)
         if cap <= 0:
             return
@@ -1125,8 +1125,8 @@ def install() -> None:
             return
         val = max(1, int(overflow * pct))
         try:
-            from ..battle2.battle import _now_of
-            now = _now_of(battle)
+            from ..battle2.battle import now_of
+            now = now_of(battle)
         except Exception:
             now = 0.0
         sh = tgt.setdefault("shields", {})
@@ -1230,8 +1230,8 @@ def install() -> None:
         if spd_pct <= 0 and def_pct <= 0:
             return
         try:
-            from ..battle2.battle import _now_of
-            exp = _now_of(battle) + float(params.get("hold") or 2.0)
+            from ..battle2.battle import now_of
+            exp = now_of(battle) + float(params.get("hold") or 2.0)
         except Exception:
             exp = None
         ef = tgt.setdefault("effects", {})
@@ -1274,8 +1274,8 @@ def install() -> None:
         if actor is None:
             return
         try:
-            from ..battle2.battle import _now_of
-            now = _now_of(battle)
+            from ..battle2.battle import now_of
+            now = now_of(battle)
         except Exception:
             now = 0.0
         turns = max(1, int(params.get("turns") or 0) or 8)
@@ -1349,8 +1349,8 @@ def install() -> None:
         cfg = state_def(key) or {}
         reduce_v = float((cfg.get("stat_scale") or {}).get("reduce") or 0)
         try:
-            from ..battle2.battle import _now_of
-            now = _now_of(battle)
+            from ..battle2.battle import now_of
+            now = now_of(battle)
         except Exception:
             now = 0.0
         owner.setdefault("effects", {})[key] = {"stacks": 1, "expire": now + turns}
@@ -1390,7 +1390,7 @@ def install() -> None:
         mhp = int(owner.get("max_hp", 1) or 1)
         if int(owner.get("hp", 0) or 0) >= int(mhp * hp_lt):
             return  # 未跌破阈值
-        from ..battle2.effects import _cap_of as _cap_fn, _norm_stack as _ns
+        from ..battle2.effects import cap_of as _cap_fn, norm_stack as _ns
         cap = _cap_fn(owner, res)
         entry = ef.get(res)
         cur = float(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0.0
@@ -1435,8 +1435,8 @@ def install() -> None:
         if val <= 0:
             return
         try:
-            from ..battle2.battle import _now_of
-            now = _now_of(battle)
+            from ..battle2.battle import now_of
+            now = now_of(battle)
         except Exception:
             now = 0.0
         sh = owner.setdefault("shields", {})
@@ -1495,7 +1495,7 @@ def install() -> None:
         entry = ef.get(res)
         if not isinstance(entry, dict):
             entry = ef[res] = {}
-        from ..battle2.effects import _cap_of as _cap_fn
+        from ..battle2.effects import cap_of as _cap_fn
         cap = _cap_fn(actor, res)
         if cap <= 0:
             return
@@ -1763,8 +1763,8 @@ def install() -> None:
         cur = float(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0.0
         if cur <= 0:
             return
-        from ..battle2.effects import _norm_stack
-        nv = _norm_stack(max(0.0, cur - lose))
+        from ..battle2.effects import norm_stack
+        nv = norm_stack(max(0.0, cur - lose))
         entry["stacks"] = nv
         ef[rec_key] = {"t": now}   # 断连已结算 → 重开窗（防每刻连续掉段）
         logs.append(f"🌑 {params.get('label') or '暗影之心'}：断连只损 {int(lose)} 段"

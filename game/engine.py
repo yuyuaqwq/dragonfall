@@ -980,8 +980,8 @@ def skill_mp_pay_of(actor_or_player: dict, info: dict) -> int:
     命令层不便直接 import battle2 引擎内部函数 → 引擎层薄封装，battle2 核心零改动。
     """
     try:
-        from game.battle2.actions import _skill_pay_of
-        return int(_skill_pay_of(actor_or_player or {}, info or {}).get("mp") or 0)
+        from game.battle2.actions import skill_pay_of
+        return int(skill_pay_of(actor_or_player or {}, info or {}).get("mp") or 0)
     except Exception:
         return int((info or {}).get("mp", 0) or 0)
 
