@@ -192,6 +192,49 @@ def test_7_negative():
     check("无旋律吟唱提示", any("尚无旋律" in l for l in logs), str(logs[-2:]))
 
 
+def test_8_duet():
+    print("【8. 二重唱（melody_duet 被动）：吟唱强度额外 +1】")
+    # 装配：学二重唱 → act_cast 挂 passive_melody_duet（读被动 dict add）
+    bard = mk_player("p_bard", "诗人", "cls_shi_ren", ["战歌", "拨弦", "二重唱"])
+    apply_class_mech(bard)
+    acts = (bard.get("triggers") or {}).get("act_cast") or []
+    duet = [t for t in acts if (t.get("type") or t.get("action")) == "passive_melody_duet"]
+    check("装配 passive_melody_duet（add=1 / judge mech_eq melody_chant）",
+          len(duet) == 1 and duet[0].get("add") == 1
+          and (duet[0].get("judge") or {}).get("mech") == "melody_chant", repr(duet))
+    check("顺序：class_melody_act 排 act_cast 首位（顺序契约）",
+          bool(acts) and acts[0].get("type") == "class_melody_act",
+          repr([t.get("type") for t in acts]))
+    # 未学二重唱的诗人 → 不挂（零噪音）
+    b2 = mk_player("p_b2", "诗人2", "cls_shi_ren", ["战歌", "拨弦"])
+    apply_class_mech(b2)
+    check("未学二重唱不挂",
+          not [t for t in ((b2.get("triggers") or {}).get("act_cast") or [])
+               if (t.get("type") or t.get("action")) == "passive_melody_duet"], "")
+    # 行为：吟唱 → 基础 +1 与二重唱 +1 = 共 +2
+    b, bard = mk_battle(["战歌", "守歌", "拨弦", "二重唱"])
+    cast(b, bard, "战歌")
+    st = (bard.get("effects") or {}).get("melody_state")
+    check("唱新歌时二重唱不触发（强度 1）", st and st.get("stacks") == 1, repr(st))
+    logs = cast(b, bard, "拨弦")
+    st = (bard.get("effects") or {}).get("melody_state")
+    check("吟唱后强度 3（基础 +1 + 二重唱 +1）", st and st.get("stacks") == 3, repr(st))
+    check("二重唱日志", any("二重唱" in l for l in logs), str(logs[-2:]))
+    logs = cast(b, bard, "拨弦")
+    st = (bard.get("effects") or {}).get("melody_state")
+    check("再吟唱 → 5（cap）", st and st.get("stacks") == 5, repr(st))
+    # 换歌重置强度，二重唱不误加
+    cast(b, bard, "守歌")
+    st = (bard.get("effects") or {}).get("melody_state")
+    check("换歌后强度回 1（不触发二重唱）", st and st.get("stacks") == 1, repr(st))
+    # 对照组：无二重唱 → 每次吟唱只 +1
+    b3, bard3 = mk_battle(["战歌", "拨弦"])
+    cast(b3, bard3, "战歌")
+    cast(b3, bard3, "拨弦")
+    st3 = (bard3.get("effects") or {}).get("melody_state")
+    check("对照组（无二重唱）吟唱后强度 2", st3 and st3.get("stacks") == 2, repr(st3))
+
+
 def main():
     test_1_assemble()
     test_2_sing_aura()
@@ -200,6 +243,7 @@ def main():
     test_5_finale()
     test_6_serialize()
     test_7_negative()
+    test_8_duet()
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     sys.exit(1 if FAIL else 0)
 

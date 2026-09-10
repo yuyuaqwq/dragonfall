@@ -364,6 +364,7 @@ def install() -> None:
         "spd": "melody_spd", "atk_matk": "melody_atk_matk",
     }
     _MELODY_FIN_MAP = {"atk": "melody_finale_atk", "crit": "melody_finale_crit"}
+    _MELODY_MAX_STACK = 5   # 旋律强度上限（1 层=desc 值；满层吟唱→终章/巅峰）
 
     def _melody_pct_of(state) -> float:
         pct = float(state.get("pct") or 0)
@@ -433,17 +434,49 @@ def install() -> None:
             logs.append("🎵 尚无旋律奏响——先唱一首歌吧！（战歌/守歌/疾歌）")
             return
         stack = int(state.get("stacks") or 1)
-        if stack >= 5:
+        if stack >= _MELODY_MAX_STACK:
             if state.get("fin_kind") and state.get("fin_kind") in _MELODY_FIN_MAP:
                 _melody_finale(battle, actor, state, logs)
                 state["stacks"] = 1
                 _melody_write_aura(battle, actor, logs)
             else:
-                logs.append("🎵 旋律已至巅峰（5 层）——此曲无终章，保持最强音吧")
+                logs.append(f"🎵 旋律已至巅峰（{_MELODY_MAX_STACK} 层）——此曲无终章，保持最强音吧")
             return
         state["stacks"] = stack + 1
         _melody_write_aura(battle, actor, logs)
-        logs.append(f"🎵 吟唱回旋，【{state.get('name')}】强度 +1（{state['stacks']}/5）！")
+        logs.append(f"🎵 吟唱回旋，【{state.get('name')}】强度 +1"
+                    f"（{state['stacks']}/{_MELODY_MAX_STACK}）！")
+
+    @register_action("passive_melody_duet")
+    def passive_melody_duet(battle, caster, target, params, logs):
+        """act_cast：吟唱后旋律强度额外 +add（二重唱，v169.7）。
+
+        语义源 = 旧 battle.py `_skill_buff` 吟唱段 + `flag_set_cond` melody_duet 分支逐字：
+        外层 mech == melody_chant 守卫 → 已有旋律驻留（name 非空且强度 >0）→ 强度
+        min(上限, 当前+add)（旧 MELODY_CFG.max_stack=5）→ 驻留光环按新强度重写；
+        日志「二重唱，旋律强度额外 +1！（N/5）」原样。数值 add 读被动 dict（零硬编码）。
+        顺序契约：`class_melody_act` 排 act_cast 首位（基础叠层先完成，本段才读得到新强度）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        judge = params.get("judge") or {}
+        info = ctx.get("info") or {}
+        if (info.get("mech") or "") != (judge.get("mech") or "melody_chant"):
+            return
+        actor = ctx.get("actor") or caster
+        try:
+            add = int(params.get("add", 0) or 0)
+        except Exception:
+            add = 0
+        if actor is None or add <= 0:
+            return
+        state = (actor.get("effects") or {}).get("melody_state")
+        if not isinstance(state, dict) or not state.get("name") \
+                or int(state.get("stacks", 0) or 0) <= 0:
+            return
+        state["stacks"] = min(_MELODY_MAX_STACK, int(state.get("stacks", 0) or 0) + add)
+        _melody_write_aura(battle, actor, logs)
+        logs.append(f"🎶 {params.get('label') or '二重唱'}：二重唱，旋律强度额外 +{add}！"
+                    f"（{state['stacks']}/{_MELODY_MAX_STACK}）")
 
     # ---- v181.M-passive P1：被动 proc 通用动作（插件样板——动作零 proc 硬编码）----
     # 语义源 = 技能 desc + passive dict；声明表 PASSIVE_PROC（battle2_rules）给
@@ -1590,8 +1623,12 @@ def apply_class_mech(actor: dict) -> None:
                 (info.get("mech") in ("melody", "melody_chant"))
                 for _s, info in _learned_mech_skills(actor))
             if _has_melody:
-                trig.setdefault("act_cast", []).append(
-                    {"type": "class_melody_act"})
+                _lst_mel = trig.setdefault("act_cast", [])
+                if not any(isinstance(e, dict) and e.get("type") == "class_melody_act"
+                           for e in _lst_mel):
+                    # ⚠️ 顺序契约：基础叠层排 act_cast 首位——被动族吟唱后置段
+                    # （二重唱 passive_melody_duet 读叠层后的强度）依赖先叠完基础层
+                    _lst_mel.insert(0, {"type": "class_melody_act"})
         except Exception:
             pass  # melody 装配异常不阻断开战（容错铁律）
         # v181.M-passive P1：被动 proc 装配（扫已学 kind=被动 → PASSIVE_PROC 表挂 triggers）

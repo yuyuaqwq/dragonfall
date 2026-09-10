@@ -713,6 +713,11 @@ PASSIVE_PROC: dict = {
         "also": [{"event": "skill_hit", "action": "passive_bar_extend",
                   "judge": {"bar": "shaken"}}],
     },
+    # ---- P16 族：诗人吟唱增强（二重唱——吟唱段后置，见 class_mech_proc 顺序契约）----
+    "melody_duet": {           # 二重唱：吟唱时旋律强度额外 +add（被动 dict add=1）
+        "event": "act_cast", "action": "passive_melody_duet",
+        "judge": {"kind": "mech_eq", "mech": "melody_chant"},
+    },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
     # undead_faith/poison_spread 等职业批续（C 桶映射见 roadmap）
 }
