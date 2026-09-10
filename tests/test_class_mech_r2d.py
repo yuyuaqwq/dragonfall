@@ -14,7 +14,7 @@
   7. 负向：非牧师（战士）受击/治疗无 faith 条目（无渠道装配 + 零副作用）
   8. 回归：energy start_full 游侠仍满 100、牧师开局无 faith 条目（faith 无 start_full/period）
 """
-import sys, os
+import sys, os, random
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(PLUGIN_DIR, "test_mech_r2d.db"))
@@ -213,6 +213,10 @@ def t_regress():
 
 
 def main():
+    # v181 flaky 修复：玩家（牧师）真实面板含 ~3% 基础闪避（职业成长，走
+    # E.player_final_stats 公式，actor["dodge"] 无法覆盖）——t_taken 的「承伤真实发生」
+    # 断言偶发被闪避打成假红。固定随机种子保证「怪打玩家」必命中。同 n10_b2 做法。
+    random.seed(20260910)
     print("== 职业机制装配 R2d 资源攒取渠道 ==")
     t_assemble()
     t_heal_cast()
