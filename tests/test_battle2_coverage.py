@@ -483,4 +483,8 @@ def main():
 
 
 if __name__ == "__main__":
+    # v181 flaky 修复：玩家真实面板含 ~3% 基础闪避（职业成长走 E.player_final_stats
+    # 公式，actor["dodge"] 覆盖不了）——防御减伤断言偶发被闪避打成假红。固定随机种子。
+    import random as _r
+    _r.seed(20260910)
     main()

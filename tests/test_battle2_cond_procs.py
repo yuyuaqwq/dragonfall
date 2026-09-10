@@ -208,6 +208,8 @@ def test_end_to_end_damage():
           f"info={bool(real)}")
     dmg = {}
     for tag, broken in (("no", False), ("yes", True)):
+        import random as _r
+        _r.seed(20260910)   # 两组对照必须从同一随机状态起跑（否则暴击/幸运段不同源）
         p = mk_actor(cls="cls_wu_seng", learned=["sk_ce_ti"])
         apply_class_mech(p)
         e = mk_actor(side="enemy", uid="e1", spd=1)
@@ -223,6 +225,9 @@ def test_end_to_end_damage():
 
 
 if __name__ == "__main__":
+    # 伤害管线含随机（暴击/幸运段）——固定随机种子保证端到端倍数断言稳定
+    import random as _r
+    _r.seed(20260910)
     test_install()
     test_enemy_broken()
     test_player_first()
