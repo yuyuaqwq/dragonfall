@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>奥兰迪亚 · 配置编辑器（技能）</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">奥兰迪亚 · 配置编辑器 <span class="tag">MVP / 技能域</span></div>
+  <div class="domains" id="domains"></div>
+  <div class="spacer"></div>
+  <div class="badge" id="badge-source">加载中…</div>
+</header>
+<div class="notice" id="notice"></div>
+
+<main>
+  <aside id="list-panel">
+    <div class="list-head">
+      <input id="search" type="search" placeholder="搜索：名称 / id / 职业 / 分支 / kind">
+      <div class="list-count" id="list-count"></div>
+    </div>
+    <div class="tree" id="tree"></div>
+  </aside>
+
+  <section id="editor-panel">
+    <div class="empty" id="empty">← 从左侧选择一条技能开始编辑</div>
+
+    <div id="editor" hidden>
+      <div class="editor-head">
+        <div class="editor-title">
+          <h2 id="sk-title"></h2>
+          <div class="meta" id="sk-meta"></div>
+        </div>
+        <div class="actions">
+          <button id="btn-clone" title="以当前技能为模板新建一条">复制为模板…</button>
+          <button id="btn-reset" disabled>还原</button>
+          <button id="btn-save" class="primary" disabled>保存</button>
+        </div>
+      </div>
+
+      <div class="savebar" id="savebar" hidden></div>
+
+      <div class="tabs" id="tabs">
+        <button data-tab="form" class="active">表单</button>
+        <button data-tab="json">原始 JSON</button>
+        <button data-tab="diff">差异预览 <span class="pill" id="diff-count">0</span></button>
+        <span class="spacer"></span>
+        <span class="dirty" id="dirty-flag" hidden>● 未保存</span>
+      </div>
+
+      <div class="tab-body" id="tab-form"></div>
+
+      <div class="tab-body" id="tab-json" hidden>
+        <div class="row">
+          <button id="btn-json-apply">应用到表单</button>
+          <span class="help">兜底视图：直接编辑 JSON（适合复杂嵌套）。点「应用到表单」同步到表单与差异预览。</span>
+        </div>
+        <textarea id="json-area" spellcheck="false"></textarea>
+      </div>
+
+      <div class="tab-body" id="tab-diff" hidden>
+        <div id="diff-body"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="statusbar">就绪</footer>
+
+<script src="/schema_form.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
