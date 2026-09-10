@@ -419,6 +419,45 @@ def apply_game_content(actor: dict, ctx: dict | None = None) -> dict:
 
 ---
 
+## 7.5 ⚠️ 方案修正（2026-09-11 实施期发现，父 agent 实测确认）
+
+### 缺陷一：S4 的包名 `engine` 与既有 `game/engine.py` **冲突**
+
+方案 S4 写「`git mv game/battle2 → game/engine`」，但仓库里**已存在** `game/engine.py`
+（1212 行的内容文件，S5 才处理）。**实测确认**：同目录下包优先于同名模块 ——
+
+```
+$ mkdir game/engine && echo "X='pkg'" > game/engine/__init__.py
+$ echo "X='mod'" > game/engine.py
+$ python -c "from game import engine; print(engine.X)"
+取到: pkg          ← 旧 game/engine.py 变成不可达
+```
+
+影响面实测：引用 `game.engine` 的语句 **79 条 / 67 个文件**（game/ 28 + tests/ 26 + 归档 12 + audit 1）。
+按原文执行会让这 54 个活文件安静地拿到错对象。
+
+**修正**：
+- **先做 S5（拆掉 `game/engine.py`），后做重命名**；且 S5 的引擎侧落点改为
+  **`game/battle2/formulas.py`**（而非原文的 `game/engine/formulas.py`，否则过渡期仍然冲突）
+- 内容侧落点 `game/content_rules/{skills,panel}.py`
+- 包重命名（`battle2` → 新名）**推迟到 S8 拆仓库时**：届时框架仓库给自己的包随便起名，
+  游戏侧只需留一个薄 shim（包名未定，候选 `game/ctb` 之类不冲突的名字）
+
+### 缺陷二：S6 的路径假设
+
+S6 计划把 `data → core → store → services → commands` 依次 `git mv` 进 `game/content/`。
+但 S3 已把 4 个通用件移出 `core/`（`battle2/support/`），S5 又拆了 `engine.py`
+（内容侧去 `game/content_rules/`）→ **S6 的起点与原文描述已不同**，实施前需重新盘点
+（写新快照，而不是照旧清单搬）。
+
+### 实施顺序修正后
+
+```
+S1 ✅ → S2 ✅ → S3 ✅ → S5'（拆 engine.py，落 battle2/formulas.py + content_rules/）
+  → S6'（内容层重组，先重新盘点）→ S7（单一装配入口）→ S8（拆仓库 + 包重命名）
+  → S9（收口）
+```
+
 ## 8. 风险清单（13 条）
 
 | # | 风险 | 触发条件 | 缓解 |
