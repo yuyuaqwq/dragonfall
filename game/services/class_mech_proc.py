@@ -1551,6 +1551,12 @@ def apply_class_mech(actor: dict) -> None:
             apply_bar_procs(actor)
         except Exception:
             pass  # 挂条装配异常不阻断开战（容错铁律）
+        # v181 cond 接线：技能条件倍率装配（info.cond → dmg_calc/heal_calc 乘区）
+        try:
+            from .battle2_cond_procs import apply_cond_procs
+            apply_cond_procs(actor)
+        except Exception:
+            pass  # 条件乘区装配异常不阻断开战（容错铁律）
         mechs = {info.get("mech") for _s, info in _learned_mech_skills(actor)}
         for mech in mechs:
             cash = rules.get(mech)
