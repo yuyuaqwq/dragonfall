@@ -203,3 +203,113 @@ ENEMY_BAR_CFG["shaken"] = {
 - 回退：C0+C1 一个 commit、C2 独立 commit（可单独 revert）。
 - 顺带卫生（不在本批）：`core/potion_effects.py` / `effect_actions.py` / `battle_conds.py` /
   `passive_procs.py` 仍在读写死容器 `buffs`（N10 后无活引用）→ 死代码清理候选。
+
+---
+
+## 附录 A：引擎伪代码（改前 / 改后）
+
+### A.1 `core/battle_bars.py` —— 容器 + 时间化（C0+C1）
+
+```python
+# ---------- 命名 ----------
+KEY(bar) = "bar:" + bar                 # 前缀 = data/battle2_rules.BAR_STATE_PREFIX
+
+# ---------- 读/建（含旧存档迁移）----------
+def bar_state(host, key, now=None):
+    node = host.effects.get(KEY(key))
+    if not isinstance(node, dict):
+        legacy = host.get("buffs", {}).get(key)          # ← 老存档/进行中战斗
+        node = legacy if isinstance(legacy, dict) else {}
+        if legacy:
+            host["buffs"].pop(key);  if not host["buffs"]: host.pop("buffs")
+        host.effects[KEY(key)] = node
+    node.setdefault → {"val": 0.0, "threshold": bar_def(key)["threshold_base"],
+                       "trigger_count": 0, "_at": now or 0.0,
+                       "immune_until": 0.0, "immune_turns": 0}
+    return node
+
+# ---------- 时间结息（新增；任何读点前调一次 → 读数永远准）----------
+def bar_settle(host, key, now, logs=None):
+    bd = bar_def(key);  if not bd: return {}
+    node = bar_state(host, key, now)
+    dt = max(0.0, now - node["_at"]);  node["_at"] = now
+    if node["immune_until"] and now >= node["immune_until"]:   # 免疫到期出窗
+        node["immune_until"] = 0.0;  node["immune_turns"] = 0
+    decay = float(bd.get("decay_per_turn") or 0)               # ← 不再 int()
+    if dt > 0 and decay > 0:
+        node["val"] = max(0.0, node["val"] - dt * decay)
+    return node
+
+# ---------- 注入 ----------
+def bar_gain(host, key, amount, logs=None, now=None):
+    if now is not None: bar_settle(host, key, now, logs)
+    node = bar_state(host, key, now)
+    if now is not None and node["immune_until"] > now:   return node["val"]  # 免疫期不积蓄
+    if now is not None and node.get("_no_inject_at") == now: return node["val"]  # 自锁防护
+    node["val"] = min(float(bar_def(key)["max"]), node["val"] + amount)
+    return node["val"]
+
+# ---------- 判定 ----------
+def bar_should_trigger(host, key, now=None):
+    node = bar_state(host, key, now)
+    if now is not None and node["immune_until"] > now: return False
+    return node["val"] >= node["threshold"]
+
+# ---------- 触发 ----------
+def bar_trigger(host, key, logs=None, now=None):
+    if not bar_should_trigger(host, key, now): return False
+    base, inc, cap = bd.threshold_base, bd.threshold_inc, bd.threshold_cap
+    node["threshold"] = min(floor(base*cap), floor(node["threshold"]*inc))
+    node["trigger_count"] += 1
+    node["val"] = 0.0
+    secs = bd.get("immune_secs") or bd.get("immune_turns", 0)   # curse=0 行为不变
+    node["immune_until"] = (now or 0) + secs
+    node["immune_turns"] = ceil(secs)                           # 派生，兼容旧读取方
+    node["_no_inject_at"] = now                                 # 触发当帧注入 = 0
+    return True
+
+# ---------- 宿主兜底 tick（时钟没推进也能结算）----------
+def bar_tick(host, key, logs=None, now=None):
+    bar_settle(host, key, now, logs)
+    return bar_should_trigger(host, key, now)
+```
+
+### A.2 引擎 6 行（C2）
+
+```python
+# effect_triggers.py
+EVENTS = (..., "interrupt", "time_advance")          # 单行定义（cov 按行 trace）
+
+# schedule.py
+def _advance_time(battle, dt, logs):
+    if dt <= 0: return
+    battle._now += dt
+    _settle_time_effects(battle, logs)
+    fire(battle, "time_advance", {"dt": dt, "now": battle._now}, logs)   # ← 新增
+```
+
+### A.3 装配层（内容层）
+
+```python
+# services/battle2_bar_procs.py
+@register_action("bar_time_settle")                  # 新增：时钟推进 → 结息 + 查触发
+def bar_time_settle(battle, caster, target, params, logs):
+    host = params["_owner"];  key = params["key"];  now = battle["_now"]
+    bar_settle(host, key, now, logs)
+    _settle(battle, host, key, logs)                 # 阈值满 → skip + 自清
+
+def _ensure_tick(host, key):                         # 首次挂条自安装（零噪音）
+    host.triggers["time_advance"] += {action:"bar_time_settle", key:key}
+    host.triggers["turn_start"]   += {action:"bar_tick",         key:key}
+
+# 参数化：所有调用带 now
+bar_gain(host, key, amount, logs, now=battle._now)
+bar_trigger(host, key, logs, now=battle._now)
+
+# services/class_mech_proc.py · services/battle2_cond_procs.py（两个读点）
+#   旧: bs = target.buffs["shaken"];  判 bs["val"]≥bar_at / bs["immune_turns"]>0
+#   新: bar_settle(target, "shaken", battle._now)
+#       node = target.effects["bar:shaken"];  判 node["val"]≥bar_at / node["immune_until"]>now
+# passive_bar_extend:  node["immune_until"] += ext      （原 immune_turns += ext）
+```
+
