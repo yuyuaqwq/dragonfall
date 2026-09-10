@@ -191,6 +191,10 @@ def install() -> None:
         owner = params.get("_owner") or caster
         if owner is None or not actor_alive(owner):
             return
+        # when 条件门（渠道声明 rc["when"]）：不满足 → 本次不攒。
+        # 零默认值铁律：无 when 声明恒放行（旧渠道声明零影响）。
+        if not _when_ok(owner, params):
+            return
         ctx = getattr(battle, "_fire_ctx", None) or {}
         info = ctx.get("info") or {}
         kind = params.get("kind")
@@ -1345,6 +1349,10 @@ def apply_class_channels(actor: dict, rules: dict) -> None:
             d = {"type": "class_res_channel_gain", "res": rk, "gain": int(gain),
                  "label": name, "icon": "✦"}
             d.update(extra)
+            # 条件攒取：资源条目声明 when（如磐核「守御姿态下受击 +1」）→ 透传给
+            # 动作，动作入口按谓词求值（_when_ok）。无声明不写键（零默认值）。
+            if rc.get("when"):
+                d["when"] = rc["when"]
             trig.setdefault(ev, []).append(d)
 
 
@@ -1543,6 +1551,50 @@ def _res_ge_ok(actor: dict, judge: dict, params: dict) -> bool:
     _entry = ((actor.get("effects") or {})).get(res)
     cur = float(_entry.get("stacks", 0) or 0) if isinstance(_entry, dict) else 0.0
     return cur >= need
+
+
+def _has_effect_ok(actor: dict, judge: dict) -> bool:
+    """效果在位判定（has_effect judge）：actor.effects 含指定 key。
+
+    过期由引擎结算删除（schedule.py 时钟推进 ef.pop），故「在位 = 生效」——
+    与 class_stance_counter 的判法同口径。零默认值铁律：judge 无 key 声明 = False。
+    """
+    if not actor:
+        return False
+    key = (judge or {}).get("key") or ""
+    if not key:
+        return False
+    return isinstance((actor.get("effects") or {}).get(key), dict)
+
+
+def _when_ok(actor: dict, params: dict) -> bool:
+    """动作 when 条件门（通用谓词派发）——全部满足才 True；无声明 = True。
+
+    when: [{"judge": {...}}, ...]，谓词按 judge.kind 派发（与动作侧 judge 同族）：
+      - has_effect  态在位（守护姿态/形态等：资源按姿态攒取）
+      - res_ge      资源层数门槛（阈值读同条目的 ge_field）
+    未知 kind → False（fail-closed）：渠道条件写错时宁可漏攒，不可静默攒错
+    （数值膨胀无声无息，比漏攒危险得多）。
+    """
+    when = (params or {}).get("when")
+    if not when:
+        return True
+    if not isinstance(when, (list, tuple)):
+        return False
+    for w in when:
+        if not isinstance(w, dict):
+            return False
+        j = w.get("judge") or {}
+        kind = j.get("kind") or ""
+        if kind == "has_effect":
+            if not _has_effect_ok(actor, j):
+                return False
+        elif kind == "res_ge":
+            if not _res_ge_ok(actor, j, w):
+                return False
+        else:
+            return False
+    return True
 
 
 def _merge_agg_entry(agg: str, entries: list) -> dict:
