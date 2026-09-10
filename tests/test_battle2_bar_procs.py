@@ -193,6 +193,42 @@ def test_no_bar_no_op():
     check("敌方无 tick 也不崩", True)
 
 
+def test_per_hit_multisegment():
+    print("【7. 多段推条（v153 §六「多段 +3~+5/段」）：字段值 ×hits 合并注入】")
+    p = mk_player(cls="cls_wu_seng", learned=["sk_gang_quan"])
+    CMP.apply_class_mech(p)
+    e = mk_enemy()
+    b = new_battle(p, e)
+    t = _bar_trigs(p)
+    check("装配条目带 per_hit 声明", bool(t and t[0].get("per_hit")), f"trig={t}")
+    logs = []
+    # 连环拳口径：4/段 × 4 段 = 16
+    fire(b, "skill_hit", {"actor": p, "target": e,
+                          "info": {"shaken_gain": 4, "hits": 4}}, logs)
+    check("4/段 ×4 = 16", (e.get("buffs") or {}).get("shaken", {}).get("val") == 16,
+          f"bs={(e.get('buffs') or {}).get('shaken')}")
+    # 单段技能不受影响：碎颅势口径 15 ×1 = 15
+    e2 = mk_enemy()
+    b2 = new_battle(p, e2)
+    logs2 = []
+    fire(b2, "skill_hit", {"actor": p, "target": e2,
+                           "info": {"shaken_gain": 15}}, logs2)
+    check("单段 15 ×1 = 15", (e2.get("buffs") or {}).get("shaken", {}).get("val") == 15,
+          f"bs={(e2.get('buffs') or {}).get('shaken')}")
+    # 多段满阈值触发：4/段 ×4 = 16 推不满（阈值 50），但 5/段 ×3 垫 45 后可触发
+    e3 = mk_enemy()
+    b3 = new_battle(p, e3)
+    logs3 = []
+    from game.core.battle_bars import bar_gain as _bg
+    _bg(e3, "shaken", 45, logs3)
+    fire(b3, "skill_hit", {"actor": p, "target": e3,
+                           "info": {"shaken_gain": 5, "hits": 3}}, logs3)
+    check("45 + 5/段×3 = 触发（val 清 0）",
+          (e3.get("buffs") or {}).get("shaken", {}).get("val") == 0
+          and (e3.get("buffs") or {}).get("shaken", {}).get("trigger_count") == 1,
+          f"bs={(e3.get('buffs') or {}).get('shaken')}")
+
+
 if __name__ == "__main__":
     test_install()
     test_inject_on_hit()
@@ -200,6 +236,7 @@ if __name__ == "__main__":
     test_skip_consumed()
     test_turn_start_decay()
     test_no_bar_no_op()
+    test_per_hit_multisegment()
     print(f"\n== 结果：通过 {PASS} / 共 {PASS + FAIL} ==")
     if FAILURES:
         for f in FAILURES:

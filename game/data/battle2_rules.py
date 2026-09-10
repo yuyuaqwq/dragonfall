@@ -530,8 +530,12 @@ MECH_CASH = {
 # 技能数据字段 → enemy_bar key 映射。装配器扫 actor 已学技能：命中任意字段即挂
 # skill_hit 触发器（action=bar_gain, key=bar, field=技能字段）——学什么挂什么，
 # 零噪音。数值/衰减/阈值全在 battle_config.ENEMY_BAR_CFG[bar]（本表只做字段接线）。
+#   key      目标条（core/battle_bars 容器键）
+#   per_hit  字段值是「每段」注入量（v153 §六 分档表：「多段 +3~+5/段」，如连环拳
+#            4/段×4、裂岳连击 5/段×3）→ 命中时按技能 hits 段数合并注入
+#            （旧引擎逐段 settle 的等价收口：一次施放 = 段数 × 每段量）
 BAR_INJECT_FIELDS: dict = {
-    "shaken_gain": "shaken",   # 拳师破绽：技能命中推条（v139 挂账机制）
+    "shaken_gain": {"key": "shaken", "per_hit": True},   # 拳师破绽：技能命中推条
 }
 
 # ============================================================
@@ -693,6 +697,21 @@ PASSIVE_PROC: dict = {
     "arcane_intuition": {      # 奥术直觉：自动回复奥术充能
         "event": "turn_start", "action": "passive_res_gain_turn",
         "res": "arcane", "gain_field": "gain",
+    },
+    # ---- P15 族：挂敌身条（破绽）条件乘区 + 触发后延长（格斗士攻线 v153 §六）----
+    # 条容器 = core/battle_bars（buffs[bar] = {val, threshold, trigger_count,
+    # immune_turns}，随战斗序列化）；推条/触发 = battle2_bar_procs（BAR_INJECT_FIELDS
+    # 声明表，命中注入 + 宿主回合 tick）；本表只做「条状态 → 增伤/延长」消费段。
+    "shaken_awareness": {      # 气力之心：敌人破绽 ≥15 → 对其伤害 +20%
+        "event": "dmg_calc", "action": "passive_dmg_mult",
+        "judge": {"kind": "target_bar_ge", "bar": "shaken", "ge_field": "bar_at"},
+    },
+    "broken_extend": {         # 破绽·极：破防期（免疫窗口内）增伤 +50%（乘区段）
+        "event": "dmg_calc", "action": "passive_dmg_mult",
+        "judge": {"kind": "target_bar_broken", "bar": "shaken"},
+        # also = 本条命中触发破绽后延长免疫窗口（破防持续 +1 刻；v169.7 半刻向下取整）
+        "also": [{"event": "skill_hit", "action": "passive_bar_extend",
+                  "judge": {"bar": "shaken"}}],
     },
     # ---- P2 族占位（填表即接；动作族见方案文档）----
     # undead_faith/poison_spread 等职业批续（C 桶映射见 roadmap）

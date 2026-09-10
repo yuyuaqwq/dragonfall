@@ -14,7 +14,8 @@
               单位才跑，零噪音）
 
 数据来源：
-- 注入字段映射 = `data/battle2_rules.BAR_INJECT_FIELDS`（技能字段 → bar key）
+- 注入字段映射 = `data/battle2_rules.BAR_INJECT_FIELDS`（技能字段 → bar key；`per_hit`
+  = 字段值是「每段」量，按技能 hits 合并注入，v153 §六「多段 +N/段」）
 - 条数值/阈值/衰减 = `data/battle_config.ENEMY_BAR_CFG[key]`
 - 条容器 = `core/battle_bars`（val/threshold/trigger_count/immune_turns）
 
@@ -86,6 +87,13 @@ def bar_gain_act(battle, caster, target, params, logs):
             return
         info = (getattr(battle, "_fire_ctx", None) or {}).get("info") or {}
         amount = info.get(field)
+        # per_hit：字段值 = 每段量（v153 §六「多段 +3~+5/段」）→ 按本次施放段数合并
+        # （skill_hit 每次施放只 fire 一次，段循环在 fire 之前——等价旧引擎逐段 settle）
+        if params.get("per_hit"):
+            try:
+                amount = int(amount or 0) * int(info.get("hits") or info.get("multi") or 1)
+            except Exception:
+                pass
     try:
         amount = int(amount or 0)
     except Exception:
@@ -116,6 +124,10 @@ def apply_bar_procs(actor: dict) -> None:
     """装配：扫 actor 已学技能 → 命中 BAR_INJECT_FIELDS 字段则挂 skill_hit 注入。
 
     学什么挂什么，零噪音（未学推条技能的单位不挂，不产生空转触发器）。
+
+    ⚠️ 顺序契约：注入条目 **insert(0)** 排 skill_hit 首位——被动族同一事件的后置段
+    （如破绽·极 passive_bar_extend 延长免疫窗口）依赖「本次命中先推条并触发」，
+    排在注入之后才能读到触发后的免疫窗口（旧 battle.py `_skill_hit_settle` 同序）。
     """
     cn = actor.get("class_name") or ""
     names = actor.get("learned_skills") or []
@@ -127,7 +139,11 @@ def apply_bar_procs(actor: dict) -> None:
         return
     from .. import engine as E
     trig = actor.setdefault("triggers", {})
-    for field, key in (BAR_INJECT_FIELDS or {}).items():
+    for field, spec in (BAR_INJECT_FIELDS or {}).items():
+        key = (spec or {}).get("key") if isinstance(spec, dict) else ""
+        if not key:
+            continue
+        per_hit = bool((spec or {}).get("per_hit")) if isinstance(spec, dict) else False
         found = False
         for s in names:
             try:
@@ -142,4 +158,7 @@ def apply_bar_procs(actor: dict) -> None:
         lst = trig.setdefault("skill_hit", [])
         if not any(isinstance(e, dict) and e.get("action") == "bar_gain"
                    and e.get("key") == key for e in lst):
-            lst.append({"action": "bar_gain", "key": key, "field": field})
+            entry = {"action": "bar_gain", "key": key, "field": field}
+            if per_hit:
+                entry["per_hit"] = True
+            lst.insert(0, entry)

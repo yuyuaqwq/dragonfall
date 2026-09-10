@@ -511,10 +511,64 @@ def install() -> None:
             if _ratio > 0 and _spd_t > 0 and _spd_a >= _ratio * _spd_t:
                 ok = True
                 mult = float(params.get("dmg_add") or params.get("mult") or 0)
+        elif kind in ("target_bar_ge", "target_bar_broken"):
+            # 挂敌身条（buffs[bar] = {val, threshold, trigger_count, immune_turns}）消费：
+            # - target_bar_ge     条积蓄 ≥ 门槛（气力之心：破绽 ≥15 → ×1.2；门槛读
+            #                     params[ge_field]，默认 bar_at——数值全来自被动 dict）
+            # - target_bar_broken 条处于破防态（trigger_count>0 且免疫窗口内；破绽·极
+            #                     乘区段 ×1.5，倍率读 params.broken_mult）
+            # （推条/触发由 battle2_bar_procs 负责，本判定只读条状态——引擎零名词。）
+            _bar = judge.get("bar") or params.get("bar") or ""
+            _bs_j = (tg.get("buffs") or {}).get(_bar) if (tg is not None and _bar) else None
+            if isinstance(_bs_j, dict):
+                if kind == "target_bar_ge":
+                    _need = float(params.get(judge.get("ge_field") or "bar_at") or 0)
+                    if _need > 0 and float(_bs_j.get("val", 0) or 0) >= _need:
+                        ok = True
+                        mult = float(params.get("mult") or params.get("dmg_add") or 0)
+                else:
+                    if int(_bs_j.get("trigger_count", 0) or 0) > 0 \
+                            and int(_bs_j.get("immune_turns", 0) or 0) > 0:
+                        ok = True
+                        mult = float(params.get("broken_mult") or params.get("mult")
+                                     or params.get("dmg_add") or 0)
         if not ok or mult <= 0:
             return
         ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * (1.0 + mult)
         logs.append(f"✨ 被动生效：伤害 ×{1.0 + mult:.2f}！")
+
+    @register_action("passive_bar_extend")
+    def passive_bar_extend(battle, caster, target, params, logs):
+        """skill_hit 触发后置：目标挂条处于破防态 → 免疫窗口 +extend 刻（破绽·极）。
+
+        语义源 = 旧 battle.py `_skill_hit_settle` bar_trigger 后 shaken 段逐字：本次
+        命中刚触发（trigger_count>0）且免疫窗口已开（immune_turns>0）→
+        immune_turns += passive.extend（v169.7 注：半刻不支持 → 数据向下取整取 1）。
+        参数：judge.bar（条名）/ params.extend（刻数，来自被动 dict）。
+        装配顺序依赖：挂条动词（bar_gain）须先于本段执行（见 battle2_bar_procs
+        apply_bar_procs 头部 insert 注释）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        judge = params.get("judge") or {}
+        host = ctx.get("target")
+        if not isinstance(host, dict):
+            host = target
+        bar = judge.get("bar") or params.get("bar") or ""
+        try:
+            ext = int(params.get("extend", 0) or 0)
+        except Exception:
+            ext = 0
+        if not bar or ext <= 0 or not isinstance(host, dict):
+            return
+        bs = (host.get("buffs") or {}).get(bar)
+        if not isinstance(bs, dict):
+            return
+        if int(bs.get("trigger_count", 0) or 0) <= 0:
+            return
+        if int(bs.get("immune_turns", 0) or 0) <= 0:
+            return
+        bs["immune_turns"] = int(bs.get("immune_turns", 0) or 0) + ext
+        logs.append(f"✨ {params.get('label') or '被动'}：破防持续 +{ext} 刻！")
 
     @register_action("passive_kill_gain")
     def passive_kill_gain(battle, caster, target, params, logs):
@@ -1367,7 +1421,7 @@ def apply_class_passives(actor: dict) -> None:
         # cfg 声明表非结构字段并入（buff_key 等动作参数——domain 消费过的键除外）
         for k, v in cfg.items():
             if k in ("event", "action", "judge", "agg", "domain",
-                     "cap_key", "when", "add"):
+                     "cap_key", "when", "add", "also"):
                 continue
             d[k] = v
         # 被动参数并入（mult 归一 mult/dmg_add/per_layer；label 用技能名）
