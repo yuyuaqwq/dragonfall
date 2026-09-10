@@ -397,16 +397,8 @@ CLASSES = {
             2: ["拳术师", "铁壁行者"],
             3: ["破晓者", "不破之壁"],
         },
-        # v139（云海斗士晕眩积蓄挂敌身翻译）：破绽 shaken——ENEMY_BAR_CFG（battle_config.py）
-        # max 50 / 每刻衰减 4 / 阈值 50×1.35 递增封顶 / 触发=敌方跳过下刻行动；
-        # 只吃自身三律（阈值递增+免疫窗口+触发不续攒），不吃异常免疫/反弹
-        "enemy_bar": {
-            "shaken": {
-                "max": 50, "decay_per_turn": 4,
-                "threshold_base": 50, "threshold_inc": 1.35, "threshold_cap": 2.5,
-                "auto_trigger": True, "immune_turns": 1, "trigger_effect": "skip_turn",
-            },
-        },
+        # （破绽 shaken 的条配置不在本处：数值单源 = battle_config.ENEMY_BAR_CFG，
+        #   本文件旧副本 max 50/decay 4 已删——零消费方且与配置漂移）
         # v139（云海守卫充能核翻译）：守线磐核 guard_core 0-5——引擎字面实现
         # 守御姿态受击+1 / 未受击保底+1 / 技能命中+1；磐岩释能 M=1.0+0.7×核（线性刻意，早放高频 vs 攒满峰值）
         "guard_core": {

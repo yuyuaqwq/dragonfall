@@ -359,32 +359,35 @@ VENT_CFG = {
 #   阶段转换保留 phase_preserve_pct（进度遗产）。
 # ============================================================
 ENEMY_BAR_CFG = {
-    "shaken": {  # 拳师破绽（攻线签名，云海斗士晕眩积蓄翻译；淬势者撼岳之势同型不同阈值）
-        "max": 50,                 # 积蓄上限 0-50（云海 100 归一化缩放 100→50）
-        "decay_per_turn": 1.7,      # v153 C-13：刻制下每刻衰减 1.7（= 4 ÷ 2.4，保持原设计推进手感）
-        "threshold_base": 50,      # 初始触发阈值
-        "threshold_inc": 1.35,     # 每次触发后阈值 ×1.35 递增
-        "threshold_cap": 2.5,      # 阈值递增封顶 ×2.5（max×2.5 = 125，防无限晕）
-        "auto_trigger": True,      # 自动触发（系统维护阈值，无需玩家判断/在线）
-        "immune_turns": 1,         # 触发后破绽免疫期 1 刻（期内积蓄保留不衰减，免疫结束刻初自动触发）
-        "phase_preserve_pct": 0.5, # 阶段转换保留 50% 积蓄（进度遗产，触发计数不清零）
-        "trigger_effect": "skip_turn",  # 触发效果：敌方跳过下刻行动（破绽）
+    "shaken": {  # 拳师破绽（攻线签名，云海斗士晕眩积蓄翻译）
+        "name": "破绽",             # 展示/日志名（战报「💥破绽 32/50」）
+        "max": 125,                 # 积蓄上限 = threshold_base × threshold_cap
+                                    #   （原 50 与递增阈值打架：首次触发后阈值 67 > 上限 50
+                                    #   → 第二次起永远触发不了，整条机制死锁）
+        "decay_per_turn": 1.7,      # v153 §六：每刻衰减 1.7（小数累计，不再取整）
+        "threshold_base": 50,       # 初始触发阈值
+        "threshold_inc": 1.35,      # 每次触发后阈值 ×1.35 递增
+        "threshold_cap": 2.5,       # 阈值递增封顶 ×2.5（50→67→90→122→125）
+        "auto_trigger": True,       # 自动触发（系统维护阈值，无需玩家判断/在线）
+        "immune_secs": 2.0,         # v153 §六：触发后 2 刻内不再积蓄（期内注入忽略）
+        "phase_preserve_pct": 0.5,  # 阶段转换保留 50% 积蓄（进度遗产，触发计数不清零）
+        "trigger_effect": "skip_turn",  # 触发效果：敌方跳过下次行动（破绽）
         "no_inject_on_trigger": True,   # 破绽触发当刻注入 = 0（防「晕→追颅→又满→再晕」自锁）
-        # 注入源（技能表 res_gain 旁路挂载）：三连击破 +15 / 碎颅势 +15 / 旋风踢 +5/目标 / 无影连打每段 +3
+        # 注入源（技能表 shaken_gain 字段）：主力 +15 / 中档 +10~12 / 次要 +5 /
+        #   多段 +3~+5 每段（per_hit）/ 普攻级 +2~+3——档位表见 v153 §六
         # 机制边界：不是第十种异常——不进 DOT_DEFS/DOT_MAX_TRIGGER、不吃 immune_dots、不吃异常抗性
         # Boss 霸体：按 _boss_ctrl_dur 语义时长减半至少 1 刻（初版照常触发 1 刻，待数值门禁复核）
-        # 淬势者撼岳之势（预留变体，淬势者随 v151 删除——若未来做淬势者=本子键加参数，
-        #   不新开常量）：max 5 层 / stun_turns 1 / threshold_mult 1.3 /
-        #   threshold_cap 3.0 / max_trigger 2（每场上限，对齐 DOT_MAX_TRIGGER 饱和）
+        # 条状态载体 = actor.effects["bar:shaken"]（BAR_STATE_PREFIX + key）
     },
-    "curse": {  # 暗影神谕骨噬诅咒（挂 enemy.debuffs["curse"]，净化白名单不含 curse → 天然不可驱散）
+    "curse": {  # 暗影神谕骨噬诅咒（条状态 effects["bar:curse"]，净化白名单不含 curse → 天然不可驱散）
+        "name": "骨噬诅咒",         # 展示/日志名
         "max": 1,                  # 诅咒唯一性：同一单位身上只挂 1 份主诅咒（换挂旧诅咒自然到期，不叠加）
         "decay_per_turn": 0,       # 不按刻衰减（由 持续刻数 递减）
         "threshold_base": 1,       # 施加即达阈值（挂上即生效）
         "threshold_inc": 1.0,      # 阈值不递增
         "threshold_cap": 1.0,      # 阈值封顶 1.0
         "auto_trigger": True,      # 自动触发（挂上即生效）
-        "immune_turns": 0,         # 无免疫窗口（靠唯一性 + 续期成本限频）
+        "immune_secs": 0.0,        # 无免疫窗口（靠唯一性 + 续期成本限频）
         "phase_preserve_pct": 1.0, # 阶段转换保留（诅咒不因阶段清除）
         "trigger_effect": "debuff",  # 触发效果：全队对目标伤害 +20% + 全队命中 +10%（3 刻）
         "vuln": 0.20,              # 骨噬易伤：全队对受诅咒目标伤害 +20%

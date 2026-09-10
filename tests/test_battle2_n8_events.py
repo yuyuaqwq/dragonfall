@@ -94,14 +94,16 @@ TEST_SKILL = {"name": "测试斩", "kind": "物理", "exprs": ["atk*1.0"]}
 
 def test_events_declared():
     print("【N8.0 事件全集声明 + 引擎点位分布】")
-    check("EVENTS 25 个（19 效果时机 + 4 数值修正钩子 dot_calc + act_done + N5B5c interrupt）",
-          len(TR.EVENTS) == 25, f"len={len(TR.EVENTS)}")
+    check("EVENTS 26 个（19 效果时机 + 4 数值修正钩子 dot_calc + act_done + N5B5c interrupt"
+          " + v181 time_advance 时钟推进）",
+          len(TR.EVENTS) == 26, f"len={len(TR.EVENTS)}")
     for ev in ("battle_start", "turn_start", "act_begin", "act_cast",
                "skill_hit", "attack_hit", "crit", "on_taken", "on_heal",
                "on_kill", "on_death", "dot_tick", "on_act_consume",
                "on_hit_consume", "buff_expire", "threshold",
                "dmg_calc", "taken_calc", "heal_calc",  # N9.13/2e 数值修正钩子
-               "phase", "player_low", "pv_broken"):
+               "phase", "player_low", "pv_broken",
+               "time_advance"):                       # v181 时钟推进（挂敌身条结算）
         check(f"事件 {ev} 在全集", ev in TR.EVENTS)
     # 非全集事件静默忽略（防拼写漂移）
     b = new_battle(mk_a("a1", "player"), mk_a("e1", "enemy"))

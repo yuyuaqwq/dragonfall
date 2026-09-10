@@ -26,6 +26,7 @@ from game.battle2.effect_triggers import fire  # noqa: E402
 from game.services.class_mech_proc import apply_class_mech  # noqa: E402
 from game.services import battle2_cond_procs as CP  # noqa: E402
 from game.data import skills as _SK  # noqa: E402
+from game.core.battle_bars import bar_effect_key  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -115,12 +116,12 @@ def test_enemy_broken():
             "cond": {"type": "enemy_broken", "mult": 1.3}}
     m0 = _fire_dmg(b, p, e, info)
     check("未破防 → 乘区 1.0", m0 == 1.0, f"mult={m0}")
-    e.setdefault("buffs", {})["shaken"] = {"val": 0, "threshold": 50,
-                                          "trigger_count": 1, "immune_turns": 1}
+    e.setdefault("effects", {})[bar_effect_key("shaken")] = {
+        "val": 0.0, "threshold": 50, "trigger_count": 1, "immune_until": 2.0, "_at": 0.0}
     m1 = _fire_dmg(b, p, e, info)
     check("破防中 → 乘区 1.3", abs(m1 - 1.3) < 1e-9, f"mult={m1}")
     # 破绽断链时（trigger_count=0）不算破防
-    e["buffs"]["shaken"]["trigger_count"] = 0
+    e["effects"][bar_effect_key("shaken")]["trigger_count"] = 0
     m2 = _fire_dmg(b, p, e, info)
     check("trigger_count=0 → 不判定破防", m2 == 1.0, f"mult={m2}")
 
@@ -191,7 +192,8 @@ def test_unknown_type_and_heal():
     check("未注册 type 已注册表中不存在", "not_registered_yet" not in CP.COND_PREDICATES)
     # heal_calc：治疗旋使用同一动作
     from game.battle2.effect_triggers import fire as _fire
-    e.setdefault("buffs", {})["shaken"] = {"trigger_count": 1, "immune_turns": 1}
+    e.setdefault("effects", {})[bar_effect_key("shaken")] = {
+        "trigger_count": 1, "immune_until": 2.0, "_at": 0.0}
     hinfo = {"name": "治疗试技", "kind": "治疗", "cond": {"type": "enemy_broken", "mult": 1.3}}
     _fire(b, "heal_calc", {"actor": p, "target": p, "heal": 100, "info": hinfo, "mult": 1.0}, [])
     m = float((getattr(b, "_fire_ctx", {}) or {}).get("mult", 1.0) or 1.0)
@@ -215,8 +217,9 @@ def test_end_to_end_damage():
         e = mk_actor(side="enemy", uid="e1", spd=1)
         b = new_battle(p, e)
         if broken:
-            e.setdefault("buffs", {})["shaken"] = {"val": 0, "threshold": 50,
-                                                  "trigger_count": 1, "immune_turns": 1}
+            e.setdefault("effects", {})[bar_effect_key("shaken")] = {
+                "val": 0.0, "threshold": 50, "trigger_count": 1,
+                "immune_until": 2.0, "_at": 0.0}
         logs = A._single_target_pipeline(b, p, e, real, 1)
         dmg[tag] = e["max_hp"] - e["hp"]
     check(f"破防伤害 > 未破防（{dmg['no']} → {dmg['yes']}，约 ×1.3）",

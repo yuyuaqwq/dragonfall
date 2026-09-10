@@ -1091,8 +1091,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         copy["name"] = name
         copy["rank"] = rank
         copy["reach"] = reach
-        copy["buffs"] = {}
-        copy["stacks"] = {}
         copy["defending"] = False
         copy["charging"] = None
         # 爪牙不属于首领/精英本体（身份/奖励判定走主怪）
@@ -1113,8 +1111,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         copy["name"] = name
         copy["rank"] = 1  # 爪牙恒前排挡刀
         copy["reach"] = 1
-        copy["buffs"] = {}
-        copy["stacks"] = {}
         copy["defending"] = False
         copy["charging"] = None
         copy["is_boss"] = False
@@ -1222,8 +1218,6 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             snap.setdefault("rank", cinfo.get("default_rank", 2))
             snap.setdefault("reach", cinfo.get("reach", cinfo.get("default_rank", 2)))
             snap.setdefault("uid", "p_{}".format(key))
-            snap.setdefault("buffs", {})
-            snap.setdefault("stacks", {})
             snap.setdefault("defending", False)
             snap.setdefault("charging", None)
             # v121 CTB：玩家快照 ct 缺省 -spd（老存档恢复时兜底；越小越先行动）

@@ -72,7 +72,8 @@ def new_battle(p, e):
 
 
 def bar_of(a):
-    return (a.get("buffs") or {}).get("shaken") or {}
+    from game.core.battle_bars import bar_effect_key
+    return (a.get("effects") or {}).get(bar_effect_key("shaken")) or {}
 
 
 def dmg_calc_trigs(actor):
@@ -157,21 +158,25 @@ def test_2_awareness():
 
 def test_3_broken_mult():
     print("【3. 破绽·极乘区段：破防态 → ×1.5】")
+    from game.core.battle_bars import bar_effect_key
     p = mk_player(["钢拳", "破绽·极"])
     CMP.apply_class_mech(p)
     e = mk_enemy()
-    bs = {"val": 0, "threshold": 67, "trigger_count": 1, "immune_turns": 1}
-    e.setdefault("buffs", {})["shaken"] = dict(bs)
+    # 触发后免疫窗口内（immune_until = 当刻 + 1）
+    e.setdefault("effects", {})[bar_effect_key("shaken")] = {
+        "val": 0.0, "threshold": 67, "trigger_count": 1, "immune_until": 1.0, "_at": 0.0}
     m, logs = calc_mult(p, e)
     check("破防态 → mult 1.5", abs(m - 1.5) < 1e-9, f"mult={m} logs={logs}")
-    # 反例：触发过但免疫窗口已过（immune_turns=0）= 非破防态
+    # 反例：触发过但免疫窗口已过
     e2 = mk_enemy()
-    e2.setdefault("buffs", {})["shaken"] = dict(bs, immune_turns=0)
+    e2.setdefault("effects", {})[bar_effect_key("shaken")] = {
+        "val": 0.0, "threshold": 67, "trigger_count": 1, "immune_until": 0.0, "_at": 0.0}
     m2, _ = calc_mult(p, e2)
     check("免疫窗口结束 → mult 1.0", abs(m2 - 1.0) < 1e-9, f"mult={m2}")
     # 反例：有积蓄但从未触发（trigger_count=0）
     e3 = mk_enemy()
-    e3.setdefault("buffs", {})["shaken"] = dict(bs, trigger_count=0)
+    e3.setdefault("effects", {})[bar_effect_key("shaken")] = {
+        "val": 0.0, "threshold": 67, "trigger_count": 0, "immune_until": 1.0, "_at": 0.0}
     m3, _ = calc_mult(p, e3)
     check("未触发过 → mult 1.0", abs(m3 - 1.0) < 1e-9, f"mult={m3}")
 
@@ -186,19 +191,21 @@ def test_4_extend():
     fire(b, "skill_hit", {"actor": p, "target": e, "info": {"shaken_gain": 50}}, logs)
     bs = bar_of(e)
     check("推条满阈值 → 触发（trigger_count=1）", bs.get("trigger_count") == 1, f"bs={bs}")
-    check("延长后免疫窗口 = 2（配置 1 + extend 1）", bs.get("immune_turns") == 2, f"bs={bs}")
+    check("延长后免疫窗口 = 3.0（配置 2 + extend 1）",
+          abs(float(bs.get("immune_until", 0)) - 3.0) < 1e-9, f"bs={bs}")
     check("延长日志在触发之后", any("破防持续 +1" in str(x) for x in logs), f"logs={logs}")
     check("落地 mode=skip 未受影响",
           ((e.get("effects") or {}).get("bar_skip:shaken") or {}).get("mode") == "skip",
           f"eff={e.get('effects')}")
-    # 对照：未学破绽·极 → 免疫窗口 = 1（配置基线，不延长）
+    # 对照：未学破绽·极 → 免疫窗口 = 2（配置基线，不延长）
     p2 = mk_player(["钢拳"])
     CMP.apply_class_mech(p2)
     e2 = mk_enemy()
     b2 = new_battle(p2, e2)
     logs2 = []
     fire(b2, "skill_hit", {"actor": p2, "target": e2, "info": {"shaken_gain": 50}}, logs2)
-    check("对照组（无破绽·极）免疫窗口 = 1", bar_of(e2).get("immune_turns") == 1,
+    check("对照组（无破绽·极）免疫窗口 = 2", 
+          abs(float(bar_of(e2).get("immune_until", 0)) - 2.0) < 1e-9,
           f"bs={bar_of(e2)}")
     # 边界：未触发（只推 5 点）→ 不延长、无日志
     p3 = mk_player(["钢拳", "破绽·极"])
@@ -207,21 +214,21 @@ def test_4_extend():
     b3 = new_battle(p3, e3)
     logs3 = []
     fire(b3, "skill_hit", {"actor": p3, "target": e3, "info": {"shaken_gain": 5}}, logs3)
-    check("未触发不延长（val=5 / immune=0）",
-          bar_of(e3).get("val") == 5 and int(bar_of(e3).get("immune_turns", 0) or 0) == 0,
+    check("未触发不延长（val=5 / 无免疫窗口）",
+          bar_of(e3).get("val") == 5
+          and float(bar_of(e3).get("immune_until", 0) or 0) == 0.0,
           f"bs={bar_of(e3)}")
     check("未触发无延长日志", not any("破防持续" in str(x) for x in logs3), f"logs={logs3}")
 
 
 def test_5_combined():
     print("【5. 三段叠加：破防态下气力之心 + 破绽·极 = ×1.8】")
+    from game.core.battle_bars import bar_effect_key
     p = mk_player(["钢拳", "气力之心", "破绽·极"])
     CMP.apply_class_mech(p)
     e = mk_enemy()
-    from game.core.battle_bars import bar_gain as _bg
-    _bg(e, "shaken", 15, [])
-    e["buffs"]["shaken"]["trigger_count"] = 1
-    e["buffs"]["shaken"]["immune_turns"] = 1
+    e.setdefault("effects", {})[bar_effect_key("shaken")] = {
+        "val": 15.0, "threshold": 67, "trigger_count": 1, "immune_until": 1.0, "_at": 0.0}
     m, _ = calc_mult(p, e)
     check("×1.2（气力之心）×1.5（破绽·极）= 1.8", abs(m - 1.8) < 1e-9, f"mult={m}")
 

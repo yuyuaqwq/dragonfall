@@ -77,14 +77,21 @@ def _p_enemy_debuff(battle, actor, target, cond) -> bool:
 
 @register_cond("enemy_broken")
 def _p_enemy_broken(battle, actor, target, cond) -> bool:
-    """敌方被破防/震慑中（破绽条触发态）——与 bar_trigger 后状态同源。"""
+    """敌方被破防/震慑中（破绽条触发态）——与 bar_trigger 后状态同源。
+
+    条状态载体 = 目标 effects[BAR_STATE_PREFIX+shaken]；读取前先结算到当刻
+    （衰减时间制：不结算会读到过期值）。
+    """
     if not isinstance(target, dict):
         return False
-    bs = (target.get("buffs") or {}).get("shaken")
+    from ..core.battle_bars import bar_settle, bar_effect_key
+    _now = float(getattr(battle, "_now", 0.0) or 0.0)
+    bar_settle(target, "shaken", _now)
+    bs = (target.get("effects") or {}).get(bar_effect_key("shaken"))
     if not isinstance(bs, dict):
         return False
     return (int(bs.get("trigger_count", 0) or 0) > 0
-            and int(bs.get("immune_turns", 0) or 0) > 0)
+            and float(bs.get("immune_until", 0.0) or 0.0) > _now)
 
 
 @register_cond("melody_buff")

@@ -530,13 +530,18 @@ MECH_CASH = {
 # 技能数据字段 → enemy_bar key 映射。装配器扫 actor 已学技能：命中任意字段即挂
 # skill_hit 触发器（action=bar_gain, key=bar, field=技能字段）——学什么挂什么，
 # 零噪音。数值/衰减/阈值全在 battle_config.ENEMY_BAR_CFG[bar]（本表只做字段接线）。
-#   key      目标条（core/battle_bars 容器键）
+#   key      目标条（条状态存 actor.effects[BAR_STATE_PREFIX + key]）
 #   per_hit  字段值是「每段」注入量（v153 §六 分档表：「多段 +3~+5/段」，如连环拳
 #            4/段×4、裂岳连击 5/段×3）→ 命中时按技能 hits 段数合并注入
 #            （旧引擎逐段 settle 的等价收口：一次施放 = 段数 × 每段量）
 BAR_INJECT_FIELDS: dict = {
     "shaken_gain": {"key": "shaken", "per_hit": True},   # 拳师破绽：技能命中推条
 }
+
+# 条状态在 actor.effects 容器里的键前缀（弯离 EFFECT_RULES 命名空间——如 curse
+# 既是条、又是活效果键，直接同名会互相踩；前缀只是内容层命名约定，引擎按键查
+# EFFECT_RULES 找不到即零行为，不给引擎加专用路径也不新开散容器）。
+BAR_STATE_PREFIX: str = "bar:"
 
 # ============================================================
 # 被动 proc 声明表 PASSIVE_PROC（v181.M-passive · 插件形态样板）

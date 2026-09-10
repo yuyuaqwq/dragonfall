@@ -246,12 +246,11 @@ def prepare_player_for_battle(player: dict, title_bonus: Optional[dict] = None,
     except Exception:
         pass  # 面板重算失败不阻断开战（沿用 DB 值）
     # 3. echo_bless 消费（v97.4：探索事件写 event_state bless_{qid}，本场攻击 +pct%，
-    #    一次性）。V6：不再写 player.buffs 旧键——落 _battle_boons 标记，
+    #    一次性）。V6：不写 player.buffs 旧键（容器已删除）——落 _battle_boons 标记，
     #    player_to_actor 翻译成 actor.effects 面板快照（stats 折算，整场生效）。
     try:
         _qq = player.get("qq_id")
-        if _qq and not ((player.get("_battle_boons") or {}).get("echo_bless")
-                        or (player.get("buffs") or {}).get("echo_bless")):
+        if _qq and not (player.get("_battle_boons") or {}).get("echo_bless"):
             _raw = (db or _default_db()).get_event_state(f"bless_{_qq}")
             if _raw:
                 import json as _json2

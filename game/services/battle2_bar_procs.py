@@ -1,23 +1,24 @@
 # -*- coding: utf-8 -*-
-"""battle2 挂敌身条装配层 battle2_bar_procs（v181 破绽接线）。
+"""battle2 挂敌身条装配层 battle2_bar_procs（v181 破绽接线 + 时间化）。
 
 背景：`core/battle_bars.py` 的通用挂敌身条（enemy_bar）容器在 v181.N10 重构后
 失去消费方——旧 `battle.py` 的 `_skill_hit_settle` / `_turn_start` 两个消费端随文件
 删除，`bar_gain` 全库零调用方，破绽条打不出去（容器/配置/条件全活，只断在消费链）。
 本模块把消费链接回 battle2 的事件总线（`effect_triggers.fire`）。
 
-两个通用动词（引擎零知识：动作名是动词，bar key / 技能字段名全由声明参数给出）：
-- `bar_gain`  skill_hit 命中后按技能数据字段注入积蓄（`params["field"]`，如
-              `shaken_gain`）；满阈值 → `bar_trigger` → 落地 `trigger_effect`
-- `bar_tick`  宿主自身 turn_start：免疫期递减 + 自然衰减 + 触发检查；
-              首次注入时自安装到宿主 `triggers["turn_start"]`（只有真正挂过条的
-              单位才跑，零噪音）
+三个通用动词（引擎零知识：动作名是动词，bar key / 技能字段名全由声明参数给出）：
+- `bar_gain`        skill_hit 命中后按技能数据字段注入积蓄（`params["field"]`，如
+                    `shaken_gain`）；满阈值 → `bar_trigger` → 落地 `trigger_effect`
+- `bar_time_settle` time_advance 时钟推进：把宿主身上所有条按 dt 结息（免疫到期 +
+                    连续衰减）→ 触发检查。读点永远拿到当刻值
+                    （宿主首次挂条时自安装订阅——只有真挂过条的单位才跑，零噪音）
 
 数据来源：
 - 注入字段映射 = `data/battle2_rules.BAR_INJECT_FIELDS`（技能字段 → bar key；`per_hit`
   = 字段值是「每段」量，按技能 hits 合并注入，v153 §六「多段 +N/段」）
-- 条数值/阈值/衰减 = `data/battle_config.ENEMY_BAR_CFG[key]`
-- 条容器 = `core/battle_bars`（val/threshold/trigger_count/immune_turns）
+- 条数值/阈值/衰减/免疫 = `data/battle_config.ENEMY_BAR_CFG[key]`
+- 条容器 = `actor.effects[BAR_STATE_PREFIX + key]`（val/threshold/trigger_count/
+  immune_until/_at；V 系列统一单容器，见 core/battle_bars）
 
 控制落地：`trigger_effect == "skip_turn"` → 宿主 `effects` 挂 `mode=skip`
 （battle2 统一控制消费点 `Battle.act` 消费，消费即清）——`expire=None` 表示
@@ -28,11 +29,12 @@ from __future__ import annotations
 from ..battle2.effects import register_action
 
 
-def _host_of(caster, target, params) -> dict | None:
-    """条宿主：命中目标优先（skill_hit）；无 target 取声明者（turn_start 自 tick）。
+def _now_of(battle) -> float:
+    return float(getattr(battle, "_now", 0.0) or 0.0)
 
-    turn_start 事件的 ctx 无 target，fire 会把声明者注入 params["_owner"]。
-    """
+
+def _host_of(caster, target, params) -> dict | None:
+    """条宿主：命中目标优先（skill_hit）；无 target 取声明者（时钟事件自结算）。"""
     if isinstance(target, dict):
         return target
     own = params.get("_owner")
@@ -41,21 +43,33 @@ def _host_of(caster, target, params) -> dict | None:
     return caster if isinstance(caster, dict) else None
 
 
-def _ensure_tick(host: dict, key: str) -> None:
-    """自安装 turn_start tick 触发器（首次挂条时；重复调用幂等）。"""
-    lst = host.setdefault("triggers", {}).setdefault("turn_start", [])
+def _bar_keys_of(host: dict) -> list:
+    """宿主身上所有条键（effects 里带前缀的条目 → 去前缀 bar key）。"""
+    from ..core.battle_bars import _state_prefix
+    pfx = _state_prefix()
+    out = []
+    for k, v in (host.get("effects") or {}).items():
+        if isinstance(k, str) and k.startswith(pfx) and isinstance(v, dict):
+            out.append(k[len(pfx):])
+    return out
+
+
+def _ensure_tick(host: dict) -> None:
+    """自安装 time_advance 结算订阅（首次挂条时；重复调用幂等）。"""
+    lst = host.setdefault("triggers", {}).setdefault("time_advance", [])
     for e in lst:
-        if isinstance(e, dict) and e.get("action") == "bar_tick" and e.get("key") == key:
+        if isinstance(e, dict) and e.get("action") == "bar_time_settle":
             return
-    lst.append({"action": "bar_tick", "key": key})
+    lst.append({"action": "bar_time_settle"})
 
 
 def _settle(battle, host: dict, key: str, logs: list) -> bool:
     """阈值检查 → 触发 → 落地 trigger_effect。返回是否触发。"""
     from ..core.battle_bars import bar_def, bar_should_trigger, bar_trigger
-    if not host or not key or not bar_should_trigger(host, key):
+    now = _now_of(battle)
+    if not host or not key or not bar_should_trigger(host, key, now):
         return False
-    if not bar_trigger(host, key, logs):
+    if not bar_trigger(host, key, logs, now):
         return False
     bd = bar_def(key) or {}
     if (bd.get("trigger_effect") or "") == "skip_turn":
@@ -101,22 +115,21 @@ def bar_gain_act(battle, caster, target, params, logs):
     if amount <= 0:
         return
     from ..core.battle_bars import bar_gain
-    bar_gain(host, key, amount, logs)
-    _ensure_tick(host, key)
+    bar_gain(host, key, amount, logs, now=_now_of(battle))
+    _ensure_tick(host)
     _settle(battle, host, key, logs)
 
 
-@register_action("bar_tick")
-def bar_tick_act(battle, caster, target, params, logs):
-    """宿主自身回合开始：免疫期递减 + 自然衰减 + 触发检查。"""
-    key = params.get("key")
-    if not key:
+@register_action("bar_time_settle")
+def bar_time_settle_act(battle, caster, target, params, logs):
+    """time_advance：宿主自身所有条结算到当刻（免疫到期 + 连续衰减）+ 触发检查。"""
+    host = params.get("_owner") or _host_of(caster, target, params)
+    if not isinstance(host, dict):
         return
-    host = _host_of(caster, target, params)
-    if not host:
-        return
-    from ..core.battle_bars import bar_tick
-    if bar_tick(host, key, logs):
+    from ..core.battle_bars import bar_settle
+    now = _now_of(battle)
+    for key in _bar_keys_of(host):
+        bar_settle(host, key, now, logs)
         _settle(battle, host, key, logs)
 
 
@@ -127,7 +140,7 @@ def apply_bar_procs(actor: dict) -> None:
 
     ⚠️ 顺序契约：注入条目 **insert(0)** 排 skill_hit 首位——被动族同一事件的后置段
     （如破绽·极 passive_bar_extend 延长免疫窗口）依赖「本次命中先推条并触发」，
-    排在注入之后才能读到触发后的免疫窗口（旧 battle.py `_skill_hit_settle` 同序）。
+    排在注入之后才能读到触发后的免疫状态（旧 battle.py `_skill_hit_settle` 同序）。
     """
     cn = actor.get("class_name") or ""
     names = actor.get("learned_skills") or []

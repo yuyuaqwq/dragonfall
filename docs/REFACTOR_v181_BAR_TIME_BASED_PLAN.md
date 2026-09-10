@@ -1,26 +1,29 @@
-# v181 破绽条时间化改造——引擎/核心改动方案（2026-09-10 修订 v2，待审批）
+# v181 破绽条时间化改造——引擎/核心改动方案（2026-09-10，**已实施**）
 
 > 前置：`docs/REFACTOR_v181_P15_bar_passives.md`（被动实装 + 缺口 5 项）。
 > 本文只写**需要动引擎/核心的改动**；能落内容层的另列。
-> **v2 修订**：鱼鱼指出「buffs 已合并进 effects」——核实成立，且比预想更严重：
-> `core/battle_bars.bar_state` 会**凭空新建一个 `buffs` 死容器**（V 系列已删除的容器，
-> `make_actor` 不再播种），破绽条数据一直写在一个引擎和 battle2 都不认的地方。本版据此改写 §1。
+>
+> **实施状态（2026-09-10 夜，鱼鱼拍板「不留兼容，改干净」）**：
+> A/B/C/C0/C2/D/G 全部落地；E（Boss 阶段保留）/F（反震）另立工单。
+> 三项自定决策：**①A = 条上限 125**（放开阈值递增）；**②C = 免疫期内注入忽略**（策划案字面）；
+> **③C2 = 引擎时钟事件 time_advance**（6 行）。
+> ⚠️ 原 v2 的「读侧兼容旧存档 buffs」段**已删除**——鱼鱼 2026-09-10 明确「不需要兼容老存档」。
+> 验收：`tests/test_numeric_bar_decay.py` 25/25（新增数值门禁）+ `test_battle2_bar_procs` 41/41
+> + `test_passive_p15` / `test_battle2_cond_procs` / `test_melody` 回归绿。
 
-## §0 改动分层
+## §0 改动分层（先看这张）
 
-| # | 项 | 落点 | 是否动引擎 |
-|---|---|---|---|
-| A | 条上限 `max 50 → 125` | `data/battle_config.ENEMY_BAR_CFG` | ❌ 数据 |
-| B | 衰减改「每刻 −1.7 小数累计」 | **`core/battle_bars.py`（核心容器）** | ⚠️ 核心 |
-| C | 免疫窗口改时刻制（2 刻 / 期内不积蓄 / 到期可再触发） | **`core/battle_bars.py`** | ⚠️ 核心 |
-| **C0** | **条容器从死掉的 `buffs` 迁进 `effects`（v2 新增）** | **`core/battle_bars.py` + 4 个读点** | ⚠️ 核心 |
-| C2 | 让读点拿到「当刻值」 | **`battle2/schedule.py` + `effect_triggers.py`** | ✅ 引擎（6 行） |
-| D | 推满语义（跳过下一动 vs 定身 2.0 刻） | 装配层（`mode=skip` 引擎已有） | ❌ |
-| E | Boss 阶段保留 50% | `boss_script` 补 `fire("phase")`（当前零 fire 点） | ❌ 上层 |
-| F | 反震（受击反弹 30% + 推条 +3） | 装配层 `on_taken` | ❌ |
-| G | 展示当刻条值 | `commands/combat.py` 等读取处 | ❌ 上层 |
-
-**必须动的仍然只有 `core/battle_bars.py`（B+C+C0 同批）＋推荐 C2（引擎 6 行）；A/D/E/F/G 全部内容层。**
+| # | 项 | 落点 | 是否动引擎 | 状态 |
+|---|---|---|---|---|
+| A | 条上限 `max 50 → 125`（阈值递增封顶 = max×2.5） | `data/battle_config.ENEMY_BAR_CFG` | ❌ 数据 | ✅ |
+| B | 衰减改「每刻 −1.7 小数累计」 | **`core/battle_bars.py`（核心容器）** | ⚠️ 核心 | ✅ |
+| C | 免疫窗口改时刻制（2 刻 / 期内不积蓄 / 到期可再触发） | **`core/battle_bars.py`** | ⚠️ 核心 | ✅ |
+| C0 | 条容器从死掉的 `buffs` 迁进 `effects["bar:<key>"]` | **`core/battle_bars.py` + 读点** | ⚠️ 核心 | ✅ |
+| C2 | 让读点拿到「当刻值」（时钟事件 `time_advance`） | **`battle2/schedule.py` + `effect_triggers.py`** | ✅ 引擎（6 行） | ✅ |
+| D | 推满语义 = 跳过下一次行动（非定身 2.0 刻） | `battle2_bar_procs`（`mode=skip` 引擎已有） | ❌ | ✅ |
+| G | 展示当刻条值（战报「💥破绽 32/50」） | `commands/combat.py` | ❌ 上层 | ✅ |
+| E | Boss 阶段保留 50% | `boss_script` 补 `fire("phase")`（**当前零 fire 点**） | ❌ 上层 | ⏳ 另立 |
+| F | 反震（受击反弹 30% + 推条 +3） | 装配层 `on_taken` | ❌ | ⏳ 另立 |
 
 证据（可复核）：
 - `actors.py:106-111` 播种的是单 `effects` 容器（注释明写「原 state/buffs/hot/debuffs 四键合并」），
@@ -75,31 +78,20 @@
 | 控制消费（`Battle.act`） | `entry.get("mode")` | 不带 `mode` ✓ |
 
 断言：`for k in ENEMY_BAR_CFG: assert f"bar:{k}" not in all_state_effects()`；
-条条目键集 ⊆ `{val, threshold, trigger_count, _at, immune_until, immune_turns}`。
+条条目键集 ⊆ `{val, threshold, trigger_count, _at, immune_until, _no_inject_at}`。
 
-### 1.4 读侧迁移（真人战斗存档兼容，必须）
+### 1.4 读侧迁移：**不做**（鱼鱼 2026-09-10 拍板「不需要兼容老存档」）
 
-```python
-def bar_state(host, key, now=None):
-    st = host.setdefault("effects", {})
-    node = st.get("bar:" + key)
-    if not isinstance(node, dict):
-        legacy = (host.get("buffs") or {}).get(key)          # 旧存档/进行中的战斗
-        node = legacy if isinstance(legacy, dict) else {}
-        if legacy:
-            (host.get("buffs") or {}).pop(key, None)         # 迁走即删旧键
-            if not host.get("buffs"):
-                host.pop("buffs", None)                      # 空容器不残留
-        st["bar:" + key] = node
-    ...
-```
-
-（进行中的战斗是随 actor 序列化落盘的，真人正在打——迁移必须读侧容错，不能只改写入端。）
+条状态直接进 `effects["bar:<key>"]`，**不读旧 `buffs` 键**——旧存档里进行中的破绽条丢弃，
+战斗内重新推即可（拳师推条 ≈4.5 次出手一次触发，代价可接受）。
+代码里也不留 `legacy` 分支/开关（拒绝兼容壳）。
 
 ### 1.5 API（`now` 可选关键字，旧调用退化=不结算）
 
 ```python
-bar_state(host, key, now=None) -> dict
+bar_def(key) -> dict
+bar_effect_key(key) -> str                          # "bar:" + key（BAR_STATE_PREFIX）
+bar_state(host, key, now=None) -> dict              # 读取/初始化（effects[bar:*]）
 bar_settle(host, key, now, logs=None) -> dict       # 新增：dt=now−_at；免疫到期清；
                                                     #   val −= dt×decay（**不再 int()**）
 bar_gain(host, key, amount, logs=None, now=None) -> float
@@ -107,9 +99,11 @@ bar_gain(host, key, amount, logs=None, now=None) -> float
                                                     # 触发当帧注入 = 0（no_inject_on_trigger）
 bar_should_trigger(host, key, now=None) -> bool     # val≥threshold 且 now≥immune_until
 bar_trigger(host, key, logs=None, now=None) -> bool # 阈值递增；val=0；immune_until=now+immune_secs
-bar_tick(host, key, logs=None, now=None) -> bool    # = settle + should_trigger（宿主兜底）
-bar_preserve(host, key, pct=None)                   # 不变（Boss 阶段）
-turn_start_bars(...)                                # 零调用 → 建议随批删（不留半死入口）
+bar_preserve(host, key, pct=None)                   # 阶段转换保留（E 待接）
+```
+
+（原 `bar_tick` / `turn_start_bars` 已删——时钟事件 `time_advance` 统一结算，
+不留「半死的兜底入口」。）
 ```
 
 `immune_secs`：`bd.get("immune_secs")`，缺省回落 `bd["immune_turns"] × 1.0`（curse 的 0 行为不变）。
@@ -120,7 +114,7 @@ turn_start_bars(...)                                # 零调用 → 建议随批
 连招三连（hits=3、5/段）= 一次施放 +15
 拳师循环 2.2 刻 → 衰减 −1.7×2.2 = −3.74 → 净 +11.26
 首阈值 50 → 50/11.26 ≈ 4.44 次出手 → 对齐 v153 §六「约 4.5 次」
-阈值序列 50→67→90→122→125（A 项 ×2.5 封顶）
+阈值序列 50→67→90→121→125（A 项 ×2.5 封顶）
 ```
 
 ---
@@ -179,14 +173,14 @@ ENEMY_BAR_CFG["shaken"] = {
 ```text
 1  每 2.2 刻衰减 = 3.74 ± 0.01（float 语义，非 int 截断）
 2  连招三连 4.5 次出手触发一次（模拟 15/次注入）
-3  阈值序列 50/67/90/122/125（封顶）
+3  阈值序列 50/67/90/121/125（封顶）
 4  免疫 2 刻内注入无效（val 保持 0）+ 到期后可再触发
 5  自锁防护：触发当帧注入 = 0
 6  破绽感知：衰减 1.7 → 0.85（P15 遗留的物理空转项）
 7  反震：受击 30 → 反弹 9 + 攻击方推条 +3
 8  Boss 阶段保留 50% 积蓄
 9  容器安全：条键不在 EFFECT_RULES / 条目不带 expire|period|stat|mode|stacks
-10 迁移：buffs[shaken] 旧存档 → 读一次后迁进 effects["bar:shaken"] 且旧键清除
+10 容器位置：条写进 effects["bar:*"]，不新建 buffs 死容器
 ```
 
 ## §6 待拍板（3 点）
@@ -214,18 +208,15 @@ ENEMY_BAR_CFG["shaken"] = {
 # ---------- 命名 ----------
 KEY(bar) = "bar:" + bar                 # 前缀 = data/battle2_rules.BAR_STATE_PREFIX
 
-# ---------- 读/建（含旧存档迁移）----------
+# ---------- 读/建（无兼容分支——旧 buffs 存档不支持）----------
 def bar_state(host, key, now=None):
     node = host.effects.get(KEY(key))
     if not isinstance(node, dict):
-        legacy = host.get("buffs", {}).get(key)          # ← 老存档/进行中战斗
-        node = legacy if isinstance(legacy, dict) else {}
-        if legacy:
-            host["buffs"].pop(key);  if not host["buffs"]: host.pop("buffs")
+        node = {}
         host.effects[KEY(key)] = node
     node.setdefault → {"val": 0.0, "threshold": bar_def(key)["threshold_base"],
                        "trigger_count": 0, "_at": now or 0.0,
-                       "immune_until": 0.0, "immune_turns": 0}
+                       "immune_until": 0.0}
     return node
 
 # ---------- 时间结息（新增；任何读点前调一次 → 读数永远准）----------

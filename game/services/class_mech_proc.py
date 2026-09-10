@@ -545,23 +545,31 @@ def install() -> None:
                 ok = True
                 mult = float(params.get("dmg_add") or params.get("mult") or 0)
         elif kind in ("target_bar_ge", "target_bar_broken"):
-            # 挂敌身条（buffs[bar] = {val, threshold, trigger_count, immune_turns}）消费：
+            # 挂敌身条（actor.effects[BAR_STATE_PREFIX+bar] = {val, threshold,
+            # trigger_count, immune_until, _at}）消费：
             # - target_bar_ge     条积蓄 ≥ 门槛（气力之心：破绽 ≥15 → ×1.2；门槛读
             #                     params[ge_field]，默认 bar_at——数值全来自被动 dict）
-            # - target_bar_broken 条处于破防态（trigger_count>0 且免疫窗口内；破绽·极
-            #                     乘区段 ×1.5，倍率读 params.broken_mult）
-            # （推条/触发由 battle2_bar_procs 负责，本判定只读条状态——引擎零名词。）
+            # - target_bar_broken 条处于破防态（trigger_count>0 且在免疫窗口内；
+            #                     破绽·极乘区段 ×1.5，倍率读 params.broken_mult）
+            # （推条/触发/衰减由 core/battle_bars + battle2_bar_procs 负责，本判定
+            #   只把条结算到当刻再读——引擎零名词。）
             _bar = judge.get("bar") or params.get("bar") or ""
-            _bs_j = (tg.get("buffs") or {}).get(_bar) if (tg is not None and _bar) else None
+            _bs_j = None
+            if tg is not None and _bar:
+                from ..core.battle_bars import bar_settle, bar_effect_key
+                _now_j = float(getattr(battle, "_now", 0.0) or 0.0)
+                bar_settle(tg, _bar, _now_j)
+                _bs_j = (tg.get("effects") or {}).get(bar_effect_key(_bar))
             if isinstance(_bs_j, dict):
                 if kind == "target_bar_ge":
                     _need = float(params.get(judge.get("ge_field") or "bar_at") or 0)
-                    if _need > 0 and float(_bs_j.get("val", 0) or 0) >= _need:
+                    if _need > 0 and float(_bs_j.get("val", 0.0) or 0.0) >= _need:
                         ok = True
                         mult = float(params.get("mult") or params.get("dmg_add") or 0)
                 else:
+                    _imm = float(_bs_j.get("immune_until", 0.0) or 0.0)
                     if int(_bs_j.get("trigger_count", 0) or 0) > 0 \
-                            and int(_bs_j.get("immune_turns", 0) or 0) > 0:
+                            and _imm > float(getattr(battle, "_now", 0.0) or 0.0):
                         ok = True
                         mult = float(params.get("broken_mult") or params.get("mult")
                                      or params.get("dmg_add") or 0)
@@ -575,8 +583,8 @@ def install() -> None:
         """skill_hit 触发后置：目标挂条处于破防态 → 免疫窗口 +extend 刻（破绽·极）。
 
         语义源 = 旧 battle.py `_skill_hit_settle` bar_trigger 后 shaken 段逐字：本次
-        命中刚触发（trigger_count>0）且免疫窗口已开（immune_turns>0）→
-        immune_turns += passive.extend（v169.7 注：半刻不支持 → 数据向下取整取 1）。
+        命中刚触发（trigger_count>0）且仍在免疫窗口内 → 免疫截止时刻 +extend
+        （v169.7 注：半刻不支持 → 数据向下取整取 1）。
         参数：judge.bar（条名）/ params.extend（刻数，来自被动 dict）。
         装配顺序依赖：挂条动词（bar_gain）须先于本段执行（见 battle2_bar_procs
         apply_bar_procs 头部 insert 注释）。
@@ -588,20 +596,22 @@ def install() -> None:
             host = target
         bar = judge.get("bar") or params.get("bar") or ""
         try:
-            ext = int(params.get("extend", 0) or 0)
+            ext = float(params.get("extend", 0) or 0)
         except Exception:
-            ext = 0
+            ext = 0.0
         if not bar or ext <= 0 or not isinstance(host, dict):
             return
-        bs = (host.get("buffs") or {}).get(bar)
+        from ..core.battle_bars import bar_effect_key
+        bs = (host.get("effects") or {}).get(bar_effect_key(bar))
         if not isinstance(bs, dict):
             return
         if int(bs.get("trigger_count", 0) or 0) <= 0:
             return
-        if int(bs.get("immune_turns", 0) or 0) <= 0:
+        _now = float(getattr(battle, "_now", 0.0) or 0.0)
+        if float(bs.get("immune_until", 0.0) or 0.0) <= _now:
             return
-        bs["immune_turns"] = int(bs.get("immune_turns", 0) or 0) + ext
-        logs.append(f"✨ {params.get('label') or '被动'}：破防持续 +{ext} 刻！")
+        bs["immune_until"] = float(bs.get("immune_until", 0.0) or 0.0) + ext
+        logs.append(f"✨ {params.get('label') or '被动'}：破防持续 +{int(ext)} 刻！")
 
     @register_action("passive_kill_gain")
     def passive_kill_gain(battle, caster, target, params, logs):

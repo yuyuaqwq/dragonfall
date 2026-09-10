@@ -28,6 +28,7 @@
 | `test_numeric_monster_curve.py` | 6 种 role（tank/dps/caster/speedster/elite/boss）在 1/11/22/30/60 级 hp/atk/def/spd 成长曲线（对照 stat_templates 模板公式） | 防怪物成长公式误改（含等级段修正/三阶乘区） |
 | `test_numeric_skill_power.py` | 12 职业各 2 个代表技能（基础技 + 成型技）的 power/mp/lv/成长率快照 | 防技能倍率误调 |
 | `test_numeric_economy_toolkit.py` | 经济模型 economy_lib 分阶段体检（6 阶段收入/装备/锻造/掉落账本 + 副业成本-价值 + 掉落数量 cap 生效） | 防经济数值改动脱离健康带（v165 起） |
+| `test_numeric_bar_decay.py` | 挂敌身条（破绽）时间制：每刻 −1.7 连续衰减（非 int 截断）、连招三连 ≈4.5 次出手触发（v153 §六 验算）、阈值序列 50→67→90→121→125、条上限 ≥ 阈值封顶、免疫窗口 2 刻不积蓄/到期可再触发、触发当帧注入=0、条键不与 EFFECT_RULES 撞键、条条目不触发容器自动化（expire/period/mode/stacks/stat） | 防「衰减被取整/挂回行动制」「阈值递增与条上限打架（第二次触发死锁）」「免疫窗口丢防连控」「条被 DOT/面板折算误伤」（v181 破绽时间化） |
 
 ## 基线更新流程
 

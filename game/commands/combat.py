@@ -1968,11 +1968,12 @@ class CombatCmds(CommandBase):
                     pbuf.append(f"✨护盾{s['value']}")
         if pbuf:
             parts.append(f"🛡️你：「{' '.join(pbuf)}」")
-        # 敌方状态（当前主目标怪；battle2 效果在 effects / 旧引擎 buffs——双引擎判型）
+        # 敌方状态（当前主目标怪；battle2 效果容器 effects）
         ebuf = []
         _eb = self._b_enemy(b) or {}
-        _eb_eff = _eb.get("effects") or {}
-        _eb_disp = _eb_eff if isinstance(_eb_eff, dict) and _eb_eff else (_eb.get("buffs") or {})
+        _eb_disp = _eb.get("effects") or {}
+        if not isinstance(_eb_disp, dict):
+            _eb_disp = {}
         for k, v in _eb_disp.items():
             if k not in self._E_BUFF_NAMES:
                 continue
@@ -1999,6 +2000,25 @@ class CombatCmds(CommandBase):
                 continue
             left_tag, _ = self._buff_left_ticks(k, v, _now_t)
             ebuf.append(f"{self._E_BUFF_NAMES[k]}{('(' + left_tag + ')') if left_tag else ''}")
+        # 挂敌身条（破绽/诅咒等）：effects[BAR_STATE_PREFIX+key] → 显示当刻积蓄/阈值
+        # （结算到当前刻再读；阈值随触发递增，玩家据此决策「继续推还是换目标」）
+        try:
+            from ..core.battle_bars import bar_settle, bar_def, _state_prefix
+            _pfx = _state_prefix()
+            _now_b = float(getattr(b, "_now", 0.0) or 0.0)
+            for _k, _v in list(_eb_disp.items()):
+                if not (isinstance(_k, str) and _k.startswith(_pfx)
+                        and isinstance(_v, dict)):
+                    continue
+                _bk = _k[len(_pfx):]
+                _bd = bar_def(_bk)
+                if not _bd:
+                    continue
+                bar_settle(_eb, _bk, _now_b)
+                ebuf.append(f"💥{_bd.get('name') or _bk} {int(_v.get('val', 0) or 0)}"
+                            f"/{int(_v.get('threshold', 0) or 0)}")
+        except Exception:
+            pass  # 条显示异常不影响战报
         # 敌方狂暴（v58 mech）
         if _eb.get("enraged"):
             ebuf.append("😡狂暴")
