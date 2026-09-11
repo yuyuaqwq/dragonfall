@@ -47,7 +47,7 @@ EXPECTED_GAPS = {
     # D 类真空转
     "faith_share", "finisher_up", "poison_burst_up", "poison_spread",
     # 引擎旧通道直读（挂点 7/8/9，已消费未注册表化）
-    "arcane_constant", "lian_duan_soft", "shadow_dance_cd",
+    "arcane_constant", "lian_duan_soft", "shadow_dance_ease",  # ease = 原 shadow_dance_cd 改名（2026-09-11 改词裁定）
     # P15 走新装配路径（PASSIVE_PROC 表 + class_mech_proc）
     "reflect_bar",
 }

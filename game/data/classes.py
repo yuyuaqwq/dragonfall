@@ -12,26 +12,18 @@ v112 新增数据字段（数据驱动收敛，逻辑层只读数据）：
   tutor        (导师名, 地点)（转职指引/技能学习拦截提示）
 
 v139 职业融合（云海猎团职业卡吸收，13 份方案 design/new_world/参考_云海猎团职业融合_v139_*.md）：
-  mech 描述更新为「奥兰迪亚身份 + v139 融合机制」一句话（职业指南/战斗展示用）；
-  新增职业级机制字段（说明性引用，与 battle_config.py 同名 CFG 同构——dual_form 双形态 /
-  focus 架设态 / vent 排气节流阀 / charge 电荷蓄力 / enemy_bar 挂敌身条 / combo 链值 /
-  support 随附支援 / dirge 死歌 等；同构值原在 core_resources.py，随 v181.M-R2c 退役删除，
-  字段值全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章(§0-§6)）：
-  P2E（2026-09-07）：classes 内机制参数字段与 battle_config/core_resources 并存属历史双源；
-  删除评估在数据批次（combo dict 已随 P2E-P2a 删；core_resources.py 已随 M-R2c 退役删除）。
-    cls_zhan_shi      dual_form（攻线狂战士狂暴）
-    cls_fa_shi        focus（元素架设）
-    cls_you_xia       vent + charge（凝神屏息 + 电荷蓄力）
-    cls_mu_shi        support（守线圣辉支援）
-    cls_ci_ke         finisher_threshold + combo（终结档位 + 链值滚雪球）
-    cls_wu_seng       enemy_bar.shaken + guard_core（破绽挂敌身 + 磐核）
-    cls_dragon_oath   dual_form（龙焰形态）
-    cls_chronomancer  focus（时间凝滞）
-    cls_wild_hunter   vent + star_lock（猎印排气 + 星轨锁定）
-    cls_hymn          enemy_bar.curse/soul_mark + dirge（诅咒挂敌身 + 死歌）
-    cls_shadow_blade  dual_form（影舞态）+ ambush_plan（伏击四预案）
-    cls_wu_sheng      dual_form（蓄势/倾泻）+ enemy_bar.shaken（撼岳之势）
-  原则：只加数据不改结构（desc/evolve 分支不动），旧字段无该键 = 默认不启用（引擎兼容旧数据）。
+  以下字段曾在各职业块内以「职业级机制参数」形式存在，与 battle_config 同名 CFG 属历史双源：
+    dual_form（狂战士狂暴）/ focus（元素架设）/ vent（凝神屏息）/ charge（电荷蓄力）/
+    support（圣辉支援）/ finisher_threshold（终结档位）/ guard_core（磐核）/ combo（链值）/
+    dirge（死歌）/ enemy_bar 副本 等
+  两条退役路径：
+    · core_resources.py 随 v181.M-R2c 退役；CFG 侧 dual_form/focus/vent/charge 四张表随
+      2026-09-11 死代码清理删除（消费端旧 battle.py 通用状态机已随 battle2 重构消失）。
+    · classes.py 内的职业级 dict 副本同日删除（逐项 grep 确认零消费方）。
+  **设计数值与口径全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §0-§6**
+  与 design/new_world/参考_云海猎团职业融合_v139_*.md；现行机制以 EFFECT_RULES 声明 + 内容侧
+  装配层（game/services/*）为准。
+  原则：只加数据不改结构（desc/evolve 分支不动）。
 """
 CLASSES = {
     "cls_novice": {
@@ -84,15 +76,9 @@ CLASSES = {
             2: ["狂战统领", "坚盾卫士"],
             3: ["战争领主", "坚城统帅"],
         },
-        # v139（云海狂战士双形态翻译，样板定稿）：攻线狂战士狂暴形态——字段与
-        # 旧 core_resources.py cls_zhan_shi.dual_form 同构（R2c 退役，同构值留档
-        # docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md §1；enter_requirement 10 / maintain_cost 1 /
-        # hit_cost 1 / hit_cost_cap 1 / force_return 4 / form "fury"），由 battle.py 通用形态机消费；
-        # 战前可设入狂暴 4 档预设（满怒/7怒/窗口/血线），守线 side 另有 tenacity 坚韧副资源
-        "dual_form": {
-            "enter_requirement": 10, "maintain_cost": 1, "hit_cost": 1,
-            "hit_cost_cap": 1, "force_return": 4, "return_penalty": "none", "form": "fury",
-        },
+        # v139 机制字段副本已删（2026-09-11 死代码清理）：与 battle_config CFG 属历史双源，
+        #   零消费方（唯一读点为已随 battle2 重构删除的 core/battle_modes.py）。设计留档
+        #   docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章。
         "attack_text": "挥剑斩击",
         "basic_skill": {"name": "挥剑斩击", "kind": "物理", "exprs": ["atk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True, "trigger_hit": True, "res_gain": 1, "cast_verb": "挥剑斩击"},
         "tutor": ("老兵·格里姆", "白鹿城·白鹿广场"),
@@ -147,15 +133,9 @@ CLASSES = {
             2: ["元素术士", "奥术大师"],
             3: ["元素贤者", "奥秘主宰"],
         },
-        # v139（云海机械师架设态翻译）：元素架设 focus——字段与旧 core_resources.py cls_fa_shi.focus
-        # 同构（R2c 退役，同构值留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md §2；enter_turn 1 / dmg_bonus 0.40 / taken_bonus 0.20 / interrupt 只掉 1 层 /
-        # max_turns 3 / free_exit），由 battle.py 通用专注机消费；攻线开启技「元素聚焦」、
-        # 守线开启技「深度冥想」（架设中每刻 arcane 自动 +1）
-        "focus": {
-            "enter_turn": 1, "dmg_bonus": 0.40, "taken_bonus": 0.20,
-            "interrupt_charge_loss": 1, "max_turns": 3, "free_exit": True,
-            "blocked": ["attack", "skill", "swap"],
-        },
+        # v139 机制字段副本已删（2026-09-11 死代码清理）：与 battle_config CFG 属历史双源，
+        #   零消费方（唯一读点为已随 battle2 重构删除的 core/battle_modes.py）。设计留档
+        #   docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章。
         "attack_text": "凝聚魔力轰出法球",
         "basic_skill": {"name": "法球", "kind": "魔法", "exprs": ["matk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True, "trigger_hit": True, "cast_verb": "凝聚魔力轰出法球"},
         "tutor": ("大法师·艾德琳", "白鹿城·白鹿广场"),
@@ -207,23 +187,9 @@ CLASSES = {
             2: ["自然守望者", "疾风射手"],
             3: ["万木之灵", "狂风之猎"],
         },
-        # v139（云海游侠节流阀翻译）：精力排气——VENT_CFG（battle_config.py）触发=100 强制屏息、
-        # 闪避/机动泄压 -15、排气后低耗档段数 +1；字段说明性引用（核心数据在 battle_config.py VENT_CFG）
-        "vent": {
-            "trigger": 100, "auto": True, "reset": 0,
-            "seg_bonus": 1, "low_cost_max": 25,
-            "vent_on_dodge": 15, "vent_on_mobile": 15,
-        },
-        # v139（云海弓手蓄力三律翻译）：电荷制蓄力——CHARGE_CFG 引擎默认值（battle_config.py；
-        # max 3 / 边攒边打出伤 0.7/1.3/1.9 / 打断-1阶 / 满 3 强制释放 / 狙击 reach=3
-        # ⚠️ 死字段：技能无 charge_cfg 挂载（skills.py 全表 0 处）、引擎 battle_bars charge_def
-        #   只读 skill_info.charge/charge_cfg（不读本职业 dict）→ 本 dict 零消费；删除归数据批次。
-        #   兜底活源 = battle_config CHARGE_CFG（battle_bars _cfg(_battle_cfg("charge"),…)）。
-        "charge": {
-            "max": 3, "gain_per_turn": 1, "dmg_per_stage": [0.7, 1.3, 1.9],
-            "interrupt_penalty": 1, "force_release": True, "release_power": 2.8,
-            "release_extra": {"pierce": True, "reach": 3},
-        },
+        # v139 机制字段副本已删（2026-09-11 死代码清理）：与 battle_config CFG 属历史双源，
+        #   零消费方（唯一读点为已随 battle2 重构删除的 core/battle_modes.py）。设计留档
+        #   docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章。
         "attack_text": "弯弓搭箭",
         "basic_skill": {"name": "疾射", "kind": "物理", "exprs": ["atk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True, "trigger_hit": True, "cast_verb": "弯弓搭箭"},
         "tutor": ("猎手·柯恩", "铁港城·港口广场"),
@@ -279,14 +245,9 @@ CLASSES = {
             2: ["大主教", "亡魂引渡者"],
             3: ["圣光先知", "黯灵君主"],
         },
-        # v139（云海圣骑士随附支援翻译）：守线圣辉支援——圣律 vow 0-3（原 core_resources.py 注册段
-        # R2c 退役，vow 字段值留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md §5），
-        # 治疗命中/受击攒圣律（每刻至多 1），消耗 1 圣律施放 1 件支援（不占主行动、主行动后结算）；
-        # 攻线歌者共鸣/回声双资源见 job_guide EXTRA_RESOURCE_GUIDE（原 core_resources.py 表尾段 R2c 退役迁入）
-        "support": {
-            "res_key": "vow", "max": 3, "per_turn_cap": 1,
-            "type": "post_action",  # 主行动结算后触发（随附）
-        },
+        # v139 机制字段副本已删（2026-09-11 死代码清理）：与 battle_config CFG 属历史双源，
+        #   零消费方（唯一读点为已随 battle2 重构删除的 core/battle_modes.py）。设计留档
+        #   docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章。
         "attack_text": "圣光冲击",
         "basic_skill": {"name": "圣光冲击", "kind": "魔法", "exprs": ["matk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True, "trigger_hit": True, "cast_verb": "圣光冲击"},
         "tutor": ("圣殿执事·莉亚", "白鹿城·白鹿广场"),
@@ -336,12 +297,9 @@ CLASSES = {
             2: ["暗影之刃", "淬毒师"],
             3: ["无影之刃", "蚀骨者"],
         },
-        # v139（云海剑客战前阈值 DSL 翻译）：终结阈值档位——player.event_state["finisher_threshold"]
-        # 战斗内只读；档位A 快刀(cp≥3) / B 满刃(cp=5) / C 残血(HP<40%+cp≥3) / D 满段(攻线链值≥8)
-        "finisher_threshold": {
-            "data_field": "player.event_state.finisher_threshold",
-            "default": "满刃", "options": ["快刀", "满刃", "残血", "满段"],
-        },
+        # v139 机制字段副本已删（2026-09-11 死代码清理）：与 battle_config CFG 属历史双源，
+        #   零消费方（唯一读点为已随 battle2 重构删除的 core/battle_modes.py）。设计留档
+        #   docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章。
         # v139（云海盗贼段数三线投喂翻译）：攻线连段链值 combo——数值权威 = battle_config
         # COMBO_CFG（P2E 后 = MECH_CFG['assassin_combo']）：cap 10 / finish_min 3 /
         # per_layer 0.05 / max_bonus 0.40 / class_id cls_ci_ke / path 1。
@@ -397,14 +355,9 @@ CLASSES = {
             2: ["拳术师", "铁壁行者"],
             3: ["破晓者", "不破之壁"],
         },
-        # （破绽 shaken 的条配置不在本处：数值单源 = battle_config.ENEMY_BAR_CFG，
-        #   本文件旧副本 max 50/decay 4 已删——零消费方且与配置漂移）
-        # v139（云海守卫充能核翻译）：守线磐核 guard_core 0-5——引擎字面实现
-        # 守御姿态受击+1 / 未受击保底+1 / 技能命中+1；磐岩释能 M=1.0+0.7×核（线性刻意，早放高频 vs 攒满峰值）
-        "guard_core": {
-            "max": 5, "on_defend_hit": 1, "on_defend_idle": 1,
-            "discharge_base": 1.0, "discharge_per_core": 0.7,
-        },
+        # v139 机制字段副本已删（2026-09-11 死代码清理）：与 battle_config CFG 属历史双源，
+        #   零消费方（唯一读点为已随 battle2 重构删除的 core/battle_modes.py）。设计留档
+        #   docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章。
         "attack_text": "挥拳轰击",
         "basic_skill": {"name": "直拳", "kind": "物理", "exprs": ["atk*1.0"], "cast": 0.0, "cd": 0, "mp": 0, "basic": True, "trigger_hit": True, "cast_verb": "挥拳轰击"},
         "tutor": ("船帮武师·老陈", "铁港城·港口广场"),

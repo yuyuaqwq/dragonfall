@@ -242,117 +242,35 @@ QUALITY_UPGRADE_COST = {               # 品质提升额外消耗的稀有材料
 # ============================================================
 
 # ============================================================
-# v139 职业融合·6 大通用引擎机制（docs/EXTENSIBILITY_REFACTOR_PLAN_v139.md 实现基准）
+# v139 职业融合·通用机制数值（docs/EXTENSIBILITY_REFACTOR_PLAN_v139.md 实现基准）
 #   数据驱动：职业差异原进各职业 core_resources dual_form/focus 字段（v181.M-R2c 退役删除，
 #   字段值全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §0-§6）
-#   与技能表，本文件只放 6 个通用机制（dual_form/focus/charge/vent/enemy_bar/counter）的引擎级数值，
-#   以及 13 份职业方案（design/new_world/参考_云海猎团职业融合_v139_*.md）提炼的职业签名技数值。
-#   铁律：battle.py 禁止职业特判 if-elif；新增常量须 core/constants.py + core/__init__.py 导出；
-#   无字段 = 默认不启用（兼容旧数据）；数值过 run_numeric_tests.py 门禁 + v133 峰值红线（≤42% 同级怪血）。
+#   与技能表；本文件放通用机制数值 + 13 份职业方案
+#   （design/new_world/参考_云海猎团职业融合_v139_*.md）提炼的职业签名技数值。
+#   铁律：数值过 run_numeric_tests.py 门禁 + v133 峰值红线（≤42% 同级怪血）。
 # ============================================================
 
 # ============================================================
-# 一、dual_form 双形态（通用形态机，v139 §1）
-#   消费端：battle.py 通用形态机（_dual_form_enter/_tick/_hit/_exit/_mult）；
-#   各职业差异字段（enter_requirement / maintain_cost / hit_cost / hit_cost_cap /
-#   force_return / return_penalty / form / auto_enter / duration / lock_gain / no_hit_clear）
-#   原在 core_resources.py 各职业 dual_form 键——R2c 退役后留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md §1；
-#   本 CFG 只放引擎级通用数值与默认值。
-#   免费切换是承重墙：进入/退出不占行动、不耗资源；强制回形态无惩罚（P1）；
-#   受击不清零（P3）：单刻至多扣 hit_cost_cap；状态随战斗 to_state/from_state 序列化。
+# v139 职业融合·通用引擎机制 —— 在役状态
+#   原「6 大通用机制」（dual_form / focus / charge / vent / enemy_bar / counter）
+#   的引擎侧消费端是旧 battle.py 的通用状态机，随 battle2 重构（N10）整体消失。
+#   2026-09-11 复核（当前仓库状态逐项 grep）后处置：
+#     · dual_form / focus / charge / vent —— **已删**（四张 CFG 一并移除）。
+#       形态层未在 battle2 落位；职业差异字段早已随 core_resources.py（R2c）退役，
+#       通用数值与设计口径全文留档
+#       docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §0-§6。
+#       现网技能不再声明这四个机制的字段（狂暴态由内容层 class_mech_proc 的
+#       fury 效果 + 战意资源承载，不走通用形态机）。
+#     · counter —— 见下方 BUFF_MULT 段说明。
+#     · enemy_bar —— **在役**（唯一存活的通用机制；消费端 saintess_engine.gauge
+#       battle_bars + 内容装配层 battle_bar_procs），见下节。
 # ============================================================
-DUAL_FORM_CFG = {
-    "default_enter_requirement": 10,  # 默认入形态门槛：资源 ≥ N 可进入（战前可下调）
-    "default_maintain_cost": 1,       # 默认形态维持：形态中每刻 -N 资源
-    "default_hit_cost": 1,            # 默认受击扣减：形态中受击 -N（P3：不清零）
-    "default_hit_cost_cap": 1,        # 默认单刻受击扣减上限（至多 N）
-    "default_force_return": 4,        # 默认强制回基础形态阈值：资源 < N 强制回
-    "default_return_penalty": "none", # 默认强制回惩罚：P1 归零无惩罚（不晕/不空过）
-    "auto_duration": 3,               # 自动形态持续刻（暮影影舞 auto_enter=True 时 3 刻）
-    "dmg_bonus": 0.20,                # 形态增伤倍率默认值（狂暴/龙焰/影舞等形态内技能伤害 +20%）
-    # 各职业差异字段说明（狂战士 fury / 龙裔 dragon_flame / 暮影 dance / 淬势者蓄势）——
-    #   原值在 core_resources.py 各职业 dual_form 键，随 v181.M-R2c 退役删除（v151 已删隐藏职业），
-    #   全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §1。
-}
 
 # ============================================================
-# 二、focus 架设态（通用专注机，v139 §2）
-#   消费端：battle.py 通用专注机（_focus_enter/_tick/_hit/_mult/_block/_exit）；
-#   职业差异原在 core_resources.py 各职业 focus 字段（R2c 退役，值留档
-#   docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §2）；本 CFG 放引擎级默认值。
-#   核心规则：打断不清零（P3，资源保留只退态）；增伤不作用于耗资源大爆发技（防 EQ 超上限）；
-#   免费解除（承重墙）；受击打断概率挂 v130.2 批次 2 受击挂点。
-# ============================================================
-FOCUS_CFG = {
-    "enter_turn": 1,            # 进入占 1 刻（站桩吟唱，当刻不出伤）
-    "enter_gain": 1,            # 进入时资源 +N（预装，G1）
-    "gain_per_turn": 1,         # 专注中每刻额外 +N 资源（G2，主来源完全自主）
-    "dmg_bonus": 0.40,          # 专注中技能伤害 +40%（乘区挂 pmult，受 SKILL_PMULT_CAP=6.0 封顶）
-    "taken_bonus": 0.20,        # 专注中受击 +20%（走 _damage_actor 惩罚分支）
-    "interrupt_rate": 0.30,     # 受击打断概率（P3：打断不清零，资源保留）
-    "max_turns": 3,             # 维持刻上限，第 max_turns+1 刻自动解除（时间过载）
-    "blocked": ("attack", "skill", "swap"),  # 专注中禁止的行动（可防御/道具/逃跑）
-    "free_exit": True,          # 主动解除 = 免费无损（承重墙，不扣充能不惩罚）
-    "no_burst_skills": True,    # 增伤不作用于耗资源大爆发技（防 EQ 超上限，时咒教训）
-    # 各职业差异字段说明（法师元素架设 / 守线深度冥想 / 时咒时间凝滞）——
-    #   原值在 core_resources.py 各职业 focus/stasis 键，随 v181.M-R2c 退役删除
-    #   （v151 已删隐藏职业 cls_chronomancer；法师 focus 同构值另见 classes.py 字段），
-    #   全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §2。
-}
-
-# ============================================================
-# 三、charge 蓄力三律（通用电荷机，v139 §3）
-#   消费端：battle.py 通用电荷机（_charge_tick/_hit/_release/_state）+ 技能级 charge 字段；
-#   三律：P1 蓄力也出伤（边攒边打，被打断也已打出伤害）/ P2 打断仅 -1 阶不清零 /
-#   P3 满阶强制释放（不占行动，禁止继续蓄力）。
-# ============================================================
-CHARGE_CFG = {
-    "max": 3,                        # 电荷上限（阶数 0-3）
-    "gain_per_turn": 1,              # 每刻蓄 1 阶（蓄力动作）
-    "dmg_per_stage": [0.7, 1.3, 1.9],  # 边攒边打：各阶自动出伤倍率（云海口径 0.7 起步 + 每阶 +0.6）
-    "interrupt_penalty": 1,          # 打断仅 -1 阶不清零（P3）
-    "force_release": True,           # 满阶强制释放（不占行动）
-    "release_power": 2.8,            # 满阶释放威力（M = 0.7 × (电荷+1)，电荷 3 时 2.8）
-    "release_extra": {"pierce": True, "reach": 3},  # 满阶释放附加：破防 + reach=3（可指定 rank=3 后排）
-    # 各职业差异字段说明（实际值在技能级 charge 字段；职业侧 charge 字段零读=数据层悬空，
-    #   电荷制蓄力留档常量随 P2E-P1a 删，CHARGE_CFG 引擎默认值保留）：
-    #   cls_you_xia 守线电荷制蓄力狙击：charge_cost 10（蓄力动作耗 10 精力，
-    #     低耗档 ≤25 判定内）/ m_base 0.7 / m_step 0.6 / snipe_m_base 0.7 / snipe_min 1
-    #     （狙击保底门槛：电荷 ≥1 才能放，云海附 B 第 2 条平衡铁律）/ snipe_reach 3；
-    #     旧 charge=1 读条存档降级兼容（不走新分支仍按旧读条结算）。
-    #   cls_chronomancer 蓄力三律落凝滞态：P1 时间侵蚀自动出伤（erosion_power 0.60）/
-    #     P2 打断不清零（沙全保留）/ P3 沙满 5 强制释放（禁止攒沙技，必须放耗沙大爆发）。
-}
-
-# ============================================================
-# 四、vent 排气节流阀（通用排气机，v139 §4）
-#   消费端：battle.py 通用排气机（_vent_check/_apply/_relief/_delay）；
-#   核心规则：满值强制排气（P3 防死锁）/ 位移闪避泄压（位移从成本变收益）/
-#   排气后低耗技段数 +1（补偿，爆发前置不是惩罚）；三向权衡（常规硬吃/快排泄压/深排等窗口）DPR 持平。
-# ============================================================
-VENT_CFG = {
-    "trigger": 100,                   # 资源 = 上限触发排气（游侠精力 100 / 星语猎印 5）
-    "auto": True,                     # 刻开始自动执行（不占玩家决策、不占行动，托管照常）
-    "reset": 0,                       # 触发后资源归 N（0 = 清空）
-    "seg_bonus": 1,                   # 排气后下刻低耗/连射档技能 段数 +1（补偿）
-    "low_cost_max": 25,               # 低耗/连射档判定上限（与 ENERGY_HIGH.max_cost 同值 25）
-    "bonus_duration": 1,              # 段数加成持续刻（深排 → 2）
-    "vent_on_dodge": 15,              # 闪避成功泄压量（-15，伪装帷幕期间）
-    "vent_on_mobile": 15,             # 机动技（风之疾走/风神降临）施放泄压量（-15）
-    "max_delay": 1,                   # 最大可推迟刻（深排：凝神屏息延迟 1 刻释放，对齐倒地窗口）
-    # 各职业差异字段说明（游侠凝神屏息 / 星语猎印节流阀）——原值在 core_resources.py 各职业
-    #   vent 键，随 v181.M-R2c 退役删除（v153 废弃 + v151 删隐藏线 cls_wild_hunter），
-    #   全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章 §3：
-    #   cls_you_xia 凝神屏息（v153 废弃：vent trigger=999 永不到达——专注流量制）：
-    #     trigger 100 / auto True / reset 0 / seg_bonus 1 / vent_on_dodge 15 / vent_on_mobile 15 / max_delay 1；
-    #     触发后屏息窗口标记 p_buffs["breathe_window"]（持续 1 刻）供技能 cond/联动消费。
-    #   cls_wild_hunter 猎印节流阀（v151 删除）：猎印满 5 触发强制排气 / 星移步闪避成功猎印 -1。
-}
-
-# ============================================================
-# 五、enemy_bar 挂敌身资源条（通用敌身条，v139 §5）
-#   消费端：battle.py 通用敌身条（_enemy_bar_gain/_tick/_trigger/_preserve）；
-#   载体：enemy.buffs 新键（如 shaken 键 = {"val", "threshold", "trigger_count", "immune_turns"}），
+# enemy_bar 挂敌身资源条（通用敌身条，v139 §5）
+#   消费端：saintess_engine.gauge 的 battle_bars（bar_def/bar_gain/bar_settle/bar_trigger/
+#   bar_preserve）+ 内容装配层 game/services/battle_bar_procs.py；
+#   载体：actor 的 effects["bar:*"] 条目（如 shaken = {"val", "threshold", "immune_until"}），
 #   随战斗序列化、敌方单位级（多目标各自独立）；
 #   核心规则：积蓄挂敌身独立于异常免疫（不吃 immune_dots/异常抗性/反弹，免疫怪唯一软解）/
 #   阈值递增 ×threshold_inc 封顶 threshold_cap 防无限控 / 触发后免疫窗口 immune_turns 防连控锁 Boss /
@@ -575,10 +493,6 @@ MECH_CFG = {
     },
     "enemy_bar": ENEMY_BAR_CFG,
     # ---- 机制键（职业化 CFG 收敛后按机制命名；原 dict 值原样搬）----
-    "dual_form": DUAL_FORM_CFG,
-    "focus": FOCUS_CFG,
-    "vent": VENT_CFG,
-    "charge": CHARGE_CFG,
     "assassin_combo": {
         **COMBO_CFG,
         "on_crit_gain": ASSASSIN_ON_CRIT_GAIN,

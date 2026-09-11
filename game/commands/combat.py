@@ -2393,8 +2393,17 @@ class CombatCmds(CommandBase):
             if not _a.get("auto_act"):
                 _a["auto_act"] = {"act": {"type": "attack"}}
         from saintess_engine import Battle as B2
-        nb = B2("worldboss", sides=_sides, title_bonus=_tb,
-                dmg_mult=db.get_boss_dmg_mult(qq_id), pet=db.pet_get(qq_id))
+        # v2026-09-11：GM 世界 Boss 伤害倍率接回**承伤乘区**（taken_calc 事件）。
+        #   引擎 Battle 的 dmg_mult 构造参数只存不读（旧引擎 _boss_dmg_filter 那段没迁过来）
+        #   → gm_伤害 曾静默失效；现走内容装配层 battle_worldboss_procs 挂 Boss actor。
+        #   pet=db.pet_get() 同属「传了但引擎不读」——宠物参战归随从 actor 工厂（随从线），
+        #   本处不再静默传参（传了会让人误以为宠物已参战）。
+        from ..services import battle_worldboss_procs as WBP
+        _wb_mult = float(db.get_boss_dmg_mult(qq_id) or 1.0)
+        if _wb_mult != 1.0:
+            for _a in _sides.get("enemy", []):
+                WBP.apply_gm_dmg_mult(_a, _wb_mult)
+        nb = B2("worldboss", sides=_sides, title_bonus=_tb)
         # 敌 actor 技能索引已由 B2 构造建立；给 Boss 配首个技能自动行动（AI 轮换属上层怪 AI 模块）
         try:
             _boss_a = next((u for u in nb.sides_of("enemy") if u.get("is_boss")), None)

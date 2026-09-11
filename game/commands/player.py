@@ -1517,8 +1517,9 @@ class PlayerCmds(CommandBase):
             ctype = cond.get("type")
             mult = cond.get("mult", 1.0)
             label = cond.get("label", "")
-            # v101.2：条件显示文案数据化 → battle_conds.py COND_LABELS（加条件类型只改注册表一处）
-            from ..core.battle_conds import COND_LABELS
+            # v101.2 条件显示文案数据化 → battle_cond_labels.py COND_LABELS
+            #（v181 拆分：判定在 services/battle_cond_procs.py，文案在本表）
+            from ..core.battle_cond_labels import COND_LABELS
             label_fn = COND_LABELS.get(ctype)
             ctext = label_fn(cond) if label_fn else ctype
             lines.append(f"⚔️ 条件转化：{ctext}时激活『{label}』(威力 ×{mult})")

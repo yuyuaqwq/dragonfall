@@ -179,7 +179,11 @@ KNOWN_GAPS: set = {
     # D 类真空转（0 引擎读取，skills.py 声明 + battle.py 注释 TODO）：
     "faith_share", "finisher_up", "poison_burst_up", "poison_spread",
     # P2-D7 收尾补登 3 个"引擎旧通道直读"缺口（挂点7/8/9 未迁注册表，见下注释）
-    "arcane_constant", "lian_duan_soft", "shadow_dance_cd",
+    "arcane_constant", "lian_duan_soft", "shadow_dance_ease",
+    #   注：shadow_dance_ease = 原 shadow_dance_cd（影舞·无间）改名。原效果的「态内 CD −20%」
+    #   与影舞态自带的 EFFECT_RULES["shadow_dance"].cd_mult=0.8 完全重复（2026-09-11 取证），
+    #   已改词为「影舞态入场连段门槛 5→3」，由 class_mech_proc.class_shadow_dance_enter 经
+    #   _learned_proc_param 旁路消费（同 finisher_up / faith_overload_heal 的旁路通道）。
     # （E 类 tick 族成员 focus_regen_summon/arcane_intuition/undead_faith/
     #   faith_overload_heal 已由 P2-D6 收编进 tick_regen/tick_mech_charge/tick_faith 族；
     #   P2-D7 收尾记录另 3 个"引擎旧通道"名单：arcane_constant/lian_duan_soft/

@@ -183,11 +183,20 @@ def test_stats_convenience():
 
 
 def test_aoe_falloff_apply():
-    print("【CV8 _aoe_falloff_apply 存在且可调（占位）】")
-    from saintess_engine.battle.actions import _aoe_falloff_apply
-    logs = ["a", "b"]
-    out = _aoe_falloff_apply(logs)
-    check("_aoe_falloff_apply 透传 logs", out == ["a", "b"])
+    """CV8（2026-09-11 改写）：AOE falloff **本引擎不实现**。
+
+    原测试断言的是占位函数 `_aoe_falloff_apply` 存在且原样返回 logs —— 那等于给
+    「声明了却不生效的半接线」上锁。该占位 + 假路径已删（引擎仓库同批清理），
+    本测试改为锁住**删除事实**：符号不存在 → 数据里写 `aoe_falloff` 不可能悄悄"看起来生效"。
+    """
+    print("【CV8 AOE falloff 未实现（占位已删，防误导性半接线）】")
+    import saintess_engine.battle.actions as _AC
+    check("_aoe_falloff_apply 已删（不再存在）", not hasattr(_AC, "_aoe_falloff_apply"),
+          "占位函数又回来了？——它只会让 aoe_falloff 看起来生效")
+    import inspect
+    src = inspect.getsource(_AC)
+    code = [ln for ln in src.splitlines() if "aoe_falloff" in ln and not ln.lstrip().startswith("#")]
+    check("actions 源码里无 aoe_falloff 活代码（只有注释说明不实现）", not code, f"code={code}")
 
 
 def test_landing_branches():

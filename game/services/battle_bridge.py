@@ -36,8 +36,8 @@ _PLAYER_PASSTHROUGH = (
     # 效果类（echo_bless/poi_buff/…）V6 起由 _start_effects_to_actor 翻译进
     # actor.effects 面板快照，不在 passthrough 冗余透传）
     "resources", "stacks", "eff", "hot", "food_effects",
-    "buff_hits", "last_element", "dual_form", "focus", "vent",
-    "v139_modes", "v139_charge", "overflow_shield_cd", "stealth_atk",
+    "buff_hits", "last_element",
+    "overflow_shield_cd", "stealth_atk",
     "reduce_all_left", "reduce_left", "combo_seq", "last_combo_tag",
     "tailwind_prev_energy", "last_skill", "last_cast_at",
 )
@@ -290,9 +290,11 @@ def prepare_player_for_battle(player: dict, title_bonus: Optional[dict] = None,
                             f"poi_buff_{_qq}", _json.dumps(_pb, ensure_ascii=False))
     except Exception:
         pass
-    # 【v181.M-R2b 删除原步骤 5】v139 core_resource 配置注入（dual_form/focus/vent 挂 player）——
-    #    core_resources.py 退役删除（R2b 函数层 + R2c 文件本体），注入无消费端（形态层未实现；
-    #    battle_modes/battle_conds 为 v139 遗留空壳，字段缺失=引擎默认不启用，无读者报错）。
+    # 【v181.M-R2b 删除原步骤 5】v139 core_resource 配置注入（形态层字段挂 player）——
+    #    core_resources.py 退役删除（R2b 函数层 + R2c 文件本体），注入无消费端（形态层未实现）。
+    # 【2026-09-11 死代码清理】两个 v139 遗留空壳模块本体已删（battle_modes / battle_conds；
+    #    后者唯一活件 COND_LABELS 拆成 core/battle_cond_labels.py），
+    #    player 上对应的形态层透传/播种/回写键一并移除。
     return player
 
 
@@ -303,7 +305,7 @@ def _seed_battle_keys(player: dict) -> dict:
         "cooldown": dict, "hot": dict, "food_effects": list,
         "buff_hits": dict, "combo_seq": list,
         "last_combo_tag": None, "last_element": None,
-        "tailwind_prev_energy": None, "v139_modes": dict, "v139_charge": dict,
+        "tailwind_prev_energy": None,
         "overflow_shield_cd": False, "stealth_atk": False,
         "reduce_all_left": 0, "reduce_left": 0,
         "poi_buff": None, "charging": None, "defending": False,
@@ -339,7 +341,7 @@ _BACK_SYNC_BAGS = (
     "ct", "poi_buff",
     # 旧玩家 dict 兼容键（职业层可能在 player 上读，见 _PLAYER_PASSTHROUGH）
     "resources", "stacks", "eff", "food_effects", "buff_hits",
-    "last_element", "v139_modes", "v139_charge", "overflow_shield_cd",
+    "last_element", "overflow_shield_cd",
     "stealth_atk", "reduce_all_left", "reduce_left",
     "combo_seq", "last_combo_tag", "tailwind_prev_energy",
 )

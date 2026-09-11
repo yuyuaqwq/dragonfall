@@ -289,7 +289,11 @@ EFFECT_RULES: dict = {
     "corros": {
         "cap": 5,
         "on": "target",
-        "period": {"dir": "damage", "interval": 1.0, "pct_max_hp": 0.02, "dmg_type": "true"},  # 真伤 DOT
+        # ⚠️ 2026-09-11 取证纠正：`period.dmg_type` **无消费方**——DOT 落地统一走
+        #   deal_damage(..., dmg_kind="")（schedule.py），所以这条注释里的「真伤」不成立
+        #   （打不到类型免伤/格挡是因为 dmg_kind 为空，不是因为声明了真伤）。
+        #   要真伤需给 DOT 落地补 dmg_kind 透传 → 登记在 team_effects_plan §六。
+        "period": {"dir": "damage", "interval": 1.0, "pct_max_hp": 0.02, "dmg_type": "true"},
     },
     # ============ 元素印记（on=target） ============
     "fire_mark": {
@@ -449,6 +453,10 @@ EFFECT_ACTIONS: dict = {
     # 团队/全员增益 → 自身有效键（旧 team_keys 同语义）
     "atk_all":   [{"action": "apply", "key": "atk_up"}],
     "def_all":   [{"action": "apply", "key": "def_up"}],
+    # v2026-09-11 缺口修复：`effect='def_up'`（磐石之躯 lv10「防御＋45% 持续 2 刻」）此前
+    #   只在 EFFECT_RULES 有面板声明、**EFFECT_ACTIONS 无映射** → resolve_actions 返回 [] →
+    #   技能整条静默 no-op。补上与 def_all 同源的映射（面板数值复用 EFFECT_RULES["def_up"]）。
+    "def_up":    [{"action": "apply", "key": "def_up"}],
     "matk_all":  [{"action": "apply", "key": "matk_up_strong"}],
     "crit_all":  [{"action": "apply", "key": "crit_up"}],
     "spd_all":   [{"action": "apply", "key": "spd_up"}],
@@ -501,13 +509,16 @@ EFFECT_ACTIONS: dict = {
 # 模式覆盖不了的真新语义才写新动作（~15 行）。
 #
 # 模式（mode，R1b 起 owner 方向由 mode 推断，装配时写入效果 dict 参数 owner）：
-#   dmg_mult_clear        伤害乘区按持有层加成（dmg_calc）＋命中后清层（skill_hit）
-#                          owner=caster（缺省，finisher 行为不变）：读/清 caster effects
-#   dmg_mult_clear_target 同上但 owner=target（B2 burst 引爆族：印记/毒层全在 target
-#                          effects 上——读/清 fire ctx 的 target）
-#   heal_clear            花 N 层换治疗（技能内兑现，R1c）
-#   bonus_clear           层数转附加伤害后清层（备用形态，R1b 未用——burst 族已由
-#                          dmg_mult_clear_target 覆盖：乘区即兑现，无需独立附伤段）
+#   ✅ dmg_mult_clear        伤害乘区按持有层加成（dmg_calc）＋命中后清层（skill_hit）
+#                            owner=caster（缺省，finisher 行为不变）：读/清 caster effects
+#   ✅ dmg_mult_clear_target 同上但 owner=target（B2 burst 引爆族：印记/毒层全在 target
+#                            effects 上——读/清 fire ctx 的 target）
+#   ⚠️ 以下两个 mode **装配器不分派**（class_mech_proc 的 mode 白名单只有上面两条；
+#      写进去会被 `if mode not in ("dmg_mult_clear", "dmg_mult_clear_target"): continue` 跳过）：
+#     heal_clear   花 N 层换治疗——实际由**技能内 res_cost 数据通道**兑现，不走装配事件
+#                  （faith_unload 卸负：卸 3 点信念回 80% 魔攻，声明里 note 已自述此事）
+#     bonus_clear  层数转附加伤害后清层——R1b 起就未使用，burst 族已由
+#                  dmg_mult_clear_target 覆盖（乘区即兑现，无需独立附伤段）
 #
 # 通用声明字段：
 #   key        消费的叠层条目；支持 [k1, k2, …] 多印记 key 列表（乘区层数 = 各 key 之和；
@@ -527,7 +538,10 @@ MECH_CASH = {
         # 链舞（kind=物理 主动技带 passive.proc=finisher_up——装配器只扫 kind=被动不装配）：
         # 学到链舞 → 终结技每段系数 10% → 16%（desc「终结技系数+6%（每段 10% → 16%）」）
         "clear": True,                   # 命中后清层（info.keep_on_kill = 不清，技能级覆盖）
-        "crit_at": 4,                    # 连段 ≥4 必定暴击（处刑；crit roll 前钩子就绪后生效——声明先行）
+        # ⚠️ 2026-09-11 取证：`crit_at` **当前不生效**（装配器不读它、无消费钩子）——
+        #   原注释「crit roll 前钩子就绪后生效」易被读成"已生效"。接线登记在
+        #   docs/REFACTOR_v181_team_effects_plan.md §六。
+        "crit_at": 4,                    # 连段 ≥4 必定暴击（声明先行，未接线）
         "layer_label": "连段", "unit": "段", "icon": "🔪",
     },
     # ---- B2 target 方向兑现（R1b burst 引爆族：mode dmg_mult_clear_target = owner=target）----
@@ -693,7 +707,13 @@ PASSIVE_PROC: dict = {
         "event": "on_taken", "action": "passive_counter", "agg": "counter",
     },
     # ---- P2 族：dmg_calc 乘区扩展（judge 谓词扩展：target_mark_any/mech_prefix）----
-    "hunt_mark_up": {        # 自然之眼：猎印每层增伤额外 +6%（基础 8% 走 debuff_scale 引擎天然段）
+    # ⚠️ 2026-09-11 取证纠正：原注释写「基础 8% 走 debuff_scale 引擎天然段」——**不成立**。
+    #   `debuff_scale`（EFFECT_RULES["hunt_mark"].debuff_scale = {dmg_taken: 0.08}）**全仓无消费方**
+    #   （唯一命中是 effects.py 的叠层分派判据关键词）→ 猎印「每层承伤 +8%」当前不生效，
+    #   只有本 proc（自然之眼 +6%/层）走 passive_dmg_mult 真生效。
+    #   同源问题：soul_mark（+6%/层）、curse（全队对其 +20%）——统一登记在
+    #   docs/REFACTOR_v181_team_effects_plan.md §六（与 19 个 effect 名词同批落地）。
+    "hunt_mark_up": {        # 自然之眼：猎印每层增伤额外 +6%（本 proc 真生效；基础 8% 见上方纠正）
         "event": "dmg_calc", "action": "passive_dmg_mult",
         "judge": {"kind": "target_mark_any", "mark": "hunt_mark"},
     },

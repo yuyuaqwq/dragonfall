@@ -1256,8 +1256,12 @@ def install() -> None:
         ef = actor.get("effects") or {}
         _le = ef.get("lian_duan")
         n = float(_le.get("stacks", 0) or 0) if isinstance(_le, dict) else 0.0
-        if n < 5:
-            logs.append(f"🌫️ 连段不足（{int(n)}/5），无法进入影舞态！")
+        # v2026-09-11 裁定：入场门槛 = 5，学过「影舞·无间」（proc shadow_dance_ease，
+        #   threshold 参数）后降为 3。原实现的门槛 5 写死；原 proc shadow_dance_cd
+        #   （态内 CD −20%）与影舞态自带 cd_mult 0.8 重复，已改词为门槛放宽。
+        _req = int(_learned_proc_param(actor, "shadow_dance_ease", "threshold", 5) or 5)
+        if n < _req:
+            logs.append(f"🌫️ 连段不足（{int(n)}/{_req}），无法进入影舞态！")
             return
         actor.setdefault("effects", {})["shadow_dance"] = {"stacks": 1, "expire": None}
         logs.append("🌫️ 踏入影舞之境！技能 CD −20%，如影随形！")
@@ -1960,6 +1964,31 @@ def _learned_proc(actor: dict, proc: str) -> bool:
                 and (info.get("passive") or {}).get("proc") == proc:
             return True
     return False
+
+
+def _learned_proc_param(actor: dict, proc: str, key: str, default=None):
+    """读已学技能上 `passive.proc == proc` 的那个 passive dict 的某个参数值。
+
+    `_learned_proc` 的带参版（旁路通道专用）：装配器只扫 kind=被动，而这类参数
+    （如影舞·无间 shadow_dance_ease.threshold）由装配层动作按需读取。
+    找不到 proc / 无该参数 / 解析异常 → 返回 default（缺字段 = 用默认，零默认值铁律）。
+    """
+    if not actor or not proc:
+        return default
+    cn = actor.get("class_name") or ""
+    names = actor.get("learned_skills") or []
+    if not cn or not names:
+        return default
+    from ..content_rules.skills import skill_info
+    for s in names:
+        try:
+            info = skill_info(cn, s)
+        except Exception:
+            info = None
+        ps = info.get("passive") if isinstance(info, dict) else None
+        if isinstance(ps, dict) and ps.get("proc") == proc and key in ps:
+            return ps.get(key)
+    return default
 
 
 def _passive_proc_rules() -> dict:

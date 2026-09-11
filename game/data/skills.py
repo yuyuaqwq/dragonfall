@@ -3122,9 +3122,13 @@ BRANCH_SKILLS = {
                         'power': 1.0,
                         'kind': '被动',
                         'cast': 'None',
-                        'passive': {"proc": "shadow_dance_cd", "cdr": 0.20},
+                        # 2026-09-11 裁定：原 `shadow_dance_cd`（态内 CD −20%）与影舞态自带的
+                        #   EFFECT_RULES["shadow_dance"].cd_mult = 0.8 完全重复（硬接 = ×0.64 → −36%，
+                        #   超设计），改为「踏入影舞之境的连段门槛 5 → 3」——不叠乘区、纯收益、
+                        #   零引擎改动（装配层读本 passive 参数）。
+                        'passive': {"proc": "shadow_dance_ease", "threshold": 3},
                         'name': '影舞·无间',
-                        'desc': '身随影动，无间无隙——影舞态中所有技能冷却 −20%'
+                        'desc': '身随影动，无间无隙——踏入影舞之境所需连段由 5 段降为 3 段'
                     },
                     "万影归一": {
                         'lv': 98,
