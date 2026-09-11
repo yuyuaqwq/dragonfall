@@ -22,6 +22,7 @@ from saintess_kit.command import CommandBase as _KitCommandBase
 from saintess_kit.command import HandlerHit, PatternSet
 # 守卫装饰器由框架提供，这里**原样再导出**（既有 import 点不变）
 from saintess_kit.command import require_battle, require_player  # noqa: F401
+from saintess_kit.session import SessionAdapter
 
 from ._platform import AstrMessageEvent, filter  # noqa: F401（filter 供 @filter.regex 装饰器）
 from ._platform import MessageChain
@@ -94,6 +95,18 @@ def no_prof_waiting():
 # v95.26 统一注册引导：所有"没角色"拦截只走这一处文案，改格式只动这里
 # v105 P3(M01)：与注册错误提示格式统一（『注册 <名字> <性别> [种族]』），防两处格式串不一致
 REGISTER_HINT = "你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～"
+
+
+def _resolve_uid(raw: str) -> str:
+    """平台标识 → 玩家账号 id（延迟 import 防 `_platform` 装配期循环）。"""
+    from . import _identity
+    return _identity.resolve_uid(raw)
+
+
+# 会话适配点（框架 `saintess_kit.session.SessionAdapter`）：
+# 「群号怎么来 + 发送者标识怎么翻译」收在这一个对象里 —— 换宿主只动这一处。
+_session = SessionAdapter(private_fallback="private", unknown_fallback="unknown",
+                          resolve_uid=_resolve_uid)
 
 
 class CommandBase(_KitCommandBase):
@@ -437,13 +450,9 @@ class CommandBase(_KitCommandBase):
 
         v2026-09-07 QQ官方迁移：sender 若是 openid（官方 bot 只给 openid），
         经 identity_map 映射回玩家原本的 QQ 号——DB/命令全不用改。
+        适配点实现（兜底值 + 标识翻译）见模块级 `_session`（框架 SessionAdapter）。
         """
-        group_id = event.get_group_id() or "private"
-        sender_id = event.get_sender_id() or "unknown"
-        # 平台身份映射：openid → qq_id（未绑定则原样返回，行为与旧平台一致）
-        from . import _identity
-        sender_id = _identity.resolve_uid(sender_id)
-        return group_id, sender_id
+        return _session.uid(event)
 
     def _player(self, group_id, qq_id):
         return db.get_player(group_id, qq_id)
