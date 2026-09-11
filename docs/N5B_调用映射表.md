@@ -88,7 +88,7 @@ battle2 Battle 不是 dict——不能塞。
 
 ## 6. 切换顺序建议（每步可验证）
 
-1. ✅ 数据桥 battle2_bridge（done, 64ab806）
+1. ✅ 数据桥 battle_bridge（done, 64ab806）
 2. ✅ 删 migrate_old_state/is_old_state（鱼鱼拍板，已删）+ 战斗外壳 helper
 3. 展示辅助方法改造（不依赖 BT 引擎的纯读函数）
 4. combat.py 探索/遇怪构造切 battle2（新开战斗）

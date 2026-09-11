@@ -222,7 +222,7 @@ def test_7_dual_channel():
 def main():
     # v181 flaky 修复：玩家真实面板 ~3% 基础闪避（职业成长，actor["dodge"] 改不动——
     # 走 E.player_final_stats 公式）——固定随机种子保证受击/命中序列确定
-    # （3% 闪避偶发会把「反击触发」断言打成假红）。同 test_battle2_n10_b2 做法。
+    # （3% 闪避偶发会把「反击触发」断言打成假红）。同 test_battle_n10_b2 做法。
     random.seed(20260910)
     test_1_counter_assemble()
     test_2_counter_merge()

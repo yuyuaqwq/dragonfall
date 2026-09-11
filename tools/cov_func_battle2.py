@@ -40,7 +40,7 @@ def _prof(frame, event, arg):
 
 sys.setprofile(_prof)
 
-test_files = sorted(glob.glob(os.path.join(TEST_DIR, "test_battle2_*.py")))
+test_files = sorted(glob.glob(os.path.join(TEST_DIR, "test_battle_*.py")))
 for tf in test_files:
     try:
         code = compile(open(tf, encoding="utf-8").read(), tf, "exec")

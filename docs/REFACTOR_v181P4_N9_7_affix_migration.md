@@ -108,4 +108,4 @@ cap_bonus 动态；无 cap_bonus 时与旧读等价 = 行为零变化）；日�
 ## 6. 批次完成记录（续）
 | 批 | commit | 内容 | 断言 |
 |---|---|---|---|
-| m_affixtail | （见 git log） | 收尾：we_affix_res_gain cap 收敛 _cap_of + regen 型 2（energy_tide/swift_tailwind turn_start 回能）+ purify 命中驱散（we_affix_purify + holy_weaken 声明）；cost_reduce 3 / ember_brand / combo_recover / 职业机制 8 记缺口 | test_affix_res_gain 39→54；test_battle2_n9_equip 157→171；test_class_mech_r2e 53 保持绿 |
+| m_affixtail | （见 git log） | 收尾：we_affix_res_gain cap 收敛 _cap_of + regen 型 2（energy_tide/swift_tailwind turn_start 回能）+ purify 命中驱散（we_affix_purify + holy_weaken 声明）；cost_reduce 3 / ember_brand / combo_recover / 职业机制 8 记缺口 | test_affix_res_gain 39→54；test_battle_n9_equip 157→171；test_class_mech_r2e 53 保持绿 |

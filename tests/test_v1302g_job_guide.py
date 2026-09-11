@@ -32,7 +32,7 @@ from data.plugins.dragonfall.game.data.job_guide import (  # noqa: E402
     JOB_GUIDE, BASE_ORDER, HIDDEN_ORDER, HIDDEN_SUCCESSORS,
     JOB_ALIASES, EXTRA_RESOURCES, CORE_RESOURCE_GUIDE, EXTRA_RESOURCE_GUIDE, resolve_job,
 )
-from data.plugins.dragonfall.game.data.battle2_rules import EFFECT_RULES  # noqa: E402
+from data.plugins.dragonfall.game.data.battle_rules import EFFECT_RULES  # noqa: E402
 from data.plugins.dragonfall.game.commands.job_guide import JobGuideCmds  # noqa: E402
 from data.plugins.dragonfall.game.commands._registry import COMMAND_REGEX  # noqa: E402
 

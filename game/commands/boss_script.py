@@ -224,7 +224,7 @@ def _check_phases(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     if _merged is not None and _merged.get("preserve_debuffs") is False:
         _phase_cleanse_negatives(actor, logs)
     # ---- 阶段事件广播（v181 破绽条：挂敌身条按阶段保留部分积蓄——订阅方 bar_preserve）----
-    # 引擎零知识：引擎只提供通用时机事件，条侧消费端在装配层（battle2_bar_procs）
+    # 引擎零知识：引擎只提供通用时机事件，条侧消费端在装配层（battle_bar_procs）
     try:
         from saintess_engine.battle.effect_triggers import fire as _fire
         _fire(battle, "phase", {"actor": actor, "phase": npc}, logs)

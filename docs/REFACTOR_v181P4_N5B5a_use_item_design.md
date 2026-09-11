@@ -45,7 +45,7 @@
     `action_override(battle, action, actor, payload, target) -> (logs, cast)`
   - cast：str=内置基准（defend/skill/attack 按 spd 缩放）｜数字=绝对耗时秒
   - consumed 才推 ct + advance 敌方段（use_item 占刻语义）
-  - 引擎零道具名词；测试 test_battle2_n5b4e_hooks.py 19 断言（+2 override 用例）
+  - 引擎零道具名词；测试 test_battle_n5b4e_hooks.py 19 断言（+2 override 用例）
 
 ---
 
@@ -60,7 +60,7 @@ economy.use() 『使用 <道具>』
   │              └─ instance_battle.act(st, gid, qq, "use_item", payload)
   │                   └─ B2.human_act("use_item", payload)
   │                        └─ act() else 分支 → action_override 回调
-  │                             └─ 道具翻译器 battle2_item_use.translate()
+  │                             └─ 道具翻译器 battle_item_use.translate()
   │                                  ├─ heal/mana/hm → actor hp/mp 直改（landing.heal_actor）
   │                                  ├─ buff/food_buff → EFFECT_ACTIONS 查表 → act_buff
   │                                  ├─ special/shield 族 → EFFECT_ACTIONS/装配层查表
@@ -91,7 +91,7 @@ instance.py `_instance_act` 整段删除（R3，本链完成后）
 | 3 | `hm:hp,mp` | heal_mana | 双恢复 | heal_actor + mp 直改 | ✅ 直译 |
 | 4 | `buff:k1,k2` | food_buff / 药水 | 属性增益 3 刻 | 拆逗号 → EFFECT_ACTIONS 逐键 `effects.apply_effects(b, actor, actor, actions, logs)`（act_buff 写 `actor.buffs[key]={expire,stat,op,mult}`） | ✅ 查表 |
 | 5 | `special:kind[:json]` | 药水/机制道具 | 特殊分发 | 查 POTION_EFFECTS → 拆到 battle2：shield/cleanse/heal/reduce/next_atk_up 等见 §3 子表；真机制缺口见 §6 | ⚠️ 分诊 |
-| 6 | `foodfx:id,id` | food_effect | 食物效果（词条族） | actor["food_effects"] 记录 + 装配层挂卡（battle2_equip_proc 词条管线） | ⚠️ 基建 |
+| 6 | `foodfx:id,id` | food_effect | 食物效果（词条族） | actor["food_effects"] 记录 + 装配层挂卡（battle_equip_proc 词条管线） | ⚠️ 基建 |
 | 7 | `hot:hp%,mp%,turns` | food | 持续恢复 | `actor["hot"]={heal,mana,turns}` + schedule 周期结算（见 §4） | 🆕 基建 |
 | 8 | `"0"` | stamina/purify | 无数值效果 | stamina 已由 economy 层处理；purify 模板已直接改状态（见 §5） | ✅ 特殊 |
 | — | `;cast:N` 尾缀 | 全部 | 行动耗时 | 解析出 cast → override 返回数字秒（见 §2.2） | ✅ |
@@ -141,7 +141,7 @@ buff_phys_next/food_spd_up_small/cc_immune
 | heal_up | buff（受疗+%）→ 无现成键则用 heal amp 语义→ 记缺口或扩展动作 |
 | restore_resource/resource_amp/resource_charge/restore_resource_full | act_state_add（resources/state 容器加值）——注意 target 在 actor["state"] |
 | purify/purify_immune | cleanse / 免疫 buff（cc_immune） |
-| dot_amp/apply_mark | 装配层扩展动作（battle2_we_procs 同款注册）→ 本批记缺口 |
+| dot_amp/apply_mark | 装配层扩展动作（battle_we_procs 同款注册）→ 本批记缺口 |
 | thorns_pot/dodge_pot/block_pot/crit_dmg_pot/lifesteal_pot/execute_pot | 见装配层效果注册（多数可走 hit/on_taken 声明）；本批若已有装配层键则映射，否则记缺口 |
 
 ### 3.3 机制型真缺口（本批不翻译，列 HANDOFF 清单，见 §6）
@@ -170,7 +170,7 @@ buffs 到期 / shields 到期 / state DOT——**无正向周期恢复（hot/reg
    - **触发时机对齐旧语义**：旧 hot 在"该玩家行动刻开始"结算 → battle2 在
      `advance()` 推进到该玩家决策点时结算该玩家 hot（见 schedule._next_player_due
      前钩子），避免全员每时刻都跳。
-3. 测试：tests/test_battle2_hot_regen.py——吃食物挂 hot → 行动轮转 → 每到自己
+3. 测试：tests/test_battle_hot_regen.py——吃食物挂 hot → 行动轮转 → 每到自己
    回血回蓝 → turns 递减 → 归零。
 
 > 备选：把 hot 表达成 STATE_EFFECTS 里带 `dot` 的反向规则（负 pct=回血）——
@@ -209,15 +209,15 @@ actor.buffs（结构化条目 mode=skip/no_skill）。改法：
 |---|---|
 | `game/battle2/schedule.py` | +hot 周期结算段（§4）；`_next_player_due` 前调 hot tick |
 | `game/battle2/effects.py` 或新 `game/battle2/hot.py` | +`apply_hot(battle, actor, logs)`（hot 语义不进 state 表，独立动词） |
-| 新 `game/commands/battle2_item_use.py` | 道具翻译器：`translate(battle, actor, payload) -> (logs, cast)`；内置 §2/§3 全表；未覆盖 → 返回 None（调用方提示不扣道具） |
+| 新 `game/commands/battle_item_use.py` | 道具翻译器：`translate(battle, actor, payload) -> (logs, cast)`；内置 §2/§3 全表；未覆盖 → 返回 None（调用方提示不扣道具） |
 | `game/commands/instance_battle.py` | `build_battle` 与 `act` 的 from_state 后注入 `b.action_override`（指向翻译器）；`act()` 支持 action="use_item" |
 | `game/commands/combat.py`（N5b4-6 或本批） | 野外 from_state 恢复后同样注入 override（`_restore_battle2`） |
 | `game/commands/economy.py` | ① 5895 行副本分流：`_instance_act` → `_instance_router(..., "use_item", payload)`（R3 前提）；② 普通战斗 5909 段改 battle2（b.human_act + override）；③ 翻译器返回未覆盖时**不扣道具不占刻**提示 |
 | `game/core/item_templates.py` | purify 模板负面清除移翻译器（保留 consume 判定）；`_do_use_item` 相关注释 |
 | `game/battle.py` | 只删不补（`_do_use_item` 等由 N10 删旧统一清；本批先无人调用） |
-| `tests/test_battle2_item_use.py`（新） | heal/mana/hm/buff/hot/special 分诊逐类断言 |
-| `tests/test_battle2_hot_regen.py`（新） | hot 周期结算（§4） |
-| `tests/test_battle2_n5b4_instance_router.py` | +use_item 端到端（副本战斗内喝药/吃料理） |
+| `tests/test_battle_item_use.py`（新） | heal/mana/hm/buff/hot/special 分诊逐类断言 |
+| `tests/test_battle_hot_regen.py`（新） | hot 周期结算（§4） |
+| `tests/test_battle_n5b4_instance_router.py` | +use_item 端到端（副本战斗内喝药/吃料理） |
 | `docs/HANDOFF_battle2_effect_v2.md` | §0.5 追加记录 9 |
 
 ---
@@ -226,8 +226,8 @@ actor.buffs（结构化条目 mode=skip/no_skill）。改法：
 
 | 步 | 内容 | 验证 |
 |---|---|---|
-| I1 | schedule hot 周期结算 + effects.apply_hot + 测试 | test_battle2_hot_regen 绿 |
-| I2 | 新翻译器 battle2_item_use：heal/mana/hm/buff/hot/常见 special 查表 | test_battle2_item_use 绿（不含引擎调用，纯函数单测） |
+| I1 | schedule hot 周期结算 + effects.apply_hot + 测试 | test_battle_hot_regen 绿 |
+| I2 | 新翻译器 battle_item_use：heal/mana/hm/buff/hot/常见 special 查表 | test_battle_item_use 绿（不含引擎调用，纯函数单测） |
 | I3 | instance_battle 注入 action_override + act 支持 use_item；economy 5895 副本分流改 router | battle2 全套 + 命令层冒烟 + router 测试补 use_item 端到端 |
 | I4 | economy 普通野外战斗 use_item 段改 battle2 + override 注入 | cmdflow/野外 use_item 冒烟 |
 | I5 | purify 改翻译器 + 模板调整；机制型缺口提示路径 | 净化用例绿 |

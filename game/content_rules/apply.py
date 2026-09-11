@@ -7,10 +7,10 @@
 -------------------
 开战处「并列调用」散落在命令层，共 4 处形态（命令层 6 个调用点 + 1 处内容侧自调用）：
 
-    commands/combat.py:621-622    _open_battle2 里 EP_apply(_a) + CM_apply(_a)
+    commands/combat.py:621-622    _open_battle 里 EP_apply(_a) + CM_apply(_a)
     commands/combat.py:2808/2851  PVP 路径同款两行
     commands/tower.py:151/156     塔层同款两行
-    commands/battle2_item_use.py:52   _b2config.load_game_defaults()
+    commands/battle_item_use.py:52   _b2config.load_game_defaults()
     services/class_mech_proc.py:2303/2309   apply_class_mech 内部串接 bar → cond
 
 本模块把前四者收敛成**一个入口 + 一处顺序契约**：
@@ -46,7 +46,7 @@ plan §6.6 建议「由 apply.py 内部 `ctx["_applied_content"]` 标记保证�
 actor 顶部标记键 `_content_applied`（本模块 `_MARK`）**，理由与被否方案如下：
 
   * ❌ 被否方案一「**不加标记**，靠各步自身幂等组合」：**实测证伪**。
-    `battle2_equip_proc.apply_to_actor` 的「事件型效果 → triggers」是
+    `battle_equip_proc.apply_to_actor` 的「事件型效果 → triggers」是
     `tr[ev].extend(effs)` **追加**语义（模块 docstring 自称幂等，仅对 bonus 分域成立）；
     对**带有效武器特效 / 事件型词条**的 actor 连调 2 次 → triggers 条目翻倍
     （见 `tests/test_apply_game_content.py` D 组，2 次装配后 actor 序列化长度 1828 → 2531）。
@@ -73,7 +73,7 @@ LEGACY_CALL_SITES = (
     "game/commands/combat.py:621,622",
     "game/commands/combat.py:2808,2851",
     "game/commands/tower.py:151,156",
-    "game/commands/battle2_item_use.py:52",
+    "game/commands/battle_item_use.py:52",
     "game/services/class_mech_proc.py:2303,2309",
 )
 
@@ -100,7 +100,7 @@ def ensure_engine_configured() -> None:
 def apply_game_content(actor: dict, ctx: dict | None = None) -> dict:
     """**唯一**开战内容装配入口。顺序契约见模块 docstring（①…⑥）。幂等。
 
-    :param actor: saintess_engine 侧 actor（命令层从 player dict 经 battle2_bridge 得来）
+    :param actor: saintess_engine 侧 actor（命令层从 player dict 经 battle_bridge 得来）
     :param ctx:   可选上下文；仅识别 ``aids``（食物 aid 列表）与 ``logs``（播报累加）
     :return: actor（原对象，就地装配）
 
@@ -131,7 +131,7 @@ def apply_game_content(actor: dict, ctx: dict | None = None) -> dict:
     _step("ensure", ensure_engine_configured)
 
     # ② 装备/词条（bonus 分域必须先于 ③ 的渠道装配）
-    from ..services.battle2_equip_proc import apply_to_actor as _equip_apply
+    from ..services.battle_equip_proc import apply_to_actor as _equip_apply
     _step("equip", _equip_apply, actor)
 
     # ③ 职业 mech 兑现（内部顺序：bar_gain → mech 段 → bar → cond）
@@ -139,17 +139,17 @@ def apply_game_content(actor: dict, ctx: dict | None = None) -> dict:
     _step("mech", _mech_apply, actor)
 
     # ④ 挂敌身条（幂等；③ 已挂时为空操作，显式保留以固定顺序契约）
-    from ..services.battle2_bar_procs import apply_bar_procs as _bar_apply
+    from ..services.battle_bar_procs import apply_bar_procs as _bar_apply
     _step("bar", _bar_apply, actor)
 
     # ⑤ 技能条件乘区（幂等同上）
-    from ..services.battle2_cond_procs import apply_cond_procs as _cond_apply
+    from ..services.battle_cond_procs import apply_cond_procs as _cond_apply
     _step("cond", _cond_apply, actor)
 
     # ⑥ 食物效果（可选：仅吃料理时装配）
     aids = (ctx or {}).get("aids")
     if aids:
-        from ..services.battle2_food_proc import install_food_fx as _food_apply
+        from ..services.battle_food_proc import install_food_fx as _food_apply
         _step("food", _food_apply, actor, list(aids), (ctx or {}).get("logs") or [])
 
     actor[_MARK] = True  # 幂等保险丝（装配全部走完才打；中途异常也不阻断 → 仍落标记）

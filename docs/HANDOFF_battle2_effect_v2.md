@@ -16,7 +16,7 @@
 - HEAD：`（N5b4-4 PVP 切 battle2 后）`（v181.N5b4.4，2026-09-08）
 - 主仓（生产）：`C:/Users/yuyu/qqbot/data/plugins/dragonfall`（master 未动）
 - Python：`C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe`
-- 全套测试：`for f in tests/test_battle2_*.py; do python "$f"; done`（当前 16 文件 541 断言全绿）
+- 全套测试：`for f in tests/test_battle_*.py; do python "$f"; done`（当前 16 文件 541 断言全绿）
 - 覆盖率门禁：`python tools/cov_func_battle2.py`（0 未调用）+ `cov_branch_battle2.py`
 - 效果系统主方案：`docs/DESIGN_effect_system_v2.md`（Part 3.3/4 定稿 19 时机 + 管线）
 - N9 施工方案：`docs/REFACTOR_v181P4_N9_migration.md`（盘点/批次/删除清单）
@@ -65,7 +65,7 @@
      B 接受"Boss 独立镜像"语义（当前实现，血量共享/贡献独立/DOT 个人输出）。
      **鱼鱼拍板：先保留现状（路线 B），新会话再议。**
 7. **（2026-09-08 N5b4-4）PVP 切 battle2（本 commit）**
-   - 实现见 §3C；测试 tests/test_battle2_n5b4_pvp.py（29 断言：发起/轮流/胜负/防御/
+   - 实现见 §3C；测试 tests/test_battle_n5b4_pvp.py（29 断言：发起/轮流/胜负/防御/
      skill/超时/旧档清档）。全套 battle2 16 文件 541 断言绿。
    - 🔴 ~~新缺口（待鱼鱼拍板）PVP title_bonus 对称置空~~ → **✅ 鱼鱼拍板方案 A 已实施
      （2026-09-08）**：battle2/stats.py `_player_base_stats` 改 actor 自带 stat_bonus
@@ -113,7 +113,7 @@
      docs/REFACTOR_v181P4_N5B5a_use_item_design.md——economy use_item
      （副本 5895 / 普通 5909）在 R2/N5b4-2 后**已静默坏**（state battle2 化
      但走旧 BT.from_state→enemy={}），R3 删 `_instance_act` 前必须处理。
-     方案：翻译器 battle2_item_use（payload→actor）+ schedule hot 周期恢复
+     方案：翻译器 battle_item_use（payload→actor）+ schedule hot 周期恢复
      基建 + economy 分流切 router + purify 改翻译器；机制型 special
      （summon/trap/phoenix/morph/invuln 等）明确提示不扣道具列缺口。
      **新会话口令：「读 docs/REFACTOR_v181P4_N5B5a_use_item_design.md，
@@ -153,7 +153,7 @@ heal/state_set/interrupt/damage 动词补齐。
 - 效果源 = `actor["triggers"]`；owner 注入 params._owner；事件主体过滤（N9.6）
 
 ### N9 装备特效族化（→ weapon 72/79 + affix 42/76 覆盖）
-装配层 `game/services/battle2_equip_proc.py` + 族扩展动作 `battle2_we_procs.py`。
+装配层 `game/services/battle_equip_proc.py` + 族扩展动作 `battle_we_procs.py`。
 
 **N9A-1 death_dance 缓伤池**（04bb334）：we_death_pool_add/pay 扩展动作。
 **N9A-2 act_done 通用广播 + randuin/ice_vein**（0906c30）：EVENTS +act_done（全员
@@ -221,7 +221,7 @@ heal/state_set/interrupt/damage 动词补齐。
     my_side 显式定位行动者、meta.actor 驱动轮流、defending 随 actor 持久化（defend 覆盖/
     非 defend 消耗）、heal/buff 技能 target=None（防奶对手）、胜负按 actor 存活判定
     （battle2 result 视角固定 player side，防守方翻转）；flee/超时/旧档清档兼容。
-    测试 tests/test_battle2_n5b4_pvp.py 29 断言。title_bonus 缺口见 §0.5 记录 7。
+    测试 tests/test_battle_n5b4_pvp.py 29 断言。title_bonus 缺口见 §0.5 记录 7。
 - **剩余**：N5b4-5 instance.py 副本
   （增援/DOT 自动/killed）、N5b4-6 economy/player/tower 轻文件 + 删 import、
   N5b4-7 全命令层回归 + 汇报鱼鱼过目 diff
@@ -229,7 +229,7 @@ heal/state_set/interrupt/damage 动词补齐。
   切 battle2 需先补缺口 → 设计文档 `docs/REFACTOR_v181P4_N5B5_instance_gap_design.md`
   （鱼鱼 2026-09-08 审查后拍板"先做"）。引擎批 5E 完成：Battle +target_picker
   （自动 actor 目标注入）/ +on_event（事件总线外部观察者），引擎零游戏知识；
-  测试 test_battle2_n5b4e_hooks.py 13 断言。剩 5a 主流程 / 5b 账务 / 5c 剧本。
+  测试 test_battle_n5b4e_hooks.py 13 断言。剩 5a 主流程 / 5b 账务 / 5c 剧本。
 - **已核实事实**：死亡 actor 不从 sides 移除（只进 killed_actors，展示要过滤
   actor_alive）；db.save_battle 的 monster 列已兼容 sides（N5b4-3 改）
 - 鱼鱼约定：**核心战斗文件 diff 出后鱼鱼过目再提交**
@@ -266,10 +266,10 @@ heal/state_set/interrupt/damage 动词补齐。
 | game/battle2/effects.py | 动词执行器 ACTION_HANDLERS |
 | game/battle2/landing.py | 落地收口（death_guard/taken_calc/heal amp） |
 | game/battle2/battle.py | Battle 主类（act() 尾部 act_done fire） |
-| game/data/battle2_rules.py | STATE_EFFECTS/EFFECT_ACTIONS（含 affix_bleed/randuin 声明） |
-| game/services/battle2_equip_proc.py | 装配层（weapon + affix 翻译器/apply_to_actor） |
-| game/services/battle2_we_procs.py | 族扩展动作注册中心（we_* 全部） |
-| tests/test_battle2_n9_equip.py | N9/N9A/N9.7 验收（133 断言） |
+| game/data/battle_rules.py | STATE_EFFECTS/EFFECT_ACTIONS（含 affix_bleed/randuin 声明） |
+| game/services/battle_equip_proc.py | 装配层（weapon + affix 翻译器/apply_to_actor） |
+| game/services/battle_we_procs.py | 族扩展动作注册中心（we_* 全部） |
+| tests/test_battle_n9_equip.py | N9/N9A/N9.7 验收（133 断言） |
 
 ## 6. 会话重启第一步
 读本文档 → `git log --oneline -8` 确认 HEAD → 剩余：C 的 N5b4-4 PVP / N5b4-5 instance
@@ -333,7 +333,7 @@ I3-I7 道具链续做（apply/consume API）+ N5b4-6/7 + 世界Boss DOT 语义�
   battle2 stats 从不折算。修：同落 _battle_boons → effects（stat/mult 动态）。
 - player dict 不再透传 poi_buff 冗余 actor 字段；combat.py 两处开战 bless_note 改读
   _battle_boons + 动态 pct 文案（原来写死 +5%/+10%，雷淬之池实际 pct=8%）。
-- 测试：test_battle2_bridge 断言同步新语义 + boons→effects 翻译断言（64/64）。
+- 测试：test_battle_bridge 断言同步新语义 + boons→effects 翻译断言（64/64）。
 
 ### V7 全量回归（沙盒对照）
 - 沙盒：Temp/df_wt_v7sbx/data/plugins/dragonfall（data/plugins 父链必需）。

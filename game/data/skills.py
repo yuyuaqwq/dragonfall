@@ -467,7 +467,7 @@ PLAYER_SKILLS = {
              # v181.M-R2e B1：res_cost 兑现（heal_clear/冷静 R1c 同族先例）——
              # 施放需 faith ≥3（引擎 _skill_usable 前置拦截），施放扣 3 层
              # （_spend_skill_cost），回血走 heal_formula（80% 魔攻+成长）。
-             # 配套 MECH_CASH.faith_unload 声明记录（battle2_rules.py）。
+             # 配套 MECH_CASH.faith_unload 声明记录（battle_rules.py）。
              'res_cost': {'faith': 3},
              'name': '卸负',
              'heal_formula': 'matk*0.8 + 15 + player_lv*0.5 + skill_lv*8',

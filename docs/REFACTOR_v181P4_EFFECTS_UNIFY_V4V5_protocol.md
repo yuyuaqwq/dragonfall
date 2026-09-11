@@ -72,7 +72,7 @@ def act_consume(battle, caster, target, params, logs):
 - `_mech_to_effect` 里 `{"type": "state_add", "key": mech, "amount": mval, ...}`
   → `{"type": "apply", "op": "add", "key": mech, "amount": mval, ...}`
 
-## 5. EFFECT_ACTIONS 动作收敛（块 3 battle2_rules.py）
+## 5. EFFECT_ACTIONS 动作收敛（块 3 battle_rules.py）
 
 每个名词动作序列里的动作值按旧 action 映射：
 
@@ -88,19 +88,19 @@ def act_consume(battle, caster, target, params, logs):
 
 ## 6. 装配层调用点（块 3）
 
-### 6.1 battle2_equip_proc.py（9 buff + 2 state_add）
+### 6.1 battle_equip_proc.py（9 buff + 2 state_add）
 - 393/464/477/500/511/595/597/615/624：`"type": "buff"` → `"type": "apply"`（参数原样；
   动态数值 stat/op/mult 继续随动作参数快照——apply B 分支支持）
 - 423：`"type": "state_add", "key": key, "amount": 1, "on": "caster"` → `"type": "apply", "op": "add", ...`
 - 728：同 → `"type": "apply", "op": "add", ...`（death_guard cap=1）
 
-### 6.2 battle2_we_procs.py（4 buff + 2 control 直发 + 4 处内部 _slow/_freeze 直调 act_*）
+### 6.2 battle_we_procs.py（4 buff + 2 control 直发 + 4 处内部 _slow/_freeze 直调 act_*）
 - 245/608/1061/1096：`"type": "buff"` → `"type": "apply"`（参数原样）
 - 601/692：`"type": "control", "tag": ..., "mode": "skip"` → `"type": "apply", "key": <tag>, "on": "target", "mode": "skip"`（保留 turns；tag→key）
 - 内部函数 _freeze/_slow 直调 `act_control/act_buff(...)` → 改调 `apply_effects(battle, owner, tgt, [{...}], logs)` 或直调 act_apply（同模块私有 `_add_stacks` 保留，仅本文件用）
 - 内部 244 行附近 `from game.battle2.effects import act_buff` → import act_apply
 
-### 6.3 battle2_item_use.py（I2 翻译器）
+### 6.3 battle_item_use.py（I2 翻译器）
 - hot/regen 分支已是 effects["regen_hot"]（V1 已切），核实无 type: buff/state_add 残留。
 
 ## 7. EFFECT_RULES 表补 panel 字段（V5 数据表迁移，块 3b，可选合并）
@@ -120,7 +120,7 @@ def act_consume(battle, caster, target, params, logs):
   - type: state_spend → type: consume
   - type: buff → type: apply
   - type: control → type: apply + key=tag + on=target（如原无 on）+ mode 原样
-- 涉及文件：test_battle2_n3_effects / n4_schedule / n8_events / n9_equip / coverage /
+- 涉及文件：test_battle_n3_effects / n4_schedule / n8_events / n9_equip / coverage /
   hot_regen / item_use / cmdflow 等。V1 教训：正则替换后逐文件跑测试按报错行手改。
 
 ## 9. 验证顺序（每块绿再下一块）

@@ -87,7 +87,7 @@ D = 需查语义（desc 不明/可能死数据）。
   回春走 period 时间驱动拍板——倾向 period dir=gain 一致化）。
 - 满溢转盾 overflow_shield → 叠层 cap clamp 时溢出转 shield（装配层动词）。
 - 版本漂移处理：以 skills/EFFECT_RULES 现用为准，core_resources 渠道字段逐步并入
-  battle2_rules（单源化）；v130 残留（rage 渠道/背水）不接，标死数据待清。
+  battle_rules（单源化）；v130 残留（rage 渠道/背水）不接，标死数据待清。
 
 ## 7. 分批实施（R1 兑现族先行）
 
@@ -128,8 +128,8 @@ D = 需查语义（desc 不明/可能死数据）。
 # v139 形态层设计留档（源 core_resources.py 退役迁移 · v181.M-R2b）
 
 > 2026-09-09 v181.M-R2b：`game/data/core_resources.py`（v130.2 资源表）退役——战斗资源
-> 名/cap 单源化到 EFFECT_RULES（battle2_rules.py），engine.core_resource_def/def_by_key 删除，
-> 4 处调用点（combat 脱战校验/技能表、potion_effects、battle2_bridge v139 注入）改读新源。
+> 名/cap 单源化到 EFFECT_RULES（battle_rules.py），engine.core_resource_def/def_by_key 删除，
+> 4 处调用点（combat 脱战校验/技能表、potion_effects、battle_bridge v139 注入）改读新源。
 > 本文件保留旧表内 **v139 职业融合形态层设计原文**（dual_form/focus/vent/vow/resonance/echo），
 > 字段值/注释要点逐项抄录，作为未来形态层（B4 形态技 / focus 架设态）实施参考。
 > ⚠️ 该层尚未实现：v139 字段仅数据定义，引擎无形态机消费（battle_modes/battle_conds 为空壳）。
@@ -317,7 +317,7 @@ on_hit 终代语义 = 受击，JOB_GUIDE desc「治疗攒点(on_heal +2)/受击 
 
 未映射时机名 → 装配器静默跳过（版本漂移保护，同 R4 affix 翻译器缺口词条行为）。
 
-### 2.3 装配器落点：并入 class_mech_proc（不新建文件、不碰 battle2_equip_proc）
+### 2.3 装配器落点：并入 class_mech_proc（不新建文件、不碰 battle_equip_proc）
 
 - 装配函数：`class_mech_proc.apply_class_mech(actor)` 内新增「渠道段」（与既有 start_full 段并列；
   同一幂等装配入口）。**装配点零改动**——apply_class_mech 已由 _open_battle2 / PVP / tower 四处
@@ -326,8 +326,8 @@ on_hit 终代语义 = 受击，JOB_GUIDE desc「治疗攒点(on_heal +2)/受击 
 - 渠道效果形态：`actor.triggers[事件]` 挂 `{"type": "class_res_channel_gain", "res", "gain",
   "kind"/"not_basic", "label", "icon"}`——与 affix R4 产出同构（battle2 事件总线统一分发），
   但 **type 用 class_mech_proc 自注册动作**（R1a mech_cash_* 先例），零跨文件私有耦合：
-  - 不动 battle2_we_procs.py（并行 agent 域 + R4 词条动作命名域）
-  - 不 import battle2_equip_proc 的 _AFFIX_RES_GAIN_ON（私有表，affix 域时机语义带 on_ 前缀）
+  - 不动 battle_we_procs.py（并行 agent 域 + R4 词条动作命名域）
+  - 不 import battle_equip_proc 的 _AFFIX_RES_GAIN_ON（私有表，affix 域时机语义带 on_ 前缀）
 - 动作 `class_res_channel_gain`（~20 行，参数化零资源硬编码）：
   kind/not_basic 过滤（读 battle._fire_ctx.info）→ owner=声明者（_owner 或 caster）存活检查 →
   effects[res].stacks += gain，cap clamp 查 state_def(res).cap → 日志「✦ {label} +{gain}（{n}/{cap}）」。

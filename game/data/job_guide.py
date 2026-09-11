@@ -9,7 +9,7 @@
     → classes.py（本表逐字段复制，desc 逐字相等）
   - 核心资源展示 → v181.M-R2c 单源化（原 data/core_resources.py 已退役删除）：
       · 职业核心资源 key + 机制 desc → 本表 CORE_RESOURCE_GUIDE（六基础职业 cid→{key, desc}，
-        desc 自原表逐字迁移）；name/max → EFFECT_RULES[key].name/.cap 派生（battle2_rules.py 唯一权威，不重复存）
+        desc 自原表逐字迁移）；name/max → EFFECT_RULES[key].name/.cap 派生（battle_rules.py 唯一权威，不重复存）
       · 牧师攻线·歌者双资源 共鸣/回声 → 本表 EXTRA_RESOURCE_GUIDE（{name, max, desc} 全量，
         不在 EFFECT_RULES；经 EXTRA_RESOURCES 按职业合并展示）
   - 本表仅补充（全部有底层出处）：
@@ -19,7 +19,7 @@
 """
 import re
 
-from .battle2_rules import EFFECT_RULES
+from .battle_rules import EFFECT_RULES
 from .classes import CLASSES
 from .races import RACES
 
@@ -62,7 +62,7 @@ EXTRA_RESOURCES = {
 # ============================================================
 # 职业核心资源展示元数据（v181.M-R2c：原 game/data/core_resources.py 退役，展示表单源化）
 # 六基础职业 cid → {key, desc}；name/cap 不重复存——运行时从 EFFECT_RULES[key].name/.cap
-# 派生（battle2_rules.py，唯一权威）。desc 为『职业』详情玩家可见的机制一句话，自旧表逐字迁移。
+# 派生（battle_rules.py，唯一权威）。desc 为『职业』详情玩家可见的机制一句话，自旧表逐字迁移。
 # cls_shi_ren（诗人 v153 起独立第 7 职业）无核心资源 → 不在表内（JOB_GUIDE resource_* 为空）。
 # 注：原表 v139 形态字段（dual_form/focus/vent 等）与按 key 注册的 vow 副资源设计值随文件退役，
 #   已全文留档 docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『v139 形态层设计留档』章（引擎批次 2 启用时自该章还原）。

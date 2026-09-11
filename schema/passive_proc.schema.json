@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://dragonfall.local/schema/passive_proc.schema.json",
-  "title": "Dragonfall 被动声明表（battle2_rules.py：PASSIVE_PROC）",
+  "title": "Dragonfall 被动声明表（battle_rules.py：PASSIVE_PROC）",
   "$defs": {
     "passive_proc": {
       "type": "object",

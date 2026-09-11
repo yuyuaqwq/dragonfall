@@ -80,13 +80,13 @@
 | `core/formation.py` | 241 | 3（commands.combat/instance/world） | **引擎**（站位/射程纯函数，`MAX_RANKS` 等参数化） |
 | `core/skill_kinds.py` | 119 | 4（commands.combat/instance/instance_router + engine.py） | **引擎（需改）**：类型域枚举值当前写死中文 `物理/魔法/真伤…`，必须改为配置注入 |
 | `core/tick_effects.py` | 60 | **0** | **灰色**：通用 tick 框架，但当前无人消费（battle2 用 `schedule.py` 自带 tick） |
-| `core/battle_bars.py` | 336 | 4（commands.combat + 3 个 services） | **灰色偏引擎**：纯函数「挂敌身条 + 蓄力三律」，零职业特判；但延迟 `import MECH_CFG` + 键名读 `battle2_rules.BAR_STATE_PREFIX` |
+| `core/battle_bars.py` | 336 | 4（commands.combat + 3 个 services） | **灰色偏引擎**：纯函数「挂敌身条 + 蓄力三律」，零职业特判；但延迟 `import MECH_CFG` + 键名读 `battle_rules.BAR_STATE_PREFIX` |
 
 ### 2.2 内容（奥兰迪亚专属）
 
-- **`game/data/`（86 文件，74 575 行）**：`skills.py`(193KB)、`monsters.py`(83KB)、`instances.py`(147KB)、`items.py`(207KB)、`affixes.py`(87KB)、`equip_roster.py`(206KB)、`quests.py`(245KB)、`subareas.py`(409KB)、`npcs.py`(181KB)、`dialogues.py`(510KB)、`battle2_rules.py`(58KB)… 纯静态表。
+- **`game/data/`（86 文件，74 575 行）**：`skills.py`(193KB)、`monsters.py`(83KB)、`instances.py`(147KB)、`items.py`(207KB)、`affixes.py`(87KB)、`equip_roster.py`(206KB)、`quests.py`(245KB)、`subareas.py`(409KB)、`npcs.py`(181KB)、`dialogues.py`(510KB)、`battle_rules.py`(58KB)… 纯静态表。
   例外：`data/_assembly.py`(14KB) 与 `data/__init__.py`(16KB) 含装配逻辑（`build_index`/派生表），是「内容侧装配入口」。
-- **`game/services/`（22 文件）**：`class_mech_proc.py`(115KB)、`battle2_we_procs.py`(70KB)、`battle2_equip_proc.py`(59KB)、`battle2_bridge.py`(19KB)、`battle2_bar_procs.py`、`battle2_cond_procs.py`、`battle2_food_proc.py`、`battle_settlement.py`… = **机制动作注册模块 + 引擎适配桥**。
+- **`game/services/`（22 文件）**：`class_mech_proc.py`(115KB)、`battle_we_procs.py`(70KB)、`battle_equip_proc.py`(59KB)、`battle_bridge.py`(19KB)、`battle_bar_procs.py`、`battle_cond_procs.py`、`battle_food_proc.py`、`battle_settlement.py`… = **机制动作注册模块 + 引擎适配桥**。
 - **`game/commands/`（24 文件）**：`economy.py`(404KB)、`world.py`(257KB)、`instance.py`(192KB)、`combat.py`(189KB)… = AstrBot 命令层。
 - **`game/store/`（12 文件）**：SQLite 持久化，**零 battle2 依赖**（import 边 battle2=0），拆包时风险最低。
 - **顶层**：`content.py`(12 行，`data *` + `core *` 薄聚合，保留 `import game.content as C` 兼容路径)、`db.py`(9 行，模块级读 `DB_PATH`)、`drop_engine.py`(591 行)、`reward.py`(216 行)。
@@ -101,8 +101,8 @@
 | **`core/battle_bars.py`** | 336 | 纯函数 + 数据驱动铁律（无 `class_name` 字符串比较），但读 `MECH_CFG`（`importlib` 延迟导入）与 `BAR_STATE_PREFIX` 键名 | **引擎**（迁 `engine/support/bars.py`，读点改 `config`） |
 | **`core/passive_procs.py`** | 1 610 | P2D 建的被动 proc 注册表（53 proc 白名单 + 机制族 handler + `validate_proc_coverage()`）。**⚠️ 本行结论已过期（原文写于 2026-09-11 门禁建立之前）**：**不是孤儿** —— `tests/test_passive_proc_coverage.py` 在跑它，守着「声明集全部有归属 / 族⊆白名单 / 族∩缺口=∅ / 缺口集合钉死」四条不变式；另有 `schema/validate.py` 消息引用 | **内容**（**保留，勿归档**） |
 | **`core/battle_conds.py`** | 537 | 条件注册表，消灭 if-elif 硬编码；但注册项含游戏 token（`melody_*`/`enemy_shaken_*`/`guard_core`） | **内容**（`content/core/`） |
-| **`core/battle_modes.py`** | 458 | 形态/双形态框架，读 `battle2_rules` | 内容 |
-| **`core/potion_effects.py`** | 720 | 药水效果注册，读 `battle2_rules`+`items` | 内容 |
+| **`core/battle_modes.py`** | 458 | 形态/双形态框架，读 `battle_rules` | 内容 |
+| **`core/potion_effects.py`** | 720 | 药水效果注册，读 `battle_rules`+`items` | 内容 |
 | **`core/item_templates.py`** | 1 232 | 物品模板生成，读 content/engine | 内容 |
 | **`core/effect_actions.py`** | 187 | 效果动作别名（`action_def_down` 等），被 `potion_effects` 消费 | 内容 |
 | **`core/class_sets.py` / `core/drops.py` / `core/affix.py` / `core/gems.py` / `core/runes.py` / `core/enchant.py` / `core/maps.py` / `core/pois.py` / `core/index.py` / `core/wild*.py` / `core/rule_engine.py` / `core/position.py` / `core/worlds.py` / `core/stats.py` / `core/exploration.py` …** | — | 全部 `-> game.data` 有直接边（1~3 条），是**内容生成逻辑** | 内容 |
@@ -147,7 +147,7 @@ game/*top            1     4     6        0         0      3        5      -> 19
 | **R9** | `battle2/battle.py:120` | `game.engine`（`as E`） | 函数内 | `E.skill_info(class_name, sk)` / `E.skill_by_key(sk)` | **反向边**（读 `C.PLAYER_SKILLS`/`BRANCH_SKILLS`/`TUTOR_SKILLS`） |
 | **R10** | `battle2/battle.py:121` | `game.content`（`as C`） | 函数内 | `C.MONSTER_SKILLS.get(sk)` | **内容表直读** |
 | **R11** | `battle2/stats.py:16` | `game.engine`（`as E`） | 模块级 | `E.player_final_stats(...)`（玩家职业面板公式：装备/等级/转职/称号/种族/属性被动全算） | **最重的反向边** |
-| **R12** | `battle2/config.py:38` | `game.data.battle2_rules` | 函数内（`load_game_defaults`） | `load_game_rules(battle2_rules)` 装配 `EFFECT_ACTIONS`/`EFFECT_RULES` | **已注释声明为「游戏侧装配」**，但物理上落在引擎包内 → 应移出 |
+| **R12** | `battle2/config.py:38` | `game.data.battle_rules` | 函数内（`load_game_defaults`） | `load_game_rules(battle_rules)` 装配 `EFFECT_ACTIONS`/`EFFECT_RULES` | **已注释声明为「游戏侧装配」**，但物理上落在引擎包内 → 应移出 |
 | **R13** | `battle2/stats.py:97` | 字面量 `"战士"` | 硬编码 | `actor.get("class_name", "战士")` 默认职业名 | **内容名侵入** |
 | **R14** | `battle2/actions.py:22-26` | 字面量中文 kind | 硬编码 | `K_PHYS="物理"` / `K_MAGI="魔法"` / `K_TRUE="真伤"` / `K_HEAL="治疗"` / `K_BUFF="增益"` | **与数据表 kind 值耦合的内容语义** |
 | **R15** | `battle2/actions.py:42` | 字面量 `"攻击"` | 硬编码兜底 | 兜底普攻 `{"name": "攻击", …}` | **内容名侵入** |
@@ -208,7 +208,7 @@ game/*top            1     4     6        0         0      3        5      -> 19
 | 17 | `battle.py:120` | `from .. import engine as E` | ❌ 反向边 |
 | 18 | `battle.py:121` | `from .. import content as C` | ❌ 反向边 |
 | 19 | `battle.py:137` | `info = (C.MONSTER_SKILLS or {}).get(sk)` | ❌ 内容表直读 |
-| 20 | `config.py:38` | `from game.data import battle2_rules`（`load_game_defaults` 内） | ⚠️ 已声明「游戏侧装配」——**位置不合规**，需移出引擎包 |
+| 20 | `config.py:38` | `from game.data import battle_rules`（`load_game_defaults` 内） | ⚠️ 已声明「游戏侧装配」——**位置不合规**，需移出引擎包 |
 | 21 | `stats.py:16` | `from .. import engine as E` | ❌ 反向边 |
 | 22 | `stats.py:97` | `actor.get("class_name", "战士")` | ❌ 内容名默认值 |
 
@@ -232,8 +232,8 @@ game/*top            1     4     6        0         0      3        5      -> 19
 
 | 层 | 模块 |
 |---|---|
-| commands | `battle2_item_use` / `boss_script` / `combat` / `instance` / `instance_battle` / `player` / `tower` / `world` |
-| services | `battle2_bridge` / `battle2_bar_procs` / `battle2_cond_procs` / `battle2_we_procs` / `class_mech_proc` |
+| commands | `battle_item_use` / `boss_script` / `combat` / `instance` / `instance_battle` / `player` / `tower` / `world` |
+| services | `battle_bridge` / `battle_bar_procs` / `battle_cond_procs` / `battle_we_procs` / `class_mech_proc` |
 | top | `game/engine.py`（`from game.battle2.actions import _skill_pay_of`） |
 
 **实际被消费的 25 个符号**（引用点数）：
@@ -323,11 +323,11 @@ dragonfall/                       # 游戏仓库
 |---|---|---|
 | `content/data/` | `game/data/*`（86 文件，74 575 行） | 纯静态表，**原样迁移**；`_assembly.py` + `__init__.py` 保留装配职责 |
 | `content/core/` | `game/core/*`（55 文件，除迁走的 4 个） | 灰色模块**全部落这里**（`stat_bonus` / `timed_events` / `passive_procs` / `battle_conds` / `battle_modes` / `potion_effects` / `item_templates` / `effect_actions` / `class_sets` / `drops` / `affix` / `gems` / `runes` / `enchant` / `maps` / `pois` / `index` / `wild*` / `rule_engine` / `position` / `worlds` / `stats` / `exploration` / `encounter` / `hidden_cond` / `achievements*` / `title_conds` / `dialogue*` / `shop_stock` / `smith_stock` / `craft` / `daily_events` / `events` / `event_templates` / `world_event_templates` / `factions` / `fishing` / `formula_expr` 的调用方 / `instance_gate` / `monsters` / `mounts` / `pets` / `poi_effects` / `portals` / `time_weather` / `worlds` / `skill_kinds` 的调用方 …) |
-| `content/services/` | `game/services/*`（22 文件） | 机制动作注册模块 + `battle2_*_proc` 装配层 + `battle2_bridge` |
+| `content/services/` | `game/services/*`（22 文件） | 机制动作注册模块 + `battle_*_proc` 装配层 + `battle_bridge` |
 | `content/commands/` | `game/commands/*`（24 文件） | AstrBot 命令层 |
 | `content/store/` | `game/store/*`（12 文件） | 零引擎依赖，风险最低，**建议最后迁**（或最先，见 §7 顺序） |
 | `content/rules/`**【新】** | 自 `game/engine.py` 拆出 | 读表的技能/职业/面板函数：`skill_info` / `skill_by_key` / `skill_owner_cls` / `skills_for_level` / `is_skill_learned` / `skill_level_of` / `branch_skill_owner` / `branch_path_index` / `player_final_stats` / `race_stats` / `race_name` / `_skill_up` / `skill_max_level` … |
-| `content/bootstrap.py`**【新】** | 新 | 单点装配：`load_engine_config()`（把 `battle2_rules.EFFECT_ACTIONS/EFFECT_RULES`、`MECH_CFG`、面板函数、技能查询函数注入引擎 `config`） |
+| `content/bootstrap.py`**【新】** | 新 | 单点装配：`load_engine_config()`（把 `battle_rules.EFFECT_ACTIONS/EFFECT_RULES`、`MECH_CFG`、面板函数、技能查询函数注入引擎 `config`） |
 | `content/apply.py`**【新】** | 新 | `apply_game_content(actor, ctx=None)` 单一装配入口（见 6.5） |
 
 ### 6.4 `game/engine.py`（1 212 行）拆分（最大单点风险）
@@ -350,7 +350,7 @@ dragonfall/                       # 游戏仓库
 | `core/timed_events.py` | → `content/core/`（引擎不消费）；后续如需通用化，抽 `storage` 接口后再入引擎 | 第一批 |
 | `core/battle_conds.py` | → `content/core/`（battle2 不 import 它；旧 battle.py 已删） | 第一批 |
 | `core/passive_procs.py` | → `content/core/`（**保留**：被 `tests/test_passive_proc_coverage.py` 作为活门禁消费；原「孤儿归档」建议已作废，见 §8-R13） | 第一批 |
-| `core/battle_bars.py` | → `engine/support/bars.py`（引擎需要它：`services/battle2_bar_procs` 与 `class_mech_proc` 依赖其纯函数），读点改 `config.MECH_CFG` + `config.bar_prefix` | 第二批 |
+| `core/battle_bars.py` | → `engine/support/bars.py`（引擎需要它：`services/battle_bar_procs` 与 `class_mech_proc` 依赖其纯函数），读点改 `config.MECH_CFG` + `config.bar_prefix` | 第二批 |
 | `core/battle_modes.py` / `potion_effects.py` / `item_templates.py` / `effect_actions.py` | → `content/core/` | 第一批 |
 | `game/engine.py` | 一拆为二（§6.4） | **独立一批（最高风险）** |
 | `core/formula_expr.py` / `formation.py` / `skill_kinds.py` | → `engine/support/`（通用），旧路径留 shim | 第二批 |
@@ -362,14 +362,14 @@ dragonfall/                       # 游戏仓库
 
 | 位置 | 调用 |
 |---|---|
-| `commands/combat.py:621` | `battle2_equip_proc.apply_to_actor` |
+| `commands/combat.py:621` | `battle_equip_proc.apply_to_actor` |
 | `commands/combat.py:622` | `class_mech_proc.apply_class_mech` |
-| `commands/combat.py:2808` | `battle2_equip_proc.apply_to_actor`（PVP 路径） |
+| `commands/combat.py:2808` | `battle_equip_proc.apply_to_actor`（PVP 路径） |
 | `commands/combat.py:2851` | `class_mech_proc.apply_class_mech`（PVP 路径） |
-| `commands/tower.py:151` | `battle2_equip_proc.apply_to_actor` |
+| `commands/tower.py:151` | `battle_equip_proc.apply_to_actor` |
 | `commands/tower.py:156` | `class_mech_proc.apply_class_mech` |
-| `commands/battle2_item_use.py:52` | `battle2.config.load_game_defaults()` |
-| `services/class_mech_proc.py` | 内部：`apply_class_mech` 尾段 import `battle2_bar_procs.apply_bar_procs` + `battle2_cond_procs.apply_cond_procs`（原 L2143/L2149，并发改动后为 L2303/L2309） |
+| `commands/battle_item_use.py:52` | `battle2.config.load_game_defaults()` |
+| `services/class_mech_proc.py` | 内部：`apply_class_mech` 尾段 import `battle_bar_procs.apply_bar_procs` + `battle_cond_procs.apply_cond_procs`（原 L2143/L2149，并发改动后为 L2303/L2309） |
 
 装配顺序契约（散落在注释里）：`bar_gain` 须先于 mech 段 → equip → class_mech → bar → cond → food。
 
@@ -388,7 +388,7 @@ def apply_game_content(actor: dict, ctx: dict | None = None) -> dict:
     return actor
 ```
 
-- 命令层 6 处 → 各 1 行 `apply_game_content(actor)`；`battle2_item_use.py:52` 改为 `ensure_engine_configured()`。
+- 命令层 6 处 → 各 1 行 `apply_game_content(actor)`；`battle_item_use.py:52` 改为 `ensure_engine_configured()`。
 - 幂等由 `apply.py` 内部 `ctx["_applied_content"]` 标记保证（沿用 `class_mech_proc.apply_class_mech` 现有幂等语义）。
 - 引擎侧仍不知内容：`apply_game_content` 住在 content，引擎只提供 `config`/`register_action`/`fire` 三个通用挂载面。
 
@@ -505,13 +505,13 @@ S1 ✅ → S2 ✅ → S3 ✅ → S5'（拆 engine.py，落 battle2/formulas.py +
 | 位置不合规 R12 | `game/battle2/config.py:33-39` |
 | 引擎 kind 常量 | `game/battle2/actions.py:22-26` |
 | 装配调用点（6 处） | `commands/combat.py:621,622,2808,2851`；`commands/tower.py:151,156` |
-| 配置装载点 | `commands/battle2_item_use.py:52`；`data/battle2_rules.py:9` |
+| 配置装载点 | `commands/battle_item_use.py:52`；`data/battle_rules.py:9` |
 | 内部串联（2 处） | `services/class_mech_proc.py`（`apply_class_mech` 尾段；行号随并发改动漂移：侦察时 L2143/2149，其后 L2303/2309） |
-| 测试 path 模板 | `tests/conftest.py:16-38`；单测样板见 `tests/test_battle2_n3_effects.py:17-34` |
+| 测试 path 模板 | `tests/conftest.py:16-38`；单测样板见 `tests/test_battle_n3_effects.py:17-34` |
 | 回归入口 | `scripts/run_all_tests.py`（`PLUGIN_DIR` 推导 `:46-48`、`SERIAL_SLOT` `:58-61`） |
 | 循环导入已知点 | `core/battle_bars.py:30-31`；`core/__init__.py:59-61,66-67`；`services/__init__.py:11` |
 
 > ⚠️ **行号时效**：本档全部行号取自 `HEAD=780720b` 的只读侦察快照（2026-09-11 00:10–00:23）。
-> 侦察期间检测到**并行 agent 正在改动** `game/data/battle2_rules.py` 与 `game/services/class_mech_proc.py`（00:24–00:25 落盘），
+> 侦察期间检测到**并行 agent 正在改动** `game/data/battle_rules.py` 与 `game/services/class_mech_proc.py`（00:24–00:25 落盘），
 > 故这两个文件的**行号已漂移**（`class_mech_proc.apply_class_mech` L2041→L2201、内部串联 L2143/2149→L2303/2309）。
 > **引擎侧（`game/battle2/*`）全部锚点未变**，反向依赖边与残留结论不受影响。实施期以符号名检索为准，勿硬编码行号。

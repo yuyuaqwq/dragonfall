@@ -89,7 +89,7 @@ actor["ai"] = {
 
 ## 5. 迁移翻译器（MONSTER_MODS ai → actor.ai）
 
-- 位置：game/services/battle2_bridge.py monster_to_actor 尾部（桥已有透传段）
+- 位置：game/services/battle_bridge.py monster_to_actor 尾部（桥已有透传段）
 - 翻译规则：
   - ai.weights（技能→权重 map）→ weighted moves：when={}，then=skill，weight=原值
   - ai.skill_chance（0-1）→ weighted 模式命中概率：chance 高 → 用技能概率；低 → fallback

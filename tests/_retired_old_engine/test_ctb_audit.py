@@ -191,7 +191,7 @@ def main():
     test_5_defend_chain_reduce()
     # test_6 已删除（v180G B7：_instance_apply_enemy_act_ct 废弃）
     # test_7 已删除（B6b 初始 ct 播种后断言失效；超时自动防御语义由
-    #   test_battle2_n5b4_instance_router test_3 端到端覆盖——R3 旧版靠 ct 全 0 假象过）
+    #   test_battle_n5b4_instance_router test_3 端到端覆盖——R3 旧版靠 ct 全 0 假象过）
     test_8_inst_reset_player_cts()
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed

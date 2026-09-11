@@ -5881,7 +5881,7 @@ class EconomyCmds(CommandBase):
                     yield event.plain_result(r.text)
                     return
                 # I5：机制型缺口（special summon/trap/... 翻译器不覆盖）→ 提示不扣道具
-                from .battle2_item_use import can_translate as _b2u_can
+                from .battle_item_use import can_translate as _b2u_can
                 _pl0 = r.payload if r.payload is not None else "0"
                 _it_cast0 = d.get("cast")
                 if _it_cast0:
@@ -5917,7 +5917,7 @@ class EconomyCmds(CommandBase):
             if battle["state"].get("type") == "pvp":
                 yield event.plain_result("PVP 战斗无法使用道具！")
                 return
-            b = self._restore_battle2(battle["state"])
+            b = self._restore_battle(battle["state"])
             if b is None:
                 # 旧格式存档作废：清档重开（N5b 约定不迁移）
                 db.clear_battle(group_id, qq_id)
@@ -5926,7 +5926,7 @@ class EconomyCmds(CommandBase):
                 return
             # I4：from_state 后注入道具行动回调（action_override 不可序列化）
             try:
-                from .battle2_item_use import make_override
+                from .battle_item_use import make_override
                 b.action_override = make_override()
             except Exception:
                 b.action_override = None
@@ -5937,7 +5937,7 @@ class EconomyCmds(CommandBase):
                 yield event.plain_result(r.text)
                 return
             # I5：机制型缺口（special summon/trap/... 翻译器不覆盖）→ 提示不扣道具
-            from .battle2_item_use import can_translate as _b2u_can
+            from .battle_item_use import can_translate as _b2u_can
             _pl0 = r.payload if r.payload is not None else "0"
             _it_cast0 = d.get("cast")
             if _it_cast0:
@@ -5973,7 +5973,7 @@ class EconomyCmds(CommandBase):
             logs, ended, _who = b.human_act("use_item", payload, _my)
             # saintess_engine 行动后回写 player dict（副本 actor 改动不自动落回）
             try:
-                from ..services.battle2_bridge import sync_player_from_actor
+                from ..services.battle_bridge import sync_player_from_actor
                 sync_player_from_actor(player, _my)
             except Exception:
                 pass

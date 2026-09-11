@@ -15,7 +15,7 @@ TEST_DIR = os.path.join(PLUGIN_DIR, "tests")
 
 os.chdir(PLUGIN_DIR)
 
-test_files = sorted(glob.glob(os.path.join(TEST_DIR, "test_battle2_*.py")))
+test_files = sorted(glob.glob(os.path.join(TEST_DIR, "test_battle_*.py")))
 print(f"跑 {len(test_files)} 个测试文件")
 
 # 单 tracer 跨文件累积（runctx 每次执行累积 counts）

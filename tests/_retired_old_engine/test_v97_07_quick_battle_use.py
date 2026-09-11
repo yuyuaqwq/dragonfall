@@ -30,7 +30,7 @@ async def main():
     # 恢复，旧格式（无 sides）按约定清档；此处直接存 battle2 to_state。
     import random
     random.seed(42)
-    from game.services import battle2_bridge as _BR
+    from game.services import battle_bridge as _BR
     from game.battle2 import Battle as _B2
     mon = {"name": "测试怪", "hp": 999999, "max_hp": 999999, "def": 50, "mdef": 40,
            "spd": 5, "atk": 30, "matk": 30, "crit": 0.0, "dodge": 0.0,

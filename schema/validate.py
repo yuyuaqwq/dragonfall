@@ -192,7 +192,7 @@ def _import_data():
     mods = {}
     for name in ("game.data.skills", "game.data.affixes", "game.data.items",
                  "game.data.monsters", "game.data.subareas", "game.data.instances",
-                 "game.data.hidden_monsters", "game.data.battle2_rules",
+                 "game.data.hidden_monsters", "game.data.battle_rules",
                  "game.data.classes", "game.data.equip_roster"):
         mods[name] = importlib.import_module(name)
     return mods
@@ -311,7 +311,7 @@ def _run_domain(domain, docs, M, strict_unknown):
                 err(f"<container:{def_name}>", p, msg)
         # 跨表：res_cost key 已在 schema 覆盖；被动 proc 归属为提醒
         passives = [(lbl, o["passive"]) for lbl, o in entries if isinstance(o.get("passive"), dict)]
-        declared = set(M["game.data.battle2_rules"].PASSIVE_PROC)
+        declared = set(M["game.data.battle_rules"].PASSIVE_PROC)
         miss = collections.Counter()
         for lbl, ps in passives:
             proc = ps.get("proc")
@@ -323,14 +323,14 @@ def _run_domain(domain, docs, M, strict_unknown):
                  proc)
         extra["passive_proc_missing"] = dict(miss)
         mechs = collections.Counter(o["mech"] for _l, o in entries if o.get("mech"))
-        declared_mech = set(M["game.data.battle2_rules"].EFFECT_RULES) | set(M["game.data.battle2_rules"].MECH_CASH)
+        declared_mech = set(M["game.data.battle_rules"].EFFECT_RULES) | set(M["game.data.battle_rules"].MECH_CASH)
         undecl = {m: n for m, n in mechs.items() if m not in declared_mech}
         if undecl:
             warn(f"<mech ×{len(undecl)}>", "mech",
                  f"{len(undecl)} 个 mech 未在 EFFECT_RULES/MECH_CASH 声明: {sorted(undecl)}", undecl)
         extra["mech_undeclared"] = undecl
         effs = {o["effect"] for _l, o in entries if o.get("effect")}
-        ea = set(M["game.data.battle2_rules"].EFFECT_ACTIONS)
+        ea = set(M["game.data.battle_rules"].EFFECT_ACTIONS)
         if effs - ea:
             warn(f"<effect ×{len(effs - ea)}>", "effect",
                  f"{len(effs - ea)} 个 effect 未在 EFFECT_ACTIONS 声明: {sorted(effs - ea)}")
@@ -477,7 +477,7 @@ def _run_domain(domain, docs, M, strict_unknown):
     # ---------------- effect_rules
     if domain == "effect_rules":
         doc = docs["effect_rules.schema.json"]
-        B = M["game.data.battle2_rules"]
+        B = M["game.data.battle_rules"]
         entries = list(B.EFFECT_RULES.items())
         coverage = _coverage(entries)
         for k, v in entries:
@@ -509,7 +509,7 @@ def _run_domain(domain, docs, M, strict_unknown):
     # ---------------- passive_proc
     if domain == "passive_proc":
         doc = docs["passive_proc.schema.json"]
-        B = M["game.data.battle2_rules"]
+        B = M["game.data.battle_rules"]
         entries = list(B.PASSIVE_PROC.items())
         coverage = _coverage(entries)
         for k, v in entries:

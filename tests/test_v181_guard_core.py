@@ -2,7 +2,7 @@
 """v181 拳师「磐核」线测试——资源攒取 + 消耗兑现 + 磐石行者线 4 被动 + 守御姿态。
 
 设计权威 = docs/CLASS_MECHANICS_v153.md L909-918（磐核定义）/ L985-1017（拳师 B 线技能表）。
-声明源 = game/data/battle2_rules.py（EFFECT_RULES guard_core/guard_stance、EFFECT_ACTIONS、
+声明源 = game/data/battle_rules.py（EFFECT_RULES guard_core/guard_stance、EFFECT_ACTIONS、
 MECH_CASH guard_core_burst、PASSIVE_PROC core_*）；技能数据 = game/data/skills.py
 （BRANCH_SKILLS["cls_wu_seng"]["磐石行者"]）。
 
@@ -40,7 +40,7 @@ from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine import effects as EFX  # noqa: E402
 from saintess_engine.battle.effect_triggers import fire  # noqa: E402
 from game.services import class_mech_proc as CM  # noqa: E402
-from game.data.battle2_rules import (EFFECT_RULES, EFFECT_ACTIONS,  # noqa: E402
+from game.data.battle_rules import (EFFECT_RULES, EFFECT_ACTIONS,  # noqa: E402
                                     MECH_CASH, PASSIVE_PROC)
 from game.content_rules.skills import skill_info
 

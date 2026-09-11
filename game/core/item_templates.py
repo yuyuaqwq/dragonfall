@@ -748,7 +748,7 @@ def tpl_mount(ctx):
 # v104 P2-7 修复：净化卷轴死数据——战斗内清除玩家负面 buff（stun/freeze/silence/spd_down）
 # I5（saintess_engine）：负面权威 = actor.effects（V 系列单容器 + EFFECT_RULES 声明）。
 # 本模板只做「净化对象存在」判定（读视图/state actors），清除统一由翻译器
-# battle2_item_use 执行（act_cleanse 查表：period/on=target/cleanse=True；sleep 不可净化）。
+# battle_item_use 执行（act_cleanse 查表：period/on=target/cleanse=True；sleep 不可净化）。
 _PURIFY_DEBUFF_KEYS = ("stun", "freeze", "silence", "spd_down",
                        "atk_down", "def_down", "matk_down", "mdef_down")
 
@@ -789,7 +789,7 @@ def _b2_player_effects_candidates(st) -> list:
 def _b2_has_purifiable(st) -> bool:
     """saintess_engine 玩家侧是否有可净化负面（EFFECT_RULES period/on=target/cleanse 声明）。"""
     try:
-        from ..data import battle2_rules as _B2R
+        from ..data import battle_rules as _B2R
         rules = _B2R.EFFECT_RULES or {}
     except Exception:
         rules = {}
@@ -808,7 +808,7 @@ def _b2_has_purifiable(st) -> bool:
 def tpl_purify(ctx):
     """净化卷轴（v104 P2-7 修复：原无 effect 字段 → infer_template 判 none 死数据）。
     I5（saintess_engine）：战斗内负面在 actor.effects（V 系列单容器）。模板只判定净化对象：
-    - 有可净化负面 → payload="purify:1"，实际清除由翻译器（battle2_item_use）执行
+    - 有可净化负面 → payload="purify:1"，实际清除由翻译器（battle_item_use）执行
     - 无负面可驱散 → 不消耗（与满血治疗拦截同款，M02 P1-5 模式）
     战斗外/无负面：不消耗提示。"""
     d = ctx.data

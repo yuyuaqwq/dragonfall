@@ -8,7 +8,7 @@
 锁定基线（2026-09-11，见 docs/DATA_SCHEMA_AUDIT.md）：
     现网违规 = 5   （skills 3 / items 2 / 其余 0）
     现网提醒 = 19
-若这里是红的：要么数据被改了（真违规），要么 battle2_rules.py 被并行重构改了 →
+若这里是红的：要么数据被改了（真违规），要么 battle_rules.py 被并行重构改了 →
 先看 docs/DATA_SCHEMA_AUDIT.md §4 与 schema/README.md『维护规则』再决定改数据还是改 schema。
 """
 import importlib.util

@@ -3,7 +3,7 @@
 > 2026-09-08 鱼鱼要求详细设计方案文档（具体到字段/函数）。本文档取代 N5B_调用映射表
 > 的零散映射，给出**可逐行执行的施工图**：每个文件怎么改、每个函数签名、字段去向。
 > 分支 wt_ebuffs（worktree df_wt_ebuffs/w1），HEAD b276bdd。baseline：battle2 12 测试全绿。
-> 前置产物已就绪：battle2_bridge（N5b-1）/ cmdflow 测试（N5b-3）/ 开战仪式（N5b-2）
+> 前置产物已就绪：battle_bridge（N5b-1）/ cmdflow 测试（N5b-3）/ 开战仪式（N5b-2）
 > / EP.apply_to_actor 装备装配（N9）/ act_done 事件（N9A-2）。
 
 ---
@@ -40,8 +40,8 @@
 
 ```python
 # 新（命令层统一走桥，禁止手拼 sides）：
-from ..services import battle2_bridge as BR
-from ..services.battle2_equip_proc import apply_to_actor as EP_apply   # N9 装备装配
+from ..services import battle_bridge as BR
+from ..services.battle_equip_proc import apply_to_actor as EP_apply   # N9 装备装配
 
 # ① 开战仪式（player dict 侧，纯数据搬运；效果执行 N5b 增量）
 BR.prepare_player_for_battle(player, self._title_bonus(group_id, qq_id), db)

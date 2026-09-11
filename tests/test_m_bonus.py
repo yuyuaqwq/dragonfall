@@ -38,7 +38,7 @@ from saintess_engine import Battle as B2, make_actor
 from saintess_engine import actions as A
 from saintess_engine.battle.actors import ActCtx
 from saintess_engine.battle.effects import _cap_of
-from game.services import battle2_equip_proc as EP
+from game.services import battle_equip_proc as EP
 from game.core import stat_bonus as SB
 
 PASS = 0
@@ -421,7 +421,7 @@ def t_c_mp_spend_floor_floor():
 
 def t_d_finisher():
     print("【D.1 finisher 装配：dmg_calc we_dmg_mult_cond mech_any + tier 乘区】")
-    from game.services.battle2_we_procs import we_dmg_mult_cond
+    from game.services.battle_we_procs import we_dmg_mult_cond
     for q, mult in (("blue", 1.10), ("purple", 1.15), ("orange", 1.20)):
         k = mk_rogue(f"fin_{q}")
         equip_affix(k, "finisher", "weapon", q)

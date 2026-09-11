@@ -8,8 +8,8 @@
 > 三项自定决策：**①A = 条上限 125**（放开阈值递增）；**②C = 免疫期内注入忽略**（策划案字面）；
 > **③C2 = 引擎时钟事件 time_advance**（6 行）。
 > ⚠️ 原 v2 的「读侧兼容旧存档 buffs」段**已删除**——鱼鱼 2026-09-10 明确「不需要兼容老存档」。
-> 验收：`tests/test_numeric_bar_decay.py` 25/25（新增数值门禁）+ `test_battle2_bar_procs` 41/41
-> + `test_passive_p15` / `test_battle2_cond_procs` / `test_melody` 回归绿。
+> 验收：`tests/test_numeric_bar_decay.py` 25/25（新增数值门禁）+ `test_battle_bar_procs` 41/41
+> + `test_passive_p15` / `test_battle_cond_procs` / `test_melody` 回归绿。
 
 ## §0 改动分层（先看这张）
 
@@ -20,7 +20,7 @@
 | C | 免疫窗口改时刻制（2 刻 / 期内不积蓄 / 到期可再触发） | **`core/battle_bars.py`** | ⚠️ 核心 | ✅ |
 | C0 | 条容器从死掉的 `buffs` 迁进 `effects["bar:<key>"]` | **`core/battle_bars.py` + 读点** | ⚠️ 核心 | ✅ |
 | C2 | 让读点拿到「当刻值」（时钟事件 `time_advance`） | **`battle2/schedule.py` + `effect_triggers.py`** | ✅ 引擎（6 行） | ✅ |
-| D | 推满语义 = 跳过下一次行动（非定身 2.0 刻） | `battle2_bar_procs`（`mode=skip` 引擎已有） | ❌ | ✅ |
+| D | 推满语义 = 跳过下一次行动（非定身 2.0 刻） | `battle_bar_procs`（`mode=skip` 引擎已有） | ❌ | ✅ |
 | G | 展示当刻条值（战报「💥破绽 32/50」） | `commands/combat.py` | ❌ 上层 | ✅ |
 | E | Boss 阶段保留 50% | `boss_script` 补 `fire("phase")`（**当前零 fire 点**） | ❌ 上层 | ⏳ 另立 |
 | F | 反震（受击反弹 30% + 推条 +3） | 装配层 `on_taken` | ❌ | ⏳ 另立 |
@@ -32,9 +32,9 @@
   （`potion_effects` / `effect_actions` / `battle_conds` / `passive_procs`）＋两处 `buffs={}` 占位
   （`commands/instance.py:1094,1116`）。battle2 侧只有 `battle_bars`。
 - `on_taken` 已带 `source`+`dmg`（`landing.py:139`）→ 反震可写装配层（范例
-  `services/battle2_we_procs.py:125 we_reflect`）。
+  `services/battle_we_procs.py:125 we_reflect`）。
 - `"phase"` 在 `EVENTS` 已声明但**全库零 fire 点** → 阶段保留只缺上层一行。
-- `core/battle_bars` 活跃消费方仅 `services/battle2_bar_procs.py` + 两个测试 → 可放心改造。
+- `core/battle_bars` 活跃消费方仅 `services/battle_bar_procs.py` + 两个测试 → 可放心改造。
 
 ---
 
@@ -53,7 +53,7 @@
   一边要 stacks/expire/vuln），必须隔离。
 - 前缀 `bar:` 只是**内容层命名约定**（引擎按键查 `EFFECT_RULES`，找不到就什么都不做）；
   也满足项目既有原则——不给引擎加专用路径，也不新开散容器。
-- 声明位置：`data/battle2_rules.BAR_STATE_PREFIX = "bar:"`（与 `BAR_INJECT_FIELDS` 同处）。
+- 声明位置：`data/battle_rules.BAR_STATE_PREFIX = "bar:"`（与 `BAR_INJECT_FIELDS` 同处）。
 
 ### 1.2 条条目字段
 
@@ -121,7 +121,7 @@ bar_preserve(host, key, pct=None)                   # 阶段转换保留（E 待
 
 ## §2 引擎改动 C2：全局时钟事件（推荐，6 行）
 
-容器时间化后，「谁去结算」决定读数正确性；读取点分散（`battle2_cond_procs._p_enemy_broken`、
+容器时间化后，「谁去结算」决定读数正确性；读取点分散（`battle_cond_procs._p_enemy_broken`、
 `class_mech_proc` 两个谓词、注入点、展示层）——漏一处就脏读。引擎在时钟推进处广播一次即可。
 
 ```python
@@ -135,7 +135,7 @@ _settle_time_effects(battle, logs)
 + _fire(battle, "time_advance", {"dt": dt, "now": battle._now}, logs)
 ```
 
-装配侧：`battle2_bar_procs._ensure_tick` 首次挂条时自安装
+装配侧：`battle_bar_procs._ensure_tick` 首次挂条时自安装
 `{"event": "time_advance", "action": "bar_time_settle", "key": ...}`（只有真挂过条的单位才有条目）。
 退化路径（不做 C2）：装配层在每个读点前手动 `bar_settle`（当前 4 个读点 + 展示层）。
 
@@ -145,10 +145,10 @@ _settle_time_effects(battle, logs)
 
 | 文件 | 改动 |
 |---|---|
-| `services/battle2_bar_procs.py` | 读写改 `effects["bar:<key>"]`；传 `now`；新增 `bar_time_settle` 动作；`_ensure_tick` 挂 `time_advance` |
+| `services/battle_bar_procs.py` | 读写改 `effects["bar:<key>"]`；传 `now`；新增 `bar_time_settle` 动作；`_ensure_tick` 挂 `time_advance` |
 | `services/class_mech_proc.py` | `target_bar_broken` 判定 + `passive_bar_extend` 的 `immune_turns +=` → `immune_until +=`；读点改前缀键 |
-| `services/battle2_cond_procs.py` | `_p_enemy_broken` 同上 |
-| `data/battle2_rules.py` | 新增 `BAR_STATE_PREFIX`；注释里 `buffs[bar]` 改 `effects[bar:*]` |
+| `services/battle_cond_procs.py` | `_p_enemy_broken` 同上 |
+| `data/battle_rules.py` | 新增 `BAR_STATE_PREFIX`；注释里 `buffs[bar]` 改 `effects[bar:*]` |
 | `data/classes.py:403-409` | **删死声明** `enemy_bar.shaken`（零消费方 + `decay_per_turn: 4` 漂移）——数值单源 = `ENEMY_BAR_CFG` |
 | `commands/boss_script.py` | 阶段转换处补 `fire("phase")` → 订阅方 `bar_preserve`（E） |
 | `commands/combat.py` 等 | 展示 `int(val)`（G）；`commands/instance.py:1094,1116` 的 `copy["buffs"]={}` 占位一并清 |
@@ -206,7 +206,7 @@ ENEMY_BAR_CFG["shaken"] = {
 
 ```python
 # ---------- 命名 ----------
-KEY(bar) = "bar:" + bar                 # 前缀 = data/battle2_rules.BAR_STATE_PREFIX
+KEY(bar) = "bar:" + bar                 # 前缀 = data/battle_rules.BAR_STATE_PREFIX
 
 # ---------- 读/建（无兼容分支——旧 buffs 存档不支持）----------
 def bar_state(host, key, now=None):
@@ -282,7 +282,7 @@ def _advance_time(battle, dt, logs):
 ### A.3 装配层（内容层）
 
 ```python
-# services/battle2_bar_procs.py
+# services/battle_bar_procs.py
 @register_action("bar_time_settle")                  # 新增：时钟推进 → 结息 + 查触发
 def bar_time_settle(battle, caster, target, params, logs):
     host = params["_owner"];  key = params["key"];  now = battle["_now"]
@@ -297,7 +297,7 @@ def _ensure_tick(host, key):                         # 首次挂条自安装（�
 bar_gain(host, key, amount, logs, now=battle._now)
 bar_trigger(host, key, logs, now=battle._now)
 
-# services/class_mech_proc.py · services/battle2_cond_procs.py（两个读点）
+# services/class_mech_proc.py · services/battle_cond_procs.py（两个读点）
 #   旧: bs = target.buffs["shaken"];  判 bs["val"]≥bar_at / bs["immune_turns"]>0
 #   新: bar_settle(target, "shaken", battle._now)
 #       node = target.effects["bar:shaken"];  判 node["val"]≥bar_at / node["immune_until"]>now

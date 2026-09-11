@@ -128,7 +128,7 @@ def test_offbattle_guard_chinese_name():
     # 直接验证渲染片段（脱战拦截在 handler 里带 event，这里验证 join 逻辑产物）
     # v181.M-R2b：渲染同 combat.py 改读 EFFECT_RULES 单源名（旧 E.core_resource_def 已退役）
     def _res_cn(_key):
-        from game.data.battle2_rules import EFFECT_RULES as _ER
+        from game.data.battle_rules import EFFECT_RULES as _ER
         return ((_ER.get(_key) or {}).get("name")) or _key
     parts = []
     for _k, _v in info["res_cost"].items():

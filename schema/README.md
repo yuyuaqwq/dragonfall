@@ -16,12 +16,12 @@
 | `monster.schema.json` | 怪物 | `monster_skill` | `MONSTER_SKILLS`、`ELITE_EQUIP_DROP`（`game/data/monsters.py`）；怪物六元组（`subareas.py` / `instances.py`）；`HIDDEN_MONSTERS` |
 | `affix.schema.json` | 词条 | `affix` | `AFFIXES` / `AFFIX_POOL_BY_QUALITY` / `AFFIX_KIND` / `AFFIX_AFFINITY_POOLS`（`game/data/affixes.py`） |
 | `item.schema.json` | 物品 | `item` | `ITEMS`（`game/data/items.py`） |
-| `effect_rules.schema.json` | 声明表 | `effect_rule` | `EFFECT_RULES` / `EFFECT_ACTIONS` / `MECH_CASH`（`game/data/battle2_rules.py`） |
-| `passive_proc.schema.json` | 被动声明 | `passive_proc` | `PASSIVE_PROC`（`game/data/battle2_rules.py`） |
+| `effect_rules.schema.json` | 声明表 | `effect_rule` | `EFFECT_RULES` / `EFFECT_ACTIONS` / `MECH_CASH`（`game/data/battle_rules.py`） |
+| `passive_proc.schema.json` | 被动声明 | `passive_proc` | `PASSIVE_PROC`（`game/data/battle_rules.py`） |
 | `validate.py` | 校验器 + CLI | — | 全 6 域 + 跨表引用完整性 |
 | `../docs/DATA_SCHEMA_AUDIT.md` | 脏数据审计报告 | — | 覆盖率 / 违规清单 / 结论 |
 
-> ⚠️ `game/data/battle2_rules.py` 正被另一个 agent 重构（行号会漂移）。本目录 schema 只依赖
+> ⚠️ `game/data/battle_rules.py` 正被另一个 agent 重构（行号会漂移）。本目录 schema 只依赖
 > **表结构**（key→规则字典），不引用任何行号；若该文件新增状态 key，见 §6 维护规则。
 
 ---
@@ -194,7 +194,7 @@ V.validate_all(domain="items")         # 单域
 | 新增一个字段 | ① 加进 `.schema.json` 对应条目的 `properties`（类型 + 范围/枚举）；② `--strict-unknown` 必须仍为 0；③ 审计报告 §2 覆盖率表更新。 |
 | 新增一个域（如 `quest` / `npc`） | ① 新建 `schema/<x>.schema.json`（沿用 `$defs` + `x-primary` 约定）；② 在 `validate.py` 的 `ALL_DOMAINS` 与 `_run_domain` 加分支；③ 在 `tests/test_schema_validate.py` 的 `SCHEMA_FILES` / `BASELINE_*` 登记；④ 更新本 README 表格。 |
 | 发现 schema 太严（历史数据大面积报错） | **先停下来报告，别改数据**。正确做法是放宽 schema（把字段改可选 / 加 `anyOf`），并在审计报告里归类为「schema 太严」，同时记录放宽理由。 |
-| `battle2_rules.py` 被重构后状态 key 变了 | 本目录不引用行号，只要表结构（key→规则）不变就无需改动；`MECH_CASH.key` 的引用检查会自动把悬空 key 报成违规。 |
+| `battle_rules.py` 被重构后状态 key 变了 | 本目录不引用行号，只要表结构（key→规则）不变就无需改动；`MECH_CASH.key` 的引用检查会自动把悬空 key 报成违规。 |
 
 **铁律**：schema 与数据冲突时，默认怀疑数据（真错）；只有当冲突面很大且明显是历史写法时，
 才放宽 schema —— 并且必须留下文字理由。

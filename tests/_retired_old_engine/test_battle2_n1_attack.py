@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """N1 验收：battle2 新引擎普攻闭环 vs 旧 battle.py 同场景数值对拍。
 
-跑法：python tests/test_battle2_n1_attack.py（w1 内）
+跑法：python tests/test_battle_n1_attack.py（w1 内）
 覆盖：
 - 三职业（战士/游侠/法师）× 多 seed × 三档目标防御（0/5/50）→ 45 场景
 - 含暴击路径 + 幸运一击（lucky ×1.3）路径
@@ -13,7 +13,7 @@ import random
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
-TEST_DB = os.path.join(PLUGIN_DIR, "test_battle2_n1.db")
+TEST_DB = os.path.join(PLUGIN_DIR, "test_battle_n1.db")
 os.environ.setdefault("GWEN_GAME_DB", TEST_DB)
 os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)

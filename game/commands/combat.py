@@ -92,7 +92,7 @@ WORLD_BOSS_DROPS = {
 
 # ---- v181.M-R3：职业资源展示（actor.effects 叠层版）----
 # saintess_engine 战斗内职业资源 = actor.effects 叠层条目（技能 mech/装配层 apply op=add 写
-# stacks，cap 由 EFFECT_RULES[key].cap 管，见 game/data/battle2_rules.py 通用叠层段）。
+# stacks，cap 由 EFFECT_RULES[key].cap 管，见 game/data/battle_rules.py 通用叠层段）。
 # 旧 player["resources"]/st["resources"] 无生产写入（死字段）——展示一律改读 effects。
 # 只认本白名单 key（防把敌方减益 burn/poison/装备特效 dragon_mark 等当职业资源误显）。
 RESOURCE_STACK_CN = {
@@ -149,7 +149,7 @@ def _res_display_name(key: str) -> str:
     cap 亦同表）。读数据表本体而非 config 挂载，保证脱战/技能列表等命令上下文不依赖挂载时机。
     """
     try:
-        from ..data.battle2_rules import EFFECT_RULES as _ER
+        from ..data.battle_rules import EFFECT_RULES as _ER
         _n = (_ER.get(key) or {}).get("name")
         return _n or key
     except Exception:
@@ -254,7 +254,7 @@ class CombatCmds(CommandBase):
             # 野王在场：构造野王战斗（血量弹性按参战人数）→ 保存战斗状态
             monster = build_king_monster(_king, cur_map, player)
             group = C.build_monster_group(monster, cur_map, player, scale_main=False)
-            b = self._open_battle2(player, group, "monster", group_id=group_id, qq_id=qq_id)
+            b = self._open_battle(player, group, "monster", group_id=group_id, qq_id=qq_id)
             db.save_battle(group_id, qq_id, b.to_state())
             self._lock_battle(group_id, qq_id)
             _acts = "『攻击』『技能 <名称>』『防御』"  # 野王=Boss 战，不可逃跑
@@ -408,7 +408,7 @@ class CombatCmds(CommandBase):
             monster, tag, flavor = hm
             # v2 多对多：隐藏怪经 build_monster_group 生成敌方阵列（精英带爪牙）后传入 Battle
             group = C.build_monster_group(monster, cur_map, player)
-            b = self._open_battle2(player, group, "monster", group_id=group_id, qq_id=qq_id)
+            b = self._open_battle(player, group, "monster", group_id=group_id, qq_id=qq_id)
             db.save_battle(group_id, qq_id, b.to_state())
             self._lock_battle(group_id, qq_id)
             _boons = player.get("_battle_boons") or {}
@@ -483,7 +483,7 @@ class CombatCmds(CommandBase):
         # v2 多对多：经 build_monster_group 生成敌方阵列（普通怪 single/double；精英带爪牙；
         # Boss 带 2 爪牙）后传入 Battle 构造（enemies 参数）
         group = C.build_monster_group(monster, cur_map, player, double=double)
-        b = self._open_battle2(player, group, "monster", group_id=group_id, qq_id=qq_id)
+        b = self._open_battle(player, group, "monster", group_id=group_id, qq_id=qq_id)
         db.save_battle(group_id, qq_id, b.to_state())
         self._lock_battle(group_id, qq_id)
         _boons = player.get("_battle_boons") or {}
@@ -611,7 +611,7 @@ class CombatCmds(CommandBase):
 
     # ---- N5b4-2：saintess_engine 战斗构造/恢复统一入口（命令层不手拼 sides）----
 
-    def _open_battle2(self, player: dict, enemies: list, btype: str = "monster",
+    def _open_battle(self, player: dict, enemies: list, btype: str = "monster",
                       group_id=None, qq_id=None, pet=None) -> "object":
         """开战构造（saintess_engine 四步仪式，N5b4-2 起探索/野王/普通遇怪/约战/塔统一走）。
 
@@ -620,8 +620,8 @@ class CombatCmds(CommandBase):
         ③ 装备装配（weapon_effect + affix → actor.triggers，N9/N9.7 已支持）
         ④ 构造 Battle
         """
-        from ..services import battle2_bridge as BR
-        from ..services.battle2_equip_proc import apply_to_actor as _EP_apply
+        from ..services import battle_bridge as BR
+        from ..services.battle_equip_proc import apply_to_actor as _EP_apply
         from ..services.class_mech_proc import apply_class_mech as _CM_apply
         tb = self._title_bonus(group_id, qq_id) if (group_id is not None and qq_id is not None) else {}
         BR.prepare_player_for_battle(player, tb, db)
@@ -645,7 +645,7 @@ class CombatCmds(CommandBase):
         return B2(btype, sides=sides, title_bonus=tb,
                   pet=pet if pet is not None else db.pet_get(qq_id))
 
-    def _restore_battle2(self, state: dict) -> "object":
+    def _restore_battle(self, state: dict) -> "object":
         """恢复 saintess_engine 战斗（from_state）。旧格式（无 sides）→ None（命令层清档重开）。"""
         if not isinstance(state, dict) or not state.get("sides"):
             return None
@@ -657,7 +657,7 @@ class CombatCmds(CommandBase):
         try:
             _f = b.focus() if hasattr(b, "focus") else None
             if _f:
-                from ..services.battle2_bridge import sync_player_from_actor
+                from ..services.battle_bridge import sync_player_from_actor
                 sync_player_from_actor(player, _f)
         except Exception:
             pass  # 回写异常不阻断（player 可能为空/半构造）
@@ -1056,7 +1056,7 @@ class CombatCmds(CommandBase):
         _stype = battle["state"].get("type")
         # worldboss 战斗（N5b4-3：saintess_engine 恢复）
         if _stype == "worldboss":
-            b = self._restore_battle2(battle["state"])
+            b = self._restore_battle(battle["state"])
             if b is None:
                 db.clear_battle(group_id, qq_id)
                 self._unlock_battle(group_id, qq_id)
@@ -1065,7 +1065,7 @@ class CombatCmds(CommandBase):
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "attack", None, target=target_arg or None):
                 yield _r
             return
-        b = self._restore_battle2(battle["state"])
+        b = self._restore_battle(battle["state"])
         if b is None:
             # 旧格式存档作废：清档重开（N5b 约定不迁移）
             db.clear_battle(group_id, qq_id)
@@ -1370,7 +1370,7 @@ class CombatCmds(CommandBase):
             return
         # worldboss 战斗（N5b4-3：saintess_engine 恢复）
         if battle["state"].get("type") == "worldboss":
-            b = self._restore_battle2(battle["state"])
+            b = self._restore_battle(battle["state"])
             if b is None:
                 db.clear_battle(group_id, qq_id)
                 self._unlock_battle(group_id, qq_id)
@@ -1379,7 +1379,7 @@ class CombatCmds(CommandBase):
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "skill", skill_name, target=_skill_target):
                 yield _r
             return
-        b = self._restore_battle2(battle["state"])
+        b = self._restore_battle(battle["state"])
         if b is None:
             # 旧格式存档作废：清档重开（N5b 约定不迁移）
             db.clear_battle(group_id, qq_id)
@@ -1727,7 +1727,7 @@ class CombatCmds(CommandBase):
             return
         # worldboss 战斗（N5b4-3：saintess_engine 恢复）
         if battle["state"].get("type") == "worldboss":
-            b = self._restore_battle2(battle["state"])
+            b = self._restore_battle(battle["state"])
             if b is None:
                 db.clear_battle(group_id, qq_id)
                 self._unlock_battle(group_id, qq_id)
@@ -1736,7 +1736,7 @@ class CombatCmds(CommandBase):
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "defend", None):
                 yield _r
             return
-        b = self._restore_battle2(battle["state"])
+        b = self._restore_battle(battle["state"])
         if b is None:
             db.clear_battle(group_id, qq_id)
             self._unlock_battle(group_id, qq_id)
@@ -1800,7 +1800,7 @@ class CombatCmds(CommandBase):
             return
         # worldboss 战斗（N5b4-3：saintess_engine 恢复；世界Boss 通常被 is_boss 拦截不可逃，兜底）
         if battle["state"].get("type") == "worldboss":
-            b = self._restore_battle2(battle["state"])
+            b = self._restore_battle(battle["state"])
             if b is None:
                 db.clear_battle(group_id, qq_id)
                 self._unlock_battle(group_id, qq_id)
@@ -1822,7 +1822,7 @@ class CombatCmds(CommandBase):
                 f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}"
             )
             return
-        b = self._restore_battle2(battle["state"])
+        b = self._restore_battle(battle["state"])
         if b is None:
             db.clear_battle(group_id, qq_id)
             self._unlock_battle(group_id, qq_id)
@@ -2377,7 +2377,7 @@ class CombatCmds(CommandBase):
         b["name"] = _main.get("name", b.get("name", "?"))
         b["hp"], b["max_hp"] = _main.get("hp", 0), _main.get("max_hp", _main.get("hp", 1))
         # N5b4-3：世界Boss 切 saintess_engine（Boss 自动行动 + CTB 时间轴；dmg_mult 构造参数）
-        from ..services import battle2_bridge as BR
+        from ..services import battle_bridge as BR
         _tb = self._title_bonus(group_id, qq_id)
         BR.prepare_player_for_battle(player, _tb, db)
         _sides = BR.build_sides(player=player, enemies=[dict(u) for u in _boss_grp])
@@ -2828,8 +2828,8 @@ class CombatCmds(CommandBase):
         #   title_bonus 战斗级单份无法区分双人——各自外部增幅（core/stat_bonus.py 聚合）
         #   塞 actor["bonus"]["panel"]，stats 读 actor 优先，双方面板各自精确；
         #   battle 级传 {} 仅兜底。
-        from ..services import battle2_bridge as BR
-        from ..services.battle2_equip_proc import apply_to_actor as _EP_apply
+        from ..services import battle_bridge as BR
+        from ..services.battle_equip_proc import apply_to_actor as _EP_apply
         from saintess_engine import Battle as B2
         # 0. 双方各自外部增幅聚合（core 直调 + 已 load 的 player dict，避免 _title_bonus
         #    内部再读档；失败降级空 dict）
@@ -2942,7 +2942,7 @@ class CombatCmds(CommandBase):
             return
         opp_qq = str(opp_actor.get("qq_id", "") or "")
         # PVP 战斗中血量/蓝量以战斗 state 为准（actor 副本；不写回 db，避免被重置）
-        from ..services.battle2_bridge import sync_player_from_actor
+        from ..services.battle_bridge import sync_player_from_actor
         sync_player_from_actor(player, my_actor)
         if action == "skill":
             info = skill_info(player["class_name"], skill_name)

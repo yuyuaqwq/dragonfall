@@ -6,7 +6,7 @@
 AOE（陨石术）：数学自洽验证——手算期望（expr→反推→重算→等级压制）
 vs 引擎实际，不陪葬旧引擎的日志/结算矛盾。
 
-跑法：python tests/test_battle2_n2b_multi_aoe.py
+跑法：python tests/test_battle_n2b_multi_aoe.py
 """
 import os
 import sys
@@ -14,7 +14,7 @@ import random
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
-TEST_DB = os.path.join(PLUGIN_DIR, "test_battle2_n2b.db")
+TEST_DB = os.path.join(PLUGIN_DIR, "test_battle_n2b.db")
 os.environ.setdefault("GWEN_GAME_DB", TEST_DB)
 os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)

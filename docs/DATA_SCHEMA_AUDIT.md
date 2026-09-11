@@ -357,11 +357,11 @@ python scripts/run_all_tests.py                                      # 全量（
 | 轮次 | 文件 | 通过 | 失败 | 失败文件 |
 |---|---:|---:|---:|---|
 | 第 1 轮 | 243 | 205 | 38 | `test_class_mech_r*` / `test_passive_p*` / `test_melody` / `test_monster_ai_*` / `test_instance_hate` 等 |
-| 第 2 轮 | 244 | **240** | 4 | `test_battle2_n9_equip` / `test_battle2_n5b4_instance_router` / `test_boss_script_p1` / `test_boss_script_p3` |
+| 第 2 轮 | 244 | **240** | 4 | `test_battle_n9_equip` / `test_battle_n5b4_instance_router` / `test_boss_script_p1` / `test_boss_script_p3` |
 
 * 本任务新增文件 **`tests/test_schema_validate.py` → ✅ 通过（exit 0，14/14 用例）**。
 * **两轮失败集合完全不同，且逐个单独跑全部 0 失败**（实测：`test_melody` 34/0、`test_v104_explore_map` 70/0、
-  `test_battle2_n9_equip` 171/0、`test_battle2_n5b4_instance_router` 59/0、`test_boss_script_p1` 22/0、
+  `test_battle_n9_equip` 171/0、`test_battle_n5b4_instance_router` 59/0、`test_boss_script_p1` 22/0、
   `test_boss_script_p3` 29/0）→ 是**并发跑批期间另一个 agent 正在改 `game/battle2/**`、`game/core/**`、
   `game/content.py`、`game/__init__.py` 造成的中间态/漂移**，不是本任务引入的回归。
 * 本任务**只新建文件**（`git status` 显示我的改动仅在 `schema/`、`docs/DATA_SCHEMA_AUDIT.md`、

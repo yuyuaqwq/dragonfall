@@ -119,7 +119,7 @@ STATE_EFFECTS 表周期声明从 dot 泛化为支持方向：
 
 ### 2.4 翻译器 hot 段改挂 buff tick（I2 文件小改）
 
-`battle2_item_use.translate()` 收到 `hot:hp%,mp%,turns` → 不再写
+`battle_item_use.translate()` 收到 `hot:hp%,mp%,turns` → 不再写
 `actor["hot"]`，改构造 buff tick 动作调 apply_effects：
 
 ```python
@@ -168,10 +168,10 @@ apply_effects(battle, actor, actor,
 |---|---|
 | `game/battle2/effects.py` | act_buff 扩展 tick 参数（条目写 tick + expire 折算跳数×interval + last_tick 播种） |
 | `game/battle2/schedule.py` | 删 I1 hot 独立段；buff tick 结算并入现有 buffs 段或独立小子段；state 周期段认 period 声明（heal 方向分流）；DOT 段保留行为零变化 |
-| `game/commands/battle2_item_use.py` | hot: 分支改 buff tick 动作（删 actor["hot"] 直写）；重复吃取高微调 |
-| `game/data/battle2_rules.py` | STATE_EFFECTS 注释/声明支持 period（可加 1 条示例但不建游戏 key，等数值设计） |
-| `tests/test_battle2_hot_regen.py` | 重写：buff tick 语义（首跳/到期/补跳/同 key 刷新/clamp/auto_run 集成） |
-| `tests/test_battle2_item_use.py` | hot 断言改（actor["buffs"]["regen_hot"] tick 条目） |
+| `game/commands/battle_item_use.py` | hot: 分支改 buff tick 动作（删 actor["hot"] 直写）；重复吃取高微调 |
+| `game/data/battle_rules.py` | STATE_EFFECTS 注释/声明支持 period（可加 1 条示例但不建游戏 key，等数值设计） |
+| `tests/test_battle_hot_regen.py` | 重写：buff tick 语义（首跳/到期/补跳/同 key 刷新/clamp/auto_run 集成） |
+| `tests/test_battle_item_use.py` | hot 断言改（actor["buffs"]["regen_hot"] tick 条目） |
 | `docs/REFACTOR_v181P4_N5B5a_use_item_design.md` | §4 hot 段落修正（容器版 → buff tick 版）；§2.2 cast 默认修正（1.0 非 defend） |
 
 ---
@@ -181,8 +181,8 @@ apply_effects(battle, actor, actor,
 | 步 | 内容 | 验证 |
 |---|---|---|
 | U1 | effects.act_buff 扩展 tick（动词一处）+ actors 无改动 | 单测：buff tick 条目写入/expire 折算/重复刷新 |
-| U2 | schedule：删 hot 段 → buff tick 结算 + state period 方向分流（DOT 行为零变化） | test_battle2_hot_regen 重写绿 + battle2 全套绿（含 n4 DOT/v1252 断言） |
-| U3 | battle2_item_use hot 分支改 buff tick（取高微调） | test_battle2_item_use hot 断言绿 |
+| U2 | schedule：删 hot 段 → buff tick 结算 + state period 方向分流（DOT 行为零变化） | test_battle_hot_regen 重写绿 + battle2 全套绿（含 n4 DOT/v1252 断言） |
+| U3 | battle_item_use hot 分支改 buff tick（取高微调） | test_battle_item_use hot 断言绿 |
 | U4 | bridge/instance_battle/actors hot 键注释 + 回归 | 全套绿 + 序列化 roundtrip（buff tick 透传） |
 | U5 | 设计文档 §4/§2.2 修正 + HANDOFF + diff 给鱼鱼过目 | — |
 

@@ -216,7 +216,7 @@ def _item_res_def(key: str) -> dict:
     """按资源 key 查资源定义（v181.M-R2b：单源 = EFFECT_RULES 条目 name/cap；
     旧 core_resource_def_by_key（core_resources.py 表，文件本体已随 v181.M-R2c 退役）退役迁移。未注册 key → {}，与旧兜底同）。"""
     try:
-        from ..data.battle2_rules import EFFECT_RULES as _ER
+        from ..data.battle_rules import EFFECT_RULES as _ER
         _r = _ER.get(key) or {}
         if not _r:
             return {}
@@ -415,7 +415,7 @@ def eff_summon(battle, player, value):
     工厂 + auto_act/guard 一套；旧装配函数随 N10 删旧 battle.py 一并消失，
     saintess_engine 侧尚无随从装配（Battle.add_actor 只做注册/索引/排程，不含随从
     属性缩放与守卫装配）。本 handler 在 saintess_engine 下不可达——战斗内 summon 类
-    在 commands/battle2_item_use.can_translate 白名单外，使用前即被拦并提示
+    在 commands/battle_item_use.can_translate 白名单外，使用前即被拦并提示
     「战斗内效果未迁移」。复活路径见 docs/REFACTOR_v181_GAP_CLOSURE_PLAN.md
     §2（随从线）与 §5（收尾项）。
     """
@@ -502,7 +502,7 @@ def eff_resource_charge(battle, player, value):
     rd = {}
     if _cls:
         try:
-            from ..data.battle2_rules import EFFECT_RULES as _ER2
+            from ..data.battle_rules import EFFECT_RULES as _ER2
             for _rk, _ru in _ER2.items():
                 if _cls in ((_ru or {}).get("start_classes") or []):
                     rd = {"key": _rk, "name": (_ru.get("name") or _rk),

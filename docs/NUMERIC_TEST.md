@@ -25,7 +25,7 @@
 |---|---|---|
 | **共享库互踩** | 3 个文件（`drop_unify` / `instance_reward` / `reward_unify`）各自 `setdefault` 到同一个 `tests/test_game_data.db`；并发/与全量回归同时跑时互相覆盖写入 → 断言读到被踩过的库（实测复现：两份 `reward_unify` 共享该库并发跑，一份 `exp+gold 入账 / 物品入包 / 宠物蛋入包` 三红） | 运行器**预置** `GWEN_GAME_DB` 到按文件私有库（`tests/.numeric_workers_<pid>_<ts>/`，空白 schema 模板复制，同 `run_all_tests.py` 机制）→ `setdefault` 不再覆盖 |
 | **worker 目录同名** | worker 目录固定名 → 两份门禁并发时互相覆盖模板/库文件（实测复现：4 份并发全红） | worker 目录按调用唯一（`<pid>_<timestamp>`）；`run_all_tests.py` 同款修复 |
-| **未固定随机种子** | `test_numeric_drop_unify.py` 用全局 `random` 做抽样断言但未 seed | 固定 `random.seed(20260911)`（沿用 `test_v135_quality_roll` / `test_battle2_n9_equip` 的既有做法） |
+| **未固定随机种子** | `test_numeric_drop_unify.py` 用全局 `random` 做抽样断言但未 seed | 固定 `random.seed(20260911)`（沿用 `test_v135_quality_roll` / `test_battle_n9_equip` 的既有做法） |
 
 并发验收：1 份全量回归 + 2 份探针 + 4 份数值门禁**同时跑** → 全绿（`scripts/_tmp_concurrent_verify.py` 为一次性验证脚本，未入库）。
 
@@ -37,7 +37,7 @@
 | 做法 | 说明 | 用例 |
 |---|---|---|
 | **钉死随机源**（首选） | `random.random = lambda: 0.0` / `mock.patch.object(mod.random, "random", return_value=...)` —— 比 seed 更强：任何种子下行为一致 | `test_v104_prof_enhance` `test_v1308_lv_jitter` `test_v136_gem_drops` `test_v1307_zone_risk` |
-| 固定 seed | `random.seed(20260911)` —— 用在需要"随机但可复现"的场景 | `test_numeric_drop_unify` `test_v135_quality_roll` `test_battle2_n9_equip` |
+| 固定 seed | `random.seed(20260911)` —— 用在需要"随机但可复现"的场景 | `test_numeric_drop_unify` `test_v135_quality_roll` `test_battle_n9_equip` |
 | 随机仅用于造数据 | 不断言随机结果（只借它生成输入）→ 无需处理 | `test_commands_world` `test_v104_npc_dialogue` `test_v97_01_notice_board` 等 |
 
 **已修的真问题**：`test_v135_bp_drop.py` 原用 `sum(1 for _ in range(40000) if random.random() < C.INSTANCE_BP_CHANCE)`

@@ -135,8 +135,8 @@ class TowerCmds(CommandBase):
         guard = build_tower_guard(floor)
         guard_name = guard.get("name", "塔卫")
         # N5b4-6：塔开战 saintess_engine 化（四步仪式：prepare → sides → 装配 → B2；
-        # 同 _open_battle2 语义，tower 是普通战斗形态）
-        from ..services import battle2_bridge as BR
+        # 同 _open_battle 语义，tower 是普通战斗形态）
+        from ..services import battle_bridge as BR
         tb = self._title_bonus(group_id, qq_id)
         BR.prepare_player_for_battle(player, tb, db)
         _sides = BR.build_sides(player=player, enemies=[guard])
@@ -148,7 +148,7 @@ class TowerCmds(CommandBase):
             except Exception:
                 pass
             try:
-                from ..services.battle2_equip_proc import apply_to_actor as _EP_apply
+                from ..services.battle_equip_proc import apply_to_actor as _EP_apply
                 _EP_apply(_a)
             except Exception:
                 pass

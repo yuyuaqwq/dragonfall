@@ -47,7 +47,7 @@ turn_start    : pool>0 → pay = max(1, int(pool × 0.10))     # 表 pay_pct 权
 
 ### 1.3 对拍测试
 - 同输入快照：装 death_dance → 受击 n 次 → 每轮到点扣 pay → 断言 pool/hp 数值与旧公式一致。
-- 测试放 tests/test_battle2_n9_equip.py（N9 验收文件，加 key 在此补用例）。
+- 测试放 tests/test_battle_n9_equip.py（N9 验收文件，加 key 在此补用例）。
 
 ### 1.4 语义精度（实现前已核，2026-09-08）
 - 旧 `_post_hp_lethal` 每次承伤后都调（battle.py:11330，非仅致死）→ 池每次受击收；

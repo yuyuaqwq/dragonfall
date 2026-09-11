@@ -2,7 +2,7 @@
 """v181.M-passive P15 测试——格斗士攻线破绽三被动（气力之心 / 破绽·极双段）。
 
 背景：23 条推条技能数据（shaken_gain）已回填（commit ab48caf），推条消费链已接线
-（battle2_bar_procs，commit ff4289c）——本批补最后一个缺口 = 被动本体（原先
+（battle_bar_procs，commit ff4289c）——本批补最后一个缺口 = 被动本体（原先
 PASSIVE_PROC 表零条目），语义源 = 旧 battle.py `_deal_damage` / `_skill_hit_settle`
 逐字（v153 §六 档位表）。
 

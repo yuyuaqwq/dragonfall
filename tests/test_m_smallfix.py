@@ -63,7 +63,7 @@ def _player_p(gid="g1", qid="q1"):
 
 def _setup_battle(m, gid, qid, mp, cls="法师", skill="织焰", affix="arcane_focus",
                   learned=None, max_mp=120):
-    """落库玩家 + 真实开战仪式（_open_battle2）→ battle state 存 db。返回 player dict。"""
+    """落库玩家 + 真实开战仪式（_open_battle）→ battle state 存 db。返回 player dict。"""
     clean_db()
     if not _player_p(gid, qid):
         db.create_player(gid, qid, "测试", C.resolve("classes", cls) or cls, {}, 100, 100)
@@ -75,9 +75,9 @@ def _setup_battle(m, gid, qid, mp, cls="法师", skill="织焰", affix="arcane_f
     p = _player_p(gid, qid)
     mon = {"name": "测试木桩", "hp": 99999, "max_hp": 99999, "atk": 1, "matk": 1,
            "def": 5, "mdef": 5, "spd": 1, "level": 1, "exp": 0, "gold": 0}
-    b = m._open_battle2(p, [mon], btype="monster", group_id=gid, qq_id=qid)
+    b = m._open_battle(p, [mon], btype="monster", group_id=gid, qq_id=qid)
     db.save_battle(gid, qid, b.to_state())
-    # _open_battle2 仪式后 actor 面板已按 db 落档；db player mp 同步回写（对齐真实流程）
+    # _open_battle 仪式后 actor 面板已按 db 落档；db player mp 同步回写（对齐真实流程）
     db.update_player(gid, qid, mp=mp)
     return _player_p(gid, qid)
 
@@ -246,7 +246,7 @@ def t2_no_element_sideeffect():
     check("万象风暴 mech 无 val → 兼容层零效果落地",
           isinstance(effs, list) and not effs, repr(effs))
     # ③ finisher 词条 mech_any 是精确匹配（mechs=['finisher']）——补标值不会误吃终结技乘区
-    from game.services.battle2_we_procs import we_dmg_mult_cond
+    from game.services.battle_we_procs import we_dmg_mult_cond
     b = B2(btype="monster", sides={"player": [a], "enemy": [
         make_actor(uid="e", name="桩", side="enemy", kind="monster", hp=5000,
                    max_hp=5000, atk=1, matk=1, spd=5, level=60, **{"def": 5, "mdef": 5})]})
@@ -261,7 +261,7 @@ def t2_no_element_sideeffect():
         got = 1.0
     check("finisher mech_any 不误乘（mult 保持 1.0）", abs(got - 1.0) < 1e-9, f"mult={got}")
     # ④ 装配端到端：arcane_focus 词条 + 真实技能数据扣费 45→40
-    from game.services import battle2_equip_proc as EP
+    from game.services import battle_equip_proc as EP
     a2 = _af_actor()
     a2.setdefault("equipment", {})["armor"] = {"slot": "armor", "quality": "blue",
                                                "affixes": ["arcane_focus"], "stats": {}}

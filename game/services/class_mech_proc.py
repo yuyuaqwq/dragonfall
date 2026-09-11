@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """saintess_engine 职业机制装配层 class_mech_proc（v181.M）——技能 mech 兑现（声明驱动）。
 
-蓝图：docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md。声明表：data/battle2_rules.MECH_CASH。
+蓝图：docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md。声明表：data/battle_rules.MECH_CASH。
 
 设计（鱼鱼审 2026-09-09 v2 形态 + R1b owner 方向扩展）：
 - 机制差异全在 MECH_CASH 声明表（mech → 模式/消费层/每层系数/清层…）；
@@ -455,7 +455,7 @@ def install() -> None:
 
     def _melody_ensure_tick(actor, kind: str) -> None:
         """时钟驱动型减益旋律自安装订阅（首次唱响时挂，幂等——同破绽条
-        battle2_bar_procs._ensure_tick 惯例，零噪音）：time_advance →
+        battle_bar_procs._ensure_tick 惯例，零噪音）：time_advance →
         class_melody_dirge_tick（按节流周期对敌施控）。
 
         面板类减益旋律（e_atk/e_spd/e_spd_hit/e_all）由驻留条目本身生效 → 不挂。
@@ -695,7 +695,7 @@ def install() -> None:
                 return
 
     # ---- v181.M-passive P1：被动 proc 通用动作（插件样板——动作零 proc 硬编码）----
-    # 语义源 = 技能 desc + passive dict；声明表 PASSIVE_PROC（battle2_rules）给
+    # 语义源 = 技能 desc + passive dict；声明表 PASSIVE_PROC（battle_rules）给
     # event/action/judge 模板；装配器把被动参数并入 params（mult 归一 mult/dmg_add）。
     # P1 先落 dmg_calc 乘区 + on_kill 回能两样板（零引擎改动通道），其余族 P2 续。
 
@@ -790,7 +790,7 @@ def install() -> None:
             #                     params[ge_field]，默认 bar_at——数值全来自被动 dict）
             # - target_bar_broken 条处于破防态（trigger_count>0 且在免疫窗口内；
             #                     破绽·极乘区段 ×1.5，倍率读 params.broken_mult）
-            # （推条/触发/衰减由 core/battle_bars + battle2_bar_procs 负责，本判定
+            # （推条/触发/衰减由 core/battle_bars + battle_bar_procs 负责，本判定
             #   只把条结算到当刻再读——引擎零名词。）
             _bar = judge.get("bar") or params.get("bar") or ""
             _bs_j = None
@@ -825,7 +825,7 @@ def install() -> None:
         命中刚触发（trigger_count>0）且仍在免疫窗口内 → 免疫截止时刻 +extend
         （v169.7 注：半刻不支持 → 数据向下取整取 1）。
         参数：judge.bar（条名）/ params.extend（刻数，来自被动 dict）。
-        装配顺序依赖：挂条动词（bar_gain）须先于本段执行（见 battle2_bar_procs
+        装配顺序依赖：挂条动词（bar_gain）须先于本段执行（见 battle_bar_procs
         apply_bar_procs 头部 insert 注释）。
         """
         ctx = getattr(battle, "_fire_ctx", None) or {}
@@ -1318,7 +1318,7 @@ def install() -> None:
         except Exception:
             pass
 
-    # ---- v181 磐核线动作（拳师 B 线 磐石行者；声明表 = battle2_rules PASSIVE_PROC/MECH_CASH）----
+    # ---- v181 磐核线动作（拳师 B 线 磐石行者；声明表 = battle_rules PASSIVE_PROC/MECH_CASH）----
 
     @register_action("class_guard_stance_enter")
     def class_guard_stance_enter(battle, caster, target, params, logs):
@@ -1329,7 +1329,7 @@ def install() -> None:
           伤害路径不消费 st["reduce"]（stats 只写、instance 仅展示），故装配时挂
           taken_calc 乘区钩子（passive_taken_reduce has_effect 段；形态同 warrior
           class_stance_guard_enter「写态 + 挂 trigger」）。
-        - ⚠️ 推条值 −30%：推条注入端（battle2_bar_procs.bar_gain）直读技能 shaken_gain，
+        - ⚠️ 推条值 −30%：推条注入端（battle_bar_procs.bar_gain）直读技能 shaken_gain，
           无按姿态的乘区通道 → 未落地（缺口）。
         态持续 turns 刻（技能 buff_turns，经 actions._do_buff 注入 params.turns）。
         """
@@ -1835,7 +1835,7 @@ def install() -> None:
 def _mech_cash_rules() -> dict:
     """当前挂载的兑现声明表（缺省空——装配层不崩）。"""
     try:
-        from ..data.battle2_rules import MECH_CASH
+        from ..data.battle_rules import MECH_CASH
         return MECH_CASH or {}
     except Exception:
         return {}
@@ -1965,7 +1965,7 @@ def _learned_proc(actor: dict, proc: str) -> bool:
 def _passive_proc_rules() -> dict:
     """PASSIVE_PROC 声明表（缺省空——装配器不崩）。"""
     try:
-        from ..data.battle2_rules import PASSIVE_PROC
+        from ..data.battle_rules import PASSIVE_PROC
         return PASSIVE_PROC or {}
     except Exception:
         return {}
@@ -2051,7 +2051,7 @@ def apply_class_passives(actor: dict) -> None:
         _bf = cfg.get("bar_field")
         if _bf and not d.get("gain"):
             try:
-                from ..data.battle2_rules import BAR_INJECT_FIELDS
+                from ..data.battle_rules import BAR_INJECT_FIELDS
                 _spec = (BAR_INJECT_FIELDS or {}).get(_bf) or {}
                 _bk = _spec.get("key")
                 _bg = int(info.get(_bf) or 0)
@@ -2300,13 +2300,13 @@ def apply_class_mech(actor: dict) -> None:
             pass  # 被动装配异常不阻断开战（容错铁律）
         # v181 破绽接线：挂敌身条注入装配（BAR_INJECT_FIELDS 声明表 → skill_hit 触发器）
         try:
-            from .battle2_bar_procs import apply_bar_procs
+            from .battle_bar_procs import apply_bar_procs
             apply_bar_procs(actor)
         except Exception:
             pass  # 挂条装配异常不阻断开战（容错铁律）
         # v181 cond 接线：技能条件倍率装配（info.cond → dmg_calc/heal_calc 乘区）
         try:
-            from .battle2_cond_procs import apply_cond_procs
+            from .battle_cond_procs import apply_cond_procs
             apply_cond_procs(actor)
         except Exception:
             pass  # 条件乘区装配异常不阻断开战（容错铁律）

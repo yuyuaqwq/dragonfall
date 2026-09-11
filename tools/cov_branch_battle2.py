@@ -78,7 +78,7 @@ def _make_tracer():
         return _trace
     return _trace
 
-test_files = sorted(glob.glob(os.path.join(TEST_DIR, "test_battle2_*.py")))
+test_files = sorted(glob.glob(os.path.join(TEST_DIR, "test_battle_*.py")))
 for tf in test_files:
     try:
         code = compile(open(tf, encoding="utf-8").read(), tf, "exec")

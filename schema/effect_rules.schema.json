@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://dragonfall.local/schema/effect_rules.schema.json",
-  "title": "Dragonfall 声明表（battle2_rules.py：EFFECT_RULES / EFFECT_ACTIONS / MECH_CASH）",
+  "title": "Dragonfall 声明表（battle_rules.py：EFFECT_RULES / EFFECT_ACTIONS / MECH_CASH）",
   "$defs": {
     "effect_rule": {
       "type": "object",

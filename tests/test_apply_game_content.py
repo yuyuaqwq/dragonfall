@@ -31,12 +31,12 @@ from saintess_engine import make_actor
 from game import bootstrap as BST
 from game import content as C
 from game.content_rules import apply as APPLY
-from game.services import battle2_bar_procs as BAR
-from game.services import battle2_cond_procs as COND
-from game.services import battle2_equip_proc as EP
-from game.services import battle2_food_proc as FOOD
+from game.services import battle_bar_procs as BAR
+from game.services import battle_cond_procs as COND
+from game.services import battle_equip_proc as EP
+from game.services import battle_food_proc as FOOD
 from game.services import class_mech_proc as CM
-from game.data.battle2_rules import BAR_INJECT_FIELDS
+from game.data.battle_rules import BAR_INJECT_FIELDS
 from game.data.weapon_effect_data import WEAPON_EFFECT_DATA
 
 PASS = 0
@@ -129,7 +129,7 @@ CASES = [
 
 
 def apply_old(a):
-    """旧命令层路径（commands/combat.py `_open_battle2` 逐字：播种 bonus → EP → CM）。"""
+    """旧命令层路径（commands/combat.py `_open_battle` 逐字：播种 bonus → EP → CM）。"""
     try:
         a["bonus"] = {"panel": {}, "cap": {}, "cost": {}}
     except Exception:

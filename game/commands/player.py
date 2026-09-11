@@ -19,7 +19,7 @@ from saintess_engine.battle.formulas import skill_buff_turns, skill_cond_mult, s
 from ..content_rules.panel import player_final_stats, player_stats_detail, race_name, race_stats, skill_learn_cost_for
 from ..content_rules.skills import _sk_table, branch_path_index, branch_skill_owner, is_skill_learned, skill_info, skill_level_of, skill_upgrade_cost
 from ..commands.base import CommandBase, require_player
-from ..data.battle2_rules import EFFECT_RULES
+from ..data.battle_rules import EFFECT_RULES
 
 
 # v101.20 职业导师专属技能：TUTOR_SKILLS 只能导师教学学会，
@@ -31,7 +31,7 @@ def _tutor_mentor(cls_id: str):
 
 
 # v112：核心资源 key → 中文名（skill 消耗展示用，新增资源只改数据）
-# v181.M-R2c：数据源改 EFFECT_RULES（battle2_rules.py 资源名/cap 单源；原 data/core_resources.py
+# v181.M-R2c：数据源改 EFFECT_RULES（battle_rules.py 资源名/cap 单源；原 data/core_resources.py
 #   已退役删除）。只收带 name 的效果条目（dragon_mark/curse/burn 等效果类无 name 不参与资源名展示，
 #   同旧表「仅职业/副资源条目有 name」口径并扩及 zhan_yi/连段/奥术 等新注册名）；未命中 key 兜底原样。
 _RES_CN = {k: v.get("name") for k, v in EFFECT_RULES.items() if v.get("name")}

@@ -13,7 +13,7 @@
 战斗内吃效果料理（蛇羹/烬火辣椒/树蜜糖/月光饼/极光花蜜...）
   → item_templates tpl_food_effect（battle_ok=True）
   → payload="foodfx:lifesteal,bleed,..."
-  → battle2_item_use.translate foodfx 分支
+  → battle_item_use.translate foodfx 分支
   → actor["food_effects"].append(aid)   ← 只挂容器
   → "shield" in aids → 立即给盾（唯一生效的特判）
   → 🍲 你吃下了料理，获得【吸血、流血】效果！(本场战斗)   ← 文案照播
@@ -37,19 +37,19 @@
 - **TAKEN 受击类 3**：counter 20%反击60% / thorns 10%反弹30% / aurora_guard 受击-15%
 - **TURN_START 刻开始类 3**：regen 回1%血 / meditate 回1%蓝 / dawn_crown 回2%血
 - **乘区类 2**：execute 处决<30%×1.3 / precise 精准×1.1
-- **已生效 1**：shield 圣餐面包（battle2_item_use 特判已做 ✅）
+- **已生效 1**：shield 圣餐面包（battle_item_use 特判已做 ✅）
 
 ## 2. 方案：food → actor["triggers"] 装配（复用 affix 迁移先例）
 
 battle2 装配层已具备全部能力（N9 装备特效/词条迁移），food 是"词条管线的漏网之鱼"：
-- `services/battle2_equip_proc.py` 有 affix 翻译注册器 `_register_affix`（regen/bleed/counter/execute 同语义词条已迁）
-- `services/battle2_we_procs.py` 有扩展动作注册中心（we_dot/we_reflect/we_extra_dmg/we_dmg_mult_cond/we_taken_mult_cond 等 20+）
+- `services/battle_equip_proc.py` 有 affix 翻译注册器 `_register_affix`（regen/bleed/counter/execute 同语义词条已迁）
+- `services/battle_we_procs.py` 有扩展动作注册中心（we_dot/we_reflect/we_extra_dmg/we_dmg_mult_cond/we_taken_mult_cond 等 20+）
 - 事件映射表 `_EVENT_MAP`：hit→attack_hit+skill_hit / taken→on_taken / turn_start→turn_start / dmg_calc/taken_calc 直通
 
-### 落点：battle2_item_use.translate foodfx 分支扩展
+### 落点：battle_item_use.translate foodfx 分支扩展
 吃料理时（不再只挂死容器），**同步把 aid 翻译成 actor["triggers"] 声明**：
 ```python
-# battle2_item_use.py translate foodfx 分支（改动点唯一，~40 行）
+# battle_item_use.py translate foodfx 分支（改动点唯一，~40 行）
 _actor_triggers = actor.setdefault("triggers", {})
 for a in aids:
     _effs = _FOOD_TRIGGER_DECLS.get(a)      # 查表翻译（见 §3）
@@ -69,7 +69,7 @@ for a in aids:
 ### 为什么落 translate 而不是装配时
 - food 是**战斗中动态吃**才挂（战斗外吃=即时回复 _food_out_battle，无战斗效果）
 - 开战装配 make_actor 时玩家还没有本场 food（food_effects 是战斗内加餐）
-- battle2_item_use 是吃料理唯一入口（_instance_router + _restore_battle2 都走它）→ 单点扩展全覆盖
+- battle_item_use 是吃料理唯一入口（_instance_router + _restore_battle2 都走它）→ 单点扩展全覆盖
 
 ## 3. 翻译表（food aid → triggers 声明，数值全部读 FOOD_EFFECT_PARAMS 权威表）
 
@@ -135,13 +135,13 @@ effects period 条目（首跳 1s + 每 1 刻跳 + 战斗全程常驻）：
 5. **吃重复**：同 aid 不重复 append（现有 if a not in _fe 逻辑保留；triggers 同幂等）
 
 ## 5. 改动面 & 测试计划
-- 改动：`game/commands/battle2_item_use.py`（translate foodfx 分支 ~40 行）
-  + `game/services/battle2_food_proc.py`（新，翻译表 _FOOD_TRIGGER_DECLS + 吃入挂载函数；
+- 改动：`game/commands/battle_item_use.py`（translate foodfx 分支 ~40 行）
+  + `game/services/battle_food_proc.py`（新，翻译表 _FOOD_TRIGGER_DECLS + 吃入挂载函数；
   数值 import data/food_effect_data.FOOD_EFFECT_PARAMS，不复制数值）
   + battle2 引擎/**零改动**（事件插桩已有）
-- 复用：battle2_we_procs 扩展动作 we_affix_dot/defdown/bonus/element/counter/regen/
+- 复用：battle_we_procs 扩展动作 we_affix_dot/defdown/bonus/element/counter/regen/
   dmg_mult_cond/taken_mult_cond 等（缺哪个补哪个，单 action ~15 行全域通用）
-- 测试：`tests/test_battle2_n10_b7_food.py`
+- 测试：`tests/test_battle_n10_b7_food.py`
   ① 吃蛇羹 → 普攻吸血回血（hp 上升断言）
   ② 吃烬火辣椒 → 命中目标挂 food_bleed dot（period 跳伤）
   ③ 吃狼肉干 → 受击触发反击

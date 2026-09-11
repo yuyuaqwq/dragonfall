@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..services import battle2_bridge as BR
+from ..services import battle_bridge as BR
 from saintess_engine.kinds import K_HEAL, K_BUFF
 
 # 玩家快照/玩法壳视图需要同步回的每玩家键（actor → snap 或 st per-player 键）
@@ -196,7 +196,7 @@ def _attach_instance_hooks(b, st: dict) -> None:
     except Exception:
         b.target_picker = None
     try:
-        from .battle2_item_use import make_override
+        from .battle_item_use import make_override
         b.action_override = make_override()
     except Exception:
         b.action_override = None
@@ -383,7 +383,7 @@ def sync_views(st: dict, group_id) -> None:
         snap = players.get(_k)
         if snap is None:
             continue
-        from ..services.battle2_bridge import sync_player_from_actor
+        from ..services.battle_bridge import sync_player_from_actor
         sync_player_from_actor(snap, _a)  # hp/mp/max/buffs/shields/defending/charging...
         for _ak, _sk in _VIEW_ST_KEYS.items():
             if _a.get(_ak) is not None:

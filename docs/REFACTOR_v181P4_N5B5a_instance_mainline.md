@@ -16,7 +16,7 @@
     （heal/buff target=None 防奶敌）
   - `sync_views(st, gid)`：actors → st["players"]/enemies/boss 视图 + DB 血量（单点同步）
   - `next_actor_key(st)`：轮转 = sides player 存活 actor ct 最小者
-  - 测试 `tests/test_battle2_n5b4_instance.py` 17 断言绿
+  - 测试 `tests/test_battle_n5b4_instance.py` 17 断言绿
 - 全套 battle2 18 文件 579 断言绿
 
 ## 1. 目标架构（v3）

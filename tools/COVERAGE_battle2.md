@@ -42,6 +42,6 @@ python tools/cov_branch_battle2.py
 
 ## 测试文件
 
-- tests/test_battle2_coverage.py（73 断言）：查询 API/helper/defend/cleanse/schedule
+- tests/test_battle_coverage.py（73 断言）：查询 API/helper/defend/cleanse/schedule
   工具/serialize 便捷/stats 便捷/landing 边界/effects 分支/actions 分支/AOE falloff
 - 各 N 阶段测试：N1(8) N2(10) N2b(8) N3(28) N4(14) N5(14) landing(13) coverage(73)

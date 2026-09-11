@@ -28,7 +28,7 @@ from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_
 from saintess_engine import Battle as B2, ActCtx  # noqa: E402
 from saintess_engine.battle.ai import _skill_castable  # noqa: E402
 from game.core.drops import build_monster  # noqa: E402
-from game.services.battle2_bridge import monster_to_actor  # noqa: E402
+from game.services.battle_bridge import monster_to_actor  # noqa: E402
 from game.data.maps import MAP_BY_ID  # noqa: E402
 from game.data.monster_mods import MONSTER_MODS  # noqa: E402
 from game.commands.boss_script import make_script_hook  # noqa: E402

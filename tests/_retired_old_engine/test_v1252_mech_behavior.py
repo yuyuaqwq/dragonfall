@@ -68,7 +68,7 @@ async def section_potion(m):
     qq = "v_pot"
     make_player(qq)
     # N5b4-6：命令层 use 的普通战斗 state 已 battle2（旧格式无 sides → 清档重开）
-    from game.services import battle2_bridge as _BR
+    from game.services import battle_bridge as _BR
     from game.battle2 import Battle as _B2
     pl0 = db.get_player("g", qq)
     _BR.prepare_player_for_battle(pl0, {}, db)

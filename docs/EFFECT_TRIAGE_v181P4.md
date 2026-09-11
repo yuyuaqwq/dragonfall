@@ -11,7 +11,7 @@
 
 | 去向 | 含义 | 落点 |
 |---|---|---|
-| **A. 战斗动词直通** | 已在/应进 EFFECT_ACTIONS 名词映射，battle2 技能/怪直接执行 | `game/data/battle2_rules.py` EFFECT_ACTIONS + STATE_EFFECTS |
+| **A. 战斗动词直通** | 已在/应进 EFFECT_ACTIONS 名词映射，battle2 技能/怪直接执行 | `game/data/battle_rules.py` EFFECT_ACTIONS + STATE_EFFECTS |
 | **B. 事件总线注册** | 触发时机才生效（命中/受击/battle_start/道具使用）→ N8 fire() 分发 | N8 完成后规则表注册 |
 | **C. 上层独占（不迁）** | 套装/符文/词条/武器专属机制，引擎不认知名 | 上层 proc → 调动词（N9 族化后） |
 | **D. 生活/非战斗** | 开箱/钓鱼/种植/改名等，不属战斗效果系统 | 命令层自理，不进引擎 |

@@ -56,11 +56,11 @@
 
 | 规则表 | 位置 | 内容 |
 |---|---|---|
-| STATE_EFFECTS | data/battle2_rules.py | 29 key 的 cap/stat_scale/dot/debuff_scale/on/on_threshold/guard_hp_pct |
+| STATE_EFFECTS | data/battle_rules.py | 29 key 的 cap/stat_scale/dot/debuff_scale/on/on_threshold/guard_hp_pct |
 | EFFECT_ACTIONS | 同文件 | 名词效果→动词动作数组（buff_atk/control/stun/shield/heal/cleanse…） |
 | CLEANSE_TAGS | 同文件 | 净化控制键清单 |
 
-### 1.2 state 29 key 语义分布（data/battle2_rules.py）
+### 1.2 state 29 key 语义分布（data/battle_rules.py）
 
 ```
 资源叠层（面板 stat_scale 折算）: zhan_yi(10层 atk+4%/层), rage(10 层 dmg+12%/层),
@@ -93,7 +93,7 @@ sleep 唤醒: landing.deal_damage pop sleep
 | 技能 mech | effects_from_skill → state_add | 技能 mech_key 命中 STATE_EFFECTS → state_add |
 | 装配层 triggers | apply_effects 执行 | affix/武器特效翻译器 |
 | 事件火 | fire → apply_effects | dot_tick/on_act_consume 消费 |
-| 命令层 | actor 直写 | battle2_item_use（I2 翻译器）、bridge 恢复 |
+| 命令层 | actor 直写 | battle_item_use（I2 翻译器）、bridge 恢复 |
 | schedule | 只读结算 | DOT/hot/buffs 到期 |
 
 ### 1.5 消费点（谁在读）
@@ -310,10 +310,10 @@ EFFECT_ACTIONS 名词表保留（名词→动词动作），但动作类型从 a
 | `game/battle2/actions.py` | `_consume_hit_buffs` 改读 effects consume.hit；effect 增益管线对齐 |
 | `game/battle2/serialize.py` | 无特判（全字段透传）；_deserialize setdefault effects |
 | `game/battle2/effect_triggers.py` | fire 不变（效果名照旧翻译）；事件 dot_tick/buff_expire 改名为 effect_tick/effect_expire 事件（或兼容双名） |
-| `game/data/battle2_rules.py` | STATE_EFFECTS+EFFECT_ACTIONS+CLEANSE_TAGS 合并为 EFFECT_RULES（迁移映射 §3）；config 挂载点改 |
+| `game/data/battle_rules.py` | STATE_EFFECTS+EFFECT_ACTIONS+CLEANSE_TAGS 合并为 EFFECT_RULES（迁移映射 §3）；config 挂载点改 |
 | `game/battle2/config.py` | 挂载 EFFECT_RULES 替代 state_effects/effect_actions/cleanse_tags 三挂载 |
-| `game/services/battle2_bridge.py` | player/怪状态键映射改 effects（buffs/hot/state 三键→effects 组装） |
-| `game/commands/battle2_item_use.py` | hot: 分支改 apply regen_hot；buff: 分支 apply atk_up 等（value 直传） |
+| `game/services/battle_bridge.py` | player/怪状态键映射改 effects（buffs/hot/state 三键→effects 组装） |
+| `game/commands/battle_item_use.py` | hot: 分支改 apply regen_hot；buff: 分支 apply atk_up 等（value 直传） |
 | `game/commands/instance_battle.py` | _VIEW_SNAP_KEYS/_VIEW_ST_KEYS 改 effects；sync_views 适配 |
 | `tests/*` | v1252/n9_equip/n3_effects/n4_schedule/n5b4* 断言改 effects 读法 + 新增统一回归 |
 
@@ -325,10 +325,10 @@ EFFECT_ACTIONS 名词表保留（名词→动词动作），但动作类型从 a
 |---|---|---|---|
 | V1 | 引擎容器切换：actors.py 播种 effects + helper；serialize/config 挂载 EFFECT_RULES | 全套现有测试改读后绿（断言大量同步） | 4h |
 | V2 | stats 折算合并（_apply_effects）+ landing/heal_down/death_guard/sleep 读点迁移 | 面板数值回归 v1252 对齐 | 3h |
-| V3 | schedule 统一结算：到期 + 周期（period dir 分流）；删 hot 段 | test_battle2_hot_regen 重写绿 + DOT 行为不变 | 3h |
+| V3 | schedule 统一结算：到期 + 周期（period dir 分流）；删 hot 段 | test_battle_hot_regen 重写绿 + DOT 行为不变 | 3h |
 | V4 | effects.py 动词重构（apply/control/consume/cleanse）+ actions 消费对齐 | n3_effects/n9_equip 断言绿 | 4h |
 | V5 | 数据表迁移：29 state key + buffs + hot + EFFECT_ACTIONS → EFFECT_RULES | 数值/行为对比测试 | 4h |
-| V6 | 命令层/桥/视图适配（battle2_item_use/instance_battle/bridge sync） | 道具链端到端（I 系列测试）+ cmdflow 绿 | 3h |
+| V6 | 命令层/桥/视图适配（battle_item_use/instance_battle/bridge sync） | 道具链端到端（I 系列测试）+ cmdflow 绿 | 3h |
 | V7 | 全套回归（battle2 21+ 文件 + run_all）+ HANDOFF + 文档同步 + diff 给鱼鱼 | 全绿 + 行为对比 | 2h |
 
 **总计约 23h 主 agent 专注工作量**（≈2.5-3 个工作日，可分派子 agent 并行 V2/V4/V5）。
@@ -345,7 +345,7 @@ EFFECT_ACTIONS 名词表保留（名词→动词动作），但动作类型从 a
 ## 6. 回归策略
 
 1. 现有 battle2 21 文件 + v1252/n9_equip 高断言文件为首要回归对象（读法同步不丢断言）。
-2. 新增统一回归文件 `tests/test_battle2_effects_unify.py`：
+2. 新增统一回归文件 `tests/test_battle_effects_unify.py`：
    - 同一效果的 state 式 / buffs 式声明产物等价（叠层+到期+面板）
    - hot=DOT 镜像（同 period 不同 dir，数值符号相反）
    - 动态数值 value 覆盖表缺省

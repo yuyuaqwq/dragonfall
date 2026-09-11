@@ -22,7 +22,7 @@ energy_blade）要求「资源上限 +N」→ 现网无法生效（cap 动态机
    （引擎内 cap 读取收敛为一个小函数）→ `cap = 基础cap(EFFECT_RULES) + actor.cap_bonus.get(key, 0)`。
    涉及点：effects op=add/set clamp、schedule period gain clamp、R4 affix gain clamp
    （同一收敛函数）。
-3. **装配**：affix 翻译器（battle2_equip_proc _START_TRANSLATORS）新增 cap_bonus 词条族
+3. **装配**：affix 翻译器（battle_equip_proc _START_TRANSLATORS）新增 cap_bonus 词条族
    7 条 → 装配时写 `actor.setdefault("cap_bonus", {})[key] += N`。数值取词条数据
    （affixes.py/词条表旧值，迁移前抄录）。
 

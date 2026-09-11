@@ -99,7 +99,7 @@ game.data  →  game.data._assembly  →  game.core.class_sets  →  game.core.i
 
 **当前靠 import 顺序侥幸闭合**：`game.content` 先 `from .data import *` → `data/__init__`
 从第 1 行起顺跑完整条链（含 `_assembly`）→ 环在 `content.py` 内部安全闭合。
-`game/bootstrap.py` 的 docstring 已记录了这条（「⚠️ 装载顺序：先引内容包，再取 battle2_rules」）。
+`game/bootstrap.py` 的 docstring 已记录了这条（「⚠️ 装载顺序：先引内容包，再取 battle_rules」）。
 → **迁移时不得改变 `game.data.__init__` 与 `game.core.*` 的相对装载顺序**；
 子包重排后先跑 `python -c "import game.content"` 冷启动冒烟（比全量快 ~20×）。
 

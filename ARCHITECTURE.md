@@ -28,6 +28,12 @@
 >   `store/` `command/` `events/` `clock/` `container/` `session/`。
 >   例：`store/connection.py` 的连接 / 锁 / 事务 / 建表流程 / 列迁移**实现**来自
 >   `saintess_engine.store`，本文件只剩「游戏自己的内容」（库路径、表结构 SQL、要补的列清单）。
+> - **命名收口（2026-09-11）**：游戏侧文件名的旧前缀 `battle2_`（「第二代 battle 引擎」
+>   之意）已去掉 —— 8 个源文件 + 29 个测试文件 → `battle_*`（如 `battle_rules.py` /
+>   `battle_bridge.py` / `test_battle_landing.py`）。同时 `_open_battle2` / `_restore_battle2`
+>   改为 `_open_battle` / `_restore_battle`。理由：包里装的早已是 `saintess_engine`，名字表里不一。
+>   **刻意保留**：`game/battle2/`（旧引擎包路径，历史事实）与 `scripts/numeric_lib/battle2.py`
+>   （现存的数值模拟模块，与引擎改名无关）。
 > 下面的分层总览描述的是**本仓游戏侧**的分层，引擎层请以框架仓文档为准。
 
 > 目标：高内聚低耦合、可扩展、每层可独立单元测试。

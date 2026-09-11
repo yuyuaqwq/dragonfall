@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """N2 验收：battle2 技能链（攻击/治疗/增益）vs 旧引擎数值对拍。
 
-跑法：python tests/test_battle2_n2_skill.py（w1 内）
+跑法：python tests/test_battle_n2_skill.py（w1 内）
 覆盖：
 - 攻击技：战士挥砍（exprs 成长 + 等级压制）多 seed
 - 治疗技：牧师治愈术（heal_formula + clamp）多档 hp
@@ -13,7 +13,7 @@ import random
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
-TEST_DB = os.path.join(PLUGIN_DIR, "test_battle2_n2.db")
+TEST_DB = os.path.join(PLUGIN_DIR, "test_battle_n2.db")
 os.environ.setdefault("GWEN_GAME_DB", TEST_DB)
 os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
@@ -199,8 +199,8 @@ def test_buff_skill():
 
 def test_basic_n1_still_green():
     print("【N2.4 回归：N1 普攻矩阵仍绿】")
-    from tests import test_battle2_n1_attack as t1  # noqa: F401  # 单独跑，此处验证文件存在
-    check("N1 测试文件存在", os.path.exists(os.path.join(os.path.dirname(__file__), "test_battle2_n1_attack.py")))
+    from tests import test_battle_n1_attack as t1  # noqa: F401  # 单独跑，此处验证文件存在
+    check("N1 测试文件存在", os.path.exists(os.path.join(os.path.dirname(__file__), "test_battle_n1_attack.py")))
 
 
 def main():

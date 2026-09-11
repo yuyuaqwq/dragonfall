@@ -418,7 +418,7 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
         # （原 data/core_resources.py 表随 v181.M-R2c 退役——六职业 key/desc 迁 CORE_RESOURCE_GUIDE，
         #   name/cap 单源 EFFECT_RULES；regen 18 对应 energy period dir=gain amount=18）
         from data.plugins.dragonfall.game.data.job_guide import CORE_RESOURCE_GUIDE
-        from data.plugins.dragonfall.game.data.battle2_rules import EFFECT_RULES
+        from data.plugins.dragonfall.game.data.battle_rules import EFFECT_RULES
         _cfg = CORE_RESOURCE_GUIDE.get(cls_id, {})
         res_key = _cfg.get("key")
         _er = EFFECT_RULES.get(res_key, {}) if res_key else {}

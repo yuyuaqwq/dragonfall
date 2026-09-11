@@ -1,7 +1,7 @@
 # v181.M-passive P15：破绽系三被动实装 + 破绽数值缺口（2026-09-10）
 
 前置：推条数据已回填（`ab48caf` 武僧 23 技能 `shaken_gain`，对齐 v153 §六 档位表）；
-推条消费链已接线（`ff4289c` `services/battle2_bar_procs.py` + `BAR_INJECT_FIELDS`）。
+推条消费链已接线（`ff4289c` `services/battle_bar_procs.py` + `BAR_INJECT_FIELDS`）。
 **本批补的是被动本体**（`PASSIVE_PROC` 表原先对这三个 proc 零声明）。
 
 ## 一、本批实装（commit 待记）
@@ -23,7 +23,7 @@
 
 验收：`tests/test_passive_p15.py` 25/25（装配 ± / 门槛边界 15 vs 14 / 破防态两反例 /
 延长 2 vs 对照组 1 / 未触发不延长 / 三段叠加 ×1.8）；
-`tests/test_battle2_bar_procs.py` 26/26（新增第 7 组多段：4/段×4=16、单段 15×1、45+5/段×3 触发）。
+`tests/test_battle_bar_procs.py` 26/26（新增第 7 组多段：4/段×4=16、单段 15×1、45+5/段×3 触发）。
 
 > 数据核对：24 条带 `shaken_gain` 的技能与 v153 §六 分档表逐条对齐
 > （主力 15 / 中档 10~12 / 次要 5 / 多段 3~5 **每段** / 普攻级 2~3），

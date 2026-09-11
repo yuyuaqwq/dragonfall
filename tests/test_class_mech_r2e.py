@@ -47,7 +47,7 @@ from saintess_engine.battle.effects import _cap_of, apply_effects
 from saintess_engine.battle.effect_triggers import fire
 from saintess_engine.battle.schedule import _advance_time
 from saintess_engine.battle.state_effects import state_def
-from game.services import battle2_equip_proc as EP
+from game.services import battle_equip_proc as EP
 from game.services.class_mech_proc import apply_class_mech
 
 PASS = 0
@@ -209,7 +209,7 @@ def t_b1_faith_unload():
     apply_class_mech(pu)
     b = _battle(pu, mk_enemy())
     # MECH_CASH 声明存在（装配层记录）
-    from game.data.battle2_rules import MECH_CASH
+    from game.data.battle_rules import MECH_CASH
     check("MECH_CASH.faith_unload 声明（mode=heal_clear 技能内兑现）",
           isinstance(MECH_CASH.get("faith_unload"), dict)
           and MECH_CASH["faith_unload"].get("mode") == "heal_clear", repr(MECH_CASH.get("faith_unload")))

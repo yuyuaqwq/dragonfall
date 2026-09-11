@@ -255,14 +255,14 @@ AFFIXES = {
     # 与 cap 单源 EFFECT_RULES，desc/展示见 job_guide 展示表；原 core_resources.py 已随 v181.M-R2c 退役）。
     #
     # ⚠️ saintess_engine 装配落地状态（R4 / docs/REFACTOR_v181P4_N9_7_affix_migration.md）：
-    # - ✅ 已装配（翻译器在 game/services/battle2_equip_proc.py N9.7e）：effect 含
+    # - ✅ 已装配（翻译器在 game/services/battle_equip_proc.py N9.7e）：effect 含
     #   res+gain+on 的事件 gain 型 10 条（war_spirit/warcry_echo/blood_bath/arcana_flux/
     #   crit_charge/holy_echo/crit_return/pious_charm/rock_rest/opening_stance——
     #   对应 events → actor.triggers 叠 we_affix_res_gain 层，cap clamp 查
     #   EFFECT_RULES[res].cap）+ boiling_blood（怒气满全减伤，taken_calc state_full）。
     # - ⛔/✅ 落地状态（v181.M-R2e 方案 A 已装 cap 动态机制；v181.M-bonus 统一 bonus 容器）：
     #   · ✅ 上限型 effect {res, max_bonus}：rage_forge/divine_radiance/holy_heart/
-    #     rhythm_badge/chi_limit/full_pack——装配写 actor["bonus"]["cap"]（battle2_equip_proc
+    #     rhythm_badge/chi_limit/full_pack——装配写 actor["bonus"]["cap"]（battle_equip_proc
     #     _apply_cap_bonus，覆盖写幂等），引擎 _cap_of 收敛点（effects 叠层 clamp /
     #     schedule period gain / 渠道 gain clamp）读动态 cap = EFFECT_RULES 基准 + 增量；
     #   · ✅ cost_reduce 型 v181.M-bonus 已装：energy_blade（{res, cost_reduce}，

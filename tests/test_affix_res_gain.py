@@ -36,8 +36,8 @@ from saintess_engine.battle.actors import ActCtx          # noqa: E402
 from saintess_engine.battle.effect_triggers import fire as _fire  # noqa: E402
 from saintess_engine.battle.landing import deal_damage as _dd     # noqa: E402
 from saintess_engine.battle.state_effects import state_def        # noqa: E402
-from game.services import battle2_equip_proc as EP      # noqa: E402
-from game.services.battle2_we_procs import we_affix_res_gain  # noqa: E402
+from game.services import battle_equip_proc as EP      # noqa: E402
+from game.services.battle_we_procs import we_affix_res_gain  # noqa: E402
 
 PASS = 0
 FAIL = 0

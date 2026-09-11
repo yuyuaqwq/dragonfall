@@ -100,7 +100,7 @@ if bc > 0 and random.random() < bc:
 
 零配置改动（属性已在 actor_stats 聚合）。RNG 顺序需测试锁定。
 
-## 5. 测试计划（tests/test_battle2_n10_b6_taken_attrs.py 新建）
+## 5. 测试计划（tests/test_battle_n10_b6_taken_attrs.py 新建）
 
 | # | 场景 | 断言 |
 |---|---|---|

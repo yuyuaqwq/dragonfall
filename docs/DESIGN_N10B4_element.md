@@ -81,7 +81,7 @@ _single_target_pipeline（actions）计算单段伤害时：
 | game/data/skills.py | 7 个元素技能补 element 键（火球术/陨石术=fire 等） | 7 行 |
 | game/battle2/__init__ 或 config | 无需（字段已在 actor/bridge 透传） | 0 |
 
-## 4. 测试计划（tests/test_battle2_n10_b4_element.py 新建）
+## 4. 测试计划（tests/test_battle_n10_b4_element.py 新建）
 
 | # | 场景 | 断言 |
 |---|---|---|
@@ -101,7 +101,7 @@ _single_target_pipeline（actions）计算单段伤害时：
 
 ## 6. 边界（不做）
 
-- **ELEMENT_MARKS 印记/元素反应/元素法师连发**：职业机制 → 上层职业批（battle2_rules 无声明）
+- **ELEMENT_MARKS 印记/元素反应/元素法师连发**：职业机制 → 上层职业批（battle_rules 无声明）
 - **玩家侧元素抗性词条（elem_res/abyss_res）**：属词条战斗系统批，B4 只消费"敌方" immune/weak
 - **battle2 其他战斗属性消费缺失**（侦察发现 phys_reduce/magic_reduce/block/dodge/tenacity
   在 stats.py 定义但引擎无消费点）——比 B4 更大的独立缺口，单列问题给鱼鱼（见 §7）

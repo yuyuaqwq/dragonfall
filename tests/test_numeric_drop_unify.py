@@ -22,7 +22,7 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.join(_PLUGIN_DIR, "tests", "test_g
 
 # flaky 修复（2026-09-11）：本文件用全局 random 做概率型抽样（暗格 2000 次档位分布、
 # 各池 roll 冒烟）。未固定种子时 run 之间结果不保证一致；门禁只应因**真实退化**变红。
-# 固定种子 = 确定性基线（沿用 test_v135_quality_roll / test_battle2_n9_equip 的既有做法）。
+# 固定种子 = 确定性基线（沿用 test_v135_quality_roll / test_battle_n9_equip 的既有做法）。
 random.seed(20260911)
 
 import game.content as C  # noqa: E402

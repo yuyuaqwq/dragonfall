@@ -1497,13 +1497,13 @@ class WorldCmds(CommandBase):
         # 此前跨图是另一套精简拼接（fac_msg/scene_msg/nav），鱼鱼抓"前往不同区域提示模板不一样"
         if ambush:
             # v2 多对多：撞怪经 build_monster_group 生成敌方阵列（单只即可，伏击不引入随机双怪）
-            # N5b4-6：撞怪开战 saintess_engine 化（同 _open_battle2 仪式，跨图伏击 = 普通战斗形态）
+            # N5b4-6：撞怪开战 saintess_engine 化（同 _open_battle 仪式，跨图伏击 = 普通战斗形态）
             _grp = C.build_monster_group(ambush, target, player)
-            _open2 = getattr(self, "_open_battle2", None)
+            _open2 = getattr(self, "_open_battle", None)
             if _open2 is not None:
                 _nb = _open2(player, _grp, "monster", group_id=group_id, qq_id=qq_id)
             else:
-                from ..services import battle2_bridge as BR
+                from ..services import battle_bridge as BR
                 BR.prepare_player_for_battle(player, self._title_bonus(group_id, qq_id), db)
                 _sides = BR.build_sides(player=player, enemies=_grp)
                 from saintess_engine import Battle as B2

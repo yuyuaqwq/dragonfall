@@ -15,7 +15,7 @@
 | 序列化遍历 sides（新 actor 自动进存档） | `battle2/serialize.py:44` `"sides": {sn: [...] for sn, acts in battle.sides.items()}` |
 | **中途加 actor 已有活代码先例** | `commands/boss_script.py:526` `battle.sides.setdefault("enemy", []).insert(0, m)` |
 | `Battle` **没有** add_actor / spawn 公开方法 | `battle.py` def 全集：sides_of/hostile_of/focus/alive_*/human_act/advance/auto_run/actor_auto/act/_do_*/_on_actor_dead/_check_side_end/to_state/from_state |
-| `period` 每刻机制完整可用（含 float） | `schedule.py:226-345` 周期跳；`battle2_rules.py:121` focus_cost `{dir:gain,amount:18}` / `:148` faith `{amount:-0.7}` |
+| `period` 每刻机制完整可用（含 float） | `schedule.py:226-345` 周期跳；`battle_rules.py:121` focus_cost `{dir:gain,amount:18}` / `:148` faith `{amount:-0.7}` |
 | 资源渠道机制声明驱动、零硬编码 | `class_mech_proc.py:175` `class_res_channel_gain`——res/gain 全由声明给 |
 | 渠道**不支持条件过滤** | `class_mech_proc.py:1308` `_CHANNEL_EVENTS` extra 只有 `{kind:...}` / `{not_basic:True}` |
 | judge 条件谓词求值在**装配层** | `class_mech_proc.py:740` `_res_ge_ok(owner, params.get("judge")...)` |
@@ -71,10 +71,10 @@ core_last_stand  → 复用 passive_taken_reduce（一次性 flag 常驻减伤 0
 core_overflow    → 复用 passive_heal_overflow_shield 或新增 passive_overflow_shield
 ```
 > 4 条的 judge 都读 `res_ge {res: guard_core}`（现成谓词），参数照抄旧 handler
-> `core/passive_procs.py:999 _h_dr_cond` 的 D0 回填值（`battle2_rules.py:74` 自述缺口即此处）。
+> `core/passive_procs.py:999 _h_dr_cond` 的 D0 回填值（`battle_rules.py:74` 自述缺口即此处）。
 
 **消耗端**：`MECH_CASH` 加 `guard_core_burst`（读磐核数 → 清核 → dmg_mult ×(1+0.7×n)），
-照抄 `arcane_burst` 现成写法（`battle2_rules.py`，per_layer 0.7）。
+照抄 `arcane_burst` 现成写法（`battle_rules.py`，per_layer 0.7）。
 
 ---
 
@@ -194,9 +194,9 @@ def add_actor(self, actor: dict, side: str, front: bool = False) -> dict:
 **风险评估**：
 - 现有调用点零改动（纯新增方法；B1/B2 是等价抽取，由现有测试兜底）
 - 不引入新状态、不新增字段、不动 EFFECT_RULES/PASSIVE_PROC 结构
-- 回归闸：全量测试 + 新增 `test_battle2_add_actor.py`
+- 回归闸：全量测试 + 新增 `test_battle_add_actor.py`
 
-**验收测试**（`tests/test_battle2_add_actor.py`）：
+**验收测试**（`tests/test_battle_add_actor.py`）：
 1. `add_actor(a, "player")` → actor 在 `sides["player"]` 末位
 2. `add_actor(a, "enemy", front=True)` → 在 `sides["enemy"]` 首位（挡刀位）
 3. 新 actor `_skill_index` 非空（给一个已知技能 key）
@@ -212,7 +212,7 @@ def add_actor(self, actor: dict, side: str, front: bool = False) -> dict:
 - `__init__` ct 播种循环与 `_index_skills` 改写为调用上述两函数
 - 新增公开 API `Battle.add_actor(actor, side, front=False)`
 
-**验收**：`tests/test_battle2_add_actor.py` 20 断言全绿（入队语义/索引/ct/CTB 调度/存档往返）
+**验收**：`tests/test_battle_add_actor.py` 20 断言全绿（入队语义/索引/ct/CTB 调度/存档往返）
 
 **顺带修掉一个存量活 bug**：`commands/boss_script.py:526` 原为手工
 `battle.sides.setdefault("enemy", []).insert(0, m)` —— 只入容器、**不建

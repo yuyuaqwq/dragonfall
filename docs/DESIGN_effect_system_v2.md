@@ -52,7 +52,7 @@
 
 ### 1.3 battle2 效果系统现状（已有雏形，但收敛度不足）
 - `battle2/effects.py`：动词执行器 7 个（control/buff/shield/cleanse/cleanse_all/state_add/state_spend）
-- `game/data/battle2_rules.py`：STATE_EFFECTS（17 key）+ EFFECT_ACTIONS（23 名词映射）+ BUFF_STAT_KEYS（7 键，**要退役**）
+- `game/data/battle_rules.py`：STATE_EFFECTS（17 key）+ EFFECT_ACTIONS（23 名词映射）+ BUFF_STAT_KEYS（7 键，**要退役**）
 - 实测：技能数据 187 effect 名词 + 13 mech 名词，battle2 rules 只映射 ~23 → **181 名词静默跳过**
 
 ---

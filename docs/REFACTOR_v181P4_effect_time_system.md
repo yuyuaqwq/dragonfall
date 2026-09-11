@@ -121,7 +121,7 @@ def buff_put(battle, actor, key, turns=None, value=None, hits=None) -> None
 
 ### 2.4 配置表（全部字段定稿，v2：数值进动作参数，BUFF_MULT 退役）
 ```python
-# ---- data/battle2_rules.py ----
+# ---- data/battle_rules.py ----
 
 # ① 名词效果 → 动词动作序列（EFFECT_ACTIONS，数值是动作参数——不是独立名字表）
 #    每个动作可带 stat/op/mult|value（面板折算参数，引擎执行时快照进 buff 条目）
@@ -183,7 +183,7 @@ BUFF_RULES = {
 | `battle2/actions.py` | 攻击管线：出手前/命中后查 caster on_hit 一次性 buff → 消费 + 效果；命中后查受击方 value_type hits |
 | `battle2/stats.py` | `_apply_buffs` 读 buff 条目快照（stat/op/mult），删"×(1+n×0.10)"叠层逻辑与 BUFF_STAT_KEYS 查表 |
 | `battle2/landing.py` | sleep 唤醒已有 ✓；受击 hits 计数消费（可选，N7.2） |
-| `game/data/battle2_rules.py` | EFFECT_ACTIONS 动作参数补数值（26 键数值摊进）；BUFF_RULES 全表；删 BUFF_STAT_KEYS |
+| `game/data/battle_rules.py` | EFFECT_ACTIONS 动作参数补数值（26 键数值摊进）；BUFF_RULES 全表；删 BUFF_STAT_KEYS |
 | `tools/cov_*.py` | 覆盖率门禁照跑 |
 
 ---
@@ -198,7 +198,7 @@ BUFF_RULES = {
 3. stats._apply_buffs 读条目快照折算：mul → st[stat]×=mult；add → st[stat]+=mult
 4. BUFF_STAT_KEYS 旧表不再使用（v2 配置不含它；旧表留在旧配置不动）
 5. 对拍：裸装 + 各 buff 键 → 旧引擎 vs battle2 面板（差异=配置更新点，逐条裁决）
-6. 测试固化（test_battle2_n3_effects 扩展）
+6. 测试固化（test_battle_n3_effects 扩展）
 
 ### N7.2 buffs 绝对到期 + 到期扫（effects.py + schedule.py）
 1. effects 写入改 helper；控制 act_control 走 on_act 规则

@@ -45,7 +45,7 @@ EFFECT_RULES[key] = { "cap", "on", "panel", "stat_scale", "debuff_scale",
 - **EFFECT_ACTIONS 映射表**是装配层 API，名词（stun/buff_atk/...）保留，动作值收敛为
   {"action": "apply"|"consume"|"shield"|...} + 剩余参数。
 
-## 2. EFFECT_RULES 数据表全字段迁移（battle2_rules.py）
+## 2. EFFECT_RULES 数据表全字段迁移（battle_rules.py）
 
 现状 = STATE_EFFECTS 改名镜像（只有 cap/stat_scale/dot/on/on_threshold/guard/heal_down）。
 目标：每 key 补全字段谱，把散在 EFFECT_ACTIONS 动作参数里的**静态数值**搬进表：
@@ -67,13 +67,13 @@ EFFECT_RULES[key] = { "cap", "on", "panel", "stat_scale", "debuff_scale",
 
 ## 3. 调用面同步清单（删旧注册名前必须全改）
 
-- `game/data/battle2_rules.py` EFFECT_ACTIONS：33 buff + 6 control + 1 state_set → apply/consume
-- `game/services/battle2_equip_proc.py`：9 buff + 2 state_add（393/423/464/477/500/511/595/597/615/624/728）
-- `game/services/battle2_we_procs.py`：4 buff + 2 control（245/601/608/692/1061/1096）
-- `game/commands/battle2_item_use.py`：hot/regen 相关改 apply + period 声明（V1 已切 effects，复查）
+- `game/data/battle_rules.py` EFFECT_ACTIONS：33 buff + 6 control + 1 state_set → apply/consume
+- `game/services/battle_equip_proc.py`：9 buff + 2 state_add（393/423/464/477/500/511/595/597/615/624/728）
+- `game/services/battle_we_procs.py`：4 buff + 2 control（245/601/608/692/1061/1096）
+- `game/commands/battle_item_use.py`：hot/regen 相关改 apply + period 声明（V1 已切 effects，复查）
 - `game/battle2/effects.py` effects_from_skill/_mech_to_effect：mech → apply
 - `game/battle2/actions.py`：名词 effect 走 apply_effects 已 OK；确认无直调 act_buff/state_*
-- 服务层 battle2_we_procs 里 `_freeze/_slow` 直调 act_buff/act_control → 改调 apply_effects(apply)
+- 服务层 battle_we_procs 里 `_freeze/_slow` 直调 act_buff/act_control → 改调 apply_effects(apply)
 - `tests/`：n3_effects/n4_schedule/n8_events/n9_equip/coverage/hot_regen/item_use 等 type:
   buff/state_add/state_spend/state_set/control 断言 → apply/consume + 语义保持
 

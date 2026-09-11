@@ -69,7 +69,7 @@ r = IT.TEMPLATES["food"](FakeCtx(battle=True))
 check("战斗内 payload=hot:0.05,0.06,3", r.payload == "hot:0.05,0.06,3", r.payload)
 
 # ---- 3. (N10 删旧：战斗内 hot 全链路已由 saintess_engine regen_hot period 验证——
-#    test_battle2_n10_b7_food test_honey_regen + battle2_item_use hot: 分支覆盖，
+#    test_battle_n10_b7_food test_honey_regen + battle_item_use hot: 分支覆盖，
 #    旧 Battle.actor_turn hot 段退役) ----
 
 # ---- 4. 战斗外即时回复 ----
@@ -165,7 +165,7 @@ check("汉堡战斗内 payload=buff:food_def_up", rb.payload == "buff:food_def_u
 ro = IT.TEMPLATES["food_buff"](BufCtx(battle=False))
 check("汉堡战斗外即时回血+体力", "恢复 30 点生命" in ro.text and "恢复 35 点体力" in ro.text, ro.text)
 
-# 战斗内吃料理播报（food_ 前缀 → 料理文案；saintess_engine N10：buff: 翻译走 battle2_item_use）
+# 战斗内吃料理播报（food_ 前缀 → 料理文案；saintess_engine N10：buff: 翻译走 battle_item_use）
 from saintess_engine import Battle as _B2
 from saintess_engine import make_actor as _mk2
 from saintess_engine import config as _b2cfg
@@ -178,7 +178,7 @@ _e2 = _mk2(uid="e_0", name="野狗", side="enemy", kind="monster", level=1,
            hp=500, max_hp=500, atk=5, matk=5, spd=5, crit=0.0, exp=0, gold=0,
            **{"def": 0, "mdef": 0})
 _b2 = _B2(btype="monster", sides={"player": [_p2], "enemy": [_e2]})
-from game.commands.battle2_item_use import translate as _tr_food
+from game.commands.battle_item_use import translate as _tr_food
 _l2, _c2 = _tr_food(_b2, _p2, "buff:food_def_up")
 check("料理播报(非'饮下战斗药水')", any("吃下了料理" in str(l) for l in (_l2 or [])), str(_l2)[:120])
 
@@ -208,7 +208,7 @@ ro2 = IT.TEMPLATES["food_effect"](AffCtx(battle=False))
 check("蛇羹战斗外恢复", "恢复 20 点生命" in ro2.text, ro2.text)
 
 # (N10 删旧：战斗内 foodfx 效果段退役——蛇羹吸血/圣餐面包盾/回春回合回复已由
-#  saintess_engine B7 覆盖，见 test_battle2_n10_b7_food test_snake_soup_lifesteal /
+#  saintess_engine B7 覆盖，见 test_battle_n10_b7_food test_snake_soup_lifesteal /
 #  test_sacred_bread_shield / test_honey_regen；此处只保留模板层 payload 验证)
 
 print(f"\n结果: {PASS} 通过, {FAIL} 失败")

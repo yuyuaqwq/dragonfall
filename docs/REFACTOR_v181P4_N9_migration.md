@@ -86,7 +86,7 @@
 ### 2.3 装配函数（命令层/测试开战前调用）
 
 ```python
-# game/services/battle2_equip_proc.py（新）
+# game/services/battle_equip_proc.py（新）
 def install_ext_actions() -> None        # 启动注册族扩展动作（幂等）
 def triggers_for_actor(actor) -> dict    # 读 actor.equipment → 事件→效果 dict（含 affix/weapon）
 def apply_to_actor(actor) -> None        # install + actor["triggers"] 合并（命令层 build_sides 后调）
@@ -131,7 +131,7 @@ P2C "读表参数铁律"）。缺字段 = 无此行为，绝不补默认值。
 | 技能 mech 注册表 | game/core/battle_mech.py MECH_EFFECTS（C 类残留） | 上层职业模块（battle2 外） |
 | Boss 机制 | BOSS_MECHS | 上层 Boss 机制模块（后续迭代，不在 N9） |
 | 怪 buff/控制死表 | MON_BUFF_EFFECTS / MON_CTRL_EFFECTS | 无（battle2 rules 已覆盖） |
-| 武器特效引擎 | game/core/weapon_effects.py + _we_executors.py | services/battle2_equip_proc.py 装配 |
+| 武器特效引擎 | game/core/weapon_effects.py + _we_executors.py | services/battle_equip_proc.py 装配 |
 | 词条效果引擎 | game/core/affix_effects.py HIT/TAKEN | 同上 |
 | 词条效果数据 | game/core/affix.py（若仅服务旧 proc） | 装配层 |
 | 食物战斗效果 | food_effects.py FOOD_HIT/TAKEN（如并入） | 装配层/生活排除 |

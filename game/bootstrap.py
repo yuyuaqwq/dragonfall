@@ -141,7 +141,7 @@ def _mech_cfg(name):
 def _bar_prefix():
     """挂敌身条键前缀（S3 前在 core/battle_bars._state_prefix 内经 importlib 直读）。"""
     try:
-        from .data.battle2_rules import BAR_STATE_PREFIX
+        from .data.battle_rules import BAR_STATE_PREFIX
         return BAR_STATE_PREFIX or "bar:"
     except Exception:
         return "bar:"
@@ -170,18 +170,18 @@ def mount_engine_hooks() -> None:
 def load_engine_config() -> None:
     """完整装配（旧 saintess_engine.config.load_game_defaults 的实体）。
 
-    = mount_engine_hooks()（hook 面）+ load_game_rules(battle2_rules)（规则表）。
+    = mount_engine_hooks()（hook 面）+ load_game_rules(battle_rules)（规则表）。
 
-    ⚠️ 装载顺序（§8-R1 导入环）：**先引内容包**，再取 battle2_rules。若先
+    ⚠️ 装载顺序（§8-R1 导入环）：**先引内容包**，再取 battle_rules。若先
     `from .data import ...`，data→core 的半初始化链会中途拉进 content，
     content 的 `from .data import *` / `from .core import *` 拿到残缺命名空间
     （star-import 命中半成品模块）→ 静默缺符号。先引 content 则顺序与 S1 前一致
     （content 先于 data 装载，环在 content.py 内部安全闭合）。
     """
     from . import content  # noqa: F401  (必须先于 game.data —— 见 docstring)
-    from .data import battle2_rules
+    from .data import battle_rules
     mount_engine_hooks()
-    _b2cfg.load_game_rules(battle2_rules)
+    _b2cfg.load_game_rules(battle_rules)
 
 
 def _lazy_mount() -> None:

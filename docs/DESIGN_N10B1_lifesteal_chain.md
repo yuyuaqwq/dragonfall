@@ -10,14 +10,14 @@
 ## 1. 问题：battle2 吸血主链缺失（比 5c P5 盘点更严重）
 
 侦察证据：
-- battle2 引擎 + data/battle2_rules.py **零 lifesteal 命中**（grep 全 0）
+- battle2 引擎 + data/battle_rules.py **零 lifesteal 命中**（grep 全 0）
 - 装配层只有词条级 `novice_lifesteal`（we_extra_dmg hit 事件 heal_pct 回血）——这是"装备词条自带吸血"
   的翻译，**不是**玩家面板吸血率体系
 - affix stat 型吸血词条（`lifesteal/lifesteal_phys/lifesteal_magi`，trigger=stat，如吸血+8%）在生成时折算进
   item.stats → E.player_final_stats 面板 st["lifesteal"]=0.08 ✓（probe 实测），但 **battle2 伤害管线无人消费该面板值**
   → 玩家带吸血词条装备在 battle2 下攻击**不回血**（与旧引擎行为断裂）
 - 技能级 `info.lifesteal`（嗜血斩 0.25）battle2 do_skill 未消费 → 嗜血斩吸血失效
-- 淬血（zhan_yi 每层+1.5% 吸血）→ battle2_rules 只声明了 zhan_yi atk 叠层，吸血消费缺（旧引擎在
+- 淬血（zhan_yi 每层+1.5% 吸血）→ battle_rules 只声明了 zhan_yi atk 叠层，吸血消费缺（旧引擎在
   _settle_lifesteal 里 run_proc_family 消费）
 - 药水 lifesteal_pot（嗜血药剂 +15%）→ battle2 无声明/无消费
 
@@ -110,7 +110,7 @@ battle2 `_deal_aoe` 逐目标循环调 `_single_target_pipeline`（每目标独�
 
 | 项 | 旧引擎 | battle2 现状 | B1 是否做 |
 |---|---|---|---|
-| 淬血每层+1.5% 吸血 | _settle_lifesteal 内 proc | battle2_rules 只声明 zhan_yi atk 叠层 | ⏳ 随被动装配批（zhan_yi proc 族迁 battle2 后接）；B1 先留 TODO 注释 |
+| 淬血每层+1.5% 吸血 | _settle_lifesteal 内 proc | battle_rules 只声明 zhan_yi atk 叠层 | ⏳ 随被动装配批（zhan_yi proc 族迁 battle2 后接）；B1 先留 TODO 注释 |
 | 嗜血药剂 lifesteal_pot +15% | buff 乘算 | battle2 无声明 | ⏳ 随药水效果批（POTION_EFFECTS 迁移时声明 lifesteal_pot effects 条目） |
 | 词条 stat 型吸血 | 面板 st["lifesteal"] | 面板已有 ✓ | ✅ B1 主链消费它 |
 | 技能自带 lifesteal | info.lifesteal | 无消费 | ✅ B1 做 |
@@ -123,7 +123,7 @@ battle2 `_deal_aoe` 逐目标循环调 `_single_target_pipeline`（每目标独�
 | game/battle2/actions.py | +_settle_lifesteal 函数 + _single_target_pipeline 挂点 + _deal_aoe 传 _no_lifesteal | ~50 行 |
 | game/battle2/actions.py | _single_target_pipeline/_deal_aoe 签名加 _no_lifesteal 参数 | ~4 处 |
 
-## 4. 测试计划（tests/test_battle2_n10_b1_lifesteal.py 新建）
+## 4. 测试计划（tests/test_battle_n10_b1_lifesteal.py 新建）
 
 | # | 场景 | 断言 |
 |---|---|---|
@@ -141,7 +141,7 @@ battle2 `_deal_aoe` 逐目标循环调 `_single_target_pipeline`（每目标独�
 ## 5. 验证顺序
 
 1. 本文件 → git status 干净确认 → 改 actions.py → py_compile
-2. 新测试 test_battle2_n10_b1_lifesteal.py 全绿
+2. 新测试 test_battle_n10_b1_lifesteal.py 全绿
 3. 全套 battle2 测试（沙盒）对照基线零新增
 4. 汇报鱼鱼 → commit（v181.N10-B1 格式）
 

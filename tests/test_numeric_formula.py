@@ -2,8 +2,8 @@
 """v156 formula 通用公式层门禁测试——防公式引擎退化。
 
 覆盖（N10 删旧精简：旧 Battle 容器消费段退役——技能/词条/怪技 formula
-消费已由 saintess_engine 测试覆盖，见 test_battle2_n2_skill 挥砍 exprs +
-test_battle2_n10_b4_element 火球 formula；本文件只留 E 层纯函数验证）：
+消费已由 saintess_engine 测试覆盖，见 test_battle_n2_skill 挥砍 exprs +
+test_battle_n10_b4_element 火球 formula；本文件只留 E 层纯函数验证）：
 1. resolve_formula 纯函数：混伤/物理职业魔法技/基础值+百分比/目标血百分比/纯固定值/chance/mult 乘区
 2. 敌方技能 formula：resolve_formula 直调（怪技 formula 数据驱动）
 
