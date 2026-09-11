@@ -1384,6 +1384,24 @@ corros（腐蚀）→ true_dmg 分支，绕过 def/mdef（但不豁免目标异�
       9 个主题怪：`element_weak` 分系弱点（冰怪弱火／雷怪弱冰／火怪弱雷，与 §9.1 克制轴一致）+ 
       `immune_dots`（火/熔岩本体免灼烧、无机高防傀儡免毒）。命中的字段由 `drops.build_monster` 白名单透传（本批补 `immune_dots`）。
       详见 §9.2 的「落地记录」表 + `tests/test_v181_batch_b_resist_data.py`（33/33）。
+- [x] **死字段清理（2026-09-11 批 C）**：`wake_on_hit` **接线**（同时移除引擎里硬编码的
+      `"sleep"` 游戏名词 —— 引擎纯度违规）；`on_threshold` **删声明**（与现行「血祭主动投入」冲突）；
+      `bleed.period` 的 `type` / `per_layer` **删死键**。验收 `tests/test_v181_batch_c_deadfields.py` 15/15。
+- [ ] **★ 发现：DOT 数值双源（引擎 vs 模拟器），须定权威**（2026-09-11 取证）
+      · 引擎实跑：DOT 伤害只读 `EFFECT_RULES[key].period.pct_max_hp` / `pct_cur_hp`
+        （`schedule.py`，`dmg = max_hp × pct × 层数`，再乘 `pct_boss` 覆盖）；
+      · `DOT_DEFS`（= `MECH_CFG["dot"]` 的 atk×0.8 / matk×0.6 / hp×1.5% 那套）**全仓只有
+        `scripts/numeric_lib/player.py`（数值模拟器）在读**，引擎零消费；
+      · 后果一：**数值门禁算出的 DOT 强度与实机不符**（模拟器按 atk/matk 为主，实机是纯百分比）；
+      · 后果二：`bleed` 的 period **没有 pct 字段** → 引擎回落 `dmg = max(1, 层数)`
+        （≈1 点/刻），而声明写的是 atk×0.05 + max_hp×1.5% —— 实机流血几乎不痛；
+      · 后果三：`DOT_BOSS_PCT_MULT`(0.5) 只有模拟器读 → 两边对 Boss 的 DOT 折扣也不同。
+      → 二选一：**以引擎为准**（补 `bleed.period.pct_max_hp`、删 `DOT_DEFS` 数值表或改注释
+        仅当展示用、修模拟器对齐引擎），或**以 DOT_DEFS 为准**（给引擎补 atk/matk 段）。
+        涉及全部 DOT 流派的实机强度，**须鱼鱼拍板后再动**。
+- [ ] **`crit_at` 接线**（`MECH_CASH.finisher.crit_at = 4`「连段 ≥4 必定暴击」）
+      —— 刺杀终结技的玩家可见承诺，引擎已有 `hit.guaranteed_crit` 通道（潜行必暴在用），
+      接线 = 内容侧装配器按连段层数挂该态。会动平衡（必暴=显著增伤），**须定口径**。
 - [ ] **裁定项：`dot_res` 去留**（§9.2「落地记录」已登记）——结算端无读点，Boss DOT 折扣现由数据侧 `period.pct_boss` 承担；
       接线会让 DOT 流对 Boss 双重折扣（×0.1）。二选一：**删 `dot_res` 字段**（承认 `pct_boss` 是唯一通道），
       或**接线并撤 `pct_boss`**（统一到 dot_res 一轴）。

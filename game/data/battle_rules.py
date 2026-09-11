@@ -24,7 +24,10 @@ EFFECT_RULES: dict = {
         "name": "战意",
         "cap": 10,
         "stat_scale": {"atk": 0.04},          # 每层攻击 +4%
-        "on_threshold": {10: {"form": "fury"}},  # 满 10 进狂暴（上层消费）
+        # 2026-09-11 删 `on_threshold: {10: {"form": "fury"}}`：**死字段**（引擎无消费方），
+        #   且语义与现行机制**冲突**。现行狂暴 = **主动投入**（血祭花 4 层战意进入，
+        #   MECH_CASH.zhan_yi_fury「无视 10 层门槛」）；旧声明写的是「满 10 层自动进狂暴」
+        #   ——留着会让实现者以为存在自动触发。
     },
     # v153 战士狂暴态（CLASS_MECHANICS_v153 战士血怒线）：血祭（zhan_yi_fury 兑现）
     # 花 4 战意进入 → effects[fury] 1 层 = 狂暴中。攻击 +20%（stat_scale）；吸血 25% /
@@ -279,7 +282,12 @@ EFFECT_RULES: dict = {
     "bleed": {
         "cap": 10,
         "on": "target",
-        "period": {"dir": "damage", "interval": 1.0, "type": "flat", "per_layer": 0},
+        # 2026-09-11 删死子字段 `type` / `per_layer`（引擎 damage 分支只读 pct_max_hp /
+        #   pct_cur_hp，这两个键零消费）。
+        # ⚠️ 遗留（另案裁定）：本条目**没有** pct 字段 → 引擎回落 `dmg = max(1, 层数)`
+        #   （≈1 点/刻），而 `DOT_DEFS["bleed"]` 声明的是 atk×0.05 + max_hp×1.5% ——
+        #   两套数值并存且只有前者在跑（见 v153 待办「DOT 双源」条）。
+        "period": {"dir": "damage", "interval": 1.0},
     },
     "poison": {
         "cap": 5,
