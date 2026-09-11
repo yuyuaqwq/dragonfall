@@ -16,6 +16,7 @@ import tempfile
 os.environ["GWEN_GAME_DB"] = os.path.join(tempfile.mkdtemp(), "game.db")
 os.environ["GWEN_TEST_MODE"] = "1"
 _PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 _QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(_PLUGIN_DIR)))
 sys.path.insert(0, _QQBOT_DIR)
 sys.path.insert(0, _PLUGIN_DIR)
@@ -23,15 +24,15 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from game.battle2 import config as _b2c
-_b2c.load_game_defaults()
+from battle2 import config as _b2c
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 from game.store.connection import init_db
 init_db()
 
 from game.core import drops as D
 from game import db
 from game.services import battle2_bridge as BR
-from game.battle2 import Battle as B2
+from battle2 import Battle as B2
 
 PASS = 0
 FAIL = 0

@@ -55,8 +55,9 @@ def _tail(text: str, n: int = 25) -> str:
 
 # --------------------------------------------------------------------- env setup
 def _setup_paths() -> None:
-    """照 tests/ 里的 sys.path 补丁写法：qqbot 根 + 插件根 + astrbot shim。"""
-    for p in (QQBOT_DIR, PLUGIN_DIR):
+    """照 tests/ 里的 sys.path 补丁写法：qqbot 根 + 插件根 + 引擎框架根 + astrbot shim。"""
+    for p in (QQBOT_DIR, PLUGIN_DIR, os.path.join(PLUGIN_DIR, "framework")):
+        # ↑ framework：引擎框架包（S8 物理分离，`battle2` 在该目录下）
         if p and p not in sys.path:
             sys.path.insert(0, p)
     shim = os.path.join(PLUGIN_DIR, "tests", "shim_astrbot")
@@ -156,10 +157,10 @@ def run(payload: dict) -> dict:
     seed = 1 if seed in (None, "") else int(seed)
 
     # ---- 装配引擎（第一处 import game —— 只发生在子进程里） ----
-    from game.battle2 import config as _b2c
-    _b2c.load_game_defaults()
+    from battle2 import config as _b2c
+    from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
     from game import engine as E
-    from game.battle2 import Battle, make_actor
+    from battle2 import Battle, make_actor
 
     # 技能等级：模拟固定为指定等级（引擎默认查玩家已学等级，模拟的临时技能查不到 → 0）
     try:

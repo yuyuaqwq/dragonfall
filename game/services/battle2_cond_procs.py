@@ -20,7 +20,7 @@
 """
 from __future__ import annotations
 
-from ..battle2.effects import register_action
+from battle2.effects import register_action
 
 # 敌方减益键（控制/属性降）；DOT/印记类走 effects 层数判定
 _DEBUFF_KEYS = ("def_down", "spd_down", "mon_atk_down", "atk_down",
@@ -44,7 +44,7 @@ def _spd_of(battle, actor) -> float:
     if not isinstance(actor, dict):
         return 0.0
     try:
-        from ..battle2 import stats as S
+        from battle2 import stats as S
         st = S.actor_stats(battle, actor) or {}
         return float(st.get("spd", 0) or 0)
     except Exception:

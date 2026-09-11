@@ -2,7 +2,7 @@
 """兼容 shim（S5）：`game/engine.py` 已一拆为二（docs/ENGINE_CONTENT_SPLIT_PLAN.md §6.4 / §7.5）。
 
 本体迁往：
-  - 引擎侧通用公式 → `game/battle2/formulas.py`（零游戏知识；表读走 config 注入面）
+  - 引擎侧通用公式 → `framework/battle2/formulas.py`（零游戏知识；表读走 config 注入面）
   - 内容侧表读     → `game/content_rules/skills.py`   （PLAYER_SKILLS/BRANCH_SKILLS/TUTOR_SKILLS/SKILL_UP）
                     `game/content_rules/panel.py`    （CLASSES/RACES/SETS/PCT_CAPS 面板公式）
                     `game/content_rules/gameplay.py` （元素反应/机制叠层/升级结算/掉落解析）
@@ -27,8 +27,8 @@ from .data.battle_config import (  # noqa: F401
 )
 from .data.formula_skeleton import FORMULA_SKELETON  # noqa: F401
 
-# ---- 引擎侧通用公式（game/battle2/formulas.py）----
-from .battle2.formulas import (  # noqa: F401
+# ---- 引擎侧通用公式（framework/battle2/formulas.py）----
+from battle2.formulas import (  # noqa: F401
     SKILL_MAX_LEVEL,
     calc_damage,
     resolve_formula,

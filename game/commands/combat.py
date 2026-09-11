@@ -117,7 +117,7 @@ def resource_stack_text(effects) -> str:
         return ""
     rules = {}
     try:
-        from ..battle2 import config as _b2c
+        from battle2 import config as _b2c
         rules = _b2c.get_effect_rules() or {}
     except Exception:
         rules = {}
@@ -638,7 +638,7 @@ class CombatCmds(CommandBase):
                 _CM_apply(_a)
             except Exception:
                 pass  # 技能 mech 兑现装配异常不阻断开战
-        from ..battle2 import Battle as B2
+        from battle2 import Battle as B2
         return B2(btype, sides=sides, title_bonus=tb,
                   pet=pet if pet is not None else db.pet_get(qq_id))
 
@@ -646,7 +646,7 @@ class CombatCmds(CommandBase):
         """恢复 battle2 战斗（from_state）。旧格式（无 sides）→ None（命令层清档重开）。"""
         if not isinstance(state, dict) or not state.get("sides"):
             return None
-        from ..battle2 import Battle as B2
+        from battle2 import Battle as B2
         return B2.from_state(state)
 
     def _sync_battle_player(self, player: dict, b) -> None:
@@ -1957,7 +1957,7 @@ class CombatCmds(CommandBase):
         # O96：burn/poison/mark 是敌方减益叠层，不在玩家栏显示）
         stacks = {}
         if isinstance(player.get("effects"), dict):
-            from ..battle2.state_effects import all_state_effects as _ase
+            from battle2.state_effects import all_state_effects as _ase
             _stk_table = _ase()
             for _k, _ent in (player.get("effects") or {}).items():
                 if isinstance(_ent, dict) and (_k in _stk_table or _k in self._STACK_NAMES):
@@ -2389,7 +2389,7 @@ class CombatCmds(CommandBase):
         for _a in _sides.get("enemy", []):
             if not _a.get("auto_act"):
                 _a["auto_act"] = {"act": {"type": "attack"}}
-        from ..battle2 import Battle as B2
+        from battle2 import Battle as B2
         nb = B2("worldboss", sides=_sides, title_bonus=_tb,
                 dmg_mult=db.get_boss_dmg_mult(qq_id), pet=db.pet_get(qq_id))
         # 敌 actor 技能索引已由 B2 构造建立；给 Boss 配首个技能自动行动（AI 轮换属上层怪 AI 模块）
@@ -2827,7 +2827,7 @@ class CombatCmds(CommandBase):
         #   battle 级传 {} 仅兜底。
         from ..services import battle2_bridge as BR
         from ..services.battle2_equip_proc import apply_to_actor as _EP_apply
-        from ..battle2 import Battle as B2
+        from battle2 import Battle as B2
         # 0. 双方各自外部增幅聚合（core 直调 + 已 load 的 player dict，避免 _title_bonus
         #    内部再读档；失败降级空 dict）
         from ..core.stat_bonus import stat_bonus as _core_tb
@@ -2910,7 +2910,7 @@ class CombatCmds(CommandBase):
             db.clear_battle(group_id, qq_id)
             yield event.plain_result("⏳ PVP 旧存档已失效，请重新发起攻击～")
             return
-        from ..battle2 import Battle as B2
+        from battle2 import Battle as B2
         b = B2.from_state(state)
         if b is None:
             self._unlock_battle(group_id, qq_id)

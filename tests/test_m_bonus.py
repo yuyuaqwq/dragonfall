@@ -25,18 +25,19 @@ import os
 import sys
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(PLUGIN_DIR, "test_m_bonus.db"))
 os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
-from game.battle2 import config as _b2c
-_b2c.load_game_defaults()
-from game.battle2 import Battle as B2, make_actor
-from game.battle2 import actions as A
-from game.battle2.actors import ActCtx
-from game.battle2.effects import _cap_of
+from battle2 import config as _b2c
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from battle2 import Battle as B2, make_actor
+from battle2 import actions as A
+from battle2.actors import ActCtx
+from battle2.effects import _cap_of
 from game.services import battle2_equip_proc as EP
 from game.core import stat_bonus as SB
 
@@ -152,7 +153,7 @@ def t_a_container():
     check("panel 分域不受装配覆盖（装备装配不动外部增幅）",
           (p.get("bonus") or {}).get("panel") == {}, repr(p.get("bonus")))
     # from_state 旧档 actor 一次性迁移（旧 stat_bonus 键 → bonus.panel）
-    from game.battle2.serialize import _deserialize_actor as _da
+    from battle2.serialize import _deserialize_actor as _da
     old = {"uid": "x", "class_name": "战士", "hp": 10, "stat_bonus": {"atk": 5},
            "cap_bonus": {"rage": 2}}
     mig = _da(old)
@@ -165,7 +166,7 @@ def t_a_container():
 
 def t_a_panel_read():
     print("【A.2 面板读源 bonus.panel（actor 优先 / battle.title_bonus 兜底）】")
-    from game.battle2.stats import actor_stats
+    from battle2.stats import actor_stats
     a0 = mk_mage("b0")
     e0 = mk_enemy()
     b0 = _battle(a0, e0)
@@ -438,7 +439,7 @@ def t_d_finisher():
         equip_affix(k2, "finisher", "weapon", q)
         EP.apply_to_actor(k2)
         b = _battle(k2, mk_enemy())
-        from game.battle2.effect_triggers import fire as _fire
+        from battle2.effect_triggers import fire as _fire
         ctx = {"actor": k2, "target": b.sides_of("enemy")[0], "dmg": 100,
                "is_crit": False, "info": {"mech": "finisher", "name": "终结·割喉"},
                "mult": 1.0}

@@ -19,17 +19,20 @@ os.environ["GWEN_GAME_DB"] = os.path.join(_tmp_db, "game.db")
 os.environ["GWEN_TEST_MODE"] = "1"
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "framework"))
+# ↑ 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 
 # 挂载 battle2 游戏规则（HANDOFF 测试铁律）
-from game.battle2 import config as _b2c
-_b2c.load_game_defaults()
+from battle2 import config as _b2c
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 
 from game.store.connection import init_db
 init_db()
 
 from game import db
-from game.battle2 import Battle as B2Battle
-from game.battle2 import actors as B2A
+from battle2 import Battle as B2Battle
+from battle2 import actors as B2A
 from game.services import battle2_bridge as BR
 
 PASS = 0

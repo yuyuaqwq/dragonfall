@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""兼容 shim（S3 通用件归位）：本体已迁 `game/battle2/support/battle_bars.py`。
+"""兼容 shim（S3 通用件归位）：本体已迁 `framework/battle2/support/battle_bars.py`。
 
 旧路径 import 保持可用（docs/ENGINE_CONTENT_SPLIT_PLAN.md §7-S3）：
 `from ..core.battle_bars import bar_gain, …` / `from game.core.battle_bars import X`。
@@ -9,8 +9,8 @@ battle2_bar_procs、tests/test_numeric_bar_decay 直接用），故显式再导�
 S9 收口时删（§7-S9）。
 """
 try:
-    from ..battle2.support.battle_bars import *  # noqa: F401,F403
-    from ..battle2.support.battle_bars import _state_prefix  # noqa: F401
+    from battle2.support.battle_bars import *  # noqa: F401,F403
+    from battle2.support.battle_bars import _state_prefix  # noqa: F401
 except ImportError:  # 独立文件加载（无包上下文）
     import importlib.util as _ilu
     import os as _os

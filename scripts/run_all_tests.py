@@ -188,6 +188,34 @@ def _summary(results, t0):
     return 1 if failed else 0
 
 
+def _run_framework_tests(base_env):
+    """前置：跑引擎框架仓自带测试（S8 拆仓后的双轨，plan §8-R6）。
+
+    引擎已物理分离为独立仓库（`framework/` submodule）——它的纯度门禁 / 中性兜底 /
+    示例冒烟是本仓回归的**前置依赖**（引擎坏了游戏测试全无意义）。
+    返回 True=通过；框架目录不存在（未初始化 submodule）时跳过并提示，不判失败。
+    """
+    runner = os.path.join(PLUGIN_DIR, "framework", "tests", "run_all.py")
+    if not os.path.exists(runner):
+        print("⚠️ 跳过引擎框架仓测试：framework/tests/run_all.py 不存在"
+              "（submodule 未初始化？`git submodule update --init`）", flush=True)
+        return True
+    print("── 前置：引擎框架仓测试（framework/tests/run_all.py）──", flush=True)
+    try:
+        proc = subprocess.run([PYTHON, runner], capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", env=base_env,
+                              timeout=TEST_TIMEOUT)
+        ok = proc.returncode == 0
+    except subprocess.TimeoutExpired:
+        ok = False
+        proc = None
+    tail = (proc.stdout or proc.stderr or "").strip().splitlines()[-12:] if proc else []
+    for ln in tail:
+        print("   " + ln, flush=True)
+    print(f"{'✅' if ok else '❌'} 引擎框架仓测试", flush=True)
+    return ok
+
+
 def main():
     fail_fast, serial_mode, real_astrbot, jobs, only, skips = _parse_args(sys.argv[1:])
     serial_files, parallel_files = _collect_files(only, skips)
@@ -227,6 +255,9 @@ def main():
         # shim astrbot 注入：放 PYTHONPATH 最前（优先于 site-packages 的真实 astrbot）
         _pp = base_env.get("PYTHONPATH", "")
         base_env["PYTHONPATH"] = SHIM_DIR + (os.pathsep + _pp if _pp else "")
+
+    # 0) 前置：引擎框架仓测试（双轨，plan §8-R6）
+    framework_ok = _run_framework_tests(base_env)
 
     # 1) 串行槽（硬编码共享库的文件，保持旧行为：共享 test_game_data.db）
     for f in serial_files:
@@ -274,7 +305,11 @@ def main():
         executor.shutdown(wait=True)
 
     shutil.rmtree(worker_dir, ignore_errors=True)
-    return _summary(results, t0)
+    rc = _summary(results, t0)
+    if not framework_ok:
+        print("❌ 引擎框架仓测试未通过（前置门禁）——游戏侧结果仅供参考")
+        return 1
+    return rc
 
 
 if __name__ == "__main__":

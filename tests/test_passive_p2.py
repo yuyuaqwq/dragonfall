@@ -14,15 +14,16 @@
 """
 import sys, os, random
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(PLUGIN_DIR, "test_passive_p2.db"))
 os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
-from game.battle2 import config as _b2c
-_b2c.load_game_defaults()
-from game.battle2 import Battle as B2, make_actor
+from battle2 import config as _b2c
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from battle2 import Battle as B2, make_actor
 from game.services.class_mech_proc import apply_class_mech
 
 PASS = 0
@@ -108,7 +109,7 @@ def test_3_counter_trigger():
     b = mk_battle([w], enemy)
     logs, _, _ = b.human_act("attack", None, enemy)  # enemy 手动普攻玩家?
     # 换个更稳路径：直接对玩家 deal_damage（走 landing on_taken 触发链）
-    from game.battle2.landing import deal_damage
+    from battle2.landing import deal_damage
     b2 = mk_battle([w], enemy)
     e = b2.sides_of("enemy")[0]
     e['dodge'] = 0.0
@@ -183,7 +184,7 @@ def test_6_poison_burst_mult():
 
 def test_7_dual_channel():
     print("【7. 双通道：灵魂锁链 cap 段 + per_layer 乘区段同时装配】")
-    from game.battle2.effects import _cap_of
+    from battle2.effects import _cap_of
     # 灵魂锁链是哪个职业？死灵法师 cls？搜全部技能树找
     from game.data.skills import PLAYER_SKILLS, BRANCH_SKILLS
     owner_cls = None

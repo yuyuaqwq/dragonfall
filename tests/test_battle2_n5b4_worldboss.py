@@ -20,6 +20,7 @@ import time
 os.environ["GWEN_GAME_DB"] = os.path.join(tempfile.mkdtemp(), "game.db")
 os.environ["GWEN_TEST_MODE"] = "1"
 _PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 _QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(_PLUGIN_DIR)))
 sys.path.insert(0, _QQBOT_DIR)
 sys.path.insert(0, _PLUGIN_DIR)
@@ -27,8 +28,8 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from game.battle2 import config as _b2c  # noqa: E402
-_b2c.load_game_defaults()  # noqa: E402
+from battle2 import config as _b2c  # noqa: E402
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from game.store.connection import init_db  # noqa: E402
 init_db()
 
@@ -101,7 +102,7 @@ def test_worldboss_construction_and_sync():
     for _a in _enemies:
         _a.setdefault("auto_act", {"act": {"type": "attack"}})
     _sides = BR.build_sides(player=player, enemies=_enemies)
-    from game.battle2 import Battle as B2
+    from battle2 import Battle as B2
     nb = B2("worldboss", sides=_sides, title_bonus=_tb,
             dmg_mult=db.get_boss_dmg_mult(qid), pet=db.pet_get(qid))
     check("构造成功 sides player+enemy",

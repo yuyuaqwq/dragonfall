@@ -20,6 +20,7 @@ import os
 import sys
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(PLUGIN_DIR, "test_v181_gap_tail.db"))
 os.environ.setdefault("GWEN_TEST_MODE", "1")
@@ -29,10 +30,10 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from game.battle2 import config as _b2c  # noqa: E402
-_b2c.load_game_defaults()
-from game.battle2 import Battle as B2, make_actor, effects as EFX  # noqa: E402
-from game.battle2.effect_triggers import fire  # noqa: E402
+from battle2 import config as _b2c  # noqa: E402
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from battle2 import Battle as B2, make_actor, effects as EFX  # noqa: E402
+from battle2.effect_triggers import fire  # noqa: E402
 from game.core.battle_bars import bar_effect_key, bar_gain  # noqa: E402
 from game.services import class_mech_proc as CMP  # noqa: E402
 from game.services.battle2_bar_procs import _ensure_tick  # noqa: E402
@@ -94,7 +95,7 @@ def bar_val(host, key="shaken"):
 
 def advance(b, dt):
     """真实时钟推进：schedule._advance_time（广播 time_advance，ctx dt/now）。"""
-    from game.battle2.schedule import _advance_time
+    from battle2.schedule import _advance_time
     logs = []
     _advance_time(b, dt, logs)
     return logs

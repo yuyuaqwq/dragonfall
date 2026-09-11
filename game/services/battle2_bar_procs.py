@@ -30,7 +30,7 @@
 """
 from __future__ import annotations
 
-from ..battle2.effects import register_action
+from battle2.effects import register_action
 
 
 def _now_of(battle) -> float:
@@ -176,7 +176,7 @@ def passive_reflect_bar_act(battle, caster, target, params, logs):
     - 反推条 = `params["key"]/["gain"]`（装配器按被动 `bar_field` 解析的技能字段量）
       → bar_gain + 触发检查（与命中注入同一条消费链）
     """
-    from ..battle2.actors import actor_alive
+    from battle2.actors import actor_alive
     from ..core.battle_bars import bar_gain
     deflector = params.get("_owner") or target
     if not isinstance(deflector, dict) or not actor_alive(deflector):
@@ -188,7 +188,7 @@ def passive_reflect_bar_act(battle, caster, target, params, logs):
     pct = float(params.get("reflect_pct", 0) or 0)
     if pct > 0:
         rd = max(1, int(int(ctx.get("dmg", 0) or 0) * pct))
-        from ..battle2.landing import deal_damage
+        from battle2.landing import deal_damage
         deal_damage(battle, deflector, attacker, rd, logs)
         logs.append(f"🪨 反震：反弹 {rd} 点伤害！")
     key = params.get("key")

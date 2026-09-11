@@ -10,6 +10,7 @@ import os
 import sys
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(PLUGIN_DIR, "test_b2_cond.db"))
 os.environ.setdefault("GWEN_TEST_MODE", "1")
@@ -19,10 +20,10 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from game.battle2 import config as _b2c  # noqa: E402
-_b2c.load_game_defaults()
-from game.battle2 import Battle as B2, make_actor  # noqa: E402
-from game.battle2.effect_triggers import fire  # noqa: E402
+from battle2 import config as _b2c  # noqa: E402
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from battle2 import Battle as B2, make_actor  # noqa: E402
+from battle2.effect_triggers import fire  # noqa: E402
 from game.services.class_mech_proc import apply_class_mech  # noqa: E402
 from game.services import battle2_cond_procs as CP  # noqa: E402
 from game.data import skills as _SK  # noqa: E402
@@ -68,7 +69,7 @@ def _has_trigger(actor, ev):
 
 def _fire_dmg(b, p, e, info, logs=None):
     """触发 dmg_calc 并返回乘区（模拟引擎插桩点）。"""
-    from game.battle2.effect_triggers import fire as _fire
+    from battle2.effect_triggers import fire as _fire
     _fire(b, "dmg_calc", {"actor": p, "target": e, "dmg": 100,
                           "is_crit": False, "info": info, "mult": 1.0}, logs or [])
     return float((getattr(b, "_fire_ctx", {}) or {}).get("mult", 1.0) or 1.0)
@@ -191,7 +192,7 @@ def test_unknown_type_and_heal():
     check("未注册 type → 静默 1.0（不崩）", _fire_dmg(b, p, e, info) == 1.0)
     check("未注册 type 已注册表中不存在", "not_registered_yet" not in CP.COND_PREDICATES)
     # heal_calc：治疗旋使用同一动作
-    from game.battle2.effect_triggers import fire as _fire
+    from battle2.effect_triggers import fire as _fire
     e.setdefault("effects", {})[bar_effect_key("shaken")] = {
         "trigger_count": 1, "immune_until": 2.0, "_at": 0.0}
     hinfo = {"name": "治疗试技", "kind": "治疗", "cond": {"type": "enemy_broken", "mult": 1.3}}
@@ -203,7 +204,7 @@ def test_unknown_type_and_heal():
 
 def test_end_to_end_damage():
     print("【7. 端到端：真实技能管线（侧踢）破防前后伤害对比】")
-    from game.battle2 import actions as A
+    from battle2 import actions as A
     from game import engine as E
     real = E.skill_info("cls_wu_seng", "sk_ce_ti")
     check("取到真实侧踢数据且带 cond", isinstance(real, dict) and isinstance(real.get("cond"), dict),

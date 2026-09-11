@@ -21,6 +21,7 @@ import tempfile
 os.environ["GWEN_GAME_DB"] = os.path.join(tempfile.mkdtemp(), "game.db")
 os.environ["GWEN_TEST_MODE"] = "1"
 _PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 _QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(_PLUGIN_DIR)))
 sys.path.insert(0, _QQBOT_DIR)
 sys.path.insert(0, _PLUGIN_DIR)
@@ -28,8 +29,8 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from game.battle2 import config as _b2c  # noqa: E402
-_b2c.load_game_defaults()  # noqa: E402
+from battle2 import config as _b2c  # noqa: E402
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -49,7 +50,7 @@ def check(name, cond, detail=""):
 
 def mk_player(cls="战士", level=10, hp_ratio=0.5, mp_ratio=1.0, race=None):
     from game import engine as E
-    from game.battle2 import make_actor
+    from battle2 import make_actor
     st = E.player_final_stats(cls, level, {}, 0, {}, 1)
     return make_actor(uid="p_q1", name="测试勇者", side="player", kind="player",
                       human_controlled=True, class_name=cls, level=level,
@@ -61,7 +62,7 @@ def mk_player(cls="战士", level=10, hp_ratio=0.5, mp_ratio=1.0, race=None):
 
 
 def mk_battle(p):
-    from game.battle2 import Battle
+    from battle2 import Battle
     e = {"uid": "e_0", "name": "木桩", "side": "enemy", "kind": "monster",
          "hp": 99999, "max_hp": 99999, "atk": 0, "def": 0, "matk": 0, "mdef": 0,
          "spd": 1, "crit": 0.0, "level": 1, "human_controlled": False,
@@ -241,7 +242,7 @@ def test_cast_suffix():
 
 def test_override_end_to_end():
     print("【I2.12 端到端：action_override 接线翻译器（战斗内喝药）】")
-    from game.battle2 import Battle
+    from battle2 import Battle
     from game.commands.battle2_item_use import translate as _tr
     p = mk_player(hp_ratio=0.4)
     e = {"uid": "e_0", "name": "木桩", "side": "enemy", "kind": "monster",
@@ -274,8 +275,8 @@ def test_override_end_to_end():
 
 def test_purify():
     print("【I5.1 purify：模板判定 + 翻译器清除（battle2 effects 负面）】")
-    from game.battle2 import Battle
-    from game.battle2.effects import apply_effects
+    from battle2 import Battle
+    from battle2.effects import apply_effects
     from game.commands.battle2_item_use import translate as _tr
     from game.core.item_templates import tpl_purify, ItemContext, _b2_has_purifiable
     # 玩家带负面（stun 控制 + sleep 不可净化 + atk_up 正面）

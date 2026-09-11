@@ -122,7 +122,7 @@ async def main():
     # 只认 battle2；旧格式（无 sides）按约定清档重开。直接存 battle2 to_state。
     def _mk_battle():
         from game.services import battle2_bridge as _BR
-        from game.battle2 import Battle as _B2
+        from battle2 import Battle as _B2
         pl = db.get_player("g1", "q1")
         _BR.prepare_player_for_battle(pl, {}, db)
         _sides = _BR.build_sides(player=pl, enemies=[_mk_mon()])

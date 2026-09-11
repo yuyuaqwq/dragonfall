@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..battle2 import make_actor  # 只读 battle2 工厂，不改 battle2
+from battle2 import make_actor  # 只读 battle2 工厂，不改 battle2
 
 # ============================================================
 # 玩家 → player actor

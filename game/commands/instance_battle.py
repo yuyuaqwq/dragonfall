@@ -161,9 +161,9 @@ def _instance_team_event(st: dict):
             if not caster or int(caster.get("hp", 0) or 0) <= 0:
                 return
             # 治疗量 = 施法者面板公式（对齐 _do_heal/_heal_amount，独立算全队口径）
-            from ..battle2.actions import heal_amount as _hcalc
-            from ..battle2 import stats as _S
-            from ..battle2.landing import heal_actor as _heal
+            from battle2.actions import heal_amount as _hcalc
+            from battle2 import stats as _S
+            from battle2.landing import heal_actor as _heal
             from .. import engine as _E
             _stp = _S.actor_stats(battle, caster)
             _lv = _E.skill_level_of(caster, info.get("name", "")) if caster.get("class_name") else 0
@@ -230,7 +230,7 @@ def build_battle(st: dict) -> "object":
     玩家 side = st["members"] 存活者 actor；敌 side = st["enemies"] 单位 actor。
     宠物：当前队长/首成员宠物照传（只存不驱动，宠物批前不参与）。
     """
-    from ..battle2 import Battle as B2
+    from battle2 import Battle as B2
     sides: dict = {"player": [], "enemy": []}
     for k in st.get("members") or []:
         kk = str(k)
@@ -302,7 +302,7 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
     返回 (logs, ended, next_key)。副本轮流由玩法壳驱动：调用前已确认轮到 qq_id。
     target：外部解析好的目标 actor（None=自动）；heal/buff 强制 None 防奶敌。
     """
-    from ..battle2 import Battle as B2
+    from battle2 import Battle as B2
     from .. import engine as E
     st_battle = st.get("battle") or {}
     if not st_battle.get("sides"):

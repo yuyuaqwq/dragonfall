@@ -5,7 +5,7 @@ battle2 引擎不认识这些名词，只通过 config 挂载点查表折算。
 引擎代码零改动；调数值/加状态/改规则全在这里。
 
 挂载方式（游戏启动时）：
-    from game.battle2 import config
+    from battle2 import config
     config.load_game_rules(game.data.battle2_rules)
 """
 from __future__ import annotations

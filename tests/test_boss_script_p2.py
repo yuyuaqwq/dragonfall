@@ -22,11 +22,12 @@ import json
 os.environ["GWEN_GAME_DB"] = os.path.join(tempfile.mkdtemp(), "game.db")
 os.environ["GWEN_TEST_MODE"] = "1"
 _PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 sys.path.insert(0, _PLUGIN_DIR)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from game.battle2 import config as _b2c  # noqa: E402
-_b2c.load_game_defaults()  # noqa: E402
+from battle2 import config as _b2c  # noqa: E402
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from game.store.connection import init_db  # noqa: E402
 init_db()
 
@@ -35,7 +36,7 @@ from game import db  # noqa: E402
 from game import engine as E  # noqa: E402
 from game.commands import instance_battle as IB  # noqa: E402
 from game.commands import boss_script as BS  # noqa: E402
-from game.battle2 import Battle as B2  # noqa: E402
+from battle2 import Battle as B2  # noqa: E402
 
 PASS = 0
 FAIL = 0

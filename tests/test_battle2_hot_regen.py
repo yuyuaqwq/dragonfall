@@ -20,6 +20,7 @@ import os
 import sys
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 TEST_DB = os.path.join(PLUGIN_DIR, "test_battle2_hot_regen.db")
 os.environ.setdefault("GWEN_GAME_DB", TEST_DB)
@@ -32,9 +33,9 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 
 from game import content as C            # noqa: E402
 from game import engine as E             # noqa: E402
-from game.battle2 import Battle as BT_NEW, make_actor  # noqa: E402
-from game.battle2 import config as _b2config  # noqa: E402
-_b2config.load_game_defaults()  # noqa: E402
+from battle2 import Battle as BT_NEW, make_actor  # noqa: E402
+from battle2 import config as _b2config  # noqa: E402
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -88,7 +89,7 @@ def _hang_hot(p, heal=0.1, mana=0.0, turns=3):
 def test_hot_first_jump_delay():
     """首跳延迟：挂 hot 后同刻不跳，dot_next 登记 now+1。"""
     print("【V-HOT.1 首跳延迟：挂 hot 同刻不跳，登记 now+interval】")
-    from game.battle2.schedule import _settle_time_effects as _ste
+    from battle2.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.5)
     b = _mk_battle(p)
     _hang_hot(p)
@@ -103,7 +104,7 @@ def test_hot_first_jump_delay():
 def test_hot_heal_and_mana():
     """到点回血回蓝（百分比×max，clamp 上限）。"""
     print("【V-HOT.2 到点跳：回血 + 回蓝 + clamp】")
-    from game.battle2.schedule import _settle_time_effects as _ste
+    from battle2.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.5, mp_ratio=0.5)
     mx_hp = p["max_hp"]
     mx_mp = p["max_mp"]
@@ -125,7 +126,7 @@ def test_hot_heal_and_mana():
 def test_hot_catchup_multijump():
     """跨多刻补跳：now 推远 → while 循环补跳满 turns 次后自动清层。"""
     print("【V-HOT.3 跨多刻补跳 + turns 跳满清层】")
-    from game.battle2.schedule import _settle_time_effects as _ste
+    from battle2.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.1)
     mx_hp = p["max_hp"]
     b = _mk_battle(p)
@@ -144,7 +145,7 @@ def test_hot_catchup_multijump():
 def test_hot_clamp_max():
     """clamp：恢复不超过 max_hp/max_mp。"""
     print("【V-HOT.4 clamp：恢复封顶 max】")
-    from game.battle2.schedule import _settle_time_effects as _ste
+    from battle2.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.95)
     b = _mk_battle(p)
     _hang_hot(p, heal=0.1, mana=0.0, turns=3)
@@ -162,7 +163,7 @@ def test_hot_clamp_max():
 def test_hot_no_repeat_same_now():
     """同刻重复 settle 不重复跳（绝对时刻推进语义）。"""
     print("【V-HOT.5 同刻重复 settle 不重复跳】")
-    from game.battle2.schedule import _settle_time_effects as _ste
+    from battle2.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.5)
     b = _mk_battle(p)
     _hang_hot(p, heal=0.1, mana=0.0, turns=3)

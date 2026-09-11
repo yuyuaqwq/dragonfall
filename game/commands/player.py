@@ -1037,8 +1037,8 @@ class PlayerCmds(CommandBase):
                     # 旧格式无 sides → 回落静态养成面板）
                     _st_src = _bstate["state"]
                     if _st_src.get("sides"):
-                        from ..battle2 import Battle as _B2
-                        from ..battle2.stats import actor_stats as _as
+                        from battle2 import Battle as _B2
+                        from battle2.stats import actor_stats as _as
                         _b = _B2.from_state(_st_src)
                         _my = None
                         for _a in _b.sides_of("player"):

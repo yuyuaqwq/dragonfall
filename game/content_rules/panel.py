@@ -13,7 +13,7 @@ battle2/stats.py 的 `_player_base_stats` 消费；纯怪路径不经过本模�
 旧路径 `game.engine.*` 保留 shim re-export（S9 收口时删）。
 """
 from .. import content as C
-from ..battle2.formulas import skill_learn_cost
+from battle2.formulas import skill_learn_cost
 from ..core.skill_kinds import K_PASSIVE
 from ..data.base_growth import PLAYER_BASE_GROWTH  # P2F-3 F6 player_base_stats 成长结构声明（循环键集/branch 修正模式/别名）
 from ..data.battle_config import TIER_GROWTH, BRANCH_BONUS, BRANCH_BONUS_BY_CLASS

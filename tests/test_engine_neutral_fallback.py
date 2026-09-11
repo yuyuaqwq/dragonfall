@@ -22,6 +22,7 @@ import os
 import sys
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(PLUGIN_DIR, "test_engine_neutral.db"))
 os.environ.setdefault("GWEN_TEST_MODE", "1")
@@ -31,8 +32,8 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from game.battle2 import config as CFG  # noqa: E402
-from game.battle2 import formulas as F  # noqa: E402
+from battle2 import config as CFG  # noqa: E402
+from battle2 import formulas as F  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -165,10 +166,10 @@ def test_configured_path_unchanged():
 
 
 if __name__ == "__main__":
-    import game.battle2 as _b2
-    from game.battle2 import config as _c
+    import battle2 as _b2
+    from battle2 import config as _c
     try:
-        _c.load_game_defaults()   # 先把真实内容装配上（模拟生产态）
+        from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()   # 先把真实内容装配上（模拟生产态）
     except Exception:
         pass
     test_neutral_skeleton_shape()

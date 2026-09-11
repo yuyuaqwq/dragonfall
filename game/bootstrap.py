@@ -1,22 +1,22 @@
 # -*- coding: utf-8 -*-
 """内容侧引擎装配 —— 把《奥兰迪亚》内容注入 battle2 引擎（S1 断链 + S5 公式拆分）。
 
-背景：docs/ENGINE_CONTENT_SPLIT_PLAN.md §3.2 —— 引擎（game/battle2/）历史上
+背景：docs/ENGINE_CONTENT_SPLIT_PLAN.md §3.2 —— 引擎（framework/battle2/）历史上
 有 15 条「引擎 → 内容」反向 import 边。S1 全部改为**内容 → 引擎**方向的注入：
 
     mount_engine_hooks()   注入数值公式/面板/技能查询/kind 常量（幂等）
     load_engine_config()   完整装配 = hook + 规则表（EFFECT_ACTIONS/EFFECT_RULES）
-                           —— 即旧 `game.battle2.config.load_game_defaults()` 的实体
+                           —— 即旧 `battle2.config.load_game_defaults()` 的实体
 
 S5（§6.4 / §7.5）：`game/engine.py` 一拆为二后，公式/面板/技能查询的落点变为
-    - `game/battle2/formulas.py`   引擎侧纯数值公式（零内容 import）
+    - `framework/battle2/formulas.py`   引擎侧纯数值公式（零内容 import）
     - `game/content_rules/skills.py`   技能表读取（PLAYER_SKILLS/…/SKILL_UP）
     - `game/content_rules/panel.py`    玩家面板公式（CLASSES/RACES/SETS/PCT_CAPS）
 本模块负责把「公式参数表 + 内容查询函数」挂到引擎 config 的 S5 注入面
 （`formula_skeleton_fn` / `skill_flat_fn` / `skill_up_fn` / `skill_level_of_fn`），
 使 formulas.py 不必认识任何游戏表。
 
-旧名/旧位置 `game.battle2.config.load_game_defaults()` 保留为兼容 shim，
+旧名/旧位置 `battle2.config.load_game_defaults()` 保留为兼容 shim，
 委托回本模块（52 个测试调用点，见 §8-R7）。
 
 装配时机：`game/content.py` 末尾 / `game/__init__.py` import bootstrap 时登记，
@@ -28,7 +28,7 @@ S5（§6.4 / §7.5）：`game/engine.py` 一拆为二后，公式/面板/技能�
 """
 from __future__ import annotations
 
-from .battle2 import config as _b2cfg
+from battle2 import config as _b2cfg
 
 
 # ------------------------------------------------------------
@@ -36,8 +36,8 @@ from .battle2 import config as _b2cfg
 # ------------------------------------------------------------
 
 def _formulas():
-    """引擎侧纯数值公式模块（S5 落点：game/battle2/formulas.py）。"""
-    from .battle2 import formulas as _f
+    """引擎侧纯数值公式模块（S5 落点：framework/battle2/formulas.py）。"""
+    from battle2 import formulas as _f
     return _f
 
 
@@ -168,7 +168,7 @@ def mount_engine_hooks() -> None:
 
 
 def load_engine_config() -> None:
-    """完整装配（旧 game.battle2.config.load_game_defaults 的实体）。
+    """完整装配（旧 battle2.config.load_game_defaults 的实体）。
 
     = mount_engine_hooks()（hook 面）+ load_game_rules(battle2_rules)（规则表）。
 
@@ -196,10 +196,11 @@ def _lazy_mount() -> None:
 def install() -> None:
     """包 import 期登记（轻量：不 import 内容/引擎）。
 
-    必要性：本仓库并存 `game.*` 与 `data.plugins.dragonfall.game.*` 两套模块树
-    （同一份文件的两个模块对象，plan §8-R2）——每棵树各自登记/装配自己的引擎 config。
+    只登记「hook 惰性装配器」：引擎首次访问未装配 hook 时回调本包完成装配。
+    （S8 拆仓后不再登记「默认配置装载器」——引擎侧已删除 `load_game_defaults`
+    这类游戏概念 API；配置装配的入口在内容侧：
+    `game.content_rules.apply.ensure_engine_configured()`。）
     """
-    _b2cfg.register_defaults_loader(load_engine_config)
     _b2cfg.register_hook_provider(_lazy_mount)
 
 

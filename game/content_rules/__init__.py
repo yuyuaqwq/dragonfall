@@ -7,7 +7,7 @@
   - panel.py    读 C.CLASSES / C.RACES / C.SETS / PCT_CAPS 的玩家面板公式
   - gameplay.py 元素反应 / 机制叠层 / 升级结算 / 掉落名解析
 
-判据：**凡读游戏表或职业名 → 内容侧**；引擎（game/battle2/）不得 import 本包，
+判据：**凡读游戏表或职业名 → 内容侧**；引擎（framework/battle2/）不得 import 本包，
 需要数值时经 `battle2.config` 注入 hook 取（game/bootstrap.py 装配）。
 
 旧路径 `game.engine.*` 保留 shim re-export（S9 收口时删）。

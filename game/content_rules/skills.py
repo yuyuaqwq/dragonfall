@@ -7,13 +7,13 @@
   - `C.resolve("skills", …)`（技能中文名 ↔ id）
 
 判据：**凡读游戏表或职业名 → 内容侧**。故这些函数不得留在引擎包内；
-引擎（game/battle2/）需要技能数值时经 `battle2.config` 注入 hook 取纯公式
+引擎（framework/battle2/）需要技能数值时经 `battle2.config` 注入 hook 取纯公式
 （见 game/bootstrap.py 的 `skill_up_fn` / `skill_level_of_fn`）。
 
 旧路径 `game.engine.*` 保留 shim re-export（S9 收口时删）。
 """
 from .. import content as C
-from ..battle2.formulas import skill_max_level  # noqa: F401  （升级消耗用；纯公式在引擎侧）
+from battle2.formulas import skill_max_level  # noqa: F401  （升级消耗用；纯公式在引擎侧）
 
 
 # ============================================================

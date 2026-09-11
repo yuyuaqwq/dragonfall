@@ -16,6 +16,7 @@ import tempfile
 os.environ["GWEN_GAME_DB"] = os.path.join(tempfile.mkdtemp(), "game.db")
 os.environ["GWEN_TEST_MODE"] = "1"
 _PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 _QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(_PLUGIN_DIR)))
 sys.path.insert(0, _QQBOT_DIR)
 sys.path.insert(0, _PLUGIN_DIR)
@@ -23,8 +24,8 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from game.battle2 import config as _b2c  # noqa: E402
-_b2c.load_game_defaults()  # noqa: E402
+from battle2 import config as _b2c  # noqa: E402
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from game.store.connection import init_db  # noqa: E402
 init_db()
 
@@ -46,7 +47,7 @@ def check(name, cond, detail=""):
 
 def mk_player_actor(uid, hp=500):
     """战士 lv1 玩家 actor（面板聚合走 class）。"""
-    from game.battle2 import make_actor
+    from battle2 import make_actor
     return make_actor(uid=uid, name=uid, side="player", kind="player",
                       human_controlled=True, class_name="战士", level=1,
                       equipment={}, skills=[], learned_skills=[],
@@ -55,7 +56,7 @@ def mk_player_actor(uid, hp=500):
 
 def mk_auto_enemy(uid="e1", atk=12):
     """自动攻击怪 actor（无 class_name 直读字段）。"""
-    from game.battle2 import make_actor
+    from battle2 import make_actor
     return make_actor(uid=uid, name=uid, side="enemy", kind="monster",
                       human_controlled=False, auto_act={"act": {"type": "attack"}},
                       hp=1000, max_hp=1000, atk=atk, spd=50)
@@ -63,7 +64,7 @@ def mk_auto_enemy(uid="e1", atk=12):
 
 def test_target_picker():
     print("【N5b4-5E target_picker：自动怪打外部指定目标】")
-    from game.battle2 import Battle as B2
+    from battle2 import Battle as B2
     p1, p2 = mk_player_actor("p1"), mk_player_actor("p2")
     e = mk_auto_enemy()
     # picker 指定 p2（打"第二个人"——模拟仇恨选目标）
@@ -78,7 +79,7 @@ def test_target_picker():
 
 def test_target_picker_none_fallback():
     print("【N5b4-5E target_picker 返回 None → 回落默认目标】")
-    from game.battle2 import Battle as B2
+    from battle2 import Battle as B2
     p1, p2 = mk_player_actor("p1"), mk_player_actor("p2")
     e = mk_auto_enemy()
     b = B2("monster", sides={"player": [p1, p2], "enemy": [e]},
@@ -92,7 +93,7 @@ def test_target_picker_none_fallback():
 
 def test_target_picker_dead_target_resolves():
     print("【N5b4-5E picker 目标已死 → 引擎不炸（落地按存活过滤）】")
-    from game.battle2 import Battle as B2
+    from battle2 import Battle as B2
     p1, p2 = mk_player_actor("p1"), mk_player_actor("p2")
     p2["hp"] = 0  # picker 指定的目标已死
     e = mk_auto_enemy()
@@ -120,7 +121,7 @@ def _mk_observer(seen):
 
 def test_on_event_observer():
     print("【N5b4-5E on_event：事件总线通知外部观察者】")
-    from game.battle2 import Battle as B2
+    from battle2 import Battle as B2
     p1 = mk_player_actor("p1", hp=800)
     e = mk_auto_enemy()
     seen = []
@@ -142,7 +143,7 @@ def test_on_event_observer():
 
 def test_on_event_error_isolated():
     print("【N5b4-5E on_event 异常不阻断战斗】")
-    from game.battle2 import Battle as B2
+    from battle2 import Battle as B2
     p1 = mk_player_actor("p1")
     e = mk_auto_enemy()
 
@@ -163,7 +164,7 @@ def test_on_event_error_isolated():
 
 def test_action_override_custom():
     """【N5b4-5a action_override：非引擎内置动作 → 外部回调执行+推ct】"""
-    from game.battle2 import Battle as B2, make_actor
+    from battle2 import Battle as B2, make_actor
     # max_hp 留余量：+20 不被 clamp 挡住（mk_player_actor max=hp 会吃满回血）
     p1 = make_actor(uid="p1", name="p1", side="player", kind="player",
                     human_controlled=True, class_name="战士", level=1,
@@ -193,7 +194,7 @@ def test_action_override_custom():
 
 def test_action_override_unconsumed():
     print("【N5b4-5a action_override 未消费 → 回落未知行动提示】")
-    from game.battle2 import Battle as B2
+    from battle2 import Battle as B2
     p1 = mk_player_actor("p1")
     e = mk_auto_enemy(atk=1)
     b = B2("monster", sides={"player": [p1], "enemy": [e]},

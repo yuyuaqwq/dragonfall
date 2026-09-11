@@ -16,6 +16,7 @@ import dis
 import ast
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 TEST_DIR = os.path.join(PLUGIN_DIR, "tests")
 os.chdir(PLUGIN_DIR)
 
@@ -24,7 +25,7 @@ os.chdir(PLUGIN_DIR)
 _exec_lines = {}   # 文件 -> set(可执行行号)
 _cond_lines = {}   # 文件 -> set(条件行号：含 if/elif/else/while/for/try/return 分支跳转的源行)
 
-for pyfile in glob.glob(os.path.join(PLUGIN_DIR, "game", "battle2", "*.py")):
+for pyfile in glob.glob(os.path.join(PLUGIN_DIR, "framework", "battle2", "*.py")):
     src_lines = open(pyfile, encoding="utf-8").read().splitlines()
     try:
         tree = ast.parse("\n".join(src_lines))
@@ -69,7 +70,7 @@ def _make_tracer():
     def _trace(frame, event, arg):
         if event == "line":
             fn = frame.f_code.co_filename.replace("\\", "/")
-            if "/game/battle2/" in fn:
+            if "/framework/battle2/" in fn:
                 _hit_lines[(fn, frame.f_lineno)] = True
         return _trace
     return _trace

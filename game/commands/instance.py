@@ -192,7 +192,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             cands = [c for c in (ec + pc) if c is not None]
             if cands:
                 ref = min(cands)
-            from ..battle2.schedule import action_time as _b2_at
+            from battle2.schedule import action_time as _b2_at
             cost = _b2_at(int(_spd))
             snap["ct"] = (ref if ref is not None else 0.0) + cost
         except Exception:
@@ -1072,7 +1072,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         for key, snap in (st.get("players") or {}).items():
             if st.get("alive", {}).get(str(key), True):
                 _spd = int(snap.get("spd", 0) or 0)
-                from ..battle2.schedule import action_time as _b2_at
+                from battle2.schedule import action_time as _b2_at
                 _cost = _b2_at(_spd)
                 ref = min(refs) if refs else 0.0
                 snap["ct"] = ref + _cost
@@ -1125,7 +1125,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         精英/普通怪 → 单怪阵列 [boss]。缺省无 minions → 仅 Boss。
         v121 CTB：每个敌方单位补 ct = -spd（越小越先行动）。
         v152 绝对时刻：ct = 初始等待（BASE_DELAY/spd，即 cost，正数越大越晚行动）。"""
-        from ..battle2.schedule import initial_ct as _ict
+        from battle2.schedule import initial_ct as _ict
         boss = boss or {}
         if not boss:
             return []
@@ -2085,7 +2085,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         return reward
 
     async def _instance_start(self, event, group_id, qq_id, player, arg):
-        from ..battle2.schedule import initial_ct as _ict
+        from battle2.schedule import initial_ct as _ict
         kid = None
         for k, inst in C.INSTANCES.items():
             if inst["name"] == arg or k == arg:

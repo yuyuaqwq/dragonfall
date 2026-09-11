@@ -17,7 +17,7 @@ _all_defs = {}       # qualname -> 文件（预扫 battle2 包所有函数）
 
 # 预扫 battle2 所有 def
 import ast
-for fn in glob.glob(os.path.join(PLUGIN_DIR, "game", "battle2", "*.py")):
+for fn in glob.glob(os.path.join(PLUGIN_DIR, "framework", "battle2", "*.py")):
     try:
         tree = ast.parse(open(fn, encoding="utf-8").read())
     except Exception:

@@ -12,15 +12,16 @@
 """
 import sys, os
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(PLUGIN_DIR, "test_passive_p1.db"))
 os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
-from game.battle2 import config as _b2c
-_b2c.load_game_defaults()
-from game.battle2 import Battle as B2, make_actor
+from battle2 import config as _b2c
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from battle2 import Battle as B2, make_actor
 from game.services.class_mech_proc import apply_class_mech
 
 PASS = 0
@@ -146,7 +147,7 @@ def test_5_on_kill_gain():
 
 def test_6_static_domain():
     print("【6. 静态域：cap/cost 直接写 bonus 容器（纯配置量）】")
-    from game.battle2.effects import _cap_of
+    from battle2.effects import _cap_of
     from game import engine as E
     # cap 域：淬毒之心 poison cap +3
     a = make_actor(uid="p_k", name="毒刃", side="player", kind="player",

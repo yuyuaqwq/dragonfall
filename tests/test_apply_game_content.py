@@ -18,15 +18,16 @@ import os
 import sys
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(PLUGIN_DIR, "test_apply_game_content.db"))
 os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
-from game.battle2 import config as _b2c
-_b2c.load_game_defaults()
-from game.battle2 import make_actor
+from battle2 import config as _b2c
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from battle2 import make_actor
 from game import bootstrap as BST
 from game import content as C
 from game.content_rules import apply as APPLY
@@ -277,7 +278,7 @@ def t_d():
           added <= allowed and APPLY._MARK in added,
           f"added={sorted(added)}")
     # D3：已知副作用——标记随 to_state 落档（显式断言，不做隐藏）
-    B2 = __import__("game.battle2", fromlist=["Battle"]).Battle
+    B2 = __import__("battle2", fromlist=["Battle"]).Battle
     foe = mk("cls_zhan_shi", "怪", uid="pd9")
     foe["side"] = "enemy"
     st = B2("monster", sides={"player": [a], "enemy": [foe]}).to_state()

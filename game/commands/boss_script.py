@@ -226,7 +226,7 @@ def _check_phases(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     # ---- 阶段事件广播（v181 破绽条：挂敌身条按阶段保留部分积蓄——订阅方 bar_preserve）----
     # 引擎零知识：引擎只提供通用时机事件，条侧消费端在装配层（battle2_bar_procs）
     try:
-        from ..battle2.effect_triggers import fire as _fire
+        from battle2.effect_triggers import fire as _fire
         _fire(battle, "phase", {"actor": actor, "phase": npc}, logs)
     except Exception:
         pass  # 阶段事件异常不阻断转阶段（容错铁律）
@@ -405,7 +405,7 @@ def _check_simple_mech(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     # ---- heal：每 4 刻回复 8% ----
     if "heal" in mech and rn > 0 and rn % 4 == 0:
         try:
-            from ..battle2.landing import heal_actor as _heal
+            from battle2.landing import heal_actor as _heal
             v = max(1, int(mh * 0.08))
             real = _heal(battle, actor, v, logs)
             if real > 0:
@@ -428,7 +428,7 @@ def _check_simple_mech(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     if "shield" in mech and not bs.get("flags", {}).get("_shielded"):
         bs.setdefault("flags", {})["_shielded"] = True
         try:
-            from ..battle2 import effects as _EF
+            from battle2 import effects as _EF
             _EF.act_shield(battle, actor, actor, {"pct": 0.20, "halve": True,
                                                  "turns": 999}, logs)
         except Exception:
@@ -715,7 +715,7 @@ def _minion_death_link(st: dict, battle, boss: dict, link, logs: list) -> None:
         bname = boss.get("name", "")
         if eff == "heal_pct":
             pct = float(val if val is not None else 0.03)
-            from ..battle2.landing import heal_actor as _heal
+            from battle2.landing import heal_actor as _heal
             v = max(1, int(int(boss.get("max_hp", 1) or 1) * pct))
             real = _heal(battle, boss, v, logs)
             if real > 0:

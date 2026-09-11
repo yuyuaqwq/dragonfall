@@ -18,6 +18,7 @@ import os
 import sys
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 TEST_DB = os.path.join(PLUGIN_DIR, "test_affix_res_gain.db")
 os.environ.setdefault("GWEN_GAME_DB", TEST_DB)
@@ -28,13 +29,13 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from game.battle2 import Battle as BT_NEW, make_actor  # noqa: E402
-from game.battle2 import config as _b2config  # noqa: E402
-_b2config.load_game_defaults()  # noqa: E402
-from game.battle2.actors import ActCtx          # noqa: E402
-from game.battle2.effect_triggers import fire as _fire  # noqa: E402
-from game.battle2.landing import deal_damage as _dd     # noqa: E402
-from game.battle2.state_effects import state_def        # noqa: E402
+from battle2 import Battle as BT_NEW, make_actor  # noqa: E402
+from battle2 import config as _b2config  # noqa: E402
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
+from battle2.actors import ActCtx          # noqa: E402
+from battle2.effect_triggers import fire as _fire  # noqa: E402
+from battle2.landing import deal_damage as _dd     # noqa: E402
+from battle2.state_effects import state_def        # noqa: E402
 from game.services import battle2_equip_proc as EP      # noqa: E402
 from game.services.battle2_we_procs import we_affix_res_gain  # noqa: E402
 
@@ -352,7 +353,7 @@ def test_gap_affixes_no_noise():
 
 def test_affix_gain_dynamic_cap():
     print("【R4.8 affix 附赠通道 cap 收敛：full_pack 抬 cap 后暴击蓄能可攒满 110】")
-    from game.battle2.effects import _cap_of
+    from battle2.effects import _cap_of
     # full_pack（purple +10 bonus.cap）+ crit_charge：crit 事件 energy+3 → cap 110
     p = mk_a("pd", "player")
     m = mk_a("ed", "enemy", hp=100000, atk=1)

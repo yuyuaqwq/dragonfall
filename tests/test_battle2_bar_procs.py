@@ -13,6 +13,7 @@ import os
 import sys
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(PLUGIN_DIR, "test_b2_bar.db"))
 os.environ.setdefault("GWEN_TEST_MODE", "1")
@@ -22,11 +23,11 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from game.battle2 import config as _b2c  # noqa: E402
-_b2c.load_game_defaults()
-from game.battle2 import Battle as B2, make_actor  # noqa: E402
-from game.battle2.actors import ActCtx  # noqa: E402
-from game.battle2.effect_triggers import fire  # noqa: E402
+from battle2 import config as _b2c  # noqa: E402
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from battle2 import Battle as B2, make_actor  # noqa: E402
+from battle2.actors import ActCtx  # noqa: E402
+from battle2.effect_triggers import fire  # noqa: E402
 from game.services import class_mech_proc as CMP  # noqa: E402
 from game.data import skills as _SK  # noqa: E402
 from game.core.battle_bars import bar_effect_key, bar_gain as _bg  # noqa: E402

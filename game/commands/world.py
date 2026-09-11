@@ -1504,7 +1504,7 @@ class WorldCmds(CommandBase):
                 from ..services import battle2_bridge as BR
                 BR.prepare_player_for_battle(player, self._title_bonus(group_id, qq_id), db)
                 _sides = BR.build_sides(player=player, enemies=_grp)
-                from ..battle2 import Battle as B2
+                from battle2 import Battle as B2
                 _nb = B2("monster", sides=_sides,
                          title_bonus=self._title_bonus(group_id, qq_id),
                          pet=db.pet_get(qq_id))

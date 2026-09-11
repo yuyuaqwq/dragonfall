@@ -11,15 +11,16 @@
 """
 import sys, os
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(PLUGIN_DIR, "test_passive_p10.db"))
 os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
-from game.battle2 import config as _b2c
-_b2c.load_game_defaults()
-from game.battle2 import Battle as B2, make_actor
+from battle2 import config as _b2c
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from battle2 import Battle as B2, make_actor
 from game.services.class_mech_proc import apply_class_mech
 
 PASS = 0
@@ -86,7 +87,7 @@ def test_2_fury_enter():
 
 def test_3_fury_atk():
     print("【3. 狂暴中面板 atk +20%】")
-    from game.battle2.stats import actor_stats as _as
+    from battle2.stats import actor_stats as _as
     w = mk_warrior(["血祭"])
     apply_class_mech(w)
     base = float((_as(None, w) or {}).get("atk", 0) or 0)
@@ -99,7 +100,7 @@ def test_3_fury_atk():
 
 def test_4_revive():
     print("【4. 血怒复活：狂暴中致死 → 复活 30% + 清战意退狂暴】")
-    from game.battle2.landing import deal_damage
+    from battle2.landing import deal_damage
     w = mk_warrior(["血怒·不灭"], hp=5000)
     apply_class_mech(w)
     w['effects']['fury'] = {'stacks': 1, 'expire': None}
@@ -120,7 +121,7 @@ def test_4_revive():
 
 def test_5_no_revive():
     print("【5. 负向：非狂暴致死不复活；已用二次致死不复活】")
-    from game.battle2.landing import deal_damage
+    from battle2.landing import deal_damage
     # 非狂暴
     w = mk_warrior(["血怒·不灭"], hp=5000)
     apply_class_mech(w)

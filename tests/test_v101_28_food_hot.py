@@ -9,6 +9,7 @@
 import os, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 os.environ["GWEN_GAME_DB"] = os.path.join(PLUGIN_DIR, "test_game_data.db")
 sys.path.insert(0, QQBOT_DIR)
@@ -165,10 +166,10 @@ ro = IT.TEMPLATES["food_buff"](BufCtx(battle=False))
 check("汉堡战斗外即时回血+体力", "恢复 30 点生命" in ro.text and "恢复 35 点体力" in ro.text, ro.text)
 
 # 战斗内吃料理播报（food_ 前缀 → 料理文案；battle2 N10：buff: 翻译走 battle2_item_use）
-from game.battle2 import Battle as _B2
-from game.battle2 import make_actor as _mk2
-from game.battle2 import config as _b2cfg
-_b2cfg.load_game_defaults()
+from battle2 import Battle as _B2
+from battle2 import make_actor as _mk2
+from battle2 import config as _b2cfg
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 _p2 = _mk2(uid="p_q1", name="试吃", side="player", kind="player", human_controlled=True,
            class_name="cls_zhan_shi", level=1, hp=100, max_hp=100, mp=50, max_mp=100,
            atk=10, matk=5, spd=10, crit=0.0, equipment={}, skills=[], learned_skills=[],

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""引擎可分发性探针：验证 `game/battle2/` 能否**脱离奥兰迪亚**独立驱动一场战斗。
+"""引擎可分发性探针：验证 `framework/battle2/` 能否**脱离奥兰迪亚**独立驱动一场战斗。
 
 用途（S8 拆仓库 / 发给第三方前的门禁）：
   1. 把引擎包物理复制到临时目录（只读原仓库，全程不动任何源文件）
@@ -30,7 +30,7 @@ import sys
 import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC_ENGINE = os.path.join(REPO, "game", "battle2")
+SRC_ENGINE = os.path.join(REPO, "framework", "battle2")
 PY = sys.executable
 
 # 第三方内容探针：只依赖搬出去的 battle2 + 自己的内容

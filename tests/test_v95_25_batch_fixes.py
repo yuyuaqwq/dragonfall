@@ -103,7 +103,7 @@ async def main():
     db.update_player("g1", "w6", gold=1000, level=1, cur_map="oak_plain", cur_subarea="oak_plain_1")
     # N5b4-6：battle2 state（命令层 attack 只认 sides）
     from game.services import battle2_bridge as _BR
-    from game.battle2 import Battle as _B2
+    from battle2 import Battle as _B2
     pl6 = db.get_player("g1", "w6")
     _BR.prepare_player_for_battle(pl6, {}, db)
     _mon6 = {"name": "测试凶兽", "hp": 99999, "max_hp": 99999, "atk": 9999, "def": 9999,

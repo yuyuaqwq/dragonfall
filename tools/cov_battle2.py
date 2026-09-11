@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""批量跑 battle2 测试并统计 game/battle2 覆盖率（stdlib trace，零依赖）。
+"""批量跑 battle2 测试并统计 framework/battle2 覆盖率（stdlib trace，零依赖）。
 
 跑法：python tools/cov_battle2.py
 输出：每个 battle2 模块的 executed/total 行数 + 未覆盖行号。
@@ -10,6 +10,7 @@ import trace
 import glob
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 TEST_DIR = os.path.join(PLUGIN_DIR, "tests")
 
 os.chdir(PLUGIN_DIR)
@@ -36,7 +37,7 @@ file_lines = defaultdict(set)
 file_exec = defaultdict(set)
 for (fn, ln), cnt in (tracer.counts or {}).items():
     fn = fn.replace("\\", "/")
-    if "/game/battle2/" not in fn:
+    if "/framework/battle2/" not in fn:
         continue
     file_lines[fn].add(ln)
     if cnt > 0:

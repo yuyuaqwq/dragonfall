@@ -15,6 +15,7 @@ import json
 import random
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 TEST_DB = os.path.join(PLUGIN_DIR, "test_battle2_n5.db")
 os.environ.setdefault("GWEN_GAME_DB", TEST_DB)
@@ -26,9 +27,9 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from game import engine as E             # noqa: E402
-from game.battle2 import Battle as BT_NEW, make_actor  # noqa: E402
-from game.battle2 import config as _b2config  # noqa: E402
-_b2config.load_game_defaults()  # noqa: E402
+from battle2 import Battle as BT_NEW, make_actor  # noqa: E402
+from battle2 import config as _b2config  # noqa: E402
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -83,7 +84,7 @@ def test_roundtrip_full():
     m = mk_monster()
     b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
     # 打一半状态：玩家放技能/挂 state
-    from game.battle2 import effects as FX
+    from battle2 import effects as FX
     p["effects"]["zhan_yi"] = {"stacks": 3}
     p["effects"]["atk_up"] = {"stacks": 4}
     m["effects"]["burn"] = {"stacks": 2}

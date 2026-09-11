@@ -19,6 +19,7 @@ import asyncio
 os.environ["GWEN_GAME_DB"] = os.path.join(tempfile.mkdtemp(), "game.db")
 os.environ["GWEN_TEST_MODE"] = "1"
 _PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 _QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(_PLUGIN_DIR)))
 sys.path.insert(0, _QQBOT_DIR)
 sys.path.insert(0, _PLUGIN_DIR)
@@ -26,8 +27,8 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from game.battle2 import config as _b2c  # noqa: E402
-_b2c.load_game_defaults()  # noqa: E402
+from battle2 import config as _b2c  # noqa: E402
+from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from game.store.connection import init_db  # noqa: E402
 init_db()
 
@@ -326,8 +327,8 @@ async def test_pvp_skill_and_turn_guard():
 
 async def test_pvp_stat_bonus_per_actor():
     print("【N5b4-4 per-actor 面板增幅 bonus.panel（v181.M-bonus 统一容器）】")
-    from game.battle2 import make_actor, Battle as B2
-    from game.battle2.stats import actor_stats
+    from battle2 import make_actor, Battle as B2
+    from battle2.stats import actor_stats
     _base = dict(class_name="战士", level=15, equipment={}, skills=[], learned_skills=[])
 
     def _mk(uid, side):

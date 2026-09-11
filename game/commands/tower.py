@@ -157,7 +157,7 @@ class TowerCmds(CommandBase):
                 _CM_apply(_a)
             except Exception:
                 pass  # 技能 mech 兑现装配异常不阻断开战
-        from ..battle2 import Battle as B2
+        from battle2 import Battle as B2
         b = B2("monster", sides=_sides, title_bonus=tb, pet=db.pet_get(qq_id))
         db.save_battle(group_id, qq_id, b.to_state())
         _lock = getattr(self, "_lock_battle", None)
