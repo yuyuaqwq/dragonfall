@@ -11,6 +11,9 @@
 
 行为：
   - 串行 subprocess 逐个执行（复用 scripts/run_all_tests.py 的子进程模式，简化版）
+  - 每文件一份**独立私有库**（tests/.numeric_workers/ 下，空白 schema 模板复制）——
+    与 run_all_tests.py 同款隔离，消除多份门禁并发时的同一 DB 文件竞争（2026-09-11 修）
+  - 子进程强制 UTF-8（PYTHONIOENCODING + PYTHONUTF8=1），与手工 `-X utf8` 行为对齐
   - 每文件打印 ✅/❌/⏱️（超时）+ 耗时（秒）；失败分支补打 stdout/stderr 尾部各 30 行
   - 末尾汇总：文件数 / 通过 / 失败 / 跳过 / 总耗时
   - 有任何失败（含超时、崩溃、断言红）→ exit 1（数值门禁不过）
@@ -22,6 +25,7 @@
 注意：跑数值测试期间不要改动任何源文件/数据表（避免中间态误判）。
 """
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -37,8 +41,28 @@ if hasattr(sys.stdout, "reconfigure"):
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TESTS_DIR = os.path.join(PLUGIN_DIR, "tests")
+QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))  # dragonfall/→plugins/→data/→qqbot/
 # 项目 Python：与 run_all_tests.py 一致（带 pypinyin 等依赖）
 PYTHON = r"C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe"
+
+# 隔离修复（2026-09-11）：此前子进程**不预置** GWEN_GAME_DB → 各文件自己的
+# os.environ.setdefault(...) 生效，其中 3 个文件都指向同一个 tests/test_game_data.db
+# （drop_unify / instance_reward / reward_unify）。串行时靠顺序侥幸不脏，但一旦与
+# run_all_tests.py / 另一份数值跑**并发**，就是同一 DB 文件的竞争 → 门禁偶发红。
+# 修法：对齐 run_all_tests.py 的私有库机制——每轮建一份空白 schema 模板，
+# 每个文件复制一份独立库并把 GWEN_GAME_DB 预置进去（setdefault 不再覆盖）。
+_TPL_INIT = (
+    "import os,sys;"
+    "os.environ['GWEN_GAME_DB']=sys.argv[1];"
+    "sys.path.insert(0,sys.argv[2]);"
+    "from data.plugins.dragonfall.game.store import init_db;"
+    "init_db()"
+)
+WORKER_DIR = os.path.join(
+    TESTS_DIR, f".numeric_workers_{os.getpid()}_{int(time.time())}"
+)   # 按调用唯一：并发跑两份数值门禁时，`tests/` 下同名 worker 库会互相覆盖
+    # （run_all_tests 同款固定名目录有一样的隐患，见其 worker_dir）
+
 
 # 单文件超时（秒）：胜率矩阵最重（24 格 × 8 seeds 战斗），给足余量；可用环境变量 TEST_TIMEOUT 覆盖
 FILE_TIMEOUT = int(os.environ.get("TEST_TIMEOUT", "600"))
@@ -122,16 +146,39 @@ def main(argv):
         return 1
 
     results = []  # (name, ok, proc, dt, timed_out)
-    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    # P1：强制子进程 UTF-8（与 run_all_tests.py 及手工 `-X utf8` 行为对齐，
+    # 消除 locale(cp936) 依赖的文件读写差异）
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
+
+    # P1 隔离：空白 schema 模板库（建失败则回落旧共享库行为，不阻塞门禁）
+    tpl_db = None
+    try:
+        shutil.rmtree(WORKER_DIR, ignore_errors=True)
+        os.makedirs(WORKER_DIR, exist_ok=True)
+        tpl_db = os.path.join(WORKER_DIR, "template.db")
+        subprocess.run(
+            [PYTHON, "-B", "-c", _TPL_INIT, tpl_db, QQBOT_DIR],
+            check=True, timeout=120, capture_output=True,
+            text=True, encoding="utf-8", errors="replace", env=env,
+        )
+    except Exception as _e:                                     # noqa: BLE001
+        print(f"⚠️ 私有库模板初始化失败，回落共享库行为: {_e}", flush=True)
+        shutil.rmtree(WORKER_DIR, ignore_errors=True)
+        tpl_db = None
+
     t0 = time.time()
-    for name in files:
+    for i, name in enumerate(files):
         path = os.path.join(TESTS_DIR, name)
+        fenv = dict(env)
+        if tpl_db:
+            fenv["GWEN_GAME_DB"] = os.path.join(WORKER_DIR, f"num_{i}.db")
+            shutil.copy2(tpl_db, fenv["GWEN_GAME_DB"])
         ts = time.time()
         timed_out = False
         try:
             proc = subprocess.run(
                 [PYTHON, path], capture_output=True, text=True,
-                encoding="utf-8", errors="replace", env=env, timeout=FILE_TIMEOUT,
+                encoding="utf-8", errors="replace", env=fenv, timeout=FILE_TIMEOUT,
             )
             ok = proc.returncode == 0
         except subprocess.TimeoutExpired as te:
@@ -139,6 +186,8 @@ def main(argv):
         dt = time.time() - ts
         results.append((name, ok, proc, dt, timed_out))
         _report_failure(name, ok, proc, dt, timed_out)
+
+    shutil.rmtree(WORKER_DIR, ignore_errors=True)
 
     print("\n" + "=" * 60)
     passed = [r for r in results if r[1]]

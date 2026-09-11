@@ -59,3 +59,7 @@ _archive_unused/
 
 # 测试对拍临时产物（快照测试落盘用）
 tests/_battle_settlement_snapshot.json
+
+# 测试 worker 私有库目录（按调用唯一；正常跑完自动清理，崩在中途才残留）
+tests/.run_all_workers*/
+tests/.numeric_workers*/

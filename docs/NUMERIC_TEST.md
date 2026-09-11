@@ -17,6 +17,18 @@
 - 缺失容忍：测试文件未建全时只提示跳过、不算失败；全部缺失时警告并 exit 0（无门禁意义），待文件就绪后重跑
 - 每个文件独立可跑：`python tests/test_numeric_xxx.py`；全部用真实引擎（`E.player_final_stats` / `C.build_monster` / `BT.Battle`），不 mock 核心公式
 
+### 隔离与确定性（2026-09-11 flaky 修复）
+
+门禁只应因**真实数值退化**变红，不能因运行方式变红。三条已修的通道：
+
+| 隐患 | 原状 | 修法 |
+|---|---|---|
+| **共享库互踩** | 3 个文件（`drop_unify` / `instance_reward` / `reward_unify`）各自 `setdefault` 到同一个 `tests/test_game_data.db`；并发/与全量回归同时跑时互相覆盖写入 → 断言读到被踩过的库（实测复现：两份 `reward_unify` 共享该库并发跑，一份 `exp+gold 入账 / 物品入包 / 宠物蛋入包` 三红） | 运行器**预置** `GWEN_GAME_DB` 到按文件私有库（`tests/.numeric_workers_<pid>_<ts>/`，空白 schema 模板复制，同 `run_all_tests.py` 机制）→ `setdefault` 不再覆盖 |
+| **worker 目录同名** | worker 目录固定名 → 两份门禁并发时互相覆盖模板/库文件（实测复现：4 份并发全红） | worker 目录按调用唯一（`<pid>_<timestamp>`）；`run_all_tests.py` 同款修复 |
+| **未固定随机种子** | `test_numeric_drop_unify.py` 用全局 `random` 做抽样断言但未 seed | 固定 `random.seed(20260911)`（沿用 `test_v135_quality_roll` / `test_battle2_n9_equip` 的既有做法） |
+
+并发验收：1 份全量回归 + 2 份探针 + 4 份数值门禁**同时跑** → 全绿（`scripts/_tmp_concurrent_verify.py` 为一次性验证脚本，未入库）。
+
 ## 测试清单总览
 
 | 文件 | 覆盖什么 | 防什么回归 |

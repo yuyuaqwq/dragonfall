@@ -198,7 +198,10 @@ def main():
     if real_astrbot:
         print("使用真实 astrbot（对照模式，较慢）", flush=True)
 
-    worker_dir = os.path.join(TESTS_DIR, ".run_all_workers")
+    # 按调用唯一：并发跑两份全量回归时，固定名 worker 目录会让两份互相覆盖 worker 库
+    # （与 run_numeric_tests.py 同款修复，2026-09-11）
+    worker_dir = os.path.join(
+        TESTS_DIR, f".run_all_workers_{os.getpid()}_{int(time.time())}")
     tpl_db = None
     if parallel_files:
         shutil.rmtree(worker_dir, ignore_errors=True)
