@@ -21,6 +21,12 @@
 >   （34 篇）；引擎文档工具 → `framework/tools/`。本仓 `docs/` 只留游戏侧文档。
 > - 引擎相关测试与门禁在框架仓：`framework/tests/`（纯度门禁
 >   `test_engine_purity.py` + 行号门禁 `test_wiki_refs.py`，`python tests/run_all.py`）。
+> - **通用运行时骨架已开始提炼**（2026-09-11，M1）：框架仓新增 `saintess_kit/` 包
+>   （与 `saintess_engine/` 并列）。M1 = 存储骨架：`store/connection.py` 的连接 /
+>   锁 / 事务 / 建表流程 / 列迁移**实现**来自 `saintess_kit.store`，本文件只剩
+>   「游戏自己的内容」（库路径、表结构 SQL、要补的列清单）。
+>   后续批次 M2-M5（命令框架 / 事件时钟 / 容器 / 会话适配）见
+>   `framework-generalization-plan.md`。
 > 下面的分层总览描述的是**本仓游戏侧**的分层，引擎层请以框架仓文档为准。
 
 > 目标：高内聚低耦合、可扩展、每层可独立单元测试。
