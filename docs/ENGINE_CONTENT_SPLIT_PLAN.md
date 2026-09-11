@@ -99,7 +99,7 @@
 | **`core/stat_bonus.py`** | 227 | 「外部面板增幅聚合器」设计上是通用的，但实读 `TITLES/ACHIEVEMENTS` 表 + 直连 SQLite（`sqlite3.connect(db.DB_PATH)`），复用方 8 个 | **内容**（`content/core/`） |
 | **`core/timed_events.py`** | 218 | 「通用倒计时事件引擎」，零 data import，但持久化落 `event_state` 表（游戏 DB）；引擎与 battle2 均不消费 | **内容**（后续可抽为带 storage 接口的引擎组件） |
 | **`core/battle_bars.py`** | 336 | 纯函数 + 数据驱动铁律（无 `class_name` 字符串比较），但读 `MECH_CFG`（`importlib` 延迟导入）与 `BAR_STATE_PREFIX` 键名 | **引擎**（迁 `engine/support/bars.py`，读点改 `config`） |
-| **`core/passive_procs.py`** | 1 598 | P2D 建的被动 proc 注册表（52 proc 白名单 + 机制族 handler）。**⚠️ 当前零生产消费者** —— 全仓库仅 `tests/_retired_old_engine/test_p2dd*.py` 引用 | **内容**（或判孤儿归档，见 §8-R13） |
+| **`core/passive_procs.py`** | 1 610 | P2D 建的被动 proc 注册表（53 proc 白名单 + 机制族 handler + `validate_proc_coverage()`）。**⚠️ 本行结论已过期（原文写于 2026-09-11 门禁建立之前）**：**不是孤儿** —— `tests/test_passive_proc_coverage.py` 在跑它，守着「声明集全部有归属 / 族⊆白名单 / 族∩缺口=∅ / 缺口集合钉死」四条不变式；另有 `schema/validate.py` 消息引用 | **内容**（**保留，勿归档**） |
 | **`core/battle_conds.py`** | 537 | 条件注册表，消灭 if-elif 硬编码；但注册项含游戏 token（`melody_*`/`enemy_shaken_*`/`guard_core`） | **内容**（`content/core/`） |
 | **`core/battle_modes.py`** | 458 | 形态/双形态框架，读 `battle2_rules` | 内容 |
 | **`core/potion_effects.py`** | 720 | 药水效果注册，读 `battle2_rules`+`items` | 内容 |
@@ -349,7 +349,7 @@ dragonfall/                       # 游戏仓库
 | `core/stat_bonus.py` | → `content/core/`（引擎不读它，命令层/存档读） | 第一批（随 core 迁移） |
 | `core/timed_events.py` | → `content/core/`（引擎不消费）；后续如需通用化，抽 `storage` 接口后再入引擎 | 第一批 |
 | `core/battle_conds.py` | → `content/core/`（battle2 不 import 它；旧 battle.py 已删） | 第一批 |
-| `core/passive_procs.py` | → `content/core/`，**并标注孤儿**（零生产消费者，仅 `_retired_old_engine` 测试引用）→ 建议随 `_retired_old_engine` 一起归档 | 第一批 + 归档决策 |
+| `core/passive_procs.py` | → `content/core/`（**保留**：被 `tests/test_passive_proc_coverage.py` 作为活门禁消费；原「孤儿归档」建议已作废，见 §8-R13） | 第一批 |
 | `core/battle_bars.py` | → `engine/support/bars.py`（引擎需要它：`services/battle2_bar_procs` 与 `class_mech_proc` 依赖其纯函数），读点改 `config.MECH_CFG` + `config.bar_prefix` | 第二批 |
 | `core/battle_modes.py` / `potion_effects.py` / `item_templates.py` / `effect_actions.py` | → `content/core/` | 第一批 |
 | `game/engine.py` | 一拆为二（§6.4） | **独立一批（最高风险）** |
@@ -474,7 +474,7 @@ S1 ✅ → S2 ✅ → S3 ✅ → S5'（拆 engine.py，落 battle2/formulas.py +
 | **R10** | **嵌套 git 仓库误纳** | `design/new_world/.git` 存在（`design/` 已被 `.gitignore` 忽略），拆 `framework-engine` 时若用 `git add -A` 可能误纳 | 用显式路径 `git add game/engine`；拆仓库前 `git status --ignored` 核对 |
 | **R11** | **存档/PVP 兼容** | `serialize.py:90-106` 有 v181.M-bonus 一次性迁移（旧档 `stat_bonus`/`cap_bonus` 旧键 → `bonus` 容器）；拆包不影响数据，但 shim 漏导出 `from_state`/`to_state` 会导致旧档反序列化炸 | S2 的 API 面必须显式含 `Battle.from_state` / `to_state`；加旧档反序列化冒烟测试 |
 | **R12** | **`__pycache__` 幽灵字节码** | 仓库内已有 `tests/audit_pyc_bytecode.py` / `audit_pyc_diff.py` 先例；旧 `game/battle2/*.pyc` 在 shim 删除后可能被解释器优先命中 | S4/S8/S9 每步前清 `__pycache__`（或跑 `python -B`）；用现有 audit 脚本核对 |
-| **R13** | **孤儿代码误当资产迁移** | `core/passive_procs.py`（1 598 行）零生产消费者（仅 `tests/_retired_old_engine/test_p2dd*.py` 引用）；`core/tick_effects.py`（60 行）零引用 | 迁移前先做「零引用清单」，孤儿模块**显式决策**（归档 vs 保留），不要盲目搬进引擎 |
+| **R13** | **孤儿代码误当资产迁移** | ⚠️ **本条一半是错的（2026-09-11 复核）**：`core/passive_procs.py`（1 610 行）**不是孤儿** —— `tests/test_passive_proc_coverage.py` 消费它做启动全覆盖校验（53 proc 白名单 + 缺口钉死）；当年判「零消费者」是因为门禁建在该判断之后。`core/tick_effects.py`（60 行）确为死代码 | **教训**：「零引用清单」必须用**当前**仓库状态重跑一遍再决策；旧清单会把后来新增的消费方漏掉 |
 
 ---
 

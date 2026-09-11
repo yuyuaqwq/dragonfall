@@ -15,7 +15,6 @@
 """
 import os
 import sys
-import random
 import asyncio
 import inspect
 from contextlib import contextmanager
@@ -205,10 +204,10 @@ clean_db()
 insrc = inspect.getsource(InstanceCmds)
 check("副本通关循环消费 INSTANCE_BP_CHANCE", "C.INSTANCE_BP_CHANCE" in insrc)
 check("副本已学图纸折算残页逻辑", "图纸残页" in insrc and "learned_blueprints" in insrc)
-hit_inst = sum(1 for _ in range(40000) if random.random() < C.INSTANCE_BP_CHANCE)
-ri = hit_inst / 40000
-print(f"  INSTANCE_BP_CHANCE 抽样: {ri:.3%}（期望 10%）")
-check("INSTANCE_BP_CHANCE 抽样约 10%（±1.5%）", 0.085 <= ri <= 0.115)
+# 直接断言常量本身。原先用 40000 次抽样间接"测"它 —— 那测的是 Python 随机数分布，
+# 不是游戏常量，且是未 seed 的概率性断言（见 FISH_RARE_CHANCE 的直断写法）。
+check("INSTANCE_BP_CHANCE = 0.10（直断常量，非抽样）",
+      abs(C.INSTANCE_BP_CHANCE - 0.10) < 1e-9)
 
 # ============ 6. 图纸残页合成『图纸合成』 ============
 print("【6. 图纸残页合成（bp_craft）】")

@@ -29,6 +29,24 @@
 
 并发验收：1 份全量回归 + 2 份探针 + 4 份数值门禁**同时跑** → 全绿（`scripts/_tmp_concurrent_verify.py` 为一次性验证脚本，未入库）。
 
+### 随机性审计结论（2026-09-11 全量核查 249 个测试文件）
+
+「测试用 random 却没 seed」曾被列为隐患，全量核查后**只见 1 处真问题**（已修）。
+三种合法做法（按优先级）：
+
+| 做法 | 说明 | 用例 |
+|---|---|---|
+| **钉死随机源**（首选） | `random.random = lambda: 0.0` / `mock.patch.object(mod.random, "random", return_value=...)` —— 比 seed 更强：任何种子下行为一致 | `test_v104_prof_enhance` `test_v1308_lv_jitter` `test_v136_gem_drops` `test_v1307_zone_risk` |
+| 固定 seed | `random.seed(20260911)` —— 用在需要"随机但可复现"的场景 | `test_numeric_drop_unify` `test_v135_quality_roll` `test_battle2_n9_equip` |
+| 随机仅用于造数据 | 不断言随机结果（只借它生成输入）→ 无需处理 | `test_commands_world` `test_v104_npc_dialogue` `test_v97_01_notice_board` 等 |
+
+**已修的真问题**：`test_v135_bp_drop.py` 原用 `sum(1 for _ in range(40000) if random.random() < C.INSTANCE_BP_CHANCE)`
+**抽样去"测"一个常量** —— 测的其实是 Python 随机数分布，不是游戏常量，且是未 seed 的概率性断言。
+已改为直断常量值（同 `FISH_RARE_CHANCE` 写法），并移除不再使用的 `import random`。
+
+> 教训：**抽样测常量 = 测错了对象**。常量就该直断数值；只有"概率分布本身"才需要抽样，
+> 且那种测试必须自带显式容差与固定种子。
+
 ## 测试清单总览
 
 | 文件 | 覆盖什么 | 防什么回归 |
