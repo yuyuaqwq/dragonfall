@@ -89,7 +89,7 @@ def _hang_hot(p, heal=0.1, mana=0.0, turns=3):
 def test_hot_first_jump_delay():
     """首跳延迟：挂 hot 后同刻不跳，dot_next 登记 now+1。"""
     print("【V-HOT.1 首跳延迟：挂 hot 同刻不跳，登记 now+interval】")
-    from saintess_engine.schedule import _settle_time_effects as _ste
+    from saintess_engine.battle.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.5)
     b = _mk_battle(p)
     _hang_hot(p)
@@ -104,7 +104,7 @@ def test_hot_first_jump_delay():
 def test_hot_heal_and_mana():
     """到点回血回蓝（百分比×max，clamp 上限）。"""
     print("【V-HOT.2 到点跳：回血 + 回蓝 + clamp】")
-    from saintess_engine.schedule import _settle_time_effects as _ste
+    from saintess_engine.battle.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.5, mp_ratio=0.5)
     mx_hp = p["max_hp"]
     mx_mp = p["max_mp"]
@@ -126,7 +126,7 @@ def test_hot_heal_and_mana():
 def test_hot_catchup_multijump():
     """跨多刻补跳：now 推远 → while 循环补跳满 turns 次后自动清层。"""
     print("【V-HOT.3 跨多刻补跳 + turns 跳满清层】")
-    from saintess_engine.schedule import _settle_time_effects as _ste
+    from saintess_engine.battle.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.1)
     mx_hp = p["max_hp"]
     b = _mk_battle(p)
@@ -145,7 +145,7 @@ def test_hot_catchup_multijump():
 def test_hot_clamp_max():
     """clamp：恢复不超过 max_hp/max_mp。"""
     print("【V-HOT.4 clamp：恢复封顶 max】")
-    from saintess_engine.schedule import _settle_time_effects as _ste
+    from saintess_engine.battle.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.95)
     b = _mk_battle(p)
     _hang_hot(p, heal=0.1, mana=0.0, turns=3)
@@ -163,7 +163,7 @@ def test_hot_clamp_max():
 def test_hot_no_repeat_same_now():
     """同刻重复 settle 不重复跳（绝对时刻推进语义）。"""
     print("【V-HOT.5 同刻重复 settle 不重复跳】")
-    from saintess_engine.schedule import _settle_time_effects as _ste
+    from saintess_engine.battle.schedule import _settle_time_effects as _ste
     p = mk_player(hp_ratio=0.5)
     b = _mk_battle(p)
     _hang_hot(p, heal=0.1, mana=0.0, turns=3)

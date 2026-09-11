@@ -20,7 +20,7 @@
 """
 from __future__ import annotations
 
-from saintess_engine.effects import register_action
+from saintess_engine.battle.effects import register_action
 
 # 敌方减益键（控制/属性降）；DOT/印记类走 effects 层数判定
 _DEBUFF_KEYS = ("def_down", "spd_down", "mon_atk_down", "atk_down",
@@ -84,7 +84,7 @@ def _p_enemy_broken(battle, actor, target, cond) -> bool:
     """
     if not isinstance(target, dict):
         return False
-    from saintess_engine.support.battle_bars import bar_settle, bar_effect_key
+    from saintess_engine.gauge import bar_settle, bar_effect_key
     _now = float(getattr(battle, "_now", 0.0) or 0.0)
     bar_settle(target, "shaken", _now)
     bs = (target.get("effects") or {}).get(bar_effect_key("shaken"))
@@ -140,7 +140,7 @@ def skill_cond_mult_act(battle, caster, target, params, logs):
     except Exception:
         return  # 判定异常不阻断战斗
     try:
-        from saintess_engine.formulas import skill_cond_mult
+        from saintess_engine.battle.formulas import skill_cond_mult
         from ..content_rules.skills import skill_info, skill_level_of
         name = info.get("name") or ""
         lv = skill_level_of(actor, name) if (actor or {}).get("class_name") else 1
@@ -159,7 +159,7 @@ def apply_cond_procs(actor: dict) -> None:
     names = actor.get("learned_skills") or []
     if not cn or not names:
         return
-    from saintess_engine.formulas import skill_cond_mult
+    from saintess_engine.battle.formulas import skill_cond_mult
     from ..content_rules.skills import skill_info, skill_level_of
     has_cond = False
     for s in names:

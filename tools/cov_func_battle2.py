@@ -17,7 +17,9 @@ _all_defs = {}       # qualname -> 文件（预扫 saintess_engine 包所有函�
 
 # 预扫 saintess_engine 所有 def
 import ast
-for fn in glob.glob(os.path.join(PLUGIN_DIR, "framework", "saintess_engine", "*.py")):
+_ENGINE_DIR = os.path.join(PLUGIN_DIR, "framework", "saintess_engine")
+for fn in [os.path.join(_r, _f) for _r, _d, _fs in os.walk(_ENGINE_DIR)
+           for _f in _fs if _f.endswith(".py")]:
     try:
         tree = ast.parse(open(fn, encoding="utf-8").read())
     except Exception:

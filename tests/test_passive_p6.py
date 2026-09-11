@@ -54,7 +54,7 @@ def mk_enemy(hp=10000):
 
 def run_dot_tick(b, e):
     """推进 DOT 一跳：毒 interval 1.0——首调登记下一跳，二调触发。"""
-    from saintess_engine.schedule import _settle_time_effects
+    from saintess_engine.battle.schedule import _settle_time_effects
     b._now = 0.5
     _settle_time_effects(b, [])
     b._now = 1.6

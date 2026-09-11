@@ -4,7 +4,7 @@ tempo = 叠2回合，停2回合（contract: 停 2~3 回合等回落）"""
 import sys, os
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from saintess_engine.formulas import calc_damage
+from saintess_engine.battle.formulas import calc_damage
 from game.content_rules.panel import player_final_stats
 from game.core import stats as S
 

@@ -276,7 +276,7 @@ def test_override_end_to_end():
 def test_purify():
     print("【I5.1 purify：模板判定 + 翻译器清除（saintess_engine effects 负面）】")
     from saintess_engine import Battle
-    from saintess_engine.effects import apply_effects
+    from saintess_engine.battle.effects import apply_effects
     from game.commands.battle2_item_use import translate as _tr
     from game.core.item_templates import tpl_purify, ItemContext, _b2_has_purifiable
     # 玩家带负面（stun 控制 + sleep 不可净化 + atk_up 正面）

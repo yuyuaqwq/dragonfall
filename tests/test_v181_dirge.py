@@ -44,8 +44,8 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor, effects as EFX  # noqa: E402
-from saintess_engine.stats import actor_stats  # noqa: E402
-from saintess_engine.effect_triggers import fire as bfire  # noqa: E402
+from saintess_engine.battle.stats import actor_stats  # noqa: E402
+from saintess_engine.battle.effect_triggers import fire as bfire  # noqa: E402
 from game.content_rules.skills import skill_info
 from game.services import class_mech_proc as CM  # noqa: E402
 

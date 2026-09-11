@@ -109,7 +109,7 @@ def test_3_counter_trigger():
     b = mk_battle([w], enemy)
     logs, _, _ = b.human_act("attack", None, enemy)  # enemy 手动普攻玩家?
     # 换个更稳路径：直接对玩家 deal_damage（走 landing on_taken 触发链）
-    from saintess_engine.landing import deal_damage
+    from saintess_engine.battle.landing import deal_damage
     b2 = mk_battle([w], enemy)
     e = b2.sides_of("enemy")[0]
     e['dodge'] = 0.0
@@ -184,7 +184,7 @@ def test_6_poison_burst_mult():
 
 def test_7_dual_channel():
     print("【7. 双通道：灵魂锁链 cap 段 + per_layer 乘区段同时装配】")
-    from saintess_engine.effects import _cap_of
+    from saintess_engine.battle.effects import _cap_of
     # 灵魂锁链是哪个职业？死灵法师 cls？搜全部技能树找
     from game.data.skills import PLAYER_SKILLS, BRANCH_SKILLS
     owner_cls = None

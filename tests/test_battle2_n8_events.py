@@ -44,8 +44,8 @@ from saintess_engine import actions as AC          # noqa: E402
 from saintess_engine import effects as FX          # noqa: E402
 from saintess_engine import landing as L           # noqa: E402
 from saintess_engine import effect_triggers as TR  # noqa: E402
-from saintess_engine.actors import ActCtx          # noqa: E402
-from saintess_engine.schedule import _settle_time_effects as _ste  # noqa: E402
+from saintess_engine.battle.actors import ActCtx          # noqa: E402
+from saintess_engine.battle.schedule import _settle_time_effects as _ste  # noqa: E402
 
 PASS = 0
 FAIL = 0

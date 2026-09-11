@@ -25,7 +25,10 @@ os.chdir(PLUGIN_DIR)
 _exec_lines = {}   # 文件 -> set(可执行行号)
 _cond_lines = {}   # 文件 -> set(条件行号：含 if/elif/else/while/for/try/return 分支跳转的源行)
 
-for pyfile in glob.glob(os.path.join(PLUGIN_DIR, "framework", "saintess_engine", "*.py")):
+_ENGINE_DIR = os.path.join(PLUGIN_DIR, "framework", "saintess_engine")
+# 模块化重排后模块分布在 battle/ 等子目录 —— 递归收集
+for pyfile in [os.path.join(_r, _f) for _r, _d, _fs in os.walk(_ENGINE_DIR)
+               for _f in _fs if _f.endswith(".py")]:
     src_lines = open(pyfile, encoding="utf-8").read().splitlines()
     try:
         tree = ast.parse("\n".join(src_lines))

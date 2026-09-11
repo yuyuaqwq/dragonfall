@@ -25,7 +25,7 @@
 - 显式 import 触发注册（game/services/player_event_subscribers.py），不做 import 魔法。
 
 【骨架归属（2026-09-11，M3）】总线的**机制**（注册表 / 注册序执行 / 段落空行 /
-未知事件策略 / 异常容忍）来自框架 `saintess_kit.events.EventBus`；本文件只留
+未知事件策略 / 异常容忍）来自框架 `saintess_engine.events.EventBus`；本文件只留
 **本游戏的内容**：事件集 `EVENTS`、对外 API 名、日志器。
 """
 
@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import logging
 
-from saintess_kit.events import EventBus
+from saintess_engine.events import EventBus
 
 _log = logging.getLogger("astrbot")
 

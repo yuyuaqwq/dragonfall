@@ -37,7 +37,7 @@ sys.path.insert(0, PLUGIN_DIR)
 
 from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from saintess_engine.ai import normalize_ai  # noqa: E402
+from saintess_engine.battle.ai import normalize_ai  # noqa: E402
 from game.data.monster_mods import MONSTER_MODS  # noqa: E402
 from game.data.monsters import MONSTER_SKILLS  # noqa: E402
 

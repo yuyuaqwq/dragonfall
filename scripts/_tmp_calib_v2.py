@@ -23,7 +23,7 @@ sys.path.insert(0, PLUGIN_DIR)
 os.environ["GWEN_GAME_DB"] = os.path.join(PLUGIN_DIR, "test_game_data.db")
 
 from data.plugins.dragonfall.game import content as C  # noqa: E402
-from saintess_engine.formulas import calc_damage, skill_power_mult
+from saintess_engine.battle.formulas import calc_damage, skill_power_mult
 from game.content_rules.panel import player_final_stats
 from game.content_rules.skills import skill_info
 from game.data.battle_config import TIER_GROWTH

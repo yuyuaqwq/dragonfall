@@ -16,7 +16,7 @@ from numeric_lib.player import PlayerOptions, build_player, per_action_dmg
 from numeric_lib.gear import gear_loadout
 from numeric_lib.constants import CLASSES, TEAM_BUFF
 from data.plugins.dragonfall.game import content as C
-from saintess_engine.formulas import calc_damage
+from saintess_engine.battle.formulas import calc_damage
 from data.plugins.dragonfall.game.data import monster_mods as MM
 
 GROWTH_V2 = {

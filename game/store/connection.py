@@ -2,12 +2,12 @@
 
 """奥兰迪亚·余烬纪年存储层 - connection：连接管理 + 建表(唯一碰 sqlite 连接的地方)
 
-骨架（连接 / 锁 / 事务 / 建表注册 / 列迁移）来自框架 `saintess_kit.store`；
+骨架（连接 / 锁 / 事务 / 建表注册 / 列迁移）来自框架 `saintess_engine.store`；
 **本文件只留游戏自己的内容**：数据库路径、地图 id 集合、表结构 SQL、要补的列清单。
 """
 import os
 
-from saintess_kit.store import Database, ensure_columns
+from saintess_engine.store import Database, ensure_columns
 
 from .. import content as C
 
@@ -33,7 +33,7 @@ def _map_ids() -> set:
 # 兼容旧引用（store 层内部使用 C_MAP_IDS 做集合运算）
 C_MAP_IDS = _map_ids()
 
-# ================= 框架骨架实例（saintess_kit.store.Database）=================
+# ================= 框架骨架实例（saintess_engine.store.Database）=================
 # 连接 / 锁 / 事务 / 建表流程 / 列迁移 的**实现**在框架仓；本文件只提供「内容」：
 # 路径（DB_PATH，见上）、表结构 SQL（见下）、要补的列清单（见 _ensure_legacy_columns）。
 _db = Database(DB_PATH, timeout=10)
@@ -307,7 +307,7 @@ def init_db():
 def _ensure_legacy_columns(conn):
     """老库 ALTER 补列自愈。
 
-    「PRAGMA 查缺 → ALTER 补」的**机制**在框架 `saintess_kit.store.ensure_columns`；
+    「PRAGMA 查缺 → ALTER 补」的**机制**在框架 `saintess_engine.store.ensure_columns`；
     此处只列**本游戏**要补的列（列定义与历史注释保留，便于追溯是哪一版加的）。
     """
     # players 表（列随版本演进，逐条注明出处）

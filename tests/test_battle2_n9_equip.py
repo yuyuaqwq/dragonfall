@@ -30,7 +30,7 @@ from saintess_engine import config as _b2config  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from saintess_engine import effects as FX          # noqa: E402
 from saintess_engine import landing as L           # noqa: E402
-from saintess_engine.actors import ActCtx          # noqa: E402
+from saintess_engine.battle.actors import ActCtx          # noqa: E402
 from game.services import battle2_equip_proc as EP  # noqa: E402
 
 # v181 测试确定性：伤害含随机浮动（暴击/波动），而 test_trinity_thunder 断言
@@ -250,7 +250,7 @@ def test_wind_mark_stack():
     check("wind_mark 展开 attack_hit+skill_hit",
           "attack_hit" in tr and "skill_hit" in tr, f"keys={list(tr.keys())}")
     b = new_battle(p, m)
-    from saintess_engine.actors import ActCtx as _Ctx
+    from saintess_engine.battle.actors import ActCtx as _Ctx
     b.act(_Ctx(caster=p, action="attack", target=m))
     check("一次命中叠 1 层", stk(p, "wind_mark", 0) == 1, f"state={((p).get('effects') or {})}")
     b.act(_Ctx(caster=p, action="attack", target=m))
@@ -274,7 +274,7 @@ def test_dot_ext_action():
     check("smith 展开 attack_hit+skill_hit", "attack_hit" in tr and "skill_hit" in tr,
           f"keys={list(tr.keys())}")
     b = new_battle(p, m)
-    from saintess_engine.schedule import _settle_time_effects as _ste
+    from saintess_engine.battle.schedule import _settle_time_effects as _ste
     b._now = 0.0
     b.act(ActCtx(caster=p, action="attack", target=m))
     check("命中挂 blaze 1 层", stk(m, "blaze", 0) == 1, f"state={((m).get('effects') or {})}")
@@ -298,7 +298,7 @@ def test_dot_blood_trace_curhp():
     equip(p, "blood_trace", slot="weapon", we_data={"chance": 1.0})
     EP.apply_to_actor(p)
     b = new_battle(p, m)
-    from saintess_engine.schedule import _settle_time_effects as _ste
+    from saintess_engine.battle.schedule import _settle_time_effects as _ste
     b._now = 0.0
     b.act(ActCtx(caster=p, action="attack", target=m))
     check("败血挂 1 层", stk(m, "blood_trace", 0) == 1, f"state={((m).get('effects') or {})}")
@@ -328,7 +328,7 @@ def test_reflect_ext_action():
     check("thorn 装配 on_taken", "on_taken" in tr, f"keys={list(tr.keys())}")
     # 敌打玩家 100 → 反射 15
     hp0 = m["hp"]
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     _dd(b, m, p, 100, [])
     check("受击反 15%", m["hp"] == hp0 - 15, f"hp={m['hp']} dmg={hp0-m['hp']}")
     # dragon_spine_mail：反 25% + 攻击者 heal_down 2 层
@@ -344,7 +344,7 @@ def test_reflect_ext_action():
     check("攻击者 heal_down 2 层", stk(m2, "heal_down", 0) == 2,
           f"state={((m2).get('effects') or {})}")
     # heal_down 生效：m2 被治疗减 20%
-    from saintess_engine.landing import heal_actor as _ha
+    from saintess_engine.battle.landing import heal_actor as _ha
     m2["hp"] = 100
     _ha(b2, m2, 100, [])
     check("禁疗 20%（回 80）", m2["hp"] == 180, f"hp={m2['hp']}")
@@ -373,7 +373,7 @@ def test_next_atk_and_retort_marks():
     equip(p2, "titan_retort", slot="armor", we_data={"next_atk_pct": 0.4})
     EP.apply_to_actor(p2)
     b2 = new_battle(p2, m2)
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     _dd(b2, m2, p2, 50, [])
     check("受击挂反击势能", "we_retort" in ((p2).get("effects") or {}), f"buffs={p2.get('buffs')}")
 
@@ -428,7 +428,7 @@ def test_shield_taken_cd():
           we_data={"chance": 1.0, "shield_pct": 0.08, "turns": 3, "cd": 2})
     EP.apply_to_actor(p)
     b = new_battle(p, m)
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     _dd(b, m, p, 50, [])
     check("受击触发盾 8%", int((p["shields"] or {}).get("we_deeprock", {}).get("value", 0)) == 64,
           f"shields={p.get('shields')}")
@@ -451,7 +451,7 @@ def test_dusk_blade_kill():
     equip(p, "dusk_blade", slot="weapon")
     EP.apply_to_actor(p)
     b = new_battle(p, m)
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     _dd(b, p, m, 99, [])
     check("击杀挂 stealth buff", "stealth" in ((p).get("effects") or {}), f"buffs={p.get('buffs')}")
 
@@ -465,7 +465,7 @@ def test_shield_cond_overflow_crit():
           we_data={"threshold": 0.25, "shield_hp_pct": 0.2, "turns": 4})
     EP.apply_to_actor(p)
     b = new_battle(p, m)
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     _dd(b, m, p, 30, [])   # hp 高不触发
     check("hp 高不触发", not (p["shields"] or {}), f"shields={p.get('shields')}")
     p["hp"] = 150  # 800×0.25=200 阈值下
@@ -481,7 +481,7 @@ def test_shield_cond_overflow_crit():
     equip(p2, "echo_bless", slot="necklace")
     EP.apply_to_actor(p2)
     b2 = new_battle(p2, m2)
-    from saintess_engine.landing import heal_actor as _ha
+    from saintess_engine.battle.landing import heal_actor as _ha
     p2["hp"] = p2["max_hp"] - 100  # 缺 100
     _ha(b2, p2, 200, [])   # 计划 200 实回 100 → 溢出 100
     check("溢出 30% → 盾 30", int((p2["shields"] or {}).get("we_echo_bless", {}).get("value", 0)) == 30,
@@ -506,7 +506,7 @@ def test_extra_dmg():
     EP.apply_to_actor(p)
     b = new_battle(p, m)
     hp0 = m["hp"]
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     # 直接命中模拟：攻击 40 防 5 → ~35；普攻后 fire hit → 追加 atk 40×0.5=20 vs def5 → ~15
     b.act(ActCtx(caster=p, action="attack", target=m))
     total = hp0 - m["hp"]
@@ -580,7 +580,7 @@ def test_control_ext():
           we_data={"chance": 1.0, "mode": "freeze_taken_limited", "freeze_turns": 1, "max_per_battle": 2})
     EP.apply_to_actor(p3)
     b3 = new_battle(p3, m3)
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     _dd(b3, m3, p3, 30, [])
     check("受击反冻攻击者", ((m3).get("effects") or {}).get("freeze", {}).get("mode") == "skip",
           f"effects={m3.get('effects')}")
@@ -599,7 +599,7 @@ def test_heal_amp_and_mana():
     b = new_battle(p, m)
     check("装配 heal_amp_pct 0.15", abs(float((ent(p, "heal_amp_pct").get("value") or {}).get("amp", 0)) - 0.15) < 1e-9,
           f"effects={p.get('effects')}")
-    from saintess_engine.landing import heal_actor as _ha
+    from saintess_engine.battle.landing import heal_actor as _ha
     p["hp"] = 500  # 缺 300
     _ha(b, p, 100, [])
     check("受疗 +15%（115）", p["hp"] == 615, f"hp={p['hp']}")
@@ -625,7 +625,7 @@ def test_death_guard():
     m = mk_a("e1", "enemy", hp=99999, atk=1)
     b = new_battle(p, m)
     p["effects"]["death_guard"] = {"stacks": 1}
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     _dd(b, m, p, 9999, [])
     check("致死保命 hp=160", p["hp"] == 160, f"hp={p['hp']}")
     check("层耗尽", stk(p, "death_guard", 0) == 0, f"effects={p.get('effects')}")
@@ -673,7 +673,7 @@ def test_dmg_taken_calc_hooks():
     p2["triggers"] = {"taken_calc": [{"type": "we_taken_mult_cond", "key": "dd_test",
                                       "cond": "always", "mult": 0.92}]}
     b2 = new_battle(p2, m2)
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     hp0 = p2["hp"]
     _dd(b2, m2, p2, 100, [])
     real = hp0 - p2["hp"]
@@ -700,7 +700,7 @@ def test_cond_mult_and_stacks():
     equip(p2, "death_dance_armor", slot="armor")
     EP.apply_to_actor(p2)
     b2 = new_battle(p2, m2)
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     hp0 = p2["hp"]
     _dd(b2, m2, p2, 100, [])
     check("减伤 8% 掉 92", hp0 - p2["hp"] == 92, f"real={hp0-p2['hp']}")
@@ -729,7 +729,7 @@ def test_cond_mult_and_stacks():
 
 def test_death_dance():
     print("【N9A-1 death_dance 缓伤池：受击收 35% → turn_start 结算 10%】")
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     # 装配端到端
     p = mk_a("p1", "player")
     m = mk_a("e1", "enemy", hp=99999, atk=1)
@@ -1011,7 +1011,7 @@ def test_affix_taken():
     check("dmg_reduce 装配 taken_calc", "taken_calc" in (p3.get("triggers") or {}),
           f"triggers={p3.get('triggers')}")
     b3 = new_battle(p3, m3)
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     hp0 = p3["hp"]
     _dd(b3, m3, p3, 100, [])
     real = hp0 - p3["hp"]

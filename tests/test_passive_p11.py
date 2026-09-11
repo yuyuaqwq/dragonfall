@@ -76,7 +76,7 @@ def test_1_shield_stun_applies():
 
 def test_2_stun_structure():
     print("【2. 施加条目结构：mode=skip + expire 合理】")
-    from saintess_engine.landing import deal_damage
+    from saintess_engine.battle.landing import deal_damage
     # 直接调 apply（绕开 human_act 时序推进）验证条目结构
     a = mk("cls_zhan_shi", "盾击·誓")
     apply_class_mech(a)
@@ -84,7 +84,7 @@ def test_2_stun_structure():
     e = b.sides_of("enemy")[0]
     a2 = b.sides_of("player")[0]
     # 手动触发命中效果（chance 强制 1）
-    from saintess_engine.effects import effects_from_skill, apply_effects
+    from saintess_engine.battle.effects import effects_from_skill, apply_effects
     from game.content_rules.skills import skill_info
     info = skill_info("cls_zhan_shi", "盾击·誓") or {}
     effs = effects_from_skill(info, 0)

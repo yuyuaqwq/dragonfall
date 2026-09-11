@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "framework"))
 # ↑ 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 
-from saintess_engine.formulas import resolve_formula, calc_damage# noqa: E402
+from saintess_engine.battle.formulas import resolve_formula, calc_damage# noqa: E402
 
 passed = failed = 0
 

@@ -129,7 +129,7 @@ async def main():
                 if isinstance(_sk, dict) and str(_sk.get("name")) == "魔力脉冲":
                     _sk_id, _sk_info = _sid, dict(_sk)
     if _sk_info:
-        from saintess_engine.actors import ActCtx
+        from saintess_engine.battle.actors import ActCtx
         _logs = []
         _b.act(ActCtx(caster=_st, action="skill", skill_name="魔力脉冲",
                       info=_sk_info, target=_e))

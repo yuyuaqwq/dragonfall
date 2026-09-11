@@ -16,7 +16,7 @@ import importlib.util
 _spec = importlib.util.spec_from_file_location(
     "formula_expr",
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                 "framework", "saintess_engine", "support", "formula_expr.py"))
+                 "framework", "saintess_engine", "expr", "__init__.py"))
 _fx = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_fx)
 compile_expr = _fx.compile_expr

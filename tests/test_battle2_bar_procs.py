@@ -26,11 +26,11 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
-from saintess_engine.actors import ActCtx  # noqa: E402
-from saintess_engine.effect_triggers import fire  # noqa: E402
+from saintess_engine.battle.actors import ActCtx  # noqa: E402
+from saintess_engine.battle.effect_triggers import fire  # noqa: E402
 from game.services import class_mech_proc as CMP  # noqa: E402
 from game.data import skills as _SK  # noqa: E402
-from saintess_engine.support.battle_bars import bar_effect_key, bar_gain as _bg# noqa: E402
+from saintess_engine.gauge import bar_effect_key, bar_gain as _bg# noqa: E402
 
 PASS = 0
 FAIL = 0

@@ -32,10 +32,10 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 from saintess_engine import Battle as BT_NEW, make_actor  # noqa: E402
 from saintess_engine import config as _b2config  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from saintess_engine.actors import ActCtx          # noqa: E402
-from saintess_engine.effect_triggers import fire as _fire  # noqa: E402
-from saintess_engine.landing import deal_damage as _dd     # noqa: E402
-from saintess_engine.state_effects import state_def        # noqa: E402
+from saintess_engine.battle.actors import ActCtx          # noqa: E402
+from saintess_engine.battle.effect_triggers import fire as _fire  # noqa: E402
+from saintess_engine.battle.landing import deal_damage as _dd     # noqa: E402
+from saintess_engine.battle.state_effects import state_def        # noqa: E402
 from game.services import battle2_equip_proc as EP      # noqa: E402
 from game.services.battle2_we_procs import we_affix_res_gain  # noqa: E402
 
@@ -353,7 +353,7 @@ def test_gap_affixes_no_noise():
 
 def test_affix_gain_dynamic_cap():
     print("【R4.8 affix 附赠通道 cap 收敛：full_pack 抬 cap 后暴击蓄能可攒满 110】")
-    from saintess_engine.effects import _cap_of
+    from saintess_engine.battle.effects import _cap_of
     # full_pack（purple +10 bonus.cap）+ crit_charge：crit 事件 energy+3 → cap 110
     p = mk_a("pd", "player")
     m = mk_a("ed", "enemy", hp=100000, atk=1)

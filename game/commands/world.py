@@ -18,7 +18,7 @@ from ..content_rules.panel import player_final_stats
 from ..content_rules.skills import skill_info
 from ..data.battle_config import TIER_GROWTH
 from ..core.stats import hp_stage_mult
-from saintess_engine.support.formation import formation_view, alive_units# v2 多对多站位图文案行
+from saintess_engine.formation import formation_view, alive_units# v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 
 # 任务目标类型 → 进度展示行（v101.3：加新目标类型 = 加一行，quest_view 零改动）

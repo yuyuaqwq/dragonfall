@@ -176,7 +176,7 @@ def test_stats_convenience():
     check("actor_spd 纯怪读字段", ST.actor_spd(b, m) == m["spd"])
     check("actor_crit", abs(ST.actor_crit(b, p) - st_full.get("crit", 0)) < 1e-9)
     # stat_scale_of
-    from saintess_engine.state_effects import stat_scale_of
+    from saintess_engine.battle.state_effects import stat_scale_of
     chk = abs(stat_scale_of("zhan_yi", 5, "atk") - 1.20) < 1e-9
     check("stat_scale_of zhan_yi 5层 atk=1.2", chk)
     check("stat_scale_of 无规则 key = 1.0", abs(stat_scale_of("nope", 3, "atk") - 1.0) < 1e-9)
@@ -184,7 +184,7 @@ def test_stats_convenience():
 
 def test_aoe_falloff_apply():
     print("【CV8 _aoe_falloff_apply 存在且可调（占位）】")
-    from saintess_engine.actions import _aoe_falloff_apply
+    from saintess_engine.battle.actions import _aoe_falloff_apply
     logs = ["a", "b"]
     out = _aoe_falloff_apply(logs)
     check("_aoe_falloff_apply 透传 logs", out == ["a", "b"])
@@ -292,8 +292,8 @@ def test_effects_branches():
 
 def test_actions_branches():
     print("【CV11 actions 分支：AOE 无敌/do_skill 无 info/buff pct 折算】")
-    from saintess_engine.actions import do_skill, _do_buff
-    from saintess_engine.actors import ActCtx
+    from saintess_engine.battle.actions import do_skill, _do_buff
+    from saintess_engine.battle.actors import ActCtx
     p, m = mk_ctx()
     b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
     # AOE 无敌人（enemy side 空）
@@ -326,7 +326,7 @@ def test_actions_branches():
 
 def test_schedule_edge():
     print("【CV12 schedule 边界：无 actor 直接 over】")
-    from saintess_engine.schedule import advance as _adv
+    from saintess_engine.battle.schedule import advance as _adv
     # 两边都无 actor → 立即 over
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
     logs = []
@@ -376,7 +376,7 @@ def test_more_branches():
     from saintess_engine import actors as A2
     check("hostile_map 配置生效", A2.hostile_sides(b2, "player") == ["enemy"])
     # actor_auto 带 auto_act 配置（action=skill 指定技能）
-    from saintess_engine.actions import resolve_basic_skill
+    from saintess_engine.battle.actions import resolve_basic_skill
     ai = make_actor(uid="ai", name="配置怪", side="enemy", kind="monster",
                     hp=1000, max_hp=1000, atk=20, **{"def": 5},
                     matk=5, mdef=5, spd=5, crit=0.05, level=5)
@@ -390,8 +390,8 @@ def test_more_branches():
           "mech": "zhan_yi", "mech_val": 2, "mech2": "rage", "mech2_val": 1}
     p2, m2 = mk_ctx()
     b4 = BT_NEW(btype="monster", sides={"player": [p2], "enemy": [m2]})
-    from saintess_engine.actions import do_skill
-    from saintess_engine.actors import ActCtx as AC2
+    from saintess_engine.battle.actions import do_skill
+    from saintess_engine.battle.actors import ActCtx as AC2
     ctx = AC2(caster=p2, action="skill", skill_name="双效果", info=sk, target=m2)
     do_skill(b4, ctx)
     check("mech2 rage 生效", stk(p2, "rage", 0) >= 1, f"rage={((p2).get('effects') or {}).get('rage')}")
@@ -399,7 +399,7 @@ def test_more_branches():
     mon_buff = make_actor(uid="mb", name="buff怪", side="enemy", kind="monster",
                           hp=100, max_hp=100, atk=1, **{"def": 0}, level=5)
     b5 = BT_NEW(btype="monster", sides={"enemy": [mon_buff], "player": []})
-    from saintess_engine.actions import _do_buff
+    from saintess_engine.battle.actions import _do_buff
     logs5 = []
     binfo = {"name": "怪力", "kind": "增益", "effect": "atk_up", "buff_turns": 4}
     _do_buff(b5, AC2(caster=mon_buff, action="skill", skill_name="怪力", info=binfo),
@@ -422,8 +422,8 @@ def test_more_branches():
     st7 = ST2.actor_stats(b7, p7)
     check("spd_down float 折算", st7["spd"] < p7["spd"], f"spd={st7['spd']} < {p7['spd']}")
     # AOE falloff（rank>1 目标 + aoe_falloff≠1）：AOE 扫到后排怪吃衰减
-    from saintess_engine.actions import do_skill
-    from saintess_engine.actors import ActCtx as AC3
+    from saintess_engine.battle.actions import do_skill
+    from saintess_engine.battle.actors import ActCtx as AC3
     p8 = make_actor(uid="p8", name="炮手", side="player", kind="player",
                     human_controlled=True, class_name="战士", level=20,
                     hp=500, max_hp=500, mp=100, max_mp=100, atk=100,

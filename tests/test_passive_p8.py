@@ -53,8 +53,8 @@ def mk_battle(player, hp=5000):
 
 def fire_overload(b, owner):
     """模拟信仰叠满 cap 的 threshold 广播（过载触发点）。"""
-    from saintess_engine.effect_triggers import fire
-    from saintess_engine.effects import _cap_of
+    from saintess_engine.battle.effect_triggers import fire
+    from saintess_engine.battle.effects import _cap_of
     cap = _cap_of(owner, "faith")
     logs = []
     fire(b, "threshold", {"key": "faith", "value": float(cap),

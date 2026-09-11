@@ -16,13 +16,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, make_player  # noqa: E402
 from data.plugins.dragonfall.main import Main  # noqa: E402
-from saintess_engine.formulas import (  # noqa: E402
+from saintess_engine.battle.formulas import (  # noqa: E402
     skill_expr_preview,
     skill_formula_expr,
     skill_formula_expr_for_seg,
     resolve_formula,
 )
-from saintess_engine.support.formula_expr import translate_expr# noqa: E402
+from saintess_engine.expr import translate_expr# noqa: E402
 
 passed = failed = 0
 

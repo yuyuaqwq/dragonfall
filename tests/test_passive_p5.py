@@ -74,7 +74,7 @@ def test_1_quench_assemble():
 
 def test_2_quench_buff():
     print("【2. 淬血触发：战意 5 → lifesteal buff +0.075】")
-    from saintess_engine.stats import actor_stats as _as
+    from saintess_engine.battle.stats import actor_stats as _as
     w = mk(["淬血", "怒斩"], cls="cls_zhan_shi", hp=5000)
     apply_class_mech(w)
     w['effects']['zhan_yi'] = {'stacks': 5, 'expire': None}

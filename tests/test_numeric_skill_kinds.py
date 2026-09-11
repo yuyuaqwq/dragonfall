@@ -10,7 +10,7 @@ _PLUGIN = os.path.dirname(_HERE)
 import importlib.util
 _spec = importlib.util.spec_from_file_location(
     "skill_kinds_standalone",
-    os.path.join(_PLUGIN, "framework", "saintess_engine", "support", "skill_kinds.py"))
+    os.path.join(_PLUGIN, "framework", "saintess_engine", "kinds", "__init__.py"))
 _sk_mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_sk_mod)
 

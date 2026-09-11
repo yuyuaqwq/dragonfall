@@ -71,7 +71,7 @@ def test_1_guard_enter():
 
 def test_2_counter():
     print("【2. 姿态受击反击】")
-    from saintess_engine.landing import deal_damage
+    from saintess_engine.battle.landing import deal_damage
     w = mk_warrior(["守护姿态"])
     apply_class_mech(w)
     w['effects']['stance_guard'] = {'stacks': 1, 'expire': 9999.0}
@@ -90,7 +90,7 @@ def test_2_counter():
 
 def test_3_expired():
     print("【3. 姿态过期 → 不反击】")
-    from saintess_engine.landing import deal_damage
+    from saintess_engine.battle.landing import deal_damage
     w = mk_warrior(["守护姿态"])
     apply_class_mech(w)
     # 态不存在（过期）但 trigger 残留
@@ -107,7 +107,7 @@ def test_3_expired():
 
 def test_4_immortal():
     print("【4. 铁誓·不动：姿态下致死免疫满血】")
-    from saintess_engine.landing import deal_damage
+    from saintess_engine.battle.landing import deal_damage
     w = mk_warrior(["铁誓·不动"], hp=5000)
     apply_class_mech(w)
     w['effects']['stance_guard'] = {'stacks': 1, 'expire': 9999.0}
@@ -129,7 +129,7 @@ def test_4_immortal():
 
 def test_5_no_guard():
     print("【5. 负向：非姿态致死不免疫】")
-    from saintess_engine.landing import deal_damage
+    from saintess_engine.battle.landing import deal_damage
     w = mk_warrior(["铁誓·不动"], hp=5000)
     apply_class_mech(w)
     w['effects']['zhan_yi'] = {'stacks': 7, 'expire': None}  # 战意但不姿态

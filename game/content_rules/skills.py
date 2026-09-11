@@ -13,7 +13,7 @@
 旧路径 `game.engine.*` 保留 shim re-export（S9 收口时删）。
 """
 from .. import content as C
-from saintess_engine.formulas import skill_max_level  # noqa: F401  （升级消耗用；纯公式在引擎侧）
+from saintess_engine.battle.formulas import skill_max_level  # noqa: F401  （升级消耗用；纯公式在引擎侧）
 
 
 # ============================================================

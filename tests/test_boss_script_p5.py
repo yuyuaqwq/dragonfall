@@ -149,7 +149,7 @@ def test_3_engine_interrupt_fire():
     boss["hp"] = 50000
     # 玩家普攻打 Boss（deal_damage 触发打断）
     logs = []
-    from saintess_engine.landing import deal_damage as _dd
+    from saintess_engine.battle.landing import deal_damage as _dd
     _dd(b, pa, boss, 500, logs)
     check("Boss charging 被清", not boss.get("charging"), str(boss.get("charging")))
     ef = (boss.get("effects") or {}).get("boss_frozen")

@@ -144,7 +144,7 @@ def action_pierce_dmg(battle, player, logs, *, atk_pct=0.60, tag="🏹", name="�
     按玩家 atk × atk_pct 计算，防御=0 直伤（无视防御语义）。
     target=None → 主目标 battle._hit_tgt()。
     """
-    from saintess_engine.formulas import calc_damage
+    from saintess_engine.battle.formulas import calc_damage
     pst = battle._player_stats(player)
     pd = calc_damage(int(pst.get("atk", 0) * float(atk_pct)), 0)
     if pd <= 0:
@@ -161,7 +161,7 @@ def action_counter(battle, player, logs, *, atk_pct=0.60, tag="⚔️", name="�
     tgt = _ea_tgt(battle, target)
     if not tgt.get("hp", 0) or tgt.get("hp", 0) <= 0:
         return 0
-    from saintess_engine.formulas import calc_damage
+    from saintess_engine.battle.formulas import calc_damage
     pst = battle._player_stats(player)
     est = battle._enemy_stats(tgt)
     cd = calc_damage(int(pst.get("atk", 0) * float(atk_pct)), est.get("def", 0))

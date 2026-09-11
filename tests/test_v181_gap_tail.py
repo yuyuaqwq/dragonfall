@@ -33,8 +33,8 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor, effects as EFX  # noqa: E402
-from saintess_engine.effect_triggers import fire  # noqa: E402
-from saintess_engine.support.battle_bars import bar_effect_key, bar_gain# noqa: E402
+from saintess_engine.battle.effect_triggers import fire  # noqa: E402
+from saintess_engine.gauge import bar_effect_key, bar_gain# noqa: E402
 from game.services import class_mech_proc as CMP  # noqa: E402
 from game.services.battle2_bar_procs import _ensure_tick  # noqa: E402
 
@@ -95,7 +95,7 @@ def bar_val(host, key="shaken"):
 
 def advance(b, dt):
     """真实时钟推进：schedule._advance_time（广播 time_advance，ctx dt/now）。"""
-    from saintess_engine.schedule import _advance_time
+    from saintess_engine.battle.schedule import _advance_time
     logs = []
     _advance_time(b, dt, logs)
     return logs

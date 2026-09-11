@@ -30,7 +30,7 @@
 """
 from __future__ import annotations
 
-from saintess_engine.effects import register_action
+from saintess_engine.battle.effects import register_action
 
 
 def _now_of(battle) -> float:
@@ -49,7 +49,7 @@ def _host_of(caster, target, params) -> dict | None:
 
 def _bar_keys_of(host: dict) -> list:
     """宿主身上所有条键（effects 里带前缀的条目 → 去前缀 bar key）。"""
-    from saintess_engine.support.battle_bars import _state_prefix
+    from saintess_engine.gauge import _state_prefix
     pfx = _state_prefix()
     out = []
     for k, v in (host.get("effects") or {}).items():
@@ -75,7 +75,7 @@ def _ensure_tick(host: dict) -> None:
 
 def _settle(battle, host: dict, key: str, logs: list) -> bool:
     """阈值检查 → 触发 → 落地 trigger_effect。返回是否触发。"""
-    from saintess_engine.support.battle_bars import bar_def, bar_should_trigger, bar_trigger
+    from saintess_engine.gauge import bar_def, bar_should_trigger, bar_trigger
     now = _now_of(battle)
     if not host or not key or not bar_should_trigger(host, key, now):
         return False
@@ -124,7 +124,7 @@ def bar_gain_act(battle, caster, target, params, logs):
         return
     if amount <= 0:
         return
-    from saintess_engine.support.battle_bars import bar_gain
+    from saintess_engine.gauge import bar_gain
     bar_gain(host, key, amount, logs, now=_now_of(battle))
     _ensure_tick(host)
     _settle(battle, host, key, logs)
@@ -136,7 +136,7 @@ def bar_time_settle_act(battle, caster, target, params, logs):
     host = params.get("_owner") or _host_of(caster, target, params)
     if not isinstance(host, dict):
         return
-    from saintess_engine.support.battle_bars import bar_settle
+    from saintess_engine.gauge import bar_settle
     now = _now_of(battle)
     for key in _bar_keys_of(host):
         bar_settle(host, key, now, logs)
@@ -153,7 +153,7 @@ def bar_phase_preserve_act(battle, caster, target, params, logs):
     host = params.get("_owner") or _host_of(caster, target, params)
     if not isinstance(host, dict):
         return
-    from saintess_engine.support.battle_bars import bar_def, bar_preserve, bar_state
+    from saintess_engine.gauge import bar_def, bar_preserve, bar_state
     for key in _bar_keys_of(host):
         before = float((bar_state(host, key) or {}).get("val", 0.0) or 0.0)
         if before <= 0:
@@ -176,8 +176,8 @@ def passive_reflect_bar_act(battle, caster, target, params, logs):
     - 反推条 = `params["key"]/["gain"]`（装配器按被动 `bar_field` 解析的技能字段量）
       → bar_gain + 触发检查（与命中注入同一条消费链）
     """
-    from saintess_engine.actors import actor_alive
-    from saintess_engine.support.battle_bars import bar_gain
+    from saintess_engine.battle.actors import actor_alive
+    from saintess_engine.gauge import bar_gain
     deflector = params.get("_owner") or target
     if not isinstance(deflector, dict) or not actor_alive(deflector):
         return
@@ -188,7 +188,7 @@ def passive_reflect_bar_act(battle, caster, target, params, logs):
     pct = float(params.get("reflect_pct", 0) or 0)
     if pct > 0:
         rd = max(1, int(int(ctx.get("dmg", 0) or 0) * pct))
-        from saintess_engine.landing import deal_damage
+        from saintess_engine.battle.landing import deal_damage
         deal_damage(battle, deflector, attacker, rd, logs)
         logs.append(f"🪨 反震：反弹 {rd} 点伤害！")
     key = params.get("key")

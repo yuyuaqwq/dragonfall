@@ -42,11 +42,11 @@ from saintess_engine import config as _b2c
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor
 from saintess_engine import actions as A
-from saintess_engine.actors import ActCtx
-from saintess_engine.effects import _cap_of, apply_effects
-from saintess_engine.effect_triggers import fire
-from saintess_engine.schedule import _advance_time
-from saintess_engine.state_effects import state_def
+from saintess_engine.battle.actors import ActCtx
+from saintess_engine.battle.effects import _cap_of, apply_effects
+from saintess_engine.battle.effect_triggers import fire
+from saintess_engine.battle.schedule import _advance_time
+from saintess_engine.battle.state_effects import state_def
 from game.services import battle2_equip_proc as EP
 from game.services.class_mech_proc import apply_class_mech
 

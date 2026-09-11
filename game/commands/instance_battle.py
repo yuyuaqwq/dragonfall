@@ -24,7 +24,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ..services import battle2_bridge as BR
-from saintess_engine.support.skill_kinds import K_HEAL, K_BUFF
+from saintess_engine.kinds import K_HEAL, K_BUFF
 
 # 玩家快照/玩法壳视图需要同步回的每玩家键（actor → snap 或 st per-player 键）
 # V 系列：战斗状态权威 = effects（snap 由 sync_player_from_actor 回写），
@@ -101,7 +101,7 @@ def _instance_target_picker(st: dict):
     """
     def pick(battle, actor):
         try:
-            from saintess_engine.support import formation as FM
+            from saintess_engine import formation as FM
             from .. import content as C
             alive_p = [a for a in battle.sides_of("player")
                        if int(a.get("hp", 0) or 0) > 0]
@@ -161,9 +161,9 @@ def _instance_team_event(st: dict):
             if not caster or int(caster.get("hp", 0) or 0) <= 0:
                 return
             # 治疗量 = 施法者面板公式（对齐 _do_heal/_heal_amount，独立算全队口径）
-            from saintess_engine.actions import heal_amount as _hcalc
+            from saintess_engine.battle.actions import heal_amount as _hcalc
             from saintess_engine import stats as _S
-            from saintess_engine.landing import heal_actor as _heal
+            from saintess_engine.battle.landing import heal_actor as _heal
             from ..content_rules.skills import skill_level_of
             _stp = _S.actor_stats(battle, caster)
             _lv = skill_level_of(caster, info.get("name", "")) if caster.get("class_name") else 0

@@ -44,7 +44,7 @@ def scan_one(cid: str, bname: str, bdef: dict, stage_cfg, attr_name: str,
     except Exception as ex:
         return {"error": str(ex)}
     # 承伤（同 build_vs_boss 口径：Boss 单发 ×1.35 enraged 保守）
-    from saintess_engine.formulas import calc_damage
+    from saintess_engine.battle.formulas import calc_damage
     boss_atk = float(m.get("atk", 0)) * 1.35
     boss_matk = float(m.get("matk", 0)) * 1.35
     d_phys = calc_damage(int(boss_atk), int(st.get("def", 0)), variance=0.0, dmg_type="phys")

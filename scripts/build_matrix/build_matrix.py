@@ -39,7 +39,7 @@ for _p in (_QQBOT, _PLUGIN, _TESTS, _SCRIPTS):
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(_TESTS, "test_game_data.db"))
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
-from saintess_engine.formulas import calc_damage, skill_expr_preview, skill_max_level
+from saintess_engine.battle.formulas import calc_damage, skill_expr_preview, skill_max_level
 from game.content_rules.panel import player_final_stats
 from data.plugins.dragonfall.game.data import skills as SK     # noqa: E402
 from data.plugins.dragonfall.game.data import skill_up as SU   # noqa: E402

@@ -11,22 +11,23 @@
 > `framework-engine`，本仓以 **git submodule `framework/`** 固定 commit 引用它。
 > 因此：
 > - 原 `game/battle2/` 与 `game/engine.py` **已不在本仓** —— 它们是框架内容，
->   现在住在 `framework/saintess_engine/`（引擎包名仍叫 `saintess_engine`）；本仓代码统一
+>   现在住在 `framework/saintess_engine/`（框架包名仍是 `saintess_engine`）；本仓代码统一
 >   `import saintess_engine`（裸包名）。
-> - 原 `game/core/` 里的通用件（阵型 / 表达式求值 / 技能种类 / 敌身条）已归位到
->   `framework/saintess_engine/support/`；过渡 shim 已随 S9-2 删净。
+> - **框架包内部为「多模块并列」**（2026-09-11 模块化重排）：战斗域 `battle/`；
+>   通用原语 `expr/` `gauge/` `formation/` `kinds/`；运行时 `store/` `command/`
+>   `events/` `clock/` `container/` `session/`；注入面 `config.py` —— **全部平级**。
+>   原 `game/core/` 里的通用件（阵型 / 表达式求值 / 技能种类 / 敌身条）即对应
+>   后四者的原位；过渡 shim 已随 S9-2 删净。
 > - 内容侧装配入口（旧 `load_game_defaults` 的收敛点）＝ 本仓
 >   `game/content_rules/apply.py` 的 `apply_game_content()`。
 > - **引擎文档已迁走**：`docs/engine-wiki/` → `framework/docs/engine-wiki/`
 >   （34 篇）；引擎文档工具 → `framework/tools/`。本仓 `docs/` 只留游戏侧文档。
 > - 引擎相关测试与门禁在框架仓：`framework/tests/`（纯度门禁
 >   `test_engine_purity.py` + 行号门禁 `test_wiki_refs.py`，`python tests/run_all.py`）。
-> - **通用运行时骨架已开始提炼**（2026-09-11，M1）：框架仓新增 `saintess_kit/` 包
->   （与 `saintess_engine/` 并列）。M1 = 存储骨架：`store/connection.py` 的连接 /
->   锁 / 事务 / 建表流程 / 列迁移**实现**来自 `saintess_kit.store`，本文件只剩
->   「游戏自己的内容」（库路径、表结构 SQL、要补的列清单）。
->   后续批次 M2-M5（命令框架 / 事件时钟 / 容器 / 会话适配）见
->   `framework-generalization-plan.md`。
+> - **通用运行时骨架**（原 `saintess_kit/` 包，M1-M5）已并入框架包顶层模块：
+>   `store/` `command/` `events/` `clock/` `container/` `session/`。
+>   例：`store/connection.py` 的连接 / 锁 / 事务 / 建表流程 / 列迁移**实现**来自
+>   `saintess_engine.store`，本文件只剩「游戏自己的内容」（库路径、表结构 SQL、要补的列清单）。
 > 下面的分层总览描述的是**本仓游戏侧**的分层，引擎层请以框架仓文档为准。
 
 > 目标：高内聚低耦合、可扩展、每层可独立单元测试。
@@ -102,7 +103,7 @@ dragonfall/
 | `portals.py` | portal_cost |
 | `factions.py` | faction_reputation_tier |
 | `engine.py` | ⚙️ **已分离** —— 引擎主体现在框架仓 `framework/saintess_engine/`（本仓无 `game/engine.py`；装配入口见 `game/content_rules/apply.py`） |
-| `battle.py` | ⚙️ **已分离** —— `Battle` 类现在框架仓 `framework/saintess_engine/battle.py`（本仓代码 `import saintess_engine`） |
+| `battle.py` | ⚙️ **已分离** —— `Battle` 类现在框架仓 `framework/saintess_engine/battle/battle.py`（本仓代码 `import saintess_engine`） |
 | `__init__.py` | 聚合导出 |
 
 ## 四、存储层 game/store/

@@ -37,7 +37,7 @@ def install() -> None:
     global _registered
     if _registered:
         return
-    from saintess_engine.effects import register_action
+    from saintess_engine.battle.effects import register_action
 
     def _key_list(key):
         """声明 key 归一为列表（str → [str]；None → []）。"""
@@ -74,7 +74,7 @@ def install() -> None:
         if tgt is not None:
             return tgt
         try:
-            from saintess_engine.actors import hostile_sides, actor_alive as _alive
+            from saintess_engine.battle.actors import hostile_sides, actor_alive as _alive
             for _sn in hostile_sides(battle, actor.get("side", "")):
                 for _a in (battle.sides.get(_sn) or []):
                     if _alive(_a):
@@ -192,8 +192,8 @@ def install() -> None:
         - 写后广播 threshold（v181.M-R2e B2：渠道攒到满 cap 的当次触发——过载钩子
           依赖；对齐 effects.apply op=add 的 threshold 广播口径）
         """
-        from saintess_engine.actors import actor_alive
-        from saintess_engine.effects import cap_of as _cap_fn, norm_stack as _ns
+        from saintess_engine.battle.actors import actor_alive
+        from saintess_engine.battle.effects import cap_of as _cap_fn, norm_stack as _ns
         owner = params.get("_owner") or caster
         if owner is None or not actor_alive(owner):
             return
@@ -236,7 +236,7 @@ def install() -> None:
         # 否则同一事件批次里**排在渠道后的动作**（如 guard_core_burst 的 skill_hit
         # 清层 mech_cash_clear 读 info.mech）会读到 threshold ctx 而静默失效。
         try:
-            from saintess_engine.effect_triggers import fire as _fire
+            from saintess_engine.battle.effect_triggers import fire as _fire
             _prev_ctx = getattr(battle, "_fire_ctx", None)
             _fire(battle, "threshold", {"actor": owner, "key": res, "value": n}, logs)
             battle._fire_ctx = _prev_ctx
@@ -250,7 +250,7 @@ def install() -> None:
     def _faith_tiers() -> list:
         """EFFECT_RULES faith 条目 load_tiers 档位表（缺省 []——零默认值铁律）。"""
         try:
-            from saintess_engine.state_effects import state_def
+            from saintess_engine.battle.state_effects import state_def
             _t = (state_def("faith") or {}).get("load_tiers")
             return _t if isinstance(_t, list) else []
         except Exception:
@@ -318,7 +318,7 @@ def install() -> None:
         if owner is None:
             return
         try:
-            from saintess_engine.effects import cap_of as _cap_fn
+            from saintess_engine.battle.effects import cap_of as _cap_fn
             cap = _cap_fn(owner, "faith")
         except Exception:
             return
@@ -337,7 +337,7 @@ def install() -> None:
             fentry["stacks"] = 0
         pct = 0.015
         try:
-            from saintess_engine.state_effects import state_def
+            from saintess_engine.battle.state_effects import state_def
             pct = float((state_def("faith") or {}).get("overload_heal_pct", 0.015) or 0.015)
         except Exception:
             pct = 0.015
@@ -357,8 +357,8 @@ def install() -> None:
                         break
             except Exception:
                 pass  # 圣化增强异常不阻断过载（容错铁律）
-        from saintess_engine.actors import actor_alive
-        from saintess_engine.landing import heal_actor
+        from saintess_engine.battle.actors import actor_alive
+        from saintess_engine.battle.landing import heal_actor
         healed = 0
         side = owner.get("side") or "player"
         for _a in (getattr(battle, "sides", None) or {}).get(side, []) or []:
@@ -471,7 +471,7 @@ def install() -> None:
         """对敌施加控制：走引擎 apply 动词（EFFECT_RULES[key].consume.mode 语义 +
         Boss 控制减半天然生效，不自造控制通道）。turns 由引擎 int 化（半刻不支持）。"""
         _t = max(1, int(turns or 0))
-        from saintess_engine.effects import act_apply
+        from saintess_engine.battle.effects import act_apply
         act_apply(battle, actor, foe, {"key": ckey, "on": "target", "turns": _t}, logs)
 
     def _melody_finale(battle, actor, state, logs):
@@ -758,7 +758,7 @@ def install() -> None:
             _per = float(params.get("per_debuff") or 0)
             _cap = float(params.get("cap") or 0)
             if tg is not None and _per > 0 and _cap > 0:
-                from saintess_engine.state_effects import state_def as _sd
+                from saintess_engine.battle.state_effects import state_def as _sd
                 _kinds = 0
                 for _k, _v in (tg.get("effects") or {}).items():
                     if not isinstance(_v, dict):
@@ -774,7 +774,7 @@ def install() -> None:
             # 速度比 ≥ ratio_field → ×(1+dmg_add)（疾风·极；旧挂点4 语义：
             # 敌方无速度按 0 防御性跳过——速度比恒 ≥2 不触发）
             try:
-                from saintess_engine.stats import actor_stats as _as
+                from saintess_engine.battle.stats import actor_stats as _as
                 _spd_a = float((_as(battle, actor) or {}).get("spd", 0) or 0)
                 _spd_t = float((_as(battle, tg) or {}).get("spd", 0) or 0) if tg is not None else 0.0
             except Exception:
@@ -795,7 +795,7 @@ def install() -> None:
             _bar = judge.get("bar") or params.get("bar") or ""
             _bs_j = None
             if tg is not None and _bar:
-                from saintess_engine.support.battle_bars import bar_settle, bar_effect_key
+                from saintess_engine.gauge import bar_settle, bar_effect_key
                 _now_j = float(getattr(battle, "_now", 0.0) or 0.0)
                 bar_settle(tg, _bar, _now_j)
                 _bs_j = (tg.get("effects") or {}).get(bar_effect_key(_bar))
@@ -840,7 +840,7 @@ def install() -> None:
             ext = 0.0
         if not bar or ext <= 0 or not isinstance(host, dict):
             return
-        from saintess_engine.support.battle_bars import bar_effect_key
+        from saintess_engine.gauge import bar_effect_key
         bs = (host.get("effects") or {}).get(bar_effect_key(bar))
         if not isinstance(bs, dict):
             return
@@ -860,7 +860,7 @@ def install() -> None:
         if actor is None:
             return
         key = params.get("key") or "energy"
-        from saintess_engine.effects import cap_of as _cap_fn
+        from saintess_engine.battle.effects import cap_of as _cap_fn
         cap = _cap_fn(actor, key)
         if cap <= 0:
             return
@@ -883,7 +883,7 @@ def install() -> None:
             return
         ctx = getattr(battle, "_fire_ctx", None) or {}
         attacker = ctx.get("source")  # on_taken 攻击方
-        from saintess_engine.actors import actor_alive
+        from saintess_engine.battle.actors import actor_alive
         if attacker is None or not actor_alive(attacker):
             return
         import random as _r
@@ -891,8 +891,8 @@ def install() -> None:
         if chance <= 0 or _r.random() >= chance:
             return
         try:
-            from saintess_engine.landing import deal_damage
-            from saintess_engine.stats import actor_stats as _as
+            from saintess_engine.battle.landing import deal_damage
+            from saintess_engine.battle.stats import actor_stats as _as
             st = _as(battle, owner) or {}
             dmg = max(1, int(float(st.get("atk", 0) or 0)
                                * float(params.get("atk_pct") or 0.80)))
@@ -1300,7 +1300,7 @@ def install() -> None:
         if not isinstance((owner.get("effects") or {}).get("stance_guard"), dict):
             return  # 姿态已过期 → 不反击
         attacker = ctx.get("source")
-        from saintess_engine.actors import actor_alive
+        from saintess_engine.battle.actors import actor_alive
         if attacker is None or not actor_alive(attacker):
             return
         import random as _r
@@ -1308,8 +1308,8 @@ def install() -> None:
         if chance <= 0 or _r.random() >= chance:
             return
         try:
-            from saintess_engine.landing import deal_damage
-            from saintess_engine.stats import actor_stats as _as
+            from saintess_engine.battle.landing import deal_damage
+            from saintess_engine.battle.stats import actor_stats as _as
             st = _as(battle, owner) or {}
             dmg = max(1, int(float(st.get("atk", 0) or 0)
                                * float(params.get("atk_pct") or 1.0)))
@@ -1345,7 +1345,7 @@ def install() -> None:
             turns = 0
         if turns <= 0:
             return  # 缺字段 = 无此行为（零默认值铁律）
-        from saintess_engine.state_effects import state_def
+        from saintess_engine.battle.state_effects import state_def
         cfg = state_def(key) or {}
         reduce_v = float((cfg.get("stat_scale") or {}).get("reduce") or 0)
         try:
@@ -1375,7 +1375,7 @@ def install() -> None:
         """
         ctx = getattr(battle, "_fire_ctx", None) or {}
         owner = params.get("_owner") or ctx.get("actor") or caster
-        from saintess_engine.actors import actor_alive
+        from saintess_engine.battle.actors import actor_alive
         if owner is None or not actor_alive(owner):
             return
         res = params.get("res") or ""
@@ -1390,7 +1390,7 @@ def install() -> None:
         mhp = int(owner.get("max_hp", 1) or 1)
         if int(owner.get("hp", 0) or 0) >= int(mhp * hp_lt):
             return  # 未跌破阈值
-        from saintess_engine.effects import cap_of as _cap_fn, norm_stack as _ns
+        from saintess_engine.battle.effects import cap_of as _cap_fn, norm_stack as _ns
         cap = _cap_fn(owner, res)
         entry = ef.get(res)
         cur = float(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0.0
@@ -1495,7 +1495,7 @@ def install() -> None:
         entry = ef.get(res)
         if not isinstance(entry, dict):
             entry = ef[res] = {}
-        from saintess_engine.effects import cap_of as _cap_fn
+        from saintess_engine.battle.effects import cap_of as _cap_fn
         cap = _cap_fn(actor, res)
         if cap <= 0:
             return
@@ -1689,8 +1689,8 @@ def install() -> None:
         if not isinstance(owner, dict) or not bar:
             return
         try:
-            from saintess_engine.actors import hostile_sides
-            from saintess_engine.support.battle_bars import bar_def, bar_effect_key, bar_settle
+            from saintess_engine.battle.actors import hostile_sides
+            from saintess_engine.gauge import bar_def, bar_effect_key, bar_settle
         except Exception:
             return
         bd = bar_def(bar) or {}
@@ -1763,7 +1763,7 @@ def install() -> None:
         cur = float(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0.0
         if cur <= 0:
             return
-        from saintess_engine.effects import norm_stack
+        from saintess_engine.battle.effects import norm_stack
         nv = norm_stack(max(0.0, cur - lose))
         entry["stacks"] = nv
         ef[rec_key] = {"t": now}   # 断连已结算 → 重开窗（防每刻连续掉段）
@@ -1812,12 +1812,12 @@ def install() -> None:
         n = int(((dead.get("effects") or {}).get(key) or {}).get("stacks", 0) or 0)
         if n <= 0:
             return  # 死者无毒层 = 无此行为
-        from saintess_engine.actors import actor_alive
+        from saintess_engine.battle.actors import actor_alive
         lst = battle.sides_of(dead.get("side") or "")
         idx = next((i for i, a in enumerate(lst) if a is dead), None)
         if idx is None:
             return
-        from saintess_engine.effects import act_apply
+        from saintess_engine.battle.effects import act_apply
         spread = 0
         for i in (idx - 1, idx + 1):
             if not 0 <= i < len(lst) or not actor_alive(lst[i]):

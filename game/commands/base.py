@@ -5,7 +5,7 @@
 
 【骨架归属（2026-09-11，M2）】命令层的**通用那一半**（分页 / 页码解析 /
 文本剥离 / 提示抽取 / handler 查找与转发 / 守卫装饰器 / 指令正则集合）
-来自框架 `saintess_kit.command`；本文件只留**本游戏的内容与宿主适配**：
+来自框架 `saintess_engine.command`；本文件只留**本游戏的内容与宿主适配**：
 提示文案库、指令别名、事件集、GM/停服、设施判定、体力、规则触发等。
 
 对外名字**零变化**（`CommandBase` / `require_player` / `no_prof_waiting` /
@@ -18,11 +18,11 @@ import os
 import re
 import time
 
-from saintess_kit.command import CommandBase as _KitCommandBase
-from saintess_kit.command import HandlerHit, PatternSet
+from saintess_engine.command import CommandBase as _KitCommandBase
+from saintess_engine.command import HandlerHit, PatternSet
 # 守卫装饰器由框架提供，这里**原样再导出**（既有 import 点不变）
-from saintess_kit.command import require_battle, require_player  # noqa: F401
-from saintess_kit.session import SessionAdapter
+from saintess_engine.command import require_battle, require_player  # noqa: F401
+from saintess_engine.session import SessionAdapter
 
 from ._platform import AstrMessageEvent, filter  # noqa: F401（filter 供 @filter.regex 装饰器）
 from ._platform import MessageChain
@@ -40,7 +40,7 @@ from ..content_rules.panel import STAT_NAMES
 class _GameCmdFilter(CustomFilter):
     """只命中「游戏指令」（_registry.COMMAND_REGEX 任一正则），避免误拦群聊日常。
 
-    匹配机制（懒编译 + 缓存 + 零宽跳过）在框架 `saintess_kit.command.PatternSet`。
+    匹配机制（懒编译 + 缓存 + 零宽跳过）在框架 `saintess_engine.command.PatternSet`。
     """
 
     _PATTERNS = None
@@ -103,7 +103,7 @@ def _resolve_uid(raw: str) -> str:
     return _identity.resolve_uid(raw)
 
 
-# 会话适配点（框架 `saintess_kit.session.SessionAdapter`）：
+# 会话适配点（框架 `saintess_engine.session.SessionAdapter`）：
 # 「群号怎么来 + 发送者标识怎么翻译」收在这一个对象里 —— 换宿主只动这一处。
 _session = SessionAdapter(private_fallback="private", unknown_fallback="unknown",
                           resolve_uid=_resolve_uid)

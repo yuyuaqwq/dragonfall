@@ -240,7 +240,7 @@ def test_7_summon_front_row():
     check("存活序列第一名 = 召唤物（a1 挡刀）", alive and alive[0] is es[0],
           f"alive 顺序={[u.get('name') for u in alive]}")
     # 玩家无指定目标的普攻先打召唤物（默认目标 = 敌对存活第一人 = 队首）
-    from saintess_engine.actors import ActCtx as _B2Ctx
+    from saintess_engine.battle.actors import ActCtx as _B2Ctx
     pa = b.sides["player"][0]
     pa["side"] = "player"  # mk_env 快照 actor 无 side——补阵营才能正确解析敌对目标
     pa["atk"] = 150  # 快照无 atk——补面板让普攻能造成伤害

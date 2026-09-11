@@ -39,7 +39,7 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from saintess_engine.formulas import calc_damage, skill_expr_preview, skill_max_level
+from saintess_engine.battle.formulas import calc_damage, skill_expr_preview, skill_max_level
 from game.content_rules.panel import player_final_stats
 from data.plugins.dragonfall.game.data import skills as SK     # noqa: E402
 from data.plugins.dragonfall.game.data import skill_up as SU   # noqa: E402

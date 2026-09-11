@@ -33,7 +33,7 @@ from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine import actions as A  # noqa: E402
 from saintess_engine import landing as L  # noqa: E402
-from saintess_engine.actors import ActCtx  # noqa: E402
+from saintess_engine.battle.actors import ActCtx  # noqa: E402
 
 PASS = 0
 FAIL = 0

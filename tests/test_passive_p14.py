@@ -60,7 +60,7 @@ def arc_of(a):
 
 def test_1_cap():
     print("【1. arcane cap 收敛 5】")
-    from saintess_engine.effects import _cap_of
+    from saintess_engine.battle.effects import _cap_of
     m = mk_mage(["奥术弹幕"])
     apply_class_mech(m)
     check("arcane cap = 5（v153 满层）", _cap_of(m, "arcane") == 5,

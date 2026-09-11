@@ -183,7 +183,7 @@ def test_real_data_spd0_player():
 def test_time_effects_n72():
     """N7.2 时效收口：控制 skip/no_skill 消费 + buff/shield 到期删。"""
     print("【N4.8 N7.2 时效：控制消费 + buffs/shields 到期】")
-    from saintess_engine.schedule import _settle_time_effects
+    from saintess_engine.battle.schedule import _settle_time_effects
     p = make_actor(uid="p_p1", name="玩家", side="player", kind="player",
                    human_controlled=True, class_name="战士", level=10,
                    hp=1000, max_hp=1000, atk=50, mp=100, max_mp=100, spd=50,
@@ -241,7 +241,7 @@ def test_time_effects_n72():
 def test_dot_interval_n74():
     """N7.4 DOT interval：绝对时刻跳、跨多刻补跳、同刻不重复。"""
     print("【N4.9 N7.4 DOT interval：按 interval 绝对时刻跳】")
-    from saintess_engine.schedule import _settle_time_effects as _ste
+    from saintess_engine.battle.schedule import _settle_time_effects as _ste
     e = make_actor(uid="e_dot", name="靶", side="enemy", kind="monster", hp=1000,
                    max_hp=1000, atk=1, spd=10, level=1)
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": [e]})

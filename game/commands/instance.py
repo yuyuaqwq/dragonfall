@@ -193,7 +193,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             cands = [c for c in (ec + pc) if c is not None]
             if cands:
                 ref = min(cands)
-            from saintess_engine.schedule import action_time as _b2_at
+            from saintess_engine.battle.schedule import action_time as _b2_at
             cost = _b2_at(int(_spd))
             snap["ct"] = (ref if ref is not None else 0.0) + cost
         except Exception:
@@ -1073,7 +1073,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         for key, snap in (st.get("players") or {}).items():
             if st.get("alive", {}).get(str(key), True):
                 _spd = int(snap.get("spd", 0) or 0)
-                from saintess_engine.schedule import action_time as _b2_at
+                from saintess_engine.battle.schedule import action_time as _b2_at
                 _cost = _b2_at(_spd)
                 ref = min(refs) if refs else 0.0
                 snap["ct"] = ref + _cost
@@ -1126,7 +1126,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         精英/普通怪 → 单怪阵列 [boss]。缺省无 minions → 仅 Boss。
         v121 CTB：每个敌方单位补 ct = -spd（越小越先行动）。
         v152 绝对时刻：ct = 初始等待（BASE_DELAY/spd，即 cost，正数越大越晚行动）。"""
-        from saintess_engine.schedule import initial_ct as _ict
+        from saintess_engine.battle.schedule import initial_ct as _ict
         boss = boss or {}
         if not boss:
             return []
@@ -1178,7 +1178,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         st["boss"]/st["enemy"] 兼容键 → 存活首单位；若原 Boss 已死被移除则保留原 dict 引用
         （供胜利显示/多动按 is_boss 或 uid 判断——_instance_boss_turn 多动按 uid 在存活阵列
         中定位主 Boss，不依赖 st["boss"] 对象同一性）。"""
-        from saintess_engine.support import formation as FM
+        from saintess_engine import formation as FM
         enemies = st.setdefault("enemies", [])
         removed = FM.compact(enemies)
         # v110 P0（#110 海盗王任务卡死）：击杀账合并——battle._remove_unit 提前移出阵列的
@@ -1455,8 +1455,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
 
         单人副本也走同一面板（我方一行 = 自己），保证观感与野外一致。
         """
-        from saintess_engine.support import formation as FM
-        from saintess_engine.support.formation import alive_units
+        from saintess_engine import formation as FM
+        from saintess_engine.formation import alive_units
         # 显示名表（CombatCmds mixin 提供；独立测试 InstanceCmds 时兜底空表）
         pbuf_names = getattr(self, "_P_BUFF_NAMES", {}) or {}
         ebuf_names = getattr(self, "_E_BUFF_NAMES", {}) or {}
@@ -2086,7 +2086,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         return reward
 
     async def _instance_start(self, event, group_id, qq_id, player, arg):
-        from saintess_engine.schedule import initial_ct as _ict
+        from saintess_engine.battle.schedule import initial_ct as _ict
         kid = None
         for k, inst in C.INSTANCES.items():
             if inst["name"] == arg or k == arg:

@@ -38,7 +38,7 @@ from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine import effects as EFX  # noqa: E402
-from saintess_engine.effect_triggers import fire  # noqa: E402
+from saintess_engine.battle.effect_triggers import fire  # noqa: E402
 from game.services import class_mech_proc as CM  # noqa: E402
 from game.data.battle2_rules import (EFFECT_RULES, EFFECT_ACTIONS,  # noqa: E402
                                     MECH_CASH, PASSIVE_PROC)

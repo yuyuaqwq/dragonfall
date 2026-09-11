@@ -33,8 +33,8 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor, ActCtx  # noqa: E402
-from saintess_engine.actions import _cd_left_of, _skill_usable  # noqa: E402
-from saintess_engine.ai import resolve_ai_move, _skill_castable, _move_castable  # noqa: E402
+from saintess_engine.battle.actions import _cd_left_of, _skill_usable  # noqa: E402
+from saintess_engine.battle.ai import resolve_ai_move, _skill_castable, _move_castable  # noqa: E402
 
 PASS = 0
 FAIL = 0

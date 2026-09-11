@@ -15,14 +15,14 @@ from ._platform import MessageChain
 
 from .. import content as C
 from .. import db
-from saintess_engine.formulas import skill_buff_turns, skill_cond_mult, skill_lifesteal_pct, skill_max_level, skill_mech_val, skill_mp_pay_of, skill_power_mult
+from saintess_engine.battle.formulas import skill_buff_turns, skill_cond_mult, skill_lifesteal_pct, skill_max_level, skill_mech_val, skill_mp_pay_of, skill_power_mult
 from ..content_rules.gameplay import check_player_level_up
 from ..content_rules.panel import passive_skills_learned, player_final_stats, skill_learn_cost_for
 from ..content_rules.skills import _sk_table, branch_skill_owner, is_skill_learned, skill_info, skill_level_of
 from ..core.constants import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）——N10 前由 battle re-export 改为 core 权威单源
-from saintess_engine.support.skill_kinds import K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_PASSIVE, K_TAUNT# v176 去魔法字符串
+from saintess_engine.kinds import K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_PASSIVE, K_TAUNT# v176 去魔法字符串
 
-from saintess_engine.support.formation import formation_view# v2 多对多站位图文案行
+from saintess_engine.formation import formation_view# v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle
 # v181 P4-1 试点：每日元数据键 + 达标结算单点已收敛至 services.quests——
 # combat 与 world 共同 import services（不再 from .world 引命令层私有函数）
@@ -1960,7 +1960,7 @@ class CombatCmds(CommandBase):
         # O96：burn/poison/mark 是敌方减益叠层，不在玩家栏显示）
         stacks = {}
         if isinstance(player.get("effects"), dict):
-            from saintess_engine.state_effects import all_state_effects as _ase
+            from saintess_engine.battle.state_effects import all_state_effects as _ase
             _stk_table = _ase()
             for _k, _ent in (player.get("effects") or {}).items():
                 if isinstance(_ent, dict) and (_k in _stk_table or _k in self._STACK_NAMES):
@@ -2023,7 +2023,7 @@ class CombatCmds(CommandBase):
         # 挂敌身条（破绽/诅咒等）：effects[BAR_STATE_PREFIX+key] → 显示当刻积蓄/阈值
         # （结算到当前刻再读；阈值随触发递增，玩家据此决策「继续推还是换目标」）
         try:
-            from saintess_engine.support.battle_bars import bar_settle, bar_def, _state_prefix
+            from saintess_engine.gauge import bar_settle, bar_def, _state_prefix
             _pfx = _state_prefix()
             _now_b = float(getattr(b, "_now", 0.0) or 0.0)
             for _k, _v in list(_eb_disp.items()):
@@ -2134,7 +2134,7 @@ class CombatCmds(CommandBase):
 
         v127.3 目标编号：敌方 a1/a2…（A{n}层），我方 b1（B{n}层）——『技能1 a2』指定目标。
         """
-        from saintess_engine.support.formation import alive_units
+        from saintess_engine.formation import alive_units
         allies = [self._player_unit_for_formation(player)]
         ally_rows = formation_view(alive_units(allies), side="ally")
         _enemies = (getattr(b, "sides", None) or {}).get("enemy") or []

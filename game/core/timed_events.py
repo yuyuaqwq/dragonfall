@@ -38,12 +38,12 @@ refresh_timed(group_id, qq_id)
 
 【骨架归属（2026-09-11，M3）】引擎的**机制**（类型注册表 / 惰性过期 /
 「get / list / refresh 三条路径都触发 on_expire」）来自框架
-`saintess_kit.clock.LazyTimers`；本文件只留**本游戏的存储适配与对外 API**：
+`saintess_engine.clock.LazyTimers`；本文件只留**本游戏的存储适配与对外 API**：
 存储 key 格式、event_state 三件套、group_id 兼容签名。
 """
 import json
 
-from saintess_kit.clock import LazyTimers
+from saintess_engine.clock import LazyTimers
 
 # 玩家事件存储 key 模板（按玩家全局，跨群共享——倒计时只属于玩家本人）
 _PLAYER_KEY = "timed_events_{qq_id}"

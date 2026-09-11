@@ -2,7 +2,7 @@
 import json
 import time
 
-from saintess_kit.container import Slots
+from saintess_engine.container import Slots
 
 from .connection import _connect, _lock, atomic
 from .inventory import _slim, _trim_individuals, FISH_TAGS_MAX, _snapshot_one
@@ -419,7 +419,7 @@ def home_storage_deposit_atomic(group_id, qq_id, storage_key, item_key, item_dat
     返回 (ok, storage_len)。超容量返回 (False, -1)。
 
     容器形状（有序格子 + 容量 + 容错载入 + JSON 往返）在框架
-    `saintess_kit.container.Slots`；事务边界与「扣背包」仍是本游戏的事。
+    `saintess_engine.container.Slots`；事务边界与「扣背包」仍是本游戏的事。
     """
     with atomic() as conn:
         raw = conn.execute("SELECT value FROM event_state WHERE key=?", (storage_key,)).fetchone()

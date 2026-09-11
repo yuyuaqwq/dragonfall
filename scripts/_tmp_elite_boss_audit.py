@@ -24,7 +24,7 @@ for _p in (_QQBOT_DIR, _PLUGIN_DIR):
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(_PLUGIN_DIR, "tests", "test_game_data.db"))
 
 from data.plugins.dragonfall.game import content as C  # noqa: E402
-from saintess_engine.formulas import calc_damage
+from saintess_engine.battle.formulas import calc_damage
 from game.content_rules.panel import player_final_stats
 from data.plugins.dragonfall.game import battle as BT  # noqa: E402
 from data.plugins.dragonfall.game.data import SUBAREAS, MAPS, HIDDEN_MONSTERS  # noqa: E402

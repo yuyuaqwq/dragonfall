@@ -128,7 +128,7 @@ def test_3_focus_surplus():
 
 def test_4_panel_apply():
     print("【4. 面板折算：crit buff → actor_stats crit 面板加算】")
-    from saintess_engine.stats import actor_stats as _as
+    from saintess_engine.battle.stats import actor_stats as _as
     w = mk(["狂热", "怒斩"], cls="cls_zhan_shi")
     apply_class_mech(w)
     base = float((_as(None, w) or {}).get("crit", 0) or 0)

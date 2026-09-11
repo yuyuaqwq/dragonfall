@@ -23,11 +23,11 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
-from saintess_engine.effect_triggers import fire  # noqa: E402
+from saintess_engine.battle.effect_triggers import fire  # noqa: E402
 from game.services.class_mech_proc import apply_class_mech  # noqa: E402
 from game.services import battle2_cond_procs as CP  # noqa: E402
 from game.data import skills as _SK  # noqa: E402
-from saintess_engine.support.battle_bars import bar_effect_key# noqa: E402
+from saintess_engine.gauge import bar_effect_key# noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -69,7 +69,7 @@ def _has_trigger(actor, ev):
 
 def _fire_dmg(b, p, e, info, logs=None):
     """触发 dmg_calc 并返回乘区（模拟引擎插桩点）。"""
-    from saintess_engine.effect_triggers import fire as _fire
+    from saintess_engine.battle.effect_triggers import fire as _fire
     _fire(b, "dmg_calc", {"actor": p, "target": e, "dmg": 100,
                           "is_crit": False, "info": info, "mult": 1.0}, logs or [])
     return float((getattr(b, "_fire_ctx", {}) or {}).get("mult", 1.0) or 1.0)
@@ -192,7 +192,7 @@ def test_unknown_type_and_heal():
     check("未注册 type → 静默 1.0（不崩）", _fire_dmg(b, p, e, info) == 1.0)
     check("未注册 type 已注册表中不存在", "not_registered_yet" not in CP.COND_PREDICATES)
     # heal_calc：治疗旋使用同一动作
-    from saintess_engine.effect_triggers import fire as _fire
+    from saintess_engine.battle.effect_triggers import fire as _fire
     e.setdefault("effects", {})[bar_effect_key("shaken")] = {
         "trigger_count": 1, "immune_until": 2.0, "_at": 0.0}
     hinfo = {"name": "治疗试技", "kind": "治疗", "cond": {"type": "enemy_broken", "mult": 1.3}}
