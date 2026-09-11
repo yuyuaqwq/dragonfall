@@ -3172,6 +3172,38 @@ class CombatCmds(CommandBase):
         lines.append("战斗中达到对应条件即触发终结技（与四档 DSL 一致）。")
         yield event.plain_result("\n".join(lines))
 
+    # 奥术力场两档（奥术力场 desc「选择护盾或利刃」——2026-09-11 交互落地）
+    _ARCANE_FIELD_OPTIONS = ("盾", "刃")
+
+    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?战前力场(?:[ 　]*(.+))?$")
+    @require_player()
+    async def battle_prefs_arcane_field(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        text = (event.get_message_str() or "").strip()
+        arg = text.split("战前力场", 1)[1].strip() if "战前力场" in text else ""
+        lines = []
+        if C.resolve("classes", player.get("class_name", "")) != "cls_fa_shi":
+            lines.append("🔮 奥术力场是法师专属战前设置。")
+            yield event.plain_result("\n".join(lines))
+            return
+        if not arg:
+            cur = (player.get("battle_prefs") or {}).get("arcane_field", "盾")
+            lines.append(f"🔮 奥术力场：{'【' + cur + '】'}")
+            lines.append("档位：盾（护盾，消耗 2 充能 × 8% 魔攻） / 刃（下次奥术技伤害 ×1.3）")
+            yield event.plain_result("\n".join(lines))
+            return
+        if arg not in self._ARCANE_FIELD_OPTIONS:
+            lines.append(f"⚠️ 未知档位『{arg}』！可用：{'/'.join(self._ARCANE_FIELD_OPTIONS)}")
+            yield event.plain_result("\n".join(lines))
+            return
+        prefs = dict(player.get("battle_prefs") or {})
+        prefs["arcane_field"] = arg
+        db.update_player(group_id, qq_id, battle_prefs=prefs)
+        lines.append(f"🔮 奥术力场：{arg} ✅")
+        lines.append("施放『奥术力场』时按此档落地。")
+        yield event.plain_result("\n".join(lines))
+
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?战前指令(?:\s*|$)")
     @require_player()
     async def battle_prefs_view(self, event: AstrMessageEvent):

@@ -1307,9 +1307,12 @@ BRANCH_SKILLS = {
             'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.7,
                         'cd': 24,
-                        'reduce_all': 0.30,   # v169.7: desc 全队减伤30%；战意≥8 时 50% 为条件档引擎无法表达（按基础 30% + 注释）
+                        'reduce_all': 0.30,   # desc 全队减伤30%
                         'effect': 'reduce_all',
                         'reduce': 0.30,
+                        # 2026-09-11：条件升档落地（原注释称"引擎无法表达"）——
+                        # team_taken_reduce 支持 reduce_alt 档（资源 ≥ 阈值时取较高档）
+                        'reduce_alt': 0.50, 'reduce_alt_res': 'zhan_yi', 'reduce_alt_ge': 8,
                         'name': '不破壁垒',
                         'desc': '钢铁壁垒拔地而起，万军难破——全队减伤 30% 持续 12 刻，战意 ≥8 时提升至 50%（不消耗）'
                     },
@@ -1663,7 +1666,7 @@ BRANCH_SKILLS = {
                         'cd': 16,
                         'effect': 'arcane_field',
                         'name': '奥术力场',
-                        'desc': '以奥能塑形力场，随心化盾成刃——消耗 2 点充能，选择护盾或利刃（下次奥术技伤害 ×1.3）'
+                        'desc': '以奥能塑形力场，随心化盾成刃——消耗 2 点充能，按『战前力场 盾/刃』设定落地：护盾，或利刃（下次奥术技伤害 ×1.3）'
                     },
                 },
             },

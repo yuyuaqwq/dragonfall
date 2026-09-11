@@ -101,6 +101,7 @@ def ensure_engine_configured() -> None:
     """
     from .. import bootstrap  # 惰性：装配期避免循环 import（见 game/bootstrap.py docstring）
     from ..services import battle_team_procs as _team_procs  # noqa: F401  (import 即注册)
+    from ..services import battle_element_procs as _elem_procs  # noqa: F401  (import 即注册)
     bootstrap.load_engine_config()
 
 
@@ -152,6 +153,10 @@ def apply_game_content(actor: dict, ctx: dict | None = None) -> dict:
     # ⑤ 技能条件乘区（幂等同上）
     from ..services.battle_cond_procs import apply_cond_procs as _cond_apply
     _step("cond", _cond_apply, actor)
+
+    # ⑤b 元素机制（两轴反应/克制 + 元素流转挂印转换；学了带 element 的技能才挂）
+    from ..services.battle_element_procs import apply_element_procs as _elem_apply
+    _step("element", _elem_apply, actor)
 
     # ⑥ 食物效果（可选：仅吃料理时装配）
     aids = (ctx or {}).get("aids")

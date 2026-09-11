@@ -35,6 +35,12 @@ from saintess_engine.battle.landing import deal_damage  # noqa: E402
 from saintess_engine.battle.effects import apply_effects  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured  # noqa: E402
 
+# 测试稳定性：屏蔽承伤侧的**闪避随机**（角色面板自带 ~3% dodge；本文件断言的是
+# 减伤/护盾乘区数值，闪避未命中会让断言偶发失败）。格挡同理（block=0 时本就不 roll）。
+import saintess_engine.battle.landing as _LD  # noqa: E402
+_LD._roll_dodge = lambda *a, **k: False  # noqa: E731
+
+
 ensure_engine_configured()
 from game.services import battle_team_procs as TP  # noqa: E402,F401  (import 即注册)
 
@@ -369,12 +375,16 @@ def test_element_and_field():
     b2, p2, allies2, _ = team_battle(2)
     p2["effects"]["arcane"] = {"stacks": 5}
     from saintess_engine import stats as _S
-    _matk = float((_S.actor_stats(b2, p2) or {}).get("matk", 0) or 0)
     cast(b2, p2, "arcane_field",
          {"name": "奥术力场", "shield_per_stack": 0.08, "shield_res_key": "arcane",
           "shield_base_stat": "matk"}, turns=10)
-    check(f"奥术力场 → 护盾档（{_matk:.0f} × 40% = {int(_matk * 0.4)}）",
-          shield_sum(p2) == int(_matk * 0.4), f"got={shield_sum(p2)}")
+    # 2026-09-11 行为变更：奥术力场现在**消耗 2 点充能**（desc「消耗 2 点充能」），
+    #   盾值按消耗后剩余层数 × 8% × 当前面板魔攻（消耗会实时改面板，故现算）
+    _left = float((p2["effects"].get("arcane") or {}).get("stacks", 0) or 0)
+    _matk = float((_S.actor_stats(b2, p2) or {}).get("matk", 0) or 0)
+    _expect = int(_matk * (_left * 0.08))
+    check(f"奥术力场 → 护盾档（{_matk:.0f} × {_left:g}层×8% = {_expect}）",
+          shield_sum(p2) == _expect, f"got={shield_sum(p2)} expect={_expect}")
 
 
 if __name__ == "__main__":

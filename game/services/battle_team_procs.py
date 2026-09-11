@@ -299,6 +299,23 @@ def self_shield(battle, caster, target, params, logs):
 # 3. 全队减伤（乘算叠加；写态 + taken_calc 触发器）
 # ============================================================
 
+def _alt_reduce(src, params) -> float:
+    """条件升档减伤（可选）：`reduce_alt` + `reduce_alt_res` + `reduce_alt_ge`。
+
+    语义 =「资源 ≥ 阈值时，减伤由基础档升到 alt 档」（如不破壁垒：战意 ≥8 → 30%→50%）。
+    资源层数读施法者 `effects[res].stacks`；缺任一字段 = 无升档（零默认值铁律）。
+    """
+    info = _info(params)
+    alt = _num(params, "reduce_alt") or _num(info, "reduce_alt")
+    if alt <= 0:
+        return 0.0
+    res = params.get("reduce_alt_res") or info.get("reduce_alt_res") or ""
+    thr = _num(params, "reduce_alt_ge") or _num(info, "reduce_alt_ge")
+    if not res or thr <= 0:
+        return 0.0
+    return _norm_pct(alt) if _res_stacks(src, res) >= thr else 0.0
+
+
 def _reduce_of(params) -> float:
     """减伤比例：params/info 的 reduce|reduce_pct|value，或 mech_val 折算，或声明表。"""
     info = _info(params)
@@ -332,6 +349,10 @@ def team_taken_reduce(battle, caster, target, params, logs):
     r = _reduce_of(params)
     if r <= 0:
         return  # 缺字段 = 无此行为
+    # 条件升档（不破壁垒「战意 ≥8 → 30%→50%」：两档取较高者）
+    _alt = _alt_reduce(src, params)
+    if _alt > r:
+        r = _alt
     # 标签取**技能标识**（技能名优先）——不同技能的减伤各自一条态 → 乘算叠加；
     #   同一技能重复施放 = 同标签 = 刷新刻数（不重复叠乘）。用 effect 名词做标签会让
     #   两门都叫 reduce_all 的技能互相覆盖（叠加口径失效），故必须带技能名。
@@ -703,35 +724,7 @@ def block_reflect_hit(battle, caster, target, params, logs):
     logs.append(f"⚔️ 格挡反伤：{rd} 点！")
 
 
-# ============================================================
-# 9. 元素主系切换（element_switch：元素流转）
-# ============================================================
-
-@register_action("class_element_switch")
-def class_element_switch(battle, caster, target, params, logs):
-    """元素流转：切换当前主系（fire → ice → thunder 轮转）。
-
-    ⚠️ 现状说明（2026-09-11 取证）：`cur_element` 的**消费点尚不存在**——
-    技能数据的挂印类型是写死的（`mech=fire_mark` 等），挂印时不会读主系。
-    本动作先把「主系」落到 actor 字段（可被展示/存档），
-    **「挂印读主系」的接线属设计裁定**（要动挂印路径/技能数据），
-    登记在 docs/REFACTOR_v181_team_effects_plan.md §六。
-    """
-    src = caster if isinstance(caster, dict) else target
-    if src is None:
-        return
-    info = _info(params)
-    cycle = params.get("cycle") or info.get("element_cycle") or ["fire", "ice", "thunder"]
-    if not isinstance(cycle, (list, tuple)) or not cycle:
-        return
-    cur = src.get("cur_element")
-    if cur in cycle:
-        nxt = cycle[(list(cycle).index(cur) + 1) % len(cycle)]
-    else:
-        nxt = cycle[0]
-    src["cur_element"] = nxt
-    logs.append(f"🌀 元素流转：主系切换为【{nxt}】")
-
+# 注：元素流转（`element_switch`）的完整实现在 `game/services/battle_element_procs.py`（主系切换 + 下次挂印转换 + 元素两轴）。
 
 # ============================================================
 # 10. 奥术力场（arcane_field：护盾 / 利刃 二选一）
@@ -739,11 +732,57 @@ def class_element_switch(battle, caster, target, params, logs):
 
 @register_action("arcane_field")
 def arcane_field(battle, caster, target, params, logs):
-    """奥术力场：消耗 2 点充能，选择「护盾」或「利刃（下次奥术技 ×1.3）」。
+    """奥术力场（lv88）：消耗 2 点充能，**按战前偏好**落地「护盾」或「利刃」档。
 
-    ⚠️ 现状：**选择态需要命令层交互**（QQ 里要出选项），本期先按**护盾档**落地
-    （不再静默 no-op）；「利刃档」的交互设计登记在
-    docs/REFACTOR_v181_team_effects_plan.md §六。
+    档位来源：`actor["battle_prefs"]["arcane_field"]`（命令层 `战前力场 盾|刃` 设置，
+    缺省 = 盾——保命优先）。
+    - 盾档：按技能数据的三形态算盾（`shield_per_stack` 每层充能 ×8% 魔攻）
+    - 刃档：写 `team:edge:arcane_field` 态 + 挂 dmg_calc 触发器 —— 下一次**奥术系**
+      技能（`info.mech` 以 `arcane` 开头）伤害 ×1.3，随后消耗该态（一次性）
+    - 两档都消耗 2 点充能（缺字段/不足 = `consume` 自身拦截，不白给）
     """
+    src = caster if isinstance(caster, dict) else target
+    if src is None:
+        return
+    info = _info(params)
+    pref = str((src.get("battle_prefs") or {}).get("arcane_field") or "盾")
+    # 充能消耗（两档共用；desc「消耗 2 点充能」）
+    cost = int(_num(params, "res_cost") or _num(info, "field_cost") or 2)
+    if cost > 0:
+        apply_effects(battle, src, src,
+                      [{"type": "consume", "key": "arcane", "amount": cost, "on": "caster"}],
+                      logs)
+    if pref == "刃":
+        turns = _turns(params, info) or 10
+        state_key = f"{PREFIX}edge:arcane_field"
+        src.setdefault("effects", {})[state_key] = {
+            "stacks": 1, "expire": _now(battle) + turns, "add": 0.30}
+        _mount(src, "dmg_calc", {"action": "arcane_edge_apply", "key": state_key,
+                                 "mech_prefix": "arcane", "add": 0.30})
+        logs.append("🔮 奥术力场【利刃】：下次奥术技伤害 ×1.3")
+        return
     self_shield(battle, caster, target, params, logs)
-    logs.append("🔮 奥术力场：当前为护盾档（利刃档待交互设计）")
+    logs.append("🔮 奥术力场【护盾】")
+
+
+@register_action("arcane_edge_apply")
+def arcane_edge_apply(battle, caster, target, params, logs):
+    """dmg_calc：利刃态在 + 本次是**奥术系**技能 → 伤害 ×(1+add)，并消耗该态（一次性）。"""
+    ctx = getattr(battle, "_fire_ctx", None)
+    holder = params.get("_owner")
+    key = params.get("key") or ""
+    if ctx is None or not isinstance(holder, dict):
+        return
+    e = (holder.get("effects") or {}).get(key)
+    if not isinstance(e, dict):
+        return  # 态已过期/已消耗
+    info = ctx.get("info") or {}
+    pre = str(params.get("mech_prefix") or "arcane")
+    if not str(info.get("mech") or "").startswith(pre):
+        return  # 非奥术技：不消费、不生效（等下一次奥术技）
+    add = _norm_pct(_num(e, "add") or _num(params, "add"))
+    if add <= 0:
+        return
+    ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * (1.0 + add)
+    holder["effects"].pop(key, None)      # 一次性
+    logs.append(f"🗡️ 奥术力场·利刃：本次奥术技伤害 +{int(add * 100)}%！")

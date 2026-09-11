@@ -37,6 +37,7 @@ _PLAYER_PASSTHROUGH = (
     # actor.effects 面板快照，不在 passthrough 冗余透传）
     "resources", "stacks", "eff", "hot", "food_effects",
     "buff_hits", "last_element",
+    "battle_prefs",   # 战前偏好（双形态/终结阈值/奥术力场档——内容侧读）
     "overflow_shield_cd", "stealth_atk",
     "reduce_all_left", "reduce_left", "combo_seq", "last_combo_tag",
     "tailwind_prev_energy", "last_skill", "last_cast_at",

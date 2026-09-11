@@ -256,6 +256,7 @@ COMMAND_REGEX = {
     "battle_prefs_form": r'^(?:\[At:[^\]]+\]\s*)?战前形态(?:[ 　]*(.+))?$',
     "battle_prefs_finisher": r'^(?:\[At:[^\]]+\]\s*)?战前阈值(?:[ 　]*(.+))?$',
     "battle_prefs_view": r'^(?:\[At:[^\]]+\]\s*)?战前指令(?:\s*|$)',
+    "battle_prefs_arcane_field": r'^(?:\[At:[^\]]+\]\s*)?战前力场(?:[ 　]*(.+))?$',
     # v140 波2：野王看守宝箱——『摸宝箱』/『摸战利箱』开箱（sibling 子 agent 已登记，补矩阵代表输入）
     "wild_king_chest": r'^(?:\[At:[^\]]+\]\s*)?摸(?:战利箱|宝箱)(?:\s*|$)',
     # v96 停服全局 gate（base.py _maint_gate）：匹配空串/At/引用消息前缀，拦截所有游戏指令；

@@ -204,6 +204,8 @@ REPRESENTATIVES = {
     "battle_prefs_form": "战前形态 狂暴",
     "battle_prefs_finisher": "战前阈值 快刀",
     "battle_prefs_view": "战前指令",
+    # v2026-09-11 奥术力场档位（法师专属战前设置）
+    "battle_prefs_arcane_field": "战前力场 盾",
     # v140 波2：野王看守宝箱（sibling 子 agent 登记的命令，补矩阵代表输入防漏）
     "wild_king_chest": "摸战利箱",
 }

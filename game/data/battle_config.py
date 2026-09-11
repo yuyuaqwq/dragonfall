@@ -78,10 +78,15 @@ DOT_RESIST_CAP = 0.95           # 总抗上限：min(0.95, dot_res + 适应 adap
 #   感电 = 雷印(目标) + 雷(当前系) → 连击 +1，印记保留
 # ============================================================
 ELEMENT_REACTIONS = {
+    # 2026-09-11 修正（对齐 CLASS_MECHANICS_v153 §2 :385-388「元素反应」）：
+    #   · 冻结原写作 ("water", "ice_mark") —— 游戏里**没有 water 元素**（三系 fire/ice/thunder），
+    #     按 §2「冰印 + 雷印 = 冻结」应为 thunder → 已改（否则冻结永不触发）。
+    #   · 感电按 §2 需「雷印**满 3 层**」→ 新增 min_layers 门槛（缺省 1 = 有印即反应）。
     ("ice", "fire_mark"):        {"name": "蒸发", "mult": 1.30, "clear": True, "extra": ""},
     ("fire", "thunder_mark"):    {"name": "超载", "mult": 1.00, "clear": True, "extra": "aoe"},
-    ("water", "ice_mark"):       {"name": "冻结", "mult": 1.00, "clear": True, "extra": "freeze"},
-    ("thunder", "thunder_mark"): {"name": "感电", "mult": 1.00, "clear": False, "extra": "chain"},
+    ("thunder", "ice_mark"):     {"name": "冻结", "mult": 1.00, "clear": True, "extra": "freeze"},
+    ("thunder", "thunder_mark"): {"name": "感电", "mult": 1.00, "clear": False,
+                                  "extra": "chain", "min_layers": 3},
 }
 
 # ============================================================
