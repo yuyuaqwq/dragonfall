@@ -1348,14 +1348,21 @@ corros（腐蚀）→ true_dmg 分支，绕过 def/mdef（但不豁免目标异�
 | C-19 | 暗影神谕职业入口（`cls_hymn` 线）         | v151 已删除，但机制代码（悼咏/诅咒/骷髅/死歌/骸骨洪流）残留 | 还原为牧师 B 线（死灵），复用现有 `CURSE_CFG` 等，不改机制数值 |
 | C-20 | 奥术线改名 + 2 个新被动                 | `arcane` 充能骨架不变，`奥术核心/之心` 合并为 `奥术共鸣` | 改 8 名（法力护盾→奥术力场、秘法护盾→相位偏折、奥术领域→奥术矩阵、奥术爆发→星界风暴、大奥术→奥术湮灭、奥术智慧→真知、奥术核心→奥术共鸣）；新增「奥术力场·刃」「奥术恒常·耗蓝−50%」 |
 
-### 待办
+### 待办（2026-09-11 以当前仓库状态复跑核对：旧 6 项里 **5 项已完成**，剩 1 项开放）
 
-- [ ] 294 个技能的 `cast` 字段落库（C-14，工作量最大）
-- [ ] 4 职业的 `cast_atk / cast_defend / cast_flee` 补录（C-12）
-- [ ] `decay_per_turn: 4 → 1.7`（C-13，一行改动，先做）
-- [ ] 还原暗影神谕职业入口，把 `cls_hymn` 机制接到牧师 B 线（C-19）
-- [ ] `audit_v153.py` 固化进 CI，作为数值变更准入门槛
-- [ ] 怪物侧 `elem_res` / `dot_res` / `immune_dots` 数据补录（§9.2）
+- [x] 294 个技能的 `cast` 字段落库（C-14）——✅ 实测 `game/data/skills.py` **299/299** 技能块均含 `cast`
+- [x] 4 职业的 `cast_atk / cast_defend / cast_flee` 补录（C-12）——✅ `game/data/classes.py` **6/6** 职业齐备（v156 已重标定）
+- [x] `decay_per_turn: 4 → 1.7`（C-13）——✅ `game/data/battle_config.py:290` = 1.7，且已由数值门禁 `tests/test_numeric_bar_decay.py` 锁定
+- [x] 还原暗影神谕职业入口 → 牧师 B 线（C-19）——✅ 已落地为**死灵线**：`classes.py:244-246`
+      `evolve_branches` = 神谕者／死灵祭司 · 大主教／亡魂引渡者 · 圣光先知／黯灵君主；技能在 `skills.py:2389 / 2555 / 2698`
+- [x] `audit_v153.py` 固化进 CI（准入门槛）——✅ 2026-09-11 落地为数值门禁 **`tests/test_numeric_v153_audit.py`**
+      （6 断言：退出码 0 / 总告警 = 0 / 16 段齐全 / 无 ⚠ 段 / 技能条目数 ≥ 294；已用篡改副本反证「会变红」——
+      `audit_v153.py` 自身 rc 恒为 0，退出码由本门禁补）
+- [ ] **怪物侧 `elem_res` / `dot_res` / `immune_dots` 数据补录（§9.2）——仍开放**：
+      实测 `game/data/monsters.py`（124 条 `name` / 206 个怪物键）三字段命中 **dot_res 0 · elem_res 0 · immune_dots 0**
+      （仅 1 处 `abyss_res`），与 §9.2「火焰怪 `elem_res` 火 0.5／冰 0 · 免疫怪 `immune_dots:["burn"]` · 高防 Boss `immune_dots:["poison"]`」不符。
+      该数据是**元素克制/反应轴**（`game/services/battle_element_procs.py`）与 **DOT 真伤轴**的对侧抓手：
+      缺它则「换系打」没有收益差、「毒刃线破高防」没有存在理由。改动摇动战斗平衡，**须配数值门禁 + 先定口径**。
 
 ---
 
