@@ -1,0 +1,84 @@
+{
+  "weekly_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?周常(?!列表)(?:\\s*|$)"
+    ],
+    "desc": "查看本周悬赏（本周首查自动发布 3 条）",
+    "category": "周常",
+    "usage": "周常",
+    "guards": [
+      "player"
+    ],
+    "order": 10,
+    "page_size": 0
+  },
+  "weekly_list": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?周常列表(?:\\s+(\\d+))?\\s*$"
+    ],
+    "desc": "全部悬赏池总览（分页）",
+    "category": "周常",
+    "usage": "周常列表 [页]",
+    "guards": [
+      "player"
+    ],
+    "order": 11,
+    "page_size": 4
+  },
+  "help_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:帮助|help)(?!中心)(?:\\s*|$)"
+    ],
+    "desc": "指令总览",
+    "category": "系统",
+    "usage": "帮助",
+    "guards": [],
+    "order": 1
+  },
+  "game_tip": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:游戏提示|提示)(?:\\s*|$)"
+    ],
+    "desc": "随机玩法提示",
+    "category": "系统",
+    "usage": "提示",
+    "guards": [
+      "player"
+    ],
+    "order": 2
+  },
+  "signin": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?签到(?!机)(?:\\s*|$)"
+    ],
+    "desc": "每日签到",
+    "category": "日常",
+    "usage": "签到",
+    "guards": [
+      "player"
+    ],
+    "order": 3
+  },
+  "achievements": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?成就(?:\\s*(领取|列表)?(?:\\s*([^\\s]+))?\\s*|$)"
+    ],
+    "desc": "成就列表 / 领取 / 详情",
+    "category": "系统",
+    "usage": "成就 [领取|列表|名称]",
+    "guards": [
+      "player"
+    ],
+    "order": 4
+  },
+  "feedback_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?意见(?:[\\s\\S]*)$"
+    ],
+    "desc": "玩家意见箱（提交建议）",
+    "category": "系统",
+    "usage": "意见 <内容>",
+    "guards": [],
+    "order": 5
+  }
+}

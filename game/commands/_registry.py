@@ -1,12 +1,23 @@
 # -*- coding: utf-8 -*-
-"""命令正则静态注册表（半自动维护：静态表 + 装饰器需同步）。
+"""命令正则有效表（**双来源合并，派生**）。
 
-本表原由脚本自动生成，现为人工维护的静态表（方法名 → @filter.regex 正则）。
+来源一（首选）：`game/data/command_specs.json` 的**声明表** —— 由 `@declared("key")`
+装饰器注册，本表经 `_declared_patterns()` 派生。声明是唯一真源，不再手工同步。
+来源二（历史遗留）：本文件下方的 `_LITERAL_REGEX` 字面量表 —— 给尚未迁移的
+`@filter.regex(<字面量>)` 指令用。
+
+    COMMAND_REGEX = {**声明的, **字面量的}      # 同名**不允许**出现（OVERLAP_KEYS 必须为空）
+
 用途：测试环境/注册表缺失时的快捷指令校验、_GameCmdFilter 停服 gate 拦截、
 快捷转发回退（base.py _static_handlers）。
 
-⚠️ 半自动维护铁律：新增/修改/删除任何 @filter.regex 命令（含别名），
-必须同步本表，否则 gate 拦截与回退会失真。同步检查：
+迁一条指令到声明表的做法（增量，可停）：
+  1. 在 `game/data/command_specs.json` 加声明（pattern/desc/category/guards…）
+  2. 把该方法的 `@filter.regex(<字面量>)` 换成 `@declared("key")`
+  3. **从下方 `_LITERAL_REGEX` 删掉该 key**（否则 OVERLAP_KEYS 门禁报双源）
+
+⚠️ 尚未迁移的指令仍受「半自动维护铁律」约束：新增/修改/删除任何 @filter.regex
+命令（含别名），必须同步本表的 `_LITERAL_REGEX`，否则 gate 拦截与回退会失真。同步检查：
   1. 启动校验：插件加载时 main.py 自动对比「已注册公开 handler 名」与
      本表键集，漂移以 WARNING 日志输出（见 main.py _fix_handler_module_paths）。
   2. 强校验：python tests/test_v87_command_matrix.py（表与装饰器 1:1 逐条相等 + 互斥矩阵）
@@ -15,10 +26,9 @@
 真实 AstrBot 运行以全局注册表（star_handlers_registry）为准，本表仅供上述回退场景。
 """
 
-COMMAND_REGEX = {
+_LITERAL_REGEX = {
     # v104 审计后由 M24 命令互斥矩阵测试（tests/test_v87_command_matrix.py）强校验：
     # 静态表必须与 game/commands/*.py 的 @filter.regex 装饰器 1:1 一致（键集合+模式逐条相等）。
-    "achievements": r'^(?:\[At:[^\]]+\]\s*)?成就(?:\s*(领取|列表)?(?:\s*([^\s]+))?\s*|$)',
     "add_attr": r'^(?:\[At:[^\]]+\]\s*)?加点(?:\s*|$)',
     "alchemy": r'^(?:\[At:[^\]]+\]\s*)?炼金(?:[\s\S]*)$',
     "alchemy_craft": r'^(?:\[At:[^\]]+\]\s*)?合成(?:\s*|$)',
@@ -46,8 +56,6 @@ COMMAND_REGEX = {
     # 别名『每日副业/今日副业』注册到 daily_prof（19 章旧称呼，策划案 §六统一为『副业任务』）
     "daily": r'^(?:\[At:[^\]]+\]\s*)?每日(?!副业)(?:\s*|$)',
     # v169.2 周常悬赏（Lv50+ 每周击杀悬赏，自动发奖）：『周常』独占（列表分页由 weekly_list 处理）
-    "weekly_cmd": r'^(?:\[At:[^\]]+\]\s*)?周常(?!列表)(?:\s*|$)',
-    "weekly_list": r'^(?:\[At:[^\]]+\]\s*)?周常列表(?:\s+(\d+))?\s*$',
     "defend": r'^(?:\[At:[^\]]+\]\s*)?防御(?:\s*|$)',
     "enchant": r'^(?:\[At:[^\]]+\]\s*)?附魔(?:\s*|$)',
     "encyclopedia": r'^(?:\[At:[^\]]+\]\s*)?百科(?:\s*|$)',
@@ -74,7 +82,6 @@ COMMAND_REGEX = {
     "explore": r'^(?:\[At:[^\]]+\]\s*)?探索(?!进度)(?:\s*|$)',
     # v115 探索见闻：『探索进度』指令（commands/exploration.py）
     "explore_progress": r'^(?:\[At:[^\]]+\]\s*)?探索进度(?:[\s\S]*)$',
-    "feedback_cmd": r'^(?:\[At:[^\]]+\]\s*)?意见(?:[\s\S]*)$',
     "time_cmd": r'^(?:\[At:[^\]]+\]\s*)?时间(?:指令)?(?:\s*|$)',
     "wild_notes": r'^(?:\[At:[^\]]+\]\s*)?见闻录(?:\s*|$)',
     "fishing": r'^(?:\[At:[^\]]+\]\s*)?垂钓(?:选择|点)?(?:\s*|$)',
@@ -102,7 +109,6 @@ COMMAND_REGEX = {
     "camp_shop": r'^(?:\[At:[^\]]+\]\s*)?阵营商店(?:\s+\S+)?$',
     "camp_rank": r'^(?:\[At:[^\]]+\]\s*)?阵营排行(?:\s*|$)',
     # v105 M24 P3-2：『帮助中心』前缀误触 → 负向断言收窄（与装饰器同步）
-    "help_cmd": r'^(?:\[At:[^\]]+\]\s*)?(?:帮助|help)(?!中心)(?:\s*|$)',
     "hunt_boss": r'^(?:\[At:[^\]]+\]\s*)?讨伐(?:\s*|$)',
     "inventory": r'^(?:\[At:[^\]]+\]\s*)?(?:背包|物品)(?!详情|筛选)(?:\s*.*)?$',
     "item_detail": r'^(?:\[At:[^\]]+\]\s*)?(?:物品详情|查看(?!地图|任务|背包|技能|图鉴|百科|成就|称号|宠物|副本|排行|帮助|列表|商店|位置|声望|荣誉|套装|坐骑|队伍|摊位|市场|仓库|事件|许愿|种族|流派|签到|战力|职业|配方|烹饪|副业|锻造|炼金|合成|钓鱼|采集|挖掘|学习|洗点|装备|卸下|喂养|放生|传送|祭坛|赶路|深入|调查|撤退|离开|注册|意见|怪物|咨询|状态|属性|详情|信息))(?:[\s\S]*)$',
@@ -182,7 +188,6 @@ COMMAND_REGEX = {
     # v101.16 裸数字优先 NPC 对话（priority=100 高于快捷指令；同 pattern 双注册，gate 判定覆盖）
     "npc_quick_dialog": r'^(?:\[At:[^\]]+\]\s*)?[0-9０-９]\d?$',
     # v105 M24 P3-2：『签到机』前缀误触 → 负向断言收窄（与装饰器同步）
-    "signin": r'^(?:\[At:[^\]]+\]\s*)?签到(?!机)(?:\s*|$)',
     "skill": r'^(?:\[At:[^\]]+\]\s*)?技能(?!详情|学习|升级|洗点|栏)(?:[\s\S]*)$',
     "skill_bar_set": r'^(?:\[At:[^\]]+\]\s*)?设置技能(?:\s*|$)',
     "skill_bar_view": r'^(?:\[At:[^\]]+\]\s*)?技能栏(?:\s*|$)',
@@ -196,7 +201,6 @@ COMMAND_REGEX = {
     "use": r'^(?:\[At:[^\]]+\]\s*)?使用(?:\s*|$)',
     "world_event": r'^(?:\[At:[^\]]+\]\s*)?事件(?:\s*|$)',
     # v134 意见#35：『游戏提示』/『提示』新手引导（misc.py game_tip）
-    "game_tip": r'^(?:\[At:[^\]]+\]\s*)?(?:游戏提示|提示)(?:\s*|$)',
     "cooking": r'^(?:\[At:[^\]]+\]\s*)?烹饪(?!列表)(?:\s*|$)',
     "cooking_list": r'^(?:\[At:[^\]]+\]\s*)?烹饪列表(?:[\s\S]*)$',
     "profession_view": r'^(?:\[At:[^\]]+\]\s*)?副业(?!任务)(?:[\s\S]*)$',
@@ -263,3 +267,58 @@ COMMAND_REGEX = {
     # 不参与指令互斥矩阵（不匹配任何指令正文），表内保留以与装饰器 1:1 对齐。
     "_maint_gate": r'^(?:\[At:[^\]]+\]\s*)?(?:\[At:全体成员\]\s*)?(?:\[引用消息[^\]]*\]\s*)?',
 }
+
+
+# ============================================================
+# 派生：声明表 → 有效表（与 `_LITERAL_REGEX` 合并）
+# ⚠️ 本文件保持**标准库 only**：测试用 importlib 直载本模块
+#    （`test_v87_command_matrix.py`），不能出现包内相对导入。
+# ============================================================
+
+def _combine_patterns(patterns):
+    """多条正则合成一条（与框架 `command.combine_patterns` **同语义**）。
+
+    此处不 import 框架，是为了让本表能被独立加载（测试直载 / 工具脚本）。
+    两边一致性由 `tests/test_v181_command_declaration.py` 断言锁死（防漂移）。
+    """
+    pats = [p for p in (patterns or ()) if p]
+    if not pats:
+        return ""
+    if len(pats) == 1:
+        return pats[0]
+    return "|".join("(?:%s)" % p for p in pats)
+
+
+def _declared_patterns():
+    """读声明表派生 `{key: 正则}`。
+
+    文件缺失/损坏 → 返回空表（本表仍可用；真正注册用的 `@declared` 会 fail-closed 抛错，
+    所以坏掉不会被静默忽略）。
+    """
+    import json
+    import os
+    p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     "data", "command_specs.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for k, v in (data or {}).items():
+        pats = v.get("patterns", v.get("pattern")) if isinstance(v, dict) else v
+        if isinstance(pats, str):
+            pats = [pats]
+        combined = _combine_patterns(pats)
+        if combined:
+            out[str(k)] = combined
+    return out
+
+
+_DECLARED_REGEX = _declared_patterns()
+
+# 双源检测：同名 key 出现在声明表与字面量表里 = 迁移做了一半 → 必须为空（门禁断言）
+OVERLAP_KEYS = sorted(set(_DECLARED_REGEX) & set(_LITERAL_REGEX))
+
+# 有效表（调用方零改动：`COMMAND_REGEX` 名字与形状不变）
+COMMAND_REGEX = {**_DECLARED_REGEX, **_LITERAL_REGEX}

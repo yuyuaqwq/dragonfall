@@ -37,7 +37,14 @@ _spec = importlib.util.spec_from_file_location(
     "_registry", os.path.join(CMD_DIR, "_registry.py"))
 _reg = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_reg)
-COMMAND_REGEX = _reg.COMMAND_REGEX
+COMMAND_REGEX = _reg.COMMAND_REGEX   # 有效表 = 声明派生 ∪ 字面量（2026-09-11 起）
+
+# ---- 装饰器扫描（**唯一实现在 tests/_cmd_registry.py**）----
+# 两种写法都解析：`@filter.regex(<字面量>)` 与 `@declared("<key>")`（后者取自声明表）。
+# 原先本文件自带一份扫描实现，与 test_v59 / test_v104 三处重复 → 装饰器形态一变要改三处
+# （2026-09-11 引入 @declared 时正是如此）。现统一到 helper。
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _cmd_registry import patterns_with_meta, MISSING as DECLARED_MISSING  # noqa: E402
 
 passed = failed = 0
 
@@ -52,39 +59,14 @@ def check(name, cond, detail=""):
         print("  ❌ %s %s" % (name, detail))
 
 
-# ---- AST 扫描 @filter.regex 装饰器 ----
-def scan_decorator_regexes():
-    """返回 {方法名: (pattern, priority, 文件)}，跳过占位符 pattern='...'。"""
-    found = {}
-    for fn in sorted(os.listdir(CMD_DIR)):
-        if not fn.endswith(".py") or fn == "_registry.py":
-            continue
-        path = os.path.join(CMD_DIR, fn)
-        with open(path, encoding="utf-8") as f:
-            tree = ast.parse(f.read())
-        for node in ast.walk(tree):
-            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            for dec in node.decorator_list:
-                if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
-                        and dec.func.attr == "regex" and dec.args
-                        and isinstance(dec.args[0], ast.Constant)
-                        and isinstance(dec.args[0].value, str)):
-                    pat = dec.args[0].value
-                    if pat == "...":  # docstring 示例占位符
-                        continue
-                    prio = None
-                    for kw in dec.keywords:
-                        if kw.arg == "priority" and isinstance(kw.value, ast.Constant):
-                            prio = kw.value.value
-                    found[node.name] = (pat, prio, fn)
-    return found
-
+# ---- 扫描结果（helper：`@filter.regex(字面量)` + `@declared(key)` 两种都认）----
+DECORATORS = patterns_with_meta()
+# `@declared("key")` 但声明表里没有该 key → helper 收在 MISSING（re-export 供断言）
+DECLARED_MISSING = DECLARED_MISSING
 
 # 全局正则池：{方法名: 编译后 pattern}（真实装饰器为准，静态表仅做一致性校验）
 # _maint_gate 为停服全局 gate（base.py:179）：模式无 $ 锚定、设计上匹配所有消息，
 # 不参与指令互斥（见 E 组），故从互斥池剔除。
-DECORATORS = scan_decorator_regexes()
 POOL = {name: re.compile(pat) for name, (pat, _p, _f) in DECORATORS.items()
         if name != "_maint_gate"}
 

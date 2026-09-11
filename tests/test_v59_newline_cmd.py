@@ -4,18 +4,10 @@
 import sys, os, re, glob
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-CMD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "commands")
-SRC_ALL = []
-for _p in glob.glob(os.path.join(CMD_DIR, "*.py")):
-    if _p.endswith("__init__.py"):
-        continue
-    with open(_p, encoding="utf-8") as f:
-        SRC_ALL.append(f.read())
-src = "\n".join(SRC_ALL)
-handler_pat = re.compile(r'@filter\.regex\(r"([^"]+)"\)\s*\n(?:\s*@\w+\(\)\s*\n)*\s*async def (\w+)')
-handlers = [(m.group(1), m.group(2)) for m in handler_pat.finditer(src)]
-# 过滤 base.py 注释示例等占位正则（r"..." 不是真 handler）
-handlers = [(p, n) for p, n in handlers if p not in ("...", "…") and "..." not in p]
+# 装饰器扫描：统一走 tests/_cmd_registry.py（@filter.regex 字面量 + @declared 声明都认）
+from _cmd_registry import pattern_map  # noqa: E402
+
+handlers = [(pat, name) for name, pat in pattern_map().items()]
 
 passed = 0
 def check(name, cond, detail=""):
@@ -51,7 +43,9 @@ def test_no_conflict():
     # 意见带换行只命中 feedback_cmd，不误伤其他
     pat_fb = next(p for p, n in handlers if n == "feedback_cmd")
     msg = "意见 测试\n内容"
-    hits = [n for p, n in handlers if re.match(p, msg)]
+    # `_maint_gate`（停服全局 gate）匹配所有消息，不参与指令互斥 → 显式剔除
+    # （与 test_v87_command_matrix / test_v104 同口径）
+    hits = [n for p, n in handlers if n != "_maint_gate" and re.match(p, msg)]
     check("意见换行只命中 feedback_cmd", hits == ["feedback_cmd"], str(hits))
 
 if __name__ == "__main__":

@@ -23,7 +23,10 @@
 import datetime
 import json
 
-from ._platform import AstrMessageEvent, filter
+from ._platform import AstrMessageEvent
+
+# 指令声明装配：正则来自 `data/command_specs.json`（声明是唯一真源）
+from ._declared import declared
 
 from .. import content as C
 from .. import db
@@ -82,7 +85,7 @@ def _obj_label(obj: dict) -> str:
 class WeeklyCmds(CommandBase):
     """周常悬赏：本周悬赏板查看/自动发布 + 悬赏池列表分页"""
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?周常(?!列表)(?:\s*|$)")
+    @declared("weekly_cmd")
     @require_player()
     async def weekly_cmd(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -124,7 +127,7 @@ class WeeklyCmds(CommandBase):
             lines.append("💡 击杀自动计数，达标立即发奖——悬赏每周一刷新")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?周常列表(?:\s+(\d+))?\s*$")
+    @declared("weekly_list")
     @require_player()
     async def weekly_list(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)

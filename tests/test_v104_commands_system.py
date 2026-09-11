@@ -54,34 +54,12 @@ def finding(name, detail=""):
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CMD_DIR = os.path.join(PLUGIN_DIR, "game", "commands")
 
-
-def scan_decorator_regexes():
-    found = {}
-    for fn in sorted(os.listdir(CMD_DIR)):
-        if not fn.endswith(".py") or fn == "_registry.py":
-            continue
-        with open(os.path.join(CMD_DIR, fn), encoding="utf-8") as f:
-            tree = ast.parse(f.read())
-        for node in ast.walk(tree):
-            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            for dec in node.decorator_list:
-                if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
-                        and dec.func.attr == "regex" and dec.args
-                        and isinstance(dec.args[0], ast.Constant)
-                        and isinstance(dec.args[0].value, str)):
-                    pat = dec.args[0].value
-                    if pat == "...":
-                        continue
-                    prio = None
-                    for kw in dec.keywords:
-                        if kw.arg == "priority" and isinstance(kw.value, ast.Constant):
-                            prio = kw.value.value
-                    found[node.name] = (pat, prio, fn)
-    return found
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _cmd_registry import patterns_with_meta  # noqa: E402
 
 
-DECORATORS = scan_decorator_regexes()
+# 装饰器扫描：统一走 tests/_cmd_registry.py（@filter.regex 字面量 + @declared 声明都认）
+DECORATORS = patterns_with_meta()
 
 
 async def dispatch(m, gid, qid, text):

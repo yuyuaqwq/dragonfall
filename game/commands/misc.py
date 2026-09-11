@@ -10,7 +10,10 @@ import random
 import re
 import time
 
-from ._platform import AstrMessageEvent, filter, MessageChain
+from ._platform import AstrMessageEvent, MessageChain
+
+# 指令声明装配：正则来自 `data/command_specs.json`（声明是唯一真源）
+from ._declared import declared
 
 from .. import content as C
 from .. import db
@@ -193,7 +196,7 @@ class MiscCmds(CommandBase):
     }
 
     # v105 M24 P3-2：『帮助中心』前缀误触 → 负向断言收窄
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:帮助|help)(?!中心)(?:\s*|$)")
+    @declared("help_cmd")
 
     async def help_cmd(self, event: AstrMessageEvent):
         msg = event.get_message_str().strip()
@@ -215,7 +218,7 @@ class MiscCmds(CommandBase):
             )
 
     # v134 意见#35：『游戏提示』新手引导——开局流程/体力规则/常用指令/快捷绑定/副本钥匙（纯文案）
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:游戏提示|提示)(?:\s*|$)")
+    @declared("game_tip")
     @require_player()
 
     async def game_tip(self, event: AstrMessageEvent):
@@ -238,7 +241,7 @@ class MiscCmds(CommandBase):
         )
 
     # v105 M24 P3-2：『签到机』前缀误触 → 负向断言收窄
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?签到(?!机)(?:\s*|$)")
+    @declared("signin")
     @require_player()
 
     async def signin(self, event: AstrMessageEvent):
@@ -309,7 +312,7 @@ class MiscCmds(CommandBase):
         except Exception:
             yield event.plain_result("✅ 已签到（奖励发放异常，请联系管理）")
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?成就(?:\s*(领取|列表)?(?:\s*([^\s]+))?\s*|$)")
+    @declared("achievements")
     @require_player()
 
     async def achievements(self, event: AstrMessageEvent):
@@ -379,7 +382,7 @@ class MiscCmds(CommandBase):
         lines.append(self._tip("achievement"))
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?意见(?:[\s\S]*)$")
+    @declared("feedback_cmd")
 
     async def feedback_cmd(self, event: AstrMessageEvent):
         """玩家意见箱：『意见 <内容>』收集群友建议，供鱼鱼/格温后续改动参考"""
