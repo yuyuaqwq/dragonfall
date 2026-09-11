@@ -2,14 +2,26 @@
 """奥兰迪亚·余烬纪年命令层 - base（base）
 
 由 main.py 拆分而来，作为 Mixin 被 Main 继承。
+
+【骨架归属（2026-09-11，M2）】命令层的**通用那一半**（分页 / 页码解析 /
+文本剥离 / 提示抽取 / handler 查找与转发 / 守卫装饰器 / 指令正则集合）
+来自框架 `saintess_kit.command`；本文件只留**本游戏的内容与宿主适配**：
+提示文案库、指令别名、事件集、GM/停服、设施判定、体力、规则触发等。
+
+对外名字**零变化**（`CommandBase` / `require_player` / `no_prof_waiting` /
+`require_battle` / `REGISTER_HINT` 照旧从这里 import）——
+其余 20 个命令模块的 import 与调用点一行都不用改。
 """
 import functools
-import inspect
 import json
 import os
-import random
 import re
 import time
+
+from saintess_kit.command import CommandBase as _KitCommandBase
+from saintess_kit.command import HandlerHit, PatternSet
+# 守卫装饰器由框架提供，这里**原样再导出**（既有 import 点不变）
+from saintess_kit.command import require_battle, require_player  # noqa: F401
 
 from ._platform import AstrMessageEvent, filter  # noqa: F401（filter 供 @filter.regex 装饰器）
 from ._platform import MessageChain
@@ -25,7 +37,10 @@ from ..content_rules.panel import STAT_NAMES
 # ---------- v96 停服维护全局拦截 ----------
 # 停服时非 GM 玩家发任何游戏指令都会被高优先级 gate 拦下（日常聊天不受影响）。
 class _GameCmdFilter(CustomFilter):
-    """只命中「游戏指令」（_registry.COMMAND_REGEX 任一正则），避免误拦群聊日常。"""
+    """只命中「游戏指令」（_registry.COMMAND_REGEX 任一正则），避免误拦群聊日常。
+
+    匹配机制（懒编译 + 缓存 + 零宽跳过）在框架 `saintess_kit.command.PatternSet`。
+    """
 
     _PATTERNS = None
 
@@ -33,20 +48,12 @@ class _GameCmdFilter(CustomFilter):
     def _patterns(cls):
         if cls._PATTERNS is None:
             from ._registry import COMMAND_REGEX
-            cls._PATTERNS = [re.compile(pat) for pat in COMMAND_REGEX.values()]
+            cls._PATTERNS = PatternSet(lambda: list(COMMAND_REGEX.values()))
         return cls._PATTERNS
 
     def filter(self, event, cfg) -> bool:
         text = event.get_message_str().strip()
-        for pat in self._patterns():
-            try:
-                m = pat.search(text)
-                # v104：跳过空匹配正则（_maint_gate 等仅挂载用），否则日常聊天全命中
-                if m and m.group(0):
-                    return True
-            except re.error:
-                continue
-        return False
+        return self._patterns().matches(text)
 
 
 def no_prof_waiting():
@@ -59,6 +66,9 @@ def no_prof_waiting():
         async def move(self, event): ...
     以后任何"会换场景/进战斗"的命令（副本、探索、世界 Boss 等）要跟副业互斥，
     加这一行装饰器即可，检查逻辑只维护这一处。
+
+    （本装饰器属**游戏内容**：判定走 `_prof_wait_state`，文案取 `C.PROF_WAIT_BASE`，
+    故留在游戏侧；框架只提供通用守卫形状。）
     """
     def deco(fn):
         @functools.wraps(fn)
@@ -86,56 +96,73 @@ def no_prof_waiting():
 REGISTER_HINT = "你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～"
 
 
-def require_player():
-    """玩家存在性守卫：没注册角色时统一拦截并提示（文案 REGISTER_HINT 一处维护）。
+class CommandBase(_KitCommandBase):
+    """本游戏命令层基类：通用部分继承框架，这里只填「内容与宿主适配」。"""
 
-    用法（@filter.regex 的下方、其他业务装饰器上方）：
-        @filter.regex(r"...")
-        @require_player()
-        @no_prof_waiting()
-        async def move(self, event): ...
-    v95.26 重构：此前 110+ 个 handler 各自手写
-    `if not player: yield "你还没有角色！..."` 样板，统一收口到装饰器。
-    """
-    def deco(fn):
-        @functools.wraps(fn)
-        async def wrapper(self, event: AstrMessageEvent, *args, **kwargs):
-            group_id, qq_id = self._uid(event)
-            if not self._player(group_id, qq_id):
-                yield event.plain_result(REGISTER_HINT)
-                return
-            async for item in fn(self, event, *args, **kwargs):
-                yield item
-        return wrapper
-    return deco
+    # ---------- 框架钩子：文案 ----------
+    register_hint = REGISTER_HINT
+    battle_none_hint = "你附近没有敌人！输入『探索』寻找敌人～"
+    logger_name = "astrbot"
 
+    # ---------- 框架钩子：剥参数时的指令别名（v83.1 精简：只保留仍在用的）----------
+    command_aliases = ("我的角色", "位置", "主线", "help")
 
-def require_battle(hint=""):
-    """战斗中守卫：当前没有战斗（普通/副本）时拦截（v95.26 收口 combat.py 4 处样板）。
+    # ---------- 框架钩子：内容来源 ----------
+    def _tip_pool_map(self) -> dict:
+        """面板底部引导提示的分类库（v127 数据驱动）。"""
+        return C.TIPS
 
-    用法（@require_player() 下方）：
-        @filter.regex(r"...")
-        @require_player()
-        @require_battle()
-        async def attack(self, event): ...
-    hint: 追加到"你附近没有敌人"后的补充提示（如技能版『技能列表』查看技能）。
-    handler 内仍自行查询 battle（装饰器只做拦截判断，查询逻辑不重复收口——
-    攻击/技能等各自有副本兜底分支，battle 变量后续还要用）。
-    """
-    def deco(fn):
-        @functools.wraps(fn)
-        async def wrapper(self, event: AstrMessageEvent, *args, **kwargs):
-            group_id, qq_id = self._uid(event)
-            if not self._in_any_battle(group_id, qq_id):
-                yield event.plain_result("你附近没有敌人！输入『探索』寻找敌人～" + hint)
-                return
-            async for item in fn(self, event, *args, **kwargs):
-                yield item
-        return wrapper
-    return deco
+    def _record_state(self, key: str, value: str) -> None:
+        db.set_event_state(key, value)
 
+    # ---------- 框架钩子：静态正则表 / 指令正则集合 ----------
+    @classmethod
+    def _build_static_handlers(cls) -> list:
+        """静态命令正则表（Mixin 切分后各文件 @filter.regex 的汇总）。
 
-class CommandBase:
+        用于测试环境/注册表缺失时快捷指令的校验与转发；真实 AstrBot 注册表优先。
+        """
+        from ._registry import COMMAND_REGEX
+        return [(re.compile(pat), name) for name, pat in COMMAND_REGEX.items()]
+
+    @classmethod
+    def _build_command_regex_strings(cls):
+        from ._registry import COMMAND_REGEX
+        return list(COMMAND_REGEX.values())
+
+    # ---------- 框架钩子：宿主注册表探测（AstrBot 适配）----------
+    def _host_handler_finder(self):
+        """返回一个 `finder(text) -> HandlerHit | None`（框架 `_find_handler` 用）。
+
+        优先查 AstrBot 全局注册表；跳过私有 handler（`_maint_gate` 等）与
+        `shortcut*`，并用 `handler_module_path` 限定本模块，防跨插件误命中。
+        """
+        def _find(text: str):
+            for md in star_handlers_registry._handlers:
+                if md.event_type != EventType.AdapterMessageEvent:
+                    continue
+                if md.handler_module_path != self.__class__.__module__:
+                    continue
+                raw = md.handler
+                if isinstance(raw, functools.partial):
+                    # AstrBot 加载插件时 handler 被包装成 partial(raw, star_cls)（无 __name__），
+                    # 直接 getattr 拿名字恒为空串 → v96.1 的私有跳过在真实进程失效
+                    raw = raw.func
+                name = getattr(raw, "__name__", "")
+                if name.startswith("shortcut") or name.startswith("_"):
+                    # v96：跳过私有 handler（_maint_gate 等），避免空正则污染快捷转发
+                    continue
+                for f in md.event_filters:
+                    if isinstance(f, RegexFilter):
+                        try:
+                            if f.regex.search(text):
+                                prebound = (isinstance(md.handler, functools.partial)
+                                            or getattr(md.handler, "__self__", None) is not None)
+                                return HandlerHit(name, md.handler, prebound, raw=md)
+                        except re.error:
+                            continue
+            return None
+        return _find
 
     # ---------- v96 GM 身份与停服状态 ----------
     @staticmethod
@@ -232,74 +259,8 @@ class CommandBase:
             return
         # 开服：放行
         return
-    @staticmethod
-    def _stop_event_safe(event):
-        """v101.17 安全 stop_event：Loopback 事件无此方法（playtest 链路），getattr 保护。"""
-        stop = getattr(event, "stop_event", None)
-        if stop:
-            try:
-                stop()
-            except Exception:
-                import logging
-                logging.getLogger("astrbot").warning(
-                    "[dragonfall] stop_event 调用失败（已忽略）", exc_info=True
-                )
 
-    def _strip_cmd(self, event: AstrMessageEvent, cmd: str) -> str:
-        """从消息中剥离 At 前缀和指令名，返回剩余参数"""
-        msg = event.get_message_str().strip()
-        msg = re.sub(r"^\[At:[^\]]*\]\s*", "", msg)
-        msg = re.sub(r"^\[At:全体成员\]\s*", "", msg)
-        msg = re.sub(r"^\[引用消息[^\]]*\]\s*", "", msg)
-        if msg.startswith(cmd):
-            msg = msg[len(cmd):].strip()
-        else:
-            # 尝试别名（v83.1 精简：只保留仍在用的别名）
-            for alias in ("我的角色", "位置", "主线", "help"):
-                if alias != cmd and msg.startswith(alias):
-                    msg = msg[len(alias):].strip()
-                    break
-        return msg
-
-    def _tip(self, cat: str) -> str:
-            """v127 数据驱动随机提示：从 TIPS 分类库随机抽 1 条（含 💡 前缀）。
-
-            面板底部操作引导提示统一走这里，不再硬编码长提示。
-            分类缺失时回退 common 兜底，保证永不崩。
-            v130.5：条目自身以 emoji 开头（如技能池 ⚔️/🎓/🛡️）时不再叠加 💡 前缀，
-            避免『💡 📖』双 emoji 冗余；中文开头的旧条目行为不变。
-            """
-            t = random.choice(pool := C.TIPS.get(cat) or C.TIPS.get("common") or ["看看『帮助』了解更多"])
-            if t and re.match(r"^[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F]", t):
-                return t
-            return "💡 " + t
-
-    @staticmethod
-    def _page_items(items: list, page: int, per_page: int = 5) -> tuple:
-        """通用翻页：返回 (当前页条目, 总页数, 当前页码)"""
-        total = len(items)
-        pages = max(1, (total + per_page - 1) // per_page)
-        page = max(1, min(page, pages))
-        start = (page - 1) * per_page
-        return items[start:start + per_page], pages, page
-
-    def _parse_page(self, raw: str) -> int:
-        """解析参数中的页码；纯数字 → 页码，否则 1"""
-        raw = (raw or "").strip()
-        if raw.isdigit():
-            return int(raw)
-        return 1
-
-    def _record_list_state(self, qq_id, cmd, page, pages):
-        """记录玩家最后一次列表视图（v123 翻页快捷键 +/-/= 用）。
-        qq_id: 玩家 QQ 号；cmd: 重建指令文本（不含页码，如 '背包 材料'/'技能列表'）；page/pages: 当前页/总页数"""
-        if not qq_id:
-            return
-        try:
-            db.set_event_state(f"last_list_{qq_id}", json.dumps({"cmd": cmd, "page": page, "pages": pages}, ensure_ascii=False))
-        except Exception:
-            pass
-
+    # ---------- v87.17 设施子区域判定（游戏内容）----------
     def _at_smith(self, player: dict) -> bool:
         """当前是否在铁匠铺/锻造坊/工坊/军械/强化类子区域（锻造/代工/强化/附魔场所）。
         v87.6 子区域化：不再地图级一刀切（广场/旅店不能锻造）。
@@ -431,109 +392,6 @@ class CommandBase:
                 uniq.append(n)
         return "去 " + " 或 ".join(uniq[:3]) + " 看看"
 
-    # 静态命令正则表（Mixin 切分后各文件 @filter.regex 的汇总）。
-    # 用于测试环境/注册表缺失时快捷指令的校验与转发；真实 AstrBot 注册表优先。
-    _STATIC_HANDLERS = None
-
-    @classmethod
-    def _static_handlers(cls):
-        """收集本类(含 Mixin)上所有 @filter.regex 正则 → [(正则, 方法名)]"""
-        if cls._STATIC_HANDLERS is not None:
-            return cls._STATIC_HANDLERS
-        from ._registry import COMMAND_REGEX
-        out = [(re.compile(pat), name) for name, pat in COMMAND_REGEX.items()]
-        cls._STATIC_HANDLERS = out
-        return out
-
-    def _find_handler(self, text: str):
-        """按指令文本查找匹配的 handler 元数据（快捷指令转发用）。
-
-        优先查 AstrBot 全局注册表；注册表缺失（测试/静态分析）时回退到
-        本类 @filter.regex 装饰器收集的静态表。跳过快捷指令自身防递归。
-        """
-        text = text.strip()
-        try:
-            for md in star_handlers_registry._handlers:
-                if md.event_type != EventType.AdapterMessageEvent:
-                    continue
-                if md.handler_module_path != self.__class__.__module__:
-                    continue
-                raw = md.handler
-                if isinstance(raw, functools.partial):
-                    # AstrBot 加载插件时 handler 被包装成 partial(raw, star_cls)（无 __name__），
-                    # 直接 getattr 拿名字恒为空串 → v96.1 的私有跳过在真实进程失效
-                    raw = raw.func
-                name = getattr(raw, "__name__", "")
-                if name.startswith("shortcut") or name.startswith("_"):
-                    # v96：跳过私有 handler（_maint_gate 等），避免空正则污染快捷转发
-                    continue
-                for f in md.event_filters:
-                    if isinstance(f, RegexFilter):
-                        try:
-                            if f.regex.search(text):
-                                return md, f
-                        except re.error:
-                            continue
-        except Exception:
-            # q11：注册表遍历异常不应中断快捷转发，回退静态表并留痕
-            import logging
-            logging.getLogger("astrbot").warning(
-                "[dragonfall] 遍历 AstrBot 注册表异常，回退静态表", exc_info=True
-            )
-        # 回退：静态正则表
-        for regex, name in self._static_handlers():
-            try:
-                if regex.search(text):
-                    return name, regex
-            except re.error:
-                continue
-        return None
-
-    async def _run_shortcut(self, event: AstrMessageEvent, text: str):
-        """执行快捷指令：把文本当作真实指令转发给匹配的 handler。
-
-        临时替换 event 消息文本为绑定指令（让目标 handler 正确解析参数），
-        调用完毕后恢复原消息。直接调用目标 handler 方法（绑定 self），复用其回复。
-        """
-        hit = self._find_handler(text)
-        if not hit:
-            yield event.plain_result(f"❌ 快捷指令『{text}』无法识别，请先确认指令存在～")
-            return
-        if isinstance(hit[0], str):
-            # 静态表回退：hit = (方法名, regex)，直接 getattr 取 bound method
-            handler_fn = getattr(self, hit[0], None)
-            if handler_fn is None:
-                yield event.plain_result(f"❌ 快捷指令『{text}』无法识别(处理器缺失)～")
-                return
-            is_prebound = True
-        else:
-            # 注册表命中：hit = (md, filter)
-            md, _ = hit
-            handler_fn = md.handler
-            # AstrBot 运行时 handler 是 functools.partial(raw, star_cls)（handler(event)）；
-            # 或 bound method（handler(event)）；测试/未绑定场景是 unbound function（handler(self, event)）
-            is_prebound = isinstance(handler_fn, functools.partial) or getattr(handler_fn, "__self__", None) is not None
-        orig_msg = event.message_str
-        event.message_str = text
-        try:
-            if is_prebound:
-                gen = handler_fn(event)
-            else:
-                gen = handler_fn(self, event)
-            if inspect.isasyncgen(gen):
-                async for r in gen:
-                    yield r
-            else:
-                r = await gen
-                if r:
-                    yield r
-        except Exception as e:
-            import logging
-            logging.getLogger("astrbot").warning(f"[dragonfall] 快捷转发失败 {text}: {e}")
-            yield event.plain_result(f"❌ 快捷指令执行出错：{e}")
-        finally:
-            event.message_str = orig_msg
-
     def _fmt_stat_src(self, src: dict) -> str:
         """格式化单条属性来源：『来源名: 攻击＋8 生命＋40 暴击＋5%』"""
         parts = []
@@ -573,6 +431,7 @@ class CommandBase:
                 import logging
                 logging.getLogger("astrbot").warning(f"[dragonfall] 广播到群 {gid} 失败: {e}")
 
+    # ---------- 框架钩子：上下文 ----------
     def _uid(self, event: AstrMessageEvent) -> tuple:
         """返回 (group_id, qq_id)
 
@@ -642,7 +501,6 @@ class CommandBase:
         from ..core.rule_engine import fire as _fire
         return _fire(group_id, qq_id, player, cur_map, trigger, evt or {},
                      hooks={"title_bonus": lambda q: self._title_bonus(group_id, q)})
-
 
     def _title_bonus(self, group_id, qq_id) -> dict:
         """当前玩家外部面板增幅聚合（称号/成就/收藏；未来纯数值来源）。
