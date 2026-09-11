@@ -55,7 +55,7 @@ INSTANCES = {
         "boss_line": "『金币！宝石！都是咕噜的！』咕噜把抢来的皇冠往头上一扣，咧开满嘴尖牙：『你们这些商队的小跟班，也敢来掀咕噜的帐篷？』",
         "outro": "咕噜的皇冠滚落在篝火边，商路上的劫掠就此画上句号。行会的赏金结清了，可你总觉得，这条商路尽头的风声，才刚刚开始。",
         "boss": ["b_goblin_chief", "哥布林酋长·咕噜", "boss", 20,
-                ["ms_lian_zhan", "ms_nu_hou", "ms_zhao_huan"],
+                ["ms_lian_zhan", "ms_lve_duo_h_ling", "ms_zhao_huan", "ms_nu_hou"],
                 ["咕噜皇冠"]],
         "minions": [{"name": "哥布林打手", "monster": ["m_goblin_guard", "哥布林守卫", "tank", 15,
                            ["ms_dun_ji"], ["哥布林铁片"]], "count": 2}],  # v163：爪牙=同图小怪模板（鱼鱼拍板，非 Boss 缩放）
@@ -129,8 +129,9 @@ INSTANCES = {
                     20,
                     [
                         "ms_lian_zhan",
-                        "ms_nu_hou",
-                        "ms_zhao_huan"
+                        "ms_lve_duo_h_ling",
+                        "ms_zhao_huan",
+                        "ms_nu_hou"
                     ],
                     [
                         "咕噜皇冠"
@@ -161,7 +162,7 @@ INSTANCES = {
         "boss_line": "『老子纵横七海三十年，还没见过敢摸进杰克宝库的耗子！』独眼杰克的金钩在火光里一晃：『留下你们的船，或者留下命！』",
         "outro": "金钩从杰克手中脱落，暗湾里终于只剩下潮水的呼吸。铁港的船主们可以重新起锚了，而你从战利品里翻出的那张旧海图，似乎指向更深的水域。",
         "boss": ["b_jack_pirate", "海盗王·独眼杰克", "boss", 27,
-                 ["ms_wan_dao", "ms_huo_qiang", "ms_zhao_huan_shui_gui"],
+                 ["ms_wan_dao", "ms_ha_huo_qiang_qi", "ms_zhao_huan_shui_gui"],
                  ["杰克的金钩碎片"]],
         "minions": [{"name": "海盗喽啰", "monster": ["m_sea_slime", "海史莱姆", "tank", 22,
                            ["ms_zhuang_ji", "ms_nian_ye"], ["海盐结晶"]], "count": 2}],  # v163：爪牙=同图小怪模板（鱼鱼拍板，非 Boss 缩放）
@@ -237,7 +238,7 @@ INSTANCES = {
                     27,
                     [
                         "ms_wan_dao",
-                        "ms_huo_qiang",
+                        "ms_ha_huo_qiang_qi",
                         "ms_zhao_huan_shui_gui"
                     ],
                     [
@@ -268,7 +269,7 @@ INSTANCES = {
         "boss_line": "『孤在位时，圣战尚未燃起。』奥德里克拄剑起身，王座厅的烛火齐齐亮起：『来者报上名来，让孤看看三百年后的晨曦城，还记不记得忠骨。』",
         "outro": "古王的剑重归尘土，王陵重归寂静。奥德里克消散前望向北方的那一眼，让你想起他未说完的话——圣战的真相，似乎比棺椁里的陪葬品埋得更深。",
         "boss": ["b_king_odric", "古王·奥德里克", "boss", 40,
-                 ["ms_jian_ji", "ms_wang_wei", "ms_zhao_huan_ku_lou"],
+                 ["ms_jian_ji", "ms_wang_wei", "ms_zhao_ku_lou_mi"],
                  ["古王剑碎片"]],
                 "stages":         [
             {
@@ -342,7 +343,7 @@ INSTANCES = {
                     [
                         "ms_jian_ji",
                         "ms_wang_wei",
-                        "ms_zhao_huan_ku_lou"
+                        "ms_zhao_ku_lou_mi"
                     ],
                     [
                         "古王剑碎片"
@@ -436,7 +437,7 @@ INSTANCES = {
         "boss_line": "『奉命看守此门者，不问门后是什么，只问来者为何。』马尔库斯的锁链在手中绷直：『审判长·马尔库斯在此——退去，或领受审判。』",
         "outro": "马尔库斯的法冠滚落在地，锁链垂到他脚边，不再作响。你掀开一角白布，壁画上的图案让所有人沉默——教会掩埋的阴影，比这间地窖更深、更古老。",
         "boss": ["b_marcus", "审判长·马尔库斯", "boss", 47,
-                 ["ms_an_ying_dan", "ms_suo_lian", "ms_shen_pan_zhi_yan"],
+                 ["ms_an_ying_dan", "ms_suo_lian_ding_zui", "ms_shen_pan_zhi_yan", "ms_chu_xing_xuan_du"],
                  ["马尔库斯的法冠残片"]],
                 "stages":         [
             {
@@ -495,8 +496,9 @@ INSTANCES = {
                     47,
                     [
                         "ms_an_ying_dan",
-                        "ms_suo_lian",
-                        "ms_shen_pan_zhi_yan"
+                        "ms_suo_lian_ding_zui",
+                        "ms_shen_pan_zhi_yan",
+                        "ms_chu_xing_xuan_du"
                     ],
                     [
                         "马尔库斯的法冠残片"
@@ -573,7 +575,7 @@ INSTANCES = {
         "boss_line": "『月神弃我们而去的那一夜，这座城就死了。』晨曦从王座上起身，冠冕下的目光像月光一样冷：『可死去的王，也还记得如何守土。』",
         "outro": "晨曦之冠落回王座，废墟中的吟唱终于停歇。你抬头看见穹顶的裂缝里漏进一线月光——月神或许从未离开，只是等了太久。",
         "boss": ["b_dawn_elf", "远古精灵王·晨曦", "boss", 63,
-                 ["ms_yue_guang_zhan", "ms_zhao_huan_shu_ren", "ms_zhi_yu"],
+                 ["ms_yue_guang_zhan", "ms_zhao_huan_shu_ren", "ms_zhi_yu", "ms_yue_guang_xin", "ms_yue_hua_lian_shan", "ms_gen_xu_chan_rao_x"],
                  ["晨曦之冠碎片"]],
                 "stages":         [
             {
@@ -634,7 +636,10 @@ INSTANCES = {
                     [
                         "ms_yue_guang_zhan",
                         "ms_zhao_huan_shu_ren",
-                        "ms_zhi_yu"
+                        "ms_zhi_yu",
+                        "ms_yue_guang_xin",
+                        "ms_yue_hua_lian_shan",
+                        "ms_gen_xu_chan_rao_x"
                     ],
                     [
                         "晨曦之冠碎片"
@@ -1102,7 +1107,7 @@ INSTANCES = {
         "boss_line": "军旗……那面军旗在哪里？没有它，我该如何向死去的弟兄们复命！",
         "outro": "军旗碎片在月光下拼合成完整的旗帜，要塞幽灵单膝跪地，向旗帜行了一个百年未竟的军礼。晨光穿透破败的穹顶，英魂化作点点微光消散——北境的防线，终于有人替他们守住了。",
         "boss": ["b_fort_ghost", "要塞幽灵", "boss", 23,
-                 ["ms_ai_hao", "ms_chuan_shen", "ms_zhao_huan_ku_lou"],
+                 ["ms_you_hui_hui_chang", "ms_you_xiang_ji", "ms_chuan_shen", "ms_zhao_huan_ku_lou"],
                  ["要塞残片"]],
         "stages": [
             {
@@ -1126,7 +1131,7 @@ INSTANCES = {
                 "monsters": [],
                 "elite": None,
                 "boss": ["b_fort_ghost", "要塞幽灵", "boss", 23,
-                         ["ms_ai_hao", "ms_chuan_shen", "ms_zhao_huan_ku_lou"],
+                         ["ms_you_hui_hui_chang", "ms_you_xiang_ji", "ms_chuan_shen", "ms_zhao_huan_ku_lou"],
                          ["要塞残片"]],
             },
         ],
@@ -1160,7 +1165,7 @@ INSTANCES = {
         "boss_line": "举起你的剑，挑战者！圣光不认可软弱的祈祷——让骑士团看看，你配不配这枚徽记。",
         "outro": "试炼骑士长收剑入鞘，将圣光徽记郑重地别在你胸前：「从今日起，你便是骑士团认可的战士。」回廊尽头，晨光如剑，劈开长夜。",
         "boss": ["b_trial_knight", "试炼骑士长", "boss", 41,
-                 ["ms_sheng_guang_dan", "ms_jian_ji", "ms_zhao_huan"],
+                 ["ms_sheng_guang_dan", "ms_jian_ji", "ms_zhao_huan", "ms_dun_ji_shi_lian"],
                  ["试炼徽记"]],
         "stages": [
             {
@@ -1184,7 +1189,7 @@ INSTANCES = {
                 "monsters": [],
                 "elite": None,
                 "boss": ["b_trial_knight", "试炼骑士长", "boss", 41,
-                         ["ms_sheng_guang_dan", "ms_jian_ji", "ms_zhao_huan"],
+                         ["ms_sheng_guang_dan", "ms_jian_ji", "ms_zhao_huan", "ms_dun_ji_shi_lian"],
                          ["试炼徽记"]],
             },
         ],
@@ -1365,7 +1370,7 @@ INSTANCES = {
         "boss_line": "三百年了……我的冰封国度终于等来一个敢踏上王座的活人。来吧，让我看看你的热血，能在我的寒冬里撑过几息。",
         "outro": "冰霜领主连同王座一同碎裂，化作漫天冰尘，被北风卷向天际。永冻冰原的暴雪第一次停歇，阳光落上三百年未见天日的冻土。你呵出的白气里，春天正从裂缝中苏醒。",
         "boss": ["b_frost_lord", "冰霜领主", "boss", 79,
-                 ["ms_bing_xi", "ms_dong_jie", "ms_zhao_huan"],
+                 ["ms_bing_xi_lord", "ms_dong_jie", "ms_zhao_huan"],
                  ["永冻之核"]],
         "stages": [
             {
@@ -1389,7 +1394,7 @@ INSTANCES = {
                 "monsters": [],
                 "elite": None,
                 "boss": ["b_frost_lord", "冰霜领主", "boss", 79,
-                         ["ms_bing_xi", "ms_dong_jie", "ms_zhao_huan"],
+                         ["ms_bing_xi_lord", "ms_dong_jie", "ms_zhao_huan"],
                          ["永冻之核"]],
             },
         ],
@@ -1684,7 +1689,7 @@ INSTANCES = {
         "boss_line": "「留下来吧，旅人——我的歌里，有你想回的家。」",
         "outro": "蓝歌的歌声戛然而止，巢穴恢复了海底本来的寂静。那些被歌声骗来的灵魂挣脱幻梦，化作点点荧光，随洋流游向海面。",
         "boss": ["b_siren_queen", "海妖女王·蓝歌", "boss", 57,
-                 ["ms_mei_huo_zhi_ge", "ms_ju_lang", "ms_zhao_huan_chu_shou"],
+                 ["ms_mei_huo_ge_blue", "ms_ju_lang_blue", "ms_zhao_chu_shou_blue"],
                  ["蓝歌之冠残片"]],
                 "stages":         [
             {
@@ -1743,9 +1748,9 @@ INSTANCES = {
                     "boss",
                     57,
                     [
-                        "ms_mei_huo_zhi_ge",
-                        "ms_ju_lang",
-                        "ms_zhao_huan_chu_shou"
+                        "ms_mei_huo_ge_blue",
+                        "ms_ju_lang_blue",
+                        "ms_zhao_chu_shou_blue"
                     ],
                     [
                         "蓝歌之冠残片"
@@ -1974,7 +1979,7 @@ INSTANCES = {
         "boss_line": "「是谁吵醒了万年的沉眠？龙宫的规矩，要用水晶来偿。」",
         "outro": "敖澜重新阖上双眼，龙宫的潮水恢复了亘古的平稳。你带着敖澜之珠离去时，整座水晶宫亮起送别的微光——龙王记住了你的名字。",
         "boss": ["b_aolan", "深海龙王·敖澜", "boss", 75,
-                 ["ms_shui_xi", "ms_long_wei", "ms_zhao_huan_hai_shou"],
+                 ["ms_shui_xi_aolan", "ms_long_wei_ji_tui", "ms_zhao_huan_hai_shou"],
                  ["敖澜之珠碎片"]],
                 "stages":         [
             {
@@ -2047,8 +2052,8 @@ INSTANCES = {
                     "boss",
                     75,
                     [
-                        "ms_shui_xi",
-                        "ms_long_wei",
+                        "ms_shui_xi_aolan",
+                        "ms_long_wei_ji_tui",
                         "ms_zhao_huan_hai_shou"
                     ],
                     [
@@ -2109,7 +2114,7 @@ INSTANCES = {
         "boss_line": "「地底只认锤子说话的规矩——你的骨头，够硬吗？」",
         "outro": "石炉的巨锤终于垂下，要塞的炉火黯淡了几分。他盯着你的背影哼了一声，转身继续锻打——仿佛这场战斗，只是漫长锤音里的一段插曲。",
         "boss": ["b_gray_lord", "灰矮人领主·石炉", "boss", 79,
-                 ["ms_zhan_chui", "ms_zhao_huan_gong_cheng_shou"],
+                 ["ms_zhan_chui_lord", "ms_zhao_huan_gong_cheng_shou"],
                  ["石炉之锤"]],
                 "stages":         [
             {
@@ -2168,7 +2173,7 @@ INSTANCES = {
                     "boss",
                     79,
                     [
-                        "ms_zhan_chui",
+                        "ms_zhan_chui_lord",
                         "ms_zhao_huan_gong_cheng_shou"
                     ],
                     [
@@ -2289,7 +2294,7 @@ INSTANCES = {
         "boss_line": "「幽暗地域最古老的掠食者，不挑食。」",
         "outro": "黑渊的咆哮在岩壁间回荡许久才平息，岩浆湖重归暗红。它沉入湖底前看了你一眼，那目光仿佛在说：地底记住了你的味道。",
         "boss": ["b_under_dragon", "地底古龙·黑渊", "boss", 89,
-                 ["ms_suan_xi", "ms_tun_shi", "ms_zhao_huan_you_long"],
+                 ["ms_suan_xi", "ms_tun_shi", "ms_zhao_huan_you_long", "ms_shi_lin_suan_shi", "ms_shi_gu_shen_tun"],
                  ["黑渊之眼残片"]],
                 "stages":         [
             {
@@ -2350,7 +2355,9 @@ INSTANCES = {
                     [
                         "ms_suan_xi",
                         "ms_tun_shi",
-                        "ms_zhao_huan_you_long"
+                        "ms_zhao_huan_you_long",
+                        "ms_shi_lin_suan_shi",
+                        "ms_shi_gu_shen_tun"
                     ],
                     [
                         "黑渊之眼残片"
@@ -2434,7 +2441,7 @@ INSTANCES = {
         "boss_line": "风暴之主·云怒立于雷云之巅，号令万雷齐鸣：『竟敢踏入天空的尽头？就让风暴，为你们送葬！』",
         "outro": "雷云散尽，风眼归于沉寂，天空的尽头重归湛蓝。云怒之核落入掌心，那是苍穹赐予胜者的徽记——从今往后，风暴也记住了你们的名字。",
         "boss": ["b_storm_master", "风暴之主·云怒", "boss", 97,
-                 ["ms_lei_bao", "ms_feng_bao_zhi_yan", "ms_zhao_huan_lei_niao"],
+                 ["ms_lei_bao", "ms_feng_bao_zhi_yan", "ms_zhao_huan_lei_niao", "ms_f6_lei_bao_feng_yan", "ms_f6_feng_bao_feng_yan"],
                  ["云怒之核碎片"]],
                 "stages":         [
             {
@@ -2495,7 +2502,9 @@ INSTANCES = {
                     [
                         "ms_lei_bao",
                         "ms_feng_bao_zhi_yan",
-                        "ms_zhao_huan_lei_niao"
+                        "ms_zhao_huan_lei_niao",
+                        "ms_f6_lei_bao_feng_yan",
+                        "ms_f6_feng_bao_feng_yan"
                     ],
                     [
                         "云怒之核碎片"

@@ -868,7 +868,7 @@ SUBAREAS = {
                     "哥布林酋长·咕噜",
                     "boss",
                     20,
-                    ["ms_lian_zhan", "ms_nu_hou", "ms_zhao_huan"],
+                    ["ms_lian_zhan", "ms_lve_duo_h_ling", "ms_zhao_huan", "ms_nu_hou"],
                     ["咕噜皇冠"]
                 ],
                 "funcs": ["instance"],
@@ -1389,7 +1389,7 @@ SUBAREAS = {
                     "海盗王·独眼杰克",
                     "boss",
                     27,
-                    ["ms_wan_dao", "ms_huo_qiang", "ms_zhao_huan_shui_gui"],
+                    ["ms_wan_dao", "ms_ha_huo_qiang_qi", "ms_zhao_huan_shui_gui"],
                     ["杰克的金钩碎片"]
                 ],
                 "funcs": ["instance"],
@@ -1774,7 +1774,7 @@ SUBAREAS = {
                     "要塞幽灵",
                     "boss",
                     23,
-                    ["ms_ai_hao", "ms_chuan_shen", "ms_zhao_huan_ku_lou"],
+                    ["ms_you_hui_hui_chang", "ms_you_xiang_ji", "ms_chuan_shen", "ms_zhao_huan_ku_lou"],
                     ["要塞残片"]
                 ],
                 "funcs": ["instance"],
@@ -2614,7 +2614,7 @@ SUBAREAS = {
                     "古王·奥德里克",
                     "boss",
                     40,
-                    ["ms_jian_ji", "ms_wang_wei", "ms_zhao_huan_ku_lou"],
+                    ["ms_jian_ji", "ms_wang_wei", "ms_zhao_ku_lou_mi"],
                     ["古王剑碎片"]
                 ],
                 "funcs": ["instance"],
@@ -2921,7 +2921,7 @@ SUBAREAS = {
                     "审判长·马尔库斯",
                     "boss",
                     47,
-                    ["ms_an_ying_dan", "ms_suo_lian", "ms_shen_pan_zhi_yan"],
+                    ["ms_an_ying_dan", "ms_suo_lian_ding_zui", "ms_shen_pan_zhi_yan", "ms_chu_xing_xuan_du"],
                     ["马尔库斯的法冠残片"]
                 ],
                 "funcs": ["instance"],
@@ -3215,7 +3215,7 @@ SUBAREAS = {
                     "试炼骑士长",
                     "boss",
                     41,
-                    ["ms_sheng_guang_dan", "ms_jian_ji", "ms_zhao_huan"],
+                    ["ms_sheng_guang_dan", "ms_jian_ji", "ms_zhao_huan", "ms_dun_ji_shi_lian"],
                     ["试炼徽记"]
                 ],
                 "funcs": ["instance"],
@@ -4037,7 +4037,7 @@ SUBAREAS = {
                     "远古精灵王·晨曦",
                     "boss",
                     63,
-                    ["ms_yue_guang_zhan", "ms_zhao_huan_shu_ren", "ms_zhi_yu"],
+                    ["ms_yue_guang_zhan", "ms_zhao_huan_shu_ren", "ms_zhi_yu", "ms_yue_guang_xin", "ms_yue_hua_lian_shan", "ms_gen_xu_chan_rao_x"],
                     ["晨曦之冠碎片"]
                 ],
                 "funcs": ["instance"],
@@ -6161,7 +6161,7 @@ SUBAREAS = {
                     "boss",
                     79,
                     [
-                        "ms_bing_xi",
+                        "ms_bing_xi_lord",
                         "ms_dong_jie",
                         "ms_zhao_huan"
                     ],
@@ -8462,7 +8462,7 @@ SUBAREAS = {
                     "海妖女王·蓝歌",
                     "boss",
                     57,
-                    ["ms_mei_huo_zhi_ge", "ms_ju_lang", "ms_zhao_huan_chu_shou"],
+                    ["ms_mei_huo_ge_blue", "ms_ju_lang_blue", "ms_zhao_chu_shou_blue"],
                     ["蓝歌之冠残片"]
                 ],
                 "funcs": ["instance"],
@@ -9275,7 +9275,7 @@ SUBAREAS = {
                     "深海龙王·敖澜",
                     "boss",
                     75,
-                    ["ms_shui_xi", "ms_long_wei", "ms_zhao_huan_hai_shou"],
+                    ["ms_shui_xi_aolan", "ms_long_wei_ji_tui", "ms_zhao_huan_hai_shou"],
                     ["敖澜之珠碎片"]
                 ],
                 "funcs": ["instance"],
@@ -9912,7 +9912,7 @@ SUBAREAS = {
                     "boss",
                     79,
                     [
-                        "ms_zhan_chui",
+                        "ms_zhan_chui_lord",
                         "ms_zhao_huan_gong_cheng_shou"
                     ],
                     [
@@ -10049,7 +10049,9 @@ SUBAREAS = {
                     [
                         "ms_suan_xi",
                         "ms_tun_shi",
-                        "ms_zhao_huan_you_long"
+                        "ms_zhao_huan_you_long",
+                        "ms_shi_lin_suan_shi",
+                        "ms_shi_gu_shen_tun"
                     ],
                     [
                         "黑渊之眼残片"
@@ -11021,7 +11023,9 @@ SUBAREAS = {
                     [
                         "ms_lei_bao",
                         "ms_feng_bao_zhi_yan",
-                        "ms_zhao_huan_lei_niao"
+                        "ms_zhao_huan_lei_niao",
+                        "ms_f6_lei_bao_feng_yan",
+                        "ms_f6_feng_bao_feng_yan"
                     ],
                     [
                         "云怒之核碎片"

@@ -111,8 +111,40 @@ weighted：when 命中的 move 先过滤，再按 weight 重抽（过滤后池�
 2. **别用 `logs is None` 短路判据**——那会让静默探测恒「可用」。
 3. **内容侧 AI 声明的技能必须在该 actor 的 `skills` 里**（阶段追加要保证语句真执行）；
    `tools/audit_ai_moves_resolvable.py` 可审计。
-4. **`cd` 只在战斗内生效**——脱战治疗无 battle 实例、无冷却表（既有设计选择，见 `combat.py:1212`）。
-5. **冷却 key 是显示名**——重命名技能等于放弃旧冷却条目（无害，但别指望迁移）。
+4. **Boss 的身份技 / 常态循环技要写进副本 boss 的 6 元组技能数组**（「常态技能池」），
+   不能只放 `phases.add_skills` —— 那条只在跨过血量阈值后才 `append`（见 §5 与 `boss_script._check_phases`）。
+   漏写的表现同样是静默空放：AI 权重/连招链指着一个本场永远不持有的技能。
+   归类口径见下节。
+5. **`cd` 只在战斗内生效**——脱战治疗无 battle 实例、无冷却表（既有设计选择，见 `combat.py:1212`）。
+6. **冷却 key 是显示名**——重命名技能等于放弃旧冷却条目（无害，但别指望迁移）。
+
+---
+
+## 6.1 引用可解析性：三条通道与三分类
+
+怪「引用了某个技能」有 **3 条**通道，都要过判据 1（索引解析）：
+
+| 通道 | 位置 | 说明 |
+|------|------|------|
+| AI 权重 | `MONSTER_MODS[id].ai.weights` | 旧格式 → `normalize_ai` 归一成 `moves[].then.skill` |
+| 连招链 | `MONSTER_MODS` / `INSTANCES[id].chains[].seq` | `_check_chains` 把技能写进 `actor["auto_act"]`，同样走 `ActCtx` 解析 |
+| 阶段换招 | `phases[].add_skills` | 跨阈值时 `append` 进 `actor["skills"]`，索引由 `refresh_skill_index` 自动补 |
+
+「能持有」的口径（对齐 `boss_script.boss_script_cfg`：MONSTER_MODS 基准 + **INSTANCES 副本整体覆盖**）：
+**spawn 6 元组 skills** ∪ MONSTER_MODS phases ∪ **INSTANCES phases** ∪ openings/on_interrupt
+（后两者含 `boss_phases.merge_phase_config` 模板追加）。
+
+审计三分类（`tools/audit_ai_moves_resolvable.py`，DEAD 非空即 exit 1）：
+
+| 分类 | 含义 |
+|------|------|
+| `OK-base` | 开战即持有（spawn 值 = 常态技能池） |
+| `OK-phase` | 阶段 `add_skills`（转阶段后刷新索引即可解析）——**设计上有意门控** |
+| `DEAD` | 两处都没有 → AI/链引用不存在的技能（**真缺陷**） |
+
+> 2026-09-11 实测：补上 INSTANCES phases + chains 两条通道后，一次性揪出 **21 处**
+> DEAD（AI 权重 17 + 连招链 4，涉 15 只 Boss）——根因是 v180 Boss 设计合表时
+> 只并了技能表/阶段/AI 权重，漏了「身份技必须写进 boss 元组技能数组」这一步。
 
 ---
 
@@ -123,7 +155,9 @@ weighted：when 命中的 move 先过滤，再按 weight 重抽（过滤后池�
 | 回归 | `tests/test_battle2_cooldown_enforce.py` | 54 断言：冷却写入/拦截/到期放行、AI 三判据、priority/weighted 过滤、活锁回归、索引自愈 |
 | 探针 | `tools/probe_cooldown_enforcement.py` | 实跑取证：`cd` 声明 → 连续两次施放是否都命中 |
 | 探针 | `tools/probe_phase_skill_index.py` | 转阶段换招 → 索引是否自动补上 + 新招真能打出 |
-| 审计 | `tools/audit_ai_moves_resolvable.py` | 全部配 AI 的怪：AI 引用的招能否解析（三分类） |
+| 回归 | `tests/test_boss_spawn_pool_audit.py` | 30 断言：DEAD=0 门禁 + 21 处身份技在常态池 + 旧命名不回退 |
+| 审计 | `tools/audit_ai_moves_resolvable.py` | 配 AI / 配链的怪：引用的招能否解析（三分类，含 INSTANCES 层） |
+| 批改 | `tools/fix_boss_spawn_pools.py` | 按设计稿「合表要求」批量补齐 boss 常态池（dry-run 默认） |
 
 ---
 
@@ -135,3 +169,4 @@ weighted：when 命中的 move 先过滤，再按 weight 重抽（过滤后池�
 | 2026-09-11 | AI 决策器加可执行性过滤（`_skill_castable` / `_move_castable`），修 `cd_ok` 活锁 |
 | 2026-09-11 | `refresh_skill_index`：运行期换招索引自愈 |
 | 2026-09-11 | 命令层冷却预检（不扣体力/不耗回合）；`_skill_usable` 判据与文案解耦 |
+| 2026-09-11 | §6.1 新增：引用可解析性三通道 × 三分类；修 v180 合表漏项（21 处 DEAD / 15 只 Boss 常态池补齐） |

@@ -34,7 +34,7 @@ from game.commands.boss_script import make_script_hook  # noqa: E402
 
 MID = "b_gray_lord"
 mod = MONSTER_MODS.get(MID) or {}
-BASE_SKILLS = ["ms_zhan_chui", "ms_zhao_huan_gong_cheng_shou"]
+BASE_SKILLS = ["ms_zhan_chui_lord", "ms_zhao_huan_gong_cheng_shou"]  # 与 instances/subareas boss 元组一致
 DEF = (MID, mod.get("name", MID), "boss", 45, list(BASE_SKILLS), [])
 MAP_OBJ = next(iter(MAP_BY_ID.values()))
 
