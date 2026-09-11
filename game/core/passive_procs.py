@@ -191,6 +191,15 @@ KNOWN_GAPS: set = {
     #   "不静默"，不强制每条都走注册表；引擎遗留旧通道列入缺口表防误删））
     # P2-D7 启动校验豁免 = D 类 4（真空转）+ 3（旧通道直读）7 个；
     # 45 声明已全覆盖 52-7；校验在文件尾 validate_proc_coverage()（ImportError 即红）
+    #
+    # P15 补登（2026-09-11）：reflection/破绽族走**第三条实现路径**——
+    #   `PASSIVE_PROC` 表（game/data/battle2_rules.py）+ 装配层
+    #   `class_mech_proc.apply_class_passives` 挂 actor.triggers（含 bar_field 解析段），
+    #   **不经** passive_procs 的族执行器。功能已实装且有测试
+    #   （tests/test_battle2_bar_procs.py 57 断言），非静默空转。
+    #   ⚠️ 架构债：本表校验口径只认「PROC_FAMILIES 族执行器」这条旧路径，
+    #   走新装配路径的 proc 必须逐条登记到这里才能过校验——新增此类 proc 时别忘了。
+    "reflect_bar",
 }
 
 _REG_ORDER: list = []
