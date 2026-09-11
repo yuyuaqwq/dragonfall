@@ -184,14 +184,24 @@ def test_buff_effect_handler():
           f"reduce={ent(caster, 'reduce')}")
     check("reduce_left=8", caster.get("reduce_left") == 8)
     # atk_all → atk_up（N7.1 快照：{expire, stat, op, mult}）
+    # ⚠️ 2026-09-11 行为变更：`*_all` 系列改为**团队面幅**（遍历同侧存活 actor）——
+    #   此前只作用施法者自己（单人时代无感）。故本测试需把 caster 放进 sides 才有受益者。
     caster["effects"].clear()
+    b.sides["player"] = [caster]
     FX.apply_effects(b, caster, caster, [{"type": "atk_all", "turns": 10}], logs)
     _au = ent(caster, "atk_up") or {}
-    check("atk_all → atk_up stat=atk mult=1.30",
+    check("atk_all → atk_up stat=atk mult=1.30（团队面幅：含施法者）",
           _au.get("stat") == "atk" and abs(float(_au.get("mult", 0)) - 1.30) < 1e-9,
           f"atk_up={_au}")
     check("atk_up expire≈now+10", abs(float(_au.get("expire", 0)) - 10.0) < 1e-9,
           f"expire={_au.get('expire')}")
+    # 团队面幅：不在 sides 里的施法者拿不到（无受益者 = 无行为）
+    caster["effects"].clear()
+    b.sides["player"] = []
+    FX.apply_effects(b, caster, caster, [{"type": "atk_all", "turns": 10}], logs)
+    check("无同侧 actor → atk_all 零行为（团队面幅语义）", not ent(caster, "atk_up"),
+          f"atk_up={ent(caster, 'atk_up')}")
+    b.sides["player"] = [caster]
     # shield_self
     FX.apply_effects(b, caster, caster,
                      [{"type": "shield_self", "mech_val": 300, "info": {"effect_val": 0}}], logs)

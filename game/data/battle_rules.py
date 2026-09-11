@@ -386,6 +386,17 @@ EFFECT_RULES: dict = {
     "crit_up_big":     {"cap": 1, "panel": {"stat": "crit", "op": "add", "mult": 0.30}},
     "crit_up_small":   {"cap": 1, "panel": {"stat": "crit", "op": "add", "mult": 0.15}},
     "dodge_up":        {"cap": 1, "panel": {"stat": "dodge", "op": "add", "mult": 0.10}},
+    # 格挡率（铁壁·誓「自身护盾，格挡率 +30%」；面板字段 block 见引擎 stats.actor_stats）
+    "block_up":        {"cap": 1, "panel": {"stat": "block", "op": "add", "mult": 0.30}},
+    # 「全属性 +N%」族（永恒赞歌 lv98「全队全属性 +30%、免疫控制」）——五维同幅，
+    # 与单属性 up 族分开命名，供其它全属性技能复用（数值同 desc 的 30%）
+    "all_up_atk":      {"cap": 1, "panel": {"stat": "atk",  "op": "mul", "mult": 1.30}},
+    "all_up_def":      {"cap": 1, "panel": {"stat": "def",  "op": "mul", "mult": 1.30}},
+    "all_up_matk":     {"cap": 1, "panel": {"stat": "matk", "op": "mul", "mult": 1.30}},
+    "all_up_spd":      {"cap": 1, "panel": {"stat": "spd",  "op": "mul", "mult": 1.30}},
+    "all_up_crit":     {"cap": 1, "panel": {"stat": "crit", "op": "add", "mult": 0.30}},
+    # 闪避 +15%（自然护佑 lv88「全队闪避 +15%」；dodge_up 是 +10% 的通用档）
+    "dodge_up_big":    {"cap": 1, "panel": {"stat": "dodge", "op": "add", "mult": 0.15}},
     "matk_up":         {"cap": 1, "panel": {"stat": "matk", "op": "mul", "mult": 1.50}},
     "matk_up_pot":     {"cap": 1, "panel": {"stat": "matk", "op": "mul", "mult": 1.30}},
     "matk_up_strong":  {"cap": 1, "panel": {"stat": "matk", "op": "mul", "mult": 1.80}},
@@ -450,18 +461,64 @@ EFFECT_ACTIONS: dict = {
     "stance_guard": [{"action": "class_stance_guard_enter"}],
     # 拳师守御姿态（v153 L992：受伤 −25%/推条 −30%）——装配层动作写态 + 挂减伤乘区
     "guard_stance": [{"action": "class_guard_stance_enter"}],
-    # 团队/全员增益 → 自身有效键（旧 team_keys 同语义）
-    "atk_all":   [{"action": "apply", "key": "atk_up"}],
-    "def_all":   [{"action": "apply", "key": "def_up"}],
-    # v2026-09-11 缺口修复：`effect='def_up'`（磐石之躯 lv10「防御＋45% 持续 2 刻」）此前
+    # ---- v2026-09-11 团队/全队效果 ----
+    # 面幅（遍历同侧存活）走内容侧 game/services/battle_team_procs.py；数值全部读技能数据
+    # （`_do_buff` 把 info 注入 params），本表只声明「哪个名词 → 哪一族动作」。
+    # 历史 bug：此前 `*_all` 一律映射到引擎 `apply`，而 `apply` 只作用于施法者自己
+    # （单人时代「全队=自己」无感）→ 多人副本/PVP 下描述承诺与行为不符。已修。
+    "atk_all":      [{"action": "team_apply", "key": "atk_up"}],
+    "def_all":      [{"action": "team_apply", "key": "def_up"}],
+    # v2026-09-11 缺口修复：`effect='def_up'`（磐石之体 lv10「防御＋45% 持续 2 刻」）此前
     #   只在 EFFECT_RULES 有面板声明、**EFFECT_ACTIONS 无映射** → resolve_actions 返回 [] →
     #   技能整条静默 no-op。补上与 def_all 同源的映射（面板数值复用 EFFECT_RULES["def_up"]）。
     "def_up":    [{"action": "apply", "key": "def_up"}],
-    "matk_all":  [{"action": "apply", "key": "matk_up_strong"}],
-    "crit_all":  [{"action": "apply", "key": "crit_up"}],
-    "spd_all":   [{"action": "apply", "key": "spd_up"}],
-    "atk_matk_all": [{"action": "apply", "key": "atk_up"},
-                     {"action": "apply", "key": "matk_up"}],
+    "matk_all":     [{"action": "team_apply", "key": "matk_up_strong"}],
+    "crit_all":     [{"action": "team_apply", "key": "crit_up"}],
+    "spd_all":      [{"action": "team_apply", "key": "spd_up"}],
+    "atk_matk_all": [{"action": "team_apply", "key": "atk_up"},
+                     {"action": "team_apply", "key": "matk_up"}],
+    # 全队全属性 + 免疫控制（永恒赞歌 lv98「全队全属性 +30%、免疫控制」）
+    "all_stat_cc":  [{"action": "team_apply", "key": "all_up_atk"},
+                     {"action": "team_apply", "key": "all_up_def"},
+                     {"action": "team_apply", "key": "all_up_matk"},
+                     {"action": "team_apply", "key": "all_up_spd"},
+                     {"action": "team_apply", "key": "all_up_crit"},
+                     {"action": "team_cc_immune"}],
+    # ---- 护盾族（盾值三形态：shield_pct / shield_per_stack+shield_res_key / shield_value）----
+    "shield_all":        [{"action": "team_shield", "halve": True}],
+    "shield_block":      [{"action": "self_shield", "key": "shield_self"},
+                          {"action": "apply", "key": "block_up"}],
+    "shield_all_reduce": [{"action": "team_shield", "halve": True},
+                          {"action": "team_taken_reduce"}],
+    "reduce_shield_all": [{"action": "team_taken_reduce"},
+                          {"action": "team_shield", "halve": True}],
+    "arcane_shield":     [{"action": "self_shield", "key": "arcane_shield"}],
+    # ---- 减伤族（乘算叠加；数值读技能数据 reduce/reduce_pct）----
+    "reduce_all":        [{"action": "team_taken_reduce"}],
+    "dodge_reduce_all":  [{"action": "team_apply", "key": "dodge_up_big"},
+                          {"action": "team_taken_reduce"}],
+    # ---- 全队伤害乘区（条件读技能数据 aura_kind / aura_mark / aura_lock）----
+    "arcane_matrix": [{"action": "team_dmg_aura"}],
+    "hunt_team_dmg": [{"action": "team_dmg_aura"}],
+    "star_lock":     [{"action": "target_lock_mark"}, {"action": "team_dmg_aura"}],
+    # ---- 目标易伤（带刻数自动过期；数值读 vuln_amp）----
+    "vuln":          [{"action": "timed_vuln"}],
+    # ---- 潜行 + 免疫控制（影遁 lv85）----
+    "stealth_cc":    [{"action": "apply", "key": "stealth", "hit": {"guaranteed_crit": True}},
+                      {"action": "self_cc_immune"}],
+    # ---- 脱战 + 全队闪避（烟雾弹 lv20；「脱离战斗」由命令层处理，本表只做闪避段）----
+    "disengage_dodge": [{"action": "team_apply", "key": "dodge_up"}],
+    # ---- 挡刀（誓约之盾 85 / 守护誓言 90）：写 guard_uid + 反伤；引擎承伤转移钩子落地 ----
+    "protect":       [{"action": "team_guard"}],
+    # ---- 格挡 1 次 + 反伤（铁山靠 58）----
+    "block_reflect": [{"action": "block_once"}],
+    # ---- 元素流转（法师，切换当前主系）----
+    "element_switch": [{"action": "class_element_switch"}],
+    # ---- 奥术力场（法师：护盾档落地；利刃档待交互设计）----
+    "arcane_field":  [{"action": "arcane_field"}],
+    # 注：`taunt`（嘲讽）**不在本表** —— 其语义（仇恨 ×N + 强制锁 N 刻）由命令层
+    #   game/commands/instance_router.py 直读技能配置（hate_taunt_mult / hate_lock_turns）
+    #   实现，不走 EFFECT_ACTIONS（2026-09-11 取证：此前被误列为"静默 no-op"）。
     # ---- N7.5b 药水/食物纯属性别名（items.py effect → EFFECT_RULES panel；special:* 类 N8 事件）----
     "buff_atk":    [{"action": "apply", "key": "atk_up"}],
     "buff_atk_big":[{"action": "apply", "key": "atk_up_big"}],

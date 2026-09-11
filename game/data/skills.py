@@ -991,6 +991,7 @@ BRANCH_SKILLS = {
                         'cast': 0.6,
                         'cd': 16,
                         'effect': 'shield_all',
+                        'shield_per_stack': 0.06, 'shield_stacks': 5,
                         'name': '坚盾壁垒',
                         'desc': '高举巨盾，誓言化作金色壁垒——花 5 层战意：全队获得护盾（每层 6% 施法者生命上限），持续 12 刻'
                     },
@@ -1018,6 +1019,7 @@ BRANCH_SKILLS = {
                         'cast': 0.5,
                         'cd': 12,
                         'effect': 'shield_block',
+                        'shield_pct': 0.20,
                         'name': '铁壁·誓',
                         'desc': '以誓言加固铁壁，身躯坚不可摧——自身获得护盾，格挡率 +30%，持续 10 刻'
                     },
@@ -1135,6 +1137,7 @@ BRANCH_SKILLS = {
                         'cast': 0.6,
                         'cd': 16,
                         'effect': 'shield_all',
+                        'shield_per_stack': 0.06, 'shield_res_key': 'zhan_yi',
                         'name': '圣盾',
                         'desc': '圣光在盾面流转，庇护身后众人——全队获得战意之盾（随战意层数增强，每层 +6%，不消耗），持续 12 刻'
                     },
@@ -1189,6 +1192,7 @@ BRANCH_SKILLS = {
                         'cast': 0.7,
                         'cd': 20,
                         'effect': 'protect',
+                        'reflect_pct': 0.30,
                         'name': '誓约之盾',
                         'desc': '以誓言立盾，替战友挡下刀锋——为队友挡刀并反伤 30%，持续 12 刻'
                     },
@@ -1202,6 +1206,7 @@ BRANCH_SKILLS = {
                         'cd': 16,
                         'reduce_all': 0.20,   # v169.7: desc 全队减伤20%（原缺字段跌默认20%靠运气）
                         'effect': 'reduce_all',
+                        'reduce': 0.20,
                         'name': '战吼·守',
                         'desc': '守护之吼回荡战场，稳住阵脚——全队减伤 20% 持续 10 刻，自身积攒 2 点战意'
                     },
@@ -1290,6 +1295,7 @@ BRANCH_SKILLS = {
                         'cast': 0.7,
                         'cd': 20,
                         'effect': 'protect',
+                        'reflect_pct': 0.50,
                         'name': '守护誓言',
                         'desc': '立下铁血誓言，以身铸成坚盾——为队友挡刀并反伤 50%，持续 12 刻'
                     },
@@ -1303,6 +1309,7 @@ BRANCH_SKILLS = {
                         'cd': 24,
                         'reduce_all': 0.30,   # v169.7: desc 全队减伤30%；战意≥8 时 50% 为条件档引擎无法表达（按基础 30% + 注释）
                         'effect': 'reduce_all',
+                        'reduce': 0.30,
                         'name': '不破壁垒',
                         'desc': '钢铁壁垒拔地而起，万军难破——全队减伤 30% 持续 12 刻，战意 ≥8 时提升至 50%（不消耗）'
                     },
@@ -1325,6 +1332,7 @@ BRANCH_SKILLS = {
                         'cast': 0.8,
                         'cd': 24,
                         'effect': 'shield_all_reduce',
+                        'shield_pct': 0.20, 'reduce': 0.30,
                         'name': '守护圣域',
                         'desc': '圣光领域徐徐张开，庇佑所有战友——花满 10 层战意：全队获得护盾并减伤 30%，持续 12 刻'
                     },
@@ -1502,6 +1510,7 @@ BRANCH_SKILLS = {
                         'cast': 0.5,
                         'cd': 16,
                         'effect': 'arcane_shield',
+                        'shield_per_stack': 0.08, 'shield_res_key': 'arcane', 'shield_base_stat': 'matk',
                         'name': '相位偏折',
                         'desc': '将奥术能量偏折流转，织成守护力场——张开力场护盾，消耗全部充能，每层转化为 8% 魔攻护盾'
                     },
@@ -1641,6 +1650,7 @@ BRANCH_SKILLS = {
                         'cast': 0.7,
                         'cd': 24,
                         'effect': 'arcane_matrix',
+                        'aura_kind': ['魔法'], 'aura_add': 0.20,
                         'name': '奥术矩阵',
                         'desc': '于脚下铭刻流转的奥术矩阵，展开领域——全队奥术/魔法伤害 +20%，持续 12 刻'
                     },
@@ -1968,6 +1978,7 @@ BRANCH_SKILLS = {
                         'cd': 16,
                         'res_cost': {"energy": 30},
                         'effect': 'star_lock',
+                        'aura_lock': 'star', 'aura_add': 0.12,
              'buff_turns': 12,   # v162: desc 持续12刻
                         'name': '星轨锁定',
                         'desc': '星辉映照，猎物身形无所遁形——锁定目标无视站位，全队对其伤害 +12%，持续 12 刻'
@@ -2058,6 +2069,7 @@ BRANCH_SKILLS = {
                         'cd': 20,
                         'res_cost': {"energy": 35},
                         'effect': 'dodge_reduce_all',
+                        'reduce': 0.10,
              'buff_turns': 12,   # v162: desc 持续12刻
                         'name': '自然护佑',
                         'desc': '草木生灵环护周身，藤叶织成壁垒——全队闪避 +15%、减伤 10%，持续 12 刻'
@@ -2157,6 +2169,7 @@ BRANCH_SKILLS = {
                         'cd': 20,
                         'res_cost': {"energy": 50},
                         'effect': 'hunt_team_dmg',
+                        'aura_mark': 'hunt_mark', 'aura_add': 0.30,
              'buff_turns': 12,   # v162: desc 持续12刻
                         'name': '猎杀时刻',
                         'desc': '猎手本能觉醒，杀意笼罩全场——全队对猎印目标增伤 +30%，持续 12 刻'
@@ -2424,6 +2437,7 @@ BRANCH_SKILLS = {
                         'faith': 0,
                         'reduce_all': 0.15,   # v169.7: desc 全队减伤15%（原缺字段跌默认20%）
                         'effect': 'reduce_all',
+                        'reduce': 0.15,
                         'name': '死歌·悼',
                         'desc': '低沉的悼歌在墓园回响——死歌光环：全队减伤 15%，持续 12 刻'
                     },
@@ -2495,6 +2509,7 @@ BRANCH_SKILLS = {
                         'faith': 0,
                         'reduce_all': 0.20,   # v169.7: desc 全队减伤20%（原缺字段跌默认20%对但靠运气；回血承诺无数据表达）
                         'effect': 'reduce_all',
+                        'reduce': 0.20,
                         'name': '圣光庇护',
                         'desc': '圣光展开庇护之翼笼罩全队——全队减伤 20% 并持续回血，维持 10 刻'
                     },
@@ -2916,6 +2931,7 @@ BRANCH_SKILLS = {
                         'cast': 0.3,
                         'cd': 16,
                         'effect': 'vuln',
+                        'vuln_amp': 0.25,
                         'name': '死亡标记',
                         'desc': '在目标眉心烙下死亡印记——目标受到伤害 +25%，持续 8 刻'
                     },
@@ -3300,6 +3316,7 @@ BRANCH_SKILLS = {
                         'cast': 0.35,
                         'cd': 16,
                         'effect': 'block_reflect',
+                        'reflect_pct': 0.40,
                         'name': '铁山靠',
                         'desc': '铁肩靠山，屹立不退——格挡 1 次攻击并反伤 40%，持续 8 刻'
                     },
@@ -3357,6 +3374,7 @@ BRANCH_SKILLS = {
                         'cd': 16,
                         'reduce_all': 0.30,   # v169.7: desc 全队减伤30%（原缺字段跌默认20%）
                         'effect': 'reduce_all',
+                        'reduce': 0.30,
                         'name': '厚土',
                         'desc': '厚土凝阵，万伤难侵——全队减伤 30% 持续 8 刻'
                     },
@@ -3511,6 +3529,7 @@ BRANCH_SKILLS = {
                         'cast': 0.6,
                         'cd': 20,
                         'effect': 'shield_all',
+                        'shield_per_stack': 0.04, 'shield_res_key': 'guard_core',
                         'name': '气力守御',
                         'desc': '气力化盾，护佑同袍——全队获得护盾（磐核数 ×4% 施法者最大生命）持续 12 刻'
                     },
@@ -3632,6 +3651,7 @@ BRANCH_SKILLS = {
                         'cast': 0.6,
                         'cd': 24,
                         'effect': 'reduce_shield_all',
+                        'reduce': 0.30, 'shield_pct': 0.20,
                         'name': '大地守护',
                         'desc': '大地之力护佑全军——全队减伤 30-50%（按磐核数）并获得护盾，持续 12 刻'
                     },

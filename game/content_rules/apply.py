@@ -92,8 +92,15 @@ def ensure_engine_configured() -> None:
       + 规则表（EFFECT_ACTIONS / EFFECT_RULES）。
 
     幂等：`mount()` 与 `load_game_rules()` 均为覆盖写，重复调用同一结果。
+
+    另：**引擎动作执行器注册**也在本入口（import 即注册，2026-09-11）——
+    `game/services/battle_team_procs.py` 提供团队/全队面幅与护盾/减伤/易伤/挡刀等
+    内容侧动作，它们在技能施放时由引擎增益管线调起，必须先于任何战斗注册。
+    放这里（而非开战装配）的原因：所有测试/入口都走 `ensure_engine_configured()`，
+    注册面才完整。
     """
     from .. import bootstrap  # 惰性：装配期避免循环 import（见 game/bootstrap.py docstring）
+    from ..services import battle_team_procs as _team_procs  # noqa: F401  (import 即注册)
     bootstrap.load_engine_config()
 
 

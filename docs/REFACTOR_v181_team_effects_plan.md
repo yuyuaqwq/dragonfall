@@ -1,7 +1,10 @@
 # v181 团队/护盾/减伤类 effect 名词实装方案（2026-09-11）
 
-> **状态：待拍板**（本文是字段级施工图，不是已落地记录）
-> **为什么单独出方案**：这 20 个 `effect=` 名词是**玩家可见的静默 no-op**（技能 desc 承诺的效果
+> **状态：✅ 已落地（2026-09-11）** —— 鱼鱼拍板口径后当日实装完毕；
+> 方案保留作为施工记录与口径依据，落地细节见文末「§七 落地记录」。
+> **鱼鱼拍板口径**：全队减伤 = **叠加（乘算）**；护盾 = **百分比与固定值都支持，按技能设定**。
+>
+> **为什么先出方案**：这 20 个 `effect=` 名词是**玩家可见的静默 no-op**（技能 desc 承诺的效果
 > 一个字都不生效），但它们的实装会**整体抬高全队承伤能力**（护盾/减伤/易伤都是生存乘区）
 > → 按铁律必须过 `scripts/run_numeric_tests.py` 门禁 + 峰值红线，且属数值维度扩张，
 > 需鱼鱼拍板口径后再动手。
@@ -133,3 +136,77 @@ actor.triggers["time_advance"] += [{"action": "team_effect_expire", "key": <效�
 | `debuff_scale`（hunt_mark/soul_mark/curse 每层承伤 +N%） | 无消费方 → 三个印记的「每层承伤」承诺不生效 | 并入本方案批（同属乘区） |
 | `finisher.crit_at`（`battle_rules.py:531`） | 装配器不读，注释自承「声明先行」 | 接线 or 删声明 |
 | `def_up` | ✅ 已修（2026-09-11） | — |
+
+
+---
+
+## 七、落地记录（2026-09-11 实装）
+
+### 7.0 口径（鱼鱼拍板）
+
+- **全队减伤 = 叠加（乘算）**：多个来源各自 `mult *= (1-r)`，即 30% + 20% → ×0.7×0.8 = 44%。
+- **护盾 = 百分比与固定值都支持，按技能设定**：
+  `shield_pct`（施法者生命上限 %）/ `shield_per_stack` + `shield_res_key`（按资源层数递增，
+  可配 `shield_base_stat` 换成 atk/matk 基数）/ `shield_value`（固定数值）。缺字段 = 无行为。
+
+### 7.1 关键发现①：`*_all` 一直是「只作用施法者自己」
+
+引擎增益管线 `actions._do_buff` 把 `effect=` 名词翻译成动作后调
+`apply_effects(battle, actor, actor, ...)` —— **受益者恒为施法者**。单人时代「全队 = 自己」
+无感；多人副本/PVP 下就是**描述与行为不符**。EFFECT_ACTIONS 里原有注释「团队/全员增益 →
+自身有效键」正是这个历史包袱的自述。
+
+**修法（零引擎改动）**：新增内容装配层 `game/services/battle_team_procs.py::team_apply`，
+把同一动作逐个发给同侧存活 actor；`*_all` 族映射改指它。
+
+### 7.2 关键发现②：`taunt` 是误报
+
+`taunt`（嘲讽 lv58）**早已实装**——命令层 `game/commands/instance_router.py:260-273`
+直读技能配置 `hate_taunt_mult` / `hate_lock_turns` 实现仇恨×N + 强制锁 N 刻，不走
+EFFECT_ACTIONS。原「静默 no-op」清单把它误列（判据只看 EFFECT_ACTIONS）。
+
+### 7.3 落地动作清单（内容侧 `game/services/battle_team_procs.py`）
+
+| 动作 | 用途 |
+|---|---|
+| `team_apply` | 通用团队面幅（面板族 `*_all` / `atk_matk_all` / `all_stat_cc` 面板段） |
+| `team_shield` / `self_shield` | 护盾三形态（团队 / 自身） |
+| `team_taken_reduce` + `team_ss_reduce_apply` | 全队减伤（乘算叠加，态带刻数） |
+| `timed_vuln` + `timed_vuln_apply` | 目标易伤（带刻数自动过期） |
+| `team_dmg_aura` + `team_dmg_aura_apply` | 全队伤害乘区（按伤害类型 / 目标标记 / 锁定过滤） |
+| `target_lock_mark` | 锁定标记（星轨锁定） |
+| `team_cc_immune` / `self_cc_immune` | 免疫控制（写 `cc_immune` 态） |
+| `team_guard` + `guard_reflect` + `guard_expire` | 挡刀（写 `guard_uid` + 反伤 + 到期清） |
+| `block_once` + `block_once_apply` + `block_reflect_hit` | 格挡 1 次 + 反伤 |
+| `class_element_switch` | 元素主系轮转 |
+| `arcane_field` | 奥术力场（护盾档落地） |
+
+### 7.4 引擎侧改动（4 项，均已出 diff）
+
+| # | 位置 | 内容 |
+|---|---|---|
+| 1 | `effects.act_apply` mode 分支 | **免疫控制查询点**：控制类效果落地前查 `cc_immune` 态（引擎只读态名） |
+| 2 | `battle.Battle` | 新增 `find_actor(uid)` + `redirect_hook` 构造参数 |
+| 3 | `landing.deal_damage` / `heal_actor` | **承伤/治疗转移钩子**（`guard_uid` / `heal_share_uid`，递归深度 1） |
+| ★4 | `landing` / `actions`（共 3 处） | **真 bug 修复**：`... .get("mult", 1.0) or 1.0` —— `0.0` 是 falsy 被吞成 1.0 → **0 乘区永远失效**（格挡/无敌帧类效果根本做不出来） |
+
+### 7.5 数据侧
+
+26 条技能按 desc 逐条补参数（`shield_pct` / `shield_per_stack`+`shield_res_key` /
+`reduce` / `aura_add`+`aura_kind|aura_mark|aura_lock` / `vuln_amp` / `reflect_pct`）。
+新增面板 key：`block_up` / `all_up_{atk,def,matk,spd,crit}` / `dodge_up_big`。
+
+### 7.6 验收
+
+`tests/test_v181_team_effects.py` **47/47**（面幅 / 护盾三形态 / 减伤乘算叠加与刷新 /
+刻数过期 / 易伤 / 伤害乘区条件过滤 / 免疫控制含过期 / 挡刀转移·反伤·到期 /
+格挡消耗与反伤 / 元素轮转 / 奥术力场 / `_do_buff` 端到端）。
+
+### 7.7 仍留待设计裁定的 4 项（诚实标注，非静默失效）
+
+| 项 | 现状 |
+|---|---|
+| `all_stat_cc` 的「全属性 +30%」 | 五维面板已给（`all_up_*` ×1.30）；暴击按 `add 0.30` 加算，受引擎暴击 cap 约束 |
+| `element_switch` 的「主系影响挂印」 | 主系已落 `actor["cur_element"]`（可展示/存档）；**挂印读主系**未接（技能数据的挂印类型写死 `mech=fire_mark`），需设计裁定 |
+| `arcane_field` 的「护盾 / 利刃 二选一」 | 护盾档已落地；**选择态需命令层交互**（QQ 出选项），留待交互设计 |
+| `不破壁垒`「战意 ≥8 → 减伤 50%」 | 基础档 30% 已落地；条件升档走技能的 `cond` 通道（装配层谓词），需单列接线 |
