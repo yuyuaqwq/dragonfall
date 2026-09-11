@@ -35,29 +35,26 @@ refresh_timed(group_id, qq_id)
 
 # 6. 过期回调注册（可选）：on_expire(type_key)(group_id, qq_id, data) -> None
 #    引擎在过期时调用，用于清状态（如对话会话作废）
+
+【骨架归属（2026-09-11，M3）】引擎的**机制**（类型注册表 / 惰性过期 /
+「get / list / refresh 三条路径都触发 on_expire」）来自框架
+`saintess_kit.clock.LazyTimers`；本文件只留**本游戏的存储适配与对外 API**：
+存储 key 格式、event_state 三件套、group_id 兼容签名。
 """
 import json
-import time
 
-# 事件类型注册表：type_key -> {"duration_sec": int, "on_expire": callable|None}
-_EVENT_TYPES: dict = {}
+from saintess_kit.clock import LazyTimers
 
 # 玩家事件存储 key 模板（按玩家全局，跨群共享——倒计时只属于玩家本人）
 _PLAYER_KEY = "timed_events_{qq_id}"
 
 
-def register_timed(type_key: str, duration_sec: int | None = None,
-                   on_expire=None) -> None:
-    """注册/覆盖一个倒计时事件类型。duration_sec 默认秒数（set_timed 未传时用）。"""
-    _EVENT_TYPES[type_key] = {
-        "duration_sec": duration_sec,
-        "on_expire": on_expire,
-    }
-
-
-def _load(group_id: str, qq_id: str) -> dict:
+# ---------------------------------------------------------------- 存储适配
+# 框架的 owner = 本游戏的 (group_id, qq_id)。用元组而非单值，是因为 on_expire
+# 回调签名带 group_id（v127.5 起，如 wild_npc 过期要 db.clear_talk_state(group_id)）。
+def _load(owner) -> dict:
     from .. import db  # noqa: E402（延迟导入防 data/_assembly 循环）
-    raw = db.get_event_state(_PLAYER_KEY.format(qq_id=qq_id))
+    raw = db.get_event_state(_PLAYER_KEY.format(qq_id=owner[1]))
     if not raw:
         return {}
     try:
@@ -67,10 +64,37 @@ def _load(group_id: str, qq_id: str) -> dict:
         return {}
 
 
-def _save(group_id: str, qq_id: str, data: dict) -> None:
+def _save(owner, events: dict) -> None:
     from .. import db  # noqa: E402
-    db.set_event_state(_PLAYER_KEY.format(qq_id=qq_id),
-                       json.dumps(data, ensure_ascii=False))
+    db.set_event_state(_PLAYER_KEY.format(qq_id=owner[1]),
+                       json.dumps(events, ensure_ascii=False))
+
+
+def _remove_whole(owner) -> None:
+    from .. import db  # noqa: E402
+    db.delete_event_state(_PLAYER_KEY.format(qq_id=owner[1]))
+
+
+_timers = LazyTimers(load=_load, save=_save, remove=_remove_whole)
+
+
+# ------------------------------------------------------------------ 对外 API
+def register_timed(type_key: str, duration_sec: int | None = None,
+                   on_expire=None) -> None:
+    """注册/覆盖一个倒计时事件类型。duration_sec 默认秒数（set_timed 未传时用）。
+
+    `on_expire(group_id, qq_id, data) -> None`：该类型的实例过期被清理时调用
+    （get / list / refresh 三条路径都会走到，读路径不得绕过）。
+    """
+    if on_expire is None:
+        _timers.register(type_key, duration_sec=duration_sec)
+        return
+
+    def _adapted(owner, data):
+        group_id, qq_id = owner
+        return on_expire(group_id, qq_id, data)
+
+    _timers.register(type_key, duration_sec=duration_sec, on_expire=_adapted)
 
 
 def set_timed(group_id: str, qq_id: str, key: str, type_key: str,
@@ -81,73 +105,22 @@ def set_timed(group_id: str, qq_id: str, key: str, type_key: str,
     - 同 key 重复挂载 = 顶替刷新（新 expire）
     - 默认时长取类型注册值；未注册类型默认 60s（防御，正常都会 register）
     """
-    cfg = _EVENT_TYPES.get(type_key, {})
-    dur = duration_sec if duration_sec is not None else cfg.get("duration_sec", 60)
-    expire = int(time.time()) + max(1, int(dur))
-    events = _load(group_id, qq_id)
-    events[key] = {
-        "type": type_key,
-        "data": data or {},
-        "expire": expire,
-    }
-    _save(group_id, qq_id, events)
-    return expire
-
-
-def _fire_expire(group_id: str, qq_id: str, ev: dict) -> None:
-    """触发一个过期事件的 on_expire 回调（引擎所有过期删除路径共用）。
-
-    refresh_timed / get_timed / list_timed 过期删除时都调用，保证
-    『数据保全类』回调（如 prof_wait 结算数据平移）不会被读路径绕过。
-    """
-    type_key = ev.get("type")
-    cfg = _EVENT_TYPES.get(type_key, {})
-    cb = cfg.get("on_expire")
-    if cb:
-        try:
-            cb(group_id, qq_id, ev.get("data", {}))
-        except Exception:
-            import logging
-            logging.getLogger("dragonfall").warning(
-                f"[timed_events] on_expire 回调失败 {type_key}", exc_info=True)
+    return _timers.set((group_id, qq_id), key, type_key,
+                       data=data, duration_sec=duration_sec)
 
 
 def get_timed(group_id: str, qq_id: str, key: str) -> dict | None:
     """读取单个事件：未过期返回 {type,data,expire,remain}；过期惰性清除返回 None。
 
     所有显示/查找出口都必须走这里 → 过期即不可见（惰性正确性核心）。
-    v127.6：过期清除前同样触发 on_expire（读路径不得绕过数据保全回调）。
+    过期清除前同样触发 on_expire（读路径不得绕过数据保全回调）。
     """
-    events = _load(group_id, qq_id)
-    ev = events.get(key)
-    if not ev:
-        return None
-    now = int(time.time())
-    if now >= ev.get("expire", 0):
-        events.pop(key, None)
-        _save(group_id, qq_id, events) if events else _remove_whole(group_id, qq_id)
-        _fire_expire(group_id, qq_id, ev)
-        return None
-    return {"type": ev.get("type"), "data": ev.get("data", {}),
-            "expire": ev["expire"], "remain": ev["expire"] - now}
+    return _timers.get((group_id, qq_id), key)
 
 
 def remove_timed(group_id: str, qq_id: str, key: str) -> bool:
     """主动删除一个事件（返回是否删掉了）"""
-    events = _load(group_id, qq_id)
-    if key not in events:
-        return False
-    events.pop(key, None)
-    if events:
-        _save(group_id, qq_id, events)
-    else:
-        _remove_whole(group_id, qq_id)
-    return True
-
-
-def _remove_whole(group_id: str, qq_id: str) -> None:
-    from .. import db  # noqa: E402
-    db.delete_event_state(_PLAYER_KEY.format(qq_id=qq_id))
+    return _timers.remove((group_id, qq_id), key)
 
 
 def list_timed(group_id: str, qq_id: str, type_key: str | None = None,
@@ -157,31 +130,7 @@ def list_timed(group_id: str, qq_id: str, type_key: str | None = None,
     data_match：data 子集匹配（如 {"map": "oak_plain"} → 只留在该图的事件）
     返回 [{"key","type","data","expire","remain"}, ...]
     """
-    events = _load(group_id, qq_id)
-    now = int(time.time())
-    expired = {k: ev for k, ev in events.items()
-               if now >= ev.get("expire", 0)}
-    for k in expired:
-        events.pop(k, None)
-    if expired:
-        if events:
-            _save(group_id, qq_id, events)
-        else:
-            _remove_whole(group_id, qq_id)
-    # v127.6：过期删除同样触发 on_expire（与 refresh/get 路径一致，防读路径绕过保全）
-    for k, ev in expired.items():
-        _fire_expire(group_id, qq_id, ev)
-    out = []
-    for k, ev in events.items():
-        if type_key is not None and ev.get("type") != type_key:
-            continue
-        if data_match and not all(ev.get("data", {}).get(dk) == dv
-                                  for dk, dv in data_match.items()):
-            continue
-        out.append({"key": k, "type": ev.get("type"),
-                    "data": ev.get("data", {}), "expire": ev["expire"],
-                    "remain": ev["expire"] - now})
-    return out
+    return _timers.items((group_id, qq_id), type_key=type_key, data_match=data_match)
 
 
 def refresh_timed(group_id: str, qq_id: str) -> int:
@@ -191,27 +140,4 @@ def refresh_timed(group_id: str, qq_id: str) -> int:
     - on_expire(type_key)(group_id, qq_id, data)：清理副作用（如会话作废）
     - 无回调的过期事件仅物理删除（静默）
     """
-    events = _load(group_id, qq_id)
-    now = int(time.time())
-    expired = {k: ev for k, ev in events.items()
-               if now >= ev.get("expire", 0)}
-    if not expired:
-        return 0
-    for k, ev in expired.items():
-        events.pop(k, None)
-    if events:
-        _save(group_id, qq_id, events)
-    else:
-        _remove_whole(group_id, qq_id)
-    for k, ev in expired.items():
-        type_key = ev.get("type")
-        cfg = _EVENT_TYPES.get(type_key, {})
-        cb = cfg.get("on_expire")
-        if cb:
-            try:
-                cb(group_id, qq_id, ev.get("data", {}))
-            except Exception:
-                import logging
-                logging.getLogger("dragonfall").warning(
-                    f"[timed_events] on_expire 回调失败 {type_key}", exc_info=True)
-    return len(expired)
+    return _timers.refresh((group_id, qq_id))
