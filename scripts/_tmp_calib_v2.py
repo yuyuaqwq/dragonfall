@@ -7,7 +7,7 @@
 v2 补全乘区（基准 = 战士+蓝装0强化，Lv 参照 60）：
   a. 满自由属性点   9+3×(lv-1) 点，物理系全 str(+1.2atk/点)，法系全 int(+1.2matk/点)
   b. tier 转职倍率  TIER_GROWTH {0:1.0,1:1.15,2:1.30,3:1.50}（30/60/90 门槛）+ 攻线分支 atk×1.06
-  c. 真实技能轴     E.calc_damage 按技能 power/multi/pierce/穿透 直接算（替代 ×1.5）
+  c. 真实技能轴     calc_damage 按技能 power/multi/pierce/穿透 直接算（替代 ×1.5）
   d. 2条攻击词条    蓝装 2 词条 ≈ ×1.20（贯穿20%无视防御+暴击强化，10章七口径）
   e. 附魔 crit4%    ENCHANT_MAX_VALUE.crit=0.04 → 暴击期望乘区
   f. 药水攻击buff   物理:攻击药水 攻+30%；法系:鲛人之泪 魔攻+30%（alchemy.py 实读）
@@ -23,7 +23,10 @@ sys.path.insert(0, PLUGIN_DIR)
 os.environ["GWEN_GAME_DB"] = os.path.join(PLUGIN_DIR, "test_game_data.db")
 
 from data.plugins.dragonfall.game import content as C  # noqa: E402
-from data.plugins.dragonfall.game import engine as E  # noqa: E402
+from battle2.formulas import calc_damage, skill_power_mult
+from game.content_rules.panel import player_final_stats
+from game.content_rules.skills import skill_info
+from game.data.battle_config import TIER_GROWTH
 from data.plugins.dragonfall.game.core import stats as ST  # noqa: E402
 
 # ---------------- 玩家真实模型 ----------------
@@ -81,7 +84,7 @@ def player_stats(cls_id, lv, gear, with_attr=True, potion=0.0):
         pts = attr_pts_of(lv)
         main = dict(CLASSES)[cls_id][3] if False else [c[3] for c in CLASSES if c[1] == cls_id][0]
         attrs = {main: pts}
-    st = E.player_final_stats(cls_id, lv, gear, tier, attrs, evolve_path=1 if tier else 0, title_bonus=None, race=None)
+    st = player_final_stats(cls_id, lv, gear, tier, attrs, evolve_path=1 if tier else 0, title_bonus=None, race=None)
     if potion:
         base = st["atk"] if st["atk"] >= st["matk"] else st["matk"]
         if st["atk"] >= st["matk"]:
@@ -98,15 +101,15 @@ def skill_names(cls_id):
 def cast_dmg(st, info, edef, mdef, phys, def_mult=1.0):
     stat = st["atk"] if phys else st["matk"]
     d = (edef if phys else mdef) * def_mult
-    power = float(info.get("power", 0)) * E.skill_power_mult(1, info)
+    power = float(info.get("power", 0)) * skill_power_mult(1, info)
     multi = int(info.get("multi", 1))
     pene = st.get("pene_phys" if phys else "pene_magi", 0)
     pflat = st.get("pene_flat" if phys else "pene_mflat", 0)
     dt = "phys" if phys else "magi"
     if info.get("pierce"):
-        base = E.calc_damage(int(stat * power), 0, pierce=True, dmg_type=dt, variance=0.0)
+        base = calc_damage(int(stat * power), 0, pierce=True, dmg_type=dt, variance=0.0)
     else:
-        base = E.calc_damage(int(stat * power), d, pene_pct=pene, pene_flat=pflat, dmg_type=dt, variance=0.0)
+        base = calc_damage(int(stat * power), d, pene_pct=pene, pene_flat=pflat, dmg_type=dt, variance=0.0)
     return base * multi
 
 
@@ -114,7 +117,7 @@ def rotation_dmg(st, edef, mdef, cls_id):
     phys = [c for c in CLASSES if c[1] == cls_id][0][2] == "phys"
     tot, wsum = 0.0, 0.0
     for name, w in ROTATIONS[cls_id]:
-        info = E.skill_info(cls_id, name)
+        info = skill_info(cls_id, name)
         if not info:
             continue
         def_mult = DEF_DOWN_SKILLS.get(cls_id, {}).get(name, 1.0)
@@ -135,7 +138,7 @@ def crit_mult(st, extra_crit=0.0):
 def basic_hit(st, edef, mdef, phys):
     stat = st["atk"] if phys else st["matk"]
     d = edef if phys else mdef
-    return E.calc_damage(int(stat), d, variance=0.0, dmg_type="phys" if phys else "magi")
+    return calc_damage(int(stat), d, variance=0.0, dmg_type="phys" if phys else "magi")
 
 
 def per_round_dmg(cls_id, lv, gear, edef, mdef, full_build=True):
@@ -154,7 +157,7 @@ def rotation_mp_per_action(cls_id):
     """技能轴平均每行动 MP 消耗（游侠耗精力不计入；战士怒气系无 MP 资源技不计）"""
     tot, wsum = 0.0, 0.0
     for name, w in ROTATIONS[cls_id]:
-        info = E.skill_info(cls_id, name)
+        info = skill_info(cls_id, name)
         if not info:
             continue
         mp = float(info.get("mp", 0) or 0)
@@ -188,10 +191,10 @@ def per_round_dmg_gated(cls_id, lv, gear, edef, mdef, rounds_ref):
 
 def calib_model_dmg(lv, gear, edef):
     """原校准模型：战士+游侠 普攻均值 ×1.5（与 numeric_calibration.py 一致）"""
-    st_w = E.player_final_stats("cls_zhan_shi", lv, gear, 0, None, 0, None, None)
-    st_r = E.player_final_stats("cls_you_xia", lv, gear, 0, None, 0, None, None)
-    avg = (E.calc_damage(st_w.get("atk", 0), edef, variance=0.0) +
-           E.calc_damage(st_r.get("atk", 0), edef, variance=0.0)) / 2
+    st_w = player_final_stats("cls_zhan_shi", lv, gear, 0, None, 0, None, None)
+    st_r = player_final_stats("cls_you_xia", lv, gear, 0, None, 0, None, None)
+    avg = (calc_damage(st_w.get("atk", 0), edef, variance=0.0) +
+           calc_damage(st_r.get("atk", 0), edef, variance=0.0)) / 2
     return avg * 1.5
 
 
@@ -206,8 +209,8 @@ def main():
     ref_def, ref_mdef = ref_m.get("def", 0), ref_m.get("mdef", 0)
 
     gear0 = make_gear(ref_lv, "blue", 0)
-    st_w0 = E.player_final_stats("cls_zhan_shi", ref_lv, gear0, 0, None, 0, None, None)
-    base_per_round = E.calc_damage(st_w0.get("atk", 0), ref_def, variance=0.0) * 1.5
+    st_w0 = player_final_stats("cls_zhan_shi", ref_lv, gear0, 0, None, 0, None, None)
+    base_per_round = calc_damage(st_w0.get("atk", 0), ref_def, variance=0.0) * 1.5
 
     print("=" * 78)
     print(f"① 各维度单独提升倍数表（基准 = 战士+蓝装0强化 ×1.5普攻，参照副本 {ref_id} Lv.{ref_lv}）")
@@ -219,20 +222,20 @@ def main():
 
     # a. 满自由属性点
     st_a = player_stats("cls_zhan_shi", ref_lv, gear0, with_attr=True)
-    d_a = E.calc_damage(st_a.get("atk", 0), ref_def, variance=0.0) * 1.5
+    d_a = calc_damage(st_a.get("atk", 0), ref_def, variance=0.0) * 1.5
     m_a = d_a / base_per_round
     print(f"{'a.满自由属性点':<14}{f'9+3×{ref_lv-1}={attr_pts_of(ref_lv)}点全str，攻击+{int(attr_pts_of(ref_lv)*1.2)}'[:36]:<36}{m_a:>8.2f}×")
 
     # b. tier 转职倍率
     st_b = player_stats("cls_zhan_shi", ref_lv, gear0, with_attr=False)
-    d_b = E.calc_damage(st_b.get("atk", 0), ref_def, variance=0.0) * 1.5
+    d_b = calc_damage(st_b.get("atk", 0), ref_def, variance=0.0) * 1.5
     m_b = d_b / base_per_round
-    print(f"{'b.tier转职倍率':<14}{f'tier{tier_of(ref_lv)}成长×{E.TIER_GROWTH.get(tier_of(ref_lv),1.0):g} + 攻线×1.06'[:36]:<36}{m_b:>8.2f}×")
+    print(f"{'b.tier转职倍率':<14}{f'tier{tier_of(ref_lv)}成长×{TIER_GROWTH.get(tier_of(ref_lv),1.0):g} + 攻线×1.06'[:36]:<36}{m_b:>8.2f}×")
 
     # c. 真实技能轴（替代 ×1.5）
     st_c = player_stats("cls_zhan_shi", ref_lv, gear0)
     d_c = rotation_dmg(st_c, ref_def, ref_mdef, "cls_zhan_shi")
-    rot_over_basic = d_c / E.calc_damage(st_c.get("atk", 0), ref_def, variance=0.0)
+    rot_over_basic = d_c / calc_damage(st_c.get("atk", 0), ref_def, variance=0.0)
     m_c = rot_over_basic / 1.5  # 相对校准模型的 ×1.5
     print(f"{'c.真实技能轴':<14}{'破甲斩(130%破防+减半防)+猛击(120%)循环'[:36]:<36}{m_c:>8.2f}× (技能倍率 {rot_over_basic:.2f}×普攻 vs 原×1.5)")
 
@@ -247,8 +250,8 @@ def main():
 
     # f. 药水攻击buff
     st_f = player_stats("cls_zhan_shi", ref_lv, gear0, potion=POTION_ATK)
-    d_f = E.calc_damage(st_f.get("atk", 0), ref_def, variance=0.0)
-    m_f = d_f / E.calc_damage(st_c.get("atk", 0), ref_def, variance=0.0)
+    d_f = calc_damage(st_f.get("atk", 0), ref_def, variance=0.0)
+    m_f = d_f / calc_damage(st_c.get("atk", 0), ref_def, variance=0.0)
     print(f"{'f.药水攻击buff':<14}{f'攻击药水 攻+30%(3回合) 实算'[:36]:<36}{m_f:>8.2f}×")
 
     m_total = m_a * m_b * m_c * AFFIX_MULT * m_e * m_f

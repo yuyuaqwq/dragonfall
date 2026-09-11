@@ -2,7 +2,7 @@
 """适配验证：直接调 handler 模拟 v137 副本全链路（开本→探索→战斗→肃清→移动→Boss→通关）。"""
 import sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, E, db, clean_db, Main, FakeEvent, run
+from conftest import C, db, clean_db, Main, FakeEvent, run
 
 def _fake_spend(self, gid, qid, cost, player, action="行动"):
     return True, self._stamina(player)

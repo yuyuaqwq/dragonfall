@@ -49,9 +49,9 @@ def check(name, cond, detail=""):
 
 
 def mk_player(cls="战士", level=10, hp_ratio=0.5, mp_ratio=1.0, race=None):
-    from game import engine as E
+    from game.content_rules.panel import player_final_stats
     from battle2 import make_actor
-    st = E.player_final_stats(cls, level, {}, 0, {}, 1)
+    st = player_final_stats(cls, level, {}, 0, {}, 1)
     return make_actor(uid="p_q1", name="测试勇者", side="player", kind="player",
                       human_controlled=True, class_name=cls, level=level,
                       hp=int(st["max_hp"] * hp_ratio), max_hp=int(st["max_hp"]),

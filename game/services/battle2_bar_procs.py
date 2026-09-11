@@ -49,7 +49,7 @@ def _host_of(caster, target, params) -> dict | None:
 
 def _bar_keys_of(host: dict) -> list:
     """宿主身上所有条键（effects 里带前缀的条目 → 去前缀 bar key）。"""
-    from ..core.battle_bars import _state_prefix
+    from battle2.support.battle_bars import _state_prefix
     pfx = _state_prefix()
     out = []
     for k, v in (host.get("effects") or {}).items():
@@ -75,7 +75,7 @@ def _ensure_tick(host: dict) -> None:
 
 def _settle(battle, host: dict, key: str, logs: list) -> bool:
     """阈值检查 → 触发 → 落地 trigger_effect。返回是否触发。"""
-    from ..core.battle_bars import bar_def, bar_should_trigger, bar_trigger
+    from battle2.support.battle_bars import bar_def, bar_should_trigger, bar_trigger
     now = _now_of(battle)
     if not host or not key or not bar_should_trigger(host, key, now):
         return False
@@ -124,7 +124,7 @@ def bar_gain_act(battle, caster, target, params, logs):
         return
     if amount <= 0:
         return
-    from ..core.battle_bars import bar_gain
+    from battle2.support.battle_bars import bar_gain
     bar_gain(host, key, amount, logs, now=_now_of(battle))
     _ensure_tick(host)
     _settle(battle, host, key, logs)
@@ -136,7 +136,7 @@ def bar_time_settle_act(battle, caster, target, params, logs):
     host = params.get("_owner") or _host_of(caster, target, params)
     if not isinstance(host, dict):
         return
-    from ..core.battle_bars import bar_settle
+    from battle2.support.battle_bars import bar_settle
     now = _now_of(battle)
     for key in _bar_keys_of(host):
         bar_settle(host, key, now, logs)
@@ -153,7 +153,7 @@ def bar_phase_preserve_act(battle, caster, target, params, logs):
     host = params.get("_owner") or _host_of(caster, target, params)
     if not isinstance(host, dict):
         return
-    from ..core.battle_bars import bar_def, bar_preserve, bar_state
+    from battle2.support.battle_bars import bar_def, bar_preserve, bar_state
     for key in _bar_keys_of(host):
         before = float((bar_state(host, key) or {}).get("val", 0.0) or 0.0)
         if before <= 0:
@@ -177,7 +177,7 @@ def passive_reflect_bar_act(battle, caster, target, params, logs):
       → bar_gain + 触发检查（与命中注入同一条消费链）
     """
     from battle2.actors import actor_alive
-    from ..core.battle_bars import bar_gain
+    from battle2.support.battle_bars import bar_gain
     deflector = params.get("_owner") or target
     if not isinstance(deflector, dict) or not actor_alive(deflector):
         return
@@ -217,7 +217,7 @@ def apply_bar_procs(actor: dict) -> None:
         from ..data.battle2_rules import BAR_INJECT_FIELDS
     except Exception:
         return
-    from .. import engine as E
+    from ..content_rules.skills import skill_info
     trig = actor.setdefault("triggers", {})
     for field, spec in (BAR_INJECT_FIELDS or {}).items():
         key = (spec or {}).get("key") if isinstance(spec, dict) else ""
@@ -227,7 +227,7 @@ def apply_bar_procs(actor: dict) -> None:
         found = False
         for s in names:
             try:
-                info = E.skill_info(cn, s)
+                info = skill_info(cn, s)
             except Exception:
                 info = None
             if info and info.get(field):

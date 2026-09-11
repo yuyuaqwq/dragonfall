@@ -32,7 +32,7 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from game import content as C            # noqa: E402
-from game import engine as E             # noqa: E402
+from game.content_rules.panel import player_final_stats
 from battle2 import Battle as BT_NEW, make_actor  # noqa: E402
 from battle2 import config as _b2config  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
@@ -54,7 +54,7 @@ def check(name, cond, detail=""):
 
 
 def mk_player(cls="战士", level=10, hp_ratio=0.5, mp_ratio=1.0):
-    st = E.player_final_stats(cls, level, {}, 0, {}, 1)
+    st = player_final_stats(cls, level, {}, 0, {}, 1)
     p = make_actor(uid="p_q1", name="测试勇者", side="player", kind="player",
                    human_controlled=True, class_name=cls, level=level,
                    hp=int(st["max_hp"] * hp_ratio),

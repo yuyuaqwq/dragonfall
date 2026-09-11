@@ -11,7 +11,8 @@ import sys, os, math, random
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from game import engine as E
+from battle2.formulas import calc_damage
+from game.content_rules.panel import player_final_stats
 from game import battle as BT
 from game.core import stats as S
 
@@ -23,7 +24,7 @@ def player_stats(lv, cls, gear="gear", boost=1.0):
     else:
         eq = {}
     attrs = {"str": 2 * (lv - 1), "vit": 1 * (lv - 1), "int": 0, "agi": 0}
-    st = E.player_final_stats(cls, lv, eq, tier=1, attributes=attrs,
+    st = player_final_stats(cls, lv, eq, tier=1, attributes=attrs,
                               evolve_path=0, title_bonus={}, race="human")
     st["atk"] = int(st["atk"] * boost)
     st["matk"] = int(st["matk"] * boost)
@@ -193,7 +194,7 @@ for lv in LV:
     m = mon(lv, "boss")
     st = player_stats(lv, cls)
     atk = st["atk"]
-    straight = E.calc_damage(atk, m["def"], False, 0.0)
+    straight = calc_damage(atk, m["def"], False, 0.0)
     # 满层维持时的 dot 回合伤（稳态，adapt 顶到 0.2）
     adapt = 0.20
     dot_full = math_dot_dmg(atk, st["matk"], m["hp"], 5, 0.9, adapt, "poison")

@@ -5,7 +5,7 @@ sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall")
 random.seed(7)
 
 from game import content as C
-from game import engine as E
+from game.content_rules.panel import player_final_stats
 from game.core.stats import monster_stats, equip_stats
 from game.battle import Battle
 
@@ -37,7 +37,7 @@ def run_battle(player, rounds=400):
     for _ in range(rounds):
         b = Battle("monster", make_enemy())
         p = dict(player)
-        st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
+        st = player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
         p["max_hp"] = st["max_hp"]; p["max_mp"] = st["max_mp"]; p["hp"] = st["max_hp"]; p["mp"] = st["max_mp"]
         while True:
             if p["mp"] >= 6:
@@ -68,7 +68,7 @@ cases = [
 
 for name, attrs, eq, tag in cases:
     p = make_player(attrs, eq)
-    st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
+    st = player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
     wr, rnd, dt = run_battle(p)
     flag = "✅轻松" if wr == 1 and dt < st["max_hp"] * 0.4 else ("⚠️有压力" if wr == 1 else "❌打不过")
     print(f"[{tag}] {name}")

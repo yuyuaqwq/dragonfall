@@ -173,7 +173,7 @@ def _c_enemy_mark_full(battle, player, cond):
 @register("element_marks", label=lambda c: f"敌方{c.get('element','')}印记≥{c.get('stacks',0)}层")
 def _c_element_marks(battle, player, cond):
     """敌方元素印记层数 ≥ stacks（火印/冰印/雷印；element=any 任意系）"""
-    from ..engine import ELEMENT_MARKS  # 延迟引用，避免 core→engine→content→core 循环
+    from ..content_rules.gameplay import ELEMENT_MARKS# 延迟引用，避免 core→engine→content→core 循环
     elem = cond.get("element", "")
     if elem == "any":
         marks_total = sum(battle._actor_buffs(battle._hit_tgt()).get(mk, 0) for mk in ELEMENT_MARKS.values())

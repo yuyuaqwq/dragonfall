@@ -184,10 +184,11 @@ def _battle_cur_max(ctx, cur_key, max_key):
         snap = (st.get("players") or {}).get(str(ctx.qq_id))
         if snap:
             return snap.get(cur_key, 0), snap.get(max_key, 0)
-    from .. import engine as E  # 延迟导入（core 聚合链惯例）
+    from ..content_rules.panel import player_final_stats
+    from ..content_rules.skills import skill_info
     try:
         tb = (st or {}).get("title_bonus") or {}
-        real = E.player_final_stats(
+        real = player_final_stats(
             ctx._focus.get("class_name", ""),
             ctx._focus.get("level", 1),
             ctx._focus.get("equipment", {}),
@@ -831,12 +832,13 @@ def tpl_skill_tome(ctx):
     跨流派学习是设计使然：技能书 = 横向扩展，不选对应流派也能学（§6 铁律）。
     """
     from .. import content as C
-    from .. import engine as E
+    from ..content_rules.panel import player_final_stats
+    from ..content_rules.skills import skill_info
     d = ctx.data
     learn = d.get("learn_skill", "")
     req = d.get("require_class", "") or ""
     # 技能定义按源流职业查（技能书 = 跨流派稀有技，技能属于隐藏线表；玩家职业只用于源流校验）
-    info = E.skill_info(req, learn) if req else E.skill_info(ctx._focus.get("class_name", ""), learn)
+    info = skill_info(req, learn) if req else skill_info(ctx._focus.get("class_name", ""), learn)
     if not info:
         return ItemResult(text=f"你翻开【{d.get('name', '技能书')}】，但其中的技艺晦涩难解……(技能数据缺失)", consume=False)
     if req:

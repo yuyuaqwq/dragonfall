@@ -137,8 +137,9 @@ def test_5_on_kill_gain():
     apply_class_mech(r)
     b = mk_battle([r])
     # 追风是被动技能吗？查 kind——若是被动才装配
-    from game import engine as E
-    info = E.skill_info("cls_you_xia", "追风") or {}
+    from battle2.formulas import skill_mp_pay_of
+    from game.content_rules.skills import skill_info
+    info = skill_info("cls_you_xia", "追风") or {}
     check("追风是 kind=被动", info.get("kind") == "被动", repr(info.get("kind")))
     kills = [t for t in (r.get("triggers") or {}).get("on_kill", [])
              if t.get("type") == "passive_kill_gain"]
@@ -148,7 +149,8 @@ def test_5_on_kill_gain():
 def test_6_static_domain():
     print("【6. 静态域：cap/cost 直接写 bonus 容器（纯配置量）】")
     from battle2.effects import _cap_of
-    from game import engine as E
+    from battle2.formulas import skill_mp_pay_of
+    from game.content_rules.skills import skill_info
     # cap 域：淬毒之心 poison cap +3
     a = make_actor(uid="p_k", name="毒刃", side="player", kind="player",
                    human_controlled=True, class_name="cls_ci_ke", level=60,
@@ -173,10 +175,10 @@ def test_6_static_domain():
     c['effects'] = {}
     c['bonus'] = {'panel': {}, 'cap': {}, 'cost': {}}
     apply_class_mech(c)
-    pay_arc = E.skill_mp_pay_of(c, E.skill_info("cls_fa_shi", "奥术弹幕") or {})
-    pay_fire = E.skill_mp_pay_of(c, E.skill_info("cls_fa_shi", "火球术") or {})
-    info_full = E.skill_info("cls_fa_shi", "奥术弹幕") or {}
-    info_fire = E.skill_info("cls_fa_shi", "火球术") or {}
+    pay_arc = skill_mp_pay_of(c, skill_info("cls_fa_shi", "奥术弹幕") or {})
+    pay_fire = skill_mp_pay_of(c, skill_info("cls_fa_shi", "火球术") or {})
+    info_full = skill_info("cls_fa_shi", "奥术弹幕") or {}
+    info_fire = skill_info("cls_fa_shi", "火球术") or {}
     check("cost 域：奥术弹幕耗蓝减半", pay_arc < int(info_full.get("mp", 0) or 0),
           f"{pay_arc} vs {info_full.get('mp')}")
     check("cost 域：火球术不减", pay_fire == int(info_fire.get("mp", 0) or 0),

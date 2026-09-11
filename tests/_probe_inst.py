@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys, os, random, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, E, db, clean_db, Main, FakeEvent, run
+from conftest import C, db, clean_db, Main, FakeEvent, run
 
 async def cmd(m, handler_name, gid, qid, msg):
     ev = FakeEvent(gid, qid, msg)

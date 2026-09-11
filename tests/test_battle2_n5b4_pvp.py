@@ -113,8 +113,8 @@ def mk_db_player(qid, name, level=15, cls="战士", learned=None, hp=None):
 def max_hp_of(cls, level, attributes=None, race=None):
     """职业实时面板 max_hp（重算口径，对齐 _pvp_start 防守方实时化：race 需与
     create_player 默认 human 一致，否则差种族加成）。"""
-    from game import engine as E
-    st = E.player_final_stats(cls, level, {}, 0, attributes, 0, {}, race)
+    from game.content_rules.panel import player_final_stats
+    st = player_final_stats(cls, level, {}, 0, attributes, 0, {}, race)
     return int(st.get("max_hp", 100) or 100)
 
 
@@ -415,7 +415,7 @@ async def test_pvp_timeout_and_legacy():
 
 
 async def main():
-    # v181 flaky 修复：玩家真实面板含 ~3% 基础闪避（职业成长走 E.player_final_stats
+    # v181 flaky 修复：玩家真实面板含 ~3% 基础闪避（职业成长走 player_final_stats
     # 公式，actor["dodge"] 覆盖不了）——「挥砍造成伤害」断言偶发被防守方闪避打成假红。
     import random as _r
     _r.seed(20260910)

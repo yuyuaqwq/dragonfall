@@ -51,13 +51,13 @@ GID = "g_inst"
 
 def mk_snap(qid, name, cls="战士", level=15, learned=None, hp=None):
     """玩家快照（对齐 join_battle/_instance_build_state 形态）。"""
-    from game import engine as E
+    from game.content_rules.panel import player_final_stats
     db.create_player(GID, qid, name, cls, {}, 100, 100)
     db.update_player(GID, qid, level=level, cur_map="pvp_field", cur_subarea="",
                      learned_skills=learned or [], stamina=999,
                      attributes=json.dumps({"str": 5, "agi": 5, "int": 5, "vit": 5}))
     pl = db.get_player(GID, qid)
-    st = E.player_final_stats(cls, level, {}, 0, pl.get("attributes"), 0, {}, pl.get("race"))
+    st = player_final_stats(cls, level, {}, 0, pl.get("attributes"), 0, {}, pl.get("race"))
     mh = int(st.get("max_hp", 100))
     cur = hp if hp is not None else mh
     db.update_player(GID, qid, max_hp=mh, max_mp=50, hp=cur, mp=50)

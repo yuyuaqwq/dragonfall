@@ -15,8 +15,11 @@ import random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "framework"))
+# ↑ 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 
-from game.engine import resolve_formula, calc_damage  # noqa: E402
+from battle2.formulas import resolve_formula, calc_damage# noqa: E402
 
 passed = failed = 0
 

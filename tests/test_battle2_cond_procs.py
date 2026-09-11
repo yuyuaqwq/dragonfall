@@ -27,7 +27,7 @@ from battle2.effect_triggers import fire  # noqa: E402
 from game.services.class_mech_proc import apply_class_mech  # noqa: E402
 from game.services import battle2_cond_procs as CP  # noqa: E402
 from game.data import skills as _SK  # noqa: E402
-from game.core.battle_bars import bar_effect_key  # noqa: E402
+from battle2.support.battle_bars import bar_effect_key# noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -205,8 +205,8 @@ def test_unknown_type_and_heal():
 def test_end_to_end_damage():
     print("【7. 端到端：真实技能管线（侧踢）破防前后伤害对比】")
     from battle2 import actions as A
-    from game import engine as E
-    real = E.skill_info("cls_wu_seng", "sk_ce_ti")
+    from game.content_rules.skills import skill_info
+    real = skill_info("cls_wu_seng", "sk_ce_ti")
     check("取到真实侧踢数据且带 cond", isinstance(real, dict) and isinstance(real.get("cond"), dict),
           f"info={bool(real)}")
     dmg = {}

@@ -471,14 +471,14 @@ def grant_quest_rewards(group_id, qq_id, qdef, lines):
     返回结算后的 player（调用方后续需要时使用，如 _complete_side_quest 的 _rule_fire）。"""
     from .. import content as C
     from .. import db
-    from .. import engine as E
+    from ..content_rules.gameplay import check_player_level_up
     from ..core.stat_bonus import stat_bonus
     import random
     player = db.get_player(group_id, qq_id)
     player["exp"] += qdef.get("reward_exp", 0)
     player["gold"] += qdef.get("reward_gold", 0)
     player["_title_bonus"] = stat_bonus(group_id, qq_id, player)
-    lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
+    lv_logs, player = check_player_level_up(group_id, qq_id, player)
     db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
     if lv_logs:
         if lines:
@@ -508,7 +508,7 @@ def grant_quest_rewards(group_id, qq_id, qdef, lines):
         _rew["title"] = _tid
     if _rew:
         try:
-            from game.reward import grant_reward
+            from ..reward import grant_reward
             grant_reward(_rew, group_id, qq_id, player=player, lines=lines)
         except Exception:
             pass

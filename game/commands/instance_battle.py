@@ -24,7 +24,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ..services import battle2_bridge as BR
-from ..core.skill_kinds import K_HEAL, K_BUFF
+from battle2.support.skill_kinds import K_HEAL, K_BUFF
 
 # 玩家快照/玩法壳视图需要同步回的每玩家键（actor → snap 或 st per-player 键）
 # V 系列：战斗状态权威 = effects（snap 由 sync_player_from_actor 回写），
@@ -101,7 +101,7 @@ def _instance_target_picker(st: dict):
     """
     def pick(battle, actor):
         try:
-            from ..core import formation as FM
+            from battle2.support import formation as FM
             from .. import content as C
             alive_p = [a for a in battle.sides_of("player")
                        if int(a.get("hp", 0) or 0) > 0]
@@ -164,9 +164,9 @@ def _instance_team_event(st: dict):
             from battle2.actions import heal_amount as _hcalc
             from battle2 import stats as _S
             from battle2.landing import heal_actor as _heal
-            from .. import engine as _E
+            from ..content_rules.skills import skill_level_of
             _stp = _S.actor_stats(battle, caster)
-            _lv = _E.skill_level_of(caster, info.get("name", "")) if caster.get("class_name") else 0
+            _lv = skill_level_of(caster, info.get("name", "")) if caster.get("class_name") else 0
             try:
                 _heal_v = _hcalc(_stp, caster, info, _lv)
             except Exception:
@@ -303,7 +303,7 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
     target：外部解析好的目标 actor（None=自动）；heal/buff 强制 None 防奶敌。
     """
     from battle2 import Battle as B2
-    from .. import engine as E
+    from ..content_rules.skills import skill_info
     st_battle = st.get("battle") or {}
     if not st_battle.get("sides"):
         return ["战斗状态异常，请重新遭遇！"], True, None
@@ -352,7 +352,7 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
     _action, _skill = action, skill_name
     if action == "skill" and skill_name:
         try:
-            _info = E.skill_info(my.get("class_name") or "", skill_name) or {}
+            _info = skill_info(my.get("class_name") or "", skill_name) or {}
             if _info.get("kind") in (K_HEAL, K_BUFF):
                 _tgt = None  # 治疗/增益作用自己（防奶敌）
         except Exception:

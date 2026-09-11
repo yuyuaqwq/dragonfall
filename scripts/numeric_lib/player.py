@@ -22,7 +22,9 @@ from .constants import (
     ROTATIONS, ASSASSIN_COND_WEIGHT, DEF_DOWN_SKILLS, cls_id,
     SPD_REF, SPD_CT_CAP, MECH_MULT,
 )
-from data.plugins.dragonfall.game import engine as E  # noqa: E402
+from battle2.formulas import calc_damage, skill_expr_preview, skill_flat_value, skill_power_mult
+from game.content_rules.panel import player_final_stats
+from game.content_rules.skills import skill_info
 
 
 @dataclass
@@ -51,7 +53,7 @@ def attr_pts_of(lv: int) -> int:
 def build_player(cls: str, lv: int, gear: dict | None = None,
                  opts: PlayerOptions | None = None,
                  attr: dict | None = None, potion: float = 0.0) -> dict:
-    """真实玩家最终面板（E.player_final_stats）。
+    """真实玩家最终面板（player_final_stats）。
 
     - gear: make_gear 输出；None = 裸装
     - opts: PlayerOptions；None = 全开（真实玩家）
@@ -67,7 +69,7 @@ def build_player(cls: str, lv: int, gear: dict | None = None,
         else:
             main_attr = [c[3] for c in CLASSES if c[1] == cls_id(cls)][0]
             attrs = {main_attr: attr_pts_of(lv)}
-    st = E.player_final_stats(
+    st = player_final_stats(
         cls_id(cls), lv, gear or {}, tid,
         attrs,
         evolve_path=1 if (opts.evolve and tid > 0) else 0,
@@ -96,7 +98,7 @@ def _is_phys(cls: str) -> bool:
 
 
 def _skill_dmg(st: dict, cls: str, edef: int, mdef: int, extra_crit: float = 0.0) -> float:
-    """技能轴一次行动期望伤害（E.calc_damage 实算，variance=0；技能倍率 E.skill_info 实读）。
+    """技能轴一次行动期望伤害（calc_damage 实算，variance=0；技能倍率 skill_info 实读）。
     v133：暴击/幸运期望按每技能 multi 折算（多段仅首段吃暴击）。
     v161：expr/exprs 表达式技能走 skill_expr_preview（Lv.1 保守档，与 ROTATIONS 口径一致），
           power 字段保留作 fallback（单轨迁移过渡期双兼容）。"""
@@ -117,7 +119,7 @@ def _skill_dmg(st: dict, cls: str, edef: int, mdef: int, extra_crit: float = 0.0
     _st_expr["_player_lv"] = int(st.get("level", 1) or 1)
     _st_expr["_skill_lv"] = 1
     for max_lv, name, w in cand:
-        info = E.skill_info(cls_id(cls), name)
+        info = skill_info(cls_id(cls), name)
         if not info:
             continue
         stat = st["atk"] if phys else st["matk"]
@@ -128,20 +130,20 @@ def _skill_dmg(st: dict, cls: str, edef: int, mdef: int, extra_crit: float = 0.0
         pflat = st.get("pene_flat" if phys else "pene_mflat", 0)
         dt = "phys" if phys else "magi"
         # v161 表达式技能：代入面板算 Lv.1 期望基础值（variance=0，与引擎同口径）
-        _expr_val = E.skill_expr_preview(info, 1, _st_expr)
+        _expr_val = skill_expr_preview(info, 1, _st_expr)
         if _expr_val > 0:
             base_raw = _expr_val
         else:
-            power = float(info.get("power", 0)) * E.skill_power_mult(1, info)
+            power = float(info.get("power", 0)) * skill_power_mult(1, info)
             # v156 技能基础值（保底伤害）：与引擎同口径（flat = BASE + 玩家等级×PER + 技能等级×PER_SKILL）
             # ⚠️ player_lv 传 1（v161 前旧口径：_skill_dmg 无 level 键，st.get("level",1)=1；
             #     build_player 注入 level 后若传实际等级会改变数值，破坏门禁基线）
-            skill_flat = E.skill_flat_value(1, 1, info)
+            skill_flat = skill_flat_value(1, 1, info)
             base_raw = int(stat * power) + skill_flat
         if info.get("pierce"):
-            base = E.calc_damage(int(base_raw), 0, pierce=True, dmg_type=dt, variance=0.0)
+            base = calc_damage(int(base_raw), 0, pierce=True, dmg_type=dt, variance=0.0)
         else:
-            base = E.calc_damage(int(base_raw), int(d), pene_pct=pene, pene_flat=pflat,
+            base = calc_damage(int(base_raw), int(d), pene_pct=pene, pene_flat=pflat,
                                  dmg_type=dt, variance=0.0)
         dmg = base * multi
         if cls_id(cls) == "cls_ci_ke" and name == "双刃乱舞":
@@ -157,7 +159,7 @@ def _skill_dmg(st: dict, cls: str, edef: int, mdef: int, extra_crit: float = 0.0
 def _basic_dmg(st: dict, cls: str, edef: int, mdef: int) -> float:
     """普攻伤害（v156 修正：普攻一律吃 atk——引擎 battle.py 普攻段 calc_damage(st['atk'], ...)，
     法系职业 atk 低故普攻天然弱（魔杖/法杖敲击），符合法系定位；此前误用 matk 导致工具集虚高）"""
-    return E.calc_damage(int(st.get("atk", 0)), int(edef), variance=0.0, dmg_type="phys")
+    return calc_damage(int(st.get("atk", 0)), int(edef), variance=0.0, dmg_type="phys")
 
 
 def _crit_mult(st: dict, extra_crit: float = 0.0, multi: int = 1) -> float:
@@ -235,7 +237,7 @@ MP_REGEN_PCT = 0.05   # 基础回蓝速率：每轮回复 max_mp×5%（27 章基
 
 
 def rotation_mp_per_round(cls: str, rotation: list | None = None, lv: int | None = None) -> float:
-    """技能轴平均每轮 MP 消耗（E.skill_info 实读 mp 字段）。
+    """技能轴平均每轮 MP 消耗（skill_info 实读 mp 字段）。
 
     - rotation: [(技能名, 权重)] 或 v161 [(max_lv, 技能名, 权重)]；None = 职业默认 ROTATIONS
     - lv: 玩家等级；None = 用 ROTATIONS 全部（旧口径）。lv 给定则按档位选当前等级可达技能（与 _skill_dmg 一致）
@@ -259,7 +261,7 @@ def rotation_mp_per_round(cls: str, rotation: list | None = None, lv: int | None
             _, name, w = item
         else:
             name, w = item
-        info = E.skill_info(cid, name)
+        info = skill_info(cid, name)
         if not info:
             continue
         mp = float(info.get("mp", 0) or 0)
@@ -277,7 +279,7 @@ def mp_budget(cls: str, lv: int, gear: dict | None = None,
 
     返回 {"max_mp": x, "per_round_mp": y, "mp_regen": z, "empty_rounds": 空蓝轮数}
     - max_mp: build_player 面板 mp
-    - per_round_mp: ROTATIONS 循环每轮技能 mp 消耗（E.skill_info 实读 mp 字段）
+    - per_round_mp: ROTATIONS 循环每轮技能 mp 消耗（skill_info 实读 mp 字段）
     - mp_regen: 基础回蓝速率（简化：每轮回复 max_mp×5%，27 章基础规则口径）
     - empty_rounds: max_mp / (per_round_mp - mp_regen)；per_round_mp <= mp_regen → inf
     """
@@ -323,7 +325,7 @@ def basic_interval(st: dict, cls: str) -> float:
 
 def skill_interval(st: dict, cls: str, skill_name: str) -> float:
     """技能行动间隔：技能 cast × 速度折算（engine 同款）。"""
-    info = E.skill_info(cls_id(cls), skill_name)
+    info = skill_info(cls_id(cls), skill_name)
     cast = float(info.get("cast", 0) or 0) if info else 1.0
     return _interval(cast, st.get("spd", 50))
 
@@ -390,7 +392,7 @@ def sustained_dps(cls: str, lv: int, gear: dict | None, edef: int, mdef: int,
     dps_basic = d_basic * freq_basic
     cd = 0.0
     if cand:
-        info = E.skill_info(cls, cand[0][1])
+        info = skill_info(cls, cand[0][1])
         if info:
             cd = float(info.get("cd", 0) or 0)
     if cd > 0:
@@ -403,7 +405,7 @@ def sustained_dps(cls: str, lv: int, gear: dict | None, edef: int, mdef: int,
         fill_dps = dps_basic  # 默认普攻填充
         # 找该职业 cd=0 填充技能（ROTATIONS 内第一个无 CD 攻击技），用其单发×频率作填充 DPS
         for maxlv, fname, w in ROTATIONS.get(cid, []):
-            finfo = E.skill_info(cid, fname)
+            finfo = skill_info(cid, fname)
             fkind = str(finfo.get("kind", "")) if finfo else ""
             # kind 可能是 '魔法' 或 '魔法·火'（元素后缀）——前缀匹配
             if not (finfo and not finfo.get("cd") and (fkind.startswith("物理") or fkind.startswith("魔法"))):
@@ -416,16 +418,16 @@ def sustained_dps(cls: str, lv: int, gear: dict | None, edef: int, mdef: int,
             f_expr = dict(st)
             f_expr["_player_lv"] = int(st.get("level", 1) or 1)
             f_expr["_skill_lv"] = 1
-            f_val = E.skill_expr_preview(finfo, 1, f_expr)
+            f_val = skill_expr_preview(finfo, 1, f_expr)
             if f_val > 0:
                 f_raw = f_val
             else:
-                f_raw = int(f_stat * float(finfo.get("power", 0) or 0)) + E.skill_flat_value(1, 1, finfo)
+                f_raw = int(f_stat * float(finfo.get("power", 0) or 0)) + skill_flat_value(1, 1, finfo)
             if finfo.get("pierce"):
-                f_base = E.calc_damage(int(f_raw), 0, pierce=True, dmg_type=f_dt, variance=0.0)
+                f_base = calc_damage(int(f_raw), 0, pierce=True, dmg_type=f_dt, variance=0.0)
             else:
                 f_def = mdef if not f_phys else edef
-                f_base = E.calc_damage(int(f_raw), int(f_def), dmg_type=f_dt, variance=0.0)
+                f_base = calc_damage(int(f_raw), int(f_def), dmg_type=f_dt, variance=0.0)
             f_multi = int(finfo.get("hits", finfo.get("multi", 1)))
             f_dmg = f_base * f_multi
             fill_dps = f_dmg / max(f_interval, 0.001)
@@ -475,7 +477,7 @@ def dot_dps(st: dict, cls: str, edef: int, mdef: int,
     if not cand:
         return 0.0
     _, name, _ = cand[0]
-    info = E.skill_info(cid, name)
+    info = skill_info(cid, name)
     if not info:
         return 0.0
     mech = info.get("mech", "")

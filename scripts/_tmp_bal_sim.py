@@ -3,14 +3,15 @@
 import sys, os, random
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from game import engine as E
+from battle2.formulas import calc_damage
+from game.content_rules.panel import player_final_stats
 from game.core import stats as S
 
 def player_stats(lv, cls, boost=1.0):
     eq = {s: {"stats": S.equip_stats(s, lv, "blue")} for s in
           ("weapon", "armor", "ring", "helm", "legs", "necklace", "boots")}
     attrs = {"str": 2*(lv-1), "vit": 1*(lv-1), "int": 0, "agi": 0}
-    st = E.player_final_stats(cls, lv, eq, tier=1, attributes=attrs,
+    st = player_final_stats(cls, lv, eq, tier=1, attributes=attrs,
                               evolve_path=0, title_bonus={}, race="human")
     st["atk"] = int(st["atk"]*boost); st["matk"] = int(st["matk"]*boost)
     return st
@@ -139,7 +140,7 @@ for lv in LV:
     st = player_stats(lv, CLASS["poison"])
     m = mon(lv, "boss")
     atk, pdef, php, b_atk = st["atk"], st["def"], st["max_hp"], m["atk"]
-    stra = E.calc_damage(atk, m["def"], False, 0.0)
+    stra = calc_damage(atk, m["def"], False, 0.0)
     boss_hit = b_atk*b_atk/(b_atk+max(1,pdef))
     ls30 = stra*0.30; ls15 = stra*0.15
     net30 = boss_hit - ls30; net15 = boss_hit - ls15

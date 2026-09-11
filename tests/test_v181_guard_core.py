@@ -42,7 +42,7 @@ from battle2.effect_triggers import fire  # noqa: E402
 from game.services import class_mech_proc as CM  # noqa: E402
 from game.data.battle2_rules import (EFFECT_RULES, EFFECT_ACTIONS,  # noqa: E402
                                     MECH_CASH, PASSIVE_PROC)
-from game import engine as E  # noqa: E402
+from game.content_rules.skills import skill_info
 
 PASS = 0
 FAIL = 0
@@ -460,7 +460,7 @@ def t10_stance():
 
 def t11_res_cost():
     print("【11. 磐岩甲：消耗 3 枚磐核（res_cost，v153 L1007）】")
-    info = E.skill_info(MONK, "磐岩甲") or {}
+    info = skill_info(MONK, "磐岩甲") or {}
     check("技能数据 res_cost = {guard_core: 3}",
           info.get("res_cost") == {"guard_core": 3}, str(info.get("res_cost")))
     from battle2 import actions as A

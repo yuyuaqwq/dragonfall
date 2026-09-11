@@ -226,10 +226,11 @@ def roll_blueprint_drop(group_id, qq_id, player, monster, gold):
     """掉落（v93 经济改革：怪物永不掉装备——装备走铁匠铺购买 + 图纸锻造）
     v106 幸运：Boss 图纸惊喜掉率 ×(1+luck)（luck 上限 50%，roll_drop 内部 cap）"""
     from .. import db
-    from .. import engine as E
+    from ..content_rules.gameplay import resolve_drop
+    from ..content_rules.panel import player_final_stats, race_stats
     _luck_bp = 0.0
     try:
-        _lst_bp = E.player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
+        _lst_bp = player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
                                        player.get("class_tier", 0), player.get("attributes"),
                                        player.get("evolve_path", 0), player.get("_title_bonus") or {}, player.get("race"))
         _luck_bp = min(float(_lst_bp.get("luck", 0) or 0), 0.5)
@@ -237,8 +238,8 @@ def roll_blueprint_drop(group_id, qq_id, player, monster, gold):
         _luck_bp = 0.0
     drop_equip, drop_bp, _drop_gold, _drop_exp = C.roll_drop(monster["lv"], monster["role"], _luck_bp)
     # 阶段九：半身人幸运儿——金币掉落 +15%
-    if E.race_stats(player.get("race")).get("gold_bonus"):
-        gold = int(gold * (1 + E.race_stats(player.get("race"))["gold_bonus"]))
+    if race_stats(player.get("race")).get("gold_bonus"):
+        gold = int(gold * (1 + race_stats(player.get("race"))["gold_bonus"]))
     drop_lines = []
     if drop_bp:
         # v94 图纸经济：已学过的图纸自动折算图纸残页（普通1/优秀1/稀有2/史诗4/传说6）
@@ -415,11 +416,12 @@ def material_fold(group_id, qq_id, player, monster, gold, lucky_line):
     注意：lucky_line 由段16 幸运护符产出后传入本函数续写（原实现同变量同位置）——
     _luck 命中且无护符行 → 幸运属性行；_gold_bonus 命中 → 聚宝行追加。"""
     from .. import db
-    from .. import engine as E
+    from ..content_rules.gameplay import resolve_drop
+    from ..content_rules.panel import player_final_stats, race_stats
     _luck = 0.0
     _gold_bonus = 0.0
     try:
-        _lst = E.player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
+        _lst = player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
                                     player.get("class_tier", 0), player.get("attributes"),
                                     player.get("evolve_path", 0), player.get("_title_bonus") or {}, player.get("race"))
         _luck = min(float(_lst.get("luck", 0) or 0), 0.5)
@@ -441,7 +443,7 @@ def material_fold(group_id, qq_id, player, monster, gold, lucky_line):
         picks = random.sample(drop_pool, min(2 if is_hi else 1, len(drop_pool)))
         per_val = mat_value / len(picks)
         for mat_name in picks:
-            mid = E.resolve_drop(mat_name)
+            mid = resolve_drop(mat_name)
             if mid is None:
                 continue
             if mid in C.MATERIALS:
@@ -471,9 +473,10 @@ def material_fold(group_id, qq_id, player, monster, gold, lucky_line):
 def know_exp_bonus(group_id, qq_id, player, exp):
     """经验/金币（v93：只入经验，金币已折算成材料）
     v106.1 求知属性：战斗经验 ×(1+exp_bonus)（上限 50%），叠加在全部既有加成之后"""
-    from .. import engine as E
+    from ..content_rules.gameplay import resolve_drop
+    from ..content_rules.panel import player_final_stats, race_stats
     try:
-        _lst_exp = E.player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
+        _lst_exp = player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
                                         player.get("class_tier", 0), player.get("attributes"),
                                         player.get("evolve_path", 0), player.get("_title_bonus") or {}, player.get("race"))
         _exp_bonus = min(float(_lst_exp.get("exp_bonus", 0) or 0), 0.5)
@@ -493,13 +496,14 @@ def grant_player_exp(group_id, qq_id, player, exp):
           _rule_fire 的 exp_gain 在旧基数上覆盖 DB（三连胜经验延迟到下一场才入账）
     重读点（等价替换 combat self._player）：db.get_player 落库后重读"""
     from .. import db
-    from .. import engine as E
+    from ..content_rules.gameplay import resolve_drop
+    from ..content_rules.panel import player_final_stats, race_stats
     player["exp"] = int(player.get("exp", 0)) + exp
     db.update_player(group_id, qq_id, exp=player["exp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
     player = db.get_player(group_id, qq_id)
     # v95.19: 结算面板与战斗内口径一致（DB max_hp/max_mp 是注册/升级快照，换装备后过时）
     try:
-        _st = E.player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
+        _st = player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
                                    player.get("class_tier", 0), player.get("attributes"),
                                    player.get("evolve_path", 0), player.get("_title_bonus") or {}, player.get("race"))
         player["max_hp"] = int(_st.get("max_hp", player.get("max_hp", 100)))

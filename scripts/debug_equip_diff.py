@@ -2,7 +2,7 @@
 """复现 Bug A：装备后属性变化显示（无变化）"""
 import sys
 sys.path.insert(0, r"C:/Users/yuyu/qqbot/data/plugins/dragonfall")
-from game import engine as E
+from game.content_rules.panel import player_final_stats
 from game import content as C
 
 # 模拟小蓝：游侠 Lv.4，无武器（weapon=None），装备猎弓
@@ -20,11 +20,11 @@ player = {
 bow = C.generate_roster_equip("eq_lie_gong")
 print("猎弓 stats:", bow.get("stats"), "req:", bow.get("req"))
 
-old = E.player_final_stats(player["class_name"], player["level"], player["equipment"],
+old = player_final_stats(player["class_name"], player["level"], player["equipment"],
                            player["class_tier"], player["attributes"], player["evolve_path"], None, player["race"])
 eq2 = dict(player["equipment"])
 eq2["weapon"] = bow
-new = E.player_final_stats(player["class_name"], player["level"], eq2,
+new = player_final_stats(player["class_name"], player["level"], eq2,
                            player["class_tier"], player["attributes"], player["evolve_path"], None, player["race"])
 
 print(f"old atk={old['atk']}  new atk={new['atk']}  diff={new['atk']-old['atk']}")

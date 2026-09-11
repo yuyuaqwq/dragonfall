@@ -14,7 +14,7 @@ from numeric_lib.player import PlayerOptions, build_player, per_action_dmg
 from numeric_lib.gear import gear_loadout
 from numeric_lib.constants import TEAM_BUFF
 from data.plugins.dragonfall.game import content as C  # noqa
-from data.plugins.dragonfall.game import engine as E  # noqa
+
 
 def calc_rounds(boss_def, lv, hpm, mn):
     m = C.build_monster(boss_def, {"id": "x", "name": "x", "area": "instance"})

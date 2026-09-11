@@ -44,11 +44,11 @@ def scan_one(cid: str, bname: str, bdef: dict, stage_cfg, attr_name: str,
     except Exception as ex:
         return {"error": str(ex)}
     # 承伤（同 build_vs_boss 口径：Boss 单发 ×1.35 enraged 保守）
-    from data.plugins.dragonfall.game import engine as E
+    from battle2.formulas import calc_damage
     boss_atk = float(m.get("atk", 0)) * 1.35
     boss_matk = float(m.get("matk", 0)) * 1.35
-    d_phys = E.calc_damage(int(boss_atk), int(st.get("def", 0)), variance=0.0, dmg_type="phys")
-    d_magi = E.calc_damage(int(boss_matk), int(st.get("mdef", 0)), variance=0.0, dmg_type="magi")
+    d_phys = calc_damage(int(boss_atk), int(st.get("def", 0)), variance=0.0, dmg_type="phys")
+    d_magi = calc_damage(int(boss_matk), int(st.get("mdef", 0)), variance=0.0, dmg_type="magi")
     boss_hit = max(d_phys, d_magi)
     survive = float(st.get("max_hp", 1000)) / max(boss_hit, 1.0) if boss_hit > 0 else 999.0
     kr = r["kill_rounds"]

@@ -6,7 +6,7 @@
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, E, Main, FakeEvent, run, clean_db
+from conftest import C, db, Main, FakeEvent, run, clean_db
 
 async def cmd(m, handler_name, gid, qid, msg):
     ev = FakeEvent(gid, qid, msg)

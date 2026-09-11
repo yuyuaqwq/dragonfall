@@ -32,7 +32,7 @@ init_db()
 
 from game import content as C  # noqa: E402
 from game import db  # noqa: E402
-from game import engine as E  # noqa: E402
+
 from battle2 import ai as AI  # noqa: E402
 from battle2 import Battle as B2  # noqa: E402
 

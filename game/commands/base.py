@@ -19,7 +19,7 @@ from ._platform import EventType, star_handlers_registry
 
 from .. import content as C
 from .. import db
-from .. import engine as E
+from ..content_rules.panel import STAT_NAMES
 
 
 # ---------- v96 停服维护全局拦截 ----------
@@ -538,7 +538,7 @@ class CommandBase:
         """格式化单条属性来源：『来源名: 攻击＋8 生命＋40 暴击＋5%』"""
         parts = []
         for k, v in src["stats"].items():
-            name = E.STAT_NAMES.get(k, k)
+            name = STAT_NAMES.get(k, k)
             if k in C.PCT_STATS:
                 sign = "+" if v >= 0 else ""
                 pct = "+" if src.get("pct") and k not in C.PCT_STATS else ""

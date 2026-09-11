@@ -116,7 +116,7 @@ def _monster_skill(key):
 
 def _kinds() -> dict:
     """kind 语义常量（S1 前写死在 battle2/actions.py:22-26）。"""
-    from .core.skill_kinds import K_PHYS, K_MAGI, K_TRUE, K_HEAL, K_BUFF
+    from battle2.support.skill_kinds import K_PHYS, K_MAGI, K_TRUE, K_HEAL, K_BUFF
     return {"phys": K_PHYS, "magi": K_MAGI, "true": K_TRUE, "heal": K_HEAL, "buff": K_BUFF}
 
 

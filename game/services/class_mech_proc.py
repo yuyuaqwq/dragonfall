@@ -346,9 +346,9 @@ def install() -> None:
         # 改为全队回血+30%」→ 全队回血量 ×1.3；数值读技能 passive dict 零硬编码）
         if _learned_proc(owner, "faith_overload_heal"):
             try:
-                from .. import engine as E
+                from ..content_rules.skills import skill_info
                 for _s in (owner.get("learned_skills") or []):
-                    _i = E.skill_info(owner.get("class_name") or "", _s) or {}
+                    _i = skill_info(owner.get("class_name") or "", _s) or {}
                     if isinstance(_i.get("passive"), dict) \
                             and (_i.get("passive") or {}).get("proc") == "faith_overload_heal":
                         _up = float((_i.get("passive") or {}).get("heal_up", 0) or 0)
@@ -795,7 +795,7 @@ def install() -> None:
             _bar = judge.get("bar") or params.get("bar") or ""
             _bs_j = None
             if tg is not None and _bar:
-                from ..core.battle_bars import bar_settle, bar_effect_key
+                from battle2.support.battle_bars import bar_settle, bar_effect_key
                 _now_j = float(getattr(battle, "_now", 0.0) or 0.0)
                 bar_settle(tg, _bar, _now_j)
                 _bs_j = (tg.get("effects") or {}).get(bar_effect_key(_bar))
@@ -840,7 +840,7 @@ def install() -> None:
             ext = 0.0
         if not bar or ext <= 0 or not isinstance(host, dict):
             return
-        from ..core.battle_bars import bar_effect_key
+        from battle2.support.battle_bars import bar_effect_key
         bs = (host.get("effects") or {}).get(bar_effect_key(bar))
         if not isinstance(bs, dict):
             return
@@ -1690,7 +1690,7 @@ def install() -> None:
             return
         try:
             from battle2.actors import hostile_sides
-            from ..core.battle_bars import bar_def, bar_effect_key, bar_settle
+            from battle2.support.battle_bars import bar_def, bar_effect_key, bar_settle
         except Exception:
             return
         bd = bar_def(bar) or {}
@@ -1926,11 +1926,11 @@ def _learned_mech_skills(actor: dict) -> list:
     names = actor.get("learned_skills") or []
     if not cn or not names:
         return []
-    from .. import engine as E
+    from ..content_rules.skills import skill_info
     out = []
     for s in names:
         try:
-            info = E.skill_info(cn, s)
+            info = skill_info(cn, s)
         except Exception:
             info = None
         if info and info.get("mech"):
@@ -1950,10 +1950,10 @@ def _learned_proc(actor: dict, proc: str) -> bool:
     names = actor.get("learned_skills") or []
     if not cn or not names:
         return False
-    from .. import engine as E
+    from ..content_rules.skills import skill_info
     for s in names:
         try:
-            info = E.skill_info(cn, s)
+            info = skill_info(cn, s)
         except Exception:
             info = None
         if info and isinstance(info.get("passive"), dict) \
@@ -1989,12 +1989,12 @@ def apply_class_passives(actor: dict) -> None:
     rules = _passive_proc_rules()
     if not rules:
         return
-    from .. import engine as E
+    from ..content_rules.skills import skill_info
     trig = actor.setdefault("triggers", {})
     _pending: dict = {}  # (event, agg) -> [(proc, entry)] 聚合族暂存（循环后归并单条）
     for s in names:
         try:
-            info = E.skill_info(cn, s)
+            info = skill_info(cn, s)
         except Exception:
             info = None
         if not info or info.get("kind") != "被动":

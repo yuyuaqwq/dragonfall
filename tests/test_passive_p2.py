@@ -130,8 +130,8 @@ def test_4_mark_mult():
           len(dmgs) == 1 and (dmgs[0].get("judge") or {}).get("mark") == "hunt_mark",
           repr(dmgs))
     # 给木桩上 2 层猎印，打它 → 被动 ×1.12 生效
-    from game import engine as E
-    info = E.skill_info("cls_you_xia", "疾风射击") or {}
+    from game.content_rules.skills import skill_info
+    info = skill_info("cls_you_xia", "疾风射击") or {}
     check("疾风射击是技能（伤害技能）", bool(info.get("name")), repr(info.get("name")))
     b = mk_battle([r])
     e = b.sides_of("enemy")[0]
@@ -192,11 +192,11 @@ def test_7_dual_channel():
         for tag, sk2 in [("P", (PLAYER_SKILLS.get(cid) or {}).get("skills") or {})]:
             pass
     # 简化：用 skill_info 全表扫（学名中文）
-    from game import engine as E
+    from game.content_rules.skills import skill_info
     found = []
     for cid in list(PLAYER_SKILLS) + list(BRANCH_SKILLS):
         try:
-            info = E.skill_info(cid, "灵魂锁链") or {}
+            info = skill_info(cid, "灵魂锁链") or {}
         except Exception:
             info = {}
         if info.get("passive"):

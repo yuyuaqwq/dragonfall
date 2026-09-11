@@ -62,7 +62,7 @@ def _we_data() -> dict:
     global _WE_TABLE
     if _WE_TABLE is None:
         try:
-            from game.data import weapon_effect_data as W
+            from ..data import weapon_effect_data as W
             _WE_TABLE = getattr(W, "WEAPON_EFFECT_DATA", {})
         except Exception:
             _WE_TABLE = {}
@@ -126,7 +126,7 @@ def _affix_data() -> dict:
     global _AFFIX_TABLE
     if _AFFIX_TABLE is None:
         try:
-            from game.data import affixes as _A
+            from ..data import affixes as _A
             _AFFIX_TABLE = getattr(_A, "AFFIXES", {})
         except Exception:
             _AFFIX_TABLE = {}
@@ -1086,7 +1086,7 @@ def install_ext_actions() -> None:
     if _EXT_LOADED:
         return
     _EXT_LOADED = True
-    from game.services import battle2_we_procs as _WEP
+    from .import battle2_we_procs as _WEP
     _WEP.ensure_registered()
 
 

@@ -13,7 +13,7 @@ from ._platform import AstrMessageEvent, filter, MessageChain
 
 from .. import content as C
 from .. import db
-from .. import engine as E
+from ..content_rules.panel import player_final_stats
 from ..services.auction import settle_expired_auction  # v181 P4-5：拍卖状态机服务化（过期结算+清槽单点）
 from ..commands.base import CommandBase, require_player
 # v116 公会成长纵深：新数据表/存取函数不经 __init__ 聚合导出，
@@ -450,7 +450,7 @@ class SocialCmds(CommandBase):
             # 面板（无目标）
             if members:
                 lines = party_view_lines(group_id, members, get_player=self._player,
-                                         final_stats=E.player_final_stats, display=C.display)
+                                         final_stats=player_final_stats, display=C.display)
                 yield event.plain_result("\n".join(lines))
             else:
                 yield event.plain_result("你还没有队伍～『组队 <对方名字>』邀请同群玩家组队！\n💡 组队打怪经验＋10%（野外各自为战，仅经验加成，副本内才并肩作战）")

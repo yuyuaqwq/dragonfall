@@ -89,8 +89,8 @@ def test_2_cd_mult():
     logs, _, _ = b.human_act("skill", "暗影步", a2)  # 进态
     check("暗影步后态在", (a2.get("effects") or {}).get("shadow_dance") is not None, "")
     # 幻影连刺 cd 查数据
-    from game import engine as E
-    info = E.skill_info("cls_ci_ke", "幻影连刺") or {}
+    from game.content_rules.skills import skill_info
+    info = skill_info("cls_ci_ke", "幻影连刺") or {}
     base_cd = int(info.get("cd", 0) or 0)
     logs2, _, _ = b.human_act("skill", "幻影连刺", a2)
     now = _now_of(b)

@@ -34,7 +34,7 @@ from battle2 import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 from battle2 import Battle as B2, make_actor, effects as EFX  # noqa: E402
 from battle2.effect_triggers import fire  # noqa: E402
-from game.core.battle_bars import bar_effect_key, bar_gain  # noqa: E402
+from battle2.support.battle_bars import bar_effect_key, bar_gain# noqa: E402
 from game.services import class_mech_proc as CMP  # noqa: E402
 from game.services.battle2_bar_procs import _ensure_tick  # noqa: E402
 

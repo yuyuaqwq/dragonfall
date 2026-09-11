@@ -15,7 +15,9 @@ from ._platform import MessageChain
 
 from .. import content as C
 from .. import db
-from .. import engine as E
+from battle2.formulas import skill_buff_turns, skill_cond_mult, skill_expr_preview, skill_formula_expr, skill_formula_expr_for_seg, skill_lifesteal_pct, skill_max_level, skill_mech_val, skill_power_mult
+from ..content_rules.panel import player_final_stats, player_stats_detail, race_name, race_stats, skill_learn_cost_for
+from ..content_rules.skills import _sk_table, branch_path_index, branch_skill_owner, is_skill_learned, skill_info, skill_level_of, skill_upgrade_cost
 from ..commands.base import CommandBase, require_player
 from ..data.battle2_rules import EFFECT_RULES
 
@@ -383,7 +385,7 @@ class PlayerCmds(CommandBase):
         cls = C.CLASSES[cls_id]
         cls_display = cls.get("name", cls_id)
         # v100.7 注册初始血量必须乘种族倍率（银月精灵月缺 HP-5% 等），否则初始当前生命 > 上限
-        st0, _ = E.player_stats_detail(cls_id, 1, {}, 0, None, 0, None, race_id)
+        st0, _ = player_stats_detail(cls_id, 1, {}, 0, None, 0, None, race_id)
         db.create_player(group_id, qq_id, name, cls_id, cls["base"], st0["max_hp"], st0["max_mp"], race_id, gender_id)
         # v95 #47：注册送 1 技能点 → Lv.1 有 1 点、Lv.2 有 2 点正好学第一个技能（Lv.1/Lv.2 技能 cost=2），断层消除
         db.update_player(group_id, qq_id, skill_points=1)
@@ -539,7 +541,7 @@ class PlayerCmds(CommandBase):
         player = self._player(group_id, qq_id)
         cls = C.CLASSES.get(player["class_name"], {})  # v105 P1(M01#10)：脏 class_name 兜底
         # v55.2：属性也统一「总值(+加成)」格式，每项单独一行（与『属性』面板一致）
-        st, sources = E.player_stats_detail(
+        st, sources = player_stats_detail(
             player["class_name"], player["level"], player["equipment"],
             player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0),
             self._title_bonus(group_id, qq_id), player.get("race"),
@@ -574,7 +576,7 @@ class PlayerCmds(CommandBase):
         ]
         # v95.24 性别 + v100.8 种族性别合并一行：🧬 银月精灵 · ♂男（存量档无性别则只显示种族）
         g = player.get("gender") or ""
-        race_s = E.race_name(player.get('race'))
+        race_s = race_name(player.get('race'))
         gender_s = f"{'♂' if g == 'male' else '♀'} {'男' if g == 'male' else '女'}" if g else ""
         if race_s and gender_s:
             lines.append(f"🧬 {race_s} · {gender_s}")
@@ -652,7 +654,7 @@ class PlayerCmds(CommandBase):
                 except (ValueError, TypeError):
                     eq, attrs = {}, {"str": 0, "agi": 0, "int": 0, "vit": 0}
                 try:
-                    st = E.player_final_stats(p["class_name"], p["level"], eq,
+                    st = player_final_stats(p["class_name"], p["level"], eq,
                                               p.get("class_tier", 0), attrs,
                                               p.get("evolve_path", 0), None, p.get("race"))
                     return int(st["atk"] * 2 + st["matk"] * 2 + st["def"] * 1.5
@@ -961,7 +963,7 @@ class PlayerCmds(CommandBase):
         else:
             init_skills = grant
             new_grant = grant
-        st = E.player_final_stats(
+        st = player_final_stats(
             cls_id, player["level"], player.get("equipment", {}), tgt_tier,
             player.get("attributes"), path,
             self._title_bonus(group_id, qq_id), player.get("race"))
@@ -1051,7 +1053,7 @@ class PlayerCmds(CommandBase):
                             _battle_st = _as(_b, _my)
             except Exception:
                 _battle_st = None
-        st, sources = E.player_stats_detail(
+        st, sources = player_stats_detail(
             player["class_name"], player["level"], player["equipment"],
             player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0),
             self._title_bonus(group_id, qq_id), player.get("race"),
@@ -1174,7 +1176,7 @@ class PlayerCmds(CommandBase):
             return
         spent = player.get("skill_spent", 0)
         cls = player["class_name"]
-        init_skills = [C.display("skills", s) for s, info in E._sk_table(cls).items() if info["lv"] <= 1]
+        init_skills = [C.display("skills", s) for s, info in _sk_table(cls).items() if info["lv"] <= 1]
         db.update_player(group_id, qq_id, gold=player["gold"] - cost,
                          skill_points=player.get("skill_points", 0) + spent,
                          skill_spent=0,
@@ -1216,7 +1218,7 @@ class PlayerCmds(CommandBase):
             if isinstance(src_table, dict) and "skills" in src_table:
                 src_table = src_table["skills"]
             init_skills = [s for s, info in src_table.items() if info["lv"] <= 1]
-            st = E.player_final_stats(
+            st = player_final_stats(
                 src, player["level"], player.get("equipment", {}), 0,
                 player.get("attributes"), 0,
                 self._title_bonus(group_id, qq_id), player.get("race"))
@@ -1247,7 +1249,7 @@ class PlayerCmds(CommandBase):
         keep = []
         removed = []
         for s in learned:
-            if E.branch_skill_owner(cls, s):
+            if branch_skill_owner(cls, s):
                 removed.append(s)
             else:
                 keep.append(s)
@@ -1258,7 +1260,7 @@ class PlayerCmds(CommandBase):
         # 不重算会让存档 max_hp/max_mp 高于计算上限 → 面板倒挂（❤️ 1941/1331）
         # 且住宿/回家/药水按存档旧上限回血，倒挂永久复发。
         # 参照 world.py:_do_evolve_via_npc 同款写法（重算+满血）。
-        st = E.player_final_stats(
+        st = player_final_stats(
             cls, player["level"], player.get("equipment", {}), 0,
             player.get("attributes"), 0,
             self._title_bonus(group_id, qq_id), player.get("race"))
@@ -1314,7 +1316,7 @@ class PlayerCmds(CommandBase):
         # v105 P1(M01#2)：新上限一并落库——v95r76 只裁剪 hp/mp 不同步 max_hp，
         # 住宿(world.py 按存档 max_hp 全回)/回家(回至存档 max×50%)/药水(按存档 max 比例)
         # 任一都会把 hp 抬回旧上限 → 倒挂复发；称号加成与面板同口径。
-        _st0 = E.player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
+        _st0 = player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
                                    player.get("class_tier", 0), attrs0,
                                    player.get("evolve_path", 0), self._title_bonus(group_id, qq_id),
                                    player.get("race"))
@@ -1337,7 +1339,7 @@ class PlayerCmds(CommandBase):
                 equipment[_slot] = None
         # 有自动卸下 → 重算一次无该装备的属性上限（洗点上限计算本就基于穿后属性）
         if dropped:
-            _st0 = E.player_final_stats(player["class_name"], player["level"], equipment,
+            _st0 = player_final_stats(player["class_name"], player["level"], equipment,
                                         player.get("class_tier", 0), attrs0,
                                         player.get("evolve_path", 0), self._title_bonus(group_id, qq_id),
                                         player.get("race"))
@@ -1361,7 +1363,7 @@ class PlayerCmds(CommandBase):
     async def power(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        st = E.player_final_stats(player["class_name"], player["level"], player["equipment"], player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
+        st = player_final_stats(player["class_name"], player["level"], player["equipment"], player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
         pw = int(st["atk"] * 2 + st["matk"] * 2 + st["def"] * 1.5 + st["mdef"] * 1.5
                 + st["max_hp"] / 10 + st["max_mp"] / 10 + st["spd"] * 3)
         tier = player.get("class_tier", 0)
@@ -1411,16 +1413,16 @@ class PlayerCmds(CommandBase):
             if idx < 1 or idx > len(skill_items):
                 return f"你的职业只有 {len(skill_items)} 个技能！『技能列表』查看全部～"
             skill_name = skill_items[idx - 1]
-        info = E.skill_info(player["class_name"], skill_name)
+        info = skill_info(player["class_name"], skill_name)
         if not info:
             return None
         # v56.1：显示一律用中文名（info 里带 name，序号查询进来的是 sk_xxx ID）
         display_name = info.get("name", skill_name)
         learned = player.get("learned_skills", [])
-        is_learned = E.is_skill_learned(player["class_name"], player["level"], skill_name, learned)
-        mx = E.skill_max_level(info)
+        is_learned = is_skill_learned(player["class_name"], player["level"], skill_name, learned)
+        mx = skill_max_level(info)
         if is_learned:
-            slv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名
+            slv = skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名
             status = f"✅ 已学会 Lv.{slv}/{mx}"
         elif info["lv"] <= player["level"]:
             status = f"📖 可学习(Lv.{info['lv']})"
@@ -1459,7 +1461,7 @@ class PlayerCmds(CommandBase):
         _stats = None
         if (info.get("exprs") or info.get("expr")
                 or info.get("heal_formula") or info.get("heal_expr") or info.get("heal_exprs")):
-            _stats = E.player_final_stats(
+            _stats = player_final_stats(
                 player["class_name"], player["level"], player.get("equipment", {}),
                 player.get("class_tier", 0), player.get("attributes"),
                 player.get("evolve_path", 0), None,
@@ -1477,7 +1479,7 @@ class PlayerCmds(CommandBase):
                     lines.append(f"  {_mark} Lv.{_lv}: {' · '.join(_gains)}")
                 else:
                     lines.append(f"  {_mark} Lv.{_lv}: (无成长数值)")
-        owner = E.branch_skill_owner(player["class_name"], skill_name)
+        owner = branch_skill_owner(player["class_name"], skill_name)
         if owner:
             # v130.2f.2 苦修改名收尾：专属归属分支 key → 展示名（武僧→淬势者、大地武僧→锻势行者）
             # v174 精确化：牧师/诗人档位名按 tier 从 classes.evolve_branches 取（大主教/圣光先知/
@@ -1488,7 +1490,7 @@ class PlayerCmds(CommandBase):
                 _eb_paths = C.CLASSES.get(player["class_name"], {}).get("evolve_branches", {})
                 _eb_list = _eb_paths.get(_own_tier, [])
                 # owner key 是该 tier 分支表 key（如"神谕者"），定位其在分支组的位置 → 取同 index 档位名
-                _cand_path = E.branch_path_index(player["class_name"], _own_tier, _own_key)
+                _cand_path = branch_path_index(player["class_name"], _own_tier, _own_key)
                 if _cand_path is not None and 0 <= _cand_path < len(_eb_list):
                     _disp_branch = _BRANCH_KEY_DISPLAY.get(_eb_list[_cand_path], _eb_list[_cand_path])
             except Exception:
@@ -1521,15 +1523,15 @@ class PlayerCmds(CommandBase):
             ctext = label_fn(cond) if label_fn else ctype
             lines.append(f"⚔️ 条件转化：{ctext}时激活『{label}』(威力 ×{mult})")
         if not is_learned and info["lv"] <= player["level"]:
-            cost = E.skill_learn_cost_for(player, info["lv"])
+            cost = skill_learn_cost_for(player, info["lv"])
             lines.append(f"💡 『技能学习 {display_name}』消耗 {cost} 技能点学会(当前 {player.get('skill_points',0)} 点)")
         elif is_learned:
-            slv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名
+            slv = skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名
             # v101.28l #439：被动技能详情不再提示升级（与『技能升级』的"无需升级"一致）+ 括号闭合
             if info.get("kind") == "被动":
                 lines.append("⚙️ 被动技能，无需升级——学会后战斗自动生效")
             elif slv < mx:
-                cost = E.skill_upgrade_cost(slv, info)
+                cost = skill_upgrade_cost(slv, info)
                 nxt = " · ".join(self._skill_upgrade_gains(info, slv + 1))
                 lines.append(f"💡 『技能升级 {display_name}』花 {cost} 点升到 Lv.{slv + 1}（{nxt}，当前 {player.get('skill_points',0)} 点）")
             else:
@@ -1562,13 +1564,13 @@ class PlayerCmds(CommandBase):
             if idx < 1 or idx > len(skill_items):
                 return f"你的职业只有 {len(skill_items)} 个技能！『技能列表』查看全部～"
             skill_name = skill_items[idx - 1]
-        info = E.skill_info(player["class_name"], skill_name)
+        info = skill_info(player["class_name"], skill_name)
         if not info:
             return f"你的职业没有『{skill_name}』技能！『技能列表』查看全部～"
         # v56.1：显示一律用中文名（序号学习进来的是 sk_xxx ID）
         display_name = info.get("name", skill_name)
         learned = player.get("learned_skills", [])
-        if E.is_skill_learned(player["class_name"], player["level"], skill_name, learned):
+        if is_skill_learned(player["class_name"], player["level"], skill_name, learned):
             return f"『{display_name}』你已学会了，去战斗里试试吧～"
         # v101.20 职业导师专属技能拦截：TUTOR_SKILLS 只能找导师学，技能点学不到
         _sid = C.resolve("skills", skill_name)
@@ -1576,7 +1578,7 @@ class PlayerCmds(CommandBase):
             _mname, _mcity = _tutor_mentor(player["class_name"])
             return f"『{display_name}』是 {_mname}({_mcity}) 的看家本领，普通学习学不到——去{_mcity}找{_mname}请教吧～"
         # v26 分支专属技能门槛：必须先转职到对应分支
-        owner = E.branch_skill_owner(player["class_name"], skill_name)
+        owner = branch_skill_owner(player["class_name"], skill_name)
         if owner:
             need_tier, bname = owner
             # v130.2f.2 苦修改名收尾：分支 key → 展示名（武僧→淬势者、大地武僧→锻势行者）
@@ -1595,7 +1597,7 @@ class PlayerCmds(CommandBase):
         need_lv = info["lv"]
         if player["level"] < need_lv:
             return f"『{display_name}』需要 Lv.{need_lv} 才能学习，你才 Lv.{player['level']}——升级吧！(每级＋1 技能点)"
-        cost = E.skill_learn_cost_for(player, need_lv)
+        cost = skill_learn_cost_for(player, need_lv)
         pts = player.get("skill_points", 0)
         if pts < cost:
             return (
@@ -1641,8 +1643,8 @@ class PlayerCmds(CommandBase):
         - heal_formula 字符串数组：同 exprs 逐级
         - heal_formula 段列表：逐段翻译并用 + 连接
         """
-        from ..core.formula_expr import translate_expr
-        _expr = E.skill_formula_expr(info, lv)
+        from battle2.support.formula_expr import translate_expr
+        _expr = skill_formula_expr(info, lv)
         if _expr and isinstance(_expr, str):
             return translate_expr(_expr)
         # 治疗逐级
@@ -1661,7 +1663,7 @@ class PlayerCmds(CommandBase):
             _parts = []
             for _seg in _hf:
                 if isinstance(_seg, dict):
-                    _se = E.skill_formula_expr_for_seg(_seg, lv)
+                    _se = skill_formula_expr_for_seg(_seg, lv)
                     if _se:
                         _t = translate_expr(_se)
                         _m = float(_seg.get("mult", 1.0) or 1.0)
@@ -1679,7 +1681,7 @@ class PlayerCmds(CommandBase):
         _has_expr = (info.get("exprs") or info.get("expr")
                      or info.get("heal_formula") or info.get("heal_expr") or info.get("heal_exprs"))
         if _has_expr:
-            _val = E.skill_expr_preview(info, lv, stats)
+            _val = skill_expr_preview(info, lv, stats)
             if _val > 0:
                 # v162 修复：攻击类显示伤害/治疗类显示治疗，增益/嘲讽等不显示数值
                 if kind == "治疗":
@@ -1694,11 +1696,11 @@ class PlayerCmds(CommandBase):
                 label = "治疗" if kind == "治疗" else "伤害"
                 # v101.25b #339：显示总伤害倍率 power×mult（此前只显示 mult 倍率——
                 # 圣光术 desc 115% vs 升级预览 110% 玩家以为升级降伤害）
-                parts.append(f"{label} {int(info['power'] * E.skill_power_mult(lv, info) * 100)}%")
+                parts.append(f"{label} {int(info['power'] * skill_power_mult(lv, info) * 100)}%")
         if kind in ("增益", "嘲讽"):
-            parts.append(f"持续 {E.skill_buff_turns(lv)} 刻")
+            parts.append(f"持续 {skill_buff_turns(lv)} 刻")
         if info.get("cond"):
-            parts.append(f"条件 ×{E.skill_cond_mult(info['cond'], lv, info):g}")
+            parts.append(f"条件 ×{skill_cond_mult(info['cond'], lv, info):g}")
         if info.get("mech_val"):
             # v162：effect=reduce 的 mech_val 是减伤百分比（铁壁 45 = 减伤45%），显示"减伤 X%"而非"叠层 X"
             if info.get("effect") == "reduce":
@@ -1706,11 +1708,11 @@ class PlayerCmds(CommandBase):
                 mv = (mv / 100.0) if mv > 1 else mv
                 parts.append(f"减伤 {int(round(mv * 100))}%")
             else:
-                parts.append(f"叠层 {E.skill_mech_val(info, lv)}")
+                parts.append(f"叠层 {skill_mech_val(info, lv)}")
         # v104 R3 P2-10：吸血成长预览同 battle 口径——按 lifesteal 数据字段判定
         # （原只认 effect=="lifesteal"，全表无技能带此 effect → 嗜血斩升级预览漏显示吸血）
         if info.get("lifesteal"):
-            parts.append(f"吸血 {int(E.skill_lifesteal_pct(info, lv) * 100)}%")
+            parts.append(f"吸血 {int(skill_lifesteal_pct(info, lv) * 100)}%")
         return parts
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?技能升级(?:[\s\S]*)$")
@@ -1733,12 +1735,12 @@ class PlayerCmds(CommandBase):
                 yield event.plain_result(f"你的职业只有 {len(skill_items)} 个技能！『技能列表』查看全部～")
                 return
             skill_name = skill_items[idx - 1]
-        info = E.skill_info(player["class_name"], skill_name)
+        info = skill_info(player["class_name"], skill_name)
         if not info:
             yield event.plain_result(f"你的职业没有『{skill_name}』技能！『技能列表』查看全部～")
             return
         learned = player.get("learned_skills", [])
-        if not E.is_skill_learned(player["class_name"], player["level"], skill_name, learned):
+        if not is_skill_learned(player["class_name"], player["level"], skill_name, learned):
             yield event.plain_result(f"『{skill_name}』还没学会！先『技能学习 {skill_name}』学会后才能升级～")
             return
         # v64 被动技能：不可升级（learned 后即满效果）
@@ -1748,12 +1750,12 @@ class PlayerCmds(CommandBase):
             )
             return
         levels = dict(player.get("skill_levels") or {})
-        cur_lv = E.skill_level_of(player, skill_name)  # #259：兼容 key 为中文名，升级判定/写入统一
-        mx = E.skill_max_level(info)
+        cur_lv = skill_level_of(player, skill_name)  # #259：兼容 key 为中文名，升级判定/写入统一
+        mx = skill_max_level(info)
         if cur_lv >= mx:
             yield event.plain_result(f"『{skill_name}』已经是满级 Lv.{mx} 啦，不能再升了～")
             return
-        cost = E.skill_upgrade_cost(cur_lv, info)
+        cost = skill_upgrade_cost(cur_lv, info)
         pts = player.get("skill_points", 0)
         if pts < cost:
             yield event.plain_result(
@@ -1766,7 +1768,7 @@ class PlayerCmds(CommandBase):
         # v134.1 人类 博学者：首次升级某技能返还 1 技能点（每技能一次，原 cur_lv=1 时）
         #   （鱼鱼拍板：学习-1/升级-1 太离谱 → 削成首次升级返还 1 点，鼓励尝试新技能）
         if cur_lv == 1:
-            fur = E.race_stats(player.get("race")).get("first_upgrade_refund")
+            fur = race_stats(player.get("race")).get("first_upgrade_refund")
             if fur:
                 refund = int(fur)
         db.update_player(group_id, player["qq_id"], skill_points=pts - cost + refund,
@@ -1774,7 +1776,7 @@ class PlayerCmds(CommandBase):
         display_name = info.get("name", skill_name)
         gains = self._skill_upgrade_gains(info, cur_lv + 1)
         desc = " · ".join(gains)
-        next_cost = E.skill_upgrade_cost(cur_lv + 1, info)
+        next_cost = skill_upgrade_cost(cur_lv + 1, info)
         tail = f"｜ 升到 Lv.{cur_lv + 2} 需 {next_cost} 点" if next_cost else "｜ 已满级！"
         refund_txt = f"（人类博学者：首次升级返还 1 点）" if refund else ""
         yield event.plain_result(
@@ -1792,7 +1794,7 @@ class PlayerCmds(CommandBase):
         for i in range(6):
             sname = bar[i] if i < len(bar) else None
             if sname:
-                info = E.skill_info(player["class_name"], sname)
+                info = skill_info(player["class_name"], sname)
                 kind = info.get("kind", "") if info else ""
                 lines.append(f" {i+1}. {C.display('skills', sname)}({kind})")
             else:
@@ -1817,11 +1819,11 @@ class PlayerCmds(CommandBase):
             yield event.plain_result("技能栏只有 6 个槽位(1~6)！")
             return
         sname = parts[1].strip()
-        info = E.skill_info(player["class_name"], sname)
+        info = skill_info(player["class_name"], sname)
         if not info:
             yield event.plain_result(f"你的职业没有『{sname}』技能！『技能列表』查看～")
             return
-        if not E.is_skill_learned(player["class_name"], player["level"], sname, player.get("learned_skills", [])):
+        if not is_skill_learned(player["class_name"], player["level"], sname, player.get("learned_skills", [])):
             yield event.plain_result(f"『{sname}』还没学会！『技能学习 {sname}』消耗技能点学会后再设置～")
             return
         bar = db.get_skill_bar(qq_id)
@@ -1848,7 +1850,7 @@ class PlayerCmds(CommandBase):
         if not raw:
             lines = [f"⚔️ 【{C.display('classes', cid)}流派】—— 同一职业，不同打法！", "━━━━━━━━━━━━"]
             for name, info in builds.items():
-                learned_cnt = sum(1 for s in info["skills"] if E.is_skill_learned(cid, player["level"], s, player.get("learned_skills", [])))
+                learned_cnt = sum(1 for s in info["skills"] if is_skill_learned(cid, player["level"], s, player.get("learned_skills", [])))
                 lines.append(f"{info.get('icon','')} {name}(已学 {learned_cnt}/{len(info['skills'])})")
                 lines.append(f"    {info['desc']}")
             lines.append("━━━━━━━━━━━━")
@@ -1864,10 +1866,10 @@ class PlayerCmds(CommandBase):
         bar = []
         missing = []
         for sname in info["skills"]:
-            if E.is_skill_learned(cid, player["level"], sname, player.get("learned_skills", [])):
+            if is_skill_learned(cid, player["level"], sname, player.get("learned_skills", [])):
                 bar.append(sname)
             else:
-                need = E.skill_info(cid, sname)
+                need = skill_info(cid, sname)
                 need_lv = need["lv"] if need else 0
                 missing.append(f"『{sname}』(Lv.{need_lv})")
         while len(bar) < 6:

@@ -16,7 +16,7 @@ v113：新增异步动作支持（hidden_evolve 等需要 await async generator 
 """
 from .. import content as C  # noqa: F401
 from .. import db
-from .. import engine as E  # noqa: F401
+from ..content_rules.skills import branch_skill_owner, skill_info
 
 # v130.2f.2 苦修档位展示名映射（分支 key 不动，仅展示层；与 player.py _BRANCH_KEY_DISPLAY 同源）
 _BRANCH_DISPLAY = {"武僧": "淬势者", "大地武僧": "锻势行者"}
@@ -124,7 +124,7 @@ def action_set_flag(world, group_id, qq_id, player, npc_id, action):
 def action_give_gold(world, group_id, qq_id, player, npc_id, action):
     # v174 统一抽象：走 grant_reward（保持加金币语义）
     gold = int(action["give_gold"])
-    from game.reward import grant_reward
+    from ..reward import grant_reward
     lines = grant_reward({"gold": gold}, group_id, qq_id, player=player)
     return lines or [f"💰 获得金币 ×{gold}"]
 
@@ -135,7 +135,7 @@ def action_give_exp(world, group_id, qq_id, player, npc_id, action):
     # 数据一旦使用会跳过升级（潜在雷）；与成就奖励领取同源结算（achievements.py:195-203）
     # v174 统一抽象：走 grant_reward（自动含升级结算）
     exp = int(action["give_exp"])
-    from game.reward import grant_reward
+    from ..reward import grant_reward
     lines = grant_reward({"exp": exp}, group_id, qq_id, player=player)
     if not lines:
         lines = [f"✨ 获得经验 +{exp}"]
@@ -159,7 +159,7 @@ def action_give_item(world, group_id, qq_id, player, npc_id, action):
     if not key:
         return []
     # v174 统一抽象：走 grant_reward 物品发放（含 data 补全）
-    from game.reward import grant_reward
+    from ..reward import grant_reward
     lines = grant_reward({"items": [{"item": key, "n": count}]}, group_id, qq_id, player=player)
     if lines:
         return lines
@@ -299,18 +299,18 @@ def action_unlock_class(world, group_id, qq_id, player, npc_id, action):
 def action_tutor_skill(world, group_id, qq_id, player, npc_id, action):
     # 导师进阶技能教学：等级门槛 + 金币学费 → 直接学会（不耗技能点）
     # v104 R3 P1-5 修复：对话树写死的 need_lv 可被绕过（实测 Lv.6 学 45 级三连射），
-    # 改以 E.skill_info 真实 lv + branch_skill_owner 转职校验（与 player.py _skill_learn_msg 同源）
+    # 改以 skill_info 真实 lv + branch_skill_owner 转职校验（与 player.py _skill_learn_msg 同源）
     ts = action["tutor_skill"]
     sk_id = ts.get("skill", "")
     cost = int(ts.get("cost", 0))
-    info = E.skill_info(player.get("class_name", ""), sk_id)
+    info = skill_info(player.get("class_name", ""), sk_id)
     if not info:
         return ["这位导师似乎还没准备好教你……"]
     need_lv = int(info.get("lv", ts.get("need_lv", 1)))
     if player.get("level", 0) < need_lv:
         return [f"导师摇摇头：这套本事要 Lv.{need_lv} 才学得动，你才 Lv.{player.get('level', 1)}，先练练基本功。"]
     # v26 分支专属技能门槛：必须先转职到对应分支（与技能点学习同源）
-    owner = E.branch_skill_owner(player.get("class_name", ""), sk_id)
+    owner = branch_skill_owner(player.get("class_name", ""), sk_id)
     if owner:
         need_tier, bname = owner
         my_tier = player.get("class_tier", 0)

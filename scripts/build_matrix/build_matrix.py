@@ -8,9 +8,9 @@
   - game engine（skill_expr_preview / calc_damage / skill_info）
 
 口径（与 numeric_lib.player 同源，真实引擎实算）：
-  1. 面板：E.player_final_stats（build_player 封装，attr 显式点）
+  1. 面板：player_final_stats（build_player 封装，attr 显式点）
   2. 流派循环：rotation（JSON 里 cond/prio 声明）→ 按 tick 模拟
-  3. 伤害：E.skill_expr_preview 代入面板 + calc_damage 过防（variance=0）
+  3. 伤害：skill_expr_preview 代入面板 + calc_damage 过防（variance=0）
   4. CD/MP/资源：cond 拦截 → 普攻填充（引擎 _skill_cast_blocked 同语义近似）
   5. 目标：build_monster(role, lv) 真实面板
 
@@ -39,7 +39,8 @@ for _p in (_QQBOT, _PLUGIN, _TESTS, _SCRIPTS):
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(_TESTS, "test_game_data.db"))
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
-from data.plugins.dragonfall.game import engine as E          # noqa: E402
+from battle2.formulas import calc_damage, skill_expr_preview, skill_max_level
+from game.content_rules.panel import player_final_stats
 from data.plugins.dragonfall.game.data import skills as SK     # noqa: E402
 from data.plugins.dragonfall.game.data import skill_up as SU   # noqa: E402
 
@@ -146,7 +147,7 @@ def skill_lv_at(info: dict | None, player_lv: int) -> int:
     learn_lv = int(info.get("lv", 1) or 1)
     if player_lv < learn_lv:
         return 0
-    max_lv = E.skill_max_level(info)
+    max_lv = skill_max_level(info)
     grow = 1 + max(0, (player_lv - learn_lv) // 4)
     return min(grow, max_lv)
 
@@ -237,20 +238,20 @@ def _dmg_of(info: dict, st: dict, skill_lv: int, target: dict) -> float:
     _st = dict(st)
     _st["_player_lv"] = int(st.get("level", st.get("_player_lv", 1)) or 1)
     _st["_skill_lv"] = max(1, skill_lv)
-    raw = float(E.skill_expr_preview(info, skill_lv, _st) or 0.0)
+    raw = float(skill_expr_preview(info, skill_lv, _st) or 0.0)
     if raw <= 0:
         return 0.0
     dmg_type = "phys" if phys else "magi"
     if info.get("pierce") or kind == "真伤":
         # 真伤/穿防：无视防御（calc_damage pierce=True）
-        base = E.calc_damage(int(raw), 0, pierce=True, dmg_type=dmg_type, variance=0.0)
+        base = calc_damage(int(raw), 0, pierce=True, dmg_type=dmg_type, variance=0.0)
     else:
         defv = int(target.get("def", 0)) if phys else int(target.get("mdef", 0))
         # 穿透：扣防前先按 pene 打折防御（等效防御降低）
         pene = float(st.get("pene_phys", 0) if phys else st.get("pene_magi", 0) or 0)
         if pene > 0:
             defv = int(defv * (1 - min(pene, 0.6)))
-        base = E.calc_damage(int(raw), defv, dmg_type=dmg_type, variance=0.0)
+        base = calc_damage(int(raw), defv, dmg_type=dmg_type, variance=0.0)
     multi = int(info.get("hits", 1) or 1)
     dmg = base * multi
     # 暴击期望（非真伤——真伤不暴击，引擎语义）
@@ -291,8 +292,8 @@ def _summon_dmg_of(info: dict, st: dict, target: dict) -> float:
     else:
         atk = float(st.get("atk", 0) or 0)
         defv = int(target.get("def", 0))
-    from data.plugins.dragonfall.game import engine as E
-    per_hit = E.calc_damage(int(atk * atk_ratio), defv, variance=0.0, dmg_type=dmg_type)
+
+    per_hit = calc_damage(int(atk * atk_ratio), defv, variance=0.0, dmg_type=dmg_type)
     # 贡献周期 = 召唤 CD（cd 秒内召唤物持续攻击）；期望引擎"一次施放"折算为 CD 周期总伤
     cd = float(info.get("cd", 16) or 16)
     hits = max(1.0, cd / max(interval, 0.5))
@@ -457,7 +458,7 @@ def rotation_dps(cls_id: str, lv: int, loadout: str, attr: dict,
             break
     spd = float(st.get("spd", 50) or 50)
     basic_interval = _interval(1.0, spd)
-    basic_dmg = E.calc_damage(int(st.get("atk", 0)),
+    basic_dmg = calc_damage(int(st.get("atk", 0)),
                               int(target.get("def", 0)), variance=0.0, dmg_type="phys")
 
     # 模拟状态（事件驱动：按行动跳步，不逐 tick 扫——几千格矩阵性能关键）
@@ -679,11 +680,11 @@ def build_vs_boss(cls_id: str, lv: int, loadout: str, attr: dict,
     # 承伤侧：复用 team 口径 —— Boss 单发 = _boss_hit(boss_def, m, def, mdef, atk_mult)
     # （物理/魔法取高 × atk_mult × 1.35 enraged 保守）
     st = build_panel(cls_id, lv, loadout, attr, affix_type=affix_type)
-    from data.plugins.dragonfall.game import engine as E
+
     boss_atk = float(boss_panel.get("atk", 0)) * atk_mult * 1.35
     boss_matk = float(boss_panel.get("matk", 0)) * atk_mult * 1.35
-    d_phys = E.calc_damage(int(boss_atk), int(st.get("def", 0)), variance=0.0, dmg_type="phys")
-    d_magi = E.calc_damage(int(boss_matk), int(st.get("mdef", 0)), variance=0.0, dmg_type="magi")
+    d_phys = calc_damage(int(boss_atk), int(st.get("def", 0)), variance=0.0, dmg_type="phys")
+    d_magi = calc_damage(int(boss_matk), int(st.get("mdef", 0)), variance=0.0, dmg_type="magi")
     boss_hit = max(d_phys, d_magi)
     player_hp = float(st.get("max_hp", 1000))
     # v175e 生存乘区（闪避战士/格挡坦/吸血续航建模）：
@@ -697,8 +698,8 @@ def build_vs_boss(cls_id: str, lv: int, loadout: str, attr: dict,
     if int(boss_panel.get("_n_players", n_players)) <= 1 and loadout not in ("naked",):
         pdef_b = int(st.get("def", 0) * 1.45)
         pmdef_b = int(st.get("mdef", 0) * 1.45)
-        d_phys_b = E.calc_damage(int(boss_atk), pdef_b, variance=0.0, dmg_type="phys")
-        d_magi_b = E.calc_damage(int(boss_matk), pmdef_b, variance=0.0, dmg_type="magi")
+        d_phys_b = calc_damage(int(boss_atk), pdef_b, variance=0.0, dmg_type="phys")
+        d_magi_b = calc_damage(int(boss_matk), pmdef_b, variance=0.0, dmg_type="magi")
         boss_hit = max(d_phys_b, d_magi_b)
         heal_per_round = player_hp * 0.50 / 3.0
         # 闪避/格挡削减 boss_hit 后，治疗药水回复才有意义（期望口径）
@@ -775,8 +776,8 @@ def full_matrix() -> dict:
                     st = build_panel(cid, lv, loadout, attr)
                     boss_atk = float(m.get("atk", 0)) * 1.35
                     boss_matk = float(m.get("matk", 0)) * 1.35
-                    d_phys = E.calc_damage(int(boss_atk), int(st.get("def", 0)), variance=0.0, dmg_type="phys")
-                    d_magi = E.calc_damage(int(boss_matk), int(st.get("mdef", 0)), variance=0.0, dmg_type="magi")
+                    d_phys = calc_damage(int(boss_atk), int(st.get("def", 0)), variance=0.0, dmg_type="phys")
+                    d_magi = calc_damage(int(boss_matk), int(st.get("mdef", 0)), variance=0.0, dmg_type="magi")
                     boss_hit = max(d_phys, d_magi)
                     survive = float(st.get("max_hp", 1000)) / max(boss_hit, 1.0) if boss_hit > 0 else 999.0
                     kr = r["kill_rounds"]

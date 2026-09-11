@@ -86,7 +86,7 @@ def party_view_lines(group_id, members, get_player=None, final_stats=None, displ
     """组队面板行（v104 M04 P2：等级/职业/速度值展示；v121 改展示速度而非静态出手位）。
 
     返回行列表（不含空行结尾）。get_player/final_stats/display 由命令层注入
-    （self._player / E.player_final_stats / C.display——后者为面板展示，命令层语义），
+    （self._player / player_final_stats / C.display——后者为面板展示，命令层语义），
     缺省时内部用 db.get_player + game.engine/core 直读（等价实现）。
     """
     from .. import db
@@ -94,8 +94,8 @@ def party_view_lines(group_id, members, get_player=None, final_stats=None, displ
     if get_player is None:
         get_player = lambda g, q: db.get_player(g, q)
     if final_stats is None:
-        from .. import engine as E
-        final_stats = E.player_final_stats
+        from ..content_rules.panel import player_final_stats
+        final_stats = player_final_stats
     if display is None:
         display = C.display
     lines = [f"🤝 【队伍】({len(members)}人)", "━━━━━━━━━━━━"]

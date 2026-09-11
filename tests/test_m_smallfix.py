@@ -27,7 +27,10 @@ sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import C, E, db, clean_db, Main, FakeEvent, run  # noqa: E402
+from conftest import C, db, clean_db, Main, FakeEvent, run  # noqa: E402
+
+from battle2.formulas import skill_mp_pay_of
+from game.content_rules.skills import skill_info
 from battle2 import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 from battle2 import actions as A  # noqa: E402
@@ -106,7 +109,7 @@ def t1_mp_precheck_boundary():
     check("actor 装配 bonus.cost.when（mp_pct 0.10 + 元素/奥术判据）",
           len(whens) == 1 and abs(float(whens[0].get("mp_pct") or 0) - 0.10) < 1e-9,
           repr(cost))
-    pay = E.skill_mp_pay_of(actor, E.skill_info("cls_fa_shi", "织焰"))
+    pay = skill_mp_pay_of(actor, skill_info("cls_fa_shi", "织焰"))
     check("引擎同源 pay = 10（声明 12 折 10% floor）", pay == 10, f"pay={pay}")
     out = asyncio.run(cmd(m, "skill", gid, qid, "技能 织焰"))
     check("mp=10（=pay）放行施放（无『魔力不足』、有伤害）",
@@ -123,7 +126,7 @@ def t1_mp_precheck_block():
     gid, qid = "g1", "q1"
     p = _setup_battle(m, gid, qid, mp=9)  # < pay 10
     actor = _my_actor_in_state(gid, qid)
-    pay = E.skill_mp_pay_of(actor, E.skill_info("cls_fa_shi", "织焰"))
+    pay = skill_mp_pay_of(actor, skill_info("cls_fa_shi", "织焰"))
     check("pay = 10 前置", pay == 10, f"pay={pay}")
     out = asyncio.run(cmd(m, "skill", gid, qid, "技能 织焰"))
     check("mp=9（<pay）拦截『魔力不足』且未施放", "魔力不足" in out and "受到" not in out,
@@ -140,13 +143,13 @@ def t1_no_affix_regression():
     # 无词条 → actor 无 when 折扣 → pay == 声明 12
     p = _setup_battle(m, gid, qid, mp=11, affix=None)
     actor = _my_actor_in_state(gid, qid)
-    pay = E.skill_mp_pay_of(actor, E.skill_info("cls_fa_shi", "织焰"))
+    pay = skill_mp_pay_of(actor, skill_info("cls_fa_shi", "织焰"))
     check("无词条 pay == 声明 12（零变化）", pay == 12, f"pay={pay}")
     out = asyncio.run(cmd(m, "skill", gid, qid, "技能 织焰"))
     check("mp=11（<声明 12）仍拦", "魔力不足" in out, out[:60])
     # 同源：pay 与引擎 _skill_pay_of 完全一致
-    check("E.skill_mp_pay_of 与 A._skill_pay_of 同源同值",
-          E.skill_mp_pay_of(actor, {"name": "x", "mp": 12}) ==
+    check("skill_mp_pay_of 与 A._skill_pay_of 同源同值",
+          skill_mp_pay_of(actor, {"name": "x", "mp": 12}) ==
           int(A._skill_pay_of(actor, {"name": "x", "mp": 12}).get("mp") or 0))
 
 
@@ -198,8 +201,8 @@ def _af_actor(level=95):
 
 def t2_skill_tag_fill():
     print("【2.1 漏标法师技数据补标：万象风暴/奥秘主宰 mech 命中判据】")
-    i_wx = E.skill_info("cls_fa_shi", "万象风暴")
-    i_ao = E.skill_info("cls_fa_shi", "奥秘主宰")
+    i_wx = skill_info("cls_fa_shi", "万象风暴")
+    i_ao = skill_info("cls_fa_shi", "奥秘主宰")
     check("万象风暴 mech 补标 element_burst_all（无 mech_val）",
           (i_wx or {}).get("mech") == "element_burst_all"
           and not (i_wx or {}).get("mech_val"), repr(i_wx))
@@ -207,13 +210,13 @@ def t2_skill_tag_fill():
           (i_ao or {}).get("mech") == "arcane" and not (i_ao or {}).get("mech_val"),
           repr(i_ao))
     a = _af_actor()
-    pay_wx = E.skill_mp_pay_of(a, i_wx)
-    pay_ao = E.skill_mp_pay_of(a, i_ao)
+    pay_wx = skill_mp_pay_of(a, i_wx)
+    pay_ao = skill_mp_pay_of(a, i_ao)
     check("万象风暴 折 10%：mp45 → 40（此前漏减不减）", pay_wx == 40, f"pay={pay_wx}")
     check("奥秘主宰 折 10%：mp45 → 40（此前漏减不减）", pay_ao == 40, f"pay={pay_ao}")
     # 克制范围：desc 未明示"元素/奥术"的星界风暴不补不减（不确定不补原则）
-    i_xj = E.skill_info("cls_fa_shi", "星界风暴")
-    pay_xj = E.skill_mp_pay_of(a, i_xj) if i_xj else 0
+    i_xj = skill_info("cls_fa_shi", "星界风暴")
+    pay_xj = skill_mp_pay_of(a, i_xj) if i_xj else 0
     check("克制：星界风暴（desc 纯能量/星界，未明示）未补标不减 → pay==声明 40",
           (i_xj or {}).get("mech") in (None, "") and pay_xj == 40,
           f"mech={(i_xj or {}).get('mech')} pay={pay_xj}")
@@ -221,8 +224,8 @@ def t2_skill_tag_fill():
 
 def t2_no_element_sideeffect():
     print("【2.2 补标无副作用：不标 element、无 mech_val 落地、finisher 不误乘】")
-    i_wx = E.skill_info("cls_fa_shi", "万象风暴")
-    i_ao = E.skill_info("cls_fa_shi", "奥秘主宰")
+    i_wx = skill_info("cls_fa_shi", "万象风暴")
+    i_ao = skill_info("cls_fa_shi", "奥秘主宰")
     # ① element 字段仍空 → 不进 landing 元素免疫/弱点/抗性消费（immune 归 0 不误触发）
     check("element 字段未补（仍 None——避免元素免疫/弱点误结算）",
           not (i_wx or {}).get("element") and not (i_ao or {}).get("element"),

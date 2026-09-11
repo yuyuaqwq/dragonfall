@@ -14,7 +14,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from game.engine import player_final_stats        # noqa: E402
+from game.content_rules.panel import player_final_stats# noqa: E402
 from game.core.drops import build_monster          # noqa: E402
 from game.data.classes import CLASSES              # noqa: E402
 

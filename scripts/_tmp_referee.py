@@ -12,7 +12,7 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.join(_PD, "tests", "test_game_data
 
 import random
 from data.plugins.dragonfall.game import content as C
-from data.plugins.dragonfall.game import engine as E
+from game.content_rules.panel import player_final_stats
 from data.plugins.dragonfall.game import battle as BT
 from numeric_lib.gear import gear_loadout
 from numeric_lib.constants import cls_id
@@ -31,7 +31,7 @@ for use_skill in (False, True):
     wins = 0; rounds_sum = 0
     for seed in range(6):
         random.seed(seed)
-        st = E.player_final_stats("战士", 35, gear, 1, NO_REAL_ATTR, 1)
+        st = player_final_stats("战士", 35, gear, 1, NO_REAL_ATTR, 1)
         player = {
             "class_name": "战士", "level": 35, "class_tier": 1, "evolve_path": 1,
             "equipment": dict(gear), "attributes": dict(NO_REAL_ATTR),

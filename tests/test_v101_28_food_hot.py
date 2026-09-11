@@ -17,7 +17,7 @@ sys.path.insert(0, PLUGIN_DIR)
 
 from data.plugins.dragonfall.game import content as C
 from data.plugins.dragonfall.game.core import item_templates as IT
-from data.plugins.dragonfall.game import engine as E
+
 
 PASS = 0
 FAIL = 0

@@ -15,7 +15,7 @@
 import sys, random, statistics
 sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall")
 
-from game import engine as E
+from game.content_rules.panel import player_final_stats
 from game.core.stats import monster_stats, equip_stats
 from game import battle as BT  # 模块级常量读写（BASE_DELAY/SPD_CT_CAP）
 from game.battle import Battle
@@ -53,7 +53,7 @@ def equip_set(lv, quality, enhance=0):
 
 
 def player_sheet(p):
-    st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
+    st = player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
     return st
 
 
@@ -67,7 +67,7 @@ def run_one_battle(p, enemy, use_skill=True, spd_override=None, enemy_spd_overri
             u["spd"] = float(enemy_spd_override)
             u["ct"] = -float(enemy_spd_override)
     pp = dict(p)
-    st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
+    st = player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
     pp["max_hp"] = st["max_hp"]; pp["max_mp"] = st["max_mp"]
     pp["hp"] = st["max_hp"]; pp["mp"] = st["max_mp"]
 
@@ -122,7 +122,7 @@ def action_statistics(player_spd, enemy_spd, player_actions=100):
     - 引擎是否因硬上限被截断（连动==8 的次数）
     构造：玩家 spd 注入，敌方 spd 注入；用够肉的属性避免过早结束。
     """
-    st_p = E.player_final_stats("cls_zhan_shi", 60, {}, 0, {"str": 100, "agi": 0, "int": 0, "vit": 40})
+    st_p = player_final_stats("cls_zhan_shi", 60, {}, 0, {"str": 100, "agi": 0, "int": 0, "vit": 40})
     p = make_player("cls_zhan_shi", 60, {"str": 100, "agi": 0, "int": 0, "vit": 40}, {}, ["sk_meng_ji"])
     # 敌方给超高血量，让战斗持续 100 次玩家行动
     en = make_enemy({"hp": 10_000_000, "atk": 5, "def": 30, "matk": 5, "mdef": 30,
@@ -184,7 +184,7 @@ def extreme_duel(p_spd, e_spd, rounds=400):
     attrs = {"str": 50, "agi": max(0, agi), "int": 0, "vit": 30}
     # 注意 make_player(class_name, level, attributes, equipment, learned_skills)
     p = make_player("cls_zhan_shi", lv, attrs, {}, ["sk_meng_ji"])
-    st = E.player_final_stats(p["class_name"], lv, {}, 0, attrs)
+    st = player_final_stats(p["class_name"], lv, {}, 0, attrs)
     base_e = monster_stats(lv, "dps")
     en = make_enemy(base_e, role="dps", skills=["ms_pi_kan"])
     # 用 spd_override 精确注入玩家 spd（面板 built 值随 agi 可能有偏差，保证比例可控）
@@ -194,7 +194,7 @@ def extreme_duel(p_spd, e_spd, rounds=400):
 
 def enemy_cap8_test():
     """验证敌方连动硬上限 8：敌方 spd300 vs 玩家 spd5 → 单次玩家回合敌方应被截停在 8 连动。"""
-    st_p = E.player_final_stats("cls_zhan_shi", 30, {}, 0, {"str": 60, "agi": 0, "int": 0, "vit": 40})
+    st_p = player_final_stats("cls_zhan_shi", 30, {}, 0, {"str": 60, "agi": 0, "int": 0, "vit": 40})
     p = make_player("cls_zhan_shi", 30, {"str": 60, "agi": 0, "int": 0, "vit": 40}, {}, [])
     en = {"name": "fast", "role": "dps", "hp": 2000, "max_hp": 2000, "atk": 5, "def": 5,
           "matk": 5, "mdef": 5, "spd": 300, "skills": []}

@@ -23,7 +23,7 @@ import sys as _sys
 _sys.exit(0)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, E, db, clean_db, Main, FakeEvent, run
+from conftest import C, db, clean_db, Main, FakeEvent, run
 
 # v94 体力：副本测试豁免体力扣减，防开本被体力拦截。
 def _fake_spend(self, gid, qid, cost, player, action="行动"):

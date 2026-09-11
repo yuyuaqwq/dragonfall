@@ -22,7 +22,7 @@ sys.path.insert(0, PLUGIN_DIR)
 os.environ["GWEN_GAME_DB"] = os.path.join(PLUGIN_DIR, "test_game_data.db")
 
 from data.plugins.dragonfall.game import content as C      # noqa: E402
-from data.plugins.dragonfall.game import engine as E       # noqa: E402
+from game.content_rules.panel import player_final_stats
 from data.plugins.dragonfall.game.core import stats as ST  # noqa: E402
 
 ROUND_MIN, ROUND_MAX = 15.0, 30.0
@@ -47,8 +47,8 @@ def dmg(atk, def_):
 
 def player_stats(lv, enhance):
     gear = make_gear(lv, "blue", enhance)
-    st_w = E.player_final_stats("cls_zhan_shi", lv, gear, 0, None, 0, None, None)
-    st_r = E.player_final_stats("cls_you_xia", lv, gear, 0, None, 0, None, None)
+    st_w = player_final_stats("cls_zhan_shi", lv, gear, 0, None, 0, None, None)
+    st_r = player_final_stats("cls_you_xia", lv, gear, 0, None, 0, None, None)
     return st_w, st_r
 
 

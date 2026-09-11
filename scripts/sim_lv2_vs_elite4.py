@@ -5,7 +5,7 @@ sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall")
 random.seed(42)
 
 from game import content as C
-from game import engine as E
+from game.content_rules.panel import player_final_stats
 from game.core.stats import monster_stats, equip_stats
 from game.battle import Battle
 
@@ -50,7 +50,7 @@ def run_battle(player, use_skill=True, rounds=300):
     for _ in range(rounds):
         b = Battle("monster", make_enemy())
         p = dict(player)
-        st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
+        st = player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
         p["max_hp"] = st["max_hp"]; p["max_mp"] = st["max_mp"]
         p["hp"] = st["max_hp"]; p["mp"] = st["max_mp"]
         while True:
@@ -88,7 +88,7 @@ scenarios = [
 
 for name, attrs, eq, use_skill in scenarios:
     p = make_player(attrs, eq)
-    st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
+    st = player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
     wr, rnd, dt = run_battle(p, use_skill)
     print(f"{name}")
     print(f"  玩家: {fmt(st)}")

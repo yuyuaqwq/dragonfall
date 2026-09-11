@@ -9,7 +9,7 @@ sys.path.insert(0, PLUGIN_DIR)
 os.environ["GWEN_GAME_DB"] = os.path.join(PLUGIN_DIR, "test_game_data.db")
 
 from data.plugins.dragonfall.game import content as C
-from data.plugins.dragonfall.game import engine as E
+
 from data.plugins.dragonfall.game import battle as BT
 sys.path.insert(0, PLUGIN_DIR + r"\scripts")
 from _tmp_calib_v2 import (make_gear, player_stats, rotation_dmg, basic_hit, crit_mult,

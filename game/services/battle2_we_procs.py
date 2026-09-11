@@ -238,7 +238,7 @@ def we_shield_taken(battle, caster, target, params, logs):
                {"type": "shield", "key": key, "value": value, "turns": turns, "on": "caster"},
                logs)
     if cd_key:
-        from game.core.constants import ACT_TICK
+        from ..core.constants import ACT_TICK
         st[cd_key] = now + int(params.get("cd") or 1) * ACT_TICK
     logs.append(_SHIELD_TAKEN_LOG.get(params.get("key") or "", f"🛡️ 获得护盾 {value} 点！").format(shield=value))
 
@@ -328,7 +328,7 @@ def we_shield_cond(battle, caster, target, params, logs):
         if float(st.get(params.get("cd_key"), 0) or 0) > now:
             return
         shield = int(owner.get("max_hp", 100) * float(params.get("shield_hp_pct") or 0.05))
-        from game.core.constants import ACT_TICK
+        from ..core.constants import ACT_TICK
         _add_owner_shield(battle, owner, params, shield, logs)
         st[params.get("cd_key") or "we_radiance_cd"] = now + int(params.get("cd") or 3) * ACT_TICK
         logs.append(_SHIELD_COND_LOG.get(key, "").format(shield=shield))
@@ -426,11 +426,11 @@ def _target_def_stats(battle, target):
 
 
 def _calc(battle, atk_val, def_val, dmg_type="phys", pene_pct=0.0):
-    from game import engine as E
+    from battle2.formulas import calc_damage
     try:
         if dmg_type == "true":
-            return max(1, E.calc_damage(int(atk_val), 0, False, dmg_type="true"))
-        return max(1, E.calc_damage(int(atk_val), int(def_val), False,
+            return max(1, calc_damage(int(atk_val), 0, False, dmg_type="true"))
+        return max(1, calc_damage(int(atk_val), int(def_val), False,
                                     pene_pct=pene_pct, dmg_type=dmg_type))
     except Exception:
         return max(1, int(atk_val))
@@ -504,7 +504,7 @@ def we_extra_dmg(battle, caster, target, params, logs):
         cd_key = params.get("used_key") or "we_blade_cd"
         if float(st.get(cd_key, 0) or 0) > now:
             return
-        from game.core.constants import ACT_TICK
+        from ..core.constants import ACT_TICK
         st[cd_key] = now + ACT_TICK  # 1 刻冷却（"每刻限 1"）
         dmg = _calc(battle, int(os_.get("atk", 0)) * float(params.get("atk_pct") or 0.2),
                     es_.get("def", 0))
@@ -679,7 +679,7 @@ def we_control(battle, caster, target, params, logs):
     if mode == "freeze_cd":
         _freeze(battle, owner, tgt, src_turns, params, logs)
         if cd_key:
-            from game.core.constants import ACT_TICK
+            from ..core.constants import ACT_TICK
             st[cd_key] = now + int(params.get("cd") or 1) * ACT_TICK
         logs.append(_CONTROL_LOG.get(key, "🧊 永冻！").format(turns=src_turns))
         return
@@ -717,7 +717,7 @@ def we_control(battle, caster, target, params, logs):
 
 
 def _bump_control_state(st, cd_key, used_key, params, now):
-    from game.core.constants import ACT_TICK
+    from ..core.constants import ACT_TICK
     if cd_key:
         st[cd_key] = now + int(params.get("cd") or 1) * ACT_TICK
 

@@ -49,7 +49,7 @@ _DEFAULT_CAST = 1.0
 
 def _load_effect_actions():
     """EFFECT_ACTIONS（游戏规则配置，命令层延迟加载）。"""
-    from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+    from ..content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
     return _b2config.get_effect_actions()
 
 
@@ -317,8 +317,8 @@ def translate(battle, actor: dict, payload: str,
         # 半身人灵巧双手：消耗品效果 +10%（对齐旧 _do_use_item 4153-4156）
         rr = None
         try:
-            from .. import engine as E
-            rr = E.race_stats(actor.get("race")).get("item_effect")
+            from ..content_rules.panel import race_stats
+            rr = race_stats(actor.get("race")).get("item_effect")
         except Exception:
             rr = None
         if rr:

@@ -15,7 +15,7 @@ kind 分支（field/instance/worldboss）留待 P3 收编 instance/worldboss 时
 from __future__ import annotations
 
 from .. import db
-from .. import engine as E
+from ..content_rules.gameplay import check_player_level_up
 from .. import content as C
 from ..core.achievements import check_achievements
 from ..core.stat_bonus import stat_bonus
@@ -54,7 +54,7 @@ def _sub_levelup(ctx):
         return []
     player = db.get_player(ctx["group_id"], ctx["qq_id"]) or {}
     player["_title_bonus"] = stat_bonus(ctx["group_id"], ctx["qq_id"], player)
-    lv_logs, player2 = E.check_player_level_up(ctx["group_id"], ctx["qq_id"], player)
+    lv_logs, player2 = check_player_level_up(ctx["group_id"], ctx["qq_id"], player)
     if not lv_logs:
         return []
     ctx["player"] = player2

@@ -19,7 +19,7 @@ for _p in (_SCRIPT_DIR, os.path.dirname(_SCRIPT_DIR)):
         sys.path.insert(0, _p)
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(_SCRIPT_DIR, "test_game_data.db"))
 
-from conftest import C, E, db, clean_db, Main, FakeEvent, run  # noqa: E402
+from conftest import C, db, clean_db, Main, FakeEvent, run  # noqa: E402
 
 passed, failed = 0, 0
 

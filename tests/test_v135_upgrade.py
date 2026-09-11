@@ -22,7 +22,8 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.abspath("test_v135_upgrade.db"))
 sys.path.insert(0, "tests")
 
 from conftest import clean_db, make_player, Main, FakeEvent, run  # noqa: E402
-from data.plugins.dragonfall.game import content as C, db, engine as E  # noqa: E402
+from data.plugins.dragonfall.game import content as C, db  # noqa: E402
+from data.plugins.dragonfall.game.content_rules.panel import player_stats_detail as E_player_stats_detail  # noqa: E402
 
 g = "g_test_upg"
 q = "q_test_upg"
@@ -123,11 +124,11 @@ def main():
 
     # 3. engine 结算：无 upgrade 乘区（真等级化后 lv 提升经 stats 重算，upgrade_lv 字段不再乘）
     print("[3] engine 属性结算（无 upgrade 乘区）")
-    st0, _ = E.player_stats_detail("cls_zhan_shi", 1, {}, 0, None, 0, None, "human")
+    st0, _ = E_player_stats_detail("cls_zhan_shi", 1, {}, 0, None, 0, None, "human")
     eq2 = C.generate_roster_equip("eq_tie_jian")
     eq2["stats"] = {"atk": 10}
     eq2["upgrade_lv"] = 5  # 存量脏字段：engine 不再消费（不迁移路径的兜底）
-    st1, _ = E.player_stats_detail(
+    st1, _ = E_player_stats_detail(
         "cls_zhan_shi", 1,
         {"weapon": eq2}, 0, None, 0, None, "human",
     )
@@ -138,7 +139,7 @@ def main():
     eq3["stats"] = {"atk": 10}
     eq3["enhance"] = 2
     eq3["upgrade_lv"] = 5
-    st2, _ = E.player_stats_detail(
+    st2, _ = E_player_stats_detail(
         "cls_zhan_shi", 1,
         {"weapon": eq3}, 0, None, 0, None, "human",
     )

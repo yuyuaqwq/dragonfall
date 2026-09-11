@@ -4,14 +4,15 @@ tempo = 叠2回合，停2回合（contract: 停 2~3 回合等回落）"""
 import sys, os
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from game import engine as E
+from battle2.formulas import calc_damage
+from game.content_rules.panel import player_final_stats
 from game.core import stats as S
 
 def player_stats(lv, cls, boost=1.0):
     eq = {s: {"stats": S.equip_stats(s, lv, "blue")} for s in
           ("weapon", "armor", "ring", "helm", "legs", "necklace", "boots")}
     attrs = {"str": 2*(lv-1), "vit": 1*(lv-1), "int": 0, "agi": 0}
-    st = E.player_final_stats(cls, lv, eq, tier=1, attributes=attrs,
+    st = player_final_stats(cls, lv, eq, tier=1, attributes=attrs,
                               evolve_path=0, title_bonus={}, race="human")
     st["atk"] = int(st["atk"]*boost); st["matk"] = int(st["matk"]*boost)
     return st
@@ -86,7 +87,7 @@ print("\n===== dot 输出占比（vs 直伤）=====")
 for lv in LV:
     m = mon(lv,"boss"); max_hp = m["hp"]
     st = player_stats(lv, "cls_wild_hunter")
-    straight = E.calc_damage(st["atk"], m["def"], False, 0.0)
+    straight = calc_damage(st["atk"], m["def"], False, 0.0)
     # 满层 dot（adapt 0 稳态 vs 稳态适应后）
     d0 = math_dot(st["atk"], st["matk"], max_hp, 5, 0.9, 0.20, "poison")
     print(f"Lv{lv}: 直伤/回合≈{straight}, 满层dot稳态(adapt20%)≈{d0}, "

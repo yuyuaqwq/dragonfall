@@ -2,7 +2,7 @@
 """v97.7 数据完整性验证：道具总数、模板字段合法性、关键道具抽查"""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, E, Main, FakeEvent, run, clean_db
+from conftest import C, db, Main, FakeEvent, run, clean_db
 
 async def cmd(m, handler_name, gid, qid, msg):
     ev = FakeEvent(gid, qid, msg)

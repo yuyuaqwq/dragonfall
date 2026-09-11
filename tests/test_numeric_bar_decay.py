@@ -32,7 +32,7 @@ from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_
 from battle2 import Battle as B2, make_actor  # noqa: E402
 from battle2.effect_triggers import fire  # noqa: E402
 from game.services import class_mech_proc as CMP  # noqa: E402
-from game.core.battle_bars import (bar_def, bar_effect_key, bar_gain, bar_settle,  # noqa: E402
+from battle2.support.battle_bars import (bar_def, bar_effect_key, bar_gain, bar_settle,# noqa: E402
                                    bar_state, _state_prefix)
 from game.data.battle_config import ENEMY_BAR_CFG  # noqa: E402
 from battle2.state_effects import all_state_effects  # noqa: E402

@@ -16,7 +16,7 @@ from ._platform import MessageChain, Plain
 
 from .. import content as C
 from .. import db
-from .. import engine as E
+from ..content_rules.panel import STAT_NAMES, _set_info, player_final_stats, race_stats
 from ..commands.base import CommandBase, require_player
 from ..core.drops import _eq_random_desc
 from ..core import smith_stock as _ss  # v135 铁匠铺全服共享货架
@@ -1911,7 +1911,7 @@ class EconomyCmds(CommandBase):
         # v105 M01#5：策划案文字为"成功率+10%"但锻造流程无失败机制，统一为经验语义
         # （races.py 注释/race_talent_display 展示/本实现三处收敛一致）。
         prof_gain = 1
-        if E.race_stats(player.get("race")).get("craft_bonus"):
+        if race_stats(player.get("race")).get("craft_bonus"):
             prof_gain = (prof_gain * 11 + 9) // 10  # ceil(prof_gain * 1.10)
         new_lv, leveled = db.add_prof_exp(group_id, qq_id, "craft", prof_gain)
         lv_msg = ""
@@ -3402,7 +3402,7 @@ class EconomyCmds(CommandBase):
         cb[_stat] = round(cb.get(_stat, 0) + _val, 4)
         d["calamity_bonus"] = cb
         d["calamity_count"] = cnt + 1
-        _stat_cn = E.STAT_NAMES.get(_stat, _stat) if E.STAT_NAMES else _stat
+        _stat_cn = STAT_NAMES.get(_stat, _stat) if STAT_NAMES else _stat
         if target.get("_equipped"):
             eq = dict(player.get("equipment") or {})
             eq[target["_equipped"]] = d
@@ -3687,7 +3687,7 @@ class EconomyCmds(CommandBase):
         lines = ["🎴 【套装状态】", "━━━━━━━━━━━━"]
         any_active = False
         for sname, cnt in counts.items():
-            info = E._set_info(sname)
+            info = _set_info(sname)
             if not info:
                 continue
             b2_raw = info.get("bonus_2", {}) or {}
@@ -5639,7 +5639,7 @@ class EconomyCmds(CommandBase):
         old = equipment.get(d["slot"])
         # v95.7 #28：无论槽位是否有旧装备都计算穿前属性——空槽穿第一件时 old 为 None，
         # 旧代码 old_stats 保持 None 导致 diff 显示"(无变化)"；title_bonus 与穿后一致
-        old_stats = E.player_final_stats(player["class_name"], player["level"], equipment,
+        old_stats = player_final_stats(player["class_name"], player["level"], equipment,
                                          player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
         # 卸下旧装备回背包
         if old:
@@ -5649,7 +5649,7 @@ class EconomyCmds(CommandBase):
         db.update_player(group_id, qq_id, equipment=equipment)
         db.remove_item(group_id, qq_id, target["key"])
         q = C.QUALITY[d["quality"]]
-        st = E.player_final_stats(player["class_name"], player["level"], equipment, player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
+        st = player_final_stats(player["class_name"], player["level"], equipment, player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
         # v16：属性变化对比（对比穿上前后的差值——旧装备属性已含在穿前快照里，
         # 即"卸下旧装备再穿上新装备"的净变化；空槽穿第一件=新装备全加成）
         diff_parts = []
@@ -5705,13 +5705,13 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"{C.EQUIP_SLOTS[slot]}位置没有装备！")
             return
         # 属性变化对比（复用 equip 逻辑；v95.7 #28：title_bonus 与卸后一致）
-        old_stats = E.player_final_stats(player["class_name"], player["level"], equipment,
+        old_stats = player_final_stats(player["class_name"], player["level"], equipment,
                                          player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
         import uuid
         db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", item)
         equipment[slot] = None
         db.update_player(group_id, qq_id, equipment=equipment)
-        st = E.player_final_stats(player["class_name"], player["level"], equipment, player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
+        st = player_final_stats(player["class_name"], player["level"], equipment, player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
         diff_parts = []
         keys = [("atk", "攻击"), ("def", "防御"), ("matk", "魔攻"), ("mdef", "魔防"),
                 ("spd", "速度"), ("max_hp", "生命"), ("max_mp", "魔力"), ("crit", "暴击"), ("dodge", "闪避")]

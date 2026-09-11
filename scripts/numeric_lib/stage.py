@@ -22,7 +22,7 @@ from .constants import (
 from .player import PlayerOptions, build_player, per_action_dmg, sustained_dps
 from .gear import gear_loadout
 from .monster import build as build_monster, panel as monster_panel
-from data.plugins.dragonfall.game import engine as E  # noqa: E402
+from battle2.formulas import calc_damage
 
 # 诗人 DPS 口径：终章爆发折算（纯辅助职业，无常规攻击技能；计划 §一.5.2 注 2）
 POET_FINALE_MULT = 2.4   # 终章 2.4× 魔攻（v153 §7 文档口径）
@@ -35,7 +35,7 @@ ELITE_ATK_MULT = 1.20   # 精英攻强乘区保守（无狂暴，取较低档）
 
 def _poet_dps(st: dict, mdef: int) -> float:
     """诗人 DPS 估算：终章爆发当量 / 5 行动（计划 §一.5.2 注 2，纯辅助职业）。"""
-    d = E.calc_damage(int(st.get("matk", 0) * POET_FINALE_MULT), int(mdef),
+    d = calc_damage(int(st.get("matk", 0) * POET_FINALE_MULT), int(mdef),
                       variance=0.0, dmg_type="magi")
     return d / POET_ACTIONS_PER_FINALE
 
@@ -48,9 +48,9 @@ def _monster_hit(role: str, lv: int, pdef: int, pmdef: int,
                  atk_mult: float) -> float:
     """怪物单发期望伤害（物理/魔法取高者，攻强乘区保守）。"""
     m = build_monster(role, lv)
-    d_phys = E.calc_damage(int(m.get("atk", 0) * atk_mult), int(pdef),
+    d_phys = calc_damage(int(m.get("atk", 0) * atk_mult), int(pdef),
                            variance=0.0, dmg_type="phys")
-    d_magi = E.calc_damage(int(m.get("matk", 0) * atk_mult), int(pmdef),
+    d_magi = calc_damage(int(m.get("matk", 0) * atk_mult), int(pmdef),
                            variance=0.0, dmg_type="magi")
     return max(d_phys, d_magi)
 

@@ -7,8 +7,8 @@
   3. 期望引擎 build_matrix 读效率表做流派循环评估
 
 口径（与 numeric_lib.player 同源，真实引擎实算）：
-  - 面板：E.player_final_stats（职业/等级/装备/加点/tier）
-  - 单发期望：E.skill_expr_preview 代入面板（v174 exprs / heal_formula 统一口径）
+  - 面板：player_final_stats（职业/等级/装备/加点/tier）
+  - 单发期望：skill_expr_preview 代入面板（v174 exprs / heal_formula 统一口径）
     无 exprs 的增益/治疗按 effect/kind 分类返回 0 或治疗量
   - 出手频率：cast × (SPD_REF/spd)^0.5（numeric_lib.player._interval 同款）
   - 循环周期：cd>0 时 = cd + cast（技能 CD 期间普攻填充由期望引擎算，这里只报原始量）
@@ -39,7 +39,8 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from data.plugins.dragonfall.game import engine as E          # noqa: E402
+from battle2.formulas import calc_damage, skill_expr_preview, skill_max_level
+from game.content_rules.panel import player_final_stats
 from data.plugins.dragonfall.game.data import skills as SK     # noqa: E402
 from data.plugins.dragonfall.game.data import skill_up as SU   # noqa: E402
 
@@ -65,7 +66,7 @@ def stage_skill_lv(info: dict, player_lv: int) -> int:
     简化模型：技能成长等级 = min(SKILL_UP.max, 1 + (player_lv - 技能lv)//3)。
     （近似玩家转职后有 1 级技能 + 每 3 级升 1 级；具体由期望引擎 skill_lv_policy 覆盖。）
     """
-    max_lv = E.skill_max_level(info)
+    max_lv = skill_max_level(info)
     learn_lv = int(info.get("lv", 1) or 1)
     if player_lv < learn_lv:
         return 0  # 未解锁
@@ -101,7 +102,7 @@ def _dmg_expr_value(info: dict, st: dict, skill_lv: int) -> float:
     _st = dict(st)
     _st["_player_lv"] = int(st.get("level", st.get("_player_lv", 1)) or 1)
     _st["_skill_lv"] = max(1, skill_lv)
-    return float(E.skill_expr_preview(info, skill_lv, _st) or 0.0)
+    return float(skill_expr_preview(info, skill_lv, _st) or 0.0)
 
 
 def skill_efficiency_row(cls: str, skid: str, info: dict, st: dict,
@@ -122,9 +123,9 @@ def skill_efficiency_row(cls: str, skid: str, info: dict, st: dict,
         base = int(raw or 0)
     if base > 0 and skill_class(info) == "damage":
         if info.get("pierce") or kind == "真伤":
-            dmg = E.calc_damage(base, 0, pierce=True, dmg_type=dmg_type, variance=0.0)
+            dmg = calc_damage(base, 0, pierce=True, dmg_type=dmg_type, variance=0.0)
         else:
-            dmg = E.calc_damage(base, int(defv), variance=0.0, dmg_type=dmg_type)
+            dmg = calc_damage(base, int(defv), variance=0.0, dmg_type=dmg_type)
     else:
         dmg = 0.0
     hits = int(info.get("hits", 1) or 1)
@@ -178,7 +179,7 @@ def skill_efficiency_table(cls: str, player_lv: int = 45, gear: dict | None = No
         st = build_player(cls, player_lv, gear, opts, attr=attr)
     else:
         # 兜底：engine 裸面板
-        st = E.player_final_stats(cls, player_lv, gear or {}, 0, attr or {}, 0)
+        st = player_final_stats(cls, player_lv, gear or {}, 0, attr or {}, 0)
     rows = []
     for skid, info in skills.items():
         r = skill_efficiency_row(cls, skid, info, st, player_lv, edef, mdef)

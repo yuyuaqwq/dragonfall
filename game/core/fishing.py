@@ -45,7 +45,7 @@ def roll_fish(prof_lv: int = 1, spot_id: str | None = None, bait: str | None = N
     返回形态不变（FISH_POOL 条目 dict：name/quality/type/price/size_range/...）。
     """
     if spot_id:
-        from game.drop_engine import roll as _roll, _SimpleCtx
+        from ..drop_engine import roll as _roll, _SimpleCtx
         # 季节显式传入：让测试能 mock fishing.current_season（drop_engine 不自算）
         ctx = _SimpleCtx(map_id=spot_id, prof_lv=prof_lv, bait=bait, qty=1,
                          season=current_season())

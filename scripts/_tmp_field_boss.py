@@ -16,7 +16,7 @@ from numeric_lib.player import PlayerOptions, build_player, per_action_dmg
 from numeric_lib.gear import gear_loadout
 from numeric_lib.constants import CLASSES, TEAM_BUFF
 from data.plugins.dragonfall.game import content as C
-from data.plugins.dragonfall.game import engine as E
+from battle2.formulas import calc_damage
 from data.plugins.dragonfall.game.data import monster_mods as MM
 
 GROWTH_V2 = {
@@ -76,8 +76,8 @@ with curve_override(growth=GROWTH_V2, hp_stage=HP_STAGE_V2):
                 d = per_action_dmg("cls_zhan_shi", lv, gear_loadout(lv, "solo_mid"),
                                    m.get("def", 0), m.get("mdef", 0), PlayerOptions(), potion_on=True)
                 kill = m.get("max_hp", 1) / max(d * n * (TEAM_BUFF if n > 1 else 1.0), 1)
-                hit = max(E.calc_damage(int(m.get("atk", 0) * 1.35), int(st.get("def", 0)), variance=0.0),
-                          E.calc_damage(int(m.get("matk", 0) * 1.35), int(st.get("mdef", 0)), variance=0.0), 1)
+                hit = max(calc_damage(int(m.get("atk", 0) * 1.35), int(st.get("def", 0)), variance=0.0),
+                          calc_damage(int(m.get("matk", 0) * 1.35), int(st.get("mdef", 0)), variance=0.0), 1)
                 surv = st.get("max_hp", 1000) * n / hit
                 rows.append({"Boss": name[:14], "Lv": lv, "档": tag,
                              "HP": f"{m.get('max_hp',0):,}", "杀轮": round(kill, 1), "承伤": round(surv, 1)})

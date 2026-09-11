@@ -133,7 +133,7 @@ def gather_roll(level: int, prof_lv: int = 1, cur_map: str = "") -> list:
     """
     import random as _rnd
     cand = []
-    from game.drop_engine import expand_pool as _expand
+    from ..drop_engine import expand_pool as _expand
     _expanded = _expand(f"gather:{cur_map or ''}")
     if _expanded:
         cand = list(_expanded)
@@ -890,7 +890,7 @@ def settle_mining(group_id, qq_id, st, *, daily_prof_bump=None):
     cur_map = st.get("spot_map") or player.get("cur_map", "")
     # v102.3 深矿池优先：矿洞类地图（山丘矿洞/深隧/海蚀洞窟）按权重出专属矿
     # v174 统一抽象：数据源走 drop_engine（mine:{map} / gather:{map}）
-    from game.drop_engine import expand_pool as _expand_pool
+    from ..drop_engine import expand_pool as _expand_pool
     deep_ores = _expand_pool(f"mine:{cur_map}")
     if deep_ores:
         ores = deep_ores

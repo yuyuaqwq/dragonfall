@@ -9,14 +9,14 @@
 import sys, os, random
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from game import engine as E
+from game.content_rules.panel import player_final_stats
 from game.core import stats as S
 
 def player_stats(lv, cls, boost=1.0):
     eq = {s: {"stats": S.equip_stats(s, lv, "blue")} for s in
           ("weapon", "armor", "ring", "helm", "legs", "necklace", "boots")}
     attrs = {"str": 2*(lv-1), "vit": 1*(lv-1), "int": 0, "agi": 0}
-    st = E.player_final_stats(cls, lv, eq, tier=1, attributes=attrs,
+    st = player_final_stats(cls, lv, eq, tier=1, attributes=attrs,
                               evolve_path=0, title_bonus={}, race="human")
     st["atk"] = int(st["atk"]*boost); st["matk"] = int(st["matk"]*boost)
     return st

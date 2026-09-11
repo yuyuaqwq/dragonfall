@@ -11,7 +11,7 @@
 """
 import sys, os, sqlite3, json, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, E, db, clean_db, Main, FakeEvent, run
+from conftest import C, db, clean_db, Main, FakeEvent, run
 from data.plugins.dragonfall.game.core import time_weather as TW
 from data.plugins.dragonfall.game.core import wild as W
 

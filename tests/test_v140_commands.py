@@ -12,7 +12,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, r"C:/Users/yuyu/qqbot")
 os.environ.setdefault("GWEN_GAME_DB", "test_game_data_v140_cmds.db")
 from conftest import FakeEvent, run, clean_db, make_player, new_main
-from data.plugins.dragonfall.game import content as C, db, engine as E
+from data.plugins.dragonfall.game import content as C, db
+from data.plugins.dragonfall.game.content_rules.gameplay import check_player_level_up
 
 passed = 0
 def check(name, cond, detail=""):
@@ -28,7 +29,7 @@ def test_chapter_pack():
     p = make_player("g1", "q1", "测试", "战士", level=9)
     p["exp"] = C.exp_to_next(9) * 3  # 连升 3 级（9→12）
     # 检查升级日志包含章节礼包
-    logs, p2 = E.check_player_level_up("g1", "q1", dict(p))
+    logs, p2 = check_player_level_up("g1", "q1", dict(p))
     check("9→10 级发章节礼包", any("章节里程碑" in l for l in logs), str(logs))
     # 防重复：同一级不再发
     ck = f"chapter_pack_10_q1"

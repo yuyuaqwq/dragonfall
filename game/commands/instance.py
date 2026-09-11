@@ -27,7 +27,8 @@ from ._platform import AstrMessageEvent, filter
 
 from .. import content as C
 from .. import db
-from .. import engine as E
+from ..content_rules.gameplay import resolve_drop
+from ..content_rules.panel import player_final_stats
 from ..core.constants import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）——N10 前由 battle re-export 改为 core 权威单源
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 from .instance_router import InstanceRouterCmds  # v181.N5b4-5a R1：battle2 副本行动路由
@@ -153,7 +154,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         if not _p:
             yield event.plain_result("你的角色数据异常，无法加入战斗！")
             return
-        _st2 = E.player_final_stats(_p["class_name"], _p["level"], _p.get("equipment", {}),
+        _st2 = player_final_stats(_p["class_name"], _p["level"], _p.get("equipment", {}),
                                     _p.get("class_tier", 0), _p.get("attributes"),
                                     _p.get("evolve_path", 0), None, _p.get("race"))
         _spd = float(_st2.get("spd", 0) or 0)
@@ -1017,7 +1018,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             if value <= 0:
                 return
             try:
-                _spv = min(float(E.player_final_stats(
+                _spv = min(float(player_final_stats(
                     snap.get("class_name", "战士"), snap.get("level", 1),
                     snap.get("equipment", {}), snap.get("class_tier", 0),
                     snap.get("attributes"), snap.get("evolve_path", 0),
@@ -1177,7 +1178,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         st["boss"]/st["enemy"] 兼容键 → 存活首单位；若原 Boss 已死被移除则保留原 dict 引用
         （供胜利显示/多动按 is_boss 或 uid 判断——_instance_boss_turn 多动按 uid 在存活阵列
         中定位主 Boss，不依赖 st["boss"] 对象同一性）。"""
-        from ..core import formation as FM
+        from battle2.support import formation as FM
         enemies = st.setdefault("enemies", [])
         removed = FM.compact(enemies)
         # v110 P0（#110 海盗王任务卡死）：击杀账合并——battle._remove_unit 提前移出阵列的
@@ -1454,8 +1455,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
 
         单人副本也走同一面板（我方一行 = 自己），保证观感与野外一致。
         """
-        from ..core import formation as FM
-        from ..core.formation import alive_units
+        from battle2.support import formation as FM
+        from battle2.support.formation import alive_units
         # 显示名表（CombatCmds mixin 提供；独立测试 InstanceCmds 时兜底空表）
         pbuf_names = getattr(self, "_P_BUFF_NAMES", {}) or {}
         ebuf_names = getattr(self, "_E_BUFF_NAMES", {}) or {}
@@ -2256,7 +2257,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         for m in members:
             p = self._player(group_id, m)
             # v95.19: 副本快照 max_hp/max_mp 用实时计算值（DB 字段换装备后过时），与普通战斗口径统一
-            _st = E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
+            _st = player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
                                        p.get("class_tier", 0), p.get("attributes"),
                                        p.get("evolve_path", 0), None, p.get("race"))
             st["players"][str(m)] = {
@@ -2269,11 +2270,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 "atk": p.get("atk", 0), "def": p.get("def", 0),
                 "matk": p.get("matk", 0), "mdef": p.get("mdef", 0),
                 # v57：快照补算真实 spd（此前 p 无 spd 字段恒为 0，速度机制无从生效）
-                "spd": E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
+                "spd": player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
                                             p.get("class_tier", 0), p.get("attributes"),
                                             p.get("evolve_path", 0), None, p.get("race")).get("spd", 0),
                 # v152 绝对时刻：玩家快照 ct = 初始等待（BASE_DELAY/spd，正数越大越晚行动）
-                "ct": _ict(E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
+                "ct": _ict(player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
                                             p.get("class_tier", 0), p.get("attributes"),
                                             p.get("evolve_path", 0), None, p.get("race")).get("spd", 0)),
                 "equipment": p.get("equipment", {}),
@@ -2587,7 +2588,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         picks = drop_pool[:min(2 if is_hi else 1, len(drop_pool))]
                         per_val = mat_share / len(picks)
                         for mat_name in picks:
-                            mid = E.resolve_drop(mat_name)
+                            mid = resolve_drop(mat_name)
                             if mid is None:
                                 continue
                             if mid in C.MATERIALS:
@@ -2843,7 +2844,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         v174 统一抽象：掉落走 drop_engine roll('loot_pile:{inst_id}')。
         """
         inst = C.INSTANCES[st["inst_id"]]
-        from game.drop_engine import roll as _drop_roll, _SimpleCtx as _DropCtx
+        from ..drop_engine import roll as _drop_roll, _SimpleCtx as _DropCtx
         ctx = _DropCtx(inst_id=st["inst_id"], monster_lv=int(inst.get("lv", 0) or 0),
                        player_level=int(inst.get("lv", 0) or 0),
                        gold_base=int(inst.get("gold", 100) or 100))
@@ -2919,7 +2920,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         互斥档策略，5 档 cutoff 与旧 elif 语义精确一致）；本层只负责入包与展示文案。
         """
         inst = C.INSTANCES[st["inst_id"]]
-        from game.drop_engine import roll as _drop_roll, _SimpleCtx as _DropCtx
+        from ..drop_engine import roll as _drop_roll, _SimpleCtx as _DropCtx
         ctx = _DropCtx(inst_id=st["inst_id"], monster_lv=int(inst.get("lv", 0) or 0),
                        player_level=int(inst.get("lv", 0) or 0))
         results = _drop_roll(f"secret_chest:{st['inst_id']}", ctx)
@@ -3060,7 +3061,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             # v174 统一抽象：Boss 装备掉落判定走 drop_engine table 池（boss:{inst_id}）
             # 产出 equip 类型（主题装/专属）由本层入包；材料档保持原逻辑下方处理。
             try:
-                from game.drop_engine import roll as _boss_roll, _SimpleCtx as _BossCtx
+                from ..drop_engine import roll as _boss_roll, _SimpleCtx as _BossCtx
                 _bctx = _BossCtx(inst_id=st.get("inst_id"), monster_lv=boss.get("lv", 1) or 1,
                                  player_level=boss.get("lv", 1) or 1)
                 # 当前实例专属 rid（区分展示文案：👑专属 vs ⚔️珍藏）

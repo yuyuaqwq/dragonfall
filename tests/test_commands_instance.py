@@ -11,7 +11,7 @@
 """
 import sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, E, db, clean_db, Main, FakeEvent, run
+from conftest import C, db, clean_db, Main, FakeEvent, run
 
 # ⚠️ v137 副本彻底重构（副本地图化）：本测试基于旧副本结构（st["boss"]/st["turn"]/分层推进），
 # 已不适用于 v137（副本=多房间地图，怪物在 rooms 池，战斗在 enemies 阵列，推进靠移动）。

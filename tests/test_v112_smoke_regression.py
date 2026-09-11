@@ -23,7 +23,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(HERE, "test_v112_smoke_regression.db"))
 sys.path.insert(0, HERE)
 from conftest import C, db, clean_db, make_player, FakeEvent  # noqa: E402
-from game import engine as E  # noqa: E402
+from game.content_rules.skills import branch_skill_owner
 from game.commands.player import PlayerCmds  # noqa: E402
 
 _passed = _failed = 0
@@ -54,7 +54,7 @@ async def main():
           len(aliases) == 0, str(len(aliases)))
 
     print("【流派归属 + 核心资源（基础职业）】")
-    owner = E.branch_skill_owner("cls_zhan_shi", "龙息之怒")
+    owner = branch_skill_owner("cls_zhan_shi", "龙息之怒")
     check("branch_skill_owner 龙息之怒 → (2, 狂战士)（v153 BRANCH_SKILLS 键统一 T1 档位名）",
           owner == (2, "狂战士"), str(owner))
     # v181.M-R2b：engine.core_resource_def 退役删除——资源名/上限单源 EFFECT_RULES

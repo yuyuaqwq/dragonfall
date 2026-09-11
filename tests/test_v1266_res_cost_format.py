@@ -23,7 +23,7 @@ os.environ["GWEN_GAME_DB"] = os.path.abspath("test_v1266.db")
 os.environ["GWEN_TEST_MODE"] = "1"
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db  # noqa: E402
-from data.plugins.dragonfall.game import engine as E  # noqa: E402
+from game.content_rules.skills import skill_info
 from data.plugins.dragonfall.main import Main  # noqa: E402
 
 passed = failed = 0
@@ -121,7 +121,7 @@ def test_offbattle_guard_chinese_name():
                                        "affixes": [], "enhance": 0}},
               "attributes": {"str": 20, "int": 5},
               "learned_skills": ["连射"]}
-    info = E.skill_info(ranger["class_name"], "连射")
+    info = skill_info(ranger["class_name"], "连射")
     check("连射有 res_cost", bool(info and info.get("res_cost")), str(info))
     if not (info and info.get("res_cost")):
         return

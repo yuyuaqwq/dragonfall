@@ -40,7 +40,7 @@ init_db()
 
 from game import db  # noqa: E402
 from game import content as C  # noqa: E402
-from game import engine as E  # noqa: E402
+from game.content_rules.panel import player_final_stats
 from game.commands import instance_battle as IB  # noqa: E402
 from game.commands.instance import InstanceCmds  # noqa: E402
 from game.commands.combat import CombatCmds  # noqa: E402
@@ -102,7 +102,7 @@ def mk_snap(qid, name, cls="cls_zhan_shi", level=15, learned=None, hp=None, spd_
                      learned_skills=learned or [], stamina=999,
                      attributes=json.dumps({"str": 5, "agi": 5, "int": 5, "vit": 5}))
     pl = db.get_player(GID, qid)
-    st = E.player_final_stats(cls, level, {}, 0, pl.get("attributes"), 0, {}, pl.get("race"))
+    st = player_final_stats(cls, level, {}, 0, pl.get("attributes"), 0, {}, pl.get("race"))
     mh = int(st.get("max_hp", 100))
     cur = hp if hp is not None else mh
     db.update_player(GID, qid, max_hp=mh, max_mp=50, hp=cur, mp=50)

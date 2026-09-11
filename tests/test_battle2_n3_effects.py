@@ -27,7 +27,7 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from game import content as C            # noqa: E402
-from game import engine as E             # noqa: E402
+from game.content_rules.panel import player_final_stats
 from battle2 import Battle as BT_NEW, make_actor  # noqa: E402
 from battle2 import config as _b2config  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
@@ -79,7 +79,7 @@ def ent(a, k):
 
 
 def make_actors(cls="战士", level=10, skill_keys=(), skill_names=()):
-    st = E.player_final_stats(cls, level, {}, 0, {}, 1)
+    st = player_final_stats(cls, level, {}, 0, {}, 1)
     p = make_actor(uid="p_q1", name="测试勇者", side="player", kind="player",
                    human_controlled=True, class_name=cls, level=level,
                    hp=99999, max_hp=int(st["max_hp"]), mp=int(st["max_mp"]), max_mp=int(st["max_mp"]),

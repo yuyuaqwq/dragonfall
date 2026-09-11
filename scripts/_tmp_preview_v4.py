@@ -20,7 +20,7 @@ from numeric_lib.gear import gear_loadout
 from numeric_lib.constants import CLASSES, TEAM_BUFF
 from numeric_lib.team import boss_hp
 from data.plugins.dragonfall.game import content as C
-from data.plugins.dragonfall.game import engine as E
+from battle2.formulas import calc_damage
 from data.plugins.dragonfall.game.data import monster_mods as MM
 
 GROWTH = {
@@ -39,8 +39,8 @@ def player_dmg(cls, lv, loadout, edef, emdef):
                           PlayerOptions(), potion_on=True)
 
 def hit_of(m, pdef, pmdef, mult=1.35):
-    return max(E.calc_damage(int(m.get("atk", 0) * mult), int(pdef), variance=0.0),
-               E.calc_damage(int(m.get("matk", 0) * mult), int(pmdef), variance=0.0), 1)
+    return max(calc_damage(int(m.get("atk", 0) * mult), int(pdef), variance=0.0),
+               calc_damage(int(m.get("matk", 0) * mult), int(pmdef), variance=0.0), 1)
 
 def survive_with_heal(pool, hit, heal_per_round, rounds):
     """带奶续航：净承伤 = hit - 奶量；奶不足时兜底 hit×20%。"""

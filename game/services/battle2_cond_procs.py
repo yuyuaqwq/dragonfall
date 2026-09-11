@@ -11,7 +11,7 @@
 本模块把条件倍率接回 battle2 乘区钩子（**引擎零改动**，走既有装配层扩展动作模式，
 对齐 `we_dmg_mult_cond`）：
 - `skill_cond_mult` 挂 dmg_calc / heal_calc：读事件技能 `info["cond"]` → 查谓词表 →
-  命中则 `battle._fire_ctx["mult"] *= E.skill_cond_mult(cond, lv, info)`（与面板
+  命中则 `battle._fire_ctx["mult"] *= skill_cond_mult(cond, lv, info)`（与面板
   「条件 ×N」显示同源；未注册 type / 无 cond = 静默不生效，同旧引擎未知 type 语义）
 - 谓词表 `COND_PREDICATES`：type → fn(battle, actor, target, cond) -> bool
   （加条件类型 = 加一行注册，技能数据直接可用）
@@ -84,7 +84,7 @@ def _p_enemy_broken(battle, actor, target, cond) -> bool:
     """
     if not isinstance(target, dict):
         return False
-    from ..core.battle_bars import bar_settle, bar_effect_key
+    from battle2.support.battle_bars import bar_settle, bar_effect_key
     _now = float(getattr(battle, "_now", 0.0) or 0.0)
     bar_settle(target, "shaken", _now)
     bs = (target.get("effects") or {}).get(bar_effect_key("shaken"))
@@ -140,10 +140,11 @@ def skill_cond_mult_act(battle, caster, target, params, logs):
     except Exception:
         return  # 判定异常不阻断战斗
     try:
-        from .. import engine as E
+        from battle2.formulas import skill_cond_mult
+        from ..content_rules.skills import skill_info, skill_level_of
         name = info.get("name") or ""
-        lv = E.skill_level_of(actor, name) if (actor or {}).get("class_name") else 1
-        mult = float(E.skill_cond_mult(cond, max(1, int(lv or 1)), info) or 1.0)
+        lv = skill_level_of(actor, name) if (actor or {}).get("class_name") else 1
+        mult = float(skill_cond_mult(cond, max(1, int(lv or 1)), info) or 1.0)
     except Exception:
         mult = float(cond.get("mult", 1.0) or 1.0)
     if mult == 1.0:
@@ -158,11 +159,12 @@ def apply_cond_procs(actor: dict) -> None:
     names = actor.get("learned_skills") or []
     if not cn or not names:
         return
-    from .. import engine as E
+    from battle2.formulas import skill_cond_mult
+    from ..content_rules.skills import skill_info, skill_level_of
     has_cond = False
     for s in names:
         try:
-            info = E.skill_info(cn, s)
+            info = skill_info(cn, s)
         except Exception:
             info = None
         if info and isinstance(info.get("cond"), dict):

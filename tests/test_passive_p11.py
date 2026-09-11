@@ -85,8 +85,8 @@ def test_2_stun_structure():
     a2 = b.sides_of("player")[0]
     # 手动触发命中效果（chance 强制 1）
     from battle2.effects import effects_from_skill, apply_effects
-    from game import engine as E
-    info = E.skill_info("cls_zhan_shi", "盾击·誓") or {}
+    from game.content_rules.skills import skill_info
+    info = skill_info("cls_zhan_shi", "盾击·誓") or {}
     effs = effects_from_skill(info, 0)
     for _eff in effs:
         _eff["chance"] = 1.0  # 必中验证结构

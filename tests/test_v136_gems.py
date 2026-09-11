@@ -24,7 +24,7 @@ from game.data import GEM_TIERS, GEM_STATS, GEM_SOCKETS, GEM_TIER_NAMES  # noqa:
 from game.data import GEM_DRILL, GEM_REMOVE_COST, RUNE_REMOVE_COST  # noqa: E402
 from game.data import GEM_LEGENDARY_EFFECTS, GEM_DROP_RATE, GEM_DROP_TIER, GEM_BOSS_FIXED  # noqa: E402
 from game.core import roll_gem, gem_combine, gem_socket_cost, sockets_capacity  # noqa: E402
-from game import engine as E  # noqa: E402
+from game.content_rules.panel import player_stats_detail
 
 
 def _mk_gem(stats, tier):
@@ -161,7 +161,7 @@ def test_gem_drill_table():
 
 # ---------- 5. engine 属性结算（原石乘区接入） ----------
 def test_engine_gem_pct_and_flat():
-    st0, _ = E.player_stats_detail("cls_zhan_shi", 1, {}, 0, None, 0, None, "human")
+    st0, _ = player_stats_detail("cls_zhan_shi", 1, {}, 0, None, 0, None, "human")
     gem_atk = _mk_gem({"atk": 0.01}, 1)
     gem_crit = _mk_gem({"crit": 0.035}, 6)
     eq = {
@@ -169,7 +169,7 @@ def test_engine_gem_pct_and_flat():
         "stats": {"atk": 10}, "affixes": [], "enchant": [],
         "sockets": {"孔位1": gem_atk, "孔位2": gem_crit},
     }
-    st1, srcs = E.player_stats_detail("cls_zhan_shi", 1, {"weapon": eq}, 0, None, 0, None, "human")
+    st1, srcs = player_stats_detail("cls_zhan_shi", 1, {"weapon": eq}, 0, None, 0, None, "human")
     atk_diff = st1.get("atk", 0) - st0.get("atk", 0)
     assert abs(atk_diff - (10 + 0.01)) < 1e-9, f"atk diff={atk_diff}"
     crit_diff = st1.get("crit", 0) - st0.get("crit", 0)
@@ -182,12 +182,12 @@ def test_engine_gem_pct_and_flat():
 
 
 def test_engine_gem_hp():
-    st2, _ = E.player_stats_detail("cls_zhan_shi", 1, {}, 0, None, 0, None, "human")
+    st2, _ = player_stats_detail("cls_zhan_shi", 1, {}, 0, None, 0, None, "human")
     gem_hp = _mk_gem({"hp": 0.01}, 1)
     eq2 = {"slot": "armor", "lv": 20, "quality": "blue", "name": "🔵·铁甲",
            "stats": {"hp": 100}, "affixes": [], "enchant": [],
            "sockets": {"孔位1": gem_hp}}
-    st3, _ = E.player_stats_detail("cls_zhan_shi", 1, {"armor": eq2}, 0, None, 0, None, "human")
+    st3, _ = player_stats_detail("cls_zhan_shi", 1, {"armor": eq2}, 0, None, 0, None, "human")
     hp_diff = st3.get("max_hp", 0) - st2.get("max_hp", 0)
     assert abs(hp_diff - 100.01) < 1e-9, f"hp diff={hp_diff}"
 
@@ -196,11 +196,11 @@ def test_engine_gem_empty_sockets_safe():
     # 无 sockets / 空 sockets / 非 dict 值都安全（老档兼容）
     eq = {"slot": "weapon", "lv": 1, "quality": "white", "name": "⚪·木剑",
           "stats": {"atk": 5}, "affixes": [], "enchant": []}
-    st_a, _ = E.player_stats_detail("cls_zhan_shi", 1, {"weapon": eq}, 0, None, 0, None, "human")
+    st_a, _ = player_stats_detail("cls_zhan_shi", 1, {"weapon": eq}, 0, None, 0, None, "human")
     eq["sockets"] = {}
-    st_b, _ = E.player_stats_detail("cls_zhan_shi", 1, {"weapon": eq}, 0, None, 0, None, "human")
+    st_b, _ = player_stats_detail("cls_zhan_shi", 1, {"weapon": eq}, 0, None, 0, None, "human")
     eq["sockets"] = {"孔位1": "not_a_dict"}
-    st_c, _ = E.player_stats_detail("cls_zhan_shi", 1, {"weapon": eq}, 0, None, 0, None, "human")
+    st_c, _ = player_stats_detail("cls_zhan_shi", 1, {"weapon": eq}, 0, None, 0, None, "human")
     assert st_a == st_b == st_c
 
 

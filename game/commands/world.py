@@ -14,9 +14,11 @@ from ._platform import AstrMessageEvent, filter, MessageChain
 
 from .. import content as C
 from .. import db
-from .. import engine as E
+from ..content_rules.panel import player_final_stats
+from ..content_rules.skills import skill_info
+from ..data.battle_config import TIER_GROWTH
 from ..core.stats import hp_stage_mult
-from ..core.formation import formation_view, alive_units  # v2 多对多站位图文案行
+from battle2.support.formation import formation_view, alive_units# v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 
 # 任务目标类型 → 进度展示行（v101.3：加新目标类型 = 加一行，quest_view 零改动）
@@ -3072,7 +3074,7 @@ class WorldCmds(CommandBase):
         sname = cfg_skills.get(cid)
         if not sname:
             return [f"{hint}他打量了你片刻，摇了摇头：你这身本事，不在我能指点的路数上。"]
-        info = E.skill_info(player.get("class_name", ""), sname)
+        info = skill_info(player.get("class_name", ""), sname)
         if not info:
             return []
         sname_cn = info.get("name", sname)
@@ -3452,7 +3454,7 @@ class WorldCmds(CommandBase):
             lines.append("这个职业暂时无法就职……")
             return lines
         # 属性按新职业重算（参考隐藏职业传承的属性同步写法）
-        st = E.player_final_stats(
+        st = player_final_stats(
             new_cls, player.get("level", 1), player.get("equipment", {}), 0,
             player.get("attributes"), 0,
             self._title_bonus(group_id, qq_id), player.get("race"))
@@ -3499,7 +3501,7 @@ class WorldCmds(CommandBase):
         # 仅写 class_tier 会让存档 max_hp/max_mp 长期与计算值脱节（战斗外休息/回家/
         # 药水/治疗全按存档上限回血，转职后回不满新上限）。参照 player.py 隐藏职业转职写法。
         new_evolve_path = path or player.get("evolve_path", 0)
-        st = E.player_final_stats(
+        st = player_final_stats(
             player["class_name"], player.get("level", 1), player.get("equipment", {}),
             next_tier, player.get("attributes"), new_evolve_path,
             self._title_bonus(group_id, qq_id), player.get("race"))
@@ -3511,7 +3513,7 @@ class WorldCmds(CommandBase):
         db.update_player(group_id, qq_id, **fields)
         player = self._player(group_id, qq_id)
         new_title = self._branch_title(player["class_name"], next_tier, path or player.get("evolve_path", 0))
-        bonus = int((E.TIER_GROWTH.get(next_tier, 1.0) - 1.0) * 100)
+        bonus = int((TIER_GROWTH.get(next_tier, 1.0) - 1.0) * 100)
         branch_line = ""
         if path:
             tag = "⚔️ 进攻路线" if path == 1 else "🛡️ 防御路线"

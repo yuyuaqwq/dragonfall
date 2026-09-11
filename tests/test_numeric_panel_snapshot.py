@@ -8,7 +8,7 @@
     - 战士：全力 vs 全耐 → hp 差 +312（682 vs 370）
     - 法师：全智 vs 裸装 → matk +46（106 vs 60）、mp +58（278 vs 220）
 
-快照值 = 当前代码实测（E.player_final_stats 真实派生），写死即基线：
+快照值 = 当前代码实测（player_final_stats 真实派生），写死即基线：
   任何成长公式/职业 base/growth 改动 → 断言失败，防"动了数值不知道动了"。
 
 运行：python tests/test_numeric_panel_snapshot.py（exit=0 全绿）
@@ -18,7 +18,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import C, E  # noqa: E402
+from conftest import C  # noqa: E402
+from game.content_rules.panel import player_final_stats  # noqa: E402
 
 passed = failed = 0
 LEVELS = (1, 11, 30, 60)
@@ -91,7 +92,7 @@ def main():
     for cid in classes:
         cname = C.CLASSES[cid]["name"]
         for lv in LEVELS:
-            st = E.player_final_stats(cid, lv, {}, 0, None)
+            st = player_final_stats(cid, lv, {}, 0, None)
             exp = PANEL_SNAPSHOT[cid][lv]
             for k in SNAPSHOT_KEYS:
                 if k in ("crit", "dodge"):
@@ -111,8 +112,8 @@ def main():
 
     print("【② 属性加点收益快照（11 级 · 39 点自由属性）】")
     # 刺客：全敏 vs 全力 —— spd +31（66 vs 35）、atk +39（86 vs 47）
-    a_agi = E.player_final_stats("cls_ci_ke", 11, {}, 0, {"agi": 39})
-    a_str = E.player_final_stats("cls_ci_ke", 11, {}, 0, {"str": 39})
+    a_agi = player_final_stats("cls_ci_ke", 11, {}, 0, {"agi": 39})
+    a_str = player_final_stats("cls_ci_ke", 11, {}, 0, {"str": 39})
     check("刺客 全敏 spd 66 / 全力 spd 35", a_agi["spd"] == 66 and a_str["spd"] == 35,
           f"agi={a_agi['spd']} str={a_str['spd']}")
     check("刺客 全敏 vs 全力 spd 差 == +31", a_agi["spd"] - a_str["spd"] == 31,
@@ -122,15 +123,15 @@ def main():
     check("刺客 全力 vs 全敏 atk 差 == +39", a_str["atk"] - a_agi["atk"] == 39,
           f"d={a_str['atk'] - a_agi['atk']}")
     # 战士：全力 vs 全耐 —— hp 差 +234（604 vs 370，v136 属性转化 vit→hp 8→6）
-    w_str = E.player_final_stats("cls_zhan_shi", 11, {}, 0, {"str": 39})
-    w_vit = E.player_final_stats("cls_zhan_shi", 11, {}, 0, {"vit": 39})
+    w_str = player_final_stats("cls_zhan_shi", 11, {}, 0, {"str": 39})
+    w_vit = player_final_stats("cls_zhan_shi", 11, {}, 0, {"vit": 39})
     check("战士 全耐 hp 604 / 全力 hp 370", w_vit["max_hp"] == 604 and w_str["max_hp"] == 370,
           f"vit={w_vit['max_hp']} str={w_str['max_hp']}")
     check("战士 全耐 vs 全力 hp 差 == +234", w_vit["max_hp"] - w_str["max_hp"] == 234,
           f"d={w_vit['max_hp'] - w_str['max_hp']}")
     # 法师：全智 vs 裸装 —— matk +39（99 vs 60，v136 属性转化 int→matk 1.2→1.0）
-    f_int = E.player_final_stats("cls_fa_shi", 11, {}, 0, {"int": 39})
-    f_bare = E.player_final_stats("cls_fa_shi", 11, {}, 0, None)
+    f_int = player_final_stats("cls_fa_shi", 11, {}, 0, {"int": 39})
+    f_bare = player_final_stats("cls_fa_shi", 11, {}, 0, None)
     check("法师 全智 matk 99 /> mp 278", f_int["matk"] == 99 and f_int["max_mp"] == 278,
           f"matk={f_int['matk']} mp={f_int['max_mp']}")
     check("法师 全智 vs 裸装 matk 差 == +39", f_int["matk"] - f_bare["matk"] == 39,

@@ -12,7 +12,7 @@
 """
 import sys, os, sqlite3, time, json, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, E, db, clean_db, Main, FakeEvent, run
+from conftest import C, db, clean_db, Main, FakeEvent, run
 from data.plugins.dragonfall.game.services.quests_flow import quest_kill_progress  # v181 L3-P2：_update_quests 壳收编订阅方，击杀推进直调 services
 
 passed = failed = 0

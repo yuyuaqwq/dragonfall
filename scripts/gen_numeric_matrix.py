@@ -52,7 +52,7 @@ def eval_fight(cls_cn, plv, gear, role, mlv, n=1, team_buff=1.0,
     monster：真实怪 dict（副本 Boss 必须传——个体 mod 会让通用模板失真，如老王 30753 vs 通用 22780）。"""
     cid = [c[1] for c in CLASSES if c[0] == cls_cn][0]
     from data.plugins.dragonfall.game import content as C
-    from data.plugins.dragonfall.game import engine as E
+    from battle2.formulas import calc_damage
     if monster is None:
         monster = C.build_monster(("m_eval", "评估怪", role, mlv, [], []),
                                   {"id": "eval", "name": "eval", "area": "eval"})
@@ -66,9 +66,9 @@ def eval_fight(cls_cn, plv, gear, role, mlv, n=1, team_buff=1.0,
     kill = ehp / max(d * n * team_buff, 0.01)
     # 承伤
     boss_mult = 1.35 if role in ("elite", "boss") else 1.0
-    d_ph = E.calc_damage(int(m.get("atk", 0) * boss_mult), int(st.get("def", 0)),
+    d_ph = calc_damage(int(m.get("atk", 0) * boss_mult), int(st.get("def", 0)),
                          variance=0.0, dmg_type="phys")
-    d_mg = E.calc_damage(int(m.get("matk", 0) * boss_mult), int(st.get("mdef", 0)),
+    d_mg = calc_damage(int(m.get("matk", 0) * boss_mult), int(st.get("mdef", 0)),
                          variance=0.0, dmg_type="magi")
     hit = max(d_ph, d_mg, 1)
     survive = st.get("max_hp", 1000) * n / hit

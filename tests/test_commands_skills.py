@@ -9,7 +9,9 @@
 """
 import sys, os, sqlite3
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, E, db, clean_db, Main, FakeEvent, run
+from conftest import C, db, clean_db, Main, FakeEvent, run
+from battle2.formulas import skill_buff_turns, skill_cond_mult, skill_max_level, skill_mech_val, skill_power_mult
+from game.content_rules.skills import skill_info, skill_upgrade_cost
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -69,9 +71,9 @@ async def main():
         print("  ⚠️ 无 10 级可学技能，跳过")
 
     print("【技能：升级消耗递增（v93 铁律）】")
-    c1 = E.skill_upgrade_cost(1)
-    c2 = E.skill_upgrade_cost(2)
-    c3 = E.skill_upgrade_cost(3)
+    c1 = skill_upgrade_cost(1)
+    c2 = skill_upgrade_cost(2)
+    c3 = skill_upgrade_cost(3)
     check("1→2 消耗 1 点", c1 == 1, str(c1))
     check("2→3 消耗 2 点", c2 == 2, str(c2))
     check("3→4 消耗 3 点", c3 == 3, str(c3))
@@ -119,37 +121,37 @@ async def main():
 
     print("【技能升级 v56.1：每技能单独策划 + 无空格序号 + 中文名显示】")
     # 1) 成长数值函数（v180：未配 p = 无成长——鱼鱼拍板删默认每级+10% 兜底，怪技能不被误伤）
-    check("无配置不成长 Lv.5=100%", abs(E.skill_power_mult(5) - 1.0) < 1e-9, str(E.skill_power_mult(5)))
+    check("无配置不成长 Lv.5=100%", abs(skill_power_mult(5) - 1.0) < 1e-9, str(skill_power_mult(5)))
     # 真实玩家技能 dict（带 lv 字段——_skill_up v180 按 lv 隔离怪技能，纯 name 无 lv 会被当怪技能跳过）
-    check("配 p=12 Lv.5=148%", abs(E.skill_power_mult(5, {"name": "挥砍", "lv": 1}) - 1.48) < 1e-9,
-          str(E.skill_power_mult(5, {"name": "挥砍", "lv": 1})))
-    check("增益回合 Lv.5=7", E.skill_buff_turns(5) == 7, str(E.skill_buff_turns(5)))
-    check("条件倍率默认随等级成长", abs(E.skill_cond_mult({"mult": 1.4}, 5) - 1.6) < 1e-9, str(E.skill_cond_mult({"mult": 1.4}, 5)))
+    check("配 p=12 Lv.5=148%", abs(skill_power_mult(5, {"name": "挥砍", "lv": 1}) - 1.48) < 1e-9,
+          str(skill_power_mult(5, {"name": "挥砍", "lv": 1})))
+    check("增益回合 Lv.5=7", skill_buff_turns(5) == 7, str(skill_buff_turns(5)))
+    check("条件倍率默认随等级成长", abs(skill_cond_mult({"mult": 1.4}, 5) - 1.6) < 1e-9, str(skill_cond_mult({"mult": 1.4}, 5)))
     # 2) 每技能单独策划（SKILL_UP 差异化）：按名字取 info
     def _info(sname):
-        return E.skill_info("战士", sname) or E.skill_info("法师", sname) or E.skill_info("拳师", sname) or E.skill_info("牧师", sname) or E.skill_info("刺客", sname) or E.skill_info("游侠", sname)
+        return skill_info("战士", sname) or skill_info("法师", sname) or skill_info("拳师", sname) or skill_info("牧师", sname) or skill_info("刺客", sname) or skill_info("游侠", sname)
     mj = _info("挥砍")
-    check("挥砍伤害 Lv.5=148%(p12)", abs(E.skill_power_mult(5, mj) - 1.48) < 1e-9, str(E.skill_power_mult(5, mj)))
+    check("挥砍伤害 Lv.5=148%(p12)", abs(skill_power_mult(5, mj) - 1.48) < 1e-9, str(skill_power_mult(5, mj)))
     zy = _info("治愈术")
     # v153：治愈术 power 0.87（原 1.15）→ Lv.5 = 1.48（默认成长 +0.12/级 → 0.87+0.12×5=1.47 实测 1.48）
-    check("治愈术 Lv.5=148%（v153 新数值）", abs(E.skill_power_mult(5, zy) - 1.48) < 1e-9, str(E.skill_power_mult(5, zy)))
+    check("治愈术 Lv.5=148%（v153 新数值）", abs(skill_power_mult(5, zy) - 1.48) < 1e-9, str(skill_power_mult(5, zy)))
     bl = _info("连招三连")
     # v153：连招三连 power 0.3（三段每段 30%）→ Lv.5 = 1.36
-    check("连招三连 Lv.5=136%（v153 新数值）", abs(E.skill_power_mult(5, bl) - 1.36) < 1e-9, str(E.skill_power_mult(5, bl)))
+    check("连招三连 Lv.5=136%（v153 新数值）", abs(skill_power_mult(5, bl) - 1.36) < 1e-9, str(skill_power_mult(5, bl)))
     sb = _info("致命狙击")
     # v153：致命狙击 cond.mult 1.3（原 1.4）→ Lv.4 = 1.45
-    check("致命狙击条件 Lv.4=×1.45", abs(E.skill_cond_mult(sb["cond"], 4, sb) - 1.45) < 1e-9, str(E.skill_cond_mult(sb["cond"], 4, sb)))
+    check("致命狙击条件 Lv.4=×1.45", abs(skill_cond_mult(sb["cond"], 4, sb) - 1.45) < 1e-9, str(skill_cond_mult(sb["cond"], 4, sb)))
     xz = _info("毒雾·淬")
     if not xz:
         xz = _info("毒刃")
     # v153：毒雾·淬 mech=None（无 mech_val，仅 desc 承诺 2 层毒，层数由技能内部结算）；
     # 毒刃 mech=poison mech_val=2 → Lv.3 = 3 层。断言按实际可查技能走。
     if xz and xz.get("mech") == "poison":
-        check("毒刃毒层 Lv.3=3", E.skill_mech_val(xz, 3) == 3, str(E.skill_mech_val(xz, 3)))
+        check("毒刃毒层 Lv.3=3", skill_mech_val(xz, 3) == 3, str(skill_mech_val(xz, 3)))
     else:
         check("毒雾·淬可查到（aoe=all 群毒）", bool(xz), str(xz))
-        check("毒雾·淬独立满级 5", E.skill_max_level(xz) == 5, str(E.skill_max_level(xz)))
-    check("SKILL_UP 覆盖全部技能", len(E.C.SKILL_UP) >= 50, f"{len(E.C.SKILL_UP)} 个")
+        check("毒雾·淬独立满级 5", skill_max_level(xz) == 5, str(skill_max_level(xz)))
+    check("SKILL_UP 覆盖全部技能", len(C.SKILL_UP) >= 50, f"{len(C.SKILL_UP)} 个")
     # 3) 升级命令输出多维描述（伤害+叠层都能看到，不再只报一个倍率）
     db.update_player("g1", "k1", skill_points=50)
     out = await cmd(m, "skill_upgrade", "g1", "k1", "技能升级 挥砍")

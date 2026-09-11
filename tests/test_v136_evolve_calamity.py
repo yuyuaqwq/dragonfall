@@ -16,7 +16,8 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.abspath("test_v136_evolve_calamity
 sys.path.insert(0, "tests")
 
 from conftest import clean_db, make_player, Main, FakeEvent, run  # noqa: E402
-from data.plugins.dragonfall.game import content as C, db, engine as E  # noqa: E402
+from data.plugins.dragonfall.game import content as C, db  # noqa: E402
+from data.plugins.dragonfall.game.content_rules.panel import player_stats_detail as E_player_stats_detail  # noqa: E402
 
 g = "g_evo"
 q = "q_evo"
@@ -190,9 +191,9 @@ def main():
     clean_db()
     eq_c = C.generate_roster_equip("eq_tie_jian")
     eq_c["calamity_bonus"] = {"atk": 0.03}
-    st_a, _ = E.player_stats_detail("cls_zhan_shi", 30, {"weapon": eq_c}, 0, None, 0, None, "human")
+    st_a, _ = E_player_stats_detail("cls_zhan_shi", 30, {"weapon": eq_c}, 0, None, 0, None, "human")
     eq_d2 = C.generate_roster_equip("eq_tie_jian")
-    st_b, _ = E.player_stats_detail("cls_zhan_shi", 30, {"weapon": eq_d2}, 0, None, 0, None, "human")
+    st_b, _ = E_player_stats_detail("cls_zhan_shi", 30, {"weapon": eq_d2}, 0, None, 0, None, "human")
     check("炼成 atk+3% 生效", st_a["atk"] > st_b["atk"], f"{st_a['atk']} vs {st_b['atk']}")
     # 2e. 已装备炼成
     clean_db()

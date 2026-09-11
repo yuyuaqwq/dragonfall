@@ -3,7 +3,7 @@
 以及各副本 Boss 血量缩放断言。"""
 import sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, E, db, clean_db, Main, FakeEvent, run
+from conftest import C, db, clean_db, Main, FakeEvent, run
 
 def _fake_spend(self, gid, qid, cost, player, action="行动"):
     return True, self._stamina(player)

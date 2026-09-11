@@ -69,7 +69,7 @@ def settle_daily_quest(group_id, qq_id, daily, dq, lines=None):
     双副本收敛）。职责：完成计数(_completed)/重复衰减计数(_repeat)、经验金币发放、升级、
     通知行。调用方负责进度 +1 与达标判断，结算后自行 del 任务键；lines=None 时不输出通知。"""
     from .. import db
-    from .. import engine as E
+    from ..content_rules.gameplay import check_player_level_up
     from ..core.stat_bonus import stat_bonus
     daily["_completed"] = int(daily.get("_completed", 0) or 0) + 1
     rpt = int(daily.get("_repeat", {}).get(dq["name"], 0) or 0)
@@ -87,7 +87,7 @@ def settle_daily_quest(group_id, qq_id, daily, dq, lines=None):
     player["exp"] += dq["reward_exp"]
     player["gold"] += dq["reward_gold"]
     player["_title_bonus"] = stat_bonus(group_id, qq_id, player)
-    lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
+    lv_logs, player = check_player_level_up(group_id, qq_id, player)
     db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
     if lines is not None and lv_logs:
         lines.append("")

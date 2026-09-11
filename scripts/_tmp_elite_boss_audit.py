@@ -5,7 +5,7 @@
   ① elite/boss 在 Lv 11/16/22/30/45/60 完整面板（build_monster 实测）
   ② 11 级标准加点（39 点，6 职业）裸装/满装 vs elite/boss Lv 11(同级)/16(越5)/22(跨11)
      胜率（seeds=8 固定种子）与平均击杀回合（真实引擎 BT.Battle 纯普攻）
-  ③ 怪打玩家承伤回合：期望 dmg=atk²/(atk+def)（E.calc_damage variance=0 实测），
+  ③ 怪打玩家承伤回合：期望 dmg=atk²/(atk+def)（calc_damage variance=0 实测），
      承伤回合 = ceil(max_hp / 期望单次伤害)（物理 atk vs def、魔法 matk vs mdef）
   ④ 当前区域怪物表（装配后 SUBAREAS + HIDDEN_MONSTERS）elite/boss 等级分布
 
@@ -24,7 +24,8 @@ for _p in (_QQBOT_DIR, _PLUGIN_DIR):
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(_PLUGIN_DIR, "tests", "test_game_data.db"))
 
 from data.plugins.dragonfall.game import content as C  # noqa: E402
-from data.plugins.dragonfall.game import engine as E  # noqa: E402
+from battle2.formulas import calc_damage
+from game.content_rules.panel import player_final_stats
 from data.plugins.dragonfall.game import battle as BT  # noqa: E402
 from data.plugins.dragonfall.game.data import SUBAREAS, MAPS, HIDDEN_MONSTERS  # noqa: E402
 
@@ -65,7 +66,7 @@ def monster_of(role, lv):
 
 
 def player_panel(cls, lv, attr, equip):
-    return E.player_final_stats(cls, lv, equip or {}, 0, attr)
+    return player_final_stats(cls, lv, equip or {}, 0, attr)
 
 
 def fight(cls, lv, attr, equip, role, mlv, seeds=SEEDS):
@@ -96,7 +97,7 @@ def fight(cls, lv, attr, equip, role, mlv, seeds=SEEDS):
 
 def survive_rounds(max_hp, m_atk, p_def):
     """期望单次伤害（variance=0 的 calc_damage 实测公式）+ 承伤回合（ceil）。"""
-    dmg = E.calc_damage(m_atk, p_def, variance=0.0)
+    dmg = calc_damage(m_atk, p_def, variance=0.0)
     return math.ceil(max_hp / max(1, dmg)), dmg
 
 

@@ -48,7 +48,7 @@ def _grant_rewards(group_id, qq_id, exp, gold):
     v174 统一抽象：走 game.reward.grant_reward（含升级结算，返回更新后 player）。
     L3-P2a：原 inst._player 刷新读无消费方，去掉 inst 参数。
     """
-    from game.reward import grant_reward
+    from ..reward import grant_reward
     grant_reward({"exp": int(exp), "gold": int(gold)}, group_id, qq_id)
 
 

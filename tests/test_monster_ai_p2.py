@@ -69,7 +69,7 @@ def test_1_all_ai_bosses_normalize():
             bad.append(f"{bid}:{e}")
         # 技能悬空检查：所有技能 key（含 ms_*）必须能在怪表/玩家表查获
         # （索引解析 = 怪表 MONSTER_SKILLS → 玩家 skill_by_key——与 _index_skills 同款）
-        from game import engine as E
+        from game.content_rules.skills import skill_by_key
         for m in (ai or {}).get("moves") or []:
             sk = (m.get("then") or {}).get("skill")
             if not sk:
@@ -77,7 +77,7 @@ def test_1_all_ai_bosses_normalize():
             if sk in (C.MONSTER_SKILLS or {}):
                 continue
             try:
-                if E.skill_by_key(sk):
+                if skill_by_key(sk):
                     continue
             except Exception:
                 pass

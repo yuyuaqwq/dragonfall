@@ -500,7 +500,7 @@ def _roll_chest_rewards(group_id: str, qq_id: str, king: dict, tier: dict,
     """
     from .. import db  # noqa: E402
     from .. import content as C  # noqa: E402
-    from game.drop_engine import roll as _drop_roll, _SimpleCtx as _DropCtx  # noqa: E402
+    from ..drop_engine import roll as _drop_roll, _SimpleCtx as _DropCtx# noqa: E402
     import uuid
     player = db.get_player(group_id, qq_id) or {}
     lv = int(king.get("lv", 30) or 30)

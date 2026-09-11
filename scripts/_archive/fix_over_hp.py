@@ -10,7 +10,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from game import engine as E
+from game.content_rules.panel import player_stats_detail
 from game.store import players as db
 
 import json
@@ -32,7 +32,7 @@ checked = 0
 for group_id in db.get_player_groups():
     for p in db.all_players(group_id):
         checked += 1
-        st, _ = E.player_stats_detail(
+        st, _ = player_stats_detail(
             p["class_name"], p["level"], _j(p.get("equipment"), {}),
             p.get("class_tier", 0), _j(p.get("attributes"), None), p.get("evolve_path", 0),
             None, p.get("race"),

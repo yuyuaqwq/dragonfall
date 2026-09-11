@@ -15,11 +15,14 @@ from ._platform import MessageChain
 
 from .. import content as C
 from .. import db
-from .. import engine as E
+from battle2.formulas import skill_buff_turns, skill_cond_mult, skill_lifesteal_pct, skill_max_level, skill_mech_val, skill_mp_pay_of, skill_power_mult
+from ..content_rules.gameplay import check_player_level_up
+from ..content_rules.panel import passive_skills_learned, player_final_stats, skill_learn_cost_for
+from ..content_rules.skills import _sk_table, branch_skill_owner, is_skill_learned, skill_info, skill_level_of
 from ..core.constants import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）——N10 前由 battle re-export 改为 core 权威单源
-from ..core.skill_kinds import K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_PASSIVE, K_TAUNT  # v176 去魔法字符串
+from battle2.support.skill_kinds import K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_PASSIVE, K_TAUNT# v176 去魔法字符串
 
-from ..core.formation import formation_view  # v2 多对多站位图文案行
+from battle2.support.formation import formation_view# v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle
 # v181 P4-1 试点：每日元数据键 + 达标结算单点已收敛至 services.quests——
 # combat 与 world 共同 import services（不再 from .world 引命令层私有函数）
@@ -746,7 +749,7 @@ class CombatCmds(CommandBase):
             db.update_player(group_id, qq_id, exp=player["exp"] + gain)
             player = self._player(group_id, qq_id)
             player["_title_bonus"] = self._title_bonus(group_id, qq_id)
-            lv_logs, _ = E.check_player_level_up(group_id, qq_id, player)
+            lv_logs, _ = check_player_level_up(group_id, qq_id, player)
             tail = ("\n" + "\n".join(lv_logs)) if lv_logs else ""
             msg = f"✨ 流星回应了你的愿望！经验 +{gain}{tail}"
         elif opt == "金币":
@@ -1140,7 +1143,7 @@ class CombatCmds(CommandBase):
         # v157 修复：技能栏含无效 ID（如 v153 重置残留的 "***" 占位符）也触发迁移——
         # 否则输入『技能 1』查不到技能、战斗只触发被动不行动 → 玩家"无限回合"（实抓）。
         bar = db.get_skill_bar(qq_id)
-        _valid_bar = [s for s in (bar or []) if s and E.skill_info(player["class_name"], s)]
+        _valid_bar = [s for s in (bar or []) if s and skill_info(player["class_name"], s)]
         if not _valid_bar:
             learned = [C.display("skills", s) for s in (player.get("learned_skills") or []) if s]
             if learned:
@@ -1203,8 +1206,8 @@ class CombatCmds(CommandBase):
         if not battle:
             # v101.25 #300：治疗类技能脱战可直接施放（回复生命），不再误导"找敌人"。
             # 战斗外治疗不要求技能栏配置（技能栏是战斗配置），但必须已学会。
-            info = E.skill_info(player["class_name"], skill_name)
-            if info and info.get("kind") == K_HEAL and E.is_skill_learned(
+            info = skill_info(player["class_name"], skill_name)
+            if info and info.get("kind") == K_HEAL and is_skill_learned(
                 player["class_name"], player["level"], skill_name, player.get("learned_skills", [])
             ):
                 # v104 R3 P1-3 修复：脱战治疗必须校验核心资源——res_cost 技能（神恩降临 faith10/
@@ -1226,26 +1229,26 @@ class CombatCmds(CommandBase):
                 # v181.M-smallfix：mp 预检改与引擎 actions._skill_pay_of 同源折算（bonus.cost
                 # 折扣后 floor+保底 1，= 引擎实际扣费值）——脱战 player 无 bonus 容器（词条
                 # 装配只在战斗 actor 上）→ 折算直通声明费（行为零变化），口径与战斗内一致。
-                _mp_need = E.skill_mp_pay_of(player, info)
+                _mp_need = skill_mp_pay_of(player, info)
                 if _mp_need > 0 and player["mp"] < _mp_need:
                     yield event.plain_result("💙 魔力不足！休息一下或使用魔力药水吧～")
                     return
                 if player.get("hp", 0) >= player.get("max_hp", 1):
                     yield event.plain_result(f"你精神饱满，不需要治疗～(当前 {player['hp']}/{player['max_hp']})")
                     return
-                st = E.player_final_stats(player["class_name"], player["level"],
+                st = player_final_stats(player["class_name"], player["level"],
                                           player.get("equipment", {}), player.get("class_tier", 0),
                                           player.get("attributes"), player.get("evolve_path", 0),
                                           self._title_bonus(group_id, qq_id), player.get("race"))
                 # 与 battle.py _skill_heal 同款结算：power<1 按 max_hp 百分比，power>=1 按魔攻×power
                 # v104 R3 P2-2：倍率按技能等级（skill_level_of）而非玩家等级——此前 Lv.30 玩家
                 # 技能 Lv.1 脱战治疗 +60%（1.60x vs 战斗内 1.00x），数值口径分裂
-                _slv = E.skill_level_of(player, skill_name)
+                _slv = skill_level_of(player, skill_name)
                 if info.get("power", 0) < 1:
-                    heal = int(player.get("max_hp", 0) * info["power"] * E.skill_power_mult(_slv, info))
+                    heal = int(player.get("max_hp", 0) * info["power"] * skill_power_mult(_slv, info))
                 else:
-                    heal = int(st["matk"] * info["power"] * E.skill_power_mult(_slv, info))
-                pv = E.passive_skills_learned(player["class_name"], player.get("learned_skills", []))
+                    heal = int(st["matk"] * info["power"] * skill_power_mult(_slv, info))
+                pv = passive_skills_learned(player["class_name"], player.get("learned_skills", []))
                 if "神恩" in pv:
                     heal = int(heal * 1.10)
                 new_hp = min(player.get("max_hp", 1), player.get("hp", 0) + heal)
@@ -1263,10 +1266,10 @@ class CombatCmds(CommandBase):
         # 查到 → 技能名取 parts[0]、剩余 token 拼接为目标传战斗层；查不到 → 用完整串（保持旧逻辑）。
         _skill_resolve_keys = {"学习", "列表", "list", "详情", "升级", "洗点", "栏"}
         if (len(parts) >= 2 and not skill_name.isdigit() and first not in _skill_resolve_keys):
-            if E.skill_info(player["class_name"], first):
+            if skill_info(player["class_name"], first):
                 skill_name = first
                 _skill_target = " ".join(parts[1:])
-        info = E.skill_info(player["class_name"], skill_name)
+        info = skill_info(player["class_name"], skill_name)
         if not info:
             # v95.25 #145：报错读 learned_skills（v52 后 skills 列不再更新），并引流『技能列表』
             learned = [C.display("skills", s) for s in (player.get("learned_skills") or [])]
@@ -1275,14 +1278,14 @@ class CombatCmds(CommandBase):
                 f"没有技能『{skill_name}』！你当前的技能：{learned_str}"
             )
             return
-        if not E.is_skill_learned(player["class_name"], player["level"], skill_name, player.get("learned_skills", [])):
+        if not is_skill_learned(player["class_name"], player["level"], skill_name, player.get("learned_skills", [])):
             need_lv = info["lv"]
             if player["level"] < need_lv:
                 yield event.plain_result(
                     f"『{skill_name}』需要 Lv.{need_lv} 才能学习，你才 Lv.{player['level']}！"
                 )
             else:
-                cost = E.skill_learn_cost_for(player, need_lv)
+                cost = skill_learn_cost_for(player, need_lv)
                 yield event.plain_result(
                     f"『{skill_name}』还没学会！『技能学习 {skill_name}』消耗 {cost} 技能点学会后再使用～"
                 )
@@ -1310,7 +1313,7 @@ class CombatCmds(CommandBase):
         # 收益修复，无白嫖：pay = 引擎实际扣费，floor+保底 1 同语义）。折算容器取战斗
         # state 我方 actor（开战装配 bonus.cost 随档落盘/恢复）；异常/找不到 → 回落
         # player dict（无容器 → 声明费直通，历史行为不变）。
-        _mp_need = E.skill_mp_pay_of(player, info)
+        _mp_need = skill_mp_pay_of(player, info)
         _mp_cur = int(player.get("mp", 0) or 0)
         try:
             _me_actor = None
@@ -1324,7 +1327,7 @@ class CombatCmds(CommandBase):
                 if _me_actor is not None:
                     break
             if _me_actor is not None:
-                _mp_need = E.skill_mp_pay_of(_me_actor, info)
+                _mp_need = skill_mp_pay_of(_me_actor, info)
                 if _me_actor.get("mp") is not None:
                     _mp_cur = int(_me_actor.get("mp") or 0)
         except Exception:
@@ -1423,7 +1426,7 @@ class CombatCmds(CommandBase):
         """技能系统面板(无参『技能』)"""
         cls = player["class_name"]
         cls_info = C.CLASSES.get(cls, {})
-        total = len(E._sk_table(cls))
+        total = len(_sk_table(cls))
         learned = player.get("learned_skills", [])
         # v101.20：已学导师专属技能计入总数（避免"已学>总数"怪相）
         _tutor = (C.TUTOR_SKILLS or {}).get(cls, {}) or {}
@@ -1552,15 +1555,15 @@ class CombatCmds(CommandBase):
         kind = info.get("kind", "")
         if info.get("power"):
             label = "治疗" if kind == K_HEAL else "伤害"
-            parts.append(f"{label} {int(info['power'] * E.skill_power_mult(lv, info) * 100)}%")
+            parts.append(f"{label} {int(info['power'] * skill_power_mult(lv, info) * 100)}%")
         if kind in (K_BUFF, K_TAUNT):
-            parts.append(f"持续 {E.skill_buff_turns(lv)} 刻")
+            parts.append(f"持续 {skill_buff_turns(lv)} 刻")
         if info.get("cond"):
-            parts.append(f"条件 ×{E.skill_cond_mult(info['cond'], lv, info):g}")
+            parts.append(f"条件 ×{skill_cond_mult(info['cond'], lv, info):g}")
         if info.get("mech_val"):
-            parts.append(f"叠层 {E.skill_mech_val(info, lv)}")
+            parts.append(f"叠层 {skill_mech_val(info, lv)}")
         if info.get("lifesteal"):
-            parts.append(f"吸血 {int(E.skill_lifesteal_pct(info, lv) * 100)}%")
+            parts.append(f"吸血 {int(skill_lifesteal_pct(info, lv) * 100)}%")
         return parts
 
     def _skill_gains_curve(self, info: dict, cur: int, mx: int) -> str:
@@ -1573,25 +1576,25 @@ class CombatCmds(CommandBase):
         if info.get("power"):
             label = "治疗" if kind == K_HEAL else "伤害"
             vals = _curve_vals(
-                lambda lv: int(info["power"] * E.skill_power_mult(lv, info) * 100), cur, mx)
+                lambda lv: int(info["power"] * skill_power_mult(lv, info) * 100), cur, mx)
             if len(vals) > 1:
                 parts.append(f"{label} {'/'.join(f'{v}%' for v in vals)}")
         if kind in (K_BUFF, K_TAUNT):
-            vals = _curve_vals(lambda lv: E.skill_buff_turns(lv), cur, mx)
+            vals = _curve_vals(lambda lv: skill_buff_turns(lv), cur, mx)
             if len(vals) > 1:
                 parts.append(f"持续 {'/'.join(f'{v}刻' for v in vals)}")
         if info.get("cond"):
             vals = _curve_vals(
-                lambda lv: round(E.skill_cond_mult(info["cond"], lv, info), 2), cur, mx)
+                lambda lv: round(skill_cond_mult(info["cond"], lv, info), 2), cur, mx)
             if len(vals) > 1:
                 parts.append(f"条件 ×{'/×'.join(_fmt_mult(v) for v in vals)}")
         if info.get("mech_val"):
-            vals = _curve_vals(lambda lv: E.skill_mech_val(info, lv), cur, mx)
+            vals = _curve_vals(lambda lv: skill_mech_val(info, lv), cur, mx)
             if len(vals) > 1:
                 parts.append(f"叠层 {'/'.join(str(v) for v in vals)}")
         if info.get("lifesteal"):
             vals = _curve_vals(
-                lambda lv: int(E.skill_lifesteal_pct(info, lv) * 100), cur, mx)
+                lambda lv: int(skill_lifesteal_pct(info, lv) * 100), cur, mx)
             if len(vals) > 1:
                 parts.append(f"吸血 {'/'.join(f'{v}%' for v in vals)}")
         return " · ".join(parts)
@@ -1607,7 +1610,7 @@ class CombatCmds(CommandBase):
         _BRANCH_DISPLAY = {"武僧": "淬势者", "大地武僧": "锻势行者"}
         branch_tags = {}
         for sname in skills:
-            owner = E.branch_skill_owner(player["class_name"], sname)
+            owner = branch_skill_owner(player["class_name"], sname)
             if owner:
                 branch_tags[sname] = _BRANCH_DISPLAY.get(owner[1], owner[1])
         page_items, pages, page = self._page_items(skill_items, page, per_page=5)
@@ -1616,17 +1619,17 @@ class CombatCmds(CommandBase):
         for i, (sname, info) in enumerate(page_items, (page - 1) * 5 + 1):
             # v49：key 是技能 ID（sk_xxx），显示用中文名
             disp_name = info.get("name", sname) if isinstance(info, dict) else sname
-            learned_now = E.is_skill_learned(player["class_name"], player["level"], sname, learned)
+            learned_now = is_skill_learned(player["class_name"], player["level"], sname, learned)
             if learned_now:
-                slv = E.skill_level_of(player, sname)  # #259：兼容 skill_levels key 为中文名（store 读库转换）
-                lv_str = f"Lv.{slv}/{E.skill_max_level(info)}"  # v56.4：每技能独立满级
+                slv = skill_level_of(player, sname)  # #259：兼容 skill_levels key 为中文名（store 读库转换）
+                lv_str = f"Lv.{slv}/{skill_max_level(info)}"  # v56.4：每技能独立满级
             else:
                 slv = 0  # v56.3：未学显示 0 级
                 need_lv = info.get("lv", 99)
                 if player["level"] >= need_lv:
                     # v95.7 #36：已达解锁等级 → 显示"可学(X技能点)"而非静态"未学(Lv.X解锁)"
                     # v95.7 修复：cost 用 skill_learn_cost_for（含种族折扣），与『技能学习』实际扣点一致
-                    cost = E.skill_learn_cost_for(player, need_lv)
+                    cost = skill_learn_cost_for(player, need_lv)
                     lv_str = f"可学({cost}技能点)"
                 else:
                     lv_str = f"未学(Lv.{need_lv}解锁)"  # v95.4：标注解锁等级
@@ -2020,7 +2023,7 @@ class CombatCmds(CommandBase):
         # 挂敌身条（破绽/诅咒等）：effects[BAR_STATE_PREFIX+key] → 显示当刻积蓄/阈值
         # （结算到当前刻再读；阈值随触发递增，玩家据此决策「继续推还是换目标」）
         try:
-            from ..core.battle_bars import bar_settle, bar_def, _state_prefix
+            from battle2.support.battle_bars import bar_settle, bar_def, _state_prefix
             _pfx = _state_prefix()
             _now_b = float(getattr(b, "_now", 0.0) or 0.0)
             for _k, _v in list(_eb_disp.items()):
@@ -2131,7 +2134,7 @@ class CombatCmds(CommandBase):
 
         v127.3 目标编号：敌方 a1/a2…（A{n}层），我方 b1（B{n}层）——『技能1 a2』指定目标。
         """
-        from ..core.formation import alive_units
+        from battle2.support.formation import alive_units
         allies = [self._player_unit_for_formation(player)]
         ally_rows = formation_view(alive_units(allies), side="ally")
         _enemies = (getattr(b, "sides", None) or {}).get("enemy") or []
@@ -2648,7 +2651,7 @@ class CombatCmds(CommandBase):
         """玩家快照(PVP 战斗状态用)
         v109.2 P0 修复：补全战斗结算属性（此前缺 atk/def/mdef/tenacity 等 → PVP 中防御/韧性全失效，
         玩家攻击打敌方 0 防御、暴击不受敌方韧性削减——审计 P1-7 快照不消费根源）。"""
-        st = E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}), p.get("class_tier", 0), p.get("attributes"), p.get("evolve_path", 0), self._title_bonus(group_id, qq_id), p.get("race"))
+        st = player_final_stats(p["class_name"], p["level"], p.get("equipment", {}), p.get("class_tier", 0), p.get("attributes"), p.get("evolve_path", 0), self._title_bonus(group_id, qq_id), p.get("race"))
         cls_info = C.CLASSES.get(p["class_name"], {}) or {}
         return {
             "qq_id": str(p["qq_id"]), "name": p["name"],
@@ -2845,7 +2848,7 @@ class CombatCmds(CommandBase):
         #    外部增幅用防守方自己的）
         _def_p = dict(target_player)
         try:
-            _dst = E.player_final_stats(
+            _dst = player_final_stats(
                 _def_p.get("class_name", "战士"), int(_def_p.get("level", 1) or 1),
                 _def_p.get("equipment") or {}, int(_def_p.get("class_tier", 0) or 0),
                 _def_p.get("attributes"), int(_def_p.get("evolve_path", 0) or 0),
@@ -2942,18 +2945,18 @@ class CombatCmds(CommandBase):
         from ..services.battle2_bridge import sync_player_from_actor
         sync_player_from_actor(player, my_actor)
         if action == "skill":
-            info = E.skill_info(player["class_name"], skill_name)
+            info = skill_info(player["class_name"], skill_name)
             if not info:
                 yield event.plain_result(f"没有技能『{skill_name}』！")
                 return
-            if not E.is_skill_learned(player["class_name"], player["level"], skill_name, player.get("learned_skills", [])):
+            if not is_skill_learned(player["class_name"], player["level"], skill_name, player.get("learned_skills", [])):
                 yield event.plain_result(f"该技能需要 Lv.{info['lv']} 才能使用，你才 Lv.{player['level']}")
                 return
             # v181.M-smallfix：PVP mp 预检与引擎 actions._skill_pay_of 同源折算——my_actor
             # 为 restore 后战斗 actor（bonus.cost 词条装配随档在），pay = 引擎实际扣费值
             # （floor+保底 1）→ 折扣词条下 mp ∈ [pay, 声明费) 边界放行（不再被声明费先拦）。
             if info.get("mp", 0) or 0:
-                _pvp_mp_need = E.skill_mp_pay_of(my_actor or player, info)
+                _pvp_mp_need = skill_mp_pay_of(my_actor or player, info)
                 if _pvp_mp_need > 0 and int(my_actor.get("mp") or 0) < _pvp_mp_need:
                     yield event.plain_result("💙 魔力不足！")
                     return
@@ -2968,7 +2971,7 @@ class CombatCmds(CommandBase):
         # 会让 heal 奶对手 / buff 挂敌人）
         _tgt = opp_actor if (opp_actor.get("hp") or 0) > 0 else None
         if action == "skill":
-            _info = E.skill_info(player["class_name"], skill_name) or {}
+            _info = skill_info(player["class_name"], skill_name) or {}
             if _info.get("kind") in (K_HEAL, K_BUFF):
                 _tgt = None
         logs, ended, _who = b.human_act(action, skill_name, actor=my_actor, target=_tgt)

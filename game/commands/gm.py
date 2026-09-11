@@ -467,7 +467,7 @@ class GmCmds(CommandBase):
             return
         p = db.get_player("", tgt)
         try:
-            from ..engine import player_final_stats
+            from ..content_rules.panel import player_final_stats
             st = player_final_stats(
                 p["class_name"], n, p.get("equipment", {}), p.get("class_tier", 0),
                 p.get("attributes"), p.get("evolve_path", 0), self._title_bonus("", tgt),

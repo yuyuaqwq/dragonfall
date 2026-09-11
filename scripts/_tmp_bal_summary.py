@@ -4,14 +4,15 @@
 import sys, os
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from game import engine as E
+from battle2.formulas import calc_damage
+from game.content_rules.panel import player_final_stats
 from game.core import stats as S
 
 def player_stats(lv, cls, boost=1.0):
     eq = {s: {"stats": S.equip_stats(s, lv, "blue")} for s in
           ("weapon", "armor", "ring", "helm", "legs", "necklace", "boots")}
     attrs = {"str": 2*(lv-1), "vit": 1*(lv-1), "int": 0, "agi": 0}
-    st = E.player_final_stats(cls, lv, eq, tier=1, attributes=attrs,
+    st = player_final_stats(cls, lv, eq, tier=1, attributes=attrs,
                               evolve_path=0, title_bonus={}, race="human")
     st["atk"] = int(st["atk"]*boost); st["matk"] = int(st["matk"]*boost)
     return st
@@ -39,7 +40,7 @@ def math_dot(atk, matk, max_hp, n, base_res, adapt, k, hp_ratio=1.0,
 def run_total(lv, mode, cls, k, sv=2, cont=2, pause=2, turns=30):
     st = player_stats(lv, cls)
     m = mon(lv, "boss"); max_hp = m["hp"]; base_res = m.get("dot_res",0.9)
-    straight = E.calc_damage(st["atk"], m["def"], False, 0.0)
+    straight = calc_damage(st["atk"], m["def"], False, 0.0)
     n = adapt = 0.0; last_round = -99
     dot_tot = straight_tot = 0; hp = max_hp; s_cnt = p_cnt = 0
     for r in range(1, turns+1):
@@ -129,7 +130,7 @@ print("场景 D: 重伤 vs 吸血站撸 (Boss 承伤 vs 玩家普攻吸血)")
 for lv in LV:
     st = player_stats(lv, CLASS["poison"]); m = mon(lv,"boss")
     b_hit = m["atk"]*m["atk"]/(m["atk"]+max(1,st["def"]))
-    sta = E.calc_damage(st["atk"], m["def"], False, 0.0)
+    sta = calc_damage(st["atk"], m["def"], False, 0.0)
     ls30, ls15 = sta*0.30, sta*0.15
     net30, net15 = b_hit-ls30, b_hit-ls15
     s30 = st["max_hp"]/max(1,net30); s15 = st["max_hp"]/max(1,net15)

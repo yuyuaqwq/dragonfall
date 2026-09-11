@@ -2,7 +2,7 @@
 """v49 玩家意见批处理测试（#4 移动撞怪 / #5 世界Boss地点 / #6 副本仇恨 / #7 职业定位 / #8 帮助拆分）"""
 import sys, os, random, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, E, db, clean_db, Main, FakeEvent, run
+from conftest import C, db, clean_db, Main, FakeEvent, run
 
 passed = failed = 0
 def check(name, cond, detail=""):

@@ -5,7 +5,7 @@ sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall")
 random.seed(42)
 
 from game import content as C
-from game import engine as E
+from game.content_rules.panel import player_final_stats
 from game.core.stats import monster_stats
 from game.battle import Battle
 
@@ -30,7 +30,7 @@ def run_battle(player, enemy, rounds=500):
     for _ in range(rounds):
         b = Battle("monster", dict(enemy))
         p = dict(player)
-        st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
+        st = player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
         p["max_hp"] = st["max_hp"]; p["max_mp"] = st["max_mp"]; p["hp"] = st["max_hp"]; p["mp"] = st["max_mp"]
         while True:
             if p["mp"] >= 6 and p.get("learned_skills"):
@@ -58,6 +58,6 @@ for name, plv, attrs, mlv, role in scenarios:
     p = make_player(plv, attrs)
     en = make_enemy(mlv, role)
     wr, dt = run_battle(p, en)
-    st = E.player_final_stats(p["class_name"], plv, {}, 0, attrs)
+    st = player_final_stats(p["class_name"], plv, {}, 0, attrs)
     flag = "😴轻松" if wr == 1 and dt < st["max_hp"] * 0.4 else ("⚠️有压力" if wr == 1 else "❌打不过")
     print(f"  {name}: 胜率{wr*100:.0f}% 掉血{round(dt,0)}/{st['max_hp']} ({dt/st['max_hp']*100:.0f}%) {flag}")

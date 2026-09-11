@@ -27,7 +27,7 @@ from ._platform import AstrMessageEvent, filter
 
 from .. import content as C
 from .. import db
-from .. import engine as E
+
 from ..commands.base import CommandBase, require_player
 
 # L3-P2a：周状态族 + 击杀推进下沉 services/weekly_progress.py（订阅方纯 services 消费）；

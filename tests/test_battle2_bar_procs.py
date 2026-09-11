@@ -30,7 +30,7 @@ from battle2.actors import ActCtx  # noqa: E402
 from battle2.effect_triggers import fire  # noqa: E402
 from game.services import class_mech_proc as CMP  # noqa: E402
 from game.data import skills as _SK  # noqa: E402
-from game.core.battle_bars import bar_effect_key, bar_gain as _bg  # noqa: E402
+from battle2.support.battle_bars import bar_effect_key, bar_gain as _bg# noqa: E402
 
 PASS = 0
 FAIL = 0

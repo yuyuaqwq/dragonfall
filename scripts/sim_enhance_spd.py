@@ -5,7 +5,7 @@ sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall")
 random.seed(42)
 
 from game import content as C
-from game import engine as E
+from game.content_rules.panel import player_final_stats
 from game.core.stats import monster_stats, equip_stats
 from game.battle import Battle
 
@@ -38,7 +38,7 @@ def run_battle(player, rounds=400, elite_mult=1.0):
     for _ in range(rounds):
         b = Battle("monster", make_enemy(4, elite_mult))
         p = dict(player)
-        st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
+        st = player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
         p["max_hp"] = st["max_hp"]; p["max_mp"] = st["max_mp"]; p["hp"] = st["max_hp"]; p["mp"] = st["max_mp"]
         while True:
             if p["mp"] >= 6:
@@ -58,7 +58,7 @@ print("【一】装备强化对玩家属性的影响（str12 全力量）")
 print("="*90)
 for enh in (0, 3, 5, 7, 9):
     p = make_player({"str": 12, "agi": 0, "int": 0, "vit": 0}, equip_set(2, "white", enh))
-    st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
+    st = player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
     print(f"  白装强化+{enh}: {fmt(st)}")
 print()
 
@@ -67,7 +67,7 @@ print("【二】不同强化 vs 4级精英（现 221血/30攻）")
 print("="*90)
 for enh in (0, 3, 5):
     p = make_player({"str": 12, "agi": 0, "int": 0, "vit": 0}, equip_set(2, "white", enh))
-    st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
+    st = player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
     wr, rnd, dt = run_battle(p)
     print(f"  强化+{enh}: {fmt(st)} → 胜率{wr*100:.0f}% 平均{round(rnd,1)}回合 掉血{round(dt,0)}/{st['max_hp']} ({dt/st['max_hp']*100:.0f}%)")
 print()
@@ -78,7 +78,7 @@ print("="*90)
 for mult in (1.0, 1.3, 1.6, 2.0):
     # 裸奔 str12
     p = make_player({"str": 12, "agi": 0, "int": 0, "vit": 0}, {})
-    st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
+    st = player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
     wr, rnd, dt = run_battle(p, elite_mult=mult)
     en = make_enemy(4, mult)
     print(f"  精英血量×{mult} ({en['hp']}血/{en['atk']}攻): 裸奔 → 胜率{wr*100:.0f}% 掉血{round(dt,0)}/{st['max_hp']} ({dt/st['max_hp']*100:.0f}%)")

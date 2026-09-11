@@ -30,7 +30,7 @@ def _c():
 
 def _grant_items(group_id, qq_id, items, lines, db):
     """物品/材料/装备入包。items: [{item, n}]。返回 (成功, 失败计数)。"""
-    from game.store.inventory import _key_to_id  # noqa: E402
+    from .store.inventory import _key_to_id# noqa: E402
     fail = 0
     for it in items or []:
         try:
@@ -131,7 +131,7 @@ def grant_items_batch(group_id, qq_id, items_dict, lines=None) -> tuple:
     lines: 可选文案列表（追加物品行）
     返回 (lines, 是否全部成功)。物品缺失静默跳过不阻塞。
     """
-    from game import db  # noqa: E402
+    from .import db# noqa: E402
     if lines is None:
         lines = []
     items = [{"item": k, "n": v} for k, v in (items_dict or {}).items()]
@@ -148,12 +148,12 @@ def grant_reward(reward: dict, group_id, qq_id, *, player=None, lines=None) -> l
     返回文案行列表（含升级结算日志）。
 
     用法：
-        from game.core.reward import grant_reward
+        from .core.reward import grant_reward
         lines = grant_reward({"exp": 100, "gold": 50, "items": [...]}, gid, qid)
     """
-    from game import db  # noqa: E402
-    from game.engine import check_player_level_up  # noqa: E402
-    from game.core.stat_bonus import stat_bonus  # noqa: E402
+    from .import db# noqa: E402
+    from .content_rules.gameplay import check_player_level_up# noqa: E402
+    from .core.stat_bonus import stat_bonus# noqa: E402
     if lines is None:
         lines = []
     if not reward:

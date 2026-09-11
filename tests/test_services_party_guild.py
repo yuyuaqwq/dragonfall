@@ -46,9 +46,9 @@ def check(name, cond, detail=""):
 def _mk_player(gid, qid, name, level=30, gold=10000):
     from data.plugins.dragonfall.game import db as _db
     from data.plugins.dragonfall.game import content as _C
-    from data.plugins.dragonfall.game import engine as _E
+    from game.content_rules.panel import player_stats_detail
     cls = _C.CLASSES[_C.resolve("classes", "战士")]
-    st0, _ = _E.player_stats_detail("warrior", 1, {}, 0, None, 0, None, "human")
+    st0, _ = player_stats_detail("warrior", 1, {}, 0, None, 0, None, "human")
     _db.create_player(gid, qid, name, "warrior", cls["base"], st0["max_hp"], st0["max_mp"], "human", "male")
     _db.update_player(gid, qid, level=level, gold=gold, cur_map="oak_town")
     _db.init_stats(gid, qid)

@@ -23,7 +23,7 @@ import time
 
 from .. import content as C
 from .. import db
-from .. import engine as E
+from ..content_rules.skills import skill_info
 from .base import CommandBase
 from . import instance_battle as IB
 
@@ -136,7 +136,7 @@ class InstanceRouterCmds(CommandBase):
         参数/协议对齐旧 _instance_act（CombatCmds 接线点 R2 改调本方法）。
         返回 async generator：yield event.plain_result(...) 文本。
         """
-        from ..core.skill_kinds import K_HEAL, K_BUFF
+        from battle2.support.skill_kinds import K_HEAL, K_BUFF
         # 嘲讽强制剩余帧递减（每玩家行动帧；到 0 清强制回正常仇恨）
         _tl = int(st.get("taunt_left", 0) or 0)
         if _tl > 0:
@@ -231,7 +231,7 @@ class InstanceRouterCmds(CommandBase):
         _tgt = target
         if action == "skill" and skill_name:
             try:
-                _info = E.skill_info(player.get("class_name") or "", skill_name) or {}
+                _info = skill_info(player.get("class_name") or "", skill_name) or {}
             except Exception:
                 _info = {}
             if _info.get("kind") in (K_HEAL, K_BUFF):

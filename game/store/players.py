@@ -223,7 +223,7 @@ def get_player(group_id, qq_id):
             try:
                 _lv0 = p.get("level", 1)
                 if p.get("exp", 0) >= C.exp_to_next(_lv0):
-                    from ..engine import check_player_level_up  # 延迟导入避免初始化顺序问题
+                    from ..content_rules.gameplay import check_player_level_up# 延迟导入避免初始化顺序问题
                     # v105 P1(M01#11)：惰性升级前注入称号加成——升级重算 max_hp/max_mp 缺
                     # 称号加成会写低上限（存档 861 vs 面板 891，回血回不满永久复发）。
                     # 全 store 共用 connection._lock（已改 RLock），此处可安全调用 store 函数。
@@ -250,7 +250,7 @@ def get_player(group_id, qq_id):
             #   清空 learned_skills/skill_levels，skill_spent 返还 skill_points，标记防重复。
             try:
                 if not p.get("_v151_skill_reset"):
-                    from ..engine import skill_info
+                    from ..content_rules.skills import skill_info
                     _cls = p.get("class_name") or ""
                     _stale = [s for s in (p.get("learned_skills") or []) if s and not skill_info(_cls, s)]
                     if _stale:

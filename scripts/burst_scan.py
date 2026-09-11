@@ -18,7 +18,7 @@
 import sys, argparse, random, json
 
 sys.path.insert(0, 'C:/Users/yuyu/qqbot/data/plugins')
-from dragonfall.game.engine import player_final_stats
+from game.content_rules.panel import player_final_stats
 from dragonfall.game.core.drops import build_monster
 from dragonfall.game.battle import Battle
 from dragonfall.game.data import skills as SK_DATA

@@ -17,7 +17,7 @@
 import sys, random, statistics
 sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall")
 
-from game import engine as E
+from game.content_rules.panel import player_final_stats
 from game.core.stats import monster_stats
 from game import battle as BT
 from game.battle import Battle
@@ -54,7 +54,7 @@ def run_one_battle(p, enemy, use_skill=True, p_spd=None, e_spd=None):
         for u in b.enemies:
             u["spd"] = float(e_spd); u["ct"] = -float(e_spd)
     pp = dict(p)
-    st = E.player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
+    st = player_final_stats(p["class_name"], p["level"], p["equipment"], 0, p["attributes"])
     pp["max_hp"] = st["max_hp"]; pp["max_mp"] = st["max_mp"]
     pp["hp"] = st["max_hp"]; pp["mp"] = st["max_mp"]
     if p_spd is not None:
@@ -104,7 +104,7 @@ def _build_duel(p_spd, e_spd, p_hp=10_000_000, e_hp=10_000_000,
                 p_atk=40, e_atk=5):
     """构造高血量对局用于频次统计。返回 (battle, pp)。"""
     pp = make_player("cls_zhan_shi", 60, {"str": 100, "agi": 0, "int": 0, "vit": 40}, {}, ["sk_meng_ji"])
-    s = E.player_final_stats("cls_zhan_shi", 60, {}, 0, {"str": 100, "agi": 0, "int": 0, "vit": 40})
+    s = player_final_stats("cls_zhan_shi", 60, {}, 0, {"str": 100, "agi": 0, "int": 0, "vit": 40})
     pp["max_hp"] = s["max_hp"]; pp["max_mp"] = s["max_mp"]; pp["hp"] = p_hp; pp["mp"] = s["max_mp"]
     en = {"name": "e", "role": "dps", "hp": e_hp, "max_hp": e_hp,
           "atk": e_atk, "def": 30, "matk": 5, "mdef": 30, "spd": e_spd, "skills": []}
@@ -160,7 +160,7 @@ def action_freq_buff(p_spd, e_spd, player_actions=100, buff_spd=None, debuff_spd
     agi = max(0, int((p_spd - 27) / 0.8))  # 战士60级基础 spd≈27，agi→0.8/点
     attrs = {"str": 80, "agi": agi, "int": 0, "vit": 30}
     pp = make_player("cls_zhan_shi", 60, attrs, {}, ["sk_meng_ji"])
-    s = E.player_final_stats("cls_zhan_shi", 60, {}, 0, attrs)
+    s = player_final_stats("cls_zhan_shi", 60, {}, 0, attrs)
     pp["max_hp"] = s["max_hp"]; pp["max_mp"] = s["max_mp"]
     pp["hp"] = 10_000_000; pp["mp"] = s["max_mp"]
     en = {"name": "e", "role": "dps", "hp": 10_000_000, "max_hp": 10_000_000,
@@ -306,7 +306,7 @@ for lv in (30, 60):
             en = make_enemy(_ms(lv, role), role=role, skills=[])
             # 依职业技能表给怪配基础技能（简化：dps 用普攻即可，避免怪技能依赖）
             r = simulate(p, en, rounds=200, use_skill=True)
-            st = E.player_final_stats(cls, lv, {}, 0, CLASS_ATTRS[cls])
+            st = player_final_stats(cls, lv, {}, 0, CLASS_ATTRS[cls])
             mst = _ms(lv, role)
             print(f"    {CLASS_CN[cls]:>2} vs {role:<7} | 玩家{st['max_hp']}血/{st['atk']}攻/{st['matk']}魔/"
                   f"{st['spd']}速 vs 怪{mst['hp']}血/{mst['atk']}攻/spd{mst['spd']}"
@@ -327,7 +327,7 @@ cases = [
 for name, attrs in cases:
     p = make_player(war, 60, attrs, {}, ["sk_meng_ji"])
     r = simulate(p, base_enemy, rounds=200, use_skill=True)
-    st = E.player_final_stats(war, 60, {}, 0, attrs)
+    st = player_final_stats(war, 60, {}, 0, attrs)
     print(f"  {name:<16} | 面板 spd={st['spd']} atk={st['atk']} | 胜率{r['win_rate']*100:.0f}% "
           f"平均{r['avg_round']:.1f}回合 胜局掉血{r['avg_dmg']:.0f}")
 

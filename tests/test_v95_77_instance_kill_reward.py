@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # 已改 setdefault 尊重此预置
 os.environ["GWEN_GAME_DB"] = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                           "test_game_data_v95_77.db")
-from conftest import C, E, db, clean_db, Main, FakeEvent, run
+from conftest import C, db, clean_db, Main, FakeEvent, run
 
 def _fake_spend(self, gid, qid, cost, player, action="行动"):
     return True, self._stamina(player)

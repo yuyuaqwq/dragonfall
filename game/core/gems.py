@@ -21,7 +21,7 @@ def _tier_label(tier: int) -> str:
 
 def _stat_label(stat: str) -> str:
     """属性 ID → 中文名（沿用 engine.STAT_NAMES 语义，延迟 import 防环）"""
-    from ..engine import STAT_NAMES
+    from ..content_rules.panel import STAT_NAMES
     return STAT_NAMES.get(stat, stat)
 
 

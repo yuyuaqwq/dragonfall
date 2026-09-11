@@ -40,7 +40,8 @@ for _p in (_QQBOT_DIR, _PLUGIN_DIR, _TESTS_DIR, _SCRIPTS_DIR):
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(_TESTS_DIR, "test_game_data.db"))
 
 from data.plugins.dragonfall.game import content as C  # noqa: E402
-from data.plugins.dragonfall.game import engine as E  # noqa: E402
+from game.content_rules.panel import player_final_stats
+from game.content_rules.skills import skill_info
 from data.plugins.dragonfall.game import battle as BT  # noqa: E402
 try:  # noqa: E402
     from .gear import gear_loadout  # noqa: E402
@@ -155,13 +156,13 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
                           cfg.get("set_bonus", False), affix_type=affix_type)
     else:
         equip = gear_loadout(int(lv), loadout)
-    st = E.player_final_stats(cls_id, int(lv), equip, tier, dict(attr or {}), evolve_path=path)
+    st = player_final_stats(cls_id, int(lv), equip, tier, dict(attr or {}), evolve_path=path)
     # v175e 被动补齐：真实玩家会把该等级可学的被动都学了（被动 stat/proc 才生效）。
     # rotation 只是主动施放循环；learned_skills = rotation 主动技 + 该职业 level≤lv 被动。
     # （施放循环仍只用 rotation——被动不施放，只挂在 learned_skills 供 _passive_map 消费）
     _passives = []
     try:
-        _all = E.skill_info  # noqa
+        _all = skill_info  # noqa
         # 收集该职业所有技能（基础 + 分支）kind=被动 且 lv≤玩家等级
         for _sid, _sk in SK_ALL_PASSIVES_BY_CLASS.get(cls_id, {}).items():
             _nm = _sk.get("name", "")
@@ -176,7 +177,7 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
     # （此前直接放行高等级技能 → 25 级玩家拿 95 级大招打本，矩阵 P1 阶段失真）
     _filtered = []
     for _sn in learned_skills:
-        _info = E.skill_info(cls_id, _sn) or {}
+        _info = skill_info(cls_id, _sn) or {}
         _need = int(_info.get("lv", 0) or 0)
         if _need <= int(lv):
             _filtered.append(_sn)
@@ -201,7 +202,7 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
     # 导致 CD 终结技永远轮不到（30 轮只放刺击）——真实玩家是 CD 技好了就用、填充技垫档。
     skill_cd = {}
     for skill_name in rotation:
-        info = E.skill_info(cls_id, skill_name)
+        info = skill_info(cls_id, skill_name)
         skill_cd[skill_name] = float((info or {}).get("cd", 0) or 0)
     # v175e：只施放玩家等级已学会的技能（learned_skills 已过滤 lv≤玩家等级）
     castable = [s for s in rotation if s in learned_skills]
@@ -236,7 +237,9 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
                 cur = float((b._p_res() or {}).get(_res, 0) or 0)
                 return cur >= need
         if cond == "resource_full":
-            rd = E.core_resource_def(cls_id) or {}
+            # v181.M-R2b：按职业主资源的 core_resource_def 已退役 → 资源信息不可得
+            # → 走下方既有兜底「不拦（防卡循环）」（rd 空 → mx<=0 → return True）。
+            rd = {}
             rk = rd.get("key", "")
             cur = float((b._p_res() or {}).get(rk, 0) or 0)
             mx = float((b._p_res() or {}).get(f"{rk}_max", rd.get("max", 0)) or 0)
@@ -244,7 +247,7 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
                 return True  # 资源信息不可得 → 不拦（防卡循环）
             return cur >= mx
         if cond == "resource_low":
-            rd = E.core_resource_def(cls_id) or {}
+            rd = {}   # 同上：core_resource_def 已退役，资源信息不可得 → 走兜底分支
             rk = rd.get("key", "")
             cur = float((b._p_res() or {}).get(rk, 0) or 0)
             mx = float((b._p_res() or {}).get(f"{rk}_max", rd.get("max", 0)) or 0)
@@ -257,7 +260,7 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
     # AI 模拟也要等层数够再放，否则大招全在低层白放（奥术流 DPS 假性崩盘）。
     def _cond_wait_skill(b, skill_name: str) -> bool:
         """技能有 player_mech_stacks 条件但当前不满足 → True（等层，不现在放）。"""
-        info = E.skill_info(cls_id, skill_name)
+        info = skill_info(cls_id, skill_name)
         cond = (info or {}).get("cond")
         if not cond or cond.get("type") != "player_mech_stacks":
             return False

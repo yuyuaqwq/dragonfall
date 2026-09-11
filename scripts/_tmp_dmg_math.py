@@ -20,7 +20,8 @@ import random
 
 sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall")
 
-from game import engine as E
+from battle2.formulas import calc_damage
+from game.content_rules.panel import player_final_stats
 from game.core.drops import build_monster
 
 try:
@@ -37,14 +38,14 @@ MON_PENE = 0.05
 
 # ---------------- 真实引擎蒙特卡洛：单发伤害期望（含波动/暴击/穿透） ----------------
 def mc_expect(atk, def_, crit_rate=0.0, pene_pct=0.0, n=150000, seed=7):
-    """用真实 E.calc_damage 求【含暴击+波动的单发期望】。calc_damage 内部消费模块级 random，
+    """用真实 calc_damage 求【含暴击+波动的单发期望】。calc_damage 内部消费模块级 random，
     先固化模块种子保证可复现；暴击判定用独立 rng 防耦合。"""
     random.seed(seed)
     rng = random.Random(seed + 1)
     tot = 0
     for _ in range(n):
         crit = rng.random() < crit_rate
-        tot += E.calc_damage(atk, def_, is_crit=crit, pene_pct=pene_pct)
+        tot += calc_damage(atk, def_, is_crit=crit, pene_pct=pene_pct)
     return tot / n
 
 
@@ -78,7 +79,7 @@ LVS = [11, 13, 16]
 # ==================== 玩家面板（裸装 11 级） ====================
 players = {}
 for p in PROFILES:
-    st = E.player_final_stats(p["cls"], 11, {})
+    st = player_final_stats(p["cls"], 11, {})
     players[p["name"]] = st
 
 # ==================== ① 玩家 → 怪物 ====================
@@ -125,14 +126,14 @@ for p in PROFILES:
         sec2.append((pn, lv, matk, pdef, ex0, ex1, php, s0, s1))
 
 # ==================== ③ atk/def 比值表（纯公式，variance=0） ====================
-print("\n## ③ 公式性质：atk/def 比值 → 伤害与等效缩减率（def=100 基准，E.calc_damage variance=0 精确值）\n")
+print("\n## ③ 公式性质：atk/def 比值 → 伤害与等效缩减率（def=100 基准，calc_damage variance=0 精确值）\n")
 print("| r=atk/def | atk | def | dmg=atk²/(atk+def) | dmg/atk | 等效缩减率 def/(atk+def) | 一阶近似 atk−def+def²/atk | 线性公式 atk−def 对照 |")
 print("|----------:|----:|----:|-------------------:|--------:|------------------------:|------------------------:|--------------------:|")
 
 ratios = [0.5, 1, 2, 3, 4, 6, 10]
 for r in ratios:
     atk, df = int(r * 100), 100
-    dmg = E.calc_damage(atk, df, variance=0.0)
+    dmg = calc_damage(atk, df, variance=0.0)
     red = 1 - dmg / atk
     approx = atk - df + df * df / atk
     lin = max(0, atk - df)

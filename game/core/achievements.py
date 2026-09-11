@@ -230,7 +230,7 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
     """
     from .. import content as C
     from .. import db
-    from ..engine import check_player_level_up
+    from ..content_rules.gameplay import check_player_level_up
     from .stat_bonus import stat_bonus
     try:
         rows = db.get_achievements(group_id, qq_id) or []
@@ -274,7 +274,7 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
                 _all_items[ik] = int(_all_items.get(ik, 0)) + int(ic)
         if _all_items:
             try:
-                from game.reward import grant_items_batch
+                from ..reward import grant_items_batch
                 item_lines, _reward_ok = grant_items_batch(group_id, qq_id, _all_items, lines=item_lines)
             except Exception:
                 _reward_ok = False

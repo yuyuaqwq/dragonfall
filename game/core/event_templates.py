@@ -75,10 +75,6 @@ class EventContext:
         from .. import content as C
         return C
 
-    def _E(self):
-        from .. import engine as E
-        return E
-
     def param(self, key, default=None):
         return self.params.get(key, default)
 
@@ -159,7 +155,7 @@ def tpl_loot_gold_mats(ctx):
     import uuid
     db = ctx._db()
     C = ctx._C()
-    E = ctx._E()
+    from ..content_rules.panel import race_stats# 惰性：core → content_rules 有环
     gold = random.randint(ctx.param("min", 50), ctx.param("max", 120)) + ctx.lv * ctx.param("scale_lv", 5)
     gold = int(gold * (ctx.loot_mult or 1.0))  # v115 今日奇遇 loot_mult 倍率
     # v110 P0-1：与 tpl_loot_gold 同型修复——读 DB 最新 gold 再累加，防陈旧 dict 覆盖吞金币
@@ -180,7 +176,7 @@ def tpl_loot_gold_mats(ctx):
     bp_chance = ctx.param("blueprint_chance", 0)
     # v94 图纸经济：宝箱为图纸主要来源；阶段九：精灵森林之友——探索获得物品概率 +10%
     if ctx.param("explore_item_bonus", False):
-        bp_chance = bp_chance + (0.10 if E.race_stats(ctx._focus.get("race")).get("explore_item") else 0)
+        bp_chance = bp_chance + (0.10 if race_stats(ctx._focus.get("race")).get("explore_item") else 0)
     if bp_chance and random.random() < bp_chance:
         bp = C.roll_blueprint(max(1, ctx.lv))
         _learned, _bpn, _pages = _add_bp_or_pages(ctx, db, bp)
@@ -201,7 +197,7 @@ def tpl_exp_gain(ctx):
     """经验 + 升级检查（沿用原 omen 逻辑）。params: min/max/scale_lv/header"""
     db = ctx._db()
     C = ctx._C()
-    E = ctx._E()
+    from ..content_rules.gameplay import check_player_level_up# 惰性：core → content_rules 有环
     exp_gain = ctx.param("min", 15) + ctx.lv * ctx.param("scale_lv", 3)
     # v110 审计修复：从 DB 读最新 exp 再累加（防 ctx._focus 陈旧 dict 覆盖吞经验——
     # 与 v109.3 loot_gold 同型），并回写 ctx._focus 引用（#262：战斗结算进度条
@@ -212,7 +208,7 @@ def tpl_exp_gain(ctx):
     player = db.get_player(ctx.group_id, ctx.qq_id)
     player["_title_bonus"] = ctx.hooks.get("title_bonus", lambda q: None)(ctx.qq_id)
     lines = [ctx.param("header", "✨ 经验 +{exp}").replace("{name}", ctx.name).replace("{exp}", str(exp_gain))]
-    lv_logs, player = E.check_player_level_up(ctx.group_id, ctx.qq_id, player)
+    lv_logs, player = check_player_level_up(ctx.group_id, ctx.qq_id, player)
     if lv_logs:
         lines += [""] + lv_logs
         db.update_player(ctx.group_id, ctx.qq_id, level=player["level"], exp=player["exp"],

@@ -40,8 +40,8 @@ async def main():
         ls = v["learn_skill"]
         info = None
         for cid in C.CLASSES:
-            from game import engine as E
-            info = E.skill_info(cid, ls)
+
+            info = skill_info(cid, ls)
             if info:
                 break
         check(f"{v['name']} learn_skill={ls} 可解析", info is not None, ls)
@@ -91,10 +91,10 @@ async def main():
     check("重复学习拦截", "早已掌握" in txt, txt[:120])
 
     print("【5. 战斗可用性】")
-    from game import engine as E
+    from game.content_rules.skills import skill_info
     from game import battle as BT
     p = db.get_player("g1", "w1")
-    info = E.skill_info(p["class_name"], "龙息之怒")
+    info = skill_info(p["class_name"], "龙息之怒")
     check("龙息之怒在战士技能表", info is not None and info.get("kind") == "真伤", str(info))
     b = BT.Battle("怪物", {"name": "T", "hp": 5000, "max_hp": 5000, "atk": 10, "def": 500, "spd": 5}, {}, p)
     hp0 = b.enemy["hp"]

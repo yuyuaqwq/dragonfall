@@ -156,7 +156,7 @@ def _resolve_item_ref(ref: str, ctx: Any) -> dict | None:
 def _resolve_pool(pool_key: str, pools: dict | None = None) -> dict | None:
     """解析池 key（含内联引用 'weighted:xxx' / 'fixed:xxx' 需在 DROP_POOLS 查）。"""
     if pools is None:
-        from game.data.drop_pools import DROP_POOLS  # noqa: E402
+        from .data.drop_pools import DROP_POOLS# noqa: E402
         pools = DROP_POOLS
     return pools.get(pool_key)
 
@@ -433,7 +433,7 @@ def _sub_ctx(ctx: Any, qty: int) -> Any:
 
 
 def _get_pools() -> dict:
-    from game.data.drop_pools import DROP_POOLS  # noqa: E402
+    from .data.drop_pools import DROP_POOLS# noqa: E402
     return DROP_POOLS
 
 

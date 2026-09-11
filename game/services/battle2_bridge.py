@@ -228,9 +228,9 @@ def prepare_player_for_battle(player: dict, title_bonus: Optional[dict] = None,
     _seed_battle_keys(player)
     # 2. 面板实时化（不传 learned_skills——战斗侧被动由上层动态处理，防双算）
     try:
-        from .. import engine as _E
+        from ..content_rules.panel import player_final_stats
         _cn = player.get("class_name") or "战士"
-        _st = _E.player_final_stats(
+        _st = player_final_stats(
             _cn, int(player.get("level", 1) or 1),
             player.get("equipment") or {},
             int(player.get("class_tier", 0) or 0),

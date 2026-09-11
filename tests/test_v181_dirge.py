@@ -46,7 +46,7 @@ from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_
 from battle2 import Battle as B2, make_actor, effects as EFX  # noqa: E402
 from battle2.stats import actor_stats  # noqa: E402
 from battle2.effect_triggers import fire as bfire  # noqa: E402
-from game import engine as E  # noqa: E402
+from game.content_rules.skills import skill_info
 from game.services import class_mech_proc as CM  # noqa: E402
 
 PASS = 0
@@ -79,7 +79,7 @@ DIRGE_DATA = {
 
 
 def skill(name):
-    return E.skill_info(CLS, name) or {}
+    return skill_info(CLS, name) or {}
 
 
 def mk_player(uid, name, cls, skills, hp=800):
@@ -467,7 +467,7 @@ def test_10_integration_human_act():
 
 def test_11_negative():
     print("【11. 负向：非诗人零干扰 / 未学被动不挂 / 零默认值】")
-    # 战士（非诗人）学同名技能 → E.skill_info 取不到 → 零触发器
+    # 战士（非诗人）学同名技能 → skill_info 取不到 → 零触发器
     war = mk_player("p_war", "战士", "cls_zhan_shi", ["挽歌", "镇魂安魂", "挽歌·极"])
     CM.apply_class_mech(war)
     check("非诗人：无 class_melody_act / 无两被动",

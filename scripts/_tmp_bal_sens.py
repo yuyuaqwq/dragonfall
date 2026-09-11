@@ -3,14 +3,15 @@
 import sys, os
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from game import engine as E
+from battle2.formulas import calc_damage
+from game.content_rules.panel import player_final_stats
 from game.core import stats as S
 
 def player_stats(lv, cls, boost):
     eq = {s: {"stats": S.equip_stats(s, lv, "blue")} for s in
           ("weapon","armor","ring","helm","legs","necklace","boots")}
     attrs = {"str": 2*(lv-1), "vit": 1*(lv-1), "int": 0, "agi": 0}
-    st = E.player_final_stats(cls, lv, eq, tier=1, attributes=attrs,
+    st = player_final_stats(cls, lv, eq, tier=1, attributes=attrs,
                               evolve_path=0, title_bonus={}, race="human")
     st["atk"]=int(st["atk"]*boost); st["matk"]=int(st["matk"]*boost)
     return st
@@ -30,7 +31,7 @@ for lv in (30,60,90):
     m = mon(lv,"boss")
     for b in (1.0, 1.5, 2.0):
         st = player_stats(lv, "cls_wild_hunter", b)
-        stra = E.calc_damage(st["atk"], m["def"], False, 0.0)
+        stra = calc_damage(st["atk"], m["def"], False, 0.0)
         dy = math_dot(st["atk"], st["matk"], m["hp"], 5, 0.9, 0.20, "poison")
         print(f"{lv:<4}{b:<7}{st['atk']:<8}{m['hp']:<8}{stra:<9}{dy:<11}{dy/max(1,stra)*100:<9.0f}{dy/(dy+stra)*100:<8.0f}%")
 
@@ -38,7 +39,7 @@ print()
 print("Boss 战期望回合数：玩家需造成 100%Boss 血（直伤+dot+爆发）")
 for lv in (30,60,90):
     m=mon(lv,"boss"); st=player_stats(lv,"cls_wild_hunter",1.0)
-    hp=m["hp"]; stra=E.calc_damage(st["atk"],m["def"],False,0.0)
+    hp=m["hp"]; stra=calc_damage(st["atk"],m["def"],False,0.0)
     # 满配直伤（技能倍率~2x普攻，+毒蚀降防）：估 直伤力 ≈ 2.2×基础普攻
     skilled = int(stra*2.2)
     turns = hp/skilled

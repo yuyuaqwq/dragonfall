@@ -5,7 +5,7 @@ import os, sys, json
 os.environ["GWEN_GAME_DB"] = os.path.abspath("test_v124_side_chain.db")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
 
-from data.plugins.dragonfall.game import content as C, db, engine as E
+from data.plugins.dragonfall.game import content as C, db
 from data.plugins.dragonfall.main import Main
 
 PASS = 0

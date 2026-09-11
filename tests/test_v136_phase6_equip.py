@@ -15,7 +15,7 @@ import conftest  # noqa: F401
 
 from data.plugins.dragonfall.game import data as C
 from data.plugins.dragonfall.game.core.drops import generate_roster_equip
-from data.plugins.dragonfall.game.engine import set_bonus_2, player_stats_detail, set_bonus_4 as engine_set_bonus_4
+from game.content_rules.panel import set_bonus_2, player_stats_detail, set_bonus_4 as engine_set_bonus_4
 from data.plugins.dragonfall.game.core.craft import craft_recipe_make
 
 PASS = 0

@@ -15,7 +15,7 @@
 
 本模块把前四者收敛成**一个入口 + 一处顺序契约**：
 
-    from game.content_rules.apply import apply_game_content
+    from .apply import apply_game_content
     apply_game_content(actor)                  # 开战装配（全部内容侧）
     ensure_engine_configured()                 # 引擎配置一次性装配（旧 load_game_defaults）
 

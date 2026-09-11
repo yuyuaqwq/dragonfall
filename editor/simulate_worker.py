@@ -77,14 +77,14 @@ def _setup_paths() -> None:
 
 
 # ------------------------------------------------------------------ actor builders
-def _build_attacker(E, make_actor, spec: dict) -> dict:
+def _build_attacker(panel_fn, make_actor, spec: dict) -> dict:
     """模拟施法者：默认按「职业面板 × 等级」聚合（与命令层同口径 player_final_stats）。"""
     spec = spec or {}
     cls = spec.get("class_name") or spec.get("cls_name") or spec.get("class") or "战士"
     level = int(spec.get("level") or 20)
     st = {}
     try:
-        st = E.player_final_stats(cls, level, {}, 0, {}, 1) or {}
+        st = panel_fn(cls, level, {}, 0, {}, 1) or {}
     except Exception:
         st = {}
     panel = {k: st[k] for k in _PANEL_KEYS if k in st}
@@ -159,7 +159,7 @@ def run(payload: dict) -> dict:
     # ---- 装配引擎（第一处 import game —— 只发生在子进程里） ----
     from battle2 import config as _b2c
     from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-    from game import engine as E
+    from game.content_rules.panel import player_final_stats
     from battle2 import Battle, make_actor
 
     # 技能等级：模拟固定为指定等级（引擎默认查玩家已学等级，模拟的临时技能查不到 → 0）
@@ -170,7 +170,7 @@ def run(payload: dict) -> dict:
 
     atk_spec = payload.get("attacker") or {}
     def_spec = payload.get("defender") or {}
-    attacker, atk_info = _build_attacker(E, make_actor, atk_spec)
+    attacker, atk_info = _build_attacker(player_final_stats, make_actor, atk_spec)
     defender, def_info = _build_defender(make_actor, def_spec, atk_info["level"])
 
     events: list = []

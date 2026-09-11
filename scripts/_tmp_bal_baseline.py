@@ -6,7 +6,8 @@ import sys, os
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from game import engine as E
+from battle2.formulas import calc_damage
+from game.content_rules.panel import player_final_stats
 from game.core import stats as S
 from game.core import stats as stats_mod
 
@@ -25,7 +26,7 @@ def player(level, class_name="cls_wild_hunter", gear="bare"):
         }
     # attributes：每级 +3 自由点，按攻击职业大致分配 str
     attrs = {"str": 2 * (level - 1), "vit": 1 * (level - 1), "int": 0, "agi": 0}
-    st = E.player_final_stats(class_name, level, eq, tier=1, attributes=attrs,
+    st = player_final_stats(class_name, level, eq, tier=1, attributes=attrs,
                              evolve_path=0, title_bonus={}, race="human")
     return st
 
@@ -57,6 +58,6 @@ for lv in (30, 60, 90):
         st = player(lv, cls, "gear")
         # 敌人普攻伤害 calc_damage(boss_atk, player_def) ≈ boss_atk²/(boss_atk+def)
         import random
-        d = E.calc_damage(m["atk"], st["def"], False, 0.0)
+        d = calc_damage(m["atk"], st["def"], False, 0.0)
         print(f"  lv{lv} {cls} boss普攻≈{d} / 玩家hp={st['max_hp']} "
               f"(回合数容限≈{st['max_hp']//max(1,d)})")
