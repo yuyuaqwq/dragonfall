@@ -266,7 +266,13 @@ def test_on_kill_and_on_death():
 def test_dot_tick():
     print("【N8.8 dot_tick：DOT 每跳】")
     e = mk_a("e1", "enemy", hp=1000)
-    e["effects"]["burn"] = {"stacks": 2}
+    # 伤害按当前规则表推算（burn 0.5% + pct_cap 1% 上限；条目覆盖 3% → 压到 1%）
+    from saintess_engine.battle.state_effects import state_def as _sd8
+    _p8 = (_sd8("burn") or {}).get("period") or {}
+    _c8 = float(_p8.get("pct_cap") or 0)
+    _pct8 = min(0.03, _c8) if _c8 else 0.03
+    _jump8 = int(1000 * _pct8 * 2)
+    e["effects"]["burn"] = {"stacks": 2, "pct": 0.03}
     e["triggers"] = {"dot_tick": [{"type": "apply", "op": "add", "key": "n8_dot", "amount": 1, "on": "target"}]}
     b = new_battle(mk_a("p1", "player"), e)
     b._now = 0.0
@@ -274,7 +280,7 @@ def test_dot_tick():
     b._now = 1.5
     logs = []
     _ste(b, logs)
-    check("burn 跳 1 次掉 60", 1000 - e["hp"] == 60, f"hp={e['hp']}")
+    check(f"burn 跳 1 次掉 {_jump8}", 1000 - e["hp"] == _jump8, f"hp={e['hp']}")
     check("dot_tick 每跳触发", stk(e, "n8_dot", 0) == 1, f"state={((e).get('effects') or {})}")
 
 

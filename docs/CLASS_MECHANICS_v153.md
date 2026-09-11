@@ -1370,7 +1370,7 @@ corros（腐蚀）→ true_dmg 分支，绕过 def/mdef（但不豁免目标异�
 | C-19 | 暗影神谕职业入口（`cls_hymn` 线）         | v151 已删除，但机制代码（悼咏/诅咒/骷髅/死歌/骸骨洪流）残留 | 还原为牧师 B 线（死灵），复用现有 `CURSE_CFG` 等，不改机制数值 |
 | C-20 | 奥术线改名 + 2 个新被动                 | `arcane` 充能骨架不变，`奥术核心/之心` 合并为 `奥术共鸣` | 改 8 名（法力护盾→奥术力场、秘法护盾→相位偏折、奥术领域→奥术矩阵、奥术爆发→星界风暴、大奥术→奥术湮灭、奥术智慧→真知、奥术核心→奥术共鸣）；新增「奥术力场·刃」「奥术恒常·耗蓝−50%」 |
 
-### 待办（2026-09-11 以当前仓库状态复跑核对：旧 6 项里 **5 项已完成**，剩 1 项开放）
+### 待办（2026-09-11 以当前仓库状态复跑核对：旧 6 项 5 完成 / 1 开放；并含四批补做的登记）
 
 - [x] 294 个技能的 `cast` 字段落库（C-14）——✅ 实测 `game/data/skills.py` **299/299** 技能块均含 `cast`
 - [x] 4 职业的 `cast_atk / cast_defend / cast_flee` 补录（C-12）——✅ `game/data/classes.py` **6/6** 职业齐备（v156 已重标定）
@@ -1387,26 +1387,38 @@ corros（腐蚀）→ true_dmg 分支，绕过 def/mdef（但不豁免目标异�
 - [x] **死字段清理（2026-09-11 批 C）**：`wake_on_hit` **接线**（同时移除引擎里硬编码的
       `"sleep"` 游戏名词 —— 引擎纯度违规）；`on_threshold` **删声明**（与现行「血祭主动投入」冲突）；
       `bleed.period` 的 `type` / `per_layer` **删死键**。验收 `tests/test_v181_batch_c_deadfields.py` 15/15。
-- [ ] **★ 发现：DOT 数值双源（引擎 vs 模拟器），须定权威**（2026-09-11 取证）
-      · 引擎实跑：DOT 伤害只读 `EFFECT_RULES[key].period.pct_max_hp` / `pct_cur_hp`
-        （`schedule.py`，`dmg = max_hp × pct × 层数`，再乘 `pct_boss` 覆盖）；
-      · `DOT_DEFS`（= `MECH_CFG["dot"]` 的 atk×0.8 / matk×0.6 / hp×1.5% 那套）**全仓只有
-        `scripts/numeric_lib/player.py`（数值模拟器）在读**，引擎零消费；
-      · 后果一：**数值门禁算出的 DOT 强度与实机不符**（模拟器按 atk/matk 为主，实机是纯百分比）；
-      · 后果二：`bleed` 的 period **没有 pct 字段** → 引擎回落 `dmg = max(1, 层数)`
-        （≈1 点/刻），而声明写的是 atk×0.05 + max_hp×1.5% —— 实机流血几乎不痛；
-      · 后果三：`DOT_BOSS_PCT_MULT`(0.5) 只有模拟器读 → 两边对 Boss 的 DOT 折扣也不同。
-      → 二选一：**以引擎为准**（补 `bleed.period.pct_max_hp`、删 `DOT_DEFS` 数值表或改注释
-        仅当展示用、修模拟器对齐引擎），或**以 DOT_DEFS 为准**（给引擎补 atk/matk 段）。
-        涉及全部 DOT 流派的实机强度，**须鱼鱼拍板后再动**。
-- [ ] **`crit_at` 接线**（`MECH_CASH.finisher.crit_at = 4`「连段 ≥4 必定暴击」）
-      —— 刺杀终结技的玩家可见承诺，引擎已有 `hit.guaranteed_crit` 通道（潜行必暴在用），
-      接线 = 内容侧装配器按连段层数挂该态。会动平衡（必暴=显著增伤），**须定口径**。
-- [ ] **裁定项：`dot_res` 去留**（§9.2「落地记录」已登记）——结算端无读点，Boss DOT 折扣现由数据侧 `period.pct_boss` 承担；
-      接线会让 DOT 流对 Boss 双重折扣（×0.1）。二选一：**删 `dot_res` 字段**（承认 `pct_boss` 是唯一通道），
-      或**接线并撤 `pct_boss`**（统一到 dot_res 一轴）。
+- [x] **★ DOT 数值双源 —— 2026-09-11 已解决（批D）：引擎按权威公式重做，实机 = 权威 = 模拟器**
+      · 权威（本文件 §DOT_DEFS / 27 章 §七）= `每层每刻 = (atk×a + matk×m + max_hp×h×boss折扣) × 层数 × (1−总抗)`；
+      · 修复前实机只读 `period.pct_max_hp`（丢了 atk/matk 段与总抗段），且 4 个 DOT 的 pct 与
+        `DOT_DEFS` 系数表**不一致**（burn 实机 3%/层 vs 权威 0.5%+matk×0.6）；
+      · 现：引擎补齐公式（`period.atk/matk/pct_cap/boss_pct_mult/double_low_hp_pct/resist_cap` +
+        施法者强度快照 `src`），4 个 DOT 的 period 改为**生成自 DOT_DEFS**（单一字面源）。
+        实跑值逐项等于权威解析值（验收 `tests/test_v181_batch_d_dot_formula.py` 35/35）。
+      · **实机强度变化（lv40，5 层，常规怪 hp 8030 / boss 35762，实测）**：
+        | DOT | 改动前实机/刻 | 改动后/刻 | 倍率 |
+        |---|---|---|---|
+        | 毒（刺客） | 803 | 536 | 0.67× |
+        | 灼烧（战士） | 1204 | 275 | 0.23× |
+        | 流血 | 5（几乎哑火） | 436 | 87× |
+        | 腐蚀（真伤） | 803 | 639 | 0.80× |
+        | 灼烧·Boss 档 | 5364 | 522 | 0.10× |
+        | 流血·处决线(<30%) | 5 | 872 | 174× |
+        → 净效果：**灼烧/毒被拉回权威强度（对 boss 砍掉 90%）**、**流血从「1 点/刻」的哑火状态恢复**。
+        与**旧引擎**（删库前）口径逐字一致 —— 即本次是把 refactor 期间的偏离改回权威，非新削弱。
+- [ ] **`dot_res` 去留 → 已定：恢复（接回公式的 (1−总抗) 段），但数据未铺**（2026-09-11）
+      · 取证：`dot_res` 在旧引擎 `_tick_dots` **实跑**（`p = … × (1−res)`，`res = min(resist_cap, dot_res+adapt)`）
+        → 属「重构丢功能」（同 `Battle.dmg_mult`），不是遗留冗余 → 已接线（`period.resist_cap` 声明即启用）；
+      · 现状：`monster_stats` 按 role 算出 boss 0.9 / elite 0.8，但 `drops.build_monster` **没把它带进 actor**
+        → 实机 dot_res=0 → 该段暂无感（零风险落地）；
+      · 若要把 role 抗性铺进 actor：**Boss 的 DOT 再 ×0.1**（灼烧 boss 522 → 53/刻）。
+        这会与现有 `period.pct_boss`（0.5 折扣）叠加（旧引擎亦然）——**要铺请拍板**。
 - [ ] **`elem_res` 分系支持**（如确有需求）——现为标量（全元素统一抗性）；若将来要「同怪对不同元素不同抗性」，
       需改成 dict 读法（`element_weak` 已能覆盖大部分场景，非必需）。
+- [x] **`DOT_BOSS_PCT_MULT` 模拟器/引擎一致性**——已解决（批D 后引擎读 `boss_pct_mult`，与模拟器同口径；
+      旧「引擎不读该常数」的偏差消失）。
+- [x] **`crit_at` 接线（批D 已完成）**：MECH_CASH.finisher.crit_at=4 → 装配器挂 `act_cast` 钩子
+      `mech_cash_finisher_crit`——连段 ≥4 时写一次性 `guaranteed_crit` 出手态（引擎既有 hit 通道，
+      与潜行必暴同路）。验收含在 `test_v181_batch_d_dot_formula.py` §9。
 - [ ] **`DOT_BOSS_PCT_MULT` 模拟器/引擎不一致**——`scripts/numeric_lib/player.py` 按 Boss 百分比部分 ×0.5 建模，
       但**引擎不读该常数**（`schedule.py` 只读 `period.pct_boss`）→ 数值门禁算出的 DOT 与实机不符，须定以哪边为准。
 

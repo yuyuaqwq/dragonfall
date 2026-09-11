@@ -157,14 +157,14 @@ def _skill_dmg(st: dict, cls: str, edef: int, mdef: int, extra_crit: float = 0.0
 
 
 def _basic_dmg(st: dict, cls: str, edef: int, mdef: int) -> float:
-    """普攻伤害（v156 修正：普攻一律吃 atk——引擎 battle.py 普攻段 calc_damage(st['atk'], ...)，
+    """普攻伤害（v156 修正：普攻一律吃 atk——引擎普攻段 calc_damage(st['atk'], ...)，
     法系职业 atk 低故普攻天然弱（魔杖/法杖敲击），符合法系定位；此前误用 matk 导致工具集虚高）"""
     return calc_damage(int(st.get("atk", 0)), int(edef), variance=0.0, dmg_type="phys")
 
 
 def _crit_mult(st: dict, extra_crit: float = 0.0, multi: int = 1) -> float:
     """暴击期望 + 幸运一击（v133 对齐引擎：幸运幅度 1.5→1.3；多段仅首段吃暴击——
-    multi≥2 时暴击/幸运加成按 1/multi 折算，与 battle.py seg=0 判定一致）。"""
+    multi≥2 时暴击/幸运加成按 1/multi 折算，与引擎 seg=0 判定一致）。"""
     crit = min(float(st.get("crit", 0) or 0) + extra_crit, 0.5)
     first = 1.0 / max(1, int(multi or 1))
     return 1.0 + crit * (0.5 + float(st.get("crit_dmg", 0) or 0)) * first + crit * 0.3 * 0.3 * first
@@ -454,7 +454,8 @@ def dot_dps(st: dict, cls: str, edef: int, mdef: int,
             rotation: list | None = None) -> float:
     """DOT 机制稳态 DPS（v161 鱼鱼拍板：职业机制折算成系数计入 DPS）。
 
-    引擎公式（battle.py _tick_dots）：每层每刻 = (atk×a + matk×m + max_hp×h) × 层数 × (1-抗)
+    引擎公式（`saintess_engine/battle/schedule.py` + `effects.note_dot_source`，2026-09-11 统一后
+    与 MECH_CFG['dot'] 同源）：每层每刻 = (atk×a + matk×m + max_hp×h×boss折扣) × 层数 × (1-总抗)
     对普通怪（stage_scan 口径）：百分比部分不打折；真伤穿防。
     对 Boss/精英：百分比部分 ×MECH_CFG['dot']['boss_pct_mult']（0.5），单层 cap max_hp×1%（MECH_CFG['dot']['pct_cap']）。
 

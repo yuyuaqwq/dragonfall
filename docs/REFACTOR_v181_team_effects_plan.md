@@ -279,3 +279,33 @@ EFFECT_ACTIONS。原「静默 no-op」清单把它误列（判据只看 EFFECT_A
 **本轮第 2 次踩到「多通道」坑**（第 1 次是 taunt 只看单通道误报）：本次是反向 —— 引擎接了线，
 但**内容侧数据通道（白名单）没通**，数据永远进不来。结论：接线类改动必须**端到端实测一次**
 （用真实 `build_monster` 造实例验证字段落位），不能只看引擎侧改完 + 单测绿。
+
+### 7.10 批 D（同日第五波）：DOT 混合公式统一 + 连段必暴 + 总抗接回
+
+**触发**：鱼鱼问「DOT 有的是 atk、有的是百分比，不能做成支持公式吗」——查证后发现权威
+（`design/new_world/32_数值设计.md` §DOT_DEFS / 27 章 §七）本就定义了一条**混合公式**，
+而新引擎只实现了一半：
+
+```
+权威：每层每刻 = (atk×a + matk×m + max_hp×h×boss折扣) × 层数 × mult × (1−总抗)
+实机（修复前）：只读 period.pct_max_hp / pct_cur_hp  ← 丢了系数段与总抗段
+```
+
+| 改动 | 落点 |
+|---|---|
+| `period.atk` / `period.matk` × **施法者强度快照** | 引擎 `schedule` + `effects.note_dot_source`（挂 DOT 时记 `entry["src"]`）；内容侧 `act_apply` 与 `_add_stacks(battle=…, caster=…)` 两入口共用一份实现 |
+| `(1−总抗)` 段（`dot_res` + `adapt`，cap 由数据给） | 引擎 `period.resist_cap` 声明即启用 —— **`dot_res` 由此定性为「重构丢功能」（旧引擎真在跑），不是死字段** |
+| `pct_cap` 单层上限 / `boss_pct_mult` boss 折扣 / `double_low_hp_pct` 低血翻倍 / 条目级 `entry["pct"]` 覆盖 | 引擎补齐（旧引擎均有） |
+| 4 个 DOT 的系数 | 数据侧 `_dot_period()` **生成自 DOT_DEFS**（单一字面源）；`pct_cap` 仅对 `pct/hybrid` 型声明（对齐旧引擎 flat 型不吃上限） |
+| `crit_at` 连段必暴 | `MECH_CASH.finisher.crit_at` → 装配器挂 `act_cast` 钩子 `mech_cash_finisher_crit` → 写一次性 `guaranteed_crit` 出手态（引擎既有 hit 通道，与潜行必暴同路） |
+
+**★ 教训（与 taunt / immune_dots 同族，第三次）**：**「声明存在」≠「公式被完整实现」**。
+本次死字段不再是「写了没人读」，而是**权威公式被实现了右半边**——查死字段时要连
+「这条公式在引擎里每一步都在吗」一起查（逐项对照片段：系数段/百分比段/上限/折扣/抗性）。
+
+**实机强度变化（lv40 / 5 层 / 实测）**：毒 0.67× · 灼烧 0.23× · 流血 87×（从哑火恢复）·
+腐蚀 0.80× · 灼烧对 Boss 0.10× · 流血处决线 174×。全部与**旧引擎权威口径**一致
+（即把 refactor 偏离改回），实跑值 = 权威解析值（逐项吻合，见 v153 待办表）。
+
+**待鱼鱼拍板**：把 role 抗性（boss 0.9 / elite 0.8）铺进 actor ⇒ Boss DOT 再 ×0.1（灼烧 boss 522 → 53/刻）。
+引擎与公式已就绪，缺的只是这一行数据通道（`build_monster` 白名单）。

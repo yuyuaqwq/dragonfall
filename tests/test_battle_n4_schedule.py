@@ -245,7 +245,15 @@ def test_dot_interval_n74():
     e = make_actor(uid="e_dot", name="靶", side="enemy", kind="monster", hp=1000,
                    max_hp=1000, atk=1, spd=10, level=1)
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": [e]})
-    e["effects"]["burn"] = {"stacks": 2}  # pct 3% ×2 层 = 60/跳
+    # 本测试只验「跳刻/补跳节奏」，伤害值按**当前规则表**推算（2026-09-11 DOT 公式统一后
+    #   burn = matk×0.6 + max_hp 0.5%，且 pct 受 pct_cap 单层上限约束），不写死数字：
+    #   条目 pct 覆盖 3% → 被 pct_cap(1%) 压住 → 1000×0.01×2 层 = 20/跳
+    from saintess_engine.battle.state_effects import state_def as _sd
+    _per = (_sd("burn") or {}).get("period") or {}
+    _cap = float(_per.get("pct_cap") or 0)
+    _pct = min(0.03, _cap) if _cap else 0.03
+    _jump = int(1000 * _pct * 2)
+    e["effects"]["burn"] = {"stacks": 2, "pct": 0.03}
     b._now = 0.0
     _ste(b, [])
     hp0 = e["hp"]
@@ -254,11 +262,11 @@ def test_dot_interval_n74():
     b._now = 1.5
     _ste(b, [])
     hp1 = e["hp"]
-    check("1.5 跳 1 次（60 伤）", hp0 - hp1 == 60, f"掉血 {hp0 - hp1}")
+    check(f"1.5 跳 1 次（{_jump} 伤）", hp0 - hp1 == _jump, f"掉血 {hp0 - hp1}")
     b._now = 4.2
     _ste(b, [])
     hp2 = e["hp"]
-    check("4.2 补跳 3 次（180 伤）", hp1 - hp2 == 180, f"掉血 {hp1 - hp2}")
+    check(f"4.2 补跳 3 次（{_jump * 3} 伤）", hp1 - hp2 == _jump * 3, f"掉血 {hp1 - hp2}")
     check("dot_next 推进到 5.0", abs(float(e["dot_next"].get("burn", 0)) - 5.0) < 1e-9)
     hp3 = e["hp"]
     _ste(b, [])

@@ -10,6 +10,36 @@ saintess_engine 引擎不认识这些名词，只通过 config 挂载点查表�
 """
 from __future__ import annotations
 
+# DOT 公式权威系数（单一数值源）：DOT_DEFS + 四个修正常数。
+# 权威 = design/new_world/32_数值设计.md §DOT_DEFS / 27 章 §七：
+#   每层每刻 = (atk×a + matk×m + max_hp×h×boss折扣) × 层数 × mult × (1−总抗)
+from .battle_config import (DOT_DEFS, DOT_BOSS_PCT_MULT, DOT_PCT_CAP,
+                            DOT_BLEED_DOUBLE_HP_PCT, DOT_RESIST_CAP)
+
+
+def _dot_period(key: str, **over) -> dict:
+    """DOT 公式 period：**系数从 DOT_DEFS 生成**（唯一字面源，杜绝双源漂移）。
+
+    引擎侧消费：atk/matk = 乘施法者强度快照的系数；pct_max_hp = 目标 max_hp 百分比；
+    pct_cap 单层上限；boss_pct_mult boss/精英折扣；resist_cap 总抗上限；
+    dmg_type=true 真伤（不减免）。over 用于个别 DOT 的附加声明（如流血处决线）。
+    """
+    dd = DOT_DEFS.get(key) or {}
+    per = {"dir": "damage", "interval": 1.0,
+           "atk": float(dd.get("atk", 0) or 0),
+           "matk": float(dd.get("matk", 0) or 0),
+           "pct_max_hp": float(dd.get("hp", 0) or 0),
+           "boss_pct_mult": DOT_BOSS_PCT_MULT,
+           "resist_cap": DOT_RESIST_CAP}
+    # 单层上限只对「百分比型/混合型」生效（对齐旧引擎：flat 型吃不到 pct 上限）——
+    #   判据留在数据侧（DOT_DEFS.type），引擎只认「有没有声明 pct_cap」
+    if str(dd.get("type") or "") in ("pct", "hybrid"):
+        per["pct_cap"] = DOT_PCT_CAP
+    if dd.get("true_dmg"):
+        per["dmg_type"] = "true"
+    per.update({k: v for k, v in over.items() if v is not None})
+    return per
+
 # ============================================================
 # EFFECT_RULES: 效果规则表（V 系列统一——cap/stat_scale/period/consume/cleanse 全声明）
 # state key → 影响规则（cap/stat_scale/dot/on/threshold）
@@ -277,31 +307,29 @@ EFFECT_RULES: dict = {
     "burn": {
         "cap": 5,
         "on": "target",
-        "period": {"dir": "damage", "interval": 1.0, "pct_max_hp": 0.03},   # 每层每刻掉 3% 生命
+        # v181 批D（2026-09-11）DOT 公式统一：系数生成自 DOT_DEFS（matk×0.6 + hp 0.5% hybrid）。
+        #   ⚠️ 原字面 pct_max_hp 0.03（3%/层/刻）与权威系数表冲突，已按权威收敛。
+        "period": _dot_period("burn"),
     },
     "bleed": {
         "cap": 10,
         "on": "target",
-        # 2026-09-11 删死子字段 `type` / `per_layer`（引擎 damage 分支只读 pct_max_hp /
-        #   pct_cur_hp，这两个键零消费）。
-        # ⚠️ 遗留（另案裁定）：本条目**没有** pct 字段 → 引擎回落 `dmg = max(1, 层数)`
-        #   （≈1 点/刻），而 `DOT_DEFS["bleed"]` 声明的是 atk×0.05 + max_hp×1.5% ——
-        #   两套数值并存且只有前者在跑（见 v153 待办「DOT 双源」条）。
-        "period": {"dir": "damage", "interval": 1.0},
+        # v181 批D：系数生成自 DOT_DEFS（atk×0.05 + hp 1.5% pct）+ 处决线放血（<30% 生命 ×2）。
+        #   修掉「无 pct 字段 → 引擎回落 1 点/刻」的实机哑火（流血此前几乎不掉血）。
+        "period": _dot_period("bleed", double_low_hp_pct=DOT_BLEED_DOUBLE_HP_PCT),
     },
     "poison": {
         "cap": 5,
         "on": "target",
-        "period": {"dir": "damage", "interval": 1.0, "pct_max_hp": 0.02},
+        # v181 批D：系数生成自 DOT_DEFS（atk×0.8 flat，不吃目标血）。
+        "period": _dot_period("poison"),
     },
     "corros": {
         "cap": 5,
         "on": "target",
-        # ⚠️ 2026-09-11 取证纠正：`period.dmg_type` **无消费方**——DOT 落地统一走
-        #   deal_damage(..., dmg_kind="")（schedule.py），所以这条注释里的「真伤」不成立
-        #   （打不到类型免伤/格挡是因为 dmg_kind 为空，不是因为声明了真伤）。
-        #   要真伤需给 DOT 落地补 dmg_kind 透传 → 登记在 team_effects_plan §六。
-        "period": {"dir": "damage", "interval": 1.0, "pct_max_hp": 0.02, "dmg_type": "true"},
+        # v181 批D：系数生成自 DOT_DEFS（atk×0.3 + matk×0.2 + hp 1% + 真伤）。
+        #   `dmg_type` 已于同日接线（schedule 透传 dmg_kind）→ 真伤语义成立（物免/魔免/格挡全跳过）。
+        "period": _dot_period("corros"),
     },
     # ============ 元素印记（on=target） ============
     "fire_mark": {
@@ -603,10 +631,10 @@ MECH_CASH = {
         # 链舞（kind=物理 主动技带 passive.proc=finisher_up——装配器只扫 kind=被动不装配）：
         # 学到链舞 → 终结技每段系数 10% → 16%（desc「终结技系数+6%（每段 10% → 16%）」）
         "clear": True,                   # 命中后清层（info.keep_on_kill = 不清，技能级覆盖）
-        # ⚠️ 2026-09-11 取证：`crit_at` **当前不生效**（装配器不读它、无消费钩子）——
-        #   原注释「crit roll 前钩子就绪后生效」易被读成"已生效"。接线登记在
-        #   docs/REFACTOR_v181_team_effects_plan.md §六。
-        "crit_at": 4,                    # 连段 ≥4 必定暴击（声明先行，未接线）
+        # ✅ 2026-09-11 已接线（批D）：装配器读本字段 → 挂 act_cast 钩子
+        #   `mech_cash_finisher_crit`——施放终结技时连段 ≥crit_at → 写一次性
+        #   `guaranteed_crit` 出手态（引擎既有 hit 通道，与潜行必暴同路）。
+        "crit_at": 4,                    # 连段 ≥4 → 本次终结技必定暴击
         "layer_label": "连段", "unit": "段", "icon": "🔪",
     },
     # ---- B2 target 方向兑现（R1b burst 引爆族：mode dmg_mult_clear_target = owner=target）----

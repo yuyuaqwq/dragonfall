@@ -50,7 +50,8 @@ def _is_boss(actor) -> bool:
     return bool(actor and (actor.get("is_boss") or actor.get("role") == "boss"))
 
 
-def _add_stacks(actor, key: str, amount: int, cap: int | None = None) -> int:
+def _add_stacks(actor, key: str, amount: int, cap: int | None = None,
+                battle=None, caster=None) -> int:
     """扩展动作内部叠层加值（V 系列：写 actor.effects[key].stacks）。
 
     仅本文件内部使用（不进引擎公共 API）；cap 缺省查 EFFECT_RULES 表。
@@ -73,6 +74,13 @@ def _add_stacks(actor, key: str, amount: int, cap: int | None = None) -> int:
         cap = cap_of(actor, key)
     cur = int(entry.get("stacks", 0) or 0)
     entry["stacks"] = max(0, min(cap, cur + int(amount)))
+    # v181 批D：DOT 强度快照（数据声明了 period.atk/matk 才写）——
+    #   伤害跟「挂毒的人」，tick 端读条目 src（引擎 note_dot_source 统一实现）
+    try:
+        from saintess_engine.battle.effects import note_dot_source
+        note_dot_source(battle, actor, key, caster)
+    except Exception:
+        pass  # 快照失败不阻断施加
     return entry["stacks"]
 
 
@@ -102,7 +110,8 @@ def we_dot(battle, caster, target, params, logs):
         return  # 缺字段 = 无此行为
     from saintess_engine.battle.state_effects import state_def
     cap = int((state_def(dot_key) or {}).get("cap") or 1)
-    _add_stacks(tgt, dot_key, int(params.get("amount", 1) or 1), cap=cap)
+    _add_stacks(tgt, dot_key, int(params.get("amount", 1) or 1), cap=cap,
+                battle=battle, caster=caster)   # v181 批D：施法者快照（DOT 公式 atk/matk 段）
     turns = int(params.get("turns") or 0) or 3
     logs.append(_DOT_LOG.get(params.get("key"), f"🔥 {dot_key}：目标持续掉血（{turns} 刻）！"))
 
@@ -158,7 +167,8 @@ def we_reflect(battle, caster, target, params, logs):
             deal_damage(battle, deflector, attacker, rd, logs)
             from saintess_engine.battle.state_effects import state_def
             cap = int((state_def("burn") or {}).get("cap") or 5)
-            _add_stacks(attacker, "burn", int(params.get("burn_stack", 1) or 1), cap=cap)
+            _add_stacks(attacker, "burn", int(params.get("burn_stack", 1) or 1), cap=cap,
+                        battle=battle, caster=deflector)   # 挂毒者=反弹方（快照语义）
         logs.append(_REFLECT_LOG.get(key, "").format(rd=rd))
         return
     if params.get("reflect_pct") is not None:
@@ -1151,7 +1161,8 @@ def we_affix_dot(battle, caster, target, params, logs):
         return
     from saintess_engine.battle.state_effects import state_def
     cap = int((state_def(sk) or {}).get("cap") or 3)
-    n = _add_stacks(tgt, sk, int(params.get("stacks") or 1), cap=cap)
+    n = _add_stacks(tgt, sk, int(params.get("stacks") or 1), cap=cap,
+                    battle=battle, caster=caster)   # v181 批D：施法者快照
     logs.append(_AFFIX_HIT_LOG.get(params.get("key"), "🩸 目标流血了！").format(
         tgt=tgt.get("name", "目标")))
     return n

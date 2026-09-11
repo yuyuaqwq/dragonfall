@@ -97,6 +97,38 @@ def install() -> None:
                 entry["stacks"] = 0
         logs.append(f"🔗 {'、'.join(_key_list(key))} 归零")
 
+    @register_action("mech_cash_finisher_crit")
+    def mech_cash_finisher_crit(battle, caster, target, params, logs):
+        """`act_cast`：终结技「连段 ≥ 阈值 → 本次必定暴击」（MECH_CASH.finisher.crit_at）。
+
+        引擎零知识：写的是通用**出手态**（`hit: {guaranteed_crit: True}`，与潜行必暴同一通道，
+        由 actions._consume_hit_buffs 在出手时消费）；阈值/资源 key 全部来自声明表。
+
+        时序：act_cast 在伤害管线之前 → 出手态就绪后才 roll 暴击（先查后打）。
+        一次性：`turns=1` 到期自动清（未命中/无伤害管线时也不残留）。
+        """
+        ctx = getattr(battle, "_fire_ctx", None) or {}
+        info = ctx.get("info") or {}
+        if info.get("mech") != params.get("mech"):
+            return
+        actor = caster if isinstance(caster, dict) else None
+        if actor is None:
+            return
+        key = params.get("key") or ""
+        need = float(params.get("crit_at") or 0)
+        if not key or need <= 0:
+            return
+        _e = (actor.get("effects") or {}).get(key)
+        cur = float(_e.get("stacks", 0) or 0) if isinstance(_e, dict) else 0.0
+        if cur < need:
+            return
+        from saintess_engine.battle.effects import apply_action
+        hit_key = params.get("hit_key") or "finisher_crit_ready"
+        apply_action(battle, actor, actor, "apply",
+                     {"key": hit_key, "turns": 1, "on": "caster",
+                      "hit": {"guaranteed_crit": True}}, logs)
+        logs.append(f"🔪 连段达 {int(cur)} 段 → 终结技必定暴击！")
+
     @register_action("mech_cash_dmg_mult")
     def mech_cash_dmg_mult(battle, caster, target, params, logs):
         """dmg_calc：按持有层数加成伤害乘区（模式 dmg_mult_clear* 的伤害段）。
@@ -2394,6 +2426,12 @@ def apply_class_mech(actor: dict) -> None:
             if owner == "target":
                 dm["owner"] = "target"
             trig.setdefault("dmg_calc", []).append(dm)
+            # 连段阈值必暴（cash.crit_at）：act_cast 写一次性出手态（先于伤害管线）
+            if cash.get("crit_at"):
+                trig.setdefault("act_cast", []).append(
+                    {"action": "mech_cash_finisher_crit", "mech": mech, "key": key,
+                     "crit_at": float(cash.get("crit_at") or 0),
+                     "hit_key": "finisher_crit_ready"})
             if cash.get("clear"):
                 cl = {"action": "mech_cash_clear", "mech": mech, "key": key}
                 if owner == "target":
