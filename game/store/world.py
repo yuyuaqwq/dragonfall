@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 import json
 import time
+
+from saintess_kit.container import Slots
+
 from .connection import _connect, _lock, atomic
 from .inventory import _slim, _trim_individuals, FISH_TAGS_MAX, _snapshot_one
 from .. import content as C
@@ -413,26 +416,23 @@ def _storage_remove(conn, qq_id, item_key, count=1):
 
 def home_storage_deposit_atomic(group_id, qq_id, storage_key, item_key, item_data, max_slots):
     """原子存仓：单事务内 读当前 storage→容量校验→append→写回→扣背包。
-    返回 (ok, storage_len)。超容量返回 (False, -1)。"""
+    返回 (ok, storage_len)。超容量返回 (False, -1)。
+
+    容器形状（有序格子 + 容量 + 容错载入 + JSON 往返）在框架
+    `saintess_kit.container.Slots`；事务边界与「扣背包」仍是本游戏的事。
+    """
     with atomic() as conn:
         raw = conn.execute("SELECT value FROM event_state WHERE key=?", (storage_key,)).fetchone()
-        lst = []
-        if raw and raw["value"]:
-            try:
-                lst = json.loads(raw["value"])
-                if not isinstance(lst, list):
-                    lst = []
-            except (ValueError, TypeError):
-                lst = []
-        if len(lst) >= max_slots:
+        lst = Slots.load(raw["value"] if raw else None, max_slots=max_slots)
+        if lst.is_full():
             return False, -1
         # v126.4 审计 P1：存仓按 1 件流转，快照只带 1 条个体 tags（防整堆快照回流
         # 破坏 len(tags)<=count；取回 _storage_upsert 合并 1 条与 count=1 对称）
-        lst.append({"key": item_key, "data": dict(_snapshot_one(item_data) or {}), "count": 1})
+        lst.add(item_key, _snapshot_one(item_data) or {}, 1)
         conn.execute(
             "INSERT INTO event_state (key, value) VALUES (?,?) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-            (storage_key, json.dumps(lst, ensure_ascii=False)),
+            (storage_key, lst.dump()),
         )
         if not _storage_remove(conn, qq_id, item_key, 1):
             # 背包货不存在：回滚（不污染 storage），命令层按原语义提示
@@ -445,21 +445,14 @@ def home_storage_take_atomic(group_id, qq_id, storage_key, idx):
     返回 (ok, item_dict) 或 (False, None)。"""
     with atomic() as conn:
         raw = conn.execute("SELECT value FROM event_state WHERE key=?", (storage_key,)).fetchone()
-        lst = []
-        if raw and raw["value"]:
-            try:
-                lst = json.loads(raw["value"])
-                if not isinstance(lst, list):
-                    lst = []
-            except (ValueError, TypeError):
-                lst = []
-        if idx < 1 or idx > len(lst):
+        lst = Slots.load(raw["value"] if raw else None)
+        it = lst.take_at(idx)          # 1-based；越界 → None（框架容器保证安全）
+        if it is None:
             return False, None
-        it = lst.pop(idx - 1)
         conn.execute(
             "INSERT INTO event_state (key, value) VALUES (?,?) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-            (storage_key, json.dumps(lst, ensure_ascii=False)),
+            (storage_key, lst.dump()),
         )
         _storage_upsert(conn, qq_id, it.get("key"), it.get("data"), int(it.get("count", 1)))
     return True, it
