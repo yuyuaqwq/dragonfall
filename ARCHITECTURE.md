@@ -7,6 +7,22 @@
 > - services/ 目录已不存在（编排职责并入 commands 层）。
 > 详细分层/依赖以 `DEVELOPMENT.md`（开发规范总纲）与代码为准，本文档待重写。
 
+> ⚙️ **引擎分离现状注记（2026-09-11）**：战斗引擎已**物理分离为独立仓库**
+> `framework-engine`，本仓以 **git submodule `framework/`** 固定 commit 引用它。
+> 因此：
+> - 原 `game/battle2/` 与 `game/engine.py` **已不在本仓** —— 它们是框架内容，
+>   现在住在 `framework/battle2/`（引擎包名仍叫 `battle2`）；本仓代码统一
+>   `import battle2`（裸包名）。
+> - 原 `game/core/` 里的通用件（阵型 / 表达式求值 / 技能种类 / 敌身条）已归位到
+>   `framework/battle2/support/`；过渡 shim 已随 S9-2 删净。
+> - 内容侧装配入口（旧 `load_game_defaults` 的收敛点）＝ 本仓
+>   `game/content_rules/apply.py` 的 `apply_game_content()`。
+> - **引擎文档已迁走**：`docs/engine-wiki/` → `framework/docs/engine-wiki/`
+>   （34 篇）；引擎文档工具 → `framework/tools/`。本仓 `docs/` 只留游戏侧文档。
+> - 引擎相关测试与门禁在框架仓：`framework/tests/`（纯度门禁
+>   `test_engine_purity.py` + 行号门禁 `test_wiki_refs.py`，`python tests/run_all.py`）。
+> 下面的分层总览描述的是**本仓游戏侧**的分层，引擎层请以框架仓文档为准。
+
 > 目标：高内聚低耦合、可扩展、每层可独立单元测试。
 > 前提：**删档**，移除全部迁移/兼容代码与一次性脚本。
 
@@ -79,8 +95,8 @@ dragonfall/
 | `mounts.py` | make_mount_rein / roll_mount_drop |
 | `portals.py` | portal_cost |
 | `factions.py` | faction_reputation_tier |
-| `engine.py` | （原 game/engine.py 不动）player stats / damage / skills |
-| `battle.py` | （原 game/battle.py 不动）Battle 类 |
+| `engine.py` | ⚙️ **已分离** —— 引擎主体现在框架仓 `framework/battle2/`（本仓无 `game/engine.py`；装配入口见 `game/content_rules/apply.py`） |
+| `battle.py` | ⚙️ **已分离** —— `Battle` 类现在框架仓 `framework/battle2/battle.py`（本仓代码 `import battle2`） |
 | `__init__.py` | 聚合导出 |
 
 ## 四、存储层 game/store/
