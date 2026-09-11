@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""battle2 食物战斗效果装配层（game/services/battle2_food_proc.py，N10-B7）。
+"""saintess_engine 食物战斗效果装配层（game/services/battle2_food_proc.py，N10-B7）。
 
-battle2 包外（引擎零知识——本模块 import 引擎/数据，引擎不 import 本模块）。
+saintess_engine 包外（引擎零知识——本模块 import 引擎/数据，引擎不 import 本模块）。
 职责：把战斗内吃下的效果料理（foodfx:aid,...）→ actor["triggers"] 声明
 （N8 事件总线消费）+ effects period 周期声明（schedule 时间驱动每刻跳），
-使 17 种战斗料理效果在 battle2 战斗中生效（N10-B7 缺口补完）。
+使 17 种战斗料理效果在 saintess_engine 战斗中生效（N10-B7 缺口补完）。
 
 架构对齐 docs/DESIGN_N10B7_food_effects.md + services/battle2_equip_proc.py
 （affix 迁移先例）：
@@ -50,11 +50,11 @@ def _fp(key: str, field: str, default=0.0):
 
 
 # ============================================================
-# food aid → 事件映射（old 事件名 → battle2 事件展开，同 equip_proc）
+# food aid → 事件映射（old 事件名 → saintess_engine 事件展开，同 equip_proc）
 # ============================================================
 
 # hit → 普攻+技能命中（旧 _food_on_hit 在 _skill_finalize 尾部 = 普攻 basic + 技能同管道；
-# battle2 actions.py 普攻 fire attack_hit / 技能 fire skill_hit——双挂与 affix 词条一致）
+# saintess_engine actions.py 普攻 fire attack_hit / 技能 fire skill_hit——双挂与 affix 词条一致）
 _EVENT_MAP = {
     "hit": ("attack_hit", "skill_hit"),
     "taken": ("on_taken",),
@@ -65,7 +65,7 @@ _EVENT_MAP = {
 
 
 def _map_event(old_ev: str) -> tuple:
-    """旧事件 → battle2 事件；不在表 = 同名直通。"""
+    """旧事件 → saintess_engine 事件；不在表 = 同名直通。"""
     return _EVENT_MAP.get(old_ev, (old_ev,))
 
 

@@ -10,7 +10,7 @@
 import sys, os, sqlite3
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, Main, FakeEvent, run
-from battle2.formulas import skill_buff_turns, skill_cond_mult, skill_max_level, skill_mech_val, skill_power_mult
+from saintess_engine.formulas import skill_buff_turns, skill_cond_mult, skill_max_level, skill_mech_val, skill_power_mult
 from game.content_rules.skills import skill_info, skill_upgrade_cost
 
 passed = failed = 0

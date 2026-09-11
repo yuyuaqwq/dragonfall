@@ -15,7 +15,7 @@ from ._platform import MessageChain
 
 from .. import content as C
 from .. import db
-from battle2.formulas import skill_buff_turns, skill_cond_mult, skill_expr_preview, skill_formula_expr, skill_formula_expr_for_seg, skill_lifesteal_pct, skill_max_level, skill_mech_val, skill_power_mult
+from saintess_engine.formulas import skill_buff_turns, skill_cond_mult, skill_expr_preview, skill_formula_expr, skill_formula_expr_for_seg, skill_lifesteal_pct, skill_max_level, skill_mech_val, skill_power_mult
 from ..content_rules.panel import player_final_stats, player_stats_detail, race_name, race_stats, skill_learn_cost_for
 from ..content_rules.skills import _sk_table, branch_path_index, branch_skill_owner, is_skill_learned, skill_info, skill_level_of, skill_upgrade_cost
 from ..commands.base import CommandBase, require_player
@@ -1035,12 +1035,12 @@ class PlayerCmds(CommandBase):
             try:
                 _bstate = db.get_battle(group_id, qq_id)
                 if _bstate and _bstate.get("state"):
-                    # N5b4-6：battle2 实时面板（state sides-only → from_state → actor_stats；
+                    # N5b4-6：saintess_engine 实时面板（state sides-only → from_state → actor_stats；
                     # 旧格式无 sides → 回落静态养成面板）
                     _st_src = _bstate["state"]
                     if _st_src.get("sides"):
-                        from battle2 import Battle as _B2
-                        from battle2.stats import actor_stats as _as
+                        from saintess_engine import Battle as _B2
+                        from saintess_engine.stats import actor_stats as _as
                         _b = _B2.from_state(_st_src)
                         _my = None
                         for _a in _b.sides_of("player"):
@@ -1643,7 +1643,7 @@ class PlayerCmds(CommandBase):
         - heal_formula 字符串数组：同 exprs 逐级
         - heal_formula 段列表：逐段翻译并用 + 连接
         """
-        from battle2.support.formula_expr import translate_expr
+        from saintess_engine.support.formula_expr import translate_expr
         _expr = skill_formula_expr(info, lv)
         if _expr and isinstance(_expr, str):
             return translate_expr(_expr)

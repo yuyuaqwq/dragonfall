@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""批量跑 battle2 测试并统计 framework/battle2 覆盖率（stdlib trace，零依赖）。
+"""批量跑 saintess_engine 测试并统计 framework/saintess_engine 覆盖率（stdlib trace，零依赖）。
 
 跑法：python tools/cov_battle2.py
-输出：每个 battle2 模块的 executed/total 行数 + 未覆盖行号。
+输出：每个 saintess_engine 模块的 executed/total 行数 + 未覆盖行号。
 """
 import os
 import sys
@@ -31,26 +31,26 @@ for tf in test_files:
     except Exception as e:
         print(f"  ⚠️ {os.path.basename(tf)} 异常: {type(e).__name__} {e}")
 
-# 汇总 battle2 目录覆盖率
+# 汇总 saintess_engine 目录覆盖率
 from collections import defaultdict
 file_lines = defaultdict(set)
 file_exec = defaultdict(set)
 for (fn, ln), cnt in (tracer.counts or {}).items():
     fn = fn.replace("\\", "/")
-    if "/framework/battle2/" not in fn:
+    if "/framework/saintess_engine/" not in fn:
         continue
     file_lines[fn].add(ln)
     if cnt > 0:
         file_exec[fn].add(ln)
 
 total = exe = 0
-print("\n=== battle2 覆盖率（行级） ===")
+print("\n=== saintess_engine 覆盖率（行级） ===")
 for fn in sorted(file_lines):
     t = len(file_lines[fn])
     e = len(file_exec[fn])
     total += t
     exe += e
-    name = fn.split("/battle2/")[-1]
+    name = fn.split("/saintess_engine/")[-1]
     missing = sorted(file_lines[fn] - file_exec[fn])
     pct = 100.0 * e / t if t else 0
     print(f"  {name}: {e}/{t} ({pct:.1f}%)")

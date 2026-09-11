@@ -20,14 +20,14 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2 import Battle as B2, make_actor  # noqa: E402
-from battle2.effect_triggers import fire  # noqa: E402
+from saintess_engine import Battle as B2, make_actor  # noqa: E402
+from saintess_engine.effect_triggers import fire  # noqa: E402
 from game.services.class_mech_proc import apply_class_mech  # noqa: E402
 from game.services import battle2_cond_procs as CP  # noqa: E402
 from game.data import skills as _SK  # noqa: E402
-from battle2.support.battle_bars import bar_effect_key# noqa: E402
+from saintess_engine.support.battle_bars import bar_effect_key# noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -69,7 +69,7 @@ def _has_trigger(actor, ev):
 
 def _fire_dmg(b, p, e, info, logs=None):
     """触发 dmg_calc 并返回乘区（模拟引擎插桩点）。"""
-    from battle2.effect_triggers import fire as _fire
+    from saintess_engine.effect_triggers import fire as _fire
     _fire(b, "dmg_calc", {"actor": p, "target": e, "dmg": 100,
                           "is_crit": False, "info": info, "mult": 1.0}, logs or [])
     return float((getattr(b, "_fire_ctx", {}) or {}).get("mult", 1.0) or 1.0)
@@ -159,7 +159,7 @@ def test_enemy_debuff():
 
 
 def test_melody_predicates():
-    print("【5. melody 谓词：读 effects.melody_state（battle2 真实载体）】")
+    print("【5. melody 谓词：读 effects.melody_state（saintess_engine 真实载体）】")
     p = mk_actor(cls="cls_wu_seng", learned=["sk_ce_ti"])   # 侧踢（cond=enemy_broken）
     apply_class_mech(p)
     e = mk_actor(side="enemy", uid="e1")
@@ -192,7 +192,7 @@ def test_unknown_type_and_heal():
     check("未注册 type → 静默 1.0（不崩）", _fire_dmg(b, p, e, info) == 1.0)
     check("未注册 type 已注册表中不存在", "not_registered_yet" not in CP.COND_PREDICATES)
     # heal_calc：治疗旋使用同一动作
-    from battle2.effect_triggers import fire as _fire
+    from saintess_engine.effect_triggers import fire as _fire
     e.setdefault("effects", {})[bar_effect_key("shaken")] = {
         "trigger_count": 1, "immune_until": 2.0, "_at": 0.0}
     hinfo = {"name": "治疗试技", "kind": "治疗", "cond": {"type": "enemy_broken", "mult": 1.3}}
@@ -204,7 +204,7 @@ def test_unknown_type_and_heal():
 
 def test_end_to_end_damage():
     print("【7. 端到端：真实技能管线（侧踢）破防前后伤害对比】")
-    from battle2 import actions as A
+    from saintess_engine import actions as A
     from game.content_rules.skills import skill_info
     real = skill_info("cls_wu_seng", "sk_ce_ti")
     check("取到真实侧踢数据且带 cond", isinstance(real, dict) and isinstance(real.get("cond"), dict),

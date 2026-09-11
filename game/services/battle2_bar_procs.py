@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""battle2 挂敌身条装配层 battle2_bar_procs（v181 破绽接线 + 时间化）。
+"""saintess_engine 挂敌身条装配层 battle2_bar_procs（v181 破绽接线 + 时间化）。
 
 背景：`core/battle_bars.py` 的通用挂敌身条（enemy_bar）容器在 v181.N10 重构后
 失去消费方——旧 `battle.py` 的 `_skill_hit_settle` / `_turn_start` 两个消费端随文件
 删除，`bar_gain` 全库零调用方，破绽条打不出去（容器/配置/条件全活，只断在消费链）。
-本模块把消费链接回 battle2 的事件总线（`effect_triggers.fire`）。
+本模块把消费链接回 saintess_engine 的事件总线（`effect_triggers.fire`）。
 
 通用动词（引擎零知识：动作名是动词，bar key / 技能字段名全由声明参数给出）：
 - `bar_gain`          skill_hit 命中后按技能数据字段注入积蓄（`params["field"]`，如
@@ -25,12 +25,12 @@
   immune_until/_at；V 系列统一单容器，见 core/battle_bars）
 
 控制落地：`trigger_effect == "skip_turn"` → 宿主 `effects` 挂 `mode=skip`
-（battle2 统一控制消费点 `Battle.act` 消费，消费即清）——`expire=None` 表示
+（saintess_engine 统一控制消费点 `Battle.act` 消费，消费即清）——`expire=None` 表示
 「下一动生效」而非墙钟刻数，慢速单位也不会白漏（对齐旧引擎 skip_turn 语义）。
 """
 from __future__ import annotations
 
-from battle2.effects import register_action
+from saintess_engine.effects import register_action
 
 
 def _now_of(battle) -> float:
@@ -49,7 +49,7 @@ def _host_of(caster, target, params) -> dict | None:
 
 def _bar_keys_of(host: dict) -> list:
     """宿主身上所有条键（effects 里带前缀的条目 → 去前缀 bar key）。"""
-    from battle2.support.battle_bars import _state_prefix
+    from saintess_engine.support.battle_bars import _state_prefix
     pfx = _state_prefix()
     out = []
     for k, v in (host.get("effects") or {}).items():
@@ -75,7 +75,7 @@ def _ensure_tick(host: dict) -> None:
 
 def _settle(battle, host: dict, key: str, logs: list) -> bool:
     """阈值检查 → 触发 → 落地 trigger_effect。返回是否触发。"""
-    from battle2.support.battle_bars import bar_def, bar_should_trigger, bar_trigger
+    from saintess_engine.support.battle_bars import bar_def, bar_should_trigger, bar_trigger
     now = _now_of(battle)
     if not host or not key or not bar_should_trigger(host, key, now):
         return False
@@ -83,7 +83,7 @@ def _settle(battle, host: dict, key: str, logs: list) -> bool:
         return False
     bd = bar_def(key) or {}
     if (bd.get("trigger_effect") or "") == "skip_turn":
-        # 控制跳过：effects 容器 mode=skip（battle2 统一控制消费点消费后自清）；
+        # 控制跳过：effects 容器 mode=skip（saintess_engine 统一控制消费点消费后自清）；
         # expire=None = 无墙钟到期 → 由「下一动」消费
         host.setdefault("effects", {})[f"bar_skip:{key}"] = {
             "mode": "skip", "expire": None}
@@ -124,7 +124,7 @@ def bar_gain_act(battle, caster, target, params, logs):
         return
     if amount <= 0:
         return
-    from battle2.support.battle_bars import bar_gain
+    from saintess_engine.support.battle_bars import bar_gain
     bar_gain(host, key, amount, logs, now=_now_of(battle))
     _ensure_tick(host)
     _settle(battle, host, key, logs)
@@ -136,7 +136,7 @@ def bar_time_settle_act(battle, caster, target, params, logs):
     host = params.get("_owner") or _host_of(caster, target, params)
     if not isinstance(host, dict):
         return
-    from battle2.support.battle_bars import bar_settle
+    from saintess_engine.support.battle_bars import bar_settle
     now = _now_of(battle)
     for key in _bar_keys_of(host):
         bar_settle(host, key, now, logs)
@@ -153,7 +153,7 @@ def bar_phase_preserve_act(battle, caster, target, params, logs):
     host = params.get("_owner") or _host_of(caster, target, params)
     if not isinstance(host, dict):
         return
-    from battle2.support.battle_bars import bar_def, bar_preserve, bar_state
+    from saintess_engine.support.battle_bars import bar_def, bar_preserve, bar_state
     for key in _bar_keys_of(host):
         before = float((bar_state(host, key) or {}).get("val", 0.0) or 0.0)
         if before <= 0:
@@ -176,8 +176,8 @@ def passive_reflect_bar_act(battle, caster, target, params, logs):
     - 反推条 = `params["key"]/["gain"]`（装配器按被动 `bar_field` 解析的技能字段量）
       → bar_gain + 触发检查（与命中注入同一条消费链）
     """
-    from battle2.actors import actor_alive
-    from battle2.support.battle_bars import bar_gain
+    from saintess_engine.actors import actor_alive
+    from saintess_engine.support.battle_bars import bar_gain
     deflector = params.get("_owner") or target
     if not isinstance(deflector, dict) or not actor_alive(deflector):
         return
@@ -188,7 +188,7 @@ def passive_reflect_bar_act(battle, caster, target, params, logs):
     pct = float(params.get("reflect_pct", 0) or 0)
     if pct > 0:
         rd = max(1, int(int(ctx.get("dmg", 0) or 0) * pct))
-        from battle2.landing import deal_damage
+        from saintess_engine.landing import deal_damage
         deal_damage(battle, deflector, attacker, rd, logs)
         logs.append(f"🪨 反震：反弹 {rd} 点伤害！")
     key = params.get("key")

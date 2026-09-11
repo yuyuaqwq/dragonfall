@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """审计：配了 AI 选招 / 连招链的怪，其引用的技能能否真解析（三分类）。
 
-背景（2026-09-11）：battle2/ai.py resolve_ai_move 原先只按 when 条件选 move、
+背景（2026-09-11）：saintess_engine/ai.py resolve_ai_move 原先只按 when 条件选 move、
 不校验技能此刻可执行；ActCtx.__post_init__ 只从 actor["_skill_index"] 解析技能
 （无全局兜底）→ 索引不到时 do_skill 拿到 info={} 直接 return []：**静默白耗一回合**。
 chain（boss_script._check_chains）同样把技能写进 actor["auto_act"] 走 ActCtx 解析，
@@ -35,9 +35,9 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.join(PLUGIN_DIR, "test_audit_ai.db
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2.ai import normalize_ai  # noqa: E402
+from saintess_engine.ai import normalize_ai  # noqa: E402
 from game.data.monster_mods import MONSTER_MODS  # noqa: E402
 from game.data.monsters import MONSTER_SKILLS  # noqa: E402
 

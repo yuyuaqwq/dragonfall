@@ -20,9 +20,9 @@ actor 上全部数值修正收敛为单容器 actor["bonus"] = {分域 dict}：
 来源（全部是"纯 flat 数值"，加进面板）：
 - 副业大师称号/成就称号（TITLES/ACHIEVEMENTS bonus）
 - 收藏册满套 bonus（v174）
-- 【未来新增来源：挂件/时装/符文等——只在这个函数加一路，引擎/battle2/命令层零改动】
+- 【未来新增来源：挂件/时装/符文等——只在这个函数加一路，引擎/saintess_engine/命令层零改动】
 
-⚠️ 边界：机制型效果（触发/条件/事件）不走这里——走 battle2 装配层
+⚠️ 边界：机制型效果（触发/条件/事件）不走这里——走 saintess_engine 装配层
 （actor.triggers + 事件总线，N9/N9A 通用通道）。本聚合器只产 flat 数值 dict
 （如 {"atk": 15, "spd": 10}），由命令层开战时经 bonus_seed 塞进 actor["bonus"]["panel"]。
 

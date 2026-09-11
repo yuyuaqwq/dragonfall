@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""v181.P4 N5b4-5a 副本战斗控制器（battle2 原生重写版）。
+"""v181.P4 N5b4-5a 副本战斗控制器（saintess_engine 原生重写版）。
 
 鱼鱼 2026-09-08 拍板：副本战斗不用旧引擎、不在老 instance.py 上打洞——
-本控制器以 battle2 state 为战斗权威：
+本控制器以 saintess_engine state 为战斗权威：
 
 - `st["battle"]` = B2(...).to_state()（sides 全员 actors + now + killed；无镜像）
 - `build_battle(st)`：遭遇/切怪/Boss 战组 sides → 构造 → 落 st["battle"]
@@ -17,14 +17,14 @@
 宠物 Battle pet 只存不驱动（宠物批）；玩家词条种子护盾由玩法壳保留调用
 （装配启用待鱼鱼拍板）；副本旧毒（debuffs.poison δ层）未迁 state dot（内容批）。
 
-引擎零改动依赖：battle2 + bridge + schedule；本文件不 import 旧 game.battle。
+引擎零改动依赖：saintess_engine + bridge + schedule；本文件不 import 旧 game.battle。
 """
 from __future__ import annotations
 
 from typing import Optional
 
 from ..services import battle2_bridge as BR
-from battle2.support.skill_kinds import K_HEAL, K_BUFF
+from saintess_engine.support.skill_kinds import K_HEAL, K_BUFF
 
 # 玩家快照/玩法壳视图需要同步回的每玩家键（actor → snap 或 st per-player 键）
 # V 系列：战斗状态权威 = effects（snap 由 sync_player_from_actor 回写），
@@ -40,7 +40,7 @@ _VIEW_ST_KEYS = {
 
 
 def _player_actor(snap: dict, st: dict, key: str) -> dict:
-    """玩家快照 + st per-player 键 → battle2 player actor（sides 用）。
+    """玩家快照 + st per-player 键 → saintess_engine player actor（sides 用）。
 
     快照字段全透传（身份/面板/站位）；V 系列：状态在 snap.effects（由
     sync_player_from_actor 每帧回写），p_effects 顶层键为老档兜底。
@@ -101,7 +101,7 @@ def _instance_target_picker(st: dict):
     """
     def pick(battle, actor):
         try:
-            from battle2.support import formation as FM
+            from saintess_engine.support import formation as FM
             from .. import content as C
             alive_p = [a for a in battle.sides_of("player")
                        if int(a.get("hp", 0) or 0) > 0]
@@ -145,7 +145,7 @@ def _instance_team_event(st: dict):
     """副本团队技能广播观察者（5b G2：act_cast + info.team → 全队效果）。
 
     旧引擎由 battle.py 生成 team_effects（6176/6256/7204）→ instance 层 _apply_team_effect
-    消费；battle2 引擎零游戏知识——本观察者经 on_event（事件总线尾部通知）监听：
+    消费；saintess_engine 引擎零游戏知识——本观察者经 on_event（事件总线尾部通知）监听：
       act_cast + info.team == "heal_all" → 除施放者外全队治疗（施放者已由 _do_heal 治疗）
     数据现状：skills.py team 值仅 heal_all（牧师救赎之光）——按数据声明做，无 if-elif 扩散。
     """
@@ -161,9 +161,9 @@ def _instance_team_event(st: dict):
             if not caster or int(caster.get("hp", 0) or 0) <= 0:
                 return
             # 治疗量 = 施法者面板公式（对齐 _do_heal/_heal_amount，独立算全队口径）
-            from battle2.actions import heal_amount as _hcalc
-            from battle2 import stats as _S
-            from battle2.landing import heal_actor as _heal
+            from saintess_engine.actions import heal_amount as _hcalc
+            from saintess_engine import stats as _S
+            from saintess_engine.landing import heal_actor as _heal
             from ..content_rules.skills import skill_level_of
             _stp = _S.actor_stats(battle, caster)
             _lv = skill_level_of(caster, info.get("name", "")) if caster.get("class_name") else 0
@@ -187,7 +187,7 @@ def _instance_team_event(st: dict):
 def _attach_instance_hooks(b, st: dict) -> None:
     """battle 恢复/重建后重挂命令层注入钩子（5b：target_picker + 5a：action_override）。
 
-    battle2 的 Battle 构造参数（target_picker/on_event/action_override）都是运行回调，
+    saintess_engine 的 Battle 构造参数（target_picker/on_event/action_override）都是运行回调，
     不随 to_state/from_state 序列化——每次 from_state 后必须重挂，否则副本自动怪
     不按仇恨选目标、道具行动回调丢失。
     """
@@ -230,7 +230,7 @@ def build_battle(st: dict) -> "object":
     玩家 side = st["members"] 存活者 actor；敌 side = st["enemies"] 单位 actor。
     宠物：当前队长/首成员宠物照传（只存不驱动，宠物批前不参与）。
     """
-    from battle2 import Battle as B2
+    from saintess_engine import Battle as B2
     sides: dict = {"player": [], "enemy": []}
     for k in st.get("members") or []:
         kk = str(k)
@@ -302,7 +302,7 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
     返回 (logs, ended, next_key)。副本轮流由玩法壳驱动：调用前已确认轮到 qq_id。
     target：外部解析好的目标 actor（None=自动）；heal/buff 强制 None 防奶敌。
     """
-    from battle2 import Battle as B2
+    from saintess_engine import Battle as B2
     from ..content_rules.skills import skill_info
     st_battle = st.get("battle") or {}
     if not st_battle.get("sides"):
@@ -327,7 +327,7 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
     if my is None:
         return ["你已不在战斗中（状态异常）！"], True, None
     _tgt = target
-    # 目标解析：battle2 引擎只吃 actor dict（字符串会崩）——名字/编号在此翻译。
+    # 目标解析：saintess_engine 引擎只吃 actor dict（字符串会崩）——名字/编号在此翻译。
     # 支持：None=自动 / actor dict 直传 / 字符串=敌名（前缀匹配，v2 多怪指定）
     #       / aN 编号（A 层第 N 个存活敌，formation 站位编号语义，v127.3）
     if isinstance(_tgt, str):
@@ -369,7 +369,7 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
 
 
 def sync_views(st: dict, group_id) -> None:
-    """唯一视图/DB 同步点：battle2 actors → 玩法壳旧键 + 玩家 DB 血量。
+    """唯一视图/DB 同步点：saintess_engine actors → 玩法壳旧键 + 玩家 DB 血量。
 
     - st["players"][k] 快照：hp/mp/max/buffs/shields/defending/charging/ct/...
     - st per-player 键（p_buffs/p_hot/p_defending/...）同帧更新（老玩法壳读）

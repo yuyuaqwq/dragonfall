@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""N10-B7：food 战斗料理效果 battle2 装配验收（缺口补完）。
+"""N10-B7：food 战斗料理效果 saintess_engine 装配验收（缺口补完）。
 
 跑法：python tests/test_battle2_n10_b7_food.py（w1 内）
 
@@ -28,12 +28,12 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2 import Battle as B2, make_actor  # noqa: E402
-from battle2 import actions as A  # noqa: E402
-from battle2 import landing as L  # noqa: E402
-from battle2.actors import ActCtx  # noqa: E402
+from saintess_engine import Battle as B2, make_actor  # noqa: E402
+from saintess_engine import actions as A  # noqa: E402
+from saintess_engine import landing as L  # noqa: E402
+from saintess_engine.actors import ActCtx  # noqa: E402
 
 PASS = 0
 FAIL = 0

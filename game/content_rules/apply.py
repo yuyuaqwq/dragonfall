@@ -22,7 +22,7 @@
 调用顺序契约（铁律，写死在 apply_game_content 里——命令层不得再自行排列）
 --------------------------------------------------------------------------
     ① ensure_engine_configured()          引擎 hook + 规则表装配（幂等；先于一切内容装配）
-                                          —— 等价旧 `battle2.config.load_game_defaults()`
+                                          —— 等价旧 `saintess_engine.config.load_game_defaults()`
     ② equip_proc.apply_to_actor(actor)    装备/词条/武器特效 → triggers + bonus 分域（cap/cost）
                                           ⚠ 必须先于 ③：EP 的 bonus 分域是 ③ 职业资源渠道
                                             装配的输入（equip_proc 模块头「先于渠道装配」铁律）
@@ -63,7 +63,7 @@ actor 顶部标记键 `_content_applied`（本模块 `_MARK`）**，理由与被
   * 子步本身仍有「bar/cond 幂等（按 action+key 去重）」「bonus 分域覆盖写」性质，
     标记是**保险丝**而非唯一依赖。
 
-方向性：本模块在**内容侧**（content_rules）——引擎 `framework/battle2/` 不得 import 本模块
+方向性：本模块在**内容侧**（content_rules）——引擎 `framework/saintess_engine/` 不得 import 本模块
 （门禁 `tests/test_engine_no_content.py`）；引擎只提供 `config` 挂载面。
 """
 from __future__ import annotations
@@ -86,7 +86,7 @@ _MAX_ERRORS = 16
 
 
 def ensure_engine_configured() -> None:
-    """引擎配置**一次性**装配（幂等）——旧 `battle2.config.load_game_defaults()` 的实体。
+    """引擎配置**一次性**装配（幂等）——旧 `saintess_engine.config.load_game_defaults()` 的实体。
 
     = `game.bootstrap.load_engine_config()`：hook 面（公式/面板/技能查询/kind/mech_cfg）
       + 规则表（EFFECT_ACTIONS / EFFECT_RULES）。
@@ -100,7 +100,7 @@ def ensure_engine_configured() -> None:
 def apply_game_content(actor: dict, ctx: dict | None = None) -> dict:
     """**唯一**开战内容装配入口。顺序契约见模块 docstring（①…⑥）。幂等。
 
-    :param actor: battle2 侧 actor（命令层从 player dict 经 battle2_bridge 得来）
+    :param actor: saintess_engine 侧 actor（命令层从 player dict 经 battle2_bridge 得来）
     :param ctx:   可选上下文；仅识别 ``aids``（食物 aid 列表）与 ``logs``（播报累加）
     :return: actor（原对象，就地装配）
 

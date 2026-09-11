@@ -4,7 +4,7 @@
 
 ⚠️ 为什么必须是子进程（见 editor/simulate.py 顶部说明）：
   1. 本仓库存在循环导入陷阱（`game.data ↔ game.core`），且引擎装配 `load_game_defaults()`
-     有**全局副作用**（把公式/面板/kind 常量往 `battle2.config` 的 hook 面 mount）。
+     有**全局副作用**（把公式/面板/kind 常量往 `saintess_engine.config` 的 hook 面 mount）。
      编辑器主进程一旦 import game 就会被污染，且与「编辑器的数据层只读 py 源码字面量、
      绝不 import game」这条已定纪律冲突。
   2. 引擎装配/战斗推进可能抛异常甚至死循环 —— 丢进子进程可以用超时兜底、失败不拖垮编辑器。
@@ -57,7 +57,7 @@ def _tail(text: str, n: int = 25) -> str:
 def _setup_paths() -> None:
     """照 tests/ 里的 sys.path 补丁写法：qqbot 根 + 插件根 + 引擎框架根 + astrbot shim。"""
     for p in (QQBOT_DIR, PLUGIN_DIR, os.path.join(PLUGIN_DIR, "framework")):
-        # ↑ framework：引擎框架包（S8 物理分离，`battle2` 在该目录下）
+        # ↑ framework：引擎框架包（S8 物理分离，`saintess_engine` 在该目录下）
         if p and p not in sys.path:
             sys.path.insert(0, p)
     shim = os.path.join(PLUGIN_DIR, "tests", "shim_astrbot")
@@ -157,10 +157,10 @@ def run(payload: dict) -> dict:
     seed = 1 if seed in (None, "") else int(seed)
 
     # ---- 装配引擎（第一处 import game —— 只发生在子进程里） ----
-    from battle2 import config as _b2c
+    from saintess_engine import config as _b2c
     from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
     from game.content_rules.panel import player_final_stats
-    from battle2 import Battle, make_actor
+    from saintess_engine import Battle, make_actor
 
     # 技能等级：模拟固定为指定等级（引擎默认查玩家已学等级，模拟的临时技能查不到 → 0）
     try:

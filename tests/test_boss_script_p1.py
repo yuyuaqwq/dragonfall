@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""5c P1 验证：Boss 剧本导演 phases 转阶段（battle2 script_hook）。
+"""5c P1 验证：Boss 剧本导演 phases 转阶段（saintess_engine script_hook）。
 
 真实数据（INSTANCES inst_old_king_tomb 内联 phases 3 条 + MONSTER_MODS b_king_odric）：
 - cfg 解析：副本覆盖优先（inst 内联 3 条 > mods 2 条）
@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.join(_PLUGIN_DIR, "framework"))  # 引擎框架包（
 sys.path.insert(0, _PLUGIN_DIR)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from game.store.connection import init_db  # noqa: E402
 init_db()
@@ -34,7 +34,7 @@ from game import content as C  # noqa: E402
 from game import db  # noqa: E402
 from game.content_rules.panel import player_final_stats
 from game.commands import instance_battle as IB  # noqa: E402
-from battle2 import Battle as B2  # noqa: E402
+from saintess_engine import Battle as B2  # noqa: E402
 
 PASS = 0
 FAIL = 0

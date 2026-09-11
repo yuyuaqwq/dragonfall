@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v181.N5b4-5a R1：副本战斗行动命令层 Router（battle2 原生重写）。
+"""v181.N5b4-5a R1：副本战斗行动命令层 Router（saintess_engine 原生重写）。
 
 v3 蓝图 docs/REFACTOR_v181P4_N5B5a_instance_mainline.md §4：
 InstanceBattleRouter 接管副本行动入口（战斗执行/轮转/结算全新代码），
@@ -31,7 +31,7 @@ INSTANCE_TIMEOUT = 60  # 副本行动超时（秒）——与 instance.py 模块
 
 
 class InstanceRouterCmds(CommandBase):
-    """副本战斗行动路由薄壳（battle2 版，v3 §4.1-4.5 全逻辑）。"""
+    """副本战斗行动路由薄壳（saintess_engine 版，v3 §4.1-4.5 全逻辑）。"""
 
     # ------------------------------------------------------------------
     # 4.1 入口守卫 + 轮转
@@ -77,7 +77,7 @@ class InstanceRouterCmds(CommandBase):
     def _router_collect_killed(self, st: dict, since_prev: bool = False) -> list:
         """battle killed（uid 累计）→ 死亡敌人单位 dict 列表。
 
-        v3 §4.4 死亡账：battle2 击杀记录（state.killed uid）转玩法壳消费的
+        v3 §4.4 死亡账：saintess_engine 击杀记录（state.killed uid）转玩法壳消费的
         单位快照（st[\"_last_killed\"]/击杀任务）。死亡 actor 不从 sides 移除
         （只进 killed），因此从 enemy side 按 uid 取 hp<=0 的 actor 快照。
         副本内 state.killed 为整场累计；玩家行动一段只消费新增段（上一段
@@ -131,12 +131,12 @@ class InstanceRouterCmds(CommandBase):
     # ------------------------------------------------------------------
     async def _instance_router(self, event, group_id, qq_id, player, st,
                                action, skill_name=None, target=None):
-        """副本刻行动（battle2 版）——v3 蓝图 §4.1-4.5 全逻辑新写。
+        """副本刻行动（saintess_engine 版）——v3 蓝图 §4.1-4.5 全逻辑新写。
 
         参数/协议对齐旧 _instance_act（CombatCmds 接线点 R2 改调本方法）。
         返回 async generator：yield event.plain_result(...) 文本。
         """
-        from battle2.support.skill_kinds import K_HEAL, K_BUFF
+        from saintess_engine.support.skill_kinds import K_HEAL, K_BUFF
         # 嘲讽强制剩余帧递减（每玩家行动帧；到 0 清强制回正常仇恨）
         _tl = int(st.get("taunt_left", 0) or 0)
         if _tl > 0:

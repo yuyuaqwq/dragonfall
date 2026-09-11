@@ -158,10 +158,10 @@ async def boss_drive(m, gid, qid, hp_ratio, target_pc, max_rounds=15):
         except Exception:
             pass
         out += "\n" + (await cmd(m, "attack", gid, cur, "攻击"))
-        battle2 = db.get_battle(gid, qid)
-        if not battle2:
+        saintess_engine = db.get_battle(gid, qid)
+        if not saintess_engine:
             break
-        st = _authoritative_st(m, gid, qid, battle2)
+        st = _authoritative_st(m, gid, qid, saintess_engine)
         if int((st.get("boss_script") or {}).get("phase_count", 0) or 0) >= target_pc:
             break
     return out, st

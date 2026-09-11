@@ -22,7 +22,7 @@ from .constants import (
 from .player import PlayerOptions, build_player, per_action_dmg, sustained_dps
 from .gear import gear_loadout
 from .monster import build as build_monster, panel as monster_panel
-from battle2.formulas import calc_damage
+from saintess_engine.formulas import calc_damage
 
 # 诗人 DPS 口径：终章爆发折算（纯辅助职业，无常规攻击技能；计划 §一.5.2 注 2）
 POET_FINALE_MULT = 2.4   # 终章 2.4× 魔攻（v153 §7 文档口径）

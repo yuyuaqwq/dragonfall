@@ -27,8 +27,8 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from game.content_rules.panel import player_final_stats
-from battle2 import Battle as BT_NEW, make_actor  # noqa: E402
-from battle2 import config as _b2config  # noqa: E402
+from saintess_engine import Battle as BT_NEW, make_actor  # noqa: E402
+from saintess_engine import config as _b2config  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 
 PASS = 0
@@ -84,7 +84,7 @@ def test_roundtrip_full():
     m = mk_monster()
     b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
     # 打一半状态：玩家放技能/挂 state
-    from battle2 import effects as FX
+    from saintess_engine import effects as FX
     p["effects"]["zhan_yi"] = {"stacks": 3}
     p["effects"]["atk_up"] = {"stacks": 4}
     m["effects"]["burn"] = {"stacks": 2}
@@ -145,7 +145,7 @@ def test_result_preserved():
 
 
 def main():
-    print("=== N5 battle2 序列化测试 ===")
+    print("=== N5 saintess_engine 序列化测试 ===")
     test_roundtrip_full()
     test_continue_after_restore()
     test_result_preserved()

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""覆盖补齐：battle2 引擎未覆盖函数的专项测试（质量门禁）。
+"""覆盖补齐：saintess_engine 引擎未覆盖函数的专项测试（质量门禁）。
 
 针对函数级覆盖检测发现的未覆盖函数逐一补行为断言：
 - 查询 API：sides_of/hostile_of/focus/alive_actors/alive_sides
@@ -27,15 +27,15 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 
-from battle2 import Battle as BT_NEW, make_actor  # noqa: E402
-from battle2 import config as _b2config      # noqa: E402
+from saintess_engine import Battle as BT_NEW, make_actor  # noqa: E402
+from saintess_engine import config as _b2config      # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from battle2 import actors as A              # noqa: E402
-from battle2 import effects as FX            # noqa: E402
-from battle2 import schedule as SC           # noqa: E402
-from battle2 import serialize as SZ          # noqa: E402
-from battle2 import stats as ST              # noqa: E402
-from battle2 import landing as L             # noqa: E402
+from saintess_engine import actors as A              # noqa: E402
+from saintess_engine import effects as FX            # noqa: E402
+from saintess_engine import schedule as SC           # noqa: E402
+from saintess_engine import serialize as SZ          # noqa: E402
+from saintess_engine import stats as ST              # noqa: E402
+from saintess_engine import landing as L             # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -176,7 +176,7 @@ def test_stats_convenience():
     check("actor_spd 纯怪读字段", ST.actor_spd(b, m) == m["spd"])
     check("actor_crit", abs(ST.actor_crit(b, p) - st_full.get("crit", 0)) < 1e-9)
     # stat_scale_of
-    from battle2.state_effects import stat_scale_of
+    from saintess_engine.state_effects import stat_scale_of
     chk = abs(stat_scale_of("zhan_yi", 5, "atk") - 1.20) < 1e-9
     check("stat_scale_of zhan_yi 5层 atk=1.2", chk)
     check("stat_scale_of 无规则 key = 1.0", abs(stat_scale_of("nope", 3, "atk") - 1.0) < 1e-9)
@@ -184,7 +184,7 @@ def test_stats_convenience():
 
 def test_aoe_falloff_apply():
     print("【CV8 _aoe_falloff_apply 存在且可调（占位）】")
-    from battle2.actions import _aoe_falloff_apply
+    from saintess_engine.actions import _aoe_falloff_apply
     logs = ["a", "b"]
     out = _aoe_falloff_apply(logs)
     check("_aoe_falloff_apply 透传 logs", out == ["a", "b"])
@@ -292,13 +292,13 @@ def test_effects_branches():
 
 def test_actions_branches():
     print("【CV11 actions 分支：AOE 无敌/do_skill 无 info/buff pct 折算】")
-    from battle2.actions import do_skill, _do_buff
-    from battle2.actors import ActCtx
+    from saintess_engine.actions import do_skill, _do_buff
+    from saintess_engine.actors import ActCtx
     p, m = mk_ctx()
     b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
     # AOE 无敌人（enemy side 空）
     b2 = BT_NEW(btype="monster", sides={"player": [p], "enemy": []})
-    from battle2 import effects as FX2
+    from saintess_engine import effects as FX2
     logs = []
     r = FX2.apply_effects(b2, p, None, [{"type": "apply", "op": "add", "key": "x", "amount": 1}], logs)
     check("空敌人 side 构造可用", True)
@@ -326,7 +326,7 @@ def test_actions_branches():
 
 def test_schedule_edge():
     print("【CV12 schedule 边界：无 actor 直接 over】")
-    from battle2.schedule import advance as _adv
+    from saintess_engine.schedule import advance as _adv
     # 两边都无 actor → 立即 over
     b = BT_NEW(btype="monster", sides={"player": [], "enemy": []})
     logs = []
@@ -366,17 +366,17 @@ def test_human_kill_who_none():
 
 def test_more_branches():
     print("【CV14 更多业务分支：mech2/怪施法buff/shield pct/hostile_map/float buff】")
-    from battle2 import effects as FX3
+    from saintess_engine import effects as FX3
     p, m = mk_ctx()
     b = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]})
     logs = []
     # hostile_map 显式配置
     b2 = BT_NEW(btype="monster", sides={"player": [p], "enemy": [m]},
                 hostile_map={"player": ["enemy"], "enemy": ["player"]})
-    from battle2 import actors as A2
+    from saintess_engine import actors as A2
     check("hostile_map 配置生效", A2.hostile_sides(b2, "player") == ["enemy"])
     # actor_auto 带 auto_act 配置（action=skill 指定技能）
-    from battle2.actions import resolve_basic_skill
+    from saintess_engine.actions import resolve_basic_skill
     ai = make_actor(uid="ai", name="配置怪", side="enemy", kind="monster",
                     hp=1000, max_hp=1000, atk=20, **{"def": 5},
                     matk=5, mdef=5, spd=5, crit=0.05, level=5)
@@ -390,8 +390,8 @@ def test_more_branches():
           "mech": "zhan_yi", "mech_val": 2, "mech2": "rage", "mech2_val": 1}
     p2, m2 = mk_ctx()
     b4 = BT_NEW(btype="monster", sides={"player": [p2], "enemy": [m2]})
-    from battle2.actions import do_skill
-    from battle2.actors import ActCtx as AC2
+    from saintess_engine.actions import do_skill
+    from saintess_engine.actors import ActCtx as AC2
     ctx = AC2(caster=p2, action="skill", skill_name="双效果", info=sk, target=m2)
     do_skill(b4, ctx)
     check("mech2 rage 生效", stk(p2, "rage", 0) >= 1, f"rage={((p2).get('effects') or {}).get('rage')}")
@@ -399,7 +399,7 @@ def test_more_branches():
     mon_buff = make_actor(uid="mb", name="buff怪", side="enemy", kind="monster",
                           hp=100, max_hp=100, atk=1, **{"def": 0}, level=5)
     b5 = BT_NEW(btype="monster", sides={"enemy": [mon_buff], "player": []})
-    from battle2.actions import _do_buff
+    from saintess_engine.actions import _do_buff
     logs5 = []
     binfo = {"name": "怪力", "kind": "增益", "effect": "atk_up", "buff_turns": 4}
     _do_buff(b5, AC2(caster=mon_buff, action="skill", skill_name="怪力", info=binfo),
@@ -418,12 +418,12 @@ def test_more_branches():
     p7, m7 = mk_ctx()
     b7 = BT_NEW(btype="monster", sides={"player": [p7], "enemy": [m7]})
     p7["effects"]["spd_down"] = {"stacks": 1, "expire": 99.0, "stat": "spd", "op": "reduce", "mult": 0.5}
-    from battle2 import stats as ST2
+    from saintess_engine import stats as ST2
     st7 = ST2.actor_stats(b7, p7)
     check("spd_down float 折算", st7["spd"] < p7["spd"], f"spd={st7['spd']} < {p7['spd']}")
     # AOE falloff（rank>1 目标 + aoe_falloff≠1）：AOE 扫到后排怪吃衰减
-    from battle2.actions import do_skill
-    from battle2.actors import ActCtx as AC3
+    from saintess_engine.actions import do_skill
+    from saintess_engine.actors import ActCtx as AC3
     p8 = make_actor(uid="p8", name="炮手", side="player", kind="player",
                     human_controlled=True, class_name="战士", level=20,
                     hp=500, max_hp=500, mp=100, max_mp=100, atk=100,
@@ -461,7 +461,7 @@ def ent(a, k):
 
 
 def main():
-    print("=== battle2 覆盖补齐测试 ===")
+    print("=== saintess_engine 覆盖补齐测试 ===")
     test_query_api()
     test_actor_helpers()
     test_defend_action()

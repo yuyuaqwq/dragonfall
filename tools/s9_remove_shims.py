@@ -2,10 +2,10 @@
 """S9-2：删除过渡 shim 的消费点改写。
 
 删两个 shim：
-  `game/engine.py`  —— re-export 引擎公式（现 `battle2.formulas`）+ 内容侧规则
+  `game/engine.py`  —— re-export 引擎公式（现 `saintess_engine.formulas`）+ 内容侧规则
                        （现 `game/content_rules/{skills,panel,gameplay}`）+ 数据表
   `game/core/{battle_bars,formation,formula_expr,skill_kinds}.py`
-                    —— S3 已迁 `battle2/support/`
+                    —— S3 已迁 `saintess_engine/support/`
 
 改写策略（逐**出现位置**处理，一个文件可能有多处别名导入）：
   1. 收集文件里所有 `from X import engine as ALIAS` 行（含相对 `from .. import`）
@@ -13,7 +13,7 @@
   3. **每处**按自身缩进就地换成真实 import（保留原本的惰性导入位置/作用域 ——
      提到模块级会打断既有循环依赖）；一处符号都没用到的直接删行
   4. 正文 `ALIAS.sym` → `sym`
-  5. `from ..core.<name> import …` → `from battle2.support.<name> import …`
+  5. `from ..core.<name> import …` → `from saintess_engine.support.<name> import …`
 
 跳过：shim 自身 / `_archive_unused/` / `tests/_retired_old_engine/` / 本工具。
 
@@ -33,10 +33,10 @@ SHIM_FILES = {"game/engine.py", "game/core/battle_bars.py", "game/core/formation
 SELF = {"tools/s9_remove_shims.py"}
 
 CORE_MAP = {
-    "battle_bars": "battle2.support.battle_bars",
-    "formation": "battle2.support.formation",
-    "formula_expr": "battle2.support.formula_expr",
-    "skill_kinds": "battle2.support.skill_kinds",
+    "battle_bars": "saintess_engine.support.battle_bars",
+    "formation": "saintess_engine.support.formation",
+    "formula_expr": "saintess_engine.support.formula_expr",
+    "skill_kinds": "saintess_engine.support.skill_kinds",
 }
 
 ALIAS_IMPORT = re.compile(

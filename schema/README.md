@@ -67,7 +67,7 @@ V.validate_all(domain="items")         # 单域
      掉落物名 → `ITEMS` 名、`MECH_CASH.key` → `EFFECT_RULES`、`start_classes` → `CLASSES`、
      名册图纸 → `EQUIP_ROSTER` 的 `roster_id` 配对。
 * **提醒（warnings）** → 只进报告，**不拦门禁**。用于需要人判断的迁移期现象
-  （例：被动 proc 在 `battle2 PASIVE_PROC` 与 `core/passive_procs` 双注册表并存）。
+  （例：被动 proc 在 `saintess_engine PASIVE_PROC` 与 `core/passive_procs` 双注册表并存）。
 
 ### 两个校验引擎
 

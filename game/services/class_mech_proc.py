@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""battle2 职业机制装配层 class_mech_proc（v181.M）——技能 mech 兑现（声明驱动）。
+"""saintess_engine 职业机制装配层 class_mech_proc（v181.M）——技能 mech 兑现（声明驱动）。
 
 蓝图：docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md。声明表：data/battle2_rules.MECH_CASH。
 
@@ -37,7 +37,7 @@ def install() -> None:
     global _registered
     if _registered:
         return
-    from battle2.effects import register_action
+    from saintess_engine.effects import register_action
 
     def _key_list(key):
         """声明 key 归一为列表（str → [str]；None → []）。"""
@@ -74,7 +74,7 @@ def install() -> None:
         if tgt is not None:
             return tgt
         try:
-            from battle2.actors import hostile_sides, actor_alive as _alive
+            from saintess_engine.actors import hostile_sides, actor_alive as _alive
             for _sn in hostile_sides(battle, actor.get("side", "")):
                 for _a in (battle.sides.get(_sn) or []):
                     if _alive(_a):
@@ -192,8 +192,8 @@ def install() -> None:
         - 写后广播 threshold（v181.M-R2e B2：渠道攒到满 cap 的当次触发——过载钩子
           依赖；对齐 effects.apply op=add 的 threshold 广播口径）
         """
-        from battle2.actors import actor_alive
-        from battle2.effects import cap_of as _cap_fn, norm_stack as _ns
+        from saintess_engine.actors import actor_alive
+        from saintess_engine.effects import cap_of as _cap_fn, norm_stack as _ns
         owner = params.get("_owner") or caster
         if owner is None or not actor_alive(owner):
             return
@@ -236,7 +236,7 @@ def install() -> None:
         # 否则同一事件批次里**排在渠道后的动作**（如 guard_core_burst 的 skill_hit
         # 清层 mech_cash_clear 读 info.mech）会读到 threshold ctx 而静默失效。
         try:
-            from battle2.effect_triggers import fire as _fire
+            from saintess_engine.effect_triggers import fire as _fire
             _prev_ctx = getattr(battle, "_fire_ctx", None)
             _fire(battle, "threshold", {"actor": owner, "key": res, "value": n}, logs)
             battle._fire_ctx = _prev_ctx
@@ -250,7 +250,7 @@ def install() -> None:
     def _faith_tiers() -> list:
         """EFFECT_RULES faith 条目 load_tiers 档位表（缺省 []——零默认值铁律）。"""
         try:
-            from battle2.state_effects import state_def
+            from saintess_engine.state_effects import state_def
             _t = (state_def("faith") or {}).get("load_tiers")
             return _t if isinstance(_t, list) else []
         except Exception:
@@ -306,7 +306,7 @@ def install() -> None:
           gain 均广播，subject=叠层者自己——只处理自己声明）
         - 判据：ctx.key==faith 且 ctx.value 达 _cap_of 满额（叠到 cap 当次）
         - 效果：faith 清零 + 我方全员回复 max_hp × overload_heal_pct（v130 旧值
-          0.015；圣化被动 faith_overload_heal 属旧被动域，battle2 未接——不乘）
+          0.015；圣化被动 faith_overload_heal 属旧被动域，saintess_engine 未接——不乘）
         - 防重复：满层后的再次 clamp（已满 +n 仍广播 value=cap）不再触发——过载帧
           标记 _faith_overload_at（近 0.5 刻内只一次）；触发即清零自然离开满层，
           下次重新攒满才再次过载。
@@ -318,7 +318,7 @@ def install() -> None:
         if owner is None:
             return
         try:
-            from battle2.effects import cap_of as _cap_fn
+            from saintess_engine.effects import cap_of as _cap_fn
             cap = _cap_fn(owner, "faith")
         except Exception:
             return
@@ -337,7 +337,7 @@ def install() -> None:
             fentry["stacks"] = 0
         pct = 0.015
         try:
-            from battle2.state_effects import state_def
+            from saintess_engine.state_effects import state_def
             pct = float((state_def("faith") or {}).get("overload_heal_pct", 0.015) or 0.015)
         except Exception:
             pct = 0.015
@@ -357,8 +357,8 @@ def install() -> None:
                         break
             except Exception:
                 pass  # 圣化增强异常不阻断过载（容错铁律）
-        from battle2.actors import actor_alive
-        from battle2.landing import heal_actor
+        from saintess_engine.actors import actor_alive
+        from saintess_engine.landing import heal_actor
         healed = 0
         side = owner.get("side") or "player"
         for _a in (getattr(battle, "sides", None) or {}).get(side, []) or []:
@@ -387,7 +387,7 @@ def install() -> None:
     # 「吟游诗人 — 驻留旋律」挽歌者 › 安魂歌者 › 镇魂挽者；旧语义源 =
     # game/core/battle_mech.py._melody_apply_e_buffs/_m_melody_finale（git 379a792^，
     # 该文件随 N10 删除，只读对齐）。旧引擎经 e_buffs（mon_atk_down/spd_down/def_down +
-    # _weaken_val/_spd_down_pct/_armor_break_pct 通道）表达；battle2 敌方面板无这些通道，
+    # _weaken_val/_spd_down_pct/_armor_break_pct 通道）表达；saintess_engine 敌方面板无这些通道，
     # 收口为 EFFECT_RULES 的 stat_scale 负值条目（层数 = 目标 %，与增益驻留同折算口径）。
     #   kind → 敌方 effects 条目 key；None = 无面板条目（周期控制，走时钟 tick）
     _MELODY_ENEMY_AURA_MAP = {
@@ -471,7 +471,7 @@ def install() -> None:
         """对敌施加控制：走引擎 apply 动词（EFFECT_RULES[key].consume.mode 语义 +
         Boss 控制减半天然生效，不自造控制通道）。turns 由引擎 int 化（半刻不支持）。"""
         _t = max(1, int(turns or 0))
-        from battle2.effects import act_apply
+        from saintess_engine.effects import act_apply
         act_apply(battle, actor, foe, {"key": ckey, "on": "target", "turns": _t}, logs)
 
     def _melody_finale(battle, actor, state, logs):
@@ -613,7 +613,7 @@ def install() -> None:
 
         语义源 = 旧 battle_mech._melody_apply_e_buffs 的 e_silence 段（写
         melody_silence_lock，消费点在旧 battle.py 敌方出手段「距上次封印 ≥4 刻则沉默 1 刻」）
-        —— battle2 敌方出手段随 N10 删除，收口为 time_advance 时钟 tick：驻留期间每
+        —— saintess_engine 敌方出手段随 N10 删除，收口为 time_advance 时钟 tick：驻留期间每
         ≥4 刻（_MELODY_SILENCE_TICK，desc「每 4 刻至多 1 次」）对敌方全体施 1 次封印
         （时长 = 节流间隔：驻留期间持续封印、每 4 刻刷新）。
 
@@ -647,7 +647,7 @@ def install() -> None:
         passive_procs.py `_h_flag_set_cond::dirge_ctrl_up`）：本技能施控（mech/mech2/cc
         ∈ 控制键，或旋律 finale 产出控制）→ 遍历控制键找首个生效键 → +add 刻 + 日志
         （首条）；半刻不支持（add 数据已向下取整：desc +1.5 → add=1）。
-        battle2 控制条目 = effects[key].expire（刻制：延长 = expire += add）。
+        saintess_engine 控制条目 = effects[key].expire（刻制：延长 = expire += add）。
         """
         ctx = getattr(battle, "_fire_ctx", None) or {}
         judge = params.get("judge") or {}
@@ -751,14 +751,14 @@ def install() -> None:
             # 挽歌·极 dirge_debuff_dmg：目标负面「种数」→ ×(1 + min(per_debuff×种数, cap))
             # 旧语义源 = game/core/passive_procs.py 挂点14 dirge_debuffs handler 逐字：
             #   pct = min(ps.per_debuff × battle._enemy_debuff_kind_count(), ps.cap)
-            # （旧引擎数 debuffs 容器种数 + e_buffs 控制/减益键；battle2 单容器 effects →
+            # （旧引擎数 debuffs 容器种数 + e_buffs 控制/减益键；saintess_engine 单容器 effects →
             #  种数口径 = 声明 negative=True 或 on=target 的条目：控制/减益旋律/减益/
             #  DOT/挂敌身印记，与旧清单等价、数据驱动零硬编码）。
             # 数值 per_debuff/cap 来自技能 passive dict（0.04 / 0.40，desc 权威）。
             _per = float(params.get("per_debuff") or 0)
             _cap = float(params.get("cap") or 0)
             if tg is not None and _per > 0 and _cap > 0:
-                from battle2.state_effects import state_def as _sd
+                from saintess_engine.state_effects import state_def as _sd
                 _kinds = 0
                 for _k, _v in (tg.get("effects") or {}).items():
                     if not isinstance(_v, dict):
@@ -774,7 +774,7 @@ def install() -> None:
             # 速度比 ≥ ratio_field → ×(1+dmg_add)（疾风·极；旧挂点4 语义：
             # 敌方无速度按 0 防御性跳过——速度比恒 ≥2 不触发）
             try:
-                from battle2.stats import actor_stats as _as
+                from saintess_engine.stats import actor_stats as _as
                 _spd_a = float((_as(battle, actor) or {}).get("spd", 0) or 0)
                 _spd_t = float((_as(battle, tg) or {}).get("spd", 0) or 0) if tg is not None else 0.0
             except Exception:
@@ -795,7 +795,7 @@ def install() -> None:
             _bar = judge.get("bar") or params.get("bar") or ""
             _bs_j = None
             if tg is not None and _bar:
-                from battle2.support.battle_bars import bar_settle, bar_effect_key
+                from saintess_engine.support.battle_bars import bar_settle, bar_effect_key
                 _now_j = float(getattr(battle, "_now", 0.0) or 0.0)
                 bar_settle(tg, _bar, _now_j)
                 _bs_j = (tg.get("effects") or {}).get(bar_effect_key(_bar))
@@ -840,7 +840,7 @@ def install() -> None:
             ext = 0.0
         if not bar or ext <= 0 or not isinstance(host, dict):
             return
-        from battle2.support.battle_bars import bar_effect_key
+        from saintess_engine.support.battle_bars import bar_effect_key
         bs = (host.get("effects") or {}).get(bar_effect_key(bar))
         if not isinstance(bs, dict):
             return
@@ -860,7 +860,7 @@ def install() -> None:
         if actor is None:
             return
         key = params.get("key") or "energy"
-        from battle2.effects import cap_of as _cap_fn
+        from saintess_engine.effects import cap_of as _cap_fn
         cap = _cap_fn(actor, key)
         if cap <= 0:
             return
@@ -883,7 +883,7 @@ def install() -> None:
             return
         ctx = getattr(battle, "_fire_ctx", None) or {}
         attacker = ctx.get("source")  # on_taken 攻击方
-        from battle2.actors import actor_alive
+        from saintess_engine.actors import actor_alive
         if attacker is None or not actor_alive(attacker):
             return
         import random as _r
@@ -891,8 +891,8 @@ def install() -> None:
         if chance <= 0 or _r.random() >= chance:
             return
         try:
-            from battle2.landing import deal_damage
-            from battle2.stats import actor_stats as _as
+            from saintess_engine.landing import deal_damage
+            from saintess_engine.stats import actor_stats as _as
             st = _as(battle, owner) or {}
             dmg = max(1, int(float(st.get("atk", 0) or 0)
                                * float(params.get("atk_pct") or 0.80)))
@@ -1125,7 +1125,7 @@ def install() -> None:
             return
         val = max(1, int(overflow * pct))
         try:
-            from battle2.battle import now_of
+            from saintess_engine.battle import now_of
             now = now_of(battle)
         except Exception:
             now = 0.0
@@ -1230,7 +1230,7 @@ def install() -> None:
         if spd_pct <= 0 and def_pct <= 0:
             return
         try:
-            from battle2.battle import now_of
+            from saintess_engine.battle import now_of
             exp = now_of(battle) + float(params.get("hold") or 2.0)
         except Exception:
             exp = None
@@ -1274,7 +1274,7 @@ def install() -> None:
         if actor is None:
             return
         try:
-            from battle2.battle import now_of
+            from saintess_engine.battle import now_of
             now = now_of(battle)
         except Exception:
             now = 0.0
@@ -1300,7 +1300,7 @@ def install() -> None:
         if not isinstance((owner.get("effects") or {}).get("stance_guard"), dict):
             return  # 姿态已过期 → 不反击
         attacker = ctx.get("source")
-        from battle2.actors import actor_alive
+        from saintess_engine.actors import actor_alive
         if attacker is None or not actor_alive(attacker):
             return
         import random as _r
@@ -1308,8 +1308,8 @@ def install() -> None:
         if chance <= 0 or _r.random() >= chance:
             return
         try:
-            from battle2.landing import deal_damage
-            from battle2.stats import actor_stats as _as
+            from saintess_engine.landing import deal_damage
+            from saintess_engine.stats import actor_stats as _as
             st = _as(battle, owner) or {}
             dmg = max(1, int(float(st.get("atk", 0) or 0)
                                * float(params.get("atk_pct") or 1.0)))
@@ -1325,7 +1325,7 @@ def install() -> None:
         """增益技 effect=guard_stance（守御姿态 v153 L992）：写姿态态 + 挂受击减伤乘区。
 
         语义（v153 L992）：「姿态：受伤 −25%，但推条值 −30%」
-        - 受伤 −25%：数值单源 = EFFECT_RULES[guard_stance].stat_scale.reduce——battle2
+        - 受伤 −25%：数值单源 = EFFECT_RULES[guard_stance].stat_scale.reduce——saintess_engine
           伤害路径不消费 st["reduce"]（stats 只写、instance 仅展示），故装配时挂
           taken_calc 乘区钩子（passive_taken_reduce has_effect 段；形态同 warrior
           class_stance_guard_enter「写态 + 挂 trigger」）。
@@ -1345,11 +1345,11 @@ def install() -> None:
             turns = 0
         if turns <= 0:
             return  # 缺字段 = 无此行为（零默认值铁律）
-        from battle2.state_effects import state_def
+        from saintess_engine.state_effects import state_def
         cfg = state_def(key) or {}
         reduce_v = float((cfg.get("stat_scale") or {}).get("reduce") or 0)
         try:
-            from battle2.battle import now_of
+            from saintess_engine.battle import now_of
             now = now_of(battle)
         except Exception:
             now = 0.0
@@ -1369,13 +1369,13 @@ def install() -> None:
         → 获得 cores 枚磐核（clamp cap）+ 置一次性 flag（effects[used_key]，每场 1 次）。
 
         ⚠️ 缺口：设计触发时机为「生命 <30%」（任意掉血源），但引擎无低血量事件
-        （player_low 无 fire 点位——见 battle2/effect_triggers.py 头注）→ 本动作以
+        （player_low 无 fire 点位——见 saintess_engine/effect_triggers.py 头注）→ 本动作以
         on_taken（真实承伤后）为观测点：受击后跌破阈值即补；DOT/环境掉血须等下一次受击。
         参数：hp_lt/cores（技能 passive dict）/ res/used_key（声明表）；缺字段=无此行为。
         """
         ctx = getattr(battle, "_fire_ctx", None) or {}
         owner = params.get("_owner") or ctx.get("actor") or caster
-        from battle2.actors import actor_alive
+        from saintess_engine.actors import actor_alive
         if owner is None or not actor_alive(owner):
             return
         res = params.get("res") or ""
@@ -1390,7 +1390,7 @@ def install() -> None:
         mhp = int(owner.get("max_hp", 1) or 1)
         if int(owner.get("hp", 0) or 0) >= int(mhp * hp_lt):
             return  # 未跌破阈值
-        from battle2.effects import cap_of as _cap_fn, norm_stack as _ns
+        from saintess_engine.effects import cap_of as _cap_fn, norm_stack as _ns
         cap = _cap_fn(owner, res)
         entry = ef.get(res)
         cur = float(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0.0
@@ -1435,7 +1435,7 @@ def install() -> None:
         if val <= 0:
             return
         try:
-            from battle2.battle import now_of
+            from saintess_engine.battle import now_of
             now = now_of(battle)
         except Exception:
             now = 0.0
@@ -1495,7 +1495,7 @@ def install() -> None:
         entry = ef.get(res)
         if not isinstance(entry, dict):
             entry = ef[res] = {}
-        from battle2.effects import cap_of as _cap_fn
+        from saintess_engine.effects import cap_of as _cap_fn
         cap = _cap_fn(actor, res)
         if cap <= 0:
             return
@@ -1689,8 +1689,8 @@ def install() -> None:
         if not isinstance(owner, dict) or not bar:
             return
         try:
-            from battle2.actors import hostile_sides
-            from battle2.support.battle_bars import bar_def, bar_effect_key, bar_settle
+            from saintess_engine.actors import hostile_sides
+            from saintess_engine.support.battle_bars import bar_def, bar_effect_key, bar_settle
         except Exception:
             return
         bd = bar_def(bar) or {}
@@ -1726,7 +1726,7 @@ def install() -> None:
 
         语义源 = 技能 desc「断连时只损失 1 段连击（而非减半）」+ passive dict（lose=1）
         + v153 §五（连段 0-5；「1.5 刻内未命中 → 连段减半」= 断连窗权威）。
-        battle2 无基础断连载体（旧 battle.py `_combo_break` 随 N10 删除、未迁），
+        saintess_engine 无基础断连载体（旧 battle.py `_combo_break` 随 N10 删除、未迁），
         故内容层自管（引擎零改动，同 recon 路线）：
           skill_hit / attack_hit  记「最后命中时刻」（effects._lian_duan_last_hit）
           time_advance            now − 最后命中 ≥ gap 且连段 > 0 → 连段 −lose（并重开窗）
@@ -1763,7 +1763,7 @@ def install() -> None:
         cur = float(entry.get("stacks", 0) or 0) if isinstance(entry, dict) else 0.0
         if cur <= 0:
             return
-        from battle2.effects import norm_stack
+        from saintess_engine.effects import norm_stack
         nv = norm_stack(max(0.0, cur - lose))
         entry["stacks"] = nv
         ef[rec_key] = {"t": now}   # 断连已结算 → 重开窗（防每刻连续掉段）
@@ -1812,12 +1812,12 @@ def install() -> None:
         n = int(((dead.get("effects") or {}).get(key) or {}).get("stacks", 0) or 0)
         if n <= 0:
             return  # 死者无毒层 = 无此行为
-        from battle2.actors import actor_alive
+        from saintess_engine.actors import actor_alive
         lst = battle.sides_of(dead.get("side") or "")
         idx = next((i for i, a in enumerate(lst) if a is dead), None)
         if idx is None:
             return
-        from battle2.effects import act_apply
+        from saintess_engine.effects import act_apply
         spread = 0
         for i in (idx - 1, idx + 1):
             if not 0 <= i < len(lst) or not actor_alive(lst[i]):
@@ -1844,7 +1844,7 @@ def _mech_cash_rules() -> dict:
 def _effect_rules() -> dict:
     """当前 EFFECT_RULES（缺省空）。"""
     try:
-        from battle2.config import get_effect_rules
+        from saintess_engine.config import get_effect_rules
         return get_effect_rules() or {}
     except Exception:
         return {}
@@ -1853,7 +1853,7 @@ def _effect_rules() -> dict:
 # ============================================================
 # v181.M-R2d：职业资源攒取渠道（事件型）——装配与动作
 # ============================================================
-# 渠道时机名 → (battle2 事件, 附加过滤参数)。语义源 = EFFECT_RULES 资源条目 channels
+# 渠道时机名 → (saintess_engine 事件, 附加过滤参数)。语义源 = EFFECT_RULES 资源条目 channels
 # 声明 + docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『M-R2d 渠道装配设计』§2.2：
 #   heal_cast 治疗「施放」与「命中」同刻 → act_cast + kind=治疗（同 R4 holy_echo 折中；
 #   每技能施放 fire 1 次，无多目标重复）；普攻（basic 经 do_skill）也 fire act_cast 但
@@ -1872,7 +1872,7 @@ def apply_class_channels(actor: dict, rules: dict) -> None:
     """EFFECT_RULES 资源条目 channels 声明 → actor.triggers 事件钩子（并入 apply_class_mech）。
 
     对每个声明了 channels 的资源条目（归属职业 start_classes 命中才装——防白拿）：
-    时机名 → battle2 事件 → 挂 class_res_channel_gain 生产动作（gain 值由声明给，
+    时机名 → saintess_engine 事件 → 挂 class_res_channel_gain 生产动作（gain 值由声明给，
     cap clamp 动作侧查 EFFECT_RULES）。未映射时机名静默跳过（版本漂移保护，同
     affix 翻译器缺口词条行为）。装配器零资源 key 硬编码——渠道全由声明驱动。
 
@@ -2242,7 +2242,7 @@ def apply_class_mech(actor: dict) -> None:
         except Exception:
             pass  # 渠道装配异常不阻断开战（容错铁律）
         # v181 磐核：职业资源固有「每核减伤」（EFFECT_RULES[res].stat_scale.reduce 声明）
-        # → taken_calc 承伤乘区（passive_taken_reduce per_core 段）。原因：battle2 伤害
+        # → taken_calc 承伤乘区（passive_taken_reduce per_core 段）。原因：saintess_engine 伤害
         # 路径只消费 taken_calc 乘区——stat_scale.reduce 仅由 stats 写入 st["reduce"]
         # （无消费方，instance 仅展示）。数值单源 = 声明；归属过滤 = start_classes
         # （**必须**声明 start_classes 才装配——无归属声明的通用效果键如 shield/melody_def

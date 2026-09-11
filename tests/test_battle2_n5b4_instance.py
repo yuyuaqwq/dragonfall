@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""N5b4-5a 验证：副本战斗控制器（instance_battle.py）battle2 原生闭环。
+"""N5b4-5a 验证：副本战斗控制器（instance_battle.py）saintess_engine 原生闭环。
 
 覆盖：build_battle（sides 组/state 落 st）/ act（human_act 闭环/heal 防奶敌）/
 sync_views（视图+DB 同步）/ 轮转 next_actor_key / 敌死亡视图。
@@ -22,7 +22,7 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from game.store.connection import init_db  # noqa: E402
 init_db()

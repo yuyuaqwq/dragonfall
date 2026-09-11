@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""引擎可分发性探针：验证 `framework/battle2/` 能否**脱离奥兰迪亚**独立驱动一场战斗。
+"""引擎可分发性探针：验证 `framework/saintess_engine/` 能否**脱离奥兰迪亚**独立驱动一场战斗。
 
 用途（S8 拆仓库 / 发给第三方前的门禁）：
   1. 把引擎包物理复制到临时目录（只读原仓库，全程不动任何源文件）
@@ -30,10 +30,10 @@ import sys
 import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC_ENGINE = os.path.join(REPO, "framework", "battle2")
+SRC_ENGINE = os.path.join(REPO, "framework", "saintess_engine")
 PY = sys.executable
 
-# 第三方内容探针：只依赖搬出去的 battle2 + 自己的内容
+# 第三方内容探针：只依赖搬出去的 saintess_engine + 自己的内容
 PROBE_SRC = r'''# -*- coding: utf-8 -*-
 """最小第三方内容提供者（不 import 奥兰迪亚任何东西）。"""
 import os
@@ -41,8 +41,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from battle2 import config as CFG, Battle, make_actor
-from battle2 import formulas as ENGINE_FORMULAS   # 引擎自带通用公式
+from saintess_engine import config as CFG, Battle, make_actor
+from saintess_engine import formulas as ENGINE_FORMULAS   # 引擎自带通用公式
 
 # ① 自备声明表
 CFG.set_config("effect_rules", {
@@ -124,9 +124,9 @@ def main() -> int:
     pkg = os.path.join(tmp, "enginepkg")
     os.makedirs(pkg)
     try:
-        shutil.copytree(SRC_ENGINE, os.path.join(pkg, "battle2"),
+        shutil.copytree(SRC_ENGINE, os.path.join(pkg, "saintess_engine"),
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-        n = sum(len(fs) for _, _, fs in os.walk(os.path.join(pkg, "battle2")))
+        n = sum(len(fs) for _, _, fs in os.walk(os.path.join(pkg, "saintess_engine")))
         print(f"[1] 复制引擎包：{n} 个文件")
 
         open(os.path.join(pkg, "probe.py"), "w", encoding="utf-8").write(PROBE_SRC)
@@ -149,7 +149,7 @@ def main() -> int:
         else:
             print("[3] ✅ 引擎可独立驱动战斗（真正可分发）")
 
-        outs = scan_outside_imports(os.path.join(pkg, "battle2"))
+        outs = scan_outside_imports(os.path.join(pkg, "saintess_engine"))
         print(f"[4] 拆仓库必改项（引擎包内 game.* 绝对 import）：{len(outs)} 条")
         for o in outs:
             print("     ", o)

@@ -29,7 +29,7 @@ os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 # 引擎框架包（S8 物理分离）：引擎在独立仓库，本仓以 submodule 接入 `framework/`，
-# 包名 `battle2`。接线在这里做一次，全部 `from conftest import …` 的测试即可解析。
+# 包名 `saintess_engine`。接线在这里做一次，全部 `from conftest import …` 的测试即可解析。
 sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))
 
 # v117.5 测试提速：shim astrbot（平台适配层替身，行为等价，省 ~3s/进程 import）。

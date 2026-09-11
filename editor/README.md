@@ -87,7 +87,7 @@ editor/
 
 1. **循环导入陷阱**：`game.data ↔ game.core` 互相 import，编辑器主进程里 import game 会在
    错误时机拿到半初始化模块（`game/bootstrap.py` 装载顺序注释有详解）。
-2. **装配有副作用**：`battle2.config.load_game_defaults()` 会把公式/面板/kind 常量 mount 进
+2. **装配有副作用**：`saintess_engine.config.load_game_defaults()` 会把公式/面板/kind 常量 mount 进
    引擎**进程级全局** hook 面 —— 跑一次就污染编辑器进程。
 3. **隔离与兜底**：引擎异常、死循环都能被子进程超时（默认 30s，可用 `DF_SIM_TIMEOUT` 调）
    掐死，编辑器本身永不崩。

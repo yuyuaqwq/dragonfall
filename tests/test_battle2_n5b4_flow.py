@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""N5b4-2 验证：命令层战斗闭环数据流（battle2 引擎路径）。
+"""N5b4-2 验证：命令层战斗闭环数据流（saintess_engine 引擎路径）。
 
 模拟真实命令（explore → attack → victory）在 CombatCmds 改造后的
 数据搬运语义——构造走 _open_battle2（仪式/sides/装配）、行动走
-human_act + sync_player_from_actor 回写、存盘/恢复走 battle2 state。
+human_act + sync_player_from_actor 回写、存盘/恢复走 saintess_engine state。
 
 跑法：python tests/test_battle2_n5b4_flow.py
 """
@@ -22,7 +22,7 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from game.store.connection import init_db  # noqa: E402
 init_db()
@@ -114,7 +114,7 @@ def test_open_and_attack_loop():
     check("战斗有结果", b3 is not None and b3.result in ("victory", "defeat"),
           f"result={getattr(b3, 'result', None)} guard={guard}")
 
-    # ④ 展示函数在恢复后的 battle2 上不崩
+    # ④ 展示函数在恢复后的 saintess_engine 上不崩
     row = db.get_battle(gid, qid)
     b4 = cmds._restore_battle2(row["state"]) if row else None
     if b4 is not None:
@@ -139,7 +139,7 @@ def test_legacy_state_cleared():
 
 
 def main():
-    print("=== N5b4-2 命令层 battle2 战斗闭环 ===")
+    print("=== N5b4-2 命令层 saintess_engine 战斗闭环 ===")
     test_open_and_attack_loop()
     test_legacy_state_cleared()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")

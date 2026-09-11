@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-"""battle2 技能条件倍率装配层 battle2_cond_procs（v181 cond 接线）。
+"""saintess_engine 技能条件倍率装配层 battle2_cond_procs（v181 cond 接线）。
 
 背景：技能数据 `cond={"type":…,"mult":…}` 的在战判定原走 `core/battle_conds.py`
-的 `COND_CHECKS` 注册表（旧 battle.py `_cond_mult` 消费）。battle2 里该注册表**零消费方**
+的 `COND_CHECKS` 注册表（旧 battle.py `_cond_mult` 消费）。saintess_engine 里该注册表**零消费方**
 （`battle2_bridge.py` 明确标注「battle_modes/battle_conds 为 v139 遗留空壳」），且条件
-函数读的是旧引擎 API（`battle._hit_tgt()` / `battle._melody`，battle2 均无）——结果是
+函数读的是旧引擎 API（`battle._hit_tgt()` / `battle._melody`，saintess_engine 均无）——结果是
 技能条件倍率静默失效（`actions.py` 里 `cond_mult = 1.0  # N2b 补，恒 1.0 起步`）。
 数据受影响：5 条技能（先手/敌方减益/敌方破防/旋律增益系/旋律强度）。
 
-本模块把条件倍率接回 battle2 乘区钩子（**引擎零改动**，走既有装配层扩展动作模式，
+本模块把条件倍率接回 saintess_engine 乘区钩子（**引擎零改动**，走既有装配层扩展动作模式，
 对齐 `we_dmg_mult_cond`）：
 - `skill_cond_mult` 挂 dmg_calc / heal_calc：读事件技能 `info["cond"]` → 查谓词表 →
   命中则 `battle._fire_ctx["mult"] *= skill_cond_mult(cond, lv, info)`（与面板
@@ -20,7 +20,7 @@
 """
 from __future__ import annotations
 
-from battle2.effects import register_action
+from saintess_engine.effects import register_action
 
 # 敌方减益键（控制/属性降）；DOT/印记类走 effects 层数判定
 _DEBUFF_KEYS = ("def_down", "spd_down", "mon_atk_down", "atk_down",
@@ -44,7 +44,7 @@ def _spd_of(battle, actor) -> float:
     if not isinstance(actor, dict):
         return 0.0
     try:
-        from battle2 import stats as S
+        from saintess_engine import stats as S
         st = S.actor_stats(battle, actor) or {}
         return float(st.get("spd", 0) or 0)
     except Exception:
@@ -84,7 +84,7 @@ def _p_enemy_broken(battle, actor, target, cond) -> bool:
     """
     if not isinstance(target, dict):
         return False
-    from battle2.support.battle_bars import bar_settle, bar_effect_key
+    from saintess_engine.support.battle_bars import bar_settle, bar_effect_key
     _now = float(getattr(battle, "_now", 0.0) or 0.0)
     bar_settle(target, "shaken", _now)
     bs = (target.get("effects") or {}).get(bar_effect_key("shaken"))
@@ -98,8 +98,8 @@ def _p_enemy_broken(battle, actor, target, cond) -> bool:
 def _p_melody_buff(battle, actor, target, cond) -> bool:
     """施法者当前旋律为增益系（读 effects.melody_state.kind）。
 
-    注意：旧 battle_conds 读 `battle._melody["kind"]`（旧引擎载体，battle2 无写入方）；
-    battle2 真实载体 = 施法者 `effects["melody_state"]`（class_mech_proc.class_melody_act 写）。
+    注意：旧 battle_conds 读 `battle._melody["kind"]`（旧引擎载体，saintess_engine 无写入方）；
+    saintess_engine 真实载体 = 施法者 `effects["melody_state"]`（class_mech_proc.class_melody_act 写）。
     """
     if not isinstance(actor, dict):
         return False
@@ -109,7 +109,7 @@ def _p_melody_buff(battle, actor, target, cond) -> bool:
 
 @register_cond("melody_stacks")
 def _p_melody_stacks(battle, actor, target, cond) -> bool:
-    """施法者旋律强度 ≥ stacks（旧读 `_melody["stack"]`，battle2 实键为 `stacks`）。"""
+    """施法者旋律强度 ≥ stacks（旧读 `_melody["stack"]`，saintess_engine 实键为 `stacks`）。"""
     if not isinstance(actor, dict):
         return False
     st = (actor.get("effects") or {}).get("melody_state") or {}
@@ -140,7 +140,7 @@ def skill_cond_mult_act(battle, caster, target, params, logs):
     except Exception:
         return  # 判定异常不阻断战斗
     try:
-        from battle2.formulas import skill_cond_mult
+        from saintess_engine.formulas import skill_cond_mult
         from ..content_rules.skills import skill_info, skill_level_of
         name = info.get("name") or ""
         lv = skill_level_of(actor, name) if (actor or {}).get("class_name") else 1
@@ -159,7 +159,7 @@ def apply_cond_procs(actor: dict) -> None:
     names = actor.get("learned_skills") or []
     if not cn or not names:
         return
-    from battle2.formulas import skill_cond_mult
+    from saintess_engine.formulas import skill_cond_mult
     from ..content_rules.skills import skill_info, skill_level_of
     has_cond = False
     for s in names:

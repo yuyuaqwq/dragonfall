@@ -30,11 +30,11 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2 import Battle as B2, make_actor, effects as EFX  # noqa: E402
-from battle2.effect_triggers import fire  # noqa: E402
-from battle2.support.battle_bars import bar_effect_key, bar_gain# noqa: E402
+from saintess_engine import Battle as B2, make_actor, effects as EFX  # noqa: E402
+from saintess_engine.effect_triggers import fire  # noqa: E402
+from saintess_engine.support.battle_bars import bar_effect_key, bar_gain# noqa: E402
 from game.services import class_mech_proc as CMP  # noqa: E402
 from game.services.battle2_bar_procs import _ensure_tick  # noqa: E402
 
@@ -95,7 +95,7 @@ def bar_val(host, key="shaken"):
 
 def advance(b, dt):
     """真实时钟推进：schedule._advance_time（广播 time_advance，ctx dt/now）。"""
-    from battle2.schedule import _advance_time
+    from saintess_engine.schedule import _advance_time
     logs = []
     _advance_time(b, dt, logs)
     return logs
@@ -288,7 +288,7 @@ def test_3_lian_duan_soft():
     EFX.ACTION_HANDLERS["passive_lian_duan_soft"](b, p, e, params, logs4)
     check("缺 lose 字段 → 无此行为", st(p, "lian_duan") == 5, f"st={st(p,'lian_duan')}")
 
-    # 缺口登记：基础断连段（无被动者 1.5 刻 → 减半）battle2 无载体 → 不掉段
+    # 缺口登记：基础断连段（无被动者 1.5 刻 → 减半）saintess_engine 无载体 → 不掉段
     p4 = mk_player(["刺击"], CLS_CI)
     CMP.apply_class_mech(p4)
     e4 = mk_enemy()

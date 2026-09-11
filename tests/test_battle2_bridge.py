@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""N5b 数据桥测试：真实怪物数据 → battle2 actor → 完整战斗闭环。
+"""N5b 数据桥测试：真实怪物数据 → saintess_engine actor → 完整战斗闭环。
 
 验证 game/services/battle2_bridge.py：
 1. monster_to_actor：lv→level、字段透传、auto_act
 2. player_to_actor：玩家面板字段透传
 3. build_sides：组 sides
-4. 端到端：真实 build_monster_group 产物 + 假玩家 → battle2.Battle → 攻击/胜利
+4. 端到端：真实 build_monster_group 产物 + 假玩家 → saintess_engine.Battle → 攻击/胜利
 
 跑法（w1 内）：python tests/test_battle2_bridge.py
 """
@@ -23,16 +23,16 @@ sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "framework"))
 # ↑ 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 
-# 挂载 battle2 游戏规则（HANDOFF 测试铁律）
-from battle2 import config as _b2c
+# 挂载 saintess_engine 游戏规则（HANDOFF 测试铁律）
+from saintess_engine import config as _b2c
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 
 from game.store.connection import init_db
 init_db()
 
 from game import db
-from battle2 import Battle as B2Battle
-from battle2 import actors as B2A
+from saintess_engine import Battle as B2Battle
+from saintess_engine import actors as B2A
 from game.services import battle2_bridge as BR
 
 PASS = 0
@@ -124,7 +124,7 @@ check("enemy side 1 actor", len(sides.get("enemy", [])) == 1)
 check("player actor human_controlled", sides["player"][0].get("human_controlled") is True)
 check("enemy actor side=enemy", sides["enemy"][0].get("side") == "enemy")
 
-section("端到端：battle2 真实怪组完整战斗")
+section("端到端：saintess_engine 真实怪组完整战斗")
 # 用真实数据管线：build_monster → build_monster_group（缩放后多怪）
 from game.core import drops as D
 # content 是 game/content.py（`from .. import content as C` 在命令层）

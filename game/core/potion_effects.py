@@ -413,8 +413,8 @@ def eff_summon(battle, player, value):
 
     ⚠️ 未接入战斗结算（显式拒绝，非静默兜底）：召唤实体装配需要随从 actor
     工厂 + auto_act/guard 一套；旧装配函数随 N10 删旧 battle.py 一并消失，
-    battle2 侧尚无随从装配（Battle.add_actor 只做注册/索引/排程，不含随从
-    属性缩放与守卫装配）。本 handler 在 battle2 下不可达——战斗内 summon 类
+    saintess_engine 侧尚无随从装配（Battle.add_actor 只做注册/索引/排程，不含随从
+    属性缩放与守卫装配）。本 handler 在 saintess_engine 下不可达——战斗内 summon 类
     在 commands/battle2_item_use.can_translate 白名单外，使用前即被拦并提示
     「战斗内效果未迁移」。复活路径见 docs/REFACTOR_v181_GAP_CLOSURE_PLAN.md
     §2（随从线）与 §5（收尾项）。

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""battle2 装备特效族扩展动作（game/services/battle2_we_procs.py，N9 形态 2）。
+"""saintess_engine 装备特效族扩展动作（game/services/battle2_we_procs.py，N9 形态 2）。
 
 装配层把含"执行条件/复杂逻辑"的武器特效 key 翻译成族扩展动作注册进引擎
-ACTION_HANDLERS（battle2 包外注册——引擎只当它是扩展动词执行，零知识）。
+ACTION_HANDLERS（saintess_engine 包外注册——引擎只当它是扩展动词执行，零知识）。
 
 签名与引擎动词一致：fn(battle, caster, target, params, logs)
 - caster/target：fire 事件上下文（hit：caster=攻击者 target=被打者；taken：caster=
@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import random
 
-from battle2.effects import register_action
-from battle2.actors import actor_alive
+from saintess_engine.effects import register_action
+from saintess_engine.actors import actor_alive
 
 
 def _roll(chance) -> bool:
@@ -69,7 +69,7 @@ def _add_stacks(actor, key: str, amount: int, cap: int | None = None) -> int:
         # 附赠通道（we_affix_res_gain 等）与主渠道同口径可攒满；无 bonus.cap 时与
         # 旧静态 state_def 读等价（行为零变化）。调用方显式传 cap 的（dot/defdown 等
         # 数值型叠层）语义不动。
-        from battle2.effects import cap_of
+        from saintess_engine.effects import cap_of
         cap = cap_of(actor, key)
     cur = int(entry.get("stacks", 0) or 0)
     entry["stacks"] = max(0, min(cap, cur + int(amount)))
@@ -100,7 +100,7 @@ def we_dot(battle, caster, target, params, logs):
     dot_key = params.get("dot_key")
     if not dot_key:
         return  # 缺字段 = 无此行为
-    from battle2.state_effects import state_def
+    from saintess_engine.state_effects import state_def
     cap = int((state_def(dot_key) or {}).get("cap") or 1)
     _add_stacks(tgt, dot_key, int(params.get("amount", 1) or 1), cap=cap)
     turns = int(params.get("turns") or 0) or 3
@@ -154,9 +154,9 @@ def we_reflect(battle, caster, target, params, logs):
         eff["ember_bulwark_used"] = True
         rd = max(1, int(deflector.get("max_hp", 100) * float(params.get("max_hp_pct", 0.05))))
         if rd > 0:
-            from battle2.landing import deal_damage
+            from saintess_engine.landing import deal_damage
             deal_damage(battle, deflector, attacker, rd, logs)
-            from battle2.state_effects import state_def
+            from saintess_engine.state_effects import state_def
             cap = int((state_def("burn") or {}).get("cap") or 5)
             _add_stacks(attacker, "burn", int(params.get("burn_stack", 1) or 1), cap=cap)
         logs.append(_REFLECT_LOG.get(key, "").format(rd=rd))
@@ -165,14 +165,14 @@ def we_reflect(battle, caster, target, params, logs):
         dmg = int(ctx.get("dmg", 0) or 0)
         rd = max(1, int(dmg * float(params.get("reflect_pct", 0))))
     if rd > 0:
-        from battle2.landing import deal_damage
+        from saintess_engine.landing import deal_damage
         deal_damage(battle, deflector, attacker, rd, logs)
         if key == "iron_echo":
             hpv = float(params.get("heal_pct", 0.02) or 0)
-            from battle2.landing import heal_actor
+            from saintess_engine.landing import heal_actor
             heal_actor(battle, deflector, int(deflector.get("max_hp", 100) * hpv), logs)
         elif key == "dragon_spine_mail":
-            from battle2.state_effects import state_def
+            from saintess_engine.state_effects import state_def
             cap = int((state_def("heal_down") or {}).get("cap") or 5)
             _add_stacks(attacker, "heal_down", int(params.get("heal_down", 2) or 2), cap=cap)
     logs.append(_REFLECT_LOG.get(key, "").format(rd=rd))
@@ -233,7 +233,7 @@ def we_shield_taken(battle, caster, target, params, logs):
         return
     key = params.get("shield_key") or "we_sentinel"
     turns = int(params.get("turns") or 3)
-    from battle2.effects import act_shield
+    from saintess_engine.effects import act_shield
     act_shield(battle, owner, owner,
                {"type": "shield", "key": key, "value": value, "turns": turns, "on": "caster"},
                logs)
@@ -261,7 +261,7 @@ def we_guardian_will(battle, caster, target, params, logs):
     if attacker is None or not actor_alive(attacker):
         return
     weaken = float(params.get("weaken", 0.25) or 0.25)
-    from battle2.effects import act_apply
+    from saintess_engine.effects import act_apply
     act_apply(battle, attacker, attacker,
              {"type": "apply", "key": params.get("debuff_key") or "mon_atk_down",
               "stat": "atk", "op": "mul", "mult": 1.0 - weaken,
@@ -284,7 +284,7 @@ _SHIELD_COND_LOG = {
 
 
 def _add_owner_shield(battle, owner, params, value, logs):
-    from battle2.effects import act_shield
+    from saintess_engine.effects import act_shield
     act_shield(battle, owner, owner,
                {"type": "shield", "key": params.get("shield_key") or "we_shield",
                 "value": value, "turns": int(params.get("turns") or 3), "on": "caster"},
@@ -353,7 +353,7 @@ def we_shield_cond(battle, caster, target, params, logs):
     _add_owner_shield(battle, owner, params, shield, logs)
     if key == "gargoyle_heart":
         heal = int(owner.get("max_hp", 100) * float(params.get("heal_pct") or 0.1))
-        from battle2.landing import heal_actor
+        from saintess_engine.landing import heal_actor
         heal_actor(battle, owner, heal, logs)
         logs.append(_SHIELD_COND_LOG.get(key, "").format(shield=shield, heal=heal))
     else:
@@ -410,7 +410,7 @@ _EXTRA_LOG = {
 
 
 def _owner_stats(battle, owner):
-    from battle2 import stats as S
+    from saintess_engine import stats as S
     try:
         return S.actor_stats(battle, owner)
     except Exception:
@@ -418,7 +418,7 @@ def _owner_stats(battle, owner):
 
 
 def _target_def_stats(battle, target):
-    from battle2 import stats as S
+    from saintess_engine import stats as S
     try:
         return S.actor_stats(battle, target)
     except Exception:
@@ -426,7 +426,7 @@ def _target_def_stats(battle, target):
 
 
 def _calc(battle, atk_val, def_val, dmg_type="phys", pene_pct=0.0):
-    from battle2.formulas import calc_damage
+    from saintess_engine.formulas import calc_damage
     try:
         if dmg_type == "true":
             return max(1, calc_damage(int(atk_val), 0, False, dmg_type="true"))
@@ -467,7 +467,7 @@ def we_extra_dmg(battle, caster, target, params, logs):
             dmg = int(os_.get("atk", 0) or 0)
         heal = int(dmg * float(params.get("heal_pct") or 0.05))
         if heal > 0:
-            from battle2.landing import heal_actor
+            from saintess_engine.landing import heal_actor
             heal_actor(battle, owner, heal, logs)
         return
     # ---- 概率前置（溅射/裂风）----
@@ -486,7 +486,7 @@ def we_extra_dmg(battle, caster, target, params, logs):
         st[sk] = 0
         dmg = _calc(battle, int(os_.get("atk", 0)) * float(params.get("atk_pct") or 0.3),
                     es_.get("def", 0), pene_pct=float(params.get("pene_pct") or 0.5))
-        from battle2.landing import deal_damage
+        from saintess_engine.landing import deal_damage
         deal_damage(battle, owner, tgt, dmg, logs)
         logs.append(params.get("log") or f"🌪️ 幻影连射！无视 50% 防御造成 {dmg} 点伤害！")
         return
@@ -494,7 +494,7 @@ def we_extra_dmg(battle, caster, target, params, logs):
     if mode == "splash_magi":
         dmg = _calc(battle, int(os_.get("matk", 0)) * float(params.get("atk_pct") or 0.15),
                     es_.get("mdef", 0), dmg_type="magi")
-        from battle2.landing import deal_damage
+        from saintess_engine.landing import deal_damage
         deal_damage(battle, owner, tgt, dmg, logs)
         logs.append(_EXTRA_LOG.get(key, "🔮 溅射 {dmg} 点奥术伤害！").format(dmg=dmg))
         return
@@ -508,7 +508,7 @@ def we_extra_dmg(battle, caster, target, params, logs):
         st[cd_key] = now + ACT_TICK  # 1 刻冷却（"每刻限 1"）
         dmg = _calc(battle, int(os_.get("atk", 0)) * float(params.get("atk_pct") or 0.2),
                     es_.get("def", 0))
-        from battle2.landing import deal_damage
+        from saintess_engine.landing import deal_damage
         deal_damage(battle, owner, tgt, dmg, logs)
         logs.append(_EXTRA_LOG.get(key, "⚔️ 追加 {dmg} 点伤害！").format(dmg=dmg))
         return
@@ -516,7 +516,7 @@ def we_extra_dmg(battle, caster, target, params, logs):
     if mode == "extra_phys":
         dmg = _calc(battle, int(os_.get("atk", 0)) * float(params.get("atk_pct") or 0.5),
                     es_.get("def", 0))
-        from battle2.landing import deal_damage
+        from saintess_engine.landing import deal_damage
         deal_damage(battle, owner, tgt, dmg, logs)
         logs.append(_EXTRA_LOG.get(key, "💥 追加 {dmg} 点伤害！").format(dmg=dmg))
         return
@@ -534,7 +534,7 @@ def we_extra_dmg(battle, caster, target, params, logs):
             cap = int(tgt.get("max_hp", 1) * float(params.get("cap_pct") or 0.05))
             base = base + min(lost, cap)
         dmg = _calc(battle, base, 0, dmg_type="true")
-        from battle2.landing import deal_damage
+        from saintess_engine.landing import deal_damage
         deal_damage(battle, owner, tgt, dmg, logs)
         logs.append(_EXTRA_LOG.get(key, "✨ 造成 {dmg} 点真实伤害！").format(dmg=dmg))
         return
@@ -543,7 +543,7 @@ def we_extra_dmg(battle, caster, target, params, logs):
         cap = max(1, int(os_.get("atk", 0) or 0))
         bonus = min(cap, max(1, int(tgt.get("hp", 0) * float(params.get("cur_hp_pct") or 0.02))))
         if bonus > 0:
-            from battle2.landing import deal_damage, heal_actor
+            from saintess_engine.landing import deal_damage, heal_actor
             deal_damage(battle, owner, tgt, bonus, logs)
             healed = heal_actor(battle, owner, bonus, logs)
             logs.append("💜 破败之吻：额外 {bonus} 点伤害，回复 {healed} 点生命！".format(bonus=bonus, healed=healed))
@@ -572,7 +572,7 @@ def we_mana_once(battle, caster, target, params, logs):
 
 # ============================================================
 # proc_control（9 key 敌方控制：7 可迁 + randuin/ice_vein 依赖 enemy_act 事件
-# ——battle2 无"敌人行动后"事件点位，留缺口记录（见 docs/N9 施工文档 §1.3））
+# ——saintess_engine 无"敌人行动后"事件点位，留缺口记录（见 docs/N9 施工文档 §1.3））
 # ============================================================
 
 _CONTROL_LOG = {
@@ -617,14 +617,14 @@ def _control_target(battle, target, params) -> dict:
 
 def _freeze(battle, owner, tgt, turns, params, logs):
     """冻结（Boss 减半沿用引擎 act_control 定稿语义，不迁旧免疫退化特例）。"""
-    from battle2.effects import act_apply
+    from saintess_engine.effects import act_apply
     act_apply(battle, owner, tgt,
                 {"type": "apply", "key": "freeze", "turns": turns, "mode": "skip", "on": "target"}, logs)
 
 
 def _slow(battle, owner, tgt, turns, pct, logs):
-    """减速：敌 spd×（1-pct）buff（battle2 buff 快照折算）。"""
-    from battle2.effects import act_apply
+    """减速：敌 spd×（1-pct）buff（saintess_engine buff 快照折算）。"""
+    from saintess_engine.effects import act_apply
     act_apply(battle, owner, tgt,
              {"type": "apply", "key": "spd_down", "stat": "spd", "op": "mul",
               "mult": 1.0 - float(pct), "turns": turns, "on": "target"}, logs)
@@ -671,7 +671,7 @@ def we_control(battle, caster, target, params, logs):
     if mode == "slow_heal_down":
         _slow(battle, owner, tgt, int(params.get("slow_turns") or 2),
               float(params.get("slow_pct") or 0.3), logs)
-        from battle2.state_effects import state_def
+        from saintess_engine.state_effects import state_def
         cap = int((state_def("heal_down") or {}).get("cap") or 5)
         _add_stacks(tgt, "heal_down", int(params.get("heal_down") or 2), cap=cap)
         logs.append(_CONTROL_LOG.get(key, "⚖️ 圣裁领域！").format(turns=0))
@@ -708,7 +708,7 @@ def we_control(battle, caster, target, params, logs):
         if ratio >= float(params.get("threshold") or 0.30):
             return
         st[used_key] = True
-        from battle2.effects import act_apply
+        from saintess_engine.effects import act_apply
         act_apply(battle, owner, tgt,
                     {"type": "apply", "key": "stun", "turns": 1, "mode": "skip", "on": "target"}, logs)
         logs.append(_CONTROL_LOG.get(key, "⏳ 时光凝滞！"))
@@ -864,7 +864,7 @@ def we_taken_mult_cond(battle, caster, target, params, logs):
 
 def _state_cap(key: str) -> int:
     try:
-        from battle2.state_effects import state_def
+        from saintess_engine.state_effects import state_def
         return int((state_def(key) or {}).get("cap") or 0)
     except Exception:
         return 0
@@ -884,7 +884,7 @@ def we_stack_prod(battle, caster, target, params, logs):
         return
     key = params.get("key") or ""
     sk = params.get("stack_key") or key
-    from battle2.state_effects import state_def
+    from saintess_engine.state_effects import state_def
     cfg = state_def(sk) or {}
     cap = int(cfg.get("cap") or 999)
     ef = owner.setdefault("effects", {})
@@ -961,12 +961,12 @@ def we_amp_consume(battle, caster, target, params, logs):
 #   novice_hunt_combo（猎影之牙）：暴击命中 → stacks[novice_combo] +1（cap 5），
 #     每层连击率 +8%——消费点在连击判定（直读叠层，非本执行器）
 #   combo_end（夜枭双匕）：本刻连段 ≥3 时本次攻击暴伤 +40%（触发：被动判定）
-# battle2 表达：
+# saintess_engine 表达：
 #   - 生产段挂 crit 事件（暴击命中后）；叠层 cap/per_stack 数值权威 = 数据表
 #     （novice_combo 无 STATE_EFFECTS 声明行 → cap 缺省读数据 max_stack）
 #   - combo_end 的「本刻连段」= 连段资源当前层（effects[lian_duan].stacks，刺客
 #     攻线命中计数）；「被动判定」= 本击暴击 → 挂 dmg_calc 钩子（ctx.is_crit 即
-#     本击被动判定结果；battle2 无旧 passive 点位，dmg_calc 语义最近且不误伤——
+#     本击被动判定结果；saintess_engine 无旧 passive 点位，dmg_calc 语义最近且不误伤——
 #     只在暴击且连段达标时乘入本次伤害，条件不满足 = 零效果零日志）。
 
 
@@ -985,7 +985,7 @@ def we_combo_stack(battle, caster, target, params, logs):
         return
     cap = int(params.get("max_stack") or 0)
     if cap <= 0:
-        from battle2.state_effects import state_def
+        from saintess_engine.state_effects import state_def
         try:
             cap = int((state_def(sk) or {}).get("cap") or 0)
         except Exception:
@@ -1106,7 +1106,7 @@ def we_act_done_slow(battle, caster, target, params, logs):
         return  # 自己行动不叠
     # 敌我判断（引擎零知识，装配层效果侧 if）：acted 是否 owner 敌对阵营
     try:
-        from battle2.actors import hostile_sides
+        from saintess_engine.actors import hostile_sides
         own_side = owner.get("side") or ""
         acted_side = acted.get("side") or ""
         if acted_side not in hostile_sides(battle, own_side):
@@ -1117,7 +1117,7 @@ def we_act_done_slow(battle, caster, target, params, logs):
     ms = int(params.get("max_stack") or 3)
     sp = float(params.get("spd_down_pct") or 0.06)
     sk = params.get("stack_key") or key
-    from battle2.state_effects import state_def
+    from saintess_engine.state_effects import state_def
     cap = int((state_def(sk) or {}).get("cap") or ms)
     n = _add_stacks(acted, sk, 1, cap=cap)
     logs.append(_ACT_DONE_SLOW_LOG.get(
@@ -1149,7 +1149,7 @@ def we_affix_dot(battle, caster, target, params, logs):
     sk = params.get("state_key") or params.get("dot_key")
     if not sk:
         return
-    from battle2.state_effects import state_def
+    from saintess_engine.state_effects import state_def
     cap = int((state_def(sk) or {}).get("cap") or 3)
     n = _add_stacks(tgt, sk, int(params.get("stacks") or 1), cap=cap)
     logs.append(_AFFIX_HIT_LOG.get(params.get("key"), "🩸 目标流血了！").format(
@@ -1165,7 +1165,7 @@ def we_affix_defdown(battle, caster, target, params, logs):
         return
     if not _roll(params.get("chance")):
         return
-    from battle2.effects import act_apply
+    from saintess_engine.effects import act_apply
     act_apply(battle, caster, tgt,
              {"type": "apply", "key": "def_down", "stat": "def", "op": "mul",
               "mult": 1.0 - float(params.get("pct") or 0.15),
@@ -1194,13 +1194,13 @@ def we_affix_element(battle, caster, target, params, logs):
     element = params.get("element") or "fire"
     pct = float(params.get("pct") or 0.05)
     dmg = max(1, int(base * pct))
-    from battle2.landing import deal_damage
+    from saintess_engine.landing import deal_damage
     deal_damage(battle, caster, tgt, dmg, logs)
     _tag = {"fire": "🔥", "ice": "❄️", "thunder": "⚡"}.get(element, "✨")
     logs.append(f"{_tag} {params.get('name') or '元素附加'}！造成 {dmg} 点{ {'fire':'火','ice':'冰','thunder':'雷'}.get(element, element) }属性伤害！")
     # ice 附带减速（spd_down mult = 减幅语义：slow 0.10 → spd×0.9）
     if element == "ice" and params.get("slow") is not None:
-        from battle2.effects import act_apply
+        from saintess_engine.effects import act_apply
         act_apply(battle, caster, tgt,
                  {"type": "apply", "key": "spd_down", "stat": "spd", "op": "mul",
                   "mult": float(params.get("slow") or 0.10),
@@ -1227,8 +1227,8 @@ def we_affix_bonus(battle, caster, target, params, logs):
     mode = params.get("mode") or "dmg_pct"
     dmg = 0
     if mode == "atk_true":
-        from battle2.landing import deal_damage as _dd2
-        from battle2.stats import actor_stats as _as2
+        from saintess_engine.landing import deal_damage as _dd2
+        from saintess_engine.stats import actor_stats as _as2
         st = _as2(battle, caster) or {}
         dmg = max(1, int(float(st.get("atk", 0) or 0) * float(params.get("atk_pct") or 0.60)))
         _dd2(battle, caster, tgt, dmg, logs)
@@ -1237,7 +1237,7 @@ def we_affix_bonus(battle, caster, target, params, logs):
         base = float(ctx.get("dmg", 0) or 0)
         if base <= 0:
             return
-        from battle2.landing import deal_damage as _dd3
+        from saintess_engine.landing import deal_damage as _dd3
         dmg = max(1, int(base * float(params.get("pct") or 0.50)))
         _dd3(battle, caster, tgt, dmg, logs)
     tag = params.get("tag") or "⚡"
@@ -1270,8 +1270,8 @@ def we_affix_counter(battle, caster, target, params, logs):
         return
     if not _roll(params.get("chance")):
         return
-    from battle2.landing import deal_damage
-    from battle2.stats import actor_stats as _as
+    from saintess_engine.landing import deal_damage
+    from saintess_engine.stats import actor_stats as _as
     st = _as(battle, owner) or {}
     dmg = max(1, int(float(st.get("atk", 0) or 0) * float(params.get("atk_pct") or 0.60)))
     deal_damage(battle, owner, attacker, dmg, logs)
@@ -1296,7 +1296,7 @@ def we_affix_tenacity(battle, caster, target, params, logs):
         return
     import random as _r
     bf.pop(_r.choice(neg), None)
-    from battle2.landing import heal_actor
+    from saintess_engine.landing import heal_actor
     heal = max(1, int(owner.get("max_hp", 1) * float(params.get("heal_pct") or 0.03)))
     heal_actor(battle, owner, heal, logs)
     logs.append(_AFFIX_TAKEN_LOG.get(params.get("key"), "💪 坚韧！").format(heal=heal))
@@ -1321,7 +1321,7 @@ def we_affix_res_gain(battle, caster, target, params, logs):
     - chance 概率（crit_return 等带概率词条；缺省 None = 恒触发）
     - kind   技能类别过滤（act_cast 事件用：kind=治疗/增益 才触发——warcry_echo
              增益技 / holy_echo 治疗施放 折中挂点）
-    - not_basic 排除普攻施放（on_cast 词条：battle2 普攻经 do_skill 也 fire
+    - not_basic 排除普攻施放（on_cast 词条：saintess_engine 普攻经 do_skill 也 fire
              act_cast 且 info._basic=True——元素/奥术技能施放不该吃普攻）
     - label/icon 日志文案（装配层读 AFFIXES.name 写入，动作零硬编码）
     """
@@ -1354,7 +1354,7 @@ def we_affix_res_gain(battle, caster, target, params, logs):
     if n <= 0:
         return
     # cap 展示走引擎 _cap_of（与 clamp 收敛点同源——上限词条抬 cap 后日志同口径）
-    from battle2.effects import cap_of
+    from saintess_engine.effects import cap_of
     cap = cap_of(owner, res)
     cap_txt = f"/{cap}" if cap < 999999 else ""
     logs.append(f"{params.get('icon') or '✦'} {params.get('label') or res} "
@@ -1367,7 +1367,7 @@ def we_affix_res_gain(battle, caster, target, params, logs):
 # 语义（旧 affix_effects._h_purify，v135 增强版）：命中 15%（数据表 chance）驱散
 # 目标 1 层增益（judgment_chain 专属 25% 驱散 2 层——传说词条，同族语义后续接线）；
 # 驱散成功 → 圣洁：敌人攻击 -10%（1 刻）。
-# battle2 buffs 并入 effects 无旧 mon_ 前缀概念 → N9_7 定稿的「增益」判定（查
+# saintess_engine buffs 并入 effects 无旧 mon_ 前缀概念 → N9_7 定稿的「增益」判定（查
 # EFFECT_RULES + 条目内嵌快照，引擎零名词）：
 #   - 面板快照型：op=mul 且 mult>1 / op=add 且 mult>0（正增益；op 缺省按 mul）
 #   - 叠层声明型：stat_scale 正系数（stacks>0 才有折算）
@@ -1379,7 +1379,7 @@ def we_affix_res_gain(battle, caster, target, params, logs):
 
 def _target_gain_keys(actor: dict) -> list:
     """actor.effects 中按上述判据为「增益」的 key 列表（有序去重，无则 []）。"""
-    from battle2.state_effects import all_state_effects
+    from saintess_engine.state_effects import all_state_effects
     ef = (actor or {}).get("effects") or {}
     if not isinstance(ef, dict) or not ef:
         return []
@@ -1449,7 +1449,7 @@ def we_affix_purify(battle, caster, target, params, logs):
     logs.append(f"✨ 净化！驱散了【{tgt.get('name', '目标')}】的 {removed} 层增益！")
     wk = float(params.get("holy_weaken_pct") or 0)
     if wk > 0:
-        from battle2.effects import act_apply
+        from saintess_engine.effects import act_apply
         act_apply(battle, caster, tgt,
                   {"type": "apply", "key": "holy_weaken", "stat": "atk", "op": "mul",
                    "mult": 1.0 - wk, "turns": 1, "on": "target"}, logs)

@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""游戏层战斗规则配置（battle2 引擎的注入表）——换这套 = 新游戏。
+"""游戏层战斗规则配置（saintess_engine 引擎的注入表）——换这套 = 新游戏。
 
-battle2 引擎不认识这些名词，只通过 config 挂载点查表折算。
+saintess_engine 引擎不认识这些名词，只通过 config 挂载点查表折算。
 引擎代码零改动；调数值/加状态/改规则全在这里。
 
 挂载方式（游戏启动时）：
-    from battle2 import config
+    from saintess_engine import config
     config.load_game_rules(game.data.battle2_rules)
 """
 from __future__ import annotations
@@ -54,7 +54,7 @@ EFFECT_RULES: dict = {
         "stat_scale": {"dmg_mult": 0.12},     # 每层伤害 +12%
         # ⚠️ v181.M-R2d 核实：技能域渠道死 key——现网 skills.py 全表零 mech/res_gain/res_cost
         # rage（v151 后战士主资源=zhan_yi 战意，rage 满 10 狂暴/背水随 battle.py 形态机退役、
-        # battle2 无 dual_form 消费端）；若事件渠道误喂，满层 +120% dmg 无人消费 = 数值崩坏。
+        # saintess_engine 无 dual_form 消费端）；若事件渠道误喂，满层 +120% dmg 无人消费 = 数值崩坏。
         # → 职业渠道不接（affix 词条域 war_spirit/blood_bath/boiling_blood 仍由 R4
         #   we_affix_res_gain 通道喂，勿在本域重建）。待清死数据（详见
         #   docs/REFACTOR_v181_CLASS_MECH_ASSEMBLY.md『M-R2d 渠道装配设计』§3）。
@@ -216,7 +216,7 @@ EFFECT_RULES: dict = {
     # 归属过滤走 start_classes（装配层零职业名硬编码）；三来源条件各异：受击/每刻需
     # 守御姿态在位（when has_effect），守线技能命中无条件（简写形态）。
     # ⚠️ 缺口（不硬凑，见交付报告）：
-    #   ① 「每核 减伤 +3%」经 stat_scale.reduce 声明——battle2 伤害路径**不消费**
+    #   ① 「每核 减伤 +3%」经 stat_scale.reduce 声明——saintess_engine 伤害路径**不消费**
     #      st["reduce"]（stats 只写、instance 仅展示），故装配层（class_mech_proc
     #      apply_class_mech）按本声明挂 taken_calc 乘区钩子（passive_taken_reduce
     #      per_core 段）落地；st["reduce"] 冗余写入无害。
@@ -869,7 +869,7 @@ PASSIVE_PROC: dict = {
     # ---- P18 族：挽歌者减益旋律强化（v181.G1——docs/REFACTOR_v181_GAP_CLOSURE_PLAN.md §3）----
     # 旧语义权威 = game/core/passive_procs.py 的 dirge_debuffs / dirge_ctrl_up 两 handler
     # （v181.P2D 注册表：declare_proc("dirge_debuff_dmg","dmg_mult_cond") /
-    #  declare_proc("dirge_ctrl_up","flag_set_cond")），本批按同语义落到 battle2 声明表。
+    #  declare_proc("dirge_ctrl_up","flag_set_cond")），本批按同语义落到 saintess_engine 声明表。
     "dirge_debuff_dmg": {      # 挽歌·极：敌方每携带 1 个负面 → 受伤害 +per_debuff（上限 cap）
         # 旧 handler：pct = min(ps.per_debuff × 负面种数, ps.cap) → 伤害乘区 ×(1+pct)
         # （种数口径 = 敌方 effects 里声明 negative / on=target 的条目，见动作段）。
@@ -894,7 +894,7 @@ PASSIVE_PROC: dict = {
     },
     "lian_duan_soft": {        # 暗影之心：断连时只损失 lose 段连击（而非减半）
         # 「断连」= gap 刻内无命中（v153 §五 L759 权威：1.5 刻内未命中 → 连段减半）。
-        # battle2 无基础断连载体（旧 battle.py _combo_break 随 N10 删除、未迁）→ 内容层
+        # saintess_engine 无基础断连载体（旧 battle.py _combo_break 随 N10 删除、未迁）→ 内容层
         # 自管（引擎零改动）：命中记时刻 → time_advance 查窗 → 掉段数 = passive dict lose。
         "event": "time_advance", "action": "passive_lian_duan_soft",
         "res": "lian_duan", "gap": 1.5,

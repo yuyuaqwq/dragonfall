@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""N10-B1：battle2 吸血主链验收（面板吸血率 + 技能级 lifesteal + mortal_wound 减半 + AOE/真伤不吸）。
+"""N10-B1：saintess_engine 吸血主链验收（面板吸血率 + 技能级 lifesteal + mortal_wound 减半 + AOE/真伤不吸）。
 
 跑法：python tests/test_battle2_n10_b1_lifesteal.py（w1 内）
 """
@@ -17,11 +17,11 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c
+from saintess_engine import config as _b2c
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2 import Battle as B2, make_actor  # noqa: E402
-from battle2 import actions as A  # noqa: E402
-from battle2.actors import ActCtx  # noqa: E402
+from saintess_engine import Battle as B2, make_actor  # noqa: E402
+from saintess_engine import actions as A  # noqa: E402
+from saintess_engine.actors import ActCtx  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -69,7 +69,7 @@ def new_battle(p, e):
 
 def panel_ls(p):
     """读玩家聚合面板吸血率（验证装备折算生效）。"""
-    from battle2 import stats as S
+    from saintess_engine import stats as S
     st = S.actor_stats(new_battle(p, mk_enemy()), p)
     return float(st.get("lifesteal", 0) or 0)
 

@@ -52,7 +52,7 @@ def eval_fight(cls_cn, plv, gear, role, mlv, n=1, team_buff=1.0,
     monster：真实怪 dict（副本 Boss 必须传——个体 mod 会让通用模板失真，如老王 30753 vs 通用 22780）。"""
     cid = [c[1] for c in CLASSES if c[0] == cls_cn][0]
     from data.plugins.dragonfall.game import content as C
-    from battle2.formulas import calc_damage
+    from saintess_engine.formulas import calc_damage
     if monster is None:
         monster = C.build_monster(("m_eval", "评估怪", role, mlv, [], []),
                                   {"id": "eval", "name": "eval", "area": "eval"})

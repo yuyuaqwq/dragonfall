@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""N8 验收：battle2 事件总线（effect_triggers.py）19 时机 fire() 插桩。
+"""N8 验收：saintess_engine 事件总线（effect_triggers.py）19 时机 fire() 插桩。
 
 覆盖：
 - battle_start：首动前整场一次（起手 buff/仪式）
@@ -37,15 +37,15 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import Battle as BT_NEW, make_actor  # noqa: E402
-from battle2 import config as _b2config  # noqa: E402
+from saintess_engine import Battle as BT_NEW, make_actor  # noqa: E402
+from saintess_engine import config as _b2config  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from battle2 import actions as AC          # noqa: E402
-from battle2 import effects as FX          # noqa: E402
-from battle2 import landing as L           # noqa: E402
-from battle2 import effect_triggers as TR  # noqa: E402
-from battle2.actors import ActCtx          # noqa: E402
-from battle2.schedule import _settle_time_effects as _ste  # noqa: E402
+from saintess_engine import actions as AC          # noqa: E402
+from saintess_engine import effects as FX          # noqa: E402
+from saintess_engine import landing as L           # noqa: E402
+from saintess_engine import effect_triggers as TR  # noqa: E402
+from saintess_engine.actors import ActCtx          # noqa: E402
+from saintess_engine.schedule import _settle_time_effects as _ste  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -352,7 +352,7 @@ def ent(a, k):
 
 
 def main():
-    print("=== N8 battle2 事件总线测试 ===")
+    print("=== N8 saintess_engine 事件总线测试 ===")
     test_events_declared()
     test_battle_start_once()
     test_turn_begin_cast_cycle()

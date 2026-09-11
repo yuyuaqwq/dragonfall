@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-"""N5b4-1 验证：命令层展示辅助函数在 battle2 战斗上正确工作。
+"""N5b4-1 验证：命令层展示辅助函数在 saintess_engine 战斗上正确工作。
 
 展示函数（combat.CombatCmds._status_line/_resource_line/_battle_footer/
 _battle_formation_panel）N5b4-1 改读 player dict + b.sides——本测试用
-battle2 Battle 构造真实战斗（装备装配 → 开战 → 出手挂 buff → 展示），
+saintess_engine Battle 构造真实战斗（装备装配 → 开战 → 出手挂 buff → 展示），
 断言：
 - 玩家 buff dict 形态（N7.1 {expire:绝对秒}）折算剩余刻显示
 - 护盾 expire_at 折算
-- 敌方状态（battle2 actor buffs 同 dict 形态）
-- 面板/页脚输出不崩（battle2 无 .enemies 属性 → sides 读法）
+- 敌方状态（saintess_engine actor buffs 同 dict 形态）
+- 面板/页脚输出不崩（saintess_engine 无 .enemies 属性 → sides 读法）
 
 跑法：python tests/test_battle2_n5b4_display.py
 """
@@ -27,9 +27,9 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2config  # noqa: E402
+from saintess_engine import config as _b2config  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from battle2 import Battle as B2, make_actor  # noqa: E402
+from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from game.commands.combat import CombatCmds  # noqa: E402
 
 PASS = 0
@@ -93,13 +93,13 @@ def new_battle(player, enemy):
 
 
 def test_status_line_battle2_buffs():
-    print("【N5b4-1 battle2 dict buff 形态折算】")
+    print("【N5b4-1 saintess_engine dict buff 形态折算】")
     cmds = CombatCmds.__new__(CombatCmds)
     player = mk_player()
     enemy = mk_enemy()
     b = new_battle(player, enemy)
     focus = b.focus()
-    # battle2 buff dict 形态：atk_up 绝对到期 50.0（now=0 → 剩 50 刻）
+    # saintess_engine buff dict 形态：atk_up 绝对到期 50.0（now=0 → 剩 50 刻）
     focus.setdefault("effects", {})["atk_up"] = {"stacks": 1, "expire": 50.0, "stat": "atk",
                                                 "op": "mul", "mult": 1.3}
     # 控制类 dict（stun 剩 3 刻：now=0 + turns 3）
@@ -121,7 +121,7 @@ def test_status_line_battle2_buffs():
 
 
 def test_resource_and_footer_battle2():
-    print("【N5b4-1 _resource_line / _battle_footer 在 battle2 上不崩】")
+    print("【N5b4-1 _resource_line / _battle_footer 在 saintess_engine 上不崩】")
     cmds = CombatCmds.__new__(CombatCmds)
     player = mk_player()
     enemy = mk_enemy()
@@ -129,7 +129,7 @@ def test_resource_and_footer_battle2():
     focus = b.focus()
     focus.setdefault("effects", {})["atk_up"] = {"stacks": 1, "expire": 50.0, "stat": "atk",
                                                 "op": "mul", "mult": 1.3}
-    # v181.M-R3：资源行改读 battle2 actor.effects 叠层（player.resources 为死字段，
+    # v181.M-R3：资源行改读 saintess_engine actor.effects 叠层（player.resources 为死字段，
     # 无生产写入）——无白名单资源叠层 → 空串安全
     rl0 = cmds._resource_line(player, b)
     check("无职业资源叠层 → 空串", rl0 == "", rl0)
@@ -137,7 +137,7 @@ def test_resource_and_footer_battle2():
     focus.setdefault("effects", {})["zhan_yi"] = {"stacks": 5}
     rl = cmds._resource_line(player, b)
     check("资源行含战意层数", "战意" in rl and "5" in rl and "/10" in rl, rl)
-    # 页脚整体不崩（battle2 无 .enemies 属性 → sides 读法关键路径）
+    # 页脚整体不崩（saintess_engine 无 .enemies 属性 → sides 读法关键路径）
     f = cmds._battle_footer(player, b, enemy)
     check("页脚含玩家血蓝", "200/200" in f, f)
     check("页脚含站位图怪物", "山贼头目" in f, f)
@@ -149,7 +149,7 @@ def test_resource_and_footer_battle2():
 
 
 def main():
-    print("=== N5b4-1 展示层 battle2 适配测试 ===")
+    print("=== N5b4-1 展示层 saintess_engine 适配测试 ===")
     test_status_line_battle2_buffs()
     test_resource_and_footer_battle2()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")

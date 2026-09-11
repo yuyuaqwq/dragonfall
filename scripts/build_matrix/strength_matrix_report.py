@@ -26,7 +26,7 @@ for _p in (_QQBOT, _PLUGIN, _TESTS, _SCRIPTS):
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(_TESTS, "test_game_data.db"))
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
-from numeric_lib.battle2 import battle_rotation, attr_pts_total      # noqa: E402
+from numeric_lib.saintess_engine import battle_rotation, attr_pts_total      # noqa: E402
 from game.content_rules.skills import skill_info
 from build_matrix.boss_matrix import boss_def_of                      # noqa: E402
 from build_matrix.schema import KNOWN_CLASSES                          # noqa: E402

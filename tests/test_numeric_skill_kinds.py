@@ -6,11 +6,11 @@ import sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PLUGIN = os.path.dirname(_HERE)
 # 注意：skill_kinds 是零依赖纯模块，直接按文件路径加载，避免触发 game 包 data 索引循环导入。
-# S8 拆仓：本体已迁框架仓 `framework/battle2/support/skill_kinds.py`（原 game/core/ 下为过渡 shim）。
+# S8 拆仓：本体已迁框架仓 `framework/saintess_engine/support/skill_kinds.py`（原 game/core/ 下为过渡 shim）。
 import importlib.util
 _spec = importlib.util.spec_from_file_location(
     "skill_kinds_standalone",
-    os.path.join(_PLUGIN, "framework", "battle2", "support", "skill_kinds.py"))
+    os.path.join(_PLUGIN, "framework", "saintess_engine", "support", "skill_kinds.py"))
 _sk_mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_sk_mod)
 

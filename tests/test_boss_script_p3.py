@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.join(_PLUGIN_DIR, "framework"))  # 引擎框架包（
 sys.path.insert(0, _PLUGIN_DIR)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from game.store.connection import init_db  # noqa: E402
 init_db()
@@ -33,7 +33,7 @@ from game import content as C  # noqa: E402
 from game import db  # noqa: E402
 from game.content_rules.panel import player_final_stats
 from game.commands import boss_script as BS  # noqa: E402
-from battle2 import Battle as B2  # noqa: E402
+from saintess_engine import Battle as B2  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -240,7 +240,7 @@ def test_7_summon_front_row():
     check("存活序列第一名 = 召唤物（a1 挡刀）", alive and alive[0] is es[0],
           f"alive 顺序={[u.get('name') for u in alive]}")
     # 玩家无指定目标的普攻先打召唤物（默认目标 = 敌对存活第一人 = 队首）
-    from battle2.actors import ActCtx as _B2Ctx
+    from saintess_engine.actors import ActCtx as _B2Ctx
     pa = b.sides["player"][0]
     pa["side"] = "player"  # mk_env 快照 actor 无 side——补阵营才能正确解析敌对目标
     pa["atk"] = 150  # 快照无 atk——补面板让普攻能造成伤害

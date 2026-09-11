@@ -41,11 +41,11 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2 import Battle as B2, make_actor, effects as EFX  # noqa: E402
-from battle2.stats import actor_stats  # noqa: E402
-from battle2.effect_triggers import fire as bfire  # noqa: E402
+from saintess_engine import Battle as B2, make_actor, effects as EFX  # noqa: E402
+from saintess_engine.stats import actor_stats  # noqa: E402
+from saintess_engine.effect_triggers import fire as bfire  # noqa: E402
 from game.content_rules.skills import skill_info
 from game.services import class_mech_proc as CM  # noqa: E402
 

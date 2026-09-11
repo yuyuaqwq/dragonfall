@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""N3 验收：battle2 效果系统（effects.py）核心行为测试。
+"""N3 验收：saintess_engine 效果系统（effects.py）核心行为测试。
 
 覆盖：
 - debuff 叠层：burn/bleed/poison 写 target.debuffs（cap）
@@ -28,11 +28,11 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 
 from game import content as C            # noqa: E402
 from game.content_rules.panel import player_final_stats
-from battle2 import Battle as BT_NEW, make_actor  # noqa: E402
-from battle2 import config as _b2config  # noqa: E402
+from saintess_engine import Battle as BT_NEW, make_actor  # noqa: E402
+from saintess_engine import config as _b2config  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from battle2 import effects as FX    # noqa: E402
-from battle2 import stats as S       # noqa: E402
+from saintess_engine import effects as FX    # noqa: E402
+from saintess_engine import stats as S       # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -383,7 +383,7 @@ def test_n75a_verbs():
     check("interrupt 清 charging", tgt.get("charging") is None)
     # landing 承伤乘区（vulnerable 破绽直写 _dmg_taken_mult）
     e2 = {"uid": "e2", "name": "靶", "hp": 1000, "max_hp": 1000, "_dmg_taken_mult": 1.5}
-    from battle2.landing import deal_damage
+    from saintess_engine.landing import deal_damage
     deal_damage(b, {"uid": "s", "name": "打", "level": 10}, e2, 100, [])
     check("承伤×1.5 → 扣 150", 1000 - e2["hp"] == 150, f"扣血 {1000 - e2['hp']}")
 
@@ -413,7 +413,7 @@ def test_n75b_potion_aliases():
 
 
 def main():
-    print("=== N3 battle2 效果系统测试 ===")
+    print("=== N3 saintess_engine 效果系统测试 ===")
     test_debuff_stack()
     test_control()
     test_caster_stack()

@@ -254,7 +254,7 @@ AFFIXES = {
     # "line"（归属职业线/攻守）。effect 内 res 使用资源 key（rage/element/energy/faith/cp/chi——key 语义
     # 与 cap 单源 EFFECT_RULES，desc/展示见 job_guide 展示表；原 core_resources.py 已随 v181.M-R2c 退役）。
     #
-    # ⚠️ battle2 装配落地状态（R4 / docs/REFACTOR_v181P4_N9_7_affix_migration.md）：
+    # ⚠️ saintess_engine 装配落地状态（R4 / docs/REFACTOR_v181P4_N9_7_affix_migration.md）：
     # - ✅ 已装配（翻译器在 game/services/battle2_equip_proc.py N9.7e）：effect 含
     #   res+gain+on 的事件 gain 型 10 条（war_spirit/warcry_echo/blood_bath/arcana_flux/
     #   crit_charge/holy_echo/crit_return/pious_charm/rock_rest/opening_stance——

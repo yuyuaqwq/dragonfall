@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-"""battle2 装备特效/词条装配层（game/services/battle2_equip_proc.py，N9）。
+"""saintess_engine 装备特效/词条装配层（game/services/battle2_equip_proc.py，N9）。
 
-battle2 包外（引擎零知识——引擎不 import 本模块，本模块 import 引擎/数据）。
+saintess_engine 包外（引擎零知识——引擎不 import 本模块，本模块 import 引擎/数据）。
 职责：把玩家装备的 weapon_effect / affix 数据 → actor["triggers"] 声明
-（N8 事件总线消费），使装备特效在 battle2 战斗中生效。
+（N8 事件总线消费），使装备特效在 saintess_engine 战斗中生效。
 
 架构（docs/REFACTOR_v181P4_N9_migration.md §2）：
 - 效果源 = actor["triggers"] = {事件: [效果 dict]}，效果 dict 两种形态：
   ① 纯动词（引擎原生能力）：shield/buff/state_add/control/heal/...
   ② 族扩展动作（复杂机制，ACTION_HANDLERS 扩展注册）：type="we_xxx"
-- 事件映射：旧 proc 事件集 → battle2 19 事件（hit→attack_hit+skill_hit 展开等）
+- 事件映射：旧 proc 事件集 → saintess_engine 19 事件（hit→attack_hit+skill_hit 展开等）
 - 数值权威：weapon_effect_data.WEAPON_EFFECT_DATA + 装备行 we_data 覆盖层
   （读表零默认值铁律：缺字段 = 无此行为）
 
@@ -22,7 +22,7 @@ from __future__ import annotations
 from typing import Optional
 
 # ============================================================
-# 旧事件集 → battle2 19 事件映射
+# 旧事件集 → saintess_engine 19 事件映射
 # ============================================================
 
 # 旧 weapon proc 事件集（weapon_effects._WE_KEY_EVENTS 的 key）
@@ -40,14 +40,14 @@ _EVENT_MAP = {
     # N9A-2：旧 enemy_act（敌方行动后）→ 通用 act_done 广播（全员触发，效果侧
     # 自己 if 敌我判断——randuin/ice_vein 敌对判断在 we_act_done_slow 扩展动作内）
     "enemy_act": ("act_done",),
-    # 以下旧时机 battle2 无 1:1 点位，第一批不迁（后续批次/上层处理）：
+    # 以下旧时机 saintess_engine 无 1:1 点位，第一批不迁（后续批次/上层处理）：
     # taken_after / turn_end / passive / dot_taken
 }
 
-# 每个旧事件映射后的 battle2 事件（返回 tuple）
+# 每个旧事件映射后的 saintess_engine 事件（返回 tuple）
 def map_event(old_ev: str) -> tuple:
-    """旧事件 → battle2 事件展开；不在表 = 假定已是 battle2 原生事件名，同名直通
-    （dmg_calc/taken_calc/battle_start 等装配层可直接用 battle2 事件名）。"""
+    """旧事件 → saintess_engine 事件展开；不在表 = 假定已是 saintess_engine 原生事件名，同名直通
+    （dmg_calc/taken_calc/battle_start 等装配层可直接用 saintess_engine 事件名）。"""
     return _EVENT_MAP.get(old_ev, (old_ev,))
 
 
@@ -97,8 +97,8 @@ def equipped_weapon_keys(actor: dict) -> list:
 # affix 词条装配（N9.7：AFFIXES 76 → 分档）
 # ============================================================
 # 分档结论（docs/REFACTOR_v181P4_N9_7_affix_migration.md）：
-# - A1 stat 型 26：装备生成时已折算进 item.stats → battle2 面板自动含，装配层跳过
-# - B 事件型：trigger 映射 battle2 事件 → 翻译成效果声明（此文件翻译器）
+# - A1 stat 型 26：装备生成时已折算进 item.stats → saintess_engine 面板自动含，装配层跳过
+# - B 事件型：trigger 映射 saintess_engine 事件 → 翻译成效果声明（此文件翻译器）
 # - 资源型 R4（N9.7e）：res+gain+on 事件 gain 型 10 条已装（we_affix_res_gain）
 #   + boiling_blood 怒气满减伤（taken_calc state_full）；rage/chi/energy/faith/cp/
 #   element 资源容器 cap 已由 EFFECT_RULES 声明（EFFECT_RULES 无行=装配即无限攒，
@@ -182,7 +182,7 @@ def _apply_cap_bonus(actor: dict) -> dict:
 #   {"element": True}                          → 技能 info.element 非空（元素系）
 #   {"mech_prefix": ["arcane", ...]}           → info.mech startswith 任一
 #   {"name_contains": ["神迹"]}                → 技能显示名含任一子串
-# 引擎折算见 battle2/actions.py _skill_pay_of（预检/扣费同源、保底 1、floor 取整）。
+# 引擎折算见 saintess_engine/actions.py _skill_pay_of（预检/扣费同源、保底 1、floor 取整）。
 
 # 元素/奥术判据（arcane_focus desc：元素/奥术技能 魔力消耗 -10%——法师技能数据
 # element 字段只标元素系 7 技、奥术系走 mech=arcane/arcane_burst、部分大招仅名字
@@ -488,11 +488,11 @@ def _af_dragon_aw(aid, actor, eff):
 
 
 # ============ N9.7e 资源 gain 型（R4：effect {res, gain, on} → 事件叠资源） ============
-# 统一规则：词条 effect 含 res+gain+on（事件时机）→ actor.triggers[对应 battle2 事件]
+# 统一规则：词条 effect 含 res+gain+on（事件时机）→ actor.triggers[对应 saintess_engine 事件]
 # 挂 we_affix_res_gain 叠层生产动作（cap clamp 查 EFFECT_RULES[res].cap，动作侧）。
 # 事件选型（与词条语义最近且不重复触发——全部 subject=owner 自己，或 battle_start
 # 开战一次性，无广播误触发/无双事件重复）：
-#   on_attack   普攻行动触发 → attack_hit：普攻命中后（battle2 唯一 self-subject 的
+#   on_attack   普攻行动触发 → attack_hit：普攻命中后（saintess_engine 唯一 self-subject 的
 #               普攻点位——普攻经 do_skill 结算但 ev 按 _basic 标 attack_hit）。
 #               未命中（闪避/0 伤早退不 fire）该次不触发：引擎无「普攻行动」级独立
 #               事件，act_done 全员广播且 ctx 无行动类型（无法区分普攻/技能/防御），
@@ -500,12 +500,12 @@ def _af_dragon_aw(aid, actor, eff):
 #   on_skill    技能行动触发 → skill_hit：技能命中后（heal/buff 类技能无命中事件 →
 #               天然只覆盖攻击技能，与「攻击/技能」攒怒语义一致；同上不选 act_done）
 #   on_cast     施法触发（充能语义）→ act_cast + not_basic：施放瞬间 subject=自己；
-#               battle2 普攻经 do_skill 也会 fire act_cast（info._basic）→ 装配附
+#               saintess_engine 普攻经 do_skill 也会 fire act_cast（info._basic）→ 装配附
 #               not_basic 过滤（元素/奥术技能施放不吃普攻）。
 #   on_crit     暴击命中 → crit：crit = 命中子集的独立事件（与 attack_hit/skill_hit
 #               分开 fire，不重复；同一次暴击只加一次）。
 #   on_taken    受击 → on_taken：承伤后 subject=受击者自己。
-#   on_heal     治疗命中 → act_cast + kind=治疗（折中）：battle2 on_heal 事件
+#   on_heal     治疗命中 → act_cast + kind=治疗（折中）：saintess_engine on_heal 事件
 #               subject=被治疗者（治疗者只出现在 ctx.source），词条受益人是施法者
 #               （牧师）→ 挂 on_heal 只在自疗时触发、治疗队友全漏；治疗行动上
 #               「施放」与「命中」同刻发生 → 挂 act_cast+kind 过滤，全员治疗都触发。
@@ -516,7 +516,7 @@ def _af_dragon_aw(aid, actor, eff):
 #   cond 被动修正型（effect 无 on）同样缺口。
 
 _AFFIX_RES_GAIN_ON = {
-    # on 时机 → (battle2 事件, 动作附加参数)
+    # on 时机 → (saintess_engine 事件, 动作附加参数)
     "on_attack": ("attack_hit", {}),
     "on_skill": ("skill_hit", {}),
     "on_cast": ("act_cast", {"not_basic": True}),
@@ -587,7 +587,7 @@ def _af_boiling_blood(aid, actor, eff):
 
 # ============ N9.7 收尾（m_affixtail）：regen 型 + purify ============
 # regen 型（energy_tide/swift_tailwind）：effect {res, regen}（非 gain）→
-# turn_start 每刻回能（battle2「每刻」= 每行动，regen/meditate 同口径）；cap clamp
+# turn_start 每刻回能（saintess_engine「每刻」= 每行动，regen/meditate 同口径）；cap clamp
 # 走 we_affix_res_gain → _add_stacks → _cap_of（上限词条抬 cap 同源可攒满）。
 # 与 R4 gain 型同规则不按职业过滤（词条发放通用；资源归属职业由消耗端决定——
 # crit_charge/war_spirit R4 已发货行为一致，无职业判据零噪音）。
@@ -603,7 +603,7 @@ def _af_energy_tide(aid, actor, eff):
 
 @_register_affix("swift_tailwind")
 def _af_swift_tailwind(aid, actor, eff):
-    """疾风余韵：刻末精力 ≥80 → 下刻 精力回复 +10（battle2 turn_start 判定当前
+    """疾风余韵：刻末精力 ≥80 → 下刻 精力回复 +10（saintess_engine turn_start 判定当前
     精力 ≥80 即回，持续维持线 ≈ 旧跨刻口径；cond=energy_ge_80 → cond_key/cond_ge
     参数，动作侧静默跳过不满足）。"""
     return {"turn_start": [{"type": "we_affix_res_gain", "key": aid,
@@ -617,7 +617,7 @@ def _af_purify(aid, actor, eff):
     """净化：命中 15% 驱散目标 1 层增益；成功 → 敌攻 -10%（1 刻）。
 
     增益判定（N9_7 定稿）在动作侧 we_affix_purify：EFFECT_RULES/条目内嵌快照
-    查 op mul>1|add>0 / stat_scale 正层 / 自愈回能 period（battle2 effects 无
+    查 op mul>1|add>0 / stat_scale 正层 / 自愈回能 period（saintess_engine effects 无
     旧 mon_ 前缀概念）。purge_n/holy_weaken_pct 从 effect 取。"""
     return {"hit": [{"type": "we_affix_purify", "key": aid, "aid": aid,
                      "chance": _affix_chance_of(aid),
@@ -655,7 +655,7 @@ def affix_triggers_for_key(aid: str, actor: dict) -> dict:
 # ============================================================
 # key → 效果声明翻译（第一批：纯动词 battle_start 起手类）
 # ============================================================
-# 返回 {old_event(字符串): [效果 dict]}（装配时 map_event 把旧事件展开成 battle2 事件）
+# 返回 {old_event(字符串): [效果 dict]}（装配时 map_event 把旧事件展开成 saintess_engine 事件）
 
 def _translate_shield_start(key: str, wd: dict) -> dict:
     """proc_shield battle_start 起手盾：盾值 = shield_hp_pct×maxhp / shield_pct×maxhp /
@@ -852,7 +852,7 @@ def _translate_act_done_slow(key: str, wd: dict) -> dict:
     叠减速层。挂 enemy_act → act_done（全员广播）；敌我判断在扩展动作
     we_act_done_slow 内（hostile_sides 查 owner vs acted）。
     ⚠️ state key 用效果 key（randuin_weary/ice_vein）而非数据表 stack_key
-    （_randuin_stack/_ice_vein_stack——那是旧 e_buffs 内部键）——battle2 的
+    （_randuin_stack/_ice_vein_stack——那是旧 e_buffs 内部键）——saintess_engine 的
     STATE_EFFECTS 面板折算/层 cap 以注册 key 为权威。"""
     eff = {"type": "we_act_done_slow", "key": key, "stack_key": key,
            "max_stack": wd.get("max_stack"),
@@ -1052,7 +1052,7 @@ _START_TRANSLATORS = {
                   "per_stack": wd.get("per_stack")}],
     },
     # proc_passive_mult combo_end（连击终点：本刻连段≥combo_need 且暴击 → 本次
-    # 暴伤乘区。battle2 无旧 passive 点位 → 挂 dmg_calc（ctx.is_crit = 本击被动
+    # 暴伤乘区。saintess_engine 无旧 passive 点位 → 挂 dmg_calc（ctx.is_crit = 本击被动
     # 判定结果，we_combo_end 内判连段条件）；combo_key 缺省 lian_duan 连段资源）
     "combo_end": lambda k, wd: {
         "dmg_calc": [{"type": "we_combo_end", "key": k,
@@ -1091,10 +1091,10 @@ def install_ext_actions() -> None:
 
 
 def weapon_triggers(actor: dict) -> dict:
-    """actor 全部已装备武器特效 → {battle2事件: [效果 dict]}。
+    """actor 全部已装备武器特效 → {saintess_engine事件: [效果 dict]}。
 
     内部先把 key 翻译成 {old_event: [效果]}，再把 old_event 映射展开到
-    battle2 事件（hit → attack_hit + skill_hit 双事件注册）。
+    saintess_engine 事件（hit → attack_hit + skill_hit 双事件注册）。
     """
     out: dict = {}
     for key in equipped_weapon_keys(actor):
@@ -1108,7 +1108,7 @@ def weapon_triggers(actor: dict) -> dict:
 
 
 def affix_triggers(actor: dict) -> dict:
-    """actor 全部已装备词条（事件型）→ {battle2事件: [效果 dict]}。
+    """actor 全部已装备词条（事件型）→ {saintess_engine事件: [效果 dict]}。
 
     - stat 型词条（生成时已折算进 item.stats）不产生 triggers（面板自动含）
     - 事件型走翻译器 + 事件映射展开（hit → attack_hit + skill_hit）

@@ -22,7 +22,7 @@ def _json_ready(obj):
 
 def _monster_display_name(state):
     """I0-B8：monster 列展示宿主昵称——多对多阵列优先取 enemies[0]（阵列压缩换位后的实际首单位），
-    无 enemies 时回落单怪 enemy 名。N5b4-3：battle2 存档无顶层 enemies/enemy（存 sides）——
+    无 enemies 时回落单怪 enemy 名。N5b4-3：saintess_engine 存档无顶层 enemies/enemy（存 sides）——
     取 enemy side 首个存活 actor 名（展示宿主昵称用，不影响战斗数据）。"""
     enemies = state.get("enemies")
     if isinstance(enemies, list) and enemies:

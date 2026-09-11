@@ -4,7 +4,7 @@
 背景（S8 拆仓暴露的真实耦合）：
 老路径 `from game.battle2 import config as _b2c` 会**顺带 import `game` 包**
 （`game/__init__.py` 的 `install()` 把内容侧默认装载器登记进引擎 config）；
-新路径 `from battle2 import config as _b2c` 不再 import `game` → 紧接着的
+新路径 `from saintess_engine import config as _b2c` 不再 import `game` → 紧接着的
 `_b2c.load_game_defaults()` 变成 **空调用**（R8 静默降级：引擎 config 的
 `_defaults_loader` 为 None 时静默什么都不做）。
 

@@ -109,7 +109,7 @@ def t_simulate(skill):
     check("报告蓝耗 = 技能声明", res.get("mp_used") == skill.get("mp"),
           f"mp_used={res.get('mp_used')} declared={skill.get('mp')}")
     check("主进程未被 import game 污染", "game" not in sys.modules
-          or not any(m.startswith("battle2") for m in sys.modules),
+          or not any(m.startswith("saintess_engine") for m in sys.modules),
           str([m for m in sys.modules if m.startswith('game')][:5]))
     after = os.path.isdir(os.path.join(EDITOR_DIR, ".workdir"))
     check("模拟不改盘（.workdir 状态不变）", before == after)

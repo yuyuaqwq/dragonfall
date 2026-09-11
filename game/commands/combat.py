@@ -15,14 +15,14 @@ from ._platform import MessageChain
 
 from .. import content as C
 from .. import db
-from battle2.formulas import skill_buff_turns, skill_cond_mult, skill_lifesteal_pct, skill_max_level, skill_mech_val, skill_mp_pay_of, skill_power_mult
+from saintess_engine.formulas import skill_buff_turns, skill_cond_mult, skill_lifesteal_pct, skill_max_level, skill_mech_val, skill_mp_pay_of, skill_power_mult
 from ..content_rules.gameplay import check_player_level_up
 from ..content_rules.panel import passive_skills_learned, player_final_stats, skill_learn_cost_for
 from ..content_rules.skills import _sk_table, branch_skill_owner, is_skill_learned, skill_info, skill_level_of
 from ..core.constants import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）——N10 前由 battle re-export 改为 core 权威单源
-from battle2.support.skill_kinds import K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_PASSIVE, K_TAUNT# v176 去魔法字符串
+from saintess_engine.support.skill_kinds import K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_PASSIVE, K_TAUNT# v176 去魔法字符串
 
-from battle2.support.formation import formation_view# v2 多对多站位图文案行
+from saintess_engine.support.formation import formation_view# v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle
 # v181 P4-1 试点：每日元数据键 + 达标结算单点已收敛至 services.quests——
 # combat 与 world 共同 import services（不再 from .world 引命令层私有函数）
@@ -91,7 +91,7 @@ WORLD_BOSS_DROPS = {
 
 
 # ---- v181.M-R3：职业资源展示（actor.effects 叠层版）----
-# battle2 战斗内职业资源 = actor.effects 叠层条目（技能 mech/装配层 apply op=add 写
+# saintess_engine 战斗内职业资源 = actor.effects 叠层条目（技能 mech/装配层 apply op=add 写
 # stacks，cap 由 EFFECT_RULES[key].cap 管，见 game/data/battle2_rules.py 通用叠层段）。
 # 旧 player["resources"]/st["resources"] 无生产写入（死字段）——展示一律改读 effects。
 # 只认本白名单 key（防把敌方减益 burn/poison/装备特效 dragon_mark 等当职业资源误显）。
@@ -120,7 +120,7 @@ def resource_stack_text(effects) -> str:
         return ""
     rules = {}
     try:
-        from battle2 import config as _b2c
+        from saintess_engine import config as _b2c
         rules = _b2c.get_effect_rules() or {}
     except Exception:
         rules = {}
@@ -609,11 +609,11 @@ class CombatCmds(CommandBase):
     def _unlock_battle(self, group_id, qq_id):
         _battle_locks.discard(str(qq_id))
 
-    # ---- N5b4-2：battle2 战斗构造/恢复统一入口（命令层不手拼 sides）----
+    # ---- N5b4-2：saintess_engine 战斗构造/恢复统一入口（命令层不手拼 sides）----
 
     def _open_battle2(self, player: dict, enemies: list, btype: str = "monster",
                       group_id=None, qq_id=None, pet=None) -> "object":
-        """开战构造（battle2 四步仪式，N5b4-2 起探索/野王/普通遇怪/约战/塔统一走）。
+        """开战构造（saintess_engine 四步仪式，N5b4-2 起探索/野王/普通遇怪/约战/塔统一走）。
 
         ① 开战仪式（player dict 侧：字段播种/max 重算/echo_bless/poi_buff 消费）
         ② 组 sides（player + 怪组）
@@ -641,19 +641,19 @@ class CombatCmds(CommandBase):
                 _CM_apply(_a)
             except Exception:
                 pass  # 技能 mech 兑现装配异常不阻断开战
-        from battle2 import Battle as B2
+        from saintess_engine import Battle as B2
         return B2(btype, sides=sides, title_bonus=tb,
                   pet=pet if pet is not None else db.pet_get(qq_id))
 
     def _restore_battle2(self, state: dict) -> "object":
-        """恢复 battle2 战斗（from_state）。旧格式（无 sides）→ None（命令层清档重开）。"""
+        """恢复 saintess_engine 战斗（from_state）。旧格式（无 sides）→ None（命令层清档重开）。"""
         if not isinstance(state, dict) or not state.get("sides"):
             return None
-        from battle2 import Battle as B2
+        from saintess_engine import Battle as B2
         return B2.from_state(state)
 
     def _sync_battle_player(self, player: dict, b) -> None:
-        """battle2 行动后回写：actor（副本）→ player dict（命令层读它做 db/展示）。"""
+        """saintess_engine 行动后回写：actor（副本）→ player dict（命令层读它做 db/展示）。"""
         try:
             _f = b.focus() if hasattr(b, "focus") else None
             if _f:
@@ -1042,7 +1042,7 @@ class CombatCmds(CommandBase):
             yield event.plain_result("你附近没有敌人！输入『探索』寻找敌人～")
             return
         if battle["state"].get("type") == "instance":
-            # N5b4-5a R2：接线点 attack → 新 Router（battle2 原生；老 _instance_act R3 删除）
+            # N5b4-5a R2：接线点 attack → 新 Router（saintess_engine 原生；老 _instance_act R3 删除）
             async for _r in self._instance_router(event, group_id, qq_id, player, battle["state"], "attack", None):
                 yield _r
             return
@@ -1054,7 +1054,7 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         _stype = battle["state"].get("type")
-        # worldboss 战斗（N5b4-3：battle2 恢复）
+        # worldboss 战斗（N5b4-3：saintess_engine 恢复）
         if _stype == "worldboss":
             b = self._restore_battle2(battle["state"])
             if b is None:
@@ -1089,7 +1089,7 @@ class CombatCmds(CommandBase):
         if ended:
             # v130.3 意见#9 体验增强：胜利/结束时若残存潜行（技能/防御击杀场景潜行未被攻击消费），
             # 显式提示消散，避免玩家误解"战斗结束了暴击还在"
-            # V 系列：battle2 效果在 player.effects；旧引擎引用同步 buffs——双引擎判型
+            # V 系列：saintess_engine 效果在 player.effects；旧引擎引用同步 buffs——双引擎判型
             _stealth_left = bool((player.get("effects") or {}).get("stealth")) \
                 if isinstance(player.get("effects"), dict) else False
             if _stealth_left:
@@ -1357,7 +1357,7 @@ class CombatCmds(CommandBase):
                 )
                 return
         if battle["state"].get("type") == "instance":
-            # N5b4-5a R2：接线点 skill → 新 Router（battle2 原生；老 _instance_act R3 删除）
+            # N5b4-5a R2：接线点 skill → 新 Router（saintess_engine 原生；老 _instance_act R3 删除）
             async for _r in self._instance_router(event, group_id, qq_id, player, battle["state"], "skill", skill_name, target=_skill_target):
                 yield _r
             return
@@ -1368,7 +1368,7 @@ class CombatCmds(CommandBase):
             async for _r in self._pvp_act(event, group_id, qq_id, player, battle["state"], "skill", skill_name):
                 yield _r
             return
-        # worldboss 战斗（N5b4-3：battle2 恢复）
+        # worldboss 战斗（N5b4-3：saintess_engine 恢复）
         if battle["state"].get("type") == "worldboss":
             b = self._restore_battle2(battle["state"])
             if b is None:
@@ -1714,7 +1714,7 @@ class CombatCmds(CommandBase):
             if inst_row:
                 battle = inst_row
         if battle["state"].get("type") == "instance":
-            # N5b4-5a R2：接线点 defend → 新 Router（battle2 原生；老 _instance_act R3 删除）
+            # N5b4-5a R2：接线点 defend → 新 Router（saintess_engine 原生；老 _instance_act R3 删除）
             async for _r in self._instance_router(event, group_id, qq_id, player, battle["state"], "defend", None):
                 yield _r
             return
@@ -1725,7 +1725,7 @@ class CombatCmds(CommandBase):
             async for _r in self._pvp_act(event, group_id, qq_id, player, battle["state"], "defend", None):
                 yield _r
             return
-        # worldboss 战斗（N5b4-3：battle2 恢复）
+        # worldboss 战斗（N5b4-3：saintess_engine 恢复）
         if battle["state"].get("type") == "worldboss":
             b = self._restore_battle2(battle["state"])
             if b is None:
@@ -1775,7 +1775,7 @@ class CombatCmds(CommandBase):
         if battle["state"].get("type") == "pvp":
             # PVP 逃跑 = 脱离战斗（双方解除，互不追究），避免被锁死/被骚扰
             st = battle["state"]
-            # N5b4-4（battle2）：双方 qq 从 meta/sides 读（旧格式快照键兜底兼容）
+            # N5b4-4（saintess_engine）：双方 qq 从 meta/sides 读（旧格式快照键兜底兼容）
             _att_qq, _def_qq = self._pvp_meta_qqs(st)
             _my = str(qq_id)
             opp_qq = _def_qq if _my == _att_qq else _att_qq
@@ -1788,7 +1788,7 @@ class CombatCmds(CommandBase):
                 db.clear_battle(group_id, opp_qq)
             yield event.plain_result("💨 你脱离了 PVP 战斗！双方原地休整，互不追究。")
             return
-        # Boss 锁场检查：battle2 格式读 sides["enemy"] 存活怪 is_boss；旧格式读 state.enemy
+        # Boss 锁场检查：saintess_engine 格式读 sides["enemy"] 存活怪 is_boss；旧格式读 state.enemy
         _is_boss = False
         if battle["state"].get("sides"):
             _eacts = battle["state"].get("sides", {}).get("enemy") or []
@@ -1798,7 +1798,7 @@ class CombatCmds(CommandBase):
         if _is_boss:
             yield event.plain_result("👑 Boss 锁定了你，无法逃跑！背水一战吧！")
             return
-        # worldboss 战斗（N5b4-3：battle2 恢复；世界Boss 通常被 is_boss 拦截不可逃，兜底）
+        # worldboss 战斗（N5b4-3：saintess_engine 恢复；世界Boss 通常被 is_boss 拦截不可逃，兜底）
         if battle["state"].get("type") == "worldboss":
             b = self._restore_battle2(battle["state"])
             if b is None:
@@ -1908,10 +1908,10 @@ class CombatCmds(CommandBase):
         """buff 条目 → (剩余刻标签 or None, 值格式)。
 
         N5b4-1 双形态折算（纯读层兼容，N10 删旧后只留 dict 分支）：
-        - dict（battle2 N7.1 定稿 / 旧复杂值）：{expire: 绝对秒} → 剩刻 = expire - now；
+        - dict（saintess_engine N7.1 定稿 / 旧复杂值）：{expire: 绝对秒} → 剩刻 = expire - now；
           无 expire（bar 状态/复杂值）→ 只显名无刻数
         - int/float（旧引擎绝对到期刻号）：值 × ACT_TICK - now 折算剩刻
-        - 特殊键（控制/印记/一次性）battle2 也走 dict.expire；旧 int 特殊键原样显刻
+        - 特殊键（控制/印记/一次性）saintess_engine 也走 dict.expire；旧 int 特殊键原样显刻
         """
         _SPECIAL_NO_DECAY = {"stun", "freeze", "fire_mark", "ice_mark", "thunder_mark",
                              "next_atk_up", "buff_phys_next", "stealth", "arcane_echo",
@@ -1937,7 +1937,7 @@ class CombatCmds(CommandBase):
 
         N5b4-1：玩家侧改读 player dict（命令层已 sync_player_from_actor 回写；
         旧引擎引用同步同效）——展示纯读不依赖引擎 battle 类型，先切安全。
-        敌方读 b.sides（旧 v180F / battle2 双引擎通用，_b_enemy 已 sides 化）。
+        敌方读 b.sides（旧 v180F / saintess_engine 双引擎通用，_b_enemy 已 sides 化）。
         """
         parts = []
         _now_t = float(getattr(b, "_now", 0.0) or 0.0)
@@ -1947,7 +1947,7 @@ class CombatCmds(CommandBase):
         for k, v in _pb_src.items():
             if k not in self._P_BUFF_NAMES:
                 continue
-            # dict 条目（battle2 {expire,stat,...}/bar 状态）或旧 int 刻号；
+            # dict 条目（saintess_engine {expire,stat,...}/bar 状态）或旧 int 刻号；
             # 无效值（0/空）由 helper 过滤，这里只查名字表避免 dict 比较 TypeError
             if isinstance(v, dict):
                 if "expire" not in (v or {}) and not v.get("stat") and not v.get("mode") and not v.get("period"):
@@ -1960,7 +1960,7 @@ class CombatCmds(CommandBase):
         # O96：burn/poison/mark 是敌方减益叠层，不在玩家栏显示）
         stacks = {}
         if isinstance(player.get("effects"), dict):
-            from battle2.state_effects import all_state_effects as _ase
+            from saintess_engine.state_effects import all_state_effects as _ase
             _stk_table = _ase()
             for _k, _ent in (player.get("effects") or {}).items():
                 if isinstance(_ent, dict) and (_k in _stk_table or _k in self._STACK_NAMES):
@@ -1988,7 +1988,7 @@ class CombatCmds(CommandBase):
                     pbuf.append(f"✨护盾{s['value']}")
         if pbuf:
             parts.append(f"🛡️你：「{' '.join(pbuf)}」")
-        # 敌方状态（当前主目标怪；battle2 效果容器 effects）
+        # 敌方状态（当前主目标怪；saintess_engine 效果容器 effects）
         ebuf = []
         _eb = self._b_enemy(b) or {}
         _eb_disp = _eb.get("effects") or {}
@@ -1998,7 +1998,7 @@ class CombatCmds(CommandBase):
             if k not in self._E_BUFF_NAMES:
                 continue
             # bar 状态/复杂值（shaken/curse = {val, threshold, ...}）非刻 buff，跳过；
-            # dict 有 expire（battle2 控制/buff 形态）参与折算，不做 dict>int 比较
+            # dict 有 expire（saintess_engine 控制/buff 形态）参与折算，不做 dict>int 比较
             if isinstance(v, dict):
                 if "expire" not in (v or {}) and not v.get("mode"):
                     continue
@@ -2023,7 +2023,7 @@ class CombatCmds(CommandBase):
         # 挂敌身条（破绽/诅咒等）：effects[BAR_STATE_PREFIX+key] → 显示当刻积蓄/阈值
         # （结算到当前刻再读；阈值随触发递增，玩家据此决策「继续推还是换目标」）
         try:
-            from battle2.support.battle_bars import bar_settle, bar_def, _state_prefix
+            from saintess_engine.support.battle_bars import bar_settle, bar_def, _state_prefix
             _pfx = _state_prefix()
             _now_b = float(getattr(b, "_now", 0.0) or 0.0)
             for _k, _v in list(_eb_disp.items()):
@@ -2070,7 +2070,7 @@ class CombatCmds(CommandBase):
         """职业资源条（v181.M-R3：读当前战斗玩家 actor 的 effects 叠层）。
 
         v95.4/v181.M 前实现读 player["resources"] + core_resource_def——该键已无
-        生产写入（死字段，R3 清理）；battle2 战斗内职业资源 = actor.effects 叠层
+        生产写入（死字段，R3 清理）；saintess_engine 战斗内职业资源 = actor.effects 叠层
         （技能 mech/装配层 apply op=add，cap 见 EFFECT_RULES）。本行从 b 的玩家
         actor（sides_of("player") 按 qq_id 匹配，无 qq_id/未命中回落
         human_controlled 焦点）读 effects，经 resource_stack_text 白名单展示；
@@ -2128,13 +2128,13 @@ class CombatCmds(CommandBase):
 
     def _battle_formation_panel(self, player: dict, b) -> str:
         """v2 多对多站位图面板（§4.4）：双方各一层行（formation_view），含蓄力标记。
-        敌方= b.sides 存活阵列（N5b4-1：旧引擎 .enemies 与 battle2 sides 统一走
+        敌方= b.sides 存活阵列（N5b4-1：旧引擎 .enemies 与 saintess_engine sides 统一走
         b.sides——旧 v180F 已播种 sides，展示层不依赖引擎类型）；我方= 单机 [玩家]。
         阵亡（敌全灭）面板不输出敌方行。
 
         v127.3 目标编号：敌方 a1/a2…（A{n}层），我方 b1（B{n}层）——『技能1 a2』指定目标。
         """
-        from battle2.support.formation import alive_units
+        from saintess_engine.support.formation import alive_units
         allies = [self._player_unit_for_formation(player)]
         ally_rows = formation_view(alive_units(allies), side="ally")
         _enemies = (getattr(b, "sides", None) or {}).get("enemy") or []
@@ -2284,7 +2284,7 @@ class CombatCmds(CommandBase):
                 f"🧭 用『前往 <地图名>』前往指定地点才能讨伐！"
             )
             return
-        # 已有世界BOSS战斗状态 → 显示当前状态（N5b4-3：battle2 state 存 sides）
+        # 已有世界BOSS战斗状态 → 显示当前状态（N5b4-3：saintess_engine state 存 sides）
         battle = db.get_battle(group_id, qq_id)
         if battle and battle["state"].get("type") == "worldboss":
             _st = battle["state"]
@@ -2376,7 +2376,7 @@ class CombatCmds(CommandBase):
         b["enemies"] = [dict(u) for u in _boss_grp]  # 拷贝：避免 b["enemies"][0] is b 全局自引用（P3 序列化递归）
         b["name"] = _main.get("name", b.get("name", "?"))
         b["hp"], b["max_hp"] = _main.get("hp", 0), _main.get("max_hp", _main.get("hp", 1))
-        # N5b4-3：世界Boss 切 battle2（Boss 自动行动 + CTB 时间轴；dmg_mult 构造参数）
+        # N5b4-3：世界Boss 切 saintess_engine（Boss 自动行动 + CTB 时间轴；dmg_mult 构造参数）
         from ..services import battle2_bridge as BR
         _tb = self._title_bonus(group_id, qq_id)
         BR.prepare_player_for_battle(player, _tb, db)
@@ -2392,7 +2392,7 @@ class CombatCmds(CommandBase):
         for _a in _sides.get("enemy", []):
             if not _a.get("auto_act"):
                 _a["auto_act"] = {"act": {"type": "attack"}}
-        from battle2 import Battle as B2
+        from saintess_engine import Battle as B2
         nb = B2("worldboss", sides=_sides, title_bonus=_tb,
                 dmg_mult=db.get_boss_dmg_mult(qq_id), pet=db.pet_get(qq_id))
         # 敌 actor 技能索引已由 B2 构造建立；给 Boss 配首个技能自动行动（AI 轮换属上层怪 AI 模块）
@@ -2429,10 +2429,10 @@ class CombatCmds(CommandBase):
         """世界BOSS战斗行动（attack/skill/defend 共用）
         1. 同步全局 Boss 阵列血量到本地 b.sides_of("enemy")（其他玩家可能也打了，逐 uid）
         2. 玩家行动（target 指定目标）→ 贡献累积（全阵列伤害合计）→ 本地写回全局阵列
-        3. 全阵列无存活（battle2 result=victory）→ Boss 死亡结算；玩家死亡 → 走死亡结算
+        3. 全阵列无存活（saintess_engine result=victory）→ Boss 死亡结算；玩家死亡 → 走死亡结算
 
-        N5b4-3（battle2）：玩家 action 走 human_act（actor 副本）+ sync 回写；
-        DOT 由 battle2 schedule 自动结算（actor.state dot 规则），退役旧全局
+        N5b4-3（saintess_engine）：玩家 action 走 human_act（actor 副本）+ sync 回写；
+        DOT 由 saintess_engine schedule 自动结算（actor.state dot 规则），退役旧全局
         debuffs/adapt 共享 + 每4次强制结算补丁（鱼鱼拍板按新引擎语义）。
         """
         cur_evt = db.get_world_event()
@@ -2443,7 +2443,7 @@ class CombatCmds(CommandBase):
             return
         gboss = cur_evt["data"]["boss"]
         genemies = gboss.get("enemies")
-        # N5b4-3（battle2）：本地敌 actor = b.sides_of("enemy")（死亡不移除 → 读存活过滤）；
+        # N5b4-3（saintess_engine）：本地敌 actor = b.sides_of("enemy")（死亡不移除 → 读存活过滤）；
         # 行动前全局阵列血量 → 本地（逐 uid；旧单怪数据回落主目标 hp）。
         _l_enemies = [u for u in b.sides_of("enemy") if (u.get("hp") or 0) > 0] or b.sides_of("enemy")
         if genemies:
@@ -2456,8 +2456,8 @@ class CombatCmds(CommandBase):
             _me0 = _l_enemies[0] if _l_enemies else self._b_enemy(b)
             _me0["hp"] = gboss.get("hp", _me0.get("hp", 0))
         before = sum(max(0, u.get("hp", 0)) for u in b.sides_of("enemy"))
-        # N5b4-3：battle2 行动入口 human_act（副本 actor）+ 回写 player dict。
-        # DOT 由 battle2 schedule 在行动推进中自动结算（actor.state dot 规则，
+        # N5b4-3：saintess_engine 行动入口 human_act（副本 actor）+ 回写 player dict。
+        # DOT 由 saintess_engine schedule 在行动推进中自动结算（actor.state dot 规则，
         # 本地副本语义——旧"全局共享 debuffs + 每4次强制结算"补丁按鱼鱼拍板退役）。
         logs, ended, _who = b.human_act(action, skill_name, b.focus(), target=target)
         self._sync_battle_player(player, b)
@@ -2466,7 +2466,7 @@ class CombatCmds(CommandBase):
         dealt = max(0, before - after)  # 全阵列伤害合计（含 schedule 自动 DOT）
         contrib = gboss.setdefault("contrib", {})
         contrib[str(qq_id)] = contrib.get(str(qq_id), 0) + dealt
-        # 保留"你击败了"过滤（胜利文案由结算逻辑输出）；battle2 击杀日志文案可能含目标名
+        # 保留"你击败了"过滤（胜利文案由结算逻辑输出）；saintess_engine 击杀日志文案可能含目标名
         lines = [x for x in logs if "你击败了" not in x]
 
         # 行动后：本地 b.sides_of("enemy") → 全局阵列（逐 uid 同步 hp）+ 主目标汇总
@@ -2628,7 +2628,7 @@ class CombatCmds(CommandBase):
     def _pvp_meta_qqs(self, state: dict):
         """PVP state → (attacker_qq, defender_qq)。
 
-        N5b4-4（battle2）：state = battle2 to_state + meta{attacker_qq, actor}，
+        N5b4-4（saintess_engine）：state = saintess_engine to_state + meta{attacker_qq, actor}，
         sides.player 固定 = 攻击者(发起方)、sides.enemy = 防守方（双方 actor 都透传
         qq_id）。旧格式（attacker/defender 快照键）兜底兼容（存量旧档超时清理用）。
         """
@@ -2683,7 +2683,7 @@ class CombatCmds(CommandBase):
         """PVP 超时检查：5 分钟无行动自动解除(防对方离线卡死)。返回 True=已解除"""
         if time.time() - battle.get("updated_at", 0) > C.PVP_TIMEOUT_SEC:
             st = battle["state"]
-            # N5b4-4（battle2）：双方 qq 从 meta/sides 读（旧格式快照键兜底兼容）
+            # N5b4-4（saintess_engine）：双方 qq 从 meta/sides 读（旧格式快照键兜底兼容）
             _att_qq, _def_qq = self._pvp_meta_qqs(st)
             _my = str(qq_id)
             # 对方 = 两方里非我的那个（都不匹配时取防守方——能走到超时的多半是防守方离线）
@@ -2821,7 +2821,7 @@ class CombatCmds(CommandBase):
         if abs(player["level"] - target_player["level"]) > 10:
             yield event.plain_result(f"等级差超过 10 级，无法发起攻击！(你 {player['level']} 级 vs 对方 {target_player['level']} 级)")
             return
-        # N5b4-4：创建 PVP 战斗状态（battle2）——sides 双 actor 持久化 + meta 外壳。
+        # N5b4-4：创建 PVP 战斗状态（saintess_engine）——sides 双 actor 持久化 + meta 外壳。
         #   sides.player 固定 = 攻击者(发起方)、sides.enemy = 防守方；双方 human_controlled
         #   （PVP 轮流制由命令层 meta.actor 驱动，enemy 侧真人 actor 不自动行动）。
         #   bonus.panel（v181.M-bonus 统一数值容器；N5b4-4 起 per-actor 增幅）：Battle.
@@ -2830,7 +2830,7 @@ class CombatCmds(CommandBase):
         #   battle 级传 {} 仅兜底。
         from ..services import battle2_bridge as BR
         from ..services.battle2_equip_proc import apply_to_actor as _EP_apply
-        from battle2 import Battle as B2
+        from saintess_engine import Battle as B2
         # 0. 双方各自外部增幅聚合（core 直调 + 已 load 的 player dict，避免 _title_bonus
         #    内部再读档；失败降级空 dict）
         from ..core.stat_bonus import stat_bonus as _core_tb
@@ -2879,7 +2879,7 @@ class CombatCmds(CommandBase):
         _b2 = B2("pvp", sides={"player": [_my_actor], "enemy": [_opp_actor]},
                  title_bonus={}, pet=db.pet_get(qq_id))
         state = _b2.to_state()
-        # meta 外壳（battle2 from_state 忽略未知键 → 只给命令层读）
+        # meta 外壳（saintess_engine from_state 忽略未知键 → 只给命令层读）
         state["meta"] = {"pvp": True, "attacker_qq": str(qq_id), "actor": "attacker"}
         db.save_battle(group_id, qq_id, state)
         db.save_battle(group_id, target_qq, state)
@@ -2897,13 +2897,13 @@ class CombatCmds(CommandBase):
         )
 
     async def _pvp_act(self, event, group_id, qq_id, player, state, action, skill_name=None):
-        """PVP 行动：轮流操作，胜者结算（N5b4-4 battle2 版）。
+        """PVP 行动：轮流操作，胜者结算（N5b4-4 saintess_engine 版）。
 
-        state = battle2 to_state + meta{attacker_qq, actor}；sides.player = 攻击者(发起方)、
+        state = saintess_engine to_state + meta{attacker_qq, actor}；sides.player = 攻击者(发起方)、
         sides.enemy = 防守方，双方 human_controlled。轮流制由命令层 meta.actor 驱动：
         当前行动者可能是 player side（攻击者）或 enemy side（防守方）——按 side 显式定位
-        actor（battle2 focus() 只认 sides.player 首个 human_controlled，PVP 不依赖）。
-        胜负判定 = 自己 actor 是否存活（battle2 result 视角固定 player side，防守方视角
+        actor（saintess_engine focus() 只认 sides.player 首个 human_controlled，PVP 不依赖）。
+        胜负判定 = 自己 actor 是否存活（saintess_engine result 视角固定 player side，防守方视角
         要翻转——不直接用 result 判自己输赢）。
         """
         # 旧格式（无 sides/meta）→ 作废清档重开（N5b 约定不迁移）
@@ -2913,7 +2913,7 @@ class CombatCmds(CommandBase):
             db.clear_battle(group_id, qq_id)
             yield event.plain_result("⏳ PVP 旧存档已失效，请重新发起攻击～")
             return
-        from battle2 import Battle as B2
+        from saintess_engine import Battle as B2
         b = B2.from_state(state)
         if b is None:
             self._unlock_battle(group_id, qq_id)
@@ -2960,7 +2960,7 @@ class CombatCmds(CommandBase):
                 if _pvp_mp_need > 0 and int(my_actor.get("mp") or 0) < _pvp_mp_need:
                     yield event.plain_result("💙 魔力不足！")
                     return
-        # PVP『防御』（battle2：目标 actor defending=True → landing deal_damage 减半统一消费）。
+        # PVP『防御』（saintess_engine：目标 actor defending=True → landing deal_damage 减半统一消费）。
         # 防御姿态随 actor dict 持久化（to_state 带 defending）——上一击 defend 的人恢复后
         # 自动在 defending 状态，无需命令层再搬运。这里只做"覆盖/消耗"语义：
         # - defend 行动：己方由引擎 _do_defend 置 True；对方旧防御被覆盖清掉

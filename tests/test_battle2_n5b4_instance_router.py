@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""N5b4-5a R1 验证：副本行动 Router（instance_router.py）battle2 原生分支。
+"""N5b4-5a R1 验证：副本行动 Router（instance_router.py）saintess_engine 原生分支。
 
 v3 蓝图 §6 R1 验证：肃清守卫 / 轮转 / 超时自动防御 / 切怪 / 通关 / 失败 分支。
 
@@ -33,7 +33,7 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from game.store.connection import init_db  # noqa: E402
 init_db()
@@ -458,7 +458,7 @@ def test_12_use_item_router():
     msgs = _sync_run(inst, st, "70101", "use_item", "150")
     joined = "\n".join(msgs)
     _hp_after = int((st["players"] or {}).get("70101", {}).get("hp", 0))
-    check("use_item 经 router 翻译恢复生命（battle2 actor 生效）", _hp_after > _hp_before,
+    check("use_item 经 router 翻译恢复生命（saintess_engine actor 生效）", _hp_after > _hp_before,
           f"hp {_hp_before}->{_hp_after}")
     check("use_item 日志含恢复/使用文案", any(k in joined for k in ("恢复", "使用", "道具")), joined[:120])
     # battle state 仍在且敌未死
@@ -478,7 +478,7 @@ def test_12_use_item_router():
 
 def test_13_target_picker():
     print("【13. 5b target_picker：仇恨选目标 / 嘲讽强制 / policy 缺省】")
-    from battle2 import Battle as B2
+    from saintess_engine import Battle as B2
     from game.commands import instance_battle as IB
     st = mk_st([70111, 70112], enemy=mk_enemy(hp=5000, spd=1, role="boss"))
     IB.build_battle(st)
@@ -517,7 +517,7 @@ def test_13_target_picker():
 
 def test_14_team_heal_broadcast():
     print("【14. 5b G2 on_event：team=heal_all 全队广播（牧师救赎之光）】")
-    from battle2 import Battle as B2
+    from saintess_engine import Battle as B2
     from game.commands import instance_battle as IB
     # 双人副本：牧师 + 战士，战士残血
     st = mk_st([70121, 70122], enemy=mk_enemy(hp=5000, spd=1))

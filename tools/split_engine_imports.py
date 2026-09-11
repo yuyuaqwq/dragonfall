@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
-"""S8/S9 拆仓改造：游戏侧对引擎包的引用从 `game.battle2` 改为裸包 `battle2`。
+"""S8/S9 拆仓改造：游戏侧对引擎包的引用从 `game.battle2` 改为裸包 `saintess_engine`。
 
 背景（docs/ENGINE_CONTENT_SPLIT_PLAN.md §7.5 / FRAMEWORK_SPLIT_PLAN.md S8-S9）：
-引擎包物理分离到框架仓库（dragonfall 侧 `framework/` 为 submodule，内含 `battle2/`），
-游戏侧不再走 `game.battle2` 这个包内路径 —— 改为直接依赖框架包名 `battle2`
+引擎包物理分离到框架仓库（dragonfall 侧 `framework/` 为 submodule，内含 `saintess_engine/`），
+游戏侧不再走 `game.battle2` 这个包内路径 —— 改为直接依赖框架包名 `saintess_engine`
 （符合「重构改干净、不留兼容壳」铁律，S9 删 shim 后的终态）。
 
 本脚本做两类改写（dry-run 默认，`--apply` 落盘）：
-  1. 代码引用：`game.battle2` → `battle2`
-  2. 路径文案：`game/battle2` → `framework/battle2`（注释/docstring 里的路径提法）
+  1. 代码引用：`game.battle2` → `saintess_engine`
+  2. 路径文案：`game/battle2` → `framework/saintess_engine`（注释/docstring 里的路径提法）
 
-sys.path 接线（框架根 = `<plugin>/framework`，包名 `battle2`）：
+sys.path 接线（框架根 = `<plugin>/framework`，包名 `saintess_engine`）：
   * `game/__init__.py` —— 游戏运行时（命令层/服务层），手工接线
   * 测试：凡定义了 `PLUGIN_DIR`/`_PLUGIN_DIR` 的文件，在其定义行后自动补一行
     `sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))`（锚点最通用：
     比 `sys.path.insert(0, PLUGIN_DIR)` 更普适 —— 后者写法不一，前者几乎恒有）
-  * 既无 PLUGIN_DIR 又 import battle2 的（走 conftest 的）由 conftest 覆盖，
+  * 既无 PLUGIN_DIR 又 import saintess_engine 的（走 conftest 的）由 conftest 覆盖，
     `--report-orphan` 列出需人工确认的
 
 不改动对象：
@@ -102,8 +102,8 @@ def main(argv):
         has_path = "game/battle2" in text
         if not has_code and not has_path:
             continue
-        new = text.replace("game.battle2", "battle2") \
-                  .replace("game/battle2", "framework/battle2")
+        new = text.replace("game.battle2", "saintess_engine") \
+                  .replace("game/battle2", "framework/saintess_engine")
         # 测试/工具/根级入口：补框架根接线（game/ 侧由 __init__ 负责）
         injected = False
         if not args.no_inject and (rel.startswith("tests/") or rel.startswith("tools/")

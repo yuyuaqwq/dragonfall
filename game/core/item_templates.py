@@ -746,7 +746,7 @@ def tpl_mount(ctx):
 
 
 # v104 P2-7 修复：净化卷轴死数据——战斗内清除玩家负面 buff（stun/freeze/silence/spd_down）
-# I5（battle2）：负面权威 = actor.effects（V 系列单容器 + EFFECT_RULES 声明）。
+# I5（saintess_engine）：负面权威 = actor.effects（V 系列单容器 + EFFECT_RULES 声明）。
 # 本模板只做「净化对象存在」判定（读视图/state actors），清除统一由翻译器
 # battle2_item_use 执行（act_cleanse 查表：period/on=target/cleanse=True；sleep 不可净化）。
 _PURIFY_DEBUFF_KEYS = ("stun", "freeze", "silence", "spd_down",
@@ -754,7 +754,7 @@ _PURIFY_DEBUFF_KEYS = ("stun", "freeze", "silence", "spd_down",
 
 
 def _b2_player_effects_candidates(st) -> list:
-    """从 battle2 战斗状态提取玩家侧 actors（净化对象候选，含 effects 容器）。
+    """从 saintess_engine 战斗状态提取玩家侧 actors（净化对象候选，含 effects 容器）。
 
     支持两种形态（economy 战斗内 ctx.battle 传的就是它们）：
     - 副本 instance st：players 视图（sync_views 每刻回写 effects）为主
@@ -764,7 +764,7 @@ def _b2_player_effects_candidates(st) -> list:
     out = []
     if not isinstance(st, dict):
         return out
-    # ① sides actors 优先（battle2 权威：普通战斗 to_state 顶层 / 副本 st.battle.sides）
+    # ① sides actors 优先（saintess_engine 权威：普通战斗 to_state 顶层 / 副本 st.battle.sides）
     for _b in (st.get("battle"), st):
         if not isinstance(_b, dict):
             continue
@@ -787,7 +787,7 @@ def _b2_player_effects_candidates(st) -> list:
 
 
 def _b2_has_purifiable(st) -> bool:
-    """battle2 玩家侧是否有可净化负面（EFFECT_RULES period/on=target/cleanse 声明）。"""
+    """saintess_engine 玩家侧是否有可净化负面（EFFECT_RULES period/on=target/cleanse 声明）。"""
     try:
         from ..data import battle2_rules as _B2R
         rules = _B2R.EFFECT_RULES or {}
@@ -807,7 +807,7 @@ def _b2_has_purifiable(st) -> bool:
 @register("purify", battle_ok=True)
 def tpl_purify(ctx):
     """净化卷轴（v104 P2-7 修复：原无 effect 字段 → infer_template 判 none 死数据）。
-    I5（battle2）：战斗内负面在 actor.effects（V 系列单容器）。模板只判定净化对象：
+    I5（saintess_engine）：战斗内负面在 actor.effects（V 系列单容器）。模板只判定净化对象：
     - 有可净化负面 → payload="purify:1"，实际清除由翻译器（battle2_item_use）执行
     - 无负面可驱散 → 不消耗（与满血治疗拦截同款，M02 P1-5 模式）
     战斗外/无负面：不消耗提示。"""

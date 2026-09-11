@@ -3,7 +3,7 @@
 
 抽验格：各职业推荐流派 × 对应当前阶段真实 Boss。
 期望模型 = build_matrix.build_vs_boss（击杀轮预估）
-真引擎   = numeric_lib.battle2.battle_rotation（真实 BT.Battle 多技能循环）
+真引擎   = numeric_lib.saintess_engine.battle_rotation（真实 BT.Battle 多技能循环）
 
 输出每格：期望击杀轮 / 真引擎胜率+实际击杀轮 / 偏差 / 结论
 """
@@ -22,7 +22,7 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.join(_TESTS, "test_game_data.db"))
 
 from build_matrix.build_matrix import build_vs_boss, resolve_attr, build_panel
 from build_matrix.boss_matrix import boss_def_of, boss_panel
-from numeric_lib.battle2 import battle_rotation, attr_pts_total
+from numeric_lib.saintess_engine import battle_rotation, attr_pts_total
 from data.plugins.dragonfall.game.data import instances as I
 
 

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""v181.P4 N5b 数据桥（battle2 命令层适配）——旧数据层 → battle2 actor 翻译。
+"""v181.P4 N5b 数据桥（saintess_engine 命令层适配）——旧数据层 → saintess_engine actor 翻译。
 
-位置：game/services/（battle2 包外——鱼鱼红线：battle2 引擎零改动、零旧数据知识，
+位置：game/services/（saintess_engine 包外——鱼鱼红线：saintess_engine 引擎零改动、零旧数据知识，
 本桥是"命令层侧的翻译层"，把命令层手里的旧数据形态（player dict / 怪组 / pet）
-翻译成 battle2 的 sides actors。
+翻译成 saintess_engine 的 sides actors。
 
 翻译规则：
 - 玩家（DB player dict）→ player actor：
@@ -13,22 +13,22 @@
 - 怪物（build_monster 产物 dict）→ enemy actor：
     lv → level（引擎不认 lv）；hp/max_hp/atk/def/matk/mdef/spd/crit 直读；
     身份字段 rank/reach/role/is_boss/is_elite/exp/gold/drops 透传；
-    buffs/stacks/defending/charging → battle2 对应字段；
+    buffs/stacks/defending/charging → saintess_engine 对应字段；
     class_name/equipment/learned_skills（怪扮职业）透传；
-    auto_act（怪 AI）→ actor["auto_act"]（battle2 actor_auto 读它）
-- 宠物 pet dict → battle2 pet（Battle 构造 pet 参数；战斗内宠物技能由命令层/引擎按需接入）
+    auto_act（怪 AI）→ actor["auto_act"]（saintess_engine actor_auto 读它）
+- 宠物 pet dict → saintess_engine pet（Battle 构造 pet 参数；战斗内宠物技能由命令层/引擎按需接入）
 """
 from __future__ import annotations
 
 from typing import Optional
 
-from battle2 import make_actor  # 只读 battle2 工厂，不改 battle2
+from saintess_engine import make_actor  # 只读 saintess_engine 工厂，不改 saintess_engine
 
 # ============================================================
 # 玩家 → player actor
 # ============================================================
 
-# 玩家 dict 里需要透传给 battle2 actor 的面板/配置字段
+# 玩家 dict 里需要透传给 saintess_engine actor 的面板/配置字段
 _PLAYER_PASSTHROUGH = (
     "qq_id", "group_id", "cur_map", "race", "class_tier", "attributes",
     "evolve_path", "learned_skills", "skill_levels",
@@ -43,7 +43,7 @@ _PLAYER_PASSTHROUGH = (
 )
 
 # 开战仪式一次性祝福 → actor.effects 面板快照条目（V6：旧引擎 BUFF_MULT 折算
-# /poi ×1.10 在 _apply_buffs；battle2 无 buffs 容器 → 仪式消费的祝福翻译成
+# /poi ×1.10 在 _apply_buffs；saintess_engine 无 buffs 容器 → 仪式消费的祝福翻译成
 # effects 面板快照，整场生效。数值权威：prepare_player_for_battle 消费时已
 # 按 event_state 写入 player["_battle_boons"]——纯数据搬运，桥不造数值）。
 def _battle_boons_to_effects(player: dict, actor: dict) -> dict:
@@ -67,9 +67,9 @@ def _battle_boons_to_effects(player: dict, actor: dict) -> dict:
                    "mult": float(b["mult"])}
     return actor
 
-# 玩家 dict 的 buffs 键（旧引擎把玩家 buffs 写 player["buffs"]——battle2 actor.buffs 同构）
+# 玩家 dict 的 buffs 键（旧引擎把玩家 buffs 写 player["buffs"]——saintess_engine actor.buffs 同构）
 def player_to_actor(player: dict) -> dict:
-    """玩家 DB dict → battle2 player actor（human_controlled=True）。"""
+    """玩家 DB dict → saintess_engine player actor（human_controlled=True）。"""
     player = player or {}
     qq = str(player.get("qq_id", ""))
     # 面板当前值：hp/mp 直传（旧 DB hp/mp 是当前值）；max 由 stats 重算或 DB 值
@@ -106,7 +106,7 @@ def player_to_actor(player: dict) -> dict:
             actor[k] = player[k]
     # V6：开战仪式祝福（echo_bless/poi_buff）→ effects 面板快照（整场生效）
     _battle_boons_to_effects(player, actor)
-    # 旧 stacks/resources → battle2 state 映射（开战仪式/恢复时用；默认空）
+    # 旧 stacks/resources → saintess_engine state 映射（开战仪式/恢复时用；默认空）
     #   注意：只有调用方明确要迁移时才填——本函数不做隐式迁移（避免把旧职业
     #   叠层语义错误地灌进 state，那应由上层职业模块按声明表翻译）
     return actor
@@ -117,7 +117,7 @@ def player_to_actor(player: dict) -> dict:
 # ============================================================
 
 def monster_to_actor(mon: dict, idx: int = 0) -> dict:
-    """单只怪 dict（build_monster 产物）→ battle2 enemy actor。
+    """单只怪 dict（build_monster 产物）→ saintess_engine enemy actor。
 
     lv → level（引擎不认 lv）；身份/站位/掉落字段透传。
     """
@@ -185,7 +185,7 @@ def build_sides(player: Optional[dict] = None, enemies: Optional[list] = None,
 # ============================================================
 
 def apply_player_battle_start(player: dict, actor: dict, db=None) -> dict:
-    """把旧 Battle.__init__ 的玩家侧开战仪式结果应用到 battle2 actor。
+    """把旧 Battle.__init__ 的玩家侧开战仪式结果应用到 saintess_engine actor。
 
     ⚠️ 本函数保持旧签名/语义的薄壳（命令层调用点可能传 actor）——推荐新调用方
     直接调 prepare_player_for_battle(player, title_bonus, db)（build_sides 前
@@ -321,12 +321,12 @@ def _default_db():
 
 
 # ============================================================
-# 战斗回写（battle2 actor → 命令层 player dict）
+# 战斗回写（saintess_engine actor → 命令层 player dict）
 # ============================================================
 
 # 战斗后需要同步回 player dict 的面板当前值（hp/mp 战斗中被引擎改动，
 # 命令层 db.update_player / 展示页读的是 player dict——旧引擎引用传递
-# 自动同步；battle2 actor 是副本，命令层行动后必须显式回写）。
+# 自动同步；saintess_engine actor 是副本，命令层行动后必须显式回写）。
 _BACK_SYNC_SCALARS = (
     "hp", "mp", "max_hp", "max_mp",
 )
@@ -346,10 +346,10 @@ _BACK_SYNC_BAGS = (
 
 
 def sync_player_from_actor(player: dict, actor: dict) -> dict:
-    """battle2 actor 战斗后状态 → player dict 回写（命令层行动后调用）。
+    """saintess_engine actor 战斗后状态 → player dict 回写（命令层行动后调用）。
 
     旧 Battle 构造时把 player dict 直接当 _focus 引用，引擎内 hp/buffs 改动
-    自动落在 player dict 上；battle2 的 player actor 是 make_actor 副本，
+    自动落在 player dict 上；saintess_engine 的 player actor 是 make_actor 副本，
     命令层在每次 human_act / 战斗结束结算前调用本函数，把战斗结果同步回
     player dict，后续 db.update_player / 展示面板读到的才是最新值。
 

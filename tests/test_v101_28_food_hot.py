@@ -68,7 +68,7 @@ class FakeCtx:
 r = IT.TEMPLATES["food"](FakeCtx(battle=True))
 check("战斗内 payload=hot:0.05,0.06,3", r.payload == "hot:0.05,0.06,3", r.payload)
 
-# ---- 3. (N10 删旧：战斗内 hot 全链路已由 battle2 regen_hot period 验证——
+# ---- 3. (N10 删旧：战斗内 hot 全链路已由 saintess_engine regen_hot period 验证——
 #    test_battle2_n10_b7_food test_honey_regen + battle2_item_use hot: 分支覆盖，
 #    旧 Battle.actor_turn hot 段退役) ----
 
@@ -165,10 +165,10 @@ check("汉堡战斗内 payload=buff:food_def_up", rb.payload == "buff:food_def_u
 ro = IT.TEMPLATES["food_buff"](BufCtx(battle=False))
 check("汉堡战斗外即时回血+体力", "恢复 30 点生命" in ro.text and "恢复 35 点体力" in ro.text, ro.text)
 
-# 战斗内吃料理播报（food_ 前缀 → 料理文案；battle2 N10：buff: 翻译走 battle2_item_use）
-from battle2 import Battle as _B2
-from battle2 import make_actor as _mk2
-from battle2 import config as _b2cfg
+# 战斗内吃料理播报（food_ 前缀 → 料理文案；saintess_engine N10：buff: 翻译走 battle2_item_use）
+from saintess_engine import Battle as _B2
+from saintess_engine import make_actor as _mk2
+from saintess_engine import config as _b2cfg
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 _p2 = _mk2(uid="p_q1", name="试吃", side="player", kind="player", human_controlled=True,
            class_name="cls_zhan_shi", level=1, hp=100, max_hp=100, mp=50, max_mp=100,
@@ -208,7 +208,7 @@ ro2 = IT.TEMPLATES["food_effect"](AffCtx(battle=False))
 check("蛇羹战斗外恢复", "恢复 20 点生命" in ro2.text, ro2.text)
 
 # (N10 删旧：战斗内 foodfx 效果段退役——蛇羹吸血/圣餐面包盾/回春回合回复已由
-#  battle2 B7 覆盖，见 test_battle2_n10_b7_food test_snake_soup_lifesteal /
+#  saintess_engine B7 覆盖，见 test_battle2_n10_b7_food test_snake_soup_lifesteal /
 #  test_sacred_bread_shield / test_honey_regen；此处只保留模板层 payload 验证)
 
 print(f"\n结果: {PASS} 通过, {FAIL} 失败")

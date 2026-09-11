@@ -118,11 +118,11 @@ async def main():
                 "spd": 5, "atk": 30, "matk": 30, "crit": 0.0, "dodge": 0.0,
                 "is_boss": is_boss, "is_elite": is_elite, "skills": [], "exp": 10, "gold": 10,
                 "uid": "e_stam", "level": 5, "lv": 5, "rank": 1, "reach": 1}
-    # N5b4-6：普通战斗 state 已 battle2 sides-only——命令层（attack/skill/use）恢复
-    # 只认 battle2；旧格式（无 sides）按约定清档重开。直接存 battle2 to_state。
+    # N5b4-6：普通战斗 state 已 saintess_engine sides-only——命令层（attack/skill/use）恢复
+    # 只认 saintess_engine；旧格式（无 sides）按约定清档重开。直接存 saintess_engine to_state。
     def _mk_battle():
         from game.services import battle2_bridge as _BR
-        from battle2 import Battle as _B2
+        from saintess_engine import Battle as _B2
         pl = db.get_player("g1", "q1")
         _BR.prepare_player_for_battle(pl, {}, db)
         _sides = _BR.build_sides(player=pl, enemies=[_mk_mon()])

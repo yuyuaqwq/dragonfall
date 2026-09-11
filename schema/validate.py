@@ -319,7 +319,7 @@ def _run_domain(domain, docs, M, strict_unknown):
                 miss[proc] += 1
         for proc, n in sorted(miss.items()):
             warn(f"<passive.proc ×{n}>", "passive.proc",
-                 f"proc {proc!r} 未在 battle2 PASSIVE_PROC 声明（可能在 core/passive_procs 注册，迁移期双表并存）",
+                 f"proc {proc!r} 未在 saintess_engine PASSIVE_PROC 声明（可能在 core/passive_procs 注册，迁移期双表并存）",
                  proc)
         extra["passive_proc_missing"] = dict(miss)
         mechs = collections.Counter(o["mech"] for _l, o in entries if o.get("mech"))

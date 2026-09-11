@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""N5b4-5a I2 验收：battle2 道具翻译器（game/commands/battle2_item_use.py）。
+"""N5b4-5a I2 验收：saintess_engine 道具翻译器（game/commands/battle2_item_use.py）。
 
 覆盖（对齐设计 docs/REFACTOR_v181P4_N5B5a_use_item_design.md §2/§3）：
 - heal 纯数字（半身人 race item_effect 加成）
@@ -29,7 +29,7 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 
 PASS = 0
@@ -50,7 +50,7 @@ def check(name, cond, detail=""):
 
 def mk_player(cls="战士", level=10, hp_ratio=0.5, mp_ratio=1.0, race=None):
     from game.content_rules.panel import player_final_stats
-    from battle2 import make_actor
+    from saintess_engine import make_actor
     st = player_final_stats(cls, level, {}, 0, {}, 1)
     return make_actor(uid="p_q1", name="测试勇者", side="player", kind="player",
                       human_controlled=True, class_name=cls, level=level,
@@ -62,7 +62,7 @@ def mk_player(cls="战士", level=10, hp_ratio=0.5, mp_ratio=1.0, race=None):
 
 
 def mk_battle(p):
-    from battle2 import Battle
+    from saintess_engine import Battle
     e = {"uid": "e_0", "name": "木桩", "side": "enemy", "kind": "monster",
          "hp": 99999, "max_hp": 99999, "atk": 0, "def": 0, "matk": 0, "mdef": 0,
          "spd": 1, "crit": 0.0, "level": 1, "human_controlled": False,
@@ -242,7 +242,7 @@ def test_cast_suffix():
 
 def test_override_end_to_end():
     print("【I2.12 端到端：action_override 接线翻译器（战斗内喝药）】")
-    from battle2 import Battle
+    from saintess_engine import Battle
     from game.commands.battle2_item_use import translate as _tr
     p = mk_player(hp_ratio=0.4)
     e = {"uid": "e_0", "name": "木桩", "side": "enemy", "kind": "monster",
@@ -274,9 +274,9 @@ def test_override_end_to_end():
 
 
 def test_purify():
-    print("【I5.1 purify：模板判定 + 翻译器清除（battle2 effects 负面）】")
-    from battle2 import Battle
-    from battle2.effects import apply_effects
+    print("【I5.1 purify：模板判定 + 翻译器清除（saintess_engine effects 负面）】")
+    from saintess_engine import Battle
+    from saintess_engine.effects import apply_effects
     from game.commands.battle2_item_use import translate as _tr
     from game.core.item_templates import tpl_purify, ItemContext, _b2_has_purifiable
     # 玩家带负面（stun 控制 + sleep 不可净化 + atk_up 正面）
@@ -325,7 +325,7 @@ def test_purify():
 
 
 def main():
-    print("=== I2 battle2 道具翻译器测试 ===")
+    print("=== I2 saintess_engine 道具翻译器测试 ===")
     test_heal_direct()
     test_heal_race_bonus()
     test_mana_hm()

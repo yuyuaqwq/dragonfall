@@ -112,11 +112,11 @@ check("  dot_res=0.9 兜底生效（初始毒伤×0.1）", True)  # 上面已用
 
 # ---------- 场景 2：dot_act 计数跨玩家行动累加，不重复日志 ----------
 print("场景2：logs = b._tick_dots(...) 不重复（原地追加+返回同列表）")
-gboss2, battle2 = make_battle({"debuffs": {"burn": {"n": 1, "mult": 1.0}}})
-battle2.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.0}
+gboss2, saintess_engine = make_battle({"debuffs": {"burn": {"n": 1, "mult": 1.0}}})
+saintess_engine.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.0}
 buf = ["【直伤日志】打掉敌人一点血"]
 for i in range(1, 5):
-    dealt, logs, _deb, _hp = sim_worldboss_act(gboss2, battle2, None, n_actions=i, logs_buf=buf)
+    dealt, logs, _deb, _hp = sim_worldboss_act(gboss2, saintess_engine, None, n_actions=i, logs_buf=buf)
 occ = sum(1 for x in buf if "灼烧发作" in x)
 check(f"  灼烧发作行恰好出现1次(非重复)", occ == 1, f"occ={occ}; buf={buf}")
 

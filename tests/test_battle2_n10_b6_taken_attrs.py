@@ -18,10 +18,10 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c
+from saintess_engine import config as _b2c
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2 import Battle as B2, make_actor  # noqa: E402
-from battle2 import landing as L  # noqa: E402
+from saintess_engine import Battle as B2, make_actor  # noqa: E402
+from saintess_engine import landing as L  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -171,7 +171,7 @@ def test_attacker_side_agnostic():
                    level=20, exp=0, gold=0, **{"def": 5, "mdef": 5})
     b = B2(btype="monster", sides={"player": [p], "enemy": [m]})
     # 面板 dodge 应有职业值（>0）——只验证链路不崩 + 伤害正常
-    from battle2 import stats as S
+    from saintess_engine import stats as S
     st = S.actor_stats(b, p)
     logs = []
     L.deal_damage(b, m, p, 50, logs, dmg_kind="phys")

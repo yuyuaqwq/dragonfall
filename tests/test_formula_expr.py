@@ -10,13 +10,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 直接导入模块（不走包 __init__，避免循环导入）
-# S8 拆仓：本体已迁框架仓 `framework/battle2/support/formula_expr.py`
+# S8 拆仓：本体已迁框架仓 `framework/saintess_engine/support/formula_expr.py`
 # （原 game/core/formula_expr.py 只是过渡 shim）——按文件路径加载，零包依赖。
 import importlib.util
 _spec = importlib.util.spec_from_file_location(
     "formula_expr",
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                 "framework", "battle2", "support", "formula_expr.py"))
+                 "framework", "saintess_engine", "support", "formula_expr.py"))
 _fx = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_fx)
 compile_expr = _fx.compile_expr

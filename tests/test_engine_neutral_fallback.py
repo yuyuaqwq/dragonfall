@@ -4,7 +4,7 @@
 背景：2026-09-11 S8 可行性干跑发现——引擎包可物理搬出，但第三方只挂部分 hook 时
 **首场战斗即崩**：
 ```
-battle2/formulas.py:130  skill_flat_value()
+saintess_engine/formulas.py:130  skill_flat_value()
     base = float(up.get("flat_base", _flat.get("SKILL_FLAT_BASE")))
 TypeError: float() argument must be a string or a real number, not 'NoneType'
 ```
@@ -32,8 +32,8 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as CFG  # noqa: E402
-from battle2 import formulas as F  # noqa: E402
+from saintess_engine import config as CFG  # noqa: E402
+from saintess_engine import formulas as F  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -166,8 +166,8 @@ def test_configured_path_unchanged():
 
 
 if __name__ == "__main__":
-    import battle2 as _b2
-    from battle2 import config as _c
+    import saintess_engine as _b2
+    from saintess_engine import config as _c
     try:
         from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()   # 先把真实内容装配上（模拟生产态）
     except Exception:

@@ -29,11 +29,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from conftest import C, db, clean_db, Main, FakeEvent, run  # noqa: E402
 
-from battle2.formulas import skill_mp_pay_of
+from saintess_engine.formulas import skill_mp_pay_of
 from game.content_rules.skills import skill_info
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2 import actions as A  # noqa: E402
+from saintess_engine import actions as A  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -184,7 +184,7 @@ def t1_out_of_battle_heal():
 # ============================================================
 
 def _af_actor(level=95):
-    from battle2 import make_actor
+    from saintess_engine import make_actor
     a = make_actor(uid="af", name="法师", side="player", kind="player",
                    human_controlled=True, class_name="cls_fa_shi", level=level,
                    hp=500, max_hp=500, mp=300, max_mp=300, atk=80, matk=80,
@@ -231,8 +231,8 @@ def t2_no_element_sideeffect():
           not (i_wx or {}).get("element") and not (i_ao or {}).get("element"),
           repr((i_wx or {}).get("element")))
     # ② 引擎 mech→effects 兼容层需 mech_val>0；无 val → 不落地（effects 无新条目）
-    from battle2 import make_actor, Battle as B2
-    from battle2.effects import effects_from_skill
+    from saintess_engine import make_actor, Battle as B2
+    from saintess_engine.effects import effects_from_skill
     a = make_actor(uid="se", name="法", side="player", kind="player",
                    human_controlled=True, class_name="cls_fa_shi", level=95,
                    hp=500, max_hp=500, mp=300, max_mp=300, atk=80, matk=80,
@@ -254,7 +254,7 @@ def t2_no_element_sideeffect():
            "info": i_wx, "mult": 1.0}
     b._fire_ctx = None
     try:
-        from battle2.effect_triggers import fire as _fire
+        from saintess_engine.effect_triggers import fire as _fire
         _fire(b, "dmg_calc", ctx, [])
         got = float((getattr(b, "_fire_ctx", {}) or {}).get("mult", 1.0) or 1.0)
     except Exception:
@@ -270,7 +270,7 @@ def t2_no_element_sideeffect():
         make_actor(uid="e2", name="桩", side="enemy", kind="monster", hp=999999,
                    max_hp=999999, atk=1, matk=1, spd=5, level=60, **{"def": 5, "mdef": 5})]})
     a2["mp"] = 300
-    from battle2.actors import ActCtx
+    from saintess_engine.actors import ActCtx
     A.do_skill(b2, ActCtx(caster=a2, action="skill", skill_name="万象风暴",
                           info=i_wx, target=b2.sides_of("enemy")[0]))
     check("arcane_focus 端到端：万象风暴 45 → 扣 40（300→260）",

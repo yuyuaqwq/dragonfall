@@ -1686,7 +1686,7 @@ BRANCH_SKILLS = {
                         'aoe': 'all',
                         # v181.M-smallfix：补 arcane_focus 判据标记（desc 明示"万象元素风暴"
                         # 的元素系大招，此前 el/mech/名三路全空漏减 mp-10% 折扣）。无 mech_val
-                        # → 引擎零效果副作用（battle2 兼容层 mech_val=0 不落地）；element 字段
+                        # → 引擎零效果副作用（saintess_engine 兼容层 mech_val=0 不落地）；element 字段
                         # 不补（会进元素免疫/弱点/抗性结算，误触发）。值取同门印记结算技先例。
                         'mech': 'element_burst_all',
                         'name': '万象风暴',

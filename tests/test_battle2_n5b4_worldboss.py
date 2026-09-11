@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""N5b4-3 验证：世界Boss battle2 路径（构造 + 血量同步 + 全局写回）。
+"""N5b4-3 验证：世界Boss saintess_engine 路径（构造 + 血量同步 + 全局写回）。
 
 世界Boss 是全局事件玩法：gboss 全局数据（含 enemies 阵列血量）在 world_event 表，
 玩家各自存本地 battle（type=worldboss），行动时双向同步 hp（uid 匹配）。
 
-本测试验证命令层世界Boss 在 battle2 下的数据流骨架：
+本测试验证命令层世界Boss 在 saintess_engine 下的数据流骨架：
 1. 用真实 db 构造 world_event（boss + 奖励 + 敌人阵列）
-2. 玩家 hunt（构造 battle2，sides 敌 actor = Boss + 爪牙）
+2. 玩家 hunt（构造 saintess_engine，sides 敌 actor = Boss + 爪牙）
 3. 玩家行动（human_act + sync 回写）→ 全局血量同步（gboss.enemies hp 更新）
 4. Boss 死亡 → 贡献/清事件路径可达（reward 全量结算走 services，不在此重放）
 
@@ -28,7 +28,7 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from game.store.connection import init_db  # noqa: E402
 init_db()
@@ -87,7 +87,7 @@ def seed_world_boss():
 
 
 def test_worldboss_construction_and_sync():
-    print("【N5b4-3 世界Boss battle2：构造 + sides 同步 + 行动】")
+    print("【N5b4-3 世界Boss saintess_engine：构造 + sides 同步 + 行动】")
     cmds = CombatCmds.__new__(CombatCmds)
     gid, qid = "g_wb", 20001
     player = make_player(qid=qid)
@@ -102,7 +102,7 @@ def test_worldboss_construction_and_sync():
     for _a in _enemies:
         _a.setdefault("auto_act", {"act": {"type": "attack"}})
     _sides = BR.build_sides(player=player, enemies=_enemies)
-    from battle2 import Battle as B2
+    from saintess_engine import Battle as B2
     nb = B2("worldboss", sides=_sides, title_bonus=_tb,
             dmg_mult=db.get_boss_dmg_mult(qid), pet=db.pet_get(qid))
     check("构造成功 sides player+enemy",
@@ -115,7 +115,7 @@ def test_worldboss_construction_and_sync():
     # （完整 _worldboss_act 依赖 event/async yield，这里验证其核心数据链：恢复 + 行动 + 回写 + 同步）
     row = db.get_battle(gid, qid)
     b2 = cmds._restore_battle2(row["state"])
-    check("battle2 恢复", b2 is not None and b2.btype == "worldboss")
+    check("saintess_engine 恢复", b2 is not None and b2.btype == "worldboss")
     _target = b2.sides_of("enemy")[0]  # 主 Boss
     before = sum(max(0, u.get("hp", 0)) for u in b2.sides_of("enemy"))
     logs, ended, who = b2.human_act("attack", None, b2.focus(), target=_target)
@@ -137,7 +137,7 @@ def test_worldboss_construction_and_sync():
     db.save_world_event("boss", int(time.time()) + 3600, {"boss": g2})
     check("全局血量同步", db.get_world_event()["data"]["boss"]["hp"] < 5000)
 
-    # 展示页脚在 battle2 worldboss 上不崩
+    # 展示页脚在 saintess_engine worldboss 上不崩
     f = cmds._battle_footer(player, b2, cmds._b_enemy(b2) or {})
     check("页脚不崩", isinstance(f, str) and "巨史莱姆王" in f, repr(f[:80]))
     db.clear_battle(gid, qid)
@@ -145,7 +145,7 @@ def test_worldboss_construction_and_sync():
 
 
 def main():
-    print("=== N5b4-3 世界Boss battle2 数据链 ===")
+    print("=== N5b4-3 世界Boss saintess_engine 数据链 ===")
     test_worldboss_construction_and_sync()
     print(f"\n=== 结果 PASS={PASS} FAIL={FAIL} ===")
     if FAILURES:

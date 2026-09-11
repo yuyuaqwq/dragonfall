@@ -19,7 +19,7 @@ for _p in (_QQBOT, _PLUGIN, _TESTS, _SCRIPTS):
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(_TESTS, "test_game_data.db"))
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
-from numeric_lib.battle2 import battle_rotation, attr_pts_total
+from numeric_lib.saintess_engine import battle_rotation, attr_pts_total
 from build_matrix.boss_matrix import boss_def_of
 from build_matrix.schema import KNOWN_CLASSES
 

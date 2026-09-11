@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """P0 取证探针：技能冷却是否被强制？
 
-问题：`battle2/actions.py:_skill_usable` docstring 声称做「学习/蓝/核心资源/冷却」四查，
+问题：`saintess_engine/actions.py:_skill_usable` docstring 声称做「学习/蓝/核心资源/冷却」四查，
       但函数体只查 res_cost；全仓库唯一读 `actor["cooldown"]` 的地方是 AI 的 cd_ok 谓词。
 
 判据（本探针）：玩家连续两次施放同一个带 cd 的技能——
@@ -21,9 +21,9 @@ os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
-from battle2 import config as _b2c
+from saintess_engine import config as _b2c
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2 import Battle as B2, make_actor
+from saintess_engine import Battle as B2, make_actor
 from game.data.skills import PLAYER_SKILLS
 
 SKILL = "旋风斩"          # 战士技能，skills.py 声明 'cd': 12（刻）

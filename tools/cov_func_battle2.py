@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""函数级覆盖检测：跑全部 battle2 测试，记录哪些顶层函数从未被调用。
+"""函数级覆盖检测：跑全部 saintess_engine 测试，记录哪些顶层函数从未被调用。
 
 比行覆盖更严格——函数没被 enter 过 = 该能力完全没验证。
-用 sys.setprofile 记录函数调用（仅统计 battle2 包顶层/嵌套函数）。
+用 sys.setprofile 记录函数调用（仅统计 saintess_engine 包顶层/嵌套函数）。
 """
 import os
 import sys
@@ -13,11 +13,11 @@ TEST_DIR = os.path.join(PLUGIN_DIR, "tests")
 os.chdir(PLUGIN_DIR)
 
 _called = set()      # 被调用过的函数名（qualname）
-_all_defs = {}       # qualname -> 文件（预扫 battle2 包所有函数）
+_all_defs = {}       # qualname -> 文件（预扫 saintess_engine 包所有函数）
 
-# 预扫 battle2 所有 def
+# 预扫 saintess_engine 所有 def
 import ast
-for fn in glob.glob(os.path.join(PLUGIN_DIR, "framework", "battle2", "*.py")):
+for fn in glob.glob(os.path.join(PLUGIN_DIR, "framework", "saintess_engine", "*.py")):
     try:
         tree = ast.parse(open(fn, encoding="utf-8").read())
     except Exception:

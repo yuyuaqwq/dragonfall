@@ -39,7 +39,7 @@ for _p in (_QQBOT, _PLUGIN, _TESTS, _SCRIPTS):
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(_TESTS, "test_game_data.db"))
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
-from battle2.formulas import calc_damage, skill_expr_preview, skill_max_level
+from saintess_engine.formulas import calc_damage, skill_expr_preview, skill_max_level
 from game.content_rules.panel import player_final_stats
 from data.plugins.dragonfall.game.data import skills as SK     # noqa: E402
 from data.plugins.dragonfall.game.data import skill_up as SU   # noqa: E402
@@ -651,13 +651,13 @@ def build_vs_boss(cls_id: str, lv: int, loadout: str, attr: dict,
     affix_type: v175e 词条乘区流派（含生存向 dodge/block/lifesteal/reduce/thorns）
     返回 {kill_rounds, survive_rounds, verdict}
     """
-    # 展开 Boss 面板 —— 优先实例完整口径（与 battle2/team_matrix 对齐）
+    # 展开 Boss 面板 —— 优先实例完整口径（与 saintess_engine/team_matrix 对齐）
     if iid:
         from data.plugins.dragonfall.game import content as C
         boss_panel = boss_instance_panel(iid, n_players, boss_lv)
         atk_mult = boss_panel.get("_atk_mult", 1.0)
     elif isinstance(boss, (tuple, list)):
-        # (id, 名, role, lv, [技能], [掉落]) → C.build_monster（同 battle2.boss_of）
+        # (id, 名, role, lv, [技能], [掉落]) → C.build_monster（同 saintess_engine.boss_of）
         bd = tuple(boss)
         from data.plugins.dragonfall.game import content as C
         boss_panel = C.build_monster(

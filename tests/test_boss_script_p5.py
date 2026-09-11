@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(_PLUGIN_DIR, "framework"))  # 引擎框架包（
 sys.path.insert(0, _PLUGIN_DIR)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from game.store.connection import init_db  # noqa: E402
 init_db()
@@ -28,8 +28,8 @@ from game import content as C  # noqa: E402
 from game import db  # noqa: E402
 from game.content_rules.panel import player_final_stats
 from game.commands import boss_script as BS  # noqa: E402
-from battle2 import Battle as B2  # noqa: E402
-from battle2 import landing as _LD  # noqa: E402
+from saintess_engine import Battle as B2  # noqa: E402
+from saintess_engine import landing as _LD  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -149,7 +149,7 @@ def test_3_engine_interrupt_fire():
     boss["hp"] = 50000
     # 玩家普攻打 Boss（deal_damage 触发打断）
     logs = []
-    from battle2.landing import deal_damage as _dd
+    from saintess_engine.landing import deal_damage as _dd
     _dd(b, pa, boss, 500, logs)
     check("Boss charging 被清", not boss.get("charging"), str(boss.get("charging")))
     ef = (boss.get("effects") or {}).get("boss_frozen")

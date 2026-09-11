@@ -3,13 +3,13 @@
 
 战斗之外、玩家账号级的领域事件同步总线（DDD 领域事件语义，非 QFramework EventSystem）：
 一次战斗胜利/失败/击杀是「已经发生的事实」，发布时订阅方按注册顺序反应并回填结算文案。
-战斗引擎（battle2）零游戏知识、不 import 本文件；fire 入口收拢在命令层/结算层编排点。
+战斗引擎（saintess_engine）零游戏知识、不 import 本文件；fire 入口收拢在命令层/结算层编排点。
 
 设计文档：docs/DESIGN_v181_L3_player_event_bus.md（权威思想）
 字段级任务书：docs/REFACTOR_v181_L3_P0_task.md（ctx schema/订阅注册表/行序对照，P0 侦察修订）
 
 三层事件全景：
-- L1 战斗内效果总线 battle2/effect_triggers.py fire() 23 时机（actor 级，N8 已落地）
+- L1 战斗内效果总线 saintess_engine/effect_triggers.py fire() 23 时机（actor 级，N8 已落地）
 - L2 战斗级观察者 battle.on_event 注入钩子（N5b4-5E/5c 已落地）
 - L3 本文件：玩家级（任务/成就/公会/野王/塔卫），一次战斗只几类事件
 

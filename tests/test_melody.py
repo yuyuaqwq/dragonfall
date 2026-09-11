@@ -21,10 +21,10 @@ os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
-from battle2 import config as _b2c
+from saintess_engine import config as _b2c
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2 import Battle as B2, make_actor
-from battle2.stats import actor_stats
+from saintess_engine import Battle as B2, make_actor
+from saintess_engine.stats import actor_stats
 from game.services.class_mech_proc import apply_class_mech
 
 PASS = 0

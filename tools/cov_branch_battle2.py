@@ -25,7 +25,7 @@ os.chdir(PLUGIN_DIR)
 _exec_lines = {}   # 文件 -> set(可执行行号)
 _cond_lines = {}   # 文件 -> set(条件行号：含 if/elif/else/while/for/try/return 分支跳转的源行)
 
-for pyfile in glob.glob(os.path.join(PLUGIN_DIR, "framework", "battle2", "*.py")):
+for pyfile in glob.glob(os.path.join(PLUGIN_DIR, "framework", "saintess_engine", "*.py")):
     src_lines = open(pyfile, encoding="utf-8").read().splitlines()
     try:
         tree = ast.parse("\n".join(src_lines))
@@ -70,7 +70,7 @@ def _make_tracer():
     def _trace(frame, event, arg):
         if event == "line":
             fn = frame.f_code.co_filename.replace("\\", "/")
-            if "/framework/battle2/" in fn:
+            if "/framework/saintess_engine/" in fn:
                 _hit_lines[(fn, frame.f_lineno)] = True
         return _trace
     return _trace
@@ -92,7 +92,7 @@ for tf in test_files:
 sys.settrace(None)
 
 # ============ 汇总 ============
-print("\n=== battle2 行级覆盖（仅真可执行行） ===")
+print("\n=== saintess_engine 行级覆盖（仅真可执行行） ===")
 total_e = total_x = 0
 for pyfile in sorted(_exec_lines):
     fn = pyfile.replace("\\", "/")

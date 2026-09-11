@@ -1,22 +1,22 @@
 # -*- coding: utf-8 -*-
-"""内容侧引擎装配 —— 把《奥兰迪亚》内容注入 battle2 引擎（S1 断链 + S5 公式拆分）。
+"""内容侧引擎装配 —— 把《奥兰迪亚》内容注入 saintess_engine 引擎（S1 断链 + S5 公式拆分）。
 
-背景：docs/ENGINE_CONTENT_SPLIT_PLAN.md §3.2 —— 引擎（framework/battle2/）历史上
+背景：docs/ENGINE_CONTENT_SPLIT_PLAN.md §3.2 —— 引擎（framework/saintess_engine/）历史上
 有 15 条「引擎 → 内容」反向 import 边。S1 全部改为**内容 → 引擎**方向的注入：
 
     mount_engine_hooks()   注入数值公式/面板/技能查询/kind 常量（幂等）
     load_engine_config()   完整装配 = hook + 规则表（EFFECT_ACTIONS/EFFECT_RULES）
-                           —— 即旧 `battle2.config.load_game_defaults()` 的实体
+                           —— 即旧 `saintess_engine.config.load_game_defaults()` 的实体
 
 S5（§6.4 / §7.5）：`game/engine.py` 一拆为二后，公式/面板/技能查询的落点变为
-    - `framework/battle2/formulas.py`   引擎侧纯数值公式（零内容 import）
+    - `framework/saintess_engine/formulas.py`   引擎侧纯数值公式（零内容 import）
     - `game/content_rules/skills.py`   技能表读取（PLAYER_SKILLS/…/SKILL_UP）
     - `game/content_rules/panel.py`    玩家面板公式（CLASSES/RACES/SETS/PCT_CAPS）
 本模块负责把「公式参数表 + 内容查询函数」挂到引擎 config 的 S5 注入面
 （`formula_skeleton_fn` / `skill_flat_fn` / `skill_up_fn` / `skill_level_of_fn`），
 使 formulas.py 不必认识任何游戏表。
 
-旧名/旧位置 `battle2.config.load_game_defaults()` 保留为兼容 shim，
+旧名/旧位置 `saintess_engine.config.load_game_defaults()` 保留为兼容 shim，
 委托回本模块（52 个测试调用点，见 §8-R7）。
 
 装配时机：`game/content.py` 末尾 / `game/__init__.py` import bootstrap 时登记，
@@ -28,7 +28,7 @@ S5（§6.4 / §7.5）：`game/engine.py` 一拆为二后，公式/面板/技能�
 """
 from __future__ import annotations
 
-from battle2 import config as _b2cfg
+from saintess_engine import config as _b2cfg
 
 
 # ------------------------------------------------------------
@@ -36,8 +36,8 @@ from battle2 import config as _b2cfg
 # ------------------------------------------------------------
 
 def _formulas():
-    """引擎侧纯数值公式模块（S5 落点：framework/battle2/formulas.py）。"""
-    from battle2 import formulas as _f
+    """引擎侧纯数值公式模块（S5 落点：framework/saintess_engine/formulas.py）。"""
+    from saintess_engine import formulas as _f
     return _f
 
 
@@ -95,7 +95,7 @@ def _skill_level_of(player, skill_name):
 # ------------------------------------------------------------
 
 def _basic_skill_of(class_name):
-    """职业 basic_skill 配置（S1 前在 battle2/actions.resolve_basic_skill 内直读表）。"""
+    """职业 basic_skill 配置（S1 前在 saintess_engine/actions.resolve_basic_skill 内直读表）。"""
     try:
         from . import content as _C
         cid = _C.resolve("classes", class_name or "")
@@ -106,7 +106,7 @@ def _basic_skill_of(class_name):
 
 
 def _monster_skill(key):
-    """怪物技能表查询（S1 前在 battle2/battle._index_one_actor 内直读 C.MONSTER_SKILLS）。"""
+    """怪物技能表查询（S1 前在 saintess_engine/battle._index_one_actor 内直读 C.MONSTER_SKILLS）。"""
     try:
         from . import content as _C
         return (_C.MONSTER_SKILLS or {}).get(key)
@@ -115,13 +115,13 @@ def _monster_skill(key):
 
 
 def _kinds() -> dict:
-    """kind 语义常量（S1 前写死在 battle2/actions.py:22-26）。"""
-    from battle2.support.skill_kinds import K_PHYS, K_MAGI, K_TRUE, K_HEAL, K_BUFF
+    """kind 语义常量（S1 前写死在 saintess_engine/actions.py:22-26）。"""
+    from saintess_engine.support.skill_kinds import K_PHYS, K_MAGI, K_TRUE, K_HEAL, K_BUFF
     return {"phys": K_PHYS, "magi": K_MAGI, "true": K_TRUE, "heal": K_HEAL, "buff": K_BUFF}
 
 
 def _basic_fallback() -> dict:
-    """普攻兜底配置（S1 前写死在 battle2/actions.py:42 的 {"name": "攻击", …}）。"""
+    """普攻兜底配置（S1 前写死在 saintess_engine/actions.py:42 的 {"name": "攻击", …}）。"""
     return {"name": "攻击", "kind": _kinds()["phys"], "exprs": ["atk*1.0"]}
 
 
@@ -168,7 +168,7 @@ def mount_engine_hooks() -> None:
 
 
 def load_engine_config() -> None:
-    """完整装配（旧 battle2.config.load_game_defaults 的实体）。
+    """完整装配（旧 saintess_engine.config.load_game_defaults 的实体）。
 
     = mount_engine_hooks()（hook 面）+ load_game_rules(battle2_rules)（规则表）。
 

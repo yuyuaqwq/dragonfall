@@ -31,7 +31,7 @@ from ..content_rules.gameplay import resolve_drop
 from ..content_rules.panel import player_final_stats
 from ..core.constants import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）——N10 前由 battle re-export 改为 core 权威单源
 from ..commands.base import CommandBase, no_prof_waiting, require_player
-from .instance_router import InstanceRouterCmds  # v181.N5b4-5a R1：battle2 副本行动路由
+from .instance_router import InstanceRouterCmds  # v181.N5b4-5a R1：saintess_engine 副本行动路由
 
 INSTANCE_TIMEOUT = 60  # 副本行动超时（秒）v101.30d #O9/O32：120s→60s，队友挂机自动防御不再"卡死"（playtest 实测 60s+ 无反应）
 
@@ -55,7 +55,7 @@ def _inst_map_id(inst_id: str) -> str:
     return inst_id or ""
 
 class InstanceCmds(InstanceRouterCmds, CommandBase):
-    """副本命令 mixin —— v181.N5b4-5a R1 起继承 InstanceRouterCmds（battle2 行动路由）。"""
+    """副本命令 mixin —— v181.N5b4-5a R1 起继承 InstanceRouterCmds（saintess_engine 行动路由）。"""
 
     def _instance_save(self, group_id, st):
         """v141 大陆隔离：副本状态持久化统一入口。
@@ -193,7 +193,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             cands = [c for c in (ec + pc) if c is not None]
             if cands:
                 ref = min(cands)
-            from battle2.schedule import action_time as _b2_at
+            from saintess_engine.schedule import action_time as _b2_at
             cost = _b2_at(int(_spd))
             snap["ct"] = (ref if ref is not None else 0.0) + cost
         except Exception:
@@ -211,7 +211,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         st.setdefault("threat", {})[new_key] = 0
         st.setdefault("player_hit", {})[new_key] = False
         # v181.M-R3：旧 st["mech_stacks"]/st["resources"] 容器无生产写入无读取
-        # （战斗资源在 battle2 actor.effects 叠层）——不再为新成员播种死字段
+        # （战斗资源在 saintess_engine actor.effects 叠层）——不再为新成员播种死字段
         st.setdefault("cooldown", {}).setdefault(new_key, {})
         st.setdefault("combo_seq", {}).setdefault(new_key, [])
         # v167.3 副本带宠物：加入者战斗快照也带宠物（野外/副本同一套——当前行动者带自己的宠物）
@@ -1073,7 +1073,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         for key, snap in (st.get("players") or {}).items():
             if st.get("alive", {}).get(str(key), True):
                 _spd = int(snap.get("spd", 0) or 0)
-                from battle2.schedule import action_time as _b2_at
+                from saintess_engine.schedule import action_time as _b2_at
                 _cost = _b2_at(_spd)
                 ref = min(refs) if refs else 0.0
                 snap["ct"] = ref + _cost
@@ -1126,7 +1126,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         精英/普通怪 → 单怪阵列 [boss]。缺省无 minions → 仅 Boss。
         v121 CTB：每个敌方单位补 ct = -spd（越小越先行动）。
         v152 绝对时刻：ct = 初始等待（BASE_DELAY/spd，即 cost，正数越大越晚行动）。"""
-        from battle2.schedule import initial_ct as _ict
+        from saintess_engine.schedule import initial_ct as _ict
         boss = boss or {}
         if not boss:
             return []
@@ -1178,7 +1178,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         st["boss"]/st["enemy"] 兼容键 → 存活首单位；若原 Boss 已死被移除则保留原 dict 引用
         （供胜利显示/多动按 is_boss 或 uid 判断——_instance_boss_turn 多动按 uid 在存活阵列
         中定位主 Boss，不依赖 st["boss"] 对象同一性）。"""
-        from battle2.support import formation as FM
+        from saintess_engine.support import formation as FM
         enemies = st.setdefault("enemies", [])
         removed = FM.compact(enemies)
         # v110 P0（#110 海盗王任务卡死）：击杀账合并——battle._remove_unit 提前移出阵列的
@@ -1449,14 +1449,14 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         副本每刻行动后的完整战况：双方站位图 + 时刻/行动队列 + 敌方血量 +
         全队成员血蓝 + 每人职业资源叠层 + buff/减伤/护盾状态 + 选敌引导。
         数据全部从 st（players/enemies/effects 视图键...）取——V 系列战斗状态
-        权威 = battle2 actor.effects（sync_views 回写 snap.effects），
+        权威 = saintess_engine actor.effects（sync_views 回写 snap.effects），
         与野外面板共用 _P_BUFF_NAMES/_E_BUFF_NAMES 显示名表
         （Main mixin 同时含 CombatCmds/InstanceCmds，getattr 兜底测试直用）。
 
         单人副本也走同一面板（我方一行 = 自己），保证观感与野外一致。
         """
-        from battle2.support import formation as FM
-        from battle2.support.formation import alive_units
+        from saintess_engine.support import formation as FM
+        from saintess_engine.support.formation import alive_units
         # 显示名表（CombatCmds mixin 提供；独立测试 InstanceCmds 时兜底空表）
         pbuf_names = getattr(self, "_P_BUFF_NAMES", {}) or {}
         ebuf_names = getattr(self, "_E_BUFF_NAMES", {}) or {}
@@ -1508,7 +1508,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     lines.append(f"　{_pn2}")
             except Exception:
                 pass
-            # 职业资源叠层（v181.M-R3：战斗资源在 battle2 actor.effects 叠层，
+            # 职业资源叠层（v181.M-R3：战斗资源在 saintess_engine actor.effects 叠层，
             # snap.effects 由 sync_views 每帧回写；st.resources 旧键无生产写入 =
             # 死字段不再读。白名单/cap 逻辑与野外 _resource_line 同源）
             try:
@@ -1864,7 +1864,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     "p_food_effects": {str(m): [] for m in members},
                     "p_defending": {str(m): False for m in members},
                     # v181.M-R3：旧 mech_stacks/resources 容器为死字段（战斗资源在
-                    # battle2 actor.effects 叠层）——新开本不再初始化
+                    # saintess_engine actor.effects 叠层）——新开本不再初始化
                     "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
                     "contribution": {},
                     "over": False,
@@ -2086,7 +2086,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         return reward
 
     async def _instance_start(self, event, group_id, qq_id, player, arg):
-        from battle2.schedule import initial_ct as _ict
+        from saintess_engine.schedule import initial_ct as _ict
         kid = None
         for k, inst in C.INSTANCES.items():
             if inst["name"] == arg or k == arg:
@@ -2460,10 +2460,10 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         return f"🕐 时刻 {_now:.1f}s ｜ ⚡ 行动顺序：" + " → ".join(p[1] for p in entries[:limit])
 
     def _instance_turn_player_name(self, st: dict, group_id: int, fallback_key=None) -> str:
-        """battle2 版轮转提示：下一位玩家行动者名字（读 battle state actors ct）。
+        """saintess_engine 版轮转提示：下一位玩家行动者名字（读 battle state actors ct）。
 
         N5b4-5a R3：替代旧 _instance_next_player_name（其 CT 队列已随旧引擎退役）。
-        优先读 IB.next_actor_key（battle2 actors 权威 ct 最小者）；无 battle/无存活
+        优先读 IB.next_actor_key（saintess_engine actors 权威 ct 最小者）；无 battle/无存活
         回落队伍第一人。"""
         try:
             from . import instance_battle as IB

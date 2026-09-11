@@ -134,7 +134,7 @@ class TowerCmds(CommandBase):
             return
         guard = build_tower_guard(floor)
         guard_name = guard.get("name", "塔卫")
-        # N5b4-6：塔开战 battle2 化（四步仪式：prepare → sides → 装配 → B2；
+        # N5b4-6：塔开战 saintess_engine 化（四步仪式：prepare → sides → 装配 → B2；
         # 同 _open_battle2 语义，tower 是普通战斗形态）
         from ..services import battle2_bridge as BR
         tb = self._title_bonus(group_id, qq_id)
@@ -157,7 +157,7 @@ class TowerCmds(CommandBase):
                 _CM_apply(_a)
             except Exception:
                 pass  # 技能 mech 兑现装配异常不阻断开战
-        from battle2 import Battle as B2
+        from saintess_engine import Battle as B2
         b = B2("monster", sides=_sides, title_bonus=tb, pet=db.pet_get(qq_id))
         db.save_battle(group_id, qq_id, b.to_state())
         _lock = getattr(self, "_lock_battle", None)

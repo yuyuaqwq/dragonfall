@@ -11,10 +11,10 @@
 > `framework-engine`，本仓以 **git submodule `framework/`** 固定 commit 引用它。
 > 因此：
 > - 原 `game/battle2/` 与 `game/engine.py` **已不在本仓** —— 它们是框架内容，
->   现在住在 `framework/battle2/`（引擎包名仍叫 `battle2`）；本仓代码统一
->   `import battle2`（裸包名）。
+>   现在住在 `framework/saintess_engine/`（引擎包名仍叫 `saintess_engine`）；本仓代码统一
+>   `import saintess_engine`（裸包名）。
 > - 原 `game/core/` 里的通用件（阵型 / 表达式求值 / 技能种类 / 敌身条）已归位到
->   `framework/battle2/support/`；过渡 shim 已随 S9-2 删净。
+>   `framework/saintess_engine/support/`；过渡 shim 已随 S9-2 删净。
 > - 内容侧装配入口（旧 `load_game_defaults` 的收敛点）＝ 本仓
 >   `game/content_rules/apply.py` 的 `apply_game_content()`。
 > - **引擎文档已迁走**：`docs/engine-wiki/` → `framework/docs/engine-wiki/`
@@ -95,8 +95,8 @@ dragonfall/
 | `mounts.py` | make_mount_rein / roll_mount_drop |
 | `portals.py` | portal_cost |
 | `factions.py` | faction_reputation_tier |
-| `engine.py` | ⚙️ **已分离** —— 引擎主体现在框架仓 `framework/battle2/`（本仓无 `game/engine.py`；装配入口见 `game/content_rules/apply.py`） |
-| `battle.py` | ⚙️ **已分离** —— `Battle` 类现在框架仓 `framework/battle2/battle.py`（本仓代码 `import battle2`） |
+| `engine.py` | ⚙️ **已分离** —— 引擎主体现在框架仓 `framework/saintess_engine/`（本仓无 `game/engine.py`；装配入口见 `game/content_rules/apply.py`） |
+| `battle.py` | ⚙️ **已分离** —— `Battle` 类现在框架仓 `framework/saintess_engine/battle.py`（本仓代码 `import saintess_engine`） |
 | `__init__.py` | 聚合导出 |
 
 ## 四、存储层 game/store/

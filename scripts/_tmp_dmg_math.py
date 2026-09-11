@@ -20,7 +20,7 @@ import random
 
 sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall")
 
-from battle2.formulas import calc_damage
+from saintess_engine.formulas import calc_damage
 from game.content_rules.panel import player_final_stats
 from game.core.drops import build_monster
 

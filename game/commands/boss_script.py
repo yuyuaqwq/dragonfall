@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""5c P1：Boss 剧本导演（mech DSL 执行器 battle2 化）——阶段/演出/换招。
+"""5c P1：Boss 剧本导演（mech DSL 执行器 saintess_engine 化）——阶段/演出/换招。
 
 设计 docs/REFACTOR_v181P4_N5B5c_boss_script_design.md：
 - 导演在命令层：读 MONSTER_MODS/INSTANCES 配置（v178 E1/E2 合并语义），
-  在怪行动帧（script_hook，battle2/battle.py actor_auto 前置）检查血量阈值 →
+  在怪行动帧（script_hook，saintess_engine/battle.py actor_auto 前置）检查血量阈值 →
   触发剧本动作（转阶段演出/换招/演出刻 skip/阈值预告）。
 - 引擎零游戏知识：只提供 script_hook 注入钩子；本文件不 import 旧 game.battle。
 - 导演状态 st["boss_script"] 随副本持久化；actors 只留引擎效果（V 系列铁律）。
@@ -16,7 +16,7 @@ from __future__ import annotations
 def boss_script_cfg(st: dict, actor: dict):
     """解析 Boss 剧本配置（MONSTER_MODS 基准 + INSTANCES 副本覆盖，v178 E1/E2）。
 
-    输入 actor（battle2 enemy side actor，monster_to_actor 透传 id/_inst_id）。
+    输入 actor（saintess_engine enemy side actor，monster_to_actor 透传 id/_inst_id）。
     返回 None（无 phases 剧本）或 cfg dict（含缺省 key，opening/triggers/chains
     供 P2+ 批读取；P1 只消费 phases）。
     """
@@ -226,7 +226,7 @@ def _check_phases(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     # ---- 阶段事件广播（v181 破绽条：挂敌身条按阶段保留部分积蓄——订阅方 bar_preserve）----
     # 引擎零知识：引擎只提供通用时机事件，条侧消费端在装配层（battle2_bar_procs）
     try:
-        from battle2.effect_triggers import fire as _fire
+        from saintess_engine.effect_triggers import fire as _fire
         _fire(battle, "phase", {"actor": actor, "phase": npc}, logs)
     except Exception:
         pass  # 阶段事件异常不阻断转阶段（容错铁律）
@@ -279,8 +279,8 @@ def _check_opening(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     effect 翻译（数值 battle_config BUFF_STATS）：
       atk_up/atk_up_strong → Boss atk ×1.30/×1.70，持续 power 刻（秒）
       mon_atk_down         → 玩家侧 atk ×0.70，持续 power 刻
-      mortal_wound         → 玩家侧重创条目（battle2 吸血批落地时消费减半；
-                            当前装配吸血未迁 battle2——条目先落预留）
+      mortal_wound         → 玩家侧重创条目（saintess_engine 吸血批落地时消费减半；
+                            当前装配吸血未迁 saintess_engine——条目先落预留）
     无 opening 配置的 phase_open token → 缺省咆哮演出（atk_up ×1.30）。
     """
     mech = cfg.get("mech") or []
@@ -315,7 +315,7 @@ def _check_opening(st: dict, battle, actor: dict, cfg: dict, bs: dict,
             _temp_stat_mult(a, "boss_open_atk_down", stat, mult, power, now)
         logs.append(f"🫁【{bname}】的{name}压制了你，攻击下降！")
     elif effect == "mortal_wound":
-        # v1.3 重创：吸血/治疗偷取减半（battle2 吸血批落地时消费此条目减半）
+        # v1.3 重创：吸血/治疗偷取减半（saintess_engine 吸血批落地时消费此条目减半）
         for a in battle.sides_of("player"):
             if int(a.get("hp", 0) or 0) <= 0:
                 continue
@@ -335,7 +335,7 @@ def _check_player_low(st: dict, battle, actor: dict, cfg: dict, bs: dict,
 
     频率：once；triggers.player_low.cooldown=N 可重复（每 N 刻一次）。
     阈值：triggers.player_low.hp（缺省 0.30）。旧加成消费在伤害处（本刻）；
-    battle2 表达 = 临时 atk/matk ×1.25（expire 短——下次时刻推进即过期，
+    saintess_engine 表达 = 临时 atk/matk ×1.25（expire 短——下次时刻推进即过期，
     仅本帧行动吃到）。
     """
     mech = cfg.get("mech") or []
@@ -405,7 +405,7 @@ def _check_simple_mech(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     # ---- heal：每 4 刻回复 8% ----
     if "heal" in mech and rn > 0 and rn % 4 == 0:
         try:
-            from battle2.landing import heal_actor as _heal
+            from saintess_engine.landing import heal_actor as _heal
             v = max(1, int(mh * 0.08))
             real = _heal(battle, actor, v, logs)
             if real > 0:
@@ -428,7 +428,7 @@ def _check_simple_mech(st: dict, battle, actor: dict, cfg: dict, bs: dict,
     if "shield" in mech and not bs.get("flags", {}).get("_shielded"):
         bs.setdefault("flags", {})["_shielded"] = True
         try:
-            from battle2 import effects as _EF
+            from saintess_engine import effects as _EF
             _EF.act_shield(battle, actor, actor, {"pct": 0.20, "halve": True,
                                                  "turns": 999}, logs)
         except Exception:
@@ -542,7 +542,7 @@ def _check_summon(st: dict, battle, actor: dict, cfg: dict, bs: dict,
 # 语义对齐旧 v178 E7（battle.py:7999）：seq 按序推进到头回绕；cd=整链打完
 # 冷却刻数（0=无缝循环）；break=断链概率（<1 时概率中断回随机池，缺省 0 必中链）；
 # 多链按 chain_idx 取模轮换。引擎状态存导演 bs（chain_pos/chain_idx/chain_until）。
-# battle2 表达 = 导演帧改 actor.auto_act → 本帧 actor_auto 读它出招。
+# saintess_engine 表达 = 导演帧改 actor.auto_act → 本帧 actor_auto 读它出招。
 # ============================================================
 
 def _check_chains(st: dict, battle, actor: dict, cfg: dict, bs: dict,
@@ -569,7 +569,7 @@ def _check_chains(st: dict, battle, actor: dict, cfg: dict, bs: dict,
         seq = (ch.get("seq") or []) if isinstance(ch, dict) else []
         if not seq:
             return
-    # 断链（break>0 概率中断，链状态清空回随机池——battle2 回落普攻/auto_act 原值）
+    # 断链（break>0 概率中断，链状态清空回随机池——saintess_engine 回落普攻/auto_act 原值）
     _brk = float(ch.get("break", 0.0) or 0.0)
     if _brk > 0:
         import random as _rnd
@@ -715,7 +715,7 @@ def _minion_death_link(st: dict, battle, boss: dict, link, logs: list) -> None:
         bname = boss.get("name", "")
         if eff == "heal_pct":
             pct = float(val if val is not None else 0.03)
-            from battle2.landing import heal_actor as _heal
+            from saintess_engine.landing import heal_actor as _heal
             v = max(1, int(int(boss.get("max_hp", 1) or 1) * pct))
             real = _heal(battle, boss, v, logs)
             if real > 0:

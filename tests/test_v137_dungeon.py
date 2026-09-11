@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, make_player, Main, FakeEvent, run
 
 # N10 删旧：旧 Battle.actor_turn monkeypatch 死代码已删（R4 副本路径全走 router→IB
-# battle2，"攻击"命令驱动；旧 _instance_act 已删，patch 对象无调用方）。
+# saintess_engine，"攻击"命令驱动；旧 _instance_act 已删，patch 对象无调用方）。
 
 passed = failed = 0
 
@@ -62,7 +62,7 @@ def _authoritative_st(m, gid, qid, battle):
 
 def _set_enemies_hp1(st):
     """把敌方阵列血量压 1、攻击压 1（防随机反击打死玩家），专注测流程。
-    N5b4-6：battle2 权威在 st[\"battle\"].sides actors（sync_views 每刻回写视图）——
+    N5b4-6：saintess_engine 权威在 st[\"battle\"].sides actors（sync_views 每刻回写视图）——
     敌我 actors + 视图都压。"""
     _bsides = (st.get("battle") or {}).get("sides") or {}
     for _a in (_bsides.get("enemy") or []):
@@ -99,7 +99,7 @@ async def attack_loop(m, gid, qid, max_rounds=12):
         except Exception:
             pass
         db.save_battle(gid, qid, st)
-        # 当前行动者：battle2 next_actor_key（ct 最小存活玩家）
+        # 当前行动者：saintess_engine next_actor_key（ct 最小存活玩家）
         cur = st["members"][0]
         try:
             nxt = _IB.next_actor_key(st)

@@ -5900,8 +5900,8 @@ class EconomyCmds(CommandBase):
                 _it_cast = d.get("cast")
                 if _it_cast:
                     payload = f"{payload};cast:{_it_cast}" if payload else f"cast:{_it_cast}"
-                # I3：副本战斗 use_item 走 battle2 router（action_override 翻译器），
-                # 不再调旧 _instance_act（其 BT.from_state 对 battle2 state 失效——
+                # I3：副本战斗 use_item 走 saintess_engine router（action_override 翻译器），
+                # 不再调旧 _instance_act（其 BT.from_state 对 saintess_engine state 失效——
                 # 道具效果静默不生效，I 系列文档 §0.2）
                 async for _r in self._instance_router(event, group_id, qq_id, player, battle["state"], "use_item", payload):
                     yield _r
@@ -5960,7 +5960,7 @@ class EconomyCmds(CommandBase):
             _it_cast = d.get("cast")
             if _it_cast:
                 payload = f"{payload};cast:{_it_cast}" if payload else f"cast:{_it_cast}"
-            # battle2 玩家 actor 定位（battle2 引擎只吃 actor dict；sides player 首 actor）
+            # saintess_engine 玩家 actor 定位（saintess_engine 引擎只吃 actor dict；sides player 首 actor）
             _my = b.focus() if hasattr(b, "focus") else None
             if _my is None:
                 for _a in b.sides_of("player"):
@@ -5971,7 +5971,7 @@ class EconomyCmds(CommandBase):
                 yield event.plain_result("你不在战斗中（状态异常）！")
                 return
             logs, ended, _who = b.human_act("use_item", payload, _my)
-            # battle2 行动后回写 player dict（副本 actor 改动不自动落回）
+            # saintess_engine 行动后回写 player dict（副本 actor 改动不自动落回）
             try:
                 from ..services.battle2_bridge import sync_player_from_actor
                 sync_player_from_actor(player, _my)
@@ -5980,7 +5980,7 @@ class EconomyCmds(CommandBase):
             db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"],
                              max_hp=player["max_hp"], max_mp=player["max_mp"])
             if ended:
-                # battle2 胜负按 actor 存活判定（结果视角固定 player side）
+                # saintess_engine 胜负按 actor 存活判定（结果视角固定 player side）
                 _enemies = [u for u in b.sides_of("enemy") if (u.get("hp") or 0) > 0]
                 _mon = _enemies[0] if _enemies else (b.sides_of("enemy") or [{}])[0]
                 if b.result == "victory":

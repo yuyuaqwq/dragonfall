@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""battle2 战斗内道具翻译器（v181.N5b4-5a I2）。
+"""saintess_engine 战斗内道具翻译器（v181.N5b4-5a I2）。
 
 把旧引擎道具 payload（item_templates 模板产物，引擎无关中间语言）翻译成
-battle2 actor 效果。核心不变式：效果全部落到 battle2 actor
-（hp/mp/buffs/hot/shields/food_effects），只调 battle2 动词
+saintess_engine actor 效果。核心不变式：效果全部落到 saintess_engine actor
+（hp/mp/buffs/hot/shields/food_effects），只调 saintess_engine 动词
 （landing.heal_actor / effects.apply_effects / actor 容器直写），
 引擎零道具名词。
 
@@ -36,8 +36,8 @@ import json
 import re
 from typing import Optional
 
-from battle2 import config as _b2config
-from battle2.landing import heal_actor
+from saintess_engine import config as _b2config
+from saintess_engine.landing import heal_actor
 
 # payload 尾部 cast/recovery 剥离（同旧 battle._item_payload_cast 剥离正则）
 _CAST_RE = re.compile(r"(?:^|[;&,])\s*(?:cast|recovery):[\d.]+")
@@ -80,7 +80,7 @@ def _find_effect_action_name(table: dict, container_key: str) -> Optional[str]:
 # ------------------------------------------------------------
 
 def make_override():
-    """battle2 action_override 回调工厂（I3：instance_battle/野外 from_state 后注入）。
+    """saintess_engine action_override 回调工厂（I3：instance_battle/野外 from_state 后注入）。
 
     引擎 act() 遇非内置 action（use_item）问回调：签名
     (battle, action, actor, skill_name, target) -> (logs, cast)；
@@ -171,7 +171,7 @@ def translate(battle, actor: dict, payload: str,
                 _sh = (_FEP.get("shield") or {})
                 _sh_pct = float(_sh.get("pct", 0.10) or 0.10)
                 _sh_turns = int(_sh.get("turns", 3) or 3)
-                from battle2.effects import apply_effects
+                from saintess_engine.effects import apply_effects
                 apply_effects(battle, actor, actor,
                               [{"action": "shield", "key": "food_shield",
                                 "pct": _sh_pct, "turns": _sh_turns,
@@ -185,9 +185,9 @@ def translate(battle, actor: dict, payload: str,
 
     # ---- 1.5 purify 净化卷轴（I5：模板只判定，清除在翻译器）----
     # 清玩家侧全部存活 actor 的可净化负面（EFFECT_RULES period/on=target/cleanse；
-    # sleep 不可净化）。旧模板直改 p_buffs 已随 battle2 失效——负面权威在 actor.effects。
+    # sleep 不可净化）。旧模板直改 p_buffs 已随 saintess_engine 失效——负面权威在 actor.effects。
     if _payload == "purify:1":
-        from battle2.effects import apply_effects
+        from saintess_engine.effects import apply_effects
         _cleaned = []
         _holders = []
         try:
@@ -291,7 +291,7 @@ def translate(battle, actor: dict, payload: str,
         table = _load_effect_actions()
         # payload key（= buffs 容器键 atk_up/food_atk_up/...）→ EFFECT_ACTIONS
         # 名词（N7.5b 药水别名 buff_atk/... 的动作 key 字段即容器键）——扫表反查
-        from battle2.effects import apply_effects
+        from saintess_engine.effects import apply_effects
         applied = []
         for _k in keys:
             _name = _find_effect_action_name(table, _k)
@@ -367,7 +367,7 @@ def _translate_special(battle, actor, kind: str, value, logs: list, cast: float)
         table = _load_effect_actions()
         mapped = table.get(kind)
         if isinstance(mapped, list) and mapped:
-            from battle2.effects import apply_effects
+            from saintess_engine.effects import apply_effects
             # hit 型 buff 出手消费，expire 仅兜底 → turns 给大（装配层同族惯例），
             # 消费即清；无 turns 的动作（act_buff 要求 turns>0）会不挂
             apply_effects(battle, actor, actor,
@@ -383,7 +383,7 @@ def _translate_special(battle, actor, kind: str, value, logs: list, cast: float)
         turns = int(_ed.get("turns", 3) or 3)
         if pct <= 0:
             pct = 0.10  # 兜底（无数据声明 = 旧 shield 药默认 10% max_hp）
-        from battle2.effects import apply_effects
+        from saintess_engine.effects import apply_effects
         apply_effects(battle, actor, actor,
                       [{"action": "shield", "key": _key, "pct": pct,
                         "turns": turns, "on": "caster"}], logs)

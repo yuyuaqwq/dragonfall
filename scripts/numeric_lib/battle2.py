@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-"""A2 真引擎多技能循环模拟器 battle2 —— v175 平衡矩阵门禁：职业×流派×副本 Boss
+"""A2 真引擎多技能循环模拟器 saintess_engine —— v175 平衡矩阵门禁：职业×流派×副本 Boss
 
 背景：tests/numeric_sim.py 只能单技能/纯普攻模拟（class_battle_matrix），本模块扩展为
 “多技能循环”真实引擎模拟器：按流派 rotation 顺序逐技能尝试施放（被 CD/蓝/资源拦截
 → 试下一个；全部拦截 → 普攻），跑真实 BT.Battle 直到分出胜负。
 
 用法（见 battle_rotation docstring）：
-    from numeric_lib import battle2
+    from numeric_lib import saintess_engine
     boss = C.INSTANCES['inst_goblin_camp']['boss']   # 或取 C.INSTANCES[iid]['boss']
-    battle2.battle_rotation('cls_zhan_shi', 20, 'solo_low', {'str': 66},
+    saintess_engine.battle_rotation('cls_zhan_shi', 20, 'solo_low', {'str': 66},
                             ['挥砍', '猛击', '破甲斩'], boss, seeds=8)
 
 口径（与 numeric_sim.class_battle_matrix 对齐）：
@@ -50,7 +50,7 @@ except ImportError:  # 直接 python 跑本文件（无父包）→ scripts/ 已
 
 _MAX_TURNS = 500  # 单场回合护栏（numeric_sim._MAX_TURNS 同款；正常对局远低于此）
 
-# v175e 全职业被动技能表（battle2 补被动进 learned_skills 用）：
+# v175e 全职业被动技能表（saintess_engine 补被动进 learned_skills 用）：
 # 从 skills 数据收集 kind=被动 的技能（基础 + 分支全表），按职业聚合。
 try:  # noqa: E402
     from data.plugins.dragonfall.game.data import skills as _SK  # noqa: E402
@@ -114,7 +114,7 @@ def boss_of(boss_def: tuple, warn: bool = True, iid: str | None = None,
         return m
     except Exception as exc:  # noqa: BLE001 —— 展开失败 fallback，保持与 numeric_sim 同源可跑
         if warn:
-            print("[battle2][警告] boss_def 展开失败(%s)，fallback numeric_sim.monster_of('boss', lv=%s)"
+            print("[saintess_engine][警告] boss_def 展开失败(%s)，fallback numeric_sim.monster_of('boss', lv=%s)"
                   % (exc, boss_def[3] if len(boss_def) > 3 else "?"))
         from data.plugins.dragonfall.tests import numeric_sim as NS  # noqa: PLC0415
         return NS.monster_of("boss", boss_def[3] if len(boss_def) > 3 else 1)
@@ -173,7 +173,7 @@ def battle_rotation(cls_id: str, lv: int, loadout: str, attr: dict,
         _passives = []
     learned_skills = list(rotation) + _passives
     # v175e 技能等级门槛过滤：真实玩家 Lv.N 学不到 lv>N 的技能（技能学习等级限制），
-    # battle2 模拟玩家同样受限——learned_skills 只保留 lv≤玩家等级的主动技 + 被动。
+    # saintess_engine 模拟玩家同样受限——learned_skills 只保留 lv≤玩家等级的主动技 + 被动。
     # （此前直接放行高等级技能 → 25 级玩家拿 95 级大招打本，矩阵 P1 阶段失真）
     _filtered = []
     for _sn in learned_skills:

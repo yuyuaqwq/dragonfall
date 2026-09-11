@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""N5b4-4 验证：PVP 命令层 battle2 切换（双人真人轮流闭环）。
+"""N5b4-4 验证：PVP 命令层 saintess_engine 切换（双人真人轮流闭环）。
 
 覆盖：
-- _pvp_start 发起 → db 双方 battle 行 = battle2 state（type=pvp / sides / meta{attacker_qq, actor}）
+- _pvp_start 发起 → db 双方 battle 行 = saintess_engine state（type=pvp / sides / meta{attacker_qq, actor}）
 - _pvp_act 轮流行动（攻击者=player side、防守方=enemy side 显式定位）+ 胜负按 actor 存活
 - 终局：胜者 hp 写回 db、双方 battle 清空（unlock+clear）、轮到翻转
 - defend：自己的 defending 持久化；非 defend 行动后双方 defending 消耗清 False
-- skill（挥砍）走 battle2 施放
+- skill（挥砍）走 saintess_engine 施放
 - 超时清理（旧 updated_at）与旧档（无 sides）清档重开
 
 跑法：python tests/test_battle2_n5b4_pvp.py
@@ -27,7 +27,7 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
 from game.store.connection import init_db  # noqa: E402
 init_db()
@@ -132,7 +132,7 @@ def pvp_state_of(qid):
 
 
 async def test_pvp_start_state():
-    print("【N5b4-4 发起 → battle2 state 结构】")
+    print("【N5b4-4 发起 → saintess_engine state 结构】")
     cmds = CombatCmds.__new__(CombatCmds)
     att_qq, def_qq = "1002001", "1002002"
     att_player = mk_db_player(att_qq, "攻击者", level=15)
@@ -142,7 +142,7 @@ async def test_pvp_start_state():
     check("发起成功文案", "发起攻击" in joined and "你先手" in joined, joined[:120])
 
     st = pvp_state_of(att_qq)
-    check("攻击方 battle 行存在 battle2 state", st is not None and st.get("type") == "pvp",
+    check("攻击方 battle 行存在 saintess_engine state", st is not None and st.get("type") == "pvp",
           f"type={st and st.get('type')}")
     st2 = pvp_state_of(def_qq)
     check("防守方 battle 行同 state", st2 is not None and st2 == st)
@@ -327,8 +327,8 @@ async def test_pvp_skill_and_turn_guard():
 
 async def test_pvp_stat_bonus_per_actor():
     print("【N5b4-4 per-actor 面板增幅 bonus.panel（v181.M-bonus 统一容器）】")
-    from battle2 import make_actor, Battle as B2
-    from battle2.stats import actor_stats
+    from saintess_engine import make_actor, Battle as B2
+    from saintess_engine.stats import actor_stats
     _base = dict(class_name="战士", level=15, equipment={}, skills=[], learned_skills=[])
 
     def _mk(uid, side):

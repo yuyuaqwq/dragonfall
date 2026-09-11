@@ -6,7 +6,7 @@
 ------------------
 * 循环导入陷阱：`game.data ↔ game.core` 互相 import；在编辑器主进程里 import game
   会在错误时机拿到半初始化模块（真相见 `game/bootstrap.py` 的装载顺序注释）。
-* 装配有副作用：`battle2.config.load_game_defaults()` 会把公式/面板/kind 常量 mount 到
+* 装配有副作用：`saintess_engine.config.load_game_defaults()` 会把公式/面板/kind 常量 mount 到
   引擎全局 hook 面 —— 进程级污染，跑一次就回不去。
 * 隔离/兜底：引擎异常、死循环都能被超时掐死，编辑器主进程永不受影响。
 * 纪律一致：编辑器数据层（data_io）只读 py 源码字面量、**绝不 import game**；

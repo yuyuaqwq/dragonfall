@@ -16,9 +16,9 @@ os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
-from battle2 import config as _b2c
+from saintess_engine import config as _b2c
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2 import Battle as B2, make_actor
+from saintess_engine import Battle as B2, make_actor
 from game.services.class_mech_proc import apply_class_mech
 
 PASS = 0
@@ -60,7 +60,7 @@ def arc_of(a):
 
 def test_1_cap():
     print("【1. arcane cap 收敛 5】")
-    from battle2.effects import _cap_of
+    from saintess_engine.effects import _cap_of
     m = mk_mage(["奥术弹幕"])
     apply_class_mech(m)
     check("arcane cap = 5（v153 满层）", _cap_of(m, "arcane") == 5,

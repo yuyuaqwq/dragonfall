@@ -16,9 +16,9 @@ os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
-from battle2 import config as _b2c
+from saintess_engine import config as _b2c
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2 import Battle as B2, make_actor
+from saintess_engine import Battle as B2, make_actor
 from game.services.class_mech_proc import apply_class_mech
 
 PASS = 0
@@ -79,7 +79,7 @@ def test_1_enter():
 
 def test_2_cd_mult():
     print("【2. 影舞态内技能 CD−20%（cd_mult 0.8）】")
-    from battle2.battle import _now_of
+    from saintess_engine.battle import _now_of
     # 用暗影步自身 cd=16：先不进态时施放记 cd 16；进态后放带 cd 技能
     a = mk_assassin(["暗影步", "幻影连刺"])
     apply_class_mech(a)
@@ -107,7 +107,7 @@ def test_2_cd_mult():
 
 def test_3_shadow_bonus():
     print("【3. 暗影步·极：态内 spd ×1.25】")
-    from battle2.stats import actor_stats as _as
+    from saintess_engine.stats import actor_stats as _as
     a = mk_assassin(["暗影步·极", "影刃"])
     apply_class_mech(a)
     base_spd = float((_as(None, a) or {}).get("spd", 0) or 0)

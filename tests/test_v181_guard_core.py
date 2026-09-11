@@ -34,11 +34,11 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from battle2 import config as _b2c  # noqa: E402
+from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from battle2 import Battle as B2, make_actor  # noqa: E402
-from battle2 import effects as EFX  # noqa: E402
-from battle2.effect_triggers import fire  # noqa: E402
+from saintess_engine import Battle as B2, make_actor  # noqa: E402
+from saintess_engine import effects as EFX  # noqa: E402
+from saintess_engine.effect_triggers import fire  # noqa: E402
 from game.services import class_mech_proc as CM  # noqa: E402
 from game.data.battle2_rules import (EFFECT_RULES, EFFECT_ACTIONS,  # noqa: E402
                                     MECH_CASH, PASSIVE_PROC)
@@ -463,7 +463,7 @@ def t11_res_cost():
     info = skill_info(MONK, "磐岩甲") or {}
     check("技能数据 res_cost = {guard_core: 3}",
           info.get("res_cost") == {"guard_core": 3}, str(info.get("res_cost")))
-    from battle2 import actions as A
+    from saintess_engine import actions as A
     b, p, e = mk(["磐岩甲"])
     set_st(p, "guard_core", 2)
     check("2 核 → 引擎前置拦截不可施放",
