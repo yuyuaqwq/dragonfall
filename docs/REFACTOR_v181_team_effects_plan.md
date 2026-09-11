@@ -127,16 +127,28 @@ actor.triggers["time_advance"] += [{"action": "team_effect_expire", "key": <效�
 
 ## 六、不在本方案内的相关项（单独登记）
 
-| 项 | 现状 | 去向 |
-|---|---|---|
-| `freeze_self`（instances.py） | boss_script 已按剧本效果实现（`effects["boss_frozen"] mode=skip`） | 数据侧改用声明式写法或标注等价 |
-| `mortal_wound` / `stacks_clear` / `vulnerable`（monster_mods / instances） | 零映射，怪物侧静默 no-op | 并入本方案批（怪物侧） |
-| `on_threshold`（`battle_rules.py:27` `{10:{"form":"fury"}}`） | 引擎无消费方；狂暴由内容层 `class_mech_proc` 的 `zhan_yi_fury` 走技能路径实现 | 删映射 or 接线（见 `_selfcheck` §1.1） |
-| `period.dmg_type`（corros「真伤 DOT」） | 无消费方；DOT 落地统一 `deal_damage(..., dmg_kind="")` | 二选一：接 `dmg_kind` 或改注释 |
-| `debuff_scale`（hunt_mark/soul_mark/curse 每层承伤 +N%） | 无消费方 → 三个印记的「每层承伤」承诺不生效 | 并入本方案批（同属乘区） |
-| `finisher.crit_at`（`battle_rules.py:531`） | 装配器不读，注释自承「声明先行」 | 接线 or 删声明 |
-| `def_up` | ✅ 已修（2026-09-11） | — |
+> ✅ **2026-09-11 逐项复跑核实（当前仓库状态，非旧清单）**：本表原 7 项**全部已处置或已实装**，
+> 其中 4 项「怪物侧静默 no-op」的判断**是错的** —— 它们在 `game/commands/boss_script.py`
+> 与对应装配层里都有实现，属「判实装只看单通道」的又一次误报（同 taunt 一族）。
 
+| 项 | 核实结果（取证） |
+|---|---|
+| `freeze_self` | ✅ **实装**：`boss_script.py:676` 写 `effects["boss_frozen"] mode=skip`（Boss 自冻结） |
+| `mortal_wound`（重创） | ✅ **实装且双向**：`boss_script.py:317-324` 施加到玩家侧；引擎 `actions._mortal_wound_mult` 消费（吸血 ×0.5，`actions.py:581-589`） |
+| `stacks_clear` | ✅ **实装**：`make_script_event` → `_minion_death_link`（`boss_script.py:723`；数据 `monster_mods/instances` 的 `on_minion_died`） |
+| `vulnerable` | ✅ **实装**：`boss_script.py:683` 写 `_dmg_taken_mult`（引擎 N7.5a 读）× 到期清理 `_check_vuln_expire` |
+| `on_threshold` | ✅ **已删声明**（批C）：引擎无消费方，且与现行「血祭主动投入」冲突 |
+| `period.dmg_type` | ✅ **已接线**（批A）：DOT 落地透传 `dmg_kind` → 真伤语义成立 |
+| `debuff_scale` | ✅ **已接线**（批A）：`landing.deal_damage` 逐状态累加乘区 |
+| `finisher.crit_at` | ✅ **已接线**（批D）：连段 ≥4 → 一次性 `guaranteed_crit` 出手态 |
+| `def_up` | ✅ 已修（2026-09-11） |
+
+**同批核实的破绽条两项**（原记「另立工单」，实为**均已完成**）：
+
+| 项 | 核实结果 |
+|---|---|
+| E · Boss 阶段保留 50% | ✅ **完成**：`boss_script.py:230` 有 `_fire(battle, "phase", …)`；`battle_bar_procs.py:156-161` 订阅并调 `saintess_engine.gauge.bar_preserve(host, key)` |
+| F · 反震（受击反弹 + 推条） | ✅ **完成**：`battle_bar_procs.py:169-170` `@register_action("passive_reflect_bar")`；数据 `battle_rules.py:934`（`reflect_pct` 0.30，lv58 被动） |
 
 ---
 
