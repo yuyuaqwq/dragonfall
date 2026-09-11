@@ -1205,6 +1205,28 @@ eps  = 总eq / cyc                    # 每刻等效倍率
 - **免疫怪**：`immune_dots: ["burn"]` → 狂战线的灼烧清算才有换手价值。
 - **高防 Boss**：`immune_dots: ["poison"]` → 毒刃线的腐蚀真伤轴才是唯一解。
 
+> ✅ **2026-09-11 落地记录（§9.2 怪物侧数据，动手前核实出三处偏差，按核实结果落地）**
+>
+> | 字段 | 核实结果 | 本批处置 |
+> |---|---|---|
+> | `elem_res` | 引擎按**标量**读（`landing.py` `float(elem_res)`）= 对**全部**元素统一抗性；「火抗 0.5、冰 0」这种**分系**需求它表达不了，且全抗对「逼玩家换系」是**反效果**（所有系一起变弱） | ❌ 未按字面配；改用**已实装**的 `element_weak` / `element_immune`（v178 E5 分系数据驱动，`landing.py:73-88`）——方向正确且已生效 |
+> | `immune_dots` | 引擎侧此前**无消费方**；且 `drops.build_monster` 的 mod→实例白名单**不含该字段** → 光接线数据仍进不来 | ✅ 两处都已补：引擎前置查询点（`effects.act_apply`，与 `cc_immune` 同款）+ `drops.py` 透传 |
+> | `dot_res` | 结算端**零读点**（`stats.py` 只按 role 赋值 boss 0.9 / elite 0.8 + 战报展示读）；Boss 的 DOT 折扣现由**数据侧** `period.pct_boss` 承担（如 `bleed`） | ⚠️ **本批不配**（配了不生效）。若接线则 DOT 流对 Boss 再砍 ×0.1（与 `pct_boss` 双重折扣）→ **列为裁定项**：`dot_res` 删字段，还是接线并撤 `pct_boss` |
+>
+> **已落地数据（9 个主题怪，最小集；方向与 §9.1 克制轴三角一致 火→冰→雷→火）**
+>
+> ```
+> 弱火（冰系怪，火克冰）  e_lake_lord 永冬湖主 · m_ice_elemental 冰元素      element_weak {"fire": 1.4}
+> 弱冰（雷系怪，冰克雷）  e_storm_lord 雷暴领主                            element_weak {"ice": 1.4}
+> 弱雷（火系怪，雷克火）  b_ember_lord 烬火领主(BOSS) · e_red_dragon_lord 赤龙领主   element_weak {"thunder": 1.4}
+> 免灼烧（火/熔岩本体）   b_ember_lord · e_lava_golem 熔岩魔像 · e_molten_lord 熔火领主   immune_dots ["burn"]
+> 免毒（无机/高防傀儡）   m_obsidian_golem 黑曜石魔像 · m_meteor_golem 陨星魔像(def×1.45)  immune_dots ["poison"]
+> ```
+>
+> 免灼烧/免毒**只免 DOT 类型、不免直伤**，且毒刃线仍有出口：`corros`（腐蚀真伤轴）不受 `immune_dots: ["poison"]` 影响 → §9.2「腐蚀才是唯一解」的设计闭环成立（已有测试证明）。
+> 另：熔岩系另给 `element_weak {"ice": 1.4}`（岩浆遇冰骤凝），与「免灼烧」并存 = 火系直伤照打、冰系增伤。
+> 验收：`tests/test_v181_batch_b_resist_data.py` **33/33**（含数据通道白名单、端到端弱点增伤 ×1.4、免疫拦截、克制轴方向一致性）。
+
 ### 9.3 DOT 结算（毒/灼烧/流血/腐蚀）
 
 ```
@@ -1358,11 +1380,17 @@ corros（腐蚀）→ true_dmg 分支，绕过 def/mdef（但不豁免目标异�
 - [x] `audit_v153.py` 固化进 CI（准入门槛）——✅ 2026-09-11 落地为数值门禁 **`tests/test_numeric_v153_audit.py`**
       （6 断言：退出码 0 / 总告警 = 0 / 16 段齐全 / 无 ⚠ 段 / 技能条目数 ≥ 294；已用篡改副本反证「会变红」——
       `audit_v153.py` 自身 rc 恒为 0，退出码由本门禁补）
-- [ ] **怪物侧 `elem_res` / `dot_res` / `immune_dots` 数据补录（§9.2）——仍开放**：
-      实测 `game/data/monsters.py`（124 条 `name` / 206 个怪物键）三字段命中 **dot_res 0 · elem_res 0 · immune_dots 0**
-      （仅 1 处 `abyss_res`），与 §9.2「火焰怪 `elem_res` 火 0.5／冰 0 · 免疫怪 `immune_dots:["burn"]` · 高防 Boss `immune_dots:["poison"]`」不符。
-      该数据是**元素克制/反应轴**（`game/services/battle_element_procs.py`）与 **DOT 真伤轴**的对侧抓手：
-      缺它则「换系打」没有收益差、「毒刃线破高防」没有存在理由。改动摇动战斗平衡，**须配数值门禁 + 先定口径**。
+- [x] **怪物侧抗性/免疫数据（§9.2）——2026-09-11 已落地（按核实结果，非字面）**：
+      9 个主题怪：`element_weak` 分系弱点（冰怪弱火／雷怪弱冰／火怪弱雷，与 §9.1 克制轴一致）+ 
+      `immune_dots`（火/熔岩本体免灼烧、无机高防傀儡免毒）。命中的字段由 `drops.build_monster` 白名单透传（本批补 `immune_dots`）。
+      详见 §9.2 的「落地记录」表 + `tests/test_v181_batch_b_resist_data.py`（33/33）。
+- [ ] **裁定项：`dot_res` 去留**（§9.2「落地记录」已登记）——结算端无读点，Boss DOT 折扣现由数据侧 `period.pct_boss` 承担；
+      接线会让 DOT 流对 Boss 双重折扣（×0.1）。二选一：**删 `dot_res` 字段**（承认 `pct_boss` 是唯一通道），
+      或**接线并撤 `pct_boss`**（统一到 dot_res 一轴）。
+- [ ] **`elem_res` 分系支持**（如确有需求）——现为标量（全元素统一抗性）；若将来要「同怪对不同元素不同抗性」，
+      需改成 dict 读法（`element_weak` 已能覆盖大部分场景，非必需）。
+- [ ] **`DOT_BOSS_PCT_MULT` 模拟器/引擎不一致**——`scripts/numeric_lib/player.py` 按 Boss 百分比部分 ×0.5 建模，
+      但**引擎不读该常数**（`schedule.py` 只读 `period.pct_boss`）→ 数值门禁算出的 DOT 与实机不符，须定以哪边为准。
 
 ---
 

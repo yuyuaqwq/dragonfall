@@ -183,6 +183,8 @@ MONSTER_MODS = {
     },
     "m_ice_elemental": {  # 旧 m_snow_wraith 雪魅
         "matk_mult": 1.25, "spd_mult": 1.20,
+        # v181 批B §9.2：冰元素弱火（§9.1 克制轴 火克冰）。
+        "element_weak": {"fire": 1.4},
         "desc": "冰元素：御风而行，法术寒意刺骨",
     },
     # ---------- 风暴 ----------
@@ -206,6 +208,8 @@ MONSTER_MODS = {
     # ---------- 秘银/星辉 ----------
     "m_meteor_golem": {  # 旧 m_mithril_golem 秘银魔像
         "def_mult": 1.45, "atk_mult": 0.85, "spd_mult": 0.60,
+        # v181 批B §9.2：高防重甲傀儡（def×1.45）免疫毒 —— 逼走腐蚀真伤 / 物理破防。
+        "immune_dots": ["poison"],
         "desc": "陨星魔像：刀枪不入的重甲傀儡",
     },
     "e_rune_golem": {  # 旧 m_runebound_knight 符文骑士
@@ -400,6 +404,8 @@ MONSTER_MODS = {
     },
     "m_obsidian_golem": {  # 旧 m_void_colossus 裂隙巨像
         "hp_mult": 1.45, "atk_mult": 1.10, "spd_mult": 0.70,
+        # v181 批B §9.2：无机造物免疫毒（毒刃线须走「腐蚀」真伤轴）。
+        "immune_dots": ["poison"],
         "desc": "黑曜石魔像：虚空造物，迟钝而恐怖",
     },
     # ================= v125.1 P2 补登（boss/elite 裸奔审计） =================
@@ -490,6 +496,9 @@ MONSTER_MODS = {
     },
     "e_lava_golem": {
         "hp_mult": 1.20, "atk_mult": 1.10,
+        # v181 批B §9.2：熔岩本体免疫灼烧；岩浆遇冰骤凝 → 弱冰。
+        "element_weak": {"ice": 1.4},
+        "immune_dots": ["burn"],
         "desc": "熔岩魔像：滚烫岩躯，重拳如锤",
     },
     "e_royal_guard": {
@@ -631,6 +640,8 @@ MONSTER_MODS = {
     },
     "e_lake_lord": {
         "matk_mult": 1.15, "hp_mult": 1.10,
+        # v181 批B §9.2：冰属性本体弱火（§9.1 克制轴 火克冰）。
+        "element_weak": {"fire": 1.4},
         "desc": "永冬湖主·冰瞳：冰术深沉，冻气逼人",
     },
     "e_dark_leech": {
@@ -651,6 +662,9 @@ MONSTER_MODS = {
     },
     "e_molten_lord": {
         "matk_mult": 1.15, "hp_mult": 1.10,
+        # v181 批B §9.2：熔火之躯免疫灼烧；弱冰。
+        "element_weak": {"ice": 1.4},
+        "immune_dots": ["burn"],
         "desc": "熔火领主·烬核：岩浆在胸腔翻涌",
     },
     "e_ash_champion": {
@@ -663,6 +677,8 @@ MONSTER_MODS = {
     },
     "e_red_dragon_lord": {
         "matk_mult": 1.15, "atk_mult": 1.05,
+        # v181 批B §9.2：龙息火属 → 弱雷（§9.1 克制轴 雷克火）。
+        "element_weak": {"thunder": 1.4},
         "desc": "赤龙领主·烬翼：龙息焚天，爪裂山岩",
     },
     "e_magma_king": {
@@ -687,6 +703,8 @@ MONSTER_MODS = {
     },
     "e_storm_lord": {
         "matk_mult": 1.15, "hp_mult": 1.10,
+        # v181 批B §9.2：雷属性本体弱冰（§9.1 克制轴 冰克雷）。
+        "element_weak": {"ice": 1.4},
         "desc": "雷暴领主·雷霆：雷云随身，术法轰鸣",
     },
     "e_star_dragon": {
@@ -696,6 +714,10 @@ MONSTER_MODS = {
     # ---------- 野外 Boss（无副本 mech 覆盖，v125.1 P2 补登） ----------
     "b_ember_lord": {
         "hp_mult": 1.20, "atk_mult": 1.10, "matk_mult": 1.10,
+        # v181 批B §9.2：火属性本体免疫灼烧（狂战线「灼烧清算」须换手）；
+        #   弱雷 — §9.1 克制轴三角（雷克火）。
+        "element_weak": {"thunder": 1.4},
+        "immune_dots": ["burn"],
         "desc": "烬火领主·伊格尼斯：烬山之心，烈焰不熄",
     },
     "b_lost_archivist": {

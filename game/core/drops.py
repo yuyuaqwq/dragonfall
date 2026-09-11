@@ -461,6 +461,10 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
         # _boss_dmg_filter 已支持读 enemy dict 字段——此前不透传导致 MONSTER_MODS 配了不生效）
         "element_immune": list(mod.get("element_immune") or []),
         "element_weak": dict(mod.get("element_weak") or {}),
+        # v181 批B（§9.2）：异常免疫名单透传 —— 引擎 effects.act_apply 前置查询点消费
+        #（DOT 类状态 period.dir=damage 落地前查名单）。此前不在白名单 → MONSTER_MODS 配了
+        # 也传不到实例（「接了引擎、数据仍进不来」的多通道坑）。
+        "immune_dots": list(mod.get("immune_dots") or []),
         "dmg_taken_mult": float(mod.get("dmg_taken_mult", 1.0) or 1.0),
         # v180-B actor 化（怪扮职业/新 actor 扩展）：MONSTER_MODS 可配
         #   class_name（职业 id，如 cls_mu_shi——面板走玩家全公式，吃被动/资源/装备）
