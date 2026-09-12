@@ -379,7 +379,7 @@ class InstanceRouterCmds(CommandBase):
                         _st_final = st
                     async for _r in self._instance_victory(
                             event, group_id, qq_id, player, _st_final,
-                            logs + [f"👑 副本 Boss 已被击败！"]):
+                            logs + [T.static("instance.面板_中心_击败Boss")]):
                         yield _r
                     return
                 map_view = self._instance_map_view(st, group_id)

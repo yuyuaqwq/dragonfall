@@ -308,7 +308,7 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
     from ..content_rules.skills import skill_info
     st_battle = st.get("battle") or {}
     if not st_battle.get("sides"):
-        return ["战斗状态异常，请重新遭遇！"], True, None
+        return [T.static("instance.结算_战斗异常")], True, None
     b = B2.from_state(st_battle)
     # I3：from_state 后注入道具行动回调 + 5b target_picker（action_override/
     # target_picker 不可序列化，恢复必重挂——副本自动怪选目标、道具行动都靠它们）
@@ -327,7 +327,7 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
     if my is None:
         my = player_actor_of(st, qq_id)
     if my is None:
-        return ["你已不在战斗中（状态异常）！"], True, None
+        return [T.static("instance.面板_战斗_不在")], True, None
     _tgt = target
     # 目标解析：saintess_engine 引擎只吃 actor dict（字符串会崩）——名字/编号在此翻译。
     # 支持：None=自动 / actor dict 直传 / 字符串=敌名（前缀匹配，v2 多怪指定）

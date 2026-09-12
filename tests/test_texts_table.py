@@ -29,6 +29,16 @@
       两处调用都引用了未定义名 `qq_id`（`_instance_map_view(self, st, group_id)` 签名里没有它）⇒
       走到就是 NameError，属**既有缺陷**（本批只搬字、不动缺陷，故只由模板骨架层覆盖）
 
+  · 副本面板域（`game/commands/instance.py` + `instance_battle.py` + `instance_router.py` 的
+    面板/列表/地图/状态/引导/错误提示句壳）：本文件 `INSTANCE_PANEL_FROZEN` —— 31 个分支
+    （开本单人/多人/战斗模式/名字不存在、加入战斗、不在副本、战斗中守卫、24h 过期、深入四拦截与清层推进、
+    副本地图分层、调查空参数/未命中/已处理、探索通关后/rooms 四态/旧层两态/遇怪Boss、
+    撤退全流程、恢复进度与离开、非队长移动、通关超时离开、暗格/宝箱五档、调查点四档与空/零碎、
+    战斗态异常两态、Boss 房房间怪击杀通关）在**迁移前**真跑存下的完整输出，每次跑测试复跑比对（每分支 clean_db +
+    固定 random.seed，需要处打桩 random.random；宝箱五档用固定 seed 定向各档，调查点空/零碎
+    临时改写 C.INVESTIGATION_POINTS 后还原）；另有 `INSTANCE_PANEL_OLD_LITERALS` ——
+    迁移前内联句壳片段（= 表值去槽位后的实体片段），三份源文件里一句都不许再出现
+
 跑法：python tests/test_texts_table.py（exit=0 通过）
 """
 import ast
@@ -638,8 +648,8 @@ def t1_table_selfcheck():
           not [s.key for s in tb if not s.category], [s.key for s in tb if not s.category][:5])
     check("key 无重复", len(tb.keys()) == len(set(tb.keys())))
     cats = sorted({s.category for s in tb})
-    check("category 取值符合预期（副本准入 / 副本日志 / 签到 / 周常 / 补给箱 / 每日任务）",
-          set(cats) == {"副本准入", "副本日志", "签到", "周常", "补给箱", "每日任务"}, cats)
+    check("category 取值符合预期（副本准入 / 副本日志 / 副本面板 / 签到 / 周常 / 补给箱 / 每日任务）",
+          set(cats) == {"副本准入", "副本日志", "副本面板", "签到", "周常", "补给箱", "每日任务"}, cats)
 
 
 def t2_key_and_params_accounting():
@@ -1513,6 +1523,978 @@ def t10_instance_log_frozen():
           not left, left[:4])
 
 
+# ═══════════════════════ PB_BRANCHES_BEGIN ═══════════════════════
+# ↓↓↓ 以下这段（含本行）与 $TEMP/df_panel_block.py 逐字同源：采快照脚本与门禁共用 ↓↓↓
+# -*- coding: utf-8 -*-
+"""副本面板/地图/状态域 —— 复跑分支块（★ 快照与门禁共用同一份驱动代码）。
+
+本块由两部分共同使用：
+  ① $TEMP/df_panel_snap.py（迁移前采快照 / 迁移后复跑比对）
+  ② tests/test_texts_table.py 的 t11 段（逐字拼入，勿手改分叉）
+所以本块**只依赖 conftest + game 包**，不打印、不写文件、不 assert。
+
+约定（与 INSTANCE_LOG_FROZEN 同款）：
+  · 每个分支自己 clean_db + 固定 random.seed；需要时打桩 random.random（进出还原）。
+  · 输出统一走 _pb_text()（把命令 yield 的多条拼成一段，逐字可比）。
+"""
+import asyncio  # noqa: E402
+import random   # noqa: E402
+
+from conftest import C as _PB_C, db as _PB_db, clean_db as _PB_clean   # noqa: E402
+from conftest import FakeEvent as _PB_Event, run as _PB_run            # noqa: E402
+from conftest import make_player as _PB_mk, Main as _PB_Main           # noqa: E402
+from data.plugins.dragonfall.game.core import instance_run as _PB_IR   # noqa: E402
+from data.plugins.dragonfall.game.commands import instance_battle as _PB_IB   # noqa: E402
+from data.plugins.dragonfall.game.commands.instance import InstanceCmds as _PB_Inst   # noqa: E402
+from data.plugins.dragonfall.game.commands.combat import CombatCmds as _PB_Combat     # noqa: E402
+from data.plugins.dragonfall.game.commands.world import WorldCmds as _PB_World        # noqa: E402
+from data.plugins.dragonfall.game.commands.economy import EconomyCmds as _PB_Economy  # noqa: E402
+
+_PB_GID = "g_panel"
+_PB_Q = "q_p"
+_PB_GOBLIN_ROOM = "goblin_camp_1"     # 哥布林营地入口房
+
+
+class _PBHost(_PB_Inst, _PB_Combat, _PB_World, _PB_Economy):
+    """副本面板快照宿主（InstanceCmds + CombatCmds 面板名表 + WorldCmds 地图视图
+    + EconomyCmds 副业等待查询 —— 与 Main 的 mixin 面等价，省一层命令注册）。"""
+
+
+# ── 驱动脚手架 ─────────────────────────────────────────────────────────
+def _pb_text(msgs):
+    return "\n".join(str(m) for m in msgs) if not isinstance(msgs, str) else msgs
+
+
+def _pb_run_sync(coro_or_agen):
+    """同步收一条 async 命令/生成器的全部 yield。"""
+    async def _c():
+        if hasattr(coro_or_agen, "asend"):
+            out = []
+            async for x in coro_or_agen:
+                out.append(x)
+            return out
+        return await coro_or_agen
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(_c())
+    finally:
+        loop.close()
+
+
+def _pb_cmd(m, handler, msg, qq=_PB_Q):
+    ev = _PB_Event(_PB_GID, qq, msg)
+    return _pb_text(_pb_run_sync(_PB_run(getattr(m, handler), ev)))
+
+
+def _pb_player(qid, name="甲", cls="战士", level=60, learned=None,
+               cur_map="misty_swamp", cur_subarea=_PB_GOBLIN_ROOM):
+    _PB_mk(_PB_GID, qid, name=name, cls=cls, level=level)
+    _PB_db.update_player(_PB_GID, qid, cur_map=cur_map, cur_subarea=cur_subarea,
+                         stamina=999999, learned_skills=list(learned or []))
+    return _PB_db.get_player(_PB_GID, qid)
+
+
+def _pb_snap(qid, name="甲", cls="cls_zhan_shi", level=60, hp=None, spd=30, mp=999):
+    pl = _PB_db.get_player(_PB_GID, qid) or {}
+    mh = int(pl.get("max_hp", 500) or 500)
+    return {"name": name, "qq_id": str(qid), "class_name": cls, "level": level,
+            "hp": int(hp if hp is not None else mh), "max_hp": mh, "mp": mp, "max_mp": mp,
+            "equipment": {}, "skills": [], "learned_skills": [],
+            "class_tier": 0, "evolve_path": 0, "attributes": pl.get("attributes"),
+            "bonus": {"panel": {}, "cap": {}, "cost": {}}, "race": pl.get("race"),
+            "uid": "p_%s" % qid, "buffs": {}, "stacks": {}, "defending": False,
+            "charging": None, "ct": 0.0, "p_shields": {}, "spd": spd}
+
+
+def _pb_enemy(hp=500, spd=1, role="dps", atk=1, uid="e_pb", name="房间怪", lv=15):
+    return {"uid": uid, "name": name, "hp": hp, "max_hp": hp, "atk": atk, "def": 0,
+            "matk": 1, "mdef": 0, "spd": spd, "crit": 0.0, "lv": lv, "level": lv,
+            "role": role, "is_boss": role == "boss", "is_elite": role == "elite",
+            "rank": 1, "reach": 1, "ct": 1.0, "exp": 10, "gold": 5, "drops": []}
+
+
+def _pb_st(qids, inst_id="inst_goblin_camp", names=None, **kw):
+    qids = [str(q) for q in qids]
+    names = names or {}
+    st = {"type": "instance", "inst_id": inst_id, "leader": qids[0], "members": qids,
+          "alive": {q: True for q in qids},
+          "players": {q: _pb_snap(q, names.get(q, "甲")) for q in qids},
+          "boss": None, "enemy": None, "enemies": [], "turn": 0, "round": 1,
+          "mode": "battle", "pets": {}, "p_buffs": {q: {} for q in qids},
+          "p_hot": {q: {} for q in qids}, "p_food_effects": {q: [] for q in qids},
+          "p_defending": {q: False for q in qids}, "mech_stacks": {q: {} for q in qids},
+          "now": 0.0, "battle": None, "contribution": {}, "threat": {q: 0 for q in qids},
+          "over": False, "turn_time": 0, "stage_pending": [], "inst_stages": [],
+          "stage_idx": 0, "stage_cleared": False, "world_id": ""}
+    st.update(kw)
+    return st
+
+
+def _pb_save(qid, st):
+    _PB_db.save_battle(_PB_GID, qid, st)
+    return st
+
+
+class _PBRR(object):
+    """random.random 打桩（进出还原）。"""
+
+    def __init__(self, value):
+        self.value = value
+
+    def __enter__(self):
+        self._orig = random.random
+        if self.value is not None:
+            random.random = lambda: self.value
+        return self
+
+    def __exit__(self, *exc):
+        random.random = self._orig
+        return False
+# ══════════════════════════════════════════════════════════════════════
+# 分支 1：开本面板（单人 / 多人队伍构成）
+# ══════════════════════════════════════════════════════════════════════
+def _pb_b1_open_solo():
+    """开本（单人·地图模式）：开启面板 + 层全景 + 单人挑战行 + 行动引导。"""
+    _PB_clean()
+    random.seed(20260914)
+    _pb_player(_PB_Q, "甲")
+    _PB_db.update_player(_PB_GID, _PB_Q, cur_map="misty_swamp", cur_subarea="misty_swamp_3")
+    return _pb_cmd(_PB_Main(None), "instance_cmd", "副本 哥布林营地")
+
+
+def _pb_b2_open_party():
+    """开本（2 人队·min_players>1）：队伍构成行 + 职业搭配提示行。"""
+    _PB_clean()
+    random.seed(20260914 + 2)
+    _pb_player("q_p2", "甲")
+    _pb_player("q_p3", "乙")
+    _PB_db.update_player(_PB_GID, "q_p2", cur_map="harbor_docks", cur_subarea="harbor_docks_2")
+    _PB_db.update_player(_PB_GID, "q_p3", cur_map="harbor_docks", cur_subarea="harbor_docks_2")
+    _PB_db.party_create(_PB_GID, "q_p2", "q_p3")
+    return _pb_cmd(_PB_Main(None), "instance_cmd", "副本 锈潮船坞", qq="q_p2")
+
+
+def _pb_b3_open_bad_name():
+    """开本（名字不存在）：『没有『X』这个副本』。"""
+    _PB_clean()
+    random.seed(20260914 + 3)
+    _pb_player(_PB_Q, "甲")
+    return _pb_cmd(_PB_Main(None), "instance_cmd", "副本 不存在的本")
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 分支 2：加入战斗
+# ══════════════════════════════════════════════════════════════════════
+def _pb_b4_join_leader_and_mate():
+    """加入战斗：队长视角（i_am_leader）+ 队员已在战斗中（自己锁）两行。"""
+    _PB_clean()
+    random.seed(20260914 + 4)
+    _pb_player("q_j1", "队长甲")
+    _pb_player("q_j2", "队员乙")
+    _PB_db.party_create(_PB_GID, "q_j1", "q_j2")
+    st = _pb_st(["q_j1"], names={"q_j1": "队长甲"},
+                enemies=[_pb_enemy(hp=500, spd=1)], mode="battle")
+    st["boss"] = st["enemy"] = st["enemies"][0]
+    _pb_save("q_j1", st)
+    inst = _PBHost()
+    inst._lock_battle(_PB_GID, "q_j1")
+    inst._lock_battle(_PB_GID, "q_j2")
+    out1 = _pb_cmd(inst, "join_battle", "加入战斗", qq="q_j1")
+    out2 = _pb_cmd(inst, "join_battle", "加入战斗", qq="q_j2")
+    inst._unlock_battle(_PB_GID, "q_j2")
+    return out1 + "\n@@@\n" + out2
+
+
+def _pb_b5_join_success():
+    """加入战斗成功：加入行 + 战斗面板 + 当前参战行。"""
+    _PB_clean()
+    random.seed(20260914 + 5)
+    _pb_player("q_j3", "队长甲")
+    _pb_player("q_j4", "队员乙")
+    _PB_db.party_create(_PB_GID, "q_j3", "q_j4")
+    st = _pb_st(["q_j3"], names={"q_j3": "队长甲"},
+                enemies=[_pb_enemy(hp=500, spd=1)], mode="battle")
+    st["boss"] = st["enemy"] = st["enemies"][0]
+    _pb_save("q_j3", st)
+    return _pb_cmd(_PBHost(), "join_battle", "加入战斗", qq="q_j4")
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 分支 3：不在副本 / 战斗中的守卫提示
+# ══════════════════════════════════════════════════════════════════════
+def _pb_b6_not_in_instance():
+    """不在副本（带列表引导）+ 不在副本（简）——深入/副本地图/调查/撤退/确认撤退/离开。"""
+    _PB_clean()
+    random.seed(20260914 + 6)
+    _pb_player(_PB_Q, "甲")
+    inst = _PBHost()
+    outs = [_pb_cmd(inst, "instance_advance", "深入"),
+            _pb_cmd(inst, "instance_map_view_cmd", "副本地图"),
+            _pb_cmd(inst, "instance_investigate", "调查 宝箱"),
+            _pb_cmd(inst, "instance_retreat", "撤退"),
+            _pb_cmd(inst, "instance_retreat_confirm", "确认撤退"),
+            _pb_cmd(inst, "instance_leave", "离开副本")]
+    return "\n@@@\n".join(outs)
+
+
+def _pb_b7_in_battle_guards():
+    """战斗中守卫：副本地图/调查/撤退(Boss)/撤退(非Boss)/离开 五条。"""
+    _PB_clean()
+    random.seed(20260914 + 7)
+    _pb_player(_PB_Q, "甲")
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"}, enemies=[_pb_enemy(hp=500, spd=1, role="boss")],
+                mode="battle")
+    st["boss"] = st["enemy"] = st["enemies"][0]
+    _pb_save(_PB_Q, st)
+    inst = _PBHost()
+    outs = [_pb_cmd(inst, "instance_map_view_cmd", "副本地图"),
+            _pb_cmd(inst, "instance_investigate", "调查 宝箱"),
+            _pb_cmd(inst, "instance_retreat", "撤退")]
+    st2 = _pb_st([_PB_Q], names={_PB_Q: "甲"}, enemies=[_pb_enemy(hp=500, spd=1)], mode="battle")
+    st2["boss"] = st2["enemy"] = st2["enemies"][0]
+    st2["enemies"][0]["is_boss"] = False
+    _pb_save(_PB_Q, st2)
+    outs.append(_pb_cmd(inst, "instance_retreat", "撤退"))
+    outs.append(_pb_cmd(inst, "instance_leave", "离开副本"))
+    return "\n@@@\n".join(outs)
+
+
+def _pb_b8_expired_hint():
+    """副本 24h 过期提示。"""
+    _PB_clean()
+    random.seed(20260914 + 8)
+    _pb_player(_PB_Q, "甲")
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"})
+    st["_expired"] = True
+    _pb_save(_PB_Q, st)
+    return _PBHost()._instance_expired_hint(_PB_GID, _PB_Q)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 分支 4：深入
+# ══════════════════════════════════════════════════════════════════════
+def _pb_b9_advance_room_mode():
+    """深入（rooms 副本）：提示『移动 <房间>』。"""
+    _PB_clean()
+    random.seed(20260914 + 9)
+    _pb_player(_PB_Q, "甲")
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                rooms={_PB_GOBLIN_ROOM: {"monsters_left": [], "pois_left": [],
+                                         "boss_alive": False}},
+                mode="map")
+    _pb_save(_PB_Q, st)
+    return _pb_cmd(_PBHost(), "instance_advance", "深入")
+
+
+def _pb_b10_advance_blocked():
+    """深入：未清层（探索引导 / 先打完）、已通关、无分层、末层 四条。"""
+    _PB_clean()
+    random.seed(20260914 + 10)
+    _pb_player(_PB_Q, "甲")
+    inst = _PBHost()
+    # 未清层 + 尚有未遭遇怪 → 引导『探索』
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                inst_stages=[{"name": "一层"}, {"name": "二层"}],
+                stage_pending=[["m_x", "小怪", "dps", 15, [], []]], mode="map")
+    _pb_save(_PB_Q, st)
+    outs = [_pb_cmd(inst, "instance_advance", "深入")]
+    # 未清层 + 无待清怪 → 先打完再说
+    st2 = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                 inst_stages=[{"name": "一层"}, {"name": "二层"}], mode="map")
+    _pb_save(_PB_Q, st2)
+    outs.append(_pb_cmd(inst, "instance_advance", "深入"))
+    # 已通关
+    st3 = _pb_st([_PB_Q], names={_PB_Q: "甲"}, cleared=True, mode="map")
+    _pb_save(_PB_Q, st3)
+    outs.append(_pb_cmd(inst, "instance_advance", "深入"))
+    # 无分层结构
+    st4 = _pb_st([_PB_Q], names={_PB_Q: "甲"}, mode="map")
+    _pb_save(_PB_Q, st4)
+    outs.append(_pb_cmd(inst, "instance_advance", "深入"))
+    # 末层
+    st5 = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                 inst_stages=[{"name": "一层"}], stage_idx=0, stage_cleared=True, mode="map")
+    _pb_save(_PB_Q, st5)
+    outs.append(_pb_cmd(inst, "instance_advance", "深入"))
+    return "\n@@@\n".join(outs)
+
+
+def _pb_b11_advance_next_stage():
+    """深入（清层推进）：地图模式继续深入 + 战斗模式层行/面板/轮到行。"""
+    _PB_clean()
+    random.seed(20260914 + 11)
+    _pb_player(_PB_Q, "甲")
+    inst = _PBHost()
+    # 下一层有怪 → mode=map → 继续深入 + 层全景
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                inst_stages=[{"name": "一层", "monsters": [["m_x", "小怪", "dps", 15, [], []]]},
+                             {"name": "二层", "monsters": [["m_y", "小怪2", "dps", 15, [], []]]}],
+                stage_idx=0, stage_cleared=True, mode="map")
+    _pb_save(_PB_Q, st)
+    out1 = _pb_cmd(inst, "instance_advance", "深入")
+    # 下一层无怪（不切地图模式）→ 层行 + 面板 + 轮到行
+    st2 = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                 inst_stages=[{"name": "一层", "monsters": [["m_x", "小怪", "dps", 15, [], []]]},
+                              {"name": "二层"}],
+                 stage_idx=0, stage_cleared=True, mode="battle",
+                 enemies=[_pb_enemy(hp=500, spd=1)])
+    st2["boss"] = st2["enemy"] = st2["enemies"][0]
+    _pb_save(_PB_Q, st2)
+    out2 = _pb_cmd(inst, "instance_advance", "深入")
+    return out1 + "\n@@@\n" + out2
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 分支 5：地图（分层形态：精英标注）
+# ══════════════════════════════════════════════════════════════════════
+def _pb_b12_map_stage_elite():
+    """分层地图：怪名 + ⭐精英· 标注（敌人列表行）。"""
+    _PB_clean()
+    random.seed(20260914 + 12)
+    _pb_player(_PB_Q, "甲")
+    host = _PBHost()
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                inst_stages=[{"name": "一层", "desc": "石廊尽头有风。",
+                              "monsters": [["m_goblin_guard", "哥布林守卫", "tank", 15, [], []]],
+                              "elite": ["m_elite", "哥布林督军", "elite", 17, [], []]}],
+                stage_idx=0, mode="map")
+    st.pop("resources_pool", None)
+    _pb_save(_PB_Q, st)
+    return host._instance_map_view(st, _PB_GID)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 分支 6：调查（空参数 / 未命中 / 已处理）
+# ══════════════════════════════════════════════════════════════════════
+def _pb_b13_investigate_miss():
+    """调查：空参数格式提示 + 未命中目标。"""
+    _PB_clean()
+    random.seed(20260914 + 13)
+    _pb_player(_PB_Q, "甲")
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                rooms={_PB_GOBLIN_ROOM: {"monsters_left": [], "pois_left": [],
+                                         "boss_alive": False}},
+                mode="map")
+    _pb_save(_PB_Q, st)
+    inst = _PBHost()
+    out1 = _pb_cmd(inst, "instance_investigate", "调查")
+    out2 = _pb_cmd(inst, "instance_investigate", "调查 不存在的东西")
+    return out1 + "\n@@@\n" + out2
+
+
+def _pb_b14_investigate_used():
+    """调查（层内 POI 已用过）：『X已经被处理过了。』。"""
+    _PB_clean()
+    random.seed(20260914 + 14)
+    _pb_player(_PB_Q, "甲")
+    poi = {"id": "p_used", "name": "旧石碑", "type": "shrine"}
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                inst_stages=[{"name": "一层", "pois": [poi]}],
+                stage_idx=0, stage_pois={"0": {"p_used": {"used": True}}}, mode="map")
+    _pb_save(_PB_Q, st)
+    return _pb_cmd(_PBHost(), "instance_investigate", "调查 旧石碑")
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 分支 7：探索（通关后 / 肃清 / 遇怪 / 无事 / POI / 陷阱）
+# ══════════════════════════════════════════════════════════════════════
+def _pb_b15_explore_cleared():
+    """探索：已通关 → 引导搜刮/离开。"""
+    _PB_clean()
+    random.seed(20260914 + 15)
+    _pb_player(_PB_Q, "甲")
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"}, cleared=True, mode="map")
+    _pb_save(_PB_Q, st)
+    return _pb_text(_pb_run_sync(_PBHost()._instance_explore(
+        _PB_Event(_PB_GID, _PB_Q), _PB_GID, _PB_Q, {"state": st})))
+
+
+def _pb_b16_explore_rooms_three():
+    """探索（rooms）：此房已肃清 / 遇怪（进战斗面板）/ 未发现你 / POI 搜索 四态。"""
+    _PB_clean()
+    random.seed(20260914 + 16)
+    _pb_player(_PB_Q, "甲")
+    host = _PBHost()
+    outs = []
+    # ③ 无怪可遇
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                rooms={_PB_GOBLIN_ROOM: {"monsters_left": [], "pois_left": [],
+                                         "boss_alive": False}},
+                resources_pool={"gold_left": 30, "mats_left": {"兽肉": 2}}, mode="map")
+    _pb_save(_PB_Q, st)
+    outs.append(_pb_text(_pb_run_sync(host._instance_explore(
+        _PB_Event(_PB_GID, _PB_Q), _PB_GID, _PB_Q, {"state": st}))))
+    # ② 遇怪（pois_left 空 → 必过 POI 分支；random 打 0.0 → 命中遇怪）
+    st2 = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                 rooms={_PB_GOBLIN_ROOM: {"monsters_left":
+                                          [["m_goblin_guard", "哥布林守卫", "tank", 15, [], []]],
+                                          "pois_left": [], "boss_alive": False}},
+                 mode="map")
+    _pb_save(_PB_Q, st2)
+    with _PBRR(0.0):
+        outs.append(_pb_text(_pb_run_sync(host._instance_explore(
+            _PB_Event(_PB_GID, _PB_Q), _PB_GID, _PB_Q, {"state": st2}))))
+    # ② 未发现你（random 打 0.99 → 未过遇怪判定）
+    st3 = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                 rooms={_PB_GOBLIN_ROOM: {"monsters_left":
+                                          [["m_goblin_guard", "哥布林守卫", "tank", 15, [], []]],
+                                          "pois_left": [], "boss_alive": False}},
+                 mode="map")
+    _pb_save(_PB_Q, st3)
+    with _PBRR(0.99):
+        outs.append(_pb_text(_pb_run_sync(host._instance_explore(
+            _PB_Event(_PB_GID, _PB_Q), _PB_GID, _PB_Q, {"state": st3}))))
+    # ① POI 搜索（pois_left 有物 + random 0.0）
+    _poi_id = (_PB_C.subarea_pois("goblin_camp", _PB_GOBLIN_ROOM) or [None])[0]
+    st4 = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                 rooms={_PB_GOBLIN_ROOM: {"monsters_left": [], "pois_left": [_poi_id],
+                                          "boss_alive": False}},
+                 resources_pool={"gold_left": 30, "mats_left": {}}, mode="map")
+    _pb_save(_PB_Q, st4)
+    with _PBRR(0.0):
+        outs.append(_pb_text(_pb_run_sync(host._instance_explore(
+            _PB_Event(_PB_GID, _PB_Q), _PB_GID, _PB_Q, {"state": st4}))))
+    return "\n@@@\n".join(outs)
+
+
+def _pb_b17_explore_stage_paths():
+    """探索（旧 stages 路径）：无怪无事 / 陷阱踩中 两态。"""
+    _PB_clean()
+    random.seed(20260914 + 17)
+    _pb_player(_PB_Q, "甲")
+    host = _PBHost()
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                inst_stages=[{"name": "一层", "pois": []}], stage_idx=0, mode="map")
+    _pb_save(_PB_Q, st)
+    out1 = _pb_text(_pb_run_sync(host._instance_explore(
+        _PB_Event(_PB_GID, _PB_Q), _PB_GID, _PB_Q, {"state": st})))
+    trap = {"id": "p_trap", "name": "尖刺陷阱", "type": "trap"}
+    st2 = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                 inst_stages=[{"name": "一层", "pois": [trap]}], stage_idx=0, mode="map")
+    _pb_save(_PB_Q, st2)
+    with _PBRR(0.0):
+        out2 = _pb_text(_pb_run_sync(host._instance_explore(
+            _PB_Event(_PB_GID, _PB_Q), _PB_GID, _PB_Q, {"state": st2})))
+    return out1 + "\n@@@\n" + out2
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 分支 8：撤退 / 确认撤退 / 离开 / 移动
+# ══════════════════════════════════════════════════════════════════════
+def _pb_b18_retreat_flow():
+    """撤退流程：弹确认 + 已弹过确认 + 确认成功 + 无待确认 + 确认过期。"""
+    _PB_clean()
+    random.seed(20260914 + 18)
+    _pb_player(_PB_Q, "甲")
+    _PB_db.update_player(_PB_GID, _PB_Q, cur_map="misty_swamp", cur_subarea="misty_swamp_3")
+    m = _PB_Main(None)
+    outs = [_pb_cmd(m, "instance_cmd", "副本 哥布林营地")]
+    outs.append(_pb_cmd(m, "instance_retreat", "撤退"))          # 弹确认
+    outs.append(_pb_cmd(m, "instance_retreat", "撤退"))          # 已弹过
+    # 确认过期：把挂起确认改成本副本之外
+    import json as _json
+    _PB_db.set_event_state("retreat_confirm_%s" % _PB_Q,
+                           _json.dumps({"ts": 0, "inst": "inst_other"}))
+    outs.append(_pb_cmd(m, "instance_retreat_confirm", "确认撤退"))
+    # 无待确认
+    _PB_db.set_event_state("retreat_confirm_%s" % _PB_Q, "")
+    outs.append(_pb_cmd(m, "instance_retreat_confirm", "确认撤退"))
+    # 重新弹确认 → 确认成功（放弃进度）
+    outs.append(_pb_cmd(m, "instance_retreat", "撤退"))
+    outs.append(_pb_cmd(m, "instance_retreat_confirm", "确认撤退"))
+    return "\n@@@\n".join(outs)
+
+
+def _pb_b19_leave_and_resume():
+    """回到副本深处（撤退存进度 → 重新开本恢复）+ 离开副本。"""
+    _PB_clean()
+    random.seed(20260914 + 19)
+    _pb_player(_PB_Q, "甲")
+    _PB_db.update_player(_PB_GID, _PB_Q, cur_map="misty_swamp", cur_subarea="misty_swamp_3")
+    m = _PB_Main(None)
+    outs = [_pb_cmd(m, "instance_cmd", "副本 哥布林营地")]
+    # 恢复分支：把副本行标记为已撤退（保留进度）+ 解战斗锁后重新『副本 <名字>』
+    row = _PB_db.get_battle_raw(_PB_GID, _PB_Q)
+    st = row["state"]
+    st["retreated"] = True
+    st["mode"] = "map"
+    st["_expired"] = False
+    _pb_save(_PB_Q, st)
+    m._unlock_battle(_PB_GID, _PB_Q)
+    _PB_db.update_player(_PB_GID, _PB_Q, cur_map="misty_swamp", cur_subarea="misty_swamp_3")
+    outs.append(_pb_cmd(m, "instance_cmd", "副本 哥布林营地"))
+    outs.append(_pb_cmd(m, "instance_leave", "离开副本"))
+    return "\n@@@\n".join(outs)
+
+
+def _pb_b20_move_not_leader():
+    """副本内移动：非队长提示。"""
+    _PB_clean()
+    random.seed(20260914 + 20)
+    _pb_player("q_m1", "队长甲")
+    _pb_player("q_m2", "队员乙")
+    _PB_db.update_player(_PB_GID, "q_m1", cur_map="misty_swamp", cur_subarea="misty_swamp_3")
+    _PB_db.update_player(_PB_GID, "q_m2", cur_map="misty_swamp", cur_subarea="misty_swamp_3")
+    _PB_db.party_create(_PB_GID, "q_m1", "q_m2")
+    m = _PB_Main(None)
+    _pb_cmd(m, "instance_cmd", "副本 哥布林营地", qq="q_m1")
+    inst = m
+    pl2 = _PB_db.get_player(_PB_GID, "q_m2")
+    return _pb_text(_pb_run_sync(inst._instance_move_route(
+        _PB_Event(_PB_GID, "q_m2"), _PB_GID, "q_m2", pl2, "入口栅栏")))
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 分支 9：通关超时自动离开
+# ══════════════════════════════════════════════════════════════════════
+def _pb_b21_cleared_timeout():
+    """通关停留超 30 分钟 → 自动离开提示。"""
+    _PB_clean()
+    random.seed(20260914 + 21)
+    _pb_player(_PB_Q, "甲")
+    _PB_db.update_player(_PB_GID, _PB_Q, cur_map="misty_swamp", cur_subarea="misty_swamp_3")
+    m = _PB_Main(None)
+    _pb_cmd(m, "instance_cmd", "副本 哥布林营地")
+    row = _PB_db.get_battle(_PB_GID, _PB_Q)
+    st = row["state"]
+    st["cleared"] = True
+    st["cleared_time"] = 1
+    _pb_save(_PB_Q, st)
+    return _pb_cmd(m, "instance_cmd", "副本")
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 分支 10：暗格 / 宝箱
+# ══════════════════════════════════════════════════════════════════════
+def _pb_b22_secret_crack():
+    """暗格：死墙（无守卫）+ 拉开门（守卫战面板）。"""
+    _PB_clean()
+    random.seed(20260914 + 22)
+    _pb_player(_PB_Q, "甲")
+    host = _PBHost()
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"}, inst_stages=[{"name": "一层"}],
+                stage_idx=0, mode="map")
+    _pb_save(_PB_Q, st)
+    out1 = host._instance_secret_crack(_PB_GID, _PB_Q, _PB_db.get_player(_PB_GID, _PB_Q), st)
+    st2 = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                 inst_stages=[{"name": "一层",
+                               "monsters": [["m_goblin_guard", "哥布林守卫", "tank", 15, [], []]]}],
+                 stage_idx=0, mode="map")
+    _pb_save(_PB_Q, st2)
+    out2 = host._instance_secret_crack(_PB_GID, _PB_Q, _PB_db.get_player(_PB_GID, _PB_Q), st2)
+    return out1 + "\n@@@\n" + out2
+
+
+def _pb_b23_secret_chest():
+    """密室宝箱开启（掉落走 drop_engine，seed 固定）。"""
+    _PB_clean()
+    random.seed(20260914 + 23)
+    _pb_player(_PB_Q, "甲")
+    host = _PBHost()
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"}, secret_chest=True, mode="map")
+    _pb_save(_PB_Q, st)
+    return host._instance_secret_chest(_PB_GID, _PB_Q, _PB_db.get_player(_PB_GID, _PB_Q), st)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 分支 11：通关后调查点（四档奖励）
+# ══════════════════════════════════════════════════════════════════════
+def _pb_b24_investigate_reward():
+    """调查点：收藏 / 图纸残页 / 保底材料 / 蓝符 四档 + 空结果。"""
+    outs = []
+    # 收藏（random 0.0 < collect 0.03）
+    _PB_clean()
+    random.seed(20260914 + 24)
+    _pb_player(_PB_Q, "甲")
+    host = _PBHost()
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"}, cleared=True, mode="map")
+    _pb_save(_PB_Q, st)
+    with _PBRR(0.0):
+        outs.append(host._instance_investigate_cleared(
+            _PB_GID, _PB_Q, _PB_db.get_player(_PB_GID, _PB_Q), st, "酋长的战利品堆"))
+    # 图纸残页（0.03 ≤ r < 0.28）
+    _PB_clean()
+    random.seed(20260914 + 25)
+    _pb_player(_PB_Q, "甲")
+    st2 = _pb_st([_PB_Q], names={_PB_Q: "甲"}, cleared=True, mode="map")
+    _pb_save(_PB_Q, st2)
+    with _PBRR(0.10):
+        outs.append(host._instance_investigate_cleared(
+            _PB_GID, _PB_Q, _PB_db.get_player(_PB_GID, _PB_Q), st2, "劫掠清单"))
+    # 保底材料（r ≥ 0.28）
+    _PB_clean()
+    random.seed(20260914 + 26)
+    _pb_player(_PB_Q, "甲")
+    st3 = _pb_st([_PB_Q], names={_PB_Q: "甲"}, cleared=True, mode="map")
+    _pb_save(_PB_Q, st3)
+    with _PBRR(0.90):
+        outs.append(host._instance_investigate_cleared(
+            _PB_GID, _PB_Q, _PB_db.get_player(_PB_GID, _PB_Q), st3, "篝火余烬"))
+    # 蓝符（Lv.60+ 副本，0.03 ≤ r < 0.18）
+    _PB_clean()
+    random.seed(20260914 + 27)
+    _pb_player(_PB_Q, "甲")
+    st4 = _pb_st([_PB_Q], names={_PB_Q: "甲"}, inst_id="inst_moon_temple",
+                 cleared=True, mode="map")
+    _pb_save(_PB_Q, st4)
+    with _PBRR(0.04):
+        outs.append(host._instance_investigate_cleared(
+            _PB_GID, _PB_Q, _PB_db.get_player(_PB_GID, _PB_Q), st4, "月池"))
+    return "\n@@@\n".join(str(o) for o in outs)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════
+# 分支 12：加入战斗无角色 / 旧层探索遇怪（Boss 台词行）/ 战斗状态异常两态
+# ══════════════════════════════════════════════════════════════════════
+def _pb_b25_join_no_char():
+    """加入战斗：还没有角色（剥掉 @require_player 守卫，直接跑命令体）。"""
+    _PB_clean()
+    random.seed(20260914 + 25)
+    inst = _PBHost()
+    fn = getattr(inst, "join_battle")
+    while hasattr(fn, "__wrapped__"):
+        fn = fn.__wrapped__
+    return _pb_text(_pb_run_sync(fn(inst, _PB_Event(_PB_GID, "q_none", "加入战斗"))))
+
+
+def _pb_b26_explore_stage_boss():
+    """探索（旧 stages 路径）：遇怪 + Boss 台词行 + 面板 + 轮到行。"""
+    _PB_clean()
+    random.seed(20260914 + 26)
+    _pb_player(_PB_Q, "甲")
+    host = _PBHost()
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"},
+                inst_stages=[{"name": "一层", "monsters": [["m_x", "小怪", "dps", 15, [], []]]}],
+                stage_pending=[["m_boss", "哥布林督军", "boss", 15, [], []]], mode="map")
+    _pb_save(_PB_Q, st)
+    return _pb_text(_pb_run_sync(host._instance_explore(
+        _PB_Event(_PB_GID, _PB_Q), _PB_GID, _PB_Q, {"state": st})))
+
+
+def _pb_b27_act_state_error():
+    """instance_battle.act：无 battle sides / 行动者不在阵列 两态。"""
+    _PB_clean()
+    random.seed(20260914 + 27)
+    _pb_player(_PB_Q, "甲")
+    outs = [_pb_text(_PB_IB.act({"battle": {}}, _PB_GID, _PB_Q, "attack")[0])]
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"}, enemies=[_pb_enemy()], mode="battle")
+    st["boss"] = st["enemy"] = st["enemies"][0]
+    _PB_IB.build_battle(st)
+    outs.append(_pb_text(_PB_IB.act(st, _PB_GID, "q_ghost", "attack")[0]))
+    return "\n@@@\n".join(outs)
+
+
+def _pb_b28_secret_chest_all():
+    """密室宝箱五档：宠物蛋 / 图纸残页 / 装备 / 材料 / 符文（各自 seed 固定）。"""
+    outs = []
+    for seed in (20260914 + 102, 20260914 + 101, 20260914 + 107,
+                 20260914 + 105, 20260914 + 106):
+        _PB_clean()
+        random.seed(seed)
+        _pb_player(_PB_Q, "甲")
+        host = _PBHost()
+        st = _pb_st([_PB_Q], names={_PB_Q: "甲"}, secret_chest=True, mode="map")
+        _pb_save(_PB_Q, st)
+        outs.append(host._instance_secret_chest(
+            _PB_GID, _PB_Q, _PB_db.get_player(_PB_GID, _PB_Q), st))
+    return "\n@@@\n".join(outs)
+
+
+def _pb_b29_investigate_empty():
+    """调查点：奖励空结果（收藏档池无效）→『空空如也』；材料档无效 →『一点零碎』兜底。"""
+    host = _PBHost()
+    outs = []
+    _orig_pts = _PB_C.INVESTIGATION_POINTS
+    # ① 空结果：命中收藏档但收藏池无有效材料 → reward []
+    _PB_clean()
+    random.seed(20260914 + 29)
+    _pb_player(_PB_Q, "甲")
+    st = _pb_st([_PB_Q], names={_PB_Q: "甲"}, inst_id="inst_moon_temple",
+                cleared=True, mode="map")
+    _pb_save(_PB_Q, st)
+    _PB_C.INVESTIGATION_POINTS = {
+        "inst_moon_temple": [{"id": "p_void", "name": "月池", "collect": ["?none"]}]}
+    try:
+        with _PBRR(0.0):
+            outs.append(host._instance_investigate_cleared(
+                _PB_GID, _PB_Q, _PB_db.get_player(_PB_GID, _PB_Q), st, "月池"))
+    finally:
+        _PB_C.INVESTIGATION_POINTS = _orig_pts
+    # ② 零碎兜底：材料档命中但材料 ID 无效 → 末行兜底
+    _PB_clean()
+    random.seed(20260914 + 30)
+    _pb_player(_PB_Q, "甲")
+    st2 = _pb_st([_PB_Q], names={_PB_Q: "甲"}, inst_id="inst_moon_temple",
+                 cleared=True, mode="map")
+    _pb_save(_PB_Q, st2)
+    _PB_C.INVESTIGATION_POINTS = {
+        "inst_moon_temple": [{"id": "p_void2", "name": "月池", "materials": ["?bad"]}]}
+    try:
+        with _PBRR(0.90):
+            outs.append(host._instance_investigate_cleared(
+                _PB_GID, _PB_Q, _PB_db.get_player(_PB_GID, _PB_Q), st2, "月池"))
+    finally:
+        _PB_C.INVESTIGATION_POINTS = _orig_pts
+    return "\n@@@\n".join(str(o) for o in outs)
+
+
+def _pb_b30_open_battle_mode():
+    """开本（战斗模式·首层空层）：标题行 + CTB 提示行 + 层行（n=1）。"""
+    _PB_clean()
+    random.seed(20260914 + 31)
+    _pb_player(_PB_Q, "甲")
+    _PB_db.update_player(_PB_GID, _PB_Q, cur_map="misty_swamp", cur_subarea="misty_swamp_3")
+    _orig = _PB_C.INSTANCES["inst_goblin_camp"]
+    _copy = dict(_orig)
+    _copy["stages"] = [{"name": "一层"}]
+    _PB_C.INSTANCES["inst_goblin_camp"] = _copy
+    try:
+        return _pb_cmd(_PB_Main(None), "instance_cmd", "副本 哥布林营地")
+    finally:
+        _PB_C.INSTANCES["inst_goblin_camp"] = _orig
+
+
+def _pb_b31_boss_room_victory():
+    """Boss 房房间怪被击杀 → 通关结算（走 router 的 _room_boss 分支，含『Boss 已被击败』行）。"""
+    _PB_clean()
+    random.seed(20260914 + 40)
+    import time as _t
+    qid, cur_sa = "q_br", "goblin_camp_3"
+    st = _pb_st([qid], names={qid: "甲"}, mode="battle",
+                rooms={cur_sa: {"monsters_left": [], "pois_left": [],
+                                "boss_alive": True, "_is_boss": True}})
+    st["enemies"] = [_pb_enemy(hp=1, spd=1, role="boss", uid="e_boss", name="房间怪")]
+    st["boss"] = st["enemy"] = st["enemies"][0]
+    _PB_db.update_player(_PB_GID, qid, cur_map="misty_swamp", cur_subarea=cur_sa)
+    _PB_IB.build_battle(st)
+    host = _PBHost()
+    msgs = []
+    for _ in range(8):
+        st["turn_time"] = int(_t.time())
+        msgs += _pb_run_sync(host._instance_router(
+            _PB_Event(_PB_GID, qid), _PB_GID, qid, st["players"][qid], st,
+            "attack", None, None))
+        if st.get("cleared") or st.get("over") or not st.get("enemies"):
+            break
+    return _pb_text(msgs)
+
+
+_PB_BRANCHES = (
+    ("PB01_开本_单人地图模式", _pb_b1_open_solo),
+    ("PB02_开本_多人队伍构成", _pb_b2_open_party),
+    ("PB03_开本_名字不存在", _pb_b3_open_bad_name),
+    ("PB04_加入战斗_队长与队员", _pb_b4_join_leader_and_mate),
+    ("PB05_加入战斗_成功", _pb_b5_join_success),
+    ("PB06_不在副本_六提示", _pb_b6_not_in_instance),
+    ("PB07_战斗中守卫_五提示", _pb_b7_in_battle_guards),
+    ("PB08_副本过期提示", _pb_b8_expired_hint),
+    ("PB09_深入_房间模式", _pb_b9_advance_room_mode),
+    ("PB10_深入_四拦截", _pb_b10_advance_blocked),
+    ("PB11_深入_清层推进两形态", _pb_b11_advance_next_stage),
+    ("PB12_地图_分层精英标注", _pb_b12_map_stage_elite),
+    ("PB13_调查_空参数与未命中", _pb_b13_investigate_miss),
+    ("PB14_调查_已处理", _pb_b14_investigate_used),
+    ("PB15_探索_通关后", _pb_b15_explore_cleared),
+    ("PB16_探索_rooms四态", _pb_b16_explore_rooms_three),
+    ("PB17_探索_旧层路径两态", _pb_b17_explore_stage_paths),
+    ("PB18_撤退_全流程", _pb_b18_retreat_flow),
+    ("PB19_离开与恢复进度", _pb_b19_leave_and_resume),
+    ("PB20_移动_非队长", _pb_b20_move_not_leader),
+    ("PB21_通关超时离开", _pb_b21_cleared_timeout),
+    ("PB22_暗格_死墙与开门", _pb_b22_secret_crack),
+    ("PB23_宝箱_开启", _pb_b23_secret_chest),
+    ("PB24_调查点_四档奖励", _pb_b24_investigate_reward),
+    ("PB25_加入战斗_无角色", _pb_b25_join_no_char),
+    ("PB26_探索_旧层遇怪Boss", _pb_b26_explore_stage_boss),
+    ("PB27_战斗异常_两态", _pb_b27_act_state_error),
+    ("PB28_宝箱_五档", _pb_b28_secret_chest_all),
+    ("PB29_调查点_空与零碎", _pb_b29_investigate_empty),
+    ("PB30_开本_战斗模式", _pb_b30_open_battle_mode),
+    ("PB31_Boss房通关_击败行", _pb_b31_boss_room_victory),
+)
+
+
+def _pb_scenarios() -> dict:
+    """复跑全部副本面板/地图/状态分支（迁移前采快照 / 迁移后门禁比对，同一份驱动）。"""
+    out = {}
+    for name, fn in _PB_BRANCHES:
+        try:
+            out[name] = _pb_text(fn())
+        except Exception as exc:                       # 采集期诚实报错，不静默
+            out[name] = "<<EXC>> %s: %s" % (type(exc).__name__, exc)
+    return out
+
+INSTANCE_PANEL_FROZEN = {
+    'PB01_开本_单人地图模式': '👺 【哥布林营地】副本开启！你踏入了这片区域。\n━━━━━━━━━━━━\n🗺️ 【哥布林营地 · 入口栅栏】\n歪斜的木栅栏围出营地外围，兽皮晾在栏上，篝火堆散落四周。守卫在缺口处探头张望，臭味与叫嚷声扑面而来。\n━━━━━━━━━━━━\n📍 当前位置：入口栅栏\n📮 可前往：\n  ●1. 篝火营地\n  \n🔎 可探索触发：\n  ●📦 生锈的铁箱 ●🔥 将熄的篝火\n\n✨ 可交互场景：\n  ●1. 🪨 哥布林营地界碑\n\n🐾 此地的怪物 (Lv.15-16)：\n  哥布林守卫 Lv.15±1\n  哥布林萨满 Lv.16±1\n\n💡 想去哪？『前往 <地名>』直达\n━━━━━━━━━━━━\n🚪 副本内 · 无出口（没有通往外面的路）\n🐾 此房怪物剩余：哥布林守卫、哥布林萨满（『探索』高概率遭遇）\n🔎 此房可调查：生锈的铁箱、将熄的篝火(『调查 <名称>』)\n💰 副本资源池剩余：424 金币 · 哥布林铁片×3、咕噜皇冠×1\n💡 备好钥匙，『副本 <名字>』进入\n━━━━━━━━━━━━\n🕐 单人挑战：战士·坦克\n💡 专注战斗！『副本』查看进度\n⏳ 副本内『移动』由队长带队；『探索』『调查』各人自由进行，遇怪全队合并进同一场战斗！\n📖 商路旁的营地还冒着劫掠后的烟，翻倒的货车旁散落着没来得及搬走的货物。行会的悬赏令在怀里发烫——今晚，该让哥布林酋长·咕噜尝尝被讨伐的滋味了。',
+    'PB02_开本_多人队伍构成': '🦀 【锈潮船坞】副本开启！你踏入了这片区域。\n━━━━━━━━━━━━\n🗺️ 【锈潮船坞 · 闸门水道】\n铁港码头货仓区下的锈死闸门，推开后是一条半淹的水道，锈壳蟹攀在闸壁上，水鬼从水面下探出半个头。远处船坞深处传来钳甲碰撞的闷响。\n━━━━━━━━━━━━\n📍 当前位置：闸门水道\n📮 可前往：\n  ●1. 沉船坞池\n  \n👤 此地的玩家：\n  ●1. 乙 Lv.60\n\n🐾 此地的怪物 (Lv.25-27)：\n  锈壳蟹 Lv.25±1\n  水鬼 Lv.27±1\n\n💡 『探索』遇怪，『前往 <序号>』赶路\n━━━━━━━━━━━━\n🚪 副本内 · 无出口（没有通往外面的路）\n🐾 此房怪物剩余：锈壳蟹、水鬼（『探索』高概率遭遇）\n💰 副本资源池剩余：458 金币 · 锈潮蟹甲×2\n💡 副本激战中，『角色』了解队友\n━━━━━━━━━━━━\n👥 队伍构成：战士·坦克 + 战士·坦克\n⚠️ ✨ 没有治疗：血线压力大，记得多带药水\n💡 可发送『调查 <名称>』互动机关\n⏳ 副本内『移动』由队长带队；『探索』『调查』各人自由进行，遇怪全队合并进同一场战斗！\n📖 码头货仓区尽头有道锈死的闸门，推开时潮声裹着铁锈味扑面而来——废弃船坞的水道里，锈壳蟹窸窣爬行，深处时不时传来钳甲碰撞的闷响。铁港的老水手说，蟹王·锈钳的巢就在最深的船底，它钳上的船牌，还在等船主们来认领。',
+    'PB03_开本_名字不存在': '没有『不存在的本』这个副本！『副本』查看列表～',
+    'PB04_加入战斗_队长与队员': '你就是这场战斗的队长！『攻击』『技能 <名称>』『防御』行动～\n@@@\n你正在战斗中！先解决眼前的敌人～',
+    'PB05_加入战斗_成功': '⚔️ 队员乙 加入了战斗！\n━━━━━━━━━━━━\n── 敌方 ──\n  A1层: a1  房间怪 ❤️500/500\n── 我方 ──\n  B1层: b1  队长甲 ❤️100/100 | b2  队员乙 ❤️100/1422\n🕐 时刻 0.0s ｜ ⚡ 行动顺序：队长甲(我) → 房间怪(敌) → 队员乙(我)\n✅ 队长甲：❤️ 100/100 💙 999/999\n✅ 队员乙：❤️ 100/1422 💙 100/213\n💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己\n👥 当前参战：队长甲、队员乙',
+    'PB06_不在副本_六提示': '你当前不在副本中！输入『副本』查看副本列表～\n@@@\n你当前不在副本中！输入『副本』查看副本列表～\n@@@\n你当前不在副本中！输入『副本』查看副本列表～\n@@@\n你当前不在副本中！\n@@@\n你当前不在副本中！\n@@@\n你当前不在副本中！',
+    'PB07_战斗中守卫_五提示': '战斗进行中！先解决眼前的敌人～(『攻击』『技能 <名称>』『防御』)\n@@@\n战斗进行中！先解决眼前的敌人～\n@@@\n战斗中无法撤退！Boss 锁定了你们的退路——打赢或战败！\n@@@\n战斗中无法撤退！先击败眼前的敌人再说！\n@@@\n战斗中无法离开！先解决眼前的敌人再说！',
+    'PB08_副本过期提示': '⌛ 你之前的副本因超过 24 小时无人行动，已自动过期消失～',
+    'PB09_深入_房间模式': '这个副本没有分层结构，直接挑战 Boss 吧～',
+    'PB10_深入_四拦截': '当前层的敌人还没肃清！『探索』找到它们～\n@@@\n当前层的敌人还没肃清！先打完再说～\n@@@\n副本已通关！搜刮完用『离开副本』传出吧～\n@@@\n这个副本没有分层结构，直接挑战 Boss 吧～\n@@@\n已经是最深层了，击败面前的 Boss 就通关了！',
+    'PB11_深入_清层推进两形态': '🧭 你继续深入……\n━━━━━━━━━━━━\n🗺️ 【👺哥布林营地】第 2 层 · 二层\n━━━━━━━━━━━━\n📜 你环顾四周，准备迎接这里的敌人。\n━━━━━━━━━━━━\n✨ 场景：\n  []\n  []\n━━━━━━━━━━━━\n🐾 敌人：小怪2(『探索』遇怪)\n━━━━━━━━━━━━\n💡 『副本』查看战况，『角色』看队伍\n@@@\n🧭 你继续深入……\n━━━━━━━━━━━━\n🚪 第 2 层 · 二层\n━━━━━━━━━━━━\n── 敌方 ──\n  A1层: a1  房间怪 ❤️500/500\n── 我方 ──\n  B1层: b1  甲 ❤️100/100\n🕐 时刻 0.0s ｜ ⚡ 行动顺序：甲(我) → 房间怪(敌)\n✅ 甲：❤️ 100/100 💙 999/999\n💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己\n⏳ 轮到 甲 行动！『攻击』『技能 <名称>』『防御』',
+    'PB12_地图_分层精英标注': '🗺️ 【👺哥布林营地】第 1 层 · 一层\n━━━━━━━━━━━━\n📜 石廊尽头有风。\n━━━━━━━━━━━━\n✨ 场景：\n  []\n  []\n━━━━━━━━━━━━\n🐾 敌人：哥布林守卫 ⭐精英·哥布林督军(『探索』遇怪)\n━━━━━━━━━━━━\n💡 多人副本先『组队 <名字>』再开本',
+    'PB13_调查_空参数与未命中': '格式：『调查 <目标>』，如『调查 宝箱』『调查 篝火』～（『副本地图』查看当前层可调查目标）\n@@@\n这里没有『不存在的东西』可以调查～『副本地图』看看周围有什么。',
+    'PB14_调查_已处理': '旧石碑已经被处理过了。',
+    'PB15_探索_通关后': '副本已通关，没有敌人可探索了！『副本地图』看看战利品堆，或『离开副本』传出～',
+    'PB16_探索_rooms四态': '🍃 这里已被肃清，没有敌人了。『副本地图』看看剩余可调查的 POI，或让队长『移动』去别的房间～\n@@@\n🍃 这里已被肃清，没有敌人了。『副本地图』看看剩余可调查的 POI，或让队长『移动』去别的房间～\n@@@\n🍃 这里已被肃清，没有敌人了。『副本地图』看看剩余可调查的 POI，或让队长『移动』去别的房间～\n@@@\n🍃 这里已被肃清，没有敌人了。『副本地图』看看剩余可调查的 POI，或让队长『移动』去别的房间～',
+    'PB17_探索_旧层路径两态': '🍃 你仔细搜索了这片区域，除了风声什么也没有发现。\n@@@\n🍃 你小心翼翼地探索……\n⚠️ 你触发了尖刺陷阱！全队受到 10% 最大生命的伤害！\n❤️ 甲 剩余 90/100',
+    'PB18_撤退_全流程': '👺 【哥布林营地】副本开启！你踏入了这片区域。\n━━━━━━━━━━━━\n🗺️ 【哥布林营地 · 入口栅栏】\n歪斜的木栅栏围出营地外围，兽皮晾在栏上，篝火堆散落四周。守卫在缺口处探头张望，臭味与叫嚷声扑面而来。\n━━━━━━━━━━━━\n📍 当前位置：入口栅栏\n📮 可前往：\n  ●1. 篝火营地\n  \n🔎 可探索触发：\n  ●📦 生锈的铁箱 ●🔥 将熄的篝火\n\n✨ 可交互场景：\n  ●1. 🪨 哥布林营地界碑\n\n🐾 此地的怪物 (Lv.15-16)：\n  哥布林守卫 Lv.15±1\n  哥布林萨满 Lv.16±1\n\n💡 『地图』看详情，『探索』遇怪\n━━━━━━━━━━━━\n🚪 副本内 · 无出口（没有通往外面的路）\n🐾 此房怪物剩余：哥布林守卫、哥布林萨满（『探索』高概率遭遇）\n🔎 此房可调查：生锈的铁箱、将熄的篝火(『调查 <名称>』)\n💰 副本资源池剩余：424 金币 · 哥布林铁片×3、咕噜皇冠×1\n💡 副本激战中，『角色』了解队友\n━━━━━━━━━━━━\n🕐 单人挑战：战士·坦克\n💡 单人副本直接『副本 <名字>』开本\n⏳ 副本内『移动』由队长带队；『探索』『调查』各人自由进行，遇怪全队合并进同一场战斗！\n📖 商路旁的营地还冒着劫掠后的烟，翻倒的货车旁散落着没来得及搬走的货物。行会的悬赏令在怀里发烫——今晚，该让哥布林酋长·咕噜尝尝被讨伐的滋味了。\n@@@\n🏳️ 你要从【哥布林营地】撤退吗？\n⚠️ 撤退 = 放弃当前进度（已拿的战利品保留，但层数/机关进度清空，重新开本从头打）！\n💡 确认请回复『确认撤退』；反悔就继续冒险吧～\n@@@\n已弹过确认啦～ 回复『确认撤退』放弃进度，或继续冒险！\n@@@\n确认已过期（副本状态变化）～ 重新发『撤退』看看吧。\n@@@\n还没有待确认的撤退～ 副本中发『撤退』会先弹确认。\n@@@\n🏳️ 你要从【哥布林营地】撤退吗？\n⚠️ 撤退 = 放弃当前进度（已拿的战利品保留，但层数/机关进度清空，重新开本从头打）！\n💡 确认请回复『确认撤退』；反悔就继续冒险吧～\n@@@\n🏳️ 你们放弃了【哥布林营地】的进度，回到了入口。\n📌 已拿到的战利品保留在背包；想再挑战就重新『副本 哥布林营地』从头开始吧！',
+    'PB19_离开与恢复进度': '👺 【哥布林营地】副本开启！你踏入了这片区域。\n━━━━━━━━━━━━\n🗺️ 【哥布林营地 · 入口栅栏】\n歪斜的木栅栏围出营地外围，兽皮晾在栏上，篝火堆散落四周。守卫在缺口处探头张望，臭味与叫嚷声扑面而来。\n━━━━━━━━━━━━\n📍 当前位置：入口栅栏\n📮 可前往：\n  ●1. 篝火营地\n  \n🔎 可探索触发：\n  ●📦 生锈的铁箱 ●🔥 将熄的篝火\n\n✨ 可交互场景：\n  ●1. 🪨 哥布林营地界碑\n\n🐾 此地的怪物 (Lv.15-16)：\n  哥布林守卫 Lv.15±1\n  哥布林萨满 Lv.16±1\n\n💡 『探索』遇怪，『前往 <序号>』赶路\n━━━━━━━━━━━━\n🚪 副本内 · 无出口（没有通往外面的路）\n🐾 此房怪物剩余：哥布林守卫、哥布林萨满（『探索』高概率遭遇）\n🔎 此房可调查：生锈的铁箱、将熄的篝火(『调查 <名称>』)\n💰 副本资源池剩余：424 金币 · 哥布林铁片×3、咕噜皇冠×1\n💡 『副本』查看战况，『角色』看队伍\n━━━━━━━━━━━━\n🕐 单人挑战：战士·坦克\n💡 『副本』查看战况，『角色』看队伍\n⏳ 副本内『移动』由队长带队；『探索』『调查』各人自由进行，遇怪全队合并进同一场战斗！\n📖 商路旁的营地还冒着劫掠后的烟，翻倒的货车旁散落着没来得及搬走的货物。行会的悬赏令在怀里发烫——今晚，该让哥布林酋长·咕噜尝尝被讨伐的滋味了。\n@@@\n🗺️ 【哥布林营地】\n哥布林营地，传说中的危险之地，唯有勇者敢于踏入。\n💡 输入『副本 哥布林营地』开启挑战（组队副本，等级/人数校验）\n━━━━━━━━━━━━\n📍 当前位置：哥布林营地\n📮 可前往：\n  🧭 出城需先到『入口栅栏』\n💡 『对话 <名字>』聊天，『探索』冒险\n━━━━━━━━━━━━\n🚪 副本内 · 无出口（没有通往外面的路）\n🐾 此房怪物已肃清。\n💰 副本资源池剩余：424 金币 · 哥布林铁片×3、咕噜皇冠×1\n💡 『副本』查看战况，『角色』看队伍\n@@@\n🏳️ 你带着战利品离开了哥布林营地。冒险者的旅途还在继续～',
+    'PB20_移动_非队长': '⏳ 副本内由队长带队移动！等待队长『移动 <房间>』～',
+    'PB21_通关超时离开': '🗺️ 【哥布林营地 · 入口栅栏】\n歪斜的木栅栏围出营地外围，兽皮晾在栏上，篝火堆散落四周。守卫在缺口处探头张望，臭味与叫嚷声扑面而来。\n━━━━━━━━━━━━\n📍 当前位置：入口栅栏\n📮 可前往：\n  ●1. 篝火营地\n  \n🔎 可探索触发：\n  ●📦 生锈的铁箱 ●🔥 将熄的篝火\n\n✨ 可交互场景：\n  ●1. 🪨 哥布林营地界碑\n\n🐾 此地的怪物 (Lv.15-16)：\n  哥布林守卫 Lv.15±1\n  哥布林萨满 Lv.16±1\n\n💡 『地图』看详情，『探索』遇怪\n━━━━━━━━━━━━\n🚪 副本内 · 无出口（没有通往外面的路）\n🐾 此房怪物剩余：哥布林守卫、哥布林萨满（『探索』高概率遭遇）\n🔎 此房可调查：生锈的铁箱、将熄的篝火(『调查 <名称>』)\n💰 副本资源池剩余：424 金币 · 哥布林铁片×3、咕噜皇冠×1\n💡 副本请走『副本 <名字>』开启',
+    'PB22_暗格_死墙与开门': '🧱 墙砖松动了，但后面只有一堵死墙……（暗格消失了）\n@@@\n🧱 你扣住松动的墙砖用力一拉——暗门轰然打开！\n一个魁梧的身影挡在密室前……\n━━━━━━━━━━━━\n── 敌方 ──\n  A1层: a1  哥布林守卫 ❤️564/564\n── 我方 ──\n  B1层: b1  甲 ❤️100/100\n🕐 时刻 0.0s ｜ ⚡ 行动顺序：哥布林守卫(敌) → 甲(我)\n✅ 甲：❤️ 100/100 💙 100/999\n💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己\n⏳ 轮到 甲 行动！『攻击』『技能 <名称>』『防御』',
+    'PB23_宝箱_开启': '🔐 你打开了密室宝箱！\n✨ 宝箱里泛起微光——符文【稀有符文·冰霜 I】！',
+    'PB24_调查点_四档奖励': '🔍 你仔细调查了【酋长的战利品堆】……\n✨ 你发现了一件稀罕的收藏品——【骑士团徽章】！(图鉴『收藏』可查看)\n@@@\n🔍 你仔细调查了【劫掠清单】……\n📜 你翻出一叠泛黄的纸页——图纸残页 ×3！\n@@@\n🔍 你仔细调查了【篝火余烬】……\n🎒 你摸到了些材料——咕噜皇冠 ×1！\n@@@\n🔍 你仔细调查了【月池】……\n✨ 你拾起一枚刻着符文的宝石——【稀有符文·拾荒 I】！',
+    'PB25_加入战斗_无角色': '你还没有角色！先『注册』开始冒险～',
+    'PB26_探索_旧层遇怪Boss': '🍃 你警惕地探索着，突然——一层里的怪物扑了上来！\n━━━━━━━━━━━━\n💬 『金币！宝石！都是咕噜的！』咕噜把抢来的皇冠往头上一扣，咧开满嘴尖牙：『你们这些商队的小跟班，也敢来掀咕噜的帐篷？』\n── 敌方 ──\n  A1层: a1  哥布林督军的哥布林打手 ❤️564/564 | a2  哥布林督军的哥布林打手 ❤️564/564\n  A2层: a3  哥布林督军 ❤️9749/9749\n── 我方 ──\n  B1层: b1  甲 ❤️100/100\n🕐 时刻 0.0s ｜ ⚡ 行动顺序：哥布林督军(敌) → 哥布林督军的哥布林打手(敌) → 哥布林督军的哥布林打手(敌) → 甲(我)\n✅ 甲：❤️ 100/100 💙 100/999\n💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己\n⏳ 轮到 甲 行动！『攻击』『技能 <名称>』『防御』',
+    'PB27_战斗异常_两态': '战斗状态异常，请重新遭遇！\n@@@\n你已不在战斗中（状态异常）！',
+    'PB28_宝箱_五档': '🔐 你打开了密室宝箱！\n📜 宝箱里是泛黄的纸张——图纸残页 ×4！\n@@@\n🔐 你打开了密室宝箱！\n🎒 宝箱里是稀有材料——咕噜皇冠 ×1！\n@@@\n🔐 你打开了密室宝箱！\n🔵 宝箱深处静静躺着一件装备——【哥布林军刀】！\n@@@\n🔐 你打开了密室宝箱！\n✨🟣 宝箱深处静静躺着一件装备——【骑士残甲】！\n@@@\n🔐 你打开了密室宝箱！\n✨ 宝箱里泛起微光——符文【稀有符文·聚能 I】！',
+    'PB29_调查点_空与零碎': '月池里空空如也，什么也没发现。\n@@@\n🔍 你仔细调查了【月池】……\n🎒 你翻了翻，只找到一点零碎。',
+    'PB30_开本_战斗模式': '👺 【哥布林营地】副本开启！\n━━━━━━━━━━━━\n🚪 第 1 层 · 一层\n📜 商路旁的哥布林聚落，哥布林酋长·咕噜盘踞于此，靠抢劫商队为生。冒险者行会悬赏讨伐。(主线第 2 章)\n━━━━━━━━━━━━\n🕐 单人挑战：战士·坦克\n── 敌方 ──\n  A1层: a1  哥布林酋长·咕噜的哥布林打手 ❤️564/564 | a2  哥布林酋长·咕噜的哥布林打手 ❤️564/564\n  A2层: a3  哥布林酋长·咕噜 ❤️24414/24414\n── 我方 ──\n  B1层: b1  甲 ❤️100/1422\n🕐 时刻 0.0s ｜ ⚡ 行动顺序：哥布林酋长·咕噜(敌) → 甲(我) → 哥布林酋长·咕噜的哥布林打手(敌) → 哥布林酋长·咕噜的哥布林打手(敌)\n✅ 甲：❤️ 100/1422 💙 100/213\n💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己\n⏳ 轮到 甲 行动！『攻击』『技能 <名称>』『防御』\n💡 按 CTB 行动轴轮流出手，超时 60 秒自动防御；清光当前层怪物可『深入』下一层！\n📖 商路旁的营地还冒着劫掠后的烟，翻倒的货车旁散落着没来得及搬走的货物。行会的悬赏令在怀里发烫——今晚，该让哥布林酋长·咕噜尝尝被讨伐的滋味了。',
+    'PB31_Boss房通关_击败行': '💥 房间怪 受到 1 点伤害，倒下了！\n👑 副本 Boss 已被击败！\n\n🎉 【房间怪】被击败了！👺哥布林营地 通关！\n📜 咕噜的皇冠滚落在篝火边，商路上的劫掠就此画上句号。行会的赏金结清了，可你总觉得，这条商路尽头的风声，才刚刚开始。\n\n🏆 副本已通关！你可以在副本内停留搜刮：\n  · 🎁 【战利品堆】—— 首领的遗物，搜刮一次（『调查 战利品堆』）\n  · 🔍 通关后这里多了些可调查的痕迹（『副本地图』查看，每日限 3 次）\n搜刮完毕用『离开副本』传出～\n\n💡 『副本』可再次挑战，首通成就已记录～',
+}   # 迁移前快照（2026-09-13 真跑存下，来源 $TEMP/instance_panel_pre31.json —— 采于接线前的代码，勿手改）
+INSTANCE_PANEL_OLD_LITERALS = [
+    ' 加入了战斗！',
+    ' 宝箱深处静静躺着一件装备——【',
+    's ｜ ⚡ 行动顺序：',
+    '⌛ 你之前的副本因超过 24 小时无人行动，已自动过期消失～',
+    '⏳ 副本内『移动』由队长带队；『探索』『调查』各人自由进行，遇怪全队合并进同一场战斗！',
+    '⏳ 副本内由队长带队移动！等待队长『移动 <房间>』～',
+    '⏳ 通关时间已过 30 分钟，你已自动离开副本。',
+    '✨ 你发现了一件稀罕的收藏品——【',
+    '✨ 你拾起一枚刻着符文的宝石——【',
+    '✨ 宝箱里泛起微光——符文【',
+    '。冒险者的旅途还在继续～',
+    '』从头开始吧！',
+    '』可以调查～『副本地图』看看周围有什么。',
+    '』这个副本！『副本』查看列表～',
+    '】你回到了副本深处！',
+    '】副本开启！',
+    '】副本开启！你踏入了这片区域。',
+    '】撤退吗？\n⚠️ 撤退 = 放弃当前进度（已拿的战利品保留，但层数/机关进度清空，重新开本从头打）！\n💡 确认请回复『确认撤退』；反悔就继续冒险吧～',
+    '】的进度，回到了入口。\n📌 已拿到的战利品保留在背包；想再挑战就重新『副本 ',
+    '】！(图鉴『收藏』可查看)',
+    '】！『使用 宠物蛋』孵化！',
+    '你已不在战斗中（状态异常）！',
+    '你当前不在副本中！',
+    '你当前不在副本中！输入『副本』查看副本列表～',
+    '你正在战斗中！先解决眼前的敌人～',
+    '你还没有角色！先『注册』开始冒险～',
+    '副本内请使用『移动 <房间>』推进（队长带队）～『副本地图』查看可前往房间。',
+    '副本已通关！搜刮完用『离开副本』传出吧～',
+    '副本已通关，没有敌人可探索了！『副本地图』看看战利品堆，或『离开副本』传出～',
+    '已弹过确认啦～ 回复『确认撤退』放弃进度，或继续冒险！',
+    '已经是最深层了，击败面前的 Boss 就通关了！',
+    '已经被处理过了。',
+    '已经被搜刮一空了。',
+    '当前层的敌人还没肃清！『探索』找到它们～',
+    '当前层的敌人还没肃清！先打完再说～',
+    '战斗中无法撤退！Boss 锁定了你们的退路——打赢或战败！',
+    '战斗中无法撤退！先击败眼前的敌人再说！',
+    '战斗中无法离开！先解决眼前的敌人再说！',
+    '战斗进行中！先解决眼前的敌人～',
+    '战斗进行中！先解决眼前的敌人～(『攻击』『技能 <名称>』『防御』)',
+    '格式：『调查 <目标>』，如『调查 宝箱』『调查 篝火』～（『副本地图』查看当前层可调查目标）',
+    '确认已过期（副本状态变化）～ 重新发『撤退』看看吧。',
+    '还没有待确认的撤退～ 副本中发『撤退』会先弹确认。',
+    '这个副本没有分层结构，直接挑战 Boss 吧～',
+    '这里没有『',
+    '里的怪物扑了上来！',
+    '里空空如也，什么也没发现。',
+    '🍃 你仔细搜索了这片区域，怪物没有发现你……',
+    '🍃 你仔细搜索了这片区域，除了风声什么也没有发现。',
+    '🍃 你仔细搜索着这片区域……',
+    '🍃 你小心翼翼地探索……',
+    '🍃 你警惕地探索着，突然——',
+    '🍃 这里已被肃清，没有敌人了。『副本地图』看看剩余可调查的 POI，或让队长『移动』去别的房间～',
+    '🎒 你摸到了些材料——',
+    '🎒 你翻了翻，只找到一点零碎。',
+    '🎒 宝箱里是稀有材料——',
+    '🏰 【组队副本】',
+    '🏳️ 你们放弃了【',
+    '🏳️ 你带着战利品离开了',
+    '🏳️ 你要从【',
+    '👑 副本 Boss 已被击败！',
+    '👥 当前参战：',
+    '👥 队伍构成：',
+    '💡 按 CTB 行动轴轮流出手，超时 60 秒自动防御；清光当前层怪物可『深入』下一层！',
+    '📜 你翻出一叠泛黄的纸页——图纸残页 ×',
+    '📜 宝箱里是泛黄的纸张——图纸残页 ×',
+    '🔍 你仔细调查了【',
+    '🔐 你打开了密室宝箱！',
+    '🕐 单人挑战：',
+    '🦋 宝箱深处泛着星光——是【',
+    '🧭 你继续深入……',
+    '🧱 你扣住松动的墙砖用力一拉——暗门轰然打开！\n一个魁梧的身影挡在密室前……',
+    '🧱 墙砖松动了，但后面只有一堵死墙……（暗格消失了）',
+]   # 迁移前内联句壳片段（= 本域表值去槽位后的实体片段）：三份源文件里一句都不许再出现
+
+
+def t11_instance_panel_frozen():
+    print("\n[11] 副本面板域逐字冻结：迁移前 31 分支（开本三种形态/加入/深入/调查/探索/撤退/离开/移动/地图/"
+          "列表/状态/行动序/暗格/宝箱/调查点/战斗异常/Boss房通关）复跑比对")
+    check("冻结基准已内嵌（31 分支）", len(INSTANCE_PANEL_FROZEN) == 31, len(INSTANCE_PANEL_FROZEN))
+    now = _pb_scenarios()
+    bad = [k for k in INSTANCE_PANEL_FROZEN if INSTANCE_PANEL_FROZEN[k] != now.get(k)]
+    for k in bad:
+        print("     · %s 现=%r" % (k, (now.get(k) or "")[:160]))
+    check("★ 副本面板 31 分支输出与迁移前**逐字一致**", not bad, bad)
+    _single = ("PB03_开本_名字不存在", "PB04_加入战斗_队长与队员", "PB08_副本过期提示",
+               "PB09_深入_房间模式", "PB14_调查_已处理", "PB15_探索_通关后",
+               "PB17_探索_旧层路径两态", "PB20_移动_非队长", "PB23_宝箱_开启",
+               "PB25_加入战斗_无角色", "PB27_战斗异常_两态", "PB29_调查点_空与零碎")
+    check("冻结基准非空（防基准写空）",
+          all(v for k, v in INSTANCE_PANEL_FROZEN.items() if k not in _single))
+
+    # 旧句壳零残留：三份源文件的「非 T.text/T.static 实参、非文档串」常量里不许再出现迁移前片段
+    left = []
+    for _p in (INSTANCE_SRC, INSTANCE_BATTLE_SRC, INSTANCE_ROUTER_SRC):
+        raw, doc = _panel_raw_constants(_p)
+        for _s in INSTANCE_PANEL_OLD_LITERALS:
+            for _v in raw:
+                if _s and _s in _v:
+                    left.append((os.path.basename(_p), _s, _v[:60]))
+    check("★ 旧句壳零残留（句壳只在文案表；排版分隔线/取值回退/命令关键字留在代码）",
+          not left, left[:5])
+    check("表里 72 条面板文案全部由本域文件引用（key 双向对账见 [2]）",
+          len([k for k in T.table().keys() if k.startswith("instance.面板_")]) == 72,
+          len([k for k in T.table().keys() if k.startswith("instance.面板_")]))
+
+
+def _panel_raw_constants(path):
+    """返回 (raw, doc)：非 T.text/T.static 实参的字符串常量 / 文档串（AST 分类）。"""
+    _src = io.open(path, encoding="utf-8").read()
+    _tree = ast.parse(_src)
+    _docs = set()
+    for _n in ast.walk(_tree):
+        if isinstance(_n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            _d = ast.get_docstring(_n, clean=False)
+            if _d is not None:
+                for _c in ast.walk(_n):
+                    if isinstance(_c, ast.Constant) and _c.value == _d:
+                        _docs.add(id(_c))
+    _tcalls = set()
+    for _n in ast.walk(_tree):
+        if (isinstance(_n, ast.Call) and isinstance(_n.func, ast.Attribute)
+                and _n.func.attr in ("text", "static")
+                and isinstance(_n.func.value, ast.Name) and _n.func.value.id == "T"):
+            for _a in _n.args:
+                _tcalls.update(id(_x) for _x in ast.walk(_a))
+    _raw, _doc = [], []
+    for _n in ast.walk(_tree):
+        if not isinstance(_n, ast.Constant) or not isinstance(_n.value, str):
+            continue
+        if id(_n) in _tcalls:
+            continue
+        (_doc if id(_n) in _docs else _raw).append(_n.value)
+    return _raw, _doc
+
+
 def main():
     print("=" * 74)
     print("文案表门禁：game/data/text_specs.json + game/core/texts.py")
@@ -1527,6 +2509,7 @@ def main():
     t8_quests_frozen()
     t9_instance_settle_frozen()
     t10_instance_log_frozen()
+    t11_instance_panel_frozen()
     print("\n" + "=" * 74)
     print("结果：通过 %d / %d" % (passed, passed + failed))
     print("=" * 74)
@@ -1535,3 +2518,6 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ══════════════════════════════════════════════════════════════════════

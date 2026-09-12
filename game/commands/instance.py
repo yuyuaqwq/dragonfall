@@ -91,16 +91,16 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         if not player:
-            yield event.plain_result("你还没有角色！先『注册』开始冒险～")
+            yield event.plain_result(T.static("instance.面板_加入_无角色"))
             return
         new_key = str(qq_id)
         # 0. 加入者自己已在战斗中 → 拒绝（副本队员经 _instance_battle_for 反查队长行）
         if self._in_battle(group_id, qq_id):
             inst_row = self._instance_battle_for(group_id, qq_id)
             if inst_row and str(inst_row["state"].get("leader")) == new_key:
-                yield event.plain_result("你就是这场战斗的队长！『攻击』『技能 <名称>』『防御』行动～")
+                yield event.plain_result(T.static("instance.i_am_leader"))
                 return
-            yield event.plain_result("你正在战斗中！先解决眼前的敌人～")
+            yield event.plain_result(T.static("instance.面板_加入_已在战斗"))
             return
         # 1./2./3. 准入链（v185：队伍 → 队员视角 → 目标战斗 → 战斗状态 → 重复/满员/敌灭/0 血/角色）
         #   规则顺序与全部措辞在 core/instance_gate.join_admission（唯一真相源）；
@@ -209,10 +209,12 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         except Exception:
             pass
         yield event.plain_result(
-            f"⚔️ {snap['name']} 加入了战斗！\n"
-            f"━━━━━━━━━━━━\n"
-            f"{self._instance_battle_footer(st, group_id)}\n"
-            f"👥 当前参战：{'、'.join(str(st.get('players', {}).get(m2, {}).get('name', m2)) for m2 in IR.roster_of(st).members)}"
+            T.text("instance.面板_加入_播报", name=snap['name']) + "\n"
+            "━━━━━━━━━━━━\n"
+            + self._instance_battle_footer(st, group_id) + "\n"
+            + T.text("instance.面板_加入_参战",
+                     names='、'.join(str(st.get('players', {}).get(m2, {}).get('name', m2))
+                                    for m2 in IR.roster_of(st).members))
         )
 
     @declared("instance_cmd")
@@ -263,7 +265,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     C.destroy_instance_world(_wid2)
                 # R3 P3-1：文案与行为对齐——开本不占地图位置，超时只解除战斗锁/
                 # 清 battle（v101.27 #390），玩家从未被\"传送\"；沿用『离开副本』口径
-                yield event.plain_result("⏳ 通关时间已过 30 分钟，你已自动离开副本。")
+                yield event.plain_result(T.static("instance.面板_通关超时离开"))
                 return
             yield event.plain_result(self._instance_status(group_id, qq_id, inst_row))
             return
@@ -322,9 +324,10 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         self._lock_battle(group_id, m)
                     self._instance_save(group_id, old_st)
                     yield event.plain_result(
-                        f"{inst.get('icon', '🏰')} 【{inst.get('name', '')}】你回到了副本深处！\n"
-                        f"━━━━━━━━━━━━\n"
-                        f"{self._instance_map_view(old_st, group_id)}"
+                        T.text("instance.面板_恢复进度", icon=inst.get('icon', '🏰'),
+                               name=inst.get('name', '')) + "\n"
+                        "━━━━━━━━━━━━\n"
+                        + self._instance_map_view(old_st, group_id)
                     )
                     return
         async for _r in self._instance_start(event, group_id, qq_id, player, arg):
@@ -340,25 +343,25 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         player = self._player(group_id, qq_id)
         inst_row = self._instance_battle_for(group_id, qq_id)
         if not inst_row:
-            yield event.plain_result("你当前不在副本中！输入『副本』查看副本列表～")
+            yield event.plain_result(T.static("instance.面板_不在副本"))
             return
         st = inst_row["state"]
         # v101.27 #390：通关后不能深入（副本已通关，只剩搜刮）
         if st.get("cleared"):
-            yield event.plain_result("副本已通关！搜刮完用『离开副本』传出吧～")
+            yield event.plain_result(T.static("instance.面板_深入_已通关"))
             return
         stages = st.get("inst_stages") or []
         if not stages:
-            yield event.plain_result("这个副本没有分层结构，直接挑战 Boss 吧～")
+            yield event.plain_result(T.static("instance.面板_深入_无分层"))
             return
         if not st.get("stage_cleared"):
             # O111 修复：与 _instance_act 的肃清提示统一口径——层内还有未遭遇怪物
             # （stage_pending 非空）时引导『探索』（此前只说"先打完"，玩家不知道
             # 该发什么指令，且与"已被肃清"提示矛盾，playtest O111 阿甘实测）
             if IR.pending_left(st):
-                yield event.plain_result("当前层的敌人还没肃清！『探索』找到它们～")
+                yield event.plain_result(T.static("instance.面板_深入_未清_探索"))
             else:
-                yield event.plain_result("当前层的敌人还没肃清！先打完再说～")
+                yield event.plain_result(T.static("instance.面板_深入_未清_先打完"))
             return
         # v137 副本地图化：dungeon 副本（rooms 存档）『深入』= 移动到 Boss 房/下一房间
         # （兼容保留：boss_room 房间在连通表末位，移动到它即触发 Boss 战）
@@ -380,12 +383,12 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                                                                 inst_row, _br):
                         yield _r
                     return
-            yield event.plain_result("副本内请使用『移动 <房间>』推进（队长带队）～『副本地图』查看可前往房间。")
+            yield event.plain_result(T.static("instance.面板_深入_房间模式"))
             return
         # v185：末层判定 / 当前层下标 / 推进一层，全走 core/instance_run（分层进度只有一个写口）
         _prog = IR.stages_progress(st)
         if _prog.is_last():
-            yield event.plain_result("已经是最深层了，击败面前的 Boss 就通关了！")
+            yield event.plain_result(T.static("instance.面板_深入_末层"))
             return
         # 推进下一层
         st["stage_cleared"] = False
@@ -433,18 +436,20 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             # 新层地图模式：显示层全景
             map_view = self._instance_map_view(st, group_id)
             yield event.plain_result(
-                f"🧭 你继续深入……\n"
-                f"━━━━━━━━━━━━\n"
-                f"{map_view}"
+                T.static("instance.面板_继续深入") + "\n"
+                "━━━━━━━━━━━━\n"
+                + map_view
             )
             return
         yield event.plain_result(
-            f"🧭 你继续深入……\n"
-            f"━━━━━━━━━━━━\n"
-            f"🚪 第 {IR.stages_progress(st).index + 1} 层 · {next_stage['name']}\n"
-            f"━━━━━━━━━━━━\n"
-            f"{self._instance_battle_footer(st, group_id)}\n"
-            f"⏳ 轮到 {self._instance_turn_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+            T.static("instance.面板_继续深入") + "\n"
+            "━━━━━━━━━━━━\n"
+            + T.text("instance.面板_层行", n=IR.stages_progress(st).index + 1,
+                     name=next_stage['name']) + "\n"
+            "━━━━━━━━━━━━\n"
+            + self._instance_battle_footer(st, group_id) + "\n"
+            + T.text("instance.日志_轮到行动",
+                     name=self._instance_turn_player_name(st, group_id))
         )
 
     # ---------------- 副本地图（v87.2） ----------------
@@ -458,11 +463,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         player = self._player(group_id, qq_id)
         inst_row = self._instance_battle_for(group_id, qq_id)
         if not inst_row:
-            yield event.plain_result("你当前不在副本中！输入『副本』查看副本列表～")
+            yield event.plain_result(T.static("instance.面板_不在副本"))
             return
         st = inst_row["state"]
         if st.get("mode") != "map":
-            yield event.plain_result("战斗进行中！先解决眼前的敌人～(『攻击』『技能 <名称>』『防御』)")
+            yield event.plain_result(T.static("instance.面板_地图命令_战斗中"))
             return
         yield event.plain_result(self._instance_map_view(st, group_id))
 
@@ -483,16 +488,16 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         player = self._player(group_id, qq_id)
         inst_row = self._instance_battle_for(group_id, qq_id)
         if not inst_row:
-            yield event.plain_result("你当前不在副本中！输入『副本』查看副本列表～")
+            yield event.plain_result(T.static("instance.面板_不在副本"))
             return
         st = inst_row["state"]
         if st.get("mode") != "map":
-            yield event.plain_result("战斗进行中！先解决眼前的敌人～")
+            yield event.plain_result(T.static("instance.面板_调查_战斗中"))
             return
         name = self._strip_cmd(event, "调查").strip()
         # v104 M24 P2-4：『调查』空参数无响应（help 写『调查』）→ 给格式提示
         if not name:
-            yield event.plain_result("格式：『调查 <目标>』，如『调查 宝箱』『调查 篝火』～（『副本地图』查看当前层可调查目标）")
+            yield event.plain_result(T.static("instance.面板_调查_格式"))
             return
         # v101.27 #390：通关后特殊搜刮 POI 优先（战利品堆/墙砖/密室宝箱），
         # 避免『调查 宝箱』误命中 Boss 房静态"陪葬宝箱"等 stage POI
@@ -553,15 +558,15 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         poi = sp
                         break
         if poi is None:
-            yield event.plain_result(f"这里没有『{name}』可以调查～『副本地图』看看周围有什么。")
+            yield event.plain_result(T.text("instance.面板_调查_未命中", name=name))
             return
         if not rooms and self._poi_used(st, sidx, poi.get("id", "")):
-            yield event.plain_result(f"{poi.get('name', '')}已经被处理过了。")
+            yield event.plain_result(T.text("instance.面板_调查_已处理", name=poi.get('name', '')))
             return
         if rooms and _pois_left is not None:
             # v185：POI 消费写口——take_poi 返回「是否真移出」（不在池中 → False，即旧 else 分支）
             if not IR.take_poi(st, cur_sa_id, poi_id):
-                yield event.plain_result(f"{poi.get('name', '')}已经被搜刮一空了。")
+                yield event.plain_result(T.text("instance.面板_调查_已搜刮空", name=poi.get('name', '')))
                 return
         # v87.2 复用世界地图 POI 处理（_handle_poi → inst:<type> 效果链路）
         text = self._handle_poi(group_id, qq_id, player, cur_sa or stage or cur_map, poi.get("id", "") or poi_id, poi, st=st)
@@ -591,15 +596,15 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         player = self._player(group_id, qq_id)
         inst_row = self._instance_battle_for(group_id, qq_id)
         if not inst_row:
-            yield event.plain_result("你当前不在副本中！")
+            yield event.plain_result(T.static("instance.面板_不在副本_简"))
             return
         st = inst_row["state"]
         if st.get("mode") != "map":
             # v101.25 #346：非 Boss 战不念 Boss 文案（playtest round71 影刃抓包：打精英也念"Boss 锁定退路"）
             if (st.get("enemy") or {}).get("is_boss"):
-                yield event.plain_result("战斗中无法撤退！Boss 锁定了你们的退路——打赢或战败！")
+                yield event.plain_result(T.static("instance.面板_撤退_战斗中_boss"))
             else:
-                yield event.plain_result("战斗中无法撤退！先击败眼前的敌人再说！")
+                yield event.plain_result(T.static("instance.面板_撤退_战斗中"))
             return
         # 通关后（cleared）撤退 = 等同于离开（保留战利品），不需要确认放弃
         if st.get("cleared"):
@@ -613,9 +618,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             inst = C.INSTANCES.get(st["inst_id"], {})
             db.set_event_state(_ck, _json.dumps({"ts": int(_time.time()), "inst": st.get("inst_id", "")}, ensure_ascii=False))
             yield event.plain_result(
-                f"🏳️ 你要从【{inst.get('name', '副本')}】撤退吗？\n"
-                f"⚠️ 撤退 = 放弃当前进度（已拿的战利品保留，但层数/机关进度清空，重新开本从头打）！\n"
-                f"💡 确认请回复『确认撤退』；反悔就继续冒险吧～"
+                T.text("instance.面板_撤退_确认", name=inst.get('name', '副本'))
             )
             return
         # 有挂起确认 → 提示用『确认撤退』（防把重复撤退当确认）
@@ -625,7 +628,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             _pd = {}
         if _pd.get("inst") != st.get("inst_id", ""):
             db.set_event_state(_ck, "")
-        yield event.plain_result("已弹过确认啦～ 回复『确认撤退』放弃进度，或继续冒险！")
+        yield event.plain_result(T.static("instance.面板_撤退_已弹过"))
 
     @declared("instance_retreat_confirm")
     @require_player()
@@ -642,13 +645,13 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         group_id, qq_id = self._uid(event)
         inst_row = self._instance_battle_for(group_id, qq_id)
         if not inst_row:
-            yield event.plain_result("你当前不在副本中！")
+            yield event.plain_result(T.static("instance.面板_不在副本_简"))
             return
         st = inst_row["state"]
         _ck = f"retreat_confirm_{qq_id}"
         _pending = db.get_event_state(_ck)
         if not _pending:
-            yield event.plain_result("还没有待确认的撤退～ 副本中发『撤退』会先弹确认。")
+            yield event.plain_result(T.static("instance.面板_撤退_无待确认"))
             return
         try:
             _pd = _json.loads(_pending) if _pending else {}
@@ -656,7 +659,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             _pd = {}
         if _pd.get("inst") != st.get("inst_id", ""):
             db.set_event_state(_ck, "")
-            yield event.plain_result("确认已过期（副本状态变化）～ 重新发『撤退』看看吧。")
+            yield event.plain_result(T.static("instance.面板_撤退_确认过期"))
             return
         inst = C.INSTANCES.get(st["inst_id"], {})
         cur = self._instance_current_members(group_id, st)
@@ -681,8 +684,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             C.destroy_instance_world(_wid)
         db.set_event_state(_ck, "")
         yield event.plain_result(
-            f"🏳️ 你们放弃了【{inst.get('name', '副本')}】的进度，回到了入口。\n"
-            f"📌 已拿到的战利品保留在背包；想再挑战就重新『副本 {inst.get('name', '')}』从头开始吧！"
+            T.text("instance.面板_撤退_已放弃", name=inst.get('name', '副本'),
+                   name2=inst.get('name', ''))
         )
 
     # ---------------- 离开副本（v101.27 #390） ----------------
@@ -695,11 +698,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         group_id, qq_id = self._uid(event)
         inst_row = self._instance_battle_for(group_id, qq_id)
         if not inst_row:
-            yield event.plain_result("你当前不在副本中！")
+            yield event.plain_result(T.static("instance.面板_不在副本_简"))
             return
         st = inst_row["state"]
         if st.get("mode") != "map":
-            yield event.plain_result("战斗中无法离开！先解决眼前的敌人再说！")
+            yield event.plain_result(T.static("instance.面板_离开_战斗中"))
             return
         inst = C.INSTANCES.get(st["inst_id"], {})
         # v104 P1（第二轮）：只清当前队伍成员——退队者可能已在别处战斗，不能动 TA 的锁/battle
@@ -728,7 +731,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     db.update_player(group_id, m, world_id="mainland")
             C.destroy_instance_world(_wid)
         yield event.plain_result(
-            f"🏳️ 你带着战利品离开了{inst.get('name', '副本')}。冒险者的旅途还在继续～"
+            T.text("instance.面板_离开_完成", name=inst.get('name', '副本'))
         )
 
     # ---------------- 副本探索（v87.2，由 combat.explore 路由） ----------------
@@ -743,7 +746,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             return
         st = inst_row["state"]
         if str(qq_id) != str(st.get("leader")):
-            yield event.plain_result("⏳ 副本内由队长带队移动！等待队长『移动 <房间>』～")
+            yield event.plain_result(T.static("instance.面板_移动_非队长"))
             return
         # v141 审计 #8（route 瘦身）：目标解析 + 队长校验由 _instance_dungeon_move
         # 统一执行（world.py:1655，逐字等价：序号优先/名字/id/目标 None 提示/已在原地/
@@ -778,7 +781,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         st = inst_row["state"]
         # v101.27 #390：通关后探索无意义（已无敌人），引导搜刮/离开
         if st.get("cleared"):
-            yield event.plain_result("副本已通关，没有敌人可探索了！『副本地图』看看战利品堆，或『离开副本』传出～")
+            yield event.plain_result(T.static("instance.面板_探索_已通关"))
             return
         player = self._player(group_id, qq_id)
         cur_sa_id = player.get("cur_subarea") or ""
@@ -812,7 +815,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 text = self._handle_poi(group_id, qq_id, player, cur_sa or cur_map, poi_id, poi, st=st)
                 self._sync_players_db(group_id, st)
                 self._instance_save(group_id, st)
-                yield event.plain_result(f"🍃 你仔细搜索着这片区域……\n{text}")
+                yield event.plain_result(T.static("instance.面板_探索_POI开头") + "\n" + text)
                 return
             # ② 遇怪（discovery_agro + monsters_left 非空 → 消耗 1 只 → 进战斗）
             if _left:
@@ -820,21 +823,23 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     # v141 审计 #7：死代码接线——consume_monster 弹出（原 _left.pop(0) 内联）
                     _def = self.consume_monster(st, cur_sa_id)
                     if _def is None:
-                        yield event.plain_result("🍃 这里已被肃清，没有敌人了。『副本地图』看看剩余可调查的 POI，或让队长『移动』去别的房间～")
+                        yield event.plain_result(T.static("instance.面板_探索_已肃清"))
                         return
                     self._enter_stage_combat(group_id, st, _def, cur_sa or cur_map)
                     self._instance_save(group_id, st)
                     yield event.plain_result(
-                        f"🍃 你警惕地探索着，突然——{cur_sa.get('name', '') if cur_sa else cur_map.get('name', '')}里的怪物扑了上来！\n"
-                        f"━━━━━━━━━━━━\n"
-                        f"{self._instance_battle_footer(st, group_id)}\n"
-                        f"⏳ 轮到 {self._instance_turn_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+                        T.text("instance.面板_探索_遇怪",
+                               area=cur_sa.get('name', '') if cur_sa else cur_map.get('name', '')) + "\n"
+                        "━━━━━━━━━━━━\n"
+                        + self._instance_battle_footer(st, group_id) + "\n"
+                        + T.text("instance.日志_轮到行动",
+                                 name=self._instance_turn_player_name(st, group_id))
                     )
                     return
-                yield event.plain_result("🍃 你仔细搜索了这片区域，怪物没有发现你……")
+                yield event.plain_result(T.static("instance.面板_探索_未发现"))
                 return
             # ③ 无怪可遇
-            yield event.plain_result("🍃 这里已被肃清，没有敌人了。『副本地图』看看剩余可调查的 POI，或让队长『移动』去别的房间～")
+            yield event.plain_result(T.static("instance.面板_探索_已肃清"))
             return
         # ---- 旧 stages 路径（波次 3a rooms 未实现前的过渡兼容，行为与现状一致） ----
         stages = st.get("inst_stages") or []
@@ -849,11 +854,12 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             _inst2 = C.INSTANCES.get(st.get("inst_id") or "", {})
             boss_line_note = f"💬 {_inst2['boss_line']}\n" if nxt[2] == "boss" and _inst2.get("boss_line") else ""
             yield event.plain_result(
-                f"🍃 你警惕地探索着，突然——{stage.get('name', '')}里的怪物扑了上来！\n"
-                f"━━━━━━━━━━━━\n"
-                f"{boss_line_note}"
-                f"{self._instance_battle_footer(st, group_id)}\n"
-                f"⏳ 轮到 {self._instance_turn_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+                T.text("instance.面板_探索_遇怪", area=stage.get('name', '')) + "\n"
+                "━━━━━━━━━━━━\n"
+                + boss_line_note
+                + self._instance_battle_footer(st, group_id) + "\n"
+                + T.text("instance.日志_轮到行动",
+                         name=self._instance_turn_player_name(st, group_id))
             )
             return
         # 无怪：检查陷阱（未用的 trap POI）——50% 概率踩中
@@ -865,11 +871,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     # R3 P1-2：陷阱扣血同步 DB（同调查路径，防快照刷新覆盖回滚）
                     self._sync_players_db(group_id, st)
                     self._instance_save(group_id, st)
-                    yield event.plain_result("🍃 你小心翼翼地探索……\n" + text)
+                    yield event.plain_result(T.static("instance.面板_探索_小心开头") + "\n" + text)
                     return
                 break
         # 无事
-        yield event.plain_result("🍃 你仔细搜索了这片区域，除了风声什么也没有发现。")
+        yield event.plain_result(T.static("instance.面板_探索_无事"))
 
     def _instance_elite_scale(self, st: dict, mon: dict) -> dict:
         """v101.28l #423：副本精英按队伍人数缩放强度（超出 min_players 每人 +50% 血/攻/魔攻）。
@@ -1323,7 +1329,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         pass
                 C.destroy_instance_world(_wid)
             db.clear_battle(group_id, leader)
-            return "⌛ 你之前的副本因超过 24 小时无人行动，已自动过期消失～"
+            return T.static("instance.面板_过期_24h")
         return ""
 
     def _instance_current_members(self, group_id, st) -> list:
@@ -1338,7 +1344,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         return IR.current_members(group_id, st)
 
     def _instance_list(self, player) -> str:
-        lines = ["🏰 【组队副本】", "━━━━━━━━━━━━"]
+        lines = [T.static("instance.面板_列表_标题"), "━━━━━━━━━━━━"]
         # v173.x 意见#162：副本列表按等级升序渲染（数据文件按主线/支线/外域分区登记，
         # 插入顺序≠等级序，低等级本会被排到后面）——排序在渲染层做，新增副本自动有序。
         for i, (kid, inst) in enumerate(
@@ -1350,12 +1356,13 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             mn = inst.get("min_players", 2)
             mx = inst.get("max_players", 3)
             if mx <= 1:
-                size = "🕐 单人"
+                size = T.static("instance.面板_列表_单人")
             elif mn == mx:
-                size = f"👥 {mn}人"
+                size = T.text("instance.面板_列表_人数", mn=mn)
             else:
-                size = f"👥 {mn}-{mx}人"
-            lines.append(f"{i}. {mark} {inst['icon']} {inst['name']}(Lv.{inst['lv']}+ · {size})")
+                size = T.text("instance.面板_列表_人数区间", mn=mn, mx=mx)
+            lines.append(T.text("instance.面板_列表_行", i=i, mark=mark, icon=inst['icon'],
+                                name=inst['name'], lv=inst['lv'], size=size))
             lines.append(f"   {inst['desc']}")
             mats = "、".join(
                 C.display("materials", m) if m in C.MATERIALS else m
@@ -1390,11 +1397,13 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         stage_line = ""
         if IR.stage_count(st):
             sidx = IR.stages_progress(st).index  # v185：当前层下标/层名走 core/instance_run
-            stage_line = f" 🚪 第 {sidx + 1} 层 · {IR.stage_name(st)}"
+            stage_line = " " + T.text("instance.面板_层行", n=sidx + 1, name=IR.stage_name(st))
         # v164：战斗查看面板 = 完整 footer（站位/时刻/敌方血/全队血蓝/资源/状态），
         # 与每刻行动后弹的面板同款（对齐野外 _battle_footer 信息量），只补标题头。
         lines = [
-            f"{inst.get('icon', '🏰')} 【{inst.get('name', st['inst_id'])}】 第 {st.get('round', 1)} 轮{stage_line}",
+            T.text("instance.面板_状态_标题", icon=inst.get('icon', '🏰'),
+                   name=inst.get('name', st['inst_id']),
+                   round=st.get('round', 1), stage_line=stage_line),
             "━━━━━━━━━━━━",
         ]
         lines.append(self._instance_battle_footer(st, group_id))
@@ -1712,7 +1721,9 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         sidx = IR.stages_progress(st).index  # v185：当前层下标走 core/instance_run
         stage = stages[sidx] if sidx < len(stages) else {}
         inst = C.INSTANCES.get(st["inst_id"], {})
-        lines = [f"🗺️ 【{inst.get('icon', '🏰')}{inst.get('name', '')}】第 {sidx + 1} 层 · {stage.get('name', '')}"]
+        lines = [T.text("instance.面板_地图_层标题", icon=inst.get('icon', '🏰'),
+                        name=inst.get('name', ''), n=sidx + 1,
+                        stage=stage.get('name', ''))]
         lines.append("━━━━━━━━━━━━")
         desc = vmap.get("desc")
         if desc:
@@ -1988,7 +1999,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 kid = k
                 break
         if not kid:
-            yield event.plain_result(f"没有『{arg}』这个副本！『副本』查看列表～")
+            yield event.plain_result(T.text("instance.面板_开本_找不到", arg=arg))
             return
         inst = C.INSTANCES[kid]
         min_players = inst.get("min_players", 2)
@@ -2181,9 +2192,9 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         hint_lines = "\n".join(f"⚠️ {h}" for h in comp_hints)
         hint_msg = f"\n{hint_lines}" if hint_lines else ""
         if min_players > 1:
-            size_tip = f"👥 队伍构成：{comp}{hint_msg}\n"
+            size_tip = T.text("instance.面板_开本_队伍构成", comp=comp, hint=hint_msg) + "\n"
         else:
-            size_tip = f"🕐 单人挑战：{comp}\n"
+            size_tip = T.text("instance.面板_开本_单人挑战", comp=comp) + "\n"
         stage_name = stages[0]["name"] if stages else "主厅"
         # v126 副本剧情化：入口叙事（inst 有 intro 字段才渲染，老数据无字段不显示）
         intro_note = f"\n📖 {inst['intro']}" if inst.get("intro") else ""
@@ -2191,18 +2202,18 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         if st.get("mode") == "map":
             map_view = self._instance_map_view(st, group_id)
             yield event.plain_result(
-                f"{inst['icon']} 【{inst['name']}】副本开启！你踏入了这片区域。\n"
-                f"{key_free_note}"
-                f"━━━━━━━━━━━━\n"
-                f"{map_view}\n"
-                f"━━━━━━━━━━━━\n"
-                f"{size_tip}"
-                f"{self._tip('instance')}\n"
-                f"⏳ 副本内『移动』由队长带队；『探索』『调查』各人自由进行，遇怪全队合并进同一场战斗！"
-                f"{intro_note}"
+                T.text("instance.面板_开本_地图_标题", icon=inst['icon'], name=inst['name']) + "\n"
+                + key_free_note
+                + "━━━━━━━━━━━━\n"
+                + map_view + "\n"
+                + "━━━━━━━━━━━━\n"
+                + size_tip
+                + self._tip('instance') + "\n"
+                + T.static("instance.面板_开本_地图_引导")
+                + intro_note
             )
             return
-        stage_line = f"🚪 第 1 层 · {stage_name}\n" if stages else ""
+        stage_line = (T.text("instance.面板_层行", n=1, name=stage_name) + "\n") if stages else ""
         # v121 CTB：开本首行动者 = 存活玩家/敌方中 ct 最小者（首动玩家展示）
         _a = self._instance_next_actor(st, group_id)
         _first_actor_key = str(_a[1]) if _a[0] == "p" and _a[1] else None
@@ -2214,17 +2225,17 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             st["turn"] = 0
         st["turn_time"] = int(time.time())
         yield event.plain_result(
-            f"{inst['icon']} 【{inst['name']}】副本开启！\n"
-            f"{key_free_note}"
-            f"━━━━━━━━━━━━\n"
-            f"{stage_line}"
-            f"📜 {inst['desc']}\n"
-            f"━━━━━━━━━━━━\n"
-            f"{size_tip}"
-            f"{self._instance_battle_footer(st, group_id)}\n"
-            f"⏳ 轮到 {first_actor_name} 行动！『攻击』『技能 <名称>』『防御』\n"
-            f"💡 按 CTB 行动轴轮流出手，超时 60 秒自动防御；清光当前层怪物可『深入』下一层！"
-            f"{intro_note}"
+            T.text("instance.面板_开本_标题", icon=inst['icon'], name=inst['name']) + "\n"
+            + key_free_note
+            + "━━━━━━━━━━━━\n"
+            + stage_line
+            + "📜 " + inst['desc'] + "\n"
+            + "━━━━━━━━━━━━\n"
+            + size_tip
+            + self._instance_battle_footer(st, group_id) + "\n"
+            + T.text("instance.日志_轮到行动", name=first_actor_name) + "\n"
+            + T.static("instance.面板_开本_提示")
+            + intro_note
         )
 
     def _sync_players_db(self, group_id, st):
@@ -2295,7 +2306,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         # v163 全局时刻显示：st["now"] = 战斗绝对时刻（1 刻 = 1 游戏秒，ACT_TICK=1.0）。
         # 玩家参照读条命中/行动序需要当前时刻（出招 X.Xs 后命中 → 命中时刻 = now + X.X）。
         _now = float(st.get("now", 0.0) or 0.0)
-        return f"🕐 时刻 {_now:.1f}s ｜ ⚡ 行动顺序：" + " → ".join(p[1] for p in entries[:limit])
+        return T.text("instance.面板_行动序", now="%.1f" % _now) + " → ".join(p[1] for p in entries[:limit])
 
     def _instance_turn_player_name(self, st: dict, group_id: int, fallback_key=None) -> str:
         """saintess_engine 版轮转提示：下一位玩家行动者名字（读 battle state actors ct）。
@@ -2584,10 +2595,10 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             return None
         # 奖励四层 roll
         inst = C.INSTANCES.get(inst_id) or {}
-        lines = [f"🔍 你仔细调查了【{poi.get('name', '调查点')}】……"]
+        lines = [T.text("instance.面板_调查点_开头", name=poi.get('name', '调查点'))]
         reward = self._instance_investigate_reward(group_id, qq_id, player, st, poi, inst)
         if not reward:
-            return f"{poi.get('name', '调查点')}里空空如也，什么也没发现。"
+            return T.text("instance.面板_调查点_空", name=poi.get('name', '调查点'))
         lines += reward
         # 记账：每日次数 +1 + 本局已调查标记（persist）
         db.update_player(group_id, qq_id,
@@ -2627,7 +2638,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         "name": mname, "type": "收藏", "stackable": True,
                         "price": C.MATERIALS[mid].get("price", 1),
                     })
-                    return [f"✨ 你发现了一件稀罕的收藏品——【{mname}】！(图鉴『收藏』可查看)"]
+                    return [T.text("instance.面板_调查点_收藏", name=mname)]
             return []  # 收藏池空 → 放弃（不入保底，防刷稀有）
         # ③ 蓝符（Lv.60+）
         if inst_lv >= 60 and r < collect_chance + rune_chance:
@@ -2639,7 +2650,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 rune_data = C.rune_item(r_def["effect"], lvl)
                 if rune_data:
                     db.add_item(group_id, qq_id, f"rune_{r_def['effect']}_{rune_data['lvl']}", rune_data)
-                    return [f"✨ 你拾起一枚刻着符文的宝石——【{rune_data['name']}】！"]
+                    return [T.text("instance.面板_调查点_蓝符", name=rune_data['name'])]
             # 蓝符池空 → 落保底材料（不额外消耗随机）
             pass
         # ② 图纸残页（在蓝符未命中后判定；若蓝符档并入/未命中，r 落在 [collect+rune, collect+rune+bp)）
@@ -2648,7 +2659,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye",
                         {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
                         count=pages)
-            return [f"📜 你翻出一叠泛黄的纸页——图纸残页 ×{pages}！"]
+            return [T.text("instance.面板_调查点_图纸", pages=pages)]
         # ① 保底材料（默认/兜底层）
         mats = poi.get("materials") or inst.get("materials", [])
         mat = random.choice(mats) if mats else None
@@ -2659,8 +2670,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 "name": mname, "type": "材料", "stackable": True,
                 "price": C.MATERIALS[mat_id]["price"],
             })
-            return [f"🎒 你摸到了些材料——{mname} ×1！"]
-        return [f"🎒 你翻了翻，只找到一点零碎。"]
+            return [T.text("instance.面板_调查点_材料", name=mname)]
+        return [T.static("instance.面板_调查点_零碎")]
 
     def _instance_investigate_used_today(self, group_id, qq_id) -> int:
         """今日已用副本调查次数（玩家行 investigate_count；跨日视为 0）。"""
@@ -2729,7 +2740,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         if not guard:
             st["secret_crack"] = False
             self._instance_save(group_id, st)
-            return "🧱 墙砖松动了，但后面只有一堵死墙……（暗格消失了）"
+            return T.static("instance.面板_暗格_死墙")
         st["secret_crack"] = False
         st["secret_guard"] = guard  # 标记守卫战（击杀走宝箱分支不通关）
         st["secret_guard_pending"] = True
@@ -2738,11 +2749,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         st["boss"]["is_elite"] = True
         self._instance_save(group_id, st)
         return (
-            "🧱 你扣住松动的墙砖用力一拉——暗门轰然打开！\n"
-            "一个魁梧的身影挡在密室前……\n"
+            T.static("instance.面板_暗格_开门") + "\n"
             "━━━━━━━━━━━━\n"
-            f"{self._instance_battle_footer(st, group_id)}\n"
-            f"⏳ 轮到 {self._instance_turn_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+            + self._instance_battle_footer(st, group_id) + "\n"
+            + T.text("instance.日志_轮到行动",
+                     name=self._instance_turn_player_name(st, group_id))
         )
 
     def _instance_secret_chest(self, group_id, qq_id, player, st) -> str:
@@ -2769,27 +2780,27 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             if t == "petegg" and r.get("data"):
                 egg = r["data"]
                 db.add_item(group_id, qq_id, "petegg_pet_starbutterfly", egg)
-                text = f"🦋 宝箱深处泛着星光——是【{egg['name']}】！『使用 宠物蛋』孵化！"
+                text = T.text("instance.面板_宝箱_宠物蛋", name=egg['name'])
             elif t == "item" and r.get("item_id") == "mat_tu_zhi_can_ye":
                 pages = r.get("count", 3)
                 db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye",
                             {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
                             count=pages)
-                text = f"📜 宝箱里是泛黄的纸张——图纸残页 ×{pages}！"
+                text = T.text("instance.面板_宝箱_图纸", pages=pages)
             elif t == "equip" and r.get("data"):
                 eq = r["data"]
                 eq_key = f"eq_{uuid.uuid4().hex[:8]}"
                 db.add_item(group_id, qq_id, eq_key, eq)
                 _qmark = {"green": "🟢", "blue": "🔵", "purple": "✨🟣", "orange": "🌟🟠"}.get(
                     eq.get("quality", ""), "")
-                text = f"{_qmark} 宝箱深处静静躺着一件装备——【{eq['name']}】！"
+                text = T.text("instance.面板_宝箱_装备", mark=_qmark, name=eq['name'])
             elif t == "rune" and r.get("data"):
                 rune_data = r["data"]
                 # 引擎已构造 rune_item（带 effect/lvl），key 与战斗掉落一致可叠加
                 db.add_item(group_id, qq_id,
                             f"rune_{rune_data.get('effect', '')}_{rune_data.get('lvl', 1)}",
                             rune_data)
-                text = f"✨ 宝箱里泛起微光——符文【{rune_data['name']}】！"
+                text = T.text("instance.面板_宝箱_符文", name=rune_data['name'])
             elif t == "item" and r.get("item_id") and r["item_id"] != "mat_tu_zhi_can_ye":
                 mat_id = r["item_id"]
                 if mat_id in C.MATERIALS:
@@ -2798,7 +2809,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         "name": C.display("materials", mat_id), "type": "材料",
                         "stackable": True, "price": C.MATERIALS[mat_id]["price"],
                     }, count=n)
-                    text = f"🎒 宝箱里是稀有材料——{C.display('materials', mat_id)} ×{n}！"
+                    text = T.text("instance.面板_宝箱_材料",
+                                  name=C.display('materials', mat_id), n=n)
         if not text:  # 引擎空结果兜底（数据异常不吞奖励）
             mat = random.choice(inst.get("materials", ["兽肉"]))
             mat_id = C.resolve("materials", mat)
@@ -2806,10 +2818,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 "name": C.display("materials", mat_id), "type": "材料",
                 "stackable": True, "price": C.MATERIALS[mat_id]["price"],
             }, count=2)
-            text = f"🎒 宝箱里是稀有材料——{C.display('materials', mat_id)} ×2！"
+            text = T.text("instance.面板_宝箱_材料",
+                          name=C.display('materials', mat_id), n=2)
         st["secret_chest"] = None
         self._instance_save(group_id, st)
-        return "🔐 你打开了密室宝箱！\n" + text
+        return T.static("instance.面板_宝箱_开启") + "\n" + text
 
     async def _instance_victory(self, event, group_id, qq_id, player, st, logs):
         inst = C.INSTANCES[st["inst_id"]]
