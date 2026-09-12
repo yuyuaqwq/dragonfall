@@ -141,22 +141,8 @@ class TowerCmds(CommandBase):
         BR.prepare_player_for_battle(player, tb, db)
         _sides = BR.build_sides(player=player, enemies=[guard])
         for _a in _sides.get("player", []):
-            try:
-                # v181.M-bonus 统一数值容器：外部面板增幅聚合塞 bonus.panel（cap/cost 由
-                # apply_to_actor 装备装配覆盖写各分域）
-                _a["bonus"] = {"panel": dict(tb or {}), "cap": {}, "cost": {}}
-            except Exception:
-                pass
-            try:
-                from ..services.battle_equip_proc import apply_to_actor as _EP_apply
-                _EP_apply(_a)
-            except Exception:
-                pass
-            try:
-                from ..services.class_mech_proc import apply_class_mech as _CM_apply
-                _CM_apply(_a)
-            except Exception:
-                pass  # 技能 mech 兑现装配异常不阻断开战
+            # 装备词条 + 职业机制 + 外部增幅容器（序列收敛于 BR.apply_battle_loadout）
+            BR.apply_battle_loadout(_a, tb)
         from saintess_engine import Battle as B2
         b = B2("monster", sides=_sides, title_bonus=tb, pet=db.pet_get(qq_id))
         db.save_battle(group_id, qq_id, b.to_state())

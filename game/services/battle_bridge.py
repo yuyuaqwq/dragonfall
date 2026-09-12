@@ -204,6 +204,36 @@ def apply_player_battle_start(player: dict, actor: dict, db=None) -> dict:
     return actor
 
 
+def apply_battle_loadout(actor: dict, title_bonus: Optional[dict] = None) -> dict:
+    """开战装配序列（每个 player actor 调一次）：外部面板增幅 + 装备词条 + 职业机制。
+
+    ① `actor["bonus"] = {"panel": 外部增幅, "cap": {}, "cost": {}}`
+       （v181.M 统一数值容器；`cap`/`cost` 分域由装备装配覆盖写）
+    ② `battle_equip_proc.apply_to_actor` → 武器效果 / 词条挂 `actor.triggers`
+    ③ `class_mech_proc.apply_class_mech` → 技能 mech 兑现装配
+
+    ⚠️ ②③ 异常**沿用原写法静默跳过**（个别词条/技能解析失败不阻断开战）。
+    三处生产调用点（combat `_open_battle` / `_open_pvp`、tower）原为逐行重复；
+    收敛于此的意义：**数值门禁（tests/numeric_sim.py）与生产同源** ——
+    否则门禁自己一套口径，数字好看但与线上不一致。
+    """
+    try:
+        actor["bonus"] = {"panel": dict(title_bonus or {}), "cap": {}, "cost": {}}
+    except Exception:                                             # noqa: BLE001
+        pass
+    try:
+        from .battle_equip_proc import apply_to_actor as _EP_apply
+        _EP_apply(actor)
+    except Exception:                                             # noqa: BLE001
+        pass
+    try:
+        from .class_mech_proc import apply_class_mech as _CM_apply
+        _CM_apply(actor)
+    except Exception:                                             # noqa: BLE001
+        pass
+    return actor
+
+
 def prepare_player_for_battle(player: dict, title_bonus: Optional[dict] = None,
                               db=None) -> dict:
     """开战仪式（player dict 侧，build_sides 前调用）——纯数据搬运/事件消费。

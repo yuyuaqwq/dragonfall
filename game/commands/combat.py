@@ -622,26 +622,13 @@ class CombatCmds(CommandBase):
         ④ 构造 Battle
         """
         from ..services import battle_bridge as BR
-        from ..services.battle_equip_proc import apply_to_actor as _EP_apply
-        from ..services.class_mech_proc import apply_class_mech as _CM_apply
         tb = self._title_bonus(group_id, qq_id) if (group_id is not None and qq_id is not None) else {}
         BR.prepare_player_for_battle(player, tb, db)
         sides = BR.build_sides(player=player, enemies=enemies)
+        # 装备词条 + 职业机制 + 外部增幅容器（序列收敛于 BR.apply_battle_loadout，
+        # 与数值门禁 tests/numeric_sim.py 同源）
         for _a in sides.get("player", []):
-            # v181.M-bonus 统一数值容器：外部面板增幅聚合塞 bonus.panel（actor_stats 读
-            # actor.bonus.panel 优先；cap/cost 分域由 apply_to_actor 装备装配覆盖写）
-            try:
-                _a["bonus"] = {"panel": dict(tb or {}), "cap": {}, "cost": {}}
-            except Exception:
-                pass
-            try:
-                _EP_apply(_a)
-            except Exception:
-                pass  # 装配异常不阻断开战（词条/武器个别解析失败静默）
-            try:
-                _CM_apply(_a)
-            except Exception:
-                pass  # 技能 mech 兑现装配异常不阻断开战
+            BR.apply_battle_loadout(_a, tb)
         from saintess_engine import Battle as B2
         return B2(btype, sides=sides, title_bonus=tb,
                   pet=pet if pet is not None else db.pet_get(qq_id))
@@ -2838,7 +2825,6 @@ class CombatCmds(CommandBase):
         #   塞 actor["bonus"]["panel"]，stats 读 actor 优先，双方面板各自精确；
         #   battle 级传 {} 仅兜底。
         from ..services import battle_bridge as BR
-        from ..services.battle_equip_proc import apply_to_actor as _EP_apply
         from saintess_engine import Battle as B2
         # 0. 双方各自外部增幅聚合（core 直调 + 已 load 的 player dict，避免 _title_bonus
         #    内部再读档；失败降级空 dict）
@@ -2872,19 +2858,10 @@ class CombatCmds(CommandBase):
         _my_actor = BR.player_to_actor(player)
         _opp_actor = BR.player_to_actor(_def_p)
         _opp_actor["side"] = "enemy"  # 防守方入敌侧（human_controlled=True 保持 → 不自动）
-        # v181.M-bonus 统一数值容器：各自外部面板增幅聚合塞 bonus.panel（随 actor 落盘/恢复）
-        _my_actor["bonus"] = {"panel": dict(_tb_me or {}), "cap": {}, "cost": {}}
-        _opp_actor["bonus"] = {"panel": dict(_tb_opp or {}), "cap": {}, "cost": {}}
-        for _a in (_my_actor, _opp_actor):
-            try:
-                _EP_apply(_a)
-            except Exception:
-                pass  # 装配异常不阻断开战
-            try:
-                from ..services.class_mech_proc import apply_class_mech as _CM_apply
-                _CM_apply(_a)
-            except Exception:
-                pass  # 技能 mech 兑现装配异常不阻断开战
+        # 双方装备装配（PVP 双方都是真人 actor，武器/词条一视同仁）+ 各自外部增幅容器
+        #（v181.M-bonus 统一数值容器；序列收敛于 BR.apply_battle_loadout，随 actor 落盘/恢复）
+        BR.apply_battle_loadout(_my_actor, _tb_me)
+        BR.apply_battle_loadout(_opp_actor, _tb_opp)
         _b2 = B2("pvp", sides={"player": [_my_actor], "enemy": [_opp_actor]},
                  title_bonus={}, pet=db.pet_get(qq_id))
         state = _b2.to_state()
