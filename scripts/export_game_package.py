@@ -1,16 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""奥兰迪亚（游戏仓）→ 框架编辑器「游戏包」JSON 导出器（通用壳，本次只实现 items 域）。
+"""奥兰迪亚（游戏仓）→ 框架编辑器「游戏包」JSON 导出器（通用壳，已实现 items / classes / skills）。
 
 方向只有一个：**游戏仓 Python 数据（真源）→ 框架仓 games/<id>/content/data/<域>.json**。
-本脚本**只读**游戏仓数据（绝不写回 game/data/*.py），框架仓只写这两个文件：
+本脚本**只读**游戏仓数据（绝不写回 game/data/*.py），框架仓只写这些文件：
 
-    <pkg>/game.json                      包清单（id/name/desc/engine/domains/entry/created）
+    <pkg>/game.json                      包清单（id/name/desc/engine/domains/created）
     <pkg>/content/data/items.json        物品域数据表 {物品key: 物品}
+    <pkg>/content/data/classes.json      职业域数据表 {职业key: 职业}
+    <pkg>/content/data/skills.json       技能域数据表 {技能key: 技能}（扁平化，见下）
 
 用法：
     python scripts/export_game_package.py --domain items
-    python scripts/export_game_package.py --domain items --out C:/Users/yuyu/framework-engine
+    python scripts/export_game_package.py --domain classes
+    python scripts/export_game_package.py --domain skills
     GWEN_FRAMEWORK_DIR=<框架仓> python scripts/export_game_package.py --domain items
     python scripts/export_game_package.py --domain items --check    # 只派生比对，不落盘
 
@@ -82,19 +85,22 @@ DEFAULT_FRAMEWORK_DIR = "C:/Users/yuyu/framework-engine"
 DEFAULT_CREATED = "2026-09-12"
 
 # 清单里由导出器管辖的字段（其余已有字段原样保留，不吞编辑器/人工加的元数据）
+# `domains` 不在常量里：它由 DERIVERS 派生（声明里的域 = 已实现的域，避免第二个手写列表）。
 MANIFEST_MANAGED = {
     "id": PACKAGE_ID,
     "name": "奥兰迪亚·余烬纪年",
     "desc": "《奥兰迪亚·余烬纪年》内容侧数据导出包（QQ 机器人文字 RPG 内容仓 dragonfall 单向导出）",
     "engine": ">=0.1",
-    "domains": ["items"],
-    "entry": "content/apply.py",
 }
+# 导出器**不再声明**的字段：曾写过 "entry": "content/apply.py"，但导出物里没有 content/apply.py
+# （机制尚未移植，本包是纯数据包）→「声明了 entry 却没有该文件」= 坏包。
+# 框架侧门禁 tests/test_editor_dist.py 现在守这条不变量；一旦将来移植机制入口，再把它加回来。
+MANIFEST_DROPPED = ("entry",)
 
 # ---------------- 域注册表 ----------------
 # 一个域 = 一个 `derive_<域>() -> dict[key, entry]`；entry 原样进 JSON（不补默认值/不改类型）
 PLANNED_DOMAINS = (
-    "skills", "classes", "monsters", "affixes", "maps", "drop_pools",
+    "monsters", "affixes", "maps", "drop_pools",
     "instances", "effect_rules", "passive_proc", "commands", "texts", "tlogs",
     "mech_cash",
 )
@@ -103,13 +109,18 @@ PLANNED_DOMAINS = (
 # =============================================================================
 # 派生（源 → 内存表）
 # =============================================================================
-def _import_items_module(src_root: str):
-    """import 游戏仓 game/data/items.py（走包导入，因为有 `from .fishing import ...`）。"""
+def _import_module(mod_name: str, src_root: str = REPO_ROOT):
+    """import 游戏仓 game/data/<mod>.py（走包导入，因为有 `from .fishing import ...` 这类相对导入）。"""
     if src_root not in sys.path:
         sys.path.insert(0, src_root)
-    if "game.data.items" in sys.modules:
-        return sys.modules["game.data.items"]
-    return importlib.import_module("game.data.items")
+    full = f"game.data.{mod_name}"
+    if full in sys.modules:
+        return sys.modules[full]
+    return importlib.import_module(full)
+
+
+def _import_items_module(src_root: str = REPO_ROOT):
+    return _import_module("items", src_root)
 
 
 def derive_items(src_root: str = REPO_ROOT) -> dict:
@@ -121,8 +132,50 @@ def derive_items(src_root: str = REPO_ROOT) -> dict:
     return dict(_import_items_module(src_root).ITEMS)
 
 
+def derive_classes(src_root: str = REPO_ROOT) -> dict:
+    """职业域：`CLASSES` 全量原样（8 条；框架 classes 域无 schema，形状由内容侧定）。
+
+    字段含 desc / lore / aliases / evolve_branches / attack_text / tutor 等（见 classes.py 头注）。
+    """
+    return dict(_import_module("classes", src_root).CLASSES)
+
+
+def derive_skills(src_root: str = REPO_ROOT) -> dict:
+    """技能域：把「按职业分组的技能表」**扁平化**成「一条技能 = 一个 key」。
+
+    为什么扁平：框架 skills 域的权威形状是 `x-primary: skill`（一条 = 一个技能，编辑器按条增删改，
+    校验也只认这个 def）；而游戏侧 `PLAYER_SKILLS` 是 `{职业: {name, skills: {sk_*: 技能}}}` 的**嵌套**
+    形态（框架 schema 里 player_skills / branch_skills / tutor_skills 三个 def 描述的就是这个源形态，
+    留给将来的「职业技能树」视图用）。
+
+    扁平化规则：源条目字段**原样保留**（不改类型、不补默认值），只额外写一个 `owner_class`（该技能
+    所属职业的 key）—— 否则嵌套层级丢掉后，技能归属就没地方表达了。实测 7 职业 61 技能、键 0 冲突、
+    按框架 skill def 逐条校验 0 失败（门禁 tests/test_export_package_sync.py 锁死）。
+    未导出：BRANCH_SKILLS / TUTOR_SKILLS（职业进阶元数据，等有对应视图再导）。
+    """
+    tables = _import_module("skills", src_root)
+    flat: dict = {}
+    for cls_key, blob in sorted((tables.PLAYER_SKILLS or {}).items()):
+        if not isinstance(blob, dict):
+            raise ValueError(f"PLAYER_SKILLS[{cls_key}] 不是 dict —— 源形状变了，拒绝导出")
+        for sk_key, sk in (blob.get("skills") or {}).items():
+            if not isinstance(sk, dict):
+                raise ValueError(f"{cls_key}.skills[{sk_key}] 不是 dict —— 源形状变了，拒绝导出")
+            if sk_key in flat:
+                raise ValueError(
+                    f"技能 key '{sk_key}' 同时属于 {flat[sk_key]['owner_class']} 与 {cls_key} —— "
+                    f"扁平化会丢条目，请先决定归属再导出"
+                )
+            entry = dict(sk)
+            entry["owner_class"] = cls_key
+            flat[sk_key] = entry
+    return flat
+
+
 DERIVERS = {
     "items": derive_items,
+    "classes": derive_classes,
+    "skills": derive_skills,
 }
 
 
@@ -147,13 +200,15 @@ def sort_table(table: dict) -> dict:
 
 
 def build_manifest(existing: dict | None) -> dict:
-    """清单 = 管辖字段（规范值）+ created（保留已有，否则固定常量）+ 其余已有字段（字典序）。"""
+    """清单 = 管辖字段（规范值）+ domains（由 DERIVERS 派生）+ created（保留已有，否则固定常量）
+    + 其余已有字段（字典序，`MANIFEST_DROPPED` 里的字段不再保留）。"""
     old = existing if isinstance(existing, dict) else {}
     out = dict(MANIFEST_MANAGED)
+    out["domains"] = sorted(DERIVERS)
     created = old.get("created")
     out["created"] = created if isinstance(created, str) and created.strip() else DEFAULT_CREATED
     for k in sorted(old):
-        if k not in out:
+        if k not in out and k not in MANIFEST_DROPPED:
             out[k] = old[k]
     return out
 

@@ -273,7 +273,10 @@ def main() -> int:
         check("id=%s" % PKG_ID, man.get("id") == PKG_ID, "实际 %r" % man.get("id"))
         check("engine 形如 >=x.y", isinstance(man.get("engine"), str) and man["engine"].startswith(">="),
               "实际 %r" % man.get("engine"))
-        check("entry 有值", bool(man.get("entry")), "实际 %r" % man.get("entry"))
+        ent = man.get("entry")
+        check("entry 不声明（纯数据包 = 无装配入口）或声明即存在",
+              ent is None or (bool(ent) and os.path.exists(os.path.join(PKG_DIR, str(ent)))),
+              "实际 %r" % ent)
         check("created 是固定值（非空串，且非时间戳式秒级变化）", bool(man.get("created")),
               "实际 %r" % man.get("created"))
         doms = man.get("domains") or []
@@ -290,12 +293,12 @@ def main() -> int:
             check("域 %s 的文件存在" % dom, has, "domains 声明了但 content/{data,rules}/%s.json 不存在" % dom)
 
         print("\n【9】未实现域必须显式报错（不静默产空表）")
-        rc3, o3 = _run_cli(os.path.join(tmp, "r3"), domain="classes")
-        check("--domain classes 退出码非 0", rc3 != 0, "rc=%s" % rc3)
-        check("--domain classes 提示「未实现」", "未实现" in o3, "输出：%s" % o3.strip()[-200:])
-        check("--domain classes 未落盘任何文件",
-              not os.path.exists(os.path.join(tmp, "r3", "games", PKG_ID, "content", "data", "classes.json")),
-              "居然写出了 classes.json")
+        rc3, o3 = _run_cli(os.path.join(tmp, "r3"), domain="monsters")
+        check("--domain monsters（已规划未实现）退出码非 0", rc3 != 0, "rc=%s" % rc3)
+        check("--domain monsters 提示「未实现」", "未实现" in o3, "输出：%s" % o3.strip()[-200:])
+        check("--domain monsters 未落盘任何文件",
+              not os.path.exists(os.path.join(tmp, "r3", "games", PKG_ID, "content", "data", "monsters.json")),
+              "居然写出了 monsters.json")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
