@@ -16,9 +16,11 @@ import os
 import re
 import time
 
-from ._platform import AstrMessageEvent, filter
+from ._platform import AstrMessageEvent
 from ._platform import Node, Nodes, Plain
 from ._platform import MessageChain
+
+from ._declared import declared
 
 from .. import content as C
 from .. import db
@@ -217,7 +219,7 @@ class GmCmds(CommandBase):
         return None
 
     # ---------- 停服 / 开服 / 状态 ----------
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_停服(?:[\s\S]*)$")
+    @declared("gm_maintenance")
     async def gm_maintenance(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -237,7 +239,7 @@ class GmCmds(CommandBase):
             + "开服后会第一时间广播通知，请耐心等待～"
         )
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_开服(?:[\s\S]*)$")
+    @declared("gm_open")
     async def gm_open(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -254,7 +256,7 @@ class GmCmds(CommandBase):
         if was_down:
             await self._broadcast("✅【服务器公告】\n维护结束，服务器已开服！欢迎回来冒险～")
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_状态(?:[\s\S]*)$")
+    @declared("gm_status")
     async def gm_status(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -279,7 +281,7 @@ class GmCmds(CommandBase):
         ]
         yield event.plain_result("\n".join(x for x in lines if x))
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_广播(?:[\s\S]*)$")
+    @declared("gm_broadcast")
     async def gm_broadcast(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -294,7 +296,7 @@ class GmCmds(CommandBase):
         yield event.plain_result(f"📢 已广播到全服 {len(db.get_player_groups())} 个群！")
 
     # ---------- 玩家查询 ----------
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_玩家(?:[\s\S]*)$")
+    @declared("gm_players")
     async def gm_players(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -321,7 +323,7 @@ class GmCmds(CommandBase):
             )
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_查询(?:[\s\S]*)$")
+    @declared("gm_query")
     async def gm_query(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -358,7 +360,7 @@ class GmCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     # ---------- 玩家操作 ----------
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_发金币(?:[\s\S]*)$")
+    @declared("gm_give_gold")
     async def gm_give_gold(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -385,7 +387,7 @@ class GmCmds(CommandBase):
         db.update_player("", tgt, gold=(p.get("gold") or 0) + n)
         yield event.plain_result(f"💰 已给 {p.get('name')} 发放 {n} 金币(现在 {p.get('gold', 0) + n})！")
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_发物品(?:[\s\S]*)$")
+    @declared("gm_give_item")
     async def gm_give_item(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -415,7 +417,7 @@ class GmCmds(CommandBase):
         db.add_item("", tgt, key, data, count)
         yield event.plain_result(f"📦 已给 {db.get_player('', tgt)['name']} 发放 {data['name']} ×{count}！")
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_发经验(?:[\s\S]*)$")
+    @declared("gm_give_exp")
     async def gm_give_exp(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -443,7 +445,7 @@ class GmCmds(CommandBase):
         # 读档惰性升级会在下次 get_player 时结算
         yield event.plain_result(f"✨ 已给 {p.get('name')} 发放 {n} 经验(下次读档自动结算升级)！")
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_设等级(?:[\s\S]*)$")
+    @declared("gm_set_level")
     async def gm_set_level(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -484,7 +486,7 @@ class GmCmds(CommandBase):
                          skill_points=max(p.get("skill_points", 0), n - 1))
         yield event.plain_result(f"⬆️ 已把 {p.get('name')} 设为 Lv.{n}(HP/MP 已按新等级重算回满)！")
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_传送(?:[\s\S]*)$")
+    @declared("gm_teleport")
     async def gm_teleport(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -521,7 +523,7 @@ class GmCmds(CommandBase):
                 return sa["id"]
         return ""
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_体力(?:[\s\S]*)$")
+    @declared("gm_stamina")
     async def gm_stamina(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -551,7 +553,7 @@ class GmCmds(CommandBase):
         db.update_player("", tgt, stamina=n, stamina_ts=int(time.time()))
         yield event.plain_result(f"⚡ 已把 {p.get('name')} 的体力设为 {n}/{mx}！")
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_改名(?:[\s\S]*)$")
+    @declared("gm_rename")
     async def gm_rename(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -585,7 +587,7 @@ class GmCmds(CommandBase):
     def _save_wl(self, wl: list):
         db.set_event_state("gm_whitelist", json.dumps(wl, ensure_ascii=False))
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_加GM(?:[\s\S]*)$")
+    @declared("gm_add_gm")
     async def gm_add_gm(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -602,7 +604,7 @@ class GmCmds(CommandBase):
             self._save_wl(wl)
         yield event.plain_result(f"👑 已把 QQ {raw} 添加为 GM！({len(wl)} 人白名单)")
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_删GM(?:[\s\S]*)$")
+    @declared("gm_del_gm")
     async def gm_del_gm(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -620,7 +622,7 @@ class GmCmds(CommandBase):
         yield event.plain_result(f"🗑️ 已把 QQ {raw} 移出 GM 名单！({len(wl)} 人白名单)")
 
     # ---------- 历史保留指令 ----------
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_play(?:[\s\S]*)$")
+    @declared("gm_play")
     async def gm_play(self, event: AstrMessageEvent):
         """v92 消息转发：把 gm_play 后的内容当作游戏指令重新分发执行。"""
         group_id, qq_id = self._uid(event)
@@ -642,7 +644,7 @@ class GmCmds(CommandBase):
         async for r in self._run_shortcut(event, raw):
             yield r
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_窥探(?:[\s\S]*)$")
+    @declared("gm_spy")
     async def gm_spy(self, event: AstrMessageEvent):
         """v101.28o 窥探：把 playtest 角色交互实录(playtest_spy_round{N}.md)私聊投递到鱼鱼 QQ。
 
@@ -737,7 +739,7 @@ class GmCmds(CommandBase):
             )
         )
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_绑身份(?:[\s\S]*)$")
+    @declared("gm_bind_identity")
     async def gm_bind_identity(self, event: AstrMessageEvent):
         """把当前发送者(官方 bot openid) 绑定到指定 QQ 号，续接老角色。"""
         group_id, qq_id = self._uid(event)
@@ -772,7 +774,7 @@ class GmCmds(CommandBase):
             + (f"\n(原绑定 QQ {old} 已覆盖)" if old and old != qq_target else "")
         )
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_身份表(?:[\s\S]*)$")
+    @declared("gm_identity_table")
     async def gm_identity_table(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -794,7 +796,7 @@ class GmCmds(CommandBase):
             lines.append(f"{oid[:8]}…{oid[-6:]} → QQ {r.get('qq_id')} ({r.get('platform')})")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_帮助(?:[\s\S]*)$")
+    @declared("gm_help")
     async def gm_help(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -830,7 +832,7 @@ class GmCmds(CommandBase):
             "💡 目标可以是 QQ 号或角色名；白名单存数据库，重启不丢"
         )
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?gm_伤害(?:[\s\S]*)$")
+    @declared("gm_boss_dmg")
     async def gm_boss_dmg(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
