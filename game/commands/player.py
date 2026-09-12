@@ -10,10 +10,9 @@ import random
 import re
 import time
 
-from ._platform import AstrMessageEvent
+from ._platform import AstrMessageEvent, MessageChain
 
 from ._declared import declared
-from ._platform import MessageChain
 
 from .. import content as C
 from .. import db
