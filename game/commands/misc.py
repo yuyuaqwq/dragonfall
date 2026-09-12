@@ -19,6 +19,7 @@ from .. import content as C
 from .. import db
 # v184：品质档位唯一真相源（TierTable）——签到周奖励的档位抽取走它
 from ..core.quality_tiers import QUALITY_TIERS
+from ..core import texts as T
 
 from ..commands.base import CommandBase, require_player
 from ..log_setup import LOG
@@ -257,7 +258,7 @@ class MiscCmds(CommandBase):
         # 替代原「读 last_date→判断→发奖励→再 save」非原子（并发可重领）。
         _claimed, streak, total = db.signin_claim(group_id, qq_id, today, yesterday)
         if not _claimed:
-            yield event.plain_result("今天已经签过到啦！明天再来～")
+            yield event.plain_result(T.static("signin.already"))
             return
         # v87 02 章 7.6：每日运势（签到随机三档：大吉/平/小凶；幸运符可+1 档）
         # v125：阈值数据下沉 signin_config.SIGNIN_CONFIG
@@ -292,18 +293,18 @@ class MiscCmds(CommandBase):
         try:
             db.update_player(group_id, qq_id, gold=player["gold"] + gold)
             lines = [
-                f"📅 【签到成功】第 {total} 次签到！连续 {streak} 天！",
-                f"💰 获得 {gold} 金币",
+                T.text("signin.title", total=total, streak=streak),
+                T.text("signin.gold", gold=gold),
             ]
-            # v87：运势显示
-            fortune_icon = {"大吉": "🌟", "平": "🍀", "小凶": "🌧️"}.get(fortune, "🍀")
-            fortune_desc = {"大吉": "今日经验＋10%", "平": "今日平平无奇", "小凶": "今日金币－10%"}.get(fortune, "")
-            lines.append(f"{fortune_icon} 今日运势：{fortune}({fortune_desc})")
+            # v87 / v185：运势显示（文案在文案表；这里只把「运势键」映射到「文案键」）
+            _FORTUNE_TEXT = {"大吉": "signin.fortune_big", "平": "signin.fortune_flat",
+                             "小凶": "signin.fortune_bad"}
+            lines.append(T.static(_FORTUNE_TEXT.get(fortune, "signin.fortune_flat")))
             if fortune == "小凶":
                 # vF3：小凶无预警提示——金币 -10% 早知道（概率/数值不变），可用幸运符消解或明日重roll
-                lines.append("💡 今日小凶金币收益 -10%……别灰心！用『使用 幸运符』可消解，或明日签到重roll运势～")
+                lines.append(T.static("signin.bad_tip"))
             if cur_evt and cur_evt["etype"] == "festival":
-                lines.append("🎉 节日庆典：签到奖励翻倍！")
+                lines.append(T.static("signin.festival"))
             # 每 7 天额外奖励
             if streak % 7 == 0:
                 import uuid
@@ -314,10 +315,12 @@ class MiscCmds(CommandBase):
                 q = QUALITY_TIERS.pick_weights(_wq, rng=random)
                 equip = C.generate_equip(random.choice(["weapon", "armor", "ring"]), player["level"], q)
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip)
-                lines.append(f"🎁 连续 {streak} 天奖励：{C.QUALITY[equip['quality']]['color']}【{equip['name']}】！")
+                lines.append(T.text("signin.week_reward", streak=streak,
+                                    color=C.QUALITY[equip["quality"]]["color"],
+                                    name=equip["name"]))
             yield event.plain_result("\n".join(lines))
         except Exception:
-            yield event.plain_result("✅ 已签到（奖励发放异常，请联系管理）")
+            yield event.plain_result(T.static("signin.broken"))
 
     @declared("achievements")
     @require_player()

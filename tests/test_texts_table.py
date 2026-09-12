@@ -10,16 +10,20 @@
 
 **逐字一致**（"迁移没改玩家看到的字"）由两层证据扛：
   · 副本域：`tests/test_v185_instance_admission.py` 的 **805 格逐格冻结比对**（对照物 = 旧实现冻结体）
-  · 周常域：本文件 `WEEKLY_FROZEN` —— **迁移前真跑 6 个分支存下来的完整输出**，每次跑测试复跑比对
+  · 周常 / 签到域：本文件 `WEEKLY_FROZEN` / `SIGNIN_FROZEN` —— **迁移前真跑各分支存下来的完整输出**，
+    每次跑测试复跑比对（签到分支用 random 打桩保证可复现）
 
 跑法：python tests/test_texts_table.py（exit=0 通过）
 """
 import ast
 import asyncio
+import datetime
 import io
 import json
 import os
+import random
 import sys
+import time
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
@@ -33,8 +37,11 @@ from data.plugins.dragonfall.game.services.weekly_progress import (  # noqa: E40
 
 _PD = os.path.dirname(_HERE)
 WEEKLY_SRC = os.path.join(_PD, "game", "commands", "weekly.py")
+MISC_SRC = os.path.join(_PD, "game", "commands", "misc.py")
 GATE_SRC = os.path.join(_PD, "game", "core", "instance_gate.py")
 SPEC = T.SPEC_PATH
+# 已迁移的域 → 该域文案由哪个文件接线（新增一个域时在这里加一行）
+WIRED = {"副本准入": GATE_SRC, "周常": WEEKLY_SRC, "签到": MISC_SRC}
 
 passed = failed = 0
 
@@ -61,7 +68,17 @@ WEEKLY_FROZEN = {
     "F_all_done": "🏮 【本周悬赏】3/3 已完成\n━━━━━━━━━━━━\n1. 『边境肃清令』 ✅ 已完成\n2. 『深林猎手悬赏』 ✅ 已完成\n3. 『剿灭魔裔』 ✅ 已完成"
 }   # 迁移前快照（2026-09-12 真跑存下，勿手改）
 
+# 迁移前行为快照（真跑『签到』5 个分支，逐字冻结；random 打桩保证可复现）
+SIGNIN_FROZEN = {
+    "A_first_bad": "📅 【签到成功】第 1 次签到！连续 1 天！\n💰 获得 25 金币\n🌧️ 今日运势：小凶(今日金币－10%)\n💡 今日小凶金币收益 -10%……别灰心！用『使用 幸运符』可消解，或明日签到重roll运势～",
+    "B_first_big": "📅 【签到成功】第 1 次签到！连续 1 天！\n💰 获得 25 金币\n🌟 今日运势：大吉(今日经验＋10%)",
+    "C_dup": "今天已经签过到啦！明天再来～",
+    "D_streak7": "📅 【签到成功】第 7 次签到！连续 7 天！\n💰 获得 55 金币\n🌟 今日运势：大吉(今日经验＋10%)\n🎁 连续 7 天奖励：🟣【龙鳞战甲】！",
+    "E_festival": "📅 【签到成功】第 1 次签到！连续 1 天！\n💰 获得 50 金币\n🌟 今日运势：大吉(今日经验＋10%)\n🎉 节日庆典：签到奖励翻倍！"
+}   # 迁移前快照（2026-09-12 真跑存下，勿手改）
+
 _GID, _QID = "g_txt", "q_txt"
+_SID = "g_si"
 
 
 async def _inv(m, name, msg):
@@ -101,18 +118,80 @@ async def _weekly_scenarios() -> dict:
     return out
 
 
+async def _signin_scenarios() -> dict:
+    """复跑『签到』迁移前的 5 个分支（步骤与快照脚本逐行一致；random 打桩保证可复现）。"""
+    clean_db()
+    m = Main(None)
+    out = {}
+    _rnd = random.random
+
+    def _mk(qid):
+        db.create_player(_SID, qid, "签到", C.resolve("classes", "战士"), {}, 100, 100)
+        db.update_player(_SID, qid, level=10, gold=1000)
+
+    async def _sign(qid):
+        ev = FakeEvent(_SID, qid, "签到")
+        res = await run(m.signin, ev)
+        return res[-1] if res else ""
+
+    def _pre(qid, days):
+        today = datetime.date.today()
+        for i in range(days, 0, -1):
+            d = today - datetime.timedelta(days=i)
+            db.signin_claim(_SID, qid, d.isoformat(),
+                            (d - datetime.timedelta(days=1)).isoformat())
+
+    try:
+        _mk("q_a")
+        random.seed(42)
+        random.random = lambda: 0.05          # < fortune_bad_th 0.15 → 小凶
+        out["A_first_bad"] = await _sign("q_a")
+        _mk("q_b")
+        random.seed(42)
+        random.random = lambda: 0.9           # ≥ 0.55 → 大吉
+        out["B_first_big"] = await _sign("q_b")
+        out["C_dup"] = await _sign("q_b")     # 同人再签 → 已签分支
+        _mk("q_d")
+        _pre("q_d", 6)                        # 昨天刚签 + 连续 6 天 → 本次第 7 天
+        random.seed(7)
+        random.random = lambda: 0.9
+        out["D_streak7"] = await _sign("q_d")
+        _mk("q_e")
+        db.save_world_event("festival", int(time.time()) + 86400, {"name": "测试庆典"})
+        random.seed(42)
+        random.random = lambda: 0.9
+        out["E_festival"] = await _sign("q_e")
+        db.clear_world_event()
+    finally:
+        random.random = _rnd
+        clean_db()
+    return out
+
+
 # ══════════════════════════════════════════════════════════════════════════
 def _scan_calls(path):
-    """AST 扫模块里 `T.text("k", **kw)` / `T.static("k")` → [(key, frozenset(kwarg 名))]"""
+    """AST 扫模块：
+
+    ① `T.text("k", **kw)` / `T.static("k")` → (key, frozenset(kwarg 名), kind)（直接调用点）
+    ② 模块里出现过的字符串字面量集合 → 「键在映射表里」这类用法（如运势键 → 文案键的 dict）
+       也算被引用，否则会被当成死文案误报。
+
+    ②只用于「有没有引用」，槽位对账仍只认①的直接调用实参。
+    """
     tree = ast.parse(io.open(path, encoding="utf-8").read())
-    out = []
+    calls, lits = [], set()
     for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            lits.add(node.value)
         if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                 and node.func.attr in ("text", "static")
                 and isinstance(node.func.value, ast.Name) and node.func.value.id == "T"):
             k = node.args[0].value if (node.args and isinstance(node.args[0], ast.Constant)) else None
-            out.append((k, frozenset(kw.arg for kw in node.keywords if kw.arg), node.func.attr))
-    return out
+            if k is None:
+                continue          # 动态键（如 T.static(_FORTUNE_TEXT.get(fortune))）静态扫不出：
+                                  # 交给②「字面量也算引用」兜，避免误报成「调用了未声明的 None」
+            calls.append((k, frozenset(kw.arg for kw in node.keywords if kw.arg), node.func.attr))
+    return calls, lits
 
 
 def t1_table_selfcheck():
@@ -120,7 +199,7 @@ def t1_table_selfcheck():
     tb = T.reload()
     check("声明文件存在且路径正确", os.path.exists(SPEC) and SPEC.endswith("text_specs.json"), SPEC)
     check("装载无错（load_error 为空）", T.load_error() == "", T.load_error())
-    check("表非空（44 条：副本准入 26 + 周常 18）", len(tb) >= 40, len(tb))
+    check("表非空（56 条：副本准入 26 + 签到 10 + 周常 18）", len(tb) >= 40, len(tb))
     check("★ validate() 干净（无空值/语法错/params 与模板不一致）",
           tb.audit()["problems"] == [], tb.audit()["problems"][:5])
     check("元信息键（_ 开头）不入表", not [k for k in tb.keys() if k.startswith("_")], tb.keys()[:3])
@@ -128,15 +207,18 @@ def t1_table_selfcheck():
           not [s.key for s in tb if not s.category], [s.key for s in tb if not s.category][:5])
     check("key 无重复", len(tb.keys()) == len(set(tb.keys())))
     cats = sorted({s.category for s in tb})
-    check("category 取值符合预期（副本准入 / 周常）", set(cats) == {"副本准入", "周常"}, cats)
+    check("category 取值符合预期（副本准入 / 签到 / 周常）",
+          set(cats) == {"副本准入", "签到", "周常"}, cats)
 
 
 def t2_key_and_params_accounting():
     print("\n[2] 声明 ↔ 调用点对账（双向；AST 扫真实调用）")
     declared = set(T.table().keys())
-    used, mismatch = set(), []
-    for path in (GATE_SRC, WEEKLY_SRC):
-        for key, kwargs, kind in _scan_calls(path):
+    used, mismatch, lits = set(), [], set()
+    for name, path in WIRED.items():
+        calls, l = _scan_calls(path)
+        lits |= (l & declared)
+        for key, kwargs, kind in calls:
             used.add(key)
             spec = T.table().spec(key)
             if spec is None:
@@ -148,12 +230,14 @@ def t2_key_and_params_accounting():
             if set(kwargs) != slots:
                 mismatch.append("%s: %s 槽位不符（调用 %s / 声明 %s）"
                                 % (os.path.basename(path), key, sorted(kwargs), sorted(slots)))
+    used |= lits                                          # 映射表里的键也算被引用
     check("★ 代码里每一处调用都能在表里找到（否则运行时缺 key）", not mismatch, mismatch[:5])
     dead = sorted(declared - used)
     check("★ 表里没有死文案（每条声明都被真实调用）", not dead, dead)
     check("★ 槽位名与调用实参逐条对得上（防模板写出 {foo} 露给玩家）", not mismatch)
-    check("调用点覆盖两个域（副本准入 + 周常）",
-          any(k.startswith("instance.") for k in used) and any(k.startswith("weekly.") for k in used))
+    doms = {k.split(".")[0] for k in used}
+    check("调用点覆盖全部已迁移域（副本准入 + 周常 + 签到）",
+          {"instance", "weekly", "signin"} <= doms, sorted(doms))
 
 
 def t3_no_silent_fallback():
@@ -180,7 +264,7 @@ def t3_no_silent_fallback():
         T.SPEC_PATH = real
         T.reload()
     os.remove(bad)
-    check("恢复正常声明后表重建（44 条）", len(T.table()) >= 40, len(T.table()))
+    check("恢复正常声明后表重建（56 条）", len(T.table()) >= 40, len(T.table()))
 
 
 def t4_weekly_frozen():
@@ -195,6 +279,16 @@ def t4_weekly_frozen():
           all(v and "\n" in v for v in WEEKLY_FROZEN.values()))
 
 
+def t5_signin_frozen():
+    print("\n[5] 签到域逐字冻结：迁移前 5 分支行为快照复跑比对")
+    check("冻结基准已内嵌（5 场景）", len(SIGNIN_FROZEN) == 5, len(SIGNIN_FROZEN))
+    now = asyncio.run(_signin_scenarios())
+    bad = [k for k in SIGNIN_FROZEN if SIGNIN_FROZEN[k] != now.get(k)]
+    for k in bad:
+        print("     · %s 现=%r" % (k, now.get(k, "")[:120]))
+    check("★『签到』5 分支输出与迁移前**逐字一致**", not bad, bad)
+
+
 def main():
     print("=" * 74)
     print("文案表门禁：game/data/text_specs.json + game/core/texts.py")
@@ -203,6 +297,7 @@ def main():
     t2_key_and_params_accounting()
     t3_no_silent_fallback()
     t4_weekly_frozen()
+    t5_signin_frozen()
     print("\n" + "=" * 74)
     print("结果：通过 %d / %d" % (passed, passed + failed))
     print("=" * 74)

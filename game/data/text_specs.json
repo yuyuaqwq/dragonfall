@@ -9,7 +9,6 @@
   "副本准入": "副本『副本 <名字>』『加入战斗』与徒步进图门禁的全部提示（v185 收口到 core/instance_gate.py）",
   "周常": "周常悬赏『周常』『周常列表』面板（v185 起采用文案表，行为快照冻结）"
  },
-
  "instance.leader_only": {
   "value": "只有队长才能开启副本！让队长来『副本 <名字>』吧～",
   "category": "副本准入",
@@ -17,19 +16,31 @@
  },
  "instance.party_need": {
   "value": "『{name}』需要 {min_players}-{max_players} 人组队！先『组队 <对方名字>』～",
-  "params": ["name", "min_players", "max_players"],
+  "params": [
+   "name",
+   "min_players",
+   "max_players"
+  ],
   "category": "副本准入",
   "desc": "开本：强制多人副本却无队伍"
  },
  "instance.too_few": {
   "value": "『{name}』至少需要 {min_players} 人！还差 {gap} 个队友，让队长『组队 <名字>』拉人～",
-  "params": ["name", "min_players", "gap"],
+  "params": [
+   "name",
+   "min_players",
+   "gap"
+  ],
   "category": "副本准入",
   "desc": "开本：队伍人数不足（gap = 最低人数 − 现有人数，代码算好再传）"
  },
  "instance.too_many": {
   "value": "『{name}』最多 {max_players} 人！当前 {have} 人太多了～",
-  "params": ["name", "max_players", "have"],
+  "params": [
+   "name",
+   "max_players",
+   "have"
+  ],
   "category": "副本准入",
   "desc": "开本：队伍人数超上限"
  },
@@ -40,43 +51,68 @@
  },
  "instance.member_level": {
   "value": "{name} 才 Lv.{level}，副本需要全队 Lv.{need_lv}+！",
-  "params": ["name", "level", "need_lv"],
+  "params": [
+   "name",
+   "level",
+   "need_lv"
+  ],
   "category": "副本准入",
   "desc": "开本：队友等级不足"
  },
  "instance.member_dead": {
   "value": "💀 {name} 生命值为 0！先去住宿或用药恢复，别拿命闯副本～",
-  "params": ["name"],
+  "params": [
+   "name"
+  ],
   "category": "副本准入",
   "desc": "开本：队友 0 血"
  },
  "instance.member_in_battle": {
   "value": "{name} 正在战斗中，先打完再来！\n👥 当前队伍：{roster}（队友打完即可开本）",
-  "params": ["name", "roster"],
+  "params": [
+   "name",
+   "roster"
+  ],
   "category": "副本准入",
   "desc": "开本：队友在战斗（roster = 队伍快照串）"
  },
  "instance.member_prof_wait": {
   "value": "⏳ {name} 还在{prof_label}呢，再有 {left} 秒完成！等 TA 忙完再开本吧～",
-  "params": ["name", "prof_label", "left"],
+  "params": [
+   "name",
+   "prof_label",
+   "left"
+  ],
   "category": "副本准入",
   "desc": "开本：队友生活副业未完成"
  },
  "instance.key_seal": {
   "value": "🔒 『{name}』被封印之门挡住！\n需要『{key_item}』才能进入(已通关副本可免钥匙)\n📜 获取途径：{key_source}",
-  "params": ["name", "key_item", "key_source"],
+  "params": [
+   "name",
+   "key_item",
+   "key_source"
+  ],
   "category": "副本准入",
   "desc": "开本：缺钥匙且未通关"
  },
  "instance.entry_hint": {
   "value": "📍 请先到【{map_name}·{sa}】副本入口处（『前往』）再开本！\n（副本入口在 {map_name} 的 {sa}，走到那里输入『副本 {name}』）",
-  "params": ["map_name", "sa", "name"],
+  "params": [
+   "map_name",
+   "sa",
+   "name"
+  ],
   "category": "副本准入",
   "desc": "开本：人不在入口（sa = 子区域名，空则回退子区域 id，回退口径留在代码）"
  },
  "instance.stamina_short": {
   "value": "😮‍💨 体力不足！{action}需要 {cost} 点体力，你只有 {cur} 点。\n🍖 吃点食物(『烹饪』/『使用 <食物>』)或去旅店『住宿』恢复体力～\n💡 体力每 1 分钟自然恢复 1 点(上限 100+等级×2)，『防御』不耗体力可拖延时间～",
-  "params": ["action", "cost", "cur"],
+  "params": [
+   "action",
+   "cost",
+   "cur"
+  ],
   "category": "副本准入",
   "desc": "体力不足（开本与 base._spend_stamina 同源唯一入口）"
  },
@@ -87,7 +123,10 @@
  },
  "instance.walk_deny": {
   "value": "🔒 此处为【{inst_name}】入口，需接取相应任务（或持有钥匙）才能进入。\n{tip}；或先完成任务、收集所需钥匙～",
-  "params": ["inst_name", "tip"],
+  "params": [
+   "inst_name",
+   "tip"
+  ],
   "category": "副本准入",
   "desc": "徒步进图门禁拦截（tip = 该副本的入口提示池随机一条）"
  },
@@ -151,10 +190,73 @@
   "category": "副本准入",
   "desc": "加入战斗：角色快照异常（instance.py 兜底路径同源）"
  },
-
+ "signin.already": {
+  "value": "今天已经签过到啦！明天再来～",
+  "category": "签到",
+  "desc": "『签到』：当日已签"
+ },
+ "signin.title": {
+  "value": "📅 【签到成功】第 {total} 次签到！连续 {streak} 天！",
+  "params": [
+   "total",
+   "streak"
+  ],
+  "category": "签到",
+  "desc": "签到成功标题"
+ },
+ "signin.gold": {
+  "value": "💰 获得 {gold} 金币",
+  "params": [
+   "gold"
+  ],
+  "category": "签到",
+  "desc": "签到金币（节日庆典翻倍后按最终值渲染）"
+ },
+ "signin.fortune_big": {
+  "value": "🌟 今日运势：大吉(今日经验＋10%)",
+  "category": "签到",
+  "desc": "运势行：大吉（label 与说明都在这，代码只按运势键选模板）"
+ },
+ "signin.fortune_flat": {
+  "value": "🍀 今日运势：平(今日平平无奇)",
+  "category": "签到",
+  "desc": "运势行：平"
+ },
+ "signin.fortune_bad": {
+  "value": "🌧️ 今日运势：小凶(今日金币－10%)",
+  "category": "签到",
+  "desc": "运势行：小凶"
+ },
+ "signin.bad_tip": {
+  "value": "💡 今日小凶金币收益 -10%……别灰心！用『使用 幸运符』可消解，或明日签到重roll运势～",
+  "category": "签到",
+  "desc": "小凶额外提示（无预警变有预警）"
+ },
+ "signin.festival": {
+  "value": "🎉 节日庆典：签到奖励翻倍！",
+  "category": "签到",
+  "desc": "节日庆典行（奖励已翻倍时附上）"
+ },
+ "signin.week_reward": {
+  "value": "🎁 连续 {streak} 天奖励：{color}【{name}】！",
+  "params": [
+   "streak",
+   "color",
+   "name"
+  ],
+  "category": "签到",
+  "desc": "每 7 天额外装备奖励（color/name 由装备实例给）"
+ },
+ "signin.broken": {
+  "value": "✅ 已签到（奖励发放异常，请联系管理）",
+  "category": "签到",
+  "desc": "落库异常时的最小成功回执（C8：不重试认领，不静默）"
+ },
  "weekly.locked": {
   "value": "🏮 悬赏板还蒙着布——上面的委托要 Lv.{min_lv} 的冒险者才接得动。\n💡 先完成『每日』任务和主线提升等级，到了 Lv.{min_lv} 再来看看～",
-  "params": ["min_lv"],
+  "params": [
+   "min_lv"
+  ],
   "category": "周常",
   "desc": "『周常』：等级不够"
  },
@@ -165,13 +267,21 @@
  },
  "weekly.item_new": {
   "value": "{i}. 『{tname}』{desc}",
-  "params": ["i", "tname", "desc"],
+  "params": [
+   "i",
+   "tname",
+   "desc"
+  ],
   "category": "周常",
   "desc": "发布面板：单条悬赏行（desc 为悬赏数据自带的描述）"
  },
  "weekly.item_line": {
   "value": "    目标：{obj}｜赏金：经验 +{exp} 金币 +{gold}",
-  "params": ["obj", "exp", "gold"],
+  "params": [
+   "obj",
+   "exp",
+   "gold"
+  ],
   "category": "周常",
   "desc": "悬赏明细行（obj = 目标短标，由代码 _obj_label 算好）"
  },
@@ -182,19 +292,30 @@
  },
  "weekly.title_progress": {
   "value": "🏮 【本周悬赏】{done_n}/{total} 已完成",
-  "params": ["done_n", "total"],
+  "params": [
+   "done_n",
+   "total"
+  ],
   "category": "周常",
   "desc": "进度面板标题"
  },
  "weekly.item_done": {
   "value": "{i}. 『{tname}』 ✅ 已完成",
-  "params": ["i", "tname"],
+  "params": [
+   "i",
+   "tname"
+  ],
   "category": "周常",
   "desc": "进度面板：已完成条目"
  },
  "weekly.item_todo": {
   "value": "{i}. 『{tname}』 ⏳ {prog}/{need}",
-  "params": ["i", "tname", "prog", "need"],
+  "params": [
+   "i",
+   "tname",
+   "prog",
+   "need"
+  ],
   "category": "周常",
   "desc": "进度面板：未完成条目"
  },
@@ -205,37 +326,55 @@
  },
  "weekly.pool_title": {
   "value": "🏮 【周常悬赏池】第 {page}/{pages} 页（每周自动发布 {pick} 条）",
-  "params": ["page", "pages", "pick"],
+  "params": [
+   "page",
+   "pages",
+   "pick"
+  ],
   "category": "周常",
   "desc": "『周常列表』标题"
  },
  "weekly.pool_item": {
   "value": "· 『{name}』(Lv.{lv_req}+{lock}) {desc}",
-  "params": ["name", "lv_req", "lock", "desc"],
+  "params": [
+   "name",
+   "lv_req",
+   "lock",
+   "desc"
+  ],
   "category": "周常",
   "desc": "悬赏池条目（lock 为 \"\" 或 \" 🔒\"，代码算好再传）"
  },
  "weekly.pool_reward": {
   "value": "    经验 +{exp} 金币 +{gold}",
-  "params": ["exp", "gold"],
+  "params": [
+   "exp",
+   "gold"
+  ],
   "category": "周常",
   "desc": "悬赏池条目：赏金行"
  },
  "weekly.obj_kill_any": {
   "value": "讨伐任意怪物 {n} 只",
-  "params": ["n"],
+  "params": [
+   "n"
+  ],
   "category": "周常",
   "desc": "悬赏目标短标：任意怪物"
  },
  "weekly.obj_kill_elite": {
   "value": "讨伐精英怪物 {n} 只",
-  "params": ["n"],
+  "params": [
+   "n"
+  ],
   "category": "周常",
   "desc": "悬赏目标短标：精英怪"
  },
  "weekly.obj_kill_boss": {
   "value": "讨伐区域 Boss {n} 只",
-  "params": ["n"],
+  "params": [
+   "n"
+  ],
   "category": "周常",
   "desc": "悬赏目标短标：区域 Boss"
  },
@@ -251,7 +390,9 @@
  },
  "weekly.pool_more": {
   "value": "📄 『周常列表 {next_page}』翻页",
-  "params": ["next_page"],
+  "params": [
+   "next_page"
+  ],
   "category": "周常",
   "desc": "悬赏池：翻页行（仅多页时出现）"
  }
