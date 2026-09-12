@@ -80,5 +80,422 @@
     "usage": "意见 <内容>",
     "guards": [],
     "order": 5
+  },
+  "market": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?市场(?:\\s*|$)"
+    ],
+    "desc": "玩家市场（寄售列表）",
+    "category": "物品",
+    "usage": "市场",
+    "guards": [
+      "player"
+    ],
+    "order": 1
+  },
+  "market_sell": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?上架(?:\\s*|$)"
+    ],
+    "desc": "上架物品寄售（价格下限见经济配置）",
+    "category": "物品",
+    "usage": "上架 <物品名> <价格>",
+    "guards": [
+      "player"
+    ],
+    "order": 2
+  },
+  "market_unsell": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?下架(?:\\s*|$)"
+    ],
+    "desc": "下架自己的寄售（退还物品）",
+    "category": "物品",
+    "usage": "下架 <编号>",
+    "guards": [
+      "player"
+    ],
+    "order": 3
+  },
+  "market_buy": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?购入(?:\\s*|$)"
+    ],
+    "desc": "购入他人寄售",
+    "category": "物品",
+    "usage": "购入 <编号>",
+    "guards": [
+      "player"
+    ],
+    "order": 4
+  },
+  "stall_deprecated": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?摆摊(?:[\\s\\S]*)$"
+    ],
+    "desc": "『摆摊』旧词引导（v167 已拆成 摆卖/摆换，不静默消失）",
+    "category": "物品",
+    "usage": "摆摊",
+    "guards": [
+      "player"
+    ],
+    "order": 5,
+    "extra": {
+      "note": "v167 拆分：『摆摊』一词语义歧义（有无价格区分卖/换，与数量参数冲突，一介散人『咕噜的皇冠』同名事件暴露按名匹配的坑）。老词保留为引导提示，priority=5 让位给新指令。"
+    }
+  },
+  "stall_sell": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?摆卖(?:[\\s\\S]*)$"
+    ],
+    "desc": "摆摊出售（金币），支持背包全局序号或名称",
+    "category": "物品",
+    "usage": "摆卖 <物品/背包序号> <单价> [数量]",
+    "guards": [
+      "player"
+    ],
+    "order": 6
+  },
+  "stall_exchange_pawn": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?摆换(?:[\\s\\S]*)$"
+    ],
+    "desc": "摆摊以物换物（不带价格）",
+    "category": "物品",
+    "usage": "摆换 <物品/背包序号> [数量]",
+    "guards": [
+      "player"
+    ],
+    "order": 7
+  },
+  "stall_close": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?收摊(?:[\\s\\S]*)$"
+    ],
+    "desc": "收摊（下架自己的摊位）",
+    "category": "物品",
+    "usage": "收摊",
+    "guards": [
+      "player"
+    ],
+    "order": 8
+  },
+  "stall_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?摊位(?:[\\s\\S]*)$"
+    ],
+    "desc": "摊位列表（他人摊位与自己的摊位）",
+    "category": "物品",
+    "usage": "摊位",
+    "guards": [
+      "player"
+    ],
+    "order": 9
+  },
+  "stall_exchange": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?换(?:[\\s\\S]*)$"
+    ],
+    "desc": "与换摊成交（以物换物）",
+    "category": "物品",
+    "usage": "换 <摊位编号> <物品名>",
+    "guards": [
+      "player"
+    ],
+    "order": 10
+  },
+  "party": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:组队|队伍)(?:[\\s\\S]*)$"
+    ],
+    "desc": "队伍面板／创建队伍（队长再发一次可拉人，上限 4 人）",
+    "category": "社交",
+    "usage": "组队 <对方名字>",
+    "guards": [
+      "player"
+    ],
+    "order": 1
+  },
+  "party_leave": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?退队(?:\\s*|$)"
+    ],
+    "desc": "离开队伍（队长退队=解散）",
+    "category": "社交",
+    "usage": "退队",
+    "guards": [
+      "player"
+    ],
+    "order": 2
+  },
+  "guild_create_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?创建公会(?:\\s*|$)"
+    ],
+    "desc": "创建公会",
+    "category": "社交",
+    "usage": "创建公会 <名字>",
+    "guards": [
+      "player"
+    ],
+    "order": 3
+  },
+  "guild_join_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?加入公会(?:\\s*|$)"
+    ],
+    "desc": "加入公会",
+    "category": "社交",
+    "usage": "加入公会 <名字>",
+    "guards": [
+      "player"
+    ],
+    "order": 4
+  },
+  "guild_leave_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?退出公会(?:\\s*|$)"
+    ],
+    "desc": "退出公会",
+    "category": "社交",
+    "usage": "退出公会",
+    "guards": [
+      "player"
+    ],
+    "order": 5
+  },
+  "guild_disband_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?解散公会(?:\\s*|$)"
+    ],
+    "desc": "解散公会（会长）",
+    "category": "社交",
+    "usage": "解散公会",
+    "guards": [
+      "player"
+    ],
+    "order": 6
+  },
+  "guild_info": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?公会(?!签到|任务|捐献|排行|创建|加入|退出|解散|商店|技能|任命|免职)(?:\\s*.*|$)"
+    ],
+    "desc": "公会面板（成员/等级/积分）",
+    "category": "社交",
+    "usage": "公会",
+    "guards": [
+      "player"
+    ],
+    "order": 7,
+    "extra": {
+      "note": "负向断言排除全部公会子指令（签到/任务/捐献/排行/创建/加入/退出/解散/商店/技能/任命/免职），保证裸『公会』只命中本面板。"
+    }
+  },
+  "guild_sign": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?公会签到(?:\\s*|$)"
+    ],
+    "desc": "公会签到（得公会积分）",
+    "category": "社交",
+    "usage": "公会签到",
+    "guards": [
+      "player"
+    ],
+    "order": 8
+  },
+  "guild_task": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?公会任务(?:\\s*|$)"
+    ],
+    "desc": "公会任务（讨伐/捐献进度）",
+    "category": "社交",
+    "usage": "公会任务",
+    "guards": [
+      "player"
+    ],
+    "order": 9
+  },
+  "guild_donate_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?公会捐献(?:\\s*|$)"
+    ],
+    "desc": "公会捐献（上交材料，每日一次，得积分）",
+    "category": "社交",
+    "usage": "公会捐献 <材料>",
+    "guards": [
+      "player"
+    ],
+    "order": 10,
+    "extra": {
+      "note": "v116 公会成长纵深：策划 11 章 4 种公会任务简化为讨伐（击杀自动推进）+ 捐献；捐献进度用 event_state（key=guild_donate:{gid}:{qq_id}，值=日期），不与击杀任务共用 task_progress。"
+    }
+  },
+  "guild_rank": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?公会排行(?:\\s*|$)"
+    ],
+    "desc": "公会排行（按积分）",
+    "category": "社交",
+    "usage": "公会排行",
+    "order": 11
+  },
+  "guild_shop": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?公会商店(?:\\s*.*|$)"
+    ],
+    "desc": "公会商店（用公会积分购买）",
+    "category": "社交",
+    "usage": "公会商店 [编号]",
+    "guards": [
+      "player"
+    ],
+    "order": 12,
+    "extra": {
+      "note": "v116：积分 = 成员贡献（guild_members.contribute），由『公会签到』『公会捐献』获得。本指令无需登录守卫（查看型）。"
+    }
+  },
+  "guild_skill_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?公会技能(?:\\s*.*|$)"
+    ],
+    "desc": "公会技能列表（等级门槛与积分价目）",
+    "category": "社交",
+    "usage": "公会技能",
+    "guards": [
+      "player"
+    ],
+    "order": 13,
+    "extra": {
+      "note": "v116 说明：技能购买记录无处可靠持久化（guild_members 无通用 JSON 列，本轮禁改表结构）→ 只做展示与数据，购买落地与战斗加成挂接留待下轮。"
+    }
+  },
+  "guild_appoint": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?公会任命(?:\\s*.*|$)"
+    ],
+    "desc": "公会任命（会长任命 副会长/精英）",
+    "category": "社交",
+    "usage": "公会任命 <成员名> <职位>",
+    "guards": [
+      "player"
+    ],
+    "order": 14,
+    "extra": {
+      "note": "门槛：副会长需公会 Lv.3（GUILD_CONFIG.vice_leader_level），精英无门槛。"
+    }
+  },
+  "guild_demote": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?公会免职(?:\\s*.*|$)"
+    ],
+    "desc": "公会免职（会长降回普通成员）",
+    "category": "社交",
+    "usage": "公会免职 <成员名>",
+    "guards": [
+      "player"
+    ],
+    "order": 15
+  },
+  "pet_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?宠物(?!改名)(?:\\s*|$)"
+    ],
+    "desc": "宠物面板（宠物属性/技能）",
+    "category": "社交",
+    "usage": "宠物",
+    "guards": [
+      "player"
+    ],
+    "order": 16,
+    "extra": {
+      "note": "负向断言排除『宠物改名』，保证裸『宠物』只命中本面板。"
+    }
+  },
+  "pet_rename": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?宠物改名(?:\\s*|$)"
+    ],
+    "desc": "宠物改名",
+    "category": "社交",
+    "usage": "宠物改名 <名字>",
+    "guards": [
+      "player"
+    ],
+    "order": 17
+  },
+  "pet_feed": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?喂养(?:\\s*|$)"
+    ],
+    "desc": "喂养宠物（消耗食物）",
+    "category": "社交",
+    "usage": "喂养 <食物>",
+    "guards": [
+      "player"
+    ],
+    "order": 18
+  },
+  "pet_release": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?放生(?:\\s*|$)"
+    ],
+    "desc": "放生宠物",
+    "category": "社交",
+    "usage": "放生 <宠物>",
+    "guards": [
+      "player"
+    ],
+    "order": 19
+  },
+  "mount_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:坐骑|骑乘|下马)(?:\\s*|$)"
+    ],
+    "desc": "坐骑面板／骑乘／下马（传送省钱）",
+    "category": "社交",
+    "usage": "坐骑 | 骑乘 <名称> | 下马",
+    "guards": [
+      "player"
+    ],
+    "order": 20
+  },
+  "world_event": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?事件(?:\\s*|$)"
+    ],
+    "desc": "当前世界事件（类型/剩余时间/影响）",
+    "category": "世界",
+    "usage": "事件",
+    "guards": [
+      "player"
+    ],
+    "order": 1,
+    "extra": {
+      "note": "顺带触发一次世界事件投放判定（_maybe_roll_event）并广播到其它群。"
+    }
+  },
+  "auction": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?拍卖(?:\\s*|$)"
+    ],
+    "desc": "神秘拍卖行（在售拍品与倒计时）",
+    "category": "物品",
+    "usage": "拍卖",
+    "guards": [
+      "player"
+    ],
+    "order": 11
+  },
+  "bid": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?竞拍(?:\\s*|$)"
+    ],
+    "desc": "对当前拍品出价",
+    "category": "物品",
+    "usage": "竞拍 <编号> <金币>",
+    "guards": [
+      "player"
+    ],
+    "order": 12
   }
 }

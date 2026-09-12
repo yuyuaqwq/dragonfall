@@ -23,18 +23,16 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {detail}")
 
 
-# ---------- 从 commands/*.py 提取 @filter.regex ----------
-SRC_ALL = []
-for _p in glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "commands", "*.py")):
-    if _p.endswith("__init__.py"):
-        continue
-    with open(_p, encoding="utf-8") as _f:
-        SRC_ALL.append(_f.read())
-src = "\n".join(SRC_ALL)
-# v95.26：@filter.regex 与 async def 之间可能有多层业务装饰器（@require_player()/@no_prof_waiting()）；
-# 必须 4 空格缩进（方法级），排除 base.py docstring 里的 8 空格用法示例
-handler_pat = re.compile(r'^    @filter\.regex\(r"([^"]+)"\)(?:\s*\n\s*@[A-Za-z_]\w*(?:\([^)]*\))?)*\s*\n\s*async def (\w+)', re.M)
-handlers = [(m.group(1), m.group(2)) for m in handler_pat.finditer(src)]
+# ---------- 命令正则扫描：走共享 helper（tests/_cmd_registry.py，**唯一实现**）----------
+# 2026-09-12 v185 指令表迁移（路线图 #9）：本文件原先自带一份「只认 @filter.regex 字面量」的
+# 扫描实现 → 一批指令迁到声明表（@declared）后，它们**整体掉出正则池**，用例当场变红
+# （实测：『宠物改名小黑』/『公会签到5』/『公会任务』3 例命中 []）。改为走 helper：
+# 两种装饰器写法（@filter.regex 字面量 / @declared 声明）都认，扫描实现只此一处。
+from _cmd_registry import pattern_map as _pattern_map  # noqa: E402
+
+handlers = [(pat, name) for name, pat in _pattern_map().items() if name != "_maint_gate"]
+# `_maint_gate`（base.py:179 停服全局 gate）模式无 $ 锚定、设计上匹配所有消息，不参与指令互斥
+# （同 test_v87_command_matrix.py 的剔除口径）。
 comps = [re.compile(p) for p, _ in handlers]
 CMD_PREFIX = r"^(?:\[At:[^\]]+\]\s*)?"
 
