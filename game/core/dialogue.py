@@ -12,6 +12,7 @@ core 只负责判断与筛选，保证引擎可单测、可复用。
 """
 import re
 from .. import content as C
+from ..log_setup import LOG
 
 
 def get_dialogue(npc_id: str):
@@ -46,7 +47,6 @@ def check_need(need, ctx: dict) -> bool:
         if fn is None:
             # v104 M21 P1：未注册条件键 → 生产放行但告警（防数据笔误静默变永远可见）；
             # 测试环境（GWEN_GAME_DB 指向 test 库）直接 raise，让单测抓出笔误
-            import logging
             import os
             _db = os.environ.get("GWEN_GAME_DB", "")
             _msg = (f"[dragonfall] 对话条件未注册键 need[{k!r}]={v!r}："
@@ -57,7 +57,7 @@ def check_need(need, ctx: dict) -> bool:
                      or os.environ.get("GWEN_TEST_MODE") == "1")
             if _test:
                 raise ValueError(_msg)
-            logging.getLogger("astrbot").warning(_msg)
+            LOG.warning(_msg)
             continue  # 未知条件放行（向后兼容，旧数据不崩）
         if not fn(ctx, v):
             return False

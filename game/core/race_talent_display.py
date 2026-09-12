@@ -27,8 +27,8 @@ def format_talent(k, v, name):
     """
     fn = DISPLAY.get(k)
     if fn is None:
-        import logging
-        logging.getLogger("astrbot").warning(
+        from ..log_setup import LOG
+        LOG.warning(
             f"[dragonfall] 种族天赋无展示注册: {k}（data/races.py 新增天赋需在 "
             "race_talent_display.py 注册 format 函数）"
         )

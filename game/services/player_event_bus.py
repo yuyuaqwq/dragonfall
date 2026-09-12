@@ -31,11 +31,11 @@
 
 from __future__ import annotations
 
-import logging
 
 from saintess_engine.events import EventBus
+from ..log_setup import LOG
 
-_log = logging.getLogger("astrbot")
+_log = LOG
 
 # 起步全集（**本游戏的事件名**；框架不预设任何事件名）
 # 扩展靠 data/声明不靠加 if——但事件本体先枚举，防止拼写漂移

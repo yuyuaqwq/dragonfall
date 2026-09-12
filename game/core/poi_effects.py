@@ -20,12 +20,12 @@ fallback 吞掉数据拼写错误）。
 - 副本 POI：instance_stage_maps.py 加 type + 本模块 register inst:<type>
 """
 import json
-import logging
 import random
 import time
 import uuid
+from ..log_setup import LOG
 
-_logger = logging.getLogger("astrbot")
+_logger = LOG
 
 POI_EFFECTS = {}
 

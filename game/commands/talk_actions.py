@@ -17,6 +17,7 @@ v113：新增异步动作支持（hidden_evolve 等需要 await async generator 
 from .. import content as C  # noqa: F401
 from .. import db
 from ..content_rules.skills import branch_skill_owner, skill_info
+from ..log_setup import LOG
 
 # v130.2f.2 苦修档位展示名映射（分支 key 不动，仅展示层；与 player.py _BRANCH_KEY_DISPLAY 同源）
 _BRANCH_DISPLAY = {"武僧": "淬势者", "大地武僧": "锻势行者"}
@@ -46,7 +47,6 @@ def check_action_keys(action):
     unknown = set(action) - set(ACTIONS)
     if not unknown:
         return
-    import logging
     import os
     _db = os.environ.get("GWEN_GAME_DB", "")
     _msg = (f"[dragonfall] 对话动作未注册键 action{unknown}："
@@ -55,7 +55,7 @@ def check_action_keys(action):
              or os.environ.get("GWEN_TEST_MODE") == "1")
     if _test:
         raise ValueError(_msg)
-    logging.getLogger("astrbot").warning(_msg)
+    LOG.warning(_msg)
 
 
 # ================= 动作实现 =================

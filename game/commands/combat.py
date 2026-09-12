@@ -31,6 +31,7 @@ from ..core.wild_king import (  # v140 波2：野王体系（探索命中/结算
     explore_king, build_king_monster, open_chest,
     wild_king_summary,
 )
+from ..log_setup import LOG
 
 # 全局战斗锁（简单并发保护：同一玩家同一时间只能一场战斗）
 _battle_locks = set()
@@ -997,7 +998,6 @@ class CombatCmds(CommandBase):
         未知效果显式告警（不再静默 fallback 吞掉数据拼写错误）。
         st 为副本战斗上下文（副本内联 POI 时传入）。
         """
-        import logging as _logging
         from ..core.poi_effects import PoiContext, execute_poi
         eff = f"inst:{poi.get('type')}" if poi.get("type") else poi.get("effect", "")
         ctx = PoiContext(group_id, qq_id, player, cur_map, poi_id, poi, st=st,
@@ -1006,7 +1006,7 @@ class CombatCmds(CommandBase):
         if text is not None:
             return text
         # 未知 effect：显式告警（防数据拼写错误被静默吞掉）
-        _logging.getLogger("astrbot").warning(
+        LOG.warning(
             "[dragonfall] 未知 POI effect %r（poi_id=%s），效果未结算——"
             "请检查 data/pois.py 或 instance_stage_maps.py", eff, poi_id)
         if poi.get("type"):

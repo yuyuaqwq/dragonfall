@@ -214,8 +214,8 @@ def check_achievements(group_id, qq_id, player=None, extra=None) -> list:
                 new_ones.append(a)
         return new_ones
     except Exception:
-        import logging
-        logging.getLogger("astrbot").warning("[dragonfall] check_achievements 异常，成就列表降级为空", exc_info=True)
+        from ..log_setup import LOG
+        LOG.warning("[dragonfall] check_achievements 异常，成就列表降级为空", exc_info=True)
         return []
 
 
@@ -301,6 +301,5 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
         lines += lv_logs
         return lines, ""
     except Exception as e:
-        import logging
-        logging.getLogger("astrbot").warning(f"[dragonfall] 成就领取失败: {e}")
+        LOG.warning(f"[dragonfall] 成就领取失败: {e}")
         return [], "领取失败，稍后再试试～"

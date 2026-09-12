@@ -23,6 +23,7 @@ from ._platform import MessageChain
 from .. import content as C
 from .. import db
 from .base import CommandBase
+from ..log_setup import LOG
 
 # 窥探投递目标：鱼鱼 QQ（1454832774，GM 白名单预置角色"鱼鱼"）
 # v105 配置化（鱼鱼拍板）：环境变量可覆盖，换运营号不用改代码
@@ -684,8 +685,7 @@ class GmCmds(CommandBase):
         if not content:
             yield event.plain_result("📡 实录文件是空的～")
             return
-        import logging
-        _lg = logging.getLogger("astrbot")
+        _lg = LOG
         # v101.28u：每子 agent 一张合并转发卡（鱼鱼要求）——循环发送，间隔防风控
         cards = _spy_to_role_cards(content, os.path.basename(path), event.get_self_id())
         # v101.29b：只发私聊（鱼鱼 2026-08-12 要求"群聊别发了，只私聊"）——撤销 v101.29a 双发

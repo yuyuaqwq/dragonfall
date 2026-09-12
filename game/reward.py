@@ -20,6 +20,7 @@
 有特有副作用的来源（任务解锁职业 unlock_class、对话 set_flag 等）由调用方在 grant 前后自理。
 """
 import uuid
+from .log_setup import LOG
 
 
 def _c():
@@ -61,8 +62,7 @@ def _grant_items(group_id, qq_id, items, lines, db):
             db.add_item(group_id, qq_id, kid, _idata, count=n)
             lines.append(f"  🎒 {_idata.get('name', key)} ×{n}")
         except Exception as e:
-            import logging
-            logging.getLogger("astrbot").warning(f"[dragonfall][reward] 物品发放失败 {it}: {e}")
+            LOG.warning(f"[dragonfall][reward] 物品发放失败 {it}: {e}")
             fail += 1
     return fail
 

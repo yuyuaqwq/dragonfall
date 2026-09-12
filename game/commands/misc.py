@@ -19,6 +19,7 @@ from .. import content as C
 from .. import db
 
 from ..commands.base import CommandBase, require_player
+from ..log_setup import LOG
 
 
 class MiscCmds(CommandBase):
@@ -414,8 +415,7 @@ class MiscCmds(CommandBase):
                 f"📮 收到你的意见啦！(编号 #{fid})\n「{args}」\n\n我会整理给鱼鱼看的，感谢你让这个世界变得更好✂️"
             )
         except Exception as e:
-            import logging
-            logging.getLogger("astrbot").warning(f"[dragonfall] 意见保存失败: {e}")
+            LOG.warning(f"[dragonfall] 意见保存失败: {e}")
             yield event.plain_result("❌ 意见保存失败，稍后再试试～")
 
     async def _notify_hermes(self, group_id, qq_id, content, msg_type):
@@ -452,10 +452,8 @@ class MiscCmds(CommandBase):
                 headers["X-Webhook-Signature"] = sig
             async with aiohttp.ClientSession() as session:
                 async with session.post(webhook_url, data=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as resp:
-                    import logging
-                    logging.getLogger("astrbot").debug(
+                    LOG.debug(
                         f"[dragonfall] 通知 Hermes: {resp.status}"
                     )
         except Exception as e:
-            import logging
-            logging.getLogger("astrbot").warning(f"[dragonfall] 通知 Hermes 失败(不影响主流程): {e}")
+            LOG.warning(f"[dragonfall] 通知 Hermes 失败(不影响主流程): {e}")

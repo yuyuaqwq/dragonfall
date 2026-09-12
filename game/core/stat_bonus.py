@@ -37,6 +37,7 @@ engine.player_final_stats 的 title_bonus 位置参数保留（旧引擎冻结�
 - player 参数：已加载玩家 dict 时传入，避免重复读档（get_player 持锁调用必须传）。
 """
 from .. import content as C
+from ..log_setup import LOG
 
 
 def _visited_maps(group_id, qq_id):
@@ -130,8 +131,7 @@ def stat_bonus(group_id, qq_id, player=None) -> dict:
         for k, v in _book_bonus.items():
             bonus[k] = bonus.get(k, 0) + v
     except Exception:
-        import logging
-        logging.getLogger("astrbot").warning("[dragonfall] title_bonus 计算异常，称号加成降级为空", exc_info=True)
+        LOG.warning("[dragonfall] title_bonus 计算异常，称号加成降级为空", exc_info=True)
         pass
     return bonus
 

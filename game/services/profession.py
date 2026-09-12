@@ -40,6 +40,7 @@ import time
 
 from .. import content as C
 from ..core import timed_events as _te
+from ..log_setup import LOG
 
 # ============ 模块常量（economy.py 原样随迁） ============
 
@@ -176,7 +177,6 @@ def gather_cond_roll(cur_map: str):
     本条不命中 + 告警日志（防未知词静默放行导致语义反转：新词反而必出）。
     """
     import random as _rnd
-    import logging as _logging
     pool = getattr(C, "GATHER_COND_POOLS", {}).get(cur_map or "")
     if not pool:
         return None
@@ -191,7 +191,7 @@ def gather_cond_roll(cur_map: str):
             if chk is None:
                 # fail-closed：未知条件词 → 本条不命中 + 告警（防语义反转）
                 ok = False
-                _logging.getLogger("astrbot").warning(
+                LOG.warning(
                     "[dragonfall] 采集条件词 %r 未注册（地图 %s 材料 %s），fail-closed 不命中——"
                     "请检查 GATHER_COND_POOLS 或 _GATHER_COND_CHECKERS", p, cur_map, mid)
                 continue

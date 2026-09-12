@@ -33,6 +33,7 @@ from ._platform import EventType, star_handlers_registry
 from .. import content as C
 from .. import db
 from ..content_rules.panel import STAT_NAMES
+from ..log_setup import LOG
 
 
 # ---------- v96 停服维护全局拦截 ----------
@@ -193,8 +194,7 @@ class CommandBase(_KitCommandBase):
                     wl.add(str(x))
         except Exception:
             # q11：白名单读取失败回退环境变量，留痕便于排查
-            import logging
-            logging.getLogger("astrbot").warning(
+            LOG.warning(
                 "[dragonfall] 读取 GM 白名单失败，回退环境变量", exc_info=True
             )
         return wl
@@ -243,8 +243,7 @@ class CommandBase(_KitCommandBase):
             from ..core import timed_events as _te
             _te.refresh_timed(group_id, qq_id)
         except Exception:
-            import logging
-            logging.getLogger("dragonfall").warning(
+            LOG.warning(
                 "[timed_events] _maint_gate 刷新失败（不影响指令主流程）", exc_info=True)
         # v140 波2：任意指令惰性刷新野王全局状态（跨时段/存活超时懒清理 + 时段首刷，
         # 与倒计时引擎同款懒计时思路；幂等，不阻塞指令主流程）
@@ -441,8 +440,7 @@ class CommandBase(_KitCommandBase):
                     f"onebot_v11_qq:GroupMessage:{gid}", chain
                 )
             except Exception as e:
-                import logging
-                logging.getLogger("astrbot").warning(f"[dragonfall] 广播到群 {gid} 失败: {e}")
+                LOG.warning(f"[dragonfall] 广播到群 {gid} 失败: {e}")
 
     # ---------- 框架钩子：上下文 ----------
     def _uid(self, event: AstrMessageEvent) -> tuple:

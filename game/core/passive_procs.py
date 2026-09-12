@@ -160,6 +160,7 @@ from __future__ import annotations
 
 import os
 import re
+from ..log_setup import LOG
 
 # ============================================================
 # 1. 注册表（两层）
@@ -277,8 +278,7 @@ def _swallow(battle, site, exc):
     except Exception:
         pass
     try:
-        import logging as _lg
-        _lg.getLogger("dragonfall.battle").warning("[battle-swallow] %s: %r", site, exc)
+        LOG.warning("[battle-swallow] %s: %r", site, exc)
     except Exception:
         pass
 
