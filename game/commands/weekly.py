@@ -30,6 +30,7 @@ from ._declared import declared
 
 from .. import content as C
 from .. import db
+from ..core import texts as T
 
 from ..commands.base import CommandBase, require_player
 
@@ -74,12 +75,12 @@ def _assign_week(player) -> dict:
 def _obj_label(obj: dict) -> str:
     """objective → 中文目标短标（面板行用）。"""
     if obj.get("kill_any"):
-        return f"讨伐任意怪物 {obj['kill_any']} 只"
+        return T.text("weekly.obj_kill_any", n=obj["kill_any"])
     if obj.get("kill_elite"):
-        return f"讨伐精英怪物 {obj['kill_elite']} 只"
+        return T.text("weekly.obj_kill_elite", n=obj["kill_elite"])
     if obj.get("kill_boss"):
-        return f"讨伐区域 Boss {obj['kill_boss']} 只"
-    return "讨伐指定目标"
+        return T.text("weekly.obj_kill_boss", n=obj["kill_boss"])
+    return T.static("weekly.obj_other")
 
 
 class WeeklyCmds(CommandBase):
@@ -92,39 +93,41 @@ class WeeklyCmds(CommandBase):
         player = self._player(group_id, qq_id)
         lv = int(player.get("level") or 1)
         if lv < _WEEKLY_MIN_LV:
-            yield event.plain_result(
-                f"🏮 悬赏板还蒙着布——上面的委托要 Lv.{_WEEKLY_MIN_LV} 的冒险者才接得动。\n"
-                f"💡 先完成『每日』任务和主线提升等级，到了 Lv.{_WEEKLY_MIN_LV} 再来看看～"
-            )
+            yield event.plain_result(T.text("weekly.locked", min_lv=_WEEKLY_MIN_LV))
             return
         st = _week_state(qq_id)
         if not st or not st.get("tasks"):
             # 本周首查 → 自动发布
             st = {"tasks": _assign_week(player), "done_n": 0}
             _save_week_state(qq_id, st)
-            lines = ["🏮 【本周悬赏】已发布！", "━━━━━━━━━━━━"]
+            lines = [T.static("weekly.title_new"), "━━━━━━━━━━━━"]
             for i, (tname, task) in enumerate(st["tasks"].items(), 1):
-                lines.append(f"{i}. 『{tname}』{task['desc']}")
-                lines.append(f"    目标：{_obj_label(task['objective'])}｜赏金：经验 +{task['reward_exp']} 金币 +{task['reward_gold']}")
+                lines.append(T.text("weekly.item_new", i=i, tname=tname,
+                                     desc=task["desc"]))
+                lines.append(T.text("weekly.item_line", obj=_obj_label(task["objective"]),
+                                     exp=task["reward_exp"], gold=task["reward_gold"]))
             lines.append("")
-            lines.append("💡 击杀自动计数，达标立即发奖！『周常』随时查进度，『周常列表』看全池悬赏")
+            lines.append(T.static("weekly.tip_new"))
             yield event.plain_result("\n".join(lines))
             return
         # 查看进度
         tasks = st["tasks"]
         done_n = int(st.get("done_n", 0) or 0)
-        lines = [f"🏮 【本周悬赏】{done_n}/{len(tasks)} 已完成", "━━━━━━━━━━━━"]
+        lines = [T.text("weekly.title_progress", done_n=done_n, total=len(tasks)),
+                 "━━━━━━━━━━━━"]
         for i, (tname, task) in enumerate(tasks.items(), 1):
             prog = int(task.get("prog", 0) or 0)
             need = int(task.get("need") or 1)
             if task.get("done"):
-                lines.append(f"{i}. 『{tname}』 ✅ 已完成")
+                lines.append(T.text("weekly.item_done", i=i, tname=tname))
             else:
-                lines.append(f"{i}. 『{tname}』 ⏳ {prog}/{need}")
-                lines.append(f"    目标：{_obj_label(task['objective'])}｜赏金：经验 +{task['reward_exp']} 金币 +{task['reward_gold']}")
+                lines.append(T.text("weekly.item_todo", i=i, tname=tname,
+                                     prog=prog, need=need))
+                lines.append(T.text("weekly.item_line", obj=_obj_label(task["objective"]),
+                                     exp=task["reward_exp"], gold=task["reward_gold"]))
         if done_n < len(tasks):
             lines.append("")
-            lines.append("💡 击杀自动计数，达标立即发奖——悬赏每周一刷新")
+            lines.append(T.static("weekly.tip_progress"))
         yield event.plain_result("\n".join(lines))
 
     @declared("weekly_list")
@@ -137,14 +140,18 @@ class WeeklyCmds(CommandBase):
         lv = int(player.get("level") or 1)
         all_pool = list(C.WEEKLY_QUESTS)
         page_items, pages, page = self._page_items(all_pool, page, per_page=4)
-        lines = [f"🏮 【周常悬赏池】第 {page}/{pages} 页（每周自动发布 {_WEEKLY_PICK} 条）", "━━━━━━━━━━━━"]
+        lines = [T.text("weekly.pool_title", page=page, pages=pages, pick=_WEEKLY_PICK),
+                 "━━━━━━━━━━━━"]
         for q in page_items:
             lv_req = int(q.get("min_lv") or 0)
             lock = " 🔒" if lv < lv_req else ""
-            lines.append(f"· 『{q['name']}』(Lv.{lv_req}+{lock}) {q['desc']}")
-            lines.append(f"    经验 +{q['reward_exp']} 金币 +{q['reward_gold']}")
+            lines.append(T.text("weekly.pool_item", name=q["name"], lv_req=lv_req,
+                                 lock=lock, desc=q["desc"]))
+            lines.append(T.text("weekly.pool_reward", exp=q["reward_exp"],
+                                 gold=q["reward_gold"]))
         lines.append("")
-        lines.append("💡 每周一刷新自动抽取适合你等级的悬赏；『周常』查看本周任务")
+        lines.append(T.static("weekly.pool_tip"))
         if pages > 1:
-            lines.append(f"📄 『周常列表 {page + 1 if page < pages else 1}』翻页")
+            lines.append(T.text("weekly.pool_more",
+                                 next_page=(page + 1 if page < pages else 1)))
         yield event.plain_result("\n".join(lines))

@@ -98,61 +98,34 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 return
             yield event.plain_result("你正在战斗中！先解决眼前的敌人～")
             return
-        # 1. 同队伍校验：无队 → 拒绝
-        members = db.party_members(group_id, qq_id)
-        if not members:
-            yield event.plain_result("你还没有队伍！先『组队 <对方名字>』拉上队友，再一起并肩作战～")
-            return
-        if str(members[0]) != new_key:
+        # 1./2./3. 准入链（v185：队伍 → 队员视角 → 目标战斗 → 战斗状态 → 重复/满员/敌灭/0 血/角色）
+        #   规则顺序与全部措辞在 core/instance_gate.join_admission（唯一真相源）；
+        #   链内会写 ctx["st"]（队员视角取到的队长战斗 state），下面复用它。
+        from ..core import instance_gate
+        _ctx = {
+            "party_members": db.party_members(group_id, qq_id),
+            "my_key": new_key,
             # 队员视角：目标战斗 = 队长名下（副本 battle 存队长行）
-            leader_key = str(members[0])
-            battle_row = db.get_battle(group_id, leader_key)
-            if not battle_row or battle_row["state"].get("type") != "instance":
-                yield event.plain_result("附近没有可加入的战斗！让队长先在副本中遇怪开战吧～")
-                return
-            st = battle_row["state"]
-            # 2a. 地理校验：队员在副本中（副本是封闭地图，野外玩家不能跨图加入）。
-            #     队员自己的 battle 行不存在（副本战斗存队长名下），用 _instance_battle_for
-            #     反查（party 表 → 队长行）；再比对 inst_id 防跨副本串台。
-            inst_row_self = self._instance_battle_for(group_id, qq_id)
-            if not inst_row_self or inst_row_self["state"].get("inst_id") != st.get("inst_id"):
-                yield event.plain_result("副本是封闭区域——先进入副本（队长『副本 <名字>』开本）才能加入战斗！")
-                return
-        else:
-            # 队长视角：自己开本遇怪 → 自己就是战斗；无需再加入（上面已拦）
-            yield event.plain_result("你就是这场战斗的队长！『攻击』『技能 <名称>』『防御』行动～")
+            "battle_of_leader": lambda: db.get_battle(
+                group_id, str((_ctx["party_members"] or [new_key])[0])),
+            # 队员自己的 battle 行不存在（副本战斗存队长名下）→ 用 _instance_battle_for 反查；
+            # 无行时给一个不可能与 inst_id 相等的哨兵（等价旧实现 `not inst_row_self` 的分支）。
+            "self_inst_id": lambda: (lambda r: r["state"].get("inst_id") if r else "\x00no-instance-row")(
+                self._instance_battle_for(group_id, qq_id)),
+            "enemies_alive": lambda: self._instance_enemies_alive(_ctx.get("st") or {}),
+            "player": player,
+        }
+        v = instance_gate.join_admission(_ctx).check(_ctx)
+        if not v.ok:
+            yield event.plain_result(v.reason)
             return
-        # 3. 战斗状态校验
-        if st.get("over") or st.get("cleared"):
-            yield event.plain_result("这场战斗已经结束了！")
-            return
-        if st.get("retreated"):
-            yield event.plain_result("这场战斗已经撤退了！")
-            return
-        if st.get("type") != "instance":
-            yield event.plain_result("这个战斗不支持加入！")
-            return
+        st = _ctx["st"]
         players = st.setdefault("players", {})
-        # 3a. 重复加入：已在 st["players"] → 拒绝（幂等）
-        if new_key in players:
-            yield event.plain_result("你已在战斗中！『攻击』『技能 <名称>』『防御』行动～")
-            return
-        # 3b. 满员：len(members) >= 4 → 拒绝（与队伍上限对齐）
-        if len(st.get("members") or []) >= 4:
-            yield event.plain_result("战斗满员了（4 人）！")
-            return
-        # 3c. 敌方已全灭（残局无怪）→ 拒绝（无敌人可打）
-        if not self._instance_enemies_alive(st):
-            yield event.plain_result("这场战斗的敌人已经全部倒下！没有可加入的战斗了～")
-            return
-        # 3d. 0 血 → 拒绝（与开本 0 血拦截同规则）
-        if int(player.get("hp", 0) or 0) <= 0:
-            yield event.plain_result("💀 你生命值为 0！先去住宿或用药恢复，别拿命加入战斗～")
-            return
         # 4. 构造新玩家快照（_instance_start 同款：player_final_stats 实时属性 + 站位/单位字段）
+        #    链内 profile 关查的是首读 player；这里再读一次作为快照来源（旧实现同款二次取数）
         _p = self._player(group_id, qq_id)
         if not _p:
-            yield event.plain_result("你的角色数据异常，无法加入战斗！")
+            yield event.plain_result(instance_gate.text_bad_profile())
             return
         _st2 = player_final_stats(_p["class_name"], _p["level"], _p.get("equipment", {}),
                                     _p.get("class_tier", 0), _p.get("attributes"),
@@ -315,26 +288,18 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             if old_st.get("inst_id") and (old_st["inst_id"] == arg or
                                           C.INSTANCES.get(old_st["inst_id"], {}).get("name") == arg):
                 inst = C.INSTANCES.get(old_st["inst_id"], {})
-                # 人数/等级重校验（与 _instance_start 同规则）
-                min_players = inst.get("min_players", 2)
-                max_players = inst.get("max_players", 3)
-                valid = len(ok_members) >= min_players and len(ok_members) <= max_players
-                if valid:
-                    for m in ok_members:
-                        p = self._player(group_id, m)
-                        if not p or p["level"] < inst.get("lv", 0):
-                            valid = False
-                            break
-                        # v104 M04 P1（N6 复验缺项）：恢复路径补 0 血/战斗检查，
-                        # 与 _instance_start 同规则——0 血恢复会进入地图模式后碰怪即倒；
-                        # 成员在野外战斗中会被加锁进本（双线战斗）。不通过则放弃旧进度，
-                        # 落到 _instance_start 输出对应拦截提示。
-                        if int(p.get("hp", 0)) <= 0:
-                            valid = False
-                            break
-                        if self._in_battle(group_id, m):
-                            valid = False
-                            break
+                # 人数/等级/0 血/战斗中 四连同源校验（v185：core/instance_gate.resume_admission）
+                # 旧语义照旧——**不查副业等待**、不查钥匙/位置/体力；不满足则放弃旧进度，
+                # 落到 _instance_start 输出对应拦截提示（判定用 v.ok，理由仅作诊断）。
+                from ..core import instance_gate
+                _rctx = {
+                    "members": ok_members,
+                    "inst": inst,
+                    "now": int(time.time()),
+                    "player_of": lambda m: self._player(group_id, m),
+                    "in_battle": lambda m: self._in_battle(group_id, m),
+                }
+                valid = instance_gate.resume_admission(_rctx).check(_rctx).ok
                 if valid:
                     old_st["retreated"] = False
                     old_st["mode"] = "map"
@@ -2098,149 +2063,92 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         inst = C.INSTANCES[kid]
         min_players = inst.get("min_players", 2)
         max_players = inst.get("max_players", 3)
-        # 纯单人副本：无需组队，直接以自己开本
-        if min_players <= 1 and max_players <= 1:
-            members = [qq_id]
-        else:
-            members = db.party_members(group_id, qq_id)
-            if not members:
-                if min_players <= 1:
-                    # v101.24 弹性副本（如哥布林营地 1-2 人）：无队可单人进
-                    members = [qq_id]
-                else:
-                    yield event.plain_result(
-                        f"『{inst['name']}』需要 {min_players}-{max_players} 人组队！先『组队 <对方名字>』～"
-                    )
-                    return
-            else:
-                if str(members[0]) != str(qq_id):
-                    yield event.plain_result("只有队长才能开启副本！让队长来『副本 <名字>』吧～")
-                    return
-                if len(members) < min_players:
-                    yield event.plain_result(
-                        f"『{inst['name']}』至少需要 {min_players} 人！还差 {min_players - len(members)} 个队友，让队长『组队 <名字>』拉人～"
-                    )
-                    return
-                if len(members) > max_players:
-                    yield event.plain_result(
-                        f"『{inst['name']}』最多 {max_players} 人！当前 {len(members)} 人太多了～"
-                    )
-                    return
-        # 全队等级 / 战斗检查
-        for m in members:
-            p = self._player(group_id, m)
-            if not p:
-                yield event.plain_result("队友还没有角色！无法开本～")
-                return
-            if p["level"] < inst["lv"]:
-                yield event.plain_result(
-                    f"{p['name']} 才 Lv.{p['level']}，副本需要全队 Lv.{inst['lv']}+！"
-                )
-                return
-            # v101.27 #393：0 血进本拦截——0 血被碰即倒体验极差，先恢复再来
-            if int(p.get("hp", 0)) <= 0:
-                yield event.plain_result(
-                    f"💀 {p['name']} 生命值为 0！先去住宿或用药恢复，别拿命闯副本～"
-                )
-                return
-            if self._in_battle(group_id, m):
-                # v101.30d #O17：拦截时补队伍构成（playtest 影刃/小四：只报名字不知队伍现状）
-                roster = "、".join(
-                    (self._player(group_id, mm) or {}).get("name", mm) for mm in members
-                )
-                yield event.plain_result(
-                    f"{p['name']} 正在战斗中，先打完再来！\n👥 当前队伍：{roster}（队友打完即可开本）"
-                )
-                return
-            # v104 M04 P2：队员等待型副业（垂钓/采集/挖掘）中开本——此前无任何提示，
-            # 队员被拉进副本锁战斗，等待结束物品照常入包（无死锁但体验突兀）。与
-            # no_prof_waiting 对发起者的拦截同规则，对全队生效。
-            _pw = self._prof_wait_state(group_id, m)
-            if _pw and int(_pw.get("finish", 0)) > int(time.time()):
-                _left = int(_pw["finish"]) - int(time.time())
-                _pt = C.PROF_WAIT_BASE.get(_pw.get("type"), (0, 0, "副业"))[2]
-                yield event.plain_result(
-                    f"⏳ {p['name']} 还在{_pt}呢，再有 {_left} 秒完成！等 TA 忙完再开本吧～"
-                )
-                return
+        # v185：队伍解析（纯单人副本/弹性副本无队/非队长/人数越界）→ core/instance_gate（唯一真相源）
+        from ..core import instance_gate
+        members, _member_deny = instance_gate.resolve_open_members(
+            inst, qq_id, db.party_members(group_id, qq_id))
+        if _member_deny:
+            yield event.plain_result(_member_deny)
+            return
+        # 全队等级/血量/战斗中/副业等待 → 钥匙 → 入口位置 → 体力
+        # v185：v104 M04 P2（队员等待型副业开本拦截）与 v101.30d #O17（战斗中补队伍构成）
+        # 一并收进 core/instance_gate.member_rule / open_admission（规则顺序与措辞只此一处）。
+        _now = int(time.time())
         # v86.3 入场钥匙检查（29 章 11 节）：队长持有 key_item 才能开本
         # v116 副本已通关免钥匙：已通关副本(首通记录 inst_clear_* )再进不扣钥匙、不拦门，
         # 并给出明确提示。判定复用存档成就体系（db.get_achievements），非凭空造存储。
-        key_item = inst.get("key_item")
-        key_free_note = ""  # 已通关免钥匙提示（有钥匙要求的副本通关过则显示）
-        if key_item:
-            # v141 审计 #9：钥匙三路匹配 + 通关豁免抽到 core/instance_gate.py
-            # （world.py 门禁同源公共函数；开本不放行是设计——开本走完整校验，
-            # 有钥匙且未通关才扣钥匙，已通关免钥匙入场）
-            from ..core.instance_gate import find_instance_key_item, instance_cleared_qq
-            key_entry = find_instance_key_item(group_id, qq_id, key_item)
-            has_key = key_entry is not None
-            cleared_before = instance_cleared_qq(group_id, qq_id, kid)
-            if not has_key and not cleared_before:
-                src = inst.get("key_source", "？？？")
-                yield event.plain_result(
-                    f"🔒 『{inst['name']}』被封印之门挡住！\n"
-                    f"需要『{key_item}』才能进入(已通关副本可免钥匙)\n"
-                    f"📜 获取途径：{src}"
-                )
-                return
-            # 消耗钥匙（首通前）：已通关副本免钥匙，首通后才不扣
-            if has_key and not cleared_before:
-                db.remove_item(group_id, qq_id, key_entry["key"])
-            else:
-                key_free_note = "✅ 已通关副本，免钥匙入场！\n"
+        _key_item = inst.get("key_item")
+        key_entry = instance_gate.find_instance_key_item(group_id, qq_id, _key_item) if _key_item else None
+        cleared = instance_gate.instance_cleared_qq(group_id, qq_id, kid)
         # F2 副本入口设施化：走到入口才能开本（消费 F1 的 entry 字段 + funcs=instance 标记）
-        # 兼容红线：entry 为空免校验；已通关免校验；cur_map 已在副本图视为已在入口；
-        # 主线/支线 explore 目标 == 本副本图（任务内单人可进图）免校验。
+        # 兼容红线（逐字保留，仅算成 entry_ok）：entry 为空免校验；已通关免校验；
+        # cur_map 已在副本图视为已在入口；主线/支线 explore 目标 == 本副本图（任务内单人可进图）免校验。
         _entry_cfg = inst.get("entry")
+        _entry_ok = True
+        _entry_hint = ""
         if _entry_cfg:
             _entry_map = _entry_cfg.get("map")
             _entry_sa = _entry_cfg.get("subarea")
             _leader_p = self._player(group_id, qq_id)
-            _ok_pos = True
             if _entry_map and _entry_sa:
-                _ok_pos = (str(_leader_p.get("cur_map") or "") == str(_entry_map)
-                           and str(_leader_p.get("cur_subarea") or "") == str(_entry_sa))
+                _entry_ok = (str(_leader_p.get("cur_map") or "") == str(_entry_map)
+                             and str(_leader_p.get("cur_subarea") or "") == str(_entry_sa))
                 # 兼容红线：存量玩家 cur_map 已在副本图（旧存档徒步进图）→ 视为已在入口
-                if not _ok_pos and str(_leader_p.get("cur_map") or "") == _inst_map_id(kid):
-                    _ok_pos = True
-            if not _ok_pos:
+                if not _entry_ok and str(_leader_p.get("cur_map") or "") == _inst_map_id(kid):
+                    _entry_ok = True
+            if not _entry_ok:
                 # 兼容红线：已通关该副本 → 免位置校验（老玩家便利）
-                from ..core.instance_gate import instance_cleared_qq
-                _cleared = instance_cleared_qq(group_id, qq_id, kid)
-                if not _cleared:
-                    # 兼容红线：主线/支线 explore 目标 == 本副本图 → 任务内单人可进图，免校验
+                # 兼容红线：主线/支线 explore 目标 == 本副本图 → 任务内单人可进图，免校验
+                # ★ 两者都要把 `_entry_ok` 置回 True（链的 entry 关直接读它，
+                #   否则「已通关/任务内」会被位置关拦下 —— 旧实现在这里直接跳过拦截）。
+                _exempt = bool(cleared)
+                if not _exempt:
                     _quests = db.get_quests(group_id, qq_id)
-                    _in_quest = False
                     if _quests.get("main_status") == "active":
                         _mq = next((q for q in C.MAIN_QUESTS if q["id"] == _quests.get("main_quest")), None)
                         if _mq and _mq.get("objective", {}).get("explore") == _inst_map_id(kid):
-                            _in_quest = True
-                    if not _in_quest:
+                            _exempt = True
+                    if not _exempt:
                         _side = _quests.get("side") or {}
                         if any(
                             sq.get("status") == "active"
                             and next((q for q in C.SIDE_QUESTS if q["id"] == sid), {}).get("objective", {}).get("explore") == _inst_map_id(kid)
                             for sid, sq in _side.items()
                         ):
-                            _in_quest = True
-                    if not _in_quest:
-                        _em_name = C.MAP_BY_ID.get(_entry_map, {}).get("name", _entry_map)
-                        _esa_name = ""
-                        for _esa in (C.MAP_BY_ID.get(_entry_map, {}).get("subareas") or []):
-                            if _esa.get("id") == _entry_sa:
-                                _esa_name = _esa.get("name", "")
-                                break
-                        yield event.plain_result(
-                            f"📍 请先到【{_em_name}·{_esa_name or _entry_sa}】副本入口处（『前往』）再开本！\n"
-                            f"（副本入口在 {_em_name} 的 {_esa_name or _entry_sa}，走到那里输入『副本 {inst['name']}』）"
-                        )
-                        return
-        # v94 体力：开本消耗 20 体力（全队队长扣）
-        _ok, _st = self._spend_stamina(group_id, qq_id, 20, player, "进入副本")
-        if not _ok:
-            yield event.plain_result(_st)
+                            _exempt = True
+                if _exempt:
+                    _entry_ok = True
+                else:
+                    _em_name = C.MAP_BY_ID.get(_entry_map, {}).get("name", _entry_map)
+                    _esa_name = ""
+                    for _esa in (C.MAP_BY_ID.get(_entry_map, {}).get("subareas") or []):
+                        if _esa.get("id") == _entry_sa:
+                            _esa_name = _esa.get("name", "")
+                            break
+                    _entry_hint = instance_gate.text_entry_hint(inst, _em_name, _esa_name, _entry_sa)
+        ctx = {
+            "members": members,
+            "inst": inst,
+            "now": _now,
+            "player_of": lambda m: self._player(group_id, m),
+            "in_battle": lambda m: self._in_battle(group_id, m),
+            "prof_wait": lambda m: self._prof_wait_state(group_id, m),
+            "prof_label": lambda t: C.PROF_WAIT_BASE.get(t, (0, 0, "副业"))[2],
+            "key_entry": key_entry,
+            "cleared": cleared,
+            "entry_ok": _entry_ok,
+            "entry_hint": _entry_hint,
+            "stamina": self._stamina(player),
+            "stamina_cost": 20,
+            # v141 审计 #9：钥匙三路匹配 + 通关豁免 + 扣减/体力扣减（副作用延迟到全过）在 core/instance_gate
+            "drop_key": lambda: db.remove_item(group_id, qq_id, key_entry["key"]),
+            "pay_stamina": lambda: self._spend_stamina(group_id, qq_id, 20, player, "进入副本"),
+        }
+        v = instance_gate.open_admission(ctx).check(ctx)
+        if not v.ok:
+            yield event.plain_result(v.reason)
             return
+        key_free_note = instance_gate.key_free_note(ctx)
         # 构建副本 Boss（血量按人数缩放：min_players 人数 = hp_mult，每多 1 人 +0.65；攻击 ×atk_mult）
         boss = C.build_monster(inst["boss"], {"id": kid, "name": inst["name"], "area": "instance"})
         if inst.get("mech"):

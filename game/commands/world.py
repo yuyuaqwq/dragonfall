@@ -1250,36 +1250,42 @@ class WorldCmds(CommandBase):
         设计语义：**徒步进图不扣钥匙**（只校验持有，钥匙由『副本 <名字>』开本时才扣），
         任务/钥匙两路放行；开本才扣（见 instance.py _instance_start 同款公共函数调用）。
 
+        v185：三档判定收敛成 core/instance_gate.walk_admission（`mode='any'`，任一命中即
+        放行；全不通过时链级 reason = 原文案），本方法只负责取数与渲染 `v.reason`。
+
         命中时返回拦截文案；非副本图直接放行。『副本 <名字>』开本入口不经过本方法，不受影响。
         """
         if target.get("type") != C.MAP_TYPE_INSTANCE:
             return ""
+        from ..core import instance_gate
         kid = target.get("id", "")
         mid = f"inst_{kid}"
         inst = C.INSTANCES.get(mid)
         # 1) 任务内进入：active 主线或支线 explore 目标 == 本副本图 → 放行
         quests = db.get_quests(group_id, qq_id)
+        quest_open = False
         if quests.get("main_status") == "active":
             mq = next((q for q in C.MAIN_QUESTS if q["id"] == quests.get("main_quest")), None)
             if mq and mq["objective"].get("explore") == kid:
-                return ""
-        side = quests.get("side") or {}
-        if any(sq.get("status") == "active"
-               and next((q for q in C.SIDE_QUESTS if q["id"] == sid), {}).get("objective", {}).get("explore") == kid
-               for sid, sq in side.items()):
-            return ""
+                quest_open = True
+        if not quest_open:
+            side = quests.get("side") or {}
+            quest_open = any(sq.get("status") == "active"
+                             and next((q for q in C.SIDE_QUESTS if q["id"] == sid), {}).get("objective", {}).get("explore") == kid
+                             for sid, sq in side.items())
         # 2) 持有钥匙（与 instance.py 开本钥匙判定同源，抽公共 core/instance_gate.py）
-        from ..core.instance_gate import find_instance_key_item
+        # 3) 已通关副本 → 免钥匙放行（与 instance.py 同口径）
         key_item = (inst or {}).get("key_item")
-        if key_item and find_instance_key_item(group_id, qq_id, key_item) is not None:
-            return ""
-        # 3) 已通关副本 → 免钥匙放行（与 instance.py 同口径，抽公共 core/instance_gate.py）
-        from ..core.instance_gate import instance_cleared_qq
-        if instance_cleared_qq(group_id, qq_id, kid):
-            return ""
-        inst_name = (inst or {}).get("name") or C.MAP_BY_ID.get(kid, {}).get("name", "副本")
-        return (f"🔒 此处为【{inst_name}】入口，需接取相应任务（或持有钥匙）才能进入。\n"
-                f"{self._tip('instance')}；或先完成任务、收集所需钥匙～")
+        ctx = {
+            "inst_name": (inst or {}).get("name") or C.MAP_BY_ID.get(kid, {}).get("name", "副本"),
+            "tip": self._tip("instance"),
+            "quest_open": quest_open,
+            "key_held": bool(key_item) and instance_gate.find_instance_key_item(
+                group_id, qq_id, key_item) is not None,
+            "cleared": instance_gate.instance_cleared_qq(group_id, qq_id, kid),
+        }
+        v = instance_gate.walk_admission(ctx).check(ctx)
+        return "" if v.ok else v.reason
 
     @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:前往|移动)(?!开始|结束)(?:\s*|$)")
     @require_player()

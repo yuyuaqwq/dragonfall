@@ -477,14 +477,15 @@ class CommandBase(_KitCommandBase):
         return int(player.get("stamina") or 0)
 
     def _spend_stamina(self, group_id, qq_id, cost: int, player: dict, action: str = "行动") -> tuple:
-        """扣体力；不足返回 (False, 提示)。够则落库并返回 (True, 剩余)。"""
+        """扣体力；不足返回 (False, 提示)。够则落库并返回 (True, 剩余)。
+
+        v185：不足的措辞改为 core/instance_gate.stamina_short_msg（副本开本链同源，
+        措辞只剩一处来源）。函数内延迟 import —— 避免 commands ↔ core 的模块级环。
+        """
         cur = self._stamina(player)
         if cur < cost:
-            return False, (
-                f"😮‍💨 体力不足！{action}需要 {cost} 点体力，你只有 {cur} 点。\n"
-                f"🍖 吃点食物(『烹饪』/『使用 <食物>』)或去旅店『住宿』恢复体力～\n"
-                f"💡 体力每 1 分钟自然恢复 1 点(上限 100+等级×2)，『防御』不耗体力可拖延时间～"
-            )
+            from ..core import instance_gate
+            return False, instance_gate.stamina_short_msg(cost, cur, action)
         db.update_player(group_id, qq_id, stamina=cur - cost)
         return True, cur - cost
 
