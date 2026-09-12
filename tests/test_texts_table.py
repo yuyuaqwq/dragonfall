@@ -10,7 +10,7 @@
 
 **逐字一致**（"迁移没改玩家看到的字"）由两层证据扛：
   · 副本域：`tests/test_v185_instance_admission.py` 的 **805 格逐格冻结比对**（对照物 = 旧实现冻结体）
-  · 周常 / 签到域：本文件 `WEEKLY_FROZEN` / `SIGNIN_FROZEN` —— **迁移前真跑各分支存下来的完整输出**，
+  · 周常 / 签到 / 补给箱域：本文件 `WEEKLY_FROZEN` / `SIGNIN_FROZEN` / `SUPPLY_FROZEN` —— **迁移前真跑各分支存下来的完整输出**，
     每次跑测试复跑比对（签到分支用 random 打桩保证可复现）
 
 跑法：python tests/test_texts_table.py（exit=0 通过）
@@ -38,10 +38,12 @@ from data.plugins.dragonfall.game.services.weekly_progress import (  # noqa: E40
 _PD = os.path.dirname(_HERE)
 WEEKLY_SRC = os.path.join(_PD, "game", "commands", "weekly.py")
 MISC_SRC = os.path.join(_PD, "game", "commands", "misc.py")
+EVENT_SRC = os.path.join(_PD, "game", "commands", "event_menu.py")
 GATE_SRC = os.path.join(_PD, "game", "core", "instance_gate.py")
 SPEC = T.SPEC_PATH
 # 已迁移的域 → 该域文案由哪个文件接线（新增一个域时在这里加一行）
-WIRED = {"副本准入": GATE_SRC, "周常": WEEKLY_SRC, "签到": MISC_SRC}
+WIRED = {"副本准入": GATE_SRC, "周常": WEEKLY_SRC, "签到": MISC_SRC,
+         "补给箱": EVENT_SRC}
 
 passed = failed = 0
 
@@ -75,6 +77,12 @@ SIGNIN_FROZEN = {
     "C_dup": "今天已经签过到啦！明天再来～",
     "D_streak7": "📅 【签到成功】第 7 次签到！连续 7 天！\n💰 获得 55 金币\n🌟 今日运势：大吉(今日经验＋10%)\n🎁 连续 7 天奖励：🟣【龙鳞战甲】！",
     "E_festival": "📅 【签到成功】第 1 次签到！连续 1 天！\n💰 获得 50 金币\n🌟 今日运势：大吉(今日经验＋10%)\n🎉 节日庆典：签到奖励翻倍！"
+}   # 迁移前快照（2026-09-12 真跑存下，勿手改）
+
+SUPPLY_FROZEN = {
+    "A_first": "📦 【每日补给箱】\n━━━━━━━━━━━━\n  🎁 每日材料箱：图纸残页、淬火石、烤肉串！\n  🎁 每日道具箱：强化石、双倍金币符、炖菜！\n  🎁 每日豪华箱：白银箱、精炼强化石、幸运符！\n\n💡 补给箱内容：图纸残页/淬火石/强化石/幸运符等（每日 0 点重置）",
+    "B_second": "📦 【每日补给箱】\n━━━━━━━━━━━━\n  ⏳ 每日材料箱：今日已领取～\n  ⏳ 每日道具箱：今日已领取～\n  🎁 每日豪华箱：白银箱、精炼强化石、幸运符！\n\n💡 补给箱内容：图纸残页/淬火石/强化石/幸运符等（每日 0 点重置）",
+    "C_third": "📦 【每日补给箱】\n━━━━━━━━━━━━\n  ⏳ 每日材料箱：今日已领取～\n  ⏳ 每日道具箱：今日已领取～\n  ⏳ 每日豪华箱：本周已领 2/2～\n  今天/本周的补给箱都已领过啦，明天再来吧～\n\n💡 补给箱内容：图纸残页/淬火石/强化石/幸运符等（每日 0 点重置）"
 }   # 迁移前快照（2026-09-12 真跑存下，勿手改）
 
 _GID, _QID = "g_txt", "q_txt"
@@ -168,6 +176,20 @@ async def _signin_scenarios() -> dict:
     return out
 
 
+async def _supply_scenarios() -> dict:
+    """复跑『领取补给箱』迁移前的 3 个分支（步骤与快照脚本逐行一致）。"""
+    clean_db()
+    m = Main(None)
+    db.create_player("g_sp", "q_sp", "补给", C.resolve("classes", "战士"), {}, 100, 100)
+    out = {}
+    for k in ("A_first", "B_second", "C_third"):
+        ev = FakeEvent("g_sp", "q_sp", "领取补给箱")
+        res = await run(m.event_menu, ev)
+        out[k] = res[-1] if res else ""
+    clean_db()
+    return out
+
+
 # ══════════════════════════════════════════════════════════════════════════
 def _scan_calls(path):
     """AST 扫模块：
@@ -199,7 +221,7 @@ def t1_table_selfcheck():
     tb = T.reload()
     check("声明文件存在且路径正确", os.path.exists(SPEC) and SPEC.endswith("text_specs.json"), SPEC)
     check("装载无错（load_error 为空）", T.load_error() == "", T.load_error())
-    check("表非空（56 条：副本准入 26 + 签到 10 + 周常 18）", len(tb) >= 40, len(tb))
+    check("表非空（61 条：副本准入 26 + 签到 10 + 周常 18 + 补给箱 7）", len(tb) >= 40, len(tb))
     check("★ validate() 干净（无空值/语法错/params 与模板不一致）",
           tb.audit()["problems"] == [], tb.audit()["problems"][:5])
     check("元信息键（_ 开头）不入表", not [k for k in tb.keys() if k.startswith("_")], tb.keys()[:3])
@@ -207,8 +229,8 @@ def t1_table_selfcheck():
           not [s.key for s in tb if not s.category], [s.key for s in tb if not s.category][:5])
     check("key 无重复", len(tb.keys()) == len(set(tb.keys())))
     cats = sorted({s.category for s in tb})
-    check("category 取值符合预期（副本准入 / 签到 / 周常）",
-          set(cats) == {"副本准入", "签到", "周常"}, cats)
+    check("category 取值符合预期（副本准入 / 签到 / 周常 / 补给箱）",
+          set(cats) == {"副本准入", "签到", "周常", "补给箱"}, cats)
 
 
 def t2_key_and_params_accounting():
@@ -236,8 +258,8 @@ def t2_key_and_params_accounting():
     check("★ 表里没有死文案（每条声明都被真实调用）", not dead, dead)
     check("★ 槽位名与调用实参逐条对得上（防模板写出 {foo} 露给玩家）", not mismatch)
     doms = {k.split(".")[0] for k in used}
-    check("调用点覆盖全部已迁移域（副本准入 + 周常 + 签到）",
-          {"instance", "weekly", "signin"} <= doms, sorted(doms))
+    check("调用点覆盖全部已迁移域（副本准入 + 周常 + 签到 + 补给箱）",
+          {"instance", "weekly", "signin", "supply"} <= doms, sorted(doms))
 
 
 def t3_no_silent_fallback():
@@ -264,7 +286,7 @@ def t3_no_silent_fallback():
         T.SPEC_PATH = real
         T.reload()
     os.remove(bad)
-    check("恢复正常声明后表重建（56 条）", len(T.table()) >= 40, len(T.table()))
+    check("恢复正常声明后表重建（61 条）", len(T.table()) >= 40, len(T.table()))
 
 
 def t4_weekly_frozen():
@@ -289,6 +311,16 @@ def t5_signin_frozen():
     check("★『签到』5 分支输出与迁移前**逐字一致**", not bad, bad)
 
 
+def t6_supply_frozen():
+    print("\n[6] 补给箱域逐字冻结：迁移前 3 分支（首发/日限/周限）复跑比对")
+    check("冻结基准已内嵌（3 场景）", len(SUPPLY_FROZEN) == 3, len(SUPPLY_FROZEN))
+    now = asyncio.run(_supply_scenarios())
+    bad = [k for k in SUPPLY_FROZEN if SUPPLY_FROZEN[k] != now.get(k)]
+    for k in bad:
+        print("     · %s 现=%r" % (k, now.get(k, "")[:120]))
+    check("★『领取补给箱』3 分支输出与迁移前**逐字一致**", not bad, bad)
+
+
 def main():
     print("=" * 74)
     print("文案表门禁：game/data/text_specs.json + game/core/texts.py")
@@ -298,6 +330,7 @@ def main():
     t3_no_silent_fallback()
     t4_weekly_frozen()
     t5_signin_frozen()
+    t6_supply_frozen()
     print("\n" + "=" * 74)
     print("结果：通过 %d / %d" % (passed, passed + failed))
     print("=" * 74)

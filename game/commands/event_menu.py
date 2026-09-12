@@ -17,6 +17,7 @@ import datetime
 from ._platform import AstrMessageEvent, filter
 
 from .. import content as C
+from ..core import texts as T
 from ..commands.base import CommandBase, require_player
 
 
@@ -209,8 +210,8 @@ class EventMenuCmds(CommandBase):
         monday = (datetime.date.today() - datetime.timedelta(days=datetime.date.today().weekday())).isoformat()
         boxes = getattr(C, "SUPPLY_BOX", None) or []
         if not boxes:
-            return ["📦 补给箱数据缺失，请联系管理～"]
-        lines = ["📦 【每日补给箱】", "━━━━━━━━━━━━"]
+            return [T.static("supply.missing")]
+        lines = [T.static("supply.title"), "━━━━━━━━━━━━"]
         claimed_any = False
         for box in boxes:
             bid = box.get("id", "")
@@ -219,13 +220,13 @@ class EventMenuCmds(CommandBase):
             if limit == "daily_1":
                 key = f"supply_{bid}_{qq_id}_{today}"
                 if db.get_event_state(key):
-                    lines.append(f"  ⏳ {box.get('name', bid)}：今日已领取～")
+                    lines.append(T.text("supply.daily_done", name=box.get("name", bid)))
                     continue
                 db.set_event_state(key, "1")
             elif limit == "daily3":
                 key = f"supply_{bid}_{qq_id}_{today}"
                 if db.get_event_state(key):
-                    lines.append(f"  ⏳ {box.get('name', bid)}：今日已领取～")
+                    lines.append(T.text("supply.daily_done", name=box.get("name", bid)))
                     continue
                 db.set_event_state(key, "1")
             elif limit == "weekly2_daily7":
@@ -233,7 +234,8 @@ class EventMenuCmds(CommandBase):
                 wk = f"supply_{bid}_{qq_id}_wk_{monday}"
                 cnt = int(db.get_event_state(wk) or 0)
                 if cnt >= 2:
-                    lines.append(f"  ⏳ {box.get('name', bid)}：本周已领 {cnt}/2～")
+                    lines.append(T.text("supply.weekly_done", name=box.get("name", bid),
+                                         cnt=cnt))
                     continue
                 db.set_event_state(wk, str(cnt + 1))
             else:
@@ -242,9 +244,10 @@ class EventMenuCmds(CommandBase):
             got = self._grant_items(group_id, qq_id, box.get("items", []), lines)
             claimed_any = True
             if got:
-                lines.append(f"  🎁 {box.get('name', bid)}：{'、'.join(got)}！")
+                lines.append(T.text("supply.granted", name=box.get("name", bid),
+                                     items="、".join(got)))
         if not claimed_any:
-            lines.append("  今天/本周的补给箱都已领过啦，明天再来吧～")
+            lines.append(T.static("supply.all_done"))
         lines.append("")
-        lines.append("💡 补给箱内容：图纸残页/淬火石/强化石/幸运符等（每日 0 点重置）")
+        lines.append(T.static("supply.tip"))
         return lines

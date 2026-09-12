@@ -190,6 +190,52 @@
   "category": "副本准入",
   "desc": "加入战斗：角色快照异常（instance.py 兜底路径同源）"
  },
+ "supply.missing": {
+  "value": "📦 补给箱数据缺失，请联系管理～",
+  "category": "补给箱",
+  "desc": "『领取补给箱』：SUPPLY_BOX 数据缺失兜底"
+ },
+ "supply.title": {
+  "value": "📦 【每日补给箱】",
+  "category": "补给箱",
+  "desc": "补给箱面板标题"
+ },
+ "supply.daily_done": {
+  "value": "  ⏳ {name}：今日已领取～",
+  "params": [
+   "name"
+  ],
+  "category": "补给箱",
+  "desc": "日限箱今日已领（前置两空格缩进属于句壳）"
+ },
+ "supply.weekly_done": {
+  "value": "  ⏳ {name}：本周已领 {cnt}/2～",
+  "params": [
+   "name",
+   "cnt"
+  ],
+  "category": "补给箱",
+  "desc": "周限箱已达上限（/2 的 2 与限额口径同源数据）"
+ },
+ "supply.granted": {
+  "value": "  🎁 {name}：{items}！",
+  "params": [
+   "name",
+   "items"
+  ],
+  "category": "补给箱",
+  "desc": "本箱实发清单（items 由实际发放结果拼）"
+ },
+ "supply.all_done": {
+  "value": "  今天/本周的补给箱都已领过啦，明天再来吧～",
+  "category": "补给箱",
+  "desc": "一个都没领到时（全在限额里）"
+ },
+ "supply.tip": {
+  "value": "💡 补给箱内容：图纸残页/淬火石/强化石/幸运符等（每日 0 点重置）",
+  "category": "补给箱",
+  "desc": "面板底部提示"
+ },
  "signin.already": {
   "value": "今天已经签过到啦！明天再来～",
   "category": "签到",
