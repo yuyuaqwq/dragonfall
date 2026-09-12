@@ -94,3 +94,23 @@ def tlog() -> Optional[TLog]:
     if enabled():
         return enable()
     return None
+
+
+def emit(kind: str, actor: str = "", **fields):
+    """埋点便捷口 —— **未启用时直接返回 None**（零构造、零 IO、零字段）。
+
+    用法（各处埋点一行）::
+
+        from .. import tlog_setup as _tlog
+        _tlog.emit("drop.grant", actor=qq_id, item=item_id, qty=n, source="battle")
+
+    ⚠️ 字段名与保留参数（`kind`/`actor`/`tags`）撞名时用 `fields={...}`：
+    `_tlog.emit("battle.hit", fields={"kind": "phys"})`。
+    """
+    tl = tlog()
+    if tl is None:
+        return None
+    try:
+        return tl.emit(kind, actor=str(actor or ""), **fields)
+    except Exception:                                            # noqa: BLE001
+        return None                                              # 流水异常绝不影响主流程

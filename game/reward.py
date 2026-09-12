@@ -151,6 +151,16 @@ def grant_reward(reward: dict, group_id, qq_id, *, player=None, lines=None) -> l
         from .core.reward import grant_reward
         lines = grant_reward({"exp": 100, "gold": 50, "items": [...]}, gid, qid)
     """
+    try:                                        # 流水埋点（未启用 = 零行为，见 game/tlog_setup.py）
+        from . import tlog_setup as _tlog
+        _r = reward or {}
+        _it = _r.get("items")
+        _tlog.emit("drop.grant", actor=qq_id, source="reward",
+                   exp=int(_r.get("exp", 0) or 0),
+                   gold=int(_r.get("gold", 0) or 0),
+                   items=(len(_it) if hasattr(_it, "__len__") else 0))
+    except Exception:
+        pass
     from .import db# noqa: E402
     from .content_rules.gameplay import check_player_level_up# noqa: E402
     from .core.stat_bonus import stat_bonus# noqa: E402

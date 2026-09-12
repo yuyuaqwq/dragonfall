@@ -1,0 +1,163 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""v182 行为流水落地验收：埋点 / 落库出口 / 分析脚本 / 默认关零行为。
+
+跑法：python tests/test_v182_behavior_tlog.py（exit=0 全绿）
+"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_PD = os.path.dirname(_HERE)
+for _p in (_HERE, os.path.join(_PD, "scripts"), _PD, os.path.dirname(os.path.dirname(_PD))):
+    sys.path.insert(0, _p)
+
+from conftest import C, clean_db, db  # noqa: E402,F401
+
+from saintess_engine.tlog import JSONLSink, MemorySink, Reader, TLog  # noqa: E402
+from game import tlog_setup  # noqa: E402
+
+passed = failed = 0
+GID, QID = "g_tlog", "q_tlog"
+
+
+def check(name, cond, detail=""):
+    global passed, failed
+    if cond:
+        passed += 1
+        print(f"  ✅ {name}")
+    else:
+        failed += 1
+        print(f"  ❌ {name} {detail}")
+
+
+def _off():
+    os.environ.pop(tlog_setup.ENV_FLAG, None)
+    tlog_setup.disable()
+
+
+# ---------------------------------------------------------------- 1 默认关
+def t1_default_off():
+    print("\n[1] 默认关：埋点是 no-op")
+    _off()
+    check("tlog() 为 None", tlog_setup.tlog() is None)
+    check("emit() 直接返回 None（零构造）", tlog_setup.emit("drop.grant", actor="x") is None)
+    from game.reward import grant_reward
+    clean_db()
+    lines = grant_reward({"exp": 10, "gold": 5, "items": []}, GID, QID)
+    check("真调 grant_reward 不报错且无流水（未启用）", isinstance(lines, list))
+
+
+# ---------------------------------------------------------------- 2 埋点存在性
+def t2_probes_present():
+    print("\n[2] 三处行为埋点（防被误删）")
+    root = _PD
+    probes = {
+        "掉落": ("game/reward.py", 'emit("drop.grant"'),
+        "商店买入": ("game/services/shop.py", 'emit("shop.buy"'),
+        "副本通关": ("game/commands/instance_router.py", 'emit("instance.clear"'),
+    }
+    for label, (rel, needle) in probes.items():
+        p = os.path.join(root, rel)
+        src = open(p, encoding="utf-8").read() if os.path.exists(p) else ""
+        check(f"{label}埋点在位（{rel}）", needle in src, needle)
+
+
+# ---------------------------------------------------------------- 3 端到端（真调）
+def t3_end_to_end():
+    print("\n[3] 启用后：真调业务函数 → 落流水")
+    mem = MemorySink()
+    _off()
+    tlog_setup.enable(sinks=[mem])
+    try:
+        from game.reward import grant_reward
+        clean_db()
+        grant_reward({"exp": 12, "gold": 7, "items": []}, GID, QID)
+        recs = list(mem.read_records())
+        drops = [r for r in recs if r.kind == "drop.grant"]
+        check("掉落埋点真落了一条 drop.grant", len(drops) == 1, str([r.kind for r in recs]))
+        if drops:
+            f = drops[0].fields
+            check("字段完整（exp/gold/source）",
+                  f.get("exp") == 12 and f.get("gold") == 7 and f.get("source") == "reward",
+                  str(f))
+        # emit 通道（shop/instance 走同一通道）
+        tlog_setup.emit("shop.buy", actor=QID, key="m:1", qty=2, discount=1.0)
+        tlog_setup.emit("instance.clear", actor=QID, iid="inst_oak", first_clear=True)
+        kinds = {r.kind for r in mem.read_records()}
+        check("emit 通道可用（shop.buy / instance.clear）",
+              {"shop.buy", "instance.clear"} <= kinds, str(kinds))
+    finally:
+        _off()
+
+
+# ---------------------------------------------------------------- 4 落库往返
+def t4_db_sink():
+    print("\n[4] SQLiteSink：落库 + 读回（与 JSONL 一致）")
+    from game.services.tlog_db_sink import SQLiteSink, SQLiteReader, ensure_table
+
+    mem = MemorySink()
+    _off()
+    sink = SQLiteSink(batch=2)
+    sink.clear()
+    tlog_setup.enable(sinks=[mem, sink])
+    try:
+        for i in range(5):
+            tlog_setup.emit("drop.grant", actor="u1", source="test", seq=i)
+        tlog_setup.emit("shop.buy", actor="u1", key="m:1", qty=1, discount=1.0)
+        sink.flush()
+        from_db = list(SQLiteReader().read_records())
+        from_mem = list(mem.read_records())
+        check("库内条数 == 内存条数", len(from_db) == len(from_mem),
+              f"db={len(from_db)} mem={len(from_mem)}")
+        check("字段逐条一致（含 JSON 往返）",
+              [r.to_dict() for r in from_db] == [r.to_dict() for r in from_mem])
+        rd = Reader([SQLiteReader()])
+        check("Reader 能从库筛选", rd.count(kind="drop.grant") == 5
+              and rd.count(actor="u1") == 6, f"{rd.count(kind='drop.grant')}/{rd.count()}")
+        check("kind 前缀族匹配", rd.count(kind="shop.") == 1)
+        check("clear 清空", sink.clear() == 6 and Reader([SQLiteReader()]).count() == 0)
+    finally:
+        _off()
+
+
+# ---------------------------------------------------------------- 5 分析脚本
+def t5_report_script():
+    print("\n[5] 分析脚本 tlog_report.py")
+    with tempfile.TemporaryDirectory() as td:
+        p = os.path.join(td, "t.jsonl")
+        tl = TLog(sinks=[JSONLSink(p)])
+        tl.emit("drop.grant", actor="u1", source="battle", gold=3)
+        tl.emit("shop.buy", actor="u1", key="m:1", qty=2, discount=1.0)
+        tl.emit("drop.grant", actor="u2", source="quest", gold=5)
+        tl.close()
+        script = os.path.join(_PD, "scripts", "tlog_report.py")
+        pr = subprocess.run([sys.executable, script, "--file", p, "--actor", "u1"],
+                            capture_output=True, text=True, encoding="utf-8",
+                            env={**os.environ, "PYTHONUTF8": "1"})
+        out = (pr.stdout or "") + (pr.stderr or "")
+        check("脚本退出码 0", pr.returncode == 0, out[-300:])
+        check("报告含记录数 2（按 actor 过滤）", "**2**" in out, out[:300])
+        check("报告含 kind 分布表", "drop.grant" in out and "shop.buy" in out)
+        pr2 = subprocess.run([sys.executable, script, "--file", p, "--kind", "shop."],
+                             capture_output=True, text=True, encoding="utf-8",
+                             env={**os.environ, "PYTHONUTF8": "1"})
+        check("kind 前缀筛选生效", "**1**" in ((pr2.stdout or "") + (pr2.stderr or "")))
+
+
+def main():
+    print("== v182 行为流水：埋点 / 落库 / 分析脚本 / 默认关 ==")
+    t1_default_off()
+    t2_probes_present()
+    t3_end_to_end()
+    t4_db_sink()
+    t5_report_script()
+    print(f"\n===== 结果：通过 {passed} / {passed + failed} =====")
+    return 0 if failed == 0 else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

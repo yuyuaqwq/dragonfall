@@ -482,6 +482,9 @@ class InstanceRouterCmds(CommandBase):
                     return
             # 末层 / 无 stages → 通关
             st["over"] = True
+            from .. import tlog_setup as _tlog      # 流水埋点（未启用 = 零行为）
+            _tlog.emit("instance.clear", actor=qq_id, iid=str(st.get("inst_id") or ""),
+                       first_clear=bool(st.get("first_clear")))
             _fc_cur = self._instance_current_members(group_id, st) or [str(st.get("leader") or "")]
             st["first_clear"] = not any(
                 a.get("ach_key") == f"inst_clear_{st['inst_id']}" and a.get("progress", 0) >= 1

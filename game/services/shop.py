@@ -321,6 +321,12 @@ def buy_index_dispatch(key, group_id, qq_id, player, qty, discount, *,
     at_shop=base._at_shop、smith_stock=core.smith_stock（货架原子购买）、
     buy_weapon=命令层 _buy_weapon 转发（等价 service buy_weapon）；其余数据/引擎原子全 C/db。
     """
+    try:                                       # 流水埋点（未启用 = 零行为）
+        from .. import tlog_setup as _tlog
+        _tlog.emit("shop.buy", actor=qq_id, key=str(key), qty=qty,
+                   discount=float(discount or 1))
+    except Exception:
+        pass
     from .. import db  # 惰性导入
     from ..core import smith_stock as _ss  # v135 铁匠铺全服共享货架（注入缺省）
     _ec = ec or C.ECON_CONFIG
