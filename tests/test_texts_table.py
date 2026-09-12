@@ -10,7 +10,7 @@
 
 **逐字一致**（"迁移没改玩家看到的字"）由两层证据扛：
   · 副本域：`tests/test_v185_instance_admission.py` 的 **805 格逐格冻结比对**（对照物 = 旧实现冻结体）
-  · 周常 / 签到 / 补给箱域：本文件 `WEEKLY_FROZEN` / `SIGNIN_FROZEN` / `SUPPLY_FROZEN` —— **迁移前真跑各分支存下来的完整输出**，
+  · 周常 / 签到 / 补给箱 / 每日任务域：本文件 `WEEKLY_FROZEN` / `SIGNIN_FROZEN` / `SUPPLY_FROZEN` / `DAILY_FROZEN` —— **迁移前真跑各分支存下来的完整输出**，
     每次跑测试复跑比对（签到分支用 random 打桩保证可复现）
 
 跑法：python tests/test_texts_table.py（exit=0 通过）
@@ -39,11 +39,12 @@ _PD = os.path.dirname(_HERE)
 WEEKLY_SRC = os.path.join(_PD, "game", "commands", "weekly.py")
 MISC_SRC = os.path.join(_PD, "game", "commands", "misc.py")
 EVENT_SRC = os.path.join(_PD, "game", "commands", "event_menu.py")
+WORLD_SRC = os.path.join(_PD, "game", "commands", "world.py")
 GATE_SRC = os.path.join(_PD, "game", "core", "instance_gate.py")
 SPEC = T.SPEC_PATH
 # 已迁移的域 → 该域文案由哪个文件接线（新增一个域时在这里加一行）
 WIRED = {"副本准入": GATE_SRC, "周常": WEEKLY_SRC, "签到": MISC_SRC,
-         "补给箱": EVENT_SRC}
+         "补给箱": EVENT_SRC, "每日任务": WORLD_SRC}
 
 passed = failed = 0
 
@@ -84,6 +85,14 @@ SUPPLY_FROZEN = {
     "B_second": "📦 【每日补给箱】\n━━━━━━━━━━━━\n  ⏳ 每日材料箱：今日已领取～\n  ⏳ 每日道具箱：今日已领取～\n  🎁 每日豪华箱：白银箱、精炼强化石、幸运符！\n\n💡 补给箱内容：图纸残页/淬火石/强化石/幸运符等（每日 0 点重置）",
     "C_third": "📦 【每日补给箱】\n━━━━━━━━━━━━\n  ⏳ 每日材料箱：今日已领取～\n  ⏳ 每日道具箱：今日已领取～\n  ⏳ 每日豪华箱：本周已领 2/2～\n  今天/本周的补给箱都已领过啦，明天再来吧～\n\n💡 补给箱内容：图纸残页/淬火石/强化石/幸运符等（每日 0 点重置）"
 }   # 迁移前快照（2026-09-12 真跑存下，勿手改）
+
+# 迁移前行为快照（真跑『任务』面板 4 种状态：从未领取/进行中/完成未满额/满额，逐字冻结）
+DAILY_FROZEN = {
+    "A_never": "📜 【冒险日志】\n━━━━━━━━━━━━\n【主线】已全部完成！🎊\n\n【支线】暂无——找镇上的 NPC 聊聊可能有意外收获\n\n【每日】今日还没领取任务——输入『每日』发布今日悬赏～\n\n💡 进行中可弃：『放弃 <序号>』",
+    "B_active": "📜 【冒险日志】\n━━━━━━━━━━━━\n【主线】已全部完成！🎊\n\n【支线】暂无——找镇上的 NPC 聊聊可能有意外收获\n\n【每日】\n 1. 『边境警戒』\n    击杀 10 只任意怪物 (3/10)\n 2. 『神秘委托』\n    未知目标（无达标数定义） (进度 1)\n\n💡 『对话 <NPC名>』接取任务",
+    "C_done_part": "📜 【冒险日志】\n━━━━━━━━━━━━\n【主线】已全部完成！🎊\n\n【支线】暂无——找镇上的 NPC 聊聊可能有意外收获\n\n【每日】今日已完成 2 个每日任务——输入『每日』还能再接～\n\n💡 『对话 <NPC名>』接取任务",
+    "D_done_full": "📜 【冒险日志】\n━━━━━━━━━━━━\n【主线】已全部完成！🎊\n\n【支线】暂无——找镇上的 NPC 聊聊可能有意外收获\n\n【每日】今日已完成 10/10 个每日任务，明天再来！\n\n💡 『每日』领取今日任务"
+}   # 迁移前快照（2026-09-12 真跑存下，勿手改；比对时剔除 💡 随机提示行）
 
 _GID, _QID = "g_txt", "q_txt"
 _SID = "g_si"
@@ -190,6 +199,41 @@ async def _supply_scenarios() -> dict:
     return out
 
 
+def _strip_tips(text):
+    """剔掉面板底部随机提示行（`💡 ` 开头的整行）——提示池随机抽，不属于任何域。"""
+    return "\n".join(ln for ln in (text or "").splitlines() if not ln.startswith("💡 "))
+
+
+async def _daily_scenarios() -> dict:
+    """复跑『任务』面板的 4 个状态（步骤与快照脚本逐行一致）。"""
+    today = datetime.date.today().isoformat()
+    base = {"main_quest": "", "main_status": "", "main_progress": {},
+            "completed_main": [], "side": {}}
+    states = {
+        "A_never": {},
+        "B_active": {"边境警戒": {"name": "边境警戒", "desc": "击杀 10 只任意怪物",
+                                "objective": {"kill_any": 10}, "progress": 3},
+                     "神秘委托": {"name": "神秘委托", "desc": "未知目标（无达标数定义）",
+                                "objective": {"mystery": "?"}, "progress": 1},
+                     "_date": today, "_completed": 0},
+        "C_done_part": {"_date": today, "_completed": 2},
+        "D_done_full": {"_date": today, "_completed": 10},
+    }
+    clean_db()
+    m = Main(None)
+    db.create_player("g_dl", "q_dl", "每日", C.resolve("classes", "战士"), {}, 100, 100)
+    out = {}
+    for k, daily in states.items():
+        st = dict(base)
+        st["daily"] = daily
+        db.save_quests("g_dl", "q_dl", st)
+        ev = FakeEvent("g_dl", "q_dl", "任务")
+        res = await run(m.quest_view, ev)
+        out[k] = res[-1] if res else ""
+    clean_db()
+    return out
+
+
 # ══════════════════════════════════════════════════════════════════════════
 def _scan_calls(path):
     """AST 扫模块：
@@ -221,7 +265,7 @@ def t1_table_selfcheck():
     tb = T.reload()
     check("声明文件存在且路径正确", os.path.exists(SPEC) and SPEC.endswith("text_specs.json"), SPEC)
     check("装载无错（load_error 为空）", T.load_error() == "", T.load_error())
-    check("表非空（61 条：副本准入 26 + 签到 10 + 周常 18 + 补给箱 7）", len(tb) >= 40, len(tb))
+    check("表非空（68 条：副本准入 26 + 签到 10 + 周常 18 + 补给箱 7 + 每日任务 7）", len(tb) >= 40, len(tb))
     check("★ validate() 干净（无空值/语法错/params 与模板不一致）",
           tb.audit()["problems"] == [], tb.audit()["problems"][:5])
     check("元信息键（_ 开头）不入表", not [k for k in tb.keys() if k.startswith("_")], tb.keys()[:3])
@@ -229,8 +273,8 @@ def t1_table_selfcheck():
           not [s.key for s in tb if not s.category], [s.key for s in tb if not s.category][:5])
     check("key 无重复", len(tb.keys()) == len(set(tb.keys())))
     cats = sorted({s.category for s in tb})
-    check("category 取值符合预期（副本准入 / 签到 / 周常 / 补给箱）",
-          set(cats) == {"副本准入", "签到", "周常", "补给箱"}, cats)
+    check("category 取值符合预期（副本准入 / 签到 / 周常 / 补给箱 / 每日任务）",
+          set(cats) == {"副本准入", "签到", "周常", "补给箱", "每日任务"}, cats)
 
 
 def t2_key_and_params_accounting():
@@ -258,8 +302,8 @@ def t2_key_and_params_accounting():
     check("★ 表里没有死文案（每条声明都被真实调用）", not dead, dead)
     check("★ 槽位名与调用实参逐条对得上（防模板写出 {foo} 露给玩家）", not mismatch)
     doms = {k.split(".")[0] for k in used}
-    check("调用点覆盖全部已迁移域（副本准入 + 周常 + 签到 + 补给箱）",
-          {"instance", "weekly", "signin", "supply"} <= doms, sorted(doms))
+    check("调用点覆盖全部已迁移域（副本准入 + 周常 + 签到 + 补给箱 + 每日任务）",
+          {"instance", "weekly", "signin", "supply", "daily"} <= doms, sorted(doms))
 
 
 def t3_no_silent_fallback():
@@ -286,7 +330,7 @@ def t3_no_silent_fallback():
         T.SPEC_PATH = real
         T.reload()
     os.remove(bad)
-    check("恢复正常声明后表重建（61 条）", len(T.table()) >= 40, len(T.table()))
+    check("恢复正常声明后表重建（68 条）", len(T.table()) >= 40, len(T.table()))
 
 
 def t4_weekly_frozen():
@@ -321,6 +365,16 @@ def t6_supply_frozen():
     check("★『领取补给箱』3 分支输出与迁移前**逐字一致**", not bad, bad)
 
 
+def t7_daily_frozen():
+    print("\n[7] 每日任务域（任务面板段）逐字冻结：4 状态复跑比对（剔除随机提示行）")
+    check("冻结基准已内嵌（4 状态）", len(DAILY_FROZEN) == 4, len(DAILY_FROZEN))
+    now = asyncio.run(_daily_scenarios())
+    bad = [k for k in DAILY_FROZEN if _strip_tips(DAILY_FROZEN[k]) != _strip_tips(now.get(k))]
+    for k in bad:
+        print("     · %s 现=%r" % (k, _strip_tips(now.get(k, ""))[:140]))
+    check("★『任务』面板每日段 4 状态输出与迁移前**逐字一致**（随机提示行除外）", not bad, bad)
+
+
 def main():
     print("=" * 74)
     print("文案表门禁：game/data/text_specs.json + game/core/texts.py")
@@ -331,6 +385,7 @@ def main():
     t4_weekly_frozen()
     t5_signin_frozen()
     t6_supply_frozen()
+    t7_daily_frozen()
     print("\n" + "=" * 74)
     print("结果：通过 %d / %d" % (passed, passed + failed))
     print("=" * 74)

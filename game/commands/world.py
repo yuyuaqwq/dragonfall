@@ -13,6 +13,7 @@ import time
 from ._platform import AstrMessageEvent, filter, MessageChain
 
 from .. import content as C
+from ..core import texts as T
 from .. import db
 from ..content_rules.panel import player_final_stats
 from ..content_rules.skills import skill_info
@@ -2082,7 +2083,7 @@ class WorldCmds(CommandBase):
         active_keys = [k for k in daily if k not in _DAILY_META_KEYS]
         if active_keys:
             lines.append("")
-            lines.append("【每日】")
+            lines.append(T.static("daily.section"))
             _daily_n = 0  # v116 每日任务序号（仅计实际任务，跨元数据）
             for dkey, dq in daily.items():
                 if dkey in _DAILY_META_KEYS:  # 跨天/计数元数据，跳过
@@ -2094,22 +2095,24 @@ class WorldCmds(CommandBase):
                 # v127.7 排版：每日任务名单独一行，描述缩进下一行
                 if need is None:
                     # v125.1 P2：无达标数定义时只显示实际进度，不再兜底假 99
-                    lines.append(f"{_daily_n:>2}. 『{dq['name']}』")
-                    lines.append(f"    {dq['desc']} (进度 {dq.get('progress', 0)})")
+                    lines.append(T.text("daily.item", n=_daily_n, name=dq["name"]))
+                    lines.append(T.text("daily.item_plain", desc=dq["desc"],
+                                        prog=dq.get("progress", 0)))
                 else:
-                    lines.append(f"{_daily_n:>2}. 『{dq['name']}』")
-                    lines.append(f"    {dq['desc']} ({dq.get('progress',0)}/{need})")
+                    lines.append(T.text("daily.item", n=_daily_n, name=dq["name"]))
+                    lines.append(T.text("daily.item_progress", desc=dq["desc"],
+                                        prog=dq.get("progress", 0), need=need))
         else:
             lines.append("")
             if not daily:
                 # v127.7 修复：从未领取（新号/跨天清空）→ 引导领取，不显示"已完成"
-                lines.append("【每日】今日还没领取任务——输入『每日』发布今日悬赏～")
+                lines.append(T.static("daily.never"))
             else:
                 _done = int(daily.get("_completed", 0) or 0)
                 if _done >= DAILY_LIMIT:
-                    lines.append(f"【每日】今日已完成 {_done}/{DAILY_LIMIT} 个每日任务，明天再来！")
+                    lines.append(T.text("daily.done_full", done=_done, limit=DAILY_LIMIT))
                 else:
-                    lines.append(f"【每日】今日已完成 {_done} 个每日任务——输入『每日』还能再接～")
+                    lines.append(T.text("daily.done_part", done=_done))
         # v101.30d #O1：师门考验追踪——对话树进行中时面板显示（playtest 小红：考验无面板条目）
         _MASTER_IDS = ("npc_herb_master", "npc_mine_master", "npc_fish_master", "npc_cook_master",
                        "npc_alchemy_master", "npc_craft_master", "npc_enhance_master", "npc_rune_master")

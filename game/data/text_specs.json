@@ -9,6 +9,61 @@
   "副本准入": "副本『副本 <名字>』『加入战斗』与徒步进图门禁的全部提示（v185 收口到 core/instance_gate.py）",
   "周常": "周常悬赏『周常』『周常列表』面板（v185 起采用文案表，行为快照冻结）"
  },
+ "daily.section": {
+  "value": "【每日】",
+  "category": "每日任务",
+  "desc": "任务面板：每日段小标题"
+ },
+ "daily.item": {
+  "value": "{n:>2}. 『{name}』",
+  "params": [
+   "n",
+   "name"
+  ],
+  "category": "每日任务",
+  "desc": "每日任务名行（`>2` 右对齐两位：序号 1~9 前方留一空格，10 起顶格）"
+ },
+ "daily.item_progress": {
+  "value": "    {desc} ({prog}/{need})",
+  "params": [
+   "desc",
+   "prog",
+   "need"
+  ],
+  "category": "每日任务",
+  "desc": "有达标数时的进度行（4 空格缩进）"
+ },
+ "daily.item_plain": {
+  "value": "    {desc} (进度 {prog})",
+  "params": [
+   "desc",
+   "prog"
+  ],
+  "category": "每日任务",
+  "desc": "无达标数定义时的进度行（旧实现在此兜底假 99，已按实际进度显示）"
+ },
+ "daily.never": {
+  "value": "【每日】今日还没领取任务——输入『每日』发布今日悬赏～",
+  "category": "每日任务",
+  "desc": "面板：从未领取（新号/跨天清空）"
+ },
+ "daily.done_full": {
+  "value": "【每日】今日已完成 {done}/{limit} 个每日任务，明天再来！",
+  "params": [
+   "done",
+   "limit"
+  ],
+  "category": "每日任务",
+  "desc": "面板：已满额（limit = DAILY_LIMIT）"
+ },
+ "daily.done_part": {
+  "value": "【每日】今日已完成 {done} 个每日任务——输入『每日』还能再接～",
+  "params": [
+   "done"
+  ],
+  "category": "每日任务",
+  "desc": "面板：完成若干但未满额"
+ },
  "instance.leader_only": {
   "value": "只有队长才能开启副本！让队长来『副本 <名字>』吧～",
   "category": "副本准入",
