@@ -1213,5 +1213,590 @@
     "usage": "gm_伤害 <数值>",
     "order": 17,
     "visible": false
+  },
+  "gather": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?采集(?:\\s*|$)"
+    ],
+    "desc": "野外采集（越高级地图产出越好）",
+    "category": "副业",
+    "usage": "采集",
+    "guards": [
+      "player"
+    ],
+    "order": 1
+  },
+  "mining": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?挖掘(?:\\s*|$)"
+    ],
+    "desc": "野外挖掘（出原石/矿石）",
+    "category": "副业",
+    "usage": "挖掘",
+    "guards": [
+      "player"
+    ],
+    "order": 2
+  },
+  "alchemy": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?炼金(?:[\\s\\S]*)$"
+    ],
+    "desc": "炼金面板（药水配方与等级门槛）",
+    "category": "副业",
+    "usage": "炼金",
+    "guards": [
+      "player"
+    ],
+    "order": 9
+  },
+  "alchemy_craft": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?合成(?:\\s*|$)"
+    ],
+    "desc": "合成药水（高等级配方要炼金等级）",
+    "category": "副业",
+    "usage": "合成 <药水>",
+    "guards": [
+      "player"
+    ],
+    "order": 10
+  },
+  "cooking_list": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?烹饪列表(?:[\\s\\S]*)$"
+    ],
+    "desc": "全部食谱（鱼+药材→料理）",
+    "category": "副业",
+    "usage": "烹饪列表",
+    "guards": [
+      "player"
+    ],
+    "order": 7
+  },
+  "cooking": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?烹饪(?!列表)(?:\\s*|$)"
+    ],
+    "desc": "烹饪面板／烹饪料理",
+    "category": "副业",
+    "usage": "烹饪 [料理名]",
+    "guards": [
+      "player"
+    ],
+    "order": 8,
+    "extra": {
+      "note": "负向断言 (?!列表) 让位『烹饪列表』。"
+    }
+  },
+  "bp_craft": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?图纸合成(?:[\\s\\S]*)$"
+    ],
+    "desc": "图纸残页合成（10 残页 → 1 指定图纸）",
+    "category": "副业",
+    "usage": "图纸合成 <图纸名>",
+    "guards": [
+      "player"
+    ],
+    "order": 15
+  },
+  "profession_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?副业(?!任务)(?:[\\s\\S]*)$"
+    ],
+    "desc": "副业面板（等级/经验/已激活条数）",
+    "category": "副业",
+    "usage": "副业",
+    "guards": [
+      "player"
+    ],
+    "order": 4,
+    "extra": {
+      "note": "负向断言 (?!任务) 让位『副业任务』。"
+    }
+  },
+  "prof_forget": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?遗忘副业(?:[\\s\\S]*)$"
+    ],
+    "desc": "遗忘副业：放弃一条副业（等级清零，可重学）",
+    "category": "副业",
+    "usage": "遗忘副业 <名称>",
+    "guards": [
+      "player"
+    ],
+    "order": 5
+  },
+  "daily_prof": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:副业任务|每日副业|今日副业)(?:\\s*|$)"
+    ],
+    "desc": "今日随机 3 选 1 副业任务",
+    "category": "副业",
+    "usage": "副业任务",
+    "guards": [
+      "player"
+    ],
+    "order": 6,
+    "extra": {
+      "note": "别名『每日副业』『今日副业』（19 章旧称呼，策划案 §六统一为『副业任务』）。v104 M24 P2-1：『每日副业』曾前缀误触『每日』面板 → 『每日』侧加负向断言收窄。"
+    }
+  },
+  "fishing": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?垂钓(?:选择|点)?(?:\\s*|$)"
+    ],
+    "desc": "垂钓（『垂钓选择』切换鱼饵/水域）",
+    "category": "副业",
+    "usage": "垂钓",
+    "guards": [
+      "player"
+    ],
+    "order": 3
+  },
+  "craft": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:锻造|打造)(?:[\\s\\S]*)$"
+    ],
+    "desc": "锻造：当前可锻造列表／全部配方／锻造单件",
+    "category": "副业",
+    "usage": "锻造 [装备名]",
+    "guards": [
+      "player"
+    ],
+    "order": 11,
+    "extra": {
+      "note": "O80：别名『打造』（v82 改名前的旧指令，无别名时曾零回复）。"
+    }
+  },
+  "craft_commission": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?代工(?:[\\s\\S]*)$"
+    ],
+    "desc": "铁匠代工（材料 + 3 倍金币，不用图纸/锻造等级）",
+    "category": "副业",
+    "usage": "代工 <装备名>",
+    "guards": [
+      "player"
+    ],
+    "order": 12
+  },
+  "learn": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?学习(?:[\\s\\S]*)$"
+    ],
+    "desc": "学习图纸（消耗图纸永久解锁套装配方）",
+    "category": "副业",
+    "usage": "学习 <图纸名>",
+    "guards": [
+      "player"
+    ],
+    "order": 13
+  },
+  "recipe_list": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:配方|图纸列表)(?:\\s*|$)"
+    ],
+    "desc": "配方／图纸列表（『配方 <装备名>』看详情）",
+    "category": "副业",
+    "usage": "配方 | 图纸列表",
+    "guards": [
+      "player"
+    ],
+    "order": 14
+  },
+  "enhance": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?强化(?:\\s*|$)"
+    ],
+    "desc": "强化装备（要强化副业 Lv.N 才能强化 +N）",
+    "category": "副业",
+    "usage": "强化 <装备>",
+    "guards": [
+      "player"
+    ],
+    "order": 16
+  },
+  "equip_upgrade": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?升级(?:[\\s\\S]*)$"
+    ],
+    "desc": "装备升级（养装备，与强化同副业门槛）",
+    "category": "副业",
+    "usage": "升级 <装备>",
+    "guards": [
+      "player"
+    ],
+    "order": 17,
+    "extra": {
+      "note": "v135：与『强化』同副业门槛，升级走另一条成长线。"
+    }
+  },
+  "gem_drill": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?打孔(?:[\\s\\S]*)$"
+    ],
+    "desc": "原石-打孔（给装备开镶嵌孔）",
+    "category": "副业",
+    "usage": "打孔 <装备>",
+    "guards": [
+      "player"
+    ],
+    "order": 18,
+    "extra": {
+      "note": "v136 原石系统：打孔/镶嵌/拆卸/合成/查看。与『装备重锻』(refine_equip) 是不同系统。"
+    }
+  },
+  "gem_socket": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?镶嵌(?:[\\s\\S]*)$"
+    ],
+    "desc": "原石-镶嵌（把原石嵌进孔位）",
+    "category": "副业",
+    "usage": "镶嵌 <装备> <原石>",
+    "guards": [
+      "player"
+    ],
+    "order": 19
+  },
+  "gem_remove": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?拆卸(?:[\\s\\S]*)$"
+    ],
+    "desc": "原石-拆卸（取回已镶嵌的原石）",
+    "category": "副业",
+    "usage": "拆卸 <装备>",
+    "guards": [
+      "player"
+    ],
+    "order": 20
+  },
+  "gem_combine": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?原石合成(?:[\\s\\S]*)$"
+    ],
+    "desc": "原石-合成（低阶原石合成高阶）",
+    "category": "副业",
+    "usage": "原石合成",
+    "guards": [
+      "player"
+    ],
+    "order": 21
+  },
+  "gem_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?原石(?!合成)(?:\\s*|$)"
+    ],
+    "desc": "原石查看（持有原石与属性）",
+    "category": "副业",
+    "usage": "原石",
+    "guards": [
+      "player"
+    ],
+    "order": 22,
+    "extra": {
+      "note": "负向断言 (?!合成) 让位『原石合成』。"
+    }
+  },
+  "rune_craft": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?符文制作(?:\\s*|$)"
+    ],
+    "desc": "符文制作",
+    "category": "副业",
+    "usage": "符文制作",
+    "guards": [
+      "player"
+    ],
+    "order": 23,
+    "extra": {
+      "note": "v136 Phase 3：符文可制作 + 可拆卸（与『拆卸』原石命令并行不冲突，用各自前缀区分）。"
+    }
+  },
+  "rune_remove": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?符文拆卸(?:\\s*|$)"
+    ],
+    "desc": "符文拆卸（取回已打符文）",
+    "category": "副业",
+    "usage": "符文拆卸",
+    "guards": [
+      "player"
+    ],
+    "order": 24
+  },
+  "refine_equip": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?装备重锻(?:[\\s\\S]*)$"
+    ],
+    "desc": "装备重锻（怪猎派生树：改词条/派生）",
+    "category": "副业",
+    "usage": "装备重锻 <装备>",
+    "guards": [
+      "player"
+    ],
+    "order": 25,
+    "extra": {
+      "note": "v172：『装备重锻』与『转职』(evolve) 不冲突 —— 各有专属前缀。"
+    }
+  },
+  "calamity_forge": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?炼成(?:[\\s\\S]*)$"
+    ],
+    "desc": "怪异炼成（怪猎曙光怪异化：每件限 3 次）",
+    "category": "副业",
+    "usage": "炼成 <装备>",
+    "guards": [
+      "player"
+    ],
+    "order": 26,
+    "extra": {
+      "note": "v136 Phase 5：每件装备限 3 次；与『炼金』(alchemy) 不冲突。"
+    }
+  },
+  "enchant": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?附魔(?:\\s*|$)"
+    ],
+    "desc": "附魔装备（属性附魔或打符文；要附魔副业 Lv.2）",
+    "category": "副业",
+    "usage": "附魔 <装备> <属性/符文名>",
+    "guards": [
+      "player"
+    ],
+    "order": 27
+  },
+  "set_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?套装(?:\\s*|$)"
+    ],
+    "desc": "套装查看（部件与套装效果）",
+    "category": "副业",
+    "usage": "套装",
+    "guards": [
+      "player"
+    ],
+    "order": 28
+  },
+  "monster": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?怪物(?:\\s+(\\S+))?\\s*$"
+    ],
+    "desc": "怪物图鉴速查（『怪物 <名字>』）",
+    "category": "其他",
+    "usage": "怪物 [名字]",
+    "guards": [
+      "player"
+    ],
+    "order": 1
+  },
+  "adventure_book": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?冒险手册(?:\\s*|$)"
+    ],
+    "desc": "冒险手册（区域/怪物/物品/收藏总览）",
+    "category": "其他",
+    "usage": "冒险手册 [分区]",
+    "guards": [
+      "player"
+    ],
+    "order": 3
+  },
+  "footprint": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?足迹(?:\\s*|$)"
+    ],
+    "desc": "足迹：我去过的区域明细（含首访日期）",
+    "category": "其他",
+    "usage": "足迹",
+    "guards": [
+      "player"
+    ],
+    "order": 4
+  },
+  "bestiary": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?图鉴(?:[\\s\\S]*)$"
+    ],
+    "desc": "怪物图鉴（=『冒险手册 怪物』）",
+    "category": "其他",
+    "usage": "图鉴 [类别]",
+    "guards": [
+      "player"
+    ],
+    "order": 2
+  },
+  "encyclopedia": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?百科(?:\\s*|$)"
+    ],
+    "desc": "百科：查材料/怪物/地图掉落来源",
+    "category": "其他",
+    "usage": "百科 <关键词>",
+    "guards": [
+      "player"
+    ],
+    "order": 5
+  },
+  "titles": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?称号(?:\\s*|$)"
+    ],
+    "desc": "称号查看／佩戴",
+    "category": "其他",
+    "usage": "称号 [名称]",
+    "guards": [
+      "player"
+    ],
+    "order": 6
+  },
+  "inventory": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:背包|物品)(?!详情|筛选)(?:\\s*.*)?$"
+    ],
+    "desc": "背包列表（类型：装备/材料/消耗品/符文/宠物蛋/坐骑/图纸/鱼）",
+    "category": "物品",
+    "usage": "背包 [类型] [页数]",
+    "guards": [
+      "player"
+    ],
+    "order": 13,
+    "extra": {
+      "note": "别名『物品』；负向断言排除『物品详情』『背包筛选』。"
+    }
+  },
+  "bag_filter": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?背包筛选(?:[\\s\\S]*)$"
+    ],
+    "desc": "只看某类物品（同『背包 <类型>』）",
+    "category": "物品",
+    "usage": "背包筛选 <类型>",
+    "guards": [
+      "player"
+    ],
+    "order": 14,
+    "extra": {
+      "note": "v83.1：只留『背包筛选』，删『筛选』别名。"
+    }
+  },
+  "item_view_mode_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?物品详情(?:开始|结束)(?:\\s*|$)"
+    ],
+    "desc": "物品详情富文本模式开关（开始/结束）",
+    "category": "物品",
+    "usage": "物品详情开始 | 物品详情结束",
+    "guards": [
+      "player"
+    ],
+    "order": 15,
+    "extra": {
+      "note": "与 item_detail 正则重叠，靠 priority=50 判定先后（test_v87 矩阵豁免登记）。"
+    }
+  },
+  "item_detail": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:物品详情|查看(?!地图|任务|背包|技能|图鉴|百科|成就|称号|宠物|副本|排行|帮助|列表|商店|位置|声望|荣誉|套装|坐骑|队伍|摊位|市场|仓库|事件|许愿|种族|流派|签到|战力|职业|配方|烹饪|副业|锻造|炼金|合成|钓鱼|采集|挖掘|学习|洗点|装备|卸下|喂养|放生|传送|祭坛|赶路|深入|调查|撤退|离开|注册|意见|怪物|咨询|状态|属性|详情|信息))(?:[\\s\\S]*)$"
+    ],
+    "desc": "查看物品详情（名称/序号）",
+    "category": "物品",
+    "usage": "物品详情 <名称/序号>",
+    "guards": [
+      "player"
+    ],
+    "order": 16,
+    "extra": {
+      "note": "别名『查看 <物品>』，带长负向断言排除全部其它指令前缀（防抢指令）。"
+    }
+  },
+  "my_equipment": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?我的装备(?:\\s*|$)"
+    ],
+    "desc": "我的装备（已穿戴各部位）",
+    "category": "物品",
+    "usage": "我的装备",
+    "guards": [
+      "player"
+    ],
+    "order": 17
+  },
+  "equip": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?装备(?!重锻|我的)(?:\\s*|$)"
+    ],
+    "desc": "穿戴装备",
+    "category": "物品",
+    "usage": "装备 <序号/名称>",
+    "guards": [
+      "player"
+    ],
+    "order": 18,
+    "extra": {
+      "note": "负向断言排除『装备重锻』『我的装备』。"
+    }
+  },
+  "unequip": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?卸下(?:\\s*|$)"
+    ],
+    "desc": "卸下装备部位",
+    "category": "物品",
+    "usage": "卸下 <部位>",
+    "guards": [
+      "player"
+    ],
+    "order": 19
+  },
+  "use": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?使用(?:\\s*|$)"
+    ],
+    "desc": "使用物品（战斗中用恢复药水算一刻）",
+    "category": "物品",
+    "usage": "使用 <物品>",
+    "guards": [
+      "player"
+    ],
+    "order": 20
+  },
+  "sell": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?出售(?:\\s*|$)"
+    ],
+    "desc": "出售物品（『出售 材料/装备/全部』一键批量卖，自动跳过任务/考验材料）",
+    "category": "物品",
+    "usage": "出售 <名称/序号/类别> [数量]",
+    "guards": [
+      "player"
+    ],
+    "order": 21
+  },
+  "shop": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?商店(?:\\s*|$)"
+    ],
+    "desc": "商店列表（NPC 商店）",
+    "category": "物品",
+    "usage": "商店 [页]",
+    "guards": [
+      "player"
+    ],
+    "order": 22
+  },
+  "buy": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?购买(?:\\s*|$)"
+    ],
+    "desc": "购买商品（全角括号自动转半角）",
+    "category": "物品",
+    "usage": "购买 <物品>",
+    "guards": [
+      "player"
+    ],
+    "order": 23
   }
 }
