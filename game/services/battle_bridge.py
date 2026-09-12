@@ -204,6 +204,25 @@ def apply_player_battle_start(player: dict, actor: dict, db=None) -> dict:
     return actor
 
 
+def attach_tlog(b, *, btype: str = "monster", player=None, enemies=None, seed=None):
+    """给一场战斗挂**流水采集**（可拔插：未启用流水时**零行为**，直接返回 `b`）。
+
+    开关在 `game/tlog_setup.py`（`DRAGONFALL_TLOG=1` 或显式 `enable()`）；
+    采集器与回放见 `game/services/battle_tlog.py`，设计见 `docs/REFACTOR_tlog_landing.md`。
+    调用点：开战处一行（`combat._open_battle` 等）；异常一律吞掉 —— 流水不该影响开战。
+    """
+    try:
+        from ..tlog_setup import tlog as _tlog
+        tl = _tlog()
+        if tl is None:
+            return b
+        from .battle_tlog import BattleTLog
+        BattleTLog(tl).attach(b, btype=btype, seed=seed, player=player, enemies=enemies)
+    except Exception:                                         # noqa: BLE001
+        pass
+    return b
+
+
 def apply_battle_loadout(actor: dict, title_bonus: Optional[dict] = None) -> dict:
     """开战装配序列（每个 player actor 调一次）：外部面板增幅 + 装备词条 + 职业机制。
 

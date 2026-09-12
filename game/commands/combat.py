@@ -630,8 +630,10 @@ class CombatCmds(CommandBase):
         for _a in sides.get("player", []):
             BR.apply_battle_loadout(_a, tb)
         from saintess_engine import Battle as B2
-        return B2(btype, sides=sides, title_bonus=tb,
-                  pet=pet if pet is not None else db.pet_get(qq_id))
+        b = B2(btype, sides=sides, title_bonus=tb,
+               pet=pet if pet is not None else db.pet_get(qq_id))
+        # 流水采集（可拔插：未启用 DRAGONFALL_TLOG / 未 enable 时为 no-op，见 game/tlog_setup.py）
+        return BR.attach_tlog(b, btype=btype, player=player, enemies=enemies)
 
     def _restore_battle(self, state: dict) -> "object":
         """恢复 saintess_engine 战斗（from_state）。旧格式（无 sides）→ None（命令层清档重开）。"""
