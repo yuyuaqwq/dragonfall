@@ -66,7 +66,6 @@ items 域语义核实（2026-09-12，证据在游戏仓 game/data/items.py，行
    schemas/item.schema.json `item_table.propertyNames` 的 `^[a-z][a-z0-9_]*$`。
    → 它是**运行期查询索引**，不是数据源；包里由 key 表 + `name` 字段即可等价表达。
 """
-from __future__ import annotations
 
 import argparse
 import hashlib
@@ -138,35 +137,160 @@ def derive_classes(src_root: str = REPO_ROOT) -> dict:
     return dict(_import_module("classes", src_root).CLASSES)
 
 
+def _tier_int(tier_key) -> int:
+    """把 BRANCH_SKILLS 的「阶」键规范成 int（源里是 1/2/3 的 int，框架 branch_skills
+    形状把它描述为 `^[0-9]+$` 的字符串）。非整数/布尔 → raise（源形状变了，拒绝导出）。"""
+    if isinstance(tier_key, bool):
+        raise ValueError(
+            f"BRANCH_SKILLS 阶 key {tier_key!r} 是 bool —— 不是转职阶，拒绝导出"
+        )
+    if isinstance(tier_key, int):
+        return tier_key
+    if isinstance(tier_key, str) and tier_key.isdigit():
+        return int(tier_key)
+    raise ValueError(
+        f"BRANCH_SKILLS 阶 key {tier_key!r}（{type(tier_key).__name__}）不是整数 —— "
+        f"框架 branch_skills 形状是「阶 ∈ ^[0-9]+$」，拒绝导出"
+    )
+
+
 def derive_skills(src_root: str = REPO_ROOT) -> dict:
-    """技能域：把「按职业分组的技能表」**扁平化**成「一条技能 = 一个 key」。
+    """技能域：把**三张**「按职业分组的技能表」扁平化成同一个「一条技能 = 一个 key」表。
 
-    为什么扁平：框架 skills 域的权威形状是 `x-primary: skill`（一条 = 一个技能，编辑器按条增删改，
-    校验也只认这个 def）；而游戏侧 `PLAYER_SKILLS` 是 `{职业: {name, skills: {sk_*: 技能}}}` 的**嵌套**
-    形态（框架 schema 里 player_skills / branch_skills / tutor_skills 三个 def 描述的就是这个源形态，
-    留给将来的「职业技能树」视图用）。
+    ============================ 为什么扁平 ============================
+    框架 skills 域的权威形状是 `x-primary: skill`（一条 = 一个技能；编辑器按条增删改，
+    `editor/packages.py:36-37` 的 primary 也写 `skill`，校验只认 `schemas/skill.schema.json`
+    的 `$defs/skill`）。而游戏侧三张源表都是**嵌套**形态（框架 schema 里 player_skills /
+    branch_skills / tutor_skills 三个 def 描述的就是这三个源形态，留给将来的「技能树」视图用）：
+        PLAYER_SKILLS  {职业key: {name, skills: {sk_*: 技能}}}                  skills.py:1
+        BRANCH_SKILLS  {职业key: {name, branches: {阶: {线名: {中文名: 技能}}}}}  skills.py:862
+        TUTOR_SKILLS   {职业key: {sk_*: 技能}}                                   skills.py:4172
+    ⇒ 三张表折成同一张扁平表，条目字段**原样保留**（不改类型、不补默认值、不动字段顺序），
+      只额外追加能表达「被折掉的层级」的字段（见下）。
 
-    扁平化规则：源条目字段**原样保留**（不改类型、不补默认值），只额外写一个 `owner_class`（该技能
-    所属职业的 key）—— 否则嵌套层级丢掉后，技能归属就没地方表达了。实测 7 职业 61 技能、键 0 冲突、
-    按框架 skill def 逐条校验 0 失败（门禁 tests/test_export_package_sync.py 锁死）。
-    未导出：BRANCH_SKILLS / TUTOR_SKILLS（职业进阶元数据，等有对应视图再导）。
+    ============================ 键空间决策 ============================
+    * **key = 源表的技能 key 原样**：PLAYER/TUTOR 是 `sk_*` 技能 id，BRANCH 是**中文名**
+      （源里 BRANCH 的 key 与条目 `name` 字段逐条相同，实测 238/238 一致）。
+      不另造 key（例如把中文名转成拼音 sk_*）：那会造出第二套 id 空间，且 items.learn_skill
+      是按**中文名**引用的（实测 5 条全部指向 BRANCH 技能），改成 sk_* 反而要再补一层
+      name→key 映射 —— 中文名当 key 恰好让这 5 条引用**直接命中**。
+    * **中文名（238）与 sk_*（61+6）共存**：实测两者**无交集**（`key ∩ name` 交集 238 全部
+      来自 BRANCH 自身 key=name，跨表 0），三表合计 305 个 key **0 冲突**。
+    * **冲突策略：撞了就 `raise ValueError`，绝不静默覆盖**（同一个 key 出现在两张表/两条
+      分支线 = 扁平化必然丢条目；空表同样 raise —— 空表让编辑器显示「0 条」且不报错）。
+      另外守一条**按名歧义**：两个不同 key 的 `name` 相同也 raise（按名引用会变歧义）。
+      实测当前 305 条 0 冲突、0 重名。
+
+    ============================ 追加字段（及理由） ============================
+    折掉嵌套后，「归属 / 阶 / 线 / 来自哪张表」就没地方表达；四个字段都**追加在条目末尾**
+    （不动源字段顺序，保持幂等）：
+        owner_class : 职业 key（三表都有）—— 同旧版；没有它技能归属丢失。
+        source      : "player" | "branch" | "tutor" —— 三张表语义不同（基础技能 / 转职分支
+                      技能 / 导师秘传），进同一个域后**必须**能区分：BRANCH 技能受 tier+branch
+                      门控，TUTOR 技能是 NPC 传授，混在一起无法再回推。
+        tier        : 仅 branch —— 转职阶（源里的 1/2/3，规范成 int）。框架
+                      `$defs/branch_skills` 正是按「阶」分组的，这是被折掉的一级。
+        branch      : 仅 branch —— 分支线中文名（如「狂战士」/「盾卫士」），被折掉的另一级。
+    （实测四个字段名与 305 条源条目的字段全集**零重名**；若将来源条目自带同名键，
+      本函数 raise 而不是覆盖。）
+
+    实测（2026-09-13）：PLAYER 61 + BRANCH 238 + TUTOR 6 = **305 条**，0 键冲突、0 重名、
+    逐条过 `$defs/skill` 0 失败；进包后 skills 域 61 → **305** 条（包 2691 → 2935）。
+    附带收益：`passive_proc` 域的 **42 条孤儿入边全部闭合**（42 个声明键都能在技能侧找到
+    引用者；技能侧共 53 个 proc 名，其中 11 个不在 passive_proc 表里，见
+    `derive_passive_proc` docstring）。
     """
     tables = _import_module("skills", src_root)
+
+    plan = (
+        ("player", "PLAYER_SKILLS", getattr(tables, "PLAYER_SKILLS", None)),
+        ("branch", "BRANCH_SKILLS", getattr(tables, "BRANCH_SKILLS", None)),
+        ("tutor", "TUTOR_SKILLS", getattr(tables, "TUTOR_SKILLS", None)),
+    )
+    for label, table_name, tbl in plan:
+        if not isinstance(tbl, dict) or not tbl:
+            raise ValueError(
+                f"skills.{table_name} 不是非空 dict（{table_name}.{label}）—— "
+                f"源形状变了/表被删，拒绝导出（空表 = 编辑器显示 0 条且不报错）"
+            )
+
     flat: dict = {}
-    for cls_key, blob in sorted((tables.PLAYER_SKILLS or {}).items()):
-        if not isinstance(blob, dict):
-            raise ValueError(f"PLAYER_SKILLS[{cls_key}] 不是 dict —— 源形状变了，拒绝导出")
-        for sk_key, sk in (blob.get("skills") or {}).items():
-            if not isinstance(sk, dict):
-                raise ValueError(f"{cls_key}.skills[{sk_key}] 不是 dict —— 源形状变了，拒绝导出")
-            if sk_key in flat:
+    name_to_key: dict = {}
+
+    def _put(key, sk, extra: dict, where: str) -> None:
+        if not isinstance(sk, dict):
+            raise ValueError(
+                f"{where}: 技能 {key!r} 不是 dict（{type(sk).__name__}）—— 源形状变了，拒绝导出"
+            )
+        if key in flat:
+            prev = flat[key]
+            raise ValueError(
+                f"技能 key {key!r} 冲突：{prev.get('source')}({prev.get('owner_class')}) 与 "
+                f"{extra['source']}({extra['owner_class']}) 都声明了同一个 key —— "
+                f"扁平化会丢条目，请先在源侧决定归属再导出（{where}）"
+            )
+        nm = sk.get("name")
+        if isinstance(nm, str) and nm:
+            prev_key = name_to_key.get(nm)
+            if prev_key is not None and prev_key != key:
                 raise ValueError(
-                    f"技能 key '{sk_key}' 同时属于 {flat[sk_key]['owner_class']} 与 {cls_key} —— "
-                    f"扁平化会丢条目，请先决定归属再导出"
+                    f"技能中文名 {nm!r} 重复：{prev_key!r} 与 {key!r} —— "
+                    f"按名引用（如 items.learn_skill）会变歧义，请先在源侧改名再导出"
                 )
-            entry = dict(sk)
-            entry["owner_class"] = cls_key
-            flat[sk_key] = entry
+            name_to_key[nm] = key
+        for f in extra:
+            if f in sk:
+                raise ValueError(
+                    f"{where}: 源条目 {key!r} 已含字段 {f!r} —— 注入会覆盖源真值，拒绝导出"
+                )
+        entry = dict(sk)
+        entry.update(extra)
+        flat[key] = entry
+
+    # --- 1) PLAYER_SKILLS: {职业: {name, skills: {sk_*: 技能}}} ---
+    for cls_key, blob in sorted(plan[0][2].items()):
+        if not isinstance(blob, dict) or not isinstance(blob.get("skills"), dict):
+            raise ValueError(
+                f"PLAYER_SKILLS[{cls_key!r}] 缺少 skills 表 —— 源形状变了，拒绝导出"
+            )
+        for sk_key, sk in blob["skills"].items():
+            _put(sk_key, sk, {"owner_class": cls_key, "source": "player"},
+                 f"PLAYER_SKILLS[{cls_key!r}].skills")
+
+    # --- 2) BRANCH_SKILLS: {职业: {name, branches: {阶: {线名: {中文名: 技能}}}}} ---
+    for cls_key, blob in sorted(plan[1][2].items()):
+        branches = blob.get("branches") if isinstance(blob, dict) else None
+        if not isinstance(branches, dict) or not branches:
+            raise ValueError(
+                f"BRANCH_SKILLS[{cls_key!r}].branches 不是非空 dict —— 源形状变了，拒绝导出"
+            )
+        for raw_tier, lines in sorted(branches.items(), key=lambda kv: _tier_int(kv[0])):
+            tier = _tier_int(raw_tier)
+            if not isinstance(lines, dict) or not lines:
+                raise ValueError(
+                    f"BRANCH_SKILLS[{cls_key!r}] 阶 {raw_tier!r} 下没有分支线 —— 源形状变了，拒绝导出"
+                )
+            for line, names in sorted(lines.items()):
+                if not isinstance(names, dict) or not names:
+                    raise ValueError(
+                        f"BRANCH_SKILLS[{cls_key!r}][{raw_tier!r}][{line!r}] 不是非空 dict —— "
+                        f"源形状变了，拒绝导出"
+                    )
+                for sk_name, sk in names.items():
+                    _put(sk_name, sk,
+                         {"owner_class": cls_key, "source": "branch", "tier": tier, "branch": line},
+                         f"BRANCH_SKILLS[{cls_key!r}].branches[{tier}][{line!r}]")
+
+    # --- 3) TUTOR_SKILLS: {职业: {sk_*: 技能}}（职业下可以是空表：该职业无导师技能） ---
+    for cls_key, blob in sorted(plan[2][2].items()):
+        if not isinstance(blob, dict):
+            raise ValueError(
+                f"TUTOR_SKILLS[{cls_key!r}] 不是 dict —— 源形状变了，拒绝导出"
+            )
+        for sk_key, sk in sorted(blob.items()):
+            _put(sk_key, sk, {"owner_class": cls_key, "source": "tutor"},
+                 f"TUTOR_SKILLS[{cls_key!r}]")
+
     return flat
 
 
@@ -874,17 +998,512 @@ def derive_instances(src_root: str = REPO_ROOT) -> dict:
     return out
 
 
+def derive_loot_vocab(src_root: str = REPO_ROOT) -> dict:
+    """引用词汇声明域（loot_vocab）→ `content/rules/loot_vocab.json`（一条 = 一个域）。
+
+    为什么需要：框架编辑器预览掉落池时起的是**引擎零知识**的 `LootTable(pools, resolver=None)`
+    —— 引擎不认识任何引用前缀，于是把 `equip:eq_x` / `gold_pct:30` 这类**内容侧外部引用**
+    全报成「断链」（实测真包 175 处 / 79 池）。那不是数据错，是「没人告诉框架哪些写法算解得开」。
+    引擎的 `inline_prefixes` / `special_refs` / `pool_key_prefixes` 三个旋钮本来就是给内容侧
+    声明的 —— 本函数把游戏侧**已有的**那套声明导出成包内声明表，框架侧 `editor/loot_view.py`
+    读了之后照同一套判 → 审计 0 断链（与游戏仓 `drop_engine.audit_all()` 的 0 问题一致）。
+
+    形状：`{"drop_pools": {…声明…}}` —— 外层键是它服务的**框架域 id**（框架 `DOMAINS` 认，
+    本域 kind=rules 由框架 `content_sub()` 问出来 → 落 content/rules/）。
+
+    词汇**一个都不手抄**（内容改了这里自动跟）：
+      inline_prefixes   ← `drop_engine._INLINE_PREFIXES`（运行时常量）
+      special_refs      ← `drop_engine._SPECIAL_REFS`
+      pool_key_prefixes ← `drop_engine._POOL_KEY_PREFIXES`
+      external_prefixes ← **行为取证**（不是扫源码！）：拿数据里真实出现、且不被
+                          「本表子池 / inline / special」解释的引用，去问游戏自己的判定
+                          `_resolvable()`；答 True 的才算「内容侧解得开」，带 `:` 的按前缀归并。
+                          （扫 `_resolvable` 源码里的 `startswith("字面量")` 是不行的 —— 那句
+                          `startswith("mat_")` 是**报断链**的分支，收成前缀会把真断链掩盖掉。）
+                          答非 True 的引用 → **拒绝导出**（那是真断链，不许拿声明糊过去）。
+      ref_domains       ← 实测决定：所有「裸 ref」（无 `:`）是否都是 items 域主键
+                          → 是则声明 ["items"]（框架据此查**包自己的** items 表判引用）；
+                            否 → 不声明（框架对条目照旧不判：宁可少说，不假报）
+
+    自检（拒绝导出坏声明，两道）：
+      ① 每一条引用必须「游戏自己」判得开（见上：bad 列表非空即拒绝）；
+      ② 真起框架 `editor.loot_view.audit_file()` 跑全表 → 必须 **0 问题**。
+    """
+    mod = _import_game_module("game.drop_engine", src_root)
+    inline = tuple(getattr(mod, "_INLINE_PREFIXES", ()) or ())
+    special = tuple(getattr(mod, "_SPECIAL_REFS", ()) or ())
+    pool_key = tuple(getattr(mod, "_POOL_KEY_PREFIXES", ()) or ())
+    if not inline or not special or not pool_key:
+        raise ValueError("drop_engine 的前缀/特殊值声明缺失 —— 源形状变了，拒绝导出（不猜）")
+    if not callable(getattr(mod, "_resolvable", None)):
+        raise ValueError("drop_engine 没有 _resolvable() —— 源形状变了，拒绝导出（无从取证）")
+
+    pools = derive_drop_pools(src_root)
+
+    # ── 行为取证：游戏自己的判定函数说「解得开」的引用才算解得开 ────────────────
+    external, bad = set(), []
+    for key, pool in pools.items():
+        pairs = [(e.get("item"), pool) for e in (pool.get("entries") or []) if isinstance(e, dict)]
+        pairs += [(rc.get("pool"), pool) for rc in (pool.get("rolls") or []) if isinstance(rc, dict)]
+        for ref, owner in pairs:
+            if not isinstance(ref, str) or not ref:
+                continue
+            if (ref in pools or ref in special or ref.startswith(inline)
+                    or ref.startswith(pool_key)):
+                continue
+            try:
+                verdict = mod._resolvable(ref, owner)
+            except Exception as e:                          # noqa: BLE001
+                raise ValueError(f"_resolvable({ref!r}) 抛错：{e} —— 拒绝导出") from e
+            if verdict is True:
+                if ":" in ref:                              # 带前缀的按前缀声明（框架没有名册）
+                    external.add(ref.split(":", 1)[0] + ":")
+                continue
+            if verdict is None:                             # 内容侧自管 → 不判
+                continue
+            bad.append(f"{key} → {ref} [{verdict}]")
+    if bad:
+        raise ValueError(
+            f"{len(bad)} 条引用游戏侧自己也判为断链（例：{bad[:3]}）—— 这是**真**问题，"
+            f"不许用声明糊过去，拒绝导出")
+    external = tuple(sorted(external))
+
+    # ref_domains：裸 ref 是否全是 items 域主键（items 表 = 同一份派生，不另读一份源）
+    item_keys = set(derive_items(src_root))
+    seen_bare, missing = set(), set()
+    for pool in pools.values():
+        for e in pool.get("entries") or []:
+            ref = e.get("item")
+            if not isinstance(ref, str) or not ref:
+                continue
+            if ref in special or ref.startswith(inline) or ref.startswith(external):
+                continue
+            seen_bare.add(ref)
+            if ref not in item_keys:
+                missing.add(ref)
+    ref_domains = ["items"] if (seen_bare and not missing) else []
+
+    decl = {
+        "version": 1,
+        "note": ("掉落池引用词汇声明（游戏仓导出，勿手改）：框架编辑器读它才知道"
+                 "「哪些引用写法算解得开」。取值全部派生自 game/drop_engine.py（含用它的"
+                 "_resolvable() 对真数据逐条取证），一个都不手抄；改了那边的声明重跑导出即可。"),
+        "inline_prefixes": list(inline),
+        "special_refs": list(special),
+        "pool_key_prefixes": list(pool_key),
+        "external_prefixes": list(external),
+        "ref_domains": list(ref_domains),
+    }
+
+    # 自检 ②：真起框架 audit（框架不在 / 版本旧 → 显式报错，不静默跳过）
+    fw = _framework_dir(DEFAULT_FRAMEWORK_DIR)
+    if fw not in sys.path:
+        sys.path.insert(0, fw)
+    try:
+        from editor import loot_view as LV                  # noqa: PLC0415
+    except Exception as e:                                  # noqa: BLE001
+        raise ValueError(f"读框架 loot_view 失败（{fw}）：{e} —— 拒绝导出（无法自检声明）") from e
+    if not hasattr(LV, "audit_file"):
+        raise ValueError(f"框架 {fw} 的 editor/loot_view.py 没有 audit_file()（版本旧？）—— "
+                         f"更新框架后再导出")
+    vocab = LV.normalize_vocab({**decl, "ref_keys": sorted(item_keys)})
+    rep = LV.audit_file(json_clean(pools), vocab)
+    if rep["issue_count"]:
+        raise ValueError(
+            f"带声明后框架审计仍报 {rep['issue_count']} 处问题（例：{rep['issues'][:3]}）"
+            f" —— 声明与数据不一致，拒绝导出")
+    return {"drop_pools": decl}          # 外层键 = 该词汇服务的**框架域 id**
+
+
+# -*- coding: utf-8 -*-
+"""可直接粘贴进游戏仓 `scripts/export_game_package.py` 的实现片段（本文件只读素材，未写任何仓）。
+
+粘贴位置：
+  B-1) 函数体：放在 `def derive_affixes(...)` 之后（与它同族：都是「表 + 按名索引」的域）
+  B-2) 注册一行：文件末尾 `DERIVERS = { ... }` 里加 `"equip_roster": derive_equip_roster,`
+       （`build_manifest()` 的 `domains` 由 `sorted(DERIVERS)` 派生 → 清单一并跟上，不必手写第二份）
+
+配套的框架侧改动见报告 §5（`schemas/equip_roster.schema.json` 落盘 + `editor/packages.py` DOMAINS 一行）。
+"""
+
+
+def derive_equip_roster(src_root: str = REPO_ROOT) -> dict:
+    """装备名册域：取 `EQUIP_ROSTER` 全量原样（687 条，键 100% 为 `eq_*`），
+    再把两张**按名索引**的装备侧子表在导出期连接进条目：
+
+        SERIES_SETS       （equip_roster.py:510，38 条 {系列名: 套装名}）→ 条目 `series_set`
+        SERIES_FIXED_AFFIX（affixes.py:1026，622 条 {装备名: [词条 id...]}）→ 条目 `fixed_affixes`
+
+    为什么是 EQUIP_ROSTER（而不是 EQUIP_ROSTER_BY_NAME）
+    ----------------------------------------------------
+    框架 `editor/packages.py` 的 equip_roster 域 primary = `equip`（= `schemas/equip_roster.schema.json`
+    的 `x-primary`），键空间是 `{装备 id: 装备}`，`propertyNames.pattern = ^eq_[a-z0-9_]+$`
+    （与 `schemas/item.schema.json` 里 `roster_id` 已声明的 pattern 同一串）。游戏侧的键表只有
+    `EQUIP_ROSTER`（equip_roster.py:15，闭括号 :507）；`EQUIP_ROSTER_BY_NAME`（:709，686 条）是
+    「拿显示名反查」的**运行期索引**，值就是同一批 dict 对象、且因 1 个重名（`精铁短杖` × 2）
+    比主表少 1 条 → 与 `MATERIALS_BY_NAME` 同待遇：**不进包**（包里由 key 表 + `name` 字段等价表达）。
+
+    为什么两张子表**连接进条目**、而不是当第二张顶层表
+    ------------------------------------------------
+    1) 键空间冲突：`SERIES_SETS` 的键是系列**中文名**、`SERIES_FIXED_AFFIX` 的键是装备**中文名**，
+       与本域 primary 的 `^eq_[a-z0-9_]+$` 互斥。若把它们平铺进同一个 JSON 文件，编辑器会拿
+       `equip` def 去校验这 660 个中文键（`additionalProperties: {type: object}` 对[]值也不成立）
+       → 逐条标红；分成两个文件又多出两个「不是一条装备」的域。
+    2) 语义上它们**是装备的属性**：内容侧 `game/core/affix.py:114` 的 `fixed_affixes(name)` 与
+       `game/core/drops.py:382-383` 的 `equip["set"] = SERIES_SETS[r["series"]]` 都是在**生成装备时**
+       按名/按系列取用，没有独立的实体身份。连接之后，包内关系从「按名弱引用」升级为「同条目字段」。
+    3) 连接是**无损**的（实测）：622/622 个 `SERIES_FIXED_AFFIX` 键都能命中 `EQUIP_ROSTER` 的 `name`；
+       38/38 个 `SERIES_SETS` 键都至少被 1 条装备的 `series` 用到（0 个空转键）。唯一的真歧义形态是
+       「一个显示名对应多个 id **且** 该名在 `SERIES_FIXED_AFFIX` 里有条目」—— 实测 0 例
+       （`精铁短杖` 确实重名，但它不在 `SERIES_FIXED_AFFIX` 里）→ 命中即 raise，宁可炸也不静默选一条。
+
+    保真纪律（与 items / affixes 域同款）
+    -------------------------------------
+    · 条目**原样进 JSON**：不补默认值、不改类型、不重排字段（`SERIES_SETS` 的 `set` 字段是条目自带的，
+      与派生字段 `series_set` 并存、互不覆盖）。
+    · `SERIES_FIXED_AFFIX` 的值**整列表照搬**，不预先截断：内容侧 `game/core/affix.py:114-115` 的
+      消费端只取 `[0]`（v173.3 拍板「最多保留 1 条」），但**数据层保持完整供回退/参考** —— 导出器
+      跟着截断就等于在包里写下第二份「只取 1 条」的规则，将来内容侧改回 2 条时包里不会跟随。
+    · 空列表照抄（实测 11/622 个名字的值是 `[]`）：它是源表**显式的「无固定词条」标记**，
+      与「源表里根本没有这个名字」（缺字段）是两回事，编辑器要看得出差别。
+
+    形状门禁（源形状变了就拒绝导出，而不是静默产出坏包）
+    ----------------------------------------------------
+      · 三个源表都必须是非空 dict；每件装备必须是非空 dict。
+      · 必填六件套 `name/slot/quality/lv/series/source` 必须齐（实测 687/687 齐），
+        `name/slot/quality/series/source` 为非空 str、`lv` 为 int（bool 不算）。
+      · 可选字段类型：`req` 为 {str: int}、`weapon_type/desc/special/legendary/weapon_effect/affix/set`
+        为 str、`affixes/fixed_affixes` 为 [str]、`we_data` 为 dict —— 类型不符即 raise。
+      · `SERIES_FIXED_AFFIX` 的每个 id 必须能在 `AFFIXES` 里查到（实测 40 个 distinct id 1002/1002 命中）：
+        查不到等于往包里塞一条悬空引用，宁可在导出期炸掉。
+      · 名字→id 不唯一且该名字有固定词条 → raise（今天不会触发，防将来重名扩散）。
+
+    实测（2026-09-13，真跑；真源 `game/data/equip_roster.py` + `game/data/affixes.py`）
+    ----------------------------------------------------------------------------------
+      · 687 条装备逐条过框架 `$defs/equip` → **0 失败**；整表过 `$defs/equip_table`（propertyNames）0 失败。
+      · 键 687/687 匹配 `^eq_[a-z0-9_]+$`（最长 36 字符）；重名 1 处（`精铁短杖` → 2 个 id）。
+      · 字段分布：name/slot/quality/lv/series/source 687；desc 639；req 581；weapon_type 241
+        （241/241 出现在 slot=weapon 上，0 个非武器带它）；special 151；legendary 145；
+        weapon_effect 99；affixes 42；set 41；affix 10（单值旧形态，与 affixes 并存）；we_data 9。
+      · 连接覆盖：`fixed_affixes` 写入 **622** 条（其中 11 条为空列表）；`series_set` 写入 **397** 条
+        （= series 命中 38 个 SERIES_SETS 键的条目数；其余 290 条所属系列无套装名 → 不写该字段）。
+      · 本域进包后，包内对 `eq_*` 的 **240** 处 key 引用全部可解析（明细见报告 §4）。
+
+    本域**新引入的对外引用**（不是本函数的问题，是数据本身就有，进包后才可见）：
+      `legendary`(145) 指向「传说专属特效」表（未进包）、`set`(41) 指向套装表（未进包）、
+      `weapon_effect`/`we_data`/`special` 指向内容侧代码与展示文本 —— 这些都**不是**框架域引用。
+    """
+    er = _import_module("equip_roster", src_root)
+    af = _import_module("affixes", src_root)
+
+    roster = getattr(er, "EQUIP_ROSTER", None)
+    if not isinstance(roster, dict) or not roster:
+        # 空表会让编辑器显示「0 条」而不报错 —— 宁可炸（与 PLANNED_DOMAINS 的立意一致）
+        raise ValueError("EQUIP_ROSTER 不是非空 dict —— 源形状变了，拒绝导出")
+    series_sets = getattr(er, "SERIES_SETS", None)
+    if not isinstance(series_sets, dict) or not series_sets:
+        raise ValueError("SERIES_SETS 不是非空 dict（系列 → 套装名）—— 源形状变了，拒绝导出")
+    sfa = getattr(af, "SERIES_FIXED_AFFIX", None)
+    if not isinstance(sfa, dict) or not sfa:
+        raise ValueError("SERIES_FIXED_AFFIX 不是非空 dict（装备名 → 词条 id 列表）—— 源形状变了，拒绝导出")
+    affix_ids = getattr(af, "AFFIXES", None)
+    if not isinstance(affix_ids, dict) or not affix_ids:
+        raise ValueError("AFFIXES 不是非空 dict —— 无法校验固定词条引用，拒绝导出")
+
+    for sk, sv in series_sets.items():
+        if not isinstance(sk, str) or not sk.strip() or not isinstance(sv, str) or not sv.strip():
+            raise ValueError(f"SERIES_SETS[{sk!r}] 不是「非空 str → 非空 str」—— 源形状变了，拒绝导出")
+
+    # 显示名 → [装备 id]（重名要看得见：连接是按名的，一个名字对应两条装备就有歧义）
+    by_name: dict = {}
+    for rid, rec in roster.items():
+        if not isinstance(rid, str) or not rid.strip():
+            raise ValueError(f"EQUIP_ROSTER 的键不是非空字符串：{rid!r} —— 源形状变了，拒绝导出")
+        if not isinstance(rec, dict):
+            raise ValueError(f"EQUIP_ROSTER[{rid}] 不是 dict（{type(rec).__name__}）—— 源形状变了，拒绝导出")
+        nm = rec.get("name")
+        if not isinstance(nm, str) or not nm.strip():
+            raise ValueError(f"EQUIP_ROSTER[{rid}] 缺非空 name —— 拒绝导出（按名连接靠它）")
+        by_name.setdefault(nm, []).append(rid)
+    dup_names = {nm: ids for nm, ids in by_name.items() if len(ids) > 1}
+    # 只有「重名 **且** 该名在 SERIES_FIXED_AFFIX 里有固定词条」才是真歧义（例如 `精铁短杖` 重名，
+    # 但它不在 SERIES_FIXED_AFFIX 里 → 连接无从发生，不算歧义）；真歧义在派生前就炸，不替内容侧选一条。
+    ambiguous = {nm: ids for nm, ids in dup_names.items() if nm in sfa}
+    if ambiguous:
+        raise ValueError(
+            f"显示名在 EQUIP_ROSTER 里对应多个 id，且该名有固定词条条目：{ambiguous} —— "
+            f"按名连接有歧义，请先给其中一个改名（源数据决定，导出器不替它选）"
+        )
+
+    out: dict = {}
+    for rid, rec in roster.items():
+        missing = [f for f in ("name", "slot", "quality", "lv", "series", "source") if f not in rec]
+        if missing:
+            # 框架 required 缺字段 = 形状异常：在派生处炸掉，而不是把一个编辑器会标红的条目发进包
+            raise ValueError(
+                f"EQUIP_ROSTER[{rid}] 缺必填字段 {missing} —— equip_roster.schema.json $defs.equip "
+                f"要求 name/slot/quality/lv/series/source，拒绝导出"
+            )
+        for f in ("name", "slot", "quality", "series", "source"):
+            if not isinstance(rec[f], str) or not rec[f].strip():
+                raise ValueError(f"EQUIP_ROSTER[{rid}].{f} 不是非空 str —— 源形状变了，拒绝导出")
+        if not isinstance(rec["lv"], int) or isinstance(rec["lv"], bool):
+            raise ValueError(f"EQUIP_ROSTER[{rid}].lv 不是 int（{type(rec['lv']).__name__}）—— 拒绝导出")
+        req = rec.get("req")
+        if req is not None:
+            if not isinstance(req, dict) or any(
+                    not isinstance(v, int) or isinstance(v, bool) for v in req.values()):
+                raise ValueError(f"EQUIP_ROSTER[{rid}].req 不是 {{属性名: 整数}} —— 拒绝导出")
+        for f in ("weapon_type", "desc", "special", "legendary", "weapon_effect", "affix", "set"):
+            v = rec.get(f)
+            if v is not None and (not isinstance(v, str) or not v.strip()):
+                raise ValueError(f"EQUIP_ROSTER[{rid}].{f} 存在但不是非空 str —— 拒绝导出")
+        for f in ("affixes",):
+            v = rec.get(f)
+            if v is not None and (not isinstance(v, list)
+                                  or any(not isinstance(x, str) or not x.strip() for x in v)):
+                raise ValueError(f"EQUIP_ROSTER[{rid}].{f} 不是 [非空 str] —— 拒绝导出")
+        we = rec.get("we_data")
+        if we is not None and not isinstance(we, dict):
+            raise ValueError(f"EQUIP_ROSTER[{rid}].we_data 不是 dict —— 拒绝导出")
+
+        entry = dict(rec)                       # 条目原样：字段顺序 / 类型 / 值都不动
+
+        # 系列 → 套装名（连接键 = series，值源 = SERIES_SETS[series]；没有映射就不写字段）
+        if entry["series"] in series_sets:
+            entry["series_set"] = series_sets[entry["series"]]
+
+        # 装备名 → 固定词条 id 列表（连接键 = name，值源 = SERIES_FIXED_AFFIX[name]；整列表照搬）
+        nm = entry["name"]
+        if nm in sfa:
+            affs = sfa[nm]
+            if not isinstance(affs, list) or any(
+                    not isinstance(x, str) or not x.strip() for x in affs):
+                raise ValueError(
+                    f"SERIES_FIXED_AFFIX[{nm!r}] 不是 [非空 str] —— 源形状变了，拒绝导出")
+            unknown = [x for x in affs if x not in affix_ids]
+            if unknown:
+                raise ValueError(
+                    f"SERIES_FIXED_AFFIX[{nm!r}] 引用了 AFFIXES 里没有的词条 {unknown} —— "
+                    f"发进包就是悬空引用，拒绝导出")
+            entry["fixed_affixes"] = list(affs)
+
+        out[rid] = entry
+
+    return out
+
+
+# -*- coding: utf-8 -*-
+"""可直接粘贴进游戏仓 `scripts/export_game_package.py` 的实现片段（本文件只是素材，未写任何仓文件）。
+
+粘贴位置（行号按 2026-09-13 本次实读；**该文件正被并行改动，行号会漂 → 以符号名为准**）：
+  B-1) 函数体：放在 `def derive_loot_vocab(...) -> dict:` **之前**（与 `derive_instances` 同族：
+       都是「取运行时表 + 按引用重投影」的域；放它之前也可避免与 loot_vocab 段的行号纠缠）
+  B-2) 注册一行：`DERIVERS = { ... }`（实读 :994）里加 `"pois": derive_pois,`
+       —— `build_manifest()`（:1076）的 `domains = sorted(DERIVERS)` 是**派生**的，清单会自己跟上，
+       不必手写第二份域名单。
+  B-3) 落盘路径：本域 kind 由框架注册表决定 —— `editor/packages.py` 的 `DOMAINS["pois"]["kind"]`
+       给 "data" → `content_sub()`（:1045）会写到 `content/data/pois.json`。
+       写完别忘了 `python scripts/export_game_package.py --domain pois`（--check 比对幂等）。
+
+配套的框架侧改动见报告 §5（schema 落盘 + DOMAINS / glossary 改哪些行）。
+"""
+
+
+def derive_pois(src_root: str = REPO_ROOT) -> dict:
+    """POI 域（pois）：**场景房间 → 挂载的交互点**。键 = 「地图id:子区域id」（房间地址）。
+
+    真源是三张**同形**（key=「地图id:子区域id」→ POI 行）的表，装配期由
+    `game/data/_assembly.py:107-123` **就地**合并成运行时的 `SUBAREA_POIS`：
+
+        game/data/pois.py:113              base  = SUBAREA_POIS      **205 键 / 394 引用**（str 引用）
+        game/data/mesh_rooms_south.py:1525  mesh  = MESH_POI_MOUNTS   **65 键 / 130 引用**（str 引用）
+        game/data/mesh_rooms_west_north.py:611      └ 同上           **38 键 /  76 引用**（str 引用）
+        game/data/mesh_rooms_east_abyss.py:2191     └ 同上           **94 键 / 189 引用**（str 引用）
+        game/data/dungeon_pois.py:22       dun   = DUNGEON_POI_MOUNTS **55 键 /  66 引用**（**dict 定义**）
+        ─────────────────────────────────────────────────────────────────────────────
+        运行时 merged = base ∪ mesh ∪ dun                            **457 键 / 855 引用**
+
+    三源键空间**互不相交**（实测 base∩mesh = 0、base∩dun = 0、mesh∩dun = 0）→ **不需要键前缀去重**，
+    所以本域直接用房间地址当键，不发明三套前缀。（这也是盘点报告 §4.2 短名单没料到的一点：
+    报告按「两类表 252 行」估的工作量，真实是 457 行 —— 报告 §3 漏了最大的那张 base 表。）
+
+    三种行形状（**都必须保留**，不许归一）
+    --------------------------------------
+      · base / mesh：`["campfire", "loot_pile"]` —— **类型引用串**，本点不带定义、不带名字/产出。
+      · dun        ：`[{"id","type","name","hint","loot","effect","lore","need","desc"}]`
+                     —— **自带定义的 dict**（副本的交互点有各自的 id/名字/提示/产出，
+                     装配期 `_assembly` 把每个 dict 注册进 `POIS`、行里只留 id）。
+      两类语义不同：str 是「沿用类型定义挂一个点」，dict 是「这个点自带定义」。schema 的
+      `$defs/poi_ref` 用 anyOf 同时放行，**不把它们归一成一种形状**（归一就丢信息）。
+
+    为什么要 import 运行时表、而不是从源码字面量解析
+    ------------------------------------------------
+    1) `game/data/__init__.py` → `_assembly` 在 import 期就把 mesh/dun 的挂载**就地 extend**
+       进 `SUBAREA_POIS`（`:110` mesh、`:115-123` dun）→ 直接读 `pois.py` 字面量只有 205 键。
+       本函数要的正是**运行时那 457 行**（编辑器/审计看到的就是它），所以走 `_import_module`。
+    2) 但「哪一行来自哪张表」这个出处也只有源表知道 → 三张源表各自单独取，再用
+       **键集合差**反推 base（`merged - mesh - dun`），并把「键互不相交」变成**导出期断言**：
+         · `len(base) + len(mesh) + len(dun) == len(merged)`（键空间无重叠）
+         · 每个 dun/mesh 键在 `merged` 里的值 == 该源表那一行的引用列表（没有被 base 同名键掺进别的引用）
+       任一条不成立 → raise（宁可炸，也不静默把两行合成一行或丢一行）。
+
+    保真纪律
+    --------
+      · 条目里的 `pois` **原样照搬**：dun 的 dict 浅拷贝一份（防与 `POIS` 里的对象别名），
+        不补默认值、不改类型、不重排数组（顺序 = 源表顺序 = 内容侧的展示顺序）。
+      · 键序：本函数返回整体按键字典序（`export()` 另有一次 `sort_table`，这里是双保险）。
+      · `map` / `subarea` / `source` 三个字段是**导出期新增的**（源表行里没有）—— 它们只是把
+        键里已有的信息摊平 + 记出处，不改任何源值。`source` 取值 `dungeon` / `mesh` / `world`
+        由**导出器**定（内容侧源表里没有这个词），框架侧 schema 只当自由串、不枚举。
+
+    与 instances 域的关系（本域为什么值得开）
+    ----------------------------------------
+      · instances 的 55 个层槽位带着内联 `poi_data`（66 个 POI，id 是**旧短 id**：`chest_1` …，
+        12 个 distinct id 跨 22 本重复）；实测 **55/55 层** 的内容与
+        `pois["<实例key 去 inst_>:<同名>_<层号+1>"]` 的 POI **逐字段相同**（type/name/hint 三元组相等）
+        —— 也就是说：instances 里那份内联 POI 是 v137「副本 POI 迁移」**之前的旧副本**，
+        迁移后的权威副本就是本域（`game/commands/instance.py:1875/1897` 起运行时改从
+        `SUBAREA_POIS` 取房间 POI，不再读层内 poi_data）。
+      · 另 4 层的隐藏 POI（`stages[].secret_data.pois = [{id: "secret_chest"}]`）**不在本域**：
+        `dungeon_pois.py` 的 docstring 明写「secret 不迁移 —— 那是波次 3 的事」→ 那 4 条仍是
+        instances 独有（进包后包里 POI 的已知缺口，见报告 §4）。
+
+    形状门禁（源形状变了就拒绝导出）
+    --------------------------------
+      · 三张源表都必须是非空 dict；行必须是非空 list。
+      · 键必须能按「地图id:子区域id」两段切开（实测 457/457 命中 `^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$`，
+        最长键 49 字符，map 前缀 97 个）。
+      · base/mesh 行的每一项必须是非空 str（实测 0 行混用 str 与 dict —— 真混了就 raise：
+        那种行说明内容侧中途改了形状，得人来看）。
+      · dun 行的每一项必须是有非空 str `id` 与 `type` 的 dict（实测 66/66 齐；id 66/66 唯一）。
+
+    实测（2026-09-13，真跑；真源 = 运行时表 + 三张源表）
+    ---------------------------------------------------
+      · 457 条挂载行 / 855 条引用；每行引用数 1:90 / 2:338 / 3:27 / 4:2；**0 空行**。
+      · 逐条过框架 `$defs/poi_mount`（jsonschema 4.26.0 + 框架内置 mini 校验器两条路）→ **0 失败**；
+        整表过 `$defs/poi_mount_table`（propertyNames）→ 0 失败。
+      · 457 个 `map:subarea` 全部能在**包内 maps 域**反查到（97/97 张图在 maps 里、457/457 个子区域
+        是该图 `nodes[].id`）→ 本域**不产生新的悬空键引用**。
+      · 引用侧：mesh+base 的 789 条 str 引用全部命中内容侧 `POIS` 的 17 个类型键（`game/data/pois.py:9`），
+        但这 17 个类型定义**没进包** → 这 789 条引用在本域进包后仍是「按内容侧词汇的引用」
+        （框架零知识、不解析，同 drop_pools 的 `item`）；想彻底闭合要另开 `poi_types` 域（17 键）或旁挂文件 ——
+        本域**不**替它把类型表塞进来（那是另一个域的事，塞进来会让 457 行里出现非挂载行）。
+      · dun 的 66 条 dict 引用**自洽**（id/type/name/hint 全有），引用的 5 个类型
+        （chest/corpse/trap/mechanism/supply）**不在** `POIS` 里 —— 副本交互点用的是自己那套类型词，
+        处理链在 `game/commands/instance.py:_handle_poi`（内容侧代码）。
+    """
+    # ---- 1. 取真源：运行时合并表 + 三张源表 ----
+    pois_mod = _import_module("pois", src_root)
+    merged = getattr(pois_mod, "SUBAREA_POIS", None)
+    if not isinstance(merged, dict) or not merged:
+        raise ValueError("game.data.pois.SUBAREA_POIS 不是非空 dict —— 源形状变了，拒绝导出")
+
+    dungeon_mod = _import_module("dungeon_pois", src_root)
+    dungeon = getattr(dungeon_mod, "DUNGEON_POI_MOUNTS", None)
+    if not isinstance(dungeon, dict) or not dungeon:
+        raise ValueError("game.data.dungeon_pois.DUNGEON_POI_MOUNTS 不是非空 dict —— 源形状变了，拒绝导出")
+
+    mesh: dict = {}
+    for mod_name in ("mesh_rooms_south", "mesh_rooms_west_north", "mesh_rooms_east_abyss"):
+        mod = _import_module(mod_name, src_root)
+        table = getattr(mod, "MESH_POI_MOUNTS", None)
+        if not isinstance(table, dict):
+            raise ValueError(f"game.data.{mod_name}.MESH_POI_MOUNTS 不是 dict —— 源形状变了，拒绝导出")
+        for k, row in table.items():
+            if k in mesh:
+                raise ValueError(
+                    f"挂载键 {k!r} 同时出现在两张网状房间表里 —— 键空间不再互斥，"
+                    f"需要给键加来源前缀（本域的键是「地图id:子区域id」，没有来源段）")
+            mesh[k] = row
+
+    # ---- 2. 形状门禁 + 三源键互不相交的证明 ----
+    def _split(k: str, where: str):
+        """「地图id:子区域id」→ (地图, 子区域)；切不出来就拒绝导出。"""
+        m, sep, sa = k.partition(":")
+        if not sep or not m or not sa or ":" in sa:
+            raise ValueError(f"{where} 的键 {k!r} 不是「地图id:子区域id」—— 源形状变了，拒绝导出")
+        return m, sa
+
+    def _str_row(row, where: str) -> list:
+        """base / mesh 的行：非空 list、每项非空 str。"""
+        if not isinstance(row, list) or not row:
+            raise ValueError(f"{where} 不是非空 list —— 源形状变了，拒绝导出")
+        out = []
+        for i, x in enumerate(row):
+            if not isinstance(x, str) or not x:
+                raise ValueError(
+                    f"{where}[{i}] 不是非空 str（{type(x).__name__}）—— 一行里混了引用串与 dict 定义，"
+                    f"形状变了，拒绝导出")
+            out.append(x)
+        return out
+
+    def _id_list(row, where: str) -> list:
+        """dun 的行：每项是带非空 str id/type 的 dict → 返回 id 列表（装配期推进 SUBAREA_POIS 的就是它）。"""
+        ids = []
+        for i, p in enumerate(row):
+            if not isinstance(p, dict):
+                raise ValueError(f"{where}[{i}] 不是 dict —— 源形状变了，拒绝导出")
+            if not isinstance(p.get("id"), str) or not p["id"]:
+                raise ValueError(f"{where}[{i}] 缺 id（或不是非空 str）—— 源形状变了，拒绝导出")
+            if not isinstance(p.get("type"), str) or not p["type"]:
+                raise ValueError(f"{where}[{i}] 缺 type（或不是非空 str）—— 源形状变了，拒绝导出")
+            ids.append(p["id"])
+        return ids
+
+    for k, row in dungeon.items():
+        _split(k, "DUNGEON_POI_MOUNTS")
+        want = _id_list(row, f"DUNGEON_POI_MOUNTS[{k!r}]")
+        got = merged.get(k)
+        if not isinstance(got, (list, tuple)) or list(got) != want:
+            raise ValueError(
+                f"副本挂载 {k!r} 与运行时 SUBAREA_POIS 不一致（装配后应为 {want!r}，实测 {got!r}）"
+                f" —— 要么 _assembly 的合并顺序变了，要么这个键在 base 表里也有一行（键冲突），拒绝导出")
+    for k, row in mesh.items():
+        _split(k, "MESH_POI_MOUNTS")
+        want = _str_row(row, f"MESH_POI_MOUNTS[{k!r}]")
+        got = merged.get(k)
+        if not isinstance(got, (list, tuple)) or list(got) != want:
+            raise ValueError(
+                f"网状挂载 {k!r} 与运行时 SUBAREA_POIS 不一致（装配后应为 {want!r}，实测 {got!r}）"
+                f" —— 要么 _assembly 的合并顺序变了，要么这个键在 base 表里也有一行（键冲突），拒绝导出")
+
+    world = {k: row for k, row in merged.items() if k not in mesh and k not in dungeon}
+    if len(world) + len(mesh) + len(dungeon) != len(merged):
+        raise ValueError(
+            f"三源挂载键数之和 {len(world) + len(mesh) + len(dungeon)} ≠ 运行时 SUBAREA_POIS 键数 "
+            f"{len(merged)} —— 键空间有重叠，拒绝导出（要么改键空间加前缀，要么先合并源表）")
+
+    # ---- 3. 逐行投影成一条挂载：{map, subarea, pois, source} ----
+    out: dict = {}
+    for source, table in (("world", world), ("mesh", mesh), ("dungeon", dungeon)):
+        for k in sorted(table):
+            m, sa = _split(k, f"{source} 表")
+            row = table[k]
+            if source == "dungeon":
+                _id_list(row, f"dungeon[{k!r}]")           # 再验一次形状（上面已验，防将来只走这条路）
+                refs = [dict(p) for p in row]              # 浅拷贝：不让条目与 POIS 里的对象别名
+            else:
+                refs = _str_row(row, f"{source}[{k!r}]")
+            out[k] = {"map": m, "subarea": sa, "pois": refs, "source": source}
+
+    return {k: out[k] for k in sorted(out)}
+
+
 DERIVERS = {
     "affixes": derive_affixes,
     "classes": derive_classes,
     "commands": derive_commands,
     "drop_pools": derive_drop_pools,
     "effect_rules": derive_effect_rules,
+    "equip_roster": derive_equip_roster,
     "instances": derive_instances,
     "items": derive_items,
+    "loot_vocab": derive_loot_vocab,
     "maps": derive_maps,
     "monsters": derive_monsters,
     "passive_proc": derive_passive_proc,
+    "pois": derive_pois,
     "skills": derive_skills,
     "texts": derive_texts,
     "tlogs": derive_tlogs,
