@@ -9,28 +9,21 @@ import random
 from ..data.fishing import (
     FISHING_SPOTS,
     FISH_POOL,
-    FISH_QUALITY_WEIGHTS,
     FISH_COLLECT,
 )
 from ..data import FISH_QUALITY_ORDER  # v101.25i6 别名：= QUALITY_ORDER
+from .quality_tiers import FISH_TIERS  # v184：垂钓档位/权重唯一真相源（TierTable）
 from .time_weather import current_season  # v116 季节限定：垂钓随季节变化
 
 
 def _quality_weights(prof_lv: int) -> list:
-    """垂钓等级 → 五档权重(Lv.1/3/5/7/9 查表，中间等级线性插值)。"""
-    lv = max(1, min(9, int(prof_lv)))
-    keys = sorted(FISH_QUALITY_WEIGHTS)
-    if lv <= keys[0]:
-        return list(FISH_QUALITY_WEIGHTS[keys[0]])
-    if lv >= keys[-1]:
-        return list(FISH_QUALITY_WEIGHTS[keys[-1]])
-    for a, b in zip(keys, keys[1:]):
-        if a <= lv <= b:
-            wa = FISH_QUALITY_WEIGHTS[a]
-            wb = FISH_QUALITY_WEIGHTS[b]
-            t = (lv - a) / (b - a)
-            return [wa[i] + (wb[i] - wa[i]) * t for i in range(len(wa))]
-    return list(FISH_QUALITY_WEIGHTS[keys[0]])
+    """垂钓等级 → 五档权重(Lv.1/3/5/7/9 查表，中间等级线性插值)。
+
+    v184：唯一真相源是 `core/quality_tiers.FISH_TIERS`（`weights_by_level=FISH_QUALITY_WEIGHTS`
+    + `clamp=(1, 9)`）——插值逻辑（含浮点尾数）与旧实现位级一致，本函数保留为薄转发
+    （`drop_engine` 那份内联副本也指向同一张表）。
+    """
+    return FISH_TIERS.weights_at(prof_lv)
 
 
 def roll_fish(prof_lv: int = 1, spot_id: str | None = None, bait: str | None = None):
@@ -64,7 +57,8 @@ def _roll_fish_legacy(prof_lv: int = 1, spot_id: str | None = None, bait: str | 
     """
     spot = FISHING_SPOTS.get(spot_id) if spot_id else None
     ban = set(spot.get("ban_quality", [])) if spot else set()
-    weights = _quality_weights(prof_lv)
+    # v184：权重行问唯一真相源 FISH_TIERS（clamp 1..9 + 相邻档线性插值，位级同旧实现）
+    weights = FISH_TIERS.weights_at(prof_lv)
     for i, q in enumerate(FISH_QUALITY_ORDER):
         if q in ban:
             weights[i] = 0.0
@@ -77,6 +71,10 @@ def _roll_fish_legacy(prof_lv: int = 1, spot_id: str | None = None, bait: str | 
         for i, q in enumerate(FISH_QUALITY_ORDER):
             if q in ("green", "blue"):
                 weights[i] *= 1.5
+    # v184：档位抽取本身仍用标准库 random.choices —— 垂钓权重行是**浮点**（插值 + 鱼饵倍率），
+    # 引擎 pick_weighted 按 `int()` 截断权重（loot/pick.py 契约），换成它会改概率分布
+    # （实测同种子结果 1%~4% 不同）→ 违反「对外行为一字不变」。权重**行**已收口到
+    # FISH_TIERS.weights_at（唯一真相源），此处只保留「按行抽一档」这一句。
     quality = random.choices(FISH_QUALITY_ORDER, weights=weights, k=1)[0]
 
     # v116 当前季节（spring/summer/autumn/winter，与 time_weather.current_season 对齐）

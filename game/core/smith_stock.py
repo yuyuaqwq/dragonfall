@@ -20,6 +20,8 @@ from datetime import date
 from ..data import (EQUIP_ROSTER, EQUIP_ROSTER_BY_NAME, SHOP_EQUIP, SHOP_WEAPONS,
                    QUALITY, ECON_CONFIG, WEAPON_FLAVOR)  # noqa: F401
 from ..core.stats import equip_stats, equip_value  # noqa: F401
+# v184：品质档位唯一真相源（TierTable）——顺序/别名/抽取都在这里，本模块不再自建档位表
+from .quality_tiers import QUALITY_TIERS
 # MAP_BY_ID/SUBAREAS 也延迟从 data 导入（防循环）
 _MAP_BY_ID = {}
 _SUBAREAS = {}
@@ -122,15 +124,14 @@ def town_level(map_id: str) -> int:
 
 
 def _pick_weighted_quality() -> str:
-    """按品质权重随机一个品质（白20/绿25/蓝35/紫15/橙5）。"""
-    total = sum(QUALITY_WEIGHTS.values())
-    r = random.randint(1, total)
-    acc = 0
-    for q, w in QUALITY_WEIGHTS.items():
-        acc += w
-        if r <= acc:
-            return q
-    return "blue"
+    """按品质权重随机一个品质（白20/绿25/蓝35/紫15/橙5）。
+
+    v184：抽取形状走唯一真相源 `QUALITY_TIERS.pick_weights`（权重行按档位序对齐；
+    档位取值与顺序只有一份）。旧实现是「randint(1, 总和) + 手写累加」，
+    概率分布完全相同（都是等比例切段），但消费的随机数不是同一个——逐次同种子
+    结果会变，分布不变（门禁 tests/test_v184_loot_tiers.py 有分区等价证明）。
+    """
+    return QUALITY_TIERS.pick_weights(QUALITY_WEIGHTS, rng=random)
 
 
 def roll_stock(map_id: str, town_lv: int) -> list:

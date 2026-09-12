@@ -337,7 +337,10 @@ def tpl_merchant(ctx):
     import uuid
     db = ctx._db()
     C = ctx._C()
-    q = random.choices(["white", "green", "blue"], weights=[45, 40, 15])[0]
+    # v184：档位抽取问唯一真相源 QUALITY_TIERS（权重行按档位序对齐，未列档位权重 0）。
+    # 延迟导入＝本模块既有风格（模板函数内才 import，防 core 聚合链循环）。
+    from .quality_tiers import QUALITY_TIERS
+    q = QUALITY_TIERS.pick_weights({"white": 45, "green": 40, "blue": 15}, rng=random)
     equip = C.generate_equip(random.choice(["weapon", "ring", "necklace"]), max(1, ctx.lv), q)
     price = int(equip["price"] * 0.6)
     # F1 审计修复（C-D3.3）：按 DB 最新 gold 判能否出价（原用 ctx._focus 陈旧对象——调用方在

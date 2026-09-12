@@ -11,6 +11,8 @@
 
 import random
 
+from saintess_engine.loot import count_for, draw_slots
+
 from ..data import (AFFIXES, AFFIX_FALLBACK, AFFIX_COUNT, AFFIX_POOL_BY_QUALITY,
                     LEGENDARY_EFFECTS, SERIES_FIXED_AFFIX)
 
@@ -81,13 +83,14 @@ def roll_affixes(slot: str, lv: int, quality: str) -> list:
     返回词条 ID 列表；白色 0 条、绿色 1 条、蓝色 2 条、紫色 3 条、
     橙色 3 条（20% 概率 4 条，兑现 AFFIX_COUNT.orange=[3,4]）。
     （名册固定词条不在随机池，由 fixed_affixes 提供。）
+
+    v184：条数/抽样形状改走框架 `saintess_engine.loot`——
+    条数 = `count_for`（定值 / `[3,4]` + `extra_chance` 命中上界，未知档位 0 条）；
+    抽样 = `draw_slots`（等概率不放回，内部就是 `rng.sample`，与旧 `random.sample`
+    同随机流同结果）。`rng` 传标准库 random 模块本体，随机流对齐旧实现。
     """
-    cfg = AFFIX_COUNT.get(quality, 0)
-    if isinstance(cfg, list):
-        # v104 M07 修复 P2：橙装 20% 概率 4 词条（死配置 AFFIX_COUNT 接入）
-        n = cfg[1] if random.random() < 0.20 else cfg[0]
-    else:
-        n = cfg
+    # v184：条数（旧：AFFIX_COUNT 取值 + 列表档位 20% 命中上界）
+    n = count_for(AFFIX_COUNT, quality, extra_chance=0.20, rng=random)
     if not n:
         return []
     pool = AFFIX_POOL_BY_QUALITY.get(quality, AFFIX_POOL_BY_QUALITY["orange"])
@@ -96,7 +99,8 @@ def roll_affixes(slot: str, lv: int, quality: str) -> list:
     pool = [a for a in pool if AFFIXES[a]["kind"] == want_kind]
     if not pool:
         return []
-    return random.sample(pool, min(n, len(pool)))
+    # v184：不可重复抽样（固定项为空，等价旧 random.sample(pool, min(n, len(pool)))）
+    return draw_slots(pool, n, rng=random)
 
 
 def fixed_affixes(name: str) -> list:

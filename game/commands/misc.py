@@ -17,6 +17,8 @@ from ._declared import declared
 
 from .. import content as C
 from .. import db
+# v184：品质档位唯一真相源（TierTable）——签到周奖励的档位抽取走它
+from ..core.quality_tiers import QUALITY_TIERS
 
 from ..commands.base import CommandBase, require_player
 from ..log_setup import LOG
@@ -305,7 +307,11 @@ class MiscCmds(CommandBase):
             # 每 7 天额外奖励
             if streak % 7 == 0:
                 import uuid
-                q = random.choices(["green", "blue", "purple"], weights=C.SIGNIN_CONFIG["week_quality_weights"])[0]
+                # v184：档位抽取问唯一真相源 QUALITY_TIERS（权重行按档位序对齐，
+                # 未列档位权重 0 → 只可能出 green/blue/purple，与旧 random.choices 同随机流）
+                _wq = dict(zip(("green", "blue", "purple"),
+                               C.SIGNIN_CONFIG["week_quality_weights"]))
+                q = QUALITY_TIERS.pick_weights(_wq, rng=random)
                 equip = C.generate_equip(random.choice(["weapon", "armor", "ring"]), player["level"], q)
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip)
                 lines.append(f"🎁 连续 {streak} 天奖励：{C.QUALITY[equip['quality']]['color']}【{equip['name']}】！")

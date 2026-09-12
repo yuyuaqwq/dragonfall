@@ -1,30 +1,54 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年核心层 - drop_engine.py（掉落系统统一引擎 v174）
+"""奥兰迪亚·余烬纪年核心层 - drop_engine.py（掉落统一引擎 v174 → v184 收口）
 
-把全游戏散落的掉落池收敛为单一数据表 DROP_POOLS + 统一抽取入口 roll() + 审计 audit_all()。
+掉落只有一条入口 `roll()`，池数据在 `game/data/drop_pools.py`（纯数据 `DROP_POOLS`），
+分层抽象（鱼鱼 2026-09-04 拍板）——四类池 + 专属策略：
 
-设计（分层抽象，鱼鱼 2026-09-04 拍板）：
-- 统一入口：roll(pool_key, ctx) —— 任何池子都走这里
-- 统一数据：DROP_POOLS（game/data/drop_pools.py，纯数据）
-- 四种子策略：
-    weighted    带权条目抽取（采集/挖掘/通用材料/小怪材料）
-    fish        垂钓（质量档→品种；季节/水域/鱼饵过滤）
-    table       多层概率表（副本Boss/野王宝箱/垂钓惊喜——各 roll 独立判定）
-    fixed       固定掉落（精英专属/必掉清单）
+    weighted     带权条目抽取（采集/挖掘/通用材料/小怪材料）
+    fish         垂钓（质量档→品种；季节/水域/鱼饵过滤）—— 内容专属，注册进引擎实例
+    table        多层概率表（副本Boss/野王宝箱/垂钓惊喜 —— 各 roll 独立判定）
+    table_choice 互斥档（暗格宝箱/战利品堆 —— 一次 roll 只进一档）
+    fixed        固定掉落（精英专属/必掉清单）
+
+v184（路线图 #7「内容侧·池」）：池 / 策略注册表 / 展开 / 审计的**形状**已搬进引擎
+`saintess_engine.loot`（引擎零知识）。本文件从此只剩**内容侧那一半**：
+
+  · 池数据源      `_get_pools()` → `DROP_POOLS`（惰性：import 期不拉数据，时机与 v174 同）
+  · 引用解析      `_resolve_item_ref`（`equip:`/`gold:`/`gold_pct:`/`petegg:`/`rune:`… 是本游戏词汇）
+  · 专属策略      `_roll_fish`（季节/水域/鱼饵/血饵是这款游戏的内容，不是形状）
+  · 对外四入口    `roll()` / `expand_pool()` / `audit_all()` / `audit_pretty()`
+                  —— **名字、签名、返回结构一字不变**（调用方零改动）
+  · 旧名字保留    `POOL_STRATEGIES`（只读转发到引擎实例的策略表）
+                  `_SimpleCtx`（= 引擎 `SimpleCtx`，instance.py / fishing.py / wild_king.py 在用）
+
+档位（品质）表唯一真相源：`game/core/quality_tiers.py` —— 本文件不再内联副本。
+随机源：标准库 `random` **模块本体**（不是新实例），随机流与 v174 逐格对齐。
 
 条目引用统一带前缀：
     mat_xxx/物品ID  → 普通物品
     equip:eq_xxx    → 名册装备（generate_roster_equip）
+    equip_drop:role → 通用装备掉落（roll_drop_equip，boss/elite）
+    equip_drop_mix  → 混合装备（60% boss / 40% elite 双池）
     bp              → 图纸（等级就近 roll_blueprint）
     gem             → 幸运宝石（roll_gem_drop）
-    gold:[a,b]      → 金币区间
-    rune            → 符文（稀有）
+    gold:[a,b]      → 金币区间        gold_pct:n → ctx.gold_base × n%（下限 10）
+    rune / rune:q   → 符文（蓝紫随机 / 指定品质）
     item:ID         → 带 count 的普通物品
+    petegg:pet_xxx  → 宠物蛋
     special:xxx     → 扩展点（调用方注入的 hook，防特殊语义硬编码）
+
+逐格一致由 `tests/test_v184_loot_pools.py` 证明（旧实现原文冻结 + 全池定种子对跑）。
+审计的**判定与措辞**都在 `_resolvable(ref, pool)`（引擎只提供四态回调契约）。
+⚠️ 与 v174 的 7 处**有意差异**（池数据均未使用）逐条登记在该门禁 §7：`gold:` 子引用带 `n`、
+带前缀子池引用、裸名册 id 当条目 ref、`fixed` 空 entries 审计、`table_choice` 的 rolls 审计、
+`table` 池 roll 行的 `fallback`、**引擎自己那两条结构消息的措辞**（D7：判定不变，措辞更直白；
+引用类措辞仍由本文件 `_resolvable` 逐字保留旧说法）。
 """
 import random
+from collections.abc import Mapping
 from typing import Any
 
+from saintess_engine.loot import LootTable, SimpleCtx
 
 # ============================================================
 # 基础工具
@@ -32,22 +56,6 @@ from typing import Any
 
 def _randint(a: int, b: int) -> int:
     return random.randint(a, b)
-
-
-def _weighted_pick(entries: list[dict]) -> dict | None:
-    """从 [{"w": int, ...}, ...] 按权重抽一个；空列表/全 0 返回 None。"""
-    if not entries:
-        return None
-    total = sum(int(e.get("w", 1) or 0) for e in entries)
-    if total <= 0:
-        return None
-    roll = random.random() * total
-    acc = 0.0
-    for e in entries:
-        acc += int(e.get("w", 1) or 0)
-        if roll < acc:
-            return e
-    return entries[-1]
 
 
 def _resolve_item_ref(ref: str, ctx: Any) -> dict | None:
@@ -153,81 +161,83 @@ def _resolve_item_ref(ref: str, ctx: Any) -> dict | None:
     return {"type": "item", "item_id": ref}
 
 
-def _resolve_pool(pool_key: str, pools: dict | None = None) -> dict | None:
-    """解析池 key（含内联引用 'weighted:xxx' / 'fixed:xxx' 需在 DROP_POOLS 查）。"""
-    if pools is None:
-        from .data.drop_pools import DROP_POOLS# noqa: E402
-        pools = DROP_POOLS
-    return pools.get(pool_key)
+# ============================================================
+# 内容侧词汇表（引擎零知识：认得出什么前缀、什么算内联引用，由这里声明）
+# ============================================================
+
+# 内联引用前缀：审计时"这些 ref 由 resolver 直接解析，不查池、不判断链"。
+# ⚠️ 与 v174 audit_all 的白名单逐项一致，唯 **不含 `equip:`** —— 名册引用要**查名册**，
+#    而引擎的 inline_prefixes 是"命中即跳过"，装不下这条判定；故 equip: 交给 resolvable 判。
+_INLINE_PREFIXES = ("gold:", "gold_pct:", "item:", "special:", "equip_drop:", "petegg:", "rune:")
+
+# 精确值特殊引用（不会断链）：图纸 / 幸运宝石 / 符文 / 混合装备
+_SPECIAL_REFS = ("bp", "gem", "rune", "equip_drop_mix")
+
+# 子池 key 可能带的前缀（v174 的 expand_pool / 审计里对 'weighted:xxx' / 'fixed:xxx' 的处理）
+_POOL_KEY_PREFIXES = ("weighted:", "fixed:")
+
+# `table` 池**展开**时的内联引用白名单：**逐字保留 v174 行为**。
+# v174 的 expand_pool 对 table 池只外列 equip:/item:/gold: 三种，比审计白名单窄
+# （gold_pct:/equip_drop:/petegg:/rune: 不外列）——两者本来就不是一个集合；
+# 用引擎默认展开会认全部 inline_prefixes，`loot_pile:*` 会凭空多出 'gold_pct:30'，
+# 故这里按旧白名单展开（对外行为一字不变）。
+_EXPAND_INLINE_PREFIXES = ("equip:", "item:", "gold:")
+
+
+def _get_pools() -> dict:
+    from .data.drop_pools import DROP_POOLS  # noqa: E402
+    return DROP_POOLS
+
+
+class _LazyPools(Mapping):
+    """惰性池视图：每次访问才去取 `DROP_POOLS`（保持 v174 的取数时机，import 期不拉数据）。"""
+
+    def __getitem__(self, key):
+        return _get_pools()[key]
+
+    def __iter__(self):
+        return iter(_get_pools())
+
+    def __len__(self):
+        return len(_get_pools())
 
 
 # ============================================================
-# 四种子策略
+# 内容专属策略：fish（垂钓）
 # ============================================================
 
-def _roll_weighted(pool: dict, ctx: Any) -> list[dict]:
-    """带权抽取：默认抽 1（qty 由 ctx 指定）。支持 'count' 指定本池份数。"""
-    qty = int(getattr(ctx, "qty", 1) or 1)
-    # 过滤：min_lv / max_lv（ctx.player_level 或 monster_lv）
-    entries = pool.get("entries", [])
-    lv = int(getattr(ctx, "player_level", 0) or getattr(ctx, "monster_lv", 0) or 0)
-    cand = []
-    for e in entries:
-        min_lv = e.get("min_lv")
-        max_lv = e.get("max_lv")
-        if min_lv and lv and lv < int(min_lv):
-            continue
-        if max_lv and lv and lv > int(max_lv):
-            continue
-        cand.append(e)
-    # fallback：主池空/权重 0 → 兜底（price_band 由 ctx 提供函数）
-    if not cand:
-        fb = pool.get("fallback")
-        if fb and hasattr(ctx, "fallback_roll"):
-            try:
-                return ctx.fallback_roll(pool, fb, ctx) or []
-            except Exception:
-                return []
-        return []
-    out = []
-    for _ in range(qty):
-        pick = _weighted_pick(cand)
-        if pick:
-            r = _resolve_item_ref(pick["item"], ctx)
-            if r:
-                r["count"] = r.get("count", 1) * int(pick.get("n", 1) or 1)
-                out.append(r)
-    return out
+def _fish_tiers():
+    """垂钓档位表（唯一真相源 `game/core/quality_tiers.py`）。
+
+    为什么在这里 import：`game.core` 包的 `__init__` 会拉 index → data 装配链，数据层
+    装配完成前 import 会撞循环 —— 与本文件 `import game.content as C` 同一手法（函数内延迟导入）。
+    首次访问时先确保**本树**数据层装配（幂等），再取档位表。
+    """
+    try:
+        from .core.quality_tiers import FISH_TIERS
+    except ImportError:                      # 本树数据层尚未装配 → 先拉一次（幂等）
+        from . import data as _data          # noqa: F401
+        from .core.quality_tiers import FISH_TIERS
+    return FISH_TIERS
 
 
-def _quality_weights_inline(prof_lv: int, weights_table: dict) -> list:
-    """垂钓等级 → 五档权重（内联实现，等价 core/fishing._quality_weights，防循环 import）。"""
-    lv = max(1, min(9, int(prof_lv)))
-    keys = sorted(weights_table)
-    if lv <= keys[0]:
-        return list(weights_table[keys[0]])
-    if lv >= keys[-1]:
-        return list(weights_table[keys[-1]])
-    for a, b in zip(keys, keys[1:]):
-        if a <= lv <= b:
-            wa = weights_table[a]
-            wb = weights_table[b]
-            t = (lv - a) / (b - a)
-            return [wa[i] + (wb[i] - wa[i]) * t for i in range(len(wa))]
-    return list(weights_table[keys[0]])
+def _roll_fish(pool: dict, ctx: Any, table) -> list[dict]:
+    """垂钓（内容专属策略，签名 = 引擎策略契约 `fn(pool, ctx, table)`）。
 
-
-def _roll_fish(pool: dict, ctx: Any) -> list[dict]:
-    """垂钓：先按钓点禁档/鱼饵/等级定质量档，再从该档品种按权重摸 1 条。
+    先按钓点禁档/鱼饵/等级定质量档，再从该档品种按权重摸 1 条。
 
     pool.spot_cfg: {min_lv, ban_quality, subarea}
     pool.quality_weights: {钓点等级: [白绿蓝紫橙五档权重]}（缺省全局 FISH_QUALITY_WEIGHTS）
     pool.entries: [{"item": mat_id, "name":..., "quality":..., "w":..., "spots":...,
                     "season":..., "season_boost":..., "size_range":..., "weight_range":..., ...}]
+
+    ⚠️ 两处抽档**仍是 `random.choices`**（经 `table.rng`，即标准库 random 模块本体）：
+    权重行是**浮点**（等级插值），引擎 `pick_weighted` 会对权重做 `int()` 截断 → 改概率分布。
+    权重**行**已收口到 `FISH_TIERS.weights_at()`（与旧 `_quality_weights_inline` 位级一致）。
     """
-    import game.content as C  # noqa: E402
-    FISH_QUALITY_ORDER = C.FISH_QUALITY_ORDER
-    FISH_QUALITY_WEIGHTS = C.FISH_QUALITY_WEIGHTS
+    FISH_TIERS = _fish_tiers()
+    FISH_QUALITY_ORDER = FISH_TIERS.order
+    rng = table.rng
     spot_cfg = pool.get("spot_cfg") or {}
     ban = set(spot_cfg.get("ban_quality", []))
     prof_lv = int(getattr(ctx, "prof_lv", 1) or 1)
@@ -246,7 +256,8 @@ def _roll_fish(pool: dict, ctx: Any) -> list[dict]:
         except Exception:
             season = None
 
-    weights = list(_quality_weights_inline(prof_lv, FISH_QUALITY_WEIGHTS))
+    # v184：权重行问 TierTable.weights_at()（旧 _quality_weights_inline 内联副本已删）
+    weights = list(FISH_TIERS.weights_at(prof_lv))
     for i, q in enumerate(FISH_QUALITY_ORDER):
         if q in ban:
             weights[i] = 0.0
@@ -258,7 +269,7 @@ def _roll_fish(pool: dict, ctx: Any) -> list[dict]:
         for i, q in enumerate(FISH_QUALITY_ORDER):
             if q in ("green", "blue"):
                 weights[i] *= 1.5
-    quality = random.choices(FISH_QUALITY_ORDER, weights=weights, k=1)[0]
+    quality = rng.choices(FISH_QUALITY_ORDER, weights=weights, k=1)[0]
 
     def _spots_ok(f):
         sp = f.get("spots")
@@ -284,157 +295,81 @@ def _roll_fish(pool: dict, ctx: Any) -> list[dict]:
     if season:
         pool_w = [w * 1.5 if f.get("season_boost") == season else w
                   for f, w in zip(pool_by_q, pool_w)]
-    pick = random.choices(pool_by_q, weights=pool_w, k=1)[0]
+    pick = rng.choices(pool_by_q, weights=pool_w, k=1)[0]
     # 构造鱼条目返回（与旧 fishing.roll_fish 同形态：含 name/quality/type/price/size_range...）
     fish = dict(pick)
     fish["name"] = fish.get("name") or fish.get("item")
     return [{"type": "fish", "data": fish}]
 
 
-def _roll_table(pool: dict, ctx: Any) -> list[dict]:
-    """多层概率表：每个 roll 独立判定（副本Boss/野王宝箱/垂钓惊喜）。
+def _expand_table(pool: dict, table) -> list:
+    """`table` 池的展开：递归子池 + 内联引用原样外列（`_EXPAND_INLINE_PREFIXES` 白名单）。
 
-    pool.rolls: [{"pool": 子池key/内联引用/"gold:a:b"/特殊, "chance": 0-1, "n": [a,b]|int, ...}]
+    为什么不用引擎默认展开：引擎 `_expand_rolls` 认**全部** `inline_prefixes`，
+    见 `_EXPAND_INLINE_PREFIXES` 的说明 —— 这里要的是 v174 的窄白名单。
     """
     out = []
-    for roll_cfg in pool.get("rolls", []):
-        chance = float(roll_cfg.get("chance", 1.0))
-        if chance < 1.0 and random.random() >= chance:
-            continue
-        sub = roll_cfg.get("pool", "")
-        if sub.startswith("gold:"):
-            r = _resolve_item_ref(sub, ctx)
-            if r:
-                out.append(r)
-            continue
-        # n 数量（[a,b] 区间或 int）
-        n = roll_cfg.get("n")
-        if isinstance(n, (list, tuple)) and len(n) >= 2:
-            qty = _randint(int(n[0]), int(n[1]))
-        elif isinstance(n, int):
-            qty = n
-        else:
-            qty = 1
-        # 子池抽取
-        sub_ctx = _sub_ctx(ctx, qty)
-        if sub and sub in (_get_pools()):
-            sub_pool = _get_pools()[sub]
-            out.extend(POOL_STRATEGIES.get(sub_pool.get("type"), _roll_weighted)(sub_pool, sub_ctx))
-        elif sub:
-            r = _resolve_item_ref(sub, ctx)
-            if r:
-                r["count"] = r.get("count", 1) * qty
-                out.append(r)
+    for rc in pool.get("rolls") or []:
+        sub = rc.get("pool", "")
+        if table.pools.get(sub) is not None:      # 旧语义：池表原样 key（不剥前缀）
+            out.extend(table.expand(sub))
+        elif isinstance(sub, str) and sub.startswith(_EXPAND_INLINE_PREFIXES):
+            out.append(sub)
     return out
 
 
-def _roll_table_choice(pool: dict, ctx: Any) -> list[dict]:
-    """互斥档（一次 roll 只进一档）：暗格宝箱/战利品堆类。
+# ============================================================
+# 引擎实例（池 + 引用解析 + 策略绑定）
+# ============================================================
 
-    两种表达（数据二选一）：
-    A. cutoff 累计概率：rolls = [{"pool": ..., "cutoff": 0.25}, {"pool":..., "cutoff": 0.65}, ...]
-       最后档 cutoff 必须=1.0（不足自动补）。roll < cutoff 进第一档，roll < 第二 cutoff 进第二档……
-       （等价旧实现 `if roll >= 0.95: ... elif roll < 0.25: ... elif roll < 0.65: ...`）
-    B. chance 独立档位：rolls = [{"pool":..., "chance": 0.5}, ...]——所有档各按 chance 判定
-       但仅命中**最高优先级的**一档（按顺序首个命中），互斥不叠加。
-    推荐 A（与旧暗格宝箱逐档 elif 语义精确一致）。
+_TABLE = LootTable(
+    _LazyPools(),                       # 惰性池视图（不 import 期拉 DROP_POOLS）
+    resolver=_resolve_item_ref,         # 内容侧解析器（引擎只调它，不认识前缀）
+    strategies={
+        # 内容专属策略：uses/needs_weights/expand 是给审计与展开看的**元数据**
+        "fish": {"fn": _roll_fish, "uses": "entries", "needs_weights": True, "expand": None,
+                 "doc": "垂钓：质量档 → 品种（季节/水域/鱼饵），权重行问 TierTable"},
+        # table 展开按 v174 窄白名单（见 _EXPAND_INLINE_PREFIXES）
+        "table": {"expand": _expand_table},
+        # table_choice 的 v174 展开走 entries 带权展开（暗格宝箱没有 entries → []）
+        "table_choice": {"expand": None},
+    },
+    inline_prefixes=_INLINE_PREFIXES,
+    pool_key_prefixes=_POOL_KEY_PREFIXES,
+    special_refs=_SPECIAL_REFS,
+    rng=random,                         # ★ 标准库模块本体：随机流与 v174 逐格对齐
+)
 
-    pool.rolls: [{"pool": 子池key/内联引用, "cutoff": 0-1 或 "chance": 0-1, "n": [a,b]|int}]
+
+class _StrategyMap(Mapping):
+    """`POOL_STRATEGIES` 的只读转发（v184）。
+
+    旧名字保留（有人 import 它），但**不是第二份真相源**：策略表活在 `_TABLE` 里，
+    这里只是一层视图 —— `POOL_STRATEGIES[name]` → 引擎实例注册的策略函数。
     """
-    rolls = pool.get("rolls", [])
-    # A. cutoff 模式：取首个带 cutoff 的判定
-    if any("cutoff" in rc for rc in rolls):
-        total = random.random()
-        acc = 0.0
-        for i, rc in enumerate(rolls):
-            c = float(rc.get("cutoff", 0))
-            acc += c
-            if total < acc:
-                return _roll_sub_ref(rc, ctx)
-            if i == len(rolls) - 1:
-                # 最后档 cutoff 未到 1.0 时容错兜底（数据小瑕疵不吞奖励）
-                return _roll_sub_ref(rc, ctx)
-        return []
-    # B. chance 模式：按顺序首个命中（互斥）
-    for rc in rolls:
-        if float(rc.get("chance", 0)) > 0 and random.random() < float(rc.get("chance", 0)):
-            return _roll_sub_ref(rc, ctx)
-    return []
+
+    def __init__(self, table: LootTable):
+        self._table = table
+
+    def __getitem__(self, name):
+        spec = self._table._strategies.get(name)
+        if spec is None:
+            raise KeyError(name)
+        return spec["fn"]
+
+    def __iter__(self):
+        return iter(self._table._strategies)
+
+    def __len__(self):
+        return len(self._table._strategies)
 
 
-def _roll_sub_ref(roll_cfg: dict, ctx: Any) -> list[dict]:
-    """抽取单个 roll 配置指向的子池/引用（table_choice 用）。
-
-    支持 fallback 字段：主池/引用抽空（返回 None/[]）时自动尝试 fallback 引用
-    （暗格宝箱装备档双池失败 → 兜底材料，等价旧代码 if 双池 None: 给材料）。
-    """
-    sub = roll_cfg.get("pool", "")
-    n = roll_cfg.get("n")
-    if isinstance(n, (list, tuple)) and len(n) >= 2:
-        qty = _randint(int(n[0]), int(n[1]))
-    elif isinstance(n, int):
-        qty = n
-    else:
-        qty = 1
-    sub_ctx = _sub_ctx(ctx, qty)
-    res: list = []
-    if sub and sub in (_get_pools()):
-        sub_pool = _get_pools()[sub]
-        res = POOL_STRATEGIES.get(sub_pool.get("type"), _roll_weighted)(sub_pool, sub_ctx)
-    elif sub:
-        r = _resolve_item_ref(sub, ctx)
-        if r:
-            r["count"] = r.get("count", 1) * qty
-            res = [r]
-    # 主池空 → fallback
-    if not res and roll_cfg.get("fallback"):
-        fb = roll_cfg["fallback"]
-        fb_qty = roll_cfg.get("fallback_n", qty)
-        fb_ctx = _sub_ctx(ctx, fb_qty)
-        if fb in (_get_pools()):
-            fb_pool = _get_pools()[fb]
-            return POOL_STRATEGIES.get(fb_pool.get("type"), _roll_weighted)(fb_pool, fb_ctx)
-        r = _resolve_item_ref(fb, ctx)
-        if r:
-            r["count"] = r.get("count", 1) * fb_qty
-            return [r]
-    return res
+POOL_STRATEGIES = _StrategyMap(_TABLE)
 
 
-def _roll_fixed(pool: dict, ctx: Any) -> list[dict]:
-    """固定掉落：entries 全给（必掉清单）。"""
-    out = []
-    for e in pool.get("entries", []):
-        r = _resolve_item_ref(e["item"], ctx)
-        if r:
-            r["count"] = r.get("count", 1) * int(e.get("n", 1) or 1)
-            out.append(r)
-    return out
-
-
-POOL_STRATEGIES = {
-    "weighted": _roll_weighted,
-    "fish": _roll_fish,
-    "table": _roll_table,
-    "table_choice": _roll_table_choice,
-    "fixed": _roll_fixed,
-}
-
-
-def _sub_ctx(ctx: Any, qty: int) -> Any:
-    """子池抽取上下文（复制一份改 qty，避免污染原 ctx）。"""
-    try:
-        import copy
-        c = copy.copy(ctx)
-        c.qty = qty
-        return c
-    except Exception:
-        return ctx
-
-
-def _get_pools() -> dict:
-    from .data.drop_pools import DROP_POOLS# noqa: E402
-    return DROP_POOLS
+# 旧名字保留：instance.py / fishing.py / wild_king.py 都在用 `_SimpleCtx(...)`。
+# 语义与 v174 逐字相同（引擎 SimpleCtx = 同一份实现：缺属性 → None，hooks 恒为 dict）。
+_SimpleCtx = SimpleCtx
 
 
 # ============================================================
@@ -450,20 +385,10 @@ def roll(pool_key: str, ctx: Any = None, **kw) -> list[dict]:
       roll("chest:wild_low", ctx)
     返回产出 dict 列表；池不存在/抽空返回 []（优雅跳过，不抛错）。
     """
-    pools = _get_pools()
-    pool = pools.get(pool_key)
-    if not pool:
+    # 旧语义：只认 `DROP_POOLS` 里的原样 key（不剥 weighted:/fixed: 前缀），空池也当"没有"
+    if not _get_pools().get(pool_key):
         return []
-    if ctx is None:
-        ctx = _SimpleCtx(**kw)
-    elif kw:
-        for k, v in kw.items():
-            setattr(ctx, k, v)
-    strategy = POOL_STRATEGIES.get(pool.get("type", "weighted"), _roll_weighted)
-    try:
-        return strategy(pool, ctx) or []
-    except Exception:
-        return []
+    return _TABLE.roll(pool_key, ctx, **kw)
 
 
 def expand_pool(pool_key: str) -> list:
@@ -472,109 +397,70 @@ def expand_pool(pool_key: str) -> list:
     用途：命令层需要"候选池 + 自己多次 choice"的旧语义时（如采集按副业等级选 N 份），
     数据源统一走 DROP_POOLS。池不存在返回 []（调用方走兜底）。
     """
-    pools = _get_pools()
-    pool = pools.get(pool_key)
-    if not pool:
+    if not _get_pools().get(pool_key):
         return []
-    ptype = pool.get("type", "weighted")
-    if ptype == "fixed":
-        return [e.get("item", "") for e in pool.get("entries", []) if e.get("item")]
-    if ptype == "table":
-        out = []
-        for rc in pool.get("rolls") or []:
-            sub = rc.get("pool", "")
-            if sub in pools:
-                out.extend(expand_pool(sub))
-            elif sub.startswith(("equip:", "item:", "gold:")):
-                out.append(sub)
-        return out
-    # weighted / fish：按权重展开（等价旧实现 [m for m,_w in pool for _ in range(_w)]）
-    entries = pool.get("entries", [])
-    out = []
-    for e in entries:
-        w = int(e.get("w", 1) or 1)
-        it = e.get("item", "")
-        if not it:
-            continue
-        # 展开上限保护：w 异常巨大（>1000）时按 1 处理（防内存爆炸）
-        w = min(w, 1000)
-        out.extend([it] * w)
-    return out
-
-
-class _SimpleCtx:
-    """极简上下文：无 Attr 报错，属性缺失返回 None/0。"""
-
-    def __init__(self, **kw):
-        self.__dict__.update(kw)
-        self.hooks = kw.get("hooks") or {}
-
-    def __getattr__(self, name):
-        return None
+    return _TABLE.expand(pool_key)
 
 
 # ============================================================
 # 全量审计
 # ============================================================
 
+def _resolvable(ref, pool) -> object:
+    """引擎审计的**引用判定 + 措辞**（内容侧词汇表）—— `audit_all` 的"什么算断链、怎么说"都在这里。
+
+    返回值四态（引擎 `LootTable.audit(resolvable=…)` 契约）：
+
+      * `True`  —— 解得开
+      * `False` —— 断链（引擎给通用措辞）
+      * `str`   —— 断链，且**这句就是措辞**（本游戏用自己的说法：物品缺失 / 名册缺失 / 子池缺失）
+      * `None`  —— 这条引用内容侧自己管，不判
+
+    v184 之前这段判定散在 `audit_all` 里的两套分支（条目 ref / roll 子池 ref，措辞各一套），
+    这里按池的策略元数据 `uses` 归一（`_TABLE.strategy_of(pool)["uses"]`）：
+      `uses=entries` → 「物品缺失 / equip 名册缺失 / 引用无法解析」
+      `uses=rolls`   → 「table 子池缺失 / table 子池未知」
+    裸名册 id（`eq_xxx`）两条都认（INSTANCE_BOSS_EQUIP_DROP 老数据就是裸名册 id）；
+    真实池数据里条目 ref 无裸名册 id（0/1435），见门禁 §7 登记。
+    """
+    import game.content as C  # noqa: E402
+    if not isinstance(ref, str):
+        return False
+    uses = _TABLE.strategy_of(pool or {}).get("uses", "entries")
+    if ref.startswith(_POOL_KEY_PREFIXES):
+        key = ref.split(":", 1)[1]
+        pools = _get_pools()
+        if key in pools or any(k.endswith(key) for k in pools):
+            return True
+        return f"table 子池缺失: {ref}"
+    if ref.startswith("equip:"):
+        rid = ref.split(":", 1)[1]
+        return True if rid in C.EQUIP_ROSTER else f"equip 名册缺失: {rid}"
+    if ref in C.ITEMS or ref in C.EQUIP_ROSTER:
+        return True
+    if uses == "rolls":
+        return f"table 子池未知: {ref}"
+    if ref.startswith("mat_"):
+        return f"物品缺失: {ref}"
+    return f"引用无法解析: {ref}"
+
+
 def audit_all() -> dict:
     """全量审计：断链/空池/权重/等级匹配/重复。
 
     返回 {"issues": [...], "pool_count": N, "entry_count": M}
     每个 issue: (级别, 池key, 描述)
-    """
-    import game.content as C  # noqa: E402
-    pools = _get_pools()
-    issues = []
 
-    # 有效引用集合
-    valid_ids = set(C.ITEMS.keys())
-    valid_rids = set(C.EQUIP_ROSTER.keys())
-    special_refs = {"bp", "gem", "rune"}
-    for pool_key, pool in pools.items():
-        ptype = pool.get("type", "weighted")
-        entries = pool.get("entries") or []
-        for e in entries:
-            ref = e.get("item", "")
-            if not ref:
-                issues.append(("断链", pool_key, f"条目无 item: {e}"))
-                continue
-            if ref in special_refs or ref.startswith(("gold:", "gold_pct:", "item:", "special:", "equip_drop:", "petegg:", "rune:", "equip_drop_mix")):
-                continue
-            if ref.startswith("equip:"):
-                rid = ref.split(":", 1)[1]
-                if rid not in valid_rids:
-                    issues.append(("断链", pool_key, f"equip 名册缺失: {rid}"))
-            elif ref.startswith("mat_") or ref in valid_ids:
-                if ref not in valid_ids:
-                    issues.append(("断链", pool_key, f"物品缺失: {ref}"))
-            elif ref not in valid_ids:
-                issues.append(("断链", pool_key, f"引用无法解析: {ref}"))
-        # 空池检查
-        if ptype in ("weighted", "fish") and not entries:
-            issues.append(("空池", pool_key, "entries 为空"))
-        # 权重和（weighted/fish）
-        if ptype in ("weighted", "fish"):
-            total = sum(int(e.get("w", 1) or 0) for e in entries)
-            if total <= 0:
-                issues.append(("空池", pool_key, "权重和 ≤ 0"))
-        # table 的 rolls 引用检查
-        if ptype == "table":
-            for rc in pool.get("rolls") or []:
-                sub = rc.get("pool", "")
-                if sub.startswith("weighted:") or sub.startswith("fixed:"):
-                    key = sub.split(":", 1)[1]
-                    # 内联引用直接指向 DROP_POOLS 中的 key（允许前缀）
-                    if key not in pools and not any(k.endswith(key) for k in pools):
-                        issues.append(("断链", pool_key, f"table 子池缺失: {sub}"))
-                elif sub.startswith(("gold:", "gold_pct:", "item:", "special:", "equip:", "equip_drop:", "petegg:", "rune:", "equip_drop_mix")):
-                    pass  # 内联直接解析
-                elif sub not in pools and sub not in special_refs and sub not in C.EQUIP_ROSTER:
-                    issues.append(("断链", pool_key, f"table 子池未知: {sub}"))
+    v184：判定**与措辞**都交给引擎 `LootTable.audit(resolvable=_resolvable)` ——
+    本游戏的说法（物品缺失 / 名册缺失 / 子池缺失）由 `_resolvable` 直接给出，
+    不再需要"事后把引擎文案改写回旧文案"那种字符串兼容壳；本函数只剔掉引擎多出的 `ok` 键，
+    返回的三个键一字不变。
+    """
+    rep = _TABLE.audit(resolvable=_resolvable)
     return {
-        "issues": issues,
-        "pool_count": len(pools),
-        "entry_count": sum(len((p.get("entries") or [])) for p in pools.values()),
+        "issues": list(rep["issues"]),
+        "pool_count": rep["pool_count"],
+        "entry_count": rep["entry_count"],
     }
 
 

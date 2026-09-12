@@ -4,6 +4,8 @@ from .stats import equip_stats, equip_value, monster_exp, monster_gold, monster_
 from .affix import (fixed_affixes, random_req, roll_affixes, stat_affix_stats)
 import random
 
+from saintess_engine.loot import count_for, draw_slots
+
 from .. import content as C
 from ..data import (AFFIXES, AFFIX_POOL_BY_QUALITY, CRAFT_RECIPES,
                     EQUIP_NAME_PREFIX, EQUIP_NAME_SUFFIX,
@@ -321,11 +323,10 @@ def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
                 flavor_stats[fk] = add
     # 词条：系列固定 + 随机补足到品质标准数（蓝 2 / 紫 3 / 橙 3）
     fixed = fixed_affixes(r["name"])
-    target_n = {"blue": 2, "purple": 3, "orange": 3}.get(quality, 0)
-    # v104 M07 修复 P2：橙装 20% 概率 4 词条（与 roll_affixes 一致，兑现 AFFIX_COUNT.orange=[3,4]）
-    if quality == "orange" and random.random() < 0.20:
-        target_n = 4
-    random_n = max(0, target_n - len(fixed))
+    # v184：条数规则走框架 count_for（橙装 [3,4] + 20% 命中上界；白/绿/未声明 → 0 条，
+    # 与旧「target_n 字面表 + orange 20% 掷」同随机流：仅列表档位消费一次 random）。
+    target_n = count_for({"blue": 2, "purple": 3, "orange": [3, 4]}, quality,
+                         extra_chance=0.20, rng=random)
     pool = [a for a in AFFIX_POOL_BY_QUALITY.get(quality, AFFIX_POOL_BY_QUALITY["orange"])
             if a not in fixed]
     want_kind = "attack" if slot == "weapon" else "defense"
@@ -338,8 +339,10 @@ def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
                     if AFFIXES[a]["kind"] == want_kind and a not in fixed]
         if aff_pool:
             pool = aff_pool
-    rnd = random.sample(pool, min(random_n, len(pool))) if pool and random_n else []
-    affix_ids = fixed + rnd
+    # v184：挂载形状走框架 draw_slots —— 固定（系列锚点，最多 1 条）在前、去重、
+    # 随机补足到 target_n、池子不足给尽；随机部分等概率不放回（内部 rng.sample，
+    # 与旧 `random.sample(pool, min(random_n, len(pool)))` 同随机流同结果）。
+    affix_ids = draw_slots(pool, target_n, fixed=fixed, rng=random)
     for k, v in stat_affix_stats(affix_ids, slot, lv).items():
         if k in C.PCT_STATS:
             stats[k] = round(stats.get(k, 0) + v, 4)
