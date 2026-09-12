@@ -162,12 +162,14 @@ async def main():
     # 5) 技能详情序号查询显示中文名
     out = await cmd(m, "skill_detail", "g1", "k1", "技能详情 1")
     check("技能详情1显示中文名", "sk_" not in out and "【挥砍】" in out, out[:150])
-    # 6) 源码正则防回归：必须能接住紧贴序号（(?:.*)$ 或 v59 改的 (?:[\s\S]*)$ 均可）
-    _src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "game", "commands", "player.py")
-    with open(_src_path, encoding="utf-8") as _f:
-        _src = _f.read()
-    check("技能升级正则支持紧贴序号",
-          "技能升级(?:.*)$" in _src or "技能升级(?:[\\s\\S]*)$" in _src, _src_path)
+    # 6) 正则防回归：必须能接住紧贴序号（v56 修复：『技能升级1』不被吞）
+    #    2026-09-12 v185 指令表迁移后正则不在 player.py 源码里（搬进声明表 command_specs.json）
+    #    → 直接从**有效表**取注册正则做行为断言（比读源码更强：证的是真正注册的那个值）
+    import re as _re
+    from _cmd_registry import pattern_map as _pattern_map
+    _pat = _pattern_map().get("skill_upgrade", "")
+    check("技能升级正则支持紧贴序号（有效表注册值）",
+          bool(_re.match(_pat, "技能升级1")) and bool(_re.match(_pat, "技能升级 挥砍")), _pat)
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0

@@ -149,11 +149,18 @@ async def main():
         ok &= check("『职业 战士』命中", bool(rx.match("职业 战士")))
         ok &= check("『[At:1] 职业 战士』命中", bool(rx.match("[At:1] 职业 战士")))
         ok &= check("『职业重置』不命中（与转职重置无冲突）", not rx.match("职业重置"))
-        # 正则与命令层装饰器同源（防矩阵测试漂移）
-        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "..", "game", "commands", "job_guide.py"),
+        # 正则与命令层装饰器同源（防矩阵测试漂移）：2026-09-12 v185 指令表迁移后，
+        # 命令层不再写正则字面量 → 断言「handler 从声明表取正则」+「声明值 == 静态表值」
+        import json as _json
+        _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        src = open(os.path.join(_root, "game", "commands", "job_guide.py"),
                    encoding="utf-8").read()
-        ok &= check("装饰器正则与静态表逐字一致", f'r"{pat}"' in src)
+        ok &= check("装饰器走声明表（@declared 取 job_guide）", '@declared("job_guide")' in src)
+        _specs = _json.load(open(os.path.join(_root, "game", "data", "command_specs.json"),
+                                 encoding="utf-8"))
+        ok &= check("声明表该 key 的正则 == 静态表值",
+                    _specs.get("job_guide", {}).get("patterns") == [pat],
+                    _specs.get("job_guide", {}).get("patterns"))
 
     # ===== ⑦ v151 隐藏职业删除 =====
     print("【⑦ v151 隐藏职业删除】")
