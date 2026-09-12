@@ -130,7 +130,12 @@ def _space(map_id):                      # 无缓存（SUBAREAS 运行期可被�
 - `editor/packages.py` 加一行 `"maps"`；`editor/glossary.py` 加 `_MAPS` 词典 + `GROUPS["maps"]` 分组。
 - **拓扑视图**：`GET /api/package/<id>/d/maps/<key>/graph` → 用引擎 `Space.to_view()`
   （**同一份派生代码**，不在 JS 里重写第二遍）→ 前端 `app.js` 加 `graph` 模式：
-  按深度分层画节点、连边，角色配色，`audit` 问题号红。
+  按深度分层画节点、连边，角色配色，`audit` 问题图上明示（悬空红虚线 + 虚影节点 / 不对称琥珀虚线 /
+  不可达·孤立置灰）。
+- 落地：`editor/space_view.py`（适配层）+ `editor/packages.py` 一行 + 词典 `_MAPS` + 分组 3 组 +
+  `editor/web/{index.html,app.css,app.js}`（第四档「拓扑」，仅 maps 域出现；布局是**纯函数**
+  `graphLayout()`，由 `tests/js/graph_layout_test.js` 抠出来用 Node 真跑）+ 示例包
+  `games/my_game/content/data/maps.json`（星形 / 链状 / 显式连通表各一张）。
 - 主进程 import `saintess_engine.space` 的说明：`space` 是**纯计算模块**（零挂载、零全局副作用），
   与 `version` 同性质；`packages.py` 原有「编辑器主进程不 import 引擎」的纪律针对的是**会挂 hook 的
   战斗域**，此处不违背 —— 且换来「派生只有一份」。
@@ -143,7 +148,8 @@ def _space(map_id):                      # 无缓存（SUBAREAS 运行期可被�
 | 2 | 框架全量 | 23 → 24 文件全绿（纯度 / 中立性 / wiki 行号） |
 | 3 | ★ 内容侧逐格一致 | 新门禁 `tests/test_v183_space_shape.py`：**全 47 图 × 全子区域**逐条比对（旧实现快照 vs 新实现）—— 邻接 / 深度 / 出入口 |
 | 4 | 真实库回归 | 游戏仓全量 264/264 + 数值门禁 18/18 + `compileall` |
-| 5 | 编辑器 | `test_editor_api` / `glossary` / `wiki` 全绿 + **浏览器实开** `maps` 域看到拓扑图（截图存档） |
+| 5 | 编辑器 | 门禁 `tests/test_editor_space.py` **51 断言** + JS 单测 34 断言 + 框架全量 **25/25**；**真浏览器 + 真 HTTP 实测**：星形图 5 列按声明序 / 8 边 / `▶` 在入口 / 外环在出口、坏图虚影节点 + 2 节点置灰 + 悬空边红虚线（computedStyle 实测） |
+| 6 | 性能 | 单次查询 4.1µs → 34.4µs（整图遍历 0.2ms/次），**不加缓存**（理由见 §3.1） |
 
 ## 六、自己拍板的三个待定项
 
