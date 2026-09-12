@@ -934,15 +934,16 @@ def t3_walk_matrix():
     check("徒步进图不扣钥匙（钥匙仍在包里）",
           instance_gate.find_instance_key_item(gid, qid, key_inst["key_item"]) is not None)
     db.remove_item(gid, qid, "i_key_old_king")
-    # 已通关档：world 门禁查的是 `inst_clear_<地图id>`（kid = 地图 id）；真实通关写入的却是
-    # `inst_clear_<inst 键>`（instance.py:3047）→ 线上该档实际不可达。这是**遗留口径不一致**，
-    # 本轮按「逐字保留」原则原样搬运（未修改，未登记为有意差异）——见报告「发现」。
-    db.set_achievement(gid, qid, "inst_clear_old_king_tomb", 1)
+    # ★ D2（v185 后续登记的**有意差异**）：世界门禁的「已通关」档原先查 `inst_clear_<地图id>`，
+    #   而真实通关写入的是 `inst_clear_<inst 键>`（instance.py 通关结算 / instance_router 读档）
+    #   ⇒ 该档线上**不可达**。修复后查 inst 键：与 instance.py 免钥匙真正同口径。
+    #   行为变化（有意）：已通关的玩家徒步进副本图不再被拦（原先会被拦）。
+    #   证据（修复前后各跑一次）：写真实键 拦截→放行；写地图 id 形式 放行→拦截（一套口径）。
+    db.set_achievement(gid, qid, "inst_clear_inst_old_king_tomb", 1)
     out = m._instance_gate_block({}, gid, qid, {"id": "old_king_tomb", "type": C.MAP_TYPE_INSTANCE})
-    check("真调 world 门禁：已通关免钥匙放行（门禁自身口径 inst_clear_<地图id>）", out == "", repr(out))
-    print("    · 信息项：真实通关写入 `inst_clear_inst_old_king_tomb`，"
-          f"门禁查 `inst_clear_old_king_tomb` → 线上该档不可达（遗留不一致，本轮未改）："
-          f"{instance_gate.instance_cleared_qq(gid, qid, 'inst_old_king_tomb')}")
+    check("★ D2：真实通关写入的键（inst_clear_<inst键>）能放行徒步进图", out == "", repr(out))
+    check("★ D2：不是两套都认（老的地图 id 形式已不再被认可）",
+          instance_gate.instance_cleared_qq(gid, qid, "old_king_tomb") is False)
     hit = next((k for k, v in C.INSTANCES.items()
                 for q in C.MAIN_QUESTS
                 if q.get("objective", {}).get("explore") == k[5:]), None)

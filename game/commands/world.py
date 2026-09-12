@@ -1275,6 +1275,10 @@ class WorldCmds(CommandBase):
                              for sid, sq in side.items())
         # 2) 持有钥匙（与 instance.py 开本钥匙判定同源，抽公共 core/instance_gate.py）
         # 3) 已通关副本 → 免钥匙放行（与 instance.py 同口径）
+        # ★ D2（v185 本轮登记的有意差异）：这一档原先查 `inst_clear_<地图id>`（kid），
+        #   而真实通关写入的是 `inst_clear_<inst键>`（instance.py 通关结算 / instance_router 读档）
+        #   ⇒ 线上**不可达**（实测：写真实键仍被拦、写地图 id 形式反而放行）。
+        #   现改为查 inst 键（mid），与 instance.py 免钥匙真正同口径；不保留旧键兼容（一套口径）。
         key_item = (inst or {}).get("key_item")
         ctx = {
             "inst_name": (inst or {}).get("name") or C.MAP_BY_ID.get(kid, {}).get("name", "副本"),
@@ -1282,7 +1286,7 @@ class WorldCmds(CommandBase):
             "quest_open": quest_open,
             "key_held": bool(key_item) and instance_gate.find_instance_key_item(
                 group_id, qq_id, key_item) is not None,
-            "cleared": instance_gate.instance_cleared_qq(group_id, qq_id, kid),
+            "cleared": instance_gate.instance_cleared_qq(group_id, qq_id, mid),
         }
         v = instance_gate.walk_admission(ctx).check(ctx)
         return "" if v.ok else v.reason
