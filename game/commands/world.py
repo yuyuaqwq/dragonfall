@@ -15,6 +15,7 @@ from ._platform import AstrMessageEvent, MessageChain
 from ._declared import declared
 
 from .. import content as C
+from ..core import instance_run as IR   # v185：副本房间剩余池读点收口
 from ..core import texts as T
 from .. import db
 from ..content_rules.panel import player_final_stats
@@ -186,9 +187,10 @@ class WorldCmds(CommandBase):
                 _rooms = _st.get("rooms") or {}
                 _rkey = sa_id or (player or {}).get("cur_subarea") or ""
                 _rstate = _rooms.get(_rkey) or {}
-                _left = _rstate.get("pois_left")
-                if _left is not None:
-                    poi_ids = [pid for pid in poi_ids if pid in _left]
+                # v185：剩余池读点收口 instance_run；缺失（该房间无资源池）仍不过滤
+                # —— rooms_progress 视图无法区分「池不存在」与「池为空」，故保留存在性判定
+                if _rstate.get("pois_left") is not None:
+                    poi_ids = [pid for pid in poi_ids if IR.poi_left(_st, _rkey, pid)]
             for _pid in poi_ids:
                 _p = C.POIS.get(_pid)
                 if _p:
@@ -1708,10 +1710,8 @@ class WorldCmds(CommandBase):
         # v164（鱼鱼拍板 2026-09-02）：移动遇怪改【必中】——房间怪物池非空就触发。
         # 原 discovery_agro 0.85 概率导致"走过房间没被拦"的观感（15% 落空），
         # 移动是副本推进主线，遇怪应确定；『探索』仍保持 discovery_agro 概率（主动探索可放空）。
-        _left = rstate.get("monsters_left")
-        _hit = False
-        if isinstance(_left, list) and len(_left) > 0:
-            _hit = True
+        # v185：房间怪池剩余读点收口 instance_run（非空即遇怪）
+        _hit = IR.monsters_left(st, target_sa["id"]) > 0
         if _hit:
             # 遇怪 → 弹出 1 只 → 构建敌方阵列 → 进战斗（现状 _enter_stage_combat 链路）
             # v141 审计 #7：死代码接线——consume_monster 弹出（原 _left.pop(0) 内联）

@@ -382,9 +382,8 @@ def inst_campfire(ctx):
         return block
     logs = []
     st = ctx.st
-    for m in st["members"]:
-        if not st["alive"].get(str(m), True):
-            continue
+    from . import instance_run as IR   # v185：名单视图（存活者；缺 alive 键 = 存活）
+    for m in IR.living_members(st):
         snap = st["players"].get(str(m), {})
         if snap.get("hp") is not None:
             # R3 P3-3：heal_pct 消费 POI effect 配置（instance_stage_maps.py
@@ -447,15 +446,14 @@ def inst_trap(ctx):
         ctx.mark_used()
         return f"⚠️ 你记得石碑上的提示，小心地拆除了{ctx.pname}！"
     logs = [f"⚠️ 你触发了{ctx.pname}！全队受到 10% 最大生命的伤害！"]
-    for m in st["members"]:
-        if not st["alive"].get(str(m), True):
-            continue
+    from . import instance_run as IR   # v185：名单视图（存活者；缺 alive 键 = 存活）
+    for m in IR.living_members(st):
         snap = st["players"].get(str(m), {})
         if snap.get("hp") is not None:
             dmg = max(1, int(snap.get("max_hp", snap["hp"]) * 0.1))
             snap["hp"] = max(0, snap["hp"] - dmg)
             if snap["hp"] <= 0:
-                st["alive"][str(m)] = False
+                IR.set_alive(st, m, False)
                 logs.append(f"💀 {snap.get('name', m)} 被陷阱击倒了！")
             else:
                 logs.append(f"❤️ {snap.get('name', m)} 剩余 {snap['hp']}/{snap['max_hp']}")

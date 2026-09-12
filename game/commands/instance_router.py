@@ -23,6 +23,7 @@ import time
 
 from .. import content as C
 from .. import db
+from ..core import instance_run as IR   # v185：副本运行态适配层（名单/进度/剩余池/清视图）
 from ..content_rules.skills import skill_info
 from .base import CommandBase
 from . import instance_battle as IB
@@ -118,13 +119,10 @@ class InstanceRouterCmds(CommandBase):
         return units
 
     def _router_has_living_players(self, group_id, st) -> bool:
-        """当前在场且存活玩家 ≥1（读视图 alive/st 顶层，玩法壳语义）。"""
-        cur = self._instance_current_members(group_id, st)
-        for k in cur:
-            if st.get("alive", {}).get(str(k), True) and \
-                    int((st.get("players") or {}).get(str(k), {}).get("hp", 0) or 0) > 0:
-                return True
-        return False
+        """当前在场且存活玩家 ≥1（v185：存活/血量口径委托 instance_run.living_players，
+        在场过滤仍走 _instance_current_members —— 签名与语义逐字保留）。"""
+        _live = set(IR.living_players(st))
+        return any(k in _live for k in self._instance_current_members(group_id, st))
 
     # ------------------------------------------------------------------
     # 主入口
@@ -246,7 +244,7 @@ class InstanceRouterCmds(CommandBase):
         try:
             _mem_before = sum(int((st.get("players") or {}).get(str(m), {}).get("hp", 0) or 0)
                               for m in members
-                              if st.get("alive", {}).get(str(m), True))
+                              if IR.alive_of(st, m))
         except Exception:
             _mem_before = 0
 
@@ -291,7 +289,7 @@ class InstanceRouterCmds(CommandBase):
             # 治疗仇恨（v49 语义基础：×0.8）
             _mem_after = sum(int((st.get("players") or {}).get(str(m), {}).get("hp", 0) or 0)
                              for m in members
-                             if st.get("alive", {}).get(str(m), True))
+                             if IR.alive_of(st, m))
             _heal = max(0, _mem_after - _mem_before)
             if _heal > 0:
                 st.setdefault("threat", {})
@@ -318,17 +316,10 @@ class InstanceRouterCmds(CommandBase):
             if st.get("secret_guard_pending"):
                 st["secret_guard_pending"] = False
                 kill_lines = self._instance_kill_reward(group_id, st)
-                st["secret_chest"] = True
-                st["mode"] = "map"
-                st["boss"] = None
-                st["enemy"] = None
-                st["enemies"] = []
+                # v185：清战斗视图回地图模式（暗格守卫标志差异显式写：secret_chest）
+                IR.clear_battle_view(st, secret_chest=True)
+                IR.clear_pet_hits(st)
                 # 战斗结束 → 解锁 + 保存（玩法壳行为保留）
-                for _m0 in list((st.get("pets") or {}).keys()):
-                    try:
-                        (st["pets"][_m0]).pop("_last_hit_at", None)
-                    except Exception:
-                        pass
                 for _m in st["members"]:
                     self._unlock_battle(group_id, _m)
                 self._instance_save(group_id, st)
@@ -357,32 +348,21 @@ class InstanceRouterCmds(CommandBase):
                     except Exception:
                         _is_boss_r = False
                 _room_boss = _is_boss_r and (
-                    not (_rstate.get("monsters_left") or []) or bool(_rstate.get("_boss_room")))
+                    IR.monsters_left(st, cur_sa) == 0 or bool(_rstate.get("_boss_room")))
                 if _room_boss:
-                    _rstate["boss_alive"] = False
-                    _rstate["_boss_room"] = True
+                    IR.mark_boss_room_done(st, cur_sa)
                 # 同步大陆权威 st（rooms 同对象或镜像更新）
                 try:
                     _wid = st.get("world_id") or ""
                     if _wid.startswith("inst:"):
                         _sa = C.get_instance_st(_wid)
                         if _sa is not None:
-                            _ra = (_sa.get("rooms") or {}).get(cur_sa) or {}
-                            _ra["boss_alive"] = False
-                            _ra["_boss_room"] = True
+                            IR.mark_boss_room_done(_sa, cur_sa)
                 except Exception:
                     pass
-                st["stage_cleared"] = True
-                st["over"] = False
-                st["mode"] = "map"
-                st["boss"] = None
-                st["enemy"] = None
-                st["enemies"] = []
-                for _m0 in list((st.get("pets") or {}).keys()):
-                    try:
-                        (st["pets"][_m0]).pop("_last_hit_at", None)
-                    except Exception:
-                        pass
+                # v185：清战斗视图回地图模式（房间形态标志差异显式写：stage_cleared/over）
+                IR.clear_battle_view(st, stage_cleared=True, over=False)
+                IR.clear_pet_hits(st)
                 for _m in st["members"]:
                     self._unlock_battle(group_id, _m)
                 self._instance_save(group_id, st)
@@ -428,11 +408,7 @@ class InstanceRouterCmds(CommandBase):
                 st["killed_enemies"] = []
                 st["turn"] = 0
                 st["turn_time"] = int(time.time())
-                for _m0 in list((st.get("pets") or {}).keys()):
-                    try:
-                        (st["pets"][_m0]).pop("_last_hit_at", None)
-                    except Exception:
-                        pass
+                IR.clear_pet_hits(st)   # v185：切怪重置宠物命中（同 clear_pet_hits 语义）
                 try:
                     IB.build_battle(st)
                     IB.sync_views(st, group_id)
@@ -453,17 +429,9 @@ class InstanceRouterCmds(CommandBase):
                 if not last:
                     # 层肃清 → 地图模式
                     kill_lines = self._instance_kill_reward(group_id, st)
-                    st["stage_cleared"] = True
-                    st["over"] = False
-                    st["mode"] = "map"
-                    st["boss"] = None
-                    st["enemy"] = None
-                    st["enemies"] = []
-                    for _m0 in list((st.get("pets") or {}).keys()):
-                        try:
-                            (st["pets"][_m0]).pop("_last_hit_at", None)
-                        except Exception:
-                            pass
+                    # v185：清战斗视图回地图模式（分层形态标志差异显式写：stage_cleared/over）
+                    IR.clear_battle_view(st, stage_cleared=True, over=False)
+                    IR.clear_pet_hits(st)
                     for _m in st["members"]:
                         self._unlock_battle(group_id, _m)
                     self._instance_save(group_id, st)

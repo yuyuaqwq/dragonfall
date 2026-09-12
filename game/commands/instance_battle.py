@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from ..core import instance_run as IR   # v185：名单视图（成员/存活）
 from ..services import battle_bridge as BR
 from saintess_engine.kinds import K_HEAL, K_BUFF
 
@@ -232,9 +233,9 @@ def build_battle(st: dict) -> "object":
     """
     from saintess_engine import Battle as B2
     sides: dict = {"player": [], "enemy": []}
-    for k in st.get("members") or []:
-        kk = str(k)
-        if not (st.get("alive") or {}).get(kk, True):
+    _roster = IR.roster_of(st)   # v185：名单视图（保序；缺 alive 键 = 存活）
+    for kk in _roster.members:
+        if not _roster.alive(kk):
             continue
         snap = (st.get("players") or {}).get(kk)
         if not snap or int(snap.get("hp", 0) or 0) <= 0:
@@ -398,9 +399,9 @@ def sync_views(st: dict, group_id) -> None:
         }
         snap.pop("stat_bonus", None)
         snap.pop("cap_bonus", None)
-        # 倒地标记（O105 语义）
-        if snap.get("hp", 0) <= 0 and st.get("alive", {}).get(_k, True):
-            st["alive"][_k] = False
+        # 倒地标记（O105 语义）——v185：存活表收口 instance_run（缺 alive 键 = 存活）
+        if snap.get("hp", 0) <= 0 and IR.alive_of(st, _k):
+            IR.set_alive(st, _k, False)
         # DB 血量同步（快照权威 → db，保留现行为）
         try:
             from .. import db as _db

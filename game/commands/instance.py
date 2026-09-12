@@ -32,6 +32,7 @@ from .. import db
 from ..content_rules.gameplay import resolve_drop
 from ..content_rules.panel import player_final_stats
 from ..core.constants import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）——N10 前由 battle re-export 改为 core 权威单源
+from ..core import instance_run as IR  # v185：副本运行态（名单/分层进度/资源池）适配层——本文件散读散写的唯一收口
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 from .instance_router import InstanceRouterCmds  # v181.N5b4-5a R1：saintess_engine 副本行动路由
 
@@ -164,7 +165,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             ref = None
             ec = [float(u.get("ct", 0) or 0) for u in st.get("enemies") or [] if u.get("hp", 0) > 0]
             pc = [float(s.get("ct", 0) or 0) for k, s in players.items()
-                  if st.get("alive", {}).get(str(k), True) and s.get("hp", 0) > 0]
+                  if IR.alive_of(st, k) and s.get("hp", 0) > 0]
             cands = [c for c in (ec + pc) if c is not None]
             if cands:
                 ref = min(cands)
@@ -175,8 +176,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             snap["ct"] = -_spd  # 兜底：-spd 与旧副本口径一致
         # 6. 并入 st（只改状态，不推进行动轴）
         players[new_key] = snap
-        st.setdefault("members", []).append(new_key)
-        st.setdefault("alive", {})[new_key] = True
+        # v185：名单写入收口——成员追加（Roster.join 幂等）+ 存活登记随写回一并落盘
+        _roster_new = IR.roster_of(st)
+        _roster_new.join(new_key)
+        _roster_new.set_alive(new_key, True)
+        IR.write_roster(st, _roster_new)
         st.setdefault("p_buffs", {})[new_key] = {}
         st.setdefault("p_hot", {})[new_key] = {}
         st.setdefault("p_food_effects", {})[new_key] = []
@@ -207,7 +211,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             f"⚔️ {snap['name']} 加入了战斗！\n"
             f"━━━━━━━━━━━━\n"
             f"{self._instance_battle_footer(st, group_id)}\n"
-            f"👥 当前参战：{'、'.join(str(st.get('players', {}).get(m2, {}).get('name', m2)) for m2 in st.get('members', []))}"
+            f"👥 当前参战：{'、'.join(str(st.get('players', {}).get(m2, {}).get('name', m2)) for m2 in IR.roster_of(st).members)}"
         )
 
     @declared("instance_cmd")
@@ -243,7 +247,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             if _st.get("cleared") and _st.get("cleared_time") and int(time.time()) - _st["cleared_time"] > 1800:
                 # v104 P1（第二轮）：只清当前队伍成员——退队者可能已在别处战斗，不能动 TA 的锁/battle
                 _cur = self._instance_current_members(group_id, _st)
-                for _m in _st["members"]:
+                for _m in IR.roster_of(_st).members:
                     if str(_m) not in _cur:
                         continue
                     self._unlock_battle(group_id, _m)
@@ -252,7 +256,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 # 销毁大陆实例 + 当前队伍成员 world_id 回主大陆（只动当前队伍成员，退队者不动）
                 _wid2 = _st.get("world_id") or ""
                 if _wid2.startswith("inst:"):
-                    for _m2 in _st["members"]:
+                    for _m2 in IR.roster_of(_st).members:
                         if str(_m2) in _cur:
                             db.update_player(group_id, _m2, world_id="mainland")
                     C.destroy_instance_world(_wid2)
@@ -280,7 +284,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             old_st = old_row["state"]
             # v137 副本地图化：rooms 存档恢复——玩家 cur_map + cur_subarea 同步回入口房间
             cur = self._instance_current_members(group_id, old_st)
-            ok_members = [m for m in old_st["members"] if str(m) in cur]
+            ok_members = IR.roster_of(old_st).only(cur)  # v185：成员读取收口——只保留仍在队伍中的成员
             if old_st.get("rooms"):
                 _mid = (old_st.get("inst_id") or "").removeprefix("inst_")
                 _entry_sa = C.map_entry_subarea(_mid)
@@ -307,11 +311,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     old_st["mode"] = "map"
                     # v106 恢复路径与 _instance_start 同规则：按速度降序重排行动序
                     #（快者先出手），与开本规则、29 章 4.1 保持一致
-                    old_st["members"] = sorted(
-                        ok_members,
-                        key=lambda m: int(self._player(group_id, m).get("spd", 0)),
-                        reverse=True,
-                    )
+                    # v185：窄化 + 按速度降序重排 + 写回，全走 core/instance_run（名单只有一个写口）
+                    _roster_ok = IR.roster_of(old_st)
+                    _roster_ok.members = _roster_ok.only(ok_members)
+                    _roster_ok.sort_by(lambda m: int(self._player(group_id, m).get("spd", 0)))
+                    IR.write_roster(old_st, _roster_ok)
                     old_st["turn"] = 0
                     for m in ok_members:
                         self._lock_battle(group_id, m)
@@ -350,7 +354,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             # O111 修复：与 _instance_act 的肃清提示统一口径——层内还有未遭遇怪物
             # （stage_pending 非空）时引导『探索』（此前只说"先打完"，玩家不知道
             # 该发什么指令，且与"已被肃清"提示矛盾，playtest O111 阿甘实测）
-            if st.get("stage_pending"):
+            if IR.pending_left(st):
                 yield event.plain_result("当前层的敌人还没肃清！『探索』找到它们～")
             else:
                 yield event.plain_result("当前层的敌人还没肃清！先打完再说～")
@@ -377,13 +381,14 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     return
             yield event.plain_result("副本内请使用『移动 <房间>』推进（队长带队）～『副本地图』查看可前往房间。")
             return
-        if st["stage_idx"] >= len(stages) - 1:
+        # v185：末层判定 / 当前层下标 / 推进一层，全走 core/instance_run（分层进度只有一个写口）
+        _prog = IR.stages_progress(st)
+        if _prog.is_last():
             yield event.plain_result("已经是最深层了，击败面前的 Boss 就通关了！")
             return
         # 推进下一层
-        st["stage_idx"] += 1
         st["stage_cleared"] = False
-        next_stage = stages[st["stage_idx"]]
+        next_stage = stages[_prog.index + 1]
         # v87.2 机关效果：skip_elite_next（下一层跳过精英）/ skip_wave_next（下一层少一波）
         skip_elite = st.get("skip_elite_next", False)
         skip_wave = st.get("skip_wave_next", False)
@@ -392,14 +397,17 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         s_mons = next_stage.get("monsters") or []
         if skip_wave and s_mons:
             s_mons = list(s_mons[:-1]) if len(s_mons) > 1 else []
-        if s_mons or next_stage.get("elite") or next_stage.get("boss"):
+        # 新层待清队列组装（机关 skip 属内容规则）；无怪层保持原值（旧语义）
+        _spawn = bool(s_mons or next_stage.get("elite") or next_stage.get("boss"))
+        _pending_new = list(s_mons)
+        if next_stage.get("elite") and not skip_elite:
+            _pending_new.append(next_stage["elite"])
+        if next_stage.get("boss"):
+            _pending_new.append(next_stage["boss"])
+        IR.stage_advance(st, _pending_new if _spawn else st.get("stage_pending"))
+        if _spawn:
             # 地图化：进入新层地图模式（含 Boss 房），探索触发战斗
             st["mode"] = "map"
-            st["stage_pending"] = list(s_mons)
-            if next_stage.get("elite") and not skip_elite:
-                st["stage_pending"].append(next_stage["elite"])
-            if next_stage.get("boss"):
-                st["stage_pending"].append(next_stage["boss"])
             st["boss"] = None
             st["enemy"] = None
             st["enemies"] = []
@@ -409,7 +417,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         st["enemy"] = st["boss"]
         st["round"] = 1
         st["e_minions"] = []  # v101.28m #438：新战斗开始清空旧援军（防止残留挡刀）
-        for m in st["members"]:
+        for m in IR.roster_of(st).members:
             st["p_buffs"][m] = {}
             st["p_hot"][m] = {}
             st["p_food_effects"][m] = []
@@ -417,7 +425,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         st["turn"] = 0
         st["turn_time"] = int(time.time())
         # 锁全队（层推进重新上锁）
-        for m in st["members"]:
+        for m in IR.roster_of(st).members:
             self._lock_battle(group_id, m)
         self._instance_save(group_id, st)
         if st.get("mode") == "map":
@@ -432,7 +440,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         yield event.plain_result(
             f"🧭 你继续深入……\n"
             f"━━━━━━━━━━━━\n"
-            f"🚪 第 {st['stage_idx'] + 1} 层 · {next_stage['name']}\n"
+            f"🚪 第 {IR.stages_progress(st).index + 1} 层 · {next_stage['name']}\n"
             f"━━━━━━━━━━━━\n"
             f"{self._instance_battle_footer(st, group_id)}\n"
             f"⏳ 轮到 {self._instance_turn_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
@@ -532,7 +540,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     break
         # 旧 stages 路径（rooms 未实现时的过渡兼容）：层内联 POI
         stages = st.get("inst_stages") or []
-        sidx = st.get("stage_idx", 0)
+        sidx = IR.stages_progress(st).index  # v185：当前层下标走 core/instance_run
         stage = stages[sidx] if sidx < len(stages) else {}
         if poi is None and not rooms:
             poi = self._find_stage_poi(stage, name)
@@ -550,9 +558,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             yield event.plain_result(f"{poi.get('name', '')}已经被处理过了。")
             return
         if rooms and _pois_left is not None:
-            if poi_id in _pois_left:
-                _pois_left.remove(poi_id)  # 资源池消费：探索完即空
-            else:
+            # v185：POI 消费写口——take_poi 返回「是否真移出」（不在池中 → False，即旧 else 分支）
+            if not IR.take_poi(st, cur_sa_id, poi_id):
                 yield event.plain_result(f"{poi.get('name', '')}已经被搜刮一空了。")
                 return
         # v87.2 复用世界地图 POI 处理（_handle_poi → inst:<type> 效果链路）
@@ -653,7 +660,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         inst = C.INSTANCES.get(st["inst_id"], {})
         cur = self._instance_current_members(group_id, st)
         # 清战斗锁 + battle 行
-        for m in st["members"]:
+        for m in IR.roster_of(st).members:
             if str(m) in cur:
                 self._unlock_battle(group_id, m)
                 db.clear_battle(group_id, m)
@@ -662,12 +669,12 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             _mid = (st.get("inst_id") or "").removeprefix("inst_")
             _entry_sa = C.map_entry_subarea(_mid)
             if _entry_sa:
-                for m in st["members"]:
+                for m in IR.roster_of(st).members:
                     if str(m) in cur:
                         db.update_player(group_id, m, cur_map=_mid, cur_subarea=_entry_sa)
         _wid = st.get("world_id") or ""
         if _wid.startswith("inst:"):
-            for m in st["members"]:
+            for m in IR.roster_of(st).members:
                 if str(m) in cur:
                     db.update_player(group_id, m, world_id="mainland")
             C.destroy_instance_world(_wid)
@@ -696,7 +703,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         inst = C.INSTANCES.get(st["inst_id"], {})
         # v104 P1（第二轮）：只清当前队伍成员——退队者可能已在别处战斗，不能动 TA 的锁/battle
         cur = self._instance_current_members(group_id, st)
-        for m in st["members"]:
+        for m in IR.roster_of(st).members:
             if str(m) not in cur:
                 continue
             self._unlock_battle(group_id, m)
@@ -711,11 +718,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             _mid = (st.get("inst_id") or "").removeprefix("inst_")
             _entry_sa = C.map_entry_subarea(_mid)
             if _entry_sa:
-                for m in st["members"]:
+                for m in IR.roster_of(st).members:
                     if str(m) in cur:
                         db.update_player(group_id, m, cur_map=_mid, cur_subarea=_entry_sa)
         if _wid.startswith("inst:"):
-            for m in st["members"]:
+            for m in IR.roster_of(st).members:
                 if str(m) in cur:
                     db.update_player(group_id, m, world_id="mainland")
             C.destroy_instance_world(_wid)
@@ -742,7 +749,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         # 不相连），此处只做 inst_row 校验 + 解锁全队，玩家原始 dest 直接透传——
         # 不再重复解析（原 671-698 段删除，避免目标解析+队长校验各执行 2 遍）。
         # 解锁全队（副本内移动需解除战斗锁防双线；_instance_dungeon_move 推进后重新上锁）
-        for m in st.get("members") or []:
+        for m in IR.roster_of(st).members:
             self._unlock_battle(group_id, m)
         # v141 审计 #8：_instance_dungeon_move 内部会再上锁（遇怪/到达都会 _lock_battle）；
         # 但其开头有 cleared/mode!=map/队长校验，route 已通过 inst_row 校验，此处直接透传 dest。
@@ -751,7 +758,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         # 兜底：若 _instance_dungeon_move 提前 return（如目标解析失败/已在原地/不相连），
         # 全队锁已在上方解锁——重新上锁防双线战斗（world.move 前置 _in_battle 拦截需要锁）。
         _st2 = inst_row["state"]
-        for _m2 in _st2.get("members") or []:
+        for _m2 in IR.roster_of(_st2).members:
             self._lock_battle(group_id, _m2)
         return
 
@@ -791,7 +798,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             from ..core.encounter import encounter_chance as _enc_chance
             _agro = _enc_chance(cur_map)
             rstate = rooms.get(cur_sa_id) or {}
-            _left = rstate.get("monsters_left") or []
+            _left = IR.monsters_left(st, cur_sa_id)  # v185：剩余怪数读取走 core/instance_run
             _pois_left = rstate.get("pois_left")
             # ① POI（概率=discovery_agro，只从 pois_left 抽，消耗资源池）
             poi_ids = [pid for pid in (C.subarea_pois(cur_map.get("id", ""), cur_sa_id) or [])
@@ -799,8 +806,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             if poi_ids and random.random() < _agro:
                 poi_id = poi_ids[0]  # 确定性：取剩余列表首个（不新增 random 调用点）
                 poi = C.POIS.get(poi_id, {})
-                if _pois_left is not None and poi_id in _pois_left:
-                    _pois_left.remove(poi_id)
+                if _pois_left is not None:
+                    IR.take_poi(st, cur_sa_id, poi_id)  # v185：POI 消费写口（探索完即空）
                 text = self._handle_poi(group_id, qq_id, player, cur_sa or cur_map, poi_id, poi, st=st)
                 self._sync_players_db(group_id, st)
                 self._instance_save(group_id, st)
@@ -830,12 +837,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             return
         # ---- 旧 stages 路径（波次 3a rooms 未实现前的过渡兼容，行为与现状一致） ----
         stages = st.get("inst_stages") or []
-        sidx = st["stage_idx"]
+        sidx = IR.stages_progress(st).index  # v185：当前层下标走 core/instance_run
         stage = stages[sidx] if sidx < len(stages) else {}
-        pending = st.get("stage_pending") or []
-        if pending:
-            # 遇怪 → 进战斗
-            nxt = pending.pop(0)
+        if IR.pending_left(st):
+            # 遇怪 → 进战斗（v185：待清队列弹一只走 core/instance_run.pending_take）
+            nxt = IR.pending_take(st)
             self._enter_stage_combat(group_id, st, nxt, stage)
             self._instance_save(group_id, st)
             # v126 副本剧情化：Boss 战前台词（仅 role=boss 且 inst 有 boss_line 字段才渲染）
@@ -868,7 +874,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         """v101.28l #423：副本精英按队伍人数缩放强度（超出 min_players 每人 +50% 血/攻/魔攻）。
         与 Boss 缩放（hp_mult + 0.65/人）同思路，幅度略低——精英不该比 Boss 还肉。"""
         inst2 = C.INSTANCES.get(st.get("inst_id") or "", {})
-        n_extra = len(st.get("members") or []) - inst2.get("min_players", 1)
+        n_extra = len(IR.roster_of(st).members) - inst2.get("min_players", 1)
         if n_extra > 0:
             m = 1.0 + 0.5 * n_extra
             mon["max_hp"] = int(mon.get("max_hp", 0) * m)
@@ -883,7 +889,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         # v95r76 #383 补充：层间推进时用 DB 当前血量刷新快照——层肃清后战斗外行为
         # （喝药/调查回血点等）只更新 DB 不更新快照，若不刷新，『深入』后玩家
         # 以旧快照残血开战（格温实测：肃清后喝药 364→564，快照仍是 364 药白喝）
-        for m in st["members"]:
+        for m in IR.roster_of(st).members:
             p = self._player(group_id, m)
             if p:
                 snap = st["players"][str(m)]
@@ -914,14 +920,14 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     st["boss"]["mech"] = _merged
                 else:
                     st["boss"]["mech"] = _inst_mech or _mods_mech
-            hp_mult = inst2["hp_mult"] + 0.65 * (len(st["members"]) - inst2.get("min_players", 1))
+            hp_mult = inst2["hp_mult"] + 0.65 * (len(IR.roster_of(st).members) - inst2.get("min_players", 1))
             st["boss"]["max_hp"] = int(st["boss"]["max_hp"] * hp_mult)
             st["boss"]["hp"] = st["boss"]["max_hp"]
             st["boss"]["atk"] = int(st["boss"]["atk"] * inst2["atk_mult"])
             st["boss"]["matk"] = int(st["boss"]["matk"] * inst2["atk_mult"])
             # 风神铭文：Boss 战前全队 +10% 速度（boss_buff_next）
             if st.get("boss_buff_next"):
-                for m in st["members"]:
+                for m in IR.roster_of(st).members:
                     pb = st["p_buffs"].setdefault(m, {})
                     pb["spd_up"] = max(pb.get("spd_up", 0), 2)
                 st["boss_buff_next"] = False
@@ -931,20 +937,20 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         st["enemy"] = st["boss"]
         st["round"] = 1
         st["e_minions"] = []  # v101.28m #438：新战斗开始清空旧援军（防止残留挡刀）
-        for m in st["members"]:
+        for m in IR.roster_of(st).members:
             st["p_buffs"][m] = {}
             st["p_hot"][m] = {}
             st["p_food_effects"][m] = []
             st["p_defending"][m] = False
         st["turn"] = 0
         st["turn_time"] = int(time.time())
-        st["threat"] = {str(m): 0 for m in st["members"]}  # 仇恨表（v49）
+        st["threat"] = {str(m): 0 for m in IR.roster_of(st).members}  # 仇恨表（v49）
         # 锁全队（战斗重新上锁）
-        for m in st["members"]:
+        for m in IR.roster_of(st).members:
             self._lock_battle(group_id, m)
         # Boss 层附加：boss_buff_next → 全队速度加成 1 战（风神铭文）
         if st.get("boss_buff_next") and stage.get("boss"):
-            for m in st["members"]:
+            for m in IR.roster_of(st).members:
                 pb = st["p_buffs"].setdefault(m, {})
                 pb["spd_up"] = max(pb.get("spd_up", 0), 2)
             st["boss_buff_next"] = False
@@ -1011,7 +1017,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         种子护盾（affix『护盾』+ 专属『奥术屏障』，数值读数据）。在 _enter_stage_combat
         新战斗入口调用一次；p_shields 随快照持久化，_instance_act 重建 Battle 时透传。"""
         try:
-            for m in st.get("members") or []:
+            for m in IR.roster_of(st).members:
                 snap = st.get("players", {}).get(str(m))
                 if not snap:
                     continue
@@ -1038,7 +1044,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             if u.get("hp", 0) > 0 and float(u.get("ct", 0) or 0) > 0:
                 refs.append(float(u.get("ct", 0) or 0))
         for key, snap in (st.get("players") or {}).items():
-            if st.get("alive", {}).get(str(key), True):
+            if IR.alive_of(st, key):
                 _spd = int(snap.get("spd", 0) or 0)
                 from saintess_engine.battle.schedule import action_time as _b2_at
                 _cost = _b2_at(_spd)
@@ -1193,7 +1199,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         """v2：我方阵列存活玩家单位列表（仅供参考 name/rank/reach）。"""
         self._instance_ensure_player_fields(st)
         return [snap for key, snap in (st.get("players") or {}).items()
-                if st.get("alive", {}).get(str(key), True)]
+                if IR.alive_of(st, key)]
 
     def _instance_extract_target(self, event, action: str, skill_name: str = None) -> str or None:
         """v2：从事件消息解析指定目标名（『攻击 <名字>』/『技能 <名> <目标名>』）。
@@ -1241,7 +1247,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
     def _party_composition_hint(self, st: dict) -> list:
         """队伍构成提示(v49 意见#7 职业组队搭配)"""
         roles = [C.CLASSES.get(st["players"][str(m)].get("class_name", ""), {}).get("role", "")
-                 for m in st["members"]]
+                 for m in IR.roster_of(st).members]
         hints = []
         if "坦克" not in roles:
             hints.append("🛡️ 没有坦克：Boss 仇恨没人拉，输出容易被追着打")
@@ -1309,7 +1315,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             # store 层兜底也会幂等销毁，命令层先行保证 DB 恢复一致）
             _wid = st.get("world_id") or ""
             if _wid.startswith("inst:"):
-                for _m in (st.get("members") or []):
+                for _m in IR.roster_of(st).members:
                     try:
                         db.update_player(group_id, _m, world_id="mainland")
                     except Exception:
@@ -1324,14 +1330,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
 
         结算（击杀奖励/通关奖励/失败回城）/ Boss 目标选择 / 进度恢复一律用
         本方法过滤 st["members"]——退队成员不再白拿奖励、不被 Boss 攻击、
-        不被全灭误杀。单人副本（无队伍）视为本人仍在。"""
-        party = [str(m) for m in db.party_members(group_id, st["leader"])]
-        if party:
-            return [str(m) for m in st["members"] if str(m) in party]
-        members = st.get("members") or []
-        if len(members) == 1 and str(members[0]) == str(st["leader"]):
-            return [str(members[0])]
-        return []
+        不被全灭误杀。单人副本（无队伍）视为本人仍在。
+
+        v185：实现收口到 core/instance_run.current_members（唯一真相源）；
+        函数名/签名/返回语义逐字保留（其它文件仍在调本方法）。"""
+        return IR.current_members(group_id, st)
 
     def _instance_list(self, player) -> str:
         lines = ["🏰 【组队副本】", "━━━━━━━━━━━━"]
@@ -1383,12 +1386,10 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             return self._instance_map_view(st, group_id)
         inst = C.INSTANCES.get(st["inst_id"], {})
         self._instance_ensure_player_fields(st)
-        stages = st.get("inst_stages") or []
         stage_line = ""
-        if stages:
-            sidx = st.get("stage_idx", 0)
-            sname = stages[sidx]["name"] if sidx < len(stages) else ""
-            stage_line = f" 🚪 第 {sidx + 1} 层 · {sname}"
+        if IR.stage_count(st):
+            sidx = IR.stages_progress(st).index  # v185：当前层下标/层名走 core/instance_run
+            stage_line = f" 🚪 第 {sidx + 1} 层 · {IR.stage_name(st)}"
         # v164：战斗查看面板 = 完整 footer（站位/时刻/敌方血/全队血蓝/资源/状态），
         # 与每刻行动后弹的面板同款（对齐野外 _battle_footer 信息量），只补标题头。
         lines = [
@@ -1398,13 +1399,14 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         lines.append(self._instance_battle_footer(st, group_id))
         # 行动提示（footer 不含轮到谁——由调用侧拼接；此处取当前轮转玩家）
         _cur = self._instance_current_members(group_id, st)
+        _members = IR.roster_of(st).members
         turn_idx = st.get("turn", 0)
         if _cur:
-            for _ in range(len(st["members"])):
-                if str(st["members"][turn_idx]) in _cur:
+            for _ in range(len(_members)):
+                if str(_members[turn_idx]) in _cur:
                     break
-                turn_idx = (turn_idx + 1) % len(st["members"])
-        cur_key = str(st["members"][turn_idx])
+                turn_idx = (turn_idx + 1) % len(_members)
+        cur_key = str(_members[turn_idx])
         cur_p = self._player(group_id, cur_key)
         lines.append("━━━━━━━━━━━━")
         lines.append(f"⏳ 轮到 {cur_p['name'] if cur_p else cur_key} 行动！『攻击』『技能 <名称>』『防御』")
@@ -1435,7 +1437,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         enemy_view = FM.formation_view(alive_enemies, side="enemy") if alive_enemies else []
         self._instance_ensure_player_fields(st)
         player_units = [snap for key, snap in (st.get("players") or {}).items()
-                        if st.get("alive", {}).get(str(key), True)]
+                        if IR.alive_of(st, key)]
         ally_view = FM.formation_view(player_units, side="ally") if player_units else []
         lines.append("── 敌方 ──" if enemy_view else "")
         if enemy_view:
@@ -1452,12 +1454,13 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
 
         # ④ 全队成员血蓝 + 每人资源条 + buff/减伤/护盾状态
         _cur = self._instance_current_members(group_id, st)
-        shown = [m for m in st["members"] if str(m) in _cur] or st["members"]
+        _roster_shown = IR.roster_of(st)
+        shown = _roster_shown.only(_cur) or _roster_shown.members
         for m in shown:
             k = str(m)
             snap = st["players"].get(k, {})
             pname = snap.get("name") or (self._player(group_id, k) or {}).get("name", k)
-            alive = st["alive"].get(k, True)
+            alive = IR.alive_of(st, k)
             mark = "✅" if alive else "💀"
             line = f"{mark} {pname}：❤️ {snap.get('hp', 0)}/{snap.get('max_hp', 1)} 💙 {snap.get('mp', 0)}/{snap.get('max_mp', 1)}"
             # 防御姿态标记（下一敌方行动减伤）
@@ -1579,7 +1582,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
     def _check_stage_secret_cond(self, st: dict):
         """当前层 secret 条件检查：cond.poi 已调查 → 隐藏房间解锁"""
         stages = st.get("inst_stages") or []
-        sidx = st["stage_idx"]
+        sidx = IR.stages_progress(st).index  # v185：当前层下标走 core/instance_run
         stage = stages[sidx] if sidx < len(stages) else {}
         secret = stage.get("secret")
         if secret and not st.get("stage_secret_found"):
@@ -1604,7 +1607,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
     def _stage_virtual_map(self, st: dict) -> dict:
         """构造当前层"虚拟地图"(复用世界地图展示管线 _map_interactions)"""
         stages = st.get("inst_stages") or []
-        sidx = st["stage_idx"]
+        sidx = IR.stages_progress(st).index  # v185：当前层下标走 core/instance_run
         stage = stages[sidx] if sidx < len(stages) else {}
         pois = [p for p in (stage.get("pois") or []) if not self._poi_used(st, sidx, p.get("id", ""))]
         # 隐藏房间（已发现未清）并入可交互点
@@ -1705,7 +1708,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             return "\n".join(lines)
         vmap = self._stage_virtual_map(st)
         stages = st.get("inst_stages") or []
-        sidx = st["stage_idx"]
+        sidx = IR.stages_progress(st).index  # v185：当前层下标走 core/instance_run
         stage = stages[sidx] if sidx < len(stages) else {}
         inst = C.INSTANCES.get(st["inst_id"], {})
         lines = [f"🗺️ 【{inst.get('icon', '🏰')}{inst.get('name', '')}】第 {sidx + 1} 层 · {stage.get('name', '')}"]
@@ -1780,128 +1783,79 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             return []
         st = st_row["state"]
         stages = st.get("inst_stages") or []
-        sidx = st.get("stage_idx", 0)
+        sidx = IR.stages_progress(st).index  # v185：当前层下标走 core/instance_run
         stage = stages[sidx] if sidx < len(stages) else {}
         return stage.get("npcs") or []
 
     # ---------------- 开本 ----------------
 
     def _instance_build_state(self, kid, inst, members, boss, now, qq_id):
-        """v103.7 B1-3：副本状态构建（stages 分层/地图模式判定/st 初始 dict），原 _instance_start 中段拆出"""
+        """v103.7 B1-3：副本状态构建（stages 分层/地图模式判定/st 初始 dict），原 _instance_start 中段拆出。
+
+        v185：原有三份 25 键 dict（有怪层 / 单层 Boss 房 / 老副本兜底）收敛成**一份按分支补键的
+        构造器**——公共键只写一遍，地图模式与老副本各自的键按分支补（逐键全等由门禁锁定）。
+        """
         stages = inst.get("stages") or []
+        _members = [str(m) for m in members]
         stage_idx = 0
         stage_pending = []  # 当前层剩余怪物（未出战）
         stage_cleared = False
-        mode = "battle"  # 无 stages 老副本 / 单层 Boss 房 → 直接战斗
+        # 分支：首层有怪 → 地图模式 + 首层队列；首层即 Boss 房（单层副本）→ 地图模式 + Boss 入队；
+        # 其余（无 stages 老副本 / 首层空层）→ 直接战斗（boss 直接进场）
+        _map_mode = False
         if stages:
             first_stage = stages[0]
             s_mons = first_stage.get("monsters") or []
             el = first_stage.get("elite")
             if s_mons or el:
                 # 地图化：首层有怪 → 进入地图模式，探索触发战斗
-                mode = "map"
+                _map_mode = True
                 stage_pending = list(s_mons)
                 if el:
                     stage_pending.append(el)
-                st_pre = {
-                    "type": "instance",
-                    "inst_id": kid,
-                    "leader": str(qq_id),
-                    "members": [str(m) for m in members],
-                    "alive": {str(m): True for m in members},
-                    "players": {},
-                    "boss": None,
-                    "enemy": None,
-                    "turn": 0,
-                    "round": 1,
-                    "stage_idx": stage_idx,
-                    "stage_pending": stage_pending,
-                    "stage_cleared": stage_cleared,
-                    "inst_stages": stages,
-                    "mode": mode,
-                    "stage_pois": {},
-                    "stage_secret_found": False,
-                    "stage_secret_cleared": False,
-                    "poi_unlocks": {},
-                    "skip_elite_next": False,
-                    "skip_wave_next": False,
-                    "boss_buff_next": False,
-                    "p_buffs": {str(m): {} for m in members},
-                    "p_hot": {str(m): {} for m in members},
-                    "p_food_effects": {str(m): [] for m in members},
-                    "p_defending": {str(m): False for m in members},
-                    # v181.M-R3：旧 mech_stacks/resources 容器为死字段（战斗资源在
-                    # saintess_engine actor.effects 叠层）——新开本不再初始化
-                    "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
-                    "contribution": {},
-                    "over": False,
-                }
             elif first_stage.get("boss"):
                 # 首层即 Boss 房（单层副本）→ 地图模式，探索触发 Boss 战
-                mode = "map"
-                st_pre = {
-                    "type": "instance",
-                    "inst_id": kid,
-                    "leader": str(qq_id),
-                    "members": [str(m) for m in members],
-                    "alive": {str(m): True for m in members},
-                    "players": {},
-                    "boss": None,
-                    "enemy": None,
-                    "turn": 0,
-                    "round": 1,
-                    "stage_idx": stage_idx,
-                    "stage_pending": [first_stage["boss"]],
-                    "stage_cleared": stage_cleared,
-                    "inst_stages": stages,
-                    "mode": mode,
-                    "stage_pois": {},
-                    "stage_secret_found": False,
-                    "stage_secret_cleared": False,
-                    "poi_unlocks": {},
-                    "skip_elite_next": False,
-                    "skip_wave_next": False,
-                    "boss_buff_next": False,
-                    "p_buffs": {str(m): {} for m in members},
-                    "p_hot": {str(m): {} for m in members},
-                    "p_food_effects": {str(m): [] for m in members},
-                    "p_defending": {str(m): False for m in members},
-                    "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
-                    "contribution": {},
-                    "over": False,
-                }
-        if not stages:
-            # 老副本（无 stages）→ 直接 Boss 战（现状）
-            st_pre = None
-        if st_pre is not None:
-            st = st_pre
-        else:
-            st = {
+                _map_mode = True
+                stage_pending = [first_stage["boss"]]
+        st = {
             "type": "instance",
             "inst_id": kid,
             "leader": str(qq_id),
-            "members": [str(m) for m in members],
-            "alive": {str(m): True for m in members},
+            "members": _members,
+            "alive": {m: True for m in _members},
             "players": {},
-            "boss": boss,
-            "enemy": boss,
+            "boss": None if _map_mode else boss,
+            "enemy": None if _map_mode else boss,
             "turn": 0,
             "round": 1,
             "stage_idx": stage_idx,
             "stage_pending": stage_pending,
             "stage_cleared": stage_cleared,
             "inst_stages": stages,
-            "p_buffs": {str(m): {} for m in members},
-            "p_hot": {str(m): {} for m in members},
-            "p_food_effects": {str(m): [] for m in members},
-            # v181.M-R3：旧 mech_stacks 容器死字段不再初始化（战斗资源在 effects）
+            "p_buffs": {m: {} for m in _members},
+            "p_hot": {m: {} for m in _members},
+            "p_food_effects": {m: [] for m in _members},
+            "p_defending": {m: False for m in _members},
+            # v181.M-R3：旧 mech_stacks/resources 容器为死字段（战斗资源在
+            # saintess_engine actor.effects 叠层）——新开本不再初始化
             "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
-            "p_defending": {str(m): False for m in members},
-            "turn_time": now,
             "contribution": {},
-            "threat": {str(m): 0 for m in members},
             "over": False,
         }
+        if _map_mode:
+            # 地图模式补键（有怪层 / 单层 Boss 房同一组——旧两份逐键相同）
+            st["mode"] = "map"
+            st["stage_pois"] = {}
+            st["stage_secret_found"] = False
+            st["stage_secret_cleared"] = False
+            st["poi_unlocks"] = {}
+            st["skip_elite_next"] = False
+            st["skip_wave_next"] = False
+            st["boss_buff_next"] = False
+        else:
+            # 老副本（无 stages）→ 直接 Boss 战（现状）：补时间戳与仇恨表
+            st["turn_time"] = now
+            st["threat"] = {m: 0 for m in _members}
         # v2：由主怪构建敌方阵列 st["enemies"]（Boss+配置爪牙；怪区 map 模式 boss=None→空）
         st["enemies"] = self._instance_build_enemy_array(st, st.get("boss"))
         # v137 副本地图化：dungeon 房间池/资源池存档（开本时生成，波次 3a 消费端约定）——
@@ -1981,16 +1935,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         ② instance.py _instance_explore（探索遇怪弹出）
         （原两处各自内联的 _left.pop(0) 已改调本函数，消费语义逐字等价）
         """
-        rooms = st.get("rooms")
-        if not rooms:
-            return None
-        rstate = rooms.get(sa_id)
-        if not rstate:
-            return None
-        pool = rstate.get("monsters_left")
-        if not pool:
-            return None
-        return pool.pop(0)
+        return IR.take_monster(st, sa_id)  # v185：房间剩余怪池弹出收口（rooms[x].monsters_left）
 
     def consume_poi_loot(self, st: dict, sa_id: str, poi_id: str):
         """v137：消费房间 POI 的 loot（从资源池扣减），返回奖励 dict 或 None。
@@ -2012,44 +1957,26 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         会拆散交互文本与奖励发放（体验/代码耦合都更差）。保留本函数作公共 API：
         未来"拾取型 POI 独立结算"或跨命令复用资源池扣减时直接调用。不强行删。
         """
-        rooms = st.get("rooms")
-        if not rooms:
+        # v185：消费前提（POI 仍在房间剩余表）与资源池扣减/移出全走 core/instance_run
+        if not IR.poi_left(st, sa_id, poi_id):
             return None
-        rstate = rooms.get(sa_id)
-        if not rstate:
-            return None
-        pois_left = rstate.get("pois_left")
-        if pois_left is None or poi_id not in pois_left:
-            return None
-        pool = st.setdefault("resources_pool", {})
-        gold_left = int(pool.get("gold_left", 0) or 0)
-        mats_left = pool.setdefault("mats_left", {})
-        equip_left = pool.setdefault("equip_left", [])
         poi = C.POIS.get(poi_id) or {}
         loot = poi.get("loot") or {}
         reward = {"gold": 0, "materials": [], "equip": []}
-        # 金币：资源池扣减（不足则只发剩余）
+        # 金币：资源池扣减（不足则只发剩余——spend_gold 返回实得量）
         g = int(loot.get("gold") or 0)
         if g > 0:
-            take = min(g, gold_left)
-            if take > 0:
-                gold_left -= take
-                reward["gold"] = take
+            reward["gold"] = IR.spend_gold(st, g)
         # 材料：同名从 mats_left 扣（不足 1 件则跳过）
         for mn in (loot.get("materials") or []):
-            if mats_left.get(mn, 0) > 0:
-                mats_left[mn] -= 1
+            if IR.spend_mat(st, mn):
                 reward["materials"].append(mn)
         # 装备：从 equip_left 移出（不足则跳过）
         for eq in (loot.get("equip") or []):
-            try:
-                equip_left.remove(eq)
+            if IR.spend_equip(st, eq):
                 reward["equip"].append(eq)
-            except ValueError:
-                pass
-        pool["gold_left"] = gold_left
         # 已消费 POI 移出剩余列表（探索完即空语义）
-        pois_left.remove(poi_id)
+        IR.take_poi(st, sa_id, poi_id)
         return reward
 
     async def _instance_start(self, event, group_id, qq_id, player, arg):
@@ -2212,7 +2139,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         # v2：全员站位归一（老存档恢复或字段缺省时补齐）
         self._instance_ensure_player_fields(st)
         # v57：副本行动序按速度降序（快者先出手）。真人轮流节奏不变，只是顺序由速度决定
-        st["members"] = sorted(st["members"], key=lambda m: st["players"][str(m)].get("spd", 0), reverse=True)
+        IR.sort_members_by(st, lambda m: st["players"][str(m)].get("spd", 0))  # v185：行动序重排收口
         st["turn"] = 0
         # 锁全队
         for m in members:
@@ -2280,7 +2207,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         _first_actor_key = str(_a[1]) if _a[0] == "p" and _a[1] else None
         if _first_actor_key:
             first_actor_name = st["players"].get(_first_actor_key, {}).get("name", _first_actor_key)
-            st["turn"] = st["members"].index(_first_actor_key)
+            st["turn"] = IR.roster_of(st).index_of(_first_actor_key)
         else:
             first_actor_name = _a[1] or "队伍"
             st["turn"] = 0
@@ -2307,7 +2234,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         层肃清后『使用 治疗药水』误报"生命是满的"拒用、进 Boss 战残血开局
         （格温实测：DB 1003/1003 满血拒药，Boss 战第一刻实际 197/1003）。
         每个写回点（行动保存/切怪/层肃清）前调用，与普通战斗每刻 update_player 对齐。"""
-        for m in st["members"]:
+        for m in IR.roster_of(st).members:
             snap = st["players"].get(str(m))
             if not snap:
                 continue
@@ -2324,7 +2251,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         res = {}
         for key, snap in (st.get("players") or {}).items():
             k = str(key)
-            if k in cur and st.get("alive", {}).get(k, True):
+            if k in cur and IR.alive_of(st, k):
                 res[k] = float(snap.get("ct", 0) or 0)
         return res
 
@@ -2361,7 +2288,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             entries.append((float(u.get("ct", 0) or 0), f"{u.get('name', '怪物')}(敌)"))
         for key, snap in (st.get("players") or {}).items():
             k = str(key)
-            if k in cur and st.get("alive", {}).get(k, True):
+            if k in cur and IR.alive_of(st, k):
                 entries.append((float(snap.get("ct", 0) or 0), f"{snap.get('name', k)}(我)"))
         entries.sort(key=lambda x: x[0])
         # v163 全局时刻显示：st["now"] = 战斗绝对时刻（1 刻 = 1 游戏秒，ACT_TICK=1.0）。
@@ -2382,7 +2309,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 return (st.get("players", {}).get(str(_k), {}) or {}).get("name", str(_k))
         except Exception:
             pass
-        key = str(fallback_key) if fallback_key else str(st.get("members", [None])[0])
+        _members = IR.roster_of(st).members
+        key = str(fallback_key) if fallback_key else str((_members or [None])[0])
         return (st.get("players", {}).get(key, {}) or {}).get("name", key)
 
     def _find_skill_cfg(self, player: dict, skill_name: str) -> dict | None:
@@ -2449,10 +2377,10 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         cur = self._instance_current_members(group_id, st)
         # 归并：跨单位累计每成员的 exp 与材料
         per_member = {}
-        for _m in st["members"]:
+        for _m in IR.roster_of(st).members:
             if str(_m) not in cur:
                 continue  # v104 P1：已退队成员不参与击杀奖励
-            if not st["alive"].get(str(_m), True):
+            if not IR.alive_of(st, _m):
                 continue
             p = self._player(group_id, _m)
             if not p:
@@ -2782,7 +2710,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
     def _instance_secret_crack(self, group_id, qq_id, player, st) -> str:
         """隐藏暗格：墙砖松动 → 精英守卫镇守的密室。触发守卫战。"""
         stages = st.get("inst_stages") or []
-        sidx = st["stage_idx"]
+        sidx = IR.stages_progress(st).index  # v185：当前层下标走 core/instance_run
         stage = stages[sidx] if sidx < len(stages) else {}
         # 守卫 = 当前层 elite（无则取第一只普通怪升格）；Boss 房通常只有 Boss，
         # 跨层兜底找全副本第一只 elite/普通怪
@@ -2909,15 +2837,15 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         # 解锁战斗锁（可自由行动），但 battle 记录保留供副本指令读取
         # v104 P1：只解锁当前队伍成员——退队者可能已在别处战斗，不能动 TA 的锁
         cur = self._instance_current_members(group_id, st)
-        for m in st["members"]:
+        for m in IR.roster_of(st).members:
             if str(m) not in cur:
                 continue
             self._unlock_battle(group_id, m)
         # 通关奖励
-        for m in st["members"]:
+        for m in IR.roster_of(st).members:
             if str(m) not in cur:
                 continue  # v104 P1：已退队成员不参与通关奖励
-            if not st["alive"].get(str(m), True):
+            if not IR.alive_of(st, m):
                 lines.append(f"  💀 {st['players'].get(str(m), {}).get('name', m)} 已阵亡，未能获得奖励")
                 continue
             p = self._player(group_id, m)
@@ -2934,7 +2862,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             # 同口径：基础经验 20%、-2 饱食度）。Boss 血量按人数放大，经验按 Boss 原始 exp 计。
             try:
                 pet = (st.get("pets") or {}).get(str(m)) or (db.pet_get(m) or {})
-                if pet and not st["alive"].get(str(m), True) is False:
+                if pet and IR.alive_of(st, m):  # v185：存活读取收口（旧写法 `not alive is False` 同义）
                     _gain = max(1, int(int(boss.get("exp", 0) or 0) * 0.2))
                     pet = db.pet_decay_satiety(dict(pet))
                     _new_sat = max(0, int(pet.get("satiety", 0) or 0) - 2)
@@ -3037,15 +2965,16 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         # 首通记录（每人）+ 阶段九：副本次数 + 成就判定（L3-P3 起成就走总线 kind=instance）
         # v105 M18 P1：结算统计「全队未受伤」→ ach_flawless「完美主义者」解锁
         # （此前全仓 check_achievements 无一传 flawless，条件恒 False 永不可解锁）
+        _members_cur = IR.roster_of(st).members
         _flawless = all(
-            st["alive"].get(str(m2), True)
+            IR.alive_of(st, m2)
             and not (st["players"].get(str(m2), {}) or {}).get("took_dmg")
-            for m2 in st["members"] if str(m2) in cur
+            for m2 in _members_cur if str(m2) in cur
         )
-        for m in st["members"]:
+        for m in _members_cur:
             if str(m) not in cur:
                 continue  # v104 P1：已退队成员不记录首通成就/副本次数
-            if st["alive"].get(str(m), True):
+            if IR.alive_of(st, m):
                 db.set_achievement(group_id, m, f"inst_clear_{st['inst_id']}", 1)
                 db.bump_stats(group_id, m, inst_clears=1)
                 # L3-P3：玩家级反应总线——任何击杀都算数（鱼鱼 09-09 语义决策）。
@@ -3105,7 +3034,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         lines.append("💀 队伍全灭……副本失败！冒险者们被送回了最近的城镇。")
         # v104 P1：只结算当前队伍成员——已退队者不受副本失败牵连（不误杀）
         cur = self._instance_current_members(group_id, st)
-        for m in st["members"]:
+        for m in IR.roster_of(st).members:
             if str(m) not in cur:
                 continue
             self._unlock_battle(group_id, m)
