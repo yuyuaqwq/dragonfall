@@ -199,6 +199,39 @@ def sort_table(table: dict) -> dict:
     return {k: table[k] for k in sorted(table)}
 
 
+def content_sub(domain: str, out_root: str) -> str:
+    """域数据落 `content/data/` 还是 `content/rules/` —— **问框架**，不硬编码第二份列表。
+
+    为什么必须问：框架 `editor/packages.py` 的 DOMAINS 给每个域标了 kind（rules / data），
+    `PK.domain_path()` 按它取路径（effect_rules / passive_proc 走 `content/rules/`）。
+    导出器若写错边 → 文件在、清单也声明了、同步门禁也可能全绿，但编辑器读另一边
+    → **显示 0 条且不报错**（最难查的那类故障，2026-09-13 由域研究实测发现）。
+    """
+    fw = os.path.abspath(out_root)
+    if fw not in sys.path:
+        sys.path.insert(0, fw)
+    try:
+        from editor import packages as PK      # noqa: PLC0415
+    except Exception as e:                     # noqa: BLE001
+        raise ValueError(
+            f"读框架域注册表失败（{fw}）：{e} —— 拒绝猜落点，请确认 --out 指向框架仓"
+        ) from e
+    cfg = PK.DOMAINS.get(domain) or {}
+    if not cfg:
+        raise ValueError(f"框架域注册表里没有域 {domain!r} —— 拒绝导出（编辑器不认）")
+    return "rules" if cfg.get("kind") == "rules" else "data"
+
+
+def json_clean(obj):
+    """JSON 往返一次：让「派生表」与「落盘后读回来的文件」在做 --check 时可比。
+
+    为什么必须：源表里带 tuple（实测 CLASSES 的 tutor = ('导师', '地点')，7 条），json 落盘成 list、
+    读回来是 list ≠ tuple → --check 会误报「不一致」。往返之后 tuple→list（这正是文件里的形状），
+    键序与嵌套形状都不变。
+    """
+    return json.loads(json.dumps(obj, ensure_ascii=False))
+
+
 def build_manifest(existing: dict | None) -> dict:
     """清单 = 管辖字段（规范值）+ domains（由 DERIVERS 派生）+ created（保留已有，否则固定常量）
     + 其余已有字段（字典序，`MANIFEST_DROPPED` 里的字段不再保留）。"""
@@ -245,9 +278,9 @@ def export(domain: str, out_root: str, check_only: bool = False,
             f"未知域 '{domain}'。已实现：{sorted(DERIVERS)}；已规划未实现：{list(PLANNED_DOMAINS)}。"
         )
 
-    table = sort_table(DERIVERS[domain](src_root))
+    table = json_clean(sort_table(DERIVERS[domain](src_root)))
     pkg_dir = os.path.join(out_root, "games", PACKAGE_ID)
-    data_path = os.path.join(pkg_dir, "content", "data", f"{domain}.json")
+    data_path = os.path.join(pkg_dir, "content", content_sub(domain, out_root), f"{domain}.json")
     man_path = os.path.join(pkg_dir, "game.json")
 
     n = len(table)

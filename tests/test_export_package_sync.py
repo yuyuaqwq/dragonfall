@@ -92,11 +92,21 @@ def _load_exporter():
     return EX
 
 
-def _run_cli(out_dir: str, domain: str = "items", timeout: int = 120):
+def _sub(domain: str) -> str:
+    """域数据在 content/ 下的子目录（**问框架**，别硬编码：effect_rules/passive_proc 走 rules/）。"""
+    if FW_ROOT not in sys.path:
+        sys.path.insert(0, FW_ROOT)
+    from editor import packages as PK      # noqa: PLC0415
+    return "rules" if (PK.DOMAINS.get(domain) or {}).get("kind") == "rules" else "data"
+
+
+def _run_cli(out_dir: str, domain: str = "items", timeout: int = 120, check: bool = False):
     env = dict(os.environ)
     env["PYTHONIOENCODING"] = "utf-8"
-    p = subprocess.run([sys.executable, EXPORTER, "--domain", domain, "--out", out_dir],
-                       capture_output=True, timeout=timeout, env=env, cwd=REPO_ROOT)
+    args = [sys.executable, EXPORTER, "--domain", domain, "--out", out_dir]
+    if check:
+        args.append("--check")
+    p = subprocess.run(args, capture_output=True, timeout=timeout, env=env, cwd=REPO_ROOT)
     out = (p.stdout or b"").decode("utf-8", "replace") + (p.stderr or b"").decode("utf-8", "replace")
     return p.returncode, out
 
@@ -138,6 +148,16 @@ def main() -> int:
     if REPO_ROOT not in sys.path:
         sys.path.insert(0, REPO_ROOT)
     import game.data.items as D           # noqa: PLC0415
+    # 框架域注册表（落点 content/data|rules 的唯一真源）—— 本节起全程可用
+    if FW_ROOT not in sys.path:
+        sys.path.insert(0, FW_ROOT)
+    from editor import packages as PK     # noqa: PLC0415
+
+    # 已实现的域：从导出器源码读（别手写第二个列表）；未实现的 = 框架认识但导出器还没有
+    _src = open(EXPORTER, encoding="utf-8").read()
+    _m = re.search(r"^DERIVERS = \{(.*?)^\}", _src, re.S | re.M)
+    doms = sorted(re.findall(r'"([a-z_]+)":\s*derive_', _m.group(1))) if _m else []
+    todo = [d for d in sorted(PK.DOMAINS) if d not in doms]
 
     print("\n【1】源表规模")
     check("ITEMS=900", len(D.ITEMS) == EXPECT_ITEMS, "实际 %d" % len(D.ITEMS))
@@ -288,17 +308,60 @@ def main() -> int:
                     check("声明域 %s 有文件 content/%s/%s" % (f[:-5], sub, f), f[:-5] in doms,
                           "文件存在但 domains 未声明 → 编辑器看不到它")
         for dom in doms:
-            has = any(os.path.exists(os.path.join(PKG_DIR, "content", sub, dom + ".json"))
-                      for sub in ("data", "rules"))
-            check("域 %s 的文件存在" % dom, has, "domains 声明了但 content/{data,rules}/%s.json 不存在" % dom)
+            want = PK.domain_path(PKG_DIR, dom)
+            check("域 %s 落在框架期望的路径（content/%s/）" % (dom, _sub(dom)),
+                  os.path.isfile(want),
+                  "domains 声明了但 %s 不存在（写错 data/rules 边 → 编辑器显示 0 条且不报错）" % want)
 
         print("\n【9】未实现域必须显式报错（不静默产空表）")
-        rc3, o3 = _run_cli(os.path.join(tmp, "r3"), domain="monsters")
-        check("--domain monsters（已规划未实现）退出码非 0", rc3 != 0, "rc=%s" % rc3)
-        check("--domain monsters 提示「未实现」", "未实现" in o3, "输出：%s" % o3.strip()[-200:])
-        check("--domain monsters 未落盘任何文件",
-              not os.path.exists(os.path.join(tmp, "r3", "games", PKG_ID, "content", "data", "monsters.json")),
-              "居然写出了 monsters.json")
+        # 动态挑一个「框架认识、导出器还没实现」的域 —— 写死会在实现当天变成假红/漏测
+        if not todo:
+            print("  · 框架的域已被导出器全部实现 → 本节无事可做（跳过）")
+        else:
+            probe = todo[0]
+            rc3, o3 = _run_cli(os.path.join(tmp, "r3"), domain=probe)
+            check("--domain %s（框架认识但未实现）退出码非 0" % probe, rc3 != 0, "rc=%s" % rc3)
+            check("--domain %s 提示「未实现」" % probe, "未实现" in o3, "输出：%s" % o3.strip()[-200:])
+            check("--domain %s 未落盘任何文件" % probe,
+                  not os.path.exists(os.path.join(tmp, "r3", "games", PKG_ID, "content",
+                                                  _sub(probe), probe + ".json")),
+                  "居然写出了 %s.json" % probe)
+        print("\n【10】每个已实现的域都要与真源同步（防「源里带 tuple / 键序」这类假不一致）")
+        src_txt = open(EXPORTER, encoding="utf-8").read()
+        m = re.search(r"^DERIVERS = \{(.*?)^\}", src_txt, re.S | re.M)
+        doms = sorted(re.findall(r'"([a-z_]+)":\s*derive_', m.group(1))) if m else []
+        check("从导出器源码读到已实现的域（≥2）", len(doms) >= 2, "读到 %r" % doms)
+        for d in doms:
+            out_root = os.path.join(tmp, "sync_" + d)
+            rc, out = _run_cli(out_root, domain=d)
+            check("域 %s 导出退出码 0" % d, rc == 0, out.strip()[-160:])
+            sub = _sub(d)
+            f_new = os.path.join(out_root, "games", PKG_ID, "content", sub, d + ".json")
+            f_repo = os.path.join(PKG_DIR, "content", sub, d + ".json")
+            check("域 %s：CLI 产物与仓库文件逐字节相同" % d,
+                  os.path.exists(f_new) and os.path.exists(f_repo) and _sha(f_new) == _sha(f_repo),
+                  "%s vs %s" % (_sha(f_new)[:12] if os.path.exists(f_new) else "-",
+                                _sha(f_repo)[:12] if os.path.exists(f_repo) else "-"))
+            rc2, out2 = _run_cli(FW_ROOT, domain=d, check=True)
+            check("域 %s：--check 报与真源一致（源里 tuple 不得造成假不一致）" % d,
+                  rc2 == 0 and "不一致" not in out2, out2.strip()[-200:])
+
+        print("\n【11】框架侧回环：包内每一条都要过框架 schema（x-primary def）")
+        from editor import validate as VD      # noqa: PLC0415
+        for d in doms:
+            if d not in PK.DOMAINS:
+                check("域 %s 在框架 DOMAINS 里（否则编辑器不认）" % d, False, "框架侧没有这个域")
+                continue
+            tbl = _read_json(PK.domain_path(PKG_DIR, d), {})
+            tbl = tbl if isinstance(tbl, dict) else {}
+            bad = []
+            for k, v in tbl.items():
+                errs = VD.validate_entry(d, v)
+                if errs:
+                    bad.append((k, errs[0]))
+            check("域 %s：%d 条全部过框架 schema（primary=%s）"
+                  % (d, len(tbl), PK.DOMAINS[d].get("primary")),
+                  bool(tbl) and not bad, "失败样例 %r" % (bad[:2],))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
