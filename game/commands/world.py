@@ -930,11 +930,14 @@ class WorldCmds(CommandBase):
                 # v132 模板统一回归修复；街道链城镇在广场时提示必经之路）
                 _exit_sa_name = next((s["name"] for s in sas if s["id"] == exit_sa_id), "出口")
                 _hint = _exit_sa_name
-                _center = sas[0] if sas else {}
-                if _center.get("type") == C.SUB_TYPE_TOWN and cur_sa == _center.get("id", ""):
-                    _chain = [s for s in sas if s.get("type") in (C.SUB_TYPE_STREET, C.SUB_TYPE_GATE)]
-                    if _chain and _chain[0]["id"] != exit_sa_id:
-                        _hint = _chain[0]["name"]
+                # v183：必经之路问引擎 —— 枢纽在广场时提示「先到哪个中间站」
+                # （v95.25 起这里是手算的星形链首，已逐格比对证明与 route 等价）
+                _mid = cur_map.get("id", "")
+                _hub = C.map_center(_mid)
+                if _hub and cur_sa == _hub:
+                    _r = C.map_route(_mid, cur_sa, exit_sa_id)
+                    if len(_r) >= 2:
+                        _hint = next((s["name"] for s in sas if s["id"] == _r[1]), _hint)
                 lines.append(f"  🧭 出城需先到『{_hint}』")
             # v114.3 尽头标记图例（有深度数据才显示；城镇紧凑模式不显示——鱼鱼模板无此行）
             if _depth is not None and not _compact:

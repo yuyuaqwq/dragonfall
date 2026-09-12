@@ -160,23 +160,25 @@ def move_blocked_msg(cur_map: dict, player: dict, target_sa: dict) -> str:
             cur_name = s["name"]
             break
     center = sas[0] if sas else {}
+    _mid = cur_map.get("id", "")
+    # v183：必经之路问引擎（`map_route` 的第一个中间站）—— v87.16 起这里手算「星形链首」，
+    # 与引擎的 route 是同一件事（已由 tests/test_v183_space_shape.py 逐对比对证明等价）。
+    _hub = C.map_center(_mid)
+    if _hub and cur_sa_id == _hub:
+        _tgt_id = target_sa.get("id") or ""
+        _route = C.map_route(_mid, cur_sa_id, _tgt_id)
+        if len(_route) >= 2 and _route[1] != _tgt_id:
+            first = next((s["name"] for s in sas if s["id"] == _route[1]), _route[1])
+            return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
+                    f"路只有一条，需要先经过{first}。")
     if center.get("type") == C.SUB_TYPE_TOWN:
-        # v87.16 街道链：在广场想去链上目标（东大街/镇郊）时提示必经之路
-        if cur_sa_id == center.get("id", ""):
-            chain = [s for s in sas if s.get("type") in (C.SUB_TYPE_STREET, C.SUB_TYPE_GATE)]
-            # v95.12 防御：目标就是链首（无街道时链首=出口自身）不拦截，避免"先经过自己"
-            if (any(s["id"] == target_sa.get("id") for s in chain)
-                    and chain and chain[0]["id"] != target_sa.get("id")):
-                first = chain[0]["name"] if chain else center.get("name", "广场")
-                return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
-                        f"路只有一条，需要先经过{first}。")
-        # v95.12：非广场城镇子区域按空间连接提示必经路线（街道/出口链），
+        # v95.12：非枢纽城镇子区域按空间连接提示必经路线（街道/出口链），
         # 不要一律"回广场"——镇郊去广场要先经过东大街，提示必须与真实路径一致
-        links = C.subarea_links(cur_map.get("id", ""), cur_sa_id)
+        links = C.subarea_links(_mid, cur_sa_id)
         link_names = [next((s["name"] for s in sas if s["id"] == lid), lid) for lid in links]
         return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
                 f"路只有一条，需要先经过{'、'.join(link_names)}。")
-    links = C.subarea_links(cur_map.get("id", ""), cur_sa_id)
+    links = C.subarea_links(_mid, cur_sa_id)
     link_names = [next((s["name"] for s in sas if s["id"] == lid), lid) for lid in links]
     return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
             f"路只有一条，需要先经过{'、'.join(link_names)}。")

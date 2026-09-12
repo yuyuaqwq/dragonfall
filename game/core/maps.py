@@ -10,6 +10,11 @@ v87.14：空间连接规则——子区域相邻关系 + 城门出入。
 v115：网状子区域核心——subarea_links 切到 SUBAREA_LINKS_INDEX（显式网状，
       含隐藏房间不过滤，可见性由命令层过滤）；新增 subarea_depth /
       is_hidden_room / reveal_met / reveal_progress / bump_explore_count。
+v183（2026-09-12）：**几何形状搬进引擎** `saintess_engine.space` —— 邻接 / 深度 /
+      出入口 / 必经路径由引擎 `Space` 派生，本文件只留「角色映射」适配：
+      子区域 type → 角色（hub/through/exit）+ 首节点角色 → 拓扑（star/chain）。
+      对外函数名与返回**一字不变**（逐格一致由 tests/test_v183_space_shape.py
+      用「冻结的旧实现」全图比对守护）。
 """
 
 
@@ -18,6 +23,55 @@ def _subarea_links_index():
     与 `from .. import db` 同模式）。无显式定义返回空 dict。"""
     from ..data import SUBAREA_LINKS_INDEX
     return SUBAREA_LINKS_INDEX or {}
+
+
+# ---- v183 引擎形状适配：本游戏的「角色映射」----------------------------------
+# 引擎只认角色名（hub/through/exit），**取值**由内容侧给 —— 这三条映射就是全部内容。
+_ROLES = {"hub": "hub", "through": "through", "exit": "exit"}
+_ROLE_BY_TYPE = {
+    SUB_TYPE_TOWN: "hub",        # 中心广场（首个子区域）
+    SUB_TYPE_STREET: "through",  # 如东大街：枢纽 ↔ 出口的通道层
+    SUB_TYPE_GATE: "exit",       # 如镇郊：出城/进城落点
+}
+
+
+def map_space(map_id: str):
+    """本图的引擎 `Space`（节点 = 子区域，角色 = type 映射；显式连通表优先）。
+
+    不缓存：`SUBAREAS` 运行期可被副本克隆增补（缓存会读到半成品）；构造很便宜
+    （每图 ≤ 十余节点），移动路径上的调用量级可接受。
+    """
+    from saintess_engine.space import MESH, Space
+    sas = SUBAREAS.get(map_id) or []
+    nodes = [{"id": s["id"], "name": s.get("name"), "role": _ROLE_BY_TYPE.get(s.get("type"))}
+             for s in sas]
+    mesh = _subarea_links_index().get(map_id)
+    # 旧数据兜底（v87 时期的老图）：城里没有「城镇出口」类型节点时，出入口退回
+    # id 以 `_gate` 结尾者。属**内容策略**（引擎不认识 id 命名习惯），故在适配层算好传进去。
+    gate_override = None
+    if (nodes and nodes[0]["role"] == _ROLES["hub"]
+            and not any(n["role"] == _ROLES["exit"] for n in nodes)):
+        gate_override = next((n["id"] for n in nodes if str(n["id"]).endswith("_gate")), None)
+    if mesh is not None:
+        return Space(nodes=nodes, topology=MESH, roles=_ROLES, links=mesh,
+                     label_key="name", gate=gate_override)
+    topo = "star" if (nodes and nodes[0]["role"] == _ROLES["hub"]) else "chain"
+    return Space(nodes=nodes, topology=topo, roles=_ROLES, label_key="name", gate=gate_override)
+
+
+def map_center(map_id: str) -> str:
+    """枢纽节点 id（星形图的中心）；链状/网状图无枢纽 → ""。"""
+    sp = map_space(map_id)
+    return sp.root if sp.role_of(sp.root) == _ROLES["hub"] else ""
+
+
+def map_route(map_id: str, src: str, dst: str) -> list:
+    """同图必经路径（**含两端**）；同点 → 单元素；任一端未知或不可达 → []。
+
+    用途：把「不能直达，需要先经过 X、Y」这类提示从手算改成问引擎
+    （v183 之前该判断在 travel / world 各抄了一份星形链首逻辑）。
+    """
+    return map_space(map_id).route(src, dst)
 
 
 def _build_ency():
@@ -70,100 +124,35 @@ _build_monster_locs()
 
 
 def subarea_links(map_id: str, subarea_id: str) -> list:
-    """同图内可直达的子区域 id 列表（v87.14 空间连接 + v87.16 街道链 + v115 网状）。
+    """同图内可直达的子区域 id 列表（v183：派生搬进引擎 `saintess_engine.space`）。
 
-    注（v141 审计 2026-08-30）：副本大陆克隆的 subareas 无命令层消费本函数——
-    大陆克隆 subareas 当前无命令层消费，保留待动态化。命令层副本移动走
-    SUBAREA_LINKS_INDEX（instance.py _subarea_arrive 直读数据表），主大陆移动消费本函数。
+    显式网状连通表（SUBAREA_LINKS_INDEX）优先；否则按拓扑派生：**城镇星形
+    （枢纽 ↔ 场所、通道 ↔ 出口，含无通道时枢纽直连出口的防断链分支）/ 野外线性**。
+    结果**包含隐藏房间，不过滤** —— 隐藏房间的可见性由命令层过滤（历史契约不变）。
 
-    v115：若 SUBAREA_LINKS_INDEX 有该图的显式网状定义 → 返回该子区域的显式
-    连接列表（**包含隐藏房间，不过滤**——隐藏房间的可见性由命令层过滤，这是
-    与 G agent 的契约）；否则回退旧逻辑（城镇星形/野外线性）完全不变。
-
-    - 城镇区域：星形拓扑——中心广场（首个子区域）连所有场所 + 街道链首；
-      普通场所只连广场；城镇街道（如东大街）连 广场 + 城镇出口；
-      城镇出口（如镇郊）连城镇街道。
-    - 野外/副本：线性拓扑——按列表顺序相邻（i ↔ i+1），入口 _1 是图内枢纽
+    注（v141 审计）：副本大陆克隆的 subareas 无命令层消费本函数 —— 保留待动态化；
+    命令层副本移动走 SUBAREA_LINKS_INDEX（instance.py _subarea_arrive 直读数据表）。
     """
-    mesh = _subarea_links_index().get(map_id)
-    if mesh is not None:
-        return list(mesh.get(subarea_id, []))
-    sas = SUBAREAS.get(map_id, [])
-    if not sas:
-        return []
-    idx = next((i for i, s in enumerate(sas) if s["id"] == subarea_id), None)
-    if idx is None:
-        return []
-    center = sas[0]
-    if center.get("type") == SUB_TYPE_TOWN:
-        cur_type = sas[idx].get("type")
-        if subarea_id == center["id"]:
-            # 广场连所有场所 + 街道链首（不含城镇出口——镇郊需经东大街）
-            out = [s["id"] for s in sas
-                   if s["id"] != center["id"] and s.get("type") != SUB_TYPE_GATE]
-            # v95.12 无街道链城镇（白鹿城/铁港城）对称防断链：广场直连出口，
-            # 否则广场→出口 "先经过XX(自己)" 死循环，玩家出不了城
-            if not any(s.get("type") == SUB_TYPE_STREET for s in sas):
-                out += [s["id"] for s in sas if s.get("type") == SUB_TYPE_GATE]
-            return out
-        if cur_type == SUB_TYPE_STREET:
-            # 街道：连出口（链尾）+ 广场（链首）
-            out = [s["id"] for s in sas if s.get("type") == SUB_TYPE_GATE]
-            out.append(center["id"])
-            return out
-        if cur_type == SUB_TYPE_GATE:
-            # 出口：只连城镇街道（链首）；无街道时直连广场（防断链，v95 实测白鹿城/铁港城缺街道）
-            streets = [s["id"] for s in sas if s.get("type") == SUB_TYPE_STREET]
-            if streets:
-                return streets
-            return [center["id"]]
-        return [center["id"]]
-    # 线性
-    out = []
-    if idx > 0:
-        out.append(sas[idx - 1]["id"])
-    if idx < len(sas) - 1:
-        out.append(sas[idx + 1]["id"])
-    return out
+    return map_space(map_id).links(subarea_id)
 
 
 def map_exit_subarea(map_id: str) -> str:
-    """离开该图必须所在的子区域（v87.14 + v87.16）。
+    """离开该图必须所在的子区域（v183：= 引擎 `Space.gate()`）。
 
-    - 城镇：城镇出口子区域（镇郊）；无城镇出口则退回 _gate 结尾（旧数据）
-    - 非城镇：首个子区域（入口）
+    城镇：城镇出口子区域；非城镇：首个子区域（入口）。
+    ★ 与 `map_entry_subarea` **同义** —— v183 之前这两份实现逐字重复，现已合一
+    （两者都问引擎同一个 gate，名字保留只为调用方零改动）。
     """
-    sas = SUBAREAS.get(map_id, [])
-    if not sas:
-        return ""
-    if sas[0].get("type") == SUB_TYPE_TOWN:
-        for s in sas:
-            if s.get("type") == SUB_TYPE_GATE:
-                return s["id"]
-        for s in sas:
-            if s["id"].endswith("_gate"):
-                return s["id"]
-    return sas[0]["id"]
+    return map_space(map_id).gate()
 
 
 def map_entry_subarea(map_id: str) -> str:
-    """跨图进入该图的落点子区域（v87.14 + v87.16）。
+    """跨图进入该图的落点子区域（v183：= 引擎 `Space.gate()`，与 map_exit_subarea 同义）。
 
-    - 城镇：城镇出口子区域（从野外进城先到镇郊，再经东大街进广场）
-    - 非城镇：首个子区域（入口）
-    注：注册/传送/回家等"城内直达"场景用 subareas[0]（广场），不走城门。
+    城镇：出口子区域（从野外进城先到镇郊，再经东大街进广场）；非城镇：首个子区域。
+    注：注册/传送/回家等「城内直达」场景用 subareas[0]（广场），不走城门。
     """
-    sas = SUBAREAS.get(map_id, [])
-    if not sas:
-        return ""
-    if sas[0].get("type") == SUB_TYPE_TOWN:
-        for s in sas:
-            if s.get("type") == SUB_TYPE_GATE:
-                return s["id"]
-        for s in sas:
-            if s["id"].endswith("_gate"):
-                return s["id"]
-    return sas[0]["id"]
+    return map_space(map_id).gate()
 
 
 # ---- v115 网状子区域核心 ----
@@ -180,28 +169,12 @@ def _explore_count(group_id: str, qq_id: str, map_id: str) -> int:
 
 
 def subarea_depth(map_id: str, sa_id: str) -> int:
-    """从该图首个子区域（入口）BFS 的深度（入口=0）。
+    """从该图首个子区域（入口）算的深度（v183：口径由引擎定）。
 
-    - SUBAREA_LINKS_INDEX 有该图定义 → BFS 展平深度
-    - 否则回退列表索引深度（线性，即 subareas 列表中位置）
+    - SUBAREA_LINKS_INDEX 有该图定义 → 从入口 BFS（网状图没有天然顺序）
+    - 否则 → 声明序（子区域列表位置：链状/星形图里顺序本身就是作者给的由近及远）
     """
-    sas = SUBAREAS.get(map_id, [])
-    if not sas:
-        return 0
-    mesh = _subarea_links_index().get(map_id)
-    if mesh is not None:
-        entry = sas[0]["id"]
-        dist = {entry: 0}
-        queue = [entry]
-        while queue:
-            cur = queue.pop(0)
-            for nxt in mesh.get(cur, ()):
-                if nxt not in dist:
-                    dist[nxt] = dist[cur] + 1
-                    queue.append(nxt)
-        return dist.get(sa_id, len(sas))
-    idx = next((i for i, s in enumerate(sas) if s["id"] == sa_id), 0)
-    return idx
+    return map_space(map_id).depth(sa_id)
 
 
 def is_hidden_room(map_id: str, sa_id: str) -> bool:

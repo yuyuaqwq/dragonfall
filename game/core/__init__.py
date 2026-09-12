@@ -107,6 +107,8 @@ from .maps import (  # noqa: F401
     subarea_links, map_exit_subarea, map_entry_subarea,
     # v115 网状子区域：供命令层 C.xxx 调用（world/combat 经 getattr(C, ...) 消费）
     subarea_depth, is_hidden_room, reveal_met, reveal_progress, bump_explore_count,
+    # v183 地图形状搬引擎：适配层（map_space 引擎对象 / map_center 枢纽 / map_route 必经路径）
+    map_space, map_center, map_route,
 )
 from .daily_events import today_map_event, today_event_effects  # noqa: F401
 from .pets import make_pet_egg, pet_exp_need, pet_exp_mult, pet_skill_label, pet_quality_label, pet_line, pet_exp_bonus, pct_str, PET_MAX_LEVEL  # noqa: F401  v173.2 封顶50+等级差乘区
