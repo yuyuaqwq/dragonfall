@@ -5,7 +5,7 @@
 防止 @filter.regex 新增/改动时出现"一条消息命中多条指令"的回归。
 
 数据源（双份，互相强校验）：
-1. game/commands/_registry.py 静态表 COMMAND_REGEX（v104 后与装饰器 1:1 同步）
+1. game/commands/_registry.py 有效表 COMMAND_REGEX（2026-09-12 #9 收尾后 = 声明表派生）
 2. AST 全量扫描 game/commands/*.py 的 @filter.regex 装饰器（真实注册 = 142 条）
 
 断言：
@@ -37,7 +37,7 @@ _spec = importlib.util.spec_from_file_location(
     "_registry", os.path.join(CMD_DIR, "_registry.py"))
 _reg = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_reg)
-COMMAND_REGEX = _reg.COMMAND_REGEX   # 有效表 = 声明派生 ∪ 字面量（2026-09-11 起）
+COMMAND_REGEX = _reg.COMMAND_REGEX   # 有效表 = 声明表派生（2026-09-12 起：镜像表已退役）
 
 # ---- 装饰器扫描（**唯一实现在 tests/_cmd_registry.py**）----
 # 两种写法都解析：`@filter.regex(<字面量>)` 与 `@declared("<key>")`（后者取自声明表）。

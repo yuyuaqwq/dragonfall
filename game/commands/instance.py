@@ -23,7 +23,9 @@ import re
 import time
 import uuid
 
-from ._platform import AstrMessageEvent, filter
+from ._platform import AstrMessageEvent
+
+from ._declared import declared
 
 from .. import content as C
 from .. import db
@@ -79,7 +81,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
     # 本期范围：仅支持『副本战斗』（battle 存队长名下，st["type"]=="instance"）；
     # 野外同场战斗（方案 B 队长键）与『副本锁拆分为战斗锁+副本锁』留待后续 Phase。
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?加入战斗(?:\s*|$)")
+    @declared("join_battle")
     @require_player()
     @no_prof_waiting()
 
@@ -208,7 +210,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             f"👥 当前参战：{'、'.join(str(st.get('players', {}).get(m2, {}).get('name', m2)) for m2 in st.get('members', []))}"
         )
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?副本(?!地图)(?:[\s\S]*)$")
+    @declared("instance_cmd")
     @require_player()
     @no_prof_waiting()
 
@@ -323,7 +325,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         async for _r in self._instance_start(event, group_id, qq_id, player, arg):
             yield _r
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?深入(?:(?:第\s*)?(\d+)\s*层)?(?:[层进]\s*)?$")
+    @declared("instance_advance")
     @require_player()
     @no_prof_waiting()
 
@@ -437,7 +439,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         )
 
     # ---------------- 副本地图（v87.2） ----------------
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?副本地图\s*$")
+    @declared("instance_map_view_cmd")
     @require_player()
     @no_prof_waiting()
 
@@ -457,7 +459,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
 
     # ---------------- 调查（v87.2） ----------------
     # v104 M24 P2-4：空参数也命中（help 写『调查』），handler 内给格式提示
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?调查(?:\s+(.+?))?\s*$")
+    @declared("instance_investigate")
     @require_player()
     @no_prof_waiting()
 
@@ -563,7 +565,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         yield event.plain_result(text)
 
     # ---------------- 撤退（v87.2） ----------------
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?撤退\s*$")
+    @declared("instance_retreat")
     @require_player()
     @no_prof_waiting()
 
@@ -617,7 +619,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             db.set_event_state(_ck, "")
         yield event.plain_result("已弹过确认啦～ 回复『确认撤退』放弃进度，或继续冒险！")
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?确认撤退(?:\s*|$)")
+    @declared("instance_retreat_confirm")
     @require_player()
     @no_prof_waiting()
 
@@ -676,7 +678,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         )
 
     # ---------------- 离开副本（v101.27 #390） ----------------
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?离开副本\s*$")
+    @declared("instance_leave")
     @require_player()
     @no_prof_waiting()
 

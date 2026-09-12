@@ -24,7 +24,7 @@ from saintess_engine.command import HandlerHit, PatternSet
 from saintess_engine.command import require_battle, require_player  # noqa: F401
 from saintess_engine.session import SessionAdapter
 
-from ._platform import AstrMessageEvent, filter  # noqa: F401（filter 供 @filter.regex 装饰器）
+from ._platform import AstrMessageEvent, filter  # noqa: F401（filter 供 @filter.custom_filter 用；正则装饰器已全部迁声明表）
 from ._platform import MessageChain
 from ._platform import CustomFilter
 from ._platform import RegexFilter

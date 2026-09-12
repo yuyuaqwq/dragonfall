@@ -1,23 +1,27 @@
 # -*- coding: utf-8 -*-
-"""门禁：指令表迁移（路线图 #9）的**冻结比对** —— 迁移只能搬家，不能动命令面。
+"""门禁：指令表单源化（路线图 #9 收尾后）—— 冻结比对 + 单源结构。
 
-背景：路线图 #9「指令表迁移收尾」要把 `game/commands/_registry.py` 里手写维护的
-`_LITERAL_REGEX`（与各文件 `@filter.regex(<字面量>)` 1:1 同步的镜像表）逐批搬进
-`game/data/command_specs.json` 声明表，让声明成为**唯一真源**。
+背景：命令正则原有两处来源（各文件 `@filter.regex(<字面量>)` + `_registry._LITERAL_REGEX`
+手工镜像表），靠一个「表与装饰器 1:1」测试盯着。2026-09-12 把 194 条指令逐批搬进声明表
+（`game/data/command_specs.json`）+ `@declared("key")`，镜像表已删除。
 
-搬家的过程必须**零行为变化**：玩家发什么消息命中哪条指令，一个字都不能变。
-本门禁把「迁移开始前」的有效表（`COMMAND_REGEX` 194 条）冻结在
-`tests/_command_table_freeze.json`，迁移每一批之后都要求**逐字相等**。
+本门禁守两件事：
+  一、**搬家只能搬家**：迁移开始前的有效表（`COMMAND_REGEX` 194 条）冻结在
+      `tests/_command_table_freeze.json`（sha256 双锁），此后**逐字相等**。
+  二、**单源结构**：有效表 == 声明表派生；镜像表 / 字面量装饰器都不复存在（防有人重新引入
+      第二份正则）。将来若**有意**新增指令：只在声明表加声明 + `@declared("key")`，
+      并显式更新冻结快照（否则本门禁按「凭空多出来的 key」报红）。
 
 断言：
-  A. 冻结比对：当前有效表 == 快照（键集合 + 每条正则逐字）
-  B. 无双源：`OVERLAP_KEYS` 为空（同 key 不能既在声明表又在字面量表）
-  C. 有效表 = 声明派生 ∪ 字面量（条数对得上，且没有任何 key 在迁移中丢失）
-  D. 比较器有牙（反证）：故意改一格 / 删一格 / 加一格 → 比对必须报红
-  E. 进度可见：打印「已迁 / 未迁」条数（迁移收尾后 `_LITERAL_REGEX` 应为空）
+  A. 冻结比对：当前有效表 == 快照（键集合 + 每条正则逐字 + sha256）
+  B. 单源结构：有效表键集 == 声明表键集；无 `_LITERAL_REGEX` / `OVERLAP_KEYS` 残留；
+     命令层 AST 扫描零 `@filter.regex` 装饰器
+  C. 没有任何 key 在迁移中丢失 / 凭空多出
+  D. 比较器有牙（反证）：改一格 / 删一格 / 加一格 → 比对必须报红
 
 跑法：python tests/test_v185_command_migration.py（exit=0 全绿）
 """
+import ast
 import hashlib
 import importlib.util
 import json
@@ -26,6 +30,7 @@ import sys
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CMD_DIR = os.path.join(PLUGIN_DIR, "game", "commands")
+SPEC_FILE = os.path.join(PLUGIN_DIR, "game", "data", "command_specs.json")
 SNAP_FILE = os.path.join(PLUGIN_DIR, "tests", "_command_table_freeze.json")
 
 PASS = 0
@@ -52,6 +57,11 @@ def load_registry_module():
     return mod
 
 
+def load_specs():
+    with open(SPEC_FILE, encoding="utf-8") as f:
+        return json.load(f)
+
+
 def digest_of(table):
     blob = json.dumps({k: v for k, v in sorted(table.items())},
                       ensure_ascii=False, sort_keys=True)
@@ -62,6 +72,24 @@ def diff_tables(old, new):
     """返回逐格差异列表（比较器本体，反证组直接调它）。"""
     return sorted((k, old.get(k), new.get(k))
                   for k in set(old) | set(new) if old.get(k) != new.get(k))
+
+
+def regex_decorators():
+    """AST 扫命令模块里的 `@<ns>.regex(...)` 装饰器（不看注释与文档串）。"""
+    out = []
+    for fn in sorted(os.listdir(CMD_DIR)):
+        if not fn.endswith(".py"):
+            continue
+        with open(os.path.join(CMD_DIR, fn), encoding="utf-8") as f:
+            tree = ast.parse(f.read())
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for dec in node.decorator_list:
+                if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
+                        and dec.func.attr == "regex"):
+                    out.append(f"{fn}:{node.name}")
+    return out
 
 
 def test_A_frozen_table():
@@ -79,13 +107,17 @@ def test_A_frozen_table():
           digest_of(now) == snap["sha256"], digest_of(now))
 
 
-def test_B_no_dual_source():
-    print("【B. 无双源：声明表与字面量表不重叠】")
+def test_B_single_source():
+    print("【B. 单源结构：有效表 = 声明表派生；镜像表与字面量装饰器都不存在】")
     reg = load_registry_module()
-    check("OVERLAP_KEYS 为空", reg.OVERLAP_KEYS == [], reg.OVERLAP_KEYS)
-    check("有效表 = 声明派生 ∪ 字面量（条数对得上）",
-          len(reg.COMMAND_REGEX) == len(reg._DECLARED_REGEX) + len(reg._LITERAL_REGEX),
-          (len(reg.COMMAND_REGEX), len(reg._DECLARED_REGEX), len(reg._LITERAL_REGEX)))
+    specs = load_specs()
+    check("有效表键集 == 声明表键集（不存在第二份来源）",
+          set(reg.COMMAND_REGEX) == set(specs),
+          sorted(set(reg.COMMAND_REGEX) ^ set(specs))[:5])
+    check("字面量镜像表已退役（无 _LITERAL_REGEX / OVERLAP_KEYS）",
+          not hasattr(reg, "_LITERAL_REGEX") and not hasattr(reg, "OVERLAP_KEYS"))
+    left = regex_decorators()
+    check("命令层零 @filter.regex 装饰器残留（AST 扫描，跳过注释/文档串）", not left, left[:5])
 
 
 def test_C_no_key_lost():
@@ -116,23 +148,13 @@ def test_D_comparator_has_teeth():
     check("原样 → 报绿（不假阳性）", diff_tables(base, dict(base)) == [])
 
 
-def test_E_progress():
-    print("【E. 迁移进度】")
-    reg = load_registry_module()
-    n_dec, n_lit = len(reg._DECLARED_REGEX), len(reg._LITERAL_REGEX)
-    total = n_dec + n_lit
-    print(f"  已迁（声明表）= {n_dec} / {total} 条；未迁（字面量表）= {n_lit} 条")
-    check("声明派生非空（迁移确实接上了）", n_dec >= 7, n_dec)
-    if n_lit == 0:
-        print("  🎉 迁移收尾：字面量表已清空，声明表是唯一真源")
-
-
 def main():
     test_A_frozen_table()
-    test_B_no_dual_source()
+    test_B_single_source()
     test_C_no_key_lost()
     test_D_comparator_has_teeth()
-    test_E_progress()
+    if PASS and not FAIL:
+        print(f"\n  单源已达成：{len(load_registry_module().COMMAND_REGEX)} 条指令全部来自声明表")
     print(f"\n== 结果：通过 {PASS} / 共 {PASS + FAIL} ==")
     if FAILURES:
         for f in FAILURES:

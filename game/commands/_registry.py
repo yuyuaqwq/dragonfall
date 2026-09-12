@@ -1,61 +1,33 @@
 # -*- coding: utf-8 -*-
-"""命令正则有效表（**双来源合并，派生**）。
+"""命令正则有效表（**唯一来源：指令声明表**，派生）。
 
-来源一（首选）：`game/data/command_specs.json` 的**声明表** —— 由 `@declared("key")`
-装饰器注册，本表经 `_declared_patterns()` 派生。声明是唯一真源，不再手工同步。
-来源二（历史遗留）：本文件下方的 `_LITERAL_REGEX` 字面量表 —— 给尚未迁移的
-`@filter.regex(<字面量>)` 指令用。
+命令正则的**唯一真源**是 `game/data/command_specs.json`：命令层用 `@declared("key")`
+（等价于旧的 `@filter.regex(<字面量>)`）从声明取正则注册，本表由 `_declared_patterns()`
+从**同一份声明**派生：
 
-    COMMAND_REGEX = {**声明的, **字面量的}      # 同名**不允许**出现（OVERLAP_KEYS 必须为空）
+    COMMAND_REGEX = {key: 合并正则}        # 多条 pattern（别名）→ (?:a)|(?:b)
 
-用途：测试环境/注册表缺失时的快捷指令校验、_GameCmdFilter 停服 gate 拦截、
-快捷转发回退（base.py _static_handlers）。
+2026-09-12（路线图 #9「指令表迁移收尾」）：194 条指令全部迁入声明表，原先手工维护的
+`_LITERAL_REGEX` 镜像表（与装饰器 1:1 同步的那张，曾靠一个同步测试盯着）**已删除** ——
+此后不存在第二份正则，「表与装饰器漂移」在结构上不可能发生。
+新增指令：**只在声明表加声明 + `@declared("key")`**，不要在这里补条目。
 
-迁一条指令到声明表的做法（增量，可停）：
-  1. 在 `game/data/command_specs.json` 加声明（pattern/desc/category/guards…）
-  2. 把该方法的 `@filter.regex(<字面量>)` 换成 `@declared("key")`
-  3. **从下方 `_LITERAL_REGEX` 删掉该 key**（否则 OVERLAP_KEYS 门禁报双源）
+用途：测试环境/注册表缺失时的快捷指令校验、`_GameCmdFilter` 停服 gate 拦截、
+快捷转发回退（`base.py _static_handlers`）。真实 AstrBot 运行以全局注册表
+（star_handlers_registry）为准，本表仅供上述回退场景。
 
-⚠️ 尚未迁移的指令仍受「半自动维护铁律」约束：新增/修改/删除任何 @filter.regex
-命令（含别名），必须同步本表的 `_LITERAL_REGEX`，否则 gate 拦截与回退会失真。同步检查：
-  1. 启动校验：插件加载时 main.py 自动对比「已注册公开 handler 名」与
-     本表键集，漂移以 WARNING 日志输出（见 main.py _fix_handler_module_paths）。
-  2. 强校验：python tests/test_v87_command_matrix.py（表与装饰器 1:1 逐条相等 + 互斥矩阵）
-  3. 解析回归：python tests/test_command_parse.py（命令矩阵互斥/免空格/序号）
+门禁：
+  * `tests/test_v185_command_migration.py` —— 冻结比对（有效表逐字不变）+ 单源结构断言
+  * `tests/test_v87_command_matrix.py` —— 有效表键集 == 装饰器集（逐条相等）+ 互斥矩阵
+  * `tests/test_v181_command_declaration.py` —— 派生保真 / 漂移双向干净 / 编辑器可编辑
 
-真实 AstrBot 运行以全局注册表（star_handlers_registry）为准，本表仅供上述回退场景。
+⚠️ 本文件保持**标准库 only**：测试与工具用 importlib 直载本模块，不能出现包内相对导入。
 """
 
-_LITERAL_REGEX = {
-    # v104 审计后由 M24 命令互斥矩阵测试（tests/test_v87_command_matrix.py）强校验：
-    # 本表只剩**尚未迁到声明表**的指令（2026-09-12 起做「指令表迁移收尾」，路线图 #9）；
-    # 表内条目仍与 game/commands/*.py 的 @filter.regex 装饰器 1:1（键集合 + 模式逐条相等）。
-    # 迁一条：声明表加声明 → 装饰器改 @declared("key") → 删本表同名条目。
-    # v140 波2 『收藏册』（成就/称号/收藏资源化：5 套冒险者收藏册）
-    # v140 波3.7 『今日事件/事件 <地图名>』（地图随机事件菜单；裸『事件』由 world_event 占用）
-    # v115 探索见闻：『探索进度』指令（commands/exploration.py）
-    # v169.2 修炼爬塔（Lv70+ 30 层单人守关，每日限 3 层）：『爬塔 [层数]』
-    # v137 『加入战斗』：同队伍成员并入正在进行中的副本战斗（handler：instance.py InstanceCmds.join_battle）
-    "join_battle": r'^(?:\[At:[^\]]+\]\s*)?加入战斗(?:\s*|$)',
-    "instance_cmd": r'^(?:\[At:[^\]]+\]\s*)?副本(?!地图)(?:[\s\S]*)$',
-    # v105 M24 同步：instance_advance 装饰器已放宽『深入3层』（不带"第"，并行任务 M04/M19 改动），
-    # 静态表必须与装饰器 1:1（矩阵测试强校验）
-    "instance_advance": r'^(?:\[At:[^\]]+\]\s*)?深入(?:(?:第\s*)?(\d+)\s*层)?(?:[层进]\s*)?$',
-    "instance_map_view_cmd": r'^(?:\[At:[^\]]+\]\s*)?副本地图\s*$',
-    # v104 M24 P2-4：『调查』空参数无响应（help 写『调查』但正则强制参数）→ 空参也命中，handler 内给格式提示
-    "instance_investigate": r'^(?:\[At:[^\]]+\]\s*)?调查(?:\s+(.+?))?\s*$',
-    "instance_retreat": r'^(?:\[At:[^\]]+\]\s*)?撤退\s*$',
-    # v173.3 意见#87：撤退二次确认（放弃副本进度）
-    "instance_retreat_confirm": r'^(?:\[At:[^\]]+\]\s*)?确认撤退(?:\s*|$)',
-    "instance_leave": r'^(?:\[At:[^\]]+\]\s*)?离开副本\s*$',
-}
-
-
 # ============================================================
-# 派生：声明表 → 有效表（与 `_LITERAL_REGEX` 合并）
-# ⚠️ 本文件保持**标准库 only**：测试用 importlib 直载本模块
-#    （`test_v87_command_matrix.py`），不能出现包内相对导入。
+# 派生：声明表 → 有效表
 # ============================================================
+
 
 def _combine_patterns(patterns):
     """多条正则合成一条（与框架 `command.combine_patterns` **同语义**）。
@@ -72,7 +44,7 @@ def _combine_patterns(patterns):
 
 
 def _declared_patterns():
-    """读声明表派生 `{key: 正则}`。
+    """读指令声明表派生 `{key: 正则}`。
 
     文件缺失/损坏 → 返回空表（本表仍可用；真正注册用的 `@declared` 会 fail-closed 抛错，
     所以坏掉不会被静默忽略）。
@@ -97,10 +69,5 @@ def _declared_patterns():
     return out
 
 
-_DECLARED_REGEX = _declared_patterns()
-
-# 双源检测：同名 key 出现在声明表与字面量表里 = 迁移做了一半 → 必须为空（门禁断言）
-OVERLAP_KEYS = sorted(set(_DECLARED_REGEX) & set(_LITERAL_REGEX))
-
 # 有效表（调用方零改动：`COMMAND_REGEX` 名字与形状不变）
-COMMAND_REGEX = {**_DECLARED_REGEX, **_LITERAL_REGEX}
+COMMAND_REGEX = _declared_patterns()

@@ -1,91 +1,87 @@
-# 指令表迁移（路线图 #9）—— 现状 / 做法 / 门禁
+# 指令表单源化（路线图 #9）—— 现状 / 做法 / 门禁
 
-> 2026-09-12。目标：命令正则从「两处来源」收敛到**声明表唯一真源**。
-> 相关：框架 `saintess_engine.command.CommandRegistry`、`docs/engine-wiki/reference/declarative-commands-and-texts.md`。
+> 2026-09-12 完成。相关：框架 `saintess_engine.command.CommandRegistry`、
+> `docs/engine-wiki/reference/declarative-commands-and-texts.md`。
 
-## 一、为什么迁
+## 一、结果一句话
+
+**194 条指令 100% 来自声明表**（`game/data/command_specs.json`）；原先手工维护的镜像表
+（`_registry._LITERAL_REGEX`）**已删除**；命令层源码里**零 `@filter.regex` 装饰器**；
+**命令面逐字未变**（冻结比对门禁全程绿）。
+
+## 二、为什么（历史问题）
 
 命令正则原先有两处来源：
 
 ```text
-① 各文件 @filter.regex(<字面量>)           ← 真实注册（AstrBot）
-② game/commands/_registry.py _LITERAL_REGEX ← 手工维护的镜像表
+① 各文件 @filter.regex(<字面量>)             ← 真实注册（AstrBot）
+② game/commands/_registry.py _LITERAL_REGEX  ← 手工维护的镜像表
    （供 停服 gate / 快捷转发回退 / 测试 用）
 ```
 
 两处互相同步 → **一定会漂移**，只能再配一个「表与装饰器 1:1」测试盯着（`test_v87_command_matrix.py`）。
-迁移把 ① 换成 `@declared("key")`（正则从 `game/data/command_specs.json` 取），并删掉 ② 的同名条目
-→ 声明表成为唯一真源；`COMMAND_REGEX = {**声明派生, **尚未迁的字面量}` 对外名字与形状不变。
+迁移把 ① 换成 `@declared("key")`（正则从声明表取），删掉 ② → **声明表是唯一真源**。
 
-## 二、现状（2026-09-12 收工口径）
+## 三、现状（2026-09-12 收工口径）
 
 | 项 | 值 |
 |---|---|
-| 有效指令表 `COMMAND_REGEX` | **194 条**（冻结快照 `tests/_command_table_freeze.json`，sha256 双锁） |
-| 已迁（声明表 `game/data/command_specs.json`） | **186 条** |
-| 未迁（`_registry._LITERAL_REGEX`） | **8 条 = `instance.py` 全族**（副本/深入/副本地图/调查/撤退/确认撤退/离开副本/加入战斗） |
-| `_registry.py` 体量 | 324 → **106 行**（只剩表头纪律注释 + 8 条字面量 + 派生/合并逻辑） |
+| 有效指令表 `COMMAND_REGEX` | **194 条**（= 声明表派生） |
+| 声明表 `game/data/command_specs.json` | **194 条**（含 desc/分类/用法/守卫/排序；73 条带 `extra.note` 记设计来历） |
+| `_LITERAL_REGEX` / `OVERLAP_KEYS` | **已删除**（结构上不可能再漂移） |
+| 命令层 `@filter.regex` 装饰器 | **0**（AST 扫描断言） |
+| `_registry.py` | 324 → **78 行**（只剩「读声明 → 派生 → 合并别名」） |
+| 冻结快照 `tests/_command_table_freeze.json` | 194 条 + sha256 `7fe285c7…` |
 
-未迁那 8 条**有意留到最后**：`instance.py` 是另一会话「副本进度/名单」的改动目标文件，
-同仓并发改同一文件撞车成本高。收尾时按 §三 同一套做法迁即可。
-
-## 三、迁一条的做法（三步，可停、可增量）
+## 四、新增 / 修改 / 删除一条指令（**现在的唯一姿势**）
 
 ```text
-1. game/data/command_specs.json 加声明：
-     {"<key>": {"patterns": ["<正则，逐字来自字面表>"], "desc": ..., "category": ...,
-                "usage": ..., "guards": ["player"], "order": N, ["visible": false, ]
-                ["page_size": N, ] ["extra": {"note": "设计来历/坑"}]}}
-2. 该方法的 @filter.regex(r"…"[, priority=…])  →  @declared("<key>"[, priority=…])
-3. 从 _registry.py 的 _LITERAL_REGEX 删掉同名条目（连同上方的 key 专属注释；
-   表头注释块永不删）
+1. 改 game/data/command_specs.json：
+     {"<key>": {"patterns": ["^…$"], "desc": …, "category": …, "usage": …,
+                "guards": ["player"], "order": N, ["visible": false, ] ["page_size": N, ]
+                ["extra": {"note": "设计来历 / 坑"}]}}
+   · guards 名 = 装饰器链语义（require_player→"player"、require_battle→"battle"、
+     no_prof_waiting→"no_prof_waiting"）
+2. 命令层方法上写 @declared("<key>")（key **就是**方法名惯例）+ 守卫装饰器链
+   → 正则、帮助/目录元数据全部从声明表来；不要写 @filter.regex 字面量
+3. 显式更新冻结快照（**只有有意变更命令面时才做**）：
+     python scripts/command_table_freeze.py --write
+   否则 tests/test_v185_command_migration.py 会按「凭空多出来的 key / 正则变了」报红 —— 这是设计如此
+4. 跑门禁 + 全量回归（下节）
 ```
 
-批量工具（**已入库 scripts/**）：
-
-```bash
-# 1) 看某个模块还有哪些指令没迁（导出上下文：装饰器链 / 字面表值 / 表注释 / docstring）
-python scripts/command_decl_context.py instance.py
-# 2) 写 batch.json（形如 {"file": "instance.py", "items": {"<key>": {desc/category/usage/order/note…}}}）
-# 3) 先 dry-run 看要改什么，再实跑
-python scripts/migrate_command_decl.py _batch.json --dry-run
-python scripts/migrate_command_decl.py _batch.json
-# 4) 冻结快照校验（跑完应打印 差异: 0）
-python scripts/command_table_freeze.py
-```
-
-`migrate_command_decl.py` 的自检项：
-
-* 装饰器字面量 **==** 字面表同 key 的值（不等直接抛，不做「差不多」）
-* `guards` 由**装饰器链**派生（`require_player`→`player`、`require_battle`→`battle`），不手填
-* 正则**逐字**搬到声明（禁止顺手「规范化」——那会改命令面）
-* 全部迁完的模块顺带摘掉不再使用的 `filter` 导入（只看代码，注释里的提及不算）
-
-## 四、门禁
+## 五、门禁
 
 | 门禁 | 断言 | 作用 |
 |---|---|---|
-| `tests/test_v185_command_migration.py` | 12 断言：当前有效表 **== 冻结快照**（键集合 + 每条正则逐字 + sha256）；无双源（`OVERLAP_KEYS` 空）；无 key 丢失/凭空多出；比较器反证（改/删/加一格必报红） | ★ **搬家只能搬家**：迁移每一批后命令面一个字都不能变 |
-| `tests/test_v87_command_matrix.py` | 表与装饰器 1:1（逐字）+ 互斥矩阵 232 样本 + 停服 gate 覆盖 | 防漂移与双触发 |
-| `tests/test_v181_command_declaration.py` | 派生保真 / combine 同语义 / 漂移双向干净 / 声明表过编辑器 schema / catalog 有消费者 | 声明驱动本身的不变量 |
-| `tests/test_command_parse.py` | 命令词无跨 handler 冲突 + 历史 bug 回归 + 200 次 fuzz 无双触发 | 解析层回归（扫描走 `tests/_cmd_registry.py` 共享 helper） |
+| `tests/test_v185_command_migration.py` | 12 断言：有效表 **== 冻结快照**（键集 + 每条正则逐字 + sha256）；单源结构（有效表键集 == 声明表键集 / 无镜像表残留 / AST 扫描零 `@filter.regex`）；无 key 丢失或凭空多出；比较器反证（改/删/加一格必报红） | ★ **命令面冻结** + 单源结构 |
+| `tests/test_v87_command_matrix.py` | 有效表键集 == 装饰器集（逐字）+ 互斥矩阵 232 样本（一条消息恰好命中 1 条）+ 停服 gate 覆盖 | 防漂移 / 防双触发 |
+| `tests/test_v181_command_declaration.py` | 单源 / 派生保真 / `_combine_patterns` ≡ 框架实现 / 漂移双向干净（死声明·漏登记）/ 声明表过编辑器 schema / `catalog()` 可用 | 声明驱动自身的不变量 |
+| `tests/test_command_parse.py` | 命令词无跨 handler 冲突 + 历史 bug 回归 + 200 次 fuzz 无双触发 | 解析层回归 |
 
-冻结快照的生成/校验：`python scripts/command_table_freeze.py`（`--write` 只在**迁移开始前**用；
-日后新增指令须显式更新快照，否则门禁按「凭空多出来的 key」报红）。
+扫描实现**只此一处**：`tests/_cmd_registry.py`（`@filter.regex` 与 `@declared` 两种写法都认）。
 
-## 五、本轮踩到的两个坑（都已修）
+## 六、迁移踩到过的坑（已修，供后人避免）
 
-1. **扫描实现残留**：`test_command_parse.py` 自带一份「只认 `@filter.regex` 字面量」的正则扫描
-   → 迁到声明表的指令**整体掉出正则池**，当场 3 例变红（宠物改名小黑/公会签到5/公会任务 命中 `[]`）。
-   修法：改用共享 helper `tests/_cmd_registry.py`（2026-09-11 建它正是为了避免三处重复扫描），
-   并按 v87 口径剔除停服全局 gate `_maint_gate`。
-2. **表头注释块被误删**：批处理把「上一个 key 迁走后」错挂到下一个 key 上的**表头纪律注释**
-   当成了「key 专属注释」删掉（第五批实测触发）。修法：按结构定位表头（紧跟 `_LITERAL_REGEX = {`
-   的注释行）设为**永不删除**；表头文案同步更新为迁移期口径。
+1. **「读源码找正则」的测试是迁移的绊脚石**（踩了 3 次）：`test_command_parse.py` 只认
+   `@filter.regex` 字面量 → 迁走的指令整体掉出正则池（3 例当场红）；`test_commands_skills.py`
+   / `test_v1302g_job_guide.py` 断言源码里有正则串。修法一律是**改成对有效表/声明表断言**
+   （更强：证的是真正注册的那个值，而不是某处的文本）。
+2. **表头注释块被误删**：批处理把「上一个 key 迁走后」错挂到下一个 key 上的表级纪律注释
+   当成了 key 专属注释（实测触发）。修法：按结构定位表头（紧跟 `_LITERAL_REGEX = {`）并保护。
+3. **声明表 JSON 是 indent=2 且保留键序**（不是 `sort_keys`）——脚本自作主张排序会把整文件重排。
+4. **`filter` 导入摘除要看代码不看注释**（`world.py` 有一条注释提到 `@filter.regex`；
+   `base.py` 仍需要 `filter`，因为它还用 `@filter.custom_filter`）。
 
-## 六、收尾 checklist（迁完 instance.py 后）
+## 七、迁移过程存档（历史，2019 行 diff 都在 git 历史里）
 
-- [ ] 迁移后 `_LITERAL_REGEX` 为空 → `_registry.py` 可再瘦身（只剩「读声明 → 派生 → 合并」）
-- [ ] 把快照里的注释/文档口径改成「声明表是唯一真源，字面量表已退役」
-- [ ] 路线图 §二 #9 标记完成；`docs/engine-wiki/reference/declarative-commands-and-texts.md` 同步
-- [ ] 帮助/目录可考虑改由 `catalog()` 生成（声明里的 desc/category/usage/order 已在表里就位）
+```text
+第一批 social.py 33      第二批 player.py 22        第三/四批 combat.py 15 + gm.py 21
+第五批 economy.py 45     第六批 world.py 37         第七批 单条域 6
+第八批 instance.py 8     —— 194/194 完成
+每一批都跑：冻结比对 + v87 矩阵 + v181 声明 + 解析回归 + 全量
+本文件所在提交链：8b7af65 → 7dd64cb →（第八批/收尾）
+```
+
+迁移用的批处理工具（`@filter.regex` → `@declared`，含「装饰器值 == 镜像表值」等自检）
+随迁移收尾一并移除 —— 已无待迁对象；需要时从 git 历史取。

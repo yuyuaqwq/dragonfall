@@ -6,7 +6,8 @@
 迁到**声明表**（`game/data/command_specs.json`），让声明成为唯一真源。
 
 本门禁锁住迁移后的不变量：
-  1. **无双源**：`_registry.OVERLAP_KEYS` 必须为空（同一个 key 不能既在声明表又在字面量表）
+  1. **单源**：有效表键集 == 声明表键集（字面量镜像表 `_LITERAL_REGEX` / `OVERLAP_KEYS`
+     已随 2026-09-12 路线图 #9 迁移收尾退役）
   2. **派生保真**：声明 → 有效表 的正则与声明值一致；`@declared` 注册的正则 == 有效表该 key
   3. **两处 combine 同语义**：`_registry._combine_patterns` ≡ 框架 `combine_patterns`
      （本表为可独立加载而有意复制了 5 行逻辑 —— 用断言锁死，防两边漂移）
@@ -84,15 +85,17 @@ def scan_declared_usages():
 
 # ============================================================
 
-def test_1_no_dual_source():
-    print("【1. 无双源：声明表与字面量表不重叠】")
+def test_1_single_source():
+    print("【1. 单源：有效表完全由声明表派生】")
     reg = load_registry_module()
-    check("OVERLAP_KEYS 为空（同 key 只能有一个来源）", reg.OVERLAP_KEYS == [], reg.OVERLAP_KEYS)
-    check("有效表 = 声明派生 ∪ 字面量（条数对得上）",
-          len(reg.COMMAND_REGEX) == len(reg._DECLARED_REGEX) + len(reg._LITERAL_REGEX),
-          (len(reg.COMMAND_REGEX), len(reg._DECLARED_REGEX), len(reg._LITERAL_REGEX)))
-    check("声明派生非空（本批已迁入至少 7 条）", len(reg._DECLARED_REGEX) >= 7,
-          len(reg._DECLARED_REGEX))
+    with open(SPEC_FILE, encoding="utf-8") as f:
+        specs = json.load(f)
+    check("声明表非空（本批已迁入至少 7 条）", len(specs) >= 7, len(specs))
+    check("有效表键集 == 声明表键集（不存在第二份来源）",
+          set(reg.COMMAND_REGEX) == set(specs),
+          sorted(set(reg.COMMAND_REGEX) ^ set(specs))[:5])
+    check("字面量镜像表已退役（无 _LITERAL_REGEX / OVERLAP_KEYS）",
+          not hasattr(reg, "_LITERAL_REGEX") and not hasattr(reg, "OVERLAP_KEYS"))
 
 
 def test_2_derivation_faithful():
@@ -170,7 +173,7 @@ def test_5_editor_editable():
 
 
 def main():
-    test_1_no_dual_source()
+    test_1_single_source()
     test_2_derivation_faithful()
     test_3_combine_semantics()
     test_4_drift_both_ways()

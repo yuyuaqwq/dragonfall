@@ -779,7 +779,8 @@
     "category": "战斗",
     "usage": "探索",
     "guards": [
-      "player"
+      "player",
+      "no_prof_waiting"
     ],
     "order": 1,
     "extra": {
@@ -913,7 +914,8 @@
     "category": "世界",
     "usage": "讨伐",
     "guards": [
-      "player"
+      "player",
+      "no_prof_waiting"
     ],
     "order": 3
   },
@@ -1843,7 +1845,8 @@
     "category": "世界",
     "usage": "回家",
     "guards": [
-      "player"
+      "player",
+      "no_prof_waiting"
     ],
     "order": 4
   },
@@ -1855,7 +1858,8 @@
     "category": "世界",
     "usage": "出门",
     "guards": [
-      "player"
+      "player",
+      "no_prof_waiting"
     ],
     "order": 5
   },
@@ -1867,7 +1871,8 @@
     "category": "世界",
     "usage": "拜访 <玩家>",
     "guards": [
-      "player"
+      "player",
+      "no_prof_waiting"
     ],
     "order": 6
   },
@@ -1948,7 +1953,8 @@
     "category": "冒险",
     "usage": "赶路 [NPC/怪物/场景/设施]",
     "guards": [
-      "player"
+      "player",
+      "no_prof_waiting"
     ],
     "order": 4,
     "extra": {
@@ -1993,7 +1999,8 @@
     "category": "冒险",
     "usage": "前往 <地名或序号>",
     "guards": [
-      "player"
+      "player",
+      "no_prof_waiting"
     ],
     "order": 7,
     "extra": {
@@ -2038,7 +2045,8 @@
     "category": "世界",
     "usage": "传送 <名称/序号>",
     "guards": [
-      "player"
+      "player",
+      "no_prof_waiting"
     ],
     "order": 11
   },
@@ -2143,7 +2151,8 @@
     "category": "世界",
     "usage": "交互 <目标>",
     "guards": [
-      "player"
+      "player",
+      "no_prof_waiting"
     ],
     "order": 18
   },
@@ -2374,6 +2383,134 @@
     "order": 11,
     "extra": {
       "note": "v169.2：Lv70+，30 层单人守关，每日限 3 层。"
+    }
+  },
+  "join_battle": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?加入战斗(?:\\s*|$)"
+    ],
+    "desc": "加入战斗：队友并入进行中的副本战斗",
+    "category": "副本",
+    "usage": "加入战斗",
+    "guards": [
+      "player",
+      "no_prof_waiting"
+    ],
+    "order": 8,
+    "extra": {
+      "note": "v137：同队伍成员并入正在进行中的副本战斗（handler：instance.py InstanceCmds.join_battle）。"
+    }
+  },
+  "instance_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?副本(?!地图)(?:[\\s\\S]*)$"
+    ],
+    "desc": "副本列表／开本／战斗中查看进度",
+    "category": "副本",
+    "usage": "副本 [名字]",
+    "guards": [
+      "player",
+      "no_prof_waiting"
+    ],
+    "order": 1,
+    "extra": {
+      "note": "负向断言 (?!地图) 让位『副本地图』。"
+    }
+  },
+  "instance_advance": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?深入(?:(?:第\\s*)?(\\d+)\\s*层)?(?:[层进]\\s*)?$"
+    ],
+    "desc": "深入：清完当前层后推进到下一层",
+    "category": "副本",
+    "usage": "深入 [第N层]",
+    "guards": [
+      "player",
+      "no_prof_waiting"
+    ],
+    "order": 2,
+    "extra": {
+      "note": "v86.2 副本推进。v105 M24 同步：装饰器放宽『深入3层』（不带『第』）——旧版静态表与装饰器曾不一致（并行任务 M04/M19 改动），迁入声明表后正则只此一处。"
+    }
+  },
+  "instance_map_view_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?副本地图\\s*$"
+    ],
+    "desc": "副本地图（当前层小地图全景）",
+    "category": "副本",
+    "usage": "副本地图",
+    "guards": [
+      "player",
+      "no_prof_waiting"
+    ],
+    "order": 3,
+    "extra": {
+      "note": "v87.2；29 章 13.5。"
+    }
+  },
+  "instance_investigate": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?调查(?:\\s+(.+?))?\\s*$"
+    ],
+    "desc": "调查：与当前层 POI 互动（开箱/点火/读碑/拉机关/拆陷阱）",
+    "category": "副本",
+    "usage": "调查 [目标]",
+    "guards": [
+      "player",
+      "no_prof_waiting"
+    ],
+    "order": 4,
+    "extra": {
+      "note": "v104 M24 P2-4：空参数也命中（help 写『调查』但正则曾强制参数）→ handler 内给格式提示。v137 副本地图化：从 SUBAREA_POIS 查当前房间挂载 POI（_handle_poi 已支持 inst:<type> effect），消耗 rooms[cur_room].pois_left（资源池上限），并经 _handle_poi 的 inst:loot 链路消耗 resources_pool（波次）。"
+    }
+  },
+  "instance_retreat": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?撤退\\s*$"
+    ],
+    "desc": "撤退：放弃本局进度（二次确认）",
+    "category": "副本",
+    "usage": "撤退",
+    "guards": [
+      "player",
+      "no_prof_waiting"
+    ],
+    "order": 5,
+    "extra": {
+      "note": "v173.3 意见#87（鱼鱼拍板）：撤退 = 放弃进度（不可恢复）+ 二次确认。旧行为 v87.2 是保留层进度（retreated=True，下次从原层继续）；新行为清空本局进度（战利品/层数全弃），回入口可重新开本。通关后离开请用『离开副本』（保留通关战利品）。"
+    }
+  },
+  "instance_retreat_confirm": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?确认撤退(?:\\s*|$)"
+    ],
+    "desc": "确认撤退：真正放弃副本进度",
+    "category": "副本",
+    "usage": "确认撤退",
+    "guards": [
+      "player",
+      "no_prof_waiting"
+    ],
+    "order": 6,
+    "extra": {
+      "note": "v173.3：前置是玩家发过『撤退』（retreat_confirm_{qq_id} 挂起）。执行：清 battle 状态 + 全员 world_id 回 mainlan + cur_map/cur_subarea 复位到副本入口 + 销毁实例大陆（与 instance_leave 同款清理，但语义=放弃本局进度）。"
+    }
+  },
+  "instance_leave": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?离开副本\\s*$"
+    ],
+    "desc": "离开副本（通关后传出，保留战利品）",
+    "category": "副本",
+    "usage": "离开副本",
+    "guards": [
+      "player",
+      "no_prof_waiting"
+    ],
+    "order": 7,
+    "extra": {
+      "note": "v101.27 #390：通关后主动传出副本；玩家本就在副本入口外，无需传送，只清 battle 状态。"
     }
   }
 }

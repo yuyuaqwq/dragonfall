@@ -16,13 +16,15 @@
     async def weekly_cmd(self, event): ...
 
 声明表 `game/data/command_specs.json` 同时供：正则注册、帮助/目录（desc/category/order）、
-静态表派生（`_registry.COMMAND_REGEX`）、漂移自检（`saintess_engine.command.CommandRegistry`）。
-**同一个 key 只能有一个来源** —— 迁到声明表的 key，必须从 `_registry` 的字面量表里删掉。
+有效表派生（`_registry.COMMAND_REGEX`）、漂移自检（`saintess_engine.command.CommandRegistry`）。
+**同一个 key 只能有一个来源**：新指令只在声明表加声明 + `@declared("key")`。
 
-可拔插
-------
-只用声明表的指令走 `@declared(key)`；其余指令继续用 `@filter.regex(<字面量>)` 一字不改。
-两者由 `_registry` 合并成同一张有效表，调用方（gate / 快捷转发）零感知。**迁移可增量**。
+可拔插 / 迁移状态
+-----------------
+**2026-09-12（路线图 #9「指令表迁移收尾」）起 194 条指令 100% 走声明表** —— 原先
+「未迁指令仍用 `@filter.regex(<字面量>)`、由 `_registry._LITERAL_REGEX` 合并」的增量中间态
+已结束，那张手工镜像表**已删除**。有效表完全由声明表派生，调用方（gate / 快捷转发）零感知；
+迁移的前后命令面**逐字一致**（冻结比对：`tests/test_v185_command_migration.py`）。
 
 fail-closed
 -----------
