@@ -221,3 +221,12 @@ r.to_dict() / Roster.from_dict(d)
 在那里跑 `python tests/test_v185_instance_run.py --write` 生成基线，再把 fixture 拿回主工作树。
 > 细节：私有副本必须落在 `<X>/data/plugins/dragonfall/` 布局下，`tests/conftest.py` 靠这个路径
 > 解析 `data.plugins.dragonfall.*`；`instance_run` 是**当时未提交**的文件，需手动拷进副本。
+
+### 已知口径说明（复核后确认「非行为差异」）
+- **`alive` 缺键**：适配层 `set_alive` 用 `st.setdefault("alive", {})[k] = v`；旧码唯一的写入点
+  （851913a `instance.py:179` join_battle 成员追加）**就是同一写法**，非差异。
+- **`players` 缺键**：`living_players` 走 `st.get("players") or {}`；旧码 `_router_has_living_players`
+  走的是 `st["players"]`。实测**开本 → battle.state 镜像里本就没有 `alive`/`players` 键**
+  （`_instance_build_state` 会建，落库镜像会裁），该分支在生产流程不可达；门禁 A/D 组
+  键集比对前后一致，登记备查。
+- **`consume_poi_loot`**：旧 docstring 已声明「暂无调用方」，本轮只接线其实现、未新增调用方。
