@@ -1798,5 +1798,497 @@
       "player"
     ],
     "order": 23
+  },
+  "deed_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?地契(?:[\\s\\S]*)$"
+    ],
+    "desc": "地契（在售房源 / 我的房产）",
+    "category": "世界",
+    "usage": "地契",
+    "guards": [
+      "player"
+    ],
+    "order": 1
+  },
+  "deed_buy": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?买房(?:[\\s\\S]*)$"
+    ],
+    "desc": "买房（按编号）",
+    "category": "世界",
+    "usage": "买房 <编号>",
+    "guards": [
+      "player"
+    ],
+    "order": 2
+  },
+  "deed_sell": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?卖房(?:[\\s\\S]*)$"
+    ],
+    "desc": "卖房",
+    "category": "世界",
+    "usage": "卖房 <编号>",
+    "guards": [
+      "player"
+    ],
+    "order": 3
+  },
+  "go_home": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?回家(?:[\\s\\S]*)$"
+    ],
+    "desc": "回家（自己房产；家里=铺面可挂机摆摊）",
+    "category": "世界",
+    "usage": "回家",
+    "guards": [
+      "player"
+    ],
+    "order": 4
+  },
+  "go_out": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?出门(?:[\\s\\S]*)$"
+    ],
+    "desc": "出门（离开房产回到所在城镇）",
+    "category": "世界",
+    "usage": "出门",
+    "guards": [
+      "player"
+    ],
+    "order": 5
+  },
+  "visit_home": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?拜访(?:[\\s\\S]*)$"
+    ],
+    "desc": "拜访他人房产",
+    "category": "世界",
+    "usage": "拜访 <玩家>",
+    "guards": [
+      "player"
+    ],
+    "order": 6
+  },
+  "home_storage": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?仓库(?:[\\s\\S]*)$"
+    ],
+    "desc": "房产仓库（查看存物）",
+    "category": "世界",
+    "usage": "仓库",
+    "guards": [
+      "player"
+    ],
+    "order": 7
+  },
+  "home_storage_take": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?取出(?:[\\s\\S]*)$"
+    ],
+    "desc": "从仓库取物",
+    "category": "世界",
+    "usage": "取出 <序号>",
+    "guards": [
+      "player"
+    ],
+    "order": 8
+  },
+  "map_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:地图|周围)(?:\\s*|$)"
+    ],
+    "desc": "当前区域全景（设施/场景/NPC/怪物/可前往）",
+    "category": "冒险",
+    "usage": "地图",
+    "guards": [
+      "player"
+    ],
+    "order": 1,
+    "extra": {
+      "note": "别名『周围』。"
+    }
+  },
+  "region_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?区域(?:\\s*|$)"
+    ],
+    "desc": "区域总览（本区域可前往一览）",
+    "category": "冒险",
+    "usage": "区域",
+    "guards": [
+      "player"
+    ],
+    "order": 2,
+    "extra": {
+      "note": "v167.1：『区域』指令，当前区域可前往总览（与装饰器 1:1）。"
+    }
+  },
+  "location_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?位置(?:\\s*0)?(?:\\s*|$)"
+    ],
+    "desc": "位置：当前精简导航（想赶路请发『赶路』）",
+    "category": "冒险",
+    "usage": "位置",
+    "guards": [
+      "player"
+    ],
+    "order": 3,
+    "extra": {
+      "note": "v128.2：『位置 0』/『位置0』旧捷径已移除 —— 正则捕获 0 后缀仅用于面板提示『赶路』入口，不再切换赶路模式。"
+    }
+  },
+  "hurry_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?赶路(?:[\\s\\S]*)$"
+    ],
+    "desc": "赶路：只看指定类型内容+通道，回复序号直接赶路",
+    "category": "冒险",
+    "usage": "赶路 [NPC/怪物/场景/设施]",
+    "guards": [
+      "player"
+    ],
+    "order": 4,
+    "extra": {
+      "note": "v128.1：回复序号直接赶路，0 结束。"
+    }
+  },
+  "back_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?返回(?:[\\s\\S]*)$"
+    ],
+    "desc": "『返回 <地名>』提示（旧指令仍被使用，给引导不零回复）",
+    "category": "冒险",
+    "usage": "返回 <地名>",
+    "guards": [
+      "player"
+    ],
+    "order": 5,
+    "extra": {
+      "note": "O74：『返回 <地名>』v101.25i 已删（传送/前往替代），但旧指令仍在被玩家使用 → 保留提示 handler，不再只回标题零回复（playtest 第 7 次复现）。"
+    }
+  },
+  "ask_way": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:问路|寻路)(?:[\\s\\S]*)$"
+    ],
+    "desc": "问路：查当前位置到目标的最短路径",
+    "category": "冒险",
+    "usage": "问路 <地名>",
+    "guards": [
+      "player"
+    ],
+    "order": 6,
+    "extra": {
+      "note": "O115：别名『寻路』；补路线指引（MAP_CONNECTIONS 最短路径），此前只回标题零内容。"
+    }
+  },
+  "move": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:前往|移动)(?!开始|结束)(?:\\s*|$)"
+    ],
+    "desc": "前往相邻区域（地名或序号）",
+    "category": "冒险",
+    "usage": "前往 <地名或序号>",
+    "guards": [
+      "player"
+    ],
+    "order": 7,
+    "extra": {
+      "note": "v104 P2(M22)：别名『移动』补回（23 章指令表主指令=『移动 <地名或序号>』，与『前往』双名共存）；(?!开始|结束) 负向断言保留，防已删的『前往开始/结束』旧指令被本指令吞掉。"
+    }
+  },
+  "portal_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:祭坛|方碑)(?:\\s*|$)"
+    ],
+    "desc": "祭坛/方碑：已激活传送点列表",
+    "category": "世界",
+    "usage": "祭坛",
+    "guards": [
+      "player"
+    ],
+    "order": 9,
+    "extra": {
+      "note": "别名『方碑』。"
+    }
+  },
+  "portal_activate": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:激活祭坛|激活)(?:\\s*|$)"
+    ],
+    "desc": "激活传送点（解锁）",
+    "category": "世界",
+    "usage": "激活祭坛",
+    "guards": [
+      "player"
+    ],
+    "order": 10,
+    "extra": {
+      "note": "别名『激活』。"
+    }
+  },
+  "portal_travel": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?传送(?:\\s*|$)"
+    ],
+    "desc": "传送（付费直达，序号或地名）",
+    "category": "世界",
+    "usage": "传送 <名称/序号>",
+    "guards": [
+      "player"
+    ],
+    "order": 11
+  },
+  "quest_view": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:任务|主线)(?:\\s*|$)"
+    ],
+    "desc": "任务面板（主线/支线进度）",
+    "category": "世界",
+    "usage": "任务",
+    "guards": [
+      "player"
+    ],
+    "order": 12,
+    "extra": {
+      "note": "别名『主线』。面板内每日段文案已进文案表（daily.*，第五批）。"
+    }
+  },
+  "quest_accept": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?接取(?:\\s*|$)"
+    ],
+    "desc": "接取任务",
+    "category": "世界",
+    "usage": "接取 <编号/名字>",
+    "guards": [
+      "player"
+    ],
+    "order": 13
+  },
+  "quest_abandon": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?放弃(?:\\s*(\\d+))?\\s*$"
+    ],
+    "desc": "放弃进行中的支线/每日任务（主线不可放弃）",
+    "category": "世界",
+    "usage": "放弃 <编号>",
+    "order": 14,
+    "extra": {
+      "note": "v116：主线不可放弃，只放支线/每日。"
+    }
+  },
+  "daily": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?每日(?!副业)(?:\\s*|$)"
+    ],
+    "desc": "每日任务面板",
+    "category": "世界",
+    "usage": "每日",
+    "guards": [
+      "player"
+    ],
+    "order": 15,
+    "extra": {
+      "note": "负向断言 (?!副业) 让位『每日副业』（旧称，现『副业任务』=daily_prof）。v104 M24 P2-1：『每日副业』曾前缀误触本面板。"
+    }
+  },
+  "time_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?时间(?:指令)?(?:\\s*|$)"
+    ],
+    "desc": "当前时间／季节／天气",
+    "category": "冒险",
+    "usage": "时间",
+    "guards": [
+      "player"
+    ],
+    "order": 8,
+    "extra": {
+      "note": "别名『时间指令』、裸『时间』。"
+    }
+  },
+  "wild_notes": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?见闻录(?:\\s*|$)"
+    ],
+    "desc": "见闻录：野外 NPC 见闻收集",
+    "category": "冒险",
+    "usage": "见闻录",
+    "guards": [
+      "player"
+    ],
+    "order": 9
+  },
+  "npc_quick_dialog": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?[0-9０-９]\\d?$"
+    ],
+    "desc": "裸数字：优先触发 NPC 对话选项",
+    "category": "世界",
+    "usage": "（发数字，如 5）",
+    "order": 17,
+    "extra": {
+      "note": "v101.16：priority=100 高于快捷指令（shortcut_trigger 同 pattern 双注册，靠 priority 判定先后，test_v87 矩阵豁免登记）。"
+    }
+  },
+  "interact_prop": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?交互(?:\\s*|$)"
+    ],
+    "desc": "交互：探索场景机关/物件（许愿井等）",
+    "category": "世界",
+    "usage": "交互 <目标>",
+    "guards": [
+      "player"
+    ],
+    "order": 18
+  },
+  "talk_choice": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:对话|继续|结束对话|再见|告辞)(?:[\\s\\S]*)$"
+    ],
+    "desc": "对话选项／结束对话",
+    "category": "世界",
+    "usage": "对话 <选项> | 结束对话",
+    "guards": [
+      "player"
+    ],
+    "order": 19,
+    "extra": {
+      "note": "别名『继续』『再见』『告辞』。v101.27：独立『找』装饰器已移除（talk_choice 前置已校验玩家）。"
+    }
+  },
+  "turn_in": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:交付任务|交任务)(?:\\s*|$)"
+    ],
+    "desc": "交付任务（NPC 处）",
+    "category": "世界",
+    "usage": "交付任务",
+    "guards": [
+      "player"
+    ],
+    "order": 16,
+    "extra": {
+      "note": "v104 M24 P2-2：别名『交任务』（策划案 23 章:182 主指令）。"
+    }
+  },
+  "rest_camp": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?休息(?:\\s*|$)"
+    ],
+    "desc": "休息：野外露营（恢复部分状态）",
+    "category": "冒险",
+    "usage": "休息",
+    "guards": [
+      "player"
+    ],
+    "order": 10
+  },
+  "rest": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?住宿(?:\\s*|$)"
+    ],
+    "desc": "住宿：城镇旅店（全额恢复）",
+    "category": "冒险",
+    "usage": "住宿",
+    "guards": [
+      "player"
+    ],
+    "order": 11
+  },
+  "reputation": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?声望(?!商店)(?:\\s*|$)"
+    ],
+    "desc": "声望面板（各势力声望等级）",
+    "category": "世界",
+    "usage": "声望",
+    "guards": [
+      "player"
+    ],
+    "order": 20,
+    "extra": {
+      "note": "负向断言 (?!商店) 让位『声望商店』。"
+    }
+  },
+  "rep_shop": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?声望商店(?:\\s+\\S+)?$"
+    ],
+    "desc": "声望商店（用声望等级解锁专属商品）",
+    "category": "世界",
+    "usage": "声望商店 <势力名>",
+    "guards": [
+      "player"
+    ],
+    "order": 21
+  },
+  "camp_join": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?加入阵营(?:\\s+\\S+)?$"
+    ],
+    "desc": "加入阵营（Lv.20 起选四大阵营）",
+    "category": "社交",
+    "usage": "加入阵营 <编号>",
+    "guards": [
+      "player"
+    ],
+    "order": 21,
+    "extra": {
+      "note": "v116 阵营国战最小闭环（四阵营/任务/商店/排行）。"
+    }
+  },
+  "camp_task": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?阵营任务(?:\\s+\\S+)?$"
+    ],
+    "desc": "阵营任务",
+    "category": "社交",
+    "usage": "阵营任务 <阵营名>",
+    "guards": [
+      "player"
+    ],
+    "order": 22
+  },
+  "camp_shop": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?阵营商店(?:\\s+\\S+)?$"
+    ],
+    "desc": "阵营商店",
+    "category": "社交",
+    "usage": "阵营商店 <阵营名>",
+    "guards": [
+      "player"
+    ],
+    "order": 23
+  },
+  "camp_rank": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?阵营排行(?:\\s*|$)"
+    ],
+    "desc": "阵营排行",
+    "category": "社交",
+    "usage": "阵营排行",
+    "guards": [
+      "player"
+    ],
+    "order": 24
+  },
+  "chronicle": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?编年史(?:\\s*|$)"
+    ],
+    "desc": "编年史（世界大事记）",
+    "category": "世界",
+    "usage": "编年史",
+    "guards": [
+      "player"
+    ],
+    "order": 22
   }
 }
