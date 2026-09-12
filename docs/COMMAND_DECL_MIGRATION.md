@@ -41,7 +41,20 @@
    表头注释块永不删）
 ```
 
-批量工具（本轮用的，留在插件根目录，未入库）：`_decl_migrate.py <batch.json>`，自检项：
+批量工具（**已入库 scripts/**）：
+
+```bash
+# 1) 看某个模块还有哪些指令没迁（导出上下文：装饰器链 / 字面表值 / 表注释 / docstring）
+python scripts/command_decl_context.py instance.py
+# 2) 写 batch.json（形如 {"file": "instance.py", "items": {"<key>": {desc/category/usage/order/note…}}}）
+# 3) 先 dry-run 看要改什么，再实跑
+python scripts/migrate_command_decl.py _batch.json --dry-run
+python scripts/migrate_command_decl.py _batch.json
+# 4) 冻结快照校验（跑完应打印 差异: 0）
+python scripts/command_table_freeze.py
+```
+
+`migrate_command_decl.py` 的自检项：
 
 * 装饰器字面量 **==** 字面表同 key 的值（不等直接抛，不做「差不多」）
 * `guards` 由**装饰器链**派生（`require_player`→`player`、`require_battle`→`battle`），不手填
@@ -57,7 +70,7 @@
 | `tests/test_v181_command_declaration.py` | 派生保真 / combine 同语义 / 漂移双向干净 / 声明表过编辑器 schema / catalog 有消费者 | 声明驱动本身的不变量 |
 | `tests/test_command_parse.py` | 命令词无跨 handler 冲突 + 历史 bug 回归 + 200 次 fuzz 无双触发 | 解析层回归（扫描走 `tests/_cmd_registry.py` 共享 helper） |
 
-冻结快照的生成/校验：`python _decl_freeze.py`（`--write` 只在**迁移开始前**用；
+冻结快照的生成/校验：`python scripts/command_table_freeze.py`（`--write` 只在**迁移开始前**用；
 日后新增指令须显式更新快照，否则门禁按「凭空多出来的 key」报红）。
 
 ## 五、本轮踩到的两个坑（都已修）
