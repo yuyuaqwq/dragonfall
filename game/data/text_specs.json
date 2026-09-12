@@ -64,6 +64,84 @@
   "category": "每日任务",
   "desc": "面板：完成若干但未满额"
  },
+ "quests.published": {
+  "value": "📜 今日任务已发布！",
+  "category": "每日任务",
+  "desc": "『每日』发布面板标题"
+ },
+ "quests.item": {
+  "value": "{n:>2}. 『{name}』{desc}",
+  "params": [
+   "n",
+   "name",
+   "desc"
+  ],
+  "category": "每日任务",
+  "desc": "发布面板条目（任务名+描述同行）"
+ },
+ "quests.item_reward": {
+  "value": "    奖励：经验 +{exp} 金币 +{gold}",
+  "params": [
+   "exp",
+   "gold"
+  ],
+  "category": "每日任务",
+  "desc": "条目赏金行（4 空格缩进）"
+ },
+ "quests.item_decay": {
+  "value": "    ⚠️ 重复完成，奖励衰减 {pct}%：经验 +{exp} 金币 +{gold}",
+  "params": [
+   "pct",
+   "exp",
+   "gold"
+  ],
+  "category": "每日任务",
+  "desc": "条目赏金行（今日已做过同任务 → 衰减档）"
+ },
+ "quests.progress_note": {
+  "value": "📌 今日已完成 {base}/{limit} 个每日任务",
+  "params": [
+   "base",
+   "limit"
+  ],
+  "category": "每日任务",
+  "desc": "重新抽取时附在面板尾（base 为今日已完成计数，防刷不归零）"
+ },
+ "quests.limit": {
+  "value": "⚠️ 今日已完成 {completed}/{limit} 个每日任务，明天再来吧！",
+  "params": [
+   "completed",
+   "limit"
+  ],
+  "category": "每日任务",
+  "desc": "『每日』：已达上限"
+ },
+ "quests.have": {
+  "value": "你已经有每日任务了！输入『任务』查看～",
+  "category": "每日任务",
+  "desc": "『每日』：今日任务已在（防重复抽取）"
+ },
+ "quests.done": {
+  "value": "📜 每日『{name}』完成！奖励：经验 +{exp} 金币 +{gold}",
+  "params": [
+   "name",
+   "exp",
+   "gold"
+  ],
+  "category": "每日任务",
+  "desc": "达标结算通知（拼进战斗结算/采集行）"
+ },
+ "quests.done_decay": {
+  "value": "📜 每日『{name}』完成！重复完成，奖励衰减 {pct}%：经验 +{exp} 金币 +{gold}",
+  "params": [
+   "name",
+   "pct",
+   "exp",
+   "gold"
+  ],
+  "category": "每日任务",
+  "desc": "达标结算通知（重复完成档）"
+ },
  "instance.leader_only": {
   "value": "只有队长才能开启副本！让队长来『副本 <名字>』吧～",
   "category": "副本准入",

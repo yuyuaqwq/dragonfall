@@ -70,6 +70,7 @@ def settle_daily_quest(group_id, qq_id, daily, dq, lines=None):
     通知行。调用方负责进度 +1 与达标判断，结算后自行 del 任务键；lines=None 时不输出通知。"""
     from .. import db
     from ..content_rules.gameplay import check_player_level_up
+    from ..core import texts as T
     from ..core.stat_bonus import stat_bonus
     daily["_completed"] = int(daily.get("_completed", 0) or 0) + 1
     rpt = int(daily.get("_repeat", {}).get(dq["name"], 0) or 0)
@@ -80,9 +81,11 @@ def settle_daily_quest(group_id, qq_id, daily, dq, lines=None):
         _dec = dq.get("repeat", 0)
         if _dec:
             _pct = daily_repeat_pct(_dec)
-            lines.append(f"📜 每日『{dq['name']}』完成！重复完成，奖励衰减 {_pct}%：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+            lines.append(T.text("quests.done_decay", name=dq["name"], pct=_pct,
+                                exp=dq["reward_exp"], gold=dq["reward_gold"]))
         else:
-            lines.append(f"📜 每日『{dq['name']}』完成！奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+            lines.append(T.text("quests.done", name=dq["name"], exp=dq["reward_exp"],
+                                gold=dq["reward_gold"]))
     player = db.get_player(group_id, qq_id)
     player["exp"] += dq["reward_exp"]
     player["gold"] += dq["reward_gold"]
@@ -178,6 +181,7 @@ def draw_daily(group_id, qq_id, player):
     from .. import content as C
     from .. import db
     import datetime as _dt
+    from ..core import texts as T
     quests = db.get_quests(group_id, qq_id)
     # v94 跨天清理：昨天的任务过期，先清空再判断（旧存档无 _date 视为过期）
     if db.expire_daily(quests):
@@ -186,9 +190,9 @@ def draw_daily(group_id, qq_id, player):
     # v116 §3.4 每日防刷：已完成任务（_completed 计数）≥ 上限 → 不再抽新任务
     completed = int(daily.get("_completed", 0) or 0)
     if completed >= DAILY_LIMIT:
-        return False, f"⚠️ 今日已完成 {completed}/{DAILY_LIMIT} 个每日任务，明天再来吧！"
+        return False, T.text("quests.limit", completed=completed, limit=DAILY_LIMIT)
     if any(k not in DAILY_META_KEYS for k in daily):
-        return False, "你已经有每日任务了！输入『任务』查看～"
+        return False, T.static("quests.have")
     # v116 保留今日已完成/重复计数（active 任务清空后重新抽取时不可归零，防刷衰减判定持续有效）
     base_completed = completed
     repeat = dict(daily.get("_repeat", {}) or {})
@@ -206,19 +210,22 @@ def draw_daily(group_id, qq_id, player):
                           "repeat": rpt, "progress": 0}
     quests["daily"] = daily
     db.save_quests(group_id, qq_id, quests)
-    lines = ["📜 今日任务已发布！", "━━━━━━━━━━━━"]
+    lines = [T.static("quests.published"), "━━━━━━━━━━━━"]
     _daily_n = 0  # v125.1 P2：序号仅计实际任务（跨 _date/_completed/_repeat 元数据键）
     for dkey, dq in daily.items():
         if dkey in DAILY_META_KEYS:
             continue
         _daily_n += 1
         _dec = dq.get("repeat", 0)
-        lines.append(f"{_daily_n:>2}. 『{dq['name']}』{dq['desc']}")
+        lines.append(T.text("quests.item", n=_daily_n, name=dq["name"], desc=dq["desc"]))
         if _dec:
             _pct = daily_repeat_pct(_dec)
-            lines.append(f"    ⚠️ 重复完成，奖励衰减 {_pct}%：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+            lines.append(T.text("quests.item_decay", pct=_pct, exp=dq["reward_exp"],
+                                gold=dq["reward_gold"]))
         else:
-            lines.append(f"    奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+            lines.append(T.text("quests.item_reward", exp=dq["reward_exp"],
+                                gold=dq["reward_gold"]))
     if base_completed:
-        lines.append(f"📌 今日已完成 {base_completed}/{DAILY_LIMIT} 个每日任务")
+        lines.append(T.text("quests.progress_note", base=base_completed,
+                            limit=DAILY_LIMIT))
     return True, "\n".join(lines)

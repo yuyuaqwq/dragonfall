@@ -10,7 +10,8 @@
 
 **逐字一致**（"迁移没改玩家看到的字"）由两层证据扛：
   · 副本域：`tests/test_v185_instance_admission.py` 的 **805 格逐格冻结比对**（对照物 = 旧实现冻结体）
-  · 周常 / 签到 / 补给箱 / 每日任务域：本文件 `WEEKLY_FROZEN` / `SIGNIN_FROZEN` / `SUPPLY_FROZEN` / `DAILY_FROZEN` —— **迁移前真跑各分支存下来的完整输出**，
+  · 周常 / 签到 / 补给箱 / 每日域：本文件 `WEEKLY_FROZEN` / `SIGNIN_FROZEN` / `SUPPLY_FROZEN` /
+    `DAILY_FROZEN`（面板段）/ `QUEST_FROZEN`（『每日』命令） —— **迁移前真跑各分支存下来的完整输出**，
     每次跑测试复跑比对（签到分支用 random 打桩保证可复现）
 
 跑法：python tests/test_texts_table.py（exit=0 通过）
@@ -40,11 +41,12 @@ WEEKLY_SRC = os.path.join(_PD, "game", "commands", "weekly.py")
 MISC_SRC = os.path.join(_PD, "game", "commands", "misc.py")
 EVENT_SRC = os.path.join(_PD, "game", "commands", "event_menu.py")
 WORLD_SRC = os.path.join(_PD, "game", "commands", "world.py")
+QUESTS_SRC = os.path.join(_PD, "game", "services", "quests.py")
 GATE_SRC = os.path.join(_PD, "game", "core", "instance_gate.py")
 SPEC = T.SPEC_PATH
 # 已迁移的域 → 该域文案由哪个文件接线（新增一个域时在这里加一行）
 WIRED = {"副本准入": GATE_SRC, "周常": WEEKLY_SRC, "签到": MISC_SRC,
-         "补给箱": EVENT_SRC, "每日任务": WORLD_SRC}
+         "补给箱": EVENT_SRC, "每日任务": WORLD_SRC, "每日命令": QUESTS_SRC}
 
 passed = failed = 0
 
@@ -93,6 +95,17 @@ DAILY_FROZEN = {
     "C_done_part": "📜 【冒险日志】\n━━━━━━━━━━━━\n【主线】已全部完成！🎊\n\n【支线】暂无——找镇上的 NPC 聊聊可能有意外收获\n\n【每日】今日已完成 2 个每日任务——输入『每日』还能再接～\n\n💡 『对话 <NPC名>』接取任务",
     "D_done_full": "📜 【冒险日志】\n━━━━━━━━━━━━\n【主线】已全部完成！🎊\n\n【支线】暂无——找镇上的 NPC 聊聊可能有意外收获\n\n【每日】今日已完成 10/10 个每日任务，明天再来！\n\n💡 『每日』领取今日任务"
 }   # 迁移前快照（2026-09-12 真跑存下，勿手改；比对时剔除 💡 随机提示行）
+
+# 迁移前行为快照（真跑『每日』命令 7 分支：首发/已有/满额/重抽/衰减/达标/重复达标）
+QUEST_FROZEN = {
+    "A_publish": "ok=True\n📜 今日任务已发布！\n━━━━━━━━━━━━\n 1. 『大扫除』击败 15 只任意怪物\n    奖励：经验 +1500 金币 +400\n 2. 『日常讨伐』击败 10 只任意怪物\n    奖励：经验 +1200 金币 +270",
+    "B_have": "ok=False\n你已经有每日任务了！输入『任务』查看～",
+    "C_limit": "ok=False\n⚠️ 今日已完成 10/10 个每日任务，明天再来吧！",
+    "D_republish": "ok=True\n📜 今日任务已发布！\n━━━━━━━━━━━━\n 1. 『大扫除』击败 15 只任意怪物\n    奖励：经验 +1500 金币 +400\n 2. 『日常讨伐』击败 10 只任意怪物\n    奖励：经验 +1200 金币 +270\n📌 今日已完成 3/10 个每日任务",
+    "E_decay": "ok=True\n📜 今日任务已发布！\n━━━━━━━━━━━━\n 1. 『大扫除』击败 15 只任意怪物\n    ⚠️ 重复完成，奖励衰减 60%：经验 +900 金币 +240\n 2. 『日常讨伐』击败 10 只任意怪物\n    ⚠️ 重复完成，奖励衰减 60%：经验 +720 金币 +162",
+    "F_settle": "📜 每日『边境警戒』完成！奖励：经验 +100 金币 +50",
+    "G_settle_decay": "📜 每日『边境警戒』完成！重复完成，奖励衰减 60%：经验 +100 金币 +50"
+}   # 迁移前快照（2026-09-12 真跑存下，勿手改；抽签用 random.seed(11)）
 
 _GID, _QID = "g_txt", "q_txt"
 _SID = "g_si"
@@ -234,6 +247,55 @@ async def _daily_scenarios() -> dict:
     return out
 
 
+async def _quests_scenarios() -> dict:
+    """复跑『每日』命令（services/quests.py）的 7 个分支（步骤与快照脚本逐行一致）。"""
+    from data.plugins.dragonfall.game.services.quests import (
+        draw_daily, settle_daily_quest, DAILY_LIMIT as _LIM,
+    )
+    today = datetime.date.today().isoformat()
+    base = {"main_quest": "", "main_status": "", "main_progress": {},
+            "completed_main": [], "side": {}}
+
+    def _st(daily):
+        st = dict(base)
+        st["daily"] = daily
+        return st
+
+    clean_db()
+    m = Main(None)
+    db.create_player("g_dq", "q_dq", "每日", C.resolve("classes", "战士"), {}, 100, 100)
+    p = db.get_player("g_dq", "q_dq")
+    out = {}
+    random.seed(11)
+    ok, text = draw_daily("g_dq", "q_dq", p)
+    out["A_publish"] = ("ok=%s\n" % ok) + text
+    ok, text = draw_daily("g_dq", "q_dq", p)
+    out["B_have"] = ("ok=%s\n" % ok) + text
+    db.save_quests("g_dq", "q_dq", _st({"_date": today, "_completed": _LIM}))
+    ok, text = draw_daily("g_dq", "q_dq", p)
+    out["C_limit"] = ("ok=%s\n" % ok) + text
+    db.save_quests("g_dq", "q_dq", _st({"_date": today, "_completed": 3, "_repeat": {}}))
+    random.seed(11)
+    ok, text = draw_daily("g_dq", "q_dq", p)
+    out["D_republish"] = ("ok=%s\n" % ok) + text
+    rep_all = {q["name"]: 1 for q in C.DAILY_QUESTS}
+    db.save_quests("g_dq", "q_dq", _st({"_date": today, "_completed": 0, "_repeat": rep_all}))
+    random.seed(11)
+    ok, text = draw_daily("g_dq", "q_dq", p)
+    out["E_decay"] = ("ok=%s\n" % ok) + text
+    lines = []
+    dq = {"name": "边境警戒", "desc": "击杀 10 只任意怪物", "objective": {"kill_any": 10},
+          "reward_exp": 100, "reward_gold": 50, "repeat": 0}
+    settle_daily_quest("g_dq", "q_dq", {"_completed": 0, "_repeat": {}}, dq, lines)
+    out["F_settle"] = "\n".join(lines)
+    lines2 = []
+    settle_daily_quest("g_dq", "q_dq", {"_completed": 0, "_repeat": {"边境警戒": 1}},
+                       dict(dq, repeat=1), lines2)
+    out["G_settle_decay"] = "\n".join(lines2)
+    clean_db()
+    return out
+
+
 # ══════════════════════════════════════════════════════════════════════════
 def _scan_calls(path):
     """AST 扫模块：
@@ -265,7 +327,7 @@ def t1_table_selfcheck():
     tb = T.reload()
     check("声明文件存在且路径正确", os.path.exists(SPEC) and SPEC.endswith("text_specs.json"), SPEC)
     check("装载无错（load_error 为空）", T.load_error() == "", T.load_error())
-    check("表非空（68 条：副本准入 26 + 签到 10 + 周常 18 + 补给箱 7 + 每日任务 7）", len(tb) >= 40, len(tb))
+    check("表非空（77 条：副本准入 26 + 签到 10 + 周常 18 + 补给箱 7 + 每日任务 7 + 每日命令 9）", len(tb) >= 40, len(tb))
     check("★ validate() 干净（无空值/语法错/params 与模板不一致）",
           tb.audit()["problems"] == [], tb.audit()["problems"][:5])
     check("元信息键（_ 开头）不入表", not [k for k in tb.keys() if k.startswith("_")], tb.keys()[:3])
@@ -302,8 +364,9 @@ def t2_key_and_params_accounting():
     check("★ 表里没有死文案（每条声明都被真实调用）", not dead, dead)
     check("★ 槽位名与调用实参逐条对得上（防模板写出 {foo} 露给玩家）", not mismatch)
     doms = {k.split(".")[0] for k in used}
-    check("调用点覆盖全部已迁移域（副本准入 + 周常 + 签到 + 补给箱 + 每日任务）",
-          {"instance", "weekly", "signin", "supply", "daily"} <= doms, sorted(doms))
+    check("调用点覆盖全部已迁移域（副本准入 + 周常 + 签到 + 补给箱 + 每日任务 + 每日命令）",
+          {"instance", "weekly", "signin", "supply", "daily", "quests"} <= doms,
+          sorted(doms))
 
 
 def t3_no_silent_fallback():
@@ -330,7 +393,7 @@ def t3_no_silent_fallback():
         T.SPEC_PATH = real
         T.reload()
     os.remove(bad)
-    check("恢复正常声明后表重建（68 条）", len(T.table()) >= 40, len(T.table()))
+    check("恢复正常声明后表重建（77 条）", len(T.table()) >= 40, len(T.table()))
 
 
 def t4_weekly_frozen():
@@ -375,6 +438,17 @@ def t7_daily_frozen():
     check("★『任务』面板每日段 4 状态输出与迁移前**逐字一致**（随机提示行除外）", not bad, bad)
 
 
+def t8_quests_frozen():
+    print("\n[8] 每日任务域后半（『每日』命令）逐字冻结：7 分支复跑比对")
+    check("冻结基准已内嵌（7 分支）", len(QUEST_FROZEN) == 7, len(QUEST_FROZEN))
+    now = asyncio.run(_quests_scenarios())
+    bad = [k for k in QUEST_FROZEN if QUEST_FROZEN[k] != now.get(k)]
+    for k in bad:
+        print("     · %s 现=%r" % (k, (now.get(k) or "")[:140]))
+    check("★『每日』命令 7 分支（首发/已有/满额/重抽/衰减/达标/重复达标）与迁移前**逐字一致**",
+          not bad, bad)
+
+
 def main():
     print("=" * 74)
     print("文案表门禁：game/data/text_specs.json + game/core/texts.py")
@@ -386,6 +460,7 @@ def main():
     t5_signin_frozen()
     t6_supply_frozen()
     t7_daily_frozen()
+    t8_quests_frozen()
     print("\n" + "=" * 74)
     print("结果：通过 %d / %d" % (passed, passed + failed))
     print("=" * 74)
