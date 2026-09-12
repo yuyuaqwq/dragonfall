@@ -159,7 +159,6 @@ def move_blocked_msg(cur_map: dict, player: dict, target_sa: dict) -> str:
         if s["id"] == cur_sa_id:
             cur_name = s["name"]
             break
-    center = sas[0] if sas else {}
     _mid = cur_map.get("id", "")
     # v183：必经之路问引擎（`map_route` 的第一个中间站）—— v87.16 起这里手算「星形链首」，
     # 与引擎的 route 是同一件事（已由 tests/test_v183_space_shape.py 逐对比对证明等价）。
@@ -171,13 +170,9 @@ def move_blocked_msg(cur_map: dict, player: dict, target_sa: dict) -> str:
             first = next((s["name"] for s in sas if s["id"] == _route[1]), _route[1])
             return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
                     f"路只有一条，需要先经过{first}。")
-    if center.get("type") == C.SUB_TYPE_TOWN:
-        # v95.12：非枢纽城镇子区域按空间连接提示必经路线（街道/出口链），
-        # 不要一律"回广场"——镇郊去广场要先经过东大街，提示必须与真实路径一致
-        links = C.subarea_links(_mid, cur_sa_id)
-        link_names = [next((s["name"] for s in sas if s["id"] == lid), lid) for lid in links]
-        return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
-                f"路只有一条，需要先经过{'、'.join(link_names)}。")
+    # v95.12：按空间连接提示必经路线（街道/出口链），不要一律"回广场"——
+    # 镇郊去广场要先经过东大街，提示必须与真实路径一致。
+    # v183：原来城镇/野外各有一份 return（两份逐字相同），已合一。
     links = C.subarea_links(_mid, cur_sa_id)
     link_names = [next((s["name"] for s in sas if s["id"] == lid), lid) for lid in links]
     return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"

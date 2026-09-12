@@ -206,6 +206,22 @@ def t1_links_depth_gate():
           all(C.map_exit_subarea(m["id"]) == C.map_entry_subarea(m["id"]) for m in C.MAPS))
 
 
+def t1b_unknown_map():
+    print("\n[1b] 不存在的图 id：新旧实现同样安全（副本 inst_* / 拼错名 / 空串）")
+    bad = []
+    for mid in ("__no_such_map__", "inst_不存在", "", None):
+        a = (_old_subarea_links(mid, "x"), _old_subarea_depth(mid, "x"), _old_gate(mid))
+        b = (C.subarea_links(mid, "x"), C.subarea_depth(mid, "x"),
+             C.map_exit_subarea(mid), C.map_entry_subarea(mid))
+        if a != (b[0], b[1], b[2]) or b[2] != b[3]:
+            bad.append((mid, a, b))
+    check("★ 未知图 id：邻接/深度/出入口逐项与旧实现一致（不抛错）", not bad, str(bad))
+    check("未知图 id 的 map_center / map_route 安全返回空",
+          C.map_center("__no_such_map__") == "" and C.map_route("__no_such_map__", "a", "b") == [])
+    check("map_space 空图对象可用（节点 0 / gate 空串）",
+          C.map_space("__no_such_map__").gate() == "" and len(C.map_space("__no_such_map__")) == 0)
+
+
 def t2_shape_and_center():
     print("\n[2] 形状判定与枢纽（旧口径 = 首节点是城镇类型）")
     star = chain = 0
@@ -306,6 +322,7 @@ def t5_audit_sweep():
 def main():
     print("== v183 地图形状门禁：内容侧逐格一致（旧实现冻结比对） ==")
     t1_links_depth_gate()
+    t1b_unknown_map()
     t2_shape_and_center()
     t3_hint_equivalence()
     t4_route_sanity()
