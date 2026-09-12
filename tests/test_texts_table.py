@@ -13,6 +13,10 @@
   · 周常 / 签到 / 补给箱 / 每日域：本文件 `WEEKLY_FROZEN` / `SIGNIN_FROZEN` / `SUPPLY_FROZEN` /
     `DAILY_FROZEN`（面板段）/ `QUEST_FROZEN`（『每日』命令） —— **迁移前真跑各分支存下来的完整输出**，
     每次跑测试复跑比对（签到分支用 random 打桩保证可复现）
+  · 副本结算域（`game/commands/instance_router.py`）：本文件 `INSTANCE_SETTLE_FROZEN` ——
+    11 个分支（探索/肃清/等待/嘲讽/异常/密室/房间清空/切怪/层清空/普通轮转）在**迁移前**真跑存下的
+    完整输出，每次跑测试复跑比对（每次 clean_db + random.seed 固定随机；「战斗状态异常」一支用桩
+    让 build_battle 抛错触发，见 `_is_b6_battle_broken`）
 
 跑法：python tests/test_texts_table.py（exit=0 通过）
 """
@@ -35,6 +39,10 @@ from data.plugins.dragonfall.game.core import texts as T  # noqa: E402
 from data.plugins.dragonfall.game.services.weekly_progress import (  # noqa: E402
     _week_state, _save_week_state,
 )
+from data.plugins.dragonfall.game.commands import instance_battle as _IB  # noqa: E402
+from data.plugins.dragonfall.game.commands.combat import CombatCmds as _CombatCmds  # noqa: E402
+from data.plugins.dragonfall.game.commands.instance import InstanceCmds as _InstCmds  # noqa: E402
+from data.plugins.dragonfall.game.commands.world import WorldCmds as _WorldCmds  # noqa: E402
 
 _PD = os.path.dirname(_HERE)
 WEEKLY_SRC = os.path.join(_PD, "game", "commands", "weekly.py")
@@ -43,10 +51,11 @@ EVENT_SRC = os.path.join(_PD, "game", "commands", "event_menu.py")
 WORLD_SRC = os.path.join(_PD, "game", "commands", "world.py")
 QUESTS_SRC = os.path.join(_PD, "game", "services", "quests.py")
 GATE_SRC = os.path.join(_PD, "game", "core", "instance_gate.py")
+INSTANCE_ROUTER_SRC = os.path.join(_PD, "game", "commands", "instance_router.py")
 SPEC = T.SPEC_PATH
 # 已迁移的域 → 该域文案由哪个文件接线（新增一个域时在这里加一行）
-WIRED = {"副本准入": GATE_SRC, "周常": WEEKLY_SRC, "签到": MISC_SRC,
-         "补给箱": EVENT_SRC, "每日任务": WORLD_SRC, "每日命令": QUESTS_SRC}
+WIRED = {"副本准入": GATE_SRC, "副本结算": INSTANCE_ROUTER_SRC, "周常": WEEKLY_SRC,
+         "签到": MISC_SRC, "补给箱": EVENT_SRC, "每日任务": WORLD_SRC, "每日命令": QUESTS_SRC}
 
 passed = failed = 0
 
@@ -106,6 +115,22 @@ QUEST_FROZEN = {
     "F_settle": "📜 每日『边境警戒』完成！奖励：经验 +100 金币 +50",
     "G_settle_decay": "📜 每日『边境警戒』完成！重复完成，奖励衰减 60%：经验 +100 金币 +50"
 }   # 迁移前快照（2026-09-12 真跑存下，勿手改；抽签用 random.seed(11)）
+
+# 迁移前行为快照（2026-09-12 真跑 instance_router.py 的 11 个结算分支，逐字冻结；
+# 来源 $TEMP/instance_settle_before.json —— 采于**接线前**的代码，勿手改）
+INSTANCE_SETTLE_FROZEN = {
+    "B1_无敌人_探索": "当前区域还有敌人潜伏！『探索』找到它们～",
+    "B2_无敌人_已肃清_下一层": "当前区域的敌人已被肃清！\n前方是【二层】……输入『深入』继续推进！",
+    "B3_无敌人_已肃清_最后一层": "当前区域的敌人已被肃清！\n这是最后一层，输入『深入』挑战 Boss！",
+    "B4_等待行动": "⏳ 现在是 队友甲 的刻，等待 TA 行动～",
+    "B5_嘲讽结束": "……嘲讽效果结束，怪物恢复了本能仇恨！\n当前区域还有敌人潜伏！『探索』找到它们～",
+    "B6_战斗异常": "战斗状态异常，请重新遭遇！",
+    "B7_密室宝箱": "💥 房间怪 受到 1 点伤害，倒下了！\n  玩家：经验 +1，拾取材料 兽肉 ×1\n  玩家：🏆 成就解锁：初试锋芒！(完成首次战斗)\n      🎁 经验+100、兽肉×3（『成就 领取』领取）\n  玩家：🏆 成就解锁：初出茅庐！(注册角色)\n      🎁 草药×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：崭露头角！(达到 10 级)\n      🎁 铁矿石×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：名声鹊起！(达到 20 级)\n      🎁 精铁×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：小有名气！(达到 30 级)\n      🎁 木箱×1（『成就 领取』领取）\n  玩家：🏆 成就解锁：资深冒险者！(达到 40 级)\n      🎁 淬火石×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：大陆精英！(达到 50 级)\n      🎁 白银箱×1（『成就 领取』领取）\n  玩家：🏆 成就解锁：传奇之路！(达到 60 级)\n      🎁 白银箱×1、图纸残页×1（『成就 领取』领取）\n━━━━━━━━━━━━\n✅ 精英守卫被击败了！密室深处露出一口【神秘宝箱】……\n🔐 『调查 宝箱』看看里面藏着什么！",
+    "B8_房间清空": "💥 房间怪 受到 1 点伤害，倒下了！\n  玩家：经验 +1，拾取材料 兽肉 ×1\n  玩家：🏆 成就解锁：初试锋芒！(完成首次战斗)\n      🎁 经验+100、兽肉×3（『成就 领取』领取）\n  玩家：🏆 成就解锁：初出茅庐！(注册角色)\n      🎁 草药×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：崭露头角！(达到 10 级)\n      🎁 铁矿石×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：名声鹊起！(达到 20 级)\n      🎁 精铁×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：小有名气！(达到 30 级)\n      🎁 木箱×1（『成就 领取』领取）\n  玩家：🏆 成就解锁：资深冒险者！(达到 40 级)\n      🎁 淬火石×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：大陆精英！(达到 50 级)\n      🎁 白银箱×1（『成就 领取』领取）\n  玩家：🏆 成就解锁：传奇之路！(达到 60 级)\n      🎁 白银箱×1、图纸残页×1（『成就 领取』领取）\n━━━━━━━━━━━━\n✅ 【misty_swamp_1】的敌人被肃清了！\n🗺️ 【哥布林营地】\n哥布林营地，传说中的危险之地，唯有勇者敢于踏入。\n💡 输入『副本 哥布林营地』开启挑战（组队副本，等级/人数校验）\n━━━━━━━━━━━━\n📍 当前位置：哥布林营地\n📮 可前往：\n  🧭 出城需先到『入口栅栏』\n💡 『前往 <序号>』切换位置\n━━━━━━━━━━━━\n🚪 副本内 · 无出口（没有通往外面的路）\n🐾 此房怪物已肃清。\n💡 专注战斗！『副本』查看进度\n━━━━━━━━━━━━\n🧭 副本内可继续探索/移动，或『副本』查看进度！",
+    "B9_切怪": "💥 房间怪 受到 1 点伤害，倒下了！\n  玩家：经验 +1，拾取材料 兽肉 ×1\n  玩家：🏆 成就解锁：初试锋芒！(完成首次战斗)\n      🎁 经验+100、兽肉×3（『成就 领取』领取）\n  玩家：🏆 成就解锁：初出茅庐！(注册角色)\n      🎁 草药×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：崭露头角！(达到 10 级)\n      🎁 铁矿石×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：名声鹊起！(达到 20 级)\n      🎁 精铁×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：小有名气！(达到 30 级)\n      🎁 木箱×1（『成就 领取』领取）\n  玩家：🏆 成就解锁：资深冒险者！(达到 40 级)\n      🎁 淬火石×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：大陆精英！(达到 50 级)\n      🎁 白银箱×1（『成就 领取』领取）\n  玩家：🏆 成就解锁：传奇之路！(达到 60 级)\n      🎁 白银箱×1、图纸残页×1（『成就 领取』领取）\n━━━━━━━━━━━━\n⚔️ 又一只怪物挡在面前！\n── 敌方 ──\n  A1层: a1  史莱姆 ❤️465/465\n── 我方 ──\n  B2层: b1  玩家 ❤️500/500\n🕐 时刻 0.0s ｜ ⚡ 行动顺序：玩家(我) → 史莱姆(敌)\n✅ 玩家：❤️ 500/500 💙 50/50\n💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己\n⏳ 轮到 玩家 行动！『攻击』『技能 <名称>』『防御』",
+    "B10_层清空": "💥 房间怪 受到 1 点伤害，倒下了！\n  玩家：经验 +1，拾取材料 兽肉 ×1\n  玩家：🏆 成就解锁：初试锋芒！(完成首次战斗)\n      🎁 经验+100、兽肉×3（『成就 领取』领取）\n  玩家：🏆 成就解锁：初出茅庐！(注册角色)\n      🎁 草药×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：崭露头角！(达到 10 级)\n      🎁 铁矿石×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：名声鹊起！(达到 20 级)\n      🎁 精铁×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：小有名气！(达到 30 级)\n      🎁 木箱×1（『成就 领取』领取）\n  玩家：🏆 成就解锁：资深冒险者！(达到 40 级)\n      🎁 淬火石×2（『成就 领取』领取）\n  玩家：🏆 成就解锁：大陆精英！(达到 50 级)\n      🎁 白银箱×1（『成就 领取』领取）\n  玩家：🏆 成就解锁：传奇之路！(达到 60 级)\n      🎁 白银箱×1、图纸残页×1（『成就 领取』领取）\n━━━━━━━━━━━━\n✅ 【一层】的敌人被肃清了！\n🗺️ 【👺哥布林营地】第 1 层 · 一层\n━━━━━━━━━━━━\n📜 你环顾四周，准备迎接这里的敌人。\n━━━━━━━━━━━━\n✨ 场景：\n  []\n  []\n━━━━━━━━━━━━\n✅ 本层敌人已肃清！『深入』前往下一层。\n━━━━━━━━━━━━\n💡 『副本』查看战况，『角色』看队伍\n━━━━━━━━━━━━\n🧭 前方是【二层】……输入『深入』继续推进！",
+    "B11_普通轮转": "💥 房间怪 受到 463 点伤害！\n—— 房间怪 行动 ——\n💥 玩家 受到 1 点伤害！\n━━━━━━━━━━━━\n── 敌方 ──\n  A1层: a1  房间怪 ❤️4537/5000\n── 我方 ──\n  B2层: b1  玩家 ❤️499/500\n🕐 时刻 1.1s ｜ ⚡ 行动顺序：玩家(我) → 房间怪(敌)\n✅ 玩家：❤️ 499/500 💙 50/50\n💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己\n⏳ 轮到 玩家 行动！『攻击』『技能 <名称>』『防御』",
+}
 
 _GID, _QID = "g_txt", "q_txt"
 _SID = "g_si"
@@ -297,6 +322,268 @@ async def _quests_scenarios() -> dict:
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# 副本结算域复跑器（`game/commands/instance_router.py`）—— 与迁移前快照脚本逐行一致
+# ══════════════════════════════════════════════════════════════════════════
+_IS_GID = "g_settle"
+
+
+class _ISHost(_InstCmds, _CombatCmds, _WorldCmds):
+    """router 测试宿主（InstanceCmds 玩法壳 + CombatCmds + WorldCmds 地图视图）。"""
+
+
+def _is_mk_snap(qid, name="玩家", cls="战士", level=60):
+    db.create_player(_IS_GID, qid, name, cls, {}, 100, 100)
+    db.update_player(_IS_GID, qid, level=level, cur_map="mainland", cur_subarea="", stamina=999)
+    pl = db.get_player(_IS_GID, qid)
+    return {"name": name, "qq_id": qid, "class_name": cls, "level": level,
+            "hp": 500, "max_hp": 500, "mp": 50, "max_mp": 50, "equipment": {},
+            "skills": [], "learned_skills": [], "class_tier": 0, "evolve_path": 0,
+            "attributes": pl.get("attributes"), "bonus": {"panel": {}, "cap": {}, "cost": {}},
+            "race": pl.get("race"), "uid": "p_%s" % qid, "buffs": {}, "stacks": {},
+            "defending": False, "charging": None, "ct": 0.0, "p_shields": {}, "spd": 30}
+
+
+def _is_mk_enemy(hp=1, spd=1, role="dps", atk=1, uid="e_room", name="房间怪"):
+    return {"uid": uid, "name": name, "hp": hp, "max_hp": hp, "atk": atk, "def": 0,
+            "matk": 1, "mdef": 0, "spd": spd, "crit": 0.0, "lv": 15, "level": 15,
+            "role": role, "is_boss": role == "boss", "is_elite": role == "elite",
+            "rank": 1, "reach": 1, "ct": 1.0, "exp": 10, "gold": 5, "drops": []}
+
+
+def _is_mk_st(qids, inst_id="inst_goblin_camp", names=None, **kw):
+    qids = [str(q) for q in qids]
+    names = names or {}
+    st = {"type": "instance", "inst_id": inst_id, "leader": qids[0], "members": qids,
+          "alive": {q: True for q in qids},
+          "players": {q: _is_mk_snap(q, names.get(q, "玩家")) for q in qids},
+          "boss": None, "enemy": None, "enemies": [], "turn": 0, "round": 1,
+          "mode": "battle", "pets": {}, "p_buffs": {q: {} for q in qids},
+          "p_hot": {q: {} for q in qids}, "p_food_effects": {q: [] for q in qids},
+          "p_defending": {q: False for q in qids}, "mech_stacks": {q: {} for q in qids},
+          "now": 0.0, "battle": None, "contribution": {},
+          "threat": {q: 0 for q in qids}, "over": False, "turn_time": 0,
+          "stage_pending": [], "inst_stages": [], "stage_idx": 0,
+          "stage_cleared": False, "world_id": ""}
+    st.update(kw)
+    return st
+
+
+def _is_patch_cm(all_members):
+    """多人副本 st 无 party 行时，current_members 恒返回全部成员（等价单人/测试口径）。"""
+    orig = _InstCmds._instance_current_members
+    _InstCmds._instance_current_members = (
+        lambda self, gid, st: [str(m) for m in (all_members or st["members"])])
+    return orig
+
+
+def _is_restore_cm(orig):
+    _InstCmds._instance_current_members = orig
+
+
+def _is_run(inst, st, qq, action, skill=None, target=None):
+    """跑一次 router（同步收全部 yield）。"""
+    player = st["players"][str(qq)]
+    agen = inst._instance_router(FakeEvent(_IS_GID, str(qq)), _IS_GID, str(qq), player,
+                                 st, action, skill, target)
+
+    async def _c():
+        out = []
+        async for x in agen:
+            out.append(x)
+        return out
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(_c())
+    finally:
+        loop.close()
+
+
+def _is_now():
+    return int(time.time())
+
+
+def _is_b1_no_enemy_pending():
+    """L56 探索引导。"""
+    clean_db()
+    st = _is_mk_st(["q_b1"])
+    st["stage_pending"] = [["m_x", "小怪", "dps", 15, [], []]]
+    return _is_run(_ISHost(), st, "q_b1", "attack")
+
+
+def _is_b2_no_enemy_next_stage():
+    """L64 肃清 + L61 下一层行（非末层）。"""
+    clean_db()
+    st = _is_mk_st(["q_b2"], inst_stages=[{"name": "一层"}, {"name": "二层"}], stage_idx=0)
+    return _is_run(_ISHost(), st, "q_b2", "attack")
+
+
+def _is_b3_no_enemy_last_stage():
+    """L64 肃清 + L63 最后一层行（末层）。"""
+    clean_db()
+    st = _is_mk_st(["q_b3"], inst_stages=[{"name": "一层"}, {"name": "二层"}], stage_idx=1)
+    return _is_run(_ISHost(), st, "q_b3", "attack")
+
+
+def _is_b4_wait_hint():
+    """L73 现在是 X 的刻（非请求者未超时）。"""
+    clean_db()
+    st = _is_mk_st(["q_b41", "q_b42"], names={"q_b41": "队友甲", "q_b42": "请求者乙"},
+                   enemies=[_is_mk_enemy(hp=500, spd=1)])
+    st["boss"] = st["enemies"][0]
+    st["enemy"] = st["enemies"][0]
+    _IB.build_battle(st)
+    for a in (_IB._players_of(st) or []):
+        a["ct"] = 0.0 if str(a.get("qq_id")) == "q_b41" else 50.0
+    _IB.sync_views(st, _IS_GID)
+    st["turn_time"] = _is_now()
+    orig = _is_patch_cm(["q_b41", "q_b42"])
+    try:
+        return _is_run(_ISHost(), st, "q_b42", "attack")
+    finally:
+        _is_restore_cm(orig)
+
+
+def _is_b5_taunt_end():
+    """L145 嘲讽结束（taunt_left 递减到 0）。"""
+    clean_db()
+    st = _is_mk_st(["q_b5"])
+    st["taunt_left"] = 1
+    st["taunt_target"] = "q_b5"
+    st["stage_pending"] = [["m_x", "小怪", "dps", 15, [], []]]
+    return _is_run(_ISHost(), st, "q_b5", "attack")
+
+
+def _is_b6_battle_broken():
+    """L172 战斗状态异常 —— 桩：让 build_battle 抛错（真实链路只能靠引擎内部失败触发）。"""
+    clean_db()
+    st = _is_mk_st(["q_b6"], enemies=[_is_mk_enemy(hp=1, spd=1)])
+    orig = _IB.build_battle
+
+    def _boom(_st):
+        raise RuntimeError("snapshot-stub: build_battle boom")
+    _IB.build_battle = _boom
+    try:
+        return _is_run(_ISHost(), st, "q_b6", "attack")
+    finally:
+        _IB.build_battle = orig
+
+
+def _is_b7_secret_guard():
+    """L326 密室精英守卫被击败 → 宝箱。"""
+    clean_db()
+    random.seed(20260912 + 7)
+    st = _is_mk_st(["q_b7"], secret_guard_pending=True, mode="battle")
+    st["enemies"] = [_is_mk_enemy(hp=1, spd=1)]
+    st["boss"] = st["enemies"][0]
+    st["enemy"] = st["enemies"][0]
+    _IB.build_battle(st)
+    inst = _ISHost()
+    msgs = []
+    for _ in range(8):
+        st["turn_time"] = _is_now()
+        msgs += _is_run(inst, st, "q_b7", "attack")
+        if st.get("secret_chest") or not st.get("enemies"):
+            break
+    return msgs
+
+
+def _is_b8_room_clear():
+    """L383 房间怪清空（非 Boss 房 → 回地图模式）。"""
+    clean_db()
+    random.seed(20260912 + 8)
+    qid, cur_sa = "q_b8", "goblin_camp_1"
+    st = _is_mk_st([qid], rooms={cur_sa: {"monsters_left": [], "pois_left": [],
+                                          "boss_alive": False}})
+    st["enemies"] = [_is_mk_enemy(hp=1, spd=1)]
+    st["boss"] = st["enemies"][0]
+    st["enemy"] = st["enemies"][0]
+    db.update_player(_IS_GID, qid, cur_map="misty_swamp", cur_subarea=cur_sa)
+    _IB.build_battle(st)
+    inst = _ISHost()
+    msgs = []
+    for _ in range(8):
+        st["turn_time"] = _is_now()
+        msgs += _is_run(inst, st, qid, "attack")
+        if st.get("cleared") or st.get("over") or not st.get("enemies"):
+            break
+    return msgs
+
+
+def _is_b9_switch_monster():
+    """L418 切怪（stage_pending 剩怪）+ L424 轮到 X 行动。"""
+    clean_db()
+    random.seed(20260912 + 9)
+    st = _is_mk_st(["q_b9"], stage_pending=[["m_slime", "史莱姆", "dps", 15, [], []],
+                                            ["m_slime2", "史莱姆2", "dps", 15, [], []]])
+    st["enemies"] = [_is_mk_enemy(hp=1, spd=1)]
+    st["boss"] = st["enemies"][0]
+    st["enemy"] = st["enemies"][0]
+    _IB.build_battle(st)
+    inst = _ISHost()
+    msgs = []
+    for _ in range(8):
+        st["turn_time"] = _is_now()
+        msgs += _is_run(inst, st, "q_b9", "attack")
+        if "⚔️ 又一只怪物挡在面前！" in "\n".join(msgs):
+            break
+    return msgs
+
+
+def _is_b10_stage_cleared():
+    """L441 分层清空（非末层）+ L448 前方是 X。"""
+    clean_db()
+    random.seed(20260912 + 10)
+    st = _is_mk_st(["q_b10"], inst_stages=[{"name": "一层"}, {"name": "二层"}], stage_idx=0)
+    st["enemies"] = [_is_mk_enemy(hp=1, spd=1)]
+    st["boss"] = st["enemies"][0]
+    st["enemy"] = st["enemies"][0]
+    _IB.build_battle(st)
+    inst = _ISHost()
+    msgs = []
+    for _ in range(8):
+        st["turn_time"] = _is_now()
+        msgs += _is_run(inst, st, "q_b10", "attack")
+        if "的敌人被肃清了" in "\n".join(msgs):
+            break
+    return msgs
+
+
+def _is_b11_normal_rotation():
+    """L475 普通轮转（未结束 → footer + 轮到 X）。"""
+    clean_db()
+    random.seed(20260912 + 11)
+    st = _is_mk_st(["q_b11"])
+    st["enemies"] = [_is_mk_enemy(hp=5000, spd=1)]
+    st["boss"] = st["enemies"][0]
+    st["enemy"] = st["enemies"][0]
+    _IB.build_battle(st)
+    st["turn_time"] = _is_now()
+    return _is_run(_ISHost(), st, "q_b11", "attack")
+
+
+_IS_BRANCHES = (("B1_无敌人_探索", _is_b1_no_enemy_pending),
+                ("B2_无敌人_已肃清_下一层", _is_b2_no_enemy_next_stage),
+                ("B3_无敌人_已肃清_最后一层", _is_b3_no_enemy_last_stage),
+                ("B4_等待行动", _is_b4_wait_hint),
+                ("B5_嘲讽结束", _is_b5_taunt_end),
+                ("B6_战斗异常", _is_b6_battle_broken),
+                ("B7_密室宝箱", _is_b7_secret_guard),
+                ("B8_房间清空", _is_b8_room_clear),
+                ("B9_切怪", _is_b9_switch_monster),
+                ("B10_层清空", _is_b10_stage_cleared),
+                ("B11_普通轮转", _is_b11_normal_rotation))
+
+
+def _instance_settle_scenarios() -> dict:
+    """复跑迁移前的 11 个副本结算分支（步骤与快照脚本逐行一致）。"""
+    out = {}
+    for name, fn in _IS_BRANCHES:
+        msgs = fn()
+        out[name] = "\n".join(str(m) for m in msgs) if not isinstance(msgs, str) else msgs
+    return out
+
+
+# ══════════════════════════════════════════════════════════════════════════
 def _scan_calls(path):
     """AST 扫模块：
 
@@ -327,7 +614,7 @@ def t1_table_selfcheck():
     tb = T.reload()
     check("声明文件存在且路径正确", os.path.exists(SPEC) and SPEC.endswith("text_specs.json"), SPEC)
     check("装载无错（load_error 为空）", T.load_error() == "", T.load_error())
-    check("表非空（77 条：副本准入 26 + 签到 10 + 周常 18 + 补给箱 7 + 每日任务 7 + 每日命令 9）", len(tb) >= 40, len(tb))
+    check("表非空（91 条：副本准入 26 + 副本结算 14 + 签到 10 + 周常 18 + 补给箱 7 + 每日任务 7 + 每日命令 9）", len(tb) >= 40, len(tb))
     check("★ validate() 干净（无空值/语法错/params 与模板不一致）",
           tb.audit()["problems"] == [], tb.audit()["problems"][:5])
     check("元信息键（_ 开头）不入表", not [k for k in tb.keys() if k.startswith("_")], tb.keys()[:3])
@@ -364,7 +651,7 @@ def t2_key_and_params_accounting():
     check("★ 表里没有死文案（每条声明都被真实调用）", not dead, dead)
     check("★ 槽位名与调用实参逐条对得上（防模板写出 {foo} 露给玩家）", not mismatch)
     doms = {k.split(".")[0] for k in used}
-    check("调用点覆盖全部已迁移域（副本准入 + 周常 + 签到 + 补给箱 + 每日任务 + 每日命令）",
+    check("调用点覆盖全部已迁移域（副本准入 + 副本结算 + 周常 + 签到 + 补给箱 + 每日任务 + 每日命令）",
           {"instance", "weekly", "signin", "supply", "daily", "quests"} <= doms,
           sorted(doms))
 
@@ -393,7 +680,7 @@ def t3_no_silent_fallback():
         T.SPEC_PATH = real
         T.reload()
     os.remove(bad)
-    check("恢复正常声明后表重建（77 条）", len(T.table()) >= 40, len(T.table()))
+    check("恢复正常声明后表重建（91 条）", len(T.table()) >= 40, len(T.table()))
 
 
 def t4_weekly_frozen():
@@ -449,6 +736,20 @@ def t8_quests_frozen():
           not bad, bad)
 
 
+def t9_instance_settle_frozen():
+    print("\n[9] 副本结算域逐字冻结：迁移前 11 分支（探索/肃清/等待/嘲讽/异常/密室/房间/切怪/层/轮转）复跑比对")
+    check("冻结基准已内嵌（11 分支）", len(INSTANCE_SETTLE_FROZEN) == 11,
+          len(INSTANCE_SETTLE_FROZEN))
+    now = _instance_settle_scenarios()
+    bad = [k for k in INSTANCE_SETTLE_FROZEN if INSTANCE_SETTLE_FROZEN[k] != now.get(k)]
+    for k in bad:
+        print("     · %s 现=%r" % (k, (now.get(k) or "")[:140]))
+    check("★ 副本结算 11 分支输出与迁移前**逐字一致**", not bad, bad)
+    _single = ("B1_无敌人_探索", "B4_等待行动", "B6_战斗异常")   # 单行分支（本身无换行结构）
+    check("冻结基准非空且含换行结构（防基准写空）",
+          all(v and "\n" in v for k, v in INSTANCE_SETTLE_FROZEN.items() if k not in _single))
+
+
 def main():
     print("=" * 74)
     print("文案表门禁：game/data/text_specs.json + game/core/texts.py")
@@ -461,6 +762,7 @@ def main():
     t6_supply_frozen()
     t7_daily_frozen()
     t8_quests_frozen()
+    t9_instance_settle_frozen()
     print("\n" + "=" * 74)
     print("结果：通过 %d / %d" % (passed, passed + failed))
     print("=" * 74)

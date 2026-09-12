@@ -24,6 +24,7 @@ import time
 from .. import content as C
 from .. import db
 from ..core import instance_run as IR   # v185：副本运行态适配层（名单/进度/剩余池/清视图）
+from ..core import texts as T           # v185：文案表（唯一真源 game/data/text_specs.json）
 from ..content_rules.skills import skill_info
 from .base import CommandBase
 from . import instance_battle as IB
@@ -51,17 +52,19 @@ class InstanceRouterCmds(CommandBase):
         return st
 
     def _router_no_enemy_hint(self, event, group_id, st):
-        """肃清/无敌人引导（对应旧 _instance_act 2465-2483，读视图）。"""
+        """肃清/无敌人引导（对应旧 _instance_act 2465-2483，读视图）。
+
+        v185：句壳收口文案表 `instance.结算_无敌人_*`（本方法不再内联玩家可见文案）。
+        """
         if st.get("stage_pending"):
-            return event.plain_result("当前区域还有敌人潜伏！『探索』找到它们～")
-        nxt = ""
+            return event.plain_result(T.static("instance.结算_无敌人_探索"))
         stages = st.get("inst_stages") or []
         idx = st.get("stage_idx", 0)
         if stages and idx < len(stages) - 1:
-            nxt = f"前方是【{stages[idx + 1]['name']}】……输入『深入』继续推进！"
+            nxt = T.text("instance.结算_无敌人_下一层", name=stages[idx + 1]["name"])
         else:
-            nxt = "这是最后一层，输入『深入』挑战 Boss！"
-        return event.plain_result(f"当前区域的敌人已被肃清！\n{nxt}")
+            nxt = T.static("instance.结算_无敌人_最后一层")
+        return event.plain_result(T.text("instance.结算_无敌人_已肃清", nxt=nxt))
 
     def _router_wait_hint(self, event, group_id, st, cur_key):
         members = st.get("members") or []
@@ -70,7 +73,7 @@ class InstanceRouterCmds(CommandBase):
         except Exception:
             st["turn"] = 0
         cur_name = (self._player(group_id, cur_key) or {}).get("name", cur_key)
-        return event.plain_result(f"⏳ 现在是 {cur_name} 的刻，等待 TA 行动～")
+        return event.plain_result(T.text("instance.结算_等待行动", name=cur_name))
 
     # ------------------------------------------------------------------
     # 4.4 结算辅助（薄壳；账务 5b 完善）
@@ -142,7 +145,7 @@ class InstanceRouterCmds(CommandBase):
             if st["taunt_left"] <= 0:
                 st.pop("taunt_target", None)
                 try:
-                    yield event.plain_result("……嘲讽效果结束，怪物恢复了本能仇恨！")
+                    yield event.plain_result(T.static("instance.结算_嘲讽结束"))
                 except Exception:
                     pass
         # 4.1a 权威 st（大陆实例优先）
@@ -169,7 +172,7 @@ class InstanceRouterCmds(CommandBase):
             try:
                 IB.build_battle(st)
             except Exception:
-                yield event.plain_result("战斗状态异常，请重新遭遇！")
+                yield event.plain_result(T.static("instance.结算_战斗异常"))
                 return
 
         # 4.1c 无敌人（视图空——战斗中途被肃清完）→ 引导
@@ -326,9 +329,9 @@ class InstanceRouterCmds(CommandBase):
                 yield event.plain_result(
                     "\n".join(logs) +
                     (("\n" + "\n".join(kill_lines)) if kill_lines else "") +
-                    "\n━━━━━━━━━━━━\n"
-                    "✅ 精英守卫被击败了！密室深处露出一口【神秘宝箱】……\n"
-                    "🔐 『调查 宝箱』看看里面藏着什么！"
+                    "\n━━━━━━━━━━━━\n" +
+                    T.static("instance.结算_密室_守卫败退") + "\n" +
+                    T.static("instance.结算_密室_调查宝箱")
                 )
                 return
 
@@ -383,11 +386,11 @@ class InstanceRouterCmds(CommandBase):
                 yield event.plain_result(
                     "\n".join(logs) +
                     (("\n" + "\n".join(self._instance_kill_reward(group_id, st))) if (st.get("_last_killed") or []) else "") +
-                    f"\n━━━━━━━━━━━━\n"
-                    f"✅ 【{cur_sa}】的敌人被肃清了！\n"
-                    f"{map_view}\n"
-                    f"━━━━━━━━━━━━\n"
-                    f"🧭 副本内可继续探索/移动，或『副本』查看进度！"
+                    "\n━━━━━━━━━━━━\n" +
+                    T.text("instance.结算_肃清", name=cur_sa) + "\n" +
+                    map_view + "\n" +
+                    "━━━━━━━━━━━━\n" +
+                    T.static("instance.结算_房间引导")
                 )
                 return
 
@@ -418,10 +421,11 @@ class InstanceRouterCmds(CommandBase):
                 yield event.plain_result(
                     "\n".join(logs) +
                     (("\n" + "\n".join(kill_lines)) if kill_lines else "") +
-                    f"\n━━━━━━━━━━━━\n"
-                    f"⚔️ 又一只怪物挡在面前！\n"
-                    f"{self._instance_battle_footer(st, group_id)}\n"
-                    f"⏳ 轮到 {self._router_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+                    "\n━━━━━━━━━━━━\n" +
+                    T.static("instance.结算_切怪_新怪") + "\n" +
+                    self._instance_battle_footer(st, group_id) + "\n" +
+                    T.text("instance.结算_轮到行动",
+                           name=self._router_next_player_name(st, group_id))
                 )
                 return
             if stages:
@@ -441,11 +445,11 @@ class InstanceRouterCmds(CommandBase):
                     yield event.plain_result(
                         "\n".join(logs) +
                         (("\n" + "\n".join(kill_lines)) if kill_lines else "") +
-                        f"\n━━━━━━━━━━━━\n"
-                        f"✅ 【{cur_name}】的敌人被肃清了！\n"
-                        f"{map_view}\n"
-                        f"━━━━━━━━━━━━\n"
-                        f"🧭 前方是【{nxt_name}】……输入『深入』继续推进！"
+                        "\n━━━━━━━━━━━━\n" +
+                        T.text("instance.结算_肃清", name=cur_name) + "\n" +
+                        map_view + "\n" +
+                        "━━━━━━━━━━━━\n" +
+                        T.text("instance.结算_层前路", name=nxt_name)
                     )
                     return
             # 末层 / 无 stages → 通关
@@ -474,9 +478,9 @@ class InstanceRouterCmds(CommandBase):
         nxt_name = self._router_next_player_name(st, group_id, nxt_key)
         yield event.plain_result(
             "\n".join(logs) +
-            "\n━━━━━━━━━━━━\n"
-            f"{self._instance_battle_footer(st, group_id)}\n"
-            f"⏳ 轮到 {nxt_name} 行动！『攻击』『技能 <名称>』『防御』"
+            "\n━━━━━━━━━━━━\n" +
+            self._instance_battle_footer(st, group_id) + "\n" +
+            T.text("instance.结算_轮到行动", name=nxt_name)
         )
 
     # ------------------------------------------------------------------
