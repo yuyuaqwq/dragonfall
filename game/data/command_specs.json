@@ -2290,5 +2290,90 @@
       "player"
     ],
     "order": 22
+  },
+  "_maint_gate": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:\\[At:全体成员\\]\\s*)?(?:\\[引用消息[^\\]]*\\]\\s*)?"
+    ],
+    "desc": "停服维护全局 gate（非 GM 的游戏指令一律拦下；顺带惰性刷新倒计时引擎）",
+    "category": "系统",
+    "usage": "（内部 gate，无玩家用法）",
+    "order": 10,
+    "visible": false,
+    "extra": {
+      "note": "v96：停服时非 GM 游戏指令一律拦下并停止传播；开服或 GM 直接放行（不产出任何结果，事件继续传给真正的指令 handler）。v127.5：任意游戏指令入口顺带惰性刷新通用倒计时引擎（timed_events）。priority=100 且配 _GameCmdFilter；正则无 $ 锚定、设计上匹配所有消息，**不参与指令互斥矩阵**（test_v87 / test_command_parse 均按名剔除）。"
+    }
+  },
+  "collection": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?收藏册(?:\\s*(.+))?$"
+    ],
+    "desc": "收藏册（5 套冒险者收藏册展示／满套领奖）",
+    "category": "其他",
+    "usage": "收藏册 [套名]",
+    "guards": [
+      "player"
+    ],
+    "order": 7,
+    "extra": {
+      "note": "v140 波2：成就/称号/收藏资源化 —— 收藏册与『成就』『称号』同批落地但各自独立存储。"
+    }
+  },
+  "event_menu": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?(?:今日事件|事件\\s+.+|领取补给箱)$"
+    ],
+    "desc": "今日事件／指定地图的事件菜单（含『领取补给箱』）",
+    "category": "世界",
+    "usage": "今日事件 | 事件 <地图名> | 领取补给箱",
+    "guards": [
+      "player"
+    ],
+    "order": 23,
+    "extra": {
+      "note": "v140 波3.7 地图随机事件菜单；裸『事件』由 world_event（social.py）占用，本指令用前缀区分。"
+    }
+  },
+  "explore_progress": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?探索进度(?:[\\s\\S]*)$"
+    ],
+    "desc": "探索进度：全大陆/区域探索度明细",
+    "category": "冒险",
+    "usage": "探索进度",
+    "guards": [
+      "player"
+    ],
+    "order": 12,
+    "extra": {
+      "note": "v115 探索见闻：commands/exploration.py；『探索』本体的负向断言 (?!进度) 就是让位给本条。"
+    }
+  },
+  "job_guide": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?职业(?:\\s+(\\S+))?\\s*$"
+    ],
+    "desc": "职业速查：12 职业一览／单职业详情",
+    "category": "角色",
+    "usage": "职业 [名称]",
+    "order": 12,
+    "extra": {
+      "note": "v130.2g 新功能（玩家意见 #1 zerc）。数据源 data/job_guide.py：由 classes.py + EFFECT_RULES/CORE_RESOURCE_GUIDE 派生（原 core_resources.py 已随 v181.M-R2c 退役）；与转职/技能/图鉴不冲突。"
+    }
+  },
+  "tower_cmd": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?爬塔(?:\\s+(\\d+))?\\s*$"
+    ],
+    "desc": "修炼爬塔（Lv70+ 30 层单人守关，每日限 3 层）",
+    "category": "战斗",
+    "usage": "爬塔 [层数]",
+    "guards": [
+      "player"
+    ],
+    "order": 11,
+    "extra": {
+      "note": "v169.2：Lv70+，30 层单人守关，每日限 3 层。"
+    }
   }
 }

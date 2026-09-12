@@ -30,6 +30,8 @@ from ._platform import CustomFilter
 from ._platform import RegexFilter
 from ._platform import EventType, star_handlers_registry
 
+from ._declared import declared
+
 from .. import content as C
 from .. import db
 from ..content_rules.panel import STAT_NAMES
@@ -229,7 +231,7 @@ class CommandBase(_KitCommandBase):
         except Exception:
             return ""
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?(?:\[At:全体成员\]\s*)?(?:\[引用消息[^\]]*\]\s*)?", priority=100)
+    @declared("_maint_gate", priority=100)
     @filter.custom_filter(_GameCmdFilter, priority=100)
     async def _maint_gate(self, event: AstrMessageEvent):
         """v96 停服维护拦截：停服时非 GM 的游戏指令一律拦下并停止传播。

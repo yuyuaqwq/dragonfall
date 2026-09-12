@@ -4,7 +4,9 @@
 『探索进度』：按地图 region 聚合展示每域子区域探索进度 + 全大陆探索度。
 由 Main 继承本 Mixin 使用；核心计算在 game/core/exploration.py（region_progress/overall_progress）。
 """
-from ._platform import AstrMessageEvent, filter
+from ._platform import AstrMessageEvent
+
+from ._declared import declared
 
 from .. import content as C
 from .. import db
@@ -16,7 +18,7 @@ SEP = "━━━━━━━━━━━━━━"
 class ExplorationCmds(CommandBase):
     """v115 探索见闻：『探索进度』指令"""
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?探索进度(?:[\s\S]*)$")
+    @declared("explore_progress")
     @require_player()
     async def explore_progress(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)

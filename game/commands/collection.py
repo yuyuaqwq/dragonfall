@@ -14,7 +14,9 @@
 """
 import re
 
-from ._platform import AstrMessageEvent, filter, MessageChain
+from ._platform import AstrMessageEvent, MessageChain
+
+from ._declared import declared
 
 from .. import content as C
 from .. import db
@@ -24,7 +26,7 @@ from ..commands.base import CommandBase, require_player
 class CollectionCmds(CommandBase):
     """收藏册：冒险者收藏集展示/满套领奖"""
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?收藏册(?:\s*(.+))?$")
+    @declared("collection")
     @require_player()
 
     async def collection(self, event: AstrMessageEvent):

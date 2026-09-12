@@ -32,17 +32,9 @@ _LITERAL_REGEX = {
     # 表内条目仍与 game/commands/*.py 的 @filter.regex 装饰器 1:1（键集合 + 模式逐条相等）。
     # 迁一条：声明表加声明 → 装饰器改 @declared("key") → 删本表同名条目。
     # v140 波2 『收藏册』（成就/称号/收藏资源化：5 套冒险者收藏册）
-    "collection": r'^(?:\[At:[^\]]+\]\s*)?收藏册(?:\s*(.+))?$',
     # v140 波3.7 『今日事件/事件 <地图名>』（地图随机事件菜单；裸『事件』由 world_event 占用）
-    "event_menu": r'^(?:\[At:[^\]]+\]\s*)?(?:今日事件|事件\s+.+|领取补给箱)$',
     # v115 探索见闻：『探索进度』指令（commands/exploration.py）
-    "explore_progress": r'^(?:\[At:[^\]]+\]\s*)?探索进度(?:[\s\S]*)$',
     # v169.2 修炼爬塔（Lv70+ 30 层单人守关，每日限 3 层）：『爬塔 [层数]』
-    "tower_cmd": r'^(?:\[At:[^\]]+\]\s*)?爬塔(?:\s+(\d+))?\s*$',
-    # v130.2g 新功能：『职业』/『职业 <名称>』12 职业速查（玩家意见 #1 zerc，
-    # 数据源 data/job_guide.py：classes.py + EFFECT_RULES/CORE_RESOURCE_GUIDE 派生（原 core_resources.py
-    # 已随 v181.M-R2c 退役）；与转职/技能/图鉴不冲突）
-    "job_guide": r'^(?:\[At:[^\]]+\]\s*)?职业(?:\s+(\S+))?\s*$',
     # v137 『加入战斗』：同队伍成员并入正在进行中的副本战斗（handler：instance.py InstanceCmds.join_battle）
     "join_battle": r'^(?:\[At:[^\]]+\]\s*)?加入战斗(?:\s*|$)',
     "instance_cmd": r'^(?:\[At:[^\]]+\]\s*)?副本(?!地图)(?:[\s\S]*)$',
@@ -56,9 +48,6 @@ _LITERAL_REGEX = {
     # v173.3 意见#87：撤退二次确认（放弃副本进度）
     "instance_retreat_confirm": r'^(?:\[At:[^\]]+\]\s*)?确认撤退(?:\s*|$)',
     "instance_leave": r'^(?:\[At:[^\]]+\]\s*)?离开副本\s*$',
-    # v96 停服全局 gate（base.py _maint_gate）：匹配空串/At/引用消息前缀，拦截所有游戏指令；
-    # 不参与指令互斥矩阵（不匹配任何指令正文），表内保留以与装饰器 1:1 对齐。
-    "_maint_gate": r'^(?:\[At:[^\]]+\]\s*)?(?:\[At:全体成员\]\s*)?(?:\[引用消息[^\]]*\]\s*)?',
 }
 
 

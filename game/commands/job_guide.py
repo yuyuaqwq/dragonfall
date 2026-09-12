@@ -9,7 +9,9 @@
 aliases（苦修士/武僧→淬势者）→ 兼容名（歌者→牧师）→ 分支名（吟游诗人→牧师）→ 模糊兜底。
 纯信息查询：不 require_player（注册前可查，与『种族』『图鉴』同款）。
 """
-from ._platform import AstrMessageEvent, filter
+from ._platform import AstrMessageEvent
+
+from ._declared import declared
 from ..data.job_guide import (
     JOB_GUIDE, BASE_ORDER, HIDDEN_ORDER, HIDDEN_SUCCESSORS,
     EXTRA_RESOURCES, EXTRA_RESOURCE_GUIDE, resolve_job,
@@ -21,7 +23,7 @@ from ..commands.base import CommandBase
 class JobGuideCmds(CommandBase):
     """『职业』速查：12 职业一览 + 单职业详情（玩家意见 #1）"""
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?职业(?:\s+(\S+))?\s*$")
+    @declared("job_guide")
     async def job_guide(self, event: AstrMessageEvent):
         raw = self._strip_cmd(event, "职业").strip()
         if not raw:

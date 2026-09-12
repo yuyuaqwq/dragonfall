@@ -20,7 +20,9 @@
 import datetime
 import json
 
-from ._platform import AstrMessageEvent, filter
+from ._platform import AstrMessageEvent
+
+from ._declared import declared
 
 from .. import content as C
 from .. import db
@@ -70,7 +72,7 @@ def build_tower_guard(floor: int) -> dict:
 class TowerCmds(CommandBase):
     """修炼爬塔：Lv70+ 单人守关挑战"""
 
-    @filter.regex(r"^(?:\[At:[^\]]+\]\s*)?爬塔(?:\s+(\d+))?\s*$")
+    @declared("tower_cmd")
     @require_player()
     async def tower_cmd(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
