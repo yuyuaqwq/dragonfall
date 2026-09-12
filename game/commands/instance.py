@@ -32,7 +32,8 @@ from .. import db
 from ..content_rules.gameplay import resolve_drop
 from ..content_rules.panel import player_final_stats
 from ..core.constants import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）——N10 前由 battle re-export 改为 core 权威单源
-from ..core import instance_run as IR  # v185：副本运行态（名单/分层进度/资源池）适配层——本文件散读散写的唯一收口
+from ..core import instance_run as IR
+from ..core import texts as T  # v185：文案表（唯一真源 game/data/text_specs.json）  # v185：副本运行态（名单/分层进度/资源池）适配层——本文件散读散写的唯一收口
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 from .instance_router import InstanceRouterCmds  # v181.N5b4-5a R1：saintess_engine 副本行动路由
 
@@ -1250,11 +1251,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                  for m in IR.roster_of(st).members]
         hints = []
         if "坦克" not in roles:
-            hints.append("🛡️ 没有坦克：Boss 仇恨没人拉，输出容易被追着打")
+            hints.append(T.static("instance.日志_组队无坦克"))
         if "治疗" not in roles:
-            hints.append("✨ 没有治疗：血线压力大，记得多带药水")
+            hints.append(T.static("instance.日志_组队无治疗"))
         if len(roles) >= 3 and "输出" not in roles:
-            hints.append("⚔️ 没有输出：可能打到超时哦")
+            hints.append(T.static("instance.日志_组队无输出"))
         return hints
 
     def _instance_battle_for(self, group_id, qq_id):
@@ -1360,11 +1361,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 C.display("materials", m) if m in C.MATERIALS else m
                 for m in inst.get("materials", [])
             )
-            lines.append(f"   👹 Boss：{inst['boss'][1]}(Lv.{inst['boss'][3]})· 掉落：{mats}")
+            lines.append(T.text("instance.日志_列表_首领", name=inst['boss'][1], lv=inst['boss'][3], mats=mats))
             # v130.8 意见#31：钥匙需求引导——Boss 行下列出所需钥匙与获取途径
             ki = inst.get("key_item")
             if ki:
-                lines.append(f"   🔑 需『{ki}』：{inst.get('key_source', '？？？')}")
+                lines.append(T.text("instance.日志_列表_钥匙", key_item=ki, source=inst.get('key_source', '？？？')))
             ent = inst.get("entry")
             if ent:
                 _em = C.MAP_BY_ID.get(ent.get("map", ""), {}).get("name", ent.get("map", ""))
@@ -1373,10 +1374,10 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     if _esa2.get("id") == ent.get("subarea"):
                         _esa_n = _esa2.get("name", "")
                         break
-                lines.append(f"   📍 入口：{_em}·{_esa_n or ent.get('subarea', '')}")
+                lines.append(T.text("instance.日志_列表_入口", map_name=_em, sa=_esa_n or ent.get('subarea', '')))
         lines.append("━━━━━━━━━━━━")
         lines.append(self._tip("instance"))
-        lines.append("💡 按顺序轮流出手，Boss 血量随人数上涨，配合好才能通关！")
+        lines.append(T.static("instance.日志_列表_轮流提示"))
         return "\n".join(lines)
 
     def _instance_status(self, group_id, qq_id, battle_row) -> str:
@@ -1409,7 +1410,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         cur_key = str(_members[turn_idx])
         cur_p = self._player(group_id, cur_key)
         lines.append("━━━━━━━━━━━━")
-        lines.append(f"⏳ 轮到 {cur_p['name'] if cur_p else cur_key} 行动！『攻击』『技能 <名称>』『防御』")
+        lines.append(T.text("instance.日志_轮到行动", name=cur_p['name'] if cur_p else cur_key))
         return "\n".join(lines)
 
     def _instance_battle_footer(self, st: dict, group_id) -> str:
@@ -1505,7 +1506,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     _left_sec = float(_exp) - _now_eff
                     if _left_sec > 0:
                         _turns = max(1, int(round(_left_sec / (ACT_TICK or 1.0))))
-                        pbuf.append(f"{pbuf_names[bk]}(剩{_turns}刻)")
+                        pbuf.append(T.text("instance.日志_面板_增益", label=pbuf_names[bk], turns=_turns))
                     continue
                 # 无 expire 的叠层条目=职业资源层（战意/怒气/气…），v181.M-R3 起
                 # 由上方「职业资源叠层」行统一展示（白名单+EFFECT_RULES cap），
@@ -1518,7 +1519,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 _re = _red.get("expire")
                 if _rv > 0 and isinstance(_re, (int, float)):
                     _left_r = max(1, int(round((float(_re) - _now_eff) / (ACT_TICK or 1.0))))
-                    pbuf.append(f"🛡️减伤{int(_rv * 100)}%({_left_r}刻)")
+                    pbuf.append(T.text("instance.日志_面板_减伤", pct=int(_rv * 100), turns=_left_r))
             shields = (snap.get("shields") or {})
             # v167.3 显示修复（同 combat._status_line）：护盾实际按 expire_at 绝对时刻到期，
             # 旧 {turns} 兼容值 turns=0 时显示 (0刻) 很怪 → 只对真正剩余 >0 的盾显示剩余刻数。
@@ -1533,9 +1534,9 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         _left_sec = max(0.0, float(s.get("turns", 0) or 0)) * (ACT_TICK or 1.0)
                     if _left_sec is not None and _left_sec > 0:
                         _turns = max(1, int(round(_left_sec / (ACT_TICK or 1.0))))
-                        pbuf.append(f"✨护盾{s['value']}({_turns}刻)")
+                        pbuf.append(T.text("instance.日志_面板_护盾_剩刻", value=s['value'], turns=_turns))
                     else:
-                        pbuf.append(f"✨护盾{s['value']}")
+                        pbuf.append(T.text("instance.日志_面板_护盾", value=s['value']))
             if pbuf:
                 lines.append(f"　🛡️「{' '.join(pbuf)}」")
         # 敌方单位级效果（V 系列：每怪 actor.effects 条目；无共享 e_buffs——N10 清旧键）
@@ -1552,16 +1553,16 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     _left_sec = float(_exp) - _now_eff
                     if _left_sec > 0:
                         _turns = max(1, int(round(_left_sec / (ACT_TICK or 1.0))))
-                        ebuf.append(f"{u.get('name', '敌')} {ebuf_names[bk]}(剩{_turns}刻)")
+                        ebuf.append(T.text("instance.日志_面板_敌增益_剩刻", name=u.get('name', '敌'), label=ebuf_names[bk], turns=_turns))
                     continue
                 _sv = int(bv.get("stacks", 0) or 0)
                 if _sv > 0 and bk in ebuf_names:
-                    ebuf.append(f"{u.get('name', '敌')} {ebuf_names[bk]}×{_sv}")
+                    ebuf.append(T.text("instance.日志_面板_敌增益_叠层", name=u.get('name', '敌'), label=ebuf_names[bk], stacks=_sv))
         if ebuf:
-            lines.append(f"👹敌：「{' '.join(ebuf)}」")
+            lines.append(T.text("instance.日志_面板_敌增益行", bufs=' '.join(ebuf)))
 
         # ⑤ 分隔 + 提示
-        lines.append("💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己")
+        lines.append(T.static("instance.日志_面板_选敌提示"))
         return "\n".join(lines)
 
     # ---------------- 副本地图化 helpers（v87.2，29 章十三节） ----------------
@@ -1660,12 +1661,12 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 blocks = self._map_blocks(_lp, cur_map, cur_sa_id or "", group_id, str(leader))
                 lines = nav + blocks
             else:
-                lines.append(f"🗺️ 【{cur_map.get('name', '副本')} · {cur_sa.get('name', '') if cur_sa else ''}】")
+                lines.append(T.text("instance.日志_地图_房间标题", map_name=cur_map.get('name', '副本'), sa=cur_sa.get('name', '') if cur_sa else ''))
             # 房间状态块：怪物剩余 / POI 剩余 / 资源池
             lines.append("━━━━━━━━━━━━")
             _dun = cur_map.get("dungeon") or {}
             if _dun.get("no_exit"):
-                lines.append("🚪 副本内 · 无出口（没有通往外面的路）")
+                lines.append(T.static("instance.日志_地图_无出口"))
             _rstate = (rooms.get(cur_sa_id) or {}) if cur_sa_id else {}
             _ml = _rstate.get("monsters_left") or []
             _pl = _rstate.get("pois_left")
@@ -1677,25 +1678,25 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         _poi_names.append(_p["name"])
             if _ml:
                 _names = "、".join(m[1] if isinstance(m, (list, tuple)) and len(m) > 1 else str(m) for m in _ml)
-                lines.append(f"🐾 此房怪物剩余：{_names}（『探索』高概率遭遇）")
+                lines.append(T.text("instance.日志_地图_怪剩余", names=_names))
             else:
-                lines.append("🐾 此房怪物已肃清。")
+                lines.append(T.static("instance.日志_地图_怪肃清"))
             if _poi_names:
-                lines.append(f"🔎 此房可调查：{'、'.join(_poi_names[:6])}{'…' if len(_poi_names) > 6 else ''}(『调查 <名称>』)")
+                lines.append(T.text("instance.日志_地图_可调查", names='、'.join(_poi_names[:6]), more='…' if len(_poi_names) > 6 else ''))
             _rp = st.get("resources_pool")
             if _rp:
                 _gl = _rp.get("gold_left", 0)
                 _mats = _rp.get("mats_left") or {}
                 _mat_txt = "、".join(f"{k}×{v}" for k, v in _mats.items() if v)
-                _pool_txt = f"💰 副本资源池剩余：{_gl} 金币" + (f" · {_mat_txt}" if _mat_txt else "")
+                _pool_txt = T.text("instance.日志_地图_资源池", gold=_gl) + (f" · {_mat_txt}" if _mat_txt else "")
                 lines.append(_pool_txt)
             if _dun.get("boss_room") == cur_sa_id and (_rstate.get("boss_alive", False) if cur_sa_id else False):
-                lines.append("👑 Boss 就在这个房间！『探索』进入战斗！")
+                lines.append(T.static("instance.日志_地图_Boss房"))
             if st.get("cleared"):
                 if st.get("loot_pile"):
-                    lines.append("🎁 战利品堆：首领的遗物堆在角落（『调查 战利品堆』）")
+                    lines.append(T.static("instance.日志_战利品堆提示"))
                 if st.get("secret_crack"):
-                    lines.append("🧱 墙上有一块松动的墙砖……（『调查 墙砖』）")
+                    lines.append(T.static("instance.日志_墙砖提示"))
                 # v140 波2：通关后调查点层（cleared 专属；未调查完的列提示，已翻完的省略）
                 _inv_pts = (C.INVESTIGATION_POINTS or {}).get(st.get("inst_id") or "", [])
                 if _inv_pts:
@@ -1703,7 +1704,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     _inv_remain = [p for p in _inv_pts if p.get("id") not in _inv_done]
                     if _inv_remain:
                         _names = "、".join(p["name"] for p in _inv_remain[:3]) + ("…" if len(_inv_remain) > 3 else "")
-                        lines.append(f"🔍 通关后这里多了些可调查的痕迹：{_names}（『调查 <名称>』· 今日剩余 {max(0, INVESTIGATE_DAILY_LIMIT - self._instance_investigate_used_today(group_id, qq_id))} 次）")
+                        lines.append(T.text("instance.日志_调查痕迹", names=_names, left=max(0, INVESTIGATE_DAILY_LIMIT - self._instance_investigate_used_today(group_id, qq_id))))
             lines.append(self._tip("instance"))
             return "\n".join(lines)
         vmap = self._stage_virtual_map(st)
@@ -1717,27 +1718,27 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         if desc:
             lines.append(f"📜 {desc}")
         else:
-            lines.append("📜 你环顾四周，准备迎接这里的敌人。")
+            lines.append(T.static("instance.日志_层_环顾"))
         # 隐藏房间提示
         secret = vmap.get("secret")
         if secret and st.get("stage_secret_found") and not st.get("stage_secret_cleared"):
-            lines.append(f"🔓 隐藏房间：{secret.get('desc', '')}")
+            lines.append(T.text("instance.日志_层_隐藏房间", desc=secret.get('desc', '')))
         elif secret and not st.get("stage_secret_found"):
-            lines.append("🤔 似乎有暗门/机关的气息……(线索可能藏在石碑或机关里)")
+            lines.append(T.static("instance.日志_层_暗门气息"))
         # 复用世界地图展示管线：内联 POI / NPC（v87.13 场景函数）
         inter = self._map_scene(vmap, None)
         if inter:
             lines.append("━━━━━━━━━━━━")
-            lines.append("✨ 场景：")
+            lines.append(T.static("instance.日志_层_场景标题"))
             lines.extend(f"  {l}" for l in inter)
         # v101.27 #390 通关后特殊搜刮 POI 显示（战利品堆必出 / 暗格墙砖概率 / 密室宝箱）
         if st.get("cleared"):
             if st.get("loot_pile"):
-                lines.append("🎁 战利品堆：首领的遗物堆在角落（『调查 战利品堆』）")
+                lines.append(T.static("instance.日志_战利品堆提示"))
             if st.get("secret_crack"):
-                lines.append("🧱 墙上有一块松动的墙砖……（『调查 墙砖』）")
+                lines.append(T.static("instance.日志_墙砖提示"))
             if st.get("secret_chest"):
-                lines.append("🔐 神秘宝箱：密室深处泛着微光（『调查 宝箱』）")
+                lines.append(T.static("instance.日志_层_宝箱"))
             # v140 波2：通关后调查点层（cleared 专属；未调查完的列提示，已翻完的省略）
             _inv_pts = (C.INVESTIGATION_POINTS or {}).get(st.get("inst_id") or "", [])
             if _inv_pts:
@@ -1745,7 +1746,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 _inv_remain = [p for p in _inv_pts if p.get("id") not in _inv_done]
                 if _inv_remain:
                     _names = "、".join(p["name"] for p in _inv_remain[:3]) + ("…" if len(_inv_remain) > 3 else "")
-                    lines.append(f"🔍 通关后这里多了些可调查的痕迹：{_names}（『调查 <名称>』· 今日剩余 {max(0, INVESTIGATE_DAILY_LIMIT - self._instance_investigate_used_today(group_id, qq_id))} 次）")
+                    lines.append(T.text("instance.日志_调查痕迹", names=_names, left=max(0, INVESTIGATE_DAILY_LIMIT - self._instance_investigate_used_today(group_id, qq_id))))
         if st.get("cleared"):
             lines.append(self._tip("instance"))
         else:
@@ -1759,19 +1760,19 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 remain = [p for p in (vmap.get("pois") or []) if isinstance(p, dict) and p.get("name")]
                 if remain:
                     names = "、".join(p["name"] for p in remain[:5]) + ("…" if len(remain) > 5 else "")
-                    lines.append(f"✅ 本层敌人已肃清！剩余可调查：{names}(『调查 <名称>』)；『深入』前往下一层。")
+                    lines.append(T.text("instance.日志_层_肃清_剩调查", names=names))
                 else:
-                    lines.append("✅ 本层敌人已肃清！『深入』前往下一层。")
+                    lines.append(T.static("instance.日志_层_肃清_无调查"))
             elif vmap.get("boss"):
                 lines.append("━━━━━━━━━━━━")
-                lines.append(f"👑 Boss 就在前方：{vmap['boss'][1]}！『探索』进入战斗！")
+                lines.append(T.text("instance.日志_层_Boss在前", name=vmap['boss'][1]))
             else:
                 lines.append("━━━━━━━━━━━━")
                 mstr = "、".join(m[1] for m in mons) + (f" ⭐精英·{el[1]}" if el else "")
                 if mstr:
-                    lines.append(f"🐾 敌人：{mstr}(『探索』遇怪)")
+                    lines.append(T.text("instance.日志_层_敌人列表", monsters=mstr))
                 else:
-                    lines.append("🐾 这里暂时没有敌人。")
+                    lines.append(T.static("instance.日志_层_无敌"))
         lines.append("━━━━━━━━━━━━")
         lines.append(self._tip("instance"))
         return "\n".join(lines)
@@ -2285,11 +2286,11 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         cur = self._instance_current_members(group_id, st)
         entries = []
         for u in self._instance_enemy_units(st):
-            entries.append((float(u.get("ct", 0) or 0), f"{u.get('name', '怪物')}(敌)"))
+            entries.append((float(u.get("ct", 0) or 0), T.text("instance.日志_行动序_敌", name=u.get('name', '怪物'))))
         for key, snap in (st.get("players") or {}).items():
             k = str(key)
             if k in cur and IR.alive_of(st, k):
-                entries.append((float(snap.get("ct", 0) or 0), f"{snap.get('name', k)}(我)"))
+                entries.append((float(snap.get("ct", 0) or 0), T.text("instance.日志_行动序_我", name=snap.get('name', k))))
         entries.sort(key=lambda x: x[0])
         # v163 全局时刻显示：st["now"] = 战斗绝对时刻（1 刻 = 1 游戏秒，ACT_TICK=1.0）。
         # 玩家参照读条命中/行动序需要当前时刻（出招 X.Xs 后命中 → 命中时刻 = now + X.X）。
@@ -2465,7 +2466,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                              hp=snap.get("hp", p.get("hp", 0)), mp=snap.get("mp", p.get("mp", 0)),
                              max_hp=snap.get("max_hp", p.get("max_hp", 0)),
                              max_mp=snap.get("max_mp", p.get("max_mp", 0)))
-            line = f"  {p['name']}：经验 +{exp}"
+            line = T.text("instance.日志_击杀_经验", name=p['name'], exp=exp)
             # v167.3 副本带宠物：宠物经验/饱食度结算与野外一致（野外路径见 combat._handle_victory：
             # 宠物分得击杀基础经验 20%、战斗扣饱食度 -2）。这里按野外等价口径逐成员结算各自宠物：
             # 经验 = 本场击杀基础经验（未乘分摊/等级差的原值 ×0.2，与野外一致），只对存活且带宠者生效。
@@ -2488,8 +2489,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                                   last_sat_time=pet.get("last_sat_time"))
                     st.setdefault("pets", {})[str(_key)] = dict(pet, satiety=max(0, _new_sat),
                                                                 exp=_p_exp, level=_p_lv)
-                    line += f"  🐾{(pet.get('name') or '宠物')} 分得经验 +{_gain}" + (
-                        f"，升至 Lv.{_p_lv}！" if _lvup else "")
+                    line += T.text("instance.日志_击杀_宠物经验", name=pet.get('name') or '宠物', gain=_gain) + (
+                        T.text("instance.日志_击杀_宠物升级", lv=_p_lv) if _lvup else "")
             except Exception:
                 pass
             # 去重材料（同击杀多单位同材料时合并数量提示）
@@ -2497,7 +2498,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             for _ms in acc["mats"]:
                 seen[_ms] = True
             if seen:
-                line += f"，拾取材料 {'、'.join(list(seen))}"
+                line += T.text("instance.日志_击杀_拾取材料", mats='、'.join(list(seen)))
             lines.append(line)
             # v105 M19 P0：副本内击杀同步推进主线进度（组队玩家路线）——主线击杀目标
             # 只挂副本时，组队通关副本的击杀必须计入，否则副本路线玩家主线卡死
@@ -2691,7 +2692,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             if r.get("type") == "gold":
                 gold = r.get("count", 0)
                 db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-                lines.append(f"🎁 你搜刮了战利品堆：金币 +{gold}")
+                lines.append(T.text("instance.日志_搜刮_金币", gold=gold))
             elif r.get("type") == "item":
                 mat_id = r["item_id"]
                 if mat_id and mat_id in C.MATERIALS:
@@ -2700,9 +2701,9 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         "name": mname, "type": C.MATERIALS[mat_id].get("type", "材料"), "stackable": True,
                         "price": C.MATERIALS[mat_id]["price"],
                     })
-                    lines.append(f"🎒 拾取：{mname} ×1")
+                    lines.append(T.text("instance.日志_搜刮_拾取", name=mname))
         if not lines:  # 引擎兜底（数据异常时保底不给空）
-            lines.append("🎁 你搜刮了战利品堆，但里面空空的……")
+            lines.append(T.static("instance.日志_搜刮_空"))
         st["loot_pile"] = False
         self._instance_save(group_id, st)
         return "\n".join(lines)
@@ -2828,7 +2829,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 or next((u for u in _lk if isinstance(u, dict) and u.get("name")), None) or boss
         lines = [x for x in logs if "你击败了" not in x]
         lines.append("")
-        lines.append(f"🎉 【{boss.get('name', '副本首领')}】被击败了！{inst.get('icon', '🏰')}{inst.get('name', '')} 通关！")
+        lines.append(T.text("instance.日志_通关_击败", name=boss.get('name', '副本首领'), icon=inst.get('icon', '🏰'), inst_name=inst.get('name', '')))
         # v126 副本剧情化：通关叙事（inst 有 outro 字段才渲染，老数据无字段不显示）
         if inst.get("outro"):
             lines.append(f"📜 {inst['outro']}")
@@ -2846,7 +2847,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             if str(m) not in cur:
                 continue  # v104 P1：已退队成员不参与通关奖励
             if not IR.alive_of(st, m):
-                lines.append(f"  💀 {st['players'].get(str(m), {}).get('name', m)} 已阵亡，未能获得奖励")
+                lines.append(T.text("instance.日志_通关_阵亡", name=st['players'].get(str(m), {}).get('name', m)))
                 continue
             p = self._player(group_id, m)
             if not p:
@@ -2857,7 +2858,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             db.update_player(group_id, m, gold=p["gold"] + gold, exp=p["exp"] + exp,
                              hp=snap["hp"], mp=snap["mp"],
                              max_hp=snap["max_hp"], max_mp=snap["max_mp"])
-            lines.append(f"  {p['name']}：金币 +{gold} 经验 +{exp}")
+            lines.append(T.text("instance.日志_通关_奖励", name=p['name'], gold=gold, exp=exp))
             # v167.3 副本带宠物：通关 Boss 击杀宠物分经验 + 扣饱食度（与野外 _handle_victory
             # 同口径：基础经验 20%、-2 饱食度）。Boss 血量按人数放大，经验按 Boss 原始 exp 计。
             try:
@@ -2877,8 +2878,8 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                                   last_sat_time=pet.get("last_sat_time"))
                     st.setdefault("pets", {})[str(m)] = dict(pet, satiety=max(0, _new_sat),
                                                              exp=_p_exp, level=_p_lv)
-                    lines.append(f"  🐾{(pet.get('name') or '宠物')} 分得经验 +{_gain}" + (
-                        f"，升至 Lv.{_p_lv}！" if _lvup else ""))
+                    lines.append(T.text("instance.日志_通关_宠物经验", name=pet.get('name') or '宠物', gain=_gain) + (
+                        T.text("instance.日志_通关_宠物升级", lv=_p_lv) if _lvup else ""))
             except Exception:
                 pass
             # v135 副本全员图纸小概率：每名存活成员独立判定（首功图纸之外的全员奖励，
@@ -2892,10 +2893,10 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         db.add_item(group_id, m, "mat_tu_zhi_can_ye",
                                     {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
                                     count=_pages2)
-                        lines.append(f"  📜 {p['name']} 拾取图纸：{bp2['name']}（已学会，化作 {_pages2} 张图纸残页）")
+                        lines.append(T.text("instance.日志_通关_图纸已学", name=p['name'], bp_name=bp2['name'], pages=_pages2))
                     else:
                         db.add_item(group_id, m, f"bp_{uuid.uuid4().hex[:8]}", bp2)
-                        lines.append(f"  📜 {p['name']} 拾取图纸：{bp2['name']}")
+                        lines.append(T.text("instance.日志_通关_图纸", name=p['name'], bp_name=bp2['name']))
             # v174 统一抽象：Boss 装备掉落判定走 drop_engine table 池（boss:{inst_id}）
             # 产出 equip 类型（主题装/专属）由本层入包；材料档保持原逻辑下方处理。
             try:
@@ -2912,9 +2913,9 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                     db.add_item(group_id, m, f"eq_{uuid.uuid4().hex[:8]}", _be_eq)
                     _is_excl = bool(_excl_rid) and _be_eq.get("name") == C.EQUIP_ROSTER.get(_excl_rid, {}).get("name")
                     if _is_excl:
-                        lines.append(f"  👑 {p['name']} 从Boss身上拾取稀有专属：【{_be_eq['name']}】！")
+                        lines.append(T.text("instance.日志_通关_专属装备", name=p['name'], eq_name=_be_eq['name']))
                     else:
-                        lines.append(f"  ⚔️ {p['name']} 拾取 Boss 珍藏：【{_be_eq['name']}】！")
+                        lines.append(T.text("instance.日志_通关_珍藏装备", name=p['name'], eq_name=_be_eq['name']))
             except Exception:
                 pass
             # 专属材料
@@ -2928,7 +2929,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         "name": mname, "type": "材料", "stackable": True,
                         "price": C.MATERIALS[mat_id]["price"],
                     })
-                    lines.append(f"  🎒 {p['name']} 拾取：{mname}")
+                    lines.append(T.text("instance.日志_通关_材料", name=p['name'], mat_name=mname))
         # 贡献最高 → 职业图纸
         # v136 副本 Boss 原石掉落（Phase 2 定稿：20% 掉 1 颗随机原石，3-10 层；Boss 专属
         # 固定属性倾向查 GEM_BOSS_FIXED[boss 名]——深海龙王·敖澜=pene_magi 法穿等）。
@@ -2938,7 +2939,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
             _gem = C.roll_gem_drop(boss)
             if _gem:
                 db.add_item(group_id, m, f"gem_{uuid.uuid4().hex[:8]}", _gem)
-                gem_drop_line = f"  💎 {p['name']} 获得幸运宝石：{_gem['name']}！(『原石』镶嵌到装备孔位)"
+                gem_drop_line = T.text("instance.日志_通关_宝石", name=p['name'], gem_name=_gem['name'])
         except Exception:
             gem_drop_line = ""
         if gem_drop_line:
@@ -2958,10 +2959,10 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                         db.add_item(group_id, top_key, "mat_tu_zhi_can_ye",
                                     {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
                                     count=_pages)
-                        lines.append(f"👑 首功 {top_p['name']} 额外获得图纸：{bp['name']}（已学会，化作 {_pages} 张图纸残页）")
+                        lines.append(T.text("instance.日志_通关_首功图纸已学", name=top_p['name'], bp_name=bp['name'], pages=_pages))
                     else:
                         db.add_item(group_id, top_key, f"bp_{uuid.uuid4().hex[:8]}", bp)
-                        lines.append(f"👑 首功 {top_p['name']} 额外获得图纸：{bp['name']}")
+                        lines.append(T.text("instance.日志_通关_首功图纸", name=top_p['name'], bp_name=bp['name']))
         # 首通记录（每人）+ 阶段九：副本次数 + 成就判定（L3-P3 起成就走总线 kind=instance）
         # v105 M18 P1：结算统计「全队未受伤」→ ach_flawless「完美主义者」解锁
         # （此前全仓 check_achievements 无一传 flawless，条件恒 False 永不可解锁）
@@ -3010,17 +3011,17 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
         st["secret_guard"] = None  # 暗格精英守卫（未触发）
         st["secret_chest"] = None  # 暗格宝箱奖励（守卫击败后生成）
         lines.append("")
-        lines.append("🏆 副本已通关！你可以在副本内停留搜刮：")
-        lines.append("  · 🎁 【战利品堆】—— 首领的遗物，搜刮一次（『调查 战利品堆』）")
+        lines.append(T.static("instance.日志_通关_停留搜刮"))
+        lines.append(T.static("instance.日志_通关_战利品堆"))
         # v140 波2：通关调查点提示（未翻完时给入口）
         _inv_pts = (C.INVESTIGATION_POINTS or {}).get(st.get("inst_id") or "", [])
         if _inv_pts:
-            lines.append(f"  · 🔍 通关后这里多了些可调查的痕迹（『副本地图』查看，每日限 {INVESTIGATE_DAILY_LIMIT} 次）")
+            lines.append(T.text("instance.日志_通关_调查痕迹提示", limit=INVESTIGATE_DAILY_LIMIT))
         if st["secret_crack"]:
-            lines.append("  · 🧱 墙上似乎有【松动的墙砖】……（『调查 墙砖』）")
-        lines.append("搜刮完毕用『离开副本』传出～")
+            lines.append(T.static("instance.日志_通关_墙砖"))
+        lines.append(T.static("instance.日志_通关_离开提示"))
         lines.append("")
-        lines.append("💡 『副本』可再次挑战，首通成就已记录～")
+        lines.append(T.static("instance.日志_通关_再挑战"))
         st["mode"] = "map"
         st["boss"] = None
         st["enemy"] = None
@@ -3031,7 +3032,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
     async def _instance_defeat(self, event, group_id, qq_id, player, st, logs):
         lines = [x for x in logs if "毒发身亡" not in x]
         lines.append("")
-        lines.append("💀 队伍全灭……副本失败！冒险者们被送回了最近的城镇。")
+        lines.append(T.static("instance.日志_失败_全灭"))
         # v104 P1：只结算当前队伍成员——已退队者不受副本失败牵连（不误杀）
         cur = self._instance_current_members(group_id, st)
         for m in IR.roster_of(st).members:
@@ -3053,7 +3054,7 @@ class InstanceCmds(InstanceRouterCmds, CommandBase):
                 db.update_player(group_id, m, hp=0, mp=p.get("max_mp", 0),
                                  cur_map=_town_id, cur_subarea=_town_sa,
                                  world_id="mainland")
-                lines.append(f"📍 {p['name']} 被送回了【{_town_name}·{_town_sa_name}】（HP 0，先休息恢复吧）")
+                lines.append(T.text("instance.日志_失败_回城", name=p['name'], town=_town_name, sa=_town_sa_name))
         # v141 大陆隔离：副本失败 → 销毁大陆实例（进度作废）
         _wid = st.get("world_id") or ""
         if _wid.startswith("inst:"):

@@ -23,7 +23,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..core import instance_run as IR   # v185：名单视图（成员/存活）
+from ..core import instance_run as IR
+from ..core import texts as T  # v185：文案表（唯一真源 game/data/text_specs.json）   # v185：名单视图（成员/存活）
 from ..services import battle_bridge as BR
 from saintess_engine.kinds import K_HEAL, K_BUFF
 
@@ -179,7 +180,7 @@ def _instance_team_event(st: dict):
                     continue
                 _real = _heal(battle, _a, _heal_v, logs)
                 if _real > 0:
-                    logs.append(f"✨ {_a.get('name', '队友')} 恢复 {_real} 点生命！")
+                    logs.append(T.text("instance.日志_团队治疗", name=_a.get('name', '队友'), amount=_real))
         except Exception:
             pass  # 观察者异常不阻断战斗结算
     return on_event

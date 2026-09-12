@@ -204,7 +204,7 @@ class InstanceRouterCmds(CommandBase):
             # 非请求者：超时 → 自动防御；未超时 → 等待提示
             if now - int(st.get("turn_time", now) or now) > INSTANCE_TIMEOUT:
                 _def_name = (self._player(group_id, cur_key) or {}).get("name", cur_key)
-                logs.append(f"⏰ {_def_name} 迟迟没有行动，自动进入防御姿态！")
+                logs.append(T.text("instance.日志_超时自动防御", name=_def_name))
                 _dlogs, _dended, _dnxt = IB.act(st, group_id, cur_key, "defend")
                 IB.sync_views(st, group_id)
                 logs += _dlogs
@@ -288,7 +288,7 @@ class InstanceRouterCmds(CommandBase):
                 _th[str(qq_id)] = int(_mx * max(0.0, _tmult) + 100)
                 st["taunt_target"] = str(qq_id)
                 st["taunt_left"] = max(int(st.get("taunt_left", 0) or 0), max(1, _tlock))
-                logs.append("🛡️ 你高声嘲讽，怪物怒火尽归你身！（强制攻击自己）")
+                logs.append(T.static("instance.日志_嘲讽"))
             # 治疗仇恨（v49 语义基础：×0.8）
             _mem_after = sum(int((st.get("players") or {}).get(str(m), {}).get("hp", 0) or 0)
                              for m in members
@@ -305,7 +305,7 @@ class InstanceRouterCmds(CommandBase):
         if not self._router_has_living_players(group_id, st):
             st["over"] = True
             if not (st.get("enemies") or []):
-                logs.append("⚔️ 同归于尽！你与敌人同时倒下了……")
+                logs.append(T.static("instance.日志_同归于尽"))
             async for _r in self._instance_defeat(event, group_id, qq_id, player, st, logs):
                 yield _r
             return

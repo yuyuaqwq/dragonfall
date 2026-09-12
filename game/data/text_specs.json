@@ -2,11 +2,12 @@
  "_meta": {
   "purpose": "奥兰迪亚·余烬纪年 —— 文案声明表（引擎 saintess_engine.text.TextTable 消费）。本文件是**玩家可见文案的唯一真源**：代码侧只传槽位，不再内联任何一句玩家可见文案（2026-09-12 v185 起）。",
   "howto": "改文案只动本文件；改逻辑才动代码。{slot} 由调用方渲染；未知槽原样保留（不静默丢字）。",
-  "guards": "tests/test_texts_table.py：key 集合对账（AST 扫调用点 ↔ 本表，双向）+ 每条 params 与调用实参对账 + validate() 干净 + 缺 key 不静默；渲染逐字一致由 tests/test_v185_instance_admission.py（副本 805 格）与 周常行为快照（本表 weekly.*）钉住。",
+  "guards": "tests/test_texts_table.py：key 集合对账（AST 扫调用点 ↔ 本表，双向）+ 每条 params 与调用实参对账 + validate() 干净 + 缺 key 不静默；渲染逐字一致由 tests/test_v185_instance_admission.py（副本 805 格）与 周常行为快照（本表 weekly.*）钉住；副本日志域（instance.日志_*）另由本表的 INSTANCE_LOG_FROZEN（迁移前 26 分支真跑输出）与 INSTANCE_LOG_TEMPLATES（70 条模板骨架）逐字钉住。",
   "boundary": "排版结构（如分隔线 ━━━、缩进层级）与内容数据（任务名/怪名/任务 desc）不进表 —— 表只管“句壳”。"
  },
  "_categories": {
   "副本准入": "副本『副本 <名字>』『加入战斗』与徒步进图门禁的全部提示（v185 收口到 core/instance_gate.py）",
+  "副本日志": "副本战斗日志行（行动/嘲讽/同归于尽/面板状态条/地图房间描述/击杀奖励/搜刮/通关与失败结算逐行）",
   "周常": "周常悬赏『周常』『周常列表』面板（v185 起采用文案表，行为快照冻结）"
  },
  "daily.section": {
@@ -410,6 +411,525 @@
   ],
   "category": "副本准入",
   "desc": "副本结算：分层副本某层清空 → 提示前方下一层"
+ },
+ "instance.日志_超时自动防御": {
+  "value": "⏰ {name} 迟迟没有行动，自动进入防御姿态！",
+  "params": [
+   "name"
+  ],
+  "category": "副本日志",
+  "desc": "副本行动：非请求者超时 → 自动防御姿态（玩家名）"
+ },
+ "instance.日志_嘲讽": {
+  "value": "🛡️ 你高声嘲讽，怪物怒火尽归你身！（强制攻击自己）",
+  "category": "副本日志",
+  "desc": "副本行动：嘲讽技生效 → 强制怪物打自己"
+ },
+ "instance.日志_同归于尽": {
+  "value": "⚔️ 同归于尽！你与敌人同时倒下了……",
+  "category": "副本日志",
+  "desc": "副本行动：玩家与敌同刻倒下（敌视图已空）→ 同归于尽行"
+ },
+ "instance.日志_团队治疗": {
+  "value": "✨ {name} 恢复 {amount} 点生命！",
+  "params": [
+   "name",
+   "amount"
+  ],
+  "category": "副本日志",
+  "desc": "副本团队技广播：heal_all 治疗队友（队友名 + 实治疗量；名字缺省回落『队友』留在代码）"
+ },
+ "instance.日志_组队无坦克": {
+  "value": "🛡️ 没有坦克：Boss 仇恨没人拉，输出容易被追着打",
+  "category": "副本日志",
+  "desc": "副本列表：队伍构成提示（无坦克）"
+ },
+ "instance.日志_组队无治疗": {
+  "value": "✨ 没有治疗：血线压力大，记得多带药水",
+  "category": "副本日志",
+  "desc": "副本列表：队伍构成提示（无治疗）"
+ },
+ "instance.日志_组队无输出": {
+  "value": "⚔️ 没有输出：可能打到超时哦",
+  "category": "副本日志",
+  "desc": "副本列表：队伍构成提示（满 3 人无输出）"
+ },
+ "instance.日志_列表_首领": {
+  "value": "   👹 Boss：{name}(Lv.{lv})· 掉落：{mats}",
+  "params": [
+   "name",
+   "lv",
+   "mats"
+  ],
+  "category": "副本日志",
+  "desc": "副本列表：Boss 行（Boss 名 + 等级 + 掉落材料）"
+ },
+ "instance.日志_列表_钥匙": {
+  "value": "   🔑 需『{key_item}』：{source}",
+  "params": [
+   "key_item",
+   "source"
+  ],
+  "category": "副本日志",
+  "desc": "副本列表：钥匙需求行（钥匙名 + 获取途径；缺省『？？？』留在代码）"
+ },
+ "instance.日志_列表_入口": {
+  "value": "   📍 入口：{map_name}·{sa}",
+  "params": [
+   "map_name",
+   "sa"
+  ],
+  "category": "副本日志",
+  "desc": "副本列表：入口行（地图名 · 子区域名；空则回退子区域 id，口径留在代码）"
+ },
+ "instance.日志_列表_轮流提示": {
+  "value": "💡 按顺序轮流出手，Boss 血量随人数上涨，配合好才能通关！",
+  "category": "副本日志",
+  "desc": "副本列表：底部轮流出手提示"
+ },
+ "instance.日志_轮到行动": {
+  "value": "⏳ 轮到 {name} 行动！『攻击』『技能 <名称>』『防御』",
+  "params": [
+   "name"
+  ],
+  "category": "副本日志",
+  "desc": "副本战斗中：轮到 X 行动（查看面板底部；与 结算_轮到行动 同句，留作后续合并）"
+ },
+ "instance.日志_面板_增益": {
+  "value": "{label}(剩{turns}刻)",
+  "params": [
+   "label",
+   "turns"
+  ],
+  "category": "副本日志",
+  "desc": "战况面板：玩家增益条目（显示名 + 剩余刻）"
+ },
+ "instance.日志_面板_减伤": {
+  "value": "🛡️减伤{pct}%({turns}刻)",
+  "params": [
+   "pct",
+   "turns"
+  ],
+  "category": "副本日志",
+  "desc": "战况面板：减伤条目（百分比整数 + 剩余刻）"
+ },
+ "instance.日志_面板_护盾_剩刻": {
+  "value": "✨护盾{value}({turns}刻)",
+  "params": [
+   "value",
+   "turns"
+  ],
+  "category": "副本日志",
+  "desc": "战况面板：护盾条目（盾值 + 剩余刻）"
+ },
+ "instance.日志_面板_护盾": {
+  "value": "✨护盾{value}",
+  "params": [
+   "value"
+  ],
+  "category": "副本日志",
+  "desc": "战况面板：护盾条目（只剩盾值——无到期信息时）"
+ },
+ "instance.日志_面板_敌增益_剩刻": {
+  "value": "{name} {label}(剩{turns}刻)",
+  "params": [
+   "name",
+   "label",
+   "turns"
+  ],
+  "category": "副本日志",
+  "desc": "战况面板：敌方单位增益条目（敌方名 + 显示名 + 剩余刻）"
+ },
+ "instance.日志_面板_敌增益_叠层": {
+  "value": "{name} {label}×{stacks}",
+  "params": [
+   "name",
+   "label",
+   "stacks"
+  ],
+  "category": "副本日志",
+  "desc": "战况面板：敌方单位叠层条目（敌方名 + 显示名 + 层数）"
+ },
+ "instance.日志_面板_敌增益行": {
+  "value": "👹敌：「{bufs}」",
+  "params": [
+   "bufs"
+  ],
+  "category": "副本日志",
+  "desc": "战况面板：敌方减益汇总行（bufs 已由代码拼好）"
+ },
+ "instance.日志_面板_选敌提示": {
+  "value": "💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己",
+  "category": "副本日志",
+  "desc": "战况面板：底部选敌/治疗操作提示"
+ },
+ "instance.日志_行动序_敌": {
+  "value": "{name}(敌)",
+  "params": [
+   "name"
+  ],
+  "category": "副本日志",
+  "desc": "行动顺序预览：敌方单位标签（敌名缺省『怪物』留在代码）"
+ },
+ "instance.日志_行动序_我": {
+  "value": "{name}(我)",
+  "params": [
+   "name"
+  ],
+  "category": "副本日志",
+  "desc": "行动顺序预览：我方玩家标签"
+ },
+ "instance.日志_地图_房间标题": {
+  "value": "🗺️ 【{map_name} · {sa}】",
+  "params": [
+   "map_name",
+   "sa"
+  ],
+  "category": "副本日志",
+  "desc": "副本地图：无队长角色行时的标题行（地图名 · 当前房间名）"
+ },
+ "instance.日志_地图_无出口": {
+  "value": "🚪 副本内 · 无出口（没有通往外面的路）",
+  "category": "副本日志",
+  "desc": "副本地图：副本封闭区域（无出口）提示行"
+ },
+ "instance.日志_地图_怪剩余": {
+  "value": "🐾 此房怪物剩余：{names}（『探索』高概率遭遇）",
+  "params": [
+   "names"
+  ],
+  "category": "副本日志",
+  "desc": "副本地图：此房怪物剩余（名字串已拼好）"
+ },
+ "instance.日志_地图_怪肃清": {
+  "value": "🐾 此房怪物已肃清。",
+  "category": "副本日志",
+  "desc": "副本地图：此房怪物已肃清"
+ },
+ "instance.日志_地图_可调查": {
+  "value": "🔎 此房可调查：{names}{more}(『调查 <名称>』)",
+  "params": [
+   "names",
+   "more"
+  ],
+  "category": "副本日志",
+  "desc": "副本地图：此房可调查点（前 6 个名字 + 省略号；more 省略号由代码给）"
+ },
+ "instance.日志_地图_资源池": {
+  "value": "💰 副本资源池剩余：{gold} 金币",
+  "params": [
+   "gold"
+  ],
+  "category": "副本日志",
+  "desc": "副本地图：副本资源池剩余金币（材料后缀由代码拼）"
+ },
+ "instance.日志_地图_Boss房": {
+  "value": "👑 Boss 就在这个房间！『探索』进入战斗！",
+  "category": "副本日志",
+  "desc": "副本地图：Boss 就在这个房间"
+ },
+ "instance.日志_战利品堆提示": {
+  "value": "🎁 战利品堆：首领的遗物堆在角落（『调查 战利品堆』）",
+  "category": "副本日志",
+  "desc": "副本地图/层视图：战利品堆可搜刮提示（rooms 与 stages 两处共用一句）"
+ },
+ "instance.日志_墙砖提示": {
+  "value": "🧱 墙上有一块松动的墙砖……（『调查 墙砖』）",
+  "category": "副本日志",
+  "desc": "副本地图/层视图：松动墙砖（暗格）提示（两处共用一句）"
+ },
+ "instance.日志_调查痕迹": {
+  "value": "🔍 通关后这里多了些可调查的痕迹：{names}（『调查 <名称>』· 今日剩余 {left} 次）",
+  "params": [
+   "names",
+   "left"
+  ],
+  "category": "副本日志",
+  "desc": "副本地图/层视图：通关后可调查痕迹（名字串 + 今日剩余次数；两处共用一句）"
+ },
+ "instance.日志_层_环顾": {
+  "value": "📜 你环顾四周，准备迎接这里的敌人。",
+  "category": "副本日志",
+  "desc": "层视图：本层无描述时的兜底句"
+ },
+ "instance.日志_层_隐藏房间": {
+  "value": "🔓 隐藏房间：{desc}",
+  "params": [
+   "desc"
+  ],
+  "category": "副本日志",
+  "desc": "层视图：已发现隐藏房间（描述来自关卡数据）"
+ },
+ "instance.日志_层_暗门气息": {
+  "value": "🤔 似乎有暗门/机关的气息……(线索可能藏在石碑或机关里)",
+  "category": "副本日志",
+  "desc": "层视图：暗门/机关气息未发现提示"
+ },
+ "instance.日志_层_场景标题": {
+  "value": "✨ 场景：",
+  "category": "副本日志",
+  "desc": "层视图：场景块标题行"
+ },
+ "instance.日志_层_宝箱": {
+  "value": "🔐 神秘宝箱：密室深处泛着微光（『调查 宝箱』）",
+  "category": "副本日志",
+  "desc": "层视图：密室神秘宝箱提示"
+ },
+ "instance.日志_层_肃清_剩调查": {
+  "value": "✅ 本层敌人已肃清！剩余可调查：{names}(『调查 <名称>』)；『深入』前往下一层。",
+  "params": [
+   "names"
+  ],
+  "category": "副本日志",
+  "desc": "层视图：本层已肃清 + 剩余可调查点（列名版）"
+ },
+ "instance.日志_层_肃清_无调查": {
+  "value": "✅ 本层敌人已肃清！『深入』前往下一层。",
+  "category": "副本日志",
+  "desc": "层视图：本层已肃清（无可调查剩余）"
+ },
+ "instance.日志_层_Boss在前": {
+  "value": "👑 Boss 就在前方：{name}！『探索』进入战斗！",
+  "params": [
+   "name"
+  ],
+  "category": "副本日志",
+  "desc": "层视图：Boss 就在前方（Boss 名）"
+ },
+ "instance.日志_层_敌人列表": {
+  "value": "🐾 敌人：{monsters}(『探索』遇怪)",
+  "params": [
+   "monsters"
+  ],
+  "category": "副本日志",
+  "desc": "层视图：本层敌人列表（名字串已拼好，含精英标注）"
+ },
+ "instance.日志_层_无敌": {
+  "value": "🐾 这里暂时没有敌人。",
+  "category": "副本日志",
+  "desc": "层视图：本层暂时没有敌人"
+ },
+ "instance.日志_击杀_经验": {
+  "value": "  {name}：经验 +{exp}",
+  "params": [
+   "name",
+   "exp"
+  ],
+  "category": "副本日志",
+  "desc": "击杀结算：成员经验行（成员名 + 经验）"
+ },
+ "instance.日志_击杀_宠物经验": {
+  "value": "  🐾{name} 分得经验 +{gain}",
+  "params": [
+   "name",
+   "gain"
+  ],
+  "category": "副本日志",
+  "desc": "击杀结算：宠物分经验（宠物名缺省『宠物』留在代码 + 经验）"
+ },
+ "instance.日志_击杀_宠物升级": {
+  "value": "，升至 Lv.{lv}！",
+  "params": [
+   "lv"
+  ],
+  "category": "副本日志",
+  "desc": "击杀结算：宠物升至 Lv.N 后缀（拼在宠物经验行后）"
+ },
+ "instance.日志_击杀_拾取材料": {
+  "value": "，拾取材料 {mats}",
+  "params": [
+   "mats"
+  ],
+  "category": "副本日志",
+  "desc": "击杀结算：拾取材料后缀（材料串已拼好）"
+ },
+ "instance.日志_搜刮_金币": {
+  "value": "🎁 你搜刮了战利品堆：金币 +{gold}",
+  "params": [
+   "gold"
+  ],
+  "category": "副本日志",
+  "desc": "搜刮战利品堆：金币入袋行"
+ },
+ "instance.日志_搜刮_拾取": {
+  "value": "🎒 拾取：{name} ×1",
+  "params": [
+   "name"
+  ],
+  "category": "副本日志",
+  "desc": "搜刮战利品堆：拾取材料行"
+ },
+ "instance.日志_搜刮_空": {
+  "value": "🎁 你搜刮了战利品堆，但里面空空的……",
+  "category": "副本日志",
+  "desc": "搜刮战利品堆：引擎兜底（无产出时的空搜刮行）"
+ },
+ "instance.日志_通关_击败": {
+  "value": "🎉 【{name}】被击败了！{icon}{inst_name} 通关！",
+  "params": [
+   "name",
+   "icon",
+   "inst_name"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：Boss 被击败 + 副本通关（Boss 名缺省『副本首领』留在代码）"
+ },
+ "instance.日志_通关_阵亡": {
+  "value": "  💀 {name} 已阵亡，未能获得奖励",
+  "params": [
+   "name"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：阵亡成员不参与奖励"
+ },
+ "instance.日志_通关_奖励": {
+  "value": "  {name}：金币 +{gold} 经验 +{exp}",
+  "params": [
+   "name",
+   "gold",
+   "exp"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：成员通关奖励行（金币 + 经验）"
+ },
+ "instance.日志_通关_宠物经验": {
+  "value": "  🐾{name} 分得经验 +{gain}",
+  "params": [
+   "name",
+   "gain"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：宠物分经验（宠物名缺省『宠物』留在代码 + 经验）"
+ },
+ "instance.日志_通关_宠物升级": {
+  "value": "，升至 Lv.{lv}！",
+  "params": [
+   "lv"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：宠物升至 Lv.N 后缀（拼在宠物经验行后）"
+ },
+ "instance.日志_通关_图纸已学": {
+  "value": "  📜 {name} 拾取图纸：{bp_name}（已学会，化作 {pages} 张图纸残页）",
+  "params": [
+   "name",
+   "bp_name",
+   "pages"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：全队图纸掉落（已学会 → 折算残页，含残页数）"
+ },
+ "instance.日志_通关_图纸": {
+  "value": "  📜 {name} 拾取图纸：{bp_name}",
+  "params": [
+   "name",
+   "bp_name"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：全队图纸掉落（未学会 → 整张入包）"
+ },
+ "instance.日志_通关_专属装备": {
+  "value": "  👑 {name} 从Boss身上拾取稀有专属：【{eq_name}】！",
+  "params": [
+   "name",
+   "eq_name"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：Boss 专属装备掉落（👑 专属）"
+ },
+ "instance.日志_通关_珍藏装备": {
+  "value": "  ⚔️ {name} 拾取 Boss 珍藏：【{eq_name}】！",
+  "params": [
+   "name",
+   "eq_name"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：Boss 装备池掉落（⚔️ 珍藏）"
+ },
+ "instance.日志_通关_材料": {
+  "value": "  🎒 {name} 拾取：{mat_name}",
+  "params": [
+   "name",
+   "mat_name"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：专属材料入包行"
+ },
+ "instance.日志_通关_宝石": {
+  "value": "  💎 {name} 获得幸运宝石：{gem_name}！(『原石』镶嵌到装备孔位)",
+  "params": [
+   "name",
+   "gem_name"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：Boss 原石掉落行（含镶嵌引导）"
+ },
+ "instance.日志_通关_首功图纸已学": {
+  "value": "👑 首功 {name} 额外获得图纸：{bp_name}（已学会，化作 {pages} 张图纸残页）",
+  "params": [
+   "name",
+   "bp_name",
+   "pages"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：首功成员额外图纸（已学会 → 折算残页）"
+ },
+ "instance.日志_通关_首功图纸": {
+  "value": "👑 首功 {name} 额外获得图纸：{bp_name}",
+  "params": [
+   "name",
+   "bp_name"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：首功成员额外图纸（未学会 → 整张入包）"
+ },
+ "instance.日志_通关_停留搜刮": {
+  "value": "🏆 副本已通关！你可以在副本内停留搜刮：",
+  "category": "副本日志",
+  "desc": "通关结算：可停留搜刮标题行"
+ },
+ "instance.日志_通关_战利品堆": {
+  "value": "  · 🎁 【战利品堆】—— 首领的遗物，搜刮一次（『调查 战利品堆』）",
+  "category": "副本日志",
+  "desc": "通关结算：战利品堆入口提示行"
+ },
+ "instance.日志_通关_调查痕迹提示": {
+  "value": "  · 🔍 通关后这里多了些可调查的痕迹（『副本地图』查看，每日限 {limit} 次）",
+  "params": [
+   "limit"
+  ],
+  "category": "副本日志",
+  "desc": "通关结算：通关后调查点入口提示（每日次数上限）"
+ },
+ "instance.日志_通关_墙砖": {
+  "value": "  · 🧱 墙上似乎有【松动的墙砖】……（『调查 墙砖』）",
+  "category": "副本日志",
+  "desc": "通关结算：暗格墙砖入口提示行"
+ },
+ "instance.日志_通关_离开提示": {
+  "value": "搜刮完毕用『离开副本』传出～",
+  "category": "副本日志",
+  "desc": "通关结算：搜刮完离开副本提示"
+ },
+ "instance.日志_通关_再挑战": {
+  "value": "💡 『副本』可再次挑战，首通成就已记录～",
+  "category": "副本日志",
+  "desc": "通关结算：可再次挑战 + 首通成就已记录"
+ },
+ "instance.日志_失败_全灭": {
+  "value": "💀 队伍全灭……副本失败！冒险者们被送回了最近的城镇。",
+  "category": "副本日志",
+  "desc": "失败结算：队伍全灭 + 送回最近城镇"
+ },
+ "instance.日志_失败_回城": {
+  "value": "📍 {name} 被送回了【{town}·{sa}】（HP 0，先休息恢复吧）",
+  "params": [
+   "name",
+   "town",
+   "sa"
+  ],
+  "category": "副本日志",
+  "desc": "失败结算：成员被送回城镇行（城镇 · 落点，HP 0）"
  },
  "supply.missing": {
   "value": "📦 补给箱数据缺失，请联系管理～",
