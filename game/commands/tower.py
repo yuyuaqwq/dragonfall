@@ -16,57 +16,40 @@
   - 同一天同一层不重复计数（cleared_today 幂等）
   - 胜利 = 塔卫被击杀：combat._handle_victory 击杀结算后调 tower_guard_on_kill
     （与 wild_king_on_kill 同款接线：import + try/except 调用，本模块导出该函数）
-"""
-import datetime
-import json
 
+★ B8.2 线1（2026-09-13）命令层薄壳化：本模块只留「注册 + 解析参数 + 取玩家 + 调包 + 拼文案」。
+  · 状态族/塔表查询/塔卫构造/击杀结算全在内容包 `content/flow/tower_progress.py`
+    （真源 = 原 `game/services/tower_progress.py` 全文件 + 原本文件 `build_tower_guard`，逐字端口）；
+    塔表 `TRIAL_FLOORS`/`TRIAL_MIN_LV`/`TRIAL_MAX_FLOOR`/`TRIAL_DAILY_LIMIT` = 包内
+    `content/flow/tower_data.py`（真源 `game/data/trial_tower.py` **整文件逐字搬入**）。
+  · 渲染文案一字未改（本命令是全 f-string 文案，不涉文案表）。
+  · 留在宿主的部分（**与本线正交、本线不动**）：开战装配 `services/battle_bridge`（构造 actor →
+    sides → 装配序列）+ `saintess_engine.Battle` + `db.save_battle` + `_battle_formation_panel`
+    —— 包内对应物是 `content/bridge.py`（D3 批已搬的「构造半边」，替身接口按 `event_state` dict
+    而非宿主 db 模块），本线不切（避免跨线重叠，见 overnight/b82_L1_weekly_tower.md §遗留）。
+"""
 from ._platform import AstrMessageEvent
 
 from ._declared import declared
 
-from .. import content as C
 from .. import db
+from ..core.drops import build_monster          # 未进包真源（`game/core/drops.py:389`）→ 传给包内构造
 from ..commands.base import CommandBase, require_player
 
-# L3-P2a：状态函数族 + 击杀结算下沉 services/tower_progress.py（服务层订阅方消费，
-# services 禁 import commands 红线）；命令层 re-export 同名单保持零改动引用。
-from ..services.tower_progress import (  # noqa: F401  (re-export)
+# ★ B8.2 线1：读包。`package_apply()` = 本进程唯一的包加载口，幂等；失败大声抛。
+from .. import bootstrap as _bootstrap          # noqa: E402
+
+_bootstrap.package_apply()
+from content.flow import tower_progress as _TP   # noqa: E402
+
+# 宿主替身注入：存储层（get/set_event_state / get_player / update_player）
+_TP.bind_host(db)
+
+# L3-P2a：状态函数族 + 击杀结算 —— 包内实现**按原名** re-export（名字不变 → 下面正文逐字保留）
+from content.flow.tower_progress import (  # noqa: E402,F401  (re-export)
     _tower_key, _tower_state, _save_tower_state, _floor_def,
     tower_guard_on_kill,
 )
-
-
-def build_tower_guard(floor: int) -> dict:
-    """构造第 floor 层塔卫（普通战斗敌人 dict；exp/gold = 层奖励）。"""
-    fd = _floor_def(floor) or {}
-    name = fd.get("guard") or f"第{floor}层守卫"
-    lv = int(fd.get("lv") or min(100, 70 + floor))
-    role = fd.get("role") or "dps"
-    skills = list(fd.get("skills") or [])
-    fake_map = {"id": "trial_tower", "name": "修炼塔", "lv": lv, "area": "tower"}
-    try:
-        guard = C.build_monster((f"tower_{floor}", name, role, lv, skills, []), fake_map)
-    except Exception:
-        # build_monster 失败兜底：手搓最小敌人（防数据漂移导致爬塔不可玩）
-        guard = {
-            "id": f"tower_{floor}", "uid": f"e_tower_{floor}", "name": name, "lv": lv,
-            "role": role, "rank": 1, "reach": 1,
-            "defending": False, "charging": None,
-            "hp": 600, "max_hp": 600, "atk": 60, "def": 30, "matk": 30, "mdef": 30,
-            "spd": 12, "exp": 0, "gold": 0, "skills": [], "drops": [],
-            "map": "修炼塔", "map_area": "tower", "is_boss": False, "is_elite": False,
-            "mech": "", "mod": "",
-        }
-    # 层挑战系数（hp/atk 放大；exp/gold 覆盖为层奖励）
-    guard["hp"] = max(1, int(guard.get("hp", 100) * float(fd.get("hp_mult") or 1.0)))
-    guard["max_hp"] = guard["hp"]
-    guard["atk"] = max(1, int(guard.get("atk", 10) * float(fd.get("atk_mult") or 1.0)))
-    guard["matk"] = max(1, int(guard.get("matk", 10) * float(fd.get("atk_mult") or 1.0)))
-    # v93 经济：怪物 gold 字段不直接入账（折算材料），塔的金币奖励改由
-    # tower_guard_on_kill 结算时显式发放 → 怪物 gold 置 0 防白嫖材料掉落
-    guard["exp"] = int(fd.get("reward_exp") or 0)
-    guard["gold"] = 0
-    return guard
 
 
 class TowerCmds(CommandBase):
@@ -78,9 +61,9 @@ class TowerCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         lv = int(player.get("level") or 1)
-        min_lv = int(getattr(C, "TRIAL_MIN_LV", 70) or 70)
-        max_floor = int(getattr(C, "TRIAL_MAX_FLOOR", 30) or 30)
-        daily_limit = int(getattr(C, "TRIAL_DAILY_LIMIT", 3) or 3)
+        min_lv = int(getattr(_TP, "TRIAL_MIN_LV", 70) or 70)
+        max_floor = int(getattr(_TP, "TRIAL_MAX_FLOOR", 30) or 30)
+        daily_limit = int(getattr(_TP, "TRIAL_DAILY_LIMIT", 3) or 3)
         if lv < min_lv:
             yield event.plain_result(
                 f"🏯 修炼塔的门扉紧闭——塔灵的低语传来：『未至 {min_lv} 级者，不可窥见登天之路。』\n"
@@ -134,7 +117,7 @@ class TowerCmds(CommandBase):
         if not fd:
             yield event.plain_result("🏯 塔灵正在重构试炼……稍后再来挑战吧～")
             return
-        guard = build_tower_guard(floor)
+        guard = _TP.build_tower_guard(floor, build_monster)   # ★ 塔卫构造在包内（宿主只传 build_monster）
         guard_name = guard.get("name", "塔卫")
         # N5b4-6：塔开战 saintess_engine 化（四步仪式：prepare → sides → 装配 → B2；
         # 同 _open_battle 语义，tower 是普通战斗形态）

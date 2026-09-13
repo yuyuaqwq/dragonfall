@@ -11,6 +11,23 @@
 - 彩蛋线索：EXPLORE_EGG_EVENTS（探索彩蛋池，只给方向不给答案）
 
 由 main.py 作为 Mixin 被 Main 继承（命令：『今日事件』『事件 <地图名>』）。
+
+★ B8.2 线3（2026-09-13）命令层薄壳化：本模块只留「注册 + 解析参数 + 取玩家 + 调包 + 拼文案」。
+  · **读表改从内容包取**（`content/event_menu.py`，真源 `game/data/maps.py` / `events.py` /
+    `items.py`，单向导出为包内 `worlds`/`events`/`items` 域）：
+        `C.MAPS`→`_EM.MAPS`、`C.MAP_BY_ID`→`_EM.MAP_BY_ID`、`C.EXPLORE_EVENTS`→`_EM.EXPLORE_EVENTS`、
+        `C.EXPLORE_EGG_EVENTS`→`_EM.EXPLORE_EGG_EVENTS`、`C.ITEMS`/`C.resolve("items",…)`→
+        `_EM.ITEMS`/`_EM.resolve_item(...)`。
+  · **今日奇遇的纯逻辑**（`core/daily_events.py:21 today_map_event`）也搬进包
+    （`content/event_menu.py:daily_event_for`），表由本模块注入。
+  · **三张未进包的表**（父任务：不许新建未预声明的域）仍由本模块直读宿主 data 层：
+        `DAILY_MAP_EVENTS`（`game/data/daily_events.py:18`，20 图）
+        `WORLD_EVENT_POOL`（`game/data/world.py:8`，14 条）
+        `SUPPLY_BOX`（`game/data/quest_add_v140.py:121`，3 档）
+    —— 报告 §缺口已点名「需要新域 daily_events / world_events / supply_box」。
+  · 文案表口径**不动**：`supply.*` 的 `T.static/T.text` 调用点必须留本文件
+    （`tests/test_texts_table.py:81 WIRED` 按本文件 AST 做「声明 ↔ 调用点」双向对账）。
+  · 渲染文案**一字未改**（拼串、档位带、emoji、缩进全部原样）。
 """
 import datetime
 
@@ -18,9 +35,22 @@ from ._platform import AstrMessageEvent
 
 from ._declared import declared
 
-from .. import content as C
+from .. import db
 from ..core import texts as T
 from ..commands.base import CommandBase, require_player
+
+# ★ B8.2 线3：读包（宿主 `..content` 聚合层不再被本命令 import）。
+# `package_apply()` = 本进程唯一的包加载口（包根进 sys.path → `content` 成命名空间包），幂等；
+# 失败**大声抛**（读不到域 = 事件面板空转，比报错难查）。
+from .. import bootstrap as _bootstrap          # noqa: E402
+
+_bootstrap.package_apply()
+from content import event_menu as _EM           # noqa: E402
+
+# ★ 未进包的三张表（缺口见报告）：宿主 data 层直读
+from ..data.daily_events import DAILY_MAP_EVENTS as _DAILY_MAP_EVENTS      # noqa: E402
+from ..data.quest_add_v140 import SUPPLY_BOX as _SUPPLY_BOX                # noqa: E402
+from ..data.world import WORLD_EVENT_POOL as _WORLD_EVENT_POOL             # noqa: E402
 
 
 def _fx_label(effects: dict) -> str:
@@ -72,7 +102,7 @@ class EventMenuCmds(CommandBase):
         # 『事件 <地图名>』深查
         if raw:
             map_name = raw.strip()
-            _maps = getattr(C, "MAPS", None) or []
+            _maps = _EM.MAPS
             target = next((m for m in _maps
                            if m.get("name") == map_name or map_name in str(m.get("name", ""))), None)
             if not target:
@@ -86,12 +116,9 @@ class EventMenuCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     def _today_event_for(self, map_id: str):
-        """取今日奇遇（getattr 兜底，数据未就绪返回 None）。"""
-        fn = getattr(C, "today_map_event", None)
-        if fn is None:
-            return None
+        """取今日奇遇（逻辑在包 `content/event_menu.py:daily_event_for`；表未进包 → 本模块注入）。"""
         try:
-            return fn(map_id)
+            return _EM.daily_event_for(map_id, _DAILY_MAP_EVENTS)
         except Exception:
             return None
 
@@ -99,14 +126,14 @@ class EventMenuCmds(CommandBase):
         """全服总览：今日奇遇/世界事件/彩蛋线索三栏。"""
         lines = ["📅 【今日事件】", "━━━━━━━━━━━━"]
         # 一、今日奇遇（遍历全部配置了 DAILY_MAP_EVENTS 的野外图）
-        daily_map = getattr(C, "DAILY_MAP_EVENTS", None) or {}
+        daily_map = _DAILY_MAP_EVENTS or {}
         ev_maps = []
         if daily_map:
             for mid, variants in daily_map.items():
                 ev = self._today_event_for(mid)
                 if not ev or not ev.get("name"):
                     continue
-                mname = (getattr(C, "MAP_BY_ID", None) or {}).get(mid, {}).get("name", mid)
+                mname = (_EM.MAP_BY_ID or {}).get(mid, {}).get("name", mid)
                 note = _fx_label(ev.get("effects") or {})
                 ev_maps.append(f"  🌤 {mname}：{ev['name']}——{ev.get('desc', '')}（{note}）")
         if ev_maps:
@@ -118,7 +145,7 @@ class EventMenuCmds(CommandBase):
         # 二、世界事件（当前进行中的，由 WORLD_EVENT_POOL + social 管理）
         lines.append("")
         lines.append("【世界事件】")
-        wpool = getattr(C, "WORLD_EVENT_POOL", None) or []
+        wpool = _WORLD_EVENT_POOL or []
         if isinstance(wpool, dict):
             wpool = list(wpool.values())
         active = [e for e in wpool if e.get("active")]
@@ -130,7 +157,7 @@ class EventMenuCmds(CommandBase):
         # 三、彩蛋线索（酒馆传闻式：只给方向不给答案）
         lines.append("")
         lines.append("【彩蛋线索】")
-        egg_events = getattr(C, "EXPLORE_EGG_EVENTS", None) or []
+        egg_events = _EM.EXPLORE_EGG_EVENTS or []
         if egg_events:
             hints = [e for e in egg_events if e.get("hint")]
             shown = hints[:3] if hints else egg_events[:3]
@@ -156,7 +183,7 @@ class EventMenuCmds(CommandBase):
         # 探索事件池（EXPLORE_EVENTS 该图可用事件——按地图匹配近似展示，只给档位）
         lines.append("")
         lines.append("📦 探索事件（随机触发，概率模糊带）：")
-        explore = getattr(C, "EXPLORE_EVENTS", None) or []
+        explore = _EM.EXPLORE_EVENTS or []
         if explore:
             # 展示高频档位（weight 排序，不泄露精确概率）
             top = sorted(explore, key=lambda e: -e.get("weight", 0))[:6]
@@ -168,7 +195,7 @@ class EventMenuCmds(CommandBase):
         # 彩蛋传闻
         lines.append("")
         lines.append("🥚 彩蛋传闻：")
-        egg_events = getattr(C, "EXPLORE_EGG_EVENTS", None) or []
+        egg_events = _EM.EXPLORE_EGG_EVENTS or []
         if egg_events:
             hints = [e for e in egg_events if e.get("hint")]
             for e in (hints or egg_events)[:2]:
@@ -181,20 +208,22 @@ class EventMenuCmds(CommandBase):
 
     def _grant_items(self, group_id, qq_id, items, lines):
         """发放物品列表（兼容 items/materials 双表），返回实际发放清单。"""
-        from .. import db
         got = []
         for iname in items:
-            _iid = C.resolve("items", iname)
-            if _iid in C.ITEMS:
-                db.add_item(group_id, qq_id, _iid, C.ITEMS[_iid])
+            _iid = _EM.resolve_item(iname)
+            if _iid in _EM.ITEMS:
+                db.add_item(group_id, qq_id, _iid, _EM.ITEMS[_iid])
                 got.append(iname)
             else:
-                _imid = C.resolve("materials", iname)
-                if _imid in C.MATERIALS:
+                # 材料兜底：真源 `C.MATERIALS`（材料域未进包 —— 见报告 §缺口）。
+                # 该分支在真源数据下**结构性不可达**（证明见 `content/event_menu.py` ③）：
+                # 实测 SUPPLY_BOX 三档 9/9 物品名都命中上面的 ITEMS 分支。
+                _imid = _EM.resolve_material(iname)
+                if _imid in _EM.MATERIALS:
                     db.add_item(group_id, qq_id, _imid, {
-                        "name": C.display("materials", _imid),
-                        "type": C.MATERIALS[_imid].get("type", "材料"),
-                        "stackable": True, "price": C.MATERIALS[_imid]["price"]})
+                        "name": _EM.display_material(_imid),
+                        "type": _EM.MATERIALS[_imid].get("type", "材料"),
+                        "stackable": True, "price": _EM.MATERIALS[_imid]["price"]})
                     got.append(iname)
         return got
 
@@ -206,11 +235,10 @@ class EventMenuCmds(CommandBase):
         - supply_tool 道具箱：每日 1 个（原设计累计 3 个每日任务，简化按日限）
         - supply_rich 豪华箱：每周 ≤2 个（原设计累计 7 个每日任务，简化按周限）
         """
-        from .. import db
         today = datetime.date.today().isoformat()
         # 周起始（周一）
         monday = (datetime.date.today() - datetime.timedelta(days=datetime.date.today().weekday())).isoformat()
-        boxes = getattr(C, "SUPPLY_BOX", None) or []
+        boxes = _SUPPLY_BOX or []
         if not boxes:
             return [T.static("supply.missing")]
         lines = [T.static("supply.title"), "━━━━━━━━━━━━"]

@@ -15,61 +15,50 @@
 
 推进钩子（击杀时调用，参照 world._bump_daily_progress 接线思路）：
   weekly_bump_kill(group_id, qq_id, monster) -> list[str]
-    —— L3-P2a 起下沉 services/weekly_progress.py（命令层 re-export）；
-       combat 击杀结算已切 L3 玩家事件订阅方调用 services 版。
-       击杀自动推进周常，达标即自动发奖，返回通知行列表拼入战斗结算。
+    —— L3-P2a 起下沉 services/weekly_progress.py；**B8.2 线1 起实现已进内容包**
+       （`content/flow/weekly_progress.py`），本模块 re-export 同名保持引用兼容；
+       combat 击杀结算已切 L3 玩家事件订阅方调用。
 
+★ B8.2 线1（2026-09-13）命令层薄壳化：本模块只留「注册 + 解析参数 + 取玩家 + 调包 + 拼文案」。
+  · 状态/发奖/发布构造/悬赏池全在内容包：
+      `content/flow/weekly_progress.py`（真源 = 原 `game/services/weekly_progress.py` 全文件
+      + 原本文件 `_assign_week`，逐字端口；周状态族名 re-export 回来保持正文调用点不变）
+      悬赏池数据 = 包内 `weekly_quests` 域（真源 `game/data/weekly_quests.py:22`，
+      导出器 `scripts/export_domains/weekly_tower.py`）。
+  · 渲染文案**一字未改**：`weekly.*` 的 `T.text/T.static` 调用点全部留在本文件
+    （文案表门禁 `tests/test_texts_table.py` 的「声明 ↔ 调用点对账」按本文件 AST 扫）。
+  · 宿主只被用来「注入替身」：`db`（event_state 四动词）+ `reward.grant_reward`。
 """
-import datetime
-import json
-
 from ._platform import AstrMessageEvent
 
 # 指令声明装配：正则来自 `data/command_specs.json`（声明是唯一真源）
 from ._declared import declared
 
-from .. import content as C
 from .. import db
+from .. import reward as _reward
 from ..core import texts as T
-
 from ..commands.base import CommandBase, require_player
 
-# L3-P2a：周状态族 + 击杀推进下沉 services/weekly_progress.py（订阅方纯 services 消费）；
-# 命令层 re-export 同名单保持引用兼容（_assign_week/_obj_label 发布面板仍在本地）。
-from ..services.weekly_progress import (  # noqa: F401  (re-export)
+# ★ B8.2 线1：读包（宿主 `game/data/weekly_quests.py` 与 `game/services/weekly_progress.py` 的
+# 实现不再被本命令直接 import）。`package_apply()` = 本进程唯一的包加载口（`saintess_engine.package.load`：
+# 包根进 sys.path → `content` 成命名空间包），幂等；失败**大声抛**（读不到包 = 悬赏板空转，比报错难查）。
+from .. import bootstrap as _bootstrap          # noqa: E402
+
+_bootstrap.package_apply()
+from content.flow import weekly_progress as _WP  # noqa: E402
+
+# 宿主替身注入：存储层（get/set_event_state）+ 发奖函数（真源 `from ..reward import grant_reward`）
+_WP.bind_host(db, _reward.grant_reward)
+
+# L3-P2a：周状态族 + 击杀推进 + 发布构造 —— 包内实现**按原名** re-export（名字不变 → 下面正文逐字保留）
+from content.flow.weekly_progress import (  # noqa: E402,F401  (re-export)
     _week_key, _week_state, _save_week_state, _grant_rewards,
-    weekly_bump_kill,
+    weekly_bump_kill, _assign_week,
 )
 
-# 周常抽取条数 / 解锁等级（与数据层 WEEKLY_PICK/WEEKLY_MIN_LV 对齐）
-_WEEKLY_PICK = 3
-_WEEKLY_MIN_LV = 50
-
-
-def _assign_week(player) -> dict:
-    """按玩家等级发布本周 3 条悬赏（Lv50-69 中坚池 / Lv70+ 终局池），返回任务 dict。
-
-    池内顺序取前 3（同周全员一致更公平——避免『同一周不同人任务不同』的攀比，
-    也比每日 random.sample 少一个随机调用点，不扰动战斗回归随机序列）。
-    """
-    lv = int(player.get("level") or 1)
-    pool = [q for q in C.WEEKLY_QUESTS if lv >= int(q.get("min_lv") or 0)]
-    if len(pool) > _WEEKLY_PICK:
-        pool = pool[: _WEEKLY_PICK]
-    tasks = {}
-    for q in pool:
-        obj = dict(q.get("objective") or {})
-        need = next((v for v in obj.values() if isinstance(v, int) and v > 0), 1)
-        tasks[q["name"]] = {
-            "need": need,
-            "prog": 0,
-            "done": False,
-            "objective": obj,
-            "reward_exp": int(q.get("reward_exp") or 0),
-            "reward_gold": int(q.get("reward_gold") or 0),
-            "desc": q.get("desc", ""),
-        }
-    return tasks
+# 周常抽取条数 / 解锁等级（= 包内常量；真源 `game/data/weekly_quests.py:152/155`）
+_WEEKLY_PICK = _WP.WEEKLY_PICK
+_WEEKLY_MIN_LV = _WP.WEEKLY_MIN_LV
 
 
 def _obj_label(obj: dict) -> str:
@@ -138,7 +127,7 @@ class WeeklyCmds(CommandBase):
         raw = self._strip_cmd(event, "周常列表").strip()
         page = self._parse_page(raw)
         lv = int(player.get("level") or 1)
-        all_pool = list(C.WEEKLY_QUESTS)
+        all_pool = _WP.weekly_pool()          # ★ B8.2 线1：悬赏池改读包内 weekly_quests 域（源列表序）
         page_items, pages, page = self._page_items(all_pool, page, per_page=4)
         lines = [T.text("weekly.pool_title", page=page, pages=pages, pick=_WEEKLY_PICK),
                  "━━━━━━━━━━━━"]

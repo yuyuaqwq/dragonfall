@@ -31,6 +31,8 @@ monster_mods —— `game/data/monster_mods.py:15 MONSTER_MODS`（1824 行文件
                                       element_immune/element_weak/immune_dots/dmg_taken_mult/
                                       class_name/equipment/…（:447-481，整条白名单透传）
         `game/commands/boss_script.py:28`  Boss 剧本基准（副本侧由 instances 覆盖）
+        ★ B8.2 线5（2026-09-13）该引用已退役：宿主副本移出仓 → 包内端口
+          `<包>/content/flow/boss_script.py`（`content.flow.boss_script`）
         `game/commands/instance_battle.py:134`  `target_policy`（仇恨选敌）
         `game/commands/combat.py:503`     图鉴展示 `desc`
     引用闭合（本批只列，不展开）：条目的 `skills`/`phases[].add_skills`/`chains[].seq` 里

@@ -133,7 +133,8 @@ def test_2_director_and_ai_coexist():
           else None}
     # 简化：直接验证 skip 返回时 actor_auto 无伤害（已有 5c P1 覆盖演出刻）——
     # 此处验证决策顺序不因 AI 存在破坏演出刻
-    from game.commands import boss_script as BS
+    # ★ B8.2 线5：Boss 剧本导演宿主副本已移出仓 → 读**包内端口** content.flow.boss_script
+    from content.flow import boss_script as BS
     st["boss_script"] = BS._new_script_state()
     b.script_hook = BS.make_script_hook(st)
     # 压 boss 血到 50%（咕噜 60% 触发阶段 2）→ 下帧导演演出刻 skip

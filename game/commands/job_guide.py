@@ -5,19 +5,42 @@
 - 『职业』：12 职业速查一览（基础六 + 隐藏六分组，名称 + 定位一句话）
 - 『职业 <名称>』：单职业详情（基础名/档位路线/核心资源机制/转职条件/隐藏线解锁方式）
 
-名称解析见 data/job_guide.py resolve_job：显示名（含 v130.2 新名 淬势者）→ classes.py
-aliases（苦修士/武僧→淬势者）→ 兼容名（歌者→牧师）→ 分支名（吟游诗人→牧师）→ 模糊兜底。
-纯信息查询：不 require_player（注册前可查，与『种族』『图鉴』同款）。
+★ B8.2 线5（2026-09-13）命令层薄壳化：本模块**只留渲染**（拼串一字未改）；数据与名称解析
+全在内容包（`<包>/content/tables.py` 的 job_guide 域读口 + 通用解析口 `resolve("job_guide", …)`；
+真源 `game/data/job_guide.py`，单向导出器 `scripts/export_domains/life_growth.py:derive_job_guide`）。
+名称解析链：职业 id → 显示名 → 别名（转职分支名 / 兼容名 歌者）→ 模糊子串兜底（≥2 字双向
+contains；多命中给候选列表）。纯信息查询：不 require_player（注册前可查，与『种族』『图鉴』同款）。
 """
 from ._platform import AstrMessageEvent
 
 from ._declared import declared
-from ..data.job_guide import (
-    JOB_GUIDE, BASE_ORDER, HIDDEN_ORDER, HIDDEN_SUCCESSORS,
-    EXTRA_RESOURCES, EXTRA_RESOURCE_GUIDE, resolve_job,
-)
-from ..data.classes import CLASSES
 from ..commands.base import CommandBase
+
+# ★ B8.2 线5：读包（宿主的 `game/data/job_guide.py` / `classes` 不再被本命令 import）。
+# `package_apply()` = 本进程唯一的包加载口（`saintess_engine.package.load`：包根进 sys.path
+# → `content` 成命名空间包），幂等；失败**大声抛**（读不到域 = 一览空转，比报错难查）。
+from .. import bootstrap as _bootstrap          # noqa: E402
+
+_bootstrap.package_apply()
+from content import tables as _TBL              # noqa: E402
+
+JOB_GUIDE = _TBL.JOB_GUIDE                      # 7 条；已含 aliases / extra_resources 注入
+BASE_ORDER = _TBL.job_base_order()
+HIDDEN_ORDER = _TBL.job_hidden_order()
+HIDDEN_SUCCESSORS = _TBL.job_hidden_successors()
+CLASSES = _TBL.CLASSES                          # 详情里 `mech`（v130.7 意见#19）读它
+# 副资源展示：域里挂在职业条目上（`extra_resources` = [{key,name,max,desc}]）→ 还原成真源的
+# 两张查表形状（`EXTRA_RESOURCES` 职业→key 列表 / `EXTRA_RESOURCE_GUIDE` key→元数据），
+# 这样下面的渲染代码与文案**一行都不用改**。
+EXTRA_RESOURCES = {cid: [r["key"] for r in g["extra_resources"]]
+                   for cid, g in JOB_GUIDE.items() if g.get("extra_resources")}
+EXTRA_RESOURCE_GUIDE = {r["key"]: r for g in JOB_GUIDE.values()
+                        for r in (g.get("extra_resources") or [])}
+
+
+def resolve_job(raw):
+    """职业名 → 职业 id / 多命中 list / None —— 包内**通用解析口**（与真源逐行同义）。"""
+    return _TBL.resolve("job_guide", raw)
 
 
 class JobGuideCmds(CommandBase):

@@ -4,7 +4,8 @@
 背景（2026-09-11）：saintess_engine/ai.py resolve_ai_move 原先只按 when 条件选 move、
 不校验技能此刻可执行；ActCtx.__post_init__ 只从 actor["_skill_index"] 解析技能
 （无全局兜底）→ 索引不到时 do_skill 拿到 info={} 直接 return []：**静默白耗一回合**。
-chain（boss_script._check_chains）同样把技能写进 actor["auto_act"] 走 ActCtx 解析，
+chain（boss_script._check_chains —— ★ B8.2 线5 起宿主副本已移出仓，代码在包内端口
+`<包>/content/flow/boss_script.py`）同样把技能写进 actor["auto_act"] 走 ActCtx 解析，
 故连招链引用的技能同样必须真持有。
 
 分类口径（引擎在每次决策前 refresh_skill_index，故运行期追加的技能也算可解析）：

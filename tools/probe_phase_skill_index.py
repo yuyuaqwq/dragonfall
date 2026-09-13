@@ -31,7 +31,9 @@ from game.core.drops import build_monster  # noqa: E402
 from game.services.battle_bridge import monster_to_actor  # noqa: E402
 from game.data.maps import MAP_BY_ID  # noqa: E402
 from game.data.monster_mods import MONSTER_MODS  # noqa: E402
-from game.commands.boss_script import make_script_hook  # noqa: E402
+from game.bootstrap import package_apply as _pkg_apply  # noqa: E402
+_pkg_apply()                                             # ★ B8.2 线5：宿主副本已移出仓 → 读包内端口
+from content.flow.boss_script import make_script_hook    # noqa: E402
 
 MID = "b_gray_lord"
 mod = MONSTER_MODS.get(MID) or {}

@@ -67,8 +67,12 @@ def make_player(hp=2000):
 
 
 def script_battle(p, boss, inst_id="inst_goblin_camp"):
-    """构造带剧本观察者的战斗（st 含 inst_id 供 boss_script_cfg 解析）。"""
-    from game.commands import boss_script as BS
+    """构造带剧本观察者的战斗（st 含 inst_id 供 boss_script_cfg 解析）。
+
+    ★ B8.2 线5：Boss 剧本导演宿主副本已移出仓 → 读**包内端口** `content.flow.boss_script`
+    （`content` 由 conftest 的 `game.content_rules.apply` 加载内容包时进 sys.path）。
+    """
+    from content.flow import boss_script as BS
     st = {"inst_id": inst_id, "boss_script": None}
     _obs = BS.make_script_event(st)
     b = B2(btype="instance", sides={"player": [p], "enemy": [boss]})
