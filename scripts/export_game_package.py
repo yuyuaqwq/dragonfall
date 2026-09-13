@@ -2704,6 +2704,54 @@ DERIVERS = {
     "tlogs": derive_tlogs,
 }
 
+# =============================================================================
+# 域插件（scripts/export_domains/*.py）—— 2026-09-13 起：多路并行加域的**零冲突**扩展面
+# -----------------------------------------------------------------------------
+# 一个插件模块暴露 `DOMAINS = {"<域>": derive_<域>, ...}`，即被自动并入上面的注册表；
+# 目的：并行加域时**不必改本文件**（同一时刻多路抢同一处 DERIVERS 字面量 = 域会静默消失的高危区）。
+# 域名单仍由 `sorted(DERIVERS)` 派生 → `game.json.domains` 自动跟（不存在第二份手写名单）。
+# 加载失败**不静默**：坏模块记进 `DOMAIN_PLUGIN_ERRORS`（CLI 打警告、覆盖门禁计入失败），
+# 但**只跳过坏模块**，不阻塞其它路的导出（并行窗口期的取舍；门禁那一侧仍会报出来）。
+# 契约与用法见 `scripts/export_domains/README.md`；公用小工具见 `_helpers.py`。
+# =============================================================================
+DOMAIN_PLUGIN_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "export_domains")
+DOMAIN_PLUGIN_ERRORS: list = []
+
+
+def load_domain_plugins(plugin_dir: str = DOMAIN_PLUGIN_DIR) -> dict:
+    """扫 `scripts/export_domains/*.py` → 合并各自 `DOMAINS`（坏模块记错跳过；域重名直接抛错）。"""
+    out: dict = {}
+    if not os.path.isdir(plugin_dir):
+        return out
+    if plugin_dir not in sys.path:          # 让插件能 `from _helpers import ...`
+        sys.path.insert(0, plugin_dir)
+    for fn in sorted(os.listdir(plugin_dir)):
+        if not fn.endswith(".py") or fn.startswith("_"):
+            continue
+        path = os.path.join(plugin_dir, fn)
+        mod_name = f"gwen_domain_plugin_{fn[:-3]}"
+        try:
+            spec = importlib.util.spec_from_file_location(mod_name, path)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[mod_name] = mod
+            spec.loader.exec_module(mod)
+            domains = getattr(mod, "DOMAINS", None)
+            if not isinstance(domains, dict):
+                raise TypeError(f"DOMAINS 必须是 dict（得到 {type(domains).__name__}）")
+        except Exception as e:              # noqa: BLE001 —— 单路坏不阻塞别的路
+            DOMAIN_PLUGIN_ERRORS.append(f"{fn}: {type(e).__name__}: {e}")
+            continue
+        for dom, fn_ in domains.items():
+            if dom in DERIVERS or dom in out:
+                raise RuntimeError(f"域 {dom!r} 重复声明（{fn}）—— 域名单必须全局唯一")
+            if not callable(fn_):
+                raise RuntimeError(f"域 {dom!r} 的派生器不可调用（{fn}）")
+            out[dom] = fn_
+    return out
+
+
+DERIVERS.update(load_domain_plugins())
+
 
 # =============================================================================
 # 写盘（幂等：UTF-8 / LF / indent=2 / 末尾换行 / 原子替换）
@@ -2862,6 +2910,11 @@ def export(domain: str, out_root: str, check_only: bool = False,
 
 
 def main(argv=None) -> int:
+    # 域插件加载失败：**打出来但不挡**（并行窗口期别的路还要导出）；覆盖门禁那一侧算失败。
+    if DOMAIN_PLUGIN_ERRORS:
+        print("⚠️ 下列域插件加载失败（已跳过，其余域照常导出）：", file=sys.stderr)
+        for _e in DOMAIN_PLUGIN_ERRORS:
+            print(f"   - {_e}", file=sys.stderr)
     ap = argparse.ArgumentParser(
         prog="export_game_package.py",
         description="奥兰迪亚内容数据 → 框架编辑器游戏包 JSON（单向导出）",

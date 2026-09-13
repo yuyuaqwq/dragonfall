@@ -29,13 +29,27 @@ REPO = os.path.dirname(HERE)                                   # 游戏仓根
 EXPORT = os.path.join(HERE, "export_game_package.py")
 FRAMEWORK = os.environ.get("GWEN_FRAMEWORK_DIR") or "C:/Users/yuyu/framework-engine"
 PKG_ID = "orlandia"
+PLUGIN_ERRORS: list = []          # 域插件加载失败（由 _derivers() 填；main 计入失败）
 
 
 def _derivers() -> list:
-    """已实现的域 —— 从导出器源码读（别手写第二个列表；行首锚定避开头部 docstring 里的示例）。"""
-    src = open(EXPORT, encoding="utf-8").read()
-    m = re.search(r"^DERIVERS = \{(.*?)^\}", src, re.S | re.M)
-    return sorted(re.findall(r'"([a-z_]+)":\s*derive_', m.group(1))) if m else []
+    """已实现的域 —— **执行导出器模块**读它的 `DERIVERS`（字面量 + `scripts/export_domains/` 插件域）。
+
+    为什么不再爬源码字面量：域注册表自 2026-09-13 起是**运行期合并**的（支持域插件），
+    爬字面量会让插件域在门禁里“看不见”= 静默漏域；插件加载失败也记进 DOMAIN_PLUGIN_ERRORS
+    由 main() 计入失败（不静默）。顺带记录模块级错误供 main 使用。
+    """
+    import importlib.util
+    global PLUGIN_ERRORS
+    for _p in (REPO, HERE):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    spec = importlib.util.spec_from_file_location("_xp_coverage_export", EXPORT)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["_xp_coverage_export"] = mod
+    spec.loader.exec_module(mod)
+    PLUGIN_ERRORS = list(getattr(mod, "DOMAIN_PLUGIN_ERRORS", []) or [])
+    return sorted(mod.DERIVERS)
 
 
 def _run_cli(*args) -> tuple:
@@ -54,7 +68,7 @@ def main() -> int:
 
     pkg = os.path.join(os.path.abspath(FRAMEWORK), "games", PKG_ID)
     doms = _derivers()
-    fails = []
+    fails: list = [f"域插件加载失败（该域没有被导出，按失败计）：{e}" for e in PLUGIN_ERRORS]
     print(f"游戏仓 = {REPO}\n框架仓 = {os.path.abspath(FRAMEWORK)}\n导出器已实现的域：{doms}")
     if not doms:
         print("❌ 读不到已实现的域（DERIVERS 解析失败）")
