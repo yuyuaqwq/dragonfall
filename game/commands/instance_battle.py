@@ -26,7 +26,7 @@ from typing import Optional
 from ..core import instance_run as IR
 from ..core import texts as T  # v185：文案表（唯一真源 game/data/text_specs.json）   # v185：名单视图（成员/存活）
 from ..services import battle_bridge as BR
-from saintess_engine.kinds import K_HEAL, K_BUFF
+from ..data.kinds import K_HEAL, K_BUFF
 
 # 玩家快照/玩法壳视图需要同步回的每玩家键（actor → snap 或 st per-player 键）
 # V 系列：战斗状态权威 = effects（snap 由 sync_player_from_actor 回写），

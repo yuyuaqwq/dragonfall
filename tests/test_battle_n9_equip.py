@@ -196,8 +196,8 @@ def test_no_equip_no_trigger():
 def test_unsupported_key_skipped():
     print("【N9.6 未支持 key 静默跳过（范围外）】")
     p = mk_a("p1", "player")
-    # 真缺口 key（N9B 闪避批次未迁）：novice_first_turn_dodge 属战斗判定缺口
-    equip(p, "novice_first_turn_dodge", slot="armor")
+    # D3（2026-09-13）：novice_first_turn_dodge 已补翻译器 → 不再属「未支持 key」，
+    # 正面断言见 test_d3_gap_fixes；此处只留真正的未知名（含拼错 key）。
     equip(p, "no_such_weapon_key", slot="weapon")
     EP.apply_to_actor(p)
     check("未支持 key 不装配", not (p.get("triggers") or {}), f"{p.get('triggers')}")
@@ -1346,20 +1346,117 @@ def test_affix_regen_tail():
     check("精力 80 ≥80 触发 +10", stk(p2, "energy") == 90,
           f"energy={stk(p2, 'energy')}")
     # v181.M-bonus：cost_reduce 3 词条（energy_blade/arcane_focus/sigil_blessing）已装
-    # → 走 bonus.cost 容器（非事件 → 仍零 triggers）；cond/combo/职业机制仍缺口零装配
+    # → 走 bonus.cost 容器（非事件 → 仍零 triggers）；其余未注册词条仍零装配
+    # （D3 2026-09-13：ember_brand/combo_recover/combo_ward 已补翻译器 → 不再零装配，
+    #  正面断言见 test_d3_gap_fixes）
     p3 = mk_a("p3", "player")
     _affix_item(p3, "energy_blade", "weapon", "purple")
     _affix_item(p3, "arcane_focus", "armor", "blue")
     _affix_item(p3, "sigil_blessing", "ring", "blue")
-    _affix_item(p3, "ember_brand", "boots", "blue")
-    _affix_item(p3, "combo_recover", "helm", "blue")
     _affix_item(p3, "sigil_engrave", "necklace", "purple")
     EP.apply_to_actor(p3)
-    check("cost 词条装配 bonus.cost（容器非事件）；缺口词条零 triggers",
+    check("cost 词条装配 bonus.cost（容器非事件）；未注册词条零 triggers",
           not (p3.get("triggers") or {})
           and abs(float((((p3.get("bonus") or {}).get("cost") or {}).get("res") or {})
                         .get("energy", 0)) - 0.08) < 1e-9,
           f"triggers={p3.get('triggers')} cost={(p3.get('bonus') or {}).get('cost')}")
+
+
+# ============================================================
+# D3 缺口收口（2026-09-13）：3 个放错表键 + 首刻闪避 + 3 条事件型词条
+# ============================================================
+
+def test_d3_gap_fixes():
+    print("【D3 缺口收口：放错表 3 键 + novice_first_turn_dodge + 3 条事件型词条】")
+    from saintess_engine.battle import stats as _S
+    from saintess_engine.battle import schedule as _SCH
+    from saintess_engine.battle.effect_triggers import fire as _FIRE
+    # ① 3 个「放错表」键：roster 当 weapon_effect 引用，数据原只在 LEGENDARY_EFFECTS
+    #    → 曾 cfg 恒 {}（静默跳过）；现抄进 WEAPON_EFFECT_DATA + 乘区翻译器
+    for key, cond, param, mult in (("divine_execution", "hp_target_lt", 0.30, 1.60),
+                                   ("dragon_annihilation", "name_contains", ["龙"], 1.25),
+                                   ("star_destruction", "name_contains", ["深渊"], 1.30)):
+        p = mk_a("p_" + key, "player")
+        equip(p, key, slot="weapon")
+        EP.apply_to_actor(p)
+        dc = [e for e in (p.get("triggers") or {}).get("dmg_calc", [])
+              if e.get("type") == "we_dmg_mult_cond" and e.get("key") == key]
+        _p_ok = (dc[0].get("threshold") == param if cond == "hp_target_lt"
+                 else dc[0].get("keywords") == param) if dc else False
+        check(f"{key} 装配 dmg_calc（{cond} ×{mult}）",
+              len(dc) == 1 and dc[0].get("cond") == cond
+              and abs(float(dc[0].get("mult") or 0) - mult) < 1e-9 and _p_ok, f"{dc}")
+    # ② novice_first_turn_dodge：battle_start apply dodge +5%（1 刻后失效）
+    p = mk_a("p_dodge", "player")
+    m = mk_a("e_dodge", "enemy", hp=99999, atk=1)
+    equip(p, "novice_first_turn_dodge", slot="helm")
+    EP.apply_to_actor(p)
+    bs = [e for e in (p.get("triggers") or {}).get("battle_start", [])
+          if e.get("type") == "apply" and e.get("stat") == "dodge"]
+    check("novice_first_turn_dodge 装配 battle_start apply dodge +5%",
+          len(bs) == 1 and abs(float(bs[0].get("mult") or 0) - 0.05) < 1e-9
+          and bs[0].get("op") == "add" and int(bs[0].get("turns") or 0) == 1, f"{bs}")
+    b = new_battle(p, m)
+    d0 = float(_S.actor_stats(b, p).get("dodge") or 0)
+    b.act(ActCtx(caster=p, action="attack", target=m))
+    d1 = float(_S.actor_stats(b, p).get("dodge") or 0)
+    check("首刻 dodge 面板 +5%（真生效）", abs(d1 - (d0 + 0.05)) < 1e-9, f"{d0} → {d1}")
+    # 首刻后失效：turns=1 → expire=now+1；时刻推进 1 刻（ACT_TICK=1）后引擎
+    # `schedule._settle_time_effects` 清过期条目（b.act 不推 `_now`，故走时刻推进）
+    _SCH._advance_time(b, 1.0, [])
+    d2 = float(_S.actor_stats(b, p).get("dodge") or 0)
+    check("首刻后 dodge 回落（1 刻失效）", abs(d2 - d0) < 1e-9, f"{d0} → {d2}")
+    # ③-a combo_recover（on: combo_skill → skill_hit，chi +1）
+    p = mk_a("p_cr", "player")
+    m = mk_a("e_cr", "enemy", hp=99999, atk=1)
+    _affix_item(p, "combo_recover", "weapon", "blue")
+    EP.apply_to_actor(p)
+    sh = [e for e in (p.get("triggers") or {}).get("skill_hit", [])
+          if e.get("key") == "combo_recover"]
+    check("combo_recover 装配 skill_hit（chi +1）",
+          len(sh) == 1 and sh[0].get("res") == "chi" and int(sh[0].get("gain") or 0) == 1,
+          f"{sh}")
+    _FIRE(new_battle(p, m), "skill_hit", {"actor": p, "target": m,
+                                          "info": {"name": "连招三连"}}, [])
+    check("combo_recover 真生效：技能命中 chi +1", stk(p, "chi") == 1, f"chi={stk(p, 'chi')}")
+    # ③-b combo_ward（受击 combo_keep_chance 概率回补 1 段连段；tiers 按品质取档）
+    p = mk_a("p_cw", "player")
+    m = mk_a("e_cw", "enemy", hp=99999, atk=1)
+    _affix_item(p, "combo_ward", "armor", "orange")
+    EP.apply_to_actor(p)
+    ot = [e for e in (p.get("triggers") or {}).get("on_taken", [])
+          if e.get("key") == "combo_ward"]
+    check("combo_ward 装配 on_taken（orange 档 chance 0.30 → lian_duan +1）",
+          len(ot) == 1 and abs(float(ot[0].get("chance") or 0) - 0.30) < 1e-9
+          and ot[0].get("res") == "lian_duan", f"{ot}")
+    b = new_battle(p, m)
+    _hits = 0
+    for _ in range(60):                      # 固定种子 → 确定性；验「概率触发」真生效
+        if stk(p, "lian_duan") >= 10:        # 连段 cap 10（引擎 cap_of）
+            break
+        _before = stk(p, "lian_duan")
+        _FIRE(b, "on_taken", {"actor": p, "target": p, "source": m, "dmg": 10}, [])
+        if stk(p, "lian_duan") == _before + 1:
+            _hits += 1
+    check("combo_ward 真生效：受击概率回补 1 段（0 < 命中 < 60）",
+          0 < _hits < 60 and stk(p, "lian_duan") == _hits,
+          f"hits={_hits} 段={stk(p, 'lian_duan')}")
+    # ③-c ember_brand（cond hp_lt_30：残血才 rage +1）
+    p = mk_a("p_eb", "player")
+    m = mk_a("e_eb", "enemy", hp=99999, atk=1)
+    _affix_item(p, "ember_brand", "boots", "blue")
+    EP.apply_to_actor(p)
+    eb = [e for e in (p.get("triggers") or {}).get("on_taken", [])
+          if e.get("key") == "ember_brand"]
+    check("ember_brand 装配 on_taken（cond_hp_lt=0.30，rage +1）",
+          len(eb) == 1 and abs(float(eb[0].get("cond_hp_lt") or 0) - 0.30) < 1e-9
+          and eb[0].get("res") == "rage", f"{eb}")
+    b = new_battle(p, m)
+    _FIRE(b, "on_taken", {"actor": p, "target": p, "source": m, "dmg": 10}, [])
+    check("满血不触发（hp 门槛」真生效）", stk(p, "rage") == 0, f"rage={stk(p, 'rage')}")
+    p["hp"] = int(p["max_hp"] * 0.20)
+    _FIRE(b, "on_taken", {"actor": p, "target": p, "source": m, "dmg": 10}, [])
+    check("残血受击 rage +1（真生效）", stk(p, "rage") == 1, f"rage={stk(p, 'rage')}")
 
 
 def main():
@@ -1370,6 +1467,7 @@ def main():
     test_weapon_abyss_and_multi()
     test_no_equip_no_trigger()
     test_unsupported_key_skipped()
+    test_d3_gap_fixes()
     test_regen_turn_start()
     test_wind_mark_stack()
     test_dot_ext_action()

@@ -104,4 +104,16 @@ WEAPON_EFFECT_DATA = {
     "novice_spark_followup": {"family": "proc_next_atk_mark", "atk_pct": 0.10, "stack_key": "novice_spark", "log": "✨ 星火：下次普攻伤害 +10%！"},
     "novice_first_turn_dodge": {"family": "proc_special", "dodge_pct": 0.05, "mark_key": "novice_dodge_active", "log": "💨 远行：首刻闪避率 +5%！"},
     "novice_dawn_mana": {"family": "proc_heal", "mp": 10, "used_key": "novice_mana_used", "log": "🌅 晨星：回复 10 点魔力！"},
+    # ---- D3 增量（2026-09-13）：3 个「放错表」的 roster `weapon_effect` 键 ----
+    # 真源形状在 affixes.py LEGENDARY_EFFECTS（:981 star_destruction / :986 dragon_annihilation
+    # / :991 divine_execution，trigger:"passive"，effect {dmg_mult, enemy_contains|
+    # execute_threshold, tag}）；roster 当 `weapon_effect` 引用（equip_roster.py:966/983/985）
+    # → `_we_config` 只读本表 → cfg 恒 `{}` → 静默跳过（配置有、翻译器缺）。
+    # 修法：抄进本表（family/event 对齐 proc_passive_mult），翻译器 = battle_equip_proc
+    # `_translate_legend_mult`（dmg_calc 乘区）。LEGENDARY_EFFECTS 原条目**保留**：
+    # 生成期 `drops._merge_legendary_stats` 只收 trigger=="stat" 条目 → 非 stat 条目零行为；
+    # 删它要动包内 `legendary_effects.json`（不在本次改动面内）。
+    "divine_execution": {"family": "proc_passive_mult", "event": ["passive"], "dmg_mult": 1.6, "execute_threshold": 0.3, "tag": "⚡神罚处决"},
+    "dragon_annihilation": {"family": "proc_passive_mult", "event": ["passive"], "dmg_mult": 1.25, "enemy_contains": ["龙"], "tag": "🐉灭龙"},
+    "star_destruction": {"family": "proc_passive_mult", "event": ["passive"], "dmg_mult": 1.3, "enemy_contains": ["深渊"], "tag": "☄️星陨湮灭"},
 }

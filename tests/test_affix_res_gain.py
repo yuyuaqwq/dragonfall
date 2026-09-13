@@ -9,8 +9,10 @@
 - boiling_blood：怒气满（rage 10/10）taken_calc 减伤 8%（92/100），未满不触发
 - holy_echo tiers 档位（purple gain=2）act_cast kind=治疗 过滤；warcry_echo
   kind=增益 过滤；crit_return tiers 档位作用于 chance（_AFFIX_TIER_KEY）
-- 缺口词条零噪音：rage_forge/full_pack/combo_recover/ember_brand/energy_tide
-  未注册翻译器 → 不产生 triggers（cap 动态机制 R4 未实施）
+- 缺口词条：上限型（rage_forge/full_pack → bonus.cap）与 cost_reduce 型（energy_blade →
+  bonus.cost）走容器**不进事件通道**（零 triggers）；
+  **D3 收口（2026-09-13）**：ember_brand（cond: hp_lt_30 → cond_hp_lt 门槛，挂 命中/技能/受击
+  三个观测点）与 combo_recover（on: combo_skill → skill_hit）**已装**，见 T7 后两条断言。
 
 跑法：python tests/test_affix_res_gain.py
 """
@@ -328,11 +330,12 @@ def test_crit_res_gain():
 # ============================================================
 
 def test_gap_affixes_no_noise():
-    print("【R4.7 缺口词条不装配（零噪音）：上限型/cost_reduce/cond/combo】")
+    print("【R4.7 非事件通道词条零 triggers + D3 收口的两个 event 型词条已挂】")
     p = mk_a("pc", "player")
-    # 一件装备多个缺口词条（rage_forge/full_pack 上限型走 bonus.cap 非事件；
-    # energy_blade cost_reduce；ember_brand cond 修正；combo_recover 连招技——
-    # energy_tide 等 regen 型已由 m_affixtail 装配（见 T9））
+    # 一件装备混合五类词条：上限型（rage_forge/full_pack → bonus.cap）/ cost_reduce
+    # （energy_blade → bonus.cost）**必须不进事件通道**；cond 修正型（ember_brand）与
+    # 连招技型（combo_recover）已由 D3 2026-09-13 收口挂上观测点（见 battle_equip_proc.py
+    # 「D3 已装」注 + we_affix_res_gain 的 cond_hp_lt 门槛）。
     p.setdefault("equipment", {})["weapon"] = {
         "slot": "weapon", "quality": "purple",
         "affixes": ["rage_forge", "full_pack", "energy_blade", "ember_brand",
@@ -340,11 +343,32 @@ def test_gap_affixes_no_noise():
         "stats": {},
     }
     EP.apply_to_actor(p)
-    check("缺口词条零 triggers", not (p.get("triggers") or {}),
-          f"triggers={p.get('triggers')}")
+    tr = p.get("triggers") or {}
+
+    def _keys(*evs):
+        return {e.get("key") for ev in evs for e in (tr.get(ev) or [])}
+
+    _all = _keys("attack_hit", "skill_hit", "on_taken", "turn_start", "act_cast")
+    check("上限型零 triggers（bonus.cap 通道）",
+          not (_all & {"rage_forge", "full_pack"}), f"triggers={tr}")
+    check("cost_reduce 型零 triggers（bonus.cost 通道）",
+          "energy_blade" not in _all, f"triggers={tr}")
     check("缺口词条零 effects 条目", not (p.get("effects") or {}),
           f"effects={p.get('effects')}")
     check("上限词条 bonus.cap 容器（非事件通道）", _capb(p).get("energy") == 10, f"bonus.cap={_capb(p)}")
+
+    # ---- D3 收口（反证位：把候选事件全摘掉后下面两条必须红）----
+    eb = [e for ev in ("attack_hit", "skill_hit", "on_taken") for e in (tr.get(ev) or [])
+          if e.get("key") == "ember_brand"]
+    check("D3 ember_brand 命中/技能/受击三观测点各挂一次", len(eb) == 3, f"{eb}")
+    check("D3 ember_brand 参数（res=rage gain=1 cond_hp_lt=0.30）",
+          len(eb) == 3 and all(
+              e.get("res") == "rage" and e.get("gain") == 1
+              and abs(float(e.get("cond_hp_lt") or 0) - 0.30) < 1e-9 for e in eb),
+          f"{eb}")
+    cr = [e for e in (tr.get("skill_hit") or []) if e.get("key") == "combo_recover"]
+    check("D3 combo_recover 挂 skill_hit（res=chi gain=1）",
+          len(cr) == 1 and cr[0].get("res") == "chi" and cr[0].get("gain") == 1, f"{cr}")
 
 
 # ============================================================

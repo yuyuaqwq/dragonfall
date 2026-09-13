@@ -17,6 +17,7 @@ import os
 import sys
 import tempfile
 import json
+import random
 
 os.environ["GWEN_GAME_DB"] = os.path.join(tempfile.mkdtemp(), "game.db")
 os.environ["GWEN_TEST_MODE"] = "1"
@@ -198,7 +199,17 @@ def test_4_rampage_not_triggered():
     boss["hp"] = int(boss["max_hp"] * 0.25)
     b.actor_auto(boss)
     boss["hp"] = int(boss["max_hp"] * 0.10)
-    logs, ended = b.actor_auto(boss)
+    # 本帧验的是「动作被真实解析（非演出拦截 / 非空放）」，与闪避随机分支无关 →
+    # 钉死随机源（项目测试确定性铁律·档一：比固定 seed 更强，任何种子下一致）。
+    # random()=1.0 使一切 `random() < p` 分支均不成立 = 必不闪避；引擎闪避判定见
+    # framework/saintess_engine/battle/landing.py:256 `random.random() < dodge`。
+    # 反证：把 1.0 改成 0.0 → 必闪避 → 下面那条断言立刻报红（已实测）。
+    _rr = random.random
+    random.random = lambda: 1.0
+    try:
+        logs, ended = b.actor_auto(boss)
+    finally:
+        random.random = _rr
     bs = st["boss_script"]
     check("10% 血仍 phase_count=2（min 0 阈值永不触发）",
           bs.get("phase_count") == 2, str(bs.get("phase_count")))

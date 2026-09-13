@@ -90,11 +90,15 @@ MANIFEST_MANAGED = {
     "name": "奥兰迪亚·余烬纪年",
     "desc": "《奥兰迪亚·余烬纪年》内容侧数据导出包（QQ 机器人文字 RPG 内容仓 dragonfall 单向导出）",
     "engine": ">=0.1",
+    # P4（2026-09-13）：机制入口已移植进包（content/apply.py + content/mech/，最小切片已真跑通
+    # 一场战斗 + PASSIVE_PROC 触发）→ 按本文件下方原注释「一旦将来移植机制入口，再把它加回来」
+    # 把 entry 加回管辖字段：包的清单必须声明装配入口，且导出产物要与包内 game.json 逐字节一致
+    # （同步门禁 tests/test_export_package_sync.py 的「CLI 产物 game.json == 仓库文件」一条件）。
+    "entry": "content/apply.py",
 }
-# 导出器**不再声明**的字段：曾写过 "entry": "content/apply.py"，但导出物里没有 content/apply.py
-# （机制尚未移植，本包是纯数据包）→「声明了 entry 却没有该文件」= 坏包。
-# 框架侧门禁 tests/test_editor_dist.py 现在守这条不变量；一旦将来移植机制入口，再把它加回来。
-MANIFEST_DROPPED = ("entry",)
+# 导出器**不再声明**的字段（原：("entry",) —— P4 起 entry 是包的一部分，已加回 MANIFEST_MANAGED）。
+# 保留本常量作为「未来要丢弃的旧字段」的登记处，避免下次再手写第二份名单。
+MANIFEST_DROPPED = ()
 
 # ---------------- 域注册表 ----------------
 # 一个域 = 一个 `derive_<域>() -> dict[key, entry]`；entry 原样进 JSON（不补默认值/不改类型）
@@ -479,9 +483,11 @@ def derive_passive_proc(src_root: str = REPO_ROOT) -> dict:
     - 已知覆盖面缺口（导出后包里不可见，非本函数可解）：技能侧共 52 个 proc 名，
       本表只声明 42 个；另 10 个（death_contract / faith_overload_heal / faith_share /
       focus_regen_summon / melody_full / melody_master / melody_resonance /
-      shadow_dance_ease / skeleton_cap / undead_faith）走旧注册表
-      game/core/passive_procs.py PROC_FAMILIES/KNOWN_GAPS —— 「同域双真源」，
-      且声明这些 proc 的 52 条被动技能在 BRANCH_SKILLS，也未进 skills 域（只导了 PLAYER_SKILLS）。
+      shadow_dance_ease / skeleton_cap / undead_faith）原走旧注册表
+      game/core/passive_procs.py PROC_FAMILIES/KNOWN_GAPS —— 该文件已于 2026-09-13 删除
+      （全仓无活装配路径，副本存 workspace `overnight/_retired/`，历史见 git），故这 10 个
+      proc **当前无任何装配方**＝纯缺口（不是"双真源"了）；另：声明这些 proc 的 52 条被动技能
+      在 BRANCH_SKILLS，也未进 skills 域（只导了 PLAYER_SKILLS）。⇒ 内容侧待收口项。
     """
     tables = _import_module("battle_rules", src_root)
     table = getattr(tables, "PASSIVE_PROC", None)
@@ -2362,12 +2368,322 @@ def derive_monster_roster(src_root: str = REPO_ROOT) -> dict:
     return out
 
 
+# =============================================================================
+# D3 面板批次（2026-09-13）：职业面板**完整版**依赖的四族数据
+# =============================================================================
+# 真源 = 游戏仓 `game/content_rules/panel.py`（584 行，逐字搬进包 `content/panel.py`）。
+# 它读的 7 族数据里包内**已有** classes（`derive_classes`）/ skills（`derive_skills`）；
+# 缺的四族 = 下面四个域（依赖表全文见 `overnight/d3-panel-port.md`）：
+#
+#   `RACES`                                    → `races`          6 条
+#   `SETS`                                     → `sets`          92 条
+#   `ENHANCE_TABLE`                            → `enhance_table` 10 行（键 = 强化等级 0..9）
+#   `TIER_GROWTH` / `BRANCH_BONUS` / `BRANCH_BONUS_BY_CLASS` /
+#   `PLAYER_BASE_GROWTH` / `PCT_STATS` / `PCT_CAPS` / `PENE_PCT_STATS`
+#                                              → `panel_rules`    7 条（面板公式常量）
+#
+# 四条域统一纪律：**原样**（不补默认值 / 不改数值 / 不重写形状）+ 形状门禁（源形状一变就
+# raise，绝不静默产半张表）+ int 键**显式**落成 JSON 字符串键（消费侧 `content/tables.py`
+# 还原成 int —— 不还原 = `.get(1)` 恒 None = 数值静默归零，本批最容易踩的那个坑）。
+
+
+def _guard_entries(tbl, domain: str, src: str) -> dict:
+    """形状门禁（「表 + 条目」族共用）：非空 dict + 每条都是 dict。"""
+    if not isinstance(tbl, dict) or not tbl:
+        raise ValueError(f"{domain}：{src} 不是非空 dict —— 源形状变了，拒绝导出")
+    bad = [repr(k) for k, v in tbl.items() if not isinstance(v, dict)]
+    if bad:
+        raise ValueError(f"{domain}：{src} 有 {len(bad)} 条不是 dict（例 {bad[:3]}）—— 拒绝导出")
+    return dict(tbl)
+
+
+def _guard_num_map(tbl, domain: str, src: str) -> dict:
+    """形状门禁（「键 → 标量」族，如 TIER_GROWTH）：非空 dict + 每个值都是 int/float。"""
+    if not isinstance(tbl, dict) or not tbl:
+        raise ValueError(f"{domain}：{src} 不是非空 dict —— 源形状变了，拒绝导出")
+    bad = [repr(k) for k, v in tbl.items()
+           if isinstance(v, bool) or not isinstance(v, (int, float))]
+    if bad:
+        raise ValueError(f"{domain}：{src} 有 {len(bad)} 条取值不是数字（例 {bad[:3]}）—— 拒绝导出")
+    return dict(tbl)
+
+
+def derive_races(src_root: str = REPO_ROOT) -> dict:
+    """种族域（`races`）：`game/data/races.py:37 RACES` 全量原样（6 条，键 = 种族 id）。
+
+    面板消费点 = `panel.py:68 race_stats()` / `panel.py:76 race_name()`
+    （读 `RACES[race]["talents"]`：`growth_mult` / `hp_mult` / `crit_add` / … 六个种族的
+    「2 正 + 1 负」天赋）。包内消费侧 = `content/tables.py`（语义不变，只换读取路径）。
+    """
+    mod = _import_module("races", src_root)
+    return _guard_entries(getattr(mod, "RACES", None), "races", "game/data/races.py:37 RACES")
+
+
+def derive_sets(src_root: str = REPO_ROOT) -> dict:
+    """套装域（`sets`）：`game/data/sets.py:31 SETS` 全量原样（92 条）。
+
+    键分两类、同在一张表里（面板 `panel.py:502 _set_info()` 两类都要认）：
+      · `set_*` 区域/品质套 —— `bonus_2` / `bonus_3`(+`bonus_3_stats`) / `bonus_4`(+`bonus_4_stats`) / `bonus_5`
+      · `cls_*` 职业套 —— 条目带 `class` 字段 → 面板 v136 Phase6「本职业 100% / 非本职业 60%」折扣
+
+    ⚠️ 只导 `SETS`：同文件的 `SET_THEMES` / `SET_CHANCE` 是**掉落生成**用表（面板零消费、
+    编辑器改它们也不会影响面板数值），要开域另议 —— 不为「顺手」把两张表并进来。
+    """
+    mod = _import_module("sets", src_root)
+    return _guard_entries(getattr(mod, "SETS", None), "sets", "game/data/sets.py:31 SETS")
+
+
+def derive_enhance_table(src_root: str = REPO_ROOT) -> dict:
+    """强化表域（`enhance_table`）：`game/data/enhance.py:3 ENHANCE_TABLE` 全量（10 行）。
+
+    面板消费点 = `panel.py:316 C.ENHANCE_TABLE.get(enh)` —— 键是 **int** 强化等级，
+    取 `mult` 当装备属性乘区（`+9 = 2.10`）。
+    ⚠️ JSON 只认字符串键 → 这里**显式** `str(k)`（不是 json.dump 的隐式转换），消费侧
+    `content/tables.py` 还原成 int 键：不还原 = `.get(3)` 恒 None = **强化乘区静默归零**。
+    只导 `ENHANCE_TABLE`（同行 `MAX_ENHANCE` / `ENHANCE_FAIL_DROP` / `ENHANCE_SMITH_MAPS`
+    属强化**流程**，面板零消费）。
+    """
+    mod = _import_module("enhance", src_root)
+    raw = getattr(mod, "ENHANCE_TABLE", None)
+    if not isinstance(raw, dict) or not raw:
+        raise ValueError("enhance_table：game/data/enhance.py:3 ENHANCE_TABLE 不是非空 dict —— 拒绝导出")
+    out = {}
+    for k, v in raw.items():
+        if not isinstance(k, int) or isinstance(k, bool) or not isinstance(v, dict):
+            raise ValueError(f"enhance_table：行 {k!r} 形状不对（键应为 int、值应为 dict）—— 拒绝导出")
+        out[str(k)] = dict(v)
+    return out
+
+
+def derive_panel_rules(src_root: str = REPO_ROOT) -> dict:
+    """面板规则域（`panel_rules`）：职业面板公式读的 7 组常量（一个域、7 条）。
+
+    真源（全部只读；取的是 **import 之后的运行时表**，不是源码字面量）
+    ----------------------------------------------------------------
+        game/data/battle_config.py:379   `TIER_GROWTH`            转职成长档位（0/1/2/3 → 1.0/1.15/1.30/1.50）
+        game/data/battle_config.py:383   `BRANCH_BONUS`           分支属性倾向（通用回退档）
+        game/data/battle_config.py:389   `BRANCH_BONUS_BY_CLASS`  职业×分支差异（v156 权威）
+        game/data/base_growth.py         `PLAYER_BASE_GROWTH`     成长结构声明（循环键集 / 分支修正模式 / 输出别名）
+        game/core/constants.py:88        `PCT_STATS`              百分比域属性名（加法 / 乘算分支判据）
+        game/core/constants.py:96        `PCT_CAPS`               百分比域上限（cap 判据）
+        game/core/constants.py:116       `PENE_PCT_STATS`         百分比穿透（乘算合成判据）
+
+    形状（逐条见包内 `schemas/panel_rules.schema.json` 的 `$defs.panel_rule`）
+    -------------------------------------------------------------------------
+      · 纯列表型常量（`PCT_STATS` / `PENE_PCT_STATS`）包一层 `{"stats": [...]}` —— 导出器
+        `export()` 要求**每条都是 dict**（顶层 list 会被拒收），消费侧 `tables.py` 解包回 tuple。
+      · int 键（`TIER_GROWTH` / `BRANCH_BONUS(_BY_CLASS)` 的档位键）显式落成字符串键，
+        消费侧还原 int —— 不还原 = `.get(1)` 恒 None = **静默丢转职/分支加成**。
+      · 导出期断言「百分比域 ⊆ cap 表」：面板每个 cap 查表点都靠它，少一条 = 该属性 cap
+        静默吃默认值（`C.PCT_CAPS.get(k, 0.6)`），所以在这里炸而不是运行期悄悄变弱。
+    """
+    # ⚠️ import 顺序有讲究：先 import `game.data.*`（父包 `game/data/__init__.py` 会做装配，
+    #    顺带把 `game.core.*` 链路走完），再 import `game.core.constants`。反过来的话
+    #    `import game.core.constants` 会先跑尚未完成的 `game/core/__init__.py` →
+    #    `ImportError: cannot import name 'build_index' from partially initialized module
+    #    'game.core.index'`（2026-09-13 实测复现：单跑 `--domain panel_rules` 必炸）。
+    bc = _import_module("battle_config", src_root)
+    bg = _import_module("base_growth", src_root)
+    const = _import_game_module("game.core.constants", src_root)
+
+    tier = _guard_num_map(getattr(bc, "TIER_GROWTH", None), "panel_rules.tier_growth",
+                          "battle_config.py:379 TIER_GROWTH")
+    bb = _guard_entries(getattr(bc, "BRANCH_BONUS", None), "panel_rules.branch_bonus",
+                        "battle_config.py:383 BRANCH_BONUS")
+    raw_bbc = getattr(bc, "BRANCH_BONUS_BY_CLASS", None)
+    if not isinstance(raw_bbc, dict) or not raw_bbc:
+        raise ValueError("panel_rules.branch_bonus_by_class：BRANCH_BONUS_BY_CLASS 不是非空 dict —— 拒绝导出")
+    bbc = {c: _guard_entries(m, f"panel_rules.branch_bonus_by_class[{c}]",
+                             "battle_config.py:389 BRANCH_BONUS_BY_CLASS")
+           for c, m in raw_bbc.items()}
+
+    growth = getattr(bg, "PLAYER_BASE_GROWTH", None)
+    if not isinstance(growth, dict) or not growth:
+        raise ValueError("panel_rules.base_growth：PLAYER_BASE_GROWTH 不是非空 dict —— 拒绝导出")
+    for _k in ("linear_stats", "branch_bonus_mode", "alias"):
+        if _k not in growth:
+            raise ValueError(f"panel_rules.base_growth：PLAYER_BASE_GROWTH 缺 {_k!r} —— "
+                             f"面板的 7 键循环 / 分支修正模式 / 输出别名的声明源变了，拒绝导出")
+
+    def _seq(tbl, name: str) -> dict:
+        if not isinstance(tbl, (tuple, list)) or not tbl or not all(isinstance(x, str) for x in tbl):
+            raise ValueError(f"panel_rules.{name}：常量不是非空字符串序列 —— 拒绝导出")
+        return {"stats": list(tbl)}
+
+    pct_stats = _seq(getattr(const, "PCT_STATS", None), "pct_stats")
+    pene_pct = _seq(getattr(const, "PENE_PCT_STATS", None), "pene_pct_stats")
+    caps = getattr(const, "PCT_CAPS", None)
+    if not isinstance(caps, dict) or not caps:
+        raise ValueError("panel_rules.pct_caps：game/core/constants.py:96 PCT_CAPS 不是非空 dict —— 拒绝导出")
+    missing = sorted(set(pct_stats["stats"]) - set(caps))
+    if missing:
+        raise ValueError(f"panel_rules：PCT_STATS 里这些属性没有 PCT_CAPS 上限：{missing} —— "
+                         f"面板会静默吃默认 cap，拒绝导出")
+
+    return {
+        # int 档位键 → 字符串键（消费侧 content/tables.py 还原）
+        "tier_growth": {str(int(k)): float(v) for k, v in tier.items()},
+        "branch_bonus": {str(int(k)): dict(v) for k, v in bb.items()},
+        "branch_bonus_by_class": {c: {str(int(k)): dict(v) for k, v in m.items()}
+                                  for c, m in bbc.items()},
+        "base_growth": {
+            "linear_stats": list(growth["linear_stats"]),
+            "branch_bonus_mode": {k: dict(v) for k, v in growth["branch_bonus_mode"].items()},
+            "alias": dict(growth["alias"]),
+        },
+        "pct_stats": pct_stats,
+        "pct_caps": dict(caps),
+        "pene_pct_stats": pene_pct,
+    }
+
+
+def derive_npcs(src_root: str = REPO_ROOT) -> dict:
+    """NPC 域（`npcs`）：三张 NPC 真源表**合成一张扁平表**（一条 = 一个 NPC，键 = NPC id）。
+
+    ============================ 真源是哪三张表 ============================
+        game/data/npcs.py:3            `NPCS`         城镇/据点 NPC（3125 行的巨型字典字面量 +
+                                                       两个 `NPCS.update({...})`（:1914 / :2272）+
+                                                       末尾 `NPCS[_nid].update(_patch)`（:3123-3125，
+                                                       给 86 条渔/矿/村 NPC 补 `lines` 三连台词）。
+                                                       ★ 与 items 域同一纪律：读的是 **import 之后的
+                                                       运行时表**（362 条），不是源码字面量。
+        game/data/wild_npcs.py:23      `WILD_NPCS`    野外偶遇 NPC（47 条，条件 + 随机性）
+        game/data/wild_npcs.py:404     `HIDDEN_NPCS`  隐藏 NPC（源文件字面量 16 条）
+                                                       + 装配期并入的 6 条**层内 NPC**
+                                                       （`_assembly.py:161-163`
+                                                        `HIDDEN_NPCS.update(INSTANCE_STAGE_NPCS)`，
+                                                        源 = `instance_stage_maps.py:634
+                                                        INSTANCE_STAGE_NPCS`，并入前补 `title`）
+                                                       ⇒ 运行时 22 条
+
+    消费者（三处入口都在游戏侧，导出只搬运不改语义）
+    ---------------------------------------------------
+        `game/data/__init__.py:137`          re-export 三张表（`C.NPCS` / `C.WILD_NPCS` / `C.HIDDEN_NPCS`）
+        `game/core/wild.py:26`               `ALL_WILD = {**WILD_NPCS, **HIDDEN_NPCS}`
+        `game/data/_assembly.py:263-269`     `_INDEXES["npcs"] = {显示名 → id}`
+        找 NPC 的通用写法 = `C.NPCS.get(id) or C.ALL_WILD.get(id) or C.HIDDEN_NPCS.get(id)`
+        （`commands/world.py:3829` 等 20+ 处）—— 三个表合起来才是"全部 NPC"。
+
+    ============================ 为什么合成一张表 ============================
+    1. **一张表才是编辑器的域形态**：`x-primary` = 一条一个条目、编辑器按条增删改；三张表拆三个域
+       会让「找某个 NPC」要在三个 tab 里翻，且 `_INDEXES["npcs"]` 本来就把三张表合成一张按名索引。
+    2. **三个表的 key 空间实测零交集**（`npc_*` / `w_*` / `h_*` + 6 条层内 `npc_*`）——
+       合并**一条都不丢**；真撞了本函数 `raise`（绝不静默覆盖，否则导出静默少条目）。
+    3. 折掉了"哪张表"这一层，所以注入 `source` 字段把它表达回来（见下），与 `derive_skills`
+       折掉 三张技能表后注入 `source`/`tier`/`branch` 同一手法。
+
+    ============================ 注入字段（只这两个） ============================
+        source      : "town" | "wild" | "hidden" —— 该条目来自哪张真源表
+                      （hidden 含装配期并入的层内 NPC，消费者是 `HIDDEN_NPCS` / `ALL_WILD`）
+        inst_stage  : 仅 6 条层内 NPC 有 —— `true` 表示它出自
+                      `INSTANCE_STAGE_NPCS`（装配期被 `_assembly.py:163` 折进 `HIDDEN_NPCS`，
+                      副本层内才出现）。缺省不写（= 非层内 NPC）。
+    两个字段**都不覆盖源真值**：源条目里若已有同名键 → `raise`（实测 431 条零同名）。
+    条目内其余字段**原样**：不改类型、不补默认值、不动字段顺序（幂等），
+    空 `funcs`（95 条）与 `None`（`map` 3 条 / `unlock` 5 条 / `chance` 1 条）照原样导出
+    —— "没有这个能力"与"忘了填"在真源里就是同一个空值，导出期不许替它决定。
+
+    ============================ 留作引用、不展开 ============================
+    原样保留的**引用字符串**（后续批次才谈展开；本函数一个字都不解释）：
+        map           : maps 域 key（`oak_town` …；100 个不同值）、或副本层 map
+                        （`inst_*` 6 个，落 `instances` 域，**不在 maps 域**）、或 null（3 条）
+        roam          : 每日随机出现的地图 —— 实测**混用两种词汇**（73 个值里
+                        60 个是子区域节点 id（`white_deer_5`），13 个是地图 id（`oak_town`））
+        funcs         : 能力词汇（17 个：quest/shop/craft/heal/lore/trade/info/teach/tutor/
+                        apprentice/auction/daily/dialogue/enhance/enchant/portal/rune）——
+                        每个词背后是商店 / 合成 / 强化 / 对话树 / 任务等**尚未进包**的系统
+        quest         : 任务 id（18 个：`s_*` / `hq*` / `h5`/`h6`）—— quests 域尚未进包
+        unlock        : `"flag:xxx"` / `"item:xxx"` / `"quest:qid"` 三种前缀串（玩家 flag / 物品 id /
+                        任务 id），**不解析前缀**
+        unlock_flags  : `{flag, notice}` —— flag 名 + 解锁时的播报文案
+        teach_skills  : `{职业 key → 技能中文名}` —— 职业 key 是 classes 域 key（实测 6/6 命中），
+                        技能名在 skills 域**解析不到 14 个**（源侧空引用，见报告 §缺口）
+        condition     : `{time/season/weather/min_level/max_level/day_of_week/quest_done/
+                          quest_active/flag/item}` 的子集（AND 语义）—— 含任务/物品/flag 引用
+
+    实测（2026-09-13，本机）
+    ------------------------
+    * 362（town）+ 47（wild）+ 22（hidden，= 16 字面 + 6 层内）= **431 条**，0 键冲突、
+      0 注入字段同名、0 非 dict 条目、0 非 JSON 原生叶类型（无 tuple）
+    * 三个表 key 空间两两零交集；`INSTANCE_STAGE_NPCS` 6 条在 `HIDDEN_NPCS` 里**是同一对象**（`is`）
+    * 逐条过 `schemas/npcs.schema.json` 的 `$defs.npc` 0 失败（同步门禁【12】节）
+    * 两次派生逐字节相同（幂等）；`map` 100 值里 94 落 maps 域、6 落 instances 域、0 悬空
+    """
+    npcs_mod = _import_module("npcs", src_root)
+    wild_mod = _import_module("wild_npcs", src_root)
+    stage_mod = _import_module("instance_stage_maps", src_root)
+
+    town = getattr(npcs_mod, "NPCS", None)
+    wild = getattr(wild_mod, "WILD_NPCS", None)
+    hidden = getattr(wild_mod, "HIDDEN_NPCS", None)
+    stage = getattr(stage_mod, "INSTANCE_STAGE_NPCS", None)
+
+    plan_tables = (
+        ("NPCS", town, "game/data/npcs.py:3 NPCS", "town"),
+        ("WILD_NPCS", wild, "game/data/wild_npcs.py:23 WILD_NPCS", "wild"),
+        ("HIDDEN_NPCS", hidden, "game/data/wild_npcs.py:404 HIDDEN_NPCS", "hidden"),
+    )
+    for tname, tbl, where, _src in plan_tables:
+        if not isinstance(tbl, dict) or not tbl:
+            raise ValueError(
+                f"npcs：{where} 不是非空 dict（{tname}）—— 源形状变了/表被删，拒绝导出"
+                f"（空表 = 编辑器显示 0 条且不报错）"
+            )
+    if not isinstance(stage, dict) or not stage:
+        raise ValueError(
+            "npcs：game/data/instance_stage_maps.py:634 INSTANCE_STAGE_NPCS 不是非空 dict —— "
+            "源形状变了（层内 NPC 是 HIDDEN_NPCS 的一部分），拒绝导出"
+        )
+
+    # 层内 NPC：装配期 `_assembly.py:161-163` 把 INSTANCE_STAGE_NPCS 并进 HIDDEN_NPCS。
+    # 核「同一对象」（`is`）而不是 `==` —— 值碰巧相等说明装配路径变了，那是另一回事。
+    miss = sorted(k for k in stage if k not in hidden)
+    if miss:
+        raise ValueError(
+            f"npcs：INSTANCE_STAGE_NPCS 有 {len(miss)} 条不在 HIDDEN_NPCS 里（例 {miss[:3]}）—— "
+            f"装配期并入路径（_assembly.py:163）变了，拒绝导出"
+        )
+    not_same = sorted(k for k in stage if hidden[k] is not stage[k])
+    if not_same:
+        raise ValueError(
+            f"npcs：INSTANCE_STAGE_NPCS 的 {len(not_same)} 条在 HIDDEN_NPCS 里不是同一对象"
+            f"（例 {not_same[:3]}）—— 出现了第二份层内 NPC 定义，拒绝导出"
+        )
+
+    injected = ("source", "inst_stage")
+    out: dict = {}
+    for tname, tbl, where, source in plan_tables:
+        for npc_id, ent in tbl.items():
+            if not isinstance(ent, dict):
+                raise ValueError(
+                    f"npcs：{where}[{npc_id!r}] 不是 dict（{type(ent).__name__}）—— 源形状变了，拒绝导出"
+                )
+            if npc_id in out:
+                prev = out[npc_id]
+                raise ValueError(
+                    f"NPC id {npc_id!r} 冲突：{prev['source']} 与 {source} 都声明了同一个 id —— "
+                    f"合并三张表会丢条目，请先在源侧决定归属再导出（{where}）"
+                )
+            for f in injected:
+                if f in ent:
+                    raise ValueError(
+                        f"npcs：源条目 {npc_id!r}（{where}）已含字段 {f!r} —— 注入会覆盖源真值，拒绝导出"
+                    )
+            entry = dict(ent)
+            entry["source"] = source
+            if source == "hidden" and npc_id in stage:
+                entry["inst_stage"] = True
+            out[npc_id] = entry
+    return out
+
+
 DERIVERS = {
     "affixes": derive_affixes,
     "classes": derive_classes,
     "commands": derive_commands,
     "drop_pools": derive_drop_pools,
     "effect_rules": derive_effect_rules,
+    "enhance_table": derive_enhance_table,
     "equip_roster": derive_equip_roster,
     "instances": derive_instances,
     "items": derive_items,
@@ -2376,9 +2692,13 @@ DERIVERS = {
     "maps": derive_maps,
     "monster_roster": derive_monster_roster,
     "monsters": derive_monsters,
+    "npcs": derive_npcs,
+    "panel_rules": derive_panel_rules,
     "passive_proc": derive_passive_proc,
     "pets": derive_pets,
     "pois": derive_pois,
+    "races": derive_races,
+    "sets": derive_sets,
     "skills": derive_skills,
     "texts": derive_texts,
     "tlogs": derive_tlogs,
@@ -2421,10 +2741,15 @@ def _framework_dir(out_root: str) -> str:
 def content_sub(domain: str, out_root: str) -> str:
     """域数据落 `content/data/` 还是 `content/rules/` —— **问框架**，不硬编码第二份列表。
 
-    为什么必须问：框架 `editor/packages.py` 的 DOMAINS 给每个域标了 kind（rules / data），
+    为什么必须问：框架 `editor/packages.py` 给每个域标了 kind（rules / data），
     `PK.domain_path()` 按它取路径（effect_rules / passive_proc 走 `content/rules/`）。
     导出器若写错边 → 文件在、清单也声明了、同步门禁也可能全绿，但编辑器读另一边
     → **显示 0 条且不报错**（最难查的那类故障，2026-09-13 由域研究实测发现）。
+
+    2026-09-13 起走 `PK.domain_meta(pkg_dir, domain)`（= **包自带声明优先** + 内置默认集兜底）：
+    新域的正路是「包在 `<pkg>/editor/domains.json` 里自己声明 kind」（框架的包扩展面第 1 层），
+    内置默认集只是没声明时的回退。本次导出目标包没有声明文件时（例如门禁把产物导到 tmp 做
+    幂等比对）自动落回内置默认集 —— 与改造前逐字同行为。
     """
     fw = _framework_dir(out_root)
     if fw not in sys.path:
@@ -2433,10 +2758,21 @@ def content_sub(domain: str, out_root: str) -> str:
         from editor import packages as PK      # noqa: PLC0415
     except Exception as e:                     # noqa: BLE001
         raise ValueError(f"读框架域注册表失败（{fw}）：{e} —— 拒绝猜落点") from e
-    cfg = PK.DOMAINS.get(domain) or {}
-    if not cfg:
-        raise ValueError(f"框架域注册表里没有域 {domain!r} —— 拒绝导出（编辑器不认）")
-    return "rules" if cfg.get("kind") == "rules" else "data"
+    # ★ 声明来源按优先级试两处（2026-09-13 收口新增 ②）：
+    #   ① 导出目标包目录 `<out_root>/games/<id>/editor/domains.json` —— 正常导出就是它；
+    #   ② 框架仓里的**规范包目录** `<fw>/games/<id>/editor/domains.json` —— 导出到 tmp 做
+    #      「产物与仓库文件逐字节相同」比对时，tmp 里还没有包、自然没有声明文件；若只认 ①，
+    #      凡是「真源只在包侧声明」的新域（races/sets/enhance_table/panel_rules）都会在这里
+    #      报错 —— 实测正是 sync 门禁那一节 8 条红的原因（tmp 导出失败 → 产物缺失）。
+    #      ② 是同一个包的规范副本，不是第三份真源。
+    candidates = (os.path.join(os.path.abspath(out_root), "games", PACKAGE_ID),
+                  os.path.join(fw, "games", PACKAGE_ID))
+    for cand in candidates:
+        cfg = PK.domain_meta(cand, domain) or {}
+        if cfg:
+            return "rules" if cfg.get("kind") == "rules" else "data"
+    raise ValueError(f"框架域注册表里没有域 {domain!r}（内置默认集 + 包内 "
+                     f"{PK.DOMAINS_REL} 都没声明；试过 {list(candidates)}）—— 拒绝导出（编辑器不认）")
 
 
 def json_clean(obj):
@@ -2551,7 +2887,7 @@ def main(argv=None) -> int:
     if args.check:
         ok = s.get("in_sync") and s.get("manifest_in_sync")
         print(f"{'✅' if ok else '❌'} --check 域={s['domain']} 条数={s['entries']} "
-              f"items.json{'一致' if s.get('in_sync') else '不一致'} "
+              f"{s['domain']}.json{'一致' if s.get('in_sync') else '不一致'} "
               f"game.json{'一致' if s.get('manifest_in_sync') else '不一致'}")
         return 0 if ok else 1
 

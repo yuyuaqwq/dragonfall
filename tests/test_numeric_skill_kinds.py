@@ -5,12 +5,13 @@ import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PLUGIN = os.path.dirname(_HERE)
-# 注意：skill_kinds 是零依赖纯模块，直接按文件路径加载，避免触发 game 包 data 索引循环导入。
-# S8 拆仓：本体已迁框架仓 `framework/saintess_engine/support/skill_kinds.py`（原 game/core/ 下为过渡 shim）。
+# 注意：kinds 是零依赖纯模块，直接按文件路径加载，避免触发 game 包 data 索引循环导入。
+# P4 下沉（2026-09-13）：中文 kind 词表真源已从引擎搬到内容侧 `game/data/kinds.py`
+# （原 `saintess_engine/kinds/__init__.py`，逐字搬；引擎零消费者）。
 import importlib.util
 _spec = importlib.util.spec_from_file_location(
-    "skill_kinds_standalone",
-    os.path.join(_PLUGIN, "framework", "saintess_engine", "kinds", "__init__.py"))
+    "kinds_standalone",
+    os.path.join(_PLUGIN, "game", "data", "kinds.py"))
 _sk_mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_sk_mod)
 

@@ -22,7 +22,7 @@ from ..content_rules.gameplay import check_player_level_up
 from ..content_rules.panel import passive_skills_learned, player_final_stats, skill_learn_cost_for
 from ..content_rules.skills import _sk_table, branch_skill_owner, is_skill_learned, skill_info, skill_level_of
 from ..core.constants import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）——N10 前由 battle re-export 改为 core 权威单源
-from saintess_engine.kinds import K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_PASSIVE, K_TAUNT# v176 去魔法字符串
+from ..data.kinds import K_PHYS, K_MAGI, K_HEAL, K_BUFF, K_PASSIVE, K_TAUNT# v176 去魔法字符串
 
 from saintess_engine.formation import formation_view# v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle

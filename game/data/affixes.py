@@ -272,10 +272,12 @@ AFFIXES = {
     #     同源、floor 取整、保底 1）；
     #   · ✅ finisher（终结技伤害乘区 finisher_dmg tiers）v181.M-bonus 已装（dmg_calc
     #     mech_any 谓词 + _af_finisher 翻译器）；
-    #   · ⛔ cond 修正型 ember_brand（{res, gain, cond: hp_lt_30}，
-    #     effect 无 on 时机）——「怒气获取时额外 +1」需资源获取事件钩子（装配层无对应事件位）；
-    #   · combo_recover（on: combo_skill）——拳师「连招技」无技能标记事件判据，
-    #     需词条级 kind/tag 语义核对；
+    #   · ✅ cond 修正型 ember_brand（{res, gain, cond: hp_lt_30}）**D3 2026-09-13 已装**：
+    #     装配层 `_af_ember_brand` 折算 cond → 动作参数 `cond_hp_lt=0.30`，观测点取
+    #     「命中（普攻/技能）+ 受击」（装配层无资源获取事件位），门槛判定在
+    #     `battle_we_procs.we_affix_res_gain`（血不满 30% 静默跳过），门禁 tests/test_affix_res_gain.py T7；
+    #   · ✅ combo_recover（on: combo_skill）**D3 2026-09-13 已装**：combo_skill → skill_hit 事件；
+    #     拳师「连招技」的 kind/tag 判据由内容侧技能数据给（同 T7 断言）；
     #   · ⛔ regen 型 energy_tide/swift_tailwind 与 purify → v181.M-affixtail 已装
     #     （energy_tide/swift_tailwind：turn_start 回能 we_affix_res_gain，swift_tailwind
     #     cond energy_ge_80 → cond_key/cond_ge 参数；purify：命中驱散 we_affix_purify，

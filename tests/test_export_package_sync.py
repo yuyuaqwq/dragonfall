@@ -93,11 +93,15 @@ def _load_exporter():
 
 
 def _sub(domain: str) -> str:
-    """域数据在 content/ 下的子目录（**问框架**，别硬编码：effect_rules/passive_proc 走 rules/）。"""
+    """域数据在 content/ 下的子目录（**问框架**，别硬编码：effect_rules/passive_proc 走 rules/）。
+
+    2026-09-13 收口：改问 `domain_path()`（内部走**有效域表** = 包声明优先 → 内置默认集兜底），
+    不再只问内置集 —— 否则「域由包声明」（`<pkg>/editor/domains.json`）时这里会错落到 content/data/。
+    """
     if FW_ROOT not in sys.path:
         sys.path.insert(0, FW_ROOT)
     from editor import packages as PK      # noqa: PLC0415
-    return "rules" if (PK.DOMAINS.get(domain) or {}).get("kind") == "rules" else "data"
+    return os.path.basename(os.path.dirname(PK.domain_path(PKG_DIR, domain)))
 
 
 def _run_cli(out_dir: str, domain: str = "items", timeout: int = 120, check: bool = False):
@@ -134,6 +138,29 @@ def _field_diffs(actual: dict, expected: dict) -> list:
     return diffs
 
 
+def _unresolved_map_refs(table: dict, maps: dict, instances: dict) -> list:
+    """npcs 的 `map` 引用闭合：取值必须是 maps 域 key 或 instances 域 key（`null` 允许）。
+
+    实测 100 个取值：94 落 maps 域、6 落 instances 域（`inst_*` 副本层 map）、3 条 null。返回 (id, 悬空值)。
+    """
+    out = []
+    for k, v in sorted(table.items()):
+        m = v.get("map") if isinstance(v, dict) else None
+        if isinstance(m, str) and m not in maps and m not in instances:
+            out.append((k, m))
+    return out
+
+
+def _unresolved_teach_class_refs(table: dict, classes: dict) -> list:
+    """npcs 的 `teach_skills` 键（职业 key）闭合：必须是 classes 域 key。返回 (id, 悬空 key)。"""
+    out = []
+    for k, v in sorted(table.items()):
+        for cid in sorted((v.get("teach_skills") or {}) if isinstance(v, dict) else {}):
+            if cid not in classes:
+                out.append((k, cid))
+    return out
+
+
 # ---------------------------------------------------------------------------
 def main() -> int:
     print("=== 奥兰迪亚物品域 → 游戏包 JSON 同步门禁 ===")
@@ -152,12 +179,28 @@ def main() -> int:
     if FW_ROOT not in sys.path:
         sys.path.insert(0, FW_ROOT)
     from editor import packages as PK     # noqa: PLC0415
+    # ★ 2026-09-13 收口：域清单改问**有效域表**（包声明优先 → 内置默认集兜底），不再只问内置集。
+    #   原因：4 个新域（races/sets/enhance_table/panel_rules）已从框架内置集**移出**，
+    #   真源归包（`games/orlandia/editor/domains.json` + 包内 schemas/）。此处若还问内置集，
+    #   门禁会**绿着但静默少查这 4 个域**（比红更糟）。
+    _EFF, _EFF_WARN = PK.effective_domains(PKG_DIR)
 
     # 已实现的域：从导出器源码读（别手写第二个列表）；未实现的 = 框架认识但导出器还没有
     _src = open(EXPORTER, encoding="utf-8").read()
     _m = re.search(r"^DERIVERS = \{(.*?)^\}", _src, re.S | re.M)
     doms = sorted(re.findall(r'"([a-z_]+)":\s*derive_', _m.group(1))) if _m else []
-    todo = [d for d in sorted(PK.DOMAINS) if d not in doms]
+    todo = [d for d in sorted(_EFF) if d not in doms]
+
+    # 覆盖守卫（防「门禁绿着但少查」）：包内 content/{data,rules}/ 的每个域文件都必须在有效域表里
+    _pkg_dom_files = {os.path.splitext(f)[0] for sub in ("data", "rules")
+                      for f in os.listdir(os.path.join(PKG_DIR, "content", sub))
+                      if f.endswith(".json")}
+    check("覆盖守卫：包内 %d 个域文件全部在有效域表里（共 %d 域）"
+          % (len(_pkg_dom_files), len(_EFF)),
+          _pkg_dom_files <= set(_EFF), sorted(_pkg_dom_files - set(_EFF)))
+    check("有效域表含 4 个包声明的新域（races/sets/enhance_table/panel_rules）",
+          {"races", "sets", "enhance_table", "panel_rules"} <= set(_EFF), sorted(_EFF))
+    check("有效域表无告警（包声明与内置默认集不冲突）", _EFF_WARN == [], _EFF_WARN[:3])
 
     print("\n【1】源表规模")
     check("ITEMS=900", len(D.ITEMS) == EXPECT_ITEMS, "实际 %d" % len(D.ITEMS))
@@ -349,8 +392,9 @@ def main() -> int:
         print("\n【11】框架侧回环：包内每一条都要过框架 schema（x-primary def）")
         from editor import validate as VD      # noqa: PLC0415
         for d in doms:
-            if d not in PK.DOMAINS:
-                check("域 %s 在框架 DOMAINS 里（否则编辑器不认）" % d, False, "框架侧没有这个域")
+            if d not in _EFF:
+                check("域 %s 在有效域表里（包声明或内置默认集；否则编辑器不认）" % d, False,
+                      "框架侧没有这个域，包也没声明")
                 continue
             tbl = _read_json(PK.domain_path(PKG_DIR, d), {})
             tbl = tbl if isinstance(tbl, dict) else {}
@@ -360,8 +404,132 @@ def main() -> int:
                 if errs:
                     bad.append((k, errs[0]))
             check("域 %s：%d 条全部过框架 schema（primary=%s）"
-                  % (d, len(tbl), PK.DOMAINS[d].get("primary")),
+                  % (d, len(tbl), _EFF[d].get("primary")),
                   bool(tbl) and not bad, "失败样例 %r" % (bad[:2],))
+
+        # ---------------------------------------------------------------- npcs
+        # 2026-09-13 新增：NPC 域（三张 NPC 真源表合表 = 431 条）。
+        #   真源：`game/data/npcs.py:3 NPCS`（import 后 362 条）/ `game/data/wild_npcs.py:23 WILD_NPCS`（47）
+        #        / `game/data/wild_npcs.py:404 HIDDEN_NPCS`（字面 16 + 装配期并入的层内 6 = 22，
+        #          并入见 `game/data/_assembly.py:161-163` ← `instance_stage_maps.py:634 INSTANCE_STAGE_NPCS`）
+        #   本节把「合表不丢条目 + 注入字段不覆盖真值 + 引用闭合 + 反证」全钉住；
+        #   与真源逐字节同步由【10】【11】的通用循环覆盖（npcs 已在 DERIVERS 与有效域表里）。
+        print("\n【12】npcs 域（三张 NPC 表合表 431 条 = town 362 + wild 47 + hidden 22）")
+        import ast                              # noqa: PLC0415
+        import game.data.instance_stage_maps as NS   # noqa: PLC0415
+        import game.data.npcs as ND             # noqa: PLC0415
+        import game.data.wild_npcs as NW        # noqa: PLC0415
+
+        npc_path = PK.domain_path(PKG_DIR, "npcs")
+        npc_file = _read_json(npc_path, None)
+        if check("产物存在：games/%s/content/data/npcs.json" % PKG_ID,
+                 isinstance(npc_file, dict), npc_path):
+            npc_derived = EX.sort_table(EX.derive_npcs(REPO_ROOT))
+            n_stage = len(NS.INSTANCE_STAGE_NPCS)
+            check("源表规模：NPCS=362 / WILD_NPCS=47 / HIDDEN_NPCS=22 / INSTANCE_STAGE_NPCS=6",
+                  (len(ND.NPCS), len(NW.WILD_NPCS), len(NW.HIDDEN_NPCS), n_stage) == (362, 47, 22, 6),
+                  "实际 %s" % ((len(ND.NPCS), len(NW.WILD_NPCS), len(NW.HIDDEN_NPCS), n_stage),))
+
+            # 源字面量 vs 运行时（HIDDEN_NPCS 被装配期并入过 —— 读字面量才能证明「多出来的正是层内那 6 条」）
+            _wsrc = open(os.path.join(REPO_ROOT, "game", "data", "wild_npcs.py"),
+                         encoding="utf-8").read()
+            _lits = {}
+            for _n in ast.parse(_wsrc).body:
+                if isinstance(_n, ast.Assign) and isinstance(_n.targets[0], ast.Name):
+                    try:
+                        _lits[_n.targets[0].id] = ast.literal_eval(_n.value)
+                    except Exception:            # noqa: BLE001  （非字面量赋值：跳过）
+                        pass
+            check("wild_npcs.py 的 WILD_NPCS / HIDDEN_NPCS 都是字典字面量（可读字面量口径）",
+                  {"WILD_NPCS", "HIDDEN_NPCS"} <= set(_lits))
+            check("HIDDEN_NPCS 字面 16 + 层内 6 = 运行时 22（_assembly.py:163 并入）",
+                  len(_lits.get("HIDDEN_NPCS") or {}) == 16
+                  and len(NW.HIDDEN_NPCS) == 16 + n_stage,
+                  "字面 %d / 运行时 %d" % (len(_lits.get("HIDDEN_NPCS") or {}), len(NW.HIDDEN_NPCS)))
+            check("层内 %d 条在 HIDDEN_NPCS 里**是同一对象**（`is`，不是值碰巧相等）" % n_stage,
+                  all(NW.HIDDEN_NPCS[k] is NS.INSTANCE_STAGE_NPCS[k]
+                      for k in NS.INSTANCE_STAGE_NPCS))
+
+            _three = (("town", ND.NPCS), ("wild", NW.WILD_NPCS), ("hidden", NW.HIDDEN_NPCS))
+            _clash = [(a, b, sorted(set(x) & set(y)))
+                      for i, (a, x) in enumerate(_three) for b, y in _three[i + 1:]]
+            check("三张表 key 空间两两零交集（合表一条不丢）",
+                  all(not ks for _a, _b, ks in _clash), _clash)
+
+            check("条数 431 = 362 + 47 + 22（文件与现场派生同数）",
+                  len(npc_file) == 431 and len(npc_derived) == 431,
+                  "文件 %d / 派生 %d" % (len(npc_file), len(npc_derived)))
+            _by_src = {s: sum(1 for v in npc_file.values() if v.get("source") == s)
+                       for s in ("town", "wild", "hidden")}
+            check("每条的 source 与真源表归属一致（362/47/22）",
+                  _by_src == {"town": 362, "wild": 47, "hidden": 22}, _by_src)
+
+            _diffs = _field_diffs(npc_file, npc_derived)
+            check("文件与源逐条逐字段一致（431 条）", not _diffs, "共 %d 处差异" % len(_diffs))
+            for _d in _diffs[:MAX_REPORT]:
+                print("       · %s" % _d)
+
+            check("注入字段 source/inst_stage 不在任何源条目里（覆盖源真值 = 导出器会拒绝的那种）",
+                  all(f not in ent for _t in (ND.NPCS, NW.WILD_NPCS, NS.INSTANCE_STAGE_NPCS)
+                      for ent in _t.values() for f in ("source", "inst_stage")))
+            check("inst_stage 恰好是层内那 %d 条" % n_stage,
+                  {k for k, v in npc_file.items() if v.get("inst_stage")} == set(NS.INSTANCE_STAGE_NPCS),
+                  sorted({k for k, v in npc_file.items() if v.get("inst_stage")}
+                         ^ set(NS.INSTANCE_STAGE_NPCS))[:5])
+            KEY_RE_NPC = re.compile(r"^[a-z][a-z0-9_]*$")
+            check("431 条都有非空 name + key 匹配 ^[a-z][a-z0-9_]*$",
+                  all(isinstance(v.get("name"), str) and v["name"] for v in npc_file.values())
+                  and not [k for k in npc_file if not KEY_RE_NPC.match(k)],
+                  [k for k in npc_file if not KEY_RE_NPC.match(k)][:3])
+
+            # 引用闭合（只验**包内已能验的**两族；quests/商店/对话树尚未进包 → 留引用不展开）
+            _maps = _read_json(PK.domain_path(PKG_DIR, "maps"), {}) or {}
+            _insts = _read_json(PK.domain_path(PKG_DIR, "instances"), {}) or {}
+            _cls = _read_json(PK.domain_path(PKG_DIR, "classes"), {}) or {}
+            _bad_map = _unresolved_map_refs(npc_file, _maps, _insts)
+            check("map 引用闭合（maps ∪ instances；null 允许）：100 个取值 0 悬空",
+                  not _bad_map, _bad_map[:5])
+            _bad_cls = _unresolved_teach_class_refs(npc_file, _cls)
+            check("teach_skills 的职业 key 闭合（classes 域）：0 悬空", not _bad_cls, _bad_cls[:5])
+
+            # 反证（防「恒真门禁」）：改一条 / 多一条 → 比对必须报红；坏 map → 闭合检查必须报红
+            _probe = {k: dict(v) for k, v in npc_derived.items()}
+            _p0 = sorted(_probe)[0]
+            _probe[_p0]["name"] = "被改过的名字"
+            _probe["zz_凭空多出来的"] = {"name": "凭空多出来的", "source": "town"}
+            check("反证：改一条 + 多一条 → _field_diffs 必须报红（≥2 处）",
+                  len(_field_diffs(npc_file, _probe)) >= 2)
+            check("反证：坏 map 引用（no_such_map）→ 闭合检查必须报红",
+                  len(_unresolved_map_refs({_p0: {"map": "no_such_map"}}, _maps, _insts)) == 1)
+            check("反证：坏职业 key → teach 闭合检查必须报红",
+                  len(_unresolved_teach_class_refs(
+                      {_p0: {"teach_skills": {"cls_不存在": "某技能"}}}, _cls)) == 1)
+
+            try:
+                import jsonschema                 # noqa: PLC0415
+                _sch = _read_json(os.path.join(PKG_DIR, "schemas", "npcs.schema.json"), None)
+                _tgt = ((_sch or {}).get("$defs") or {}).get("npc")
+                if _tgt:
+                    _sub_s = dict(_sch)
+                    _sub_s.pop("$id", None)
+                    _v = jsonschema.Draft202012Validator(
+                        _tgt, resolver=jsonschema.RefResolver.from_schema(_sub_s))
+                    _errs = []
+                    for _k, _d in sorted(npc_file.items()):
+                        _msgs = sorted("%s:%s" % ("/".join(str(x) for x in e.absolute_path) or "(root)",
+                                                  e.message) for e in _v.iter_errors(_d))
+                        if _msgs:
+                            _errs.append((_k, _msgs[:2]))
+                    check("包内 schemas/npcs.schema.json 的 $defs.npc 全量校验通过（431 条）",
+                          not _errs, "%d 条违规，例 %r" % (len(_errs), _errs[:2]))
+                else:
+                    print("  ⚠️ 跳过包内 schema 校验：未见 $defs.npc")
+            except ImportError:
+                print("  ⚠️ 跳过包内 schema 校验：环境无 jsonschema（【11】已用框架校验器兜底）")
+            except Exception as e:                # noqa: BLE001  （schema 工具自身异常不算门禁红）
+                print("  ⚠️ 跳过包内 schema 校验（工具异常）：%r" % (e,))
+        else:
+            print("  · 无产物 → 本节其余断言跳过（先跑 python scripts/export_game_package.py --domain npcs）")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

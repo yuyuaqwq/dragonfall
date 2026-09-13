@@ -19,6 +19,8 @@ proc_buff 起手 6），验证「读表 → 事件映射 → triggers 装配 →
 """
 from __future__ import annotations
 
+import logging
+
 from typing import Optional
 
 # ============================================================
@@ -41,14 +43,51 @@ _EVENT_MAP = {
     # 自己 if 敌我判断——randuin/ice_vein 敌对判断在 we_act_done_slow 扩展动作内）
     "enemy_act": ("act_done",),
     # 以下旧时机 saintess_engine 无 1:1 点位，第一批不迁（后续批次/上层处理）：
-    # taken_after / turn_end / passive / dot_taken
+    # taken_after / turn_end / passive（这三个名字**全仓无消费者**，属死名）；
+    # dot_taken 于 2026-09-13 补映射 → "dot_tick"（对齐 docs/REFACTOR_v181P4_N9_migration.md:61 的
+    # N9 迁移表；当前无数据使用，零行为影响，防将来补数据时又变成"装了不生效"）。
+    "dot_taken": ("dot_tick",),
 }
+
+# 引擎事件全集（权威 = `saintess_engine/battle/effect_triggers.py` 的 EVENTS 常量）
+# ★ 2026-09-13 反静默失效：`fire()` 对**不在 EVENTS 全集**的事件名**静默 return**，
+#   于是"翻译器/数据写了个拼错或过期的时机名"= 触发器装上了却永不触发、且没有任何痕迹。
+#   这里把"直通但引擎不认"的名字收集起来（去重）+ 告警一条，供门禁与自检读取。
+_UNKNOWN_EVENTS: list = []
+
+# ★ D3 2026-09-13 反静默失效（同款做法，另一处）：装备行 `item["legendary"]`（传说专属特效
+#   id）若在本装配层**没有翻译器**（= 详情页有承诺、实战无行为 = 玩家可见缺口），进本清单
+#   （去重）+ `logging.warning` 一条，供门禁/自检读取；装配口径见下方「传说专属特效装配条目」。
+_UNSUPPORTED_LEGENDARY: list = []
+
+
+def _known_engine_events() -> frozenset:
+    """引擎事件全集；**取不到就返回空集 = 不告警**（告警本身不允许成为新的故障点）。"""
+    try:
+        from saintess_engine.battle.effect_triggers import EVENTS as _E
+        return frozenset(_E)
+    except Exception:      # noqa: BLE001
+        return frozenset()
+
 
 # 每个旧事件映射后的 saintess_engine 事件（返回 tuple）
 def map_event(old_ev: str) -> tuple:
     """旧事件 → saintess_engine 事件展开；不在表 = 假定已是 saintess_engine 原生事件名，同名直通
-    （dmg_calc/taken_calc/battle_start 等装配层可直接用 saintess_engine 事件名）。"""
-    return _EVENT_MAP.get(old_ev, (old_ev,))
+    （dmg_calc/taken_calc/battle_start 等装配层可直接用 saintess_engine 事件名）。
+
+    ★ 2026-09-13 反静默失效：直通的名字若不在引擎 EVENTS 全集里，`fire()` 会静默忽略 →
+    触发器永不生效且无痕迹。此处**只告警不改行为**（仍直通返回，语义与改造前逐字一致），
+    未知名去重缓存（装配器每场战斗都装，不去重会刷屏）。
+    """
+    got = _EVENT_MAP.get(old_ev)
+    if got is not None:
+        return got
+    _known = _known_engine_events()
+    if _known and old_ev not in _known and old_ev not in _UNKNOWN_EVENTS:
+        _UNKNOWN_EVENTS.append(old_ev)
+        logging.getLogger(__name__).warning(
+            "装配层事件名 %r 不在引擎事件全集里（fire 会静默忽略 → 该触发器永不生效）", old_ev)
+    return (old_ev,)
 
 
 # ============================================================
@@ -110,8 +149,8 @@ def equipped_weapon_keys(actor: dict) -> list:
 #   （energy_blade/arcane_focus/sigil_blessing 消耗修正）v181.M-bonus 已装：
 #   装配写 actor["bonus"]["cost"]（_apply_cost_bonus 分域，覆盖写幂等），引擎
 #   actions._skill_pay_of 折算（预检/扣费同源、floor 取整、保底 1）；cond 修正型
-#   ember_brand（怒气获取修正需资源获取事件钩子）、combo_recover（连招技标签语义）
-#   仍缺口；
+#   ember_brand（D3 已装：数据 cond → 动作参数 cond_hp_lt 门槛 + 命中/受击观测点）、
+#   combo_recover（D3 已装：combo_skill → skill_hit）见下；
 #   regen 型 energy_tide/swift_tailwind（每刻回能 turn_start）与 purify（驱散）
 #   v181.M-affixtail 已装（翻译器见下；cap clamp 全收敛 _cap_of）。
 # finisher（终结技伤害乘区）v181.M-bonus 已装（dmg_calc mech_any 谓词，见 _af_finisher）。
@@ -511,9 +550,9 @@ def _af_dragon_aw(aid, actor, eff):
 #               「施放」与「命中」同刻发生 → 挂 act_cast+kind 过滤，全员治疗都触发。
 #   battle_start 开局 → battle_start：开战一次性（subject=None 全员触发一次）。
 #   buff_skill  增益技能 → act_cast + kind=增益（同 kind 过滤判据）。
-# 未映射（on 无对应语义点位/需额外判据）：combo_skill（连招技无技能标记事件——
-#   拳师「连招技」需词条级 kind/tag 语义核对，R4 记缺口不装）；ember_brand 等
-#   cond 被动修正型（effect 无 on）同样缺口。
+# 未映射（on 无对应语义点位/需额外判据）：**无**（D3 2026-09-13 收口：combo_skill 已挂
+#   skill_hit——数据无「连招技」kind/mech/名标记，取语义最近且 subject=自己 的技能命中点，
+#   实装面宽于 desc 承诺、不产生假承诺；ember_brand 走 _af_ember_brand（cond_hp_lt 门槛））。
 
 _AFFIX_RES_GAIN_ON = {
     # on 时机 → (saintess_engine 事件, 动作附加参数)
@@ -525,6 +564,8 @@ _AFFIX_RES_GAIN_ON = {
     "on_heal": ("act_cast", {"kind": "治疗"}),
     "battle_start": ("battle_start", {}),
     "buff_skill": ("act_cast", {"kind": "增益"}),
+    # combo_skill 连招技（拳师连段，combo_recover）→ skill_hit：见上方 D3 注释
+    "combo_skill": ("skill_hit", {}),
 }
 
 # R4 已装配的 res+gain+on 词条（AFFIXES 表 effect 结构核对一致；其余资源型见缺口注释）
@@ -539,6 +580,7 @@ _AFFIX_RES_GAIN_IDS = (
     "pious_charm",     # 虔诚护符：受击 faith+1
     "rock_rest",       # 磐息：受击 chi+1
     "opening_stance",  # 起手之势：开战 chi+1
+    "combo_recover",   # 连段回收：连招技命中 chi+1（D3：combo_skill → skill_hit）
 )
 
 
@@ -558,7 +600,7 @@ def _translate_affix_res_gain(aid: str, actor: dict, eff: dict) -> dict:
     for t in on:
         ev, extra = _AFFIX_RES_GAIN_ON.get(t, (None, None))
         if ev is None:
-            continue  # 未映射时机（combo_skill 等）：静默跳过（缺口词条不装配）
+            continue  # 未映射时机（数据表写了 _AFFIX_RES_GAIN_ON 之外的 on）：静默跳过
         d = {"type": "we_affix_res_gain", "key": aid, "res": res, "gain": gain,
              "label": info.get("name") or aid}
         if eff.get("chance") is not None:
@@ -639,6 +681,47 @@ def _af_finisher(aid, actor, eff):
                           "names_any": ["终结"],
                           "mult": 1.0 + float(eff.get("finisher_dmg") or 0.10),
                           "tag": "🗡️终结技"}]}
+
+
+@_register_affix("ember_brand")
+def _af_ember_brand(aid, actor, eff):
+    """残血灼薪（D3 补）：生命 <30% 时 怒气获取 +1（effect {res, gain, cond: hp_lt_30}）。
+
+    引擎无「资源获取」事件、`player_low` 无 fire 点位（effect_triggers.py 头注）→ 按
+    content 侧同款先例（class_mech `passive_low_hp_core`：以真实承伤为观测点）把「怒气来源
+    事件」当观测点：命中（普攻/技能）与受击各判一次，动作侧 `cond_hp_lt` 门槛决定是否
+    +gain（残血才加）。数据 `cond` 由装配层折算成动作参数（动作零词条硬编码）。
+    """
+    res = eff.get("res")
+    gain = eff.get("gain")
+    if not res or gain is None or float(gain) <= 0:
+        return {}
+    thr = 0.30 if str(eff.get("cond") or "") == "hp_lt_30" else 0.0
+    if thr <= 0:
+        return {}
+    info = (_affix_data() or {}).get(aid) or {}
+    d = {"type": "we_affix_res_gain", "key": aid, "res": res, "gain": gain,
+         "cond_hp_lt": thr, "label": info.get("name") or aid}
+    return {"hit": [dict(d)], "taken": [dict(d)]}
+
+
+@_register_affix("combo_ward")
+def _af_combo_ward(aid, actor, eff):
+    """连段护持（D3 补）：受击时 combo_keep_chance 概率「连段不因受击回退」。
+
+    ⚠️ 基础「受击回退」在 saintess_engine/内容侧**均无载体**（旧 battle.py `_combo_break`
+    随 N10 删除未迁；class_mech `passive_lian_duan_soft` 只管「断连 gap」语义）→
+    「不因受击回退」无回退可抵消 → 落地为「受击时概率回补 1 段连段」（lian_duan 叠层，
+    cap 走 `_add_stacks` → 引擎 `cap_of` clamp）。chance 即 combo_keep_chance（tiers 已按
+    装备品质由 `_affix_effect_final` 折入）。取舍见 overnight/d3-gap-fix.md。
+    """
+    ch = eff.get("combo_keep_chance")
+    if ch is None or float(ch) <= 0:
+        return {}
+    info = (_affix_data() or {}).get(aid) or {}
+    return {"taken": [{"type": "we_affix_res_gain", "key": aid, "res": "lian_duan",
+                       "gain": 1, "chance": float(ch),
+                       "label": info.get("name") or aid}]}
 
 
 def affix_triggers_for_key(aid: str, actor: dict) -> dict:
@@ -886,6 +969,44 @@ def _translate_dusk_blade(key: str, wd: dict) -> dict:
     return {"kill": effs}
 
 
+def _translate_legend_mult(key: str, wd: dict) -> dict:
+    """传说专属乘区（D3：3 个 roster `weapon_effect` 键曾「放错表」= 只在 LEGENDARY_EFFECTS）。
+
+    形状 = 真源 affixes.py LEGENDARY_EFFECTS 条目 effect（trigger:"passive"）：
+    {dmg_mult, enemy_contains|execute_threshold, tag} → dmg_calc 乘区（we_dmg_mult_cond）：
+    - execute_threshold → cond=hp_target_lt（对残血目标，同 execute/twilight_execute）；
+    - enemy_contains    → cond=name_contains + keywords（对龙/深渊系，同 dragon_aw）。
+    读表零默认值：dmg_mult 缺失 = 无此行为。
+    """
+    mult = float(wd.get("dmg_mult") or 0)
+    if mult <= 0:
+        return {}
+    eff = {"type": "we_dmg_mult_cond", "key": key, "mult": mult,
+           "tag": wd.get("tag") or ""}
+    if wd.get("execute_threshold") is not None:
+        eff["cond"] = "hp_target_lt"
+        eff["threshold"] = float(wd["execute_threshold"])
+    elif wd.get("enemy_contains"):
+        eff["cond"] = "name_contains"
+        eff["keywords"] = list(wd["enemy_contains"])
+    else:
+        return {}
+    return {"dmg_calc": [eff]}
+
+
+def _translate_first_turn_dodge(key: str, wd: dict) -> dict:
+    """proc_special novice_first_turn_dodge 首刻闪避（D3 补）：battle_start 给自身
+    dodge +dodge_pct（面板快照 op=add 浮点加，`apply` 动词——同族 novice_first_turn_guard
+    的「首刻后失效」口径：turns=1 刻，过期由引擎 effects expire 自动清理）。"""
+    pct = float(wd.get("dodge_pct") or 0)
+    if pct <= 0:
+        return {}
+    return {"battle_start": [{"type": "apply",
+                              "key": wd.get("mark_key") or ("we_" + key),
+                              "stat": "dodge", "op": "add", "mult": pct,
+                              "turns": int(wd.get("turns") or 1), "on": "caster"}]}
+
+
 def _cond_mult(old_ev: str, cond: str, threshold: float, mult: float, tag: str = "") -> dict:
     """条件乘区翻译（dmg_calc/taken_calc → we_*_mult_cond 扩展动作）。"""
     return {old_ev: [{"type": "we_dmg_mult_cond", "cond": cond, "threshold": threshold,
@@ -1032,6 +1153,13 @@ _START_TRANSLATORS = {
                         "mult": 1.0 - float(wd.get("reduce_pct") or 0.10),
                         "used_key": wd.get("mark_key") or "novice_guard_used"}],
     },
+    # proc_special 首刻闪避（D3：battle_start apply dodge +pct，1 刻后失效）
+    "novice_first_turn_dodge": _translate_first_turn_dodge,
+    # D3：3 个 roster `weapon_effect` 键（数据原只在 LEGENDARY_EFFECTS = 放错表）——
+    # 数据已抄进 WEAPON_EFFECT_DATA（weapon_effect_data.py 尾），乘区翻译器共用
+    "divine_execution": _translate_legend_mult,
+    "dragon_annihilation": _translate_legend_mult,
+    "star_destruction": _translate_legend_mult,
     # proc_stack 叠层放大器（生产事件 + dmg_calc 消费）
     "rune_amp": lambda k, wd: _stack_pair(k, wd, "skill_cast"),
     "sage_amp": lambda k, wd: _stack_pair(k, wd, "skill_cast"),
@@ -1071,6 +1199,132 @@ def triggers_for_key(key: str, actor: Optional[dict] = None) -> dict:
     wd = _we_config(key, actor)
     fn = _START_TRANSLATORS[key]
     return fn(key, wd)
+
+
+# ============================================================
+# 传说专属特效装配条目（D3 2026-09-13 补：item["legendary"] → id 流）
+# ============================================================
+# 缺口（定性见 overnight/d3-gap-triage.md）：93 条 LEGENDARY_EFFECTS 里 50 条非 stat 条目
+# 全无装配入口——装备行 `item["legendary"]` 在开战构造层**一次都没被读**（本文件旧版
+# grep 'legendary' = 0 行），只有**生成期** drops._merge_legendary_stats 收 stat 型 →
+# 60/93 条「展示有（详情页印 desc 承诺）、实战不生效」。本段把 legendary id 并进 id 流。
+#
+# 装配口径（四条）：
+# 1. **只对 `trigger != "stat"` 生效**：stat 型条目已在生成期折算进 `item.stats`
+#    （game/core/drops.py:27-42 `_merge_legendary_stats`），装配层再读 = 同一数值算两遍。
+# 2. **不重复并入**：`item["legendary"]` 与 `item["weapon_effect"]`/`item["affixes"]` 可能
+#    填同一个 id（名册 145 件传说里 15 件两字段同值）→ id 已在本 actor 的 weapon_effect /
+#    affix 流里出现过就跳过（否则同一条特效被装两遍）。
+# 3. **无翻译器不静默**：进 `_UNSUPPORTED_LEGENDARY` 去重清单 + `logging.warning`（**只登记
+#    不改行为**；门禁/自检读该清单，卡「有没有新的死条目」）。
+# 4. **翻译器全部复用已有的**（本批不新增动作/机制）：传说条目的 `effect` 形状与
+#    weapon_effect_data 同族，直接喂已有翻译器，零新动作、零数值默认值。
+#
+# 数值权威 = affixes.LEGENDARY_EFFECTS[id]（形状 = {name, kind, trigger, effect, desc}
+# [+ 顶层 chance]，与 AFFIXES 条目一致）。名册 `legendary` 字段另有 29 行填的不是传说专属
+# id（15 件 weapon_effect 同值回显、4 件词条键、10 件两表皆无）→ 回显件由 step 0 去重、
+# 词条键走词条 id 流（step 3），两流都认不出才登记「未实装」。
+
+_LEGENDARY_TABLE = None
+
+
+def _legendary_data() -> dict:
+    """LEGENDARY_EFFECTS 表（数值权威，惰性读）。"""
+    global _LEGENDARY_TABLE
+    if _LEGENDARY_TABLE is None:
+        try:
+            from ..data import affixes as _A
+            _LEGENDARY_TABLE = getattr(_A, "LEGENDARY_EFFECTS", {})
+        except Exception:
+            _LEGENDARY_TABLE = {}
+    return _LEGENDARY_TABLE
+
+
+def equipped_legendary_ids(actor: dict) -> list:
+    """actor 已装备的全部传说专属 id（各槽位 item["legendary"]，去重保序）。"""
+    out = []
+    for item in (actor.get("equipment") or {}).values():
+        if not isinstance(item, dict):
+            continue
+        lid = item.get("legendary")
+        if lid and lid not in out:
+            out.append(lid)
+    return out
+
+
+def _note_unsupported_legendary(lid: str, trigger: str) -> None:
+    """未实装传说条目登记 + 告警（**只登记不改行为**；去重——装配器每场战斗都跑）。"""
+    if lid in _UNSUPPORTED_LEGENDARY:
+        return
+    _UNSUPPORTED_LEGENDARY.append(lid)
+    logging.getLogger(__name__).warning(
+        "传说专属特效 %r（trigger=%s）在装配层没有翻译器（详情页有承诺、实战不生效）",
+        lid, trigger)
+
+
+# 传说专属 id → 翻译器（**全部复用已有翻译器**；签名同武器翻译器 (key, cfg)，cfg =
+# LEGENDARY_EFFECTS[id]["effect"] + 顶层 chance 注入。每条注释 = 数据 desc 逐字核对）
+_LEGENDARY_TRANSLATORS = {
+    # —— passive 条件乘区（复用 _translate_legend_mult：残血处决 / 对某系敌人）——
+    "jack_hook": _translate_legend_mult,            # 处决狂潮：对生命 <30% 目标额外＋80%
+    "ancient_king": _translate_legend_mult,         # 王权处决：对生命 <30% 目标＋35%
+    "executioner": _translate_legend_mult,          # 处刑者：对生命 <30% 目标＋40%
+    "divine_execution": _translate_legend_mult,     # 神罚处决：对生命 <30% 目标额外＋60%
+    "dawn_light": _translate_legend_mult,           # 黎明破晓：对深渊系敌人＋50%
+    "giant_slayer": _translate_legend_mult,         # 巨人屠戮：对巨人系敌人＋25%
+    "star_destruction": _translate_legend_mult,     # 星陨湮灭：对深渊系敌人＋30%
+    "dragon_annihilation": _translate_legend_mult,  # 灭龙：对龙系敌人＋25%
+    # —— turn_start 每刻回血（复用 _translate_regen_turn_start；morning_dew 的 pct 是
+    #    「回魔力」，语义不同 → 本批不装）——
+    "dawn_crown": _translate_regen_turn_start,      # 晨曦祝福：每刻回复 2% 生命
+    "life_spring": _translate_regen_turn_start,     # 生命泉涌：每刻回复 3% 生命
+    "night_prayer": _translate_regen_turn_start,    # 夜祷：每刻回复 3% 生命
+    # —— battle_start 起手盾（复用 _translate_shield_start）——
+    "arcane_ward": _translate_shield_start,         # 奥术屏障：开局 15% 最大生命护盾 3 刻
+}
+
+
+def legendary_triggers_for_key(lid: str, actor: dict) -> dict:
+    """单个传说专属 id → {old_event: [效果 dict]}；装不出 → {}（未实装则登记 + 告警）。"""
+    # 0) 不重复并入：同 id 已由 weapon_effect / affix 入口装过（名册两字段同值 / 同 id 词条）
+    if lid in equipped_weapon_keys(actor) or lid in equipped_affix_ids(actor):
+        return {}
+    info = (_legendary_data() or {}).get(lid)
+    trigger = (info or {}).get("trigger")
+    if trigger == "stat":
+        return {}   # 生成期已折算进 item.stats —— 再装 = 双算
+    if info:
+        fn = _LEGENDARY_TRANSLATORS.get(lid)
+        if fn is not None:
+            cfg = dict(info.get("effect") or {})
+            if info.get("chance") is not None:
+                cfg.setdefault("chance", info["chance"])
+            raw = fn(lid, cfg)
+            if raw:
+                return raw
+    else:
+        # 非传说专属 id（名册 legendary 字段混装的 weapon_effect / 词条键）→ 各自 id 流
+        raw = triggers_for_key(lid, actor)
+        if raw:
+            return raw
+        raw = affix_triggers_for_key(lid, actor)
+        if raw:
+            return raw
+    _note_unsupported_legendary(lid, trigger or "unknown")
+    return {}
+
+
+def legendary_triggers(actor: dict) -> dict:
+    """actor 全部传说专属特效 → {saintess_engine事件: [效果 dict]}（同武器/词条两流口径）。"""
+    out: dict = {}
+    for lid in equipped_legendary_ids(actor):
+        raw = legendary_triggers_for_key(lid, actor)
+        if not raw:
+            continue
+        for old_ev, effs in raw.items():
+            for b2_ev in map_event(old_ev):
+                out.setdefault(b2_ev, []).extend(list(effs))
+    return out
 
 
 # ============================================================
@@ -1116,8 +1370,9 @@ def affix_triggers(actor: dict) -> dict:
       _apply_bonus_domains（actor.bonus cap/cost 分域容器，非事件——apply_to_actor 第
       0 步；面板外部增幅 bonus.panel 由开战仪式播种，装配不动）；
       m_affixtail 已装 regen 型 2（energy_tide/swift_tailwind turn_start 回能）+
-      purify（命中驱散）；cond 修正型/职业机制词条翻译器未注册 → 静默跳过
-      （缺口清单见模块头注释与 affixes.py）
+      purify（命中驱散）；D3 已装 3 条事件型词条（combo_recover/combo_ward/ember_brand
+      ——取舍见 overnight/d3-gap-fix.md）；其余 cond 修正型/职业机制词条翻译器未注册
+      → 静默跳过（缺口清单见模块头注释与 affixes.py）
     """
     out: dict = {}
     for aid in equipped_affix_ids(actor):
@@ -1135,7 +1390,7 @@ def apply_to_actor(actor: dict) -> None:
     0. bonus 容器分域（v181.M-bonus：cap 上限词条 max_bonus → bonus.cap；
        cost 消耗修正词条 energy_blade/arcane_focus/sigil_blessing → bonus.cost；
        panel 外部增幅由开战仪式播种，此处不动）
-    1. 事件型效果 → actor["triggers"]（武器特效 + 词条事件型合并）
+    1. 事件型效果 → actor["triggers"]（武器特效 + 词条事件型 + 传说专属特效合并）
     2. 被动常驻型（proc_heal amp：受疗增幅）→ actor.state.heal_amp_pct（landing 折算）"""
     if not actor:
         return
@@ -1145,7 +1400,7 @@ def apply_to_actor(actor: dict) -> None:
         _apply_bonus_domains(actor)
     except Exception:
         pass  # 词条 bonus 装配异常不阻断其余（容错铁律）
-    # 1) 事件型（武器特效 + affix 词条）
+    # 1) 事件型（武器特效 + affix 词条 + 传说专属特效）
     merged = weapon_triggers(actor)
     try:
         _afx = affix_triggers(actor)
@@ -1153,6 +1408,12 @@ def apply_to_actor(actor: dict) -> None:
             merged.setdefault(ev, []).extend(effs)
     except Exception:
         pass  # 词条装配异常不阻断武器装配（容错）
+    try:
+        _leg = legendary_triggers(actor)
+        for ev, effs in _leg.items():
+            merged.setdefault(ev, []).extend(effs)
+    except Exception:
+        pass  # 传说专属装配异常不阻断其余（容错铁律）
     tr = actor.setdefault("triggers", {})
     for ev, effs in merged.items():
         tr.setdefault(ev, []).extend(effs)

@@ -36,7 +36,9 @@ CORE_MAP = {
     "battle_bars": "saintess_engine.gauge",
     "formation": "saintess_engine.formation",
     "formula_expr": "saintess_engine.expr",
-    "skill_kinds": "saintess_engine.kinds",
+    # P4 下沉（2026-09-13）：中文 kind 词表已从引擎（原 `kinds/` 子包）搬到内容侧
+    # `game/data/kinds.py` —— 本工具把旧 `core.skill_kinds` 路径重写到这里。
+    "skill_kinds": "game.data.kinds",
 }
 
 ALIAS_IMPORT = re.compile(

@@ -1334,6 +1334,8 @@ def we_affix_res_gain(battle, caster, target, params, logs):
              增益技 / holy_echo 治疗施放 折中挂点）
     - not_basic 排除普攻施放（on_cast 词条：saintess_engine 普攻经 do_skill 也 fire
              act_cast 且 info._basic=True——元素/奥术技能施放不该吃普攻）
+    - cond_hp_lt 血量门槛（ember_brand 残血灼薪：owner.hp/max_hp < cond_hp_lt 才回；
+             缺省 None = 无条件）
     - label/icon 日志文案（装配层读 AFFIXES.name 写入，动作零硬编码）
     """
     owner = params.get("_owner") or caster
@@ -1356,6 +1358,14 @@ def we_affix_res_gain(battle, caster, target, params, logs):
         _e = (owner.get("effects") or {}).get(ck)
         _cur = float(_e.get("stacks", 0) or 0) if isinstance(_e, dict) else 0.0
         if _cur < float(params.get("cond_ge") or 0):
+            return
+    # D3 cond 门槛（ember_brand 残血灼薪：data cond=hp_lt_30 由装配层折算成 cond_hp_lt
+    # 参数——当前血量不在阈值内 → 静默跳过不回复；参数缺省 = 无条件，旧词条语义零变化。
+    # 同门先例：class_mech `passive_low_hp_core` 读 hp_lt 判残血）
+    hl = params.get("cond_hp_lt")
+    if hl is not None and float(hl) > 0:
+        _mhp = float(owner.get("max_hp", 1) or 1)
+        if float(owner.get("hp", 0) or 0) >= _mhp * float(hl):
             return
     res = params.get("res") or ""
     gain = int(params.get("gain") or 0)
