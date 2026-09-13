@@ -128,6 +128,19 @@ check("settlement.py 不再有 monster[\"lv\"] 直读下标（回归哨兵，AST
 check("settlement.py 里 _mon_lv 用在 3 处（pet/roll_drop/exp_curve）", len(_calls) == 3,
       "实际 %d 处：行 %s" % (len(_calls), _calls))
 
+print("【4】we_dot 文案占位符（改前既有缺陷：`_DOT_LOG` 从不 .format()）")
+from content.mech.we_procs import we_dot, _DOT_LOG             # noqa: E402
+_b2, _p2, _e2 = _battle()
+for _k, _v in sorted(_DOT_LOG.items()):
+    _logs = []
+    we_dot(_b2, _p2, _e2[0], {"key": _k, "dot_key": _k, "amount": 1, "turns": 4}, _logs)
+    _txt = _logs[0] if _logs else ""
+    check("『%s』文案无残留占位符（%s）" % (_k, _txt[:26]), "{" not in _txt and _txt, _txt)
+_logs2 = []
+we_dot(_b2, _p2, _e2[0], {"key": "不存在的key", "dot_key": "bleed", "amount": 1, "turns": 4}, _logs2)
+check("缺 key 走兜底文案且已填好（%s）" % (_logs2[0][:26] if _logs2 else ""),
+      bool(_logs2) and "{" not in _logs2[0])
+
 print("\n=== 结果 PASS=%d FAIL=%d ===" % (PASS, FAIL))
 if FAILURES:
     print("失败项：")
