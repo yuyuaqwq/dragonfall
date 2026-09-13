@@ -85,84 +85,51 @@ LAST_ERRORS: list = []
 _MAX_ERRORS = 16
 
 
-def ensure_engine_configured() -> None:
-    """引擎配置**一次性**装配（幂等）——旧 `saintess_engine.config.load_game_defaults()` 的实体。
+def _pkg_apply():
+    """包内 `content.apply` 模块（B8 真源；经 `game.bootstrap` 唯一加载口）。"""
+    from .. import bootstrap
+    return bootstrap.package_apply()
 
-    = `game.bootstrap.load_engine_config()`：hook 面（公式/面板/技能查询/kind/mech_cfg）
-      + 规则表（EFFECT_ACTIONS / EFFECT_RULES）。
 
-    幂等：`mount()` 与 `load_game_rules()` 均为覆盖写，重复调用同一结果。
+def __getattr__(name):
+    """PEP 562 模块级转发：`LAST_ERRORS` 等**排障符号**的真源已归包 —— 不留第二份。
 
-    另：**引擎动作执行器注册**也在本入口（import 即注册，2026-09-11）——
-    `game/services/battle_team_procs.py` 提供团队/全队面幅与护盾/减伤/易伤/挡刀等
-    内容侧动作，它们在技能施放时由引擎增益管线调起，必须先于任何战斗注册。
-    放这里（而非开战装配）的原因：所有测试/入口都走 `ensure_engine_configured()`，
-    注册面才完整。
+    留一份恒空的名字会让 D4 那类断言（失败步必须记进 LAST_ERRORS）变成**假绿**。
     """
-    from .. import bootstrap  # 惰性：装配期避免循环 import（见 game/bootstrap.py docstring）
-    from ..services import battle_team_procs as _team_procs  # noqa: F401  (import 即注册)
-    from ..services import battle_element_procs as _elem_procs  # noqa: F401  (import 即注册)
-    bootstrap.load_engine_config()
+    if name == "LAST_ERRORS":
+        return getattr(_pkg_apply(), name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def ensure_engine_configured() -> None:
+    """引擎配置**一次性**装配（幂等）—— 旧 `saintess_engine.config.load_game_defaults()` 的实体。
+
+    ★ B8 切消费端（2026-09-13）：实现已归内容包，本函数是**薄壳**，一行委托
+    `bootstrap.load_engine_config()`（= 先引 `game.content` 保装载顺序，再加载包；包内
+    `content/apply.install_engine()` 做 hook 面 + 规则表 + 动作注册）。旧实现三件事的去处：
+      ① hook 面（公式/面板/技能查询/kind/mech_cfg）→ 包内 `content/apply.install_engine()`
+      ② 规则表（EFFECT_ACTIONS / EFFECT_RULES）→ 包内 `content/mech/params.py`（`load_game_rules`）
+      ③ 动作执行器注册（`battle_team_procs` / `battle_element_procs`，import 即注册）
+         → 包内 `content/mech/{team,element}_procs.py`，由 `content/apply.py` 的 import 块列全
+           （少 import 一族 = 那族动作在 `fire()` 里**静默跳过**，见该文件注释）
+    """
+    from .. import bootstrap
+    bootstrap.load_engine_config()      # 不直调 package_apply()：那会绕过 §8-R1 的装载顺序
 
 
 def apply_game_content(actor: dict, ctx: dict | None = None) -> dict:
-    """**唯一**开战内容装配入口。顺序契约见模块 docstring（①…⑥）。幂等。
+    """**唯一**开战内容装配入口。★ B8 切消费端（2026-09-13）：实现已归包 —— 本函数是**薄壳**，
+    一行委托包内 `content/apply.py:apply_game_content`（逐字端口，顺序契约 ①→⑥ 一步不少，
+    含 ⑥ 食物效果 —— B8 补齐，见 `content/mech/food_proc.py`）。
 
     :param actor: saintess_engine 侧 actor（命令层从 player dict 经 battle_bridge 得来）
-    :param ctx:   可选上下文；仅识别 ``aids``（食物 aid 列表）与 ``logs``（播报累加）
+    :param ctx:   可选上下文字典：``aids``（食物 aid 列表）/ ``logs``（播报累加）
     :return: actor（原对象，就地装配）
 
-    容错铁律：每个子步独立 try/except —— 单步异常**不阻断**后续装配、不上抛
-    （与旧命令层 `commands/combat.py` 的「装配异常不阻断开战」逐字一致，保证
-    命令层改写为单行调用后行为不变）。失败项记入模块级 `LAST_ERRORS`（排障用；
-    不写 actor、不进存档，故无状态副作用）。装配全部走完才落 `_content_applied` 标记。
-
-    行为等价性：对同一 actor，本入口 == 旧命令层并列调用
-    （`equip_proc.apply_to_actor` → `class_mech_proc.apply_class_mech`），
-    除幂等标记外逐字节相同（`tests/test_apply_game_content.py` E 组对拍）。
+    行为等价性：包内那份对同一 actor 与旧命令层并列调用
+    （`equip_proc.apply_to_actor` → `class_mech_proc.apply_class_mech`）除幂等标记外逐字节相同
+    （`tests/test_apply_game_content.py` E 组对拍）；⑥ 食物与真源 19/19 逐项相同
+    （`overnight/_b8_verify_food.py`）。容错铁律（单步异常不阻断）、幂等标记 `_MARK`、
+    `LAST_ERRORS` 都在包内那份里 —— 本模块经 `__getattr__` 转发排障符号，不留第二份。
     """
-    if not actor:
-        return actor
-    if actor.get(_MARK):
-        return actor  # 已装配（幂等保险丝；见模块 docstring「幂等的实现方式」）
-
-    LAST_ERRORS.clear()
-
-    def _step(name, fn, *args):
-        try:
-            fn(*args)
-        except Exception as e:  # noqa: BLE001 —— 容错铁律（见 docstring）
-            if len(LAST_ERRORS) < _MAX_ERRORS:
-                LAST_ERRORS.append((name, repr(e)))
-
-    # ① 引擎配置（幂等；先于一切内容装配）
-    _step("ensure", ensure_engine_configured)
-
-    # ② 装备/词条（bonus 分域必须先于 ③ 的渠道装配）
-    from ..services.battle_equip_proc import apply_to_actor as _equip_apply
-    _step("equip", _equip_apply, actor)
-
-    # ③ 职业 mech 兑现（内部顺序：bar_gain → mech 段 → bar → cond）
-    from ..services.class_mech_proc import apply_class_mech as _mech_apply
-    _step("mech", _mech_apply, actor)
-
-    # ④ 挂敌身条（幂等；③ 已挂时为空操作，显式保留以固定顺序契约）
-    from ..services.battle_bar_procs import apply_bar_procs as _bar_apply
-    _step("bar", _bar_apply, actor)
-
-    # ⑤ 技能条件乘区（幂等同上）
-    from ..services.battle_cond_procs import apply_cond_procs as _cond_apply
-    _step("cond", _cond_apply, actor)
-
-    # ⑤b 元素机制（两轴反应/克制 + 元素流转挂印转换；学了带 element 的技能才挂）
-    from ..services.battle_element_procs import apply_element_procs as _elem_apply
-    _step("element", _elem_apply, actor)
-
-    # ⑥ 食物效果（可选：仅吃料理时装配）
-    aids = (ctx or {}).get("aids")
-    if aids:
-        from ..services.battle_food_proc import install_food_fx as _food_apply
-        _step("food", _food_apply, actor, list(aids), (ctx or {}).get("logs") or [])
-
-    actor[_MARK] = True  # 幂等保险丝（装配全部走完才打；中途异常也不阻断 → 仍落标记）
-    return actor
+    return _pkg_apply().apply_game_content(actor, ctx)

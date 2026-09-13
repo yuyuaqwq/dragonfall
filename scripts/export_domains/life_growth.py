@@ -481,6 +481,61 @@ def derive_job_guide(src_root: str = None) -> dict:
     return sort_table(out)
 
 
+
+# ================================================================================
+# 域 8：`food_effects` 食物战斗效果数值权威表 —— 19 条（B8 批，2026-09-13）
+# ================================================================================
+
+FOOD_SRC = "game/data/food_effect_data.py:21 FOOD_EFFECT_PARAMS"
+NAMES_SRC = "game/data/food_effect_data.py:50 FOOD_EFFECT_NAMES"
+
+
+def derive_food_effects(src_root: str = None) -> dict:
+    """`food_effects` 域：`FOOD_EFFECT_PARAMS`（19 条）原样导出（零注入、不筛、不补默认值）。
+
+    真源：`game/data/food_effect_data.py:21 FOOD_EFFECT_PARAMS` —— v180F「清2b 食物效果数值权威表」，
+        把此前散在 `game/core/food_effects.py` 与 `battle.py` 里的 17 个 handler 数值收口成一张表。
+
+    消费者（游戏侧，导出只搬运不改语义）：
+        `game/services/battle_food_proc.py:36 _food_params()`  战斗内食物效果装配（读表零默认值：
+            `_fp(key, field, default=0.0)` —— 缺字段 = 无此行为，不复制硬编码）
+        `game/core/food_effects.py`                             战斗外 / 图鉴展示
+        `game/commands/battle_item_use.py:170`                  `foodfx:aid,...` 翻译入口（吃料理唯一入口）
+
+    映射口径（**本域只做一件事：把表原样搬进包**）
+        * 一条 = 一个效果键（`lifesteal` / `bleed` / `regen` / …），条目**原样**：不改类型、
+          不补默认值、不动字段顺序、不展开引用串。
+        * 字段 census（19 条实测，**按条目实算不是并集**）：数值字段按效果语义取用 ——
+          `pct` / `chance` / `mult` / `atk_pct` / `hp_ratio` / `turns` / `slow_turns` /
+          `stacks` / `max_n`（并集 9 个），叶类型全 JSON 原生（str/float/int，无 tuple/None）。
+          源里的 `label` **只有 1/19 条有**（`lifesteal`，值 `"吸血"`）—— 展示名的**主表**是
+          `FOOD_EFFECT_NAMES`（19 条，键集与参数表完全一致）→ 本函数把它作为 `name` 注入。
+        * 空/坏表 → `raise`（空表在编辑器里 = 「0 条」且不报错，本项目最怕的静默失效）。
+
+    留作引用、不展开：无 —— 本表自足（`name` 是展示名，不是跨域引用串）。
+    """
+    mod = _load("food_effect_data", src_root)
+    tbl = _require_table(getattr(mod, "FOOD_EFFECT_PARAMS", None), FOOD_SRC, "food_effects")
+    names = _require_table(getattr(mod, "FOOD_EFFECT_NAMES", None), NAMES_SRC, "food_effects")
+    out = {}
+    for key, ent in tbl.items():
+        entry = dict(_require_entry(ent, key, FOOD_SRC, "food_effects"))
+        # 唯一注入：展示名（`FOOD_EFFECT_NAMES`，与参数表 **19/19 键集完全一致**，实测 0 缺 0 多）。
+        # 守卫三条：①缺该键 → raise（源侧出现只加数值没给展示名的效果 = 编辑器里没中文名）
+        #          ②源条目已有 name → raise（不许覆盖源真值）
+        #          ③展示名必须是非空字符串
+        if key not in names:
+            raise ValueError(f"food_effects：{key!r} 在 {NAMES_SRC} 里没有展示名 —— 拒绝导出")
+        if "name" in entry:
+            raise ValueError(f"food_effects：{key!r} 源条目已有 name 字段 —— 注入不许覆盖源真值")
+        nm = names[key]
+        if not isinstance(nm, str) or not nm.strip():
+            raise ValueError(f"food_effects：{key!r} 的展示名不是非空字符串（{nm!r}）")
+        entry["name"] = nm
+        out[key] = entry
+    return sort_table(out)
+
+
 DOMAINS = {
     "craft": derive_craft,
     "alchemy": derive_alchemy,
@@ -489,4 +544,5 @@ DOMAINS = {
     "runes": derive_runes,
     "skill_up": derive_skill_up,
     "job_guide": derive_job_guide,
+    "food_effects": derive_food_effects,
 }

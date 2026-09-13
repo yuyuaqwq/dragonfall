@@ -148,62 +148,77 @@ def _bar_prefix():
         return "bar:"
 
 
+# ============================================================
+# ★ B8 切消费端（2026-09-13）：hook 面 / 规则表 / 开战装配的真源**已全部归内容包**
+#   （`<plugin>/framework/games/orlandia/` —— 与 `game/__init__.py` 插进 sys.path 的 framework 根
+#    是同一个 submodule，即「引擎 + 包」同源，不额外复制一份）。
+#   本文件从「自己取件挂 hook」改成「加载包 + 调包自己的 install_engine()」；
+#   上面那些 `_formulas()/_panel()/_skills()/_kinds()/…` 取件器随本次收口退役
+#   （B8 退役批：宿主副本移出仓，见 overnight/B8_*.md）。
+# ============================================================
+
+import os as _os
+
+_PKG_DIR = _os.path.normpath(_os.path.join(
+    _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+    "framework", "games", "orlandia"))
+
+_PKG_APPLY = None      # 包内 `content.apply` 模块（本进程唯一加载口缓存）
+
+
+def package_apply():
+    """加载内容包（幂等）并返回包内 `content.apply` 模块 —— **本进程唯一的包加载口**。
+
+    走引擎的包加载器 `saintess_engine.package.load`：包根进 sys.path → `content` 成命名空间包
+    → `import content.apply`（包内相对导入因此可用）→ 调它的 `install_engine()`。
+    失败 → **抛**（不静默降级：hook 面空着 = 引擎 `strict=False` 下数值全 0 的「静默零放」，
+    比报错难查得多）。
+    """
+    global _PKG_APPLY
+    if _PKG_APPLY is None:
+        from saintess_engine import package as _pkg_loader
+        info = _pkg_loader.load(_PKG_DIR)
+        if not (info.get("ok") and info.get("installed")):
+            raise RuntimeError("内容包加载失败：%s" % (info.get("errors"),))
+        _PKG_APPLY = info["apply"]
+    return _PKG_APPLY
+
+
 def mount_engine_hooks() -> None:
-    """把本游戏的内容函数/常量注入引擎 config hook 面（幂等；内容侧入口）。"""
-    _b2cfg.mount(
-        formulas=_formulas(),                                # 数值公式（引擎侧纯公式模块，S5 落点）
-        panel_fn=lambda *a, **k: _panel().player_final_stats(*a, **k),  # 玩家职业面板
-        skill_lookup=_skills(),                              # .skill_info / .skill_by_key
-        monster_skill_fn=_monster_skill,                     # 怪物技能表
-        basic_skill_fn=_basic_skill_of,                      # 职业普攻配置
-        kinds=_kinds(),                                      # kind 语义常量
-        basic_fallback=_basic_fallback(),                    # 普攻兜底配置
-        mech_cfg_fn=_mech_cfg,                               # 机制配置表（battle_bars）
-        bar_prefix_fn=_bar_prefix,                           # 挂敌身条键前缀（battle_bars）
-        # ---- S5：formulas.py 的表读点（引擎零内容 import）----
-        formula_skeleton_fn=_skeleton,                       # 公式骨架参数表
-        skill_flat_fn=_skill_flat,                           # 技能基础值常量表
-        skill_up_fn=_skill_up,                               # 技能升级配置（SKILL_UP）
-        skill_level_of_fn=_skill_level_of,                   # 技能等级查询
-    )
+    """把内容函数/常量注入引擎 config hook 面（幂等；内容侧入口）。
+
+    ★ B8：真源 = 内容包 —— 本函数 = 「加载包」。`package.load` 内部即调
+    `content/apply.install_engine()`，由**包自己** mount 13 个 hook 名 + 注册惰性装配器。
+    """
+    package_apply()
 
 
 def load_engine_config() -> None:
-    """完整装配（旧 saintess_engine.config.load_game_defaults 的实体）。
+    """完整装配（= hook 面 + 规则表）。
 
-    = mount_engine_hooks()（hook 面）+ load_game_rules(battle_rules)（规则表）。
+    ★ B8：规则表那一步也在包里（`content/mech/params.py` 的 `EFFECT_RULES` / `EFFECT_ACTIONS`，
+    由包内 `install_engine()` 走 `config.load_game_rules(P)` 装载）→ 本函数委托包加载。
 
-    ⚠️ 装载顺序（§8-R1 导入环）：**先引内容包**，再取 battle_rules。若先
-    `from .data import ...`，data→core 的半初始化链会中途拉进 content，
+    ⚠️ 装载顺序（§8-R1 导入环）：**先引 `game.content`**，再加载包。
+    若先 `from .data import ...`，data→core 的半初始化链会中途拉进 content，
     content 的 `from .data import *` / `from .core import *` 拿到残缺命名空间
-    （star-import 命中半成品模块）→ 静默缺符号。先引 content 则顺序与 S1 前一致
-    （content 先于 data 装载，环在 content.py 内部安全闭合）。
+    （star-import 命中半成品模块）→ 静默缺符号，甚至反向成环报
+    `ImportError: cannot import name 'build_index' from partially initialized module`。
+    （B8 第一版把这一行删了 → 实测 `test_v181_batch_b_resist_data` 当场红，已复原。）
     """
     from . import content  # noqa: F401  (必须先于 game.data —— 见 docstring)
-    from .data import battle_rules
-    mount_engine_hooks()
-    _b2cfg.load_game_rules(battle_rules)
-
-
-def _lazy_mount() -> None:
-    """引擎侧 hook 惰性装配器：首次访问未装配 hook 时调用。
-
-    先把内容包引进来（内容 → 引擎方向），再做 hook 装配。
-    """
-    from . import content  # noqa: F401  (内容自举)
-    mount_engine_hooks()
+    package_apply()
 
 
 def install() -> None:
-    """包 import 期登记（轻量：不 import 内容/引擎）。
+    """包 import 期登记（幂等）。
 
-    只登记「hook 惰性装配器」：引擎首次访问未装配 hook 时回调本包完成装配。
-    （S8 拆仓后不再登记「默认配置装载器」——引擎侧已删除 `load_game_defaults`
-    这类游戏概念 API；配置装配的入口在内容侧：
-    `game.content_rules.apply.ensure_engine_configured()`。）
+    ★ B8：登记动作也归包 —— `install_engine()` 自己 `register_hook_provider`。本函数只负责
+    「把包加载起来」；加载失败**大声抛**（不静默留一个没装配的引擎）。
     """
-    _b2cfg.register_hook_provider(_lazy_mount)
+    package_apply()
 
 
-# 内容侧登记（game/__init__.py 调用 install()；此处兜底再登记一次，幂等）
+# 内容侧登记（game/__init__.py 调用 install()；此处兜底再调一次，幂等）
 install()
+

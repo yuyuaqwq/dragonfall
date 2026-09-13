@@ -5,10 +5,14 @@
 本测试守住三条契约：
 
   A 接口      —— 入口存在、单参可调、返回原 actor、旧调用点清单可核对
-  B 顺序契约  —— ①ensure → ②equip → ③mech → ④bar → ⑤cond → ⑥food（+ mech 内部 bar→cond 先跑）
-  C 引擎装配  —— ensure_engine_configured() 幂等且等价旧 load_game_defaults()
+  B 顺序契约  —— ①install → ②equip → ③mech → ④bar → ⑤cond → ⑤b element → ⑥food
+                 （+ mech 内部 bar→cond 先跑）。★ B8（2026-09-13）：观测对象 = **包内实现**
+                 （`APPLY._pkg_apply()` 的 `_equip/_class_mech/_bar_procs/_cond_procs/
+                 _element_procs/_food_proc` + 模块全局 `install_engine`）；宿主
+                 `game/services/battle_*_proc.py` 已退役，不再是生产路径。
+  C 引擎装配  —— ensure_engine_configured() 幂等；委托唯一包加载口（旧 load_game_defaults 实体）
   D 幂等      —— 同一 actor 连调 1 次 vs 2 次，序列化字节相同；零额外状态键
-  E 新旧等价  —— 新入口 == 旧命令层「EP.apply_to_actor + CM.apply_class_mech」逐字节
+  E 新旧等价  —— 新入口 == 旧命令层「EP.apply_to_actor + CM.apply_class_mech」逐字节（仍用宿主模块）
   F 数值抽样  —— 装备上限词条 / 推条注入 / 条件乘区 / 食物 四类效果照旧落地
 
 跑法：python tests/test_apply_game_content.py（exit=0 全绿）
@@ -38,6 +42,37 @@ from game.services import battle_food_proc as FOOD
 from game.services import class_mech_proc as CM
 from game.data.battle_rules import BAR_INJECT_FIELDS
 from game.data.weapon_effect_data import WEAPON_EFFECT_DATA
+
+# ------------------------------------------------------------
+# ★ B8 观测对象同源搬迁（2026-09-13）：装配实现已归内容包
+#   `APPLY._pkg_apply()` = 宿主唯一包加载口（→ `game.bootstrap.package_apply()`），返回包内
+#   `content.apply` 模块。它的 `install_engine`（模块全局）与 `_equip` / `_class_mech` /
+#   `_bar_procs` / `_cond_procs` / `_element_procs` / `_food_proc` 六个模块对象，就是包内
+#   `apply_game_content` 按 ①install→②equip→③mech→④bar→⑤cond→⑤b element→⑥food **调时取属性**
+#   的那批对象（`_step("equip", _equip.apply_to_actor, actor)`），故 patch 模块属性对观测生效 ——
+#   与生产同源。
+#   宿主 `game/services/battle_*_proc.py` / `class_mech_proc.py` **已退役**（不再是生产路径），
+#   仅留作 E 组「旧命令层并列调用」的逐字节对照物（EP / CM / FOOD / BAR / COND import 只为它）。
+# ------------------------------------------------------------
+_PKG = APPLY._pkg_apply()
+
+_OBS = {
+    "install": (_PKG, "install_engine"),                    # ① 引擎配置（旧 load_game_defaults 实体）
+    "equip":   (_PKG._equip, "apply_to_actor"),              # ② 装备/词条/武器特效
+    "mech":    (_PKG._class_mech, "apply_class_mech"),       # ③ 职业 mech
+    "bar":     (_PKG._bar_procs, "apply_bar_procs"),         # ④ 挂敌身条
+    "cond":    (_PKG._cond_procs, "apply_cond_procs"),       # ⑤ 技能条件乘区
+    "element": (_PKG._element_procs, "apply_element_procs"),  # ⑤b 元素机制
+    "food":    (_PKG._food_proc, "install_food_fx"),         # ⑥ 食物（仅 ctx 传 aids 时）
+}
+_ORIG_ATTRS = {(m, a): getattr(m, a) for (m, a) in _OBS.values()}
+
+
+def _restore(names):
+    for n in names:
+        mod, attr = _OBS[n]
+        setattr(mod, attr, _ORIG_ATTRS[(mod, attr)])
+
 
 PASS = 0
 FAIL = 0
@@ -171,22 +206,20 @@ def _spy(rec, name, mod, attr):
 
 
 def t_b():
-    print("【B 顺序契约】")
-    # B1/B2：五个入口全部 spy → 观测 apply.py 自身的调用序
+    print("【B 顺序契约（观测对象 = 包内实现；宿主 battle_*_proc 已退役）】")
+    # B1/B2：七步入口全部 spy（包内模块属性）→ 观测包内 apply_game_content 自身的调用序
+    names = ["install", "equip", "mech", "bar", "cond", "element", "food"]
     rec = []
-    saved = [_spy(rec, "equip", EP, "apply_to_actor"),
-             _spy(rec, "mech", CM, "apply_class_mech"),
-             _spy(rec, "bar", BAR, "apply_bar_procs"),
-             _spy(rec, "cond", COND, "apply_cond_procs"),
-             _spy(rec, "food", FOOD, "install_food_fx")]
+    saved = [_spy(rec, n, *_OBS[n]) for n in names]
     try:
         APPLY.apply_game_content(mk("cls_zhan_shi", "甲", uid="pb1"))
-        check("B1 顶层序 = equip→mech→bar→cond",
-              rec == ["equip", "mech", "bar", "cond"], repr(rec))
+        check("B1 顶层序 = install→equip→mech→bar→cond→element",
+              rec == ["install", "equip", "mech", "bar", "cond", "element"], repr(rec))
         rec.clear()
         APPLY.apply_game_content(mk("cls_zhan_shi", "乙", uid="pb2"),
                                  ctx={"aids": ["__probe_aid__"], "logs": []})
-        check("B2 传 aids → 末位追加 food", rec == ["equip", "mech", "bar", "cond", "food"], repr(rec))
+        check("B2 传 aids → 末位追加 food",
+              rec == ["install", "equip", "mech", "bar", "cond", "element", "food"], repr(rec))
         rec.clear()
         APPLY.apply_game_content(mk("cls_zhan_shi", "丙", uid="pb3"), ctx={"logs": []})
         check("B2b 不传 aids → 无 food", "food" not in rec, repr(rec))
@@ -194,35 +227,29 @@ def t_b():
         APPLY.apply_game_content({})
         check("B2c 空 actor → 零装配调用", rec == [], repr(rec))
     finally:
-        for (mod, attr), fn in zip([(EP, "apply_to_actor"), (CM, "apply_class_mech"),
-                                    (BAR, "apply_bar_procs"), (COND, "apply_cond_procs"),
-                                    (FOOD, "install_food_fx")], saved):
-            setattr(mod, attr, fn)
+        _restore(names)
 
-    # B3：ensure 先于第一次内容装配
+    # B3：包内 ① install_engine（= 旧 ensure_engine_configured/load_engine_config 实体）先于 ② equip
     rec2 = []
-    _spy(rec2, "ensure", BST, "load_engine_config")
-    _spy(rec2, "equip", EP, "apply_to_actor")
-    saved2 = [(BST, "load_engine_config"), (EP, "apply_to_actor")]
-    # 上面 _spy 已换掉，恢复表在下面统一处理
+    _spy(rec2, "install", *_OBS["install"])
+    _spy(rec2, "equip", *_OBS["equip"])
     try:
         APPLY.apply_game_content(mk("cls_zhan_shi", "丁", uid="pb4"))
-        check("B3 ensure_engine_configured 先于 equip", rec2[:2] == ["ensure", "equip"], repr(rec2))
+        check("B3 ① 引擎配置装配（install_engine）先于 ② equip",
+              rec2[:2] == ["install", "equip"], repr(rec2))
     finally:
-        for mod, attr in saved2:
-            setattr(mod, attr, _ORIG_ATTRS[(mod, attr)])
+        _restore(["install", "equip"])
 
-    # B4：真实 CM + spy bar/cond → mech 内部 bar→cond 先跑，显式 ④⑤ 为幂等空转
+    # B4：真实 ③ _class_mech + spy ④⑤ bar/cond → mech 内部 bar→cond 先跑，显式 ④⑤ 为幂等空转
     rec3 = []
-    saved3 = [_spy(rec3, "bar", BAR, "apply_bar_procs"),
-              _spy(rec3, "cond", COND, "apply_cond_procs")]
+    saved3 = [_spy(rec3, "bar", *_OBS["bar"]),
+              _spy(rec3, "cond", *_OBS["cond"])]
     try:
         APPLY.apply_game_content(mk("cls_wu_seng", "武僧", learned=_BAR_SK + _COND_SK, uid="pb5"))
         check("B4 全链观测序 = bar,cond,bar,cond（mech 内部链先跑；④⑤ 幂等空转）",
               rec3 == ["bar", "cond", "bar", "cond"], repr(rec3))
     finally:
-        for (mod, attr), fn in zip([(BAR, "apply_bar_procs"), (COND, "apply_cond_procs")], saved3):
-            setattr(mod, attr, fn)
+        _restore(["bar", "cond"])
 
 
 # ============================================================
@@ -241,13 +268,20 @@ def t_c():
     if ok:
         check("C1 ensure_engine_configured 幂等（连调 2 次）", True)
     rec = []
-    _spy(rec, "ensure", BST, "load_engine_config")
+    _orig_pa = BST.package_apply
+
+    def _rec_pa(*a, **k):
+        rec.append("ensure")
+        return _orig_pa(*a, **k)
+
+    BST.package_apply = _rec_pa
     try:
         APPLY.ensure_engine_configured()
-        check("C2 ensure 委托 game.bootstrap.load_engine_config（= 旧 load_game_defaults 实体）",
+        check("C2 ensure_engine_configured 委托 bootstrap.package_apply（唯一包加载口 = "
+              "旧 load_game_defaults 实体；真源 = 包内 content/apply.install_engine）",
               rec == ["ensure"], repr(rec))
     finally:
-        setattr(BST, "load_engine_config", _ORIG_ATTRS[(BST, "load_engine_config")])
+        BST.package_apply = _orig_pa
     r = _b2c.get_effect_rules() or {}
     a = _b2c.get_effect_actions() or {}
     check("C3 规则表已装载（EFFECT_RULES/EFFECT_ACTIONS 非空）",
@@ -284,20 +318,26 @@ def t_d():
     st = B2("monster", sides={"player": [a], "enemy": [foe]}).to_state()
     check("D3 【已知副作用】幂等标记随 serialize.to_state 落进战斗存档",
           APPLY._MARK in json.dumps(st, default=str))
-    # D4：单步异常不阻断后续（容错铁律，与命令层逐字一致）+ 记入 LAST_ERRORS
+    # D4：包内单步异常不阻断后续（容错铁律，与真源逐字一致）+ 记入 LAST_ERRORS
+    #     观测对象 = **包内 LAST_ERRORS**（`_PKG.LAST_ERRORS`，真源；B8 起机制在包里）。
+    #     ⚠️ 不用宿主 `APPLY.LAST_ERRORS` 观测：宿主 `game/content_rules/apply.py:84` 还留着
+    #     一份 `LAST_ERRORS: list = []`，它**遮蔽**了同文件 94-101 行声明的 PEP 562 转发
+    #     （模块属性查找命中就不走 `__getattr__`）→ 宿主那个名字恒空（假绿源；已报 B8 主 agent）。
     bad = mk("cls_wu_seng", "武僧", learned=_BAR_SK + _COND_SK, uid="pd4")
-    orig = BAR.apply_bar_procs
-    BAR.apply_bar_procs = lambda *x, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+    _bar_mod, _bar_attr = _OBS["bar"]
+    orig = _ORIG_ATTRS[(_bar_mod, _bar_attr)]
+    setattr(_bar_mod, _bar_attr,
+            lambda *x, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     try:
         APPLY.apply_game_content(bad)
     finally:
-        BAR.apply_bar_procs = orig
+        setattr(_bar_mod, _bar_attr, orig)
     check("D4 单步异常不上抛、后续步照跑、仍落标记（容错铁律）",
-          APPLY._MARK in bad and any(s == "bar" for s, _ in APPLY.LAST_ERRORS),
-          f"errors={APPLY.LAST_ERRORS}")
+          APPLY._MARK in bad and any(s == "bar" for s, _ in _PKG.LAST_ERRORS),
+          f"errors={_PKG.LAST_ERRORS}")
     check("D4b 失败步记入 LAST_ERRORS（排障；不写 actor）",
-          all(s not in bad for s, _ in APPLY.LAST_ERRORS) and len(APPLY.LAST_ERRORS) >= 1,
-          f"errors={APPLY.LAST_ERRORS}")
+          all(s not in bad for s, _ in _PKG.LAST_ERRORS) and len(_PKG.LAST_ERRORS) >= 1,
+          f"errors={_PKG.LAST_ERRORS}")
 
 
 # ============================================================
@@ -379,13 +419,8 @@ def t_f():
 # ============================================================
 
 def _snapshot_orig():
-    return {(m, a): getattr(m, a) for m, a in
-            [(EP, "apply_to_actor"), (CM, "apply_class_mech"),
-             (BAR, "apply_bar_procs"), (COND, "apply_cond_procs"),
-             (FOOD, "install_food_fx"), (BST, "load_engine_config")]}
-
-
-_ORIG_ATTRS = _snapshot_orig()
+    """（已退役：观测对象的快照表现在由顶部 `_ORIG_ATTRS` 统一维护 —— 目标 = 包内实现。）"""
+    return dict(_ORIG_ATTRS)
 
 
 def main():
