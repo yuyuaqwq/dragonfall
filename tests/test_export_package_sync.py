@@ -52,6 +52,27 @@ DATA_PATH = os.path.join(PKG_DIR, "content", "data", "items.json")
 MAN_PATH = os.path.join(PKG_DIR, "game.json")
 EXPORTER = os.path.join(REPO_ROOT, "scripts", "export_game_package.py")
 
+
+def _derivers_runtime() -> list:
+    """已实现的域 —— **执行导出器模块**读运行期注册表（含 `scripts/export_domains/` 插件域）。
+
+    为什么不再爬 `DERIVERS = {...}` 字面量（2026-09-13 改）：域注册表已支持域插件
+    （`load_domain_plugins()` 运行期合并），爬字面量会让插件域**绿着但静默少查** ——
+    比红更糟（本文件【9】【10】会少查 26 个域还全绿）。插件加载失败在这里**直接失败**。
+    """
+    import importlib.util
+    for _p in (REPO_ROOT, os.path.dirname(EXPORTER)):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    spec = importlib.util.spec_from_file_location("_xp_sync_export", EXPORTER)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["_xp_sync_export"] = mod
+    spec.loader.exec_module(mod)
+    errs = list(getattr(mod, "DOMAIN_PLUGIN_ERRORS", []) or [])
+    if errs:
+        raise RuntimeError("域插件加载失败（不静默）：" + " | ".join(errs))
+    return sorted(mod.DERIVERS)
+
 EXPECT_ITEMS, EXPECT_MATERIALS, EXPECT_CONSUMABLES = 900, 598, 206
 EXPECT_OVERRIDE, EXPECT_BY_NAME = 219, 598
 EXPECT_EXPORTED = 900            # 合表后唯一物品数（**不是** 1704；见文件头 2.）
@@ -185,10 +206,9 @@ def main() -> int:
     #   门禁会**绿着但静默少查这 4 个域**（比红更糟）。
     _EFF, _EFF_WARN = PK.effective_domains(PKG_DIR)
 
-    # 已实现的域：从导出器源码读（别手写第二个列表）；未实现的 = 框架认识但导出器还没有
-    _src = open(EXPORTER, encoding="utf-8").read()
-    _m = re.search(r"^DERIVERS = \{(.*?)^\}", _src, re.S | re.M)
-    doms = sorted(re.findall(r'"([a-z_]+)":\s*derive_', _m.group(1))) if _m else []
+    # 已实现的域：**执行导出器模块**读运行期注册表（别手写第二个列表，也别爬源码字面量 ——
+    # 域注册表自 2026-09-13 起支持插件域，爬字面量会**绿着但静默少查**）。未实现的 = 框架认识但导出器还没有
+    doms = _derivers_runtime()
     todo = [d for d in sorted(_EFF) if d not in doms]
 
     # 覆盖守卫（防「门禁绿着但少查」）：包内 content/{data,rules}/ 的每个域文件都必须在有效域表里
@@ -370,10 +390,8 @@ def main() -> int:
                                                   _sub(probe), probe + ".json")),
                   "居然写出了 %s.json" % probe)
         print("\n【10】每个已实现的域都要与真源同步（防「源里带 tuple / 键序」这类假不一致）")
-        src_txt = open(EXPORTER, encoding="utf-8").read()
-        m = re.search(r"^DERIVERS = \{(.*?)^\}", src_txt, re.S | re.M)
-        doms = sorted(re.findall(r'"([a-z_]+)":\s*derive_', m.group(1))) if m else []
-        check("从导出器源码读到已实现的域（≥2）", len(doms) >= 2, "读到 %r" % doms)
+        doms = _derivers_runtime()
+        check("从导出器运行期注册表读到已实现的域（≥2）", len(doms) >= 2, "读到 %r" % doms)
         for d in doms:
             out_root = os.path.join(tmp, "sync_" + d)
             rc, out = _run_cli(out_root, domain=d)

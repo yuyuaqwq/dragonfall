@@ -70,6 +70,8 @@ items 域语义核实（2026-09-12，证据在游戏仓 game/data/items.py，行
 import argparse
 import hashlib
 import importlib
+import importlib.util   # ★ 显式导入子模块：`import importlib` 不保证 `importlib.util` 是属性
+                        # （新鲜进程里常缺 → 域插件加载全 AttributeError，见 2026-09-13 三路取证）
 import json
 import os
 import sys
@@ -1118,9 +1120,31 @@ def derive_loot_vocab(src_root: str = REPO_ROOT) -> dict:
                     continue
                 if isinstance(tbl, dict):
                     candidate_keys[name] = set(tbl)
+            # 证据门槛（2026-09-13 加固）：**单取值**前缀的「取值 ⊆ 某域键集」极易是巧合 ——
+            # 实测事故：新域 `achievement_conds` 的键里恰有一个 `"boss"`，于是内联前缀
+            # `equip_drop:boss`（值域是「怪物档位」enum，不是实体 id）被推成「该域的引用」，
+            # `--check` 当场报 loot_vocab 不一致。
+            # 口径：取值 < 2 个 → 证据不足，**不推断**（= 本函数文档里的「不问」，宁可少说、不假报）；
+            #       确实成立的单值映射写进下表，且**当场校验目标域真的装得下**（fail-closed，
+            #       目标域一变就报错，绝不留下假声明）。
+            _VERIFIED_SINGLE = {
+                # petegg:pet_starbutterfly ⇒ pets 域主键，1/1 命中（2026-09-13 人工核）
+                "petegg:": "pets",
+            }
             for pfx, rids in sorted(remainders.items()):
                 # ⚠️ 取值集合为空的前缀**不能**声明（空集 ⊆ 任何集合，会误判成"全中"）
-                hits = [n for n, ks in candidate_keys.items() if rids and rids <= ks]
+                if not rids:
+                    continue
+                if len(rids) < 2:
+                    _tgt = _VERIFIED_SINGLE.get(pfx)
+                    if _tgt:
+                        if _tgt not in candidate_keys or not rids <= candidate_keys[_tgt]:
+                            raise ValueError(
+                                f"{pfx} 的单值映射 → {_tgt} 已不成立（取值 {sorted(rids)}）"
+                                f"—— 拒绝导出假声明")
+                        prefix_domains[pfx] = _tgt
+                    continue
+                hits = [n for n, ks in candidate_keys.items() if rids <= ks]
                 if hits:                                    # 多个域都能装 → 取键最少（最具体）的
                     prefix_domains[pfx] = min(hits, key=lambda n: (len(candidate_keys[n]), n))
             if prefix_domains:                              # 能真判的从 external 里摘出来（inline 保持不动）
