@@ -1842,6 +1842,526 @@ def derive_pets(src_root: str = REPO_ROOT) -> dict:
     return {k: out[k] for k in sorted(out)}
 
 
+# -*- coding: utf-8 -*-
+"""可直接粘贴进游戏仓 `scripts/export_game_package.py` 的实现片段（本文件只是素材，未写/改任何仓）。
+
+粘贴位置
+--------
+  B-1) 函数体：放在 `def derive_monsters(...)` 之后。同族理由 —— `derive_monsters` 的 docstring
+       已经写明「怪物名册（id / 中文名 / role / lv / 技能 / 掉落）在游戏侧**不是一张表**，
+       散落在 subareas.py / instances.py / mesh_rooms_*.py 的 840 条六元组（355 个唯一 id，
+       168 个 id 的 lv 跨表不一致，10 个中文名对应两个 id）」；本函数就是那句「不是一张表」的兑现：
+       把散装摆放**投影**成一张以怪 id 为键的对象表。
+  B-2) 注册一行：文件末尾 `DERIVERS = { ... }` 里加 `"monster_roster": derive_monster_roster,`
+       （`build_manifest()` 的 `domains` 由 `sorted(DERIVERS)` 派生 → 清单一并跟上，不必手写第二份）。
+  B-3) **不要动文件头部的 import 块**：本函数只在**函数体内** `import ast`（局部，配 `# noqa: PLC0415`，
+       与本文件 `content_sub()` 里局部 import `editor.packages` 的写法一致）。所以粘贴 = 纯函数体。
+
+依赖（全部是本文件里已有的东西，不需要新增依赖）
+------------------------------------------------
+  REPO_ROOT / _import_module / _import_data_package  —— 见本文件顶部与「派生」区。
+
+本域的形状与纪律（实现里逐条落地；数字都是 2026-09-13 在游戏仓 master 真跑出来的）
+----------------------------------------------------------------------------------
+键 = 怪 id（表键就是 id，条目内**不重复写 id**）。一条 = 一只怪。名册是**投影，不是真源**：
+它只记「这只怪是谁（名/职能/技能/掉落/补正）」，不记「它在这个场景里多强」——
+后者留在场景侧（地图/副本）的摆放数据里，两者冲突是**正常设计**，名册不抹平。
+
+  · **绝不静默选一个值**：同一 id 在 840 条记录里被摆成不同等级时，`lv` 只作**基准值**
+    （规则写死在 `lv_rule` = `field_min`：**野外摆放记录的最小值**；一处野外记录都没有时
+    退化为「全部摆放记录的最小值」），同时必须输出 `lv_variants`（scope = 地图 id / 副本 id，
+    **不用行号**）把每一处摆放的等级**全量**列出。同理 `name`/`role` 取**多数值**（平局取
+    记录序里首次出现的那个，其余进 `*_variants`），`skills`/`drops` 取**并集**（只多不少）。
+  · **辅助表条目也在名册里**：`HIDDEN_MONSTERS`(25) 里 24 个 id 完全没有六元组、
+    `MONSTER_MODS`(140) 里另有 1 个 id 只在补正表里出现 —— 它们的 `lv` 给 **null**（`lv_rule`
+    说明该去读哪：隐藏条目读 `hidden.lv_off` 的相对值，补正表条目根本没有等级），
+    `spawns` 为空数组。`e_abbey_guardian` 两种身份**并存**（六元组 + 隐藏条目）：
+    六元组的名字留在 `name`，隐藏条目的名字进 `aliases`，另挂 `kind_tags: ["hidden"]`。
+  · **重名如实暴露、不替内容侧选一条**：14 个显示名各对应 2 个 id = 六元组内部的 10 例
+    （8 例是「同一只怪的普通/精英两形态各占一个 id」，2 例是不同 id 同形，如两只野猪系）
+    + 隐藏怪表独有的 4 例（隐藏怪的名字与六元组某只怪同名，例如 `幽灵骑士`）。
+    两个 id 都在表里，各自挂 `name_dup: true` + `name_peers: [兄弟 id]`。
+    ⚠ 这里**不** raise：设计稿原写「重名在导出期炸掉」，但实测**六元组内部那 10 个名字全部被
+    `drop_pools` 的 `mon:` 池键按名引用着**（10/10），炸掉等于整个域无法导出。歧义因此变成
+    **可见数据**（编辑器能看到、审计能筛），而不是导出失败；真要裁决是内容侧的事。
+  · `spawns` 是证据链（`source`/`map`/`subarea`/`instance`/`stage`/`stage_index`/`slot`/`line`），
+    **不准省**：它让「840 条 → 1 条」可回放，也是 `lv_variants` 的出处。
+
+形状门禁（源形状一变就 raise，绝不静默产半张表）
+----------------------------------------------
+  · 只读 AST 扫 `game/data/*.py` 的全部顶层 `Assign`，只认 `SUBAREAS` / `EXTRA_SUBAREAS` / `INSTANCES`
+    三个符号；`SUBAREAS` 与 `INSTANCES` 必须**各恰好一处**，`EXTRA_SUBAREAS` 至少一处（实测 3 处）。
+  · 「结构走查」与「源码文本序 AST 节点」逐条**对齐并逐值相等**才取用行号（不一致 = 行号不可信，raise）。
+  · 每条怪元组必须是长度 6、首元素是 `m_`/`e_`/`b_` 前缀的非空 str；id 前缀不认识 → raise。
+  · 三张同族表必须是非空 dict；隐藏条目必带 `name/role/skills/drops/lv_off` 且 `name` 非空。
+  · 运行期 `_INDEXES["monsters"]` 的 id 集合必须是名册键集的**子集**（名册漏了运行期认识的怪 → raise）。
+  · `drop_pools` 的 `mon:`/`elite:` 池键里的名字，必须能在名册的 `name` ∪ `aliases` ∪ `name_variants`
+    里反查到（实测 363/363 命中）—— 按名引用断链在导出期就炸，不留给运行期。
+
+实测（2026-09-13，游戏仓 master 真跑；命令与逐条数字见同目录 `domain-monster_roster.impl.md`）
+--------------------------------------------------------------------------------------------
+  · 名册键 **380** = 六元组 id **355** + 只在隐藏怪表的 id **24** + 只在个体补正表的 id **1**
+    （`m_giant_rat`：`name`/`role`/`lv` 都是 null，如实留空而不是编一个名字）。
+    840 条记录 → 380 条，一处不漏（`spawns` 合计 840 + 隐藏条目 67 处 = 907 条证据；
+    隐藏那 67 处 = 19 条按 `maps` 展开成 61 处 + 6 条没有 `maps` 的各 1 处）。
+  · `lv_variants` 覆盖 355 条（有摆放记录的全都写了对照表）；`lv` 冲突 id **168** 个（与情报报告一致）。
+  · 条目字段分布：`lv_variants` 355 / `mods` 140 / `desc` 140 / `hidden` 25 /
+    `elite_equip_drop` 20 / `name_dup`+`name_peers` 28（14 个名字 × 2）/ `name_variants` 1 /
+    `aliases` 1 / `role_variants` 1 / `kind_tags` 27（hidden 25 · minion_only 1 · instance_only 1 · mods_only 1）。
+  · `skills` 取并集覆盖 12 个列表不同的 id（其中 10 个是**集合**真的不同，另 2 个只是顺序不同）；
+    `drops` 并集覆盖 63 个。并集只多不少 → 不存在「副本里的怪因少一个技能/掉落而变弱」的争议。
+  · 运行期索引 `_INDEXES["monsters"]`：名册 **0 个** id 它不认识；它少 1 个 id（`m_crystal_core`，
+    只在副本爪牙槽出现，运行期索引的收集口径不覆盖爪牙）。
+  · `drop_pools`：`mon:` 345 + `elite:` 18 = **363** 个池键名字 —— 按 `name`∪`aliases` 命中 362/363，
+    差的那 1 个是 `岩浆蠕虫`（它是 `m_magma_worm` 的**异写**，落在 `name_variants` 里）；
+    把 `name_variants` 一并纳入解析 → **363/363**。⚠ 所以「按名解析」必须查
+    `name` ∪ `aliases` ∪ `name_variants` 三者，只看 `name` 会漏 1 个（本函数的 5.2 门禁就是这么查的）。
+  · 派生耗时 0.57 s（第二次 0.35 s），落盘 441 KB，连跑两次逐字节相同。
+"""
+
+
+def derive_monster_roster(src_root: str = REPO_ROOT) -> dict:
+    """怪物名册域（`monster_roster`）：把**散装在五处源表里的怪物摆放**投影成
+    「一条 = 一只怪」的对象表（键 = 怪 id）。
+
+    真源（全部只读；行号是「证据链」的一部分，所以要 AST 扫源码而不是只读运行态）
+    ----------------------------------------------------------------------------
+        game/data/subareas.py             SUBAREAS         430 条六元组（key=地图 id）
+        game/data/instances.py            INSTANCES        170 条（顶层 boss / 爪牙 / 各层槽位）
+        game/data/mesh_rooms_{south,west_north,east_abyss}.py
+                                          EXTRA_SUBAREAS   73 + 39 + 128 = 240 条（装配期并入 SUBAREAS）
+        game/data/hidden_monsters.py      HIDDEN_MONSTERS  25 条（24 条没有任何六元组）
+        game/data/monster_mods.py         MONSTER_MODS     140 条（1 条 m_giant_rat 不在六元组里）
+        game/data/monsters.py             ELITE_EQUIP_DROP 18 条（key=精英**中文名** → 装备 id）
+        game/data/_assembly.py            _INDEXES["monsters"]  运行期「怪名↔id」索引（用于交叉核对）
+        game/data/drop_pools.py           DROP_POOLS       按名引用的落点（`mon:`/`elite:` 池键）
+
+    为什么这条域必须存在
+    --------------------
+    包内有两族**跨域悬空引用**以「怪」为落点：
+      · `instances` 的 `boss` / `stages[].monsters[]` / `stages[].elite[]` / `stages[].boss[]`
+        —— 实测 148 处引用、120 个不同 id（`b_` 27 / `m_` 66 / `e_` 27），都是**怪 id**；
+      · `drop_pools` 的 `mon:<名>`(345) / `elite:<名>`(18) —— 363 个池键是**怪的中文名**。
+    前者要 id 落点、后者要名字落点 —— 只有「键=id 且条目内带 `name`」的对象表能同时消掉这两族。
+
+    为什么**不**造第二份真源
+    ------------------------
+    本函数只在**导出期**归并，游戏运行期代码 0 改动；名册的每个值都能在源里指出来（`spawns[].line`）。
+    「同一只怪在副本里比野外强」之类的差异**不被抹平**：`lv` 只是基准值，`lv_variants` 全量对照。
+
+    条目字段顺序（固定，便于 diff；与 schema 的字母序不同 —— schema 只描述形状）
+    -------------------------------------------------------------------------
+        name / name_variants / name_dup / name_peers / aliases / role / role_variants /
+        kind_class / lv / lv_rule / lv_variants / skills / drops / mods / hidden /
+        elite_equip_drop / spawns / kind_tags / desc
+
+    返回：`{怪 id: 条目}`（外层键序 = id 字典序；`export()` 还会再 `sort_table` 一次，幂等）。
+    """
+    import ast  # noqa: PLC0415 —— 只在函数体用（AST 只读扫描要行号），不动文件头部 import 块
+
+    data_dir = os.path.join(src_root, "game", "data")
+    symbols = ("SUBAREAS", "EXTRA_SUBAREAS", "INSTANCES")
+    slots = ("monsters", "elite", "boss")
+    class_by_prefix = {"m_": "normal", "e_": "elite", "b_": "boss"}
+    promoted = ("id", "name", "role", "skills", "drops")   # 隐藏条目里**提升到条目层**的字段
+
+    def _t6(v):
+        """六元组判定（长度 6 + 首元素是怪 id 前缀）。"""
+        return (isinstance(v, (list, tuple)) and len(v) == 6
+                and isinstance(v[0], str) and v[0][:2] in class_by_prefix)
+
+    def _items(v):
+        """槽位值 → 六元组列表：条目列表 / 扁平单条 / 其它（空）。"""
+        if isinstance(v, list) and v and isinstance(v[0], (list, tuple)):
+            return list(v)
+        return [v] if _t6(v) else []
+
+    def _struct(value, symbol, source):
+        """按**对象自身的键序**走一遍（字面量保序 = 源码文本序），产出 [(六元组, ctx)]。"""
+        recs = []
+        if not isinstance(value, dict):
+            raise ValueError(f"{source}: {symbol} 不是 dict —— 源形状变了，拒绝导出")
+        for outer_key, outer in value.items():
+            if not isinstance(outer_key, str) or not outer_key:
+                raise ValueError(f"{source}: {symbol} 的键不是非空 str：{outer_key!r}")
+            if symbol == "INSTANCES":
+                if not isinstance(outer, dict):
+                    raise ValueError(f"{source}: {symbol}[{outer_key!r}] 不是 dict —— 源形状变了")
+                for k, v in outer.items():
+                    if k == "boss" and _t6(v):
+                        recs.append((v, {"source": source, "instance": outer_key,
+                                         "scope": outer_key, "slot": "boss"}))
+                    elif k == "minions" and isinstance(v, list):
+                        for mn in v:
+                            t = mn.get("monster") if isinstance(mn, dict) else None
+                            if _t6(t):
+                                recs.append((t, {"source": source, "instance": outer_key,
+                                                 "scope": outer_key, "slot": "minions"}))
+                    elif k == "stages" and isinstance(v, list):
+                        for si, st in enumerate(v):
+                            if not isinstance(st, dict):
+                                continue
+                            for k2, v2 in st.items():
+                                if k2 not in slots:
+                                    continue
+                                for t in _items(v2):
+                                    if _t6(t):
+                                        recs.append((t, {"source": source,
+                                                         "instance": outer_key,
+                                                         "scope": outer_key,
+                                                         "slot": "stages[]." + k2,
+                                                         "stage": st.get("name"),
+                                                         "stage_index": si}))
+            else:
+                if not isinstance(outer, list):
+                    raise ValueError(f"{source}: {symbol}[{outer_key!r}] 不是 list —— 源形状变了")
+                for sa in outer:
+                    if not isinstance(sa, dict):
+                        continue
+                    for k, v in sa.items():
+                        if k not in slots:
+                            continue
+                        for t in _items(v):
+                            if _t6(t):
+                                recs.append((t, {"source": source, "map": outer_key,
+                                                 "scope": outer_key,
+                                                 "subarea": sa.get("id"), "slot": k}))
+        return recs
+
+    def _source_order(node):
+        """该字面量子树里所有「六元组」ast 节点，**按源码文本序** → [(节点, 行号)]。"""
+        out = []
+
+        def rec(n):
+            if isinstance(n, (ast.List, ast.Tuple)):
+                try:
+                    v = ast.literal_eval(n)
+                except Exception:                     # noqa: BLE001 —— 非字面量子树（源变了）跳过即可
+                    v = None
+                if _t6(v):
+                    out.append((n, n.lineno))
+            for c in ast.iter_child_nodes(n):
+                rec(c)
+
+        rec(node)
+        return out
+
+    def _records_of(node, value, symbol, source, where):
+        """结构走查 + 源码序对齐（逐值相等才取行号）→ 带行号的记录列表。"""
+        recs = _struct(value, symbol, source)
+        astseq = _source_order(node)
+        if len(recs) != len(astseq):
+            raise ValueError(
+                f"{where}: 结构走查 {len(recs)} 条 ≠ 源码扫描 {len(astseq)} 条 —— "
+                f"行号对不上，拒绝导出（源形状变了）")
+        out = []
+        for idx, ((t, ctx), (anode, aline)) in enumerate(zip(recs, astseq), 1):
+            if list(t) != list(ast.literal_eval(anode)):
+                raise ValueError(
+                    f"{where}: 第 {idx} 条六元组在「结构走查」与「源码扫描」里不是同一条 —— "
+                    f"行号不可信，拒绝导出")
+            mid, nm, role, lv, skills, drops = t
+            if not isinstance(nm, str) or not nm.strip():
+                raise ValueError(f"{where}: 第 {idx} 条的名字不是非空 str：{nm!r}")
+            if not isinstance(role, str) or not role.strip():
+                raise ValueError(f"{where}: {mid} 的 role 不是非空 str：{role!r}")
+            if not isinstance(lv, int) or isinstance(lv, bool) or lv < 1:
+                raise ValueError(f"{where}: {mid} 的 lv 不是正整数：{lv!r}")
+            for label, seq in (("skills", skills), ("drops", drops)):
+                if not isinstance(seq, list) or any(
+                        not isinstance(x, str) or not x.strip() for x in seq):
+                    raise ValueError(f"{where}: {mid} 的 {label} 不是 [非空 str]：{seq!r}")
+            rec = {"id": mid, "name": nm, "role": role, "lv": lv,
+                   "skills": list(skills), "drops": list(drops), "line": aline}
+            rec.update(ctx)
+            out.append(rec)
+        return out
+
+    def _dict_key_lines(path, symbol):
+        """顶层 `symbol = {...}` 字面量 → {键: 该条目的行号}（隐藏怪表的证据链要用）。"""
+        try:
+            with open(path, encoding="utf-8") as f:
+                tree = ast.parse(f.read())
+        except (OSError, SyntaxError) as e:
+            raise ValueError(f"{path} 读不动/语法不过（{type(e).__name__}: {e}）") from e
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and any(
+                    isinstance(t, ast.Name) and t.id == symbol for t in node.targets):
+                if not isinstance(node.value, ast.Dict):
+                    raise ValueError(f"{path}: {symbol} 不是 dict 字面量 —— 源形状变了，拒绝导出")
+                out = {}
+                for k, v in zip(node.value.keys, node.value.values):
+                    try:
+                        key = ast.literal_eval(k)
+                    except Exception:                 # noqa: BLE001
+                        continue
+                    if isinstance(key, str):
+                        out[key] = v.lineno
+                return out
+        raise ValueError(f"{path}: 找不到顶层 {symbol} = {{...}} —— 源形状变了，拒绝导出")
+
+    def _first_wins(seq):
+        """保序去重（并集用）。"""
+        out = []
+        for x in seq:
+            if x not in out:
+                out.append(x)
+        return out
+
+    def _majority(values):
+        """多数值 + 其余取值（平局取**记录序里首次出现**的那个 —— 确定、可解释，不是随便挑）。"""
+        counts, order = {}, []
+        for v in values:
+            if v not in counts:
+                counts[v] = 0
+                order.append(v)
+            counts[v] += 1
+        best = max(order, key=lambda v: (counts[v], -order.index(v)))
+        return best, [v for v in order if v != best]
+
+    # ---------- 1. 五处六元组（AST 只读扫描，带行号） ----------
+    if not os.path.isdir(data_dir):
+        raise ValueError(f"游戏数据目录不存在：{data_dir} —— 拒绝导出空表")
+    assigns = []
+    for fn in sorted(os.listdir(data_dir)):
+        if not fn.endswith(".py"):
+            continue
+        path = os.path.join(data_dir, fn)
+        try:
+            with open(path, encoding="utf-8") as f:
+                tree = ast.parse(f.read())
+        except (OSError, SyntaxError) as e:
+            raise ValueError(f"{path} 读不动/语法不过（{type(e).__name__}: {e}）") from e
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                for tgt in node.targets:
+                    if isinstance(tgt, ast.Name) and tgt.id in symbols:
+                        assigns.append((tgt.id, fn[:-3], path, node.lineno, node.value))
+    for sym in ("SUBAREAS", "INSTANCES"):
+        hits = [a for a in assigns if a[0] == sym]
+        if len(hits) != 1:
+            raise ValueError(
+                f"{sym} 的顶层定义处不是恰好 1 个（实测 {len(hits)} 处："
+                f"{[(h[1], h[3]) for h in hits]}）—— 源形状变了，拒绝导出")
+    if not [a for a in assigns if a[0] == "EXTRA_SUBAREAS"]:
+        raise ValueError("EXTRA_SUBAREAS 一处都没找到 —— 源形状变了，拒绝导出")
+
+    records = []
+    for sym, stem, path, lineno, node in assigns:
+        try:
+            value = ast.literal_eval(node)
+        except Exception as e:                        # noqa: BLE001
+            raise ValueError(f"{stem}:{lineno} 的 {sym} 不是可求值的字面量（{e}）—— 拒绝导出") from e
+        records.extend(_records_of(node, value, sym, stem, f"{stem}:{lineno} {sym}"))
+    if not records:
+        raise ValueError("一处怪物摆放都没扫到 —— 源形状变了，拒绝导出空表")
+
+    # ---------- 2. 三张同族表 + 运行期索引（交叉核对用） ----------
+    mods = getattr(_import_module("monster_mods", src_root), "MONSTER_MODS", None)
+    hidden = getattr(_import_module("hidden_monsters", src_root), "HIDDEN_MONSTERS", None)
+    elite_equip = getattr(_import_module("monsters", src_root), "ELITE_EQUIP_DROP", None)
+    for label, tbl in (("MONSTER_MODS", mods), ("HIDDEN_MONSTERS", hidden),
+                       ("ELITE_EQUIP_DROP", elite_equip)):
+        if not isinstance(tbl, dict) or not tbl:
+            raise ValueError(f"{label} 不是非空 dict —— 源形状变了，拒绝导出")
+    hidden_lines = _dict_key_lines(os.path.join(data_dir, "hidden_monsters.py"),
+                                  "HIDDEN_MONSTERS")
+    missing_lines = sorted(set(hidden) - set(hidden_lines))
+    if missing_lines:
+        raise ValueError(f"这些隐藏怪 id 在源文件里定位不到行号：{missing_lines} —— 拒绝导出")
+
+    by_id = {}
+    for r in records:
+        by_id.setdefault(r["id"], []).append(r)
+
+    # ---------- 3. 归并（一条 = 一个 id；辅助表独有的 id 也在里面） ----------
+    ids = sorted(set(by_id) | set(hidden) | set(mods))
+    for mid in ids:
+        if not isinstance(mid, str) or not mid or mid[:2] not in class_by_prefix:
+            raise ValueError(f"id {mid!r} 不是以 m_/e_/b_ 开头的非空 str —— 源形状变了，拒绝导出")
+
+    merged = {}
+    for mid in ids:
+        recs = by_id.get(mid, [])
+        hid = hidden.get(mid)
+        if hid is not None:
+            miss = [k for k in ("name", "role", "skills", "drops", "lv_off") if k not in hid]
+            if miss:
+                raise ValueError(f"HIDDEN_MONSTERS[{mid!r}] 缺必填 {miss} —— 源形状变了，拒绝导出")
+            if not isinstance(hid["name"], str) or not hid["name"].strip():
+                raise ValueError(f"HIDDEN_MONSTERS[{mid!r}].name 不是非空 str —— 拒绝导出")
+
+        # lv：野外摆放的最小值；一处野外都没有 → 全部摆放的最小值（规则写进 lv_rule）
+        field = [r for r in recs if r["source"] != "instances"]
+        basis = field or recs
+        lv = min(r["lv"] for r in basis) if basis else None
+        lv_rule = "field_min" if recs else ("hidden_only" if hid is not None else "mods_only")
+
+        # name / role：多数值；隐藏条目的写法进 aliases（跨表别名）
+        if recs:
+            name, name_rest = _majority([r["name"] for r in recs])
+            role, role_rest = _majority([r["role"] for r in recs])
+        else:
+            name, name_rest = (hid["name"] if hid is not None else None), []
+            role, role_rest = (hid["role"] if hid is not None else None), []
+        aliases = []
+        if hid is not None and hid["name"] != name and hid["name"] not in name_rest:
+            aliases.append(hid["name"])
+
+        # skills / drops：并集（含隐藏条目那份 —— 它同样是这只怪会用的/会掉的）
+        skills = _first_wins([s for r in recs for s in r["skills"]]
+                             + (list(hid["skills"]) if hid is not None else []))
+        drops = _first_wins([d for r in recs for d in r["drops"]]
+                            + (list(hid["drops"]) if hid is not None else []))
+
+        # lv_variants：一处摆放一条（scope = 地图 id / 副本 id + 可选子区域），保序去重后排序
+        lv_variants, seen_lv = [], set()
+        for r in recs:
+            key = (r["scope"], r.get("subarea"), r["lv"])
+            if key in seen_lv:
+                continue
+            seen_lv.add(key)
+            item = {"scope": r["scope"]}
+            if r.get("subarea"):
+                item["subarea"] = r["subarea"]
+            item["lv"] = r["lv"]
+            lv_variants.append(item)
+        lv_variants.sort(key=lambda it: (it["scope"], it.get("subarea") or "", it["lv"]))
+
+        # spawns：证据链（一条 = 一处摆放；隐藏条目的 maps 也各算一处）
+        spawns = []
+        for r in recs:
+            sp = {"source": r["source"]}
+            for k in ("map", "subarea", "instance", "stage"):
+                if r.get(k):
+                    sp[k] = r[k]
+            if "stage_index" in r:
+                sp["stage_index"] = r["stage_index"]
+            sp["slot"] = r["slot"]
+            sp["line"] = r["line"]
+            spawns.append(sp)
+        if hid is not None:
+            for m in (hid.get("maps") or [None]):
+                sp = {"source": "hidden_monsters"}
+                if m:
+                    sp["map"] = m
+                sp["slot"] = "hidden"
+                sp["line"] = hidden_lines[mid]
+                spawns.append(sp)
+
+        # 精英专属装备掉落：按名（含别名/异写）连接；多个别名命中且不一致 → raise
+        elite_id = None
+        for cand in _first_wins([name] + name_rest + aliases):
+            if cand and cand in elite_equip:
+                val = elite_equip[cand]
+                if not isinstance(val, str) or not val.strip():
+                    raise ValueError(f"ELITE_EQUIP_DROP[{cand!r}] 不是非空 str —— 拒绝导出")
+                if elite_id is not None and elite_id != val:
+                    raise ValueError(
+                        f"{mid!r} 的多个写法在 ELITE_EQUIP_DROP 里命中不同装备"
+                        f"（{elite_id!r} vs {val!r}）—— 按名连接有歧义，拒绝导出")
+                elite_id = val
+
+        tags = []
+        if hid is not None:
+            tags.append("hidden")
+        if not recs:
+            if hid is None and mid in mods:
+                tags.append("mods_only")
+        else:
+            if all(r["slot"] == "minions" for r in recs):
+                tags.append("minion_only")
+            if all(r["source"] == "instances" for r in recs):
+                tags.append("instance_only")
+
+        mod = mods.get(mid)
+        if mod is not None and (not isinstance(mod, dict) or not mod):
+            raise ValueError(f"MONSTER_MODS[{mid!r}] 不是非空 dict —— 源形状变了，拒绝导出")
+
+        merged[mid] = {
+            "name": name, "name_rest": name_rest, "aliases": aliases,
+            "role": role, "role_rest": role_rest,
+            "kind_class": class_by_prefix[mid[:2]], "lv": lv, "lv_rule": lv_rule,
+            "lv_variants": lv_variants, "skills": skills, "drops": drops,
+            "mods": dict(mod) if mod else None, "hidden": hid,
+            "elite_equip_drop": elite_id, "spawns": spawns, "kind_tags": tags,
+            "desc": mod.get("desc") if isinstance(mod, dict) else None,
+        }
+
+    # ---------- 4. 重名：如实暴露（两个 id 都留，各自挂 peers；不替内容侧选一条） ----------
+    by_name = {}
+    for mid in ids:
+        nm = merged[mid]["name"]
+        if nm:
+            by_name.setdefault(nm, []).append(mid)
+    dup = {nm: sorted(mids) for nm, mids in by_name.items() if len(mids) > 1}
+
+    out = {}
+    for mid in ids:
+        m = merged[mid]
+        entry = {"name": m["name"]}
+        if m["name_rest"]:
+            entry["name_variants"] = list(m["name_rest"])
+        if mid in dup.get(m["name"] or "", []):
+            entry["name_dup"] = True
+            entry["name_peers"] = [x for x in dup[m["name"]] if x != mid]
+        if m["aliases"]:
+            entry["aliases"] = list(m["aliases"])
+        entry["role"] = m["role"]
+        if m["role_rest"]:
+            entry["role_variants"] = list(m["role_rest"])
+        entry["kind_class"] = m["kind_class"]
+        entry["lv"] = m["lv"]
+        entry["lv_rule"] = m["lv_rule"]
+        if m["lv_variants"]:
+            entry["lv_variants"] = m["lv_variants"]
+        entry["skills"] = list(m["skills"])
+        entry["drops"] = list(m["drops"])
+        if m["mods"]:
+            entry["mods"] = m["mods"]
+        if m["hidden"] is not None:
+            entry["hidden"] = {k: v for k, v in m["hidden"].items() if k not in promoted}
+        if m["elite_equip_drop"]:
+            entry["elite_equip_drop"] = m["elite_equip_drop"]
+        entry["spawns"] = m["spawns"]
+        if m["kind_tags"]:
+            entry["kind_tags"] = list(m["kind_tags"])
+        if isinstance(m["desc"], str) and m["desc"]:
+            entry["desc"] = m["desc"]
+        out[mid] = entry
+
+    # ---------- 5. 闭合性门禁（两条都在导出期炸，不留给运行期） ----------
+    # 5.1 运行期名册索引认识的每个 id，名册里都得有（否则名册漏了运行期在用的怪）
+    index = (getattr(_import_data_package(src_root), "_INDEXES", None) or {}).get("monsters") or {}
+    runtime_ids = set(index.get("id_to_name") or {})
+    unknown = sorted(runtime_ids - set(out))
+    if unknown:
+        raise ValueError(
+            f"运行期 _INDEXES['monsters'] 里有名册不认识的怪 id：{unknown} —— 名册漏了在用的怪，拒绝导出")
+
+    # 5.2 掉落池按名引用（`mon:`/`elite:`）的每个名字都要能反查到条目
+    #     （查 name ∪ aliases ∪ name_variants —— 实测只看 name 会漏 `岩浆蠕虫` 这 1 个异写）
+    pools = getattr(_import_module("drop_pools", src_root), "DROP_POOLS", None)
+    if not isinstance(pools, dict) or not pools:
+        raise ValueError("DROP_POOLS 不是非空 dict —— 无法核对按名引用，拒绝导出")
+    resolvable = set()
+    for entry in out.values():
+        for key in ("name", "aliases", "name_variants"):
+            v = entry.get(key)
+            if isinstance(v, str):
+                resolvable.add(v)
+            elif isinstance(v, list):
+                resolvable.update(x for x in v if x)
+    dangling = sorted({k.split(":", 1)[1] for k in pools
+                       if k.startswith("mon:") or k.startswith("elite:")} - resolvable)
+    if dangling:
+        raise ValueError(
+            f"这些掉落池键按名引用的名字在名册里找不到：{dangling} —— "
+            f"按名引用会断链，拒绝导出（先补名册的 name/aliases，或改池键）")
+
+    return out
+
+
 DERIVERS = {
     "affixes": derive_affixes,
     "classes": derive_classes,
@@ -1854,6 +2374,7 @@ DERIVERS = {
     "legendary_effects": derive_legendary_effects,
     "loot_vocab": derive_loot_vocab,
     "maps": derive_maps,
+    "monster_roster": derive_monster_roster,
     "monsters": derive_monsters,
     "passive_proc": derive_passive_proc,
     "pets": derive_pets,
