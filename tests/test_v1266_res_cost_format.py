@@ -19,7 +19,12 @@
 import os
 import sys
 
-os.environ["GWEN_GAME_DB"] = os.path.abspath("test_v1266.db")
+# 2026-09-13：私有库移进 tests/.private_dbs/（原先 os.path.abspath 依赖 cwd
+# → 被 run_all_tests 以仓根为 cwd 拉起时会把库落在仓根）
+_PRIVATE_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           ".private_dbs", "test_v1266.db")
+os.makedirs(os.path.dirname(_PRIVATE_DB), exist_ok=True)
+os.environ["GWEN_GAME_DB"] = _PRIVATE_DB
 os.environ["GWEN_TEST_MODE"] = "1"
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db  # noqa: E402

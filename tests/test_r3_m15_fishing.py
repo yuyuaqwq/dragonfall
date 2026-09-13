@@ -22,7 +22,10 @@ import sqlite3
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # dragonfall/
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))  # qqbot/
-TEST_DB = os.path.join(PLUGIN_DIR, "test_game_data_m15_r3.db")
+# 2026-09-13：私有库移进 tests/.private_dbs/（原先直接落在仓根，
+# 每次全量回归都在仓根留下 test_game_data_m15_r3.db；见 .gitignore）
+TEST_DB = os.path.join(PLUGIN_DIR, "tests", ".private_dbs", "test_game_data_m15_r3.db")
+os.makedirs(os.path.dirname(TEST_DB), exist_ok=True)
 
 # 必须在 import 插件前设置（connection.py 模块级读取 DB_PATH）
 os.environ["GWEN_GAME_DB"] = TEST_DB

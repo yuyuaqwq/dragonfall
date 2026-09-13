@@ -4,7 +4,9 @@ import sys, os, asyncio
 sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall\tests")
 sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall")
 sys.path.insert(0, r"C:\Users\yuyu\qqbot")
-os.environ["GWEN_GAME_DB"] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "smoke_v1347_maint.db")
+_PRIVATE_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".private_dbs", "smoke_v1347_maint.db")
+os.makedirs(os.path.dirname(_PRIVATE_DB), exist_ok=True)
+os.environ["GWEN_GAME_DB"] = _PRIVATE_DB
 os.environ["GWEN_TEST_MODE"] = "1"
 from conftest import db, clean_db, Main, FakeEvent, run, make_player
 

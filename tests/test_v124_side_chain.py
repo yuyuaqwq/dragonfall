@@ -2,7 +2,12 @@
 """v124 支线剧情线机制测试：链式解锁(unlock) / use 目标 / 分支交付(branch) / require_stats"""
 import os, sys, json
 
-os.environ["GWEN_GAME_DB"] = os.path.abspath("test_v124_side_chain.db")
+# 2026-09-13：私有库移进 tests/.private_dbs/。原先用 os.path.abspath（依赖 cwd）→
+# 被 run_all_tests 以仓根为 cwd 拉起时会把库落在仓根（每次全量回归留一个残留文件）。
+_PRIVATE_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           ".private_dbs", "test_v124_side_chain.db")
+os.makedirs(os.path.dirname(_PRIVATE_DB), exist_ok=True)
+os.environ["GWEN_GAME_DB"] = _PRIVATE_DB
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
 
 from data.plugins.dragonfall.game import content as C, db

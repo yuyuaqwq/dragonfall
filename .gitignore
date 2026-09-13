@@ -63,3 +63,6 @@ tests/_battle_settlement_snapshot.json
 # 测试 worker 私有库目录（按调用唯一；正常跑完自动清理，崩在中途才残留）
 tests/.run_all_workers*/
 tests/.numeric_workers*/
+
+# 测试私有库（2026-09-13：原先把 test_*.db 落在仓根、每次回归留残留 → 统一收进这里）
+tests/.private_dbs/
