@@ -94,7 +94,8 @@ def t2_collect():
     mem = MemorySink()
     b, bt = build_battle(tlog=TLog(sinks=[mem]))
     _, n_player = run_battle(b)
-    bt.on_end(b, extra={"gold": 12}, force=True)
+    # ⚠️ 先**不**手动补发：这一节要验的是「自动收尾自己发得出 battle.end」
+    # （2026-09-13 之前这条路一条都发不出来，测试里全用 force=True 补发 → 一直没被发现）
     recs = list(mem.read_records())
     kinds = [r.kind for r in recs]
     check("有 battle.start", kinds[0] == "battle.start", str(kinds[:3]))
@@ -113,11 +114,21 @@ def t2_collect():
     check("start 带 seed 且 reproducible", start.fields.get("seed") == SEED
           and start.fields.get("reproducible") is True)
     ends = [r for r in recs if r.kind == "battle.end"]
-    check("自动收尾只发一条 battle.end（幂等）", len(ends) == 1, f"n={len(ends)}")
+    check("★ 自动收尾（不手动补发）就发出 battle.end，且只发一条", len(ends) == 1, f"n={len(ends)}")
     end = ends[-1]
-    check("end 带 result/rounds/p_acts + 自定义 extra",
-          end.fields.get("result") and "rounds" in end.fields
-          and end.fields.get("gold") == 12)
+    check("end 带 result/rounds/p_acts/acts_recorded/events_recorded（回放判据齐全）",
+          end.fields.get("result") and "rounds" in end.fields and "p_acts" in end.fields
+          and "acts_recorded" in end.fields and "events_recorded" in end.fields, str(end.fields))
+    check("自动收尾记的就是这场的结果（与战斗对象一致）",
+          str(end.fields.get("result")) == str(getattr(b, "result", "")), str(end.fields.get("result")))
+    # `force=True` = **显式补发**（要带自定义 extra 的场景）：允许追加一条，且 extra 只进这一条
+    bt.on_end(b, extra={"gold": 12}, force=True)
+    ends2 = [r for r in mem.read_records() if r.kind == "battle.end"]
+    check("force=True 显式补发：追加一条（自动那条不受影响）", len(ends2) == 2, f"n={len(ends2)}")
+    check("补发那条带自定义 extra（gold）", ends2[-1].fields.get("gold") == 12, str(ends2[-1].fields))
+    bt.on_end(b)                                     # 非 force：应被幂等挡掉
+    check("非 force 的重复 on_end 被幂等挡掉",
+          len([r for r in mem.read_records() if r.kind == "battle.end"]) == 2)
     hit = next((r for r in recs if r.kind in ("battle.hit", "battle.taken")), None)
     check("事件记录带 caster/subject", hit is not None and "subject" in hit.fields,
           str(hit.fields if hit else None))

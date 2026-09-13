@@ -1024,6 +1024,10 @@ def derive_loot_vocab(src_root: str = REPO_ROOT) -> dict:
       ref_domains       ← 实测决定：所有「裸 ref」（无 `:`）是否都是 items 域主键
                           → 是则声明 ["items"]（框架据此查**包自己的** items 表判引用）；
                             否 → 不声明（框架对条目照旧不判：宁可少说，不假报）
+      ref_prefix_domains ← **实测**（不硬编码域名）：带前缀的外部引用，剥掉前缀后的 id 是否
+                          全都落在**某个包内域**的主键集里 → 是则声明 {前缀: 那个域}，
+                          框架据此**真判**（对不上就报断链 —— 比 external 严一档）；
+                          找不到这样的域 → 该前缀留在 external_prefixes（照旧「不问」）。
 
     自检（拒绝导出坏声明，两道）：
       ① 每一条引用必须「游戏自己」判得开（见上：bad 列表非空即拒绝）；
@@ -1083,6 +1087,36 @@ def derive_loot_vocab(src_root: str = REPO_ROOT) -> dict:
                 missing.add(ref)
     ref_domains = ["items"] if (seen_bare and not missing) else []
 
+    # ref_prefix_domains：带前缀的引用能不能**真判** —— 看剥前缀后的 id 是否全落在某个
+    # 「本包自己的域」表主键里。域名**不硬编码**（逐个候选域实测，多个命中取最具体的那个）。
+    candidate_keys: dict = {}
+    prefix_domains: dict = {}
+    if external:
+        remainders: dict = {}
+        for pool in pools.values():
+            rows = [(e.get("item")) for e in (pool.get("entries") or []) if isinstance(e, dict)]
+            rows += [(rc.get("pool")) for rc in (pool.get("rolls") or []) if isinstance(rc, dict)]
+            for ref in rows:
+                if isinstance(ref, str) and ":" in ref and ref.startswith(external):
+                    pfx = ref.split(":", 1)[0] + ":"
+                    remainders.setdefault(pfx, set()).add(ref[len(pfx):])
+        if remainders:
+            for name in sorted(DERIVERS):
+                if name in ("drop_pools", "loot_vocab"):
+                    continue
+                try:
+                    tbl = DERIVERS[name](src_root)
+                except Exception:                       # noqa: BLE001  某个域导不出来 → 不影响这里
+                    continue
+                if isinstance(tbl, dict):
+                    candidate_keys[name] = set(tbl)
+            for pfx, rids in sorted(remainders.items()):
+                hits = [n for n, ks in candidate_keys.items() if rids <= ks]
+                if hits:                                    # 多个域都能装 → 取键最少（最具体）的
+                    prefix_domains[pfx] = min(hits, key=lambda n: (len(candidate_keys[n]), n))
+            if prefix_domains:                              # 能真判的从 external 里摘出来
+                external = tuple(p for p in external if p not in prefix_domains)
+
     decl = {
         "version": 1,
         "note": ("掉落池引用词汇声明（游戏仓导出，勿手改）：框架编辑器读它才知道"
@@ -1093,6 +1127,7 @@ def derive_loot_vocab(src_root: str = REPO_ROOT) -> dict:
         "pool_key_prefixes": list(pool_key),
         "external_prefixes": list(external),
         "ref_domains": list(ref_domains),
+        "ref_prefix_domains": dict(prefix_domains),
     }
 
     # 自检 ②：真起框架 audit（框架不在 / 版本旧 → 显式报错，不静默跳过）
@@ -1106,7 +1141,9 @@ def derive_loot_vocab(src_root: str = REPO_ROOT) -> dict:
     if not hasattr(LV, "audit_file"):
         raise ValueError(f"框架 {fw} 的 editor/loot_view.py 没有 audit_file()（版本旧？）—— "
                          f"更新框架后再导出")
-    vocab = LV.normalize_vocab({**decl, "ref_keys": sorted(item_keys)})
+    vocab = LV.normalize_vocab({**decl, "ref_keys": sorted(item_keys),
+                                "ref_prefix_keys": {p: sorted(candidate_keys[d])
+                                                    for p, d in prefix_domains.items()}})
     rep = LV.audit_file(json_clean(pools), vocab)
     if rep["issue_count"]:
         raise ValueError(

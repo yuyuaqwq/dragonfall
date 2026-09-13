@@ -82,8 +82,35 @@ class BattleTLog:
             pass
         self._chain_observer(b)
         self._wrap_human_act(b)
+        self._wrap_act(b)
         self.on_start(b, btype=btype, seed=seed, player=player, enemies=enemies, extra=extra)
         return b
+
+    def _wrap_act(self, b) -> None:
+        """包 `b.act()`（引擎的统一行动入口：人类/AI/随从都走它）—— 行动**跑完后**再看一眼结果。
+
+        为什么必须在这里看：胜负是在 `act()` 内部最后一步 `_check_side_end()` 里才置上的，
+        而事件观察者只在该行动产生的**事件**上被叫到 —— 胜负一旦由「不产生事件的那一步」
+        决定（例如最后一个怪被打死后的结算），事件侧就再也不会响了。
+        （2026-09-13：实测整场打完 0 条 `battle.end`，就是漏在这。）
+        """
+        orig = getattr(b, "act", None)
+        if not callable(orig) or getattr(orig, "_battle_tlog_wrapped", False):
+            return
+
+        def wrapped(ctx):
+            out = orig(ctx)
+            try:
+                self._maybe_end(b)
+            except Exception:                                    # noqa: BLE001
+                pass
+            return out
+
+        wrapped._battle_tlog_wrapped = True
+        try:
+            b.act = wrapped
+        except Exception:                                        # noqa: BLE001
+            pass
 
     def _chain_observer(self, b) -> None:
         """把采集挂到既有 `on_event` **之后**（既有观察者先跑；两边异常各自隔离）。"""
@@ -135,7 +162,8 @@ class BattleTLog:
         self.tlog.emit("battle.act", actor=_uid(actor), tags=self.tags,
                        action=str(action or ""), skill=str(skill_name or ""),
                        target_uid=_uid(target), p_acts=int(getattr(b, "_p_acts", 0) or 0))
-        self._maybe_end(b)
+        # ⚠️ 这里**不**查收尾：`on_act` 是 action **之前**叫的（`human_act` 包装器的前半段），
+        # 此刻 `b.result` 还没被引擎置上。收尾检查放在 `b.act()` 包装器的**后半段**（`_wrap_act`）。
 
     def on_event(self, b, evt_name, ctx, logs=None) -> None:
         """引擎观察者形态：`on_event(battle, evt_name, ctx, logs)`。只读 ctx。"""
@@ -171,11 +199,16 @@ class BattleTLog:
 
         触发点是引擎事件/行动的尾部（`on_death` 是战斗结束前必发的事件），
         且只发一次；逃跑等无事件路径由行动尾部兜住。
+
+        ⚠️ 2026-09-13 修：这里原来是「先置 `_end_sent=True` 再调 `on_end()`」——
+        而 `on_end()` 开头就是幂等守卫 `if self._end_sent and not force: return`，
+        于是**自动收尾这条路一条 `battle.end` 都发不出来**（生产路径上唯一的
+        `on_end` 调用点就是这里，测试里都是 `force=True` 手动补发 → 一直没被发现）。
+        现在「置位」这件事交给 `on_end()` 自己（它才知道到底发没发）。
         """
         if self._end_sent or not self.enabled:
             return
         if getattr(b, "result", None):
-            self._end_sent = True
             self.on_end(b)
 
     def on_end(self, b, *, result: Optional[str] = None,
@@ -195,6 +228,7 @@ class BattleTLog:
         for k, v in (extra or {}).items():
             fields.setdefault(str(k), v)
         self.tlog.emit("battle.end", tags=self.tags, **fields)
+        self._end_sent = True        # 「发过了」这件事由**发出方**记（_maybe_end 只看这个标志）
 
     def flush(self) -> None:
         if self.enabled:
