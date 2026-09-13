@@ -1,497 +1,74 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年核心层 - achievement_conds.py（v99.5：成就条件注册表）
+"""奥兰迪亚·余烬纪年核心层 - achievement_conds.py（★ B13-L4（2026-09-14）起 = **薄壳**）
 
-消灭 core/achievements.py cond_met() 的 41 种类型 if 硬编码：
-成就数据只声明 cond={"type": ..., "value": ...}，判定统一走本模块注册表。
+真源已进内容包：`framework/games/orlandia/content/achievement_conds.py`（**逐字端口**，本文件旧版
+497 行是它的搬运前身 —— 替换表与断言见 `overnight/w1213_b13l4_port.py`，
+逐字节等价证据 = `overnight/w1213_b13l4_snap.py`，改前/改后同 sha256）。
 
-扩展方式：
-- 加成就条件类型：register 一个函数（~5 行），之后成就数据直接可用
-- 函数签名：fn(player, stats, profs, extra, cond) -> bool
-  player 玩家 dict / stats 统计 dict / profs 副业 dict / extra 事件上下文 / cond 条件 dict
-- 未知 type / 异常 → False（与旧 if 链兜底一致，由调用方 cond_met 统一 try/except）
+本壳只做两件事：
 
-约定：
-- db 访问在函数内延迟 import（防 core→content→core 循环）
-- v105 M18 P1 修复：main_done 补 group_id（原 TypeError 恒 False）；flag 改查 db
-  talk_flags（原 extra.flags 无调用方传参恒 False）；event_all 接 stats.world_events；
-  goblin_trade 无交易计数数据源 → 成就 ach_goblin_friend 改判 world_event（注册已删除）；
-  hidden_area 改统计真实隐藏区域（HIDDEN_MAP_UNLOCK∪hidden 标记地图），普通区域到访不再计数
-  （原与 visited 实现完全相同，ach_mythril/ach_hidden3 被普通区域误解锁）
-- quest_done/item_has/main_quest_done/branch_skills 依赖 extra._group_id（check_achievements 注入）
+  1. **加载包**（`game.bootstrap.package_apply()` = 本进程唯一包加载口，幂等；失败大声抛）
+     —— 包内模块 import 期即跑完 `COND_CHECKS` / `CONDITIONS` 注册（含
+     `content/achievements.py` 的 3 个 v140 条件类型），与真源「import 本文件即注册」逐字等价；
+  2. **同名单 re-export**（真源 48 个顶层名一个不少，符号名 / 签名一字不变）——
+     消费者（`content/achievements.py`（`COND_CHECKS`）· `tests/test_v99_05_achievement_conds.py` · 游戏仓导出器 `scripts/export_domains/shop_econ.py:derive_achievement_conds`）的 import 点零改动。
+
+宿主替身（`db` / `C`）由包内模块按 `sys.modules` 惰性解析（`_HostMod`），本壳不注入。
 """
-COND_CHECKS = {}
 
-
-def register(key):
-    """条件注册装饰器。"""
-    def deco(fn):
-        COND_CHECKS[key] = fn
-        return fn
-    return deco
-
-
-def _value(cond):
-    return cond.get("value", 0)
-
-
-# ================= 角色成长类 =================
-
-@register("registered")
-def _c_registered(player, stats, profs, extra, cond):
-    """已注册角色"""
-    return bool(player)
-
-
-@register("level")
-def _c_level(player, stats, profs, extra, cond):
-    """达到等级"""
-    return player.get("level", 0) >= _value(cond)
-
-
-@register("evolve")
-def _c_evolve(player, stats, profs, extra, cond):
-    """转职阶数（v110 审计修复：原判 evolve_path——该字段只存分支序号(1/2)，
-    导致 ach_evolve3 永不可达、ach_evolve2 被 30 级一转防御分支误解锁；
-    改判 class_tier 档位（1/2/3 = 一/二/三转），隐藏线 60/75/90 档同步成立）"""
-    return player.get("class_tier", 0) >= _value(cond)
-
-
-@register("learned")
-def _c_learned(player, stats, profs, extra, cond):
-    """学习技能数"""
-    return len(player.get("learned_skills", []) or []) >= _value(cond)
-
-
-@register("learned_all")
-def _c_learned_all(player, stats, profs, extra, cond):
-    """学完全职业技能"""
-    from .. import content as C
-    total = 0
-    cls = player.get("class_name", "")
-    t1 = C.PLAYER_SKILLS.get(cls, {})
-    if isinstance(t1, dict) and "skills" in t1:
-        total += len(t1["skills"])
-    bt = C.BRANCH_SKILLS.get(cls, {})
-    if isinstance(bt, dict) and "branches" in bt:
-        for tier in bt["branches"].values():
-            for skills in tier.values():
-                total += len(skills)
-    return total > 0 and len(player.get("learned_skills", []) or []) >= total
-
-
-@register("skill_has")
-def _c_skill_has(player, stats, profs, extra, cond):
-    """习得指定关键词技能"""
-    from .. import content as C
-    learned = [C.display("skills", s) for s in (player.get("learned_skills", []) or []) if s]
-    return any(cond.get("keyword", "") in s for s in learned)
-
-
-@register("branch_skills")
-def _c_branch_skills(player, stats, profs, extra, cond):
-    """掌握分支技能数（v105 M18 P1-3 新增：原 ach_dragon_skill 查'龙语'技能，全库无 → 恒 False）
-    分支技能以中文名为 key（skills.py BRANCH_SKILLS），learned_skills 中分支技能存中文名
-    （_skill_learn_msg/_evolve_auto_skills 均追加 name），统计 learned ∩ 本职业分支技能名。"""
-    from .. import content as C
-    cls = player.get("class_name", "")
-    bt = C.BRANCH_SKILLS.get(cls, {})
-    if not isinstance(bt, dict):
-        return False
-    names = set()
-    for tier in (bt.get("branches") or {}).values():
-        for skills in tier.values():
-            if not isinstance(skills, dict):
-                continue
-            names.update(skills.keys())
-            for s in skills.values():
-                if isinstance(s, dict) and s.get("name"):
-                    names.add(s["name"])
-    if not names:
-        return False
-    learned = set(player.get("learned_skills", []) or [])
-    return len(learned & names) >= _value(cond)
-
-
-@register("hidden_class")
-def _c_hidden_class(player, stats, profs, extra, cond):
-    """解锁隐藏职业"""
-    return cond.get("key") in (player or {}).get("hidden_class_unlock", [])
-
-
-@register("hidden_class_lv")
-def _c_hidden_class_lv(player, stats, profs, extra, cond):
-    """隐藏职业达到等级"""
-    return (player or {}).get("class_name") == cond.get("key") and (player or {}).get("level", 0) >= cond.get("value", 0)
-
-
-# ================= 战斗统计类 =================
-
-@register("kills")
-def _c_kills(player, stats, profs, extra, cond):
-    """击杀数（no_death 时要求零死亡）"""
-    if cond.get("no_death"):
-        return stats.get("kills", 0) >= _value(cond) and stats.get("deaths", 0) == 0
-    return stats.get("kills", 0) >= _value(cond)
-
-
-@register("elite")
-def _c_elite(player, stats, profs, extra, cond):
-    """精英击杀数"""
-    return stats.get("elite_kills", 0) >= _value(cond)
-
-
-@register("boss")
-def _c_boss(player, stats, profs, extra, cond):
-    """Boss 击杀数"""
-    return stats.get("boss_kills", 0) >= _value(cond)
-
-
-@register("kills_type")
-def _c_kills_type(player, stats, profs, extra, cond):
-    """指定怪物类型击杀"""
-    from .achievements import _bestiary_kills  # 延迟引用（运行时 achievements 已加载）
-    kws = cond.get("keywords") or [cond["keyword"]]
-    return any(_bestiary_kills(player["qq_id"], kw) >= _value(cond) for kw in kws)
-
-
-# ================= 副业/养成类 =================
-
-@register("prof_lv")
-def _c_prof_lv(player, stats, profs, extra, cond):
-    """副业等级"""
-    p = (profs or {}).get(cond["key"], {})
-    return int(p.get("lv", 0) or 0) >= _value(cond)
-
-
-@register("prof_any10")
-def _c_prof_any10(player, stats, profs, extra, cond):
-    """任意副业 10 级"""
-    return any(int(p.get("lv", 0) or 0) >= 10 for p in (profs or {}).values())
-
-
-@register("prof_count")
-def _c_prof_count(player, stats, profs, extra, cond):
-    """副业次数统计"""
-    return stats.get(cond["key"], 0) >= _value(cond)
-
-
-@register("apprentice")
-def _c_apprentice(player, stats, profs, extra, cond):
-    """收徒数"""
-    return len(player.get("apprentices", []) or []) >= _value(cond)
-
-
-@register("set_has")
-def _c_set_has(player, stats, profs, extra, cond):
-    """装备套装收集数"""
-    eqs = (player or {}).get("equipment", {}) or {}
-    cnt = 0
-    for _slot, _eq in eqs.items():
-        if isinstance(_eq, dict) and _eq.get("set") == cond.get("key"):
-            cnt += 1
-    return cnt >= cond.get("value", 4)
-
-
-# ================= 地图/副本类 =================
-
-@register("visited")
-def _c_visited(player, stats, profs, extra, cond):
-    """到访区域数"""
-    from .. import db
-    try:
-        return db.get_visited_count("", player["qq_id"]) >= _value(cond)
-    except Exception:
-        return stats.get("visited_areas", 0) >= _value(cond)
-
-
-@register("hidden_area")
-def _c_hidden_area(player, stats, profs, extra, cond):
-    """隐藏区域到访数（v105 M18 P1 修复：仅统计真实隐藏区域）
-
-    隐藏区域集合 = HIDDEN_MAP_UNLOCK 解锁表 key（v104 P2 清理后 2 个：
-    lost_library/ember_corridor；旧 5 条死条目 dragon_sanctum 等已删）∪ maps 中
-    hidden=True 或 type="隐藏区域" 的地图。旧实现与 visited 完全相同（到访普通区域
-    也计数）→ 秘境猎手 3 个普通区域即解锁、ach_mythril 到访 1 个任意
-    区域即送，隐藏成就贬值。修复后仅到访隐藏区域才计数。
-    """
-    from .. import content as C
-    from .. import db
-    hidden = set(getattr(C, "HIDDEN_MAP_UNLOCK", None) or {})
-    for m in (C.MAPS or []):
-        if m.get("hidden") or m.get("type") == "隐藏区域":
-            hidden.add(m["id"])
-    if not hidden:
-        return False
-    try:
-        with db._lock:
-            conn = db._connect()
-            try:
-                rows = conn.execute(
-                    "SELECT DISTINCT map_id FROM visited WHERE qq_id=?", (player["qq_id"],)
-                ).fetchall()
-            finally:
-                conn.close()
-        cnt = sum(1 for r in rows if r[0] in hidden)
-        return cnt >= _value(cond)
-    except Exception:
-        return False
-
-
-@register("inst_clear")
-def _c_inst_clear(player, stats, profs, extra, cond):
-    """副本通关数"""
-    return stats.get("inst_clears", 0) >= _value(cond)
-
-
-@register("inst_id")
-def _c_inst_id(player, stats, profs, extra, cond):
-    """通关指定副本"""
-    return bool(extra.get("inst_ids", set()) and cond.get("inst") in extra["inst_ids"])
-
-
-@register("inst_all8")
-def _c_inst_all8(player, stats, profs, extra, cond):
-    """通关全部 8 副本"""
-    return len(extra.get("inst_ids", set()) or set()) >= 8
-
-
-@register("flawless")
-def _c_flawless(player, stats, profs, extra, cond):
-    """无伤通关（extra）"""
-    return bool(extra.get("flawless"))
-
-
-# ================= 图鉴/收集类 =================
-
-@register("bestiary")
-def _c_bestiary(player, stats, profs, extra, cond):
-    """图鉴收集数"""
-    from .. import db
-    return len(db.get_bestiary("", player["qq_id"])) >= _value(cond)
-
-
-@register("bestiary_all")
-def _c_bestiary_all(player, stats, profs, extra, cond):
-    """图鉴全收集"""
-    from .. import db
-    from .achievements import _monster_total  # 延迟引用（运行时 achievements 已加载）
-    return len(db.get_bestiary("", player["qq_id"])) >= _monster_total()
-
-
-@register("item_has")
-def _c_item_has(player, stats, profs, extra, cond):
-    """持有指定物品（v100.3b 修复：原代码引用未定义 group_id → NameError→False 恒 False）
-    key 为装备 id（如 eq_starfall_sword）或物品名；背包与已装备槽位双查。"""
-    gid = extra.get("_group_id")
-    if not gid:
-        return False  # 无群上下文时保持旧行为（恒 False）
-    from .. import db
-    from ..data.equip_roster import EQUIP_ROSTER
-    key = cond.get("key")
-    name = EQUIP_ROSTER.get(key, {}).get("name", key)
-    if db.count_item(gid, player["qq_id"], name) > 0:
-        return True
-    for slot, item in (player.get("equipment") or {}).items():
-        if item and item.get("name") == name:
-            return True
-    return False
-
-
-@register("hidden_monsters_all")
-def _c_hidden_monsters_all(player, stats, profs, extra, cond):
-    """击败全部隐藏怪物"""
-    hm = extra.get("defeated_hidden_monsters") or set()
-    from ..data.hidden_monsters import HIDDEN_MONSTERS
-    return len(hm & set(HIDDEN_MONSTERS.keys())) >= len(HIDDEN_MONSTERS)
-
-
-# ================= 社交/公会类 =================
-
-@register("party")
-def _c_party(player, stats, profs, extra, cond):
-    """组队次数"""
-    return stats.get("party_count", 0) >= _value(cond)
-
-
-@register("guild")
-def _c_guild(player, stats, profs, extra, cond):
-    """加入公会"""
-    from .. import db
-    return bool(db.guild_get_by_member(player["qq_id"]))
-
-
-@register("guild_lv")
-def _c_guild_lv(player, stats, profs, extra, cond):
-    """公会等级"""
-    from .. import db
-    g = db.guild_get_by_member(player["qq_id"])
-    return bool(g) and int(g.get("level", 0) or 0) >= _value(cond)
-
-
-@register("faction")
-def _c_faction(player, stats, profs, extra, cond):
-    """v116 解锁（原国战延迟恒 False）：已加入某可选阵营（players.faction 非空）。
-    加入阵营命令『加入阵营 <编号>』写 players.faction（见 world.py camp_join）。"""
-    return bool((player or {}).get("faction"))
-
-
-def _faction_contribute(player, extra):
-    """读取玩家累计阵营贡献。阵营贡献结算数据存 event_state 键 faction_camp_{gid}_{qq} 的
-    JSON（contrib=贡献 / tasks=今日任务 / done_total=历史完成数），由命令层 camp_join/camp_task 维护。"""
-    gid = extra.get("_group_id")
-    if not gid:
-        return 0
-    from .. import db
-    try:
-        raw = db.get_event_state(f"faction_camp_{gid}_{player['qq_id']}")
-    except Exception:
-        return 0
-    if not raw:
-        return 0
-    try:
-        import json
-        data = json.loads(raw)
-    except (ValueError, TypeError):
-        return 0
-    return int(data.get("contrib", 0) or 0)
-
-
-@register("faction_top")
-def _c_faction_top(player, stats, profs, extra, cond):
-    """v116 解锁（原国战延迟恒 False）：阵营先锋——阵营贡献 ≥ 100。
-    阈值沿用现有成就风格（ach_faction_top 无 value，取缺省 100）。"""
-    return _faction_contribute(player, extra) >= int(cond.get("value", 100))
-
-
-@register("faction_rank1")
-def _c_faction_rank1(player, stats, profs, extra, cond):
-    """v116 解锁（原国战延迟恒 False）：大陆之柱——阵营贡献 ≥ 500。
-    简化判定：原策划「所属阵营国战排名第 1」依赖周结算排名（二期未实装），
-    此处以贡献阈值近似（大陆之柱≈对阵营的深厚贡献）。"""
-    return _faction_contribute(player, extra) >= int(cond.get("value", 500))
-
-
-# ================= 世界事件/活动类 =================
-
-@register("world_event")
-def _c_world_event(player, stats, profs, extra, cond):
-    """参与世界事件数"""
-    return stats.get("world_events", 0) >= _value(cond)
-
-
-@register("event_all")
-def _c_event_all(player, stats, profs, extra, cond):
-    """世界事件深度参与（v105 M18 P1-4 修复：原恒 False，现接 stats.world_events，
-    由 combat.py 世界事件期间战斗结算 bump，与 world_event 条件共用计数）"""
-    return stats.get("world_events", 0) >= _value(cond)
-
-
-@register("fish_king")
-def _c_fish_king(player, stats, profs, extra, cond):
-    """钓到鱼王（extra）"""
-    return bool(extra.get("fish_king"))
-
-
-@register("collect_fish")
-def _c_collect_fish(player, stats, profs, extra, cond):
-    """钓到指定鱼（extra）"""
-    return extra.get("collect_fish") == cond.get("key")
-
-
-@register("wish_met")
-def _c_wish_met(player, stats, profs, extra, cond):
-    """许愿实现（extra）"""
-    return bool(extra.get("wish_met"))
-
-
-@register("worldboss")
-def _c_worldboss(player, stats, profs, extra, cond):
-    """参与世界 Boss（extra）"""
-    return bool(extra.get("worldboss"))
-
-
-# ================= 任务/剧情类 =================
-
-@register("quest_done")
-def _c_quest_done(player, stats, profs, extra, cond):
-    """已完成隐藏任务（v100.3b 修复：原代码引用未定义 group_id → NameError→False 恒 False）
-    优先走 extra 显式上下文；否则查 quests.side[key].status == \"done\"。"""
-    if extra.get("quest_done") == cond.get("key"):
-        return True
-    gid = extra.get("_group_id")
-    if not gid:
-        return False  # 无群上下文时保持旧行为（恒 False）
-    from .. import db
-    q = db.get_quests(gid, player["qq_id"])
-    return bool(q and q.get("side", {}).get(cond.get("key"), {}).get("status") == "done")
-
-
-@register("main_done")
-def _c_main_done(player, stats, profs, extra, cond):
-    """主线完成（v105 M18 P1-1 修复：原 db.get_quests 缺 group_id → TypeError 被吞恒 False）
-    v124.3 数据驱动：completed_main 包含主线链尾任务 id（MAIN_QUESTS 中 next 为空的
-    任务，当前 = q12_6『黎明之后』）即判定完成——主线链增删任务自动跟随，不再硬编码 id。
-    （不采用 len(completed_main)>=len(MAIN_QUESTS)：存档容错重置主线起点时 completed_main
-    保留旧条目、重打会产生重复 id，长度判定会提前误判。）"""
-    gid = extra.get("_group_id")
-    if not gid:
-        return False  # 无群上下文时保持旧行为（恒 False）
-    from .. import db
-    try:
-        q = db.get_quests(gid, player["qq_id"])
-    except Exception:
-        return False
-    try:
-        from ..data import MAIN_QUESTS
-        tail_id = next((qd["id"] for qd in MAIN_QUESTS if not qd.get("next")), None)
-    except Exception:
-        return False
-    if not tail_id:
-        return False
-    return tail_id in (q.get("completed_main") or [])
-
-
-@register("main_quest_done")
-def _c_main_quest_done(player, stats, profs, extra, cond):
-    """完成指定主线任务（v105 M18 P1-2 新增：completed_main 含任务 id）。
-    用于 ach_saint_save 圣女守护者（救下圣女 = q6_1 圣女的信任交付）。"""
-    gid = extra.get("_group_id")
-    if not gid:
-        return False
-    from .. import db
-    try:
-        q = db.get_quests(gid, player["qq_id"])
-    except Exception:
-        return False
-    return cond.get("key") in (q.get("completed_main") or [])
-
-
-@register("flag")
-def _c_flag(player, stats, profs, extra, cond):
-    """剧情标记（v105 M18 P1-2 修复：原只读 extra.flags，而 25 处 check_achievements
-    调用无一传 flags → 恒 False 死锁）。
-    判定顺序：① extra.flags（事件上下文，测试兼容）② db talk_flags（与对话系统共用，
-    event_state key = talkflags_{gid}_{qid}，跨 NPC 扁平查）。"""
-    flag = cond.get("flag")
-    flags = extra.get("flags") or {}
-    if flags.get(flag):
-        return True
-    gid = extra.get("_group_id")
-    if not gid:
-        return False
-    from .. import db
-    try:
-        raw = db.get_event_state(f"talkflags_{gid}_{player['qq_id']}")
-    except Exception:
-        return False
-    if not raw:
-        return False
-    try:
-        import json
-        data = json.loads(raw)
-    except (ValueError, TypeError):
-        return False
-    for npc_flags in data.values():
-        if flag in (npc_flags or []):
-            return True
-    return False
+from __future__ import annotations
+
+from .. import bootstrap as _bootstrap                       # noqa: E402 包加载口（失败抛）
+
+_bootstrap.package_apply()
+from content import achievement_conds as _pkg                            # noqa: E402  ← 唯一实现
+
+# ---------------------------------------------------------------- 同名单 re-export（真源顶层名）
+COND_CHECKS = _pkg.COND_CHECKS
+register = _pkg.register
+_value = _pkg._value
+_c_registered = _pkg._c_registered
+_c_level = _pkg._c_level
+_c_evolve = _pkg._c_evolve
+_c_learned = _pkg._c_learned
+_c_learned_all = _pkg._c_learned_all
+_c_skill_has = _pkg._c_skill_has
+_c_branch_skills = _pkg._c_branch_skills
+_c_hidden_class = _pkg._c_hidden_class
+_c_hidden_class_lv = _pkg._c_hidden_class_lv
+_c_kills = _pkg._c_kills
+_c_elite = _pkg._c_elite
+_c_boss = _pkg._c_boss
+_c_kills_type = _pkg._c_kills_type
+_c_prof_lv = _pkg._c_prof_lv
+_c_prof_any10 = _pkg._c_prof_any10
+_c_prof_count = _pkg._c_prof_count
+_c_apprentice = _pkg._c_apprentice
+_c_set_has = _pkg._c_set_has
+_c_visited = _pkg._c_visited
+_c_hidden_area = _pkg._c_hidden_area
+_c_inst_clear = _pkg._c_inst_clear
+_c_inst_id = _pkg._c_inst_id
+_c_inst_all8 = _pkg._c_inst_all8
+_c_flawless = _pkg._c_flawless
+_c_bestiary = _pkg._c_bestiary
+_c_bestiary_all = _pkg._c_bestiary_all
+_c_item_has = _pkg._c_item_has
+_c_hidden_monsters_all = _pkg._c_hidden_monsters_all
+_c_party = _pkg._c_party
+_c_guild = _pkg._c_guild
+_c_guild_lv = _pkg._c_guild_lv
+_c_faction = _pkg._c_faction
+_faction_contribute = _pkg._faction_contribute
+_c_faction_top = _pkg._c_faction_top
+_c_faction_rank1 = _pkg._c_faction_rank1
+_c_world_event = _pkg._c_world_event
+_c_event_all = _pkg._c_event_all
+_c_fish_king = _pkg._c_fish_king
+_c_collect_fish = _pkg._c_collect_fish
+_c_wish_met = _pkg._c_wish_met
+_c_worldboss = _pkg._c_worldboss
+_c_quest_done = _pkg._c_quest_done
+_c_main_done = _pkg._c_main_done
+_c_main_quest_done = _pkg._c_main_quest_done
+_c_flag = _pkg._c_flag

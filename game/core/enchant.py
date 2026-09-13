@@ -1,46 +1,66 @@
 # -*- coding: utf-8 -*-
+"""game/core/enchant.py —— B13-L1 **薄壳**（2026-09-14）
 
-from .stats import equip_stats
-from .affix import _affix_base_value
-from .constants import PCT_STATS  # v102.6 百分比显示属性
-from ..data import ENCHANT_MAX_VALUE, ENCHANT_RECIPES
+真源（**唯一实现**）已搬进内容包：`framework/games/orlandia/content/enchant.py`
+（搬的边界 / 正文改动面 / 缺口全写在那边的头注里）。本文件只剩三件事：
+
+  · **包加载口**：`bootstrap.package_apply()`（本进程唯一；幂等）
+  · **全量再导出**：名字集合与改造前**逐名相同** → `game/core/__init__.py` 的
+    `from .enchant import …`、别线模块的 `from .enchant import …`、测试的模块属性访问**零改动**
+  · `__getattr__` / `__dir__` 兜底：未列名也转发包内实现
+
+★ 一条**必须保留的行为细节**（不是巧合，是测试依赖）：`random` 之类的模块对象再导出后仍是
+  **同一只 stdlib 模块对象**（包内 `import random` 的那只）——
+  `tests/test_v136_gem_drops.py:67` 用 `mock.patch.object(game.core.gems.random, "random", …)`
+  打宿主模块属性来钉随机序列，同一对象才让打点照旧命中包内实现。
+
+改造前 46 行 → 现在 66 行（`enchant_value` / `enchant_match_material` 名字不变）。
+"""
+import sys                                             # noqa: F401（class_sets 的 _tree_mod 用）
+
+from .. import bootstrap as _bootstrap                  # noqa: F401  本进程唯一包加载口（幂等）
+
+_bootstrap.package_apply()
+
+from content import enchant as _IMPL                      # noqa: E402  包内唯一实现
 
 
-"""奥兰迪亚·余烬纪年数据层 - enchant.py"""
-def enchant_value(slot: str, lv: int, stat: str, big: bool = False) -> int | float:
-    """附魔数值：白板基础 * ratio；大成功 1.5x；crit/dodge 固定小值"""
-    rec = ENCHANT_RECIPES.get(stat)
-    if not rec:
-        return 0
-    if stat in PCT_STATS:
-        v = rec["ratio"]
-    else:
-        base = equip_stats(slot, lv, "white").get(stat, 0)
-        if base <= 0:
-            base = _affix_base_value(slot, lv, stat)
-        v = max(1, int(base * rec["ratio"]))
-    if big:
-        v = v * 1.5
-        if stat in PCT_STATS:
-            v = round(v, 3)
-    if stat in ENCHANT_MAX_VALUE:
-        v = min(v, ENCHANT_MAX_VALUE[stat])
-    return v
+def _re_export():
+    """把包内实现的名字（**同一个对象**：函数 / 字典 / 类 / 模块）挂到本模块。"""
+    for _n in [n for n in dir(_IMPL) if not n.startswith("__")]:
+        globals()[_n] = getattr(_IMPL, _n)
 
-def enchant_match_material(stat: str, items: list) -> str | None:
-    """从背包物品里找第一个匹配该附魔系的材料名(无则 None)"""
-    rec = ENCHANT_RECIPES.get(stat)
-    if not rec:
-        return None
-    for it in items:
-        d = it.get("data", {})
-        # F2-3：材料判定放宽——gm/部分发放路径材料入包缺 type 字段（或 type=兽材，
-        #   如余烬甲片），原按 type==\"材料\" 过滤导致背包有材料却报\"没有材料\"（report_11 P1-1）。
-        #   改按材料 key 规范 mat_ 前缀兜底（全库材料 key 均 mat_ 开头，v48 ID 规范）。
-        if d.get("type") != "材料" and not str(it.get("key", "")).startswith("mat_"):
-            continue
-        name = d.get("name", "")
-        if any(kw in name for kw in rec["mats"]):
-            return name
-    return None
 
+_re_export()
+del _re_export
+
+
+# 改造前**从 `..data` 导入**、因而挂在本模块上的表名（`from ..data import X` 的 X）——
+# 常量表已随实现搬进包内，这些名字在本壳上用「惰性回退」补齐（读得到、写不到壳上）：
+_LEGACY_DATA_NAMES = frozenset(["ENCHANT_RECIPES", "ENCHANT_MAX_VALUE"])
+# 改造前**从别处宿主模块导入**的模块级名字（`from ..<mod> import X` 的 X）→ (宿主模块, 属性)
+_LEGACY_HOST_NAMES = {"equip_stats": ("core.stats", "equip_stats")}
+
+
+def _tree_mod(name):
+    """**本棵树**的宿主子模块（只看 `sys.modules`，**绝不主动 import** ——
+    防 `game.data → _assembly → core.<mod> → game.data` 的 EAGER 环）。"""
+    root = (__package__ or "").rsplit(".core", 1)[0]
+    return sys.modules.get("%s.%s" % (root, name)) if name else sys.modules.get(root)
+
+
+def __getattr__(name):
+    """未列名兜底：先转发包内实现；再回退到宿主 `data` 的同名表（= 改造前的导入名）。"""
+    try:
+        return getattr(_IMPL, name)
+    except AttributeError:
+        if name in _LEGACY_DATA_NAMES:
+            return getattr(_tree_mod("data") or _IMPL._host_module("data"), name)
+        if name in _LEGACY_HOST_NAMES:
+            _m, _a = _LEGACY_HOST_NAMES[name]
+            return getattr(_IMPL._host_module(_m), _a)
+        raise
+
+
+def __dir__():
+    return sorted(set(globals()) | set(dir(_IMPL)))

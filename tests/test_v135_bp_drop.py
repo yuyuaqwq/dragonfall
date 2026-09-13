@@ -207,6 +207,11 @@ check("FISH_RARE_CHANCE 数值仍 0.6（未删常量）", abs(C.FISH_RARE_CHANCE
 print("【5. 副本通关全员图纸（INSTANCE_BP_CHANCE=10%）】")
 clean_db()
 insrc = inspect.getsource(InstanceCmds)
+# ★ 2026-09-14 收口（B11-L1 instance 薄壳）：实现真源已搬到包内 `content/instance_cmds.py` 的
+#   `InstanceImpl`（宿主 `InstanceCmds` 现在继承它）。源码面 = 壳 + 实现两侧拼接 —— 断言与原意不变
+#   （同 tests/test_v135_bp_drop.py:187-191 的 economy 口径）。
+from content.instance_cmds import InstanceImpl as _InstImpl        # noqa: E402
+insrc = insrc + "\n" + inspect.getsource(_InstImpl)
 check("副本通关循环消费 INSTANCE_BP_CHANCE", "C.INSTANCE_BP_CHANCE" in insrc)
 check("副本已学图纸折算残页逻辑", "图纸残页" in insrc and "learned_blueprints" in insrc)
 # 直接断言常量本身。原先用 40000 次抽样间接"测"它 —— 那测的是 Python 随机数分布，

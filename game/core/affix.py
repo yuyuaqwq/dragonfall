@@ -1,159 +1,67 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年核心层 - affix.py（阶段八重写，2026-08-06）
+"""game/core/affix.py —— B13-L1 **薄壳**（2026-09-14）
 
-20 章特色词条系统核心逻辑：
-- roll_affixes：按品质随机词条池（武器/防具按部位过滤）→ 返回词条 ID 列表
-- fixed_affixes：名册装备固定词条（20 章 3.x 系列主题）
-- stat_affix_stats：常驻属性词条折算进装备 stats（crit_up/dodge/hp_up/swift）
-- random_req：随机装备的属性需求估算（按部位/武器类型）
-- 触发型词条（on_hit/on_taken/turn_start/battle_start/passive）由 battle.py 消费
+真源（**唯一实现**）已搬进内容包：`framework/games/orlandia/content/affix.py`
+（搬的边界 / 正文改动面 / 缺口全写在那边的头注里）。本文件只剩三件事：
+
+  · **包加载口**：`bootstrap.package_apply()`（本进程唯一；幂等）
+  · **全量再导出**：名字集合与改造前**逐名相同** → `game/core/__init__.py` 的
+    `from .affix import …`、别线模块的 `from .affix import …`、测试的模块属性访问**零改动**
+  · `__getattr__` / `__dir__` 兜底：未列名也转发包内实现
+
+★ 一条**必须保留的行为细节**（不是巧合，是测试依赖）：`random` 之类的模块对象再导出后仍是
+  **同一只 stdlib 模块对象**（包内 `import random` 的那只）——
+  `tests/test_v136_gem_drops.py:67` 用 `mock.patch.object(game.core.gems.random, "random", …)`
+  打宿主模块属性来钉随机序列，同一对象才让打点照旧命中包内实现。
+
+改造前 159 行 → 现在 67 行（宿主 `game/commands/economy.py` 的 `from ..core import item_templates`、`from ..core.affix import stat_affix_stats` 等 import 点零改动）。
 """
+import sys                                             # noqa: F401（class_sets 的 _tree_mod 用）
 
-import random
+from .. import bootstrap as _bootstrap                  # noqa: F401  本进程唯一包加载口（幂等）
 
-from saintess_engine.loot import count_for, draw_slots
+_bootstrap.package_apply()
 
-from ..data import (AFFIXES, AFFIX_FALLBACK, AFFIX_COUNT, AFFIX_POOL_BY_QUALITY,
-                    LEGENDARY_EFFECTS, SERIES_FIXED_AFFIX)
-
-# 词条触发时机分组（battle 挂点用）
-TRIGGER_TYPES = {"stat", "on_hit", "on_taken", "turn_start", "battle_start", "passive"}
+from content import affix as _IMPL                      # noqa: E402  包内唯一实现
 
 
-def _affix_base_value(slot: str, lv: int, stat: str) -> int:
-    """附魔数值兜底：优先部位白板属性，无则用保底模板(旧词条系统遗留，enchant 用)"""
-    from .stats import equip_stats
-    base = equip_stats(slot, lv, "white")
-    if base.get(stat, 0) > 0:
-        return base[stat]
-    fb = AFFIX_FALLBACK.get(stat, (2, 1.0))
-    return int(fb[0] + fb[1] * lv)
-
-# 随机装备属性需求估算：按部位/武器类型 → 主属性
-_REQ_STAT_BY_SLOT = {
-    "weapon": {"sword": "str", "mace": "str", "fist": "str", "spear": "str", "shield": "str",
-               "bow": "agi", "dagger": "agi", "staff": "int"},
-    "helm": "vit", "armor": "vit", "legs": "vit",
-    "boots": "agi", "ring": "agi", "necklace": "int",
-}
-
-# 常驻属性词条 → 折算方式（生成时并入装备 stats）
-# crit/dodge/precise/pene_phys/pene_magi/tenacity/luck 为小数概率直接加；hp/spd 按装备基础值百分比折算
-# v106：pene_flat/pene_mflat 固定穿透按装备等级线性折算（lv_flat 系数 + min_flat 保底）
-_STAT_AFFIX_FX = {
-    "crit_up": {"stat": "crit", "pct": None, "flat": 0.05},
-    "dodge": {"stat": "dodge", "pct": None, "flat": 0.05},
-    "hp_up": {"stat": "hp", "pct": 0.05},
-    "swift": {"stat": "spd", "pct": 0.05},
-    # v130.2c 半活修复：精准词条补折算行（此前只接了 dmg_mult 1.10，命中率 0.10 从未并入
-    # 装备 stats → _target_dodge_check 读 _player_stats['precise']（cap 0.60）恒为 0，命中加成失效）
-    "precise": {"stat": "precise", "pct": None, "flat": 0.10},
-    # v106 穿透/韧性/幸运词条折算
-    "pene_phys": {"stat": "pene_phys", "pct": None, "flat": 0.05},
-    "pene_magi": {"stat": "pene_magi", "pct": None, "flat": 0.05},
-    "tenacity": {"stat": "tenacity", "pct": None, "flat": 0.05},
-    "luck": {"stat": "luck", "pct": None, "flat": 0.05},
-    "pene_flat": {"stat": "pene_flat", "lv_flat": 0.5, "min_flat": 2},
-    "pene_mflat": {"stat": "pene_mflat", "lv_flat": 0.5, "min_flat": 2},
-    # v106.1：冷却缩减/成长属性词条 + 元素抗性面板化（旧词条 ID 保留，折算成属性）
-    "cdr": {"stat": "cdr", "pct": None, "flat": 0.05},
-    "exp_bonus": {"stat": "exp_bonus", "pct": None, "flat": 0.05},
-    "gold_bonus": {"stat": "gold_bonus", "pct": None, "flat": 0.05},
-    "elem_resist": {"stat": "elem_res", "pct": None, "flat": 0.08},
-    "abyss_resist": {"stat": "abyss_res", "pct": None, "flat": 0.10},
-    # v106.2：治疗强度/护盾强度词条
-    "heal_power": {"stat": "heal_power", "pct": None, "flat": 0.05},
-    "shield_power": {"stat": "shield_power", "pct": None, "flat": 0.05},
-    # v106.3：吸血/暴击伤害/格挡词条折算（lifesteal/block 由触发特效改属性，crit_dmg 补折算）
-    "lifesteal": {"stat": "lifesteal", "pct": None, "flat": 0.08},
-    "crit_dmg": {"stat": "crit_dmg", "pct": None, "flat": 0.20},
-    "block": {"stat": "block", "pct": None, "flat": 0.15},
-    # v106.4：反伤/物魔免/物法吸词条折算（thorns 由触发特效改属性）
-    "thorns": {"stat": "thorns", "pct": None, "flat": 0.10},
-    "phys_ward": {"stat": "phys_reduce", "pct": None, "flat": 0.05},
-    "magic_ward": {"stat": "magic_reduce", "pct": None, "flat": 0.05},
-    "thirst_phys": {"stat": "lifesteal_phys", "pct": None, "flat": 0.08},
-    "thirst_magi": {"stat": "lifesteal_magi", "pct": None, "flat": 0.08},
-}
+def _re_export():
+    """把包内实现的名字（**同一个对象**：函数 / 字典 / 类 / 模块）挂到本模块。"""
+    for _n in [n for n in dir(_IMPL) if not n.startswith("__")]:
+        globals()[_n] = getattr(_IMPL, _n)
 
 
-def roll_affixes(slot: str, lv: int, quality: str) -> list:
-    """按品质生成随机词条（20 章 4.2 随机池 + 部位过滤）。
-
-    返回词条 ID 列表；白色 0 条、绿色 1 条、蓝色 2 条、紫色 3 条、
-    橙色 3 条（20% 概率 4 条，兑现 AFFIX_COUNT.orange=[3,4]）。
-    （名册固定词条不在随机池，由 fixed_affixes 提供。）
-
-    v184：条数/抽样形状改走框架 `saintess_engine.loot`——
-    条数 = `count_for`（定值 / `[3,4]` + `extra_chance` 命中上界，未知档位 0 条）；
-    抽样 = `draw_slots`（等概率不放回，内部就是 `rng.sample`，与旧 `random.sample`
-    同随机流同结果）。`rng` 传标准库 random 模块本体，随机流对齐旧实现。
-    """
-    # v184：条数（旧：AFFIX_COUNT 取值 + 列表档位 20% 命中上界）
-    n = count_for(AFFIX_COUNT, quality, extra_chance=0.20, rng=random)
-    if not n:
-        return []
-    pool = AFFIX_POOL_BY_QUALITY.get(quality, AFFIX_POOL_BY_QUALITY["orange"])
-    # 按部位过滤：武器只出攻击词条，防具只出防御词条（kind 归属）
-    want_kind = "attack" if slot == "weapon" else "defense"
-    pool = [a for a in pool if AFFIXES[a]["kind"] == want_kind]
-    if not pool:
-        return []
-    # v184：不可重复抽样（固定项为空，等价旧 random.sample(pool, min(n, len(pool)))）
-    return draw_slots(pool, n, rng=random)
+_re_export()
+del _re_export
 
 
-def fixed_affixes(name: str) -> list:
-    """名册装备固定词条(20 章 3.x 系列主题，无随机)
-
-    v173.3 意见#171-A（鱼鱼拍板）：固定词条最多保留 1 条（系列主题锚点），
-    第 2/3 条释放回随机池——随机空间放大（原 307 件 2 固定=蓝装 0 随机/紫橙仅 1
-    随机；现蓝 1 随机/紫 2 随机/橙 2-3 随机），总词条数不变，数值强度不受影响。
-    数据层 SERIES_FIXED_AFFIX 保持完整（供回退/参考），此处只截断消费端。
-    """
-    affs = list(SERIES_FIXED_AFFIX.get(name, []))
-    return affs[:1]
+# 改造前**从 `..data` 导入**、因而挂在本模块上的表名（`from ..data import X` 的 X）——
+# 常量表已随实现搬进包内，这些名字在本壳上用「惰性回退」补齐（读得到、写不到壳上）：
+_LEGACY_DATA_NAMES = frozenset(["AFFIXES", "LEGENDARY_EFFECTS", "AFFIX_FALLBACK", "AFFIX_COUNT",
+                              "AFFIX_POOL_BY_QUALITY", "SERIES_FIXED_AFFIX"])
+# 改造前**从别处宿主模块导入**的模块级名字（`from ..<mod> import X` 的 X）→ (宿主模块, 属性)
+_LEGACY_HOST_NAMES = {}
 
 
-def stat_affix_stats(affix_ids: list, slot: str, lv: int) -> dict:
-    """常驻属性词条折算成装备 stats 加成（crit/dodge 直接加，hp/spd 按基础值百分比）。
-
-    返回 {属性: 加值}；触发型词条不在这里折算（由 battle 消费）。
-    """
-    out = {}
-    for aid in affix_ids:
-        fx = _STAT_AFFIX_FX.get(aid)
-        if not fx:
-            continue
-        stat = fx["stat"]
-        if fx.get("lv_flat") is not None:
-            # v106：固定穿透按装备等级折算 max(min_flat, int(lv × lv_flat))，直接相加
-            add = max(fx.get("min_flat", 2), int(lv * fx["lv_flat"]))
-            out[stat] = out.get(stat, 0) + add
-        elif fx.get("flat") is not None:
-            out[stat] = round(out.get(stat, 0) + fx["flat"], 4)
-        else:
-            # 按装备基础值百分比折算（生成时已拿到 equip_stats 基础）
-            from .stats import equip_stats
-            base = equip_stats(slot, lv, "white").get(stat, 0)
-            add = int(base * fx["pct"]) if base else max(1, lv // 10)
-            out[stat] = out.get(stat, 0) + max(1, add)
-    return out
+def _tree_mod(name):
+    """**本棵树**的宿主子模块（只看 `sys.modules`，**绝不主动 import** ——
+    防 `game.data → _assembly → core.<mod> → game.data` 的 EAGER 环）。"""
+    root = (__package__ or "").rsplit(".core", 1)[0]
+    return sys.modules.get("%s.%s" % (root, name)) if name else sys.modules.get(root)
 
 
-def random_req(slot: str, lv: int, weapon_type: str | None = None) -> dict:
-    """随机装备（非名册）的属性需求估算：主属性 + 5 + lv//5。
+def __getattr__(name):
+    """未列名兜底：先转发包内实现；再回退到宿主 `data` 的同名表（= 改造前的导入名）。"""
+    try:
+        return getattr(_IMPL, name)
+    except AttributeError:
+        if name in _LEGACY_DATA_NAMES:
+            return getattr(_tree_mod("data") or _IMPL._host_module("data"), name)
+        if name in _LEGACY_HOST_NAMES:
+            _m, _a = _LEGACY_HOST_NAMES[name]
+            return getattr(_IMPL._host_module(_m), _a)
+        raise
 
-    名册装备用策划案表（EQUIP_ROSTER.req），此函数仅服务随机掉落/奖励装备。
-    """
-    if slot == "weapon":
-        stat = _REQ_STAT_BY_SLOT["weapon"].get(weapon_type or "sword", "str")
-    else:
-        stat = _REQ_STAT_BY_SLOT.get(slot, "vit")
-    return {stat: 5 + lv // 5}
 
-
-def affix_label(aid: str) -> str:
-    """词条显示短名(装备详情/词条表)"""
-    info = AFFIXES.get(aid) or LEGENDARY_EFFECTS.get(aid)
-    return info["name"] if info else aid
+def __dir__():
+    return sorted(set(globals()) | set(dir(_IMPL)))

@@ -1,77 +1,54 @@
 # -*- coding: utf-8 -*-
+"""奥兰迪亚·余烬纪年核心层 - events.py（★ B13-L3 起 = 薄壳）
 
-import random
+实现真源已进内容包：`content/events.py`（`roll_explore_event` / `roll_explore_egg` 逐字端口；
+搬的边界 / 正文改动面 / **为什么不用包内 events 域读口（顺序不可逆）** 全写在那边的头注里）。
 
-from ..data import EVENT_WEIGHT_SUM, EXPLORE_EVENTS, EXPLORE_EGG_CHANCE, EXPLORE_EGG_EVENTS, EXPLORE_EGG_SUM
+本文件只剩三件事：
 
+  1. **加载包**：`bootstrap.package_apply()`（本进程唯一包加载口，幂等；失败大声抛）
+  2. **同名再导出五个宿主数据符号 + `current_season`**：包内实现按「真源函数体查本模块全局名」
+     的同义语义，走 `core.events.<name>` 取件（`_host_attr`）——
+     ⇒ `tests/test_v116_explore_season.py:31` 的 `EV.current_season = lambda …` 打桩**照旧生效**，
+     快照里的 `EV.EXPLORE_EGG_CHANCE = 1.0` 打桩同理（见 `overnight/w1213_b13l3_snap.py` C6/C7）。
+  3. **同名单 re-export**：`game/core/__init__.py:104`（`roll_explore_event, roll_explore_egg`）与
+     `tests/test_v116_explore_season.py:13`（含 `current_season`）、`tests/test_v97_06_eggs_hidden.py:27`
+     的 import 点零改动 + `__getattr__` 兜底
+
+★ `from ..data import …` 与本文件改前**同位置同写法**（真源就是模块级读宿主数据表，
+  属本模块既有形状，未动）；包加载口插在它之前（package_apply 只读包内 JSON，不碰宿主数据层）。
+
+★ 宿主替身注入：**不需要**（包内按 `sys.modules` 惰性解析；core 模块级 import content 会撞 §8-R1）。
+
+改造前 77 行 → 现在 47 行。等价证据：`overnight/w1213_b13l3_snap.py`（C1–C9 共 10 例）
+· `overnight/W-B13-L3-events-dialogue.md`。
+"""
+from .. import bootstrap as _bootstrap                          # noqa: F401
+
+_bootstrap.package_apply()                                      # 本进程唯一包加载口（幂等）
+
+from ..data import (  # noqa: E402,F401  （真源原样：本模块 import 期即读宿主数据表）
+    EVENT_WEIGHT_SUM, EXPLORE_EVENTS, EXPLORE_EGG_CHANCE, EXPLORE_EGG_EVENTS, EXPLORE_EGG_SUM,
+)
 # v116 季节渗透：探索事件随季节变化（借鉴垂钓，见 core/fishing.py）
 # - 事件 season 硬限定：非当季不触发；season_boost 偏好：当季权重 ×1.5
 # - 季节码与 time_weather.current_season 对齐（spring/summer/autumn/winter）
-from .time_weather import current_season
+from .time_weather import current_season                        # noqa: E402,F401  真源同名再导出
+from content import events as _IMPL                             # noqa: E402  包内唯一实现
+import random                                                   # noqa: E402,F401  真源模块级 import random
 
-# v116 季节感前缀：命中限定/偏好事件时附加给返回事件（浅拷贝，不污染数据池）
-_SEASON_PREFIX = {"spring": "🌸", "summer": "☀️", "autumn": "🍂", "winter": "❄️"}
+# ---- 同名单 re-export（真源符号名一字不变）----
+roll_explore_event = _IMPL.roll_explore_event
+roll_explore_egg = _IMPL.roll_explore_egg
 
 
-"""奥兰迪亚·余烬纪年数据层 - events.py"""
-def roll_explore_event(exclude=()):
-    """掷一个随机事件，返回事件 dict
+def __getattr__(name):
+    """未列名兜底：转发包内实现（宿主替身名不外露；五个数据符号已在上面显式再导出）。"""
+    if name in ("bind_host", "_INJECTED", "_HOST_PKG", "_HOST_PKG_FALLBACK",
+                "_host_module", "_host_attr", "_src") or name.startswith("__"):
+        raise AttributeError("module %r has no attribute %r" % (__name__, name))
+    return getattr(_IMPL, name)
 
-    v101.30d #O22/O42：支持排除列表——同一玩家最近触发的常规事件不重复
-    （短间隔去重，策划案 02 章 7.6）。排除后按剩余事件权重重掷。
-    v116 季节渗透：season 硬限定（非当季剔除）、season_boost（当季权重 ×1.5）；
-    若当前季节把池子过滤空则放宽季节限制重试，避免探索无事件。
-    """
-    # v116 当前季节
-    season = current_season()
 
-    def _season_ok(e):
-        # 硬限定事件仅当季节匹配才触发；无 season 字段 = 全年可触发
-        return not e.get("season") or e["season"] == season
-
-    # 第一步：排除列表 + 季节硬限定 双重过滤
-    if exclude:
-        pool = [e for e in EXPLORE_EVENTS if e["id"] not in exclude and _season_ok(e)]
-    else:
-        pool = [e for e in EXPLORE_EVENTS if _season_ok(e)]
-    if not pool:
-        # 兜底：排除列表导致的例外，或当季硬限定事件占满池子 → 放宽季节限制重试
-        pool = [e for e in EXPLORE_EVENTS if e["id"] not in exclude] if exclude else list(EXPLORE_EVENTS)
-    if not pool:
-        pool = list(EXPLORE_EVENTS)
-    # v116 季节偏好：season_boost 匹配当前季节的事件权重 ×1.5（非限定，仅概率上升）
-    total = sum(e["weight"] * (1.5 if e.get("season_boost") == season else 1) for e in pool)
-    r = random.random() * total
-    acc = 0
-    for e in pool:
-        w = e["weight"] * (1.5 if e.get("season_boost") == season else 1)
-        acc += w
-        if r <= acc:
-            # v116 季节感输出：命中限定/偏好事件时附加前缀标记（浅拷贝，不污染数据池）
-            if e.get("season") == season or e.get("season_boost") == season:
-                pick = dict(e)
-                pick["_season_prefix"] = _SEASON_PREFIX[season]
-                return pick
-            return e
-    return pool[0]
-
-def roll_explore_egg(cur_map_id=None):
-    """探索彩蛋判定(02 章 7.5)：常规事件之外独立判定，命中返回蛋事件 dict。
-
-    v97.6 区域彩蛋：事件带 maps（地图 id 列表）时仅对应地图可触发；
-    无 maps 字段 = 全局彩蛋。命中后按"当前地图可触发的池子"权重分配。
-    """
-    if random.random() >= EXPLORE_EGG_CHANCE:
-        return None
-    pool = [e for e in EXPLORE_EGG_EVENTS
-            if not e.get("maps") or (cur_map_id and cur_map_id in e["maps"])]
-    if not pool:
-        return None
-    total = sum(e["weight"] for e in pool)
-    r = random.random() * total
-    acc = 0
-    for e in pool:
-        acc += e["weight"]
-        if r <= acc:
-            return e
-    return pool[0]
+def __dir__():
+    return sorted(set(globals()) | set(dir(_IMPL)))

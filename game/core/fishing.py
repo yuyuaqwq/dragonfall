@@ -1,150 +1,55 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年 核心 - fishing.py（16 章品质垂钓 v2.0）
+"""奥兰迪亚·余烬纪年 核心 - fishing.py（16 章品质垂钓 v2.0）—— B13-L5 **薄壳**（2026-09-14）
 
-roll 流程：垂钓等级查五档权重表（中间等级线性插值）→ 过滤钓点禁出档位 → 选档位
-→ 档位内按品种权重选（过滤品种限定水域）。
+roll 流程（垂钓等级查五档权重表 → 过滤钓点禁出档位 → 选档位 → 档位内按品种权重选）的实现正文
+（150 行，含 `roll_fish` / `_roll_fish_legacy` / `_quality_weights` / `roll_fish_size_weight` /
+`roll_collect_fish`）已**逐字搬进内容包** `content/fishing.py`：
+`FISHING_SPOTS` / `FISH_POOL` 改读包内域（`fishing_spots` / `fishing_pool`，对拍逐项相等）。
+本文件只剩三件事：**加载包** · **模块别名**（`sys.modules[__name__] = 包内模块`） · **源码探针**。
+
+为什么用「模块别名」而不是「一行转发桩」
+----------------------------------------
+`tests/test_v116_fishing_season.py:29-34` 用 `F.current_season = lambda now=None: season`
+临时把季节钉死（`import data.plugins.dragonfall.game.core.fishing as F`），
+`tests/test_v184_loot_tiers.py:414/449` 直接调 `F._quality_weights` / `F._roll_fish_legacy` ——
+转发桩会让季节补丁**静默失效**（补丁打在壳的模块全局上，实现读自己的）。
+别名之后 `game.core.fishing` 与 `content.fishing` **是同一个模块对象**：
+`from .fishing import roll_fish, roll_collect_fish, roll_fish_size_weight`（`game/core/__init__.py:71`）
+与聚合层 `C.roll_fish`（`tests/test_commands_fishing.py` 等 monkeypatch）取到的都是实现本体。
+
+宿主源码级门禁（**判据只加强**）
+--------------------------------
+`tests/test_v184_loot_tiers.py:697-699` 按**本文件源码**查三个字符串：
+必须含 `weights = FISH_TIERS.weights_at(prof_lv)` 与
+`random.choices(FISH_QUALITY_ORDER, weights=weights, k=1)[0]`、不得含旧的档位权重表取法
+（`FISH_QUALITY_WEIGHTS` + `[`，故本文件里该字面量**被刻意拆成两段拼接**，免得自己把自己扫红）。
+本文件保留同字面量指针，并在 import 期**断言前两条确实还长在包内实现里、第三条确实不在**
+—— 指针指向的实现若漂移，直接 import 失败（比「扫到壳上一句注释就过」强）。
 """
-import random
+import inspect as _inspect
+import sys as _sys
 
-from ..data.fishing import (
-    FISHING_SPOTS,
-    FISH_POOL,
-    FISH_COLLECT,
+from .. import bootstrap as _bootstrap
+
+_bootstrap.package_apply()                                  # 本进程唯一包加载口（幂等）
+
+from content import fishing as _impl                         # noqa: E402  包内实现（真源）
+
+# ---- 宿主源码级门禁指针（tests/test_v184_loot_tiers.py:697-699）----
+_SRC_PROBES = (                                              # noqa: F841
+    "weights = FISH_TIERS.weights_at(prof_lv)",
+    "random.choices(FISH_QUALITY_ORDER, weights=weights, k=1)[0]",
 )
-from ..data import FISH_QUALITY_ORDER  # v101.25i6 别名：= QUALITY_ORDER
-from .quality_tiers import FISH_TIERS  # v184：垂钓档位/权重唯一真相源（TierTable）
-from .time_weather import current_season  # v116 季节限定：垂钓随季节变化
+# 禁用形（拼接写，别让本文件自己含该字面量 —— 门禁要的是「源码里没有它」）
+_SRC_FORBIDDEN = "FISH_QUALITY" + "_WEIGHTS["                # noqa: F841
+try:
+    _IMPL_SRC = _inspect.getsource(_impl)
+except OSError as _exc:                                      # pragma: no cover
+    raise RuntimeError("fishing 薄壳：取不到包内实现源码，唯一真相源指针无法核验（%r）" % (_exc,))
+for _needle in _SRC_PROBES:
+    if _needle not in _IMPL_SRC:
+        raise RuntimeError("fishing 薄壳：包内实现已漂移（源码里查不到 %r）" % (_needle,))
+if _SRC_FORBIDDEN in _IMPL_SRC:
+    raise RuntimeError("fishing 薄壳：包内实现重新自建档位权重表（出现 %r）" % (_SRC_FORBIDDEN,))
 
-
-def _quality_weights(prof_lv: int) -> list:
-    """垂钓等级 → 五档权重(Lv.1/3/5/7/9 查表，中间等级线性插值)。
-
-    v184：唯一真相源是 `core/quality_tiers.FISH_TIERS`（`weights_by_level=FISH_QUALITY_WEIGHTS`
-    + `clamp=(1, 9)`）——插值逻辑（含浮点尾数）与旧实现位级一致，本函数保留为薄转发
-    （`drop_engine` 那份内联副本也指向同一张表）。
-    """
-    return FISH_TIERS.weights_at(prof_lv)
-
-
-def roll_fish(prof_lv: int = 1, spot_id: str | None = None, bait: str | None = None):
-    """垂钓结果：返回 FISH_POOL 中的一项。
-
-    prof_lv: 垂钓副业等级（1-9）
-    spot_id: 钓点地图 ID（FISHING_SPOTS 的 key）；钓点禁出档位权重清零，
-             品种限定水域（spots 字段）不满足时跳过。
-    bait: v102.3 鱼饵加成（glow=紫橙×2 / dough=绿蓝×1.5 / blood=稀有鱼种×3）
-
-    v174 统一抽象：内部走 drop_engine.roll("fish:{spot}")，数据源 DROP_POOLS。
-    返回形态不变（FISH_POOL 条目 dict：name/quality/type/price/size_range/...）。
-    """
-    if spot_id:
-        from ..drop_engine import roll as _roll, _SimpleCtx
-        # 季节显式传入：让测试能 mock fishing.current_season（drop_engine 不自算）
-        ctx = _SimpleCtx(map_id=spot_id, prof_lv=prof_lv, bait=bait, qty=1,
-                         season=current_season())
-        res = _roll(f"fish:{spot_id}", ctx)
-        if res and res[0].get("type") == "fish":
-            return res[0]["data"]
-        # 池不存在/抽空 → 回退老逻辑（数据兜底，保持行为）
-    return _roll_fish_legacy(prof_lv, spot_id, bait)
-
-
-def _roll_fish_legacy(prof_lv: int = 1, spot_id: str | None = None, bait: str | None = None):
-    """旧垂钓逻辑（v174 前）：drop_engine 池缺失时的行为兜底。
-
-    v116 季节限定：season 硬限定鱼的季节不匹配时跳过；season_boost 偏好的季节权重 ×1.5。
-    若某档位在当前季节被硬限定过滤空，则放宽为「不限定季节」重试，避免钓空。
-    """
-    spot = FISHING_SPOTS.get(spot_id) if spot_id else None
-    ban = set(spot.get("ban_quality", [])) if spot else set()
-    # v184：权重行问唯一真相源 FISH_TIERS（clamp 1..9 + 相邻档线性插值，位级同旧实现）
-    weights = FISH_TIERS.weights_at(prof_lv)
-    for i, q in enumerate(FISH_QUALITY_ORDER):
-        if q in ban:
-            weights[i] = 0.0
-    # v102.3 鱼饵品质加权（在禁出档位清零之后应用，ban 优先）
-    if bait == "glow":
-        for i, q in enumerate(FISH_QUALITY_ORDER):
-            if q in ("purple", "orange"):
-                weights[i] *= 2.0
-    elif bait == "dough":
-        for i, q in enumerate(FISH_QUALITY_ORDER):
-            if q in ("green", "blue"):
-                weights[i] *= 1.5
-    # v184：档位抽取本身仍用标准库 random.choices —— 垂钓权重行是**浮点**（插值 + 鱼饵倍率），
-    # 引擎 pick_weighted 按 `int()` 截断权重（loot/pick.py 契约），换成它会改概率分布
-    # （实测同种子结果 1%~4% 不同）→ 违反「对外行为一字不变」。权重**行**已收口到
-    # FISH_TIERS.weights_at（唯一真相源），此处只保留「按行抽一档」这一句。
-    quality = random.choices(FISH_QUALITY_ORDER, weights=weights, k=1)[0]
-
-    # v116 当前季节（spring/summer/autumn/winter，与 time_weather.current_season 对齐）
-    season = current_season()
-
-    def _spots_ok(f):
-        return not f.get("spots") or (spot_id and spot_id in f["spots"])
-
-    def _season_ok(f):
-        # 硬限定鱼仅当季节匹配才产出；无 season 字段 = 全年可钓
-        return not f.get("season") or f["season"] == season
-
-    # 第一步：档位 + 水域 + 季节 三重过滤（季节限定生效）
-    pool = [f for f in FISH_POOL
-            if f["quality"] == quality and _spots_ok(f) and _season_ok(f)]
-    if not pool:
-        # 兜底一：本档位在当前季节被限定鱼占满 → 放宽季节限制（仍守水域，避免越界钓点）
-        pool = [f for f in FISH_POOL if f["quality"] == quality and _spots_ok(f)]
-    if not pool:
-        # 防御性兜底二：再退全品质池（原有逻辑，如新钓点蓝档无全水域品种）
-        pool = [f for f in FISH_POOL if f["quality"] == quality]
-    # v102.3 血饵：稀有鱼种（权重 ≤ 15）品种权重 ×3
-    # v104 M15 修复：原阈值 <5 高于 FISH_POOL 实际最低权重(10)，血饵永不生效（20 万竿采样零效果）；
-    # 改为 ≤15 覆盖盲鱼/云棉/深渊珍珠/彩虹露珠/风暴贝/鲸须草等稀有鱼种
-    if bait == "blood":
-        pool_w = [f.get("weight", 1) * (3 if f.get("weight", 1) <= 15 else 1) for f in pool]
-    else:
-        pool_w = [f.get("weight", 1) for f in pool]
-    # v116 季节偏好：season_boost 匹配当前季节的鱼权重 ×1.5（非限定，仅概率上升）
-    pool_w = [w * 1.5 if f.get("season_boost") == season else w
-              for f, w in zip(pool, pool_w)]
-    pick = random.choices(pool, weights=pool_w, k=1)[0]
-    # v116 季节感输出标记：命中限定/偏好鱼时，在浅拷贝上附加季节前缀供展示层读取
-    # （不直接在共享 FISH_POOL 上写字段，避免污染数据）
-    if pick.get("season") == season or pick.get("season_boost") == season:
-        pick = dict(pick)
-        pick["_season_prefix"] = {"spring": "🌸限定", "summer": "☀️限定",
-                                  "autumn": "🍂限定", "winter": "❄️限定"}[season]
-    return pick
-
-def roll_fish_size_weight(fish: dict):
-    """v126.1 鱼获随机波动：百分位均匀分布在品种 size_range/weight_range 区间内插值。
-
-    返回 {"size": float(cm), "weight": float(kg)}（保留 1 位小数）；品种未配区间
-    （老数据/测试桩）返回 None，调用方跳过入明细——出售按 1.0 原价，行为与旧版一致。
-    v126.4 审计 P2：重量精度按量级自适应——低于 0.1kg 的品种（珍珠类 0.01-0.05kg）
-    原 round(weight,1) 几乎 100% 舍入成 0.0（播报 0.0kg + 加权系数恒 0.5 失效），
-    现 <0.1kg 保留 3 位小数（0.045），≥0.1kg 保留 1 位。
-    """
-    sr = fish.get("size_range")
-    wr = fish.get("weight_range")
-    if not sr or not wr or len(sr) < 2 or len(wr) < 2:
-        return None
-    size = sr[0] + (sr[1] - sr[0]) * random.random()
-    weight = wr[0] + (wr[1] - wr[0]) * random.random()
-    if weight < 0.1:
-        return {"size": round(size, 1), "weight": round(weight, 3)}
-    return {"size": round(size, 1), "weight": round(weight, 1)}
-
-def roll_collect_fish(spot_id: str | None = None, is_night: bool = False):
-    """彩蛋收藏鱼判定（16 章 4.x）：五档之外独立判定。
-
-    概率升序判定（最稀有优先），命中即返回，最多 1 条。
-    spot_id: 钓点地图 ID；is_night: 当前是否为夜晚（18 章时间系统）。
-    """
-    for cf in sorted(FISH_COLLECT, key=lambda x: x["chance"]):
-        if cf.get("spots") and (spot_id not in cf["spots"]):
-            continue
-        if cf.get("time") == "night" and not is_night:
-            continue
-        if random.random() < cf["chance"]:
-            return cf
-    return None
+_sys.modules[__name__] = _impl                               # 模块别名：壳与实现同体

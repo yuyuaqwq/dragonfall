@@ -7,7 +7,6 @@ import functools
 import inspect
 import random
 import re
-import time
 
 from ._platform import AstrMessageEvent, MessageChain
 
@@ -16,7 +15,8 @@ from ._declared import declared
 from .. import content as C
 from .. import db
 from ..content_rules.panel import player_final_stats
-from ..services.auction import settle_expired_auction  # v181 P4-5：拍卖状态机服务化（过期结算+清槽单点）
+# v181 P4-5 拍卖状态机服务化（过期结算+清槽单点）——B12-L1 起 auction/bid 正文已进包，
+# 过期结算改由包内 `content/social_cmds.py` 走宿主 `services.auction` 句柄调用，本文件不再 import。
 from ..commands.base import CommandBase, require_player
 # v116 公会成长纵深：新数据表/存取函数不经 __init__ 聚合导出，
 # 直接本地 import，避免改动 data/__init__、store/__init__（与并行改动的 agent 冲突）。
@@ -35,17 +35,24 @@ from ..store.inventory import _snapshot_one  # noqa: F401  v126.4 单件回流�
 #     HOUSE_LEVELS / QUALITY / ECON_CONFIG / store.social）
 #   · `content/social_guild.py` ← 原 `game/services/guild.py` 全文件 + 公会面板/商店/技能编排
 #     （经服务层薄壳 `game/services/guild.py` 取包 = bind_host + 同名单 re-export）
+# ★ B12-L1（2026-09-14 收口）：B9-L3 之后剩下的宿主独有实现也已进包 ——
+#   · `content/social_cmds.py` ← 原 `_maybe_roll_event` / `world_event` / `auction` / `bid`
+#     （世界事件惰性调度 + 事件面板 + 拍卖面板 + 竞拍状态机）全族逐字；
+#   · `content/social_pet.py` ← 原 `pet_rename` / `pet_release`（`pet_rename_run` / `pet_release_run`）。
+#   至此本文件全部命令 = 「注册 + 取玩家 + 一行转发 + 渲染」薄壳。
 # ============================================================================
 from .. import bootstrap as _bootstrap          # noqa: E402
 
 _bootstrap.package_apply()                      # 包加载口（幂等；失败抛，不静默）
 from content import social_stall as _SS         # noqa: E402
 from content import social_pet as _SP           # noqa: E402
+from content import social_cmds as _SC          # noqa: E402
 from ..services import guild as _GSD            # noqa: E402
 
 _SS.bind_host(db, maps=C.MAP_BY_ID, house_levels=C.HOUSE_LEVELS, quality=C.QUALITY,
               econ=C.ECON_CONFIG, store_social=_store_social)
 _SP.bind_host(db, content=C, quality=C.QUALITY)
+_SC.bind_host(db=db, content=C)
 
 
 class SocialCmds(CommandBase):
@@ -691,16 +698,10 @@ class SocialCmds(CommandBase):
     async def pet_rename(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        pet = db.pet_get(qq_id)
-        if not pet:
-            yield event.plain_result("你还没有宠物！")
-            return
-        new_name = self._strip_cmd(event, "宠物改名").strip()[:8]
-        if not new_name:
-            yield event.plain_result("格式：宠物改名 <名字>")
-            return
-        db.pet_update(qq_id, name=new_name)
-        yield event.plain_result(f"🐾 你的宠物改名为【{new_name}】！")
+        # B12-L1：存在守卫 / 取前 8 字 / 落库在包内（content/social_pet.py:pet_rename_run）
+        raw_name = self._strip_cmd(event, "宠物改名")
+        for _line in _SP.pet_rename_run(qq_id, raw_name):
+            yield event.plain_result(_line)
 
     @declared("pet_feed")
     @require_player()
@@ -719,13 +720,10 @@ class SocialCmds(CommandBase):
     async def pet_release(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        pet = db.pet_get(qq_id)
-        if not pet:
-            yield event.plain_result("你还没有宠物～")
-            return
-        db.pet_delete(qq_id)
+        # B12-L1：存在守卫 + 放生落库 + 文案在包内（content/social_pet.py:pet_release_run）
         # 图鉴记录保留（24 章三：放生后宠物蛋可重新掉落，图鉴记录保留）
-        yield event.plain_result(f"🕊️ 你放生了【{pet['name']}】……它会记得你的。\n📖 图鉴记录已保留，之后还有机会遇到它！")
+        for _line in _SP.pet_release_run(qq_id):
+            yield event.plain_result(_line)
 
     @declared("mount_cmd")
     @require_player()
@@ -742,43 +740,8 @@ class SocialCmds(CommandBase):
             yield event.plain_result(_line)
 
     async def _maybe_roll_event(self, group_id: str) -> str:
-        """惰性事件调度：无事件且冷却到期 → 概率触发新事件。返回公告文本(无则空串)"""
-        import random as _rnd
-        cur = db.get_world_event(include_expired=True)
-        now = int(time.time())
-        # 当前事件过期 → 清除（v104R3 P1-1：过期拍卖必须先走结算——
-        # 否则出价金币随 bids 记录一起销毁，永久丢失；Boss 事件由各自指令处理）
-        if cur and now >= cur["ends_at"]:
-            if cur["etype"] == "auction":
-                # v181 P4-5：结算本体+过期判定已下沉 services.auction；过期拍卖在此先结算后清槽
-                try:
-                    _lines = self._settle_auction(cur, group_id)
-                    if _lines:
-                        await self._broadcast(f"🏪 【拍卖行 · 落槌结算】\n{_lines}")
-                except Exception as _e:
-                    pass
-            db.clear_world_event()
-            cur = None
-        if cur:
-            return ""
-        # 冷却检查：上次事件结束时间 + 随机 30~90 分钟
-        last_end = db.get_event_state("last_event_end")
-        cooldown = 1800 + _rnd.randint(0, 3600)
-        if last_end and now < int(last_end) + cooldown:
-            return ""
-        # 60% 概率触发
-        if _rnd.random() > 0.6:
-            db.set_event_state("last_event_end", str(now))
-            return ""
-        evt = _rnd.choice(C.WORLD_EVENT_POOL)
-        ends = now + evt["duration"]
-        # v100.2：事件 data 初始化数据化 → core/world_event_templates.py INITIALIZERS
-        from ..core.world_event_templates import INITIALIZERS
-        init_fn = INITIALIZERS.get(evt["type"])
-        data = init_fn(_rnd) if init_fn else {}
-        db.save_world_event(evt["type"], ends, data)
-        db.set_event_state("last_event_end", str(ends))
-        return f"\n🌍 【世界事件】{evt['icon']} {evt['name']}！\n{evt['desc']}"
+        """（B12-L1 薄壳：转调包内 `content/social_cmds.maybe_roll_event`，实现真源已进包）"""
+        return await _SC.maybe_roll_event(group_id, self._broadcast)
 
     @declared("world_event")
     @require_player()
@@ -786,34 +749,10 @@ class SocialCmds(CommandBase):
     async def world_event(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
+        # B12-L1：惰性调度（含过期拍卖先结算后清槽）/ 事件面板 / DISPLAYS 展示全在包内
         notice = await self._maybe_roll_event(group_id)
-        # 新事件刚触发 → 广播到所有注册群（当前群已通过 yield 看到）
-        if notice.strip():
-            try:
-                await self._broadcast(notice.strip(), exclude_group=group_id)
-            except Exception as _e:
-                pass
-        cur = db.get_world_event()
-        now = int(time.time())
-        if not cur:
-            yield event.plain_result("🌍 大陆风平浪静……\n" + notice)
-            return
-        evt = next((e for e in C.WORLD_EVENT_POOL if e["type"] == cur["etype"]), None)
-        left = max(0, cur["ends_at"] - now)
-        mm, ss = divmod(left, 60)
-        lines = [f"🌍 【世界事件】{evt['icon']} {evt['name']}(剩余 {mm}分{ss}秒)" if evt else "🌍 世界事件",
-                 f"━━━━━━━━━━━━"]
-        if evt:
-            lines.append(evt["desc"])
-        lines.append("")
-        # v98.5：etype 展示数据化 → core/world_event_templates.py DISPLAYS
-        from ..core.world_event_templates import DISPLAYS
-        disp_fn = DISPLAYS.get(cur["etype"])
-        if disp_fn:
-            disp_fn(self, cur, lines, group_id)
-        lines.append("")
-        lines.append(notice)
-        yield event.plain_result("\n".join(lines))
+        for _line in await _SC.world_event_run(group_id, notice, self._broadcast, self):
+            yield event.plain_result(_line)
 
     @declared("auction")
     @require_player()
@@ -821,41 +760,11 @@ class SocialCmds(CommandBase):
     async def auction(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        cur = db.get_world_event()
-        now = int(time.time())
-        if not cur:
-            # 是否有过期的拍卖待结算（过期结算+清槽收敛至 services.auction.settle_expired_auction）
-            lines = settle_expired_auction(group_id)
-            if lines:
-                broadcast_text = f"🏪 【拍卖行 · 落槌结算】\n{lines}"
-                try:
-                    await self._broadcast(broadcast_text)
-                except Exception:
-                    pass
-                yield event.plain_result(broadcast_text)
-                return
-            yield event.plain_result("🏪 拍卖行暂未开张。世界事件出现『神秘拍卖行』时再来吧！(『事件』查看)")
-            return
-        if cur["etype"] != "auction":
-            yield event.plain_result("🏪 拍卖行暂未开张。世界事件出现『神秘拍卖行』时再来吧！(『事件』查看)")
-            return
-        items = cur["data"].get("items", [])
-        left = cur["ends_at"] - now
-        mm, ss = divmod(left, 60)
-        lines = [f"🏪 【神秘拍卖行】(剩余 {mm}分{ss}秒)", "━━━━━━━━━━━━"]
-        for it in items:
-            top = max(it["bids"].values()) if it["bids"] else 0
-            top_name = "无人出价"
-            if it["bids"]:
-                top_qq = max(it["bids"], key=it["bids"].get)
-                tp = self._player(group_id, top_qq)
-                top_name = f"{tp['name'] if tp else top_qq}({top})"
-            lines.append(f"📦 {it['id']}. {it['name']}")
-            lines.append(f"   底价 {it['base']} ｜ 最高：{top_name} ｜ 一口价 {it['buyout']}")
-            lines.append(f"   『竞拍 {it['id']} <金币>』出价")
-        lines.append("")
-        lines.append(self._tip("auction"))
-        yield event.plain_result("\n".join(lines))
+        # B12-L1：面板主体 / 过期结算+广播全在包内；`_tip("auction")` 按真源**惰性**取
+        #（只有「开张」分支才抽提示，提前取会多消耗一次 random 抽签）
+        for _line in await _SC.auction_run(group_id, self._player,
+                                           lambda: self._tip("auction"), self._broadcast):
+            yield event.plain_result(_line)
 
     def _settle_auction(self, cur, group_id: str) -> str:
         """（v181 P4-5 兼容壳：转调 game/services/auction.settle_auction——拍卖到期结算本体已下沉 service）"""
@@ -869,94 +778,7 @@ class SocialCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         args = self._strip_cmd(event, "竞拍").split()
-        cur = db.get_world_event()
-        now = int(time.time())
-        if not cur:
-            # 过期的拍卖待结算（过期结算+清槽收敛至 services.auction.settle_expired_auction）
-            lines = settle_expired_auction(group_id)
-            if lines:
-                broadcast_text = f"🏪 【拍卖行 · 落槌结算】\n{lines}"
-                try:
-                    await self._broadcast(broadcast_text)
-                except Exception:
-                    pass
-                yield event.plain_result(broadcast_text)
-                return
-            yield event.plain_result("🏪 拍卖行暂未开张。")
-            return
-        if cur["etype"] != "auction":
-            yield event.plain_result("🏪 拍卖行暂未开张。")
-            return
-        if len(args) < 2 or not args[0].isdigit() or not args[1].isdigit():
-            yield event.plain_result("格式：竞拍 <编号> <金币>，如『竞拍 1 5000』(『拍卖』查看编号)")
-            return
-        item_id = int(args[0])
-        amount = int(args[1])
-        items = cur["data"].get("items", [])
-        it = next((x for x in items if x["id"] == item_id), None)
-        if not it:
-            yield event.plain_result("没有这个拍卖品！『拍卖』查看当前物品～")
-            return
-        if amount < it["base"]:
-            yield event.plain_result(f"出价不能低于底价 {it['base']} 金币！")
-            return
-        if player["gold"] < amount:
-            yield event.plain_result(f"你只有 {player['gold']} 金币，出不起 {amount}！")
-            return
-        # 自己重复出价：新价不能低于自己当前出价（防刷金币：先退旧价再扣新价 = 净赚差价）
-        if str(qq_id) in it["bids"] and amount < it["bids"][str(qq_id)]:
-            yield event.plain_result(f"不能低于自己当前出价 {it['bids'][str(qq_id)]} 金币！")
-            return
-        # v104R3 P2：新出价必须严格超过当前最高价（同价出价无意义且锁金币到结算——先到者胜，
-        # 后到者金币被冻结直到结算/被超越；直接拒绝，复验点5）
-        if it["bids"] and str(qq_id) not in it["bids"]:
-            _top_qq = max(it["bids"], key=it["bids"].get)
-            if it["bids"][_top_qq] >= amount:
-                _tp = self._player(group_id, _top_qq)
-                _top_name = _tp["name"] if _tp else _top_qq
-                yield event.plain_result(
-                    f"当前最高出价是 {_top_name} 的 {it['bids'][_top_qq]} 金币——出价必须超过最高价！")
-                return
-        # 被超越 → 退还当前最高出价者（并移除其出价记录）
-        if it["bids"]:
-            top_qq = max(it["bids"], key=it["bids"].get)
-            if it["bids"][top_qq] < amount and top_qq != str(qq_id):
-                p_top = self._player(group_id, top_qq)
-                if p_top:
-                    db.update_player(group_id, top_qq, gold=p_top["gold"] + it["bids"][top_qq])
-                del it["bids"][top_qq]
-        # 自己重复出价 → 退还自己的先前出价
-        if str(qq_id) in it["bids"]:
-            prev = it["bids"][str(qq_id)]
-            db.update_player(group_id, qq_id, gold=player["gold"] + prev)
-            del it["bids"][str(qq_id)]
-            player = self._player(group_id, qq_id)
-        # 扣款并记录
-        db.update_player(group_id, qq_id, gold=player["gold"] - amount)
-        it["bids"][str(qq_id)] = amount
-        db.save_world_event(cur["etype"], cur["ends_at"], cur["data"])
-        # 一口价立即成交
-        if amount >= it["buyout"]:
-            # 退还其他出价者
-            for qq2, amt2 in it["bids"].items():
-                if qq2 != str(qq_id):
-                    p2 = self._player(group_id, qq2)
-                    if p2:
-                        db.update_player(group_id, qq2, gold=p2["gold"] + amt2)
-            equip = it.get("equip") or C.generate_equip(it["slot"], it.get("lv", 30), it.get("quality", "purple"))
-            import uuid as _uuid2
-            db.add_item(group_id, qq_id, f"eq_{_uuid2.uuid4().hex[:8]}", equip, count=1)
-            it["bids"] = {str(qq_id): amount}
-            cur["data"]["items"] = [x for x in items if x["id"] != item_id]
-            db.save_world_event(cur["etype"], cur["ends_at"], cur["data"])
-            yield event.plain_result(f"💰 一口价成交！你以 {amount} 金币拍得【{it['name']}】！\n📦 装备已放入背包(『背包』查看)")
-            return
-        # v104 P1：出价后如实提示——未超过当前最高(含同价被先到者压)则提示"当前最高仍是 X"，
-        # 不再无条件谎报"当前最高"
-        _top_qq = max(it["bids"], key=it["bids"].get)
-        if _top_qq == str(qq_id):
-            yield event.plain_result(f"💰 出价成功！你在【{it['name']}】上出价 {amount} 金币，当前最高！\n(若被超越将自动退还)")
-        else:
-            _tp = self._player(group_id, _top_qq)
-            _top_name = _tp["name"] if _tp else _top_qq
-            yield event.plain_result(f"💰 出价成功！你在【{it['name']}】上出价 {amount} 金币，当前最高仍是 {_top_name}({it['bids'][_top_qq]})。\n(若被超越将自动退还)")
+        # B12-L1：底价/金币/自己重复出价守卫 + 被超越退还 + 一口价成交 + 过期结算全在包内
+        for _line in await _SC.bid_run(group_id, qq_id, player, args,
+                                       self._player, self._broadcast):
+            yield event.plain_result(_line)

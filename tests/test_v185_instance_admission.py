@@ -1118,9 +1118,27 @@ def t7_wiring():
         with open(os.path.join(_PD, rel), encoding="utf-8") as f:
             return f.read()
     inst_src = _read("game/commands/instance.py")
+    # ★ 2026-09-14 收口（B11-L1 instance 薄壳）：实现真源已搬到包内
+    #   `framework/games/orlandia/content/instance_cmds.py`（宿主 commands/instance.py 只是薄壳，
+    #   `instance_gate.<fn>` 调用点随实现一起搬走）。源码面 = 壳 + 实现两侧拼接 —— 断言与原意不变。
+    try:
+        with open(os.path.join(_PD, "framework", "games", "orlandia", "content",
+                               "instance_cmds.py"), encoding="utf-8") as f:
+            inst_src = inst_src + "\n" + f.read()
+    except OSError:
+        pass
     base_src = _read("game/commands/base.py")
     world_src = _read("game/commands/world.py")
     gate_src = _read("game/core/instance_gate.py")
+    # ★ 2026-09-14 收口（B11-L2 instance_* 薄壳）：实现真源已搬到包内
+    #   `framework/games/orlandia/content/flow/instance_gate.py`（宿主 core/instance_gate.py 只是薄壳）。
+    #   源码面 = 壳 + 实现两侧拼接 —— 断言与原意不变、判据不削弱（同 test_v135_bp_drop.py:187-191 口径）。
+    try:
+        with open(os.path.join(_PD, "framework", "games", "orlandia", "content", "flow",
+                               "instance_gate.py"), encoding="utf-8") as f:
+            gate_src = gate_src + "\n" + f.read()
+    except OSError:
+        pass
     for needle in ("instance_gate.resolve_open_members", "instance_gate.open_admission",
                    "instance_gate.key_free_note", "instance_gate.resume_admission",
                    "instance_gate.join_admission", "instance_gate.text_entry_hint",

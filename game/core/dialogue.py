@@ -1,131 +1,55 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年核心层 - dialogue（多轮对话引擎）
+"""奥兰迪亚·余烬纪年核心层 - dialogue（多轮对话引擎）★ B13-L3 起 = 薄壳
 
-纯逻辑，不碰 DB/QQ。数据在 data/dialogues.py。
+实现真源已进内容包：`content/dialogue.py`（`get_dialogue` / `dialogue_node` / `check_need` /
+`visible_options` / `_story_to_line` / `node_text` / `is_end` 逐字端口；数据读口改造与缺口
+全写在那边的头注里）。本文件只剩三件事：
 
-命令层（world.py）负责：
-- 读写会话状态（event_state）
-- 执行选项动作（涉及 DB 的副作用：给金币/物品/设 flag）
+  1. **加载包**：`bootstrap.package_apply()`（本进程唯一包加载口，幂等；失败大声抛）
+  2. **同名单 re-export**：`game/core/__init__.py:46` 的 6 个 import 名 +
+     `tests/test_v98_03_registry.py:44` 的 `check_need` 零改动
+  3. `__getattr__` / `__dir__` 兜底
 
-动作 action 是声明式的，命令层用 apply_talk_action 统一落地，
-core 只负责判断与筛选，保证引擎可单测、可复用。
+★ 顺带消掉一处**历史脆弱点**：改前本文件模块级 `from .. import content as C` ——
+  `tests/test_v136_gem_drops.py:15` / `tests/test_v136_gems.py:20` 都在注释里记着
+  「第一个 import 必须是 game.content，否则本文件会把残缺 content 缓存住（缺 gems 聚合符号）」。
+  现在本文件模块级**不再 import 宿主 content**（对话树读包内 `dialogues` 域，
+  日志走惰性宿主替身）⇒ 那条导入顺序铁律对 `game.core.dialogue` 不再适用
+  （行为不变：仍是同一份对话数据 / 同一个 LOG）。
+
+纯逻辑，不碰 DB/QQ。数据的宿主真源仍是 `game/data/dialogues.py`（B14 切读点时按 `dialogues` 域统一处置）。
+
+改造前 131 行 → 现在 40 行。等价证据：`overnight/w1213_b13l3_snap.py`（D1–D10 共 15 例）
+· `overnight/W-B13-L3-events-dialogue.md`。
 """
-import re
-from .. import content as C
-from ..log_setup import LOG
+from .. import bootstrap as _bootstrap                          # noqa: F401
+
+_bootstrap.package_apply()                                      # 本进程唯一包加载口（幂等）
+
+from content import dialogue as _IMPL                           # noqa: E402  包内唯一实现
+
+# ---- 同名单 re-export（真源符号名一字不变）----
+get_dialogue = _IMPL.get_dialogue
+dialogue_node = _IMPL.dialogue_node
+check_need = _IMPL.check_need
+visible_options = _IMPL.visible_options
+is_end = _IMPL.is_end
+node_text = _IMPL.node_text
+_story_to_line = _IMPL._story_to_line
+_STORY_PREFIX = _IMPL._STORY_PREFIX
+
+# 包内实现里**不外露**的宿主替身 / 私有工具名（真源本模块也没有这些名字）
+_HANDLES = frozenset(("C", "LOG", "bind_host", "_INJECTED", "_HOST_PKG", "_HOST_PKG_FALLBACK",
+                      "_host_module", "_host_attr", "_LazyHostAttr", "_read_domain",
+                      "_dialogues", "_main_quests", "_DIALOGUES", "_MAIN_QUESTS", "_HERE"))
 
 
-def get_dialogue(npc_id: str):
-    """返回 NPC 的对话树(dict)或 None(未配置多轮对话 → 走旧单轮逻辑)"""
-    dlg = C.DIALOGUES.get(npc_id)
-    return dlg if dlg else None
+def __getattr__(name):
+    """未列名兜底：转发包内实现；宿主替身名一律不外露。"""
+    if name in _HANDLES or name.startswith("__"):
+        raise AttributeError("module %r has no attribute %r" % (__name__, name))
+    return getattr(_IMPL, name)
 
 
-def dialogue_node(dlg, node_id: str):
-    """取对话树中的节点；不存在回退到 start 节点"""
-    nodes = dlg.get("nodes", {})
-    if node_id in nodes:
-        return nodes[node_id]
-    return nodes.get(dlg.get("start"), {})
-
-
-def check_need(need, ctx: dict) -> bool:
-    """判断选项条件是否满足。ctx = {player, quests, flags}
-
-    v98.3：条件判定全数据化 → core/dialogue_conds.py CONDITIONS 注册表。
-    need 支持的键（quest_done/quest_active/quest_pending/quest_ready/side_ready/
-    quest_any_active/apprentice/not_apprentice/is_novice/not_novice/class_any/
-    evolve_ready）见该文件；
-    v113 增补：race_is/hidden_unlocked/hidden_current/not_hidden_current/side_available。
-    加新条件类型 = register 一个函数（~5 行），本文件零改动。
-    """
-    if not need:
-        return True
-    from .dialogue_conds import CONDITIONS
-    for k, v in need.items():
-        fn = CONDITIONS.get(k)
-        if fn is None:
-            # v104 M21 P1：未注册条件键 → 生产放行但告警（防数据笔误静默变永远可见）；
-            # 测试环境（GWEN_GAME_DB 指向 test 库）直接 raise，让单测抓出笔误
-            import os
-            _db = os.environ.get("GWEN_GAME_DB", "")
-            _msg = (f"[dragonfall] 对话条件未注册键 need[{k!r}]={v!r}："
-                    f"数据笔误？已按'永远可见'放行，请检查 dialogues.py")
-            # v110.5 X3：显式判定测试环境——既看私有库名含 "test"（旧约定兼容），
-            # 也认 GWEN_TEST_MODE=1（本轮私有库名不含 "test" 时测试行为漂移的根因）。
-            _test = ("test" in os.path.basename(_db).lower()
-                     or os.environ.get("GWEN_TEST_MODE") == "1")
-            if _test:
-                raise ValueError(_msg)
-            LOG.warning(_msg)
-            continue  # 未知条件放行（向后兼容，旧数据不崩）
-        if not fn(ctx, v):
-            return False
-    return True
-
-
-def visible_options(dlg, node, ctx: dict) -> list:
-    """过滤出当前可见的选项(need 不满足的隐藏)
-
-    v127.6 side_menu 动态菜单：选项带非空 'side_menu' 键时，调用命令层注入的
-    ctx['side_menu_expand'](opt) 回调，将该选项展开成一组动态子选项
-    （每个子选项自带 text/next/action，如『接『支线名』(目标)』）；
-    未注入回调、need 不满足、或展开为空 → 该选项整体不出现
-    （无活儿可接时不显示菜单）。core 层保持纯逻辑、零 DB，回调由命令层注入。
-    """
-    out = []
-    for opt in node.get("options", []):
-        if opt.get("side_menu") is not None:
-            if not check_need(opt.get("need"), ctx):
-                continue
-            expand = ctx.get("side_menu_expand")
-            subs = expand(opt) if expand else []
-            if subs:
-                out.extend(subs)
-            continue  # 未注入回调/展开为空 → 跳过该选项
-        if check_need(opt.get("need"), ctx):
-            out.append(opt)
-    return out
-
-
-_STORY_PREFIX = re.compile(r"^[^：:]{1,20}[：:]\s*")
-
-
-def _story_to_line(raw: str) -> str:
-    """任务 story/ending 文本 → NPC 台词（v101.23d A 级：text_from 自动生成）
-
-    格式多为『NPC名：台词』或『NPC名：『台词』』（少数叙事型『老约翰交给玩家一封信：『…』』）。
-    规则：剥 NPC 名前缀 → 取 『』/“” 引号内 → 都没有就原样降级（叙事型也能念）。
-    """
-    if not raw:
-        return ""
-    body = _STORY_PREFIX.sub("", raw.strip())
-    m = re.match(r"^[“『](.+)[”』]$", body.strip())
-    return m.group(1) if m else body
-
-
-def node_text(node, ctx: dict) -> str:
-    """节点台词：texts 条件变体优先（need 满足的第一个），否则默认 text；
-    v101.23d：text_from 支持——节点写 {"text_from": "story"} 时，无变体匹配则
-    从『当前主线任务』的 story 字段自动生成接取台词（giver 校验，防串台）。
-    多任务 NPC 加新任务 = 纯数据，quest_talk 台词自动跟任务走，不用手写变体。"""
-    for variant in node.get("texts") or []:
-        if check_need(variant.get("need"), ctx):
-            return variant["text"]
-    src = node.get("text_from")
-    if src in ("story",):
-        quests = ctx.get("quests") or {}
-        mid = quests.get("main_quest")
-        if mid:
-            from ..data import MAIN_QUESTS
-            mq = next((q for q in MAIN_QUESTS if q["id"] == mid), None)
-            if mq and (not mq.get("giver") or mq.get("giver") == ctx.get("npc_id")):
-                auto = _story_to_line(mq.get("story", ""))
-                if auto:
-                    return auto
-    return node.get("text", "……")
-
-
-def is_end(node_id: str) -> bool:
-    """__end__ 是结束对话的哨兵节点"""
-    return node_id == "__end__"
+def __dir__():
+    return sorted((set(globals()) | set(dir(_IMPL))) - set(_HANDLES))

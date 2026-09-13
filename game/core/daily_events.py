@@ -1,52 +1,30 @@
 # -*- coding: utf-8 -*-
-"""《奥兰迪亚·余烬纪年》今日奇遇核心（v115）
+"""奥兰迪亚·余烬纪年 核心层 - daily_events.py —— **B13-L2 薄壳**（2026-09-14）
 
-日期哈希从 DAILY_MAP_EVENTS 中为某张野外图选出"今日奇遇"变体。
-同一天全服一致（参考 game/core/wild.py::_day_hash 的 seed×2654435761+salt 设计）。
+真源（**唯一实现**）= 内容包 `content/daily_events.py`（134 行，逐字搬自本文件的 52 行；
+搬运改动面只有「宿主取件」一类：模块级 `from ..data.daily_events import DAILY_MAP_EVENTS`
+→ 宿主句柄 `_host_attr("data.daily_events", "DAILY_MAP_EVENTS")`（域未进包），逐行见包内头注）。
+本文件现在只剩两件事：
 
-调用方（v115）：
-  - game/commands/combat.py :: explore()——取今日奇遇的 effects 微调探索数值
-  - game/commands/world.py :: map_view()——地图面板底部显示今日奇遇行
+    加载包（`package_apply()`，幂等）· 把 `game.core.daily_events` 这个名字**指向**包内那份实现
+
+为什么是「指向」而不是「从包内再导出 5 个名字」
+------------------------------------------------
+真源顶层名（5 个：`datetime` / `DAILY_MAP_EVENTS` / `_day_hash` / `today_map_event` /
+`today_event_effects`）与包内逐名相同；`tests/test_daily_events.py:20` 直接
+`from …game.core.daily_events import (today_map_event, today_event_effects, _day_hash)`
+（**连私有名一起**），消费点还有 `game/core/__init__.py:113`（→ `C.today_map_event`，
+被 `commands/combat.py explore()` / `commands/world.py map_view()` 消费）。
+指向后 `game.core.daily_events is content.daily_events`：名字集合与身份逐名相同。
+
+薄壳零实现：本文件不含任何逻辑。消费者清单与证据见 `overnight/W-B13-L2-wild-worlds.md`。
 """
-import datetime
+import sys as _sys
 
-from ..data.daily_events import DAILY_MAP_EVENTS
+from .. import bootstrap as _bootstrap                       # noqa: E402
 
+_bootstrap.package_apply()                                   # 本进程唯一包加载口（幂等；失败抛）
 
-def _day_hash(seed: int, salt: str = "") -> int:
-    h = seed * 2654435761 + (sum(ord(c) for c in salt) if salt else 0)
-    return h & 0x7FFFFFFF
+from content import daily_events as _impl                    # noqa: E402
 
-
-def today_map_event(map_id, now=None):
-    """当前位置地图的今日奇遇（日期哈希选中，同一天全服一致）。
-
-    参数：
-      map_id : 地图 id（仅 `野外` 类型迁移图有配置）
-      now    : datetime.date / datetime.datetime / None（默认今天）
-    返回：
-      选中的变体 dict（含 id/name/desc/effects），无配置返回 None。
-    """
-    variants = DAILY_MAP_EVENTS.get(map_id)
-    if not variants:
-        return None
-    _now = now or datetime.date.today()
-    if isinstance(_now, datetime.datetime):
-        ordinal = _now.date().toordinal()
-    else:
-        ordinal = _now.toordinal()
-    # 用 map_id 作 salt，避免不同图同 seed 顶到同一下标的比例失配
-    idx = _day_hash(ordinal, "daily:" + map_id) % len(variants)
-    return variants[idx]
-
-
-def today_event_effects(map_id, now=None):
-    """今日奇遇的 effects 合并结果；无奇遇返回 {}。
-
-    供 combat.py explore() 直接 .get 消费；
-    注意：请不要直接修改返回 dict（内部持有数据引用）。
-    """
-    ev = today_map_event(map_id, now)
-    if not ev:
-        return {}
-    return ev.get("effects") or {}
+_sys.modules[__name__] = _impl

@@ -1,104 +1,35 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年 核心 - time_weather.py（18 章时间季节系统，2026-08-06）
+"""奥兰迪亚·余烬纪年 核心层 - time_weather.py —— **B13-L2 薄壳**（2026-09-14）
 
-现实时间映射（QQ 机器人天然有现实时钟）：
-- 时间段：清晨 05-08 / 白天 08-18 / 黄昏 18-20 / 夜晚 20-05
-- 季节：春 3-5 / 夏 6-8 / 秋 9-11 / 冬 12-2
-- 天气：日期哈希伪随机（每天固定、全服一致，可查）；雪只在冬季、雾只在特定地图
+真源（**唯一实现**）= 内容包 `content/time_weather.py`（110 行，按本文件的 104 行**逐字原样**
+搬入，零宿主取件、零改动）。本文件现在只剩两件事：
+
+    加载包（`package_apply()`，幂等）· 把 `game.core.time_weather` 这个名字**指向**包内那份实现
+
+为什么是「指向」而不是「从包内再导出 12 个名字」
+------------------------------------------------
+真源顶层名（12 个：`PERIODS` / `PERIOD_CN` / `SEASON_CN` / `WEATHER_CN` / `FOG_MAPS` /
+`current_period` / `current_season` / `today_weather` / `time_weather_summary` / `_day_hash` /
+`datetime` / `random`）与包内逐名相同。消费点：
+
+    game/core/__init__.py:72   from .time_weather import (7 个名) → C.* 聚合面（『时间』面板）
+    game/core/wild.py:22       current_period / current_season / today_weather（本线同名模块）
+    game/core/events.py:10     current_season（B13-L3 线文件，本线不动）
+    game/core/fishing.py:16    current_season
+    tests/test_v95_30_npc_randomness.py:63  from game.core.time_weather import current_period
+    tests/test_v184_loot_tiers.py:48        from …game.core.time_weather import current_season
+
+指向后 `game.core.time_weather is content.time_weather`：名字集合与身份逐名相同
+（`tests/test_commands_wild_npc.py:42` 会把 `TW.current_period` 取出来当 `current_period_orig`）。
+
+薄壳零实现：本文件不含任何逻辑。消费者清单与证据见 `overnight/W-B13-L2-wild-worlds.md`。
 """
-import datetime
-import random
+import sys as _sys
 
-# 时间段定义
-PERIODS = [
-    ("night", 0, 5),     # 00:00-05:00 夜晚
-    ("morning", 5, 8),   # 05:00-08:00 清晨
-    ("day", 8, 18),      # 08:00-18:00 白天
-    ("evening", 18, 20), # 18:00-20:00 黄昏
-    ("night", 20, 24),   # 20:00-24:00 夜晚
-]
+from .. import bootstrap as _bootstrap                       # noqa: E402
 
-PERIOD_CN = {
-    "morning": "🌅 清晨", "day": "☀️ 白天", "evening": "🌇 黄昏", "night": "🌙 夜晚",
-}
-SEASON_CN = {
-    "spring": "🌸 春", "summer": "☀️ 夏", "autumn": "🍂 秋", "winter": "❄️ 冬",
-}
-WEATHER_CN = {
-    "sunny": "☀️ 晴", "cloudy": "🌤️ 多云", "rain": "🌧️ 雨",
-    "storm": "⛈️ 暴雨", "snow": "❄️ 雪", "fog": "🌫️ 雾",
-}
+_bootstrap.package_apply()                                   # 本进程唯一包加载口（幂等；失败抛）
 
-# 雾天特定地图（18 章 1.4：雾·特定地图）
-FOG_MAPS = {"misty_swamp", "old_battlefield", "ancient_battlefield", "shipwreck_graveyard", "fog_moor"}
+from content import time_weather as _impl                    # noqa: E402
 
-
-def current_period(now: datetime.datetime | None = None) -> str:
-    """当前时间段：morning/day/evening/night"""
-    now = now or datetime.datetime.now()
-    h = now.hour
-    for name, start, end in PERIODS:
-        if start <= h < end:
-            return name
-    return "night"
-
-
-def current_season(now: datetime.datetime | None = None) -> str:
-    """当前季节：spring/summer/autumn/winter(按现实月份)"""
-    now = now or datetime.datetime.now()
-    m = now.month
-    if m in (3, 4, 5):
-        return "spring"
-    if m in (6, 7, 8):
-        return "summer"
-    if m in (9, 10, 11):
-        return "autumn"
-    return "winter"
-
-
-def _day_hash(seed: int, salt: str = "") -> int:
-    """日期哈希：全服一致、可查(roam/cycle/天气共用)"""
-    h = seed * 2654435761 + (sum(ord(c) for c in salt) if salt else 0)
-    return h & 0x7FFFFFFF
-
-
-def today_weather(map_id: str | None = None, now: datetime.date | None = None) -> str:
-    """当天天气：日期哈希伪随机。晴50/多云20/雨15/暴雨5/雪(冬)15/雾(特定地图)10。
-    雪只在冬季；雾只在 FOG_MAPS 地图（其余地图雾会转多云）。"""
-    now = now or datetime.date.today()
-    seed = now.toordinal()
-    season = current_season(datetime.datetime.combine(now, datetime.time(12)))
-    r = _day_hash(seed, map_id or "") % 100
-    if map_id in FOG_MAPS:
-        # 雾天特定地图：晴45/多云20/雨15/暴雨5/雾10/雪(冬)5 → 简化：r<45晴 45-65多云 65-80雨 80-85暴雨 85-95雾 95+雪(冬)
-        if r < 45:
-            return "sunny"
-        if r < 65:
-            return "cloudy"
-        if r < 80:
-            return "rain"
-        if r < 85:
-            return "storm"
-        if r < 95:
-            return "fog"
-        return "snow" if season == "winter" else "sunny"
-    # 普通地图：晴50/多云20/雨15/暴雨5/雪(冬)15（雾地图外无雾）
-    if r < 50:
-        return "sunny"
-    if r < 70:
-        return "cloudy"
-    if r < 85:
-        return "rain"
-    if r < 90:
-        return "storm"
-    return "snow" if season == "winter" else "sunny"
-
-
-def time_weather_summary(map_id: str | None = None, now: datetime.datetime | None = None) -> str:
-    """『时间』指令面板：时刻/时间段/季节/天气（v95.30 加具体几点几分）"""
-    now = now or datetime.datetime.now()
-    return (
-        f"{now.hour:02d}:{now.minute:02d} · {PERIOD_CN[current_period(now)]} · "
-        f"{SEASON_CN[current_season(now)]} · "
-        f"{WEATHER_CN[today_weather(map_id, now.date())]}"
-    )
+_sys.modules[__name__] = _impl

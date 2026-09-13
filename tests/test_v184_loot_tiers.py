@@ -311,8 +311,17 @@ def _old_tpl_merchant(ctx):
 # 辅助：真实命令/模板路径
 # ============================================================================
 def _src(rel):
+    """读源码。★ 2026-09-14 收口（B11–B14 宿主薄壳化）：`game/**` 多数文件已成**薄壳**，
+    实现真源在包内 `framework/games/orlandia/content/<同名>.py` —— 这里把「壳 + 实现」两侧
+    拼接起来（与 `tests/test_v135_bp_drop.py:187-191` 同款口径），断言原意不变、判据不削弱。
+    """
     with open(os.path.join(PLUGIN_DIR, rel), encoding="utf-8") as fh:
-        return fh.read()
+        text = fh.read()
+    impl = os.path.join("framework", "games", "orlandia", "content", os.path.basename(rel))
+    if os.path.exists(os.path.join(PLUGIN_DIR, impl)):
+        with open(os.path.join(PLUGIN_DIR, impl), encoding="utf-8") as fh:
+            text = text + "\n" + fh.read()
+    return text
 
 
 def _seed_signin_streak(qq_id, streak):

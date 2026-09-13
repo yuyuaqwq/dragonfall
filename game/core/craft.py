@@ -1,67 +1,30 @@
 # -*- coding: utf-8 -*-
+"""奥兰迪亚·余烬纪年 核心 - craft.py（v48：输入中文名 → resolve 转 ID 查表；装备名 display 转中文）
+—— B13-L5 **薄壳**（2026-09-14）
 
-from .drops import generate_equip, generate_roster_equip
-from ..data import CRAFT_RECIPES, CRAFT_RECIPE_ALIASES, MATERIALS
-from ..core.index import resolve, display as _display
+实现正文（67 行：`craft_recipe_make` / `craft_recipe_search` / `craft_recipes_by_material`）
+已**逐字搬进内容包** `content/craft.py`。本文件只剩两件事：**加载包** · **模块别名**
+（`sys.modules[__name__] = 包内模块`）。
 
+⚠️ 本模块的三张表**故意没切包内域**（逐字搬时只换「宿主取件」，见包内头注的对照表）：
+`CRAFT_RECIPES`（426 条）在包内 `craft` 域里是**字典序**（导出契约 `sort_table`），
+宿主真源是**源插入序** —— 迭代序会外泄到行为（`craft_recipe_search` 子串兜底取首次命中、
+`craft_recipes_by_material` 的 `sort(key=lv)` 稳定排序并列项），实测 1325 条探针里
+**检索 41 条 / 材料联想 87 条输出不同**（`overnight/w1213_l5_craft_order.py`）→ 本线不切，
+登记缺口（B14 若不切回 / 不补 `seq` 注入，切点会改行为）。`MATERIALS` / `resolve` / `display`
+同理（无同名域 / 属 B13-L7 线在搬）。
 
-"""奥兰迪亚·余烬纪年数据层 - craft.py(v48：输入中文名 → resolve 转 ID 查表；装备名 display 转中文)"""
-def craft_recipe_make(name: str, affinity: str | None = None) -> dict | None:
-    """按配方锻造一件装备（装备等级 = 配方 lv，名字 = 配方名）
-    阶段八：名册配方（roster_id）走名册精确生成（词条 v2/需求/套装）；
-    affinity = 词条倾向（20 章 4.3：攻击/防御/元素/机动）"""
-    rec = CRAFT_RECIPES.get(name)
-    if not rec:
-        return None
-    if rec.get("roster_id"):
-        equip = generate_roster_equip(rec["roster_id"], affinity)
-    else:
-        # 兜底（无 roster_id 的旧配方）：随机生成 + 覆盖名
-        equip = generate_equip(rec["slot"], rec["lv"], rec["quality"],
-                               rec.get("weapon_type"))
-        equip["name"] = _display("recipes", name)  # v48：配方名转中文（背包/存档显示用中文名）
-    # v41：毕业套配方强制带套装归属（set 字段），生成时写入装备
-    if rec.get("set"):
-        equip["set"] = rec["set"]
-    # M10 P1-2 锻造→卖店印钞修复：记录锻造成本（材料价+锻造费），
-    # 卖店回收按此封顶（≤ 成本，杜绝 材料→锻造→卖店 金币永动机）
-    equip["craft_cost"] = sum(MATERIALS.get(m, {}).get("price", 0) * n for m, n in rec["mats"].items()) + rec.get("gold", 0)
-    return equip
+别名之后 `game.core.craft` 与 `content.craft` **是同一个模块对象**：
+`from .craft import craft_recipe_make, craft_recipe_search, craft_recipes_by_material`
+（`game/core/__init__.py:94-96`）与聚合层 `C.craft_recipe_make`（`tests/test_v60_craft_enhance_index.py` 等）
+取到的都是包内实现本体，名字/签名/语义零变化。
+"""
+import sys as _sys
 
-def craft_recipe_search(text: str):
-    """模糊查找配方：精确名 > 别名 > 包含匹配(v48：输入中文/ID 都 resolve)
-    M10 P2 空参防御：空串/纯空白返回 None（否则空串包含匹配恒 True 误中第一个配方）"""
-    text = (text or "").strip()
-    if not text:
-        return None
-    rid = resolve("recipes", text)
-    if rid in CRAFT_RECIPES:
-        return rid
-    for k, aliases in CRAFT_RECIPE_ALIASES.items():
-        if text in aliases:
-            return k
-    for k in CRAFT_RECIPES:
-        if text in _display("recipes", k):  # 中文名包含匹配
-            return k
-    return None
+from .. import bootstrap as _bootstrap
 
-def craft_recipes_by_material(text: str, max_show: int = 8):
-    """#24 材料关键词联想：按材料名模糊匹配，返回使用该材料的配方
-    返回 [(name, rec), ...]（按 lv 升序），无匹配返回 []
-    """
-    out = []
-    for name, rec in CRAFT_RECIPES.items():
-        hit = False
-        for m in rec["mats"]:
-            m_cn = _display("materials", m)
-            if text in m_cn or m_cn in text:
-                hit = True
-                break
-        # 图纸也可联想：搜「图纸」或蓝图名时命中需图纸的配方
-        if not hit and rec.get("blueprint"):
-            if text == "图纸" or text in rec["blueprint"] or rec["blueprint"] in text:
-                hit = True
-        if hit:
-            out.append((name, rec))
-    out.sort(key=lambda x: x[1]["lv"])
-    return out[:max_show]
+_bootstrap.package_apply()                                  # 本进程唯一包加载口（幂等）
+
+from content import craft as _impl                           # noqa: E402  包内实现（真源）
+
+_sys.modules[__name__] = _impl                               # 模块别名：壳与实现同体

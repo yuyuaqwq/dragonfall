@@ -1,61 +1,80 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年核心层 - class_sets.py（阶段八重写，2026-08-06）
+"""game/core/class_sets.py —— B13-L1 **薄壳**（2026-09-14）
 
-10 章五节名册套装注册：9 系列 5 件套（头盔/胸甲/护腿/鞋子/项链）。
-- bonus_2：2 件属性百分比（引擎 set_bonus_2 消费）
-- bonus_4_stats：4 件属性百分比（engine.set_bonus_2 叠加，>=4 件生效）
-- bonus_4.effect：4 件特效（战斗触发型，保留旧结构兼容）
-- bonus_5：5 件效果（v104 起战斗落地：battle 对敌增伤/元素增伤、battle_mech 抗寒）
-- 治疗加成（圣光套 2 件）由 battle 治疗段消费（bonus_2.heal 字段）
+真源（**唯一实现**）已搬进内容包：`framework/games/orlandia/content/class_sets.py`
+（搬的边界 / 正文改动面 / 缺口全写在那边的头注里）。本文件只剩三件事：
 
-⚠️ 旧世界毕业套（CLASS_SET_THEMES 6 职业×5 阶段）已废弃：不再动态合并进 CRAFT_RECIPES，
-锻造配方 = 10 章名册（craft.py）。旧 SETS 42 条仍残留在 data/sets.py（兼容旧档 set 字段，
-待确认后清理）；名册套装由 _assembly 调 _build_class_sets 注册/覆盖同名 key，不删除旧数据。
+  · **包加载口**：`bootstrap.package_apply()`（本进程唯一；幂等）
+  · **全量再导出**：名字集合与改造前**逐名相同** → `game/core/__init__.py` 的
+    `from .class_sets import …`、别线模块的 `from .class_sets import …`、测试的模块属性访问**零改动**
+  · `__getattr__` / `__dir__` 兜底：未列名也转发包内实现
 
-v181-P2A：套装数值表 _SERIES_SET_BONUS 已原值下沉 game/data/set_bonus_data.py
-（SERIES_SET_BONUS，纯搬移零逻辑）——本模块保留装配器 _build_class_sets（注册进
-SETS 的装配行为是逻辑，留在 core），经别名 _SERIES_SET_BONUS 消费数据表。
+★ 一条**必须保留的行为细节**（不是巧合，是测试依赖）：`random` 之类的模块对象再导出后仍是
+  **同一只 stdlib 模块对象**（包内 `import random` 的那只）——
+  `tests/test_v136_gem_drops.py:67` 用 `mock.patch.object(game.core.gems.random, "random", …)`
+  打宿主模块属性来钉随机序列，同一对象才让打点照旧命中包内实现。
+
+改造前 61 行 → 现在 80 行（`SETS` 再导出的就是宿主 `C.SETS` 那只字典（装配器写入语义不变；另见 `_build_class_sets` 的本棵树绑定））。
 """
+import sys                                             # noqa: F401（class_sets 的 _tree_mod 用）
 
-from ..data import SERIES_SETS, SETS
-from ..data.set_bonus_data import SERIES_SET_BONUS
-from ..core.index import pinyin_id
+from .. import bootstrap as _bootstrap                  # noqa: F401  本进程唯一包加载口（幂等）
 
-# v181-P2A：数据表已下沉 data/set_bonus_data.py——保留原名别名，装配器零改动
-_SERIES_SET_BONUS = SERIES_SET_BONUS
+_bootstrap.package_apply()
+
+from content import class_sets as _IMPL                      # noqa: E402  包内唯一实现
+
+
+def _re_export():
+    """把包内实现的名字（**同一个对象**：函数 / 字典 / 类 / 模块）挂到本模块。"""
+    for _n in [n for n in dir(_IMPL) if not n.startswith("__")]:
+        globals()[_n] = getattr(_IMPL, _n)
+
+
+_re_export()
+del _re_export
+
+
+# ★ `_build_class_sets` 是**写入型**装配器：同一进程并存 `game.*` 与 `data.plugins.dragonfall.game.*`
+#   **两棵模块树**（plan §8-R2），而包内宿主句柄是**全局**名字回退（data.plugins 优先）——
+#   串树 → 名册套装被写进**另一棵树**的 `SETS`，本棵树的 `C.SETS` 永远缺这 38 个套装
+#   （实测 tests/test_v136_phase6_equip.py 职业折扣 KeyError: 'atk'）。所以在本壳的调用点
+#   **先绑本棵树的 `data`**（`_tree_mod`，见下），再交给包内实现。
 
 
 def _build_class_sets():
-    """注册 10 章名册套装到 SETS(幂等：key 唯一，重复运行覆盖同名)。"""
-    for series, set_name in SERIES_SETS.items():
-        b = _SERIES_SET_BONUS[series]
-        set_id = f"set_{pinyin_id(set_name)}"
-        entry = {
-            "quality": b["quality"],
-            "icon": b["icon"],
-            "bonus_2": dict(b["bonus_2"]),
-            "name": set_name,
-        }
-        # v136 Phase6：职业套装归属（本职业 100% / 非本职业 60% 职业折扣）
-        if b.get("class"):
-            entry["class"] = b["class"]
-        # v181-A1：圣光套任意件数持有加成（piece_heal_power）随套装注册（battle 治疗段泛读）
-        if b.get("piece_heal_power") is not None:
-            entry["piece_heal_power"] = b["piece_heal_power"]
-        if b.get("bonus_4_stats"):
-            entry["bonus_4_stats"] = dict(b["bonus_4_stats"])
-        if b.get("bonus_4"):
-            entry["bonus_4"] = dict(b["bonus_4"])
-        if b.get("bonus_3"):
-            entry["bonus_3"] = dict(b["bonus_3"])
-        if b.get("bonus_3_stats"):
-            entry["bonus_3_stats"] = dict(b["bonus_3_stats"])
-        if b.get("bonus_5"):
-            entry["bonus_5"] = dict(b["bonus_5"])
-        if b.get("bonus_5_ctrl_immune"):
-            # v180-B ②：5 件套控制免疫（霜狼抗寒等）随套装注册数据化
-            entry["bonus_5_ctrl_immune"] = list(b["bonus_5_ctrl_immune"])
-        if b.get("bonus_5_cond"):
-            # v126 数值下沉：5 件战斗条件（enemy_contains/player_hp_below/dmg_mult/tag）随套装注册
-            entry["bonus_5_cond"] = dict(b["bonus_5_cond"])
-        SETS[set_id] = entry
+    """委托包内 `content/class_sets._build_class_sets`（先绑本棵树的数据模块，见 `_tree_mod`）。"""
+    _m = _tree_mod("data")
+    if _m is not None:
+        _IMPL.bind_host(data=_m)
+    return _IMPL._build_class_sets()
+
+# 改造前**从 `..data` 导入**、因而挂在本模块上的表名（`from ..data import X` 的 X）——
+# 常量表已随实现搬进包内，这些名字在本壳上用「惰性回退」补齐（读得到、写不到壳上）：
+_LEGACY_DATA_NAMES = frozenset(["SERIES_SETS", "SETS", "SERIES_SET_BONUS"])
+# 改造前**从别处宿主模块导入**的模块级名字（`from ..<mod> import X` 的 X）→ (宿主模块, 属性)
+_LEGACY_HOST_NAMES = {"_SERIES_SET_BONUS": ("data.set_bonus_data", "SERIES_SET_BONUS")}
+
+
+def _tree_mod(name):
+    """**本棵树**的宿主子模块（只看 `sys.modules`，**绝不主动 import** ——
+    防 `game.data → _assembly → core.<mod> → game.data` 的 EAGER 环）。"""
+    root = (__package__ or "").rsplit(".core", 1)[0]
+    return sys.modules.get("%s.%s" % (root, name)) if name else sys.modules.get(root)
+
+
+def __getattr__(name):
+    """未列名兜底：先转发包内实现；再回退到宿主 `data` 的同名表（= 改造前的导入名）。"""
+    try:
+        return getattr(_IMPL, name)
+    except AttributeError:
+        if name in _LEGACY_DATA_NAMES:
+            return getattr(_tree_mod("data") or _IMPL._host_module("data"), name)
+        if name in _LEGACY_HOST_NAMES:
+            _m, _a = _LEGACY_HOST_NAMES[name]
+            return getattr(_IMPL._host_module(_m), _a)
+        raise
+
+
+def __dir__():
+    return sorted(set(globals()) | set(dir(_IMPL)))

@@ -1,29 +1,26 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年 核心层 - encounter.py（v141 审计：副本遇怪概率配置化）
+"""奥兰迪亚·余烬纪年 核心层 - encounter.py —— **B13-L2 薄壳**（2026-09-14）
 
-副本/地图遇怪概率统一入口：读数据表 dungeon.discovery_agro 配置（数据表驱动）。
+真源（**唯一实现**）= 内容包 `content/encounter.py`（35 行，按本文件的 29 行**逐字原样**搬入，
+零宿主取件、零改动）。本文件现在只剩两件事：
 
-与野外等级差模型（world._travel_ambush）互为设计差异——副本开本已校验等级，
-固定高遇怪是设计意图，勿合并概率模型（详见 docstring）。
+    加载包（`package_apply()`，幂等）· 把 `game.core.encounter` 这个名字**指向**包内那份实现
+
+为什么是「指向」而不是「从包内再导出 3 个名字」
+------------------------------------------------
+真源顶层名（3 个：`Optional` / `annotations` / `encounter_chance`）与包内逐名相同；
+唯一消费点 `game/commands/instance.py:802` 是函数内
+`from ..core.encounter import encounter_chance as _enc_chance`（副本遇怪概率，数据表驱动）。
+指向后 `game.core.encounter is content.encounter`：名字集合与身份逐名相同。
+
+薄壳零实现：本文件不含任何逻辑。消费者清单与证据见 `overnight/W-B13-L2-wild-worlds.md`。
 """
-from __future__ import annotations
+import sys as _sys
 
-from typing import Optional
+from .. import bootstrap as _bootstrap                       # noqa: E402
 
+_bootstrap.package_apply()                                   # 本进程唯一包加载口（幂等；失败抛）
 
-def encounter_chance(map_dict: Optional[dict] = None, default: float = 0.85) -> float:
-    """副本/地图遇怪概率：读 dungeon.discovery_agro 配置（数据表驱动）。
+from content import encounter as _impl                       # noqa: E402
 
-    数据表 22 个副本 maps 已显式配置 discovery_agro: 0.85（保留），
-    命令层双份硬编码默认值统一收口到本函数——改配置即改遇怪，不单独写代码。
-
-    与野外等级差模型（world._travel_ambush）互为设计差异：副本开本已校验等级，
-    固定高遇怪是设计意图，勿合并概率模型。
-
-    无配置 / 非法值（非数字字符串等）回退默认 default（0.85）。
-    """
-    _dun = (map_dict or {}).get("dungeon") or {}
-    try:
-        return float(_dun.get("discovery_agro", default))
-    except (TypeError, ValueError):
-        return default
+_sys.modules[__name__] = _impl

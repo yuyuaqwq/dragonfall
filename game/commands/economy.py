@@ -10,6 +10,11 @@
 
 私有助手（`_prof_wait_*` / `_settle_*` / `_shop_limit_*` …）由 `EconomyImpl` 继承提供，
 宿主其它模块与本命令内部的 `self._xxx(...)` 调用点零变化。
+
+B12-L3 收口（2026-09-14）：两个宿主面 `_shop_svc` / `_prof_svc` 改注入**宿主薄壳模块**
+（`game/services/{shop,profession}.py`），回到重构前的模块身份（此前注入的是包内模块）。
+两份壳已逐名 re-export 包内实现（profession 壳含私表 `_GATHER_COND_CHECKERS`），故行为
+逐字节不变；economy 因此不再直连别线正在搬的包内模块。证据：`overnight/W-B12-L3-economy-gm.md`。
 """
 
 from ._declared import declared
@@ -26,7 +31,8 @@ from ..core.stats import ARMOR_FAMILY_ALIAS, equip_value
 from ..core.title_conds import TitleCtx, CONDITIONS, check_pro_title
 from ..data.equipment import QUALITY
 from ..services import crafting as _craft_svc
-from ..services import profession as _prof_svc_host
+from ..services import profession as _prof_svc  # B12-L3 收口：注入宿主薄壳（原注入包内模块）
+from ..services import shop as _shop_svc        # B12-L3 收口：交易区注入宿主薄壳（同上）
 from ..services.battle_bridge import sync_player_from_actor
 from ..store.inventory import _possessed_key
 from .battle_item_use import can_translate, make_override
@@ -69,14 +75,12 @@ _EH.bind_host(
     sync_player_from_actor=sync_player_from_actor,
 )
 
-from content import shop as _shop_svc          # noqa: E402  交易区实现（包内）
-_EH.bind_host(_shop_svc=_shop_svc)              # ② 交易区（包内模块，故在 import 后补绑）
-
-# ③ 副业：注入**包内** profession 真源。宿主壳 `game/services/profession.py`（B9-L4）只
-#    re-export 公开名，私表 `_GATHER_COND_CHECKERS` 不在壳上（原 economy.py:599 读它）→
-#    按真源注入包内模块；L4 壳的宿主注入/模块级副作用由上面第 26 行 import 触发（幂等）。
-from content import profession as _prof_svc     # noqa: E402
-_EH.bind_host(_prof_svc=_prof_svc)
+# ② 交易区 / ③ 副业：注入**宿主薄壳**（`game/services/shop.py` / `game/services/profession.py`）
+#    —— 与重构前同模块身份（重构前 economy 就是 `from ..services import shop/profession`）：
+#    两份壳已逐名 re-export 包内实现（profession 壳含私表 `_GATHER_COND_CHECKERS`）→ 注入壳
+#    等价于注入实现，且 economy 不再直连别线正在搬的包内模块（BRIEF §3.5 跨线依赖）。
+#    绑定必须早于下行 `import content.economy_cmds`（后者模块级即读宿主面）。
+_EH.bind_host(_shop_svc=_shop_svc, _prof_svc=_prof_svc)
 
 from content import economy_cmds as _E          # noqa: E402  （模块级即读宿主面）
 

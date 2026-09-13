@@ -1,143 +1,35 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年 core 层 — timed_events.py（v127.5 通用倒计时事件引擎）
+"""奥兰迪亚·余烬纪年 核心层 - timed_events.py —— **B13-L2 薄壳**（2026-09-14）
 
-把一切"限时存在 / 限时有效 / 到时触发"的玩家状态统一挂到懒计时引擎，
-由任意玩家指令（_maint_gate 挂 refresh）惰性刷新，无后台定时器。
+真源（**唯一实现**）= 内容包 `content/timed_events.py`（210 行，逐字搬自本文件的 143 行；
+搬运改动面只有「宿主取件」一类：3 处函数内 `from .. import db` → 模块级 `db` 替身，
+逐行见包内头注）。本文件现在只剩两件事：
 
-设计铁律：
-- 数据驱动：新倒计时事件类型 = register_timed() + 各自读写封装，引擎零改动
-- 懒计时：不跑定时器；读前 get_timed 校验 + 任意指令 refresh 物理清理
-- 一致性：显示出口 + 查找出口都必须走 get_timed → 过期即不可见/不可找，
-  不存在"过期还看得见"的窗口
-- 存储：复用 event_state KV（一个玩家一个 key，内部 dict 多事件互不覆盖）
-  key = timed_events:{qq_id}，value = JSON {"<type>:<sub>": {"type","data","expire"}}
-- 纯核心：不碰 DB 以外 IO；延迟 import db 防 data/_assembly 循环
+    加载包（`package_apply()`，幂等）· 把 `game.core.timed_events` 这个名字**指向**包内那份实现
 
-=== 用法示例 ===
+为什么是「指向」而不是「从包内再导出 13 个名字」
+------------------------------------------------
+真源顶层名（13 个，含模块级状态 `_timers`（`LazyTimers` 实例，注册表 + 惰性过期缓存）
+与 `_PLAYER_KEY` / `_load` / `_save` / `_remove_whole`）与包内逐名相同；消费点：
 
-# 1. 注册事件类型（模块加载时一次）
-register_timed("wild_npc", duration_sec=3600)   # 默认 60 分钟，可按 NPC 覆盖
+    game/core/__init__.py:83        from .timed_events import (6 个公开名) → C.* 聚合面
+    game/commands/base.py:245       from ..core import timed_events as _te → _te.refresh_timed
+    game/services/profession.py:38  同上（挂机倒计时）
+    tests/test_v1275_timed_engine.py / test_v1275_limited_wild.py / test_v1275_prof_wait(_expire)
+    game/core/wild.py:23            register_timed / set_timed（本线同名模块；包内 wild 已直取包内）
 
-# 2. 挂载/刷新一个事件（偶遇命中时）
-expire = set_timed(group_id, qq_id, key="wild:w_old_trader",
-                   type_key="wild_npc", data={"map": map_id})
+指向后 `game.core.timed_events is content.timed_events` ⇒ `_timers`（事件类型注册表）全局
+**只有一份**：`wild.py` 注册的 `wild_npc` 类型与命令层 `refresh_timed` 看到的是同一个实例
+（若各自持一份副本，过期回调会静默丢失）。名字集合与身份逐名相同。
 
-# 3. 读取（显示/查找出口）——过期自动惰性清除返回 None
-ev = get_timed(group_id, qq_id, key="wild:w_old_trader")
-if ev:  # {"type","data","expire","remain"}
-    ...
-
-# 4. 删除（主动结束事件）
-remove_timed(group_id, qq_id, key="wild:w_old_trader")
-
-# 5. 强制刷新（挂 _maint_gate，任意玩家指令触发）
-refresh_timed(group_id, qq_id)
-
-# 6. 过期回调注册（可选）：on_expire(type_key)(group_id, qq_id, data) -> None
-#    引擎在过期时调用，用于清状态（如对话会话作废）
-
-【骨架归属（2026-09-11，M3）】引擎的**机制**（类型注册表 / 惰性过期 /
-「get / list / refresh 三条路径都触发 on_expire」）来自框架
-`saintess_engine.clock.LazyTimers`；本文件只留**本游戏的存储适配与对外 API**：
-存储 key 格式、event_state 三件套、group_id 兼容签名。
+薄壳零实现：本文件不含任何逻辑。消费者清单与证据见 `overnight/W-B13-L2-wild-worlds.md`。
 """
-import json
+import sys as _sys
 
-from saintess_engine.clock import LazyTimers
+from .. import bootstrap as _bootstrap                       # noqa: E402
 
-# 玩家事件存储 key 模板（按玩家全局，跨群共享——倒计时只属于玩家本人）
-_PLAYER_KEY = "timed_events_{qq_id}"
+_bootstrap.package_apply()                                   # 本进程唯一包加载口（幂等；失败抛）
 
+from content import timed_events as _impl                    # noqa: E402
 
-# ---------------------------------------------------------------- 存储适配
-# 框架的 owner = 本游戏的 (group_id, qq_id)。用元组而非单值，是因为 on_expire
-# 回调签名带 group_id（v127.5 起，如 wild_npc 过期要 db.clear_talk_state(group_id)）。
-def _load(owner) -> dict:
-    from .. import db  # noqa: E402（延迟导入防 data/_assembly 循环）
-    raw = db.get_event_state(_PLAYER_KEY.format(qq_id=owner[1]))
-    if not raw:
-        return {}
-    try:
-        d = json.loads(raw)
-        return d if isinstance(d, dict) else {}
-    except (ValueError, TypeError):
-        return {}
-
-
-def _save(owner, events: dict) -> None:
-    from .. import db  # noqa: E402
-    db.set_event_state(_PLAYER_KEY.format(qq_id=owner[1]),
-                       json.dumps(events, ensure_ascii=False))
-
-
-def _remove_whole(owner) -> None:
-    from .. import db  # noqa: E402
-    db.delete_event_state(_PLAYER_KEY.format(qq_id=owner[1]))
-
-
-_timers = LazyTimers(load=_load, save=_save, remove=_remove_whole)
-
-
-# ------------------------------------------------------------------ 对外 API
-def register_timed(type_key: str, duration_sec: int | None = None,
-                   on_expire=None) -> None:
-    """注册/覆盖一个倒计时事件类型。duration_sec 默认秒数（set_timed 未传时用）。
-
-    `on_expire(group_id, qq_id, data) -> None`：该类型的实例过期被清理时调用
-    （get / list / refresh 三条路径都会走到，读路径不得绕过）。
-    """
-    if on_expire is None:
-        _timers.register(type_key, duration_sec=duration_sec)
-        return
-
-    def _adapted(owner, data):
-        group_id, qq_id = owner
-        return on_expire(group_id, qq_id, data)
-
-    _timers.register(type_key, duration_sec=duration_sec, on_expire=_adapted)
-
-
-def set_timed(group_id: str, qq_id: str, key: str, type_key: str,
-              data: dict | None = None,
-              duration_sec: int | None = None) -> int:
-    """挂载/刷新一个倒计时事件，返回 expire 时间戳。
-
-    - 同 key 重复挂载 = 顶替刷新（新 expire）
-    - 默认时长取类型注册值；未注册类型默认 60s（防御，正常都会 register）
-    """
-    return _timers.set((group_id, qq_id), key, type_key,
-                       data=data, duration_sec=duration_sec)
-
-
-def get_timed(group_id: str, qq_id: str, key: str) -> dict | None:
-    """读取单个事件：未过期返回 {type,data,expire,remain}；过期惰性清除返回 None。
-
-    所有显示/查找出口都必须走这里 → 过期即不可见（惰性正确性核心）。
-    过期清除前同样触发 on_expire（读路径不得绕过数据保全回调）。
-    """
-    return _timers.get((group_id, qq_id), key)
-
-
-def remove_timed(group_id: str, qq_id: str, key: str) -> bool:
-    """主动删除一个事件（返回是否删掉了）"""
-    return _timers.remove((group_id, qq_id), key)
-
-
-def list_timed(group_id: str, qq_id: str, type_key: str | None = None,
-               data_match: dict | None = None) -> list:
-    """列出未过期事件（可选按 type / data 过滤），顺带惰性清除过期项。
-
-    data_match：data 子集匹配（如 {"map": "oak_plain"} → 只留在该图的事件）
-    返回 [{"key","type","data","expire","remain"}, ...]
-    """
-    return _timers.items((group_id, qq_id), type_key=type_key, data_match=data_match)
-
-
-def refresh_timed(group_id: str, qq_id: str) -> int:
-    """惰性全量刷新：扫该玩家所有事件，过期的执行 on_expire 回调 + 物理删除。
-
-    返回清理的过期事件数（供测试断言）。
-    - on_expire(type_key)(group_id, qq_id, data)：清理副作用（如会话作废）
-    - 无回调的过期事件仅物理删除（静默）
-    """
-    return _timers.refresh((group_id, qq_id))
+_sys.modules[__name__] = _impl
