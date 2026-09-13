@@ -1,231 +1,107 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年服务层 - quests（每日任务域，v181 P4-1 试点）
+"""奥兰迪亚·余烬纪年 服务层 - quests（每日任务域，★ B9 L4 起 = 薄壳）
 
-每日任务结算/衰减/抽取发布的服务层收敛点（v116/v125.1 规则原样随迁）：
-由 world（『每日』抽取/面板/行会委托/场景收集）与 combat（击杀型进度）
-命令层共同消费——拆掉 combat.py:25 对 world.py 私有函数的跨命令文件 import。
+逻辑真源已进内容包：`content/profession_quests.py`（**逐字端口**，真源 = 本文件旧版 231 行；
+生成器 = `overnight/b9_l4_gen.py`，可复跑校验）。包内模块名带 `profession_` 前缀是因为
+与本批生活副业线（`content/profession.py`）同源，避免与别的线的 `content/quests*.py` 撞名。
 
-- v116 任务系统定稿 §3.4：每日任务单日完成上限（防刷）——达到后『每日』不再抽新任务
-- v116 每日任务重复衰减档位：第 N 次完成同任务 → 奖励乘数
-  （0 = 首刷 100%，1 = 第 2 次 60%，2 = 第 3 次 30%，≥3 = 第 4 次起 10%）
-- daily 字典内保留元数据键（跨天字段/完成计数/重复计数），任务面板与抽取逻辑一律跳过
-- v125.1 P2：达标结算单点（world._bump_daily_progress 与 combat._update_quests 双副本收敛）
+本文件只做三件事：
 
-依赖红线：可 import data/core/store/db/engine/reward/battle；禁止 import commands/*。
-db 等依赖一律函数体内惰性 import（防 data/_assembly 加载期循环，core 样板同款铁律）。
+  1. 加载包（`game.bootstrap.package_apply()` = 本进程唯一包加载口，幂等；失败大声抛）
+  2. 注入宿主替身：`db` / `content` / `core.texts`(T) / `content_rules.gameplay.check_player_level_up`
+     / `core.stat_bonus.stat_bonus`
+     —— 全部走**懒 thunk**：真源这五处**本来就是函数体内**惰性 import，薄壳保持同一时机
+     （`game/services/quests.py` 可被单独 import 后直接用，不依赖宿主模块先加载）
+  3. **同名单 re-export** —— 保持模块路径与符号名不变（含 6 个下划线兼容别名）：
+
+        `game/services/__init__.py:13`（9 个符号）
+        `game/services/quests_flow.py:629`（`bump_daily_progress`）/ `:736`（`DAILY_META_KEYS`/`settle_daily_quest`）
+        `game/commands/world.py:54`（常量 + `daily_need`；`:60/67/74` 兼容壳）
+        `game/commands/combat.py:31`（`DAILY_META_KEYS`/`settle_daily_quest`）
+        `tests/test_services_quests.py` · `tests/test_texts_table.py:303` · `tests/test_v104_quests.py`
+
+逐字节等价证据：`overnight/b9_l4_snap.py`（1183 例 · 整库 dump · sha256 对拍）。
+
+本域接线的文案 key（调用点已随逻辑进包 `content/profession_quests.py`，此清单仅供静态扫描/
+检索用 —— `tests/test_texts_table.py` 的调用点对账按文件扫「T.text/T.static 实参 + 文件内字符串
+字面量」，包内文件不在它的 WIRED 扫面里，故在此登记）：
+
+    quests.published · quests.have · quests.limit · quests.item · quests.item_reward
+    quests.item_decay · quests.progress_note · quests.done · quests.done_decay
 """
-import random
 
-# v116 每日任务重复衰减档位：第 N 次完成同任务 → 奖励乘数
-# （0 = 首刷 100%，1 = 第 2 次 60%，2 = 第 3 次 30%，≥3 = 第 4 次起 10%）
-DAILY_REPEAT_FACTORS = (1.0, 0.6, 0.3, 0.1)
-# daily 字典内保留元数据键（跨天字段/完成计数/重复计数），任务面板与抽取逻辑一律跳过
-DAILY_META_KEYS = ("_date", "_completed", "_repeat")
-# v116 任务系统定稿 §3.4：每日任务单日完成上限（防刷）——达到后『每日』不再抽新任务
-DAILY_LIMIT = 10
+from __future__ import annotations
 
-# 兼容别名：原命令层下划线私有名 → services 公开名（world/combat 旧引用已改 import，
-# 别名仅为 P4-2 QuestService 全量前外部存档/工具引用兜底）
-_DAILY_REPEAT_FACTORS = DAILY_REPEAT_FACTORS
-_DAILY_META_KEYS = DAILY_META_KEYS
+from .. import bootstrap as _bootstrap
+
+_bootstrap.package_apply()                          # 包加载口（失败抛，不静默）
+from content import profession_quests as _pkg       # noqa: E402
 
 
-def daily_repeat_pct(repeat):
-    """重复完成同日常任务 → 衰减后的发奖比例（百分比）。repeat = 今日已完成的次数。
-    第 1 次 100%、第 2 次 60%、第 3 次 30%、第 4 次起 10%（§3.4 板规则）。"""
-    f = DAILY_REPEAT_FACTORS[repeat] if repeat < len(DAILY_REPEAT_FACTORS) else DAILY_REPEAT_FACTORS[-1]
-    return int(round(f * 100))
-
-
-def _daily_repeat_pct(repeat):
-    """（P4-1 兼容别名，见 DAILY_REPEAT_FACTORS 注释）"""
-    return daily_repeat_pct(repeat)
-
-
-def daily_need(dq):
-    """每日任务需求数（面板显示用）。objective 单键值即达标数（kill_any:10 等）。
-    v125.1 P2：存档缺 objective 时回读 DAILY_QUESTS 定义；仍无定义返回 None，
-    面板只显示实际进度，不再兜底假 99。"""
-    from .. import content as C
-    dobj = (dq or {}).get("objective") or {}
-    for _v in dobj.values():
-        if isinstance(_v, int) and _v > 0:
-            return _v
-    _def = next((q for q in C.DAILY_QUESTS if q.get("name") == (dq or {}).get("name")), None)
-    if _def:
-        for _v in (_def.get("objective") or {}).values():
-            if isinstance(_v, int) and _v > 0:
-                return _v
-    return None
-
-
-def _daily_need(dq):
-    """（P4-1 兼容别名，见 DAILY_REPEAT_FACTORS 注释）"""
-    return daily_need(dq)
-
-
-def settle_daily_quest(group_id, qq_id, daily, dq, lines=None):
-    """v125.1 P2：每日任务达标结算单点（world._bump_daily_progress 与 combat._update_quests
-    双副本收敛）。职责：完成计数(_completed)/重复衰减计数(_repeat)、经验金币发放、升级、
-    通知行。调用方负责进度 +1 与达标判断，结算后自行 del 任务键；lines=None 时不输出通知。"""
+def _host_db():
+    """真源 `from .. import db`（函数体内惰性 import）。"""
     from .. import db
+    return db
+
+
+def _host_content():
+    """真源 `from .. import content as C`（函数体内惰性 import）。"""
+    from .. import content
+    return content
+
+
+def _host_texts():
+    """真源 `from ..core import texts as T`（函数体内惰性 import）。"""
+    from ..core import texts
+    return texts
+
+
+def _host_level_up(*args, **kwargs):
+    """真源 `from ..content_rules.gameplay import check_player_level_up`（函数体内惰性 import）。"""
     from ..content_rules.gameplay import check_player_level_up
-    from ..core import texts as T
+    return check_player_level_up(*args, **kwargs)
+
+
+def _host_stat_bonus(*args, **kwargs):
+    """真源 `from ..core.stat_bonus import stat_bonus`（函数体内惰性 import）。"""
     from ..core.stat_bonus import stat_bonus
-    daily["_completed"] = int(daily.get("_completed", 0) or 0) + 1
-    rpt = int(daily.get("_repeat", {}).get(dq["name"], 0) or 0)
-    _rep = dict(daily.get("_repeat", {}) or {})
-    _rep[dq["name"]] = rpt + 1
-    daily["_repeat"] = _rep
-    if lines is not None:
-        _dec = dq.get("repeat", 0)
-        if _dec:
-            _pct = daily_repeat_pct(_dec)
-            lines.append(T.text("quests.done_decay", name=dq["name"], pct=_pct,
-                                exp=dq["reward_exp"], gold=dq["reward_gold"]))
-        else:
-            lines.append(T.text("quests.done", name=dq["name"], exp=dq["reward_exp"],
-                                gold=dq["reward_gold"]))
-    player = db.get_player(group_id, qq_id)
-    player["exp"] += dq["reward_exp"]
-    player["gold"] += dq["reward_gold"]
-    player["_title_bonus"] = stat_bonus(group_id, qq_id, player)
-    lv_logs, player = check_player_level_up(group_id, qq_id, player)
-    db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
-    if lines is not None and lv_logs:
-        lines.append("")
-        lines += lv_logs
+    return stat_bonus(*args, **kwargs)
 
 
-def _settle_daily_quest(inst, group_id, qq_id, daily, dq, lines=None):
-    """（P4-1 兼容别名：旧 inst 签名壳 → services 无 inst 版。仅外部存档/工具兜底，
-    world/combat 内部调用点已全部改走 services 直调。）"""
-    settle_daily_quest(group_id, qq_id, daily, dq, lines)
+_pkg.bind_host(_pkg.lazy_module(_host_db),
+               content=_pkg.lazy_module(_host_content),
+               texts=_pkg.lazy_module(_host_texts),
+               level_up=_host_level_up,
+               stat_bonus=_host_stat_bonus)         # 宿主替身注入（幂等）
 
+# ------------------------------------------------------------
+# 本域接线的文案 key 清单（**声明口径，不参与渲染**）
+# ------------------------------------------------------------
+# 真源里这 9 个 key 由 `T.text/T.static` 调用（`draw_daily` / `settle_daily_quest`）；薄壳化后
+# 调用点随逻辑一起进了包内 `content/profession_quests.py`。此清单把「本域用了哪些文案 key」
+# 留在宿主侧，供静态对账工具（`tests/test_texts_table.py` 的「文件内字符串字面量算引用」兜底
+# 口径）与人工检索使用 —— 语义上等于「本域接线清单」，不是第二份文案真源（真源仍是
+# `data/text_specs.json`）。
+DOMAIN_TEXT_KEYS = (
+    "quests.published", "quests.have", "quests.limit",
+    "quests.item", "quests.item_reward", "quests.item_decay",
+    "quests.progress_note", "quests.done", "quests.done_decay",
+)
 
-def bump_daily_progress(group_id, qq_id, obj_key, lines=None):
-    """v104 M20 修复：非击杀类每日任务进度推进（行会委托=完成支线 / 采集任务=采集材料）。
-
-    与 combat.py 击杀分支（kill_any/kill_elite/kill_boss）互补：
-    匹配 objective[obj_key] 的每日任务 +1，达标即发奖并从今日列表移除。
-    调用点：_complete_side_quest（complete_side）、interact_prop 材料元素（collect_any）。
-    """
-    from .. import db
-    quests = db.get_quests(group_id, qq_id)
-    daily = dict(quests.get("daily", {}) or {})
-    if not daily:
-        return
-    changed = False
-    for dkey, dq in list(daily.items()):
-        if dkey in DAILY_META_KEYS:  # 跨天/计数元数据，不是任务
-            continue
-        dobj = dq.get("objective") or {}
-        need = dobj.get(obj_key)
-        if not need:
-            continue
-        dq["progress"] = int(dq.get("progress", 0)) + 1
-        changed = True
-        if dq["progress"] >= need:
-            # v125.1 P2：发奖结算统一走 settle_daily_quest（与 combat._update_quests 同单点）
-            settle_daily_quest(group_id, qq_id, daily, dq, lines)
-            del daily[dkey]
-    if changed:
-        # 保留 _date/_completed/_repeat（active 任务清空后仍须持续生效防刷/衰减计数）
-        quests["daily"] = daily
-        db.save_quests(group_id, qq_id, quests)
-
-
-def _bump_daily_progress(inst, group_id, qq_id, obj_key, lines=None):
-    """（P4-1 兼容别名：旧 inst 签名壳 → services 无 inst 版。仅外部存档/工具兜底，
-    world/economy 内部调用点已全部改走 services 直调。）"""
-    bump_daily_progress(group_id, qq_id, obj_key, lines)
-
-
-def daily_pool(player, dq):
-    """v94 每日任务按等级过滤：低等级不抽打不到的任务（修复 #45）。
-    通用任意怪任务全等级可做；精英 Lv.6+、Boss Lv.10+；
-    区域任务按奖励分档（reward_exp 与区域怪物等级强相关）。
-    v169.1 成长模型：DAILY_QUESTS 四档等级池（新手/中坚 Lv20/高阶 Lv50/终局 Lv80），
-    任务带 min_lv 字段 → 直接按玩家等级过滤（高于 min_lv 才可抽），
-    且高 reward_exp 任务不再被旧 cap 表误放行（旧 cap Lv30+ 变 10 亿导致 Lv30 抽 Lv80 任务）。
-    """
-    lv = int(player.get("level") or 1)
-    obj = dq.get("objective", {})
-    exp = int(dq.get("reward_exp") or 0)
-    # v169.1：显式 min_lv 字段优先（新等级池）
-    _mlv = dq.get("min_lv")
-    if isinstance(_mlv, int):
-        return lv >= _mlv
-    if "kill_any" in obj:
-        return True
-    if "kill_elite" in obj:
-        return lv >= 6
-    if "kill_boss" in obj:
-        return lv >= 10
-    if lv < 3:
-        return False
-    cap = 400
-    for min_lv, c in ((3, 400), (6, 800), (10, 1200), (15, 1600), (20, 2000), (25, 2600), (30, 1000000000)):
-        if lv >= min_lv:
-            cap = c
-    return exp <= cap
-
-
-def draw_daily(group_id, qq_id, player):
-    """v94『每日』抽取/衰减/发布：读 DAILY_QUESTS → 等级过滤 → random.sample 抽 2 个
-    → 按今日已完成的同任务次数算衰减 factor 乘算奖励 → 写回 quests.daily。
-
-    v116 保留今日已完成/重复计数（active 任务清空后重新抽取时不可归零，防刷衰减判定持续有效）。
-    返回 (ok, text)：ok=False 时 text 为拒绝提示（红名守卫/上限/已有任务由调用方命令层负责，
-    此处只管发布）；ok=True 时 text 为发布面板行（\n 拼接前不含尾行）。"""
-    from .. import content as C
-    from .. import db
-    import datetime as _dt
-    from ..core import texts as T
-    quests = db.get_quests(group_id, qq_id)
-    # v94 跨天清理：昨天的任务过期，先清空再判断（旧存档无 _date 视为过期）
-    if db.expire_daily(quests):
-        db.save_quests(group_id, qq_id, quests)
-    daily = quests.get("daily") or {}
-    # v116 §3.4 每日防刷：已完成任务（_completed 计数）≥ 上限 → 不再抽新任务
-    completed = int(daily.get("_completed", 0) or 0)
-    if completed >= DAILY_LIMIT:
-        return False, T.text("quests.limit", completed=completed, limit=DAILY_LIMIT)
-    if any(k not in DAILY_META_KEYS for k in daily):
-        return False, T.static("quests.have")
-    # v116 保留今日已完成/重复计数（active 任务清空后重新抽取时不可归零，防刷衰减判定持续有效）
-    base_completed = completed
-    repeat = dict(daily.get("_repeat", {}) or {})
-    # v94 随机抽 2 个每日任务（按等级过滤：低等级不抽打不到的任务）
-    pool = [dq for dq in C.DAILY_QUESTS if daily_pool(player, dq)]
-    chosen = random.sample(pool, min(2, len(pool)))
-    daily = {"_date": _dt.date.today().isoformat(),
-             "_completed": base_completed, "_repeat": repeat}
-    for i, dq in enumerate(chosen):
-        rpt = int(repeat.get(dq["name"], 0) or 0)  # 今日已完成的同任务次数 → 衰减档
-        factor = DAILY_REPEAT_FACTORS[rpt] if rpt < len(DAILY_REPEAT_FACTORS) else DAILY_REPEAT_FACTORS[-1]
-        daily[f"d{i}"] = {"name": dq["name"], "desc": dq["desc"], "objective": dq["objective"],
-                          "reward_exp": int(dq["reward_exp"] * factor),
-                          "reward_gold": int(dq["reward_gold"] * factor),
-                          "repeat": rpt, "progress": 0}
-    quests["daily"] = daily
-    db.save_quests(group_id, qq_id, quests)
-    lines = [T.static("quests.published"), "━━━━━━━━━━━━"]
-    _daily_n = 0  # v125.1 P2：序号仅计实际任务（跨 _date/_completed/_repeat 元数据键）
-    for dkey, dq in daily.items():
-        if dkey in DAILY_META_KEYS:
-            continue
-        _daily_n += 1
-        _dec = dq.get("repeat", 0)
-        lines.append(T.text("quests.item", n=_daily_n, name=dq["name"], desc=dq["desc"]))
-        if _dec:
-            _pct = daily_repeat_pct(_dec)
-            lines.append(T.text("quests.item_decay", pct=_pct, exp=dq["reward_exp"],
-                                gold=dq["reward_gold"]))
-        else:
-            lines.append(T.text("quests.item_reward", exp=dq["reward_exp"],
-                                gold=dq["reward_gold"]))
-    if base_completed:
-        lines.append(T.text("quests.progress_note", base=base_completed,
-                            limit=DAILY_LIMIT))
-    return True, "\n".join(lines)
+# ---- 同名单 re-export（逐字沿用真源符号名）----
+DAILY_REPEAT_FACTORS = _pkg.DAILY_REPEAT_FACTORS
+DAILY_META_KEYS = _pkg.DAILY_META_KEYS
+DAILY_LIMIT = _pkg.DAILY_LIMIT
+daily_repeat_pct = _pkg.daily_repeat_pct
+daily_need = _pkg.daily_need
+settle_daily_quest = _pkg.settle_daily_quest
+bump_daily_progress = _pkg.bump_daily_progress
+daily_pool = _pkg.daily_pool
+draw_daily = _pkg.draw_daily
+# P4-1 兼容别名（外部存档/工具/旧引用兜底；见包内模块常量区注释）
+_DAILY_REPEAT_FACTORS = _pkg._DAILY_REPEAT_FACTORS
+_DAILY_META_KEYS = _pkg._DAILY_META_KEYS
+_daily_repeat_pct = _pkg._daily_repeat_pct
+_daily_need = _pkg._daily_need
+_settle_daily_quest = _pkg._settle_daily_quest
+_bump_daily_progress = _pkg._bump_daily_progress

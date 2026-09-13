@@ -21,224 +21,75 @@ saintess_engine 包外（引擎零知识——本模块 import 引擎/数据，�
 数值权威 = game/data/food_effect_data.py FOOD_EFFECT_PARAMS（读表零默认值：
 缺字段 = 无此行为，不复制硬编码）。安装入口 battle_item_use.translate foodfx
 分支（吃料理唯一入口，_instance_router + _restore_battle 全覆盖）。
+
+★ B10-L4 收口（2026-09-13）：本文件 = **委托薄壳**
+--------------------------------------------------------
+实现真源 = 包内 `games/orlandia/content/mech/food_proc.py`（B8 端口，逐字逐字搬自本文件；
+唯一改动两处：读表口 → 包内 `content/data/food_effects.json`（导出器单向产出，19 条逐条相等）、
+补 `import os` + `_HERE`）。逐函数对拍（`overnight/_b10_l4_recon.py`）：7 个同名函数里
+5 个「去 docstring 后逐行相同」，2 个（`_food_params` 读表口 / `install_food_fx`）差异均为
+已记录的端口改写；三入口（`food_trigger_decls` / `food_period_decl` / `install_food_fx`）
+对拍逐字段相等（`overnight/_b10_l4_probe_BEFORE.txt`）⇒ 宿主那份是**纯冗余副本**。
+生产路径早在 B8 就切到包内（`content/mech/item_use.py:191` → `content/mech/food_proc`），
+宿主这份只剩测试消费者。
+
+本文件只「再导出 + 一行委托」，名字 / 签名一字不变 —— 调用点零改动：
+
+    tests/test_apply_game_content.py   FOOD.food_trigger_decls / FOOD.food_period_decl
+    （`game/content_rules/apply.py` 只在 docstring 里引用本路径）
+
+**唯一形态差异**：包内 `install_food_fx` 不调 `install_ext_actions()`（包内 we_* 动作是
+`content/mech/equip.py` **import 期** `@register_action` 注册，`content/apply.py` 已把七族列全）
+—— 本文件改委托后同样不再运行时注册，效果等价（包加载即注册；见 `overnight/b10_l4_snap.py`
+G1「关键名都在」断言）。
+
+等价证据：`overnight/b10_l4_snap.py`（改造前后逐字节快照）·
+          `overnight/B10-L4-cond-food-wb-bridge.md`。
 """
 from __future__ import annotations
 
-from typing import Optional
-
-# ============================================================
-# 数据表读取（数值权威）
-# ============================================================
-
-_FP_TABLE = None
+_PKG = None          # 包内 `content.mech.food_proc` 模块缓存（惰性——import 期不碰包）
 
 
-def _food_params() -> dict:
-    global _FP_TABLE
-    if _FP_TABLE is None:
-        from ..data.food_effect_data import FOOD_EFFECT_PARAMS
-        _FP_TABLE = FOOD_EFFECT_PARAMS
-    return _FP_TABLE
+def _pkg():
+    """包内 `content.mech.food_proc`（食物效果装配唯一实现源）：首调加载包，之后走缓存。
 
-
-def _fp(key: str, field: str, default=0.0):
-    """读食物效果参数（数值权威 food_effect_data.py）。"""
-    try:
-        return (_food_params().get(key) or {}).get(field, default)
-    except Exception:
-        return default
-
-
-# ============================================================
-# food aid → 事件映射（old 事件名 → saintess_engine 事件展开，同 equip_proc）
-# ============================================================
-
-# hit → 普攻+技能命中（旧 _food_on_hit 在 _skill_finalize 尾部 = 普攻 basic + 技能同管道；
-# saintess_engine actions.py 普攻 fire attack_hit / 技能 fire skill_hit——双挂与 affix 词条一致）
-_EVENT_MAP = {
-    "hit": ("attack_hit", "skill_hit"),
-    "taken": ("on_taken",),
-    "dmg_calc": ("dmg_calc",),
-    "taken_calc": ("taken_calc",),
-    "turn_start": ("turn_start",),
-}
-
-
-def _map_event(old_ev: str) -> tuple:
-    """旧事件 → saintess_engine 事件；不在表 = 同名直通。"""
-    return _EVENT_MAP.get(old_ev, (old_ev,))
-
-
-# ============================================================
-# food aid → triggers 声明翻译（吃入挂载用；数值全读表）
-# ============================================================
-
-def _chance_pct(aid: str, field: str = "chance", default=1.0) -> float:
-    """触发概率：表缺省恒触发（旧 food 无 chance 字段 = 每次命中都触发）。"""
-    return float(_fp(aid, field, default))
+    包装载口 = `game/bootstrap.package_apply()`（本进程唯一，幂等）。失败**抛**、不静默降级
+    （静默降级 = 吃了效果料理什么都不发生，比报错难查得多）。
+    """
+    global _PKG
+    if _PKG is None:
+        from .. import bootstrap as _bootstrap
+        _bootstrap.package_apply()
+        from content.mech import food_proc as _m
+        _PKG = _m
+    return _PKG
 
 
 def food_trigger_decls(aid: str) -> dict:
-    """food aid → {old_event: [效果 dict]}；未知 aid → {}（防拼写漂移静默）。
-
-    声明全部复用 we_* 扩展动作（与 affix 词条同执行器）；参数带数值（读
-    FOOD_EFFECT_PARAMS），owner 由挂载函数注入。mode 语义对齐 equip_proc
-    同名词条翻译器（bleed/armor_break/element_*/combo/charge/pierce/counter/
-    execute 均已迁 affix 管线，此处只换数据源为 food 表）。
-    """
-    if aid == "lifesteal":
-        # 蛇羹：每次攻击回复伤害 8% 生命（we_extra_dmg lifesteal 分支 food_lifesteal 别名）
-        return {"hit": [{"type": "we_extra_dmg", "key": "food_lifesteal",
-                         "heal_pct": float(_fp("lifesteal", "pct", 0.08))}]}
-    if aid == "bleed":
-        # 烬火辣椒：20% 使目标流血（affix_bleed 声明 cap3 每刻5% 3刻——复用词条 DOT key）
-        return {"hit": [{"type": "we_affix_dot", "key": "food_bleed",
-                         "state_key": "affix_bleed",
-                         "chance": _chance_pct("bleed", "chance", 0.20),
-                         "stacks": int(_fp("bleed", "stacks", 3))}]}
-    if aid == "armor_break":
-        # 蘑菇汤：25% 降低目标防御 15%（2 刻）
-        return {"hit": [{"type": "we_affix_defdown", "key": "food_armor_break",
-                         "chance": _chance_pct("armor_break", "chance", 0.25),
-                         "pct": float(_fp("armor_break", "pct", 0.15)),
-                         "turns": int(_fp("armor_break", "turns", 2))}]}
-    if aid == "combo":
-        # 鹰蛋：15% 追加一次 50% 伤害（本击 dmg × pct）
-        return {"hit": [{"type": "we_affix_bonus", "key": "food_combo",
-                         "mode": "dmg_pct",
-                         "chance": _chance_pct("combo", "chance", 0.15),
-                         "pct": float(_fp("combo", "pct", 0.50)),
-                         "tag": "⚡", "name": "连击"}]}
-    if aid == "charge":
-        # 皇家烤肉：10% 追加 50% 伤害
-        return {"hit": [{"type": "we_affix_bonus", "key": "food_charge",
-                         "mode": "dmg_pct",
-                         "chance": _chance_pct("charge", "chance", 0.10),
-                         "pct": float(_fp("charge", "pct", 0.50)),
-                         "tag": "💪", "name": "蓄力爆发"}]}
-    if aid == "element_fire":
-        # 灰烬烤饼：攻击附加 5% 火属性伤害
-        return {"hit": [{"type": "we_affix_element", "key": "food_element_fire",
-                         "element": "fire", "pct": float(_fp("element_fire", "pct", 0.05)),
-                         "name": "火焰附加"}]}
-    if aid == "element_ice":
-        # 冰霜浆果：攻击附加 5% 冰属性伤害 + 减速
-        return {"hit": [{"type": "we_affix_element", "key": "food_element_ice",
-                         "element": "ice", "pct": float(_fp("element_ice", "pct", 0.05)),
-                         "name": "冰霜附加",
-                         "slow": float(_fp("element_ice", "slow", 0.10)),
-                         "slow_turns": int(_fp("element_ice", "slow_turns", 2))}]}
-    if aid == "pierce":
-        # 雪狼肉排：20% 无视防御追加伤害（60% 攻击）
-        return {"hit": [{"type": "we_affix_bonus", "key": "food_pierce",
-                         "mode": "atk_true",
-                         "chance": _chance_pct("pierce", "chance", 0.20),
-                         "atk_pct": float(_fp("pierce", "atk_pct", 0.60)),
-                         "tag": "🏹", "name": "贯穿"}]}
-    if aid == "static":
-        # 雷雨藤烤串：静电麻痹——攻击 20% 令敌方减速（2 刻，速度减半对齐旧 SPD_DOWN_MULT）
-        return {"hit": [{"type": "we_hit_slow", "key": "food_static",
-                         "chance": _chance_pct("static", "chance", 0.20),
-                         "slow": float(_fp("static", "slow_pct", 0.5)),
-                         "turns": int(_fp("static", "turns", 2))}]}
-    if aid == "aurora_guard":
-        # 极光花蜜：极光庇护——受击伤害 -15%（taken_calc 乘区，恒生效）
-        return {"taken_calc": [{"type": "we_taken_mult_cond", "key": "food_aurora_guard",
-                                "cond": "always",
-                                "mult": 1.0 - float(_fp("aurora_guard", "pct", 0.15))}]}
-    if aid == "counter":
-        # 狼肉干：20% 反击 60% 伤害（受击时，攻击方在 ctx.source）
-        return {"taken": [{"type": "we_affix_counter", "key": "food_counter",
-                           "chance": _chance_pct("counter", "chance", 0.20),
-                           "atk_pct": float(_fp("counter", "atk_pct", 0.60))}]}
-    if aid == "thorns":
-        # 鹿奶干酪：10% 反弹 30% 伤害（基于原始 dmg）
-        return {"taken": [{"type": "we_reflect", "key": "food_thorns",
-                           "chance": _chance_pct("thorns", "chance", 0.10),
-                           "reflect_pct": float(_fp("thorns", "pct", 0.30))}]}
-    if aid == "execute":
-        # 海盗炖鱼：<30% ×1.3（dmg_calc 乘区）
-        return {"dmg_calc": [{"type": "we_dmg_mult_cond", "key": "food_execute",
-                              "cond": "hp_target_lt",
-                              "threshold": float(_fp("execute", "hp_ratio", 0.30)),
-                              "mult": float(_fp("execute", "mult", 1.30)),
-                              "tag": "💀处决"}]}
-    if aid == "precise":
-        # 海鲜浓汤：本场 +10%（dmg_calc 乘区）
-        return {"dmg_calc": [{"type": "we_dmg_mult_cond", "key": "food_precise",
-                              "cond": "always",
-                              "mult": float(_fp("precise", "mult", 1.10)),
-                              "tag": "🎯精准"}]}
-    if aid == "dragon_tongue":
-        # 龙蛋煎饼：攻击叠龙语印记（effects["dragon_mark"] 层，每层 +2% 伤害上限 5）。
-        # 叠层走引擎原生 apply op=add（cap 查 EFFECT_RULES.dragon_mark）；
-        # 乘区 = stat_scale.dmg_mult 通用通道（同 rage）→ stats 折算 _state_dmg_mult
-        # → actions 伤害乘区自动消费，无需扩展动作。
-        return {"hit": [{"type": "apply", "key": "dragon_mark", "op": "add",
-                         "amount": 1, "on": "caster"}]}
-    # 未知/未迁 aid → 空（静默跳过；shield 特判在 battle_item_use 独立处理）
-    return {}
+    """food aid → {old_event: [效果 dict]}；未知 aid → {}（委托薄壳，实现见包内）。"""
+    return _pkg().food_trigger_decls(aid)
 
 
-# 周期恢复类（不进 triggers——effects period 时间驱动，见模块 docstring）
-_PERIOD_FOOD = {
-    "regen":      ("food_regen",      "heal_pct", 0.01),
-    "meditate":   ("food_meditate",   "mana_pct", 0.01),
-    "dawn_crown": ("food_dawn_crown", "heal_pct", 0.02),
-}
+def food_period_decl(aid: str):
+    """周期恢复类 → effects 条目 period 声明（委托薄壳，实现见包内）。"""
+    return _pkg().food_period_decl(aid)
 
-
-def food_period_decl(aid: str) -> Optional[dict]:
-    """周期恢复类 → effects 条目 period 声明（schedule 每刻跳，无 turns 战斗全程）。
-
-    返回 {"key": ..., "period": {...}} 或 None（非周期类）。对齐 hot: regen_hot
-    先例但无 turns 限时（旧效果料理回春 keep=True 常驻到战斗结束）。
-    """
-    spec = _PERIOD_FOOD.get(aid)
-    if not spec:
-        return None
-    key, pct_field, default_pct = spec
-    pct = float(_fp(aid, pct_field, default_pct))
-    period = {"dir": "heal", "interval": 1.0, pct_field: pct}
-    return {"key": key, "period": period}
-
-
-# ============================================================
-# 挂载入口（battle_item_use.translate foodfx 分支调用）
-# ============================================================
 
 def install_food_fx(actor: dict, aids: list, logs: list) -> None:
-    """把吃下的料理 aid 列表装配进 actor（幂等：重复 aid 不重复挂）。
+    """把吃下的料理 aid 列表装配进 actor（幂等）—— 委托薄壳，实现见包内。"""
+    return _pkg().install_food_fx(actor, aids, logs)
 
-    - 命中/受击/乘区类 → actor["triggers"][事件]（we_* 扩展动作执行）
-    - 周期恢复类 → actor["effects"][key] period 声明（schedule 周期段消费）
-    - 未知 aid → 静默跳过（防拼写漂移；FOOD_EFFECT_NAMES 展示另管）
-    """
-    if not actor or not aids:
-        return
-    try:
-        from .battle_equip_proc import install_ext_actions
-        install_ext_actions()  # 幂等：注册 we_* 扩展动作（吃时战斗已开，确保可用）
-    except Exception:
-        pass
-    tr = actor.setdefault("triggers", {})
-    ef = actor.setdefault("effects", {})
-    for aid in aids:
-        raw = food_trigger_decls(aid)
-        for old_ev, effs in raw.items():
-            for b2_ev in _map_event(old_ev):
-                bucket = tr.setdefault(b2_ev, [])
-                for _e in effs:
-                    # 幂等：同 aid 同事件同 type 不重复挂（吃重复食物）
-                    _dup = any(
-                        isinstance(x, dict) and x.get("key") == _e.get("key")
-                        for x in bucket
-                    )
-                    if not _dup:
-                        bucket.append(dict(_e, _owner=actor))
-        pd = food_period_decl(aid)
-        if pd:
-            entry = ef.get(pd["key"])
-            if not isinstance(entry, dict):
-                entry = ef[pd["key"]] = {"stacks": 1}
-            entry["period"] = dict(pd["period"])  # 幂等重吃：覆盖同数值声明
+
+# 模块级表 / 私有读表口：PEP 562 惰性再导出（import 期不碰包）
+_LAZY = ("_EVENT_MAP", "_PERIOD_FOOD", "_map_event", "_chance_pct", "_fp", "_food_params")
+
+
+def __getattr__(name):
+    """PEP 562：转发到包内那份（表/读口同一对象 —— 双源已收口）。"""
+    if name in _LAZY:
+        return getattr(_pkg(), name)
+    raise AttributeError("module %r has no attribute %r" % (__name__, name))
+
+
+__all__ = ["food_trigger_decls", "food_period_decl", "install_food_fx"]

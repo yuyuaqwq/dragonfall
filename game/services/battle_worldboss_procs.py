@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""世界 Boss 内容装配层 battle_worldboss_procs（2026-09-11 接线修复）。
+"""世界 Boss 内容装配层 battle_worldboss_procs —— ★ B10-L4 起 = **委托薄壳**。
 
-## 修的是什么
+## 修的是什么（历史；保留原文，实现已迁包内）
 
 `gm_伤害 <倍率>` 指令（`game/commands/gm.py::gm_boss_dmg`）把倍率写进
 `event_state["boss_dmg_{qq}"]`，讨伐世界 Boss 时由 `combat.py` 读出并作为
@@ -12,64 +12,58 @@
 dmg = int(dmg * self.dmg_mult)` 没跟着迁过来）——于是 GM 设置的世界 Boss 伤害倍率
 **静默失效**，面板还说「『讨伐』时生效」。
 
-同一行传的 `pet=db.pet_get(qq)` 同理：引擎只存不读，宠物在世界 Boss 战里从未参战
-（属「随从 actor 工厂」缺口，见 docs/REFACTOR_v181_GAP_CLOSURE_PLAN.md；那条线单独做）。
+修法 = **零引擎改动**：走引擎既有的 `taken_calc` 承伤乘区事件（`landing.deal_damage`
+里 fire，读 `battle._fire_ctx["mult"]`）。挂载形态：Boss actor 上声明
+`triggers["taken_calc"] = [{"action": "wb_gm_dmg_mult", "factor": N}]`；倍率 1.0 时不挂。
 
-## 怎么修的
+## ★ B10-L4 收口（2026-09-13）
 
-**零引擎改动**——走引擎既有的 `taken_calc` 承伤乘区事件（`landing.deal_damage` 里
-fire，读 `battle._fire_ctx["mult"]`）。语义与旧 `_boss_dmg_filter` 一致：
-乘在「玩家打 Boss」这一侧的伤害上（倍率 >1 = 更疼，<1 = 更肉）。
+实现真源（动作 `wb_gm_dmg_mult` **+** 装配入口 `apply_gm_dmg_mult`）= 包内
+`games/orlandia/content/mech/worldboss.py`（同处一个模块）。本文件只「再导出 + 一行委托」，
+名字 / 签名 / 语义 / 返回一字不变 —— 调用点零改动：
 
-挂载形态：在 Boss actor 上声明 `triggers["taken_calc"] = [{"action": "wb_gm_dmg_mult",
-"factor": N}]`（乘区动作族与 `passive_taken_reduce` 同构）。倍率 = 1.0 时不挂（零噪音）。
+    commands/combat.py:2392               WBP.apply_gm_dmg_mult(actor, mult)   （生产）
+    tests/test_v181_worldboss_gm_dmg.py   WBP.apply_gm_dmg_mult / WBP.wb_gm_dmg_mult
+
+**唯一形态差异**：本模块不再 `@register_action("wb_gm_dmg_mult")`（动作注册真源 = 包内那份，
+由 `content/apply.py` import 即注册；宿主进程的包加载口 = `game.bootstrap.package_apply()`）。
+包加载**惰性**（首调才加载）——不在 import 期改变宿主 import 顺序副作用。
+
+等价证据：`overnight/b10_l4_snap.py`（改造前后逐字节快照，含 wb 全分支）·
+          `overnight/_b10_l4_recon.py`（宿主 vs 包内逐函数对拍）·
+          `overnight/B10-L4-cond-food-wb-bridge.md`。
 """
 from __future__ import annotations
 
-from saintess_engine.battle.effects import register_action
+_PKG = None          # 包内 `content.mech.worldboss` 模块缓存（惰性——import 期不碰包）
 
 
-@register_action("wb_gm_dmg_mult")
-def wb_gm_dmg_mult(battle, caster, target, params, logs):
-    """taken_calc 承伤乘区 ×factor（worldboss GM 伤害倍率）。
+def _pkg():
+    """包内 `content.mech.worldboss`（世界 Boss 乘区+装配唯一实现源）：首调加载，之后走缓存。
 
-    引擎零知识：只读 params 的数字，不认「世界 Boss」这个概念。
-    factor 缺省/无效/等于 1.0 → 无此行为（不写 ctx.mult）。
+    包装载口 = `game/bootstrap.package_apply()`（本进程唯一，幂等）。失败**抛**、不静默降级
+    （静默降级 = GM 倍率又回到「面板承诺、实机失效」的老毛病，比报错难查得多）。
     """
-    ctx = getattr(battle, "_fire_ctx", None)
-    if ctx is None:
-        return
-    try:
-        f = float(params.get("factor", 1.0) or 1.0)
-    except (TypeError, ValueError):
-        return
-    if f == 1.0:
-        return
-    ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * f
+    global _PKG
+    if _PKG is None:
+        from .. import bootstrap as _bootstrap
+        _bootstrap.package_apply()
+        from content.mech import worldboss as _m
+        _PKG = _m
+    return _PKG
+
+
+def wb_gm_dmg_mult(battle, caster, target, params, logs):
+    """taken_calc 承伤乘区 ×factor（worldboss GM 伤害倍率）—— 委托薄壳，实现见包内。"""
+    return _pkg().wb_gm_dmg_mult(battle, caster, target, params, logs)
 
 
 def apply_gm_dmg_mult(actor: dict, mult: float) -> bool:
-    """把 GM 世界 Boss 伤害倍率挂到 actor 的 taken_calc 乘区。
+    """把 GM 世界 Boss 伤害倍率挂到 actor 的 taken_calc 乘区 —— 委托薄壳，实现见包内。
 
-    幂等（同 actor 重复调用只保留一条声明，值就地更新）；mult 无效或 =1.0 → 不挂并
-    返回 False。返回是否挂上。
+    幂等（同 actor 重复调用只保留一条声明，值就地更新）；mult 无效或 =1.0 → 不挂并返回 False。
     """
-    if not isinstance(actor, dict):
-        return False
-    try:
-        m = float(mult or 1.0)
-    except (TypeError, ValueError):
-        return False
-    trig = actor.setdefault("triggers", {})
-    lst = trig.setdefault("taken_calc", [])
-    for e in lst:
-        if isinstance(e, dict) and e.get("action") == "wb_gm_dmg_mult":
-            if m == 1.0:
-                lst.remove(e)          # 倍率被 GM 改回 1 → 撤掉声明
-                return False
-            e["factor"] = m
-            return True
-    if m == 1.0:
-        return False
-    lst.append({"action": "wb_gm_dmg_mult", "factor": m})
-    return True
+    return _pkg().apply_gm_dmg_mult(actor, mult)
+
+
+__all__ = ["wb_gm_dmg_mult", "apply_gm_dmg_mult"]

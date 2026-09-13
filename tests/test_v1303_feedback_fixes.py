@@ -91,12 +91,25 @@ async def main():
     check("『怪物 未知』未收录", "未收录" in t)
 
     # ② 批量购买（星号格式解析在 economy en=async def buy）
-    src_eco = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "commands", "economy.py"), encoding="utf-8").read()
+    # ★ 2026-09-13 收口（B9-L1 economy 薄壳 + B10 批）后：economy 实现真源 = 包内
+    #   `framework/games/orlandia/content/economy_cmds.py`（宿主 commands/economy.py 只剩薄壳）
+    #   → 源码扫描式断言改扫**实现侧**（两处都读，任一侧命中即算存在）。
+    def _eco_src():
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        out = []
+        for p in (os.path.join(base, "framework", "games", "orlandia", "content", "economy_cmds.py"),
+                  os.path.join(base, "game", "commands", "economy.py")):
+            if os.path.isfile(p):
+                with open(p, encoding="utf-8") as f:
+                    out.append(f.read())
+        return "\n".join(out)
+
+    src_eco = _eco_src()
     check("批量购买星号支持", "*" in src_eco and "数量至少 1 个" in src_eco)
     check("批量购买上限提示", "单次最多购买" in src_eco)
 
     # ③ 背包页数底部
-    src_eco2 = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "commands", "economy.py"), encoding="utf-8").read()
+    src_eco2 = _eco_src()
     # 背包视图渲染里 📄 行在 lines.append 列表尾部区域（翻页提示）
     check("背包页数底部实现", "📄 第" in src_eco2 and "(page - 1) * 10 + 1" in src_eco2)
 

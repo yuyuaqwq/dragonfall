@@ -17,192 +17,188 @@
     class_name/equipment/learned_skills（怪扮职业）透传；
     auto_act（怪 AI）→ actor["auto_act"]（saintess_engine actor_auto 读它）
 - 宠物 pet dict → saintess_engine pet（Battle 构造 pet 参数；战斗内宠物技能由命令层/引擎按需接入）
+
+★ B10-L4 收口（2026-09-13）：本文件 = **委托薄壳**（构造半边 + 回写半边两向全委托）
+----------------------------------------------------------------
+实现真源 = 包内 `games/orlandia/content/bridge.py`（构造半边 D3 批搬入；回写半边 B9-L8 批搬入
+——两条方向同处一个模块）。逐函数对拍（`overnight/_b10_l4_recon.py`）：10 个同名函数里
+6 个「去 docstring 后逐行相同」，其余 4 个差异全部是**已记录的宿主耦合替身**
+（见下「替身接口」）⇒ 本文件是**纯冗余副本 + 2 个宿主专属件**（`attach_tlog` / `_default_db`）。
+
+本文件只「再导出 + 一行委托」，名字 / 签名一字不变 —— 调用点零改动：
+
+    commands/combat.py   BR.build_sides / prepare_player_for_battle(player, tb, db) /
+                         apply_battle_loadout / player_to_actor / attach_tlog
+                         from ..services.battle_bridge import sync_player_from_actor
+    commands/tower.py / economy.py / instance_battle.py / services/battle_tlog.py /
+    tests/numeric_sim.py / test_battle_bridge.py / test_battle_cmdflow.py /
+    tests/test_v182_battle_tlog.py / tools/probe_phase_skill_index.py（monster_to_actor）
+
+替身接口（宿主 db → 包内 `event_state` dict 协议；`prepare_player_for_battle` /
+`apply_player_battle_start` 的第三参）：
+    宿主 `db or _default_db()`                 → `_EventStateView(db or _default_db())`
+    `db.get_event_state(k)`                    → `view.get(k)`
+    `db.set_event_state(k, v)`                 → `view[k] = v`
+    `db.delete_event_state(k)`                 → `view.pop(k, None)`
+（`_EventStateView` 是 **dict 子类但不落存储**：只为满足包内 `isinstance(event_state, dict)`
+ 守卫；三动词全部转发宿主 db。db=None / 空 → 与旧实现同款回落 `_default_db()`。）
+
+宿主专属件（**不进包**，留在本文件，未改一字）：`attach_tlog`（读 `game/tlog_setup` 流水开关 +
+采集 sink）、`_default_db`（宿主存储层访问器 `from .. import db`）。
+模块级常量（`_PLAYER_PASSTHROUGH` / `_BACK_SYNC_SCALARS` / `_BACK_SYNC_BAGS`）走 PEP 562
+惰性再导出（import 期不碰包、不改宿主 import 顺序副作用）。
+
+等价证据：`overnight/b10_l4_snap.py`（改造前后逐字节快照：构造/回写/真战斗全链）·
+          `overnight/B10-L4-cond-food-wb-bridge.md`。
 """
 from __future__ import annotations
 
 from typing import Optional
 
-from saintess_engine import make_actor  # 只读 saintess_engine 工厂，不改 saintess_engine
 
 # ============================================================
-# 玩家 → player actor
+# 包加载口（惰性；本文件所有实现都从这里取）
 # ============================================================
 
-# 玩家 dict 里需要透传给 saintess_engine actor 的面板/配置字段
-_PLAYER_PASSTHROUGH = (
-    "qq_id", "group_id", "cur_map", "race", "class_tier", "attributes",
-    "evolve_path", "learned_skills", "skill_levels",
-    # 状态字段（战斗内玩家资源——从旧档恢复或开战仪式已写入 player；
-    # 效果类（echo_bless/poi_buff/…）V6 起由 _start_effects_to_actor 翻译进
-    # actor.effects 面板快照，不在 passthrough 冗余透传）
-    "resources", "stacks", "eff", "hot", "food_effects",
-    "buff_hits", "last_element",
-    "battle_prefs",   # 战前偏好（双形态/终结阈值/奥术力场档——内容侧读）
-    "overflow_shield_cd", "stealth_atk",
-    "reduce_all_left", "reduce_left", "combo_seq", "last_combo_tag",
-    "tailwind_prev_energy", "last_skill", "last_cast_at",
-)
+_PKG_BRIDGE = None          # 包内 `content.bridge` 模块缓存（惰性加载——import 期不碰包）
 
-# 开战仪式一次性祝福 → actor.effects 面板快照条目（V6：旧引擎 BUFF_MULT 折算
-# /poi ×1.10 在 _apply_buffs；saintess_engine 无 buffs 容器 → 仪式消费的祝福翻译成
-# effects 面板快照，整场生效。数值权威：prepare_player_for_battle 消费时已
-# 按 event_state 写入 player["_battle_boons"]——纯数据搬运，桥不造数值）。
-def _battle_boons_to_effects(player: dict, actor: dict) -> dict:
-    """玩家开战仪式产物（_battle_boons 标记）→ actor.effects 面板快照条目。
 
-    条目无 expire（整场），stats._apply_effects 读内嵌 stat/op/mult 折算。
-    幂等：已翻译过的键跳过（防 build_sides 重复调用双写）。
+def _pkg_bridge():
+    """包内 `content/bridge.py`（构造半边 + 回写半边唯一实现源）：首次调用加载包，之后走缓存。
+
+    包装载口 = `game/bootstrap.package_apply()`（本进程唯一，幂等）。失败**抛**、不静默降级：
+    回写漏做会让玩家存档停在开战时的值（血/增益读不到），构造漏做会让整场战斗起不来 ——
+    两者都比报错难查得多。
     """
-    boons = player.get("_battle_boons") or {}
-    if not isinstance(boons, dict) or not boons:
-        return actor
-    ef = actor.setdefault("effects", {})
-    for key, b in boons.items():
-        if not isinstance(b, dict):
-            continue
-        if not b.get("stat") or b.get("mult") is None:
-            continue
-        if key in ef:  # 已翻译（重复 build_sides 幂等）
-            continue
-        ef[key] = {"stacks": 1, "stat": b["stat"], "op": b.get("op", "mul"),
-                   "mult": float(b["mult"])}
-    return actor
+    global _PKG_BRIDGE
+    if _PKG_BRIDGE is None:
+        from .. import bootstrap as _bootstrap
+        _bootstrap.package_apply()
+        from content import bridge as _pkg
+        _PKG_BRIDGE = _pkg
+    return _PKG_BRIDGE
 
-# 玩家 dict 的 buffs 键（旧引擎把玩家 buffs 写 player["buffs"]——saintess_engine actor.buffs 同构）
+
+# ============================================================
+# 玩家 / 怪物 → actor，sides 组装（委托）
+# ============================================================
+
 def player_to_actor(player: dict) -> dict:
-    """玩家 DB dict → saintess_engine player actor（human_controlled=True）。"""
-    player = player or {}
-    qq = str(player.get("qq_id", ""))
-    # 面板当前值：hp/mp 直传（旧 DB hp/mp 是当前值）；max 由 stats 重算或 DB 值
-    stats_kw = {}
-    for k in ("hp", "mp", "max_hp", "max_mp", "atk", "def", "matk", "mdef", "spd",
-              "crit", "crit_dmg", "dodge", "block", "pene", "luck", "tenacity",
-              "race"):
-        if player.get(k) is not None:
-            stats_kw[k] = player[k]
-    # 同构状态键透传（V 系列：effects 由 make_actor 播种，调用方按需填；
-    # buffs/debuffs/hot/state 旧四键已废弃——透传只会造成脏残留，剔除；
-    # poi_buff 已由 V6 翻译进 effects 面板快照条目，不再透传冗余 actor 字段）
-    for k in ("shields", "cooldown", "charging", "defending",
-              "ct"):
-        if player.get(k) is not None:
-            stats_kw[k] = player[k]
-    skills = player.get("learned_skills") or player.get("skills") or []
-    actor = make_actor(
-        uid=("p_%s" % qq) if qq else "p_0",
-        name=player.get("name", "冒险者"),
-        side="player",
-        kind="player",
-        human_controlled=True,
-        class_name=player.get("class_name") or "战士",
-        level=int(player.get("level", 1) or 1),
-        equipment=player.get("equipment") or {},
-        skills=list(skills) if not isinstance(skills, list) else skills,
-        learned_skills=list(player.get("learned_skills") or []),
-        **stats_kw,
-    )
-    # 透传额外字段（身份/面板/数据标签——make_actor 会把未知 key 原样带上）
-    for k in _PLAYER_PASSTHROUGH:
-        if k in player and k not in actor:
-            actor[k] = player[k]
-    # V6：开战仪式祝福（echo_bless/poi_buff）→ effects 面板快照（整场生效）
-    _battle_boons_to_effects(player, actor)
-    # 旧 stacks/resources → saintess_engine state 映射（开战仪式/恢复时用；默认空）
-    #   注意：只有调用方明确要迁移时才填——本函数不做隐式迁移（避免把旧职业
-    #   叠层语义错误地灌进 state，那应由上层职业模块按声明表翻译）
-    return actor
+    """玩家 DB dict → saintess_engine player actor（human_controlled=True）。
 
+    ★ B10-L4：委托薄壳，实现（逐字）在包内 `content/bridge.player_to_actor`。
+    """
+    return _pkg_bridge().player_to_actor(player)
 
-# ============================================================
-# 怪物 → enemy actor
-# ============================================================
 
 def monster_to_actor(mon: dict, idx: int = 0) -> dict:
     """单只怪 dict（build_monster 产物）→ saintess_engine enemy actor。
 
-    lv → level（引擎不认 lv）；身份/站位/掉落字段透传。
+    ★ B10-L4：委托薄壳，实现（逐字）在包内 `content/bridge.monster_to_actor`。
     """
-    mon = mon or {}
-    stats_kw = {}
-    for k in ("hp", "max_hp", "mp", "max_mp", "atk", "def", "matk", "mdef", "spd",
-              "crit", "crit_dmg", "dodge", "block", "pene", "luck", "tenacity"):
-        if mon.get(k) is not None:
-            stats_kw[k] = mon[k]
-    # 同构状态键透传（V 系列：effects/shields/cooldown；旧 buffs/debuffs/hot/state 废弃剔除）
-    for k in ("shields", "cooldown", "charging",
-              "defending", "ct"):
-        if mon.get(k) is not None:
-            stats_kw[k] = mon[k]
-    actor = make_actor(
-        uid=mon.get("uid") or ("e_%d" % idx),
-        name=mon.get("name", "怪物"),
-        side=mon.get("side") or "enemy",
-        kind=mon.get("kind") or ("monster" if not mon.get("class_name") else "player"),
-        class_name=mon.get("class_name"),
-        level=int(mon.get("level", mon.get("lv", 1)) or 1),  # lv → level
-        equipment=mon.get("equipment") or {},
-        skills=list(mon.get("skills") or []),
-        learned_skills=list(mon.get("learned_skills") or []),
-        auto_act=mon.get("auto_act") or ({"act": {"type": "attack"}} if not mon.get("ai") else None),
-        **stats_kw,
-    )
-    # 怪数据标签透传（站位/身份/掉落/元素/资源定义——make_actor 会原样带未知 key）
-    for k in ("rank", "reach", "role", "is_boss", "is_elite", "exp", "gold", "drops",
-              "id", "map", "map_area", "mech", "mod", "ai", "resource_def",
-              "element_immune", "element_weak", "dmg_taken_mult", "on_taken",
-              "abyss_res", "skill_levels", "race", "side", "ext"):
-        if mon.get(k) is not None and k not in actor:
-            actor[k] = mon[k]
-    return actor
+    return _pkg_bridge().monster_to_actor(mon, idx)
 
 
 def enemies_to_actors(enemies: list) -> list:
-    """怪组 list → enemy actor list。"""
-    return [monster_to_actor(m, i) for i, m in enumerate(enemies or [])]
+    """怪组 list → enemy actor list（★ B10-L4：委托薄壳 → 包内）。"""
+    return _pkg_bridge().enemies_to_actors(enemies)
 
-
-# ============================================================
-# sides 组装
-# ============================================================
 
 def build_sides(player: Optional[dict] = None, enemies: Optional[list] = None,
                 allies: Optional[list] = None) -> dict:
-    """组 sides：{player: [玩家actor, ...], enemy: [怪actor, ...]}。
+    """组 sides：{player: [玩家actor, ...], enemy: [怪actor, ...]}（★ B10-L4：委托薄壳 → 包内）。"""
+    return _pkg_bridge().build_sides(player, enemies, allies)
 
-    单人野外：player 单 actor；副本 allies 额外 actor（human_controlled 按需）。
+
+def _battle_boons_to_effects(player: dict, actor: dict) -> dict:
+    """开战仪式产物（`_battle_boons`）→ actor.effects 面板快照（★ B10-L4：委托薄壳 → 包内）。"""
+    return _pkg_bridge()._battle_boons_to_effects(player, actor)
+
+
+# ============================================================
+# 开战仪式 / 装配序列（委托；第三参 db 走 `_EventStateView` 替身）
+# ============================================================
+
+class _EventStateView(dict):
+    """宿主 db → 包内 `event_state` 协议替身（只用到 get / 赋值 / pop 三动词）。
+
+    包内 `prepare_player_for_battle(player, title_bonus, event_state)` 的第三参是**普通 dict**
+    （等价宿主 event_state 存储）。本类把宿主 db 的三动词接上：
+
+        view.get(k)                 → db.get_event_state(k)
+        view[k] = v                 → db.set_event_state(k, v)
+        view.pop(k, default)        → db.delete_event_state(k)（键不存在则返回 default）
+
+    `dict` 子类**只为**满足包内 `isinstance(event_state, dict)` 守卫 —— 键值**不落本对象**
+    （`__setitem__` 已改道 db），故本对象不持有第二份状态。
+    ⚠️ 契约：包内对 `event_state` 只用上述三动词；若包内改用 `setdefault` / `in` / 迭代，
+       会落到 dict 自己的空存储上（静默偏差）→ 改包内那侧时必须同步改这里。
     """
-    sides: dict = {"player": [], "enemy": []}
-    if player is not None:
-        p_actor = player_to_actor(player)
-        sides["player"].append(p_actor)
-    for a in (allies or []):
-        sides["player"].append(player_to_actor(a))
-    sides["enemy"] = enemies_to_actors(enemies or [])
-    return sides
+
+    __slots__ = ("_db",)
+
+    def __init__(self, db):
+        super().__init__()
+        self._db = db
+
+    def get(self, key, default=None):
+        v = self._db.get_event_state(key)
+        return default if v is None else v
+
+    def __setitem__(self, key, value):
+        self._db.set_event_state(key, value)
+
+    def pop(self, key, default=None):
+        v = self._db.get_event_state(key)
+        if v is None:
+            return default
+        self._db.delete_event_state(key)
+        return v
 
 
-# ============================================================
-# 开战仪式（旧 Battle.__init__ 的玩家侧副作用 → 命令层开战前对 player dict 处理）
-# ============================================================
+def _es_arg(db):
+    """宿主第三参 `db` → 包内 `event_state` 替身（`db or _default_db()`，与旧实现一字同款）。"""
+    return _EventStateView(db or _default_db())
+
+
+def prepare_player_for_battle(player: dict, title_bonus: Optional[dict] = None,
+                              db=None) -> dict:
+    """开战仪式（player dict 侧，build_sides 前调用）—— 委托薄壳，实现见包内 `content/bridge`。
+
+    ★ B10-L4：实现（逐字，含 4 步：字段播种 / max_hp·max_mp 实时重算 / echo_bless 消费 /
+    神龛祝福消费）在包内；本函数只把第三参 `db` 适配成包内 `event_state` dict 协议
+    （见 `_EventStateView`）。签名 / 语义 / 返回（原地补全后同一引用）一字不变。
+    """
+    return _pkg_bridge().prepare_player_for_battle(player, title_bonus, _es_arg(db))
+
 
 def apply_player_battle_start(player: dict, actor: dict, db=None) -> dict:
-    """把旧 Battle.__init__ 的玩家侧开战仪式结果应用到 saintess_engine actor。
+    """把旧 Battle.__init__ 的玩家侧开战仪式结果应用到 actor（★ B10-L4：委托薄壳 → 包内）。
 
-    ⚠️ 本函数保持旧签名/语义的薄壳（命令层调用点可能传 actor）——推荐新调用方
-    直接调 prepare_player_for_battle(player, title_bonus, db)（build_sides 前
-    对 player dict 做仪式，build_sides 透传即得仪式后 actor）。
-
-    目前实现（只做数据搬运，不触发引擎逻辑）：
-    - echo_bless/poi_buff 从 event_state 消费写入 player dict（旧引擎构造时做）→
-      actor 构造时已透传
-    - 装备词条战斗开始效果（护盾/狼嚎/奥术屏障/起手资源/套装/weapon_effects）→
-      属职业/装备层（上层模块），N5b 不复制旧 Battle 效果逻辑进桥——留 TODO 增量。
-
-    返回 actor（原地补全后同一引用）。
+    保留旧签名/语义（命令层调用点可能传 actor）；返回 actor（原地补全后同一引用）。
     """
-    prepare_player_for_battle(player, None, db)
-    return actor
+    return _pkg_bridge().apply_player_battle_start(player, actor, _es_arg(db))
 
+
+def apply_battle_loadout(actor: dict, title_bonus: Optional[dict] = None) -> dict:
+    """开战装配序列（每个 player actor 调一次）：外部面板增幅 + 装备词条 + 职业机制。
+
+    ★ B10-L4：委托薄壳 —— 序列本身（① `actor["bonus"]` 播种 ② 装备装配 ③ 职业机制装配）
+    与 ②③ 的**静默容错**（个别词条/技能解析失败不阻断开战）逐字在包内
+    `content/bridge.apply_battle_loadout`（②③ 的实现来源 = 包内 `content/mech/{equip,class_mech}`）。
+    三处生产调用点（combat `_open_battle` / `_open_pvp`、tower）零改动。
+    """
+    return _pkg_bridge().apply_battle_loadout(actor, title_bonus)
+
+
+def _seed_battle_keys(player: dict) -> dict:
+    """玩家战斗可变键播种（★ B10-L4：委托薄壳 → 包内）。"""
+    return _pkg_bridge()._seed_battle_keys(player)
+
+
+# ============================================================
+# 流水挂载（宿主专属件 —— 不进包；读 game/tlog_setup 开关 + 采集 sink）
+# ============================================================
 
 def attach_tlog(b, *, btype: str = "monster", player=None, enemies=None, seed=None):
     """给一场战斗挂**流水采集**（可拔插：未启用流水时**零行为**，直接返回 `b`）。
@@ -210,6 +206,9 @@ def attach_tlog(b, *, btype: str = "monster", player=None, enemies=None, seed=No
     开关在 `game/tlog_setup.py`（`DRAGONFALL_TLOG=1` 或显式 `enable()`）；
     采集器与回放见 `game/services/battle_tlog.py`，设计见 `docs/REFACTOR_tlog_landing.md`。
     调用点：开战处一行（`combat._open_battle` 等）；异常一律吞掉 —— 流水不该影响开战。
+
+    ⚠️ 本函数**不委托包内**：它读宿主流水开关与 sink（`game.tlog_setup` / `battle_tlog`），
+    属宿主侧契约（包内 `content/bridge.py` 头注「未搬」清单第 1 项）。
     """
     try:
         from ..tlog_setup import tlog as _tlog
@@ -223,179 +222,15 @@ def attach_tlog(b, *, btype: str = "monster", player=None, enemies=None, seed=No
     return b
 
 
-def apply_battle_loadout(actor: dict, title_bonus: Optional[dict] = None) -> dict:
-    """开战装配序列（每个 player actor 调一次）：外部面板增幅 + 装备词条 + 职业机制。
-
-    ① `actor["bonus"] = {"panel": 外部增幅, "cap": {}, "cost": {}}`
-       （v181.M 统一数值容器；`cap`/`cost` 分域由装备装配覆盖写）
-    ② `battle_equip_proc.apply_to_actor` → 武器效果 / 词条挂 `actor.triggers`
-    ③ `class_mech_proc.apply_class_mech` → 技能 mech 兑现装配
-
-    ⚠️ ②③ 异常**沿用原写法静默跳过**（个别词条/技能解析失败不阻断开战）。
-    三处生产调用点（combat `_open_battle` / `_open_pvp`、tower）原为逐行重复；
-    收敛于此的意义：**数值门禁（tests/numeric_sim.py）与生产同源** ——
-    否则门禁自己一套口径，数字好看但与线上不一致。
-    """
-    try:
-        actor["bonus"] = {"panel": dict(title_bonus or {}), "cap": {}, "cost": {}}
-    except Exception:                                             # noqa: BLE001
-        pass
-    try:
-        from .battle_equip_proc import apply_to_actor as _EP_apply
-        _EP_apply(actor)
-    except Exception:                                             # noqa: BLE001
-        pass
-    try:
-        from .class_mech_proc import apply_class_mech as _CM_apply
-        _CM_apply(actor)
-    except Exception:                                             # noqa: BLE001
-        pass
-    return actor
-
-
-def prepare_player_for_battle(player: dict, title_bonus: Optional[dict] = None,
-                              db=None) -> dict:
-    """开战仪式（player dict 侧，build_sides 前调用）——纯数据搬运/事件消费。
-
-    对齐旧 Battle.__init__ 的玩家侧副作用（只做不依赖 Battle 实例的部分；
-    效果执行类属上层职业/装备模块，N5b 增量）：
-
-    1. 战斗字段键播种（buffs/shields/state/cooldown/... 与旧引擎同构）
-    2. max_hp/max_mp 实时重算（v95.19：DB max 是注册/升级快照，换装备后过时——
-       战斗内面板/护盾 pct/heal clamp 以实时聚合值为准）
-    3. echo_bless 消费（event_state bless_{qq_id} → player.buffs.echo_bless，一次性）
-    4. 神龛祝福消费（event_state poi_buff_{qq_id} → player.poi_buff，left-1；用完删）
-
-    ⚠️ 依赖红线：只 import game.engine / game.db（纯函数/存储层），
-    绝不 import game.battle（旧引擎）——N6 删旧引擎后本桥必须能独立存活。
-
-    返回 player（原地补全后同一引用）。
-    """
-    player = player if isinstance(player, dict) else {}
-    if not player:
-        return player
-    # 1. 战斗字段播种（与旧 Battle.__init__ _seed 同款；actor 由 build_sides 透传）
-    _seed_battle_keys(player)
-    # 2. 面板实时化（不传 learned_skills——战斗侧被动由上层动态处理，防双算）
-    try:
-        from ..content_rules.panel import player_final_stats
-        _cn = player.get("class_name") or "战士"
-        _st = player_final_stats(
-            _cn, int(player.get("level", 1) or 1),
-            player.get("equipment") or {},
-            int(player.get("class_tier", 0) or 0),
-            player.get("attributes"),
-            int(player.get("evolve_path", 0) or 0),
-            title_bonus or {},
-            player.get("race"),
-        )
-        if _st.get("max_hp"):
-            player["max_hp"] = int(_st["max_hp"])
-        if _st.get("max_mp") is not None:
-            player["max_mp"] = int(_st["max_mp"])
-    except Exception:
-        pass  # 面板重算失败不阻断开战（沿用 DB 值）
-    # 3. echo_bless 消费（v97.4：探索事件写 event_state bless_{qid}，本场攻击 +pct%，
-    #    一次性）。V6：不写 player.buffs 旧键（容器已删除）——落 _battle_boons 标记，
-    #    player_to_actor 翻译成 actor.effects 面板快照（stats 折算，整场生效）。
-    try:
-        _qq = player.get("qq_id")
-        if _qq and not (player.get("_battle_boons") or {}).get("echo_bless"):
-            _raw = (db or _default_db()).get_event_state(f"bless_{_qq}")
-            if _raw:
-                import json as _json2
-                try:
-                    _bless = _json2.loads(_raw)
-                    _pct = float((_bless or {}).get("pct", 5) or 5)
-                except Exception:
-                    _pct = 5.0
-                player.setdefault("_battle_boons", {})["echo_bless"] = {
-                    "stat": "atk", "op": "mul", "mult": 1.0 + _pct / 100.0}
-                (db or _default_db()).set_event_state(f"bless_{_qq}", "")
-    except Exception:
-        pass
-    # 4. 神龛祝福消费（v104 M23：poi_buff_{qid}，left-1；用完删 key，flee 也算消耗）
-    #    V6：效果落 _battle_boons → actor.effects 面板快照（player.poi_buff 保留
-    #    供命令层开战 note 显示，同旧语义）
-    try:
-        _qq = player.get("qq_id")
-        if _qq and not player.get("poi_buff"):
-            _raw = (db or _default_db()).get_event_state(f"poi_buff_{_qq}")
-            if _raw:
-                import json as _json
-                _pb = _json.loads(_raw)
-                if isinstance(_pb, dict) and _pb.get("stat") in ("atk", "def", "spd") \
-                        and int(_pb.get("left", 0) or 0) > 0:
-                    player["poi_buff"] = {"stat": _pb["stat"],
-                                          "mult": float(_pb.get("mult", 1.10)),
-                                          "name": _pb.get("name", _pb["stat"])}
-                    player.setdefault("_battle_boons", {})["poi_buff"] = {
-                        "stat": _pb["stat"], "op": "mul",
-                        "mult": float(_pb.get("mult", 1.10))}
-                    _pb["left"] = int(_pb["left"]) - 1
-                    if _pb["left"] <= 0:
-                        (db or _default_db()).delete_event_state(f"poi_buff_{_qq}")
-                    else:
-                        (db or _default_db()).set_event_state(
-                            f"poi_buff_{_qq}", _json.dumps(_pb, ensure_ascii=False))
-    except Exception:
-        pass
-    # 【v181.M-R2b 删除原步骤 5】v139 core_resource 配置注入（形态层字段挂 player）——
-    #    core_resources.py 退役删除（R2b 函数层 + R2c 文件本体），注入无消费端（形态层未实现）。
-    # 【2026-09-11 死代码清理】两个 v139 遗留空壳模块本体已删（battle_modes / battle_conds；
-    #    后者唯一活件 COND_LABELS 拆成 core/battle_cond_labels.py），
-    #    player 上对应的形态层透传/播种/回写键一并移除。
-    return player
-
-
-def _seed_battle_keys(player: dict) -> dict:
-    """玩家战斗可变键播种（旧 Battle.__init__ 玩家侧 setdefault 全量）。"""
-    _seeds = {
-        "resources": dict, "stacks": dict, "eff": dict, "shields": dict,
-        "cooldown": dict, "hot": dict, "food_effects": list,
-        "buff_hits": dict, "combo_seq": list,
-        "last_combo_tag": None, "last_element": None,
-        "tailwind_prev_energy": None,
-        "overflow_shield_cd": False, "stealth_atk": False,
-        "reduce_all_left": 0, "reduce_left": 0,
-        "poi_buff": None, "charging": None, "defending": False,
-    }
-    for _k, _ctor in _seeds.items():
-        if _k not in player or player[_k] is None:
-            player[_k] = _ctor() if callable(_ctor) else _ctor
-    return player
-
-
-def _default_db():
-    """延迟取存储层（避免顶部循环 import）。"""
-    from .. import db as _db
-    return _db
-
-
 # ============================================================
-# 战斗回写（saintess_engine actor → 命令层 player dict）
+# 战斗回写（actor → 命令层 player dict）
+# ------------------------------------------------------------
+# 实现真源 = 包内 `content/bridge.py:sync_player_from_actor`（回写半边与构造半边同处一个模块；
+# B9-L8 批搬入）。本文件只留一层委托 —— 调用点（`from ..services.battle_bridge import
+# sync_player_from_actor` / `BR.sync_player_from_actor`）零改动：签名 / 语义 / 返回
+# （原地回写后同一引用）一字不变。等价证据：`overnight/b9_l8_backsync_verify.py`（三源逐字节）
+# · `overnight/b9_l8_snap.py` · 报告 `overnight/B9-L8-bridge.md`。
 # ============================================================
-
-# 战斗后需要同步回 player dict 的面板当前值（hp/mp 战斗中被引擎改动，
-# 命令层 db.update_player / 展示页读的是 player dict——旧引擎引用传递
-# 自动同步；saintess_engine actor 是副本，命令层行动后必须显式回写）。
-_BACK_SYNC_SCALARS = (
-    "hp", "mp", "max_hp", "max_mp",
-)
-
-# 战斗可变状态键（actor → player dict 同构回写；V 系列：效果状态在 effects，
-# shields/cooldown 独立容器，defending/charging/ct 行动状态——战斗内由引擎维护
-# 在 actor 上，战斗结束/展示前回写 player 保证命令层读得到）。
-_BACK_SYNC_BAGS = (
-    "effects", "shields", "cooldown", "charging", "defending",
-    "ct", "poi_buff",
-    # 旧玩家 dict 兼容键（职业层可能在 player 上读，见 _PLAYER_PASSTHROUGH）
-    "resources", "stacks", "eff", "food_effects", "buff_hits",
-    "last_element", "overflow_shield_cd",
-    "stealth_atk", "reduce_all_left", "reduce_left",
-    "combo_seq", "last_combo_tag", "tailwind_prev_energy",
-)
-
 
 def sync_player_from_actor(player: dict, actor: dict) -> dict:
     """saintess_engine actor 战斗后状态 → player dict 回写（命令层行动后调用）。
@@ -405,17 +240,23 @@ def sync_player_from_actor(player: dict, actor: dict) -> dict:
     命令层在每次 human_act / 战斗结束结算前调用本函数，把战斗结果同步回
     player dict，后续 db.update_player / 展示面板读到的才是最新值。
 
-    返回 player（原地回写后同一引用；player 为空 dict 时也安全）。
+    ★ B9-L8 起：本函数 = 一层委托薄壳 —— 实现（逐字）在包内 `content/bridge.py`。
     """
-    player = player if isinstance(player, dict) else {}
-    actor = actor if isinstance(actor, dict) else {}
-    if not actor:
-        return player
-    for k in _BACK_SYNC_SCALARS:
-        if actor.get(k) is not None:
-            player[k] = actor[k]
-    for k in _BACK_SYNC_BAGS:
-        if k in actor and actor[k] is not None:
-            player[k] = actor[k]
-    return player
+    return _pkg_bridge().sync_player_from_actor(player, actor)
 
+
+def _default_db():
+    """延迟取宿主存储层（避免顶部循环 import）。★ 宿主专属件（不进包）。"""
+    from .. import db as _db
+    return _db
+
+
+# 模块级常量：PEP 562 惰性再导出（import 期不碰包）
+_LAZY = ("_PLAYER_PASSTHROUGH", "_BACK_SYNC_SCALARS", "_BACK_SYNC_BAGS")
+
+
+def __getattr__(name):
+    """PEP 562：把模块级常量转发到包内那份（同一元组对象 —— 双源已收口）。"""
+    if name in _LAZY:
+        return getattr(_pkg_bridge(), name)
+    raise AttributeError("module %r has no attribute %r" % (__name__, name))

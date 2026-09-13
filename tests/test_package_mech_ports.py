@@ -122,6 +122,125 @@ PORTS = [
     ("params", None, ":742 BAR_INJECT_FIELDS / :749 BAR_STATE_PREFIX", "content/mech/params.py", (), False),
 ]
 
+# ---------------------------------------------------------------------------
+# B10（2026-09-13）「双源收口」后的断言语义 —— **本门禁最重要的一次口径变更**
+# ---------------------------------------------------------------------------
+# B10 把 8 个族的宿主实现改成了**薄壳**（`game/services/*.py` = 包加载口 + 全量再导出 +
+# 入口一行委托；唯一实现在包内 `content/mech|content/*.py`）。于是本门禁原来那句
+# 「真源 AST ↔ 端口 AST 逐名相等」的**前提消失了**：薄壳里根本没有 `@register_action`，
+# 拿它当真源只会得到「真源 0 / 包内 N」的假红（B10 实测 10 条，全是这一句）。
+# ⇒ 对**已收口族**（自动判据 `is_shell_file()`：0 个 `@register_action` + 源文本 import 了
+#   `content.*` + <400 行），② 段三条断言换成**宿主无关**的等价物：
+#     ⓐ 端口动作集 == 冻结清单 `EXPECT_ACTIONS`（漏搬 / 私加 / 端口被掏空都报红）
+#     ⓑ 薄壳模块级导出（def/class/赋值名）⊇ 端口动作集 ∪ 装配器名
+#        —— 这正是「宿主调用点不会 AttributeError」的静态保证（薄壳少再导出 = 红）
+#     ⓒ 薄壳确实 import 了对应包内族模块（防「壳连包都不读」）
+#   未收口族（真源仍是旧实现：别仓 / 未搬完）走原逻辑不变。
+# ---------------------------------------------------------------------------
+# 冻结动作 KEY 集（2026-09-13 B10 收口后实测，源 = 包内端口 `register_action` 的 key）——
+# 漏搬 / 私加 / **改名** 都报红（`class_mech` 的动作原是 `install()` 内闭包，宿主侧从未按名暴露，
+# 故它的 key 集也必须冻结在这儿，否则「改名」无从发现）。
+EXPECT_ACTION_KEYS = {
+    "class_mech": (
+        "class_faith_load_tier", "class_faith_overload", "class_guard_stance_enter",
+        "class_melody_act", "class_melody_dirge_tick", "class_res_channel_gain",
+        "class_shadow_dance_enter", "class_stance_counter", "class_stance_guard_enter",
+        "mech_cash_clear", "mech_cash_dmg_mult", "mech_cash_finisher_crit", "mech_cash_fury_enter",
+        "mech_cash_per_system_mult", "passive_bar_decay_half", "passive_bar_extend",
+        "passive_cc_break", "passive_cc_clear", "passive_cond_crit", "passive_counter",
+        "passive_ctrl_extend", "passive_dmg_mult", "passive_dot_mult", "passive_element_core_crit",
+        "passive_heal_overflow_shield", "passive_kill_gain", "passive_lian_duan_soft",
+        "passive_lifesteal_buff", "passive_low_hp_core", "passive_mark_enhance", "passive_melody_duet",
+        "passive_overflow_shield", "passive_poison_spread", "passive_poison_weaken",
+        "passive_res_gain_turn", "passive_revive_berserk", "passive_revive_guard",
+        "passive_shadow_buff", "passive_taken_reduce",
+    ),
+    "we_procs": (
+        "we_abyss", "we_act_done_slow", "we_affix_bonus", "we_affix_counter", "we_affix_defdown",
+        "we_affix_dot", "we_affix_element", "we_affix_purify", "we_affix_res_gain",
+        "we_affix_tenacity", "we_amp_consume", "we_combo_end", "we_combo_stack", "we_control",
+        "we_death_pool_add", "we_death_pool_pay", "we_dmg_mult_cond", "we_dot", "we_extra_dmg",
+        "we_guardian_will", "we_hit_slow", "we_mana_once", "we_reflect", "we_shield_cond",
+        "we_shield_taken", "we_stack_prod", "we_taken_mult_cond",
+    ),
+    "team_procs": (
+        "arcane_edge_apply", "arcane_field", "block_once", "block_once_apply", "block_reflect_hit",
+        "guard_expire", "guard_reflect", "self_cc_immune", "self_shield", "target_lock_mark",
+        "team_apply", "team_cc_immune", "team_dmg_aura", "team_dmg_aura_apply", "team_guard",
+        "team_shield", "team_ss_reduce_apply", "team_taken_reduce", "timed_vuln", "timed_vuln_apply",
+    ),
+    "bar_procs": (
+        "bar_gain", "bar_phase_preserve", "bar_time_settle", "passive_reflect_bar",
+    ),
+    "cond_procs": (
+        "skill_cond_mult",
+    ),
+    "element_procs": (
+        "class_element_switch", "elem_conv_apply", "elem_counter", "elem_reaction",
+    ),
+    "worldboss": (
+        "wb_gm_dmg_mult",
+    ),
+    "equip": (),
+}
+EXPECT_ACTIONS = {k: len(v) for k, v in EXPECT_ACTION_KEYS.items()}
+# 这些族的**原宿主**把动作定义在模块级（顶格 `@register_action`）→ 测试按名 `from game.services.X import <函数名>`
+# 必须继续可用 ⇒ 薄壳须再导出「动作函数名」。`class_mech` 例外：39 个动作原是 `install()` 内的**闭包**
+# （模块级从未暴露过），故只要求装配器名；`equip` 本就 0 动作。
+EXPOSE_ACTIONS = {"class_mech": False, "equip": False}
+SHELL_MARK = re.compile(r"^\s*from\s+content(?:\.\w+)*\s+import\s", re.M)
+# 动态再导出机制（PEP 562 `__getattr__` / `globals()[...] = ...`）：有它 = **任何**名字都能转发到包内
+DYN_MARK = re.compile(r"def\s+__getattr__|globals\(\)\s*\.\s*update|globals\(\)\[|\bg\s*=\s*globals\(\)")
+
+
+def is_shell_file(path: str, view=None) -> bool:
+    """薄壳判据（B10 收口族）：0 个 `@register_action` + import 了包内模块 + <400 行。"""
+    try:
+        v = view if view is not None else ModView(path)
+    except SyntaxError:
+        return False
+    if v.actions:
+        return False
+    txt = _read(path)
+    return len(txt.splitlines()) < 400 and bool(SHELL_MARK.search(txt))
+
+
+def shell_exports(path: str):
+    """薄壳对外名字面：静态名字（def/class/赋值/`import` 进来的）+ 是否有动态再导出机制。"""
+    txt = _read(path)
+    tree = ast.parse(txt, filename=path)
+    names = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.ImportFrom):
+            names |= {a.asname or a.name for a in node.names}
+        elif isinstance(node, ast.Import):
+            names |= {(a.asname or a.name).split(".")[0] for a in node.names}
+        else:
+            tgts = node.targets if isinstance(node, ast.Assign) else (
+                [node.target] if isinstance(node, ast.AnnAssign) else [])
+            for t in tgts:
+                if isinstance(t, ast.Name):
+                    names.add(t.id)
+    return names, bool(DYN_MARK.search(txt))
+
+
+def port_action_funcs(path: str) -> set:
+    """端口里被 `@register_action("k")` 装饰的**函数名**（宿主可见名；与 action key 未必同名，
+    如 `bar_gain_act` ↔ key `bar_gain`）。只看模块顶层 —— 与「宿主模块级暴露过谁」对齐。"""
+    tree = ast.parse(_read(path), filename=path)
+    out = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for d in node.decorator_list:
+                f = d.func if isinstance(d, ast.Call) else d
+                nm = getattr(f, "id", None) or getattr(f, "attr", None)
+                if nm in ("register_action", "register_cond"):
+                    out.add(node.name)
+    return out
+
+
 # 参数表 deep-equal：(表名, 真源文件, 真源行号, 包内端口, 包内变量名)
 TABLES = [
     ("MECH_CASH", "game/data/battle_rules.py", ":624", "content/mech/class_data.py", "MECH_CASH"),
@@ -379,7 +498,9 @@ def audit(pkg_root: str, game_root: str, rep: Rep) -> None:
                   os.path.isfile(path), "缺文件：%s" % path)
 
     # ---- ② @register_action 集合逐名相等 + 装配器名 ----
-    head("\n【2】@register_action 集合逐名相等（+ 装配器函数名）")
+    # B10 起分两支：已收口族（宿主 = 薄壳）走「冻结动作数 + 薄壳导出超集 + 壳确实读包」，
+    # 未收口族走原来的「真源 ↔ 端口 逐名相等」。（口径见文件中部 B10 说明块）
+    head("\n【2】@register_action 集合逐名相等（装配器名）—— 已收口族（薄壳）走等价断言")
     for fam, src, span, prel, asm, cmp_actions in PORTS:
         ppath = _p(pkg_root, prel)
         if not os.path.isfile(ppath):
@@ -397,6 +518,32 @@ def audit(pkg_root: str, game_root: str, rep: Rep) -> None:
         if not os.path.isfile(gpath):
             rep.check("族 %s 真源存在 %s" % (fam, src), False, "真源文件缺失：%s" % gpath)
             continue
+
+        if is_shell_file(gpath):
+            # ---- B10 收口族：真源侧已是薄壳 → 换成宿主无关的断言 ----
+            exported, dyn = shell_exports(gpath)
+            funcs = port_action_funcs(ppath) if EXPOSE_ACTIONS.get(fam, True) else set()
+            need = set(asm) | funcs
+            miss_static = sorted(need - exported)
+            missing = [] if dyn else miss_static
+            exp_keys = EXPECT_ACTION_KEYS.get(fam)
+            pset0 = set(pv.actions)
+            only_pkg = sorted(pset0 - set(exp_keys)) if exp_keys is not None else []
+            only_exp = sorted(set(exp_keys) - pset0) if exp_keys is not None else []
+            rep.check("族 %-13s 已收口（宿主薄壳）：端口动作 KEY 集 == 冻结清单（%d 个；私加 %s / 缺 %s）"
+                      % (fam, len(exp_keys or ()), only_pkg[:3], only_exp[:3]),
+                      exp_keys is None or (not only_pkg and not only_exp),
+                      "端口动作集变了（漏搬/私加/**改名**？）：私加=%s 缺=%s" % (only_pkg, only_exp))
+            rep.check("族 %-13s 薄壳对外名字面 ⊇ %d 装配器 + %d 动作函数名（缺：%s；机制 = %s）"
+                      % (fam, len(asm), len(funcs), missing, "动态再导出" if dyn else "静态再导出"),
+                      not missing,
+                      "薄壳少再导出 → 宿主调用点会 AttributeError：%s（静态缺 %d 个）"
+                      % (miss_static[:6], len(miss_static)))
+            rep.check("族 %-13s 薄壳确实 import 了包内族模块（%s）"
+                      % (fam, prel.split("/")[-1]), bool(SHELL_MARK.search(_read(gpath))),
+                      "薄壳里没有 `from content... import ...` —— 壳没读包？")
+            continue
+
         gset, pset = set(ModView(gpath).actions), set(pv.actions)
         only_g, only_p = sorted(gset - pset), sorted(pset - gset)
         rep.check("族 %-13s @register_action 集合逐名相等（真源 %d / 包内 %d）" % (fam, len(gset), len(pset)),
@@ -527,9 +674,35 @@ def drift_reversal(pkg_root: str, game_root: str, rep: Rep, tmp_root: str) -> No
                   "未报红 = 门禁是死的！" if not quiet.violations
                   else "红了 %d 条但没点名 %r：%s" % (len(quiet.violations), must_mention, quiet.violations[:2]))
 
+    # ---- M6（B10 新增）：薄壳再导出缺失 / 端口动作集漂移，必须被「已收口族」断言抓住 ----
+    # 用**合成薄壳文本**自证（不动真仓：真仓那份必须仍然全绿，见下一条对照）
+    psh = _p(pkg_root, "content/mech/we_procs.py")
+    rsh = _p(game_root, "game/services/battle_we_procs.py")
+    if os.path.isfile(psh) and os.path.isfile(rsh) and is_shell_file(rsh):
+        pv6 = ModView(psh)
+        fake = os.path.join(tmp_root, "fake_shell_we_procs.py")
+        with open(fake, "w", encoding="utf-8", newline="") as f:
+            f.write("from content.mech import we_procs as _E\n\n"
+                    "we_dot = _E.we_dot\nensure_registered = _E.ensure_registered\n")
+        fv6 = ModView(fake)
+        f_missing = sorted(set(pv6.actions) - (set(fv6.defs) | set(fv6.assigns)))
+        rep.check("反证 M6 合成薄壳（只再导出 we_dot）→ 必须判定缺 %d 个动作、且不缺 we_dot"
+                  % (len(pv6.actions) - 1),
+                  len(f_missing) == len(pv6.actions) - 1 and "we_dot" not in f_missing,
+                  "缺 %d 个：%s" % (len(f_missing), f_missing[:3]))
+        rv6 = ModView(rsh)
+        r_missing = sorted(set(pv6.actions) - (set(rv6.defs) | set(rv6.assigns)))
+        rep.check("反证 M6 对照：真仓薄壳再导出一个动作都不缺（%d 个）" % len(pv6.actions),
+                  not r_missing, r_missing)
+        rep.check("反证 M6 冻结清单：we_procs 端口动作数 == EXPECT_ACTIONS[we_procs]=27",
+                  len(pv6.actions) == EXPECT_ACTIONS["we_procs"], len(pv6.actions))
+    else:
+        rep.check("反证 M6 前置：we_procs 端口 + 宿主薄壳都在位", False,
+                  "缺 %s 或 %s 不是薄壳" % (psh, rsh))
+
     recheck = Rep(quiet=True)
     audit(pkg_root, game_root, recheck)
-    rep.check("反证收尾：前面 5 次装坏只动了 tmp 副本，真仓/真包依然全绿",
+    rep.check("反证收尾：前面 6 次装坏只动了 tmp 副本/合成文本，真仓/真包依然全绿",
               recheck.failed == 0, "真仓被污染了！%s" % recheck.violations[:2])
 
 
@@ -616,8 +789,10 @@ def main() -> int:
 
     print("\n=== 汇总：%d 通过 / %d 失败（%.1fs）===" % (rep.passed, rep.failed, time.time() - t0))
     if rep.failed:
-        print("修法：包内端口是**逐字搬运物**——真源改了就得跟着改（或把该表/动作的归属重新拍板）；"
-              "别改本门禁来消红，除非端口清单表本身写错了（文件/行号以本文件头部表为准）。")
+        print("修法：① 已收口族（宿主薄壳）红了 → 多数是**端口动作集**或**薄壳再导出**漂了：\n"
+              "       端口 key 改了 = 改 EXPECT_ACTION_KEYS（并同步包内使用点）；薄壳少了再导出 = 补回 `X = _pkg.X`。\n"
+              "      ② 未收口族红了 → 包内端口是**逐字搬运物**，真源改了就得跟着改（或把该表/动作的归属重新拍板）。\n"
+              "      ③ 别为了让门禁变绿而删断言 —— 除非端口清单表本身写错了（文件/行号以本文件头部表为准）。")
     return 1 if rep.failed else 0
 
 

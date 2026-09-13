@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年命令层 - gm(GM 调试/运营指令，v96)
+"""奥兰迪亚·余烬纪年命令层 - gm(GM 调试/运营指令，v96) —— B9 线 L6 **薄壳**
 
 权限：数据库 gm_whitelist(JSON) ∪ 环境变量 GWEN_GM_QQ(逗号分隔) 白名单；
 gm_ 前缀身份(测试回环)恒放行；未配置任何白名单时默认拒绝一切 GM 指令（v104.1 收紧，私聊不再放行）。
@@ -8,6 +8,22 @@ gm_ 前缀身份(测试回环)恒放行；未配置任何白名单时默认拒�
   gm_玩家 / gm_查询 / gm_发金币 / gm_发物品 / gm_发经验 / gm_设等级
   gm_传送 / gm_体力 / gm_改名 / gm_加GM / gm_删GM
   gm_伤害 / gm_play（历史保留）
+
+本文件只剩：**命令注册（`@declared`）+ 取玩家/取参数（`_uid`/`_strip_cmd`）+ 守卫
+（`_gm_auth`）+ 调包 + `yield event.plain_result(...)` 渲染**。
+
+真源正文（857 行）已 **逐字搬入内容包** → `<pkg>/content/gm.py`（唯一实现：权限判定 /
+目标解析 / 物品·地图查找 / 停服开服状态 / 玩家列表与详情 / 发金币物品经验 / 设等级 /
+传送 / 体力 / 改名 / GM 白名单增删 / 伤害倍率 / 帮助串；含全部落库副作用）。
+
+**留在本文件的四类「接人层」（非游戏内容，BRIEF §2.8）**：
+  ① 守卫调用点（每条指令开头 4 行）—— 命令注册形状；`_is_gm`/`_gm_whitelist` 真源在
+     共享的 `commands/base.py`（本批禁改）
+  ② `gm_play` —— 走宿主注册表/事件回环（`_run_shortcut`）转发指令
+  ③ `gm_spy` + `_chunk_text` / `_spy_to_role_cards` —— 调试/运维管道：读 playtest 实录 md、
+     拼 NapCat 合并转发节点、`context.send_message` 投递、写 `.spy_forward_state.json`
+  ④ `gm_bind_identity` / `gm_identity_table` + `GM_OWNER_QQ`/`_OWNER_GROUP`/`_PLATFORM_PREFIX`
+     /`_SPY_DIR` —— 平台身份（openid ↔ QQ 映射）与平台配置常量
 """
 import asyncio
 import glob
@@ -37,6 +53,40 @@ _PLATFORM_PREFIX = "onebot_v11_qq"
 _OWNER_GROUP = os.environ.get("GWEN_GM_GROUP", "1095961596")
 # playtest 交互实录目录（playtest_spy_round{N}.md，playtest_spy_export.py 轮末生成）
 _SPY_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "scripts")
+
+_LIB = None
+
+
+def _lib():
+    """包内 `content.gm`（GM 指令唯一实现）。
+
+    惰性 import（不在模块级 import 包内模块：包加载口要先跑 `package_apply()` 把包根插进
+    `sys.path`，那时 `content` 才是可用的命名空间包）。
+    """
+    global _LIB
+    if _LIB is None:
+        import importlib
+
+        from .. import bootstrap
+        bootstrap.package_apply()                       # 幂等；失败抛（不静默留空实现）
+        _LIB = importlib.import_module("content.gm")
+    return _LIB
+
+
+class _Host:
+    """GM 指令宿主服务句柄（包内实现唯一需要的宿主面）。"""
+
+    db = db
+    C = C
+
+
+def _host(title_bonus=None):
+    """构造句柄；`title_bonus` = `CommandBase._title_bonus`（`gm_设等级` 重算属性用）。"""
+    from ..content_rules.panel import player_final_stats
+    h = _Host()
+    h.player_final_stats = player_final_stats
+    h.title_bonus = title_bonus
+    return h
 
 
 def _chunk_text(text: str, size: int = 3800):
@@ -115,108 +165,13 @@ def _spy_to_role_cards(content: str, label: str, bot_qq: str) -> list:
     return cards
 
 
-def _spy_to_forward_nodes(content: str, label: str, bot_qq: str) -> list:
-    """把实录 md 按角色分节转成合并转发节点列表。
-
-    每条节点 = 一个角色的聊天记录（nickname=角色名，uin=bot 自己），
-    开头加一条总览节点。QQ 端显示为"聊天记录转发"，点开是角色轮流说话。
-
-    ⚠️ v101.28t 内容压缩（NapCat ARK 限制）：fromPacketMsg 会把每条消息的
-    完整文本 preview 塞进 ARK bytesData，总内容太大（实测 14K 字）→
-    retcode 1200 发送失败（55 字小内容成功）。故每节点 ≤300 字、
-    每角色 ≤3 段、总节点 ≤18——接近真实聊天记录的观感。
-    """
-    # 文件头标题（可选）："# Playtest 第 97 轮 · 角色交互实录" → 进总览节点
-    m = re.match(r"^#\s+(.+?)\s*$", content, flags=re.M)
-    title = m.group(1).strip() if m else label
-    nodes = [
-        Node(
-            uin=bot_qq,
-            name="格温",
-            content=[Plain("📡 {}（6 角色战况，点开查看）".format(title))],
-        )
-    ]
-    MAX_NODE_CHARS = 300    # 单节点字数（ARK preview 安全值）
-    MAX_SEG_PER_ROLE = 3    # 每角色最多节点数（取最新）
-    for sec in re.split(r"^## ", content, flags=re.M):
-        sec = sec.strip()
-        if not sec or sec.startswith("# "):
-            continue
-        parts = sec.split("\n", 1)
-        role = parts[0].strip()
-        body = parts[1].strip() if len(parts) > 1 else ""
-        if not body:
-            continue
-        # 角色名清洗："🧵 格温 (main)" → "格温"
-        name = re.sub(r"^[^\w\u4e00-\u9fff]+", "", role)
-        name = re.sub(r"\s*\(.*?\)\s*$", "", name).strip() or role
-        # 段落按 ▶ 指令切分（实录格式：▶ 『指令』\n回复体）
-        segs = re.split(r"(?=▶)", body)
-        segs = [s.strip() for s in segs if s.strip()][-MAX_SEG_PER_ROLE:]
-        for seg in segs:
-            for chunk in _chunk_text(seg, MAX_NODE_CHARS):
-                nodes.append(Node(uin=bot_qq, name=name, content=[Plain(chunk)]))
-    # 总节点数兜底（ARK 资源上限）：超出截断，尾部提示完整版位置
-    if len(nodes) > 18:
-        nodes = nodes[:18]
-        nodes.append(
-            Node(uin=bot_qq, name="格温", content=[Plain("…(更多交互见插件目录 scripts/{})".format(label))])
-        )
-    return nodes
-
-
 class GmCmds(CommandBase):
     def _gm_auth(self, event, group_id, qq_id):
         """返回 (ok, 错误消息)。白名单命中(库∪env)或 gm_ 测试身份放行。
         v104.1 M24 修复：白名单为空(库∪env 均未配置)时默认拒绝一切 GM 指令，
-        不再回退私聊放行——防止任意私聊用户 gm_发金币/gm_设等级/gm_加GM 自举提权。"""
-        if self._is_gm(qq_id):
-            return True, ""
-        if self._gm_whitelist():
-            return False, "⛔ GM 指令仅限管理员使用～"
-        return False, "⛔ GM 未配置：请管理员先在环境变量 GWEN_GM_QQ 中配置 GM QQ～"
-
-    # ---------- 目标解析 ----------
-    def _resolve_target(self, raw: str):
-        """解析 GM 指令的目标玩家：纯数字 → qq_id；否则先按角色名、再按 qq_id 精确匹配。
-        返回 (qq_id, 显示名) 或 (None, 错误消息)。"""
-        raw = (raw or "").strip()
-        if not raw:
-            return None, "格式：gm_<指令> <QQ号/角色名> ..."
-        if raw.isdigit():
-            p = db.get_player("", raw)
-            if not p:
-                return None, f"❌ 没有找到 QQ {raw} 的角色～"
-            return raw, p.get("name") or raw
-        hit = db.find_player_by_name(raw)
-        if hit:
-            return hit["qq_id"], hit["name"]
-        # 名字查不到 → 回退按 qq_id 精确匹配（测试号/特殊 ID 场景）
-        p = db.get_player("", raw)
-        if p:
-            return raw, p.get("name") or raw
-        return None, f"❌ 没有找到叫『{raw}』的玩家～"
-
-    def _find_item(self, name: str):
-        """按名称查找物品定义(材料/消耗品)，返回 (item_key, item_data) 或 None。"""
-        for k, v in C.ITEMS.items():
-            if v.get("name") == name:
-                return k, dict(v)
-        # 模糊包含匹配（唯一时才用）
-        hits = [(k, v) for k, v in C.ITEMS.items() if name in (v.get("name") or "")]
-        if len(hits) == 1:
-            return hits[0][0], dict(hits[0][1])
-        return None, None
-
-    def _find_map(self, name: str):
-        """按名称/别名查找地图，返回 map_id 或 None。"""
-        for m in C.MAPS:
-            if m.get("name") == name or name in (m.get("alias") or []):
-                return m["id"]
-        hits = [m for m in C.MAPS if name in (m.get("name") or "")]
-        if len(hits) == 1:
-            return hits[0]["id"]
-        return None
+        不再回退私聊放行——防止任意私聊用户 gm_发金币/gm_设等级/gm_加GM 自举提权。
+        判定实现归包（`content.gm.gm_auth`）；`_is_gm`/`_gm_whitelist` 真源在 base。"""
+        return _lib().gm_auth(self._is_gm, self._gm_whitelist, qq_id)
 
     # ---------- 停服 / 开服 / 状态 ----------
     @declared("gm_maintenance")
@@ -227,17 +182,9 @@ class GmCmds(CommandBase):
             yield event.plain_result(err)
             return
         raw = self._strip_cmd(event, "gm_停服").strip()
-        db.set_event_state("server_maintenance", "1")
-        db.set_event_state("server_maintenance_msg", raw)
-        yield event.plain_result(
-            "🔧 服务器已停服！\n" + (f"📢 公告：{raw}\n" if raw else "") +
-            "现在只有 GM 可以操作游戏，玩家指令会被拦截～"
-        )
-        await self._broadcast(
-            "🔧【服务器维护公告】\n服务器已进入维护状态，暂时无法游玩～\n"
-            + (f"📢 {raw}\n" if raw else "")
-            + "开服后会第一时间广播通知，请耐心等待～"
-        )
+        text, broadcast = _lib().maintenance(_host(), raw)
+        yield event.plain_result(text)
+        await self._broadcast(broadcast)
 
     @declared("gm_open")
     async def gm_open(self, event: AstrMessageEvent):
@@ -247,14 +194,10 @@ class GmCmds(CommandBase):
             yield event.plain_result(err)
             return
         was_down = self._server_down()
-        db.delete_event_state("server_maintenance")
-        db.delete_event_state("server_maintenance_msg")
-        yield event.plain_result(
-            "✅ 服务器已开服！所有玩家可以正常游玩啦～"
-            if was_down else "ℹ️ 服务器本来就在运行中，无需开服～"
-        )
+        text, broadcast = _lib().open_server(_host(), was_down)
+        yield event.plain_result(text)
         if was_down:
-            await self._broadcast("✅【服务器公告】\n维护结束，服务器已开服！欢迎回来冒险～")
+            await self._broadcast(broadcast)
 
     @declared("gm_status")
     async def gm_status(self, event: AstrMessageEvent):
@@ -263,23 +206,8 @@ class GmCmds(CommandBase):
         if not ok:
             yield event.plain_result(err)
             return
-        down = self._server_down()
-        msg = self._server_down_msg()
-        players = db.all_players(group_id)
-        gms = self._gm_whitelist()
-        gm_names = []
-        for g in sorted(gms):
-            p = db.get_player("", g)
-            gm_names.append(f"{p.get('name') or g}({g})" if p else g)
-        lines = [
-            "🖥️ 【服务器状态】",
-            f"状态：{'🔧 维护中' if down else '✅ 运行中'}",
-            f"公告：{msg}" if msg else None,
-            f"玩家数：{len(players)} 人",
-            f"最高等级：{players[0]['name']} Lv.{players[0]['level']}" if players else None,
-            f"GM 名单：{'、'.join(gm_names) if gm_names else '(未配置，默认拒绝)'}",
-        ]
-        yield event.plain_result("\n".join(x for x in lines if x))
+        yield event.plain_result(_lib().status_text(
+            _host(), group_id, self._server_down(), self._server_down_msg(), self._gm_whitelist()))
 
     @declared("gm_broadcast")
     async def gm_broadcast(self, event: AstrMessageEvent):
@@ -289,11 +217,12 @@ class GmCmds(CommandBase):
             yield event.plain_result(err)
             return
         raw = self._strip_cmd(event, "gm_广播").strip()
-        if not raw:
-            yield event.plain_result("格式：gm_广播 <公告内容>")
+        text, broadcast = _lib().broadcast(_host(), raw)
+        if broadcast is None:
+            yield event.plain_result(text)
             return
-        await self._broadcast(f"📢【全服公告】\n{raw}")
-        yield event.plain_result(f"📢 已广播到全服 {len(db.get_player_groups())} 个群！")
+        await self._broadcast(broadcast)
+        yield event.plain_result(text)
 
     # ---------- 玩家查询 ----------
     @declared("gm_players")
@@ -304,24 +233,7 @@ class GmCmds(CommandBase):
             yield event.plain_result(err)
             return
         raw = self._strip_cmd(event, "gm_玩家").strip()
-        kw = ""
-        page = 1
-        for tok in raw.split():
-            if tok.isdigit():
-                page = int(tok)
-            else:
-                kw = tok
-        players = db.all_players(group_id)
-        if kw:
-            players = [p for p in players if kw in (p.get("name") or "") or kw in (p.get("qq_id") or "")]
-        page_items, pages, page = self._page_items(players, page, per_page=10)
-        lines = [f"👥 玩家列表({len(players)}人" + (f"，关键词『{kw}』" if kw else "") + f"，第{page}/{pages}页)："]
-        for p in page_items:
-            lines.append(
-                f"Lv.{p.get('level', 1):>3} {p.get('name') or '?'} 金币{p.get('gold', 0)} "
-                f"{(C.display('classes', p.get('class_name')) if p.get('class_name') else '')} | {p.get('qq_id')}"
-            )
-        yield event.plain_result("\n".join(lines))
+        yield event.plain_result(_lib().players_text(_host(), group_id, raw))
 
     @declared("gm_query")
     async def gm_query(self, event: AstrMessageEvent):
@@ -331,33 +243,7 @@ class GmCmds(CommandBase):
             yield event.plain_result(err)
             return
         raw = self._strip_cmd(event, "gm_查询").strip()
-        tgt, terr = self._resolve_target(raw)
-        if not tgt:
-            yield event.plain_result(terr)
-            return
-        p = db.get_player("", tgt)
-        if not p:
-            yield event.plain_result("❌ 目标玩家不存在～")
-            return
-        cls = C.display("classes", p.get("class_name") or "") if p.get("class_name") else ""
-        sub = p.get("cur_subarea") or ""
-        loc = (C.MAP_BY_ID.get(p.get("cur_map") or "", {}) or {}).get("name") or p.get("cur_map") or "?"
-        if sub:
-            cm = C.MAP_BY_ID.get(p.get("cur_map") or "", {})
-            for sa in (cm.get("subareas") or []):
-                if sa.get("id") == sub:
-                    loc += f"·{sa.get('name')}"
-                    break
-        lines = [
-            f"🔍 【{p.get('name')}】({p.get('qq_id')})",
-            f"职业：{cls}｜种族：{p.get('race') or 'human'}｜性别：{p.get('gender') or '-'}",
-            f"等级：Lv.{p.get('level', 1)}｜经验：{p.get('exp', 0)}",
-            f"金币：{p.get('gold', 0)}｜体力：{p.get('stamina', 0)}/{100 + (p.get('level') or 1) * 2}",
-            f"HP：{p.get('hp')}/{p.get('max_hp')}｜MP：{p.get('mp')}/{p.get('max_mp')}",
-            f"位置：{loc or '?'}｜转职：T{p.get('class_tier', 0)}",
-            f"注册于：{p.get('created_at')}｜最近活跃：{p.get('last_active')}",
-        ]
-        yield event.plain_result("\n".join(lines))
+        yield event.plain_result(_lib().query_text(_host(), raw))
 
     # ---------- 玩家操作 ----------
     @declared("gm_give_gold")
@@ -367,25 +253,8 @@ class GmCmds(CommandBase):
         if not ok:
             yield event.plain_result(err)
             return
-        parts = self._strip_cmd(event, "gm_发金币").split()
-        if len(parts) < 2:
-            yield event.plain_result("格式：gm_发金币 <QQ号/角色名> <数量>")
-            return
-        tgt, terr = self._resolve_target(parts[0])
-        if not tgt:
-            yield event.plain_result(terr)
-            return
-        try:
-            n = int(parts[1])
-        except ValueError:
-            yield event.plain_result("数量必须是整数！")
-            return
-        if n < 0:
-            yield event.plain_result("数量不能为负！")
-            return
-        p = db.get_player("", tgt)
-        db.update_player("", tgt, gold=(p.get("gold") or 0) + n)
-        yield event.plain_result(f"💰 已给 {p.get('name')} 发放 {n} 金币(现在 {p.get('gold', 0) + n})！")
+        parts = self._strip_cmd(event, "gm_发金币")
+        yield event.plain_result(_lib().give_gold(_host(), parts))
 
     @declared("gm_give_item")
     async def gm_give_item(self, event: AstrMessageEvent):
@@ -394,28 +263,8 @@ class GmCmds(CommandBase):
         if not ok:
             yield event.plain_result(err)
             return
-        parts = self._strip_cmd(event, "gm_发物品").split()
-        if len(parts) < 2:
-            yield event.plain_result("格式：gm_发物品 <QQ号/角色名> <物品名> [数量]")
-            return
-        tgt, terr = self._resolve_target(parts[0])
-        if not tgt:
-            yield event.plain_result(terr)
-            return
-        item_name = parts[1]
-        count = 1
-        if len(parts) >= 3:
-            try:
-                count = max(1, int(parts[2]))
-            except ValueError:
-                yield event.plain_result("数量必须是整数！")
-                return
-        key, data = self._find_item(item_name)
-        if not key:
-            yield event.plain_result(f"❌ 找不到物品『{item_name}』(材料/消耗品)，试试更精确的名字～")
-            return
-        db.add_item("", tgt, key, data, count)
-        yield event.plain_result(f"📦 已给 {db.get_player('', tgt)['name']} 发放 {data['name']} ×{count}！")
+        parts = self._strip_cmd(event, "gm_发物品")
+        yield event.plain_result(_lib().give_item(_host(), parts))
 
     @declared("gm_give_exp")
     async def gm_give_exp(self, event: AstrMessageEvent):
@@ -424,26 +273,8 @@ class GmCmds(CommandBase):
         if not ok:
             yield event.plain_result(err)
             return
-        parts = self._strip_cmd(event, "gm_发经验").split()
-        if len(parts) < 2:
-            yield event.plain_result("格式：gm_发经验 <QQ号/角色名> <经验值>")
-            return
-        tgt, terr = self._resolve_target(parts[0])
-        if not tgt:
-            yield event.plain_result(terr)
-            return
-        try:
-            n = int(parts[1])
-        except ValueError:
-            yield event.plain_result("经验值必须是整数！")
-            return
-        if n < 0:
-            yield event.plain_result("经验值不能为负！")
-            return
-        p = db.get_player("", tgt)
-        db.update_player("", tgt, exp=(p.get("exp") or 0) + n)
-        # 读档惰性升级会在下次 get_player 时结算
-        yield event.plain_result(f"✨ 已给 {p.get('name')} 发放 {n} 经验(下次读档自动结算升级)！")
+        parts = self._strip_cmd(event, "gm_发经验")
+        yield event.plain_result(_lib().give_exp(_host(), parts))
 
     @declared("gm_set_level")
     async def gm_set_level(self, event: AstrMessageEvent):
@@ -452,39 +283,8 @@ class GmCmds(CommandBase):
         if not ok:
             yield event.plain_result(err)
             return
-        parts = self._strip_cmd(event, "gm_设等级").split()
-        if len(parts) < 2:
-            yield event.plain_result("格式：gm_设等级 <QQ号/角色名> <等级>")
-            return
-        tgt, terr = self._resolve_target(parts[0])
-        if not tgt:
-            yield event.plain_result(terr)
-            return
-        try:
-            n = int(parts[1])
-        except ValueError:
-            yield event.plain_result("等级必须是整数！")
-            return
-        if not 1 <= n <= 99:
-            yield event.plain_result("等级范围 1－99！")
-            return
-        p = db.get_player("", tgt)
-        try:
-            from ..content_rules.panel import player_final_stats
-            st = player_final_stats(
-                p["class_name"], n, p.get("equipment", {}), p.get("class_tier", 0),
-                p.get("attributes"), p.get("evolve_path", 0), self._title_bonus("", tgt),
-                p.get("race"))
-        except Exception:
-            yield event.plain_result("⚠️ 属性重算失败，等级未修改～")
-            return
-        # v113.2 QA 修复：GM 造号补属性点/技能点（对齐升级链 每级+3属性点/每级+1技能点），
-        # 取 max 保留玩家已用/已有点数，避免"等级到了但没点数"的测试污染
-        db.update_player("", tgt, level=n, exp=0, max_hp=st["max_hp"], max_mp=st["max_mp"],
-                         hp=st["max_hp"], mp=st["max_mp"],
-                         attr_pts=max(p.get("attr_pts", 0), (n - 1) * 3),
-                         skill_points=max(p.get("skill_points", 0), n - 1))
-        yield event.plain_result(f"⬆️ 已把 {p.get('name')} 设为 Lv.{n}(HP/MP 已按新等级重算回满)！")
+        parts = self._strip_cmd(event, "gm_设等级")
+        yield event.plain_result(_lib().set_level(_host(self._title_bonus), parts))
 
     @declared("gm_teleport")
     async def gm_teleport(self, event: AstrMessageEvent):
@@ -493,35 +293,8 @@ class GmCmds(CommandBase):
         if not ok:
             yield event.plain_result(err)
             return
-        parts = self._strip_cmd(event, "gm_传送").split()
-        if len(parts) < 2:
-            yield event.plain_result("格式：gm_传送 <QQ号/角色名> <地图名>")
-            return
-        tgt, terr = self._resolve_target(parts[0])
-        if not tgt:
-            yield event.plain_result(terr)
-            return
-        map_name = " ".join(parts[1:])
-        mid = self._find_map(map_name)
-        if not mid:
-            yield event.plain_result(f"❌ 找不到地图『{map_name}』～")
-            return
-        # v101.28p：传送落点设默认子区域（优先广场），否则 cur_subarea 空=卡城镇总览无法进子区域
-        db.update_player("", tgt, cur_map=mid, cur_subarea=self._default_subarea(mid))
-        p = db.get_player("", tgt)
-        yield event.plain_result(f"🌀 已把 {p.get('name')} 传送到【{C.MAP_BY_ID[mid]['name']}】！")
-
-    def _default_subarea(self, mid: str) -> str:
-        """gm_传送落点：优先广场，其次第一个非出口子区域；无子区域 → 空。"""
-        m = C.MAP_BY_ID.get(mid, {})
-        subs = m.get("subareas") or []
-        for sa in subs:
-            if sa.get("type") != "城镇出口" and "广场" in sa.get("name", ""):
-                return sa["id"]
-        for sa in subs:
-            if sa.get("type") != "城镇出口":
-                return sa["id"]
-        return ""
+        parts = self._strip_cmd(event, "gm_传送")
+        yield event.plain_result(_lib().teleport(_host(), parts))
 
     @declared("gm_stamina")
     async def gm_stamina(self, event: AstrMessageEvent):
@@ -530,28 +303,8 @@ class GmCmds(CommandBase):
         if not ok:
             yield event.plain_result(err)
             return
-        parts = self._strip_cmd(event, "gm_体力").split()
-        if not parts:
-            yield event.plain_result("格式：gm_体力 <QQ号/角色名> [数值](不填=回满)")
-            return
-        tgt, terr = self._resolve_target(parts[0])
-        if not tgt:
-            yield event.plain_result(terr)
-            return
-        p = db.get_player("", tgt)
-        mx = 100 + (p.get("level") or 1) * 2
-        if len(parts) >= 2:
-            try:
-                n = int(parts[1])
-            except ValueError:
-                yield event.plain_result("数值必须是整数！")
-                return
-            n = max(0, min(n, mx))
-        else:
-            n = mx
-        import time
-        db.update_player("", tgt, stamina=n, stamina_ts=int(time.time()))
-        yield event.plain_result(f"⚡ 已把 {p.get('name')} 的体力设为 {n}/{mx}！")
+        parts = self._strip_cmd(event, "gm_体力")
+        yield event.plain_result(_lib().stamina(_host(), parts))
 
     @declared("gm_rename")
     async def gm_rename(self, event: AstrMessageEvent):
@@ -560,33 +313,10 @@ class GmCmds(CommandBase):
         if not ok:
             yield event.plain_result(err)
             return
-        parts = self._strip_cmd(event, "gm_改名").split()
-        if len(parts) < 2:
-            yield event.plain_result("格式：gm_改名 <QQ号/角色名> <新名字>")
-            return
-        tgt, terr = self._resolve_target(parts[0])
-        if not tgt:
-            yield event.plain_result(terr)
-            return
-        new_name = " ".join(parts[1:]).strip()
-        if not new_name or len(new_name) > 12:
-            yield event.plain_result("新名字 1－12 个字符！")
-            return
-        p = db.get_player("", tgt)
-        db.update_player("", tgt, name=new_name)
-        yield event.plain_result(f"✏️ 已把 {p.get('name')} 改名为『{new_name}』！")
+        parts = self._strip_cmd(event, "gm_改名")
+        yield event.plain_result(_lib().rename(_host(), parts))
 
     # ---------- GM 白名单管理 ----------
-    def _load_wl(self) -> list:
-        try:
-            raw = db.get_event_state("gm_whitelist")
-            return [str(x) for x in json.loads(raw)] if raw else []
-        except Exception:
-            return []
-
-    def _save_wl(self, wl: list):
-        db.set_event_state("gm_whitelist", json.dumps(wl, ensure_ascii=False))
-
     @declared("gm_add_gm")
     async def gm_add_gm(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -595,14 +325,7 @@ class GmCmds(CommandBase):
             yield event.plain_result(err)
             return
         raw = self._strip_cmd(event, "gm_加GM").strip()
-        if not raw or not raw.isdigit():
-            yield event.plain_result("格式：gm_加GM <QQ号>")
-            return
-        wl = self._load_wl()
-        if raw not in wl:
-            wl.append(raw)
-            self._save_wl(wl)
-        yield event.plain_result(f"👑 已把 QQ {raw} 添加为 GM！({len(wl)} 人白名单)")
+        yield event.plain_result(_lib().add_gm(_host(), raw))
 
     @declared("gm_del_gm")
     async def gm_del_gm(self, event: AstrMessageEvent):
@@ -612,14 +335,7 @@ class GmCmds(CommandBase):
             yield event.plain_result(err)
             return
         raw = self._strip_cmd(event, "gm_删GM").strip()
-        if not raw or not raw.isdigit():
-            yield event.plain_result("格式：gm_删GM <QQ号>")
-            return
-        wl = self._load_wl()
-        if raw in wl:
-            wl.remove(raw)
-            self._save_wl(wl)
-        yield event.plain_result(f"🗑️ 已把 QQ {raw} 移出 GM 名单！({len(wl)} 人白名单)")
+        yield event.plain_result(_lib().del_gm(_host(), raw))
 
     # ---------- 历史保留指令 ----------
     @declared("gm_play")
@@ -803,34 +519,7 @@ class GmCmds(CommandBase):
         if not ok:
             yield event.plain_result(err)
             return
-        yield event.plain_result(
-            "🛠️ 【GM 指令】(运营/调试用，仅管理员)\n"
-            "━━━━━━━━━━━━\n"
-            "🏮 服务器\n"
-            "『gm_停服 [公告]』 停服(玩家无法游玩，自动广播)\n"
-            "『gm_开服』 开服(自动广播)\n"
-            "『gm_状态』 服务器状态/玩家数/GM 名单\n"
-            "『gm_广播 <内容>』 全服公告\n"
-            "━━━━━━━━━━━━\n"
-            "👥 玩家管理\n"
-            "『gm_玩家 [关键词] [页码]』 玩家列表\n"
-            "『gm_查询 <QQ/名字>』 玩家详情\n"
-            "『gm_发金币 <QQ/名字> <数量>』 发金币\n"
-            "『gm_发物品 <QQ/名字> <物品名> [数量]』 发物品(材料/消耗品)\n"
-            "『gm_发经验 <QQ/名字> <经验>』 发经验\n"
-            "『gm_设等级 <QQ/名字> <等级>』 设等级(重算属性回满血)\n"
-            "『gm_传送 <QQ/名字> <地图名>』 传送\n"
-            "『gm_体力 <QQ/名字> [数值]』 设体力(默认回满)\n"
-            "『gm_改名 <QQ/名字> <新名字>』 改名\n"
-            "━━━━━━━━━━━━\n"
-            "👑 权限管理\n"
-            "『gm_加GM <QQ>』『gm_删GM <QQ>』 管理 GM 白名单\n"
-            "━━━━━━━━━━━━\n"
-            "🧪 调试\n"
-            "『gm_伤害 [倍率]』 世界 Boss 伤害倍率(0.1-100)\n"
-            "『gm_play <指令>』 转发指令给引擎(真实链路体验)\n"
-            "💡 目标可以是 QQ 号或角色名；白名单存数据库，重启不丢"
-        )
+        yield event.plain_result(_lib().help_text())
 
     @declared("gm_boss_dmg")
     async def gm_boss_dmg(self, event: AstrMessageEvent):
@@ -840,18 +529,4 @@ class GmCmds(CommandBase):
             yield event.plain_result(err)
             return
         raw = self._strip_cmd(event, "gm_伤害").strip()
-        cur = db.get_boss_dmg_mult(qq_id)
-        if not raw:
-            yield event.plain_result(f"⚔️ 你当前的世界 Boss 伤害倍率：×{cur}(默认 1)\n『gm_伤害 <倍率>』修改(0.1－100)")
-            return
-        try:
-            m = float(raw)
-        except ValueError:
-            yield event.plain_result("格式：gm_伤害 <倍率>，如 『gm_伤害 10』(10 倍)")
-            return
-        if not 0.1 <= m <= 100:
-            yield event.plain_result("范围 0.1－100！")
-            return
-        m = round(m, 2)
-        db.set_event_state(f"boss_dmg_{qq_id}", m)
-        yield event.plain_result(f"⚔️ 世界 Boss 伤害倍率已设为 ×{m}(原 ×{cur})！『讨伐』时生效")
+        yield event.plain_result(_lib().boss_dmg(_host(), qq_id, raw))

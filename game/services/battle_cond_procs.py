@@ -17,164 +17,87 @@
   （加条件类型 = 加一行注册，技能数据直接可用）
 
 装配：`apply_cond_procs(actor)` 扫已学技能——有带 cond 的技能才挂（学什么挂什么，零噪音）。
+
+★ B10-L4 收口（2026-09-13）：本文件 = **委托薄壳**
+--------------------------------------------------------
+原实现（3 张常量元组 + `COND_PREDICATES` + `register_cond` + `_spd_of` + 5 个谓词 +
+`skill_cond_mult` 动作 + `apply_cond_procs` 装配）已逐字在包内
+`games/orlandia/content/mech/cond_procs.py`（P4-D2 搬入；`apply_cond_procs` 为 P4-D2b 追加）。
+逐函数对拍结论（`overnight/_b10_l4_recon.py`）：9 个同名函数里 7 个「去 docstring 后逐行相同」，
+2 个（`skill_cond_mult_act` / `apply_cond_procs`）**只差 1 行**技能表 import 路径
+（宿主 `..content_rules.skills` → 包内 `..apply._SKILL_LOOKUP`），行为对拍 139/139 相等
+（`overnight/_b10_l4_probe_BEFORE.txt`）⇒ 宿主那份是**纯冗余副本**。
+
+本文件只「再导出 + 一行委托」，名字 / 签名一字不变 —— 调用点零改动：
+
+    services/class_mech_proc.py:2370    from .battle_cond_procs import apply_cond_procs
+    tests/test_battle_cond_procs.py     CP.COND_PREDICATES
+    tests/test_apply_game_content.py    COND（⑤ 条件乘区）
+
+**唯一形态差异**：本模块不再 `@register_action("skill_cond_mult")`（动作注册真源 = 包内
+`content/mech/cond_procs.py`，由 `content/apply.py` import 即注册）。模块级常量 / 谓词表 /
+私有谓词函数走 PEP 562 惰性再导出（import 期不碰包、不改宿主 import 顺序副作用）。
+
+等价证据：`overnight/b10_l4_snap.py`（改造前后逐字节快照）·
+          `overnight/B10-L4-cond-food-wb-bridge.md`。
 """
 from __future__ import annotations
 
-from saintess_engine.battle.effects import register_action
-
-# 敌方减益键（控制/属性降）；DOT/印记类走 effects 层数判定
-_DEBUFF_KEYS = ("def_down", "spd_down", "mon_atk_down", "atk_down",
-                "stun", "freeze", "silence")
-_DOT_KEYS = ("poison", "burn", "bleed", "mark")
-# 旋律增益系（咏叹调 desc「当前旋律为增益系时 ×1.3」）
-_MELODY_BUFF_KINDS = ("atk", "def", "spd", "atk_matk", "all")
-
-COND_PREDICATES: dict = {}
+_PKG = None          # 包内 `content.mech.cond_procs` 模块缓存（惰性——import 期不碰包）
 
 
-def register_cond(key):
-    """条件类型注册（加类型 = 加一行；未注册 type 静默不生效）。"""
-    def deco(fn):
-        COND_PREDICATES[key] = fn
-        return fn
-    return deco
+def _pkg():
+    """包内 `content.mech.cond_procs`（条件乘区唯一实现源）：首调加载包，之后走缓存。
 
-
-def _spd_of(battle, actor) -> float:
-    if not isinstance(actor, dict):
-        return 0.0
-    try:
-        from saintess_engine import stats as S
-        st = S.actor_stats(battle, actor) or {}
-        return float(st.get("spd", 0) or 0)
-    except Exception:
-        return float(actor.get("spd", 0) or 0)
-
-
-@register_cond("player_first")
-def _p_player_first(battle, actor, target, cond) -> bool:
-    """先手：速度高于目标（v2.0）。"""
-    return _spd_of(battle, actor) > _spd_of(battle, target)
-
-
-@register_cond("enemy_debuff")
-def _p_enemy_debuff(battle, actor, target, cond) -> bool:
-    """敌方有减益（控制/属性降 + 目标级 DOT/印记层）。"""
-    if not isinstance(target, dict):
-        return False
-    ef = target.get("effects") or {}
-    if any(k in ef for k in _DEBUFF_KEYS):
-        return True
-    for k in _DOT_KEYS:
-        e = ef.get(k)
-        if isinstance(e, dict) and int(e.get("stacks", 0) or 0) > 0:
-            return True
-        if e:  # 无 stacks 结构的条目存在即算减益（控制型）
-            return True
-    deb = target.get("debuffs") or {}
-    return any(int((deb.get(k) or {}).get("n", 0) or 0) > 0 for k in _DOT_KEYS)
-
-
-@register_cond("enemy_broken")
-def _p_enemy_broken(battle, actor, target, cond) -> bool:
-    """敌方被破防/震慑中（破绽条触发态）——与 bar_trigger 后状态同源。
-
-    条状态载体 = 目标 effects[BAR_STATE_PREFIX+shaken]；读取前先结算到当刻
-    （衰减时间制：不结算会读到过期值）。
+    包装载口 = `game/bootstrap.package_apply()`（本进程唯一，幂等）。失败**抛**、不静默降级
+    （条件乘区静默缺失 = 技能面板承诺「条件 ×N」实机不生效，比报错难查得多）。
     """
-    if not isinstance(target, dict):
-        return False
-    from saintess_engine.gauge import bar_settle, bar_effect_key
-    _now = float(getattr(battle, "_now", 0.0) or 0.0)
-    bar_settle(target, "shaken", _now)
-    bs = (target.get("effects") or {}).get(bar_effect_key("shaken"))
-    if not isinstance(bs, dict):
-        return False
-    return (int(bs.get("trigger_count", 0) or 0) > 0
-            and float(bs.get("immune_until", 0.0) or 0.0) > _now)
-
-
-@register_cond("melody_buff")
-def _p_melody_buff(battle, actor, target, cond) -> bool:
-    """施法者当前旋律为增益系（读 effects.melody_state.kind）。
-
-    注意：旧 battle_conds 读 `battle._melody["kind"]`（旧引擎载体，saintess_engine 无写入方）；
-    saintess_engine 真实载体 = 施法者 `effects["melody_state"]`（class_mech_proc.class_melody_act 写）。
-    """
-    if not isinstance(actor, dict):
-        return False
-    st = (actor.get("effects") or {}).get("melody_state") or {}
-    return st.get("kind") in _MELODY_BUFF_KINDS
-
-
-@register_cond("melody_stacks")
-def _p_melody_stacks(battle, actor, target, cond) -> bool:
-    """施法者旋律强度 ≥ stacks（旧读 `_melody["stack"]`，saintess_engine 实键为 `stacks`）。"""
-    if not isinstance(actor, dict):
-        return False
-    st = (actor.get("effects") or {}).get("melody_state") or {}
-    need = int(cond.get("stacks", 4) or 4)
-    return int(st.get("stacks", 0) or 0) >= need
-
-
-@register_action("skill_cond_mult")
-def skill_cond_mult_act(battle, caster, target, params, logs):
-    """dmg_calc / heal_calc：技能 cond 条件倍率 → 累乘 battle._fire_ctx["mult"]。"""
-    ctx = getattr(battle, "_fire_ctx", None)
-    if not isinstance(ctx, dict):
-        return
-    info = ctx.get("info") or {}
-    cond = info.get("cond")
-    if not isinstance(cond, dict):
-        return  # 无字段 = 不启用
-    fn = COND_PREDICATES.get(cond.get("type"))
-    if fn is None:
-        return  # 未注册类型：静默不生效（不给断言/不崩）
-    actor = ctx.get("actor") or caster
-    tgt = ctx.get("target")
-    if tgt is None:
-        tgt = target
-    try:
-        if not fn(battle, actor, tgt, cond):
-            return
-    except Exception:
-        return  # 判定异常不阻断战斗
-    try:
-        from saintess_engine.battle.formulas import skill_cond_mult
-        from ..content_rules.skills import skill_info, skill_level_of
-        name = info.get("name") or ""
-        lv = skill_level_of(actor, name) if (actor or {}).get("class_name") else 1
-        mult = float(skill_cond_mult(cond, max(1, int(lv or 1)), info) or 1.0)
-    except Exception:
-        mult = float(cond.get("mult", 1.0) or 1.0)
-    if mult == 1.0:
-        return
-    ctx["mult"] = float(ctx.get("mult", 1.0) or 1.0) * mult
-    logs.append(f"✨ 条件达成【{cond.get('type')}】×{mult:g}")
+    global _PKG
+    if _PKG is None:
+        from .. import bootstrap as _bootstrap
+        _bootstrap.package_apply()
+        from content.mech import cond_procs as _m
+        _PKG = _m
+    return _PKG
 
 
 def apply_cond_procs(actor: dict) -> None:
-    """装配：扫已学技能 → 存在带 cond 的技能才挂 dmg_calc/heal_calc 条件乘区。"""
-    cn = actor.get("class_name") or ""
-    names = actor.get("learned_skills") or []
-    if not cn or not names:
-        return
-    from saintess_engine.battle.formulas import skill_cond_mult
-    from ..content_rules.skills import skill_info, skill_level_of
-    has_cond = False
-    for s in names:
-        try:
-            info = skill_info(cn, s)
-        except Exception:
-            info = None
-        if info and isinstance(info.get("cond"), dict):
-            has_cond = True
-            break
-    if not has_cond:
-        return
-    trig = actor.setdefault("triggers", {})
-    for ev in ("dmg_calc", "heal_calc"):
-        lst = trig.setdefault(ev, [])
-        if not any(isinstance(e, dict) and e.get("action") == "skill_cond_mult"
-                   for e in lst):
-            lst.append({"action": "skill_cond_mult"})
+    """装配：扫已学技能 → 存在带 cond 的技能才挂 dmg_calc/heal_calc 条件乘区。
+
+    ★ B10-L4：委托薄壳，实现（逐字）在包内 `content/mech/cond_procs.apply_cond_procs`。
+    """
+    return _pkg().apply_cond_procs(actor)
+
+
+def skill_cond_mult_act(battle, caster, target, params, logs):
+    """dmg_calc / heal_calc：技能 cond 条件倍率 → 累乘 `battle._fire_ctx["mult"]`。
+
+    ★ B10-L4：委托薄壳，实现（逐字）在包内 `content/mech/cond_procs.skill_cond_mult_act`。
+    """
+    return _pkg().skill_cond_mult_act(battle, caster, target, params, logs)
+
+
+def register_cond(key):
+    """条件类型注册（加类型 = 加一行；未注册 type 静默不生效）。
+
+    ★ B10-L4：委托薄壳 → 包内 `COND_PREDICATES` 唯一真源（本函数与包内那份同写一个表）。
+    """
+    return _pkg().register_cond(key)
+
+
+# 模块级常量 / 谓词表 / 私有谓词函数：PEP 562 惰性再导出（import 期不碰包）
+_LAZY = (
+    "_DEBUFF_KEYS", "_DOT_KEYS", "_MELODY_BUFF_KINDS", "COND_PREDICATES",
+    "_spd_of", "_p_player_first", "_p_enemy_debuff", "_p_enemy_broken",
+    "_p_melody_buff", "_p_melody_stacks",
+)
+
+
+def __getattr__(name):
+    """PEP 562：把上面那批名字转发到包内那份（同一对象/同一表 —— 双源已收口）。"""
+    if name in _LAZY:
+        return getattr(_pkg(), name)
+    raise AttributeError("module %r has no attribute %r" % (__name__, name))
+
+
+__all__ = ["apply_cond_procs", "skill_cond_mult_act", "register_cond", "COND_PREDICATES"]

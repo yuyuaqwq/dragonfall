@@ -184,6 +184,11 @@ print("【4. 垂钓惊喜层（v168.2 _fishing_surprise）】")
 clean_db()
 make_player("g1", "q1", "钓鱼测试", "战士", level=30)
 src = inspect.getsource(EconomyCmds)
+# ★ 2026-09-13 收口（B9-L1 economy 薄壳 + B10 批）：实现真源已搬到包内
+#   `content/economy_cmds.py` 的 `EconomyImpl`（宿主 `EconomyCmds` 现在只是它的薄壳子类）。
+#   源码面 = 壳 + 实现两侧拼接 —— 断言与原意不变（「EconomyCmds 的源码里有没有这段逻辑」）。
+from content.economy_cmds import EconomyImpl as _EcoImpl          # noqa: E402
+src = src + "\n" + inspect.getsource(_EcoImpl)
 # v168.2 鱼鱼拍板：惊喜不绑定宝箱——每次鱼获按品质判定惊喜（白0/绿2%/蓝5%/紫15%/橙30%），
 # 内容池=图纸30/装备25/符文20/宝石15/材料10；彩蛋收藏鱼必橙装。FISH_RARE_CHANCE 常量不再被垂钓消费。
 has_surprise_fn = "def _fishing_surprise" in src
