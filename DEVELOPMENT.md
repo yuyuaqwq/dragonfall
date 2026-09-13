@@ -104,11 +104,11 @@ data（纯数据 dict） ← core（纯逻辑，无 IO 不碰 DB/QQ） ← store
 
 **★ 2026-09-13 变更（B1 清场，鱼鱼拍板 A 案）**：整个 `design/new_world/`（849 文件 / 10.0 MB，其中嵌套独立 `.git` 独占 7.2 MB）已**移出仓**（移出 ≠ 删除）。
 - 原因：嵌套独立 `.git` 混进插件目录会让代码仓状态混乱（`docs/ENGINE_CONTENT_SPLIT_PLAN.md` R10）
-- 现址：`C:\Users\yuyu\AppData\Local\hermes\workspace\_retired\20260913\design\new_world\`
-- 回滚：同目录 `MANIFEST.json`（1,978 条 path/dst/sha256）+ `README.md`（反向 move 脚本），一条命令可还原
+- **新家（2026-09-13 定案）**：`C:\Users\yuyu\dragonfall-designer\` —— 与 `framework-engine` 同级的**外挂兄弟仓**，保留它自己的 git 历史与远端 `git@github.com:yuyuaqwq/dragonfall-designer.git`；设计稿今后在那里维护、独立提交（提交信息照旧写设计依据）
+- B1 移出时的中转站 `...\workspace\_retired\20260913\design\new_world\` 已迁空，只留 `design/MOVED_TO.txt` 指针；`_retired\20260913\MANIFEST.json` 仍是这次移出的逐文件 sha256 凭据
 - 仓内留了跳转指针 `design/README.md`：源码注释里所有 `design/new_world/...` 写法都按它跳（~10 处注释沿用旧写法，未逐条改）
-- **因此「双仓分别提交」不再适用，仓内当前没有策划案真源**：设计/数值改动的同步对象待定（外挂仓 / 并入 `docs/` / 重建独立仓，三选一）。
-- **定案前**：凡涉及数值（价格/概率/属性/成长）、新内容（物品/配方/地图/技能/怪物）、机制（规则/流程/解锁）的改动，须在提交说明里写清设计依据，并知会鱼鱼；纯 bug 修复 / 纯文案错别字 / 纯重构可不同步。
+- **「强制双仓分别提交」不再适用**（本铁律退掉的就是这一步）。改数值/新内容/机制时：**可选**去 `dragonfall-designer` 更新设计稿，但**必须在代码提交说明里写清设计依据并知会鱼鱼**；纯 bug 修复 / 纯文案错别字 / 纯重构不涉及。
+- 宿主旧编辑器 `editor/`（技能/词条 2 域 MVP）同批退役 → `_retired\20260913\editor\`；现行编辑器 = `framework-engine/editor`（24 域，端口 8766）。
 
 **判定（沿用）**：改到数值·新内容·机制 → 必同步；纯 bug 修复、纯文案错别字、纯重构不动设计 → 可不同步但拿不准就同步。
 **历史教训（沿用）**：v101.25h3 只更新 `docs/NUMERIC_DESIGN.md` 被鱼鱼抓包（"这种策划设计类的文档要放在策划案里，不要在代码文档里"）；`docs/NUMERIC_DESIGN.md` 只是实现记录，不承载设计意图。
