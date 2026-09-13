@@ -50,7 +50,10 @@ scripts/.spy_*_state.json
 scripts/.spy_*_state.json
 game/data/cmd_config.json
 game/data/t2i_templates/
-design/
+# 策划案仓 design/new_world/ 已于 2026-09-13 移出本仓（见 design/README.md）；
+# 下面两行让 design/ 整目录继续被忽略，但保留仓内的跳转指针 design/README.md
+design/*
+!design/README.md
 
 scripts/.spy_*_state.json
 
