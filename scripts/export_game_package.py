@@ -1527,6 +1527,318 @@ def derive_pois(src_root: str = REPO_ROOT) -> dict:
     return {k: out[k] for k in sorted(out)}
 
 
+# -*- coding: utf-8 -*-
+# ═══════════════════════════════════════════════════════════════════════════════
+# 可直接粘贴进 `scripts/export_game_package.py` 的实现片段（本文件只是一份素材，未写任何仓）
+#
+# 粘贴位置：
+#   B-1) 函数体：放在 `def derive_affixes(...)` 之后（与它同族：都是「词条形态的扁平表」，
+#        且本域与词条域共用同一套读取/保真口径）
+#   B-2) 注册一行：文件末尾 `DERIVERS = { ... }` 里加 `"legendary_effects": derive_legendary_effects,`
+#        （`build_manifest()` 的 `domains` 由 `sorted(DERIVERS)` 派生 → 清单一并跟上，不必手写第二份）
+#
+# 不重复写模块级 import：`REPO_ROOT` 与 `_import_module()` 都由导出器文件提供。
+# 配套的框架侧改动：`schemas/legendary_effects.schema.json` 落盘 + `editor/packages.py` 的 DOMAINS 加一行。
+# ═══════════════════════════════════════════════════════════════════════════════
+def derive_legendary_effects(src_root: str = REPO_ROOT) -> dict:
+    """传说专属特效域：取 `affixes.LEGENDARY_EFFECTS` 全量原样（93 条）。
+
+    为什么是这张表（而且**只有**这张表）
+    ------------------------------------
+    一条 = 一件装备能挂的「传说专属特效」（橙装 1 件 1 个）。真源 `game/data/affixes.py:548`
+    （闭括号 `:1022`），运行时表 == 源码字面量（该文件无 import、全仓无 `LEGENDARY_EFFECTS.update`
+    / 下标赋值 → 与 AFFIXES 一样没有 import 期改写要跟；仍走 import 以与其他域同构）。
+    本域**不并入 `affixes` 域**：`affixes` 域 primary = `affix`，其 $defs/affix_table 的
+    `propertyNames` 是同一串（`^[a-z][a-z0-9_]*$`），两表键**实测 0 撞名**（93 ∩ 76 = ∅），
+    但**语义不同**（词条 = 随机/固定词条；本表 = 装备专属），且词条域的 schema 把
+    kind/trigger 写成了 enum（本表有 1 条 `trigger="on_crit"` 越界值）——并进来会让整个词条域变红。
+
+    保真纪律（与 items / affixes / equip_roster 同款）
+    ------------------------------------------------
+    · 条目**原样进 JSON**：不补默认值、不改类型、不重排字段、不因缺 `chance` 就补 1.0。
+    · 键空间原样：93 个键 100% 匹配 `^[a-z][a-z0-9_]*$`（最长 23 字符），不重写、不加前缀。
+    · `effect` 整块照搬：子键/子值形状由内容侧定（实测 57 个 distinct 子键，子值类型有
+      float / str / int / bool / list[str] 五种），导出器**不翻译、不裁剪、不补键** ——
+      裁剪或补默认值等于在包里写下第二份内容侧规则。
+
+    形状门禁（源形状变了就拒绝导出，而不是静默产出坏包）
+    ----------------------------------------------------
+      · `LEGENDARY_EFFECTS` 必须是非空 dict；`AFFIXES` 必须是非空 dict（做撞名校验用）。
+      · 键必须是非空 str；每条必须是非空 dict。
+      · 必填五件套 `name/kind/trigger/effect/desc` 必须齐（实测 93/93 齐，与
+        `legendary_effects.schema.json` 的 `$defs.legendary_effect.required` 逐字一致）。
+      · `name/kind/trigger/desc` 为非空 str；`effect` 为非空 dict。
+      · `chance`（27 条有）必须是非 bool 的数值且落在 0~1（schema 的 minimum/maximum）。
+      · 键与 `AFFIXES` 撞名即 raise：内容侧 `game/core/affix.py:158` 的 `affix_label()` 是
+        `AFFIXES.get(aid) or LEGENDARY_EFFECTS.get(aid)`，撞名会让本表那条**永远显示不出来**
+        （实测今天 0 例；这道闸防将来扩散，且不替内容侧选一条改名）。
+
+    本函数**有意不拦**的一件事（内容侧词汇，不是形状）
+    --------------------------------------------------
+    `trigger` 的取值不在内容侧合法表里的数据，本函数不 raise —— 触发时机是**内容侧词汇**，
+    合法表在 `game/core/affix.py:20` 的 `TRIGGER_TYPES`（6 值）+ 战斗侧挂点，导出器复制一份
+    就等于在导出器里长出第二份词表（与 drop_pools 域「策略名是自由串、内容侧可扩展」同口径），
+    且框架 schema 也**故意不枚举** trigger。已知的那 1 条（实测）：
+      `LEGENDARY_EFFECTS["shadow_raid"]`（`affixes.py:1017-1021`，显示名「影袭连刺」）
+      `trigger = "on_crit"`（`affixes.py:1018`，chance 0.50，effect = extra_atk/lifesteal/tag）
+      —— `on_crit` 不在 TRIGGER_TYPES 里（TRIGGER_TYPES = stat / on_hit / on_taken /
+      turn_start / battle_start / passive），战斗侧**没有对应挂点** → 该特效实际上永远不触发。
+      注意 `on_crit` 在另一处是**合法**的：`game/services/battle_equip_proc.py:523` 的
+      `_AFFIX_RES_GAIN_ON` 把 `effect.on = "on_crit"`（资源 gain 型词条的内层字段）映射到
+      引擎 `crit` 事件 —— 那是 effect 内部字段，不是顶层 `trigger`，两者别混。
+      修源建议（**只建议，导出器不改源**）：把 `affixes.py:1018` 的
+      `"trigger": "on_crit"` 改成 `"trigger": "on_hit"`（`on_crit` 语义上是 `on_hit` 的子集，
+      改后该特效会进入既有的命中挂点；若要保持「只在暴击后」的语义，正确做法是在内容侧
+      给战斗挂点补一条 crit 触发链，那是机制改动，不是数据改动）。**改与不改都能导出** ——
+      本域逐条校验 0 失败（框架 schema 不枚举 trigger），但没改之前这条在实战里是死效果。
+
+    实测（2026-09-13，真跑；真源 `game/data/affixes.py`）
+    ----------------------------------------------------
+      · 93 条逐条过框架 `$defs/legendary_effect` → **0 失败**；整表过 `$defs/legendary_effects_table`
+        （propertyNames）0 失败；93/93 个键匹配 `^[a-z][a-z0-9_]*$`。
+      · 字段分布：name/kind/trigger/effect/desc 93；chance 27（0.05~1.0，全数值）。
+      · 取值分布（只用于核对，不进 schema）：kind = attack 61 / defense 32；
+        trigger = stat 43 / on_hit 21 / passive 13 / on_taken 7 / turn_start 4 /
+        battle_start 4 / **on_crit 1（越界，见上）**。
+      · effect 子键 57 个 distinct，depth 1（无嵌套 object；5 处是 list[str]，如 enemy_contains）。
+      · 与 `AFFIXES` 撞名 0 例；`name` 93 个全 distinct。
+      · 本域进包后，包内 `equip_roster.legendary` 的 **116/145** 处引用可解析（78/107 distinct；
+        其余 4 处落在 `affixes` 域（已在包内）、15 处落在 `weapon_effect_data.WEAPON_EFFECT_DATA`
+        （机制侧武器特效，未进包）、10 处查不到任何表（内容侧真悬空，见报告）。
+    """
+    af = _import_module("affixes", src_root)
+
+    table = getattr(af, "LEGENDARY_EFFECTS", None)
+    if not isinstance(table, dict) or not table:
+        # 空表会让编辑器显示「0 条」而不报错 —— 宁可炸（与 PLANNED_DOMAINS 的立意一致）
+        raise ValueError("affixes.LEGENDARY_EFFECTS 不是非空 dict —— 源形状变了，拒绝导出")
+    affix_ids = getattr(af, "AFFIXES", None)
+    if not isinstance(affix_ids, dict) or not affix_ids:
+        raise ValueError(
+            "affixes.AFFIXES 不是非空 dict —— 无法做「特效键是否与词条键撞名」的校验，拒绝导出"
+        )
+
+    out: dict = {}
+    for lk, lv in table.items():
+        if not isinstance(lk, str) or not lk.strip():
+            raise ValueError(f"LEGENDARY_EFFECTS 的键不是非空字符串：{lk!r} —— 源形状变了，拒绝导出")
+        if not isinstance(lv, dict):
+            raise ValueError(
+                f"LEGENDARY_EFFECTS[{lk!r}] 不是 dict（{type(lv).__name__}）—— "
+                f"期望「一条特效 = 一个 dict」，拒绝导出"
+            )
+        missing = [f for f in ("name", "kind", "trigger", "effect", "desc") if f not in lv]
+        if missing:
+            # 框架 required 缺字段 = 形状异常：在派生处炸掉，而不是把一个编辑器会标红的条目发进包
+            raise ValueError(
+                f"LEGENDARY_EFFECTS[{lk!r}] 缺必填字段 {missing} —— legendary_effects.schema.json "
+                f"$defs.legendary_effect 要求 name/kind/trigger/effect/desc，拒绝导出"
+            )
+        for f in ("name", "kind", "trigger", "desc"):
+            if not isinstance(lv[f], str) or not lv[f].strip():
+                raise ValueError(f"LEGENDARY_EFFECTS[{lk!r}].{f} 不是非空 str —— 源形状变了，拒绝导出")
+        eff = lv["effect"]
+        if not isinstance(eff, dict) or not eff:
+            raise ValueError(f"LEGENDARY_EFFECTS[{lk!r}].effect 不是非空 dict —— 拒绝导出")
+        ch = lv.get("chance")
+        if ch is not None:
+            if isinstance(ch, bool) or not isinstance(ch, (int, float)):
+                raise ValueError(
+                    f"LEGENDARY_EFFECTS[{lk!r}].chance 不是数值（{type(ch).__name__}）—— 拒绝导出"
+                )
+            if not 0 <= ch <= 1:
+                raise ValueError(
+                    f"LEGENDARY_EFFECTS[{lk!r}].chance = {ch!r} 不在 0~1 —— "
+                    f"schema 的 minimum/maximum 会标红，拒绝导出"
+                )
+        if lk in affix_ids:
+            raise ValueError(
+                f"LEGENDARY_EFFECTS[{lk!r}] 的键与 AFFIXES 撞名 —— 内容侧 affix_label() 是 "
+                f"`AFFIXES.get(aid) or LEGENDARY_EFFECTS.get(aid)`，撞名会让本表这条永远显示不出来；"
+                f"请先给它改名（源数据决定，导出器不替它选）"
+            )
+        out[lk] = dict(lv)          # 条目原样：字段顺序 / 类型 / 值都不动
+
+    return out
+
+
+# -*- coding: utf-8 -*-
+"""可直接粘贴进游戏仓 `scripts/export_game_package.py` 的实现片段（本文件只是素材，**未写任何仓文件**）。
+
+粘贴位置（**以符号名为准** —— 该文件正被并行改动，行号会漂）：
+  B-1) 函数体：与 `derive_pois` / `derive_equip_roster` 同族（都是「取运行时表 + 按 key 连接」的域），
+       放在 `def derive_pois(...)` 之后、`DERIVERS = {` 之前。
+  B-2) 注册一行：`DERIVERS = { ... }` 里加 `"pets": derive_pets,`
+       —— `build_manifest()` 的 `domains = sorted(DERIVERS)` 是**派生**的，清单会自己跟上，
+       不必手写第二份域名单。
+  B-3) 落盘路径：本域 kind 由框架注册表决定 —— `editor/packages.py` 的 `DOMAINS["pets"]["kind"]`
+       给 "data" → `content_sub()` 会写到 `content/data/pets.json`。
+       写完别忘了 `python scripts/export_game_package.py --domain pets --check`（比对幂等）。
+
+本函数**只用该文件里已有的模块级设施**（`REPO_ROOT` / `_import_module`），不引入任何新 import
+（`re` 不在它的 import 行里 —— 键形状用手写字符检查，与 `^pet_[a-z0-9_]+$` 等价）。
+不写 `from __future__`：该文件的其余片段都没有，加了就与既有风格不一致。
+
+配套的框架侧改动见报告 §6（`schemas/pets.schema.json` 落盘 + `editor/packages.py` DOMAINS 一行 +
+`editor/glossary.py` 词条/分组）。
+"""
+
+
+def derive_pets(src_root: str = REPO_ROOT) -> dict:
+    """宠物域（pets）：**一条 = 一个品种**（`PET_POOL` 的一行），键 = 品种 id（`pet_*`）。
+
+    ==================== 真源（两张**列表**，不是键表） ====================
+        game/data/pets.py:19   PET_POOL      **16 条**，每条 13 个字段：
+                               key / name / icon / quality / focus / skill_name / skill_interval /
+                               skill_type / skill_value / spd / source / desc / lines
+                               （实测：13 个字段在 **16/16** 条上都齐；`skill_interval`/`spd` 是 int、
+                               `skill_value` 是 float、`lines` 是长度 3 的 str 列表，其余是 str）
+        game/data/pets.py:112  PET_EGG_ROLL  **10 条**，每条 2~3 个字段：
+                               key / rate（10/10）+ role(1) / name_kw(3) / is_elite(4) / is_boss(3)
+
+    ⚠ 两张表都是 **list**（源里没有键），本函数负责**建键**：`key` 字段即表键。
+    这也是它们与 `ITEMS`/`EQUIP_ROSTER` 那类「dict 源表」的唯一差别。
+
+    ==================== 两张表的关系（池 id → 品种） ====================
+    实测：`PET_EGG_ROLL` 的 **10/10** 个 key 都命中 `PET_POOL` 的 key（0 悬空、0 重复），
+    6 个品种**没有**规则 —— 它们的获取渠道不在「打怪掷蛋」这条线上，而在内容侧别处：
+        · 垂钓档位特殊产出（`game/services/profession.py:577-605`）
+        · 任务奖励 `reward_pet`（`game/data/quests.py:13/222/521/2058/3117` → `game/reward.py:70-80`）
+    所以「规则表少 6 条」是**正常缺省**，不是坏数据（不要在导出期对它设「必须全覆盖」的门禁）。
+
+    ==================== 为什么把规则**连接进条目**、而不是当第二张顶层表 ====================
+    1) **键空间相同**（两边都是 `pet_*`）。平铺进同一个 JSON 文件的话，那 10 行规则会被
+       primary def（`pet`）逐条校验 —— 它们没有 `name`/`quality`/`skill_*`，会**逐条标红**；
+       分成两个文件又多出一个「一条不是宠物」的域。框架 `editor/packages.py` 一个域 = 一个
+       `primary`，装不下两种形状不同的行。
+    2) 语义上规则**是品种的属性**：内容侧消费端就是「拿到本次击杀的怪 → 遍历规则 → 命中
+       品种 id → 构造该品种的蛋」（`game/services/battle_settlement.py:295-317`），
+       规则没有独立的实体身份。
+    3) 连接**无损**：10/10 命中，且每个 key 只有一行（实测 0 重复）→ 不需要任何取舍。
+       这与 `derive_equip_roster` 把两张按名索引的子表连接进条目的做法是同一套（那里的键是
+       中文名、会与主表键空间冲突；这里两边键一致，冲突更小）。
+
+    ==================== 保真纪律 ====================
+      · 品种条**原样进 JSON**：`dict(源行)` 浅拷贝后只**追加**派生字段 `egg_roll`（追加在末尾，
+        不动源字段顺序）；不补默认值、不改类型、不动字段顺序、不重排数组。
+      · `egg_roll` = 规则行**整行照搬**（`dict(规则行)`，**含它自己的 `key`**）：原样照搬就不用
+        回答「导出器能不能替内容侧删字段」这个问题。为防「两处 key 半改」的漂移，导出期
+        **断言 `egg_roll["key"] == 表键`**（不等就 raise）。
+      · 没有规则的品种**不写该字段**（缺字段 = 该品种不走打怪掷蛋渠道，与「有空规则」是两回事）。
+
+    ==================== 形状门禁（源形状变了就拒绝导出，不静默产出坏包） ====================
+      · 两张源表都必须是非空 **list**（空表 = 编辑器显示 0 条且不报错 —— 宁可炸，
+        与 `PLANNED_DOMAINS` 的立意一致）。
+      · 每个品种必须是非空 dict，`key` 必须匹配 `^pet_[a-z0-9_]+$`（与
+        `schemas/pets.schema.json` 的 `$defs/pet_table.propertyNames` 同一串）。
+      · 品种 `key` 唯一（重复 = 建键丢条目）；品种 `name` 非空且唯一（按名引用会变歧义；
+        实测 16 个名字 0 重复）。
+      · 源品种行**不得已含** `egg_roll`（注入会覆盖源真值 → raise，同 `derive_skills` 的注入守卫）。
+      · 每条规则的 `key` 必须命中品种池（悬空规则 = 往包里塞一条断链，宁可在导出期炸掉）；
+        规则的 `key` 必须唯一（同一品种两行规则 = 「命中哪一行」由遍历顺序决定，是内容侧 bug）。
+
+    ==================== 实测（2026-09-13，真跑；真源 `game/data/pets.py`） ====================
+      · 16 个品种 / 10 条规则 → 连接后 **16 条**条目，其中 **10 条**带 `egg_roll`、6 条不带；
+        16 个键全部 `pet_*`；0 键重复、0 重名、0 悬空规则。
+      · 16 条逐条过框架 `$defs/pet`（jsonschema 4.26.0 + 框架内置 mini 校验器两条路）→ **0 失败**；
+        整表过 `$defs/pet_table`（propertyNames）→ 0 失败；10 行规则过 `$defs/pet_egg_roll` → 0 失败。
+      · 逐字段分布（16 条）：13 个源字段 16/16 齐；`quality` 5 档、`focus` 5 个取值、
+        `skill_type` 8 个取值、`skill_interval` ∈ {3,4}、`skill_value` 0.15~0.70、`spd` 30~75。
+      · 本域进包后**新增可解析的引用落点**：`drop_pools` 里 **27 处** `petegg:pet_starbutterfly`
+        的 `pet_starbutterfly` 从「只有内容侧代码认识」变成**包内可查**的品种 key
+        （框架 loot_vocab 把 `petegg:` 声明为 inline 前缀 → 审计口径不变，变的是「内容侧 key →
+        定义」这一层，编辑器能给真候选了）。
+      · ⚠ 本域**不能**消 `items.effect_data.tid` 的 4 条悬空：实测那 4 个 tid
+        （`ember_wisp` / `holy_totem` / `thorn_golem` / `medic_golem`）**不是品种 key**，它们是
+        v140 战斗道具的**召唤物模板 id**（`effect: "summon"`），全仓无定义表（`SUMMONS` 只有
+        5 个别的 id），且休眠处理器明写「尚未接入战斗结算」（`game/core/potion_effects.py:410`）。
+        → 那 4 条属**召唤物域/机制移植**，与宠物无关（详见报告 §3）。
+      · 本域**新引入的对外引用**：`egg_roll.name_kw`（怪名关键词，按名弱引用）与 `egg_roll.role`
+        （怪定位词）都指向**未进包**的「怪物名册」—— 与 `drop_pools` 的 `mon:` 池键同类，
+        不是本域造成的缺口（包内无人引用本域字段，方向是「本域引用别处」）。
+    """
+    mod = _import_module("pets", src_root)
+
+    # ---- 1. 真源：品种池 + 蛋掉落规则（两张 list）----
+    pool = getattr(mod, "PET_POOL", None)
+    if not isinstance(pool, list) or not pool:
+        raise ValueError(
+            "game.data.pets.PET_POOL 不是非空 list —— 源形状变了/表被删，拒绝导出"
+            "（空表 = 编辑器显示 0 条且不报错）")
+    rolls = getattr(mod, "PET_EGG_ROLL", None)
+    if not isinstance(rolls, list) or not rolls:
+        raise ValueError(
+            "game.data.pets.PET_EGG_ROLL 不是非空 list —— 源形状变了，拒绝导出")
+
+    def _bad_key(k) -> bool:
+        """品种 id 形状：`^pet_[a-z0-9_]+$`（与框架 schema 的 propertyNames 同一串）。
+
+        ⚠ 手写而不用 `re`：`re` 不在 export_game_package.py 的 import 里，加模块级 import
+        会污染该文件（本片段只允许用文件里已有的设施）。
+        """
+        if not isinstance(k, str) or not k.startswith("pet_"):
+            return True
+        body = k[4:]
+        if not body:
+            return True
+        return any(c not in "abcdefghijklmnopqrstuvwxyz0123456789_" for c in body)
+
+    # ---- 2. 品种池 → {品种 id: 品种行}（键 = 条目自带 key；键/名唯一）----
+    out: dict = {}
+    name_to_key: dict = {}
+    for i, p in enumerate(pool):
+        if not isinstance(p, dict):
+            raise ValueError(f"PET_POOL[{i}] 不是 dict（{type(p).__name__}）—— 源形状变了，拒绝导出")
+        k = p.get("key")
+        if _bad_key(k):
+            raise ValueError(
+                f"PET_POOL[{i}] 的 key {k!r} 不是「pet_*」形状 —— 源形状变了，拒绝导出"
+                f"（键空间是内容侧与教程/掉落/任务奖励共用的引用落点，不能乱改）")
+        if k in out:
+            raise ValueError(f"品种 key {k!r} 在 PET_POOL 里出现两次 —— 建键会丢条目，拒绝导出")
+        nm = p.get("name")
+        if not isinstance(nm, str) or not nm:
+            raise ValueError(f"PET_POOL[{k!r}] 缺非空 name —— 展示与按名查找都靠它，拒绝导出")
+        prev = name_to_key.get(nm)
+        if prev is not None:
+            raise ValueError(
+                f"品种名 {nm!r} 重复：{prev!r} 与 {k!r} —— 按名引用会变歧义，请先在源侧改名再导出")
+        if "egg_roll" in p:
+            raise ValueError(
+                f"PET_POOL[{k!r}] 已含派生字段 'egg_roll' —— 注入会覆盖源真值，拒绝导出")
+        name_to_key[nm] = k
+        out[k] = dict(p)
+
+    # ---- 3. 蛋掉落规则按 key 连接进品种条目（追加字段 egg_roll，整行照搬）----
+    joined = 0
+    for j, r in enumerate(rolls):
+        if not isinstance(r, dict):
+            raise ValueError(f"PET_EGG_ROLL[{j}] 不是 dict（{type(r).__name__}）—— 源形状变了，拒绝导出")
+        rk = r.get("key")
+        if rk not in out:
+            raise ValueError(
+                f"PET_EGG_ROLL[{j}] 的 key {rk!r} 不在 PET_POOL 里 —— 悬空规则（蛋会指向不存在的品种），"
+                f"拒绝导出")
+        if "egg_roll" in out[rk]:
+            raise ValueError(
+                f"品种 {rk!r} 在 PET_EGG_ROLL 里有两行规则 —— 命中哪一行由遍历顺序决定，"
+                f"先在源侧合并再导出")
+        row = dict(r)
+        if row.get("key") != rk:      # 照搬整行后仍核一次：防「行里的 key 与建键用的 key 不是同一个」
+            raise ValueError(
+                f"PET_EGG_ROLL[{j}] 的 key 与品种 id 不一致（{row.get('key')!r} != {rk!r}）—— "
+                f"拒绝导出")
+        out[rk]["egg_roll"] = row
+        joined += 1
+
+    if joined != len(rolls):
+        raise ValueError(
+            f"连接后只落了 {joined} 行规则，源表有 {len(rolls)} 行 —— 有规则被静默丢弃，拒绝导出")
+
+    # 外层按品种 id 字典序（export() 另有一次 sort_table，这里是双保险）
+    return {k: out[k] for k in sorted(out)}
+
+
 DERIVERS = {
     "affixes": derive_affixes,
     "classes": derive_classes,
@@ -1536,10 +1848,12 @@ DERIVERS = {
     "equip_roster": derive_equip_roster,
     "instances": derive_instances,
     "items": derive_items,
+    "legendary_effects": derive_legendary_effects,
     "loot_vocab": derive_loot_vocab,
     "maps": derive_maps,
     "monsters": derive_monsters,
     "passive_proc": derive_passive_proc,
+    "pets": derive_pets,
     "pois": derive_pois,
     "skills": derive_skills,
     "texts": derive_texts,
