@@ -1091,13 +1091,15 @@ def derive_loot_vocab(src_root: str = REPO_ROOT) -> dict:
     # 「本包自己的域」表主键里。域名**不硬编码**（逐个候选域实测，多个命中取最具体的那个）。
     candidate_keys: dict = {}
     prefix_domains: dict = {}
-    if external:
+    pref_all = tuple(external) + tuple(inline)      # 内联前缀也一起看：它们常有真落点（只是语义上
+                                                   # 还兼着 expand 外列，所以**不动** inline 声明本身）
+    if pref_all:
         remainders: dict = {}
         for pool in pools.values():
             rows = [(e.get("item")) for e in (pool.get("entries") or []) if isinstance(e, dict)]
             rows += [(rc.get("pool")) for rc in (pool.get("rolls") or []) if isinstance(rc, dict)]
             for ref in rows:
-                if isinstance(ref, str) and ":" in ref and ref.startswith(external):
+                if isinstance(ref, str) and ":" in ref and ref.startswith(pref_all):
                     pfx = ref.split(":", 1)[0] + ":"
                     remainders.setdefault(pfx, set()).add(ref[len(pfx):])
         if remainders:
@@ -1111,10 +1113,11 @@ def derive_loot_vocab(src_root: str = REPO_ROOT) -> dict:
                 if isinstance(tbl, dict):
                     candidate_keys[name] = set(tbl)
             for pfx, rids in sorted(remainders.items()):
-                hits = [n for n, ks in candidate_keys.items() if rids <= ks]
+                # ⚠️ 取值集合为空的前缀**不能**声明（空集 ⊆ 任何集合，会误判成"全中"）
+                hits = [n for n, ks in candidate_keys.items() if rids and rids <= ks]
                 if hits:                                    # 多个域都能装 → 取键最少（最具体）的
                     prefix_domains[pfx] = min(hits, key=lambda n: (len(candidate_keys[n]), n))
-            if prefix_domains:                              # 能真判的从 external 里摘出来
+            if prefix_domains:                              # 能真判的从 external 里摘出来（inline 保持不动）
                 external = tuple(p for p in external if p not in prefix_domains)
 
     decl = {
