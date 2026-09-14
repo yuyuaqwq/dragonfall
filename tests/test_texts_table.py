@@ -59,6 +59,7 @@ import os
 import random
 import re
 import sys
+import tempfile
 import time
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -767,7 +768,11 @@ def t3_no_silent_fallback():
     tb.reset_stats()
 
     # 坏声明文件：不抛、不静默，空表 + 错误可见
-    bad = os.path.join(os.environ.get("LOCALAPPDATA", _HERE), "Temp", "_bad_text_specs.json")
+    # ★ PATCHAUDIT（只改测试）：原写法把坏文件写到 `%LOCALAPPDATA%\Temp\_bad_text_specs.json`
+    #   固定路径 —— 只读/受限沙箱下该目录不可写（PermissionError），门禁假红。
+    #   改为 tempfile 真实临时目录（每次唯一名），语义不变（丢一个坏 JSON 进去再 reload）。
+    _fd, bad = tempfile.mkstemp(prefix="_bad_text_specs_", suffix=".json")
+    os.close(_fd)
     with io.open(bad, "w", encoding="utf-8") as fh:
         fh.write("{ this is not json ")
     real = T.SPEC_PATH
