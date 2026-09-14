@@ -52,6 +52,12 @@ DEFAULT_FRAMEWORK_DIR = "C:/Users/yuyu/framework-engine"
 FW_ROOT = os.path.abspath(os.environ.get("GWEN_FRAMEWORK_DIR") or DEFAULT_FRAMEWORK_DIR)
 PKG_ID = "orlandia"
 PKG_DIR = os.path.join(FW_ROOT, "games", PKG_ID)
+#: 「不是域表」的已登记辅助文件（`content/data|rules/` 下）：跳过孤儿扫描，**明示打印**，
+#: 且不要求落盘规范（它们由各自机制维护）。第一条 = 文案规格表（P4′-B 后在包内，
+#: 与 `texts` 域的数据文件 `texts.json`（导出投影）配对；真源/投影关系由
+#: `tests/test_texts_specs_sync.py` 钉住）。
+AUX_FILES = {"text_specs.json": "文案规格表（非域表；真源=包内，宿主那份是构建期镜像）"}
+
 DATA_DIR = os.path.join(PKG_DIR, "content", "data")
 RULES_DIR = os.path.join(PKG_DIR, "content", "rules")
 MAN_PATH = os.path.join(PKG_DIR, "game.json")
@@ -143,13 +149,19 @@ def main() -> int:
     check(f"{len(declared)} 个声明域都有数据文件（落点由域 kind 决定）", not missing,
           f"缺 {missing[:MAX_REPORT]}")
     orphans = []
+    aux_seen = []
     for sub, root in (("data", DATA_DIR), ("rules", RULES_DIR)):
         if not os.path.isdir(root):
             continue
         for fn in sorted(os.listdir(root)):
-            if fn.endswith(".json") and fn[:-5] not in set(declared):
-                orphans.append(f"content/{sub}/{fn}")
+            if not fn.endswith(".json") or fn[:-5] in set(declared):
+                continue
+            if fn in AUX_FILES:
+                aux_seen.append(f"content/{sub}/{fn}（{AUX_FILES[fn]}）")
+                continue
+            orphans.append(f"content/{sub}/{fn}")
     check("无孤儿域文件（data/rules 下每个 json 都已声明）", not orphans, f"孤儿 {orphans[:MAX_REPORT]}")
+    print(f"  已登记辅助文件（非域表，跳过孤儿扫描）= {len(aux_seen)}：{aux_seen}")
 
     # ---------------- 【3】逐条过 schema + 非空 ----------------
     print("\n【3】逐域：条数 > 0 且逐条过 schema")

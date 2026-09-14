@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""文案表（消息模板）门禁 —— `game/data/text_specs.json` + `game/core/texts.py`。
+"""文案表（消息模板）门禁 —— 真源 `<pkg>/content/data/text_specs.json` + `game/core/texts.py`。
+
+★ P4′-B（2026-09-14）：真源已从宿主 `game/data/text_specs.json` **搬进包内**
+（同一份 55,929 B 逐字节副本）；宿主那份退化为**构建期镜像**，宿主运行期不读它。
+双向一致性由 `tests/test_text_specs_sync.py` 钉住。
 
 **这一层要防的四件事**（每件都由断言钉死）：
   ① 声明与调用脱节：表里有、代码不用（死文案）｜代码用、表里没有（运行时缺 key）
@@ -81,6 +85,8 @@ GATE_SRC = os.path.join(_PD, "game", "core", "instance_gate.py")
 INSTANCE_ROUTER_SRC = os.path.join(_PD, "game", "commands", "instance_router.py")
 INSTANCE_SRC = os.path.join(_PD, "game", "commands", "instance.py")
 INSTANCE_BATTLE_SRC = os.path.join(_PD, "game", "commands", "instance_battle.py")
+# ★ P4′-B：声明真源 = **包内** `content/data/text_specs.json`（装载器 `content/texts.py` 自定位）；
+#   `T.SPEC_PATH` 由宿主薄壳从包内装载器取回（下面 [1] 段钉死「两者同一条包内路径」）。
 SPEC = T.SPEC_PATH
 # ★ B18 终态（2026-09-14 样板定形线）：**渲染进包** —— 周常域的 `T.text/T.static` 调用点已从宿主
 #   `game/commands/weekly.py` 迁进包内 `content/cmds_weekly.py`（宿主侧退化为 0 调用点）。
@@ -700,7 +706,14 @@ def _scan_calls(path):
 def t1_table_selfcheck():
     print("\n[1] 装载与自检（引擎 validate/audit）")
     tb = T.reload()
-    check("声明文件存在且路径正确", os.path.exists(SPEC) and SPEC.endswith("text_specs.json"), SPEC)
+    # ★ P4′-B 口径升级（条数不变 63）：真源路径必须落在**包内**且与包内装载器同一条路径
+    #   （`_pkg` = 包内 `content/texts.py`；其 `canonical_path()` 不随注入变，
+    #    宿主侧 `T.SPEC_PATH` = 取回的同一值 ⇒ 两侧路径等价）。
+    from content import texts as _pkg
+    check("声明文件存在且路径正确（★ 真源已在包内 content/data/）",
+          os.path.exists(SPEC) and SPEC.endswith("text_specs.json")
+          and os.path.abspath(SPEC) == os.path.abspath(_pkg.canonical_path()),
+          "%s | pkg=%s" % (SPEC, _pkg.canonical_path()))
     check("装载无错（load_error 为空）", T.load_error() == "", T.load_error())
     check("表非空（161 条：副本准入 26 + 副本结算 14 + 副本日志 70 + 签到 10 + 周常 18 + 补给箱 7 + 每日任务 7 + 每日命令 9）", len(tb) >= 40, len(tb))
     check("★ validate() 干净（无空值/语法错/params 与模板不一致）",
@@ -4098,7 +4111,7 @@ def t13_economy_frozen():
 
 def main():
     print("=" * 74)
-    print("文案表门禁：game/data/text_specs.json + game/core/texts.py")
+    print("文案表门禁：包内 content/data/text_specs.json（真源）+ game/core/texts.py（薄壳）")
     print("=" * 74)
     t1_table_selfcheck()
     t2_key_and_params_accounting()
