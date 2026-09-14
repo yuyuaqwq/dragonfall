@@ -26,8 +26,8 @@ from content import position as _pkg                         # noqa: E402
 
 _HERE_PKG = __package__.rsplit(".", 1)[0]
 _pkg.bind_host(**{
-    "data": _pkg.lazy_host_module(_HERE_PKG + ".data"),
-    "core.worlds": _pkg.lazy_host_module(_HERE_PKG + ".core.worlds"),   # 待 B13-L2 落地后切包内直取
+    "data": _pkg.lazy_module(_HERE_PKG + ".data"),
+    "core.worlds": _pkg.lazy_module(_HERE_PKG + ".core.worlds"),   # 待 B13-L2 落地后切包内直取
 })
 
 # ---- 同名单 re-export（真源符号名一字不变）----

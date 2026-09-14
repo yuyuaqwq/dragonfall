@@ -77,6 +77,14 @@ def check_action_keys(action):
     LOG.warning(_msg)
 
 
+# ★ B2-W2 宿主改口（接口表第 4 行冻结）：`check_action_keys` 是**宿主独有**的消费端防御
+#   （读宿主日志层 + `GWEN_*` 环境变量 = 接人性），包内世界域读点
+#   `content/world_cmds.py:136 _check_action_keys()` 按冻结注入名取它。
+#   此前只有 `sys.modules`/importlib 兜底；本波改成**显式注入**（注入优先 → 兜底仍在）。
+from content import world_cmds as _WC                            # noqa: E402
+_WC.bind_host(check_action_keys=check_action_keys)               # 幂等（None 忽略）
+
+
 # ================= 动作注册（实现正文在包内；注册序 = 执行序） =================
 
 # 注册顺序 = 执行顺序。apprentice_check 必须最先注册：它是条件型动作（闸门），

@@ -26,8 +26,8 @@ _bootstrap.package_apply()                                   # 包加载口（�
 from content import maps as _M                               # noqa: E402
 
 _HERE_PKG = __package__.rsplit(".", 1)[0]                    # "game" / "data.plugins.dragonfall.game"
-_M.bind_host(data=_M.lazy_host_module(_HERE_PKG + ".data"),
-             db=_M.lazy_host_module(_HERE_PKG + ".db"))
+_M.bind_host(data=_M.lazy_module(_HERE_PKG + ".data"),
+             db=_M.lazy_module(_HERE_PKG + ".db"))
 
 # ---- 同名单 re-export（真源符号名一字不变）----
 _build_ency = _M.build_ency

@@ -19,9 +19,9 @@ from .. import bootstrap as _bootstrap                       # noqa: E402 包加
 _bootstrap.package_apply()                                   # 失败抛，不静默留一个空实现
 from content import stat_bonus as _pkg  # noqa: E402                 # ← 唯一实现
 
-# ---------------------------------------------------------------- 同名单 re-export（真源 9 名）
-C = _pkg.C
-LOG = _pkg.LOG
+# ---------------------------------------------------------------- 同名单 re-export（真源 7 名）
+# ★ B2-W2：原 `C = _pkg.C` / `LOG = _pkg.LOG` 两行壳面兼容再导出已删
+#   （全仓零消费点实测；包内 `content/stat_bonus.py` 的 `_HostFace` 兼容段同步删除）。
 _visited_maps = _pkg._visited_maps
 _has_enhanced = _pkg._has_enhanced
 stat_bonus = _pkg.stat_bonus

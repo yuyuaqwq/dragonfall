@@ -69,10 +69,10 @@ def __getattr__(name):
         return getattr(_IMPL, name)
     except AttributeError:
         if name in _LEGACY_DATA_NAMES:
-            return getattr(_tree_mod("data") or _IMPL._host_module("data"), name)
+            return getattr(_tree_mod("data") or _IMPL._host_mod("data"), name)
         if name in _LEGACY_HOST_NAMES:
             _m, _a = _LEGACY_HOST_NAMES[name]
-            return getattr(_IMPL._host_module(_m), _a)
+            return getattr(_IMPL._host_mod(_m), _a)
         raise
 
 

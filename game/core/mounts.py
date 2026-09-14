@@ -22,7 +22,7 @@ _bootstrap.package_apply()                                   # 包加载口（�
 from content import mounts as _pkg                           # noqa: E402
 
 _HERE_PKG = __package__.rsplit(".", 1)[0]
-_pkg.bind_host(data=_pkg.lazy_host_module(_HERE_PKG + ".data"))
+_pkg.bind_host(data=_pkg.lazy_module(_HERE_PKG + ".data"))
 
 # ---- 同名单 re-export（真源符号名一字不变）----
 make_mount_rein = _pkg.make_mount_rein

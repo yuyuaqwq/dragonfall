@@ -1,26 +1,21 @@
 # -*- coding: utf-8 -*-
-"""v181.P4 N5b4-5a 副本战斗控制器（**命令层薄壳**）。
+"""v181.P4 N5b4-5a 副本战斗控制器（**命令层薄壳 · B2-W2 机械指向**）。
 
-★ B8.2 线4（2026-09-13）：开战/结算编排已归内容包
-------------------------------------------------
 包内实现（唯一真源）：`<pkg>/content/flow/instance_battle.py`
-（真源逐字搬入 + 宿主耦合替身接口；对照表见该文件头 ①②）
 
-本文件只留「**取玩家 → 构造 → 调包 → 拼文案**」四件事 + 宿主耦合注入：
+本文件只剩三类东西（B2-W2：把原来逐个手写的转发实现换成**机械指向**，不再抄一遍转发）：
 
-| 事 | 在本文件的位置 |
-|---|---|
-| 取玩家/构造/调包 | 全部委托包内 `build_battle` / `act` / `sync_views` / 目标选择闭包 |
-| 拼文案 | ★ B18 L3c：3 条 key（`instance.日志_团队治疗` / `instance.结算_战斗异常` / `instance.面板_战斗_不在`）的 **文案调用点已迁进包内** `content/flow/instance_battle.py`（`team_heal_text` / `abort_text`）→ 本文件调用点计数 0 |
-| 宿主耦合注入 | `sync_player_from_actor`（回写半边**未进包** = 缺口，见包内文件头 ②）/ `db.update_player` / Boss 剧本导演（★ B8.2 线5：宿主副本 `game/commands/boss_script.py` 已移出仓，`_script_api()` 改由 `._boss_script_port` 适配包内端口 `content.flow.boss_script`） |
+| 类 | 内容 | 为什么必须留宿主 |
+|---|---|---|
+| 宿主耦合注入 | `_script_api()`（Boss 剧本导演 = `._boss_script_port` 适配包内端口）· `_sync_player(snap, actor)`（回写半边）· `_db_update(...)`（宿主持久化写库） | 三者的**实现体**是宿主侧端口/存储层；包内替身接口允许调用方传参（`script_api=` / `sync_player_fn=` / `db_update_fn=`） |
+| 三个入口包装 | `build_battle(st)` / `act(st, gid, qid, action[, skill, target])` / `sync_views(st, gid)` | ★ 口径差：包内 `act` 返回**四位**（第 4 位 = abort 码），宿主壳按调用方契约折成**三元**（`tests/test_battle_n5b4_instance.py:131` 按三元解包）；`build_battle` 另需把宿主 `script_api` 传进去 |
+| 机械指向 | `_VIEW_ST_KEYS` / `_player_actor` / `_instance_target_picker` / `_instance_team_event` / `_players_of` / `_enemies_of` / `player_actor_of` / `next_actor_key` | 逐名转发 → `__getattr__` 指向包内**同一对象**（PEP 562；`from ….instance_battle import _instance_target_picker` 等调用点零改动） |
 
 包加载口 = `from .. import bootstrap; bootstrap.package_apply()`（唯一，幂等）。
-包内实现在 `sys.modules` 里只加载一次；本文件**零实现**（无控制流、无数值、无文案字面量）。
-
 调用方契约（改动前后一致）：`build_battle(st)` / `act(st, gid, qid, action[, skill, target])`
 → `(logs, ended, next_key)` / `sync_views(st, gid)` / `next_actor_key` / `player_actor_of`
 / `_players_of` / `_enemies_of` / `_attach_instance_hooks` / `_instance_target_picker` /
-`_instance_team_event` / `_player_actor` / `_VIEW_ST_KEYS`（供玩法壳与测试同口径引用）。
+`_instance_team_event` / `_player_actor` / `_VIEW_ST_KEYS`。
 """
 from __future__ import annotations
 
@@ -30,11 +25,6 @@ from .. import bootstrap as _BST
 
 _BST.package_apply()                                      # 唯一包加载口（包根进 sys.path + install_engine）
 from content.flow import instance_battle as _IB           # noqa: E402  包内实现（编排唯一真源）
-
-# ── 文案（★ B18 L3c 起在包内：`content/flow/instance_battle.py::team_heal_text` /
-#    `abort_text`。本文件的文案调用点计数归 0 —— 宿主零游戏文案；
-#    key/槽位/整句逐字不变，表仍是宿主 `game/data/text_specs.json`）──────────────
-_VIEW_ST_KEYS = _IB._VIEW_ST_KEYS
 
 
 # ── 宿主耦合（包内替身接口的宿主实现）──────────────────────────────────────
@@ -58,16 +48,10 @@ def _db_update(group_id, key, hp, mp, max_hp, max_mp) -> None:
     _db.update_player(group_id, key, hp=hp, mp=mp, max_hp=max_hp, max_mp=max_mp)
 
 
-# ── 薄壳（签名/返回与改动前逐字一致）────────────────────────────────────────
-def _player_actor(snap: dict, st: dict, key: str) -> dict:
-    return _IB._player_actor(snap, st, key)
-
-
-def _instance_target_picker(st: dict):
-    return _IB._instance_target_picker(st)
-
-
+# ── 薄壳入口（签名/返回与改动前逐字一致）────────────────────────────────────
 def _instance_team_event(st: dict):
+    """团队技能广播观察者 —— 包内 `_instance_team_event(st, team_heal_text=None)`：
+    宿主壳**必须**把 `team_heal_text` 传进去（不传 = 治疗照算但**该行文案不追加**，行为会变）。"""
     return _IB._instance_team_event(st, _IB.team_heal_text)
 
 
@@ -103,10 +87,20 @@ def sync_views(st: dict, group_id) -> None:
                           db_update_fn=_db_update)
 
 
-_players_of = _IB._players_of
-_enemies_of = _IB._enemies_of
-player_actor_of = _IB.player_actor_of
-next_actor_key = _IB.next_actor_key
+# ── 机械指向（PEP 562）：逐名转发 → 包内同一对象 ────────────────────────────
+_FORWARDS = (
+    "_VIEW_ST_KEYS",
+    "_player_actor", "_instance_target_picker",
+    "_players_of", "_enemies_of", "player_actor_of", "next_actor_key",
+)
+
+
+def __getattr__(name):
+    """PEP 562：按名指向包内实现（同一对象；不再是宿主侧手写的一行转发）。"""
+    if name in _FORWARDS:
+        return getattr(_IB, name)
+    raise AttributeError("module %r has no attribute %r" % (__name__, name))
+
 
 __all__ = [
     "build_battle", "act", "sync_views", "next_actor_key", "player_actor_of",

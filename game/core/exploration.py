@@ -27,8 +27,8 @@ _bootstrap.package_apply()                                   # 包加载口（�
 from content import exploration as _pkg                      # noqa: E402
 
 _HERE_PKG = __package__.rsplit(".", 1)[0]
-_pkg.bind_host(db=_pkg.lazy_host_module(_HERE_PKG + ".db"),
-               content=_pkg.lazy_host_module(_HERE_PKG + ".content"))
+_pkg.bind_host(db=_pkg.lazy_module(_HERE_PKG + ".db"),
+               content=_pkg.lazy_module(_HERE_PKG + ".content"))
 
 # ---- 同名单 re-export（真源符号名一字不变）----
 record_visit = _pkg.record_visit

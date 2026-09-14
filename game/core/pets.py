@@ -20,10 +20,10 @@ from .. import bootstrap as _bootstrap
 
 _bootstrap.package_apply()                                   # 包加载口（失败抛，不静默）
 from content import pets as _pkg                             # noqa: E402
-from content.pets import lazy_host_module as _lazy_host_module  # noqa: E402
+from content.pets import lazy_module as _lazy_module  # noqa: E402
 
 _HERE_PKG = __package__.rsplit(".", 1)[0]
-_pkg.bind_host(pets=_lazy_host_module(_HERE_PKG + ".data.pets"))
+_pkg.bind_host(pets=_lazy_module(_HERE_PKG + ".data.pets"))
 
 
 def __getattr__(name):

@@ -174,6 +174,27 @@ _PKG_DIR = _os.path.normpath(_os.path.join(
 _PKG_APPLY = None      # 包内 `content.apply` 模块（本进程唯一加载口缓存）
 
 
+def bind_observability() -> None:
+    """★ B2-W2：把本宿主的 **LOG / tlog** 显式注入包内唯一取用口 `content.obs`（幂等）。
+
+    为什么必须显式注入（不是「只靠 sys.modules 兜底」）
+    -------------------------------------------------
+    接口表 `B2_W0_INTERFACE.md` §2② 冻结的唯一注入口 = `content/obs.py::bind(log=…, tlog=…)`；
+    兜底（`obs` 在 `sys.modules` 里找 `game.log_setup` / `game.tlog_setup`）只是**过渡期**路径，
+    而 `obs` 取不到句柄时是 **fail-closed 抛**（`content/obs.py:43-51`，拒绝静默空跑）。
+    注入值 = 宿主真源：`game/log_setup.py:23` 的 `LOG`（平台日志门面）与 `game/tlog_setup` **模块**
+    （`kinds/enable/disable/enabled/tlog/emit` 控制面；模块对象 ⇒ 后续 `enable()/disable()` 照旧活读）。
+
+    时机 = **包加载期**（`package_apply()`），与既有各壳的 `bind_host(...)` 同刻同形；
+    幂等（`bind()` 的 `None` 忽略 + `package_apply()` 的 `_PKG_APPLY` 缓存双保险）。
+    失败**抛**：日志/流水口装配不上 = 装配缺陷，比"静默没日志"难查得多。
+    """
+    from content import obs as _obs          # 包根已在 sys.path（package_apply 之后）
+    from .log_setup import LOG as _LOG       # 平台日志真源（全仓只此一处取名与配置）
+    from . import tlog_setup as _tlog        # 流水真源模块（控制面 6 名）
+    _obs.bind(log=_LOG, tlog=_tlog)
+
+
 def package_apply():
     """加载内容包（幂等）并返回包内 `content.apply` 模块 —— **本进程唯一的包加载口**。
 
@@ -181,6 +202,9 @@ def package_apply():
     → `import content.apply`（包内相对导入因此可用）→ 调它的 `install_engine()`。
     失败 → **抛**（不静默降级：hook 面空着 = 引擎 `strict=False` 下数值全 0 的「静默零放」，
     比报错难查得多）。
+
+    ★ B2-W2：包加载成功后**立即**接上 `content.obs` 的 LOG/tlog 显式注入（见
+    `bind_observability()`；包内 9 个文件的日志/流水读点在运行期经 `obs` 取用）。
     """
     global _PKG_APPLY
     if _PKG_APPLY is None:
@@ -189,6 +213,7 @@ def package_apply():
         if not (info.get("ok") and info.get("installed")):
             raise RuntimeError("内容包加载失败：%s" % (info.get("errors"),))
         _PKG_APPLY = info["apply"]
+        bind_observability()                 # ← 唯一注入口（幂等；失败抛）
     return _PKG_APPLY
 
 
