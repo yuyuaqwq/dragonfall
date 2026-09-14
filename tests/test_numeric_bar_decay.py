@@ -34,7 +34,7 @@ from saintess_engine.battle.effect_triggers import fire  # noqa: E402
 from game.services import class_mech_proc as CMP  # noqa: E402
 from saintess_engine.gauge import (bar_def, bar_effect_key, bar_gain, bar_settle,# noqa: E402
                                    bar_state, _state_prefix)
-from game.data.battle_config import ENEMY_BAR_CFG  # noqa: E402
+from game.content import ENEMY_BAR_CFG  # noqa: E402  ★ B16-W11d：数据层已删 → 聚合层（同值，域 `rules/game_config.json` 的 battle_config 组）
 from saintess_engine.battle.state_effects import all_state_effects  # noqa: E402
 
 PASS = 0

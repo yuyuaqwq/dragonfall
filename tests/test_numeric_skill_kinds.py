@@ -6,12 +6,13 @@ import sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PLUGIN = os.path.dirname(_HERE)
 # 注意：kinds 是零依赖纯模块，直接按文件路径加载，避免触发 game 包 data 索引循环导入。
-# P4 下沉（2026-09-13）：中文 kind 词表真源已从引擎搬到内容侧 `game/data/kinds.py`
-# （原 `saintess_engine/kinds/__init__.py`，逐字搬；引擎零消费者）。
+# P4 下沉（2026-09-13）：中文 kind 词表真源已从引擎搬到内容侧（原 `saintess_engine/kinds/__init__.py`）。
+# ★ B16-W11d（2026-09-14）：`game/data/kinds.py` 随宿主数据层删除 → 路径改指**包内唯一真源**
+#   `framework/games/orlandia/content/mech/kinds.py`（判据不变：仍是零依赖纯模块、逐字同源）。
 import importlib.util
 _spec = importlib.util.spec_from_file_location(
     "kinds_standalone",
-    os.path.join(_PLUGIN, "game", "data", "kinds.py"))
+    os.path.join(_PLUGIN, "framework", "games", "orlandia", "content", "mech", "kinds.py"))
 _sk_mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_sk_mod)
 

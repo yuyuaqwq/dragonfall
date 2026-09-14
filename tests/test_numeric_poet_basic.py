@@ -41,12 +41,10 @@ def check(name, cond, detail=""):
 
 
 def poet_skills():
-    import io
-    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "game", "data", "skills.py"),
-               encoding="utf-8").read()
-    ns = {}
-    exec(src, ns)
-    return ns["PLAYER_SKILLS"]["cls_shi_ren"]["skills"]
+    # ★ B16-W11d（2026-09-14）：`game/data/skills.py` 随数据层删除 → 改读**包内门面**
+    #   `content/catalog_core.py::PLAYER_SKILLS`（同一份技能表；不再按源码 exec 读字面）。
+    from content import catalog_core as _cc
+    return _cc.PLAYER_SKILLS["cls_shi_ren"]["skills"]
 
 
 print("== v174 诗人基础期输出技门禁 ==")

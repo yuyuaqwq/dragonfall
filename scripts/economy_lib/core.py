@@ -20,7 +20,7 @@ from .constants import (
     SHOP_EXEMPT_KEYS,
 )
 # 只走插件根路径（import game.data as D 风格），避免 data.plugins 全包双路径循环
-import game.data as D  # noqa: E402  触发 _assembly（先加载 data 包）
+import game.content as D  # noqa: E402  ★ B16-W11d：数据层已删 → 改用聚合层（D.MAPS 同一份门面表）
 from game.core import stats as S  # noqa: E402
 from game.core.drops import generate_roster_equip  # noqa: E402
 
