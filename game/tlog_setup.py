@@ -42,7 +42,15 @@ def _default_sink():
 
 
 def kinds() -> Optional[KindTable]:
-    """`content/data/tlogs.json` 的声明表（缺失 = None = 不校验）。"""
+    """流水声明表 —— **读宿主镜像 `game/data/tlogs.json`（运行时唯一读点）**。
+
+    P4′-C 单源收口（2026-09-14）：**真源 = 包内 `content/data/tlogs.json`**（编辑器编辑的那一份），
+    本函数读的这份是**构建期镜像**（`python scripts/mirror_tlogs.py` 从真源生成，逐条同值）。
+    两份的一致性由 `tests/test_tlogs_single_source.py` 盯着（任一侧单边改动 → 报红该 kind）；
+    运行时**只此一处**读盘 —— 包内那份运行时不读，故不构成双读。
+
+    缺失 = None = 不校验（空表不拦，与引擎 `KindTable` 口径一致）。
+    """
     global _KINDS
     if _KINDS is None:
         try:
