@@ -154,7 +154,7 @@ def test_5_mark_negative():
 def test_6_poison_burst_mult():
     print("【6. 蚀骨：毒爆系技能 → ×1.25（mech_prefix poison_burst）】")
     # 蚀骨是刺客被动；毒爆技——找刺客带 mech=poison_burst 的伤害技
-    from game.data.skills import BRANCH_SKILLS
+    from content.skills import BRANCH_SKILLS
     import json
     burst_skills = []
     w = BRANCH_SKILLS.get("cls_ci_ke") or {}
@@ -186,7 +186,7 @@ def test_7_dual_channel():
     print("【7. 双通道：灵魂锁链 cap 段 + per_layer 乘区段同时装配】")
     from saintess_engine.battle.effects import _cap_of
     # 灵魂锁链是哪个职业？死灵法师 cls？搜全部技能树找
-    from game.data.skills import PLAYER_SKILLS, BRANCH_SKILLS
+    from content.skills import PLAYER_SKILLS, BRANCH_SKILLS
     owner_cls = None
     for cid in list(PLAYER_SKILLS) + list(BRANCH_SKILLS):
         for tag, sk2 in [("P", (PLAYER_SKILLS.get(cid) or {}).get("skills") or {})]:

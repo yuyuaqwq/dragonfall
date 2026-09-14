@@ -26,7 +26,7 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.join(_PLUGIN_DIR, "tests", "test_g
 random.seed(20260911)
 
 import game.content as C  # noqa: E402
-from game.data.drop_pools import DROP_POOLS  # noqa: E402
+from content.catalog_rules import DROP_POOLS  # noqa: E402  W10：包内单源（game/data 删表后同一份）
 from game.drop_engine import (  # noqa: E402
     roll, expand_pool, audit_all, _SimpleCtx, _resolve_item_ref,
 )

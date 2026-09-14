@@ -60,7 +60,7 @@ def mk_enemy(hp=99999, name="测试怪", atk=1, matk=1, **kw):
 
 def fireball_info():
     # 火球术真实技能数据（kind=魔法·火 element=fire，N10-B4 补键）
-    from game.data.skills import PLAYER_SKILLS
+    from content.skills import PLAYER_SKILLS
     for cid, cdata in (PLAYER_SKILLS or {}).items():
         for sid, sk in (cdata.get("skills") or {}).items():
             if str((sk or {}).get("name")) == "火球术":

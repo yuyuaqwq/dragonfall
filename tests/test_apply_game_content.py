@@ -40,8 +40,8 @@ from game.services import battle_cond_procs as COND
 from game.services import battle_equip_proc as EP
 from game.services import battle_food_proc as FOOD
 from game.services import class_mech_proc as CM
-from game.data.battle_rules import BAR_INJECT_FIELDS
-from game.data.weapon_effect_data import WEAPON_EFFECT_DATA
+from content.mech.params import BAR_INJECT_FIELDS
+from content.mech.we_data import WEAPON_EFFECT_DATA
 
 # ------------------------------------------------------------
 # ★ B8 观测对象同源搬迁（2026-09-13）：装配实现已归内容包

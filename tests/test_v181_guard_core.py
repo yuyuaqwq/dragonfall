@@ -40,8 +40,9 @@ from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine import effects as EFX  # noqa: E402
 from saintess_engine.battle.effect_triggers import fire  # noqa: E402
 from game.services import class_mech_proc as CM  # noqa: E402
-from game.data.battle_rules import (EFFECT_RULES, EFFECT_ACTIONS,  # noqa: E402
-                                    MECH_CASH, PASSIVE_PROC)
+from content.mech.params import EFFECT_RULES, EFFECT_ACTIONS  # noqa: E402
+from content.mech.class_data import MECH_CASH  # noqa: E402
+from game.data.battle_rules import PASSIVE_PROC  # noqa: E402  ★未映射（见 overnight/_w7_tests_data_imports.md）
 from game.content_rules.skills import skill_info
 
 PASS = 0

@@ -16,21 +16,23 @@
 宿主注入的必要性：包内模块**不 import 宿主**（方向只有 内容 → 引擎）；它按 `bind_host(...)`
 或「已加载的宿主模块」解析存储层，见包内模块 docstring 的替身接口表。
 
-⚠️ 未搬（见 B9-L3 报告 §缺口）：`GUILD_CONFIG`（数值配置，归 L7）与 `GUILD_EXP_BASE`
-（宿主数值常量）——包内模块按注入/传参用，不在包侧另起一份。
+⚠️ 未搬（见 B9-L3 报告 §缺口）：`GUILD_EXP_BASE`（宿主数值常量）——包内模块按注入/传参用，不在包侧另起一份。
+`GUILD_CONFIG` 原也在此列，**B14 收口已改**：现取包内门面 `content/catalog_b143.GUILD_CONFIG`
+（`guild` 域 `config` 组，14 键，与宿主 `..data.guild` 原表逐键/逐序/类型相等；删 `game/data` 后仍可 import）。
+
 """
 
 from __future__ import annotations
 
 from .. import bootstrap as _bootstrap
 from .. import db as _db
-from ..data import guild as _G
 from ..store import social as _store_social
 
 _bootstrap.package_apply()                          # 包加载口（失败抛，不静默）
 from content import social_guild as _pkg            # noqa: E402
+from content.catalog_b143 import GUILD_CONFIG as _GUILD_CONFIG   # noqa: E402  B14 收口：原 ..data.guild
 
-_pkg.bind_host(_db, config=_G.GUILD_CONFIG, store_social=_store_social)   # 宿主替身注入（幂等）
+_pkg.bind_host(_db, config=_GUILD_CONFIG, store_social=_store_social)   # 宿主替身注入（幂等）
 
 # ---- 同名单 re-export（逐字沿用真源符号名）----
 ROLE_MAP = _pkg.ROLE_MAP

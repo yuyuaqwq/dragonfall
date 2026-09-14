@@ -29,7 +29,7 @@ from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine.battle.actors import ActCtx  # noqa: E402
 from saintess_engine.battle.effect_triggers import fire  # noqa: E402
 from game.services import class_mech_proc as CMP  # noqa: E402
-from game.data import skills as _SK  # noqa: E402
+from content import skills as _SK  # noqa: E402
 from saintess_engine.gauge import bar_effect_key, bar_gain as _bg# noqa: E402
 
 PASS = 0

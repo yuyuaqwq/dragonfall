@@ -50,7 +50,9 @@ async def main():
     db.update_player("g1", "i1", level=70, gold=100000, cur_map="dawn_city", hp=500, max_hp=500)
 
     print("【数据完整性】")
-    from data.plugins.dragonfall.game.data import INSTANCES, HIDDEN_NPCS, _INDEXES
+    from content.catalog_space import INSTANCES
+    from content.catalog_quests import HIDDEN_NPCS
+    from content.index import _INDEXES  # 包内自建索引（原 game.data._assembly._INDEXES 退役）——本块自 :23 sys.exit(0) 起不可达，故未触发 _indexes() 惰性构建
     total = desc = pois = with_npc = with_secret = 0
     for ins in INSTANCES.values():
         for s in ins.get("stages", []):
@@ -241,7 +243,7 @@ async def main():
 
     print("【石碑线索绕陷阱（数据级）】")
     # 圣堂地窖 L1：石碑 avoid_trap effect + 陷阱存在（多人副本，数据级验证）
-    from data.plugins.dragonfall.game.data import INSTANCES as _INS
+    from content.catalog_space import INSTANCES as _INS
     crypt = _INS["inst_secret_crypt"]["stages"][0]
     rune = next((p for p in crypt.get("pois", []) if p.get("type") == "rune_stone"), None)
     trap = next((p for p in crypt.get("pois", []) if p.get("type") == "trap"), None)

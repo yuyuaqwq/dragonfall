@@ -104,9 +104,20 @@ def derive_guild(src_root: str = None) -> dict:
             raise ValueError(f"guild：GUILD_SHOP_ITEMS[{num!r}] 不是 dict（{type(ent).__name__}）")
         shop_out[num] = ent                  # 键原样（int；落盘器 json 往返成字符串键）
 
+    # B14-3（2026-09-14）：`GUILD_CONFIG`（11 个数值键，`game/data/guild.py:3`）进本域 ——
+    # 它是「公会数值配置」，而本域是本模块**唯一**的公会域（一条 = 一组数据表）。
+    # ⚠ 本域 `$defs.guild_table` **不写 required** ⇒ 新增一行 `config` 不会触发「每条都要有
+    #   实体字段」的校验（`guild.schema.json` 的 propertyNames 同步放行 `config`）。
+    # 真实消费方：包内 `content/social_guild.py`（公会经验加成）/ `content/settlement.py`
+    # （结算时的公会加成），过去由宿主 `bind_host(config=C.GUILD_CONFIG)` 注入 → 现改为读本域。
+    cfg = getattr(mod, "GUILD_CONFIG", None)
+    if not isinstance(cfg, dict) or not cfg:
+        raise ValueError(f"guild：{GUILD_SRC}:3 GUILD_CONFIG 不是非空 dict —— 源形状变了，拒绝导出")
+
     return {"roles": {"map": role_map, "appointable": list(appointable)},
             "shop_items": shop_out,
-            "skills": skills}
+            "skills": skills,
+            "config": cfg}
 
 
 DOMAINS = {

@@ -106,7 +106,7 @@ def test_3_negative_non_arcane():
 def test_4_undeclared_proc():
     print("【4. 表未声明 proc → 跳过装配不崩】")
     # 用 4.1 一个表未声明的被动（如 berserk_revive——P1 表未含）学给战士
-    from game.data.skills import BRANCH_SKILLS
+    from content.skills import BRANCH_SKILLS
     import json
     war_skills = []
     w = BRANCH_SKILLS.get("cls_zhan_shi") or {}

@@ -23,8 +23,8 @@ except Exception:
     pass
 
 from data.plugins.dragonfall.framework.saintess_engine import expr as FE
-from data.plugins.dragonfall.game.data.classes import CLASSES
-from data.plugins.dragonfall.game.data.skill_up import SKILL_UP
+from content.catalog_core import CLASSES
+from content.skills import SKILL_UP
 
 PASS = 0
 FAIL = 0

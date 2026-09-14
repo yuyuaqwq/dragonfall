@@ -52,8 +52,8 @@ for _p in (_FRAMEWORK_DIR, PLUGIN_DIR, QQBOT_DIR):
         sys.path.insert(0, _p)
 
 from data.plugins.dragonfall.game import drop_engine as DE                      # noqa: E402
-from data.plugins.dragonfall.game.data import drop_pools as _DP                 # noqa: E402
-from data.plugins.dragonfall.game.data.drop_pools import DROP_POOLS             # noqa: E402
+from data.plugins.dragonfall.game.data import drop_pools as _DP                 # noqa: E402  ★不可切包内源：本文件冻结的 v174 旧实现（_FROZEN_SRC，__package__=…game）内 `from .data.drop_pools import DROP_POOLS`，§5 `_with_pools` 打桩必须新旧两侧同时可见（W10 实测切 content.catalog_rules → 9 条转红）
+from data.plugins.dragonfall.game.data.drop_pools import DROP_POOLS             # noqa: E402  ★同上一行（:1239 断言 `_DP.DROP_POOLS is DROP_POOLS`，两者须同一模块）
 from saintess_engine.loot import SimpleCtx as EngineSimpleCtx                   # noqa: E402
 from saintess_engine.loot import strategy_names                                 # noqa: E402
 

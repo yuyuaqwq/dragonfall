@@ -13,7 +13,7 @@
 （S9 收口时删；docs/ENGINE_CONTENT_SPLIT_PLAN.md §6.4）。
 """
 from .. import content as C
-from ..data.battle_config import MECH_CFG
+from content.mech.class_data import MECH_CFG   # B14 收口：原 ..data.battle_config（包内单源，15 组 deep-equal）
 from .panel import player_base_stats, player_final_stats
 from .skills import _sk_table
 

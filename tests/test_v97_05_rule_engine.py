@@ -33,7 +33,9 @@ async def main():
     #   seed(1) 下 chance 0.18 命中 → "第 1 次空探索不触发"误判失败）
     import data.plugins.dragonfall.game.core.rule_engine as RE
     RE._is_time = lambda span: span == "day"
-    from data.plugins.dragonfall.game.data.rules import RULES
+    # W10：改读包内门面（真源 = content/rules/game_config.json 的 rules 组；W12 收口）
+    #   逐字节（键序敏感）与 game/data/rules.py:RULES 相等，且 content.rule_engine._rules() 同源
+    from content.catalog_b143 import RULES
 
     print("【1. 规则数据完整性】")
     ids = set()

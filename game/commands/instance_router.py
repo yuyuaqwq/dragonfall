@@ -137,7 +137,7 @@ class InstanceRouterCmds(CommandBase):
         参数/协议对齐旧 _instance_act（CombatCmds 接线点 R2 改调本方法）。
         返回 async generator：yield event.plain_result(...) 文本。
         """
-        from ..data.kinds import K_HEAL, K_BUFF
+        from content.mech.kinds import K_HEAL, K_BUFF   # B14 收口：原 ..data.kinds
         # 嘲讽强制剩余帧递减（每玩家行动帧；到 0 清强制回正常仇恨）
         _tl = int(st.get("taunt_left", 0) or 0)
         if _tl > 0:

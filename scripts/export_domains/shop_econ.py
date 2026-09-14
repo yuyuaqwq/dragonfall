@@ -23,6 +23,8 @@ from _helpers import import_game_data, import_game_core, sort_table, as_table
 
 # 野外行商货单（`SHOP_WILD_TRADE`）没有店铺归属 —— 用这个保留键落一条（全表唯一非店铺键）
 WILD_TRADE_KEY = "wild_trade"
+# B14-3：荣誉商店（`game/data/honor_shop.py:11 HONOR_SHOP`）没有店铺归属 —— 第二个保留键
+HONOR_SHOP_KEY = "honor_shop"
 
 # 商品 key 前缀（`data/shop_limit.py:12-16` 的四类来源；`_validate()` 也按这四个前缀自检）
 _LIMIT_PREFIXES = ("item", "mat", "equip", "weapon")
@@ -97,6 +99,25 @@ def derive_shop(src_root: str = None) -> dict:
             e["kind"] = tbl["SUBAREA_KIND"][k]
         out[k] = e
     out[WILD_TRADE_KEY] = {"items": list(wild)}
+
+    # B14-3（2026-09-14）：`HONOR_SHOP`（荣誉商店 6 件，`game/data/honor_shop.py:11`）进本域 ——
+    # 它就是一个「商店」（键 = 商品编号 1..6，值 = {name, cost, desc, reward}），真源在**另一个
+    # 模块**（honor_shop.py 只有这一张表），故按本域既有的「保留键」先例再落一行。
+    # ⚠ 本域 `$defs.shop` **不写 required** 且 `additionalProperties: true` ⇒ 新行能过条目校验；
+    #   行内用 `ranks` 装编号表（**不能叫 `items`**：`$defs.shop.items` 声明的是字符串数组）。
+    # ⚠ int 键陷阱：编号源侧是 int 1..6（消费点 `combat_cmds._honor_buy(..., int(num))` 用
+    #   `HONOR_SHOP.get(num)` 取）→ 包内读口必须还原 int，否则兑换恒报「没有第 N 件商品」。
+    honor = import_game_data("honor_shop", src_root)
+    ranks = as_table(getattr(honor, "HONOR_SHOP", None), "honor_shop.HONOR_SHOP")
+    if not ranks:
+        raise ValueError("shop：game/data/honor_shop.py:11 HONOR_SHOP 是空表 —— 拒绝导出")
+    for num, ent in ranks.items():
+        if not isinstance(ent, dict) or not isinstance(ent.get("name"), str) or not ent["name"]:
+            raise ValueError(f"shop：HONOR_SHOP[{num!r}] 不是含非空 name 的 dict（{ent!r}）"
+                             " —— 源形状变了，拒绝导出")
+    if HONOR_SHOP_KEY in out:
+        raise ValueError(f"shop：保留键 {HONOR_SHOP_KEY!r} 与店铺 id 撞名 —— 拒绝导出")
+    out[HONOR_SHOP_KEY] = {"ranks": dict(ranks)}
     return sort_table(out)
 
 

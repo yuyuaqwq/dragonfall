@@ -94,7 +94,7 @@ def test_data():
     check("旧 proc 名 shadow_dance_cd 已不再出现", "shadow_dance_cd" not in str(ps), f"ps={ps}")
     check("旧 cdr 字段已删", "cdr" not in ps, f"ps={ps}")
     # 影舞态自带的 CD 减免仍在（改词没动它）
-    from game.data.battle_rules import EFFECT_RULES
+    from content.mech.params import EFFECT_RULES
     check("影舞态自带 cd_mult 0.8 保留（−20% 不丢）",
           float((EFFECT_RULES.get("shadow_dance") or {}).get("cd_mult", 1.0)) == 0.8,
           f"sd={EFFECT_RULES.get('shadow_dance')}")

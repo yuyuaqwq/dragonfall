@@ -25,7 +25,7 @@ from conftest import C  # noqa: E402
 from saintess_engine.battle.formulas import skill_power_mult, skill_flat_value
 from game.content_rules.panel import player_final_stats
 from game.content_rules.skills import skill_info# noqa: E402
-from game.data.classes import CLASSES  # noqa: E402
+from content.catalog_core import CLASSES  # noqa: E402
 
 passed = failed = 0
 

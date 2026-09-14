@@ -229,7 +229,7 @@ async def main():
         d2 = dt[0]
         check("中央大厅 funcs 含 shop", "shop" in (d2.get("funcs") or []), d2.get("funcs"))
         check("中央大厅 shop=True", d2.get("shop") is True, d2.get("shop"))
-    from data.plugins.dragonfall.game.data.shop import SHOP_SUBAREA_ITEMS, SHOP_WEAPONS
+    from content.catalog_life import SHOP_SUBAREA_ITEMS, SHOP_WEAPONS
     stock = SHOP_SUBAREA_ITEMS.get("deep_tunnel_2") or []
     check("中央大厅有配货", len(stock) >= 1, stock)
     bad = [i for i in stock if i not in C.ITEMS]

@@ -51,8 +51,8 @@ def _load_audit():
 def main():
     A = _load_audit()
     spawns = A.collect_spawns()
-    from game.data.monster_mods import MONSTER_MODS
-    from game.data.monsters import MONSTER_SKILLS
+    from content.catalog_quests import MONSTER_MODS
+    from content.catalog_quests import MONSTER_SKILLS
 
     # ---- 1. 全量三分类：无 DEAD ----
     dead = []

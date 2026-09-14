@@ -209,7 +209,7 @@ def t_b1_faith_unload():
     apply_class_mech(pu)
     b = _battle(pu, mk_enemy())
     # MECH_CASH 声明存在（装配层记录）
-    from game.data.battle_rules import MECH_CASH
+    from content.mech.class_data import MECH_CASH
     check("MECH_CASH.faith_unload 声明（mode=heal_clear 技能内兑现）",
           isinstance(MECH_CASH.get("faith_unload"), dict)
           and MECH_CASH["faith_unload"].get("mode") == "heal_clear", repr(MECH_CASH.get("faith_unload")))

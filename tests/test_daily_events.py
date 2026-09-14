@@ -21,7 +21,8 @@ from data.plugins.dragonfall.game.core.daily_events import (
     today_map_event, today_event_effects, _day_hash,
 )
 from data.plugins.dragonfall.game.core.factions import faction_reputation_tier
-from data.plugins.dragonfall.game.data.daily_events import DAILY_MAP_EVENTS
+# W10：改读包内单源（宿主 game/core/daily_events.py 已薄壳 → content/daily_events.py → 此处同一份）
+from content.catalog_rules import DAILY_MAP_EVENTS  # noqa: E402
 
 passed = failed = 0
 

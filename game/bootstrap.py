@@ -58,23 +58,24 @@ def _skills():
 # ------------------------------------------------------------
 
 def _skeleton():
-    """公式骨架参数表（活读 data/formula_skeleton.py，与 S5 前引擎全局同对象）。"""
+    """公式骨架参数表（活读**包内** `content/rules/game_config.json` 的 `formula_skeleton` 组 ——
+    B14 收口：原 `from .data.formula_skeleton import FORMULA_SKELETON`，删 `game/data` 后仍可 import）。"""
     try:
-        from .data.formula_skeleton import FORMULA_SKELETON
+        from content.catalog_rules import FORMULA_SKELETON
         return FORMULA_SKELETON
     except Exception:
         return {}
 
 
 def _skill_flat():
-    """技能基础值常量表（活读 data/skill_up.py，与 S5 前函数体内 import 同语义）。"""
+    """技能基础值常量表（活读**包内** `content/mech/params.py` 的 `SKILL_FLAT` ——
+    B14 收口：原 `from .data.skill_up import (SKILL_FLAT_BASE, …)`，取件时机/形状不变）。"""
     try:
-        from .data.skill_up import (SKILL_FLAT_BASE, SKILL_FLAT_PER_PLAYER_LV,
-                                    SKILL_FLAT_PER_SKILL_LV)
+        from content.mech.params import SKILL_FLAT as _SF
         return {
-            "SKILL_FLAT_BASE": SKILL_FLAT_BASE,
-            "SKILL_FLAT_PER_PLAYER_LV": SKILL_FLAT_PER_PLAYER_LV,
-            "SKILL_FLAT_PER_SKILL_LV": SKILL_FLAT_PER_SKILL_LV,
+            "SKILL_FLAT_BASE": _SF["SKILL_FLAT_BASE"],
+            "SKILL_FLAT_PER_PLAYER_LV": _SF["SKILL_FLAT_PER_PLAYER_LV"],
+            "SKILL_FLAT_PER_SKILL_LV": _SF["SKILL_FLAT_PER_SKILL_LV"],
         }
     except Exception:
         return {}
@@ -116,8 +117,9 @@ def _monster_skill(key):
 
 def _kinds() -> dict:
     """kind 语义常量（S1 前写死在 saintess_engine/actions.py:22-26）。"""
-    # P4 下沉（2026-09-13）：中文 kind 词表真源 = game/data/kinds.py（原 saintess_engine/kinds/）
-    from .data.kinds import K_PHYS, K_MAGI, K_TRUE, K_HEAL, K_BUFF
+    # P4 下沉（2026-09-13）→ B14 收口：真源 = **包内** content/mech/kinds.py（词表单源；
+    # 删 game/data 后仍可 import，逐值与原 game/data/kinds.py 相同）
+    from content.mech.kinds import K_PHYS, K_MAGI, K_TRUE, K_HEAL, K_BUFF
     return {"phys": K_PHYS, "magi": K_MAGI, "true": K_TRUE, "heal": K_HEAL, "buff": K_BUFF}
 
 
@@ -129,20 +131,26 @@ def _basic_fallback() -> dict:
 def _mech_cfg(name):
     """机制配置表读取（S3 前在 core/battle_bars._battle_cfg 内经 importlib 直读）。
 
-    活读（每次取 data.battle_config.MECH_CFG[name]）：与 S3 前直读语义一致，
-    tests/数值仿真对 MECH_CFG 的运行期改动可见。
+    活读（每次取 **包内单源** `content/mech/class_data.py` 的 `MECH_CFG[name]`）：与 S3 前直读
+    语义一致，tests/数值仿真对 MECH_CFG 的运行期改动可见。
+    B14 收口：原 `from .data.battle_config import MECH_CFG`；包内 `class_data.MECH_CFG` 已验
+    **15 组逐键 deep-equal**（`overnight/_w2_probe.py`），删 `game/data` 后仍可 import。
     """
     try:
-        from .data.battle_config import MECH_CFG
+        from content.mech.class_data import MECH_CFG
         return MECH_CFG.get(name, {}) or {}
     except Exception:
         return {}
 
 
 def _bar_prefix():
-    """挂敌身条键前缀（S3 前在 core/battle_bars._state_prefix 内经 importlib 直读）。"""
+    """挂敌身条键前缀（S3 前在 core/battle_bars._state_prefix 内经 importlib 直读）。
+
+    B14 收口：原 `from .data.battle_rules import BAR_STATE_PREFIX` → 包内
+    `content/rules/game_config.json` 的 `battle_rules.BAR_STATE_PREFIX`（同值 "bar:"）。
+    """
     try:
-        from .data.battle_rules import BAR_STATE_PREFIX
+        from content.catalog_rules import BAR_STATE_PREFIX
         return BAR_STATE_PREFIX or "bar:"
     except Exception:
         return "bar:"

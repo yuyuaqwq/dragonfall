@@ -183,7 +183,7 @@ def test_2_dmg_type_passthrough():
         L.deal_damage = orig
 
     # 数据侧声明存在（corros = 真伤轴）
-    from game.data.battle_rules import EFFECT_RULES
+    from content.mech.params import EFFECT_RULES
     _c = (EFFECT_RULES.get("corros") or {}).get("period") or {}
     check("数据侧 corros 仍声明 dmg_type=true（真伤轴）",
           _c.get("dmg_type") == "true", f"period={_c}")
@@ -261,7 +261,7 @@ def test_4_zero_change():
         got = deal_damage(b, p, e, amount, [], dmg_kind="")
         check(f"无任何状态声明：{amount} → {amount}", got == amount, f"got={got}")
     # 数据侧三处声明仍在（防被误删）
-    from game.data.battle_rules import EFFECT_RULES
+    from content.mech.params import EFFECT_RULES
     check("hunt_mark 仍声明 debuff_scale 0.08",
           ((EFFECT_RULES.get("hunt_mark") or {}).get("debuff_scale") or {}).get("dmg_taken") == 0.08,
           f"={EFFECT_RULES.get('hunt_mark')}")

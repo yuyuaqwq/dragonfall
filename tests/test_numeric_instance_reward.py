@@ -22,7 +22,7 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.join(_PLUGIN_DIR, "tests", "test_g
 
 from economy_lib.env import setup_env  # noqa: E402,F401
 from economy_lib.core import instance_reward, INSTANCE_GOLD_MULT, INSTANCE_EXP_MULT  # noqa: E402
-from game.data.instances import INSTANCES  # noqa: E402
+from content.catalog_space import INSTANCES  # noqa: E402
 from game.core.stats import monster_gold, monster_exp, exp_to_next  # noqa: E402
 
 passed, failed = 0, 0

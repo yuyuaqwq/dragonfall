@@ -174,8 +174,8 @@ async def test_enhance_boost():
 
 def test_recipes():
     print("【6. 新配方完整性】")
-    from game.data.cooking import COOKING_RECIPES
-    from game.data.alchemy import ALCHEMY_RECIPES
+    from content.catalog_life import COOKING_RECIPES
+    from content.catalog_life import ALCHEMY_RECIPES
     ok = True
     for rk, r in COOKING_RECIPES.items():
         if rk.startswith("cook_night") or rk.startswith("cook_moon") or rk.startswith("cook_aurora") or rk.startswith("cook_dragon_blood") or rk.startswith("cook_thunder"):

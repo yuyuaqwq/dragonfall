@@ -51,7 +51,7 @@ def main():
         mid = C.resolve("materials", n)
         check(f"材料 {n} 已注册", mid in C.MATERIALS)
     # 隐藏怪技能 ID 有效
-    from data.plugins.dragonfall.game.data import monsters
+    from content import catalog_quests as monsters
     sks = monsters.MONSTER_SKILLS
     bad_sk = []
     for hdef in C.HIDDEN_MONSTERS.values():
@@ -82,7 +82,7 @@ def main():
 
     # ===== 4. 探索彩蛋扩充 =====
     print("  · 探索彩蛋扩充")
-    from data.plugins.dragonfall.game.data.events import EXPLORE_EGG_EVENTS, EXPLORE_EVENTS
+    from content.catalog_quests import EXPLORE_EGG_EVENTS, EXPLORE_EVENTS
     egg_ids = [e["id"] for e in EXPLORE_EGG_EVENTS]
     # v97.6 扩容 5→30 → v115 再扩 36（区域 19 + 全局 17）→ v125 再扩 46（区域 24 + 全局 22）
     check("彩蛋事件 46 种（含 old_map/gold_slime + v97.6 新 25 + v115 扩 + v125 扩 10）",

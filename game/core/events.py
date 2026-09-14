@@ -15,8 +15,10 @@
      `tests/test_v116_explore_season.py:13`（含 `current_season`）、`tests/test_v97_06_eggs_hidden.py:27`
      的 import 点零改动 + `__getattr__` 兜底
 
-★ `from ..data import …` 与本文件改前**同位置同写法**（真源就是模块级读宿主数据表，
-  属本模块既有形状，未动）；包加载口插在它之前（package_apply 只读包内 JSON，不碰宿主数据层）。
+★ `from ..data import …`（B14 收口已改）→ 现在读**包内源**：两个探索池取
+  `content/catalog_quests.py`（`events` 域），三个派生/常量（`EXPLORE_EGG_CHANCE` /
+  `EXPLORE_EGG_SUM` / `EVENT_WEIGHT_SUM`）取 `content/catalog_rules.py`；
+  `__getattr__` 转发面与符号名一字未变，`game/data` 删掉后本模块仍可 import。
 
 ★ 宿主替身注入：**不需要**（包内按 `sys.modules` 惰性解析；core 模块级 import content 会撞 §8-R1）。
 
@@ -27,9 +29,11 @@ from .. import bootstrap as _bootstrap                          # noqa: F401
 
 _bootstrap.package_apply()                                      # 本进程唯一包加载口（幂等）
 
-from ..data import (  # noqa: E402,F401  （真源原样：本模块 import 期即读宿主数据表）
-    EVENT_WEIGHT_SUM, EXPLORE_EVENTS, EXPLORE_EGG_CHANCE, EXPLORE_EGG_EVENTS, EXPLORE_EGG_SUM,
-)
+# B14 收口：原 `from ..data import (EVENT_WEIGHT_SUM, EXPLORE_EVENTS, EXPLORE_EGG_CHANCE,
+# EXPLORE_EGG_EVENTS, EXPLORE_EGG_SUM)`。五个符号名与位置一字不变（`EV.<名> = …` 打桩照旧）。
+from content.catalog_quests import EXPLORE_EVENTS, EXPLORE_EGG_EVENTS   # noqa: E402,F401
+from content.catalog_rules import (EVENT_WEIGHT_SUM, EXPLORE_EGG_CHANCE,  # noqa: E402,F401
+                                   EXPLORE_EGG_SUM)
 # v116 季节渗透：探索事件随季节变化（借鉴垂钓，见 core/fishing.py）
 # - 事件 season 硬限定：非当季不触发；season_boost 偏好：当季权重 ×1.5
 # - 季节码与 time_weather.current_season 对齐（spring/summer/autumn/winter）

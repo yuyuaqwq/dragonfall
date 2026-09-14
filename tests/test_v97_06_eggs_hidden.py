@@ -25,8 +25,8 @@ def check(name, cond, detail=""):
 async def main():
     from data.plugins.dragonfall.game.core.event_templates import TEMPLATES
     from data.plugins.dragonfall.game.core.events import roll_explore_egg
-    from data.plugins.dragonfall.game.data.events import EXPLORE_EGG_EVENTS
-    from data.plugins.dragonfall.game.data.hidden_monsters import HIDDEN_MONSTERS
+    from content.catalog_quests import EXPLORE_EGG_EVENTS
+    from content.catalog_b143 import HIDDEN_MONSTERS
 
     mats_idx = {v.get("name") for v in C.MATERIALS.values()}
     map_ids = set(C.MAP_BY_ID.keys())

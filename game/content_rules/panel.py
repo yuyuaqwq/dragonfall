@@ -14,9 +14,9 @@ saintess_engine/stats.py 的 `_player_base_stats` 消费；纯怪路径不经过
 """
 from .. import content as C
 from saintess_engine.battle.formulas import skill_learn_cost
-from ..data.kinds import K_PASSIVE
-from ..data.base_growth import PLAYER_BASE_GROWTH  # P2F-3 F6 player_base_stats 成长结构声明（循环键集/branch 修正模式/别名）
-from ..data.battle_config import TIER_GROWTH, BRANCH_BONUS, BRANCH_BONUS_BY_CLASS
+from content.mech.kinds import K_PASSIVE                         # B14 收口：原 ..data.kinds
+from content.catalog_rules import PLAYER_BASE_GROWTH             # B14 收口：原 ..data.base_growth（线性键集还原 tuple）
+from content.tables import TIER_GROWTH, BRANCH_BONUS, BRANCH_BONUS_BY_CLASS   # B14 收口：原 ..data.battle_config
 from .skills import skill_info
 
 

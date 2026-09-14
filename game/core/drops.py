@@ -7,11 +7,16 @@ import random
 from saintess_engine.loot import count_for, draw_slots
 
 from .. import content as C
-from ..data import (AFFIXES, AFFIX_POOL_BY_QUALITY, CRAFT_RECIPES,
-                    EQUIP_NAME_PREFIX, EQUIP_NAME_SUFFIX,
-                    EQUIP_PREFIX_FLAVOR, LEGENDARY_EFFECTS, QUALITY, SET_CHANCE, SET_THEMES,
-                    SERIES_SETS, WEAPON_FLAVOR, FIELD_TIER_MULT,  # v131 难度分档表
-                    WEAPON_NAME_SUFFIX, WEAPON_TYPES)
+# ---- B14 收口：15 个装备/词条/套装/难度档位符号**改读包内源** ----
+# 逐名「值 / dict 键序 / type」与宿主 `game/data` 原表对拍相等（`overnight/_w2_probe.py`，
+# 末行 `相等 43 · 不等 0`）；`game/data` 删掉后本模块仍可 import。
+from content.catalog_b143 import QUALITY, WEAPON_FLAVOR, AFFIX_POOL_BY_QUALITY  # noqa: E402
+from content.catalog_items import AFFIXES, LEGENDARY_EFFECTS                    # noqa: E402
+from content.catalog_life import CRAFT_RECIPES                                  # noqa: E402
+from content.catalog_rules import (EQUIP_NAME_PREFIX, EQUIP_NAME_SUFFIX,        # noqa: E402
+                                   EQUIP_PREFIX_FLAVOR, SET_CHANCE, SET_THEMES,
+                                   SERIES_SETS, FIELD_TIER_MULT,  # v131 难度分档表
+                                   WEAPON_NAME_SUFFIX, WEAPON_TYPES)
 
 
 # v104 修复 P1（M07 审计）：图纸池只保留有 CRAFT_RECIPES 配方的名册装备，

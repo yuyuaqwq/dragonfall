@@ -220,6 +220,56 @@ EXPLICIT_GROUPS = (
     ("rules", "game/data/rules.py", ("RULES",), {}),
     ("base_growth", "game/data/base_growth.py", (),
      {"PLAYER_BASE_GROWTH": "panel_rules 域（成长结构声明，面板读它）"}),
+    # -------------------------------------------------------------------------
+    # B14-3（2026-09-14）「缺口 46 名」收口 —— 新增 9 组常量归口。
+    # 判据：这些常量所属的宿主模块**已有实体域**（pets/maps/runes/affixes/fishing/pois/…），
+    # 但实体域的 primary def 有实体必填字段（例：`pets` 要 key/name/quality/focus/skill_type/…，
+    # `maps` 要 name/nodes，`runes` 要 name）⇒ 常量行塞不进去（硬塞 = 或硬造数据、或放水 required）。
+    # 按本域既有设计（「一条 = 一个源模块的常量组」，不给常量留野地）+ B9「常量模块归 L7」口径，
+    # 落这里；`owned_elsewhere` 逐项注明那些常量各自的真域。
+    # 未建域的那几个模块（equipment/factions/enchant/poi_pools/quest_add_v140/gems）本轮
+    # **单开新域**（`scripts/export_domains/b14_3_gaps.py`），不在本域重复（防双源）。
+    # -------------------------------------------------------------------------
+    ("pets", "game/data/pets.py", ("PET_MAX_LEVEL", "PET_SKILL_UNLOCK_LV"),
+     {"PET_POOL": "pets 域（品种池 16 条，一条 = 一个品种）",
+      "PET_EGG_ROLL": "pets 域导出期并入条目字段 `egg_roll`（蛋掉落规则，按品种 id 连接）",
+      "PET_EXP_GRADE": "pets 域同族的成长档表（消费口径 = 品种经验曲线），本轮未导出（非缺口名）"}),
+    ("maps", "game/data/maps.py",
+     ("MAP_CONNECTIONS", "LEGACY_MAP_ALIAS", "HIDDEN_MAP_UNLOCK"),
+     {"MAPS": "maps 域（121 图，只取 name 做显示名）+ worlds 域（地图级元数据）",
+      "MAP_BY_ID": "派生索引（{m['id']: m for m in MAPS}），可由 maps/worlds 域重建",
+      "ENCY_MAP_MONSTERS": "源里是**空 dict**，装配期由 `game/core/maps` 填充的运行期索引（非数据）",
+      "ENCY_MONSTER_MAP": "同上（源里空 dict，运行期建索引）",
+      "MONSTER_LOCS": "同上（源里空 dict，`core/maps:_build_monster_locs` 运行期填充）",
+      "ENCY_MATERIAL_SOURCE": "同上（源里空 dict，运行期建索引）"}),
+    ("world", "game/data/world.py", ("WORLD_EVENT_POOL", "AUCTION_POOL", "WORLD_BOSS_POOL"), {}),
+    ("runes", "game/data/runes.py",
+     ("RUNE_CRAFT_SHARDS", "RUNE_DROP", "RUNE_LEVEL_ROMAN"),
+     {"RUNES": "runes 域（16 条符文）", "RUNE_CRAFT": "runes 域导出期注入条目字段 `craft`",
+      "RUNE_CONFLICTS": "runes 域导出期折成条目字段 `conflicts`",
+      "RUNE_EFFECT_NAMES": "与 runes 域各条 `name` 逐条相等的**冗余展示表**（零新信息，不导）",
+      "RUNE_SHARD_KEY": "物品 id 常量（`mat_fu_wen_sui_pian`）→ items 域按 id 引用，不在本域"}),
+    ("affixes", "game/data/affixes.py", ("AFFIX_AFFINITY_CN", "AFFIX_POOL_BY_QUALITY"),
+     {"AFFIXES": "affixes 域（76 条词条）", "LEGENDARY_EFFECTS": "legendary_effects 域（93 条）",
+      "SERIES_FIXED_AFFIX": "套装固定词条表（外层键是中文装备名）—— 本轮无域，登记为缺口",
+      "AFFIX_KIND": "词条大类显示名（attack/defense → 武器/防具），非缺口名",
+      "AFFIX_AFFINITY_POOLS": "锻造倾向池（与 AFFIX_AFFINITY_CN 同族的池表），非缺口名"}),
+    ("fishing", "game/data/fishing.py", ("FISH_COLLECT", "FISH_EXP"),
+     {"FISHING_SPOTS": "fishing_spots 域（11 钓点）", "FISH_POOL": "fishing_pool 域（鱼种池）",
+      "FISH_QUALITY_WEIGHTS": "品质权重表（非缺口名，无 `C.<名>` 读点）"}),
+    ("pois", "game/data/pois.py", ("POIS",),
+     {"SUBAREA_POIS": "pois 域（457 条 = 子区域落点，键 `map:subarea`）",
+      "NOTE_POOL": "纸条池（`POIS` 的配套池），非缺口名",
+      "RUNE_POOL": "符文石池，非缺口名", "SIGHT_POOL": "风景池，非缺口名"}),
+    ("hidden_monsters", "game/data/hidden_monsters.py", ("HIDDEN_MONSTERS",), {}),
+    ("instance_investigation", "game/data/instance_investigation.py",
+     ("INVESTIGATE_COLLECT_SAMPLES",),
+     {"INVESTIGATION_POINTS": "instance_investigation 域（22 本 / 90 个调查点）",
+      "INVESTIGATE_BP_CHANCE": "图纸残页概率常量（非缺口名）",
+      "INVESTIGATE_RUNE_CHANCE": "蓝符概率常量（非缺口名）",
+      "INVESTIGATE_COLLECT_CHANCE": "收藏概率常量（非缺口名）",
+      "INVESTIGATION_COUNT": "派生计数（= 90，`sum(len(v) for v in INVESTIGATION_POINTS.values())`）",
+      "INVESTIGATION_INST_COUNT": "派生计数（= 22，`len(INVESTIGATION_POINTS)`）"}),
 )
 
 # 自动组：模块 → (真源模块名, {排除: 理由}, 条数下界)

@@ -20,8 +20,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from conftest import C, run, FakeEvent, clean_db  # noqa: E402
-from data.plugins.dragonfall.game.data.job_guide import (  # noqa: E402
-    JOB_GUIDE, BASE_ORDER, HIDDEN_ORDER,
+from content.tables import JOB_GUIDE  # noqa: E402
+from data.plugins.dragonfall.game.data.job_guide import (  # noqa: E402  ★未映射（见 overnight/_w7_tests_data_imports.md）
+    BASE_ORDER, HIDDEN_ORDER,
 )
 from data.plugins.dragonfall.game.commands.job_guide import JobGuideCmds  # noqa: E402
 import data.plugins.dragonfall.game.commands.job_guide as _jg_mod  # noqa: E402

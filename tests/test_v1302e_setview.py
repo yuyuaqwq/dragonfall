@@ -17,7 +17,7 @@ from conftest import C, run, FakeEvent, clean_db
 import data.plugins.dragonfall.game.db as db
 from data.plugins.dragonfall.main import Main
 from data.plugins.dragonfall.game.commands.economy import EconomyCmds
-from data.plugins.dragonfall.game.data.equip_roster import EQUIP_ROSTER
+from content.catalog_items import EQUIP_ROSTER
 
 
 def check(name, cond, detail=""):

@@ -43,7 +43,7 @@ _LD._roll_dodge = lambda *a, **k: False  # noqa: E731
 ensure_engine_configured()
 from game.services import battle_element_procs as EP  # noqa: E402,F401
 from game.services import battle_team_procs as TP  # noqa: E402,F401
-from game.data.battle_config import ELEMENT_REACTIONS  # noqa: E402
+from content.mech.element_data import ELEMENT_REACTIONS  # noqa: E402
 
 PASS = 0
 FAIL = 0

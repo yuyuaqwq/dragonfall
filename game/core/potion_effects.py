@@ -36,7 +36,7 @@ _EFFECT_KIND = {
 def _scan_defaults():
     """从 items.py 药水 effect_data 扫描各效果默认数值（items.py = 数值单一权威）。
     同 effect 多物品共用一套数值（数据约定一致），首个命中为准。"""
-    from ..data.items import ITEMS  # 延迟导入（core 聚合链惯例）
+    from content.catalog_items import ITEMS  # B14 收口：原 ..data.items（延迟导入，core 聚合链惯例）
     out = {}
     for _d in ITEMS.values():
         ed = _d.get("effect_data")
@@ -216,7 +216,7 @@ def _item_res_def(key: str) -> dict:
     """按资源 key 查资源定义（v181.M-R2b：单源 = EFFECT_RULES 条目 name/cap；
     旧 core_resource_def_by_key（core_resources.py 表，文件本体已随 v181.M-R2c 退役）退役迁移。未注册 key → {}，与旧兜底同）。"""
     try:
-        from ..data.battle_rules import EFFECT_RULES as _ER
+        from content.catalog_rules import EFFECT_RULES as _ER   # B14 收口：原 ..data.battle_rules
         _r = _ER.get(key) or {}
         if not _r:
             return {}
@@ -502,7 +502,7 @@ def eff_resource_charge(battle, player, value):
     rd = {}
     if _cls:
         try:
-            from ..data.battle_rules import EFFECT_RULES as _ER2
+            from content.catalog_rules import EFFECT_RULES as _ER2   # B14 收口：原 ..data.battle_rules
             for _rk, _ru in _ER2.items():
                 if _cls in ((_ru or {}).get("start_classes") or []):
                     rd = {"key": _rk, "name": (_ru.get("name") or _rk),

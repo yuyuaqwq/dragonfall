@@ -226,7 +226,7 @@ def poi_loot(ctx):
 def poi_rune(ctx):
     """符文石：图鉴/隐藏线索。"""
     db = ctx._db()
-    from ..data.pois import RUNE_POOL
+    from content.catalog_rules import RUNE_POOL      # B14 收口：原 from ..data.pois import RUNE_POOL
     txt = random.choice(RUNE_POOL)
     db.set_talk_flag(ctx.group_id, ctx.qq_id, "poi_rune_read", "read_rune")
     return (f"{ctx.icon} 【{ctx.pname}】你伸手轻触{ctx.loc}的符文石，碑面泛起幽光。\n"
@@ -259,7 +259,7 @@ def poi_note(ctx):
                     f"🕯️ 你郑重祭拜，于墓前放下一朵野花。")
         return (f"{ctx.icon} 【{ctx.pname}】你再次路过{ctx.loc}的旅者之墓，碑前的野花还开着。\n"
                 f"🪦 你默默驻足片刻，为这位先行的旅人献上沉默的敬意。")
-    from ..data.pois import NOTE_POOL
+    from content.catalog_rules import NOTE_POOL      # B14 收口：原 from ..data.pois import NOTE_POOL
     txt = random.choice(NOTE_POOL)
     db.set_talk_flag(ctx.group_id, ctx.qq_id, "poi_note_found", "found_note")
     return (f"{ctx.icon} 【{ctx.pname}】你摘下{ctx.loc}树干上的字条，墨迹已有些褪色。\n"
@@ -269,7 +269,7 @@ def poi_note(ctx):
 @register("sight")
 def poi_sight(ctx):
     """v87.9 风景 POI：纯氛围观景（无数值收益）。"""
-    from ..data.pois import SIGHT_POOL
+    from content.catalog_rules import SIGHT_POOL     # B14 收口：原 from ..data.pois import SIGHT_POOL
     txt = random.choice(SIGHT_POOL)
     return (f"{ctx.icon} 【{ctx.pname}】你停住脚步，抬头望向{ctx.loc}的风景。\n"
             f"🌄 {txt}")

@@ -5,7 +5,7 @@ import sys, os, datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import clean_db, Main, db, FakeEvent, run, C
 
-from game.data.npcs import NPCS
+from content.catalog_quests import NPCS
 
 passed = failed = 0
 def check(name, ok, detail=""):

@@ -59,7 +59,7 @@ async def main():
           owner == (2, "狂战士"), str(owner))
     # v181.M-R2b：engine.core_resource_def 退役删除——资源名/上限单源 EFFECT_RULES
     # （rage name=怒气 cap=10 由旧 core_resources.cls_zhan_shi 迁移，展示/校验读点全改新源）
-    from game.data.battle_rules import EFFECT_RULES as _ER  # noqa: E402
+    from content.mech.params import EFFECT_RULES as _ER  # noqa: E402
     _rage = _ER.get("rage") or {}
     check("EFFECT_RULES 战士资源单源（rage name=怒气 cap=10）",
           _rage.get("name") == "怒气" and _rage.get("cap") == 10, str(_rage))

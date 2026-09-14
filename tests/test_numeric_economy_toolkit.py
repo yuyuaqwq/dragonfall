@@ -58,13 +58,14 @@ check("profession_scan 有 alchemy", "alchemy" in prof and prof["alchemy"]["tota
 check("profession_scan 有 cooking", "cooking" in prof and prof["cooking"]["total"] > 0)
 
 # 5. 掉落 cap 生效：用当前材料价模拟普通怪，确认无 99 爆量
-import game.data as D
+from content.catalog_items import MATERIALS  # noqa: E402
+from content.catalog_space import MAPS  # noqa: E402
 from game.core import stats as S
-mat_price = {v.get("name", k): v.get("price", 0) for k, v in D.MATERIALS.items()}
+mat_price = {v.get("name", k): v.get("price", 0) for k, v in MATERIALS.items()}
 max_n = 0
 over_cap = 0
 checked_drop = 0
-for m in D.MAPS:
+for m in MAPS:
     for sub in m.get("subareas", []):
         for mon in sub.get("monsters", []):
             if len(mon) < 6:

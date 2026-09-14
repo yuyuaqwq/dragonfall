@@ -13,7 +13,11 @@
 """
 import conftest  # noqa: F401
 
-from data.plugins.dragonfall.game import data as C
+# W10：包内源（原 `from data.plugins.dragonfall.game import data as C`）—— 6 名分居 3 个门面，
+# 其中 CRAFT_RECIPES / SERIES_SETS 的用点去掉 `C.` 前缀（纯模块限定名改写，断言/期望值零改动）
+from content import catalog_items as C  # noqa: E402  EQUIP_ROSTER / EQUIP_ROSTER_BY_NAME / MATERIALS / SETS
+from content.catalog_life import CRAFT_RECIPES  # noqa: E402
+from content.catalog_rules import SERIES_SETS  # noqa: E402
 from data.plugins.dragonfall.game.core.drops import generate_roster_equip
 from game.content_rules.panel import set_bonus_2, player_stats_detail, set_bonus_4 as engine_set_bonus_4
 from data.plugins.dragonfall.game.core.craft import craft_recipe_make
@@ -34,7 +38,7 @@ def check(name, cond, detail=""):
 def test_counts():
     print("【1. 数量基线】")
     check("名册 687 件", len(C.EQUIP_ROSTER) == 687, str(len(C.EQUIP_ROSTER)))  # v171 +6 新手流派白装; v172 路B +24 重锻专属; v173.3 #103 +5 自选礼包武器
-    check("配方 426 条", len(C.CRAFT_RECIPES) == 426, str(len(C.CRAFT_RECIPES)))
+    check("配方 426 条", len(CRAFT_RECIPES) == 426, str(len(CRAFT_RECIPES)))
     check("素材 598 个(v167 +30新料 + 后续版本补充)", len(C.MATERIALS) == 598, str(len(C.MATERIALS)))
     # 新素材存在
     for mid in ["mat_ye_zhu_pi", "mat_shan_zei_hui_zhang", "mat_shu_shi_he_xin",
@@ -44,7 +48,7 @@ def test_counts():
     for s in ["铁皮", "精铁", "百炼", "学徒", "符文", "秘法", "布衣", "祝福", "圣堂",
               "猎手", "风行", "暗夜", "轻影", "夜行", "阴影", "行者", "石拳", "壁槌",
               "护林", "渡口", "巡林", "霜猎", "龙裔"]:
-        check(f"系列 {s} 映射套装", s in C.SERIES_SETS, s)
+        check(f"系列 {s} 映射套装", s in SERIES_SETS, s)
 
 
     # 猎首远征队恢复（v136 审计 P0：Phase6 游侠装备 id 撞车覆盖旧条目，已换 id 恢复）
@@ -146,17 +150,17 @@ def test_region():
 def test_craft():
     print("【6. 锻造链路】")
     # 铁皮长剑配方
-    rec = C.CRAFT_RECIPES.get("rec_tiepichangjian") or C.CRAFT_RECIPES.get("rec_tie_pi_chang_jian")
+    rec = CRAFT_RECIPES.get("rec_tiepichangjian") or CRAFT_RECIPES.get("rec_tie_pi_chang_jian")
     check("铁皮长剑配方存在", rec is not None, str(rec))
     if rec:
         check("铁皮长剑配方 mats(v167换粗铁)", "mat_cu_tie" in rec["mats"], str(rec["mats"]))
     # 精制渡口胸甲（紫装带图纸）
-    rec2 = C.CRAFT_RECIPES.get("rec_du_kou_chen_xi_xiong_jia")
+    rec2 = CRAFT_RECIPES.get("rec_du_kou_chen_xi_xiong_jia")
     check("精制渡口胸甲配方", rec2 is not None, str(rec2))
     if rec2:
         check("精制渡口胸甲图纸", rec2.get("blueprint") == "精制渡口胸甲图纸", str(rec2.get("blueprint")))
     # 锻造产物 = 名册精确生成（craft_recipe_make 用配方 id 查找）
-    rec_id = next((k for k, v in C.CRAFT_RECIPES.items() if v.get("name") == "铁皮长剑"), None)
+    rec_id = next((k for k, v in CRAFT_RECIPES.items() if v.get("name") == "铁皮长剑"), None)
     check("铁皮长剑配方 id", rec_id is not None, str(rec_id))
     if rec_id:
         eq = craft_recipe_make(rec_id)

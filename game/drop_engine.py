@@ -45,6 +45,7 @@ v184（路线图 #7「内容侧·池」）：池 / 策略注册表 / 展开 / �
 引用类措辞仍由本文件 `_resolvable` 逐字保留旧说法）。
 """
 import random
+import sys
 from collections.abc import Mapping
 from typing import Any
 
@@ -185,8 +186,26 @@ _EXPAND_INLINE_PREFIXES = ("equip:", "item:", "gold:")
 
 
 def _get_pools() -> dict:
-    from .data.drop_pools import DROP_POOLS  # noqa: E402
-    return DROP_POOLS
+    """池数据源（B14 收口）：**包内** `content/catalog_rules.DROP_POOLS`
+    （= `content/data/drop_pools.json`，596 池，与原 `game/data/drop_pools.py` 逐条同源；
+    删 `game/data` 后本模块仍可用）。
+
+    ⚠️ 一处**刻意的兼容**：宿主数据层若**已被本项目加载**（`<本模块所属树>.data.drop_pools`
+    在 `sys.modules` 里 —— 只有宿主侧代码自己 import 过它才会在），则优先读它的 `DROP_POOLS`
+    属性。理由：`tests/test_v184_loot_pools.py:1082 _with_pools()` 直接替换
+    `_DP.DROP_POOLS` 造合成池，**打桩要对本实现可见**（打桩语义 = 行为的一部分；
+    同款理由见 `content/events.py::_src` 的注释）。
+    数据层被删后该分支自然消失（`sys.modules` 里没有它）→ 走包内域，值同。
+    两路都不拉数据到 import 期（取数时机与 v174 同）。
+    """
+    _host = None
+    if __package__:
+        _host = sys.modules.get(__package__ + ".data.drop_pools")
+    _host = _host or sys.modules.get("game.data.drop_pools")
+    if _host is not None and hasattr(_host, "DROP_POOLS"):
+        return _host.DROP_POOLS
+    from content.catalog_rules import DROP_POOLS as _PKG_POOLS      # noqa: PLC0415
+    return _PKG_POOLS
 
 
 class _LazyPools(Mapping):

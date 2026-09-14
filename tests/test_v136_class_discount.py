@@ -8,7 +8,7 @@ import conftest  # noqa: F401  (GWEN_GAME_DB + qqbot path)
 # ⚠️ 必须与下面的 `C` 用**同一模块树**（包式）：panel 读的是自己树的 SETS，
 # 混用裸式（`game.…`）会让本测试注入的 C.SETS 条目对 panel 不可见。
 from data.plugins.dragonfall.game.content_rules.panel import set_bonus_2, active_sets
-from data.plugins.dragonfall.game import data as C
+from data.plugins.dragonfall.game import data as C  # ★未映射：宿主 content_rules/panel.py 仍读宿主聚合层 C.SETS（未薄壳）
 
 
 def _mk_equip(set_name: str, n: int) -> dict:

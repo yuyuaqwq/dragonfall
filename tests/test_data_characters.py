@@ -7,7 +7,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C
 # v181.M-R2c：core_resources.py 退役——资源注册完整性断言改对单源新形态（见 main()）
-from game.data.battle_rules import EFFECT_RULES as _ER_RULES  # noqa: E402
+from content.mech.params import EFFECT_RULES as _ER_RULES  # noqa: E402
 from game.data.job_guide import (  # noqa: E402
     CORE_RESOURCE_GUIDE as _CRG, EXTRA_RESOURCE_GUIDE as _XRG,
 )

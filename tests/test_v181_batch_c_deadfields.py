@@ -117,7 +117,7 @@ def test_1_wake_on_hit():
 
 def test_2_removed_dead_fields():
     print("【2. 死声明清理确认（on_threshold / period.type / period.per_layer）】")
-    from game.data.battle_rules import EFFECT_RULES
+    from content.mech.params import EFFECT_RULES
 
     zy = EFFECT_RULES.get("zhan_yi") or {}
     check("zhan_yi 已删 on_threshold（原「满 10 进狂暴」与现行为冲突）",
@@ -149,7 +149,8 @@ def test_2_removed_dead_fields():
 
 def test_3_orphan_guard():
     print("【3. 孤儿防护：删声明后机制仍可用】")
-    from game.data.battle_rules import EFFECT_RULES, MECH_CASH
+    from content.mech.params import EFFECT_RULES
+    from content.mech.class_data import MECH_CASH
     # 狂暴走主动投入（血祭）——删 on_threshold 不影响的证据：MECH_CASH 仍在
     check("狂暴仍由 MECH_CASH.zhan_yi_fury（主动投入）承接",
           "zhan_yi_fury" in MECH_CASH

@@ -29,7 +29,6 @@ from ..core.drops import _eq_random_desc, _merge_legendary_stats
 from ..core.runes import rune_item
 from ..core.stats import ARMOR_FAMILY_ALIAS, equip_value
 from ..core.title_conds import TitleCtx, CONDITIONS, check_pro_title
-from ..data.equipment import QUALITY
 from ..services import crafting as _craft_svc
 from ..services import profession as _prof_svc  # B12-L3 收口：注入宿主薄壳（原注入包内模块）
 from ..services import shop as _shop_svc        # B12-L3 收口：交易区注入宿主薄壳（同上）
@@ -43,6 +42,7 @@ from .. import bootstrap as _bootstrap
 _bootstrap.package_apply()
 
 from content import economy_host as _EH          # noqa: E402
+from content.catalog_b143 import QUALITY         # noqa: E402  B14 收口：原 ..data.equipment
 
 # ① 宿主面注入（**必须先于 import 包内实现** —— 后者模块级即读宿主面）
 _EH.bind_host(

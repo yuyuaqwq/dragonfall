@@ -47,10 +47,13 @@ from .. import bootstrap as _bootstrap          # noqa: E402
 _bootstrap.package_apply()
 from content import event_menu as _EM           # noqa: E402
 
-# ★ 未进包的三张表（缺口见报告）：宿主 data 层直读
-from ..data.daily_events import DAILY_MAP_EVENTS as _DAILY_MAP_EVENTS      # noqa: E402
-from ..data.quest_add_v140 import SUPPLY_BOX as _SUPPLY_BOX                # noqa: E402
-from ..data.world import WORLD_EVENT_POOL as _WORLD_EVENT_POOL             # noqa: E402
+# ★ B14 收口：三张表**改读包内源** —— `DAILY_MAP_EVENTS` / `SUPPLY_BOX` 取新建门面
+# `content/catalog_rules.py`（逐字字面量），`WORLD_EVENT_POOL` 取 `content/catalog_b143.py`
+# （`world` 域）。逐名与宿主原表「值 / 键序 / type」对拍相等（`overnight/_w2_probe.py`）；
+# 删 `game/data` 后本命令仍可 import。
+from content.catalog_rules import DAILY_MAP_EVENTS as _DAILY_MAP_EVENTS    # noqa: E402
+from content.catalog_rules import SUPPLY_BOX as _SUPPLY_BOX                # noqa: E402
+from content.catalog_b143 import WORLD_EVENT_POOL as _WORLD_EVENT_POOL     # noqa: E402
 
 
 def _fx_label(effects: dict) -> str:
