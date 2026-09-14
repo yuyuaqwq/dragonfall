@@ -31,10 +31,19 @@ from conftest import C, run, FakeEvent, clean_db  # noqa: E402
 from content.tables import (  # noqa: E402
     JOB_GUIDE, JOB_ALIAS as JOB_ALIASES, resolve_job,
 )
-from data.plugins.dragonfall.game.data.job_guide import (  # noqa: E402  ★未映射（见 overnight/_w7_tests_data_imports.md）
-    BASE_ORDER, HIDDEN_ORDER, HIDDEN_SUCCESSORS,
-    EXTRA_RESOURCES, CORE_RESOURCE_GUIDE, EXTRA_RESOURCE_GUIDE,
+# B16 收口：宿主 game/data 已删 —— 真源 = 包内门面（catalog_legacy 同义表口 / tables 同义函数口）
+from content.catalog_legacy import (  # noqa: E402
+    BASE_ORDER, EXTRA_RESOURCES, EXTRA_RESOURCE_GUIDE,
 )
+from content.tables import (  # noqa: E402
+    JOB_GUIDE as _JOB_GUIDE, job_base_order as _job_base_order,
+    job_hidden_order as _job_hidden_order, job_hidden_successors as _job_hidden_successors,
+)
+HIDDEN_ORDER = _job_hidden_order()          # 原表名的同义口（逐值等：0 条）
+HIDDEN_SUCCESSORS = _job_hidden_successors()  # 同上（空表）
+# CORE_RESOURCE_GUIDE：原字面表 {cid: {key, desc}} → 包内 job_guide 域派生，按 BASE_ORDER 保键序
+CORE_RESOURCE_GUIDE = {c: {"key": _JOB_GUIDE[c]["resource_key"], "desc": _JOB_GUIDE[c]["resource_desc"]}
+                       for c in _job_base_order() if _JOB_GUIDE[c].get("resource_key")}
 from content.mech.params import EFFECT_RULES  # noqa: E402
 from data.plugins.dragonfall.game.commands.job_guide import JobGuideCmds  # noqa: E402
 from data.plugins.dragonfall.game.commands._registry import COMMAND_REGEX  # noqa: E402
@@ -96,6 +105,29 @@ async def main():
                     g["tier_levels"] == C.EVOLVE_LEVELS, str(g["tier_levels"]))
         ok &= check(f"[{cid}] 攻/守双线（T1 两个分支）",
                     len(g.get("tiers", {}).get(1, [])) == 2, str(g.get("tiers", {}).get(1)))
+
+    # ★ 冻结闸（不削弱）：原两表（`core_resources.py` 的 CRG ↔ `job_guide.py` 的 resource_*）已并成
+    #   包内**一源** ⇒ 上面两条「一致」检查在新形状下退化为同源自比；改由**冻结期望值**钉住单源取值。
+    #   冻结值经 `git show 90fc06b^:game/data/job_guide.py` 的 CORE_RESOURCE_GUIDE 逐值对拍
+    #   （6 职业 key/desc 全等，sha256 见 overnight/migL1_crg_proof.py）：任一 key / 中文名 / desc 漂移即红。
+    import hashlib as _hl
+    _crg_payload = "\n".join("%s|%s|%s" % (c, CORE_RESOURCE_GUIDE[c]["key"], CORE_RESOURCE_GUIDE[c]["desc"])
+                             for c in BASE_ORDER if c in CORE_RESOURCE_GUIDE)
+    ok &= check("核心资源冻结：key 集 == 删表前 CRG 的 6 键",
+                {c: CORE_RESOURCE_GUIDE[c]["key"] for c in CORE_RESOURCE_GUIDE}
+                == {"cls_zhan_shi": "rage", "cls_fa_shi": "element", "cls_you_xia": "energy",
+                    "cls_mu_shi": "faith", "cls_ci_ke": "cp", "cls_wu_seng": "chi"}
+                and len(CORE_RESOURCE_GUIDE) == 6,
+                str({c: CORE_RESOURCE_GUIDE[c]["key"] for c in CORE_RESOURCE_GUIDE}))
+    ok &= check("核心资源中文名冻结（EFFECT_RULES 跨源派生 → 怒气/元素亲和/精力/信仰值/连击点/气）",
+                {c: EFFECT_RULES[CORE_RESOURCE_GUIDE[c]["key"]]["name"] for c in CORE_RESOURCE_GUIDE}
+                == {"cls_zhan_shi": "怒气", "cls_fa_shi": "元素亲和", "cls_you_xia": "精力",
+                    "cls_mu_shi": "信仰值", "cls_ci_ke": "连击点", "cls_wu_seng": "气"},
+                str({c: EFFECT_RULES[CORE_RESOURCE_GUIDE[c]["key"]]["name"] for c in CORE_RESOURCE_GUIDE}))
+    ok &= check("核心资源 desc 冻结（sha256 == 删表前原值 f0fbdb24…）",
+                _hl.sha256(_crg_payload.encode("utf-8")).hexdigest()
+                == "f0fbdb248994f3afa27489b3a31984495d5f5ffd80fb3605b2c2bcbb549d1db6",
+                _hl.sha256(_crg_payload.encode("utf-8")).hexdigest())
 
     # 副资源展示闸：EXTRA_RESOURCES 引用的每个副资源 key 在 EXTRA_RESOURCE_GUIDE 全量 {name,max,desc}
     ok &= check("EXTRA_RESOURCES 副资源 key 全在 EXTRA_RESOURCE_GUIDE 注册",

@@ -8,9 +8,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C
 # v181.M-R2c：core_resources.py 退役——资源注册完整性断言改对单源新形态（见 main()）
 from content.mech.params import EFFECT_RULES as _ER_RULES  # noqa: E402
-from game.data.job_guide import (  # noqa: E402
-    CORE_RESOURCE_GUIDE as _CRG, EXTRA_RESOURCE_GUIDE as _XRG,
-)
+# 包内唯一真源（`game/data/` 已删）：`content/data/job_guide.json`
+#   · 核心资源引导 = 每职业的 resource_key/resource_name/resource_max/resource_desc
+#     （JOB_GUIDE 7 条里 resource_key 非空的 6 条 = 原 CORE_RESOURCE_GUIDE 的 6 职业）
+#   · 副资源展示   = 门面 `content.catalog_legacy.EXTRA_RESOURCE_GUIDE`（同文件 extra_resources 折回）
+from content.catalog_legacy import EXTRA_RESOURCE_GUIDE as _XRG  # noqa: E402
+_CRG = {_c: {"key": _v.get("resource_key"), "name": _v.get("resource_name"),
+             "max": _v.get("resource_max"), "desc": _v.get("resource_desc")}
+        for _c, _v in C.JOB_GUIDE.items() if _v.get("resource_key")}
 
 passed = failed = 0
 def check(name, cond, detail=""):

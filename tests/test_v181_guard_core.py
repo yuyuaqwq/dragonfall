@@ -42,7 +42,9 @@ from saintess_engine.battle.effect_triggers import fire  # noqa: E402
 from game.services import class_mech_proc as CM  # noqa: E402
 from content.mech.params import EFFECT_RULES, EFFECT_ACTIONS  # noqa: E402
 from content.mech.class_data import MECH_CASH  # noqa: E402
-from game.data.battle_rules import PASSIVE_PROC  # noqa: E402  ★未映射（见 overnight/_w7_tests_data_imports.md）
+# B16 收口：宿主 game/data 已删 —— PASSIVE_PROC 真源 = 包内 content/rules/passive_proc.json（42 条，逐值等）
+from content.mech.class_mech import _passive_proc_rules  # noqa: E402
+PASSIVE_PROC = _passive_proc_rules()
 from game.content_rules.skills import skill_info
 
 PASS = 0

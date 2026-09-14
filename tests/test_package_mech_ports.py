@@ -43,6 +43,7 @@ P4-D2 把游戏仓的机制代码**逐字**搬进了框架侧游戏包 `games/or
 from __future__ import annotations
 
 import ast
+import hashlib
 import os
 import re
 import shutil
@@ -268,7 +269,184 @@ TABLES = [
 
 # 真源里非字面量（`SkillKind.X.value`）→ 先把成员代进去求值再比；求不动才退化为文本比较
 EXPR_TABLES = {"K_PHYS", "K_MAGI", "K_HEAL", "K_BUFF", "K_PASSIVE", "K_SUMMON", "K_TRUE", "K_TAUNT"}
-SKILL_KIND = ("game/data/kinds.py", "content/mech/kinds.py", "SkillKind")
+# B16 收口（2026-09-14）：宿主 `game/data/kinds.py` 已随数据层删除 → 枚举只剩包内一份，
+# 无法再"两边比"。换成与 §3 同款的**冻结基线**（成员值 + 锚点；下表由
+# `tests/_ports_freeze_gen.py --write` 生成，改值必须显式重跑并复核）。
+SKILL_KIND_REL = "content/mech/kinds.py"
+
+# ---------------------------------------------------------------------------
+# 参数表冻结基线（B16 收口实测；来源 = 包内端口源码**静态**求值）
+# ---------------------------------------------------------------------------
+# 为什么需要它：这些表的宿主真源 `game/data/*.py` 已物理删除（74.7k 行 / 87 文件），
+# 旧口径「端口源码 == 宿主真源源码逐值」失去参照物；把参照指回包内同一文件会退化成
+# "自己跟自己比"（永远绿 = 没牙）。冻结基线是仍成立、且不比旧口径弱的机器证据：
+#   · `n`      —— 键数（漏搬/私加/结构变了 = 红）
+#   · `sha`    —— canonical 求值的 sha256（改任何一格 = 红，改值必须显式更新）
+#   · anchors  —— 「键路径 → 值」硬编码抽查（sha 更新时不许盲改：锚点会对不上）
+FROZEN_TABLE = {
+    "MECH_CASH": {
+        "n": 9,
+        "sha": "a571b3b2fe9853532471972529f0f98d142a25918320d8bc1ac5dcf32513ff17",
+        "anchors": [
+            (("'finisher'", "'name'"), '终结技'),
+            (("'finisher'", "'mode'"), 'dmg_mult_clear'),
+            (("'finisher'", "'key'"), 'lian_duan'),
+        ],
+    },
+    "MECH_CFG": {
+        "n": 15,
+        "sha": "a8308ce16be321eb8bc404c60cda9e8dfc9eace55e976dde8a6b3dd874dcf04f",
+        "anchors": [
+            (("'dot'", "'poison'", "'atk'"), 0.8),
+            (("'dot'", "'poison'", "'matk'"), 0.0),
+            (("'dot'", "'poison'", "'hp'"), 0.0),
+        ],
+    },
+    "BAR_INJECT_FIELDS": {
+        "n": 1,
+        "sha": "7d48d4298c3e40df616e450749bf84eca8a931a5e3677ade155653bd064d4ee0",
+        "anchors": [
+            (("'shaken_gain'", "'key'"), 'shaken'),
+            (("'shaken_gain'", "'per_hit'"), True),
+        ],
+    },
+    "BAR_STATE_PREFIX": {
+        "n": 1,
+        "sha": "2434973763607aa7d54a3d48c3891e23fc2f6b5b36b3d0093e26b6beff8f0057",
+        "anchors": [
+            ((), 'bar:'),
+        ],
+    },
+    "REACTION_TABLE": {
+        "n": 4,
+        "sha": "8b541aff45698425d714de8ace345edf40b4e809e6c683b322fe10a0adae2494",
+        "anchors": [
+            (("('fire', 'ice')", "'kind'"), 'vaporize'),
+            (("('fire', 'ice')", "'name'"), '蒸发'),
+            (("('fire', 'ice')", "'mult'"), 1.3),
+        ],
+    },
+    "ELEMENT_REACTIONS": {
+        "n": 4,
+        "sha": "e746adce411d2cf6fe00ce07e5daa79e93c079c47101e6d834c94885db34bc04",
+        "anchors": [
+            (("('ice', 'fire_mark')", "'name'"), '蒸发'),
+            (("('ice', 'fire_mark')", "'mult'"), 1.3),
+            (("('ice', 'fire_mark')", "'clear'"), True),
+        ],
+    },
+    "ELEMENT_MARKS_MAX": {
+        "n": 1,
+        "sha": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce",
+        "anchors": [
+            ((), 3),
+        ],
+    },
+    "ELEMENT_SAME_CAST_EXTRA_CHARGE": {
+        "n": 1,
+        "sha": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+        "anchors": [
+            ((), 1),
+        ],
+    },
+    "WEAPON_EFFECT_DATA": {
+        "n": 82,
+        "sha": "aa9b344acd202ece8a548d3b6d9846750ad05030fd18143234bf9cf36392a7ef",
+        "anchors": [
+            (("'starlight_bulwark'", "'family'"), 'proc_shield'),
+            (("'starlight_bulwark'", "'shield_hp_pct'"), 0.1),
+            (("'starlight_bulwark'", "'turns'"), 3),
+        ],
+    },
+    "ACT_TICK": {
+        "n": 1,
+        "sha": "d0ff5974b6aa52cf562bea5921840c032a860a91a3512f7fe8f768f6bbe005f6",
+        "anchors": [
+            ((), 1.0),
+        ],
+    },
+    "K_PHYS": {
+        "n": 1,
+        "sha": "c9f5e55e325225233349acef54c440f9d617ed02322637f2ebf92a3d5dcd3b73",
+        "anchors": [
+            ((), '物理'),
+        ],
+    },
+    "K_MAGI": {
+        "n": 1,
+        "sha": "a07cee41b5a7bc6120243513ae2d865b61e55378e7a092d9774fe09fd4796811",
+        "anchors": [
+            ((), '魔法'),
+        ],
+    },
+    "K_HEAL": {
+        "n": 1,
+        "sha": "c58094d8b9cd4efe90a96d08f145a07e6477586c4089a0e3fe5c93fd8c3e7a95",
+        "anchors": [
+            ((), '治疗'),
+        ],
+    },
+    "K_BUFF": {
+        "n": 1,
+        "sha": "9f555a96234913ca18fcde2dd837c657fa68a1f1c68f64d2b1ea442315ab44ce",
+        "anchors": [
+            ((), '增益'),
+        ],
+    },
+    "K_PASSIVE": {
+        "n": 1,
+        "sha": "edec036a5293aa1ed06248006e200d9523daaca00ec9e6897a8a412848537bf5",
+        "anchors": [
+            ((), '被动'),
+        ],
+    },
+    "K_SUMMON": {
+        "n": 1,
+        "sha": "e9c7527229727f9206ae2dd2cb35406de77e8923ba119f06a2a21d87379acf38",
+        "anchors": [
+            ((), '召唤'),
+        ],
+    },
+    "K_TRUE": {
+        "n": 1,
+        "sha": "d04ff763c8e28ac17bce743e0a3814c2b97b4ef6f12c90a45c71ac8708971ea4",
+        "anchors": [
+            ((), '真伤'),
+        ],
+    },
+    "K_TAUNT": {
+        "n": 1,
+        "sha": "0238d1e3da2c5f44bbf328c15bc628d31d1c23b9902c986ba05130f14ef274a6",
+        "anchors": [
+            ((), '嘲讽'),
+        ],
+    },
+    "_KIND_META": {
+        "n": 8,
+        "sha": "104c02355b19c95d57bc3ed230493639a62e9542616740a8d4687794fc968db4",
+        "anchors": [
+            (("'«expr»SkillKind.PHYS'", "'seg'"), 'phys'),
+            (("'«expr»SkillKind.PHYS'", "'damage'"), True),
+            (("'«expr»SkillKind.PHYS'", "'lifesteal'"), 'phys'),
+        ],
+    },
+    "_DMG_KINDS": {
+        "n": 3,
+        "sha": "dde4b0a87a3a6f15b02c9f2b2d0635a4c158e03a4eca1607c56cb5d6e0f7a2c4",
+        "anchors": [],
+    },
+}
+
+FROZEN_SKILLKIND = {
+    "BUFF": '增益',
+    "HEAL": '治疗',
+    "MAGI": '魔法',
+    "PASSIVE": '被动',
+    "PHYS": '物理',
+    "SUMMON": '召唤',
+    "TAUNT": '嘲讽',
+    "TRUE": '真伤',
+}
 
 # 双源收敛后的「再导出」接线：这些名字必须仍从单源（params.py）再导出（防第二个副本长回来）
 REEXPORTS = [
@@ -380,6 +558,46 @@ class ModView:
 
 
 _ENUM_REF = re.compile(r"^SkillKind\.(\w+)(?:\.value)?$")
+
+
+def _canon(v):
+    """canonical 编码（与 tests/_ports_freeze_gen.py **逐行同一实现**；tuple/frozenset/expr 各带标记）。"""
+    if isinstance(v, dict):
+        return {"§dict": [[_canon(k), _canon(x)]
+                          for k, x in sorted(v.items(), key=lambda kv: repr(kv[0]))]}
+    if isinstance(v, tuple):
+        return {"§tuple": [_canon(x) for x in v]}
+    if isinstance(v, list):
+        return [_canon(x) for x in v]
+    if isinstance(v, frozenset):
+        return {"§frozenset": sorted(repr(x) for x in v)}
+    if isinstance(v, str) and v.startswith(EXPR):
+        return {"§expr": v}
+    return v
+
+
+def _canon_sha(v) -> str:
+    """冻结基线的值指纹：canonical JSON → sha256。"""
+    import hashlib
+    import json as _json
+    return hashlib.sha256(_json.dumps(_canon(v), ensure_ascii=False,
+                                      sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _anchor_get(val, segs):
+    """按锚点路径取值：段 = `repr(键)`（dict）或索引字符串（list/tuple）。"""
+    for seg in segs:
+        if isinstance(val, dict):
+            hit = [k for k in val if repr(k) == seg]
+            if not hit:
+                return "«缺键 %s»" % seg
+            val = val[hit[0]]
+        else:
+            try:
+                val = val[int(seg)]
+            except (IndexError, ValueError, TypeError):
+                return "«取不到 %s»" % seg
+    return val
 
 
 def _resolve(view: ModView, val):
@@ -557,50 +775,76 @@ def audit(pkg_root: str, game_root: str, rep: Rep) -> None:
                       not miss_g and not miss_p,
                       "真源缺：%s；包内缺：%s" % (miss_g, miss_p))
 
-    # ---- ③ 参数表 deep-equal ----
-    head("\n【3】参数表 deep-equal（两边源码静态读出，不 import 游戏仓模块）")
+    # ---- ③ 参数表：真源仍在 → 逐值 deep-equal；真源已删（B16）→ 冻结基线（sha + 键数 + 锚点）----
+    head("\n【3】参数表（宿主真源已删的表走**冻结基线**；真源仍在的表仍走逐值 deep-equal）")
     for name, src, sline, prel, var in TABLES:
         gpath, ppath = _p(game_root, src), _p(pkg_root, prel)
-        if not os.path.isfile(gpath):
-            rep.check("表 %-30s 真源存在 %s%s" % (name, src, sline), False, "真源文件缺失：%s" % gpath)
-            continue
         if not os.path.isfile(ppath):
             rep.check("表 %-30s 端口存在 %s" % (name, prel), False, "端口文件缺失：%s" % ppath)
             continue
         try:
-            gv, pv = ModView(gpath), ModView(ppath)
-            a, b = gv.value(var), pv.value(var)
-            a_r, b_r = _resolve(gv, a), _resolve(pv, b)
-            if not (isinstance(a_r, str) and a_r.startswith(EXPR)) and \
-               not (isinstance(b_r, str) and b_r.startswith(EXPR)):
-                a, b = a_r, b_r                                  # 两边都求值成功 → 比真值
+            pv = ModView(ppath)
+            b = _resolve(pv, pv.value(var))
         except SyntaxError as e:
             rep.check("表 %s 可静态读出" % name, False, "语法错：%r" % (e,))
             continue
-        extra = "（真源写法非字面量 → 代入 SkillKind 成员求值后比较）" if name in EXPR_TABLES else ""
-        if a == "«missing»" or b == "«missing»":
-            rep.check("表 %-30s 两边都取到 %s%s%s" % (name, var, sline, extra), False,
-                      "取不到：真源=%r 包内=%r" % (a, b))
+        if b == "«missing»":
+            rep.check("表 %-30s 端口 %s 里取得到 %s" % (name, prel, var), False, "取不到 %s" % var)
             continue
-        diffs = _diff(a, b)
-        rep.check("表 %-30s == 真源 %s%s（真源 %s 项 / 包内 %s 项）"
-                  % (name, src.split("/")[-1] + sline, extra,
-                     len(a) if hasattr(a, "__len__") else 1,
-                     len(b) if hasattr(b, "__len__") else 1),
-                  not diffs, "；".join(diffs))
 
-    # ---- ③b SkillKind 枚举成员（K_* 走文本比较时，值比较在这里兜底）----
-    gk, pk, cls = SKILL_KIND
+        if os.path.isfile(gpath):
+            # 宿主真源**仍在**（如 ACT_TICK 来自仍在的 game/core/constants.py）→ 原口径不动
+            try:
+                gv = ModView(gpath)
+                a = _resolve(gv, gv.value(var))
+            except SyntaxError as e:
+                rep.check("表 %s 真源可静态读出" % name, False, "语法错：%r" % (e,))
+                continue
+            extra = "（真源写法非字面量 → 代入 SkillKind 成员求值后比较）" if name in EXPR_TABLES else ""
+            if a == "«missing»":
+                rep.check("表 %-30s 两边都取到 %s%s%s" % (name, var, sline, extra), False,
+                          "取不到：真源=%r 包内=%r" % (a, b))
+                continue
+            diffs = _diff(a, b)
+            rep.check("表 %-30s == 真源 %s%s（真源 %s 项 / 包内 %s 项）"
+                      % (name, src.split("/")[-1] + sline, extra,
+                         len(a) if hasattr(a, "__len__") else 1,
+                         len(b) if hasattr(b, "__len__") else 1),
+                      not diffs, "；".join(diffs))
+            continue
+
+        # ---- 宿主真源已随 B16 删除 → 冻结基线（原出处 %s%s 仅作追溯）----
+        fro = FROZEN_TABLE.get(name)
+        if fro is None:
+            rep.check("表 %-30s 已登记冻结基线" % name, False,
+                      "TABLES 新增了表但没登记冻结值 —— 跑 tests/_ports_freeze_gen.py --write")
+            continue
+        n = len(b) if isinstance(b, (dict, list, tuple, set, frozenset)) else 1
+        sha = _canon_sha(b)
+        rep.check("表 %-30s 键数 == 冻结 %d（实测 %d；原出处 %s%s）"
+                  % (name, fro["n"], n, src, sline), n == fro["n"],
+                  "键数变了（漏搬 / 私加 / 结构改了？）")
+        rep.check("表 %-30s 值 sha256 == 冻结值（%s…）" % (name, fro["sha"][:12]),
+                  sha == fro["sha"],
+                  "值漂了（实测 %s）；确认是有意改值再重跑 _ports_freeze_gen.py --write" % sha)
+        for segs, want in fro["anchors"]:
+            got = _anchor_get(b, segs)
+            rep.check("表 %-30s 锚点 %s == %r" % (name, " > ".join(segs) if segs else "(根)", want),
+                      repr(got) == repr(want), "实际 %r" % (got,))
+
+    # ---- ③b SkillKind 枚举成员（包内单源 + 冻结基线；K_* 的「两边比较」随真源删除退役）----
     try:
-        gm = ModView(_p(game_root, gk)).enum_members(cls)
-        pm = ModView(_p(pkg_root, pk)).enum_members(cls)
+        pm = ModView(_p(pkg_root, SKILL_KIND_REL)).enum_members("SkillKind")
     except (OSError, SyntaxError) as e:
         rep.check("SkillKind 枚举可读", False, "%r" % (e,))
-        gm = pm = {}
-    if gm and pm:
-        rep.check("SkillKind 枚举成员逐值相等（真源 %d / 包内 %d）：%s"
-                  % (len(gm), len(pm), ",".join(sorted(gm))),
-                  gm == pm, "；".join(_diff(gm, pm)))
+        pm = {}
+    if pm:
+        rep.check("SkillKind 枚举成员 == 冻结基线（%d 个 / 冻结 %d 个）：%s"
+                  % (len(pm), len(FROZEN_SKILLKIND), ",".join(sorted(pm))),
+                  pm == FROZEN_SKILLKIND, "；".join(_diff(FROZEN_SKILLKIND, pm)))
+        for _m in sorted(FROZEN_SKILLKIND):
+            rep.check("SkillKind.%s 锚点 == %r" % (_m, FROZEN_SKILLKIND[_m]),
+                      pm.get(_m) == FROZEN_SKILLKIND[_m], "实际 %r" % (pm.get(_m),))
 
     # ---- ③c 再导出接线（双源收敛不许长回第二个副本）----
     head("\n【4】单源再导出接线（BAR_* 唯一真源在 params.py）")
@@ -791,7 +1035,10 @@ def main() -> int:
     if rep.failed:
         print("修法：① 已收口族（宿主薄壳）红了 → 多数是**端口动作集**或**薄壳再导出**漂了：\n"
               "       端口 key 改了 = 改 EXPECT_ACTION_KEYS（并同步包内使用点）；薄壳少了再导出 = 补回 `X = _pkg.X`。\n"
-              "      ② 未收口族红了 → 包内端口是**逐字搬运物**，真源改了就得跟着改（或把该表/动作的归属重新拍板）。\n"
+              "      ② 【3】参数表红了 → 分两支：宿主真源**仍在**的表（ACT_TICK）走逐值比对，改真源就得\n"
+              "       同步包内；宿主真源**已删**的表（B16 其余全部）走**冻结基线**：确认是有意改值后\n"
+              "       跑 `python tests/_ports_freeze_gen.py --write` 重生成 sha/键数/锚点（锚点对不上\n"
+              "       = 你改的不止你以为的那一格）。\n"
               "      ③ 别为了让门禁变绿而删断言 —— 除非端口清单表本身写错了（文件/行号以本文件头部表为准）。")
     return 1 if rep.failed else 0
 

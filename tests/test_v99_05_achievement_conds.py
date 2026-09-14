@@ -107,9 +107,26 @@ db.count_item = _db_orig_count
 
 # ============ 4. 全覆盖 ============
 print("【4. 数据覆盖检查】")
-import re
-ach_src = open(os.path.join("game", "data", "achievements.py"), encoding="utf-8").read()
-data_types = set(re.findall(r'"type"\s*:\s*"([^"]+)"', ach_src))
+import json
+# B16 收口：宿主 game/data 已删 —— 成就条件真源 = 包内域 content/data/achievements.json
+# （原口径 = 正则扫 .py 源码里的 `"type": "..."`；改结构遍历全量 JSON，取值集合实测 44 == 44 全等）
+_ACH_JSON = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         "framework", "games", "orlandia", "content", "data", "achievements.json")
+with open(_ACH_JSON, encoding="utf-8") as _f:
+    _ACH_RAW = json.load(_f)
+
+def _collect_cond_types(node, out):
+    if isinstance(node, dict):
+        if isinstance(node.get("type"), str):
+            out.add(node["type"])
+        for _v in node.values():
+            _collect_cond_types(_v, out)
+    elif isinstance(node, list):
+        for _v in node:
+            _collect_cond_types(_v, out)
+
+data_types = set()
+_collect_cond_types(_ACH_RAW, data_types)
 registered = set(AC.COND_CHECKS.keys())
 missing = data_types - registered
 check(f"成就数据 cond type 全覆盖（数据 {len(data_types)} 种）", not missing)

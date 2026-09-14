@@ -75,7 +75,8 @@ async def main():
     # ===== 野外网状（v115：oak_plain 由线性 3 房升级为 6 房网状）=====
     print("· 野外网状（SUBAREA_LINKS_INDEX 连接，非线性相邻）")
     # 1) 结构验证：subarea_links 返回显式网状连接（与 SUBAREA_LINKS_INDEX 一致，含新增房）
-    from data.plugins.dragonfall.game.data import SUBAREA_LINKS_INDEX as _LINKS_IDX
+    # B16 收口：宿主 game/data 已删 —— 真源 = 包内门面 content/catalog_legacy.SUBAREA_LINKS_INDEX（97 图）
+    from content.catalog_legacy import SUBAREA_LINKS_INDEX as _LINKS_IDX
     _mesh = _LINKS_IDX.get("oak_plain") or {}
     check("oak_plain 定义了网状拓扑", bool(_mesh))
     _expect_mesh = {

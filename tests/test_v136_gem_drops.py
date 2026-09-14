@@ -26,8 +26,8 @@ sys.path.insert(0, "tests")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 插件根目录（脚本直跑）
 
 from game import content as C  # noqa: E402
-from game.data import GEM_DROP_RATE, GEM_DROP_TIER, GEM_BOSS_FIXED  # noqa: E402
-from game.data import GEM_STATS, GEM_TIERS  # noqa: E402
+from game.content import GEM_DROP_RATE, GEM_DROP_TIER, GEM_BOSS_FIXED  # ★ B16-W11d：数据层已删 → 聚合层
+from game.content import GEM_STATS, GEM_TIERS  # ★ B16-W11d
 from game.core import gems as _gems_mod  # noqa: E402
 from game.core import roll_gem_drop  # noqa: E402
 import conftest  # noqa: E402  (副作用：设置 GWEN_GAME_DB / 加 qqbot/ 到 sys.path，供函数内 data.plugins 路径导入)

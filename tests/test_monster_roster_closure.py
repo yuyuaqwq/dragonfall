@@ -22,12 +22,18 @@ sys.path.insert(0, ROOT)
 
 import json                                                    # noqa: E402
 
-import importlib.util                                          # noqa: E402
+# ★ 2026-09-14 B14 开关：宿主 `game/data/*.py` 已删（74.7k 行）、导出器
+#   `scripts/export_game_package.py` 随之退役（归档 `scripts/_retired/`）→
+#   名册 / 副本 / 掉落池三份数据改读**包内域 JSON**（导出的残影即今日真源，
+#   与旧 `derive_*()` 的返回同源同形状：名册 380 / 副本 27 / 掉落池 596）。
+FW_ROOT = os.path.abspath(os.environ.get("GWEN_FRAMEWORK_DIR") or "C:/Users/yuyu/framework-engine")
+PKG_DIR = os.path.join(FW_ROOT, "games", "orlandia")
 
-_spec = importlib.util.spec_from_file_location(
-    "_egp", os.path.join(ROOT, "scripts", "export_game_package.py"))
-EGP = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(EGP)
+
+def _domain(name: str):
+    """读包内域 JSON（`content/data/<域>.json`）—— 顶层形状与该域门面一致。"""
+    with open(os.path.join(PKG_DIR, "content", "data", name + ".json"), encoding="utf-8") as f:
+        return json.load(f)
 
 PASS = 0
 FAIL = 0
@@ -75,9 +81,9 @@ def names_of(roster):
 
 def main():
     print("== 怪物名册闭合门禁（instances 怪 id / drop_pools 按名池键）==")
-    roster = EGP.derive_monster_roster()
-    inst = EGP.derive_instances()
-    pools = EGP.derive_drop_pools()
+    roster = _domain("monster_roster")
+    inst = _domain("instances")
+    pools = _domain("drop_pools")
     check("名册非空且键都是怪 id", bool(roster) and all(
         re.match(r"^(b|m|e)_[a-z0-9_]+$", k) for k in roster), f"n={len(roster)}")
 

@@ -314,13 +314,18 @@ def _src(rel):
     """读源码。★ 2026-09-14 收口（B11–B14 宿主薄壳化）：`game/**` 多数文件已成**薄壳**，
     实现真源在包内 `framework/games/orlandia/content/<同名>.py` —— 这里把「壳 + 实现」两侧
     拼接起来（与 `tests/test_v135_bp_drop.py:187-191` 同款口径），断言原意不变、判据不削弱。
+    ★ B18-L1（2026-09-14）：命令层整块进包后，包内文件名是 `cmds_<域>.py`（如
+    `game/commands/misc.py` → `content/cmds_misc.py`），故两侧拼接再认一个 `cmds_` 名字
+    （存在才拼，判据不变）。
     """
     with open(os.path.join(PLUGIN_DIR, rel), encoding="utf-8") as fh:
         text = fh.read()
-    impl = os.path.join("framework", "games", "orlandia", "content", os.path.basename(rel))
-    if os.path.exists(os.path.join(PLUGIN_DIR, impl)):
-        with open(os.path.join(PLUGIN_DIR, impl), encoding="utf-8") as fh:
-            text = text + "\n" + fh.read()
+    base = os.path.basename(rel)
+    for nm in ("cmds_" + base, base):
+        impl = os.path.join("framework", "games", "orlandia", "content", nm)
+        if os.path.exists(os.path.join(PLUGIN_DIR, impl)):
+            with open(os.path.join(PLUGIN_DIR, impl), encoding="utf-8") as fh:
+                text = text + "\n" + fh.read()
     return text
 
 

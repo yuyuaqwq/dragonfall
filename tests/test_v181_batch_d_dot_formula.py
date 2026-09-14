@@ -46,7 +46,7 @@ from saintess_engine.battle.actions import _consume_hit_buffs  # noqa: E402
 from saintess_engine.battle.stats import actor_stats  # noqa: E402
 from saintess_engine.battle.effect_triggers import fire  # noqa: E402
 from content.mech.params import EFFECT_RULES  # noqa: E402
-from game.data.battle_config import DOT_DEFS  # noqa: E402
+from game.content import DOT_DEFS  # ★ B16-W11d
 
 PASS = 0
 FAIL = 0

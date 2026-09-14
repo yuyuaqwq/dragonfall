@@ -12,8 +12,9 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, Main, FakeEvent, run
-# v116：公会新数据表/存取函数未经 data/__init__、store/__init__ 聚合导出（避免并行冲突），测试直接本地 import
-from data.plugins.dragonfall.game.data import guild as _G
+# v116：B16 收口后宿主数据层已删（真源 = 包内 content/data/guild.json）——
+# `GUILD_ROLES` 的读口 = 包内 content/social_guild.guild_roles()（键序+逐值与原表全等，见 overnight/_mig_equiv.py）
+from content.social_guild import guild_roles as _guild_roles
 from data.plugins.dragonfall.game.store.social import guild_get_member, guild_set_role
 
 passed = failed = 0
@@ -52,7 +53,7 @@ async def main():
     check("精英 加入成功", "欢迎" in out, out[:200])
     g = db.guild_get_by_name("勇者公会")
     check("公会落库且会长=leader", g is not None and guild_get_member(g["gid"], "g1p")["role"] == "leader", str(g))
-    check("老档 role 兼容映射", _G.GUILD_ROLES.get("leader")[1] == "👑" and _G.GUILD_ROLES.get("member")[1] == "⚔️", "")
+    check("老档 role 兼容映射", _guild_roles().get("leader")[1] == "👑" and _guild_roles().get("member")[1] == "⚔️", "")
 
     print("【v116 公会商店：列表 + 购买】")
     out = await cmd(m, "guild_shop", "g1", "g1p", "公会商店")

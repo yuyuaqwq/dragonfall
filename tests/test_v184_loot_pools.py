@@ -52,8 +52,15 @@ for _p in (_FRAMEWORK_DIR, PLUGIN_DIR, QQBOT_DIR):
         sys.path.insert(0, _p)
 
 from data.plugins.dragonfall.game import drop_engine as DE                      # noqa: E402
-from data.plugins.dragonfall.game.data import drop_pools as _DP                 # noqa: E402  ★不可切包内源：本文件冻结的 v174 旧实现（_FROZEN_SRC，__package__=…game）内 `from .data.drop_pools import DROP_POOLS`，§5 `_with_pools` 打桩必须新旧两侧同时可见（W10 实测切 content.catalog_rules → 9 条转红）
-from data.plugins.dragonfall.game.data.drop_pools import DROP_POOLS             # noqa: E402  ★同上一行（:1239 断言 `_DP.DROP_POOLS is DROP_POOLS`，两者须同一模块）
+# B16 收口：宿主 game/data 已删 —— 池数据真源 = 包内 `content/data/drop_pools.json`（596 池，逐条同源）
+#   门面 = `content.catalog_rules.DROP_POOLS`（同一只 dict，模块属性可写 → §5 打桩仍有效）
+#   ★ 冻结体（v174 原文，一个字符没动）里的 `from .data.drop_pools import DROP_POOLS`
+#     （`__package__` = data.plugins.dragonfall.game）与 `game/drop_engine.py::_get_pools()`
+#     的「宿主已加载则优先」分支都按**这个模块名**取数 → 在 sys.modules 里把它指到包内同一只
+#     模块对象，新旧两侧读的仍是同一份 DROP_POOLS，§5 `_with_pools` 打桩同时可见（判据不削弱）。
+from content import catalog_rules as _DP                                        # noqa: E402
+DROP_POOLS = _DP.DROP_POOLS
+sys.modules["data.plugins.dragonfall.game.data.drop_pools"] = _DP
 from saintess_engine.loot import SimpleCtx as EngineSimpleCtx                   # noqa: E402
 from saintess_engine.loot import strategy_names                                 # noqa: E402
 
@@ -1226,7 +1233,16 @@ def sec6_names_and_source():
     check("旧重名转发：POOL_STRATEGIES['fixed'] 是引擎 fixed 策略",
           callable(DE.POOL_STRATEGIES["fixed"]) and DE.POOL_STRATEGIES["fixed"] is not DE._roll_fish, "")
 
+    # ★ 2026-09-14（B12B13-TAIL 线3）：`game/drop_engine.py` 已成**薄壳**（模块别名到包内实现，
+    #   见该文件头注），实现真源 = 包内 `<插件>/framework/games/orlandia/content/loot.py`。
+    #   口径与 `tests/test_v184_loot_tiers.py:313 _src()` / `test_v135_bp_drop.py:197-202` 同款：
+    #   **壳 + 实现两侧拼接**后再扫 —— 断言原意不变（旧实现已删 / 新接线到位 / 正文逐行比），
+    #   判据只加强不削弱（扫面从「宿主一个文件」变成「壳 + 实现两个文件」）。
+    _impl_p = os.path.join(PLUGIN_DIR, "framework", "games", "orlandia", "content", "loot.py")
+    if not os.path.exists(_impl_p):                        # pragma: no cover
+        raise RuntimeError("drop_engine 薄壳化后扫面缺包内实现：%s" % _impl_p)
     src = open(os.path.join(PLUGIN_DIR, "game", "drop_engine.py"), encoding="utf-8").read()
+    src = src + "\n" + open(_impl_p, encoding="utf-8").read()
     for dead in ("def _quality_weights_inline", "def _weighted_pick", "def _roll_weighted",
                  "def _roll_table", "def _roll_table_choice", "def _roll_fixed",
                  "def _roll_sub_ref", "def _sub_ctx", "def _resolve_pool",
@@ -1253,13 +1269,34 @@ def sec6_names_and_source():
                 return [l for l in body if l.strip() and not l.strip().startswith("#")]
         return None
 
-    for fn in ("_randint", "_resolve_item_ref"):
-        old_lines = _fn_code_lines(_FROZEN_SRC, fn)
-        new_lines = _fn_code_lines(src, fn)
-        check(f"{fn} 与 v174 原文**逐行相同**（内容侧 resolver 一字没改）",
-              old_lines == new_lines and old_lines, f"{old_lines} vs {new_lines}")
+    # ★ 2026-09-14（B12B13-TAIL 线3）：正文里的**宿主取件**两处差异（都在白名单内，逐条列全）：
+    #   `_resolve_item_ref`：`import game.content as C` → `C = _content_api(ctx)`（内容 API 注入句柄）
+    #     + `C.RUNES` → 裸 `RUNES`（B15b：符文表读包内门面，包外运行时也有符文 —— 单源）
+    _res_changed_old = {
+        "import game.content as C  # noqa: E402  绝对导入，防循环/半初始化",
+        'pool = [k for k, r in C.RUNES.items() if (r.get("quality") or "") in ("blue", "purple")]',
+        "pool = [k for k, r in C.RUNES.items()",
+        '[k for k, r in C.RUNES.items() if (r.get("quality") or "") in ("blue", "purple")]',
+        "r_def = C.RUNES[rk]",
+    }
+    _res_changed_new = {
+        "C = _content_api(ctx)  # 替身：真源 `import game.content as C`（宿主内容 API → 调用方给）",
+        'pool = [k for k, r in RUNES.items() if (r.get("quality") or "") in ("blue", "purple")]',
+        "pool = [k for k, r in RUNES.items()",
+        '[k for k, r in RUNES.items() if (r.get("quality") or "") in ("blue", "purple")]',
+        "r_def = RUNES[rk]",
+    }
+    for fn, _dl_old, _dl_new in (("_randint", set(), set()),
+                                 ("_resolve_item_ref", _res_changed_old, _res_changed_new)):
+        _old_raw = _fn_code_lines(_FROZEN_SRC, fn)
+        _new_raw = _fn_code_lines(src, fn)
+        old_lines = [l for l in _old_raw or [] if l.strip() not in _dl_old]
+        new_lines = [l for l in _new_raw or [] if l.strip() not in _dl_new]
+        check(f"{fn} 与 v174 原文**逐行相同**（除白名单 {len(_dl_new)} 处宿主取件行，内容侧逻辑一字没改）",
+              bool(_new_raw) and old_lines == new_lines and old_lines,
+              f"{old_lines} vs {new_lines}")
 
-    # _roll_fish 只允许这几处不同：签名 / 档位表来源（TierTable）/ rng 取用
+    # _roll_fish 只允许这几处不同：签名 / 档位表来源（TierTable）/ rng 取用 / 档位表未挂守卫
     _fish_changed_old = {
         "def _roll_fish(pool: dict, ctx: Any) -> list[dict]:",
         "import game.content as C  # noqa: E402",
@@ -1273,6 +1310,8 @@ def sec6_names_and_source():
         "def _roll_fish(pool: dict, ctx: Any, table) -> list[dict]:",
         "FISH_TIERS = _fish_tiers()",
         "FISH_QUALITY_ORDER = FISH_TIERS.order",
+        "if not FISH_QUALITY_ORDER:               # 替身守卫：档位表未挂（调用方没给）→ 抽不出（不抛）",
+        "return []                            # noqa: 档位表未挂（不静默等权兜底）",
         "rng = table.rng",
         "weights = list(FISH_TIERS.weights_at(prof_lv))",
         "quality = rng.choices(FISH_QUALITY_ORDER, weights=weights, k=1)[0]",

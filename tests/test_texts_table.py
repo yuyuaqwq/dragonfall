@@ -38,6 +38,11 @@
     固定 random.seed，需要处打桩 random.random；宝箱五档用固定 seed 定向各档，调查点空/零碎
     临时改写 C.INVESTIGATION_POINTS 后还原）；另有 `INSTANCE_PANEL_OLD_LITERALS` ——
     迁移前内联句壳片段（= 表值去槽位后的实体片段），三份源文件里一句都不许再出现
+  · 社交 / 经济域（宿主 `game/commands/{social,economy}.py` 退化为壳，守卫/业务/回话进包内
+    `content/cmds_{social,economy}.py`）：本文件 `SOCIAL_FROZEN` + `SOCIAL_DB_SHA`（129 例，
+    B18-L8）与 `ECONOMY_FROZEN` + `ECONOMY_DB_SHA`（142 例，B18-L9）—— **迁移前**真跑各分支
+    存下的完整输出与 DB 逐行 dump 摘要，每次跑测试复跑比对（每例 clean_db + AUTOINCREMENT
+    计数清零 + 固定 random.seed；墙钟值在比对前归一化，见各段注释）
 
 跑法：python tests/test_texts_table.py（exit=0 通过）
 """
@@ -77,11 +82,68 @@ INSTANCE_ROUTER_SRC = os.path.join(_PD, "game", "commands", "instance_router.py"
 INSTANCE_SRC = os.path.join(_PD, "game", "commands", "instance.py")
 INSTANCE_BATTLE_SRC = os.path.join(_PD, "game", "commands", "instance_battle.py")
 SPEC = T.SPEC_PATH
-# 已迁移的域 → 该域文案由哪个文件接线（新增一个域时在这里加一行）
-WIRED = {"副本准入": GATE_SRC, "副本结算": INSTANCE_ROUTER_SRC,
-         "副本日志": INSTANCE_SRC, "副本战斗日志": INSTANCE_BATTLE_SRC,
-         "周常": WEEKLY_SRC,
-         "签到": MISC_SRC, "补给箱": EVENT_SRC, "每日任务": WORLD_SRC, "每日命令": QUESTS_SRC}
+# ★ B18 终态（2026-09-14 样板定形线）：**渲染进包** —— 周常域的 `T.text/T.static` 调用点已从宿主
+#   `game/commands/weekly.py` 迁进包内 `content/cmds_weekly.py`（宿主侧退化为 0 调用点）。
+#   扫描根因此扩到「宿主 + 包内」两侧（B18_TERMINAL_SHAPE §2 的前置项：渲染进包 ⇒ 门禁必须跟）。
+PKG_CONTENT = os.path.join(_PD, "framework", "games", "orlandia", "content")
+PKG_WEEKLY_SRC = os.path.join(PKG_CONTENT, "cmds_weekly.py")
+# ★ B18-L6（2026-09-14）：『今日事件/事件/领取补给箱』的渲染随命令整块进包
+#   （`content/cmds_event.py`）—— `supply.*` 7 条调用点从宿主 `event_menu.py` 搬进包内，
+#   扫描根两侧都扫（与「周常」同款口径）。
+PKG_EVENT_SRC = os.path.join(PKG_CONTENT, "cmds_event.py")
+# ★ B18-L3c（2026-09-14）：副本战斗日志 3 条 key（`instance.日志_团队治疗` /
+#   `instance.结算_战斗异常` / `instance.面板_战斗_不在`）的调用点从宿主
+#   `game/commands/instance_battle.py` 迁进包内 `content/flow/instance_battle.py`
+#   （`team_heal_text` / `abort_text`）→ 该域的扫描根同批扩到「宿主 + 包内」两侧。
+PKG_FLOW_INSTANCE_BATTLE_SRC = os.path.join(PKG_CONTENT, "flow", "instance_battle.py")
+# ★ B18-L5（2026-09-14）：副本结算域的渲染（`instance.结算_*` / `instance.日志_超时自动防御` /
+#   `instance.日志_嘲讽` / `instance.日志_同归于尽` / `instance.面板_中心_击败Boss` 共 18 key）
+#   随 `instance_router` **整块进包** → 宿主 `game/commands/instance_router.py` 退化为壳
+#   （注册/再导出 + 文案登记），真实调用点在包内 `content/cmds_instance_router.py`；副本日志域同理
+#   （实现体 B11-L1 起在 `content/instance_cmds.py`）。两域扫描根同批扩到「宿主 + 包内」两侧
+#   （与「周常」「补给箱」「副本战斗日志」同款口径）。
+PKG_INSTANCE_ROUTER_SRC = os.path.join(PKG_CONTENT, "cmds_instance_router.py")
+PKG_INSTANCE_SRC = os.path.join(PKG_CONTENT, "instance_cmds.py")
+# ★ B18-L1（2026-09-14）：世界域 36 条命令 + misc 域 5 条命令整块进包 ——
+#   `daily.*` 7 条（随 `quest_view`）与 `signin.*` 10 条（随签到）的调用点从宿主
+#   `game/commands/{world,misc}.py` 搬进包内 `content/cmds_{world,misc}.py`（宿主侧退化为 0 调用点）
+#   → 两域扫描根同批扩到「宿主 + 包内」两侧（与「周常」「补给箱」同款口径）。
+PKG_WORLD_SRC = os.path.join(PKG_CONTENT, "cmds_world.py")
+PKG_MISC_SRC = os.path.join(PKG_CONTENT, "cmds_misc.py")
+# ★ B18-L8（2026-09-14）：社交域 **33 条命令**整块进包 —— 宿主 `game/commands/social.py`
+#   退化为「`@declared` 注册 + 一行 `_BRIDGE.run` 转发」，守卫/取参/分支/提示行/文案全在包内
+#   `content/cmds_social.py`。本域**不使用 `T.text/T.static`**：句子是宿主旧壳里的内联
+#   字面量 / f-string，逐字搬进包内（一个字符都没改）→ 两侧扫到 0 个调用点。本域扫描根仍按
+#   「宿主 + 包内」两侧登记（将来若有人把句子改成文案表 key，本门禁立刻扫到并对账槽位）。
+#   逐字一致的真正证据见本文件 [12] 段：`SOCIAL_FROZEN`（文本）+ `SOCIAL_DB_SHA`（副作用），
+#   = 迁移前真跑 129 例（33 条命令 × 正常/边界/失败）存下的完整输出与 DB 逐行 dump 摘要。
+SOCIAL_SRC = os.path.join(_PD, "game", "commands", "social.py")
+PKG_SOCIAL_SRC = os.path.join(PKG_CONTENT, "cmds_social.py")
+# ★ B18-L9（2026-09-15）：经济域 **45 条命令**整块进包 —— 宿主 `game/commands/economy.py`
+#   退化为「`@declared` 注册 + 两行 `_BRIDGE.run_async` 转发」，守卫（`hook:player`）/取参/
+#   分支业务/回话全在包内 `content/cmds_economy.py`（处理器 async：实现体
+#   `content/economy_cmds.py::EconomyImpl.<m>` 是 async generator，照战斗族先例）。
+#   本域**不使用 `T.text/T.static`**：句子是 `EconomyImpl` 里的内联字面量 / f-string
+#   （B9-L1 起就在包内）→ 两侧扫到 0 个调用点。本域扫描根仍按「宿主 + 包内」两侧登记
+#   （将来若有人把句子改成文案表 key，本门禁立刻扫到并对账槽位）。
+#   逐字一致的真正证据见本文件 [13] 段：`ECONOMY_FROZEN`（文本）+ `ECONOMY_DB_SHA`（副作用），
+#   = 迁移前真跑 142 例（45 条命令 × 正常/边界/失败 + 追加边界）存下的完整输出与 DB dump 摘要。
+ECONOMY_SRC = os.path.join(_PD, "game", "commands", "economy.py")
+PKG_ECONOMY_SRC = os.path.join(PKG_CONTENT, "cmds_economy.py")
+# 已迁移的域 → 该域文案由哪个文件接线（值 = 单文件或文件列表；新增一个域时在这里加一行）
+WIRED = {"副本准入": GATE_SRC, "副本结算": [INSTANCE_ROUTER_SRC, PKG_INSTANCE_ROUTER_SRC],
+         "副本日志": [INSTANCE_SRC, PKG_INSTANCE_SRC],
+         "副本战斗日志": [INSTANCE_BATTLE_SRC, PKG_FLOW_INSTANCE_BATTLE_SRC],
+         "周常": [WEEKLY_SRC, PKG_WEEKLY_SRC],
+         "签到": [MISC_SRC, PKG_MISC_SRC], "补给箱": [EVENT_SRC, PKG_EVENT_SRC],
+         "每日任务": [WORLD_SRC, PKG_WORLD_SRC], "每日命令": QUESTS_SRC,
+         "社交": [SOCIAL_SRC, PKG_SOCIAL_SRC],
+         "经济": [ECONOMY_SRC, PKG_ECONOMY_SRC]}
+
+
+def _wired_paths(path):
+    """WIRED 的值可以是单文件（宿主）或文件列表（宿主 + 包内）。"""
+    return list(path) if isinstance(path, (list, tuple)) else [path]
 
 passed = failed = 0
 
@@ -657,20 +719,21 @@ def t2_key_and_params_accounting():
     declared = set(T.table().keys())
     used, mismatch, lits = set(), [], set()
     for name, path in WIRED.items():
-        calls, l = _scan_calls(path)
-        lits |= (l & declared)
-        for key, kwargs, kind in calls:
-            used.add(key)
-            spec = T.table().spec(key)
-            if spec is None:
-                mismatch.append("%s: 调用了未声明的 %s" % (os.path.basename(path), key))
-                continue
-            slots = set(spec.slots)                       # 声明优先，缺省自动抽取
-            if kind == "static" and kwargs:
-                mismatch.append("%s: T.static(%s) 不该带槽位" % (os.path.basename(path), key))
-            if set(kwargs) != slots:
-                mismatch.append("%s: %s 槽位不符（调用 %s / 声明 %s）"
-                                % (os.path.basename(path), key, sorted(kwargs), sorted(slots)))
+        for _path in _wired_paths(path):
+            calls, l = _scan_calls(_path)
+            lits |= (l & declared)
+            for key, kwargs, kind in calls:
+                used.add(key)
+                spec = T.table().spec(key)
+                if spec is None:
+                    mismatch.append("%s: 调用了未声明的 %s" % (os.path.basename(_path), key))
+                    continue
+                slots = set(spec.slots)                       # 声明优先，缺省自动抽取
+                if kind == "static" and kwargs:
+                    mismatch.append("%s: T.static(%s) 不该带槽位" % (os.path.basename(_path), key))
+                if set(kwargs) != slots:
+                    mismatch.append("%s: %s 槽位不符（调用 %s / 声明 %s）"
+                                    % (os.path.basename(_path), key, sorted(kwargs), sorted(slots)))
     used |= lits                                          # 映射表里的键也算被引用
     check("★ 代码里每一处调用都能在表里找到（否则运行时缺 key）", not mismatch, mismatch[:5])
     dead = sorted(declared - used)
@@ -1549,6 +1612,11 @@ from data.plugins.dragonfall.game.commands.instance import InstanceCmds as _PB_I
 from data.plugins.dragonfall.game.commands.combat import CombatCmds as _PB_Combat     # noqa: E402
 from data.plugins.dragonfall.game.commands.world import WorldCmds as _PB_World        # noqa: E402
 from data.plugins.dragonfall.game.commands.economy import EconomyCmds as _PB_Economy  # noqa: E402
+# ★ TAIL 线修复（B14 后遗症）：调查点表的**真读点**在包内 `content/catalog_space.py`
+#   （生产侧 `content/instance_cmds.py:1947/1991/2791/3270` 读的就是它的模块全局）；
+#   宿主 `game.content` 只是 22 行「再导出壳」，原来那句 `_PB_C.INVESTIGATION_POINTS = …` 打在壳上、
+#   包内实现读不到 → 猴补失效（PB29 假红）。改打包内同一个名字。
+from content import catalog_space as _PB_CSP                                          # noqa: E402
 
 _PB_GID = "g_panel"
 _PB_Q = "q_p"
@@ -2147,15 +2215,32 @@ def _pb_b24_investigate_reward():
 # ══════════════════════════════════════════════════════════════════════
 # 分支 12：加入战斗无角色 / 旧层探索遇怪（Boss 台词行）/ 战斗状态异常两态
 # ══════════════════════════════════════════════════════════════════════
+# ── B18-L10 BEGIN（本段为 B18-L10 的门禁口径适配；上面的冻结基准一字未动）──────────
+# B18-L10 把副本 8 条的**守卫声明**从宿主装饰器搬进包内 `content/cmds_instance.py` 的 `@_declare`
+# 处理器，宿主壳只剩 `@declared` + 两行 `_BRIDGE.run_async` —— 于是**原先靠解 `__wrapped__`
+# 剥掉 `@require_player()` 的手法失效**（新壳没有装饰器链，`getattr(inst, "join_battle")` 是
+# 绑定方法，再传 `inst` 就多一个实参）。
+# 本场景的原意 =「剥掉守卫，**直接跑命令体**」，故改为直接调**包内 handler**（守卫不在这里：
+# 守卫由宿主 `_BRIDGE` 按声明施加）→ 命令体自带的「无角色」分支照旧被钉住，冻结值一字未改。
+# 玩家可见行为不变的证据（真实派发路径走守卫）：`out/b18l10_snap.py` 的 jb_01_noplayer
+# 改前 = 改后 =「你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～」。
+class _PB_Env:
+    """最小引擎 `Env` 替身（只补包内 handler 用到的两个取件口）。"""
+
+    def __init__(self, shell, event):
+        self.state = {"shell": shell}
+        self.raw = event
+
+
 def _pb_b25_join_no_char():
-    """加入战斗：还没有角色（剥掉 @require_player 守卫，直接跑命令体）。"""
+    """加入战斗：还没有角色（B18-L10：直接跑包内命令体 = 原「剥掉 @require_player 守卫」）。"""
     _PB_clean()
     random.seed(20260914 + 25)
     inst = _PBHost()
-    fn = getattr(inst, "join_battle")
-    while hasattr(fn, "__wrapped__"):
-        fn = fn.__wrapped__
-    return _pb_text(_pb_run_sync(fn(inst, _PB_Event(_PB_GID, "q_none", "加入战斗"))))
+    from content.cmds_instance import join_battle as _pkg_join
+    env = _PB_Env(inst, _PB_Event(_PB_GID, "q_none", "加入战斗"))
+    return _pb_text(_pb_run_sync(_pkg_join(env)))
+# ── B18-L10 END ────────────────────────────────────────────────────────────────
 
 
 def _pb_b26_explore_stage_boss():
@@ -2205,7 +2290,7 @@ def _pb_b29_investigate_empty():
     """调查点：奖励空结果（收藏档池无效）→『空空如也』；材料档无效 →『一点零碎』兜底。"""
     host = _PBHost()
     outs = []
-    _orig_pts = _PB_C.INVESTIGATION_POINTS
+    _orig_pts = _PB_CSP.INVESTIGATION_POINTS
     # ① 空结果：命中收藏档但收藏池无有效材料 → reward []
     _PB_clean()
     random.seed(20260914 + 29)
@@ -2213,14 +2298,14 @@ def _pb_b29_investigate_empty():
     st = _pb_st([_PB_Q], names={_PB_Q: "甲"}, inst_id="inst_moon_temple",
                 cleared=True, mode="map")
     _pb_save(_PB_Q, st)
-    _PB_C.INVESTIGATION_POINTS = {
+    _PB_CSP.INVESTIGATION_POINTS = {
         "inst_moon_temple": [{"id": "p_void", "name": "月池", "collect": ["?none"]}]}
     try:
         with _PBRR(0.0):
             outs.append(host._instance_investigate_cleared(
                 _PB_GID, _PB_Q, _PB_db.get_player(_PB_GID, _PB_Q), st, "月池"))
     finally:
-        _PB_C.INVESTIGATION_POINTS = _orig_pts
+        _PB_CSP.INVESTIGATION_POINTS = _orig_pts
     # ② 零碎兜底：材料档命中但材料 ID 无效 → 末行兜底
     _PB_clean()
     random.seed(20260914 + 30)
@@ -2228,14 +2313,14 @@ def _pb_b29_investigate_empty():
     st2 = _pb_st([_PB_Q], names={_PB_Q: "甲"}, inst_id="inst_moon_temple",
                  cleared=True, mode="map")
     _pb_save(_PB_Q, st2)
-    _PB_C.INVESTIGATION_POINTS = {
+    _PB_CSP.INVESTIGATION_POINTS = {
         "inst_moon_temple": [{"id": "p_void2", "name": "月池", "materials": ["?bad"]}]}
     try:
         with _PBRR(0.90):
             outs.append(host._instance_investigate_cleared(
                 _PB_GID, _PB_Q, _PB_db.get_player(_PB_GID, _PB_Q), st2, "月池"))
     finally:
-        _PB_C.INVESTIGATION_POINTS = _orig_pts
+        _PB_CSP.INVESTIGATION_POINTS = _orig_pts
     return "\n@@@\n".join(str(o) for o in outs)
 
 
@@ -2494,6 +2579,1522 @@ def _panel_raw_constants(path):
         (_doc if id(_n) in _docs else _raw).append(_n.value)
     return _raw, _doc
 
+# ═══════════════════════ SOCIAL_BRANCHES_BEGIN ═══════════════════════
+# ★ B18-L8（2026-09-14）：社交域 33 条命令整块进包（`content/cmds_social.py`）——
+#   宿主 `game/commands/social.py` 退化为「`@declared` 注册 + 一行 `_BRIDGE.run` 转发」。
+#
+#   本域**不使用** `T.text/T.static`：社交域的句子是宿主旧壳里的内联字面量 / f-string，
+#   逐字搬进包内（一个字符都没改），故两侧扫到 0 个文案调用点（WIRED 条目仍登记两侧 ——
+#   将来若有人把句子改成文案表 key，本门禁立刻扫到并对账槽位）。
+#   逐字一致的真正证据 = 本段 `SOCIAL_FROZEN`（文本）+ `SOCIAL_DB_SHA`（副作用）：
+#   **迁移前**真跑 129 例（33 条命令 × 正常/边界/失败）存下的完整输出与 DB 逐行 dump 摘要，
+#   每次跑本门禁复跑比对。每例 clean_db + AUTOINCREMENT 计数清零 + 固定 random.seed；
+#   时间相关值（epoch 秒 / 「剩余 N分N秒」）与 uuid4 装备 key 在比对前归一化（见 `_s_*`）。
+import hashlib as _S_hashlib
+import sqlite3 as _S_sqlite3
+
+from data.plugins.dragonfall.game.store import social as _S_store_social
+
+_S_GID = "g_snap"            # 群（= 采「迁移前」快照时用的群号；冻结基准的 DB 摘要按它记）
+_S_NONE = "zz_none"          # 未注册玩家
+_S_SEED = 20260914
+_S_TIME_PAT = re.compile(r"剩余 \d+分\d+秒")
+_S_UUID_PAT = re.compile(r"eq_[0-9a-f]{6,}")
+_S_BIG = 1_000_000_000
+
+
+def _s_mk(qid, name, cls="战士", level=60, gold=100000, cur_map="oak_town", **upd):
+    db.create_player(_S_GID, qid, name, C.resolve("classes", cls), {}, 100, 100)
+    db.update_player(_S_GID, qid, level=level, gold=gold, cur_map=cur_map,
+                     stamina=999999, **upd)
+    db.init_stats(_S_GID, qid)
+
+
+def _s_reset_autoincrement():
+    conn = _S_sqlite3.connect(db.DB_PATH)
+    try:
+        conn.execute("DELETE FROM sqlite_sequence")
+        conn.commit()
+    except _S_sqlite3.Error:
+        pass
+    finally:
+        conn.close()
+
+
+def _s_cast():
+    """标准四人组：a=甲(战士·会长) b=乙(法师) c=丙(游侠) d=丁(牧师)，全 Lv.60 / 10 万金。"""
+    clean_db()
+    _s_reset_autoincrement()
+    _s_mk("a", "甲")
+    _s_mk("b", "乙", "法师")
+    _s_mk("c", "丙", "游侠")
+    _s_mk("d", "丁", "牧师")
+
+
+def _s_item(qid, key, name, typ="材料", price=10, count=1, **extra):
+    data = {"name": name, "type": typ, "stackable": True, "price": price}
+    data.update(extra)
+    db.add_item(_S_GID, qid, key, data, count=count)
+
+
+def _s_guild_high():
+    """a 为会长的高等级公会（Lv>=3），b 为成员。"""
+    gid = db.guild_create("屠龙勇士", "a", desc="甲 创立的公会")
+    db.guild_join(gid, "b")
+    db.guild_add_exp(gid, 3000)
+    return db.guild_get_by_name("屠龙勇士")
+
+
+def _s_guild_low():
+    """c 为会长的 1 级公会，d 为成员（副会长门槛 Lv.3 的失败支）。"""
+    gid = db.guild_create("小萌新", "c", desc="丙 创立的公会")
+    db.guild_join(gid, "d")
+    return db.guild_get_by_name("小萌新")
+
+
+def _s_pet(key="pet_wolf", name="阿黄"):
+    db.pet_create("a", key, name)
+    return db.pet_get("a")
+
+
+def _s_auction_event(items=None):
+    ends = int(time.time()) + 600
+    data = {"items": items or [{"id": 1, "name": "龙鳞战甲", "base": 100, "buyout": 5000,
+                                "bids": {}, "slot": "armor", "lv": 30, "quality": "purple"}]}
+    db.save_world_event("auction", ends, data)
+
+
+def _s_market(price=500, name="铁剑", key="it_tie_jian", seller="b", map_id="oak_town"):
+    """给 seller 一件物品并挂上市场（返回最后一条挂单）。"""
+    _s_item(seller, key, name, "装备", 100, 1)
+    inv = [it for it in db.get_inventory(_S_GID, seller) if it["key"] == key]
+    db.market_add(_S_GID, seller, key, inv[-1]["data"], price, map_id=map_id)
+    return (db.market_list(_S_GID) or [None])[-1]
+
+
+# ── 每个用例的前置装置（与迁移前采快照脚本逐行一致）────────────────────
+def _s_p_tiejian():
+    _s_item("a", "it_tie_jian", "铁剑", "装备", 100, 1)
+
+
+def _s_p_tiejian5():
+    _s_item("a", "it_tie_jian", "铁剑", "装备", 100, 5)
+
+
+def _s_p_mkt():
+    _s_market()
+
+
+def _s_p_mkt6():
+    for i in range(6):
+        _s_market(500 + i, "铁剑%d" % i, "it_k%d" % i, "b")
+
+
+def _s_p_mkt_own():
+    _s_market(seller="a")
+
+
+def _s_p_mkt_gold10():
+    _s_market()
+    db.update_player(_S_GID, "a", gold=10)
+
+
+def _s_p_stall_own():
+    _s_item("a", "it_tie_jian", "铁剑", "装备", 100, 1)
+    db.market_add(_S_GID, "a", "it_tie_jian",
+                  {"name": "铁剑", "type": "装备", "stackable": False, "price": 100},
+                  500, map_id="oak_town")
+
+
+def _s_p_pawn_self():
+    _s_market(price=0)
+    _s_item("b", "it_tie_jian", "铁剑", "装备", 100, 1)
+
+
+def _s_p_pawn_give():
+    _s_market(price=0)
+    _s_item("a", "it_tie_jian", "铁剑", "装备", 100, 1)
+
+
+def _s_p_pawn_give_priced():
+    _s_market()
+    _s_item("a", "it_tie_jian", "铁剑", "装备", 100, 1)
+
+
+def _s_p_party_ab():
+    db.party_create(_S_GID, "a", "b")
+
+
+def _s_p_party_abc():
+    db.party_create(_S_GID, "a", "b")
+    db.party_add(_S_GID, "a", "c")
+
+
+def _s_p_party_abcd():
+    _s_p_party_abc()
+    db.party_add(_S_GID, "a", "d")
+
+
+def _s_p_inst_leader():
+    db.save_battle(_S_GID, "a", {"type": "instance", "leader": "a", "retreated": False,
+                                 "members": ["a", "b"], "mode": "battle"})
+
+
+def _s_p_level10():
+    db.update_player(_S_GID, "a", level=10)
+
+
+def _s_p_gold10():
+    db.update_player(_S_GID, "a", gold=10)
+
+
+def _s_p_dup_name():
+    db.guild_create("屠龙勇士", "a", desc="甲 创立的公会")
+
+
+def _s_p_b_in_guild():
+    db.guild_join(db.guild_create("屠龙勇士", "a"), "b")
+
+
+def _s_p_sign_dup():
+    _s_guild_high()
+    _S_store_social.guild_set_sign(db.guild_get_by_name("屠龙勇士")["gid"], "a",
+                                   datetime.date.today().isoformat())
+
+
+def _s_p_donate_short():
+    _s_guild_high()
+    _s_item("a", "mat_rou", "兽肉", "材料", 5, 1)
+
+
+def _s_p_donate_ok():
+    _s_guild_high()
+    _s_item("a", "mat_rou", "兽肉", "材料", 5, 5)
+
+
+def _s_p_shop_rich():
+    _s_guild_high()
+    db.guild_add_exp(db.guild_get_by_name("屠龙勇士")["gid"], 0, member_qq="a", contribute=500)
+
+
+def _s_p_demote_ok():
+    _s_guild_high()
+    _S_store_social.guild_set_role(db.guild_get_by_name("屠龙勇士")["gid"], "b", "elite")
+
+
+def _s_p_pet_food():
+    _s_pet()
+    _s_item("a", "mat_yin_lin_yu", "银鳞鱼", "材料", 20, 2, food=True)
+
+
+def _s_p_pet_food3():
+    _s_pet()
+    _s_item("a", "mat_yin_lin_yu", "银鳞鱼", "材料", 20, 3, food=True)
+
+
+def _s_p_pet_sword():
+    _s_pet()
+    _s_item("a", "it_tie_jian", "铁剑", "装备", 100, 1)
+
+
+def _s_p_mount_owned():
+    db.update_player(_S_GID, "a", mounts={"owned": ["mount_horse"]})
+
+
+def _s_p_mount_active():
+    db.update_player(_S_GID, "a", mounts={"owned": ["mount_horse"], "active": "mount_horse"})
+
+
+def _s_p_auction():
+    _s_auction_event()
+
+
+def _s_p_auction_gold10():
+    _s_auction_event()
+    db.update_player(_S_GID, "a", gold=10)
+
+
+# (case_id, 宿主方法名, qid, 消息, 前置装置名 | None)
+_S_CASES = (
+    ("market/fail_no_player", "market", _S_NONE, "市场", None),
+    ("market/normal_empty", "market", "a", "市场", None),
+    ("market/normal_list", "market", "a", "市场", "_s_p_mkt"),
+    ("market/boundary_page2", "market", "a", "市场 2", "_s_p_mkt6"),
+    ("market_sell/fail_fmt", "market_sell", "a", "上架 铁剑", None),
+    ("market_sell/fail_low", "market_sell", "a", "上架 铁剑 0", None),
+    ("market_sell/fail_cap", "market_sell", "a", "上架 铁剑 1000000", None),
+    ("market_sell/fail_noitem", "market_sell", "a", "上架 不存在的剑 100", None),
+    ("market_sell/normal", "market_sell", "a", "上架 铁剑 500", "_s_p_tiejian"),
+    ("market_unsell/fail_fmt", "market_unsell", "a", "下架 x", None),
+    ("market_unsell/fail_none", "market_unsell", "a", "下架 1", None),
+    ("market_unsell/fail_owner", "market_unsell", "a", "下架 1", "_s_p_mkt"),
+    ("market_unsell/normal", "market_unsell", "a", "下架 1", "_s_p_mkt_own"),
+    ("market_buy/fail_fmt", "market_buy", "a", "购入 x", None),
+    ("market_buy/fail_none", "market_buy", "a", "购入 99", "_s_p_mkt"),
+    ("market_buy/fail_self", "market_buy", "b", "购入 1", "_s_p_mkt"),
+    ("market_buy/fail_gold", "market_buy", "a", "购入 1", "_s_p_mkt_gold10"),
+    ("market_buy/normal", "market_buy", "a", "购入 1", "_s_p_mkt"),
+    ("stall_deprecated/fail_no_player", "stall_deprecated", _S_NONE, "摆摊 铁剑 100", None),
+    ("stall_deprecated/normal", "stall_deprecated", "a", "摆摊 铁剑 100", None),
+    ("stall_sell/fail_fmt", "stall_sell", "a", "摆卖", None),
+    ("stall_sell/fail_noitem", "stall_sell", "a", "摆卖 不存在的剑 500", None),
+    ("stall_sell/normal", "stall_sell", "a", "摆卖 铁剑 500", "_s_p_tiejian"),
+    ("stall_sell/boundary_batch", "stall_sell", "a", "摆卖 铁剑 500 3", "_s_p_tiejian5"),
+    ("stall_exchange_pawn/fail_fmt", "stall_exchange_pawn", "a", "摆换", None),
+    ("stall_exchange_pawn/normal", "stall_exchange_pawn", "a", "摆换 铁剑", "_s_p_tiejian"),
+    ("stall_close/fail_none", "stall_close", "a", "收摊", None),
+    ("stall_close/normal", "stall_close", "a", "收摊", "_s_p_stall_own"),
+    ("stall_view/normal_empty", "stall_view", "a", "摊位", None),
+    ("stall_view/fail_notfound", "stall_view", "a", "摊位 查无此人", None),
+    ("stall_view/fail_target_none", "stall_view", "a", "摊位 乙", None),
+    ("stall_view/normal_target", "stall_view", "a", "摊位 乙", "_s_p_mkt"),
+    ("stall_view/normal_here", "stall_view", "a", "摊位", "_s_p_mkt"),
+    ("stall_exchange/fail_fmt", "stall_exchange", "a", "换 1", None),
+    ("stall_exchange/fail_none", "stall_exchange", "a", "换 99 铁剑", "_s_p_tiejian"),
+    ("stall_exchange/fail_self", "stall_exchange", "b", "换 1 铁剑", "_s_p_pawn_self"),
+    ("stall_exchange/normal", "stall_exchange", "a", "换 1 铁剑", "_s_p_pawn_give"),
+    ("stall_exchange/fail_hasprice", "stall_exchange", "a", "换 1 铁剑", "_s_p_pawn_give_priced"),
+    ("party/fail_no_player", "party", _S_NONE, "组队", None),
+    ("party/normal_empty", "party", "a", "组队", None),
+    ("party/fail_notfound", "party", "a", "组队 查无此人", None),
+    ("party/fail_self", "party", "a", "组队 甲", None),
+    ("party/normal_create", "party", "a", "组队 乙", None),
+    ("party/normal_panel", "party", "a", "组队", "_s_p_party_ab"),
+    ("party/fail_not_leader", "party", "b", "组队 丙", "_s_p_party_ab"),
+    ("party/normal_pull", "party", "a", "组队 丙", "_s_p_party_ab"),
+    ("party/fail_full", "party", "a", "组队 丁", "_s_p_party_abcd"),
+    ("party_leave/fail_none", "party_leave", "a", "退队", None),
+    ("party_leave/normal_member", "party_leave", "b", "退队", "_s_p_party_ab"),
+    ("party_leave/fail_blocked_leader", "party_leave", "a", "退队", "_s_p_inst_leader"),
+    ("guild_create_cmd/fail_fmt", "guild_create_cmd", "a", "创建公会", None),
+    ("guild_create_cmd/fail_level", "guild_create_cmd", "a", "创建公会 屠龙勇士", "_s_p_level10"),
+    ("guild_create_cmd/fail_gold", "guild_create_cmd", "a", "创建公会 屠龙勇士", "_s_p_gold10"),
+    ("guild_create_cmd/normal", "guild_create_cmd", "a", "创建公会 屠龙勇士", None),
+    ("guild_create_cmd/fail_dup_name", "guild_create_cmd", "b", "创建公会 屠龙勇士", "_s_p_dup_name"),
+    ("guild_create_cmd/fail_in_guild", "guild_create_cmd", "b", "创建公会 新会", "_s_p_b_in_guild"),
+    ("guild_join_cmd/fail_fmt", "guild_join_cmd", "b", "加入公会", None),
+    ("guild_join_cmd/fail_notfound", "guild_join_cmd", "b", "加入公会 不存在", None),
+    ("guild_join_cmd/normal", "guild_join_cmd", "b", "加入公会 屠龙勇士", "_s_p_dup_name"),
+    ("guild_join_cmd/fail_already", "guild_join_cmd", "b", "加入公会 屠龙勇士", "_s_p_b_in_guild"),
+    ("guild_leave_cmd/fail_none", "guild_leave_cmd", "a", "退出公会", None),
+    ("guild_leave_cmd/fail_leader", "guild_leave_cmd", "a", "退出公会", "_s_guild_high"),
+    ("guild_leave_cmd/normal_member", "guild_leave_cmd", "b", "退出公会", "_s_guild_high"),
+    ("guild_disband_cmd/fail_not_leader", "guild_disband_cmd", "b", "解散公会", "_s_guild_high"),
+    ("guild_disband_cmd/normal", "guild_disband_cmd", "a", "解散公会", "_s_guild_high"),
+    ("guild_info/fail_none", "guild_info", "a", "公会", None),
+    ("guild_info/normal", "guild_info", "a", "公会", "_s_guild_high"),
+    ("guild_info/boundary_page2", "guild_info", "a", "公会 2", "_s_guild_high"),
+    ("guild_sign/fail_none", "guild_sign", "a", "公会签到", None),
+    ("guild_sign/normal", "guild_sign", "a", "公会签到", "_s_guild_high"),
+    ("guild_sign/boundary_dup", "guild_sign", "a", "公会签到", "_s_p_sign_dup"),
+    ("guild_task/fail_none", "guild_task", "a", "公会任务", None),
+    ("guild_task/normal", "guild_task", "a", "公会任务", "_s_guild_high"),
+    ("guild_donate_cmd/fail_none", "guild_donate_cmd", "a", "公会捐献", None),
+    ("guild_donate_cmd/fail_short", "guild_donate_cmd", "a", "公会捐献", "_s_p_donate_short"),
+    ("guild_donate_cmd/normal", "guild_donate_cmd", "a", "公会捐献", "_s_p_donate_ok"),
+    ("guild_rank/fail_empty", "guild_rank", "a", "公会排行", None),
+    ("guild_rank/normal", "guild_rank", "a", "公会排行", "_s_guild_high"),
+    ("guild_rank/no_player_allowed", "guild_rank", _S_NONE, "公会排行", "_s_guild_high"),
+    ("guild_shop/fail_none", "guild_shop", "a", "公会商店", None),
+    ("guild_shop/fail_not_member", "guild_shop", "c", "公会商店", "_s_guild_high"),
+    ("guild_shop/normal_panel", "guild_shop", "a", "公会商店", "_s_guild_high"),
+    ("guild_shop/fail_buy_none", "guild_shop", "a", "公会商店 99", "_s_guild_high"),
+    ("guild_shop/fail_buy_poor", "guild_shop", "a", "公会商店 1", "_s_guild_high"),
+    ("guild_shop/normal_buy", "guild_shop", "a", "公会商店 1", "_s_p_shop_rich"),
+    ("guild_skill_view/fail_none", "guild_skill_view", "a", "公会技能", None),
+    ("guild_skill_view/normal", "guild_skill_view", "a", "公会技能", "_s_guild_high"),
+    ("guild_appoint/fail_not_leader", "guild_appoint", "b", "公会任命 乙 精英", "_s_guild_high"),
+    ("guild_appoint/fail_fmt", "guild_appoint", "a", "公会任命 乙", "_s_guild_high"),
+    ("guild_appoint/fail_role", "guild_appoint", "a", "公会任命 乙 会长", "_s_guild_high"),
+    ("guild_appoint/fail_level", "guild_appoint", "c", "公会任命 丁 副会长", "_s_guild_low"),
+    ("guild_appoint/fail_notfound", "guild_appoint", "a", "公会任命 查无此人 精英", "_s_guild_high"),
+    ("guild_appoint/fail_self", "guild_appoint", "a", "公会任命 甲 精英", "_s_guild_high"),
+    ("guild_appoint/normal", "guild_appoint", "a", "公会任命 乙 精英", "_s_guild_high"),
+    ("guild_demote/fail_not_leader", "guild_demote", "b", "公会免职 甲", "_s_guild_high"),
+    ("guild_demote/fail_fmt", "guild_demote", "a", "公会免职", "_s_guild_high"),
+    ("guild_demote/fail_notfound", "guild_demote", "a", "公会免职 查无此人", "_s_guild_high"),
+    ("guild_demote/fail_plain", "guild_demote", "a", "公会免职 乙", "_s_guild_high"),
+    ("guild_demote/normal", "guild_demote", "a", "公会免职 乙", "_s_p_demote_ok"),
+    ("pet_view/fail_none", "pet_view", "a", "宠物", None),
+    ("pet_view/normal", "pet_view", "a", "宠物", "_s_pet"),
+    ("pet_rename/fail_none", "pet_rename", "a", "宠物改名 小黑", None),
+    ("pet_rename/fail_fmt", "pet_rename", "a", "宠物改名", "_s_pet"),
+    ("pet_rename/normal", "pet_rename", "a", "宠物改名 小黑", "_s_pet"),
+    ("pet_rename/boundary_long", "pet_rename", "a", "宠物改名 一二三四五六七八九十", "_s_pet"),
+    ("pet_feed/fail_none", "pet_feed", "a", "喂养", None),
+    ("pet_feed/normal_panel", "pet_feed", "a", "喂养", "_s_pet"),
+    ("pet_feed/fail_noitem", "pet_feed", "a", "喂养 不存在的食物", "_s_pet"),
+    ("pet_feed/normal", "pet_feed", "a", "喂养 银鳞鱼", "_s_p_pet_food"),
+    ("pet_feed/normal_batch", "pet_feed", "a", "喂养 银鳞鱼*2", "_s_p_pet_food3"),
+    ("pet_feed/fail_notfood", "pet_feed", "a", "喂养 铁剑", "_s_p_pet_sword"),
+    ("pet_release/fail_none", "pet_release", "a", "放生", None),
+    ("pet_release/normal", "pet_release", "a", "放生", "_s_pet"),
+    ("mount_cmd/normal_panel", "mount_cmd", "a", "坐骑", None),
+    ("mount_cmd/fail_not_owned", "mount_cmd", "a", "骑乘 老马", None),
+    ("mount_cmd/fail_dismount", "mount_cmd", "a", "下马", None),
+    ("mount_cmd/normal_ride", "mount_cmd", "a", "骑乘 老马", "_s_p_mount_owned"),
+    ("mount_cmd/normal_dismount", "mount_cmd", "a", "下马", "_s_p_mount_active"),
+    ("world_event/normal_idle", "world_event", "a", "事件", None),
+    ("world_event/normal_with_auction", "world_event", "a", "事件", "_s_p_auction"),
+    ("auction/normal_closed", "auction", "a", "拍卖", None),
+    ("auction/normal_open", "auction", "a", "拍卖", "_s_p_auction"),
+    ("bid/normal_closed", "bid", "a", "竞拍 1 100", None),
+    ("bid/fail_fmt", "bid", "a", "竞拍 1", "_s_p_auction"),
+    ("bid/fail_noitem", "bid", "a", "竞拍 99 100", "_s_p_auction"),
+    ("bid/fail_below", "bid", "a", "竞拍 1 50", "_s_p_auction"),
+    ("bid/fail_gold", "bid", "a", "竞拍 1 5000", "_s_p_auction_gold10"),
+    ("bid/normal_bid", "bid", "a", "竞拍 1 200", "_s_p_auction"),
+    ("bid/normal_buyout", "bid", "a", "竞拍 1 5000", "_s_p_auction"),
+)
+
+
+def _s_p_auction_gold10():
+    _s_auction_event()
+    db.update_player(_S_GID, "a", gold=10)
+
+
+def _s_cell(v):
+    """DB 单元归一化：epoch 秒（数字 / 10 位以上数字串）→ `<TS>`。"""
+    if isinstance(v, (int, float)) and not isinstance(v, bool) and abs(v) > _S_BIG:
+        return "<TS>"
+    if isinstance(v, bytes):
+        v = v.decode("utf-8", "replace")
+    if isinstance(v, str) and v.isdigit() and len(v) >= 10:
+        return "<TS>"
+    return v
+
+
+def _s_dump():
+    """DB 逐行 dump（跳过 AUTOINCREMENT 计数表；uuid4 装备 key 归一化）。"""
+    conn = _S_sqlite3.connect(db.DB_PATH)
+    try:
+        tabs = [r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            if r[0] != "sqlite_sequence"]
+        out = []
+        for t in tabs:
+            try:
+                rows = conn.execute("SELECT * FROM %s" % t).fetchall()
+            except Exception as exc:                       # noqa: BLE001
+                rows = [("ERR", str(exc))]
+            rows = [tuple(_s_cell(c) for c in r) for r in rows]
+            out.append("%s: %s" % (t, sorted(repr(r) for r in rows)))
+        return _S_UUID_PAT.sub("eq_<UUID>", "\n".join(out))
+    finally:
+        conn.close()
+
+
+async def _s_one(m, handler, qid, msg, prep):
+    if prep is None:
+        _s_cast()
+    else:
+        _s_cast()
+        globals()[prep]()
+    random.seed(_S_SEED)
+    ev = FakeEvent(_S_GID, qid, msg)
+    texts = await run(getattr(m, handler), ev)
+    joined = "\n".join(str(t) for t in texts)
+    return {
+        "n": len(texts),
+        "out": _S_TIME_PAT.sub("剩余 <T>分<T>秒", joined),
+        "stopped": bool(getattr(ev, "_stopped", False)),
+        "db": _S_hashlib.sha256(_s_dump().encode("utf-8")).hexdigest()[:16],
+    }
+
+
+def _s_scenarios() -> dict:
+    """复跑全部 129 例（迁移前采快照 / 迁移后门禁比对，同一份驱动代码）。
+
+    宿主实例**整轮复用同一个** `Main(None)`（与采快照脚本一致：跨例的命令层实例态
+    —— 如战斗内存锁集合 —— 必须同源，否则快照不可比）。
+    """
+    out = {}
+    m = Main(None)
+    for cid, handler, qid, msg, prep in _S_CASES:
+        out[cid] = asyncio.run(_s_one(m, handler, qid, msg, prep))
+    clean_db()
+    return out
+
+SOCIAL_FROZEN = {
+    'auction/normal_closed': '🏪 拍卖行暂未开张。世界事件出现『神秘拍卖行』时再来吧！(『事件』查看)',
+    'auction/normal_open': '🏪 【神秘拍卖行】(剩余 <T>分<T>秒)\n━━━━━━━━━━━━\n📦 1. 龙鳞战甲\n   底价 100 ｜ 最高：无人出价 ｜ 一口价 5000\n   『竞拍 1 <金币>』出价\n\n💡 一口价直接成交，别犹豫',
+    'bid/fail_below': '出价不能低于底价 100 金币！',
+    'bid/fail_fmt': '格式：竞拍 <编号> <金币>，如『竞拍 1 5000』(『拍卖』查看编号)',
+    'bid/fail_gold': '你只有 10 金币，出不起 5000！',
+    'bid/fail_noitem': '没有这个拍卖品！『拍卖』查看当前物品～',
+    'bid/normal_bid': '💰 出价成功！你在【龙鳞战甲】上出价 200 金币，当前最高！\n(若被超越将自动退还)',
+    'bid/normal_buyout': '💰 一口价成交！你以 5000 金币拍得【龙鳞战甲】！\n📦 装备已放入背包(『背包』查看)',
+    'bid/normal_closed': '🏪 拍卖行暂未开张。',
+    'guild_appoint/fail_fmt': '格式：公会任命 <成员名> <职位>，职位=副会长/精英',
+    'guild_appoint/fail_level': '任命副会长需要公会 Lv.3！本公会才 Lv.1～',
+    'guild_appoint/fail_not_leader': '只有会长才能任命职位！',
+    'guild_appoint/fail_notfound': '没找到玩家『查无此人』！',
+    'guild_appoint/fail_role': '可任命职位：副会长、精英。成员是默认职，不需任命～',
+    'guild_appoint/fail_self': '会长不需要任命自己～',
+    'guild_appoint/normal': '⭐ 任命成功！『乙』已晋升为公会【精英】！',
+    'guild_create_cmd/fail_dup_name': '公会『屠龙勇士』已存在！换个名字吧～',
+    'guild_create_cmd/fail_fmt': '格式：创建公会 <名字>，如『创建公会 屠龙勇士』',
+    'guild_create_cmd/fail_gold': '创建公会需要 1000 金币！你只有 10 金币。',
+    'guild_create_cmd/fail_in_guild': '你已经在一个公会里啦！先『退出公会』再加入新的～',
+    'guild_create_cmd/fail_level': '创建公会需要 30 级！你才 10 级，先去冒险吧～',
+    'guild_create_cmd/normal': '🏰 【公会创建成功】『屠龙勇士』！\n你成为了公会会长！\n💡 别忘了『公会任务』，每天打怪领奖励',
+    'guild_demote/fail_fmt': '格式：公会免职 <成员名>',
+    'guild_demote/fail_not_leader': '只有会长才能免职！',
+    'guild_demote/fail_notfound': '没找到玩家『查无此人』！',
+    'guild_demote/fail_plain': '『乙』是成员，无需免职～',
+    'guild_demote/normal': '📉 已免去『乙』的职位，降回普通成员～',
+    'guild_disband_cmd/fail_not_leader': '只有会长才能解散公会！',
+    'guild_disband_cmd/normal': '🏚️ 公会【屠龙勇士】已解散……',
+    'guild_donate_cmd/fail_none': '你还没有公会！先『加入公会 <名字>』吧～',
+    'guild_donate_cmd/fail_short': '🎯 【公会捐献】需要上交 3 份材料(当前 1/3)！\n💡 『公会捐献』上交<材料>，换经验金币',
+    'guild_donate_cmd/normal': '🎁 【公会捐献完成】上交 3 份材料，为公会贡献力量！\n🏰 公会经验 +40 ｜ 个人贡献 +20\n💰 金币 +100',
+    'guild_info/boundary_page2': '🏰 【屠龙勇士】Lv.5\n━━━━━━━━━━━━\n👥 成员 2 人 ｜ 经验 0/1500\n📜 甲 创立的公会\n💡 公会加成：打怪经验 +5%\n━━━━━━━━━━━━\n成员(第 1/1 页)：\n 1. 👑 甲(会长) Lv.60 ｜ 贡献 0\n 2. ⚔️ 乙(成员) Lv.60 ｜ 贡献 0\n\n💡 别忘了『公会任务』，每天打怪领奖励',
+    'guild_info/fail_none': '你还没有公会！『创建公会 <名字>』(30级＋1000金币)或『加入公会 <名字>』',
+    'guild_info/normal': '🏰 【屠龙勇士】Lv.5\n━━━━━━━━━━━━\n👥 成员 2 人 ｜ 经验 0/1500\n📜 甲 创立的公会\n💡 公会加成：打怪经验 +5%\n━━━━━━━━━━━━\n成员(第 1/1 页)：\n 1. 👑 甲(会长) Lv.60 ｜ 贡献 0\n 2. ⚔️ 乙(成员) Lv.60 ｜ 贡献 0\n\n💡 别忘了『公会任务』，每天打怪领奖励',
+    'guild_join_cmd/fail_already': '你已经在一个公会里啦！',
+    'guild_join_cmd/fail_fmt': '格式：加入公会 <公会名>，如『加入公会 屠龙勇士』',
+    'guild_join_cmd/fail_notfound': '找不到公会『不存在』！输入『公会排行』看看有哪些公会～',
+    'guild_join_cmd/normal': '🏰 欢迎加入公会【屠龙勇士】！\n💡 别忘了『公会任务』，每天打怪领奖励',
+    'guild_leave_cmd/fail_leader': '你是会长！会长不能直接退会，请『解散公会』（公会随之解散）～',
+    'guild_leave_cmd/fail_none': '你不在任何公会里～',
+    'guild_leave_cmd/normal_member': '👋 你已退出公会【屠龙勇士】。江湖再见！',
+    'guild_rank/fail_empty': '还没有公会成立！『创建公会 <名字>』建立第一个公会吧～',
+    'guild_rank/no_player_allowed': '🏆 【公会排行榜】\n━━━━━━━━━━━━\n1. 🏰 屠龙勇士 Lv.5(2人)',
+    'guild_rank/normal': '🏆 【公会排行榜】\n━━━━━━━━━━━━\n1. 🏰 屠龙勇士 Lv.5(2人)',
+    'guild_shop/fail_buy_none': '没有第 99 件商品！『公会商店』查看～',
+    'guild_shop/fail_buy_poor': '公会积分不足！购买【淬火石】需要 30 积分，你只有 0。',
+    'guild_shop/fail_none': '你还没有公会！先『加入公会 <名字>』吧～',
+    'guild_shop/fail_not_member': '你还没有公会！先『加入公会 <名字>』吧～',
+    'guild_shop/normal_buy': '🛒 购买成功！【淬火石】(花费 30 公会积分)\n⚒️ 强化石到手！『强化』给装备升个级吧～',
+    'guild_shop/normal_panel': '🛒 【公会商店】Lv.5 ｜ 公会积分：0\n━━━━━━━━━━━━\n1. 淬火石 ｜ 30 积分\n   公会商店出品的强化石，用于装备强化 ｜ 需公会 Lv.1 ｜ 每日限购 10\n2. 图纸残页 ｜ 50 积分\n   残缺的锻造图纸，s24/s25 等支线交付物 ｜ 需公会 Lv.2 ｜ 每日限购 5\n3. 力量药剂 ｜ 80 积分\n   战斗中使用，3 刻攻击 + 30% ｜ 需公会 Lv.2 ｜ 每日限购 3\n4. 彩虹露 ｜ 120 积分\n   炼金/锻造的进阶材料，稀有掉落可遇不可求 ｜ 需公会 Lv.3 ｜ 每日限购 3\n5. 高级强化石 ｜ 200 积分\n   高纯度强化矿石，高级锻造/强化基石 ｜ 需公会 Lv.4 ｜ 每日限购 2\n6. 藏宝图碎片 ｜ 160 积分\n   拼凑起来也许能找到意外之财 ｜ 需公会 Lv.3 ｜ 不限购\n━━━━━━━━━━━━\n💡 看中商品？『公会商店 <编号>』兑换',
+    'guild_sign/boundary_dup': '今天已经公会签过到啦！明天再来～',
+    'guild_sign/fail_none': '你还没有公会！先『加入公会 <名字>』吧～',
+    'guild_sign/normal': '📅 【公会签到】在【屠龙勇士】报到！\n🏰 公会经验 +20 ｜ 个人贡献 +10\n💰 金币 +50',
+    'guild_skill_view/fail_none': '你还没有公会！先『加入公会 <名字>』吧～',
+    'guild_skill_view/normal': '📖 【公会技能】Lv.5\n━━━━━━━━━━━━\n💡 攻击强化：全员攻击力 +2%/级(最高 5 级)\n   积分需求：60 → 120 → 200 → 300 ｜ 公会等级：Lv.1 → Lv.2 → Lv.3 → Lv.4\n💡 防御强化：全员防御 +2%/级(最高 5 级)\n   积分需求：60 → 120 → 200 → 300 ｜ 公会等级：Lv.1 → Lv.2 → Lv.3 → Lv.4\n💡 经验强化：全员打怪经验 +2%/级(最高 5 级)\n   积分需求：80 → 160 → 260 → 400 ｜ 公会等级：Lv.1 → Lv.3 → Lv.4 → Lv.5\n━━━━━━━━━━━━\n💡 技能经会长安排后逐步开放；战斗加成的挂接正在开发中～',
+    'guild_task/fail_none': '你还没有公会！先『加入公会 <名字>』吧～',
+    'guild_task/normal': '🎯 【公会任务】击杀 5 只怪物(当前 0/5)\n💡 击杀会自动结算奖励！',
+    'market/boundary_page2': '🏪 市场空空如也。『上架 <物品> <价格>』寄售你的宝贝！',
+    'market/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'market/normal_empty': '🏪 市场空空如也。『上架 <物品> <价格>』寄售你的宝贝！',
+    'market/normal_list': '🏪 市场空空如也。『上架 <物品> <价格>』寄售你的宝贝！',
+    'market_buy/fail_fmt': '格式：购入 <编号>，『市场』查看编号',
+    'market_buy/fail_gold': '金币不足！需要 500 金币。',
+    'market_buy/fail_none': '没有这个物品！可能已被买走。',
+    'market_buy/fail_self': '不能买自己的物品！',
+    'market_buy/normal': '🛒 购入成功！【铁剑】已放入背包(花费 500 金币)',
+    'market_sell/fail_cap': '价格太高啦！上架价最多 999999 金币～',
+    'market_sell/fail_fmt': '格式：上架 <物品名> <价格>，如『上架 铁剑 500』；价格至少 1 金币',
+    'market_sell/fail_low': '格式：上架 <物品名> <价格>，如『上架 铁剑 500』；价格至少 1 金币',
+    'market_sell/fail_noitem': '背包里没有『不存在的剑』！『背包』查看～',
+    'market_sell/normal': '📦 已上架【铁剑】，定价 500 金币！\n『市场』查看，『下架 <编号>』撤回',
+    'market_unsell/fail_fmt': '格式：下架 <编号>，『市场』查看编号',
+    'market_unsell/fail_none': '没有这个上架物品！',
+    'market_unsell/fail_owner': '没有这个上架物品！',
+    'market_unsell/normal': '没有这个上架物品！',
+    'mount_cmd/fail_dismount': '你现在没有骑乘任何坐骑～',
+    'mount_cmd/fail_not_owned': '你还没有『老马』！去商店『购买 老马』～',
+    'mount_cmd/normal_dismount': '🛑 你翻身下马，坐骑回到了马厩。',
+    'mount_cmd/normal_panel': '🐾 【坐骑】\n━━━━━━━━━━━━\n你还没有坐骑。去橡木镇商店『购买 老马』，或者打精英/Boss 碰碰运气！\n\n💡 可获得的坐骑：⚪普通老马、⚪普通小毛驴、🟢优秀骏马、🟢优秀铁港驼马、🔵稀有雪狼、🔵稀有北境驯鹿、🟣史诗幽灵马、🟣史诗森林独角兽、🟣史诗雾羽候鸟、🟠传说狮鹫、🟠传说炎蹄战马',
+    'mount_cmd/normal_ride': '🐴 你骑上了【老马】！温顺可靠的老马，腿脚虽慢但从不尥蹶子。传送费－10%',
+    'party/fail_full': '无法拉入 丁：TA 已在队伍中(含其他队伍)，或队伍已满(4 人)～',
+    'party/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'party/fail_not_leader': '你已在队伍中，让队长『组队 <名字>』拉人吧～',
+    'party/fail_notfound': '找不到玩家『查无此人』！确保对方已『注册』角色～',
+    'party/fail_self': '不能和自己组队！',
+    'party/normal_create': '🤝 组队成功！你和 乙 成为队友\n💡 组队打怪经验＋10%！『组队 <名字>』可再拉人(上限 4 人)',
+    'party/normal_empty': '你还没有队伍～『组队 <对方名字>』邀请同群玩家组队！\n💡 组队打怪经验＋10%（野外各自为战，仅经验加成，副本内才并肩作战）',
+    'party/normal_panel': '🤝 【队伍】(2人)\n━━━━━━━━━━━━\n1. 甲 Lv.60 战士 · 💨速?(队长)\n2. 乙 Lv.60 法师 · 💨速?\n💡 组队打怪经验＋10%（野外各自为战，仅经验加成；副本内才并肩作战）！队长『组队 <名字>』可再拉人(上限 4 人)；『退队』离开',
+    'party/normal_pull': '🤝 丙 加入了你的队伍！(当前 3 人，上限 4 人)\n💡 组队打怪经验＋10%！\n🔔 丙：甲 将你拉入了队伍！',
+    'party_leave/fail_blocked_leader': '⚔️ 副本进行中不能退队！先『撤退』保留进度，或通关/『离开副本』后再退队～',
+    'party_leave/fail_none': '你还没有队伍～',
+    'party_leave/normal_member': '👋 你已退出队伍！(队长退队将解散队伍)',
+    'pet_feed/fail_noitem': '背包里没有可喂食的食物『不存在的食物』！打怪、『采集』、『垂钓』可获得食物。',
+    'pet_feed/fail_none': '你还没有宠物！打怪有概率掉落宠物蛋，『使用 宠物蛋』孵化～',
+    'pet_feed/fail_notfood': '背包里没有可喂食的食物『铁剑』！打怪、『采集』、『垂钓』可获得食物。',
+    'pet_feed/normal': '🍖 你喂了【阿黄】一份银鳞鱼！\n😋 饱食度 +30 ｜ 💕 亲密度 +5 ｜ ✨ 经验 +10',
+    'pet_feed/normal_batch': '🍖 你喂了【阿黄】0 份银鳞鱼！\n✅ 已喂食 0/2 份（饱食度已满）',
+    'pet_feed/normal_panel': '格式：喂养 <食物名/序号>，如『喂养 烤鸟肉』或『喂养 1』\n背包里还没有可喂食的食物——打怪、『采集』、『垂钓』可获得食物，『烹饪』能做更顶饱的料理！',
+    'pet_release/fail_none': '你还没有宠物～',
+    'pet_release/normal': '🕊️ 你放生了【阿黄】……它会记得你的。\n📖 图鉴记录已保留，之后还有机会遇到它！',
+    'pet_rename/boundary_long': '🐾 你的宠物改名为【一二三四五六七八】！',
+    'pet_rename/fail_fmt': '格式：宠物改名 <名字>',
+    'pet_rename/fail_none': '你还没有宠物！',
+    'pet_rename/normal': '🐾 你的宠物改名为【小黑】！',
+    'pet_view/fail_none': '你还没有宠物！打怪有概率掉落宠物蛋，『使用 宠物蛋』孵化～',
+    'pet_view/normal': '🐺 【宠物 · 森林狼崽】\n━━━━━━━━━━━━\n名字：阿黄 | Lv.1/30\n📖 品质：⚪普通\n📍 出处：野外兽类怪(狼/狗/野猪/熊)掉落狼崽蛋\n🎯 技能：撕咬(每 3 刻 40% 攻击伤害) (Lv.10 解锁)\n❤️ 饱食度：100/100\n💕 亲密度：0/100\n✨ 经验加成：+0.2%(主人战斗经验)\n━━━━━━━━━━━━\n💡 饱食度低了？『喂养 <材料>』喂食',
+    'stall_close/fail_none': '你现在没有摊位。『摆摊 <物品> <价格>』支起摊位～',
+    'stall_close/normal': '🏪 收摊！【铁剑】退回背包',
+    'stall_deprecated/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'stall_deprecated/normal': '『摆摊』已拆成两条指令啦：\n· 摆卖 = 卖金币：『摆卖 <物品/背包序号> <单价> [数量]』\n· 摆换 = 以物换物：『摆换 <物品/背包序号> [数量]』\n例：『摆卖 3 500 5』(背包第3件×5个，单价500)｜『摆换 铁剑』',
+    'stall_exchange/fail_fmt': '格式：换 <摊位编号> <物品名>，如『换 3 狼皮』(对方摆摊不带价格 = 换摊)',
+    'stall_exchange/fail_hasprice': '【铁剑】是出售中的(500 金币)，用『购入 1』购买～',
+    'stall_exchange/fail_none': '没有编号 99 的摊位！『摊位』看看～',
+    'stall_exchange/fail_self': '不能和自己交换！',
+    'stall_exchange/normal': '🔄 交换成功！你用【铁剑】换到了【铁剑】！\n对方的东西已放进你背包，你的【铁剑】已送到对方背包～',
+    'stall_exchange_pawn/fail_fmt': '格式：摆换 <物品名/背包序号> [数量]\n例：『摆换 3 5』(背包第3件拿5个出来换)｜『摆换 铁剑』(换1件)',
+    'stall_exchange_pawn/normal': '🔄 你在『橡木镇』支起了换摊——【铁剑】只换不卖！\n『收摊』收摊，别人可用『换 <编号> <物品名>』跟你交换',
+    'stall_sell/boundary_batch': '🏪 你在『橡木镇』支起了摊位，出售【铁剑 ×3】定价 500 金币！\n『收摊』收摊，『摊位』看看本地谁在摆摊',
+    'stall_sell/fail_fmt': '格式：摆卖 <物品名/背包序号> <单价> [数量]\n例：『摆卖 3 500 5』(背包第3件×5个，单价500)｜『摆卖 铁剑 500』',
+    'stall_sell/fail_noitem': '背包里没有『不存在的剑』！『背包』查看～',
+    'stall_sell/normal': '🏪 你在『橡木镇』支起了摊位，出售【铁剑】定价 500 金币！\n『收摊』收摊，『摊位』看看本地谁在摆摊',
+    'stall_view/fail_notfound': '没找到玩家『查无此人』！',
+    'stall_view/fail_target_none': '乙 没有在摆摊。',
+    'stall_view/normal_empty': '此地没有摊位。『摆摊 <物品> [价格]』支起你的小摊(不带价格 = 换摊)！',
+    'stall_view/normal_here': '🏪 【此地摊位】(橡木镇)\n━━━━━━━━━━━━\n#1 铁剑 ｜ 500 金币 ｜ 乙\n💡 标 🔄 的是换摊：『换 <编号> <物品名>』当面交换；其他『购入 <编号>』，『摊位 <玩家名>』看指定摊位',
+    'stall_view/normal_target': '🏪 【乙 的摊位】\n━━━━━━━━━━━━\n#1 铁剑 ｜ 500 金币 ｜ 在 橡木镇\n💡 标 🔄 的是换摊：『换 <编号> <物品名>』当面交换；其他『购入 <编号>』(需在同一位置)',
+    'world_event/normal_idle': '🌍 大陆风平浪静……\n',
+    'world_event/normal_with_auction': '🌍 【世界事件】🏪 神秘拍卖行(剩余 <T>分<T>秒)\n━━━━━━━━━━━━\n一位神秘商人出现在铁港城，带来了三件稀世珍宝！输入『拍卖』查看，『竞拍 <编号> <金币>』出价！\n\n📦 1. 龙鳞战甲 ｜ 底价 100｜ 最高 无人出价：0\n   💰 一口价 5000｜『竞拍 1 <金币>』\n\n',
+}   # 迁移前快照（2026-09-14 真跑 129 例存下，勿手改；时间值已归一化）
+
+SOCIAL_DB_SHA = {
+    'auction/normal_closed': '459759066ba88cf8',
+    'auction/normal_open': 'a6af6d81638a22af',
+    'bid/fail_below': 'a6af6d81638a22af',
+    'bid/fail_fmt': 'a6af6d81638a22af',
+    'bid/fail_gold': '8aedeeed168df208',
+    'bid/fail_noitem': 'a6af6d81638a22af',
+    'bid/normal_bid': 'd82af8a520895a3c',
+    'bid/normal_buyout': '537ae57e29d35818',
+    'bid/normal_closed': '459759066ba88cf8',
+    'guild_appoint/fail_fmt': '4054f0744e27c0ee',
+    'guild_appoint/fail_level': 'b76f89fed5e79ac3',
+    'guild_appoint/fail_not_leader': '4054f0744e27c0ee',
+    'guild_appoint/fail_notfound': '4054f0744e27c0ee',
+    'guild_appoint/fail_role': '4054f0744e27c0ee',
+    'guild_appoint/fail_self': '4054f0744e27c0ee',
+    'guild_appoint/normal': 'd43e4542cdb7f116',
+    'guild_create_cmd/fail_dup_name': 'b825c75449295325',
+    'guild_create_cmd/fail_fmt': '459759066ba88cf8',
+    'guild_create_cmd/fail_gold': 'fe00e84029ce8ace',
+    'guild_create_cmd/fail_in_guild': '849404f7e80244c4',
+    'guild_create_cmd/fail_level': '7fd15696601e104d',
+    'guild_create_cmd/normal': 'f941ab69856474ae',
+    'guild_demote/fail_fmt': '4054f0744e27c0ee',
+    'guild_demote/fail_not_leader': '4054f0744e27c0ee',
+    'guild_demote/fail_notfound': '4054f0744e27c0ee',
+    'guild_demote/fail_plain': '4054f0744e27c0ee',
+    'guild_demote/normal': '4054f0744e27c0ee',
+    'guild_disband_cmd/fail_not_leader': '4054f0744e27c0ee',
+    'guild_disband_cmd/normal': '459759066ba88cf8',
+    'guild_donate_cmd/fail_none': '459759066ba88cf8',
+    'guild_donate_cmd/fail_short': '2ae289984465e3ad',
+    'guild_donate_cmd/normal': '52548c16e3025d26',
+    'guild_info/boundary_page2': '67217c1685da360e',
+    'guild_info/fail_none': '459759066ba88cf8',
+    'guild_info/normal': '67217c1685da360e',
+    'guild_join_cmd/fail_already': '849404f7e80244c4',
+    'guild_join_cmd/fail_fmt': '459759066ba88cf8',
+    'guild_join_cmd/fail_notfound': '459759066ba88cf8',
+    'guild_join_cmd/normal': '6eb14cb63106a367',
+    'guild_leave_cmd/fail_leader': '4054f0744e27c0ee',
+    'guild_leave_cmd/fail_none': '459759066ba88cf8',
+    'guild_leave_cmd/normal_member': '74b1ef070e18a3ff',
+    'guild_rank/fail_empty': '459759066ba88cf8',
+    'guild_rank/no_player_allowed': '4054f0744e27c0ee',
+    'guild_rank/normal': '4054f0744e27c0ee',
+    'guild_shop/fail_buy_none': '4054f0744e27c0ee',
+    'guild_shop/fail_buy_poor': '4054f0744e27c0ee',
+    'guild_shop/fail_none': '459759066ba88cf8',
+    'guild_shop/fail_not_member': '4054f0744e27c0ee',
+    'guild_shop/normal_buy': 'fd79ea1e078dcde0',
+    'guild_shop/normal_panel': '4054f0744e27c0ee',
+    'guild_sign/boundary_dup': 'be03115182134dfb',
+    'guild_sign/fail_none': '459759066ba88cf8',
+    'guild_sign/normal': '96120dce376ee944',
+    'guild_skill_view/fail_none': '459759066ba88cf8',
+    'guild_skill_view/normal': '4054f0744e27c0ee',
+    'guild_task/fail_none': '459759066ba88cf8',
+    'guild_task/normal': '4054f0744e27c0ee',
+    'market/boundary_page2': '6f4dc5dc32cd6df0',
+    'market/fail_no_player': '459759066ba88cf8',
+    'market/normal_empty': '459759066ba88cf8',
+    'market/normal_list': '1cd2ffc85b249631',
+    'market_buy/fail_fmt': '459759066ba88cf8',
+    'market_buy/fail_gold': '913bbd4f3e2b07e5',
+    'market_buy/fail_none': '1cd2ffc85b249631',
+    'market_buy/fail_self': '1cd2ffc85b249631',
+    'market_buy/normal': '80028ad1fe6971e1',
+    'market_sell/fail_cap': '459759066ba88cf8',
+    'market_sell/fail_fmt': '459759066ba88cf8',
+    'market_sell/fail_low': '459759066ba88cf8',
+    'market_sell/fail_noitem': '459759066ba88cf8',
+    'market_sell/normal': 'bf8b3f79eb25be96',
+    'market_unsell/fail_fmt': '459759066ba88cf8',
+    'market_unsell/fail_none': '459759066ba88cf8',
+    'market_unsell/fail_owner': '1cd2ffc85b249631',
+    'market_unsell/normal': '84c044dc6b9b5d84',
+    'mount_cmd/fail_dismount': '459759066ba88cf8',
+    'mount_cmd/fail_not_owned': '459759066ba88cf8',
+    'mount_cmd/normal_dismount': '66b19fc4635fdcaa',
+    'mount_cmd/normal_panel': '459759066ba88cf8',
+    'mount_cmd/normal_ride': '80ac32ac17123059',
+    'party/fail_full': '10c0ee7a89dfefc6',
+    'party/fail_no_player': '459759066ba88cf8',
+    'party/fail_not_leader': 'b26f5b970e8bfa9f',
+    'party/fail_notfound': '459759066ba88cf8',
+    'party/fail_self': '459759066ba88cf8',
+    'party/normal_create': '3996334bf95336ca',
+    'party/normal_empty': '459759066ba88cf8',
+    'party/normal_panel': 'b26f5b970e8bfa9f',
+    'party/normal_pull': 'c7291fc4c15afcaf',
+    'party_leave/fail_blocked_leader': '3c43cdf094babb07',
+    'party_leave/fail_none': '459759066ba88cf8',
+    'party_leave/normal_member': '8e77545edb838d6a',
+    'pet_feed/fail_noitem': 'd092aaf5c0644ec8',
+    'pet_feed/fail_none': '459759066ba88cf8',
+    'pet_feed/fail_notfood': '64d96787e177a9f5',
+    'pet_feed/normal': 'e1f2e4bc9afc7000',
+    'pet_feed/normal_batch': 'cad32f5320814881',
+    'pet_feed/normal_panel': 'd092aaf5c0644ec8',
+    'pet_release/fail_none': '459759066ba88cf8',
+    'pet_release/normal': '459759066ba88cf8',
+    'pet_rename/boundary_long': '8c1965280b5206a3',
+    'pet_rename/fail_fmt': 'd092aaf5c0644ec8',
+    'pet_rename/fail_none': '459759066ba88cf8',
+    'pet_rename/normal': '5e00cbff36cebfde',
+    'pet_view/fail_none': '459759066ba88cf8',
+    'pet_view/normal': 'd092aaf5c0644ec8',
+    'stall_close/fail_none': '459759066ba88cf8',
+    'stall_close/normal': '37d9da9b47f118dc',
+    'stall_deprecated/fail_no_player': '459759066ba88cf8',
+    'stall_deprecated/normal': '459759066ba88cf8',
+    'stall_exchange/fail_fmt': '459759066ba88cf8',
+    'stall_exchange/fail_hasprice': '063702a0daa46694',
+    'stall_exchange/fail_none': 'bc9e2796f5341282',
+    'stall_exchange/fail_self': '1935fda7a0e7555a',
+    'stall_exchange/normal': 'aaa9e6e22412945f',
+    'stall_exchange_pawn/fail_fmt': '459759066ba88cf8',
+    'stall_exchange_pawn/normal': '2ad98ee73cdb2467',
+    'stall_sell/boundary_batch': '5eb18fa88b0c0496',
+    'stall_sell/fail_fmt': '459759066ba88cf8',
+    'stall_sell/fail_noitem': '459759066ba88cf8',
+    'stall_sell/normal': '85de02b350de6488',
+    'stall_view/fail_notfound': '459759066ba88cf8',
+    'stall_view/fail_target_none': '459759066ba88cf8',
+    'stall_view/normal_empty': '459759066ba88cf8',
+    'stall_view/normal_here': '1cd2ffc85b249631',
+    'stall_view/normal_target': '1cd2ffc85b249631',
+    'world_event/normal_idle': '4a5766cd3eebcd81',
+    'world_event/normal_with_auction': 'a6af6d81638a22af',
+}   # 每例结束后 DB 逐行 dump 的 sha256 前 16 位（副作用逐字冻结）
+
+
+def t12_social_frozen():
+    print("\n[12] 社交域逐字冻结：迁移前 129 例（33 条命令 × 正常/边界/失败）复跑比对")
+    check("冻结基准已内嵌（129 例）", len(SOCIAL_FROZEN) == 129, len(SOCIAL_FROZEN))
+    check("用例表覆盖 33 条命令", len({h for _c, h, _q, _m, _p in _S_CASES}) == 33,
+          sorted({h for _c, h, _q, _m, _p in _S_CASES}))
+    now = _s_scenarios()
+    bad = [k for k in SOCIAL_FROZEN
+           if SOCIAL_FROZEN[k] != (now.get(k) or {}).get("out")]
+    for k in bad:
+        print("     · %s 现=%r" % (k, ((now.get(k) or {}).get("out") or "")[:160]))
+    check("★ 社交域 129 例文本与迁移前**逐字一致**", not bad, bad)
+    bad_db = [k for k in SOCIAL_DB_SHA
+              if SOCIAL_DB_SHA[k] != (now.get(k) or {}).get("db")]
+    for k in bad_db[:6]:
+        print("     · %s DB 摘要变了" % k)
+    check("★ 社交域 129 例 DB 副作用与迁移前一致（逐行 dump 的 sha256 前 16 位）",
+          not bad_db, bad_db[:6])
+    bad_n = [k for k in SOCIAL_FROZEN if (now.get(k) or {}).get("n") != 1]
+    check("★ 每例仍是**一条**成品消息（多段 yield 合成一条 = 终态形状，段数 1）",
+          not bad_n, bad_n[:6])
+    bad_stop = [k for k in SOCIAL_FROZEN if (now.get(k) or {}).get("stopped")]
+    check("★ 没有一例意外 stop_event()", not bad_stop, bad_stop[:6])
+
+    # 宿主壳零文案调用点（`T.text/T.static` 全部随命令进包）——本域 WIRED 的价值所在
+    host_calls, host_lits = _scan_calls(SOCIAL_SRC)
+    pkg_calls, pkg_lits = _scan_calls(PKG_SOCIAL_SRC)
+    check("★ 宿主 game/commands/social.py 零 `T.text/T.static` 调用点（渲染全进包）",
+          not host_calls, host_calls[:4])
+    check("包内 content/cmds_social.py 也无文案表调用点（句子是逐字搬来的内联字面量）",
+          not pkg_calls, pkg_calls[:4])
+    check("宿主壳保留 33 个 @declared（命令面一个不少）",
+          sum(1 for _ln in io.open(SOCIAL_SRC, encoding="utf-8")
+              if _ln.strip().startswith("@declared(")) == 33,
+          sum(1 for _ln in io.open(SOCIAL_SRC, encoding="utf-8")
+              if _ln.strip().startswith("@declared(")))
+
+
+# ═══════════════════════ ECONOMY_BRANCHES_BEGIN ═══════════════════════
+# ★ B18-L9（2026-09-15）：经济域 **45 条命令**整块进包（`content/cmds_economy.py`）——
+#   宿主 `game/commands/economy.py` 退化为「`@declared` 注册 + 两行 `_BRIDGE.run_async`
+#   转发」；守卫（`hook:player`）/ 取参 / 分支业务 / 回话全在包内（处理器 async —— 实现体
+#   `content/economy_cmds.py::EconomyImpl.<m>` 是 async generator，只能 `async for` 迭代，
+#   照 B18-L3c 战斗族先例 `content/cmds_combat.py`）。
+#
+#   本域**不使用** `T.text/T.static`：句子是 `EconomyImpl` 里的内联字面量 / f-string
+#   （B9-L1 起就在包内），故「宿主 + 包内」两侧扫到 0 个调用点（WIRED 条目仍登记两侧 ——
+#   将来若有人把句子改成文案表 key，本门禁立刻扫到并对账槽位）。
+#   逐字一致的真正证据 = 本段 `ECONOMY_FROZEN`（文本）+ `ECONOMY_DB_SHA`（副作用）：
+#   **迁移前**真跑 142 例（45 条命令 × 正常/边界/失败(无角色守卫) + 12 条追加边界）存下的
+#   完整输出与 DB 逐行 dump 摘要，每次跑本门禁复跑比对。每例 clean_db + AUTOINCREMENT
+#   计数清零 + 固定 random.seed；墙钟相关值在比对前归一化（见 `_e_*`）：
+#     ① epoch 秒（含 JSON 串里嵌的等待型副业 `finish`）→ `<TS>`；
+#     ② 日期串（每日任务 / 商店限购的 event_state key）→ `<DATE>`；
+#     ③ 「剩余 N分N秒」→ 「剩余 <T>分<T>秒」；
+#     ④ 足迹首访 epoch 钉死在 946684800（2000-01-01，见 `_e_visit`），故面板里的
+#        `（MM-DD）` 是 `（01-01）`——确定值；
+#     ⑤ uuid4 派生的物品 key `eq_/bp_/gem_<hex8>` → `<前缀>_<UUID>`（`uuid4().hex[:8]`）。
+import hashlib as _E_hashlib
+import sqlite3 as _E_sqlite3
+
+_E_GID = "g_eco"           # 群（= 采「迁移前」快照时用的群号；冻结基准的 DB 摘要按它记）
+_E_NONE = "zz_none"        # 未注册玩家（守卫分支）
+_E_SEED = 20260915
+_E_FIXED_TS = 946684800    # 足迹首访时间钉死（2000-01-01；< 1e9 故不被 <TS> 归一化吞掉）
+_E_TIME_PAT = re.compile(r"剩余 \d+分\d+秒")
+#: uuid4 派生物品 key（`eq_/bp_/gem_<hex8>` …，`uuid4().hex[:8]`）
+_E_UUID_PAT = re.compile(r"\b([A-Za-z]{1,8})_[0-9a-f]{8}\b")
+_E_UUID_INST_PAT = re.compile(r"\binst:[0-9a-f]{12}\b")
+_E_DATE_PAT = re.compile(r"\d{4}-\d{2}-\d{2}")
+_E_TS_EMBED_PAT = re.compile(r"(?<![\w.])\d{10,}(?![\w.])")
+_E_BIG = 1_000_000_000
+
+_E_ALL_PROFS = ("gather", "mining", "fishing", "cooking", "alchemy",
+                "craft", "enhance", "enchant")
+
+
+def _e_mk(qid, name, cls="战士", level=60, gold=200000, cur_map="oak_town", **upd):
+    db.create_player(_E_GID, qid, name, C.resolve("classes", cls), {}, 100, 100)
+    db.update_player(_E_GID, qid, level=level, gold=gold, cur_map=cur_map,
+                     stamina=999999, **upd)
+    db.init_stats(_E_GID, qid)
+
+
+def _e_add_item(qid, key, name, typ="材料", price=10, count=1, **extra):
+    data = {"name": name, "type": typ, "stackable": True, "price": price}
+    data.update(extra)
+    db.add_item(_E_GID, qid, key, data, count=count)
+    return key
+
+
+def _e_profs(qid="a", level=6):
+    """全部副业激活 + 拜师 + 拉到指定等级（等待型副业的 apprentice 门槛）。"""
+    db.update_player(_E_GID, qid, apprentices=list(_E_ALL_PROFS))
+    for k in _E_ALL_PROFS:
+        db.activate_prof(_E_GID, qid, k)
+        try:
+            db.add_prof_exp(_E_GID, qid, k, level * 60)
+        except Exception:                                                  # noqa: BLE001
+            pass
+
+
+def _e_bag_a():
+    """甲的标准背包（覆盖 item_detail / 装备 / 使用 / 出售 / 强化 等分支）。"""
+    _e_add_item("a", "it_tie_jian", "铁剑", "装备", 100, 1,
+                slot="weapon", lv=10, quality="green", stats={"atk": 12},
+                weapon_type="sword", req={"str": 5})
+    _e_add_item("a", "mat_rou", "兽肉", "材料", 5, 12)
+    _e_add_item("a", "mat_yin_lin_yu", "银鳞鱼", "材料", 20, 3, food=True)
+    _e_add_item("a", "i_treat_s", "治疗药水(小)", "消耗品", 30, 5, heal=60)
+    _e_add_item("a", "i_stone_upgrade", "强化石", "材料", 200, 8)
+    _e_add_item("a", "mat_tu_zhi_can_ye", "图纸残页", "材料", 50, 12)
+    _e_add_item("a", "rn_shard", "符文碎片", "材料", 100, 6)
+    _e_add_item("a", "gem_sui_lie", "碎裂的幸运宝石", "原石", 50, 4,
+                gem=True, tier=1, stats={"atk": 0.02})
+
+
+def _e_equip(data):
+    """把一件装备写进甲的手上（equipment 字段）。"""
+    key = "eq_%s" % data["slot"]
+    db.add_item(_E_GID, "a", key, data, count=1)
+    inv = [it for it in db.get_inventory(_E_GID, "a") if it["key"] == key]
+    player = db.get_player(_E_GID, "a")
+    equipment = dict(player.get("equipment") or {})
+    equipment[data["slot"]] = inv[-1]["data"]
+    db.update_player(_E_GID, "a", equipment=equipment)
+
+
+def _e_equipped_a():
+    """甲已穿好武器（unequip / my_equipment 的正常分支）。"""
+    _e_equip({"name": "铁剑", "type": "装备", "stackable": False, "price": 100,
+             "slot": "weapon", "lv": 10, "quality": "green", "stats": {"atk": 12},
+             "weapon_type": "sword", "req": {"str": 5}})
+
+
+def _e_equipped_set():
+    """甲穿了两件「寒霜」套装部件（set_view 的正常分支）。"""
+    _e_equip({"name": "寒霜胸甲", "type": "装备", "stackable": False, "price": 300,
+             "slot": "armor", "lv": 20, "quality": "blue", "stats": {"def": 20},
+             "set": "寒霜"})
+    _e_equip({"name": "寒霜护腿", "type": "装备", "stackable": False, "price": 300,
+             "slot": "legs", "lv": 20, "quality": "blue", "stats": {"def": 16},
+             "set": "寒霜"})
+
+
+def _e_cast(**kw):
+    """甲（主测）+ 乙（对照）+ 丙 + 未注册玩家。"""
+    clean_db()
+    _e_reset_autoincrement()
+    _e_mk("a", "甲", **kw)
+    _e_mk("b", "乙", "法师")
+    _e_mk("c", "丙", "游侠")
+    _e_profs("a")
+
+
+def _e_reset_autoincrement():
+    conn = _E_sqlite3.connect(db.DB_PATH)
+    try:
+        conn.execute("DELETE FROM sqlite_sequence")
+        conn.commit()
+    except _E_sqlite3.Error:
+        pass
+    finally:
+        conn.close()
+
+
+def _e_visit():
+    """给甲记一笔足迹（footprint 正常分支），并把首访时间钉在固定 epoch（去墙钟）。"""
+    try:
+        db.add_visited_subarea(_E_GID, "a", "oak_plain", "oak_plain_3")
+        db.add_visited_subarea(_E_GID, "a", "oak_plain", "oak_plain_1")
+        db.add_visited(_E_GID, "a", "oak_plain")
+    except Exception:                                                      # noqa: BLE001
+        pass
+    conn = _E_sqlite3.connect(db.DB_PATH)
+    try:
+        # visited 表只有 (qq_id, map_id) 两列（无时间列）→ 只需钉 visited_subareas.first_at
+        conn.execute("UPDATE visited_subareas SET first_at=?", (_E_FIXED_TS,))
+        conn.commit()
+    except _E_sqlite3.Error:
+        pass
+    finally:
+        conn.close()
+
+
+def _e_bestiary():
+    for name in ("森林狼", "野猪", "哥布林", "石蜥", "史莱姆", "灰熊",
+                 "暗影狼", "毒蛛", "骷髅兵", "岩龟"):
+        try:
+            db.bump_bestiary(_E_GID, "a", name)
+        except Exception:                                                  # noqa: BLE001
+            pass
+
+
+def _e_smith():
+    db.update_player(_E_GID, "a", cur_map="oak_town", cur_subarea="oak_town_3")
+
+
+def _e_store():
+    db.update_player(_E_GID, "a", cur_map="oak_town", cur_subarea="oak_town_5")
+
+
+def _e_wild():
+    db.update_player(_E_GID, "a", cur_map="oak_plain", cur_subarea="oak_plain_3")
+
+
+def _e_mine():
+    db.update_player(_E_GID, "a", cur_map="rockfall_gorge", cur_subarea="")
+
+
+def _e_nowhere():
+    """既无商店也无野外行商的地图（商店/购买 的「这里没有商店」分支）。"""
+    db.update_player(_E_GID, "a", cur_map="misty_swamp", cur_subarea="misty_swamp_1")
+
+
+def _e_attrs():
+    """给甲足够的属性点，让『装备 铁剑』的属性需求通过（成功穿戴分支）。"""
+    db.update_player(_E_GID, "a", attributes=json.dumps({"str": 50, "agi": 20,
+                                                         "int": 20, "vit": 30},
+                                                        ensure_ascii=False))
+
+
+def _e_hurt():
+    """把甲打成残血，让『使用 治疗药水(小)』走真实回复分支。"""
+    db.update_player(_E_GID, "a", hp=5, max_hp=200)
+
+
+def _e_no_gold():
+    db.update_player(_E_GID, "a", gold=0)
+
+
+def _e_full(**kw):
+    """标准甲：全部副业 + 背包 + 足迹 + 图鉴 + 铁匠铺站位。"""
+    _e_bag_a()
+    _e_visit()
+    _e_bestiary()
+    _e_smith()
+    if kw:
+        db.update_player(_E_GID, "a", **kw)
+
+
+#: prep 名 → 函数（顺序 = 快照脚本 `b18l9_snap.py` 同名函数）
+_E_PREPS = {"bag_a": _e_bag_a, "full": _e_full, "visit": _e_visit,
+            "bestiary": _e_bestiary, "smith": _e_smith, "store": _e_store,
+            "wild": _e_wild, "mine": _e_mine, "nowhere": _e_nowhere,
+            "no_gold": _e_no_gold, "attrs": _e_attrs, "hurt": _e_hurt,
+            "equipped_a": _e_equipped_a, "equipped_set": _e_equipped_set}
+
+
+def _e_norm_uuid(s):
+    s = _E_UUID_PAT.sub(r"\1_<UUID>", s)
+    return _E_UUID_INST_PAT.sub("inst:<UUID>", s)
+
+
+def _e_cell(v):
+    """DB 单元归一化：epoch 秒（数字 / 10 位以上数字串）→ `<TS>`。"""
+    if isinstance(v, (int, float)) and not isinstance(v, bool) and abs(v) > _E_BIG:
+        return "<TS>"
+    if isinstance(v, bytes):
+        v = v.decode("utf-8", "replace")
+    if isinstance(v, str) and v.isdigit() and len(v) >= 10:
+        return "<TS>"
+    return v
+
+
+def _e_dump():
+    """DB 逐行 dump（跳过 AUTOINCREMENT 计数表；墙钟与 uuid key 归一化）。"""
+    conn = _E_sqlite3.connect(db.DB_PATH)
+    try:
+        tabs = [r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            if r[0] != "sqlite_sequence"]
+        out = []
+        for t in tabs:
+            try:
+                rows = conn.execute("SELECT * FROM %s" % t).fetchall()
+            except Exception as exc:                                       # noqa: BLE001
+                rows = [("ERR", str(exc))]
+            rows = [tuple(_e_cell(c) for c in r) for r in rows]
+            out.append("%s: %s" % (t, sorted(repr(r) for r in rows)))
+        text = "\n".join(out)
+        text = _e_norm_uuid(text)
+        text = _E_DATE_PAT.sub("<DATE>", text)
+        return _E_TS_EMBED_PAT.sub("<TS>", text)
+    finally:
+        conn.close()
+
+
+async def _e_one(m, handler, qid, msg, prep):
+    _e_cast()
+    if prep:
+        for _part in prep.split("+"):
+            _E_PREPS[_part]()
+    random.seed(_E_SEED)
+    ev = FakeEvent(_E_GID, qid, msg)
+    texts = await run(getattr(m, handler), ev)
+    joined = "\n".join(str(t) for t in texts)
+    dump = _e_dump()
+    return {
+        "n": len(texts),
+        "out": _E_TIME_PAT.sub("剩余 <T>分<T>秒", joined),
+        "stopped": bool(getattr(ev, "_stopped", False)),
+        "db": _E_hashlib.sha256(dump.encode("utf-8")).hexdigest()[:16],
+    }
+
+
+#: 用例表（cid, handler, qid, msg, prep）—— 与 `overnight/b18l9_cases.py` 的 CASES 逐字相同
+_E_CASES = (
+    ('gather/fail_no_player', 'gather', 'zz_none', '采集', ''),
+    ('mining/fail_no_player', 'mining', 'zz_none', '挖掘', ''),
+    ('alchemy/fail_no_player', 'alchemy', 'zz_none', '炼金', ''),
+    ('alchemy_craft/fail_no_player', 'alchemy_craft', 'zz_none', '合成 治疗药水(小)', ''),
+    ('cooking_list/fail_no_player', 'cooking_list', 'zz_none', '烹饪列表', ''),
+    ('cooking/fail_no_player', 'cooking', 'zz_none', '烹饪', ''),
+    ('bp_craft/fail_no_player', 'bp_craft', 'zz_none', '图纸合成', ''),
+    ('profession_view/fail_no_player', 'profession_view', 'zz_none', '副业', ''),
+    ('prof_forget/fail_no_player', 'prof_forget', 'zz_none', '遗忘副业 采集', ''),
+    ('daily_prof/fail_no_player', 'daily_prof', 'zz_none', '副业任务', ''),
+    ('fishing/fail_no_player', 'fishing', 'zz_none', '垂钓', ''),
+    ('craft/fail_no_player', 'craft', 'zz_none', '锻造', ''),
+    ('craft_commission/fail_no_player', 'craft_commission', 'zz_none', '代工 铁剑', ''),
+    ('learn/fail_no_player', 'learn', 'zz_none', '学习 海风长弓图纸', ''),
+    ('recipe_list/fail_no_player', 'recipe_list', 'zz_none', '配方', ''),
+    ('enhance/fail_no_player', 'enhance', 'zz_none', '强化 铁剑', ''),
+    ('equip_upgrade/fail_no_player', 'equip_upgrade', 'zz_none', '升级 铁剑', ''),
+    ('gem_drill/fail_no_player', 'gem_drill', 'zz_none', '打孔 铁剑', ''),
+    ('gem_socket/fail_no_player', 'gem_socket', 'zz_none', '镶嵌 铁剑 碎裂宝石', ''),
+    ('gem_remove/fail_no_player', 'gem_remove', 'zz_none', '拆卸 铁剑', ''),
+    ('gem_combine/fail_no_player', 'gem_combine', 'zz_none', '原石合成', ''),
+    ('gem_view/fail_no_player', 'gem_view', 'zz_none', '原石', ''),
+    ('rune_craft/fail_no_player', 'rune_craft', 'zz_none', '符文制作 残忍', ''),
+    ('rune_remove/fail_no_player', 'rune_remove', 'zz_none', '符文拆卸 铁剑', ''),
+    ('refine_equip/fail_no_player', 'refine_equip', 'zz_none', '装备重锻 铁剑', ''),
+    ('calamity_forge/fail_no_player', 'calamity_forge', 'zz_none', '炼成 铁剑', ''),
+    ('enchant/fail_no_player', 'enchant', 'zz_none', '附魔 铁剑 攻击', ''),
+    ('set_view/fail_no_player', 'set_view', 'zz_none', '套装', ''),
+    ('monster/fail_no_player', 'monster', 'zz_none', '怪物 森林狼', ''),
+    ('adventure_book/fail_no_player', 'adventure_book', 'zz_none', '冒险手册', ''),
+    ('footprint/fail_no_player', 'footprint', 'zz_none', '足迹', ''),
+    ('bestiary/fail_no_player', 'bestiary', 'zz_none', '图鉴', ''),
+    ('encyclopedia/fail_no_player', 'encyclopedia', 'zz_none', '百科 铁剑', ''),
+    ('titles/fail_no_player', 'titles', 'zz_none', '称号', ''),
+    ('inventory/fail_no_player', 'inventory', 'zz_none', '背包', ''),
+    ('bag_filter/fail_no_player', 'bag_filter', 'zz_none', '背包筛选 材料', ''),
+    ('item_view_mode_cmd/fail_no_player', 'item_view_mode_cmd', 'zz_none', '物品详情开始', ''),
+    ('item_detail/fail_no_player', 'item_detail', 'zz_none', '物品详情 铁剑', ''),
+    ('my_equipment/fail_no_player', 'my_equipment', 'zz_none', '我的装备', ''),
+    ('equip/fail_no_player', 'equip', 'zz_none', '装备 铁剑', ''),
+    ('unequip/fail_no_player', 'unequip', 'zz_none', '卸下 武器', ''),
+    ('use/fail_no_player', 'use', 'zz_none', '使用 治疗药水(小)', ''),
+    ('sell/fail_no_player', 'sell', 'zz_none', '出售 兽肉', ''),
+    ('shop/fail_no_player', 'shop', 'zz_none', '商店', ''),
+    ('buy/fail_no_player', 'buy', 'zz_none', '购买 治疗药水(小)', ''),
+    ('gather/normal', 'gather', 'a', '采集', 'full+wild'),
+    ('gather/boundary_town', 'gather', 'a', '采集', 'full+store'),
+    ('mining/normal', 'mining', 'a', '挖掘', 'full+mine'),
+    ('mining/boundary_no_vein', 'mining', 'a', '挖掘', 'full+wild'),
+    ('alchemy/normal', 'alchemy', 'a', '炼金', 'full'),
+    ('alchemy/boundary_page2', 'alchemy', 'a', '炼金 2', 'full'),
+    ('alchemy_craft/normal', 'alchemy_craft', 'a', '合成 治疗药水(小)', 'full'),
+    ('alchemy_craft/boundary_notfound', 'alchemy_craft', 'a', '合成 不存在', 'full'),
+    ('cooking_list/normal', 'cooking_list', 'a', '烹饪列表', 'full'),
+    ('cooking_list/boundary_page2', 'cooking_list', 'a', '烹饪列表 2', 'full'),
+    ('cooking/normal', 'cooking', 'a', '烹饪', 'full'),
+    ('cooking/boundary_notfound', 'cooking', 'a', '烹饪 不存在', 'full'),
+    ('bp_craft/normal', 'bp_craft', 'a', '图纸合成', 'full'),
+    ('bp_craft/boundary_index', 'bp_craft', 'a', '图纸合成 1', 'full'),
+    ('profession_view/normal', 'profession_view', 'a', '副业', 'full'),
+    ('profession_view/boundary_rank', 'profession_view', 'a', '副业 排行', 'full'),
+    ('prof_forget/normal', 'prof_forget', 'a', '遗忘副业 采集', 'full'),
+    ('prof_forget/boundary_nosuch', 'prof_forget', 'a', '遗忘副业 不存在', 'full'),
+    ('daily_prof/normal', 'daily_prof', 'a', '副业任务', 'full'),
+    ('daily_prof/boundary_alias', 'daily_prof', 'a', '今日副业', 'full'),
+    ('fishing/normal', 'fishing', 'a', '垂钓', 'full+wild'),
+    ('fishing/boundary_no_water', 'fishing', 'a', '垂钓', 'full+store'),
+    ('craft/normal', 'craft', 'a', '锻造', 'full'),
+    ('craft/boundary_all', 'craft', 'a', '锻造 全部', 'full'),
+    ('craft_commission/normal', 'craft_commission', 'a', '代工 铁剑', 'full'),
+    ('craft_commission/boundary_no_smith', 'craft_commission', 'a', '代工 铁剑', 'full+wild'),
+    ('learn/normal', 'learn', 'a', '学习 海风长弓图纸', 'full'),
+    ('learn/boundary_empty', 'learn', 'a', '学习', 'full'),
+    ('recipe_list/normal', 'recipe_list', 'a', '配方', 'full'),
+    ('recipe_list/boundary_detail', 'recipe_list', 'a', '配方 铁剑', 'full'),
+    ('enhance/normal', 'enhance', 'a', '强化 铁剑', 'full'),
+    ('enhance/boundary_notfound', 'enhance', 'a', '强化 不存在的剑', 'full'),
+    ('equip_upgrade/normal', 'equip_upgrade', 'a', '升级 铁剑', 'full'),
+    ('equip_upgrade/boundary_notfound', 'equip_upgrade', 'a', '升级 不存在的剑', 'full'),
+    ('gem_drill/normal', 'gem_drill', 'a', '打孔 铁剑', 'full'),
+    ('gem_drill/boundary_notfound', 'gem_drill', 'a', '打孔 不存在的剑', 'full'),
+    ('gem_socket/normal', 'gem_socket', 'a', '镶嵌 铁剑 碎裂的幸运宝石', 'full'),
+    ('gem_socket/boundary_fmt', 'gem_socket', 'a', '镶嵌 铁剑', 'full'),
+    ('gem_remove/normal', 'gem_remove', 'a', '拆卸 铁剑 1', 'full'),
+    ('gem_remove/boundary_notfound', 'gem_remove', 'a', '拆卸 不存在的剑', 'full'),
+    ('gem_combine/normal', 'gem_combine', 'a', '原石合成 碎裂的幸运宝石', 'full'),
+    ('gem_combine/boundary_none', 'gem_combine', 'a', '原石合成', 'full'),
+    ('gem_view/normal', 'gem_view', 'a', '原石', 'full'),
+    ('gem_view/boundary_detail', 'gem_view', 'a', '原石 碎裂的幸运宝石', 'full'),
+    ('rune_craft/normal', 'rune_craft', 'a', '符文制作', 'full'),
+    ('rune_craft/boundary_no_mat', 'rune_craft', 'a', '符文制作 残忍', 'full'),
+    ('rune_remove/normal', 'rune_remove', 'a', '符文拆卸 铁剑', 'full'),
+    ('rune_remove/boundary_notfound', 'rune_remove', 'a', '符文拆卸 不存在的剑', 'full'),
+    ('refine_equip/normal', 'refine_equip', 'a', '装备重锻 铁剑', 'full'),
+    ('refine_equip/boundary_notfound', 'refine_equip', 'a', '装备重锻 不存在的剑', 'full'),
+    ('calamity_forge/normal', 'calamity_forge', 'a', '炼成 铁剑', 'full'),
+    ('calamity_forge/boundary_notfound', 'calamity_forge', 'a', '炼成 不存在的剑', 'full'),
+    ('enchant/normal', 'enchant', 'a', '附魔 铁剑 攻击', 'full'),
+    ('enchant/boundary_fmt', 'enchant', 'a', '附魔 铁剑', 'full'),
+    ('set_view/normal', 'set_view', 'a', '套装', 'full+equipped_set'),
+    ('set_view/boundary_unknown', 'set_view', 'a', '套装 不存在', 'full'),
+    ('monster/normal', 'monster', 'a', '怪物 森林狼', 'full'),
+    ('monster/boundary_unknown', 'monster', 'a', '怪物 不存在的怪物', 'full'),
+    ('adventure_book/normal', 'adventure_book', 'a', '冒险手册', 'full'),
+    ('adventure_book/boundary_items', 'adventure_book', 'a', '冒险手册 物品', 'full'),
+    ('footprint/normal', 'footprint', 'a', '足迹', 'full'),
+    ('footprint/boundary_empty', 'footprint', 'a', '足迹', 'bag_a+smith'),
+    ('bestiary/normal', 'bestiary', 'a', '图鉴', 'full'),
+    ('bestiary/boundary_page2', 'bestiary', 'a', '图鉴 2', 'full'),
+    ('encyclopedia/normal', 'encyclopedia', 'a', '百科 铁剑', 'full'),
+    ('encyclopedia/boundary_browse', 'encyclopedia', 'a', '百科 材料', 'full'),
+    ('titles/normal', 'titles', 'a', '称号', 'full'),
+    ('titles/boundary_page2', 'titles', 'a', '称号 2', 'full'),
+    ('inventory/normal', 'inventory', 'a', '背包', 'full'),
+    ('inventory/boundary_filter', 'inventory', 'a', '背包 材料', 'full'),
+    ('bag_filter/normal', 'bag_filter', 'a', '背包筛选 材料', 'full'),
+    ('bag_filter/boundary_page2', 'bag_filter', 'a', '背包筛选 材料 2', 'full'),
+    ('item_view_mode_cmd/normal', 'item_view_mode_cmd', 'a', '物品详情开始', 'full'),
+    ('item_view_mode_cmd/boundary_end', 'item_view_mode_cmd', 'a', '物品详情结束', 'full'),
+    ('item_detail/normal', 'item_detail', 'a', '物品详情 铁剑', 'full'),
+    ('item_detail/boundary_index', 'item_detail', 'a', '物品详情 1', 'full'),
+    ('my_equipment/normal', 'my_equipment', 'a', '我的装备', 'full+equipped_a'),
+    ('my_equipment/boundary_empty', 'my_equipment', 'a', '我的装备', 'bag_a+smith'),
+    ('equip/normal', 'equip', 'a', '装备 铁剑', 'full'),
+    ('equip/normal_ok', 'equip', 'a', '装备 铁剑', 'full+attrs'),
+    ('equip/boundary_notfound', 'equip', 'a', '装备 不存在的剑', 'full'),
+    ('unequip/normal', 'unequip', 'a', '卸下 武器', 'full+equipped_a'),
+    ('unequip/boundary_empty', 'unequip', 'a', '卸下 武器', 'full'),
+    ('use/normal', 'use', 'a', '使用 治疗药水(小)', 'full'),
+    ('use/normal_low_hp', 'use', 'a', '使用 治疗药水(小)', 'full+hurt'),
+    ('use/boundary_notfound', 'use', 'a', '使用 不存在的东西', 'full'),
+    ('sell/normal', 'sell', 'a', '出售 兽肉', 'full'),
+    ('sell/boundary_category', 'sell', 'a', '出售 材料', 'full'),
+    ('sell/boundary_all', 'sell', 'a', '出售 全部', 'full'),
+    ('shop/normal', 'shop', 'a', '商店', 'full+store'),
+    ('shop/boundary_no_shop', 'shop', 'a', '商店', 'full+nowhere'),
+    ('buy/normal', 'buy', 'a', '购买 治疗药水(小)', 'full+store'),
+    ('buy/normal_batch', 'buy', 'a', '购买 治疗药水(小)*3', 'full+store'),
+    ('buy/boundary_no_gold', 'buy', 'a', '购买 治疗药水(小)', 'full+store+no_gold'),
+    ('inventory/boundary_empty', 'inventory', 'a', '背包', 'smith'),
+    ('bestiary/boundary_empty', 'bestiary', 'a', '图鉴', 'smith'),
+    ('gem_view/boundary_empty', 'gem_view', 'a', '原石', 'smith'),
+)
+
+
+def _e_scenarios() -> dict:
+    """复跑全部 142 例（迁移前采快照 / 迁移后门禁比对，同一份驱动代码）。
+
+    宿主实例整轮复用同一个 `Main(None)`（与采快照脚本一致：跨例的命令层实例态必须同源，
+    否则快照不可比）。
+    """
+    out = {}
+    m = Main(None)
+    for cid, handler, qid, msg, prep in _E_CASES:
+        out[cid] = asyncio.run(_e_one(m, handler, qid, msg, prep))
+    clean_db()
+    return out
+
+
+ECONOMY_FROZEN = {
+    'adventure_book/boundary_items': '🎒 【曾拥有物品】已拥有 6 · 全量 1587（第 1/2 页）\n━━━━━━━━━━━━\n消耗品（已拥有 1/271）\n  ✅治疗药水(小)×5\u3000❌一袋商路口粮\u3000❌不动药剂\u3000❌不死鸟之羽\n  ❌丰饶之锄\u3000❌传送卷轴\u3000❌便携种植箱\u3000❌信仰结晶\n  ❌信鸦翎\u3000❌元素亲和药剂\u3000❌元素共鸣石\u3000❌元素引爆剂\n  ❌元素湮灭技能书\u3000❌元素结晶\u3000❌充能蒸馏器\u3000❌全效药水\n  ❌公会回城卷\u3000❌冒险者合剂\u3000❌冰霜浆果\u3000❌净化卷轴\n  …还有 251 种：『冒险手册 物品 消耗品』看更多\n鱼（已拥有 1/11）\n  ✅银鳞鱼×3\u3000❌冰鳞鲟\u3000❌帝王鲑\u3000❌月光鱼\n  ❌沼牙鳝\u3000❌溪鳟\u3000❌灯语鳕\u3000❌盲鱼\n  ❌金鲤\u3000❌雷纹鲭\u3000❌青纹鲈\n🗂 未收集大类：装备、收藏品、图纸、草药、木材、兽材 等（『冒险手册 物品 <大类>』查看）\n━━━━━━━━━━━━\n💡 ✅=曾拥有 ×N=现持有 ｜ ❌=还没拿过 ｜ 『冒险手册 物品 <大类>』只看某类 ｜ 『+』翻页',
+    'adventure_book/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'adventure_book/normal': '📖 【冒险手册】\n━━━━━━━━━━━━\n📍 足迹 2/520 子区域\n👹 怪物 10/345 种 · 累计击杀 10\n🎒 物品 6 种曾拥有 · 当前持有 6 种\n🎣 收藏 鱼 0/3 ｜ 收藏品 0/20\n🐾 宠物 0/16 种（孵过）\n━━━━━━━━━━━━\n💡 『足迹』区域 ｜ 『冒险手册 怪物/物品/收藏/垂钓/宠物』看明细',
+    'alchemy/boundary_page2': '🧪 【炼金工坊】(炼金 Lv.5)材料合成配方：\n━━━━━━━━━━━━\n 6. ✅ 学徒合剂：草药×1 + 妖精之尘×1 → 学徒合剂  [炼金Lv.2]\n    学徒练手合剂，回复 15% HP+MP\n 7. ✅ 萤光鱼饵：月光草×1 + 空瓶×1 → 萤光鱼饵  [炼金Lv.3]\n    月光草调制的荧光饵料，幽光引鱼——下次垂钓紫/橙档概率大幅提升(仅 1 次)\n 8. ✅ 轻效治疗药水：草药×2 + 空瓶×1 → 轻效治疗药水  [炼金Lv.3]\n    轻度治疗，回复 25% 生命\n 9. ✅ 高效治疗药水：碎骨×1 + 狼皮×1 → 高效治疗药水  [炼金Lv.4]\n    用圣光羽毛炼制的强效恢复药水\n10. ✅ 强效魔法药水：雪之精华×1 + 妖精之尘×2 → 强效魔法药水  [炼金Lv.4]\n    用雪之精华炼制的强效魔力药水\n━━━━━━━━━━━━\n📄 第 2/17 页｜『炼金 3』下一页\n💡 材料齐了发『合成 <配方名>』',
+    'alchemy/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'alchemy/normal': '🧪 【炼金工坊】(炼金 Lv.5)材料合成配方：\n━━━━━━━━━━━━\n 1. ✅ 治疗药水(小)：狼皮×1 → 治疗药水(小)  [炼金Lv.1]\n    用兽皮与妖精之尘炼制的恢复药水（同商店「治疗药水(小)」）\n 2. ✅ 魔法药水(小)：石蜥鳞×1 → 魔法药水(小)  [炼金Lv.1]\n    恢复魔力（同商店「魔法药水(小)」，价格与商店一致）\n 3. ✅ 微效治疗药水：草药×1 → 微效治疗药水  [炼金Lv.1]\n    基础草药熬制，回复 15% 生命\n 4. ✅ 强化石：熔岩石×2 + 深渊精钢×1 → 强化石  [炼金Lv.2]\n    强化装备的必备材料\n 5. ✅ 回城卷轴：鬼魂精华×3 + 妖精之尘×1 → 回城卷轴  [炼金Lv.2]\n    瞬间回到最近城镇\n━━━━━━━━━━━━\n📄 第 1/17 页｜『炼金 2』下一页\n💡 材料齐了发『合成 <配方名>』',
+    'alchemy_craft/boundary_notfound': '没有『不存在』这个配方！『炼金』查看全部～',
+    'alchemy_craft/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'alchemy_craft/normal': '材料不足！需要 狼皮×1(你有 0)',
+    'bag_filter/boundary_page2': '🎒 【背包·材料】\n━━━━━━━━━━━━\n 1. ⚪兽肉 ×12 (食材)\n 2. ⚪银鳞鱼 ×3 (鱼)\n 3. 🟠强化石 ×8 (矿石)\n 4. ⚪图纸残页 ×12 (杂物)\n 5. 🟣符文碎片 ×6 (杂物)\n━━━━━━━━━━━━\n📄 第 1/1 页 · 共 5 件\n💡 可发送 背包筛选 <类型> 分类查看\n💡 筛选视图序号与全局背包不同，『出售 <序号>』按全局序号——出售/装备请用物品名称（#234）',
+    'bag_filter/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'bag_filter/normal': '🎒 【背包·材料】\n━━━━━━━━━━━━\n 1. ⚪兽肉 ×12 (食材)\n 2. ⚪银鳞鱼 ×3 (鱼)\n 3. 🟠强化石 ×8 (矿石)\n 4. ⚪图纸残页 ×12 (杂物)\n 5. 🟣符文碎片 ×6 (杂物)\n━━━━━━━━━━━━\n📄 第 1/1 页 · 共 5 件\n💡 可发送 背包筛选 <类型> 分类查看\n💡 筛选视图序号与全局背包不同，『出售 <序号>』按全局序号——出售/装备请用物品名称（#234）',
+    'bestiary/boundary_empty': '📖 图鉴还是空的……去『探索』击败怪物，或『垂钓』邂逅彩蛋收藏鱼吧！\n🌈 【彩蛋收藏鱼】已收藏 0/3 · 累计钓获 0 次\n━━━━━━━━━━━━\n  ❌ ??? （垂钓时有极低概率邂逅）\n  ❌ ??? （夜晚垂钓有极低概率邂逅）\n  ❌ ??? （垂钓时有极低概率邂逅）\n💡 彩蛋收藏鱼钓到自动收进图鉴；对应成就见『成就 隐藏』',
+    'bestiary/boundary_page2': '📖 【怪物图鉴】已收录 10 种 · 累计击杀 10(第 2/2 页)\n━━━━━━━━━━━━\n 6. 岩龟 ×1\n 7. 暗影狼 ×1\n 8. 毒蛛 ×1\n 9. 灰熊 ×1\n10. 石蜥 ×1\n\n💡 击败新怪物自动收录 ｜ 『冒险手册 物品/收藏』看收集',
+    'bestiary/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'bestiary/normal': '📖 【怪物图鉴】已收录 10 种 · 累计击杀 10(第 1/2 页)\n━━━━━━━━━━━━\n 1. 野猪 ×1\n 2. 森林狼 ×1\n 3. 骷髅兵 ×1\n 4. 史莱姆 ×1\n 5. 哥布林 ×1\n\n💡 图鉴自动记录怪物击杀次数\n💡 击败新怪物自动收录 ｜ 『冒险手册 物品/收藏』看收集',
+    'bp_craft/boundary_index': '📜 10 张图纸残页在掌中拼合，微光闪过——\n✅ 合成成功！获得【学徒之血刃图纸】(史诗·Lv.10)\n💡 『学习 学徒之血刃图纸』永久解锁锻造配方！',
+    'bp_craft/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'bp_craft/normal': '📜 【图纸残页合成】(图纸残页×12/10)\n━━━━━━━━━━━━\n 1. 🟣【学徒之血刃】Lv.10 武器\n 2. 🟣【旅人之盾】Lv.10 武器\n 3. 🟣【星火法杖】Lv.10 武器\n 4. 🟣【猎影之牙】Lv.12 武器\n 5. 🟣【翠风之弓】Lv.13 武器\n━━━━━━━━━━━━\n📄 第 1/44 页｜『图纸合成 2』下一页\n💡 『图纸合成 <装备名>』消耗 10 张图纸残页，定向获得 1 张指定图纸（只列出有锻造配方的装备）',
+    'buy/boundary_no_gold': '金币不足！需要 10 金币。',
+    'buy/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'buy/normal': '✅ 你购买了【治疗药水(小)】 ×1！',
+    'buy/normal_batch': '✅ 你购买了【治疗药水(小)】 ×3！',
+    'calamity_forge/boundary_notfound': '背包里没有叫『不存在的剑』的装备！(已装备的装备也可以直接操作，如『打孔 铁剑』)',
+    'calamity_forge/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'calamity_forge/normal': '炼成材料不足！还缺：余烬核心×1(你有0)。Boss 掉落稀有素材～',
+    'cooking/boundary_notfound': '没有『不存在』这道料理！『烹饪列表』查看全部～',
+    'cooking/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'cooking/normal': '发『烹饪列表』查看全部料理配方～(如：烹饪 蛇羹)',
+    'cooking_list/boundary_page2': '🍳 【烹饪灶台】料理配方：\n━━━━━━━━━━━━\n 6. 鹰蛋(烹饪Lv.1)\n    海鸥羽毛×1 + 浆果×1 → 鹰蛋\n 7. 灰烬烤饼(烹饪Lv.1)\n    面粉×2 + 浆果×2 → 灰烬烤饼\n 8. 圣餐面包(烹饪Lv.2)\n    面粉×2 + 圣水×1 → 圣餐面包\n 9. 鹿奶干酪(烹饪Lv.2)\n    溪鹿皮×1 + 浆果×1 → 鹿奶干酪\n10. 海盗炖鱼(烹饪Lv.4)\n    银鳞鱼×2 → 海盗炖鱼\n\n📄 第 2/12 页｜『烹饪列表 3』下一页\n💡 『烹饪 蛇羹』试试，『烹饪列表』看配方\n💡 烹饪等级：采集植物 + 垂钓 → 料理，成功制作＋1 经验',
+    'cooking_list/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'cooking_list/normal': '🍳 【烹饪灶台】料理配方：\n━━━━━━━━━━━━\n 1. 史莱姆果冻(烹饪Lv.1)\n    史莱姆黏液×3 → 史莱姆果冻\n 2. 烤肉串(自制)(烹饪Lv.1)\n    兽肉×2 → 烤肉串(自制)\n 3. 金鲤盛宴(烹饪Lv.4)\n    金鲤×2 → 金鲤盛宴\n 4. 蛇羹(烹饪Lv.1)\n    蛇皮×3 → 蛇羹\n 5. 狼肉干(烹饪Lv.1)\n    狼皮×2 → 狼肉干\n\n📄 第 1/12 页｜『烹饪列表 2』下一页\n💡 『烹饪 蛇羹』试试，『烹饪列表』看配方\n💡 烹饪等级：采集植物 + 垂钓 → 料理，成功制作＋1 经验',
+    'craft/boundary_all': '🔨 铁匠铺·全部配方(共 426 件)｜橡木镇锻造 Lv.1-12\n━━━━━━━━━━━━\n1. ⚪【猎弓】Lv.2 武器 ✅\n    青橡木×2｜0金\n2. ⚪【铁剑】Lv.2 武器 ✅\n    粗铁×2｜0金\n3. ⚪【橡木短棍】Lv.2 武器 ✅\n    粗铁×5 + 史莱姆黏液×2｜0金\n4. ⚪【学徒法杖】Lv.2 武器 ✅\n    青橡木×1｜0金\n5. ⚪【皮甲】Lv.3 胸甲 ✅\n    史莱姆黏液×6｜0金\n━━━━━━━━━━━━\n📄 第 1/86 页｜『锻造 全部 2』下一页\n💡 未达标的配方：🔒等级不够 ｜ 🛠️锻造副业等级不够 ｜ 📜图纸未学习 ｜ 🔒城镇需到对应等级城镇的铁匠铺\n💡 『代工 <装备名>』三倍金币免等级',
+    'craft/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'craft/normal': '🔨 铁匠铺·当前可锻造(共 49 件)｜橡木镇锻造 Lv.1-12\n━━━━━━━━━━━━\n1. ⚪【猎弓】Lv.2 武器 锻造Lv.1\n    青橡木×2｜0金\n2. ⚪【铁剑】Lv.2 武器 锻造Lv.1\n    粗铁×2｜0金\n3. ⚪【橡木短棍】Lv.2 武器 锻造Lv.1\n    粗铁×5 + 史莱姆黏液×2｜0金\n4. ⚪【学徒法杖】Lv.2 武器 锻造Lv.1\n    青橡木×1｜0金\n5. ⚪【皮甲】Lv.3 胸甲 锻造Lv.1\n    史莱姆黏液×6｜0金\n━━━━━━━━━━━━\n📄 第 1/10 页｜『锻造列表 2』下一页\n💡 『代工 <装备名>』三倍金币免等级\n💡 『图纸合成 <装备名>』残页换图纸',
+    'craft_commission/boundary_no_smith': '需要到铁匠铺/锻造坊才能找铁匠代工！(先『地图』移动到铁匠铺)',
+    'craft_commission/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'craft_commission/normal': '材料不足！代工【铁剑】还缺：粗铁×2(你有0)。材料可通过打怪/垂钓/挖掘/商店获得！',
+    'daily_prof/boundary_alias': '🎯 【今日副业任务】\n━━━━━━━━━━━━\n目标：挖掘 ×3 (0/3)\n奖励：50 金币 + 50 副业经验\n\n💡 完成对应副业动作自动推进，明天刷新新任务！',
+    'daily_prof/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'daily_prof/normal': '🎯 【今日副业任务】\n━━━━━━━━━━━━\n目标：挖掘 ×3 (0/3)\n奖励：50 金币 + 50 副业经验\n\n💡 完成对应副业动作自动推进，明天刷新新任务！',
+    'enchant/boundary_fmt': '没有『』这个附魔属性！可用：攻击、魔攻、防御、魔防、生命、速度、暴击',
+    'enchant/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'enchant/normal': '【铁剑】(优秀)没有附魔槽，只有蓝/紫/橙装备可以附魔！',
+    'encyclopedia/boundary_browse': '🧪 【材料百科】共 598 种材料 · 按分类速览\n━━━━━━━━━━━━\n兽材 ×141\u3000例：磐涡龟甲、云殿铠甲、古龙鳞\n矿石 ×50\u3000例：祝福符石、精炼强化石、星铁\n木材 ×16\u3000例：元素之木、苍穹天木、晨星之木\n织物 ×12\u3000例：云絮、月华绸、幽灵帆布\n草药 ×19\u3000例：龙血草、极光花、雷雨藤\n宝石 ×10\u3000例：幸运宝石、深渊水晶、龙宫珠\n精华 ×62\u3000例：余烬核心、陨星核、彩虹露\n食材 ×19\u3000例：冻鱼鳞、盲鱼鳞、龙虾壳\n材料 ×19\u3000例：烬核火种、月辉精魄、潮汐黑铁\n鱼 ×11\u3000例：雷纹鲭、冰鳞鲟、灯语鳕\n鱼王 ×1\u3000鱼王·翡翠巨龙\n图纸 ×19\u3000例：蚀夜之面图纸、奥拉圣印图纸、熔炉之心图纸\n传说 ×6\u3000例：传说锻造材料、渊火精钢、永恒花种子\n元素 ×1\u3000龙焰精华\n符文 ×1\u3000破甲符文\n工具 ×1\u3000传说钓竿·银铃之竿\n宝物 ×1\u3000陈旧的宝箱\n垃圾 ×2\u3000水草、破旧的靴子\n任务道具 ×73\u3000例：灰烬之核、星尘沙漏、烬火信标\n收藏 ×23\u3000例：历史学家笔记、骑士团徽章、烈焰符文\n杂物 ×111\u3000例：源质、咏叹谱残页、光之圣典\n━━━━━━━━━━━━\n💡 输入『百科 <材料名>』看掉落来源；『图鉴』看收藏品',
+    'encyclopedia/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'encyclopedia/normal': '⚔️ ⚪【铁剑】(武器·Lv.2·普通)\n━━━━━━━━━━━━\n类型：剑\n✦ 剑类武器：攻守均衡，暴击＋2%\n属性：\n  · 攻击 + 10\n  · 魔攻 + 1\n  · 暴击 + 2%\n系列：橡木\n需求：无需求\n来源：商店\n橡木风格的长剑，剑脊笔直，护手朴素。橡木镇匠人的朴实手艺，耐用又可靠。\n🔨 获取：锻造可得（铁匠铺『锻造』）\n💡 『百科装备 武器』看武器全部装备',
+    'enhance/boundary_notfound': '背包里没有叫『不存在的剑』的装备！(已装备的武器也可以直接『强化 <武器名>』)',
+    'enhance/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'enhance/normal': '🔨 强化成功！【铁剑】+0 → +1！(消耗 50 金币)\n\n🛠️ 强化师 Lv.5 的手艺：成功率 +2.5%！',
+    'equip/boundary_notfound': '背包里没有叫『不存在的剑』的装备！',
+    'equip/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'equip/normal': '属性不够，穿不上【铁剑】！需求：力量 5(你当前 力量 0/5)\n加点后属性达标才能装备(『属性』查看、『加点 力量 N』加点)',
+    'equip/normal_ok': '✅ 你装备了 🟢【铁剑】！\n📊 属性变化：\n  · 攻击 + 12',
+    'equip_upgrade/boundary_notfound': '背包里没有叫『不存在的剑』的装备！(已装备的装备也可以直接『升级 <装备名>』)',
+    'equip_upgrade/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'equip_upgrade/normal': '升级 Lv.10 → Lv.11 需要强化副业 Lv.10(你 Lv.5)！强化与升级共修，多强化装备升级副业吧～',
+    'fishing/boundary_no_water': '这里没有水域！找有水的地方垂钓：橡木溪流、星语湖、铁港码头、银铃河、迷雾沼泽、霜原冰湖、迷雾海沟、龙鲸海域、风暴之海、深渊湖、彩虹云谷',
+    'fishing/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'fishing/normal': '🎣 你在橡木溪流抛出鱼竿，开始垂钓……预计 48 秒后完成，自动入包～',
+    'footprint/boundary_empty': '📍 还没去过任何地方……快去『探索』冒险吧！',
+    'footprint/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'footprint/normal': '📍 【我的足迹】\n━━━━━━━━━━━━\n◈ 南境·绿野（2/102 · 2%）\n  🟡 橡木平原：草地边缘(01-01)、溪边草地(01-01)\n━━━━━━━━━━━━\n探索足迹 2/520（城镇与野外）\n💡 ✅=全到访 🟡=部分 ❌=未去 ｜ （MM-DD）=首访日期 ｜ 『探索』补全足迹',
+    'gather/boundary_town': '城镇里没有可采集的野生物资，去野外吧（『前往 <地图名>』）！',
+    'gather/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'gather/normal': '🌿 你俯身开始采集【橡木平原】的野生物资……预计 48 秒后完成，自动入包～',
+    'gem_combine/boundary_none': '💎 【原石合成】3 个同级原石 → 1 个上级，无失败！\n━━━━━━━━━━━━\n✅ 碎裂的幸运宝石 ×4/3  →  黯淡的幸运宝石\n━━━━━━━━━━━━\n💡 『原石合成 <原石名/序号>』消耗 3 颗同级幸运宝石合成 1 颗上级(神话 不可再合成)',
+    'gem_combine/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'gem_combine/normal': '✨ 三颗 碎裂的幸运宝石 光芒交织，合成了更纯粹的幸运宝石！\n✅ 合成成功！获得 黯淡的幸运宝石·攻击+1%(消耗 3 颗，无失败)',
+    'gem_drill/boundary_notfound': '背包里没有叫『不存在的剑』的装备！(已装备的装备也可以直接操作，如『打孔 铁剑』)',
+    'gem_drill/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'gem_drill/normal': '【铁剑】(优秀)没有孔位可打，只有蓝/紫/橙装备可以打孔！',
+    'gem_remove/boundary_notfound': '拆卸哪个孔位的幸运宝石？输入『拆卸 <装备名> <孔位>』(如：拆卸 铁剑 S1)',
+    'gem_remove/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'gem_remove/normal': '【铁剑】没有 1 这个孔位(孔位：无)！',
+    'gem_socket/boundary_fmt': '镶嵌哪颗幸运宝石到哪件装备？输入『镶嵌 <装备名> <原石名/序号> [孔位]』\n如：『镶嵌 铁剑 碎裂的幸运宝石』『镶嵌 铁剑 1』『镶嵌 铁剑 碎裂 S2』(孔位默认第一个空孔)',
+    'gem_socket/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'gem_socket/normal': '【铁剑】还没有孔位！先『打孔 铁剑』打出孔位再镶嵌～',
+    'gem_view/boundary_detail': '💎 【幸运宝石】(共 4 颗)\n━━━━━━━━━━━━\n💎 碎裂的幸运宝石 ×4 ｜ 阶1 ｜ atk+2% ｜ 蓝孔\n━━━━━━━━━━━━\n💡 『镶嵌 <装备> <原石>』镶入装备 ｜ 『原石合成 <原石>』3 合 1 升级 ｜ 『拆卸 <装备> <孔位>』取下',
+    'gem_view/boundary_empty': '💎 背包里还没有幸运宝石！打怪有概率掉落幸运宝石～\n💡 『打孔 <装备>』给蓝/紫/橙装开孔，『镶嵌 <装备> <原石>』镶入获得属性！',
+    'gem_view/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'gem_view/normal': '💎 【幸运宝石】(共 4 颗)\n━━━━━━━━━━━━\n💎 碎裂的幸运宝石 ×4 ｜ 阶1 ｜ atk+2% ｜ 蓝孔\n━━━━━━━━━━━━\n💡 『镶嵌 <装备> <原石>』镶入装备 ｜ 『原石合成 <原石>』3 合 1 升级 ｜ 『拆卸 <装备> <孔位>』取下',
+    'inventory/boundary_empty': '你的背包空空如也……去『探索』打点东西吧！',
+    'inventory/boundary_filter': '🎒 【背包·材料】\n━━━━━━━━━━━━\n 1. ⚪兽肉 ×12 (食材)\n 2. ⚪银鳞鱼 ×3 (鱼)\n 3. 🟠强化石 ×8 (矿石)\n 4. ⚪图纸残页 ×12 (杂物)\n 5. 🟣符文碎片 ×6 (杂物)\n━━━━━━━━━━━━\n📄 第 1/1 页 · 共 5 件\n💡 可发送 背包筛选 <类型> 分类查看\n💡 筛选视图序号与全局背包不同，『出售 <序号>』按全局序号——出售/装备请用物品名称（#234）',
+    'inventory/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'inventory/normal': '🎒 【背包】\n━━━━━━━━━━━━\n 1. 🟢【铁剑】(武器) Lv.10\n 2. ⚪兽肉 ×12 (食材)\n 3. ⚪银鳞鱼 ×3 (鱼)\n 4. 治疗药水(小) ×5\n 5. 🟠强化石 ×8 (矿石)\n 6. ⚪图纸残页 ×12 (杂物)\n 7. 🟣符文碎片 ×6 (杂物)\n 8. 碎裂的幸运宝石 ×4\n━━━━━━━━━━━━\n📄 第 1/1 页 · 共 8 件\n💡 可发送 背包筛选 <类型> 分类查看',
+    'item_detail/boundary_index': '🟢【铁剑】(武器)\n━━━━━━━━━━━━\n品质：优秀 ｜ 需求等级：Lv.10\n类型：剑\n✦ 剑类武器：攻守均衡，暴击＋2%\n属性：\n  · 攻击 + 12\n需求：力量 5\n描述：橡木风格的长剑，剑脊笔直，护手朴素。橡木镇匠人的朴实手艺，耐用又可靠。\n\n💡 『装备 铁剑』穿上它 ｜ 铁匠铺回收约 50 金币',
+    'item_detail/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'item_detail/normal': '🟢【铁剑】(武器)\n━━━━━━━━━━━━\n品质：优秀 ｜ 需求等级：Lv.10\n类型：剑\n✦ 剑类武器：攻守均衡，暴击＋2%\n属性：\n  · 攻击 + 12\n需求：力量 5\n描述：橡木风格的长剑，剑脊笔直，护手朴素。橡木镇匠人的朴实手艺，耐用又可靠。\n\n💡 『装备 铁剑』穿上它 ｜ 铁匠铺回收约 50 金币',
+    'item_view_mode_cmd/boundary_end': '🔍 物品查看模式已关闭，回复数字不再自动查物品～',
+    'item_view_mode_cmd/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'item_view_mode_cmd/normal': '🔍 物品查看模式已开启！直接回复背包序号即可查看物品详情；\n『物品详情结束』退出，『物品详情 <名称>』照常使用。',
+    'learn/boundary_empty': '格式：『学习 <图纸名>』，如『学习 铁皮图纸』！图纸由 Boss 掉落或宝箱/垂钓/商店获得。',
+    'learn/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'learn/normal': '背包里没有『海风长弓图纸』图纸！Boss 掉落/宝箱/垂钓/商店获得，『背包 图纸』查看～',
+    'mining/boundary_no_vein': '这里没有矿脉！地图上会显示⛏️矿脉的位置，去那边『挖掘』吧～',
+    'mining/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'mining/normal': '⛏️ 你举起镐子凿向【落石峡谷】的矿脉……预计 79 秒后完成，自动入包～',
+    'monster/boundary_unknown': '👹 未收录『不存在的怪物』……试试『百科 不存在的怪物』或先『图鉴』看看怪物列表？',
+    'monster/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'monster/normal': '👹 【森林狼】出现地点（共 2 处）：\n━━━━━━━━━━━━\n  普通·Lv.8 林间小径（翡翠森林）\n  普通·Lv.8 银风驿站（银风商道）\n💡 前往对应地图后按区域探索/战斗即有机会遭遇；首领/精英带稀有掉落~',
+    'my_equipment/boundary_empty': '⚔️ 【当前穿戴】\n━━━━━━━━━━━━\n  武器：未穿戴\n  头盔：未穿戴\n  胸甲：未穿戴\n  护腿：未穿戴\n  靴子：未穿戴\n  戒指：未穿戴\n  项链：未穿戴\n━━━━━━━━━━━━\n已穿戴 0/7 件 ｜ 『装备 <序号>』换装 ｜ 『卸下 <部位>』脱下 ｜ 『物品详情 <名称>』看详情',
+    'my_equipment/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'my_equipment/normal': '⚔️ 【当前穿戴】\n━━━━━━━━━━━━\n  武器：🟢【铁剑】优秀\n      · 攻击 + 12\n  头盔：未穿戴\n  胸甲：未穿戴\n  护腿：未穿戴\n  靴子：未穿戴\n  戒指：未穿戴\n  项链：未穿戴\n━━━━━━━━━━━━\n已穿戴 1/7 件 ｜ 『装备 <序号>』换装 ｜ 『卸下 <部位>』脱下 ｜ 『物品详情 <名称>』看详情',
+    'prof_forget/boundary_nosuch': '没有『不存在』这个副业！可选：采集、挖掘、垂钓、炼金、锻造、烹饪、强化、附魔',
+    'prof_forget/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'prof_forget/normal': '📦 你遗忘了「采集」(原 Lv.5，已清零)！\n副业随时可以重新拜师学习，放心去探索其他生活职业吧～',
+    'profession_view/boundary_rank': '🏆 【副业排行】(总分 = 已激活副业等级之和)\n━━━━━━━━━━━━\n🥇  1. 甲：40 分\n\n💡 新副业需先找导师拜师解锁',
+    'profession_view/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'profession_view/normal': '🧵 【副业面板】(当前已激活 8 条)\n━━━━━━━━━━━━\n🌿 采集：Lv.5  ████░░░░░░ 96/200 经验 ✅\n⛏️ 挖掘：Lv.5  ████░░░░░░ 96/200 经验 ✅\n🎣 垂钓：Lv.5  ████░░░░░░ 96/200 经验 ✅\n🧪 炼金：Lv.5  ████░░░░░░ 96/200 经验 ✅\n🔨 锻造：Lv.5  ████░░░░░░ 96/200 经验 ✅\n🍳 烹饪：Lv.5  ████░░░░░░ 96/200 经验 ✅\n⚒️ 强化：Lv.5  ████░░░░░░ 96/200 经验 ✅\n✨ 附魔：Lv.5  ████░░░░░░ 96/200 经验 ✅\n\n📊 副业总分：40(已激活副业等级之和，与『副业 排行』同口径)\n💡 新副业需先找导师拜师解锁',
+    'recipe_list/boundary_detail': '📜 配方：⚪【铁剑】\n🏷️ 类型：武器  Lv.2  普通\n🧰 材料：粗铁×2\n💰 费用：0 金币\n🎭 适用职业：战士\n📖 南境橡木镇的基础工艺，结实耐用\n\n💡 『代工 <装备名>』三倍金币免等级',
+    'recipe_list/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'recipe_list/normal': '📜 铁匠锻造配方(『锻造 <职业>』看该职业，『锻造 配方 <装备名>』看详情)：\n\n🧭 见习冒险者：铁剑、旧皮靴、皮甲、橡木护腿、铁皮护腿、铁皮战靴、学徒护腿、学徒法靴、布衣护腿、布衣圣靴、橡木皮甲、铁皮头盔、铁皮胸甲、学徒法帽、学徒长袍、布衣圣冠、布衣法衣、橡木符记、铁皮长剑、猎手皮帽、猎手皮甲、猎手护腿、猎手长靴、轻影面巾、轻影皮衣、轻影护腿、轻影轻靴、行者束发带、行者武斗袍、行者护腿、行者布靴、晨露戒指、白鹿护符、学徒之血刃、猎风披风、猎风护腿、晨露项链、春草手环、船长帽、海盗靴、水手护腿、弯刀、猎风之靴、猎户兜帽、猎户长靴、水手夹克、誓约圣冠、誓约法衣、铁牙狼皮、精制护林胸甲、精制护林护腿、精制护林之靴、誓约圣靴、猎户夹克、夜莺胸针、珍珠项链、银铃头盔、银铃胸甲、银铃战靴、银铃项链、银铃护腿、银铃短刃、水手结戒指、咕噜的皇冠、锚形戒指、翡翠皮甲、翡翠护腿、翡翠头盔、翡翠战靴、翡翠项链、晨曦之戒、迷雾胸甲、迷雾战靴、潮汐之环、锚链护腕、迷雾护腿、迷雾项链、潮汐吊坠、潮汐之靴、铁壁胸甲、铁港战刃、金钩弯刀、迷雾兜帽、精铁护腿、精铁战靴、符文护腿、符文法靴、祝福护腿、祝福圣靴、海盗眼罩、灯塔之光、雷霆指环、骑士头盔、骑士长靴、圣光长剑、精铁头盔、精铁胸甲、符文法帽、符文长袍、祝福圣冠、祝福法衣、航海斗篷、秘光吊坠、圣光护腿、圣光胸甲、夜行披风、精铁战剑、风行皮帽、风行皮甲、风行护腿、风行长靴、夜行面巾、夜行皮衣、夜行护腿、夜行轻靴、石拳束发带、石拳武斗袍、石拳护腿、石拳布靴、船长的望远镜、铸火头盔、圣光护符、精制渡口胸甲、精制渡口护腿、精制渡口之靴、深渊之锚、王国徽戒、铁港徽章、血誓战甲、血誓战剑、疾风护手、疾风之靴、圣光战盔、圣光重靴、蓄势束带、翡翠护符、审判之链、圣光战腿、圣光重甲、巡林长披风、翡翠之心、圣光祝福指环、古王剑、圣裁长剑、古王剑、精灵披风、圣光巡礼战靴、熔岩之靴、圣光之握、圣光哨兵头盔、熔岩护手、熔岩护腿、百炼护腿、百炼战靴、秘法护腿、秘法法靴、圣堂护腿、圣堂圣靴、圣光审判之刃、圣光远征护腿、百炼头盔、百炼胸甲、秘法法帽、秘法长袍、圣堂圣冠、圣堂法衣、月影斗篷、月语风行者之靴、月冠头盔、月华戒指、月之靴、余烬军团战盔、余烬军团战靴、猎首皮帽、猎首长靴、日冕圣冠、影纱面巾、影纱轻靴、百炼长剑、暗夜皮帽、暗夜皮甲、暗夜护腿、暗夜长靴、阴影面巾、阴影皮衣、阴影护腿、阴影轻靴、壁槌束发带、壁槌武斗袍、壁槌护腿、壁槌布靴、星辉戒指、月语之戒、圣光殉道者胸甲、月语影袭胸甲、铁壁重装战靴、星语项链、月语护腿、余烬军团胸甲、猎首皮甲、日冕圣靴、影纱皮衣、影纱护腿、破竹护腿、破竹布靴、星辉吊坠、铁壁护符、月语夜枭头盔、月语月影护腿、月语月华之戒、铁壁战甲、铁壁卫戍头盔、铁壁军团腿甲、日冕法衣、破竹武袍、猎手之靴、月语辉月项链、铁壁军团剑、海神长靴、精灵链甲、星尘之戒、星尘坠饰、星尘护腿、星尘长袍、珍珠头冠、精灵链甲、余烬军团战剑、精制巡林胸甲、精制巡林护腿、精制巡林之靴、寒霜之戒、猎手斗篷、霜狼雪靴、海神护腿、海神项链、海神项链、北风护符、海神波纹甲、霜狼战刃、海神戒指、龙鳞海甲、霜狼头盔、霜原长靴、霜角战环、霜角披风、海神珍珠链、霜狼腿甲、晨曦之冠、熔炉项链、霜狼护腿、霜狼护腿、夜祷兜帽、霜角吊坠、夜祷法衣、夜祷之戒、星火戒指、星辉法冠、霜狼冰甲、符文戒指、霜狼长剑、铁砧胸甲、苍狼之爪、澜歌之泪、澜歌之泪、龙鳞手环、星辉长袍、地底长靴、深渊头盔、龙脊徽记、破岳巨剑、敖澜之珠、赫尔加的祭器、赫尔加的祭器、黑曜护腿、深渊项链、深渊战刃、深渊战刃、深渊项链、秘银手镯、黑曜胸甲、精制霜猎胸甲、精制霜猎护腿、精制霜猎之靴、守望者护符、龙鳞头盔、龙眼项链、风暴之眼、星光项链、龙鳞护腿、风暴吊坠、龙翼护符、龙翼戒指、苍穹头盔、龙脊大剑、龙鳞胸甲、摩罗之冠、灰烬之盔、灰烬战靴、灰烬护腿、灰烬铠甲、灰烬长剑、星辉长靴、龙脊大剑、熔炉之心、元素使徒之冠、苍穹护腿、元素使徒长袍、苍穹之靴、天穹之冠、星尘之靴、苍穹项链、云纹胸甲、暮影龙魂、时之领主时戒、苍穹之翼、雷光徽章、元素使徒坠饰、圣辉法衣、苍穹护甲、大贤者护腿、龙语圣剑、风神之环、奥拉圣印、精制龙裔胸甲、精制龙裔护腿、精制龙裔之靴\n🛡️ 战士：铁剑、旧皮靴、皮甲、橡木护腿、铁皮护腿、铁皮战靴、学徒护腿、学徒法靴、布衣护腿、布衣圣靴、橡木皮甲、铁皮头盔、铁皮胸甲、学徒法帽、学徒长袍、布衣圣冠、布衣法衣、橡木符记、铁皮长剑、猎手皮帽、猎手皮甲、猎手护腿、猎手长靴、轻影面巾、轻影皮衣、轻影护腿、轻影轻靴、行者束发带、行者武斗袍、行者护腿、行者布靴、晨露戒指、白鹿护符、学徒之血刃、猎风披风、猎风护腿、晨露项链、春草手环、船长帽、海盗靴、水手护腿、弯刀、猎风之靴、猎户兜帽、猎户长靴、水手夹克、誓约圣冠、誓约法衣、铁牙狼皮、精制护林胸甲、精制护林护腿、精制护林之靴、誓约圣靴、猎户夹克、夜莺胸针、珍珠项链、银铃头盔、银铃胸甲、银铃战靴、银铃项链、银铃护腿、银铃短刃、水手结戒指、咕噜的皇冠、锚形戒指、翡翠皮甲、翡翠护腿、翡翠头盔、翡翠战靴、翡翠项链、晨曦之戒、迷雾胸甲、迷雾战靴、潮汐之环、锚链护腕、迷雾护腿、迷雾项链、潮汐吊坠、潮汐之靴、铁壁胸甲、铁港战刃、金钩弯刀、迷雾兜帽、精铁护腿、精铁战靴、符文护腿、符文法靴、祝福护腿、祝福圣靴、海盗眼罩、灯塔之光、雷霆指环、骑士头盔、骑士长靴、圣光长剑、精铁头盔、精铁胸甲、符文法帽、符文长袍、祝福圣冠、祝福法衣、航海斗篷、秘光吊坠、圣光护腿、圣光胸甲、夜行披风、精铁战剑、风行皮帽、风行皮甲、风行护腿、风行长靴、夜行面巾、夜行皮衣、夜行护腿、夜行轻靴、石拳束发带、石拳武斗袍、石拳护腿、石拳布靴、船长的望远镜、铸火头盔、圣光护符、精制渡口胸甲、精制渡口护腿、精制渡口之靴、深渊之锚、王国徽戒、铁港徽章、血誓战甲、血誓战剑、疾风护手、疾风之靴、圣光战盔、圣光重靴、蓄势束带、翡翠护符、审判之链、圣光战腿、圣光重甲、巡林长披风、翡翠之心、圣光祝福指环、古王剑、圣裁长剑、古王剑、精灵披风、圣光巡礼战靴、熔岩之靴、圣光之握、圣光哨兵头盔、熔岩护手、熔岩护腿、百炼护腿、百炼战靴、秘法护腿、秘法法靴、圣堂护腿、圣堂圣靴、圣光审判之刃、圣光远征护腿、百炼头盔、百炼胸甲、秘法法帽、秘法长袍、圣堂圣冠、圣堂法衣、月影斗篷、月语风行者之靴、月冠头盔、月华戒指、月之靴、余烬军团战盔、余烬军团战靴、猎首皮帽、猎首长靴、日冕圣冠、影纱面巾、影纱轻靴、百炼长剑、暗夜皮帽、暗夜皮甲、暗夜护腿、暗夜长靴、阴影面巾、阴影皮衣、阴影护腿、阴影轻靴、壁槌束发带、壁槌武斗袍、壁槌护腿、壁槌布靴、星辉戒指、月语之戒、圣光殉道者胸甲、月语影袭胸甲、铁壁重装战靴、星语项链、月语护腿、余烬军团胸甲、猎首皮甲、日冕圣靴、影纱皮衣、影纱护腿、破竹护腿、破竹布靴、星辉吊坠、铁壁护符、月语夜枭头盔、月语月影护腿、月语月华之戒、铁壁战甲、铁壁卫戍头盔、铁壁军团腿甲、日冕法衣、破竹武袍、猎手之靴、月语辉月项链、铁壁军团剑、海神长靴、精灵链甲、星尘之戒、星尘坠饰、星尘护腿、星尘长袍、珍珠头冠、精灵链甲、余烬军团战剑、精制巡林胸甲、精制巡林护腿、精制巡林之靴、寒霜之戒、猎手斗篷、霜狼雪靴、海神护腿、海神项链、海神项链、北风护符、海神波纹甲、霜狼战刃、海神戒指、龙鳞海甲、霜狼头盔、霜原长靴、霜角战环、霜角披风、海神珍珠链、霜狼腿甲、晨曦之冠、熔炉项链、霜狼护腿、霜狼护腿、夜祷兜帽、霜角吊坠、夜祷法衣、夜祷之戒、星火戒指、星辉法冠、霜狼冰甲、符文戒指、霜狼长剑、铁砧胸甲、苍狼之爪、澜歌之泪、澜歌之泪、龙鳞手环、星辉长袍、地底长靴、深渊头盔、龙脊徽记、破岳巨剑、敖澜之珠、赫尔加的祭器、赫尔加的祭器、黑曜护腿、深渊项链、深渊战刃、深渊战刃、深渊项链、秘银手镯、黑曜胸甲、精制霜猎胸甲、精制霜猎护腿、精制霜猎之靴、守望者护符、龙鳞头盔、龙眼项链、风暴之眼、星光项链、龙鳞护腿、风暴吊坠、龙翼护符、龙翼戒指、苍穹头盔、龙脊大剑、龙鳞胸甲、摩罗之冠、灰烬之盔、灰烬战靴、灰烬护腿、灰烬铠甲、灰烬长剑、星辉长靴、龙脊大剑、熔炉之心、元素使徒之冠、苍穹护腿、元素使徒长袍、苍穹之靴、天穹之冠、星尘之靴、苍穹项链、云纹胸甲、暮影龙魂、时之领主时戒、苍穹之翼、雷光徽章、元素使徒坠饰、圣辉法衣、苍穹护甲、大贤者护腿、龙语圣剑、风神之环、奥拉圣印、精制龙裔胸甲、精制龙裔护腿、精制龙裔之靴\n🔥 法师：学徒法杖、旧皮靴、皮甲、橡木护腿、学徒之杖、铁皮护腿、铁皮战靴、学徒护腿、学徒法靴、布衣护腿、布衣圣靴、橡木皮甲、铁皮头盔、铁皮胸甲、学徒法帽、学徒长袍、布衣圣冠、布衣法衣、橡木符记、见习法杖、猎手皮帽、猎手皮甲、猎手护腿、猎手长靴、轻影面巾、轻影皮衣、轻影护腿、轻影轻靴、行者束发带、行者武斗袍、行者护腿、行者布靴、晨露戒指、白鹿护符、星火法杖、猎风披风、猎风护腿、晨露项链、春草手环、船长帽、海盗靴、水手护腿、猎风之靴、猎户兜帽、猎户长靴、水手夹克、誓约圣冠、誓约法衣、铁牙狼皮、精制护林胸甲、精制护林护腿、精制护林之靴、誓约圣靴、猎户夹克、夜莺胸针、珍珠项链、银铃头盔、银铃胸甲、银铃战靴、银铃项链、银铃护腿、水手结戒指、咕噜的皇冠、锚形戒指、翡翠皮甲、翡翠护腿、翡翠头盔、翡翠战靴、翡翠项链、晨曦之戒、迷雾胸甲、迷雾战靴、潮汐之环、锚链护腕、迷雾护腿、银铃杖、迷雾项链、潮汐吊坠、潮汐之靴、铁壁胸甲、迷雾兜帽、精铁护腿、精铁战靴、符文护腿、符文法靴、祝福护腿、祝福圣靴、海盗眼罩、灯塔之光、雷霆指环、晨曦法杖、骑士头盔、骑士长靴、精铁头盔、精铁胸甲、符文法帽、符文长袍、祝福圣冠、祝福法衣、航海斗篷、秘光吊坠、霜语法杖、圣光护腿、圣光胸甲、夜行披风、符文法杖、风行皮帽、风行皮甲、风行护腿、风行长靴、夜行面巾、夜行皮衣、夜行护腿、夜行轻靴、石拳束发带、石拳武斗袍、石拳护腿、石拳布靴、船长的望远镜、秘法典籍之杖、铸火头盔、圣光护符、精制渡口胸甲、精制渡口护腿、精制渡口之靴、深渊之锚、王国徽戒、铁港徽章、血誓战甲、疾风护手、疾风之靴、圣光战盔、圣光重靴、蓄势束带、翡翠护符、审判之链、圣光法杖、圣光战腿、圣光重甲、巡林长披风、翡翠之心、圣光祝福指环、精灵披风、圣光巡礼战靴、熔岩之靴、圣光之握、圣光哨兵头盔、熔岩护手、熔岩护腿、百炼护腿、百炼战靴、秘法护腿、秘法法靴、圣堂护腿、圣堂圣靴、圣光远征护腿、百炼头盔、百炼胸甲、秘法法帽、秘法长袍、圣堂圣冠、圣堂法衣、月影斗篷、圣光祈祷法杖、月语风行者之靴、月冠头盔、月华戒指、月之靴、余烬军团战盔、余烬军团战靴、猎首皮帽、猎首长靴、日冕圣冠、影纱面巾、影纱轻靴、秘法法杖、暗夜皮帽、暗夜皮甲、暗夜护腿、暗夜长靴、阴影面巾、阴影皮衣、阴影护腿、阴影轻靴、壁槌束发带、壁槌武斗袍、壁槌护腿、壁槌布靴、星辉戒指、月语之戒、圣光殉道者胸甲、月语影袭胸甲、铁壁重装战靴、星语项链、银叶法杖、月语护腿、余烬军团胸甲、猎首皮甲、日冕圣靴、影纱皮衣、影纱护腿、破竹护腿、破竹布靴、星辉吊坠、铁壁护符、月语夜枭头盔、月语月影护腿、月语月华之戒、铁壁战甲、铁壁卫戍头盔、铁壁军团腿甲、日冕法衣、破竹武袍、猎手之靴、月语秘仪法杖、月语辉月项链、海神长靴、精灵链甲、星尘之戒、星尘坠饰、星尘护腿、星尘长袍、星尘法杖、珍珠头冠、精灵链甲、精制巡林胸甲、精制巡林护腿、精制巡林之靴、寒霜之戒、猎手斗篷、霜狼雪靴、潮汐法杖、海神护腿、海神项链、海神项链、北风护符、海神波纹甲、海神戒指、龙鳞海甲、霜狼头盔、霜原长靴、霜角战环、霜角披风、星辉法杖、海神珍珠链、霜狼腿甲、晨曦之冠、熔炉项链、霜狼护腿、霜狼护腿、夜祷兜帽、霜角吊坠、夜祷法衣、夜祷之戒、星火戒指、星辉法冠、霜狼冰甲、符文戒指、铁砧胸甲、苍狼之爪、澜歌之泪、澜歌之泪、龙鳞手环、星辉长袍、地底长靴、深渊头盔、龙脊徽记、敖澜之珠、赫尔加的祭器、熔岩法杖、赫尔加的祭器、黑曜护腿、深渊项链、深渊项链、秘银手镯、黑曜胸甲、精制霜猎胸甲、精制霜猎护腿、精制霜猎之靴、守望者护符、龙鳞头盔、龙眼项链、风暴之眼、星光项链、龙鳞护腿、风暴吊坠、龙翼护符、龙翼戒指、苍穹头盔、龙鳞胸甲、龙语法杖、摩罗之冠、灰烬之盔、灰烬战靴、灰烬护腿、灰烬铠甲、星辉长靴、元素使徒之冠、苍穹护腿、烬核之心、元素使徒长袍、苍穹之靴、天穹之冠、星尘之靴、苍穹项链、星光法杖、云纹胸甲、元素使徒法杖、时之领主时戒、苍穹之翼、雷光徽章、元素使徒坠饰、圣辉法衣、苍穹护甲、大贤者护腿、时之领主秘仪、风神之环、奥拉圣印、精制龙裔胸甲、精制龙裔护腿、精制龙裔之靴\n🏹 游侠：猎弓、旧皮靴、皮甲、橡木护腿、猎鹿弓、铁皮护腿、铁皮战靴、学徒护腿、学徒法靴、布衣护腿、布衣圣靴、橡木皮甲、铁皮头盔、铁皮胸甲、学徒法帽、学徒长袍、布衣圣冠、布衣法衣、橡木符记、猎手短弓、猎手皮帽、猎手皮甲、猎手护腿、猎手长靴、轻影面巾、轻影皮衣、轻影护腿、轻影轻靴、行者束发带、行者武斗袍、行者护腿、行者布靴、晨露戒指、白鹿护符、猎风披风、猎风护腿、晨露项链、春草手环、翠风之弓、船长帽、海盗靴、水手护腿、猎风之靴、猎户兜帽、猎户长靴、水手夹克、誓约圣冠、誓约法衣、铁牙狼皮、精制护林胸甲、精制护林护腿、精制护林之靴、誓约圣靴、猎户夹克、夜莺胸针、海风长弓、珍珠项链、银铃头盔、银铃胸甲、银铃战靴、银铃项链、银铃护腿、水手结戒指、咕噜的皇冠、锚形戒指、翡翠皮甲、翡翠护腿、翡翠头盔、翡翠战靴、翡翠项链、晨曦之戒、迷雾胸甲、迷雾战靴、潮汐之环、锚链护腕、迷雾护腿、迷雾项链、猎风长弓、潮汐吊坠、潮汐之靴、铁壁胸甲、迷雾兜帽、精铁护腿、精铁战靴、符文护腿、符文法靴、祝福护腿、祝福圣靴、海盗眼罩、灯塔之光、雷霆指环、逐风长弓、骑士头盔、骑士长靴、疾风长弓、精铁头盔、精铁胸甲、符文法帽、符文长袍、祝福圣冠、祝福法衣、航海斗篷、秘光吊坠、圣光护腿、圣光胸甲、夜行披风、风行长弓、风行皮帽、风行皮甲、风行护腿、风行长靴、夜行面巾、夜行皮衣、夜行护腿、夜行轻靴、石拳束发带、石拳武斗袍、石拳护腿、石拳布靴、船长的望远镜、铸火头盔、圣光护符、王都长弓、精制渡口胸甲、精制渡口护腿、精制渡口之靴、深渊之锚、碎冰长弓、王国徽戒、铁港徽章、血誓战甲、疾风护手、疾风之靴、圣光猎弓、圣光战盔、圣光重靴、蓄势束带、翡翠护符、审判之链、圣光战腿、圣光重甲、巡林长披风、翡翠之心、圣光祝福指环、巡林长弓、精灵披风、圣光巡礼战靴、熔岩之靴、圣光之握、圣光哨兵头盔、熔岩护手、熔岩护腿、百炼护腿、百炼战靴、秘法护腿、秘法法靴、圣堂护腿、圣堂圣靴、圣光追猎长弓、圣光远征护腿、百炼头盔、百炼胸甲、秘法法帽、秘法长袍、圣堂圣冠、圣堂法衣、月影斗篷、月语风行者之靴、月冠头盔、月华戒指、月之靴、余烬军团战盔、余烬军团战靴、猎首皮帽、猎首长靴、日冕圣冠、影纱面巾、影纱轻靴、暗夜长弓、暗夜皮帽、暗夜皮甲、暗夜护腿、暗夜长靴、阴影面巾、阴影皮衣、阴影护腿、阴影轻靴、壁槌束发带、壁槌武斗袍、壁槌护腿、壁槌布靴、星辉戒指、月语之戒、圣光殉道者胸甲、月语影袭胸甲、铁壁重装战靴、星语项链、月语护腿、月语长弓、余烬军团胸甲、猎首皮甲、日冕圣靴、影纱皮衣、影纱护腿、破竹护腿、破竹布靴、星辉吊坠、铁壁护符、月语夜枭头盔、月语月影护腿、月语月华之戒、铁壁战甲、铁壁卫戍头盔、铁壁军团腿甲、日冕法衣、破竹武袍、猎手之靴、月语银月长弓、月语辉月项链、海神长靴、精灵链甲、星尘之戒、星尘坠饰、星尘护腿、星尘长袍、珍珠头冠、精灵链甲、精制巡林胸甲、精制巡林护腿、精制巡林之靴、寒霜之戒、猎首长弓、猎手斗篷、霜狼雪靴、海神护腿、海神项链、海神项链、北风护符、海神波纹甲、海神戒指、龙鳞海甲、霜狼头盔、霜原长靴、霜角战环、霜角披风、海神珍珠链、霜狼腿甲、霜羽长弓、晨曦之冠、熔炉项链、霜狼护腿、霜狼护腿、夜祷兜帽、霜角吊坠、霜狼猎弓、夜祷法衣、夜祷之戒、星火戒指、星辉法冠、霜狼冰甲、北风长弓、符文戒指、北风长弓、铁砧胸甲、苍狼之爪、澜歌之泪、澜歌之泪、龙鳞手环、星辉长袍、地底长靴、深渊头盔、龙脊徽记、敖澜之珠、赫尔加的祭器、赫尔加的祭器、黑曜护腿、深渊项链、深渊项链、秘银手镯、黑曜胸甲、精制霜猎胸甲、精制霜猎护腿、精制霜猎之靴、守望者护符、龙鳞头盔、龙眼项链、风暴之眼、星光项链、龙鳞护腿、风暴吊坠、猎羽长弓、龙翼护符、龙翼戒指、苍穹头盔、龙鳞胸甲、摩罗之冠、灰烬之盔、灰烬战靴、灰烬护腿、灰烬铠甲、星辉长靴、元素使徒之冠、苍穹护腿、元素使徒长袍、苍穹之靴、天穹之冠、星尘之靴、苍穹项链、云纹胸甲、时之领主时戒、苍穹之翼、雷光徽章、惊雷战弓、元素使徒坠饰、圣辉法衣、幻影长弓、苍穹护甲、大贤者护腿、风神之环、奥拉圣印、精制龙裔胸甲、精制龙裔护腿、精制龙裔之靴、裂空战弓\n✨ 牧师：橡木短棍、旧皮靴、皮甲、橡木护腿、铁皮护腿、铁皮战靴、学徒护腿、学徒法靴、布衣护腿、布衣圣靴、橡木皮甲、铁皮头盔、铁皮胸甲、学徒法帽、学徒长袍、布衣圣冠、布衣法衣、橡木符记、布衣权杖、猎手皮帽、猎手皮甲、猎手护腿、猎手长靴、轻影面巾、轻影皮衣、轻影护腿、轻影轻靴、行者束发带、行者武斗袍、行者护腿、行者布靴、晨露戒指、白鹿护符、猎风披风、猎风护腿、晨露项链、春草手环、船长帽、海盗靴、水手护腿、猎风之靴、猎户兜帽、猎户长靴、水手夹克、誓约圣冠、誓约法衣、铁牙狼皮、精制护林胸甲、精制护林护腿、精制护林之靴、誓约权杖、誓约圣靴、猎户夹克、夜莺胸针、珍珠项链、银铃头盔、银铃胸甲、银铃战靴、银铃项链、银铃护腿、水手结戒指、咕噜的皇冠、锚形戒指、翡翠皮甲、翡翠护腿、翡翠头盔、翡翠战靴、翡翠项链、晨曦之戒、迷雾胸甲、迷雾战靴、潮汐之环、锚链护腕、迷雾护腿、迷雾项链、潮汐吊坠、潮汐之靴、铁壁胸甲、迷雾兜帽、精铁护腿、精铁战靴、符文护腿、符文法靴、祝福护腿、祝福圣靴、海盗眼罩、灯塔之光、雷霆指环、骑士头盔、骑士长靴、精铁头盔、精铁胸甲、符文法帽、符文长袍、祝福圣冠、祝福法衣、航海斗篷、秘光吊坠、圣光护腿、圣光胸甲、夜行披风、祝福权杖、风行皮帽、风行皮甲、风行护腿、风行长靴、夜行面巾、夜行皮衣、夜行护腿、夜行轻靴、石拳束发带、石拳武斗袍、石拳护腿、石拳布靴、船长的望远镜、铸火头盔、圣光护符、精制渡口胸甲、精制渡口护腿、精制渡口之靴、深渊之锚、圣殿战锤、王国徽戒、铁港徽章、血誓战甲、疾风护手、疾风之靴、圣光战盔、圣光重靴、蓄势束带、翡翠护符、审判之链、圣光战腿、圣光重甲、巡林长披风、翡翠之心、圣光祝福指环、精灵披风、圣光巡礼战靴、熔岩之靴、圣光战锤、圣光之握、圣光哨兵头盔、熔岩护手、熔岩护腿、百炼护腿、百炼战靴、秘法护腿、秘法法靴、圣堂护腿、圣堂圣靴、圣光远征护腿、百炼头盔、百炼胸甲、秘法法帽、秘法长袍、圣堂圣冠、圣堂法衣、月影斗篷、月语风行者之靴、月冠头盔、月华戒指、月之靴、余烬军团战盔、余烬军团战靴、猎首皮帽、猎首长靴、日冕圣冠、影纱面巾、影纱轻靴、圣堂权杖、暗夜皮帽、暗夜皮甲、暗夜护腿、暗夜长靴、阴影面巾、阴影皮衣、阴影护腿、阴影轻靴、壁槌束发带、壁槌武斗袍、壁槌护腿、壁槌布靴、星辉戒指、月语之戒、圣光殉道者胸甲、月语影袭胸甲、铁壁重装战靴、星语项链、月语护腿、余烬军团胸甲、猎首皮甲、日冕圣靴、影纱皮衣、影纱护腿、破竹护腿、破竹布靴、星辉吊坠、铁壁护符、月语夜枭头盔、月语月影护腿、月语月华之戒、铁壁战甲、铁壁卫戍头盔、铁壁军团腿甲、日冕法衣、破竹武袍、猎手之靴、月语辉月项链、海神长靴、精灵链甲、星尘之戒、星尘坠饰、星尘护腿、星尘长袍、珍珠头冠、精灵链甲、精制巡林胸甲、精制巡林护腿、精制巡林之靴、寒霜之戒、日冕权杖、猎手斗篷、霜狼雪靴、海神护腿、海神三叉戟、海神项链、海神项链、北风护符、海神波纹甲、海神戒指、龙鳞海甲、霜狼头盔、霜原长靴、霜角战环、霜角披风、海神珍珠链、霜狼腿甲、晨曦之冠、熔炉项链、霜狼护腿、霜狼护腿、夜祷兜帽、霜角吊坠、夜祷法衣、夜祷之戒、星火戒指、星辉法冠、霜狼冰甲、符文戒指、铁砧胸甲、夜祷权杖、苍狼之爪、澜歌之泪、铁砧战锤、澜歌之泪、铁砧战锤、龙鳞手环、星辉长袍、地底长靴、深渊头盔、龙脊徽记、敖澜之珠、赫尔加的祭器、赫尔加的祭器、黑曜护腿、深渊项链、深渊项链、秘银手镯、黑曜胸甲、精制霜猎胸甲、精制霜猎护腿、精制霜猎之靴、守望者护符、龙鳞头盔、龙眼项链、风暴之眼、星光项链、龙鳞护腿、风暴吊坠、龙翼护符、龙翼戒指、苍穹头盔、龙鳞胸甲、摩罗之冠、灰烬之盔、灰烬战靴、灰烬护腿、灰烬铠甲、星辉长靴、元素使徒之冠、苍穹护腿、元素使徒长袍、苍穹之靴、天穹之冠、星尘之靴、苍穹项链、云纹胸甲、时之领主时戒、苍穹之翼、雷光徽章、元素使徒坠饰、圣辉法衣、苍穹护甲、大贤者护腿、风神之环、圣谕权杖、奥拉圣印、精制龙裔胸甲、精制龙裔护腿、精制龙裔之靴\n🗡️ 刺客：旧皮靴、皮甲、橡木护腿、铁皮护腿、铁皮战靴、学徒护腿、学徒法靴、布衣护腿、布衣圣靴、橡木皮甲、铁皮头盔、铁皮胸甲、学徒法帽、学徒长袍、布衣圣冠、布衣法衣、橡木符记、猎手皮帽、猎手皮甲、猎手护腿、猎手长靴、轻影匕首、轻影面巾、轻影皮衣、轻影护腿、轻影轻靴、行者束发带、行者武斗袍、行者护腿、行者布靴、晨露戒指、白鹿护符、水手短刃、猎风披风、猎风护腿、晨露项链、春草手环、猎影之牙、船长帽、海盗靴、水手护腿、猎风之靴、猎户兜帽、猎户长靴、水手夹克、誓约圣冠、誓约法衣、铁牙狼皮、精制护林胸甲、精制护林护腿、精制护林之靴、誓约圣靴、猎户夹克、夜莺胸针、珍珠项链、银铃头盔、银铃胸甲、银铃战靴、银铃项链、银铃护腿、水手结戒指、咕噜的皇冠、锚形戒指、翡翠皮甲、翡翠护腿、翡翠头盔、翡翠战靴、翡翠项链、晨曦之戒、迷雾胸甲、迷雾战靴、潮汐之环、锚链护腕、迷雾护腿、迷雾项链、潮汐吊坠、潮汐之靴、铁壁胸甲、迷雾兜帽、精铁护腿、精铁战靴、符文护腿、符文法靴、祝福护腿、祝福圣靴、海盗眼罩、灯塔之光、雷霆指环、骑士头盔、骑士长靴、精铁头盔、精铁胸甲、符文法帽、符文长袍、祝福圣冠、祝福法衣、航海斗篷、秘光吊坠、圣光护腿、圣光胸甲、裂鬃獠牙、夜行披风、风行皮帽、风行皮甲、风行护腿、风行长靴、夜行匕首、夜行面巾、夜行皮衣、夜行护腿、夜行轻靴、石拳束发带、石拳武斗袍、石拳护腿、石拳布靴、船长的望远镜、血潮短刃、铸火头盔、圣光护符、精制渡口胸甲、精制渡口护腿、精制渡口之靴、深渊之锚、王国徽戒、铁港徽章、夜枭双匕、血誓战甲、疾风护手、疾风之靴、圣光战盔、圣光重靴、蓄势束带、翡翠护符、审判之链、圣光战腿、圣光重甲、巡林长披风、翡翠之心、圣光祝福指环、精灵披风、圣光巡礼战靴、熔岩之靴、圣光之握、圣光哨兵头盔、熔岩护手、熔岩护腿、百炼护腿、百炼战靴、秘法护腿、秘法法靴、圣堂护腿、圣堂圣靴、圣光远征护腿、百炼头盔、百炼胸甲、秘法法帽、秘法长袍、圣堂圣冠、圣堂法衣、月影斗篷、月语风行者之靴、月冠头盔、月光短刃、月华戒指、月之靴、余烬军团战盔、余烬军团战靴、猎首皮帽、猎首长靴、日冕圣冠、影纱面巾、影纱轻靴、暗夜皮帽、暗夜皮甲、暗夜护腿、暗夜长靴、阴影匕首、阴影面巾、阴影皮衣、阴影护腿、阴影轻靴、壁槌束发带、壁槌武斗袍、壁槌护腿、壁槌布靴、星辉戒指、月语之戒、圣光殉道者胸甲、月语影袭胸甲、铁壁重装战靴、星语项链、月语护腿、余烬军团胸甲、猎首皮甲、日冕圣靴、影纱皮衣、影纱护腿、破竹护腿、破竹布靴、星辉吊坠、铁壁护符、月语刺客匕首、月语夜枭头盔、月语月影护腿、月语月华之戒、血痕双刺、铁壁战甲、铁壁卫戍头盔、铁壁军团腿甲、日冕法衣、破竹武袍、猎手之靴、月语辉月项链、海神长靴、精灵链甲、星尘之戒、星尘坠饰、星尘护腿、星尘长袍、珍珠头冠、精灵链甲、精制巡林胸甲、精制巡林护腿、精制巡林之靴、寒霜之戒、影纱之刃、猎手斗篷、霜狼雪靴、海神护腿、海神项链、海神项链、北风护符、海神波纹甲、海神戒指、龙鳞海甲、霜狼头盔、霜原长靴、霜角战环、霜角披风、海神珍珠链、霜狼腿甲、晨曦之冠、熔炉项链、霜狼护腿、霜狼护腿、夜祷兜帽、霜角吊坠、夜祷法衣、夜祷之戒、星火戒指、星辉法冠、霜狼冰甲、符文戒指、铁砧胸甲、苍狼之爪、澜歌之泪、澜歌之泪、龙鳞手环、星辉长袍、地底长靴、深渊头盔、龙脊徽记、敖澜之珠、赫尔加的祭器、赫尔加的祭器、黑曜护腿、深渊项链、深渊项链、秘银手镯、黑曜胸甲、精制霜猎胸甲、精制霜猎护腿、精制霜猎之靴、守望者护符、龙鳞头盔、龙眼项链、风暴之眼、星光项链、龙鳞护腿、风暴吊坠、龙翼护符、龙翼戒指、幽影短刃、苍穹头盔、龙鳞胸甲、摩罗之冠、灰烬之盔、灰烬战靴、灰烬护腿、灰烬铠甲、星辉长靴、元素使徒之冠、苍穹护腿、元素使徒长袍、苍穹之靴、天穹之冠、星尘之靴、苍穹项链、云纹胸甲、时之领主时戒、苍穹之翼、雷光徽章、元素使徒坠饰、圣辉法衣、苍穹护甲、大贤者护腿、淬毒寒刃、风神之环、奥拉圣印、精制龙裔胸甲、精制龙裔护腿、精制龙裔之靴、暮影之刃\n🥊 拳师：旧皮靴、皮甲、橡木护腿、铁皮护腿、铁皮战靴、学徒护腿、学徒法靴、布衣护腿、布衣圣靴、橡木皮甲、铁皮头盔、铁皮胸甲、学徒法帽、学徒长袍、布衣圣冠、布衣法衣、橡木符记、猎手皮帽、猎手皮甲、猎手护腿、猎手长靴、轻影面巾、轻影皮衣、轻影护腿、轻影轻靴、行者拳套、行者束发带、行者武斗袍、行者护腿、行者布靴、晨露戒指、白鹿护符、猎风披风、猎风护腿、晨露项链、春草手环、船长帽、海盗靴、水手护腿、猎风之靴、猎户兜帽、猎户长靴、水手夹克、誓约圣冠、誓约法衣、铁牙狼皮、精制护林胸甲、精制护林护腿、精制护林之靴、誓约圣靴、猎户夹克、夜莺胸针、珍珠项链、银铃头盔、银铃胸甲、银铃战靴、银铃项链、银铃护腿、水手结戒指、咕噜的皇冠、锚形戒指、翡翠皮甲、翡翠护腿、翡翠头盔、翡翠战靴、翡翠项链、晨曦之戒、迷雾胸甲、迷雾战靴、潮汐之环、锚链护腕、迷雾护腿、迷雾项链、潮汐吊坠、潮汐之靴、铁壁胸甲、迷雾兜帽、精铁护腿、精铁战靴、符文护腿、符文法靴、祝福护腿、祝福圣靴、海盗眼罩、灯塔之光、雷霆指环、骑士头盔、骑士长靴、精铁头盔、精铁胸甲、符文法帽、符文长袍、祝福圣冠、祝福法衣、航海斗篷、秘光吊坠、圣光护腿、圣光胸甲、夜行披风、风行皮帽、风行皮甲、风行护腿、风行长靴、夜行面巾、夜行皮衣、夜行护腿、夜行轻靴、石拳拳套、石拳束发带、石拳武斗袍、石拳护腿、石拳布靴、船长的望远镜、石心拳套、铸火头盔、圣光护符、精制渡口胸甲、精制渡口护腿、精制渡口之靴、深渊之锚、王国徽戒、铁港徽章、血誓战甲、疾风护手、疾风之靴、圣光战盔、圣光重靴、蓄势束带、翡翠护符、审判之链、圣光战腿、圣光重甲、巡林长披风、蓄势拳套、翡翠之心、圣光祝福指环、精灵披风、圣光巡礼战靴、熔岩之靴、圣光之握、圣光哨兵头盔、熔岩护手、熔岩护腿、百炼护腿、百炼战靴、秘法护腿、秘法法靴、圣堂护腿、圣堂圣靴、圣光远征护腿、百炼头盔、百炼胸甲、秘法法帽、秘法长袍、圣堂圣冠、圣堂法衣、月影斗篷、月语风行者之靴、月冠头盔、月华戒指、月之靴、余烬军团战盔、余烬军团战靴、猎首皮帽、猎首长靴、日冕圣冠、影纱面巾、影纱轻靴、暗夜皮帽、暗夜皮甲、暗夜护腿、暗夜长靴、阴影面巾、阴影皮衣、阴影护腿、阴影轻靴、壁槌拳套、壁槌束发带、壁槌武斗袍、壁槌护腿、壁槌布靴、星辉戒指、月语之戒、圣光殉道者胸甲、月语影袭胸甲、灰烬拳套、铁壁重装战靴、星语项链、月语护腿、余烬军团胸甲、猎首皮甲、日冕圣靴、影纱皮衣、影纱护腿、破竹护腿、破竹布靴、星辉吊坠、铁壁护符、月语夜枭头盔、月语月影护腿、月语月华之戒、铁壁战甲、铁壁卫戍头盔、铁壁军团腿甲、日冕法衣、破竹武袍、猎手之靴、月语辉月项链、海神长靴、精灵链甲、星尘之戒、星尘坠饰、星尘护腿、星尘长袍、珍珠头冠、精灵链甲、精制巡林胸甲、精制巡林护腿、精制巡林之靴、寒霜之戒、破竹拳套、猎手斗篷、霜狼雪靴、海神护腿、海神项链、海神项链、北风护符、海神波纹甲、海神戒指、龙鳞海甲、霜狼头盔、霜原长靴、霜角战环、霜角披风、岩拳·裂脊、海神珍珠链、霜狼腿甲、晨曦之冠、熔炉项链、霜狼护腿、霜狼护腿、夜祷兜帽、霜角吊坠、夜祷法衣、夜祷之戒、星火戒指、星辉法冠、霜狼冰甲、符文戒指、铁砧胸甲、苍狼之爪、澜歌之泪、澜歌之泪、龙鳞手环、星辉长袍、地底长靴、深渊头盔、龙脊徽记、碎岳拳、敖澜之珠、赫尔加的祭器、赫尔加的祭器、黑曜护腿、深渊项链、深渊项链、秘银手镯、黑曜胸甲、精制霜猎胸甲、精制霜猎护腿、精制霜猎之靴、守望者护符、龙鳞头盔、龙眼项链、风暴之眼、星光项链、龙鳞护腿、龙爪手套、风暴吊坠、石龙拳套、龙翼护符、龙翼戒指、苍穹头盔、龙鳞胸甲、摩罗之冠、灰烬之盔、灰烬战靴、灰烬护腿、灰烬铠甲、星辉长靴、元素使徒之冠、苍穹护腿、元素使徒长袍、苍穹之靴、天穹之冠、星尘之靴、苍穹项链、云纹胸甲、时之领主时戒、苍穹之翼、雷光徽章、元素使徒坠饰、圣辉法衣、苍穹护甲、撼岳拳套、大贤者护腿、风神之环、奥拉圣印、精制龙裔胸甲、精制龙裔护腿、精制龙裔之靴\n🎵 吟游诗人：学徒法杖、旧皮靴、皮甲、橡木护腿、学徒之杖、铁皮护腿、铁皮战靴、学徒护腿、学徒法靴、布衣护腿、布衣圣靴、橡木皮甲、铁皮头盔、铁皮胸甲、学徒法帽、学徒长袍、布衣圣冠、布衣法衣、橡木符记、见习法杖、猎手皮帽、猎手皮甲、猎手护腿、猎手长靴、轻影面巾、轻影皮衣、轻影护腿、轻影轻靴、行者束发带、行者武斗袍、行者护腿、行者布靴、晨露戒指、白鹿护符、星火法杖、猎风披风、猎风护腿、晨露项链、春草手环、船长帽、海盗靴、水手护腿、猎风之靴、猎户兜帽、猎户长靴、水手夹克、誓约圣冠、誓约法衣、铁牙狼皮、精制护林胸甲、精制护林护腿、精制护林之靴、誓约圣靴、猎户夹克、夜莺胸针、珍珠项链、银铃头盔、银铃胸甲、银铃战靴、银铃项链、银铃护腿、水手结戒指、咕噜的皇冠、锚形戒指、翡翠皮甲、翡翠护腿、翡翠头盔、翡翠战靴、翡翠项链、晨曦之戒、迷雾胸甲、迷雾战靴、潮汐之环、锚链护腕、迷雾护腿、银铃杖、迷雾项链、潮汐吊坠、潮汐之靴、铁壁胸甲、迷雾兜帽、精铁护腿、精铁战靴、符文护腿、符文法靴、祝福护腿、祝福圣靴、海盗眼罩、灯塔之光、雷霆指环、晨曦法杖、骑士头盔、骑士长靴、精铁头盔、精铁胸甲、符文法帽、符文长袍、祝福圣冠、祝福法衣、航海斗篷、秘光吊坠、霜语法杖、圣光护腿、圣光胸甲、夜行披风、符文法杖、风行皮帽、风行皮甲、风行护腿、风行长靴、夜行面巾、夜行皮衣、夜行护腿、夜行轻靴、石拳束发带、石拳武斗袍、石拳护腿、石拳布靴、船长的望远镜、秘法典籍之杖、铸火头盔、圣光护符、精制渡口胸甲、精制渡口护腿、精制渡口之靴、深渊之锚、王国徽戒、铁港徽章、血誓战甲、疾风护手、疾风之靴、圣光战盔、圣光重靴、蓄势束带、翡翠护符、审判之链、圣光法杖、圣光战腿、圣光重甲、巡林长披风、翡翠之心、圣光祝福指环、精灵披风、圣光巡礼战靴、熔岩之靴、圣光之握、圣光哨兵头盔、熔岩护手、熔岩护腿、百炼护腿、百炼战靴、秘法护腿、秘法法靴、圣堂护腿、圣堂圣靴、圣光远征护腿、百炼头盔、百炼胸甲、秘法法帽、秘法长袍、圣堂圣冠、圣堂法衣、月影斗篷、圣光祈祷法杖、月语风行者之靴、月冠头盔、月华戒指、月之靴、余烬军团战盔、余烬军团战靴、猎首皮帽、猎首长靴、日冕圣冠、影纱面巾、影纱轻靴、秘法法杖、暗夜皮帽、暗夜皮甲、暗夜护腿、暗夜长靴、阴影面巾、阴影皮衣、阴影护腿、阴影轻靴、壁槌束发带、壁槌武斗袍、壁槌护腿、壁槌布靴、星辉戒指、月语之戒、圣光殉道者胸甲、月语影袭胸甲、铁壁重装战靴、星语项链、银叶法杖、月语护腿、余烬军团胸甲、猎首皮甲、日冕圣靴、影纱皮衣、影纱护腿、破竹护腿、破竹布靴、星辉吊坠、铁壁护符、月语夜枭头盔、月语月影护腿、月语月华之戒、铁壁战甲、铁壁卫戍头盔、铁壁军团腿甲、日冕法衣、破竹武袍、猎手之靴、月语秘仪法杖、月语辉月项链、海神长靴、精灵链甲、星尘之戒、星尘坠饰、星尘护腿、星尘长袍、星尘法杖、珍珠头冠、精灵链甲、精制巡林胸甲、精制巡林护腿、精制巡林之靴、寒霜之戒、猎手斗篷、霜狼雪靴、潮汐法杖、海神护腿、海神项链、海神项链、北风护符、海神波纹甲、海神戒指、龙鳞海甲、霜狼头盔、霜原长靴、霜角战环、霜角披风、星辉法杖、海神珍珠链、霜狼腿甲、晨曦之冠、熔炉项链、霜狼护腿、霜狼护腿、夜祷兜帽、霜角吊坠、夜祷法衣、夜祷之戒、星火戒指、星辉法冠、霜狼冰甲、符文戒指、铁砧胸甲、苍狼之爪、澜歌之泪、澜歌之泪、龙鳞手环、星辉长袍、地底长靴、深渊头盔、龙脊徽记、敖澜之珠、赫尔加的祭器、熔岩法杖、赫尔加的祭器、黑曜护腿、深渊项链、深渊项链、秘银手镯、黑曜胸甲、精制霜猎胸甲、精制霜猎护腿、精制霜猎之靴、守望者护符、龙鳞头盔、龙眼项链、风暴之眼、星光项链、龙鳞护腿、风暴吊坠、龙翼护符、龙翼戒指、苍穹头盔、龙鳞胸甲、龙语法杖、摩罗之冠、灰烬之盔、灰烬战靴、灰烬护腿、灰烬铠甲、星辉长靴、元素使徒之冠、苍穹护腿、烬核之心、元素使徒长袍、苍穹之靴、天穹之冠、星尘之靴、苍穹项链、星光法杖、云纹胸甲、元素使徒法杖、时之领主时戒、苍穹之翼、雷光徽章、元素使徒坠饰、圣辉法衣、苍穹护甲、大贤者护腿、时之领主秘仪、风神之环、奥拉圣印、精制龙裔胸甲、精制龙裔护腿、精制龙裔之靴\n\n💡 『代工 <装备名>』三倍金币免等级',
+    'refine_equip/boundary_notfound': '背包里没有叫『不存在的剑』的装备！(已装备的装备也可以直接操作，如『打孔 铁剑』)',
+    'refine_equip/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'refine_equip/normal': '【铁剑】没有重锻配方！『装备重锻』看可重锻列表～',
+    'rune_craft/boundary_no_mat': '材料不足！制作【残忍】需要 裂鬃獠牙碎片×3(你有 0)',
+    'rune_craft/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'rune_craft/normal': '🔮 【符文制作】掉落之外，铁匠铺可用怪物素材+符文碎片合成符文(1 级)！\n━━━━━━━━━━━━\n🟣符文·残忍：裂鬃獠牙碎片×3+符文碎片×4+750金\n🟣符文·破甲：裂鬃獠牙碎片×3+符文碎片×4+750金\n🔵符文·灼热：巨魔獠牙×2+符文碎片×3+400金\n🔵符文·冰霜：巨魔獠牙×2+符文碎片×3+450金\n🟠符文·连锁：兽人獠牙×4+符文碎片×6+1100金\n🔵符文·虚弱：巨魔獠牙×2+符文碎片×3+450金\n🟣符文·破魔：裂鬃獠牙碎片×3+符文碎片×4+700金\n🟣符文·吸血：裂鬃獠牙碎片×3+符文碎片×4+600金\n🟣符文·治愈：裂鬃獠牙碎片×3+符文碎片×4+1000金\n🟠符文·壁垒：兽人獠牙×4+符文碎片×6+1250金\n🟣符文·荆棘：裂鬃獠牙碎片×3+符文碎片×4+800金\n🔵符文·疾风：巨魔獠牙×2+符文碎片×3+400金\n🔵符文·铁壁：巨魔獠牙×2+符文碎片×3+425金\n🔵符文·聚能：巨魔獠牙×2+符文碎片×3+475金\n🔵符文·拾荒：兽人獠牙×2+符文碎片×3+500金\n🔵符文·睿智：兽人獠牙×2+符文碎片×3+500金\n━━━━━━━━━━━━\n💡 『符文制作 <符文名>』消耗素材+符文碎片+金币，获得 1 级符文(符文碎片=拆卸符文回收，隐藏怪「符文魔像」也掉落)',
+    'rune_remove/boundary_notfound': '背包里没有叫『不存在的剑』的装备！(已装备的也可以直接『符文拆卸 <装备名>』)',
+    'rune_remove/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'rune_remove/normal': '【铁剑】没有刻印任何符文～(『附魔 <装备> <符文>』刻印)',
+    'sell/boundary_all': '💰 批量出售全部完成，共 8 种物品，获得 3895 金币！\n  · 铁剑 ×1（50 金）\n  · 兽肉 ×12（48 金）\n  · 银鳞鱼 ×3（48 金）\n  · 治疗药水(小) ×5（125 金）\n  · 强化石 ×8（2880 金）\n  · 图纸残页 ×12（96 金）\n  · 符文碎片 ×6（480 金）\n  · 碎裂的幸运宝石 ×4（168 金）',
+    'sell/boundary_category': '💰 批量出售材料完成，共 3 种物品，获得 576 金币！\n  · 兽肉 ×12（48 金）\n  · 银鳞鱼 ×3（48 金）\n  · 符文碎片 ×6（480 金）',
+    'sell/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'sell/normal': '💰 你出售了 兽肉 ×12，获得 48 金币！（回收价 80%）',
+    'set_view/boundary_unknown': '你还没有穿戴任何套装部件！名册装备/商店/锻造获得的装备自带系列套装(同系列 = 同套装)，穿 2 件起生效～',
+    'set_view/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'set_view/normal': '🎴 【套装状态】\n━━━━━━━━━━━━\n❄️寒霜(2/5 件) ✅\n  2件：速度 +15%(已激活)\n  4件：攻击 30% 概率使敌人减速 2 刻\n━━━━━━━━━━━━\n💡 套装部件：名册装备/商店/锻造获得的装备自带系列套装(如『橡木』『圣光』『银铃』)，穿 2 件起生效',
+    'shop/boundary_no_shop': '这里没有商店！去城镇里找找商铺吧～',
+    'shop/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'shop/normal': '🏪 【艾琳炼药铺 商店】（第 1/2 页 · 共 6 件）\n━━━━━━━━━━━━\n 1. 微效治疗药水 —— 8 金币（回复 15% HP）\n 2. 轻效治疗药水 —— 20 金币（回复 25% HP）\n 3. 治疗药水(小)（已拥有 ×5） —— 10 金币（回复 20% HP）\n 4. 魔法药水(小) —— 10 金币（回复 20% MP）\n 5. 草药汁 —— 12 金币（回复 20% HP（路边野草熬成））\n\n💰 你的金币：200000\n💡 可发送 背包 查看买到的物品',
+    'titles/boundary_page2': '🏅 【称号】已获得 11 个(第 2/2 页)\n━━━━━━━━━━━━\n   9. 炼金学徒\n  10. 铁匠学徒\n  11. 厨房新手\n\n💡 升级/击杀/成就解锁新称号\n💡 当前未佩戴称号',
+    'titles/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'titles/normal': '🏅 【称号】已获得 11 个(第 1/2 页)\n━━━━━━━━━━━━\n   1. 初出茅庐\n   2. 崭露头角\n   3. 名声鹊起\n   4. 大陆传奇\n   5. 腰缠万贯\n   6. 采药人\n   7. 挖矿工\n   8. 垂钓新手\n\n💡 升级/击杀/成就解锁新称号\n💡 当前未佩戴称号',
+    'unequip/boundary_empty': '武器位置没有装备！',
+    'unequip/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'unequip/normal': '✅ 你卸下了 🟢【铁剑】(武器)\n📊 属性变化：\n  · 攻击 - 12',
+    'use/boundary_notfound': '背包里没有『不存在的东西』！',
+    'use/fail_no_player': '你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～',
+    'use/normal': '❤️ 你现在的生命是满的(100/100)，用不着【治疗药水(小)】～',
+    'use/normal_low_hp': '💊 你使用了【治疗药水(小)】，恢复 60 点生命！\n❤️ 65/200',
+}   # 迁移前快照（2026-09-15 真跑 142 例存下，勿手改；墙钟值已归一化）
+
+ECONOMY_DB_SHA = {
+    'adventure_book/boundary_items': 'e0765d75ecbbdcc7',
+    'adventure_book/fail_no_player': '7523e55d77629448',
+    'adventure_book/normal': 'c5af189f0b5aa338',
+    'alchemy/boundary_page2': 'eed07221bdba9df0',
+    'alchemy/fail_no_player': '7523e55d77629448',
+    'alchemy/normal': 'e71070c2656ea74a',
+    'alchemy_craft/boundary_notfound': 'c5af189f0b5aa338',
+    'alchemy_craft/fail_no_player': '7523e55d77629448',
+    'alchemy_craft/normal': 'c5af189f0b5aa338',
+    'bag_filter/boundary_page2': '6a12402b63b45a74',
+    'bag_filter/fail_no_player': '7523e55d77629448',
+    'bag_filter/normal': '6a12402b63b45a74',
+    'bestiary/boundary_empty': '622b8ded7c0de91a',
+    'bestiary/boundary_page2': '7790884157e02075',
+    'bestiary/fail_no_player': '7523e55d77629448',
+    'bestiary/normal': 'c04649c684c5c459',
+    'bp_craft/boundary_index': '12f260296114ff71',
+    'bp_craft/fail_no_player': '7523e55d77629448',
+    'bp_craft/normal': 'c5af189f0b5aa338',
+    'buy/boundary_no_gold': '7097ee267a0d6871',
+    'buy/fail_no_player': '7523e55d77629448',
+    'buy/normal': '8d9764b4ab3ae3f0',
+    'buy/normal_batch': 'd76d2106a4b1ef80',
+    'calamity_forge/boundary_notfound': 'c5af189f0b5aa338',
+    'calamity_forge/fail_no_player': '7523e55d77629448',
+    'calamity_forge/normal': 'c5af189f0b5aa338',
+    'cooking/boundary_notfound': 'c5af189f0b5aa338',
+    'cooking/fail_no_player': '7523e55d77629448',
+    'cooking/normal': 'c5af189f0b5aa338',
+    'cooking_list/boundary_page2': '03cda5502b20eda4',
+    'cooking_list/fail_no_player': '7523e55d77629448',
+    'cooking_list/normal': '5a7df62483a7965c',
+    'craft/boundary_all': '8225fc9708cf9d62',
+    'craft/fail_no_player': '7523e55d77629448',
+    'craft/normal': '56614b194bc87618',
+    'craft_commission/boundary_no_smith': '185f876bb1d084af',
+    'craft_commission/fail_no_player': '7523e55d77629448',
+    'craft_commission/normal': 'c5af189f0b5aa338',
+    'daily_prof/boundary_alias': '3eb4b0247943544d',
+    'daily_prof/fail_no_player': '7523e55d77629448',
+    'daily_prof/normal': '3eb4b0247943544d',
+    'enchant/boundary_fmt': 'c5af189f0b5aa338',
+    'enchant/fail_no_player': '7523e55d77629448',
+    'enchant/normal': 'c5af189f0b5aa338',
+    'encyclopedia/boundary_browse': 'c5af189f0b5aa338',
+    'encyclopedia/fail_no_player': '7523e55d77629448',
+    'encyclopedia/normal': 'c5af189f0b5aa338',
+    'enhance/boundary_notfound': 'c5af189f0b5aa338',
+    'enhance/fail_no_player': '7523e55d77629448',
+    'enhance/normal': '6d083fc6848af78a',
+    'equip/boundary_notfound': 'c5af189f0b5aa338',
+    'equip/fail_no_player': '7523e55d77629448',
+    'equip/normal': 'c5af189f0b5aa338',
+    'equip/normal_ok': '8e53b65cc940afee',
+    'equip_upgrade/boundary_notfound': 'c5af189f0b5aa338',
+    'equip_upgrade/fail_no_player': '7523e55d77629448',
+    'equip_upgrade/normal': 'c5af189f0b5aa338',
+    'fishing/boundary_no_water': 'd9a24b914b784566',
+    'fishing/fail_no_player': '7523e55d77629448',
+    'fishing/normal': 'c8f905a27be2f649',
+    'footprint/boundary_empty': '8fbd2011fa28a2d0',
+    'footprint/fail_no_player': '7523e55d77629448',
+    'footprint/normal': 'c5af189f0b5aa338',
+    'gather/boundary_town': 'd9a24b914b784566',
+    'gather/fail_no_player': '7523e55d77629448',
+    'gather/normal': '764e38fd11a4da67',
+    'gem_combine/boundary_none': 'c5af189f0b5aa338',
+    'gem_combine/fail_no_player': '7523e55d77629448',
+    'gem_combine/normal': '3174a3b67ee66d61',
+    'gem_drill/boundary_notfound': 'c5af189f0b5aa338',
+    'gem_drill/fail_no_player': '7523e55d77629448',
+    'gem_drill/normal': 'c5af189f0b5aa338',
+    'gem_remove/boundary_notfound': 'c5af189f0b5aa338',
+    'gem_remove/fail_no_player': '7523e55d77629448',
+    'gem_remove/normal': 'c5af189f0b5aa338',
+    'gem_socket/boundary_fmt': 'c5af189f0b5aa338',
+    'gem_socket/fail_no_player': '7523e55d77629448',
+    'gem_socket/normal': 'c5af189f0b5aa338',
+    'gem_view/boundary_detail': 'c5af189f0b5aa338',
+    'gem_view/boundary_empty': '622b8ded7c0de91a',
+    'gem_view/fail_no_player': '7523e55d77629448',
+    'gem_view/normal': 'c5af189f0b5aa338',
+    'inventory/boundary_empty': '48eccc392dcb7012',
+    'inventory/boundary_filter': '6a12402b63b45a74',
+    'inventory/fail_no_player': '7523e55d77629448',
+    'inventory/normal': '450c7f6345491bd8',
+    'item_detail/boundary_index': 'c5af189f0b5aa338',
+    'item_detail/fail_no_player': '7523e55d77629448',
+    'item_detail/normal': 'c5af189f0b5aa338',
+    'item_view_mode_cmd/boundary_end': 'af4761c05fbf71f0',
+    'item_view_mode_cmd/fail_no_player': '7523e55d77629448',
+    'item_view_mode_cmd/normal': 'a26e3aa56e84e641',
+    'learn/boundary_empty': 'c5af189f0b5aa338',
+    'learn/fail_no_player': '7523e55d77629448',
+    'learn/normal': 'c5af189f0b5aa338',
+    'mining/boundary_no_vein': '185f876bb1d084af',
+    'mining/fail_no_player': '7523e55d77629448',
+    'mining/normal': 'b67a44311ed157b0',
+    'monster/boundary_unknown': 'c5af189f0b5aa338',
+    'monster/fail_no_player': '7523e55d77629448',
+    'monster/normal': 'c5af189f0b5aa338',
+    'my_equipment/boundary_empty': '8fbd2011fa28a2d0',
+    'my_equipment/fail_no_player': '7523e55d77629448',
+    'my_equipment/normal': '1a66527628a63bd8',
+    'prof_forget/boundary_nosuch': 'c5af189f0b5aa338',
+    'prof_forget/fail_no_player': '7523e55d77629448',
+    'prof_forget/normal': '41ea1d1e2089a47a',
+    'profession_view/boundary_rank': 'c5af189f0b5aa338',
+    'profession_view/fail_no_player': '7523e55d77629448',
+    'profession_view/normal': 'c5af189f0b5aa338',
+    'recipe_list/boundary_detail': 'c5af189f0b5aa338',
+    'recipe_list/fail_no_player': '7523e55d77629448',
+    'recipe_list/normal': 'c5af189f0b5aa338',
+    'refine_equip/boundary_notfound': 'c5af189f0b5aa338',
+    'refine_equip/fail_no_player': '7523e55d77629448',
+    'refine_equip/normal': 'c5af189f0b5aa338',
+    'rune_craft/boundary_no_mat': 'f26132980321b5c9',
+    'rune_craft/fail_no_player': '7523e55d77629448',
+    'rune_craft/normal': 'c5af189f0b5aa338',
+    'rune_remove/boundary_notfound': 'c5af189f0b5aa338',
+    'rune_remove/fail_no_player': '7523e55d77629448',
+    'rune_remove/normal': 'c5af189f0b5aa338',
+    'sell/boundary_all': '97e845af2852768a',
+    'sell/boundary_category': '7fe88cd030f31e66',
+    'sell/fail_no_player': '7523e55d77629448',
+    'sell/normal': '6564df8d7f067f54',
+    'set_view/boundary_unknown': 'c5af189f0b5aa338',
+    'set_view/fail_no_player': '7523e55d77629448',
+    'set_view/normal': '1d4f732f838584da',
+    'shop/boundary_no_shop': 'a9f25efcc246955e',
+    'shop/fail_no_player': '7523e55d77629448',
+    'shop/normal': 'b3bca9acba17397c',
+    'titles/boundary_page2': '7369ea32272f7037',
+    'titles/fail_no_player': '7523e55d77629448',
+    'titles/normal': 'a8f76928f4ca2fb9',
+    'unequip/boundary_empty': 'c5af189f0b5aa338',
+    'unequip/fail_no_player': '7523e55d77629448',
+    'unequip/normal': 'b86038a84dfcd388',
+    'use/boundary_notfound': 'c5af189f0b5aa338',
+    'use/fail_no_player': '7523e55d77629448',
+    'use/normal': 'c5af189f0b5aa338',
+    'use/normal_low_hp': 'a62b099521d20502',
+}   # 每例结束后 DB 逐行 dump 的 sha256 前 16 位（副作用逐字冻结）
+
+
+def t13_economy_frozen():
+    print("\n[13] 经济域逐字冻结：迁移前 142 例（45 条命令 × 正常/边界/失败 + 追加边界）复跑比对")
+    check("冻结基准已内嵌（142 例）", len(ECONOMY_FROZEN) == 142, len(ECONOMY_FROZEN))
+    check("用例表覆盖 45 条命令", len({h for _c, h, _q, _m, _p in _E_CASES}) == 45,
+          sorted({h for _c, h, _q, _m, _p in _E_CASES}))
+    now = _e_scenarios()
+    bad = [k for k in ECONOMY_FROZEN
+           if ECONOMY_FROZEN[k] != (now.get(k) or {}).get("out")]
+    for k in bad:
+        print("     · %s 现=%r" % (k, ((now.get(k) or {}).get("out") or "")[:160]))
+    check("★ 经济域 142 例文本与迁移前**逐字一致**", not bad, bad)
+    bad_db = [k for k in ECONOMY_DB_SHA
+              if ECONOMY_DB_SHA[k] != (now.get(k) or {}).get("db")]
+    for k in bad_db[:6]:
+        print("     · %s DB 摘要变了" % k)
+    check("★ 经济域 142 例 DB 副作用与迁移前一致（逐行 dump 的 sha256 前 16 位）",
+          not bad_db, bad_db[:6])
+    bad_n = [k for k in ECONOMY_FROZEN if (now.get(k) or {}).get("n") != 1]
+    check("★ 每例仍是**一条**成品消息（逐段 yield 合成一条 = 终态形状，段数 1）",
+          not bad_n, bad_n[:6])
+    stopped = sorted(k for k in ECONOMY_FROZEN if (now.get(k) or {}).get("stopped"))
+    check("★ stop_event() 只出现在『物品详情开始/结束』两例（其余 140 例不停事件）",
+          stopped == ["item_view_mode_cmd/boundary_end", "item_view_mode_cmd/normal"],
+          stopped)
+
+    # 宿主壳零文案调用点 + 零残留转发（渲染与业务全在包内）——本域 WIRED 的价值所在
+    host_calls, host_lits = _scan_calls(ECONOMY_SRC)
+    pkg_calls, pkg_lits = _scan_calls(PKG_ECONOMY_SRC)
+    check("★ 宿主 game/commands/economy.py 零 `T.text/T.static` 调用点（渲染全进包）",
+          not host_calls, host_calls[:4])
+    check("包内 content/cmds_economy.py 也无文案表调用点（句子是逐字搬来的内联字面量）",
+          not pkg_calls, pkg_calls[:4])
+    # 形状断言走 AST（只看真代码，避开模块文档串里引用的示例片段）
+    _host_src = io.open(ECONOMY_SRC, encoding="utf-8").read()
+    _host_tree = ast.parse(_host_src)
+    _cls = next(_n for _n in _host_tree.body if isinstance(_n, ast.ClassDef))
+    _methods = [_f for _f in _cls.body if isinstance(_f, ast.AsyncFunctionDef)]
+    _host_declared = [d for _f in _methods for d in _f.decorator_list
+                      if isinstance(d, ast.Call) and getattr(d.func, "id", "") == "declared"]
+    check("宿主壳 45 条命令一个不少（45 个 `@declared` 装饰器）",
+          len(_methods) == 45 and len(_host_declared) == 45,
+          (len(_methods), len(_host_declared)))
+    _host_attrs = [x.attr for _f in _methods for x in ast.walk(_f)
+                   if isinstance(x, ast.Attribute)]
+    check("宿主壳 45 条全是两行 `_BRIDGE.run_async` 转发（异步形状，无同步 `_BRIDGE.run`）",
+          _host_attrs.count("run_async") == 45 and "run" not in _host_attrs,
+          (_host_attrs.count("run_async"), _host_attrs.count("run")))
+    _host_names = [x.id for _f in _methods for x in ast.walk(_f) if isinstance(x, ast.Name)]
+    check("宿主壳不再有 `require_player` 守卫 / `EconomyImpl` 调包残留（全在包内）",
+          "require_player" not in _host_names and "EconomyImpl" not in _host_attrs)
+    check("宿主壳模块级 from-import 里也没有 require_player（守卫装饰器不再由宿主施加）",
+          "require_player" not in [_a.name for _n in _host_tree.body
+                                   if isinstance(_n, ast.ImportFrom) for _a in _n.names])
+    check("宿主壳保留 item_view_mode_cmd 的 priority=50（与 item_detail 的正则重叠判定）",
+          any(k.arg == "priority" and getattr(k.value, "value", None) == 50
+              for d in _host_declared for k in d.keywords))
+# ════════════════════════ ECONOMY_BRANCHES_END ═════════════════════════
+
 
 def main():
     print("=" * 74)
@@ -2510,6 +4111,8 @@ def main():
     t9_instance_settle_frozen()
     t10_instance_log_frozen()
     t11_instance_panel_frozen()
+    t12_social_frozen()
+    t13_economy_frozen()
     print("\n" + "=" * 74)
     print("结果：通过 %d / %d" % (passed, passed + failed))
     print("=" * 74)

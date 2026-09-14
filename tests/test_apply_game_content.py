@@ -390,7 +390,10 @@ def t_f():
         check("F4 武器特效入装配（本库无可用 key，跳过）", True)
 
     # 食物：仅当 ctx 传 aids
-    from game.data.food_effect_data import FOOD_EFFECT_PARAMS
+    # B16 收口：宿主 game/data 已删 —— FOOD_EFFECT_PARAMS 真源 = 包内 content/data/food_effects.json
+    # （19 条；读口 = 包内 content/mech/food_proc.py:_food_params()）
+    from content.mech.food_proc import _food_params
+    FOOD_EFFECT_PARAMS = _food_params()
     aid = None
     for k in (FOOD_EFFECT_PARAMS or {}):
         try:

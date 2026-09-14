@@ -17,7 +17,9 @@ os.environ["GWEN_GAME_DB"] = os.path.join(
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from conftest import C  # noqa: E402
-from data.plugins.dragonfall.game.data import _assembly as _ASM  # noqa: E402
+# B16 收口：宿主 game/data 已删 —— 原 _assembly._MONSTER_INDEX 的等价口 = 包内自建索引
+from content import index as _IDX  # noqa: E402
+_MONSTER_INDEX = _IDX._indexes()["monsters"]["name_to_id"]
 
 PASS = 0
 FAIL = 0
@@ -83,7 +85,7 @@ check("T2 objective 键全部在白名单", not bad_keys, f"{bad_keys}")
 # ---- kill 怪物挂载 ----
 bad_kill = [(sq["id"], sq["objective"]["kill"]) for sq in sq_list
             if sq.get("objective", {}).get("kill")
-            and sq["objective"]["kill"] not in _ASM._MONSTER_INDEX]
+            and sq["objective"]["kill"] not in _MONSTER_INDEX]
 check("T3 全部 kill 目标在怪物索引", not bad_kill, f"{bad_kill}")
 
 # ---- collect / use 物品可解析 ----
@@ -148,17 +150,17 @@ check("T14 s80 objective.use == 『醇香麦酒』（消耗品）",
       sq80["objective"].get("use") == "醇香麦酒", f"实际: {sq80['objective'].get('use')!r}")
 sq77 = next(q for q in sq_list if q["id"] == "s77")
 check("T15 s77 蒙面小贼·米洛 已挂载怪物索引",
-      sq77["objective"].get("kill") in _ASM._MONSTER_INDEX)
+      sq77["objective"].get("kill") in _MONSTER_INDEX)
 sq115 = next(q for q in sq_list if q["id"] == "s115")
 check("T16 s115 精灵兽 已挂载怪物索引",
-      sq115["objective"].get("kill") in _ASM._MONSTER_INDEX)
+      sq115["objective"].get("kill") in _MONSTER_INDEX)
 sq56 = next(q for q in sq_list if q["id"] == "s56")
 check("T17 s56 菜谱拓本 可解析", resolve_item(sq56["objective"].get("use", "")))
 sq73 = next(q for q in sq_list if q["id"] == "s73")
 check("T18 s73 灰旗会账册 可解析", resolve_item(sq73["objective"].get("collect", "")))
 sq18 = next(q for q in sq_list if q["id"] == "s18")
 check("T19 s18 腐牙萨满·嚎骨 已挂载怪物索引",
-      sq18["objective"].get("kill") in _ASM._MONSTER_INDEX)
+      sq18["objective"].get("kill") in _MONSTER_INDEX)
 
 print(f"\n结果: {PASS} 通过, {FAIL} 失败")
 sys.exit(1 if FAIL else 0)

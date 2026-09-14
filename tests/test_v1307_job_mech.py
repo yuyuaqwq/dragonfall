@@ -21,11 +21,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from conftest import C, run, FakeEvent, clean_db  # noqa: E402
 from content.tables import JOB_GUIDE  # noqa: E402
-from data.plugins.dragonfall.game.data.job_guide import (  # noqa: E402  ★未映射（见 overnight/_w7_tests_data_imports.md）
-    BASE_ORDER, HIDDEN_ORDER,
-)
+# B16 收口：宿主 game/data 已删 —— 真源 = 包内 content/tables.py 的同义函数口（逐值等：7 / 0）
+from content.tables import job_base_order as _job_base_order, job_hidden_order as _job_hidden_order  # noqa: E402
+BASE_ORDER, HIDDEN_ORDER = _job_base_order(), _job_hidden_order()
 from data.plugins.dragonfall.game.commands.job_guide import JobGuideCmds  # noqa: E402
-import data.plugins.dragonfall.game.commands.job_guide as _jg_mod  # noqa: E402
+# ★ B18-L6（2026-09-14）：『职业』详情渲染随命令整块进包（`content/cmds_job.py`），
+#   宿主 `game/commands/job_guide.py` 只剩 `@declared` + 一行转发 ⇒ [④] 的「无 mech 兜底」
+#   打桩点与直调口**跟着实现搬家**（`CLASSES` 与 `_jg_detail` 现在都在包内模块上）。
+import content.cmds_job as _jg_mod  # noqa: E402
 
 passed = failed = 0
 
@@ -90,7 +93,7 @@ async def main():
     _orig_classes = _jg_mod.CLASSES
     try:
         _jg_mod.CLASSES = dict(_orig_classes, cls_wu_seng={})  # 模拟无 mech 字段
-        d = jc._jg_detail("cls_wu_seng")
+        d = _jg_mod._jg_detail("cls_wu_seng")                   # ★ B18-L6：渲染在包内
         ok &= check("无 mech 字段详情不崩", isinstance(d, str) and bool(d), d[:80])
         ok &= check("无 mech 字段不显示『核心玩法』行", "核心玩法" not in d)
         ok &= check("无 mech 字段其余字段仍在", "核心资源" in d and "档位路线" in d)

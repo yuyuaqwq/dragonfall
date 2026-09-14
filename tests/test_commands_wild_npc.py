@@ -41,7 +41,10 @@ def set_clock(period="day", season="summer", weather="sunny"):
     W.today_weather = lambda map_id=None: weather
     W.current_period_orig = TW.current_period
     C.current_period = lambda: period
-    C.current_season = lambda: season
+    # v95.15 #71 的「C.current_season 同步 patch」在 B14 开关后已失效 → 删除（TAIL 线 2026-09-14）：
+    # 宿主 `game.content` 只剩再导出壳，生产侧读的是包内 `content/wild.py` 的模块全局
+    # （`game.core.wild is content.wild`）→ 上面那行 `W.current_season` 已经打在真读点上；
+    # 改坏法实测：单独把这一行炸掉对本用例零影响（= 冗余行），保留等价语义即可。
 
 
 def clear_wild_meta(gid, qid):

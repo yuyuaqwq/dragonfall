@@ -4,9 +4,10 @@
 验收标准（docs/EQUIP_REDESIGN_PLAN_v135.md 六节）：
 1. 概率常量：BOSS_BP_DROP_CHANCE=0.10 / CHEST_BP_CHANCE=0.85 / FISH_RARE_CHANCE=0.60
 2. Boss 掉落：drops.roll_drop(boss) 基础 10%，幸运 50% 时最高 15%（随机统计 4 万次）
-3. 探索宝箱：tpl_open_chest 消费 C.CHEST_BP_CHANCE（85%）
+3. 探索宝箱：tpl_open_chest 消费 catalog_core.CHEST_BP_CHANCE（85%；B16 收口后实现与
+   常量的**读点**都在包内，宿主聚合层只作取值展示）
 4. 垂钓宝物箱：economy 垂钓消费 C.FISH_RARE_CHANCE（60%）
-5. 副本首功 + 全员 10%：instance 通关奖励循环消费 C.INSTANCE_BP_CHANCE（10%），
+5. 副本首功 + 全员 10%：instance 通关奖励循环消费 catalog_core.INSTANCE_BP_CHANCE（10%），
    已学图纸折算图纸残页、未学整张入包
 6. 图纸残页合成：『图纸合成』面板 / 『图纸合成 <装备名>』消耗 10 张残页 → 指定图纸；
    残页不足拦截；未知名拦截
@@ -17,6 +18,7 @@ import os
 import sys
 import asyncio
 import inspect
+import re
 from contextlib import contextmanager
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -26,6 +28,12 @@ from data.plugins.dragonfall.game import content as C, db
 from data.plugins.dragonfall.game.core import drops as DROPS
 from data.plugins.dragonfall.game.commands.economy import EconomyCmds
 from data.plugins.dragonfall.game.commands.instance import InstanceCmds
+# B16 收口（2026-09-14）：这两个概率常量的**实现读点**已随代码搬进包内
+# （端口 `content/item_templates.py` 读 `catalog_core.CHEST_BP_CHANCE`、
+#   `content/instance_cmds.py` 读 `catalog_core.INSTANCE_BP_CHANCE`）。
+# 宿主聚合层 `C.<名>` 只是**取值拷贝**（game/content.py 逐名 setdefault），改它不驱动实现
+# ⇒ 打桩/源码断言必须指向真正的读点 `content.catalog_core`（否则打桩静默无效 = 假绿）。
+from content import catalog_core as _CC  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -125,11 +133,14 @@ class _ChestCtx:
 
 # 3a. 模板消费 CHEST_BP_CHANCE（源代码引用验证）
 tpl_src = inspect.getsource(IT.tpl_open_chest)
-check("open_chest 模板消费 CHEST_BP_CHANCE", "C.CHEST_BP_CHANCE" in tpl_src)
+check("open_chest 模板消费 CHEST_BP_CHANCE",
+      bool(re.search(r"\.CHEST_BP_CHANCE\b", tpl_src)),
+      )
 # 3b. CHEST_BP_CHANCE=1.0 时开箱必得图纸
 clean_db()
 make_player("g1", "q1", "宝箱测试", "战士", level=20)
-with _patched(C, "CHEST_BP_CHANCE", 1.0):
+with _patched(_CC, "CHEST_BP_CHANCE", 1.0):
+    check("打桩生效（打到实现读点 content.catalog_core 上）", _CC.CHEST_BP_CHANCE == 1.0)
     ctx = _ChestCtx(db, C, "g1", "q1", 20)
     try:
         for _ in IT.tpl_open_chest(ctx):
@@ -139,7 +150,7 @@ with _patched(C, "CHEST_BP_CHANCE", 1.0):
     inv = db.get_inventory("g1", "q1")
     check("CHEST_BP_CHANCE=1.0 时开箱必得图纸", any(it["data"].get("type") == "图纸" for it in inv))
 # 3c. CHEST_BP_CHANCE=0.0 时开箱不得图纸
-with _patched(C, "CHEST_BP_CHANCE", 0.0):
+with _patched(_CC, "CHEST_BP_CHANCE", 0.0):
     clean_db()
     make_player("g1", "q1", "宝箱测试", "战士", level=20)
     ctx = _ChestCtx(db, C, "g1", "q1", 20)
@@ -212,7 +223,7 @@ insrc = inspect.getsource(InstanceCmds)
 #   （同 tests/test_v135_bp_drop.py:187-191 的 economy 口径）。
 from content.instance_cmds import InstanceImpl as _InstImpl        # noqa: E402
 insrc = insrc + "\n" + inspect.getsource(_InstImpl)
-check("副本通关循环消费 INSTANCE_BP_CHANCE", "C.INSTANCE_BP_CHANCE" in insrc)
+check("副本通关循环消费 INSTANCE_BP_CHANCE", bool(re.search(r"\.INSTANCE_BP_CHANCE\b", insrc)))
 check("副本已学图纸折算残页逻辑", "图纸残页" in insrc and "learned_blueprints" in insrc)
 # 直接断言常量本身。原先用 40000 次抽样间接"测"它 —— 那测的是 Python 随机数分布，
 # 不是游戏常量，且是未 seed 的概率性断言（见 FISH_RARE_CHANCE 的直断写法）。

@@ -130,10 +130,13 @@ def test_2_removed_dead_fields():
           bl.get("dir") == "damage" and "interval" in bl, f"period={bl}")
 
     # 全仓不应再有这两个死子字段的声明（引擎侧仍不读，数据侧清干净）
-    import re
-    src = open(os.path.join(PLUGIN_DIR, "game", "data", "battle_rules.py"), encoding="utf-8").read()
-    check("battle_rules 内已无 on_threshold 声明",
-          not re.search(r'"on_threshold":\s*\{', src), "仍存在")
+    # B16 收口：宿主 game/data 已删 —— EFFECT_RULES 声明真源 = 包内 content/rules/effect_rules.json
+    src = open(os.path.join(PLUGIN_DIR, "framework", "games", "orlandia",
+                            "content", "rules", "effect_rules.json"), encoding="utf-8").read()
+    check("effect_rules 声明表内已无 on_threshold 声明", '"on_threshold"' not in src, "仍存在")
+    check("EFFECT_RULES 全表无条目再声明 on_threshold",
+          not [k for k, v in EFFECT_RULES.items()
+               if isinstance(v, dict) and "on_threshold" in v], "仍存在")
     # ⚠️ 只查 EFFECT_RULES 的 period 子字典 —— `per_layer` 在 MECH_CASH 里是**活字段**
     #    （finisher 每层 +10% / 磐核 +70% 等由 class_mech_proc 读），别误伤。
     bad_periods = [k for k, v in EFFECT_RULES.items()
