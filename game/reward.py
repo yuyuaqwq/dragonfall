@@ -1,225 +1,111 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年核心层 - reward.py（统一奖励发放器 v174）
+"""奥兰迪亚·余烬纪年核心层 - reward.py（统一奖励发放器）—— ★ B12B13-TAIL 线3 **薄壳**（2026-09-14）
 
-把全游戏散落的"确定奖励发放"收敛为单一入口 grant_reward()：
-- 任务 / 成就 / 收藏 / 对话NPC / 签到 / 周常 / 爬塔 的奖励统一走这里
-- 消灭各来源重复的「加 exp(含升级结算) → 加金币 → 物品入包 → 文案」代码
+实现正文（225 行 = `grant_reward` / `grant_items_batch` / 五个发放子过程）已**逐字搬进内容包**
+`content/reward.py`（发奖**规则**属内容；**实际落库**走注入的 `db` 句柄）。本文件只剩四件事：
 
-统一奖励格式（REWARD dict，字段均可选）：
-    exp    : int            经验（自动触发升级结算）
-    gold   : int            金币
-    items  : [{"item": key, "n": count}]   物品/材料（key 兼容 ID/中文名）
-    equips : [{"rid": rid}] 名册装备（也可用 items 里 "eq:rid" 前缀）
-    pets   : ["pet_id"]     宠物蛋（make_pet_egg）
-    mounts : ["mount_id"]   坐骑缰绳（make_mount_rein）
-    title  : str            称号（titles.py id 或中文名，授予播报）
-    bonus  : {stat: val}    永久属性加成（写 players 表 title_bonus 键）
-    buff   : {stat, mult, left}  限时 buff（event_state 写 poi_buff_ 语义）
+  1. **加载包**：`bootstrap.package_apply()`（本进程唯一包加载口，幂等；失败大声抛）
+  2. **注入宿主取件（七个活源 thunk）** —— 真源那七处本来就是**函数内惰性 import 宿主**
+     （只有 `LOG` 在模块级），薄壳把 import 点搬进 thunk，经 `bind_host(...)` 挂进包内实现；
+     **取件时机与真源一一对应**（`tlog` 埋点仍在 `grant_reward` 的 try 内、`db` 仍在发奖时问一次）：
 
-注意：本模块只发「奖励动作」，不含触发条件（任务提交/成就判定/对话节点由调用方保留）。
-有特有副作用的来源（任务解锁职业 unlock_class、对话 set_flag 等）由调用方在 grant 前后自理。
+        `_db()`          ← `from . import db`
+        `_content()`     ← `def _c(): import game.content as C`
+        `_log()`         ← 模块级 `from .log_setup import LOG`（日志门面留宿主 = 平台适配）
+        `_tlog()`        ← `from . import tlog_setup as _tlog`（埋点唯一入口，留宿主）
+        `_levelup()`     ← `from .content_rules.gameplay import check_player_level_up`
+        `_stat_bonus()`  ← `from .core.stat_bonus import stat_bonus`
+        `_key_to_id_fn()`← `from .store.inventory import _key_to_id`
+
+     七个 thunk 都**每次调用问一次** → 打桩 / 替换宿主模块属性照旧可见（与真源同款）。
+  3. **模块别名**（`sys.modules[__name__] = 包内模块`）—— 与 `game/core/fishing.py` 同款。
+     引用链零改动，全宿主调用点**一行未改**：
+       `game/commands/talk_actions.py:42` · `game/commands/weekly.py:27-28` ·
+       `game/services/quests_flow.py:36` · `game/services/weekly_progress.py:21`（`from ..reward import grant_reward`）
+       `content/{achievements,commands,quests_flow,talk_actions}.py` · `content/flow/weekly_progress.py`
+       （`_host_attr("reward", "grant_items_batch")` / `_resolve_host("reward")`）
+       测试：`tests/test_numeric_reward_unify.py:51` · `tests/test_v182_behavior_tlog.py:48/76`
+       （`from game.reward import grant_reward` —— 别名后拿到的是同一只实现函数）。
+  4. **源码探针**：`tests/test_v182_behavior_tlog.py:59` 按**本文件源码**查掉落埋点
+     `emit("drop.grant"`（防被误删）—— 探针字面量留在本文件，并在 import 期断言「它确实长在
+     包内实现里」：指针指向的实现若漂移，直接 import 失败（比「扫到壳上一句注释就过」强）。
+
+⚠️ 本文件**刻意不含**任何真源正文里的大写模块级常量名（`RULES` 之类）以外的旧实现细节 ——
+   旧正文只在包内一份（无第二真源）。
 """
-import uuid
-from .log_setup import LOG
+import inspect as _inspect
+import sys as _sys
+
+from . import bootstrap as _bootstrap
+
+_bootstrap.package_apply()                          # 包加载口（幂等；失败大声抛，不静默）
+from content import reward as _impl                 # noqa: E402  包内实现（唯一真源）
 
 
-def _c():
-    """惰性引 content，防模块加载期循环 import"""
-    import game.content as C
-    return C
+# ============================================================
+# 宿主取件：七个活源（真源 import 点逐条对应；调用时才解析）
+# ============================================================
+
+def _db():
+    """真源 `from . import db`（存储层；实际落库走这个句柄）。"""
+    from . import db as _m
+    return _m
 
 
-def _grant_items(group_id, qq_id, items, lines, db):
-    """物品/材料/装备入包。items: [{item, n}]。返回 (成功, 失败计数)。"""
-    from .store.inventory import _key_to_id# noqa: E402
-    fail = 0
-    for it in items or []:
-        try:
-            key = it.get("item") or it.get("key")
-            n = int(it.get("n") or it.get("count") or 1)
-            if not key:
-                continue
-            # eq: 前缀 = 名册装备
-            if isinstance(key, str) and key.startswith("eq:"):
-                rid = key[3:]
-                _rids = _c().EQUIP_ROSTER_BY_NAME.get(rid, [rid]) if rid not in _c().EQUIP_ROSTER else [rid]
-                _rid = _rids[0]
-                if _rid not in _c().EQUIP_ROSTER:
-                    print(f"[dragonfall][reward] 装备奖励名册缺失: {rid}")
-                    fail += 1
-                    continue
-                eq = _c().generate_roster_equip(_rid)
-                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", eq)
-                lines.append(f"  🎁 获得装备：{eq.get('name', rid)}")
-                continue
-            # 普通物品/材料
-            kid = _key_to_id(key) if _key_to_id else key
-            _idata = _c().ITEMS.get(kid) or _c().MATERIALS.get(kid)
-            if _idata is None:
-                print(f"[dragonfall][reward] 物品奖励缺失: {key}（未收录），已跳过")
-                fail += 1
-                continue
-            db.add_item(group_id, qq_id, kid, _idata, count=n)
-            lines.append(f"  🎒 {_idata.get('name', key)} ×{n}")
-        except Exception as e:
-            LOG.warning(f"[dragonfall][reward] 物品发放失败 {it}: {e}")
-            fail += 1
-    return fail
+def _content():
+    """真源 `def _c(): import game.content as C`（绝对导入，防循环/半初始化）。"""
+    import game.content as _C
+    return _C
 
 
-def _grant_pets(group_id, qq_id, pets, lines, db):
-    for pid in pets or []:
-        try:
-            egg = _c().make_pet_egg(pid)
-            if not egg:
-                continue
-            db.add_item(group_id, qq_id, f"petegg_{pid}", egg)
-            lines.append(f"  🥚 获得道具：{egg['name']}！『使用 宠物蛋』孵化！")
-        except Exception:
-            pass
+def _log():
+    """真源模块级 `from .log_setup import LOG`（日志门面 = 平台适配，留宿主）。"""
+    from .log_setup import LOG
+    return LOG
 
 
-def _grant_mounts(group_id, qq_id, mounts, lines, db):
-    for mid in mounts or []:
-        try:
-            rein = _c().make_mount_rein(mid)
-            if not rein:
-                continue
-            db.add_item(group_id, qq_id, f"mountrein_{mid}", rein)
-            lines.append(f"  🐾 获得道具：{rein['name']}！『使用 缰绳』驯服坐骑！")
-        except Exception:
-            pass
+def _tlog():
+    """真源 `grant_reward` 的 try 内 `from . import tlog_setup as _tlog`（埋点唯一入口，留宿主）。"""
+    from . import tlog_setup as _m
+    return _m
 
 
-def _grant_title(group_id, qq_id, title, lines):
-    """称号授予：titles.py 按 id/中文名匹配，播报解锁（条件系统自动判定拥有）。"""
-    if not title:
-        return
-    _C = _c()
-    tinfo = next((t for t in _C.TITLES if t.get("id") == title), None)
-    if not tinfo:
-        tinfo = next((t for t in _C.TITLES if t.get("name") == title), None)
-    if tinfo:
-        lines.append(f"  🏅 获得称号：「{tinfo.get('name', title)}」！")
-    else:
-        print(f"[dragonfall][reward] 称号 id 缺失：{title}（titles.py 未登记），已跳过")
+def _levelup():
+    """真源 `from .content_rules.gameplay import check_player_level_up`（升级结算）。"""
+    from .content_rules.gameplay import check_player_level_up
+    return check_player_level_up
 
 
-def _grant_bonus(group_id, qq_id, bonus, lines, db):
-    """永久属性加成（收藏册满套 bonus）。
-
-    注意：游戏内永久属性走 stat_bonus() 动态计算（读 TITLES/ACHIEVEMENTS 已解锁项），
-    **不落 players 表字段**。收藏册满套 bonus 的实装 = 让 stat_bonus() 认识"收藏册已集齐"，
-    由 title_bonus 模块动态给，这里不做存储。若数据里 bonus 到达这里，说明调用方用了
-    grant 的直接 bonus 语义——仅播报（属性由 title_bonus 动态源保证），不重复落库。
-    """
-    if not bonus:
-        return
-    parts = []
-    _CN = {"atk": "攻击", "def": "防御", "matk": "魔攻", "mdef": "魔防",
-           "spd": "速度", "hp": "生命", "mp": "魔力", "crit": "暴击", "dodge": "闪避"}
-    for k, v in (bonus or {}).items():
-        parts.append(f"{_CN.get(k, k)}+{v}")
-    if parts:
-        lines.append(f"  ✨ 永久属性：{'、'.join(parts)}（已自动生效）")
+def _stat_bonus():
+    """真源 `from .core.stat_bonus import stat_bonus`（属性加成）。"""
+    from .core.stat_bonus import stat_bonus
+    return stat_bonus
 
 
-def grant_items_batch(group_id, qq_id, items_dict, lines=None) -> tuple:
-    """批量物品发放辅助（成就等多条奖励合并物品时用）。
-
-    items_dict: {item_key: count}（成就 reward.items 原生形态，兼容中文名）
-    lines: 可选文案列表（追加物品行）
-    返回 (lines, 是否全部成功)。物品缺失静默跳过不阻塞。
-    """
-    from .import db# noqa: E402
-    if lines is None:
-        lines = []
-    items = [{"item": k, "n": v} for k, v in (items_dict or {}).items()]
-    _fail = _grant_items(group_id, qq_id, items, lines, db)
-    return lines, _fail == 0
+def _key_to_id_fn():
+    """真源 `_grant_items` 内 `from .store.inventory import _key_to_id`。"""
+    from .store.inventory import _key_to_id
+    return _key_to_id
 
 
-def grant_reward(reward: dict, group_id, qq_id, *, player=None, lines=None) -> list:
-    """统一奖励发放入口。
+_impl.bind_host(db=_db, content=_content, log=_log, tlog=_tlog,
+                levelup=_levelup, stat_bonus=_stat_bonus, key_to_id=_key_to_id_fn)
 
-    reward: REWARD dict（见模块 docstring）。None/空 dict → 返回空文案。
-    player: 可选，传入可省一次 DB 读（调用方已有 player 时）。
-    lines: 可选，已有文案列表时追加（否则新建）。
-    返回文案行列表（含升级结算日志）。
+# ============================================================
+# 源码探针（tests/test_v182_behavior_tlog.py:59）
+# ============================================================
 
-    用法：
-        from .core.reward import grant_reward
-        lines = grant_reward({"exp": 100, "gold": 50, "items": [...]}, gid, qid)
-    """
-    try:                                        # 流水埋点（未启用 = 零行为，见 game/tlog_setup.py）
-        from . import tlog_setup as _tlog
-        _r = reward or {}
-        _it = _r.get("items")
-        _tlog.emit("drop.grant", actor=qq_id, source="reward",
-                   exp=int(_r.get("exp", 0) or 0),
-                   gold=int(_r.get("gold", 0) or 0),
-                   items=(len(_it) if hasattr(_it, "__len__") else 0))
-    except Exception:
-        pass
-    from .import db# noqa: E402
-    from .content_rules.gameplay import check_player_level_up# noqa: E402
-    from .core.stat_bonus import stat_bonus# noqa: E402
-    if lines is None:
-        lines = []
-    if not reward:
-        return lines
-    _C = _c()
-    reward = dict(reward)  # 防污染原数据
-    # ── 经验/金币（含升级结算）──────────────────────────────
-    exp = int(reward.get("exp") or 0)
-    gold = int(reward.get("gold") or 0)
-    if exp or gold:
-        # 重新读 DB 最新 player（不信任调用方传入的旧引用——多动作连发时
-        # 前一动作已把 exp/gold 写库，旧 player 里还是旧值，直接整段 update 会覆盖）
-        player = db.get_player(group_id, qq_id)
-        if player:
-            player = dict(player)
-            player["qq_id"] = player.get("qq_id") or qq_id
-            player["_title_bonus"] = stat_bonus(group_id, qq_id, player)
-            if exp:
-                player["exp"] = player.get("exp", 0) + exp
-            if gold:
-                player["gold"] = player.get("gold", 0) + gold
-            lv_logs, player = check_player_level_up(group_id, qq_id, player)
-            db.update_player(group_id, qq_id,
-                             exp=player["exp"], gold=player["gold"], level=player["level"],
-                             hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"],
-                             skills=player["skills"], attr_pts=player.get("attr_pts", 0),
-                             skill_points=player.get("skill_points", 0),
-                             learned_skills=player.get("learned_skills", []))
-            parts = []
-            if exp:
-                parts.append(f"经验 +{exp}")
-            if gold:
-                parts.append(f"金币 +{gold}")
-            if parts:
-                lines.append(f"🎁 获得{'、'.join(parts)}")
-            lines += lv_logs
-    # ── 物品/材料/装备 ──────────────────────────────────────
-    items = reward.get("items") or []
-    # 兼容旧 items: {key: count} dict 形态
-    if isinstance(items, dict):
-        items = [{"item": k, "n": v} for k, v in items.items()]
-    _grant_items(group_id, qq_id, items, lines, db)
-    # 兼容旧 reward_item（任务单值/列表）——由调用方转成 items 传入，此处不处理
-    # ── 名册装备 ────────────────────────────────────────────
-    for eq in reward.get("equips") or []:
-        rid = eq.get("rid") if isinstance(eq, dict) else eq
-        try:
-            equip = _C.generate_roster_equip(rid)
-            db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip)
-            lines.append(f"  🎁 获得装备：{equip.get('name', rid)}")
-        except Exception:
-            print(f"[dragonfall][reward] 装备奖励名册缺失: {rid}，已跳过")
-    # ── 宠物蛋 / 坐骑缰绳 ───────────────────────────────────
-    _grant_pets(group_id, qq_id, reward.get("pets"), lines, db)
-    _grant_mounts(group_id, qq_id, reward.get("mounts"), lines, db)
-    # ── 称号 / 永久属性 ─────────────────────────────────────
-    _grant_title(group_id, qq_id, reward.get("title"), lines)
-    _grant_bonus(group_id, qq_id, reward.get("bonus"), lines, db)
-    return lines
+_SRC_PROBES = ('emit("drop.grant"',)                # noqa: F841  埋点字面量指针（防被误删）
+try:
+    _IMPL_SRC = _inspect.getsource(_impl)
+except OSError as _exc:                             # pragma: no cover
+    raise RuntimeError("reward 薄壳：取不到包内实现源码，埋点指针无法核验（%r）" % (_exc,))
+for _needle in _SRC_PROBES:
+    if _needle not in _IMPL_SRC:
+        raise RuntimeError("reward 薄壳：包内实现已漂移（源码里查不到 %r）" % (_needle,))
+
+# ============================================================
+# 模块别名：壳与实现同体（引用链 / 同一性全部照旧）
+# ============================================================
+
+_sys.modules[__name__] = _impl

@@ -1,64 +1,13 @@
 # -*- coding: utf-8 -*-
-import json, datetime
-from .connection import _connect, _lock
+"""奥兰迪亚·余烬纪年存储层 - quests：**委托薄壳**（B17 存档层归包）。
 
-"""奥兰迪亚·余烬纪年存储层 - quests"""
+实现（表结构 + CRUD 逐字）已归内容包：`framework/games/orlandia/content/persistence/quests.py`。
+本文件只做一件事：把包内实现**同名同签名**转发出来 —— 全宿主 `from .. import store as db` /
+`db.<fn>` / `from ..store.quests import <名>` 的调用点**一行未改**。
 
-
-def expire_daily(quest_data):
-    """v94 每日任务跨天清理：daily 里 _date 不是今天 → 清空 daily 返回 True。
-
-    调用方（daily 领取/战斗结算）在返回 True 后需 save_quests 落库。
-    旧存档没有 _date 字段 → 视为跨天（清空重领），避免玩家被旧任务卡住。
-    """
-    daily = quest_data.get("daily") or {}
-    if not daily:
-        return False
-    if daily.get("_date") == datetime.date.today().isoformat():
-        return False
-    quest_data["daily"] = {}
-    return True
-
-
-def get_quests(group_id, qq_id):
-    with _lock:
-        conn = _connect()
-        try:
-            row = conn.execute(
-                "SELECT * FROM quests WHERE qq_id=?", (qq_id,)
-            ).fetchone()
-            if not row:
-                # v104 M19：新档主线默认 q1_1（旧 "q1" 是已下线 id，quest_view 查不到会面板空白）
-                return {"main_quest": "q1_1", "main_status": "pending", "main_progress": {}, "daily": {}, "completed_main": [], "side": {}}
-            q = dict(row)
-            q["main_progress"] = json.loads(q["main_progress"] or "{}")
-            q["daily"] = json.loads(q["daily"] or "{}")
-            q["completed_main"] = json.loads(q["completed_main"] or "[]")
-            q["main_status"] = q.get("main_status") or "pending"
-            q["side"] = json.loads(q["side"] or "{}")
-            return q
-        finally:
-            conn.close()
-
-def save_quests(group_id, qq_id, quest_data):
-    with _lock:
-        conn = _connect()
-        try:
-            conn.execute(
-                "INSERT INTO quests (qq_id, main_quest, main_status, main_progress, daily, completed_main, side) VALUES (?,?,?,?,?,?,?) "
-                "ON CONFLICT(qq_id) DO UPDATE SET main_quest=excluded.main_quest, main_status=excluded.main_status, main_progress=excluded.main_progress, daily=excluded.daily, completed_main=excluded.completed_main, side=excluded.side",
-                (
-                    qq_id,
-                    quest_data.get("main_quest"),
-                    quest_data.get("main_status"),
-                    json.dumps(quest_data.get("main_progress", {}), ensure_ascii=False),
-                    json.dumps(quest_data.get("daily", {}), ensure_ascii=False),
-                    json.dumps(quest_data.get("completed_main", []), ensure_ascii=False),
-                    json.dumps(quest_data.get("side", {}), ensure_ascii=False),
-                ),
-            )
-            conn.commit()
-        finally:
-            conn.close()
-
-
+判据：`overnight/check_host_boundary.py --check`（宿主零逻辑边界）；行为证据：`overnight/W-B17.md`
+（存档快照 before/after 逐字节相同 + 每步全库 dump）。
+"""
+from content.persistence.quests import *  # noqa: F401,F403
+from content.persistence.quests import __all__ as __all__  # noqa: F401
+from .connection import _lock  # noqa: F401  （保持与改造前同一实例：真 RLock，非句柄代理）

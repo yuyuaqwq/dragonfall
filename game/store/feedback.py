@@ -1,40 +1,13 @@
 # -*- coding: utf-8 -*-
-from .connection import _connect, _lock
+"""奥兰迪亚·余烬纪年存储层 - feedback：**委托薄壳**（B17 存档层归包）。
 
-"""奥兰迪亚·余烬纪年存储层 - feedback"""
+实现（表结构 + CRUD 逐字）已归内容包：`framework/games/orlandia/content/persistence/feedback.py`。
+本文件只做一件事：把包内实现**同名同签名**转发出来 —— 全宿主 `from .. import store as db` /
+`db.<fn>` / `from ..store.feedback import <名>` 的调用点**一行未改**。
 
-
-def add_feedback(qq_id, group_id, content):
-    """记录一条玩家意见，返回意见编号"""
-    from datetime import datetime
-    with _lock:
-        conn = _connect()
-        try:
-            cur = conn.execute(
-                "INSERT INTO feedback (qq_id, group_id, content, created_at, status) VALUES (?,?,?,?, 'new')",
-                (qq_id, group_id, content, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
-            )
-            conn.commit()
-            return cur.lastrowid
-        finally:
-            conn.close()
-
-def get_feedback(status=None, limit=50):
-    """查询意见；status=None 查全部，'new' 只查未处理"""
-    with _lock:
-        conn = _connect()
-        try:
-            if status:
-                rows = conn.execute(
-                    "SELECT id, qq_id, group_id, content, reply, created_at, status FROM feedback WHERE status=? ORDER BY id DESC LIMIT ?",
-                    (status, limit),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT id, qq_id, group_id, content, reply, created_at, status FROM feedback ORDER BY id DESC LIMIT ?",
-                    (limit,),
-                ).fetchall()
-            return rows
-        finally:
-            conn.close()
-
+判据：`overnight/check_host_boundary.py --check`（宿主零逻辑边界）；行为证据：`overnight/W-B17.md`
+（存档快照 before/after 逐字节相同 + 每步全库 dump）。
+"""
+from content.persistence.feedback import *  # noqa: F401,F403
+from content.persistence.feedback import __all__ as __all__  # noqa: F401
+from .connection import _lock  # noqa: F401  （保持与改造前同一实例：真 RLock，非句柄代理）
