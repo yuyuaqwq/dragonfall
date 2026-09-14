@@ -16,12 +16,8 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 os.chdir(BASE)
 
-from game.data.items import MATERIALS, ITEMS
-from game.data.craft import CRAFT_RECIPES
-from game.data.alchemy import ALCHEMY_RECIPES
-from game.data.cooking import COOKING_RECIPES
-from game.data.enchant import ENCHANT_RECIPES
-from game.data.equip_roster import EQUIP_ROSTER
+from game.content import (MATERIALS, ITEMS, CRAFT_RECIPES, ALCHEMY_RECIPES,
+                          COOKING_RECIPES, ENCHANT_RECIPES, EQUIP_ROSTER)
 
 FAILS = []
 WARN = []

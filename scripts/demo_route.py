@@ -5,7 +5,7 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 os.chdir(BASE)
 
-import game.data as C
+import game.content as C
 
 def route(start, goal):
     """BFS 找路径"""

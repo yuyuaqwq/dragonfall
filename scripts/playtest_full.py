@@ -406,7 +406,7 @@ async def stage6_main_quests():
     """阶段六：主线 70 任务全程"""
     print("\n╔══ 阶段六：主线全程 ══╗")
     await ensure_player(lv=99, gold=999999)
-    from game.data.quests import MAIN_QUESTS
+    from game.content import MAIN_QUESTS
     qmap = {q["id"]: q for q in MAIN_QUESTS}
     qids = [q["id"] for q in MAIN_QUESTS]
     cur_qid = None

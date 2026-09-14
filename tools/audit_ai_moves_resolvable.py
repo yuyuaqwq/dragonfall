@@ -28,6 +28,7 @@ MONSTER_MODS 基准 + INSTANCES 副本整体覆盖，v178 E1/E2）：
 import os
 import sys
 import ast
+import json
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))  # 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
@@ -39,18 +40,19 @@ sys.path.insert(0, PLUGIN_DIR)
 from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
 from saintess_engine.battle.ai import normalize_ai  # noqa: E402
-from game.data.monster_mods import MONSTER_MODS  # noqa: E402
-from game.data.monsters import MONSTER_SKILLS  # noqa: E402
+from game.content import MONSTER_MODS, MONSTER_SKILLS  # noqa: E402
 
 try:
-    from game.data.instances import INSTANCES  # noqa: E402
+    from game.content import INSTANCES  # noqa: E402
 except Exception:                                             # pragma: no cover
     INSTANCES = {}
 
-SPAWN_FILES = ["game/data/subareas.py", "game/data/instances.py",
-               "game/data/mesh_rooms_east_abyss.py", "game/data/mesh_rooms_south.py",
-               "game/data/mesh_rooms_west_north.py", "game/data/hidden_monsters.py",
-               "game/data/trial_tower.py", "game/data/wild_king_data.py"]
+# ★ MIG：宿主 `game/data/*.py` 已删（2026-09-14）→ 改读包内同源域 JSON；
+#   `mesh_rooms_{south,west_north,east_abyss}` / `hidden_monsters` / `trial_tower`
+#   / `wild_king_data` 六份已并入 subareas.json（6 元组怪定义同形）。
+_PKG_DATA = os.path.join(PLUGIN_DIR, "framework", "games", "orlandia", "content", "data")
+SPAWN_FILES = [os.path.join(_PKG_DATA, "subareas.json"),
+               os.path.join(_PKG_DATA, "instances.json")]
 
 
 def _tuples_in(node):
@@ -86,8 +88,7 @@ def collect_spawns():
         p = os.path.join(PLUGIN_DIR, fn)
         if not os.path.exists(p):
             continue
-        tree = ast.parse(open(p, encoding="utf-8").read())
-        for vals in _tuples_in(tree):
+        for vals in _tuples_in_data(json.load(open(p, encoding="utf-8"))):
             mid, _name, role, lv, skills, drops = vals
             if isinstance(mid, str) and isinstance(skills, (list, tuple)) \
                     and isinstance(drops, (list, tuple)) and role in ("normal", "elite", "boss"):
@@ -117,7 +118,7 @@ def _merge_adds(entry, got):
     _pid = entry.get("phase_id")
     if _pid:
         try:
-            from game.data.boss_phases import merge_phase_config as merge
+            from content.tables import merge_phase_config as merge  # 包内 boss_phases 域
             _m = merge(_pid, entry) or {}
             for s in (_m.get("add_skills") or []):
                 got.add(str(s))

@@ -5,8 +5,7 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 os.chdir(BASE)
 
-from game.data.subareas import SUBAREAS
-from game.data.npcs import NPCS
+from game.content import SUBAREAS, NPCS
 
 # 验证城镇：每个子区域必须有内容
 print("=== 城镇子区域内容检查（空壳应=0）===")

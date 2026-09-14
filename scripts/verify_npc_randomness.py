@@ -9,9 +9,7 @@
 import sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall")
-from game.data.npcs import NPCS
-from game.data.subareas import SUBAREAS
-from game.data.maps import MAPS
+from game.content import NPCS, SUBAREAS, MAPS
 
 VALID_PERIODS = {"day", "night", "dawn", "dusk", "morning", "afternoon", "evening"}
 

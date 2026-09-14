@@ -5,7 +5,7 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 os.chdir(BASE)
 
-from game.data.maps import MAPS, MAP_BY_ID, MAP_CONNECTIONS
+from game.content import MAPS, MAP_BY_ID, MAP_CONNECTIONS
 
 towns = [m['id'] for m in MAPS if m.get('type') == '城镇区域']
 print(f"总地图: {len(MAPS)}, 城镇: {len(towns)}, 野外: {len(MAPS)-len(towns)}")

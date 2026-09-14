@@ -3,8 +3,7 @@
 import sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall")
-from game.data.subareas import SUBAREAS
-from game.data.npcs import NPCS
+from game.content import SUBAREAS, NPCS
 
 total_mounted = 0
 missing = set()

@@ -1,0 +1,2979 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""奥兰迪亚（游戏仓）→ 框架编辑器「游戏包」JSON 导出器（通用壳，已实现 items / classes / skills）。
+
+方向只有一个：**游戏仓 Python 数据（真源）→ 框架仓 games/<id>/content/data/<域>.json**。
+本脚本**只读**游戏仓数据（绝不写回 game/data/*.py），框架仓只写这些文件：
+
+    <pkg>/game.json                      包清单（id/name/desc/engine/domains/created）
+    <pkg>/content/data/items.json        物品域数据表 {物品key: 物品}
+    <pkg>/content/data/classes.json      职业域数据表 {职业key: 职业}
+    <pkg>/content/data/skills.json       技能域数据表 {技能key: 技能}（扁平化，见下）
+
+用法：
+    python scripts/export_game_package.py --domain items
+    python scripts/export_game_package.py --domain classes
+    python scripts/export_game_package.py --domain skills
+    GWEN_FRAMEWORK_DIR=<框架仓> python scripts/export_game_package.py --domain items
+    python scripts/export_game_package.py --domain items --check    # 只派生比对，不落盘
+
+默认值：
+    源   = 本脚本所在仓根（--src 覆盖）
+    目标 = --out > $GWEN_FRAMEWORK_DIR > DEFAULT_FRAMEWORK_DIR（见下）
+
+域注册表（**加一个域 = 加一个 derive_ 函数 + 在此注册一行**）：
+    DERIVERS = {"items": derive_items, ...}
+    PLANNED  = 已规划但未实现的域 —— 命中时**显式报错**「未实现」，不静默产出空表
+    （空表会让编辑器显示「0 条」而不报错，是最难查的那种故障）
+
+幂等保证：输出 = UTF-8 + LF + indent=2 + 末尾换行；外层按 key 字典序；game.json 的
+`created` 保留已有值（首次落盘用 DEFAULT_CREATED，**不使用 time.time()**）→ 重复运行逐字节相同。
+
+================================================================================
+items 域语义核实（2026-09-12，证据在游戏仓 game/data/items.py，行号以当时的文件为准）
+================================================================================
+1) **合表后是 900 条，不是 1704 条。**  `ITEMS` 本身就是合表：
+       items.py:3057  ITEMS = dict(MATERIALS)
+       items.py:3058  ITEMS.update(CONSUMABLES)
+       items.py:3061 / :3084 / :3105 / :3129 / :3226 / :3291  继续 ITEMS.update({...}) 追加
+   实测：MATERIALS(598) 与 CONSUMABLES(206) 的**每个 key 都在 ITEMS 里，且是同一个 dict 对象
+   （`ITEMS[k] is MATERIALS[k]`）**。所以「ITEMS 900 + MATERIALS 598 + CONSUMABLES 206 = 1704」
+   是把同一批条目按表重复计了三次（重复计数量 598+206=804，900+804=1704）。
+   → 导出 = 取 `ITEMS` 全量原样，**不再手工 merge 三张表**（手工 merge 会引入第二份定义，将来漂移）。
+
+2) **price 必须是覆盖后的最终价，而导出的 ITEMS 已经就是最终价。**
+   `MATERIAL_PRICE_OVERRIDE`（items.py:2589 定义，219 条）在 items.py:2813-2817 的 import 期循环里
+   **就地**改写 MATERIALS：
+       for _mid, _m in MATERIALS.items():
+           if _mid in MATERIAL_PRICE_OVERRIDE:
+               _m["price"] = MATERIAL_PRICE_OVERRIDE[_mid]     # ← 就地覆盖 MATERIALS
+               if _m.get("type") not in _PRICE_SPECIAL_TYPES:
+                   _m["quality"] = _mat_quality(_m["price"])   # ← 品质按新价重算
+   而 `ITEMS = dict(MATERIALS)` 发生在 :3057（覆盖**之后**）→ 导出的 price 已经等于
+   MATERIAL_PRICE_OVERRIDE 的值（实测 219/219 一致，门禁 tests/test_export_package_sync.py 锁死）。
+   要点：导出器读的是 **import 之后的运行时表**，不是源码字面量；照字面量解析会导出**未覆盖的旧价**。
+
+3) **`MATERIALS_BY_NAME` 不进包（纯按名索引，零新信息）。**
+   items.py:3054  `MATERIALS_BY_NAME = {_m["name"]: _m for _m in MATERIALS.values()}`
+   —— 值就是 MATERIALS 里**同一个 dict 对象**（按显示名建的索引），全仓无任何写入端
+   （grep `MATERIALS_BY_NAME[...] =` → 0 命中）。消费端全部是「拿玩家背包里的中文名反查定义」：
+       game/store/inventory.py:51                （_class_attrs：key 查不到时按名反查）
+       game/commands/economy.py:334-335          （按名查，注释写明 key 是 mat_ ID）
+       game/commands/economy.py:4365 / :5257     （批量出售 / 图鉴按名兜底）
+       game/services/shop.py:185 / :215 / :253   （回收折价率按名判材料类型）
+       game/data/__init__.py:158 / :192          （import 期 FISH_POOL/FISH_COLLECT 一致性校验）
+   若把它也导出：每件材料在包里**重复一次**，且外层键变成中文 —— 违反
+   schemas/item.schema.json `item_table.propertyNames` 的 `^[a-z][a-z0-9_]*$`。
+   → 它是**运行期查询索引**，不是数据源；包里由 key 表 + `name` 字段即可等价表达。
+"""
+
+import argparse
+import hashlib
+import importlib
+import importlib.util   # ★ 显式导入子模块：`import importlib` 不保证 `importlib.util` 是属性
+                        # （新鲜进程里常缺 → 域插件加载全 AttributeError，见 2026-09-13 三路取证）
+import json
+import os
+import sys
+
+# ---------------- 常量 / 路径 ----------------
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(HERE)                      # 游戏仓根（dragonfall/）
+
+PACKAGE_ID = "orlandia"
+DEFAULT_FRAMEWORK_DIR = "C:/Users/yuyu/framework-engine"
+# created 固定值：**不要**改成 time.time()/time.strftime()，否则每次跑都变 → 破坏幂等
+DEFAULT_CREATED = "2026-09-12"
+
+# 清单里由导出器管辖的字段（其余已有字段原样保留，不吞编辑器/人工加的元数据）
+# `domains` 不在常量里：它由 DERIVERS 派生（声明里的域 = 已实现的域，避免第二个手写列表）。
+MANIFEST_MANAGED = {
+    "id": PACKAGE_ID,
+    "name": "奥兰迪亚·余烬纪年",
+    "desc": "《奥兰迪亚·余烬纪年》内容侧数据导出包（QQ 机器人文字 RPG 内容仓 dragonfall 单向导出）",
+    "engine": ">=0.1",
+    # P4（2026-09-13）：机制入口已移植进包（content/apply.py + content/mech/，最小切片已真跑通
+    # 一场战斗 + PASSIVE_PROC 触发）→ 按本文件下方原注释「一旦将来移植机制入口，再把它加回来」
+    # 把 entry 加回管辖字段：包的清单必须声明装配入口，且导出产物要与包内 game.json 逐字节一致
+    # （同步门禁 tests/test_export_package_sync.py 的「CLI 产物 game.json == 仓库文件」一条件）。
+    "entry": "content/apply.py",
+}
+# 导出器**不再声明**的字段（原：("entry",) —— P4 起 entry 是包的一部分，已加回 MANIFEST_MANAGED）。
+# 保留本常量作为「未来要丢弃的旧字段」的登记处，避免下次再手写第二份名单。
+MANIFEST_DROPPED = ()
+
+# ---------------- 域注册表 ----------------
+# 一个域 = 一个 `derive_<域>() -> dict[key, entry]`；entry 原样进 JSON（不补默认值/不改类型）
+PLANNED_DOMAINS = (
+    "mech_cash",
+)
+
+
+# =============================================================================
+# 派生（源 → 内存表）
+# =============================================================================
+def _import_module(mod_name: str, src_root: str = REPO_ROOT):
+    """import 游戏仓 game/data/<mod>.py（走包导入，因为有 `from .fishing import ...` 这类相对导入）。"""
+    if src_root not in sys.path:
+        sys.path.insert(0, src_root)
+    full = f"game.data.{mod_name}"
+    if full in sys.modules:
+        return sys.modules[full]
+    return importlib.import_module(full)
+
+
+def _import_items_module(src_root: str = REPO_ROOT):
+    return _import_module("items", src_root)
+
+
+def derive_items(src_root: str = REPO_ROOT) -> dict:
+    """物品域：取 `ITEMS` 全量（合表 + 已含 price 覆盖/品质重算/desc 注入的**最终运行时态**）。
+
+    依据见本文件顶部「items 域语义核实」1) 2)：ITEMS = MATERIALS ∪ CONSUMABLES ∪ 追加条目，
+    且 ITEMS 在 MATERIAL_PRICE_OVERRIDE 就地覆盖之后才构造 → 无需（也不应）再套一次覆盖。
+    """
+    return dict(_import_items_module(src_root).ITEMS)
+
+
+def derive_classes(src_root: str = REPO_ROOT) -> dict:
+    """职业域：`CLASSES` 全量原样（8 条；框架 classes 域无 schema，形状由内容侧定）。
+
+    字段含 desc / lore / aliases / evolve_branches / attack_text / tutor 等（见 classes.py 头注）。
+    """
+    return dict(_import_module("classes", src_root).CLASSES)
+
+
+def _tier_int(tier_key) -> int:
+    """把 BRANCH_SKILLS 的「阶」键规范成 int（源里是 1/2/3 的 int，框架 branch_skills
+    形状把它描述为 `^[0-9]+$` 的字符串）。非整数/布尔 → raise（源形状变了，拒绝导出）。"""
+    if isinstance(tier_key, bool):
+        raise ValueError(
+            f"BRANCH_SKILLS 阶 key {tier_key!r} 是 bool —— 不是转职阶，拒绝导出"
+        )
+    if isinstance(tier_key, int):
+        return tier_key
+    if isinstance(tier_key, str) and tier_key.isdigit():
+        return int(tier_key)
+    raise ValueError(
+        f"BRANCH_SKILLS 阶 key {tier_key!r}（{type(tier_key).__name__}）不是整数 —— "
+        f"框架 branch_skills 形状是「阶 ∈ ^[0-9]+$」，拒绝导出"
+    )
+
+
+def derive_skills(src_root: str = REPO_ROOT) -> dict:
+    """技能域：把**三张**「按职业分组的技能表」扁平化成同一个「一条技能 = 一个 key」表。
+
+    ============================ 为什么扁平 ============================
+    框架 skills 域的权威形状是 `x-primary: skill`（一条 = 一个技能；编辑器按条增删改，
+    `editor/packages.py:36-37` 的 primary 也写 `skill`，校验只认 `schemas/skill.schema.json`
+    的 `$defs/skill`）。而游戏侧三张源表都是**嵌套**形态（框架 schema 里 player_skills /
+    branch_skills / tutor_skills 三个 def 描述的就是这三个源形态，留给将来的「技能树」视图用）：
+        PLAYER_SKILLS  {职业key: {name, skills: {sk_*: 技能}}}                  skills.py:1
+        BRANCH_SKILLS  {职业key: {name, branches: {阶: {线名: {中文名: 技能}}}}}  skills.py:862
+        TUTOR_SKILLS   {职业key: {sk_*: 技能}}                                   skills.py:4172
+    ⇒ 三张表折成同一张扁平表，条目字段**原样保留**（不改类型、不补默认值、不动字段顺序），
+      只额外追加能表达「被折掉的层级」的字段（见下）。
+
+    ============================ 键空间决策 ============================
+    * **key = 源表的技能 key 原样**：PLAYER/TUTOR 是 `sk_*` 技能 id，BRANCH 是**中文名**
+      （源里 BRANCH 的 key 与条目 `name` 字段逐条相同，实测 238/238 一致）。
+      不另造 key（例如把中文名转成拼音 sk_*）：那会造出第二套 id 空间，且 items.learn_skill
+      是按**中文名**引用的（实测 5 条全部指向 BRANCH 技能），改成 sk_* 反而要再补一层
+      name→key 映射 —— 中文名当 key 恰好让这 5 条引用**直接命中**。
+    * **中文名（238）与 sk_*（61+6）共存**：实测两者**无交集**（`key ∩ name` 交集 238 全部
+      来自 BRANCH 自身 key=name，跨表 0），三表合计 305 个 key **0 冲突**。
+    * **冲突策略：撞了就 `raise ValueError`，绝不静默覆盖**（同一个 key 出现在两张表/两条
+      分支线 = 扁平化必然丢条目；空表同样 raise —— 空表让编辑器显示「0 条」且不报错）。
+      另外守一条**按名歧义**：两个不同 key 的 `name` 相同也 raise（按名引用会变歧义）。
+      实测当前 305 条 0 冲突、0 重名。
+
+    ============================ 追加字段（及理由） ============================
+    折掉嵌套后，「归属 / 阶 / 线 / 来自哪张表」就没地方表达；四个字段都**追加在条目末尾**
+    （不动源字段顺序，保持幂等）：
+        owner_class : 职业 key（三表都有）—— 同旧版；没有它技能归属丢失。
+        source      : "player" | "branch" | "tutor" —— 三张表语义不同（基础技能 / 转职分支
+                      技能 / 导师秘传），进同一个域后**必须**能区分：BRANCH 技能受 tier+branch
+                      门控，TUTOR 技能是 NPC 传授，混在一起无法再回推。
+        tier        : 仅 branch —— 转职阶（源里的 1/2/3，规范成 int）。框架
+                      `$defs/branch_skills` 正是按「阶」分组的，这是被折掉的一级。
+        branch      : 仅 branch —— 分支线中文名（如「狂战士」/「盾卫士」），被折掉的另一级。
+    （实测四个字段名与 305 条源条目的字段全集**零重名**；若将来源条目自带同名键，
+      本函数 raise 而不是覆盖。）
+
+    实测（2026-09-13）：PLAYER 61 + BRANCH 238 + TUTOR 6 = **305 条**，0 键冲突、0 重名、
+    逐条过 `$defs/skill` 0 失败；进包后 skills 域 61 → **305** 条（包 2691 → 2935）。
+    附带收益：`passive_proc` 域的 **42 条孤儿入边全部闭合**（42 个声明键都能在技能侧找到
+    引用者；技能侧共 53 个 proc 名，其中 11 个不在 passive_proc 表里，见
+    `derive_passive_proc` docstring）。
+    """
+    tables = _import_module("skills", src_root)
+
+    plan = (
+        ("player", "PLAYER_SKILLS", getattr(tables, "PLAYER_SKILLS", None)),
+        ("branch", "BRANCH_SKILLS", getattr(tables, "BRANCH_SKILLS", None)),
+        ("tutor", "TUTOR_SKILLS", getattr(tables, "TUTOR_SKILLS", None)),
+    )
+    for label, table_name, tbl in plan:
+        if not isinstance(tbl, dict) or not tbl:
+            raise ValueError(
+                f"skills.{table_name} 不是非空 dict（{table_name}.{label}）—— "
+                f"源形状变了/表被删，拒绝导出（空表 = 编辑器显示 0 条且不报错）"
+            )
+
+    flat: dict = {}
+    name_to_key: dict = {}
+
+    def _put(key, sk, extra: dict, where: str) -> None:
+        if not isinstance(sk, dict):
+            raise ValueError(
+                f"{where}: 技能 {key!r} 不是 dict（{type(sk).__name__}）—— 源形状变了，拒绝导出"
+            )
+        if key in flat:
+            prev = flat[key]
+            raise ValueError(
+                f"技能 key {key!r} 冲突：{prev.get('source')}({prev.get('owner_class')}) 与 "
+                f"{extra['source']}({extra['owner_class']}) 都声明了同一个 key —— "
+                f"扁平化会丢条目，请先在源侧决定归属再导出（{where}）"
+            )
+        nm = sk.get("name")
+        if isinstance(nm, str) and nm:
+            prev_key = name_to_key.get(nm)
+            if prev_key is not None and prev_key != key:
+                raise ValueError(
+                    f"技能中文名 {nm!r} 重复：{prev_key!r} 与 {key!r} —— "
+                    f"按名引用（如 items.learn_skill）会变歧义，请先在源侧改名再导出"
+                )
+            name_to_key[nm] = key
+        for f in extra:
+            if f in sk:
+                raise ValueError(
+                    f"{where}: 源条目 {key!r} 已含字段 {f!r} —— 注入会覆盖源真值，拒绝导出"
+                )
+        entry = dict(sk)
+        entry.update(extra)
+        flat[key] = entry
+
+    # --- 1) PLAYER_SKILLS: {职业: {name, skills: {sk_*: 技能}}} ---
+    for cls_key, blob in sorted(plan[0][2].items()):
+        if not isinstance(blob, dict) or not isinstance(blob.get("skills"), dict):
+            raise ValueError(
+                f"PLAYER_SKILLS[{cls_key!r}] 缺少 skills 表 —— 源形状变了，拒绝导出"
+            )
+        for sk_key, sk in blob["skills"].items():
+            _put(sk_key, sk, {"owner_class": cls_key, "source": "player"},
+                 f"PLAYER_SKILLS[{cls_key!r}].skills")
+
+    # --- 2) BRANCH_SKILLS: {职业: {name, branches: {阶: {线名: {中文名: 技能}}}}} ---
+    for cls_key, blob in sorted(plan[1][2].items()):
+        branches = blob.get("branches") if isinstance(blob, dict) else None
+        if not isinstance(branches, dict) or not branches:
+            raise ValueError(
+                f"BRANCH_SKILLS[{cls_key!r}].branches 不是非空 dict —— 源形状变了，拒绝导出"
+            )
+        for raw_tier, lines in sorted(branches.items(), key=lambda kv: _tier_int(kv[0])):
+            tier = _tier_int(raw_tier)
+            if not isinstance(lines, dict) or not lines:
+                raise ValueError(
+                    f"BRANCH_SKILLS[{cls_key!r}] 阶 {raw_tier!r} 下没有分支线 —— 源形状变了，拒绝导出"
+                )
+            for line, names in sorted(lines.items()):
+                if not isinstance(names, dict) or not names:
+                    raise ValueError(
+                        f"BRANCH_SKILLS[{cls_key!r}][{raw_tier!r}][{line!r}] 不是非空 dict —— "
+                        f"源形状变了，拒绝导出"
+                    )
+                for sk_name, sk in names.items():
+                    _put(sk_name, sk,
+                         {"owner_class": cls_key, "source": "branch", "tier": tier, "branch": line},
+                         f"BRANCH_SKILLS[{cls_key!r}].branches[{tier}][{line!r}]")
+
+    # --- 3) TUTOR_SKILLS: {职业: {sk_*: 技能}}（职业下可以是空表：该职业无导师技能） ---
+    for cls_key, blob in sorted(plan[2][2].items()):
+        if not isinstance(blob, dict):
+            raise ValueError(
+                f"TUTOR_SKILLS[{cls_key!r}] 不是 dict —— 源形状变了，拒绝导出"
+            )
+        for sk_key, sk in sorted(blob.items()):
+            _put(sk_key, sk, {"owner_class": cls_key, "source": "tutor"},
+                 f"TUTOR_SKILLS[{cls_key!r}]")
+
+    return flat
+
+
+def derive_monsters(src_root: str = REPO_ROOT) -> dict:
+    """怪物域：取 `MONSTER_SKILLS` 全量原样（330 条；一条 = 一个怪技能）。
+
+    为什么是 MONSTER_SKILLS：框架 `editor/packages.py:40` 的 monsters 域 primary =
+    `monster_skill`（= `schemas/monster.schema.json:318` 的 `x-primary`），require name/kind/desc；
+    编辑器按条目增删改、校验也只认这个 def。游戏侧与它同构的**扁平 {key: entry} 表只有**
+    `game/data/monsters.py:3  MONSTER_SKILLS = {`（330 条，闭括号 :1639）。
+    而「怪物名册」（id / 中文名 / role / lv / 技能 / 掉落）在游戏侧**不是一张表**：散落在
+    subareas.py / instances.py / mesh_rooms_*.py 的 840 条六元组模板（355 个唯一 id，168 个 id
+    的 lv 跨表不一致，10 个中文名对应两个 id）——那是 maps / instances 域的形态。
+
+    运行时表 == 源码字面量（对本文件 AST 全扫描：`MONSTER_SKILLS` 只出现 1 次，0 处
+    update/setdefault/pop/下标赋值）→ 与 items 域不同，本域**没有** import 期就地覆盖要跟。
+
+    实测（2026-09-13）：330 条逐条过 `editor.validate.validate_entry("monsters", 条目)` 0 失败；
+    整表过 `$defs/monster_skill_table` 0 失败；键 100% 匹配 `^[a-z][a-z0-9_]*$`；字典字面量
+    重复键 0；无空值、无 tuple（全 JSON 原生类型）→ 落盘 85 792 B / 3 929 行，两次派生逐字节相同。
+    条目内字段顺序保持源顺序（如 ms_ai_hao = kind / formula / power / desc / name）。
+
+    未导出（同族的另三张表，形状与本域 primary 不符，见报告 §3.2）：
+    MONSTER_MODS(140) / HIDDEN_MONSTERS(25) / ELITE_EQUIP_DROP(18)。
+    """
+    table = _import_module("monsters", src_root).MONSTER_SKILLS
+    if not isinstance(table, dict) or not table:
+        # 空表会让编辑器显示「0 条」而不报错 —— 宁可炸（与 PLANNED_DOMAINS 的立意一致）
+        raise ValueError("MONSTER_SKILLS 不是非空 dict —— 源形状变了，拒绝导出")
+    return dict(table)
+
+
+def derive_tlogs(src_root: str = REPO_ROOT) -> dict:
+    """流水声明域（tlogs）：读 `game/data/tlogs.json` 全量原样（18 条，`{kind: {fields, desc, category}}`）。
+
+    为什么这一域**不像 items/classes/skills 那样 `_import_module`**：声明不是 `.py` 表，
+    而是一张**数据文件**（JSON）。内容侧唯一读点是 `game/tlog_setup.py:44-56 kinds()`：
+    `json.load(game/data/tlogs.json)` → `saintess_engine.tlog.KindTable` → 喂给
+    `TLog(kinds=…)`，由 `KindTable.check_record()` 逐条比对「未声明 kind / 未声明字段 /
+    缺声明字段」（`strict=True` 直接抛，默认只在 `on_undeclared` 上报）。
+    也就是说：**这张表不是流水数据本身，而是「哪个 kind 该带哪些字段」的契约**，
+    是发射端（`game/services/battle_tlog.py` 的 `EVENT_KINDS` 映射 + `game/reward.py` /
+    `game/services/shop.py` / `game/commands/instance_router.py` 的直调点）与
+    读端（`replay()` / `Reader` / 分析）之间的同一份口径。
+
+    导出纪律（与 items/classes/skills 同构）：
+    * 条目**原样**进包 —— 不注入 `kind`（框架 `schemas/tlog.schema.json` 的
+      `$defs.tlog_entry.kind` 是可选的：「表形态里以对象 key 为准」，注入等于造第二个真源）、
+      不补默认值、不改字段名（字段名与发射端一一对应，改一个名字就等于改语义）。
+    * **不按调用点反推字段** —— 调用点与声明目前**确有漂移**（见下），但修的地方是
+      游戏仓的声明或发射端，导出期「顺手改」会掩盖真问题。
+      现状快照（2026-09-13 实测）：`shop.buy` 调用点发 `key/qty/discount`（声明写
+      `item/qty/unit_price/gold_after`）、`instance.clear` 发 `iid/first_clear`（声明写
+      `iid/rounds/deaths`）、`reward.py` 的 `drop.grant` 发 `exp/gold/items`（声明写
+      `item/qty/source`）；另有 6 个 kind（quest.accept/quest.done/shop.sell/instance.enter/
+      level.up/travel.move）**已登记未接线**（设计稿 `docs/REFACTOR_tlog_landing.md:152`
+      明说「先登记词表、暂不埋点」）—— 这些都是**源侧事实**，导出照搬即可。
+    * 源缺失/空表/形状不对 → `raise ValueError`，**绝不静默产空表**（空表会让编辑器显示
+      「0 条」而不报错，是最难查的那种故障，见本文件顶部 items 域的同类纪律）。
+
+    实测：18 条 / 0 键冲突 / 按框架 `tlog_entry` 逐条校验 0 失败 / 连跑两次逐字节相同。
+    """
+    path = os.path.join(src_root, "game", "data", "tlogs.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            raw = json.load(f)
+    except OSError as e:
+        raise ValueError(f"流水声明源不可读：{path}（{e}）—— 拒绝导出空表") from e
+    except json.JSONDecodeError as e:
+        raise ValueError(f"流水声明源不是合法 JSON：{path}（{e}）") from e
+    if not isinstance(raw, dict):
+        raise ValueError(f"流水声明源顶层不是 object：{type(raw).__name__}（{path}）")
+    if not raw:
+        raise ValueError(
+            f"流水声明源是空表：{path} —— 拒绝导出（空表 = 编辑器显示 0 条且不报错）"
+        )
+    for kind, spec in raw.items():
+        if not isinstance(spec, dict):
+            raise ValueError(
+                f"流水声明 {kind!r} 不是 object（{type(spec).__name__}）—— 源形状变了，拒绝导出"
+            )
+    return dict(raw)
+
+
+def derive_commands(src_root: str = REPO_ROOT) -> dict:
+    """指令域：取**指令声明表** `game/data/command_specs.json` 全量原样（194 条）。
+
+    背景：指令表迁移 = 声明表单源
+    ------------------------------
+    2026-09-12（路线图 #9「指令表迁移收尾」，见游戏仓 `docs/COMMAND_DECL_MIGRATION.md`）之前，
+    命令正则有**两处来源**：各文件里的 `@filter.regex(<字面量>)`（真实注册）＋
+    `game/commands/_registry.py::_LITERAL_REGEX`（手工维护的镜像表，供停服 gate / 快捷转发 / 测试用）。
+    两处互相同步 → 必然漂移，只能再配一个「表与装饰器 1:1」测试盯着。迁移把 ① 换成
+    `@declared("key")`（正则从声明表取）、删掉 ② → **声明表是唯一真源**：
+    现在 194/194 条指令全部来自 `game/data/command_specs.json`，命令层源码里 `@filter.regex` 为 **0**，
+    `_registry.COMMAND_REGEX` 只是**同一份声明的派生**（`_declared_patterns()`）。
+
+    为什么取声明表，而不是扫命令层源码
+    ----------------------------------
+    1. **声明表是超集**：它同时供「正则注册 / 帮助与目录（desc/category/order/visible）/
+       有效表派生 / 漂移自检」。扫源码只能拿到正则，编辑器真正要编辑的元数据一个字都拿不到。
+    2. **正则字面量已不在源码里**（源码只有 `@declared("key")`）→ 扫源码 = 重新发明一套解析器。
+    3. **扫源码会复活已删除的第二来源**：迁移文档 §六.1 记着「读源码找正则的测试是迁移的绊脚石
+       （踩了 3 次）」。导出器再扫一遍源码，等于把刚拆掉的漂移风险装回来。
+    4. 真要「合并后的正则」也有现成、已被断言锁死的一条路（`_registry._combine_patterns` ≡ 框架
+       `saintess_engine.command.combine_patterns`）—— **但导出不预合并**：框架 schema 的权威形状是
+       `patterns` 数组（「首条为主，其余为别名」），预合并会毁掉这个结构。
+
+    形状
+    ----
+    `{key: {"patterns": [...], "desc", "category", "usage", "guards"?, "order",
+            "page_size"?, "visible"?, "extra"?}}`
+    外层 key 就是指令 key（框架 `command.schema.json` 注明「表形态里以对象 key 为准，条目内可省略」），
+    与 items/classes/skills **同构**：条目原样进 JSON，不补默认值、不改类型。
+
+    实测（2026-09-13，本机）
+    ------------------------
+    * 194 条；每条恰好 1 条 pattern，194 条正则全部 `re.compile` 通过
+    * `editor.validate.validate_entry("commands", 条目)` 逐条 **194 通过 / 0 失败**
+      （反证探针：缺 patterns / 空 patterns / 空串 / page_size=-1 / guards 非数组 / key 非法 —— 全被拦）
+    * 框架 `CommandRegistry.from_data(表).validate()` **0 问题**；`pattern_map()` 与游戏侧
+      `_registry.COMMAND_REGEX` 194 条**逐字全等**
+    * 两次导出（独立 tmp）`commands.json` 逐字节相同（幂等）
+
+    未导出（有意）
+    --------------
+    * 守卫**实现**（`game/commands/base.py` 的 require_player / no_prof_waiting / require_battle）——
+      声明只记守卫**名字**，框架不认语义。
+    * 宿主注册 **priority**（`@declared("key", priority=N)` 的实参，4 条）—— 属宿主注册细节，不在声明表。
+    * 有效表 `COMMAND_REGEX`（预合并正则）—— 派生自本表，导它 = 第二份定义。
+    """
+    path = os.path.join(src_root, "game", "data", "command_specs.json")
+    if not os.path.exists(path):
+        raise ValueError(f"指令声明表不存在：{path} —— 取不到真源，拒绝导空表")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except ValueError as exc:                     # JSON 坏了
+        raise ValueError(f"指令声明表不是合法 JSON：{path}（{exc}）") from exc
+    if not isinstance(data, dict) or not data:
+        raise ValueError(f"指令声明表为空或不是对象：{path} —— 拒绝导空表")
+    for key, entry in data.items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"指令声明 {key!r} 不是对象 —— 源形状变了，拒绝导出")
+        pats = entry.get("patterns")
+        if (not isinstance(pats, list) or not pats
+                or any(not isinstance(p, str) or not p for p in pats)):
+            raise ValueError(
+                f"指令声明 {key!r} 的 patterns 缺失/为空/含非字符串 —— "
+                f"框架 command.schema.json 里 patterns 是必填非空字符串数组，拒绝导出")
+    return dict(data)
+
+
+def derive_passive_proc(src_root: str = REPO_ROOT) -> dict:
+    """被动声明域：取 `battle_rules.PASSIVE_PROC` 全量原样（42 条 @ 2026-09-13）。
+
+    ============================ 这张表是什么（边界） ============================
+    `PASSIVE_PROC` 是**装配层的声明表**，不是引擎数据：引擎（saintess_engine）里
+    **没有** `passive_proc` 这个挂载点（config._HOOKS 无此名，`config.mount(passive_proc=…)`
+    按「未知名忽略」静默丢弃）；`saintess_engine` 全仓零处认识 `PASSIVE_PROC`。
+    它的消费者是游戏侧装配器 `game/services/class_mech_proc.py:2035 apply_class_passives(actor)`：
+
+        扫 actor.learned_skills 里 kind=被动 的技能 → 读该技能的 passive.proc
+        → 查本表 PASSIVE_PROC[proc] → 合成条目 {type: cfg.action, judge: cfg.judge,
+          **cfg 的非结构字段, **passive 参数, label: 技能名}
+        → 挂 actor["triggers"][cfg.event]（聚合族 agg 先按 (event, agg) 暂存再归并单条；
+          domain=cap → bonus.cap[cap_key] += add；domain=cost → bonus.cost 折扣；
+          also[] → 同被动的第二条事件钩子；left_key/left_init → effects 计数器初始化）。
+
+    ============================ 与引擎 hook 的关系 ============================
+    引擎侧只有最后一段：`fire(event)` 遍历存活 actor 的 `triggers[event]` →
+    `apply_effects` → 按条目的 `action` **直查 `ACTION_HANDLERS`（跳过名词翻译）**
+    （`saintess_engine/battle/effect_triggers.py:65`、`battle/effects.py:95/155-180`）。
+    即本表声明的是「**哪个事件 → 哪个动词 → 什么判据**」；`action` 的取值由内容侧
+    注册机制决定（26 个动作的实现在 game/services/class_mech_proc.py（25）与
+    game/services/battle_bar_procs.py:169（1），**不在本表、也不在本包**）。
+    ⇒ 导出本域 = 搬运「声明」而非「行为」：包里必须另有 content/mech/actions.py
+    （或移植上述两文件的动作）才谈得上可运行；否则引擎 fire() 查不到 handler →
+    静默跳过（不错、不报）。
+
+    ============================ 导出约定 ============================
+    - 条目**原样**（浅拷贝）：不改类型、不补默认值、不预归并 agg、不解析 bar_field
+      （那些都是装配期语义，写进包里就是第二份实现）。
+    - 目标路径 = `content/rules/passive_proc.json`（本域 kind="rules"；落到 content/data/
+      编辑器会读不到且**不报错** → 显示 0 条）。
+    - 已知覆盖面缺口（导出后包里不可见，非本函数可解）：技能侧共 52 个 proc 名，
+      本表只声明 42 个；另 10 个（death_contract / faith_overload_heal / faith_share /
+      focus_regen_summon / melody_full / melody_master / melody_resonance /
+      shadow_dance_ease / skeleton_cap / undead_faith）原走旧注册表
+      game/core/passive_procs.py PROC_FAMILIES/KNOWN_GAPS —— 该文件已于 2026-09-13 删除
+      （全仓无活装配路径，副本存 workspace `overnight/_retired/`，历史见 git），故这 10 个
+      proc **当前无任何装配方**＝纯缺口（不是"双真源"了）；另：声明这些 proc 的 52 条被动技能
+      在 BRANCH_SKILLS，也未进 skills 域（只导了 PLAYER_SKILLS）。⇒ 内容侧待收口项。
+    """
+    tables = _import_module("battle_rules", src_root)
+    table = getattr(tables, "PASSIVE_PROC", None)
+    if not isinstance(table, dict):
+        raise ValueError(
+            "battle_rules.PASSIVE_PROC 不是 dict（缺失或源形状变了）—— 拒绝导出"
+        )
+    out: dict = {}
+    for k, v in table.items():
+        if not isinstance(v, dict):
+            raise ValueError(
+                f"PASSIVE_PROC[{k!r}] 不是 dict（期望「一条声明 = 一个 dict」）—— 拒绝导出"
+            )
+        out[k] = dict(v)
+    return out
+
+
+def derive_effect_rules(src_root: str = REPO_ROOT) -> dict:
+    """资源/状态声明域（effect_rules）：取 `battle_rules.EFFECT_RULES` 全量原样（85 条）。
+
+    实证（2026-09-13 域研究，见 workspace/…/domain-research/effect_rules.md）：
+    * 85/85 条逐条过 `VD.validate_entry("effect_rules", 条目)` **0 失败**；
+    * 85 个 key 全部匹配 `effect_rules_table.propertyNames = ^[a-z][a-z0-9_]*$`；
+    * 整表 0 个 tuple / 全 JSON 原生类型；两次派生逐字节相同。
+    * 与 items 域不同：本表**没有** import 期就地覆盖要跟（取运行时表即字面量）。
+
+    ⚠ 落点：本域在框架里 `kind="rules"` → 落 `content/rules/effect_rules.json`
+      （由 `content_sub()` 问框架 DOMAINS 得到，别写死 data/）。
+    ⚠ 可读性：72/85 条在源表里**本来就没有 `name`**（DOT / 控制 / 装备特效类设计上不需要中文名）
+      → 编辑器列表标题会显示英文 key（rage / burn / stun…）。**不在这里替它们造 name**
+      （造 = 第二份定义）；真要可读名，改的地方是游戏仓源表。
+    """
+    table = getattr(_import_module("battle_rules", src_root), "EFFECT_RULES", None)
+    if not isinstance(table, dict) or not table:
+        raise ValueError("battle_rules.EFFECT_RULES 不是非空 dict —— 源形状变了，拒绝导出")
+    out: dict = {}
+    for k, v in table.items():
+        if not isinstance(v, dict):
+            raise ValueError(f"EFFECT_RULES[{k!r}] 不是 dict（期望「一条声明 = 一个 dict」）—— 拒绝导出")
+        out[k] = dict(v)
+    return out
+
+
+def derive_affixes(src_root: str = REPO_ROOT) -> dict:
+    """词条域：取 `AFFIXES` 全量原样（76 条 = 攻击 37 + 防御 39）。
+
+    为什么是 AFFIXES（而且**只有** AFFIXES）：框架 `editor/packages.py:42` 的 affixes 域 primary =
+    `affix`（= `schemas/affix.schema.json:165` 的 `x-primary`），要求 name/kind/trigger/effect/desc；
+    框架 schema 的两个表级标题直接点名源表 —— `$defs/affix`「词条（**AFFIXES** 一条）」、
+    `$defs/affix_table`「**AFFIXES** 整表」（`schemas/affix.schema.json:8,96`）。游戏仓**自带的**编辑器
+    （`editor/data_io.py:53-62`）同样是 `tables=("AFFIXES",)` 的扁平域。→ 一门一表，不做任何合并。
+
+    运行时表 == 源码字面量（与 items 域**不同**，本域没有 import 期覆盖要跟）：`game/data/affixes.py`
+    全文无 import 语句，`AFFIXES` 在文件里只作为定义出现一次，全仓 `AFFIXES.update` 0 命中。
+    仍然走 import（而不是 AST 解析）以与其他域同构，将来真有 import 期补丁也能自动跟上。
+
+    实测（2026-09-13，jsonschema 4.26 + framework/schemas/affix.schema.json $defs.affix）：
+    76 条逐条 validate_entry 0 失败；整表过 `$defs/affix_table`（propertyNames）0 失败；
+    键 76/76 匹配 `^[a-z][a-z0-9_]*$`；必填五件套 76/76；trigger/kind 全部落在 schema 枚举内；
+    无 tuple/非 JSON 原生类型 → 落盘 19 689 B，两次派生**逐字节相同**（sha256 见报告 §6）。
+    条目内字段顺序保持源顺序（如首条 `abyss_resist` = name/kind/trigger/effect/desc）。
+
+    未导出（都不是「一条词条」，各有归属，详见报告 §3.2-§3.4）：
+      - `LEGENDARY_EFFECTS`（93，affixes.py:548-1022）：传说专属（一件橙装挂 1 个，装备的 `legendary`
+        字段引用它），形状同词条但**语义不同**；还含 1 条越界数据（`shadow_raid.trigger="on_crit"`
+        不在框架 trigger 枚举 → 逐条校验会红 1 条）。要导就**另开一个域**，别并进来。
+      - `SERIES_FIXED_AFFIX`（622，affixes.py:1026-1612）：外层键是**中文装备名**（违反 affix_table 的
+        `propertyNames`），值是词条 id 列表 → 属装备/名册域。
+      - `AFFIX_POOL_BY_QUALITY` / `AFFIX_KIND` / `AFFIX_AFFINITY_POOLS` / `AFFIX_AFFINITY_CN`
+        （affixes.py:485/524/527/538）：随机池/显示名/锻造倾向/输入别名，是**配套索引**不是条目本体；
+        框架 schema 里为前两者留了同名 $defs（留给将来的「词条池」视图）。
+    """
+    table = _import_module("affixes", src_root).AFFIXES
+    if not isinstance(table, dict) or not table:
+        # 空表会让编辑器显示「0 条」而不报错 —— 宁可炸（与 PLANNED_DOMAINS 的立意一致）
+        raise ValueError("AFFIXES 不是非空 dict —— 源形状变了，拒绝导出")
+    flat: dict = {}
+    for af_key, af in table.items():
+        if not isinstance(af, dict):
+            raise ValueError(
+                f"AFFIXES[{af_key}] 不是 dict（{type(af).__name__}）—— 源形状变了，拒绝导出"
+            )
+        missing = [f for f in ("name", "kind", "trigger", "effect", "desc") if f not in af]
+        if missing:
+            # 框架 required 缺字段 = 形状异常：在派生处炸掉，而不是把一个编辑器会标红的条目发进包
+            raise ValueError(
+                f"AFFIXES[{af_key}] 缺必填字段 {missing} —— affix.schema.json $defs.affix "
+                f"要求 name/kind/trigger/effect/desc，拒绝导出"
+            )
+        flat[af_key] = dict(af)
+    return flat
+
+
+def derive_drop_pools(src_root: str = REPO_ROOT) -> dict:
+    """掉落池域：取 `DROP_POOLS` 全量原样（596 池；池 key 原样保留，含 `boss:` / `mon:` 等前缀与中文名）。
+
+    为什么是整表原样、不做任何扁平化/改写：
+
+    1) **池 key 本身就是引用语法**。`boss:inst_x` / `inst_pool:inst_x` / `mon:丘陵狼` /
+       `elite:丘陵狼王·铁牙` 等 key 前缀是内容侧词汇表（`game/drop_engine.py:171` 的
+       `_INLINE_PREFIXES`、`:174 _SPECIAL_REFS`、`:177 _POOL_KEY_PREFIXES`），`rolls[].pool` 里
+       既有**子池 key**（本表内 `inst_pool:*` 等，114 行）也有**内容侧引用串**
+       （`equip:eq_x` / `gold:a:b` / `gold_pct:30` / `item:mat_x` / `petegg:*` / `rune:blue` /
+       `bp` / `gem` / `equip_drop_mix`，175 行）。框架 schema 明写「引用写法由内容侧定、引擎不解析」
+       （schemas/drop_pools.schema.json 的 pool_entry.item / pool_roll.pool 描述）→ 导出器
+       **只搬运不翻译**；改写任何 ref 都会在框架侧长出第二份词汇表。
+
+    2) **源是纯数据模块，无 import 期改写**。`game/data/drop_pools.py` 无任何 import、无第二个
+       顶层赋值（全文只有 `DROP_POOLS = {...}` 一处），也没有任何模块在 import 期写它
+       （全仓 `DROP_POOLS[` 只出现在 tests 的读取里）→ 不像 items 域要担心「覆盖前/后」的取值时机，
+       直接读运行时表即可。
+
+    形状门禁（源形状变了就拒绝导出，而不是静默产出坏包）：
+      · DROP_POOLS 必须是 dict；key 必须是非空 str；每条 value 必须是 dict。
+      · type 必须是非空 str（框架**不设枚举**：内容侧可注册自己的策略名，`fish` 就是本游戏自注册的）。
+      · type ∈ {weighted, fixed, fish} → 必须有非空 `entries`，每项含非空 str 的 `item`。
+      · type ∈ {table, table_choice} → 必须有非空 `rolls`，每项含非空 str 的 `pool`。
+      · 未知 type：只做结构检查（有 entries 就查 entries、有 rolls 就查 rolls），不拦 ——
+        拦了就把内容侧的策略扩展挡在门外。
+
+    实测（2026-09-13，真跑）：596 池 / 1435 条目 / 289 行 roll，`validate_entry("drop_pools", …)`
+    逐条 **0 失败**；框架 `LootTable.audit()` 在**声明了内容侧词汇表**后 **0 问题**，与游戏仓
+    `drop_engine.audit_all()` 的「596 池 / 1435 条目 / 0 问题」一致；JSON 往返零漂移 → `--check` 绿。
+    """
+    tables = _import_module("drop_pools", src_root)
+    pools = getattr(tables, "DROP_POOLS", None)
+    if not isinstance(pools, dict):
+        raise ValueError("DROP_POOLS 不是 dict —— 源形状变了，拒绝导出")
+
+    uses_entries = ("weighted", "fixed", "fish")
+    uses_rolls = ("table", "table_choice")
+
+    out: dict = {}
+    for key, pool in pools.items():
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError(f"池 key 不是非空字符串: {key!r} —— 源形状变了，拒绝导出")
+        if not isinstance(pool, dict):
+            raise ValueError(
+                f"DROP_POOLS[{key}] 不是 dict（{type(pool).__name__}）—— 源形状变了，拒绝导出")
+        ptype = pool.get("type")
+        if not isinstance(ptype, str) or not ptype.strip():
+            raise ValueError(f"DROP_POOLS[{key}] 缺 type（策略名）—— 源形状变了，拒绝导出")
+        ptype = ptype.strip()
+
+        if "entries" in pool or ptype in uses_entries:
+            entries = pool.get("entries")
+            if not isinstance(entries, list) or (ptype in uses_entries and not entries):
+                raise ValueError(
+                    f"DROP_POOLS[{key}]（type={ptype}）entries 缺失/为空 —— 拒绝导出（空池会让编辑器"
+                    f"显示 0 条而不报错）")
+            for i, e in enumerate(entries):
+                if not isinstance(e, dict) or not isinstance(e.get("item"), str) or not e["item"].strip():
+                    raise ValueError(
+                        f"DROP_POOLS[{key}].entries[{i}] 缺 item —— 源形状变了，拒绝导出")
+
+        if "rolls" in pool or ptype in uses_rolls:
+            rolls = pool.get("rolls")
+            if not isinstance(rolls, list) or (ptype in uses_rolls and not rolls):
+                raise ValueError(
+                    f"DROP_POOLS[{key}]（type={ptype}）rolls 缺失/为空 —— 拒绝导出")
+            for i, rc in enumerate(rolls):
+                if not isinstance(rc, dict) or not isinstance(rc.get("pool"), str) or not rc["pool"].strip():
+                    raise ValueError(
+                        f"DROP_POOLS[{key}].rolls[{i}] 缺 pool —— 源形状变了，拒绝导出")
+
+        out[key] = pool          # 条目原样进 JSON：不补默认值 / 不改类型 / 不重写 ref
+    return out
+
+
+def _import_game_module(full_name: str, src_root: str = REPO_ROOT):
+    """按**全名**import 游戏仓模块（`_import_module` 只管 `game.data.*`，本函数给 `game.core.*` 用）。
+
+    与 `_import_module` 同一条纪律：拿到的是 **import 之后的运行时模块**（装配期派生表都在里面），
+    不是源码字面量解析的结果。
+    """
+    if src_root not in sys.path:
+        sys.path.insert(0, src_root)
+    if full_name in sys.modules:
+        return sys.modules[full_name]
+    return importlib.import_module(full_name)
+
+
+def _import_data_package(src_root: str = REPO_ROOT):
+    """import 游戏仓 `game.data` **包本身** —— 装配期算出的派生表挂在包命名空间上
+    （`SUBAREAS` / `SUBAREA_LINKS_INDEX`，见 game/data/__init__.py:247）。"""
+    return _import_game_module("game.data", src_root)
+
+
+def _subarea_role_values(src_root: str = REPO_ROOT) -> dict:
+    """角色名 → 取值：**从常量取**（game/core/constants.py:64-66 的 SUB_TYPE_*），不写字面量 ——
+    游戏改「哪个 type 算哪个角色」时导出物自动跟随，不产生第二份定义。"""
+    c = _import_game_module("game.core.constants", src_root)
+    return {"hub": c.SUB_TYPE_TOWN, "through": c.SUB_TYPE_STREET, "exit": c.SUB_TYPE_GATE}
+
+
+def derive_maps(src_root: str = REPO_ROOT) -> dict:
+    """地图域（空间形状）：**一图一条 = 「节点表 + 拓扑」**，形状与游戏运行期 `core/maps.py:38 map_space()` 同源同形。
+
+    真源（全部取 import 后的运行时态，本域唯一真源）
+    ------------------------------------------------
+        game/data/subareas.py:4        SUBAREAS             121 图 / 628 子区域（列表顺序 = 声明序 / 默认入口）
+        game/data/_assembly.py:101     SUBAREA_LINKS_INDEX  97 图的显式网状连通表
+                                      （4 张表合并：mesh_rooms_south.py:1338 / mesh_rooms_west_north.py:484 /
+                                        mesh_rooms_east_abyss.py:19,:1933 / dungeon_links.py:20）
+        game/data/maps.py:3            MAPS                 121 条；**只取它的 name**（显示名）
+        game/core/constants.py:64-66   SUB_TYPE_TOWN/STREET/GATE  角色取值（城镇 / 城镇街道 / 城镇出口）
+
+    条目形状（= schemas/maps.schema.json 的 `$defs.map`，primary）
+    -----------------------------------------------------------
+        {name, topology, roles, nodes:[{id, name, role}], links?, gate?}
+
+      * `nodes`  = 该图的子区域，**声明序原样**（链/星形图的顺序本身就是作者给的由近及远，首节点 = 入口）；
+                   `id` 取子区域 id、`name` 取子区域 name。
+      * `role`   = 子区域 `type` **原样**（不翻译、不丢取值）—— 「角色取值由内容侧定义」，
+                   引擎零知识；编辑器配色按取值分色，因此「野外 / 副本 / 隐藏区域」不被塌成「无角色」。
+                   （子区域没有 type 时不写 role 键：schema 里 role 可选。）
+      * `roles`  = 角色名 → 取值（hub/through/exit ← 城镇/城镇街道/城镇出口）= `core/maps.py:31` 的
+                   `_ROLE_BY_TYPE` 的逆映射，取值取自 `core/constants.py` 的常量。
+      * 有显式连通表 → `links` + `topology="mesh"`（**给连通表就不派生**：引擎/编辑器一律以它为准）。
+        没有 → `topology` 按运行期同一口径派生：首节点是枢纽角色 = `star`，否则 `chain`。
+      * `gate`   = **只在运行期需要覆盖时写**（首节点是枢纽角色却没有出口角色节点 → 取 id 以 `_gate` 结尾者，
+                   与 `core/maps.py:51-54` 同一条兜底）。实测 121 图**一张都不需要** → 一律不写；
+                   其余情况让引擎/编辑器按角色规则推（少一份冗余 = 少一个漂移点）。
+
+    只读、不改类型、不重算：除 `role`（= type 原文照抄）与 `topology/roles` 是形状映射外，条目里没有别的
+    生成字段；没有 tuple（`links` 取列表，`nodes` 只取 id/name/type 三个标量）→ 落盘往返不含隐式类型变化。
+
+    未导出（都是**有意**的，写在这里防后人「顺手补上」）
+    --------------------------------------------------
+      * `MAP_CONNECTIONS`（maps.py:4224，116 键）—— **跨图**连接是另一层：引擎 `space` 有意不做跨图连边
+        （见 docs/engine-wiki/reference/space.md「有意不做」），参考实现把它放在内容侧；要进包得先给
+        space 一个「图与图」的层（框架决策，不是导出器决策）。
+      * `HIDDEN_MAP_UNLOCK`(maps.py:4343) / `LEGACY_MAP_ALIAS`(maps.py:4352) —— 准入条件与旧名别名，
+        都不是空间形状。
+      * 子区域的 desc / npcs / monsters / elite / boss / lv / shop / healer / hidden / reveal —— 属文案 / 怪物 /
+        掉落等别的域；塞进本域 = 在包里造它们的第二份定义，且编辑器空间视图只读 id/role/name（多带的字段是死重）。
+      * 地图级元数据（MAPS 的 lv / region / chapter / area / type / desc / shop / healer）—— 本域语义是形状，
+        不是「地图表」；要导需另立域或扩 schema（见报告风险节）。
+
+    实测（2026-09-13，游戏仓 master 真跑）
+    -------------------------------------
+      * 121 条全过 `editor.validate.validate_entry("maps", 条目)`（0 失败）；
+      * 121 条喂 `editor/space_view.py`（引擎同一份 Space）→ 邻接 / 深度 / gate / audit 与游戏运行期
+        `core/maps.map_space(mid)` **逐格一致，0 差异**；`audit()` 全绿（0 悬空 / 0 不对称 / 0 孤立 / 0 不可达）；
+      * 落盘 maps.json 139,083 B，重复运行逐字节相同（幂等）；`game.json.domains` 自动含 maps。
+    """
+    pkg = _import_data_package(src_root)
+    maps_mod = _import_module("maps", src_root)
+    roles = _subarea_role_values(src_root)
+
+    maps = getattr(maps_mod, "MAPS", None)
+    subareas = getattr(pkg, "SUBAREAS", None)
+    mesh_index = getattr(pkg, "SUBAREA_LINKS_INDEX", None) or {}
+    if not isinstance(maps, list):
+        raise ValueError("MAPS 不是 list —— 源形状变了，拒绝导出")
+    if not isinstance(subareas, dict):
+        raise ValueError("SUBAREAS 不是 dict —— 源形状变了，拒绝导出")
+    if not isinstance(mesh_index, dict):
+        raise ValueError("SUBAREA_LINKS_INDEX 不是 dict —— 源形状变了，拒绝导出")
+
+    no_sub = [m.get("id") for m in maps if not subareas.get(m.get("id"))]
+    if no_sub:
+        raise ValueError(
+            f"这些图在 SUBAREAS 里没有子区域：{no_sub} —— 框架一条 = 一张图（至少一个节点），"
+            f"静默丢条目会变成编辑器里「少了一张图」且没人发现，故拒绝导出"
+        )
+
+    flat: dict = {}
+    for m in maps:
+        mid = m.get("id")
+        if not isinstance(mid, str) or not mid:
+            raise ValueError(f"图的 id 非法：{m!r}")
+        if mid in flat:
+            raise ValueError(f"图 id 重复：'{mid}' —— 外层 key 会丢条目，请先决定归属再导出")
+        src_nodes = subareas[mid]
+        if not isinstance(src_nodes, list):
+            raise ValueError(f"SUBAREAS['{mid}'] 不是 list —— 源形状变了，拒绝导出")
+
+        nodes, seen = [], set()
+        for sa in src_nodes:
+            if not isinstance(sa, dict) or not sa.get("id"):
+                raise ValueError(f"SUBAREAS['{mid}'] 里有非 dict / 没有 id 的子区域：{sa!r}")
+            sid = sa["id"]
+            if not isinstance(sid, str):
+                raise ValueError(f"SUBAREAS['{mid}'] 子区域 id 不是字符串：{sid!r}")
+            if sid in seen:
+                raise ValueError(f"SUBAREAS['{mid}'] 子区域 id 重复：'{sid}'（编辑器按 id 引用节点）")
+            seen.add(sid)
+            node = {"id": sid, "name": sa.get("name")}
+            if sa.get("type"):
+                node["role"] = sa["type"]
+            nodes.append(node)
+
+        entry = {"name": m.get("name") or mid, "roles": dict(roles), "nodes": nodes}
+        mesh = mesh_index.get(mid)
+        if mesh is not None:
+            if not isinstance(mesh, dict):
+                raise ValueError(f"SUBAREA_LINKS_INDEX['{mid}'] 不是 dict —— 源形状变了，拒绝导出")
+            for src, dsts in mesh.items():
+                if not isinstance(dsts, list):
+                    raise ValueError(f"SUBAREA_LINKS_INDEX['{mid}']['{src}'] 不是 list")
+            entry["topology"] = "mesh"
+            entry["links"] = {k: list(v) for k, v in mesh.items()}
+        else:
+            entry["topology"] = "star" if nodes[0].get("role") == roles["hub"] else "chain"
+
+        gate = None
+        if nodes[0].get("role") == roles["hub"] and not any(n.get("role") == roles["exit"] for n in nodes):
+            gate = next((n["id"] for n in nodes if str(n["id"]).endswith("_gate")), None)
+        if gate:
+            entry["gate"] = gate
+        flat[mid] = entry
+    return flat
+
+
+def derive_texts(src_root: str = REPO_ROOT) -> dict:
+    """文案域：读 `game/data/text_specs.json` 全量（**唯一真源是 JSON 声明文件，不是 py 表**）。
+
+    为什么不走 `_import_module`（本文件其它 derive_* 的通用手法）：
+      ① 真源是 JSON：`game/core/texts.py` 只是它的装载器 ——
+         `SPEC_PATH = <repo>/game/data/text_specs.json`（game/core/texts.py:33），
+         `_load_specs()` 里唯一的过滤规则是「跳过 `_` 开头的顶层键」（game/core/texts.py:46-61）。
+         本函数读**同一个文件**、用**同一条过滤规则**，不引入第二份定义。
+      ② 走装载器会破坏「entry 原样」契约：`TextTable.load()` 会把每条过 `TextSpec.from_dict`，
+         再 `to_dict()` 导出时会丢空 desc/category，并给没写 params 的条目**自动补** `params`
+         （实测 233 条里 68 条会因此多出一个 params 字段 → 与真源不再逐值相同）。
+      ③ 装载器的 import 链要引擎（`saintess_engine.text` + `game/log_setup.py`），而且实测在当前
+         布局下 `import game.core.texts` 会撞循环导入（`game/core/__init__.py:45` → `game/core/index.py`）
+         —— 导出器不该依赖运行时装配。
+
+    过滤规则（与装载器逐字一致）：顶层 `_meta` / `_categories` 是给人/编辑器看的元信息，**不进包**。
+    实测不过滤的后果：`validate_entry('texts', _meta)` → `(根): 'value' is a required property`
+    —— 2 条元信息会变成 2 条校验失败（编辑器标红）。
+
+    形状断言（形状一变就 raise，绝不静默产空表/半表）：
+      · 顶层必须是对象；
+      · 每条必须是对象 —— 编辑器只认对象形态，`{key: "模板串"}` 简写形态在编辑器里
+        会报 `is not of type 'object'`（`schemas/text.schema.json` 的 text_entry 要求 object + value）；
+      · 每条必须有非空 `value`（schema：required + minLength=1）。
+    实测：233 条、键与真源一一对应、逐值零差异、逐条 validate_entry 零失败（见本文件顶部口径）。
+    """
+    spec_path = os.path.join(src_root, "game", "data", "text_specs.json")
+    try:
+        with open(spec_path, encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except OSError as exc:
+        raise ValueError(
+            f"文案声明文件读不到：{spec_path}（{type(exc).__name__}: {exc}）"
+        ) from exc
+    except ValueError as exc:                     # json.JSONDecodeError 是 ValueError 子类
+        raise ValueError(f"文案声明文件不是合法 JSON：{spec_path}（{exc}）") from exc
+    if not isinstance(raw, dict):
+        raise ValueError(
+            f"文案声明文件顶层不是对象（实为 {type(raw).__name__}）：{spec_path} —— 源形状变了，拒绝导出"
+        )
+    out: dict = {}
+    for key, entry in raw.items():
+        key = str(key)
+        if key.startswith("_"):
+            # _meta / _categories：与装载体同一过滤规则（game/core/texts.py:_load_specs）
+            continue
+        if not isinstance(entry, dict):
+            raise ValueError(
+                f"文案 {key!r} 不是对象（实为 {type(entry).__name__}）—— 编辑器只认对象形态，拒绝导出"
+            )
+        if not str(entry.get("value") or ""):
+            raise ValueError(f"文案 {key!r} 缺 value 或模板为空 —— 拒绝导出（schema：required + minLength≥1）")
+        out[key] = entry
+    return out
+
+
+def derive_instances(src_root: str = REPO_ROOT) -> dict:
+    """副本域：取 `INSTANCES` 运行时表，把游戏侧**内联怪元组**投影成框架要求的**引用字符串**。
+
+    真源（2026-09-13 核实，行号以当时文件为准）：
+      game/data/instances.py:44        INSTANCES = {...}  → **27 条**（不是 docstring 里写的 22：
+                                       新增 inst_rust_dock / inst_candle_crypt / inst_thunder_mine /
+                                       inst_whirl_arena / inst_blacktide_opera）。每本固定 3 层 = 81 层，
+                                       层内怪槽位 121 个，全部能在 _INDEXES["monsters"] 里反查到。
+      game/data/instances.py:3686      INSTANCE_BOSS_EQUIP_DROP（27 条，key 与 INSTANCES 完全对齐）
+      game/data/_assembly.py:150-165   装配期把 INSTANCE_STAGE_MAPS（22 本）就地
+                                       `_stages[_idx].update(_emap)` 进 stages → 运行时层内多出
+                                       `desc`（66 层）/`pois`（65 层 · 共 66 个 POI）/`npcs`（6 层，每层 1 个）/
+                                       `secret`（4 层）。**所以必须取 import 后的运行时表**：
+                                       照 instances.py 字面量解析会导出缺 desc/pois/npcs/secret 的层。
+
+    为什么要投影（本域与 items/classes/skills 最大的不同）：
+      框架 schemas/instances.schema.json 的 `instance` def 把怪/Boss/POI/secret/终局 Boss 声明成
+      **内容侧引用字符串**（框架零枚举），而游戏侧存的是**内联战斗元组**
+      （6 元组 = (id, 名, role, lv, [技能 id], [掉落名])）：
+        顶层 boss        : 6 元组（27/27）
+        层内 monsters    : [6 元组, ...]（43 层）或 []（21 层）
+        层内 elite/boss  : **扁平** 6 元组，单怪不套外层数组（各 27 层），其余 20 层显式 None
+        层内 pois        : [{"id","type","name","hint","loot"...}]（65 层）
+        层内 secret      : {"cond": {...}, "pois": [POI...]} —— 是**对象**，不是字符串（4 层）
+      逐条真跑 `editor.validate.validate_entry("instances", 原样条目)` = **0/27 通过**
+      （每条 11-17 个错误；路径聚合：boss×27、stages[i].elite[i]×81、stages[i].boss[i]×81、
+      stages[i].monsters[i]×67、stages[i].pois[i]×66、stages[i].boss(None)×20、
+      stages[i].elite(None)×20、stages[i].secret×4）。
+      本函数按下面 6 条规则投影后 = **27/27 通过**，且投影只「取引用」，
+      **原值原样挂在 `<槽位>_data` 额外键**下（schema 三处 additionalProperties: true 放行）→ 零信息丢失。
+
+    投影规则（只动这 6+1 个槽位，其余字段 byte 级原样）：
+      顶层 boss    : 6 元组 → b[0]；原元组 → `boss_data`
+      层 monsters  : [t → t[0]]；有内联时原值 → `monsters_data`（空列表保持空列表）
+      层 elite     : 扁平 6 元组 → [t[0]]；条目列表 → [t[0]...]；None → 删键；原值 → `elite_data`
+      层 boss      : 同 elite（原值 → `boss_data`）
+      层 pois      : 字典列表 → [id,...]；原列表 → `poi_data`
+      层 secret    : 对象 → 第一个藏宝 POI 的 id（无则 cond.poi）；原对象 → `secret_data`
+      层 npcs      : 6 层都恰好 1 个 id → 顺手填框架的单数 `npc`（string）槽位；`npcs` 列表原样保留
+      顶层         : INSTANCE_BOSS_EQUIP_DROP[key] → `boss_equip_drop`（独立表、只此一处、
+                     框架无对应域，不挂 = 丢数据；其 `eq_*` 落在 EQUIP_ROSTER，不在 ITEMS 里 →
+                     在新域导出前是**跨域悬空引用**）
+
+    未导出（属别的域）：SUBAREA_LINKS（dungeon_links.py，27 张副本地图房间连通表，key = 副本 key 去掉
+    `inst_` 前缀）、DUNGEON_POI_MOUNTS（dungeon_pois.py，55 键 / 66 POI，已按 id 前缀去重）、
+    INSTANCE_STAGE_MAPS（已装配进 stages）、INVESTIGATION_POINTS（instance_investigation.py，22 本 90 点）、
+    MINION / phases / mech / chains / on_interrupt 等战斗脚本字段（额外键原样随条目进包）。
+    """
+    tables = _import_module("instances", src_root)
+    raw = getattr(tables, "INSTANCES", None)
+    if not isinstance(raw, dict):
+        raise ValueError("game.data.instances.INSTANCES 不是 dict —— 源形状变了，拒绝导出")
+    drops = getattr(tables, "INSTANCE_BOSS_EQUIP_DROP", None)
+
+    def _key_of(t, where):
+        """6 元组（或条目列表的元素）→ 第一元素（怪 id）。形状不对就拒绝导出。"""
+        if not isinstance(t, (list, tuple)) or not t:
+            raise ValueError(f"{where}: 怪元组 {t!r} 不是非空列表 —— 源形状变了，拒绝导出")
+        first = t[0]
+        if not isinstance(first, str) or not first:
+            raise ValueError(f"{where}: 怪元组首元素不是 id 字符串：{t!r}")
+        return first
+
+    out: dict = {}
+    for inst_key in sorted(raw):
+        entry = raw[inst_key]
+        if not isinstance(entry, dict):
+            raise ValueError(f"INSTANCES[{inst_key}] 不是 dict —— 源形状变了，拒绝导出")
+        item = dict(entry)
+
+        boss = item.get("boss")
+        if isinstance(boss, (list, tuple)):
+            if not boss:
+                raise ValueError(f"{inst_key}.boss 是空列表 —— 不设终局 Boss 请删掉这个键")
+            item["boss"] = _key_of(boss, f"{inst_key}.boss")
+            item["boss_data"] = boss
+        elif boss is not None:
+            raise ValueError(f"{inst_key}.boss 既不是 6 元组也不是 None：{type(boss).__name__}")
+
+        stages = item.get("stages")
+        if not isinstance(stages, list) or not stages:
+            raise ValueError(f"{inst_key}.stages 不是非空列表 —— 源形状变了，拒绝导出")
+        new_stages = []
+        for idx, stage in enumerate(stages):
+            if not isinstance(stage, dict):
+                raise ValueError(f"{inst_key}.stages[{idx}] 不是 dict —— 源形状变了，拒绝导出")
+            ns = dict(stage)
+            where = f"{inst_key}.stages[{idx}]"
+
+            slot = stage.get("monsters")
+            if slot is not None:
+                if not isinstance(slot, list):
+                    raise ValueError(f"{where}.monsters 不是列表：{type(slot).__name__}")
+                if slot and isinstance(slot[0], (list, tuple)):
+                    ns["monsters"] = [_key_of(t, where + ".monsters") for t in slot]
+                    ns["monsters_data"] = slot
+                else:
+                    ns["monsters"] = [_key_of(t, where + ".monsters") for t in slot]
+
+            for f in ("elite", "boss"):
+                slot = stage.get(f)
+                if slot is None:
+                    ns.pop(f, None)          # 框架声明是 array，显式 None 会被判 "None is not of type 'array'"
+                    continue
+                if not isinstance(slot, list):
+                    raise ValueError(f"{where}.{f} 不是列表：{type(slot).__name__}")
+                if slot and isinstance(slot[0], (list, tuple)):     # 条目列表：[6 元组, ...]
+                    ns[f] = [_key_of(t, where + "." + f) for t in slot]
+                    ns[f + "_data"] = slot
+                else:                                              # 扁平 6 元组：单怪
+                    ns[f] = [_key_of(slot, where + "." + f)]
+                    ns[f + "_data"] = slot
+
+            pois = stage.get("pois")
+            if pois is not None:
+                if not isinstance(pois, list):
+                    raise ValueError(f"{where}.pois 不是列表：{type(pois).__name__}")
+                ns["pois"] = [p["id"] if isinstance(p, dict) else p for p in pois]
+                ns["poi_data"] = pois
+
+            sec = stage.get("secret")
+            if sec is not None:
+                if isinstance(sec, dict):
+                    ids = [p.get("id") for p in (sec.get("pois") or [])
+                           if isinstance(p, dict) and p.get("id")]
+                    ns["secret"] = ids[0] if ids else str((sec.get("cond") or {}).get("poi") or "secret")
+                    ns["secret_data"] = sec
+                else:
+                    ns["secret"] = str(sec)
+
+            npcs = stage.get("npcs")
+            if isinstance(npcs, list) and len(npcs) == 1 and isinstance(npcs[0], str):
+                ns["npc"] = npcs[0]          # 框架单数槽位（string）；npcs 列表原样留着
+
+            new_stages.append(ns)
+        item["stages"] = new_stages
+
+        d = drops.get(inst_key) if isinstance(drops, dict) else None
+        if isinstance(d, dict):
+            item["boss_equip_drop"] = d
+
+        out[inst_key] = item
+    return out
+
+
+def derive_loot_vocab(src_root: str = REPO_ROOT) -> dict:
+    """引用词汇声明域（loot_vocab）→ `content/rules/loot_vocab.json`（一条 = 一个域）。
+
+    为什么需要：框架编辑器预览掉落池时起的是**引擎零知识**的 `LootTable(pools, resolver=None)`
+    —— 引擎不认识任何引用前缀，于是把 `equip:eq_x` / `gold_pct:30` 这类**内容侧外部引用**
+    全报成「断链」（实测真包 175 处 / 79 池）。那不是数据错，是「没人告诉框架哪些写法算解得开」。
+    引擎的 `inline_prefixes` / `special_refs` / `pool_key_prefixes` 三个旋钮本来就是给内容侧
+    声明的 —— 本函数把游戏侧**已有的**那套声明导出成包内声明表，框架侧 `editor/loot_view.py`
+    读了之后照同一套判 → 审计 0 断链（与游戏仓 `drop_engine.audit_all()` 的 0 问题一致）。
+
+    形状：`{"drop_pools": {…声明…}}` —— 外层键是它服务的**框架域 id**（框架 `DOMAINS` 认，
+    本域 kind=rules 由框架 `content_sub()` 问出来 → 落 content/rules/）。
+
+    词汇**一个都不手抄**（内容改了这里自动跟）：
+      inline_prefixes   ← `drop_engine._INLINE_PREFIXES`（运行时常量）
+      special_refs      ← `drop_engine._SPECIAL_REFS`
+      pool_key_prefixes ← `drop_engine._POOL_KEY_PREFIXES`
+      external_prefixes ← **行为取证**（不是扫源码！）：拿数据里真实出现、且不被
+                          「本表子池 / inline / special」解释的引用，去问游戏自己的判定
+                          `_resolvable()`；答 True 的才算「内容侧解得开」，带 `:` 的按前缀归并。
+                          （扫 `_resolvable` 源码里的 `startswith("字面量")` 是不行的 —— 那句
+                          `startswith("mat_")` 是**报断链**的分支，收成前缀会把真断链掩盖掉。）
+                          答非 True 的引用 → **拒绝导出**（那是真断链，不许拿声明糊过去）。
+      ref_domains       ← 实测决定：所有「裸 ref」（无 `:`）是否都是 items 域主键
+                          → 是则声明 ["items"]（框架据此查**包自己的** items 表判引用）；
+                            否 → 不声明（框架对条目照旧不判：宁可少说，不假报）
+      ref_prefix_domains ← **实测**（不硬编码域名）：带前缀的外部引用，剥掉前缀后的 id 是否
+                          全都落在**某个包内域**的主键集里 → 是则声明 {前缀: 那个域}，
+                          框架据此**真判**（对不上就报断链 —— 比 external 严一档）；
+                          找不到这样的域 → 该前缀留在 external_prefixes（照旧「不问」）。
+
+    自检（拒绝导出坏声明，两道）：
+      ① 每一条引用必须「游戏自己」判得开（见上：bad 列表非空即拒绝）；
+      ② 真起框架 `editor.loot_view.audit_file()` 跑全表 → 必须 **0 问题**。
+    """
+    mod = _import_game_module("game.drop_engine", src_root)
+    inline = tuple(getattr(mod, "_INLINE_PREFIXES", ()) or ())
+    special = tuple(getattr(mod, "_SPECIAL_REFS", ()) or ())
+    pool_key = tuple(getattr(mod, "_POOL_KEY_PREFIXES", ()) or ())
+    if not inline or not special or not pool_key:
+        raise ValueError("drop_engine 的前缀/特殊值声明缺失 —— 源形状变了，拒绝导出（不猜）")
+    if not callable(getattr(mod, "_resolvable", None)):
+        raise ValueError("drop_engine 没有 _resolvable() —— 源形状变了，拒绝导出（无从取证）")
+
+    pools = derive_drop_pools(src_root)
+
+    # ── 行为取证：游戏自己的判定函数说「解得开」的引用才算解得开 ────────────────
+    external, bad = set(), []
+    for key, pool in pools.items():
+        pairs = [(e.get("item"), pool) for e in (pool.get("entries") or []) if isinstance(e, dict)]
+        pairs += [(rc.get("pool"), pool) for rc in (pool.get("rolls") or []) if isinstance(rc, dict)]
+        for ref, owner in pairs:
+            if not isinstance(ref, str) or not ref:
+                continue
+            if (ref in pools or ref in special or ref.startswith(inline)
+                    or ref.startswith(pool_key)):
+                continue
+            try:
+                verdict = mod._resolvable(ref, owner)
+            except Exception as e:                          # noqa: BLE001
+                raise ValueError(f"_resolvable({ref!r}) 抛错：{e} —— 拒绝导出") from e
+            if verdict is True:
+                if ":" in ref:                              # 带前缀的按前缀声明（框架没有名册）
+                    external.add(ref.split(":", 1)[0] + ":")
+                continue
+            if verdict is None:                             # 内容侧自管 → 不判
+                continue
+            bad.append(f"{key} → {ref} [{verdict}]")
+    if bad:
+        raise ValueError(
+            f"{len(bad)} 条引用游戏侧自己也判为断链（例：{bad[:3]}）—— 这是**真**问题，"
+            f"不许用声明糊过去，拒绝导出")
+    external = tuple(sorted(external))
+
+    # ref_domains：裸 ref 是否全是 items 域主键（items 表 = 同一份派生，不另读一份源）
+    item_keys = set(derive_items(src_root))
+    seen_bare, missing = set(), set()
+    for pool in pools.values():
+        for e in pool.get("entries") or []:
+            ref = e.get("item")
+            if not isinstance(ref, str) or not ref:
+                continue
+            if ref in special or ref.startswith(inline) or ref.startswith(external):
+                continue
+            seen_bare.add(ref)
+            if ref not in item_keys:
+                missing.add(ref)
+    ref_domains = ["items"] if (seen_bare and not missing) else []
+
+    # ref_prefix_domains：带前缀的引用能不能**真判** —— 看剥前缀后的 id 是否全落在某个
+    # 「本包自己的域」表主键里。域名**不硬编码**（逐个候选域实测，多个命中取最具体的那个）。
+    candidate_keys: dict = {}
+    prefix_domains: dict = {}
+    pref_all = tuple(external) + tuple(inline)      # 内联前缀也一起看：它们常有真落点（只是语义上
+                                                   # 还兼着 expand 外列，所以**不动** inline 声明本身）
+    if pref_all:
+        remainders: dict = {}
+        for pool in pools.values():
+            rows = [(e.get("item")) for e in (pool.get("entries") or []) if isinstance(e, dict)]
+            rows += [(rc.get("pool")) for rc in (pool.get("rolls") or []) if isinstance(rc, dict)]
+            for ref in rows:
+                if isinstance(ref, str) and ":" in ref and ref.startswith(pref_all):
+                    pfx = ref.split(":", 1)[0] + ":"
+                    remainders.setdefault(pfx, set()).add(ref[len(pfx):])
+        if remainders:
+            for name in sorted(DERIVERS):
+                if name in ("drop_pools", "loot_vocab"):
+                    continue
+                try:
+                    tbl = DERIVERS[name](src_root)
+                except Exception:                       # noqa: BLE001  某个域导不出来 → 不影响这里
+                    continue
+                if isinstance(tbl, dict):
+                    candidate_keys[name] = set(tbl)
+            # 证据门槛（2026-09-13 加固）：**单取值**前缀的「取值 ⊆ 某域键集」极易是巧合 ——
+            # 实测事故：新域 `achievement_conds` 的键里恰有一个 `"boss"`，于是内联前缀
+            # `equip_drop:boss`（值域是「怪物档位」enum，不是实体 id）被推成「该域的引用」，
+            # `--check` 当场报 loot_vocab 不一致。
+            # 口径：取值 < 2 个 → 证据不足，**不推断**（= 本函数文档里的「不问」，宁可少说、不假报）；
+            #       确实成立的单值映射写进下表，且**当场校验目标域真的装得下**（fail-closed，
+            #       目标域一变就报错，绝不留下假声明）。
+            _VERIFIED_SINGLE = {
+                # petegg:pet_starbutterfly ⇒ pets 域主键，1/1 命中（2026-09-13 人工核）
+                "petegg:": "pets",
+            }
+            for pfx, rids in sorted(remainders.items()):
+                # ⚠️ 取值集合为空的前缀**不能**声明（空集 ⊆ 任何集合，会误判成"全中"）
+                if not rids:
+                    continue
+                if len(rids) < 2:
+                    _tgt = _VERIFIED_SINGLE.get(pfx)
+                    if _tgt:
+                        if _tgt not in candidate_keys or not rids <= candidate_keys[_tgt]:
+                            raise ValueError(
+                                f"{pfx} 的单值映射 → {_tgt} 已不成立（取值 {sorted(rids)}）"
+                                f"—— 拒绝导出假声明")
+                        prefix_domains[pfx] = _tgt
+                    continue
+                hits = [n for n, ks in candidate_keys.items() if rids <= ks]
+                if hits:                                    # 多个域都能装 → 取键最少（最具体）的
+                    prefix_domains[pfx] = min(hits, key=lambda n: (len(candidate_keys[n]), n))
+            if prefix_domains:                              # 能真判的从 external 里摘出来（inline 保持不动）
+                external = tuple(p for p in external if p not in prefix_domains)
+
+    decl = {
+        "version": 1,
+        "note": ("掉落池引用词汇声明（游戏仓导出，勿手改）：框架编辑器读它才知道"
+                 "「哪些引用写法算解得开」。取值全部派生自 game/drop_engine.py（含用它的"
+                 "_resolvable() 对真数据逐条取证），一个都不手抄；改了那边的声明重跑导出即可。"),
+        "inline_prefixes": list(inline),
+        "special_refs": list(special),
+        "pool_key_prefixes": list(pool_key),
+        "external_prefixes": list(external),
+        "ref_domains": list(ref_domains),
+        "ref_prefix_domains": dict(prefix_domains),
+    }
+
+    # 自检 ②：真起框架 audit（框架不在 / 版本旧 → 显式报错，不静默跳过）
+    fw = _framework_dir(DEFAULT_FRAMEWORK_DIR)
+    if fw not in sys.path:
+        sys.path.insert(0, fw)
+    try:
+        from editor import loot_view as LV                  # noqa: PLC0415
+    except Exception as e:                                  # noqa: BLE001
+        raise ValueError(f"读框架 loot_view 失败（{fw}）：{e} —— 拒绝导出（无法自检声明）") from e
+    if not hasattr(LV, "audit_file"):
+        raise ValueError(f"框架 {fw} 的 editor/loot_view.py 没有 audit_file()（版本旧？）—— "
+                         f"更新框架后再导出")
+    vocab = LV.normalize_vocab({**decl, "ref_keys": sorted(item_keys),
+                                "ref_prefix_keys": {p: sorted(candidate_keys[d])
+                                                    for p, d in prefix_domains.items()}})
+    rep = LV.audit_file(json_clean(pools), vocab)
+    if rep["issue_count"]:
+        raise ValueError(
+            f"带声明后框架审计仍报 {rep['issue_count']} 处问题（例：{rep['issues'][:3]}）"
+            f" —— 声明与数据不一致，拒绝导出")
+    return {"drop_pools": decl}          # 外层键 = 该词汇服务的**框架域 id**
+
+
+# -*- coding: utf-8 -*-
+"""可直接粘贴进游戏仓 `scripts/export_game_package.py` 的实现片段（本文件只读素材，未写任何仓）。
+
+粘贴位置：
+  B-1) 函数体：放在 `def derive_affixes(...)` 之后（与它同族：都是「表 + 按名索引」的域）
+  B-2) 注册一行：文件末尾 `DERIVERS = { ... }` 里加 `"equip_roster": derive_equip_roster,`
+       （`build_manifest()` 的 `domains` 由 `sorted(DERIVERS)` 派生 → 清单一并跟上，不必手写第二份）
+
+配套的框架侧改动见报告 §5（`schemas/equip_roster.schema.json` 落盘 + `editor/packages.py` DOMAINS 一行）。
+"""
+
+
+def derive_equip_roster(src_root: str = REPO_ROOT) -> dict:
+    """装备名册域：取 `EQUIP_ROSTER` 全量原样（687 条，键 100% 为 `eq_*`），
+    再把两张**按名索引**的装备侧子表在导出期连接进条目：
+
+        SERIES_SETS       （equip_roster.py:510，38 条 {系列名: 套装名}）→ 条目 `series_set`
+        SERIES_FIXED_AFFIX（affixes.py:1026，622 条 {装备名: [词条 id...]}）→ 条目 `fixed_affixes`
+
+    为什么是 EQUIP_ROSTER（而不是 EQUIP_ROSTER_BY_NAME）
+    ----------------------------------------------------
+    框架 `editor/packages.py` 的 equip_roster 域 primary = `equip`（= `schemas/equip_roster.schema.json`
+    的 `x-primary`），键空间是 `{装备 id: 装备}`，`propertyNames.pattern = ^eq_[a-z0-9_]+$`
+    （与 `schemas/item.schema.json` 里 `roster_id` 已声明的 pattern 同一串）。游戏侧的键表只有
+    `EQUIP_ROSTER`（equip_roster.py:15，闭括号 :507）；`EQUIP_ROSTER_BY_NAME`（:709，686 条）是
+    「拿显示名反查」的**运行期索引**，值就是同一批 dict 对象、且因 1 个重名（`精铁短杖` × 2）
+    比主表少 1 条 → 与 `MATERIALS_BY_NAME` 同待遇：**不进包**（包里由 key 表 + `name` 字段等价表达）。
+
+    为什么两张子表**连接进条目**、而不是当第二张顶层表
+    ------------------------------------------------
+    1) 键空间冲突：`SERIES_SETS` 的键是系列**中文名**、`SERIES_FIXED_AFFIX` 的键是装备**中文名**，
+       与本域 primary 的 `^eq_[a-z0-9_]+$` 互斥。若把它们平铺进同一个 JSON 文件，编辑器会拿
+       `equip` def 去校验这 660 个中文键（`additionalProperties: {type: object}` 对[]值也不成立）
+       → 逐条标红；分成两个文件又多出两个「不是一条装备」的域。
+    2) 语义上它们**是装备的属性**：内容侧 `game/core/affix.py:114` 的 `fixed_affixes(name)` 与
+       `game/core/drops.py:382-383` 的 `equip["set"] = SERIES_SETS[r["series"]]` 都是在**生成装备时**
+       按名/按系列取用，没有独立的实体身份。连接之后，包内关系从「按名弱引用」升级为「同条目字段」。
+    3) 连接是**无损**的（实测）：622/622 个 `SERIES_FIXED_AFFIX` 键都能命中 `EQUIP_ROSTER` 的 `name`；
+       38/38 个 `SERIES_SETS` 键都至少被 1 条装备的 `series` 用到（0 个空转键）。唯一的真歧义形态是
+       「一个显示名对应多个 id **且** 该名在 `SERIES_FIXED_AFFIX` 里有条目」—— 实测 0 例
+       （`精铁短杖` 确实重名，但它不在 `SERIES_FIXED_AFFIX` 里）→ 命中即 raise，宁可炸也不静默选一条。
+
+    保真纪律（与 items / affixes 域同款）
+    -------------------------------------
+    · 条目**原样进 JSON**：不补默认值、不改类型、不重排字段（`SERIES_SETS` 的 `set` 字段是条目自带的，
+      与派生字段 `series_set` 并存、互不覆盖）。
+    · `SERIES_FIXED_AFFIX` 的值**整列表照搬**，不预先截断：内容侧 `game/core/affix.py:114-115` 的
+      消费端只取 `[0]`（v173.3 拍板「最多保留 1 条」），但**数据层保持完整供回退/参考** —— 导出器
+      跟着截断就等于在包里写下第二份「只取 1 条」的规则，将来内容侧改回 2 条时包里不会跟随。
+    · 空列表照抄（实测 11/622 个名字的值是 `[]`）：它是源表**显式的「无固定词条」标记**，
+      与「源表里根本没有这个名字」（缺字段）是两回事，编辑器要看得出差别。
+
+    形状门禁（源形状变了就拒绝导出，而不是静默产出坏包）
+    ----------------------------------------------------
+      · 三个源表都必须是非空 dict；每件装备必须是非空 dict。
+      · 必填六件套 `name/slot/quality/lv/series/source` 必须齐（实测 687/687 齐），
+        `name/slot/quality/series/source` 为非空 str、`lv` 为 int（bool 不算）。
+      · 可选字段类型：`req` 为 {str: int}、`weapon_type/desc/special/legendary/weapon_effect/affix/set`
+        为 str、`affixes/fixed_affixes` 为 [str]、`we_data` 为 dict —— 类型不符即 raise。
+      · `SERIES_FIXED_AFFIX` 的每个 id 必须能在 `AFFIXES` 里查到（实测 40 个 distinct id 1002/1002 命中）：
+        查不到等于往包里塞一条悬空引用，宁可在导出期炸掉。
+      · 名字→id 不唯一且该名字有固定词条 → raise（今天不会触发，防将来重名扩散）。
+
+    实测（2026-09-13，真跑；真源 `game/data/equip_roster.py` + `game/data/affixes.py`）
+    ----------------------------------------------------------------------------------
+      · 687 条装备逐条过框架 `$defs/equip` → **0 失败**；整表过 `$defs/equip_table`（propertyNames）0 失败。
+      · 键 687/687 匹配 `^eq_[a-z0-9_]+$`（最长 36 字符）；重名 1 处（`精铁短杖` → 2 个 id）。
+      · 字段分布：name/slot/quality/lv/series/source 687；desc 639；req 581；weapon_type 241
+        （241/241 出现在 slot=weapon 上，0 个非武器带它）；special 151；legendary 145；
+        weapon_effect 99；affixes 42；set 41；affix 10（单值旧形态，与 affixes 并存）；we_data 9。
+      · 连接覆盖：`fixed_affixes` 写入 **622** 条（其中 11 条为空列表）；`series_set` 写入 **397** 条
+        （= series 命中 38 个 SERIES_SETS 键的条目数；其余 290 条所属系列无套装名 → 不写该字段）。
+      · 本域进包后，包内对 `eq_*` 的 **240** 处 key 引用全部可解析（明细见报告 §4）。
+
+    本域**新引入的对外引用**（不是本函数的问题，是数据本身就有，进包后才可见）：
+      `legendary`(145) 指向「传说专属特效」表（未进包）、`set`(41) 指向套装表（未进包）、
+      `weapon_effect`/`we_data`/`special` 指向内容侧代码与展示文本 —— 这些都**不是**框架域引用。
+    """
+    er = _import_module("equip_roster", src_root)
+    af = _import_module("affixes", src_root)
+
+    roster = getattr(er, "EQUIP_ROSTER", None)
+    if not isinstance(roster, dict) or not roster:
+        # 空表会让编辑器显示「0 条」而不报错 —— 宁可炸（与 PLANNED_DOMAINS 的立意一致）
+        raise ValueError("EQUIP_ROSTER 不是非空 dict —— 源形状变了，拒绝导出")
+    series_sets = getattr(er, "SERIES_SETS", None)
+    if not isinstance(series_sets, dict) or not series_sets:
+        raise ValueError("SERIES_SETS 不是非空 dict（系列 → 套装名）—— 源形状变了，拒绝导出")
+    sfa = getattr(af, "SERIES_FIXED_AFFIX", None)
+    if not isinstance(sfa, dict) or not sfa:
+        raise ValueError("SERIES_FIXED_AFFIX 不是非空 dict（装备名 → 词条 id 列表）—— 源形状变了，拒绝导出")
+    affix_ids = getattr(af, "AFFIXES", None)
+    if not isinstance(affix_ids, dict) or not affix_ids:
+        raise ValueError("AFFIXES 不是非空 dict —— 无法校验固定词条引用，拒绝导出")
+
+    for sk, sv in series_sets.items():
+        if not isinstance(sk, str) or not sk.strip() or not isinstance(sv, str) or not sv.strip():
+            raise ValueError(f"SERIES_SETS[{sk!r}] 不是「非空 str → 非空 str」—— 源形状变了，拒绝导出")
+
+    # 显示名 → [装备 id]（重名要看得见：连接是按名的，一个名字对应两条装备就有歧义）
+    by_name: dict = {}
+    for rid, rec in roster.items():
+        if not isinstance(rid, str) or not rid.strip():
+            raise ValueError(f"EQUIP_ROSTER 的键不是非空字符串：{rid!r} —— 源形状变了，拒绝导出")
+        if not isinstance(rec, dict):
+            raise ValueError(f"EQUIP_ROSTER[{rid}] 不是 dict（{type(rec).__name__}）—— 源形状变了，拒绝导出")
+        nm = rec.get("name")
+        if not isinstance(nm, str) or not nm.strip():
+            raise ValueError(f"EQUIP_ROSTER[{rid}] 缺非空 name —— 拒绝导出（按名连接靠它）")
+        by_name.setdefault(nm, []).append(rid)
+    dup_names = {nm: ids for nm, ids in by_name.items() if len(ids) > 1}
+    # 只有「重名 **且** 该名在 SERIES_FIXED_AFFIX 里有固定词条」才是真歧义（例如 `精铁短杖` 重名，
+    # 但它不在 SERIES_FIXED_AFFIX 里 → 连接无从发生，不算歧义）；真歧义在派生前就炸，不替内容侧选一条。
+    ambiguous = {nm: ids for nm, ids in dup_names.items() if nm in sfa}
+    if ambiguous:
+        raise ValueError(
+            f"显示名在 EQUIP_ROSTER 里对应多个 id，且该名有固定词条条目：{ambiguous} —— "
+            f"按名连接有歧义，请先给其中一个改名（源数据决定，导出器不替它选）"
+        )
+
+    out: dict = {}
+    for rid, rec in roster.items():
+        missing = [f for f in ("name", "slot", "quality", "lv", "series", "source") if f not in rec]
+        if missing:
+            # 框架 required 缺字段 = 形状异常：在派生处炸掉，而不是把一个编辑器会标红的条目发进包
+            raise ValueError(
+                f"EQUIP_ROSTER[{rid}] 缺必填字段 {missing} —— equip_roster.schema.json $defs.equip "
+                f"要求 name/slot/quality/lv/series/source，拒绝导出"
+            )
+        for f in ("name", "slot", "quality", "series", "source"):
+            if not isinstance(rec[f], str) or not rec[f].strip():
+                raise ValueError(f"EQUIP_ROSTER[{rid}].{f} 不是非空 str —— 源形状变了，拒绝导出")
+        if not isinstance(rec["lv"], int) or isinstance(rec["lv"], bool):
+            raise ValueError(f"EQUIP_ROSTER[{rid}].lv 不是 int（{type(rec['lv']).__name__}）—— 拒绝导出")
+        req = rec.get("req")
+        if req is not None:
+            if not isinstance(req, dict) or any(
+                    not isinstance(v, int) or isinstance(v, bool) for v in req.values()):
+                raise ValueError(f"EQUIP_ROSTER[{rid}].req 不是 {{属性名: 整数}} —— 拒绝导出")
+        for f in ("weapon_type", "desc", "special", "legendary", "weapon_effect", "affix", "set"):
+            v = rec.get(f)
+            if v is not None and (not isinstance(v, str) or not v.strip()):
+                raise ValueError(f"EQUIP_ROSTER[{rid}].{f} 存在但不是非空 str —— 拒绝导出")
+        for f in ("affixes",):
+            v = rec.get(f)
+            if v is not None and (not isinstance(v, list)
+                                  or any(not isinstance(x, str) or not x.strip() for x in v)):
+                raise ValueError(f"EQUIP_ROSTER[{rid}].{f} 不是 [非空 str] —— 拒绝导出")
+        we = rec.get("we_data")
+        if we is not None and not isinstance(we, dict):
+            raise ValueError(f"EQUIP_ROSTER[{rid}].we_data 不是 dict —— 拒绝导出")
+
+        entry = dict(rec)                       # 条目原样：字段顺序 / 类型 / 值都不动
+
+        # 系列 → 套装名（连接键 = series，值源 = SERIES_SETS[series]；没有映射就不写字段）
+        if entry["series"] in series_sets:
+            entry["series_set"] = series_sets[entry["series"]]
+
+        # 装备名 → 固定词条 id 列表（连接键 = name，值源 = SERIES_FIXED_AFFIX[name]；整列表照搬）
+        nm = entry["name"]
+        if nm in sfa:
+            affs = sfa[nm]
+            if not isinstance(affs, list) or any(
+                    not isinstance(x, str) or not x.strip() for x in affs):
+                raise ValueError(
+                    f"SERIES_FIXED_AFFIX[{nm!r}] 不是 [非空 str] —— 源形状变了，拒绝导出")
+            unknown = [x for x in affs if x not in affix_ids]
+            if unknown:
+                raise ValueError(
+                    f"SERIES_FIXED_AFFIX[{nm!r}] 引用了 AFFIXES 里没有的词条 {unknown} —— "
+                    f"发进包就是悬空引用，拒绝导出")
+            entry["fixed_affixes"] = list(affs)
+
+        out[rid] = entry
+
+    return out
+
+
+# -*- coding: utf-8 -*-
+"""可直接粘贴进游戏仓 `scripts/export_game_package.py` 的实现片段（本文件只是素材，未写任何仓文件）。
+
+粘贴位置（行号按 2026-09-13 本次实读；**该文件正被并行改动，行号会漂 → 以符号名为准**）：
+  B-1) 函数体：放在 `def derive_loot_vocab(...) -> dict:` **之前**（与 `derive_instances` 同族：
+       都是「取运行时表 + 按引用重投影」的域；放它之前也可避免与 loot_vocab 段的行号纠缠）
+  B-2) 注册一行：`DERIVERS = { ... }`（实读 :994）里加 `"pois": derive_pois,`
+       —— `build_manifest()`（:1076）的 `domains = sorted(DERIVERS)` 是**派生**的，清单会自己跟上，
+       不必手写第二份域名单。
+  B-3) 落盘路径：本域 kind 由框架注册表决定 —— `editor/packages.py` 的 `DOMAINS["pois"]["kind"]`
+       给 "data" → `content_sub()`（:1045）会写到 `content/data/pois.json`。
+       写完别忘了 `python scripts/export_game_package.py --domain pois`（--check 比对幂等）。
+
+配套的框架侧改动见报告 §5（schema 落盘 + DOMAINS / glossary 改哪些行）。
+"""
+
+
+def derive_pois(src_root: str = REPO_ROOT) -> dict:
+    """POI 域（pois）：**场景房间 → 挂载的交互点**。键 = 「地图id:子区域id」（房间地址）。
+
+    真源是三张**同形**（key=「地图id:子区域id」→ POI 行）的表，装配期由
+    `game/data/_assembly.py:107-123` **就地**合并成运行时的 `SUBAREA_POIS`：
+
+        game/data/pois.py:113              base  = SUBAREA_POIS      **205 键 / 394 引用**（str 引用）
+        game/data/mesh_rooms_south.py:1525  mesh  = MESH_POI_MOUNTS   **65 键 / 130 引用**（str 引用）
+        game/data/mesh_rooms_west_north.py:611      └ 同上           **38 键 /  76 引用**（str 引用）
+        game/data/mesh_rooms_east_abyss.py:2191     └ 同上           **94 键 / 189 引用**（str 引用）
+        game/data/dungeon_pois.py:22       dun   = DUNGEON_POI_MOUNTS **55 键 /  66 引用**（**dict 定义**）
+        ─────────────────────────────────────────────────────────────────────────────
+        运行时 merged = base ∪ mesh ∪ dun                            **457 键 / 855 引用**
+
+    三源键空间**互不相交**（实测 base∩mesh = 0、base∩dun = 0、mesh∩dun = 0）→ **不需要键前缀去重**，
+    所以本域直接用房间地址当键，不发明三套前缀。（这也是盘点报告 §4.2 短名单没料到的一点：
+    报告按「两类表 252 行」估的工作量，真实是 457 行 —— 报告 §3 漏了最大的那张 base 表。）
+
+    三种行形状（**都必须保留**，不许归一）
+    --------------------------------------
+      · base / mesh：`["campfire", "loot_pile"]` —— **类型引用串**，本点不带定义、不带名字/产出。
+      · dun        ：`[{"id","type","name","hint","loot","effect","lore","need","desc"}]`
+                     —— **自带定义的 dict**（副本的交互点有各自的 id/名字/提示/产出，
+                     装配期 `_assembly` 把每个 dict 注册进 `POIS`、行里只留 id）。
+      两类语义不同：str 是「沿用类型定义挂一个点」，dict 是「这个点自带定义」。schema 的
+      `$defs/poi_ref` 用 anyOf 同时放行，**不把它们归一成一种形状**（归一就丢信息）。
+
+    为什么要 import 运行时表、而不是从源码字面量解析
+    ------------------------------------------------
+    1) `game/data/__init__.py` → `_assembly` 在 import 期就把 mesh/dun 的挂载**就地 extend**
+       进 `SUBAREA_POIS`（`:110` mesh、`:115-123` dun）→ 直接读 `pois.py` 字面量只有 205 键。
+       本函数要的正是**运行时那 457 行**（编辑器/审计看到的就是它），所以走 `_import_module`。
+    2) 但「哪一行来自哪张表」这个出处也只有源表知道 → 三张源表各自单独取，再用
+       **键集合差**反推 base（`merged - mesh - dun`），并把「键互不相交」变成**导出期断言**：
+         · `len(base) + len(mesh) + len(dun) == len(merged)`（键空间无重叠）
+         · 每个 dun/mesh 键在 `merged` 里的值 == 该源表那一行的引用列表（没有被 base 同名键掺进别的引用）
+       任一条不成立 → raise（宁可炸，也不静默把两行合成一行或丢一行）。
+
+    保真纪律
+    --------
+      · 条目里的 `pois` **原样照搬**：dun 的 dict 浅拷贝一份（防与 `POIS` 里的对象别名），
+        不补默认值、不改类型、不重排数组（顺序 = 源表顺序 = 内容侧的展示顺序）。
+      · 键序：本函数返回整体按键字典序（`export()` 另有一次 `sort_table`，这里是双保险）。
+      · `map` / `subarea` / `source` 三个字段是**导出期新增的**（源表行里没有）—— 它们只是把
+        键里已有的信息摊平 + 记出处，不改任何源值。`source` 取值 `dungeon` / `mesh` / `world`
+        由**导出器**定（内容侧源表里没有这个词），框架侧 schema 只当自由串、不枚举。
+
+    与 instances 域的关系（本域为什么值得开）
+    ----------------------------------------
+      · instances 的 55 个层槽位带着内联 `poi_data`（66 个 POI，id 是**旧短 id**：`chest_1` …，
+        12 个 distinct id 跨 22 本重复）；实测 **55/55 层** 的内容与
+        `pois["<实例key 去 inst_>:<同名>_<层号+1>"]` 的 POI **逐字段相同**（type/name/hint 三元组相等）
+        —— 也就是说：instances 里那份内联 POI 是 v137「副本 POI 迁移」**之前的旧副本**，
+        迁移后的权威副本就是本域（`game/commands/instance.py:1875/1897` 起运行时改从
+        `SUBAREA_POIS` 取房间 POI，不再读层内 poi_data）。
+      · 另 4 层的隐藏 POI（`stages[].secret_data.pois = [{id: "secret_chest"}]`）**不在本域**：
+        `dungeon_pois.py` 的 docstring 明写「secret 不迁移 —— 那是波次 3 的事」→ 那 4 条仍是
+        instances 独有（进包后包里 POI 的已知缺口，见报告 §4）。
+
+    形状门禁（源形状变了就拒绝导出）
+    --------------------------------
+      · 三张源表都必须是非空 dict；行必须是非空 list。
+      · 键必须能按「地图id:子区域id」两段切开（实测 457/457 命中 `^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$`，
+        最长键 49 字符，map 前缀 97 个）。
+      · base/mesh 行的每一项必须是非空 str（实测 0 行混用 str 与 dict —— 真混了就 raise：
+        那种行说明内容侧中途改了形状，得人来看）。
+      · dun 行的每一项必须是有非空 str `id` 与 `type` 的 dict（实测 66/66 齐；id 66/66 唯一）。
+
+    实测（2026-09-13，真跑；真源 = 运行时表 + 三张源表）
+    ---------------------------------------------------
+      · 457 条挂载行 / 855 条引用；每行引用数 1:90 / 2:338 / 3:27 / 4:2；**0 空行**。
+      · 逐条过框架 `$defs/poi_mount`（jsonschema 4.26.0 + 框架内置 mini 校验器两条路）→ **0 失败**；
+        整表过 `$defs/poi_mount_table`（propertyNames）→ 0 失败。
+      · 457 个 `map:subarea` 全部能在**包内 maps 域**反查到（97/97 张图在 maps 里、457/457 个子区域
+        是该图 `nodes[].id`）→ 本域**不产生新的悬空键引用**。
+      · 引用侧：mesh+base 的 789 条 str 引用全部命中内容侧 `POIS` 的 17 个类型键（`game/data/pois.py:9`），
+        但这 17 个类型定义**没进包** → 这 789 条引用在本域进包后仍是「按内容侧词汇的引用」
+        （框架零知识、不解析，同 drop_pools 的 `item`）；想彻底闭合要另开 `poi_types` 域（17 键）或旁挂文件 ——
+        本域**不**替它把类型表塞进来（那是另一个域的事，塞进来会让 457 行里出现非挂载行）。
+      · dun 的 66 条 dict 引用**自洽**（id/type/name/hint 全有），引用的 5 个类型
+        （chest/corpse/trap/mechanism/supply）**不在** `POIS` 里 —— 副本交互点用的是自己那套类型词，
+        处理链在 `game/commands/instance.py:_handle_poi`（内容侧代码）。
+    """
+    # ---- 1. 取真源：运行时合并表 + 三张源表 ----
+    pois_mod = _import_module("pois", src_root)
+    merged = getattr(pois_mod, "SUBAREA_POIS", None)
+    if not isinstance(merged, dict) or not merged:
+        raise ValueError("game.data.pois.SUBAREA_POIS 不是非空 dict —— 源形状变了，拒绝导出")
+
+    dungeon_mod = _import_module("dungeon_pois", src_root)
+    dungeon = getattr(dungeon_mod, "DUNGEON_POI_MOUNTS", None)
+    if not isinstance(dungeon, dict) or not dungeon:
+        raise ValueError("game.data.dungeon_pois.DUNGEON_POI_MOUNTS 不是非空 dict —— 源形状变了，拒绝导出")
+
+    mesh: dict = {}
+    for mod_name in ("mesh_rooms_south", "mesh_rooms_west_north", "mesh_rooms_east_abyss"):
+        mod = _import_module(mod_name, src_root)
+        table = getattr(mod, "MESH_POI_MOUNTS", None)
+        if not isinstance(table, dict):
+            raise ValueError(f"game.data.{mod_name}.MESH_POI_MOUNTS 不是 dict —— 源形状变了，拒绝导出")
+        for k, row in table.items():
+            if k in mesh:
+                raise ValueError(
+                    f"挂载键 {k!r} 同时出现在两张网状房间表里 —— 键空间不再互斥，"
+                    f"需要给键加来源前缀（本域的键是「地图id:子区域id」，没有来源段）")
+            mesh[k] = row
+
+    # ---- 2. 形状门禁 + 三源键互不相交的证明 ----
+    def _split(k: str, where: str):
+        """「地图id:子区域id」→ (地图, 子区域)；切不出来就拒绝导出。"""
+        m, sep, sa = k.partition(":")
+        if not sep or not m or not sa or ":" in sa:
+            raise ValueError(f"{where} 的键 {k!r} 不是「地图id:子区域id」—— 源形状变了，拒绝导出")
+        return m, sa
+
+    def _str_row(row, where: str) -> list:
+        """base / mesh 的行：非空 list、每项非空 str。"""
+        if not isinstance(row, list) or not row:
+            raise ValueError(f"{where} 不是非空 list —— 源形状变了，拒绝导出")
+        out = []
+        for i, x in enumerate(row):
+            if not isinstance(x, str) or not x:
+                raise ValueError(
+                    f"{where}[{i}] 不是非空 str（{type(x).__name__}）—— 一行里混了引用串与 dict 定义，"
+                    f"形状变了，拒绝导出")
+            out.append(x)
+        return out
+
+    def _id_list(row, where: str) -> list:
+        """dun 的行：每项是带非空 str id/type 的 dict → 返回 id 列表（装配期推进 SUBAREA_POIS 的就是它）。"""
+        ids = []
+        for i, p in enumerate(row):
+            if not isinstance(p, dict):
+                raise ValueError(f"{where}[{i}] 不是 dict —— 源形状变了，拒绝导出")
+            if not isinstance(p.get("id"), str) or not p["id"]:
+                raise ValueError(f"{where}[{i}] 缺 id（或不是非空 str）—— 源形状变了，拒绝导出")
+            if not isinstance(p.get("type"), str) or not p["type"]:
+                raise ValueError(f"{where}[{i}] 缺 type（或不是非空 str）—— 源形状变了，拒绝导出")
+            ids.append(p["id"])
+        return ids
+
+    for k, row in dungeon.items():
+        _split(k, "DUNGEON_POI_MOUNTS")
+        want = _id_list(row, f"DUNGEON_POI_MOUNTS[{k!r}]")
+        got = merged.get(k)
+        if not isinstance(got, (list, tuple)) or list(got) != want:
+            raise ValueError(
+                f"副本挂载 {k!r} 与运行时 SUBAREA_POIS 不一致（装配后应为 {want!r}，实测 {got!r}）"
+                f" —— 要么 _assembly 的合并顺序变了，要么这个键在 base 表里也有一行（键冲突），拒绝导出")
+    for k, row in mesh.items():
+        _split(k, "MESH_POI_MOUNTS")
+        want = _str_row(row, f"MESH_POI_MOUNTS[{k!r}]")
+        got = merged.get(k)
+        if not isinstance(got, (list, tuple)) or list(got) != want:
+            raise ValueError(
+                f"网状挂载 {k!r} 与运行时 SUBAREA_POIS 不一致（装配后应为 {want!r}，实测 {got!r}）"
+                f" —— 要么 _assembly 的合并顺序变了，要么这个键在 base 表里也有一行（键冲突），拒绝导出")
+
+    world = {k: row for k, row in merged.items() if k not in mesh and k not in dungeon}
+    if len(world) + len(mesh) + len(dungeon) != len(merged):
+        raise ValueError(
+            f"三源挂载键数之和 {len(world) + len(mesh) + len(dungeon)} ≠ 运行时 SUBAREA_POIS 键数 "
+            f"{len(merged)} —— 键空间有重叠，拒绝导出（要么改键空间加前缀，要么先合并源表）")
+
+    # ---- 3. 逐行投影成一条挂载：{map, subarea, pois, source} ----
+    out: dict = {}
+    for source, table in (("world", world), ("mesh", mesh), ("dungeon", dungeon)):
+        for k in sorted(table):
+            m, sa = _split(k, f"{source} 表")
+            row = table[k]
+            if source == "dungeon":
+                _id_list(row, f"dungeon[{k!r}]")           # 再验一次形状（上面已验，防将来只走这条路）
+                refs = [dict(p) for p in row]              # 浅拷贝：不让条目与 POIS 里的对象别名
+            else:
+                refs = _str_row(row, f"{source}[{k!r}]")
+            out[k] = {"map": m, "subarea": sa, "pois": refs, "source": source}
+
+    return {k: out[k] for k in sorted(out)}
+
+
+# -*- coding: utf-8 -*-
+# ═══════════════════════════════════════════════════════════════════════════════
+# 可直接粘贴进 `scripts/export_game_package.py` 的实现片段（本文件只是一份素材，未写任何仓）
+#
+# 粘贴位置：
+#   B-1) 函数体：放在 `def derive_affixes(...)` 之后（与它同族：都是「词条形态的扁平表」，
+#        且本域与词条域共用同一套读取/保真口径）
+#   B-2) 注册一行：文件末尾 `DERIVERS = { ... }` 里加 `"legendary_effects": derive_legendary_effects,`
+#        （`build_manifest()` 的 `domains` 由 `sorted(DERIVERS)` 派生 → 清单一并跟上，不必手写第二份）
+#
+# 不重复写模块级 import：`REPO_ROOT` 与 `_import_module()` 都由导出器文件提供。
+# 配套的框架侧改动：`schemas/legendary_effects.schema.json` 落盘 + `editor/packages.py` 的 DOMAINS 加一行。
+# ═══════════════════════════════════════════════════════════════════════════════
+def derive_legendary_effects(src_root: str = REPO_ROOT) -> dict:
+    """传说专属特效域：取 `affixes.LEGENDARY_EFFECTS` 全量原样（93 条）。
+
+    为什么是这张表（而且**只有**这张表）
+    ------------------------------------
+    一条 = 一件装备能挂的「传说专属特效」（橙装 1 件 1 个）。真源 `game/data/affixes.py:548`
+    （闭括号 `:1022`），运行时表 == 源码字面量（该文件无 import、全仓无 `LEGENDARY_EFFECTS.update`
+    / 下标赋值 → 与 AFFIXES 一样没有 import 期改写要跟；仍走 import 以与其他域同构）。
+    本域**不并入 `affixes` 域**：`affixes` 域 primary = `affix`，其 $defs/affix_table 的
+    `propertyNames` 是同一串（`^[a-z][a-z0-9_]*$`），两表键**实测 0 撞名**（93 ∩ 76 = ∅），
+    但**语义不同**（词条 = 随机/固定词条；本表 = 装备专属），且词条域的 schema 把
+    kind/trigger 写成了 enum（本表有 1 条 `trigger="on_crit"` 越界值）——并进来会让整个词条域变红。
+
+    保真纪律（与 items / affixes / equip_roster 同款）
+    ------------------------------------------------
+    · 条目**原样进 JSON**：不补默认值、不改类型、不重排字段、不因缺 `chance` 就补 1.0。
+    · 键空间原样：93 个键 100% 匹配 `^[a-z][a-z0-9_]*$`（最长 23 字符），不重写、不加前缀。
+    · `effect` 整块照搬：子键/子值形状由内容侧定（实测 57 个 distinct 子键，子值类型有
+      float / str / int / bool / list[str] 五种），导出器**不翻译、不裁剪、不补键** ——
+      裁剪或补默认值等于在包里写下第二份内容侧规则。
+
+    形状门禁（源形状变了就拒绝导出，而不是静默产出坏包）
+    ----------------------------------------------------
+      · `LEGENDARY_EFFECTS` 必须是非空 dict；`AFFIXES` 必须是非空 dict（做撞名校验用）。
+      · 键必须是非空 str；每条必须是非空 dict。
+      · 必填五件套 `name/kind/trigger/effect/desc` 必须齐（实测 93/93 齐，与
+        `legendary_effects.schema.json` 的 `$defs.legendary_effect.required` 逐字一致）。
+      · `name/kind/trigger/desc` 为非空 str；`effect` 为非空 dict。
+      · `chance`（27 条有）必须是非 bool 的数值且落在 0~1（schema 的 minimum/maximum）。
+      · 键与 `AFFIXES` 撞名即 raise：内容侧 `game/core/affix.py:158` 的 `affix_label()` 是
+        `AFFIXES.get(aid) or LEGENDARY_EFFECTS.get(aid)`，撞名会让本表那条**永远显示不出来**
+        （实测今天 0 例；这道闸防将来扩散，且不替内容侧选一条改名）。
+
+    本函数**有意不拦**的一件事（内容侧词汇，不是形状）
+    --------------------------------------------------
+    `trigger` 的取值不在内容侧合法表里的数据，本函数不 raise —— 触发时机是**内容侧词汇**，
+    合法表在 `game/core/affix.py:20` 的 `TRIGGER_TYPES`（6 值）+ 战斗侧挂点，导出器复制一份
+    就等于在导出器里长出第二份词表（与 drop_pools 域「策略名是自由串、内容侧可扩展」同口径），
+    且框架 schema 也**故意不枚举** trigger。已知的那 1 条（实测）：
+      `LEGENDARY_EFFECTS["shadow_raid"]`（`affixes.py:1017-1021`，显示名「影袭连刺」）
+      `trigger = "on_crit"`（`affixes.py:1018`，chance 0.50，effect = extra_atk/lifesteal/tag）
+      —— `on_crit` 不在 TRIGGER_TYPES 里（TRIGGER_TYPES = stat / on_hit / on_taken /
+      turn_start / battle_start / passive），战斗侧**没有对应挂点** → 该特效实际上永远不触发。
+      注意 `on_crit` 在另一处是**合法**的：`game/services/battle_equip_proc.py:523` 的
+      `_AFFIX_RES_GAIN_ON` 把 `effect.on = "on_crit"`（资源 gain 型词条的内层字段）映射到
+      引擎 `crit` 事件 —— 那是 effect 内部字段，不是顶层 `trigger`，两者别混。
+      修源建议（**只建议，导出器不改源**）：把 `affixes.py:1018` 的
+      `"trigger": "on_crit"` 改成 `"trigger": "on_hit"`（`on_crit` 语义上是 `on_hit` 的子集，
+      改后该特效会进入既有的命中挂点；若要保持「只在暴击后」的语义，正确做法是在内容侧
+      给战斗挂点补一条 crit 触发链，那是机制改动，不是数据改动）。**改与不改都能导出** ——
+      本域逐条校验 0 失败（框架 schema 不枚举 trigger），但没改之前这条在实战里是死效果。
+
+    实测（2026-09-13，真跑；真源 `game/data/affixes.py`）
+    ----------------------------------------------------
+      · 93 条逐条过框架 `$defs/legendary_effect` → **0 失败**；整表过 `$defs/legendary_effects_table`
+        （propertyNames）0 失败；93/93 个键匹配 `^[a-z][a-z0-9_]*$`。
+      · 字段分布：name/kind/trigger/effect/desc 93；chance 27（0.05~1.0，全数值）。
+      · 取值分布（只用于核对，不进 schema）：kind = attack 61 / defense 32；
+        trigger = stat 43 / on_hit 21 / passive 13 / on_taken 7 / turn_start 4 /
+        battle_start 4 / **on_crit 1（越界，见上）**。
+      · effect 子键 57 个 distinct，depth 1（无嵌套 object；5 处是 list[str]，如 enemy_contains）。
+      · 与 `AFFIXES` 撞名 0 例；`name` 93 个全 distinct。
+      · 本域进包后，包内 `equip_roster.legendary` 的 **116/145** 处引用可解析（78/107 distinct；
+        其余 4 处落在 `affixes` 域（已在包内）、15 处落在 `weapon_effect_data.WEAPON_EFFECT_DATA`
+        （机制侧武器特效，未进包）、10 处查不到任何表（内容侧真悬空，见报告）。
+    """
+    af = _import_module("affixes", src_root)
+
+    table = getattr(af, "LEGENDARY_EFFECTS", None)
+    if not isinstance(table, dict) or not table:
+        # 空表会让编辑器显示「0 条」而不报错 —— 宁可炸（与 PLANNED_DOMAINS 的立意一致）
+        raise ValueError("affixes.LEGENDARY_EFFECTS 不是非空 dict —— 源形状变了，拒绝导出")
+    affix_ids = getattr(af, "AFFIXES", None)
+    if not isinstance(affix_ids, dict) or not affix_ids:
+        raise ValueError(
+            "affixes.AFFIXES 不是非空 dict —— 无法做「特效键是否与词条键撞名」的校验，拒绝导出"
+        )
+
+    out: dict = {}
+    for lk, lv in table.items():
+        if not isinstance(lk, str) or not lk.strip():
+            raise ValueError(f"LEGENDARY_EFFECTS 的键不是非空字符串：{lk!r} —— 源形状变了，拒绝导出")
+        if not isinstance(lv, dict):
+            raise ValueError(
+                f"LEGENDARY_EFFECTS[{lk!r}] 不是 dict（{type(lv).__name__}）—— "
+                f"期望「一条特效 = 一个 dict」，拒绝导出"
+            )
+        missing = [f for f in ("name", "kind", "trigger", "effect", "desc") if f not in lv]
+        if missing:
+            # 框架 required 缺字段 = 形状异常：在派生处炸掉，而不是把一个编辑器会标红的条目发进包
+            raise ValueError(
+                f"LEGENDARY_EFFECTS[{lk!r}] 缺必填字段 {missing} —— legendary_effects.schema.json "
+                f"$defs.legendary_effect 要求 name/kind/trigger/effect/desc，拒绝导出"
+            )
+        for f in ("name", "kind", "trigger", "desc"):
+            if not isinstance(lv[f], str) or not lv[f].strip():
+                raise ValueError(f"LEGENDARY_EFFECTS[{lk!r}].{f} 不是非空 str —— 源形状变了，拒绝导出")
+        eff = lv["effect"]
+        if not isinstance(eff, dict) or not eff:
+            raise ValueError(f"LEGENDARY_EFFECTS[{lk!r}].effect 不是非空 dict —— 拒绝导出")
+        ch = lv.get("chance")
+        if ch is not None:
+            if isinstance(ch, bool) or not isinstance(ch, (int, float)):
+                raise ValueError(
+                    f"LEGENDARY_EFFECTS[{lk!r}].chance 不是数值（{type(ch).__name__}）—— 拒绝导出"
+                )
+            if not 0 <= ch <= 1:
+                raise ValueError(
+                    f"LEGENDARY_EFFECTS[{lk!r}].chance = {ch!r} 不在 0~1 —— "
+                    f"schema 的 minimum/maximum 会标红，拒绝导出"
+                )
+        if lk in affix_ids:
+            raise ValueError(
+                f"LEGENDARY_EFFECTS[{lk!r}] 的键与 AFFIXES 撞名 —— 内容侧 affix_label() 是 "
+                f"`AFFIXES.get(aid) or LEGENDARY_EFFECTS.get(aid)`，撞名会让本表这条永远显示不出来；"
+                f"请先给它改名（源数据决定，导出器不替它选）"
+            )
+        out[lk] = dict(lv)          # 条目原样：字段顺序 / 类型 / 值都不动
+
+    return out
+
+
+# -*- coding: utf-8 -*-
+"""可直接粘贴进游戏仓 `scripts/export_game_package.py` 的实现片段（本文件只是素材，**未写任何仓文件**）。
+
+粘贴位置（**以符号名为准** —— 该文件正被并行改动，行号会漂）：
+  B-1) 函数体：与 `derive_pois` / `derive_equip_roster` 同族（都是「取运行时表 + 按 key 连接」的域），
+       放在 `def derive_pois(...)` 之后、`DERIVERS = {` 之前。
+  B-2) 注册一行：`DERIVERS = { ... }` 里加 `"pets": derive_pets,`
+       —— `build_manifest()` 的 `domains = sorted(DERIVERS)` 是**派生**的，清单会自己跟上，
+       不必手写第二份域名单。
+  B-3) 落盘路径：本域 kind 由框架注册表决定 —— `editor/packages.py` 的 `DOMAINS["pets"]["kind"]`
+       给 "data" → `content_sub()` 会写到 `content/data/pets.json`。
+       写完别忘了 `python scripts/export_game_package.py --domain pets --check`（比对幂等）。
+
+本函数**只用该文件里已有的模块级设施**（`REPO_ROOT` / `_import_module`），不引入任何新 import
+（`re` 不在它的 import 行里 —— 键形状用手写字符检查，与 `^pet_[a-z0-9_]+$` 等价）。
+不写 `from __future__`：该文件的其余片段都没有，加了就与既有风格不一致。
+
+配套的框架侧改动见报告 §6（`schemas/pets.schema.json` 落盘 + `editor/packages.py` DOMAINS 一行 +
+`editor/glossary.py` 词条/分组）。
+"""
+
+
+def derive_pets(src_root: str = REPO_ROOT) -> dict:
+    """宠物域（pets）：**一条 = 一个品种**（`PET_POOL` 的一行），键 = 品种 id（`pet_*`）。
+
+    ==================== 真源（两张**列表**，不是键表） ====================
+        game/data/pets.py:19   PET_POOL      **16 条**，每条 13 个字段：
+                               key / name / icon / quality / focus / skill_name / skill_interval /
+                               skill_type / skill_value / spd / source / desc / lines
+                               （实测：13 个字段在 **16/16** 条上都齐；`skill_interval`/`spd` 是 int、
+                               `skill_value` 是 float、`lines` 是长度 3 的 str 列表，其余是 str）
+        game/data/pets.py:112  PET_EGG_ROLL  **10 条**，每条 2~3 个字段：
+                               key / rate（10/10）+ role(1) / name_kw(3) / is_elite(4) / is_boss(3)
+
+    ⚠ 两张表都是 **list**（源里没有键），本函数负责**建键**：`key` 字段即表键。
+    这也是它们与 `ITEMS`/`EQUIP_ROSTER` 那类「dict 源表」的唯一差别。
+
+    ==================== 两张表的关系（池 id → 品种） ====================
+    实测：`PET_EGG_ROLL` 的 **10/10** 个 key 都命中 `PET_POOL` 的 key（0 悬空、0 重复），
+    6 个品种**没有**规则 —— 它们的获取渠道不在「打怪掷蛋」这条线上，而在内容侧别处：
+        · 垂钓档位特殊产出（`game/services/profession.py:577-605`）
+        · 任务奖励 `reward_pet`（`game/data/quests.py:13/222/521/2058/3117` → `game/reward.py:70-80`）
+    所以「规则表少 6 条」是**正常缺省**，不是坏数据（不要在导出期对它设「必须全覆盖」的门禁）。
+
+    ==================== 为什么把规则**连接进条目**、而不是当第二张顶层表 ====================
+    1) **键空间相同**（两边都是 `pet_*`）。平铺进同一个 JSON 文件的话，那 10 行规则会被
+       primary def（`pet`）逐条校验 —— 它们没有 `name`/`quality`/`skill_*`，会**逐条标红**；
+       分成两个文件又多出一个「一条不是宠物」的域。框架 `editor/packages.py` 一个域 = 一个
+       `primary`，装不下两种形状不同的行。
+    2) 语义上规则**是品种的属性**：内容侧消费端就是「拿到本次击杀的怪 → 遍历规则 → 命中
+       品种 id → 构造该品种的蛋」（`game/services/battle_settlement.py:295-317`），
+       规则没有独立的实体身份。
+    3) 连接**无损**：10/10 命中，且每个 key 只有一行（实测 0 重复）→ 不需要任何取舍。
+       这与 `derive_equip_roster` 把两张按名索引的子表连接进条目的做法是同一套（那里的键是
+       中文名、会与主表键空间冲突；这里两边键一致，冲突更小）。
+
+    ==================== 保真纪律 ====================
+      · 品种条**原样进 JSON**：`dict(源行)` 浅拷贝后只**追加**派生字段 `egg_roll`（追加在末尾，
+        不动源字段顺序）；不补默认值、不改类型、不动字段顺序、不重排数组。
+      · `egg_roll` = 规则行**整行照搬**（`dict(规则行)`，**含它自己的 `key`**）：原样照搬就不用
+        回答「导出器能不能替内容侧删字段」这个问题。为防「两处 key 半改」的漂移，导出期
+        **断言 `egg_roll["key"] == 表键`**（不等就 raise）。
+      · 没有规则的品种**不写该字段**（缺字段 = 该品种不走打怪掷蛋渠道，与「有空规则」是两回事）。
+
+    ==================== 形状门禁（源形状变了就拒绝导出，不静默产出坏包） ====================
+      · 两张源表都必须是非空 **list**（空表 = 编辑器显示 0 条且不报错 —— 宁可炸，
+        与 `PLANNED_DOMAINS` 的立意一致）。
+      · 每个品种必须是非空 dict，`key` 必须匹配 `^pet_[a-z0-9_]+$`（与
+        `schemas/pets.schema.json` 的 `$defs/pet_table.propertyNames` 同一串）。
+      · 品种 `key` 唯一（重复 = 建键丢条目）；品种 `name` 非空且唯一（按名引用会变歧义；
+        实测 16 个名字 0 重复）。
+      · 源品种行**不得已含** `egg_roll`（注入会覆盖源真值 → raise，同 `derive_skills` 的注入守卫）。
+      · 每条规则的 `key` 必须命中品种池（悬空规则 = 往包里塞一条断链，宁可在导出期炸掉）；
+        规则的 `key` 必须唯一（同一品种两行规则 = 「命中哪一行」由遍历顺序决定，是内容侧 bug）。
+
+    ==================== 实测（2026-09-13，真跑；真源 `game/data/pets.py`） ====================
+      · 16 个品种 / 10 条规则 → 连接后 **16 条**条目，其中 **10 条**带 `egg_roll`、6 条不带；
+        16 个键全部 `pet_*`；0 键重复、0 重名、0 悬空规则。
+      · 16 条逐条过框架 `$defs/pet`（jsonschema 4.26.0 + 框架内置 mini 校验器两条路）→ **0 失败**；
+        整表过 `$defs/pet_table`（propertyNames）→ 0 失败；10 行规则过 `$defs/pet_egg_roll` → 0 失败。
+      · 逐字段分布（16 条）：13 个源字段 16/16 齐；`quality` 5 档、`focus` 5 个取值、
+        `skill_type` 8 个取值、`skill_interval` ∈ {3,4}、`skill_value` 0.15~0.70、`spd` 30~75。
+      · 本域进包后**新增可解析的引用落点**：`drop_pools` 里 **27 处** `petegg:pet_starbutterfly`
+        的 `pet_starbutterfly` 从「只有内容侧代码认识」变成**包内可查**的品种 key
+        （框架 loot_vocab 把 `petegg:` 声明为 inline 前缀 → 审计口径不变，变的是「内容侧 key →
+        定义」这一层，编辑器能给真候选了）。
+      · ⚠ 本域**不能**消 `items.effect_data.tid` 的 4 条悬空：实测那 4 个 tid
+        （`ember_wisp` / `holy_totem` / `thorn_golem` / `medic_golem`）**不是品种 key**，它们是
+        v140 战斗道具的**召唤物模板 id**（`effect: "summon"`），全仓无定义表（`SUMMONS` 只有
+        5 个别的 id），且休眠处理器明写「尚未接入战斗结算」（`game/core/potion_effects.py:410`）。
+        → 那 4 条属**召唤物域/机制移植**，与宠物无关（详见报告 §3）。
+      · 本域**新引入的对外引用**：`egg_roll.name_kw`（怪名关键词，按名弱引用）与 `egg_roll.role`
+        （怪定位词）都指向**未进包**的「怪物名册」—— 与 `drop_pools` 的 `mon:` 池键同类，
+        不是本域造成的缺口（包内无人引用本域字段，方向是「本域引用别处」）。
+    """
+    mod = _import_module("pets", src_root)
+
+    # ---- 1. 真源：品种池 + 蛋掉落规则（两张 list）----
+    pool = getattr(mod, "PET_POOL", None)
+    if not isinstance(pool, list) or not pool:
+        raise ValueError(
+            "game.data.pets.PET_POOL 不是非空 list —— 源形状变了/表被删，拒绝导出"
+            "（空表 = 编辑器显示 0 条且不报错）")
+    rolls = getattr(mod, "PET_EGG_ROLL", None)
+    if not isinstance(rolls, list) or not rolls:
+        raise ValueError(
+            "game.data.pets.PET_EGG_ROLL 不是非空 list —— 源形状变了，拒绝导出")
+
+    def _bad_key(k) -> bool:
+        """品种 id 形状：`^pet_[a-z0-9_]+$`（与框架 schema 的 propertyNames 同一串）。
+
+        ⚠ 手写而不用 `re`：`re` 不在 export_game_package.py 的 import 里，加模块级 import
+        会污染该文件（本片段只允许用文件里已有的设施）。
+        """
+        if not isinstance(k, str) or not k.startswith("pet_"):
+            return True
+        body = k[4:]
+        if not body:
+            return True
+        return any(c not in "abcdefghijklmnopqrstuvwxyz0123456789_" for c in body)
+
+    # ---- 2. 品种池 → {品种 id: 品种行}（键 = 条目自带 key；键/名唯一）----
+    out: dict = {}
+    name_to_key: dict = {}
+    for i, p in enumerate(pool):
+        if not isinstance(p, dict):
+            raise ValueError(f"PET_POOL[{i}] 不是 dict（{type(p).__name__}）—— 源形状变了，拒绝导出")
+        k = p.get("key")
+        if _bad_key(k):
+            raise ValueError(
+                f"PET_POOL[{i}] 的 key {k!r} 不是「pet_*」形状 —— 源形状变了，拒绝导出"
+                f"（键空间是内容侧与教程/掉落/任务奖励共用的引用落点，不能乱改）")
+        if k in out:
+            raise ValueError(f"品种 key {k!r} 在 PET_POOL 里出现两次 —— 建键会丢条目，拒绝导出")
+        nm = p.get("name")
+        if not isinstance(nm, str) or not nm:
+            raise ValueError(f"PET_POOL[{k!r}] 缺非空 name —— 展示与按名查找都靠它，拒绝导出")
+        prev = name_to_key.get(nm)
+        if prev is not None:
+            raise ValueError(
+                f"品种名 {nm!r} 重复：{prev!r} 与 {k!r} —— 按名引用会变歧义，请先在源侧改名再导出")
+        if "egg_roll" in p:
+            raise ValueError(
+                f"PET_POOL[{k!r}] 已含派生字段 'egg_roll' —— 注入会覆盖源真值，拒绝导出")
+        name_to_key[nm] = k
+        out[k] = dict(p)
+
+    # ---- 3. 蛋掉落规则按 key 连接进品种条目（追加字段 egg_roll，整行照搬）----
+    joined = 0
+    for j, r in enumerate(rolls):
+        if not isinstance(r, dict):
+            raise ValueError(f"PET_EGG_ROLL[{j}] 不是 dict（{type(r).__name__}）—— 源形状变了，拒绝导出")
+        rk = r.get("key")
+        if rk not in out:
+            raise ValueError(
+                f"PET_EGG_ROLL[{j}] 的 key {rk!r} 不在 PET_POOL 里 —— 悬空规则（蛋会指向不存在的品种），"
+                f"拒绝导出")
+        if "egg_roll" in out[rk]:
+            raise ValueError(
+                f"品种 {rk!r} 在 PET_EGG_ROLL 里有两行规则 —— 命中哪一行由遍历顺序决定，"
+                f"先在源侧合并再导出")
+        row = dict(r)
+        if row.get("key") != rk:      # 照搬整行后仍核一次：防「行里的 key 与建键用的 key 不是同一个」
+            raise ValueError(
+                f"PET_EGG_ROLL[{j}] 的 key 与品种 id 不一致（{row.get('key')!r} != {rk!r}）—— "
+                f"拒绝导出")
+        out[rk]["egg_roll"] = row
+        joined += 1
+
+    if joined != len(rolls):
+        raise ValueError(
+            f"连接后只落了 {joined} 行规则，源表有 {len(rolls)} 行 —— 有规则被静默丢弃，拒绝导出")
+
+    # 外层按品种 id 字典序（export() 另有一次 sort_table，这里是双保险）
+    return {k: out[k] for k in sorted(out)}
+
+
+# -*- coding: utf-8 -*-
+"""可直接粘贴进游戏仓 `scripts/export_game_package.py` 的实现片段（本文件只是素材，未写/改任何仓）。
+
+粘贴位置
+--------
+  B-1) 函数体：放在 `def derive_monsters(...)` 之后。同族理由 —— `derive_monsters` 的 docstring
+       已经写明「怪物名册（id / 中文名 / role / lv / 技能 / 掉落）在游戏侧**不是一张表**，
+       散落在 subareas.py / instances.py / mesh_rooms_*.py 的 840 条六元组（355 个唯一 id，
+       168 个 id 的 lv 跨表不一致，10 个中文名对应两个 id）」；本函数就是那句「不是一张表」的兑现：
+       把散装摆放**投影**成一张以怪 id 为键的对象表。
+  B-2) 注册一行：文件末尾 `DERIVERS = { ... }` 里加 `"monster_roster": derive_monster_roster,`
+       （`build_manifest()` 的 `domains` 由 `sorted(DERIVERS)` 派生 → 清单一并跟上，不必手写第二份）。
+  B-3) **不要动文件头部的 import 块**：本函数只在**函数体内** `import ast`（局部，配 `# noqa: PLC0415`，
+       与本文件 `content_sub()` 里局部 import `editor.packages` 的写法一致）。所以粘贴 = 纯函数体。
+
+依赖（全部是本文件里已有的东西，不需要新增依赖）
+------------------------------------------------
+  REPO_ROOT / _import_module / _import_data_package  —— 见本文件顶部与「派生」区。
+
+本域的形状与纪律（实现里逐条落地；数字都是 2026-09-13 在游戏仓 master 真跑出来的）
+----------------------------------------------------------------------------------
+键 = 怪 id（表键就是 id，条目内**不重复写 id**）。一条 = 一只怪。名册是**投影，不是真源**：
+它只记「这只怪是谁（名/职能/技能/掉落/补正）」，不记「它在这个场景里多强」——
+后者留在场景侧（地图/副本）的摆放数据里，两者冲突是**正常设计**，名册不抹平。
+
+  · **绝不静默选一个值**：同一 id 在 840 条记录里被摆成不同等级时，`lv` 只作**基准值**
+    （规则写死在 `lv_rule` = `field_min`：**野外摆放记录的最小值**；一处野外记录都没有时
+    退化为「全部摆放记录的最小值」），同时必须输出 `lv_variants`（scope = 地图 id / 副本 id，
+    **不用行号**）把每一处摆放的等级**全量**列出。同理 `name`/`role` 取**多数值**（平局取
+    记录序里首次出现的那个，其余进 `*_variants`），`skills`/`drops` 取**并集**（只多不少）。
+  · **辅助表条目也在名册里**：`HIDDEN_MONSTERS`(25) 里 24 个 id 完全没有六元组、
+    `MONSTER_MODS`(140) 里另有 1 个 id 只在补正表里出现 —— 它们的 `lv` 给 **null**（`lv_rule`
+    说明该去读哪：隐藏条目读 `hidden.lv_off` 的相对值，补正表条目根本没有等级），
+    `spawns` 为空数组。`e_abbey_guardian` 两种身份**并存**（六元组 + 隐藏条目）：
+    六元组的名字留在 `name`，隐藏条目的名字进 `aliases`，另挂 `kind_tags: ["hidden"]`。
+  · **重名如实暴露、不替内容侧选一条**：14 个显示名各对应 2 个 id = 六元组内部的 10 例
+    （8 例是「同一只怪的普通/精英两形态各占一个 id」，2 例是不同 id 同形，如两只野猪系）
+    + 隐藏怪表独有的 4 例（隐藏怪的名字与六元组某只怪同名，例如 `幽灵骑士`）。
+    两个 id 都在表里，各自挂 `name_dup: true` + `name_peers: [兄弟 id]`。
+    ⚠ 这里**不** raise：设计稿原写「重名在导出期炸掉」，但实测**六元组内部那 10 个名字全部被
+    `drop_pools` 的 `mon:` 池键按名引用着**（10/10），炸掉等于整个域无法导出。歧义因此变成
+    **可见数据**（编辑器能看到、审计能筛），而不是导出失败；真要裁决是内容侧的事。
+  · `spawns` 是证据链（`source`/`map`/`subarea`/`instance`/`stage`/`stage_index`/`slot`/`line`），
+    **不准省**：它让「840 条 → 1 条」可回放，也是 `lv_variants` 的出处。
+
+形状门禁（源形状一变就 raise，绝不静默产半张表）
+----------------------------------------------
+  · 只读 AST 扫 `game/data/*.py` 的全部顶层 `Assign`，只认 `SUBAREAS` / `EXTRA_SUBAREAS` / `INSTANCES`
+    三个符号；`SUBAREAS` 与 `INSTANCES` 必须**各恰好一处**，`EXTRA_SUBAREAS` 至少一处（实测 3 处）。
+  · 「结构走查」与「源码文本序 AST 节点」逐条**对齐并逐值相等**才取用行号（不一致 = 行号不可信，raise）。
+  · 每条怪元组必须是长度 6、首元素是 `m_`/`e_`/`b_` 前缀的非空 str；id 前缀不认识 → raise。
+  · 三张同族表必须是非空 dict；隐藏条目必带 `name/role/skills/drops/lv_off` 且 `name` 非空。
+  · 运行期 `_INDEXES["monsters"]` 的 id 集合必须是名册键集的**子集**（名册漏了运行期认识的怪 → raise）。
+  · `drop_pools` 的 `mon:`/`elite:` 池键里的名字，必须能在名册的 `name` ∪ `aliases` ∪ `name_variants`
+    里反查到（实测 363/363 命中）—— 按名引用断链在导出期就炸，不留给运行期。
+
+实测（2026-09-13，游戏仓 master 真跑；命令与逐条数字见同目录 `domain-monster_roster.impl.md`）
+--------------------------------------------------------------------------------------------
+  · 名册键 **380** = 六元组 id **355** + 只在隐藏怪表的 id **24** + 只在个体补正表的 id **1**
+    （`m_giant_rat`：`name`/`role`/`lv` 都是 null，如实留空而不是编一个名字）。
+    840 条记录 → 380 条，一处不漏（`spawns` 合计 840 + 隐藏条目 67 处 = 907 条证据；
+    隐藏那 67 处 = 19 条按 `maps` 展开成 61 处 + 6 条没有 `maps` 的各 1 处）。
+  · `lv_variants` 覆盖 355 条（有摆放记录的全都写了对照表）；`lv` 冲突 id **168** 个（与情报报告一致）。
+  · 条目字段分布：`lv_variants` 355 / `mods` 140 / `desc` 140 / `hidden` 25 /
+    `elite_equip_drop` 20 / `name_dup`+`name_peers` 28（14 个名字 × 2）/ `name_variants` 1 /
+    `aliases` 1 / `role_variants` 1 / `kind_tags` 27（hidden 25 · minion_only 1 · instance_only 1 · mods_only 1）。
+  · `skills` 取并集覆盖 12 个列表不同的 id（其中 10 个是**集合**真的不同，另 2 个只是顺序不同）；
+    `drops` 并集覆盖 63 个。并集只多不少 → 不存在「副本里的怪因少一个技能/掉落而变弱」的争议。
+  · 运行期索引 `_INDEXES["monsters"]`：名册 **0 个** id 它不认识；它少 1 个 id（`m_crystal_core`，
+    只在副本爪牙槽出现，运行期索引的收集口径不覆盖爪牙）。
+  · `drop_pools`：`mon:` 345 + `elite:` 18 = **363** 个池键名字 —— 按 `name`∪`aliases` 命中 362/363，
+    差的那 1 个是 `岩浆蠕虫`（它是 `m_magma_worm` 的**异写**，落在 `name_variants` 里）；
+    把 `name_variants` 一并纳入解析 → **363/363**。⚠ 所以「按名解析」必须查
+    `name` ∪ `aliases` ∪ `name_variants` 三者，只看 `name` 会漏 1 个（本函数的 5.2 门禁就是这么查的）。
+  · 派生耗时 0.57 s（第二次 0.35 s），落盘 441 KB，连跑两次逐字节相同。
+"""
+
+
+def derive_monster_roster(src_root: str = REPO_ROOT) -> dict:
+    """怪物名册域（`monster_roster`）：把**散装在五处源表里的怪物摆放**投影成
+    「一条 = 一只怪」的对象表（键 = 怪 id）。
+
+    真源（全部只读；行号是「证据链」的一部分，所以要 AST 扫源码而不是只读运行态）
+    ----------------------------------------------------------------------------
+        game/data/subareas.py             SUBAREAS         430 条六元组（key=地图 id）
+        game/data/instances.py            INSTANCES        170 条（顶层 boss / 爪牙 / 各层槽位）
+        game/data/mesh_rooms_{south,west_north,east_abyss}.py
+                                          EXTRA_SUBAREAS   73 + 39 + 128 = 240 条（装配期并入 SUBAREAS）
+        game/data/hidden_monsters.py      HIDDEN_MONSTERS  25 条（24 条没有任何六元组）
+        game/data/monster_mods.py         MONSTER_MODS     140 条（1 条 m_giant_rat 不在六元组里）
+        game/data/monsters.py             ELITE_EQUIP_DROP 18 条（key=精英**中文名** → 装备 id）
+        game/data/_assembly.py            _INDEXES["monsters"]  运行期「怪名↔id」索引（用于交叉核对）
+        game/data/drop_pools.py           DROP_POOLS       按名引用的落点（`mon:`/`elite:` 池键）
+
+    为什么这条域必须存在
+    --------------------
+    包内有两族**跨域悬空引用**以「怪」为落点：
+      · `instances` 的 `boss` / `stages[].monsters[]` / `stages[].elite[]` / `stages[].boss[]`
+        —— 实测 148 处引用、120 个不同 id（`b_` 27 / `m_` 66 / `e_` 27），都是**怪 id**；
+      · `drop_pools` 的 `mon:<名>`(345) / `elite:<名>`(18) —— 363 个池键是**怪的中文名**。
+    前者要 id 落点、后者要名字落点 —— 只有「键=id 且条目内带 `name`」的对象表能同时消掉这两族。
+
+    为什么**不**造第二份真源
+    ------------------------
+    本函数只在**导出期**归并，游戏运行期代码 0 改动；名册的每个值都能在源里指出来（`spawns[].line`）。
+    「同一只怪在副本里比野外强」之类的差异**不被抹平**：`lv` 只是基准值，`lv_variants` 全量对照。
+
+    条目字段顺序（固定，便于 diff；与 schema 的字母序不同 —— schema 只描述形状）
+    -------------------------------------------------------------------------
+        name / name_variants / name_dup / name_peers / aliases / role / role_variants /
+        kind_class / lv / lv_rule / lv_variants / skills / drops / mods / hidden /
+        elite_equip_drop / spawns / kind_tags / desc
+
+    返回：`{怪 id: 条目}`（外层键序 = id 字典序；`export()` 还会再 `sort_table` 一次，幂等）。
+    """
+    import ast  # noqa: PLC0415 —— 只在函数体用（AST 只读扫描要行号），不动文件头部 import 块
+
+    data_dir = os.path.join(src_root, "game", "data")
+    symbols = ("SUBAREAS", "EXTRA_SUBAREAS", "INSTANCES")
+    slots = ("monsters", "elite", "boss")
+    class_by_prefix = {"m_": "normal", "e_": "elite", "b_": "boss"}
+    promoted = ("id", "name", "role", "skills", "drops")   # 隐藏条目里**提升到条目层**的字段
+
+    def _t6(v):
+        """六元组判定（长度 6 + 首元素是怪 id 前缀）。"""
+        return (isinstance(v, (list, tuple)) and len(v) == 6
+                and isinstance(v[0], str) and v[0][:2] in class_by_prefix)
+
+    def _items(v):
+        """槽位值 → 六元组列表：条目列表 / 扁平单条 / 其它（空）。"""
+        if isinstance(v, list) and v and isinstance(v[0], (list, tuple)):
+            return list(v)
+        return [v] if _t6(v) else []
+
+    def _struct(value, symbol, source):
+        """按**对象自身的键序**走一遍（字面量保序 = 源码文本序），产出 [(六元组, ctx)]。"""
+        recs = []
+        if not isinstance(value, dict):
+            raise ValueError(f"{source}: {symbol} 不是 dict —— 源形状变了，拒绝导出")
+        for outer_key, outer in value.items():
+            if not isinstance(outer_key, str) or not outer_key:
+                raise ValueError(f"{source}: {symbol} 的键不是非空 str：{outer_key!r}")
+            if symbol == "INSTANCES":
+                if not isinstance(outer, dict):
+                    raise ValueError(f"{source}: {symbol}[{outer_key!r}] 不是 dict —— 源形状变了")
+                for k, v in outer.items():
+                    if k == "boss" and _t6(v):
+                        recs.append((v, {"source": source, "instance": outer_key,
+                                         "scope": outer_key, "slot": "boss"}))
+                    elif k == "minions" and isinstance(v, list):
+                        for mn in v:
+                            t = mn.get("monster") if isinstance(mn, dict) else None
+                            if _t6(t):
+                                recs.append((t, {"source": source, "instance": outer_key,
+                                                 "scope": outer_key, "slot": "minions"}))
+                    elif k == "stages" and isinstance(v, list):
+                        for si, st in enumerate(v):
+                            if not isinstance(st, dict):
+                                continue
+                            for k2, v2 in st.items():
+                                if k2 not in slots:
+                                    continue
+                                for t in _items(v2):
+                                    if _t6(t):
+                                        recs.append((t, {"source": source,
+                                                         "instance": outer_key,
+                                                         "scope": outer_key,
+                                                         "slot": "stages[]." + k2,
+                                                         "stage": st.get("name"),
+                                                         "stage_index": si}))
+            else:
+                if not isinstance(outer, list):
+                    raise ValueError(f"{source}: {symbol}[{outer_key!r}] 不是 list —— 源形状变了")
+                for sa in outer:
+                    if not isinstance(sa, dict):
+                        continue
+                    for k, v in sa.items():
+                        if k not in slots:
+                            continue
+                        for t in _items(v):
+                            if _t6(t):
+                                recs.append((t, {"source": source, "map": outer_key,
+                                                 "scope": outer_key,
+                                                 "subarea": sa.get("id"), "slot": k}))
+        return recs
+
+    def _source_order(node):
+        """该字面量子树里所有「六元组」ast 节点，**按源码文本序** → [(节点, 行号)]。"""
+        out = []
+
+        def rec(n):
+            if isinstance(n, (ast.List, ast.Tuple)):
+                try:
+                    v = ast.literal_eval(n)
+                except Exception:                     # noqa: BLE001 —— 非字面量子树（源变了）跳过即可
+                    v = None
+                if _t6(v):
+                    out.append((n, n.lineno))
+            for c in ast.iter_child_nodes(n):
+                rec(c)
+
+        rec(node)
+        return out
+
+    def _records_of(node, value, symbol, source, where):
+        """结构走查 + 源码序对齐（逐值相等才取行号）→ 带行号的记录列表。"""
+        recs = _struct(value, symbol, source)
+        astseq = _source_order(node)
+        if len(recs) != len(astseq):
+            raise ValueError(
+                f"{where}: 结构走查 {len(recs)} 条 ≠ 源码扫描 {len(astseq)} 条 —— "
+                f"行号对不上，拒绝导出（源形状变了）")
+        out = []
+        for idx, ((t, ctx), (anode, aline)) in enumerate(zip(recs, astseq), 1):
+            if list(t) != list(ast.literal_eval(anode)):
+                raise ValueError(
+                    f"{where}: 第 {idx} 条六元组在「结构走查」与「源码扫描」里不是同一条 —— "
+                    f"行号不可信，拒绝导出")
+            mid, nm, role, lv, skills, drops = t
+            if not isinstance(nm, str) or not nm.strip():
+                raise ValueError(f"{where}: 第 {idx} 条的名字不是非空 str：{nm!r}")
+            if not isinstance(role, str) or not role.strip():
+                raise ValueError(f"{where}: {mid} 的 role 不是非空 str：{role!r}")
+            if not isinstance(lv, int) or isinstance(lv, bool) or lv < 1:
+                raise ValueError(f"{where}: {mid} 的 lv 不是正整数：{lv!r}")
+            for label, seq in (("skills", skills), ("drops", drops)):
+                if not isinstance(seq, list) or any(
+                        not isinstance(x, str) or not x.strip() for x in seq):
+                    raise ValueError(f"{where}: {mid} 的 {label} 不是 [非空 str]：{seq!r}")
+            rec = {"id": mid, "name": nm, "role": role, "lv": lv,
+                   "skills": list(skills), "drops": list(drops), "line": aline}
+            rec.update(ctx)
+            out.append(rec)
+        return out
+
+    def _dict_key_lines(path, symbol):
+        """顶层 `symbol = {...}` 字面量 → {键: 该条目的行号}（隐藏怪表的证据链要用）。"""
+        try:
+            with open(path, encoding="utf-8") as f:
+                tree = ast.parse(f.read())
+        except (OSError, SyntaxError) as e:
+            raise ValueError(f"{path} 读不动/语法不过（{type(e).__name__}: {e}）") from e
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and any(
+                    isinstance(t, ast.Name) and t.id == symbol for t in node.targets):
+                if not isinstance(node.value, ast.Dict):
+                    raise ValueError(f"{path}: {symbol} 不是 dict 字面量 —— 源形状变了，拒绝导出")
+                out = {}
+                for k, v in zip(node.value.keys, node.value.values):
+                    try:
+                        key = ast.literal_eval(k)
+                    except Exception:                 # noqa: BLE001
+                        continue
+                    if isinstance(key, str):
+                        out[key] = v.lineno
+                return out
+        raise ValueError(f"{path}: 找不到顶层 {symbol} = {{...}} —— 源形状变了，拒绝导出")
+
+    def _first_wins(seq):
+        """保序去重（并集用）。"""
+        out = []
+        for x in seq:
+            if x not in out:
+                out.append(x)
+        return out
+
+    def _majority(values):
+        """多数值 + 其余取值（平局取**记录序里首次出现**的那个 —— 确定、可解释，不是随便挑）。"""
+        counts, order = {}, []
+        for v in values:
+            if v not in counts:
+                counts[v] = 0
+                order.append(v)
+            counts[v] += 1
+        best = max(order, key=lambda v: (counts[v], -order.index(v)))
+        return best, [v for v in order if v != best]
+
+    # ---------- 1. 五处六元组（AST 只读扫描，带行号） ----------
+    if not os.path.isdir(data_dir):
+        raise ValueError(f"游戏数据目录不存在：{data_dir} —— 拒绝导出空表")
+    assigns = []
+    for fn in sorted(os.listdir(data_dir)):
+        if not fn.endswith(".py"):
+            continue
+        path = os.path.join(data_dir, fn)
+        try:
+            with open(path, encoding="utf-8") as f:
+                tree = ast.parse(f.read())
+        except (OSError, SyntaxError) as e:
+            raise ValueError(f"{path} 读不动/语法不过（{type(e).__name__}: {e}）") from e
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                for tgt in node.targets:
+                    if isinstance(tgt, ast.Name) and tgt.id in symbols:
+                        assigns.append((tgt.id, fn[:-3], path, node.lineno, node.value))
+    for sym in ("SUBAREAS", "INSTANCES"):
+        hits = [a for a in assigns if a[0] == sym]
+        if len(hits) != 1:
+            raise ValueError(
+                f"{sym} 的顶层定义处不是恰好 1 个（实测 {len(hits)} 处："
+                f"{[(h[1], h[3]) for h in hits]}）—— 源形状变了，拒绝导出")
+    if not [a for a in assigns if a[0] == "EXTRA_SUBAREAS"]:
+        raise ValueError("EXTRA_SUBAREAS 一处都没找到 —— 源形状变了，拒绝导出")
+
+    records = []
+    for sym, stem, path, lineno, node in assigns:
+        try:
+            value = ast.literal_eval(node)
+        except Exception as e:                        # noqa: BLE001
+            raise ValueError(f"{stem}:{lineno} 的 {sym} 不是可求值的字面量（{e}）—— 拒绝导出") from e
+        records.extend(_records_of(node, value, sym, stem, f"{stem}:{lineno} {sym}"))
+    if not records:
+        raise ValueError("一处怪物摆放都没扫到 —— 源形状变了，拒绝导出空表")
+
+    # ---------- 2. 三张同族表 + 运行期索引（交叉核对用） ----------
+    mods = getattr(_import_module("monster_mods", src_root), "MONSTER_MODS", None)
+    hidden = getattr(_import_module("hidden_monsters", src_root), "HIDDEN_MONSTERS", None)
+    elite_equip = getattr(_import_module("monsters", src_root), "ELITE_EQUIP_DROP", None)
+    for label, tbl in (("MONSTER_MODS", mods), ("HIDDEN_MONSTERS", hidden),
+                       ("ELITE_EQUIP_DROP", elite_equip)):
+        if not isinstance(tbl, dict) or not tbl:
+            raise ValueError(f"{label} 不是非空 dict —— 源形状变了，拒绝导出")
+    hidden_lines = _dict_key_lines(os.path.join(data_dir, "hidden_monsters.py"),
+                                  "HIDDEN_MONSTERS")
+    missing_lines = sorted(set(hidden) - set(hidden_lines))
+    if missing_lines:
+        raise ValueError(f"这些隐藏怪 id 在源文件里定位不到行号：{missing_lines} —— 拒绝导出")
+
+    by_id = {}
+    for r in records:
+        by_id.setdefault(r["id"], []).append(r)
+
+    # ---------- 3. 归并（一条 = 一个 id；辅助表独有的 id 也在里面） ----------
+    ids = sorted(set(by_id) | set(hidden) | set(mods))
+    for mid in ids:
+        if not isinstance(mid, str) or not mid or mid[:2] not in class_by_prefix:
+            raise ValueError(f"id {mid!r} 不是以 m_/e_/b_ 开头的非空 str —— 源形状变了，拒绝导出")
+
+    merged = {}
+    for mid in ids:
+        recs = by_id.get(mid, [])
+        hid = hidden.get(mid)
+        if hid is not None:
+            miss = [k for k in ("name", "role", "skills", "drops", "lv_off") if k not in hid]
+            if miss:
+                raise ValueError(f"HIDDEN_MONSTERS[{mid!r}] 缺必填 {miss} —— 源形状变了，拒绝导出")
+            if not isinstance(hid["name"], str) or not hid["name"].strip():
+                raise ValueError(f"HIDDEN_MONSTERS[{mid!r}].name 不是非空 str —— 拒绝导出")
+
+        # lv：野外摆放的最小值；一处野外都没有 → 全部摆放的最小值（规则写进 lv_rule）
+        field = [r for r in recs if r["source"] != "instances"]
+        basis = field or recs
+        lv = min(r["lv"] for r in basis) if basis else None
+        lv_rule = "field_min" if recs else ("hidden_only" if hid is not None else "mods_only")
+
+        # name / role：多数值；隐藏条目的写法进 aliases（跨表别名）
+        if recs:
+            name, name_rest = _majority([r["name"] for r in recs])
+            role, role_rest = _majority([r["role"] for r in recs])
+        else:
+            name, name_rest = (hid["name"] if hid is not None else None), []
+            role, role_rest = (hid["role"] if hid is not None else None), []
+        aliases = []
+        if hid is not None and hid["name"] != name and hid["name"] not in name_rest:
+            aliases.append(hid["name"])
+
+        # skills / drops：并集（含隐藏条目那份 —— 它同样是这只怪会用的/会掉的）
+        skills = _first_wins([s for r in recs for s in r["skills"]]
+                             + (list(hid["skills"]) if hid is not None else []))
+        drops = _first_wins([d for r in recs for d in r["drops"]]
+                            + (list(hid["drops"]) if hid is not None else []))
+
+        # lv_variants：一处摆放一条（scope = 地图 id / 副本 id + 可选子区域），保序去重后排序
+        lv_variants, seen_lv = [], set()
+        for r in recs:
+            key = (r["scope"], r.get("subarea"), r["lv"])
+            if key in seen_lv:
+                continue
+            seen_lv.add(key)
+            item = {"scope": r["scope"]}
+            if r.get("subarea"):
+                item["subarea"] = r["subarea"]
+            item["lv"] = r["lv"]
+            lv_variants.append(item)
+        lv_variants.sort(key=lambda it: (it["scope"], it.get("subarea") or "", it["lv"]))
+
+        # spawns：证据链（一条 = 一处摆放；隐藏条目的 maps 也各算一处）
+        spawns = []
+        for r in recs:
+            sp = {"source": r["source"]}
+            for k in ("map", "subarea", "instance", "stage"):
+                if r.get(k):
+                    sp[k] = r[k]
+            if "stage_index" in r:
+                sp["stage_index"] = r["stage_index"]
+            sp["slot"] = r["slot"]
+            sp["line"] = r["line"]
+            spawns.append(sp)
+        if hid is not None:
+            for m in (hid.get("maps") or [None]):
+                sp = {"source": "hidden_monsters"}
+                if m:
+                    sp["map"] = m
+                sp["slot"] = "hidden"
+                sp["line"] = hidden_lines[mid]
+                spawns.append(sp)
+
+        # 精英专属装备掉落：按名（含别名/异写）连接；多个别名命中且不一致 → raise
+        elite_id = None
+        for cand in _first_wins([name] + name_rest + aliases):
+            if cand and cand in elite_equip:
+                val = elite_equip[cand]
+                if not isinstance(val, str) or not val.strip():
+                    raise ValueError(f"ELITE_EQUIP_DROP[{cand!r}] 不是非空 str —— 拒绝导出")
+                if elite_id is not None and elite_id != val:
+                    raise ValueError(
+                        f"{mid!r} 的多个写法在 ELITE_EQUIP_DROP 里命中不同装备"
+                        f"（{elite_id!r} vs {val!r}）—— 按名连接有歧义，拒绝导出")
+                elite_id = val
+
+        tags = []
+        if hid is not None:
+            tags.append("hidden")
+        if not recs:
+            if hid is None and mid in mods:
+                tags.append("mods_only")
+        else:
+            if all(r["slot"] == "minions" for r in recs):
+                tags.append("minion_only")
+            if all(r["source"] == "instances" for r in recs):
+                tags.append("instance_only")
+
+        mod = mods.get(mid)
+        if mod is not None and (not isinstance(mod, dict) or not mod):
+            raise ValueError(f"MONSTER_MODS[{mid!r}] 不是非空 dict —— 源形状变了，拒绝导出")
+
+        merged[mid] = {
+            "name": name, "name_rest": name_rest, "aliases": aliases,
+            "role": role, "role_rest": role_rest,
+            "kind_class": class_by_prefix[mid[:2]], "lv": lv, "lv_rule": lv_rule,
+            "lv_variants": lv_variants, "skills": skills, "drops": drops,
+            "mods": dict(mod) if mod else None, "hidden": hid,
+            "elite_equip_drop": elite_id, "spawns": spawns, "kind_tags": tags,
+            "desc": mod.get("desc") if isinstance(mod, dict) else None,
+        }
+
+    # ---------- 4. 重名：如实暴露（两个 id 都留，各自挂 peers；不替内容侧选一条） ----------
+    by_name = {}
+    for mid in ids:
+        nm = merged[mid]["name"]
+        if nm:
+            by_name.setdefault(nm, []).append(mid)
+    dup = {nm: sorted(mids) for nm, mids in by_name.items() if len(mids) > 1}
+
+    out = {}
+    for mid in ids:
+        m = merged[mid]
+        entry = {"name": m["name"]}
+        if m["name_rest"]:
+            entry["name_variants"] = list(m["name_rest"])
+        if mid in dup.get(m["name"] or "", []):
+            entry["name_dup"] = True
+            entry["name_peers"] = [x for x in dup[m["name"]] if x != mid]
+        if m["aliases"]:
+            entry["aliases"] = list(m["aliases"])
+        entry["role"] = m["role"]
+        if m["role_rest"]:
+            entry["role_variants"] = list(m["role_rest"])
+        entry["kind_class"] = m["kind_class"]
+        entry["lv"] = m["lv"]
+        entry["lv_rule"] = m["lv_rule"]
+        if m["lv_variants"]:
+            entry["lv_variants"] = m["lv_variants"]
+        entry["skills"] = list(m["skills"])
+        entry["drops"] = list(m["drops"])
+        if m["mods"]:
+            entry["mods"] = m["mods"]
+        if m["hidden"] is not None:
+            entry["hidden"] = {k: v for k, v in m["hidden"].items() if k not in promoted}
+        if m["elite_equip_drop"]:
+            entry["elite_equip_drop"] = m["elite_equip_drop"]
+        entry["spawns"] = m["spawns"]
+        if m["kind_tags"]:
+            entry["kind_tags"] = list(m["kind_tags"])
+        if isinstance(m["desc"], str) and m["desc"]:
+            entry["desc"] = m["desc"]
+        out[mid] = entry
+
+    # ---------- 5. 闭合性门禁（两条都在导出期炸，不留给运行期） ----------
+    # 5.1 运行期名册索引认识的每个 id，名册里都得有（否则名册漏了运行期在用的怪）
+    index = (getattr(_import_data_package(src_root), "_INDEXES", None) or {}).get("monsters") or {}
+    runtime_ids = set(index.get("id_to_name") or {})
+    unknown = sorted(runtime_ids - set(out))
+    if unknown:
+        raise ValueError(
+            f"运行期 _INDEXES['monsters'] 里有名册不认识的怪 id：{unknown} —— 名册漏了在用的怪，拒绝导出")
+
+    # 5.2 掉落池按名引用（`mon:`/`elite:`）的每个名字都要能反查到条目
+    #     （查 name ∪ aliases ∪ name_variants —— 实测只看 name 会漏 `岩浆蠕虫` 这 1 个异写）
+    pools = getattr(_import_module("drop_pools", src_root), "DROP_POOLS", None)
+    if not isinstance(pools, dict) or not pools:
+        raise ValueError("DROP_POOLS 不是非空 dict —— 无法核对按名引用，拒绝导出")
+    resolvable = set()
+    for entry in out.values():
+        for key in ("name", "aliases", "name_variants"):
+            v = entry.get(key)
+            if isinstance(v, str):
+                resolvable.add(v)
+            elif isinstance(v, list):
+                resolvable.update(x for x in v if x)
+    dangling = sorted({k.split(":", 1)[1] for k in pools
+                       if k.startswith("mon:") or k.startswith("elite:")} - resolvable)
+    if dangling:
+        raise ValueError(
+            f"这些掉落池键按名引用的名字在名册里找不到：{dangling} —— "
+            f"按名引用会断链，拒绝导出（先补名册的 name/aliases，或改池键）")
+
+    return out
+
+
+# =============================================================================
+# D3 面板批次（2026-09-13）：职业面板**完整版**依赖的四族数据
+# =============================================================================
+# 真源 = 游戏仓 `game/content_rules/panel.py`（584 行，逐字搬进包 `content/panel.py`）。
+# 它读的 7 族数据里包内**已有** classes（`derive_classes`）/ skills（`derive_skills`）；
+# 缺的四族 = 下面四个域（依赖表全文见 `overnight/d3-panel-port.md`）：
+#
+#   `RACES`                                    → `races`          6 条
+#   `SETS`                                     → `sets`          92 条
+#   `ENHANCE_TABLE`                            → `enhance_table` 10 行（键 = 强化等级 0..9）
+#   `TIER_GROWTH` / `BRANCH_BONUS` / `BRANCH_BONUS_BY_CLASS` /
+#   `PLAYER_BASE_GROWTH` / `PCT_STATS` / `PCT_CAPS` / `PENE_PCT_STATS`
+#                                              → `panel_rules`    7 条（面板公式常量）
+#
+# 四条域统一纪律：**原样**（不补默认值 / 不改数值 / 不重写形状）+ 形状门禁（源形状一变就
+# raise，绝不静默产半张表）+ int 键**显式**落成 JSON 字符串键（消费侧 `content/tables.py`
+# 还原成 int —— 不还原 = `.get(1)` 恒 None = 数值静默归零，本批最容易踩的那个坑）。
+
+
+def _guard_entries(tbl, domain: str, src: str) -> dict:
+    """形状门禁（「表 + 条目」族共用）：非空 dict + 每条都是 dict。"""
+    if not isinstance(tbl, dict) or not tbl:
+        raise ValueError(f"{domain}：{src} 不是非空 dict —— 源形状变了，拒绝导出")
+    bad = [repr(k) for k, v in tbl.items() if not isinstance(v, dict)]
+    if bad:
+        raise ValueError(f"{domain}：{src} 有 {len(bad)} 条不是 dict（例 {bad[:3]}）—— 拒绝导出")
+    return dict(tbl)
+
+
+def _guard_num_map(tbl, domain: str, src: str) -> dict:
+    """形状门禁（「键 → 标量」族，如 TIER_GROWTH）：非空 dict + 每个值都是 int/float。"""
+    if not isinstance(tbl, dict) or not tbl:
+        raise ValueError(f"{domain}：{src} 不是非空 dict —— 源形状变了，拒绝导出")
+    bad = [repr(k) for k, v in tbl.items()
+           if isinstance(v, bool) or not isinstance(v, (int, float))]
+    if bad:
+        raise ValueError(f"{domain}：{src} 有 {len(bad)} 条取值不是数字（例 {bad[:3]}）—— 拒绝导出")
+    return dict(tbl)
+
+
+def derive_races(src_root: str = REPO_ROOT) -> dict:
+    """种族域（`races`）：`game/data/races.py:37 RACES` 全量原样（6 条，键 = 种族 id）。
+
+    面板消费点 = `panel.py:68 race_stats()` / `panel.py:76 race_name()`
+    （读 `RACES[race]["talents"]`：`growth_mult` / `hp_mult` / `crit_add` / … 六个种族的
+    「2 正 + 1 负」天赋）。包内消费侧 = `content/tables.py`（语义不变，只换读取路径）。
+    """
+    mod = _import_module("races", src_root)
+    return _guard_entries(getattr(mod, "RACES", None), "races", "game/data/races.py:37 RACES")
+
+
+def derive_sets(src_root: str = REPO_ROOT) -> dict:
+    """套装域（`sets`）：`game/data/sets.py:31 SETS` 全量原样（92 条）。
+
+    键分两类、同在一张表里（面板 `panel.py:502 _set_info()` 两类都要认）：
+      · `set_*` 区域/品质套 —— `bonus_2` / `bonus_3`(+`bonus_3_stats`) / `bonus_4`(+`bonus_4_stats`) / `bonus_5`
+      · `cls_*` 职业套 —— 条目带 `class` 字段 → 面板 v136 Phase6「本职业 100% / 非本职业 60%」折扣
+
+    ⚠️ 只导 `SETS`：同文件的 `SET_THEMES` / `SET_CHANCE` 是**掉落生成**用表（面板零消费、
+    编辑器改它们也不会影响面板数值），要开域另议 —— 不为「顺手」把两张表并进来。
+    """
+    mod = _import_module("sets", src_root)
+    return _guard_entries(getattr(mod, "SETS", None), "sets", "game/data/sets.py:31 SETS")
+
+
+def derive_enhance_table(src_root: str = REPO_ROOT) -> dict:
+    """强化表域（`enhance_table`）：`game/data/enhance.py:3 ENHANCE_TABLE` 全量（10 行）。
+
+    面板消费点 = `panel.py:316 C.ENHANCE_TABLE.get(enh)` —— 键是 **int** 强化等级，
+    取 `mult` 当装备属性乘区（`+9 = 2.10`）。
+    ⚠️ JSON 只认字符串键 → 这里**显式** `str(k)`（不是 json.dump 的隐式转换），消费侧
+    `content/tables.py` 还原成 int 键：不还原 = `.get(3)` 恒 None = **强化乘区静默归零**。
+    只导 `ENHANCE_TABLE`（同行 `MAX_ENHANCE` / `ENHANCE_FAIL_DROP` / `ENHANCE_SMITH_MAPS`
+    属强化**流程**，面板零消费）。
+    """
+    mod = _import_module("enhance", src_root)
+    raw = getattr(mod, "ENHANCE_TABLE", None)
+    if not isinstance(raw, dict) or not raw:
+        raise ValueError("enhance_table：game/data/enhance.py:3 ENHANCE_TABLE 不是非空 dict —— 拒绝导出")
+    out = {}
+    for k, v in raw.items():
+        if not isinstance(k, int) or isinstance(k, bool) or not isinstance(v, dict):
+            raise ValueError(f"enhance_table：行 {k!r} 形状不对（键应为 int、值应为 dict）—— 拒绝导出")
+        out[str(k)] = dict(v)
+    return out
+
+
+def derive_panel_rules(src_root: str = REPO_ROOT) -> dict:
+    """面板规则域（`panel_rules`）：职业面板公式读的 7 组常量（一个域、7 条）。
+
+    真源（全部只读；取的是 **import 之后的运行时表**，不是源码字面量）
+    ----------------------------------------------------------------
+        game/data/battle_config.py:379   `TIER_GROWTH`            转职成长档位（0/1/2/3 → 1.0/1.15/1.30/1.50）
+        game/data/battle_config.py:383   `BRANCH_BONUS`           分支属性倾向（通用回退档）
+        game/data/battle_config.py:389   `BRANCH_BONUS_BY_CLASS`  职业×分支差异（v156 权威）
+        game/data/base_growth.py         `PLAYER_BASE_GROWTH`     成长结构声明（循环键集 / 分支修正模式 / 输出别名）
+        game/core/constants.py:88        `PCT_STATS`              百分比域属性名（加法 / 乘算分支判据）
+        game/core/constants.py:96        `PCT_CAPS`               百分比域上限（cap 判据）
+        game/core/constants.py:116       `PENE_PCT_STATS`         百分比穿透（乘算合成判据）
+
+    形状（逐条见包内 `schemas/panel_rules.schema.json` 的 `$defs.panel_rule`）
+    -------------------------------------------------------------------------
+      · 纯列表型常量（`PCT_STATS` / `PENE_PCT_STATS`）包一层 `{"stats": [...]}` —— 导出器
+        `export()` 要求**每条都是 dict**（顶层 list 会被拒收），消费侧 `tables.py` 解包回 tuple。
+      · int 键（`TIER_GROWTH` / `BRANCH_BONUS(_BY_CLASS)` 的档位键）显式落成字符串键，
+        消费侧还原 int —— 不还原 = `.get(1)` 恒 None = **静默丢转职/分支加成**。
+      · 导出期断言「百分比域 ⊆ cap 表」：面板每个 cap 查表点都靠它，少一条 = 该属性 cap
+        静默吃默认值（`C.PCT_CAPS.get(k, 0.6)`），所以在这里炸而不是运行期悄悄变弱。
+    """
+    # ⚠️ import 顺序有讲究：先 import `game.data.*`（父包 `game/data/__init__.py` 会做装配，
+    #    顺带把 `game.core.*` 链路走完），再 import `game.core.constants`。反过来的话
+    #    `import game.core.constants` 会先跑尚未完成的 `game/core/__init__.py` →
+    #    `ImportError: cannot import name 'build_index' from partially initialized module
+    #    'game.core.index'`（2026-09-13 实测复现：单跑 `--domain panel_rules` 必炸）。
+    bc = _import_module("battle_config", src_root)
+    bg = _import_module("base_growth", src_root)
+    const = _import_game_module("game.core.constants", src_root)
+
+    tier = _guard_num_map(getattr(bc, "TIER_GROWTH", None), "panel_rules.tier_growth",
+                          "battle_config.py:379 TIER_GROWTH")
+    bb = _guard_entries(getattr(bc, "BRANCH_BONUS", None), "panel_rules.branch_bonus",
+                        "battle_config.py:383 BRANCH_BONUS")
+    raw_bbc = getattr(bc, "BRANCH_BONUS_BY_CLASS", None)
+    if not isinstance(raw_bbc, dict) or not raw_bbc:
+        raise ValueError("panel_rules.branch_bonus_by_class：BRANCH_BONUS_BY_CLASS 不是非空 dict —— 拒绝导出")
+    bbc = {c: _guard_entries(m, f"panel_rules.branch_bonus_by_class[{c}]",
+                             "battle_config.py:389 BRANCH_BONUS_BY_CLASS")
+           for c, m in raw_bbc.items()}
+
+    growth = getattr(bg, "PLAYER_BASE_GROWTH", None)
+    if not isinstance(growth, dict) or not growth:
+        raise ValueError("panel_rules.base_growth：PLAYER_BASE_GROWTH 不是非空 dict —— 拒绝导出")
+    for _k in ("linear_stats", "branch_bonus_mode", "alias"):
+        if _k not in growth:
+            raise ValueError(f"panel_rules.base_growth：PLAYER_BASE_GROWTH 缺 {_k!r} —— "
+                             f"面板的 7 键循环 / 分支修正模式 / 输出别名的声明源变了，拒绝导出")
+
+    def _seq(tbl, name: str) -> dict:
+        if not isinstance(tbl, (tuple, list)) or not tbl or not all(isinstance(x, str) for x in tbl):
+            raise ValueError(f"panel_rules.{name}：常量不是非空字符串序列 —— 拒绝导出")
+        return {"stats": list(tbl)}
+
+    pct_stats = _seq(getattr(const, "PCT_STATS", None), "pct_stats")
+    pene_pct = _seq(getattr(const, "PENE_PCT_STATS", None), "pene_pct_stats")
+    caps = getattr(const, "PCT_CAPS", None)
+    if not isinstance(caps, dict) or not caps:
+        raise ValueError("panel_rules.pct_caps：game/core/constants.py:96 PCT_CAPS 不是非空 dict —— 拒绝导出")
+    missing = sorted(set(pct_stats["stats"]) - set(caps))
+    if missing:
+        raise ValueError(f"panel_rules：PCT_STATS 里这些属性没有 PCT_CAPS 上限：{missing} —— "
+                         f"面板会静默吃默认 cap，拒绝导出")
+
+    return {
+        # int 档位键 → 字符串键（消费侧 content/tables.py 还原）
+        "tier_growth": {str(int(k)): float(v) for k, v in tier.items()},
+        "branch_bonus": {str(int(k)): dict(v) for k, v in bb.items()},
+        "branch_bonus_by_class": {c: {str(int(k)): dict(v) for k, v in m.items()}
+                                  for c, m in bbc.items()},
+        "base_growth": {
+            "linear_stats": list(growth["linear_stats"]),
+            "branch_bonus_mode": {k: dict(v) for k, v in growth["branch_bonus_mode"].items()},
+            "alias": dict(growth["alias"]),
+        },
+        "pct_stats": pct_stats,
+        "pct_caps": dict(caps),
+        "pene_pct_stats": pene_pct,
+    }
+
+
+def derive_npcs(src_root: str = REPO_ROOT) -> dict:
+    """NPC 域（`npcs`）：三张 NPC 真源表**合成一张扁平表**（一条 = 一个 NPC，键 = NPC id）。
+
+    ============================ 真源是哪三张表 ============================
+        game/data/npcs.py:3            `NPCS`         城镇/据点 NPC（3125 行的巨型字典字面量 +
+                                                       两个 `NPCS.update({...})`（:1914 / :2272）+
+                                                       末尾 `NPCS[_nid].update(_patch)`（:3123-3125，
+                                                       给 86 条渔/矿/村 NPC 补 `lines` 三连台词）。
+                                                       ★ 与 items 域同一纪律：读的是 **import 之后的
+                                                       运行时表**（362 条），不是源码字面量。
+        game/data/wild_npcs.py:23      `WILD_NPCS`    野外偶遇 NPC（47 条，条件 + 随机性）
+        game/data/wild_npcs.py:404     `HIDDEN_NPCS`  隐藏 NPC（源文件字面量 16 条）
+                                                       + 装配期并入的 6 条**层内 NPC**
+                                                       （`_assembly.py:161-163`
+                                                        `HIDDEN_NPCS.update(INSTANCE_STAGE_NPCS)`，
+                                                        源 = `instance_stage_maps.py:634
+                                                        INSTANCE_STAGE_NPCS`，并入前补 `title`）
+                                                       ⇒ 运行时 22 条
+
+    消费者（三处入口都在游戏侧，导出只搬运不改语义）
+    ---------------------------------------------------
+        `game/data/__init__.py:137`          re-export 三张表（`C.NPCS` / `C.WILD_NPCS` / `C.HIDDEN_NPCS`）
+        `game/core/wild.py:26`               `ALL_WILD = {**WILD_NPCS, **HIDDEN_NPCS}`
+        `game/data/_assembly.py:263-269`     `_INDEXES["npcs"] = {显示名 → id}`
+        找 NPC 的通用写法 = `C.NPCS.get(id) or C.ALL_WILD.get(id) or C.HIDDEN_NPCS.get(id)`
+        （`commands/world.py:3829` 等 20+ 处）—— 三个表合起来才是"全部 NPC"。
+
+    ============================ 为什么合成一张表 ============================
+    1. **一张表才是编辑器的域形态**：`x-primary` = 一条一个条目、编辑器按条增删改；三张表拆三个域
+       会让「找某个 NPC」要在三个 tab 里翻，且 `_INDEXES["npcs"]` 本来就把三张表合成一张按名索引。
+    2. **三个表的 key 空间实测零交集**（`npc_*` / `w_*` / `h_*` + 6 条层内 `npc_*`）——
+       合并**一条都不丢**；真撞了本函数 `raise`（绝不静默覆盖，否则导出静默少条目）。
+    3. 折掉了"哪张表"这一层，所以注入 `source` 字段把它表达回来（见下），与 `derive_skills`
+       折掉 三张技能表后注入 `source`/`tier`/`branch` 同一手法。
+
+    ============================ 注入字段（只这两个） ============================
+        source      : "town" | "wild" | "hidden" —— 该条目来自哪张真源表
+                      （hidden 含装配期并入的层内 NPC，消费者是 `HIDDEN_NPCS` / `ALL_WILD`）
+        inst_stage  : 仅 6 条层内 NPC 有 —— `true` 表示它出自
+                      `INSTANCE_STAGE_NPCS`（装配期被 `_assembly.py:163` 折进 `HIDDEN_NPCS`，
+                      副本层内才出现）。缺省不写（= 非层内 NPC）。
+    两个字段**都不覆盖源真值**：源条目里若已有同名键 → `raise`（实测 431 条零同名）。
+    条目内其余字段**原样**：不改类型、不补默认值、不动字段顺序（幂等），
+    空 `funcs`（95 条）与 `None`（`map` 3 条 / `unlock` 5 条 / `chance` 1 条）照原样导出
+    —— "没有这个能力"与"忘了填"在真源里就是同一个空值，导出期不许替它决定。
+
+    ============================ 留作引用、不展开 ============================
+    原样保留的**引用字符串**（后续批次才谈展开；本函数一个字都不解释）：
+        map           : maps 域 key（`oak_town` …；100 个不同值）、或副本层 map
+                        （`inst_*` 6 个，落 `instances` 域，**不在 maps 域**）、或 null（3 条）
+        roam          : 每日随机出现的地图 —— 实测**混用两种词汇**（73 个值里
+                        60 个是子区域节点 id（`white_deer_5`），13 个是地图 id（`oak_town`））
+        funcs         : 能力词汇（17 个：quest/shop/craft/heal/lore/trade/info/teach/tutor/
+                        apprentice/auction/daily/dialogue/enhance/enchant/portal/rune）——
+                        每个词背后是商店 / 合成 / 强化 / 对话树 / 任务等**尚未进包**的系统
+        quest         : 任务 id（18 个：`s_*` / `hq*` / `h5`/`h6`）—— quests 域尚未进包
+        unlock        : `"flag:xxx"` / `"item:xxx"` / `"quest:qid"` 三种前缀串（玩家 flag / 物品 id /
+                        任务 id），**不解析前缀**
+        unlock_flags  : `{flag, notice}` —— flag 名 + 解锁时的播报文案
+        teach_skills  : `{职业 key → 技能中文名}` —— 职业 key 是 classes 域 key（实测 6/6 命中），
+                        技能名在 skills 域**解析不到 14 个**（源侧空引用，见报告 §缺口）
+        condition     : `{time/season/weather/min_level/max_level/day_of_week/quest_done/
+                          quest_active/flag/item}` 的子集（AND 语义）—— 含任务/物品/flag 引用
+
+    实测（2026-09-13，本机）
+    ------------------------
+    * 362（town）+ 47（wild）+ 22（hidden，= 16 字面 + 6 层内）= **431 条**，0 键冲突、
+      0 注入字段同名、0 非 dict 条目、0 非 JSON 原生叶类型（无 tuple）
+    * 三个表 key 空间两两零交集；`INSTANCE_STAGE_NPCS` 6 条在 `HIDDEN_NPCS` 里**是同一对象**（`is`）
+    * 逐条过 `schemas/npcs.schema.json` 的 `$defs.npc` 0 失败（同步门禁【12】节）
+    * 两次派生逐字节相同（幂等）；`map` 100 值里 94 落 maps 域、6 落 instances 域、0 悬空
+    """
+    npcs_mod = _import_module("npcs", src_root)
+    wild_mod = _import_module("wild_npcs", src_root)
+    stage_mod = _import_module("instance_stage_maps", src_root)
+
+    town = getattr(npcs_mod, "NPCS", None)
+    wild = getattr(wild_mod, "WILD_NPCS", None)
+    hidden = getattr(wild_mod, "HIDDEN_NPCS", None)
+    stage = getattr(stage_mod, "INSTANCE_STAGE_NPCS", None)
+
+    plan_tables = (
+        ("NPCS", town, "game/data/npcs.py:3 NPCS", "town"),
+        ("WILD_NPCS", wild, "game/data/wild_npcs.py:23 WILD_NPCS", "wild"),
+        ("HIDDEN_NPCS", hidden, "game/data/wild_npcs.py:404 HIDDEN_NPCS", "hidden"),
+    )
+    for tname, tbl, where, _src in plan_tables:
+        if not isinstance(tbl, dict) or not tbl:
+            raise ValueError(
+                f"npcs：{where} 不是非空 dict（{tname}）—— 源形状变了/表被删，拒绝导出"
+                f"（空表 = 编辑器显示 0 条且不报错）"
+            )
+    if not isinstance(stage, dict) or not stage:
+        raise ValueError(
+            "npcs：game/data/instance_stage_maps.py:634 INSTANCE_STAGE_NPCS 不是非空 dict —— "
+            "源形状变了（层内 NPC 是 HIDDEN_NPCS 的一部分），拒绝导出"
+        )
+
+    # 层内 NPC：装配期 `_assembly.py:161-163` 把 INSTANCE_STAGE_NPCS 并进 HIDDEN_NPCS。
+    # 核「同一对象」（`is`）而不是 `==` —— 值碰巧相等说明装配路径变了，那是另一回事。
+    miss = sorted(k for k in stage if k not in hidden)
+    if miss:
+        raise ValueError(
+            f"npcs：INSTANCE_STAGE_NPCS 有 {len(miss)} 条不在 HIDDEN_NPCS 里（例 {miss[:3]}）—— "
+            f"装配期并入路径（_assembly.py:163）变了，拒绝导出"
+        )
+    not_same = sorted(k for k in stage if hidden[k] is not stage[k])
+    if not_same:
+        raise ValueError(
+            f"npcs：INSTANCE_STAGE_NPCS 的 {len(not_same)} 条在 HIDDEN_NPCS 里不是同一对象"
+            f"（例 {not_same[:3]}）—— 出现了第二份层内 NPC 定义，拒绝导出"
+        )
+
+    injected = ("source", "inst_stage")
+    out: dict = {}
+    for tname, tbl, where, source in plan_tables:
+        for npc_id, ent in tbl.items():
+            if not isinstance(ent, dict):
+                raise ValueError(
+                    f"npcs：{where}[{npc_id!r}] 不是 dict（{type(ent).__name__}）—— 源形状变了，拒绝导出"
+                )
+            if npc_id in out:
+                prev = out[npc_id]
+                raise ValueError(
+                    f"NPC id {npc_id!r} 冲突：{prev['source']} 与 {source} 都声明了同一个 id —— "
+                    f"合并三张表会丢条目，请先在源侧决定归属再导出（{where}）"
+                )
+            for f in injected:
+                if f in ent:
+                    raise ValueError(
+                        f"npcs：源条目 {npc_id!r}（{where}）已含字段 {f!r} —— 注入会覆盖源真值，拒绝导出"
+                    )
+            entry = dict(ent)
+            entry["source"] = source
+            if source == "hidden" and npc_id in stage:
+                entry["inst_stage"] = True
+            out[npc_id] = entry
+    return out
+
+
+DERIVERS = {
+    "affixes": derive_affixes,
+    "classes": derive_classes,
+    "commands": derive_commands,
+    "drop_pools": derive_drop_pools,
+    "effect_rules": derive_effect_rules,
+    "enhance_table": derive_enhance_table,
+    "equip_roster": derive_equip_roster,
+    "instances": derive_instances,
+    "items": derive_items,
+    "legendary_effects": derive_legendary_effects,
+    "loot_vocab": derive_loot_vocab,
+    "maps": derive_maps,
+    "monster_roster": derive_monster_roster,
+    "monsters": derive_monsters,
+    "npcs": derive_npcs,
+    "panel_rules": derive_panel_rules,
+    "passive_proc": derive_passive_proc,
+    "pets": derive_pets,
+    "pois": derive_pois,
+    "races": derive_races,
+    "sets": derive_sets,
+    "skills": derive_skills,
+    "texts": derive_texts,
+    "tlogs": derive_tlogs,
+}
+
+# =============================================================================
+# 域插件（scripts/export_domains/*.py）—— 2026-09-13 起：多路并行加域的**零冲突**扩展面
+# -----------------------------------------------------------------------------
+# 一个插件模块暴露 `DOMAINS = {"<域>": derive_<域>, ...}`，即被自动并入上面的注册表；
+# 目的：并行加域时**不必改本文件**（同一时刻多路抢同一处 DERIVERS 字面量 = 域会静默消失的高危区）。
+# 域名单仍由 `sorted(DERIVERS)` 派生 → `game.json.domains` 自动跟（不存在第二份手写名单）。
+# 加载失败**不静默**：坏模块记进 `DOMAIN_PLUGIN_ERRORS`（CLI 打警告、覆盖门禁计入失败），
+# 但**只跳过坏模块**，不阻塞其它路的导出（并行窗口期的取舍；门禁那一侧仍会报出来）。
+# 契约与用法见 `scripts/export_domains/README.md`；公用小工具见 `_helpers.py`。
+# =============================================================================
+DOMAIN_PLUGIN_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "export_domains")
+DOMAIN_PLUGIN_ERRORS: list = []
+
+
+def load_domain_plugins(plugin_dir: str = DOMAIN_PLUGIN_DIR) -> dict:
+    """扫 `scripts/export_domains/*.py` → 合并各自 `DOMAINS`（坏模块记错跳过；域重名直接抛错）。"""
+    out: dict = {}
+    if not os.path.isdir(plugin_dir):
+        return out
+    if plugin_dir not in sys.path:          # 让插件能 `from _helpers import ...`
+        sys.path.insert(0, plugin_dir)
+    for fn in sorted(os.listdir(plugin_dir)):
+        if not fn.endswith(".py") or fn.startswith("_"):
+            continue
+        path = os.path.join(plugin_dir, fn)
+        mod_name = f"gwen_domain_plugin_{fn[:-3]}"
+        try:
+            spec = importlib.util.spec_from_file_location(mod_name, path)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[mod_name] = mod
+            spec.loader.exec_module(mod)
+            domains = getattr(mod, "DOMAINS", None)
+            if not isinstance(domains, dict):
+                raise TypeError(f"DOMAINS 必须是 dict（得到 {type(domains).__name__}）")
+        except Exception as e:              # noqa: BLE001 —— 单路坏不阻塞别的路
+            DOMAIN_PLUGIN_ERRORS.append(f"{fn}: {type(e).__name__}: {e}")
+            continue
+        for dom, fn_ in domains.items():
+            if dom in DERIVERS or dom in out:
+                raise RuntimeError(f"域 {dom!r} 重复声明（{fn}）—— 域名单必须全局唯一")
+            if not callable(fn_):
+                raise RuntimeError(f"域 {dom!r} 的派生器不可调用（{fn}）")
+            out[dom] = fn_
+    return out
+
+
+DERIVERS.update(load_domain_plugins())
+
+
+# =============================================================================
+# 写盘（幂等：UTF-8 / LF / indent=2 / 末尾换行 / 原子替换）
+# =============================================================================
+def write_json(path: str, obj) -> None:
+    """与框架 editor/packages.py:write_json 同款落盘约定（唯一差别：本函数外层键可控序）。"""
+    d = os.path.dirname(path)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2, sort_keys=False)
+        f.write("\n")
+    os.replace(tmp, path)
+
+
+def sort_table(table: dict) -> dict:
+    """外层按 key 字典序（稳定排序 → 幂等）；**条目内部字段顺序保持源顺序原样**。"""
+    return {k: table[k] for k in sorted(table)}
+
+
+def _framework_dir(out_root: str) -> str:
+    """定位框架仓：环境变量 > --out > 默认路径。注意 `--out` 可能只是「导出到哪」的临时目录
+    （比如门禁测试用它导到 tmp 做逐字节比对），那里没有 `editor/` 包 —— 所以要有兜底候选，
+    不能只看 --out。"""
+    cands = [os.environ.get("GWEN_FRAMEWORK_DIR"), out_root, DEFAULT_FRAMEWORK_DIR]
+    for c in cands:
+        if c and os.path.isfile(os.path.join(os.path.abspath(c), "editor", "packages.py")):
+            return os.path.abspath(c)
+    raise ValueError(
+        f"找不到框架仓（试过 GWEN_FRAMEWORK_DIR / --out / {DEFAULT_FRAMEWORK_DIR}）—— 拒绝猜落点"
+    )
+
+
+def content_sub(domain: str, out_root: str) -> str:
+    """域数据落 `content/data/` 还是 `content/rules/` —— **问框架**，不硬编码第二份列表。
+
+    为什么必须问：框架 `editor/packages.py` 给每个域标了 kind（rules / data），
+    `PK.domain_path()` 按它取路径（effect_rules / passive_proc 走 `content/rules/`）。
+    导出器若写错边 → 文件在、清单也声明了、同步门禁也可能全绿，但编辑器读另一边
+    → **显示 0 条且不报错**（最难查的那类故障，2026-09-13 由域研究实测发现）。
+
+    2026-09-13 起走 `PK.domain_meta(pkg_dir, domain)`（= **包自带声明优先** + 内置默认集兜底）：
+    新域的正路是「包在 `<pkg>/editor/domains.json` 里自己声明 kind」（框架的包扩展面第 1 层），
+    内置默认集只是没声明时的回退。本次导出目标包没有声明文件时（例如门禁把产物导到 tmp 做
+    幂等比对）自动落回内置默认集 —— 与改造前逐字同行为。
+    """
+    fw = _framework_dir(out_root)
+    if fw not in sys.path:
+        sys.path.insert(0, fw)
+    try:
+        from editor import packages as PK      # noqa: PLC0415
+    except Exception as e:                     # noqa: BLE001
+        raise ValueError(f"读框架域注册表失败（{fw}）：{e} —— 拒绝猜落点") from e
+    # ★ 声明来源按优先级试两处（2026-09-13 收口新增 ②）：
+    #   ① 导出目标包目录 `<out_root>/games/<id>/editor/domains.json` —— 正常导出就是它；
+    #   ② 框架仓里的**规范包目录** `<fw>/games/<id>/editor/domains.json` —— 导出到 tmp 做
+    #      「产物与仓库文件逐字节相同」比对时，tmp 里还没有包、自然没有声明文件；若只认 ①，
+    #      凡是「真源只在包侧声明」的新域（races/sets/enhance_table/panel_rules）都会在这里
+    #      报错 —— 实测正是 sync 门禁那一节 8 条红的原因（tmp 导出失败 → 产物缺失）。
+    #      ② 是同一个包的规范副本，不是第三份真源。
+    candidates = (os.path.join(os.path.abspath(out_root), "games", PACKAGE_ID),
+                  os.path.join(fw, "games", PACKAGE_ID))
+    for cand in candidates:
+        cfg = PK.domain_meta(cand, domain) or {}
+        if cfg:
+            return "rules" if cfg.get("kind") == "rules" else "data"
+    raise ValueError(f"框架域注册表里没有域 {domain!r}（内置默认集 + 包内 "
+                     f"{PK.DOMAINS_REL} 都没声明；试过 {list(candidates)}）—— 拒绝导出（编辑器不认）")
+
+
+def json_clean(obj):
+    """JSON 往返一次：让「派生表」与「落盘后读回来的文件」在做 --check 时可比。
+
+    为什么必须：源表里带 tuple（实测 CLASSES 的 tutor = ('导师', '地点')，7 条），json 落盘成 list、
+    读回来是 list ≠ tuple → --check 会误报「不一致」。往返之后 tuple→list（这正是文件里的形状），
+    键序与嵌套形状都不变。
+    """
+    return json.loads(json.dumps(obj, ensure_ascii=False))
+
+
+def build_manifest(existing: dict | None) -> dict:
+    """清单 = 管辖字段（规范值）+ domains（由 DERIVERS 派生）+ created（保留已有，否则固定常量）
+    + 其余已有字段（字典序，`MANIFEST_DROPPED` 里的字段不再保留）。"""
+    old = existing if isinstance(existing, dict) else {}
+    out = dict(MANIFEST_MANAGED)
+    out["domains"] = sorted(DERIVERS)
+    created = old.get("created")
+    out["created"] = created if isinstance(created, str) and created.strip() else DEFAULT_CREATED
+    for k in sorted(old):
+        if k not in out and k not in MANIFEST_DROPPED:
+            out[k] = old[k]
+    return out
+
+
+def _read_json(path: str, default=None):
+    if not os.path.exists(path):
+        return default
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return default
+
+
+def sha256_of(path: str) -> str:
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
+# =============================================================================
+# 导出
+# =============================================================================
+def export(domain: str, out_root: str, check_only: bool = False,
+           src_root: str = REPO_ROOT) -> dict:
+    """导出单个域。返回摘要 dict（含 sha256 / 条数 / 是否变化）。"""
+    if domain in PLANNED_DOMAINS and domain not in DERIVERS:
+        raise NotImplementedError(
+            f"域 '{domain}' 的导出器尚未实现（本次仅实现 {sorted(DERIVERS)}）。"
+            f"加一个域 = 在本文件 DERIVERS 里注册一个 derive_{domain}()，并把域名加进 "
+            f"MANIFEST_MANAGED['domains']。"
+        )
+    if domain not in DERIVERS:
+        raise NotImplementedError(
+            f"未知域 '{domain}'。已实现：{sorted(DERIVERS)}；已规划未实现：{list(PLANNED_DOMAINS)}。"
+        )
+
+    table = json_clean(sort_table(DERIVERS[domain](src_root)))
+    pkg_dir = os.path.join(out_root, "games", PACKAGE_ID)
+    data_path = os.path.join(pkg_dir, "content", content_sub(domain, out_root), f"{domain}.json")
+    man_path = os.path.join(pkg_dir, "game.json")
+
+    n = len(table)
+    n_with = sum(1 for v in table.values() if isinstance(v, dict))
+    if n != n_with:
+        raise ValueError(f"域 '{domain}' 有 {n - n_with} 条不是 dict —— 条目形状不对，拒绝导出")
+
+    summary = {"domain": domain, "entries": n, "package_dir": pkg_dir,
+               "data_path": data_path, "manifest_path": man_path,
+               "changed": False, "check_only": check_only}
+
+    if check_only:
+        old = _read_json(data_path, None)
+        summary["in_sync"] = (old == table)
+        old_man = _read_json(man_path, None)
+        summary["manifest_in_sync"] = (old_man == build_manifest(old_man))
+        return summary
+
+    old = _read_json(data_path, None)
+    write_json(data_path, table)
+    write_json(man_path, build_manifest(_read_json(man_path, None)))
+    summary["changed"] = (old != table)
+    summary["sha256"] = sha256_of(data_path)
+    summary["bytes"] = os.path.getsize(data_path)
+    return summary
+
+
+def main(argv=None) -> int:
+    # 域插件加载失败：**打出来但不挡**（并行窗口期别的路还要导出）；覆盖门禁那一侧算失败。
+    if DOMAIN_PLUGIN_ERRORS:
+        print("⚠️ 下列域插件加载失败（已跳过，其余域照常导出）：", file=sys.stderr)
+        for _e in DOMAIN_PLUGIN_ERRORS:
+            print(f"   - {_e}", file=sys.stderr)
+    ap = argparse.ArgumentParser(
+        prog="export_game_package.py",
+        description="奥兰迪亚内容数据 → 框架编辑器游戏包 JSON（单向导出）",
+    )
+    ap.add_argument("--domain", default="items",
+                    help=f"要导出的域（已实现：{sorted(DERIVERS)}；默认 items）")
+    ap.add_argument("--src", default=REPO_ROOT, help="游戏仓根（默认=本脚本所在仓根）")
+    ap.add_argument("--out", default=None,
+                    help="框架仓根（默认 $GWEN_FRAMEWORK_DIR 或 " + DEFAULT_FRAMEWORK_DIR + "）")
+    ap.add_argument("--check", action="store_true", help="只派生并比对，不落盘")
+    args = ap.parse_args(argv)
+
+    # 注意：REPO_ROOT 常量只作默认值；--src 只影响本次运行的 src_root 参数（模块本身不改常量）
+    src_root = os.path.abspath(args.src)
+    out_root = args.out or os.environ.get("GWEN_FRAMEWORK_DIR") or DEFAULT_FRAMEWORK_DIR
+
+    try:
+        s = export(args.domain, out_root, check_only=args.check, src_root=src_root)
+    except NotImplementedError as e:
+        print(f"❌ {e}")
+        return 2
+
+    if args.check:
+        ok = s.get("in_sync") and s.get("manifest_in_sync")
+        print(f"{'✅' if ok else '❌'} --check 域={s['domain']} 条数={s['entries']} "
+              f"{s['domain']}.json{'一致' if s.get('in_sync') else '不一致'} "
+              f"game.json{'一致' if s.get('manifest_in_sync') else '不一致'}")
+        return 0 if ok else 1
+
+    print(f"✅ 导出完成：域={s['domain']} 条数={s['entries']} "
+          f"{'（内容有变化）' if s['changed'] else '（内容无变化）'}")
+    print(f"   数据 → {s['data_path']}  ({s['bytes']} B, sha256={s['sha256'][:16]}…)")
+    print(f"   清单 → {s['manifest_path']}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

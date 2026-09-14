@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 """统计 SUBAREAS 空壳子区域"""
 import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'game'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 os.chdir(os.path.join(os.path.dirname(__file__), '..'))
 
-from game.data.subareas import SUBAREAS
+from game.content import SUBAREAS
 
 total_sa = 0
 empty = []

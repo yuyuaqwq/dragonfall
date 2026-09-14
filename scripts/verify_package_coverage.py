@@ -1,117 +1,122 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""导出覆盖验收：把游戏仓真源逐域导出 → 核对「条数 / 校验 / 联想候选」是否都进了编辑器。
+"""包数据覆盖验收（★ 2026-09-14 B14 开关后 = **纯包内校验**，不再跑导出器）
+
+背景（为什么改成这样）
+----------------------
+2026-09-14 B14 开关删掉了宿主 `game/data/*.py`（74,707 行 / 87 文件）——**包内
+`content/data|rules/*.json` 成为数据唯一真源**；原来的单向导出器
+`scripts/export_game_package.py`（+ `scripts/export_domains/` 域插件）随之退役，
+归档在 `scripts/_retired/`（来路与语义账见 `scripts/_retired/README.md`）。
+
+因此本门禁从「真源 → 包」的单向核对，改为**包内自洽核对**（四条，任何一条失败 → 退出码非 0）：
+
+  1. **域清单一致**：`game.json:domains` ↔ 包声明域（`editor/domains.json`）↔ 实际数据文件；
+  2. **落点正确**：每域数据文件在框架期望的落点（`editor.packages.domain_path`，按域 `kind` 落 data/rules）；
+  3. **非空 + 逐条过 schema**：条数 > 0 且校验 0 无效（**静默空表** = 本项目最怕的故障）；
+  4. **联想候选**：打印每域 `editor.hints` 的 refs 数（编辑器「联想」能力的覆盖）。
+  另加一条**反向检查**：包内存在但清单未声明的域文件 → 报失败（防「导出到一半留下的孤儿文件」）。
 
 用法：
-    python scripts/verify_package_coverage.py            # 全量（逐域导出 + --check + 编辑器侧核对）
-    python scripts/verify_package_coverage.py --check    # 不落盘，只核对现有包
+    python scripts/verify_package_coverage.py            # 全量校验
+    python scripts/verify_package_coverage.py --check    # 同义（保留参数兼容既有调用；本门禁自始只读，不写任何文件）
 
-它做四件事（任何一项失败 → 退出码非 0）：
-  1. 逐域跑导出器（域列表从导出器源码的 DERIVERS 读，不手写第二份）；
-  2. 每个域 --check 必须报「与真源一致」；
-  3. 编辑器侧：清单 domains 与已实现域一致、每域有数据文件（**按框架 domain_path 的落点**）、
-     每域条数 > 0 且逐条过 schema（静默空表 = 本项目最怕的故障）；
-  4. 打印每域的联想候选数（hints.refs）。
-
-只读两个仓（除导出器自身的落盘职责外不写任何文件），不起服务器。
-框架仓位置：$GWEN_FRAMEWORK_DIR > 导出器的 DEFAULT_FRAMEWORK_DIR。
+框架仓位置：$GWEN_FRAMEWORK_DIR > 默认 `C:/Users/yuyu/framework-engine`。
+只读框架仓的 `games/<包>`，不起服务器、不写文件。
 """
 from __future__ import annotations
 
 import argparse
+import glob
 import os
-import re
-import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.dirname(HERE)                                   # 游戏仓根
-EXPORT = os.path.join(HERE, "export_game_package.py")
+REPO = os.path.dirname(HERE)                                   # 游戏仓根（本脚本所在）
 FRAMEWORK = os.environ.get("GWEN_FRAMEWORK_DIR") or "C:/Users/yuyu/framework-engine"
 PKG_ID = "orlandia"
-PLUGIN_ERRORS: list = []          # 域插件加载失败（由 _derivers() 填；main 计入失败）
-
-
-def _derivers() -> list:
-    """已实现的域 —— **执行导出器模块**读它的 `DERIVERS`（字面量 + `scripts/export_domains/` 插件域）。
-
-    为什么不再爬源码字面量：域注册表自 2026-09-13 起是**运行期合并**的（支持域插件），
-    爬字面量会让插件域在门禁里“看不见”= 静默漏域；插件加载失败也记进 DOMAIN_PLUGIN_ERRORS
-    由 main() 计入失败（不静默）。顺带记录模块级错误供 main 使用。
-    """
-    import importlib.util
-    global PLUGIN_ERRORS
-    for _p in (REPO, HERE):
-        if _p not in sys.path:
-            sys.path.insert(0, _p)
-    spec = importlib.util.spec_from_file_location("_xp_coverage_export", EXPORT)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules["_xp_coverage_export"] = mod
-    spec.loader.exec_module(mod)
-    PLUGIN_ERRORS = list(getattr(mod, "DOMAIN_PLUGIN_ERRORS", []) or [])
-    return sorted(mod.DERIVERS)
-
-
-def _run_cli(*args) -> tuple:
-    r = subprocess.run([sys.executable, EXPORT, *args], cwd=REPO, capture_output=True, text=True)
-    return r.returncode, ((r.stdout or "") + (r.stderr or "")).strip()
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--check", action="store_true", help="只核对现有包，不重新导出")
-    args = ap.parse_args()
+    ap.add_argument("--check", action="store_true",
+                    help="同义（保留兼容：本门禁自始只读，两种调用完全等价）")
+    ap.parse_args()
 
     sys.path.insert(0, os.path.abspath(FRAMEWORK))
     from editor import packages as PK      # noqa: PLC0415
     from editor import hints as HN         # noqa: PLC0415
 
     pkg = os.path.join(os.path.abspath(FRAMEWORK), "games", PKG_ID)
-    doms = _derivers()
-    fails: list = [f"域插件加载失败（该域没有被导出，按失败计）：{e}" for e in PLUGIN_ERRORS]
-    print(f"游戏仓 = {REPO}\n框架仓 = {os.path.abspath(FRAMEWORK)}\n导出器已实现的域：{doms}")
-    if not doms:
-        print("❌ 读不到已实现的域（DERIVERS 解析失败）")
+    print(f"游戏仓   = {REPO}\n框架仓   = {os.path.abspath(FRAMEWORK)}\n包       = {pkg}\n"
+          f"（★ B14 开关后：真源 = 包内 content/data|rules/*.json；导出器已退役，见 scripts/_retired/）")
+    if not os.path.isdir(pkg):
+        print(f"❌ 包目录不存在：{pkg}")
         return 1
 
-    print("\n=== 1. 逐域导出 + --check 与真源一致 ===")
-    for d in doms:
-        if not args.check:
-            rc, out = _run_cli("--domain", d)
-            print(f"  {'✅' if rc == 0 else '❌'} 导出 {d:<14} {out.splitlines()[0] if out else ''}")
-            if rc != 0:
-                fails.append(f"导出 {d} 失败：{out[:200]}")
-        rc2, out2 = _run_cli("--domain", d, "--check")
-        ok2 = rc2 == 0 and "不一致" not in out2
-        print(f"     {'✅' if ok2 else '❌'} --check {d}")
-        if not ok2:
-            fails.append(f"{d} --check 不一致：{out2[:200]}")
+    fails: list = []
 
-    print("\n=== 2. 编辑器侧：落点 / 条数 / 校验 / 联想候选 ===")
+    # ---------- 1. 域清单一致 ----------
+    print("\n=== 1. 域清单：game.json:domains ↔ 包声明域 ↔ 数据文件 ===")
+    declared = list(PK.declared_domain_ids(pkg))
     man = PK.load_manifest(pkg)
-    declared = man.get("domains") or []
-    if sorted(declared) != sorted(doms):
-        fails.append(f"清单 domains({declared}) 与已实现域({doms}) 不一致")
+    man_doms = list(man.get("domains") or [])
+    if sorted(declared) != sorted(man_doms):
+        fails.append(f"game.json:domains 与包声明域不一致：清单独有 {sorted(set(man_doms) - set(declared))} / "
+                     f"声明独有 {sorted(set(declared) - set(man_doms))}")
+        print(f"  ❌ 清单 {len(man_doms)} 个 vs 声明 {len(declared)} 个")
+    else:
+        print(f"  ✅ 一致（{len(declared)} 个域）")
+    if not declared:
+        print("  ❌ 读不到任何域声明")
+        return 1
+
+    # ---------- 2~4. 逐域：落点 / 条数 / 校验 / 联想候选 ----------
+    print("\n=== 2. 落点 / 条数 / 校验 / 联想候选 ===")
     hints = HN.build(pkg)
     refs = hints.get("refs") or {}
-    print(f"\n  {'域':<14}{'条数':>7}{'字节':>10}  {'校验':<6}{'待修':>5}{'联想 key':>9}  落点")
-    for d in declared:
-        want = PK.domain_path(pkg, d)
+    print(f"\n  {'域':<16}{'条数':>7}{'字节':>10}  {'校验':<6}{'待修':>5}{'联想 key':>9}  落点")
+    total = 0
+    for d in sorted(declared):
+        try:
+            want = PK.domain_path(pkg, d)
+        except KeyError as e:
+            fails.append(f"{d} 域声明异常：{e}")
+            print(f"  {d:<16}{'—':>7}{'—':>10}  {'❌':<6}{'—':>5}{'—':>9}  声明异常")
+            continue
         has = os.path.isfile(want)
         st = PK.domain_status(pkg, d)
-        ok = bool(st.get("ok")) and not (st.get("invalid") or [])
-        print(f"  {d:<14}{st.get('count', 0):>7}{os.path.getsize(want) if has else 0:>10}  "
-              f"{'✅' if ok else '❌':<6}{len(st.get('invalid') or []):>5}{len(refs.get(d) or []):>9}  "
-              f"{'content/' + ('rules' if 'rules' in want.replace(chr(92), '/') else 'data')}")
+        bad = list(st.get("invalid") or [])
+        ok = bool(st.get("ok")) and not bad
+        cnt = int(st.get("count", 0) or 0)
+        total += cnt
+        loc = "rules" if os.path.basename(os.path.dirname(want)) == "rules" else "data"
+        print(f"  {d:<16}{cnt:>7}{os.path.getsize(want) if has else 0:>10}  "
+              f"{'✅' if ok else '❌':<6}{len(bad):>5}{len(refs.get(d) or []):>9}  content/{loc}")
         if not has:
             fails.append(f"{d} 数据文件不在框架期望的落点：{want}")
-        if not st.get("count"):
+        if cnt == 0:
             fails.append(f"{d} 条数为 0（静默空表）")
         if not ok:
-            fails.append(f"{d} 校验未过：{(st.get('invalid') or [])[:2]}")
+            fails.append(f"{d} 校验未过：{bad[:2]}")
 
-    total = sum(PK.domain_status(pkg, d).get("count", 0) for d in declared)
-    print(f"\n=== 3. 汇总 ===\n  域 {len(declared)} 个 / 条目合计 {total} / 失败 {len(fails)}")
+    # ---------- 5. 反向：孤儿域文件（包内有、清单没有） ----------
+    print("\n=== 3. 孤儿域文件（包内存在但清单未声明）===")
+    orphans = []
+    for sub in ("data", "rules"):
+        for p in sorted(glob.glob(os.path.join(pkg, "content", sub, "*.json"))):
+            dom = os.path.splitext(os.path.basename(p))[0]
+            if dom not in set(declared):
+                orphans.append(f"content/{sub}/{dom}.json")
+    if orphans:
+        fails.append(f"存在未声明的域文件：{orphans}")
+        for o in orphans:
+            print(f"  ❌ {o}")
+    else:
+        print("  ✅ 无孤儿（data/rules 下每个 json 都在清单里）")
+
+    # ---------- 汇总 ----------
+    print(f"\n=== 4. 汇总 ===\n  域 {len(declared)} 个 / 条目合计 {total} / 失败 {len(fails)}")
     for f in fails:
         print("  ❌", f)
     return 1 if fails else 0
