@@ -190,7 +190,7 @@ def test_2_end_to_end():
 
 def test_3_counter_axis():
     print("【3. 与 §9.1 克制轴三角一致（火→冰→雷→火 ⇒ 火克冰/冰克雷/雷克火）】")
-    from game.services.battle_element_procs import COUNTER_RULES
+    from content.mech.element_procs import COUNTER_RULES  # ★ B18-REPOINT：直取包内实现本体
     # 克制轴：攻击方元素 → 克制的目标态（freeze=冰系态 / ...）
     check("克制表存在且 fire 段带解冻语义",
           "fire" in COUNTER_RULES and COUNTER_RULES["fire"].get("victim_state") == "freeze",

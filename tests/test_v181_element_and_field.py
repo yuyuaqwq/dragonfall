@@ -41,8 +41,8 @@ _LD._roll_dodge = lambda *a, **k: False  # noqa: E731
 
 
 ensure_engine_configured()
-from game.services import battle_element_procs as EP  # noqa: E402,F401
-from game.services import battle_team_procs as TP  # noqa: E402,F401
+from content.mech import element_procs as EP  # noqa: E402,F401  ★ B18-REPOINT：直取包内实现本体
+from content.mech import team_procs as TP  # noqa: E402,F401  ★ B18-REPOINT：直取包内实现本体
 from content.mech.element_data import ELEMENT_REACTIONS  # noqa: E402
 
 PASS = 0

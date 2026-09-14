@@ -36,7 +36,7 @@ from saintess_engine import Battle as B2, make_actor, effects as EFX  # noqa: E4
 from saintess_engine.battle.effect_triggers import fire  # noqa: E402
 from saintess_engine.gauge import bar_effect_key, bar_gain# noqa: E402
 from game.services import class_mech_proc as CMP  # noqa: E402
-from game.services.battle_bar_procs import _ensure_tick  # noqa: E402
+from content.mech.bar_procs import _ensure_tick  # noqa: E402  ★ B18-REPOINT：直取包内实现本体
 
 PASS = 0
 FAIL = 0

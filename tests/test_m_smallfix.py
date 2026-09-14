@@ -246,7 +246,7 @@ def t2_no_element_sideeffect():
     check("万象风暴 mech 无 val → 兼容层零效果落地",
           isinstance(effs, list) and not effs, repr(effs))
     # ③ finisher 词条 mech_any 是精确匹配（mechs=['finisher']）——补标值不会误吃终结技乘区
-    from game.services.battle_we_procs import we_dmg_mult_cond
+    from content.mech.we_procs import we_dmg_mult_cond  # ★ B18-REPOINT：直取包内实现本体
     b = B2(btype="monster", sides={"player": [a], "enemy": [
         make_actor(uid="e", name="桩", side="enemy", kind="monster", hp=5000,
                    max_hp=5000, atk=1, matk=1, spd=5, level=60, **{"def": 5, "mdef": 5})]})

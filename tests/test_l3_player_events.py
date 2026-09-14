@@ -18,7 +18,7 @@ from conftest import C, db, clean_db, make_player
 from data.plugins.dragonfall.game.services.player_event_bus import fire
 from data.plugins.dragonfall.game.services import player_event_subscribers  # noqa: F401  触发注册
 from data.plugins.dragonfall.game.services.guild import guild_create
-from data.plugins.dragonfall.game.services.tower_progress import _tower_state
+from content.flow.tower_progress import _tower_state  # ★ B18-REPOINT：直取包内实现本体（宿主同名壳不再被测试引用）
 
 passed = failed = 0
 

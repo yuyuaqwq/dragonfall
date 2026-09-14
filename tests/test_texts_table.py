@@ -68,7 +68,7 @@ if _HERE not in sys.path:
 
 from conftest import C, db, clean_db, FakeEvent, run, Main  # noqa: E402
 from data.plugins.dragonfall.game.core import texts as T  # noqa: E402
-from data.plugins.dragonfall.game.services.weekly_progress import (  # noqa: E402
+from content.flow.weekly_progress import (  # noqa: E402  ★ B18-REPOINT：直取包内实现本体（宿主同名壳不再被测试引用）
     _week_state, _save_week_state,
 )
 from data.plugins.dragonfall.game.commands import instance_battle as _IB  # noqa: E402

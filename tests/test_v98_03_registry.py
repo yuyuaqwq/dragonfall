@@ -31,7 +31,7 @@ async def main():
         except ValueError:
             return True
 
-    from data.plugins.dragonfall.game.core import dialogue_conds as DC
+    from content import dialogue_conds as DC  # ★ B18-REPOINT：直取包内实现本体（宿主同名壳不再被测试引用）
     from data.plugins.dragonfall.game.core import title_conds as TC
     from data.plugins.dragonfall.game.core import race_talent_display as RTD
     from data.plugins.dragonfall.game.core import hidden_cond as HC

@@ -421,7 +421,7 @@ def t_c_mp_spend_floor_floor():
 
 def t_d_finisher():
     print("【D.1 finisher 装配：dmg_calc we_dmg_mult_cond mech_any + tier 乘区】")
-    from game.services.battle_we_procs import we_dmg_mult_cond
+    from content.mech.we_procs import we_dmg_mult_cond  # ★ B18-REPOINT：直取包内实现本体
     for q, mult in (("blue", 1.10), ("purple", 1.15), ("orange", 1.20)):
         k = mk_rogue(f"fin_{q}")
         equip_affix(k, "finisher", "weapon", q)

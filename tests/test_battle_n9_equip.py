@@ -517,7 +517,7 @@ def test_extra_dmg():
     equip(p2, "siren_fang", slot="weapon", we_data={"count": 3, "atk_pct": 0.4})
     EP.apply_to_actor(p2)
     b2 = new_battle(p2, m2)
-    from game.services.battle_we_procs import we_extra_dmg
+    from content.mech.we_procs import we_extra_dmg
     hit_ctx = {"target": m2, "dmg": 10}
     for i in range(2):
         b2._fire_ctx = dict(hit_ctx)
@@ -539,7 +539,7 @@ def test_extra_dmg():
     b3 = new_battle(p3, m3)
     p3["hp"] = p3["max_hp"] - 100
     # 直接调 we_extra_dmg 模拟 hit ctx dmg=100
-    from game.services.battle_we_procs import we_extra_dmg
+    from content.mech.we_procs import we_extra_dmg
     b3._fire_ctx = {"target": m3, "dmg": 100}
     we_extra_dmg(b3, p3, m3,
                  {"type": "we_extra_dmg", "key": "novice_lifesteal", "heal_pct": 0.05}, [])
@@ -710,7 +710,7 @@ def test_cond_mult_and_stacks():
     equip(p3, "rune_amp", slot="weapon", we_data={"per_pct": 0.02})
     EP.apply_to_actor(p3)
     b3 = new_battle(p3, m3)
-    from game.services.battle_we_procs import we_stack_prod, we_amp_consume
+    from content.mech.we_procs import we_stack_prod, we_amp_consume
     # 生产 3 层
     for _ in range(3):
         we_stack_prod(b3, p3, m3, {"type": "we_stack_prod", "key": "rune_amp",
@@ -911,7 +911,7 @@ def test_affix_onhit():
     # bleed：命中 100 → 20% 概率挂 affix_bleed 层（直调扩展动作验证语义）
     p = mk_a("p1", "player")
     m = mk_a("e1", "enemy", hp=99999, atk=1)
-    from game.services.battle_we_procs import we_affix_dot, we_affix_defdown, \
+    from content.mech.we_procs import we_affix_dot, we_affix_defdown, \
         we_affix_element, we_affix_bonus
     # 装配端到端：带 bleed + armor_break + element_fire + element_ice + pierce 装备
     p.setdefault("equipment", {})["weapon"] = {
@@ -977,7 +977,7 @@ def test_affix_onhit():
 
 def test_affix_taken():
     print("【N9.7c affix on_taken 族：counter/tenacity_cc + dmg_reduce 减伤】")
-    from game.services.battle_we_procs import we_affix_counter, we_affix_tenacity
+    from content.mech.we_procs import we_affix_counter, we_affix_tenacity
     # counter：受击 100 由敌发起 → 20% 反击敌 atk×60%（直调恒触发）
     p = mk_a("p1", "player", atk=40)
     m = mk_a("e1", "enemy", hp=99999, atk=1)
@@ -1030,7 +1030,7 @@ def test_affix_cond_mult():
     EP.apply_to_actor(p)
     check("execute 装配 dmg_calc", "dmg_calc" in (p.get("triggers") or {}),
           f"triggers={p.get('triggers')}")
-    from game.services.battle_we_procs import we_dmg_mult_cond
+    from content.mech.we_procs import we_dmg_mult_cond
     b = new_battle(p, m_full, m_low)
     b._fire_ctx = {"target": m_full, "dmg": 100, "mult": 1.0, "tags": []}
     we_dmg_mult_cond(b, p, m_full, {"type": "we_dmg_mult_cond", "key": "execute",
@@ -1055,7 +1055,7 @@ def test_affix_cond_mult():
     }
     EP.apply_to_actor(p2)
     b2 = new_battle(p2, m2, m2m)
-    from game.services.battle_we_procs import we_dmg_mult_cond
+    from content.mech.we_procs import we_dmg_mult_cond
     b2._fire_ctx = {"target": m2, "dmg": 100, "mult": 1.0, "tags": []}
     we_dmg_mult_cond(b2, p2, m2, {"type": "we_dmg_mult_cond", "key": "hunt",
                                   "cond": "enemy_marked", "mult": 1.20,
@@ -1076,7 +1076,7 @@ def test_affix_cond_mult():
     }
     EP.apply_to_actor(p3)
     b3 = new_battle(p3, m3a)
-    from game.services.battle_we_procs import we_dmg_mult_cond
+    from content.mech.we_procs import we_dmg_mult_cond
     # 打非龙目标：倍率不变
     m_wolf = mk_a("野狼", "enemy", hp=100000, atk=1)
     b3.sides["enemy"].append(m_wolf)
@@ -1098,7 +1098,7 @@ def test_affix_cond_mult():
 
 def test_novice_hunt_combo():
     print("【N9.22 novice_hunt_combo（猎影之牙）：暴击 → 连击率叠层 cap 5】")
-    from game.services.battle_we_procs import we_combo_stack
+    from content.mech.we_procs import we_combo_stack
     # 装配端：装备 猎影之牙 weapon_effect → triggers[crit]（暴击叠层生产段）
     p = mk_a("p1", "player")
     m = mk_a("e1", "enemy", hp=100000, atk=1)
@@ -1152,7 +1152,7 @@ def test_novice_hunt_combo():
 
 def test_combo_end():
     print("【N9.23 combo_end（夜枭双匕）：连段≥3 暴击 → 暴伤 +40%】")
-    from game.services.battle_we_procs import we_combo_end
+    from content.mech.we_procs import we_combo_end
     # 装配端：装备 夜枭双匕 weapon_effect → triggers[dmg_calc]（连段暴伤乘区钩子）
     p = mk_a("p1", "player")
     m = mk_a("e1", "enemy", hp=100000, atk=1)

@@ -75,11 +75,11 @@ MAX_DIFF = 3                                                    # 每条红行�
 # class_mech    game/services/class_mech_proc.py               :100-1809（39 动作 / 全 2446 行）  content/mech/class_mech.py
 # equip         game/services/battle_equip_proc.py             :1083 install_ext_actions,        content/mech/equip.py
 #                                                              :1133 apply_to_actor（0 动作）
-# we_procs      game/services/battle_we_procs.py               :99-1436（27 动作 / 全 1484 行）  content/mech/we_procs.py
-# team_procs    game/services/battle_team_procs.py             :172-768（20 动作 / 全 788 行）   content/mech/team_procs.py
-# bar_procs     game/services/battle_bar_procs.py              :94-169（4 动作）:203 apply_bar   content/mech/bar_procs.py
+# we_procs      ★ 宿主壳已退役（B18-REPOINT；tests 侧零引用）    :99-1436（27 动作 / 全 1484 行）  content/mech/we_procs.py
+# team_procs    ★ 宿主壳已退役（B18-REPOINT；tests 侧零引用）    :172-768（20 动作 / 全 788 行）   content/mech/team_procs.py
+# bar_procs     ★ 宿主壳已退役（B18-REPOINT；tests 侧零引用）    :94-169（4 动作）:203 apply_bar   content/mech/bar_procs.py
 # cond_procs    game/services/battle_cond_procs.py             :120（1 动作）:156 apply_cond       content/mech/cond_procs.py
-# element_procs game/services/battle_element_procs.py          :133-272（4 动作）:296 apply_elem   content/mech/element_procs.py
+# element_procs ★ 宿主壳已退役（B18-REPOINT；tests 侧零引用）    :133-272（4 动作）:296 apply_elem   content/mech/element_procs.py
 # worldboss     game/services/battle_worldboss_procs.py        :27-48（1 动作；apply 未搬 :51-75） content/mech/worldboss.py
 # kinds         game/data/kinds.py                             :1-120（SkillKind/K_*/_KIND_META） content/mech/kinds.py
 # class_data    game/data/battle_rules.py + battle_config.py    :624 MECH_CASH / :455 MECH_CFG      content/mech/class_data.py
@@ -91,23 +91,25 @@ MAX_DIFF = 3                                                    # 每条红行�
 #                                                              :749 BAR_STATE_PREFIX
 PORTS = [
     # (族, 真源文件（单文件端口；多文件的数据端口用 None）, 真源行号说明, 包内端口文件, 装配器函数名, 动作集合是否比)
+    # ★ B18-REPOINT（2026-09-15）：`we_procs` / `team_procs` / `bar_procs` / `element_procs` 四族的
+    #   宿主壳已退役 ⇒ 它们的「真源文件」列 = **None**（见下方 RETIRED_SRC；② 段对这类族只审端口自身）。
     ("class_mech", "game/services/class_mech_proc.py",
      ":100-1809（39 个动作装饰器；全文件 :1-2446）", "content/mech/class_mech.py",
      ("apply_class_mech", "apply_class_passives", "apply_class_channels"), True),
     ("equip", "game/services/battle_equip_proc.py",
      ":1083 install_ext_actions / :1133 apply_to_actor（全文件 :1-1174，0 个动作）", "content/mech/equip.py",
      ("install_ext_actions", "apply_to_actor"), True),
-    ("we_procs", "game/services/battle_we_procs.py",
+    ("we_procs", None,
      ":99-1436（27 个动作；全文件 :1-1484）", "content/mech/we_procs.py", (), True),
-    ("team_procs", "game/services/battle_team_procs.py",
+    ("team_procs", None,
      ":172-768（20 个动作；全文件 :1-788）", "content/mech/team_procs.py", (), True),
-    ("bar_procs", "game/services/battle_bar_procs.py",
+    ("bar_procs", None,
      ":94-169（4 个动作）；:203 apply_bar_procs（全文件 :1-244）", "content/mech/bar_procs.py",
      ("apply_bar_procs",), True),
     ("cond_procs", "game/services/battle_cond_procs.py",
      ":120（1 个动作）；:156 apply_cond_procs（全文件 :1-180）", "content/mech/cond_procs.py",
      ("apply_cond_procs",), True),
-    ("element_procs", "game/services/battle_element_procs.py",
+    ("element_procs", None,
      ":133-272（4 个动作）；:296 apply_element_procs（全文件 :1-341）", "content/mech/element_procs.py",
      ("apply_element_procs",), True),
     ("worldboss", "game/services/battle_worldboss_procs.py",
@@ -122,6 +124,20 @@ PORTS = [
      "content/mech/we_data.py", (), False),
     ("params", None, ":742 BAR_INJECT_FIELDS / :749 BAR_STATE_PREFIX", "content/mech/params.py", (), False),
 ]
+
+# ---------------------------------------------------------------------------
+# ★ B18-REPOINT（2026-09-15）**退役族**：这四族的宿主壳已从 tests 侧零引用
+# ---------------------------------------------------------------------------
+# `we_procs` / `team_procs` / `bar_procs` / `element_procs` 四族的宿主壳已退役（宿主侧另一条线
+# 负责物理删除），tests 侧不再 import、不再探路径、不再打桩 ⇒ 本门禁对这四族**不再读宿主**：
+#   · PORTS 里它们的「真源文件」= None（② 段按 `RETIRED_SRC` 走退役分支）；
+#   · 退役分支的断言语义（**口径变更，不是删断言**）：
+#       ⓐ 端口动作 KEY 集 == 冻结清单（原样保留 —— 漏搬 / 私加 / 改名照样红）
+#       ⓑ 装配器名仍在**端口模块顶层**（原「宿主壳再导出超集」的宿主无关等价物：
+#          没有壳 = 没有宿主调用点要保名，能保名的只剩端口自己）
+#     「壳确实 import 了包内族模块」一条**随壳退役**（没有壳可查）。
+#   · 其余 4 族（class_mech / equip / cond_procs / worldboss）仍走 B10 薄壳分支，口径一字不变。
+RETIRED_SRC = {"we_procs", "team_procs", "bar_procs", "element_procs"}
 
 # ---------------------------------------------------------------------------
 # B10（2026-09-13）「双源收口」后的断言语义 —— **本门禁最重要的一次口径变更**
@@ -732,6 +748,21 @@ def audit(pkg_root: str, game_root: str, rep: Rep) -> None:
                   not pv.nonliteral, "非字面量调用在行 %s" % pv.nonliteral)
         if not cmp_actions:
             continue
+        if src is None or fam in RETIRED_SRC:
+            # ---- ★ B18-REPOINT：宿主壳已退役族 → 只审端口自身（不读宿主，零宿主路径引用）----
+            exp_keys = EXPECT_ACTION_KEYS.get(fam)
+            pset0 = set(pv.actions)
+            only_pkg = sorted(pset0 - set(exp_keys)) if exp_keys is not None else []
+            only_exp = sorted(set(exp_keys) - pset0) if exp_keys is not None else []
+            rep.check("族 %-13s 宿主壳已退役：端口动作 KEY 集 == 冻结清单（%d 个；私加 %s / 缺 %s）"
+                      % (fam, len(exp_keys or ()), only_pkg[:3], only_exp[:3]),
+                      exp_keys is None or (not only_pkg and not only_exp),
+                      "端口动作集变了（漏搬/私加/**改名**？）：私加=%s 缺=%s" % (only_pkg, only_exp))
+            miss_asm = sorted(n for n in asm if n not in pv.defs)
+            rep.check("族 %-13s 退役族装配器名仍在端口模块顶层（%s；缺 %s）"
+                      % (fam, "/".join(asm) or "(无)", miss_asm), not miss_asm,
+                      "装配器名不在端口顶层 → 宿主无关的唯一调用面消失：%s" % miss_asm)
+            continue
         gpath = _p(game_root, src)
         if not os.path.isfile(gpath):
             rep.check("族 %s 真源存在 %s" % (fam, src), False, "真源文件缺失：%s" % gpath)
@@ -883,7 +914,7 @@ def _mutate(path: str, old: str, new: str) -> bool:
 
 
 def drift_reversal(pkg_root: str, game_root: str, rep: Rep, tmp_root: str) -> None:
-    """造 5 份「装坏后」的副本 → 每份都必须在门禁下报红（防门禁永远绿）。"""
+    """造 7 份「装坏后」的副本 → 每份都必须在门禁下报红（防门禁永远绿）。"""
     print("\n【6】漂移反证（tmp 副本上装坏 → 门禁必须红；真仓不受影响）")
     cases = [
         ("M1 改动作名", "class_mech.py", '@register_action("passive_counter")',
@@ -895,6 +926,12 @@ def drift_reversal(pkg_root: str, game_root: str, rep: Rep, tmp_root: str) -> No
         # M5：把"同表多份"长回来（在另一个文件里再写一份 MECH_CFG 字面量）→ 单源审计必须报红
         ("M5 双源长回来", "element_data.py", "ELEMENT_SAME_CAST_EXTRA_CHARGE = 1",
          'ELEMENT_SAME_CAST_EXTRA_CHARGE = 1\nMECH_CFG = {"element": {}}', "MECH_CFG"),
+        # ★ B18-REPOINT 新增：退役族分支（src=None）也必须**有牙** —— 退役 = 只审端口自身，
+        #   故在端口副本上改动作 KEY / 改装配器名，必须分别被 ①动作集 ②装配器名 两条断言抓住。
+        ("M7 退役族改动作名", "we_procs.py", '@register_action("we_dot")',
+         '@register_action("we_dot_renamed")', "we_dot"),
+        ("M8 退役族删装配器名", "bar_procs.py", "def apply_bar_procs(",
+         "def apply_bar_procs_renamed(", "apply_bar_procs"),
     ]
     for tag, fname, old, new, must_mention in cases:
         sub = os.path.join(tmp_root, tag.split()[0])
@@ -919,10 +956,12 @@ def drift_reversal(pkg_root: str, game_root: str, rep: Rep, tmp_root: str) -> No
                   else "红了 %d 条但没点名 %r：%s" % (len(quiet.violations), must_mention, quiet.violations[:2]))
 
     # ---- M6（B10 新增）：薄壳再导出缺失 / 端口动作集漂移，必须被「已收口族」断言抓住 ----
-    # 用**合成薄壳文本**自证（不动真仓：真仓那份必须仍然全绿，见下一条对照）
+    # 用**合成薄壳文本**自证（不动真仓）。
+    # ★ B18-REPOINT（2026-09-15）：we_procs 的宿主壳已退役 ⇒ 原「真仓薄壳再导出一个都不缺」这条
+    #   对照**换位**：改成「端口自身对外名字面 ⊇ 全部动作函数名」（宿主无关的同类自证，
+    #   机制仍是同一套 `shell_exports` / `ModView`，只是被测对象从壳换成唯一的真源 = 端口）。
     psh = _p(pkg_root, "content/mech/we_procs.py")
-    rsh = _p(game_root, "game/services/battle_we_procs.py")
-    if os.path.isfile(psh) and os.path.isfile(rsh) and is_shell_file(rsh):
+    if os.path.isfile(psh):
         pv6 = ModView(psh)
         fake = os.path.join(tmp_root, "fake_shell_we_procs.py")
         with open(fake, "w", encoding="utf-8", newline="") as f:
@@ -934,19 +973,19 @@ def drift_reversal(pkg_root: str, game_root: str, rep: Rep, tmp_root: str) -> No
                   % (len(pv6.actions) - 1),
                   len(f_missing) == len(pv6.actions) - 1 and "we_dot" not in f_missing,
                   "缺 %d 个：%s" % (len(f_missing), f_missing[:3]))
-        rv6 = ModView(rsh)
-        r_missing = sorted(set(pv6.actions) - (set(rv6.defs) | set(rv6.assigns)))
-        rep.check("反证 M6 对照：真仓薄壳再导出一个动作都不缺（%d 个）" % len(pv6.actions),
-                  not r_missing, r_missing)
+        p_exported, p_dyn = shell_exports(psh)
+        p_funcs = port_action_funcs(psh)
+        p_missing = [] if p_dyn else sorted(p_funcs - p_exported)
+        rep.check("反证 M6 对照：端口自身对外名字面 ⊇ 全部 %d 个动作函数名（缺 %s）"
+                  % (len(p_funcs), p_missing), not p_missing, p_missing)
         rep.check("反证 M6 冻结清单：we_procs 端口动作数 == EXPECT_ACTIONS[we_procs]=27",
                   len(pv6.actions) == EXPECT_ACTIONS["we_procs"], len(pv6.actions))
     else:
-        rep.check("反证 M6 前置：we_procs 端口 + 宿主薄壳都在位", False,
-                  "缺 %s 或 %s 不是薄壳" % (psh, rsh))
+        rep.check("反证 M6 前置：we_procs 端口在位", False, "缺 %s" % psh)
 
     recheck = Rep(quiet=True)
     audit(pkg_root, game_root, recheck)
-    rep.check("反证收尾：前面 6 次装坏只动了 tmp 副本/合成文本，真仓/真包依然全绿",
+    rep.check("反证收尾：前面 7 次装坏只动了 tmp 副本/合成文本，真仓/真包依然全绿",
               recheck.failed == 0, "真仓被污染了！%s" % recheck.violations[:2])
 
 
@@ -1015,7 +1054,7 @@ def dead_event_audit(pkg_root: str, game_root: str, rep: Rep) -> None:
 def main() -> int:
     t0 = time.time()
     print("=== P4「逐字端口」保真门禁（包内 mech vs 游戏仓真源）===")
-    print("    真源 = %s" % REPO_ROOT)
+    print("    真源 = %s（退役族不读宿主：%s）" % (REPO_ROOT, sorted(RETIRED_SRC)))
     print("    框架 = %s" % FW_ROOT)
     print("    端口 = %s" % _p(PKG_ROOT, MECH_REL))
     if not os.path.isdir(_p(PKG_ROOT, MECH_REL)):
@@ -1033,8 +1072,11 @@ def main() -> int:
 
     print("\n=== 汇总：%d 通过 / %d 失败（%.1fs）===" % (rep.passed, rep.failed, time.time() - t0))
     if rep.failed:
-        print("修法：① 已收口族（宿主薄壳）红了 → 多数是**端口动作集**或**薄壳再导出**漂了：\n"
-              "       端口 key 改了 = 改 EXPECT_ACTION_KEYS（并同步包内使用点）；薄壳少了再导出 = 补回 `X = _pkg.X`。\n"
+        print("修法：① 已收口族红了 → 分两支：\n"
+              "        · 退役族（RETIRED_SRC：宿主壳已删）→ 只可能红在**端口动作集**或**装配器名不在端口顶层**：\n"
+              "          端口 key 改了 = 改 EXPECT_ACTION_KEYS（并同步包内使用点）；装配器名没了 = 端口被掏空。\n"
+              "        · 仍带壳族（class_mech / equip / cond_procs / worldboss）→ 端口动作集或**薄壳再导出**漂了：\n"
+              "          薄壳少了再导出 = 补回 `X = _pkg.X`。\n"
               "      ② 【3】参数表红了 → 分两支：宿主真源**仍在**的表（ACT_TICK）走逐值比对，改真源就得\n"
               "       同步包内；宿主真源**已删**的表（B16 其余全部）走**冻结基线**：确认是有意改值后\n"
               "       跑 `python tests/_ports_freeze_gen.py --write` 重生成 sha/键数/锚点（锚点对不上\n"

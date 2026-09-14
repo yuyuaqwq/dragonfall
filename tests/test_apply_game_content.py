@@ -35,7 +35,7 @@ from saintess_engine import make_actor
 from game import bootstrap as BST
 from game import content as C
 from game.content_rules import apply as APPLY
-from game.services import battle_bar_procs as BAR
+from content.mech import bar_procs as BAR  # ★ B18-REPOINT：直取包内实现本体（宿主同名壳不再被测试引用）
 from game.services import battle_cond_procs as COND
 from game.services import battle_equip_proc as EP
 from game.services import battle_food_proc as FOOD

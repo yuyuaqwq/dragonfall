@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""v181 团队/全队效果实装验收（2026-09-11）：game/services/battle_team_procs。
+"""v181 团队/全队效果实装验收（2026-09-11）：content/mech/team_procs.py（★ B18-REPOINT 后
+宿主同名壳已退役，本测试的观测对象 = 包内实现本体）。
 
 ## 覆盖
 
@@ -42,7 +43,7 @@ _LD._roll_dodge = lambda *a, **k: False  # noqa: E731
 
 
 ensure_engine_configured()
-from game.services import battle_team_procs as TP  # noqa: E402,F401  (import 即注册)
+from content.mech import team_procs as TP  # noqa: E402,F401  (import 即注册)  ★ B18-REPOINT：直取包内实现本体
 
 PASS = 0
 FAIL = 0

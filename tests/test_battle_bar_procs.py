@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""v181 破绽接线验收：game/services/battle_bar_procs（挂敌身条注入 → 触发 → 跳过）+
+"""v181 破绽接线验收：content/mech/bar_procs.py（挂敌身条注入 → 触发 → 跳过；★ B18-REPOINT
+后宿主同名壳已退役，本测试的观测对象 = 包内实现本体）+
 时间制容器（core/battle_bars：effects["bar:*"] / 连续衰减 / 免疫窗口时刻制）。
 
 覆盖：装配（学什么挂什么）/ 命中注入（含多段 per_hit）/ 阈值触发 / 触发落地 mode=skip /
