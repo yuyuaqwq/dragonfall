@@ -97,6 +97,37 @@ def _fix_handler_module_paths():
 _fix_handler_module_paths()
 
 
+def _weekly_reward_selfcheck():
+    """★ 启动自检（fail-closed）：周常达标发奖的宿主注入面必须在位。
+
+    背景（RPT 实测的静默失效）：`game/services/weekly_progress.py` 这个注入点消失后，
+    包内 `content/flow/weekly_progress.py::_grant_rewards` 取不到宿主 `reward.grant_reward`，
+    而 `weekly_bump_kill` 的旧宽容兜底会把它吞掉 ⇒ **玩家达标不发奖、进度不落库、零日志**。
+    按「fail-closed 优先」口径：启动时就大声报错，绝不静默。
+
+    * 通过 → INFO 一行留痕（可见地证明链路在位）；
+    * 失败 → ERROR + **抛**（拒绝带着静默坏掉的发奖链路启动）。
+
+    幂等（模块 import 期调一次；`Main.__init__` 再调一次，热重载/多次实例化都安全）。
+    """
+    _LOGGER = logging.getLogger(__name__)
+    try:
+        from content.flow import weekly_progress as _WP
+    except Exception:
+        _LOGGER.error("周常发奖启动自检失败：包内 content.flow.weekly_progress 不可导入", exc_info=True)
+        raise
+    try:
+        _LOGGER.info(_WP.selfcheck())
+    except Exception as exc:
+        _LOGGER.error(
+            "周常发奖启动自检失败：%s —— 缺注入时玩家达标会静默不发奖，故拒绝启动（fail-closed）。"
+            "请在宿主装配处调 content.flow.weekly_progress.bind_host(db, grant_reward)。", exc)
+        raise
+
+
+_weekly_reward_selfcheck()
+
+
 # ---- v92 文件转发体验通道 ----
 # 后台线程监控 scripts/playthrough_cmd.txt：读到命令 → 进程内构造 fake 事件
 # → _run_shortcut 转发给真实 handler → 结果追加写 scripts/playthrough_out.txt。
@@ -316,6 +347,8 @@ class Main(
         if context is not None:
             Main._loopback_instance = self  # v92: 文件转发通道拿当前实例
         db.init_db()
+        # ★ P5′ 1.0b：周常发奖注入面启动自检（幂等；缺注入 → 当场报错，绝不静默不发奖）
+        _weekly_reward_selfcheck()
         # v104 M24 P2-5：启动时清理流失玩家残留 event_state 键（幂等，见 _event_state_cleanup_once）
         _event_state_cleanup_once()
         # v92: 文件转发体验通道——后台线程监控命令文件，
