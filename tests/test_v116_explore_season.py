@@ -3,15 +3,18 @@
 
 覆盖：
   1. EXPLORE_EVENTS 季节字段合法：season/season_boost 仅取 spring/summer/autumn/winter 四值
-  2. 季节硬限定：mock core.events.current_season 为某季时，roll_explore_event 不返回「非当季」的 season 限定事件
+  2. 季节硬限定：mock content.events.current_season 为某季时，roll_explore_event 不返回「非当季」的 season 限定事件
   3. 兜底不空池：hard mock 每季穷举采样，抽不到限定事件也能返回事件（不去季节过滤重试成功）
   4. 季节偏好生效：season_boost 匹配当季时该事件权重放大（mock 固定季节做两季采样对比）
 """
 import sys, os, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C
-from data.plugins.dragonfall.game.core.events import roll_explore_event, current_season
-import data.plugins.dragonfall.game.core.events as EV
+# ★ W2b（2026-09-15）：实现真源在包内 `content/events.py`，且它现在读**本模块全局**
+#   （`_src(name)` = `globals()[name]`）⇒ 打桩必须打在 `content.events` 上。
+#   打宿主壳 `game.core.events` 会**静默失效**（壳只再导出数据名，函数体不读壳的全局）。
+from content.events import roll_explore_event, current_season
+import content.events as EV
 
 SEASONS = ("spring", "summer", "autumn", "winter")
 
@@ -27,7 +30,7 @@ def check(name, cond, detail=""):
 
 
 def patch_season(season):
-    """mock core.events.current_season 恒返回给定季节"""
+    """mock content.events.current_season 恒返回给定季节（实现真源读的就是这个全局）"""
     EV.current_season = lambda now=None: season
 
 def restore_season():
