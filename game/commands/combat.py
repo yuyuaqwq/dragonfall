@@ -3,13 +3,21 @@
 
 由 main.py 拆分而来，作为 Mixin 被 Main 继承。**B10 L5（2026-09-13）薄壳化**后本文件只剩：
 
-    命令注册（@declared 装饰器）· 守卫 · 取玩家/取参（self._uid / self._player / self._strip_cmd）
-    · 调用内容包（一行转发）· 渲染（yield）
+    命令注册（@declared 装饰器）· 一行转发（`_BRIDGE.run_async`）
+
+★ B18 L3c（2026-09-14）**命令整块进包**后，上面的「守卫 · 取玩家/取参 · 分支业务 · 回话」
+  全部随包内新模块 `content/cmds_combat.py`（表形状 = 样板，处理器 async）：15 条命令的
+  守卫声明（player/battle/no_prof_waiting，判定 + 文案都在包 `content/guards.py`）、取参
+  （4 处指令词剥离 + 3 处「战前形态/阈值/力场」字面量）、取玩家、调包、回话全在包内。
+  本模块每条命令只剩 `@declared("<key>")` + 两行转发 —— 宿主里**不再有任何游戏字面量**
+  （指令词/守卫/分参词）。形状真源 = `overnight/B18_TERMINAL_SHAPE.md` §1.3；
+  行为逐字节不变，证据 = `overnight/b18l3c_snap.py` 的 141 场景快照（sha256 改前 = 改后）。
 
 真源（实现本体）全在内容包：`content/combat_cmds.py`（74 个方法逐字搬过去，见那边的头注）。
 本文件保留的方法只有两类：
 
-  · **命令入口**（15 个）：装饰器 + 取玩家/取参 + `async for _r in _CC.<名>(...)` 转发；
+  · **命令入口**（15 个）：`@declared("<key>")` + 两行转发（`_BRIDGE.run_async`）—— 不再有
+    守卫装饰器 / 取玩家 / 取参（B18 L3c 起全在包内 `content/cmds_combat.py`）；
     名字/装饰器/注册序与改造前逐行相同（`@declared` 是宿主侧的**注册**动作：正则来自
     `game/data/command_specs.json`，框架注册表 + `_registry` 都从它派生）。
   · **委托桩**（59 个）：非命令私有方法，`(*args, **kwargs)` 原样转发给包内同名函数
@@ -33,6 +41,7 @@ battle_settlement / player_event_bus / battle_worldboss_procs / core.* / log_set
 """
 from ._platform import AstrMessageEvent
 
+from . import _host_bridge as _BRIDGE
 from ._declared import declared
 
 from .. import content as C
@@ -79,20 +88,15 @@ class CombatCmds(CommandBase):
         return _CC._b_enemy(self, *args, **kwargs)
 
     @declared("explore")
-    @require_player()
-    @no_prof_waiting()
     async def explore(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        async for _r in _CC.explore(self, event, group_id, qq_id, player):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::explore`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "explore", event):
             yield _r
 
     @declared("wild_king_chest")
-    @require_player()
     async def wild_king_chest(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        async for _r in _CC.wild_king_chest(self, event, group_id, qq_id, player):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::wild_king_chest`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "wild_king_chest", event):
             yield _r
 
     def _main_kill_target_on_map(self, *args, **kwargs):
@@ -134,26 +138,21 @@ class CombatCmds(CommandBase):
         return _CC._roll_hidden_monster(self, *args, **kwargs)
 
     @declared("wish")
-    @require_player()
     async def wish(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        opt = self._strip_cmd(event, "许愿").strip()
-        async for _r in _CC.wish(self, event, group_id, qq_id, player, opt):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::wish`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "wish", event):
             yield _r
 
     @declared("trader_confirm")
-    @require_player()
     async def trader_confirm(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        async for _r in _CC.trader_confirm(self, event, group_id, qq_id):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::trader_confirm`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "trader_confirm", event):
             yield _r
 
     @declared("revive_confirm")
-    @require_player()
     async def revive_confirm(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        async for _r in _CC.revive_confirm(self, event, group_id, qq_id):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::revive_confirm`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "revive_confirm", event):
             yield _r
 
     def _roll_find_quest_events(self, *args, **kwargs):
@@ -197,21 +196,15 @@ class CombatCmds(CommandBase):
         return _CC._handle_poi(self, *args, **kwargs)
 
     @declared("attack")
-    @require_player()
     async def attack(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        target_arg = self._strip_cmd(event, "攻击").strip()
-        async for _r in _CC.attack(self, event, group_id, qq_id, player, target_arg):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::attack`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "attack", event):
             yield _r
 
     @declared("skill")
-    @require_player()
     async def skill(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        skill_name = self._strip_cmd(event, "技能")
-        player = self._player(group_id, qq_id)
-        async for _r in _CC.skill(self, event, group_id, qq_id, player, skill_name):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::skill`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "skill", event):
             yield _r
 
     def _skill_panel(self, *args, **kwargs):
@@ -280,21 +273,15 @@ class CombatCmds(CommandBase):
         return _CC._skill_list_page(self, *args, **kwargs)
 
     @declared("defend")
-    @require_player()
-    @require_battle()
     async def defend(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        async for _r in _CC.defend(self, event, group_id, qq_id, player):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::defend`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "defend", event):
             yield _r
 
     @declared("flee")
-    @require_player()
-    @require_battle()
     async def flee(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        async for _r in _CC.flee(self, event, group_id, qq_id, player):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::flee`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "flee", event):
             yield _r
 
     # ---------------- 战斗状态展示（v59） ----------------
@@ -402,12 +389,9 @@ class CombatCmds(CommandBase):
         yield from _CC._handle_defeat(self, *args, **kwargs)
 
     @declared("hunt_boss")
-    @require_player()
-    @no_prof_waiting()
     async def hunt_boss(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        async for _r in _CC.hunt_boss(self, event, group_id, qq_id, player):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::hunt_boss`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "hunt_boss", event):
             yield _r
 
     def _grant_worldboss_drop(self, *args, **kwargs):
@@ -458,12 +442,9 @@ class CombatCmds(CommandBase):
     # ---------------- v84 荣誉商店（26 章 3.3；v99.4 数据化 → data/honor_shop.py） ----------------
 
     @declared("honor_shop")
-    @require_player()
     async def honor_shop(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        raw = self._strip_cmd(event, "荣誉").strip()
-        async for _r in _CC.honor_shop(self, event, group_id, qq_id, player, raw):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::honor_shop`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "honor_shop", event):
             yield _r
 
     async def _honor_buy(self, *args, **kwargs):
@@ -501,23 +482,15 @@ class CombatCmds(CommandBase):
     _FINISHER139_OPTIONS = ("快刀", "满刃", "残血", "满段")
 
     @declared("battle_prefs_form")
-    @require_player()
     async def battle_prefs_form(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        text = (event.get_message_str() or "").strip()
-        arg = text.split("战前形态", 1)[1].strip() if "战前形态" in text else ""
-        async for _r in _CC.battle_prefs_form(self, event, group_id, qq_id, player, arg):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::battle_prefs_form`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "battle_prefs_form", event):
             yield _r
 
     @declared("battle_prefs_finisher")
-    @require_player()
     async def battle_prefs_finisher(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        text = (event.get_message_str() or "").strip()
-        arg = text.split("战前阈值", 1)[1].strip() if "战前阈值" in text else ""
-        async for _r in _CC.battle_prefs_finisher(self, event, group_id, qq_id, player, arg):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::battle_prefs_finisher`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "battle_prefs_finisher", event):
             yield _r
 
     # 奥术力场两档（奥术力场 desc「选择护盾或利刃」——2026-09-11 交互落地）
@@ -525,19 +498,13 @@ class CombatCmds(CommandBase):
     _ARCANE_FIELD_OPTIONS = ("盾", "刃")
 
     @declared("battle_prefs_arcane_field")
-    @require_player()
     async def battle_prefs_arcane_field(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        text = (event.get_message_str() or "").strip()
-        arg = text.split("战前力场", 1)[1].strip() if "战前力场" in text else ""
-        async for _r in _CC.battle_prefs_arcane_field(self, event, group_id, qq_id, player, arg):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::battle_prefs_arcane_field`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "battle_prefs_arcane_field", event):
             yield _r
 
     @declared("battle_prefs_view")
-    @require_player()
     async def battle_prefs_view(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        async for _r in _CC.battle_prefs_view(self, event, group_id, qq_id, player):
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_combat.py::battle_prefs_view`（B18 L3c）
+        async for _r in _BRIDGE.run_async(self, "battle_prefs_view", event):
             yield _r

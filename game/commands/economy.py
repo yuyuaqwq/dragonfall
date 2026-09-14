@@ -1,24 +1,49 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年命令层 - economy（economy）—— B9 线 L1 **薄壳**（2026-09-13）
+"""奥兰迪亚·余烬纪年命令层 - economy（economy）★ B18-L9 终态：**注册 + 两行转发**
 
-本文件只做四件事：**命令注册（真装饰器）/ 取玩家 / 调包 / 渲染消息**。实现正文
-（模块常量、物品详情渲染器、`EconomyCmds` 的 131 个方法）已逐字搬进内容包
-`content/economy_cmds.py`（类 `EconomyImpl`），宿主面经 `content/economy_host.bind_host()`
-注入（包不 import 宿主）。`EconomyCmds(_E.EconomyImpl, CommandBase)` 的 MRO 与重构前
-（economy 方法定义在 CommandBase 子类里）逐位等价；46 个注册指令在这里**一行转发**，
-`@declared` / `@require_player` 与重构前逐字同序。
+45 条经济命令的**守卫 / 取参 / 分支业务 / 回话组装全在包内**
+（`content/cmds_economy.py` 登记进 `content/commands.py::COMMANDS`）。本模块只剩三件事：
 
-私有助手（`_prof_wait_*` / `_settle_*` / `_shop_limit_*` …）由 `EconomyImpl` 继承提供，
-宿主其它模块与本命令内部的 `self._xxx(...)` 调用点零变化。
+  ① **注册**：`@declared("<key>")`（正则/desc 来自宿主声明表 `game/data/command_specs.json`）
+  ② **转发**：`async for _r in _BRIDGE.run_async(self, "<key>", event): yield _r`
+     —— 桥到引擎 host 契约（造 `Env` → 声明守卫 → 包内 handler → 逐段回话）
+  ③ **宿主替身注入**：`content/economy_host.bind_host()`（实现体
+     `content/economy_cmds.py::EconomyImpl` 模块级即读宿主面 → 注入必须先于 import 包内实现）
+     + 模块级常量 / 物品详情渲染器的**再导出**（既有 import 点零变化：tests 直接 import 这些名字）
 
-B12-L3 收口（2026-09-14）：两个宿主面 `_shop_svc` / `_prof_svc` 改注入**宿主薄壳模块**
-（`game/services/{shop,profession}.py`），回到重构前的模块身份（此前注入的是包内模块）。
-两份壳已逐名 re-export 包内实现（profession 壳含私表 `_GATHER_COND_CHECKERS`），故行为
-逐字节不变；economy 因此不再直连别线正在搬的包内模块。证据：`overnight/W-B12-L3-economy-gm.md`。
+★ B18-L9（2026-09-15）**命令整块进包**后，原先「`@require_player()` 守卫 + 一行
+  `async for _item in _E.EconomyImpl.<m>(self, event): yield _item`」的宿主面全部随包内新模块
+  `content/cmds_economy.py`（表形状 = 战斗族样板，处理器 async）：45 条命令的守卫声明
+  （`hook:player`，判定 + 文案都在包 `content/guards.py`）、取参口径、调包、回话全在包内。
+  本模块每条命令只剩 `@declared("<key>")` + 两行转发 —— 宿主里**不再有任何游戏字面量**
+  （指令词 / 守卫装饰器）。
+
+★ **45 条全部是「两行 `run_async`」**（没有一条走同步 `_BRIDGE.run`）：实现体
+  `content/economy_cmds.py::EconomyImpl.<m>` 全是 **async generator**（AST 实测 45/45 带
+  `yield`），旧壳正是 `async for _item in _E.EconomyImpl.<m>(self, event): yield _item`
+  —— 只能 `async for` 迭代。故包内用 `_declare` 登记 `async def`（照 B18-L3c 战斗族先例
+  `content/cmds_combat.py`），宿主两行逐条 `yield`：与旧壳的消息切分逐字节相同。
+
+`EconomyCmds(_E.EconomyImpl, CommandBase)` 的 MRO 与重构前逐位等价；私有助手
+（`_prof_wait_*` / `_settle_*` / `_shop_limit_*` …）由 `EconomyImpl` 提供，宿主其它模块与
+本命令内部的 `self._xxx(...)` 调用点零变化。
+
+B12-L3 收口（2026-09-14）：两个宿主面 `_shop_svc` / `_prof_svc` 注入**宿主薄壳模块**
+（`game/services/{shop,profession}.py`），回到重构前的模块身份。两份壳已逐名 re-export 包内
+实现（profession 壳含私表 `_GATHER_COND_CHECKERS`），故行为逐字节不变。证据：
+`overnight/W-B12-L3-economy-gm.md`。
+
+宿主里 `grep -c 'T\\.text\\|T\\.static' game/commands/economy.py` = 0（本域本来就不用文案表
+key：句子是 `EconomyImpl` 里的内联字面量 / f-string，B9-L1 起就在包内）。
+
+形状真源 = `overnight/B18_TERMINAL_SHAPE.md` §1.3；行为逐字节不变，证据 =
+`overnight/b18l9_snap.py` 的 142 场景快照（sha256 改前 = 改后，含 DB 副作用逐行 dump）
++ `tests/test_texts_table.py` 的 `[13]` 段（`ECONOMY_FROZEN` / `ECONOMY_DB_SHA`）。
 """
 
+from . import _host_bridge as _BRIDGE
 from ._declared import declared
-from .base import CommandBase, require_player
+from .base import CommandBase
 from .. import content as C
 from .. import db
 from ..content_rules.panel import STAT_NAMES, _set_info, player_final_stats, race_stats
@@ -82,6 +107,7 @@ _EH.bind_host(
 #    绑定必须早于下行 `import content.economy_cmds`（后者模块级即读宿主面）。
 _EH.bind_host(_shop_svc=_shop_svc, _prof_svc=_prof_svc)
 
+from content import cmds_economy as _CE         # noqa: E402  B18-L9：45 条命令登记进包内表
 from content import economy_cmds as _E          # noqa: E402  （模块级即读宿主面）
 
 # ---- 再导出：模块级常量 / 渲染器（既有 import 点零变化：tests 直接 import 这些名字）----
@@ -109,277 +135,280 @@ item_detail_render = _E.item_detail_render  # noqa: F401
 _render_item_tags = _E._render_item_tags  # noqa: F401
 _GATHER_COND_CHECKERS = _E._GATHER_COND_CHECKERS  # noqa: F401
 
-# ---- 46 个指令：注册（真装饰器，与重构前逐字同序）+ 一行转发 ----
+# ---- 45 个指令：注册（真装饰器，与重构前逐字同序）+ 两行转发 ----
+# 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py`，宿主里零文案调用点。
+
 
 class EconomyCmds(_E.EconomyImpl, CommandBase):
-    """背包/装备/锻造/强化/商店/采集/垂钓/炼金"""
+    """命令层（★ B18-L9 终态）：注册 + 两行转发；守卫/取参/业务/回话全在包内
+    `content/cmds_economy.py`。"""
 
     @declared('gather')
-    @require_player()
     async def gather(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.gather(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::gather`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "gather", event):
+            yield _r
 
     @declared('mining')
-    @require_player()
     async def mining(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.mining(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::mining`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "mining", event):
+            yield _r
 
     @declared('alchemy')
-    @require_player()
     async def alchemy(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.alchemy(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::alchemy`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "alchemy", event):
+            yield _r
 
     @declared('alchemy_craft')
-    @require_player()
     async def alchemy_craft(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.alchemy_craft(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::alchemy_craft`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "alchemy_craft", event):
+            yield _r
 
     @declared('cooking_list')
-    @require_player()
     async def cooking_list(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.cooking_list(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::cooking_list`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "cooking_list", event):
+            yield _r
 
     @declared('cooking')
-    @require_player()
     async def cooking(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.cooking(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::cooking`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "cooking", event):
+            yield _r
 
     @declared('bp_craft')
-    @require_player()
     async def bp_craft(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.bp_craft(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::bp_craft`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "bp_craft", event):
+            yield _r
 
     @declared('profession_view')
-    @require_player()
     async def profession_view(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.profession_view(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::profession_view`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "profession_view", event):
+            yield _r
 
     @declared('prof_forget')
-    @require_player()
     async def prof_forget(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.prof_forget(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::prof_forget`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "prof_forget", event):
+            yield _r
 
     @declared('daily_prof')
-    @require_player()
     async def daily_prof(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.daily_prof(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::daily_prof`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "daily_prof", event):
+            yield _r
 
     @declared('fishing')
-    @require_player()
     async def fishing(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.fishing(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::fishing`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "fishing", event):
+            yield _r
 
     @declared('craft')
-    @require_player()
     async def craft(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.craft(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::craft`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "craft", event):
+            yield _r
 
     @declared('craft_commission')
-    @require_player()
     async def craft_commission(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.craft_commission(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::craft_commission`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "craft_commission", event):
+            yield _r
 
     @declared('learn')
-    @require_player()
     async def learn(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.learn(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::learn`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "learn", event):
+            yield _r
 
     @declared('recipe_list')
-    @require_player()
     async def recipe_list(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.recipe_list(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::recipe_list`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "recipe_list", event):
+            yield _r
 
     @declared('enhance')
-    @require_player()
     async def enhance(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.enhance(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::enhance`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "enhance", event):
+            yield _r
 
     @declared('equip_upgrade')
-    @require_player()
     async def equip_upgrade(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.equip_upgrade(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::equip_upgrade`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "equip_upgrade", event):
+            yield _r
 
     @declared('gem_drill')
-    @require_player()
     async def gem_drill(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.gem_drill(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::gem_drill`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "gem_drill", event):
+            yield _r
 
     @declared('gem_socket')
-    @require_player()
     async def gem_socket(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.gem_socket(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::gem_socket`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "gem_socket", event):
+            yield _r
 
     @declared('gem_remove')
-    @require_player()
     async def gem_remove(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.gem_remove(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::gem_remove`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "gem_remove", event):
+            yield _r
 
     @declared('gem_combine')
-    @require_player()
     async def gem_combine(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.gem_combine(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::gem_combine`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "gem_combine", event):
+            yield _r
 
     @declared('gem_view')
-    @require_player()
     async def gem_view(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.gem_view(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::gem_view`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "gem_view", event):
+            yield _r
 
     @declared('rune_craft')
-    @require_player()
     async def rune_craft(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.rune_craft(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::rune_craft`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "rune_craft", event):
+            yield _r
 
     @declared('rune_remove')
-    @require_player()
     async def rune_remove(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.rune_remove(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::rune_remove`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "rune_remove", event):
+            yield _r
 
     @declared('refine_equip')
-    @require_player()
     async def refine_equip(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.refine_equip(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::refine_equip`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "refine_equip", event):
+            yield _r
 
     @declared('calamity_forge')
-    @require_player()
     async def calamity_forge(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.calamity_forge(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::calamity_forge`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "calamity_forge", event):
+            yield _r
 
     @declared('enchant')
-    @require_player()
     async def enchant(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.enchant(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::enchant`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "enchant", event):
+            yield _r
 
     @declared('set_view')
-    @require_player()
     async def set_view(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.set_view(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::set_view`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "set_view", event):
+            yield _r
 
     @declared('monster')
-    @require_player()
     async def monster(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.monster(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::monster`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "monster", event):
+            yield _r
 
     @declared('adventure_book')
-    @require_player()
     async def adventure_book(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.adventure_book(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::adventure_book`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "adventure_book", event):
+            yield _r
 
     @declared('footprint')
-    @require_player()
     async def footprint(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.footprint(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::footprint`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "footprint", event):
+            yield _r
 
     @declared('bestiary')
-    @require_player()
     async def bestiary(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.bestiary(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::bestiary`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "bestiary", event):
+            yield _r
 
     @declared('encyclopedia')
-    @require_player()
     async def encyclopedia(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.encyclopedia(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::encyclopedia`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "encyclopedia", event):
+            yield _r
 
     @declared('titles')
-    @require_player()
     async def titles(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.titles(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::titles`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "titles", event):
+            yield _r
 
     @declared('inventory')
-    @require_player()
     async def inventory(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.inventory(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::inventory`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "inventory", event):
+            yield _r
 
     @declared('bag_filter')
-    @require_player()
     async def bag_filter(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.bag_filter(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::bag_filter`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "bag_filter", event):
+            yield _r
 
     @declared('item_view_mode_cmd', priority=50)
-    @require_player()
     async def item_view_mode_cmd(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.item_view_mode_cmd(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::item_view_mode_cmd`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "item_view_mode_cmd", event):
+            yield _r
 
     @declared('item_detail')
-    @require_player()
     async def item_detail(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.item_detail(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::item_detail`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "item_detail", event):
+            yield _r
 
     @declared('my_equipment')
-    @require_player()
     async def my_equipment(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.my_equipment(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::my_equipment`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "my_equipment", event):
+            yield _r
 
     @declared('equip')
-    @require_player()
     async def equip(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.equip(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::equip`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "equip", event):
+            yield _r
 
     @declared('unequip')
-    @require_player()
     async def unequip(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.unequip(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::unequip`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "unequip", event):
+            yield _r
 
     @declared('use')
-    @require_player()
     async def use(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.use(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::use`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "use", event):
+            yield _r
 
     @declared('sell')
-    @require_player()
     async def sell(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.sell(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::sell`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "sell", event):
+            yield _r
 
     @declared('shop')
-    @require_player()
     async def shop(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.shop(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::shop`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "shop", event):
+            yield _r
 
     @declared('buy')
-    @require_player()
     async def buy(self, event: AstrMessageEvent):
-        async for _item in _E.EconomyImpl.buy(self, event):
-            yield _item
+        # 守卫 / 取参 / 业务 / 回话全在包内 `content/cmds_economy.py::buy`（B18 L9）
+        async for _r in _BRIDGE.run_async(self, "buy", event):
+            yield _r

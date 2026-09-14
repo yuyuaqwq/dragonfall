@@ -3,14 +3,26 @@
 
 由 main.py 拆分而来，作为 Mixin 被 Main 继承。
 
-【骨架归属（2026-09-11，M2）】命令层的**通用那一半**（分页 / 页码解析 /
-文本剥离 / 提示抽取 / handler 查找与转发 / 守卫装饰器 / 指令正则集合）
-来自框架 `saintess_engine.command`；本文件只留**本游戏的内容与宿主适配**：
-提示文案库、指令别名、事件集、GM/停服、设施判定、体力、规则触发等。
+【骨架归属（2026-09-11，M2；★ B18-L7 收尾，2026-09-14）】命令层的**通用那一半**（分页 /
+页码解析 / 文本剥离 / 提示抽取 / handler 查找与转发 / 守卫装饰器 / 指令正则集合）
+来自框架 `saintess_engine.command`。
+
+本文件此后**只剩框架钩子 + 一行转发** —— 游戏内容整块进包 `content/cmds_base_rules.py`：
+  * 注册装饰器 / 守卫骨架：`require_player` / `require_battle`（框架再导出）、
+    `_GameCmdFilter` + `_maint_gate`（停服 gate，宿主平台装配）；
+  * 框架契约的「使用方钩子表」（权威出处 = 框架 `command/base.py` 模块头那张表）：
+    `_uid` / `_player` / `_in_any_battle` / `_tip_pool_map` / `_record_state` /
+    `_host_handler_finder` / `_build_static_handlers` / `_build_command_regex_strings`；
+  * 已是一行转发的公共钩子：`_rule_fire` / `_title_bonus`；平台发送能力口 `_broadcast`；
+  * **游戏内容**（设施判定 `_at_smith`/`_at_shop`/`_sa_shop_kind`/`_wild_trader_here`/`_at_healer`/
+    `_facility_hint`、属性行 `_fmt_stat_src`、体力族 `_stamina*`、等待型副业守卫 `no_prof_waiting`、
+    三条文案 `REGISTER_HINT`/`battle_none_hint`/`command_aliases`）
+    → 实现、判定与文案全在包内，本文件同名**一行转发**。
 
 对外名字**零变化**（`CommandBase` / `require_player` / `no_prof_waiting` /
 `require_battle` / `REGISTER_HINT` 照旧从这里 import）——
-其余 20 个命令模块的 import 与调用点一行都不用改。
+其余 20 个命令模块的 import 与调用点一行都不用改。行为逐字节不变
+（证据 = `overnight/W-B18-L7.md`：202 场景三分支快照，改前/改后同 sha256）。
 """
 import functools
 import json
@@ -37,6 +49,18 @@ from .. import db
 from ..content_rules.panel import STAT_NAMES
 from ..log_setup import LOG
 
+# ---------- ★ B18-L7：命令层「游戏内容」实现进包 ----------
+# 真源 = `games/orlandia/content/cmds_base_rules.py`（判定 / 文案 / 格式全在那里）；
+# 本文件只保留同名**一行转发**，故 20+ 处 `from .base import no_prof_waiting` 等调用点一行未改。
+# 取件：宿主唯一包加载口 `game/__init__.py` 已把框架根插进 sys.path（幂等；失败大声抛）。
+from .. import bootstrap as _BST  # noqa: E402
+_BST.package_apply()
+from content import cmds_base_rules as _RULES  # noqa: E402
+
+#: 等待型副业守卫装饰器（★ B18-L7 起实现进包；此处**同名再导出**，签名/语义/文案不变）
+no_prof_waiting = _RULES.no_prof_waiting
+
+
 
 # ---------- v96 停服维护全局拦截 ----------
 # 停服时非 GM 玩家发任何游戏指令都会被高优先级 gate 拦下（日常聊天不受影响）。
@@ -60,44 +84,15 @@ class _GameCmdFilter(CustomFilter):
         return self._patterns().matches(text)
 
 
-def no_prof_waiting():
-    """等待型副业（v55：垂钓/采集/挖掘）进行中时拦截该命令。
-
-    装饰 async generator 命令方法（命令类方法都是 yield event.plain_result 的 async generator）。
-    用法（@filter.regex 的下方）：
-        @filter.regex(r"...")
-        @no_prof_waiting()
-        async def move(self, event): ...
-    以后任何"会换场景/进战斗"的命令（副本、探索、世界 Boss 等）要跟副业互斥，
-    加这一行装饰器即可，检查逻辑只维护这一处。
-
-    （本装饰器属**游戏内容**：判定走 `_prof_wait_state`，文案取 `C.PROF_WAIT_BASE`，
-    故留在游戏侧；框架只提供通用守卫形状。）
-    """
-    def deco(fn):
-        @functools.wraps(fn)
-        async def wrapper(self, event: AstrMessageEvent, *args, **kwargs):
-            group_id, qq_id = self._uid(event)
-            st = self._prof_wait_state(group_id, qq_id)
-            if st and st["finish"] > int(time.time()):
-                left = st["finish"] - int(time.time())
-                tname = C.PROF_WAIT_BASE.get(st["type"], (0, 0, "副业"))[2]
-                # v101.25 #307：等待期互斥是设计使然（防结算错乱），但提示要说清
-                # 等待期间能做什么、完成后自动入包，避免"被锁死"的错觉
-                yield event.plain_result(
-                    f"⏳ 你还在{tname}呢，再有 {left} 秒完成！(完成后自动入包)\n"
-                    f"💡 等待期间可以『背包』『属性』『任务』，但移动/探索/战斗要等{tname}结束～"
-                )
-                return
-            async for item in fn(self, event, *args, **kwargs):
-                yield item
-        return wrapper
-    return deco
+# 等待型副业守卫装饰器 `no_prof_waiting()`：★ B18-L7 起实现进包 —— 见上方 import 段的同名再导出；
+# 判定（`self._prof_wait_state`）与文案（`content/catalog_life.PROF_WAIT_BASE`）全在
+# `content/cmds_base_rules.py`，本文件不再留任何判定与句子。
 
 
 # v95.26 统一注册引导：所有"没角色"拦截只走这一处文案，改格式只动这里
 # v105 P3(M01)：与注册错误提示格式统一（『注册 <名字> <性别> [种族]』），防两处格式串不一致
-REGISTER_HINT = "你还没有角色！输入『注册 <名字> <性别> [种族]』创建吧～"
+# ★ B18-L7：句子唯一真源 = 包内 `content/guards.py::NO_PLAYER_HINT`（本名转引包侧；外部 import 面不变）
+REGISTER_HINT = _RULES.REGISTER_HINT
 
 
 def _resolve_uid(raw: str) -> str:
@@ -115,18 +110,18 @@ _session = SessionAdapter(private_fallback="private", unknown_fallback="unknown"
 class CommandBase(_KitCommandBase):
     """本游戏命令层基类：通用部分继承框架，这里只填「内容与宿主适配」。"""
 
-    # ---------- 框架钩子：文案 ----------
+    # ---------- 框架钩子：文案（★ B18-L7：句子取包侧，钩子名/语义不变）----------
     register_hint = REGISTER_HINT
-    battle_none_hint = "你附近没有敌人！输入『探索』寻找敌人～"
+    battle_none_hint = _RULES.BATTLE_NONE_HINT
     logger_name = "astrbot"
 
     # ---------- 框架钩子：剥参数时的指令别名（v83.1 精简：只保留仍在用的）----------
-    command_aliases = ("我的角色", "位置", "主线", "help")
+    command_aliases = _RULES.COMMAND_ALIASES
 
     # ---------- 框架钩子：内容来源 ----------
     def _tip_pool_map(self) -> dict:
-        """面板底部引导提示的分类库（v127 数据驱动）。"""
-        return C.TIPS
+        """面板底部引导提示的分类库（v127 数据驱动；★ B18-L7 取包侧同一对象）。"""
+        return _RULES.TIP_POOL
 
     def _record_state(self, key: str, value: str) -> None:
         db.set_event_state(key, value)
@@ -274,154 +269,34 @@ class CommandBase(_KitCommandBase):
         # 开服：放行
         return
 
-    # ---------- v87.17 设施子区域判定（游戏内容）----------
+    # ---------- v87.17 设施子区域判定（★ B18-L7：判定进包，本处一行转发）----------
     def _at_smith(self, player: dict) -> bool:
-        """当前是否在铁匠铺/锻造坊/工坊/军械/强化类子区域（锻造/代工/强化/附魔场所）。
-        v87.6 子区域化：不再地图级一刀切（广场/旅店不能锻造）。
-        v125：关键词嗅探 + white_deer_8 特判 → 读 shop.SUBAREA_KIND（smith/enhance）。"""
-        cur_map = player.get("cur_map", "")
-        if cur_map not in C.ENHANCE_SMITH_MAPS:
-            return False
-        sa_id = player.get("cur_subarea") or ""
-        if not sa_id:
-            return False
-        cm = C.MAP_BY_ID.get(cur_map, {})
-        for sa in (cm.get("subareas") or []):
-            if sa["id"] == sa_id:
-                # craft funcs 结构判断保留（炼金工坊 dawn_city_5 等双职能店可锻造）
-                if "craft" in (sa.get("funcs") or []):
-                    return True
-                # 鹿角淬火坊(white_deer_8) 为 enhance（强化/附魔可用但非铁匠铺）
-                return C.SUBAREA_KIND.get(sa_id) in ("smith", "enhance")
-        return False
+        """当前是否在铁匠铺/锻造坊/工坊/军械/强化类子区域（实现 = 包内 `at_smith`）。"""
+        return _RULES.at_smith(player)
 
     def _at_shop(self, player: dict, group_id: str = "", qq_id: str = "") -> bool:
-        """v87.17 当前子区域是否有商店（shop: true 或 funcs 含 shop）。
-        设施子区域绑定铁律：商店命令只在有商店的子区域放行。
-        v95.4：野外行商（trade funcs）在场时也可交易。
-        v101.25h：草药铺（alchemy）/ 酒馆旅店（heal）也是可交易子区域（按类型配货）。"""
-        cur_map = player.get("cur_map", "")
-        sa_id = player.get("cur_subarea") or ""
-        if sa_id:
-            cm = C.MAP_BY_ID.get(cur_map, {})
-            for sa in (cm.get("subareas") or []):
-                if sa["id"] == sa_id:
-                    funcs = sa.get("funcs") or []
-                    if sa.get("shop") or "shop" in funcs or "alchemy" in funcs or "heal" in funcs or sa.get("healer"):
-                        # v104 M09 P1 修复：补 healer key——铁锚酒馆(ironharbor_5, shop=False, healer=True)
-                        #   有配货却因 _at_shop 不查 healer 而『商店』报"这里没有商店"（_sa_shop_kind 已判 tavern）
-                        return True
-                    break  # v95.4：当前子区域不是商店 → 继续查野外行商
-        # v95.4：不在城镇设施 → 看是否有野外行商在场
-        return self._wild_trader_here(player, group_id, qq_id)
+        """当前子区域是否有商店（实现 = 包内 `at_shop`；含野外行商在场）。"""
+        return _RULES.at_shop(player, group_id, qq_id)
 
     def _sa_shop_kind(self, player: dict) -> str | None:
-        """v101.28o 当前子区域商店类型（决定配货；2026-08-12 鱼鱼抓"鹿香灶坊卖装备"后收紧）：
-        smith（铁匠/锻造/军械/工坊/强化）→ 武器+材料+装备；
-        herb（草药/炼金）→ 只卖药剂；
-        tavern（酒馆/旅店/客栈）→ 只卖食物；
-        cook（灶坊/烹饪/食铺/磨坊）→ 只卖食物配货，不挂武器；
-        general（集市/商行/码头/商店/杂货/补给/营地）→ 卷轴/杂物+武器；
-        misc（其他 shop=True 无关键词，如拍卖行/渔港/强化坊）→ 只卖配货，不挂武器；
-        非商店子区域 → None。
-        ⚠️ 禁止把 shop=True 兜底成 general——否则灶坊/拍卖行全挂武器（#443 同源教训）。"""
-        cur_map = player.get("cur_map", "")
-        sa_id = player.get("cur_subarea") or ""
-        if not sa_id:
-            return None
-        cm = C.MAP_BY_ID.get(cur_map, {})
-        for sa in (cm.get("subareas") or []):
-            if sa["id"] != sa_id:
-                continue
-            # v125：kind 数据下沉 shop.SUBAREA_KIND（旧关键词嗅探全量迁移，含优先级：
-            # herb>smith>tavern>cook>general>misc 已烘焙进表值）；未入表子区域按 funcs 兜底
-            kind = C.SUBAREA_KIND.get(sa_id)
-            if kind:
-                return kind
-            funcs = sa.get("funcs") or []
-            if "alchemy" in funcs:
-                return "herb"
-            if "craft" in funcs:
-                return "smith"
-            if sa.get("healer") or "heal" in funcs:
-                return "tavern"
-            if sa.get("shop") or "shop" in funcs:
-                return "misc"
-            return None
-        return None
+        """当前子区域商店类型 smith/herb/tavern/cook/general/misc（实现 = 包内 `sa_shop_kind`）。"""
+        return _RULES.sa_shop_kind(player)
 
     def _wild_trader_here(self, player: dict, group_id: str = "", qq_id: str = "") -> str | None:
-        """v95.4：当前地图是否有可交易的野外行商（funcs 含 trade 且出现条件满足）。
-        #151 修复：返回命中的 NPC id（用于货摊标题显示正确 NPC 名），无则 None。"""
-        if not (group_id and qq_id):
-            return None
-        cur = player.get("cur_map", "")
-        for nid, wnpc in C.ALL_WILD.items():
-            if "trade" not in (wnpc.get("funcs") or []):
-                continue
-            if C.npc_map_id(nid, wnpc) != cur:
-                continue
-            if C.wild_npc_findable(nid, wnpc, player, group_id, qq_id):
-                return nid
-        return None
+        """当前地图可交易的野外行商 NPC id，无则 None（实现 = 包内 `wild_trader_here`）。"""
+        return _RULES.wild_trader_here(player, group_id, qq_id)
 
     def _at_healer(self, player: dict) -> bool:
-        """v87.17 当前子区域是否有旅店（healer: true 或 funcs 含 heal）。
-        设施子区域绑定铁律：住宿只在旅店子区域放行。"""
-        cur_map = player.get("cur_map", "")
-        sa_id = player.get("cur_subarea") or ""
-        if not sa_id:
-            return False
-        cm = C.MAP_BY_ID.get(cur_map, {})
-        for sa in (cm.get("subareas") or []):
-            if sa["id"] == sa_id:
-                if sa.get("healer"):
-                    return True
-                return "heal" in (sa.get("funcs") or [])
-        return False
+        """当前子区域是否有旅店（实现 = 包内 `at_healer`）。"""
+        return _RULES.at_healer(player)
 
     def _facility_hint(self, player: dict, kind: str) -> str:
-        """v87.17 提示最近设施所在子区域（kind: shop/healer）。
-        返回如『去 老铁铁匠铺 或 草药铺 看看』，无则空串。"""
-        cur_map = player.get("cur_map", "")
-        cm = C.MAP_BY_ID.get(cur_map, {})
-        names = []
-        for sa in (cm.get("subareas") or []):
-            if kind == "shop":
-                if sa.get("shop") or "shop" in (sa.get("funcs") or []):
-                    names.append(sa.get("name", ""))
-            elif kind == "healer":
-                if sa.get("healer") or "heal" in (sa.get("funcs") or []):
-                    names.append(sa.get("name", ""))
-            elif kind == "craft":
-                # v101.21 铁匠类场所（装备回收/锻造），炼金工坊除外
-                # v125：关键词嗅探 → shop.SUBAREA_KIND（炼金工坊 dawn_city_5 为 herb 自然排除）
-                if "craft" in (sa.get("funcs") or []) or C.SUBAREA_KIND.get(sa.get("id")) == "smith":
-                    names.append(sa.get("name", ""))
-        if not names:
-            return ""
-        uniq = []
-        for n in names:
-            if n and n not in uniq:
-                uniq.append(n)
-        return "去 " + " 或 ".join(uniq[:3]) + " 看看"
+        """提示最近设施所在子区域（实现 = 包内 `facility_hint`）。"""
+        return _RULES.facility_hint(player, kind)
 
     def _fmt_stat_src(self, src: dict) -> str:
-        """格式化单条属性来源：『来源名: 攻击＋8 生命＋40 暴击＋5%』"""
-        parts = []
-        for k, v in src["stats"].items():
-            name = STAT_NAMES.get(k, k)
-            if k in C.PCT_STATS:
-                sign = "+" if v >= 0 else ""
-                pct = "+" if src.get("pct") and k not in C.PCT_STATS else ""
-                parts.append(f"{name}{pct}{sign}{int(v*100)}%")
-            else:
-                sign = "+" if v >= 0 else ""
-                if src.get("pct"):
-                    parts.append(f"{name}+{int(v*100)}%")
-                else:
-                    parts.append(f"{name}{sign}{v}")
-        return f"{src['name']}: {' '.join(parts)}" if parts else ""
+        """格式化单条属性来源：『来源名: 攻击＋8 生命＋40 暴击＋5%』（实现 = 包内 `fmt_stat_src`）"""
+        return _RULES.fmt_stat_src(src)
 
     async def _broadcast(self, text: str, exclude_group: str | None = None):
         """向所有有玩家注册过的群广播公告（不含私聊）。
@@ -470,40 +345,27 @@ class CommandBase(_KitCommandBase):
                 return False
         return False
 
-    # ---------- v94 体力系统 ----------
+    # ---------- v94 体力系统（★ B18-L7：公式/落库/格式进包，本处一行转发）----------
     def _stamina_max(self, player: dict) -> int:
-        """体力上限：100 + 等级×2"""
-        return 100 + (player.get("level") or 1) * 2
+        """体力上限：100 + 等级×2（实现 = 包内 `stamina_max`）"""
+        return _RULES.stamina_max(player)
 
     def _stamina(self, player: dict) -> int:
-        return int(player.get("stamina") or 0)
+        """（实现 = 包内 `stamina`）"""
+        return _RULES.stamina(player)
 
     def _spend_stamina(self, group_id, qq_id, cost: int, player: dict, action: str = "行动") -> tuple:
-        """扣体力；不足返回 (False, 提示)。够则落库并返回 (True, 剩余)。
-
-        v185：不足的措辞改为 core/instance_gate.stamina_short_msg（副本开本链同源，
-        措辞只剩一处来源）。函数内延迟 import —— 避免 commands ↔ core 的模块级环。
-        """
-        cur = self._stamina(player)
-        if cur < cost:
-            from ..core import instance_gate
-            return False, instance_gate.stamina_short_msg(cost, cur, action)
-        db.update_player(group_id, qq_id, stamina=cur - cost)
-        return True, cur - cost
+        """扣体力；不足返回 (False, 提示)。够则落库并返回 (True, 剩余)（实现 = 包内 `spend_stamina`；
+        v185 措辞同源 `content.flow.instance_gate.stamina_short_msg`）。"""
+        return _RULES.spend_stamina(group_id, qq_id, cost, player, action)
 
     def _add_stamina(self, group_id, qq_id, amount: int, player: dict) -> int:
-        """加体力（封顶上限），返回实际增加量。"""
-        cur = self._stamina(player)
-        mx = self._stamina_max(player)
-        new = min(mx, cur + amount)
-        if new != cur:
-            db.update_player(group_id, qq_id, stamina=new, stamina_ts=int(time.time()))
-            player["stamina"] = new  # v95.16 #80：同步 player dict，st_msg 显示恢复后值而非旧值
-        return new - cur
+        """加体力（封顶上限），返回实际增加量（实现 = 包内 `add_stamina`）。"""
+        return _RULES.add_stamina(group_id, qq_id, amount, player)
 
     def _stamina_bar(self, player: dict, sep: str = " ") -> str:
-        """体力显示条：⚡ 82/102（sep 可传『：』统一标签冒号格式）"""
-        return f"⚡ 体力{sep}{self._stamina(player)}/{self._stamina_max(player)}"
+        """体力显示条：⚡ 82/102（sep 可传『：』统一标签冒号格式；实现 = 包内 `stamina_bar`）"""
+        return _RULES.stamina_bar(player, sep)
 
     # ---------- v97.5 行为彩蛋规则 ----------
     def _rule_fire(self, trigger: str, group_id, qq_id, player: dict, cur_map: dict, evt: dict = None) -> str:

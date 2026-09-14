@@ -26,6 +26,15 @@
 已结束，那张手工镜像表**已删除**。有效表完全由声明表派生，调用方（gate / 快捷转发）零感知；
 迁移的前后命令面**逐字一致**（冻结比对：`tests/test_v185_command_migration.py`）。
 
+注册优先级（priority）的真源
+----------------------------
+`priority`（宿主注册排序：数值越大越先被 `_find_handler` 命中）**真源 = 包内
+`content/data/commands.json`**；本机 `game/data/command_specs.json` 是同一份声明的
+**镜像**（两份逐条同值）。`@declared("key", priority=N)` 的实参只是把这个值**交给平台
+注册**，不再单独持有它 —— 改优先级要同时改这两份表，别只写在装饰器里。
+双向一致性由 `tests/test_command_priority_sync.py` 盯着（宿主装饰器 ↔ 两份表三条全查）。
+**本线不排序**：引擎 `CommandSpec.from_dict()` 目前不读 `priority`，按声明排序属 P5 待办。
+
 fail-closed
 -----------
 声明表缺失/为空/正则非法/找不到 key → **抛错**（不静默降级）。设计约定见框架

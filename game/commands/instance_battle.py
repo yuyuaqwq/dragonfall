@@ -11,7 +11,7 @@
 | 事 | 在本文件的位置 |
 |---|---|
 | 取玩家/构造/调包 | 全部委托包内 `build_battle` / `act` / `sync_views` / 目标选择闭包 |
-| 拼文案 | 副本战斗日志 3 条 key 仍在宿主（`T.text` / `T.static` 唯一调用点，`game/data/text_specs.json` 对账据此成立） |
+| 拼文案 | ★ B18 L3c：3 条 key（`instance.日志_团队治疗` / `instance.结算_战斗异常` / `instance.面板_战斗_不在`）的 **文案调用点已迁进包内** `content/flow/instance_battle.py`（`team_heal_text` / `abort_text`）→ 本文件调用点计数 0 |
 | 宿主耦合注入 | `sync_player_from_actor`（回写半边**未进包** = 缺口，见包内文件头 ②）/ `db.update_player` / Boss 剧本导演（★ B8.2 线5：宿主副本 `game/commands/boss_script.py` 已移出仓，`_script_api()` 改由 `._boss_script_port` 适配包内端口 `content.flow.boss_script`） |
 
 包加载口 = `from .. import bootstrap; bootstrap.package_apply()`（唯一，幂等）。
@@ -26,23 +26,15 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..core import texts as T
 from .. import bootstrap as _BST
 
 _BST.package_apply()                                      # 唯一包加载口（包根进 sys.path + install_engine）
 from content.flow import instance_battle as _IB           # noqa: E402  包内实现（编排唯一真源）
 
-# ── 文案（宿主唯一 T.* 调用点；包只回「状态码」/ 语义回调）────────────────────
-_TEAM_HEAL_KEY = "instance.日志_团队治疗"
-_ABORT_TEXT = {"no_sides": "instance.结算_战斗异常",
-               "no_actor": "instance.面板_战斗_不在"}
-
+# ── 文案（★ B18 L3c 起在包内：`content/flow/instance_battle.py::team_heal_text` /
+#    `abort_text`。本文件的文案调用点计数归 0 —— 宿主零游戏文案；
+#    key/槽位/整句逐字不变，表仍是宿主 `game/data/text_specs.json`）──────────────
 _VIEW_ST_KEYS = _IB._VIEW_ST_KEYS
-
-
-def _team_heal_text(name, amount) -> str:
-    """团队治疗广播行（`instance.日志_团队治疗`；包内 `_instance_team_event` 回调）。"""
-    return T.text(_TEAM_HEAL_KEY, name=name, amount=amount)
 
 
 # ── 宿主耦合（包内替身接口的宿主实现）──────────────────────────────────────
@@ -76,18 +68,18 @@ def _instance_target_picker(st: dict):
 
 
 def _instance_team_event(st: dict):
-    return _IB._instance_team_event(st, _team_heal_text)
+    return _IB._instance_team_event(st, _IB.team_heal_text)
 
 
 def _attach_instance_hooks(b, st: dict) -> None:
     """battle 恢复/重建后重挂命令层注入钩子（编排在包，宿主耦合在注入）。"""
     return _IB._attach_instance_hooks(b, st, script_api=_script_api(),
-                                      team_heal_text=_team_heal_text)
+                                      team_heal_text=_IB.team_heal_text)
 
 
 def build_battle(st: dict) -> "object":
     """遭遇/切怪/Boss 战：开战编排（组 sides → 构造 → 落 st["battle"]）在包内。"""
-    return _IB.build_battle(st, script_api=_script_api(), team_heal_text=_team_heal_text)
+    return _IB.build_battle(st, script_api=_script_api(), team_heal_text=_IB.team_heal_text)
 
 
 def act(st: dict, group_id, qq_id, action: str, skill_name=None,
@@ -95,13 +87,13 @@ def act(st: dict, group_id, qq_id, action: str, skill_name=None,
     """真人行动：from_state → human_act → to_state 落回（包内编排）。
 
     返回 (logs, ended, next_key)；两条守卫（战斗状态异常 / 行动者不在战斗中）
-    由包回 abort 码，文案在宿主拼（`_ABORT_TEXT`）。
+    由包回 abort 码，文案也由包渲染（`_IB.abort_text`，★ B18 L3c 起调用点在包内）。
     """
     logs, ended, nxt, abort = _IB.act(st, group_id, qq_id, action, skill_name, target,
                                       script_api=_script_api(),
-                                      team_heal_text=_team_heal_text)
+                                      team_heal_text=_IB.team_heal_text)
     if abort:
-        return [T.static(_ABORT_TEXT[abort])], True, None
+        return [_IB.abort_text(abort)], True, None
     return logs, ended, nxt
 
 

@@ -1,29 +1,34 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年命令层 - gm(GM 调试/运营指令，v96) —— B9 线 L6 **薄壳**
+"""奥兰迪亚·余烬纪年命令层 - gm(GM 调试/运营指令) ★ B18-L4 终态：**注册 + 一行转发**
 
 权限：数据库 gm_whitelist(JSON) ∪ 环境变量 GWEN_GM_QQ(逗号分隔) 白名单；
 gm_ 前缀身份(测试回环)恒放行；未配置任何白名单时默认拒绝一切 GM 指令（v104.1 收紧，私聊不再放行）。
 指令(gm_ 前缀防玩家误触)：
   gm_帮助 / gm_停服 / gm_开服 / gm_状态 / gm_广播
   gm_玩家 / gm_查询 / gm_发金币 / gm_发物品 / gm_发经验 / gm_设等级
-  gm_传送 / gm_体力 / gm_改名 / gm_加GM / gm_删GM
-  gm_伤害 / gm_play（历史保留）
+  gm_传送 / gm_体力 / gm_改名 / gm_加GM / gm_删GM / gm_绑身份 / gm_身份表
+  gm_伤害 / gm_play / gm_窥探（后两条见「保留」）
 
-本文件只剩：**命令注册（`@declared`）+ 取玩家/取参数（`_uid`/`_strip_cmd`）+ 守卫
-（`_gm_auth`）+ 调包 + `yield event.plain_result(...)` 渲染**。
+★ B18-L4 终态（形状真源 = `overnight/B18_TERMINAL_SHAPE.md` §1.3）：**19 条 GM 命令**只剩
+  `@declared("gm_<key>")` + `_BRIDGE.run(self, "gm_<key>", event)` 一行转发 —— 守卫 / 取参 /
+  目标解析 / 物品·地图查找 / 停服开服状态 / 玩家列表与详情 / 发金币物品经验 / 设等级 / 传送 /
+  体力 / 改名 / GM 白名单增删 / 伤害倍率 / 帮助串 / 身份表**全在包内** `content/cmds_gm.py`。
 
-真源正文（857 行）已 **逐字搬入内容包** → `<pkg>/content/gm.py`（唯一实现：权限判定 /
-目标解析 / 物品·地图查找 / 停服开服状态 / 玩家列表与详情 / 发金币物品经验 / 设等级 /
-传送 / 体力 / 改名 / GM 白名单增删 / 伤害倍率 / 帮助串；含全部落库副作用）。
+**GM 权限判定 = 守卫形状**：声明在包（`content/cmds_gm.py` 的 `guards=("hook:gm",)`）→
+包侧 `content/guards.py::GUARDS["gm"]` → 判定实现唯一真源 `content/gm.py::gm_auth`。
+宿主壳里**不再有**「取 uid → 判权限 → 分支回话」那段业务分支（旧的每条 4 行已消）。
 
-**留在本文件的四类「接人层」（非游戏内容，BRIEF §2.8）**：
-  ① 守卫调用点（每条指令开头 4 行）—— 命令注册形状；`_is_gm`/`_gm_whitelist` 真源在
-     共享的 `commands/base.py`（本批禁改）
-  ② `gm_play` —— 走宿主注册表/事件回环（`_run_shortcut`）转发指令
-  ③ `gm_spy` + `_chunk_text` / `_spy_to_role_cards` —— 调试/运维管道：读 playtest 实录 md、
-     拼 NapCat 合并转发节点、`context.send_message` 投递、写 `.spy_forward_state.json`
-  ④ `gm_bind_identity` / `gm_identity_table` + `GM_OWNER_QQ`/`_OWNER_GROUP`/`_PLATFORM_PREFIX`
-     /`_SPY_DIR` —— 平台身份（openid ↔ QQ 映射）与平台配置常量
+保留在宿主（B18_DESIGN §7 明确列出的「不适合本形状」两类，逐条给理由）
+------------------------------------------------------------------------
+  ① `gm_play` —— 转发任意游戏指令：走宿主注册表（`_find_handler` / `_run_shortcut`，async
+     generator、可多消息），§7.1「多消息」+ §7.2「依赖 AstrBot 注册表」。
+  ② `gm_spy` + `_chunk_text` / `_spy_to_role_cards` —— 调试/运维管道：读 playtest 实录 md、
+     拼 NapCat 合并转发节点、`await context.send_message` 多卡投递（含 `await asyncio.sleep`）、
+     写 `.spy_forward_state.json` —— §7.1「多消息/富文本」+ 平台 I/O。
+  两条的**权限判定仍走包内**（`_lib().gm_auth(...)` = `content/gm.py::gm_auth`，与守卫同源同文案），
+  宿主只提供身份能力（`_is_gm` / `_gm_whitelist`，真源在共享的 `commands/base.py`，本批禁改）。
+
+行为逐字节不变；证据 = `overnight/W-B18-L4.md` 的 358 项三分支快照（sha256 改前 = 改后）。
 """
 import asyncio
 import glob
@@ -38,8 +43,7 @@ from ._platform import MessageChain
 
 from ._declared import declared
 
-from .. import content as C
-from .. import db
+from . import _host_bridge as _BRIDGE
 from .base import CommandBase
 from ..log_setup import LOG
 
@@ -58,7 +62,7 @@ _LIB = None
 
 
 def _lib():
-    """包内 `content.gm`（GM 指令唯一实现）。
+    """包内 `content.gm`（GM 指令唯一实现 + 权限判定唯一真源）。
 
     惰性 import（不在模块级 import 包内模块：包加载口要先跑 `package_apply()` 把包根插进
     `sys.path`，那时 `content` 才是可用的命名空间包）。
@@ -71,22 +75,6 @@ def _lib():
         bootstrap.package_apply()                       # 幂等；失败抛（不静默留空实现）
         _LIB = importlib.import_module("content.gm")
     return _LIB
-
-
-class _Host:
-    """GM 指令宿主服务句柄（包内实现唯一需要的宿主面）。"""
-
-    db = db
-    C = C
-
-
-def _host(title_bonus=None):
-    """构造句柄；`title_bonus` = `CommandBase._title_bonus`（`gm_设等级` 重算属性用）。"""
-    from ..content_rules.panel import player_final_stats
-    h = _Host()
-    h.player_final_stats = player_final_stats
-    h.title_bonus = title_bonus
-    return h
 
 
 def _chunk_text(text: str, size: int = 3800):
@@ -166,178 +154,104 @@ def _spy_to_role_cards(content: str, label: str, bot_qq: str) -> list:
 
 
 class GmCmds(CommandBase):
+    # ---------------- 宿主能力（包内经 env.state["shell"] 调用；非命令）----------------
     def _gm_auth(self, event, group_id, qq_id):
         """返回 (ok, 错误消息)。白名单命中(库∪env)或 gm_ 测试身份放行。
-        v104.1 M24 修复：白名单为空(库∪env 均未配置)时默认拒绝一切 GM 指令，
-        不再回退私聊放行——防止任意私聊用户 gm_发金币/gm_设等级/gm_加GM 自举提权。
-        判定实现归包（`content.gm.gm_auth`）；`_is_gm`/`_gm_whitelist` 真源在 base。"""
+
+        判定与文案**唯一真源** = 包内 `content/gm.py::gm_auth`（守卫 `hook:gm` 走的是同一个函数）；
+        本方法只是 `gm_play` / `gm_spy` 两条平台命令的守卫调用点（它们进不了桥接层，见模块头注）。
+        `_is_gm`/`_gm_whitelist` 真源在共享 `commands/base.py`（本批禁改）。
+        """
         return _lib().gm_auth(self._is_gm, self._gm_whitelist, qq_id)
 
-    # ---------- 停服 / 开服 / 状态 ----------
+    def _identity_ops(self):
+        """（宿主能力口，非命令）平台身份映射模块 —— openid ↔ QQ（`commands/_identity.py`）。"""
+        from . import _identity
+        return _identity
+
+    # ---------- 停服 / 开服 / 状态 / 广播 ----------
     @declared("gm_maintenance")
     async def gm_maintenance(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        raw = self._strip_cmd(event, "gm_停服").strip()
-        text, broadcast = _lib().maintenance(_host(), raw)
-        yield event.plain_result(text)
-        await self._broadcast(broadcast)
+        yield event.plain_result(_BRIDGE.run(self, "gm_maintenance", event))
 
     @declared("gm_open")
     async def gm_open(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        was_down = self._server_down()
-        text, broadcast = _lib().open_server(_host(), was_down)
-        yield event.plain_result(text)
-        if was_down:
-            await self._broadcast(broadcast)
+        yield event.plain_result(_BRIDGE.run(self, "gm_open", event))
 
     @declared("gm_status")
     async def gm_status(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        yield event.plain_result(_lib().status_text(
-            _host(), group_id, self._server_down(), self._server_down_msg(), self._gm_whitelist()))
+        yield event.plain_result(_BRIDGE.run(self, "gm_status", event))
 
     @declared("gm_broadcast")
     async def gm_broadcast(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        raw = self._strip_cmd(event, "gm_广播").strip()
-        text, broadcast = _lib().broadcast(_host(), raw)
-        if broadcast is None:
-            yield event.plain_result(text)
-            return
-        await self._broadcast(broadcast)
-        yield event.plain_result(text)
+        yield event.plain_result(_BRIDGE.run(self, "gm_broadcast", event))
 
     # ---------- 玩家查询 ----------
     @declared("gm_players")
     async def gm_players(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        raw = self._strip_cmd(event, "gm_玩家").strip()
-        yield event.plain_result(_lib().players_text(_host(), group_id, raw))
+        yield event.plain_result(_BRIDGE.run(self, "gm_players", event))
 
     @declared("gm_query")
     async def gm_query(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        raw = self._strip_cmd(event, "gm_查询").strip()
-        yield event.plain_result(_lib().query_text(_host(), raw))
+        yield event.plain_result(_BRIDGE.run(self, "gm_query", event))
 
     # ---------- 玩家操作 ----------
     @declared("gm_give_gold")
     async def gm_give_gold(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        parts = self._strip_cmd(event, "gm_发金币")
-        yield event.plain_result(_lib().give_gold(_host(), parts))
+        yield event.plain_result(_BRIDGE.run(self, "gm_give_gold", event))
 
     @declared("gm_give_item")
     async def gm_give_item(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        parts = self._strip_cmd(event, "gm_发物品")
-        yield event.plain_result(_lib().give_item(_host(), parts))
+        yield event.plain_result(_BRIDGE.run(self, "gm_give_item", event))
 
     @declared("gm_give_exp")
     async def gm_give_exp(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        parts = self._strip_cmd(event, "gm_发经验")
-        yield event.plain_result(_lib().give_exp(_host(), parts))
+        yield event.plain_result(_BRIDGE.run(self, "gm_give_exp", event))
 
     @declared("gm_set_level")
     async def gm_set_level(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        parts = self._strip_cmd(event, "gm_设等级")
-        yield event.plain_result(_lib().set_level(_host(self._title_bonus), parts))
+        yield event.plain_result(_BRIDGE.run(self, "gm_set_level", event))
 
     @declared("gm_teleport")
     async def gm_teleport(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        parts = self._strip_cmd(event, "gm_传送")
-        yield event.plain_result(_lib().teleport(_host(), parts))
+        yield event.plain_result(_BRIDGE.run(self, "gm_teleport", event))
 
     @declared("gm_stamina")
     async def gm_stamina(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        parts = self._strip_cmd(event, "gm_体力")
-        yield event.plain_result(_lib().stamina(_host(), parts))
+        yield event.plain_result(_BRIDGE.run(self, "gm_stamina", event))
 
     @declared("gm_rename")
     async def gm_rename(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        parts = self._strip_cmd(event, "gm_改名")
-        yield event.plain_result(_lib().rename(_host(), parts))
+        yield event.plain_result(_BRIDGE.run(self, "gm_rename", event))
 
     # ---------- GM 白名单管理 ----------
     @declared("gm_add_gm")
     async def gm_add_gm(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        raw = self._strip_cmd(event, "gm_加GM").strip()
-        yield event.plain_result(_lib().add_gm(_host(), raw))
+        yield event.plain_result(_BRIDGE.run(self, "gm_add_gm", event))
 
     @declared("gm_del_gm")
     async def gm_del_gm(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        raw = self._strip_cmd(event, "gm_删GM").strip()
-        yield event.plain_result(_lib().del_gm(_host(), raw))
+        yield event.plain_result(_BRIDGE.run(self, "gm_del_gm", event))
 
-    # ---------- 历史保留指令 ----------
+    # ---------- 平台身份（判定/文案在包，平台映射能力经 _identity_ops 取）----------
+    @declared("gm_bind_identity")
+    async def gm_bind_identity(self, event: AstrMessageEvent):
+        yield event.plain_result(_BRIDGE.run(self, "gm_bind_identity", event))
+
+    @declared("gm_identity_table")
+    async def gm_identity_table(self, event: AstrMessageEvent):
+        yield event.plain_result(_BRIDGE.run(self, "gm_identity_table", event))
+
+    # ---------- 帮助 / 世界 Boss 伤害倍率 ----------
+    @declared("gm_help")
+    async def gm_help(self, event: AstrMessageEvent):
+        yield event.plain_result(_BRIDGE.run(self, "gm_help", event))
+
+    @declared("gm_boss_dmg")
+    async def gm_boss_dmg(self, event: AstrMessageEvent):
+        yield event.plain_result(_BRIDGE.run(self, "gm_boss_dmg", event))
+
+    # ---------- 历史保留指令（平台管道，保留原形状：见模块头注 §7.1/§7.2）----------
     @declared("gm_play")
     async def gm_play(self, event: AstrMessageEvent):
         """v92 消息转发：把 gm_play 后的内容当作游戏指令重新分发执行。"""
@@ -454,79 +368,3 @@ class GmCmds(CommandBase):
                 "投递到游戏群 1095961596" if to_group else "私聊投递到鱼鱼 QQ",
             )
         )
-
-    @declared("gm_bind_identity")
-    async def gm_bind_identity(self, event: AstrMessageEvent):
-        """把当前发送者(官方 bot openid) 绑定到指定 QQ 号，续接老角色。"""
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        from . import _identity
-        raw = self._strip_cmd(event, "gm_绑身份").strip()
-        if not raw:
-            yield event.plain_result(
-                "格式：gm_绑身份 <QQ号>\n"
-                "说明：把当前私聊/群内发送者的 openid 绑定到指定 QQ 号，\n"
-                "绑定后该玩家在新 bot 上报到老 QQ 号，老角色/GM 权限直接续接。"
-            )
-            return
-        qq_target = raw.split()[0].strip()
-        if not _identity.is_qq_id(qq_target):
-            yield event.plain_result(f"❌ {qq_target} 不是合法 QQ 号～")
-            return
-        openid = event.get_sender_id() or ""
-        if not openid or not _identity.is_openid(openid):
-            # 非官方平台（如测试/旧链）没有 openid，直接提示无法绑定
-            yield event.plain_result(f"⚠️ 当前事件 sender={openid!r} 不是 openid，可能不在官方 bot 平台。\n"
-                                     "请在官方 bot 的会话里执行本指令。")
-            return
-        _identity.bind(openid, qq_target)
-        old = _identity.openid_to_qq(openid)
-        yield event.plain_result(
-            f"✅ 已把 openid {openid[:8]}…{openid[-6:]} 绑定到 QQ {qq_target}。\n"
-            f"该玩家现在会以 QQ {qq_target} 的身份游玩（老角色自动续接）～"
-            + (f"\n(原绑定 QQ {old} 已覆盖)" if old and old != qq_target else "")
-        )
-
-    @declared("gm_identity_table")
-    async def gm_identity_table(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        try:
-            from . import _identity as _idm
-            rows = _idm.query_all()
-        except Exception:
-            yield event.plain_result("⚠️ identity_map 查询失败（表可能未初始化）")
-            return
-        if not rows:
-            yield event.plain_result("📋 当前无任何 openid 绑定。")
-            return
-        lines = [f"📋 身份映射表（共 {len(rows)} 条）："]
-        for r in rows[:30]:
-            oid = r.get("openid", "")
-            lines.append(f"{oid[:8]}…{oid[-6:]} → QQ {r.get('qq_id')} ({r.get('platform')})")
-        yield event.plain_result("\n".join(lines))
-
-    @declared("gm_help")
-    async def gm_help(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        yield event.plain_result(_lib().help_text())
-
-    @declared("gm_boss_dmg")
-    async def gm_boss_dmg(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        raw = self._strip_cmd(event, "gm_伤害").strip()
-        yield event.plain_result(_lib().boss_dmg(_host(), qq_id, raw))
