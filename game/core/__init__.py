@@ -50,7 +50,7 @@ from .dialogue import (  # noqa: F401
 from .stats import (  # noqa: F401
     monster_stats, equip_stats, equip_value, exp_to_next, monster_exp, monster_gold,
 )
-from .maps import _build_ency  # noqa: F401
+# B-RPH：`maps` 薄壳保留（import 期 `_build_monster_locs()` 是活的装配时机）；`_build_ency` 本门从不消费，已随收口删除。
 from .drops import (  # noqa: F401
     make_blueprint, roll_blueprint, roll_drop, roll_drop_equip, generate_equip, generate_roster_equip,
     build_monster, build_monster_group,
@@ -95,14 +95,15 @@ from .craft import (  # noqa: F401
     craft_recipe_make, craft_recipe_search, craft_recipes_by_material,
 )
 from .event_templates import EventContext, execute_event_template  # noqa: F401
-from .class_sets import _build_class_sets  # noqa: F401
-from .enchant import enchant_value, enchant_match_material  # noqa: F401
+# B-RPH 聚合门收口：以下四类薄壳已删；真源直取包内实现（包加载口已由 `constants` 完成）
+from content.class_sets import _build_class_sets  # noqa: F401
+from content.enchant import enchant_value, enchant_match_material  # noqa: F401
 from .runes import rune_value, rune_conflict, rune_item  # noqa: F401
 # v136 原石系统核心逻辑（聚合导出，命令层 C.roll_gem / C.gem_combine 等可直接调用）
 from .gems import roll_gem, gem_combine, gem_socket_cost, sockets_capacity, roll_gem_drop  # noqa: F401
-from .portals import portal_cost  # noqa: F401
+from content.portals import portal_cost  # noqa: F401
 from .events import roll_explore_event, roll_explore_egg  # noqa: F401
-from .pois import subarea_pois, roll_poi, subarea_props, prop_entry  # noqa: F401
+from content.pois import subarea_pois, roll_poi, subarea_props, prop_entry  # noqa: F401
 from .maps import (  # noqa: F401
     subarea_links, map_exit_subarea, map_entry_subarea,
     # v115 网状子区域：供命令层 C.xxx 调用（world/combat 经 getattr(C, ...) 消费）
@@ -111,7 +112,10 @@ from .maps import (  # noqa: F401
     map_space, map_center, map_route,
 )
 from .daily_events import today_map_event, today_event_effects  # noqa: F401
-from .pets import make_pet_egg, pet_exp_need, pet_exp_mult, pet_skill_label, pet_quality_label, pet_line, pet_exp_bonus, pct_str, PET_MAX_LEVEL  # noqa: F401  v173.2 封顶50+等级差乘区
+from content.pets import (  # noqa: F401  v173.2 封顶50+等级差乘区
+    make_pet_egg, pet_exp_need, pet_exp_mult, pet_skill_label, pet_quality_label,
+    pet_line, pet_exp_bonus, pct_str, PET_MAX_LEVEL,
+)
 from .mounts import make_mount_rein, roll_mount_drop, mount_effects  # noqa: F401
 from .exploration import (  # noqa: F401
     record_visit as exploration_record_visit,  # v115 协作契约名（G 调用 C.exploration_record_visit）
@@ -124,7 +128,7 @@ from .wild_king import (  # noqa: F401
     personal_meta, list_active_kings, period_key, period_label,
 )
 # v141 大陆隔离：位置结构体 + 大陆抽象（聚合导出，命令层 C.Position / C.cur_map_obj 等调用）
-from .position import (  # noqa: F401
+from content.position import (  # noqa: F401
     Position, cur_map_obj, cur_subareas, player_position, position_to_db,
 )
 from .worlds import (  # noqa: F401

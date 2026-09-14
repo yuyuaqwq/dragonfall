@@ -17,11 +17,28 @@
 from .connection import (  # noqa: F401
     DB_PATH, C_MAP_IDS, _connect, _lock, init_db, atomic,
 )
-from .players import (  # noqa: F401
+# B-RPH 聚合门收口：players/quests/stats/professions/feedback/props_use 六个委托薄壳已删；
+# 真源直取包内存档层（`content/persistence/__init__.py` 同名聚合）。
+# ★ `battle_state` 保留：tests/test_battle_n5b4_pvp.py:390 直取宿主模块
+#   `game.store.battle_state` 的 `_lock`/`_connect` → 消费者含 tests，归 D 组，本批不动。
+from content.persistence import (  # noqa: F401
+    # players
     record_player_group, get_player_groups, get_group_players,
     create_player, get_player, find_player_by_name, update_player,
     top_players, all_players, get_portals, add_portal,
     get_skill_bar, set_skill_bar, delete_player,
+    # quests
+    get_quests, save_quests, expire_daily,
+    # stats
+    init_stats, bump_stats, get_stats, set_achievement, get_achievements,
+    # professions
+    get_professions, get_prof_level, add_prof_exp, prof_top,
+    bump_fish_king, get_fish_king, PROF_FIELDS,
+    MAX_ACTIVE_PROFS, get_activated_profs, activate_prof, forget_prof,
+    # feedback
+    add_feedback, get_feedback,
+    # props_use
+    get_props_use, mark_props_use, props_use_claim_atomic,
 )
 from .inventory import (  # noqa: F401
     _key_to_id, add_item, get_inventory, count_item, remove_item,
@@ -30,16 +47,7 @@ from .inventory import (  # noqa: F401
     record_possessed, record_possessed_conn,
     get_possessed, get_possessed_rows, count_possessed,
 )
-from .quests import get_quests, save_quests, expire_daily  # noqa: F401
 from .battle_state import save_battle, get_battle, get_battle_raw, clear_battle  # noqa: F401
-from .stats import (  # noqa: F401
-    init_stats, bump_stats, get_stats, set_achievement, get_achievements,
-)
-from .professions import (  # noqa: F401
-    get_professions, get_prof_level, add_prof_exp, prof_top,
-    bump_fish_king, get_fish_king, PROF_FIELDS,
-    MAX_ACTIVE_PROFS, get_activated_profs, activate_prof, forget_prof,
-)
 from .social import (  # noqa: F401
     add_reputation, get_reputation, get_signin, save_signin, signin_claim,
     market_list, market_add, market_remove,
@@ -65,10 +73,4 @@ from .world import (  # noqa: F401
     add_visited_subarea, get_visited_subareas, count_visited_subareas,
     # v168 冒险手册：子区域到访明细（含首访时间）
     get_visited_subareas_rows,
-)
-from .feedback import (  # noqa: F401
-    add_feedback, get_feedback,
-)
-from .props_use import (  # noqa: F401
-    get_props_use, mark_props_use, props_use_claim_atomic,
 )

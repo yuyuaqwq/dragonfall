@@ -133,7 +133,7 @@ def eff_def_down(battle, player, value):
     v = _resolve(value, "def_down")
     pct = float(v.get("pct", 0.15))
     turns = int(v.get("turns", 2))
-    from .effect_actions import action_def_down
+    from content.effect_actions import action_def_down   # B-RPH：宿主薄壳已删，真源直取包内
     _scratch = []
     action_def_down(battle, _scratch, turns=turns, pct=pct, target=battle._hit_tgt())
     return f"🛡️ 破甲！敌人防御下降 {int(pct * 100)}%！({turns} 刻)"
