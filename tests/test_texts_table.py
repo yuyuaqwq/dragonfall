@@ -2619,6 +2619,17 @@ _S_SEED = 20260914
 _S_TIME_PAT = re.compile(r"剩余 \d+分\d+秒")
 _S_UUID_PAT = re.compile(r"eq_[0-9a-f]{6,}")
 _S_BIG = 1_000_000_000
+# ★ PFIX P8（2026-09-15）：日期派生列归一化（与 `_E_FIXED_TS` 同款「固定字面量」口径）
+#   社交域有 3 处写库值来自 `datetime.date.today()`（ISO `YYYY-MM-DD`）：
+#     · `guild_donate` / `guild_shop` 的每日计数 event_state **值** = 今天；
+#     · `guild_sign` 写进 `guild_members.join_date` 的 = 今天。
+#   冻结基准采于 **2026-09-14**（`SOCIAL_DB_SHA` 头注），故跨过午夜（→ 09-15）这 4 例
+#   摘要必变 —— 「午夜前 63/63、午夜后 62/63」的成因。这里把该列**钉死回基准日**
+#   （不是 `<DATE>` 记号：冻结值是按**字面量日期**算出来的，钉成同一个字面量才能
+#   在**不动任何冻结值**的前提下复原基准，实测 4/4 命中）。
+#   判据：归一后 4 例仍各自有牙 —— 写库内容真变（哪怕只多一行）该例照样报红。
+_S_DATE_PAT = re.compile(r"\d{4}-\d{2}-\d{2}")
+_S_FROZEN_DATE = "2026-09-14"
 
 
 def _s_mk(qid, name, cls="战士", level=60, gold=100000, cur_map="oak_town", **upd):
@@ -2983,7 +2994,12 @@ def _s_cell(v):
 
 
 def _s_dump():
-    """DB 逐行 dump（跳过 AUTOINCREMENT 计数表；uuid4 装备 key 归一化）。"""
+    """DB 逐行 dump（跳过 AUTOINCREMENT 计数表；uuid4 装备 key + **日期派生列**归一化）。
+
+    ★ PFIX P8：日期归一是「墙钟归一化」口径的延伸（本段原有 epoch 秒归一化见 `_s_cell`；
+    经济域同款见 `_E_DATE_PAT` / `_E_FIXED_TS`）。不归一化 ⇒ 摘要里含「今天」⇒
+    跨午夜必红（既有缺陷，非实现漂移）。
+    """
     conn = _S_sqlite3.connect(db.DB_PATH)
     try:
         tabs = [r[0] for r in conn.execute(
@@ -2997,7 +3013,8 @@ def _s_dump():
                 rows = [("ERR", str(exc))]
             rows = [tuple(_s_cell(c) for c in r) for r in rows]
             out.append("%s: %s" % (t, sorted(repr(r) for r in rows)))
-        return _S_UUID_PAT.sub("eq_<UUID>", "\n".join(out))
+        text = _S_UUID_PAT.sub("eq_<UUID>", "\n".join(out))
+        return _S_DATE_PAT.sub(_S_FROZEN_DATE, text)       # ★ P8：日期派生列钉死回基准日
     finally:
         conn.close()
 

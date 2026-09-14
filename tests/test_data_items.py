@@ -57,22 +57,27 @@ def main():
                 fail_make.append((k, str(e)))
     check("全部武器配方可锻造且名字正确", not fail_make, str(fail_make[:3]))
 
-    print("【data·物品族：毕业套武器名不撞白装前缀（v53.1）】")
+    print("【data·物品族：武器名不撞白装前缀（v53.1）】")
+    # ★ PFIX P3：原断言读 `C.CLASS_SET_THEMES`（旧世界毕业套 6 职业×5 阶段）——该表随
+    #   B14 `90fc06b`「删宿主 game/data 87 文件」退场（`content/catalog_legacy.py:GAPS`
+    #   登记为缺口），功能本身也已在 `content/class_sets.py:83` 标注「已废弃」；
+    #   **包内无该真源**（不造数据）。P3 二选一取「测试改读包内真源」：毕业套武器在
+    #   v53.1 之后就是 `CRAFT_RECIPES` 里的武器配方（见上一段 v53.1 注释），同一口径
+    #   落到**现役真源**上。
     WHITE_PREFIX = set(C.EQUIP_NAME_PREFIX["white"])
-    clash = []
-    for cid, theme in C.CLASS_SET_THEMES.items():
-        w0 = theme["weapons"][0]
-        if any(w0.startswith(p) for p in WHITE_PREFIX):
-            clash.append((theme.get("name"), w0))
-    check("阶段1 武器名无粗制/陈旧等白装前缀", not clash, str(clash))
-    # 毕业套武器配方全部存在且唯一（防同名牌双配方）
-    from collections import Counter
-    name_cnt = Counter()
-    for cid, theme in C.CLASS_SET_THEMES.items():
-        for w in theme["weapons"]:
-            name_cnt[w] += 1
-    dup = {n: c for n, c in name_cnt.items() if c > 1}
-    check("毕业套武器名无重复", not dup, str(dup))
+    weapon_names = [r.get("name") for r in C.CRAFT_RECIPES.values()
+                    if r.get("slot") == "weapon"]
+    clash = sorted({w for w in weapon_names
+                    if w and any(w.startswith(p) for p in WHITE_PREFIX)})
+    check("武器配方名无粗制/陈旧等白装前缀", not clash, str(clash[:5]))
+    # 原第 2 条「毕业套武器名无重复」随该表退场：现役 128 条武器配方里有 7 组
+    # **同显示名、不同 key** 的档位/名册配对（`rec_gu_wang_jian` / `rec_gu_wang_jian_zhen`
+    # 等，按设计允许），故「族内唯一」口径**不可**平移到全量真源（平移会引入 7 条假红）。
+    # 改为同类可判定的现役不变量：武器配方名必须齐备。
+    check("武器配方名齐备（128 条全非空）",
+          len(weapon_names) >= 100 and all(weapon_names),
+          str([k for k, r in C.CRAFT_RECIPES.items()
+               if r.get("slot") == "weapon" and not r.get("name")][:5]))
 
     print("【data·物品族：炼金/附魔】")
     check("ALCHEMY_RECIPES 非空", len(C.ALCHEMY_RECIPES) > 0, str(len(C.ALCHEMY_RECIPES)))

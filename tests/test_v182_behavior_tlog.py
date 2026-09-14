@@ -58,7 +58,15 @@ def t2_probes_present():
     probes = {
         "掉落": ("game/reward.py", 'emit("drop.grant"'),
         "商店买入": ("game/services/shop.py", 'emit("shop.buy"'),
-        "副本通关": ("game/commands/instance_router.py", 'emit("instance.clear"'),
+        # ★ PFIX P7（2026-09-15）：副本通关埋点**随实现整块进包** ——
+        #   `framework/games/orlandia/content/cmds_instance_router.py:643` 经包内唯一取用口
+        #   `obs.emit("instance.clear", …)`；宿主 `game/commands/instance_router.py` 已退化为
+        #   「`@declared` 注册 + 一行转发」薄壳（不含 emit 调用点），且宿主壳正被 B4 清理
+        #   ⇒ 按作业书「优先测试侧改扫包内实现」，断言改扫**包内实现**。
+        #   （前两处宿主文件各留了字面量指针常量 `_SRC_PROBES` / `_TLOG_PROBE_POINTER`
+        #     才能继续扫宿主；本条**不往宿主补指针**，避免与 B4 删壳撞车。）
+        "副本通关": ("framework/games/orlandia/content/cmds_instance_router.py",
+                     'obs.emit("instance.clear"'),
     }
     for label, (rel, needle) in probes.items():
         p = os.path.join(root, rel)

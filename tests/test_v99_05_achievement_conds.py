@@ -16,6 +16,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db  # noqa: F401
 from data.plugins.dragonfall.game.core import achievement_conds as AC
 from data.plugins.dragonfall.game.core.achievements import cond_met
+# ★ PFIX P5（2026-09-15）：打桩面 = **实现本体**。
+#   条件实现（`content/achievement_conds.py`）读的是包内存储层 `content/_pkgref.DB`
+#   （= `content.persistence`）；conftest 的 `db` 是宿主 `game/db.py`（`game/store/**`
+#   对包内实现的**拷贝壳**）⇒ 改写 `db.get_quests` / `db.count_item` 只落在宿主命名空间，
+#   包内实现读自己的绑定 ⇒ 静默 no-op（与 P1 同型缺陷，且 PATCHAUDIT 的哨兵看不见：
+#   它扫的是「宿主**模块名**的改写」，`db` 是从 conftest 拿来的别名）。
+#   故这里把桩打到实现本体的同名函数上（与 test_v97_05 的 P1 修法同口径）。
+import content.persistence as _PDB  # noqa: E402  包内存储层（实现本体）
 
 PASS = 0
 FAIL = 0
@@ -89,21 +97,21 @@ check("无 group_id 时 quest_done 保持旧行为（False）",
 check("无 group_id 时 item_has 保持旧行为（False）",
       cond_met(player, stats, profs, extra, {"type": "item_has", "key": "eq_starfall_sword"}) is False)
 _extra2 = {}
-_db_orig_quests = db.get_quests
-db.get_quests = lambda gid, qq: {"side": {"s_hidden_ember": {"status": "done"}, "s_hidden_library": {"status": "active"}}}
+_db_orig_quests = _PDB.get_quests
+_PDB.get_quests = lambda gid, qq: {"side": {"s_hidden_ember": {"status": "done"}, "s_hidden_library": {"status": "active"}}}
 check("quest_done：side status=done 解锁", cond_met(player, stats, profs, _extra2, {"type": "quest_done", "key": "s_hidden_ember"}, "g1") is True)
 check("quest_done：side status=active 不解锁", cond_met(player, stats, profs, _extra2, {"type": "quest_done", "key": "s_hidden_library"}, "g1") is False)
 check("quest_done：未知任务不解锁", cond_met(player, stats, profs, _extra2, {"type": "quest_done", "key": "s_unknown"}, "g1") is False)
-db.get_quests = _db_orig_quests
-_db_orig_count = db.count_item
-db.count_item = lambda gid, qq, name: 1 if name == "星陨之剑" else 0
+_PDB.get_quests = _db_orig_quests
+_db_orig_count = _PDB.count_item
+_PDB.count_item = lambda gid, qq, name: 1 if name == "星陨之剑" else 0
 check("item_has：背包持有解锁", cond_met(player, stats, profs, _extra2, {"type": "item_has", "key": "eq_starfall_sword"}, "g1") is True)
-db.count_item = lambda gid, qq, name: 0
+_PDB.count_item = lambda gid, qq, name: 0
 _p2 = dict(player); _p2["equipment"] = {"weapon": {"name": "星陨之剑"}}
 check("item_has：已装备解锁", cond_met(_p2, stats, profs, _extra2, {"type": "item_has", "key": "eq_starfall_sword"}, "g1") is True)
 check("item_has：都没有不解锁", cond_met(player, stats, profs, _extra2, {"type": "item_has", "key": "eq_starfall_sword"}, "g1") is False)
 check("extra 副本注入不污染调用方", "_group_id" not in _extra2)
-db.count_item = _db_orig_count
+_PDB.count_item = _db_orig_count
 
 # ============ 4. 全覆盖 ============
 print("【4. 数据覆盖检查】")

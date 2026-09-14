@@ -32,16 +32,9 @@ async def main():
     # （23:00-05:00 跑全量时 rule_explore_ghost 的 cond time=deep_night 满足，
     #   seed(1) 下 chance 0.18 命中 → "第 1 次空探索不触发"误判失败）
     #
-    # ★ PATCHAUDIT 修复（只改测试）：实现已进包（content/rule_engine.py；宿主
-    #   game/core/rule_engine.py 只是同名单**拷贝壳**，`_is_time = _pkg._is_time` 是
-    #   import 期引用拷贝）。原写法 `RE._is_time = …` 打在宿主壳命名空间上，包内
-    #   `_match_cond → _time_check` 读的是包内模块自己的绑定 ⇒ 该赋值是**静默 no-op**
-    #   ⇒ 深夜 rule_explore_ghost（cond time=deep_night, chance 0.18）真的触发 ⇒
-    #   本测试夜间必红、白天全绿。改为直接改写**包内那个名字**；测试原意
-    #   （把时钟钉死为白天、排除真实时钟影响）一字不变。
-    import content.rule_engine as _PKG_RE
-    import data.plugins.dragonfall.game.core.rule_engine as RE  # noqa: F401  保持 import 契约
-    _PKG_RE._is_time = lambda span: span == "day"
+    # ★ PFIX P1「改前」复现态 = 真仓原始写法：只改写**宿主模块属性**（拷贝壳）。
+    import data.plugins.dragonfall.game.core.rule_engine as RE
+    RE._is_time = lambda span: span == "day"
     # W10：改读包内门面（真源 = content/rules/game_config.json 的 rules 组；W12 收口）
     #   逐字节（键序敏感）与 game/data/rules.py:RULES 相等，且 content.rule_engine._rules() 同源
     from content.catalog_b143 import RULES

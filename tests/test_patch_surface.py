@@ -20,8 +20,10 @@ B1/B2 把大量实现从宿主壳搬进内容包。实现的**命名空间变了
 ## 有牙自证
 
 `--self-test` / 模块级 `_self_test()`：在**内存副本**里注入一条已知失效改写
-（`game.core.rule_engine._is_time = …`，实现已在包内且桥不自指到宿主）→ 必须报红；
-再注入一条已知有效改写（`game.core.wild.current_period = …`，别名壳）→ 必须不报红。
+（`game.content_rules.panel.skill_info = …`，实现已在包内且包内自持该名）→ 必须报红；
+再注入一条已知有效改写（`game.core.wild.current_period = …`，别名壳）→ 必须不报红；
+以及 P1 修好的时段桥（`game.core.rule_engine._is_time = …` → `effective_bridge`，
+防"改回自指桥"的回归）。
 
 用法：
     python tests/test_patch_surface.py            # 正常门禁（exit=0 通过）
@@ -255,31 +257,36 @@ def classify(hit: dict) -> tuple[str, str]:
 
     # 3) 进了包：看包内实现有没有「经宿主命名空间取件」的读点
     cname, cpkg = pkg_impl
-    # 3a) 包内模块里直接对宿主模块的取件（`import game.x` / `game.x.name` / importlib 拉宿主）
     try:
-        csrc = open(cpkg.__file__, encoding="utf-8").read()
+        csrc = open(cpkg.__file__, encoding="utf-8-sig").read()
     except OSError:
         csrc = ""
-    host_refs = [ln for ln in csrc.splitlines()
-                 if ("import game" in ln or "from game" in ln
-                     or "data.plugins.dragonfall" in ln)]
-    # 3b) 惰性桥函数（_src/_host_attr/取件 lambda）也吃宿主命名空间
-    has_lazy_bridge = ("_HOST_ATTR" in csrc or "_src(" in csrc or "_host_attr" in csrc
-                       or "bind_spec_path" in csrc or "_HostMod" in csrc
-                       or "_HostAttr" in csrc)
+    # 3a) 包内实现对宿主模块的**真实 import**（AST；注释/文档字符串不算）
+    host_refs = _host_import_lines(cpkg)
+    # 3b) ★ PFIX P1：**点名取件** = 包内实现显式按这个名字去宿主命名空间取件
+    #     （`_host_attr("core.rule_engine", "_is_time")` / `_src("current_season")` / …）。
+    #     这才是「该名字的宿主壳改写会被看见」的强证据。
+    #     旧判定只问「模块里有没有 `_host_attr` 这个标识符」—— 只要模块**定义了**取件口
+    #     （哪怕本次收口后根本没被这个符号调用），整模块的改写就一律放行 ⇒
+    #     P1 修好后再退回自指桥（回归）哨兵**看不见**（实测：本线反证轮仍报 ✅）。
+    fetched = _host_fetch_names(cpkg)
+    named_fetch = name in fetched
     # 3c) 宿主壳是否把取件绑成「调用时求值」的 lambda（如 texts.bind_spec_path）
     host_src = ""
     if f and os.path.exists(f):
         try:
-            host_src = open(f, encoding="utf-8").read()
+            host_src = open(f, encoding="utf-8-sig").read()
         except OSError:
             pass
     host_call_time = ("lambda: " + name) in host_src or ("source=lambda" in host_src)
 
-    if has_lazy_bridge or host_call_time:
-        return "effective_bridge", "包内实现经惰性桥/调用时取件读宿主命名空间"
+    if named_fetch:
+        return "effective_bridge", (f"包内实现按名字经宿主命名空间取件"
+                                    f"（{_fetch_evidence(cpkg, name)}）")
+    if host_call_time:
+        return "effective_bridge", "宿主壳把该名绑成调用时求值的 lambda（如 bind_spec_path）"
     if host_refs:
-        return "effective_bridge", f"包内实现有宿主取件行（{host_refs[0].strip()[:60]}）"
+        return "effective_bridge", f"包内实现有宿主 import 行（{host_refs[0].strip()[:60]}）"
 
     # 4) 既进了包、包内又自持该名字 ⇒ 宿主改写是静默 no-op
     #    双重确认：包内实现里确实有这个全局名（否则是"名字只存在于宿主"的另一类）
@@ -287,6 +294,95 @@ def classify(hit: dict) -> tuple[str, str]:
         return "dead_noop", (f"实现已进包 {cname}，包内自持 `{name}`，"
                              f"宿主壳改写只在宿主命名空间 ⇒ 静默 no-op")
     return "effective_host_native", f"包内 {cname} 无 `{name}` 读点（宿主自用）"
+
+
+_FETCH_CALLS = {"_host_attr", "_host_attrs", "_src", "_host_module",
+                "_loaded_host_module", "_HostMod", "_HostAttr", "lazy_module",
+                "bind_spec_path"}
+
+
+def _pkg_ast(mod):
+    try:
+        return ast.parse(open(mod.__file__, encoding="utf-8-sig").read())
+    except (OSError, SyntaxError, TypeError, AttributeError):
+        return None
+
+
+def _host_fetch_names(mod) -> set:
+    """包内实现**显式点名**从宿主取件的符号名（AST 字符串实参）。
+
+    例：`_host_attr("core.rule_engine", "_is_time")` → {"core.rule_engine", "_is_time"}；
+        `_src("current_season")()` → {"current_season"}。
+    只有这种「点名」才算「该符号的宿主壳改写会被实现看见」的强证据。
+    """
+    names: set = set()
+    tree = _pkg_ast(mod)
+    if tree is None:
+        return names
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        fn = node.func
+        cname = (fn.attr if isinstance(fn, ast.Attribute)
+                 else fn.id if isinstance(fn, ast.Name) else None)
+        if cname not in _FETCH_CALLS:
+            continue
+        for a in list(node.args) + [k.value for k in node.keywords]:
+            if isinstance(a, ast.Constant) and isinstance(a.value, str):
+                names.add(a.value)
+    return names
+
+
+def _fetch_evidence(mod, name: str) -> str:
+    """给点名取件找一行源码原文（证据可读）。"""
+    tree = _pkg_ast(mod)
+    if tree is None:
+        return "AST 不可解析"
+    try:
+        lines = open(mod.__file__, encoding="utf-8-sig").read().splitlines()
+    except OSError:
+        lines = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        fn = node.func
+        cname = (fn.attr if isinstance(fn, ast.Attribute)
+                 else fn.id if isinstance(fn, ast.Name) else None)
+        if cname not in _FETCH_CALLS:
+            continue
+        consts = [a.value for a in node.args
+                  if isinstance(a, ast.Constant) and isinstance(a.value, str)]
+        if name in consts:
+            ln = node.lineno - 1
+            if 0 <= ln < len(lines):
+                return lines[ln].strip()[:80]
+    return f"{name} ∈ 点名取件"
+
+
+def _host_import_lines(mod) -> list:
+    """包内实现对宿主模块的**真实 import** 行（AST；注释/文档字符串不算）。"""
+    out: list = []
+    tree = _pkg_ast(mod)
+    if tree is None:
+        return out
+    try:
+        lines = open(mod.__file__, encoding="utf-8-sig").read().splitlines()
+    except OSError:
+        lines = []
+
+    def _is_host(dotted: str) -> bool:
+        return (dotted == "game" or dotted.startswith("game.")
+                or dotted.startswith("data.plugins.dragonfall"))
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(_is_host(al.name) for al in node.names):
+                out.append(lines[node.lineno - 1] if node.lineno - 1 < len(lines) else "")
+        elif isinstance(node, ast.ImportFrom):
+            mod_name = ("." * (node.level or 0)) + (node.module or "")
+            if node.level == 0 and _is_host(mod_name):
+                out.append(lines[node.lineno - 1] if node.lineno - 1 < len(lines) else "")
+    return out
 
 
 def run(tests_dir: str, verbose: bool = True) -> tuple[int, list[dict], list[dict]]:
@@ -321,13 +417,23 @@ def _self_test(tests_dir: str) -> int:
     print("PATCHAUDIT 哨兵自检（有牙反证 / 不误报）")
     print("=" * 74)
     fails = 0
-    # 已知失效：rule_engine 实现在包内且不自指宿主
-    dead = {"rel": "<synth>", "line": 0, "module": "game.core.rule_engine",
-            "name": "_is_time", "src": "RE._is_time = lambda span: span == 'day'"}
+    # 已知失效：panel 实现在包内（拷贝壳），包内自持 `skill_info` 且无宿主取件代码。
+    # ★ PFIX P1（2026-09-15）：原样例 `game.core.rule_engine::_is_time` 已**修好**
+    #   （包内 `_time_check()` 改成调用时取件 ⇒ 该改写现在真的有效，判定为 effective_bridge）。
+    #   哨兵的有牙自证必须锚在**仍然失效**的样例上，故改用 `content_rules.panel::skill_info`。
+    dead = {"rel": "<synth>", "line": 0, "module": "game.content_rules.panel",
+            "name": "skill_info", "src": "P.skill_info = lambda *a: None"}
     v, ev = classify(dead)
     ok = (v == "dead_noop")
-    print(f"  {'✅' if ok else '❌'} 合成失效改写（rule_engine._is_time）→ {v}  {ev}")
+    print(f"  {'✅' if ok else '❌'} 合成失效改写（content_rules.panel::skill_info）→ {v}  {ev}")
     fails += 0 if ok else 1
+    # 已知有效：rule_engine 的时段桥（P1 修好后 = 调用时取件；防"修回自指桥"回归）
+    bridge = {"rel": "<synth>", "line": 0, "module": "game.core.rule_engine",
+              "name": "_is_time", "src": "RE._is_time = lambda span: span == 'day'"}
+    vb, evb = classify(bridge)
+    okb = (vb == "effective_bridge")
+    print(f"  {'✅' if okb else '❌'} 合成有效桥（rule_engine._is_time，P1 已修）→ {vb}  {evb}")
+    fails += 0 if okb else 1
     # 已知有效：wild 是别名壳
     live = {"rel": "<synth>", "line": 0, "module": "game.core.wild",
             "name": "current_period", "src": "W.current_period = lambda: 'day'"}

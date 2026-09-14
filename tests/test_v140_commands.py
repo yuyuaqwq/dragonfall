@@ -78,9 +78,21 @@ def test_title_grant():
     if q:
         check("q1_6 带 title 字段", q.get("title") in ("iron_adventurer", "铁牌冒险者")
               or "铁牌" in str(q.get("title", "")), str(q.get("title")))
-    # quest_add_v140 里也有
-    qa = C.QUEST_ADD.get("q1_6") or {}
-    check("QUEST_ADD q1_6 有 title", qa.get("title") == "铁牌冒险者", str(qa))
+    # ★ PFIX P3：`C.QUEST_ADD`（旧 `game/data/quest_add_v140.py`）随 B14 `90fc06b`
+    #   「删宿主 game/data 87 文件」退场（`content/catalog_legacy.py:GAP_REASON` 记录
+    #   「宿主 data 子模块句柄（随 data 消失；实测无真读点）」），包内无该真源，
+    #   也不造数据。P3 二选一取「测试改读包内真源」：
+    #     · q1_6 的 v140 称号真源 = `content/catalog_quests.MAIN_QUESTS` 的 `title` 字段
+    #       （id `iron_adventurer`；上面第 1 条 check 读的 C.MAIN_QUESTS 与它同源）；
+    #     · 称号条件真源 = `content/title_conds.py::_t_iron_adventurer`（`@register`）。
+    from content.catalog_quests import MAIN_QUESTS as _MAIN_QUESTS
+    from content import title_conds as _TC
+    qa = next((x for x in _MAIN_QUESTS if x.get("id") == "q1_6"), None) or {}
+    check("包内真源 q1_6 的 title = iron_adventurer（v140 铁牌冒险者）",
+          qa.get("title") == "iron_adventurer", str(qa))
+    _conds = getattr(_TC, "CONDITIONS", {}) or {}
+    check("包内真源注册了 iron_adventurer 称号条件（铁牌冒险者）",
+          "iron_adventurer" in _conds, str(sorted(_conds)[:8]))
 
 def test_supply_box_data():
     print("【5. 补给箱数据完整性】")

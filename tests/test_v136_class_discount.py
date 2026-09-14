@@ -5,12 +5,15 @@
 """
 import conftest  # noqa: F401  (GWEN_GAME_DB + qqbot path)
 
-# ⚠️ 必须与下面的 `C` 用**同一模块树**（包式）：panel 读的是自己树的 SETS，
-# 混用裸式（`game.…`）会让本测试注入的 C.SETS 条目对 panel 不可见。
+# ★ PFIX P6（2026-09-15）：**注入面 = 实现本体的那只字典**。
+#   `content/panel.py::_set_info()` 读的是**包内门面** `content/tables.SETS`
+#   （原文 `from .. import content as C` 已随 D3 面板批次改成 `from . import tables`）。
+#   宿主聚合层 `game.content.SETS` 已**不是**同一只字典 —— 实测 `is` → False
+#   （两份各 92 条）⇒ 往 C.SETS 注入对 panel **不可见**（静默 no-op，与 P1 同型）。
+#   故这里改成注入 `content.tables.SETS`；两个夹具同时改用**唯一名**，让断言真的
+#   打在夹具上（旧夹具名「铁皮套」与真实套装同名，注入被真实条目遮蔽 ⇒ 测试靠巧合变绿）。
 from data.plugins.dragonfall.game.content_rules.panel import set_bonus_2, active_sets
-# B16 收口：宿主 game/data 已删（`game.data.SETS` 不存在）—— panel 读的是**宿主聚合层**
-# `game.content` 上的 C.SETS，故这里取同一棵树上的同一只字典（注入才被 panel 看见）
-from data.plugins.dragonfall.game import content as C
+import content.tables as _T   # noqa: E402  包内门面（panel 的 SETS 取数面）
 
 
 def _mk_equip(set_name: str, n: int) -> dict:
@@ -24,9 +27,9 @@ def _mk_equip(set_name: str, n: int) -> dict:
 
 def test_class_discount_full():
     """本职业穿战士套 = 100%，法师穿战士套 = 60%。"""
-    # 构造一个带 class 字段的战士套装
-    set_name = "铁皮套"
-    C.SETS["set_tie_pi_test"] = {
+    # 构造一个带 class 字段的战士套装（唯一夹具名：不与真实套装同名）
+    set_name = "P6铁皮套夹具"
+    _T.SETS["set_tie_pi_p6fix"] = {
         "name": set_name,
         "class": "cls_zhan_shi",
         "bonus_2": {"atk": 0.08, "def": 0.08},
@@ -57,8 +60,8 @@ def test_class_discount_full():
 
 def test_class_discount_no_class_field():
     """无 class 字段的旧套装不打折。"""
-    set_name = "寒霜套"
-    C.SETS["set_han_shuang_test"] = {
+    set_name = "P6寒霜套夹具"
+    _T.SETS["set_han_shuang_p6fix"] = {
         "name": set_name,
         "bonus_2": {"spd": 0.15},
     }
@@ -69,8 +72,8 @@ def test_class_discount_no_class_field():
 
 def test_class_discount_effect_not_discounted():
     """effect 型 bonus_2 不打折（机制向）。"""
-    set_name = "血誓战团"
-    C.SETS["set_xue_shi_test"] = {
+    set_name = "P6血誓夹具"
+    _T.SETS["set_xue_shi_p6fix"] = {
         "name": set_name,
         "class": "cls_zhan_shi",
         "bonus_2": {"effect": "res_gain", "res": "rage", "value": 1, "on": "on_taken"},

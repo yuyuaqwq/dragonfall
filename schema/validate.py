@@ -20,7 +20,9 @@
 * 「违规 (= errors)」决定 exit code；「提醒 (= warnings)」只进报告不拦门禁。
   跨表引用完整性：闭合集（词条池→词条、怪技能→技能表、掉落名→物品名、名册图纸→名册 id）
   记为 error，需要人工判断的（被动 proc 双注册表、机制名归属）记为 warning。
-* 只读 game/data/**；不 import 引擎（game/core、game/battle2）——那两个目录在并行重构中。
+* 取数 = **包内域/门面**（`framework/games/orlandia/content/**`）；不 import 引擎业务
+  （`game/core`、`game/battle2`）。★ PFIX P4：`90fc06b` 删掉宿主 `game/data/**` 后，
+  原来的 `game.data.*` 取数口已改为包内门面（`_import_data()` 段有逐名对账说明）。
 """
 from __future__ import annotations
 
@@ -187,15 +189,83 @@ def validate_instance(instance, doc: dict, def_name: str):
 
 
 # ------------------------------------------------------------------- data import
+# ★ PFIX P4（2026-09-15）：取数口从「宿主 `game.data.**`」改成「**包内域/门面**」。
+#   `90fc06b`（B14 开关：删宿主 game/data 87 文件）之后，原 `_import_data()` 的
+#   `import game.data.skills` 等一律 ModuleNotFoundError ⇒ `validate_all()` 走
+#   `import_error` 分支早退（门禁假红、五个域一条都没验）。本段只换**取值来源**，
+#   校验/跨表/基线口径一字未改；逐名对账（legacy 名 → 包内家）见 `out/W-PFIX.md §P4`。
+class _Domain:
+    """`game.data.<X>` 的替身：只暴露同名属性（值 = 包内域/门面）。"""
+
+    def __init__(self, legacy: str, **attrs):
+        self.__dict__.update(attrs)
+        self._legacy = legacy
+
+    def __repr__(self):
+        return "<pkg-domain shim %s (%d attrs)>" % (
+            self._legacy, len(self.__dict__) - 1)
+
+
+_PKG_DIR = os.path.join(ROOT, "framework", "games", "orlandia")   # 内容包根（`content`）
+_ENGINE_DIR = os.path.join(ROOT, "framework")                      # 引擎根（`saintess_engine`）
+for _p in (_PKG_DIR, _ENGINE_DIR):
+    if os.path.isdir(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
+
+
+def _read_content_json(*parts):
+    """读包内 `content/<parts>` JSON（缺文件 / 坏 JSON → `{}`，不抛；与 `content/tables.py` 同款）。"""
+    try:
+        with open(os.path.join(_PKG_DIR, "content", *parts), encoding="utf-8") as f:
+            return json.load(f) or {}
+    except (OSError, ValueError):
+        return {}
+
+
 def _import_data():
-    import importlib
-    mods = {}
-    for name in ("game.data.skills", "game.data.affixes", "game.data.items",
-                 "game.data.monsters", "game.data.subareas", "game.data.instances",
-                 "game.data.hidden_monsters", "game.data.battle_rules",
-                 "game.data.classes", "game.data.equip_roster"):
-        mods[name] = importlib.import_module(name)
-    return mods
+    """返回 10 个 legacy `game.data.<X>` 名的替身（属性取包内域/门面）。"""
+    from content import (catalog_b143, catalog_core, catalog_items, catalog_quests,
+                         catalog_rules, catalog_space)
+    from content.mech import class_data as _mcd
+    from content.mech import params as _mp
+    return {
+        "game.data.skills": _Domain(
+            "skills",
+            PLAYER_SKILLS=catalog_core.PLAYER_SKILLS,
+            BRANCH_SKILLS=catalog_core.BRANCH_SKILLS,
+            TUTOR_SKILLS=catalog_core.TUTOR_SKILLS),
+        "game.data.subareas": _Domain("subareas", SUBAREAS=catalog_space.SUBAREAS),
+        "game.data.instances": _Domain("instances", INSTANCES=catalog_space.INSTANCES),
+        "game.data.monsters": _Domain(
+            "monsters",
+            MONSTER_SKILLS=catalog_quests.MONSTER_SKILLS,
+            ELITE_EQUIP_DROP=catalog_quests.ELITE_EQUIP_DROP),
+        "game.data.hidden_monsters": _Domain(
+            "hidden_monsters", HIDDEN_MONSTERS=catalog_b143.HIDDEN_MONSTERS),
+        "game.data.affixes": _Domain(
+            "affixes",
+            AFFIXES=catalog_items.AFFIXES,
+            AFFIX_POOL_BY_QUALITY=catalog_b143.AFFIX_POOL_BY_QUALITY,
+            # `AFFIX_KIND`：包内**无**该表（`content/catalog_legacy.py:GAPS` 登记；
+            # 宿主原表 `game/data/affixes.py:AFFIX_KIND` 随 `90fc06b` 删除）——
+            # 读包内同名 JSON（不存在 ⇒ 空表：不报错，也不假装验过）。缺口已登记。
+            AFFIX_KIND=_read_content_json("rules", "affix_kind.json"),
+            AFFIX_AFFINITY_POOLS=catalog_rules.AFFIX_AFFINITY_POOLS),
+        "game.data.items": _Domain("items", ITEMS=catalog_items.ITEMS),
+        "game.data.equip_roster": _Domain(
+            "equip_roster",
+            EQUIP_ROSTER=catalog_items.EQUIP_ROSTER,
+            EQUIP_ROSTER_BY_NAME=catalog_items.EQUIP_ROSTER_BY_NAME),
+        "game.data.battle_rules": _Domain(
+            "battle_rules",
+            # `PASSIVE_PROC` 真源 = 包内 `content/rules/passive_proc.json`
+            # （与 `content/mech/class_mech.py::_passive_proc_rules()` 同源同读法）
+            PASSIVE_PROC=_read_content_json("rules", "passive_proc.json"),
+            EFFECT_RULES=catalog_rules.EFFECT_RULES,
+            MECH_CASH=_mcd.MECH_CASH,
+            EFFECT_ACTIONS=_mp.EFFECT_ACTIONS),
+        "game.data.classes": _Domain("classes", CLASSES=catalog_core.CLASSES),
+    }
 
 
 # --------------------------------------------------------------------- collectors
