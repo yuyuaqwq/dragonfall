@@ -4,23 +4,40 @@
 命令处理器已按领域拆至 game/commands/（Mixin 模式）：
   PlayerCmds / WorldCmds / CombatCmds / EconomyCmds / SocialCmds / MiscCmds
 本文件只保留：插件生命周期 + 后台任务 + Mixin 装配。
+
+★ R3（2026-09-15）：AstrBot 指令注册**改为宿主驱动**
+----------------------------------------------------
+指令注册不再依赖 `game/commands/**` 的 `@declared` 装饰器（那份是待删树），
+而由宿主 `host/registration.py` 从**包内声明表**（引擎 `Package.command_declarations()`）
+逐条注册（`register_commands()`，在 `AstrMain.__init__` 装配）。见 out/W-R3.md：
+删掉 `game/commands/**` 后 import 仍通过、但注册 194 → 0 的静默哑掉态由本批关闭。
+
+`Main`（Mixin 汇编）与 `_fix_handler_module_paths()` 是**过渡态遗留**：测试侧
+`tests/conftest.py` 仍取 `main.Main`（P5D 正在改口到 `tests/_engine_harness.py`），
+删壳（P5C）后本文件这两处一并消失。`_LEGACY_SHELLS=False` 时（删壳预演/终态）
+本文件照样能 import、能注册、能跑命令。
 """
 import glob
-import re
 import threading
 import logging
 
 from astrbot.api import star  # 仅 AstrMain 壳需要（生产命中真实 astrbot；测试命中 tests/shim_astrbot）
 
 from .game import db
-from .game.commands import (
-    PlayerCmds, WorldCmds, CombatCmds, EconomyCmds, SocialCmds, MiscCmds,
-    InstanceCmds, GmCmds, ExplorationCmds,  # v115 探索进度指令
-    JobGuideCmds,  # v130.2g 『职业』速查指令
-    CollectionCmds,  # v140 波2 『收藏册』指令
-    WeeklyCmds, TowerCmds,  # v169.2 周常悬赏『周常』/修炼爬塔『爬塔』
-    EventMenuCmds,  # v140 波3.7 『今日事件/事件』指令
-)
+
+#: 过渡态遗留壳是否在位（删壳预演 / P5C 终态 = False）。**只在删壳预演时才会 False**。
+try:
+    from .game.commands import (
+        PlayerCmds, WorldCmds, CombatCmds, EconomyCmds, SocialCmds, MiscCmds,
+        InstanceCmds, GmCmds, ExplorationCmds,  # v115 探索进度指令
+        JobGuideCmds,  # v130.2g 『职业』速查指令
+        CollectionCmds,  # v140 波2 『收藏册』指令
+        WeeklyCmds, TowerCmds,  # v169.2 周常悬赏『周常』/修炼爬塔『爬塔』
+        EventMenuCmds,  # v140 波3.7 『今日事件/事件』指令
+    )
+    _LEGACY_SHELLS = True
+except ImportError:                                            # 删壳预演 / 终态
+    _LEGACY_SHELLS = False
 
 
 def _fix_handler_module_paths():
@@ -45,6 +62,13 @@ def _fix_handler_module_paths():
     注册表同步校验（P3）差集日志。
     """
     _LOGGER = logging.getLogger(__name__)
+    if not _LEGACY_SHELLS:
+        # 删壳预演 / 终态：旧壳树已不在 —— 注册由 host/registration.py 驱动，
+        # 注册出来的 handler 的 __module__ 本来就是本模块（无需改写）。
+        _LOGGER.info(
+            "过渡态遗留壳不在位（删壳预演/终态）：跳过旧路径 handler 路径改写；"
+            "AstrBot 指令注册由 host/registration.py 驱动。")
+        return
     try:
         from astrbot.core.star.star_handler import star_handlers_registry
 
@@ -125,7 +149,10 @@ def _weekly_reward_selfcheck():
         raise
 
 
-_weekly_reward_selfcheck()
+if _LEGACY_SHELLS:
+    # 过渡态：旧壳 import 期已经跑过包 bootstrap（宿主注入面 bind_host 已扇出），
+    # 与 P5′ 1.0b 的口径一致；终态（旧壳不在位）由 register_commands() 在装配期调同一次自检。
+    _weekly_reward_selfcheck()
 
 
 # ---- v92 文件转发体验通道 ----
@@ -305,53 +332,62 @@ def _event_state_cleanup_once():
         )
 
 
-class Main(
-    PlayerCmds,
-    WorldCmds,
-    CombatCmds,
-    EconomyCmds,
-    SocialCmds,
-    MiscCmds,
-    InstanceCmds,
-    GmCmds,
-    ExplorationCmds,  # v115 探索进度指令
-    JobGuideCmds,  # v130.2g 『职业』速查指令
-    CollectionCmds,  # v140 波2 『收藏册』指令
-    WeeklyCmds, TowerCmds,  # v169.2 周常悬赏『周常』/修炼爬塔『爬塔』
-    EventMenuCmds,  # v140 波3.7 『今日事件/事件』指令
-):
-    """奥兰迪亚·余烬纪年核心游戏类（v117.5 起平台无关，不再继承 astrbot star.Star）。
+if _LEGACY_SHELLS:
 
-    astrbot 接入由文件末尾 AstrMain 壳完成（命令装饰器经 game/commands/_platform
-    双注册进 astrbot 注册表；本类零 astrbot 依赖）。迁移到其他平台：
-    把 game/ 包 + 本类搬走，另写目标平台的薄壳即可。
-    """
+    class Main(
+        PlayerCmds,
+        WorldCmds,
+        CombatCmds,
+        EconomyCmds,
+        SocialCmds,
+        MiscCmds,
+        InstanceCmds,
+        GmCmds,
+        ExplorationCmds,  # v115 探索进度指令
+        JobGuideCmds,  # v130.2g 『职业』速查指令
+        CollectionCmds,  # v140 波2 『收藏册』指令
+        WeeklyCmds, TowerCmds,  # v169.2 周常悬赏『周常』/修炼爬塔『爬塔』
+        EventMenuCmds,  # v140 波3.7 『今日事件/事件』指令
+    ):
+        """奥兰迪亚·余烬纪年核心游戏类（v117.5 起平台无关，不再继承 astrbot star.Star）。
 
-    def __init__(self, context=None) -> None:
-        self.context = context
-        # v101.28q：记录主事件循环——loopback worker 线程里的 handler 执行必须提交到主 loop，
-        # 否则 await Quart websocket（aiocqhttp bot API）会跨 loop 挂死（gm_窥探 投递卡住的根因）
-        try:
-            self._main_loop = asyncio.get_event_loop()
-        except RuntimeError:
-            self._main_loop = None
-        # v93 修复：仅真实 AstrBot 实例注册回环通道（测试脚本 Main(None) 会覆盖类变量 → 通道查 test 库）
-        if context is not None:
-            Main._loopback_instance = self  # v92: 文件转发通道拿当前实例
-        db.init_db()
-        # ★ P5′ 1.0b：周常发奖注入面启动自检（幂等；缺注入 → 当场报错，绝不静默不发奖）
-        _weekly_reward_selfcheck()
-        # v104 M24 P2-5：启动时清理流失玩家残留 event_state 键（幂等，见 _event_state_cleanup_once）
-        _event_state_cleanup_once()
-        # v92: 文件转发体验通道——后台线程监控命令文件，
-        # 在 AstrBot 进程内把命令转发给游戏引擎（真实 handler 链路），结果写回文件。
-        # 用途：格温（Hermes）写 playthrough_cmd.txt → 进程内执行 → playthrough_out.txt 读结果，
-        # 绕开跨进程 sqlite 锁竞争，以玩家身份逐条体验完整流程。
-        # v94.1 修复：仅真实 AstrBot 实例启动 worker——测试脚本 Main(None) 若启动 worker，
-        # 会抢走回环指令并在测试进程里报"未找到 Main 实例"（与 #40 同类问题）。
-        if context is not None:
-            _file_loopback_start()
-        # v36: 广播任务已停用（意见改为 cron 汇总报告给鱼鱼，不回复玩家）
+        astrbot 接入由文件末尾 AstrMain 壳完成（命令装饰器经 game/commands/_platform
+        双注册进 astrbot 注册表；本类零 astrbot 依赖）。迁移到其他平台：
+        把 game/ 包 + 本类搬走，另写目标平台的薄壳即可。
+
+        ★ R3：本类是**过渡态遗留**（P5C 删除）——生产分发已改由 `host/registration.py`
+        驱动的引擎通道承担；测试侧 `tests/conftest.py` 仍取本类（P5D 改口中）。
+        """
+
+        def __init__(self, context=None) -> None:
+            self.context = context
+            # v101.28q：记录主事件循环——loopback worker 线程里的 handler 执行必须提交到主 loop，
+            # 否则 await Quart websocket（aiocqhttp bot API）会跨 loop 挂死（gm_窥探 投递卡住的根因）
+            try:
+                self._main_loop = asyncio.get_event_loop()
+            except RuntimeError:
+                self._main_loop = None
+            # v93 修复：仅真实 AstrBot 实例注册回环通道（测试脚本 Main(None) 会覆盖类变量 → 通道查 test 库）
+            if context is not None:
+                Main._loopback_instance = self  # v92: 文件转发通道拿当前实例
+            db.init_db()
+            # ★ P5′ 1.0b：周常发奖注入面启动自检（幂等；缺注入 → 当场报错，绝不静默不发奖）
+            _weekly_reward_selfcheck()
+            # v104 M24 P2-5：启动时清理流失玩家残留 event_state 键（幂等，见 _event_state_cleanup_once）
+            _event_state_cleanup_once()
+            # v92: 文件转发体验通道——后台线程监控命令文件，
+            # 在 AstrBot 进程内把命令转发给游戏引擎（真实 handler 链路），结果写回文件。
+            # 用途：格温（Hermes）写 playthrough_cmd.txt → 进程内执行 → playthrough_out.txt 读结果，
+            # 绕开跨进程 sqlite 锁竞争，以玩家身份逐条体验完整流程。
+            # v94.1 修复：仅真实 AstrBot 实例启动 worker——测试脚本 Main(None) 若启动 worker，
+            # 会抢走回环指令并在测试进程里报"未找到 Main 实例"（与 #40 同类问题）。
+            if context is not None:
+                _file_loopback_start()
+            # v36: 广播任务已停用（意见改为 cron 汇总报告给鱼鱼，不回复玩家）
+
+else:
+    #: 删壳预演 / 终态：旧壳树不在位，`main.Main` 不再存在（测试侧已改口 `_engine_harness`）。
+    Main = None
 
 
 # ============================================================================
@@ -375,6 +411,9 @@ from saintess_engine.host import Host as _EngineHostBase  # noqa: E402
 
 from .host import adapter_qq as _adapter_qq  # noqa: E402
 from .host import store_factory as _store_factory  # noqa: E402
+from .host import _platform  # noqa: E402
+from .host import registration as _registration  # noqa: E402
+from .host.shell import HostShell as _HostShell  # noqa: E402
 
 #: 包目录配置项（环境变量优先；插件配置文件同名键次之）
 _PACKAGE_CFG_ENV = "GWEN_PACKAGE_DIR"
@@ -499,9 +538,12 @@ class EngineHost(_EngineHostBase):
         self.accept(ctx)
 
 
-class EngineShell(Main):
-    """引擎通道的**宿主壳**：平台命令实现沿用 `game/commands/**`（本批不删），
-    但**转发型**入口 `_run_shortcut` 改走引擎通道（`Host.handle`）。
+class EngineShell(_HostShell):
+    """引擎通道的**宿主壳** —— 终态宿主壳 `host/shell.py::HostShell`（P5C 交付）的宿主子类。
+
+    ★ R3：本类**不再继承** `Main`（`game/commands/**` 的 Mixin 汇编，待删树）——删掉那棵树
+    之后 `import main` / 建通道 / 注册 / 跑命令都必须照常。宿主壳的通用那一半（分页 / 剥参 /
+    认人 / 读档 / 广播 / 平台 gate / 平台例外 4 条）在 `host/shell.py`，内容那一半转引包内真源。
 
     `game/commands/**` 里 `shortcut_trigger` / `page_flip` / `gm_play` 的正文会调
     `self._run_shortcut(event, text)` 把消息转给另一条指令执行 —— 本类把这一步接到
@@ -556,7 +598,7 @@ class EngineChannel:
                  inject=None):
         self.package_dir = package_dir
         self.store = _store_factory.store()
-        self.shell = shell if shell is not None else EngineShell(None)
+        self.shell = shell if shell is not None else EngineShell()
         self.shell.bind_engine_channel(self)
         self.adapter = _adapter_qq.QQAdapter(
             store=self.store, shell=self.shell, context=context, sink=sink, seed=seed)
@@ -566,12 +608,47 @@ class EngineChannel:
         self.pkg = None
 
     def boot(self):
-        """加载包（→ 包侧 `bind_host(**inject)`，import 命令模块**之前**）+ 建表 + 绑存档口。"""
+        """加载包（→ 包侧 `bind_host(**inject)`，import 命令模块**之前**）+ 建表 + 绑存档口。
+
+        ★ R3：另加两处**声明驱动**接线（都是宿主件、零包知识，值全部来自包内声明表）：
+          · `_GameCmdFilter` 的「游戏指令正则」供体（停服 gate 的命中判定）；
+          · `HostShell._static_source`（命令转发的静态兜底表）。
+        """
         self.pkg = self.host.boot()
         _store_factory.bind_store(self.pkg)          # 存档半边（`content/persistence`）
         self.store.init()                            # 建表 / 迁移（幂等）
         self.adapter.attach(pkg=self.pkg, host=self.host)
+        self.shell.bind_package(self.pkg)            # 宿主壳取包内半边的落点
+        _platform._GameCmdFilter.set_pattern_source(
+            lambda: _registration.declaration_patterns(self.pkg))
+        _HostShell._static_source = lambda: _registration.static_handlers(self.pkg)
+        _HostShell._STATIC_HANDLERS = None           # 换包 / 重载 → 旧缓存作废
         return self.pkg
+
+    def dispatch_declaration(self, key: str, event, text: str = None) -> list:
+        """**按声明 key** 跑一条指令 → 回话段（`list[str]`）—— 注册驱动 handler 的执行体。
+
+        与 `collect_ctx` 的区别：**不重新路由**，直接执行这条声明（旧壳 `_BRIDGE.run(self, key, …)`
+        同义）。AstrBot 已按正则把消息分发到本 key 的 handler，重路由会引入第二套命中口径。
+        三段：① 平台 gate（`_maint_gate`）→ 零回话；② 平台例外四条 → 宿主壳实现；
+        ③ 其余 → `Host.accept(ctx, spec)`（守卫 → `Env` → 包内处理器）。
+        """
+        ctx = self.adapter.to_ctx(event, text=text)
+        self.adapter.begin(ctx)
+        if key == _adapter_qq.GATE_KEY:
+            self.adapter.gate(ctx)
+            return []
+        out: list = []
+        with self.adapter.collecting(out):
+            if key in _adapter_qq.PLATFORM_ROUTES:
+                out.extend(self.adapter.platform_replies(key, ctx))
+            else:
+                spec = self.host.commands.get(key)
+                if spec is None:
+                    raise KeyError(
+                        "包内声明表没有 key=%r ——注册驱动的 pattern 与声明表不同源？" % (key,))
+                self.host.accept(ctx, spec)
+        return out
 
     def collect_ctx(self, ctx: dict) -> list:
         """一条消息 → 回话段（`list[str]`，元素顺序 = 投递顺序）。
@@ -617,13 +694,65 @@ def engine_channel(package_dir: str = None, **kwargs) -> EngineChannel:
     return channel
 
 
-# ================= astrbot 插件壳（v117.5 解耦后薄层） =================
-# 命令装饰器已由 game/commands/_platform 双注册进 astrbot 注册表；
-# 本壳只做两件事：① 提供 class X(star.Star) 让 astrbot 发现插件（main.py 是固定入口）；
-# ② context 翻译——核心回复数据类（MessageChain/Plain/Node/Nodes）→ astrbot 类型。
-# 核心 Main 本身零 astrbot 依赖，测试直接 import Main（不走壳）。
+def register_commands(package_dir: str = None, *, module_path: str = None) -> int:
+    """★ R3：**AstrBot 指令注册**入口（声明驱动）——返回注册条数。
 
-from .game.commands import _platform as _pf  # noqa: E402
+    流程（fail-closed，任一步失败都抛，绝不静默留一个「注册 0 条」的哑机器人）：
+
+        ① 起（或取）引擎通道（包目录**由配置给**）→ 加载包 → 声明表就位；
+        ② `reset_plugin_handlers`：接管本插件名下旧 handler（过渡态 `game/commands/**`
+           的 `@declared` 装饰器仍在 import 期注册 —— 不清掉就会两套并存、每条消息跑两遍）；
+        ③ `register_from_declarations`：包内声明 × 1 → AstrBot 正则 handler × 1；
+        ④ 自检：注册条数 == 包内声明条数（不等 → 抛）。
+
+    `module_path` 缺省 = 本模块（AstrBot `star_map` 按它精确关联插件实例）。
+    """
+    channel = engine_channel(package_dir)
+    _weekly_reward_selfcheck()      # 终态：注入面自检挪到装配期（同一 fail-closed 语义）
+    target = str(module_path or __name__)
+    _registration.bind_dispatcher(channel.dispatch_declaration)
+    cleared = _registration.reset_plugin_handlers(target)
+    count = _registration.register_from_declarations(channel.pkg, module_path=target)
+    expected = _registration.declaration_count(channel.pkg)
+    logging.getLogger(__name__).info(
+        "AstrBot 指令注册（声明驱动）：清旧 %d 条 → 注册 %d 条 / 声明 %d 条（module_path=%s）",
+        cleared, count, expected, target)
+    if count != expected:
+        raise RuntimeError(
+            "注册条数 %d != 包内声明条数 %d ——注册驱动有漏（拒绝带着哑掉的指令表启动）"
+            % (count, expected))
+    return count
+
+
+def registration_teeth_probe(module_path: str = None) -> tuple:
+    """**门禁牙齿**用探针：清掉本插件 handler → 旁路注册驱动 → 数一遍。
+
+    返回 `(cleared, registered, remaining)`：`registered` == 0 而 `remaining` == 0
+    ⇒ 「旁路驱动必须报红」成立（`tests/test_command_registration.py` 用它做有牙实测）。
+    """
+    target = str(module_path or __name__)
+    cleared = _registration.reset_plugin_handlers(target)
+    return cleared, 0, count_plugin_handlers(target)
+
+
+def count_plugin_handlers(module_path: str = None) -> int:
+    """本插件在 AstrBot 注册表里的指令 handler 条数（门禁量尺）。"""
+    target = str(module_path or __name__)
+    try:
+        from astrbot.core.star.star_handler import star_handlers_registry as _reg
+    except Exception:                                            # noqa: BLE001
+        return -1
+    return sum(1 for md in getattr(_reg, "_handlers", ())
+               if str(getattr(md, "handler_module_path", "") or "") == target)
+
+
+# ================= astrbot 插件壳（v117.5 解耦后薄层） =================
+# ★ R3 起：指令注册由宿主 `host/registration.py` 驱动（`AstrMain.__init__` → `register_commands()`），
+# 不再依赖 `game/commands/_platform` 的装饰器双注册。
+# 本壳仍做两件事：① 提供 class X(star.Star) 让 astrbot 发现插件（main.py 是固定入口）；
+# ② context 翻译——核心回复数据类（MessageChain/Plain/Node/Nodes）→ astrbot 类型。
+# 平台类型真源 = 宿主 `host/_platform.py`（P5C 交付），**不再 import 待删树**。
+from .host import _platform as _pf  # noqa: E402
 
 
 def _to_astrbot_node(node):
@@ -677,16 +806,20 @@ class _ContextProxy:
         return getattr(self._real, name)
 
 
-class AstrMain(star.Star, Main):
-    """astrbot 插件壳：继承核心 Main，注入 context 翻译代理。
+class AstrMain(star.Star, EngineShell):
+    """astrbot 插件壳：继承**终态宿主壳** `EngineShell`（`host/shell.py::HostShell` 子类）。
 
-    装饰器（@filter.regex 等）已在 game/commands/_platform 双注册时同步进
-    astrbot 注册表，handler 路径改写由上方 _fix_handler_module_paths 完成。
+    ★ R3：本类**不再继承** `Main`（待删的 Mixin 汇编）——AstrBot 装载插件时实例化本类，
+    实例化期间调 `register_commands()` 完成「包内声明 → AstrBot handler」注册（star_manager
+    的 handler 绑定发生在实例化**之后**，故注册时机正确），并注入 context 翻译代理。
+
+    注册失败**当场抛**（fail-closed）：宁可不启动，也不带着 0 条注册的哑指令表上线。
     """
 
     def __init__(self, context=None, **kwargs):
         proxy = _ContextProxy(context) if context is not None else None
-        Main.__init__(self, proxy)
+        EngineShell.__init__(self, context=proxy)
+        register_commands(module_path=__name__)
 
 
 def is_game_command(msg: str) -> bool:
@@ -694,31 +827,9 @@ def is_game_command(msg: str) -> bool:
 
     供 AstrBot RateLimitStage（only_llm 模式）调用：命中任一注册指令
     pattern → 该消息走规则匹配秒回，跳过限流；未命中 → 走 LLM 才限流。
-    逐条 re.match（与 @filter.regex 语义一致，锚定开头）。
 
-    v134.2 补充：纯数字消息（数字快捷指令『快捷绑定 N xxx』/赶路模式回复序号）
-    也判为游戏指令——它们由 shortcut_trigger handler 处理（player.py:137 正则
-    覆盖 [0-9０-９] 开头），但该正则不在 COMMAND_REGEX 静态表（避免把普通
-    中文聊天误判）。纯数字/全角数字消息被跳过限流风险极低，换来快捷/赶路
-    连发不被 60秒/30条 限流 stall。
+    ★ R3：判定口径从待删的 `game/commands/_registry.COMMAND_REGEX` 改口到**宿主注册驱动**
+    （`host/registration.py::is_game_command`，正则池 = 包内声明表，注册时刷新）——删壳后
+    这条判定照常有效（否则 only_llm 模式下游戏指令会被限流 stall）。
     """
-    try:
-        from .game.commands._registry import COMMAND_REGEX
-    except Exception:
-        return False
-    if not msg:
-        return False
-    # v134.2 纯数字（含全角）快捷/赶路：直接命中 shortcut_trigger
-    if re.match(r"^[0-9０-９]+\s*$", msg):
-        return True
-    for key, pat in COMMAND_REGEX.items():
-        if key == "_maint_gate":
-            # v134.1：维护门 pattern 全可选（空匹配一切），不能用于指令判定
-            continue
-        try:
-            m = re.match(pat, msg)
-            if m and m.end() > 0:  # 必须消费至少 1 字符，排除空/万能 pattern
-                return True
-        except re.error:
-            continue
-    return False
+    return _registration.is_game_command(msg)
