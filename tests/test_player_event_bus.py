@@ -12,8 +12,11 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # tests/（`_engine_harness`）
 
-from game.services.player_event_bus import EVENTS, clear_registry, fire, register
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # 包路径 + 引擎装配（幂等；旧壳 import 期同语义）
+
+from content.player_events import EVENTS, clear_registry, fire, register
 
 _fail = []
 

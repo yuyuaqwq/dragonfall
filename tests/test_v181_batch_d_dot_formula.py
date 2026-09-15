@@ -37,7 +37,7 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine import config as EC  # noqa: E402
 from saintess_engine.battle.effects import apply_action  # noqa: E402
@@ -46,7 +46,7 @@ from saintess_engine.battle.actions import _consume_hit_buffs  # noqa: E402
 from saintess_engine.battle.stats import actor_stats  # noqa: E402
 from saintess_engine.battle.effect_triggers import fire  # noqa: E402
 from content.mech.params import EFFECT_RULES  # noqa: E402
-from game.content import DOT_DEFS  # ★ B16-W11d
+from content.catalog_legacy import DOT_DEFS  # ★ B16-W11d
 
 PASS = 0
 FAIL = 0
@@ -359,7 +359,7 @@ def test_8_zero_change():
 
 def test_9_crit_at():
     print("【9. crit_at：连段 ≥4 → 终结技必暴出手态】")
-    from game.services import class_mech_proc as CMP
+    from content.mech import class_mech as CMP
     p, e, b = mk_pair()
     p["learned_skills"] = ["终结·割喉"]          # mech=finisher 的刺客终结技
     p["effects"] = {}

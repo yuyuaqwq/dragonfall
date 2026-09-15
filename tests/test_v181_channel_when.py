@@ -33,9 +33,9 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor, effects as EFX  # noqa: E402
-from game.services import class_mech_proc as CM  # noqa: E402
+from content.mech import class_mech as CM  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -113,7 +113,8 @@ def assembled(actor, res):
 
 def fire_gain(battle, actor, res):
     """按 fire() 的契约派发：装配产物 + _owner 注入 → 直调动作。"""
-    CM.install()
+    # 旧宿主壳 `class_mech_proc.install()` 是幂等空委托（真语义 = 包内 import 期即注册
+    # 39 个动作）；改口后 `from content.mech import class_mech` 已完成同一注册，调用随之退休。
     t = assembled(actor, res)
     if t is None:
         return None

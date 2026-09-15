@@ -25,11 +25,11 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # ★ P5C-REPOINT：宿主装配壳已删 → 测试侧引擎通道装配口
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine.battle.actors import ActCtx  # noqa: E402
 from saintess_engine.battle.effect_triggers import fire  # noqa: E402
-from game.services import class_mech_proc as CMP  # noqa: E402
+from content.mech import class_mech as CMP  # ★ P5C-REPOINT：直取包内真源
 from content import skills as _SK  # noqa: E402
 from saintess_engine.gauge import bar_effect_key, bar_gain as _bg# noqa: E402
 

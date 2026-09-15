@@ -33,12 +33,12 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 
 from saintess_engine import Battle as BT_NEW, make_actor  # noqa: E402
 from saintess_engine import config as _b2config  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402  ★ P5C-REPOINT：宿主装配壳已删
 from saintess_engine.battle.actors import ActCtx          # noqa: E402
 from saintess_engine.battle.effect_triggers import fire as _fire  # noqa: E402
 from saintess_engine.battle.landing import deal_damage as _dd     # noqa: E402
 from saintess_engine.battle.state_effects import state_def        # noqa: E402
-from game.services import battle_equip_proc as EP      # noqa: E402
+from content.mech import equip as EP      # noqa: E402  ★ P5C-REPOINT：直取包内真源
 from content.mech.we_procs import we_affix_res_gain  # noqa: E402  ★ B18-REPOINT：直取包内实现本体
 
 PASS = 0

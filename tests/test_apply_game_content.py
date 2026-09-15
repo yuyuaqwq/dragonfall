@@ -1,18 +1,22 @@
 # -*- coding: utf-8 -*-
-"""S7 单一装配入口验收（`game/content_rules/apply.py`）。
+"""S7 单一装配入口验收（★ P5C-REPOINT 后：观测/调用口 = 包内 `content/apply.py`）。
 
 规格：docs/ENGINE_CONTENT_SPLIT_PLAN.md §6.6（apply_game_content 收敛）+ §7 S7。
 本测试守住三条契约：
 
-  A 接口      —— 入口存在、单参可调、返回原 actor、旧调用点清单可核对
+  A 接口      —— 入口存在、单参可调、返回原 actor
+                 （原 A2「旧调用点清单」随宿主清单文件删除退休，见 t_a 注释）
   B 顺序契约  —— ①install → ②equip → ③mech → ④bar → ⑤cond → ⑤b element → ⑥food
                  （+ mech 内部 bar→cond 先跑）。★ B8（2026-09-13）：观测对象 = **包内实现**
-                 （`APPLY._pkg_apply()` 的 `_equip/_class_mech/_bar_procs/_cond_procs/
-                 _element_procs/_food_proc` + 模块全局 `install_engine`）；宿主
-                 `game/services/battle_*_proc.py` 已退役，不再是生产路径。
-  C 引擎装配  —— ensure_engine_configured() 幂等；委托唯一包加载口（旧 load_game_defaults 实体）
+                 （`content.apply` 的 `install_engine` / `_equip` / `_class_mech` / `_bar_procs` /
+                 `_cond_procs` / `_element_procs` / `_food_proc`）；★ P5C-REPOINT：`APPLY` 本体
+                 即 `content.apply`，宿主 `game/content_rules/apply.py` 薄壳已随 game/** 删除。
+  C 引擎装配  —— boot()（原 ensure_engine_configured）幂等；规则表装载
+                 （原 C2「委托 bootstrap.package_apply」随宿主中转层删除退休，见 t_c 注释）
   D 幂等      —— 同一 actor 连调 1 次 vs 2 次，序列化字节相同；零额外状态键
-  E 新旧等价  —— 新入口 == 旧命令层「EP.apply_to_actor + CM.apply_class_mech」逐字节（仍用宿主模块）
+  E 并列对照  —— 入口 == 「EP.apply_to_actor + CM.apply_class_mech」并列调用逐字节
+                 （★ P5C-REPOINT 后并列调用方 = 包内 `content.mech.equip` / `content.mech.class_mech`；
+                  原「旧命令层」版本已随 game/** 删除，这里保留的是同一逐字节对照口径）
   F 数值抽样  —— 装备上限词条 / 推条注入 / 条件乘区 / 食物 四类效果照旧落地
 
 跑法：python tests/test_apply_game_content.py（exit=0 全绿）
@@ -30,31 +34,30 @@ sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
 from saintess_engine import config as _b2c
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # ★ P5C-REPOINT：宿主装配壳已删 → 测试侧引擎通道装配口
 from saintess_engine import make_actor
-from game import bootstrap as BST
-from game import content as C
-from game.content_rules import apply as APPLY
+from _engine_harness import C  # ★ P5C-REPOINT：包内聚合门面（原 game.content）
+from content import apply as APPLY  # ★ P5C-REPOINT：装配入口真源 = 包内 content.apply（宿主壳已删）
 from content.mech import bar_procs as BAR  # ★ B18-REPOINT：直取包内实现本体（宿主同名壳不再被测试引用）
-from game.services import battle_cond_procs as COND
-from game.services import battle_equip_proc as EP
-from game.services import battle_food_proc as FOOD
-from game.services import class_mech_proc as CM
+from content.mech import cond_procs as COND  # ★ P5C-REPOINT：直取包内真源（原 battle_cond_procs）
+from content.mech import equip as EP  # ★ P5C-REPOINT：直取包内真源（原 battle_equip_proc）
+from content.mech import food_proc as FOOD  # ★ P5C-REPOINT：直取包内真源（原 battle_food_proc）
+from content.mech import class_mech as CM  # ★ P5C-REPOINT：直取包内真源（原 class_mech_proc）
 from content.mech.params import BAR_INJECT_FIELDS
 from content.mech.we_data import WEAPON_EFFECT_DATA
 
 # ------------------------------------------------------------
 # ★ B8 观测对象同源搬迁（2026-09-13）：装配实现已归内容包
-#   `APPLY._pkg_apply()` = 宿主唯一包加载口（→ `game.bootstrap.package_apply()`），返回包内
-#   `content.apply` 模块。它的 `install_engine`（模块全局）与 `_equip` / `_class_mech` /
-#   `_bar_procs` / `_cond_procs` / `_element_procs` / `_food_proc` 六个模块对象，就是包内
-#   `apply_game_content` 按 ①install→②equip→③mech→④bar→⑤cond→⑤b element→⑥food **调时取属性**
-#   的那批对象（`_step("equip", _equip.apply_to_actor, actor)`），故 patch 模块属性对观测生效 ——
-#   与生产同源。
-#   宿主 `game/services/battle_*_proc.py` / `class_mech_proc.py` **已退役**（不再是生产路径），
-#   仅留作 E 组「旧命令层并列调用」的逐字节对照物（EP / CM / FOOD / BAR / COND import 只为它）。
+#   ★ P5C-REPOINT（2026-09-15）：`APPLY` 现在**就是**包内 `content.apply`（宿主薄壳
+#   `game/content_rules/apply.py` 随 game/** 删除）——`_PKG` 因此 = 该模块自身，不再是
+#   「经宿主唯一包加载口取回的包内模块」。它的 `install_engine`（模块全局）与 `_equip` /
+#   `_class_mech` / `_bar_procs` / `_cond_procs` / `_element_procs` / `_food_proc` 六个模块对象，
+#   就是包内 `apply_game_content` 按 ①install→②equip→③mech→④bar→⑤cond→⑤b element→⑥food
+#   **调时取属性**的那批对象（`_step("equip", _equip.apply_to_actor, actor)`），故 patch
+#   模块属性对观测生效 —— 与生产同源。
+#   EP / CM / FOOD / COND / BAR import 仍是 E 组「并列调用对照」的被调方（现已 = 包内实现本体）。
 # ------------------------------------------------------------
-_PKG = APPLY._pkg_apply()
+_PKG = APPLY        # ★ P5C-REPOINT：包内真源本体（原 APPLY._pkg_apply()）
 
 _OBS = {
     "install": (_PKG, "install_engine"),                    # ① 引擎配置（旧 load_game_defaults 实体）
@@ -164,7 +167,8 @@ CASES = [
 
 
 def apply_old(a):
-    """旧命令层路径（commands/combat.py `_open_battle` 逐字：播种 bonus → EP → CM）。"""
+    """并列调用路径（原 `commands/combat.py::_open_battle` 逐字：播种 bonus → EP → CM；
+    ★ P5C-REPOINT 后 EP/CM = 包内 `content.mech.equip` / `content.mech.class_mech` 本体）。"""
     try:
         a["bonus"] = {"panel": {}, "cap": {}, "cost": {}}
     except Exception:
@@ -180,10 +184,12 @@ def apply_old(a):
 
 def t_a():
     print("【A 接口】")
-    check("A1 apply_game_content / ensure_engine_configured 可导入",
-          callable(APPLY.apply_game_content) and callable(APPLY.ensure_engine_configured))
-    check("A2 旧调用点清单非空（S9 收口核对锚）",
-          len(APPLY.LEGACY_CALL_SITES) >= 5, repr(APPLY.LEGACY_CALL_SITES))
+    check("A1 apply_game_content / 引擎配置装配入口 可导入",
+          callable(APPLY.apply_game_content) and callable(_eng_cfg))
+    # A2（★ P5C-REPOINT 退休）：原断言 = `len(APPLY.LEGACY_CALL_SITES) >= 5`（宿主
+    #   `game/content_rules/apply.py:72` 的「旧命令层调用点清单」，内容是 `game/commands/*.py`
+    #   行号，供 S9 收口核对）。game/** 整棵树删除 ⇒ 该清单的**全部条目所指的文件都不再存在**，
+    #   包内 `content/apply.py` 也没有（也不该有）这份宿主路径清单 —— 判据不再存在，整条退休。
     a = mk("cls_zhan_shi", "甲", uid="pa")
     r = APPLY.apply_game_content(a)
     check("A3 单参可调（ctx 可选）且返回原 actor", r is a)
@@ -260,28 +266,18 @@ def t_c():
     print("【C 引擎配置装配】")
     ok = True
     try:
-        APPLY.ensure_engine_configured()
-        APPLY.ensure_engine_configured()
+        _eng_cfg()
+        _eng_cfg()
     except Exception as e:
         ok = False
-        check("C1 ensure_engine_configured 连调 2 次无异常", False, repr(e))
+        check("C1 引擎配置装配入口（_engine_harness.boot）连调 2 次无异常", False, repr(e))
     if ok:
-        check("C1 ensure_engine_configured 幂等（连调 2 次）", True)
-    rec = []
-    _orig_pa = BST.package_apply
-
-    def _rec_pa(*a, **k):
-        rec.append("ensure")
-        return _orig_pa(*a, **k)
-
-    BST.package_apply = _rec_pa
-    try:
-        APPLY.ensure_engine_configured()
-        check("C2 ensure_engine_configured 委托 bootstrap.package_apply（唯一包加载口 = "
-              "旧 load_game_defaults 实体；真源 = 包内 content/apply.install_engine）",
-              rec == ["ensure"], repr(rec))
-    finally:
-        BST.package_apply = _orig_pa
+        check("C1 引擎配置装配入口（_engine_harness.boot）幂等（连调 2 次）", True)
+    # C2（★ P5C-REPOINT 退休）：原断言 = 猴补 `BST.package_apply` 观测
+    #   `ensure_engine_configured` 委托「宿主唯一包加载口」。该中转层（`game/bootstrap.py`，
+    #   `package_apply()`）随 game/** 整棵树删除；测试侧等价入口 `_engine_harness.boot()`
+    #   直接返回已装配的 harness 单例（其内部就是 `load_package`），**不存在**可被观测的
+    #   宿主委托点 —— 判据不再存在，整条退休（不是放宽阈值）。
     r = _b2c.get_effect_rules() or {}
     a = _b2c.get_effect_actions() or {}
     check("C3 规则表已装载（EFFECT_RULES/EFFECT_ACTIONS 非空）",
@@ -319,10 +315,9 @@ def t_d():
     check("D3 【已知副作用】幂等标记随 serialize.to_state 落进战斗存档",
           APPLY._MARK in json.dumps(st, default=str))
     # D4：包内单步异常不阻断后续（容错铁律，与真源逐字一致）+ 记入 LAST_ERRORS
-    #     观测对象 = **包内 LAST_ERRORS**（`_PKG.LAST_ERRORS`，真源；B8 起机制在包里）。
-    #     ⚠️ 不用宿主 `APPLY.LAST_ERRORS` 观测：宿主 `game/content_rules/apply.py:84` 还留着
-    #     一份 `LAST_ERRORS: list = []`，它**遮蔽**了同文件 94-101 行声明的 PEP 562 转发
-    #     （模块属性查找命中就不走 `__getattr__`）→ 宿主那个名字恒空（假绿源；已报 B8 主 agent）。
+    #     观测对象 = 包内 LAST_ERRORS（`_PKG.LAST_ERRORS`；★ P5C-REPOINT 后 `_PKG is APPLY`
+    #     = `content.apply` 本体 —— 宿主那份「同文件再留一份恒空 LAST_ERRORS 遮蔽 PEP 562
+    #     转发」的假绿源**随 game/content_rules/apply.py 一起删除**，观测口只剩真源一个）。
     bad = mk("cls_wu_seng", "武僧", learned=_BAR_SK + _COND_SK, uid="pd4")
     _bar_mod, _bar_attr = _OBS["bar"]
     orig = _ORIG_ATTRS[(_bar_mod, _bar_attr)]
@@ -341,11 +336,12 @@ def t_d():
 
 
 # ============================================================
-# E 新旧等价
+# E 并列对照（★ P5C-REPOINT：并列调用方 = 包内 equip / class_mech，
+#   原「旧命令层」EP/CM 宿主壳已随 game/** 删除；逐字节口径一字不变）
 # ============================================================
 
 def t_e():
-    print("【E 新旧等价（旧命令层并列调用 vs 新入口）】")
+    print("【E 并列对照（EP+CM 并列调用 vs 单一入口）】")
     for i, (label, base) in enumerate(CASES, 1):
         old = json.loads(d(base))
         new = json.loads(d(base))

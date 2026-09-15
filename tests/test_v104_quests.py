@@ -17,8 +17,11 @@
 import sys, os, asyncio, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run, make_player
-from data.plugins.dragonfall.game.services.quests_flow import quest_kill_progress  # v181 L3-P2：_update_quests 壳收编订阅方，击杀推进直调 services
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run, make_player
+from content.quests_flow import quest_kill_progress  # v181 L3-P2：_update_quests 壳收编订阅方，击杀推进直调 services
+from content import wild as _wild  # C.ALL_WILD → 包内派生读口（content/wild.py PEP 562）
+from content import world_cmds as _WC  # 旧壳 `WorldCmds._bump_daily_progress` 的包内真源（同名函数在
+                                       # `content.profession_quests` 另有一份异签名私有体，走 Main 会歧义）
 
 passed = failed = 0
 
@@ -187,7 +190,7 @@ async def main():
         for sq in board_qs:
             qmap = sq.get("map")
             if not qmap:
-                _g = C.NPCS.get(sq.get("giver")) or C.ALL_WILD.get(sq.get("giver")) or {}
+                _g = C.NPCS.get(sq.get("giver")) or _wild.ALL_WILD.get(sq.get("giver")) or {}
                 qmap = _g.get("map")
             if qmap and qmap != cur:
                 continue
@@ -233,7 +236,7 @@ async def main():
                                      "objective": {"collect_any": 5}, "reward_exp": 400, "reward_gold": 150, "progress": 4}}
     db.save_quests("g8", "p9", qdata(None, "pending", daily=daily2))
     gold0 = db.get_player("g8", "p9")["gold"]
-    out = m._bump_daily_progress("g8", "p9", "collect_any")
+    out = _WC._bump_daily_progress(m, "g8", "p9", "collect_any")
     check("采集 +1 达标发奖移除", db.get_player("g8", "p9")["gold"] == gold0 + 150 and "d0" not in get_q("g8", "p9")["daily"],
           f"gold+{db.get_player('g8','p9')['gold']-gold0} daily={get_q('g8','p9')['daily']}")
 

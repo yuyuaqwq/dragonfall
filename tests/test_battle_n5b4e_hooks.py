@@ -25,8 +25,8 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from game.store.connection import init_db  # noqa: E402
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402
+from content.persistence.handles import init_db  # noqa: E402
 init_db()
 
 PASS = 0

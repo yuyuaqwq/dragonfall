@@ -20,14 +20,15 @@ for _p in (_HERE, os.path.join(_PD, "scripts"), _PD, os.path.dirname(os.path.dir
     sys.path.insert(0, _p)
 sys.path.insert(0, os.path.join(_PD, ".."))          # data.plugins 根（qqbot/）
 
-from conftest import C  # noqa: E402,F401
+from _engine_harness import C  # noqa: E402,F401
 
 import numeric_sim as NS  # noqa: E402
 from saintess_engine import Battle as B2  # noqa: E402
 from saintess_engine.tlog import JSONLSink, MemorySink, TLog  # noqa: E402
-from game.services import battle_tlog as BT  # noqa: E402
-from game.services.battle_bridge import (apply_battle_loadout, build_sides,  # noqa: E402
-                                         prepare_player_for_battle)
+from content import tlog_collect as BT  # noqa: E402
+from content.tlog_replay import replay  # noqa: E402
+from content.bridge import (apply_battle_loadout, build_sides,  # noqa: E402
+                            prepare_player_for_battle)
 
 SEED = 1234
 passed = failed = 0
@@ -73,7 +74,7 @@ def run_battle(b, max_turns=300):
 # ---------------------------------------------------------------- 1 默认关
 def t1_default_off():
     print("\n[1] 默认关：零行为")
-    from game import tlog_setup
+    from _engine_harness import tlog_setup
     os.environ.pop(tlog_setup.ENV_FLAG, None)
     tlog_setup.disable()
     check("未启用时 tlog() 返回 None", tlog_setup.tlog() is None)
@@ -142,13 +143,13 @@ def t3_replay():
     _, _n = run_battle(b)
     bt.on_end(b)
     recs = list(mem.read_records())
-    res = BT.replay(recs)
+    res = replay(recs)
     check("回放能跑完并给出结果", res["result"] != "")
     check("★ matched（result/rounds/p_acts 与记录逐项一致）", res["matched"],
           f"got={(res['result'], res['rounds'], res['p_acts'])} exp={res['expected']}")
     # 缺 start / 缺重建输入 → 明确报错，不静默
     try:
-        BT.replay([r for r in recs if r.kind == "battle.act"])
+        replay([r for r in recs if r.kind == "battle.act"])
         ok = False
     except ValueError:
         ok = True
@@ -160,7 +161,7 @@ def t3_replay():
         mutated = [r for r in recs if r.kind != "battle.act"]
         mutated += [r for r in acts[:-1]]
         try:
-            res2 = BT.replay(mutated)
+            res2 = replay(mutated)
             check("抽掉最后一次行动 → 结果与记录不符（判据有效）",
                   not res2["matched"], str(res2))
         except Exception as e:                                # noqa: BLE001
@@ -210,14 +211,14 @@ def t6_jsonl():
               f"lines={len(raw)} acts={bt.acts} events={bt.events}")
         back = list(JSONLSink(p).read_records())
         check("读回一致", len(back) == len(raw))
-        res = BT.replay(back)
+        res = replay(back)
         check("★ 从落盘流水回放同样能复现", res["matched"], str(res["expected"]))
 
 
 # ---------------------------------------------------------------- 7 声明表
 def t7_kinds():
     print("\n[7] 声明表（content/data/tlogs.json）")
-    from game import tlog_setup
+    from _engine_harness import tlog_setup
     kt = tlog_setup.kinds()
     check("声明表可装载", kt is not None and len(kt) > 8, f"n={len(kt) if kt else 0}")
     check("声明表自身无问题", kt.validate() == [], str(kt.validate()))
@@ -225,33 +226,6 @@ def t7_kinds():
           kt.has("battle.start") and kt.has("shop.buy"))
     check("battle.end 字段含复现判据",
           set(("result", "rounds", "p_acts")) <= set(kt.fields_of("battle.end")))
-
-
-def t8_production_hook():
-    print("\n[8] 生产接入 helper（battle_bridge.attach_tlog）")
-    from game import tlog_setup
-    from game.services.battle_bridge import attach_tlog
-
-    os.environ.pop(tlog_setup.ENV_FLAG, None)
-    tlog_setup.disable()
-    b, _ = build_battle(tlog=None)
-    b2 = attach_tlog(b, btype="monster", player={}, enemies=[])
-    check("未启用 → no-op（同一对象、不链观察者）", b2 is b and b.on_event is None)
-
-    mem = MemorySink()
-    tlog_setup.enable(sinks=[mem])
-    try:
-        b3, _ = build_battle(tlog=None)
-        b4 = attach_tlog(b3, btype="monster",
-                         player={"class_name": "战士", "level": 11}, enemies=[])
-        check("启用 → 观察者被链上", b4.on_event is not None)
-        recs = list(mem.read_records())
-        check("启用 → 写了 battle.start",
-              len(recs) == 1 and recs[0].kind == "battle.start", str([r.kind for r in recs]))
-        check("tlog_setup.tlog() 返回全局实例", tlog_setup.tlog() is not None)
-    finally:
-        tlog_setup.disable()
-    check("disable 后回到零行为", tlog_setup.tlog() is None)
 
 
 def main():
@@ -263,7 +237,6 @@ def main():
     t5_observer_chain()
     t6_jsonl()
     t7_kinds()
-    t8_production_hook()
     print(f"\n===== 结果：通过 {passed} / {passed + failed} =====")
     return 0 if failed == 0 else 1
 

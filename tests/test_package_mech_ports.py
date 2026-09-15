@@ -748,7 +748,18 @@ def audit(pkg_root: str, game_root: str, rep: Rep) -> None:
                   not pv.nonliteral, "非字面量调用在行 %s" % pv.nonliteral)
         if not cmp_actions:
             continue
-        if src is None or fam in RETIRED_SRC:
+        gpath = _p(game_root, src) if src else None
+        # ★ P5C-REPOINT（2026-09-15）：宿主壳随 `game/**` 整棵树删除 —— PORTS 里指向
+        #   `game/services/*.py` 的真源届时**不再存在**。口径与下面 `RETIRED_SRC` 分支
+        #   （B18-REPOINT 已立的先例）逐条相同：不再读宿主 ⇒ 换成**宿主无关的等价物**
+        #   （端口动作 KEY 集 == 冻结清单 + 装配器名仍在端口模块顶层），并打印一行去向。
+        #   真源仍在时（本仓未删游戏的对照跑）原 B10 口径**一字不变** —— 不是放宽阈值，
+        #   真源缺失也不再是「红/静默跳过」：仍跑端口自证断言（与 §3「真源已删 → 冻结基线」同策）。
+        host_src_gone = bool(src) and not os.path.isfile(gpath)
+        if src is None or fam in RETIRED_SRC or host_src_gone:
+            if host_src_gone:
+                head("  · 族 %-13s 真源已随 game/** 删除（%s）→ 退到端口自证口径"
+                     % (fam, src))
             # ---- ★ B18-REPOINT：宿主壳已退役族 → 只审端口自身（不读宿主，零宿主路径引用）----
             exp_keys = EXPECT_ACTION_KEYS.get(fam)
             pset0 = set(pv.actions)
@@ -763,6 +774,7 @@ def audit(pkg_root: str, game_root: str, rep: Rep) -> None:
                       % (fam, "/".join(asm) or "(无)", miss_asm), not miss_asm,
                       "装配器名不在端口顶层 → 宿主无关的唯一调用面消失：%s" % miss_asm)
             continue
+
         gpath = _p(game_root, src)
         if not os.path.isfile(gpath):
             rep.check("族 %s 真源存在 %s" % (fam, src), False, "真源文件缺失：%s" % gpath)

@@ -13,11 +13,21 @@
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, make_player
+from _engine_harness import C, db, clean_db, make_player  # ★ P5C-REPOINT：conftest 兼容面（同名同义）
 
-from data.plugins.dragonfall.game.services.player_event_bus import fire
-from data.plugins.dragonfall.game.services import player_event_subscribers  # noqa: F401  触发注册
-from data.plugins.dragonfall.game.services.guild import guild_create
+from content.player_events import fire  # ★ P5C-REPOINT：直取包内真源（原 game.services.player_event_bus）
+from content.player_events import ensure_registered as _ensure_registered  # ★ P5C-REPOINT：注册时机 = 原订阅方壳 import 时
+_ensure_registered()                                        # 触发注册（幂等；原 player_event_subscribers import 副作用）
+from content.social_guild import guild_create  # ★ P5C-REPOINT：直取包内真源（原 game.services.guild）
+
+# ★ P5C-REPOINT：原宿主薄壳 `game/services/quests_flow.py` 的注入
+#   `quests_svc = game.services.quests` 随 game/** 删除而消失。按 REPOINT_MAP §2，
+#   `game.services.quests` 的真源 = `content.profession_quests`
+#   （bump_daily_progress / settle_daily_quest / DAILY_META_KEYS）。补回该注入，
+#   否则 `_sub_quests`（quest_kill_progress → _bump_daily_progress）会被总线当异常跳过。
+from content import profession_quests as _profession_quests  # noqa: E402
+from content import quests_flow as _quests_flow  # noqa: E402
+_quests_flow.bind_host(quests_svc=_profession_quests)
 from content.flow.tower_progress import _tower_state  # ★ B18-REPOINT：直取包内实现本体（宿主同名壳不再被测试引用）
 
 passed = failed = 0
@@ -97,7 +107,7 @@ def tC_kind_levelup_guard():
     print("C. kind 守卫：levelup 订阅仅 field（副本/世界Boss 结算不主动升级）")
     clean_db()
     make_player("gC", "qC", "丙", "战士", level=5)
-    from data.plugins.dragonfall.game.services.player_event_subscribers import _sub_levelup
+    from content.player_events import _sub_levelup  # ★ P5C-REPOINT
     ctx_i = _base_ctx("gC", "qC", kind="instance", killed=[{"name": "野猪"}], meta={"inst_id": "x"})
     check("instance 守卫返回 []", _sub_levelup(ctx_i) == [], repr(_sub_levelup(ctx_i)))
     ctx_w = _base_ctx("gC", "qC", kind="worldboss", killed=[{"name": "魔王", "is_boss": True}])

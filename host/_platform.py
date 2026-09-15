@@ -208,6 +208,38 @@ class CustomFilterAnd(CustomFilter):
         return self.filter1.filter(event, cfg) and self.filter2.filter(event, cfg)
 
 
+class _GameCmdFilter(CustomFilter):
+    """停服维护 gate 的「是否游戏指令」过滤器（P5C：原 `game/commands/base.py::_GameCmdFilter` 迁入）。
+
+    判定 = 「消息命中**任一**游戏指令正则」。正则真源 = **包内声明表**
+    （`content/data/commands.json`，装配处经 `set_pattern_source(fn)` 给出，`fn() -> [正则串]`）；
+    匹配机制 = 引擎 `saintess_engine.command.PatternSet`（懒编译 + 缓存 + 零宽跳过）。
+
+    本类**零包知识**：不 import 包内模块、不写包名；只吃装配处给的取件函数。
+    """
+
+    _SOURCE = None
+    _PATTERNS = None
+
+    @classmethod
+    def set_pattern_source(cls, fn) -> None:
+        """装配处登记「游戏指令正则」供体（`() -> Sequence[str]`）；改供体则缓存作废。"""
+        cls._SOURCE = fn
+        cls._PATTERNS = None
+
+    @classmethod
+    def _patterns(cls):
+        if cls._PATTERNS is None:
+            from saintess_engine.command.router import PatternSet
+            src = cls._SOURCE
+            cls._PATTERNS = PatternSet(lambda: list(src() if src is not None else []))
+        return cls._PATTERNS
+
+    def filter(self, event, cfg=None) -> bool:
+        text = (event.get_message_str() or "").strip()
+        return bool(self._patterns().matches(text))
+
+
 # ================= 注册表（语义照抄 astrbot） =================
 
 

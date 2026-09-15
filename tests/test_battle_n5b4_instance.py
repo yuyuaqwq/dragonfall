@@ -23,12 +23,24 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from game.store.connection import init_db  # noqa: E402
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402
+from content.persistence.handles import init_db  # noqa: E402
 init_db()
 
-from game import db  # noqa: E402
-from game.commands import instance_battle as IB  # noqa: E402
+from _engine_harness import db  # noqa: E402
+from content.flow import instance_battle as IB  # noqa: E402
+
+
+# 包内 `sync_views` 的写库口：宿主壳 `game/commands/instance_battle.py::_db_update`
+# 已随 game/** 删除 → 按包内注入槽补同签名同语义端口。（否则 `_resolve_db_update`
+# 取到「db」槽的模块直调 `persistence.update_player(gid, qid, **fields)`，被按
+# 适配器的 6 个位置参数调用 → TypeError 被 sync_views 的 try/except 吞掉 →
+# DB 血量永不写回。注入槽优先，故这里显式给出宿主壳原来的那一层适配。）
+def _db_update(group_id, key, hp, mp, max_hp, max_mp):
+    db.update_player(group_id, key, hp=hp, mp=mp, max_hp=max_hp, max_mp=max_mp)
+
+
+IB.bind_host(db_update=_db_update)
 
 PASS = 0
 FAIL = 0
@@ -51,7 +63,7 @@ GID = "g_inst"
 
 def mk_snap(qid, name, cls="战士", level=15, learned=None, hp=None):
     """玩家快照（对齐 join_battle/_instance_build_state 形态）。"""
-    from game.content_rules.panel import player_final_stats
+    from content.panel import player_final_stats
     db.create_player(GID, qid, name, cls, {}, 100, 100)
     db.update_player(GID, qid, level=level, cur_map="pvp_field", cur_subarea="",
                      learned_skills=learned or [], stamina=999,
@@ -128,7 +140,7 @@ def test_act_and_sync():
     st = mk_st([10002], enemy=mk_enemy(hp=900, spd=1))
     IB.build_battle(st)
     hp0 = (st.get("battle") or {}).get("sides", {}).get("enemy", [{}])[0].get("hp")
-    logs, ended, nxt = IB.act(st, gid, 10002, "attack")
+    logs, ended, nxt, _abort = IB.act(st, gid, 10002, "attack")
     hp1 = (st.get("battle") or {}).get("sides", {}).get("enemy", [{}])[0].get("hp")
     check("普攻造成伤害", int(hp1) < int(hp0), f"{hp0}->{hp1}")
     check("logs 非空", bool(logs))
@@ -160,7 +172,7 @@ def test_multiplayer_turn_and_death():
         cur = IB.next_actor_key(st)
         if cur is None:
             break
-        logs, ended, _n = IB.act(st, GID, cur, "attack")
+        logs, ended, _n, _abort = IB.act(st, GID, cur, "attack")
         if not _n:
             break
         IB.sync_views(st, GID)
@@ -180,7 +192,7 @@ def test_heal_target_none():
     # kind 判定逻辑：治疗技能传 target=None（不炸即可，技能未学由命令层拦）
     st = mk_st([10005], enemy=mk_enemy(hp=500))
     IB.build_battle(st)
-    logs, ended, _n = IB.act(st, GID, 10005, "skill", "不存在治疗", target={"uid": "e_boss"})
+    logs, ended, _n, _abort = IB.act(st, GID, 10005, "skill", "不存在治疗", target={"uid": "e_boss"})
     # 技能不存在 → 引擎/命令层兜底不炸（无 info 时 target 原样）
     check("技能异常不炸", isinstance(logs, list))
 

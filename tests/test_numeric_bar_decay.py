@@ -28,13 +28,13 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402  ★ P5C-REPOINT：宿主装配壳已删
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine.battle.effect_triggers import fire  # noqa: E402
-from game.services import class_mech_proc as CMP  # noqa: E402
+from content.mech import class_mech as CMP  # noqa: E402  ★ P5C-REPOINT：直取包内真源
 from saintess_engine.gauge import (bar_def, bar_effect_key, bar_gain, bar_settle,# noqa: E402
                                    bar_state, _state_prefix)
-from game.content import ENEMY_BAR_CFG  # noqa: E402  ★ B16-W11d：数据层已删 → 聚合层（同值，域 `rules/game_config.json` 的 battle_config 组）
+from content.catalog_rules import ENEMY_BAR_CFG  # noqa: E402  ★ P5C-REPOINT：真源 = 包内聚合层（同值，域 `rules/game_config.json` 的 battle_config 组）
 from saintess_engine.battle.state_effects import all_state_effects  # noqa: E402
 
 PASS = 0

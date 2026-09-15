@@ -27,11 +27,11 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 
 from saintess_engine import Battle as BT_NEW, make_actor  # noqa: E402
 from saintess_engine import config as _b2config  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # ★ P5C-REPOINT：宿主装配壳已删 → 测试侧引擎通道装配口
 from saintess_engine import effects as FX          # noqa: E402
 from saintess_engine import landing as L           # noqa: E402
 from saintess_engine.battle.actors import ActCtx          # noqa: E402
-from game.services import battle_equip_proc as EP  # noqa: E402
+from content.mech import equip as EP  # ★ P5C-REPOINT：直取包内真源（原 battle_equip_proc）
 
 # v181 测试确定性：伤害含随机浮动（暴击/波动），而 test_trinity_thunder 断言
 # 「第二击 < 首击」只差附雷段 6 点 → 不固定种子会偶发翻转（实测 8 轮全量中 3 轮红）。
@@ -851,7 +851,7 @@ def test_affix_basic():
         "stats": {"crit": 0.05, "atk": 10},
     }
     # 实际生成路径 stat_affix_stats 折算（drops 同款）——直接调折算验证
-    from game.core.affix import stat_affix_stats
+    from content.affix import stat_affix_stats  # ★ P5C-REPOINT
     conv = stat_affix_stats(["crit_up"], "weapon", 10)
     check("stat_affix_stats 折算 crit_up", abs((conv.get("crit") or 0) - 0.05) < 1e-9,
           f"conv={conv}")

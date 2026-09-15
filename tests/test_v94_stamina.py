@@ -14,8 +14,8 @@
 """
 import sys, os, time, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run, make_player, new_main
-from data.plugins.dragonfall.game.core import wild as W
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run, make_player, new_main
+from content import wild as W
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -121,7 +121,7 @@ async def main():
     # N5b4-6：普通战斗 state 已 saintess_engine sides-only——命令层（attack/skill/use）恢复
     # 只认 saintess_engine；旧格式（无 sides）按约定清档重开。直接存 saintess_engine to_state。
     def _mk_battle():
-        from game.services import battle_bridge as _BR
+        from content import bridge as _BR
         from saintess_engine import Battle as _B2
         pl = db.get_player("g1", "q1")
         _BR.prepare_player_for_battle(pl, {}, db)

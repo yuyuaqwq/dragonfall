@@ -18,7 +18,7 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine import landing as L  # noqa: E402
 
@@ -70,7 +70,7 @@ def script_battle(p, boss, inst_id="inst_goblin_camp"):
     """构造带剧本观察者的战斗（st 含 inst_id 供 boss_script_cfg 解析）。
 
     ★ B8.2 线5：Boss 剧本导演宿主副本已移出仓 → 读**包内端口** `content.flow.boss_script`
-    （`content` 由 conftest 的 `game.content_rules.apply` 加载内容包时进 sys.path）。
+    （`content` 由 `_engine_harness.boot` 加载内容包时进 sys.path）。
     """
     from content.flow import boss_script as BS
     st = {"inst_id": inst_id, "boss_script": None}

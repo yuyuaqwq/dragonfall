@@ -33,9 +33,9 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine.battle.landing import deal_damage  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg  # noqa: E402
+from _engine_harness import boot as _eng_cfg  # noqa: E402
 _eng_cfg()
-from game.services import battle_worldboss_procs as WBP  # noqa: E402
+from content.mech import worldboss as WBP  # noqa: E402
 
 PASS = 0
 FAIL = 0

@@ -28,12 +28,12 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from game.store.connection import init_db  # noqa: E402
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402
+from content.persistence.handles import init_db  # noqa: E402
 init_db()
 
-from game import db  # noqa: E402
-from game.commands.combat import CombatCmds  # noqa: E402
+from _engine_harness import db  # noqa: E402
+from _engine_harness import Main  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -113,7 +113,7 @@ def mk_db_player(qid, name, level=15, cls="战士", learned=None, hp=None):
 def max_hp_of(cls, level, attributes=None, race=None):
     """职业实时面板 max_hp（重算口径，对齐 _pvp_start 防守方实时化：race 需与
     create_player 默认 human 一致，否则差种族加成）。"""
-    from game.content_rules.panel import player_final_stats
+    from content.panel import player_final_stats
     st = player_final_stats(cls, level, {}, 0, attributes, 0, {}, race)
     return int(st.get("max_hp", 100) or 100)
 
@@ -133,7 +133,7 @@ def pvp_state_of(qid):
 
 async def test_pvp_start_state():
     print("【N5b4-4 发起 → saintess_engine state 结构】")
-    cmds = CombatCmds.__new__(CombatCmds)
+    cmds = Main(None)
     att_qq, def_qq = "1002001", "1002002"
     att_player = mk_db_player(att_qq, "攻击者", level=15)
     def_player = mk_db_player(def_qq, "防守者", level=12)
@@ -228,7 +228,7 @@ async def run_pvp_duel(cmds, att_qq, def_qq, att_learned=None, def_learned=None)
 
 async def test_pvp_duel_to_finish():
     print("【N5b4-4 轮流攻击 → 终局结算】")
-    cmds = CombatCmds.__new__(CombatCmds)
+    cmds = Main(None)
     att_qq, def_qq = "2003001", "2003002"
     atk_msgs, def_msgs, winner_qq, loser_qq = await run_pvp_duel(cmds, att_qq, def_qq)
     check("有行动日志", any("攻击" in m for m in atk_msgs + def_msgs) or len(atk_msgs + def_msgs) > 0,
@@ -247,7 +247,7 @@ async def test_pvp_duel_to_finish():
 
 async def test_pvp_round_switch_and_defend():
     print("【N5b4-4 轮到翻转 + 防御持久化/消耗】")
-    cmds = CombatCmds.__new__(CombatCmds)
+    cmds = Main(None)
     att_qq, def_qq = "3004001", "3004002"
     att_player = mk_db_player(att_qq, "攻击者", level=15)
     def_player = mk_db_player(def_qq, "防守者", level=12)
@@ -292,7 +292,7 @@ async def test_pvp_round_switch_and_defend():
 
 async def test_pvp_skill_and_turn_guard():
     print("【N5b4-4 skill 施放 + 非行动方拦截】")
-    cmds = CombatCmds.__new__(CombatCmds)
+    cmds = Main(None)
     att_qq, def_qq = "4005001", "4005002"
     att_player = mk_db_player(att_qq, "攻击者", level=15, learned=["挥砍"])
     def_player = mk_db_player(def_qq, "防守者", level=12)
@@ -378,7 +378,7 @@ async def test_pvp_stat_bonus_per_actor():
 
 async def test_pvp_timeout_and_legacy():
     print("【N5b4-4 超时解除 + 旧档清档】")
-    cmds = CombatCmds.__new__(CombatCmds)
+    cmds = Main(None)
     att_qq, def_qq = "5006001", "5006002"
     att_player = mk_db_player(att_qq, "攻击者", level=15)
     def_player = mk_db_player(def_qq, "防守者", level=12)
@@ -387,7 +387,7 @@ async def test_pvp_timeout_and_legacy():
     # 超时：伪造旧 updated_at
     import time as _t
     _conn = db  # 直接更新 battle_state 行 updated_at
-    from game.store import battle_state as _bs
+    from content.persistence import battle_state as _bs
     with _bs._lock:
         conn = _bs._connect()
         try:

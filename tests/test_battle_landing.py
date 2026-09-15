@@ -31,7 +31,7 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 
 from saintess_engine import Battle as BT_NEW, make_actor  # noqa: E402
 from saintess_engine import config as _b2config  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402
 from saintess_engine import landing as L                        # noqa: E402
 
 PASS = 0

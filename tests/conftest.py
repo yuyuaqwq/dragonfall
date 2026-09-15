@@ -6,6 +6,10 @@
 
 - 自动设置 GWEN_GAME_DB → 独立测试库（绝不触碰生产 game_data.db）
 - 自动把 qqbot/ 根目录加入 sys.path（支持 data.plugins.dragonfall 包式导入）
+
+★ P5C：本文件是**最后一个**改口的枢纽 —— 各测试族分块改口到 `_engine_harness`
+（包 + 引擎通道）期间，本文件保持旧口径，保证「每块复绿」；等 `tests/**` 里再无
+`game.*` 引用（grep 判据 ② == 0）后，才把下面这两行 import 切到包侧。
 """
 import os
 import sys
@@ -31,6 +35,7 @@ sys.path.insert(0, PLUGIN_DIR)
 # 引擎框架包（S8 物理分离）：引擎在独立仓库，本仓以 submodule 接入 `framework/`，
 # 包名 `saintess_engine`。接线在这里做一次，全部 `from conftest import …` 的测试即可解析。
 sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # tests/（`_engine_harness`）
 
 # v117.5 测试提速：shim astrbot（平台适配层替身，行为等价，省 ~3s/进程 import）。
 # 游戏命令层用到的 astrbot 符号都是注册副作用装饰器+类型标注+简单数据类，
