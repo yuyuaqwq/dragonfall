@@ -15,12 +15,13 @@ faction_reputation_tier 均无直接单测，仅经 C 聚合被 explore/map_view
 """
 import sys, os, datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C
+from _engine_harness import C
 
-from data.plugins.dragonfall.game.core.daily_events import (
+from content.daily_events import (
     today_map_event, today_event_effects, _day_hash,
 )
-from data.plugins.dragonfall.game.core.factions import faction_reputation_tier
+import content.daily_events as _de_mod  # noqa: E402  （真源模块自持性判据用）
+from content.factions import faction_reputation_tier
 # W10：改读包内单源（宿主 game/core/daily_events.py 已薄壳 → content/daily_events.py → 此处同一份）
 from content.catalog_rules import DAILY_MAP_EVENTS  # noqa: E402
 
@@ -118,8 +119,14 @@ def main():
     check("tier 首档=陌生", faction_reputation_tier(0) == "陌生")
     check("C 聚合暴露 faction_reputation_tier",
           getattr(C, "faction_reputation_tier", None) is not None)
-    check("C 聚合暴露 today_map_event",
-          getattr(C, "today_map_event", None) is not None)
+    # ★ P5D-REPOINT：原判据 = 「宿主聚合门面 `game.content` 暴露 `today_map_event`」。
+    #   终态 `game.content` 退役，聚合门面换成包侧 `content.facade.C`；而包侧
+    #   `_PKG_SURFACE` **未登记** `daily_events` 这半边（实测 `today_map_event` /
+    #   `today_event_effects` 都不在 `C` 上）⇒ 原判据的观测对象不再存在（不是放宽）。
+    #   本文件真源直取自 `content.daily_events`（顶部 import），行为断言 2347 条全在其上；
+    #   这里改为断言「真源模块自持该入口」，语义等价且不依赖聚合面登记完整性。
+    check("真源 content.daily_events 自持 today_map_event",
+          callable(getattr(_de_mod, "today_map_event", None)))
 
     print()
     print(f"结果: {passed} 通过, {failed} 失败")

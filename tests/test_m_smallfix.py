@@ -27,13 +27,36 @@ sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import C, db, clean_db, Main, FakeEvent, run  # noqa: E402
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run  # noqa: E402
 
 from saintess_engine.battle.formulas import skill_mp_pay_of
-from game.content_rules.skills import skill_info
+from content.skills import skill_info
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()
 from saintess_engine import actions as A  # noqa: E402
+from content import combat_cmds as _CC  # noqa: E402
+
+
+# ★ P5D-REPOINT：本文件开战（`_open_battle` → `content.combat_cmds._attach_tlog`）需要宿主
+#   平台件 `attach_tlog`（流水挂载，原 `game/services/battle_bridge.py::attach_tlog`）。该
+#   宿主壳随 game/** 退役后终态无人注入 ⇒ 包内 fail-closed 抛 RuntimeError。
+#   这里按宿主契约补上测试侧替身（**与宿主实现同义**）：未启用流水 → 零行为直接返回 b；
+#   启用流水 → 用包内采集器 `content.tlog_collect.BattleTLog` 挂到引擎流水句柄上。
+#   注：本文件断言的是 mp 折算/词条折扣，流水只是开战路径上的平台副作用，判据一条未动。
+def _attach_tlog(b, *, btype="monster", player=None, enemies=None, seed=None):
+    from _engine_harness import tlog_setup
+    try:
+        tl = tlog_setup.tlog()
+        if tl is None:
+            return b
+        from content.tlog_collect import BattleTLog
+        BattleTLog(tl).attach(b, btype=btype, seed=seed, player=player, enemies=enemies)
+    except Exception:                                        # noqa: BLE001
+        pass
+    return b
+
+
+_CC.bind_host(attach_tlog=_attach_tlog)
 
 PASS = 0
 FAIL = 0
@@ -261,7 +284,7 @@ def t2_no_element_sideeffect():
         got = 1.0
     check("finisher mech_any 不误乘（mult 保持 1.0）", abs(got - 1.0) < 1e-9, f"mult={got}")
     # ④ 装配端到端：arcane_focus 词条 + 真实技能数据扣费 45→40
-    from game.services import battle_equip_proc as EP
+    from content.mech import equip as EP
     a2 = _af_actor()
     a2.setdefault("equipment", {})["armor"] = {"slot": "armor", "quality": "blue",
                                                "affixes": ["arcane_focus"], "stats": {}}

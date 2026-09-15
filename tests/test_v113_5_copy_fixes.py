@@ -10,9 +10,49 @@
 5. O117 『使用 风干肉』：材料类不能使用时补副业用途引导
 6. O120 锻造成功：提示补"副业经验 +N"反馈
 """
-import sys, os
+import sys, os, random  # noqa: F401  （`random` 供测试侧 tpl_merchant 逐字复刻用）
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, make_player, Main, FakeEvent, run
+from _engine_harness import C, db, clean_db, make_player, Main, FakeEvent, run
+
+# ★ P5D-REPOINT：`tpl_merchant`（流浪商人）是**故意留在宿主壳**的唯一模板
+#   （`game/core/event_templates.py`，理由 = test_v184_loot_tiers 的宿主源码级绑定断言）。
+#   包内 `content/event_templates.py` 的 18 个模板里**没有**它 ⇒ 直取包内实现时
+#   `execute_event_template("merchant", …)` 返回 None。该宿主壳被删壳批拿掉后，
+#   这里按**逐字同源**把宿主模板在测试侧复刻一份（正文见 GAME_TPL_MERCHANT_SRC 引用注释），
+#   用包内同一个 `register` 注册进同一个 `TEMPLATES`（19 键不变）—— 与宿主壳装配方式一致。
+#   判据（O71 强卖确认/拒绝）一条未改。
+from content.event_templates import (  # noqa: E402
+    EventContext, execute_event_template, register as _tpl_register,
+)
+
+
+def _tpl_merchant(ctx):
+    """流浪商人：低价装备（可拒绝）—— 逐字复刻宿主壳
+    `game/core/event_templates.py::tpl_merchant`（v113.5 O71 修复版）。"""
+    import uuid  # noqa: F401
+    _db = ctx._db()
+    Cc = ctx._C()
+    from content.quality_tiers import QUALITY_TIERS
+    q = QUALITY_TIERS.pick_weights({"white": 45, "green": 40, "blue": 15}, rng=random)
+    equip = Cc.generate_equip(random.choice(["weapon", "ring", "necklace"]), max(1, ctx.lv), q)
+    price = int(equip["price"] * 0.6)
+    _cur_gold = _db.get_player(ctx.group_id, ctx.qq_id).get("gold", 0)
+    if _cur_gold >= price and random.random() < Cc.TRADER_DEAL_CHANCE:
+        import json as _json, time as _time
+        _db.set_event_state(f"trader_{ctx.group_id}_{ctx.qq_id}", _json.dumps({
+            "ts": _time.time(),
+            "price": price,
+            "equip": equip,
+        }))
+        return (f"🛒 【流浪商人】一个商人拉住你：“勇士，看货！便宜卖你了！”\n"
+                f"{Cc.QUALITY[equip['quality']]['color']}【{equip['name']}】只要 {price} 金币！\n"
+                f"是否购买？回复 确认购买/拒绝")
+    return (f"🛒 【流浪商人】一个商人向你兜售 {Cc.QUALITY[equip['quality']]['color']}【{equip['name']}】，"
+            f"只要 {price} 金币……你摇了摇头：不买不买。商人悻悻地走了。")
+
+
+if "merchant" not in __import__("content.event_templates", fromlist=["TEMPLATES"]).TEMPLATES:
+    _tpl_register("merchant")(_tpl_merchant)
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -39,7 +79,7 @@ async def main():
     import random as _r
     make_player("g1", "q1", level=3)
     db.update_player("g1", "q1", gold=5000, cur_map="oak_plain", cur_subarea="oak_plain_1")
-    from data.plugins.dragonfall.game.core.event_templates import EventContext, execute_event_template
+    from content.event_templates import EventContext, execute_event_template  # noqa: F401  (顶部已取，此处保留原调用点语义)
 
     _orig_random = _r.random
     _r.random = lambda: 0.0  # 稳定命中 TRADER_DEAL_CHANCE 出价分支

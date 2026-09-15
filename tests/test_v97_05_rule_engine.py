@@ -13,7 +13,7 @@
 import sys, os, random, json
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, make_player, Main, FakeEvent, run
+from _engine_harness import C, db, clean_db, make_player, Main, FakeEvent, run
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -26,8 +26,8 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {str(detail).encode('utf-8', 'replace').decode('utf-8', 'replace')[:300]}")
 
 async def main():
-    from data.plugins.dragonfall.game.core.rule_engine import fire, _get_counter
-    from data.plugins.dragonfall.game.core.event_templates import TEMPLATES
+    from content.rule_engine import fire, _get_counter
+    from content.event_templates import TEMPLATES
     # v103.2 修复时间依赖：固定时段为白天，消除真实时钟影响
     # （23:00-05:00 跑全量时 rule_explore_ghost 的 cond time=deep_night 满足，
     #   seed(1) 下 chance 0.18 命中 → "第 1 次空探索不触发"误判失败）

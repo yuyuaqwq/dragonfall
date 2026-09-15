@@ -45,7 +45,12 @@ PROBE_VALUE = object()
 
 
 def _bootstrap_paths() -> None:
-    """按 conftest 的口径摆好 sys.path 并装配内容包（否则 `import game.*` 解析不到）。"""
+    """按测试侧口径摆好 sys.path 并装配内容包（否则包内 `content.*` 解析不到）。
+
+    ★ P5D-REPOINT：装配口从宿主薄壳 `game.bootstrap.package_apply()`（随 game/** 退役）
+    换成 `_engine_harness.boot`（幂等）。**本哨兵的观测对象不变** —— `_is_host_module()`
+    仍把 `game.*` / `data.plugins.dragonfall*` 视为宿主名面，扫描口径与判定逐条不动。
+    """
     qqbot = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
     for p in (HERE, qqbot, PLUGIN_DIR, os.path.join(PLUGIN_DIR, "framework")):
         if p not in sys.path:
@@ -56,14 +61,10 @@ def _bootstrap_paths() -> None:
         if sh not in sys.path:
             sys.path.insert(0, sh)
     try:
-        from data.plugins.dragonfall.game import bootstrap as _bst  # noqa: PLC0415
-        _bst.package_apply()
+        from _engine_harness import boot as _eng_boot  # noqa: PLC0415
+        _eng_boot()
     except Exception:                               # noqa: BLE001
-        try:
-            from game import bootstrap as _bst2        # noqa: PLC0415
-            _bst2.package_apply()
-        except Exception:                           # noqa: BLE001
-            pass
+        pass
 
 
 _bootstrap_paths()

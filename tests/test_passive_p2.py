@@ -22,9 +22,9 @@ sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
 from saintess_engine import config as _b2c
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor
-from game.services.class_mech_proc import apply_class_mech
+from content.mech.class_mech import apply_class_mech
 
 PASS = 0
 FAIL = 0
@@ -130,7 +130,7 @@ def test_4_mark_mult():
           len(dmgs) == 1 and (dmgs[0].get("judge") or {}).get("mark") == "hunt_mark",
           repr(dmgs))
     # 给木桩上 2 层猎印，打它 → 被动 ×1.12 生效
-    from game.content_rules.skills import skill_info
+    from content.skills import skill_info
     info = skill_info("cls_you_xia", "疾风射击") or {}
     check("疾风射击是技能（伤害技能）", bool(info.get("name")), repr(info.get("name")))
     b = mk_battle([r])
@@ -192,7 +192,7 @@ def test_7_dual_channel():
         for tag, sk2 in [("P", (PLAYER_SKILLS.get(cid) or {}).get("skills") or {})]:
             pass
     # 简化：用 skill_info 全表扫（学名中文）
-    from game.content_rules.skills import skill_info
+    from content.skills import skill_info
     found = []
     for cid in list(PLAYER_SKILLS) + list(BRANCH_SKILLS):
         try:

@@ -21,8 +21,8 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, Main, FakeEvent, clean_db, make_player  # noqa: F401
-from data.plugins.dragonfall.game.core.achievements import cond_met, check_achievements
+from _engine_harness import C, db, Main, FakeEvent, clean_db, make_player  # noqa: F401
+from content.achievements import cond_met, check_achievements
 
 PASS = 0
 FAIL = 0

@@ -32,7 +32,7 @@ from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine.battle.landing import deal_damage  # noqa: E402
 from saintess_engine.battle.effects import apply_effects  # noqa: E402
 from saintess_engine.battle.effect_triggers import fire  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured  # noqa: E402
+from _engine_harness import boot as ensure_engine_configured  # noqa: E402
 
 # 测试稳定性：屏蔽承伤侧的**闪避随机**（角色面板自带 ~3% dodge；本文件断言的是
 # 减伤/护盾乘区数值，闪避未命中会让断言偶发失败）。格挡同理（block=0 时本就不 roll）。

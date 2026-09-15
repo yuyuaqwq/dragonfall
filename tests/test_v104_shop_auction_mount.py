@@ -13,9 +13,9 @@
 """
 import sys, os, time, re, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run
-from data.plugins.dragonfall.game.core import item_templates as IT
-from data.plugins.dragonfall.game.core import mounts as M
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run
+from content import item_templates as IT
+from content import mounts as M
 
 passed = failed = 0
 def check(name, cond, detail=""):

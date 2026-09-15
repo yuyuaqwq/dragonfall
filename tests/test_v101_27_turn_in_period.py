@@ -2,7 +2,14 @@
 """v101.27 #341：夜晚 NPC 不在场禁止隔空交付（采药女·小荨 condition.time=['morning','day'] 实锤）"""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run
+
+# ★ P5D-REPOINT：原宿主薄壳 `game/services/quests_flow.py` 的注入
+#   `quests_svc = game.services.quests` 随 game/** 删除而消失。按 REPOINT_MAP §2，
+#   真源 = `content.profession_quests`（bump_daily_progress / settle_daily_quest）。
+from content import profession_quests as _profession_quests  # noqa: E402
+from content import quests_flow as _quests_flow  # noqa: E402
+_quests_flow.bind_host(quests_svc=_profession_quests)
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -36,7 +43,7 @@ async def main():
 
     # 夜晚：NPC 不在场 → 拒绝交付（mock 时段为 night——注意 base_conditions_met 内部
     # 用 core.wild 模块级 current_period 引用，必须 mock wild 模块而非 C 聚合层）
-    from data.plugins.dragonfall.game.core import wild as W
+    from content import wild as W
     orig = W.current_period
     W.current_period = lambda: "night"
     try:

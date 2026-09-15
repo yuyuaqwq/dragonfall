@@ -12,9 +12,9 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import db, clean_db
+from _engine_harness import db, clean_db
 
-from game.services.auction import (
+from content.auction import (
     settle_auction, settle_expired_auction, save_auction_state,
 )
 
@@ -42,7 +42,7 @@ def mk_auction(ends_in=3600, items=None):
 
 async def main():
     clean_db()
-    from conftest import make_player
+    from _engine_harness import make_player
     make_player("g1", "a1", "战士")
     make_player("g1", "a2", "战士")
     db.update_player("g1", "a1", gold=10000)

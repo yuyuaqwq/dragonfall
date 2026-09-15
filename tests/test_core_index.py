@@ -5,8 +5,8 @@
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C
-from data.plugins.dragonfall.game.core import index as core_index
+from _engine_harness import C
+from content import index as core_index
 
 passed = failed = 0
 def check(name, cond, detail=""):

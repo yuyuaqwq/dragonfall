@@ -22,9 +22,9 @@ sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
 from saintess_engine import config as _b2c
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor
-from game.services.class_mech_proc import apply_class_mech
+from content.mech.class_mech import apply_class_mech
 
 PASS = 0
 FAIL = 0
@@ -85,7 +85,7 @@ def test_2_stun_structure():
     a2 = b.sides_of("player")[0]
     # 手动触发命中效果（chance 强制 1）
     from saintess_engine.battle.effects import effects_from_skill, apply_effects
-    from game.content_rules.skills import skill_info
+    from content.skills import skill_info
     info = skill_info("cls_zhan_shi", "盾击·誓") or {}
     effs = effects_from_skill(info, 0)
     for _eff in effs:

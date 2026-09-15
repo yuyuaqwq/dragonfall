@@ -21,10 +21,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from conftest import C  # noqa: E402
+from _engine_harness import C  # noqa: E402
 from saintess_engine.battle.formulas import skill_power_mult, skill_flat_value
-from game.content_rules.panel import player_final_stats
-from game.content_rules.skills import skill_info# noqa: E402
+from content.panel import player_final_stats
+from content.skills import skill_info# noqa: E402
 from content.catalog_core import CLASSES  # noqa: E402
 
 passed = failed = 0

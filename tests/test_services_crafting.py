@@ -15,9 +15,9 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, clean_db
+from _engine_harness import C, clean_db
 
-from game.services.crafting import (
+from content.crafting import (
     compute_enhance_rate, enhance_fail_floor,
     ENHANCE_STONE_REFINE, ENHANCE_STONE_BLESSED, ENHANCE_STONE_PROTECT,
 )

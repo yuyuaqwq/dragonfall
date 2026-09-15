@@ -18,8 +18,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import C  # noqa: E402
-from game.content_rules.panel import player_final_stats  # noqa: E402
+from _engine_harness import C  # noqa: E402
+from content.panel import player_final_stats  # noqa: E402
 
 passed = failed = 0
 LEVELS = (1, 11, 30, 60)

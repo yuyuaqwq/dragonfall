@@ -49,6 +49,11 @@ if os.path.isdir(os.path.join(QQBOT_ROOT, "data", "plugins")) and QQBOT_ROOT not
 if os.path.join(_PD, "framework") not in sys.path:
     sys.path.insert(0, os.path.join(_PD, "framework"))
 
+# ★ P5D-REPOINT：装配口从宿主薄壳 `game.bootstrap.package_apply()`（随 game/** 退役）
+#   换成测试侧引擎通道装配口 `_engine_harness.boot`（幂等；内部即 load_package）。
+from _engine_harness import boot as _eng_boot  # noqa: E402
+_eng_boot()
+
 PKG_ROOT = os.path.join(_PD, "framework", "games", "orlandia")
 PKG_DATA = os.path.join(PKG_ROOT, "content", "data")
 
@@ -62,6 +67,17 @@ PKG_PROJ = os.path.join(PKG_DATA, "texts.json")
 HOST_TREE = os.path.join(_PD, "game")
 
 passed = failed = 0
+#: ★ P5D 登记：终态下**判据不再存在**而被替下的检查组（逐条写清理由；不是放宽阈值）。
+#: 每项 = (检查名, 为什么在终态下不再存在)。
+RETIRED: list = []
+
+
+def retired_check(name: str, reason: str) -> None:
+    """登记一条「终态判据不存在」的检查（不计数、不红；理由必填）。"""
+    if not reason.strip():
+        raise ValueError("retired_check 必须写理由：%s" % name)
+    RETIRED.append((name, reason))
+    print("  ⏸️  [已退休] %s —— %s" % (name, reason))
 
 
 def check(name, cond, detail=""):
@@ -108,9 +124,21 @@ def _entrysha(entry) -> str:
 # ══════════════════════════════════════════════════════════════════════════
 def t1_host_mirror_vs_pkg_source(audit=False):
     print("\n[1] 宿主镜像 ↔ 包内真源（逐字节 + 逐条）")
-    check("宿主镜像存在（构建期资产）", os.path.isfile(HOST_MIRROR), HOST_MIRROR)
+    mirror_present = os.path.isfile(HOST_MIRROR)
+    if not mirror_present:
+        retired_check(
+            "宿主镜像存在（构建期资产）",
+            "终态 `game/data/text_specs.json` 随宿主树清空 ⇒ 该构建期镜像不存在")
+    else:
+        check("宿主镜像存在（构建期资产）", True, HOST_MIRROR)
     check("包内真源存在（唯一真源）", os.path.isfile(PKG_SPEC), PKG_SPEC)
-    if not (os.path.isfile(HOST_MIRROR) and os.path.isfile(PKG_SPEC)):
+    if not (mirror_present and os.path.isfile(PKG_SPEC)):
+        if not mirror_present:
+            retired_check(
+                "宿主镜像 ↔ 包内真源 逐字节/元信息/条目/指纹（6 条）",
+                "被观测的宿主镜像 `game/data/text_specs.json` 在终态不存在"
+                "（宿主运行期不读它；包内真源已由 [2]/[3]/[5] 三条独立锁死）"
+                "⇒ 单向对比判据不再存在")
         return
 
     host_raw, pkg_raw = _read_bytes(HOST_MIRROR), _read_bytes(PKG_SPEC)
@@ -156,8 +184,8 @@ def t1_host_mirror_vs_pkg_source(audit=False):
 # ══════════════════════════════════════════════════════════════════════════
 def t2_runtime_points_at_pkg():
     print("\n[2] 运行期定位（装载器 + 宿主薄壳都指包内）")
-    # 先经宿主薄壳（它内部 `bootstrap.package_apply()` 把包根插进 sys.path）→ 再直接 import 包模块
-    from data.plugins.dragonfall.game.core import texts as T
+    # 先经引擎通道装配（`_engine_harness.boot` 已把包根接进 sys.path）→ 再直接 import 包模块
+    from content import texts as T
     from content import texts as _pkg
 
     canon = os.path.abspath(_pkg.canonical_path())
@@ -277,6 +305,12 @@ def t3_package_self_sufficient():
 def t4_host_does_not_read_package():
     print("\n[4] 宿主侧不读包内真源（终态判据）")
     import builtins
+    if not os.path.isdir(HOST_TREE):
+        retired_check(
+            "宿主树 `game/**` 零读包内真源（装载期 open 追踪 3 条 + 源码面 AST 2 条）",
+            "终态宿主树 `game/**` 已不存在（宿主零包知识由主线删壳批达成）"
+            "⇒ 「宿主代码不读包」这个被观测对象消失")
+        return
     from data.plugins.dragonfall.game.core import texts as T
 
     # ① 运行期实证：拦 builtins.open，看装载到底开了哪些文件
@@ -390,7 +424,11 @@ def main():
     t4_host_does_not_read_package()
     t5_projection_not_drifted()
     print("\n" + "=" * 74)
-    print("结果：通过 %d / %d" % (passed, passed + failed))
+    if RETIRED:
+        print("终态退役检查 %d 条（判据不再存在，逐条理由见上）：" % len(RETIRED))
+        for _n, _r in RETIRED:
+            print("  ⏸️  %s" % _n)
+    print("结果：通过 %d / %d（另：终态退役 %d 条）" % (passed, passed + failed, len(RETIRED)))
     print("=" * 74)
     return 1 if failed else 0
 

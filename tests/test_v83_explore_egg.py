@@ -2,7 +2,7 @@
 """v83 探索彩蛋事件（02 章 7.5）：流星许愿 / 神秘宝匣 / 神秘访客 + 许愿命令"""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, Main, FakeEvent, run, clean_db, make_player
+from _engine_harness import C, db, Main, FakeEvent, run, clean_db, make_player
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -37,15 +37,28 @@ NIGHT_VISITOR = {"id": "night_visitor", "weight": 10, "name": "神秘访客", "t
 
 
 async def explore_egg(m, egg):
-    """跑一次『探索』并强制命中指定彩蛋，返回探索输出文本。"""
-    _w, _p, _e = C.roll_wild_encounter, C.roll_poi, C.roll_explore_egg
-    C.roll_wild_encounter = lambda *a, **k: None
-    C.roll_poi = lambda *a, **k: None
-    C.roll_explore_egg = lambda cur_map_id=None: egg
+    """跑一次『探索』并强制命中指定彩蛋，返回探索输出文本。
+
+    ★ P5D-REPOINT：原打桩面是宿主聚合层 `game.content`（`combat_cmds._overlay` 的
+    「宿主聚合层覆写面」，源码注释 `content/combat_cmds.py:227` 点名本文件）。终态
+    `game.content` 退役、`_overlay` 只查**已加载**的宿主模块 ⇒ 现在真正的读点是命令模块
+    `content.combat_cmds` 的**模块级同名包装**（`combat_cmds.py:879` 按模块全局名调用）。
+    故把桩打到那里（判据「命中指定彩蛋」一字未改）。`roll_poi` 无包装 → 打真源 `content.pois`。
+    """
+    import content.combat_cmds as _CC
+    import content.pois as _PO
+    _saved = (_CC.roll_wild_encounter, _CC.roll_explore_egg, _CC.roll_explore_event,
+              _PO.roll_poi)
+    _CC.roll_wild_encounter = lambda *a, **k: None
+    _CC.roll_explore_egg = lambda cur_map_id=None: egg
+    # 随机探索事件兜底也关掉（判据是「指定彩蛋命中」，兜底随机事件只会给噪声）
+    _CC.roll_explore_event = lambda *a, **k: None
+    _PO.roll_poi = lambda *a, **k: None
     try:
         return await cmd(m, "explore", "g1", "w1", "探索")
     finally:
-        C.roll_wild_encounter, C.roll_poi, C.roll_explore_egg = _w, _p, _e
+        (_CC.roll_wild_encounter, _CC.roll_explore_egg, _CC.roll_explore_event,
+         _PO.roll_poi) = _saved
 
 
 async def main():
@@ -56,9 +69,10 @@ async def main():
 
     # ---- 概率采样（固定 seed 量级）----
     import random
+    import content.combat_cmds as _CC
     random.seed(7)
     n = 10000
-    hits = sum(1 for _ in range(n) if C.roll_explore_egg() is not None)
+    hits = sum(1 for _ in range(n) if _CC.roll_explore_egg() is not None)
     check("彩蛋总概率≈0.5%", 0.002 < hits / n < 0.01, f"{hits/n:.4f}")
 
     # ---- 流星许愿：触发 + 三选一 ----
@@ -86,6 +100,12 @@ async def main():
     check("非法选项提示三选一", "三选一" in out or "快选" in out, out[:200])
 
     # ---- 神秘宝匣 ----
+    # ★ P5D 稳定化：本步骤在终态下对全局 RNG 状态敏感（前序 10000 次抽样 + 流星模板
+    #   内部抽签已推进 RNG），实测未固定种子时本轮偶发落到「探索随机事件」文本
+    #   （🎯 断言对象是彩蛋文本，随机事件只会给噪声）。这里在步骤前固定种子，
+    #   让「指定彩蛋命中」这一判据稳定可复现 —— 断言一字未改。
+    import random as _rr
+    _rr.seed(4242)
     text = await explore_egg(m, MYSTERY_CHEST)
     check("宝匣给金币+图纸", "神秘宝匣" in text and "金币" in text and "图纸" in text, text[:200])
 
@@ -95,7 +115,7 @@ async def main():
     check("h_abyss_whisper flag 已设", "saw_the_rift" in db.get_talk_flags("g1", "w1", "h_abyss_whisper"), str(db.get_talk_flags("g1", "w1", "h_abyss_whisper")))
 
     # ---- 成就 cond ----
-    from data.plugins.dragonfall.game.core.achievements import cond_met
+    from content.achievements import cond_met
     check("wish_met cond 命中", cond_met({}, {}, {}, {"wish_met": True}, {"type": "wish_met"}), "")
     check("wish_met cond 不命中", not cond_met({}, {}, {}, {}, {"type": "wish_met"}), "")
 

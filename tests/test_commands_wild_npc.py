@@ -11,9 +11,20 @@
 """
 import sys, os, sqlite3, json, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run
-from data.plugins.dragonfall.game.core import time_weather as TW
-from data.plugins.dragonfall.game.core import wild as W
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run
+from content import time_weather as TW
+from content import wild as W
+
+# ★ P5D-REPOINT：原宿主薄壳 `game/services/quests_flow.py` 的注入
+#   `quests_svc = game.services.quests` 随 game/** 删除而消失。按 REPOINT_MAP §2，
+#   `game.services.quests` 的真源 = `content.profession_quests`
+#   （bump_daily_progress / settle_daily_quest / DAILY_META_KEYS）。
+#   这里把该注入补回（与已删薄壳逐键同义），否则包内 `_bump_daily_progress`
+#   会落到 facade `_PKG_SURFACE["quests_svc"]` 指到的 `content.persistence.quests`
+#   （存档半边，无此函数）⇒ 交任务路径 AttributeError。
+from content import profession_quests as _profession_quests  # noqa: E402
+from content import quests_flow as _quests_flow  # noqa: E402
+_quests_flow.bind_host(quests_svc=_profession_quests)
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -34,17 +45,17 @@ async def cmd(m, handler_name, gid, qid, msg):
 
 
 def set_clock(period="day", season="summer", weather="sunny"):
-    """monkeypatch wild 模块的时间/天气（wild 里是 import 绑定，改 W 属性）
-    v95.15 #71：C.current_period 同步 patch（world._wild_unseen_hint 走 C 命名空间）"""
+    """monkeypatch wild 模块的时间/天气（wild 里是 import 绑定，改 W 属性）"""
     W.current_period = lambda: period
     W.current_season = lambda: season
     W.today_weather = lambda map_id=None: weather
     W.current_period_orig = TW.current_period
-    C.current_period = lambda: period
-    # v95.15 #71 的「C.current_season 同步 patch」在 B14 开关后已失效 → 删除（TAIL 线 2026-09-14）：
-    # 宿主 `game.content` 只剩再导出壳，生产侧读的是包内 `content/wild.py` 的模块全局
-    # （`game.core.wild is content.wild`）→ 上面那行 `W.current_season` 已经打在真读点上；
-    # 改坏法实测：单独把这一行炸掉对本用例零影响（= 冗余行），保留等价语义即可。
+    # ★ P5D-REPOINT：原 `C.current_period = lambda: period`（v95.15 #71）在终态取下：
+    #   生产侧读点 = 包内 `content/wild.py` 的**模块全局**（`_wild_unseen_hint` 经包内取件；
+    #   宿主 `game.content` 已退役）。包侧聚合门面 `_engine_harness.C` 是 `_Aggregate`
+    #   转发面（无 `current_period` 可写），上面那行 `W.current_period` 已打在真读点上
+    #   —— 与同函数里 2026-09-14 对 `C.current_season` 的处置同款（冗余行，等价语义）。
+    #   判据零改动：本文件全部断言仍作用于 W/TW 真源与命令输出。
 
 
 def clear_wild_meta(gid, qid):
@@ -65,7 +76,10 @@ async def main():
     check("WILD_NPCS ≥28", len(C.WILD_NPCS) >= 28, str(len(C.WILD_NPCS)))
     check("HIDDEN_NPCS ≥13（v87 增 3）", len(C.HIDDEN_NPCS) >= 13, str(len(C.HIDDEN_NPCS)))
     bad = []
-    for nid, npc in C.ALL_WILD.items():
+    # ★ P5D-REPOINT：`C.ALL_WILD` 在包侧聚合门面未登记（宿主门面 PEP 562 读口）
+    #   ⇒ 取真源模块的 PEP 562 兼容读口 `content/wild.py::_ALL_WILD()`（`W` 已在顶部
+    #   直接取自包内真源），条数与宿主门面同值（63）。断言文字未改。
+    for nid, npc in W._ALL_WILD().items():
         if not npc.get("name") or not npc.get("icon"):
             bad.append((nid, "缺名字/图标"))
         if not npc.get("map") and not npc.get("roam"):

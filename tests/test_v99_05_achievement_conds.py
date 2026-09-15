@@ -13,9 +13,9 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db  # noqa: F401
+from _engine_harness import C, db  # noqa: F401
 from content import achievement_conds as AC  # ★ B18-REPOINT：直取包内实现本体（宿主同名壳不再被测试引用）
-from data.plugins.dragonfall.game.core.achievements import cond_met
+from content.achievements import cond_met
 # ★ PFIX P5（2026-09-15）：打桩面 = **实现本体**。
 #   条件实现（`content/achievement_conds.py`）读的是包内存储层 `content/_pkgref.DB`
 #   （= `content.persistence`）；conftest 的 `db` 是宿主 `game/db.py`（`game/store/**`

@@ -7,7 +7,7 @@
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, Main, FakeEvent, run, clean_db
+from _engine_harness import C, db, Main, FakeEvent, run, clean_db
 
 async def cmd(m, handler_name, gid, qid, msg):
     ev = FakeEvent(gid, qid, msg)
@@ -32,16 +32,16 @@ async def main():
             return True
 
     from content import dialogue_conds as DC  # ★ B18-REPOINT：直取包内实现本体（宿主同名壳不再被测试引用）
-    from data.plugins.dragonfall.game.core import title_conds as TC
-    from data.plugins.dragonfall.game.core import race_talent_display as RTD
-    from data.plugins.dragonfall.game.core import hidden_cond as HC
+    from content import title_conds as TC
+    from content import race_talent_display as RTD
+    from content import hidden_cond as HC
 
     # ---- 1. dialogue_conds：注册新条件立即生效 ----
     DC.register("always_true")(lambda ctx, v: True)
     DC.register("never_true")(lambda ctx, v: False)
     check("注册后 check_need 立即识别新条件",
           DC.CONDITIONS["always_true"]({}, None) and not DC.CONDITIONS["never_true"]({}, None), "")
-    from data.plugins.dragonfall.game.core.dialogue import check_need
+    from content.dialogue import check_need
     check("check_need 走注册表(新条件 true 放行)", check_need({"always_true": 1}, {}), "")
     check("check_need 走注册表(新条件 false 拦截)", not check_need({"never_true": 1}, {}), "")
     check("未知条件键测试环境告警(v104 改)", _raises_valueerror(check_need, {"future_key_xx": 1}, {}), "")
@@ -82,9 +82,14 @@ async def main():
     for nid, npc in (C.NPCS or {}).items():
         dlg = npc.get("dialogue") if isinstance(npc, dict) else None
     # 直接扫数据文件里 need dict 的 key
+    # ★ P5D-REPOINT：包侧聚合门面 `C` 没有 `__file__`（它是 `content.facade._Aggregate` 句柄，
+    #   不是模块）⇒ 数据目录锚点改用**真源包根**（`content` 是命名空间包：`__file__` 为 None，
+    #   用 `__path__[0]`；原语义 = 内容层数据目录 `content/data/`）。
     import re
+    import content as _content_pkg
+    _data_dir = os.path.join(list(_content_pkg.__path__)[0], "data")
     for fname in ("npcs.py", "dialogues.py"):
-        fpath = os.path.join(os.path.dirname(C.__file__), "data", fname)
+        fpath = os.path.join(_data_dir, fname)
         if os.path.exists(fpath):
             src = open(fpath, encoding="utf-8").read()
             for mm in re.finditer(r'"need"\s*:\s*\{([^}]*)\}', src):

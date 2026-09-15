@@ -21,11 +21,11 @@ sys.path.insert(0, _PLUGIN_DIR)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from game.store.connection import init_db  # noqa: E402
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402
+from content.persistence.handles import init_db  # noqa: E402
 init_db()
 
-from game import content as C  # noqa: E402
+from _engine_harness import C  # noqa: E402
 from saintess_engine import ai as AI  # noqa: E402
 from saintess_engine import Battle as B2  # noqa: E402
 
@@ -69,7 +69,7 @@ def test_1_all_ai_bosses_normalize():
             bad.append(f"{bid}:{e}")
         # 技能悬空检查：所有技能 key（含 ms_*）必须能在怪表/玩家表查获
         # （索引解析 = 怪表 MONSTER_SKILLS → 玩家 skill_by_key——与 _index_skills 同款）
-        from game.content_rules.skills import skill_by_key
+        from content.skills import skill_by_key
         for m in (ai or {}).get("moves") or []:
             sk = (m.get("then") or {}).get("skill")
             if not sk:
@@ -152,7 +152,7 @@ def test_2_director_and_ai_coexist():
 
 def test_3_target_hint():
     print("【3. target_hint：AI 战术目标（lowest_hp 残血收割）优先于仇恨，一次性】")
-    from game.commands.instance_battle import _instance_target_picker
+    from content.flow.instance_battle import _instance_target_picker
     st = {"threat": {"p_a": 0, "p_b": 99999}, "taunt_target": ""}
     pa = {"uid": "p_a", "qq_id": "p_a", "name": "残血甲", "side": "player",
           "hp": 1000, "max_hp": 5000, "atk": 100, "matk": 100, "def": 50,

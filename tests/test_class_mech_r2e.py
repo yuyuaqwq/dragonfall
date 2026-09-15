@@ -39,7 +39,7 @@ sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
 from saintess_engine import config as _b2c
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # ★ P5C-REPOINT：宿主装配壳已删 → 测试侧引擎通道装配口
 from saintess_engine import Battle as B2, make_actor
 from saintess_engine import actions as A
 from saintess_engine.battle.actors import ActCtx
@@ -47,8 +47,8 @@ from saintess_engine.battle.effects import _cap_of, apply_effects
 from saintess_engine.battle.effect_triggers import fire
 from saintess_engine.battle.schedule import _advance_time
 from saintess_engine.battle.state_effects import state_def
-from game.services import battle_equip_proc as EP
-from game.services.class_mech_proc import apply_class_mech
+from content.mech import equip as EP  # ★ P5C-REPOINT：直取包内真源（原 battle_equip_proc）
+from content.mech.class_mech import apply_class_mech  # ★ P5C-REPOINT：直取包内真源
 
 PASS = 0
 FAIL = 0
@@ -453,7 +453,7 @@ def t_b3_decay():
 
 def t_b3_display_floor():
     print("【B.3 展示 floor：float 层取整显示（内部 float、玩家整数观感）】")
-    from game.commands.combat import resource_stack_text
+    from content.combat_cmds import resource_stack_text  # ★ P5C-REPOINT
     t1 = resource_stack_text({"faith": {"stacks": 7.9}})
     check("faith 7.9 → 显示 7/10层（floor）", "信仰值 7/10层" in t1, repr(t1))
     t2 = resource_stack_text({"faith": {"stacks": 0.6}})

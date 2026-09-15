@@ -5,8 +5,8 @@
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C  # noqa: F401  (设置 sys.path)
-from data.plugins.dragonfall.game.core import stats as core_stats
+from _engine_harness import C  # noqa: F401  (设置 sys.path)
+from content import stats as core_stats
 
 passed = failed = 0
 def check(name, cond, detail=""):

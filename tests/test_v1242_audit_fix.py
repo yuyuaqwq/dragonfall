@@ -22,8 +22,31 @@ _DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_v1242_audit
 os.environ["GWEN_GAME_DB"] = _DB
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import C, db, clean_db, Main, FakeEvent, run  # noqa: E402
-from data.plugins.dragonfall.game.core import title_conds as TC  # noqa: E402
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run  # noqa: E402
+from content import title_conds as TC  # noqa: E402
+
+# ★ P5D-REPOINT：原宿主薄壳 `game/services/quests_flow.py` 的注入
+#   `quests_svc = game.services.quests` 随 game/** 删除而消失（REPOINT_MAP §2：真源 =
+#   `content.profession_quests`）。交付/每日推进路径需要它，否则 AttributeError。
+from content import profession_quests as _profession_quests  # noqa: E402
+from content import quests_flow as _quests_flow  # noqa: E402
+_quests_flow.bind_host(quests_svc=_profession_quests)
+
+# ★ P5D-REPOINT（越界登记，包侧缺陷，与 test_numeric_reward_unify 同型）：
+#   `content.facade` 的扇出把 `content.reward` 的 `levelup` / `stat_bonus` / `key_to_id`
+#   三槽解析成**函数对象**，而包内 `content/reward.py::_resolve` 的协议是「可调用值 =
+#   零参活源 thunk，取用时调一次」⇒ 零参调用会 TypeError，被发放路径静默吞掉 ⇒ **奖励物品不入包**。
+#   宿主薄壳 `game/reward.py` 绑的正是 thunk（`lambda: <函数>`），随 game/** 退役后该绑定消失。
+#   这里按同一注入键同一语义补回三个 thunk（行为逐字同义）。建议包侧修 `_PKG_SURFACE` 后本段可删。
+from content import gameplay_rules as _gameplay_rules  # noqa: E402
+from content import reward as _reward_mod  # noqa: E402
+from content import stat_bonus as _stat_bonus_mod  # noqa: E402
+from content.persistence.inventory import _key_to_id as _key_to_id_fn  # noqa: E402
+_reward_mod.bind_host(
+    levelup=lambda: _gameplay_rules.check_player_level_up,
+    stat_bonus=lambda: _stat_bonus_mod.stat_bonus,
+    key_to_id=lambda: _key_to_id_fn,
+)
 
 PASS = 0
 FAIL = 0

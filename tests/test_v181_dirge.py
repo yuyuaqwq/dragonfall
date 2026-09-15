@@ -42,12 +42,13 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor, effects as EFX  # noqa: E402
 from saintess_engine.battle.stats import actor_stats  # noqa: E402
 from saintess_engine.battle.effect_triggers import fire as bfire  # noqa: E402
-from game.content_rules.skills import skill_info
-from game.services import class_mech_proc as CM  # noqa: E402
+from content.skills import skill_info
+from content.mech import class_mech as CM  # noqa: E402  (import 即注册 39 动作)
+from _engine_harness import boot as _eng_boot  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -116,8 +117,14 @@ def trigs(actor, event):
 
 
 def call_action(b, action, params, caster, target=None):
-    """按 fire() 契约直调动作（装配产物当 params；_owner = 声明者）。"""
-    CM.install()
+    """按 fire() 契约直调动作（装配产物当 params；_owner = 声明者）。
+
+    ★ P5D-REPOINT：原 `CM.install()`（宿主薄壳 `game/services/class_mech_proc.py::install`）
+    在终态随宿主壳退役；其真源语义 = 「幂等注册动作」，而包内注册由
+    `content/mech/class_mech.py` **import 期**完成（宿主薄壳自述「本函数保留为空委托」）。
+    故此处改用测试侧等价装配口 `_engine_harness.boot`（幂等）—— 判据一条未动。
+    """
+    _eng_boot()
     h = EFX.ACTION_HANDLERS[action]
     logs = []
     h(b, caster, target, dict(params), logs)

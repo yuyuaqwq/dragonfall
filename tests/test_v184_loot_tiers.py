@@ -36,16 +36,48 @@ from fractions import Fraction
 from itertools import accumulate
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, make_player, Main, FakeEvent, run  # noqa: E402
-from conftest import PLUGIN_DIR  # noqa: E402
+from _engine_harness import C, db, clean_db, make_player, Main, FakeEvent, run  # noqa: E402
+from _engine_harness import PLUGIN_DIR  # noqa: E402
 
-from data.plugins.dragonfall.game.core import affix as A            # noqa: E402
-from data.plugins.dragonfall.game.core import drops as D            # noqa: E402
-from data.plugins.dragonfall.game.core import fishing as F          # noqa: E402
-from data.plugins.dragonfall.game.core import smith_stock as SS     # noqa: E402
-from data.plugins.dragonfall.game.core import event_templates as ET  # noqa: E402
-from data.plugins.dragonfall.game.core.quality_tiers import QUALITY_TIERS, FISH_TIERS  # noqa: E402
-from data.plugins.dragonfall.game.core.time_weather import current_season  # noqa: E402
+from content import affix as A            # noqa: E402
+from content import drops as D            # noqa: E402
+from content import fishing as F          # noqa: E402
+from content import smith_stock as SS     # noqa: E402
+from content import event_templates as ET  # noqa: E402
+from content.quality_tiers import QUALITY_TIERS, FISH_TIERS  # noqa: E402
+from content.time_weather import current_season  # noqa: E402
+
+
+# ★ P5D-REPOINT：`tpl_merchant`（流浪商人）是**故意留在宿主壳**的唯一模板
+#   （`game/core/event_templates.py`；第 10 段的宿主源码级绑定断言点名它）。包内
+#   `content/event_templates.py` 18 个模板里没有它 ⇒ 直取包内实现时第 9 段
+#   `ET.execute_event_template("merchant", …)` 会取到 None。宿主壳随删壳批拿掉后，
+#   本文件按**逐字同源**在测试侧复刻宿主模板并用包内同一个 `register` 注册
+#   （与宿主壳装配方式一致；第 9 段「旧 vs 新」对拍语义一字不变）。
+def _host_tpl_merchant(ctx):
+    """逐字复刻宿主壳 `game/core/event_templates.py::tpl_merchant`（v184 后正文）。"""
+    _db = ctx._db()
+    Cc = ctx._C()
+    q = QUALITY_TIERS.pick_weights({"white": 45, "green": 40, "blue": 15}, rng=random)
+    equip = Cc.generate_equip(random.choice(["weapon", "ring", "necklace"]), max(1, ctx.lv), q)
+    price = int(equip["price"] * 0.6)
+    _cur_gold = _db.get_player(ctx.group_id, ctx.qq_id).get("gold", 0)
+    if _cur_gold >= price and random.random() < Cc.TRADER_DEAL_CHANCE:
+        import json as _json, time as _time
+        _db.set_event_state(f"trader_{ctx.group_id}_{ctx.qq_id}", _json.dumps({
+            "ts": _time.time(),
+            "price": price,
+            "equip": equip,
+        }))
+        return (f"🛒 【流浪商人】一个商人拉住你：“勇士，看货！便宜卖你了！”\n"
+                f"{Cc.QUALITY[equip['quality']]['color']}【{equip['name']}】只要 {price} 金币！\n"
+                f"是否购买？回复 确认购买/拒绝")
+    return (f"🛒 【流浪商人】一个商人向你兜售 {Cc.QUALITY[equip['quality']]['color']}【{equip['name']}】，"
+            f"只要 {price} 金币……你摇了摇头：不买不买。商人悻悻地走了。")
+
+
+if "merchant" not in ET.TEMPLATES:
+    ET.register("merchant")(_host_tpl_merchant)
 
 PASS = 0
 FAIL = 0
@@ -317,15 +349,25 @@ def _src(rel):
     ★ B18-L1（2026-09-14）：命令层整块进包后，包内文件名是 `cmds_<域>.py`（如
     `game/commands/misc.py` → `content/cmds_misc.py`），故两侧拼接再认一个 `cmds_` 名字
     （存在才拼，判据不变）。
+
+    ★ P5D-REPOINT：终态 `game/**` 已清空 ⇒ 宿主壳那一半不存在。此时退到**包内实现单独**
+    侧（真源本身），断言语义不变（原本就是「壳 + 实现」两侧拼接，壳没了则实现即全部）。
     """
-    with open(os.path.join(PLUGIN_DIR, rel), encoding="utf-8") as fh:
-        text = fh.read()
+    host_path = os.path.join(PLUGIN_DIR, rel)
     base = os.path.basename(rel)
+    text = ""
+    if os.path.exists(host_path):
+        with open(host_path, encoding="utf-8") as fh:
+            text = fh.read()
+    found = False
     for nm in ("cmds_" + base, base):
         impl = os.path.join("framework", "games", "orlandia", "content", nm)
         if os.path.exists(os.path.join(PLUGIN_DIR, impl)):
             with open(os.path.join(PLUGIN_DIR, impl), encoding="utf-8") as fh:
                 text = text + "\n" + fh.read()
+            found = True
+    if not found and not text:
+        raise FileNotFoundError("源文件两侧都不存在：%s" % rel)
     return text
 
 
@@ -333,7 +375,7 @@ def _seed_signin_streak(qq_id, streak):
     """signin 行置成「昨天签过 + 连续 streak 天」→ 本次 claim 后 streak+1 命中每 7 天奖励。"""
     import datetime
     yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
-    conn = sqlite3.connect(db.DB_PATH)
+    conn = sqlite3.connect(db.db_path())
     try:
         conn.execute("INSERT OR IGNORE INTO signin (qq_id, last_date, streak, total) "
                      "VALUES (?,?,?,0)", (qq_id, "", 0))
@@ -346,7 +388,7 @@ def _seed_signin_streak(qq_id, streak):
 
 def _last_equip_quality(qq_id):
     """读背包里最后一件随机装备（eq_ 前缀）的品质——直读原始 JSON，绕开瘦身/水合。"""
-    conn = sqlite3.connect(db.DB_PATH)
+    conn = sqlite3.connect(db.db_path())
     try:
         rows = conn.execute("SELECT item_key, item_data FROM inventory WHERE qq_id=? "
                             "ORDER BY rowid", (qq_id,)).fetchall()
@@ -683,8 +725,17 @@ def sec9_event_template():
 def sec10_single_source():
     print("【10. 唯一真相源 / 各处源码级绑定】")
     # 全仓只允许 quality_tiers.py 建 TierTable
+    # ★ P5D 终态分支：`game/**` 清空后「全仓」= 包内 `framework/games/orlandia/content/**`
+    #   （唯一真相源从 `game/core/quality_tiers.py` 平移到 `content/quality_tiers.py`，
+    #   判据「全仓只有一处 TierTable」不变，只是被扫的树换名）。
+    if os.path.isdir(os.path.join(PLUGIN_DIR, "game")):
+        _root = os.path.join(PLUGIN_DIR, "game")
+        _expect = ["game/core/quality_tiers.py"]
+    else:
+        _root = os.path.join(PLUGIN_DIR, "framework", "games", "orlandia", "content")
+        _expect = ["framework/games/orlandia/content/quality_tiers.py"]
     owners = []
-    for root, dirs, files in os.walk(os.path.join(PLUGIN_DIR, "game")):
+    for root, dirs, files in os.walk(_root):
         dirs[:] = [d for d in dirs if d != "__pycache__"]
         for fn in files:
             if not fn.endswith(".py"):
@@ -692,8 +743,7 @@ def sec10_single_source():
             p = os.path.join(root, fn)
             if "TierTable(" in _src(os.path.relpath(p, PLUGIN_DIR)):
                 owners.append(os.path.relpath(p, PLUGIN_DIR).replace("\\", "/"))
-    check("全仓只有一处建 TierTable（唯一真相源）",
-          owners == ["game/core/quality_tiers.py"], str(owners))
+    check("全仓只有一处建 TierTable（唯一真相源）", owners == _expect, str(owners))
     check("QUALITY_TIERS.order == data 层 QUALITY_ORDER",
           tuple(QUALITY_TIERS.order) == tuple(C.QUALITY_ORDER), str(QUALITY_TIERS.order))
     check("QUALITY_TIERS.info_of 打通 QUALITY（mult/color/name）",

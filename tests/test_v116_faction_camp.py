@@ -11,8 +11,8 @@
 """
 import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run
-from data.plugins.dragonfall.game.core.achievements import cond_met, check_achievements
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run
+from content.achievements import cond_met, check_achievements
 
 passed = failed = 0
 

@@ -29,8 +29,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
-from conftest import C  # noqa: E402,F401  （先 import conftest：它把 qqbot/ 与 framework/ 接进 sys.path）
-from data.plugins.dragonfall.game.core import instance_gate  # noqa: E402
+from _engine_harness import C  # noqa: E402,F401  （先 import _engine_harness：装配引擎通道 + sys.path）
+from content.flow import instance_gate  # noqa: E402
 
 GATE = os.path.join(_HERE, "test_v185_instance_admission.py")
 TMP = os.path.join(_HERE, "_tmp_v185_teeth_probe.py")
@@ -57,8 +57,17 @@ def _load(name):
 
 
 def _red(mod, fn_name):
-    """跑门禁里的某节，返回 (新增红, 新增绿)。抛错也算红（崩了同样是"门禁有反应"）。"""
+    """跑门禁里的某节，返回 (新增红, 新增绿)。抛错也算红（崩了同样是"门禁有反应"）。
+
+    ★ P5D-REPOINT：宿主壳随 game/** 退役后，包内链不再自带「每次链入口把宿主模块的
+    文案函数回挂包内全局」那一步 ⇒ 本文件的猴补（`instance_gate.text_leader_only = …`）
+    对包内链会静默失效（有牙测试会**假绿**）。故在调用门禁某节前显式触发门禁模块自己的
+    `_bind_text_funcs()`（逐字等价宿主壳同名机制），让猴补照旧打在包内真读点上。
+    """
     f0, p0 = mod.failed, mod.passed
+    _bind = getattr(mod, "_bind_text_funcs", None)
+    if _bind is not None:
+        _bind()
     try:
         getattr(mod, fn_name)()
     except Exception as e:

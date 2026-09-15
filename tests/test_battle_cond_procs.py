@@ -21,11 +21,11 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # ★ P5C-REPOINT：宿主装配壳已删 → 测试侧引擎通道装配口
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine.battle.effect_triggers import fire  # noqa: E402
-from game.services.class_mech_proc import apply_class_mech  # noqa: E402
-from game.services import battle_cond_procs as CP  # noqa: E402
+from content.mech.class_mech import apply_class_mech  # ★ P5C-REPOINT：直取包内真源
+from content.mech import cond_procs as CP  # ★ P5C-REPOINT：直取包内真源（原 battle_cond_procs）
 from content import skills as _SK  # noqa: E402
 from saintess_engine.gauge import bar_effect_key# noqa: E402
 
@@ -205,7 +205,7 @@ def test_unknown_type_and_heal():
 def test_end_to_end_damage():
     print("【7. 端到端：真实技能管线（侧踢）破防前后伤害对比】")
     from saintess_engine import actions as A
-    from game.content_rules.skills import skill_info
+    from content.skills import skill_info  # ★ P5C-REPOINT
     real = skill_info("cls_wu_seng", "sk_ce_ti")
     check("取到真实侧踢数据且带 cond", isinstance(real, dict) and isinstance(real.get("cond"), dict),
           f"info={bool(real)}")

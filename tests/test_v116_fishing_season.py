@@ -9,9 +9,9 @@
 """
 import sys, os, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C
-from data.plugins.dragonfall.game.core.fishing import roll_fish, current_season
-import data.plugins.dragonfall.game.core.fishing as F
+from _engine_harness import C
+from content.fishing import roll_fish, current_season
+import content.fishing as F
 
 SEASONS = ("spring", "summer", "autumn", "winter")
 

@@ -22,8 +22,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import C  # noqa: E402
-from data.plugins.dragonfall.game.core.stats import (  # noqa: E402
+from _engine_harness import C  # noqa: E402
+from content.stats import (  # noqa: E402
     monster_stats, hp_stage_mult, atk_stage_mult, _stage_mult, _boss_atk_stage,
 )
 

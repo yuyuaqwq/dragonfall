@@ -35,17 +35,17 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine import effects as EFX  # noqa: E402
 from saintess_engine.battle.effect_triggers import fire  # noqa: E402
-from game.services import class_mech_proc as CM  # noqa: E402
+from content.mech import class_mech as CM  # noqa: E402
 from content.mech.params import EFFECT_RULES, EFFECT_ACTIONS  # noqa: E402
 from content.mech.class_data import MECH_CASH  # noqa: E402
 # B16 收口：宿主 game/data 已删 —— PASSIVE_PROC 真源 = 包内 content/rules/passive_proc.json（42 条，逐值等）
 from content.mech.class_mech import _passive_proc_rules  # noqa: E402
 PASSIVE_PROC = _passive_proc_rules()
-from game.content_rules.skills import skill_info
+from content.skills import skill_info
 
 PASS = 0
 FAIL = 0

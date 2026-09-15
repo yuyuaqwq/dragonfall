@@ -11,8 +11,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import C, db, clean_db  # noqa: E402
-from data.plugins.dragonfall.game.services import quests as S  # noqa: E402
+from _engine_harness import C, db, clean_db  # noqa: E402
+from content import profession_quests as S  # noqa: E402
 
 PASS = 0
 FAIL = 0

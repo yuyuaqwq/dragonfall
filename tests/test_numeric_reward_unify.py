@@ -19,7 +19,26 @@ for _p in (_SCRIPT_DIR, os.path.dirname(_SCRIPT_DIR)):
         sys.path.insert(0, _p)
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(_SCRIPT_DIR, "test_game_data.db"))
 
-from conftest import C, db, clean_db, Main, FakeEvent, run  # noqa: E402
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run  # noqa: E402
+
+# ★ P5D-REPOINT（越界登记，包侧缺陷）：`content.facade` 的注入扇出把 `content.reward`
+#   的三个槽解析成**函数对象**（`levelup` → `content.gameplay_rules.check_player_level_up`、
+#   `stat_bonus` → `content.stat_bonus.stat_bonus`、`key_to_id` →
+#   `content.persistence.inventory._key_to_id`）；而包内 `content/reward.py::_resolve` 的协议是
+#   「可调用值 = 零参活源 thunk，取用时调一次；模块/对象 = 定值」⇒ 直取包内实现时
+#   `_host_levelup()` 会零参调用 `check_player_level_up(gid, qid, player)` 而 `TypeError`。
+#   宿主薄壳 `game/reward.py` 绑的正是 thunk（`lambda: <函数>`），随 game/** 退役后该绑定消失。
+#   本文件按宿主薄壳**同一注入键同一语义**补回三个 thunk（`lambda: <函数>`），行为逐字同义。
+#   建议包侧把 `_PKG_SURFACE` 这三槽改成「thunk 形态」或让 `_resolve` 不把函数当 thunk 后本段可删。
+from content import gameplay_rules as _gameplay_rules  # noqa: E402
+from content import reward as _reward_mod  # noqa: E402
+from content import stat_bonus as _stat_bonus_mod  # noqa: E402
+from content.persistence.inventory import _key_to_id as _key_to_id_fn  # noqa: E402
+_reward_mod.bind_host(
+    levelup=lambda: _gameplay_rules.check_player_level_up,
+    stat_bonus=lambda: _stat_bonus_mod.stat_bonus,
+    key_to_id=lambda: _key_to_id_fn,
+)
 
 passed, failed = 0, 0
 
@@ -48,7 +67,17 @@ async def main():
     db.update_player("gr", "wr", level=1, gold=100)
 
     print("【reward_unify：grant_reward 全类型】")
-    from game.reward import grant_reward
+    # ★ P5D-REPOINT：原 `from game.reward import grant_reward`（宿主薄壳）。薄壳 import 期把
+    #   七个「活源 thunk」经 `bind_host(...)` 挂给包内实现；薄壳随 game/** 退役后，这些 thunk
+    #   一并消失。**逐键核对包内 `content/reward.py` 的兜底**（`_resolve(key, fallback)`）：
+    #     · `db`        → `content._pkgref.DB`（包内存档半边）
+    #     · `key_to_id` → `content.persistence.inventory._key_to_id`
+    #     · `levelup`   → `content.gameplay_rules.check_player_level_up`
+    #     · `stat_bonus`→ `content.stat_bonus.stat_bonus`
+    #   四条兜底都在包内且是真源本身 ⇒ 直取 `content.reward.grant_reward` 与宿主薄壳路径
+    #   **逐行为同义**（薄壳的 thunk 只是「函数内惰性 import 宿主」的搬运；宿主侧那四个名字
+    #   本身就是包内同名对象）。判据零改动。
+    from content.reward import grant_reward
     p = db.get_player("gr", "wr")
     lines = grant_reward({
         "exp": 300, "gold": 200,
@@ -88,13 +117,13 @@ async def main():
     await cmd(m, "register", "gcb", "wcb", "注册 战士 收测1 男")
     await cmd(m, "register", "gcb", "wcb2", "注册 战士 收测2 男")
     b0 = C.COLLECTION_BOOKS[0]
-    from game.store.inventory import record_possessed
+    from content.persistence.inventory import record_possessed
     for e in b0.get("entries", []):
         try:
             record_possessed("gcb", "wcb", e.get("key") or e.get("name"))
         except Exception:
             pass
-    from game.core.stat_bonus import stat_bonus as _tb
+    from content.stat_bonus import stat_bonus as _tb
     tb_ok = _tb("gcb", "wcb", db.get_player("gcb", "wcb"))
     tb_no = _tb("gcb", "wcb2", db.get_player("gcb", "wcb2"))
     has_bonus = bool(b0.get("reward", {}).get("bonus"))

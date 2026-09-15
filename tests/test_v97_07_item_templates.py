@@ -2,7 +2,7 @@
 """v97.7 数据完整性验证：道具总数、模板字段合法性、关键道具抽查"""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, Main, FakeEvent, run, clean_db
+from _engine_harness import C, db, Main, FakeEvent, run, clean_db
 
 async def cmd(m, handler_name, gid, qid, msg):
     ev = FakeEvent(gid, qid, msg)
@@ -19,8 +19,8 @@ async def main():
         if cond: ok += 1; print(f"  ✅ {name}")
         else: fail += 1; print(f"  ❌ {name} {detail}")
 
-    # 与 conftest 同路径导入（顶层 game 路径会触发 core 循环导入）
-    from data.plugins.dragonfall.game.core import item_templates as IT
+    # 包内真源（原 `game.core.item_templates` 薄壳 → `content/item_templates.py`）
+    from content import item_templates as IT
 
     # ---- 1. 数量 ----
     # CONSUMABLES 已合并进 ITEMS（data/items.py 底部 ITEMS.update(CONSUMABLES)）

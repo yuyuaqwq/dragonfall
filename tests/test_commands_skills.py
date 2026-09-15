@@ -9,9 +9,9 @@
 """
 import sys, os, sqlite3
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run
 from saintess_engine.battle.formulas import skill_buff_turns, skill_cond_mult, skill_max_level, skill_mech_val, skill_power_mult
-from game.content_rules.skills import skill_info, skill_upgrade_cost
+from content.skills import skill_info, skill_upgrade_cost
 
 passed = failed = 0
 def check(name, cond, detail=""):

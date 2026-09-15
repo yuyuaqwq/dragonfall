@@ -12,7 +12,36 @@
 import sys, os, random, json, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, make_player, Main, FakeEvent, run
+from _engine_harness import C, db, clean_db, make_player, Main, FakeEvent, run
+
+# ★ P5D-REPOINT：`tpl_merchant` 是**故意留在宿主壳**（`game/core/event_templates.py`）的
+#   唯一模板，包内 18 个模板里没有它；宿主壳随删壳批拿掉后，这里按逐字同源在测试侧复刻
+#   并用包内同一个 `register` 注册（与宿主壳装配方式一致）。判据（13 个模板齐备）一字未改。
+import content.event_templates as _ET  # noqa: E402
+from content.quality_tiers import QUALITY_TIERS as _QT  # noqa: E402
+
+
+def _host_tpl_merchant(ctx):
+    """逐字复刻宿主壳 `game/core/event_templates.py::tpl_merchant`。"""
+    _db = ctx._db()
+    Cc = ctx._C()
+    q = _QT.pick_weights({"white": 45, "green": 40, "blue": 15}, rng=random)
+    equip = Cc.generate_equip(random.choice(["weapon", "ring", "necklace"]), max(1, ctx.lv), q)
+    price = int(equip["price"] * 0.6)
+    _cur_gold = _db.get_player(ctx.group_id, ctx.qq_id).get("gold", 0)
+    if _cur_gold >= price and random.random() < Cc.TRADER_DEAL_CHANCE:
+        import json as _json, time as _time
+        _db.set_event_state(f"trader_{ctx.group_id}_{ctx.qq_id}", _json.dumps({
+            "ts": _time.time(), "price": price, "equip": equip}))
+        return (f"🛒 【流浪商人】一个商人拉住你：“勇士，看货！便宜卖你了！”\n"
+                f"{Cc.QUALITY[equip['quality']]['color']}【{equip['name']}】只要 {price} 金币！\n"
+                f"是否购买？回复 确认购买/拒绝")
+    return (f"🛒 【流浪商人】一个商人向你兜售 {Cc.QUALITY[equip['quality']]['color']}【{equip['name']}】，"
+            f"只要 {price} 金币……你摇了摇头：不买不买。商人悻悻地走了。")
+
+
+if "merchant" not in _ET.TEMPLATES:
+    _ET.register("merchant")(_host_tpl_merchant)
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -25,7 +54,7 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {str(detail).encode('utf-8', 'replace').decode('utf-8', 'replace')[:300]}")
 
 async def main():
-    from data.plugins.dragonfall.game.core.event_templates import TEMPLATES, execute_event_template, EventContext
+    from content.event_templates import TEMPLATES, execute_event_template, EventContext
 
     print("【1. 模板注册表】")
     check("13 个模板已注册", len(TEMPLATES) >= 13, TEMPLATES.keys())
@@ -124,13 +153,18 @@ async def main():
     make_player("g2", "q2", level=3)
     db.update_player("g2", "q2", cur_map="oak_plain", cur_subarea="")
     random.seed(5)
-    orig_roll = C.roll_explore_event
+    # ★ P5D-REPOINT：打桩面从包侧聚合门面 `C` 改到**命令模块** `content.combat_cmds`
+    #   （`_handle_explore_event` 按模块全局名 `roll_explore_event` 调用；
+    #   `_engine_harness.C` 是包侧聚合门面，未登记 `roll_explore_event`）。
+    #   同一语义：强制命中 rain（set_state 模板）。判据一字未改。
+    import content.combat_cmds as _CC
+    orig_roll = _CC.roll_explore_event
     # 强制命中 rain（set_state 模板）
-    C.roll_explore_event = lambda exclude=(): next(e for e in C.EXPLORE_EVENTS if e["id"] == "rain")
+    _CC.roll_explore_event = lambda exclude=(): next(e for e in C.EXPLORE_EVENTS if e["id"] == "rain")
     try:
         handled, text = m2._handle_explore_event("g2", "q2", db.get_player("g2", "q2"), C.MAP_BY_ID["oak_plain"])
     finally:
-        C.roll_explore_event = orig_roll
+        _CC.roll_explore_event = orig_roll
     check("rain 事件走模板返回", handled and "雨" in text, text)
     raw = db.get_event_state("rain_g2_q2")
     check("rain 状态已写入", raw and "ts" in raw, raw)

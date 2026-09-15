@@ -10,12 +10,10 @@
 """
 import sys, os
 
-# 直跑模式需要 conftest 环境（GWEN_GAME_DB 隔离 + 路径）
+# 直跑模式需要引擎通道环境（GWEN_GAME_DB 隔离 + 路径）
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-try:
-    import conftest  # noqa: F401
-except Exception:
-    pass
+from _engine_harness import boot as _eng_boot  # noqa: E402
+_eng_boot()
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
 from economy_lib import economy_scan, check_health, profession_scan, ECON_STAGES
@@ -60,7 +58,7 @@ check("profession_scan 有 cooking", "cooking" in prof and prof["cooking"]["tota
 # 5. 掉落 cap 生效：用当前材料价模拟普通怪，确认无 99 爆量
 from content.catalog_items import MATERIALS  # noqa: E402
 from content.catalog_space import MAPS  # noqa: E402
-from game.core import stats as S
+from content import stats as S
 mat_price = {v.get("name", k): v.get("price", 0) for k, v in MATERIALS.items()}
 max_n = 0
 over_cap = 0

@@ -17,9 +17,9 @@ sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
 from saintess_engine import config as _b2c
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor
-from game.services.class_mech_proc import apply_class_mech
+from content.mech.class_mech import apply_class_mech
 
 PASS = 0
 FAIL = 0
@@ -89,7 +89,7 @@ def test_2_cd_mult():
     logs, _, _ = b.human_act("skill", "暗影步", a2)  # 进态
     check("暗影步后态在", (a2.get("effects") or {}).get("shadow_dance") is not None, "")
     # 幻影连刺 cd 查数据
-    from game.content_rules.skills import skill_info
+    from content.skills import skill_info
     info = skill_info("cls_ci_ke", "幻影连刺") or {}
     base_cd = int(info.get("cd", 0) or 0)
     logs2, _, _ = b.human_act("skill", "幻影连刺", a2)

@@ -9,7 +9,7 @@
 """
 import sys, os, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C
+from _engine_harness import C
 # ★ W2b（2026-09-15）：实现真源在包内 `content/events.py`，且它现在读**本模块全局**
 #   （`_src(name)` = `globals()[name]`）⇒ 打桩必须打在 `content.events` 上。
 #   打宿主壳 `game.core.events` 会**静默失效**（壳只再导出数据名，函数体不读壳的全局）。

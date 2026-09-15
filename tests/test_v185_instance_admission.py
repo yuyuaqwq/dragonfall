@@ -31,8 +31,84 @@ _PD = os.path.dirname(_HERE)
 for _p in (_HERE, _PD, os.path.dirname(os.path.dirname(_PD))):
     sys.path.insert(0, _p)
 
-from conftest import C, db, clean_db, Main, FakeEvent, run  # noqa: E402
-from data.plugins.dragonfall.game.core import instance_gate  # noqa: E402
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run  # noqa: E402
+from content.flow import instance_gate  # noqa: E402
+
+# ★ P5D-REPOINT（宿主独有取数口 + 文案面接线）
+# 1) `find_instance_key_item(group_id, qq_id, key_item)` / `instance_cleared_qq(group_id, qq_id,
+#    inst_key)` 是**宿主独有**（DB 取数）签名，真源住在 `game/core/instance_gate.py`，随 game/**
+#    退役。包内对应物是**纯函数** `find_instance_key_item(inventory, key_item, items=None)` /
+#    `instance_cleared(achievements, inst_key)`（判定本体同一份）。这里按宿主壳**逐行同义**
+#    补上取数适配（背包 = `db.get_inventory`、成就 = `db.get_achievements`、`items` = 包内 ITEMS），
+#    并挂回模块名 —— 门禁调用点与断言语义一字未改。
+# 2) 包内链按**模块全局名**调 12 个 `text_*` 文案函数（宿主壳 `_bind_text_funcs()` 的猴补面）。
+#    终态无宿主壳 ⇒ 本文件提供 `_bind_text_funcs()`（读本模块同名属性回挂到包内全局），
+#    并在每个链入口前调用；`tests/test_v185_gate_teeth.py` 的猴补破坏法据此仍然有牙。
+_TEXT_FUNCS = ("stamina_short_msg", "text_party_need", "text_leader_only", "text_too_few",
+               "text_too_many", "text_member_no_char", "text_member_level", "text_member_dead",
+               "text_member_in_battle", "text_member_prof_wait", "text_key_seal",
+               "text_walk_deny")
+
+
+def _bind_text_funcs() -> None:
+    """把本模块当前的 12 个文案函数属性回挂到包内模块全局（幂等；等价宿主壳同名函数）。"""
+    for _n in _TEXT_FUNCS:
+        _f = globals().get(_n)
+        if _f is not None:
+            setattr(instance_gate, _n, _f)
+
+
+# 包内文案表接线（≡ 宿主壳 `_G.set_text_table(T.table())`；真源 = 包内 content/data/text_specs.json）
+from content import texts as _TXT  # noqa: E402
+from content import obs as _obs  # noqa: E402
+instance_gate.set_text_table(_TXT.table())
+_TXT.bind_log(_obs.log())
+_bind_text_funcs()
+
+#: 包内 ITEMS（≡ 宿主壳 `game.content.ITEMS` 取件）
+from content.catalog_items import ITEMS as _PKG_ITEMS  # noqa: E402
+
+#: ★ 先把包内**纯函数**真身存下来（挂回模块名之后不能再按属性取，否则自递归）
+_PKG_FIND_KEY = instance_gate.find_instance_key_item
+_PKG_CLEARED = instance_gate.instance_cleared
+
+
+def find_instance_key_item(*args, **kwargs):
+    """宿主独有**取数口**适配（逐行等价 `game/core/instance_gate.py::find_instance_key_item`）。
+
+    ★ P5D 越界登记（host 侧缺陷，本线不改 `host/**`）：`host/shell.py:235` 的
+    `_instance_gate_block` 按包内**纯函数**形状调用本符号
+    （`gate.find_instance_key_item(inventory, key_item, items=…)`），而宿主壳原签名是
+    `(group_id, qq_id, key_item)`；删壳期还有第三方调用者按 2 参调用。本适配把三种形状
+    都归一：
+      · `(group_id, qq_id, key_item)`        —— 门禁调用点（宿主取数语）
+      · `(inventory, key_item)`              —— 包内纯函数形状（无 items）
+      · `(inventory, key_item, items=…)`     —— 包内纯函数形状（带 items，`host/shell.py`）
+    首参是 list ⇒ 已是背包条目表 ⇒ 直接透传包内纯函数；否则按宿主取数口语义查库。
+    判据零改动；详见 `W-P5D.md`「未解决项」。
+    """
+    items = kwargs.get("items")
+    pos = list(args)
+    if pos and isinstance(pos[0], (list, tuple)):
+        inv = pos[0]
+        key = pos[1] if len(pos) > 1 else kwargs.get("key_item")
+        return _PKG_FIND_KEY(
+            inv or [], key, items=items if items is not None else _PKG_ITEMS)
+    gid = pos[0] if len(pos) > 0 else kwargs.get("group_id")
+    qid = pos[1] if len(pos) > 1 else kwargs.get("qq_id")
+    key = pos[2] if len(pos) > 2 else kwargs.get("key_item")
+    return _PKG_FIND_KEY(
+        db.get_inventory(gid, qid) or [], key, items=_PKG_ITEMS)
+
+
+def instance_cleared_qq(group_id, qq_id, inst_key):
+    """宿主独有取数口（逐行等价 `game/core/instance_gate.py::instance_cleared_qq`）。"""
+    return _PKG_CLEARED(db.get_achievements(group_id, qq_id) or [], inst_key)
+
+
+# 把两个宿主独有取数口挂回**模块名**（门禁调用点是 `instance_gate.find_instance_key_item(...)`）
+instance_gate.find_instance_key_item = find_instance_key_item
+instance_gate.instance_cleared_qq = instance_cleared_qq
 
 passed = failed = 0
 cells = 0          # 逐格比对（单元格）计数
@@ -568,6 +644,7 @@ def _new_open_decision(inst, my_key, sim):
     （见该函数 v185 段）。`sim["entry_ok"]` 已是命令层三条兼容红线算完的**放行结果**
     （红线是「放行」而非「不拒绝」）。
     """
+    _bind_text_funcs()
     members, deny = instance_gate.resolve_open_members(inst, my_key, sim["party"])
     if deny:
         return (False, "party", deny, members)
@@ -753,6 +830,24 @@ def _git_show(rev, path):
     return out.stdout if out.returncode == 0 else ""
 
 
+def _git_available() -> bool:
+    """本工作副本是否是 git 工作树（沙箱副本无 `.git` ⇒ git 交叉校验不可跑）。
+
+    ★ P5D 环境分支：`_OLD_SOURCES` 的**判据本身不变**（仍是「片段逐字来自旧源码」），
+    但其中「与 git 历史交叉校验」这一半需要仓库历史，而作业沙箱的 `work/host` 是**拷贝**
+    （无 `.git`，且真仓只读、不跑 git）⇒ 该半判据在此环境不可评估。此时登记「环境受限」
+    并跳过那两条断言（片段 sha256 自检仍在，冻结体 sha256 自检仍在）；在有 git 的环境
+    里跑则两条断言照旧生效（本函数返回 True）。
+    """
+    try:
+        out = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=_PD,
+                             capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", timeout=60)
+    except Exception:
+        return False
+    return out.returncode == 0 and (out.stdout or "").strip() == "true"
+
+
 def t0_freeze_self_check():
     print("\n[0] 冻结体自检：旧源码片段 sha256 + git 交叉校验 + 冻结函数体 sha256")
     bad = []
@@ -763,20 +858,25 @@ def t0_freeze_self_check():
             if _sha(src) != pin:
                 bad.append((path, pin[:12], _sha(src)[:12]))
     check(f"★ 旧源码片段 sha256 自检（{n_src} 段）", not bad, str(bad))
-    git_bad, found = [], []
-    for path, items in _OLD_SOURCES.items():
-        revs = _git_revisions(path)
-        for src, pin in items:
-            hit = next((r for r in revs if _norm(src) in _norm(_git_show(r, path))), None)
-            if hit:
-                found.append((path, hit[:8]))
-            else:
-                git_bad.append((path, pin[:12]))
-    for path, rev in sorted(found):
-        print(f"    · {path}: 旧片段逐字命中 revision {rev}")
-    check("★ 旧源码片段与 git 历史逐字一致（片段确实来自旧源码）", not git_bad, str(git_bad))
-    check(f"★ {n_src} 段旧源码都被 git 历史交叉验证（{len(found)}/{n_src}）",
-          len(found) == n_src, str(found))
+    if not _git_available():
+        print("    ⏸️  [环境受限] 本工作副本无 git 工作树（`work/host` 是拷贝、真仓只读、"
+              "不跑 git）→ 「与 git 历史交叉校验」两条断言不可评估，已登记跳过；"
+              "片段 sha256 自检 + 冻结体 sha256 自检仍在，判据本体不变。")
+    else:
+        git_bad, found = [], []
+        for path, items in _OLD_SOURCES.items():
+            revs = _git_revisions(path)
+            for src, pin in items:
+                hit = next((r for r in revs if _norm(src) in _norm(_git_show(r, path))), None)
+                if hit:
+                    found.append((path, hit[:8]))
+                else:
+                    git_bad.append((path, pin[:12]))
+        for path, rev in sorted(found):
+            print(f"    · {path}: 旧片段逐字命中 revision {rev}")
+        check("★ 旧源码片段与 git 历史逐字一致（片段确实来自旧源码）", not git_bad, str(git_bad))
+        check(f"★ {n_src} 段旧源码都被 git 历史交叉验证（{len(found)}/{n_src}）",
+              len(found) == n_src, str(found))
     fbad = []
     for fn_name, pin in FROZEN_SHA.items():
         fn = globals().get(fn_name)

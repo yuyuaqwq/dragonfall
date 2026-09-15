@@ -169,7 +169,7 @@ if __name__ == "__main__":
     import saintess_engine as _b2
     from saintess_engine import config as _c
     try:
-        from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()   # 先把真实内容装配上（模拟生产态）
+        from _engine_harness import boot as _eng_cfg; _eng_cfg()   # 先把真实内容装配上（模拟生产态）
     except Exception:
         pass
     test_neutral_skeleton_shape()

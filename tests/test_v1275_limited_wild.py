@@ -15,8 +15,8 @@
 import sys, os, asyncio, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import FakeEvent, run, clean_db, Main, db, make_player
-from data.plugins.dragonfall.game.core import wild as W
+from _engine_harness import FakeEvent, run, clean_db, Main, db, make_player
+from content import wild as W
 
 passed = failed = 0
 def check(name, ok, detail=""):
@@ -35,7 +35,7 @@ def set_clock():
     W.current_period = lambda: "day"
     W.current_season = lambda: "summer"
     W.today_weather = lambda map_id=None: "sunny"
-    from data.plugins.dragonfall.game.core import time_weather as TW
+    from content import time_weather as TW
     try:
         TW.current_period()
     except Exception:
@@ -60,7 +60,7 @@ async def main():
     set_clock()
     clear_last()
     # 清残留在场事件（保证从"未偶遇"状态起）
-    from data.plugins.dragonfall.game.core import timed_events as TE
+    from content import timed_events as TE
     TE.remove_timed(GID, QID, "wild:w_old_trader")
 
     print("【1. 偶遇前：不可找、列表无野外NPC】")

@@ -10,8 +10,8 @@
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C
-from data.plugins.dragonfall.game.core import fishing as F
+from _engine_harness import C
+from content import fishing as F
 
 passed = failed = 0
 def check(name, cond, detail=""):

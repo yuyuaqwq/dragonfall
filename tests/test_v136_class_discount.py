@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """v136 Phase6 职业套装职业折扣测试（本职业 100% / 非本职业 60%）。
 
-运行: python tests/test_v136_class_discount.py（直跑模式，顶部 import conftest）
+运行: python tests/test_v136_class_discount.py（直跑模式，顶部 import _engine_harness）
 """
-import conftest  # noqa: F401  (GWEN_GAME_DB + qqbot path)
+from _engine_harness import boot as _eng_cfg  # noqa: F401  (GWEN_GAME_DB + qqbot path)
+_eng_cfg()
 
 # ★ PFIX P6（2026-09-15）：**注入面 = 实现本体的那只字典**。
 #   `content/panel.py::_set_info()` 读的是**包内门面** `content/tables.SETS`
@@ -12,7 +13,7 @@ import conftest  # noqa: F401  (GWEN_GAME_DB + qqbot path)
 #   （两份各 92 条）⇒ 往 C.SETS 注入对 panel **不可见**（静默 no-op，与 P1 同型）。
 #   故这里改成注入 `content.tables.SETS`；两个夹具同时改用**唯一名**，让断言真的
 #   打在夹具上（旧夹具名「铁皮套」与真实套装同名，注入被真实条目遮蔽 ⇒ 测试靠巧合变绿）。
-from data.plugins.dragonfall.game.content_rules.panel import set_bonus_2, active_sets
+from content.panel import set_bonus_2, active_sets
 import content.tables as _T   # noqa: E402  包内门面（panel 的 SETS 取数面）
 
 

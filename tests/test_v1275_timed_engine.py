@@ -15,9 +15,9 @@ import sys, os, time, json
 import asyncio
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import clean_db, db
+from _engine_harness import clean_db, db
 
-from data.plugins.dragonfall.game.core import timed_events as TE
+from content import timed_events as TE
 
 passed = failed = 0
 def check(name, ok, detail=""):

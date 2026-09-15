@@ -12,8 +12,43 @@
 """
 import sys, os, sqlite3, time, json, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run
-from data.plugins.dragonfall.game.services.quests_flow import quest_kill_progress  # v181 L3-P2：_update_quests 壳收编订阅方，击杀推进直调 services
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run  # ★ P5C-REPOINT：conftest 兼容面（同名同义）
+from content.quests_flow import quest_kill_progress  # ★ P5C-REPOINT：直取包内真源（原 game.services.quests_flow）
+
+# ★ P5C-REPOINT：原宿主薄壳 `game/services/quests_flow.py` 的注入
+#   `quests_svc = game.services.quests` 随 game/** 删除而消失。按 REPOINT_MAP §2，
+#   `game.services.quests` 的真源 = `content.profession_quests`
+#   （bump_daily_progress / settle_daily_quest / DAILY_META_KEYS）。这里把该注入补回，
+#   与已删薄壳逐键同义 —— 否则包内 `_bump_daily_progress` 会落到 facade
+#   `_PKG_SURFACE["quests_svc"]` 指到的 `content.persistence.quests`（存档半边，无此函数）。
+from content import profession_quests as _profession_quests  # noqa: E402
+from content import quests_flow as _quests_flow  # noqa: E402
+_quests_flow.bind_host(quests_svc=_profession_quests)
+
+# ★ P5D-REPOINT：本文件「探索」步会经命令层真实开战
+#   （`content.world_cmds.move` → `content.combat_cmds._open_battle` → `_attach_tlog`），
+#   需要宿主平台件 `attach_tlog`（原 `game/services/battle_bridge.py::attach_tlog`）。
+#   该宿主壳随 game/** 退役后终态无人注入 ⇒ 包内 fail-closed 抛 RuntimeError。
+#   这里按宿主契约补上测试侧替身（**与宿主实现同义**：未启用流水 → 零行为返回 b；
+#   启用 → 用包内采集器 `content.tlog_collect.BattleTLog` 挂引擎流水句柄）。
+#   注：本文件断言的是世界域命令行为，流水只是开战路径上的平台副作用，判据一条未动。
+from content import combat_cmds as _CC  # noqa: E402
+
+
+def _attach_tlog(b, *, btype="monster", player=None, enemies=None, seed=None):
+    from _engine_harness import tlog_setup
+    try:
+        tl = tlog_setup.tlog()
+        if tl is None:
+            return b
+        from content.tlog_collect import BattleTLog
+        BattleTLog(tl).attach(b, btype=btype, seed=seed, player=player, enemies=enemies)
+    except Exception:                                        # noqa: BLE001
+        pass
+    return b
+
+
+_CC.bind_host(attach_tlog=_attach_tlog)
 
 passed = failed = 0
 def check(name, cond, detail=""):
