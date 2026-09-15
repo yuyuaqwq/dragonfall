@@ -177,13 +177,23 @@ def _freeze_clock(ts: float) -> None:
             proxy.time = _dt.time
             proxy.timezone = _dt.timezone
             mod.datetime = proxy
-    # 宿主存档层工厂（`game.store.store_factory`）把 stdlib `time.time` 作为 clock 句柄注入
-    # 包内存档层（`content.persistence.handles._H["clock"]`）→ 落库时间戳会走真墙钟；
+    # 宿主存档层工厂（旧路径 `game.store.store_factory`；P5A 后真源在 `host/store_factory`）
+    # 把 stdlib `time.time` 作为 clock 句柄注入包内存档层
+    # （`content.persistence.handles._H["clock"]`）→ 落库时间戳会走真墙钟；
     # 该句柄是**函数对象**，只能改注入值本身（同一个注入口，不新增第三套）。
     try:
         import game.store.store_factory as _sf
         if getattr(_sf, "time", None) is _time_mod:
             _sf.time = _ClockProxy()
+    except Exception:                     # noqa: BLE001
+        pass
+    # 宿主桥给 `Env` 的 clock 句柄（`_host_bridge._prepare()`：`clock=time.time`）——
+    # 试玩侧那份 `Env.clock` 由引擎 Host 从适配器取（`Host.clock()` → 适配器 `clock()` =
+    # 冻结值），这里对齐：不然 `content/guards.py` 的「当前时刻」读点在两侧不同刻。
+    try:
+        import game.commands._host_bridge as _bridge
+        if getattr(_bridge, "time", None) is _time_mod:
+            _bridge.time = _ClockProxy()
     except Exception:                     # noqa: BLE001
         pass
     try:
@@ -232,7 +242,23 @@ def main() -> int:
     shell_cls = type("B20QqShell", (_PlatformRecorder,) + bases, {})
     shell = shell_cls()
 
-    # 墙钟钉死（与试玩侧同口径；`B20_CLOCK` 或 payload["clock"]）
+    # ★ 装配顺序铁律：**先把包物化（宿主注入面落地）再钉墙钟**。
+    #   包在 `game.json` 声明了 `bind`（`content/facade.py::bind_host`）—— `BRIDGE.package()`
+    #   首次调用会 `load_package(root, inject=_host_inject())`，而 `facade.bind_host` 第①步
+    #   就 `handles.bind(clock=宿主 time.time)`。若这次注入发生在钉墙钟**之后**（B20 早期
+    #   包未声明 bind 时的写法），它会把冻结值重新拨回真墙钟 —— 实测
+    #   `players.last_active` / `player_groups.last_active` 逐秒漂移，签到 / 见闻录 两条
+    #   digest 的「状态 sha」段因此不同（文本段仍相同）。注入必须排在冻结前面。
+    #   试玩侧（`editor/play_worker.py`）同因同法：它把冻结值**经 inject** 交给 `host.boot()`。
+    try:
+        BRIDGE.package()
+    except Exception:
+        emit({"ok": False, "stage": "load",
+              "message": "包物化失败（引擎 load_package + 宿主注入面）",
+              "traceback": traceback.format_exc()})
+        return 0
+
+    # 墙钟钉死（与试玩侧同口径；`B20_CLOCK` 或 payload["clock"]）—— 必须在注入面落地之后
     clock_ts = payload.get("clock") or os.environ.get("B20_CLOCK") or ""
     if clock_ts not in (None, ""):
         try:
