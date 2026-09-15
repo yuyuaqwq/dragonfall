@@ -116,14 +116,17 @@ async def main():
 
     print("【7 多行模板（line 列表）机制】")
     # 临时配置验证渲染机制支持 list line（数据表注释说明的扩展形态）。
-    # ★ 终态打桩落点：`content.facade._Aggregate.C` 的取件源是 `_namespace()`（惰性构建一次），
-    #   直接改 `content.catalog_legacy.ITEM_TAG_DISPLAY` 对已构建的聚合面无效 ⇒ 改聚合面本身。
-    import content.facade as _facade
-    _ns = _facade._namespace()
-    _saved = dict(_ns["ITEM_TAG_DISPLAY"])
-    _ns["ITEM_TAG_DISPLAY"] = {**_ns["ITEM_TAG_DISPLAY"],
-                               "奇物": {"line": ["✨ 秘宝 {size:.1f}cm", "  来历：{origin}"],
-                                        "max_lines": 5}}
+    # ★ R5 打桩落点：`ITEM_TAG_DISPLAY` 已进 `content/facade.py::_NAME_SRC`（权威真源 =
+    #   `content.catalog_legacy`），`C.ITEM_TAG_DISPLAY` 不再经聚合面 `_namespace()` 取件。
+    #   落点选**真源那一只 dict 就地改**（不是重绑名字）：`_namespace()["ITEM_TAG_DISPLAY"]`
+    #   与宿主 `game.content`（`from content.catalog_legacy import *` 拿的同一只对象，实测
+    #   `is` 判定为 True）都跟着变 ⇒ 消费方无论经哪条路取件，判据都成立。
+    import content.catalog_legacy as _cl
+    _tbl = _cl.ITEM_TAG_DISPLAY
+    _had = "奇物" in _tbl
+    _saved = _tbl.get("奇物")
+    _tbl["奇物"] = {"line": ["✨ 秘宝 {size:.1f}cm", "  来历：{origin}"],
+                    "max_lines": 5}
     try:
         lines7 = []
         _render_item_tags({"name": "神秘水晶", "type": "奇物",
@@ -131,7 +134,10 @@ async def main():
         j7 = "\n".join(lines7)
         check("一条 tag 渲染多行", "秘宝 5.0cm" in j7 and "来历：深海" in j7, j7)
     finally:
-        _ns["ITEM_TAG_DISPLAY"] = _saved
+        if _had:
+            _tbl["奇物"] = _saved
+        else:
+            _tbl.pop("奇物", None)
 
     print(f"\n结果：{passed} 通过 / {failed} 失败")
     if failed:

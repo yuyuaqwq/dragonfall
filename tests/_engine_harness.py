@@ -44,9 +44,15 @@ PLUGIN_DIR = os.path.dirname(_HERE)                      # dragonfall/
 PKG_ROOT = os.path.join(PLUGIN_DIR, "framework", "games", "orlandia")
 _ENGINE_ROOT = os.path.join(PLUGIN_DIR, "framework")
 
+# ★ R4（2026-09-15）：**无条件置前**（原来是「不在 sys.path 才 insert」）。
+#   翻车点（实测 `test_v182_battle_tlog`）：该文件自己先
+#   `sys.path.insert(0, os.path.join(_PD, ".."))`（本工作区 = `work/`，真仓 = `plugins/`），
+#   `PLUGIN_DIR` 于是「已在 sys.path」⇒ 旧写法跳过 insert ⇒ `work/` 留在最前
+#   ⇒ `from host.shell import HostShell` 命中 `work/host/__init__.py`（目录名同名包）
+#   ⇒ `ModuleNotFoundError: No module named 'host.shell'`（本工作区挂载形状 artifact；
+#   真仓里 `plugins/` 下没有 `host/`，不会发生）。置前后 `host` = `PLUGIN_DIR/host`（真宿主壳）。
 for _p in (_ENGINE_ROOT, PLUGIN_DIR):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+    sys.path.insert(0, _p)
 
 from saintess_engine.host import Host as _EngineHost                          # noqa: E402
 from saintess_engine.host import load_package, run_guards                     # noqa: E402
@@ -154,12 +160,26 @@ def _make_host_class():
 
 
 def _binds_shell(fn):
-    """包内函数是否以「宿主壳」为第一参数（`def fn(self, …)` / `def fn(shell, …)`）。"""
+    """包内函数是否以「宿主壳」为第一参数（`def fn(self, …)` / `fn(shell, …)` / `fn(inst, …)`）。
+
+    ★ R4（2026-09-15）加 `inst`：包内有一族 **「旧 inst 签名壳」** —— 整块搬包时把
+    宿主 Mixin 方法改成**模块级函数**，第一参数保留旧宿主名 `inst` =
+    `content/profession_quests.py::_bump_daily_progress(inst, group_id, qq_id, obj_key, lines)`
+    / `_settle_daily_quest(inst, …)`（旧宿主 `WorldCmds._bump_daily_progress(self, …)` 的包内真源）。
+    不认 `inst` ⇒ `Main._bump_daily_progress("g1","q2","complete_side",lines)` 实参整体左移一位
+    ⇒ **静默空跑**（P5D-2 实测：`test_v116_quest_abandon` 第 [4] 段 4 条红，`lines == []`）。
+
+    同名参数只出现在 8 个函数上（实测 `out/tools/scan_inst_first.py`）：其中 6 个是
+    `content/flow/instance_gate.py` 的渲染函数，那里 `inst` = **副本定义 dict**（不是壳）。
+    这两个语义靠**取件路径**区分：`instance_gate.text_*` 只被 `instance_gate.text_*(inst, …)`
+    直调（全包/全测试 0 处经宿主壳按名取），永远不会走本函数；本函数只服务
+    `Main.__getattr__` 的按名取件路径，故 `inst` = 壳 的约定在此成立。
+    """
     try:
         params = list(inspect.signature(fn).parameters)
     except (TypeError, ValueError):
         return False
-    return bool(params) and params[0] in ("self", "shell")
+    return bool(params) and params[0] in ("self", "shell", "inst")
 
 
 def _unwrap_register_lambda(fn):
@@ -468,6 +488,62 @@ def _is_staticmethod(h, name):
     return False
 
 
+# ============================================================ 类级方法委托
+# 为什么需要（P6 §2 实测缺口）：旧宿主是 `class InstanceCmds(InstanceImpl, InstanceRouterCmds,
+# CommandBase)` 的**多 Mixin 汇编**，包内实现类的私有助手在**类上**就能取到
+# （§「`orig = _InstImpl._instance_current_members`」这类读取 + 类上打桩）。终态驱动口
+# 只在**实例**上补 `__getattr__` ⇒ `Main._instance_current_members` 取不到
+# （P5D-2 实测：`test_texts_table` `AttributeError: type object 'Main' has no attribute
+#  '_instance_current_members'`，整文件在 [10] 段崩）。
+#
+# ★ 为什么**不**做函数对象快照（`Main.x = InstanceImpl.x`）—— 那是主线试补的翻车点：
+#   测试对**类**打桩（`InstanceImpl._instance_current_members = lambda self, gid, st: …`，
+#   `test_battle_n5b4_instance_router.py:229` / `test_texts_table.py:469`）后，快照仍指旧函数
+#   ⇒ 打桩静默失效 ⇒ 真实 `current_members` 在「多人 st 无 party 行」下返 `[]` ⇒
+#   副本僵尸化（P6 §2 记录的 4 条红：`活人单刷通关 cleared=None over=True` /
+#   `通关文案含阵亡提示` / `活人得通关奖励 gold 增长` / `阵亡者 DB hp 保持 0`）。
+#   本委托**每次调用重新解析**（`harness().impl_method(name)`），与 `Main.__getattr__` ② 同序同义。
+def _make_impl_delegate(name):
+    """包内实现类方法 `name` 的类级委托（类上可读 / 可打桩；调用时重解析）。"""
+
+    def _delegate(self, *args, **kwargs):
+        h = harness()
+        fn = h.impl_method(name)
+        if fn is None:
+            raise AttributeError("%s has no attribute %r（包内无同名落点）"
+                                 % (type(self).__name__, name))
+        if _is_staticmethod(h, name):
+            return fn(*args, **kwargs)
+        return fn(self, *args, **kwargs)
+
+    _delegate.__name__ = name
+    _delegate.__qualname__ = name
+    _delegate.__doc__ = ("包内实现类方法 %r 的类级委托（调用时经 impl_method 重解析；"
+                         "测试在实现类上打桩照旧生效）。" % (name,))
+    return _delegate
+
+
+def _install_impl_delegates():
+    """把包内实现类的方法装成 `Main` 的类级委托（幂等；**不覆盖**已有属性与声明键）。
+
+    * **声明键跳过**：`EconomyImpl.shop` / `InstanceImpl.instance_cmd` 等 49 个与命令
+      **同名**的旧类方法不得抢占 —— 声明键继续走 `Main.__getattr__` ① 引擎通道
+      （与 `__getattr__` 的判定顺序逐字一致：先 `is_declared + has_handler`）。
+    * `HostShell` 平台面已有名（`_player` / `_maint_gate` / `_uid` …）不动。
+    """
+    h = harness()
+    installed = []
+    for cls in h.impl_classes():
+        for name, value in vars(cls).items():
+            if name.startswith("__") or not callable(value):
+                continue
+            if h.is_declared(name) or hasattr(Main, name):
+                continue
+            setattr(Main, name, _make_impl_delegate(name))
+            installed.append(name)
+    return installed
+
+
 _HARNESS = None
 
 
@@ -501,6 +577,9 @@ C = harness().facade.C
 
 #: 包内存档半边（≡ 旧宿主 `game.db` 的调用面；`DB_PATH` → `db_path()`）
 db = harness().db
+
+# ★ 包内实现类方法的**类级委托**（装配完成后装一次；调用时重解析，见 `_make_impl_delegate`）
+IMPL_DELEGATES = _install_impl_delegates()
 
 
 # ============================================================ 平台面（测试侧）

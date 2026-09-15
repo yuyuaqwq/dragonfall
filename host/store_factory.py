@@ -12,6 +12,7 @@
 | `clock` | 本模块 `clock()`（stdlib `time.time`） | 存档层 / 计时 |
 | `log` | `host.log_setup.LOG`（= AstrBot `astrbot` logger 本体） | 日志唯一取用口 |
 | `tlog` | `host.tlog_setup`（模块：`enable/disable/enabled/tlog/emit`） | 流水唯一取用口 |
+| `attach_tlog` | `host.tlog_setup.attach_tlog`（**平台件**：把战斗挂到流水采集半边） | 接口表第 11 行冻结注入名 |
 | `grant_reward` | 本模块 `grant_reward`（**能力口**，调用时才解析实现） | 发奖扇出 |
 
 存档半边（`HostStore`）
@@ -84,7 +85,7 @@ def bind_reward(fn) -> None:
 
 
 def inject_handles(*, log=None, tlog=None, grant_reward_fn=None) -> dict:
-    """宿主注入面（引擎 `inject`）：**四类句柄 + 发奖**，键名以包侧 `bind_host(**inject)` 认的为准。"""
+    """宿主注入面（引擎 `inject`）：**四类句柄 + 发奖 + 流水挂载平台件**，键名以包侧 `bind_host(**inject)` 认的为准。"""
     from . import log_setup as _log_setup
     from . import tlog_setup as _tlog_setup
     return {
@@ -92,6 +93,10 @@ def inject_handles(*, log=None, tlog=None, grant_reward_fn=None) -> dict:
         "clock": _time.time,
         "log": log if log is not None else _log_setup.LOG,
         "tlog": tlog if tlog is not None else _tlog_setup,
+        # ★ R5 缺口③：`attach_tlog` 平台件的终态落点 = `host/tlog_setup.py`（`host/**` 属主）；
+        #   这里把它摆进宿主注入面，包内 `content.combat_cmds` / `content.bridge` 经
+        #   `content.facade.bind_host` 扇出取到（接口表第 11 行冻结注入名）。
+        "attach_tlog": _tlog_setup.attach_tlog,
         "grant_reward": grant_reward_fn if grant_reward_fn is not None else grant_reward,
     }
 
@@ -123,6 +128,16 @@ class HostStore:
         self._pkg = package
         self._half = None
         return self
+
+    @property
+    def package(self):
+        """当前绑定的引擎 `Package`（未绑定 → `None`）。
+
+        ★ R5 缺口③：`host/tlog_setup.attach_tlog` 要按**半边名**取包内采集半边
+        （`pkg.optional_submodule("tlog_collect")`）——宿主里不出现包名字面量，故需要一个
+        公开的包取件口（`bind_store` 的对称面）。
+        """
+        return self._pkg
 
     def half(self):
         if self._half is None:
