@@ -471,6 +471,16 @@ else:
 # ============================================================================
 
 import json as _json  # noqa: E402
+import os as _os_sp  # noqa: E402
+import sys as _sys_sp  # noqa: E402
+
+# —— 引擎框架包接线（S8 物理分离）：引擎在独立仓、本仓以 submodule 接入 `framework/`，
+# 包名 `saintess_engine`。**生产路径（AstrBot 真实进程）没有 conftest 铺路**，故在此接线一次
+# （与 `tests/conftest.py:37` 同款）；缺这一步的实测后果：`Failed to import plugin dragonfall:
+# No module named 'saintess_engine'`（2026-09-15 重启冒烟抓到，测试侧因 conftest 铺路而全绿）。
+_ENGINE_ROOT = _os_sp.path.join(_os_sp.path.dirname(_os_sp.path.abspath(__file__)), "framework")
+if _os_sp.path.isdir(_os_sp.path.join(_ENGINE_ROOT, "saintess_engine")) and _ENGINE_ROOT not in _sys_sp.path:
+    _sys_sp.path.insert(0, _ENGINE_ROOT)
 
 from saintess_engine.host import Host as _EngineHostBase  # noqa: E402
 
