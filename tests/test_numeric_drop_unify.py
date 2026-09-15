@@ -25,11 +25,13 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.join(_PLUGIN_DIR, "tests", "test_g
 # 固定种子 = 确定性基线（沿用 test_v135_quality_roll / test_battle_n9_equip 的既有做法）。
 random.seed(20260911)
 
-import game.content as C  # noqa: E402
+from _engine_harness import C  # noqa: E402
+from _engine_harness import db as _db  # noqa: E402
 from content.catalog_rules import DROP_POOLS  # noqa: E402  W10：包内单源（game/data 删表后同一份）
-from game.drop_engine import (  # noqa: E402
+from content.loot import (  # noqa: E402  REPOINT_MAP: game.drop_engine → content.loot
     roll, expand_pool, audit_all, _SimpleCtx, _resolve_item_ref,
 )
+_db.init_db()   # 本文件用真库（`content.wild_king._roll_chest_rewards` 读 players）
 
 passed, failed = 0, 0
 
@@ -101,7 +103,8 @@ def main():
 
     print("【drop_unify：精英专属接线（ELITE_EQUIP_DROP 全接线）】")
     # 每个 ELITE_EQUIP_DROP 登记的精英 → elite: 池存在（数据同步）
-    from game.content import ELITE_EQUIP_DROP
+    from _engine_harness import C as _C  # noqa: E402
+    ELITE_EQUIP_DROP = _C.ELITE_EQUIP_DROP
     for name, rid in list(ELITE_EQUIP_DROP.items())[:5]:
         check(f"elite:{name} 池存在且引用正确", f"elite:{name}" in DROP_POOLS, f"{rid}")
     # 登记数 = elite: 池数（全 18 接线）
@@ -116,7 +119,8 @@ def main():
 
     print("【drop_unify：副本搜刮（战利品堆/暗格宝箱）】")
     # 22 副本都应有 loot_pile / secret_chest 池
-    from game.content import INSTANCES
+    from _engine_harness import C as _C  # noqa: E402
+    INSTANCES = _C.INSTANCES
     inst_ids = [iid for iid in INSTANCES if INSTANCES[iid].get("stages")]
     loot_ok = all(f"loot_pile:{iid}" in DROP_POOLS for iid in inst_ids)
     chest_ok = all(f"secret_chest:{iid}" in DROP_POOLS for iid in inst_ids)
@@ -148,8 +152,8 @@ def main():
 
     print("【drop_unify：野王宝箱 collect 死数据修复】")
     # chest:low 池含 collect 子池（铁牌徽章），且消费端 _roll_chest_rewards 走引擎后能发 collect
-    import game.core.wild_king as _WK  # noqa: E402
-    from game.content import WILD_KING_CHEST_TIERS
+    import content.wild_king as _WK  # noqa: E402
+    WILD_KING_CHEST_TIERS = C.WILD_KING_CHEST_TIERS
     king = {"lv": 20, "chest_tier": "low", "drops": ["兽肉"]}
     lines, _bc = _WK._roll_chest_rewards("gr", "wr", king, WILD_KING_CHEST_TIERS["low"], is_loot=False)
     check("公共箱发 collect(铁牌徽章)", any("徽章" in l for l in lines), str(lines))

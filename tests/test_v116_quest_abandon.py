@@ -13,7 +13,7 @@
 import sys, os, datetime, sqlite3
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run, make_player
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run, make_player
 
 passed = failed = 0
 
@@ -67,7 +67,7 @@ async def main():
 
     # ---------- 3. 每日防刷上限 ----------
     print("\n[3] 每日防刷上限")
-    from game.commands.world import DAILY_LIMIT  # noqa: E402
+    from content.profession_quests import DAILY_LIMIT  # noqa: E402（REPOINT_MAP: game.core.daily 常量真源）
     qs = db.get_quests("g1", "q1")
     qs["daily"] = {"_date": today, "_completed": DAILY_LIMIT, "_repeat": {}}
     db.save_quests("g1", "q1", qs)

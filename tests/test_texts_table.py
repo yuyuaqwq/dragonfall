@@ -66,16 +66,15 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
-from conftest import C, db, clean_db, FakeEvent, run, Main  # noqa: E402
-from data.plugins.dragonfall.game.core import texts as T  # noqa: E402
+from _engine_harness import C, db, clean_db, FakeEvent, run, Main  # noqa: E402
+from content import texts as T  # noqa: E402
 from content.flow.weekly_progress import (  # noqa: E402  ★ B18-REPOINT：直取包内实现本体（宿主同名壳不再被测试引用）
     _week_state, _save_week_state,
 )
 from content.flow import instance_battle as _IB  # ★ 改绑到包内实现：冻结分支的 build_battle 桩打在实现上
                                                  #   （宿主壳取件面变化后，打在壳上会静默失效 → 文案门禁 61/63）
-from data.plugins.dragonfall.game.commands.combat import CombatCmds as _CombatCmds  # noqa: E402
-from data.plugins.dragonfall.game.commands.instance import InstanceCmds as _InstCmds  # noqa: E402
-from data.plugins.dragonfall.game.commands.world import WorldCmds as _WorldCmds  # noqa: E402
+from _engine_harness import Main as _CmdHostBase  # noqa: E402
+from content.instance_cmds import InstanceImpl as _InstImpl  # noqa: E402  （打桩落点：包内实现类）
 
 _PD = os.path.dirname(_HERE)
 WEEKLY_SRC = os.path.join(_PD, "game", "commands", "weekly.py")
@@ -370,7 +369,7 @@ async def _daily_scenarios() -> dict:
 
 async def _quests_scenarios() -> dict:
     """复跑『每日』命令（services/quests.py）的 7 个分支（步骤与快照脚本逐行一致）。"""
-    from data.plugins.dragonfall.game.services.quests import (
+    from content.profession_quests import (
         draw_daily, settle_daily_quest, DAILY_LIMIT as _LIM,
     )
     today = datetime.date.today().isoformat()
@@ -423,8 +422,9 @@ async def _quests_scenarios() -> dict:
 _IS_GID = "g_settle"
 
 
-class _ISHost(_InstCmds, _CombatCmds, _WorldCmds):
-    """router 测试宿主（InstanceCmds 玩法壳 + CombatCmds + WorldCmds 地图视图）。"""
+class _ISHost(_CmdHostBase):
+    """router 测试宿主（`_engine_harness.Main`：同名的包内 InstanceImpl / CombatCmds /
+    WorldCmds 落点由驱动口按名绑定，等价旧的三 Mixin 宿主）。"""
 
 
 def _is_mk_snap(qid, name="玩家", cls="战士", level=60):
@@ -466,14 +466,14 @@ def _is_mk_st(qids, inst_id="inst_goblin_camp", names=None, **kw):
 
 def _is_patch_cm(all_members):
     """多人副本 st 无 party 行时，current_members 恒返回全部成员（等价单人/测试口径）。"""
-    orig = _InstCmds._instance_current_members
-    _InstCmds._instance_current_members = (
+    orig = _InstImpl._instance_current_members
+    _InstImpl._instance_current_members = (
         lambda self, gid, st: [str(m) for m in (all_members or st["members"])])
     return orig
 
 
 def _is_restore_cm(orig):
-    _InstCmds._instance_current_members = orig
+    _InstImpl._instance_current_members = orig
 
 
 def _is_run(inst, st, qq, action, skill=None, target=None):
@@ -860,19 +860,20 @@ def t9_instance_settle_frozen():
 
 # ═══════════════════════ IL_BRANCHES_BEGIN ═══════════════════════
 # ↓↓↓ 以下这段（含本行）逐字拼进 tests/test_texts_table.py 的 t10 段 ↓↓↓
-from conftest import clean_db as _IL_clean, FakeEvent as _IL_Event   # noqa: E402
-from data.plugins.dragonfall.game import content as _IL_C            # noqa: E402
-from data.plugins.dragonfall.game import db as _IL_db                # noqa: E402
+from _engine_harness import clean_db as _IL_clean, FakeEvent as _IL_Event   # noqa: E402
+from _engine_harness import C as _IL_C            # noqa: E402
+from _engine_harness import db as _IL_db                # noqa: E402
 from content.flow import instance_battle as _IL_IB  # ★ 同上：改绑包内实现
-from data.plugins.dragonfall.game.commands.instance import InstanceCmds as _IL_Inst   # noqa: E402
-from data.plugins.dragonfall.game.commands.combat import CombatCmds as _IL_Combat     # noqa: E402
-from data.plugins.dragonfall.game.commands.world import WorldCmds as _IL_World        # noqa: E402
+from _engine_harness import Main as _IL_Inst   # noqa: E402  （原 InstanceCmds 壳 → 驱动口）
+from _engine_harness import Main as _IL_Combat     # noqa: E402  （原 CombatCmds 壳 → 驱动口）
+from _engine_harness import Main as _IL_World        # noqa: E402  （原 WorldCmds 壳 → 驱动口）
 
 _IL_GID = "g_ilog"
 
 
-class _ILHost(_IL_Inst, _IL_Combat, _IL_World):
-    """副本日志快照宿主（InstanceCmds 玩法壳 + CombatCmds 面板名表 + WorldCmds 地图视图）。"""
+class _ILHost(_IL_Inst):
+    """副本日志快照宿主（`_engine_harness.Main`：同名的包内 InstanceImpl / CombatCmds /
+    WorldCmds 落点由驱动口按名绑定，等价旧的三 Mixin 宿主）。"""
 
 
 def _il_player(qid, name="玩家", cls="cls_zhan_shi", level=60, learned=None):
@@ -1249,7 +1250,7 @@ def _il_in12_loot_pile_nonempty():
 
 def _il_in13_loot_pile_empty():
     """搜刮战利品堆（空 → 引擎兜底文案）。★ 桩：掉落实测返回空列表（数据异常态）。"""
-    import data.plugins.dragonfall.game.drop_engine as _IL_DE
+    import content.loot as _IL_DE
     _IL_clean()
     random.seed(20260913 + 15)
     player = _il_player("q_lp2", "甲", level=15)
@@ -1613,7 +1614,7 @@ def t10_instance_log_frozen():
 本块由两部分共同使用：
   ① $TEMP/df_panel_snap.py（迁移前采快照 / 迁移后复跑比对）
   ② tests/test_texts_table.py 的 t11 段（逐字拼入，勿手改分叉）
-所以本块**只依赖 conftest + game 包**，不打印、不写文件、不 assert。
+所以本块**只依赖 `_engine_harness` + 包内 content**，不打印、不写文件、不 assert。
 
 约定（与 INSTANCE_LOG_FROZEN 同款）：
   · 每个分支自己 clean_db + 固定 random.seed；需要时打桩 random.random（进出还原）。
@@ -1622,29 +1623,34 @@ def t10_instance_log_frozen():
 import asyncio  # noqa: E402
 import random   # noqa: E402
 
-from conftest import C as _PB_C, db as _PB_db, clean_db as _PB_clean   # noqa: E402
-from conftest import FakeEvent as _PB_Event, run as _PB_run            # noqa: E402
-from conftest import make_player as _PB_mk, Main as _PB_Main           # noqa: E402
-from data.plugins.dragonfall.game.core import instance_run as _PB_IR   # noqa: E402
-from data.plugins.dragonfall.game.commands import instance_battle as _PB_IB   # noqa: E402
-from data.plugins.dragonfall.game.commands.instance import InstanceCmds as _PB_Inst   # noqa: E402
-from data.plugins.dragonfall.game.commands.combat import CombatCmds as _PB_Combat     # noqa: E402
-from data.plugins.dragonfall.game.commands.world import WorldCmds as _PB_World        # noqa: E402
-from data.plugins.dragonfall.game.commands.economy import EconomyCmds as _PB_Economy  # noqa: E402
+from _engine_harness import C as _PB_C, db as _PB_db, clean_db as _PB_clean   # noqa: E402
+from _engine_harness import FakeEvent as _PB_Event, run as _PB_run            # noqa: E402
+from _engine_harness import make_player as _PB_mk, Main as _PB_Main           # noqa: E402
+from content.flow import instance_run as _PB_IR   # noqa: E402
+from content.flow import instance_battle as _PB_IB   # noqa: E402
+from _engine_harness import Main as _PB_Inst   # noqa: E402  （原 InstanceCmds 壳 → 驱动口）
+from _engine_harness import Main as _PB_Combat     # noqa: E402  （原 CombatCmds 壳 → 驱动口）
+from _engine_harness import Main as _PB_World        # noqa: E402  （原 WorldCmds 壳 → 驱动口）
+from _engine_harness import Main as _PB_Economy  # noqa: E402  （原 EconomyCmds 壳 → 驱动口）
 # ★ TAIL 线修复（B14 后遗症）：调查点表的**真读点**在包内 `content/catalog_space.py`
 #   （生产侧 `content/instance_cmds.py:1947/1991/2791/3270` 读的就是它的模块全局）；
 #   宿主 `game.content` 只是 22 行「再导出壳」，原来那句 `_PB_C.INVESTIGATION_POINTS = …` 打在壳上、
 #   包内实现读不到 → 猴补失效（PB29 假红）。改打包内同一个名字。
 from content import catalog_space as _PB_CSP                                          # noqa: E402
+# ★ R4（2026-09-15）PB16 修：`_PB_C.subarea_pois` 在**包内聚合门面** `content/facade.py::C`
+#   里尚未登记（facade 缺名，R5 已登记待补 —— 见 VALLEY4_LINES_BRIEF 附 A
+#   `subarea_pois→content.pois`）。本文件按既有口径**直取包内真源**（与 P5D-2 §2.1 同款，
+#   也与生产侧一致：`content/instance_cmds.py:111` 就是 `from .pois import subarea_pois`）。
+from content.pois import subarea_pois as _PB_subarea_pois                             # noqa: E402
 
 _PB_GID = "g_panel"
 _PB_Q = "q_p"
 _PB_GOBLIN_ROOM = "goblin_camp_1"     # 哥布林营地入口房
 
 
-class _PBHost(_PB_Inst, _PB_Combat, _PB_World, _PB_Economy):
-    """副本面板快照宿主（InstanceCmds + CombatCmds 面板名表 + WorldCmds 地图视图
-    + EconomyCmds 副业等待查询 —— 与 Main 的 mixin 面等价，省一层命令注册）。"""
+class _PBHost(_PB_Main):
+    """副本面板快照宿主（`_engine_harness.Main`：同名的包内 InstanceImpl / CombatCmds /
+    WorldCmds / EconomyImpl 落点由驱动口按名绑定，等价旧的四 Mixin 宿主）。"""
 
 
 # ── 驱动脚手架 ─────────────────────────────────────────────────────────
@@ -2032,7 +2038,7 @@ def _pb_b16_explore_rooms_three():
         outs.append(_pb_text(_pb_run_sync(host._instance_explore(
             _PB_Event(_PB_GID, _PB_Q), _PB_GID, _PB_Q, {"state": st3}))))
     # ① POI 搜索（pois_left 有物 + random 0.0）
-    _poi_id = (_PB_C.subarea_pois("goblin_camp", _PB_GOBLIN_ROOM) or [None])[0]
+    _poi_id = (_PB_subarea_pois("goblin_camp", _PB_GOBLIN_ROOM) or [None])[0]
     st4 = _pb_st([_PB_Q], names={_PB_Q: "甲"},
                  rooms={_PB_GOBLIN_ROOM: {"monsters_left": [], "pois_left": [_poi_id],
                                           "boss_alive": False}},
@@ -2277,15 +2283,29 @@ def _pb_b26_explore_stage_boss():
 
 
 def _pb_b27_act_state_error():
-    """instance_battle.act：无 battle sides / 行动者不在阵列 两态。"""
+    """instance_battle.act：无 battle sides / 行动者不在阵列 两态。
+
+    ★ R4（2026-09-15）装配差修正：终态**包内** `act` 返回 **4 位**
+    （`logs, ended, nxt, abort`，abort ∈ {"no_sides","no_actor",""}），
+    文案由调用方按码渲染 —— 与生产侧 `content/cmds_instance_router.py::_act3`
+    的折法同源；旧宿主壳的 `act` 是 3 位、把 abort 文案并进 `logs`。
+    本文件 `_PB_IB` 已改绑包内真源（P5D-2 repoint），故这里按 `_act3` 同款折一次
+    再比文本（**玩家可见输出不变**，只是取文本的姿势对齐终态 API）。
+    """
+    def _logs_of(result):
+        if len(result) == 3:                    # 旧 3 位口径（外部替换桩 / 历史形状）
+            return result[0]
+        logs, _ended, _nxt, abort = result
+        return [_PB_IB.abort_text(abort)] if abort else logs
+
     _PB_clean()
     random.seed(20260914 + 27)
     _pb_player(_PB_Q, "甲")
-    outs = [_pb_text(_PB_IB.act({"battle": {}}, _PB_GID, _PB_Q, "attack")[0])]
+    outs = [_pb_text(_logs_of(_PB_IB.act({"battle": {}}, _PB_GID, _PB_Q, "attack")))]
     st = _pb_st([_PB_Q], names={_PB_Q: "甲"}, enemies=[_pb_enemy()], mode="battle")
     st["boss"] = st["enemy"] = st["enemies"][0]
     _PB_IB.build_battle(st)
-    outs.append(_pb_text(_PB_IB.act(st, _PB_GID, "q_ghost", "attack")[0]))
+    outs.append(_pb_text(_logs_of(_PB_IB.act(st, _PB_GID, "q_ghost", "attack"))))
     return "\n@@@\n".join(outs)
 
 
@@ -2612,7 +2632,7 @@ def _panel_raw_constants(path):
 import hashlib as _S_hashlib
 import sqlite3 as _S_sqlite3
 
-from data.plugins.dragonfall.game.store import social as _S_store_social
+from content.persistence import social as _S_store_social
 
 _S_GID = "g_snap"            # 群（= 采「迁移前」快照时用的群号；冻结基准的 DB 摘要按它记）
 _S_NONE = "zz_none"          # 未注册玩家
@@ -2641,7 +2661,7 @@ def _s_mk(qid, name, cls="战士", level=60, gold=100000, cur_map="oak_town", **
 
 
 def _s_reset_autoincrement():
-    conn = _S_sqlite3.connect(db.DB_PATH)
+    conn = _S_sqlite3.connect(db.db_path())
     try:
         conn.execute("DELETE FROM sqlite_sequence")
         conn.commit()
@@ -3001,7 +3021,7 @@ def _s_dump():
     经济域同款见 `_E_DATE_PAT` / `_E_FIXED_TS`）。不归一化 ⇒ 摘要里含「今天」⇒
     跨午夜必红（既有缺陷，非实现漂移）。
     """
-    conn = _S_sqlite3.connect(db.DB_PATH)
+    conn = _S_sqlite3.connect(db.db_path())
     try:
         tabs = [r[0] for r in conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
@@ -3471,7 +3491,7 @@ def _e_cast(**kw):
 
 
 def _e_reset_autoincrement():
-    conn = _E_sqlite3.connect(db.DB_PATH)
+    conn = _E_sqlite3.connect(db.db_path())
     try:
         conn.execute("DELETE FROM sqlite_sequence")
         conn.commit()
@@ -3489,7 +3509,7 @@ def _e_visit():
         db.add_visited(_E_GID, "a", "oak_plain")
     except Exception:                                                      # noqa: BLE001
         pass
-    conn = _E_sqlite3.connect(db.DB_PATH)
+    conn = _E_sqlite3.connect(db.db_path())
     try:
         # visited 表只有 (qq_id, map_id) 两列（无时间列）→ 只需钉 visited_subareas.first_at
         conn.execute("UPDATE visited_subareas SET first_at=?", (_E_FIXED_TS,))
@@ -3582,7 +3602,7 @@ def _e_cell(v):
 
 def _e_dump():
     """DB 逐行 dump（跳过 AUTOINCREMENT 计数表；墙钟与 uuid key 归一化）。"""
-    conn = _E_sqlite3.connect(db.DB_PATH)
+    conn = _E_sqlite3.connect(db.db_path())
     try:
         tabs = [r[0] for r in conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
