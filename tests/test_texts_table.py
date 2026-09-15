@@ -71,7 +71,8 @@ from data.plugins.dragonfall.game.core import texts as T  # noqa: E402
 from content.flow.weekly_progress import (  # noqa: E402  ★ B18-REPOINT：直取包内实现本体（宿主同名壳不再被测试引用）
     _week_state, _save_week_state,
 )
-from data.plugins.dragonfall.game.commands import instance_battle as _IB  # noqa: E402
+from content.flow import instance_battle as _IB  # ★ 改绑到包内实现：冻结分支的 build_battle 桩打在实现上
+                                                 #   （宿主壳取件面变化后，打在壳上会静默失效 → 文案门禁 61/63）
 from data.plugins.dragonfall.game.commands.combat import CombatCmds as _CombatCmds  # noqa: E402
 from data.plugins.dragonfall.game.commands.instance import InstanceCmds as _InstCmds  # noqa: E402
 from data.plugins.dragonfall.game.commands.world import WorldCmds as _WorldCmds  # noqa: E402
@@ -862,7 +863,7 @@ def t9_instance_settle_frozen():
 from conftest import clean_db as _IL_clean, FakeEvent as _IL_Event   # noqa: E402
 from data.plugins.dragonfall.game import content as _IL_C            # noqa: E402
 from data.plugins.dragonfall.game import db as _IL_db                # noqa: E402
-from data.plugins.dragonfall.game.commands import instance_battle as _IL_IB   # noqa: E402
+from content.flow import instance_battle as _IL_IB  # ★ 同上：改绑包内实现
 from data.plugins.dragonfall.game.commands.instance import InstanceCmds as _IL_Inst   # noqa: E402
 from data.plugins.dragonfall.game.commands.combat import CombatCmds as _IL_Combat     # noqa: E402
 from data.plugins.dragonfall.game.commands.world import WorldCmds as _IL_World        # noqa: E402

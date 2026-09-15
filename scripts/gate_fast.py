@@ -122,6 +122,11 @@ FULL_EXTRA_REASONS = {
 NO_GATE = [
     # ---- 宿主插件仓 ----
     ("host:main.py", "宿主进程入口（AstrBot 启动装配），无独立门禁；装配面由 terminal + runall 间接覆盖"),
+    ("host:host/**", "P5A 新增宿主运行时常量面（adapter_qq 三函数 + _platform/_identity/store_factory/"
+                     "log_setup/tlog_setup + main.py 的 EngineHost/EngineChannel）：宿主现有五道门禁仍走**旧路径**"
+                     "（game/commands/** 的壳），这些文件本身无定向门禁；行为判据当次实测在 "
+                     "`out/tools/compare_channels.py`（旧路径 vs 引擎通道逐字节对拍，62 例 0 差异），"
+                     "终态定向门禁由 P5C 收口（那时旧路径已删，五道门禁即走本面）"),
     ("host:metadata.yaml", "插件平台清单（AstrBot 元数据），非行为面，无门禁覆盖"),
     ("host:ARCHITECTURE.md", "宿主架构文档，无门禁覆盖（文档漂移靠人审）"),
     ("host:DEVELOPMENT.md", "宿主开发文档，无门禁覆盖（同上）"),

@@ -33,16 +33,43 @@ from __future__ import annotations
 
 import os
 import random
+import sys
 import time
 
 from saintess_engine.host import BUILTIN_GUARDS, Env, load_package, run_guards
 
 from .. import db as _db
 
+#: 插件根（`game/commands/_host_bridge.py` → 上两级）—— 两套 import 形态共用的落点
+root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 _PKG = None                                   # 引擎包对象（幂等；本进程唯一）
 _IDENTITY_KEYS = ("group_id", "qq_id", "uid")   # 「谁是玩家」那几列由落库函数自己带
 #: handler 引用解析不到时的明确回话（`run` / `run_async` 共用；不静默吞）
 _UNRESOLVED = "【%s】包内处理器未解析：%r（检查 content/commands.py 的 handler）"
+
+
+def _host_inject() -> dict:
+    """宿主注入面（P5A）—— 包在 `game.json` 声明了 `bind`，**给了 inject 才允许加载**
+    （引擎 `Package.apply_bind`：声明了却不给 → `PackageError`，拒绝静默空跑）。
+
+    值 = 宿主平台件（`host/store_factory.inject_handles()`：库路径 / 时钟 / 日志与流水 sink /
+    发奖）。宿主**不解释**包怎么用这些对象，只按契约交出去；旧路径（`_host_bridge`）与新路径
+    （`main.py::EngineChannel`）因此共用**同一份**注入口径。
+
+    ⚠️ 本仓并存两套 import 形态（`data.plugins.dragonfall.game.*` 与顶层 `game.*`，见 plan §8-R2）
+    ⇒ 按 `__package__` 推同前缀的 `host` 包名，**不写死包名**、不依赖相对点数。
+    """
+    import importlib
+    if __package__:
+        prefix = __package__[:-len("commands")].rstrip(".") if __package__.endswith(
+            ".commands") else "game"
+        name = prefix.rsplit(".", 1)[0] + ".host.store_factory" if "." in prefix else "host.store_factory"
+    else:
+        name = "host.store_factory"
+    if root_dir not in sys.path:
+        sys.path.insert(0, root_dir)
+    return importlib.import_module(name).inject_handles()
 
 
 def package():
@@ -52,7 +79,7 @@ def package():
         from .. import bootstrap as _bootstrap
         apply_mod = _bootstrap.package_apply()          # 幂等；失败大声抛（不静默降级）
         root = os.path.dirname(os.path.dirname(os.path.abspath(apply_mod.__file__)))
-        _PKG = load_package(root)
+        _PKG = load_package(root, inject=_host_inject())   # ★ inject 由宿主给（包声明了 bind）
     return _PKG
 
 
