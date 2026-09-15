@@ -805,6 +805,12 @@ def register_commands(package_dir: str = None, *, module_path: str = None) -> in
     #   这里补的是**终态执行点**（v104 M24 P2-5「启动时清理流失玩家残留 event_state 键」的原设计意图）；
     #   函数自身幂等（模块级哨兵）、失败只留痕不阻塞启动（见其 docstring）。
     _event_state_cleanup_once()
+    # ★ 收尾批（2026-09-15）：**文件回环调试通道**同理 —— 它原先也只在 `Main.__init__` 里
+    #   `_file_loopback_start()`，终态 `Main` 不存在 ⇒ 通道静默不启（`scripts/playthrough_cmd*.txt`
+    #   投递的命令没人处理，表现为「投进去没反应」）。通道内部已改成走引擎 host 通道
+    #   （`engine_channel().collect_event`，不依赖 `Main` 实例）⇒ 只差一个启动点。
+    #   幂等；worker 自带 pid 锁文件（热重载防多 worker）、daemon 线程、无命令文件时零动作。
+    _file_loopback_start()
     target = str(module_path or __name__)
     _registration.bind_dispatcher(channel.dispatch_declaration)
     cleared = _registration.reset_plugin_handlers(target)
