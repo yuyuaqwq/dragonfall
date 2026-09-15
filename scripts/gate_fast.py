@@ -122,6 +122,11 @@ FULL_EXTRA_REASONS = {
                      "玩家零回话且**无异常**，而注册条数照旧 194、v87/v104/cmd_reg 全绿。本道走"
                      "「AstrMain → 注册 handler → 管道口径 → EngineChannel → EngineShell 二次派发 → 包内 handler」"
                      "真跑「注册 → 快捷绑定 → 触发」并带反证与交付面（非 repr）判据。",
+    "landings": "手工那套没有它：B16 拆仓的**落点一致性**门禁——包独立成仓后同一份包有两处落点"
+                "（引擎仓 $GWEN_FRAMEWORK_DIR/games/<包>、宿主 framework submodule）＋一处部署面"
+                "（config.json 的 package_dir）。五道门禁跑的是宿主侧/引擎侧各自的树，"
+                "**两边不在同一提交时它们照样全绿**（已实测：--framework 指到旧版本引擎 → 五道全绿、"
+                "本条报红）⇒ 只有它能把「两落点版本不一致」这种假绿照出来。",
     "host_runall": "手工那套没有它：这是**全量**（272 文件 ~5 分钟），按设计只在批收口跑，不进 --changed。",
     "fw_runall": "手工那套没有它：引擎仓全量（55 文件），同上，只在批收口跑。",
     "smoke_engine": "手工那套没有它：cheap 冒烟，永远跑（引擎能加载）。",
@@ -487,6 +492,24 @@ GATES = [
             "那类半修会让 handler 交平台对象、`_as_replies` 再 `str()` 出来一堆 repr）；"
             "③逐段投递（handler 不得 yield 裸值）；④反证：清绑定后再发必须**零可见回话**；"
             "⑤对照 sync 族本来就能发（判据非恒假）。自带私有库（`needs_db=False`：不吞门禁注入的库）。",
+    ),
+
+    # ============ B16 新增（常驻）：拆仓落点一致性 ============
+    # 包独立成仓后，同一份包有**两处物理落点**（引擎仓侧 $GWEN_FRAMEWORK_DIR/games/<包>、
+    # 宿主 `framework` submodule 侧 <插件根>/framework/games/<包>）+ 一处**部署面**
+    # （config.json 的 package_dir）。门禁跑的是引擎仓侧，宿主测试与线上读的是 submodule/部署面
+    # —— 两边不在同一提交时，「测试全绿」只是拿另一份树量出来的**假绿**（B16 硬约束①②）。
+    # 本道要求三处**同包 id / 同内容 sha256 / 同提交**，且落点必须是**包仓的独立检出**（有 `.git`），
+    # 不能是引擎树里的**内嵌副本**（内嵌 = 两处实现，拆仓没拆干净）。
+    Gate(
+        "landings", "拆仓落点一致性（引擎仓/宿主 submodule/部署面 同版本 + 独立检出）", "host", "host",
+        ["scripts/check_package_landings.py"],
+        ["host:scripts/check_package_landings.py", "host:config.json",
+         "fw:.gitmodules", "fw:games/*/game.json", "fw:games/*/**"],
+        1.10, "engine", needs_db=False,
+        why="B16 拆仓的常驻牙：①两落点同步 —— 门禁必须走 `$GWEN_FRAMEWORK_DIR`，并核对两处落点"
+            "版本一致（不一致 = 假绿）；②反证：把 `$GWEN_FRAMEWORK_DIR` 指到**未拆**的引擎"
+            "（games/ 里还是内嵌目录）或**旧版本**的引擎（落点内容/提交不同）→ 本道必红。",
     ),
 
     # ================= 引擎侧 editor 门禁 =================
@@ -929,6 +952,32 @@ def build_env(gate, python, host_root, fw_root, db_dir, sandbox, py_path_extra):
     return env
 
 
+def discover_package_dir(fw_root):
+    """包目录：`<引擎仓>/games/*` 里 **`content/data/commands.json` 声明表最大**的那个。
+
+    ★ B16 拆仓：包独立成仓后，**脚本里不许再写死包名**（换包 = 换这棵树 / 换配置）。
+      口径与 `scripts/run_all_tests.py::_find_package_dir()`、
+      `tests/test_command_registration.py::_find_package_dir()` 逐字一致；
+      找不到返回 `None`（调用方按 fail-closed 处理，不猜、不兜底）。
+    """
+    games = os.path.join(fw_root, "games")
+    best, best_n = None, -1
+    if not os.path.isdir(games):
+        return None
+    for name in sorted(os.listdir(games)):
+        decl = os.path.join(games, name, "content", "data", "commands.json")
+        if not os.path.isfile(decl):
+            continue
+        try:
+            with open(decl, encoding="utf-8") as fh:
+                n = len(json.load(fh) or {})
+        except (OSError, ValueError):
+            continue
+        if n > best_n:
+            best, best_n = os.path.join(games, name), n
+    return best
+
+
 def gate_argv(gate, python, host_root, fw_root, argv_override=None):
     if argv_override is not None:                       # 动态自测门禁：跑命中的那个测试文件
         repo, rel = argv_override.split(":", 1)
@@ -937,7 +986,10 @@ def gate_argv(gate, python, host_root, fw_root, argv_override=None):
     argv = list(gate.argv)
     if argv and argv[0] == "-c":
         code = SMOKE_CODE[argv[1]]
-        pkg = os.path.join(fw_root, "games", "orlandia")
+        pkg = discover_package_dir(fw_root)
+        if pkg is None:
+            # 不猜包名：把「找不到包」变成冒烟当场报红（`import content` 必失败），不静默兜底
+            pkg = os.path.join(fw_root, "games", "<no-package-found>")
         return [python, "-c", code.format(fw=fw_root, pkg=pkg)]
     cwd = gate_cwd(gate, host_root, fw_root)
     return [python, os.path.join(cwd, argv[0])] + argv[1:]
