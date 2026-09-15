@@ -98,7 +98,9 @@ def test_1_channel():
           f"got={e.get('element_weak')}")
 
     # 白名单确实新增了 immune_dots（防被回退）
-    src = open(os.path.join(PLUGIN_DIR, "game", "core", "drops.py"), encoding="utf-8").read()
+    # ★ P5F-REPOINT: 原读宿主壳 `game/core/drops.py`（随删壳批消失）→ 包内真源 `content/drops.py`。
+    src = open(os.path.join(PLUGIN_DIR, "framework", "games", "orlandia", "content", "drops.py"),
+               encoding="utf-8").read()
     check("drops.py 白名单含 immune_dots 透传",
           '"immune_dots": list(mod.get("immune_dots") or [])' in src, "未找到透传行")
 
@@ -211,7 +213,9 @@ def test_3_counter_axis():
 
 def test_4_open_items():
     print("【4. 未落地项现状（登记，防误判为已完成）】")
-    src = open(os.path.join(PLUGIN_DIR, "game", "core", "drops.py"), encoding="utf-8").read()
+    # ★ P5F-REPOINT: 原读宿主壳 `game/core/drops.py`（随删壳批消失）→ 包内真源 `content/drops.py`。
+    src = open(os.path.join(PLUGIN_DIR, "framework", "games", "orlandia", "content", "drops.py"),
+               encoding="utf-8").read()
     check("dot_res 仍**不在** mod→实例白名单（结算端无读点，本批有意不配）",
           '"dot_res": ' not in src, "意外出现在白名单")
     from saintess_engine.battle import landing as L

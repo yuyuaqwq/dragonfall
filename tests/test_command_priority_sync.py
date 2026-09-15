@@ -5,8 +5,8 @@
 背景（为什么有这条线）
 ----------------------
 终态口径：**路由与声明的真源在包**（引擎按包内 `content/data/commands.json` 的正则/元数据
-路由；见 `saintess_engine/host/package.py::command_declarations()`）。但注册优先级
-（`priority`）一直**只硬编码在宿主装饰器**里：
+路由；见 `saintess_engine/host/package.py::command_declarations()`）。注册优先级
+（`priority`）此前**只硬编码在宿主装饰器**里：
 
     game/commands/world.py    @declared("npc_quick_dialog",   priority=100)
     game/commands/base.py     @declared("_maint_gate",        priority=100)
@@ -14,20 +14,20 @@
     game/commands/economy.py  @declared("item_view_mode_cmd", priority=50)
     game/commands/social.py   @declared("stall_deprecated",   priority=5)
 
-而包内 `commands.json` 194 条里 0 条含 `priority`（宿主 `command_specs.json` 同）。
-⇒ 换宿主 / 编辑器试玩（B20）时这条排序语义会**静默丢失**（「命令匹配谁先谁后」会变）。
+    ★ P5F-REPOINT：宿主壳随删壳批消失 ⇒ 上表已成历史；终态的「装饰器面」= 包内
+    `content/*.py` 残留的 `@declared(..., priority=N)` 替身（实测 1 处：`economy_cmds.py`），
+    其余 3 条的值只存在于包内声明表（引擎 `CommandSpec.priority` 是唯一读点）。
 
 本线只做「**声明显式化**」：把装饰器里的既有值搬进两份声明表（值一个不改）。
-引擎路由按 priority 排序留 P5 —— **本线不改引擎**（`CommandSpec.from_dict()` 目前
-不读 `priority`，所以搬进去是纯增量、零行为变化）。
+引擎路由按 priority 排序见 `saintess_engine/command/registry.py::_ranked()`。
 
 断言（三条硬要求 + 两条加固）
 ----------------------------
-  ① 宿主每个 `@declared(key, priority=N)` / `@filter.custom_filter(_, priority=N)`
-     → 包内 `commands.json[key].priority == N`
-  ② 包内每条含 `priority` 的 key → 宿主同名命令的装饰器 priority 相同
-     （**不允许单边存在**：装饰器有而表里没有、或表里有而装饰器没有，都算红）
-  ③ 两份声明表（宿主 `game/data/command_specs.json` / 包内 `content/data/commands.json`）
+  ① 宿主声明面（终态 = 包内 `content/*.py`）每个 `@declared(key, priority=N)` /
+     `@filter.custom_filter(_, priority=N)` → 包内 `commands.json[key].priority == N`
+  ② 包内每条含 `priority` 的 key → **运行时注册表**（引擎 `CommandSpec.priority`）同值
+     （**不允许单边存在**：注册表有而表里没有、或表里有而注册表读不到，都算红）
+  ③ 两份声明表（**部署期镜像** `game/data/command_specs.json` / 包内 `content/data/commands.json`）
      的 `priority` 字段**逐条相等**（键集与值都相等）
   ④ （加固）包内 `content/*.py` 里残留的 `@declared(..., priority=N)` 替身也必须与包内表同值
      —— 防「搬进来的第三份拷贝」静默漂移
@@ -48,11 +48,16 @@ import sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 PLUGIN_DIR = os.path.dirname(_HERE)
 
-HOST_SPEC = os.path.join(PLUGIN_DIR, "game", "data", "command_specs.json")
-HOST_CMD_DIR = os.path.join(PLUGIN_DIR, "game", "commands")
+# ★ P5F-REPOINT: 原宿主壳那两处（`game/data/command_specs.json` 声明表 + `game/commands/` 的
+#   `@declared(..., priority=N)` 装饰器，随删壳批消失）→ 包内真源
+#   `content/data/commands.json`（声明表）+ `content/*.py`（priority 替身装饰器）。
 PKG_ROOT = os.path.join(PLUGIN_DIR, "framework", "games", "orlandia")
 PKG_SPEC = os.path.join(PKG_ROOT, "content", "data", "commands.json")
 PKG_CONTENT_DIR = os.path.join(PKG_ROOT, "content")
+#: 部署期镜像（**保留资产**，不随删壳批消失）= `game/data/command_specs.json`。
+#   ★ P5F-REPOINT: ③ 段「两份声明表逐条相等」的**独立对侧**仍是这份镜像（不是包内那份自己）——
+#   保留比较对象，判据不削弱；镜像 ↔ 真源漂移当场报红。
+MIRROR_SPEC = os.path.join(PLUGIN_DIR, "game", "data", "command_specs.json")
 
 PASS = 0
 FAIL = 0
@@ -169,9 +174,9 @@ def fmt(bad) -> str:
 # ============================================================ 断言组
 def t0_precondition():
     print("【0. 前置：扫描口径完整（否则 ①② 会空转）】")
-    sites = scan_priority_sites(HOST_CMD_DIR)
+    sites = scan_priority_sites(PKG_CONTENT_DIR)
     unknown = sorted({(fn, ln, dname) for fn, ln, key, dname, _p in sites if key is None})
-    check("宿主 `game/commands/` 里能扫到 priority 注册装饰器（非空）",
+    check("宿主声明面（终态 = 包内 `content/*.py`）里能扫到 priority 注册装饰器（非空）",
           bool(sites), "扫到 0 处 —— 扫描口径失配，①② 会假绿", red_keys=["<scan>"])
     check("带 priority 的装饰器只有 `declared` / `custom_filter` 两种（无未识别写法）",
           not unknown, "未识别：%s（请扩展本门禁的扫描口径）" % (unknown or ""),
@@ -180,29 +185,43 @@ def t0_precondition():
 
 
 def t1_host_to_pkg(deco: dict, pkg: dict):
-    print("【① 宿主装饰器 → 包内声明表】")
+    print("【① 宿主声明面的装饰器替身 → 包内声明表】")
     bad = diff_one_way(deco, pkg)
-    check("宿主每条 `@declared/…priority=N` 都能在包内 commands.json 里找到同值 priority",
+    check("每条 `@declared/…priority=N` 都能在包内 commands.json 里找到同值 priority",
           not bad, fmt(bad), red_keys=[k for k, _a, _b in bad])
 
 
-def t2_pkg_to_host(deco: dict, pkg: dict):
-    print("【② 包内声明表 → 宿主装饰器（不允许单边存在）】")
-    bad = diff_one_way(pkg, deco)
-    check("包内每条含 priority 的 key 都有同值的宿主装饰器（无单边声明）",
+def runtime_priorities() -> dict:
+    """引擎注册表里**实际生效**的 `{key: priority}`（只取声明表显式写了 priority 的 key）。
+
+    ★ P5F-REPOINT: 原「宿主装饰器 priority」这一侧的终态对侧 = 包内声明经引擎
+    `CommandRegistry` 装载后的 `CommandSpec.priority`（替身装饰器 + 声明表 + 引擎读值三段合一）。
+    """
+    from _engine_harness import harness
+    decls = harness().host.pkg.command_declarations() or {}
+    reg = harness().host.commands
+    out = {}
+    for key, raw in decls.items():
+        spec = reg.get(key)
+        if isinstance(raw, dict) and "priority" in raw and spec is not None:
+            out[str(key)] = spec.priority
+    return out
+
+
+def t2_pkg_to_host(pkg: dict, runtime: dict):
+    print("【② 包内声明表 → 运行时注册表（不允许单边存在）】")
+    bad = diff_one_way(pkg, runtime)
+    check("包内每条含 priority 的 key 都被运行时注册表以同值装载（无单边声明）",
           not bad, fmt(bad), red_keys=[k for k, _a, _b in bad])
-    only_deco = sorted(set(deco) - set(pkg))
-    only_pkg = sorted(set(pkg) - set(deco))
-    check("两边的 priority 键集完全相等（单边：仅装饰器 %s / 仅表 %s）"
-          % (only_deco or "无", only_pkg or "无"),
-          not only_deco and not only_pkg, "",
-          red_keys=only_deco + only_pkg)
+    only_runtime = sorted(set(runtime) - set(pkg))
+    check("运行时注册表的 priority 键都在包内表里（单边：仅注册表 %s）" % (only_runtime or "无"),
+          not only_runtime, "", red_keys=only_runtime)
 
 
 def t3_tables_agree(host: dict, pkg: dict, host_tbl: dict, pkg_tbl: dict):
-    print("【③ 两份声明表 priority 逐条相等】")
+    print("【③ 两份声明表 priority 逐条相等（部署期镜像 ↔ 包内真源）】")
     bad = diff_one_way(host, pkg) + diff_one_way(pkg, host)
-    check("宿主 command_specs.json 与包内 commands.json 的 priority 值逐条相等",
+    check("部署期镜像 command_specs.json 与包内 commands.json 的 priority 值逐条相等",
           not bad, fmt(bad), red_keys=[k for k, _a, _b in bad])
     check("两份表的 priority 键集相等（%d vs %d）" % (len(host), len(pkg)),
           set(host) == set(pkg), "差集：%s" % sorted(set(host) ^ set(pkg)),
@@ -283,24 +302,25 @@ def main():
     print("=" * 74)
     print("命令注册优先级（priority）声明双向一致性门禁（B18-L12）")
     print("=" * 74)
-    print("  宿主声明表 = %s" % HOST_SPEC)
+    print("  宿主声明表(部署期镜像) = %s" % MIRROR_SPEC)
     print("  包内声明表 = %s" % PKG_SPEC)
-    print("  宿主装饰器 = %s/*.py" % HOST_CMD_DIR)
+    print("  宿主声明面(终态=包内 content) = %s/*.py" % PKG_CONTENT_DIR)
     print("")
 
-    host_tbl = load_json(HOST_SPEC)
+    host_tbl = load_json(MIRROR_SPEC) if os.path.exists(MIRROR_SPEC) else {}
     pkg_tbl = load_json(PKG_SPEC)
     host = table_priorities(host_tbl)
     pkg = table_priorities(pkg_tbl)
 
     sites = t0_precondition()
     deco = priorities_of(sites, label="宿主：")
-    print("  实测：装饰器 %s ｜ 宿主表 %s ｜ 包内表 %s"
-          % (deco, host, pkg))
+    runtime = runtime_priorities()
+    print("  实测：装饰器替身 %s ｜ 部署期镜像 %s ｜ 包内表 %s ｜ 运行时 %s"
+          % (deco, host, pkg, runtime))
     print("")
     t1_host_to_pkg(deco, pkg)
     print("")
-    t2_pkg_to_host(deco, pkg)
+    t2_pkg_to_host(pkg, runtime)
     print("")
     t3_tables_agree(host, pkg, host_tbl, pkg_tbl)
     print("")
@@ -314,7 +334,7 @@ def main():
     # 红 key 汇总（反证脚本靠这一行判断「只红哪条 key」）
     red = set()
     red.update(k for k, _a, _b in diff_one_way(deco, pkg))
-    red.update(k for k, _a, _b in diff_one_way(pkg, deco))
+    red.update(k for k, _a, _b in diff_one_way(pkg, runtime))
     red.update(k for k, _a, _b in diff_one_way(host, pkg))
     red.update(k for k, _a, _b in diff_one_way(pkg, host))
     print("红 key 汇总: %s" % sorted(red))

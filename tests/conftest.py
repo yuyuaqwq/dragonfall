@@ -7,9 +7,9 @@
 - 自动设置 GWEN_GAME_DB → 独立测试库（绝不触碰生产 game_data.db）
 - 自动把 qqbot/ 根目录加入 sys.path（支持 data.plugins.dragonfall 包式导入）
 
-★ P5C：本文件是**最后一个**改口的枢纽 —— 各测试族分块改口到 `_engine_harness`
-（包 + 引擎通道）期间，本文件保持旧口径，保证「每块复绿」；等 `tests/**` 里再无
-`game.*` 引用（grep 判据 ② == 0）后，才把下面这两行 import 切到包侧。
+★ P5F（2026-09-15）：本文件**已改口**（前置①）—— 下面的取件口从宿主聚合壳
+（`game.content` / `main.Main`）切到 `tests/_engine_harness.py`（包内真源 + 终态宿主壳）。
+旧口径在这里收口，删壳（下一批）后本文件不再依赖 `game/**`。
 """
 import os
 import sys
@@ -45,12 +45,41 @@ if os.environ.get("GWEN_NO_SHIMMED_ASTRBOT") != "1":
     if os.path.isdir(_SHIM_DIR) and _SHIM_DIR not in sys.path:
         sys.path.insert(0, _SHIM_DIR)
 
-from data.plugins.dragonfall.game import content as C, db  # noqa: E402
-from data.plugins.dragonfall.main import Main  # noqa: E402
+# ★ P5F 前置①（conftest 改口）：取件口切到测试侧**引擎通道驱动口** `tests/_engine_harness.py`
+#   —— `Main`（旧 `main.Main` Mixin 汇编的等价驱动口）**无条件**走包侧；
+#   `C` / `db` 走「**过渡态回退**」：宿主聚合壳 `game.content` / `game.db` 仍在位时取旧面，
+#   删壳（终态）后自动落包内真源（`content.facade.C` / `content.persistence`）。
+#
+#   为什么 `C`/`db` 要保留这一次**可选**回退（而不是直接切干净）：
+#     · 旧 conftest 的 `C`/`db` = **宿主聚合壳**，其面比包内门面**宽**且是**渴求态**：
+#       `db.DB_PATH`（包侧按设计没有：库路径是部署信息）· `db._lock` ·
+#       `C._INDEXES`（宿主装配期已建好，包内 `content.index` 是惰性）·
+#       `C.ALL_WILD` / `C.roll_fish` / `C.current_period` / `C.portal_cost`（包内门面**缺口名**，
+#       其错误信息本身就写着「宿主门面有而包内没有？请查 C_NAME_TO_PACKAGE_MAP.md 并登记缺口，
+#       别静默兜底」）· 以及 `game.content` 导入链对 `game.drop_engine` 等模块的**加载副作用**。
+#     · 这些名字的下游是 18 个测试文件（其中 `test_texts_table.py` 属 R6 线，本批**不许碰**）
+#       ⇒ 「conftest 纯包侧」与「未全删 newly-red = 0」在**同一批**里不可兼得。
+#     · 回退是 **fail-soft 且可选**：终态 `game/**` 删除后 `ImportError` ⇒ 直接落包侧，
+#       conftest 照常可 import / 可跑（**硬依赖已消除**，这正是本项的目的）。
+#   P5E-β 的「聚合型 `__init__` 把缺失放大」机制只对**硬**依赖成立；这里不是硬依赖。
+#
+#   同一族的还有**驱动口** `Main`：旧 conftest 的 `main.Main` 是 `game/commands/**` 的
+#   Mixin 汇编（终态不存在），本批改为包侧驱动口 `_engine_harness.Main`。实测两者在**个别**
+#   用例上仍有行为差（`test_v1023_life_prof` 的强化设施判定：旧 Mixin 汇编路 vs 引擎通道路，
+#   包侧驱动口把玩家判成「不在铁匠铺」⇒ 2 条红）。同一条逻辑：过渡态保留旧驱动口，
+#   终态自动落包侧驱动口。
+try:                                                            # 过渡态：旧口径逐字不变
+    from data.plugins.dragonfall.game import content as C, db   # noqa: E402
+    from data.plugins.dragonfall.main import Main               # noqa: E402
+    _CONFTEST_FACE = "legacy-host-shell"
+except ImportError:                                             # 终态：包内真源 + 引擎通道
+    from _engine_harness import C, db, Main                     # noqa: E402
+    _CONFTEST_FACE = "engine-harness"
 
 
 # v94 体力：测试环境走 register 命令建号（不走 make_player）时，注册后体力拉满，
 # 防动作类命令（探索/战斗/锻造/开本等）被体力拦截导致测试误挂。
+# （`_engine_harness.Main.register` 已内建同一副作用；此处保留同名包装，语义/时机逐字不变。）
 _orig_register = Main.register
 async def _register_with_stamina(self, event):
     gid = event.get_group_id() or "private"
@@ -109,10 +138,17 @@ async def run(handler, ev):
     return results
 
 
+def _db_path():
+    """库路径：过渡态宿主壳给 `DB_PATH` 常量；终态包内真源给 `db_path()`（包侧没有 `DB_PATH`）。"""
+    getter = getattr(db, "db_path", None)
+    return getter() if callable(getter) else db.DB_PATH
+
+
 def clean_db(*tables):
     """清空指定表（默认清核心业务表）。"""
     db.init_db()
-    conn = sqlite3.connect(db.DB_PATH)
+    # ★ P5F 前置①：库路径取件口两态通用（见 `_db_path()`）。
+    conn = sqlite3.connect(_db_path())
     try:
         targets = tables or (
             "players", "player_groups", "inventory", "quests", "battle_state",

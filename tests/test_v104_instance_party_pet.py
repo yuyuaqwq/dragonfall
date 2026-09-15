@@ -244,8 +244,12 @@ async def main():
     print("【7. 超时文案统一】")
     from content.instance_cmds import INSTANCE_TIMEOUT
     check("超时阈值=60 秒", INSTANCE_TIMEOUT == 60, str(INSTANCE_TIMEOUT))
+    # ★ P5F-REPOINT: 原读宿主壳 `game/commands/instance.py`（随删壳批消失）→ 读**实际含该措辞的
+    #   包内模块** `content/misc_cmds.py`（『超时 60 秒自动防御』只此一处；原宿主壳里也没有这句）。
+    #   注：本文件自 v137 起 `sys.exit(0)` 早退（旧结构测试已跳过），此处仅为删壳后保持落点。
     src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                            "game", "commands", "instance.py"), encoding="utf-8").read()
+                            "framework", "games", "orlandia", "content", "misc_cmds.py"),
+               encoding="utf-8").read()
     check("开本模板含'超时 60 秒'", "超时 60 秒自动防御" in src, "")
     check("无 120 秒/2 分钟残留", "120 秒" not in src and "2 分钟" not in src, "")
     # 行为探针：地图模式开本（所有当前副本均为地图模式）实际文案是否可见 60 秒

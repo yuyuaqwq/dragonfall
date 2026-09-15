@@ -7,7 +7,7 @@
 B14 之后宿主 `game/data/` 只剩三张 JSON 资产，`tlogs.json` 是其中之一。同一份「kind → 字段契约」
 在盘上有**两份**、内容却不同：
 
-    宿主 game/data/tlogs.json          2,619 B   ← 运行时 `game/tlog_setup.py:kinds()` 真正读的那份
+    宿主 game/data/tlogs.json          2,619 B   ← 运行时 `host/tlog_setup.py:kinds()` 真正读的那份
     包内 content/data/tlogs.json       3,069 B   ← 编辑器（framework 仓）编辑的那份
 
 实测差异只在外层 kind 序（宿主=逻辑序 / 包内=升序）与数组排版（宿主=单行 / 包内=展开），
@@ -18,7 +18,9 @@ B14 之后宿主 `game/data/` 只剩三张 JSON 资产，`tlogs.json` 是其中�
 ----------------------
     真源 = 包内 `content/data/tlogs.json`（framework 仓 `games/orlandia`；编辑器编辑的那一份）
     镜像 = 宿主 `game/data/tlogs.json`（**构建期**由真源生成：`scripts/mirror_tlogs.py`）
-    运行时读点 = `game/tlog_setup.py:kinds()` —— **只此一处**读盘（不许双读：包内那份运行时无人读）
+    运行时读点 = `host/tlog_setup.py:kinds()`（经 `kinds_path()`）—— **只此一处**读盘
+    ★ P5F-REPOINT：原读点是待删树 `game/tlog_setup.py`；终态属主 = 宿主层 `host/tlog_setup.py`，
+    读的仍是同一份部署期镜像 `game/data/tlogs.json`（保留资产）。
 
 断言
 ----
@@ -27,7 +29,7 @@ B14 之后宿主 `game/data/` 只剩三张 JSON 资产，`tlogs.json` 是其中�
   ② 构建期镜像：两份**LF 归一后逐字节相同**（md5 相同）—— 镜像必须是真源的确定性产物
   ③ 真源落盘规范：UTF-8 无 BOM · `indent=2` 规范形 · 末尾换行 · 外层 kind 键升序（EOL 允许 CRLF：
      宿主仓 `core.autocrlf=true`，checkout 会把 LF 变 CRLF；比对前归一，规范形按 LF 判）
-  ④ 运行时单读：宿主运行时代码里 `tlogs.json` 字面量**只有 `game/tlog_setup.py` 一处**，
+  ④ 运行时单读：宿主层运行时代码里 `tlogs.json` 字面量**只有 `host/tlog_setup.py` 一处**，
      且 `kinds()` 里只有 **1 个 `open(`**（AST 计数）；包内运行时代码**零读盘**（注释不算）
   ⑤ 装载实证（引擎口径）：镜像喂 `saintess_engine.tlog.KindTable` → 18 条 · `validate()` 空
   ⑥ 反证：比较器有牙（内存对拍，不碰盘）—— 改 `fields` / 改 `desc` / 删一条 / 加一条 →
@@ -55,10 +57,13 @@ PLUGIN_DIR = os.path.dirname(_HERE)
 
 PKG_REL = os.path.join("framework", "games", "orlandia", "content", "data", "tlogs.json")
 HOST_REL = os.path.join("game", "data", "tlogs.json")
-HOST_RUNTIME_REL = os.path.join("game")                       # 宿主运行时代码根
+# ★ P5F-REPOINT: 「运行时单读点」原先在待删树 `game/tlog_setup.py`；终态属主 = **宿主层**
+#   `host/tlog_setup.py::kinds_path()`（同读这一份部署期镜像 `game/data/tlogs.json`）。
+#   故运行时代码根 = `host/`（不再扫 `game/`：那里只剩保留资产，没有 .py）。
+HOST_RUNTIME_REL = os.path.join("host")                       # 宿主运行时代码根
 PKG_RUNTIME_REL = os.path.join("framework", "games", "orlandia", "content")   # 包内运行时代码根
-READ_POINT_REL = os.path.join("game", "tlog_setup.py")
-READ_POINT_LITERAL = 'os.path.join(here, "data", "tlogs.json")'
+READ_POINT_REL = os.path.join("host", "tlog_setup.py")
+READ_POINT_LITERAL = 'os.path.join(PLUGIN_ROOT, "game", "data", "tlogs.json")'
 
 PASS = 0
 FAIL = 0
@@ -259,11 +264,11 @@ def t3_source_format(pkg_raw, host_raw):
 
 
 def t4_single_read_point():
-    print("【④ 运行时单读：宿主代码只有一处拿 tlogs.json；包内运行时零读点】")
+    print("【④ 运行时单读：宿主层代码只有一处拿 tlogs.json；包内运行时零读点】")
     host_code, host_doc = scan_literal(HOST_RUNTIME_REL)
     files = sorted({h[0] for h in host_code})
-    check("宿主运行时代码里 `tlogs.json` 字面量只出现在 `game/tlog_setup.py`（实测 %s）" % files,
-          files == ["game/tlog_setup.py"],
+    check("宿主运行时代码里 `tlogs.json` 字面量只出现在 `host/tlog_setup.py`（实测 %s）" % files,
+          files == ["host/tlog_setup.py"],
           "命中 %s" % [(h[0], h[1]) for h in host_code], red_keys=["<readpoint>"])
     check("宿主只有 1 处代码字面量（不双读、不散落读到别处的第二份）",
           len(host_code) == 1, "命中 %d 处：%s" % (len(host_code), [(h[0], h[1]) for h in host_code]),

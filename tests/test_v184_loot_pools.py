@@ -71,8 +71,13 @@ sys.modules.setdefault("game.content", _facade.C)
 sys.modules.setdefault("game.drop_engine", _loot)
 DROP_POOLS = _DP.DROP_POOLS
 import importlib as _importlib                                        # noqa: E402
-# 待评测的新实现：走 shim 的宿主模块名（= 包内 `content.loot`；与冻结体的取件口同源）
-DE = _importlib.import_module("data.plugins.dragonfall.game.drop_engine")
+# ★ P5F 前置②（去壳）：原 = `_importlib.import_module("data.plugins.dragonfall.game.drop_engine")`
+#   走待删壳 `game/drop_engine.py`（它本身是**别名壳**：`sys.modules[__name__] = content.loot`
+#   ⇒ 取到的就是同一只模块对象）。终态 `game/**` 删除后该 import 直接 ModuleNotFoundError。
+#   改法 = 直取包内真源（`content.loot`，同一只对象）+ 把同一只对象登记到旧宿主模块名下，
+#   让冻结体里按旧模块名取件的路径仍解析到**同一对象**（打桩/同一性断言一字不变）。
+DE = _loot
+sys.modules.setdefault("data.plugins.dragonfall.game.drop_engine", _loot)
 # B16 收口：宿主 game/data 已删 —— 池数据真源 = 包内 `content/data/drop_pools.json`（596 池，逐条同源）
 #   门面 = `content.catalog_rules.DROP_POOLS`（同一只 dict，模块属性可写 → §5 打桩仍有效）
 #   ★ 冻结体（v174 原文，一个字符没动）里的 `from .data.drop_pools import DROP_POOLS`
@@ -82,6 +87,34 @@ DE = _importlib.import_module("data.plugins.dragonfall.game.drop_engine")
 from content import catalog_rules as _DP                                        # noqa: E402
 DROP_POOLS = _DP.DROP_POOLS
 sys.modules["data.plugins.dragonfall.game.data.drop_pools"] = _DP
+
+# ★ P5F 前置②（去壳）：旧壳 `game/drop_engine.py` **不只是别名** —— 它另外安装三个
+#   **宿主取件活源**（池数据源 / 内容 API / 垂钓档位表，见该壳正文 ① ② ③）。终态壳删除后
+#   必须在测试侧以**同款活源**接管，否则 §5 `_with_pools()` 的 `_DP.DROP_POOLS` 打桩对实现
+#   不可见（实测：合成池全落回真源 596 池 → 14 条断言红）。三个活源的几何与旧壳逐条等价：
+#     · 池数据源   ≡ 壳 `_host_pools_source()`：本树 `...game.data.drop_pools` 在册则优先读它
+#     · 内容 API   ≡ 壳 `_host_content_api()`：`import game.content as C` = 包内聚合门面
+#     · 垂钓档位表 ≡ 壳 `_host_quality_tiers()`：唯一真相源 = 包内 `content/quality_tiers.py`
+def _p5f_pools_source():
+    _host = sys.modules.get("data.plugins.dragonfall.game.data.drop_pools")
+    if _host is not None and hasattr(_host, "DROP_POOLS"):
+        return _host.DROP_POOLS
+    return _DP.DROP_POOLS
+
+
+def _p5f_content_api_source():
+    return _facade.C
+
+
+def _p5f_quality_tiers_source():
+    from content.quality_tiers import FISH_TIERS       # noqa: PLC0415
+    return FISH_TIERS
+
+
+_loot.install_pools_source(_p5f_pools_source)
+_loot.install_content_api_source(_p5f_content_api_source)
+_loot.install_quality_tiers_source(_p5f_quality_tiers_source)
+
 from saintess_engine.loot import SimpleCtx as EngineSimpleCtx                   # noqa: E402
 from saintess_engine.loot import strategy_names                                 # noqa: E402
 
@@ -1266,14 +1299,13 @@ def sec6_names_and_source():
 
     # ★ 2026-09-14（B12B13-TAIL 线3）：`game/drop_engine.py` 已成**薄壳**（模块别名到包内实现，
     #   见该文件头注），实现真源 = 包内 `<插件>/framework/games/orlandia/content/loot.py`。
-    #   口径与 `tests/test_v184_loot_tiers.py:313 _src()` / `test_v135_bp_drop.py:197-202` 同款：
-    #   **壳 + 实现两侧拼接**后再扫 —— 断言原意不变（旧实现已删 / 新接线到位 / 正文逐行比），
-    #   判据只加强不削弱（扫面从「宿主一个文件」变成「壳 + 实现两个文件」）。
+    #   ★ P5F 前置②（去壳）：原来扫「壳 + 实现」两侧拼接；终态壳已删 ⇒ 扫面 = **包内实现真源一份**。
+    #   判别力不变：该壳只有别名转发（`sys.modules[__name__] = _impl`），既不承载旧实现，
+    #   也不承载新接线；下面 `dead` / `live` 两类断言的落点全在实现正文里。
     _impl_p = os.path.join(PLUGIN_DIR, "framework", "games", "orlandia", "content", "loot.py")
     if not os.path.exists(_impl_p):                        # pragma: no cover
         raise RuntimeError("drop_engine 薄壳化后扫面缺包内实现：%s" % _impl_p)
-    src = open(os.path.join(PLUGIN_DIR, "game", "drop_engine.py"), encoding="utf-8").read()
-    src = src + "\n" + open(_impl_p, encoding="utf-8").read()
+    src = open(_impl_p, encoding="utf-8").read()
     for dead in ("def _quality_weights_inline", "def _weighted_pick", "def _roll_weighted",
                  "def _roll_table", "def _roll_table_choice", "def _roll_fixed",
                  "def _roll_sub_ref", "def _sub_ctx", "def _resolve_pool",
@@ -1356,11 +1388,14 @@ def sec6_names_and_source():
           fish_old == fish_new, f"old_only={[x for x in fish_old if x not in fish_new][:4]}"
                                f" new_only={[x for x in fish_new if x not in fish_old][:4]}")
 
-    # import 期不拉池数据（子进程实证：import drop_engine 后 drop_pools 不在 sys.modules）
+    # import 期不拉池数据（子进程实证：import 真源后 drop_pools 不在 sys.modules）
+    # ★ P5F 前置②（去壳）：原来是 `import data.plugins.dragonfall.game.drop_engine`（旧壳名）；
+    #   终态壳已删 ⇒ 换包内真源 `content.loot`（同一只模块对象），断言口径不变。
+    _pkg_root = os.path.join(_FRAMEWORK_DIR, "games", "orlandia")
     code = ("import sys;sys.path.insert(0,%r);sys.path.insert(0,%r);"
-            "import data.plugins.dragonfall.game.drop_engine as de;"
+            "import content.loot as de;"
             "print(sorted(m for m in sys.modules if m.endswith('drop_pools')))"
-            ) % (_FRAMEWORK_DIR, QQBOT_DIR)
+            ) % (_FRAMEWORK_DIR, _pkg_root)
     p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
                        env={**os.environ, "PYTHONUTF8": "1"}, cwd=PLUGIN_DIR)
     check("import drop_engine 期不拉 DROP_POOLS（惰性，时机与 v174 同）",

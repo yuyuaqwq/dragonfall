@@ -18,12 +18,15 @@
 本文件照样能 import、能注册、能跑命令。
 """
 import glob
+import importlib
 import threading
 import logging
 
 from astrbot.api import star  # 仅 AstrMain 壳需要（生产命中真实 astrbot；测试命中 tests/shim_astrbot）
 
-from .game import db
+# ★ P5F 前置⑤（去壳）：原 `from .game import db` 走待删壳 `game/db.py` —— 终态 `game/**`
+#   一删，`import main` 直接 ImportError（P5E-β 实测：注册门禁整条链 import 不进）。
+#   建表改走**宿主工厂** `host/store_factory`（存档半边按名取，见下方 `_store_ready()`）。
 
 #: 过渡态遗留壳是否在位（删壳预演 / P5C 终态 = False）。**只在删壳预演时才会 False**。
 try:
@@ -121,7 +124,31 @@ def _fix_handler_module_paths():
 _fix_handler_module_paths()
 
 
-def _weekly_reward_selfcheck():
+def _legacy_store_init():
+    """过渡态遗留 `Main.__init__` 的建表口 —— 旧 `from .game import db; db.init_db()` 的等价物。
+
+    ★ P5F 前置⑤（去壳）：模块级 `from .game import db` 已删（终态 `game/**` 删除后它会让
+    `import main` 直接 ImportError）。这里按**同一公开口径**惰性取件，三档 fail-closed：
+
+      ① 宿主已绑定引擎包（`store_factory.store().package` 非空）→ 走宿主工厂建表
+         （`content/persistence` 按半边名取，与生产装配同一路）；
+      ② 否则（测试直接构造 `main.Main(None)`、装配处尚未 boot）→ 取宿主壳 `game.db`
+         （与旧行为逐字相同；终态该壳不存在 ⇒ 落 ③）；
+      ③ 都不是 → 抛（拒绝静默空跑）。
+    """
+    store = _store_factory.store()
+    if store.package is not None:
+        return store.init()
+    try:
+        from .game import db as _legacy_db  # 过渡态遗留取件（④ 说明里的 ② 档）
+    except ImportError:
+        raise RuntimeError(
+            "main.Main（过渡态遗留壳）建表失败：既无已绑定的引擎包，也无宿主壳 game.db "
+            "——拒绝静默跳过建表")
+    return _legacy_db.init_db()
+
+
+def _weekly_reward_selfcheck(pkg=None, *, strict=True):
     """★ 启动自检（fail-closed）：周常达标发奖的宿主注入面必须在位。
 
     背景（RPT 实测的静默失效）：`game/services/weekly_progress.py` 这个注入点消失后，
@@ -133,26 +160,55 @@ def _weekly_reward_selfcheck():
     * 失败 → ERROR + **抛**（拒绝带着静默坏掉的发奖链路启动）。
 
     幂等（模块 import 期调一次；`Main.__init__` 再调一次，热重载/多次实例化都安全）。
+
+    ★ P5F 前置⑤（去壳）：原实现写死**包内模块路径字面量**导入周常进度半边 —— 终态判据②
+    「宿主零包知识」因此在 `main.py` 里恒差 1 处。改为按**半边名**经引擎包契约取：
+    `Package.optional_submodule("flow")` 拿到包内 flow 半边对象，再用它自己的 `__name__`
+    前缀导入 `weekly_progress` —— 宿主里**不出现任何包内模块路径字面量**
+    （与 `host/shell.py::_sub` / `host/tlog_setup.attach_tlog` 同口径）。
+
+    `pkg` 缺省 = 宿主存档口上绑定的包（`host/store_factory.store().package`）；
+    `strict=False`（过渡态 import 期）取不到包只留 ERROR 痕迹**不抛** —— 真正的装配期门在
+    `register_commands()`（`strict=True`），那时引擎通道已 boot、包必然在位。
     """
     _LOGGER = logging.getLogger(__name__)
-    try:
-        from content.flow import weekly_progress as _WP
-    except Exception:
-        _LOGGER.error("周常发奖启动自检失败：包内 content.flow.weekly_progress 不可导入", exc_info=True)
-        raise
+    if pkg is None:
+        from .host import store_factory as _sf      # 惰性：模块 import 期本行之前尚未绑定
+        pkg = _sf.store().package
+    _WP = None
+    if pkg is not None:
+        try:
+            _flow = pkg.optional_submodule("flow")
+            if _flow is not None:
+                _WP = importlib.import_module(_flow.__name__ + ".weekly_progress")
+        except Exception:
+            _LOGGER.error("周常发奖启动自检失败：包内周常进度半边不可导入", exc_info=True)
+            raise
+    if _WP is None:
+        if strict:
+            _LOGGER.error(
+                "周常发奖启动自检失败：包未绑定 / 周常进度半边取不到 —— 缺注入时玩家达标会"
+                "静默不发奖，故拒绝启动（fail-closed）。请检查宿主装配处的 bind_store(pkg)。")
+            raise RuntimeError(
+                "周常发奖启动自检失败：包内周常进度半边取不到（拒绝静默不发奖）")
+        _LOGGER.error(
+            "周常发奖启动自检本次跳过：包尚未装配（过渡态 import 期）——"
+            "装配期 register_commands() 会重跑同一次自检（fail-closed），此处只留痕不抛。")
+        return
     try:
         _LOGGER.info(_WP.selfcheck())
     except Exception as exc:
         _LOGGER.error(
             "周常发奖启动自检失败：%s —— 缺注入时玩家达标会静默不发奖，故拒绝启动（fail-closed）。"
-            "请在宿主装配处调 content.flow.weekly_progress.bind_host(db, grant_reward)。", exc)
+            "请在宿主装配处把 db / grant_reward 注入包内周常进度半边。", exc)
         raise
 
 
 if _LEGACY_SHELLS:
     # 过渡态：旧壳 import 期已经跑过包 bootstrap（宿主注入面 bind_host 已扇出），
     # 与 P5′ 1.0b 的口径一致；终态（旧壳不在位）由 register_commands() 在装配期调同一次自检。
-    _weekly_reward_selfcheck()
+    # ★ P5F 前置⑤：此处包未必已装配 ⇒ strict=False（留痕不抛；装配期那一次仍 fail-closed）。
+    _weekly_reward_selfcheck(strict=False)
 
 
 # ---- v92 文件转发体验通道 ----
@@ -370,9 +426,13 @@ if _LEGACY_SHELLS:
             # v93 修复：仅真实 AstrBot 实例注册回环通道（测试脚本 Main(None) 会覆盖类变量 → 通道查 test 库）
             if context is not None:
                 Main._loopback_instance = self  # v92: 文件转发通道拿当前实例
-            db.init_db()
+            # ★ P5F 前置⑤（去壳）：原 `db.init_db()` 走待删壳 `game/db.py`。
+            #   见 `_legacy_store_init()`：优先宿主工厂（包已绑定时），否则回退宿主壳（旧行为）。
+            _legacy_store_init()
             # ★ P5′ 1.0b：周常发奖注入面启动自检（幂等；缺注入 → 当场报错，绝不静默不发奖）
-            _weekly_reward_selfcheck()
+            #   ★ P5F 前置⑤：本类是过渡态遗留壳（终态不存在），包未必已装配 ⇒ strict=False；
+            #   真正 fail-closed 的那一次在 register_commands()（装配期，包必然在位）。
+            _weekly_reward_selfcheck(strict=False)
             # v104 M24 P2-5：启动时清理流失玩家残留 event_state 键（幂等，见 _event_state_cleanup_once）
             _event_state_cleanup_once()
             # v92: 文件转发体验通道——后台线程监控命令文件，
@@ -387,6 +447,11 @@ if _LEGACY_SHELLS:
 
 else:
     #: 删壳预演 / 终态：旧壳树不在位，`main.Main` 不再存在（测试侧已改口 `_engine_harness`）。
+    # ★ P5F 前置⑤（`Main=None` 处理）：全仓已核 —— 除下面这段过渡态遗留类自身的方法体外，
+    #   **没有任何模块级/装配期代码解引用 `Main`**（唯一的外部解引用点
+    #   `tests/conftest.py:54 _orig_register = Main.register` 已由前置①改口到 `_engine_harness`
+    #   的驱动口 `Main`）。故终态用 `None` 哨兵即可：它既不参与注册（R3 起走
+    #   `host/registration.py`），也不参与命令分发（走引擎通道）。
     Main = None
 
 
@@ -708,7 +773,9 @@ def register_commands(package_dir: str = None, *, module_path: str = None) -> in
     `module_path` 缺省 = 本模块（AstrBot `star_map` 按它精确关联插件实例）。
     """
     channel = engine_channel(package_dir)
-    _weekly_reward_selfcheck()      # 终态：注入面自检挪到装配期（同一 fail-closed 语义）
+    # 终态：注入面自检挪到装配期（同一 fail-closed 语义）。★ P5F 前置⑤：包句柄**显式传入**
+    # （不再靠包内模块路径字面量取件）；此处 strict=True = 真门。
+    _weekly_reward_selfcheck(channel.pkg)
     target = str(module_path or __name__)
     _registration.bind_dispatcher(channel.dispatch_declaration)
     cleared = _registration.reset_plugin_handlers(target)

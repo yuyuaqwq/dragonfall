@@ -36,7 +36,12 @@ DEFAULT_FRAMEWORK_DIR = "C:/Users/yuyu/framework-engine"
 FW_ROOT = os.path.abspath(os.environ.get("GWEN_FRAMEWORK_DIR") or DEFAULT_FRAMEWORK_DIR)
 
 #: `scripts/run_all_tests.py` 的冻结 md5（**本工具不改它**的机器证据；272 文件全量入口）
-RUN_ALL_TESTS_MD5 = "EF5528C8EFE079C5AD15433B55899E42"
+#: ★ P5F 前置⑥（2026-09-15）：`run_all_tests.py` 因**去壳前置**被有意改动（`_TPL_INIT`
+#:   从内嵌 `game.store.init_db` 改走宿主工厂 `host/store_factory` + 引擎 `load_package`，
+#:   并新增 `_find_package_dir()`）⇒ 冻结值随这次**有意**改动更新：
+#:   旧 `EF5528C8EFE079C5AD15433B55899E42` → 新 `D56C15B22A5A4526080A032A79F8B20C`。
+#:   判据本身（「跑门禁不得改全量 runner」+ 无反向依赖 + 语法可编译 + 原样转调）一条未减。
+RUN_ALL_TESTS_MD5 = "D56C15B22A5A4526080A032A79F8B20C"
 
 _passed = 0
 _failed = []

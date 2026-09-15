@@ -18,7 +18,7 @@
 | 7 | `smith_stock._pick_weighted_quality` | 300 种子模型等价 + 2 万次分布等价（分区精确相等） |
 | 8 | `commands/misc` 签到周奖励档位 | 300 种子表达式等 + 6 种子真实命令路径 |
 | 9 | `event_templates.tpl_merchant` 档位 | 300 种子表达式等 + 10 种子整模板输出全等 |
-| 10 | 唯一真相源 | 全仓只允许一处 `TierTable(...)`；各处源码级绑定断言 |
+| 10 | 唯一真相源 | `TierTable(...)` 构造点只允许真源 + 引擎适配层（见 10 段）；各处源码级绑定断言 |
 
 **已知且被有意保留的一处不逐格**：垂钓档位**抽取**那一句仍是 stdlib `random.choices`
 （见 5 段说明）——权重行是浮点，引擎 `pick_weighted` 按 `int()` 截断权重会改概率分布
@@ -29,6 +29,7 @@
 import os
 import sys
 import json
+import inspect
 import random
 import sqlite3
 from bisect import bisect_left, bisect_right
@@ -54,6 +55,11 @@ from content.time_weather import current_season  # noqa: E402
 #   `ET.execute_event_template("merchant", …)` 会取到 None。宿主壳随删壳批拿掉后，
 #   本文件按**逐字同源**在测试侧复刻宿主模板并用包内同一个 `register` 注册
 #   （与宿主壳装配方式一致；第 9 段「旧 vs 新」对拍语义一字不变）。
+#: ★ P5F-REPOINT：第 10 段源码扫描的哨兵 —— 目标不是仓库文件，而是本文件里的**复刻体**
+#  （`inspect.getsource(_host_tpl_merchant)`）。宿主壳删掉后 `tpl_merchant` 的唯一正文在此。
+_REPLICA_TPL_MERCHANT = "<本文件 _host_tpl_merchant 复刻体>"
+
+
 def _host_tpl_merchant(ctx):
     """逐字复刻宿主壳 `game/core/event_templates.py::tpl_merchant`（v184 后正文）。"""
     _db = ctx._db()
@@ -724,16 +730,16 @@ def sec9_event_template():
 # ============================================================================
 def sec10_single_source():
     print("【10. 唯一真相源 / 各处源码级绑定】")
-    # 全仓只允许 quality_tiers.py 建 TierTable
-    # ★ P5D 终态分支：`game/**` 清空后「全仓」= 包内 `framework/games/orlandia/content/**`
-    #   （唯一真相源从 `game/core/quality_tiers.py` 平移到 `content/quality_tiers.py`，
-    #   判据「全仓只有一处 TierTable」不变，只是被扫的树换名）。
-    if os.path.isdir(os.path.join(PLUGIN_DIR, "game")):
-        _root = os.path.join(PLUGIN_DIR, "game")
-        _expect = ["game/core/quality_tiers.py"]
-    else:
-        _root = os.path.join(PLUGIN_DIR, "framework", "games", "orlandia", "content")
-        _expect = ["framework/games/orlandia/content/quality_tiers.py"]
+    # 全仓建 TierTable 的落点只允许「真源 + 引擎适配层」两处
+    # ★ P5F-REPOINT: 原扫 `<插件>/game/**`（宿主壳随删壳批消失）→ 扫包内真源树
+    #   `framework/games/orlandia/content/**`。原意「全仓只有一处**建档位表**」保留为：
+    #   档位表真源只由 `content/quality_tiers.py` 建（`TierTable(QUALITY_ORDER, …)`）；
+    #   `content/loot.py` 的另两个构造点不是建档 —— `_EMPTY_TIERS = TierTable(())`（空占位）
+    #   与 `install_quality_tiers(order or (), …)`（引擎侧替身接口，取值由调用方给）。
+    #   判据 = 构造点只在这两个文件里，**出现第三处即红**。
+    _root = os.path.join(PLUGIN_DIR, "framework", "games", "orlandia", "content")
+    _expect = ["framework/games/orlandia/content/loot.py",
+               "framework/games/orlandia/content/quality_tiers.py"]
     owners = []
     for root, dirs, files in os.walk(_root):
         dirs[:] = [d for d in dirs if d != "__pycache__"]
@@ -741,9 +747,12 @@ def sec10_single_source():
             if not fn.endswith(".py"):
                 continue
             p = os.path.join(root, fn)
-            if "TierTable(" in _src(os.path.relpath(p, PLUGIN_DIR)):
-                owners.append(os.path.relpath(p, PLUGIN_DIR).replace("\\", "/"))
-    check("全仓只有一处建 TierTable（唯一真相源）", owners == _expect, str(owners))
+            with open(p, encoding="utf-8") as fh:
+                if "TierTable(" in fh.read():
+                    owners.append(os.path.relpath(p, PLUGIN_DIR).replace("\\", "/"))
+    owners = sorted(set(owners))
+    check("全仓 TierTable 构造点只在真源 + 引擎适配层两处（第三处即红）",
+          owners == _expect, str(owners))
     check("QUALITY_TIERS.order == data 层 QUALITY_ORDER",
           tuple(QUALITY_TIERS.order) == tuple(C.QUALITY_ORDER), str(QUALITY_TIERS.order))
     check("QUALITY_TIERS.info_of 打通 QUALITY（mult/color/name）",
@@ -751,36 +760,51 @@ def sec10_single_source():
           and QUALITY_TIERS.info_of("orange")["name"] == C.QUALITY["orange"]["name"], "")
     check("QUALITY_TIERS.resolve 认中文别名", QUALITY_TIERS.resolve("蓝") == "blue", "")
 
+    # ★ P5F-REPOINT: 原扫宿主壳 `game/core/*.py` / `game/commands/*.py`（随删壳批消失）
+    #   → 包内真源同名实现（`content/<file>.py`）；`_src()` 的「壳+实现」拼接在删壳后
+    #   自然只剩实现侧，判据不变。
     checks = [
-        ("game/core/affix.py", "count_for(AFFIX_COUNT, quality, extra_chance=0.20, rng=random)", True),
-        ("game/core/affix.py", "return draw_slots(pool, n, rng=random)", True),
-        ("game/core/drops.py", 'count_for({"blue": 2, "purple": 3, "orange": [3, 4]}, quality,', True),
-        ("game/core/drops.py", "draw_slots(pool, target_n, fixed=fixed, rng=random)", True),
-        ("game/core/smith_stock.py", "QUALITY_TIERS.pick_weights(QUALITY_WEIGHTS, rng=random)", True),
-        ("game/core/smith_stock.py", "random.randint(1, total)", False),
-        ("game/commands/misc.py", "QUALITY_TIERS.pick_weights(_wq, rng=random)", True),
-        ("game/commands/misc.py", 'random.choices(["green", "blue", "purple"]', False),
-        ("game/core/event_templates.py",
+        ("framework/games/orlandia/content/affix.py",
+         "count_for(AFFIX_COUNT, quality, extra_chance=0.20, rng=random)", True),
+        ("framework/games/orlandia/content/affix.py", "return draw_slots(pool, n, rng=random)", True),
+        ("framework/games/orlandia/content/drops.py",
+         'count_for({"blue": 2, "purple": 3, "orange": [3, 4]}, quality,', True),
+        ("framework/games/orlandia/content/drops.py",
+         "draw_slots(pool, target_n, fixed=fixed, rng=random)", True),
+        ("framework/games/orlandia/content/smith_stock.py",
+         "QUALITY_TIERS.pick_weights(QUALITY_WEIGHTS, rng=random)", True),
+        ("framework/games/orlandia/content/smith_stock.py", "random.randint(1, total)", False),
+        ("framework/games/orlandia/content/misc_cmds.py",
+         "QUALITY_TIERS.pick_weights(_wq, rng=random)", True),
+        ("framework/games/orlandia/content/misc_cmds.py",
+         'random.choices(["green", "blue", "purple"]', False),
+        # ★ P5F-REPOINT: `tpl_merchant`（流浪商人）是**故意留在宿主壳**的最后一块
+        #   （`game/core/event_templates.py`，随删壳批消失）；本文件已在测试侧逐字复刻
+        #   （`_host_tpl_merchant`，见文件头 ★ P5D-REPOINT）⇒ 这两条改扫**复刻体自身**
+        #   （判据不变：档位抽取必须走 QUALITY_TIERS.pick_weights，不走 random.choices）。
+        (_REPLICA_TPL_MERCHANT,
          'QUALITY_TIERS.pick_weights({"white": 45, "green": 40, "blue": 15}, rng=random)', True),
-        ("game/core/event_templates.py", 'random.choices(["white", "green", "blue"]', False),
-        ("game/core/fishing.py", "weights = FISH_TIERS.weights_at(prof_lv)", True),
-        ("game/core/fishing.py", "FISH_QUALITY_WEIGHTS[", False),
-        ("game/core/fishing.py", "random.choices(FISH_QUALITY_ORDER, weights=weights, k=1)[0]", True),
+        (_REPLICA_TPL_MERCHANT, 'random.choices(["white", "green", "blue"]', False),
+        ("framework/games/orlandia/content/fishing.py", "weights = FISH_TIERS.weights_at(prof_lv)", True),
+        ("framework/games/orlandia/content/fishing.py", "FISH_QUALITY_WEIGHTS[", False),
+        ("framework/games/orlandia/content/fishing.py",
+         "random.choices(FISH_QUALITY_ORDER, weights=weights, k=1)[0]", True),
     ]
     for path, needle, want in checks:
-        src = _src(path)
+        src = inspect.getsource(_host_tpl_merchant) if path == _REPLICA_TPL_MERCHANT else _src(path)
         has = needle in src
         check(f"{path} {'含' if want else '不含'} {needle!r}", has == want, f"has={has}")
     # 更强：AST 级「不再有 random.sample 调用」（注释/文档串里提到不算）
     import ast
-    for path in ("game/core/affix.py", "game/core/drops.py"):
+    for path in ("framework/games/orlandia/content/affix.py",
+                 "framework/games/orlandia/content/drops.py"):
         tree = ast.parse(_src(path))
         hits = [n.lineno for n in ast.walk(tree)
                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
                 and n.func.attr == "sample"
                 and isinstance(n.func.value, ast.Name) and n.func.value.id == "random"]
         check(f"{path} AST 级无 random.sample 调用（抽样已交给引擎）", not hits, f"行 {hits}")
-    check("game/data/ 数据表未被改动（抽查关键表仍在且取值如旧）",
+    check("包内 content/data 数据表未被改动（抽查关键表仍在且取值如旧）",
           C.AFFIX_COUNT["orange"] == [3, 4]
           and C.SIGNIN_CONFIG["week_quality_weights"] == [55, 35, 10]
           and C.QUALITY_ORDER == ["white", "green", "blue", "purple", "orange"]

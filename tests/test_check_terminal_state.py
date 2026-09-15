@@ -443,6 +443,9 @@ def test_real_repo_calibration_and_counterproof():
     # ③ 的「已达标」硬标定：命令层零渲染调用点
     check(_num(res, "③", "ast_calls") == 0, "真仓 ③ AST 渲染调用点 = 0")
     # ① 独立重算（另一种写法）必须一致
+    # ★ P5F-REPOINT: `game/` 是待删树，终态可能整个不存在 —— `os.walk` 对不存在的目录
+    #   产出空序列，与判据①（`crit_host_size()` 的 `os.path.isdir(game_dir)` 守卫）**同口径**：
+    #   两边都退化成「只有 main.py」，重算仍逐值相等（无需分支）。
     total = 0
     for dirpath, dirnames, filenames in os.walk(os.path.join(REAL_REPO, "game")):
         dirnames[:] = [d for d in dirnames if d not in ("__pycache__", "tests", "scripts", "tools")]
@@ -469,8 +472,14 @@ def test_real_repo_calibration_and_counterproof():
     copy = _sandbox_safe_tmp("tg_realcopy_")
     try:
         for rel in ("game",):
-            shutil.copytree(os.path.join(REAL_REPO, rel), os.path.join(copy, rel),
-                            ignore=shutil.ignore_patterns("__pycache__"))
+            src_rel = os.path.join(REAL_REPO, rel)
+            # ★ P5F-REPOINT: 终态 `game/`（待删树）可能整个不存在 ⇒ 不 copytree 而是**建空树**，
+            #   使下面「塞 1 行到 `game/mod_probe.py`」仍落在判据②的口径范围内（判据不变）。
+            if os.path.isdir(src_rel):
+                shutil.copytree(src_rel, os.path.join(copy, rel),
+                                ignore=shutil.ignore_patterns("__pycache__"))
+            else:
+                os.makedirs(os.path.join(copy, rel), exist_ok=True)
         shutil.copy2(os.path.join(REAL_REPO, "main.py"), os.path.join(copy, "main.py"))
         _write(os.path.join(copy, "scripts", "verify_package_coverage.py"), FIXTURE_COVERAGE)
         base = run_checker(copy, REAL_ENGINE, skip_external=True)

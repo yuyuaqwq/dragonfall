@@ -142,9 +142,13 @@ async def main():
 
     # ================= O97 血蝠蛋掉落文案 =================
     print("【4. O97 血蝠蛋掉落文案】")
-    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "..", "game", "commands", "combat.py"),
-               encoding="utf-8").read()
+    # ★ P5F-REPOINT: 原读宿主壳 `game/commands/combat.py`（随删壳批消失）→ 包内真源两侧：
+    #   `content/combat_cmds.py`（战斗命令实现）+ `content/settlement.py`（掉落播报真源，
+    #   O97 的「去掉调试感咦？」注释就落在 settlement.py:476）。
+    _pkg = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "framework", "games", "orlandia", "content")
+    src = "\n".join(open(os.path.join(_pkg, _f), encoding="utf-8").read()
+                    for _f in ("combat_cmds.py", "settlement.py"))
     check("掉落文案不再带'咦？'", "咦？【" not in src, "")
 
     # ================= O117 『使用 风干肉』引导 =================

@@ -5,8 +5,8 @@
 防止 @filter.regex 新增/改动时出现"一条消息命中多条指令"的回归。
 
 数据源（双份，互相强校验）：
-1. game/commands/_registry.py 有效表 COMMAND_REGEX（2026-09-12 #9 收尾后 = 声明表派生）
-2. AST 全量扫描 game/commands/*.py 的 @filter.regex 装饰器（真实注册 = 142 条）
+1. 包内声明表 `content/data/commands.json` 派生的有效表（2026-09-12 #9 收尾后 = 声明表派生）
+2. 包内运行时注册表 `pkg.command_handlers()` ∪ 平台例外键（真实注册 = 194 条）
 
 断言：
 A. 一致性：静态表键集合 == 装饰器方法名集合，且每条模式逐字相等（表漂移即失败）
@@ -23,28 +23,56 @@ D. _maint_gate（停服全局 gate）不匹配任何指令输入
 
 运行：python tests/test_v87_command_matrix.py（exit=0 通过）
 """
-import ast
+import json
 import os
 import re
 import sys
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CMD_DIR = os.path.join(PLUGIN_DIR, "game", "commands")
+# ★ P5F-REPOINT: 原宿主壳 `game/commands`（`_registry.py` 随删壳批消失）
+#   → 包内声明真源 `content/data/commands.json`（就地派生，口径逐字 = 原
+#   `_registry._declared_patterns()`：单条原样 / 多条 `(?:a)|(?:b)`）。
+CMD_DIR = os.path.join(PLUGIN_DIR, "framework", "games", "orlandia", "content")
+SPEC_FILE = os.path.join(CMD_DIR, "data", "commands.json")
 
-# ---- 静态表（importlib 直载，避免 game 包导入副作用）----
-import importlib.util
-_spec = importlib.util.spec_from_file_location(
-    "_registry", os.path.join(CMD_DIR, "_registry.py"))
-_reg = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_reg)
-COMMAND_REGEX = _reg.COMMAND_REGEX   # 有效表 = 声明表派生（2026-09-12 起：镜像表已退役）
+
+def _combine(patterns):
+    """多条正则合成一条（与 `_registry._combine_patterns` / 引擎 `combine_patterns` 同语义）。"""
+    pats = [p for p in (patterns or ()) if p]
+    if not pats:
+        return ""
+    if len(pats) == 1:
+        return pats[0]
+    return "|".join("(?:%s)" % p for p in pats)
+
+
+def _declared_table():
+    """包内声明表 → `{key: 合并正则}`（原 `_registry.COMMAND_REGEX` 的终态等价物）。"""
+    with open(SPEC_FILE, encoding="utf-8") as f:
+        data = json.load(f)
+    out = {}
+    for k, v in (data or {}).items():
+        pats = v.get("patterns", v.get("pattern")) if isinstance(v, dict) else v
+        if isinstance(pats, str):
+            pats = [pats]
+        c = _combine(pats or [])
+        if c:
+            out[str(k)] = c
+    return out
+
+
+# 有效表 = 包内声明表派生（镜像表 2026-09-12 已退役；宿主 `_registry.py` 随删壳批消失）
+COMMAND_REGEX = _declared_table()
 
 # ---- 装饰器扫描（**唯一实现在 tests/_cmd_registry.py**）----
-# 两种写法都解析：`@filter.regex(<字面量>)` 与 `@declared("<key>")`（后者取自声明表）。
-# 原先本文件自带一份扫描实现，与 test_v59 / test_v104 三处重复 → 装饰器形态一变要改三处
-# （2026-09-11 引入 @declared 时正是如此）。现统一到 helper。
+# ★ P5F-REPOINT: 原扫宿主 `game/commands/*.py` 的装饰器（`@filter.regex` / `@declared(key)`）
+#   → 键集取包内运行时注册表、正则/priority 取包内声明表（见 `_cmd_registry.patterns_with_meta`）。
+#   原先本文件自带一份扫描实现，与 test_v59 / test_v104 三处重复 → 形态一变要改三处
+#   （2026-09-11 引入 @declared 时正是如此）。现统一到 helper。
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _cmd_registry import patterns_with_meta, MISSING as DECLARED_MISSING  # noqa: E402
+from _engine_harness import harness as _harness  # noqa: E402
+from host.adapter_qq import PLATFORM_KEYS  # noqa: E402
 
 passed = failed = 0
 
@@ -269,16 +297,24 @@ def main():
     print("【v87 命令互斥矩阵回归】装饰器 %d 条 / 静态表 %d 键"
           % (len(DECORATORS), len(COMMAND_REGEX)))
 
-    # ===== A. 一致性：静态表 vs 装饰器 1:1 =====
-    print("  · 一致性（静态表 ↔ @filter.regex 装饰器）")
+    # ===== A. 一致性：声明表派生 vs 运行时注册表 1:1 =====
+    print("  · 一致性（声明表派生 ↔ 包内运行时注册表）")
     dec_names = set(DECORATORS)
     tbl_names = set(COMMAND_REGEX)
-    check("键集合 1:1（表=%d, 装饰器=%d）" % (len(tbl_names), len(dec_names)),
+    check("键集合 1:1（声明表=%d, 注册表派生的模式表=%d）" % (len(tbl_names), len(dec_names)),
           tbl_names == dec_names,
           "表独有:%s 装饰器独有:%s" % (sorted(tbl_names - dec_names), sorted(dec_names - tbl_names)))
     mism = [k for k in tbl_names & dec_names
             if COMMAND_REGEX[k] != DECORATORS[k][0]]
     check("模式逐条相等", not mism, "漂移键: %s" % mism)
+    # ★ P5F-REPOINT: A 组**非空转**的独立对侧 = 包内运行时注册表（`pkg.command_handlers()`）
+    #   ∪ 平台例外键（`host/adapter_qq.py::PLATFORM_KEYS`：包内有声明、宿主层实现、包内无处理器）。
+    #   声明表派生键集与它必须 1:1 —— 「有处理器无声明」/「有声明无处理器」当场报红。
+    runtime_keys = set(_harness().host.handlers) | set(PLATFORM_KEYS)
+    check("声明表派生键集 == 包内运行时注册表键集（%d 键）" % len(runtime_keys),
+          tbl_names == runtime_keys,
+          "表独有:%s 注册表独有:%s" % (sorted(tbl_names - runtime_keys),
+                                       sorted(runtime_keys - tbl_names)))
 
     # ===== B. 互斥矩阵：每指令代表输入恰好命中 1 条 =====
     print("  · 互斥矩阵（代表输入 → 恰好命中 1 条）")

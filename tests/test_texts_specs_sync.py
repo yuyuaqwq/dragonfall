@@ -302,16 +302,44 @@ def t3_package_self_sufficient():
 # ══════════════════════════════════════════════════════════════════════════
 # [4] 宿主不读包（终态判据：宿主零包知识）
 # ══════════════════════════════════════════════════════════════════════════
+#: 终态宿主面 = `main.py` + `host/**`。
+#: ★ P5F 前置②（改口）：本组原来的被观测面是**待删壳** `game/**`（108 个 .py，含
+#: `game/core/texts.py`）—— 删壳批一到它就不存在。观测面因此改到**终态仍存在的宿主层**：
+#: 判据形状一字未变（运行期 `open` 追踪 + 源码面 AST 扫面 + 逐文件拼装断言），
+#: 只是「哪个目录算宿主」跟着终态定义走；运行期那条（真正有牙的那条）另外收紧为
+#: 「装载期不读宿主镜像、也不读待删壳树里任何文件」。
+HOST_LAYER_FILES = [os.path.join(_PD, "main.py")]
+HOST_LAYER_DIRS = (os.path.join(_PD, "host"),)
+
+
+def _host_layer_py_files():
+    out = [p for p in HOST_LAYER_FILES if os.path.isfile(p)]
+    for base in HOST_LAYER_DIRS:
+        if not os.path.isdir(base):
+            continue
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = [d for d in dirnames if d != "__pycache__"]
+            out += [os.path.join(dirpath, f) for f in filenames if f.endswith(".py")]
+    return sorted(out)
+
+
+def _docstring_ids(tree):
+    """三类 docstring 节点的 id（模块/类/函数）—— 文档串允许提到真源路径。"""
+    ids = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                             ast.AsyncFunctionDef)):
+            body = getattr(node, "body", None) or []
+            if (body and isinstance(body[0], ast.Expr)
+                    and isinstance(body[0].value, ast.Constant)
+                    and isinstance(body[0].value.value, str)):
+                ids.add(id(body[0].value))
+    return ids
+
+
 def t4_host_does_not_read_package():
-    print("\n[4] 宿主侧不读包内真源（终态判据）")
+    print("\n[4] 宿主侧不读包内真源（终态判据；观测面 = main.py + host/**）")
     import builtins
-    if not os.path.isdir(HOST_TREE):
-        retired_check(
-            "宿主树 `game/**` 零读包内真源（装载期 open 追踪 3 条 + 源码面 AST 2 条）",
-            "终态宿主树 `game/**` 已不存在（宿主零包知识由主线删壳批达成）"
-            "⇒ 「宿主代码不读包」这个被观测对象消失")
-        return
-    from data.plugins.dragonfall.game.core import texts as T
 
     # ① 运行期实证：拦 builtins.open，看装载到底开了哪些文件
     opened = []
@@ -324,9 +352,10 @@ def t4_host_does_not_read_package():
             pass
         return real_open(file, *a, **kw)
 
+    from content import texts as _P                 # 包内装载器（≡ 原 game.core.texts 的真源）
     builtins.open = _tracer
     try:
-        T.reload()
+        _P.reload()
     finally:
         builtins.open = real_open
     host_mirror = os.path.abspath(HOST_MIRROR)
@@ -335,61 +364,45 @@ def t4_host_does_not_read_package():
           pkg_spec in opened, opened[:5])
     check("★ 装载期一个字节都没读宿主镜像（game/data/text_specs.json）",
           host_mirror not in opened, [p for p in opened if p == host_mirror])
-    host_tree_files = [p for p in opened if p.startswith(os.path.abspath(HOST_TREE))]
-    check("★ 装载期没读宿主树里任何文件（game/** 零读）", not host_tree_files,
-          host_tree_files[:5])
+    retired_tree_files = [p for p in opened if p.startswith(os.path.abspath(HOST_TREE))]
+    check("★ 装载期没读待删壳树里任何文件（game/** 零读）", not retired_tree_files,
+          retired_tree_files[:5])
 
     # ② 源码面：宿主**代码**里不许出现包内真源的读法（注释/文档串不算）
-    offenders, scanned = [], 0
-
-    def _docstring_ids(tree):
-        """三类 docstring 节点的 id（模块/类/函数）—— 文档串允许提到真源路径。"""
-        ids = set()
+    offenders, specs_offenders, scanned = [], [], 0
+    for path in _host_layer_py_files():
+        scanned += 1
+        try:
+            src = io.open(path, encoding="utf-8").read()
+        except OSError:
+            continue
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:
+            continue
+        docs = _docstring_ids(tree)
         for node in ast.walk(tree):
-            if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef,
-                                 ast.AsyncFunctionDef)):
-                body = getattr(node, "body", None) or []
-                if (body and isinstance(body[0], ast.Expr)
-                        and isinstance(body[0].value, ast.Constant)
-                        and isinstance(body[0].value.value, str)):
-                    ids.add(id(body[0].value))
-        return ids
-
-    for dirpath, dirnames, filenames in os.walk(HOST_TREE):
-        dirnames[:] = [d for d in dirnames if d != "__pycache__"]
-        for fn in filenames:
-            if not fn.endswith(".py"):
-                continue
-            path = os.path.join(dirpath, fn)
-            scanned += 1
-            try:
-                src = io.open(path, encoding="utf-8").read()
-            except OSError:
-                continue
-            try:
-                tree = ast.parse(src)
-            except SyntaxError:
-                continue
-            docs = _docstring_ids(tree)
-            for node in ast.walk(tree):
-                if (isinstance(node, ast.Constant) and isinstance(node.value, str)
-                        and id(node) not in docs):
-                    v = node.value.replace("\\", "/")
-                    if "content/data/text_specs.json" in v:
-                        offenders.append("%s:%d: %r"
-                                         % (os.path.relpath(path, _PD), node.lineno, v[:60]))
-                if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-                        and node.func.attr in ("canonical_path", "PROJECTION_PATH")):
-                    offenders.append("%s:%d: %s()"
-                                     % (os.path.relpath(path, _PD), node.lineno,
-                                        node.func.attr))
-    check("宿主 .py 面已扫（>50 个文件）", scanned > 50, scanned)
+            if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    and id(node) not in docs):
+                v = node.value.replace("\\", "/")
+                if "content/data/text_specs.json" in v:
+                    offenders.append("%s:%d: %r"
+                                     % (os.path.relpath(path, _PD), node.lineno, v[:60]))
+                if "text_specs.json" in v:
+                    specs_offenders.append("%s:%d: %r"
+                                           % (os.path.relpath(path, _PD), node.lineno, v[:60]))
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr in ("canonical_path", "PROJECTION_PATH")):
+                offenders.append("%s:%d: %s()"
+                                 % (os.path.relpath(path, _PD), node.lineno,
+                                    node.func.attr))
+    check("宿主层 .py 面已扫（main.py + host/**，>5 个文件）", scanned > 5, scanned)
     check("★ 宿主代码（AST 字面量/调用，排除文档串）里没有包内真源路径",
           not offenders, offenders[:5])
-
-    src = io.open(os.path.join(HOST_TREE, "core", "texts.py"), encoding="utf-8").read()
-    check("★ 宿主薄壳里不再出现 `game/data` 拼装（宿主目录知识归零）",
-          '"data", "text_specs.json"' not in src and "join(os.path.dirname(_HERE)" not in src)
+    # 等价于原「game/core/texts.py 里不再出现 game/data 拼装」那条：宿主层里不许有任何
+    # `text_specs.json` 读法（宿主文案目录知识归零）。
+    check("★ 宿主层里不再出现 `text_specs.json` 读法（宿主文案目录知识归零）",
+          not specs_offenders, specs_offenders[:5])
 
 
 # ══════════════════════════════════════════════════════════════════════════

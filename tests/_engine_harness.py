@@ -58,6 +58,7 @@ from saintess_engine.host import Host as _EngineHost                          # 
 from saintess_engine.host import load_package, run_guards                     # noqa: E402
 from host.shell import HostShell                                              # noqa: E402
 from host import _platform                                                    # noqa: E402
+from host import tlog_setup as _host_tlog_setup                               # noqa: E402  ★ P5F 前置④
 
 __all__ = ["Main", "EngineHarness", "harness", "boot", "reset_for_tests", "C",
            "PKG_ROOT", "GameCmdFilter", "tlog_setup",
@@ -229,19 +230,35 @@ class EngineHarness(object):
         # ⇒ 包内取库时 RuntimeError）。故在 boot() 时再解析一次，并回落到 conftest 的 TEST_DB。
         _dbp = self.db_path or os.environ.get("GWEN_GAME_DB")
         if not _dbp:
-            try:
-                import conftest as _cf
-                _dbp = getattr(_cf, "TEST_DB", None)
-            except Exception:
-                _dbp = None
+            # ★ P5F 前置①：**不再回引 `conftest`**。改口后 `conftest` 反过来 import 本模块，
+            #   在本模块 boot() 期间 `import conftest` 会命中**半初始化**模块 ⇒ 拿不到 TEST_DB
+            #   （实测：`test_v182_behavior_tlog` 等「直接 import 本模块、不先设 env」的文件
+            #   因此 `db_path` 未注入 → `content.persistence.handles.db_path()` 抛）。
+            #   回退值与 `conftest.TEST_DB` **同式同值**：插件根 `test_game_data.db`。
+            _dbp = os.path.join(PLUGIN_DIR, "test_game_data.db")
         if _dbp:
             self.db_path = _dbp
+            # ★ P5F 前置①：**补同一次 env 兜底**（≡ `conftest.py:28` 的
+            #   `os.environ.setdefault("GWEN_GAME_DB", TEST_DB)`）。理由：宿主侧/包侧还有按
+            #   `os.environ["GWEN_GAME_DB"]` 取库路径的落点（旧壳 `game/db.py`、`host/store_factory`
+            #   的 `DB_PATH` 等），而本模块不再回引 conftest ⇒ 少了这次 setdefault 时，那些落点
+            #   会回落到各自的默认库（实测：`test_v135_smith_stock` 中途 `db_path()` 被切到
+            #   `game/game_data.db` ⇒ `clean_db` 报 `no such table: players`）。
+            os.environ.setdefault("GWEN_GAME_DB", _dbp)
         inject = {
             "db_path": _dbp,
             "clock": time.time,
             "log": logging.getLogger("dragonfall"),
             "flush_log": logging.getLogger("dragonfall").debug,
-            "tlog": None,
+            # ★ P5F 前置④（平台件落点）：流水句柄的**终态落点** = `host/tlog_setup.py`
+            #   （`host/**` 属主，R5 已把 `attach_tlog` 平台件迁入）。旧落点
+            #   `game/tlog_setup.py` 随壳删除后，`content.obs` 的三级解析里
+            #   ② `sys.modules["…game.tlog_setup"]` 也随之消失 ⇒ 这里在**宿主 boot 期**
+            #   把宿主流水句柄摆进注入面（`content.facade.bind_host` 会 `obs.bind(tlog=…)`），
+            #   与生产宿主装配处 `host/store_factory.inject_handles()` 的 `"tlog"` 键同源同值。
+            #   未启用流水时 `host.tlog_setup.tlog()` 返 None ⇒ `obs.emit` 走契约「零行为」，
+            #   不再因「句柄取不到」抛 RuntimeError（P5E-β 全删态实测的 5 条红根因）。
+            "tlog": _host_tlog_setup,
         }
         self.inject = inject
         self.adapter = _Adapter(self)

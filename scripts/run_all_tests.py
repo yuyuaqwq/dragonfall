@@ -82,13 +82,50 @@ _SHARED_DB_RE = re.compile(
 
 # 并行 worker 库的空白 schema 模板初始化（每轮跑只执行一次，init_db 全表 + 老库自愈）。
 # 与旧共享库等价：表结构齐全；且每个文件拿到的是零残留新库（项目本就往私有库方向走）。
+#
+# ★ P5F 前置⑥（去壳）：原模板内嵌 `from data.plugins.dragonfall.game.store import init_db`
+#   —— 待删壳 `game/store/**` 一移走，**建模板就失败 ⇒ 全量 runner 零结果中止**（P5E-β 实测）。
+#   改为走**宿主工厂** `host/store_factory`（宿主终态层）+ 引擎 `load_package`：
+#     argv[1] = 私有库路径 · argv[2] = qqbot/ · argv[3] = <插件>/framework · argv[4] = 包目录
+#   包目录由 `_find_package_dir()` 在 framework/games/* 里挑（**不写死包名**，与
+#   tests/test_command_registration.py 同口径）。
 _TPL_INIT = (
     "import os,sys;"
     "os.environ['GWEN_GAME_DB']=sys.argv[1];"
     "sys.path.insert(0,sys.argv[2]);"
-    "from data.plugins.dragonfall.game.store import init_db;"
-    "init_db()"
+    "sys.path.insert(0,sys.argv[3]);"
+    "from data.plugins.dragonfall.host import store_factory as _sf;"
+    "from saintess_engine.host import load_package;"
+    "_pkg=load_package(sys.argv[4], inject=_sf.inject_handles());"
+    "_sf.bind_store(_pkg).init()"
 )
+
+
+def _find_package_dir():
+    """包目录：`GWEN_PACKAGE_DIR` 优先；否则在 `framework/games/*` 里挑**声明表最大**的那个。
+
+    口径与 `tests/test_command_registration.py::_find_package_dir()` 逐字一致：
+    **不在脚本里写死任何包名**（换包 = 换这棵树 / 换配置，判据与包无关）。
+    """
+    import json
+    env = str(os.environ.get("GWEN_PACKAGE_DIR") or "").strip()
+    if env and os.path.isdir(env):
+        return env
+    games = os.path.join(PLUGIN_DIR, "framework", "games")
+    best, best_n = None, -1
+    if os.path.isdir(games):
+        for name in sorted(os.listdir(games)):
+            decl = os.path.join(games, name, "content", "data", "commands.json")
+            if not os.path.isfile(decl):
+                continue
+            try:
+                with open(decl, encoding="utf-8") as fh:
+                    n = len(json.load(fh) or {})
+            except (OSError, ValueError):
+                continue
+            if n > best_n:
+                best, best_n = os.path.join(games, name), n
+    return best
 
 
 def _parse_args(argv):
@@ -237,14 +274,23 @@ def main():
         # 每轮跑只建一次空白 schema 模板（只 import game.store，~0.3s），
         # 之后每个文件复制一份即可，不重复吃建表开销
         tpl_db = os.path.join(worker_dir, "template.db")
+        pkg_dir = _find_package_dir()          # ★ P5F 前置⑥：包目录（不写死包名）
+        if not pkg_dir:
+            print("❌ 找不到包目录（framework/games/*/content/data/commands.json）"
+                  "——worker 模板库无法初始化", flush=True)
+            shutil.rmtree(worker_dir, ignore_errors=True)
+            return 1
         try:
             subprocess.run(
-                [PYTHON, "-B", "-c", _TPL_INIT, tpl_db, QQBOT_DIR],
+                [PYTHON, "-B", "-c", _TPL_INIT, tpl_db, QQBOT_DIR,
+                 os.path.join(PLUGIN_DIR, "framework"), pkg_dir],
                 check=True, timeout=120, capture_output=True,
                 text=True, encoding="utf-8", errors="replace",
             )
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as _e:
             print(f"❌ worker 模板库初始化失败: {_e}", flush=True)
+            if isinstance(_e, subprocess.CalledProcessError):
+                print("--- 模板初始化 stderr ---\n%s" % (_e.stderr or "")[-2000:], flush=True)
             shutil.rmtree(worker_dir, ignore_errors=True)
             return 1
 

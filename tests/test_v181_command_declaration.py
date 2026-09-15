@@ -19,7 +19,6 @@
 跑法：python tests/test_v181_command_declaration.py（exit=0 全绿）
 """
 import ast
-import importlib.util
 import json
 import os
 import sys
@@ -37,8 +36,13 @@ if os.path.isdir(_shim) and _shim not in sys.path:
 
 from saintess_engine.command import combine_patterns   # noqa: E402
 
-CMD_DIR = os.path.join(PLUGIN_DIR, "game", "commands")
-SPEC_FILE = os.path.join(PLUGIN_DIR, "game", "data", "command_specs.json")
+# ★ P5F-REPOINT: 原宿主壳 `game/commands` + `game/data/command_specs.json`（随删壳批消失）
+#   → 包内真源 `framework/games/orlandia/content` + `content/data/commands.json`。
+CMD_DIR = os.path.join(PLUGIN_DIR, "framework", "games", "orlandia", "content")
+SPEC_FILE = os.path.join(CMD_DIR, "data", "commands.json")
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _cmd_registry import declared_usage as _pkg_declared_usage  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -56,11 +60,49 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {detail}")
 
 
-def load_registry_module():
-    spec = importlib.util.spec_from_file_location("_reg_decl", os.path.join(CMD_DIR, "_registry.py"))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+def _combine_local(patterns):
+    """逐字复制退役的宿主 `_registry._combine_patterns`（那 5 行）—— 与框架对拍用。"""
+    pats = [p for p in (patterns or ()) if p]
+    if not pats:
+        return ""
+    if len(pats) == 1:
+        return pats[0]
+    return "|".join("(?:%s)" % p for p in pats)
+
+
+def load_command_table():
+    """包内声明表 → 有效表 `{key: 合并正则}`（终态等价物 = 原 `_registry.COMMAND_REGEX`）。
+
+    ★ P5F-REPOINT: 原 `importlib` 直载宿主 `game/commands/_registry.py`（随删壳批消失）
+    → 就地按同一口径从包内声明表派生；「两处 combine 同语义」由 2/3 段继续锁死。
+    """
+    with open(SPEC_FILE, encoding="utf-8") as f:
+        specs = json.load(f)
+    out = {}
+    for k, v in (specs or {}).items():
+        pats = v.get("patterns", v.get("pattern")) if isinstance(v, dict) else v
+        if isinstance(pats, str):
+            pats = [pats]
+        c = _combine_local(pats or [])
+        if c:
+            out[str(k)] = c
+    return out
+
+
+def _mirror_table_names():
+    """AST 扫包内命令层：模块级 `_LITERAL_REGEX` / `OVERLAP_KEYS` 赋值（手工镜像表残留）。"""
+    names = []
+    for fn in sorted(os.listdir(CMD_DIR)):
+        if not fn.endswith(".py") or fn.startswith("__"):
+            continue
+        with open(os.path.join(CMD_DIR, fn), encoding="utf-8") as f:
+            tree = ast.parse(f.read())
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                for _t in node.targets:
+                    if isinstance(_t, ast.Name) and _t.id in ("_LITERAL_REGEX", "OVERLAP_KEYS"):
+                        names.append("%s:%s" % (fn, _t.id))
+    return sorted(names)
 
 
 _PKG_SPEC = os.path.join(
@@ -85,82 +127,72 @@ def _pkg_catalog():
 
 
 def scan_declared_usages():
-    """AST 扫 `@declared("key")` → {方法名: key}。"""
-    found = {}
-    for fn in sorted(os.listdir(CMD_DIR)):
-        if not fn.endswith(".py") or fn.startswith("_"):
-            continue
-        with open(os.path.join(CMD_DIR, fn), encoding="utf-8") as f:
-            tree = ast.parse(f.read())
-        for node in ast.walk(tree):
-            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            for dec in node.decorator_list:
-                if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Name)
-                        and dec.func.id == "declared" and dec.args
-                        and isinstance(dec.args[0], ast.Constant)
-                        and isinstance(dec.args[0].value, str)):
-                    found[node.name] = dec.args[0].value
-    return found
+    """`{处理器名: 声明key}` —— 终态等价于原「AST 扫宿主 `@declared("key")`」。
+
+    ★ P5F-REPOINT: 宿主壳用 `@declared("<key>")`（随删壳批消失）；包内登记面是
+    `content/commands.py::COMMANDS`（`@register("<key>")` **+ 循环/别名登记**两种写法都有，
+    AST 扫不全）⇒ 统一走 `tests/_cmd_registry.py::declared_usage()`（读包内运行时注册表，
+    并把 `register_() → "register"` 这种历史异名映射保留）。
+    """
+    return _pkg_declared_usage()
 
 
 # ============================================================
 
 def test_1_single_source():
     print("【1. 单源：有效表完全由声明表派生】")
-    reg = load_registry_module()
+    table = load_command_table()
     with open(SPEC_FILE, encoding="utf-8") as f:
         specs = json.load(f)
     check("声明表非空（本批已迁入至少 7 条）", len(specs) >= 7, len(specs))
     check("有效表键集 == 声明表键集（不存在第二份来源）",
-          set(reg.COMMAND_REGEX) == set(specs),
-          sorted(set(reg.COMMAND_REGEX) ^ set(specs))[:5])
+          set(table) == set(specs),
+          sorted(set(table) ^ set(specs))[:5])
     check("字面量镜像表已退役（无 _LITERAL_REGEX / OVERLAP_KEYS）",
-          not hasattr(reg, "_LITERAL_REGEX") and not hasattr(reg, "OVERLAP_KEYS"))
+          not _mirror_table_names(), _mirror_table_names())
 
 
 def test_2_derivation_faithful():
-    print("【2. 派生保真：声明 → 有效表 → @declared 注册】")
-    reg = load_registry_module()
+    print("【2. 派生保真：声明 → 有效表 → 运行时注册】")
+    table = load_command_table()
     with open(SPEC_FILE, encoding="utf-8") as f:
         specs = json.load(f)
     bad = []
     for k, v in specs.items():
         want = combine_patterns(v.get("patterns") or [])
-        if reg.COMMAND_REGEX.get(k) != want:
-            bad.append((k, reg.COMMAND_REGEX.get(k), want))
+        if table.get(k) != want:
+            bad.append((k, table.get(k), want))
     check(f"有效表 {len(specs)} 条声明与声明值逐字一致", not bad, bad[:2])
 
-    # ★ 终态：`@declared` 用的正则 = 从**包内真源**直接构建的框架注册表逐 key 合并串
+    # ★ 终态：运行时注册用的正则 = 从**包内真源**直接构建的框架注册表逐 key 合并串
     #   （旧宿主 `_declared.registry()` 已删；引擎 `CommandRegistry.from_data` 是同一实现）。
     D = _pkg_registry()
-    bad2 = [(k, D.get(k).combined(), reg.COMMAND_REGEX.get(k))
-            for k in specs if D.get(k).combined() != reg.COMMAND_REGEX.get(k)]
-    check("`@declared` 注册用的正则 == 有效表该 key", not bad2, bad2[:2])
+    bad2 = [(k, D.get(k).combined(), table.get(k))
+            for k in specs if D.get(k).combined() != table.get(k)]
+    check("运行时注册用的正则 == 有效表该 key", not bad2, bad2[:2])
     check("声明表通过 CommandRegistry.validate（无空正则/非法正则/共用正则）",
           _pkg_registry().validate() == [], _pkg_registry().validate())
 
 
 def test_3_combine_semantics():
-    print("【3. 两处 combine 同语义（有意复制的 5 行逻辑 → 断言锁死）】")
-    reg = load_registry_module()
+    print("【3. 两处 combine 同语义（测试侧就地复制的那 5 行逻辑 → 断言锁死）】")
     cases = [([], ""), (["^a$"], "^a$"), (["^a$", "^b$"], "(?:^a$)|(?:^b$)"),
              (["^a$", "", "^b$"], "(?:^a$)|(?:^b$)"), (["x"], "x")]
-    bad = [(c, reg._combine_patterns(c), combine_patterns(c))
-           for c, _w in cases if reg._combine_patterns(c) != combine_patterns(c)]
-    check("_registry._combine_patterns ≡ 框架 combine_patterns（5 例）", not bad, bad)
+    bad = [(c, _combine_local(c), combine_patterns(c))
+           for c, _w in cases if _combine_local(c) != combine_patterns(c)]
+    check("本地 _combine_local ≡ 框架 combine_patterns（5 例）", not bad, bad)
     check("空输入两边都给空串",
-          reg._combine_patterns([]) == "" and combine_patterns([]) == "")
+          _combine_local([]) == "" and combine_patterns([]) == "")
 
 
 def test_4_drift_both_ways():
-    print("【4. 漂移自检双向干净：声明表 ↔ @declared 实际使用】")
+    print("【4. 漂移自检双向干净：声明表 ↔ 包内运行时登记实际使用】")
     D = _pkg_registry()
     used = scan_declared_usages()
-    check("扫到 @declared 使用点（非空即证明迁移真的接上了）", len(used) > 0, used)
-    check("方法名与声明的 key 一致（@declared(\"key\") 的 key 就是方法名惯例）",
-          all(method == key for method, key in used.items()),
-          {m: k for m, k in used.items() if m != k})
+    check("扫到包内登记使用点（非空即证明迁移真的接上了）", len(used) > 0, len(used))
+    check("处理器名与声明的 key 一致（唯一历史异名 register_ → register）",
+          all(method == key for method, key in used.items() if method != "register_"),
+          {m: k for m, k in used.items() if m != k and m != "register_"})
     au = D.audit_handlers(list(used.values()))
     check("无「用了没声明」（missing_spec 为空）", au["missing_spec"] == [], au)
     check("无「声明了没用」（missing_handler 为空）", au["missing_handler"] == [], au)

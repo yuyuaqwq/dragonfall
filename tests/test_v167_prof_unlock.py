@@ -108,7 +108,9 @@ async def main():
     print("【v167 文案残留扫描】")
     import re as _re
     srcs = []
-    for _dir in ("game/commands", "game/store", "game/data"):
+    # ★ P5F-REPOINT: 原扫宿主壳三棵树（`game/commands` · `game/store` · `game/data`，随删壳批消失）
+    #   → 扫包内真源树 `framework/games/orlandia/content`（命令/存档/数据表都在这一棵里）。
+    for _dir in (os.path.join("framework", "games", "orlandia", "content"),):
         for _root, _dirs, _files in os.walk(_dir):
             for _f in _files:
                 if _f.endswith(".py"):

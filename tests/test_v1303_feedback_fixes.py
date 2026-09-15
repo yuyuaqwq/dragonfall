@@ -106,8 +106,10 @@ async def main():
     def _eco_src():
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         out = []
+        # ★ P5F-REPOINT: 原第二侧读宿主壳 `game/commands/economy.py`（随删壳批消失）
+        #   → 包内**登记面** `content/cmds_economy.py`（第一侧仍是实现面 economy_cmds.py）。
         for p in (os.path.join(base, "framework", "games", "orlandia", "content", "economy_cmds.py"),
-                  os.path.join(base, "game", "commands", "economy.py")):
+                  os.path.join(base, "framework", "games", "orlandia", "content", "cmds_economy.py")):
             if os.path.isfile(p):
                 with open(p, encoding="utf-8") as f:
                     out.append(f.read())

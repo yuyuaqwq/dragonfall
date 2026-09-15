@@ -23,15 +23,21 @@
 """
 import ast
 import hashlib
-import importlib.util
 import json
 import os
 import sys
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CMD_DIR = os.path.join(PLUGIN_DIR, "game", "commands")
-SPEC_FILE = os.path.join(PLUGIN_DIR, "game", "data", "command_specs.json")
+# ★ P5F-REPOINT: 原宿主壳 `game/commands`（含直载的 `_registry.py`）+ `game/data/command_specs.json`
+#   （随删壳批消失）→ 包内真源 `framework/games/orlandia/content`（命令层）
+#   + `content/data/commands.json`（声明真源）。
+CMD_DIR = os.path.join(PLUGIN_DIR, "framework", "games", "orlandia", "content")
+SPEC_FILE = os.path.join(CMD_DIR, "data", "commands.json")
 SNAP_FILE = os.path.join(PLUGIN_DIR, "tests", "_command_table_freeze.json")
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _engine_harness import harness as _harness          # noqa: E402
+from host.adapter_qq import PLATFORM_KEYS                # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -49,12 +55,58 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {detail}")
 
 
-def load_registry_module():
-    spec = importlib.util.spec_from_file_location(
-        "_reg_freeze", os.path.join(CMD_DIR, "_registry.py"))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+def _combine_patterns(patterns):
+    """多条正则合成一条（逐字 = 退役的宿主 `_registry._combine_patterns` / 引擎 `combine_patterns`）。"""
+    pats = [p for p in (patterns or ()) if p]
+    if not pats:
+        return ""
+    if len(pats) == 1:
+        return pats[0]
+    return "|".join("(?:%s)" % p for p in pats)
+
+
+def load_command_table():
+    """包内声明表 → 有效表 `{key: 合并正则}`（终态等价物 = 原 `_registry.COMMAND_REGEX`）。
+
+    ★ P5F-REPOINT: 原 `importlib` 直载宿主 `game/commands/_registry.py`（随删壳批消失）
+    → 就地按**同一口径**从包内声明表派生（派生保真 / 两份 combine 同语义由 2/3 段锁死）。
+    """
+    out = {}
+    for k, v in load_specs().items():
+        pats = v.get("patterns", v.get("pattern")) if isinstance(v, dict) else v
+        if isinstance(pats, str):
+            pats = [pats]
+        c = _combine_patterns(pats or [])
+        if c:
+            out[str(k)] = c
+    return out
+
+
+def scan_command_literals():
+    """AST 扫包内命令层：返回 `(regex_sites, mirror_names)`。
+
+    * `regex_sites`   —— `@<ns>.regex(...)` 装饰器（第二份正则来源，应为空；docstring 示例不算）
+    * `mirror_names`  —— 模块级 `_LITERAL_REGEX` / `OVERLAP_KEYS` 赋值（手工镜像表残留，应为空）
+    """
+    regex_sites, mirror_names = [], []
+    for fn in sorted(os.listdir(CMD_DIR)):
+        if not fn.endswith(".py") or fn.startswith("__"):
+            continue
+        with open(os.path.join(CMD_DIR, fn), encoding="utf-8") as f:
+            tree = ast.parse(f.read())
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                for _t in node.targets:
+                    if isinstance(_t, ast.Name) and _t.id in ("_LITERAL_REGEX", "OVERLAP_KEYS"):
+                        mirror_names.append("%s:%s" % (fn, _t.id))
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for dec in node.decorator_list:
+                if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
+                        and dec.func.attr == "regex"):
+                    regex_sites.append(f"{fn}:{node.name}")
+    return regex_sites, sorted(mirror_names)
 
 
 def load_specs():
@@ -76,28 +128,14 @@ def diff_tables(old, new):
 
 def regex_decorators():
     """AST 扫命令模块里的 `@<ns>.regex(...)` 装饰器（不看注释与文档串）。"""
-    out = []
-    for fn in sorted(os.listdir(CMD_DIR)):
-        if not fn.endswith(".py"):
-            continue
-        with open(os.path.join(CMD_DIR, fn), encoding="utf-8") as f:
-            tree = ast.parse(f.read())
-        for node in ast.walk(tree):
-            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            for dec in node.decorator_list:
-                if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
-                        and dec.func.attr == "regex"):
-                    out.append(f"{fn}:{node.name}")
-    return out
+    return scan_command_literals()[0]
 
 
 def test_A_frozen_table():
     print("【A. 冻结比对：有效指令表逐字不变】")
-    reg = load_registry_module()
+    now = load_command_table()
     snap = json.load(open(SNAP_FILE, encoding="utf-8"))
     old_table = snap["table"]
-    now = dict(reg.COMMAND_REGEX)
     diff = diff_tables(old_table, now)
     check(f"有效表 {len(now)} 条 == 快照 {len(old_table)} 条（键集合一致）",
           set(old_table) == set(now),
@@ -109,24 +147,29 @@ def test_A_frozen_table():
 
 def test_B_single_source():
     print("【B. 单源结构：有效表 = 声明表派生；镜像表与字面量装饰器都不存在】")
-    reg = load_registry_module()
+    now = load_command_table()
     specs = load_specs()
     check("有效表键集 == 声明表键集（不存在第二份来源）",
-          set(reg.COMMAND_REGEX) == set(specs),
-          sorted(set(reg.COMMAND_REGEX) ^ set(specs))[:5])
-    check("字面量镜像表已退役（无 _LITERAL_REGEX / OVERLAP_KEYS）",
-          not hasattr(reg, "_LITERAL_REGEX") and not hasattr(reg, "OVERLAP_KEYS"))
-    left = regex_decorators()
+          set(now) == set(specs),
+          sorted(set(now) ^ set(specs))[:5])
+    left, mirror = scan_command_literals()
+    check("字面量镜像表已退役（无 _LITERAL_REGEX / OVERLAP_KEYS）", not mirror, mirror[:5])
     check("命令层零 @filter.regex 装饰器残留（AST 扫描，跳过注释/文档串）", not left, left[:5])
+    # ★ P5F-REPOINT: 独立对侧 = 包内**运行时注册表**（`pkg.command_handlers()` ∪ 平台例外键
+    #   `host/adapter_qq.py::PLATFORM_KEYS`：包内有声明、宿主层实现、包内无处理器）。
+    #   声明表派生键集与它 1:1 ⇒ 漏登记 / 死声明当场报红（原「表 ↔ @declared 用法」同义）。
+    runtime = set(_harness().host.handlers) | set(PLATFORM_KEYS)
+    check("有效表键集 == 包内运行时注册表键集（声明 ↔ 注册零漂移）",
+          set(now) == runtime, sorted(set(now) ^ runtime)[:5])
 
 
 def test_C_no_key_lost():
     print("【C. 没有任何 key 在迁移中丢失】")
-    reg = load_registry_module()
+    now = load_command_table()
     snap = json.load(open(SNAP_FILE, encoding="utf-8"))
-    missing = sorted(set(snap["table"]) - set(reg.COMMAND_REGEX))
+    missing = sorted(set(snap["table"]) - set(now))
     check("快照里的 key 全在有效表里", not missing, missing[:5])
-    extra = sorted(set(reg.COMMAND_REGEX) - set(snap["table"]))
+    extra = sorted(set(now) - set(snap["table"]))
     check("没有凭空多出来的 key（新增指令须显式更新快照）", not extra, extra[:5])
 
 
@@ -154,7 +197,7 @@ def main():
     test_C_no_key_lost()
     test_D_comparator_has_teeth()
     if PASS and not FAIL:
-        print(f"\n  单源已达成：{len(load_registry_module().COMMAND_REGEX)} 条指令全部来自声明表")
+        print(f"\n  单源已达成：{len(load_command_table())} 条指令全部来自包内声明表")
     print(f"\n== 结果：通过 {PASS} / 共 {PASS + FAIL} ==")
     if FAILURES:
         for f in FAILURES:

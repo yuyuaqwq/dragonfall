@@ -190,10 +190,15 @@ async def main():
         # 命令层不再写正则字面量 → 断言「handler 从声明表取正则」+「声明值 == 静态表值」
         import json as _json
         _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        src = open(os.path.join(_root, "game", "commands", "job_guide.py"),
+        # ★ P5F-REPOINT: 原读宿主壳 `game/commands/job_guide.py` 的 `@declared("job_guide")`
+        #   （随删壳批消失）→ 包内登记面 `content/cmds_job.py` 的 `@register("job_guide", …)`。
+        src = open(os.path.join(_root, "framework", "games", "orlandia", "content", "cmds_job.py"),
                    encoding="utf-8").read()
-        ok &= check("装饰器走声明表（@declared 取 job_guide）", '@declared("job_guide")' in src)
-        _specs = _json.load(open(os.path.join(_root, "game", "data", "command_specs.json"),
+        ok &= check("登记面走声明表（@register 取 job_guide）", '@register("job_guide"' in src)
+        # ★ P5F-REPOINT: 原读宿主 `game/data/command_specs.json`（保留下来的**部署期镜像**）
+        #   → 包内**声明真源** `content/data/commands.json`（单源：静态表与声明表同源同值）。
+        _specs = _json.load(open(os.path.join(_root, "framework", "games", "orlandia", "content",
+                                              "data", "commands.json"),
                                  encoding="utf-8"))
         ok &= check("声明表该 key 的正则 == 静态表值",
                     _specs.get("job_guide", {}).get("patterns") == [pat],

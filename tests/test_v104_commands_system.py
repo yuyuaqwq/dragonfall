@@ -52,7 +52,8 @@ def finding(name, detail=""):
 
 # ---------- AST 扫描 @filter.regex（与 test_v87_command_matrix.py 同源） ----------
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CMD_DIR = os.path.join(PLUGIN_DIR, "game", "commands")
+# ★ P5F-REPOINT: 原宿主壳 `game/commands`（随删壳批消失）→ 包内真源 `content/`（同下面 gm.py 的落点）
+CMD_DIR = os.path.join(PLUGIN_DIR, "framework", "games", "orlandia", "content")
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _cmd_registry import patterns_with_meta  # noqa: E402
@@ -156,6 +157,8 @@ async def test_gm_boss_dmg_no_require_player(m):
     clean_db()
     os.environ.pop("GWEN_GM_QQ", None)
     # 静态：gm.py 全文无 require_player
+    # ★ P5F-REPOINT: 原读宿主壳 `game/commands/gm.py`（随删壳批消失）→ 包内实现
+    #   `content/gm.py`（同名实现面；登记面 = `content/cmds_gm.py`，两者都无 require_player）。
     gm_src = open(os.path.join(CMD_DIR, "gm.py"), encoding="utf-8").read()
     check("gm.py 无 require_player 装饰器", "require_player" not in gm_src, "")
     # 行为：gm_ 前缀身份（无角色）直接可用

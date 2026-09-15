@@ -77,8 +77,10 @@ def t2_probes_present():
     print("\n[2] 三处行为埋点（防被误删）")
     root = _PD
     probes = {
-        "掉落": ("game/reward.py", 'emit("drop.grant"'),
-        "商店买入": ("game/services/shop.py", 'emit("shop.buy"'),
+        # ★ P5F-REPOINT: 原读宿主壳 `game/reward.py` / `game/services/shop.py`（随删壳批消失）
+        #   → 包内埋点真源 `content/reward.py` / `content/shop.py`（`obs.emit(...)` 落点）。
+        "掉落": ("framework/games/orlandia/content/reward.py", 'emit("drop.grant"'),
+        "商店买入": ("framework/games/orlandia/content/shop.py", 'emit("shop.buy"'),
         # ★ PFIX P7（2026-09-15）：副本通关埋点**随实现整块进包** ——
         #   `framework/games/orlandia/content/cmds_instance_router.py:643` 经包内唯一取用口
         #   `obs.emit("instance.clear", …)`；宿主 `game/commands/instance_router.py` 已退化为

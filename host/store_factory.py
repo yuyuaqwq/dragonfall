@@ -60,18 +60,40 @@ def flush_log(msg):
     getattr(getattr(log_setup, "LOG", None), "debug", _noop)(msg)
 
 
+#: 发奖半边名（引擎包契约的**半边名**，不是包内模块路径字面量）
+REWARD_HALF = "reward"
+
+
+def _package_reward():
+    """包内发奖真源（按**半边名** `reward` 经引擎包契约取）—— 取不到 → **抛**（fail-closed）。
+
+    ★ P5F 前置⑦（去壳）：原实现 `from ..game import reward as _reward` 走待删壳
+    `game/reward.py`（它是包内 `content/reward.py` 的别名壳，拿到的是同一只实现函数）。
+    终态 `game/**` 删除后该 import 直接 ImportError ⇒ 改为按半边名向已绑定的引擎包取，
+    宿主里**不出现任何包内模块路径字面量**（与 `host/tlog_setup.attach_tlog` 同口径）。
+    """
+    pkg = STORE.package
+    if pkg is None:
+        raise RuntimeError(
+            "host.store_factory.grant_reward：引擎包未绑定（装配处应先 `bind_store(pkg)`）"
+            "——拒绝静默取不到发奖实现")
+    mod = pkg.optional_submodule(REWARD_HALF)
+    fn = getattr(mod, "grant_reward", None) if mod is not None else None
+    if not callable(fn):
+        raise RuntimeError(
+            "host.store_factory.grant_reward：包内半边 %r 取不到 grant_reward ——拒绝静默空跑"
+            % (REWARD_HALF,))
+    return fn
+
+
 def grant_reward(*args, **kwargs):
     """发奖**能力口**（宿主侧句柄）—— 调用时才解析实现（避免 import 期成环 / 半初始化）。
 
-    本批（P5A，`game/**` 全留）：真源 = 宿主 `game/reward.py`（它是包内 `content/reward.py`
-    的别名壳，拿到的就是包内那只实现函数）。终态（P5C）由包侧自解析 —— 见 out/W-P5A.md
-    「未做项 / 缺口」第 3 条。解析不到 → **抛**（fail-closed）。
+    真源 = 包内半边 `reward`（`content/reward.py::grant_reward`）。解析不到 → **抛**（fail-closed）。
     """
     fn = _REWARD_IMPL[0]
     if fn is None:
-        from ..game import reward as _reward          # 过渡期宿主取件（P5C 收敛）
-        fn = _reward.grant_reward
-        _REWARD_IMPL[0] = fn
+        fn = _REWARD_IMPL[0] = _package_reward()
     return fn(*args, **kwargs)
 
 
@@ -80,7 +102,7 @@ _REWARD_IMPL: list = [None]
 
 
 def bind_reward(fn) -> None:
-    """显式绑定发奖实现（可选；不给则 `grant_reward` 走宿主 `game/reward.py`）。"""
+    """显式绑定发奖实现（可选；不给则 `grant_reward` 向引擎包按半边名 `reward` 取）。"""
     _REWARD_IMPL[0] = fn
 
 

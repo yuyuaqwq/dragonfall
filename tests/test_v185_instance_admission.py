@@ -1213,32 +1213,23 @@ def t6_d1_white_deduct():
 
 
 def t7_wiring():
-    print("\n[7] 接线门禁：命令层不再有手写 if 链；措辞只在文案表 game/data/text_specs.json")
+    print("\n[7] 接线门禁：命令层不再有手写 if 链；措辞只在文案表 content/data/text_specs.json")
+    # ★ P5F-REPOINT: 原读宿主壳 `game/commands/instance.py` / `base.py` / `world.py` /
+    #   `game/core/instance_gate.py`（随删壳批消失）→ 包内真源四侧（登记面 + 实现面）：
+    #   `content/cmds_instance.py` + `content/instance_cmds.py`、
+    #   `content/cmds_base_rules.py`、`content/world_cmds.py` + `content/cmds_world.py`、
+    #   `content/flow/instance_gate.py`。断言逐条不变（原「壳 + 实现」两侧拼接 = 实现侧全集）。
+    _PKG = os.path.join("framework", "games", "orlandia", "content")
+
     def _read(rel):
         with open(os.path.join(_PD, rel), encoding="utf-8") as f:
             return f.read()
-    inst_src = _read("game/commands/instance.py")
-    # ★ 2026-09-14 收口（B11-L1 instance 薄壳）：实现真源已搬到包内
-    #   `framework/games/orlandia/content/instance_cmds.py`（宿主 commands/instance.py 只是薄壳，
-    #   `instance_gate.<fn>` 调用点随实现一起搬走）。源码面 = 壳 + 实现两侧拼接 —— 断言与原意不变。
-    try:
-        with open(os.path.join(_PD, "framework", "games", "orlandia", "content",
-                               "instance_cmds.py"), encoding="utf-8") as f:
-            inst_src = inst_src + "\n" + f.read()
-    except OSError:
-        pass
-    base_src = _read("game/commands/base.py")
-    world_src = _read("game/commands/world.py")
-    gate_src = _read("game/core/instance_gate.py")
-    # ★ 2026-09-14 收口（B11-L2 instance_* 薄壳）：实现真源已搬到包内
-    #   `framework/games/orlandia/content/flow/instance_gate.py`（宿主 core/instance_gate.py 只是薄壳）。
-    #   源码面 = 壳 + 实现两侧拼接 —— 断言与原意不变、判据不削弱（同 test_v135_bp_drop.py:187-191 口径）。
-    try:
-        with open(os.path.join(_PD, "framework", "games", "orlandia", "content", "flow",
-                               "instance_gate.py"), encoding="utf-8") as f:
-            gate_src = gate_src + "\n" + f.read()
-    except OSError:
-        pass
+    inst_src = (_read(os.path.join(_PKG, "cmds_instance.py")) + "\n"
+                + _read(os.path.join(_PKG, "instance_cmds.py")))
+    base_src = _read(os.path.join(_PKG, "cmds_base_rules.py"))
+    world_src = (_read(os.path.join(_PKG, "world_cmds.py")) + "\n"
+                 + _read(os.path.join(_PKG, "cmds_world.py")))
+    gate_src = _read(os.path.join(_PKG, "flow", "instance_gate.py"))
     for needle in ("instance_gate.resolve_open_members", "instance_gate.open_admission",
                    "instance_gate.key_free_note", "instance_gate.resume_admission",
                    "instance_gate.join_admission", "instance_gate.text_entry_hint",
@@ -1255,9 +1246,10 @@ def t7_wiring():
     check("★ instance.py 里旧 if 链的 16 条措辞已全部迁走", not leftover, str(leftover))
     check("base.py 里不再内联体力不足三行", "体力不足！" not in base_src)
     check("world.py 里不再内联徒步拦截文案", "需接取相应任务" not in world_src)
-    # ★ 文案真源已在 v185 后继从 .py 迁到文案表（game/data/text_specs.json）：
+    # ★ 文案真源 = 包内文案表 `content/data/text_specs.json`（部署期镜像 `game/data/text_specs.json`
+    #   是保留资产，但**真源**在包内；P5F-REPOINT 起本文件直接读真源，单一来源）：
     #   本文件只传槽位，一句玩家可见文案都不许留在这两个 .py 里。
-    texts_json = _read("game/data/text_specs.json")
+    texts_json = _read(os.path.join(_PKG, "data", "text_specs.json"))
     check("★ 迁移的措辞都落在文案表里（不是 .py）",
           all(s in texts_json for s in ("只有队长才能开启副本", "你还没有队伍", "别拿命加入战斗",
                                         "被封印之门挡住", "需接取相应任务",
