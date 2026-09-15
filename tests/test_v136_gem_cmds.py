@@ -16,8 +16,8 @@ import random
 os.environ.setdefault("GWEN_GAME_DB", os.path.abspath("test_v136_gem_cmds.db"))
 sys.path.insert(0, "tests")
 
-from conftest import clean_db, make_player, Main, FakeEvent, run  # noqa: E402
-from data.plugins.dragonfall.game import content as C, db  # noqa: E402
+from _engine_harness import clean_db, make_player, Main, FakeEvent, run  # noqa: E402
+from _engine_harness import C, db  # noqa: E402
 
 g = "g_gem"
 q = "q_gem"
@@ -337,7 +337,7 @@ def main():
     txt = out[0] if out else ""
     check("空背包原石提示", "还没有幸运宝石" in txt, txt[:120])
     # 5c. 面板 _render_equip 带 sockets 显示孔位
-    from data.plugins.dragonfall.game.commands.economy import _render_equip
+    from content.economy_cmds import _render_equip
     eq_p = C.generate_roster_equip("eq_tie_jian")
     eq_p["quality"] = "purple"
     eq_p["name"] = "🟣·铁剑"

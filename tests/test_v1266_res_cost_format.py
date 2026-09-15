@@ -27,9 +27,9 @@ os.makedirs(os.path.dirname(_PRIVATE_DB), exist_ok=True)
 os.environ["GWEN_GAME_DB"] = _PRIVATE_DB
 os.environ["GWEN_TEST_MODE"] = "1"
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db  # noqa: E402
-from game.content_rules.skills import skill_info
-from data.plugins.dragonfall.main import Main  # noqa: E402
+from _engine_harness import C, db, clean_db  # noqa: E402
+from content.skills import skill_info
+from _engine_harness import Main  # noqa: E402
 
 passed = failed = 0
 
@@ -117,8 +117,8 @@ def test_skill_list_no_res_suffix():
 def test_offbattle_guard_chinese_name():
     print("【3. 脱战治疗拦截显示中文资源名】")
     clean_db()
-    from data.plugins.dragonfall.game.commands.combat import CombatCmds
-    cc = CombatCmds()
+    from _engine_harness import Main as CombatCmds
+    cc = CombatCmds(None)
     # v153：疾风连射→连射（energy 22）验证脱战渲染中文名
     ranger = {"class_name": "cls_you_xia", "level": 30, "hp": 400, "max_hp": 1000,
               "mp": 100, "max_mp": 100, "name": "游侠", "reach": 3,

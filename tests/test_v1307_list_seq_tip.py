@@ -18,9 +18,9 @@ import asyncio
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import C, FakeEvent, run, clean_db, make_player  # noqa: E402
-from data.plugins.dragonfall.main import Main  # noqa: E402
-from data.plugins.dragonfall.game import db  # noqa: E402
+from _engine_harness import C, FakeEvent, run, clean_db, make_player  # noqa: E402
+from _engine_harness import Main  # noqa: E402
+from _engine_harness import db  # noqa: E402
 
 TIP_BAG = "💡 发送『物品详情 <序号>』查看详情"
 TIP_SKILL = "🔍 发送『技能详情 <序号>』查看详情"

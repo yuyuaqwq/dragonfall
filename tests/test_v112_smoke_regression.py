@@ -22,9 +22,9 @@ import asyncio
 HERE = os.path.dirname(os.path.abspath(__file__))
 os.environ.setdefault("GWEN_GAME_DB", os.path.join(HERE, "test_v112_smoke_regression.db"))
 sys.path.insert(0, HERE)
-from conftest import C, db, clean_db, make_player, FakeEvent  # noqa: E402
-from game.content_rules.skills import branch_skill_owner
-from game.commands.player import PlayerCmds  # noqa: E402
+from _engine_harness import C, db, clean_db, make_player, FakeEvent  # noqa: E402
+from content.skills import branch_skill_owner
+from _engine_harness import Main as PlayerCmds  # noqa: E402  （原 game.commands.player.PlayerCmds 壳 → 驱动口）
 
 _passed = _failed = 0
 
@@ -41,15 +41,15 @@ def check(name, cond, detail=""):
 
 async def main():
     clean_db()
-    inst = PlayerCmds()
+    inst = PlayerCmds(None)
 
     print("【隐藏线路由（v151 已删 → 空表）】")
-    routes = PlayerCmds._hidden_class_routes(inst)
+    routes = inst._hidden_class_routes()
     check("隐藏路由表为空（v151 已删 6 隐藏职业）",
           len(routes) == 0, str(len(routes)))
 
     print("【隐藏短别名 → 空表】")
-    aliases = PlayerCmds._hidden_alias_map(inst)
+    aliases = inst._hidden_alias_map()
     check("隐藏别名表为空（v151 已删）",
           len(aliases) == 0, str(len(aliases)))
 
@@ -65,7 +65,7 @@ async def main():
           _rage.get("name") == "怒气" and _rage.get("cap") == 10, str(_rage))
 
     print("【基础职业导师转职最小闭环（30级战士 → 狂战士 T1）】")
-    from conftest import Main
+    from _engine_harness import Main
     mm = Main(None)
     make_player("g1", "q1", "龙裔武者", "cls_zhan_shi", level=30)
     db.update_player("g1", "q1", cur_map="white_deer", cur_subarea="white_deer_1")
@@ -89,7 +89,7 @@ async def main():
     check("传承有输出文案", len(out) > 0, "输出为空")
 
     # 清理私有库文件
-    tmp = db.DB_PATH
+    tmp = db.db_path()
     for f in (tmp, tmp + "-journal", tmp + "-wal", tmp + "-shm"):
         if os.path.exists(f):
             try:

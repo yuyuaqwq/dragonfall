@@ -17,7 +17,9 @@
 import sys, os, time, random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, make_player, Main, FakeEvent, run
+from _engine_harness import C, db, clean_db, make_player, Main, FakeEvent, run
+from content.pois import (subarea_props as _subarea_props,  # REPOINT_MAP: game.core.* → content.pois
+                        subarea_pois as _subarea_pois, prop_entry as _prop_entry)
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -39,7 +41,7 @@ def set_pos(m, gid, qid, map_id, sa_id):
     db.update_player(gid, qid, cur_map=map_id, cur_subarea=sa_id)
 
 async def main():
-    from data.plugins.dragonfall.game.commands.combat import WORLD_BOSS_DROPS
+    from content.combat_cmds import WORLD_BOSS_DROPS
 
     print("【1. 孤儿 prop 修复：4 个子区域交互正常】")
     clean_db()
@@ -53,8 +55,8 @@ async def main():
     ]
     for map_id, sa_id, expect_names in ORPHAN_AREAS:
         # 数据级：挂载条目全部能解析到 PROPS（无孤儿）
-        ents = C.subarea_props(map_id, sa_id)
-        missing = [e for e in ents if C.prop_entry(e)[0] not in C.PROPS]
+        ents = _subarea_props(map_id, sa_id)
+        missing = [e for e in ents if _prop_entry(e)[0] not in C.PROPS]
         check(f"{map_id}:{sa_id} 无孤儿 prop", not missing, missing)
         # 命令级：无参列表 + 首个序号交互不崩
         set_pos(m, "g1", "q1", map_id, sa_id)
@@ -100,14 +102,14 @@ async def main():
         "coral_reef:coral_reef_3",
     ]
     for key in POI_KEYS:
-        ids = C.subarea_pois(*key.split(":"))
+        ids = _subarea_pois(*key.split(":"))
         ok = (len(ids) >= 2
               and any(i in FUNC for i in ids)
               and any(i in SCENIC for i in ids)
               and all(i in C.POIS for i in ids))
         check(f"{key} 功能+风景共存", ok, ids)
     # v115 后块覆盖丢失：oak_plain_3 需保留 campfire（与基础块并集）
-    ids = C.subarea_pois("oak_plain", "oak_plain_3")
+    ids = _subarea_pois("oak_plain", "oak_plain_3")
     check("oak_plain_3 保留 campfire", "campfire" in ids, ids)
     # 全局：所有 SUBAREA_POIS 挂载无死键
     dead = [k for k, ids in C.SUBAREA_POIS.items()

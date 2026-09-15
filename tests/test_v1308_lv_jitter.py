@@ -19,7 +19,27 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import C, db, clean_db, Main, FakeEvent, run, make_player  # noqa: E402
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run, make_player  # noqa: E402
+
+# `content.combat_cmds._attach_tlog` 注入槽（接口表第 11 行）——见 test_v1307_zone_risk.py 同段。
+from _engine_harness import tlog_setup as _tlog_setup  # noqa: E402
+from content.tlog_collect import BattleTLog as _BattleTLog  # noqa: E402
+from content import combat_cmds as _combat_cmds  # noqa: E402
+_tlog_setup.disable()
+
+
+def _host_attach_tlog(b, *, btype="monster", player=None, enemies=None, seed=None):
+    try:
+        tl = _tlog_setup.tlog()
+        if tl is None:
+            return b
+        _BattleTLog(tl).attach(b, btype=btype, seed=seed, player=player, enemies=enemies)
+    except Exception:                                            # noqa: BLE001
+        pass
+    return b
+
+
+_combat_cmds.bind_host(attach_tlog=_host_attach_tlog)
 
 passed = failed = 0
 G = 1095961608
@@ -60,7 +80,7 @@ async def explore(level, map_id, rint_val):
     v173.3：屏蔽野王——野王按日期+时段哈希 spawn，探索会优先撞野王（金穗领主）
     导致断言普通怪失败。本测试只关心等级波动，屏蔽野王保证确定性。
     """
-    from data.plugins.dragonfall.game.commands import combat as _combat_mod
+    from content import combat_cmds as _combat_mod
     clean_db()
     make_player(G, "p1", "等级波动", "战士", level=level)
     db.update_player(G, "p1", cur_map=map_id)
@@ -103,11 +123,13 @@ async def main():
     check("Boss lv_jitter=2 固定 30", all(l == 30 for l in blvs), f"{set(blvs)}")
 
     print("【⑤ 探索路径（combat.py explore 普通怪分支）】")
-    # 与 test_v1307_zone_risk 同款打桩：野外 NPC 偶遇（日期轮换）与今日奇遇
-    _orig_wild = C.roll_wild_encounter
-    _orig_tde = C.today_event_effects
-    C.roll_wild_encounter = lambda *a, **k: None
-    C.today_event_effects = lambda map_id: {}
+    # 与 test_v1307_zone_risk 同款打桩：野外 NPC 偶遇（日期轮换）与今日奇遇。
+    # ★ 打桩落点 = 包内命令模块 `content.combat_cmds`（见其 `_overlay` 覆写面）。
+    from content import combat_cmds as _cc
+    _orig_wild = _cc.roll_wild_encounter
+    _orig_tde = _cc.today_event_effects
+    _cc.roll_wild_encounter = lambda *a, **k: None
+    _cc.today_event_effects = lambda map_id: {}
     try:
         out = await explore(30, "gold_plain", 2)
         check("探索金穗平原钉 2 → 【野牛】Lv.32", "【野牛】Lv.32" in out, out.splitlines()[:2])
@@ -116,8 +138,8 @@ async def main():
         out = await explore(1, "oak_plain", -2)
         check("探索橡木平原钉 -2 → 【绿史莱姆】Lv.1（保底）", "【绿史莱姆】Lv.1" in out, out.splitlines()[:2])
     finally:
-        C.roll_wild_encounter = _orig_wild
-        C.today_event_effects = _orig_tde
+        _cc.roll_wild_encounter = _orig_wild
+        _cc.today_event_effects = _orig_tde
 
     print("【⑥ 撞怪路径（world.py _travel_ambush）】")
     m = Main(None)

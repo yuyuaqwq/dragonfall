@@ -16,10 +16,10 @@ import json
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import FakeEvent, run, clean_db, make_player, new_main, TEST_DB, PLUGIN_DIR
+from _engine_harness import FakeEvent, run, clean_db, make_player, new_main, TEST_DB, PLUGIN_DIR
 
-from data.plugins.dragonfall.game import content as C, db
-from data.plugins.dragonfall.game.core import shop_stock as SS
+from _engine_harness import C, db
+from content import shop_stock as SS
 
 PASS = 0
 FAIL = 0

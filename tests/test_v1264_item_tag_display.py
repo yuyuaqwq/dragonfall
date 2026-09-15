@@ -13,8 +13,8 @@
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run
-from data.plugins.dragonfall.game.commands.economy import _render_item_tags
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run
+from content.economy_cmds import _render_item_tags
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -115,11 +115,15 @@ async def main():
     check("卖掉 3 条后详情只剩 1 条个体", cnt6 == 1, f"实际 {cnt6} 条:\n{out6}")
 
     print("【7 多行模板（line 列表）机制】")
-    # 临时配置验证渲染机制支持 list line（数据表注释说明的扩展形态）
-    _saved = dict(C.ITEM_TAG_DISPLAY)
-    C.ITEM_TAG_DISPLAY = {**C.ITEM_TAG_DISPLAY,
-                          "奇物": {"line": ["✨ 秘宝 {size:.1f}cm", "  来历：{origin}"],
-                                   "max_lines": 5}}
+    # 临时配置验证渲染机制支持 list line（数据表注释说明的扩展形态）。
+    # ★ 终态打桩落点：`content.facade._Aggregate.C` 的取件源是 `_namespace()`（惰性构建一次），
+    #   直接改 `content.catalog_legacy.ITEM_TAG_DISPLAY` 对已构建的聚合面无效 ⇒ 改聚合面本身。
+    import content.facade as _facade
+    _ns = _facade._namespace()
+    _saved = dict(_ns["ITEM_TAG_DISPLAY"])
+    _ns["ITEM_TAG_DISPLAY"] = {**_ns["ITEM_TAG_DISPLAY"],
+                               "奇物": {"line": ["✨ 秘宝 {size:.1f}cm", "  来历：{origin}"],
+                                        "max_lines": 5}}
     try:
         lines7 = []
         _render_item_tags({"name": "神秘水晶", "type": "奇物",
@@ -127,7 +131,7 @@ async def main():
         j7 = "\n".join(lines7)
         check("一条 tag 渲染多行", "秘宝 5.0cm" in j7 and "来历：深海" in j7, j7)
     finally:
-        C.ITEM_TAG_DISPLAY = _saved
+        _ns["ITEM_TAG_DISPLAY"] = _saved
 
     print(f"\n结果：{passed} 通过 / {failed} 失败")
     if failed:

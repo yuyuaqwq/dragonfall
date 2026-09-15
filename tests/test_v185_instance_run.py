@@ -36,11 +36,8 @@ for _p in (_TESTS, PLUGIN_DIR, os.path.join(PLUGIN_DIR, "framework")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from conftest import C, db, clean_db, make_player, Main, FakeEvent, run   # noqa: E402
-from game.commands import instance_battle as IB                              # noqa: E402
-from game.commands.instance import InstanceCmds                              # noqa: E402
-from game.commands.combat import CombatCmds                                  # noqa: E402
-from game.commands.world import WorldCmds                                    # noqa: E402
+from _engine_harness import C, db, clean_db, make_player, Main, FakeEvent, run   # noqa: E402
+from content.flow import instance_battle as IB                              # noqa: E402
 
 BASELINE = os.path.join(_TESTS, "_v185run_baseline.json")
 WIRE_COMMIT = "851913a"          # 接线前的最后一个提交（基线来源）
@@ -225,7 +222,7 @@ def test_B_adapter_matches_old():
 
     # ★ 用**包内规范名**导入：`game.*` 与 `data.plugins.dragonfall.game.*` 是两份模块对象，
     #   走后者才是 conftest/生产用的那一份（走前者会重新执行包 __init__ 撞上 core↔data 历史循环导入）
-    import data.plugins.dragonfall.game.core.instance_run as IR   # 子模块导入（core 包面未导出它）
+    import content.flow.instance_run as IR   # 包内真源（REPOINT_MAP: game.core.instance_run → content.flow.instance_run）
 
     ns = _load_old()
     old_cm, old_hl = ns["_old_current_members"], ns["_old_has_living"]
@@ -265,7 +262,10 @@ def test_B_adapter_matches_old():
     for tag, leader, members, alive, players in cases:
         st = {"leader": leader, "members": members, "alive": alive, "players": players}
         want_cm = old_cm(self_stub, GID, st)
-        got_cm = [str(x) for x in IR.current_members(GID, st)]
+        # 包内真源签名 `current_members(st, party)`（宿主壳旧签名 `(group_id, st)` 把队伍
+        # 从 `db.party_members` 取好传入 —— 见 content/flow/instance_run.py:81-83）
+        got_cm = [str(x) for x in IR.current_members(
+            st, db.party_members(GID, st["leader"]))]
         if want_cm != got_cm:
             cm_bad.append((tag, want_cm, got_cm))
         want_hl = old_hl(self_stub, GID, st)
@@ -278,7 +278,7 @@ def test_B_adapter_matches_old():
 
 def _ir():
     """适配层模块（包内规范名，见 §B 的说明）。"""
-    import data.plugins.dragonfall.game.core.instance_run as IR
+    import content.flow.instance_run as IR
     return IR
 
 
@@ -322,8 +322,8 @@ def _mk_room_st(qid, cur_sa, inst_id="inst_goblin_camp", rooms=None, stage_pendi
     return st
 
 
-class _RoomHost(InstanceCmds, CombatCmds, WorldCmds):
-    """router 测试宿主（InstanceCmds 玩法壳 + CombatCmds 锁 + WorldCmds 的地图视图）。"""
+class _RoomHost(Main):
+    """router 测试宿主（`_engine_harness.Main`：包内 InstanceImpl / CombatCmds / WorldCmds 同名落点）。"""
 
 
 def _sync_run(inst, st, qq, action):

@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 _DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_v1302g_job_guide.db")
 os.environ["GWEN_GAME_DB"] = _DB
 
-from conftest import C, run, FakeEvent, clean_db  # noqa: E402
+from _engine_harness import C, run, FakeEvent, clean_db  # noqa: E402
 
 from content.tables import (  # noqa: E402
     JOB_GUIDE, JOB_ALIAS as JOB_ALIASES, resolve_job,
@@ -45,8 +45,10 @@ HIDDEN_SUCCESSORS = _job_hidden_successors()  # 同上（空表）
 CORE_RESOURCE_GUIDE = {c: {"key": _JOB_GUIDE[c]["resource_key"], "desc": _JOB_GUIDE[c]["resource_desc"]}
                        for c in _job_base_order() if _JOB_GUIDE[c].get("resource_key")}
 from content.mech.params import EFFECT_RULES  # noqa: E402
-from data.plugins.dragonfall.game.commands.job_guide import JobGuideCmds  # noqa: E402
-from data.plugins.dragonfall.game.commands._registry import COMMAND_REGEX  # noqa: E402
+from _engine_harness import Main as JobGuideCmds  # noqa: E402  （原 game.commands.job_guide 壳 → 驱动口）
+from _engine_harness import harness as _harness  # noqa: E402
+COMMAND_REGEX = {k: rx.pattern for rx, k in _harness().declarations_for_static()
+                 if not k.startswith("_")}   # 私有 gate 非指令（旧 `_registry` 同口径）
 
 passed = failed = 0
 
@@ -70,7 +72,7 @@ async def job_cmd(msg, jc):
 
 async def main():
     clean_db()  # 建独立测试库（handler 不读档，仅保环境干净）
-    jc = JobGuideCmds()
+    jc = JobGuideCmds(None)
     ok = True
 
     # ===== ① 数据一致性（classes.py + 单源新形态：CORE_RESOURCE_GUIDE / EFFECT_RULES） =====

@@ -28,14 +28,12 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from game.store.connection import init_db  # noqa: E402
-init_db()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402
 
-from game import db  # noqa: E402
-from game.commands.combat import CombatCmds  # noqa: E402
-from game.services import battle_bridge as BR  # noqa: E402
+from _engine_harness import db  # noqa: E402
+from _engine_harness import Main  # noqa: E402  （原 game.commands.combat.CombatCmds 壳 → 包内实现）
+from content import bridge as BR  # noqa: E402
+db.init_db()
 
 PASS = 0
 FAIL = 0
@@ -88,7 +86,7 @@ def seed_world_boss():
 
 def test_worldboss_construction_and_sync():
     print("【N5b4-3 世界Boss saintess_engine：构造 + sides 同步 + 行动】")
-    cmds = CombatCmds.__new__(CombatCmds)
+    cmds = Main(None)
     gid, qid = "g_wb", 20001
     player = make_player(qid=qid)
     gboss = seed_world_boss()
@@ -97,7 +95,7 @@ def test_worldboss_construction_and_sync():
     # 模拟 hunt_boss 构造段：把全局 boss 组 sides（玩家 + Boss/爪牙 actor）
     # 直接走 bridge 构造（与 hunt_boss 相同路径）
     _tb = {}
-    BR.prepare_player_for_battle(player, _tb, db)
+    BR.prepare_player_for_battle(player, _tb, BR._as_event_state(db))
     _enemies = [dict(u) for u in gboss["enemies"]]
     for _a in _enemies:
         _a.setdefault("auto_act", {"act": {"type": "attack"}})

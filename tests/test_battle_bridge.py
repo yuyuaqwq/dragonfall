@@ -23,17 +23,14 @@ sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "framework"))
 # ↑ 引擎框架包（S8 物理分离：framework/ 为引擎 submodule）
 
-# 挂载 saintess_engine 游戏规则（HANDOFF 测试铁律）
-from saintess_engine import config as _b2c
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+# 挂载 saintess_engine 游戏规则（HANDOFF 测试铁律）——测试侧引擎通道驱动口（幂等）
+from _engine_harness import boot as _eng_cfg; _eng_cfg()
 
-from game.store.connection import init_db
-init_db()
-
-from game import db
+from _engine_harness import db
+db.init_db()
 from saintess_engine import Battle as B2Battle
 from saintess_engine import actors as B2A
-from game.services import battle_bridge as BR
+from content import bridge as BR
 
 PASS = 0
 FAIL = 0
@@ -126,7 +123,7 @@ check("enemy actor side=enemy", sides["enemy"][0].get("side") == "enemy")
 
 section("端到端：saintess_engine 真实怪组完整战斗")
 # 用真实数据管线：build_monster → build_monster_group（缩放后多怪）
-from game.core import drops as D
+from content import drops as D
 # content 是 game/content.py（`from .. import content as C` 在命令层）
 # 真实地图（用第一张野外图）
 import json
@@ -167,7 +164,7 @@ import json as _json
 db.set_event_state("bless_10001", "1")
 db.set_event_state("poi_buff_10001", _json.dumps(
     {"stat": "atk", "mult": 1.10, "name": "攻击", "left": 2}, ensure_ascii=False))
-BR.prepare_player_for_battle(_p2, title_bonus={})
+BR.prepare_player_for_battle(_p2, title_bonus={}, event_state=BR._as_event_state(db))
 check("播种 shields/cooldown/resources/stacks（player dict 协议；buffs 容器已随 V 系列合并删除）",
       all(isinstance(_p2.get(k), dict) for k in
           ("shields", "cooldown", "resources", "stacks"))
@@ -187,7 +184,7 @@ check("max_hp 实时化 > 100", int(_p2.get("max_hp", 0)) > 100, "max_hp=%s" % _
 # 第二次开战：echo 不再重复；poi left 1→0 删 key
 _p3 = make_player(level=10, hp=80, mp=20)
 _p3["max_hp"], _p3["max_mp"] = 100, 30
-BR.prepare_player_for_battle(_p3, title_bonus={})
+BR.prepare_player_for_battle(_p3, title_bonus={}, event_state=BR._as_event_state(db))
 check("二次开战 echo 不重复", not (_p3.get("_battle_boons") or {}).get("echo_bless"))
 check("poi left 耗尽删 key", not db.get_event_state("poi_buff_10001"))
 check("二次开战 poi_buff 仍挂上", (_p3.get("poi_buff") or {}).get("stat") == "atk")

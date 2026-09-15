@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """v136 Phase6 职业套装/散装/区域套固化测试。
 
-运行: python tests/test_v136_phase6_equip.py（直跑模式，顶部 import conftest）
+运行: python tests/test_v136_phase6_equip.py（直跑模式，顶部 import _engine_harness）
 覆盖:
 1. 数量基线（名册 388 / 配方 424 / 素材 552）
 2. 职业套装 90 件可生成 + set 挂载 + req 正确
@@ -11,16 +11,16 @@
 6. 新素材定义 + 配方引用闭环
 7. 新装备锻造链路（craft_recipe_make）
 """
-import conftest  # noqa: F401
+from _engine_harness import C as _H  # noqa: E402,F401  （测试侧入口：装配引擎通道 + 私有库）
 
 # W10：包内源（原 `from data.plugins.dragonfall.game import data as C`）—— 6 名分居 3 个门面，
 # 其中 CRAFT_RECIPES / SERIES_SETS 的用点去掉 `C.` 前缀（纯模块限定名改写，断言/期望值零改动）
 from content import catalog_items as C  # noqa: E402  EQUIP_ROSTER / EQUIP_ROSTER_BY_NAME / MATERIALS / SETS
 from content.catalog_life import CRAFT_RECIPES  # noqa: E402
 from content.catalog_rules import SERIES_SETS  # noqa: E402
-from data.plugins.dragonfall.game.core.drops import generate_roster_equip
-from game.content_rules.panel import set_bonus_2, player_stats_detail, set_bonus_4 as engine_set_bonus_4
-from data.plugins.dragonfall.game.core.craft import craft_recipe_make
+from content.drops import generate_roster_equip
+from content.panel import set_bonus_2, player_stats_detail, set_bonus_4 as engine_set_bonus_4
+from content.craft import craft_recipe_make
 
 PASS = 0
 FAIL = 0

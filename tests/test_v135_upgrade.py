@@ -21,9 +21,9 @@ import asyncio
 os.environ.setdefault("GWEN_GAME_DB", os.path.abspath("test_v135_upgrade.db"))
 sys.path.insert(0, "tests")
 
-from conftest import clean_db, make_player, Main, FakeEvent, run  # noqa: E402
-from data.plugins.dragonfall.game import content as C, db  # noqa: E402
-from data.plugins.dragonfall.game.content_rules.panel import player_stats_detail as E_player_stats_detail  # noqa: E402
+from _engine_harness import clean_db, make_player, Main, FakeEvent, run  # noqa: E402
+from _engine_harness import C, db  # noqa: E402
+from content.panel import player_stats_detail as E_player_stats_detail  # noqa: E402
 
 g = "g_test_upg"
 q = "q_test_upg"
@@ -271,7 +271,7 @@ def main():
     eq7 = C.generate_roster_equip("eq_tie_jian")
     eq7["lv"] = 6
     eq7.pop("upgrade_lv", None)
-    from data.plugins.dragonfall.game.commands.economy import _render_equip
+    from content.economy_cmds import _render_equip
     _lines = []
     _render_equip(eq7, _lines, equipped=False)
     _rc = "\n".join(_lines)

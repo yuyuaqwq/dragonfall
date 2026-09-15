@@ -28,9 +28,9 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2config  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
-from game.commands.combat import CombatCmds  # noqa: E402
+from _engine_harness import Main as CombatCmds  # noqa: E402  （原 game.commands.combat 壳 → 驱动口）
 
 PASS = 0
 FAIL = 0
@@ -94,7 +94,7 @@ def new_battle(player, enemy):
 
 def test_status_line_battle_buffs():
     print("【N5b4-1 saintess_engine dict buff 形态折算】")
-    cmds = CombatCmds.__new__(CombatCmds)
+    cmds = CombatCmds(None)
     player = mk_player()
     enemy = mk_enemy()
     b = new_battle(player, enemy)
@@ -107,7 +107,7 @@ def test_status_line_battle_buffs():
     # 护盾 dict：expire_at 折算（now=0，剩 5 刻）
     focus.setdefault("shields", {})["we_test"] = {"value": 100, "expire_at": 5.0}
     # 真实命令层流程：行动后 sync_player_from_actor 回写 player dict（展示读 player）
-    from game.services import battle_bridge as BR
+    from content import bridge as BR
     BR.sync_player_from_actor(player, focus)
     s = cmds._status_line(player, b)
     check("atk_up dict → 剩50刻", "⚔️攻击↑(剩50刻)" in s, s)
@@ -122,7 +122,7 @@ def test_status_line_battle_buffs():
 
 def test_resource_and_footer_battle():
     print("【N5b4-1 _resource_line / _battle_footer 在 saintess_engine 上不崩】")
-    cmds = CombatCmds.__new__(CombatCmds)
+    cmds = CombatCmds(None)
     player = mk_player()
     enemy = mk_enemy()
     b = new_battle(player, enemy)

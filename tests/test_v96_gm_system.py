@@ -10,7 +10,7 @@
 """
 import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -40,7 +40,7 @@ async def main():
     db.set_event_state("gm_whitelist", json.dumps(["1454832774"], ensure_ascii=False))
 
     print("【1. 停服 gate 过滤】")
-    from data.plugins.dragonfall.game.commands.base import _GameCmdFilter
+    from _engine_harness import GameCmdFilter as _GameCmdFilter
     gf = _GameCmdFilter()
     check("『探索』命中游戏指令", gf.filter(FakeEvent("g1", "w1", "探索"), None) is True)
     check("『地图』命中", gf.filter(FakeEvent("g1", "w1", "地图"), None) is True)

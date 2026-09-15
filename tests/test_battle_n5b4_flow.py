@@ -22,14 +22,35 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from game.store.connection import init_db  # noqa: E402
-init_db()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402
 
-from game.core import drops as D  # noqa: E402
-from game import db  # noqa: E402
-from game.commands.combat import CombatCmds  # noqa: E402
+from content import drops as D  # noqa: E402
+from _engine_harness import db  # noqa: E402
+from _engine_harness import Main  # noqa: E402  （原 game.commands.combat.CombatCmds 壳 → 包内实现）
+db.init_db()
+
+# `content.combat_cmds._attach_tlog` 的注入槽（接口表第 11 行冻结名）。
+# 旧宿主薄壳 `game/services/battle_bridge.py::attach_tlog` 是**平台件**（读宿主流水
+# 开关 + 采集 sink），终态无该薄壳 ⇒ 本测试按同一公开注入槽补回**同款实现**：
+# 开关面 = `_engine_harness.tlog_setup`，采集器 = 包内 `content.tlog_collect.BattleTLog`
+# （逐字 = 原函数体；未启用流水时返回 b，零行为）。生产侧建议由 `host/**` 属主落地。
+from _engine_harness import tlog_setup as _tlog_setup  # noqa: E402
+from content.tlog_collect import BattleTLog as _BattleTLog  # noqa: E402
+import content.combat_cmds as _combat_cmds  # noqa: E402
+
+
+def _host_attach_tlog(b, *, btype="monster", player=None, enemies=None, seed=None):
+    try:
+        tl = _tlog_setup.tlog()
+        if tl is None:
+            return b
+        _BattleTLog(tl).attach(b, btype=btype, seed=seed, player=player, enemies=enemies)
+    except Exception:                                            # noqa: BLE001
+        pass
+    return b
+
+
+_combat_cmds.bind_host(attach_tlog=_host_attach_tlog)
 
 PASS = 0
 FAIL = 0
@@ -64,7 +85,7 @@ def build_wolf():
 
 def test_open_and_attack_loop():
     print("【N5b4-2 explore→attack→存盘→恢复→打完】")
-    cmds = CombatCmds.__new__(CombatCmds)
+    cmds = Main(None)
     gid, qid = "g_flow", 10001
     player = make_player(qid=qid)
     group = build_wolf()
@@ -127,7 +148,7 @@ def test_open_and_attack_loop():
 
 def test_legacy_state_cleared():
     print("【N5b4-2 旧格式存档 → 清档重开】")
-    cmds = CombatCmds.__new__(CombatCmds)
+    cmds = Main(None)
     gid, qid = "g_old", 10002
     legacy = {"type": "monster", "now": 2.0, "round": 1, "result": None,
               "enemy": {"name": "旧怪", "hp": 100, "max_hp": 100}}

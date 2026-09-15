@@ -12,8 +12,8 @@
 import sys, os, time, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import test_battle_n5b4_instance_router as T
-from game.commands import instance_battle as IB
-from game import db
+from content.flow import instance_battle as IB
+from _engine_harness import db
 
 GID = T.GID
 

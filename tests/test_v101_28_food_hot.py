@@ -15,8 +15,8 @@ os.environ["GWEN_GAME_DB"] = os.path.join(PLUGIN_DIR, "test_game_data.db")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
-from data.plugins.dragonfall.game import content as C
-from data.plugins.dragonfall.game.core import item_templates as IT
+from _engine_harness import C
+from content import item_templates as IT
 
 
 PASS = 0
@@ -169,7 +169,7 @@ check("汉堡战斗外即时回血+体力", "恢复 30 点生命" in ro.text and
 from saintess_engine import Battle as _B2
 from saintess_engine import make_actor as _mk2
 from saintess_engine import config as _b2cfg
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()
 _p2 = _mk2(uid="p_q1", name="试吃", side="player", kind="player", human_controlled=True,
            class_name="cls_zhan_shi", level=1, hp=100, max_hp=100, mp=50, max_mp=100,
            atk=10, matk=5, spd=10, crit=0.0, equipment={}, skills=[], learned_skills=[],
@@ -178,7 +178,7 @@ _e2 = _mk2(uid="e_0", name="野狗", side="enemy", kind="monster", level=1,
            hp=500, max_hp=500, atk=5, matk=5, spd=5, crit=0.0, exp=0, gold=0,
            **{"def": 0, "mdef": 0})
 _b2 = _B2(btype="monster", sides={"player": [_p2], "enemy": [_e2]})
-from game.commands.battle_item_use import translate as _tr_food
+from content.mech.item_use import translate as _tr_food
 _l2, _c2 = _tr_food(_b2, _p2, "buff:food_def_up")
 check("料理播报(非'饮下战斗药水')", any("吃下了料理" in str(l) for l in (_l2 or [])), str(_l2)[:120])
 

@@ -11,10 +11,8 @@
 5. 掉落挂接真实性：combat._handle_victory 胜利结算含原石掉落（随机序列受控下
    roll_gem_drop 被消费 + 入包 key gem_<uuid8>）
 
-导入说明（v136 实测铁律）：第一个 import 必须是 game.content（data→core→content
-标准完整路径），否则 game.core.dialogue 顶层 `from .. import content` 会缓存残缺
-content（缺 gems 聚合符号）。测试文件统一走 game 路径（conftest 用
-data.plugins.dragonfall.game 路径 → 不同模块对象，勿混用）。
+导入说明（v136 实测铁律）：先用测试侧入口 `_engine_harness` 装配（包源根入 sys.path），
+再取包内真源，避免包内模块图部分初始化时缓存残缺面（缺 gems 聚合符号）。
 """
 import os
 import sys
@@ -25,12 +23,12 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.abspath("test_v136_gem_drops.db"))
 sys.path.insert(0, "tests")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 插件根目录（脚本直跑）
 
-from game import content as C  # noqa: E402
-from game.content import GEM_DROP_RATE, GEM_DROP_TIER, GEM_BOSS_FIXED  # ★ B16-W11d：数据层已删 → 聚合层
-from game.content import GEM_STATS, GEM_TIERS  # ★ B16-W11d
-from game.core import gems as _gems_mod  # noqa: E402
-from game.core import roll_gem_drop  # noqa: E402
-import conftest  # noqa: E402  (副作用：设置 GWEN_GAME_DB / 加 qqbot/ 到 sys.path，供函数内 data.plugins 路径导入)
+from _engine_harness import C  # noqa: E402
+from content.gems import GEM_DROP_RATE, GEM_DROP_TIER, GEM_BOSS_FIXED  # noqa: E402
+from content.gems import GEM_STATS, GEM_TIERS  # noqa: E402
+from content import gems as _gems_mod  # noqa: E402
+from content.gems import roll_gem_drop  # noqa: E402
+import _engine_harness  # noqa: E402  (副作用：装配引擎通道 + 私有库 + 包源根入 sys.path)
 
 
 def _mk_monster(name="史莱姆", role="normal", is_boss=False, is_elite=False, area="field"):
@@ -212,9 +210,9 @@ def test_handle_victory_gem_drop_hooked():
     直调（不走命令层，避免战斗全流程 mock）。FakeEvent.plain_result 返回 str → msgs 是
     str 列表。
     """
-    from data.plugins.dragonfall.game import content as C2  # noqa: E402
-    from data.plugins.dragonfall.game import db as db2  # noqa: E402
-    from conftest import FakeEvent, clean_db, make_player, Main
+    from _engine_harness import C as C2  # noqa: E402
+    from _engine_harness import db as db2  # noqa: E402
+    from _engine_harness import FakeEvent, clean_db, make_player, Main
 
     clean_db()
     gid, qid = 1001, 2001
@@ -225,17 +223,17 @@ def test_handle_victory_gem_drop_hooked():
     _mon["gold"] = 2
     _mon["drops"] = []
 
-    # 让 _handle_victory 的 drop 命中：把 C2.roll_gem_drop 换成强制命中（返回 1 颗固定原石）
-    _orig = C2.roll_gem_drop
+    # `settlement.roll_gem_drop` 经聚合门面 `C.roll_gem_drop` 取件，而 `content/facade.py::_NAME_SRC`
+    # 把该名直指 `content.gems` ⇒ 打桩落点 = `content.gems.roll_gem_drop`（旧宿主下是 game.content）。
+    import content.gems as _gems_mod2
+    _orig = _gems_mod2.roll_gem_drop
     _calls = []
-    # 捕获真实验收消息：monkeypatch 不替换 C2.roll_gem_drop（回滚风险），改用幂等
-    # 语义：随机命中下（真实 roll_gem_drop 走完）若命中则原石入包。为让测试确定性，
-    # 改用"记录 + 原样调用"包装：既证明 _handle_victory 消费了挂点，又不干预真实逻辑。
+
     def _spy_roll_gem_drop(mon, boss_fixed=None):
         _calls.append((mon, boss_fixed))
         return _orig(mon, boss_fixed)
 
-    C2.roll_gem_drop = _spy_roll_gem_drop
+    _gems_mod2.roll_gem_drop = _spy_roll_gem_drop
     msgs = []
     try:
         inst = Main(None)
@@ -245,7 +243,7 @@ def test_handle_victory_gem_drop_hooked():
                                       "🎉 你击败了【史莱姆】！"):
             msgs.append(r)
     finally:
-        C2.roll_gem_drop = _orig
+        _gems_mod2.roll_gem_drop = _orig
 
     assert _calls, "胜利结算必须消费 roll_gem_drop"
     text = "\n".join(str(m) for m in msgs)
@@ -254,7 +252,7 @@ def test_handle_victory_gem_drop_hooked():
     hits = [c for c in _calls]
     assert len(hits) >= 1, "胜利结算必须消费 roll_gem_drop"
     # 直接驱动多次 _handle_victory（真实 roll_gem_drop，普通怪 2%）：统计命中
-    _orig2 = C2.roll_gem_drop
+    _orig2 = _gems_mod2.roll_gem_drop
     n_hit = 0
     for _ in range(300):
         g = _orig2(_mon)

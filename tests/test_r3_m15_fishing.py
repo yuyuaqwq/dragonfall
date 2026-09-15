@@ -32,8 +32,8 @@ os.environ["GWEN_GAME_DB"] = TEST_DB
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
-from data.plugins.dragonfall.game import content as C, db  # noqa: E402
-from data.plugins.dragonfall.main import Main  # noqa: E402
+from _engine_harness import C, db  # noqa: E402
+from _engine_harness import Main  # noqa: E402
 
 # v94 体力：测试环境走 register 命令建号后体力拉满（与 conftest 同款）
 _orig_register = Main.register
@@ -84,7 +84,7 @@ async def run(handler, ev):
 
 def clean_db():
     db.init_db()
-    conn = sqlite3.connect(db.DB_PATH)
+    conn = sqlite3.connect(db.db_path())
     try:
         for t in ("players", "player_groups", "inventory", "quests", "battle_state",
                   "achievements", "stats", "feedback", "market", "bestiary",
@@ -114,18 +114,23 @@ async def cmd(m, handler_name, gid, qid, msg):
     return results[-1] if results else ""
 
 def set_roll_fish(m, fish):
-    m._roll_fish_orig = C.roll_fish
-    C.roll_fish = lambda lv, spot=None, bait=None: fish
+    # 打桩落点 = 包内真源模块 `content.fishing`（`content/facade.py::_NAME_SRC` 直指它）
+    import content.fishing as _fm
+    m._roll_fish_orig = _fm.roll_fish
+    _fm.roll_fish = lambda lv, spot=None, bait=None: fish
 
 def restore_roll_fish(m):
-    C.roll_fish = m._roll_fish_orig
+    import content.fishing as _fm
+    _fm.roll_fish = m._roll_fish_orig
 
 def set_roll_collect(m, cf):
-    m._roll_cf_orig = C.roll_collect_fish
-    C.roll_collect_fish = lambda spot, night=False: cf
+    import content.fishing as _fm
+    m._roll_cf_orig = _fm.roll_collect_fish
+    _fm.roll_collect_fish = lambda spot, night=False: cf
 
 def restore_roll_collect(m):
-    C.roll_collect_fish = m._roll_cf_orig
+    import content.fishing as _fm
+    _fm.roll_collect_fish = m._roll_cf_orig
 
 def fish_dict(name, quality, ftype="鱼", price=12):
     return {"name": name, "quality": quality, "type": ftype, "price": price,

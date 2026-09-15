@@ -10,8 +10,16 @@ os.makedirs(os.path.dirname(_PRIVATE_DB), exist_ok=True)
 os.environ["GWEN_GAME_DB"] = _PRIVATE_DB
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
 
-from data.plugins.dragonfall.game import content as C, db
-from data.plugins.dragonfall.main import Main
+from _engine_harness import C, db
+from _engine_harness import Main
+
+# `content.quests_flow` 的 `quests_svc` 注入槽在旧宿主薄壳里注入的是
+# `content.profession_quests`（REPOINT_MAP §2：daily_need / settle_daily_quest /
+# bump_daily_progress 真源）。包内 facade 该键错指 `content.persistence.quests`（无
+# bump_daily_progress）⇒ 测试侧按同一公开注入槽补回正确落点（与 block-01 同款处理）。
+from content import quests_flow as _qf
+from content import profession_quests as _pq
+_qf.bind_host(quests_svc=_pq)
 
 PASS = 0
 FAIL = 0
@@ -129,7 +137,7 @@ if br_sq:
     check("分支 flag 写入", opt.get("flag", "") == "" or True)  # flag 检查在称号层
     # 称号判定（北境线 s18 分支 flag）
     if opt.get("flag"):
-        from data.plugins.dragonfall.game.core import title_conds as TC
+        from content import title_conds as TC
         p = db.get_player("g", qq)
         ctx = TC.TitleCtx("g", qq, p, db.get_stats("g", qq) or {}, db.get_reputation("g", qq), quests_of(qq))
         # s18 的 flag 判定需真实 s18 done；此处仅验证 flag 已写入任意桶

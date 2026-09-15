@@ -33,19 +33,79 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from game.store.connection import init_db  # noqa: E402
-init_db()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402
 
-from game import db  # noqa: E402
-from game import content as C  # noqa: E402
-from game.content_rules.panel import player_final_stats
-from game.commands import instance_battle as IB  # noqa: E402
-from game.commands.instance import InstanceCmds  # noqa: E402
-from game.commands.combat import CombatCmds  # noqa: E402
-from game.commands.world import WorldCmds  # noqa: E402
-from game.commands.instance_router import InstanceRouterCmds  # noqa: E402
+from _engine_harness import db  # noqa: E402
+from _engine_harness import C  # noqa: E402
+from content.panel import player_final_stats
+from content.flow import instance_battle as _IB_impl  # noqa: E402
+from _engine_harness import Main as _CmdHost  # noqa: E402  （原 InstanceCmds/CombatCmds/WorldCmds 壳 → 驱动口）
+db.init_db()
+
+# `content.flow.instance_battle.build_battle/_attach_instance_hooks` 要调用方传
+# `script_api=`（Boss 剧本导演 = 平台件，旧宿主薄壳 `game/commands/instance_battle.py`
+# 由 `._boss_script_port.script_api()` 提供）。终态无宿主薄壳 ⇒ 测试侧按**包内公开源**
+# 组同款适配器（`content.flow.boss_script` + `content.tables.merge_phase_config` +
+# 聚合门面 `MONSTER_MODS` / `INSTANCES`，与宿主适配器逐条同源）。
+from content.flow import boss_script as _BS  # noqa: E402
+from content.tables import merge_phase_config as _merge_phase_config  # noqa: E402
+
+
+class _ScriptApi(object):
+    def __init__(self):
+        self._bs = _BS
+
+    def _deps(self):
+        return {"data": {"MONSTER_MODS": C.MONSTER_MODS, "INSTANCES": C.INSTANCES},
+                "phase_templates": _merge_phase_config,
+                "build_monster": getattr(C, "build_monster", None)}
+
+    def __getattr__(self, name):
+        fn = getattr(self._bs, name)
+        if not callable(fn):
+            return fn
+        if name in ("make_script_hook", "make_script_event"):
+            def _factory(st, **kw):
+                d = self._deps()
+                d.update(kw)
+                return fn(st, **d)
+            return _factory
+        if name == "boss_script_cfg":
+            def _cfg(st, actor, data=None):
+                return fn(st, actor, data if data is not None else self._deps()["data"])
+            return _cfg
+        return fn
+
+
+def _script_api():
+    return _ScriptApi()
+
+
+_IB = _IB_impl
+IB = _IB_impl   # 其余机械指向名（player_actor_of / next_actor_key / _players_of …）同名可直取
+
+
+def _build_battle(st):
+    """宿主壳同口径包装：补 `script_api=`/`team_heal_text=`（见上）。"""
+    return _IB.build_battle(st, script_api=_script_api(),
+                            team_heal_text=_IB.team_heal_text)
+
+
+def _attach_instance_hooks(b, st):
+    """宿主壳同口径包装（同上）。"""
+    return _IB._attach_instance_hooks(b, st, script_api=_script_api(),
+                                      team_heal_text=_IB.team_heal_text)
+
+
+def _sync_views(st, group_id):
+    """宿主壳同口径包装：补 `sync_player_fn=`/`db_update_fn=`（宿主耦合回调）。"""
+    from content.bridge import sync_player_from_actor
+
+    def _db_update(_gid, _key, hp, mp, max_hp, max_mp):
+        db.update_player(_gid, _key, hp=hp, mp=mp, max_hp=max_hp, max_mp=max_mp)
+
+    return _IB.sync_views(st, group_id, sync_player_fn=sync_player_from_actor,
+                          db_update_fn=_db_update)
 
 PASS = 0
 FAIL = 0
@@ -156,19 +216,23 @@ def mk_st(qids, enemy=None, inst_id="inst_goblin_camp", **kw):
     return st
 
 
-class _Host(InstanceCmds, CombatCmds, WorldCmds):
-    """Router 测试宿主：InstanceCmds 玩法壳 + CombatCmds 锁函数 + WorldCmds（map_view 依赖）。"""
+class _Host(_CmdHost):
+    """Router 测试宿主（`_engine_harness.Main`：同名的包内 InstanceImpl / CombatCmds /
+    WorldCmds 落点由驱动口按名绑定，等价旧的三 Mixin 宿主）。"""
+
+
+from content.instance_cmds import InstanceImpl as _InstImpl  # noqa: E402  （打桩落点：包内实现类）
 
 
 def _patch_current_members(all_members):
     """多人副本 st 无 party 行时，current_members 恒返回全部成员（等价单人/测试口径）。"""
-    orig = InstanceCmds._instance_current_members
-    InstanceCmds._instance_current_members = lambda self, gid, st: [str(m) for m in (all_members or st["members"])]
+    orig = _InstImpl._instance_current_members
+    _InstImpl._instance_current_members = lambda self, gid, st: [str(m) for m in (all_members or st["members"])]
     return orig
 
 
 def _restore_current_members(orig):
-    InstanceCmds._instance_current_members = orig
+    _InstImpl._instance_current_members = orig
 
 
 # ---------------------------------------------------------------- 分支测试
@@ -196,14 +260,14 @@ def test_2_turn_wait():
     print("【2. 轮转：非请求者未超时 → 等待提示】")
     st = mk_st([70011, 70012], enemy=mk_enemy(hp=500, spd=1))
     # 双人玩家 actor 都建好
-    IB.build_battle(st)
+    _build_battle(st)
     # 让 70011 ct 最小（轮到他），70012 请求
     for a in (IB._players_of(st) or []):
         if str(a.get("qq_id")) == "70011":
             a["ct"] = 0.0
         else:
             a["ct"] = 50.0
-    IB.sync_views(st, GID)
+    _sync_views(st, GID)
     st["turn_time"] = int(__import__("time").time())  # 未超时
     orig = _patch_current_members(["70011", "70012"])
     try:
@@ -220,13 +284,13 @@ def test_2_turn_wait():
 def test_3_timeout_auto_defend():
     print("【3. 超时自动防御：非请求者超时 → 自动 defend 后轮到请求者】")
     st = mk_st([70021, 70022], enemy=mk_enemy(hp=5000, spd=1))
-    IB.build_battle(st)
+    _build_battle(st)
     for a in (IB._players_of(st) or []):
         if str(a.get("qq_id")) == "70021":
             a["ct"] = 10.0   # 该 70021 行动但超时未动
         else:
             a["ct"] = 100.0  # 请求者 70022
-    IB.sync_views(st, GID)
+    _sync_views(st, GID)
     st["turn_time"] = int(__import__("time").time()) - 120  # 已超时 60s
     orig = _patch_current_members(["70021", "70022"])
     try:
@@ -243,7 +307,7 @@ def test_3_timeout_auto_defend():
 def test_4_attack_and_sync():
     print("【4. 行动：attack 造成伤害 + 视图/DB 同步】")
     st = mk_st([70031], enemy=mk_enemy(hp=600, spd=1))
-    IB.build_battle(st)
+    _build_battle(st)
     hp0 = int(st["enemies"][0]["hp"])
     inst = _Host()
     msgs = _sync_run(inst, st, 70031, "attack")
@@ -260,7 +324,7 @@ def test_4_attack_and_sync():
 def test_5_defend():
     print("【5. 行动：defend 姿态】")
     st = mk_st([70032], enemy=mk_enemy(hp=5000, atk=9999, spd=1))
-    IB.build_battle(st)
+    _build_battle(st)
     inst = _Host()
     msgs = _sync_run(inst, st, 70032, "defend")
     joined = "\n".join(msgs)
@@ -273,7 +337,7 @@ def test_6_switch_next_monster():
     print("【6. 切怪：stage_pending 剩怪 → 击杀奖励 + 下一只重构造】")
     st = mk_st([70041], enemy=mk_enemy(hp=80, spd=1),
                stage_pending=[["m_slime", "史莱姆", "dps", 15, [], []]])
-    IB.build_battle(st)
+    _build_battle(st)
     inst = _Host()
     msgs = _sync_run(inst, st, 70041, "attack")
     joined = "\n".join(msgs)
@@ -295,7 +359,7 @@ def test_6_switch_next_monster():
 def test_7_victory():
     print("【7. 通关：Boss 死（末层/无 pending）→ _instance_victory】")
     st = mk_st([70051], enemy=mk_enemy(hp=60, spd=1))
-    IB.build_battle(st)
+    _build_battle(st)
     inst = _Host()
     msgs = []
     guard = 0
@@ -319,7 +383,7 @@ def test_8_defeat():
     st = mk_st([70061], enemy=mk_enemy(hp=8000, atk=9999, spd=200, role="boss"))
     st["players"]["70061"]["hp"] = 3
     db.update_player(GID, 70061, hp=3)
-    IB.build_battle(st)
+    _build_battle(st)
     inst = _Host()
     msgs = []
     guard = 0
@@ -342,7 +406,7 @@ def test_9_secret_guard():
     st = mk_st([70071], enemy=mk_enemy(hp=60, spd=1),
                secret_guard_pending=True, mode="battle",
                inst_stages=[{"name": "一层", "elite": ["m_test", "精英", "elite", 15, [], []]}])
-    IB.build_battle(st)
+    _build_battle(st)
     inst = _Host()
     msgs = []
     guard = 0
@@ -366,7 +430,7 @@ def test_10_rooms_boss():
                rooms={cur_sa: {"monsters_left": [], "boss_alive": True,
                                "_is_boss": True}})
     db.update_player(GID, 70081, cur_map="deer_fort", cur_subarea=cur_sa)
-    IB.build_battle(st)
+    _build_battle(st)
     inst = _Host()
     msgs = []
     guard = 0
@@ -401,7 +465,7 @@ def test_11_command_entry_switch():
     # 注意：命令层从 db.get_battle 读回反序列化副本操作（大陆权威 st 场景在 R4 端到端），
     # 此处校验 db 行内 sides 敌 hp 下降（真实写入路径）。
     st = mk_st([70091], enemy=mk_enemy(hp=300, spd=1))
-    IB.build_battle(st)
+    _build_battle(st)
     db.save_battle(GID, 70091, st)
     inst = _Host()
     ev = FakeEvent(GID, "70091", "攻击")
@@ -431,7 +495,7 @@ def test_11_command_entry_switch():
     check("defend 输出含防御文案", "防御" in joined2 or "减半" in joined2, joined2[:100])
     # skill：需要技能栏/已学——用攻击型验证不崩（heal 已覆盖于单测 4）
     st2 = mk_st([70092], enemy=mk_enemy(hp=500, spd=1))
-    IB.build_battle(st2)
+    _build_battle(st2)
     db.save_battle(GID, 70092, st2)
     ev3 = FakeEvent(GID, "70092", "技能")
     msgs3 = _collect(inst.skill(ev3))
@@ -444,12 +508,12 @@ def test_12_use_item_router():
     print("【12. I3 use_item 端到端：router → override 翻译器 heal 生效 / 缺口不占刻】")
     # 玩家 hp 打残 → 副本内喝治疗药水 payload（模板产物 "150" 绝对恢复）
     st = mk_st([70101], enemy=mk_enemy(hp=800, spd=5))
-    IB.build_battle(st)
+    _build_battle(st)
     # 打掉玩家一点血（sides actor 直改——真实链路里由敌方攻击写）
     _pa = IB.player_actor_of(st, 70101)
     _max0 = int(_pa.get("max_hp", 0) or 0)
     _pa["hp"] = max(1, _max0 // 2)
-    IB.sync_views(st, GID)
+    _sync_views(st, GID)
     inst = _Host()
     # 首次普通攻击推进轮转到玩家（turn_time 置现避免超时误判）
     import time as _t
@@ -465,7 +529,7 @@ def test_12_use_item_router():
     check("使用后战斗未结束", not st.get("over"), f"over={st.get('over')}")
     # 机制型缺口（特殊分发未覆盖）→ 不生效提示，不占刻（战斗可继续普攻）
     st2 = mk_st([70102], enemy=mk_enemy(hp=800, spd=5))
-    IB.build_battle(st2)
+    _build_battle(st2)
     st2["turn_time"] = int(_t.time())
     _ct_before = float((IB.player_actor_of(st2, 70102) or {}).get("ct", 0) or 0)
     msgs2 = _sync_run(inst, st2, "70102", "use_item", "special:summon")
@@ -479,13 +543,13 @@ def test_12_use_item_router():
 def test_13_target_picker():
     print("【13. 5b target_picker：仇恨选目标 / 嘲讽强制 / policy 缺省】")
     from saintess_engine import Battle as B2
-    from game.commands import instance_battle as IB
+    from content.flow import instance_battle as IB
     st = mk_st([70111, 70112], enemy=mk_enemy(hp=5000, spd=1, role="boss"))
-    IB.build_battle(st)
+    _build_battle(st)
     # 组装 battle 实例（build_battle 已注入 picker——但 st["battle"] 是 to_state，
     # picker 是构造时闭包，需直接 from_state 后手动挂）
     b = B2.from_state(st["battle"])
-    IB._attach_instance_hooks(b, st)
+    _attach_instance_hooks(b, st)
     pa1 = next(a for a in b.sides_of("player") if a.get("qq_id") == "70111")
     pa2 = next(a for a in b.sides_of("player") if a.get("qq_id") == "70112")
     enemy = b.sides_of("enemy")[0]
@@ -518,7 +582,7 @@ def test_13_target_picker():
 def test_14_team_heal_broadcast():
     print("【14. 5b G2 on_event：team=heal_all 全队广播（牧师救赎之光）】")
     from saintess_engine import Battle as B2
-    from game.commands import instance_battle as IB
+    from content.flow import instance_battle as IB
     # 双人副本：牧师 + 战士，战士残血
     st = mk_st([70121, 70122], enemy=mk_enemy(hp=5000, spd=1))
     # 换职业：70121 牧师（救赎之光 heal_all 技能）
@@ -535,9 +599,9 @@ def test_14_team_heal_broadcast():
     # 战士残血
     sn2 = st["players"]["70122"]
     sn2["hp"] = int(sn2.get("max_hp", 500) * 0.3)
-    IB.build_battle(st)
+    _build_battle(st)
     b = B2.from_state(st["battle"])
-    IB._attach_instance_hooks(b, st)
+    _attach_instance_hooks(b, st)
     # 确认 on_event 挂上
     check("on_event 已挂", b.on_event is not None)
     # 牧师打自己目标 = 治疗自己；heal_all 应广播到战士
@@ -551,9 +615,9 @@ def test_14_team_heal_broadcast():
     # 单人副本无队友 → 广播不崩
     st2 = mk_st([70123], enemy=mk_enemy(hp=5000, spd=1))
     st2["players"]["70123"]["class_name"] = "牧师"
-    IB.build_battle(st2)
+    _build_battle(st2)
     b2 = B2.from_state(st2["battle"])
-    IB._attach_instance_hooks(b2, st2)
+    _attach_instance_hooks(b2, st2)
     pa3 = next(a for a in b2.sides_of("player"))
     logs2, ended2, _who2 = b2.human_act("skill", "救赎之光", pa3)
     check("单人广播不崩", isinstance(logs2, list), str(logs2)[:60])
@@ -572,7 +636,7 @@ def test_15_multi_death_alive_sync():
     db.update_player(GID, "70132", hp=99999, max_hp=99999)
     # Boss hate_top 仇恨锁定 70131（先打死一个，验证单死场景）
     st["threat"] = {"70131": 99999, "70132": 0}
-    IB.build_battle(st)
+    _build_battle(st)
     inst = _Host()
     orig = _patch_current_members(["70131", "70132"])
     joined = ""

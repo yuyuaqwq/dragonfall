@@ -4,8 +4,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, make_player  # noqa: E402
-from data.plugins.dragonfall.main import Main  # noqa: E402
+from _engine_harness import C, db, clean_db, make_player  # noqa: E402
+from _engine_harness import Main  # noqa: E402
 
 passed = failed = 0
 
@@ -61,7 +61,7 @@ def main():
         if det is None:
             # 走 handler 路径（序号 1）
             import asyncio
-            from conftest import FakeEvent, run
+            from _engine_harness import FakeEvent, run
             ev = FakeEvent(g, q, "技能详情 1")
             _r = asyncio.run(run(m.skill_detail, ev))
             det = _r[0] if _r else ""

@@ -17,7 +17,28 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import C, db, clean_db, Main, FakeEvent, run, make_player  # noqa: E402
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run, make_player  # noqa: E402
+
+# `content.combat_cmds` 的探索期耦合（`_overlay` / `_attach_tlog` 注入槽）——见下。
+from _engine_harness import tlog_setup as _tlog_setup  # noqa: E402
+from content.tlog_collect import BattleTLog as _BattleTLog  # noqa: E402
+from content import combat_cmds as _combat_cmds  # noqa: E402
+_tlog_setup.disable()   # 未启用流水 → attach 零行为
+
+
+def _host_attach_tlog(b, *, btype="monster", player=None, enemies=None, seed=None):
+    """`game/services/battle_bridge.py::attach_tlog` 的测试侧同款（平台件，旧宿主薄壳）。"""
+    try:
+        tl = _tlog_setup.tlog()
+        if tl is None:
+            return b
+        _BattleTLog(tl).attach(b, btype=btype, seed=seed, player=player, enemies=enemies)
+    except Exception:                                            # noqa: BLE001
+        pass
+    return b
+
+
+_combat_cmds.bind_host(attach_tlog=_host_attach_tlog)
 
 passed = failed = 0
 G = 1095961596
@@ -56,7 +77,7 @@ async def _explore(m, qid, level, rnd, map_id="gold_plain"):
     被选中），探索会优先撞野王导致测试断言普通探索事件失败。本测试只关心等级差事件率，
     屏蔽野王保证确定性。
     """
-    from data.plugins.dragonfall.game.commands import combat as _combat_mod
+    from content import combat_cmds as _combat_mod
     clean_db()
     make_player(G, qid, "越级测试", "战士", level=level)
     db.update_player(G, qid, cur_map=map_id)  # cur_subarea 自动补首个子区域
@@ -84,15 +105,25 @@ async def main():
     clean_db()
     m = Main(None)
 
-    # 日期/环境依赖打桩：今日奇遇（event_chance 会扰动事件率探针）、野外 NPC 偶遇（日期轮换）
-    _orig_tde = C.today_event_effects
-    _orig_wild = C.roll_wild_encounter
-    C.today_event_effects = lambda map_id: {}
-    C.roll_wild_encounter = lambda *a, **k: None
-    # 越级事件命中 → 直接返回标记文本（不跑真实事件模板，防随机消耗与 DB 依赖）
-    _orig_hev = m._handle_explore_event
-    m._handle_explore_event = lambda *a, **k: (True, MARKER)
-    _orig_main = m._main_kill_target_on_map  # 副本分支用例会临时替换
+    # 日期/环境依赖打桩：今日奇遇（event_chance 会扰动事件率探针）、野外 NPC 偶遇（日期轮换）。
+    # ★ 终态打桩落点 = 包内命令模块 `content.combat_cmds`（见其 `_overlay` / `_wild_king`：
+    #   包内直取优先 + 命令模块属性覆写面）。
+    from content import combat_cmds as _cc
+    _orig_tde = _cc.today_event_effects
+    _orig_wild = _cc.roll_wild_encounter
+    _cc.today_event_effects = lambda map_id: {}
+    _cc.roll_wild_encounter = lambda *a, **k: None
+    # 越级事件命中 → 直接返回标记文本（不跑真实事件模板，防随机消耗与 DB 依赖）。
+    # ★ 终态打桩落点 = 包内模块函数本体（`_engine_harness.Main.__getattr__` 按
+    #   `fn.__module__ == 所属模块` 校验 ⇒ 必须先保存原函数再改绑，桩函数带 `_binds_shell` 签名）。
+    _orig_hev = _cc._handle_explore_event
+
+    def _hev_stub(self, *a, **k):
+        return (True, MARKER)
+
+    _hev_stub.__module__ = _cc.__name__
+    _cc._handle_explore_event = _hev_stub
+    _orig_main = _cc._main_kill_target_on_map  # 副本分支用例会临时替换
 
     try:
         print("【① 移动撞怪：普通图概率随等级差提升（金穗平原 lv30）】")
@@ -123,6 +154,9 @@ async def main():
         check("副本无群上下文跳过(不撞)", m._travel_ambush({"level": 10}, INSTANCE) is None)
         # 副本分支（有主线目标）diff=5：chance 仍为 0.30（本轮改动不动副本分支）
         m._main_kill_target_on_map = lambda g, q, cm: FAKE_MON
+        _mk_stub = lambda self, g, q, cm: FAKE_MON
+        _mk_stub.__module__ = _cc.__name__
+        _cc._main_kill_target_on_map = _mk_stub
         orig = random.random
         try:
             random.random = lambda: 0.29
@@ -153,10 +187,10 @@ async def main():
         out = await _explore(m, "zr_town", 30, 0.99, map_id="oak_town")
         check("城镇探索安全区文案", "安全的城镇" in out, out[:100])
     finally:
-        C.today_event_effects = _orig_tde
-        C.roll_wild_encounter = _orig_wild
-        m._handle_explore_event = _orig_hev
-        m._main_kill_target_on_map = _orig_main
+        _cc.today_event_effects = _orig_tde
+        _cc.roll_wild_encounter = _orig_wild
+        _cc._handle_explore_event = _orig_hev
+        _cc._main_kill_target_on_map = _orig_main
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     sys.exit(1 if failed else 0)

@@ -24,15 +24,13 @@ _shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
 if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
-from saintess_engine import config as _b2c
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from game.store.connection import init_db
-init_db()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()
 
-from game.core import drops as D
-from game import db
-from game.services import battle_bridge as BR
+from content import drops as D
+from _engine_harness import db
+from content import bridge as BR
 from saintess_engine import Battle as B2
+db.init_db()
 
 PASS = 0
 FAIL = 0

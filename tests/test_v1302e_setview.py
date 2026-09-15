@@ -12,11 +12,10 @@ import sys
 sys.path.insert(0, os.path.abspath("."))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from conftest import C, run, FakeEvent, clean_db
+from _engine_harness import C, run, FakeEvent, clean_db
 
-import data.plugins.dragonfall.game.db as db
-from data.plugins.dragonfall.main import Main
-from data.plugins.dragonfall.game.commands.economy import EconomyCmds
+from _engine_harness import db
+from _engine_harness import Main
 from content.catalog_items import EQUIP_ROSTER
 
 
@@ -29,7 +28,7 @@ async def main():
     clean_db()
     db.init_db()
     m = Main(None)
-    ec = EconomyCmds()
+    ec = m
     ok = True
 
     await run(m.register, FakeEvent("g1", "u1", "注册 测试战士 男"))

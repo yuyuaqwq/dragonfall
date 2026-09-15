@@ -34,8 +34,8 @@ import time
 import uuid as _uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent  # noqa: E402
-from data.plugins.dragonfall.game import content as _C  # noqa: E402
+from _engine_harness import C, db, clean_db, Main, FakeEvent  # noqa: E402
+from _engine_harness import C as _C  # noqa: E402  （原 game.content 聚合面 → 包内聚合门面）
 
 PASS = 0
 FAIL = 0
@@ -178,7 +178,7 @@ def scenario_a_normal_victory():
     clean_db()
     gid, qid = "gA", "qA"
     make_p = _player if False else None
-    from conftest import make_player
+    from _engine_harness import make_player
     player = make_player(gid, qid, "甲", "战士", 5)
     db.update_player(gid, qid, cur_map="oak_plain", cur_subarea="oak_plain_1", gold=50, exp=0)
     player = _player(gid, qid)
@@ -206,7 +206,7 @@ def scenario_b_elite_victory():
     print("\n【B. 精英怪胜利（声望/elite_kills）】")
     clean_db()
     gid, qid = "gB", "qB"
-    from conftest import make_player
+    from _engine_harness import make_player
     player = make_player(gid, qid, "乙", "战士", 6)
     db.update_player(gid, qid, cur_map="oak_plain", cur_subarea="oak_plain_6", gold=0, exp=0)
     player = _player(gid, qid)
@@ -228,7 +228,7 @@ def scenario_c_boss_victory_extra_kills():
     print("\n【C. Boss 胜利 + extra_kills 多目标任务进度】")
     clean_db()
     gid, qid = "gC", "qC"
-    from conftest import make_player
+    from _engine_harness import make_player
     player = make_player(gid, qid, "丙", "战士", 8)
     db.update_player(gid, qid, cur_map="oak_plain", cur_subarea="oak_plain_1", gold=100, exp=0)
     player = _player(gid, qid)
@@ -266,7 +266,7 @@ def scenario_d_hidden_monster_victory():
     print("\n【D. 隐藏怪胜利（hm_defeated 累计）】")
     clean_db()
     gid, qid = "gD", "qD"
-    from conftest import make_player
+    from _engine_harness import make_player
     player = make_player(gid, qid, "丁", "战士", 10)
     db.update_player(gid, qid, cur_map="oak_plain", cur_subarea="oak_plain_1", gold=0, exp=0)
     player = _player(gid, qid)
@@ -288,7 +288,7 @@ def scenario_e_pet_victory():
     print("\n【E. 宠物在场胜利（饱食度 -2/分经验）】")
     clean_db()
     gid, qid = "gE", "qE"
-    from conftest import make_player
+    from _engine_harness import make_player
     player = make_player(gid, qid, "戊", "战士", 5)
     db.update_player(gid, qid, cur_map="oak_plain", cur_subarea="oak_plain_1", gold=0, exp=0)
     db.pet_create(qid, "pet_wolf", "森林狼崽")
@@ -310,7 +310,7 @@ def scenario_f_defeat_normal():
     print("\n【F. 普通战败（-10% + 回城满血）】")
     clean_db()
     gid, qid = "gF", "qF"
-    from conftest import make_player
+    from _engine_harness import make_player
     player = make_player(gid, qid, "己", "战士", 30)
     db.update_player(gid, qid, cur_map="cinder_mountain", cur_subarea="cinder_mountain_3",
                      gold=1000, hp=10, mp=5, exp=0)
@@ -331,7 +331,7 @@ def scenario_g_defeat_redname():
     print("\n【G. 红名战败（额外 -10% 上限 2000）】")
     clean_db()
     gid, qid = "gG", "qG"
-    from conftest import make_player
+    from _engine_harness import make_player
     player = make_player(gid, qid, "庚", "战士", 30)
     db.set_event_state(f"red_{qid}", str(int(time.time()) + 3600))
     db.update_player(gid, qid, cur_map="misty_swamp", cur_subarea="misty_swamp_1",
@@ -352,7 +352,7 @@ def scenario_h_defeat_feather():
     print("\n【H. 复活羽毛战败（revive_choice json 结构）】")
     clean_db()
     gid, qid = "gH", "qH"
-    from conftest import make_player
+    from _engine_harness import make_player
     player = make_player(gid, qid, "辛", "战士", 30)
     db.add_item(gid, qid, "i_fu_huo_yu_mao",
                 {"name": "复活羽毛", "type": "消耗品", "stackable": True,

@@ -203,8 +203,21 @@ class EngineHarness(object):
             return self
         global _HARNESS
         _HARNESS = self            # ★ 先登记：`Main()` 构造期会回调 `harness()`（防递归重建）
+        # ★ 库路径**懒解析**（2026-09-15 修）：包侧 `content.persistence.handles.db_path()` 现在
+        # 要求「必须由宿主工厂注入」，不再回退 `db.DB_PATH`（R2 去 shim 的口径）；而测试里
+        # harness 可能在 conftest 设 `GWEN_GAME_DB` **之前**就构造好（构造期抓到 None ⇒ 注入 None
+        # ⇒ 包内取库时 RuntimeError）。故在 boot() 时再解析一次，并回落到 conftest 的 TEST_DB。
+        _dbp = self.db_path or os.environ.get("GWEN_GAME_DB")
+        if not _dbp:
+            try:
+                import conftest as _cf
+                _dbp = getattr(_cf, "TEST_DB", None)
+            except Exception:
+                _dbp = None
+        if _dbp:
+            self.db_path = _dbp
         inject = {
-            "db_path": self.db_path,
+            "db_path": _dbp,
             "clock": time.time,
             "log": logging.getLogger("dragonfall"),
             "flush_log": logging.getLogger("dragonfall").debug,
@@ -267,9 +280,19 @@ class EngineHarness(object):
         return key in (self._handlers or {})
 
     def declarations_for_static(self):
-        """`[(compiled_re, key)]` —— 引擎 `_find_handler` 的静态兜底表（包内声明为真源）。"""
+        """`[(compiled_re, key)]` —— 引擎 `_find_handler` 的静态兜底表（包内声明为真源）。
+
+        ★ 私有键（`_` 前缀，如平台停服 gate `_maint_gate`）**不进静态兜底表**：
+        旧宿主 `game/commands/base.py:163` 就是按 `name.startswith("_")` 显式跳过的，口径一致。
+        不收敛的后果（实测）：`_maint_gate` 的正则只有 At 前缀、无 `$` 锚定（设计上匹配一切消息），
+        而 `commands.json` 按字母序排 ⇒ 它落在静态表首位，在「首个命中即返回」的口径下**吃掉全部指令**
+        （`_run_shortcut` 静默返回空）⇒ 任何走 `_run_shortcut` / `shortcut_trigger` / `page_flip`
+        的测试族都会莫名其妙变红。收敛在这里，省掉每个测试各自补过滤。
+        """
         out = []
         for key, spec in (self._decls or {}).items():
+            if str(key).startswith("_"):        # ★ 私有 handler：不进静态命令面
+                continue
             for pat in (spec.get("patterns") or []):
                 try:
                     out.append((re.compile(pat), key))

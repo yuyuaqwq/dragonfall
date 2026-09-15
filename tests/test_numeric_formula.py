@@ -74,7 +74,7 @@ def test_resolve_formula_pure():
 
 def test_enemy_formula():
     print("【2. 敌方技能 formula（resolve_formula 直调）】")
-    from game import content as _C  # noqa: F401  宿主装配触发（包内源根入 sys.path；本文件无 conftest）
+    from _engine_harness import C as _C  # noqa: F401  测试侧入口（装配引擎通道；本文件无 conftest）
     from content.catalog_quests import MONSTER_SKILLS
     MONSTER_SKILLS["ms_test_fml"] = {
         "kind": "魔法", "power": 1.0,

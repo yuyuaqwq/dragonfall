@@ -33,7 +33,8 @@ def goto_goblin_entry(gid, *qids):
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, make_player, Main, FakeEvent, run  # noqa: E402
+from _engine_harness import C, db, clean_db, make_player, Main, FakeEvent, run  # noqa: E402
+from content.position import Position as _Position  # REPOINT_MAP: game.content.Position → content.position
 
 passed = failed = 0
 known_fail = []
@@ -100,7 +101,7 @@ def _cleanup_instance(m, gid, st):
 
 def check_position():
     print("【1. Position 结构体单测】")
-    P = C.Position
+    P = _Position
     # 隔离：直接构造独立大陆，避免与后面用例共享内存态
     _wid_tmp = C.create_instance_world("inst_goblin_camp", ["tmp"], {},
                                        now=int(time.time()), leader="tmp",
@@ -225,7 +226,7 @@ async def check_start_world(m):
     check("battle_state 镜像存在", b is not None and b["state"].get("type") == "instance", b)
     check("battle_state 镜像 world_id 同步", b is not None and b["state"].get("world_id") == wid, b)
     # 副本 Position resolve_map → 克隆大陆
-    posi = C.Position.from_player(db.get_player("g1", "q1"))
+    posi = _Position.from_player(db.get_player("g1", "q1"))
     rm = posi.resolve_map()
     check("副本 resolve_map 返回克隆地图", rm is not None and rm.get("id") == "goblin_camp", rm)
     check("副本 resolve_map 克隆非全局", rm is not C.MAP_BY_ID.get("goblin_camp"), "")
@@ -434,7 +435,7 @@ async def check_fail_destroy(m):
         db.save_battle("g1", "z1", _live)
     cur = (_live or st)["members"][0]
     try:
-        from game.commands import instance_battle as _IB
+        from content.flow import instance_battle as _IB
         nxt = _IB.next_actor_key(_live or st)
         if nxt:
             cur = nxt

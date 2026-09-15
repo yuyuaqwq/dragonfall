@@ -14,9 +14,15 @@ import sys
 import random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, make_player, Main
+from _engine_harness import C, db, clean_db, make_player, Main
 
-from data.plugins.dragonfall.game.commands.economy import EconomyCmds
+from _engine_harness import Main as EconomyCmds  # 原 game.commands.economy.EconomyCmds 壳 → 包内实现驱动口
+
+# `content.profession` 的 `bind_host(expand_pool=…)` 槽（旧宿主薄壳
+# `game/services/profession.py` 注入；终态无该薄壳）。REPOINT_MAP: game.drop_engine → content.loot。
+from content.loot import expand_pool as _expand_pool
+from content import profession as _profession_mod
+_profession_mod.bind_host(expand_pool=_expand_pool)
 
 FAILS = []
 
@@ -28,7 +34,7 @@ def check(name, cond, detail=""):
         print(f"  ✗ {name} {detail}")
 
 def main():
-    e = EconomyCmds.__new__(EconomyCmds)
+    e = EconomyCmds(None)
     # v98.1 数据下沉：采集池移到数据层（game/data/gather_pools.py）
     pools = C.GATHER_MAP_POOLS
 

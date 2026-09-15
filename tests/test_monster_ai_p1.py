@@ -25,13 +25,11 @@ sys.path.insert(0, os.path.join(_PLUGIN_DIR, "framework"))  # 引擎框架包（
 sys.path.insert(0, _PLUGIN_DIR)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
-from game.store.connection import init_db  # noqa: E402
-init_db()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402
 
-from game import content as C  # noqa: E402
-from game import db  # noqa: E402
+from _engine_harness import C  # noqa: E402
+from _engine_harness import db  # noqa: E402
+db.init_db()
 
 from saintess_engine import ai as AI  # noqa: E402
 from saintess_engine import Battle as B2  # noqa: E402
@@ -227,7 +225,7 @@ def test_6_weighted_dist():
 
 def test_7_actor_auto_real_monster():
     print("【7. actor_auto 端到端：真实咕噜 ai.weights 战斗自选技能】")
-    from game import content as C
+    from _engine_harness import C
     # 咕噜 MONSTER_MODS ai 数据
     src = C.MONSTER_MODS.get("b_goblin_chief", {}).get("ai") or {}
     check("真实 ai 数据存在", bool(src.get("weights")), str(src)[:120])

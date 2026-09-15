@@ -29,7 +29,7 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+from _engine_harness import boot as _eng_cfg; _eng_cfg()
 from saintess_engine import Battle as B2, make_actor  # noqa: E402
 from saintess_engine import actions as A  # noqa: E402
 from saintess_engine import landing as L  # noqa: E402
@@ -72,7 +72,7 @@ def mk_enemy(hp=99999, name="测试怪", atk=1, matk=1, **kw):
 
 def eat_food(battle, actor, aids):
     """走 battle_item_use.translate 吃料理（真实入口），返回 (logs, cast)。"""
-    from game.commands.battle_item_use import translate
+    from content.mech.item_use import translate
     return translate(battle, actor, f"foodfx:{','.join(aids)}")
 
 

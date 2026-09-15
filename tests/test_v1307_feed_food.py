@@ -25,9 +25,16 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import C, FakeEvent, clean_db, make_player  # noqa: E402
-from data.plugins.dragonfall.main import Main  # noqa: E402
-from data.plugins.dragonfall.game.commands._registry import COMMAND_REGEX  # noqa: E402
+from _engine_harness import C, FakeEvent, clean_db, make_player  # noqa: E402
+from _engine_harness import Main  # noqa: E402
+
+# 声明驱动正则表（原 `game.commands._registry.COMMAND_REGEX` 的终态取件口：
+# 声明真源 = 包内 `content/data/commands.json`，经驱动口装配为 `{key: 合并正则}`）。
+# ★ 剔除私有键 `_maint_gate`（停服 gate 不是指令；旧 `_host_handler_finder` 显式跳过
+#   `name.startswith("_")`）——理由见 test_v1304_use_batch.py 同段注释。
+from _engine_harness import harness as _harness  # noqa: E402
+COMMAND_REGEX = {k: rx.pattern for rx, k in _harness().declarations_for_static()
+                 if not k.startswith("_")}
 
 passed = failed = 0
 G, Q = 1095961597, "gm_t1307_feed"
@@ -45,15 +52,24 @@ def check(name, cond, detail=""):
 
 
 async def _cmd(m, cmd):
-    """注册表分发（与 test_v1304 同款，实测 MRO）"""
+    """注册表分发（与 test_v1304 同款，实测 MRO）
+
+    ★ 终态驱动口（`_engine_harness.Main`）对**声明表命中**的 key 给 async generator、
+    对包内实现类方法给 coroutine —— 两种都收（旧宿主壳统一是 async generator）。
+    """
     ev = FakeEvent(G, Q, cmd)
     for key, pat in COMMAND_REGEX.items():
         if re.match(pat, cmd):
             fn = getattr(m, key, None)
             if fn:
+                gen = fn(ev)
                 out = []
-                async for r in fn(ev):
-                    out.append(r)
+                if hasattr(gen, "asend"):
+                    async for r in gen:
+                        out.append(r)
+                else:
+                    r = await gen
+                    out = list(r) if isinstance(r, (list, tuple)) else ([r] if r else [])
                 if out and isinstance(out[0], tuple):
                     return out[0][1]
                 return str(out[0]) if out else ""
@@ -62,7 +78,7 @@ async def _cmd(m, cmd):
 
 
 def _held(key):
-    from data.plugins.dragonfall.game import db
+    from _engine_harness import db
     for it in db.get_inventory(G, Q):
         if it["key"] == key:
             return it["count"]
@@ -71,7 +87,7 @@ def _held(key):
 
 def _seal(satiety=100):
     """建号 + 孵宠 + 背包：2 铁锭 / 藏宝图 / 船票 / 月光草(草药) / 烤兽肉 / 宠物口粮 / 银鳞鱼"""
-    from data.plugins.dragonfall.game import db
+    from _engine_harness import db
     make_player(G, Q, "喂食测试", "战士", level=1)
     db.pet_create(Q, PET_KEY, "森林狼崽")
     db.pet_update(Q, satiety=satiety, bond=0, exp=0)
@@ -84,7 +100,7 @@ def _seal(satiety=100):
 
 
 async def main():
-    from data.plugins.dragonfall.game import db
+    from _engine_harness import db
     m = Main()
 
     # ---- 拒：材料类非食物 ----

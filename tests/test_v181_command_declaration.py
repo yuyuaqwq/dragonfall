@@ -63,6 +63,27 @@ def load_registry_module():
     return mod
 
 
+_PKG_SPEC = os.path.join(
+    PLUGIN_DIR, "framework", "games", "orlandia", "content", "data", "commands.json")
+
+
+def _pkg_registry():
+    """包内真源声明表构建的框架注册表（旧宿主 `_declared.registry()` 的终态等价物）。"""
+    from saintess_engine.command import CommandRegistry
+    with open(_PKG_SPEC, encoding="utf-8") as f:
+        data = json.load(f)
+    return CommandRegistry.from_data(data, name="orlandia.commands")
+
+
+def _pkg_catalog():
+    """`{分类: [声明, ...]}`（仅 visible，按 order）——旧 `_declared.catalog()` 的终态等价物。"""
+    reg = _pkg_registry()
+    out = {}
+    for spec in reg.visible():
+        out.setdefault(spec.category or "其他", []).append(spec)
+    return out
+
+
 def scan_declared_usages():
     """AST 扫 `@declared("key")` → {方法名: key}。"""
     found = {}
@@ -110,12 +131,14 @@ def test_2_derivation_faithful():
             bad.append((k, reg.COMMAND_REGEX.get(k), want))
     check(f"有效表 {len(specs)} 条声明与声明值逐字一致", not bad, bad[:2])
 
-    from game.commands import _declared as D
-    bad2 = [(k, D.registry().get(k).combined(), reg.COMMAND_REGEX.get(k))
-            for k in specs if D.registry().get(k).combined() != reg.COMMAND_REGEX.get(k)]
+    # ★ 终态：`@declared` 用的正则 = 从**包内真源**直接构建的框架注册表逐 key 合并串
+    #   （旧宿主 `_declared.registry()` 已删；引擎 `CommandRegistry.from_data` 是同一实现）。
+    D = _pkg_registry()
+    bad2 = [(k, D.get(k).combined(), reg.COMMAND_REGEX.get(k))
+            for k in specs if D.get(k).combined() != reg.COMMAND_REGEX.get(k)]
     check("`@declared` 注册用的正则 == 有效表该 key", not bad2, bad2[:2])
     check("声明表通过 CommandRegistry.validate（无空正则/非法正则/共用正则）",
-          D.registry().validate() == [], D.registry().validate())
+          _pkg_registry().validate() == [], _pkg_registry().validate())
 
 
 def test_3_combine_semantics():
@@ -132,21 +155,22 @@ def test_3_combine_semantics():
 
 def test_4_drift_both_ways():
     print("【4. 漂移自检双向干净：声明表 ↔ @declared 实际使用】")
-    from game.commands import _declared as D
+    D = _pkg_registry()
     used = scan_declared_usages()
     check("扫到 @declared 使用点（非空即证明迁移真的接上了）", len(used) > 0, used)
     check("方法名与声明的 key 一致（@declared(\"key\") 的 key 就是方法名惯例）",
           all(method == key for method, key in used.items()),
           {m: k for m, k in used.items() if m != k})
-    au = D.registry().audit_handlers(list(used.values()))
+    au = D.audit_handlers(list(used.values()))
     check("无「用了没声明」（missing_spec 为空）", au["missing_spec"] == [], au)
     check("无「声明了没用」（missing_handler 为空）", au["missing_handler"] == [], au)
     check("audit 总体 ok", au["ok"] is True, au)
+    _cat = _pkg_catalog()
     check("catalog 按分类给可见声明（desc/category/order 有消费者）",
-          bool(D.catalog()) and all(
-              [s.key for s in v] == sorted([s.key for s in v], key=lambda k: D.registry().get(k).order)
-              for v in D.catalog().values()),
-          {k: [s.key for s in v] for k, v in D.catalog().items()})
+          bool(_cat) and all(
+              [s.key for s in v] == sorted([s.key for s in v], key=lambda k: D.get(k).order)
+              for v in _cat.values()),
+          {k: [s.key for s in v] for k, v in _cat.items()})
 
 
 def test_5_editor_editable():

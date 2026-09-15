@@ -19,8 +19,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 _DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_v1303_feedback_fixes.db")
 os.environ["GWEN_GAME_DB"] = _DB
 
-from conftest import C, FakeEvent, clean_db  # noqa: E402
-from data.plugins.dragonfall.main import Main  # noqa: E402
+from _engine_harness import C, FakeEvent, clean_db  # noqa: E402
+from _engine_harness import Main  # noqa: E402
+from _engine_harness import harness as _harness  # noqa: E402
+# 声明驱动正则表（原 `game.commands._registry.COMMAND_REGEX` 的终态取件口）；
+# 私有 gate 键不进命令表（旧 `_host_handler_finder` 显式跳过 `name.startswith("_")`）。
+COMMAND_REGEX = {k: rx.pattern for rx, k in _harness().declarations_for_static()
+                 if not k.startswith("_")}
 
 passed = failed = 0
 G, Q = 1095961596, "gm_t1303"
@@ -44,16 +49,20 @@ async def _exec(m, cmd):
 
 
 async def _direct(m, cmd):
-    # 按注册表找 handler 并调用（模拟分发）
-    from data.plugins.dragonfall.game.commands._registry import COMMAND_REGEX
-    from data.plugins.dragonfall.game.commands import __init__ as _cinit
+    # 按声明表找 handler 并调用（模拟分发）
     ev = FakeEvent(G, Q, cmd)
     for key, pat in COMMAND_REGEX.items():
         if re.match(pat, cmd):
             fn = getattr(m, key, None)
             if fn and key != "monster":
-                async for r in fn(ev):
-                    yield r
+                gen = fn(ev)
+                if hasattr(gen, "asend"):
+                    async for r in gen:
+                        yield r
+                else:
+                    r = await gen
+                    for x in (r or []):
+                        yield x
             return
     yield ("", "")
 
@@ -62,7 +71,7 @@ async def main():
     global passed, failed
     print("===== v130.3 意见箱闭环 =====\n")
     clean_db()
-    m = Main()
+    m = Main(None)
 
     # 注册角色
     out0 = []
@@ -117,13 +126,15 @@ async def main():
     check("采集 on_expire 回调", "_prof_wait_expire_cb" in src_eco2)
 
     # ⑤ 技能详情📈（v134.5 重构为「📈 数值成长：」逐级数值；v139 同步断言）
-    src_pl = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "commands", "player.py"), encoding="utf-8").read()
+    # 终态：玩家命令实现体在包内 `content/player_cmds.py`（旧宿主壳已薄壳化）
+    src_pl = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                               "framework", "games", "orlandia", "content",
+                               "player_cmds.py"), encoding="utf-8").read()
     check("技能详情📈当前效果", "📈" in src_pl and ("当前效果" in src_pl or "数值成长" in src_pl))
 
     # ⑥ 注册表同步
-    from data.plugins.dragonfall.game.commands._registry import COMMAND_REGEX
     check("注册表含『怪物』键", "monster" in COMMAND_REGEX)
-    check("handler 与注册表同名", hasattr(Main, "monster"))
+    check("handler 与注册表同名", hasattr(Main(None), "monster"))
 
     print(f"\n===== 结果: {passed} 通过, {failed} 失败 =====")
 

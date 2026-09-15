@@ -38,9 +38,9 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.join(_PLUGIN_DIR, "tests", "test_g
 
 import random  # noqa: E402
 
-from data.plugins.dragonfall.game import content as C  # noqa: E402
-from data.plugins.dragonfall.game.content_rules.panel import player_final_stats  # noqa: E402
-from data.plugins.dragonfall.game.services.battle_bridge import (  # noqa: E402
+from _engine_harness import C  # noqa: E402
+from content.panel import player_final_stats  # noqa: E402
+from content.bridge import (  # noqa: E402
     apply_battle_loadout, build_sides, prepare_player_for_battle,
 )
 from saintess_engine import Battle as B2  # noqa: E402

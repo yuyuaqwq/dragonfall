@@ -32,8 +32,24 @@ os.environ["GWEN_GAME_DB"] = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "test_v123_page_flip.db")
 os.environ["GWEN_TEST_MODE"] = "1"
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import db, FakeEvent, run, clean_db, make_player  # noqa: E402
-from data.plugins.dragonfall.main import Main  # noqa: E402
+from _engine_harness import db, FakeEvent, run, clean_db, make_player  # noqa: E402
+from _engine_harness import Main  # noqa: E402
+from _engine_harness import harness as _harness  # noqa: E402
+
+# ★ 终态驱动口的静态表口径修正（**待主线修 `_engine_harness.py`**）：
+# `HostShell._build_static_handlers()` 直接取包内声明表全文（`content/data/commands.json`
+# 按字母序），于是**平台停服 gate** `_maint_gate` 落在第 0 位 —— 它的正则只有 At 前缀、
+# 无 `$` 锚定（设计上匹配一切消息），在 `saintess_engine.command.router.find_static`
+# 「首个命中即返回」的口径下把**全部指令**都吃掉了（`_run_shortcut` 静默返回空）。
+# 旧宿主 `_host_handler_finder` 是按 `name.startswith("_")` **显式跳过**私有 handler 的
+# （见 `game/commands/base.py:163`），测试侧的静态表兜底也应同口径。
+# 本文件按同一口径把私有键从静态表剔除（命令面一字未减：194 键 → 193 键，只少 gate）。
+def _static_without_private():
+    return [(rx, k) for rx, k in _harness().declarations_for_static()
+            if not k.startswith("_")]
+
+
+Main._static_source = staticmethod(_static_without_private)
 
 passed = failed = 0
 

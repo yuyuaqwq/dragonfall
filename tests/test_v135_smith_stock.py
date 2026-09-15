@@ -16,11 +16,11 @@ import json
 import random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import FakeEvent, run, clean_db, make_player, new_main, TEST_DB, PLUGIN_DIR
+from _engine_harness import FakeEvent, run, clean_db, make_player, new_main, TEST_DB, PLUGIN_DIR
 
-from data.plugins.dragonfall.game import content as C, db
-from data.plugins.dragonfall.game.core import smith_stock as ss
-from data.plugins.dragonfall.game.commands import economy as eco_mod
+from _engine_harness import C, db
+from content import smith_stock as ss
+from content import economy_cmds as eco_mod
 
 PASS = 0
 FAIL = 0

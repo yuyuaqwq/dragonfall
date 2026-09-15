@@ -30,7 +30,7 @@ if os.path.isdir(_shim) and _shim not in sys.path:
     sys.path.insert(0, _shim)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()  # noqa: E402
+from _engine_harness import boot as _eng_cfg; _eng_cfg()  # noqa: E402
 
 PASS = 0
 FAIL = 0
@@ -49,7 +49,7 @@ def check(name, cond, detail=""):
 
 
 def mk_player(cls="战士", level=10, hp_ratio=0.5, mp_ratio=1.0, race=None):
-    from game.content_rules.panel import player_final_stats
+    from content.panel import player_final_stats
     from saintess_engine import make_actor
     st = player_final_stats(cls, level, {}, 0, {}, 1)
     return make_actor(uid="p_q1", name="测试勇者", side="player", kind="player",
@@ -72,7 +72,7 @@ def mk_battle(p):
 
 def test_heal_direct():
     print("【I2.1 heal 纯数字：绝对恢复 + 日志 + clamp】")
-    from game.commands.battle_item_use import translate
+    from content.mech.item_use import translate
     p = mk_player(hp_ratio=0.5)
     b = mk_battle(p)
     hp0 = p["hp"]
@@ -87,7 +87,7 @@ def test_heal_direct():
 
 def test_heal_race_bonus():
     print("【I2.2 heal 半身人(halfling) race item_effect +10%】")
-    from game.commands.battle_item_use import translate
+    from content.mech.item_use import translate
     # 半身人 race_stats item_effect=0.10 → 123 → 135（clamp max_hp）
     p = mk_player(hp_ratio=0.3, race="halfling")
     b = mk_battle(p)
@@ -100,7 +100,7 @@ def test_heal_race_bonus():
 
 def test_mana_hm():
     print("【I2.3 mana:N + hm:hp,mp（clamp 上限）】")
-    from game.commands.battle_item_use import translate
+    from content.mech.item_use import translate
     p = mk_player(hp_ratio=0.5, mp_ratio=0.5)
     b = mk_battle(p)
     mp0 = p["mp"]
@@ -118,7 +118,7 @@ def test_mana_hm():
 
 def test_buff_effect_actions():
     print("【I2.4 buff:k → EFFECT_ACTIONS 查表（actor.buffs 结构化）】")
-    from game.commands.battle_item_use import translate
+    from content.mech.item_use import translate
     p = mk_player(hp_ratio=1.0)
     b = mk_battle(p)
     logs, cast = translate(b, p, "buff:atk_up")
@@ -139,7 +139,7 @@ def test_buff_effect_actions():
 
 def test_hot_container():
     print("【I2.5 hot → effects[\"regen_hot\"] period 声明（V 系列统一）】")
-    from game.commands.battle_item_use import translate
+    from content.mech.item_use import translate
     p = mk_player(hp_ratio=0.5)
     b = mk_battle(p)
     logs, cast = translate(b, p, "hot:0.05,0.10,3")
@@ -159,7 +159,7 @@ def test_hot_container():
 
 def test_special_next_atk_up():
     print("【I2.6 special:next_atk_up → hit buff】")
-    from game.commands.battle_item_use import translate
+    from content.mech.item_use import translate
     p = mk_player(hp_ratio=1.0)
     b = mk_battle(p)
     logs, cast = translate(b, p, "special:next_atk_up")
@@ -172,7 +172,7 @@ def test_special_next_atk_up():
 
 def test_special_cc_immune():
     print("【I2.7 special:cc_immune → 纯状态 buff】")
-    from game.commands.battle_item_use import translate
+    from content.mech.item_use import translate
     p = mk_player(hp_ratio=1.0)
     b = mk_battle(p)
     logs, cast = translate(b, p, "special:cc_immune")
@@ -181,7 +181,7 @@ def test_special_cc_immune():
 
 def test_special_shield():
     print("【I2.8 special:shield_big → 盾动词（effect_data json 数值）】")
-    from game.commands.battle_item_use import translate
+    from content.mech.item_use import translate
     p = mk_player(hp_ratio=0.5)
     b = mk_battle(p)
     mx = p["max_hp"]
@@ -196,7 +196,7 @@ def test_special_shield():
 
 def test_special_gap_none():
     print("【I2.9 机制型缺口（summon/trap）→ None 不消费】")
-    from game.commands.battle_item_use import translate
+    from content.mech.item_use import translate
     p = mk_player(hp_ratio=1.0)
     b = mk_battle(p)
     r = translate(b, p, "special:summon")
@@ -207,7 +207,7 @@ def test_special_gap_none():
 
 def test_foodfx():
     print("【I2.10 foodfx → food_effects 容器 + shield 特判】")
-    from game.commands.battle_item_use import translate
+    from content.mech.item_use import translate
     p = mk_player(hp_ratio=1.0)
     b = mk_battle(p)
     logs, cast = translate(b, p, "foodfx:regen,meditate")
@@ -227,7 +227,7 @@ def test_foodfx():
 
 def test_cast_suffix():
     print("【I2.11 cast 尾缀解析】")
-    from game.commands.battle_item_use import translate
+    from content.mech.item_use import translate
     p = mk_player(hp_ratio=0.5)
     b = mk_battle(p)
     logs, cast = translate(b, p, "123;cast:2.0")
@@ -243,7 +243,7 @@ def test_cast_suffix():
 def test_override_end_to_end():
     print("【I2.12 端到端：action_override 接线翻译器（战斗内喝药）】")
     from saintess_engine import Battle
-    from game.commands.battle_item_use import translate as _tr
+    from content.mech.item_use import translate as _tr
     p = mk_player(hp_ratio=0.4)
     e = {"uid": "e_0", "name": "木桩", "side": "enemy", "kind": "monster",
          "hp": 99999, "max_hp": 99999, "atk": 0, "def": 0, "matk": 0, "mdef": 0,
@@ -277,8 +277,8 @@ def test_purify():
     print("【I5.1 purify：模板判定 + 翻译器清除（saintess_engine effects 负面）】")
     from saintess_engine import Battle
     from saintess_engine.battle.effects import apply_effects
-    from game.commands.battle_item_use import translate as _tr
-    from game.core.item_templates import tpl_purify, ItemContext, _b2_has_purifiable
+    from content.mech.item_use import translate as _tr
+    from content.item_templates import tpl_purify, ItemContext, _b2_has_purifiable
     # 玩家带负面（stun 控制 + sleep 不可净化 + atk_up 正面）
     p = mk_player(hp_ratio=0.9)
     e = {"uid": "e_0", "name": "木桩", "side": "enemy", "kind": "monster",

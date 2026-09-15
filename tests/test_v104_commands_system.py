@@ -29,7 +29,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, Main, FakeEvent, run, clean_db  # noqa: E402
+from _engine_harness import C, db, Main, FakeEvent, run, clean_db  # noqa: E402
 
 passed = failed = 0
 findings = []  # 发现的真实问题（不阻断 exit=0，写入报告）
@@ -182,7 +182,10 @@ async def test_move_alias(m):
     # v115 探索见闻：首次到达 oak_town_2 会附加首访奖励文本，使先执行的那次『前往 1』
     # 与复位后『移动 1』回复不一致（前者首访、后者非首访）。预写 visited_subareas 让
     # 两次 alias 调用均为非首访（回复等价），保留"别名回复等价"断言意图。
-    C.exploration_record_visit("g1", "q4", "oak_town", "oak_town_2")
+    # `game.content.exploration_record_visit` 的包内真源 = `content.exploration.record_visit`
+    # （REPOINT_MAP §2；包内聚合门面 C 未导出该名）
+    from content.exploration import record_visit as _record_visit
+    _record_visit("g1", "q4", "oak_town", "oak_town_2")
     before = db.get_player("g1", "q4")["cur_subarea"]  # 起点（期望 ≠ 移动后落点）
     out1, hits1 = await dispatch(m, "g1", "q4", "前往 1")
     land1 = db.get_player("g1", "q4")["cur_subarea"]   # 『前往 1』落点
@@ -205,7 +208,7 @@ async def test_move_alias(m):
 # ================= 5. 停服 gate =================
 async def test_maint_gate(m):
     print("【5. 停服 gate 键补全（v104 M24 P1 修复）】")
-    from data.plugins.dragonfall.game.commands.base import _GameCmdFilter
+    from _engine_harness import GameCmdFilter as _GameCmdFilter
     clean_db()
     gf = _GameCmdFilter()
     db.set_event_state("server_maintenance", "1")
@@ -265,12 +268,16 @@ def test_command_matrix():
 # ================= 7. 帮助补全 =================
 async def test_help(m):
     print("【7. 帮助补全（v104 P3 M24 修复）】")
-    from data.plugins.dragonfall.game.commands.misc import MiscCmds
+    from content.misc_cmds import CMD_HELP, CMD_HELP_CHAR, CMD_HELP_ADV
+    from content.misc_cmds import (
+        CMD_HELP_BATTLE, CMD_HELP_SKILL, CMD_HELP_PROF, CMD_HELP_ITEM,
+        CMD_HELP_INSTANCE, CMD_HELP_SOCIAL, CMD_HELP_WORLD, CMD_HELP_OTHER,
+    )
     all_help = "\n".join([
-        MiscCmds.CMD_HELP, MiscCmds.CMD_HELP_CHAR, MiscCmds.CMD_HELP_ADV,
-        MiscCmds.CMD_HELP_BATTLE, MiscCmds.CMD_HELP_SKILL, MiscCmds.CMD_HELP_PROF,
-        MiscCmds.CMD_HELP_ITEM, MiscCmds.CMD_HELP_INSTANCE, MiscCmds.CMD_HELP_SOCIAL,
-        MiscCmds.CMD_HELP_WORLD, MiscCmds.CMD_HELP_OTHER,
+        CMD_HELP, CMD_HELP_CHAR, CMD_HELP_ADV,
+        CMD_HELP_BATTLE, CMD_HELP_SKILL, CMD_HELP_PROF,
+        CMD_HELP_ITEM, CMD_HELP_INSTANCE, CMD_HELP_SOCIAL,
+        CMD_HELP_WORLD, CMD_HELP_OTHER,
     ])
     # v114.6 帮助精简：主面板只排系统标题；副本内指令/接取/转职重置收录在对应分类子面板
     for kw in ["编年史", "移动", "位置", "赶路", "转职重置", "副本地图", "荣誉", "交互",
@@ -302,7 +309,7 @@ async def test_delete_account_cleanup(m):
     db.set_event_state("talk_g1_q8", "xxx")
     db.set_event_state(f"del_confirm_{'q8'}", str(int(time.time())))
     db.set_event_state("server_maintenance", "1")  # 全局键，必须保留
-    conn = sqlite3.connect(db.DB_PATH)
+    conn = sqlite3.connect(db.db_path())
     try:
         conn.execute("INSERT INTO props_use (qq_id, used) VALUES (?,?)", ("q8", "{}"))
         conn.execute("INSERT INTO pet_dex (qq_id, pet_key, hatched) VALUES (?,?,?)",
@@ -321,7 +328,7 @@ async def test_delete_account_cleanup(m):
         check(f"event_state『{key}』已清理", db.get_event_state(key) is None,
               f"残留={db.get_event_state(key)}")
     check("全局键 server_maintenance 保留", db.get_event_state("server_maintenance") == "1", "")
-    conn = sqlite3.connect(db.DB_PATH)
+    conn = sqlite3.connect(db.db_path())
     try:
         n_props = conn.execute("SELECT COUNT(*) FROM props_use WHERE qq_id='q8'").fetchone()[0]
         n_dex = conn.execute("SELECT COUNT(*) FROM pet_dex WHERE qq_id='q8'").fetchone()[0]

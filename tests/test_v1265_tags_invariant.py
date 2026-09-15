@@ -12,13 +12,21 @@
 """
 import sys, os, json, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run
-from data.plugins.dragonfall.game.store.inventory import _snapshot_one
-from data.plugins.dragonfall.game.store.social import (
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run
+from content.persistence.inventory import _snapshot_one
+from content.persistence.social import (
     market_sell_atomic, market_buy_atomic, market_stall_sell_atomic,
     market_exchange_atomic,
 )
-from data.plugins.dragonfall.game.store.world import home_storage_deposit_atomic, home_storage_take_atomic
+from content.persistence.world import home_storage_deposit_atomic, home_storage_take_atomic
+
+# 包内产出池展开口（REPOINT_MAP: game.drop_engine → content.loot）。
+# `content.profession` 的 `bind_host(expand_pool=…)` 槽在旧宿主薄壳
+# `game/services/profession.py` 里注入；终态无该薄壳（其 `_resolve_host("drop_engine")`
+# 只认 `sys.modules` 里已加载的宿主模块），故在测试侧补回同一注入（公开注入槽，非自造映射）。
+from content.loot import expand_pool as _expand_pool
+from content import profession as _profession_mod
+_profession_mod.bind_host(expand_pool=_expand_pool)
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -143,7 +151,7 @@ async def main():
     c6, t6 = inv_count_tags("g1", "w2", key)
     check("摆摊后卖家 2 条 2 tags", c6 == 2 and t6 == 2, f"count={c6} tags={t6}")
     removed = db.market_remove_by_seller("g1", "w2")
-    import data.plugins.dragonfall.game.store.inventory as _inv
+    import content.persistence.inventory as _inv
     for s in removed:
         db.add_item("g1", "w2", s["item_key"], _snapshot_one(s["item_data"]), count=1)
     c7, t7 = inv_count_tags("g1", "w2", key)

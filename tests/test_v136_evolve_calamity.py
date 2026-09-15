@@ -15,9 +15,9 @@ import random
 os.environ.setdefault("GWEN_GAME_DB", os.path.abspath("test_v136_evolve_calamity.db"))
 sys.path.insert(0, "tests")
 
-from conftest import clean_db, make_player, Main, FakeEvent, run  # noqa: E402
-from data.plugins.dragonfall.game import content as C, db  # noqa: E402
-from data.plugins.dragonfall.game.content_rules.panel import player_stats_detail as E_player_stats_detail  # noqa: E402
+from _engine_harness import clean_db, make_player, Main, FakeEvent, run  # noqa: E402
+from _engine_harness import C, db  # noqa: E402
+from content.panel import player_stats_detail as E_player_stats_detail  # noqa: E402
 
 g = "g_evo"
 q = "q_evo"

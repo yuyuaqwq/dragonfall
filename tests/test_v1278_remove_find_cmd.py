@@ -9,7 +9,7 @@
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -31,11 +31,15 @@ async def main():
     m = Main(None)
 
     print("【1. 『找』不再对外注册】")
-    from data.plugins.dragonfall.game.commands._registry import COMMAND_REGEX
+    from _engine_harness import harness as _harness
+    COMMAND_REGEX = {k for _rx, k in _harness().declarations_for_static()}
     check("注册表无 find_npc 键", "find_npc" not in COMMAND_REGEX, str("find_npc" in COMMAND_REGEX))
     import inspect
-    src = inspect.getsource(type(m).find_npc)
-    check("find_npc 无 @filter.regex 装饰器", "@filter.regex" not in src, "@filter.regex 残留")
+    # 终态实现体在包内 `content.world_cmds.py`（旧宿主壳已薄壳化）
+    from content.world_cmds import _find_npc_in_map as _find_npc_impl
+    src = inspect.getsource(_find_npc_impl)
+    check("find_npc 无 @filter.regex 装饰器", "@filter.regex" not in src and "@declared" not in src,
+          "@filter.regex 残留")
 
     print("【2. 无会话『对话 <名字>』找 NPC 开始对话（保留）】")
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")

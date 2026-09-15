@@ -16,15 +16,15 @@ os.environ.setdefault("GWEN_GAME_DB", os.path.abspath("test_v136_gems.db"))
 sys.path.insert(0, "tests")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 插件根目录（脚本直跑）
 
-# ⚠️ 导入顺序铁律：第一个必须 import game.content（data→core→content 标准完整路径，
-# 否则 game.core.dialogue 顶层 `from .. import content` 会在 data/core 部分初始化时
-# 抢先缓存一份残缺 content（缺 gems 聚合符号），后续 C.roll_gem 永久缺失）
-from game import content as C  # noqa: E402
-from game.content import GEM_TIERS, GEM_STATS, GEM_SOCKETS, GEM_TIER_NAMES  # ★ B16-W11d
-from game.content import GEM_DRILL, GEM_REMOVE_COST, RUNE_REMOVE_COST  # ★ B16-W11d
-from game.content import GEM_LEGENDARY_EFFECTS, GEM_DROP_RATE, GEM_DROP_TIER, GEM_BOSS_FIXED  # ★ B16-W11d
-from game.core import roll_gem, gem_combine, gem_socket_cost, sockets_capacity  # noqa: E402
-from game.content_rules.panel import player_stats_detail
+# ⚠️ 导入顺序铁律：先用测试侧入口装配引擎通道（包源根入 sys.path），再取包内真源；
+# 否则包内模块图部分初始化时会缓存残缺面（缺 gems 聚合符号）。
+from _engine_harness import C  # noqa: E402
+from content.gems import GEM_TIERS, GEM_STATS, GEM_SOCKETS, GEM_TIER_NAMES  # noqa: E402
+from content.catalog_b143 import GEM_DRILL, RUNE_REMOVE_COST  # noqa: E402  （REPOINT_MAP: game.data.gems 常量 → catalog_b143）
+from content.gems import GEM_REMOVE_COST  # noqa: E402
+from content.gems import GEM_LEGENDARY_EFFECTS, GEM_DROP_RATE, GEM_DROP_TIER, GEM_BOSS_FIXED  # noqa: E402
+from content.gems import roll_gem, gem_combine, gem_socket_cost, sockets_capacity  # noqa: E402
+from content.panel import player_stats_detail
 
 
 def _mk_gem(stats, tier):

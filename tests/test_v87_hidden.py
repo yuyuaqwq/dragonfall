@@ -10,7 +10,7 @@
 """
 import sys, os, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db
+from _engine_harness import C, db, clean_db
 
 passed = failed = 0
 
@@ -71,13 +71,14 @@ def main():
 
     # ===== 3. POI 触发 =====
     print("  · POI 触发")
+    from content.pois import roll_poi  # 包内真源（REPOINT_MAP: game.core.roll_poi → content.pois）
     random.seed(1)
-    hit = C.roll_poi("g", "q", "oak_town", "oak_town_1", chance=1.0)
+    hit = roll_poi("g", "q", "oak_town", "oak_town_1", chance=1.0)
     check("roll_poi 必中返回 POI", hit is not None and hit[0] in C.POIS)
     random.seed(2)
-    miss = C.roll_poi("g", "q", "oak_town", "oak_town_1", chance=0.0)
+    miss = roll_poi("g", "q", "oak_town", "oak_town_1", chance=0.0)
     check("roll_poi 0% 概率返回 None", miss is None)
-    nopoi = C.roll_poi("g", "q", "oak_town", "oak_town_2", chance=1.0)
+    nopoi = roll_poi("g", "q", "oak_town", "oak_town_2", chance=1.0)
     check("无 POI 子区域返回 None", nopoi is None)
 
     # ===== 4. 探索彩蛋扩充 =====
@@ -103,7 +104,7 @@ def main():
 
     # ===== 5. 探索点显示（_map_scene 包含 POI）=====
     print("  · 探索点显示")
-    from data.plugins.dragonfall.main import Main
+    from _engine_harness import Main
     inst = Main.__new__(Main)
     player = {"qq_id": "q", "cur_subarea": "oak_town_1"}
     cur_map = C.MAP_BY_ID["oak_town"]

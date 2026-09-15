@@ -16,8 +16,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 _DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_v1305_skill_tip.db")
 os.environ["GWEN_GAME_DB"] = _DB
 
-from conftest import C, clean_db, make_player  # noqa: E402
-from data.plugins.dragonfall.main import Main  # noqa: E402
+from _engine_harness import C, clean_db, make_player  # noqa: E402
+from _engine_harness import Main  # noqa: E402
 
 passed = failed = 0
 G, Q = 1095961596, "gm_t1305"

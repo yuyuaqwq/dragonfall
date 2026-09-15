@@ -13,9 +13,9 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import FakeEvent, run, clean_db, make_player, new_main
+from _engine_harness import FakeEvent, run, clean_db, make_player, new_main
 
-from data.plugins.dragonfall.game import content as C, db
+from _engine_harness import C, db
 
 PASS = 0
 FAIL = 0

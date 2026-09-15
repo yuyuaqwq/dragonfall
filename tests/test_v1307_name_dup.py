@@ -14,8 +14,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import db, FakeEvent, run, clean_db  # noqa: E402
-from data.plugins.dragonfall.main import Main  # noqa: E402
+from _engine_harness import db, FakeEvent, run, clean_db  # noqa: E402
+from _engine_harness import Main  # noqa: E402
 
 passed = failed = 0
 

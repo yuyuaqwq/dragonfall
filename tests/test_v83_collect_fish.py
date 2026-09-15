@@ -9,9 +9,9 @@ sys.path.insert(0, os.path.join(PLUGIN_DIR, "tests"))
 # v105 R3 修复：原路径计算错误（多拼一层 data/），且 conftest 已 setdefault 正确 TEST_DB，这里不再手动设置
 # os.environ["GWEN_GAME_DB"] = os.path.join(PLUGIN_DIR, "test_game_data.db")
 
-from conftest import clean_db, make_player  # noqa: E402
-from data.plugins.dragonfall.game import content as C, db  # noqa: E402
-from data.plugins.dragonfall.main import Main  # noqa: E402
+from _engine_harness import clean_db, make_player  # noqa: E402
+from _engine_harness import C, db  # noqa: E402
+from _engine_harness import Main  # noqa: E402
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -38,22 +38,25 @@ async def main():
     db.set_event_state(f"prof_wait_w1", json.dumps(st, ensure_ascii=False))
 
     # 强制彩蛋命中：monkeypatch roll_collect_fish
-    orig = C.roll_collect_fish
+    # ★ 终态打桩落点 = 包内真源模块 `content.fishing`（`content/facade.py::_NAME_SRC`
+    #   把 `roll_collect_fish` 直指 `content.fishing`；旧宿主下 `game.content` 是真模块）。
+    import content.fishing as _fishing_mod
+    orig = _fishing_mod.roll_collect_fish
     calls = {"n": 0}
     def fake_roll(spot_id=None, is_night=False):
         calls["n"] += 1
         return {"id": "mat_rainbow_kite", "name": "虹彩龙鲤", "chance": 1.0}
-    C.roll_collect_fish = fake_roll
+    _fishing_mod.roll_collect_fish = fake_roll
     try:
         out = m._settle_fishing("g1", "w1", st)
     finally:
-        C.roll_collect_fish = orig
+        _fishing_mod.roll_collect_fish = orig
     check("彩蛋命中提示", out and "虹彩龙鲤" in out and "彩蛋收藏品" in out, str(out)[:200])
     # 入包
     check("收藏鱼入包", db.count_item("g1", "w1", "mat_rainbow_kite") >= 1, "")
     # 计数
     import sqlite3
-    conn = sqlite3.connect(db.DB_PATH)
+    conn = sqlite3.connect(db.db_path())
     r = conn.execute("SELECT catch_collect FROM stats WHERE qq_id='w1'").fetchone()
     conn.close()
     check("catch_collect 计数", r and r[0] >= 1, str(r))

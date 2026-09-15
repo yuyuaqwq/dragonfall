@@ -18,9 +18,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 _DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_v1307_prof_panel.db")
 os.environ["GWEN_GAME_DB"] = _DB
 
-from conftest import C, FakeEvent, clean_db, make_player  # noqa: E402
-from data.plugins.dragonfall.main import Main  # noqa: E402
-from data.plugins.dragonfall.game.commands._registry import COMMAND_REGEX  # noqa: E402
+from _engine_harness import C, FakeEvent, clean_db, make_player  # noqa: E402
+from _engine_harness import Main  # noqa: E402
+
+# 声明驱动正则表（原 `game.commands._registry.COMMAND_REGEX` 的终态取件口：
+# 声明真源 = 包内 `content/data/commands.json`，经驱动口装配为 `{key: 合并正则}`）。
+# ★ 剔除私有键 `_maint_gate`（停服 gate 不是指令；旧 `_host_handler_finder` 显式跳过
+#   `name.startswith("_")`）——理由见 test_v1304_use_batch.py 同段注释。
+from _engine_harness import harness as _harness  # noqa: E402
+COMMAND_REGEX = {k: rx.pattern for rx, k in _harness().declarations_for_static()
+                 if not k.startswith("_")}
 
 passed = failed = 0
 G, Q = 1095961598, "gm_t1307prof"
@@ -45,15 +52,24 @@ def _tip_lines(text):
 
 
 async def _cmd(m, cmd):
-    """注册表分发，Main 多继承环境（MRO 坑必须实测）"""
+    """注册表分发，Main 多继承环境（MRO 坑必须实测）
+
+    ★ 终态驱动口（`_engine_harness.Main`）对**声明表命中**的 key 给 async generator、
+    对包内实现类方法给 coroutine —— 两种都收（旧宿主壳统一是 async generator）。
+    """
     ev = FakeEvent(G, Q, cmd)
     for key, pat in COMMAND_REGEX.items():
         if re.match(pat, cmd):
             fn = getattr(m, key, None)
             if fn:
+                gen = fn(ev)
                 out = []
-                async for r in fn(ev):
-                    out.append(r)
+                if hasattr(gen, "asend"):
+                    async for r in gen:
+                        out.append(r)
+                else:
+                    r = await gen
+                    out = list(r) if isinstance(r, (list, tuple)) else ([r] if r else [])
                 if out and isinstance(out[0], tuple):
                     return out[0][1]
                 return str(out[0]) if out else ""
@@ -62,7 +78,7 @@ async def _cmd(m, cmd):
 
 
 async def main():
-    from data.plugins.dragonfall.game import db
+    from _engine_harness import db
     m = Main()
 
     # ===== ② profession 池规则（test_v127_tips 兼容子集） =====

@@ -15,10 +15,31 @@ _PD = os.path.dirname(_HERE)
 for _p in (_HERE, os.path.join(_PD, "scripts"), _PD, os.path.dirname(os.path.dirname(_PD))):
     sys.path.insert(0, _p)
 
-from conftest import C, clean_db, db  # noqa: E402,F401
+from _engine_harness import C, clean_db, db  # noqa: E402,F401
 
 from saintess_engine.tlog import JSONLSink, MemorySink, Reader, TLog  # noqa: E402
-from game import tlog_setup  # noqa: E402
+from _engine_harness import tlog_setup  # noqa: E402
+
+# `content.reward._resolve("levelup", …)` 把注入值当**零参活源**调用；旧宿主薄壳
+# `game/reward.py` 注入的是 `lambda: check_player_level_up`（活源）。终态无该薄壳，
+# 包内 facade 注入的是裸函数 → `_resolve` 会 `v()` 掉它（TypeError）。
+# 测试侧按同一公开注入槽补回同款活源（REPOINT_MAP: game.content_rules.gameplay
+# check_player_level_up → content.gameplay_rules）。
+import content.reward as _reward_mod  # noqa: E402
+from content.gameplay_rules import check_player_level_up as _check_level_up  # noqa: E402
+from content.stat_bonus import stat_bonus as _stat_bonus  # noqa: E402
+from content.persistence.inventory import _key_to_id as _key_to_id  # noqa: E402
+_reward_mod.bind_host(levelup=lambda: _check_level_up,
+                      stat_bonus=lambda: _stat_bonus,
+                      key_to_id=lambda: _key_to_id)
+
+# `host/tlog_db_sink` 的取件口是宿主存档口 `host.store_factory.store()`；旧宿主
+# `main.py` 装配时会 `store_factory.bind_store(pkg)`（t4 用的就是这条库出口）。
+# 测试驱动口 `_engine_harness.boot()` 只装配引擎通道 + 壳，未做这一步 ⇒ 测试侧按
+# 公开装配口补同一件事（不是自造映射；生产装配处本来就调它）。
+from host import store_factory as _store_factory  # noqa: E402
+import _engine_harness as _harness_mod  # noqa: E402
+_store_factory.bind_store(_harness_mod.harness().host.pkg)
 
 passed = failed = 0
 GID, QID = "g_tlog", "q_tlog"
@@ -45,7 +66,7 @@ def t1_default_off():
     _off()
     check("tlog() 为 None", tlog_setup.tlog() is None)
     check("emit() 直接返回 None（零构造）", tlog_setup.emit("drop.grant", actor="x") is None)
-    from game.reward import grant_reward
+    from content.reward import grant_reward
     clean_db()
     lines = grant_reward({"exp": 10, "gold": 5, "items": []}, GID, QID)
     check("真调 grant_reward 不报错且无流水（未启用）", isinstance(lines, list))
@@ -81,7 +102,7 @@ def t3_end_to_end():
     _off()
     tlog_setup.enable(sinks=[mem])
     try:
-        from game.reward import grant_reward
+        from content.reward import grant_reward
         clean_db()
         grant_reward({"exp": 12, "gold": 7, "items": []}, GID, QID)
         recs = list(mem.read_records())
@@ -105,7 +126,7 @@ def t3_end_to_end():
 # ---------------------------------------------------------------- 4 落库往返
 def t4_db_sink():
     print("\n[4] SQLiteSink：落库 + 读回（与 JSONL 一致）")
-    from game.services.tlog_db_sink import SQLiteSink, SQLiteReader, ensure_table
+    from host.tlog_db_sink import SQLiteSink, SQLiteReader, ensure_table
 
     mem = MemorySink()
     _off()

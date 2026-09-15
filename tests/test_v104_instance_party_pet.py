@@ -23,7 +23,7 @@ import sys as _sys
 _sys.exit(0)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run  # noqa: E402
 
 # v94 体力：副本测试豁免体力扣减，防开本被体力拦截。
 def _fake_spend(self, gid, qid, cost, player, action="行动"):
@@ -242,7 +242,7 @@ async def main():
 
     # ============ 7. 超时文案统一（v104 批次3：120 秒→60 秒） ============
     print("【7. 超时文案统一】")
-    from game.commands.instance import INSTANCE_TIMEOUT
+    from content.instance_cmds import INSTANCE_TIMEOUT
     check("超时阈值=60 秒", INSTANCE_TIMEOUT == 60, str(INSTANCE_TIMEOUT))
     src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                             "game", "commands", "instance.py"), encoding="utf-8").read()

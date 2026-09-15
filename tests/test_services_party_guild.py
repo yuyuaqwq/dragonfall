@@ -18,14 +18,14 @@
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import db, clean_db
-from data.plugins.dragonfall.game.store.social import guild_get_member as _ggm
+from _engine_harness import db, clean_db
+from content.persistence.social import guild_get_member as _ggm
 
-from data.plugins.dragonfall.game.services.party import (
+from content.party import (
     resolve_party_target, party_join, party_leave_execute,
     party_leave_check, party_leave_inst_member,
 )
-from data.plugins.dragonfall.game.services.guild import (
+from content.social_guild import (
     guild_create_check, guild_create, guild_join, guild_leave_check,
     guild_leave, guild_disband, guild_sign, guild_task_view,
     guild_donate, guild_donate_total, guild_donate_inventory,
@@ -44,9 +44,9 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {detail}")
 
 def _mk_player(gid, qid, name, level=30, gold=10000):
-    from data.plugins.dragonfall.game import db as _db
-    from data.plugins.dragonfall.game import content as _C
-    from game.content_rules.panel import player_stats_detail
+    from _engine_harness import db as _db
+    from _engine_harness import C as _C
+    from content.panel import player_stats_detail
     cls = _C.CLASSES[_C.resolve("classes", "战士")]
     st0, _ = player_stats_detail("warrior", 1, {}, 0, None, 0, None, "human")
     _db.create_player(gid, qid, name, "warrior", cls["base"], st0["max_hp"], st0["max_mp"], "human", "male")
@@ -175,7 +175,7 @@ def main():
     check("今日已完成被拦", not ok and "已完成" in err, f"{err}")
 
     print("【guild: guild_donate 判定/扣料/每日一次】")
-    from data.plugins.dragonfall.game.store.inventory import add_item
+    from content.persistence.inventory import add_item
     # 材料 mat_（普通）+ 任务道具 mat_（应排除）
     add_item("g1", "s2", "mat_iron", {"name": "铁矿", "type": "材料", "stackable": True}, 5)
     add_item("g1", "s2", "mat_quest_1", {"name": "烬火信标", "type": "任务道具", "stackable": True}, 99)

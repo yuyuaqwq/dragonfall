@@ -43,7 +43,7 @@ from collections.abc import Mapping
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
-from conftest import C, PLUGIN_DIR  # noqa: E402
+from _engine_harness import C, PLUGIN_DIR  # noqa: E402
 
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 _FRAMEWORK_DIR = os.path.join(PLUGIN_DIR, "framework")
@@ -51,7 +51,28 @@ for _p in (_FRAMEWORK_DIR, PLUGIN_DIR, QQBOT_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from data.plugins.dragonfall.game import drop_engine as DE                      # noqa: E402
+# ★ 冻结体（v174 原文，一个字符没动）里的 `importlib.import_module("game.content")` /
+#   `from .data.drop_pools import DROP_POOLS` 是**旧宿主绝对路径**；终态无 `game/**`。
+#   处理 = 在 `sys.modules` 里把 `game` 指到一只轻量 shim 模块（`__path__` = 包内 content
+#   目录 → 冻结体里 `game.<子模块>` 全解析到包内同名模块；`game.content` 显式指到聚合门面），
+#   冻结文本本身保持逐字（sha256 判据不动）。
+import types as _types                                                 # noqa: E402
+from content import facade as _facade                                  # noqa: E402
+from content import loot as _loot                                      # noqa: E402
+from content import catalog_rules as _DP                               # noqa: E402
+
+_PKG_CONTENT = os.path.dirname(os.path.abspath(_facade.__file__))
+_game_shim = _types.ModuleType("game")
+_game_shim.__path__ = [_PKG_CONTENT]
+_game_shim.content = _facade.C
+_game_shim.drop_engine = _loot
+sys.modules.setdefault("game", _game_shim)
+sys.modules.setdefault("game.content", _facade.C)
+sys.modules.setdefault("game.drop_engine", _loot)
+DROP_POOLS = _DP.DROP_POOLS
+import importlib as _importlib                                        # noqa: E402
+# 待评测的新实现：走 shim 的宿主模块名（= 包内 `content.loot`；与冻结体的取件口同源）
+DE = _importlib.import_module("data.plugins.dragonfall.game.drop_engine")
 # B16 收口：宿主 game/data 已删 —— 池数据真源 = 包内 `content/data/drop_pools.json`（596 池，逐条同源）
 #   门面 = `content.catalog_rules.DROP_POOLS`（同一只 dict，模块属性可写 → §5 打桩仍有效）
 #   ★ 冻结体（v174 原文，一个字符没动）里的 `from .data.drop_pools import DROP_POOLS`
@@ -935,15 +956,25 @@ def sec4_choice_and_fallback():
     # 兜底 fallback：把 roll_drop_equip 换成"计数 + 返回 None"的探针 → 暗格的 40% 装备档
     # （equip_drop_mix 双池都 None）必然落到 fallback 材料（旧 `_roll_sub_ref` 的
     # `if not res and roll_cfg.get("fallback")` / 新 `roll_cfg` 的同一分支）
-    import game.content as _GC
-    orig = _GC.roll_drop_equip
+    # ★ 终态打桩落点：`roll_drop_equip` 在 `content/facade.py` 里走 `_NAME_SRC`（直指
+    #   `content.drops`），而冻结体 `import game.content as C` 取的是聚合门面 ⇒ 三处同源
+    #   一起换（聚合门面命名空间 / 真源模块 / `content.loot` 的内容 API），判据不削弱。
+    _ns = _facade._namespace()
+    import content.drops as _drops_patch
+    orig = _drops_patch.roll_drop_equip
     calls = []
 
     def _spy_none(lv, role):
         calls.append(role)
         return None
 
-    _GC.roll_drop_equip = _spy_none
+    class _PatchedDropsAPI(object):
+        def __getattr__(self, name):
+            if name == "roll_drop_equip":
+                return _spy_none
+            return _ns[name]
+
+    _drops_patch.roll_drop_equip = _spy_none
     try:
         fb_hits = 0
         empty_runs = 0
@@ -964,7 +995,7 @@ def sec4_choice_and_fallback():
         check("40% 装备档永不空开：60 种子都没有空产出", empty_runs == 0, f"空 {empty_runs}/60")
         check("fallback 路径上新旧逐格全等", not bad2, str(bad2[:2]))
     finally:
-        _GC.roll_drop_equip = orig
+        _drops_patch.roll_drop_equip = orig
     # 战利品堆 gold_pct：gold_base 折算逐格一致（含 base=0 → 下限 10）
     for gb in (0, 220, 1000):
         for seed in (1, 5):

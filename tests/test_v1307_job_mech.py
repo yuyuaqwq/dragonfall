@@ -12,19 +12,19 @@
   ④ 无 mech 字段兜底：不崩、不显示『🎯 核心玩法』行
 
 运行：python tests/test_v1307_job_mech.py（exit=0 全绿）
-设计：纯数据 + 纯信息指令，不依赖玩家存档（库走 conftest 机制，不设残留环境变量）。
+设计：纯数据 + 纯信息指令，不依赖玩家存档（库走 _engine_harness 机制，不设残留环境变量）。
 """
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from conftest import C, run, FakeEvent, clean_db  # noqa: E402
+from _engine_harness import C, run, FakeEvent, clean_db  # noqa: E402
 from content.tables import JOB_GUIDE  # noqa: E402
 # B16 收口：宿主 game/data 已删 —— 真源 = 包内 content/tables.py 的同义函数口（逐值等：7 / 0）
 from content.tables import job_base_order as _job_base_order, job_hidden_order as _job_hidden_order  # noqa: E402
 BASE_ORDER, HIDDEN_ORDER = _job_base_order(), _job_hidden_order()
-from data.plugins.dragonfall.game.commands.job_guide import JobGuideCmds  # noqa: E402
+from _engine_harness import Main as JobGuideCmds  # noqa: E402  （原 game.commands.job_guide 壳 → 驱动口）
 # ★ B18-L6（2026-09-14）：『职业』详情渲染随命令整块进包（`content/cmds_job.py`），
 #   宿主 `game/commands/job_guide.py` 只剩 `@declared` + 一行转发 ⇒ [④] 的「无 mech 兜底」
 #   打桩点与直调口**跟着实现搬家**（`CLASSES` 与 `_jg_detail` 现在都在包内模块上）。
@@ -52,7 +52,7 @@ async def job_cmd(msg, jc):
 
 async def main():
     clean_db()  # 建独立测试库（handler 不读档，仅保环境干净）
-    jc = JobGuideCmds()
+    jc = JobGuideCmds(None)
     ok = True
 
     # ===== ① 『职业 拳师』详情含『🎯 核心玩法』且非空 =====

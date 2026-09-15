@@ -15,7 +15,7 @@
 import sys, os, time, random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, make_player, Main, FakeEvent, run
+from _engine_harness import C, db, clean_db, make_player, Main, FakeEvent, run
 
 # N10 删旧：旧 Battle.actor_turn monkeypatch 死代码已删（R4 副本路径全走 router→IB
 # saintess_engine，"攻击"命令驱动；旧 _instance_act 已删，patch 对象无调用方）。
@@ -81,7 +81,7 @@ def _set_enemies_hp1(st):
 async def attack_loop(m, gid, qid, max_rounds=12):
     """循环攻击直到战斗结束/通关。返回最后输出。"""
     out = ""
-    from game.commands import instance_battle as _IB
+    from content.flow import instance_battle as _IB
     for _ in range(max_rounds):
         battle = db.get_battle(gid, qid)
         if not battle:

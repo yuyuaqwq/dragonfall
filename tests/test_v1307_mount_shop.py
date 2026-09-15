@@ -27,8 +27,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 _DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_v1307_mount_shop.db")
 os.environ["GWEN_GAME_DB"] = _DB
 
-from conftest import FakeEvent, clean_db, make_player  # noqa: E402
-from data.plugins.dragonfall.main import Main  # noqa: E402
+from _engine_harness import FakeEvent, clean_db, make_player  # noqa: E402
+from _engine_harness import Main  # noqa: E402
+from _engine_harness import db  # noqa: E402
 
 passed = failed = 0
 G, Q = 1095961596, "gm_t1307"
@@ -55,7 +56,7 @@ async def _cmd(m, handler, msg):
 
 def _set(subarea, level=5, gold=10000):
     """落库橡木镇指定子区域的测试玩家（level 默认 5：老马 lv1/小毛驴 lv5 都能买）"""
-    from data.plugins.dragonfall.game import db
+    from _engine_harness import db
     make_player(G, Q, "坐骑测试", "战士", level=level)
     db.update_player(G, Q, cur_map="oak_town", cur_subarea=subarea, gold=gold)
 
@@ -73,7 +74,7 @@ async def _all_pages(m, maxpage=12):
 
 
 async def main():
-    from data.plugins.dragonfall.game import db
+    from _engine_harness import db
     m = Main()
 
     # ---- ① 草药铺 oak_town_5（herb）：无坐骑、无武器 ----

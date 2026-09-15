@@ -10,9 +10,9 @@
 """
 import sys, os, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import FakeEvent, run, clean_db, make_player, TEST_DB, PLUGIN_DIR
-from data.plugins.dragonfall.game import content as C, db
-from data.plugins.dragonfall.main import Main
+from _engine_harness import FakeEvent, run, clean_db, make_player, TEST_DB, PLUGIN_DIR
+from _engine_harness import C, db
+from _engine_harness import Main
 
 passed = 0
 failed = 0

@@ -15,8 +15,14 @@ import random
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
 os.environ["GWEN_GAME_DB"] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_tips.db")
 
-from data.plugins.dragonfall.game import content as C
-from data.plugins.dragonfall.game.commands.base import CommandBase
+from _engine_harness import C
+from _engine_harness import Main as CommandBase  # 原 game.commands.base.CommandBase 壳 → 测试侧驱动口
+# `_tip` 的提示池经 `HostShell._tip_pool_map()` → 包内 `cmds_base_rules.TIP_POOL`
+# 取件，必须有已装配的包对象（`HostShell.__new__` 的裸实例没有 `_pkg` ⇒ AttributeError）。
+from _engine_harness import harness as _harness  # noqa: E402
+_h = _harness()
+# 终态扫描根：命令实现体在包内 `content/**`（旧 `game/commands/**` 已薄壳化）
+PKG_ROOT = os.path.dirname(os.path.abspath(_h.facade.__file__))
 
 FAILS = []
 
@@ -34,15 +40,15 @@ def _scan_multi_tip():
     互斥分支白名单：craft/quest_branch 三分支/camp_task/camp_shop。
     """
     import ast as _ast
-    root = os.path.dirname(os.path.abspath(C.__file__))
+    root = PKG_ROOT
     allowed = {
-        # v127.1 实测互斥分支：每次只走其一，允许同 key 多调用点
-        ("economy.py", "craft"),
-        ("world.py", "_complete_side_quest"),
-        ("world.py", "camp_task"),
-        ("world.py", "camp_shop"),
-        ("instance.py", "_instance_map_view"),   # 通关分支 vs 正常视图
-        ("player.py", "leaderboard"),            # 战力榜 vs 等级榜
+        # v127.1 实测互斥分支：每次只走其一，允许同 key 多调用点（终态 = 包内文件名）
+        ("economy_cmds.py", "craft"),
+        ("world_cmds.py", "_complete_side_quest"),
+        ("world_cmds.py", "camp_task"),
+        ("world_cmds.py", "camp_shop"),
+        ("instance_cmds.py", "_instance_map_view"),   # 通关分支 vs 正常视图
+        ("player_cmds.py", "leaderboard"),            # 战力榜 vs 等级榜
     }
     bad = []
     for dirpath, dirnames, filenames in os.walk(root):
@@ -91,7 +97,7 @@ def main():
     print(f"  总条数: {total}")
 
     # 2. _tip 行为
-    cb = CommandBase.__new__(CommandBase)
+    cb = CommandBase(None)
     for k in ("bag", "shop", "common"):
         t = cb._tip(k)
         pool = tips.get(k) or tips["common"]
@@ -104,8 +110,7 @@ def main():
     check("_tip 随机抽取", len(seen) >= 2, f"seen={len(seen)}")
 
     # 3. 命令层调用点 key 全部存在于 TIPS（防传错 key 静默回退）
-    root = os.path.dirname(os.path.abspath(C.__file__))
-    cmds_dir = os.path.join(root, "..", "commands")
+    root = PKG_ROOT
     used_keys = set()
     for dirpath, dirnames, filenames in os.walk(root):
         if "__pycache__" in dirpath:

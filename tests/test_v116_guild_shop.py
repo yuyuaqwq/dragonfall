@@ -11,11 +11,11 @@
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db, clean_db, Main, FakeEvent, run
+from _engine_harness import C, db, clean_db, Main, FakeEvent, run
 # v116：B16 收口后宿主数据层已删（真源 = 包内 content/data/guild.json）——
 # `GUILD_ROLES` 的读口 = 包内 content/social_guild.guild_roles()（键序+逐值与原表全等，见 overnight/_mig_equiv.py）
 from content.social_guild import guild_roles as _guild_roles
-from data.plugins.dragonfall.game.store.social import guild_get_member, guild_set_role
+from content.persistence.social import guild_get_member, guild_set_role
 
 passed = failed = 0
 def check(name, cond, detail=""):

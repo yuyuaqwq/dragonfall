@@ -22,12 +22,12 @@ import re
 from contextlib import contextmanager
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import FakeEvent, run, clean_db, make_player  # noqa: F401
-
-from data.plugins.dragonfall.game import content as C, db
-from data.plugins.dragonfall.game.core import drops as DROPS
-from data.plugins.dragonfall.game.commands.economy import EconomyCmds
-from data.plugins.dragonfall.game.commands.instance import InstanceCmds
+from _engine_harness import FakeEvent, run, clean_db, make_player  # noqa: F401
+from _engine_harness import C, db
+from content import drops as DROPS
+from content.economy_cmds import EconomyImpl as _EcoImpl  # noqa: E402
+from content.instance_cmds import InstanceImpl as _InstImpl  # noqa: E402
+from _engine_harness import Main as _CmdHost  # noqa: E402
 # B16 收口（2026-09-14）：这两个概率常量的**实现读点**已随代码搬进包内
 # （端口 `content/item_templates.py` 读 `catalog_core.CHEST_BP_CHANCE`、
 #   `content/instance_cmds.py` 读 `catalog_core.INSTANCE_BP_CHANCE`）。
@@ -100,7 +100,7 @@ check("普通怪不掉图纸（v94 铁律）", hit_norm == 0)
 
 # ============ 3. 探索宝箱（tpl_open_chest 消费 CHEST_BP_CHANCE） ============
 print("【3. 探索宝箱图纸概率（tpl_open_chest 消费 CHEST_BP_CHANCE）】")
-from data.plugins.dragonfall.game.core import item_templates as IT
+from content import item_templates as IT
 
 
 class _ChestCtx:
@@ -194,12 +194,10 @@ class _ChestCtx:
 print("【4. 垂钓惊喜层（v168.2 _fishing_surprise）】")
 clean_db()
 make_player("g1", "q1", "钓鱼测试", "战士", level=30)
-src = inspect.getsource(EconomyCmds)
+src = inspect.getsource(_EcoImpl)
 # ★ 2026-09-13 收口（B9-L1 economy 薄壳 + B10 批）：实现真源已搬到包内
-#   `content/economy_cmds.py` 的 `EconomyImpl`（宿主 `EconomyCmds` 现在只是它的薄壳子类）。
-#   源码面 = 壳 + 实现两侧拼接 —— 断言与原意不变（「EconomyCmds 的源码里有没有这段逻辑」）。
-from content.economy_cmds import EconomyImpl as _EcoImpl          # noqa: E402
-src = src + "\n" + inspect.getsource(_EcoImpl)
+#   `content/economy_cmds.py` 的 `EconomyImpl`；本文件已把 `EconomyCmds` 直接改口为
+#   `EconomyImpl`（同一对象）⇒ 源码面就是实现本体，断言与原意不变。
 # v168.2 鱼鱼拍板：惊喜不绑定宝箱——每次鱼获按品质判定惊喜（白0/绿2%/蓝5%/紫15%/橙30%），
 # 内容池=图纸30/装备25/符文20/宝石15/材料10；彩蛋收藏鱼必橙装。FISH_RARE_CHANCE 常量不再被垂钓消费。
 has_surprise_fn = "def _fishing_surprise" in src
@@ -217,12 +215,10 @@ check("FISH_RARE_CHANCE 数值仍 0.6（未删常量）", abs(C.FISH_RARE_CHANCE
 # ============ 5. 副本通关全员图纸（INSTANCE_BP_CHANCE） ============
 print("【5. 副本通关全员图纸（INSTANCE_BP_CHANCE=10%）】")
 clean_db()
-insrc = inspect.getsource(InstanceCmds)
+insrc = inspect.getsource(_InstImpl)
 # ★ 2026-09-14 收口（B11-L1 instance 薄壳）：实现真源已搬到包内 `content/instance_cmds.py` 的
-#   `InstanceImpl`（宿主 `InstanceCmds` 现在继承它）。源码面 = 壳 + 实现两侧拼接 —— 断言与原意不变
-#   （同 tests/test_v135_bp_drop.py:187-191 的 economy 口径）。
-from content.instance_cmds import InstanceImpl as _InstImpl        # noqa: E402
-insrc = insrc + "\n" + inspect.getsource(_InstImpl)
+#   `InstanceImpl`；本文件已把 `InstanceCmds` 直接改口为 `InstanceImpl`（同一对象）
+#   ⇒ 源码面就是实现本体，断言与原意不变。
 check("副本通关循环消费 INSTANCE_BP_CHANCE", bool(re.search(r"\.INSTANCE_BP_CHANCE\b", insrc)))
 check("副本已学图纸折算残页逻辑", "图纸残页" in insrc and "learned_blueprints" in insrc)
 # 直接断言常量本身。原先用 40000 次抽样间接"测"它 —— 那测的是 Python 随机数分布，
@@ -233,7 +229,7 @@ check("INSTANCE_BP_CHANCE = 0.10（直断常量，非抽样）",
 # ============ 6. 图纸残页合成『图纸合成』 ============
 print("【6. 图纸残页合成（bp_craft）】")
 clean_db()
-eco = EconomyCmds()
+eco = _CmdHost(None)
 p = make_player("g1", "q1", "合成测试", "战士", level=30)
 # 6a. 无残页：面板提示不足
 ev = FakeEvent("g1", "q1", "图纸合成")

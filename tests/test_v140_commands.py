@@ -11,9 +11,9 @@ import sys, os, asyncio
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, r"C:/Users/yuyu/qqbot")
 os.environ.setdefault("GWEN_GAME_DB", "test_game_data_v140_cmds.db")
-from conftest import FakeEvent, run, clean_db, make_player, new_main
-from data.plugins.dragonfall.game import content as C, db
-from data.plugins.dragonfall.game.content_rules.gameplay import check_player_level_up
+from _engine_harness import FakeEvent, run, clean_db, make_player, new_main
+from _engine_harness import C, db
+from content.gameplay_rules import check_player_level_up
 
 passed = 0
 def check(name, cond, detail=""):
