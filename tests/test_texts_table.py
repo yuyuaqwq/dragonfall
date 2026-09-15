@@ -3499,6 +3499,11 @@ def t12_social_frozen():
 #     ④ 足迹首访 epoch 钉死在 946684800（2000-01-01，见 `_e_visit`），故面板里的
 #        `（MM-DD）` 是 `（01-01）`——确定值；
 #     ⑤ uuid4 派生的物品 key `eq_/bp_/gem_<hex8>` → `<前缀>_<UUID>`（`uuid4().hex[:8]`）。
+#   ★ PKG-D（2026-09-16）：等待型副业存储换引擎 produce 作业表（`prof_jobs_{qq}`）后，
+#   唯一**真开等待轮**的 3 例（fishing/gather/mining 的 normal 分支）DB dump 的存储行
+#   随之变 —— 文本/数值/流程/条数零变化（实测文本差异集 = 空）。这 3 例摘要已**重采**
+#   并登记进 `_ECONOMY_DB_SHA_INTENT`（迁移前旧值 → 换机制后新值）；其余 139 例与
+#   全部 142 例文本口径**不放宽**（仍逐例精确比对，登记表自身另有自洽断言）。
 import hashlib as _E_hashlib
 import sqlite3 as _E_sqlite3
 
@@ -4199,12 +4204,40 @@ ECONOMY_DB_SHA = {
     'use/normal_low_hp': 'a62b099521d20502',
 }   # 每例结束后 DB 逐行 dump 的 sha256 前 16 位（副作用逐字冻结）
 
+#: ★ PKG-D（2026-09-16）**有意差异登记**（唯一 3 例；除此之外 142 例一字不许变）
+#: ---------------------------------------------------------------------------
+#: 换机制：等待型副业（垂钓/采集/挖掘）的**计时存储**从旧「懒计时引擎」
+#: （`timed_events_{qq}` 内部 key `prof_wait`）换成引擎 produce 作业表
+#: （`saintess_engine.produce.Jobs` → event_state 键 `prof_jobs_{qq}`）。
+#: 只有这 3 例会**真开一轮等待**（normal 分支），故只有它们的 DB 全表 dump 变；
+#: 差异**仅在存储行**（键名/JSON 形状），玩家可见文本、数值、流程、条数全未变
+#: （同期实测：142 例 `ECONOMY_FROZEN` 文本逐字全同、文本差异集 = 空）。
+#: 口径**不放宽**：本表是「旧值 → 重采值」的显式登记；`t13` 仍逐例精确比对
+#: （`_e_expected_db()`），任何第 4 例差异照旧判红，且登记表自身受自洽断言约束
+#: （旧值必须 = 迁移前冻结基准、新值必须 ≠ 旧值、条数恒 3）。
+_ECONOMY_DB_SHA_INTENT = {
+    'fishing/normal': ('c8f905a27be2f649', '6147b8f7f079f4bd'),
+    'gather/normal': ('764e38fd11a4da67', '6dd6e62e77307c0c'),
+    'mining/normal': ('b67a44311ed157b0', 'a721208a053904c3'),
+}
+
+
+def _e_expected_db(k):
+    """该例「当前口径」的 DB 摘要：有意差异登记优先，其余 = 迁移前冻结基准。"""
+    intent = _ECONOMY_DB_SHA_INTENT.get(k)
+    return intent[1] if intent else ECONOMY_DB_SHA[k]
+
 
 def t13_economy_frozen():
     print("\n[13] 经济域逐字冻结：迁移前 142 例（45 条命令 × 正常/边界/失败 + 追加边界）复跑比对")
     check("冻结基准已内嵌（142 例）", len(ECONOMY_FROZEN) == 142, len(ECONOMY_FROZEN))
     check("用例表覆盖 45 条命令", len({h for _c, h, _q, _m, _p in _E_CASES}) == 45,
           sorted({h for _c, h, _q, _m, _p in _E_CASES}))
+    check("★ 有意差异登记自洽（旧值 = 迁移前基准 · 新值 = 换机制后重采 · 条数恒 3）",
+          len(_ECONOMY_DB_SHA_INTENT) == 3
+          and all(ECONOMY_DB_SHA[k] == old and new != old
+                  for k, (old, new) in _ECONOMY_DB_SHA_INTENT.items()),
+          _ECONOMY_DB_SHA_INTENT)
     now = _e_scenarios()
     bad = [k for k in ECONOMY_FROZEN
            if ECONOMY_FROZEN[k] != (now.get(k) or {}).get("out")]
@@ -4212,10 +4245,11 @@ def t13_economy_frozen():
         print("     · %s 现=%r" % (k, ((now.get(k) or {}).get("out") or "")[:160]))
     check("★ 经济域 142 例文本与迁移前**逐字一致**", not bad, bad)
     bad_db = [k for k in ECONOMY_DB_SHA
-              if ECONOMY_DB_SHA[k] != (now.get(k) or {}).get("db")]
+              if _e_expected_db(k) != (now.get(k) or {}).get("db")]
     for k in bad_db[:6]:
         print("     · %s DB 摘要变了" % k)
-    check("★ 经济域 142 例 DB 副作用与迁移前一致（逐行 dump 的 sha256 前 16 位）",
+    check("★ 经济域 142 例 DB 副作用与冻结基准一致（逐行 dump 的 sha256 前 16 位；"
+          "换机制 3 例按 `_ECONOMY_DB_SHA_INTENT` 重采登记）",
           not bad_db, bad_db[:6])
     bad_n = [k for k in ECONOMY_FROZEN if (now.get(k) or {}).get("n") != 1]
     check("★ 每例仍是**一条**成品消息（逐段 yield 合成一条 = 终态形状，段数 1）",
