@@ -111,6 +111,10 @@ FULL_EXTRA_REASONS = {
     "fw_test_self": "手工那套没有它：同上（引擎仓侧）。",
     "patch_surface": "手工那套没有它：PATCHAUDIT ④ 的常驻哨兵（宿主壳改写静默 no-op 扫描），"
                      "正是历史事件②那一类的长期看门人。",
+    "cmd_reg": "手工那套没有它：R3 补的**注册条数**门禁（AstrBot 指令 handler 条数 == 包内声明条数，"
+               "当次 194）——「删掉宿主 game/commands/** 后 import 照样过、但注册表 194→0、机器人静默哑掉」"
+               "这种坏态，既有五道门禁 + 三哨兵**没有一条**量条数；本道把它变成常驻牙"
+               "（含「旁路注册驱动 → 必须报红」的反证）。",
     "host_runall": "手工那套没有它：这是**全量**（272 文件 ~5 分钟），按设计只在批收口跑，不进 --changed。",
     "fw_runall": "手工那套没有它：引擎仓全量（55 文件），同上，只在批收口跑。",
     "smoke_engine": "手工那套没有它：cheap 冒烟，永远跑（引擎能加载）。",
@@ -423,6 +427,29 @@ GATES = [
                               "属快照漂移、非本次改动引入；当前真仓（5384351）上应复绿。",
                       "all": True},
     ),
+    # ============ R3 新增（常驻）：注册条数门禁 ============
+    # 与 v87/v104 同属「命令注册面」，但它量的是**条数**（v87 只扫 pattern 矩阵、
+    # v104 只跑声明/优先级/守卫/回执）——删壳后 194→0 的静默坏态只有本道能抓。
+    Gate(
+        "cmd_reg", "注册条数 == 包内声明条数（AstrBot handler 194 逐条对齐）", "host", "host",
+        ["tests/test_command_registration.py"],
+        ["host:game/commands/**", "host:game/data/command_specs.json",
+         "host:game/data/cmd_config.json", "host:game/content.py", "host:main.py",
+         "host:host/**",
+         "fw:games/*/content/commands.py", "fw:games/*/content/cmds_*.py",
+         "fw:games/*/content/data/commands.json", "fw:games/*/content/data/command_specs.json",
+         "fw:saintess_engine/host/package.py", "fw:saintess_engine/host/runtime.py",
+         "fw:saintess_engine/command/**"],
+        1.63, "core",
+        why="R3 卡点 A 的**常驻牙**：删掉宿主 game/commands/** 之后 `import ...main` 仍通过，但 AstrBot "
+            "注册表里本插件指令 handler **194 → 0**（玩家消息全掉 LLM 兜底 = 静默哑掉）；本道断言"
+            "「注册条数 == pkg.command_declarations() 条数」+ 声明↔handler 一一对应 + 正则 filter + "
+            "旧壳残留 handler 清零 + 真跑 4 条命令（注册/属性/攻击/副本）+ 旁路驱动必须掉到 0（有牙）+ 幂等。"
+            "★ host 根必须是**插件仓根**（真实布局 `<qqbot>/data/plugins/<plugin>`）：本测试由自身路径反推 "
+            "QQBOT_DIR 再 `import data.plugins.dragonfall`，沙箱副本请从 junction 路径调用 gate_fast"
+            "（`--host <work>/work/qqbot/data/plugins/dragonfall`），否则该 import 必红。",
+    ),
+
     # ================= 引擎侧 editor 门禁 =================
     Gate(
         "editor_domains", "引擎侧 包声明域 <-> 有效域表（85/85）", "fw", "fw_tests",
