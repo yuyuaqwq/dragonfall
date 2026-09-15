@@ -798,6 +798,13 @@ def register_commands(package_dir: str = None, *, module_path: str = None) -> in
     # 终态：注入面自检挪到装配期（同一 fail-closed 语义）。★ P5F 前置⑤：包句柄**显式传入**
     # （不再靠包内模块路径字面量取件）；此处 strict=True = 真门。
     _weekly_reward_selfcheck(channel.pkg)
+    # ★ 收尾批（2026-09-15）：**启动清理也要在装配期跑一次** ——
+    #   原来唯一的调用点在 `Main.__init__`（`:449`），而 `Main` 只活在过渡态
+    #   （`if _LEGACY_SHELLS:` 块内）⇒ 终态下它**不存在**，那次调用永不执行
+    #   ⇒ 即便取件口已按包契约修好，清理入口仍然是**死码**（启动清理静默不跑）。
+    #   这里补的是**终态执行点**（v104 M24 P2-5「启动时清理流失玩家残留 event_state 键」的原设计意图）；
+    #   函数自身幂等（模块级哨兵）、失败只留痕不阻塞启动（见其 docstring）。
+    _event_state_cleanup_once()
     target = str(module_path or __name__)
     _registration.bind_dispatcher(channel.dispatch_declaration)
     cleared = _registration.reset_plugin_handlers(target)
