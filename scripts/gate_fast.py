@@ -115,6 +115,13 @@ FULL_EXTRA_REASONS = {
                "当次 194）——「删掉宿主 game/commands/** 后 import 照样过、但注册表 194→0、机器人静默哑掉」"
                "这种坏态，既有五道门禁 + 三哨兵**没有一条**量条数；本道把它变成常驻牙"
                "（含「旁路注册驱动 → 必须报红」的反证）。",
+    "live_shortcut": "手工那套没有它：W-L9 补的**投递面端到端**门禁——`cmd_reg` 只量「注册了几条」，"
+                     "量不到「handler 的回话真的发得出去」。2026-09-15 线上真 bug（快捷绑定不触发 / "
+                     "裸数字静默空回）就是这类：handler 产出了文本段，但 async 族把裸字符串直接 yield ⇒ "
+                     "AstrBot 管道只认 MessageEventResult（不 set_result → 丢弃 → respond 直接 return）⇒ "
+                     "玩家零回话且**无异常**，而注册条数照旧 194、v87/v104/cmd_reg 全绿。本道走"
+                     "「AstrMain → 注册 handler → 管道口径 → EngineChannel → EngineShell 二次派发 → 包内 handler」"
+                     "真跑「注册 → 快捷绑定 → 触发」并带反证与交付面（非 repr）判据。",
     "host_runall": "手工那套没有它：这是**全量**（272 文件 ~5 分钟），按设计只在批收口跑，不进 --changed。",
     "fw_runall": "手工那套没有它：引擎仓全量（55 文件），同上，只在批收口跑。",
     "smoke_engine": "手工那套没有它：cheap 冒烟，永远跑（引擎能加载）。",
@@ -132,6 +139,10 @@ NO_GATE = [
                      "`out/tools/compare_channels.py`（旧路径 vs 引擎通道逐字节对拍，62 例 0 差异），"
                      "终态定向门禁由 P5C 收口（那时旧路径已删，五道门禁即走本面）"),
     ("host:metadata.yaml", "插件平台清单（AstrBot 元数据），非行为面，无门禁覆盖"),
+    ("host:config.json", "部署配置（`package_dir` / `db_path`）—— 引擎通道的**配置来源**，"
+                         "不是行为面：取不到包目录时 `main.resolve_package_dir()` 记 ERROR 并让"
+                         "引擎通道**不启动**（fail-closed，不猜包名），配置值本身无定向门禁；"
+                         "（本项为既有盲区，W-L9 补标注，非本次改动引入）"),
     ("host:ARCHITECTURE.md", "宿主架构文档，无门禁覆盖（文档漂移靠人审）"),
     ("host:DEVELOPMENT.md", "宿主开发文档，无门禁覆盖（同上）"),
     ("host:README.md", "宿主 README，无门禁覆盖"),
@@ -448,6 +459,34 @@ GATES = [
             "★ host 根必须是**插件仓根**（真实布局 `<qqbot>/data/plugins/<plugin>`）：本测试由自身路径反推 "
             "QQBOT_DIR 再 `import data.plugins.dragonfall`，沙箱副本请从 junction 路径调用 gate_fast"
             "（`--host <work>/work/qqbot/data/plugins/dragonfall`），否则该 import 必红。",
+    ),
+
+    # ============ W-L9 新增（常驻）：线上链路「绑定 → 触发」投递面门禁 ============
+    # 与 cmd_reg 互补：cmd_reg 量「注册了几条」，本道量「**handler 的回话真的发得出去**」。
+    # 2026-09-15 线上真 bug（快捷绑定不触发 / 裸数字静默空回）正是这道能抓的那一类：
+    # handler 产出了文本段，但 yield 的是**裸字符串** ⇒ AstrBot 管道只认 MessageEventResult
+    # （`context_utils.call_handler` 不 set_result → `process_stage` 丢弃 → `respond` 见
+    # `get_result() is None` 直接 return）⇒ 玩家零回话且**无任何异常**；注册条数照旧 194，
+    # v87/v104/cmd_reg 全绿也照不出来。
+    Gate(
+        "live_shortcut", "线上链路冒烟：快捷绑定 → 触发必须发得出去（非空回话 + 反证）", "host", "host",
+        ["tests/test_live_shortcut_path.py"],
+        ["host:main.py", "host:host/**",
+         "host:tests/test_live_shortcut_path.py",
+         "fw:games/*/content/commands.py", "fw:games/*/content/cmds_*.py",
+         "fw:games/*/content/player_cmds.py", "fw:games/*/content/combat_cmds.py",
+         "fw:games/*/content/economy_cmds.py", "fw:games/*/content/instance_cmds.py",
+         "fw:games/*/content/data/commands.json",
+         "fw:saintess_engine/command/**", "fw:saintess_engine/host/**"],
+        3.2, "core", needs_db=False,
+        why="投递面**端到端**常驻牙（W-L9 交付）：驱动 AstrBot 装载插件时的真实对象"
+            "（`main.AstrMain` → 注册驱动的 handler → AstrBot 管道口径 → `EngineChannel` → "
+            "`EngineShell._run_shortcut` 二次派发 → 包内 handler），带**有角色的存档**跑"
+            "「注册 → 快捷绑定 → 触发」：断言 ①触发产出**非空可见回话**（改前 = 静默空回）；"
+            "②回话是**文案**（不是 `MessageEventResult` 的 dataclass repr —— 包内 `_event(env) → env.raw` "
+            "那类半修会让 handler 交平台对象、`_as_replies` 再 `str()` 出来一堆 repr）；"
+            "③逐段投递（handler 不得 yield 裸值）；④反证：清绑定后再发必须**零可见回话**；"
+            "⑤对照 sync 族本来就能发（判据非恒假）。自带私有库（`needs_db=False`：不吞门禁注入的库）。",
     ),
 
     # ================= 引擎侧 editor 门禁 =================

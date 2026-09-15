@@ -164,7 +164,10 @@ def _async_family(pkg, key: str) -> bool:
 
 
 def _make_handler(key: str, spec: CommandSpec, *, async_family: bool):
-    """默认 handler factory：一条声明 → AstrBot handler（可观察行为照旧壳）。"""
+    """默认 handler factory：一条声明 → AstrBot handler（可观察行为照旧壳）。
+
+    ★ 两族都必须 yield **`event.plain_result(...)`**（2026-09-15 定点修，见下）。
+    """
     if key == GATE_KEY:
         async def _gate(self, event):                            # noqa: ANN001
             _dispatcher()(key, event)                            # 平台 gate：无回话（dispatcher 同步）
@@ -177,8 +180,16 @@ def _make_handler(key: str, spec: CommandSpec, *, async_family: bool):
         if isinstance(segments, str):
             segments = [segments]
         if async_family:
-            for seg in segments:                                 # 旧壳异步族：逐段
-                yield seg
+            # 旧壳异步族：逐段投递。**每段仍须包成 `event.plain_result`** —— AstrBot 管道
+            # 只把 `MessageEventResult` 当回话（`pipeline/context_utils.py::call_handler`：
+            # 非 MessageEventResult 的 yield 不 `set_result`，值在
+            # `process_stage/stage.py` 的 `else: yield` 处被丢弃，`respond/stage.py::process`
+            # 见 `event.get_result() is None` 直接 return ⇒ 玩家什么都收不到、且**无异常**）。
+            # 历史口径（旧壳 `_host_bridge.run_async` 也 yield 裸串、由旧壳直接 `yield _r`）
+            # 在本版 AstrBot 上等于静默丢包：实测线上「快捷绑定不触发 / 裸数字空回」
+            # 与 71 条 async 族声明全体静默（out/W-L9.md §逐层对比表）。
+            for seg in segments:
+                yield event.plain_result(str(seg))
         else:
             yield event.plain_result("\n".join(str(s) for s in segments))
 
