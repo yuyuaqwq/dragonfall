@@ -165,6 +165,7 @@ class _LoopbackEvent:
         self._sender = sender_id or _PLAYTEST_QQ
         # v95.1：多号联测支持——带身份通道进统一测试群，可组队/开副本；主通道保持 private（GM 权限）
         self._group_id = group_id or "private"
+        self._stopped = False            # P5A：平台 gate（`_maint_gate`）的 stop_event 语义
 
     def get_group_id(self):
         return self._group_id
@@ -182,6 +183,13 @@ class _LoopbackEvent:
 
     def plain_result(self, text):
         return text
+
+    def stop_event(self):
+        """v96 停服 gate / 翻页快捷键用：标记「本事件不再向下传播」。"""
+        self._stopped = True
+
+    async def send(self, message):
+        return message
 
 
 def _file_loopback_start():
@@ -231,33 +239,28 @@ def _file_loopback_start():
             _time.sleep(1.0)
 
     def _dispatch(cmd: str, out_file: str):
-        # v94.1 修复：插件热重载窗口期 Main._loopback_instance 尚未设置 → 短重试
-        for _attempt in range(3):
-            try:
-                from .main import Main  # 延迟拿类，避免循环 import
-                inst = Main._loopback_instance if hasattr(Main, "_loopback_instance") else None
-                if inst is None:
-                    _time.sleep(1.5)
-                    continue
-                # v55 轮（playtest）：main 通道也进统一测试群 gm_test_group——#47b 需要 2 真人组队打副本，
-                # main 在 private 群无法与 gm_test_group 的小蓝组队（party/副本按 group_id 隔离）。
-                # GM 权限不受影响：gm_ 前缀身份恒放行（gm.py _gm_auth），与群上下文无关。
-                ev = _LoopbackEvent(cmd, _ident_of(out_file), "gm_test_group")
-                # v101.28q：必须在主事件循环执行 handler——worker 线程 asyncio.run 的新 loop 里
-                # await Quart websocket（bot API 发送）会跨 loop 挂死。提交主 loop 等结果。
-                loop = getattr(inst, "_main_loop", None)
-                if loop is None or loop.is_closed():
-                    _append_out("❌ 未找到主事件循环（插件未初始化或重载中）", out_file)
-                    return
-                fut = asyncio.run_coroutine_threadsafe(_collect(inst, ev, cmd, out_file), loop)
-                fut.result(timeout=120)
-                return
-            except Exception as e:
-                if _attempt == 2:
-                    _append_out(f"❌ 转发异常: {type(e).__name__}: {e}", out_file)
-                else:
-                    _time.sleep(1.5)
-        _append_out("❌ 未找到 Main 实例（插件未初始化或重载中）", out_file)
+        """P5A：本通道 = **引擎 host 通道**（`adapter_qq` 三函数 + inject）。
+
+        v55 轮口径保留：main 通道也进统一测试群 gm_test_group（#47b 需要 2 真人组队打副本，
+        main 在 private 群无法与 gm_test_group 的小蓝组队 —— party/副本按 group_id 隔离）；
+        GM 权限不受影响（gm_ 前缀身份恒放行）。
+
+        与改造前的差异（**有意**，见 out/W-P5A.md）：
+          · 执行面从「宿主注册表 `Main._run_shortcut`」改成「引擎通道 `EngineChannel.collect_event`」
+            （包内声明路由 → 守卫 → `Env` → 包内处理器 → 逐段回话）；
+          · 于是也不再需要「提交主事件循环」那一步（引擎通道自带 async 桥，见
+            `host/adapter_qq.py::run_sync`）；平台发送在引擎通道的 loop 上完成。
+        """
+        lines = [f"\n{'='*50}\n▶ 『{cmd}』"]
+        try:
+            channel = engine_channel()
+            ev = _LoopbackEvent(cmd, _ident_of(out_file), "gm_test_group")
+            lines.extend(str(seg) for seg in channel.collect_event(ev))
+        except Exception as e:
+            lines.append(f"❌ 异常: {type(e).__name__}: {e}")
+            logging.getLogger(__name__).error(
+                "引擎 host 通道转发失败（命令=%r）", cmd, exc_info=True)
+        _append_out("\n".join(lines), out_file)
 
     def _ident_of(out_file: str) -> str:
         """输出文件反推身份：主通道 → gm_playtest；带身份 → 文件名中的 ident。"""
@@ -265,17 +268,6 @@ def _file_loopback_start():
         if name == "playthrough_out.txt":
             return _PLAYTEST_QQ
         return name[len("playthrough_out_"):-len(".txt")]
-
-    async def _collect(inst, ev, cmd, out_file):
-        lines = [f"\n{'='*50}\n▶ 『{cmd}』"]
-        try:
-            async for r in inst._run_shortcut(ev, cmd):
-                lines.append(str(r))
-        except StopAsyncIteration:
-            pass
-        except Exception as e:
-            lines.append(f"❌ 异常: {type(e).__name__}: {e}")
-        _append_out("\n".join(lines), out_file)
 
     def _append_out(text: str, out_file: str = None):
         with open(out_file or _PLAY_OUT_FILE, "a", encoding="utf-8") as f:
@@ -360,6 +352,269 @@ class Main(
         if context is not None:
             _file_loopback_start()
         # v36: 广播任务已停用（意见改为 cron 汇总报告给鱼鱼，不回复玩家）
+
+
+# ============================================================================
+# 引擎 host 通道（P5A）
+# ----------------------------------------------------------------------------
+# 契约真源：`framework/docs/engine-wiki/reference/host-api.md`
+#   （三函数 / ctx 七字段 / 六钩子 / `Env` 字段表 / 命令通道 / `inject` 一个 dict 两处用）
+# 形状真源：`overnight/B19a_HOST_CONTRACT_DESIGN.md` §2.1（宿主终态文件清单）
+#
+# 本批（P5A）**不动旧路径**：AstrBot 生产分发仍走 `game/commands/**` 的 194 个壳
+# （P5C 才删壳 + 把生产分发切到本通道）。本通道供 **loopback 测试通道** 与对拍脚本驱动，
+# 用来证明「宿主靠 `host/adapter_qq.py`（三函数）+ `inject` 跑通命令，且与旧路径逐字节相同」。
+#
+# 宿主面五件（`host/**`）：adapter_qq（三函数 + 钩子）· _platform · _identity ·
+# store_factory（库路径 + 连接 + 单进程锁 + 存档半边取用口）· log_setup / tlog_setup。
+# ============================================================================
+
+import json as _json  # noqa: E402
+
+from saintess_engine.host import Host as _EngineHostBase  # noqa: E402
+
+from .host import adapter_qq as _adapter_qq  # noqa: E402
+from .host import store_factory as _store_factory  # noqa: E402
+
+#: 包目录配置项（环境变量优先；插件配置文件同名键次之）
+_PACKAGE_CFG_ENV = "GWEN_PACKAGE_DIR"
+_PACKAGE_CFG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+
+
+def resolve_package_dir(package_dir: str = None):
+    """包目录（`game.json` 所在）—— **只从配置来**；代码里不写死任何包名。
+
+    配置来源（按序）：
+      ① 显式入参（测试 / 对拍脚本）；
+      ② 环境变量 `GWEN_PACKAGE_DIR`；
+      ③ 插件配置 `<插件根>/config.json` 的 `package_dir`（相对路径按插件根解析）。
+
+    都没有 → 记 ERROR 并返回 `None`（引擎通道**不启动**：fail-closed —— 换包 = 换配置 + 重启进程，
+    宿主的可替换性要求「包路径」不许在代码里猜）。
+    """
+    raw = str(package_dir or os.environ.get(_PACKAGE_CFG_ENV) or "").strip()
+    if not raw:
+        try:
+            with open(_PACKAGE_CFG_FILE, encoding="utf-8") as fh:
+                raw = str((_json.load(fh) or {}).get("package_dir") or "").strip()
+        except OSError:
+            raw = ""
+        except ValueError:
+            logging.getLogger(__name__).error(
+                "插件配置不是合法 JSON：%s（包目录取不到 → 引擎通道不启动）", _PACKAGE_CFG_FILE)
+            raw = ""
+    if not raw:
+        logging.getLogger(__name__).error(
+            "未配置包目录（环境变量 %s 或 %s 的 package_dir）——引擎 host 通道不启动。"
+            "换包 = 换配置 + 重启进程（一个进程一个包）。", _PACKAGE_CFG_ENV, _PACKAGE_CFG_FILE)
+        return None
+    if not os.path.isabs(raw):
+        raw = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), raw))
+    return raw
+
+
+class EngineHost(_EngineHostBase):
+    """引擎 host 的宿主子类 —— 只加三处宿主侧必需面（**引擎一行未改**）。
+
+    ① `env.state["shell"]`：包内取宿主面的**唯一过渡能力口**（包内 `content/guards.py` 与
+       `cmds_*.py` 都经它取 `_strip_cmd` / `_player` / `_tip` / `_is_gm` / `_broadcast` …）。
+       本类只负责把调用方给的宿主壳透传进 `Env.state`（与旧桥 `game/commands/_host_bridge.py`
+       的 `state={"shell": host_shell}` 同形同值 ⇒ 包内行为逐字不变）。
+    ② async 处理器：包内战斗族处理器是 `async def`（返回 `list[str]`），引擎 `_as_replies`
+       不 await ⇒ 会把协程对象当回话投出去。本类在 `_as_replies` 里 await / 收 async 流
+       （编辑器试玩通道 `editor/play_worker.py` 已有同款先例）。
+    ③ 新玩家**不代造档**：引擎缺省会给一份「最小档」；本包策略是「先注册」（包内没有
+       `initial_save`）—— 代造档会让包侧 `player` 守卫失效、还会凭空落一行玩家档。
+       故：包**没有**声明 `initial_save` ⇒ 空档（由包内 `player` 守卫按**包内文案**拦截）。
+    """
+
+    def __init__(self, *args, shell=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.shell = shell
+
+    # ---- ① 宿主壳能力口 ----
+    def build_env(self, key, spec, ctx, player, *, raw=None):
+        env = super().build_env(key, spec, ctx, player, raw=raw)
+        if self.shell is not None:
+            env.state["shell"] = self.shell
+        return env
+
+    # ---- ② async 处理器 ----
+    @staticmethod
+    def _as_replies(out) -> list:
+        """处理器返回值 → 文本段（`str` / list / 生成器 / `None` 都收）。
+
+        与引擎原实现的**唯一差异**：**空串段保留**。包内排版空行是 `raw("")`（`content/commands.py`
+        `render_panel` → 空串段），旧路径 `_BRIDGE.run` 的 `"\\n".join` 会把它变成空行；引擎原实现
+        在 `_as_replies` 里把空串滤掉，等价于**吃掉空行** ⇒ 两条通道的成品文本不再逐字节相同。
+        这里只滤 `None`（保真）；空串是否投递由投递侧决定（见 `handle`：收集面保真、平台面不空发）。
+        """
+        if hasattr(out, "__await__") or hasattr(out, "__anext__"):
+            out = _adapter_qq.run_sync(out)
+        if out is None:
+            return []
+        if isinstance(out, str):
+            return [out]
+        if isinstance(out, (list, tuple, set)):
+            return [str(x) for x in out if x is not None]
+        if hasattr(out, "__iter__") and not isinstance(out, (dict, bytes)):
+            return [str(x) for x in out if x is not None]
+        return [str(out)]
+
+    # ---- ③ 新玩家建档策略 + 逐段投递 ----
+    def accept(self, ctx: dict, spec=None) -> None:
+        """一条消息：读档（含「不代造档」策略）→ 指定声明或引擎路由 → **逐段投递**。
+
+        与引擎原实现的两处差异（理由见本类文档串）：
+          · 新玩家不代造档（包没声明 `initial_save` ⇒ 空档，由包侧 `player` 守卫拦截）；
+          · 投递走 `adapter.say`（**不经** `Host.say` 的 `if text:` 过滤）：空串段是包内排版空行，
+            收集面必须保真（对拍/回放），平台面由适配器 `say` 自己决定不空发。
+
+        `spec` 显式给出时按该声明执行（适配器对**不可见声明**的路由落点，见
+        `host/adapter_qq.py::route_plan`）；缺省 = 引擎可见路由。
+        """
+        ctx = ctx or {}
+        uid = str(ctx.get("uid") or "")
+        to = {"uid": uid, "group_id": ctx.get("group_id")}
+        text = str(ctx.get("text") or "").strip()
+        player = self.load_player(uid)
+        if player is None:
+            if self.pkg is not None and self.pkg.entry_fn("initial_save") is not None:
+                player = self.pkg.initial_save(uid, ctx, id_key=self.id_key) or {}
+                if not isinstance(player, dict):
+                    player = {}
+                if player:                       # 建档是引擎级副作用（新档必须落库一次）
+                    self.save_player(uid, player)
+            else:
+                player = {}                      # 包要求先注册 → 空档（`player` 守卫拦截）
+        if spec is not None:
+            replies = self.invoke(spec, ctx, player)
+        else:
+            replies = self.route(ctx, player, text)
+        for part in replies:
+            self.adapter.say(to, part)
+
+    def handle(self, ctx: dict) -> None:
+        """引擎契约的 `handle`（= `accept` 的缺省形态：走引擎可见路由）。"""
+        self.accept(ctx)
+
+
+class EngineShell(Main):
+    """引擎通道的**宿主壳**：平台命令实现沿用 `game/commands/**`（本批不删），
+    但**转发型**入口 `_run_shortcut` 改走引擎通道（`Host.handle`）。
+
+    `game/commands/**` 里 `shortcut_trigger` / `page_flip` / `gm_play` 的正文会调
+    `self._run_shortcut(event, text)` 把消息转给另一条指令执行 —— 本类把这一步接到
+    `EngineChannel.collect_event`（`ctx` 由同一平台事件重建，`text` = 重建后的指令文本），
+    于是「5 条平台例外」也走在引擎通道上（§11.3 / P5A 作业书 §2③）。
+    """
+
+    _engine_channel = None
+
+    def bind_engine_channel(self, channel) -> None:
+        self._engine_channel = channel
+
+    async def _run_shortcut(self, event, text: str):
+        """转发另一条指令执行 —— **改走引擎通道**（P5A §2③），并保留框架转发的换文语义。
+
+        与 `saintess_engine.command.router.run_shortcut` 同款：转发期间**临时把事件的
+        `message_str` 换成重建后的指令文本**，结束后还原（否则包内处理器经 `env.raw`
+        取到的还是原消息，参数解析会错 —— 实测：`n3` → 转发『前往 3』时拿到 `n3`）。
+        """
+        channel = self._engine_channel
+        if channel is None:
+            raise RuntimeError(
+                "引擎通道未装配：EngineShell._run_shortcut 需要 bind_engine_channel() ——拒绝静默走旧路径")
+        had = hasattr(event, "message_str")
+        orig = getattr(event, "message_str", None)
+        try:
+            if had:
+                event.message_str = text
+            for seg in channel.collect_event(event, text=text):
+                yield seg
+        finally:
+            if had:
+                event.message_str = orig
+
+
+class EngineChannel:
+    """引擎通道装配 + 驱动口（宿主唯一「跑一条消息」入口）。
+
+        channel = EngineChannel(package_dir)      # package_dir **由配置给**
+        channel.boot()                            # 加载包（bind/inject）→ 建表 → 绑存档半边
+        channel.collect_event(event)              # 平台事件 → 引擎通道 → 回话段（list[str]）
+
+    `collect_event` / `collect_ctx` 的顺序 = 平台门 → 平台例外命令 → 引擎路由：
+
+        ① 平台 gate（`_maint_gate`）：命停服 → 本次不路由、零回话；
+        ② 平台例外（`gm_play` / `gm_spy` / `shortcut_trigger` / `page_flip`）：交给适配器派发
+           （包内没有也不应有处理器；转发经 `EngineShell._run_shortcut` 回到本通道）；
+        ③ 其余：`Host.handle(ctx)`（引擎按**包内声明**路由 → 守卫 → `Env` → 包内处理器）。
+    """
+
+    def __init__(self, package_dir: str, *, context=None, shell=None, sink=None, seed=None,
+                 inject=None):
+        self.package_dir = package_dir
+        self.store = _store_factory.store()
+        self.shell = shell if shell is not None else EngineShell(None)
+        self.shell.bind_engine_channel(self)
+        self.adapter = _adapter_qq.QQAdapter(
+            store=self.store, shell=self.shell, context=context, sink=sink, seed=seed)
+        self.host = EngineHost(self.adapter, package_dir, shell=self.shell,
+                               inject=inject if inject is not None else _store_factory.inject_handles(),
+                               id_key="uid")
+        self.pkg = None
+
+    def boot(self):
+        """加载包（→ 包侧 `bind_host(**inject)`，import 命令模块**之前**）+ 建表 + 绑存档口。"""
+        self.pkg = self.host.boot()
+        _store_factory.bind_store(self.pkg)          # 存档半边（`content/persistence`）
+        self.store.init()                            # 建表 / 迁移（幂等）
+        self.adapter.attach(pkg=self.pkg, host=self.host)
+        return self.pkg
+
+    def collect_ctx(self, ctx: dict) -> list:
+        """一条消息 → 回话段（`list[str]`，元素顺序 = 投递顺序）。
+
+        三段式（§11.3）：① 平台 gate（`_maint_gate`，停服拦截时零回话）→
+        ② 适配器那半路由（平台例外四条 / 不可见声明）→ ③ 引擎可见路由。
+        """
+        self.adapter.begin(ctx)
+        out: list = []
+        with self.adapter.collecting(out):
+            if self.adapter.gate(ctx):
+                return []                            # 停服拦截：不路由、零回话
+            plan = self.adapter.route_plan(ctx.get("text") or "")
+            if plan is not None and plan[0] == "platform":
+                out.extend(self.adapter.platform_replies(plan[1].key, ctx))
+            elif plan is not None and plan[0] == "invoke":
+                self.host.accept(ctx, plan[1])       # 不可见声明 → 包内处理器
+            else:
+                self.host.accept(ctx)                # 引擎可见路由
+        return out
+
+    def collect_event(self, event, text: str = None) -> list:
+        """平台事件 → 回话段（`text` 显式给出 = 快捷/翻页重建的指令文本）。"""
+        return self.collect_ctx(self.adapter.to_ctx(event, text=text))
+
+
+#: 进程唯一引擎通道（loopback 测试通道用；对拍脚本可自行 `EngineChannel(...)` 另建）
+_ENGINE_CHANNEL = {"channel": None}
+
+
+def engine_channel(package_dir: str = None, **kwargs) -> EngineChannel:
+    """取（或建）进程唯一引擎通道。配置缺包目录 → **抛**（调用方决定怎么报，绝不静默）。"""
+    channel = _ENGINE_CHANNEL["channel"]
+    if channel is None:
+        resolved = resolve_package_dir(package_dir)
+        if not resolved:
+            raise RuntimeError(
+                "引擎 host 通道未配置包目录（%s / %s.package_dir）——拒绝猜包名"
+                % (_PACKAGE_CFG_ENV, _PACKAGE_CFG_FILE))
+        channel = EngineChannel(resolved, **kwargs)
+        channel.boot()
+        _ENGINE_CHANNEL["channel"] = channel
+    return channel
 
 
 # ================= astrbot 插件壳（v117.5 解耦后薄层） =================
