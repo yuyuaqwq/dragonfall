@@ -38,12 +38,52 @@ sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
 from saintess_engine import config as _b2c  # noqa: E402
-from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
+# ★ P5E-DELETE（2026-09-15，删壳批）：装配口从宿主壳
+#   `game.content_rules.apply.ensure_engine_configured()`（`game/**` 已整树删除）改到
+#   **包侧装配口**（与 `tests/_engine_harness.py` / `main.EngineChannel.boot()` 同序同源）：
+#   引擎 `load_package(<包目录>, inject=宿主工厂注入面)` → `Package.install_engine()`
+#   （= `content/apply.py::install_engine`，旧壳 `ensure_engine_configured` 的真源）。
+#   数据名一并从**包内门面**取（`content.facade.C` 的 `MONSTER_MODS` / `MONSTER_SKILLS` /
+#   `INSTANCES` 与旧宿主门面同源）。审计口径与三分类判定**一条未变**。
+from saintess_engine.host import load_package  # noqa: E402
 from saintess_engine.battle.ai import normalize_ai  # noqa: E402
-from game.content import MONSTER_MODS, MONSTER_SKILLS  # noqa: E402
 
+
+def _pkg_dir():
+    """包目录：`framework/games/*` 里声明表最大的那个（同全量 runner / 注册门禁）。"""
+    games = os.path.join(PLUGIN_DIR, "framework", "games")
+    best, best_n = "", -1
+    for name in sorted(os.listdir(games)):
+        decl = os.path.join(games, name, "content", "data", "commands.json")
+        if not os.path.isfile(decl):
+            continue
+        with open(decl, encoding="utf-8") as fh:
+            n = len(json.load(fh) or {})
+        if n > best_n:
+            best, best_n = os.path.join(games, name), n
+    return best
+
+
+def _host_inject():
+    """宿主工厂注入面（`host/store_factory.inject_handles()`；与生产装配同源）。"""
+    from data.plugins.dragonfall.host import store_factory as _sf
+    return _sf.inject_handles()
+
+
+#: 包目录（`content` 的父目录）必须先于 `load_package` 进 sys.path —— 包内 `content.*`
+#: 是按**顶层包名** import 的（与 `tests/_engine_harness.py:54` 同口径）。
+_PKG_DIR = _pkg_dir()
+if _PKG_DIR and _PKG_DIR not in sys.path:
+    sys.path.insert(0, _PKG_DIR)
+
+_pkg = load_package(_PKG_DIR, inject=_host_inject())
+_pkg.install_engine()
+from content.facade import C as _C  # noqa: E402
+
+MONSTER_MODS = _C.MONSTER_MODS
+MONSTER_SKILLS = _C.MONSTER_SKILLS
 try:
-    from game.content import INSTANCES  # noqa: E402
+    INSTANCES = _C.INSTANCES
 except Exception:                                             # pragma: no cover
     INSTANCES = {}
 

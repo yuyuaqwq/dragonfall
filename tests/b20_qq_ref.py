@@ -36,6 +36,28 @@ import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PLUGIN_DIR = os.path.dirname(HERE)
+#: ★ P5E-DELETE：交付面 `EngineChannel(package_dir)` 的必填参数 —— 包目录
+#: （`content` 的父目录）。**不写死包名**：取 `framework/games/*` 里声明表最大的那个
+#: （与全量 runner / 注册门禁同规则）。
+def _find_pkg_dir():
+    import json as _json
+    games = os.path.join(PLUGIN_DIR, "framework", "games")
+    best, best_n = "", -1
+    if os.path.isdir(games):
+        for name in sorted(os.listdir(games)):
+            decl = os.path.join(games, name, "content", "data", "commands.json")
+            if not os.path.isfile(decl):
+                continue
+            with open(decl, encoding="utf-8") as fh:
+                n = len(_json.load(fh) or {})
+            if n > best_n:
+                best, best_n = os.path.join(games, name), n
+    return best
+
+
+_PKG_DIR = _find_pkg_dir()
+if _PKG_DIR and _PKG_DIR not in sys.path:
+    sys.path.insert(0, _PKG_DIR)
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 WORKSPACE = os.path.dirname(os.path.dirname(PLUGIN_DIR))
 
@@ -226,37 +248,34 @@ def main() -> int:
         pass
 
     try:
-        from game.commands import _host_bridge as BRIDGE
-        from game.commands import (PlayerCmds, WorldCmds, CombatCmds, EconomyCmds, SocialCmds,
-                                   MiscCmds, InstanceCmds, GmCmds, ExplorationCmds, JobGuideCmds,
-                                   CollectionCmds, WeeklyCmds, TowerCmds, EventMenuCmds)
+        # ★ P5E-DELETE（2026-09-15，删壳批）：驱动面从**待删宿主壳**
+        #   （`game.commands` 的 14 个 Mixin + `game.commands._host_bridge.run_async`）
+        #   改成**交付面** `main.EngineChannel`（`main.py:647`；与 `host/adapter_qq.py`
+        #   同一条平台路径：平台 gate → 平台例外 → 引擎可见路由）。
+        #   本脚本的角色是「QQ 侧对拍基准」——终态下这就是 QQ 侧本身
+        #   （`main.EngineChannel` 是生产唯一「跑一条消息」入口），
+        #   判据（逐条 key/文本段/动作/状态 sha 与试玩侧逐字节相同）一字未变。
+        import importlib
+        _main = importlib.import_module("data.plugins.dragonfall.main")
         from content import persistence
         import time as _time
     except Exception:
         emit({"ok": False, "stage": "load", "traceback": traceback.format_exc()})
         return 0
 
-    bases = (PlayerCmds, WorldCmds, CombatCmds, EconomyCmds, SocialCmds, MiscCmds, InstanceCmds,
-             GmCmds, ExplorationCmds, JobGuideCmds, CollectionCmds, WeeklyCmds, TowerCmds,
-             EventMenuCmds)
-    shell_cls = type("B20QqShell", (_PlatformRecorder,) + bases, {})
-    shell = shell_cls()
-
-    # ★ 装配顺序铁律：**先把包物化（宿主注入面落地）再钉墙钟**。
-    #   包在 `game.json` 声明了 `bind`（`content/facade.py::bind_host`）—— `BRIDGE.package()`
-    #   首次调用会 `load_package(root, inject=_host_inject())`，而 `facade.bind_host` 第①步
-    #   就 `handles.bind(clock=宿主 time.time)`。若这次注入发生在钉墙钟**之后**（B20 早期
-    #   包未声明 bind 时的写法），它会把冻结值重新拨回真墙钟 —— 实测
-    #   `players.last_active` / `player_groups.last_active` 逐秒漂移，签到 / 见闻录 两条
-    #   digest 的「状态 sha」段因此不同（文本段仍相同）。注入必须排在冻结前面。
-    #   试玩侧（`editor/play_worker.py`）同因同法：它把冻结值**经 inject** 交给 `host.boot()`。
+    # ★ 装配顺序铁律（原注释保留）：**先把包物化（宿主注入面落地）再钉墙钟**。
+    #   交付面 `EngineChannel.boot()` 内部即 `host.boot()`（load_package + bind_host 的
+    #   clock 注入），故顺序天然正确。
     try:
-        BRIDGE.package()
+        _channel = _main.EngineChannel(_PKG_DIR)
+        _channel.boot()
     except Exception:
         emit({"ok": False, "stage": "load",
               "message": "包物化失败（引擎 load_package + 宿主注入面）",
               "traceback": traceback.format_exc()})
         return 0
+    shell = _channel.shell
+    BRIDGE = _channel          # 兼容下面的旧名字（`.dispatch_declaration` ≡ 旧 `run_async`）
 
     # 墙钟钉死（与试玩侧同口径；`B20_CLOCK` 或 payload["clock"]）—— 必须在注入面落地之后
     clock_ts = payload.get("clock") or os.environ.get("B20_CLOCK") or ""
@@ -266,32 +285,16 @@ def main() -> int:
         except Exception:                 # noqa: BLE001
             pass
 
-    from _cmd_registry import declared_usage
-
-    _BY_KEY = {}
-    for _mname, _k in declared_usage().items():
-        _BY_KEY.setdefault(_k, _mname)
-
-    import asyncio
-
     def _run_one(key, text):
-        fn = getattr(shell, key, None)
-        if fn is None:
-            # 声明表 key 与宿主方法名不同名（如 register → register_）：按 `_cmd_registry` 反查
-            mname = _BY_KEY.get(key)
-            fn = getattr(shell, mname, None) if mname else None
-        if fn is None:
-            return {"error": "宿主侧无 %r 的 handler" % key}
+        """按**声明 key** 跑一条 → 回话段（旧壳 `_BRIDGE.run_async` 的同义落点）。"""
         event = FakeEvent(group_id, uid, text)
-        shell._b20_events = []
-        segs = []
-
-        async def _collect():
-            async for item in BRIDGE.run_async(shell, key, event):
-                if item not in (None, ""):
-                    segs.append(str(item))
-        asyncio.run(_collect())
-        return {"segments": segs, "actions": list(shell._b20_events)}
+        try:
+            segs = [str(x) for x in (_channel.dispatch_declaration(key, event) or [])
+                    if x not in (None, "")]
+        except Exception as e:            # noqa: BLE001
+            return {"error": "%s: %s" % (type(e).__name__, e)}
+        return {"segments": segs,
+                "actions": list(getattr(shell, "_events", None) or [])}
 
     rows = []
     for i, (text, key) in enumerate(pairs):

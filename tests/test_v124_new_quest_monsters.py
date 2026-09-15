@@ -15,6 +15,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # tests/
 import conftest  # noqa: E402  设置路径/shim/GWEN_GAME_DB
 from conftest import C  # noqa: E402
+# ★ P5E-DELETE（2026-09-15，删壳批）：`_INDEXES` 在包侧是**惰性**的（`content/index.py:92-103`；
+#   `C._INDEXES` 是同一只 dict，未建时为空）。旧宿主门面是装配期渴求态 ⇒ 本文件过去不需显式建。
+#   终态按包侧口径**显式取一次**（`C.resolve` 内部就走 `_indexes()`）。判据与阈值一条未变。
+C.resolve("monsters", "野狗")
 
 PASS = 0
 FAIL = 0

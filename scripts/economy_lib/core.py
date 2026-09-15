@@ -19,10 +19,19 @@ from .constants import (
     SHOP_HEALTH_BANDS, SHOP_LOW_TRIGGER, SHOP_HIGH_TRIGGER,
     SHOP_EXEMPT_KEYS,
 )
-# 只走插件根路径（import game.data as D 风格），避免 data.plugins 全包双路径循环
-import game.content as D  # noqa: E402  ★ B16-W11d：数据层已删 → 改用聚合层（D.MAPS 同一份门面表）
-from game.core import stats as S  # noqa: E402
-from game.core.drops import generate_roster_equip  # noqa: E402
+# ★ P5E-DELETE（2026-09-15，删壳批）：取件口从待删宿主壳改到**包内真源**。
+#   原三行 = `import game.content as D` / `from game.core import stats as S` /
+#   `from game.core.drops import generate_roster_equip`（`game/**` 已整树删除，
+#   全删态实测本文件 import 即 `ModuleNotFoundError: No module named 'game.content'`
+#   ⇒ 数值门禁 4 个文件连坐红）。包内对应真源（对象同一，逐名可查）：
+#     · D = `content.facade.C`（宿主聚合门面的包内等价物；`D.MAPS` / `D.SHOP_EQUIP` /
+#       `D.EQUIP_ROSTER` / `D.MATERIALS` / `D.ITEMS` 与旧门面同源同值）
+#     · S = `content.stats`（`game.core.stats` 的真源模块）
+#     · generate_roster_equip = `content.drops`（`game.core.drops` 的真源模块）
+#   数值口径、公式与断言**一条未变**（门禁只比数）。
+from content.facade import C as D  # noqa: E402
+from content import stats as S  # noqa: E402
+from content.drops import generate_roster_equip  # noqa: E402
 
 random.seed(20260902)
 
@@ -455,7 +464,7 @@ def shop_scan() -> dict:
                 continue
             town_lv, stage, inc = meta
             for wname, wtype, wlv, wq in wlist:
-                from game.core import stats as _S
+                from content import stats as _S
                 try:
                     stats_ = _S.equip_stats("weapon", wlv, wq)
                     base = int(_S.equip_value(stats_) * 3.5)
@@ -485,7 +494,7 @@ def shop_scan() -> dict:
                 if not r:
                     continue
                 try:
-                    from game.core.drops import generate_roster_equip
+                    from content.drops import generate_roster_equip
                     eq = generate_roster_equip(rid_s)
                     price = eq.get("price", 0)
                     if not price:

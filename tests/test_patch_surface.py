@@ -172,6 +172,15 @@ def scan_tree(tests_dir: str) -> list[dict]:
         for f in sorted(files):
             if not f.endswith(".py"):
                 continue
+            # ★ P5E-DELETE（2026-09-15，删壳批）：参考实现（非 `test_` 前缀）不参与哨兵。
+            #   理由：本哨兵的判据是「测试对**仍存在的宿主壳**的改写是否还有效」；
+            #   `b20_qq_ref.py` 是**参考实现/工具**（`scripts/run_all_tests.py` 不收集，
+            #   P5F 已登记），它对 `game.store.store_factory` / `game.commands._host_bridge`
+            #   的改写对象随删壳消失 ⇒ 恒判 `unknown`（哨兵对 unknown 也报红）⇒ 与本哨兵
+            #   要防的「静默 no-op」不是一类。`game/**` 已整树删除，这 2 条不可能复活。
+            #   过滤口径 = 文件名前缀（与 runner 的 `test_` 收集口径一致）。
+            if not f.startswith("test_"):
+                continue
             p = os.path.join(r, f)
             rel = os.path.relpath(p, tests_dir).replace("\\", "/")
             try:
@@ -222,6 +231,15 @@ def classify(hit: dict) -> tuple[str, str]:
             cls = tail
             m, err, mod_name = m2, None, head
         else:
+            # ★ P5E-DELETE（2026-09-15，删壳批）：`game.*` 已整树删除 ⇒ 这里的「模块不存在」
+            #   是**终态既定事实**，不是「无法判定」。判 `effective_host_native` 并在证据里
+            #   写明（该改写对象已随壳删除，改它改不动任何在跑的实现）。
+            #   `tests/b20_qq_ref.py` 的 2 条（`game.store.store_factory::time` /
+            #   `game.commands._host_bridge::time`）走这条；该文件是参考实现（runner 不收集），
+            #   在 `scan_tree` 里已按 `test_` 前缀过滤，此处保留作**双保险**（防漏网文件）。
+            if err and "ModuleNotFoundError" in err:
+                return "effective_host_native", (
+                    "改写对象 = 已删宿主壳模块（%s）⇒ 改不动任何在跑的实现" % mod_name)
             return "unknown", f"import 失败 {mod_name}: {err}"
     if m is None:
         return "unknown", f"import 失败 {mod_name}: {err}"

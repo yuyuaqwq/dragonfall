@@ -295,20 +295,51 @@ def register_from_declarations(pkg, *, handler_factory=None, module_path=None) -
 # ============================================================
 # 派生面：平台 filter / 静态表 / 「是不是游戏指令」
 # ============================================================
+def _static_face(pkg) -> list:
+    """静态命令面（`declaration_patterns` / `static_handlers` 的**唯一**条目来源）。
+
+    ★ P5E-DELETE / D2（2026-09-15）：**私有键（`_` 前缀）不进静态命令面**。
+    理由 = 与旧宿主逐字同口径：`game/commands/base.py:163 _host_handler_finder`
+    就是按 `name.startswith("_")` 显式跳过私有 handler 的（v96 注释原文：
+    「跳过私有 handler（_maint_gate 等），避免空正则污染快捷转发」），
+    旧 `_registry.COMMAND_REGEX` 里也没有 `_maint_gate`。
+
+    不收敛的后果（P6-PREP 实测，`out/probes/probe4b_private_key_surface.py`）：
+    停服 gate `_maint_gate` 的声明正则**只有 At 前缀、无 `$` 锚定**（设计上匹配一切消息），
+    而 `commands.json` 按字母序排 ⇒ 它落在 `declaration_patterns` 池首位，静态兜底表
+    也含 `('…', '_maint_gate')` ⇒ 静态试命中 `起床` → `['_maint_gate']`（**gate 抢走真命中**）、
+    `属性` → `['_maint_gate', 'attributes']` —— 与旧壳不同。
+
+    口径选择（★ 只剔**私有**键，不剔 `visible=False`）：`gm_*` 一族 22 条也是
+    `visible=False`（不可见声明 = GM 专用），但**旧壳的静态表里它们在**（旧壳只跳 `_` 前缀），
+    若按 `visible` 过滤会把 GM 指令从静态面拿掉 = 改行为。故本函数只做 `_` 前缀剔除。
+    """
+    out = []
+    for key, raw in _declarations(pkg).items():
+        if str(key).startswith("_"):
+            continue
+        out.append((key, _spec_of(key, raw)))
+    return out
+
+
 def declaration_patterns(pkg) -> list:
-    """`[合并正则, …]`（每条声明一条）——**「怎样算一条游戏指令」的唯一池子**。"""
-    specs = [_spec_of(k, v) for k, v in _declarations(pkg).items()]
-    return [s.combined() for s in specs]
+    """`[合并正则, …]`（每条声明一条）——**「怎样算一条游戏指令」的唯一池子**。
+
+    P5E-DELETE / D2：私有键不进本池（见 `_static_face`）。
+    """
+    return [spec.combined() for _key, spec in _static_face(pkg)]
 
 
 def static_handlers(pkg) -> list:
-    """`[(已编译正则, key), …]` —— 引擎 `CommandBase._find_handler` 的静态兜底表。"""
+    """`[(已编译正则, key), …]` —— 引擎 `CommandBase._find_handler` 的静态兜底表。
+
+    P5E-DELETE / D2：私有键不进本表（见 `_static_face`）。
+    """
     out = []
-    for key, raw in _declarations(pkg).items():
-        spec = _spec_of(key, raw)
+    for _key, spec in _static_face(pkg):
         for pat in spec.patterns:
             try:
-                out.append((re.compile(pat), key))
+                out.append((re.compile(pat), spec.key))
             except re.error:
                 continue
     return out

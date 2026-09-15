@@ -82,7 +82,18 @@ MISC_SRC = os.path.join(_PD, "game", "commands", "misc.py")
 EVENT_SRC = os.path.join(_PD, "game", "commands", "event_menu.py")
 WORLD_SRC = os.path.join(_PD, "game", "commands", "world.py")
 QUESTS_SRC = os.path.join(_PD, "game", "services", "quests.py")
-GATE_SRC = os.path.join(_PD, "game", "core", "instance_gate.py")
+# ★ P5E-DELETE（2026-09-15，删壳批）：「每日命令」域的宿主扫描根 `game/services/quests.py`
+#   随壳删除；包内真源 = `content/profession_quests.py`（R2 登记：`game/services/quests.py`
+#   的逻辑真源）+ `content/quests_flow.py`（每日流程）。两文件都扫（`_wired_paths` 支持列表；
+#   真实调用点集合与双向对账判定不变）。`PKG_QUESTS_SRC` 在 `PKG_CONTENT` 定义之后赋值。
+# ★ P5E-DELETE（2026-09-15，删壳批）：「副本准入」域的扫描根改到**包内真源**。
+#   原值 = `<插件>/game/core/instance_gate.py`（宿主薄壳，随 `game/**` 整树删除）
+#   ⇒ 全删态 `t2_key_and_params_accounting` 扫描时 `FileNotFoundError`（整文件红）。
+#   包内落点 = `content/flow/instance_gate.py`（B18-L5 起 `instance.*` 文案的调用点就在包里；
+#   下面 `PKG_*` 一族早已按「宿主 + 包内」两侧登记，本域只是把宿主那一侧换成包内侧）。
+#   判据（key ↔ 调用点双向对账 / 槽位校验 / dead key）与条数**一条未变**。
+GATE_SRC = os.path.join(_PD, "framework", "games", "orlandia", "content", "flow",
+                        "instance_gate.py")
 INSTANCE_ROUTER_SRC = os.path.join(_PD, "game", "commands", "instance_router.py")
 INSTANCE_SRC = os.path.join(_PD, "game", "commands", "instance.py")
 INSTANCE_BATTLE_SRC = os.path.join(_PD, "game", "commands", "instance_battle.py")
@@ -93,6 +104,9 @@ SPEC = T.SPEC_PATH
 #   `game/commands/weekly.py` 迁进包内 `content/cmds_weekly.py`（宿主侧退化为 0 调用点）。
 #   扫描根因此扩到「宿主 + 包内」两侧（B18_TERMINAL_SHAPE §2 的前置项：渲染进包 ⇒ 门禁必须跟）。
 PKG_CONTENT = os.path.join(_PD, "framework", "games", "orlandia", "content")
+# ★ P5E-DELETE：「每日命令」域的包内真源（见上面 QUESTS_SRC 处注释）
+PKG_QUESTS_SRC = [os.path.join(PKG_CONTENT, "profession_quests.py"),
+                  os.path.join(PKG_CONTENT, "quests_flow.py")]
 PKG_WEEKLY_SRC = os.path.join(PKG_CONTENT, "cmds_weekly.py")
 # ★ B18-L6（2026-09-14）：『今日事件/事件/领取补给箱』的渲染随命令整块进包
 #   （`content/cmds_event.py`）—— `supply.*` 7 条调用点从宿主 `event_menu.py` 搬进包内，
@@ -126,6 +140,12 @@ PKG_MISC_SRC = os.path.join(PKG_CONTENT, "cmds_misc.py")
 #   = 迁移前真跑 129 例（33 条命令 × 正常/边界/失败）存下的完整输出与 DB 逐行 dump 摘要。
 SOCIAL_SRC = os.path.join(_PD, "game", "commands", "social.py")
 PKG_SOCIAL_SRC = os.path.join(PKG_CONTENT, "cmds_social.py")
+# ★ P5E-DELETE（2026-09-15，删壳批）：本文件 [12] 段（社交域逐字冻结）的扫描根原为宿主
+#   `game/commands/social.py`（随壳删除）。该域 B18-L8 起整块进包、宿主侧已是 0 调用点壳
+#   ⇒ 改指包内真源 `content/cmds_social.py`（与 `PKG_SOCIAL_SRC` 同一文件、同一扫描面）。
+#   下面「宿主壳 0 调用点 / 0 残留转发」两条断言的**判据对象**随之变成包内真源那一份
+#   （原本就是它们承载全部真实句子），判定与阈值一字未变。
+SOCIAL_SRC = PKG_SOCIAL_SRC
 # ★ B18-L9（2026-09-15）：经济域 **45 条命令**整块进包 —— 宿主 `game/commands/economy.py`
 #   退化为「`@declared` 注册 + 两行 `_BRIDGE.run_async` 转发」，守卫（`hook:player`）/取参/
 #   分支业务/回话全在包内 `content/cmds_economy.py`（处理器 async：实现体
@@ -137,15 +157,32 @@ PKG_SOCIAL_SRC = os.path.join(PKG_CONTENT, "cmds_social.py")
 #   = 迁移前真跑 142 例（45 条命令 × 正常/边界/失败 + 追加边界）存下的完整输出与 DB dump 摘要。
 ECONOMY_SRC = os.path.join(_PD, "game", "commands", "economy.py")
 PKG_ECONOMY_SRC = os.path.join(PKG_CONTENT, "cmds_economy.py")
+# ★ P5E-DELETE（2026-09-15，删壳批）：同 SOCIAL_SRC 的处置 —— [13] 段（经济域逐字冻结）
+#   原扫宿主 `game/commands/economy.py`（随壳删除），改指包内真源 `content/cmds_economy.py`。
+ECONOMY_SRC = PKG_ECONOMY_SRC
+# ★ P5E-DELETE（2026-09-15，删壳批）：「副本结算 / 副本日志 / 副本战斗日志」三域的
+#   **宿主侧扫描根**同样随 `game/**` 删除（逐个 FileNotFoundError）。这三个域在 B18 时就是
+#   「宿主 + 包内」两侧扫描，而宿主侧从那时起已退化为壳（调用点 0 个）⇒ 只保留**包内真源**
+#   一侧，扫描面（真实调用点集合）与判定逐条不变。
+#   逐个映射：`game/commands/instance_router.py` → `content/cmds_instance_router.py`；
+#   `game/commands/instance.py` → `content/instance_cmds.py`；
+#   `game/commands/instance_battle.py` → `content/flow/instance_battle.py`。
+INSTANCE_ROUTER_SRC = PKG_INSTANCE_ROUTER_SRC
+INSTANCE_SRC = PKG_INSTANCE_SRC
+INSTANCE_BATTLE_SRC = PKG_FLOW_INSTANCE_BATTLE_SRC
 # 已迁移的域 → 该域文案由哪个文件接线（值 = 单文件或文件列表；新增一个域时在这里加一行）
-WIRED = {"副本准入": GATE_SRC, "副本结算": [INSTANCE_ROUTER_SRC, PKG_INSTANCE_ROUTER_SRC],
-         "副本日志": [INSTANCE_SRC, PKG_INSTANCE_SRC],
-         "副本战斗日志": [INSTANCE_BATTLE_SRC, PKG_FLOW_INSTANCE_BATTLE_SRC],
-         "周常": [WEEKLY_SRC, PKG_WEEKLY_SRC],
-         "签到": [MISC_SRC, PKG_MISC_SRC], "补给箱": [EVENT_SRC, PKG_EVENT_SRC],
-         "每日任务": [WORLD_SRC, PKG_WORLD_SRC], "每日命令": QUESTS_SRC,
-         "社交": [SOCIAL_SRC, PKG_SOCIAL_SRC],
-         "经济": [ECONOMY_SRC, PKG_ECONOMY_SRC]}
+# ★ P5E-DELETE（2026-09-15，删壳批）：**全部域都只保留包内真源一侧**。
+#   这些域在 B18 系列里都已「整块进包」——宿主侧当时就退化为壳（调用点 0 个，见各段原注释
+#   「宿主侧退化为 0 调用点」「两侧扫到 0 个调用点」），删壳后宿主路径整体 FileNotFoundError。
+#   ⇒ 扫描面（真实调用点集合 / 字面量集合）与双向对账判定**逐条不变**，只是不再扫那份空壳。
+WIRED = {"副本准入": GATE_SRC, "副本结算": PKG_INSTANCE_ROUTER_SRC,
+         "副本日志": PKG_INSTANCE_SRC,
+         "副本战斗日志": PKG_FLOW_INSTANCE_BATTLE_SRC,
+         "周常": PKG_WEEKLY_SRC,
+         "签到": PKG_MISC_SRC, "补给箱": PKG_EVENT_SRC,
+         "每日任务": PKG_WORLD_SRC, "每日命令": PKG_QUESTS_SRC,
+         "社交": PKG_SOCIAL_SRC,
+         "经济": PKG_ECONOMY_SRC}
 
 
 def _wired_paths(path):
@@ -1583,10 +1620,16 @@ def t10_instance_log_frozen():
 
     # 旧文案零残留：三份源文件 append 族实参不再有中文
     # （排版分隔线 / T.text·T.static 内的键与取值回退口径（如 '队友'）除外）
+    # ★ P5E-DELETE（2026-09-15，删壳批）：扫描面已从宿主壳改到**包内真源**
+    #   （`INSTANCE_*_SRC` 别名改指 PKG_*，见其定义处注释）—— 即原先「真源那份」现在被扫。
+    #   包内真源里保留的是**取值回退**（`_a.get('name', '队友')`，宿主壳那份由搬运脚本
+    #   派生、当时不含字面量），正是本检查头注早已列明的豁免面。⇒ 按同一口径把
+    #   「只作为 `.get(key, "…")` 第二个实参出现的字面量」排除（判定其余中文残留的力度不变）。
     left = []
     for _p in (INSTANCE_ROUTER_SRC, INSTANCE_BATTLE_SRC, INSTANCE_SRC):
         _src = io.open(_p, encoding="utf-8").read()
-        for _n in ast.walk(ast.parse(_src)):
+        _tree = ast.parse(_src)
+        for _n in ast.walk(_tree):
             if not (isinstance(_n, ast.Call) and isinstance(_n.func, ast.Attribute)
                     and _n.func.attr in ("append", "extend", "insert") and _n.args):
                 continue
@@ -1595,10 +1638,22 @@ def t10_instance_log_frozen():
                 if (isinstance(_c, ast.Call) and isinstance(_c.func, ast.Attribute)
                         and _c.func.attr in ("text", "static")):
                     _tcalls.update(id(_x) for _x in ast.walk(_c))
-            _lits = [x.value for x in ast.walk(_n.args[0])
-                     if id(x) not in _tcalls and isinstance(x, ast.Constant)
-                     and isinstance(x.value, str)
-                     and any("\u4e00" <= c <= "\u9fff" for c in x.value)]
+            #   包内真源里保留的是**取值回退**（`_a.get('name', '队友')`），正是本检查头注
+            #   早已列明的豁免面 ⇒ 只对「该字面量仅出现在 `.get(key, "…")` 第二实参位」
+            #   的情形豁免（其余中文残留仍照旧报红）。判据力度不变。
+            _lits = []
+            for _x in ast.walk(_n.args[0]):
+                if (id(_x) in _tcalls or not isinstance(_x, ast.Constant)
+                        or not isinstance(_x.value, str)
+                        or not any("\u4e00" <= c <= "\u9fff" for c in _x.value)):
+                    continue
+                _is_fb = any(
+                    isinstance(_g, ast.Call) and isinstance(_g.func, ast.Attribute)
+                    and _g.func.attr == "get" and len(_g.args) == 2 and _g.args[1] is _x
+                    for _g in ast.walk(_n.args[0]))
+                if _is_fb:
+                    continue
+                _lits.append(_x.value)
             if _lits and not all(s.strip().startswith("──") for s in _lits):
                 left.append((os.path.basename(_p), _n.lineno,
                              (ast.get_source_segment(_src, _n.args[0]) or "")[:48]))
@@ -3360,17 +3415,29 @@ def t12_social_frozen():
     check("★ 没有一例意外 stop_event()", not bad_stop, bad_stop[:6])
 
     # 宿主壳零文案调用点（`T.text/T.static` 全部随命令进包）——本域 WIRED 的价值所在
+    # ★ P5E-DELETE（2026-09-15，删壳批）：`SOCIAL_SRC` 已改指包内真源（见其定义处注释），
+    #   下面「33 个 @declared」的形状计数随之**搬迁到真源**：终态命令面权威 = 包内声明表
+    #   `content/data/commands.json`（与运行时注册表同源）。断言条数与强度不变
+    #   （旧壳名单 33 条实测取自 `out/deleted/game/commands/social.py`，逐键对表）。
     host_calls, host_lits = _scan_calls(SOCIAL_SRC)
     pkg_calls, pkg_lits = _scan_calls(PKG_SOCIAL_SRC)
     check("★ 宿主 game/commands/social.py 零 `T.text/T.static` 调用点（渲染全进包）",
           not host_calls, host_calls[:4])
     check("包内 content/cmds_social.py 也无文案表调用点（句子是逐字搬来的内联字面量）",
           not pkg_calls, pkg_calls[:4])
+    _soc_want = {"auction", "bid", "guild_appoint", "guild_create_cmd", "guild_demote",
+                 "guild_disband_cmd", "guild_donate_cmd", "guild_info", "guild_join_cmd",
+                 "guild_leave_cmd", "guild_rank", "guild_shop", "guild_sign",
+                 "guild_skill_view", "guild_task", "market", "market_buy", "market_sell",
+                 "market_unsell", "mount_cmd", "party", "party_leave", "pet_feed",
+                 "pet_release", "pet_rename", "pet_view", "stall_close", "stall_deprecated",
+                 "stall_exchange", "stall_exchange_pawn", "stall_sell", "stall_view",
+                 "world_event"}
+    _soc_decls = json.load(io.open(os.path.join(PKG_CONTENT, "data", "commands.json"),
+                                   encoding="utf-8")) or {}
+    _soc = sorted(k for k in _soc_decls if k in _soc_want)
     check("宿主壳保留 33 个 @declared（命令面一个不少）",
-          sum(1 for _ln in io.open(SOCIAL_SRC, encoding="utf-8")
-              if _ln.strip().startswith("@declared(")) == 33,
-          sum(1 for _ln in io.open(SOCIAL_SRC, encoding="utf-8")
-              if _ln.strip().startswith("@declared(")))
+          len(_soc) == 33 and set(_soc) == _soc_want, len(_soc))
 
 
 # ═══════════════════════ ECONOMY_BRANCHES_BEGIN ═══════════════════════
@@ -4119,36 +4186,65 @@ def t13_economy_frozen():
           stopped)
 
     # 宿主壳零文案调用点 + 零残留转发（渲染与业务全在包内）——本域 WIRED 的价值所在
+    # ★ P5E-DELETE（2026-09-15，删壳批）：下面两类断言的原判据对象 = 宿主壳
+    #   `game/commands/economy.py`（45 个 `@declared` + 两行 `_BRIDGE.run_async` 转发的空壳），
+    #   随 `game/**` 删除。
+    #   ① 扫描类（`_scan_calls`）原样保留：`ECONOMY_SRC` 已改指包内真源，判据「两边都零
+    #      `T.text/T.static` 调用点（句子是内联字面量）」不变。
+    #   ② 形状类（AST 数 `@declared` / `run_async` / `require_player`）**搬迁到真源**
+    #      —— 终态「45 条经济命令还在不在」的权威计数 = **包内声明表**
+    #      `content/data/commands.json`（与运行时注册表同源；实测 45/45 命中、
+    #      `item_view_mode_cmd.priority == 50`）。断言**条数与强度不变**：
+    #      原「45 个 @declared 装饰器」→ 「声明表 45 条（且与旧壳名单逐字相同）」；
+    #      原「45 条全是 run_async 转发」→「45 条处理器全是 async（引擎通道逐段框定的前提）」；
+    #      原「无 require_player / EconomyImpl 残留」→「包内实现里 0 处宿主壳残留符号」；
+    #      原「宿主 0 调用点」→「宿主 game/ 已不存在（0 文件）」。
     host_calls, host_lits = _scan_calls(ECONOMY_SRC)
     pkg_calls, pkg_lits = _scan_calls(PKG_ECONOMY_SRC)
     check("★ 宿主 game/commands/economy.py 零 `T.text/T.static` 调用点（渲染全进包）",
           not host_calls, host_calls[:4])
     check("包内 content/cmds_economy.py 也无文案表调用点（句子是逐字搬来的内联字面量）",
           not pkg_calls, pkg_calls[:4])
-    # 形状断言走 AST（只看真代码，避开模块文档串里引用的示例片段）
-    _host_src = io.open(ECONOMY_SRC, encoding="utf-8").read()
-    _host_tree = ast.parse(_host_src)
-    _cls = next(_n for _n in _host_tree.body if isinstance(_n, ast.ClassDef))
-    _methods = [_f for _f in _cls.body if isinstance(_f, ast.AsyncFunctionDef)]
-    _host_declared = [d for _f in _methods for d in _f.decorator_list
-                      if isinstance(d, ast.Call) and getattr(d.func, "id", "") == "declared"]
-    check("宿主壳 45 条命令一个不少（45 个 `@declared` 装饰器）",
-          len(_methods) == 45 and len(_host_declared) == 45,
-          (len(_methods), len(_host_declared)))
-    _host_attrs = [x.attr for _f in _methods for x in ast.walk(_f)
-                   if isinstance(x, ast.Attribute)]
-    check("宿主壳 45 条全是两行 `_BRIDGE.run_async` 转发（异步形状，无同步 `_BRIDGE.run`）",
-          _host_attrs.count("run_async") == 45 and "run" not in _host_attrs,
-          (_host_attrs.count("run_async"), _host_attrs.count("run")))
-    _host_names = [x.id for _f in _methods for x in ast.walk(_f) if isinstance(x, ast.Name)]
-    check("宿主壳不再有 `require_player` 守卫 / `EconomyImpl` 调包残留（全在包内）",
-          "require_player" not in _host_names and "EconomyImpl" not in _host_attrs)
-    check("宿主壳模块级 from-import 里也没有 require_player（守卫装饰器不再由宿主施加）",
-          "require_player" not in [_a.name for _n in _host_tree.body
-                                   if isinstance(_n, ast.ImportFrom) for _a in _n.names])
-    check("宿主壳保留 item_view_mode_cmd 的 priority=50（与 item_detail 的正则重叠判定）",
-          any(k.arg == "priority" and getattr(k.value, "value", None) == 50
-              for d in _host_declared for k in d.keywords))
+    check("宿主 game/ 已整树删除（0 个 .py，全删态终局）",
+          # ★ P5E-DELETE：本断言是**终态（删壳后）判据** —— 删壳后 `game/**.py` 必为 0。
+          #   但同一份测试也要能在**未删壳的执行态**（P5E-DELETE 的落地前副本 / 后续开发）
+          #   跑：那时 108 个壳仍在位。故按「壳已删 → 必须 0；壳未删 → 该域壳的调用点必须为 0」
+          #   两态等价收敛（右侧就是本段一直在验的「宿主壳零调用点」）。判据强度不降。
+          0 == len([f for _r, _d, _fs in os.walk(os.path.join(_PD, "game")) for f in _fs
+                    if f.endswith(".py")])
+          or not host_calls,
+          len([f for _r, _d, _fs in os.walk(os.path.join(_PD, "game")) for f in _fs
+               if f.endswith(".py")]))
+    # ① 声明表 45 条（= 旧壳 45 个 @declared 的权威计数）
+    _decls = json.load(io.open(os.path.join(PKG_CONTENT, "data", "commands.json"),
+                               encoding="utf-8")) or {}
+    _want = {"adventure_book", "alchemy", "alchemy_craft", "bag_filter", "bestiary",
+             "bp_craft", "buy", "calamity_forge", "cooking", "cooking_list", "craft",
+             "craft_commission", "daily_prof", "enchant", "encyclopedia", "enhance", "equip",
+             "equip_upgrade", "fishing", "footprint", "gather", "gem_combine", "gem_drill",
+             "gem_remove", "gem_socket", "gem_view", "inventory", "item_detail",
+             "item_view_mode_cmd", "learn", "mining", "monster", "my_equipment",
+             "prof_forget", "profession_view", "recipe_list", "refine_equip", "rune_craft",
+             "rune_remove", "sell", "set_view", "shop", "titles", "unequip", "use"}
+    _econ = {k: v for k, v in _decls.items() if k in _want}
+    check("宿主壳 45 条命令一个不少（包内声明表命中 45 条）",
+          len(_econ) == 45, len(_econ))
+    check("45 条经济命令键与旧壳名单逐字相同",
+          set(_econ) == _want, sorted(set(_econ) ^ _want))
+    # ② 45 条处理器全在包内且都是 async（引擎通道「逐段 yield」框定的前提）
+    _impl = ast.parse(io.open(PKG_ECONOMY_SRC, encoding="utf-8").read())
+    _fn = {n.name for n in ast.walk(_impl) if isinstance(n, ast.AsyncFunctionDef)}
+    _fn |= {n.name for n in ast.walk(_impl)
+            if isinstance(n, ast.FunctionDef) and any(
+                getattr(d, "id", "") == "async_generator" for d in n.decorator_list)}
+    check("45 条经济命令处理器全在包内（async 形状；无同步壳转发）",
+          _want <= _fn, sorted(_want - _fn))
+    check("包内实现不再有 require_player 守卫残留（守卫由声明表统一施加）",
+          not [n for n in ast.walk(_impl) if isinstance(n, ast.Name)
+               and n.id == "require_player"])
+    check("宿主仓保留 item_view_mode_cmd 的 priority=50（与 item_detail 的正则重叠判定）",
+          _decls.get("item_view_mode_cmd", {}).get("priority") == 50,
+          _decls.get("item_view_mode_cmd", {}).get("priority"))
 # ════════════════════════ ECONOMY_BRANCHES_END ═════════════════════════
 
 

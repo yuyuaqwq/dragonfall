@@ -24,6 +24,8 @@ def check(name, cond, detail=""):
 
 def main():
     print("【data·索引族：全局健康度】")
+    # ★ P5E-DELETE（2026-09-15，删壳批）：_INDEXES 在包侧是**惰性**的（content/index.py:92-103，_indexes() 首访建一次）——C._INDEXES 是那只**同一个 dict 对象**，未建时为空。原来的宿主门面是装配期渴求态（game/data/_assembly.py 建好），所以本文件过去从没显式建过索引。终态按包侧口径**显式取一次**（C.resolve 内部就走 _indexes()），判据与阈值一条未变。
+    C.resolve("monsters", "野狗")
     table_cnt = len([k for k in dir(C) if k.isupper() and isinstance(getattr(C, k), dict)])
     check("content 表总数 >= 55（实际 %d）" % table_cnt, table_cnt >= 55)
     check("_INDEXES 9 个域", len(C._INDEXES) >= 5, str(list(C._INDEXES)))

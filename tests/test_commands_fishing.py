@@ -12,6 +12,15 @@
 import sys, os, sqlite3, time, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, Main, FakeEvent, run
+# ★ P5E-DELETE（2026-09-15，删壳批）：猴补落点改到**包内真源模块**。
+#   删壳前 `C` = 宿主聚合壳 `game.content`（普通模块对象，可写）；终态 `C` =
+#   `content.facade._Aggregate`（`__slots__` 惰性句柄，**不可写**）⇒ `C.roll_fish = …` 报
+#   `AttributeError: '_Aggregate' object has no attribute 'roll_fish'`。
+#   口径 = 项目既有「补名会移动打桩落点 ⇒ 就地改真源那一只对象」（R5/`test_v1264` 同款）：
+#   `C.roll_fish` 的 `_NAME_SRC` 真源 = `content.fishing`，包内消费方
+#   （`content/profession.py::_PkgFace._MAP["roll_fish"]` → `content.fishing`）按名取它
+#   ⇒ 桩打在真源模块上，取件时机与可见性逐字不变。判据一条未变。
+from content import fishing as _FISH  # noqa: E402
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -44,12 +53,12 @@ def prof_exp(gid, qid):
 
 def set_roll_fish(m, fish):
     """monkeypatch C.roll_fish 返回固定渔获（垂钓结算品质化单测）"""
-    m.roll_fish_orig = C.roll_fish
-    C.roll_fish = lambda lv, spot=None, bait=None: fish
+    m.roll_fish_orig = _FISH.roll_fish
+    _FISH.roll_fish = lambda lv, spot=None, bait=None: fish
 
 
 def restore_roll_fish(m):
-    C.roll_fish = m.roll_fish_orig
+    _FISH.roll_fish = m.roll_fish_orig
 
 
 def fish_dict(name, quality, ftype="鱼", price=12):

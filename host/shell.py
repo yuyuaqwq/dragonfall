@@ -397,8 +397,43 @@ class HostShell(_EngineCommandBase):
         return mods
 
     def _package_helper(self, name):
-        """按名找包内助手（模块函数 → 模块类方法）；找不到 → None。"""
+        """按名找包内助手 —— **两遍解析**：先自绑壳候选，再自由函数；找不到 → None。
+
+        ★ P5E-DELETE / D1（2026-09-15）：为什么必须两遍（P6-PREP 实测定性，反证见
+        `out/probes/probe3d_bump_repro.py`）——
+        包内有**两个同名** `_bump_daily_progress`：
+          · `content/world_cmds.py::_bump_daily_progress(self, group_id, qq_id, obj_key, lines=None)`
+            （`_binds_shell=True`，壳应以 `self` 绑定后调用 = 模块扫序 **152**）
+          · `content/profession_quests.py::_bump_daily_progress(inst, group_id, qq_id, obj_key, lines=None)`
+            （首参名 `inst` ⇒ `_binds_shell=False` = 模块扫序 **122**）
+        旧的「第 1 遍按模块扫序取模块级函数」会取中**扫序在前**的那个 ⇒ 命中非自绑的
+        `profession_quests` 版；调用方按 `(group_id, qq_id, obj_key, lines)` 传四参 ⇒
+        实参整体左移一位（`inst=group_id, group_id=qq_id, …`）⇒ 包内入口查不到 daily
+        ⇒ **静默 return**（`lines==[]`、`_completed` 不 +1、金币不涨、**无异常**）。
+        影响面：全包 143 条同名碰撞里只有这一条实取候选与自绑候选**形参个数相同**，
+        其余 142 条形参个数不同（调用即 `TypeError`，吵闹但不静默）——见
+        `out/probes/probe3e_helper_collisions.json`。
+
+        修法 = 与 `tests/_engine_harness.py::Main.__getattr__` 同序：
+        **pass 1 只收 `_binds_shell(fn)` 的候选**（模块级函数在前、模块级类的同名方法在后），
+        pass 2 再回退自由函数（保持原有「模块扫序先落者胜」口径不变）。
+        """
         mods = self._package_modules()
+        # ---- pass 1：自绑壳候选（`def fn(self, …)` / `def fn(shell, …)`）----
+        for mod in mods:
+            fn = getattr(mod, name, None)
+            if callable(fn) and getattr(fn, "__module__", "") == mod.__name__ and _binds_shell(fn):
+                return fn
+        for mod in mods:
+            for value in vars(mod).values():
+                if not isinstance(value, type):
+                    continue
+                if getattr(value, "__module__", "") != mod.__name__:
+                    continue
+                attr = getattr(value, name, None)
+                if callable(attr) and _binds_shell(attr):
+                    return attr
+        # ---- pass 2：自由函数（不绑壳；候选按模块扫序，取先落者）----
         for mod in mods:
             fn = getattr(mod, name, None)
             if callable(fn) and getattr(fn, "__module__", "") == mod.__name__:

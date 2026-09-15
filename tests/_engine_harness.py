@@ -338,11 +338,21 @@ class EngineHarness(object):
         return out
 
     def declaration_patterns(self):
-        """包内声明表的**合并正则**列表（引擎 `combine_patterns` 口径；懒缓存）。"""
+        """包内声明表的**合并正则**列表（引擎 `combine_patterns` 口径；懒缓存）。
+
+        ★ P5E-DELETE / D2（2026-09-15）：与 `declarations_for_static()` **同口径** ——
+        私有键（`_` 前缀）不进本池。此前本方法漏了这道过滤，而它正是
+        `host/_platform._GameCmdFilter` 的供体（`set_pattern_source`）⇒ 停服 gate
+        `_maint_gate` 的全匹配正则会留在「怎样算一条游戏指令」的池子里
+        （旧宿主 `game/commands/base.py:163` 是显式跳过私有 handler 的，口径不一致）。
+        只剔 `_` 前缀（不剔 `visible=False`：`gm_*` 一族旧壳静态面里仍在）。
+        """
         if self._decl_pats is None:
             from saintess_engine.command import combine_patterns
             pats = []
             for key, spec in (self._decls or {}).items():
+                if str(key).startswith("_"):     # ★ 私有 handler：不进静态命令面（D2）
+                    continue
                 one = [p for p in (spec.get("patterns") or []) if p]
                 if not one:
                     continue

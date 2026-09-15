@@ -14,6 +14,17 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # v174：独立私有测试库（防全量并行时与共享 test_game_data.db 的 clean_db 互清假失败）
 os.environ["GWEN_GAME_DB"] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_v1023_private.db")
 from conftest import C, db, clean_db, Main, FakeEvent, run, make_player
+# ★ P5E-DELETE（2026-09-15，删壳批）：猴补落点改到**包内真源模块**。
+#   删壳前 `C` = 宿主聚合壳 `game.content`，`C.current_period = …` 是**在宿主门面上就地覆盖**
+#   （宿主门面是普通模块对象，可写）。终态 `C` = `content.facade._Aggregate`（`__slots__` 惰性句柄，
+#   **不可写**，且写它也不等于写消费方读的那只对象）⇒ 原写法报
+#   `AttributeError: '_Aggregate' object has no attribute 'current_period'`。
+#   口径 = 项目既有「补名会移动打桩落点 ⇒ 就地改真源那一只对象」（R5/`test_v1264` 同款）：
+#   `C.current_period` 的 `_NAME_SRC` 真源 = `content.time_weather`（`facade.py:146-148`），
+#   `C.roll_fish` = `content.fishing`（`:142-144`，`content/profession.py:613` 就在读它）⇒
+#   把桩打在真源模块上。判据一条未变。
+from content import time_weather as _TW  # noqa: E402
+from content import fishing as _FISH  # noqa: E402
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -48,8 +59,8 @@ def test_cond_gather():
     clean_db()
     make_player(gid, qid, "测试采集", level=10); db.update_player(gid, qid, cur_map="silverwood")
     # mock 时段=night
-    orig_period = C.current_period
-    C.current_period = lambda now=None: "night"
+    orig_period = _TW.current_period
+    _TW.current_period = lambda now=None: "night"
     try:
         got = set()
         for _ in range(400):
@@ -63,9 +74,9 @@ def test_cond_gather():
             mats.update(m._gather_roll(10, 5, "silverwood"))
         check("夜晚采集能采到夜雾菇/月露", "mat_night_mushroom" in mats or "mat_moon_dew" in mats, f"mats sample")
     finally:
-        C.current_period = orig_period
+        _TW.current_period = orig_period
     # 白天：限定池应无命中
-    C.current_period = lambda now=None: "day"
+    _TW.current_period = lambda now=None: "day"
     try:
         r = m._gather_cond_roll("silverwood")
         check("白天限定池不产出", r is None, f"got={r}")
@@ -74,11 +85,11 @@ def test_cond_gather():
             mats.update(m._gather_roll(10, 5, "silverwood"))
         check("白天采不到限定材料", "mat_night_mushroom" not in mats, "白天出了夜雾菇！")
     finally:
-        C.current_period = orig_period
+        _TW.current_period = orig_period
     # 冬季夜晚极光花
-    orig_season = C.current_season
-    C.current_season = lambda now=None: "winter"
-    C.current_period = lambda now=None: "night"
+    orig_season = _TW.current_season
+    _TW.current_season = lambda now=None: "winter"
+    _TW.current_period = lambda now=None: "night"
     try:
         got = set()
         for _ in range(600):
@@ -87,8 +98,8 @@ def test_cond_gather():
                 got.add(r)
         check("冬季夜晚永冻原野出极光花", "mat_aurora_flower" in got, f"got={got}")
     finally:
-        C.current_season = orig_season
-        C.current_period = orig_period
+        _TW.current_season = orig_season
+        _TW.current_period = orig_period
 
 
 def test_deep_mining():
@@ -127,11 +138,11 @@ def test_bait_fishing():
     # 挂萤光饵
     db.set_event_state(f"bait_{qid}", json.dumps({"kind": "glow", "ts": int(time.time())}))
     baits_seen = []
-    orig_roll = C.roll_fish
+    orig_roll = _FISH.roll_fish
     def spy_roll(lv, spot=None, bait=None):
         baits_seen.append(bait)
         return {"name": "月光鱼", "type": "鱼", "price": 50, "quality": "blue", "desc": "测试鱼"}
-    C.roll_fish = spy_roll
+    _FISH.roll_fish = spy_roll
     try:
         text = m._settle_fishing(gid, qid, {"type": "fishing", "spot": "水边"})
         check("鱼饵传入 roll_fish", baits_seen == ["glow"], f"seen={baits_seen}")
@@ -139,7 +150,7 @@ def test_bait_fishing():
         # 状态已消费
         check("鱼饵一次性消耗", not db.get_event_state(f"bait_{qid}"), db.get_event_state(f"bait_{qid}"))
     finally:
-        C.roll_fish = orig_roll
+        _FISH.roll_fish = orig_roll
 
 
 async def test_enhance_boost():
@@ -154,8 +165,19 @@ async def test_enhance_boost():
     db.add_item(gid, qid, "eq_test1", eq)
     db.set_event_state(f"enhance_boost_{qid}", "1")
     # 玩家需在铁匠铺（mock _at_smith）
-    orig_at = m._at_smith
-    m._at_smith = lambda player: True
+    # ★ P5E-DELETE（2026-09-15，删壳批）：打桩对象从「测试自己 new 的 `m`」改到
+    #   **命令实际用到的那只壳** `_engine_harness.harness().shell`（= `env.state["shell"]`）。
+    #   依据（实测）：`m = Main(None)` 与 `harness().shell` 是**两个不同实例**
+    #   （`tests/_engine_harness.py:457/465` 每次 `Main(...)` 都新建一只，`harness().shell`
+    #   是 boot 期那一只）；引擎通道执行 handler 时用的是 `env.state["shell"]`，
+    #   而 `_at_smith` 是**类上**的真实方法（不是 `Main.__getattr__` 转发面）⇒
+    #   在另一只实例上赋值对命令不可见（旧宿主路径下同样不可见，只是那时玩家数据
+    #   恰好命中前置而未暴露）。改打「命令真正用的那只壳」的**实例属性**，
+    #   语义（只在这个用例期间把铁匠铺判定钉成 True）与断言一字未变。
+    from _engine_harness import harness as _harness
+    _shell = _harness().shell
+    orig_at = _shell._at_smith
+    _shell._at_smith = lambda player: True
     try:
         # 强制随机失败（rate 极低）验证 boost 必成
         orig_random = random.random
@@ -169,7 +191,7 @@ async def test_enhance_boost():
         check("星铁强化剂强化必成", d.get("enhance", 0) == 1, text[:120])
         check("强化剂状态已消费", not db.get_event_state(f"enhance_boost_{qid}"), "状态还在")
     finally:
-        m._at_smith = orig_at
+        _shell._at_smith = orig_at
 
 
 def test_recipes():

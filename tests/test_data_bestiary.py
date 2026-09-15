@@ -6,6 +6,11 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C
+# ★ P5E-DELETE（2026-09-15，删壳批）：`_INDEXES` 在包侧是**惰性**的
+#   （`content/index.py:92-103`，`_indexes()` 首次访问建一次；`C._INDEXES` 是同一只 dict）。
+#   旧宿主门面是装配期渴求态（`game/data/_assembly.py` 建好）⇒ 本文件过去不需要显式建。
+#   终态按包侧口径**显式取一次**（`C.resolve` 内部就走 `_indexes()`）。判据与阈值一条未变。
+C.resolve("monsters", "野狗")
 
 passed = failed = 0
 def check(name, cond, detail=""):

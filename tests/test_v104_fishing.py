@@ -15,6 +15,15 @@
 import sys, os, json, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, Main, FakeEvent, run
+# ★ P5E-DELETE（2026-09-15，删壳批）：猴补落点改到**包内真源模块**。
+#   删壳前 `C` = 宿主聚合壳 `game.content`（普通模块对象，可写）；终态 `C` =
+#   `content.facade._Aggregate`（`__slots__` 惰性句柄，**不可写**）⇒ `C.roll_fish = …` /
+#   `C.roll_collect_fish = …` 报 `AttributeError: '_Aggregate' object has no attribute …`。
+#   口径 = 项目既有「补名会移动打桩落点 ⇒ 就地改真源那一只对象」（R5/`test_v1264` 同款）：
+#   两个名的 `_NAME_SRC` 真源都是 `content.fishing`，包内消费方
+#   （`content/profession.py::_PkgFace._MAP`）也按名取它 ⇒ 桩打在真源模块上，
+#   取件时机与可见性逐字不变。判据一条未变。
+from content import fishing as _FISH  # noqa: E402
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -35,20 +44,20 @@ async def cmd(m, handler_name, gid, qid, msg):
 
 
 def set_roll_fish(m, fish):
-    """monkeypatch C.roll_fish 返回固定渔获"""
-    m._roll_fish_orig = C.roll_fish
-    C.roll_fish = lambda lv, spot=None, bait=None: fish
+    """monkeypatch content.fishing.roll_fish（包内真源；`C.roll_fish` 的落点）返回固定渔获"""
+    m._roll_fish_orig = _FISH.roll_fish
+    _FISH.roll_fish = lambda lv, spot=None, bait=None: fish
 
 def restore_roll_fish(m):
-    C.roll_fish = m._roll_fish_orig
+    _FISH.roll_fish = m._roll_fish_orig
 
 def set_roll_collect(m, cf):
-    """monkeypatch C.roll_collect_fish 返回固定彩蛋收藏鱼（None=不触发）"""
-    m._roll_cf_orig = C.roll_collect_fish
-    C.roll_collect_fish = lambda spot, night=False: cf
+    """monkeypatch content.fishing.roll_collect_fish（包内真源）返回固定彩蛋收藏鱼（None=不触发）"""
+    m._roll_cf_orig = _FISH.roll_collect_fish
+    _FISH.roll_collect_fish = lambda spot, night=False: cf
 
 def restore_roll_collect(m):
-    C.roll_collect_fish = m._roll_cf_orig
+    _FISH.roll_collect_fish = m._roll_cf_orig
 
 def fish_dict(name, quality, ftype="鱼", price=12):
     return {"name": name, "quality": quality, "type": ftype, "price": price,
@@ -83,7 +92,7 @@ async def main():
         random.seed(20260813)
         cnt = {}
         for _ in range(n):
-            f = C.roll_fish(lv, spot, bait)
+            f = _FISH.roll_fish(lv, spot, bait)
             cnt[f["name"]] = cnt.get(f["name"], 0) + 1
         return cnt
     base = sample("misty_swamp", None)
