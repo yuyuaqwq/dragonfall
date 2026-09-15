@@ -1,3 +1,4 @@
 {
-  "package_dir": "framework/games/orlandia"
+  "package_dir": "framework/games/orlandia",
+  "db_path": "game/game_data.db"
 }

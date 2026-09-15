@@ -28,6 +28,7 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 import time as _time
@@ -35,8 +36,33 @@ import time as _time
 #: 插件根（`host/store_factory.py` → `host/` → 插件根）
 PLUGIN_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-#: 库路径（逐字沿用旧工厂口径：环境变量 `GWEN_GAME_DB` 优先，否则插件根 `game_data.db`）
-DB_PATH = os.environ.get("GWEN_GAME_DB", os.path.join(PLUGIN_ROOT, "game_data.db"))
+#: 库路径（四层优先：显式入参 > `GWEN_GAME_DB` > 插件配置 `config.json` 的 `db_path` > 旧路径默认）
+#  ★ 归属：**库路径是宿主的平台职责**（宿主=平台件属主：库路径 / 单进程锁 / 存档半边取用口）。
+#    **包（framework/games/<pkg>）只管玩法，不该知道文件系统路径** —— 换包 / 换数据集要能随便换。
+#  ★ 2026-09-15 重启冒烟抓到：本行曾写成 `<插件根>/game_data.db`（少了 `game/` 一层）⇒ 终态宿主
+#    另起了一个空库，而**生产库（794KB，玩家数据）在 `<插件根>/game/game_data.db`** ⇒ 表现是
+#    「你还没有角色！」。137 个测试文件全绿 + 六条判据全过都照不出来 —— 只有真启动才暴露。
+_LEGACY_DB_REL = os.path.join("game", "game_data.db")
+DEFAULT_DB_PATH = os.path.join(PLUGIN_ROOT, _LEGACY_DB_REL)
+
+
+def _cfg_db_path():
+    """插件配置 `config.json` 的 `db_path`（相对路径按插件根解析）。取不到 → `None`。"""
+    try:
+        with open(os.path.join(PLUGIN_ROOT, "config.json"), encoding="utf-8") as fh:
+            raw = str((json.load(fh) or {}).get("db_path") or "").strip()
+    except (OSError, ValueError):
+        return None
+    if not raw:
+        return None
+    return raw if os.path.isabs(raw) else os.path.normpath(os.path.join(PLUGIN_ROOT, raw))
+
+
+DB_PATH = (
+    os.environ.get("GWEN_GAME_DB")
+    or _cfg_db_path()
+    or DEFAULT_DB_PATH
+)
 
 
 def db_path() -> str:
