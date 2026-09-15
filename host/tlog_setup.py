@@ -169,6 +169,6 @@ def attach_tlog(b, *, btype: str = "monster", player=None, enemies=None, seed=No
         half.BattleTLog(tl).attach(b, btype=btype, seed=seed, player=player, enemies=enemies)
     except Exception as exc:                                     # noqa: BLE001
         from . import log_setup as _log_setup
-        _log_setup.LOG.warning("[dragonfall] 战斗流水采集异常（不影响战斗）: %s", exc,
+        _log_setup.LOG.warning("[dragonfall] 流水采集半边挂载异常（不影响主流程）: %s", exc,
                                exc_info=True)
     return b

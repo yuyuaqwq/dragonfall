@@ -27,7 +27,11 @@ plan §6⑨ ① 要求宿主里不出现包名 / `content.*`。本文件因此**
 --------------------------------
 `game/commands/base.py`（`CommandBase` 平台钩子 / `_maint_gate` / `_GameCmdFilter`）·
 `game/commands/{player,world,combat,misc,social,gm,instance,instance_router}.py` 里**平台专有**的
-少量方法（`_stall_label` / `_HURRY_ALIAS` / `_instance_gate_block` / 平台例外 5 条）。
+少量方法（`_stall_label` / 平台例外 5 条）。
+★ P5E「壳去逻辑」批（2026-09-15）：原 `_HURRY_ALIAS`（赶路别名表）与 `_instance_gate_block`
+（走包内 `flow/` 准入链的取数 + ctx 组装）已搬回包内（`content/world_cmds.py`），
+`gm_play` / `gm_spy` 的实现也已搬回包内（`content/cmds_gm.py`），本文件对这三项只剩
+**转发 / 平台配置常量**。
 其余方法都是「转引包内真源」，与旧壳逐名同义（旧壳本身就是 `_RULES.xxx` 一行转发）。
 """
 from __future__ import annotations
@@ -66,11 +70,11 @@ def _binds_shell(fn) -> bool:
 
 
 # ============================================================
-# 平台例外「窥探」投递面（原 `game/commands/gm.py` 的平台接人层，**逐字迁入**）
+# 平台配置常量（`gm_窥探` 投递面）—— **流程实现已在包内** `content/cmds_gm.py::gm_spy`
 # ------------------------------------------------------------
-# 包内 `content/gm.py` 的归属表把 `gm_spy` + `_chunk_text` / `_spy_to_role_cards` 明确划为
-# **平台接人层**（"调试逻辑不进包"）：它要读进程内的 playtest 实录 md、拼 NapCat 合并转发
-# 节点、`await context.send_message` 多卡投递、写 `.spy_forward_state.json`。宿主是它的家。
+# P5E「壳去逻辑」批（2026-09-15）：窥探的实录解析 / 拆角色卡 / 多卡投递流程搬回包内；
+# 壳侧只留 `gm_spy` 一条转发 + 本组**平台配置常量**，经 `_spy_ops()` 交给包内
+# （与 `_identity_ops()` 同款「平台能力口」口径）。
 # ============================================================
 #: 窥探投递目标（运营号；环境变量可覆盖，换号不改代码）
 GM_OWNER_QQ = (os.environ.get("GWEN_GM_QQ") or "1454832774").split(",")[0].strip()
@@ -93,85 +97,10 @@ class _ShellEnv(object):
         self.state = {"shell": shell}
 
 
-def _chunk_text(text: str, size: int = 3800):
-    """按段落分片（QQ 消息安全长度），超长段落内部硬切。返回 str 列表。"""
-    chunks = []
-    cur = ""
-    for para in text.split("\n\n"):
-        if len(para) > size:
-            if cur:
-                chunks.append(cur)
-                cur = ""
-            for i in range(0, len(para), size):
-                chunks.append(para[i:i + size])
-            continue
-        if cur and len(cur) + len(para) + 2 > size:
-            chunks.append(cur)
-            cur = para
-        else:
-            cur = (cur + "\n\n" + para) if cur else para
-    if cur:
-        chunks.append(cur)
-    return chunks
-
-
-def _spy_to_role_cards(content: str, label: str, bot_qq: str) -> list:
-    """把实录 md 按角色拆成多组合并转发节点（每子 agent 一张完整卡）。
-
-    返回 `[(角色名, [Node...]), ...]`；单节点 ≤300 字、每卡 ≤13500 字节（NapCat ARK 上限）。
-    """
-    from ._platform import Node, Plain
-
-    m = re.match(r"^#\s+(.+?)\s*$", content, flags=re.M)
-    title = m.group(1).strip() if m else label
-    cards = []
-    for sec in re.split(r"^## ", content, flags=re.M):
-        sec = sec.strip()
-        if not sec or sec.startswith("# "):
-            continue
-        parts = sec.split("\n", 1)
-        role = parts[0].strip()
-        body = parts[1].strip() if len(parts) > 1 else ""
-        if not body:
-            continue
-        name = re.sub(r"^[^\w\u4e00-\u9fff]+", "", role)
-        name = re.sub(r"\s*\(.*?\)\s*$", "", name).strip() or role
-        nodes = [
-            Node(
-                uin=bot_qq,
-                name=name,
-                content=[Plain("📡 {} · {}（本轮完整战况，点开查看）".format(name, title))],
-            )
-        ]
-        segs = re.split(r"(?=▶)", body)
-        segs = [s.strip() for s in segs if s.strip()]
-        total_bytes = 0
-        for seg in segs:
-            for chunk in _chunk_text(seg, 300):
-                total_bytes += len(chunk.encode("utf-8"))
-                if total_bytes > 13500:
-                    nodes.append(Node(uin=bot_qq, name=name, content=[
-                        Plain("…(后续交互见插件目录 scripts/{})".format(label))]))
-                    break
-                nodes.append(Node(uin=bot_qq, name=name, content=[Plain(chunk)]))
-            else:
-                continue
-            break
-        cards.append((name, nodes))
-    return cards
-
-
 class HostShell(_EngineCommandBase):
     """终态宿主壳：`env.state["shell"]`（引擎 `Host.build_env` 之前由装配处注入 `inject`）。"""
 
     logger_name = "astrbot"
-
-    #: 赶路别名表（原 `game/commands/world.py` 类属性，包内 `world_cmds.py:1103` 以 `self._HURRY_ALIAS` 取用）
-    _HURRY_ALIAS = {
-        "npc": "npc", "怪物": "monster", "monster": "monster",
-        "场景": "scene", "scene": "scene", "景物": "scene",
-        "设施": "facility", "facility": "facility", "商店": "facility",
-    }
 
     def __init__(self, *, pkg=None, store=None, context=None, session=None,
                  events=None, finder=None):
@@ -310,52 +239,10 @@ class HostShell(_EngineCommandBase):
             return ""
         return stall.get("title") or stall.get("name") or "货摊"
 
-    def _instance_gate_block(self, player, group_id, qq_id, target):
-        """副本图门禁：徒步『前往/移动』不得直接进副本图（原 `game/commands/world.py` 同名方法）。
-
-        判定本体在包内 `flow/instance_gate.py::walk_admission`；这里只做「取数 + 组装 ctx」，渲染走包内文案。
-        """
-        C = self._facade()
-        if target.get("type") != C.MAP_TYPE_INSTANCE:
-            return ""
-        gate = self._flow("instance_gate")
-        texts = self._sub("texts")
-        if hasattr(gate, "set_text_table"):
-            gate.set_text_table(texts.table())
-        kid = target.get("id", "")
-        mid = "inst_%s" % kid
-        inst = (C.INSTANCES or {}).get(mid)
-        quests = self._store.get_quests(group_id, qq_id)
-        quest_open = False
-        if quests.get("main_status") == "active":
-            mq = next((q for q in C.MAIN_QUESTS if q["id"] == quests.get("main_quest")), None)
-            if mq and mq["objective"].get("explore") == kid:
-                quest_open = True
-        if not quest_open:
-            side = quests.get("side") or {}
-            quest_open = any(
-                sq.get("status") == "active"
-                and next((q for q in C.SIDE_QUESTS if q["id"] == sid), {}).get(
-                    "objective", {}).get("explore") == kid
-                for sid, sq in side.items())
-        key_item = (inst or {}).get("key_item")
-        ctx = {
-            "inst_name": (inst or {}).get("name") or (C.MAP_BY_ID.get(kid) or {}).get("name", "副本"),
-            "tip": self._tip("instance"),
-            "quest_open": quest_open,
-            "key_held": bool(key_item) and gate.find_instance_key_item(
-                self._store.get_inventory(group_id, qq_id) or [], key_item,
-                items=(C.ITEMS or {})) is not None,
-            "cleared": gate.instance_cleared(
-                self._store.get_achievements(group_id, qq_id) or [], mid),
-        }
-        verdict = gate.walk_admission(ctx).check(ctx)
-        return "" if verdict.ok else verdict.reason
-
-    def _facade(self):
-        """包内聚合门面（半边名 = `facade`；取 `.C`）。"""
-        mod = self._sub("facade")
-        return getattr(mod, "C", mod)
+    # ★ P5E「壳去逻辑」批（2026-09-15）：原 `_instance_gate_block`（走包内 `flow/` 准入链的
+    #   取数 + ctx 组装）与只服务它的 `_facade()` 已从本文件删除 —— 实现搬回包内
+    #   `content/world_cmds.py::_instance_gate_block`；包内实现在 `self.<名>` 调用点仍由本类
+    #   `__getattr__` 按名解析（壳侧不再留第二份）。
 
     # ============================================================
     # 包内助手按名解析（终态壳的「私有方法面」）
@@ -459,10 +346,6 @@ class HostShell(_EngineCommandBase):
                 "%s has no attribute %r（包内无同名落点）" % (type(self).__name__, name))
         return functools.partial(helper, self) if _binds_shell(helper) else helper
 
-    def _flow(self, name):
-        """包内 `flow/` 子包里的半边。"""
-        return getattr(self._sub("flow"), name)
-
     # ============================================================
     # 平台动作（广播 / 通知）—— 有 context 才真发，否则落记录
     # ============================================================
@@ -521,6 +404,19 @@ class HostShell(_EngineCommandBase):
         """平台身份映射面（openid ⇄ QQ）——包内 GM 身份表的宿主能力口（`_cap(shell, …)` 探测）。"""
         return _host_identity
 
+    def _spy_ops(self):
+        """窥探投递平台面（实录目录 / 合并转发类型 / 投递目标 / 宿主日志）。
+
+        包内 `content/cmds_gm.py::gm_spy` 经此取平台件（与 `_identity_ops()` 同款能力口）；
+        壳侧不留流程实现（P5E「壳去逻辑」批）。
+        """
+        from . import _platform as _pf
+        return {"dir": SPY_DIR, "prefix": PLATFORM_PREFIX,
+                "owner_qq": GM_OWNER_QQ, "owner_group": OWNER_GROUP,
+                "Node": _pf.Node, "Plain": _pf.Plain,
+                "Nodes": _pf.Nodes, "MessageChain": _pf.MessageChain,
+                "log": LOG}
+
     # ============================================================
     # 平台例外 5 条（包内有声明、无处理器）
     # ============================================================
@@ -576,112 +472,16 @@ class HostShell(_EngineCommandBase):
         return fn(env, None) or None
 
     async def gm_play(self, event):
-        """`gm_play <指令>` 转发（平台例外）：权限判定 + 走引擎静态路由（`_run_shortcut`）。"""
+        """`gm_play <指令>`（平台例外）：转发包内实现。"""
         group_id, qq_id = self._uid(event)
-        blocked = self._guard_hook("gm", uid=qq_id, group_id=group_id,
-                                   text=event.get_message_str() or "")
-        if blocked:
-            yield event.plain_result(blocked)
-            return
-        raw = self._strip_cmd(event, "gm_play").strip()
-        if not raw:
-            yield event.plain_result("🎮 用法：gm_play <指令>")
-            return
-        if raw.startswith("gm_"):
-            yield event.plain_result("⛔ 不能转发 GM 指令至自身（防递归）～")
-            return
-        async for r in self._run_shortcut(event, raw):
+        async for r in self._sub("cmds_gm").gm_play(self, event, group_id, qq_id):
             yield r
 
     async def gm_spy(self, event):
-        """`gm_窥探`（平台例外，纯平台投递）：playtest 实录 → NapCat 合并转发卡私聊投递。
-
-        迁自 `game/commands/gm.py::gm_spy`（包内归属表把本族划为**平台接人层**）。
-        权限判定走包内 `hook:gm`（与旧壳 `_gm_auth` 同源同文案）。
-        """
-        import asyncio
-        import glob
-
-        from ._platform import MessageChain, Nodes
-
+        """`gm_窥探`（平台例外）：转发包内实现。"""
         group_id, qq_id = self._uid(event)
-        blocked = self._guard_hook("gm", uid=qq_id, group_id=group_id,
-                                   text=event.get_message_str() or "")
-        if blocked:
-            yield event.plain_result(blocked)
-            return
-        raw = self._strip_cmd(event, "gm_窥探").strip()
-        files = sorted(
-            glob.glob(os.path.join(SPY_DIR, "playtest_spy_round*.md")),
-            # 字符串排序在轮次≥100 失效（"round100" < "round99"），必须按轮次数字排
-            key=lambda p: int(re.search(r"round(\d+)\.md$", p).group(1)),
-        )
-        if not files:
-            yield event.plain_result("📡 暂无 playtest 交互实录（playtest_spy_round*.md 不存在）～")
-            return
-        to_group = "群" in raw
-        round_raw = raw.replace("群", "").strip()
-        if round_raw.isdigit():
-            want = os.path.join(SPY_DIR, "playtest_spy_round{}.md".format(round_raw))
-            if want not in files:
-                yield event.plain_result(
-                    "❌ 没有第 {} 轮实录～（现有：最新 {}）".format(
-                        round_raw, os.path.basename(files[-1])))
-                return
-            path = want
-        else:
-            path = files[-1]
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-        except OSError as e:
-            yield event.plain_result("❌ 读取 {} 失败: {}".format(os.path.basename(path), e))
-            return
-        if not content:
-            yield event.plain_result("📡 实录文件是空的～")
-            return
-        cards = _spy_to_role_cards(content, os.path.basename(path), event.get_self_id())
-        # 只发私聊（鱼鱼要求"群聊别发了"）；`--群` 变体发到游戏群（私聊被拦截时的 fallback）
-        if to_group:
-            target = "{}:GroupMessage:{}".format(PLATFORM_PREFIX, OWNER_GROUP)
-        else:
-            owner_openid = _host_identity.qq_to_openid(GM_OWNER_QQ)
-            if owner_openid:
-                target = "{}:FriendMessage:{}".format(PLATFORM_PREFIX, owner_openid)
-            else:
-                target = "{}:FriendMessage:{}".format(PLATFORM_PREFIX, GM_OWNER_QQ)
-        sent_ok, sent_fail = 0, 0
-        for _name, _nodes in cards:
-            try:
-                LOG.info("[dragonfall] gm_窥探 角色卡 %s（%d 节点）→ %s", _name, len(_nodes), target)
-                _ret = await self.context.send_message(target, MessageChain([Nodes(_nodes)]))
-                if _ret is False:
-                    sent_fail += 1
-                else:
-                    sent_ok += 1
-            except Exception as _e:                              # noqa: BLE001
-                LOG.warning("[dragonfall] gm_窥探 角色卡 %s 投递失败: %s", _name, _e)
-                sent_fail += 1
-            await asyncio.sleep(1.2)  # 连续多卡间隔，防 QQ 频率风控
-        if sent_ok > 0:
-            try:
-                _m = re.search(r"playtest_spy_round(\d+)\.md$", path)
-                if _m:
-                    import time as _tm
-                    with open(os.path.join(SPY_DIR, ".spy_forward_state.json"), "w",
-                              encoding="utf-8") as _f:
-                        json.dump({"last_sent_round": int(_m.group(1)),
-                                   "sent_at": int(_tm.time())}, _f, ensure_ascii=False)
-            except Exception as _e:                              # noqa: BLE001
-                LOG.warning("[dragonfall] gm_窥探 state 同步失败: %s", _e)
-        if sent_ok == 0:
-            yield event.plain_result(
-                "❌ {} 张角色卡全部投递失败，详见 AstrBot 日志～".format(len(cards)))
-            return
-        yield event.plain_result(
-            "✅ 已把 {} 拆成 {} 张角色卡合并转发（成功 {} / 失败 {}）{}～".format(
-                os.path.basename(path), len(cards), sent_ok, sent_fail,
-                "投递到游戏群 1095961596" if to_group else "私聊投递到鱼鱼 QQ"))
+        async for r in self._sub("cmds_gm").gm_spy(self, event, group_id, qq_id):
+            yield r
 
 
 # ============================================================
