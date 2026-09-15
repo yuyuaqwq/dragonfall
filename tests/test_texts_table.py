@@ -49,6 +49,24 @@
     计数清零 + 固定 random.seed；墙钟值在比对前归一化，见各段注释）
 
 跑法：python tests/test_texts_table.py（exit=0 通过）
+
+依赖与前置（★ CLEANUP②，2026-09-15 —— 本门禁为何是「稳定绿」）
+------------------------------------------------------------------
+1. **库与隔离**：本文件用 `_engine_harness` 的库（`GWEN_GAME_DB`；全量 runner 给每个文件一份
+   私有库）。每例开跑前 = `clean_db()` + `DELETE FROM sqlite_sequence` + `DELETE FROM identity_map`
+   —— 与 `_s_dump`/`_e_dump` 的「**全表** dump」口径对齐。**前置测试若与本文件共用同一只库**
+   （`--file=` 模式 / 直跑共享 `test_game_data.db`），只要它写过 `identity_map`（宿主
+   `host/_identity.py` 的 openid↔QQ 映射，`clean_db()` 的 25 张业务表里没有它），
+   本段 129 例 + 142 例的摘要就会集体变；`_clear_identity_map()` 就是为此补的
+   （实测：种一行 → 271/271 全红；原始输出 `out/logs/texts_polluted.txt`）。
+2. **与下列因素无关**（受控实验，原始输出在 `out/logs/`）：
+   · 进程哈希种子：`PYTHONHASHSEED=0..5` 六次全绿（`texts_flaky_hashseeds.txt`）；
+   · 并发 / 负载：4 进程同时跑，**逐例归一化 dump 逐字节相同**（`out/probe_texts_db/dump1..4.json`）；
+   · 墙钟日期：把包内 + 本文件的 `datetime` / `time.strftime` / `time.localtime` 一律钉到
+     2023-11-15（基准采集日 = 2026-09-15，差一天）→ **0 例红**（`texts_dateflip3.txt`）。
+     历史「跨午夜 1–2 例红」已由 PFIX P8 的日期归一化（`_S_DATE_PAT` / `_E_DATE_PAT`）修掉。
+3. **随机**：每例 `random.seed(_S_SEED / _E_SEED)` 固定；uuid4 派生物品键由
+   `_S_UUID_PAT` / `_E_UUID_PAT` 归一。故无需 `random` 之外的复现前提。
 """
 import ast
 import asyncio
@@ -2726,10 +2744,31 @@ def _s_reset_autoincrement():
         conn.close()
 
 
+def _clear_identity_map():
+    """★ CLEANUP②（2026-09-15）：把「清库口径」补齐到「摘要口径」。
+
+    `clean_db()`（conftest）只清固定 25 张业务表，而本文件 `_s_dump` / `_e_dump` 的 DB 摘要
+    **覆盖全部表** —— `identity_map`（宿主 `host/_identity.py` 的 openid↔QQ 映射）不在那 25 张
+    里，也没有任何一例会清它。任何**前置跑过的测试/装配**只要写过它（平台适配 / 身份映射路径），
+    本段 129 例 + 142 例的摘要就会集体变。
+    **实测**（`out/tools/plant_identity_row.py` 种一行 → `out/tools/probe_texts_flaky.py`）：
+    social 129/129 全红、economy 142/142 全红。这里按同一口径清掉，本门禁与外部前置彻底解耦。
+    """
+    conn = _S_sqlite3.connect(db.db_path())
+    try:
+        conn.execute("DELETE FROM identity_map")
+        conn.commit()
+    except _S_sqlite3.Error:
+        pass
+    finally:
+        conn.close()
+
+
 def _s_cast():
     """标准四人组：a=甲(战士·会长) b=乙(法师) c=丙(游侠) d=丁(牧师)，全 Lv.60 / 10 万金。"""
     clean_db()
     _s_reset_autoincrement()
+    _clear_identity_map()
     _s_mk("a", "甲")
     _s_mk("b", "乙", "法师")
     _s_mk("c", "丙", "游侠")
@@ -3551,6 +3590,7 @@ def _e_cast(**kw):
     """甲（主测）+ 乙（对照）+ 丙 + 未注册玩家。"""
     clean_db()
     _e_reset_autoincrement()
+    _clear_identity_map()          # ★ CLEANUP②：摘要口径 = 清库口径（见 `_clear_identity_map`）
     _e_mk("a", "甲", **kw)
     _e_mk("b", "乙", "法师")
     _e_mk("c", "丙", "游侠")
