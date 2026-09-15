@@ -441,7 +441,17 @@ class EngineHarness(object):
     def make_handler(self, key):
         h = self
 
-        async def _handler(event):
+        async def _handler(*args):
+            # ★ 2026-09-15：本夹具的 handler 有两种被调形态，arity 不同 ⇒ **不能按位置取 event**：
+            #   ① AstrBot 形态：`(self, event)`（绑定方法调用）
+            #   ② 包内实现体形态：`move(event, group_id, qq_id)` 这类，夹具收到的是**去 self 后的实参**
+            # 实测踩坑：按位置取（先 args[-1]、后 args[1]）都会在另一种形态下取错，把字符串
+            # 当成事件传下去 ⇒ `AttributeError: 'str' object has no attribute 'get_group_id'`。
+            # ⇒ 改为**按类型认**：谁带事件特征（`message_str` / `get_group_id`）谁就是 event。
+            event = next(
+                (a for a in args if hasattr(a, "get_group_id") or hasattr(a, "message_str")),
+                args[0] if args else None,
+            )
             replies = await h._invoke_by_key(key, event)
             for seg in h._frame(key, replies):
                 yield seg
