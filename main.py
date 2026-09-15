@@ -366,16 +366,28 @@ def _event_state_cleanup_once():
     if getattr(_event_state_cleanup_once, "_started", False):
         return
     _event_state_cleanup_once._started = True
+    # ★ P5F 前置⑤（去壳）：原实现写死**包内模块路径字面量**导入两只清理函数
+    #   （存档半边 world 的 `cleanup_stale_event_state` / 内容域 worlds 的
+    #   `cleanup_stale_instances`，各写成一条待删壳路径上的 `from … import …`）——
+    #   终态判据②「宿主零包知识」因此在 `main.py` 里恒差 2 处，且删壳后两条 import
+    #   必然 ModuleNotFoundError 被外围 `except Exception` 吞掉 ⇒ 启动清理**静默哑掉**
+    #   （只剩一行 warning，清理实际不执行）。改为按**半边名**经引擎包契约取：
+    #   `store_factory.store().package`（装配处 `bind_store(pkg)` 已绑）→
+    #   `Package.optional_submodule("persistence"/"worlds")`，宿主里**不出现任何包内
+    #   模块路径字面量**（与 `_weekly_reward_selfcheck` / `host/shell.py::_sub` 同口径）。
     try:
-        from .game.store.world import cleanup_stale_event_state
-        n = cleanup_stale_event_state()
+        from .host import store_factory as _sf      # 惰性：模块 import 期本行之前尚未绑定
+        _pkg = _sf.store().package
+        if _pkg is None:
+            raise RuntimeError(
+                "引擎包未绑定（装配处应先 bind_store(pkg) / boot()）")
+        n = _pkg.optional_submodule("persistence").cleanup_stale_event_state()
         if n:
             logging.getLogger(__name__).info("已清理 %d 个流失玩家残留 event_state 键", n)
         # v141 大陆回收（P0-3，2026-08-30 审计）：启动兜底清理超龄大陆实例
         # （内存 dict + DB event_state 孤儿键，24h 默认；幂等）
         try:
-            from .game.core.worlds import cleanup_stale_instances
-            _nw = cleanup_stale_instances()
+            _nw = _pkg.optional_submodule("worlds").cleanup_stale_instances()
             if _nw:
                 logging.getLogger(__name__).info("已清理 %d 个超龄大陆实例", _nw)
         except Exception:
