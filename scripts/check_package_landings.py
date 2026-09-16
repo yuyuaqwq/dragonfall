@@ -72,8 +72,11 @@ def content_sha(root):
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
         for name in sorted(filenames):
-            if name.endswith(SKIP_SUFFIX):
-                continue
+            if name.endswith(SKIP_SUFFIX) or name == ".git":
+                continue        # ⚠️ 子模块检出里的 `.git` 是**gitfile**（文件，不是目录）
+                                #    ⇒ 只按 SKIP_DIRS 排目录会把它当内容比：两个落点的嵌套深度不同
+                                #    （引擎仓 games/X vs 宿主 framework/games/X），gitdir 相对路径
+                                #    必然不同 ⇒ 内容 sha 恒报「2 个不同」的假红。它不属于包内容。
             full = os.path.join(dirpath, name)
             h = hashlib.sha256()
             with open(full, "rb") as fh:
