@@ -6,11 +6,14 @@
 > ⚠️ **2026-09-17 现状订正（Gwen，实测）**：本文写于「宿主仍是真源」的时期，此后**真源已归包**，
 > 三处口径按现状读：
 > 1. **声明表真源 = 包内** `content/data/commands.json`（引擎走 `Package.command_declarations()` 读它）；
->    文中提到的 `game/data/command_specs.json` **已无任何运行期读者**（全仓 grep：只剩本文档与
->    `scripts/gate_fast.py` 的 glob 模式），内容与包内那份 **JSON 级完全相同**（196 键 / 0 键差异 / 0 值差异，
->    仅序列化字节不同）⇒ 它是**待删的历史镜像**（删时需同步 `scripts/gate_fast.py` 的 glob 与 NO_GATE 表）。
->    （对照：`game/data/tlogs.json` 是**合法部署期镜像**，有 `scripts/mirror_tlogs.py` 单向同步 + 唯一读者
->    `host/tlog_setup.py`，不要与前者混为一谈。）
+>    文中提到的 `game/data/command_specs.json` **已无运行期读者**（引擎不再读它），但它是**在编的部署期镜像**：
+>    包仓 `tests/test_command_priority_sync.py` 断言③ 要求两份表的 `priority` 字段**逐条相等**
+>    （键集与值都相等）⇒ **改指令时两份都要改**（历史证据：包侧 `b2ad5cf` 与宿主侧 `017dc91` 是同一改动的两次提交）。
+>    ⚠️ 2026-09-17 实测订正：我一度按「零读者」把它当孤儿镜像删除，`gate_fast --full` 的 `host_runall`
+>    立刻报红（`test_command_priority_sync.py` ③ 找不到镜像件）⇒ **已原样还原**（内容 LF / sha256 `cbff9d6f…`
+>    与 HEAD blob 逐字节一致）。**教训：判「某文件没有消费者」时，必须两仓都 grep，并检查门禁（tests/）侧。**
+>    （对照：`game/data/tlogs.json` 是**单向镜像**，有 `scripts/mirror_tlogs.py` 同步 + 唯一读者
+>    `host/tlog_setup.py` + `tlogs` 门禁 21/21 —— 两者都是镜像，但**同步方式不同**：tlogs 有镜像脚本，commands 靠人肉双写。）
 > 2. **条数 194 → 196**（V2 重铸新增 `reroll` + S4/S2 补登记两个域）；冻结快照
 >    `tests/_command_table_freeze.json`（**在包仓**）`count = 196`、`sha256 = 5d16c8e4f629bddd…`。
 > 3. 改一条指令的姿势同理：改**包内** `content/data/commands.json`，不再改宿主那份。
