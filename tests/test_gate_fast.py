@@ -383,8 +383,14 @@ def test_full_equivalence():
     missing = [m for m in GF.MANUAL_CANON if m not in sel]
     check("手工那套 7 道全部在 --full 清单里（手工那套 ⊂ --full）", not missing,
           "缺：%s" % ",".join(missing))
-    check("--full 清单 = 映射表全集（一道不漏）",
-          len([g for g in sel]) >= len(GF.GATES), "%d < %d" % (len(sel), len(GF.GATES)))
+    # ★ 2026-09-16：动态门（host_test_self / fw_test_self = 「改了哪个测试就跑哪个」）
+    # 在 --full 下**没有改动面**，旧实现退化成用 measure_file 硬跑一次 —— 而 T8 测试单源化后
+    # 该代表文件已不在宿主仓 ⇒ 必定 rc=2 假红。现改为「选中但在计划阶段诚实跳过」⇒
+    # 判据随之改为「选中 ∪ 已跳过 == 全集」（牙没掉：仍不允许任何门禁被静默吞掉）。
+    _sel, _skp = set(sel), set(skipped_ids(out))
+    _missing = sorted(set(GF.GATES_BY_ID) - _sel - _skp)
+    check("--full：选中 ∪ 已跳过 == 映射表全集（动态门按设计跳过，也不许被静默吞掉）",
+          not _missing, "未出现在任何清单里：%s" % ",".join(_missing))
 
     check("打印了并排对照表（表头 `#   手工那套`）", "#" in out and "手工那套" in out)
     check("并排对照里每一条手工门禁都标了「同一条」",
