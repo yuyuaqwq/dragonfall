@@ -1,7 +1,11 @@
 # 《剑与魔法》重构架构设计（v46 → 分层架构）
 
 > ⚠️ **v110 审计现状注记（2026-08-14）**：本文档为 v46/v47 重构初稿，细节已与现状脱节，仅分层总览与依赖方向仍准确：
-> - 测试：原述"19 文件/227 断言"，现状 `tests/` 下 `test_*.py` 共 **124 个**（另 conftest + 3 个审计脚本），全量回归 `scripts/run_all_tests.py`（约 9 分钟）；
+> - 测试：原述"19 文件/227 断言"；**现状（2026-09-17 实测）**：宿主 `tests/` 只剩 **6 个 `test_*.py`**
+>   （`test_check_terminal_state` / `test_command_registration` / `test_gate_fast` / `test_live_shortcut_path` /
+>   `test_numeric_v153_audit` / `test_patch_surface`；另 3 个辅助件 `_host_layout.py` / `b20_qq_ref.py` /
+>   `smoke_v1347_maint.py`）—— 内容侧测试已**单源化到包仓** `tests/`（**277 个** `test_*.py`），
+>   宿主运行器枚举 = 宿主自留件 + 包仓那份（**278 文件**，实测 **~161s**）；
 > - 命令层：原述 9 文件，现状 **12 个**（新增 gm.py / instance.py / talk_actions.py）；
 > - core 层：原清单缺 ~20 个现行模块（battle_mech / battle_conds / affix_effects / achievement_conds / dialogue_conds / world_event_templates / time_weather / class_sets / food_effects / event_templates / race_talent_display / title_bonus / title_conds / hidden_cond / enchant / runes / factions / mounts / pets / wild 等）；
 > - services/ 目录已不存在（编排职责并入 commands 层）。
@@ -179,6 +183,11 @@ tests/
 ```
 
 运行：`python -X utf8 tests/test_*.py`（无需 pytest，直跑脚本）。共 19 文件 / 227 断言。
+
+> ⚠️ **2026-09-17 现状注记**：上面这段（v47 时期）说的是**当初内容仓单仓时代**的测试面。
+> 现状：宿主 `tests/` 只剩 6 个 `test_*.py`（宿主专属门禁），内容侧测试已单源化到**包仓** `tests/`
+> （277 个）；全量回归的唯一入口是宿主 `python scripts/run_all_tests.py`（枚举 = 宿主自留件 + 包仓那份，
+> 278 文件，实测 ~161s），**不要**再单独跑宿主 `tests/` 当全量。
 
 **v47 彻底重写完成（2026-08-05）**：旧版 58 个 `test_vXX*.py` 版本号测试全部删除，重写为按模块/功能域组织的 19 个测试。组织原则：**命令层 1:1 对应命令文件**（改动最频繁、最需要精确定位）；**底层按数据族/逻辑族分组**（data 26 模块→5 族、core 17 模块→4 族、store 9 模块→3 族），避免碎片化壳文件。命令矩阵测试从 `game/commands/*.py` 源码动态提取 @filter.regex，防双触发回归自动生效。
 

@@ -68,7 +68,7 @@ data（纯数据 dict） ← core（纯逻辑，无 IO 不碰 DB/QQ） ← store
 ## 5. 测试规范
 
 - 单测：`"C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe" tests/test_xxx.py`（AstrBot uv python，系统 python 无 pypinyin）
-- 全量：`python scripts/run_all_tests.py`（v117.5 起默认并行 + shim astrbot 替身：按核数自适应 4~16 路、每文件独立私有库 `tests/.run_all_workers/`、注入 `tests/shim_astrbot/` 行为等价替身；实测 149 文件 **~27s**，详见 `docs/TEST_SPEEDUP.md`）；`--serial` 恢复旧的纯串行共享库行为；`--skip=test_xxx.py` 跳过已知坏测试（重构过渡期用）；`--real-astrbot`/`GWEN_NO_SHIMMED_ASTRBOT=1` 退回真实 astrbot（对照验证 shim 用）；**不要用 pytest 跑**（旧式脚本 sys.exit 会 INTERNALERROR）
+- 全量：`python scripts/run_all_tests.py`（v117.5 起默认并行 + shim astrbot 替身：按核数自适应 4~16 路、每文件独立私有库 `tests/.run_all_workers/`、注入 `tests/shim_astrbot/` 行为等价替身；**2026-09-17 实测：278 文件 `~161s`**（枚举 = 宿主自留件 + 包仓 `tests/` 那份，口径见 §测试单源化），详见 `docs/TEST_SPEEDUP.md`）；`--serial` 恢复旧的纯串行共享库行为；`--skip=test_xxx.py` 跳过已知坏测试（重构过渡期用）；`--real-astrbot`/`GWEN_NO_SHIMMED_ASTRBOT=1` 退回真实 astrbot（对照验证 shim 用）；**不要用 pytest 跑**（旧式脚本 sys.exit 会 INTERNALERROR）
 - 硬编码共享 `test_game_data.db` 的文件（如 test_v101_28_food_hot.py）自动进「串行槽」先跑，新测试**禁止直接赋值 `GWEN_GAME_DB` 指向共享库**（要用隔离库就 setdefault 自己的私有库，或直接用 conftest 默认）
 - **测试必须确定性**：
   - 概率/随机逻辑必须 `random.seed()` 固定（撞怪/彩蛋/掉落）

@@ -3,6 +3,18 @@
 > 2026-09-12 完成。相关：框架 `saintess_engine.command.CommandRegistry`、
 > `docs/engine-wiki/reference/declarative-commands-and-texts.md`。
 
+> ⚠️ **2026-09-17 现状订正（Gwen，实测）**：本文写于「宿主仍是真源」的时期，此后**真源已归包**，
+> 三处口径按现状读：
+> 1. **声明表真源 = 包内** `content/data/commands.json`（引擎走 `Package.command_declarations()` 读它）；
+>    文中提到的 `game/data/command_specs.json` **已无任何运行期读者**（全仓 grep：只剩本文档与
+>    `scripts/gate_fast.py` 的 glob 模式），内容与包内那份 **JSON 级完全相同**（196 键 / 0 键差异 / 0 值差异，
+>    仅序列化字节不同）⇒ 它是**待删的历史镜像**（删时需同步 `scripts/gate_fast.py` 的 glob 与 NO_GATE 表）。
+>    （对照：`game/data/tlogs.json` 是**合法部署期镜像**，有 `scripts/mirror_tlogs.py` 单向同步 + 唯一读者
+>    `host/tlog_setup.py`，不要与前者混为一谈。）
+> 2. **条数 194 → 196**（V2 重铸新增 `reroll` + S4/S2 补登记两个域）；冻结快照
+>    `tests/_command_table_freeze.json`（**在包仓**）`count = 196`、`sha256 = 5d16c8e4f629bddd…`。
+> 3. 改一条指令的姿势同理：改**包内** `content/data/commands.json`，不再改宿主那份。
+
 ## 一、结果一句话
 
 **194 条指令 100% 来自声明表**（`game/data/command_specs.json`）；原先手工维护的镜像表
@@ -22,7 +34,7 @@
 两处互相同步 → **一定会漂移**，只能再配一个「表与装饰器 1:1」测试盯着（`test_v87_command_matrix.py`）。
 迁移把 ① 换成 `@declared("key")`（正则从声明表取），删掉 ② → **声明表是唯一真源**。
 
-## 三、现状（2026-09-12 收工口径）
+## 三、现状（2026-09-12 收工口径）—— ⚠️ **以下数字是历史值，现行口径见本文顶部「2026-09-17 现状订正」**
 
 | 项 | 值 |
 |---|---|
