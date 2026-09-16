@@ -166,7 +166,8 @@ NO_GATE = [
     ("host:scripts/build_matrix/**", "数值矩阵构建产物，无门禁覆盖"),
     ("host:scripts/economy_lib/**", "经济模拟库（离线工具），无门禁覆盖"),
     ("host:scripts/numeric_lib/**", "数值工具库（离线工具），无门禁覆盖"),
-    ("host:scripts/_retired/**", "已退役导出器（归档），无门禁覆盖"),
+    ("host:scripts/_retired/**", "已退役导出器（★ S5 2026-09-16 整目录清出本仓，glob 现命中 0 条；"
+                                 "保留标注仅为历史可追溯），无门禁覆盖"),
     ("host:scripts/*.ps1", "宿主一次性运维脚本，无门禁覆盖"),
     ("host:scripts/*.sh", "宿主一次性运维脚本，无门禁覆盖"),
     ("host:tests/__init__.py", "测试包标记文件，无门禁覆盖"),

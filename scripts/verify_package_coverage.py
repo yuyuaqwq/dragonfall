@@ -6,8 +6,8 @@
 ----------------------
 2026-09-14 B14 开关删掉了宿主 `game/data/*.py`（74,707 行 / 87 文件）——**包内
 `content/data|rules/*.json` 成为数据唯一真源**；原来的单向导出器
-`scripts/export_game_package.py`（+ `scripts/export_domains/` 域插件）随之退役，
-归档在 `scripts/_retired/`（来路与语义账见 `scripts/_retired/README.md`）。
+`scripts/export_game_package.py`（+ `scripts/export_domains/` 域插件）随之退役。
+（★ S5 2026-09-16：退役件已连同 `scripts/_retired/` 整目录清出本仓，来路说明见 git 历史与本文件这一段。）
 
 因此本门禁从「真源 → 包」的单向核对，改为**包内自洽核对**（四条，任何一条失败 → 退出码非 0）：
 
@@ -49,7 +49,7 @@ def main() -> int:
 
     pkg = os.path.join(os.path.abspath(FRAMEWORK), "games", PKG_ID)
     print(f"游戏仓   = {REPO}\n框架仓   = {os.path.abspath(FRAMEWORK)}\n包       = {pkg}\n"
-          f"（★ B14 开关后：真源 = 包内 content/data|rules/*.json；导出器已退役，见 scripts/_retired/）")
+          f"（★ B14 开关后：真源 = 包内 content/data|rules/*.json；导出器已退役并清出本仓）")
     if not os.path.isdir(pkg):
         print(f"❌ 包目录不存在：{pkg}")
         return 1
