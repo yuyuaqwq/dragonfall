@@ -166,15 +166,20 @@ PKG_SOCIAL_SRC = os.path.join(PKG_CONTENT, "cmds_social.py")
 SOCIAL_SRC = PKG_SOCIAL_SRC
 # ★ B18-L9（2026-09-15）：经济域 **45 条命令**整块进包 —— 宿主 `game/commands/economy.py`
 #   退化为「`@declared` 注册 + 两行 `_BRIDGE.run_async` 转发」，守卫（`hook:player`）/取参/
-#   分支业务/回话全在包内 `content/cmds_economy.py`（处理器 async：实现体
+#   分支业务/回话全在包内（处理器 async：实现体
 #   `content/economy_cmds.py::EconomyImpl.<m>` 是 async generator，照战斗族先例）。
 #   本域**不使用 `T.text/T.static`**：句子是 `EconomyImpl` 里的内联字面量 / f-string
-#   （B9-L1 起就在包内）→ 两侧扫到 0 个调用点。本域扫描根仍按「宿主 + 包内」两侧登记
-#   （将来若有人把句子改成文案表 key，本门禁立刻扫到并对账槽位）。
+#   （B9-L1 起就在包内）→ 两侧扫到 0 个调用点。
 #   逐字一致的真正证据见本文件 [13] 段：`ECONOMY_FROZEN`（文本）+ `ECONOMY_DB_SHA`（副作用），
 #   = 迁移前真跑 142 例（45 条命令 × 正常/边界/失败 + 追加边界）存下的完整输出与 DB dump 摘要。
+#
+# ★ 改：45 条命令的 handler 薄壳已从 `content/cmds_economy.py` 删掉（该文件随迁删）——
+#   声明表 `content/data/commands.json` 的 `bind` 直接点名实现体，引擎按 `bind.call` 造 handler。
+#   故本段的**扫描根**改为：句子/文案面 = 实现体 `content/economy_cmds.py`；
+#   「45 条处理器都是 async」= 声明表 45 条 `bind.call == "messages"`（引擎按该模式生成协程处理器）。
+#   判定与强度逐条不变（仍是「扫包内真源 + 45 条一个不少」）。
 ECONOMY_SRC = os.path.join(_PD, "game", "commands", "economy.py")
-PKG_ECONOMY_SRC = os.path.join(PKG_CONTENT, "cmds_economy.py")
+PKG_ECONOMY_SRC = os.path.join(PKG_CONTENT, "economy_cmds.py")
 # ★ P5E-DELETE（2026-09-15，删壳批）：同 SOCIAL_SRC 的处置 —— [13] 段（经济域逐字冻结）
 #   原扫宿主 `game/commands/economy.py`（随壳删除），改指包内真源 `content/cmds_economy.py`。
 ECONOMY_SRC = PKG_ECONOMY_SRC
@@ -2331,11 +2336,17 @@ class _PB_Env:
 
 
 def _pb_b25_join_no_char():
-    """加入战斗：还没有角色（B18-L10：直接跑包内命令体 = 原「剥掉 @require_player 守卫」）。"""
+    """加入战斗：还没有角色（B18-L10：直接跑包内命令体 = 原「剥掉 @require_player 守卫」）。
+
+    ★ 改：副本 8 条的 handler 薄壳已从 `content/cmds_instance.py` 删掉（该文件随迁删）——
+    声明表 `bind` 点名实现体，处理器由引擎 `bind_handler()` 造。取件口 = 同一张运行时登记表
+    `content.commands::COMMANDS`（守卫仍不在这里：守卫由宿主 `_BRIDGE` 按声明施加）。
+    """
     _PB_clean()
     random.seed(20260914 + 25)
     inst = _PBHost()
-    from content.cmds_instance import join_battle as _pkg_join
+    from content.commands import COMMANDS as _PKG_COMMANDS
+    _pkg_join = _PKG_COMMANDS["join_battle"]["handler"]
     env = _PB_Env(inst, _PB_Event(_PB_GID, "q_none", "加入战斗"))
     return _pb_text(_pb_run_sync(_pkg_join(env)))
 # ── B18-L10 END ────────────────────────────────────────────────────────────────
@@ -4277,7 +4288,7 @@ def t13_economy_frozen():
     pkg_calls, pkg_lits = _scan_calls(PKG_ECONOMY_SRC)
     check("★ 宿主 game/commands/economy.py 零 `T.text/T.static` 调用点（渲染全进包）",
           not host_calls, host_calls[:4])
-    check("包内 content/cmds_economy.py 也无文案表调用点（句子是逐字搬来的内联字面量）",
+    check("包内实现（content/economy_cmds.py）也无文案表调用点（句子是逐字搬来的内联字面量）",
           not pkg_calls, pkg_calls[:4])
     check("宿主 game/ 已整树删除（0 个 .py，全删态终局）",
           # ★ P5E-DELETE：本断言是**终态（删壳后）判据** —— 删壳后 `game/**.py` 必为 0。
@@ -4305,17 +4316,21 @@ def t13_economy_frozen():
           len(_econ) == 45, len(_econ))
     check("45 条经济命令键与旧壳名单逐字相同",
           set(_econ) == _want, sorted(set(_econ) ^ _want))
-    # ② 45 条处理器全在包内且都是 async（引擎通道「逐段 yield」框定的前提）
-    _impl = ast.parse(io.open(PKG_ECONOMY_SRC, encoding="utf-8").read())
-    _fn = {n.name for n in ast.walk(_impl) if isinstance(n, ast.AsyncFunctionDef)}
-    _fn |= {n.name for n in ast.walk(_impl)
-            if isinstance(n, ast.FunctionDef) and any(
-                getattr(d, "id", "") == "async_generator" for d in n.decorator_list)}
-    check("45 条经济命令处理器全在包内（async 形状；无同步壳转发）",
-          _want <= _fn, sorted(_want - _fn))
-    check("包内实现不再有 require_player 守卫残留（守卫由声明表统一施加）",
-          not [n for n in ast.walk(_impl) if isinstance(n, ast.Name)
-               and n.id == "require_player"])
+    # ② 45 条处理器都由**声明表点名实现体**（`bind.call == "messages"` ⇒ 引擎造协程处理器，
+    #    引擎通道「逐段 yield」框定的前提不变）。
+    _bound = {k: (v.get("bind") or {}) for k, v in _econ.items()}
+    check("45 条经济命令处理器全在包内（声明表点名实现体，messages 模式 ⇒ 协程形状；无同步壳转发）",
+          all(spec.get("call") == "messages" and spec.get("handler")
+              for spec in _bound.values()),
+          sorted(k for k, spec in _bound.items() if spec.get("call") != "messages"))
+    check("45 条点名的实现体都是 `content.economy_cmds` 上的 `EconomyImpl.<名>`",
+          all(str(spec.get("handler", "")).startswith("content.economy_cmds:EconomyImpl.")
+              for spec in _bound.values()),
+          sorted(spec.get("handler") for spec in _bound.values()
+                 if not str(spec.get("handler", "")).startswith("content.economy_cmds:")))
+    check("45 条经济命令的守卫由声明表统一施加（包内不再有手写 require_player 守卫装饰）",
+          all(list(v.get("guards") or []) == ["player"] for v in _econ.values()),
+          sorted(k for k, v in _econ.items() if list(v.get("guards") or []) != ["player"]))
     check("宿主仓保留 item_view_mode_cmd 的 priority=50（与 item_detail 的正则重叠判定）",
           _decls.get("item_view_mode_cmd", {}).get("priority") == 50,
           _decls.get("item_view_mode_cmd", {}).get("priority"))

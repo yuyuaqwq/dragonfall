@@ -1216,16 +1216,17 @@ def t7_wiring():
     print("\n[7] 接线门禁：命令层不再有手写 if 链；措辞只在文案表 content/data/text_specs.json")
     # ★ P5F-REPOINT: 原读宿主壳 `game/commands/instance.py` / `base.py` / `world.py` /
     #   `game/core/instance_gate.py`（随删壳批消失）→ 包内真源四侧（登记面 + 实现面）：
-    #   `content/cmds_instance.py` + `content/instance_cmds.py`、
-    #   `content/cmds_base_rules.py`、`content/world_cmds.py` + `content/cmds_world.py`、
-    #   `content/flow/instance_gate.py`。断言逐条不变（原「壳 + 实现」两侧拼接 = 实现侧全集）。
+    #   `content/instance_cmds.py`、`content/cmds_base_rules.py`、
+    #   `content/world_cmds.py` + `content/cmds_world.py`、`content/flow/instance_gate.py`。
+    #   断言逐条不变（原「壳 + 实现」两侧拼接 = 实现侧全集）。
+    #   （副本 8 条的 handler 薄壳 `content/cmds_instance.py` 随声明式绑定迁删 —— 它本来只做
+    #    「守卫声明 + 调包」，本段要的 `instance_gate.*` 真调用点全在实现面。）
     _PKG = os.path.join("framework", "games", "orlandia", "content")
 
     def _read(rel):
         with open(os.path.join(_PD, rel), encoding="utf-8") as f:
             return f.read()
-    inst_src = (_read(os.path.join(_PKG, "cmds_instance.py")) + "\n"
-                + _read(os.path.join(_PKG, "instance_cmds.py")))
+    inst_src = _read(os.path.join(_PKG, "instance_cmds.py"))
     base_src = _read(os.path.join(_PKG, "cmds_base_rules.py"))
     world_src = (_read(os.path.join(_PKG, "world_cmds.py")) + "\n"
                  + _read(os.path.join(_PKG, "cmds_world.py")))
