@@ -5,7 +5,7 @@
 ## 为什么移
 
 `design/new_world/` 是一个**独立的 git 仓库**（内含自己的 `.git`，独占 7.2 MB）。
-外挂仓混进插件目录会让代码仓状态混乱（`docs/ENGINE_CONTENT_SPLIT_PLAN.md` 的 R10 记的就是这个隐患，`.gitignore` 里也只能靠 `design/` 整目录排除）。
+外挂仓混进插件目录会让代码仓状态混乱（`docs/archive/ENGINE_CONTENT_SPLIT_PLAN.md` 的 R10 记的就是这个隐患，`.gitignore` 里也只能靠 `design/` 整目录排除）。
 鱼鱼拍板 **A 案：保持移出**，并把「策划案同步铁律」改为已退役 —— 见 `DEVELOPMENT.md` §6。
 
 ## 现在在哪 / 怎么找回

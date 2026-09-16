@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """S8/S9 拆仓改造：游戏侧对引擎包的引用从 `game.battle2` 改为裸包 `saintess_engine`。
 
-背景（docs/ENGINE_CONTENT_SPLIT_PLAN.md §7.5 / FRAMEWORK_SPLIT_PLAN.md S8-S9）：
+背景（docs/archive/ENGINE_CONTENT_SPLIT_PLAN.md §7.5 / FRAMEWORK_SPLIT_PLAN.md S8-S9）：
 引擎包物理分离到框架仓库（dragonfall 侧 `framework/` 为 submodule，内含 `saintess_engine/`），
 游戏侧不再走 `game.battle2` 这个包内路径 —— 改为直接依赖框架包名 `saintess_engine`
 （符合「重构改干净、不留兼容壳」铁律，S9 删 shim 后的终态）。

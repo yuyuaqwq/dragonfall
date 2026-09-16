@@ -292,5 +292,5 @@
 - 《云海猎团》03 章 M3.2（阶段状态机四件套）
 - 《云海猎团》04 章 M4.1-M4.3（九异常三律 + 阈值递增 + 每场上限 + 饱和 + 进度遗产）
 - 《云海猎团》08 章 M8.4-M8.6（战报五段一屏 + 反馈链四层 + 不刷屏约定）
-- dragonfall 27 章（战斗规则引擎）+ 32 章（数值设计）+ docs/CTB_REFACTOR.md + docs/DOT_REFACTOR_CONTRACT.md
+- dragonfall 27 章（战斗规则引擎）+ 32 章（数值设计）+ docs/archive/CTB_REFACTOR.md + docs/archive/DOT_REFACTOR_CONTRACT.md
 

@@ -1,6 +1,6 @@
 # 奥兰迪亚·余烬纪年 — 职业体系重构框架 v150
 
-> ⚠️ **P2E 已删常量总注（2026-09-07，commit 095abd4）**：本文档及 CLASS_MECHANICS_v153.md 中作为机制说明引用的以下 battle_config 常量已随 P2E 删除（41 死表 + GUARD_CORE_CFG/RANGER_CHARGE_CFG/BARD_BRANCHES/ZEN_HOLD_CFG），**数值与行为见删除后真实源（battle_mech handler 字面量 / skills.py 技能条目 / core_resources·classes.py 职业字段 / ENEMY_BAR_CFG，逐行证据见 docs/REFACTOR_P2E_task.md 附录 A + docs/REFACTOR_P2E_mech_cfg.md 附录 A）**：`BONE_RUSH_CFG`、`CURSE_CFG`、`SOUL_MARK_CFG`、`SHAKEN_CFG`、`COUNTER_CFG`/`STANCE_COUNTER`、`DRAGON_FORM`、`MAGE_FOCUS_CFG`/`CHRONOMANCER_STASIS_CFG`、`SHADOW_DANCE_CFG`、`ENERGY_VENT`/`VENT_AT`/`VENT_AUTO`/`VENT_MAX_DELAY`/`VENT_RECOVERY_EXTRA`、`TENACITY_CFG`、`GUARD_CORE_CFG`、`VOW_CFG`、`BARD_DAWN_HYMN_POWER`/`BARD_SELF_GAIN_FACTOR`/`DIRGE_CFG`/`BARD_WEAPON_RHYTHM`、`ASSASSIN_HIT_FEED`/`SPIN_LOCK`/`COMBO_REFLOW_*`/`CHAIN_DANCE`/`CORRODE`/`POISON_BURST_CP`、`IDLE_FLOOR_TURNS`、`RANGER_CHARGE_CFG`/`RANGER_SNIPE_REACH`/`BACK_ROW_MULT`/`HUNT_FINALE_POWER`、`ASTRO_SHIELD_CFG`/`STARSTEP_CFG`/`STAR_LOCK_CFG`、`BERSERKER_DUAL_ATTACK`/`ENTRY_STRIKE`/`MASTERY_KEEP`/`RAGE_POTION_GAIN`、`HUNT_MARK_CRIT_EXTRA`、`ASSASSIN_FINISHER_THRESHOLD`、`BARD_BRANCHES`、`ZEN_HOLD_CFG`。本文机制数值/设计语义未变，仅档案常量名失效——不复述设计稿数值语义。
+> ⚠️ **P2E 已删常量总注（2026-09-07，commit 095abd4）**：本文档及 CLASS_MECHANICS_v153.md 中作为机制说明引用的以下 battle_config 常量已随 P2E 删除（41 死表 + GUARD_CORE_CFG/RANGER_CHARGE_CFG/BARD_BRANCHES/ZEN_HOLD_CFG），**数值与行为见删除后真实源（battle_mech handler 字面量 / skills.py 技能条目 / core_resources·classes.py 职业字段 / ENEMY_BAR_CFG，逐行证据见 docs/archive/REFACTOR_P2E_task.md 附录 A + docs/archive/REFACTOR_P2E_mech_cfg.md 附录 A）**：`BONE_RUSH_CFG`、`CURSE_CFG`、`SOUL_MARK_CFG`、`SHAKEN_CFG`、`COUNTER_CFG`/`STANCE_COUNTER`、`DRAGON_FORM`、`MAGE_FOCUS_CFG`/`CHRONOMANCER_STASIS_CFG`、`SHADOW_DANCE_CFG`、`ENERGY_VENT`/`VENT_AT`/`VENT_AUTO`/`VENT_MAX_DELAY`/`VENT_RECOVERY_EXTRA`、`TENACITY_CFG`、`GUARD_CORE_CFG`、`VOW_CFG`、`BARD_DAWN_HYMN_POWER`/`BARD_SELF_GAIN_FACTOR`/`DIRGE_CFG`/`BARD_WEAPON_RHYTHM`、`ASSASSIN_HIT_FEED`/`SPIN_LOCK`/`COMBO_REFLOW_*`/`CHAIN_DANCE`/`CORRODE`/`POISON_BURST_CP`、`IDLE_FLOOR_TURNS`、`RANGER_CHARGE_CFG`/`RANGER_SNIPE_REACH`/`BACK_ROW_MULT`/`HUNT_FINALE_POWER`、`ASTRO_SHIELD_CFG`/`STARSTEP_CFG`/`STAR_LOCK_CFG`、`BERSERKER_DUAL_ATTACK`/`ENTRY_STRIKE`/`MASTERY_KEEP`/`RAGE_POTION_GAIN`、`HUNT_MARK_CRIT_EXTRA`、`ASSASSIN_FINISHER_THRESHOLD`、`BARD_BRANCHES`、`ZEN_HOLD_CFG`。本文机制数值/设计语义未变，仅档案常量名失效——不复述设计稿数值语义。
 
 > 起因：鱼鱼对 v142 职业设计不满意（2026-08-31）。  
 > 拍板范围：**大改，允许增删职业、重排分支**；**先出整体框架，再逐线落地**。  
@@ -8,7 +8,7 @@
 > 方向拍板：**砍掉隐藏六职业，收束到基础六职业，每职业保留两条转职线，重点让玩法有意思**
 >
 > 数据源基线：`game/data/skills.py` / `core_resources.py` / `classes.py` / `battle_config.py`（v142 全量）  
-> 参考：`docs/class_design_audit_20260829.md`、`docs/SKILL_REDESIGN_FRAMEWORK_v129.md`、`docs/BURST_REDLINE_v133.md`
+> 参考：`docs/archive/class_design_audit_20260829.md`、`docs/SKILL_REDESIGN_FRAMEWORK_v129.md`、`docs/BURST_REDLINE_v133.md`
 
 ---
 
@@ -25,7 +25,7 @@
 
 ### 1.1 效果指纹 ≠ 玩法指纹
 
-`class_design_audit_20260829.md` 的结论是"✅ 12 职业无效果同质化，每个职业都有专属效果指纹"。这个结论没错，但它统计的是**效果类型的数量**（战士 6 破防 / 刺客 12 毒 / 法师 8 AOE / 游侠 9 标记）——这只证明**皮肤不同**，不证明**玩法不同**。
+`docs/archive/class_design_audit_20260829.md` 的结论是"✅ 12 职业无效果同质化，每个职业都有专属效果指纹"。这个结论没错，但它统计的是**效果类型的数量**（战士 6 破防 / 刺客 12 毒 / 法师 8 AOE / 游侠 9 标记）——这只证明**皮肤不同**，不证明**玩法不同**。
 
 把皮肤扒掉，v142 的 12 条线骨架是同一个：
 

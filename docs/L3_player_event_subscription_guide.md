@@ -2,7 +2,7 @@
 
 > 目标读者：给战斗胜利/击杀加"玩家级反应"的开发者（包括未来的格温）。
 > 读完本文件 2 分钟内能加好一个新玩法反应，不用碰任何结算函数。
-> 权威思想：docs/DESIGN_v181_L3_player_event_bus.md；实施细节：docs/REFACTOR_v181_L3_P0_task.md。
+> 权威思想：docs/archive/DESIGN_v181_L3_player_event_bus.md；实施细节：docs/archive/REFACTOR_v181_L3_P0_task.md。
 
 ## 0. 一分钟上手
 

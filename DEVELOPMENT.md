@@ -103,7 +103,7 @@ data（纯数据 dict） ← core（纯逻辑，无 IO 不碰 DB/QQ） ← store
 **原状（2026-08-12 起）**：任何涉及设计/数值/新内容的代码改动，提交 git 之前必须先同步 `design/new_world/` 对应章节（独立 git 仓库，位于插件目录 `....\dragonfall\design\new_world`，代码仓 .gitignore 已排除），与 git commit 同级必做，禁止只提交代码。
 
 **★ 2026-09-13 变更（B1 清场，鱼鱼拍板 A 案）**：整个 `design/new_world/`（849 文件 / 10.0 MB，其中嵌套独立 `.git` 独占 7.2 MB）已**移出仓**（移出 ≠ 删除）。
-- 原因：嵌套独立 `.git` 混进插件目录会让代码仓状态混乱（`docs/ENGINE_CONTENT_SPLIT_PLAN.md` R10）
+- 原因：嵌套独立 `.git` 混进插件目录会让代码仓状态混乱（`docs/archive/ENGINE_CONTENT_SPLIT_PLAN.md` R10）
 - **新家（2026-09-13 定案）**：`C:\Users\yuyu\dragonfall-designer\` —— 与 `framework-engine` 同级的**外挂兄弟仓**，保留它自己的 git 历史与远端 `git@github.com:yuyuaqwq/dragonfall-designer.git`；设计稿今后在那里维护、独立提交（提交信息照旧写设计依据）
 - B1 移出时的中转站 `...\workspace\_retired\20260913\design\new_world\` 已迁空，只留 `design/MOVED_TO.txt` 指针；`_retired\20260913\MANIFEST.json` 仍是这次移出的逐文件 sha256 凭据
 - 仓内留了跳转指针 `design/README.md`：源码注释里所有 `design/new_world/...` 写法都按它跳（~10 处注释沿用旧写法，未逐条改）
