@@ -1,9 +1,26 @@
 # -*- coding: utf-8 -*-
-"""v134.7 验证：停服时『意见』放行；其他指令直接无视（不回复维护提示，静默 stop）"""
+"""v134.7 验证：停服时『意见』放行；其他指令直接无视（不回复维护提示，静默 stop）。
+
+宿主侧冒烟（`_maint_gate` = **平台门控面**），故留宿主。
+
+★ T8（测试单源化）适配：
+  · `conftest` / 内容侧夹具的**唯一真源 = 包仓那份 tests**（部署面
+    `<plugin>/framework/games/*/tests`）⇒ 从这里取，宿主侧不再自留副本；
+  · 平台名面（`data.plugins.<pkg>`）的 qqbot 根 + shim 目录走 `tests/_host_layout.py` 发现；
+  · 删掉原先硬编码的三条 `C:\\Users\\yuyu\\qqbot\\...` —— 那是**另一棵树**（真仓），
+    读到它 = 假绿（实测：旧写法下本冒烟跑的是真仓，不是 T8 副本）。
+"""
 import sys, os, asyncio
-sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall\tests")
-sys.path.insert(0, r"C:\Users\yuyu\qqbot\data\plugins\dragonfall")
-sys.path.insert(0, r"C:\Users\yuyu\qqbot")
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+from _host_layout import PLUGIN_DIR, QQBOT_DIR, SHIM_DIR, PKG_TESTS_DIRS  # noqa: E402
+
+# 逐个 insert(0) ⇒ 列表**靠后**的排在 sys.path 越前：包仓那份 tests 最前（conftest 真源）。
+for _p in ([os.path.join(PLUGIN_DIR, "framework"), PLUGIN_DIR, QQBOT_DIR, SHIM_DIR]
+           + list(PKG_TESTS_DIRS)):
+    if _p and _p not in sys.path:
+        sys.path.insert(0, _p)
 _PRIVATE_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".private_dbs", "smoke_v1347_maint.db")
 os.makedirs(os.path.dirname(_PRIVATE_DB), exist_ok=True)
 os.environ["GWEN_GAME_DB"] = _PRIVATE_DB

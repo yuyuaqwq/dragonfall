@@ -28,7 +28,13 @@ import traceback
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 PLUGIN_DIR = os.path.dirname(_HERE)
-QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+# ★ T8（单源化）：qqbot 部署根 / shim 目录 = **宿主布局适配层**（`tests/_host_layout.py`）。
+#   旧写法死算 `dirname³(PLUGIN_DIR)` 只在部署布局成立（本工作副本的 qqbot 名面在兄弟目录
+#   `<ws>/_run_home`）⇒ `import data.plugins.<pkg>` 当场失败；shim 旧写法只认
+#   `host/tests/shim_astrbot`，T8 后宿主侧不再自留该副本（回落到包仓那份）。
+from _host_layout import QQBOT_DIR, SHIM_DIR as _SHIM_DIR  # noqa: E402
 
 
 def _find_package_dir():
@@ -61,8 +67,8 @@ for _p in (QQBOT_DIR, PLUGIN_DIR, os.path.join(PLUGIN_DIR, "framework"), _HERE):
     if _p and _p not in sys.path:
         sys.path.insert(0, _p)
 if os.environ.get("GWEN_NO_SHIMMED_ASTRBOT") != "1":
-    _SHIM = os.path.join(_HERE, "shim_astrbot")
-    if os.path.isdir(_SHIM) and _SHIM not in sys.path:
+    _SHIM = _SHIM_DIR
+    if _SHIM and os.path.isdir(_SHIM) and _SHIM not in sys.path:
         sys.path.insert(0, _SHIM)
 
 os.environ["GWEN_PACKAGE_DIR"] = PKG_DIR

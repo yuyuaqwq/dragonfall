@@ -52,14 +52,23 @@ def _bootstrap_paths() -> None:
     仍把 `game.*` / `data.plugins.dragonfall*` 视为宿主名面，扫描口径与判定逐条不动。
     """
     qqbot = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
+    # ★ T8（单源化）：QQBOT_DIR / shim 目录改走**宿主布局适配层**（`tests/_host_layout.py`）——
+    #   旧写法死算 `dirname³(PLUGIN_DIR)` 只在部署布局成立；shim 旧写法只认
+    #   `host/tests/shim_astrbot`，T8 后宿主侧不再自留该副本（回落到包仓那份）。
+    try:
+        from _host_layout import QQBOT_DIR as _qb, SHIM_DIR as _sh   # noqa: PLC0415
+        if _qb:
+            qqbot = _qb
+    except Exception:                               # noqa: BLE001
+        _sh = os.path.join(HERE, "shim_astrbot")
+        if not os.path.isdir(_sh):
+            _sh = ""
     for p in (HERE, qqbot, PLUGIN_DIR, os.path.join(PLUGIN_DIR, "framework")):
-        if p not in sys.path:
+        if p and p not in sys.path:
             sys.path.insert(0, p)
     os.environ.setdefault("GWEN_TEST_MODE", "1")
-    if os.path.isdir(os.path.join(HERE, "shim_astrbot")):
-        sh = os.path.join(HERE, "shim_astrbot")
-        if sh not in sys.path:
-            sys.path.insert(0, sh)
+    if _sh and _sh not in sys.path:
+        sys.path.insert(0, _sh)
     try:
         from _engine_harness import boot as _eng_boot  # noqa: PLC0415
         _eng_boot()

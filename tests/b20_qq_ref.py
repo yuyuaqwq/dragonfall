@@ -58,14 +58,95 @@ def _find_pkg_dir():
 _PKG_DIR = _find_pkg_dir()
 if _PKG_DIR and _PKG_DIR not in sys.path:
     sys.path.insert(0, _PKG_DIR)
-QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
+
+
+def _find_qqbot_dir(plugin_dir):
+    """qqbot 部署根（`<qqbot>/data/plugins/<插件>` 的那一层 `data` 的父目录）。
+
+    旧写法是死算 `dirname³(PLUGIN_DIR)` —— 只在**部署布局**（插件目录正好是
+    `<qqbot>/data/plugins/<名>`）成立。本工作副本里插件目录是 `<ws>/host`，
+    死算得到 `<ws>/../..`（垃圾路径）⇒ 下面 `import data.plugins.dragonfall.main`
+    当场 ModuleNotFoundError（实测：引擎门禁 `tests/test_editor_play.py` 的
+    「QQ 侧参考跑通」7 条红全由此而来）。
+
+    口径（与 `tests/_paths.py` 同精神：**发现 + 显式报错，不写死路径**）：
+      ① `GWEN_QQBOT_DIR` 环境变量优先；
+      ② 从插件目录的**各级祖先**（含其**一级子目录**——本工作副本里 qqbot 根
+         `<ws>/_run_home` 是插件目录 `<ws>/host` 的**兄弟**，不是祖先）里，找
+         「谁家 `data/plugins/<任一插件>` 与本插件目录**同一实体**」
+         （`samefile` 认目录联接/软链/同路径）——部署布局命中 `<qqbot>`，
+         本工作副本命中 `<ws>/_run_home`；
+      ③ 都不中 → 回落旧口径 `dirname³(PLUGIN_DIR)`（保持原有报错行为，不静默换路径）。
+
+    注 1：判据必须是「`data/plugins/<x>` **确实是本插件**」而不是「存在 `data/plugins/`
+    目录」——本机 `<ws>/../data/plugins/` 是个空目录，只判存在会命中它（实测：
+    `_find_qqbot_dir` 直接返回 `C:/Users/yuyu/dsh-work`，`import` 照旧失败）。
+    注 2：剪枝 = 先要求候选根下 `data/plugins` 目录存在，才列它的子项；且只扫
+    祖先自身 + 祖先的一级子目录（本工作副本在第 1 级就命中，开销可忽略）。
+    """
+    env = (os.environ.get("GWEN_QQBOT_DIR") or "").strip()
+    if env and os.path.isdir(env):
+        return os.path.abspath(env)
+    legacy = os.path.dirname(os.path.dirname(os.path.dirname(plugin_dir)))
+    plugin_abs = os.path.abspath(plugin_dir)
+
+    def _hit(root):
+        plugins = os.path.join(root, "data", "plugins")
+        if not os.path.isdir(plugins):
+            return False
+        try:
+            names = sorted(os.listdir(plugins))
+        except OSError:
+            return False
+        for name in names:
+            cand = os.path.join(plugins, name)
+            try:
+                if os.path.isdir(cand) and os.path.samefile(cand, plugin_abs):
+                    return True
+            except OSError:
+                continue
+        return False
+
+    home = os.path.dirname(plugin_abs)
+    steps = 0
+    while steps < 6:
+        steps += 1
+        if _hit(home):
+            return home
+        try:
+            children = sorted(os.listdir(home))
+        except OSError:
+            children = []
+        for name in children:
+            child = os.path.join(home, name)
+            try:
+                if os.path.isdir(child) and _hit(child):
+                    return child
+            except OSError:
+                continue
+        parent = os.path.dirname(home)
+        if parent == home:
+            break
+        home = parent
+    return legacy
+
+
+QQBOT_DIR = _find_qqbot_dir(PLUGIN_DIR)
 WORKSPACE = os.path.dirname(os.path.dirname(PLUGIN_DIR))
 
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 sys.path.insert(0, os.path.join(PLUGIN_DIR, "framework"))
-_shim = os.path.join(HERE, "shim_astrbot")
-if os.path.isdir(_shim):
+# ★ T8（测试单源化）：shim 目录改走**宿主布局适配层** —— 旧写法只认
+#   `host/tests/shim_astrbot`，T8 后宿主侧不再自留该副本（回落到包仓那份 tests 里同名目录）。
+#   不修的话 QQ 侧会退回**真实 astrbot** ⇒ 与试玩侧逐字节对拍当场失真（实测：
+#   `test_editor_play.py` 的 C 段 3/44 条 tip 不一致，30/3 红）。
+_shim = ""
+try:
+    from _host_layout import SHIM_DIR as _shim        # noqa: PLC0415
+except Exception:                                     # noqa: BLE001
+    _shim = os.path.join(HERE, "shim_astrbot")
+if _shim and os.path.isdir(_shim):
     sys.path.insert(0, _shim)
 
 MARKER = "__B20_QQREF__"

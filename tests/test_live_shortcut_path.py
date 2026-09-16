@@ -81,7 +81,18 @@ def _find_qqbot_dir():
     return cand
 
 
-QQBOT_DIR = _find_qqbot_dir()
+# ★ T8（单源化）：qqbot 根改走**宿主布局适配层**（`tests/_host_layout.py`）——本文件私有
+#   发现的第一条判据是「`<cand>/data/plugins` 目录**存在**」，而本机 `<ws>/../data/plugins/`
+#   是个**空目录** ⇒ 它直接命中该候选，`import data.plugins.<pkg>` 当场失败（实测）。
+#   适配层认的是「`data/plugins/<x>` 与本插件目录**同一实体**」（`samefile`，认目录联接），
+#   本工作副本命中 `<ws>/_run_home`（目录联接 → `<ws>/host`）。
+QQBOT_DIR = ""
+try:
+    from _host_layout import QQBOT_DIR                # noqa: PLC0415
+except Exception:                                     # noqa: BLE001
+    pass
+if not QQBOT_DIR:
+    QQBOT_DIR = _find_qqbot_dir()
 
 TEST_DB = os.path.join(_HERE, "test_live_shortcut_path.db")
 GID, QID = "live_smoke_group", "live_smoke_player"
@@ -121,8 +132,14 @@ for _p in (_HERE, os.path.join(PLUGIN_DIR, "framework"), PLUGIN_DIR, QQBOT_DIR):
     if _p:
         sys.path.insert(0, _p)
 if os.environ.get("GWEN_NO_SHIMMED_ASTRBOT") != "1":
-    _SHIM = os.path.join(_HERE, "shim_astrbot")
-    if os.path.isdir(_SHIM) and _SHIM not in sys.path:
+    # ★ T8（单源化）：shim 目录改走**宿主布局适配层** —— 旧写法只认
+    #   `host/tests/shim_astrbot`（T8 后宿主侧不再自留该副本 ⇒ 回落到包仓那份 tests 里同名目录）。
+    _SHIM = ""
+    try:
+        from _host_layout import SHIM_DIR as _SHIM        # noqa: PLC0415
+    except Exception:                                     # noqa: BLE001
+        _SHIM = os.path.join(_HERE, "shim_astrbot")
+    if _SHIM and os.path.isdir(_SHIM) and _SHIM not in sys.path:
         sys.path.insert(0, _SHIM)
 
 os.environ["GWEN_PACKAGE_DIR"] = PKG_DIR

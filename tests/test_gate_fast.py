@@ -35,13 +35,19 @@ import gate_fast as GF  # noqa: E402
 DEFAULT_FRAMEWORK_DIR = "C:/Users/yuyu/framework-engine"
 FW_ROOT = os.path.abspath(os.environ.get("GWEN_FRAMEWORK_DIR") or DEFAULT_FRAMEWORK_DIR)
 
-#: `scripts/run_all_tests.py` 的冻结 md5（**本工具不改它**的机器证据；272 文件全量入口）
+#: `scripts/run_all_tests.py` 的冻结 md5（**本工具不改它**的机器证据；全量入口）
 #: ★ P5F 前置⑥（2026-09-15）：`run_all_tests.py` 因**去壳前置**被有意改动（`_TPL_INIT`
 #:   从内嵌 `game.store.init_db` 改走宿主工厂 `host/store_factory` + 引擎 `load_package`，
 #:   并新增 `_find_package_dir()`）⇒ 冻结值随这次**有意**改动更新：
 #:   旧 `EF5528C8EFE079C5AD15433B55899E42` → 新 `D56C15B22A5A4526080A032A79F8B20C`。
+#: ★ T8 测试单源化（2026-09-16）：`run_all_tests.py` 被**有意重写** —— 枚举面从
+#:   「宿主 tests/ 一份」改成「**宿主自留件 + 包仓那份 tests**」（`framework/games/*/tests`，
+#:   不写死包名），并新增「两侧同名 ⇒ 醒目报错」「包仓 tests 缺失 ⇒ 醒目报错」两条硬判据；
+#:   `QQBOT_DIR` 死算路径改成发现式（本工作副本布局），`_TPL_INIT` 改走 `host.store_factory`。
+#:   ⇒ 冻结值随这次**有意**改动更新：
+#:   `D56C15B22A5A4526080A032A79F8B20C` → `47A2B007D4B65BC8769F23D2484D8163`。
 #:   判据本身（「跑门禁不得改全量 runner」+ 无反向依赖 + 语法可编译 + 原样转调）一条未减。
-RUN_ALL_TESTS_MD5 = "D56C15B22A5A4526080A032A79F8B20C"
+RUN_ALL_TESTS_MD5 = "47A2B007D4B65BC8769F23D2484D8163"
 
 _passed = 0
 _failed = []
@@ -397,7 +403,7 @@ def test_full_equivalence():
 # ======================================================================================
 
 def test_run_all_untouched():
-    section("⑤ scripts/run_all_tests.py（272 文件全量）不受影响")
+    section("⑤ scripts/run_all_tests.py（278 文件全量：宿主自留件 6 + 包仓那份 272）不受影响")
     p = os.path.join(_SCRIPTS, "run_all_tests.py")
     check("run_all_tests.py 存在（可单独跑）", os.path.exists(p))
     if os.path.exists(p):

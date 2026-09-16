@@ -7,7 +7,7 @@
 ```
 一条 dsh 线的时长 ~ 改动量 x **门禁轮数**；实测 ~70% 时间花在验证上：
   · 一轮门禁 ~ 2 分钟（文案 55s + 数值 24s + v87 + v104 + tlogs + v185 ...）
-  · 全量 272 文件跑一遍 ~ 5 分钟
+  · 全量 278 文件跑一遍 ~ 5 分钟
 p4pf 那批 36 个壳 x 每壳 7 道门禁 = 2 小时 47 分（最慢的一条）
 ⇒ 本工具：按改动面**只跑相关门禁**；全量留到批收口（`--full`）。
 ```
@@ -47,7 +47,7 @@ python scripts/gate_fast.py --self-check                    # 校验映射表没
 红线（不许降低验证强度）
 ------------------------
 * 跳过的门禁**只影响提示，不影响退出码**；但两段打印里必须逐条列出、并指到 `--full`。
-* `--changed` **不选** tier=full 的两条全量门禁（272 / 55 文件）——它们只在 `--full` 跑；
+* `--changed` **不选** tier=full 的两条全量门禁（278 / 55 文件）——它们只在 `--full` 跑；
   这条规则本身也会在「已跳过」里逐条打印，不做静默省略。
 * 只改 docs 这类非行为面时，输出必须**明示**「跳过了全部行为门禁」。
 * cheap 冒烟**永远跑**（它是「引擎能加载 + 包能 import」的最低保险，与改动面无关）。
@@ -127,7 +127,7 @@ FULL_EXTRA_REASONS = {
                 "（config.json 的 package_dir）。五道门禁跑的是宿主侧/引擎侧各自的树，"
                 "**两边不在同一提交时它们照样全绿**（已实测：--framework 指到旧版本引擎 → 五道全绿、"
                 "本条报红）⇒ 只有它能把「两落点版本不一致」这种假绿照出来。",
-    "host_runall": "手工那套没有它：这是**全量**（272 文件 ~5 分钟），按设计只在批收口跑，不进 --changed。",
+    "host_runall": "手工那套没有它：这是**全量**（278 文件 ~5 分钟），按设计只在批收口跑，不进 --changed。",
     "fw_runall": "手工那套没有它：引擎仓全量（55 文件），同上，只在批收口跑。",
     "smoke_engine": "手工那套没有它：cheap 冒烟，永远跑（引擎能加载）。",
     "smoke_pkg_import": "手工那套没有它：cheap 冒烟，永远跑（包能 import）。",
@@ -170,15 +170,24 @@ NO_GATE = [
     ("host:scripts/*.ps1", "宿主一次性运维脚本，无门禁覆盖"),
     ("host:scripts/*.sh", "宿主一次性运维脚本，无门禁覆盖"),
     ("host:tests/__init__.py", "测试包标记文件，无门禁覆盖"),
-    ("host:tests/conftest.py", "测试夹具/DB 引导（所有测试共享）；它自身的改动无定向门禁，靠 runall 暴露"),
-    ("host:tests/shim_astrbot/**", "astrbot 行为等价替身（run_all 的提速 shim），非产品码，无门禁覆盖"),
+    ("host:tests/conftest.py", "测试夹具/DB 引导（所有测试共享）；它自身的改动无定向门禁，靠 runall 暴露"
+                               "（★ T8 单源化：宿主侧同名副本已删，真源=包仓 tests/conftest.py，"
+                               "部署面 `<fw>/games/*/tests/`；本行命中 0 条属预期）"),
+    ("host:tests/shim_astrbot/**", "astrbot 行为等价替身（run_all 的提速 shim），非产品码，无门禁覆盖"
+                                   "（★ T8：宿主侧副本已删，改由包仓那份 tests/shim_astrbot 提供）"),
     ("host:tests/data/**", "测试用数据资产（t2i 模板等），无门禁覆盖"),
-    ("host:tests/numeric_sim.py", "数值测试的共享模拟器（被 test_numeric_* 引用）"),
+    ("host:tests/numeric_sim.py", "数值测试的共享模拟器（被 test_numeric_* 引用）"
+                                  "（★ T8：宿主侧副本已删，真源=包仓 tests/numeric_sim.py）"),
     ("host:tests/b20_qq_ref.py", "B20 试玩的 QQ 侧参考实现（对照用），无门禁覆盖"),
     ("host:tests/smoke_*.py", "冒烟脚本（非 test_*.py，run_all 不收编；历史遗留）"),
-    ("host:tests/_*", "测试私有夹具/冻结基准（_cmd_registry / _command_table_freeze / _battle_settlement_snapshot / "
-                      "_ports_freeze_gen 等）：随对应测试一起被读，自身单改无定向门禁"),
+    ("host:tests/_*", "宿主自留测试的私有夹具（T8 后 = `_host_layout.py`：宿主布局发现适配层，"
+                      "QQBOT_DIR / SHIM_DIR / 包仓 tests 部署面）；自身单改无定向门禁，"
+                      "由 runall（宿主自留件 + 包仓那份）暴露"),
     ("host:tests/pytest_shim/**", "pytest 兼容 shim，无门禁覆盖"),
+    ("fw:games/*/tests/**", "包仓 tests 的**部署面**（T8 单源化后的内容侧真源；改真源请改 pkg/tests 后 "
+                            "`bash sync.sh`）——逐个测试件的门禁由各门禁 argv 的同名件覆盖 "
+                            "（见 gate_artifacts：`fw:games/*/tests/<同名>` 自动算该门禁覆盖），"
+                            "其余夹具/基准 json 由本标注兜底"),
     ("host:scripts/**", "宿主 scripts/ 下的**其它**脚本：一次性排查/审计/生成器（audit_*/scan_*/gen_*/sim_*/"
                         "playtest*/loopback*/verify_*/v*_*.py 等），多数是一次性活、不进任何门禁；"
                         "★ 被登记为门禁本体的那几个（check_domain_owner / verify_package_coverage / "
@@ -570,11 +579,11 @@ GATES = [
 
     # ================= 全量（只在 --full 跑）=================
     Gate(
-        "host_runall", "宿主全量 run_all_tests.py（272 文件 ~5 分钟）", "host", "host",
+        "host_runall", "宿主全量 run_all_tests.py（278 文件 ~5 分钟）", "host", "host",
         ["scripts/run_all_tests.py"],
         ["*"],
         194.9, "full", selectable=False, needs_db=False,
-        why="全量回归：改动面无关，按设计只在批收口（--full）跑。沙箱副本实测 272 文件 / 263 通过 / 9 失败 / 194.9s，"
+        why="全量回归：改动面无关，按设计只在批收口（--full）跑。★ T8 测试单源化后口径 = 宿主自留件 6 + 包仓那份 272 = 278 文件（旧口径 277 = 宿主 tests 一份）。历史实测（旧口径）：272 文件 / 263 通过 / 9 失败 / 194.9s，"
             "9 红 = 7 已登记基线红（INTFIX §4.4 基线 265/7 的同一批）+ v97_05 夜红（同上）+ test_texts_table 冷库态红"
             "（fresh DB 62/63、温库 63/63，已实测归因，见 W-GATEFAST §4）。",
     ),
@@ -661,6 +670,27 @@ def path_matches(pattern, repo, rel):
     return bool(rx.match(rel))
 
 
+def gate_artifacts(gate):
+    """门禁 argv 指向的**测试件**在 T8 之后的第二落点（包仓那份 tests 的部署面）。
+
+    T8 测试单源化：内容侧测试真源唯一在**包仓** `tests/`，宿主侧同名副本已删；门禁 argv
+    仍是历史写法 `tests/<名>.py`（`gate_argv` 运行期按名发现，见 `_resolve_host_test`）。
+    与之配套，**覆盖判定 / `--changed` 选中**也必须认「`<fw>/games/*/tests/<同名>` 被改」，
+    否则改了真源会让这些门禁在 `--changed` 里静默不选（漏跑）。故这里从 argv 反推一条
+    等价 glob —— **不写死包名**，也不逐个门禁改 `covers`。
+    """
+    if not gate.argv or gate.argv[0].startswith("-"):
+        return []
+    if not str(gate.argv[0]).startswith("tests/"):
+        return []
+    return ["fw:games/*/tests/" + os.path.basename(gate.argv[0])]
+
+
+def gate_covers(gate):
+    """门禁的有效覆盖 glob = 显式 `covers` + argv 测试件的部署面（T8 单源化）。"""
+    return list(gate.covers) + gate_artifacts(gate)
+
+
 def covers_hit(gate, changed):
     """返回 (命中的改动文件列表, 命中的覆盖 glob 列表)。
 
@@ -668,10 +698,11 @@ def covers_hit(gate, changed):
     这样「在宿主仓里看到 framework/... 被改」与「引擎仓 ... 被改」选出同一批门禁。
     """
     files, globs = [], []
+    covers = gate_covers(gate)
     for repo, rel in changed:
         hit = False
         for r, p in coverage_keys(repo, rel):
-            for pat in gate.covers:
+            for pat in covers:
                 if path_matches(pat, r, p):
                     globs.append(pat)
                     hit = True
@@ -872,7 +903,7 @@ def self_check(host_root, fw_root):
             gates = []
             for r, p in coverage_keys(repo, rel):
                 gates += [g.gid for g in cov_gates
-                          if any(path_matches(c, r, p) for c in g.covers)]
+                          if any(path_matches(c, r, p) for c in gate_covers(g))]
             for g in cov_gates:                       # 门禁本体自覆盖
                 if gate_self_path(g) == (repo, rel):
                     gates.append(g.gid)
@@ -978,6 +1009,26 @@ def discover_package_dir(fw_root):
     return best
 
 
+def _resolve_host_test(host_root, fw_root, rel):
+    """`tests/<名>` 的**落点发现**（T8 测试单源化）。
+
+    内容侧测试真源已唯一在包仓 `tests/`（部署面 `<fw>/games/*/tests`），宿主 `tests/`
+    只留宿主专属件；而门禁 argv 仍是历史写法 `tests/<名>.py`。这里按名发现：
+    **宿主自留件优先**，否则在 `<fw>/games/*/tests/` 里找同名（不写死包名）。
+    都找不到 → 返回宿主路径原样 ⇒ 门禁当场「文件不存在」报红（**不静默跳过**）。
+    """
+    name = os.path.basename(rel)
+    cands = [os.path.join(host_root, rel)]
+    games = os.path.join(fw_root, "games")
+    if os.path.isdir(games):
+        for n in sorted(os.listdir(games)):
+            cands.append(os.path.join(games, n, "tests", name))
+    for c in cands:
+        if os.path.isfile(c):
+            return c
+    return cands[0]
+
+
 def gate_argv(gate, python, host_root, fw_root, argv_override=None):
     if argv_override is not None:                       # 动态自测门禁：跑命中的那个测试文件
         repo, rel = argv_override.split(":", 1)
@@ -992,6 +1043,9 @@ def gate_argv(gate, python, host_root, fw_root, argv_override=None):
             pkg = os.path.join(fw_root, "games", "<no-package-found>")
         return [python, "-c", code.format(fw=fw_root, pkg=pkg)]
     cwd = gate_cwd(gate, host_root, fw_root)
+    # ★ T8：`cwd=="host"` 的 `tests/<名>.py` 按名发现落点（宿主自留件 → 包仓那份）。
+    if gate.cwd == "host" and str(argv[0]).startswith("tests/"):
+        return [python, _resolve_host_test(host_root, fw_root, argv[0])] + argv[1:]
     return [python, os.path.join(cwd, argv[0])] + argv[1:]
 
 
