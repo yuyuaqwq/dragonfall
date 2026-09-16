@@ -1325,7 +1325,15 @@ def main(argv=None):
     plan = []
     for g, hits, globs in selected:
         if g.dyn_changed:
-            # 只认真正形如 `<repo>:<rel>` 的命中项；--full/--gates 模式没有改动面 -> 用代表文件跑一次
+            # `--full`/`--gates` 没有改动面：动态门（"改了哪个测试就跑哪个"）无对象可跑 ✗
+            # 不再用代表文件硬跑（T8 测试单源化后代表文件已不在宿主仓；且同一批测试
+            # 已被对应的全量门禁 host_runall / fw_runall 覆盖）→ 诚实跳过并写明理由 ✓
+            if not [h for h in hits if ":" in h] and (args.full or only_ids is not None):
+                skipped.append({
+                    "gid": g.gid, "tier": g.tier, "reason_kind": "动态门",
+                    "reason": "动态门（改动哪个测试就跑哪个）：本模式无改动面可跑；"
+                              "同一批测试已由全量门禁 %s 覆盖" % ("host_runall" if g.repo == "host" else "fw_runall")})
+                continue
             use = [h for h in hits if ":" in h] or ["%s:%s" % (g.repo, g.measure_file)]
             for h in use:
                 plan.append((g, [h], globs, h))
