@@ -1217,6 +1217,16 @@
     "order": 17,
     "visible": false
   },
+  "gm_reload": {
+    "patterns": [
+      "^(?:\\[At:[^\\]]+\\]\\s*)?gm_重载(?:[\\s\\S]*)$"
+    ],
+    "desc": "重载资料表（按磁盘重读 data/*.json，不停服）",
+    "category": "GM",
+    "usage": "gm_重载",
+    "order": 22,
+    "visible": false
+  },
   "gather": {
     "patterns": [
       "^(?:\\[At:[^\\]]+\\]\\s*)?采集(?:\\s*|$)"

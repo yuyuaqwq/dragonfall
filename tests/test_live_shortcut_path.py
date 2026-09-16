@@ -23,13 +23,13 @@
 * `pipeline/respond/stage.py::process` —— `event.get_result() is None` → 直接 `return`（不发）。
 
 ⇒ 「handler 产出了文本段」≠「玩家收得到」。
-  2026-09-15 线上真 bug：注册驱动的 **async 族** handler（71/194 条声明，含快捷/翻页/gm_play）
+  2026-09-15 线上真 bug：注册驱动的 **async 族** handler（71/195 条声明，含快捷/翻页/gm_play）
   yield 的是**裸字符串** ⇒ 全部静默丢包（玩家零回话、日志里连异常都没有，
   只剩 npc_quick_dialog 那条 `Prepare to send - …: ` 空消息）。本文件把这条判据钉成常驻牙。
 
 判据（全部当次实测，数字不写死）
 --------------------------------
-① 线上链路可达：`AstrMain` 装配后 194 条声明 → 194 条 handler（module_path == main）；
+① 线上链路可达：`AstrMain` 装配后 195 条声明 → 195 条 handler（module_path == main）；
 ② 有角色档：`注册 <名> <性别>` 经线上链路回非空（存档半边落库，读回有角色）；
 ③ 绑定：`快捷绑定 0 探索` 回非空 + DB `shortcuts == {"0": "探索"}`；
 ④ **触发非空**：发 `0` 必须产出**非空可见回话**（改前 = 静默空回，本测试的靶心）；
