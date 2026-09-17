@@ -214,6 +214,12 @@ NO_GATE = [
     ("fw:editor/web/**", "编辑器前端静态资源，无门禁覆盖（B20 只跑了 test_editor_play 的 HTTP 面）"),
     ("fw:editor/UI_DESIGN.md", "编辑器 UI 设计文档，无门禁覆盖"),
     ("fw:editor/README.md", "编辑器 README，无门禁覆盖（FIXDECL 曾按人审改它）"),
+    # ---- 引擎本机部署面（2026-09-18 补标注；`--self-check` 自测时这 4 条曾报盲区）----
+    ("fw:data/cmd_config.json", "引擎**本机部署配置**（未跟踪产物，不属于仓库内容）：引擎通道的配置来源，"
+                               "与宿主 `host:config.json` 同类 —— 取不到包目录时按 fail-closed 拒绝启动，"
+                               "配置值本身无定向门禁"),
+    ("fw:data/t2i_templates/**", "引擎 T2I 文本转图模板（本机部署产物，未跟踪）：前端静态资源，"
+                                "无 Python 门禁覆盖（同 `fw:editor/web/**` 口径）"),
     ("fw:.gitignore", "VCS 忽略清单，无门禁覆盖"),
     ("host:.gitignore", "VCS 忽略清单，无门禁覆盖"),
     ("host:.gitmodules", "子模块清单，无门禁覆盖"),
