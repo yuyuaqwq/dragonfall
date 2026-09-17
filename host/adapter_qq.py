@@ -349,7 +349,25 @@ class QQAdapter:
             return []
         if isinstance(out, str):
             return [out] if out else []
-        return [str(x) for x in out if x is not None]
+        # 逐段取**文本**（不是 str(x)——见 `_chain_text`：MessageEventResult 无 __str__，str() 给 repr）
+        return [_chain_text(x) for x in out if x is not None]
+
+
+def _chain_text(x) -> str:
+    """产出段 → 纯文本。
+
+    ★ 2026-09-18 修：`MessageEventResult` 是 `@dataclass`（无自定义 `__str__`，实测
+    `str(MessageEventResult(chain=[Plain('…')]))` = `MessageEventResult(chain=[Plain(type=…,
+    text='…')], use_t2i_=None, …)` 的 repr）—— 平台例外四条（翻页 `+`/`-`/`=n`、快捷触发、
+    `gm_play`/`gm_spy` 转发）都用 `event.plain_result(...)` 产出该对象，原先在此处逐段 `str(x)`
+    交付面就变成平台对象 repr（非空但玩家看不懂）。这里按 `MessageChain` 语义取文本段。
+    """
+    if isinstance(x, str):
+        return x
+    chain = getattr(x, "chain", None)
+    if isinstance(chain, list):
+        return "".join(t for c in chain for t in [getattr(c, "text", None)] if isinstance(t, str))
+    return str(x)
 
 
 class _Collector:
