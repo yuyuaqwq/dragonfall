@@ -47,7 +47,13 @@ FW_ROOT = os.path.abspath(os.environ.get("GWEN_FRAMEWORK_DIR") or DEFAULT_FRAMEW
 #:   ⇒ 冻结值随这次**有意**改动更新：
 #:   `D56C15B22A5A4526080A032A79F8B20C` → `47A2B007D4B65BC8769F23D2484D8163`。
 #:   判据本身（「跑门禁不得改全量 runner」+ 无反向依赖 + 语法可编译 + 原样转调）一条未减。
-RUN_ALL_TESTS_MD5 = "47A2B007D4B65BC8769F23D2484D8163"
+#: ★ 存档层性能线（2026-09-18 21:20，宿主 `99a3ba8`）：`run_all_tests.py` 又被**有意**改动 ——
+#:   并发上限 `min(16,…)` → `min(8,…)`（8 路为实测最优点）+ 环境默认注入
+#:   `GWEN_SQLITE_SYNC=NORMAL`（配合引擎 WAL / 包 `handles` 连接复用，把「每操作一次 fsync」
+#:   消掉：单文件门禁 148s → 10s）。改动**未同步**冻结值 ⇒ 本文件自那时起常红（审计尾巴发现）。
+#:   ⇒ 冻结值随这次**有意**改动更新：
+#:   `47A2B007D4B65BC8769F23D2484D8163` → `463942AD0976D1BFC89E3B5DC99C91B5`。
+RUN_ALL_TESTS_MD5 = "463942AD0976D1BFC89E3B5DC99C91B5"
 
 _passed = 0
 _failed = []
