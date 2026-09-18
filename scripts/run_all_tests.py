@@ -61,7 +61,19 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-TEST_TIMEOUT = 300  # P2：单测超时秒数
+_BASE_TIMEOUT = 300   # 独占单跑基线（秒）
+_TIMEOUT_CAP = 900    # 上限（最慢文件 247s 单跑 ×2.5 并发放大 ≈ 620s，留足余量）
+# ★ 2026-09-18 修复「并行假红」——阈值必须随**并发度**放宽：
+#   实测（24 核机、默认 16 路并发）最慢文件墙钟被 CPU/IO/内存争用放大 1.5–2×：
+#     test_texts_table 单跑 164s → 并发 >300s · u1i2 205s → >300s · u1i4 247s → >300s
+#   ⇒ 三个门禁恒报 TIMEOUT（单跑全绿），真回归被假红淹掉、还逼人手工单跑复核。
+#   现在：基线 × 「每 4 路并发一档」，并设上限（防真 hang 无限拖全量）。
+
+
+def _test_timeout(jobs: int) -> int:
+    """单文件超时秒数：基线 × 并发档位（每 4 路一档），不超过上限。"""
+    slots = max(1, (int(jobs) + 3) // 4)
+    return min(_TIMEOUT_CAP, _BASE_TIMEOUT * slots)
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # <plugin>/
 HOST_TESTS_DIR = os.path.join(PLUGIN_DIR, "tests")                        # 宿主自留件
@@ -276,14 +288,15 @@ def _collect_files(only, skips, host_names, pkg_sources):
     return serial, parallel
 
 
-def _run_one(f, env, seed_db=None):
+def _run_one(f, env, seed_db=None, timeout=None):
     if seed_db is not None:
         shutil.copy2(seed_db, env["GWEN_GAME_DB"])
     ts = time.time()
     try:
         proc = subprocess.run(
             [PYTHON, f], capture_output=True, text=True, encoding="utf-8",
-            errors="replace", env=env, timeout=TEST_TIMEOUT,
+            errors="replace", env=env,
+            timeout=timeout if timeout is not None else _BASE_TIMEOUT,
         )
         timed_out, ok = False, proc.returncode == 0
     except subprocess.TimeoutExpired as te:
@@ -339,7 +352,7 @@ def _run_framework_tests(base_env):
     try:
         proc = subprocess.run([PYTHON, runner], capture_output=True, text=True,
                               encoding="utf-8", errors="replace", env=base_env,
-                              timeout=TEST_TIMEOUT)
+                              timeout=_BASE_TIMEOUT)
         ok = proc.returncode == 0
     except subprocess.TimeoutExpired:
         ok = False
@@ -458,6 +471,11 @@ def main():
 
     results = []
     t0 = time.time()
+    # 并行主体按并发档放宽超时；串行槽/引擎前置是独占跑 ⇒ 用基线（更严格）
+    par_timeout = _test_timeout(jobs)
+    if parallel_files and par_timeout != _BASE_TIMEOUT:
+        print(f"单文件超时：串行 {_BASE_TIMEOUT}s ｜ 并行 {par_timeout}s（{jobs} 路并发）",
+              flush=True)
 
     # 0) 前置：引擎框架仓测试
     framework_ok = _run_framework_tests(base_env)
@@ -469,7 +487,7 @@ def main():
 
     # 1) 串行槽
     for f in serial_files:
-        name, ok, proc, dt, timed_out = _run_one(f, base_env)
+        name, ok, proc, dt, timed_out = _run_one(f, base_env, timeout=_BASE_TIMEOUT)
         results.append((name, ok))
         _report(name, ok, proc, dt, timed_out, _source_of(f))
         if fail_fast and not ok:
@@ -494,7 +512,7 @@ def main():
                 i, f = next(queue)
             except StopIteration:
                 return False
-            pending[executor.submit(_run_one, f, make_env(i), tpl_db)] = f
+            pending[executor.submit(_run_one, f, make_env(i), tpl_db, par_timeout)] = f
             return True
 
         for _ in range(jobs):
