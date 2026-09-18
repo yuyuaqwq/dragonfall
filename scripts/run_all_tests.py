@@ -219,7 +219,7 @@ def _parse_args(argv):
     fail_fast = "--fail-fast" in argv
     serial = "--serial" in argv
     real_astrbot = "--real-astrbot" in argv
-    jobs = max(4, min(16, os.cpu_count() or 8))  # 默认按核数自适应（4~16）
+    jobs = max(4, min(8, os.cpu_count() or 8))  # 默认按核数自适应（4~16）
     only = None
     skips = []
     for a in argv:
@@ -419,7 +419,8 @@ def main():
         print("使用真实 astrbot（对照模式，较慢）", flush=True)
 
     # ---- 环境：路径三件套 + shim + 平台名面 ----
-    base_env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    base_env = {**os.environ, "PYTHONIOENCODING": "utf-8",
+                "GWEN_SQLITE_SYNC": os.environ.get("GWEN_SQLITE_SYNC", "NORMAL")}
     base_env["GWEN_FRAMEWORK_DIR"] = FRAMEWORK_DIR
     base_env["GWEN_HOST_DIR"] = PLUGIN_DIR
     pkg_dir = _pick_package_dir(pkgs)
