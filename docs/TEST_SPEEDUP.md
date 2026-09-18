@@ -45,8 +45,8 @@ python scripts/run_all_tests.py --serial
 - **对照验证**：`--real-astrbot`（runner）或 `GWEN_NO_SHIMMED_ASTRBOT=1`（手动单跑）
   退回真实 astrbot；改 shim/壳后必须两种模式结果一致（见 §6）。
 - **生产安全**：真实 AstrBot 进程不会加载替身（只有测试进程的 PYTHONPATH 命中）；
-  生产行为与原实现等价（装饰器双注册 + handler 路径改写 hack 保留）。
-- 迁移到新平台：把 `game/` + `main.Main` 搬走，写目标平台的薄壳（照 `AstrMain`）。
+  生产行为与原实现等价（声明驱动注册：`AstrMain` → `register_commands()` → `host/registration.py`）。
+- 迁移到新平台：复用 `host/**` + 引擎通道，写目标平台的薄壳（照 `AstrMain`）。
 
 ## 2. 为什么以前慢、现在能快
 

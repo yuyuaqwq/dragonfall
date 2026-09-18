@@ -85,9 +85,9 @@ data（纯数据 dict） ← core（纯逻辑，无 IO 不碰 DB/QQ） ← store
   `_platform` 装饰器自动双注册（核心注册表 + 真实 astrbot 注册表），生产行为不变。
 - **回复构造用核心数据类**：`MessageChain / Plain / Node / Nodes` 从 `._platform` import；
   生产环境由 `main.py` 的 `AstrMain` 壳 context 翻译代理转成 astrbot 类型。
-- **只有 `main.py` 允许 import astrbot**（壳 `AstrMain(star.Star, Main)`，astrbot 固定
+- **只有 `main.py` 允许 import astrbot**（壳 `AstrMain(star.Star, EngineShell)`，astrbot 固定
   入口模块）；game/ 与 tests/ 禁止 import astrbot（测试命中 `tests/shim_astrbot/` 替身）。
-- **迁移到其他平台** = 把 `game/` + `main.Main` 搬走，照 `AstrMain` 写目标平台薄壳：
+- **迁移到其他平台** = 复用 `host/**` + 引擎 host 通道，照 `AstrMain` 写目标平台薄壳：
   提供事件协议（get_message_str/sender_id/group_id/plain_result/stop_event/send）、
   把核心注册表（`_platform.star_handlers_registry`）翻译成目标平台命令系统。
 
