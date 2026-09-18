@@ -33,21 +33,13 @@ playthrough_out*.txt
 scripts/playtest_spy_round*.md
 scripts/.spy_*_state.json
 
-scripts/.spy_*_state.json
 
-scripts/.spy_*_state.json
 
-scripts/.spy_*_state.json
 
-scripts/.spy_*_state.json
 
-scripts/.spy_*_state.json
 
-scripts/.spy_*_state.json
 
-scripts/.spy_*_state.json
 
-scripts/.spy_*_state.json
 game/data/cmd_config.json
 game/data/t2i_templates/
 # 策划案仓 design/new_world/ 已于 2026-09-13 移出本仓（见 design/README.md）；
@@ -55,7 +47,6 @@ game/data/t2i_templates/
 design/*
 !design/README.md
 
-scripts/.spy_*_state.json
 
 # 历史工作产物归档（2026-09-07 鱼鱼拍板：无用文件统一归档但 git 忽略）
 _archive_unused/
@@ -69,3 +60,6 @@ tests/.numeric_workers*/
 
 # 测试私有库（2026-09-13：原先把 test_*.db 落在仓根、每次回归留残留 → 统一收进这里）
 tests/.private_dbs/
+
+# gate_fast 门禁私有库目录（scripts/gate_fast.py 默认落在仓根，跑完不清理）
+gate_fast_db/
