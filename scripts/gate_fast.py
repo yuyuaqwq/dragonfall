@@ -127,6 +127,11 @@ FULL_EXTRA_REASONS = {
                 "（config.json 的 package_dir）。五道门禁跑的是宿主侧/引擎侧各自的树，"
                 "**两边不在同一提交时它们照样全绿**（已实测：--framework 指到旧版本引擎 → 五道全绿、"
                 "本条报红）⇒ 只有它能把「两落点版本不一致」这种假绿照出来。",
+    "host_boundary": "手工那套没有它：§6 ⑨ 指出的缺口——宿主侧「禁 SQL 字面量 / 禁游戏业务词汇 / "
+                     "平台 API 受控 / 包不反依赖宿主」此前**没有任何自动门禁**（`terminal` 只量宿主行数 + "
+                     "零包知识 + 包内覆盖 6 条，管不到这三项）。本道 = 宿主交付面（main.py + host/**）"
+                     "逐文件 AST 静态判据；包内容面改动（fw:games/*/content/**）也选它 —— 因为 ⑤ 判的是"
+                     "「包内 content/** 禁 import 宿主」这条反向依赖。",
     "host_runall": "手工那套没有它：这是**全量**（278 文件 ~5 分钟），按设计只在批收口跑，不进 --changed。",
     "fw_runall": "手工那套没有它：引擎仓全量（55 文件），同上，只在批收口跑。",
     "smoke_engine": "手工那套没有它：cheap 冒烟，永远跑（引擎能加载）。",
@@ -142,7 +147,9 @@ NO_GATE = [
                      "log_setup/tlog_setup + main.py 的 EngineHost/EngineChannel）：宿主现有五道门禁仍走**旧路径**"
                      "（game/commands/** 的壳），这些文件本身无定向门禁；行为判据当次实测在 "
                      "`out/tools/compare_channels.py`（旧路径 vs 引擎通道逐字节对拍，62 例 0 差异），"
-                     "终态定向门禁由 P5C 收口（那时旧路径已删，五道门禁即走本面）"),
+                     "终态定向门禁由 P5C 收口（那时旧路径已删，五道门禁即走本面）。"
+                     "★ 2026-09-19：本面已由 `host_boundary` 门禁定向覆盖（零包知识 / SQL / 业务词汇 / "
+                     "平台 API 受控 / 包不反依赖宿主 5 条静态判据），本标注保留仅为历史可追溯"),
     ("host:metadata.yaml", "插件平台清单（AstrBot 元数据），非行为面，无门禁覆盖"),
     ("host:config.json", "部署配置（`package_dir` / `db_path`）—— 引擎通道的**配置来源**，"
                          "不是行为面：取不到包目录时 `main.resolve_package_dir()` 记 ERROR 并让"
@@ -530,6 +537,21 @@ GATES = [
         why="B16 拆仓的常驻牙：①两落点同步 —— 门禁必须走 `$GWEN_FRAMEWORK_DIR`，并核对两处落点"
             "版本一致（不一致 = 假绿）；②反证：把 `$GWEN_FRAMEWORK_DIR` 指到**未拆**的引擎"
             "（games/ 里还是内嵌目录）或**旧版本**的引擎（落点内容/提交不同）→ 本道必红。",
+    ),
+
+    # ============ §6 ⑨ 宿主零游戏知识边界（2026-09-19 补：把「无自动门禁」落成常驻牙） ============
+    Gate(
+        "host_boundary", "宿主零游戏知识边界（零包知识/SQL/业务词汇/平台 API/包不反依赖）", "host", "host",
+        ["scripts/check_host_boundary.py"],
+        ["host:main.py", "host:__init__.py", "host:host/**",
+         "host:scripts/check_host_boundary.py", "fw:games/*/content/**"],
+        0.95, "engine", needs_db=False,
+        why="§6 ⑨ 原文「check_host_boundary.py 全盘不存在 ⇒ 禁 SQL 字面量 / 禁业务分支 / 包禁 import 宿主"
+            "无自动门禁」。五条判据全部只读、逐文件 AST：①宿主交付面不得出现包名/包内模块名；"
+            "②除平台面表（tlog / identity_map）外禁 SQL 字面量；③**真代码**里的字符串常量不得含游戏"
+            "业务词汇（docstring 是设计说明，不算）；④除 main.py / host/_platform.py / registration.py 外"
+            "禁 import 平台 API；⑤包内 content/** 禁 import 宿主（I2 反向依赖）。`--with-smoke` 追加两包装载，"
+            "按设计不进 --changed。",
     ),
 
     # ================= 引擎侧 editor 门禁 =================

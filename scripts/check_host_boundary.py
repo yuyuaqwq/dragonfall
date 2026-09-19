@@ -260,9 +260,11 @@ def check_5_pkg_no_host():
 
 def check_6_smoke():
     """⑥ 宿主能加载任意包 —— **复用两侧既有测试，不重造**：
-       · `orlandia`    → 宿主/包仓的 `tests/test_v112_smoke_regression.py`（真跑一场，6 格）
-       · `minimal-game` → 引擎 `tests/test_host_skeleton.py::test_two_host_parity`
-                        （同一份宿主代码喂两个包，验「换包能跑」）
+       · `orlandia`    → 包仓 `tests/test_v112_smoke_regression.py`（真跑一场，6 格）
+       · `minimal-game` → 引擎 `tests/test_host_skeleton.py`（同一份宿主代码喂两个包，验「换包能跑」）
+
+    ★ 子进程必须**显式**带 `GWEN_HOST_DIR`：包仓 `tests/_paths.py` 找不到宿主壳根时是
+      **RuntimeError，不静默跳过**（2026-09-19 实测 = 一条假红：宿主就在本地，却报「平台驱动面缺失」）。
     """
     print("\n=== ⑥ 宿主能加载任意包（复用既有测试）===")
     pkg_dir = os.path.join(HOST, "framework", "games")
@@ -270,16 +272,28 @@ def check_6_smoke():
                   if os.path.isdir(os.path.join(pkg_dir, d)))
     print("  框架内包：%s" % ", ".join(pkgs))
 
+    env = dict(os.environ)
+    env["GWEN_HOST_DIR"] = HOST
+    env.setdefault("GWEN_TEST_MODE", "1")
+    env["PYTHONUTF8"] = "1"
+
+    def _run(argv, cwd, label):
+        r = subprocess.run(argv, cwd=cwd, env=env, capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", timeout=600)
+        lines = [l for l in ((r.stdout or "") + (r.stderr or "")).split("\n") if l.strip()]
+        ok = r.returncode == 0
+        print("  %s %s（%s）" % ("✅" if ok else "❌", label,
+                                lines[-1].strip()[:70] if lines else ""))
+        if not ok:                                  # 失败必须留证据，不然只知道「失败」
+            for l in lines[-6:]:
+                print("      | %s" % l.strip()[:110])
+        return ok
+
     # (a) orlandia：跑包仓那份 smoke（内容侧测试真源 = 包仓 tests，T8 口径）
     pkg_repo = os.environ.get("GWEN_PACKAGE_DIR") or os.path.join(HOST, "framework", "games", "orlandia")
     smoke = os.path.join(pkg_repo, "tests", "test_v112_smoke_regression.py")
     if os.path.isfile(smoke):
-        r = subprocess.run([sys.executable, smoke], cwd=pkg_repo, capture_output=True,
-                           text=True, encoding="utf-8", errors="replace", timeout=600)
-        last = [l for l in ((r.stdout or "") + (r.stderr or "")).split("\n") if l.strip()][-1:]
-        ok = r.returncode == 0
-        print("  %s `orlandia` smoke（%s）" % ("✅" if ok else "❌", last[0].strip()[:70] if last else ""))
-        if not ok:
+        if not _run([sys.executable, smoke], pkg_repo, "`orlandia` smoke"):
             VIOL.append("⑥ orlandia 包 smoke 失败")
     else:
         print("  ⚠️ 找不到 %s（跳过 orlandia 侧）" % smoke)
@@ -288,39 +302,16 @@ def check_6_smoke():
     eng_tests = os.path.join(os.environ.get("GWEN_FRAMEWORK_DIR", ""), "tests")
     t = os.path.join(eng_tests, "test_host_skeleton.py")
     if os.path.isfile(t):
-        r = subprocess.run([sys.executable, t], cwd=os.path.dirname(eng_tests), capture_output=True,
-                           text=True, encoding="utf-8", errors="replace", timeout=600)
-        last = [l for l in ((r.stdout or "") + (r.stderr or "")).split("\n") if l.strip()][-1:]
-        ok = r.returncode == 0
-        print("  %s 两宿主一致性 / minimal-game（%s）" % ("✅" if ok else "❌", last[0].strip()[:70] if last else ""))
-        if not ok:
+        if not _run([sys.executable, t], os.path.dirname(eng_tests), "两宿主一致性 / minimal-game"):
             VIOL.append("⑥ host_skeleton（两宿主一致性 / minimal-game）失败")
     else:
         print("  ⚠️ 找不到 %s（跳过引擎侧；设 GWEN_FRAMEWORK_DIR）" % t)
-
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="同义（项目门禁惯例；本门禁自始只读）")
     ap.add_argument("--with-smoke", action="store_true", help="额外跑 ⑥（两场，慢）")
-    ap.add_argument("--_probe", metavar="PKG", help="内部：单包装载探针")
     a = ap.parse_args()
-
-    if a._probe:
-        # 单包装载探针：让引擎按包 id 装载，能 import 到 content 即算通过
-        import importlib
-        os.environ.setdefault("GWEN_TEST_MODE", "1")
-        try:
-            for mod in ("saintess_engine.host.package", "saintess_engine.package"):
-                try:
-                    m = importlib.import_module(mod)
-                    break
-                except ImportError:
-                    continue
-            return 0
-        except Exception as e:
-            print("probe err: %s" % e)
-            return 1
 
     print("=" * 74)
     print("宿主零游戏知识边界门禁（§6 ⑨）· 只读 · 宿主 = %s" % HOST)
