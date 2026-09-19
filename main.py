@@ -92,7 +92,6 @@ import os
 import time as _time
 
 _PLAYTEST_QQ = "gm_playtest"  # 体验专用身份（QQ 不存在的测试号）
-_PLAY_CMD_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "playthrough_cmd.txt")
 _PLAY_OUT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "playthrough_out.txt")
 _SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__)) + os.sep + "scripts"
 
