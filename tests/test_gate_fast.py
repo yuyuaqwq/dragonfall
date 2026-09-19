@@ -53,7 +53,13 @@ FW_ROOT = os.path.abspath(os.environ.get("GWEN_FRAMEWORK_DIR") or DEFAULT_FRAMEW
 #:   消掉：单文件门禁 148s → 10s）。改动**未同步**冻结值 ⇒ 本文件自那时起常红（审计尾巴发现）。
 #:   ⇒ 冻结值随这次**有意**改动更新：
 #:   `47A2B007D4B65BC8769F23D2484D8163` → `463942AD0976D1BFC89E3B5DC99C91B5`。
-RUN_ALL_TESTS_MD5 = "463942AD0976D1BFC89E3B5DC99C91B5"
+#: ★ P0-6 跑器单源化（2026-09-19，审计尾巴线）：`run_all_tests.py` **有意**新增
+#:   `--pkg-only` / `--pkg-root=<包仓根>` 两个开关（包仓入口改薄壳后，由它转调本文件），
+#:   枚举面与 `--file=` 解析面随之参数化（`_collect_files(..., search_dirs)`）。
+#:   判据本身（「跑门禁不得改全量 runner」+ 无反向依赖 + 语法可编译 + 原样转调）一条未减。
+#:   ⇒ 冻结值随这次**有意**改动更新：
+#:   `463942AD0976D1BFC89E3B5DC99C91B5` → `8EEC13A9F97D9E1A8CA815B4D8F6198F`。
+RUN_ALL_TESTS_MD5 = "8EEC13A9F97D9E1A8CA815B4D8F6198F"
 
 _passed = 0
 _failed = []

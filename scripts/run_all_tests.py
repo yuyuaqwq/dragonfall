@@ -18,6 +18,14 @@
 用法：
   python scripts/run_all_tests.py [--file=<名|路径>] [--fail-fast] [--jobs=N] [--serial]
                                   [--skip=test_xxx.py[,test_yyy.py]] [--real-astrbot]
+                                  [--pkg-only] [--pkg-root=<包仓根>]
+
+包仓入口（`pkg/scripts/run_all_tests.py`）是**薄壳**：只做「发现宿主壳根 → 转调本文件」，
+跑器真源唯一在本文件（T8 终态）。薄壳带 `--pkg-only --pkg-root=<源仓根>` 过来：
+  - `--pkg-only`    只枚举「包仓那份 tests」，不跑宿主自留件（枚举面之外一切不变）；
+  - `--pkg-root=<d>` 指定包仓根 ⇒ 枚举面 = `<d>/tests` —— 是**源仓那份**，不是部署副本
+                    `framework/games/<pkg>/tests`（两者由 `sync.sh` 保持一致）；worker 模板库
+                    也按该包建。缺 `content/data/commands.json` ⇒ 醒目报错（不当 0 个测试跑绿）。
 
 v117 全量提速（默认并行 + shim astrbot）能力**逐条保留**：
   - 每个测试文件 = 独立子进程 + 独立 GWEN_GAME_DB 私有库（tests/.run_all_workers_<pid>_<ts>/）
@@ -32,6 +40,7 @@ v117 全量提速（默认并行 + shim astrbot）能力**逐条保留**：
   - 引擎部署面   = `<plugin>/framework`（环境变量 `GWEN_FRAMEWORK_DIR` 覆盖）
   - 宿主壳根     = `<plugin>`（`GWEN_HOST_DIR` 覆盖）
   - 包目录       = `GWEN_PACKAGE_DIR` 优先，否则 `framework/games/*` 里**声明表最大**的那个
+                   （`--pkg-root=<根>` 直接指定：枚举面 + worker 模板库都用它）
   - qqbot 根     = 发现（`GWEN_QQBOT_DIR` 优先 → 找「谁家 `data/plugins/<x>` 与插件目录同一
                    实体」的祖先 / 其一见子目录）——只为本仓「平台插件名面」
                    （`data.plugins.<pkg>`）可 import 而给 PYTHONPATH；找不到不报错（多数测试不需要）
@@ -219,6 +228,8 @@ def _parse_args(argv):
     fail_fast = "--fail-fast" in argv
     serial = "--serial" in argv
     real_astrbot = "--real-astrbot" in argv
+    pkg_only = "--pkg-only" in argv
+    pkg_root = None
     jobs = max(4, min(8, os.cpu_count() or 8))  # 默认按核数自适应（4~16）
     only = None
     skips = []
@@ -232,7 +243,9 @@ def _parse_args(argv):
                 s = s.strip()
                 if s:
                     skips.append(s if s.endswith(".py") else s + ".py")
-    return fail_fast, serial, real_astrbot, jobs, only, skips
+        elif a.startswith("--pkg-root="):
+            pkg_root = (a.split("=", 1)[1] or "").strip() or None
+    return fail_fast, serial, real_astrbot, jobs, only, skips, pkg_only, pkg_root
 
 
 def _iter_tests(directory):
@@ -244,21 +257,23 @@ def _iter_tests(directory):
         return []
 
 
-def _collect_files(only, skips, host_names, pkg_sources):
+def _collect_files(only, skips, host_names, pkg_sources, search_dirs):
     """返回 (串行槽文件列表, 并行文件列表)。
 
     `pkg_sources` = [(tests_dir, [文件名…]), …]，顺序即优先级（同名以**先出现**者为准，
     但同名在两侧同时出现时调用方已判定为「单源被破」并中止，正常态不会重叠）。
+    `search_dirs` = `--file=<名>` 的解析面（宿主自留件 + 包仓那份；`--pkg-only` 时只有后者）
+    —— 传参而不现算，正是为了让包仓入口**不会**误跑宿主侧同名文件。
     """
     if only:
         base = os.path.basename(only if only.endswith(".py") else only + ".py")
         if os.path.isabs(only):
             return [only], []
-        for d in [HOST_TESTS_DIR] + [d for d, _ in pkg_sources]:
+        for d in search_dirs:
             cand = os.path.join(d, base)
             if os.path.isfile(cand):
                 return [cand], []
-        return [os.path.join(HOST_TESTS_DIR, base)], []   # 不存在 → 子进程报错，不静默跳过
+        return [os.path.join(search_dirs[0], base)], []   # 不存在 → 子进程报错，不静默跳过
 
     def _want(name):
         return name not in skips and name not in RETIRED_PROBES
@@ -372,16 +387,28 @@ def _abort(msg):
 
 
 def main():
-    fail_fast, serial_mode, real_astrbot, jobs, only, skips = _parse_args(sys.argv[1:])
+    (fail_fast, serial_mode, real_astrbot, jobs, only, skips,
+     pkg_only, pkg_root) = _parse_args(sys.argv[1:])
 
     # ---- 枚举两侧（单源被破 / 包仓那份缺失都**醒目报错**，不许当 0 个测试跑绿）----
     if not os.path.isdir(HOST_TESTS_DIR):
         return _abort("宿主 tests 目录不存在：%s" % HOST_TESTS_DIR)
-    host_names = _iter_tests(HOST_TESTS_DIR)
+    # `--pkg-only`（包仓入口薄壳）：宿主自留件不进枚举面 —— 它们归宿主自己的全量跑。
+    host_names = [] if pkg_only else _iter_tests(HOST_TESTS_DIR)
 
-    pkgs = _find_package_dirs()
+    if pkg_root:
+        _pr = os.path.abspath(pkg_root)
+        if not os.path.isfile(os.path.join(_pr, "content", "data", "commands.json")):
+            return _abort("--pkg-root 指向的不是包目录（缺 content/data/commands.json）：%s" % _pr)
+        pkgs = [_pr]
+    else:
+        pkgs = _find_package_dirs()
     pkg_dirs = [os.path.join(p, "tests") for p in pkgs if os.path.isdir(os.path.join(p, "tests"))]
     if not pkg_dirs:
+        if pkg_root:
+            return _abort(
+                ("找不到**包仓那份 tests**（--pkg-root=%s 下没有 tests/）——" + "\n"
+                 "!! 内容侧测试真源缺失 = 全量入口不可信（绝不当「0 个测试=全绿」）。") % pkg_root)
         return _abort(
             "找不到**包仓那份 tests**（扫过 %s 下的每个包目录的 tests/）——\n"
             "!! 内容侧测试真源缺失 = 全量入口不可信（绝不当「0 个测试=全绿」）。\n"
@@ -406,11 +433,17 @@ def main():
     if not host_names and not pkg_names:
         return _abort("两侧都没枚举到 test_*.py —— 入口不可信，拒绝当全绿。")
 
-    serial_files, parallel_files = _collect_files(only, skips, host_names, pkg_sources)
+    search_dirs = ([] if pkg_only else [HOST_TESTS_DIR]) + [d for d, _ in pkg_sources]
+    serial_files, parallel_files = _collect_files(only, skips, host_names, pkg_sources,
+                                                  search_dirs)
     if serial_mode:
         parallel_files, serial_files = [], serial_files + parallel_files
-    print(f"枚举：宿主自留件 {len(host_names)} 个 · 包仓那份 {len(pkg_names)} 个"
-          f"（来自 {len(pkg_dirs)} 个包 tests 目录）", flush=True)
+    if pkg_only:
+        print(f"枚举（--pkg-only · 包仓入口）：包仓那份 {len(pkg_names)} 个"
+              f"（来自 {len(pkg_dirs)} 个包 tests 目录；宿主自留件不进枚举面）", flush=True)
+    else:
+        print(f"枚举：宿主自留件 {len(host_names)} 个 · 包仓那份 {len(pkg_names)} 个"
+              f"（来自 {len(pkg_dirs)} 个包 tests 目录）", flush=True)
     for d in pkg_dirs:
         print(f"  · 包仓那份：{d}", flush=True)
     if skips:
@@ -423,7 +456,7 @@ def main():
                 "GWEN_SQLITE_SYNC": os.environ.get("GWEN_SQLITE_SYNC", "NORMAL")}
     base_env["GWEN_FRAMEWORK_DIR"] = FRAMEWORK_DIR
     base_env["GWEN_HOST_DIR"] = PLUGIN_DIR
-    pkg_dir = _pick_package_dir(pkgs)
+    pkg_dir = _pick_package_dir(pkgs)   # `--pkg-root=` 时 pkgs = [该根] ⇒ 直接命中
     if pkg_dir:
         base_env["GWEN_PACKAGE_DIR"] = pkg_dir
     _pp_parts = []
