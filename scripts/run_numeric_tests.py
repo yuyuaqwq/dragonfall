@@ -40,7 +40,39 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TESTS_DIR = os.path.join(PLUGIN_DIR, "tests")
+TESTS_DIR = os.path.join(PLUGIN_DIR, "tests")                   # 宿主自留件（T8 前唯一目录）
+FRAMEWORK_DIR = os.path.join(PLUGIN_DIR, "framework")            # 引擎部署面
+GAMES_DIR = os.path.join(FRAMEWORK_DIR, "games")
+
+
+def _numeric_search_dirs():
+    """★ T8（2026-09-19）：数值测试枚举面 = **宿主自留件** ∪ **包仓那份**。
+
+    内容侧测试真源 = 包仓 `tests/`（经 sync.sh 部署到 `<plugin>/framework/games/<pkg>/tests`）。
+    旧版只看宿主 `tests/` ⇒ 包仓那 12 个 test_numeric_* 全被判「缺失」→ 报「跳过 6 个」，
+    而它们其实活着。判据 = 「是不是内容包目录」（含 content/），不写死包名。
+    """
+    dirs = [TESTS_DIR]
+    if os.path.isdir(GAMES_DIR):
+        for name in sorted(os.listdir(GAMES_DIR)):
+            d = os.path.join(GAMES_DIR, name)
+            if os.path.isdir(os.path.join(d, "content")) and os.path.isdir(os.path.join(d, "tests")):
+                dirs.append(os.path.join(d, "tests"))
+    return dirs
+
+
+def _pkg_dir():
+    """包目录：`GWEN_PACKAGE_DIR` 优先；否则 `framework/games/*` 里声明表最大的那个。"""
+    env = str(os.environ.get("GWEN_PACKAGE_DIR") or "").strip()
+    if env and os.path.isdir(env):
+        return env
+    best, best_n = None, -1
+    if os.path.isdir(GAMES_DIR):
+        for name in sorted(os.listdir(GAMES_DIR)):
+            decl = os.path.join(GAMES_DIR, name, "content", "data", "commands.json")
+            if os.path.isfile(decl) and os.path.getsize(decl) > best_n:
+                best, best_n = os.path.join(GAMES_DIR, name), os.path.getsize(decl)
+    return best or os.path.join(GAMES_DIR, "orlandia")
 QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))  # dragonfall/→plugins/→data/→qqbot/
 # 项目 Python：与 run_all_tests.py 一致（带 pypinyin 等依赖）
 PYTHON = r"C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe"
@@ -54,9 +86,12 @@ PYTHON = r"C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe"
 _TPL_INIT = (
     "import os,sys;"
     "os.environ['GWEN_GAME_DB']=sys.argv[1];"
-    "sys.path.insert(0,sys.argv[2]);"
-    "from data.plugins.dragonfall.game.store import init_db;"
-    "init_db()"
+    "sys.path.insert(0,sys.argv[2]);"      # 插件根
+    "sys.path.insert(0,sys.argv[3]);"      # 引擎部署面
+    "from host import store_factory as _sf;"
+    "from saintess_engine.host import load_package;"
+    "_pkg=load_package(sys.argv[4], inject=_sf.inject_handles());"
+    "_sf.bind_store(_pkg).init()"
 )
 WORKER_DIR = os.path.join(
     TESTS_DIR, f".numeric_workers_{os.getpid()}_{int(time.time())}"
@@ -82,23 +117,23 @@ FAST_ONLY = "test_numeric_battle_matrix.py"
 
 def discover(fast):
     """返回 (可运行文件列表, 缺失文件列表)。缺失 = 清单内未找到（跳过提示用）。"""
-    present = set()
-    if os.path.isdir(TESTS_DIR):
-        present = {
-            f for f in os.listdir(TESTS_DIR)
-            if f.startswith("test_numeric_") and f.endswith(".py")
-        }
+    present = {}                                     # 名字 → 绝对路径（跨目录，名字可能撞）
+    for d in _numeric_search_dirs():
+        if os.path.isdir(d):
+            for f in sorted(os.listdir(d)):
+                if f.startswith("test_numeric_") and f.endswith(".py"):
+                    present.setdefault(f, os.path.join(d, f))
     if fast:
-        present = {f for f in present if f == FAST_ONLY}
+        present = {f: p for f, p in present.items() if f == FAST_ONLY}
     files, missing = [], []
     for name in EXPECTED:
         if name in present:
-            files.append(name)
+            files.append(present[name])              # ★ 路径（跨两目录）
         else:
             missing.append(name)
     for name in sorted(present):  # 新增/未知的数值测试文件也纳入运行
-        if name not in files:
-            files.append(name)
+        if present[name] not in files:
+            files.append(present[name])              # ★ 路径（与 EXPECTED 分支一致；漏改过 ⇒ 拼宿主目录报 Errno 2）
     return files, missing
 
 
@@ -157,7 +192,7 @@ def main(argv):
         os.makedirs(WORKER_DIR, exist_ok=True)
         tpl_db = os.path.join(WORKER_DIR, "template.db")
         subprocess.run(
-            [PYTHON, "-B", "-c", _TPL_INIT, tpl_db, QQBOT_DIR],
+            [PYTHON, "-B", "-c", _TPL_INIT, tpl_db, PLUGIN_DIR, FRAMEWORK_DIR, _pkg_dir()],
             check=True, timeout=120, capture_output=True,
             text=True, encoding="utf-8", errors="replace", env=env,
         )
@@ -168,7 +203,7 @@ def main(argv):
 
     t0 = time.time()
     for i, name in enumerate(files):
-        path = os.path.join(TESTS_DIR, name)
+        path = name if os.path.isabs(name) else os.path.join(TESTS_DIR, name)
         fenv = dict(env)
         if tpl_db:
             fenv["GWEN_GAME_DB"] = os.path.join(WORKER_DIR, f"num_{i}.db")
