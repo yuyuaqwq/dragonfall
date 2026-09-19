@@ -164,7 +164,10 @@ NO_GATE = [
     ("host:scripts/playtest_*.json", "playtest 回环状态文件，无门禁覆盖"),
     ("host:scripts/data/**", "脚本数据目录，无门禁覆盖"),
     ("host:scripts/build_matrix/**", "数值矩阵构建产物，无门禁覆盖"),
-    ("host:scripts/economy_lib/**", "经济模拟库（离线工具），无门禁覆盖"),
+    ("host:scripts/economy_lib/**", "★ P0-2（2026-09-19）：宿主侧副本已删 —— 真源 = 包仓 tests/economy_lib/"
+                                    "（部署面 `<fw>/games/*/tests/economy_lib/`），同 T8 单源化口径（宿主 tests/conftest.py /"
+                                    "shim_astrbot / numeric_sim.py 同理）。删前证据：宿主侧零 import 点；宿主侧 vs 部署面"
+                                    "`cli.py json` 输出逐字节相同（196247B）。glob 现命中 0 条，保留标注仅为历史可追溯"),
     ("host:scripts/numeric_lib/**", "数值工具库（离线工具），无门禁覆盖"),
     ("host:scripts/_retired/**", "已退役导出器（★ S5 2026-09-16 整目录清出本仓，glob 现命中 0 条；"
                                  "保留标注仅为历史可追溯），无门禁覆盖"),
