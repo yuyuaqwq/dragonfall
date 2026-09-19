@@ -203,6 +203,9 @@ NO_GATE = [
     ("fw:tests/js/**", "引擎测试用的前端 JS 夹具（form_widgets_test 等），无 Python 门禁覆盖"),
     ("fw:tests/conftest.py", "引擎测试夹具，无门禁覆盖"),
     ("fw:tests/_domain_fixtures.py", "引擎测试夹具（非 test_*.py，run_all 不直接跑），无门禁覆盖"),
+    ("fw:tests/_check.py", "★ P0-1（2026-09-19）：三仓同款的测试断言助手单源（`bind_check`），"
+                          "被同目录全部 test_*.py import；它自身的改动无定向门禁，靠 fw_runall 全量暴露"
+                          "（同 `fw:tests/_domain_fixtures.py` 口径）"),
     ("fw:tests/run_all.py", "引擎仓全量运行器本体：改它由人工跑一次 fw_runall（--full）验证，自身无定向门禁"),
     ("fw:games/*/README.md", "包 README（历史盘点），无门禁覆盖"),
     ("fw:examples/**/*.md", "示例包 README，无门禁覆盖"),
@@ -212,8 +215,6 @@ NO_GATE = [
     ("fw:schemas/**", "引擎通用 schema 由 editor_schemas 间接覆盖（见该门禁 covers）"),
     ("fw:examples/minimal-game/**", "示例包：由 fw_runall 的 minimal-game 冒烟覆盖（--full 才跑）"),
     ("fw:games/my_game/**", "引擎自带迷你示例包（非本产品包）：由 import_closure / fw_runall 覆盖"),
-    ("fw:tests/_domain_fixtures.py", "引擎测试夹具（非 test_*.py，run_all 不直接跑），无门禁覆盖"),
-    ("fw:tests/conftest.py", "引擎测试 conftest，无门禁覆盖"),
     ("fw:editor/web/**", "编辑器前端静态资源，无门禁覆盖（B20 只跑了 test_editor_play 的 HTTP 面）"),
     ("fw:editor/UI_DESIGN.md", "编辑器 UI 设计文档，无门禁覆盖"),
     ("fw:editor/README.md", "编辑器 README，无门禁覆盖（FIXDECL 曾按人审改它）"),
