@@ -45,7 +45,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PLUGIN_ROOT = os.path.dirname(HERE)
 
 SKIP_DIRS = {"__pycache__", ".pytest_cache", ".git"}
-SKIP_SUFFIX = (".pyc", ".pyo")
+#  ★ 2026-09-19：**测试运行时产物**不算「包内容」——跑一次测试就会在包目录生成/改写
+#   SQLite 文件（tests/**/*.db 由各测试自建、`.private_dbs/` 是测试私有库），
+#   两落点因跑测时机不同必然字节不同 ⇒ 会把「内容一致性」门禁变成常红/假红。
+#   源码一致性只应看**纳入版本管理的静态文件**，故跳过这些后缀与目录。
+SKIP_SUFFIX = (".pyc", ".pyo", ".db", ".db-journal", ".db-wal", ".db-shm")
+SKIP_DIRS |= {".private_dbs"}
 #: 引擎仓 framework/ 下，包落点相对引擎仓根的路径前缀（与 editor/packages.py::DEFAULT_GAMES_DIR 同源）
 GAMES_REL = os.path.join("games")
 
