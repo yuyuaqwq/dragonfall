@@ -31,6 +31,8 @@ for _p in (_HERE, _REPO, _SCRIPTS):
         sys.path.insert(0, _p)
 
 import gate_fast as GF  # noqa: E402
+from _check import bind_check
+
 
 DEFAULT_FRAMEWORK_DIR = "C:/Users/yuyu/framework-engine"
 FW_ROOT = os.path.abspath(os.environ.get("GWEN_FRAMEWORK_DIR") or DEFAULT_FRAMEWORK_DIR)
@@ -65,15 +67,9 @@ _passed = 0
 _failed = []
 
 
-def check(title, cond, detail=""):
-    global _passed
-    if cond:
-        _passed += 1
-        print("  \u2705 %s" % title)
-    else:
-        _failed.append(title)
-        print("  \u274c %s%s" % (title, ("  <- %s" % detail) if detail else ""))
-    return bool(cond)
+# ★ 审计 P0-1 单源化：断言助手唯一实现 = tests/_check.py
+#   （原先本文件手抄一份 def check；差异项已作为 bind_check 参数写出）
+check = bind_check(globals(), "_passed", failures="_failed")
 
 
 def section(t):

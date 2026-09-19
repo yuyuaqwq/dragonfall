@@ -34,6 +34,8 @@ import subprocess
 import sys
 import tempfile
 import uuid
+from _check import bind_check
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)                                   # 宿主仓根（本文件在 <repo>/tests/）
@@ -43,18 +45,14 @@ REAL_REPO = os.path.abspath(os.environ.get("TERMGATE_REAL_REPO") or REPO)
 REAL_ENGINE = os.environ.get("GWEN_FRAMEWORK_DIR") or "C:/Users/yuyu/framework-engine"
 
 FAILS: list = []
-CHECKS = [0]
+CHECKS = 0
 
 
 # ---------------------------------------------------------------- 极小测试脚手架（独立执行 + pytest 双模）
 
-def check(ok: bool, label: str, detail: str = "") -> bool:
-    CHECKS[0] += 1
-    print("%s %s%s" % ("  ✅" if ok else "  ❌", label, ("  " + detail) if detail else ""))
-    if not ok:
-        FAILS.append("%s %s" % (label, detail))
-        raise AssertionError("%s %s" % (label, detail))
-    return True
+# ★ 审计 P0-1 单源化：断言助手唯一实现 = tests/_check.py
+#   （原先本文件手抄一份 def check；差异项已作为 bind_check 参数写出）
+check = bind_check(globals(), total="CHECKS", failures="FAILS", strict=True)
 
 
 # ---------------------------------------------------------------- 临时目录（沙箱安全：不用 mkdtemp）
@@ -186,10 +184,10 @@ def test_clean_fixture_is_all_green_in_check_mode():
     repo, engine = _fresh_pair()
     try:
         res = run_checker(repo, engine, check_mode=True)
-        check(res["exit"] == 0, "--check 在合规夹具仓上退 0", "exit=%s" % res["exit"])
-        check(res["json"] and res["json"]["summary"]["ok"] is True, "JSON summary.ok = true")
+        check("--check 在合规夹具仓上退 0", res["exit"] == 0, "exit=%s" % res["exit"])
+        check("JSON summary.ok = true", res["json"] and res["json"]["summary"]["ok"] is True)
         for cid in ("①", "②", "③", "④", "⑤", "⑥"):
-            check(res["crit"][cid]["status"] == "pass", "判据 %s 合规夹具上为 pass" % cid,
+            check("判据 %s 合规夹具上为 pass" % cid, res["crit"][cid]["status"] == "pass",
                   res["crit"][cid]["current"])
     finally:
         _rm(repo)
@@ -201,9 +199,9 @@ def test_default_mode_exits_zero_even_when_failing():
     try:
         _write(os.path.join(repo, "game", "mod.py"), CLEAN_MOD + "from content import x\n")
         res = run_checker(repo, engine)                       # 默认模式：差距报告
-        check(res["exit"] == 0, "默认模式即使有未达标项也退 0", "exit=%s" % res["exit"])
-        check("差距报告" in res["out"], "输出标注「差距报告」")
-        check(res["json"]["summary"]["fail"] >= 1, "JSON 如实记下未达标条数",
+        check("默认模式即使有未达标项也退 0", res["exit"] == 0, "exit=%s" % res["exit"])
+        check("输出标注「差距报告」", "差距报告" in res["out"])
+        check("JSON 如实记下未达标条数", res["json"]["summary"]["fail"] >= 1,
               str(res["json"]["summary"]))
     finally:
         _rm(repo)
@@ -217,16 +215,16 @@ def test_caliber_one_counts_and_excludes():
         _write(os.path.join(repo, "main.py"), "".join("M%d = %d\n" % (i, i) for i in range(7)))
         res = run_checker(repo, engine, skip_external=True)
         # game/mod.py 2 行 + game/commands/panel.py 3 行 + big_extra.py 10 行 = 15；main.py 7 行
-        check(_num(res, "①", "game_lines") == 15, "① game/ 行数 = 15", str(_num(res, "①", "game_lines")))
-        check(_num(res, "①", "main_lines") == 7, "① main.py 行数 = 7", str(_num(res, "①", "main_lines")))
-        check(_num(res, "①", "total") == 22, "① 合计 = 22", str(_num(res, "①", "total")))
+        check("① game/ 行数 = 15", _num(res, "①", "game_lines") == 15, str(_num(res, "①", "game_lines")))
+        check("① main.py 行数 = 7", _num(res, "①", "main_lines") == 7, str(_num(res, "①", "main_lines")))
+        check("① 合计 = 22", _num(res, "①", "total") == 22, str(_num(res, "①", "total")))
         # 排除口径：game/tests|scripts|tools 下的 .py 不计入
         _write_lines(os.path.join(repo, "game", "tests", "ignored.py"), 500)
         _write_lines(os.path.join(repo, "game", "scripts", "ignored.py"), 500)
         res2 = run_checker(repo, engine, skip_external=True)
-        check(_num(res2, "①", "total") == 22, "① 排除 tests|scripts|tools 后合计不变",
+        check("① 排除 tests|scripts|tools 后合计不变", _num(res2, "①", "total") == 22,
               str(_num(res2, "①", "total")))
-        check(_num(res2, "①", "excluded_files") == 2, "① 报告被排除文件数 = 2",
+        check("① 报告被排除文件数 = 2", _num(res2, "①", "excluded_files") == 2,
               str(_num(res2, "①", "excluded_files")))
     finally:
         _rm(repo)
@@ -244,11 +242,11 @@ def test_caliber_two_counts_lines_and_both_scopes():
         _write(os.path.join(repo, "game", "commands", "panel.py"),
                "import content.persistence as P\n")     # 行首 import content → 只有 B 算
         res = run_checker(repo, engine, skip_external=True)
-        check(_num(res, "②", "lax_lines") == 2, "② 口径A 行数 = 2（点式 + orlandia）",
+        check("② 口径A 行数 = 2（点式 + orlandia）", _num(res, "②", "lax_lines") == 2,
               str(_num(res, "②", "lax_lines")))
-        check(_num(res, "②", "strict_lines") == 4, "② 口径B 行数 = 4（多收 `from content import` 与 `import content.`）",
+        check("② 口径B 行数 = 4（多收 `from content import` 与 `import content.`）", _num(res, "②", "strict_lines") == 4,
               str(_num(res, "②", "strict_lines")))
-        check(res["crit"]["②"]["status"] == "fail", "② 命中 > 0 → fail")
+        check("② 命中 > 0 → fail", res["crit"]["②"]["status"] == "fail")
     finally:
         _rm(repo)
         _rm(engine)
@@ -260,11 +258,11 @@ def test_caliber_three_is_ast_call_sites_not_text_mentions():
         _write(os.path.join(repo, "game", "commands", "panel.py"),
                CLEAN_PANEL + "# 注释里提到 T.text / T.static 不算调用点\n")
         res = run_checker(repo, engine, skip_external=True)
-        check(_num(res, "③", "ast_calls") == 0, "③ 只有注释提及 → 调用点 0",
+        check("③ 只有注释提及 → 调用点 0", _num(res, "③", "ast_calls") == 0,
               str(_num(res, "③", "ast_calls")))
-        check(_num(res, "③", "raw_grep_lines") == 1, "③ 同时如实报出原始 grep 命中行数 = 1",
+        check("③ 同时如实报出原始 grep 命中行数 = 1", _num(res, "③", "raw_grep_lines") == 1,
               str(_num(res, "③", "raw_grep_lines")))
-        check(res["crit"]["③"]["status"] == "pass", "③ 注释提及不判红（防假红）")
+        check("③ 注释提及不判红（防假红）", res["crit"]["③"]["status"] == "pass")
     finally:
         _rm(repo)
         _rm(engine)
@@ -275,8 +273,8 @@ def test_caliber_six_plumbing_reports_real_failure():
     engine = build_fixture_engine(_sandbox_safe_tmp("tg_engine_"))
     try:
         res = run_checker(repo, engine, check_mode=True)
-        check(res["exit"] != 0, "⑥ 门禁报 1 失败 → --check 退非零", "exit=%s" % res["exit"])
-        check(_num(res, "⑥", "fails") == 1, "⑥ 解析出失败数 = 1", str(_num(res, "⑥", "fails")))
+        check("⑥ 门禁报 1 失败 → --check 退非零", res["exit"] != 0, "exit=%s" % res["exit"])
+        check("⑥ 解析出失败数 = 1", _num(res, "⑥", "fails") == 1, str(_num(res, "⑥", "fails")))
     finally:
         _rm(repo)
         _rm(engine)
@@ -290,25 +288,25 @@ def test_tooth_content_import_goes_red_then_restore_green():
     target = os.path.join(repo, "game", "mod.py")
     try:
         base = run_checker(repo, engine, check_mode=True)
-        check(base["exit"] == 0, "基线：合规夹具 --check 退 0")
+        check("基线：合规夹具 --check 退 0", base["exit"] == 0)
         before = _num(base, "②", "strict_lines")
-        check(before == 0, "基线：② 口径B = 0", str(before))
+        check("基线：② 口径B = 0", before == 0, str(before))
 
         original = open(target, encoding="utf-8").read()
         with open(target, "a", encoding="utf-8", newline="\n") as fh:
             fh.write("from content import x  # TOOTH\n")
         red = run_checker(repo, engine, check_mode=True)
-        check(_num(red, "②", "strict_lines") == before + 1, "塞入后 ② 口径B 恰 +1",
+        check("塞入后 ② 口径B 恰 +1", _num(red, "②", "strict_lines") == before + 1,
               "%s → %s" % (before, _num(red, "②", "strict_lines")))
-        check(red["crit"]["②"]["status"] == "fail", "塞入后 ② 变红")
-        check(red["exit"] != 0, "--check 退非零（有牙）", "exit=%s" % red["exit"])
+        check("塞入后 ② 变红", red["crit"]["②"]["status"] == "fail")
+        check("--check 退非零（有牙）", red["exit"] != 0, "exit=%s" % red["exit"])
 
         with open(target, "w", encoding="utf-8", newline="\n") as fh:   # 逐字还原
             fh.write(original)
         green = run_checker(repo, engine, check_mode=True)
-        check(_num(green, "②", "strict_lines") == before, "还原后 ② 回到原值",
+        check("还原后 ② 回到原值", _num(green, "②", "strict_lines") == before,
               str(_num(green, "②", "strict_lines")))
-        check(green["exit"] == 0, "还原后 --check 复绿退 0", "exit=%s" % green["exit"])
+        check("还原后 --check 复绿退 0", green["exit"] == 0, "exit=%s" % green["exit"])
     finally:
         _rm(repo)
         _rm(engine)
@@ -323,14 +321,14 @@ def test_tooth_orlandia_and_dotted_import_go_red():
         with open(target, "a", encoding="utf-8", newline="\n") as fh:
             fh.write("from content.catalog_rules import K  # TOOTH\nX2 = 'orlandia'\n")
         res = run_checker(repo, engine, skip_external=True)
-        check(_num(res, "②", "lax_lines") == _num(base, "②", "lax_lines") + 2,
-              "口径A 对 `from content.` 与 `orlandia` 各 +1",
+        check("口径A 对 `from content.` 与 `orlandia` 各 +1",
+              _num(res, "②", "lax_lines") == _num(base, "②", "lax_lines") + 2,
               "%s → %s" % (_num(base, "②", "lax_lines"), _num(res, "②", "lax_lines")))
-        check(res["crit"]["②"]["status"] == "fail", "② 变红")
+        check("② 变红", res["crit"]["②"]["status"] == "fail")
         with open(target, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(original)
-        check(run_checker(repo, engine, skip_external=True)["crit"]["②"]["status"] == "pass",
-              "还原后 ② 复绿")
+        check("还原后 ② 复绿",
+              run_checker(repo, engine, skip_external=True)["crit"]["②"]["status"] == "pass")
     finally:
         _rm(repo)
         _rm(engine)
@@ -344,20 +342,20 @@ def test_tooth_real_render_call_goes_red_but_comment_does_not():
         with open(target, "a", encoding="utf-8", newline="\n") as fh:
             fh.write("\n\ndef _tooth(env):\n    return T.text('some.key')\n")
         red = run_checker(repo, engine, check_mode=True)
-        check(_num(red, "③", "ast_calls") == 1, "真调用 T.text(...) → ③ 调用点 = 1",
+        check("真调用 T.text(...) → ③ 调用点 = 1", _num(red, "③", "ast_calls") == 1,
               str(_num(red, "③", "ast_calls")))
-        check(red["crit"]["③"]["status"] == "fail" and red["exit"] != 0, "③ 变红且 --check 退非零")
+        check("③ 变红且 --check 退非零", red["crit"]["③"]["status"] == "fail" and red["exit"] != 0)
         with open(target, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(original)
         with open(target, "a", encoding="utf-8", newline="\n") as fh:
             fh.write("\n# 只在注释里提 T.static，不许判红\n")
         soft = run_checker(repo, engine, check_mode=True)
-        check(_num(soft, "③", "ast_calls") == 0 and soft["exit"] == 0,
-              "只加注释提及 → ③ 仍绿、--check 仍退 0（反向反证）",
+        check("只加注释提及 → ③ 仍绿、--check 仍退 0（反向反证）",
+              _num(soft, "③", "ast_calls") == 0 and soft["exit"] == 0,
               "calls=%s exit=%s" % (_num(soft, "③", "ast_calls"), soft["exit"]))
         with open(target, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(original)
-        check(run_checker(repo, engine, check_mode=True)["exit"] == 0, "还原后 --check 复绿")
+        check("还原后 --check 复绿", run_checker(repo, engine, check_mode=True)["exit"] == 0)
     finally:
         _rm(repo)
         _rm(engine)
@@ -369,11 +367,11 @@ def test_tooth_over_line_threshold_goes_red():
     try:
         _write_lines(big, 2001)
         red = run_checker(repo, engine, check_mode=True)
-        check(_num(red, "①", "total") > 2000, "撑过阈值后 ① 超 2,000 行",
+        check("撑过阈值后 ① 超 2,000 行", _num(red, "①", "total") > 2000,
               str(_num(red, "①", "total")))
-        check(red["crit"]["①"]["status"] == "fail" and red["exit"] != 0, "① 变红且 --check 退非零")
+        check("① 变红且 --check 退非零", red["crit"]["①"]["status"] == "fail" and red["exit"] != 0)
         os.remove(big)
-        check(run_checker(repo, engine, check_mode=True)["exit"] == 0, "移除大文件后 --check 复绿")
+        check("移除大文件后 --check 复绿", run_checker(repo, engine, check_mode=True)["exit"] == 0)
     finally:
         _rm(repo)
         _rm(engine)
@@ -388,9 +386,9 @@ def test_tooth_broken_gate_contract_goes_red():
         _write(os.path.join(engine, "tests", "test_host_contract.py"),
                CONTRACT_STUB.replace("N = int(sys.argv[1]) if len(sys.argv) > 1 else 26", "N = 25"))
         res = run_checker(repo, engine, check_mode=True)
-        check(_num(res, "⑤", "contract_items") == 25, "⑤ 读到项数 25（不是只信退出码）",
+        check("⑤ 读到项数 25（不是只信退出码）", _num(res, "⑤", "contract_items") == 25,
               str(_num(res, "⑤", "contract_items")))
-        check(res["crit"]["⑤"]["status"] == "fail" and res["exit"] != 0, "⑤ 变红且 --check 退非零")
+        check("⑤ 变红且 --check 退非零", res["crit"]["⑤"]["status"] == "fail" and res["exit"] != 0)
     finally:
         _rm(repo)
         _rm(engine)
@@ -400,11 +398,11 @@ def test_skip_external_is_fail_closed_under_check():
     repo, engine = _fresh_pair()
     try:
         ok = run_checker(repo, engine, check_mode=True)
-        check(ok["exit"] == 0, "基线 --check 退 0")
+        check("基线 --check 退 0", ok["exit"] == 0)
         skipped = run_checker(repo, engine, check_mode=True, skip_external=True)
-        check(skipped["json"]["summary"]["skip"] == 2, "--skip-external 把 ④⑤ 记为 skip",
+        check("--skip-external 把 ④⑤ 记为 skip", skipped["json"]["summary"]["skip"] == 2,
               str(skipped["json"]["summary"]))
-        check(skipped["exit"] != 0, "--check 下 skip ≠ pass（fail-closed）", "exit=%s" % skipped["exit"])
+        check("--check 下 skip ≠ pass（fail-closed）", skipped["exit"] != 0, "exit=%s" % skipped["exit"])
     finally:
         _rm(repo)
         _rm(engine)
@@ -419,10 +417,10 @@ def test_no_green_without_numeric_evidence():
         for cid, c in res["crit"].items():
             if c["status"] != "pass":
                 continue
-            check(re.search(r"\d", c["current"]) is not None,
-                  "零假绿：%s 的 current 带数字证据" % cid, c["current"])
-            check(any(re.search(r"\d", ev) for ev in c["evidence"]),
-                  "零假绿：%s 的 evidence 带数字证据" % cid)
+            check("零假绿：%s 的 current 带数字证据" % cid,
+                  re.search(r"\d", c["current"]) is not None, c["current"])
+            check("零假绿：%s 的 evidence 带数字证据" % cid,
+                  any(re.search(r"\d", ev) for ev in c["evidence"]))
     finally:
         _rm(repo)
         _rm(engine)
@@ -436,12 +434,12 @@ def test_real_repo_calibration_and_counterproof():
     if not os.path.isfile(os.path.join(REAL_REPO, "main.py")):
         raise AssertionError("真宿主仓里找不到 main.py：%s（可用 TERMGATE_REAL_REPO 指路）" % REAL_REPO)
     res = run_checker(REAL_REPO, REAL_ENGINE, skip_external=True)
-    check(res["json"] is not None, "真仓：默认模式产出 JSON")
+    check("真仓：默认模式产出 JSON", res["json"] is not None)
     print("     · 真仓标定：① %s 行 · ② 口径A %s 处/%s 文件 · 口径B %s 处/%s 文件 · ③ %s 调用点"
           % (_num(res, "①", "total"), _num(res, "②", "lax_lines"), _num(res, "②", "lax_files"),
              _num(res, "②", "strict_lines"), _num(res, "②", "strict_files"), _num(res, "③", "ast_calls")))
     # ③ 的「已达标」硬标定：命令层零渲染调用点
-    check(_num(res, "③", "ast_calls") == 0, "真仓 ③ AST 渲染调用点 = 0")
+    check("真仓 ③ AST 渲染调用点 = 0", _num(res, "③", "ast_calls") == 0)
     # ① 独立重算（另一种写法）必须一致
     # ★ P5F-REPOINT: `game/` 是待删树，终态可能整个不存在 —— `os.walk` 对不存在的目录
     #   产出空序列，与判据①（`crit_host_size()` 的 `os.path.isdir(game_dir)` 守卫）**同口径**：
@@ -453,7 +451,7 @@ def test_real_repo_calibration_and_counterproof():
             if name.endswith(".py"):
                 total += len(open(os.path.join(dirpath, name), encoding="utf-8", errors="replace").readlines())
     total += len(open(os.path.join(REAL_REPO, "main.py"), encoding="utf-8", errors="replace").readlines())
-    check(_num(res, "①", "total") == total, "真仓 ① 与独立重算一致",
+    check("真仓 ① 与独立重算一致", _num(res, "①", "total") == total,
           "%s vs %s" % (_num(res, "①", "total"), total))
     # ② 独立重算（口径A）必须一致 —— 同时把今晚实测线 101 打出来（不一致会在此暴露）
     lax = 0
@@ -465,7 +463,7 @@ def test_real_repo_calibration_and_counterproof():
     rx = re.compile(r"orlandia|from content\.")
     for path in files:
         lax += sum(1 for ln in open(path, encoding="utf-8", errors="replace") if rx.search(ln))
-    check(_num(res, "②", "lax_lines") == lax, "真仓 ② 口径A 与独立重算一致",
+    check("真仓 ② 口径A 与独立重算一致", _num(res, "②", "lax_lines") == lax,
           "%s vs %s" % (_num(res, "②", "lax_lines"), lax))
 
     # 真仓副本反证：+1 行 `from content import x` → 口径B 恰 +1；还原 → 回原值
@@ -486,14 +484,14 @@ def test_real_repo_calibration_and_counterproof():
         target = os.path.join(copy, "game", "mod_probe.py")
         _write(target, "from content import x  # REAL-REPO TOOTH\n")
         after = run_checker(copy, REAL_ENGINE, skip_external=True)
-        check(_num(after, "②", "strict_lines") == _num(base, "②", "strict_lines") + 1,
-              "真仓副本：塞 1 行 `from content import x` → 口径B 恰 +1",
+        check("真仓副本：塞 1 行 `from content import x` → 口径B 恰 +1",
+              _num(after, "②", "strict_lines") == _num(base, "②", "strict_lines") + 1,
               "%s → %s" % (_num(base, "②", "strict_lines"), _num(after, "②", "strict_lines")))
-        check(after["crit"]["②"]["status"] == "fail", "真仓副本：② 判红（真仓本来就没达标）")
+        check("真仓副本：② 判红（真仓本来就没达标）", after["crit"]["②"]["status"] == "fail")
         os.remove(target)
         back = run_checker(copy, REAL_ENGINE, skip_external=True)
-        check(_num(back, "②", "strict_lines") == _num(base, "②", "strict_lines"),
-              "真仓副本：还原后口径B 回原值",
+        check("真仓副本：还原后口径B 回原值",
+              _num(back, "②", "strict_lines") == _num(base, "②", "strict_lines"),
               "%s → %s" % (_num(after, "②", "strict_lines"), _num(back, "②", "strict_lines")))
     finally:
         _rm(copy)
@@ -539,13 +537,13 @@ def main() -> int:
             failed_tests.append((name, "%s: %s" % (type(exc).__name__, exc)))
             print("  ⛔ 该组异常：%s: %s" % (type(exc).__name__, exc))
     print("\n" + "=" * 60)
-    print("断言行数：%d · 组数：%d" % (CHECKS[0], len(TESTS)))
+    print("断言行数：%d · 组数：%d" % (CHECKS, len(TESTS)))
     if failed_tests:
         print("❌ 未过 %d 组：" % len(failed_tests))
         for name, detail in failed_tests:
             print("   · %s  %s" % (name, detail))
         return 1
-    print("✅ 门禁自测全绿（%d 组 / %d 条断言）：口径正确 + 有牙 + 零假绿 + 真仓标定" % (len(TESTS), CHECKS[0]))
+    print("✅ 门禁自测全绿（%d 组 / %d 条断言）：口径正确 + 有牙 + 零假绿 + 真仓标定" % (len(TESTS), CHECKS))
     return 0
 
 
