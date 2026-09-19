@@ -52,6 +52,10 @@ FRAMEWORK = os.environ.get("GWEN_FRAMEWORK_DIR") or "C:/Users/yuyu/framework-eng
 PKG_ID = "orlandia"
 
 OWNERS = ("package", "engine")
+#: **横切读口白名单** —— 任何域模块都允许 import 它（提供的是全包基础设施，不是某域业务）。
+#: 加新条目**必须先说明它为什么是横切能力**，别当止痛药用。
+#: · content/texts.py：文案表读口（B-2 批起硬编码中文句句壳统一收进 text_specs.json）。
+CROSS_DOMAIN_READERS = ("texts",)
 TIERS = ("portable", "fixed")
 
 # 域 → 模块（模块名与域不同名的少数几个；依据 = 该模块 docstring 自述的域）
@@ -86,7 +90,14 @@ def imports_of(path: str):
             out += [("abs", a.name) for a in n.names]
         elif isinstance(n, ast.ImportFrom):
             lvl = n.level or 0
-            out.append(("rel%d" % lvl if lvl else "abs", n.module or ""))
+            kind = "rel%d" % lvl if lvl else "abs"
+            if n.module:
+                out.append((kind, n.module))
+            else:
+                #  ★ 2026-09-19 修：`from .. import texts as _T` 的 `n.module is None`，
+                #   被名字在 `n.names` 里 —— 旧写法记成 `from .. import *`（信息失真，
+                #   且让横切白名单永远匹配不上）。逐个别名取。
+                out += [(kind, a.name) for a in n.names]
     return out
 
 
@@ -167,8 +178,12 @@ def main() -> int:
             bad = []
             for kind, name in kinds:
                 if kind == "rel1":
+                    if name in CROSS_DOMAIN_READERS:    # ★ 横切读口不判违规
+                        continue
                     internal = True
                 elif kind.startswith("rel"):
+                    if name in CROSS_DOMAIN_READERS:    # ★ 横切读口（`from .. import texts`）不判违规
+                        continue
                     internal, hostish = False, True          # from .. = 跨出包根
                     bad.append(f"{rel}: `from .. import {name or '*'}`（相对跨出包根）")
                     continue
