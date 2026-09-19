@@ -82,7 +82,7 @@ HANDLERS = {
     "时间": "time_cmd", "见闻录": "wild_notes", "编年史": "chronicle",
     "每日": "daily", "副业任务": "daily_prof", "战力": "power",
     "排行": "leaderboard", "图鉴": "bestiary", "百科": "encyclopedia",
-    "帮助": "help_cmd", "拍卖": "auction", "竞拍": "bid", "许愿": "wish",
+    "拍卖": "auction", "竞拍": "bid", "许愿": "wish",
     "套装": "set_view", "物品详情": "item_detail", "背包筛选": "bag_filter",
     "筛选": "bag_filter", "转职重置": "evolve_reset", "遗忘副业": "prof_forget",
     "gm_帮助": "gm_help", "gm_副业位": "gm_prof_slots", "gm_伤害": "gm_boss_dmg",

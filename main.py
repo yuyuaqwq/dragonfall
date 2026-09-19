@@ -89,7 +89,6 @@ def _weekly_reward_selfcheck(pkg=None, *, strict=True):
 # → _run_shortcut 转发给真实 handler → 结果追加写 scripts/playthrough_out.txt。
 # 身份固定 gm_playtest（私聊），GM 指令自然放行；完全在 AstrBot 进程内，无跨进程锁。
 import os
-import threading
 import time as _time
 
 _PLAYTEST_QQ = "gm_playtest"  # 体验专用身份（QQ 不存在的测试号）
