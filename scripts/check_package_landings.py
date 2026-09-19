@@ -72,22 +72,65 @@ def git(repo, *args):
         return 127, "", str(exc)
 
 
-def content_sha(root):
+def _sha256_file(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def tracked_files(repo):
+    """包里**纳入版本管理**的文件相对路径清单（POSIX 分隔符）；不是 git 仓 ⇒ None。
+
+    ★ 2026-09-20：内容一致性的正确口径 = 「纳入版本管理的静态文件」。
+      上一版用**黑名单后缀**排产物（`.db` 家族），结果 `tests/_battle_settlement_snapshot.json`
+      （跑测产物，包仓 `.gitignore:12` 已忽略、三个落点都未 tracked）漏网 ⇒ 两落点因跑测时机
+      不同必然字节不同 ⇒ 「内容 sha 一致」常红/假红。黑名单永远追不上新产物的名字，故改为
+      **白名单口径**：基准清单取自已纳入版本管理的文件，不在清单里的一律不算包内容。
+    """
+    rc, out, _ = git(repo, "-c", "core.quotepath=false", "ls-files", "-z")
+    if rc != 0:
+        return None
+    paths = []
+    # ★ 用 `-z`（NUL 分隔）+ `core.quotepath=false`：默认输出会把非 ASCII 路径（如
+    #   `docs/wiki/包内文档示例.md`）转义成 `"docs/wiki/\345\214\205…"` ⇒ 拼出来的相对路径
+    #   在磁盘上不存在 ⇒ 被误判成「缺 tracked 文件」（正例假红，实测踩到）。
+    for p in out.split("\0"):
+        p = p.strip().replace("\\", "/")
+        if not p or p.endswith(SKIP_SUFFIX):
+            continue
+        if any(seg in SKIP_DIRS for seg in p.split("/")):
+            continue
+        paths.append(p)
+    return sorted(paths)
+
+
+def content_sha(root, only=None):
+    """内容 sha。`only` 为 None ⇒ 全量 walk（旧口径）；给出清单 ⇒ **只算清单内的相对路径**。
+
+    清单口径下缺失文件不参与拼接 ⇒ 某落点缺文件时 sha 必然不同（照报红），
+    另由 main 的「缺 tracked 文件」检查打印明细。版本管理的文件才是「包内容」。
+    """
     lines = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
-        for name in sorted(filenames):
-            if name.endswith(SKIP_SUFFIX) or name == ".git":
-                continue        # ⚠️ 子模块检出里的 `.git` 是**gitfile**（文件，不是目录）
+    if only is not None:
+        for rel in only:
+            full = os.path.join(root, rel.replace("/", os.sep))
+            if not os.path.isfile(full):
+                continue            # 缺失 ⇒ 不参与 ⇒ sha 不同 ⇒ 门禁报红（明细见 main）
+            lines.append("%s\t%s" % (rel, _sha256_file(full)))
+    else:
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+            for name in sorted(filenames):
+                if name.endswith(SKIP_SUFFIX) or name == ".git":
+                    continue    # ⚠️ 子模块检出里的 `.git` 是**gitfile**（文件，不是目录）
                                 #    ⇒ 只按 SKIP_DIRS 排目录会把它当内容比：两个落点的嵌套深度不同
                                 #    （引擎仓 games/X vs 宿主 framework/games/X），gitdir 相对路径
                                 #    必然不同 ⇒ 内容 sha 恒报「2 个不同」的假红。它不属于包内容。
-            full = os.path.join(dirpath, name)
-            h = hashlib.sha256()
-            with open(full, "rb") as fh:
-                for chunk in iter(lambda: fh.read(1 << 20), b""):
-                    h.update(chunk)
-            lines.append("%s\t%s" % (os.path.relpath(full, root).replace("\\", "/"), h.hexdigest()))
+                full = os.path.join(dirpath, name)
+                lines.append("%s\t%s" % (os.path.relpath(full, root).replace("\\", "/"),
+                                         _sha256_file(full)))
     lines.sort()
     return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest(), len(lines)
 
@@ -117,16 +160,17 @@ def discover_package(games_dir):
     return best
 
 
-def landmark(label, pkg_dir):
-    """一个落点的实测事实：存在性 / 独立检出 / 包 id / 内容 sha / 提交。"""
+def landmark(label, pkg_dir, only=None):
+    """一个落点的实测事实：存在性 / 独立检出 / 包 id / 内容 sha / 提交。only = tracked 清单。"""
     info = {"label": label, "dir": pkg_dir, "exists": os.path.isdir(pkg_dir),
-            "is_checkout": False, "pkg_id": None, "sha": None, "files": 0, "commit": None}
+            "is_checkout": False, "pkg_id": None, "sha": None, "files": 0, "commit": None,
+            "missing": None}
     if not info["exists"]:
         return info
     info["is_checkout"] = os.path.exists(os.path.join(pkg_dir, ".git"))
     man = read_json(os.path.join(pkg_dir, "game.json"))
     info["pkg_id"] = (man or {}).get("id")
-    info["sha"], info["files"] = content_sha(pkg_dir)
+    info["sha"], info["files"] = content_sha(pkg_dir, only=only)
     if info["is_checkout"]:
         rc, out, _ = git(pkg_dir, "rev-parse", "HEAD")
         if rc == 0:
@@ -191,6 +235,29 @@ def main(argv=None):
     if dep:
         spots.append(landmark("C 部署面（config/env）", dep))
 
+    # ★ 内容口径（2026-09-20）：只比**纳入版本管理的静态文件**（基准清单取自任一 git 落点）。
+    #   跑测会在包目录写产物（`tests/_battle_settlement_snapshot.json`、`*.db`…），两落点跑测时机
+    #   不同 ⇒ 字节必然不同 ⇒ 旧「黑名单后缀」口径把这条门禁变成常红/假红。黑名单追不上新产物名，
+    #   故改白名单：不在 `git ls-files` 里的一律不算包内容。
+    base, base_from = None, None
+    for s in spots:
+        if s["exists"] and s["is_checkout"]:
+            got = tracked_files(s["dir"])
+            if got is not None:
+                base, base_from = got, s["label"]
+                break
+    if base is not None:
+        print("  内容口径：纳入版本管理的文件 %d 个（基准清单取自 %s；跑测产物不算包内容）"
+              % (len(base), base_from))
+        for s in spots:
+            if not s["exists"]:
+                continue
+            s["sha"], s["files"] = content_sha(s["dir"], only=base)
+            s["missing"] = [p for p in base
+                            if not os.path.isfile(os.path.join(s["dir"], p.replace("/", os.sep)))]
+    else:
+        print("  ⚠️ 三个落点都不是 git 仓 ⇒ 退化为全文件口径（含跑测产物，可能假红）")
+
     ok = True
     print("-" * 78)
     for s in spots:
@@ -204,6 +271,10 @@ def main(argv=None):
         elif not s["is_checkout"]:
             print("      ❌ 不是包仓的独立检出（无 .git）= 引擎树里的内嵌副本 ⇒ 拆仓未完成 / 两处实现")
             ok = False
+        if s.get("missing"):
+            print("      ❌ 缺 tracked 文件 %d 个：%s%s"
+                  % (len(s["missing"]), "、".join(s["missing"][:5]),
+                     " …" if len(s["missing"]) > 5 else ""))
     print("  部署面来源：%s" % dep_src)
 
     print("-" * 78)
@@ -215,6 +286,11 @@ def main(argv=None):
         ("全部落点是包仓独立检出（非内嵌副本）", all(s["is_checkout"] for s in spots if s["exists"])),
         ("包 id 一致（%s）" % (",".join(sorted(str(i) for i in ids)) or "-"), len(ids) == 1),
         ("内容 sha256 一致（去重后 %d 个不同的 sha）" % len(shas), len(shas) == 1),
+        ("三落点都齐 tracked 文件（基准 %d 个；缺失 %s）"
+         % (len(base) if base else 0,
+            "、".join("%s:%d" % (s["label"][:1], len(s.get("missing") or [])) for s in spots
+                      if s["exists"]) or "-"),
+         all(not (s.get("missing") or []) for s in spots if s["exists"])),
         ("提交一致（%s）" % (",".join(sorted(c[:12] for c in commits)) or "无 git 信息"),
          len(commits) <= 1),
     ]
@@ -244,6 +320,9 @@ def main(argv=None):
         with open(args.json, "w", encoding="utf-8", newline="\n") as fh:
             json.dump({"ok": bool(ok), "framework": framework, "framework_source": fw_src,
                        "plugin_root": plugin_root, "package": pkg_name,
+                       "content_base": {"files": len(base) if base else None,
+                                        "from": base_from,
+                                        "note": "内容口径 = 纳入版本管理的文件（git ls-files）"},
                        "deployment": {"dir": dep, "source": dep_src},
                        "spots": spots,
                        "checks": [{"title": t, "ok": bool(p)} for t, p in checks]},
