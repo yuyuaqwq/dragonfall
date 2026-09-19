@@ -74,10 +74,13 @@ HOST_ABS_PREFIXES = ("data.plugins", "data.", "game.", "plugin.", "plugins.")
 INTERNAL_ABS_PREFIXES = ("content",)
 
 # §9.2 I3 已登记反例（tier=portable 的域命中即**警告**，不阻塞）
+# ★ 2026-09-20 摘除 `craft`：插入序真源已显式保存在 `content/data/key_order.json`
+#   （读口 `catalog_life.py:335 CRAFT_RECIPES = _ordered(_CRAFT_STRIPPED, _ORDER_CRAFT_RECIPES)`），
+#   实测 `list(C.CRAFT_RECIPES) == key_order.craft.keys`（== 插入序）、`!= sorted(...)` ⇒
+#   「字典序 vs 插入序」**已可逆**，不再是反例。
 KNOWN_I3 = {
-    "maps": "`nodes`/`roles` vs 宿主 `subareas`/`alias`（投影不等价，L6 报告已登记）",
-    "items": "迭代序 = 排序键序（宿主是插入序）",
-    "craft": "字典序 vs 插入序",
+    "maps": "`nodes`/`roles` vs 宿主 `subareas`/`alias`（形状已对齐引擎 `Space`，但不能还原宿主键名 ⇒ 单向派生；遍历点均显式排序/去重 ⇒ 影响 0）",
+    "items": "迭代序 = 排序键序（宿主是插入序）：**无 key_order 声明** ⇒ 顺序真源已丢；实测 900 条**重名 0 组** ⇒ 唯一性/取值类读点不受影响",
 }
 
 
