@@ -12,7 +12,7 @@
 | 分页 / 页码 / 文本剥离 / 提示抽取 / handler 路由 / `_run_shortcut` | 引擎 `saintess_engine.command.base.CommandBase` |
 | 取件管道（`bind_package` / `_sub` / `__getattr__` 按名解析）· 包内内容半边转发 · 环境位（GM 白名单 / 停服位） | 引擎 `saintess_engine.host.shell.ShellBase` |
 | 渲染（句子） | **包内**（经 `ShellBase._sub` 取半边）—— 宿主零句子 |
-| 平台动作：广播 / 通知 / 停服投递 / 身份映射 / 窥探投递 | **本文件** + `host/_platform.py` + `host/adapter_qq.py` |
+| 平台动作**真投递**（`_deliver`）/ 停服投递 / 身份映射 / 窥探投递 | **本文件** + `host/_platform.py` + `host/adapter_qq.py`（广播 / 通知的扇出与记录形状在引擎 `ShellBase`） |
 
 零包知识口径（本文件为何一个包内模块字面量都没有）
 --------------------------------------------------
@@ -72,22 +72,13 @@ class HostShell(ShellBase):
                 resolve_uid=lambda raw: _host_identity.resolve_uid(raw)))
 
     # ============================================================
-    # 平台动作（广播 / 通知）—— 有 context 才真发，否则落记录
+    # 平台动作**真投递**（广播 / 通知的扇出与记录形状在引擎 `ShellBase`）
+    # ------------------------------------------------------------
+    # 每一步扇出都落到这里：**先记一条**（形状由引擎 `_record_deliver` 定，两侧逐字节相同），
+    # 再在**有发送面**（`context`）时真发；测试态 / 无 context ⇒ 只留记录。
     # ============================================================
-    async def _broadcast(self, text, exclude_group=None):
-        groups = self._store.get_player_groups()
-        if not groups:
-            return
-        for gid in groups:
-            if exclude_group and str(gid) == str(exclude_group):
-                continue
-            await self._deliver(str(gid), str(text))
-
-    async def _notify_hermes(self, group_id, qq_id, content, msg_type):
-        await self._deliver(str(group_id), str(content))
-
     async def _deliver(self, group_id, text):
-        self._events.append({"action": "say", "group_id": group_id, "text": text})
+        self._record_deliver(group_id, text)
         if self.context is None:
             return
         try:

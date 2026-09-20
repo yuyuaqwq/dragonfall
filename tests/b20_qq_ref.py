@@ -217,29 +217,6 @@ class FakeEvent:
         return message
 
 
-class _PlatformRecorder:
-    """平台动作记录基类（放在 MRO 最前 → 覆盖宿主的 `_broadcast`；试玩侧同款记录）。
-
-    试玩侧（`editor/play_worker.py::PlayShell`）与这里都把「广播 / webhook」落成一条记录，
-    因此两侧的 `actions` 逐字节可比；QQ 侧的真实投递（`self.context.send_message`）在
-    试玩通道里没有平台可发。
-    """
-
-    def _record_events(self):
-        ev = getattr(self, "_b20_events", None)
-        if ev is None:
-            ev = []
-            self._b20_events = ev
-        return ev
-
-    async def _broadcast(self, text, exclude_group=None):
-        self._record_events().append({"action": "broadcast", "text": str(text),
-                                      "exclude": str(exclude_group or "")})
-
-    async def _notify_hermes(self, group_id, qq_id, content, msg_type):
-        self._record_events().append({"action": "hermes", "content": str(content),
-                                      "msg_type": str(msg_type)})
-
 
 def _freeze_clock(ts: float) -> None:
     """与试玩侧 `editor/play_worker.py::_freeze_clock` 同口径：钉死包内墙钟读取点。
@@ -365,6 +342,22 @@ def main() -> int:
             _freeze_clock(float(clock_ts))
         except Exception:                 # noqa: BLE001
             pass
+
+    # ★ T8（台账 §0 D10 A 案）：平台动作**扇出口**探针 —— 直接驱动壳的 `_broadcast` /
+    #   `_notify_hermes`（真扇出 + 真记录口径），供试玩侧逐字节对拍。不带 handlers 时只跑本段。
+    probe_tags = payload.get("actions_probe") or []
+    if probe_tags:
+        import asyncio
+        del shell._events[:]                      # 就地清空（同一张表；F1 同口径）
+        for tag in probe_tags:
+            if tag == "broadcast":
+                asyncio.run(shell._broadcast(payload.get("broadcast") or ""))
+            elif tag == "notice":
+                asyncio.run(shell._notify_hermes(group_id, uid,
+                                                 payload.get("notice") or "", "feedback"))
+        emit({"ok": True, "stage": "actions_probe",
+              "actions": [dict(a) for a in (getattr(shell, "_events", None) or [])]})
+        return 0
 
     def _run_one(key, text):
         """按**声明 key** 跑一条 → 回话段（旧壳 `_BRIDGE.run_async` 的同义落点）。"""
