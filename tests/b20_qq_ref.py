@@ -368,6 +368,12 @@ def main() -> int:
 
     def _run_one(key, text):
         """按**声明 key** 跑一条 → 回话段（旧壳 `_BRIDGE.run_async` 的同义落点）。"""
+        # ★ 2026-09-20（T7-B）：每条的起点清空 —— **就地清空**（`_events` 是壳握着的那个
+        #   list）。侧口径与试玩侧 `editor/play_worker.py` 命令循环一致：不就地清 = 各条
+        #   动作**累积**，对拍的是「到当前为止的全部」而不是「这一条的动作」。
+        _ev = getattr(shell, "_events", None)
+        if isinstance(_ev, list):
+            del _ev[:]
         event = FakeEvent(group_id, uid, text)
         try:
             segs = [str(x) for x in (_channel.dispatch_declaration(key, event) or [])
