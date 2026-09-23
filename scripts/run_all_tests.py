@@ -474,6 +474,15 @@ def main():
         print("⚠️ 未发现 qqbot 部署根（data.plugins.* 名面不可 import）——"
               "仅影响依赖该名面的测试；可设 GWEN_QQBOT_DIR", flush=True)
     _pp_parts += [PLUGIN_DIR, FRAMEWORK_DIR] + list(pkg_dirs)
+    # ★ T9（2026-09-24）：**扩展包搜索根**也要进 PYTHONPATH。
+    #   2026-09-23/24 的包栈重构把一批游戏形状搬进 `<引擎根>/extends/ext_*`，
+    #   包内实现（`content/**`）与门禁会直接 `import ext_combat` / `ext_world` …；
+    #   原先只有 PLUGIN_DIR / FRAMEWORK_DIR 两根 ⇒ 子进程（含 `schema/validate.py`）
+    #   报 `No module named 'ext_combat'` = 整片假红，只能靠外部 PYTHONPATH 兜着。
+    for _d in (FRAMEWORK_DIR, os.path.join(PLUGIN_DIR, "framework")):
+        _ext = os.path.join(_d, "extends")
+        if os.path.isdir(_ext) and _ext not in _pp_parts:
+            _pp_parts.append(_ext)
     _old_pp = base_env.get("PYTHONPATH", "")
     base_env["PYTHONPATH"] = os.pathsep.join(
         _pp_parts + ([_old_pp] if _old_pp else []))

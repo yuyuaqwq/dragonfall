@@ -208,7 +208,10 @@ class _Domain:
 
 _PKG_DIR = os.path.join(ROOT, "framework", "games", "orlandia")   # 内容包根（`content`）
 _ENGINE_DIR = os.path.join(ROOT, "framework")                      # 引擎根（`saintess_engine`）
-for _p in (_PKG_DIR, _ENGINE_DIR):
+# ★ 2026-09-24：扩展包搜索根（`<引擎根>/extends/ext_*`）—— 搬迁后 `content/**` 会
+#   `import ext_combat` 等；缺这一根 ⇒ 本脚本报「数据模块导入失败: No module named 'ext_combat'」。
+_EXT_DIR = os.path.join(_ENGINE_DIR, "extends")
+for _p in (_PKG_DIR, _ENGINE_DIR, _EXT_DIR):
     if os.path.isdir(_p) and _p not in sys.path:
         sys.path.insert(0, _p)
 
