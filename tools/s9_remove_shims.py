@@ -2,7 +2,7 @@
 """S9-2：删除过渡 shim 的消费点改写。
 
 删两个 shim：
-  `game/engine.py`  —— re-export 引擎公式（现 `saintess_engine.battle.formulas`）+ 内容侧规则
+  `game/engine.py`  —— re-export 引擎公式（现 `ext_combat.battle.formulas`）+ 内容侧规则
                        （现 `game/content_rules/{skills,panel,gameplay}`）+ 数据表
   `game/core/{battle_bars,formation,formula_expr,skill_kinds}.py`
                     —— S3 已迁 `saintess_engine/`（原 support/ 子包，模块化重排后为顶层子包）

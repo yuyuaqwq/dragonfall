@@ -158,7 +158,7 @@ def main():
         return 1
     check("AstrMain 装配（含注册驱动）", True)
 
-    pkg = M.engine_channel().pkg
+    pkg = M.engine_channel().stack
     declared = M._registration.declaration_count(pkg)
     count = M.count_plugin_handlers()
     print("  包内声明 %d 条 · 插件 handler %d 条" % (declared, count))

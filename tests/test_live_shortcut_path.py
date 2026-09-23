@@ -304,7 +304,7 @@ def main():
     check("AstrMain 装配（含注册驱动）", True)
 
     channel = M.engine_channel()
-    pkg = channel.pkg
+    pkg = channel.stack
     declared = M._registration.declaration_count(pkg)
     mine = [md for md in REG._handlers if md.handler_module_path == M.__name__]
     check("线上装配：注册条数 == 包内声明条数（%d）" % declared, len(mine) == declared,

@@ -312,7 +312,7 @@ def _boss_hit(boss_def, m, pdef, pmdef, atk_mult: float = 1.0):
     """Boss 单发期望伤害（物理/魔法取高者；攻强乘区 enraged ×1.35 保守上限）。
     v155：atk_mult 参数——副本实例字段（单人档 1.0-1.05 vs 多人档 1.15-1.35），
     此前漏乘导致承伤模型对单刷失真（见 team_matrix 调用处注释）。"""
-    from saintess_engine.battle.formulas import calc_damage
+    from ext_combat.battle.formulas import calc_damage
     d_phys = calc_damage(int(m.get("atk", 0) * atk_mult * 1.35), int(pdef), variance=0.0, dmg_type="phys")
     d_magi = calc_damage(int(m.get("matk", 0) * atk_mult * 1.35), int(pmdef), variance=0.0, dmg_type="magi")
     return max(d_phys, d_magi)

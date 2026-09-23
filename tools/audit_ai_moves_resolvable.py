@@ -41,12 +41,12 @@ from saintess_engine import config as _b2c  # noqa: E402
 # ★ P5E-DELETE（2026-09-15，删壳批）：装配口从宿主壳
 #   `game.content_rules.apply.ensure_engine_configured()`（`game/**` 已整树删除）改到
 #   **包侧装配口**（与 `tests/_engine_harness.py` / `main.EngineChannel.boot()` 同序同源）：
-#   引擎 `load_package(<包目录>, inject=宿主工厂注入面)` → `Package.install_engine()`
+#   引擎 `load_package(<包目录>, inject=宿主工厂注入面)` → `Package.install()`
 #   （= `content/apply.py::install_engine`，旧壳 `ensure_engine_configured` 的真源）。
 #   数据名一并从**包内门面**取（`content.facade.C` 的 `MONSTER_MODS` / `MONSTER_SKILLS` /
 #   `INSTANCES` 与旧宿主门面同源）。审计口径与三分类判定**一条未变**。
 from saintess_engine.host import load_package  # noqa: E402
-from saintess_engine.battle.ai import normalize_ai  # noqa: E402
+from ext_combat.battle.ai import normalize_ai  # noqa: E402
 
 
 def _pkg_dir():
@@ -77,7 +77,7 @@ if _PKG_DIR and _PKG_DIR not in sys.path:
     sys.path.insert(0, _PKG_DIR)
 
 _pkg = load_package(_PKG_DIR, inject=_host_inject())
-_pkg.install_engine()
+_pkg.install()
 from content.facade import C as _C  # noqa: E402
 
 MONSTER_MODS = _C.MONSTER_MODS

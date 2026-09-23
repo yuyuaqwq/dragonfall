@@ -408,8 +408,8 @@ class EngineHost(_EngineHostBase):
         text = str(ctx.get("text") or "").strip()
         player = self.load_player(uid)
         if player is None:
-            if self.pkg is not None and self.pkg.entry_fn("initial_save") is not None:
-                player = self.pkg.initial_save(uid, ctx, id_key=self.id_key) or {}
+            if self.stack is not None and self.stack.entry_fn("initial_save") is not None:
+                player = self.stack.initial_save(uid, ctx, id_key=self.id_key) or {}
                 if not isinstance(player, dict):
                     player = {}
                 if player:                       # 建档是引擎级副作用（新档必须落库一次）
@@ -494,7 +494,7 @@ class EngineChannel:
         self.host = EngineHost(self.adapter, package_dir, shell=self.shell,
                                inject=inject if inject is not None else _store_factory.inject_handles(),
                                id_key="uid")
-        self.pkg = None
+        self.stack = None
 
     def boot(self):
         """加载包（→ 包侧 `bind_host(**inject)`，import 命令模块**之前**）+ 建表 + 绑存档口。
@@ -503,16 +503,16 @@ class EngineChannel:
           · `_GameCmdFilter` 的「游戏指令正则」供体（停服 gate 的命中判定）；
           · `HostShell._static_source`（命令转发的静态兜底表）。
         """
-        self.pkg = self.host.boot()
-        _store_factory.bind_store(self.pkg)          # 存档半边（`content/persistence`）
+        self.stack = self.host.boot()
+        _store_factory.bind_store(self.stack)          # 存档半边（`content/persistence`）
         self.store.init()                            # 建表 / 迁移（幂等）
-        self.adapter.attach(pkg=self.pkg, host=self.host)
-        self.shell.bind_package(self.pkg)            # 宿主壳取包内半边的落点
+        self.adapter.attach(pkg=self.stack, host=self.host)
+        self.shell.bind_package(self.stack)            # 宿主壳取包内半边的落点
         _platform._GameCmdFilter.set_pattern_source(
-            lambda: _registration.declaration_patterns(self.pkg))
-        _HostShell._static_source = lambda: _registration.static_handlers(self.pkg)
+            lambda: _registration.declaration_patterns(self.stack))
+        _HostShell._static_source = lambda: _registration.static_handlers(self.stack)
         _HostShell._STATIC_HANDLERS = None           # 换包 / 重载 → 旧缓存作废
-        return self.pkg
+        return self.stack
 
     def dispatch_declaration(self, key: str, event, text: str = None) -> list:
         """**按声明 key** 跑一条指令 → 回话段（`list[str]`）—— 注册驱动 handler 的执行体。
@@ -599,7 +599,7 @@ def register_commands(package_dir: str = None, *, module_path: str = None) -> in
     channel = engine_channel(package_dir)
     # 终态：注入面自检挪到装配期（同一 fail-closed 语义）。★ P5F 前置⑤：包句柄**显式传入**
     # （不再靠包内模块路径字面量取件）；此处 strict=True = 真门。
-    _weekly_reward_selfcheck(channel.pkg)
+    _weekly_reward_selfcheck(channel.stack)
     # 启动清理（v104 M24 P2-5「启动时清理流失玩家残留 event_state 键」）的**唯一执行点**：
     #   过渡态 `Main.__init__` 里那次已随壳删除，装配期这里就是终态位。
     #   函数自身幂等（模块级哨兵）、失败只留痕不阻塞启动（见其 docstring）。
@@ -611,8 +611,8 @@ def register_commands(package_dir: str = None, *, module_path: str = None) -> in
     target = str(module_path or __name__)
     _registration.bind_dispatcher(channel.dispatch_declaration)
     cleared = _registration.reset_plugin_handlers(target)
-    count = _registration.register_from_declarations(channel.pkg, module_path=target)
-    expected = _registration.declaration_count(channel.pkg)
+    count = _registration.register_from_declarations(channel.stack, module_path=target)
+    expected = _registration.declaration_count(channel.stack)
     logging.getLogger(__name__).info(
         "AstrBot 指令注册（声明驱动）：清旧 %d 条 → 注册 %d 条 / 声明 %d 条（module_path=%s）",
         cleared, count, expected, target)

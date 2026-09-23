@@ -22,7 +22,7 @@ from .constants import (
     ROTATIONS, ASSASSIN_COND_WEIGHT, DEF_DOWN_SKILLS, cls_id,
     SPD_REF, SPD_CT_CAP, MECH_MULT,
 )
-from saintess_engine.battle.formulas import calc_damage, skill_expr_preview, skill_flat_value, skill_power_mult
+from ext_combat.battle.formulas import calc_damage, skill_expr_preview, skill_flat_value, skill_power_mult
 from game.content_rules.panel import player_final_stats
 from game.content_rules.skills import skill_info
 
