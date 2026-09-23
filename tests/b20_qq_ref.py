@@ -315,12 +315,22 @@ def main() -> int:
         #   判据（逐条 key/文本段/动作/状态 sha 与试玩侧逐字节相同）一字未变。
         import importlib
         _main = importlib.import_module("data.plugins.dragonfall.main")
-        from content import persistence
         import time as _time
     except Exception:
         emit({"ok": False, "stage": "load", "traceback": traceback.format_exc()})
         return 0
 
+    # ★ 装配顺序铁律（2026-09-24 补一条）：**包内模块的 import 全部归 boot 之后**。
+    #   原先这里有一句 `from content import persistence`（**死 import**：绑了一个名字、
+    #   后面一次都没用）⇒ 它把整条 content import 链（`content.persistence` → `schema`
+    #   → `facade._namespace()` → `catalog_legacy` → `skills`）提前拉到 `boot()` 之前，
+    #   而 `content/skills.py` 在**模块级**就 `from ext_combat.battle.formulas import …`
+    #   —— 扩展包目录要等 `load_stack()` 把 ext_combat 排进加载计划时才会上 `sys.path`
+    #   ⇒ 当场 `ModuleNotFoundError: No module named 'ext_combat'`（本脚本此前**任何方式
+    #   调用都必红**，引擎门禁 `tests/test_editor_play.py` 的 C 段 7 条 + F5 段 5 条红全由它而来）。
+    #   删掉死 import 即回到契约顺序：boot → 包内 import（与试玩侧 `play_worker` 同序，
+    #   对拍的「同序列」才真的同序）。
+    #
     # ★ 装配顺序铁律（原注释保留）：**先把包物化（宿主注入面落地）再钉墙钟**。
     #   交付面 `EngineChannel.boot()` 内部即 `host.boot()`（load_package + bind_host 的
     #   clock 注入），故顺序天然正确。
