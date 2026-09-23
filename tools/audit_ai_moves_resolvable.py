@@ -45,7 +45,7 @@ from saintess_engine import config as _b2c  # noqa: E402
 #   （= `content/apply.py::install_engine`，旧壳 `ensure_engine_configured` 的真源）。
 #   数据名一并从**包内门面**取（`content.facade.C` 的 `MONSTER_MODS` / `MONSTER_SKILLS` /
 #   `INSTANCES` 与旧宿主门面同源）。审计口径与三分类判定**一条未变**。
-from saintess_engine.host import load_package  # noqa: E402
+from saintess_engine.package import load_stack  # noqa: E402   ★ 2026-09-23：旧 load_package 已并入 load_stack
 from ext_combat.battle.ai import normalize_ai  # noqa: E402
 
 
@@ -76,7 +76,7 @@ _PKG_DIR = _pkg_dir()
 if _PKG_DIR and _PKG_DIR not in sys.path:
     sys.path.insert(0, _PKG_DIR)
 
-_pkg = load_package(_PKG_DIR, inject=_host_inject())
+_pkg = load_stack(_PKG_DIR, inject=_host_inject())
 _pkg.install()
 from content.facade import C as _C  # noqa: E402
 

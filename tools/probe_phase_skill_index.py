@@ -25,7 +25,7 @@ sys.path.insert(0, PLUGIN_DIR)
 
 from saintess_engine import config as _b2c  # noqa: E402
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from saintess_engine import Battle as B2, ActCtx  # noqa: E402
+from ext_combat import Battle as B2, ActCtx  # noqa: E402   ★ 已搬进扩展包
 from ext_combat.battle.ai import _skill_castable  # noqa: E402
 from game.core.drops import build_monster  # noqa: E402
 from game.services.battle_bridge import monster_to_actor  # noqa: E402

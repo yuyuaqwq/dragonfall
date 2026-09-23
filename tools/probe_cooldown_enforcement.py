@@ -23,7 +23,7 @@ sys.path.insert(0, PLUGIN_DIR)
 
 from saintess_engine import config as _b2c
 from game.content_rules.apply import ensure_engine_configured as _eng_cfg; _eng_cfg()
-from saintess_engine import Battle as B2, make_actor
+from ext_combat import Battle as B2, make_actor   # ★ Battle/make_actor 已搬进扩展包
 from game.content import PLAYER_SKILLS
 
 SKILL = "旋风斩"          # 战士技能，skills.py 声明 'cd': 12（刻）

@@ -133,8 +133,8 @@ _TPL_INIT = (
     "sys.path.insert(0,sys.argv[2]);"
     "sys.path.insert(0,sys.argv[3]);"
     "from host import store_factory as _sf;"
-    "from saintess_engine.host import load_package;"
-    "_pkg=load_package(sys.argv[4], inject=_sf.inject_handles());"
+    "from saintess_engine.package import load_stack;"
+    "_pkg=load_stack(sys.argv[4], inject=_sf.inject_handles());"
     "_sf.bind_store(_pkg).init()"
 )
 
