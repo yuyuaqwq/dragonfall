@@ -61,7 +61,14 @@ FW_ROOT = os.path.abspath(os.environ.get("GWEN_FRAMEWORK_DIR") or DEFAULT_FRAMEW
 #:   判据本身（「跑门禁不得改全量 runner」+ 无反向依赖 + 语法可编译 + 原样转调）一条未减。
 #:   ⇒ 冻结值随这次**有意**改动更新：
 #:   `463942AD0976D1BFC89E3B5DC99C91B5` → `8EEC13A9F97D9E1A8CA815B4D8F6198F`。
-RUN_ALL_TESTS_MD5 = "8EEC13A9F97D9E1A8CA815B4D8F6198F"
+#: ★ 抽包工程 B0.1（2026-09-24，宿主 `cf3f857`）：`run_all_tests.py` 又被**有意**改动 ——
+#:   PYTHONPATH 里补一段「扩展包搜索根」`<引擎根>/extends`（原来只有 `<plugin>` /
+#:   `<plugin>/framework` / 包目录三根）。包栈重构后 `content/**` 会直接 `import ext_*`，
+#:   缺这根时子进程整片报 `No module named 'ext_combat'`（实测 16 个文件假红）。
+#:   判据本身一条未减（仍是「跑门禁不得改全量 runner」+ 无反向依赖 + 语法可编译 + 开关齐）。
+#:   ⇒ 冻结值随这次**有意**改动更新：
+#:   `8EEC13A9F97D9E1A8CA815B4D8F6198F` → `74EED286D6359F8D95D5842F0158082F`。
+RUN_ALL_TESTS_MD5 = "74EED286D6359F8D95D5842F0158082F"
 
 _passed = 0
 _failed = []
