@@ -515,10 +515,17 @@ class EngineChannel:
         self.shell.bind_engine_channel(self)
         self.adapter = _adapter_qq.QQAdapter(
             store=self.store, shell=self.shell, context=context, sink=sink, seed=seed)
-        # ★ 2026-09-25（引擎审计 E2b）：引擎不再自带守卫文案 ⇒ 宿主在这里声明（逐字 = 引擎原默认值，
-        #   玩家看到的句子一字不变）。改文案就改这两句。
+        # ★ 2026-09-27 P-11（甲案）：这两句原先**写死在这里**（引擎审计 E2b 起引擎不带守卫文案）
+        #   —— 宿主面因此带着游戏业务词，宿主自己的零游戏知识门禁（`scripts/check_host_boundary.py`
+        #   §③ 禁业务词汇）恒红。现在**句子搬进包**（各包 texts 域两条槽位），宿主只传**中性键**
+        #   （引擎 `saintess_engine/host/runtime.py::GUARD_KEYS` 全集），由包在装配期经
+        #   `config.mount(guard_text_fn=…)` 渲染。三条同时成立：
+        #     ① 宿主零游戏词（本文件这三个禁词一个都不再出现）② 玩家看到的那两句**一字不变**
+        #     （两个包都把改前那两句逐字落进 texts，判据 `probe_guard_text.py` / `test_guard_text.py`）
+        #     ③ 引擎零玩家文案（它只认识那两个中性键）。
+        #   ⚠ 改文案 = 改**包**（不再是宿主）；改键名 = 引擎的中性键全集跟着改。
         self.host = EngineHost(self.adapter, package_dir, shell=self.shell,
-                               register_hint="未找到你的角色档 —— 请先创建角色。", battle_hint="你现在不在战斗中。",
+                               register_hint="guard.register_missing", battle_hint="guard.battle_missing",
                                inject=inject if inject is not None else _store_factory.inject_handles(),
                                id_key="uid")
         self.stack = None
