@@ -63,3 +63,9 @@ tests/.private_dbs/
 
 # gate_fast 门禁私有库目录（scripts/gate_fast.py 默认落在仓根，跑完不清理）
 gate_fast_db/
+
+# 换包期的配置备份（内容 = 上一份 package_dir，见 换包说明_2026-09-25.md；本机留着，仓里不留）
+config.json.bak
+
+# 编辑器服务端的运行时产物（editor_server.log + 它的 memory 目录）
+.workbuddy/
