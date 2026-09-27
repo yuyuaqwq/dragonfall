@@ -235,6 +235,11 @@ NO_GATE = [
      "引擎测试夹具（非 `test_*.py`，`run_all` 不直接跑）（宿主镜像路径），无门禁覆盖"),
     ("host:framework/tools/_cue_freeze.py",
      "引擎离线工具：冻结对拍尺子（宿主镜像路径），无门禁覆盖（同 `fw:tools/**` 口径）"),
+    ("host:framework/tools/_cue_coverage.py",
+     "引擎离线工具：cue 覆盖尺（§3.2③ 补驱动）（宿主镜像路径），无门禁覆盖（同 `fw:tools/**` 口径）"),
+    ("host:framework/tests/test_cue_coverage.py",
+     "引擎门禁本体：cue 覆盖尺自检（宿主镜像路径）—— 由引擎仓 `tests/run_all.py` 跑，"
+     "宿主门禁不重复钉（同 `fw:tests/test_*.py` 口径）"),
     ("fw:schemas/**", "引擎通用 schema 由 editor_schemas 间接覆盖（见该门禁 covers）"),
     ("fw:examples/minimal-game/**", "示例包：由 fw_runall 的 minimal-game 冒烟覆盖（--full 才跑）"),
     ("fw:games/my_game/**", "引擎自带迷你示例包（非本产品包）：由 import_closure / fw_runall 覆盖"),
