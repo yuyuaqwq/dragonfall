@@ -491,7 +491,10 @@ class EngineChannel:
         self.shell.bind_engine_channel(self)
         self.adapter = _adapter_qq.QQAdapter(
             store=self.store, shell=self.shell, context=context, sink=sink, seed=seed)
+        # ★ 2026-09-25（引擎审计 E2b）：引擎不再自带守卫文案 ⇒ 宿主在这里声明（逐字 = 引擎原默认值，
+        #   玩家看到的句子一字不变）。改文案就改这两句。
         self.host = EngineHost(self.adapter, package_dir, shell=self.shell,
+                               register_hint="未找到你的角色档 —— 请先创建角色。", battle_hint="你现在不在战斗中。",
                                inject=inject if inject is not None else _store_factory.inject_handles(),
                                id_key="uid")
         self.stack = None
