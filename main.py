@@ -230,6 +230,46 @@ def _file_loopback_start():
     t.start()
 
 
+def _pkg_maintenance_once(half: str, fn: str, what: str) -> None:
+    """按**半边名**跑一只可选的启动清理口 —— 两种「没有」要分清楚。
+
+    ★ 2026-09-27（换包上线当场撞出来的）：改前的写法是
+    `_pkg.optional_submodule(half).fn()` —— 半边是**可选**的（`optional_submodule` 缺就回
+    `None`），方法**不可选**。阿斯特兰包不写 `event_state`、也没有超龄实例（那两只是为奥兰迪亚
+    写的）⇒ 每次启动都甩一行 `AttributeError: module 'content.persistence' has no attribute
+    'cleanup_stale_event_state'`：被 `except` 吞掉、不影响启动，**但读日志的人只能靠 Traceback
+    反推「这项清理到底跑了没有」**（这一族在奥兰迪亚那边就是当年「静默哑掉」的同一个坑，见上面
+    P5F 前置⑤ 的注释）。
+
+    现在分三种情形，各自有各自的可见度：
+      · **包都没取到**（装配没绑）⇒ WARN + Traceback（真问题，要看得见）；
+      · **本包没有这个半边 / 没有这个口** ⇒ **INFO 一行「跳过」** —— 这项清理对本包**不存在**
+        （该包不落这类状态 ⇒ 无可清理），不是异常；
+      · **有口、跑起来抛**（DB 没就绪 / 数据坏了）⇒ WARN + Traceback（真异常）。
+    """
+    log = logging.getLogger(__name__)
+    try:
+        from .host import store_factory as _sf      # 惰性：模块 import 期本行之前尚未绑定
+        _pkg = _sf.store().package
+        if _pkg is None:
+            raise RuntimeError(
+                "引擎包未绑定（装配处应先 bind_store(pkg) / boot()）")
+    except Exception:
+        log.warning("%s 跳过（取包失败，不影响启动）", what, exc_info=True)
+        return
+    _half = _pkg.optional_submodule(half)
+    _fn = getattr(_half, fn, None) if _half is not None else None
+    if _fn is None:
+        log.info("%s 跳过：本包不提供 `%s.%s`（该包不落这类状态 ⇒ 无可清理）", what, half, fn)
+        return
+    try:
+        _n = _fn()
+        if _n:
+            log.info("%s：清了 %d 条", what, _n)
+    except Exception:
+        log.warning("%s 跳过（跑起来抛，不影响启动）", what, exc_info=True)
+
+
 def _event_state_cleanup_once():
     """v104 M24 P2-5：启动时清理流失玩家残留的 event_state 键（>30 天未活跃）。
     幂等（多实例/热重载只跑一次）；仅清五类后缀键，talkflags_ 等持久键不动。"""
@@ -245,29 +285,13 @@ def _event_state_cleanup_once():
     #   `store_factory.store().package`（装配处 `bind_store(pkg)` 已绑）→
     #   `Package.optional_submodule("persistence"/"worlds")`，宿主里**不出现任何包内
     #   模块路径字面量**（与 `_weekly_reward_selfcheck` / `host/shell.py::_sub` 同口径）。
-    try:
-        from .host import store_factory as _sf      # 惰性：模块 import 期本行之前尚未绑定
-        _pkg = _sf.store().package
-        if _pkg is None:
-            raise RuntimeError(
-                "引擎包未绑定（装配处应先 bind_store(pkg) / boot()）")
-        n = _pkg.optional_submodule("persistence").cleanup_stale_event_state()
-        if n:
-            logging.getLogger(__name__).info("已清理 %d 个流失玩家残留 event_state 键", n)
-        # v141 大陆回收（P0-3，2026-08-30 审计）：启动兜底清理超龄大陆实例
-        # （内存 dict + DB event_state 孤儿键，24h 默认；幂等）
-        try:
-            _nw = _pkg.optional_submodule("worlds").cleanup_stale_instances()
-            if _nw:
-                logging.getLogger(__name__).info("已清理 %d 个超龄大陆实例", _nw)
-        except Exception:
-            logging.getLogger(__name__).warning(
-                "大陆实例清理跳过（异常不影响启动）", exc_info=True
-            )
-    except Exception:
-        logging.getLogger(__name__).warning(
-            "event_state 残留键清理跳过（DB 未就绪或异常，不影响启动）", exc_info=True
-        )
+    # ★ 2026-09-27：两个口改走 `_pkg_maintenance_once`（见上）—— 本包**没有**那半边/那口
+    #   时记一行 INFO「跳过」，不再甩 AttributeError Traceback（阿斯特兰包就是这一态）。
+    _pkg_maintenance_once("persistence", "cleanup_stale_event_state",
+                          "流失玩家残留 event_state 键清理")
+    # v141 大陆回收（P0-3，2026-08-30 审计）：启动兜底清理超龄大陆实例
+    # （内存 dict + DB event_state 孤儿键，24h 默认；幂等）
+    _pkg_maintenance_once("worlds", "cleanup_stale_instances", "超龄大陆实例清理")
 
 
 # ============================================================================
