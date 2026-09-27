@@ -219,6 +219,22 @@ NO_GATE = [
     ("fw:README.md", "引擎仓 README，无门禁覆盖"),
     ("fw:docs/**", "引擎文档（非 engine-wiki 部分）无门禁覆盖；engine-wiki/** 由 wiki_refs 覆盖"),
     ("fw:tools/**", "引擎离线工具，无门禁覆盖"),
+    # ---- 引擎仓新面孔的**宿主镜像路径**（2026-09-27 · 引擎侧 cue 解耦 B0–B5 落 main 后补）----
+    #  ★ 这一组只补「本批新出现」的 4 条：`fw:<rel>` 那一侧早已有同口径标注（`fw:tests/**` /
+    #    `fw:tools/**` 等），但自检报的是**宿主镜像路径** `host:framework/<rel>`，而 NO_GATE 里
+    #    一条 `host:framework/**` 都没有 ⇒ 同一份文件在镜像路径上全判盲区（本轮实测：
+    #    引擎仓 1254 条路径里 700 条走镜像路径被报，去掉重复后 267 条是**既有**缺口）。
+    #    ⇒ 系统性那条（给自检加「`fw:X` 等同 `host:framework/X`」的镜像口径，或逐条补 700 条）
+    #      归宿主线另批；本批只保证**自己这 4 条不新增盲区**。
+    ("host:framework/extends/ext_combat/battle/cues.py",
+     "引擎侧表现事件（cue）形状本体（宿主镜像路径）—— 由引擎仓自己的门禁覆盖"
+     "（`fw:tests/test_cues_shape.py` 等，跑法见引擎 README `tests/run_all.py`），宿主门禁不重复钉"),
+    ("host:framework/extends/ext_combat/battle/tags.py",
+     "引擎侧标签注册表（宿主镜像路径）—— 同上：引擎仓 `tests/test_tags.py` 覆盖"),
+    ("host:framework/tests/_cue_text_fixture.py",
+     "引擎测试夹具（非 `test_*.py`，`run_all` 不直接跑）（宿主镜像路径），无门禁覆盖"),
+    ("host:framework/tools/_cue_freeze.py",
+     "引擎离线工具：冻结对拍尺子（宿主镜像路径），无门禁覆盖（同 `fw:tools/**` 口径）"),
     ("fw:schemas/**", "引擎通用 schema 由 editor_schemas 间接覆盖（见该门禁 covers）"),
     ("fw:examples/minimal-game/**", "示例包：由 fw_runall 的 minimal-game 冒烟覆盖（--full 才跑）"),
     ("fw:games/my_game/**", "引擎自带迷你示例包（非本产品包）：由 import_closure / fw_runall 覆盖"),
