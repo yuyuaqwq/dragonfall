@@ -219,6 +219,23 @@ NO_GATE = [
     ("fw:README.md", "引擎仓 README，无门禁覆盖"),
     ("fw:docs/**", "引擎文档（非 engine-wiki 部分）无门禁覆盖；engine-wiki/** 由 wiki_refs 覆盖"),
     ("fw:tools/**", "引擎离线工具，无门禁覆盖"),
+    # ---- 引擎扩展包 + 引擎仓零散文档/JS（2026-09-27 收口：这 258+9 条是**既有**盲区）----
+    #  ★ 为什么能标注而不是逐条补门禁：引擎的 `tests/run_all.py` **本身就收** `extends/<包>/tests/*.py`
+    #    （见 `run_all.py` 里 `ext_base = ROOT/extends` 那一段）⇒ 这些文件的验证口是**引擎仓自己的
+    #    全量门禁**，宿主这边不重复钉一份（同 `fw:examples/minimal-game/**` 那条的口径）。
+    #    实测依据：本机跑 `python tests/run_all.py` = 101/101 绿，其中就含各扩展包的 `tests/*`。
+    ("fw:extends/**", "引擎扩展包（ext_combat / ext_world / … 11 个）：由引擎仓自己的门禁覆盖 —— "
+                      "`tests/run_all.py` 收 `extends/<包>/tests/test_*.py`（本机实测 101/101 绿）；"
+                      "宿主门禁不重复钉，改这里请跑引擎仓那一条"),
+    ("fw:_notes.md", "引擎仓根目录的临时笔记（非交付物），无门禁覆盖"),
+    ("fw:REFACTOR_包栈重构计划.md", "引擎仓根目录的重构计划文档（历史稿），无门禁覆盖"),
+    ("fw:node/test_capabilities.js", "引擎 Node 侧能力自检脚本（跑法：node node/test_capabilities.js），"
+                                     "无 Python 门禁覆盖"),
+    ("fw:tests/_cue_text_fixture.py",
+     "引擎测试夹具：cue 文案/订阅表的冻结夹具（非 `test_*.py`，`run_all` 不直接跑）"
+     "（宿主镜像路径那条已单列），无门禁覆盖"),
+    ("host:.workbuddy/**", "宿主里的 agent 工作目录产物（`.workbuddy/`，非交付物），无门禁覆盖"),
+    ("host:换包说明_2026-09-25.md", "宿主换包操作说明（历史文档），无门禁覆盖"),
     # ---- 引擎仓新面孔的**宿主镜像路径**（2026-09-27 · 引擎侧 cue 解耦 B0–B5 落 main 后补）----
     #  ★ 这一组只补「本批新出现」的 4 条：`fw:<rel>` 那一侧早已有同口径标注（`fw:tests/**` /
     #    `fw:tools/**` 等），但自检报的是**宿主镜像路径** `host:framework/<rel>`，而 NO_GATE 里
