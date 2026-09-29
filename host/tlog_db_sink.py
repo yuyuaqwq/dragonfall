@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from contextlib import contextmanager
 from typing import Iterable, Iterator
 
@@ -138,7 +139,16 @@ class SQLiteSink:
 
 
 class SQLiteReader:
-    """只读口（`saintess_engine.tlog.Reader` 的适配源）。"""
+    """只读口（`saintess_engine.tlog.Reader` 的适配源）。
+
+    ★ 两个 bad 口与可读出口的既有约定同名对齐（见 `JSONLSink.bad_lines`）：
+      · `bad_rows` = **读到了行、但那一格的 JSON 坏** ⇒ 跳过该行的 fields（记录留痕）
+      · `bad_reads` = **整表读不出来**（sqlite3.Error）⇒ 降级成空表 + 记一条（记录留痕）
+    """
+
+    def __init__(self) -> None:
+        self.bad_rows: list = []
+        self.bad_reads: list = []
 
     def read_records(self) -> Iterator[Record]:
         try:
@@ -146,14 +156,23 @@ class SQLiteReader:
                 c = _conn()
                 rows = c.execute(
                     "SELECT ts, kind, actor, tags, fields FROM tlog ORDER BY ts, id").fetchall()
-        except Exception:                                         # noqa: BLE001
+        except sqlite3.Error as exc:
+            # ★ 晚到批（第四十一轮 · 与 tlog_setup.kinds() 同一个病）：**只有真读不到**才降级成空表。
+            #   原实现一个 except Exception 把「表还没建」（sqlite3.OperationalError）
+            #   与「读炸了」（库损坏 / 文件锁 / 权限 / 字段对不上）压成同一个空迭代器
+            #   ⇒ 引擎 saintess_engine/host/runtime.py:627 那圈 try **抓不到**（它根本不抛），
+            #   「out.stubs」零记录 ⇒ 「本场流水投递未完成」这个既有的留痕面被完全绕过。
+            #   口径与可读出口的既有约定同一条（JSONLSink.read_records）：
+            #   **坏行跳过并记 bad_lines**，但**整表读不出来 = 真故障，要抛**。
+            self.bad_reads.append(("sqlite:", "%s: %s" % (type(exc).__name__, exc)))
             return iter(())
         out = []
         for ts, kind, actor, tags, fields in rows or ():
             try:
                 f = json.loads(fields or "{}")
-            except Exception:                                     # noqa: BLE001
-                f = {}
+            except (TypeError, ValueError):                        # ★ 收窄：只兜「这一格的 JSON 坏」
+                f = {}                                            #   其它异常照旧往上抛
+                self.bad_rows.append((kind, str(fields)[:120]))
             out.append(Record(kind=kind, ts=float(ts), actor=actor or "",
                               fields=f if isinstance(f, dict) else {},
                               tags=tuple(t for t in str(tags or "").split(",") if t)))
