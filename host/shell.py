@@ -121,11 +121,11 @@ class HostShell(ShellBase):
         try:
             self._sub("wild_king").wild_king_tick()
         except Exception:                                        # noqa: BLE001
-            pass
+            LOG.warning("[wild_king] _maint_gate 野王刷新失败（不影响指令主流程）", exc_info=True)
         try:
             self._sub("worlds").cleanup_stale_instances(24 * 3600)
         except Exception:                                        # noqa: BLE001
-            pass
+            LOG.warning("[worlds] _maint_gate 超龄大陆实例清理失败（不影响指令主流程）", exc_info=True)
         if self._is_gm(qq_id):
             return None
         if self._server_down():
