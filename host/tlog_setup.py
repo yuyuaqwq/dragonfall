@@ -77,8 +77,17 @@ def kinds() -> Optional[KindTable]:
             import json
             with open(kinds_path(), encoding="utf-8") as f:
                 _KINDS = KindTable(json.load(f))
-        except Exception:                                        # noqa: BLE001
+        except (OSError, UnicodeDecodeError) as exc:
+            # ★ 只有「**文件读不到**」才是合法降级（docstring 承诺的「缺失 = 不校验」）。
+            #   内容坏掉（JSON 语法错 / 不是映射）**不许**也压成空表 —— 那会让
+            #   `TLog` 的声明表比对整段跳过（core.py:87 `if self.kinds is not None`），
+            #   于是**任何** kind 与声明不符都静默通过（strict=True 也救不回来）。
+            #   坏表 ⇒ 空表比「看着有表、实际没校验」更难排查，直接 fail-closed。
             _KINDS = KindTable({})                               # 缺失 → 空表（不拦）
+            del exc                                             # 仅取类型，不留引用
+        except (ValueError, TypeError) as exc:
+            raise RuntimeError("流水声明表读得出来但内容坏掉：%s（拒绝按空表放行）"
+                               % kinds_path()) from exc
     return _KINDS
 
 
