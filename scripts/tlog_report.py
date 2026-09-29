@@ -25,6 +25,40 @@ for _p in (_PD, _HERE, os.path.join(_PD, "tests"), os.path.join(_PD, "framework"
 
 from saintess_engine.tlog import JSONLSink, Reader, Replay  # noqa: E402
 
+_GAMES = os.path.join(_PD, "framework", "games")
+
+
+def _bind_store():
+    """★ 晚到批（第四十一轮）：`--db` 读的是**宿主那一只库**，得先把包挂上存储半边。
+
+    `host/store_factory.py::store().lock()` 要包侧存档半边（`get_player` / `connect` …），
+    没挂时它**故意 fail-closed 抛 RuntimeError**（「宿主拒绝静默空跑」）。
+    初始化与 `scripts/run_all_tests.py::_TPL_INIT` 同一套，判据同款
+    （`content/data/commands.json` 存在 = 是个内容包），不写死包名。
+    """
+    import json as _json
+    best = None
+    if os.path.isdir(_GAMES):
+        for name in sorted(os.listdir(_GAMES)):
+            pkg = os.path.join(_GAMES, name)
+            if not os.path.isfile(os.path.join(pkg, "content", "data", "commands.json")):
+                continue
+            try:
+                with open(os.path.join(pkg, "content", "data", "commands.json"),
+                          encoding="utf-8") as fh:
+                    n = len(_json.load(fh) or {})
+            except (OSError, ValueError):
+                continue
+            if best is None or n > best[0]:
+                best = (n, pkg)
+    if best is None:
+        return None
+    from host import store_factory as _sf
+    from saintess_engine.package import load_stack
+    pkg = load_stack(best[1], inject=_sf.inject_handles())
+    _sf.bind_store(pkg).init()
+    return pkg
+
 
 def _ts(v):
     """把 `YYYY-MM-DD[ HH:MM[:SS]]` 或秒数转成时间戳。"""
@@ -44,10 +78,18 @@ def _ts(v):
 
 
 class _DbSource:
-    """SQLite 出口的只读源（`saintess_engine.tlog.Reader` 适配）。"""
+    """SQLite 出口的只读源（`saintess_engine.tlog.Reader` 适配）。
+
+    ★ 晚到批（第四十一轮）：取件口写的是**迁移前**的老路径 `game.services.tlog_db_sink`
+      —— 那个模块早搬到宿主 `host/tlog_db_sink.py`（本文件顶头 docstring 写的迁移出处），
+      仓里已无此包 ⇒ `--db` 模式**整个不可用**，且是**跑到用时才 ModuleNotFoundError**
+      （前 5 个 --help / --file 用法都正常，所以没人发现）。
+      取件口照仓里既有的宿主件写法（`scripts/run_all_tests.py` / `run_numeric_tests.py`
+      都是 `from host import store_factory as _sf`）。
+    """
 
     def read_records(self):
-        from game.services.tlog_db_sink import SQLiteReader
+        from host.tlog_db_sink import SQLiteReader
         return SQLiteReader().read_records()
 
 
@@ -75,6 +117,8 @@ def main(argv=None):
     ap.add_argument("--limit", type=int, default=30, help="明细最多打几条（默认 30）")
     args = ap.parse_args(argv)
 
+    if args.db:
+        _bind_store()                   # ★ --db 读宿主那只库，先把包挂上存档半边
     src = _DbSource() if args.db else JSONLSink(args.file)
     rd = Reader([src])
     flt = dict(kind=args.kind, actor=args.actor, tag=args.tag,
